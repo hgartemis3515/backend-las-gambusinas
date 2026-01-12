@@ -9,6 +9,36 @@ router.get("/mozos", async (req, res) => {
   res.json(data);
 });
 
+// Endpoint de prueba para verificar el usuario admin
+router.get("/mozos/test/admin", async (req, res) => {
+  try {
+    const { autenticarMozo } = require("../repository/mozos.repository");
+    const admin = await autenticarMozo('admin', 12345678);
+    if (admin) {
+      res.json({ 
+        success: true, 
+        message: 'Usuario admin encontrado',
+        admin: {
+          name: admin.name,
+          DNI: admin.DNI,
+          DNI_type: typeof admin.DNI,
+          _id: admin._id
+        }
+      });
+    } else {
+      res.json({ 
+        success: false, 
+        message: 'Usuario admin NO encontrado' 
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
 router.get("/mozos/:id", async (req, res) => {
   try {
     const codigomozo = req.params.id;
@@ -81,17 +111,56 @@ router.delete('/mozos/:id', async(req, res) => {
 
 router.post('/mozos/auth', async (req, res) => {
   try {
+      console.log('📥 Solicitud de autenticación recibida');
+      console.log('   - Body completo:', JSON.stringify(req.body));
+      
       const { name, DNI } = req.body;
+      
+      // Validar que se recibieron los datos
+      if (!name || DNI === undefined || DNI === null || DNI === '') {
+          console.log('❌ Datos faltantes - name:', name, 'DNI:', DNI);
+          return res.status(400).json({ message: 'Usuario y contraseña son requeridos' });
+      }
+      
+      console.log('📋 Datos recibidos:');
+      console.log('   - name:', name, 'tipo:', typeof name);
+      console.log('   - DNI:', DNI, 'tipo:', typeof DNI);
+      
+      // Convertir DNI a número
+      let dniNumber;
+      if (typeof DNI === 'string') {
+          dniNumber = parseInt(DNI.trim(), 10);
+      } else {
+          dniNumber = Number(DNI);
+      }
+      
+      // Validar que la conversión fue exitosa
+      if (isNaN(dniNumber) || dniNumber <= 0) {
+          console.log('❌ DNI inválido - recibido:', DNI, 'convertido:', dniNumber);
+          return res.status(400).json({ message: 'Contraseña inválida' });
+      }
+      
+      console.log('🔍 Intentando autenticar:');
+      console.log('   - Usuario:', name);
+      console.log('   - Contraseña (DNI):', dniNumber);
+      
       // Verificar si el usuario existe con el name y DNI proporcionados
-      const mozo = await autenticarMozo(name, DNI);
+      const mozo = await autenticarMozo(name, dniNumber);
+      
       if (!mozo) {
+          console.log('❌ Autenticación fallida - Usuario no encontrado');
           return res.status(401).json({ message: 'Credenciales incorrectas' });
       }
-      // Puedes agregar más lógica de autenticación aquí según tus necesidades.
+      
+      console.log('✅ Autenticación exitosa');
+      console.log('   - Usuario:', mozo.name);
+      console.log('   - ID:', mozo._id);
+      
       // Devolver información del mozo autenticado
       res.json({ message: 'Mozo autenticado correctamente', mozo });
   } catch (error) {
-      console.error('Error al autenticar el mozo', error);
+      console.error('❌ Error al autenticar el mozo:', error);
+      console.error('   - Stack:', error.stack);
       res.status(500).json({ message: 'Error interno del servidor' });
   }
 });
