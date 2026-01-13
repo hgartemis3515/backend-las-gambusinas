@@ -1,4 +1,5 @@
 const plato = require('../database/models/plato.model');
+const { syncJsonFile } = require('../utils/jsonSync');
 
 const listarPlatos = async () => {
     const data = await plato.find({});
@@ -18,18 +19,25 @@ const findByCategoria = async (categoria) => {
 const crearPlato = async (data) => {
     await plato.create(data);
     const todosLosPlatos = await listarPlatos();
+    // Sincronizar con el archivo JSON
+    await syncJsonFile('platos.json', todosLosPlatos);
     return todosLosPlatos;
 }
 
 const actualizarPlato = async (id, newData) => {
     await plato.findOneAndUpdate({ id: id }, newData);
     const todosLosPlatos = await listarPlatos();
+    // Sincronizar con el archivo JSON
+    await syncJsonFile('platos.json', todosLosPlatos);
     return todosLosPlatos;
 }
 
 const borrarPlato = async (id) => {
-    await plato.findOneAndDelete({ id: id });
+    // Usar _id (ObjectId de MongoDB) para eliminar
+    await plato.findByIdAndDelete(id);
     const todosLosPlatos = await listarPlatos();
+    // Sincronizar con el archivo JSON
+    await syncJsonFile('platos.json', todosLosPlatos);
     return todosLosPlatos;
 }
 

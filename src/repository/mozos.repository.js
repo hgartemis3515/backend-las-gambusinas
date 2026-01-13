@@ -1,5 +1,6 @@
 const mozos = require('../database/models/mozos.model');
 const mongoose = require('mongoose');
+const { syncJsonFile } = require('../utils/jsonSync');
 
 const listarMozos = async () => {
     const data = await mozos.find();
@@ -10,6 +11,8 @@ const listarMozos = async () => {
 const crearMozo = async (data) => {
     await mozos.create(data);
     const todoslosmozos = await listarMozos();
+    // Sincronizar con el archivo JSON
+    await syncJsonFile('mozos.json', todoslosmozos);
     return todoslosmozos;
 }
 
@@ -22,9 +25,12 @@ const obtenerMozosPorId = async (id) => {
 
 const borrarMozo = async (id) => {
     try {
-        await mozos.findOneAndDelete({id});
+        // Usar _id (ObjectId de MongoDB) para eliminar
+        await mozos.findByIdAndDelete(id);
 
         const todoslosmozos = await listarMozos();
+        // Sincronizar con el archivo JSON
+        await syncJsonFile('mozos.json', todoslosmozos);
         return  todoslosmozos;
     } catch(error){
         console.error('Error al eliminar usuario', error);
@@ -113,6 +119,9 @@ const inicializarUsuarioAdmin = async () => {
             console.log('   - Contraseña: 12345678');
             console.log('   - DNI guardado:', nuevoAdmin.DNI, 'tipo:', typeof nuevoAdmin.DNI);
             console.log('   - ID:', nuevoAdmin._id);
+            // Sincronizar con el archivo JSON
+            const todoslosmozos = await listarMozos();
+            await syncJsonFile('mozos.json', todoslosmozos);
         } else {
             console.log('✅ Usuario admin ya existe en la base de datos');
             console.log('   - Usuario: admin');
@@ -125,6 +134,9 @@ const inicializarUsuarioAdmin = async () => {
                 adminExistente.DNI = 12345678;
                 await adminExistente.save();
                 console.log('✅ DNI del admin actualizado a 12345678');
+                // Sincronizar con el archivo JSON
+                const todoslosmozos = await listarMozos();
+                await syncJsonFile('mozos.json', todoslosmozos);
             }
         }
     } catch (error) {

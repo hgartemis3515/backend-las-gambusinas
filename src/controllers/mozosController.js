@@ -94,7 +94,9 @@ router.delete('/mozos/:id', async(req, res) => {
   try {
     const id = req.params.id;
 
-    const mozo = await obtenerMozosPorId({ id });
+    // Verificar si el mozo existe usando _id
+    const mozos = require('../database/models/mozos.model');
+    const mozo = await mozos.findById(id);
 
     if (!mozo) {
         return res.status(404).json({ message: 'Usuario no encontrado' });
