@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - Las Gambusinas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .tabs {
+            display: flex;
+            background: #f5f5f5;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            background: #f5f5f5;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+            color: #666;
+        }
+
+        .tab:hover {
+            background: #e0e0e0;
+        }
+
+        .tab.active {
+            background: white;
+            color: #f5576c;
+            border-bottom: 3px solid #f5576c;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .section-header h2 {
+            color: #333;
+            font-size: 1.8em;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: #f5576c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e0455a;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #eee;
+            transition: background 0.3s;
+        }
+
+        tbody tr:hover {
+            background: #f9f9f9;
+        }
+
+        .badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #4caf50;
+            color: white;
+        }
+
+        .badge-danger {
+            background: #f5576c;
+            color: white;
+        }
+
+        .badge-warning {
+            background: #ff9800;
+            color: white;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .close {
+            font-size: 30px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .close:hover {
+            color: #333;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🍽️ Panel de Administración</h1>
+            <p>Las Gambusinas - Gestión del Restaurante</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('mesas')">Mesas</button>
+            <button class="tab" onclick="showTab('mozos')">Mozos</button>
+            <button class="tab" onclick="showTab('platos')">Platos</button>
+            <button class="tab" onclick="showTab('comandas')">Comandas</button>
+        </div>
+
+        <div class="content">
+            <!-- Tab Mesas -->
+            <div id="mesas" class="tab-content active">
+                <div class="section-header">
+                    <h2>Gestión de Mesas</h2>
+                    <button class="btn btn-primary" onclick="openModal('mesa')">➕ Nueva Mesa</button>
+                </div>
+                <div id="mesas-list" class="loading">Cargando mesas...</div>
+            </div>
+
+            <!-- Tab Mozos -->
+            <div id="mozos" class="tab-content">
+                <div class="section-header">
+                    <h2>Gestión de Mozos</h2>
+                    <button class="btn btn-primary" onclick="openModal('mozo')">➕ Nuevo Mozo</button>
+                </div>
+                <div id="mozos-list" class="loading">Cargando mozos...</div>
+            </div>
+
+            <!-- Tab Platos -->
+            <div id="platos" class="tab-content">
+                <div class="section-header">
+                    <h2>Gestión de Platos</h2>
+                    <button class="btn btn-primary" onclick="openModal('plato')">➕ Nuevo Plato</button>
+                </div>
+                <div id="platos-list" class="loading">Cargando platos...</div>
+            </div>
+
+            <!-- Tab Comandas -->
+            <div id="comandas" class="tab-content">
+                <div class="section-header">
+                    <h2>Comandas</h2>
+                    <button class="btn btn-primary" onclick="loadComandas()">🔄 Actualizar</button>
+                </div>
+                <div id="comandas-list" class="loading">Cargando comandas...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para crear/editar -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Nuevo Item</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+
+        // Funciones de navegación
+        function showTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+            
+            // Cargar datos cuando se muestra el tab
+            if (tabName === 'mesas') loadMesas();
+            else if (tabName === 'mozos') loadMozos();
+            else if (tabName === 'platos') loadPlatos();
+            else if (tabName === 'comandas') loadComandas();
+        }
+
+        // Funciones para cargar datos
+        async function loadMesas() {
+            try {
+                const response = await fetch(`${API_BASE}/mesas`);
+                const mesas = await response.json();
+                displayMesas(mesas);
+            } catch (error) {
+                document.getElementById('mesas-list').innerHTML = 
+                    `<div class="alert alert-error">Error al cargar mesas: ${error.message}</div>`;
+            }
+        }
+
+        async function loadMozos() {
+            try {
+                const response = await fetch(`${API_BASE}/mozos`);
+                const mozos = await response.json();
+                displayMozos(mozos);
+            } catch (error) {
+                document.getElementById('mozos-list').innerHTML = 
+                    `<div class="alert alert-error">Error al cargar mozos: ${error.message}</div>`;
+            }
+        }
+
+        async function loadPlatos() {
+            try {
+                const response = await fetch(`${API_BASE}/platos`);
+                const platos = await response.json();
+                displayPlatos(platos);
+            } catch (error) {
+                document.getElementById('platos-list').innerHTML = 
+                    `<div class="alert alert-error">Error al cargar platos: ${error.message}</div>`;
+            }
+        }
+
+        async function loadComandas() {
+            try {
+                const response = await fetch(`${API_BASE}/comanda`);
+                const comandas = await response.json();
+                displayComandas(comandas);
+            } catch (error) {
+                document.getElementById('comandas-list').innerHTML = 
+                    `<div class="alert alert-error">Error al cargar comandas: ${error.message}</div>`;
+            }
+        }
+
+        // Funciones para mostrar datos
+        function displayMesas(mesas) {
+            const container = document.getElementById('mesas-list');
+            if (mesas.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay mesas registradas</div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Número de Mesa</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${mesas.map(mesa => `
+                                <tr>
+                                    <td>${mesa.mesasId || mesa._id}</td>
+                                    <td>${mesa.nummesa}</td>
+                                    <td>
+                                        <span class="badge ${mesa.isActive ? 'badge-success' : 'badge-danger'}">
+                                            ${mesa.isActive ? 'Activa' : 'Inactiva'}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-danger" onclick="deleteMesa('${mesa._id}')">Eliminar</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function displayMozos(mozos) {
+            const container = document.getElementById('mozos-list');
+            if (mozos.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay mozos registrados</div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>DNI</th>
+                                <th>Teléfono</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${mozos.map(mozo => `
+                                <tr>
+                                    <td>${mozo.mozoId || mozo._id}</td>
+                                    <td>${mozo.name}</td>
+                                    <td>${mozo.DNI}</td>
+                                    <td>${mozo.phoneNumber}</td>
+                                    <td>
+                                        <button class="btn btn-danger" onclick="deleteMozo('${mozo._id}')">Eliminar</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function displayPlatos(platos) {
+            const container = document.getElementById('platos-list');
+            if (platos.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay platos registrados</div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>Precio</th>
+                                <th>Stock</th>
+                                <th>Categoría</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${platos.map(plato => `
+                                <tr>
+                                    <td>${plato.id || plato._id}</td>
+                                    <td>${plato.nombre}</td>
+                                    <td>S/. ${plato.precio.toFixed(2)}</td>
+                                    <td>
+                                        <span class="badge ${plato.stock > 0 ? 'badge-success' : 'badge-danger'}">
+                                            ${plato.stock}
+                                        </span>
+                                    </td>
+                                    <td>${plato.categoria}</td>
+                                    <td>
+                                        <button class="btn btn-danger" onclick="deletePlato('${plato._id}')">Eliminar</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function displayComandas(comandas) {
+            const container = document.getElementById('comandas-list');
+            if (comandas.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay comandas registradas</div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>N°</th>
+                                <th>Mozo</th>
+                                <th>Mesa</th>
+                                <th>Platos</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${comandas.map(comanda => `
+                                <tr>
+                                    <td>${comanda.comandaNumber || '-'}</td>
+                                    <td>${comanda.mozos?.name || 'N/A'}</td>
+                                    <td>${comanda.mesas?.nummesa || 'N/A'}</td>
+                                    <td>${comanda.platos?.length || 0} plato(s)</td>
+                                    <td>
+                                        <span class="badge ${comanda.status === 'ingresante' ? 'badge-warning' : 'badge-success'}">
+                                            ${comanda.status || 'N/A'}
+                                        </span>
+                                    </td>
+                                    <td>${new Date(comanda.createdAt).toLocaleDateString()}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // Funciones del modal
+        function openModal(type) {
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+
+            if (type === 'mesa') {
+                modalTitle.textContent = 'Nueva Mesa';
+                modalBody.innerHTML = `
+                    <form id="mesa-form" onsubmit="saveMesa(event)">
+                        <div class="form-group">
+                            <label>Número de Mesa:</label>
+                            <input type="number" name="nummesa" required min="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Estado:</label>
+                            <select name="isActive" required>
+                                <option value="true">Activa</option>
+                                <option value="false">Inactiva</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    </form>
+                `;
+            } else if (type === 'mozo') {
+                modalTitle.textContent = 'Nuevo Mozo';
+                modalBody.innerHTML = `
+                    <form id="mozo-form" onsubmit="saveMozo(event)">
+                        <div class="form-group">
+                            <label>Nombre:</label>
+                            <input type="text" name="name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>DNI:</label>
+                            <input type="number" name="DNI" required min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Teléfono:</label>
+                            <input type="number" name="phoneNumber" required min="0">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    </form>
+                `;
+            } else if (type === 'plato') {
+                modalTitle.textContent = 'Nuevo Plato';
+                modalBody.innerHTML = `
+                    <form id="plato-form" onsubmit="savePlato(event)">
+                        <div class="form-group">
+                            <label>Nombre:</label>
+                            <input type="text" name="nombre" required>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Precio:</label>
+                                <input type="number" name="precio" required min="0" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label>Stock:</label>
+                                <input type="number" name="stock" required min="0">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Categoría:</label>
+                            <input type="text" name="categoria" required placeholder="Ej: Entrada, Principal, Postre">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    </form>
+                `;
+            }
+
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+        }
+
+        // Funciones para guardar
+        async function saveMesa(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const data = {
+                nummesa: parseInt(formData.get('nummesa')),
+                isActive: formData.get('isActive') === 'true'
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/mesas`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    closeModal();
+                    loadMesas();
+                    showAlert('Mesa creada exitosamente', 'success');
+                } else {
+                    showAlert('Error al crear la mesa', 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function saveMozo(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const data = {
+                name: formData.get('name'),
+                DNI: parseInt(formData.get('DNI')),
+                phoneNumber: parseInt(formData.get('phoneNumber'))
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/mozos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    closeModal();
+                    loadMozos();
+                    showAlert('Mozo creado exitosamente', 'success');
+                } else {
+                    showAlert('Error al crear el mozo', 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function savePlato(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const data = {
+                nombre: formData.get('nombre'),
+                precio: parseFloat(formData.get('precio')),
+                stock: parseInt(formData.get('stock')),
+                categoria: formData.get('categoria')
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/platos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    closeModal();
+                    loadPlatos();
+                    showAlert('Plato creado exitosamente', 'success');
+                } else {
+                    showAlert('Error al crear el plato', 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        // Funciones para eliminar
+        async function deleteMesa(id) {
+            if (!confirm('¿Estás seguro de eliminar esta mesa?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/mesas/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    loadMesas();
+                    showAlert('Mesa eliminada exitosamente', 'success');
+                } else {
+                    showAlert('Error al eliminar la mesa', 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteMozo(id) {
+            if (!confirm('¿Estás seguro de eliminar este mozo?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/mozos/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    loadMozos();
+                    showAlert('Mozo eliminado exitosamente', 'success');
+                } else {
+                    showAlert('Error al eliminar el mozo', 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function deletePlato(id) {
+            if (!confirm('¿Estás seguro de eliminar este plato?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/platos/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    loadPlatos();
+                    showAlert('Plato eliminado exitosamente', 'success');
+                } else {
+                    showAlert('Error al eliminar el plato', 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        function showAlert(message, type) {
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            alert.style.position = 'fixed';
+            alert.style.top = '20px';
+            alert.style.right = '20px';
+            alert.style.zIndex = '9999';
+            document.body.appendChild(alert);
+
+            setTimeout(() => {
+                alert.remove();
+            }, 3000);
+        }
+
+        // Cargar datos iniciales
+        loadMesas();
+    </script>
+</body>
+</html>
+
