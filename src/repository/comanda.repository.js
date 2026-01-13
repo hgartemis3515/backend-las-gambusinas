@@ -111,9 +111,11 @@ const cambiarEstadoComanda = async (comandaId, nuevoEstado) => {
 
 const listarComandaPorFechaEntregado = async (fecha) => {
   try {
+    console.log('🔍 Buscando comandas para fecha:', fecha);
     const data = await comandaModel.find({ 
       createdAt: fecha,
-      status: { $ne: "entregado" }
+      status: { $ne: "entregado" },
+      IsActive: true
     })
     .populate({
       path: "mozos",
@@ -123,11 +125,35 @@ const listarComandaPorFechaEntregado = async (fecha) => {
     })
     .populate({
       path: "platos.plato",
-    });
+      model: "platos"
+    })
+    .sort({ comandaNumber: -1 }); // Ordenar por número de comanda descendente
+    
+    console.log(`✅ Encontradas ${data.length} comandas para la fecha ${fecha}`);
+    if (data.length > 0) {
+      const primeraComanda = data[0];
+      console.log('📋 Ejemplo de comanda:', {
+        numero: primeraComanda.comandaNumber,
+        mesa: primeraComanda.mesas?.nummesa,
+        mozo: primeraComanda.mozos?.name,
+        platos: primeraComanda.platos?.length,
+        cantidades: primeraComanda.cantidades?.length,
+        primerPlato: primeraComanda.platos?.[0]?.plato?.nombre || 'N/A'
+      });
+      
+      // Validar que los datos estén correctamente populados
+      if (primeraComanda.platos && primeraComanda.platos.length > 0) {
+        primeraComanda.platos.forEach((platoObj, index) => {
+          if (!platoObj.plato || !platoObj.plato.nombre) {
+            console.warn(`⚠️ Plato en índice ${index} no está correctamente populado:`, platoObj);
+          }
+        });
+      }
+    }
     
     return data;
   } catch (error) {
-    console.error("error al listar la comanda por fecha", error);
+    console.error("❌ Error al listar la comanda por fecha:", error);
     throw error;
   }
 };
