@@ -7,6 +7,7 @@ const comandaSchema = new mongoose.Schema({
     mesas: { type: mongoose.Schema.Types.ObjectId, ref: 'mesas' },
     platos: [{
         plato: { type: mongoose.Schema.Types.ObjectId, ref: 'platos' },
+        platoId: { type: Number }, // ID numérico del plato para búsqueda alternativa
         estado: { type: String, default: 'pendiente' }
     }],
     cantidades: {

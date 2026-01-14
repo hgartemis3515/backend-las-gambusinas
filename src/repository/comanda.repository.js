@@ -1,5 +1,73 @@
 const comandaModel = require("../database/models/comanda.model");
 const mesasModel = require("../database/models/mesas.model");
+const platoModel = require("../database/models/plato.model");
+const { syncJsonFile } = require('../utils/jsonSync');
+
+// Función helper para asegurar que los platos estén populados
+const ensurePlatosPopulated = async (comandas) => {
+  try {
+    // Obtener todos los platos una vez
+    const todosLosPlatos = await platoModel.find({});
+    const platosMapById = new Map(); // Mapa por ObjectId (_id)
+    const platosMapByNumId = new Map(); // Mapa por id numérico
+    
+    todosLosPlatos.forEach(plato => {
+      platosMapById.set(plato._id.toString(), plato);
+      if (plato.id) {
+        platosMapByNumId.set(plato.id, plato);
+      }
+    });
+
+    // Mapear cada comanda y asegurar que los platos estén populados
+    return comandas.map(comanda => {
+      const comandaObj = comanda.toObject ? comanda.toObject() : comanda;
+      
+      if (comandaObj.platos && Array.isArray(comandaObj.platos)) {
+        comandaObj.platos = comandaObj.platos.map(platoItem => {
+          const platoId = platoItem.plato;
+          const platoNumId = platoItem.platoId; // ID numérico guardado
+          
+          // Si el plato ya está populado (es un objeto con nombre), usarlo
+          if (platoItem.plato && typeof platoItem.plato === 'object' && platoItem.plato.nombre) {
+            return platoItem;
+          }
+          
+          // Buscar el plato por ObjectId primero
+          let platoEncontrado = null;
+          if (platoId) {
+            const platoIdStr = platoId.toString ? platoId.toString() : platoId;
+            platoEncontrado = platosMapById.get(platoIdStr);
+          }
+          
+          // Si no se encontró por ObjectId, buscar por id numérico
+          if (!platoEncontrado && platoNumId) {
+            platoEncontrado = platosMapByNumId.get(platoNumId);
+            console.log(`🔍 Plato encontrado por id numérico ${platoNumId}:`, platoEncontrado?.nombre || 'No encontrado');
+          }
+          
+          // Retornar el plato populado o un objeto con datos por defecto
+          return {
+            ...platoItem,
+            plato: platoEncontrado || {
+              _id: platoId,
+              id: platoNumId,
+              nombre: "Plato desconocido",
+              precio: 0,
+              stock: 0,
+              categoria: "Desconocida",
+              tipo: "plato-carta normal"
+            }
+          };
+        });
+      }
+      
+      return comandaObj;
+    });
+  } catch (error) {
+    console.error("Error al asegurar que los platos estén populados:", error);
+    return comandas;
+  }
+};
 
 const listarComanda = async () => {
   try {
@@ -12,8 +80,12 @@ const listarComanda = async () => {
         path: "mesas",
       })
       .populate({
-        path: "platos",
+        path: "platos.plato",
+        model: "platos"
       });
+
+    // Asegurar que los platos estén populados (fallback manual)
+    const dataConPlatos = await ensurePlatosPopulated(data);
 
     const mesasSinComandas = await mesasModel.find({
       _id: { $nin: data.map(comanda => comanda.mesas._id) }
@@ -26,7 +98,7 @@ const listarComanda = async () => {
       }
     }));
 
-    return data;
+    return dataConPlatos;
   } catch (error) {
     console.error("error al listar la comanda", error);
     throw error;
@@ -34,15 +106,114 @@ const listarComanda = async () => {
 };
 
 const agregarComanda = async (data) => {
-  await comandaModel.create(data);
-  console.log(data);
-  const todaslascomandas = await listarComanda();
-  return todaslascomandas;
+  console.log('📤 Creando comanda con datos:', JSON.stringify(data, null, 2));
+  
+  // Validar que los datos estén en el formato correcto
+  if (!data.platos || !Array.isArray(data.platos)) {
+    throw new Error('Los platos deben ser un array');
+  }
+  
+  if (!data.cantidades || !Array.isArray(data.cantidades)) {
+    throw new Error('Las cantidades deben ser un array');
+  }
+  
+  // Validar que cada plato tenga un ID válido y obtener el id numérico
+  for (let index = 0; index < data.platos.length; index++) {
+    const plato = data.platos[index];
+    if (!plato.plato) {
+      throw new Error(`El plato en la posición ${index} no tiene ID`);
+    }
+    
+    // Buscar el plato para obtener su id numérico
+    try {
+      const platoCompleto = await platoModel.findById(plato.plato);
+      if (platoCompleto && platoCompleto.id) {
+        plato.platoId = platoCompleto.id;
+        console.log(`  - Plato ${index}: _id=${plato.plato}, id=${platoCompleto.id}, nombre=${platoCompleto.nombre}, Estado=${plato.estado || 'pendiente'}`);
+      } else {
+        console.warn(`⚠️ No se encontró el id numérico para el plato ${plato.plato}`);
+      }
+    } catch (error) {
+      console.error(`Error al buscar el plato ${plato.plato}:`, error);
+    }
+  }
+  
+  // Validar que las cantidades coincidan con los platos
+  if (data.platos.length !== data.cantidades.length) {
+    console.warn(`⚠️ Advertencia: ${data.platos.length} platos pero ${data.cantidades.length} cantidades. Ajustando...`);
+    // Ajustar cantidades si no coinciden
+    while (data.cantidades.length < data.platos.length) {
+      data.cantidades.push(1);
+    }
+    data.cantidades = data.cantidades.slice(0, data.platos.length);
+  }
+  
+  console.log('📊 Resumen de platos y cantidades:');
+  data.platos.forEach((plato, index) => {
+    console.log(`  - Plato ${index}: ID=${plato.plato}, Cantidad=${data.cantidades[index] || 1}`);
+  });
+  
+  const nuevaComanda = await comandaModel.create(data);
+  console.log('✅ Comanda creada:', nuevaComanda._id);
+  console.log('📋 Comanda guardada en MongoDB:', {
+    _id: nuevaComanda._id,
+    platosCount: nuevaComanda.platos?.length,
+    cantidadesCount: nuevaComanda.cantidades?.length,
+    platos: nuevaComanda.platos?.map(p => ({
+      platoId: p.plato?.toString() || p.plato,
+      estado: p.estado
+    })),
+    cantidades: nuevaComanda.cantidades
+  });
+  
+  // Obtener la comanda recién creada con populate
+  let comandaCreada = await comandaModel
+    .findById(nuevaComanda._id)
+    .populate({
+      path: "mozos",
+    })
+    .populate({
+      path: "mesas",
+    })
+    .populate({
+      path: "platos.plato",
+      model: "platos"
+    });
+  
+  // Asegurar que los platos estén populados (fallback manual)
+  const comandasConPlatos = await ensurePlatosPopulated([comandaCreada]);
+  comandaCreada = comandasConPlatos[0];
+  
+  console.log('📋 Comanda populada:', {
+    id: comandaCreada._id,
+    platos: comandaCreada.platos?.length,
+    primerPlato: comandaCreada.platos?.[0]?.plato?.nombre || 'N/A'
+  });
+  
+  // Sincronizar con archivo JSON (obtener sin populate para guardar IDs)
+  try {
+    const todasLasComandasSinPopulate = await comandaModel.find({});
+    await syncJsonFile('comandas.json', todasLasComandasSinPopulate);
+  } catch (error) {
+    console.error('⚠️ Error al sincronizar comandas.json:', error);
+  }
+  
+  return { comanda: comandaCreada, todaslascomandas: await listarComanda() };
 };
 
 const eliminarComanda = async (comandaId) => {
   try {
     const deletedComanda = await comandaModel.findByIdAndDelete(comandaId);
+    console.log('🗑️ Comanda eliminada:', comandaId);
+    
+    // Sincronizar con archivo JSON (obtener sin populate para guardar IDs)
+    try {
+      const todasLasComandasSinPopulate = await comandaModel.find({});
+      await syncJsonFile('comandas.json', todasLasComandasSinPopulate);
+    } catch (error) {
+      console.error('⚠️ Error al sincronizar comandas.json:', error);
+    }
+    
     return deletedComanda;
   } catch (error) {
     console.error("error al eliminar la comanda", error);
@@ -52,11 +223,92 @@ const eliminarComanda = async (comandaId) => {
 
 const actualizarComanda = async (comandaId, newData) => {
   try {
-    const updatedComanda = await comandaModel.findByIdAndUpdate(
+    console.log('✏️ Actualizando comanda:', comandaId);
+    console.log('📋 Datos a actualizar:', JSON.stringify(newData, null, 2));
+    
+    // Validar que los platos y cantidades estén correctos si se están actualizando
+    if (newData.platos) {
+      if (!Array.isArray(newData.platos)) {
+        throw new Error('Los platos deben ser un array');
+      }
+      
+      // Obtener los ids numéricos de los platos
+      for (let index = 0; index < newData.platos.length; index++) {
+        const plato = newData.platos[index];
+        if (!plato.plato) {
+          throw new Error(`El plato en la posición ${index} no tiene ID`);
+        }
+        
+        // Buscar el plato para obtener su id numérico
+        try {
+          const platoCompleto = await platoModel.findById(plato.plato);
+          if (platoCompleto && platoCompleto.id) {
+            plato.platoId = platoCompleto.id;
+            console.log(`  - Plato ${index}: _id=${plato.plato}, id=${platoCompleto.id}, nombre=${platoCompleto.nombre}, Estado=${plato.estado || 'pendiente'}`);
+          } else {
+            console.warn(`⚠️ No se encontró el id numérico para el plato ${plato.plato}`);
+          }
+        } catch (error) {
+          console.error(`Error al buscar el plato ${plato.plato}:`, error);
+        }
+      }
+    }
+    
+    if (newData.cantidades) {
+      if (!Array.isArray(newData.cantidades)) {
+        throw new Error('Las cantidades deben ser un array');
+      }
+      
+      // Validar que las cantidades coincidan con los platos
+      if (newData.platos && newData.platos.length !== newData.cantidades.length) {
+        console.warn(`⚠️ Advertencia: ${newData.platos.length} platos pero ${newData.cantidades.length} cantidades. Ajustando...`);
+        while (newData.cantidades.length < newData.platos.length) {
+          newData.cantidades.push(1);
+        }
+        newData.cantidades = newData.cantidades.slice(0, newData.platos.length);
+      }
+    }
+    
+    let updatedComanda = await comandaModel.findByIdAndUpdate(
       comandaId,
       newData,
       { new: true }
-    );
+    )
+    .populate({
+      path: "mozos",
+    })
+    .populate({
+      path: "mesas",
+    })
+    .populate({
+      path: "platos.plato",
+      model: "platos"
+    });
+    
+    // Asegurar que los platos estén populados (fallback manual)
+    const comandasConPlatos = await ensurePlatosPopulated([updatedComanda]);
+    updatedComanda = comandasConPlatos[0];
+    
+    console.log('✅ Comanda actualizada:', {
+      _id: updatedComanda._id,
+      platosCount: updatedComanda.platos?.length,
+      cantidadesCount: updatedComanda.cantidades?.length,
+      platos: updatedComanda.platos?.map(p => ({
+        platoId: p.plato?._id || p.plato,
+        nombre: p.plato?.nombre || 'N/A',
+        estado: p.estado
+      })),
+      cantidades: updatedComanda.cantidades
+    });
+    
+    // Sincronizar con archivo JSON (obtener sin populate para guardar IDs)
+    try {
+      const todasLasComandasSinPopulate = await comandaModel.find({});
+      await syncJsonFile('comandas.json', todasLasComandasSinPopulate);
+    } catch (error) {
+      console.error('⚠️ Error al sincronizar comandas.json:', error);
+    }
+    
     return updatedComanda;
   } catch (error) {
     console.error("Error al actualizar la comanda", error);
@@ -129,9 +381,12 @@ const listarComandaPorFechaEntregado = async (fecha) => {
     })
     .sort({ comandaNumber: -1 }); // Ordenar por número de comanda descendente
     
-    console.log(`✅ Encontradas ${data.length} comandas para la fecha ${fecha}`);
-    if (data.length > 0) {
-      const primeraComanda = data[0];
+    // Asegurar que los platos estén populados (fallback manual)
+    const dataConPlatos = await ensurePlatosPopulated(data);
+    
+    console.log(`✅ Encontradas ${dataConPlatos.length} comandas para la fecha ${fecha}`);
+    if (dataConPlatos.length > 0) {
+      const primeraComanda = dataConPlatos[0];
       console.log('📋 Ejemplo de comanda:', {
         numero: primeraComanda.comandaNumber,
         mesa: primeraComanda.mesas?.nummesa,
@@ -151,7 +406,7 @@ const listarComandaPorFechaEntregado = async (fecha) => {
       }
     }
     
-    return data;
+    return dataConPlatos;
   } catch (error) {
     console.error("❌ Error al listar la comanda por fecha:", error);
     throw error;
@@ -160,6 +415,7 @@ const listarComandaPorFechaEntregado = async (fecha) => {
 
 const listarComandaPorFecha = async (fecha) => {
   try {
+    console.log('🔍 Buscando comandas para fecha:', fecha);
     const data = await comandaModel.find({ 
       createdAt: fecha,
       IsActive: true
@@ -172,9 +428,36 @@ const listarComandaPorFecha = async (fecha) => {
     })
     .populate({
       path: "platos.plato",
-    });
+      model: "platos"
+    })
+    .sort({ comandaNumber: -1 });
     
-    return data;
+    // Asegurar que los platos estén populados (fallback manual)
+    const dataConPlatos = await ensurePlatosPopulated(data);
+    
+    console.log(`✅ Encontradas ${dataConPlatos.length} comandas para la fecha ${fecha}`);
+    if (dataConPlatos.length > 0) {
+      const primeraComanda = dataConPlatos[0];
+      console.log('📋 Ejemplo de comanda:', {
+        numero: primeraComanda.comandaNumber,
+        mesa: primeraComanda.mesas?.nummesa,
+        mozo: primeraComanda.mozos?.name,
+        platos: primeraComanda.platos?.length,
+        cantidades: primeraComanda.cantidades?.length,
+        primerPlato: primeraComanda.platos?.[0]?.plato?.nombre || 'N/A'
+      });
+      
+      // Validar que los datos estén correctamente populados
+      if (primeraComanda.platos && primeraComanda.platos.length > 0) {
+        primeraComanda.platos.forEach((platoObj, index) => {
+          if (!platoObj.plato || !platoObj.plato.nombre) {
+            console.warn(`⚠️ Plato en índice ${index} no está correctamente populado:`, platoObj);
+          }
+        });
+      }
+    }
+    
+    return dataConPlatos;
   } catch (error) {
     console.error("error al listar la comanda por fecha", error);
     throw error;
