@@ -507,17 +507,20 @@
                     <table>
                         <thead>
                             <tr>
+                                <th>#</th>
                                 <th>ID</th>
                                 <th>Nombre</th>
                                 <th>Precio</th>
                                 <th>Stock</th>
                                 <th>Categoría</th>
+                                <th>Tipo</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${platos.map(plato => `
+                            ${platos.map((plato, index) => `
                                 <tr>
+                                    <td>${index + 1}</td>
                                     <td>${plato.id || plato._id}</td>
                                     <td>${plato.nombre}</td>
                                     <td>S/. ${plato.precio.toFixed(2)}</td>
@@ -527,6 +530,11 @@
                                         </span>
                                     </td>
                                     <td>${plato.categoria}</td>
+                                    <td>
+                                        <span class="badge ${plato.tipo === 'platos-desayuno' ? 'badge-warning' : 'badge-success'}">
+                                            ${plato.tipo || 'N/A'}
+                                        </span>
+                                    </td>
                                     <td>
                                         <button class="btn btn-danger" onclick="deletePlato('${plato._id}')">Eliminar</button>
                                     </td>
@@ -644,6 +652,13 @@
                             <label>Categoría:</label>
                             <input type="text" name="categoria" required placeholder="Ej: Entrada, Principal, Postre">
                         </div>
+                        <div class="form-group">
+                            <label>Tipo:</label>
+                            <select name="tipo" required>
+                                <option value="plato-carta normal">Carta Normal</option>
+                                <option value="platos-desayuno">Desayuno</option>
+                            </select>
+                        </div>
                         <button type="submit" class="btn btn-primary">Guardar</button>
                     </form>
                 `;
@@ -719,7 +734,8 @@
                 nombre: formData.get('nombre'),
                 precio: parseFloat(formData.get('precio')),
                 stock: parseInt(formData.get('stock')),
-                categoria: formData.get('categoria')
+                categoria: formData.get('categoria'),
+                tipo: formData.get('tipo')
             };
 
             try {

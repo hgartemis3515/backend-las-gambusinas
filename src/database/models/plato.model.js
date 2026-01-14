@@ -7,6 +7,12 @@ const platoSchema = new mongoose.Schema({
     precio: { type: Number, required: true, min: 0 },
     stock: { type: Number, required: true, min: 0 },
     categoria: { type: String, required: true },
+    tipo: { 
+        type: String, 
+        required: true,
+        enum: ['platos-desayuno', 'plato-carta normal'],
+        default: 'plato-carta normal'
+    },
 });
 
 platoSchema.plugin(AutoIncrement, { inc_field: 'id' });

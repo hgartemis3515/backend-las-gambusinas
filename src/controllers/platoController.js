@@ -6,7 +6,8 @@ const {
     crearPlato,
     actualizarPlato,
     borrarPlato,
-    findByCategoria
+    findByCategoria,
+    importarPlatosDesdeJSON
 } = require("../repository/plato.repository");
 
 router.get("/platos", async (req, res) => {
@@ -79,6 +80,21 @@ router.delete('/platos/:id', async (req, res) => {
         console.log("Se eliminó el plato:", platoEliminado);
     } catch (error) {
         console.error("Error al eliminar el plato:", error);
+        res.status(500).json({ error: "Error interno del servidor" });
+    }
+});
+
+// Endpoint para importar platos desde JSON
+router.post('/platos/importar', async (req, res) => {
+    try {
+        const resultado = await importarPlatosDesdeJSON();
+        res.json({
+            success: true,
+            message: `Importación completada: ${resultado.imported} nuevos, ${resultado.updated} actualizados`,
+            ...resultado
+        });
+    } catch (error) {
+        console.error("Error al importar platos:", error);
         res.status(500).json({ error: "Error interno del servidor" });
     }
 });
