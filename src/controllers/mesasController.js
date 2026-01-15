@@ -5,7 +5,8 @@ const {
     obtenerMesaPorId,
     crearMesa,
     actualizarMesa,
-    borrarMesa
+    borrarMesa,
+    actualizarEstadoMesa
 } = require("../repository/mesas.repository");
 
 router.get("/mesas", async (req, res) => {
@@ -42,20 +43,44 @@ router.post('/mesas', async (req, res) => {
         console.log("Se creó una nueva mesa:", mesaCreada);
     } catch (error) {
         console.error("Error al crear la mesa:", error);
-        res.status(500).json({ error: "Error interno del servidor" });
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json({ error: error.message || "Error interno del servidor" });
     }
 });
 
-router.put('/mesas/:_id', async (req, res) => {
+router.put('/mesas/:id', async (req, res) => {
     try {
-        const idMesa = req.params._id;
+        const idMesa = req.params.id;
         const newData = req.body;
         const mesaActualizada = await actualizarMesa(idMesa, newData);
         res.json(mesaActualizada);
-        console.log("Se actualizó la mesa:", mesaActualizada);
+        console.log("Se actualizó la mesa:", idMesa);
     } catch (error) {
         console.error("Error al actualizar la mesa:", error);
-        res.status(500).json({ error: "Error interno del servidor" });
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json({ error: error.message || "Error interno del servidor" });
+    }
+});
+
+// Endpoint para actualizar solo el estado de una mesa
+router.put('/mesas/:id/estado', async (req, res) => {
+    try {
+        const mesaId = req.params.id;
+        const { estado } = req.body;
+        const { esAdmin } = req.query; // Opcional: verificar si es admin desde query param o header
+        
+        if (!estado) {
+            return res.status(400).json({ error: 'Debe proporcionarse un estado' });
+        }
+
+        const esAdminBool = esAdmin === 'true' || req.headers['x-admin'] === 'true';
+        const resultado = await actualizarEstadoMesa(mesaId, estado, esAdminBool);
+        res.json(resultado);
+        console.log(`Estado de mesa ${mesaId} actualizado a ${estado}`);
+    } catch (error) {
+        console.error("Error al actualizar el estado de la mesa:", error);
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json({ error: error.message || "Error interno del servidor" });
     }
 });
 

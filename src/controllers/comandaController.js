@@ -44,7 +44,9 @@ router.post('/comanda', async (req, res) => {
         console.log('Reserva exitosa');
     } catch (error) {
         console.error(error.message);
-        res.status(400).json({ message: error.message });
+        // Si el error tiene statusCode, usarlo; sino, usar 400 por defecto
+        const statusCode = error.statusCode || 400;
+        res.status(statusCode).json({ message: error.message });
     }
 });
 

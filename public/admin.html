@@ -300,6 +300,7 @@
 
         <div class="tabs">
             <button class="tab active" onclick="showTab('mesas')">Mesas</button>
+            <button class="tab" onclick="showTab('areas')">Áreas</button>
             <button class="tab" onclick="showTab('mozos')">Mozos</button>
             <button class="tab" onclick="showTab('platos')">Platos</button>
             <button class="tab" onclick="showTab('comandas')">Comandas</button>
@@ -313,6 +314,15 @@
                     <button class="btn btn-primary" onclick="openModal('mesa')">➕ Nueva Mesa</button>
                 </div>
                 <div id="mesas-list" class="loading">Cargando mesas...</div>
+            </div>
+
+            <!-- Tab Áreas -->
+            <div id="areas" class="tab-content">
+                <div class="section-header">
+                    <h2>Gestión de Áreas</h2>
+                    <button class="btn btn-primary" onclick="openModal('area')">➕ Nueva Área</button>
+                </div>
+                <div id="areas-list" class="loading">Cargando áreas...</div>
             </div>
 
             <!-- Tab Mozos -->
@@ -368,6 +378,7 @@
             
             // Cargar datos cuando se muestra el tab
             if (tabName === 'mesas') loadMesas();
+            else if (tabName === 'areas') loadAreas();
             else if (tabName === 'mozos') loadMozos();
             else if (tabName === 'platos') loadPlatos();
             else if (tabName === 'comandas') loadComandas();
@@ -407,6 +418,17 @@
             }
         }
 
+        async function loadAreas() {
+            try {
+                const response = await fetch(`${API_BASE}/areas`);
+                const areas = await response.json();
+                displayAreas(areas);
+            } catch (error) {
+                document.getElementById('areas-list').innerHTML = 
+                    `<div class="alert alert-error">Error al cargar áreas: ${error.message}</div>`;
+            }
+        }
+
         async function loadComandas() {
             try {
                 const response = await fetch(`${API_BASE}/comanda`);
@@ -433,7 +455,9 @@
                             <tr>
                                 <th>ID</th>
                                 <th>Número de Mesa</th>
-                                <th>Estado</th>
+                                <th>Área</th>
+                                <th>Estado Mesa</th>
+                                <th>Activa</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
@@ -442,13 +466,62 @@
                                 <tr>
                                     <td>${mesa.mesasId || mesa._id}</td>
                                     <td>${mesa.nummesa}</td>
+                                    <td>${mesa.area?.nombre || 'Sin área'}</td>
+                                    <td>
+                                        <span class="badge badge-info">
+                                            ${mesa.estado || 'libre'}
+                                        </span>
+                                    </td>
                                     <td>
                                         <span class="badge ${mesa.isActive ? 'badge-success' : 'badge-danger'}">
                                             ${mesa.isActive ? 'Activa' : 'Inactiva'}
                                         </span>
                                     </td>
                                     <td>
+                                        <button class="btn btn-primary" style="margin-right: 5px;" onclick="editMesa('${mesa._id}')">Editar</button>
                                         <button class="btn btn-danger" onclick="deleteMesa('${mesa._id}')">Eliminar</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function displayAreas(areas) {
+            const container = document.getElementById('areas-list');
+            if (areas.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay áreas registradas</div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>Descripción</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${areas.map(area => `
+                                <tr>
+                                    <td>${area.areaId || area._id}</td>
+                                    <td>${area.nombre}</td>
+                                    <td>${area.descripcion || '-'}</td>
+                                    <td>
+                                        <span class="badge ${area.isActive ? 'badge-success' : 'badge-danger'}">
+                                            ${area.isActive ? 'Activa' : 'Inactiva'}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-primary" style="margin-right: 5px;" onclick="editArea('${area._id}')">Editar</button>
+                                        <button class="btn btn-danger" onclick="deleteArea('${area._id}')">Eliminar</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -485,6 +558,7 @@
                                     <td>${mozo.DNI}</td>
                                     <td>${mozo.phoneNumber}</td>
                                     <td>
+                                        <button class="btn btn-primary" style="margin-right: 5px;" onclick="editMozo('${mozo._id}')">Editar</button>
                                         <button class="btn btn-danger" onclick="deleteMozo('${mozo._id}')">Eliminar</button>
                                     </td>
                                 </tr>
@@ -536,6 +610,7 @@
                                         </span>
                                     </td>
                                     <td>
+                                        <button class="btn btn-primary" style="margin-right: 5px;" onclick="editPlato('${plato._id}')">Editar</button>
                                         <button class="btn btn-danger" onclick="deletePlato('${plato._id}')">Eliminar</button>
                                     </td>
                                 </tr>
@@ -587,79 +662,204 @@
             `;
         }
 
+        // Variable global para almacenar el ID del item en edición
+        let editingId = null;
+
+        // Funciones para editar
+        async function editMesa(id) {
+            try {
+                const response = await fetch(`${API_BASE}/mesas`);
+                const mesas = await response.json();
+                const mesa = mesas.find(m => m._id === id);
+                if (!mesa) {
+                    showAlert('Mesa no encontrada', 'error');
+                    return;
+                }
+                editingId = id;
+                openModal('mesa', mesa);
+            } catch (error) {
+                showAlert('Error al cargar la mesa: ' + error.message, 'error');
+            }
+        }
+
+        async function editArea(id) {
+            try {
+                const response = await fetch(`${API_BASE}/areas`);
+                const areas = await response.json();
+                const area = areas.find(a => a._id === id);
+                if (!area) {
+                    showAlert('Área no encontrada', 'error');
+                    return;
+                }
+                editingId = id;
+                openModal('area', area);
+            } catch (error) {
+                showAlert('Error al cargar el área: ' + error.message, 'error');
+            }
+        }
+
+        async function editMozo(id) {
+            try {
+                const response = await fetch(`${API_BASE}/mozos`);
+                const mozos = await response.json();
+                const mozo = mozos.find(m => m._id === id);
+                if (!mozo) {
+                    showAlert('Mozo no encontrado', 'error');
+                    return;
+                }
+                editingId = id;
+                openModal('mozo', mozo);
+            } catch (error) {
+                showAlert('Error al cargar el mozo: ' + error.message, 'error');
+            }
+        }
+
+        async function editPlato(id) {
+            try {
+                const response = await fetch(`${API_BASE}/platos`);
+                const platos = await response.json();
+                const plato = platos.find(p => p._id === id);
+                if (!plato) {
+                    showAlert('Plato no encontrado', 'error');
+                    return;
+                }
+                editingId = id;
+                openModal('plato', plato);
+            } catch (error) {
+                showAlert('Error al cargar el plato: ' + error.message, 'error');
+            }
+        }
+
         // Funciones del modal
-        function openModal(type) {
+        function openModal(type, data = null) {
             const modal = document.getElementById('modal');
             const modalTitle = document.getElementById('modal-title');
             const modalBody = document.getElementById('modal-body');
+            editingId = data ? data._id : null;
 
             if (type === 'mesa') {
-                modalTitle.textContent = 'Nueva Mesa';
+                modalTitle.textContent = data ? 'Editar Mesa' : 'Nueva Mesa';
+                // Cargar áreas para el selector
+                loadAreasForSelect().then(areasOptions => {
+                    const areaId = data?.area?._id || data?.area || '';
+                    // Reemplazar el option con el área actual para marcarlo como selected
+                    let areasOptionsWithSelection = areasOptions;
+                    if (areaId) {
+                        areasOptionsWithSelection = areasOptions.replace(
+                            new RegExp(`value="${areaId}"`),
+                            `value="${areaId}" selected`
+                        );
+                    }
+                    modalBody.innerHTML = `
+                        <form id="mesa-form" onsubmit="saveMesa(event)">
+                            <input type="hidden" name="id" value="${data?._id || ''}">
+                            <div class="form-group">
+                                <label>Área:</label>
+                                <select name="area" id="area-select" required>
+                                    <option value="">Seleccione un área</option>
+                                    ${areasOptionsWithSelection}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Número de Mesa:</label>
+                                <input type="number" name="nummesa" required min="1" value="${data?.nummesa || ''}">
+                            </div>
+                            <div class="form-group">
+                                <label>Estado de Mesa:</label>
+                                <select name="estado" required>
+                                    <option value="libre" ${data?.estado === 'libre' ? 'selected' : ''}>Libre</option>
+                                    <option value="esperando" ${data?.estado === 'esperando' ? 'selected' : ''}>Esperando</option>
+                                    <option value="pedido" ${data?.estado === 'pedido' ? 'selected' : ''}>Pedido</option>
+                                    <option value="preparado" ${data?.estado === 'preparado' ? 'selected' : ''}>Preparado</option>
+                                    <option value="pagado" ${data?.estado === 'pagado' ? 'selected' : ''}>Pagado</option>
+                                    <option value="reservado" ${data?.estado === 'reservado' ? 'selected' : ''}>Reservado</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Activa:</label>
+                                <select name="isActive" required>
+                                    <option value="true" ${data?.isActive !== false ? 'selected' : ''}>Activa</option>
+                                    <option value="false" ${data?.isActive === false ? 'selected' : ''}>Inactiva</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">${data ? 'Actualizar' : 'Guardar'}</button>
+                        </form>
+                    `;
+                });
+            } else if (type === 'area') {
+                modalTitle.textContent = data ? 'Editar Área' : 'Nueva Área';
                 modalBody.innerHTML = `
-                    <form id="mesa-form" onsubmit="saveMesa(event)">
+                    <form id="area-form" onsubmit="saveArea(event)">
+                        <input type="hidden" name="id" value="${data?._id || ''}">
                         <div class="form-group">
-                            <label>Número de Mesa:</label>
-                            <input type="number" name="nummesa" required min="1">
+                            <label>Nombre del Área:</label>
+                            <input type="text" name="nombre" required placeholder="Ej: Restaurante, Patio, VIP" value="${data?.nombre || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>Descripción (opcional):</label>
+                            <textarea name="descripcion" rows="3" placeholder="Descripción del área">${data?.descripcion || ''}</textarea>
                         </div>
                         <div class="form-group">
                             <label>Estado:</label>
                             <select name="isActive" required>
-                                <option value="true">Activa</option>
-                                <option value="false">Inactiva</option>
+                                <option value="true" ${data?.isActive !== false ? 'selected' : ''}>Activa</option>
+                                <option value="false" ${data?.isActive === false ? 'selected' : ''}>Inactiva</option>
                             </select>
                         </div>
-                        <button type="submit" class="btn btn-primary">Guardar</button>
+                        <button type="submit" class="btn btn-primary">${data ? 'Actualizar' : 'Guardar'}</button>
                     </form>
                 `;
             } else if (type === 'mozo') {
-                modalTitle.textContent = 'Nuevo Mozo';
+                modalTitle.textContent = data ? 'Editar Mozo' : 'Nuevo Mozo';
                 modalBody.innerHTML = `
                     <form id="mozo-form" onsubmit="saveMozo(event)">
+                        <input type="hidden" name="id" value="${data?._id || ''}">
                         <div class="form-group">
                             <label>Nombre:</label>
-                            <input type="text" name="name" required>
+                            <input type="text" name="name" required value="${data?.name || ''}">
                         </div>
                         <div class="form-group">
                             <label>DNI:</label>
-                            <input type="number" name="DNI" required min="0">
+                            <input type="number" name="DNI" required min="0" value="${data?.DNI || ''}">
                         </div>
                         <div class="form-group">
                             <label>Teléfono:</label>
-                            <input type="number" name="phoneNumber" required min="0">
+                            <input type="number" name="phoneNumber" required min="0" value="${data?.phoneNumber || ''}">
                         </div>
-                        <button type="submit" class="btn btn-primary">Guardar</button>
+                        <button type="submit" class="btn btn-primary">${data ? 'Actualizar' : 'Guardar'}</button>
                     </form>
                 `;
             } else if (type === 'plato') {
-                modalTitle.textContent = 'Nuevo Plato';
+                modalTitle.textContent = data ? 'Editar Plato' : 'Nuevo Plato';
                 modalBody.innerHTML = `
                     <form id="plato-form" onsubmit="savePlato(event)">
+                        <input type="hidden" name="id" value="${data?._id || ''}">
                         <div class="form-group">
                             <label>Nombre:</label>
-                            <input type="text" name="nombre" required>
+                            <input type="text" name="nombre" required value="${data?.nombre || ''}">
                         </div>
                         <div class="form-row">
                             <div class="form-group">
                                 <label>Precio:</label>
-                                <input type="number" name="precio" required min="0" step="0.01">
+                                <input type="number" name="precio" required min="0" step="0.01" value="${data?.precio || ''}">
                             </div>
                             <div class="form-group">
                                 <label>Stock:</label>
-                                <input type="number" name="stock" required min="0">
+                                <input type="number" name="stock" required min="0" value="${data?.stock || ''}">
                             </div>
                         </div>
                         <div class="form-group">
                             <label>Categoría:</label>
-                            <input type="text" name="categoria" required placeholder="Ej: Entrada, Principal, Postre">
+                            <input type="text" name="categoria" required placeholder="Ej: Entrada, Principal, Postre" value="${data?.categoria || ''}">
                         </div>
                         <div class="form-group">
                             <label>Tipo:</label>
                             <select name="tipo" required>
-                                <option value="plato-carta normal">Carta Normal</option>
-                                <option value="platos-desayuno">Desayuno</option>
+                                <option value="plato-carta normal" ${data?.tipo === 'plato-carta normal' ? 'selected' : ''}>Carta Normal</option>
+                                <option value="platos-desayuno" ${data?.tipo === 'platos-desayuno' ? 'selected' : ''}>Desayuno</option>
                             </select>
                         </div>
-                        <button type="submit" class="btn btn-primary">Guardar</button>
+                        <button type="submit" class="btn btn-primary">${data ? 'Actualizar' : 'Guardar'}</button>
                     </form>
                 `;
             }
@@ -669,20 +869,42 @@
 
         function closeModal() {
             document.getElementById('modal').classList.remove('active');
+            editingId = null;
+        }
+
+        // Función auxiliar para cargar áreas en el selector
+        async function loadAreasForSelect() {
+            try {
+                const response = await fetch(`${API_BASE}/areas`);
+                const areas = await response.json();
+                const activeAreas = areas.filter(a => a.isActive !== false);
+                return activeAreas.map(area => 
+                    `<option value="${area._id}">${area.nombre}</option>`
+                ).join('');
+            } catch (error) {
+                console.error('Error al cargar áreas:', error);
+                return '<option value="">Error al cargar áreas</option>';
+            }
         }
 
         // Funciones para guardar
         async function saveMesa(event) {
             event.preventDefault();
             const formData = new FormData(event.target);
+            const id = formData.get('id');
             const data = {
                 nummesa: parseInt(formData.get('nummesa')),
+                area: formData.get('area'),
+                estado: formData.get('estado') || 'libre',
                 isActive: formData.get('isActive') === 'true'
             };
 
             try {
-                const response = await fetch(`${API_BASE}/mesas`, {
-                    method: 'POST',
+                const url = id ? `${API_BASE}/mesas/${id}` : `${API_BASE}/mesas`;
+                const method = id ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
@@ -690,9 +912,43 @@
                 if (response.ok) {
                     closeModal();
                     loadMesas();
-                    showAlert('Mesa creada exitosamente', 'success');
+                    showAlert(id ? 'Mesa actualizada exitosamente' : 'Mesa creada exitosamente', 'success');
                 } else {
-                    showAlert('Error al crear la mesa', 'error');
+                    const errorData = await response.json();
+                    showAlert('Error: ' + (errorData.error || (id ? 'Error al actualizar la mesa' : 'Error al crear la mesa')), 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function saveArea(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const id = formData.get('id');
+            const data = {
+                nombre: formData.get('nombre'),
+                descripcion: formData.get('descripcion') || '',
+                isActive: formData.get('isActive') === 'true'
+            };
+
+            try {
+                const url = id ? `${API_BASE}/areas/${id}` : `${API_BASE}/areas`;
+                const method = id ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    closeModal();
+                    loadAreas();
+                    showAlert(id ? 'Área actualizada exitosamente' : 'Área creada exitosamente', 'success');
+                } else {
+                    const errorData = await response.json();
+                    showAlert('Error: ' + (errorData.error || (id ? 'Error al actualizar el área' : 'Error al crear el área')), 'error');
                 }
             } catch (error) {
                 showAlert('Error: ' + error.message, 'error');
@@ -702,6 +958,7 @@
         async function saveMozo(event) {
             event.preventDefault();
             const formData = new FormData(event.target);
+            const id = formData.get('id');
             const data = {
                 name: formData.get('name'),
                 DNI: parseInt(formData.get('DNI')),
@@ -709,8 +966,11 @@
             };
 
             try {
-                const response = await fetch(`${API_BASE}/mozos`, {
-                    method: 'POST',
+                const url = id ? `${API_BASE}/mozos/${id}` : `${API_BASE}/mozos`;
+                const method = id ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
@@ -718,9 +978,10 @@
                 if (response.ok) {
                     closeModal();
                     loadMozos();
-                    showAlert('Mozo creado exitosamente', 'success');
+                    showAlert(id ? 'Mozo actualizado exitosamente' : 'Mozo creado exitosamente', 'success');
                 } else {
-                    showAlert('Error al crear el mozo', 'error');
+                    const errorData = await response.json();
+                    showAlert('Error: ' + (errorData.error || (id ? 'Error al actualizar el mozo' : 'Error al crear el mozo')), 'error');
                 }
             } catch (error) {
                 showAlert('Error: ' + error.message, 'error');
@@ -730,6 +991,7 @@
         async function savePlato(event) {
             event.preventDefault();
             const formData = new FormData(event.target);
+            const id = formData.get('id');
             const data = {
                 nombre: formData.get('nombre'),
                 precio: parseFloat(formData.get('precio')),
@@ -739,8 +1001,11 @@
             };
 
             try {
-                const response = await fetch(`${API_BASE}/platos`, {
-                    method: 'POST',
+                const url = id ? `${API_BASE}/platos/${id}` : `${API_BASE}/platos`;
+                const method = id ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
@@ -748,9 +1013,10 @@
                 if (response.ok) {
                     closeModal();
                     loadPlatos();
-                    showAlert('Plato creado exitosamente', 'success');
+                    showAlert(id ? 'Plato actualizado exitosamente' : 'Plato creado exitosamente', 'success');
                 } else {
-                    showAlert('Error al crear el plato', 'error');
+                    const errorData = await response.json();
+                    showAlert('Error: ' + (errorData.error || (id ? 'Error al actualizar el plato' : 'Error al crear el plato')), 'error');
                 }
             } catch (error) {
                 showAlert('Error: ' + error.message, 'error');
@@ -790,6 +1056,26 @@
                     showAlert('Mozo eliminado exitosamente', 'success');
                 } else {
                     showAlert('Error al eliminar el mozo', 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteArea(id) {
+            if (!confirm('¿Está seguro de eliminar esta área?')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/areas/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    loadAreas();
+                    showAlert('Área eliminada exitosamente', 'success');
+                } else {
+                    const errorData = await response.json();
+                    showAlert('Error: ' + (errorData.error || 'Error al eliminar el área'), 'error');
                 }
             } catch (error) {
                 showAlert('Error: ' + error.message, 'error');

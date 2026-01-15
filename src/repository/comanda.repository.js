@@ -78,6 +78,9 @@ const listarComanda = async () => {
       })
       .populate({
         path: "mesas",
+        populate: {
+          path: "area"
+        }
       })
       .populate({
         path: "platos.plato",
@@ -115,6 +118,73 @@ const agregarComanda = async (data) => {
   
   if (!data.cantidades || !Array.isArray(data.cantidades)) {
     throw new Error('Las cantidades deben ser un array');
+  }
+
+  // Validar que se proporcione una mesa
+  if (!data.mesas) {
+    throw new Error('Debe proporcionarse una mesa');
+  }
+
+  // Validar estado de la mesa antes de crear la comanda
+  const mesa = await mesasModel.findById(data.mesas);
+  if (!mesa) {
+    throw new Error('Mesa no encontrada');
+  }
+
+  // Validar que el número de mesa sea único (ya está en el schema, pero verificamos)
+  const mesaConMismoNumero = await mesasModel.findOne({ 
+    nummesa: mesa.nummesa, 
+    _id: { $ne: mesa._id } 
+  });
+  if (mesaConMismoNumero) {
+    const errorMsg = `Ya existe una mesa con el número ${mesa.nummesa}`;
+    console.error(`❌ ${errorMsg}`);
+    throw new Error(errorMsg);
+  }
+
+  // Validar que la mesa esté en estado "libre"
+  const estadoMesa = (mesa.estado || 'libre').toLowerCase();
+  if (estadoMesa !== 'libre') {
+    // Verificar si hay comanda activa para esta mesa
+    const comandaActiva = await comandaModel.findOne({
+      mesas: mesa._id,
+      IsActive: true,
+      status: { $in: ['en_espera', 'recoger'] }
+    });
+
+    if (comandaActiva || ['esperando', 'pedido', 'preparado', 'pagado'].includes(estadoMesa)) {
+      const errorMsg = 'Mesa ocupada con comanda existente';
+      console.error(`❌ ${errorMsg} - Mesa ${mesa.nummesa} en estado: ${estadoMesa}`);
+      // Log para auditoría
+      console.log(`📝 AUDITORÍA - Intento inválido de crear comanda:`, {
+        timestamp: new Date().toISOString(),
+        mesaId: mesa._id,
+        numMesa: mesa.nummesa,
+        estadoActual: estadoMesa,
+        estadoSolicitado: 'esperando',
+        razon: errorMsg
+      });
+      const error = new Error(errorMsg);
+      error.statusCode = 409; // Conflict
+      throw error;
+    }
+
+    if (estadoMesa === 'reservado') {
+      const errorMsg = 'Mesa reservada. Solo un administrador puede liberarla.';
+      console.error(`❌ ${errorMsg} - Mesa ${mesa.nummesa}`);
+      // Log para auditoría
+      console.log(`📝 AUDITORÍA - Intento inválido de crear comanda:`, {
+        timestamp: new Date().toISOString(),
+        mesaId: mesa._id,
+        numMesa: mesa.nummesa,
+        estadoActual: estadoMesa,
+        estadoSolicitado: 'esperando',
+        razon: errorMsg
+      });
+      const error = new Error(errorMsg);
+      error.statusCode = 409; // Conflict
+      throw error;
+    }
   }
   
   // Validar que cada plato tenga un ID válido y obtener el id numérico
@@ -155,6 +225,12 @@ const agregarComanda = async (data) => {
   
   const nuevaComanda = await comandaModel.create(data);
   console.log('✅ Comanda creada:', nuevaComanda._id);
+  
+  // Actualizar estado de la mesa a "esperando" automáticamente
+  mesa.estado = 'esperando';
+  await mesa.save();
+  console.log(`✅ Mesa ${mesa.nummesa} actualizada a estado "esperando"`);
+  
   console.log('📋 Comanda guardada en MongoDB:', {
     _id: nuevaComanda._id,
     platosCount: nuevaComanda.platos?.length,
@@ -174,6 +250,9 @@ const agregarComanda = async (data) => {
     })
     .populate({
       path: "mesas",
+      populate: {
+        path: "area"
+      }
     })
     .populate({
       path: "platos.plato",
@@ -279,6 +358,9 @@ const actualizarComanda = async (comandaId, newData) => {
     })
     .populate({
       path: "mesas",
+      populate: {
+        path: "area"
+      }
     })
     .populate({
       path: "platos.plato",
@@ -394,6 +476,9 @@ const listarComandaPorFechaEntregado = async (fecha) => {
     })
     .populate({
       path: "mesas",
+      populate: {
+        path: "area"
+      }
     })
     .populate({
       path: "platos.plato",
@@ -413,6 +498,9 @@ const listarComandaPorFechaEntregado = async (fecha) => {
       })
       .populate({
         path: "mesas",
+        populate: {
+          path: "area"
+        }
       })
       .populate({
         path: "platos.plato",
@@ -488,6 +576,9 @@ const listarComandaPorFecha = async (fecha) => {
     })
     .populate({
       path: "mesas",
+      populate: {
+        path: "area"
+      }
     })
     .populate({
       path: "platos.plato",

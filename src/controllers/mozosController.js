@@ -2,7 +2,7 @@ const express = require("express");
 
 const router = express.Router();
 
-const { listarMozos, crearMozo, obtenerMozosPorId, borrarMozo, autenticarMozo} = require("../repository/mozos.repository");
+const { listarMozos, crearMozo, obtenerMozosPorId, actualizarMozo, borrarMozo, autenticarMozo} = require("../repository/mozos.repository");
 
 router.get("/mozos", async (req, res) => {
   const data = await listarMozos();
@@ -74,19 +74,15 @@ router.post('/mozos', async (req, res) => {
 router.put('/mozos/:id', async (req, res) => {
     try{
         const id = req.params.id;
-
-        const mozo = await obtenerMozosPorId({ id });
-
-        if(!mozo){
-            return res.status(404).json({ message: 'Usuario no encontrado' });
-        }
-
-        const data = await actualizarMozo(mozo, req.body);
+        const newData = req.body;
+        
+        const data = await actualizarMozo(id, newData);
         res.json(data);
-
+        console.log("Se actualizó el mozo:", id);
     }catch(error){
-        console.error('Error al actualizar el usuario', error);
-        res.status(500).json({ message: 'Error interno del sevidor' });
+        console.error('Error al actualizar el mozo', error);
+        const statusCode = error.message.includes('no encontrado') ? 404 : 500;
+        res.status(statusCode).json({ error: error.message || 'Error interno del servidor' });
     }
 });
 

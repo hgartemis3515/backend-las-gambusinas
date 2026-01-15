@@ -21,6 +21,35 @@ const obtenerMozosPorId = async (id) => {
     return mozo;
 }
 
+const actualizarMozo = async (id, newData) => {
+    try {
+        // Buscar por _id (ObjectId) primero
+        let mozo = await mozos.findById(id);
+        
+        // Si no se encuentra, buscar por mozoId
+        if (!mozo) {
+            mozo = await mozos.findOne({ mozoId: parseInt(id) });
+        }
+        
+        if (!mozo) {
+            throw new Error('Mozo no encontrado');
+        }
+
+        // Actualizar los campos
+        if (newData.name !== undefined) mozo.name = newData.name;
+        if (newData.DNI !== undefined) mozo.DNI = newData.DNI;
+        if (newData.phoneNumber !== undefined) mozo.phoneNumber = newData.phoneNumber;
+
+        await mozo.save();
+        const todoslosmozos = await listarMozos();
+        await syncJsonFile('mozos.json', todoslosmozos);
+        return todoslosmozos;
+    } catch (error) {
+        console.error('Error al actualizar el mozo:', error);
+        throw error;
+    }
+}
+
 
 
 const borrarMozo = async (id) => {
@@ -152,6 +181,7 @@ module.exports = {
     listarMozos,
     crearMozo,
     obtenerMozosPorId,
+    actualizarMozo,
     borrarMozo,
     autenticarMozo,
     inicializarUsuarioAdmin
