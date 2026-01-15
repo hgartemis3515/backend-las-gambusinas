@@ -226,10 +226,10 @@ const agregarComanda = async (data) => {
   const nuevaComanda = await comandaModel.create(data);
   console.log('✅ Comanda creada:', nuevaComanda._id);
   
-  // Actualizar estado de la mesa a "esperando" automáticamente
-  mesa.estado = 'esperando';
+  // Actualizar estado de la mesa a "pedido" automáticamente cuando se crea la comanda
+  mesa.estado = 'pedido';
   await mesa.save();
-  console.log(`✅ Mesa ${mesa.nummesa} actualizada a estado "esperando"`);
+  console.log(`✅ Mesa ${mesa.nummesa} actualizada a estado "pedido"`);
   
   console.log('📋 Comanda guardada en MongoDB:', {
     _id: nuevaComanda._id,
