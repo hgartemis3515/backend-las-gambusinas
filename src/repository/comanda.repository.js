@@ -129,7 +129,7 @@ const agregarComanda = async (data) => {
       const platoCompleto = await platoModel.findById(plato.plato);
       if (platoCompleto && platoCompleto.id) {
         plato.platoId = platoCompleto.id;
-        console.log(`  - Plato ${index}: _id=${plato.plato}, id=${platoCompleto.id}, nombre=${platoCompleto.nombre}, Estado=${plato.estado || 'pendiente'}`);
+        console.log(`  - Plato ${index}: _id=${plato.plato}, id=${platoCompleto.id}, nombre=${platoCompleto.nombre}, Estado=${plato.estado || 'en_espera'}`);
       } else {
         console.warn(`⚠️ No se encontró el id numérico para el plato ${plato.plato}`);
       }
@@ -244,7 +244,7 @@ const actualizarComanda = async (comandaId, newData) => {
           const platoCompleto = await platoModel.findById(plato.plato);
           if (platoCompleto && platoCompleto.id) {
             plato.platoId = platoCompleto.id;
-            console.log(`  - Plato ${index}: _id=${plato.plato}, id=${platoCompleto.id}, nombre=${platoCompleto.nombre}, Estado=${plato.estado || 'pendiente'}`);
+            console.log(`  - Plato ${index}: _id=${plato.plato}, id=${platoCompleto.id}, nombre=${platoCompleto.nombre}, Estado=${plato.estado || 'en_espera'}`);
           } else {
             console.warn(`⚠️ No se encontró el id numérico para el plato ${plato.plato}`);
           }
@@ -364,10 +364,30 @@ const cambiarEstadoComanda = async (comandaId, nuevoEstado) => {
 const listarComandaPorFechaEntregado = async (fecha) => {
   try {
     console.log('🔍 Buscando comandas para fecha:', fecha);
-    const data = await comandaModel.find({ 
-      createdAt: fecha,
+    
+    // Convertir fecha string a rango de fechas (inicio y fin del día)
+    const moment = require('moment-timezone');
+    const fechaInicio = moment.tz(fecha, "YYYY-MM-DD", "America/Lima").startOf('day').toDate();
+    const fechaFin = moment.tz(fecha, "YYYY-MM-DD", "America/Lima").endOf('day').toDate();
+    
+    // También buscar por string de fecha para compatibilidad
+    const fechaString = moment.tz(fecha, "YYYY-MM-DD", "America/Lima").format('YYYY-MM-DD');
+    
+    console.log('📅 Rango de búsqueda:', {
+      desde: fechaInicio,
+      hasta: fechaFin,
+      fechaString: fechaString
+    });
+    
+    // Buscar comandas activas que no estén entregadas
+    // Primero intentar búsqueda por rango de fechas
+    let data = await comandaModel.find({ 
+      createdAt: {
+        $gte: fechaInicio,
+        $lte: fechaFin
+      },
       status: { $ne: "entregado" },
-      IsActive: true
+      IsActive: { $ne: false }
     })
     .populate({
       path: "mozos",
@@ -381,6 +401,29 @@ const listarComandaPorFechaEntregado = async (fecha) => {
     })
     .sort({ comandaNumber: -1 }); // Ordenar por número de comanda descendente
     
+    // Si no se encuentran comandas, intentar búsqueda más amplia (sin filtro de fecha)
+    if (data.length === 0) {
+      console.log('⚠️ No se encontraron comandas con el filtro de fecha. Buscando todas las comandas activas...');
+      data = await comandaModel.find({ 
+        status: { $ne: "entregado" },
+        IsActive: { $ne: false }
+      })
+      .populate({
+        path: "mozos",
+      })
+      .populate({
+        path: "mesas",
+      })
+      .populate({
+        path: "platos.plato",
+        model: "platos"
+      })
+      .sort({ comandaNumber: -1 })
+      .limit(50); // Limitar a 50 para no sobrecargar
+      
+      console.log(`📊 Encontradas ${data.length} comandas activas (sin filtro de fecha)`);
+    }
+    
     // Asegurar que los platos estén populados (fallback manual)
     const dataConPlatos = await ensurePlatosPopulated(data);
     
@@ -388,12 +431,18 @@ const listarComandaPorFechaEntregado = async (fecha) => {
     if (dataConPlatos.length > 0) {
       const primeraComanda = dataConPlatos[0];
       console.log('📋 Ejemplo de comanda:', {
+        _id: primeraComanda._id,
         numero: primeraComanda.comandaNumber,
+        status: primeraComanda.status,
+        IsActive: primeraComanda.IsActive,
+        createdAt: primeraComanda.createdAt,
+        tipoCreatedAt: typeof primeraComanda.createdAt,
         mesa: primeraComanda.mesas?.nummesa,
         mozo: primeraComanda.mozos?.name,
         platos: primeraComanda.platos?.length,
         cantidades: primeraComanda.cantidades?.length,
-        primerPlato: primeraComanda.platos?.[0]?.plato?.nombre || 'N/A'
+        primerPlato: primeraComanda.platos?.[0]?.plato?.nombre || 'N/A',
+        estadosPlatos: primeraComanda.platos?.map(p => p.estado) || []
       });
       
       // Validar que los datos estén correctamente populados
@@ -416,8 +465,22 @@ const listarComandaPorFechaEntregado = async (fecha) => {
 const listarComandaPorFecha = async (fecha) => {
   try {
     console.log('🔍 Buscando comandas para fecha:', fecha);
+    
+    // Convertir fecha string a rango de fechas (inicio y fin del día)
+    const moment = require('moment-timezone');
+    const fechaInicio = moment.tz(fecha, "YYYY-MM-DD", "America/Lima").startOf('day').toDate();
+    const fechaFin = moment.tz(fecha, "YYYY-MM-DD", "America/Lima").endOf('day').toDate();
+    
+    console.log('📅 Rango de búsqueda:', {
+      desde: fechaInicio,
+      hasta: fechaFin
+    });
+    
     const data = await comandaModel.find({ 
-      createdAt: fecha,
+      createdAt: {
+        $gte: fechaInicio,
+        $lte: fechaFin
+      },
       IsActive: true
     })
     .populate({

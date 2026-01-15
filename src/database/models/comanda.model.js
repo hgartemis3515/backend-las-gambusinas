@@ -8,7 +8,17 @@ const comandaSchema = new mongoose.Schema({
     platos: [{
         plato: { type: mongoose.Schema.Types.ObjectId, ref: 'platos' },
         platoId: { type: Number }, // ID numérico del plato para búsqueda alternativa
-        estado: { type: String, default: 'pendiente' }
+        estado: { 
+            type: String, 
+            default: 'en_espera',
+            enum: ['en_espera', 'recoger', 'entregado'],
+            validate: {
+                validator: function(v) {
+                    return ['en_espera', 'recoger', 'entregado'].includes(v);
+                },
+                message: 'El estado del plato debe ser: en_espera, recoger o entregado'
+            }
+        }
     }],
     cantidades: {
         type: [Number],
@@ -19,7 +29,14 @@ const comandaSchema = new mongoose.Schema({
     observaciones: String,
     status: {
         type: String,
-        default: 'ingresante'
+        default: 'en_espera',
+        enum: ['en_espera', 'recoger', 'entregado'],
+        validate: {
+            validator: function(v) {
+                return ['en_espera', 'recoger', 'entregado'].includes(v);
+            },
+            message: 'El status de la comanda debe ser: en_espera, recoger o entregado'
+        }
     },
     IsActive: {
         type: Boolean,
@@ -28,8 +45,7 @@ const comandaSchema = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: () => {
-            const currentDate = moment.tz("America/Lima").format('YYYY-MM-DD');
-            return currentDate;
+            return moment.tz("America/Lima").toDate();
         }
     },
     comandaNumber: {
