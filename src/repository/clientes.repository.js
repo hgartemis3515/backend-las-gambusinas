@@ -153,7 +153,26 @@ const obtenerClientePorId = async (id) => {
                 }
             })
             .populate({
-                path: 'bouchers'
+                path: 'bouchers',
+                populate: [
+                    {
+                        path: 'mesa',
+                        select: 'nummesa'
+                    },
+                    {
+                        path: 'mozo',
+                        select: 'name'
+                    },
+                    {
+                        path: 'comandas',
+                        select: 'comandaNumber'
+                    },
+                    {
+                        path: 'platos.plato',
+                        model: 'platos',
+                        select: 'nombre precio'
+                    }
+                ]
             });
 
         if (!cliente) {

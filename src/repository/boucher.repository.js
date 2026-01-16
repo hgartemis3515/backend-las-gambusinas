@@ -7,6 +7,7 @@ const listarBouchers = async () => {
         const bouchers = await boucherModel.find({ isActive: true })
             .populate('mesa')
             .populate('mozo')
+            .populate('cliente')
             .populate('comandas')
             .populate('platos.plato')
             .sort({ fechaPago: -1 }); // Más recientes primero
@@ -32,6 +33,7 @@ const listarBouchersPorFecha = async (fecha) => {
         })
             .populate('mesa')
             .populate('mozo')
+            .populate('cliente')
             .populate('comandas')
             .populate('platos.plato')
             .sort({ fechaPago: -1 });
@@ -48,6 +50,7 @@ const obtenerBoucherPorId = async (boucherId) => {
         const boucher = await boucherModel.findById(boucherId)
             .populate('mesa')
             .populate('mozo')
+            .populate('cliente')
             .populate('comandas')
             .populate('platos.plato');
         

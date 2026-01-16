@@ -230,10 +230,11 @@
             background: white;
             padding: 30px;
             border-radius: 15px;
-            max-width: 500px;
+            max-width: 900px;
             width: 90%;
             max-height: 90vh;
             overflow-y: auto;
+            position: relative;
         }
 
         .modal-header {
@@ -411,11 +412,11 @@
     </div>
 
     <!-- Modal para crear/editar -->
-    <div id="modal" class="modal">
-        <div class="modal-content">
+    <div id="modal" class="modal" onclick="if(event.target === this) closeModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
             <div class="modal-header">
                 <h2 id="modal-title">Nuevo Item</h2>
-                <span class="close" onclick="closeModal()">&times;</span>
+                <span class="close" onclick="closeModal()" style="cursor: pointer;">&times;</span>
             </div>
             <div id="modal-body"></div>
         </div>
@@ -1258,7 +1259,8 @@
                         <div style="margin: 20px 0;">
                             <p><strong>Mesa:</strong> ${boucher.numMesa || boucher.mesa?.nummesa || 'N/A'}</p>
                             <p><strong>Mozo:</strong> ${boucher.nombreMozo || boucher.mozo?.name || 'N/A'}</p>
-                            <p><strong>Comandas:</strong> ${boucher.comandasNumbers?.join(', ') || 'N/A'}</p>
+                            ${boucher.cliente ? `<p><strong>Cliente:</strong> ${boucher.cliente?.nombre || 'N/A'}</p>` : ''}
+                            <p><strong>Comandas:</strong> ${boucher.comandasNumbers?.join(', ') || boucher.comandas?.map(c => c.comandaNumber || c._id?.slice(-6)).join(', ') || 'N/A'}</p>
                             <p><strong>Fecha de Pago:</strong> ${boucher.fechaPagoString || new Date(boucher.fechaPago).toLocaleString('es-PE')}</p>
                             ${boucher.observaciones ? `<p><strong>Observaciones:</strong> ${boucher.observaciones}</p>` : ''}
                         </div>
@@ -1375,7 +1377,8 @@
                         <div class="info">
                             <p><strong>Mesa:</strong> ${boucher.numMesa || boucher.mesa?.nummesa || 'N/A'}</p>
                             <p><strong>Mozo:</strong> ${boucher.nombreMozo || boucher.mozo?.name || 'N/A'}</p>
-                            <p><strong>Comandas:</strong> ${boucher.comandasNumbers?.join(', ') || 'N/A'}</p>
+                            ${boucher.cliente ? `<p><strong>Cliente:</strong> ${boucher.cliente?.nombre || 'N/A'}</p>` : ''}
+                            <p><strong>Comandas:</strong> ${boucher.comandasNumbers?.join(', ') || boucher.comandas?.map(c => c.comandaNumber || c._id?.slice(-6)).join(', ') || 'N/A'}</p>
                             <p><strong>Fecha:</strong> ${boucher.fechaPagoString || new Date(boucher.fechaPago).toLocaleString('es-PE')}</p>
                         </div>
                         <table>
@@ -1558,17 +1561,24 @@
                         <table>
                             <thead>
                                 <tr>
+                                    <th>Código</th>
                                     <th>N° Boucher</th>
                                     <th>Fecha Uso</th>
                                     <th>Total</th>
+                                    <th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${cliente.bouchers.map(boucher => `
                                     <tr>
+                                        <td><strong>${boucher.boucherNumber ? `BOU-${boucher.boucherNumber}` : boucher._id?.slice(-6) || 'N/A'}</strong></td>
                                         <td>#${boucher.boucherNumber || boucher._id?.slice(-6) || 'N/A'}</td>
                                         <td>${boucher.fechaUso ? new Date(boucher.fechaUso).toLocaleDateString('es-PE') : (boucher.fechaPago ? new Date(boucher.fechaPago).toLocaleDateString('es-PE') : 'N/A')}</td>
                                         <td>S/. ${(boucher.total || 0).toFixed(2)}</td>
+                                        <td>
+                                            <button class="btn btn-primary" style="margin-right: 5px; padding: 5px 10px; font-size: 12px;" onclick="event.stopPropagation(); verBoucher('${boucher._id}')">👁️ Ver</button>
+                                            <button class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;" onclick="event.stopPropagation(); imprimirBoucher('${boucher._id}')">📄 PDF</button>
+                                        </td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -1577,7 +1587,7 @@
                 ` : '<p style="color: #999; margin-top: 20px;">No hay bouchers registrados</p>';
 
                 const modalBody = `
-                    <div style="padding: 20px;">
+                    <div style="padding: 20px; max-width: 900px;">
                         <div style="margin-bottom: 20px;">
                             <h3 style="color: #333; margin-bottom: 15px;">Información del Cliente</h3>
                             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
@@ -1617,7 +1627,7 @@
 
                 document.getElementById('modal-title').textContent = `Detalle Cliente: ${cliente.nombre || 'Invitado'}`;
                 document.getElementById('modal-body').innerHTML = modalBody;
-                document.getElementById('modal').style.display = 'block';
+                document.getElementById('modal').classList.add('active');
             } catch (error) {
                 alert('Error al cargar detalle del cliente: ' + error.message);
             }
