@@ -304,6 +304,7 @@
             <button class="tab" onclick="showTab('mozos')">Mozos</button>
             <button class="tab" onclick="showTab('platos')">Platos</button>
             <button class="tab" onclick="showTab('comandas')">Comandas</button>
+            <button class="tab" onclick="showTab('bouchers')">Bouchers</button>
         </div>
 
         <div class="content">
@@ -351,6 +352,19 @@
                 </div>
                 <div id="comandas-list" class="loading">Cargando comandas...</div>
             </div>
+
+            <!-- Tab Bouchers -->
+            <div id="bouchers" class="tab-content">
+                <div class="section-header">
+                    <h2>Bouchers de Pago</h2>
+                    <div>
+                        <input type="date" id="boucher-fecha" style="padding: 10px; margin-right: 10px; border: 2px solid #ddd; border-radius: 8px;">
+                        <button class="btn btn-primary" onclick="loadBouchers()">🔄 Actualizar</button>
+                        <button class="btn btn-primary" onclick="loadBouchersPorFecha()" style="margin-left: 10px;">📅 Filtrar por Fecha</button>
+                    </div>
+                </div>
+                <div id="bouchers-list" class="loading">Cargando bouchers...</div>
+            </div>
         </div>
     </div>
 
@@ -382,6 +396,7 @@
             else if (tabName === 'mozos') loadMozos();
             else if (tabName === 'platos') loadPlatos();
             else if (tabName === 'comandas') loadComandas();
+            else if (tabName === 'bouchers') loadBouchers();
         }
 
         // Funciones para cargar datos
@@ -1098,6 +1113,274 @@
                 }
             } catch (error) {
                 showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        // Funciones para Bouchers
+        async function loadBouchers() {
+            try {
+                const response = await fetch(`${API_BASE}/boucher`);
+                const bouchers = await response.json();
+                displayBouchers(bouchers);
+            } catch (error) {
+                document.getElementById('bouchers-list').innerHTML = 
+                    `<div class="alert alert-error">Error al cargar bouchers: ${error.message}</div>`;
+            }
+        }
+
+        async function loadBouchersPorFecha() {
+            const fechaInput = document.getElementById('boucher-fecha');
+            const fecha = fechaInput.value;
+            
+            if (!fecha) {
+                alert('Por favor selecciona una fecha');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/boucher/fecha/${fecha}`);
+                const bouchers = await response.json();
+                displayBouchers(bouchers);
+            } catch (error) {
+                document.getElementById('bouchers-list').innerHTML = 
+                    `<div class="alert alert-error">Error al cargar bouchers: ${error.message}</div>`;
+            }
+        }
+
+        function displayBouchers(bouchers) {
+            const container = document.getElementById('bouchers-list');
+            if (bouchers.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay bouchers registrados</div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>N° Boucher</th>
+                                <th>Mesa</th>
+                                <th>Mozo</th>
+                                <th>Comandas</th>
+                                <th>Platos</th>
+                                <th>Subtotal</th>
+                                <th>IGV</th>
+                                <th>Total</th>
+                                <th>Fecha Pago</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${bouchers.map(boucher => `
+                                <tr>
+                                    <td><strong>#${boucher.boucherNumber || boucher._id.slice(-6)}</strong></td>
+                                    <td>${boucher.numMesa || boucher.mesa?.nummesa || 'N/A'}</td>
+                                    <td>${boucher.nombreMozo || boucher.mozo?.name || 'N/A'}</td>
+                                    <td>${boucher.comandasNumbers?.join(', ') || boucher.comandas?.length || 0}</td>
+                                    <td>${boucher.platos?.length || 0}</td>
+                                    <td>S/. ${(boucher.subtotal || 0).toFixed(2)}</td>
+                                    <td>S/. ${(boucher.igv || 0).toFixed(2)}</td>
+                                    <td><strong>S/. ${(boucher.total || 0).toFixed(2)}</strong></td>
+                                    <td>${boucher.fechaPagoString || new Date(boucher.fechaPago).toLocaleString('es-PE')}</td>
+                                    <td>
+                                        <button class="btn btn-primary" style="margin-right: 5px;" onclick="verBoucher('${boucher._id}')">👁️ Ver</button>
+                                        <button class="btn btn-primary" style="margin-right: 5px;" onclick="imprimirBoucher('${boucher._id}')">🖨️ Imprimir</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        async function verBoucher(boucherId) {
+            try {
+                const response = await fetch(`${API_BASE}/boucher/${boucherId}`);
+                const boucher = await response.json();
+                
+                const platosHTML = boucher.platos?.map(plato => `
+                    <tr>
+                        <td>${plato.nombre || 'Plato'}</td>
+                        <td>${plato.cantidad || 1}</td>
+                        <td>S/. ${(plato.precio || 0).toFixed(2)}</td>
+                        <td>S/. ${(plato.subtotal || 0).toFixed(2)}</td>
+                        ${plato.comandaNumber ? `<td>C#${plato.comandaNumber}</td>` : '<td>-</td>'}
+                    </tr>
+                `).join('') || '<tr><td colspan="5">No hay platos</td></tr>';
+
+                const modalBody = `
+                    <div style="max-width: 800px;">
+                        <h3>Boucher #${boucher.boucherNumber || boucher._id.slice(-6)}</h3>
+                        <div style="margin: 20px 0;">
+                            <p><strong>Mesa:</strong> ${boucher.numMesa || boucher.mesa?.nummesa || 'N/A'}</p>
+                            <p><strong>Mozo:</strong> ${boucher.nombreMozo || boucher.mozo?.name || 'N/A'}</p>
+                            <p><strong>Comandas:</strong> ${boucher.comandasNumbers?.join(', ') || 'N/A'}</p>
+                            <p><strong>Fecha de Pago:</strong> ${boucher.fechaPagoString || new Date(boucher.fechaPago).toLocaleString('es-PE')}</p>
+                            ${boucher.observaciones ? `<p><strong>Observaciones:</strong> ${boucher.observaciones}</p>` : ''}
+                        </div>
+                        <h4>Platos:</h4>
+                        <table style="width: 100%; margin: 20px 0;">
+                            <thead>
+                                <tr>
+                                    <th>Plato</th>
+                                    <th>Cantidad</th>
+                                    <th>Precio Unit.</th>
+                                    <th>Subtotal</th>
+                                    <th>Comanda</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${platosHTML}
+                            </tbody>
+                        </table>
+                        <div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
+                            <p><strong>Subtotal:</strong> S/. ${(boucher.subtotal || 0).toFixed(2)}</p>
+                            <p><strong>IGV (18%):</strong> S/. ${(boucher.igv || 0).toFixed(2)}</p>
+                            <p style="font-size: 1.2em; font-weight: bold;"><strong>TOTAL:</strong> S/. ${(boucher.total || 0).toFixed(2)}</p>
+                        </div>
+                        <div style="margin-top: 20px; text-align: center;">
+                            <button class="btn btn-primary" onclick="imprimirBoucher('${boucher._id}')">🖨️ Imprimir Boucher</button>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('modal-title').textContent = 'Detalle del Boucher';
+                document.getElementById('modal-body').innerHTML = modalBody;
+                document.getElementById('modal').classList.add('active');
+            } catch (error) {
+                alert('Error al cargar el boucher: ' + error.message);
+            }
+        }
+
+        async function imprimirBoucher(boucherId) {
+            try {
+                const response = await fetch(`${API_BASE}/boucher/${boucherId}`);
+                const boucher = await response.json();
+                
+                // Generar HTML para imprimir
+                const platosHTML = boucher.platos?.map(plato => `
+                    <tr>
+                        <td>${plato.nombre || 'Plato'}</td>
+                        <td>${plato.cantidad || 1}</td>
+                        <td>S/. ${(plato.precio || 0).toFixed(2)}</td>
+                        <td>S/. ${(plato.subtotal || 0).toFixed(2)}</td>
+                    </tr>
+                `).join('') || '';
+
+                const htmlContent = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>Boucher #${boucher.boucherNumber || boucher._id.slice(-6)}</title>
+                        <style>
+                            body {
+                                font-family: Arial, sans-serif;
+                                max-width: 600px;
+                                margin: 0 auto;
+                                padding: 20px;
+                            }
+                            .header {
+                                text-align: center;
+                                border-bottom: 2px solid #333;
+                                padding-bottom: 20px;
+                                margin-bottom: 20px;
+                            }
+                            .info {
+                                margin: 15px 0;
+                            }
+                            table {
+                                width: 100%;
+                                border-collapse: collapse;
+                                margin: 20px 0;
+                            }
+                            th, td {
+                                padding: 8px;
+                                text-align: left;
+                                border-bottom: 1px solid #ddd;
+                            }
+                            th {
+                                background-color: #f5f5f5;
+                            }
+                            .total {
+                                margin-top: 20px;
+                                padding: 15px;
+                                background: #f5f5f5;
+                                border-radius: 8px;
+                            }
+                            .total-row {
+                                display: flex;
+                                justify-content: space-between;
+                                margin: 5px 0;
+                            }
+                            .total-final {
+                                font-size: 1.3em;
+                                font-weight: bold;
+                                border-top: 2px solid #333;
+                                padding-top: 10px;
+                                margin-top: 10px;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <h1>🍽️ Las Gambusinas</h1>
+                            <h2>BOUCHER DE PAGO</h2>
+                            <p>N° ${boucher.boucherNumber || boucher._id.slice(-6)}</p>
+                        </div>
+                        <div class="info">
+                            <p><strong>Mesa:</strong> ${boucher.numMesa || boucher.mesa?.nummesa || 'N/A'}</p>
+                            <p><strong>Mozo:</strong> ${boucher.nombreMozo || boucher.mozo?.name || 'N/A'}</p>
+                            <p><strong>Comandas:</strong> ${boucher.comandasNumbers?.join(', ') || 'N/A'}</p>
+                            <p><strong>Fecha:</strong> ${boucher.fechaPagoString || new Date(boucher.fechaPago).toLocaleString('es-PE')}</p>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Plato</th>
+                                    <th>Cant.</th>
+                                    <th>Precio</th>
+                                    <th>Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${platosHTML}
+                            </tbody>
+                        </table>
+                        <div class="total">
+                            <div class="total-row">
+                                <span>Subtotal:</span>
+                                <span>S/. ${(boucher.subtotal || 0).toFixed(2)}</span>
+                            </div>
+                            <div class="total-row">
+                                <span>IGV (18%):</span>
+                                <span>S/. ${(boucher.igv || 0).toFixed(2)}</span>
+                            </div>
+                            <div class="total-row total-final">
+                                <span>TOTAL:</span>
+                                <span>S/. ${(boucher.total || 0).toFixed(2)}</span>
+                            </div>
+                        </div>
+                        ${boucher.observaciones ? `<p><strong>Observaciones:</strong> ${boucher.observaciones}</p>` : ''}
+                        <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+                            <p>¡Gracias por su visita!</p>
+                        </div>
+                    </body>
+                    </html>
+                `;
+                
+                // Abrir ventana de impresión
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(htmlContent);
+                printWindow.document.close();
+                printWindow.focus();
+                setTimeout(() => {
+                    printWindow.print();
+                }, 250);
+            } catch (error) {
+                alert('Error al imprimir el boucher: ' + error.message);
             }
         }
 
