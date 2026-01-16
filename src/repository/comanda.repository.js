@@ -83,6 +83,9 @@ const listarComanda = async () => {
         }
       })
       .populate({
+        path: "cliente"
+      })
+      .populate({
         path: "platos.plato",
         model: "platos"
       });
@@ -255,6 +258,9 @@ const agregarComanda = async (data) => {
       }
     })
     .populate({
+      path: "cliente"
+    })
+    .populate({
       path: "platos.plato",
       model: "platos"
     });
@@ -371,6 +377,9 @@ const actualizarComanda = async (comandaId, newData) => {
       }
     })
     .populate({
+      path: "cliente"
+    })
+    .populate({
       path: "platos.plato",
       model: "platos"
     });
@@ -446,6 +455,9 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
         populate: {
           path: "area"
         }
+      })
+      .populate({
+        path: "cliente"
       })
       .populate({
         path: "platos.plato",
@@ -525,6 +537,9 @@ const listarComandaPorFechaEntregado = async (fecha) => {
       }
     })
     .populate({
+      path: "cliente"
+    })
+    .populate({
       path: "platos.plato",
       model: "platos"
     })
@@ -545,6 +560,9 @@ const listarComandaPorFechaEntregado = async (fecha) => {
         populate: {
           path: "area"
         }
+      })
+      .populate({
+        path: "cliente"
       })
       .populate({
         path: "platos.plato",
@@ -623,6 +641,9 @@ const listarComandaPorFecha = async (fecha) => {
       populate: {
         path: "area"
       }
+    })
+    .populate({
+      path: "cliente"
     })
     .populate({
       path: "platos.plato",

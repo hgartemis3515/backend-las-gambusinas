@@ -305,6 +305,7 @@
             <button class="tab" onclick="showTab('platos')">Platos</button>
             <button class="tab" onclick="showTab('comandas')">Comandas</button>
             <button class="tab" onclick="showTab('bouchers')">Bouchers</button>
+            <button class="tab" onclick="showTab('clientes')">Clientes</button>
         </div>
 
         <div class="content">
@@ -364,6 +365,47 @@
                     </div>
                 </div>
                 <div id="bouchers-list" class="loading">Cargando bouchers...</div>
+            </div>
+
+            <!-- Tab Clientes -->
+            <div id="clientes" class="tab-content">
+                <div class="section-header">
+                    <h2>Gestión de Clientes</h2>
+                    <div>
+                        <button class="btn btn-primary" onclick="exportarClientesCSV()" style="margin-right: 10px;">📥 Exportar CSV</button>
+                        <button class="btn btn-primary" onclick="loadClientes()">🔄 Actualizar</button>
+                    </div>
+                </div>
+                <div style="margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
+                    <h3 style="margin-bottom: 15px; color: #333;">Filtros</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #666;">Tipo:</label>
+                            <select id="filtro-tipo" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;" onchange="loadClientes()">
+                                <option value="">Todos</option>
+                                <option value="registrado">Registrados</option>
+                                <option value="invitado">Invitados</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #666;">Nombre:</label>
+                            <input type="text" id="filtro-nombre" placeholder="Buscar por nombre..." style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;" onkeyup="loadClientes()">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #666;">DNI:</label>
+                            <input type="text" id="filtro-dni" placeholder="Buscar por DNI..." style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;" onkeyup="loadClientes()">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #666;">Fecha Desde:</label>
+                            <input type="date" id="filtro-fecha-desde" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;" onchange="loadClientes()">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #666;">Fecha Hasta:</label>
+                            <input type="date" id="filtro-fecha-hasta" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;" onchange="loadClientes()">
+                        </div>
+                    </div>
+                </div>
+                <div id="clientes-list" class="loading">Cargando clientes...</div>
             </div>
         </div>
     </div>
@@ -1397,6 +1439,263 @@
             setTimeout(() => {
                 alert.remove();
             }, 3000);
+        }
+
+        // ========== FUNCIONES DE CLIENTES ==========
+        async function loadClientes() {
+            const container = document.getElementById('clientes-list');
+            container.innerHTML = '<div class="loading">Cargando clientes...</div>';
+
+            try {
+                const filtros = {
+                    tipo: document.getElementById('filtro-tipo')?.value || '',
+                    nombre: document.getElementById('filtro-nombre')?.value || '',
+                    dni: document.getElementById('filtro-dni')?.value || '',
+                    fechaDesde: document.getElementById('filtro-fecha-desde')?.value || '',
+                    fechaHasta: document.getElementById('filtro-fecha-hasta')?.value || ''
+                };
+
+                let url = `${API_BASE}/clientes?`;
+                const params = [];
+                if (filtros.tipo) params.push(`tipo=${filtros.tipo}`);
+                if (filtros.nombre) params.push(`nombre=${encodeURIComponent(filtros.nombre)}`);
+                if (filtros.dni) params.push(`dni=${filtros.dni}`);
+                if (filtros.fechaDesde) params.push(`fechaDesde=${filtros.fechaDesde}`);
+                if (filtros.fechaHasta) params.push(`fechaHasta=${filtros.fechaHasta}`);
+                
+                url += params.join('&');
+
+                const response = await fetch(url);
+                const clientes = await response.json();
+                displayClientes(clientes);
+            } catch (error) {
+                container.innerHTML = `<div class="alert alert-error">Error al cargar clientes: ${error.message}</div>`;
+            }
+        }
+
+        function displayClientes(clientes) {
+            const container = document.getElementById('clientes-list');
+            if (clientes.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay clientes registrados</div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>Teléfono</th>
+                                <th>DNI</th>
+                                <th>Tipo</th>
+                                <th>Total Consumido</th>
+                                <th>Visitas</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${clientes.map(cliente => `
+                                <tr style="cursor: pointer;" onclick="verDetalleCliente('${cliente._id}')">
+                                    <td>${cliente.clienteId || cliente._id.slice(-6)}</td>
+                                    <td>${cliente.nombre || '-'}</td>
+                                    <td>${cliente.telefono || '-'}</td>
+                                    <td>${cliente.dni || '-'}</td>
+                                    <td>
+                                        <span class="badge ${cliente.tipo === 'registrado' ? 'badge-success' : 'badge-warning'}">
+                                            ${cliente.tipo === 'registrado' ? 'Registrado' : 'Invitado'}
+                                        </span>
+                                    </td>
+                                    <td>S/. ${(cliente.totalConsumido || 0).toFixed(2)}</td>
+                                    <td>${cliente.visitas || 0}</td>
+                                    <td>
+                                        <button class="btn btn-primary" style="margin-right: 5px;" onclick="event.stopPropagation(); verDetalleCliente('${cliente._id}')">Ver Detalle</button>
+                                        ${cliente.tipo === 'registrado' ? `
+                                            <button class="btn btn-secondary" onclick="event.stopPropagation(); editarCliente('${cliente._id}')">Editar</button>
+                                        ` : ''}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        async function verDetalleCliente(clienteId) {
+            try {
+                const response = await fetch(`${API_BASE}/clientes/${clienteId}`);
+                const cliente = await response.json();
+
+                const comandasHTML = cliente.comandas && cliente.comandas.length > 0 ? `
+                    <h3 style="margin-top: 20px; margin-bottom: 10px;">Comandas (${cliente.comandas.length})</h3>
+                    <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>N° Comanda</th>
+                                    <th>Fecha</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${cliente.comandas.map(comanda => `
+                                    <tr>
+                                        <td>#${comanda.comandaNumber || comanda._id?.slice(-6) || 'N/A'}</td>
+                                        <td>${comanda.createdAt ? new Date(comanda.createdAt).toLocaleDateString('es-PE') : 'N/A'}</td>
+                                        <td>S/. ${(comanda.total || 0).toFixed(2)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                ` : '<p style="color: #999; margin-top: 20px;">No hay comandas registradas</p>';
+
+                const bouchersHTML = cliente.bouchers && cliente.bouchers.length > 0 ? `
+                    <h3 style="margin-top: 20px; margin-bottom: 10px;">Bouchers (${cliente.bouchers.length})</h3>
+                    <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>N° Boucher</th>
+                                    <th>Fecha Uso</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${cliente.bouchers.map(boucher => `
+                                    <tr>
+                                        <td>#${boucher.boucherNumber || boucher._id?.slice(-6) || 'N/A'}</td>
+                                        <td>${boucher.fechaUso ? new Date(boucher.fechaUso).toLocaleDateString('es-PE') : (boucher.fechaPago ? new Date(boucher.fechaPago).toLocaleDateString('es-PE') : 'N/A')}</td>
+                                        <td>S/. ${(boucher.total || 0).toFixed(2)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                ` : '<p style="color: #999; margin-top: 20px;">No hay bouchers registrados</p>';
+
+                const modalBody = `
+                    <div style="padding: 20px;">
+                        <div style="margin-bottom: 20px;">
+                            <h3 style="color: #333; margin-bottom: 15px;">Información del Cliente</h3>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                                <div>
+                                    <strong>ID:</strong> ${cliente.clienteId || cliente._id.slice(-6)}
+                                </div>
+                                <div>
+                                    <strong>Nombre:</strong> ${cliente.nombre || '-'}
+                                </div>
+                                <div>
+                                    <strong>DNI:</strong> ${cliente.dni || '-'}
+                                </div>
+                                <div>
+                                    <strong>Teléfono:</strong> ${cliente.telefono || '-'}
+                                </div>
+                                <div>
+                                    <strong>Email:</strong> ${cliente.email || '-'}
+                                </div>
+                                <div>
+                                    <strong>Tipo:</strong> 
+                                    <span class="badge ${cliente.tipo === 'registrado' ? 'badge-success' : 'badge-warning'}">
+                                        ${cliente.tipo === 'registrado' ? 'Registrado' : 'Invitado'}
+                                    </span>
+                                </div>
+                                <div>
+                                    <strong>Total Consumido:</strong> S/. ${(cliente.totalConsumido || 0).toFixed(2)}
+                                </div>
+                                <div>
+                                    <strong>Visitas:</strong> ${cliente.visitas || 0}
+                                </div>
+                            </div>
+                        </div>
+                        ${comandasHTML}
+                        ${bouchersHTML}
+                    </div>
+                `;
+
+                document.getElementById('modal-title').textContent = `Detalle Cliente: ${cliente.nombre || 'Invitado'}`;
+                document.getElementById('modal-body').innerHTML = modalBody;
+                document.getElementById('modal').style.display = 'block';
+            } catch (error) {
+                alert('Error al cargar detalle del cliente: ' + error.message);
+            }
+        }
+
+        async function editarCliente(clienteId) {
+            try {
+                const response = await fetch(`${API_BASE}/clientes/${clienteId}`);
+                const cliente = await response.json();
+
+                if (cliente.tipo === 'invitado') {
+                    alert('Los clientes invitados no se pueden editar directamente. Puede convertirlos a registrados desde el detalle.');
+                    return;
+                }
+
+                const modalBody = `
+                    <form id="cliente-form" style="padding: 20px;">
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Nombre:</label>
+                            <input type="text" id="cliente-nombre" value="${cliente.nombre || ''}" required style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">DNI (solo lectura):</label>
+                            <input type="text" id="cliente-dni" value="${cliente.dni || ''}" readonly style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; background: #f5f5f5;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Teléfono:</label>
+                            <input type="text" id="cliente-telefono" value="${cliente.telefono || ''}" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Email:</label>
+                            <input type="email" id="cliente-email" value="${cliente.email || ''}" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-top: 20px;">
+                            <button type="submit" class="btn btn-primary" style="flex: 1;">Guardar Cambios</button>
+                            <button type="button" class="btn btn-secondary" onclick="closeModal()" style="flex: 1;">Cancelar</button>
+                        </div>
+                    </form>
+                `;
+
+                document.getElementById('modal-title').textContent = 'Editar Cliente';
+                document.getElementById('modal-body').innerHTML = modalBody;
+
+                document.getElementById('cliente-form').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    try {
+                        const response = await fetch(`${API_BASE}/clientes/${clienteId}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                nombre: document.getElementById('cliente-nombre').value,
+                                telefono: document.getElementById('cliente-telefono').value,
+                                email: document.getElementById('cliente-email').value
+                            })
+                        });
+
+                        if (response.ok) {
+                            showAlert('Cliente actualizado exitosamente', 'success');
+                            closeModal();
+                            loadClientes();
+                        } else {
+                            const error = await response.json();
+                            alert('Error: ' + (error.message || 'No se pudo actualizar el cliente'));
+                        }
+                    } catch (error) {
+                        alert('Error al actualizar cliente: ' + error.message);
+                    }
+                });
+
+                document.getElementById('modal').style.display = 'block';
+            } catch (error) {
+                alert('Error al cargar cliente: ' + error.message);
+            }
+        }
+
+        function exportarClientesCSV() {
+            // Esta función se puede implementar para exportar a CSV
+            alert('Función de exportación CSV próximamente disponible');
         }
 
         // Cargar datos iniciales

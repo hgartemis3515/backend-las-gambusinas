@@ -7,6 +7,7 @@ const platoRoutes = require('./src/controllers/platoController')
 const comandaRoutes = require('./src/controllers/comandaController')
 const areaRoutes = require('./src/controllers/areaController')
 const boucherRoutes = require('./src/controllers/boucherController')
+const clientesRoutes = require('./src/controllers/clientesController')
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -21,7 +22,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-const routes = [mesasRoutes, mozosRoutes, platoRoutes, comandaRoutes, areaRoutes, boucherRoutes];
+const routes = [mesasRoutes, mozosRoutes, platoRoutes, comandaRoutes, areaRoutes, boucherRoutes, clientesRoutes];
 
 app.use(express.json());
 app.use('/api',routes);

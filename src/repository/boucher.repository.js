@@ -1,5 +1,6 @@
 const boucherModel = require("../database/models/boucher.model");
 const { syncJsonFile } = require('../utils/jsonSync');
+const { asociarBoucherACliente } = require('./clientes.repository');
 
 const listarBouchers = async () => {
     try {
@@ -107,17 +108,28 @@ const crearBoucher = async (data) => {
         // Sincronizar con archivo JSON
         try {
             const todosLosBouchers = await boucherModel.find({ isActive: true });
-            await syncJsonFile('bouchers.json', todosLosBouchers);
+            await syncJsonFile('boucher.json', todosLosBouchers);
         } catch (error) {
-            console.error('⚠️ Error al sincronizar bouchers.json:', error);
+            console.error('⚠️ Error al sincronizar boucher.json:', error);
         }
         
         // Obtener el boucher con populate
         const boucherCompleto = await boucherModel.findById(nuevoBoucher._id)
             .populate('mesa')
             .populate('mozo')
+            .populate('cliente')
             .populate('comandas')
             .populate('platos.plato');
+        
+        // Si hay cliente asociado, asociar el boucher al cliente
+        if (nuevoBoucher.cliente) {
+            try {
+                await asociarBoucherACliente(nuevoBoucher.cliente, nuevoBoucher._id);
+                console.log('✅ Boucher asociado al cliente:', nuevoBoucher.cliente);
+            } catch (error) {
+                console.error('⚠️ Error al asociar boucher al cliente (no crítico):', error);
+            }
+        }
         
         return boucherCompleto;
     } catch (error) {
@@ -144,9 +156,9 @@ const eliminarBoucher = async (boucherId) => {
         // Sincronizar con archivo JSON
         try {
             const todosLosBouchers = await boucherModel.find({ isActive: true });
-            await syncJsonFile('bouchers.json', todosLosBouchers);
+            await syncJsonFile('boucher.json', todosLosBouchers);
         } catch (error) {
-            console.error('⚠️ Error al sincronizar bouchers.json:', error);
+            console.error('⚠️ Error al sincronizar boucher.json:', error);
         }
         
         return boucher;

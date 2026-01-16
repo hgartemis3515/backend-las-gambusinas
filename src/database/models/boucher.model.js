@@ -24,6 +24,20 @@ const boucherSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    cliente: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Cliente',
+        default: null // Opcional: puede ser registrado o invitado
+    },
+    usadoEnComanda: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Comanda',
+        default: null // Comanda en la que se usó el boucher
+    },
+    fechaUso: {
+        type: Date,
+        default: null // Fecha exacta en que se usó el boucher
+    },
     comandas: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Comanda'
@@ -119,7 +133,8 @@ boucherSchema.pre('save', function (next) {
     next();
 });
 
-const boucherModel = mongoose.model('Boucher', boucherSchema);
+// Especificar el nombre de la colección explícitamente como 'boucher'
+const boucherModel = mongoose.model('Boucher', boucherSchema, 'boucher');
 
 module.exports = boucherModel;
 

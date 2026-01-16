@@ -5,6 +5,16 @@ const AutoIncrement = require('mongoose-sequence')(mongoose);
 const comandaSchema = new mongoose.Schema({
     mozos: { type: mongoose.Schema.Types.ObjectId, ref: 'mozos' },
     mesas: { type: mongoose.Schema.Types.ObjectId, ref: 'mesas' },
+    cliente: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'Cliente',
+        default: null // Se asigna automáticamente al confirmar pago
+    },
+    dividedFrom: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'Comanda',
+        default: null // Para rastrear si esta comanda fue dividida
+    },
     platos: [{
         plato: { type: mongoose.Schema.Types.ObjectId, ref: 'platos' },
         platoId: { type: Number }, // ID numérico del plato para búsqueda alternativa
