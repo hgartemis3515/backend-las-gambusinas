@@ -61,7 +61,9 @@ router.delete('/comanda/:id', async (req, res) => {
         }
     } catch (error) {
         console.error(error.message);
-        res.status(500).json({ message: 'Error al eliminar la comanda' });
+        // Si el error tiene statusCode, usarlo; sino, usar 500 por defecto
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json({ message: error.message || 'Error al eliminar la comanda' });
     }
 });
 

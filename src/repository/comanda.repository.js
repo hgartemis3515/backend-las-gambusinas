@@ -282,6 +282,14 @@ const agregarComanda = async (data) => {
 
 const eliminarComanda = async (comandaId) => {
   try {
+    // Validar que el ID sea válido
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(comandaId)) {
+      const error = new Error('ID de comanda inválido');
+      error.statusCode = 400;
+      throw error;
+    }
+    
     const deletedComanda = await comandaModel.findByIdAndDelete(comandaId);
     console.log('🗑️ Comanda eliminada:', comandaId);
     
@@ -400,7 +408,7 @@ const actualizarComanda = async (comandaId, newData) => {
 
 const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
   try {
-    const comanda = await comandaModel.findById(comandaId);
+    const comanda = await comandaModel.findById(comandaId).populate('mesas');
     if (!comanda) throw new Error('Comanda no encontrada');
 
     const plato = comanda.platos.find(p => p.plato.equals(platoId));
@@ -408,7 +416,43 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
 
     plato.estado = nuevoEstado;
     await comanda.save();
-    return comanda;
+
+    // Si el nuevo estado es "recoger", verificar si todos los platos están en "recoger"
+    // Si es así, actualizar la mesa a "preparado"
+    if (nuevoEstado === "recoger") {
+      // Verificar que todos los platos estén en "recoger" (no considerar "entregado")
+      const todosEnRecoger = comanda.platos.every(p => p.estado === "recoger");
+      
+      if (todosEnRecoger && comanda.platos.length > 0) {
+        const mesa = await mesasModel.findById(comanda.mesas._id || comanda.mesas);
+        if (mesa) {
+          // Solo actualizar si la mesa no está ya en "preparado" o "pagando"
+          if (mesa.estado !== "preparado" && mesa.estado !== "pagando") {
+            mesa.estado = "preparado";
+            await mesa.save();
+            console.log(`✅ Mesa ${mesa.nummesa} actualizada a estado "preparado" - Comanda lista para recoger`);
+          }
+        }
+      }
+    }
+
+    // Obtener la comanda actualizada con populate
+    const comandaActualizada = await comandaModel.findById(comandaId)
+      .populate({
+        path: "mozos",
+      })
+      .populate({
+        path: "mesas",
+        populate: {
+          path: "area"
+        }
+      })
+      .populate({
+        path: "platos.plato",
+        model: "platos"
+      });
+
+    return comandaActualizada;
   } catch (error) {
     console.error("Error al cambiar el estado del plato en la comanda", error);
     throw error;

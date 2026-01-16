@@ -98,8 +98,8 @@ const actualizarEstadoMesa = async (mesaId, nuevoEstado, esAdmin = false) => {
     const transicionesPermitidas = {
         'libre': ['esperando', 'reservado'],
         'esperando': ['pedido'],
-        'pedido': ['preparado'],
-        'preparado': ['pagado'],
+        'pedido': ['preparado', 'libre'], // Permitir volver a libre cuando se elimina la comanda
+        'preparado': ['pagado', 'libre'], // Permitir volver a libre si se elimina la comanda
         'pagado': ['libre'],
         'reservado': ['libre'] // Solo admin puede liberar reservas
     };
