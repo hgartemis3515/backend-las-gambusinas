@@ -104,6 +104,12 @@ const actualizarEstadoMesa = async (mesaId, nuevoEstado, esAdmin = false) => {
         'reservado': ['libre'] // Solo admin puede liberar reservas
     };
 
+    // Permitir actualizaciones idempotentes (mismo estado → mismo estado)
+    if (estadoActual === estadoSolicitado) {
+        console.log(`ℹ️ Mesa ${mesa.nummesa} ya está en estado '${estadoActual}', omitiendo actualización`);
+        return mesa; // Retornar la mesa sin cambios
+    }
+
     // Validar transición
     const transicionesValidas = transicionesPermitidas[estadoActual] || [];
     

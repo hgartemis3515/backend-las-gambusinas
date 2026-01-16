@@ -1,4 +1,5 @@
 const clienteModel = require("../database/models/cliente.model");
+const { syncJsonFile } = require('../utils/jsonSync');
 
 /**
  * Genera un nuevo cliente tipo "Invitado-#" con número secuencial único
@@ -33,6 +34,14 @@ const generarClienteInvitado = async () => {
         });
 
         console.log(`✅ Cliente Invitado-${siguienteNumero} creado con ID: ${nuevoInvitado._id}`);
+
+        // Sincronizar con archivo JSON
+        try {
+            const todosLosClientes = await clienteModel.find({});
+            await syncJsonFile('clientes.json', todosLosClientes);
+        } catch (error) {
+            console.error('⚠️ Error al sincronizar clientes.json:', error);
+        }
 
         return nuevoInvitado;
     } catch (error) {
@@ -78,6 +87,14 @@ const crearCliente = async (data) => {
         });
 
         console.log(`✅ Cliente registrado creado: ${nuevoCliente.nombre} (ID: ${nuevoCliente._id})`);
+
+        // Sincronizar con archivo JSON
+        try {
+            const todosLosClientes = await clienteModel.find({});
+            await syncJsonFile('clientes.json', todosLosClientes);
+        } catch (error) {
+            console.error('⚠️ Error al sincronizar clientes.json:', error);
+        }
 
         return nuevoCliente;
     } catch (error) {
@@ -243,6 +260,15 @@ const actualizarCliente = async (id, data) => {
         }
 
         await cliente.save();
+
+        // Sincronizar con archivo JSON
+        try {
+            const todosLosClientes = await clienteModel.find({});
+            await syncJsonFile('clientes.json', todosLosClientes);
+        } catch (error) {
+            console.error('⚠️ Error al sincronizar clientes.json:', error);
+        }
+
         return cliente;
     } catch (error) {
         console.error("❌ Error al actualizar cliente:", error);
@@ -270,6 +296,15 @@ const asociarClienteAComanda = async (clienteId, comandaId, totalComanda) => {
         cliente.visitas = (cliente.visitas || 0) + 1;
 
         await cliente.save();
+
+        // Sincronizar con archivo JSON
+        try {
+            const todosLosClientes = await clienteModel.find({});
+            await syncJsonFile('clientes.json', todosLosClientes);
+        } catch (error) {
+            console.error('⚠️ Error al sincronizar clientes.json:', error);
+        }
+
         return cliente;
     } catch (error) {
         console.error("❌ Error al asociar cliente a comanda:", error);
@@ -293,6 +328,15 @@ const asociarBoucherACliente = async (clienteId, boucherId) => {
         }
 
         await cliente.save();
+
+        // Sincronizar con archivo JSON
+        try {
+            const todosLosClientes = await clienteModel.find({});
+            await syncJsonFile('clientes.json', todosLosClientes);
+        } catch (error) {
+            console.error('⚠️ Error al sincronizar clientes.json:', error);
+        }
+
         return cliente;
     } catch (error) {
         console.error("❌ Error al asociar boucher a cliente:", error);

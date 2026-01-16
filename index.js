@@ -1,5 +1,7 @@
 require ('./src/database/database');
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 
 const mesasRoutes = require('./src/controllers/mesasController')
 const mozosRoutes = require('./src/controllers/mozosController')
@@ -10,8 +12,29 @@ const boucherRoutes = require('./src/controllers/boucherController')
 const clientesRoutes = require('./src/controllers/clientesController')
 
 const app = express();
+const server = http.createServer(app);
 const port = process.env.PORT || 3000;
 const path = require('path');
+
+// Configurar Socket.io con CORS
+const io = new Server(server, {
+  cors: {
+    origin: ['http://localhost:3000', 'http://192.168.18.11:3000', 'http://localhost:3001', 'http://192.168.18.11:3001', '*'],
+    methods: ['GET', 'POST'],
+    credentials: true
+  },
+  transports: ['websocket', 'polling']
+});
+
+// Exportar io para usar en controladores
+global.io = io;
+
+// Configurar namespaces
+const cocinaNamespace = io.of('/cocina');
+const mozosNamespace = io.of('/mozos');
+
+// Configurar eventos Socket.io
+require('./src/socket/events')(io, cocinaNamespace, mozosNamespace);
 
 var cors = require('cors');
 
@@ -86,9 +109,10 @@ app.get('/', (req, res)=>{
 });
 
 // Escuchar en todas las interfaces de red (0.0.0.0) para permitir conexiones desde otros dispositivos
-app.listen(port, '0.0.0.0', ()=> {
+server.listen(port, '0.0.0.0', ()=> {
   console.log('servidor corriendo en el puerto', port);
   console.log('Servidor accesible desde:');
   console.log('  - Local: http://localhost:' + port);
   console.log('  - Red local: http://192.168.18.11:' + port);
+  console.log('  - Socket.io WebSockets activo en /cocina y /mozos');
 });

@@ -6,66 +6,82 @@ const { syncJsonFile } = require('../utils/jsonSync');
 // Función helper para asegurar que los platos estén populados
 const ensurePlatosPopulated = async (comandas) => {
   try {
+    // Validar que comandas sea un array
+    if (!Array.isArray(comandas)) {
+      console.warn('⚠️ ensurePlatosPopulated recibió un valor que no es array:', typeof comandas);
+      return [];
+    }
+
     // Obtener todos los platos una vez
     const todosLosPlatos = await platoModel.find({});
     const platosMapById = new Map(); // Mapa por ObjectId (_id)
     const platosMapByNumId = new Map(); // Mapa por id numérico
     
     todosLosPlatos.forEach(plato => {
-      platosMapById.set(plato._id.toString(), plato);
-      if (plato.id) {
-        platosMapByNumId.set(plato.id, plato);
+      if (plato && plato._id) {
+        platosMapById.set(plato._id.toString(), plato);
+        if (plato.id) {
+          platosMapByNumId.set(plato.id, plato);
+        }
       }
     });
 
     // Mapear cada comanda y asegurar que los platos estén populados
     return comandas.map(comanda => {
-      const comandaObj = comanda.toObject ? comanda.toObject() : comanda;
-      
-      if (comandaObj.platos && Array.isArray(comandaObj.platos)) {
-        comandaObj.platos = comandaObj.platos.map(platoItem => {
-          const platoId = platoItem.plato;
-          const platoNumId = platoItem.platoId; // ID numérico guardado
-          
-          // Si el plato ya está populado (es un objeto con nombre), usarlo
-          if (platoItem.plato && typeof platoItem.plato === 'object' && platoItem.plato.nombre) {
-            return platoItem;
-          }
-          
-          // Buscar el plato por ObjectId primero
-          let platoEncontrado = null;
-          if (platoId) {
-            const platoIdStr = platoId.toString ? platoId.toString() : platoId;
-            platoEncontrado = platosMapById.get(platoIdStr);
-          }
-          
-          // Si no se encontró por ObjectId, buscar por id numérico
-          if (!platoEncontrado && platoNumId) {
-            platoEncontrado = platosMapByNumId.get(platoNumId);
-            console.log(`🔍 Plato encontrado por id numérico ${platoNumId}:`, platoEncontrado?.nombre || 'No encontrado');
-          }
-          
-          // Retornar el plato populado o un objeto con datos por defecto
-          return {
-            ...platoItem,
-            plato: platoEncontrado || {
-              _id: platoId,
-              id: platoNumId,
-              nombre: "Plato desconocido",
-              precio: 0,
-              stock: 0,
-              categoria: "Desconocida",
-              tipo: "plato-carta normal"
+      try {
+        const comandaObj = comanda.toObject ? comanda.toObject() : comanda;
+        
+        if (comandaObj.platos && Array.isArray(comandaObj.platos)) {
+          comandaObj.platos = comandaObj.platos.map(platoItem => {
+            const platoId = platoItem.plato;
+            const platoNumId = platoItem.platoId; // ID numérico guardado
+            
+            // Si el plato ya está populado (es un objeto con nombre), usarlo
+            if (platoItem.plato && typeof platoItem.plato === 'object' && platoItem.plato.nombre) {
+              return platoItem;
             }
-          };
-        });
+            
+            // Buscar el plato por ObjectId primero
+            let platoEncontrado = null;
+            if (platoId) {
+              const platoIdStr = platoId.toString ? platoId.toString() : platoId;
+              platoEncontrado = platosMapById.get(platoIdStr);
+            }
+            
+            // Si no se encontró por ObjectId, buscar por id numérico
+            if (!platoEncontrado && platoNumId) {
+              platoEncontrado = platosMapByNumId.get(platoNumId);
+              console.log(`🔍 Plato encontrado por id numérico ${platoNumId}:`, platoEncontrado?.nombre || 'No encontrado');
+            }
+            
+            // Retornar el plato populado o un objeto con datos por defecto
+            return {
+              ...platoItem,
+              plato: platoEncontrado || {
+                _id: platoId,
+                id: platoNumId,
+                nombre: "Plato desconocido",
+                precio: 0,
+                stock: 0,
+                categoria: "Desconocida",
+                tipo: "plato-carta normal"
+              }
+            };
+          });
+        }
+        
+        return comandaObj;
+      } catch (comandaError) {
+        console.warn('⚠️ Error procesando comanda individual:', comandaError.message);
+        // Retornar comanda sin modificar si hay error
+        return comanda.toObject ? comanda.toObject() : comanda;
       }
-      
-      return comandaObj;
     });
   } catch (error) {
-    console.error("Error al asegurar que los platos estén populados:", error);
-    return comandas;
+    console.error("❌ Error al asegurar que los platos estén populados:", error);
+    console.error("Stack trace:", error.stack);
+    // Retornar comandas originales en caso de error
+    return Array.isArray(comandas) ? comandas : [];
   }
 };
 
@@ -93,20 +109,44 @@ const listarComanda = async () => {
     // Asegurar que los platos estén populados (fallback manual)
     const dataConPlatos = await ensurePlatosPopulated(data);
 
-    const mesasSinComandas = await mesasModel.find({
-      _id: { $nin: data.map(comanda => comanda.mesas._id) }
-    });
+    // Obtener IDs de mesas que tienen comandas (con validación de null)
+    const mesasIds = dataConPlatos
+      .map(comanda => {
+        // Manejar casos donde mesas puede ser null, undefined, o un objeto
+        if (!comanda.mesas) return null;
+        if (typeof comanda.mesas === 'object' && comanda.mesas._id) {
+          return comanda.mesas._id;
+        }
+        if (typeof comanda.mesas === 'string') {
+          return comanda.mesas;
+        }
+        return null;
+      })
+      .filter(id => id !== null); // Filtrar nulls
 
-    await Promise.all(mesasSinComandas.map(async (mesa) => {
-      if (!mesa.isActive) {
-        mesa.isActive = true;
-        await mesa.save();
+    // Solo buscar mesas sin comandas si hay IDs válidos
+    if (mesasIds.length > 0) {
+      try {
+        const mesasSinComandas = await mesasModel.find({
+          _id: { $nin: mesasIds }
+        });
+
+        await Promise.all(mesasSinComandas.map(async (mesa) => {
+          if (!mesa.isActive) {
+            mesa.isActive = true;
+            await mesa.save();
+          }
+        }));
+      } catch (mesaError) {
+        // Si hay error al actualizar mesas, no fallar toda la operación
+        console.warn('⚠️ Error al actualizar mesas sin comandas:', mesaError.message);
       }
-    }));
+    }
 
     return dataConPlatos;
   } catch (error) {
-    console.error("error al listar la comanda", error);
+    console.error("❌ Error al listar la comanda:", error);
+    console.error("Stack trace:", error.stack);
     throw error;
   }
 };
@@ -233,6 +273,11 @@ const agregarComanda = async (data) => {
   mesa.estado = 'pedido';
   await mesa.save();
   console.log(`✅ Mesa ${mesa.nummesa} actualizada a estado "pedido"`);
+  
+  // Emitir evento Socket.io de mesa actualizada
+  if (global.emitMesaActualizada) {
+    await global.emitMesaActualizada(mesa._id);
+  }
   
   console.log('📋 Comanda guardada en MongoDB:', {
     _id: nuevaComanda._id,
@@ -440,6 +485,11 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
             mesa.estado = "preparado";
             await mesa.save();
             console.log(`✅ Mesa ${mesa.nummesa} actualizada a estado "preparado" - Comanda lista para recoger`);
+            
+            // Emitir evento Socket.io de mesa actualizada
+            if (global.emitMesaActualizada) {
+              await global.emitMesaActualizada(mesa._id);
+            }
           }
         }
       }

@@ -490,9 +490,29 @@
         async function loadComandas() {
             try {
                 const response = await fetch(`${API_BASE}/comanda`);
-                const comandas = await response.json();
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                
+                // Validar que la respuesta sea un array
+                let comandas = [];
+                if (Array.isArray(data)) {
+                    comandas = data;
+                } else if (data && Array.isArray(data.comandas)) {
+                    comandas = data.comandas;
+                } else if (data && data.message) {
+                    // Si es un objeto de error, mostrar mensaje
+                    throw new Error(data.message);
+                } else {
+                    // Si no es array ni tiene comandas, intentar convertir
+                    console.warn('Respuesta inesperada del API:', data);
+                    comandas = [];
+                }
+                
                 displayComandas(comandas);
             } catch (error) {
+                console.error('Error al cargar comandas:', error);
                 document.getElementById('comandas-list').innerHTML = 
                     `<div class="alert alert-error">Error al cargar comandas: ${error.message}</div>`;
             }
@@ -681,6 +701,14 @@
 
         function displayComandas(comandas) {
             const container = document.getElementById('comandas-list');
+            
+            // Validar que comandas sea un array
+            if (!Array.isArray(comandas)) {
+                console.error('displayComandas recibió un valor que no es array:', comandas);
+                container.innerHTML = '<div class="alert alert-error">Error: Los datos recibidos no son válidos</div>';
+                return;
+            }
+            
             if (comandas.length === 0) {
                 container.innerHTML = '<div class="empty-state">No hay comandas registradas</div>';
                 return;
@@ -711,7 +739,7 @@
                                             ${comanda.status || 'N/A'}
                                         </span>
                                     </td>
-                                    <td>${new Date(comanda.createdAt).toLocaleDateString()}</td>
+                                    <td>${comanda.createdAt ? new Date(comanda.createdAt).toLocaleDateString() : 'N/A'}</td>
                                 </tr>
                             `).join('')}
                         </tbody>

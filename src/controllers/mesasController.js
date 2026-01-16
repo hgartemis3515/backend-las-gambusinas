@@ -55,6 +55,11 @@ router.put('/mesas/:id', async (req, res) => {
         const mesaActualizada = await actualizarMesa(idMesa, newData);
         res.json(mesaActualizada);
         console.log("Se actualizó la mesa:", idMesa);
+        
+        // Emitir evento Socket.io de mesa actualizada
+        if (global.emitMesaActualizada) {
+            await global.emitMesaActualizada(idMesa);
+        }
     } catch (error) {
         console.error("Error al actualizar la mesa:", error);
         const statusCode = error.statusCode || 500;
@@ -77,6 +82,11 @@ router.put('/mesas/:id/estado', async (req, res) => {
         const resultado = await actualizarEstadoMesa(mesaId, estado, esAdminBool);
         res.json(resultado);
         console.log(`Estado de mesa ${mesaId} actualizado a ${estado}`);
+        
+        // Emitir evento Socket.io de mesa actualizada
+        if (global.emitMesaActualizada) {
+            await global.emitMesaActualizada(mesaId);
+        }
     } catch (error) {
         console.error("Error al actualizar el estado de la mesa:", error);
         const statusCode = error.statusCode || 500;
