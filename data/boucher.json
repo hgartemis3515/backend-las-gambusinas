@@ -276,5 +276,53 @@
     "createdAt": "2026-01-16T23:53:58.499Z",
     "updatedAt": "2026-01-16T23:53:58.499Z",
     "boucherNumber": 23
+  },
+  {
+    "_id": "696ad534290d0bc5d460c532",
+    "mesa": "696927baad210f596ce06d44",
+    "numMesa": 4,
+    "mozo": "6965295625341196307ed92d",
+    "nombreMozo": "admin",
+    "cliente": "696ad53135a53cca088cd33e",
+    "usadoEnComanda": "696acd91e43e2ebc709757f1",
+    "fechaUso": "2026-01-17T00:19:07.053Z",
+    "comandas": [
+      "696acd91e43e2ebc709757f1"
+    ],
+    "comandasNumbers": [
+      123
+    ],
+    "platos": [
+      {
+        "plato": "6966afbc7bf36a5ee11f02ec",
+        "platoId": 36,
+        "nombre": "Papa a la huancaína",
+        "precio": 13,
+        "cantidad": 1,
+        "subtotal": 13,
+        "comandaNumber": 123,
+        "_id": "696ad534290d0bc5d460c533"
+      },
+      {
+        "plato": "6966afbc7bf36a5ee11f02e7",
+        "platoId": 35,
+        "nombre": "Tamal + zarza criolla",
+        "precio": 10,
+        "cantidad": 1,
+        "subtotal": 10,
+        "comandaNumber": 123,
+        "_id": "696ad534290d0bc5d460c534"
+      }
+    ],
+    "subtotal": 23,
+    "igv": 4.14,
+    "total": 27.139999999999997,
+    "observaciones": "",
+    "fechaPago": "2026-01-17T00:19:07.052Z",
+    "fechaPagoString": "16/01/2026 19:19:07",
+    "isActive": true,
+    "createdAt": "2026-01-17T00:17:56.872Z",
+    "updatedAt": "2026-01-17T00:17:56.872Z",
+    "boucherNumber": 24
   }
 ]

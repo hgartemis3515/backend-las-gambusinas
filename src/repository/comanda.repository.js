@@ -104,7 +104,8 @@ const listarComanda = async () => {
       .populate({
         path: "platos.plato",
         model: "platos"
-      });
+      })
+      .sort({ createdAt: -1, comandaNumber: -1 }); // Ordenar por fecha de creación descendente, luego por número de comanda
 
     // Asegurar que los platos estén populados (fallback manual)
     const dataConPlatos = await ensurePlatosPopulated(data);

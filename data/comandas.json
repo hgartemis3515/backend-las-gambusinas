@@ -130,7 +130,7 @@
     "_id": "696acd91e43e2ebc709757f1",
     "mozos": "6965295625341196307ed92d",
     "mesas": "696927baad210f596ce06d44",
-    "cliente": null,
+    "cliente": "696ad53135a53cca088cd33e",
     "dividedFrom": null,
     "platos": [
       {
@@ -151,7 +151,7 @@
       1
     ],
     "observaciones": "",
-    "status": "recoger",
+    "status": "pagado",
     "IsActive": true,
     "createdAt": "2026-01-16T23:45:21.294Z",
     "comandaNumber": 123
@@ -257,7 +257,7 @@
       1
     ],
     "observaciones": "",
-    "status": "recoger",
+    "status": "pagado",
     "IsActive": true,
     "createdAt": "2026-01-16T23:52:52.030Z",
     "comandaNumber": 127
@@ -280,9 +280,46 @@
       1
     ],
     "observaciones": "",
-    "status": "recoger",
+    "status": "pagado",
     "IsActive": true,
     "createdAt": "2026-01-16T23:53:10.001Z",
     "comandaNumber": 128
+  },
+  {
+    "_id": "696ad58cb7f26cadc54c034d",
+    "mozos": "6965295625341196307ed92d",
+    "mesas": "696927baad210f596ce06d44",
+    "cliente": null,
+    "dividedFrom": null,
+    "platos": [
+      {
+        "plato": "6966afbc7bf36a5ee11f02f1",
+        "platoId": 37,
+        "estado": "recoger",
+        "_id": "696ad5a98f8d6a935dea6f65"
+      },
+      {
+        "plato": "6966afbc7bf36a5ee11f03f0",
+        "platoId": 88,
+        "estado": "recoger",
+        "_id": "696ad5a98f8d6a935dea6f66"
+      },
+      {
+        "plato": "6966afbc7bf36a5ee11f03f5",
+        "platoId": 89,
+        "estado": "recoger",
+        "_id": "696ad5a98f8d6a935dea6f67"
+      }
+    ],
+    "cantidades": [
+      1,
+      2,
+      1
+    ],
+    "observaciones": "",
+    "status": "recoger",
+    "IsActive": true,
+    "createdAt": "2026-01-17T00:19:24.660Z",
+    "comandaNumber": 139
   }
 ]
