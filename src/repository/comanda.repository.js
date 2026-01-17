@@ -397,35 +397,47 @@ const eliminarComanda = async (comandaId) => {
     console.log('🗑️ Comanda eliminada:', comandaId);
     
     // Verificar si hay otras comandas activas en la mesa
+    // IMPORTANTE: Incluir comandas en estado "entregado" que aún no están pagadas
+    // Solo excluir las que están pagadas o completadas
     const comandasRestantes = await comandaModel.find({
       mesas: mesaId,
       IsActive: true,
-      status: { $nin: ['pagado', 'completado', 'entregado'] }
+      status: { $nin: ['pagado', 'completado'] }
     });
     
     // Determinar el estado correcto de la mesa basado en las comandas restantes
     let nuevoEstadoMesa = 'libre';
     
     if (comandasRestantes.length > 0) {
-      // Verificar si hay comandas en estado "recoger" (preparado)
-      const hayComandasPreparadas = comandasRestantes.some(c => c.status?.toLowerCase() === 'recoger');
+      // Prioridad 1: Verificar si hay comandas en estado "entregado" (no pagadas)
+      // Estas comandas deben mantener la mesa en "preparado" hasta que se paguen
+      const hayComandasEntregadas = comandasRestantes.some(c => c.status?.toLowerCase() === 'entregado');
       
-      if (hayComandasPreparadas) {
-        // Si hay comandas preparadas, la mesa debe estar en "preparado"
+      if (hayComandasEntregadas) {
+        // Si hay comandas entregadas pero no pagadas, la mesa debe estar en "preparado"
         nuevoEstadoMesa = 'preparado';
-        console.log(`✅ Mesa tiene ${comandasRestantes.length} comanda(s) restante(s) en estado "recoger" - Mesa a "preparado"`);
+        console.log(`✅ Mesa tiene ${comandasRestantes.length} comanda(s) restante(s), incluyendo ${comandasRestantes.filter(c => c.status?.toLowerCase() === 'entregado').length} en estado "entregado" (no pagadas) - Mesa a "preparado"`);
       } else {
-        // Si hay comandas pero no están preparadas, deben estar en "en_espera" (pedido)
-        const hayComandasEnEspera = comandasRestantes.some(c => c.status?.toLowerCase() === 'en_espera');
-        if (hayComandasEnEspera) {
-          nuevoEstadoMesa = 'pedido';
-          console.log(`✅ Mesa tiene ${comandasRestantes.length} comanda(s) restante(s) en estado "en_espera" - Mesa a "pedido"`);
+        // Prioridad 2: Verificar si hay comandas en estado "recoger" (preparado)
+        const hayComandasPreparadas = comandasRestantes.some(c => c.status?.toLowerCase() === 'recoger');
+        
+        if (hayComandasPreparadas) {
+          // Si hay comandas preparadas, la mesa debe estar en "preparado"
+          nuevoEstadoMesa = 'preparado';
+          console.log(`✅ Mesa tiene ${comandasRestantes.length} comanda(s) restante(s) en estado "recoger" - Mesa a "preparado"`);
+        } else {
+          // Prioridad 3: Si hay comandas pero no están preparadas, deben estar en "en_espera" (pedido)
+          const hayComandasEnEspera = comandasRestantes.some(c => c.status?.toLowerCase() === 'en_espera');
+          if (hayComandasEnEspera) {
+            nuevoEstadoMesa = 'pedido';
+            console.log(`✅ Mesa tiene ${comandasRestantes.length} comanda(s) restante(s) en estado "en_espera" - Mesa a "pedido"`);
+          }
         }
       }
     } else {
-      // No hay comandas activas, la mesa debe estar en "libre"
+      // No hay comandas activas (o todas están pagadas), la mesa debe estar en "libre"
       nuevoEstadoMesa = 'libre';
-      console.log(`✅ No hay comandas activas restantes - Mesa a "libre"`);
+      console.log(`✅ No hay comandas activas restantes (o todas están pagadas) - Mesa a "libre"`);
     }
     
     // Actualizar el estado de la mesa
