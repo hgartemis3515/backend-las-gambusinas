@@ -186,31 +186,67 @@ const agregarComanda = async (data) => {
     throw new Error(errorMsg);
   }
 
-  // Validar que la mesa esté en estado "libre"
+  // Validar que la mesa esté en estado "libre" o "preparado" (para nueva comanda)
   const estadoMesa = (mesa.estado || 'libre').toLowerCase();
+  let permitirNuevaComanda = false;
+  
   if (estadoMesa !== 'libre') {
-    // Verificar si hay comanda activa para esta mesa
-    const comandaActiva = await comandaModel.findOne({
-      mesas: mesa._id,
-      IsActive: true,
-      status: { $in: ['en_espera', 'recoger'] }
-    });
-
-    if (comandaActiva || ['esperando', 'pedido', 'preparado', 'pagado'].includes(estadoMesa)) {
-      const errorMsg = 'Mesa ocupada con comanda existente';
-      console.error(`❌ ${errorMsg} - Mesa ${mesa.nummesa} en estado: ${estadoMesa}`);
-      // Log para auditoría
-      console.log(`📝 AUDITORÍA - Intento inválido de crear comanda:`, {
-        timestamp: new Date().toISOString(),
-        mesaId: mesa._id,
-        numMesa: mesa.nummesa,
-        estadoActual: estadoMesa,
-        estadoSolicitado: 'esperando',
-        razon: errorMsg
+    // Si la mesa está en estado "preparado", permitir crear nueva comanda si es el mismo mozo
+    if (estadoMesa === 'preparado') {
+      // Buscar comandas activas de la mesa para verificar el mozo
+      const comandasActivas = await comandaModel.find({
+        mesas: mesa._id,
+        IsActive: true,
+        status: { $in: ['en_espera', 'recoger'] }
       });
-      const error = new Error(errorMsg);
-      error.statusCode = 409; // Conflict
-      throw error;
+      
+      if (comandasActivas.length > 0) {
+        // Verificar que el mozo que crea la nueva comanda sea el mismo que creó la comanda original
+        const primeraComanda = comandasActivas[0];
+        const mozoComandaId = primeraComanda.mozos?.toString ? primeraComanda.mozos.toString() : (primeraComanda.mozos ? String(primeraComanda.mozos) : null);
+        const mozoNuevaComandaId = data.mozos?.toString ? data.mozos.toString() : (data.mozos ? String(data.mozos) : null);
+        
+        if (mozoComandaId && mozoNuevaComandaId && mozoComandaId === mozoNuevaComandaId) {
+          // Es el mismo mozo, permitir crear nueva comanda
+          permitirNuevaComanda = true;
+          console.log(`✅ Permitiendo nueva comanda en mesa ${mesa.nummesa} (estado: preparado) - Mismo mozo`);
+        } else {
+          const errorMsg = 'Solo el mozo que creó la comanda original puede agregar una nueva comanda a esta mesa';
+          console.error(`❌ ${errorMsg} - Mesa ${mesa.nummesa}`);
+          const error = new Error(errorMsg);
+          error.statusCode = 403; // Forbidden
+          throw error;
+        }
+      } else {
+        // No hay comandas activas, pero la mesa está en preparado (puede ser un estado inconsistente)
+        // Permitir crear nueva comanda
+        permitirNuevaComanda = true;
+        console.log(`✅ Permitiendo nueva comanda en mesa ${mesa.nummesa} (estado: preparado) - Sin comandas activas`);
+      }
+    } else {
+      // Para otros estados (esperando, pedido, pagado), rechazar
+      const comandaActiva = await comandaModel.findOne({
+        mesas: mesa._id,
+        IsActive: true,
+        status: { $in: ['en_espera', 'recoger'] }
+      });
+
+      if (comandaActiva || ['esperando', 'pedido', 'pagado'].includes(estadoMesa)) {
+        const errorMsg = 'Mesa ocupada con comanda existente';
+        console.error(`❌ ${errorMsg} - Mesa ${mesa.nummesa} en estado: ${estadoMesa}`);
+        // Log para auditoría
+        console.log(`📝 AUDITORÍA - Intento inválido de crear comanda:`, {
+          timestamp: new Date().toISOString(),
+          mesaId: mesa._id,
+          numMesa: mesa.nummesa,
+          estadoActual: estadoMesa,
+          estadoSolicitado: 'esperando',
+          razon: errorMsg
+        });
+        const error = new Error(errorMsg);
+        error.statusCode = 409; // Conflict
+        throw error;
+      }
     }
 
     if (estadoMesa === 'reservado') {
@@ -271,9 +307,13 @@ const agregarComanda = async (data) => {
   console.log('✅ Comanda creada:', nuevaComanda._id);
   
   // Actualizar estado de la mesa a "pedido" automáticamente cuando se crea la comanda
-  mesa.estado = 'pedido';
-  await mesa.save();
-  console.log(`✅ Mesa ${mesa.nummesa} actualizada a estado "pedido"`);
+  // Si la mesa estaba en "preparado", cambiar a "pedido" para la nueva comanda
+  // Si la mesa estaba en "libre", cambiar a "pedido"
+  if (estadoMesa === 'preparado' || estadoMesa === 'libre') {
+    mesa.estado = 'pedido';
+    await mesa.save();
+    console.log(`✅ Mesa ${mesa.nummesa} actualizada de "${estadoMesa}" a estado "pedido"`);
+  }
   
   // Emitir evento Socket.io de mesa actualizada
   if (global.emitMesaActualizada) {
@@ -342,8 +382,67 @@ const eliminarComanda = async (comandaId) => {
       throw error;
     }
     
+    // Obtener la comanda antes de eliminarla para saber qué mesa afecta
+    const comandaAEliminar = await comandaModel.findById(comandaId);
+    if (!comandaAEliminar) {
+      const error = new Error('Comanda no encontrada');
+      error.statusCode = 404;
+      throw error;
+    }
+    
+    const mesaId = comandaAEliminar.mesas;
+    
+    // Eliminar la comanda
     const deletedComanda = await comandaModel.findByIdAndDelete(comandaId);
     console.log('🗑️ Comanda eliminada:', comandaId);
+    
+    // Verificar si hay otras comandas activas en la mesa
+    const comandasRestantes = await comandaModel.find({
+      mesas: mesaId,
+      IsActive: true,
+      status: { $nin: ['pagado', 'completado', 'entregado'] }
+    });
+    
+    // Determinar el estado correcto de la mesa basado en las comandas restantes
+    let nuevoEstadoMesa = 'libre';
+    
+    if (comandasRestantes.length > 0) {
+      // Verificar si hay comandas en estado "recoger" (preparado)
+      const hayComandasPreparadas = comandasRestantes.some(c => c.status?.toLowerCase() === 'recoger');
+      
+      if (hayComandasPreparadas) {
+        // Si hay comandas preparadas, la mesa debe estar en "preparado"
+        nuevoEstadoMesa = 'preparado';
+        console.log(`✅ Mesa tiene ${comandasRestantes.length} comanda(s) restante(s) en estado "recoger" - Mesa a "preparado"`);
+      } else {
+        // Si hay comandas pero no están preparadas, deben estar en "en_espera" (pedido)
+        const hayComandasEnEspera = comandasRestantes.some(c => c.status?.toLowerCase() === 'en_espera');
+        if (hayComandasEnEspera) {
+          nuevoEstadoMesa = 'pedido';
+          console.log(`✅ Mesa tiene ${comandasRestantes.length} comanda(s) restante(s) en estado "en_espera" - Mesa a "pedido"`);
+        }
+      }
+    } else {
+      // No hay comandas activas, la mesa debe estar en "libre"
+      nuevoEstadoMesa = 'libre';
+      console.log(`✅ No hay comandas activas restantes - Mesa a "libre"`);
+    }
+    
+    // Actualizar el estado de la mesa
+    const mesa = await mesasModel.findById(mesaId);
+    if (mesa) {
+      const estadoAnterior = mesa.estado;
+      mesa.estado = nuevoEstadoMesa;
+      await mesa.save();
+      console.log(`✅ Mesa ${mesa.nummesa} actualizada de "${estadoAnterior}" a "${nuevoEstadoMesa}" después de eliminar comanda`);
+      
+      // Emitir evento Socket.io de mesa actualizada
+      if (global.emitMesaActualizada) {
+        await global.emitMesaActualizada(mesa._id);
+      }
+    } else {
+      console.warn(`⚠️ No se encontró la mesa ${mesaId} para actualizar su estado`);
+    }
     
     // Sincronizar con archivo JSON (obtener sin populate para guardar IDs)
     try {
