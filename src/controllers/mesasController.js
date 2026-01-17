@@ -6,7 +6,8 @@ const {
     crearMesa,
     actualizarMesa,
     borrarMesa,
-    actualizarEstadoMesa
+    actualizarEstadoMesa,
+    liberarTodasLasMesas
 } = require("../repository/mesas.repository");
 
 router.get("/mesas", async (req, res) => {
@@ -45,6 +46,25 @@ router.post('/mesas', async (req, res) => {
         console.error("Error al crear la mesa:", error);
         const statusCode = error.statusCode || 500;
         res.status(statusCode).json({ error: error.message || "Error interno del servidor" });
+    }
+});
+
+// Endpoint para liberar todas las mesas a estado "libre" (Modo Libre Total)
+// IMPORTANTE: Esta ruta debe ir ANTES de /mesas/:id para evitar conflictos
+router.put('/mesas/liberar-todas', async (req, res) => {
+    try {
+        const resultado = await liberarTodasLasMesas();
+        res.json({
+            success: true,
+            message: `Modo Libre Total activado: ${resultado.mesasActualizadas} mesas actualizadas a estado "libre"`,
+            mesasActualizadas: resultado.mesasActualizadas,
+            mesasAfectadas: resultado.mesasAfectadas,
+            todaslasmesas: resultado.todaslasmesas
+        });
+        console.log(`Modo Libre Total activado: ${resultado.mesasActualizadas} mesas actualizadas`);
+    } catch (error) {
+        console.error("Error al activar Modo Libre Total:", error);
+        res.status(500).json({ error: error.message || "Error interno del servidor" });
     }
 });
 

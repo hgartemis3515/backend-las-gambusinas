@@ -186,11 +186,45 @@ const borrarMesa = async (id) => {
     return todaslasmesas;
 }
 
+// Función para liberar todas las mesas a estado "libre" (modo libre total)
+const liberarTodasLasMesas = async () => {
+    try {
+        // Actualizar todas las mesas a estado "libre" sin validaciones de transición
+        // ya que es una operación administrativa especial
+        const resultado = await mesas.updateMany(
+            {},
+            { $set: { estado: 'libre' } }
+        );
+        
+        console.log(`✅ Modo Libre Total activado: ${resultado.modifiedCount} mesas actualizadas a estado "libre"`);
+        
+        // Log para auditoría
+        console.log(`📝 AUDITORÍA - Modo Libre Total activado:`, {
+            timestamp: new Date().toISOString(),
+            mesasActualizadas: resultado.modifiedCount,
+            mesasAfectadas: resultado.matchedCount
+        });
+        
+        const todaslasmesas = await listarMesas();
+        await syncJsonFile('mesas.json', todaslasmesas);
+        
+        return {
+            mesasActualizadas: resultado.modifiedCount,
+            mesasAfectadas: resultado.matchedCount,
+            todaslasmesas
+        };
+    } catch (error) {
+        console.error('❌ Error en Modo Libre Total:', error);
+        throw error;
+    }
+}
+
 module.exports = {
     listarMesas,
     crearMesa,
     obtenerMesaPorId,
     actualizarMesa,
     borrarMesa,
-    actualizarEstadoMesa
+    actualizarEstadoMesa,
+    liberarTodasLasMesas
 };

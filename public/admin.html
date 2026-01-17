@@ -314,7 +314,10 @@
             <div id="mesas" class="tab-content active">
                 <div class="section-header">
                     <h2>Gestión de Mesas</h2>
-                    <button class="btn btn-primary" onclick="openModal('mesa')">➕ Nueva Mesa</button>
+                    <div>
+                        <button class="btn btn-primary" onclick="openModal('mesa')" style="margin-right: 10px;">➕ Nueva Mesa</button>
+                        <button class="btn btn-danger" onclick="activarModoLibreTotal()">🔴 MODO LIBRE TOTAL</button>
+                    </div>
                 </div>
                 <div id="mesas-list" class="loading">Cargando mesas...</div>
             </div>
@@ -451,6 +454,32 @@
             } catch (error) {
                 document.getElementById('mesas-list').innerHTML = 
                     `<div class="alert alert-error">Error al cargar mesas: ${error.message}</div>`;
+            }
+        }
+
+        // Función para activar Modo Libre Total (liberar todas las mesas)
+        async function activarModoLibreTotal() {
+            if (!confirm('⚠️ ¿Estás seguro de activar el MODO LIBRE TOTAL?\n\nEsto convertirá TODAS las mesas existentes al estado "libre", sin importar su estado actual.\n\nEsta acción no se puede deshacer.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/mesas/liberar-todas`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (response.ok) {
+                    const resultado = await response.json();
+                    showAlert(`✅ ${resultado.message}`, 'success');
+                    // Recargar la lista de mesas para mostrar los cambios
+                    loadMesas();
+                } else {
+                    const errorData = await response.json();
+                    showAlert('Error: ' + (errorData.error || 'No se pudo activar el Modo Libre Total'), 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
             }
         }
 
