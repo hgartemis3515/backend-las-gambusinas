@@ -2,7 +2,7 @@ const express = require('express');
 
 const router = express.Router();
 
-const { listarComanda, agregarComanda, eliminarComanda, actualizarComanda, cambiarStatusComanda, cambiarEstadoComanda, listarComandaPorFechaEntregado, listarComandaPorFecha, cambiarEstadoPlato } = require('../repository/comanda.repository');
+const { listarComanda, agregarComanda, eliminarComanda, actualizarComanda, cambiarStatusComanda, cambiarEstadoComanda, listarComandaPorFechaEntregado, listarComandaPorFecha, cambiarEstadoPlato, revertirStatusComanda } = require('../repository/comanda.repository');
 
 router.get('/comanda', async (req, res) => {
     try {
@@ -159,6 +159,21 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
     } catch (error) {
         console.error(error.message);
         res.status(400).json({ message: error.message });
+    }
+});
+
+router.put('/comanda/:id/revertir/:nuevoStatus', async (req, res) => {
+    const { id, nuevoStatus } = req.params;
+    // Obtener usuarioId del request (puede venir de req.user si hay autenticación)
+    const usuarioId = req.userId || req.body.usuarioId || 'sistema';
+    
+    try {
+        const result = await revertirStatusComanda(id, nuevoStatus, usuarioId);
+        res.json(result);
+        console.log(`✅ Comanda ${id} revertida exitosamente a "${nuevoStatus}" - Mesa ${result.mesa?.nummesa || 'N/A'} → ${result.mesa?.estado || 'N/A'}`);
+    } catch (error) {
+        console.error('❌ Error al revertir comanda:', error.message);
+        res.status(400).json({ error: error.message });
     }
 });
 

@@ -60,7 +60,18 @@ const comandaSchema = new mongoose.Schema({
     },
     comandaNumber: {
         type: Number
-    }
+    },
+    historialEstados: [{
+        status: { type: String },
+        timestamp: { type: Date, default: Date.now },
+        usuario: { 
+            type: mongoose.Schema.Types.ObjectId, 
+            ref: 'mozos',
+            default: null,
+            required: false
+        },
+        accion: { type: String }
+    }]
 }, { setDefaultsOnInsert: true });
 
 comandaSchema.plugin(AutoIncrement, { inc_field: 'comandaNumber' });

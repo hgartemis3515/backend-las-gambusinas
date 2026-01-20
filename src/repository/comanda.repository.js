@@ -583,28 +583,66 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
     plato.estado = nuevoEstado;
     await comanda.save();
 
-    // Si el nuevo estado es "recoger", verificar si todos los platos están en "recoger"
-    // Si es así, actualizar la mesa a "preparado"
-    if (nuevoEstado === "recoger") {
-      // Verificar que todos los platos estén en "recoger" (no considerar "entregado")
-      const todosEnRecoger = comanda.platos.every(p => p.estado === "recoger");
+    // Obtener la mesa para actualizar su estado
+    const mesa = await mesasModel.findById(comanda.mesas._id || comanda.mesas);
+    if (!mesa) {
+      throw new Error('Mesa no encontrada');
+    }
+
+    // IMPORTANTE: Verificar el estado de TODAS las comandas de la mesa para determinar el estado correcto
+    // Esto es necesario porque si se revierte un plato de "recoger" a "en_espera", la mesa debe volver a "pedido"
+    const comandasMesa = await comandaModel.find({
+      mesas: mesa._id,
+      IsActive: true,
+      status: { $nin: ['pagado', 'completado'] }
+    });
+
+    // Determinar el estado correcto de la mesa basado en todas las comandas
+    let nuevoEstadoMesa = 'libre';
+    
+    if (comandasMesa.length > 0) {
+      // Verificar si hay comandas en estado "recoger" (preparado)
+      const hayComandasPreparadas = comandasMesa.some(c => {
+        // Una comanda está "preparada" si todos sus platos están en "recoger"
+        return c.platos && c.platos.length > 0 && c.platos.every(p => p.estado === "recoger");
+      });
       
-      if (todosEnRecoger && comanda.platos.length > 0) {
-        const mesa = await mesasModel.findById(comanda.mesas._id || comanda.mesas);
-        if (mesa) {
-          // Solo actualizar si la mesa no está ya en "preparado" o "pagando"
-          if (mesa.estado !== "preparado" && mesa.estado !== "pagando") {
-            mesa.estado = "preparado";
-            await mesa.save();
-            console.log(`✅ Mesa ${mesa.nummesa} actualizada a estado "preparado" - Comanda lista para recoger`);
-            
-            // Emitir evento Socket.io de mesa actualizada
-            if (global.emitMesaActualizada) {
-              await global.emitMesaActualizada(mesa._id);
-            }
-          }
+      if (hayComandasPreparadas) {
+        nuevoEstadoMesa = 'preparado';
+        console.log(`✅ Mesa ${mesa.nummesa} tiene comanda(s) preparada(s) - Estado: "preparado"`);
+      } else {
+        // Si no hay comandas preparadas, verificar si hay comandas en "en_espera" o "recoger" (parcial)
+        const hayComandasActivas = comandasMesa.some(c => {
+          const status = (c.status || '').toLowerCase();
+          return status === 'en_espera' || status === 'recoger';
+        });
+        
+        if (hayComandasActivas) {
+          nuevoEstadoMesa = 'pedido';
+          console.log(`✅ Mesa ${mesa.nummesa} tiene comanda(s) activa(s) - Estado: "pedido"`);
+        } else {
+          nuevoEstadoMesa = 'libre';
+          console.log(`✅ Mesa ${mesa.nummesa} no tiene comandas activas - Estado: "libre"`);
         }
       }
+    } else {
+      nuevoEstadoMesa = 'libre';
+      console.log(`✅ Mesa ${mesa.nummesa} no tiene comandas activas - Estado: "libre"`);
+    }
+
+    // Actualizar el estado de la mesa solo si cambió
+    if (mesa.estado !== nuevoEstadoMesa) {
+      const estadoAnterior = mesa.estado;
+      mesa.estado = nuevoEstadoMesa;
+      await mesa.save();
+      console.log(`✅ Mesa ${mesa.nummesa} actualizada de "${estadoAnterior}" a "${nuevoEstadoMesa}" después de cambiar estado de plato`);
+      
+      // Emitir evento Socket.io de mesa actualizada
+      if (global.emitMesaActualizada) {
+        await global.emitMesaActualizada(mesa._id);
+      }
+    } else {
+      console.log(`ℹ️ Mesa ${mesa.nummesa} ya está en estado "${nuevoEstadoMesa}" - No se requiere actualización`);
     }
 
     // Obtener la comanda actualizada con populate
@@ -639,7 +677,51 @@ const cambiarStatusComanda = async (comandaId, nuevoStatus) => {
           comandaId,
           { status: nuevoStatus },
           { new: true }
-      );
+      ).populate('mesas');
+      
+      if (!updatedComanda) {
+        throw new Error('Comanda no encontrada');
+      }
+      
+      // Si el nuevo status es "recoger", actualizar la mesa a "preparado"
+      if (nuevoStatus === "recoger" && updatedComanda.mesas) {
+        const mesaId = updatedComanda.mesas._id || updatedComanda.mesas;
+        const mesa = await mesasModel.findById(mesaId);
+        if (mesa && mesa.estado !== "preparado" && mesa.estado !== "pagando") {
+          mesa.estado = "preparado";
+          await mesa.save();
+          console.log(`✅ Mesa ${mesa.nummesa} actualizada a estado "preparado" - Comanda lista para recoger`);
+          
+          // Emitir evento Socket.io de mesa actualizada
+          if (global.emitMesaActualizada) {
+            await global.emitMesaActualizada(mesa._id);
+          }
+        }
+      }
+      
+      // Si el nuevo status es "entregado", verificar si todas las comandas están entregadas
+      // y actualizar la mesa a "libre" si corresponde
+      if (nuevoStatus === "entregado" && updatedComanda.mesas) {
+        const mesaId = updatedComanda.mesas._id || updatedComanda.mesas;
+        const comandasActivas = await comandaModel.find({
+          mesas: mesaId,
+          IsActive: true,
+          status: { $in: ['en_espera', 'recoger'] }
+        });
+        
+        // Si no hay comandas activas, la mesa puede estar libre
+        if (comandasActivas.length === 0) {
+          const mesa = await mesasModel.findById(mesaId);
+          if (mesa && mesa.estado !== "libre" && mesa.estado !== "pagando") {
+            // No cambiar a libre automáticamente, esperar a que se pague
+            // Pero sí emitir evento para actualizar estado
+            if (global.emitMesaActualizada) {
+              await global.emitMesaActualizada(mesa._id);
+            }
+          }
+        }
+      }
+      
       return updatedComanda;
   } catch (error) {
       console.error("Error al cambiar el estado de la comanda", error);
@@ -845,4 +927,215 @@ const listarComandaPorFecha = async (fecha) => {
   }
 };
 
-module.exports = { listarComanda, agregarComanda, eliminarComanda, actualizarComanda, cambiarStatusComanda, cambiarEstadoComanda, listarComandaPorFecha, listarComandaPorFechaEntregado, cambiarEstadoPlato};
+/**
+ * Recalcula el estado de una mesa basándose en todas sus comandas activas
+ * @param {ObjectId|String} mesaId - ID de la mesa
+ * @param {Session} session - Sesión de MongoDB para transacciones (opcional)
+ * @returns {Promise<String>} - Nuevo estado de la mesa
+ */
+const recalcularEstadoMesa = async (mesaId, session = null) => {
+  try {
+    const query = {
+      mesas: mesaId,
+      IsActive: true,
+      status: { $nin: ['pagado', 'completado'] }
+    };
+    
+    const comandasActivas = session
+      ? await comandaModel.find(query).session(session)
+      : await comandaModel.find(query);
+    
+    let nuevoEstadoMesa = 'libre';
+    
+    if (comandasActivas.length > 0) {
+      // Contar comandas por estado
+      const comandasEnEspera = comandasActivas.filter(c => c.status?.toLowerCase() === 'en_espera');
+      const comandasRecoger = comandasActivas.filter(c => c.status?.toLowerCase() === 'recoger');
+      const comandasEntregadas = comandasActivas.filter(c => c.status?.toLowerCase() === 'entregado');
+      
+      // PRIORIDAD CORREGIDA: "en_espera" tiene máxima prioridad (hay trabajo pendiente)
+      // Si hay alguna comanda en "en_espera", la mesa debe estar en "pedido"
+      if (comandasEnEspera.length > 0) {
+        nuevoEstadoMesa = 'pedido';
+        console.log(`✅ Mesa tiene ${comandasActivas.length} comanda(s) activa(s): ${comandasEnEspera.length} en "en_espera", ${comandasRecoger.length} en "recoger", ${comandasEntregadas.length} en "entregado" - Mesa a "pedido" (prioridad: en_espera)`);
+      } 
+      // Si no hay "en_espera" pero hay "recoger", la mesa está "preparado"
+      else if (comandasRecoger.length > 0) {
+        nuevoEstadoMesa = 'preparado';
+        console.log(`✅ Mesa tiene ${comandasActivas.length} comanda(s) activa(s): ${comandasRecoger.length} en "recoger", ${comandasEntregadas.length} en "entregado" - Mesa a "preparado"`);
+      }
+      // Si solo hay comandas "entregado" (todas entregadas pero no pagadas), mesa en "preparado"
+      else if (comandasEntregadas.length > 0) {
+        nuevoEstadoMesa = 'preparado';
+        console.log(`✅ Mesa tiene ${comandasEntregadas.length} comanda(s) en estado "entregado" (todas entregadas, esperando pago) - Mesa a "preparado"`);
+      }
+    } else {
+      nuevoEstadoMesa = 'libre';
+      console.log(`✅ No hay comandas activas - Mesa a "libre"`);
+    }
+    
+    // Actualizar el estado de la mesa
+    const mesa = session
+      ? await mesasModel.findById(mesaId).session(session)
+      : await mesasModel.findById(mesaId);
+    
+    if (mesa) {
+      const estadoAnterior = mesa.estado;
+      if (mesa.estado !== nuevoEstadoMesa) {
+        mesa.estado = nuevoEstadoMesa;
+        if (session) {
+          await mesa.save({ session });
+        } else {
+          await mesa.save();
+        }
+        console.log(`✅ Mesa ${mesa.nummesa} actualizada de "${estadoAnterior}" a "${nuevoEstadoMesa}"`);
+        
+        // Emitir evento Socket.io de mesa actualizada (solo si no hay sesión activa, para evitar duplicados)
+        if (!session && global.emitMesaActualizada) {
+          await global.emitMesaActualizada(mesa._id);
+        }
+      } else {
+        console.log(`ℹ️ Mesa ${mesa.nummesa} ya está en estado "${nuevoEstadoMesa}" - No se requiere actualización`);
+      }
+    } else {
+      console.warn(`⚠️ No se encontró la mesa ${mesaId} para actualizar su estado`);
+    }
+    
+    return nuevoEstadoMesa;
+  } catch (error) {
+    console.error("❌ Error al recalcular estado de mesa:", error);
+    throw error;
+  }
+};
+
+/**
+ * Revierte el status de una comanda a un estado anterior con validación y auditoría
+ * NOTA: Funciona sin transacciones MongoDB (compatible con MongoDB standalone)
+ * @param {String} comandaId - ID de la comanda
+ * @param {String} nuevoStatus - Nuevo status al que revertir ('en_espera', 'recoger')
+ * @param {String|ObjectId} usuarioId - ID del usuario que realiza la reversión
+ * @returns {Promise<Object>} - Comanda actualizada
+ */
+const revertirStatusComanda = async (comandaId, nuevoStatus, usuarioId) => {
+  try {
+    // Obtener la comanda
+    const comanda = await comandaModel.findById(comandaId);
+    
+    if (!comanda) {
+      throw new Error('Comanda no encontrada');
+    }
+    
+    const statusActual = comanda.status?.toLowerCase() || 'en_espera';
+    const nuevoStatusLower = nuevoStatus?.toLowerCase();
+    
+    // ✅ VALIDAR TRANSICIÓN LEGAL
+    const transicionesValidas = {
+      'recoger': ['en_espera'], 
+      'entregado': ['recoger', 'en_espera']
+    };
+    
+    if (!transicionesValidas[statusActual]?.includes(nuevoStatusLower)) {
+      const errorMsg = `No se puede revertir de ${statusActual} → ${nuevoStatusLower}. Transiciones válidas: ${JSON.stringify(transicionesValidas[statusActual] || [])}`;
+      console.error(`❌ ${errorMsg}`);
+      throw new Error(errorMsg);
+    }
+    
+    // ✅ AUDITORÍA - Agregar al historial
+    if (!comanda.historialEstados) {
+      comanda.historialEstados = [];
+    }
+    
+    // Validar y convertir usuarioId a ObjectId válido o null
+    let usuarioIdValido = null;
+    if (usuarioId) {
+      const mongoose = require('mongoose');
+      // Si es un ObjectId válido, usarlo; si no, intentar convertirlo
+      if (mongoose.Types.ObjectId.isValid(usuarioId)) {
+        usuarioIdValido = usuarioId;
+      } else {
+        // Si no es válido (ej: "sistema"), guardar como null
+        console.log(`⚠️ usuarioId "${usuarioId}" no es un ObjectId válido, guardando como null en historial`);
+        usuarioIdValido = null;
+      }
+    }
+    
+    comanda.historialEstados.push({
+      status: nuevoStatusLower,
+      timestamp: new Date(),
+      usuario: usuarioIdValido, // null si no es válido
+      accion: `revertido-desde-${statusActual}${usuarioIdValido ? '' : '-por-sistema'}`
+    });
+    
+    // Actualizar el status
+    comanda.status = nuevoStatusLower;
+    
+    // 🔥 CRÍTICO: Revertir TODOS los platos a "en_espera" cuando se revierte la comanda
+    // Esto asegura que los platos se muestren correctamente en la app de cocina
+    if (comanda.platos && comanda.platos.length > 0) {
+      comanda.platos.forEach(plato => {
+        // Solo revertir platos que están en "recoger" o "entregado"
+        if (plato.estado === 'recoger' || plato.estado === 'entregado') {
+          plato.estado = 'en_espera';
+        }
+      });
+      console.log(`🔄 Revertidos ${comanda.platos.filter(p => p.estado === 'en_espera').length} plato(s) a "en_espera"`);
+    }
+    
+    // Guardar comanda (incluye platos actualizados)
+    await comanda.save();
+    
+    // ✅ RECALCULAR MESA (sin sesión de transacción)
+    const mesaId = comanda.mesas?._id || comanda.mesas;
+    let nuevoEstadoMesa = null;
+    if (mesaId) {
+      nuevoEstadoMesa = await recalcularEstadoMesa(mesaId, null); // null = sin sesión
+    }
+    
+    console.log(`✅ Comanda ${comandaId} revertida de "${statusActual}" a "${nuevoStatusLower}" por usuario ${usuarioId} (sin transacciones - MongoDB standalone)`);
+    
+    // Obtener la comanda actualizada con populate para emitir
+    const comandaActualizada = await comandaModel
+      .findById(comandaId)
+      .populate({
+        path: "mozos",
+      })
+      .populate({
+        path: "mesas",
+        populate: {
+          path: "area"
+        }
+      })
+      .populate({
+        path: "cliente"
+      })
+      .populate({
+        path: "platos.plato",
+        model: "platos"
+      });
+    
+    // Obtener mesa actualizada para incluir en el evento
+    let mesaActualizada = null;
+    if (mesaId) {
+      mesaActualizada = await mesasModel.findById(mesaId).populate('area');
+    }
+    
+    // 🔥 EMITIR A COCINA Y MOZOS - ESTÁNDAR INDUSTRIA: Rooms por mesa
+    // El evento incluye tanto comanda como mesa para evitar condición de carrera
+    if (global.emitComandaRevertida) {
+      await global.emitComandaRevertida(comandaActualizada, mesaActualizada);
+    }
+    
+    // También emitir mesa-actualizada por separado para compatibilidad
+    if (mesaId && global.emitMesaActualizada) {
+      await global.emitMesaActualizada(mesaId);
+      console.log(`📤 Evento 'mesa-actualizada' emitido después de revertir comanda - Mesa ahora en estado: ${nuevoEstadoMesa}`);
+    }
+    
+    return { comanda: comandaActualizada, mesa: mesaActualizada };
+  } catch (error) {
+    console.error("❌ Error al revertir status de comanda:", error);
+    throw error;
+  }
+};
+
+module.exports = { listarComanda, agregarComanda, eliminarComanda, actualizarComanda, cambiarStatusComanda, cambiarEstadoComanda, listarComandaPorFecha, listarComandaPorFechaEntregado, cambiarEstadoPlato, revertirStatusComanda, recalcularEstadoMesa};
