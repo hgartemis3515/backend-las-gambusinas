@@ -1,6 +1,7 @@
 const comandaModel = require("../database/models/comanda.model");
 const mesasModel = require("../database/models/mesas.model");
 const platoModel = require("../database/models/plato.model");
+const HistorialComandas = require("../database/models/historialComandas.model");
 const { syncJsonFile } = require('../utils/jsonSync');
 
 // Función helper para asegurar que los platos estén populados
@@ -85,10 +86,12 @@ const ensurePlatosPopulated = async (comandas) => {
   }
 };
 
-const listarComanda = async () => {
+const listarComanda = async (incluirEliminadas = false) => {
   try {
+    const query = incluirEliminadas ? {} : { eliminada: { $ne: true } };
+    
     const data = await comandaModel
-      .find()
+      .find(query)
       .populate({
         path: "mozos",
       })
@@ -372,7 +375,116 @@ const agregarComanda = async (data) => {
   return { comanda: comandaCreada, todaslascomandas: await listarComanda() };
 };
 
-const eliminarComanda = async (comandaId) => {
+/**
+ * Eliminar comanda lógicamente (soft-delete) con auditoría completa
+ * @param {String} comandaId - ID de la comanda
+ * @param {String} usuarioId - ID del usuario que elimina
+ * @param {String} motivo - Motivo de la eliminación (obligatorio)
+ * @returns {Promise<Object>} - Comanda eliminada
+ */
+const eliminarLogicamente = async (comandaId, usuarioId, motivo) => {
+  try {
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(comandaId)) {
+      const error = new Error('ID de comanda inválido');
+      error.statusCode = 400;
+      throw error;
+    }
+    
+    if (!motivo || motivo.trim() === '') {
+      const error = new Error('El motivo de eliminación es obligatorio');
+      error.statusCode = 400;
+      throw error;
+    }
+    
+    // Obtener la comanda antes de eliminarla
+    const comanda = await comandaModel.findById(comandaId);
+    if (!comanda) {
+      const error = new Error('Comanda no encontrada');
+      error.statusCode = 404;
+      throw error;
+    }
+    
+    // Calcular precio total original si no existe
+    if (!comanda.precioTotalOriginal && comanda.platos && comanda.platos.length > 0) {
+      let precioTotal = 0;
+      for (const platoItem of comanda.platos) {
+        const plato = await platoModel.findById(platoItem.plato);
+        if (plato && plato.precio) {
+          const cantidad = comanda.cantidades[comanda.platos.indexOf(platoItem)] || 1;
+          precioTotal += plato.precio * cantidad;
+        }
+      }
+      comanda.precioTotalOriginal = precioTotal;
+    }
+    
+    // Marcar como eliminada (soft-delete)
+    comanda.eliminada = true;
+    comanda.fechaEliminacion = new Date();
+    comanda.motivoEliminacion = motivo;
+    comanda.eliminadaPor = usuarioId;
+    comanda.IsActive = false; // También desactivar
+    comanda.version++;
+    
+    // Registrar historial de platos eliminados
+    if (!comanda.historialPlatos) {
+      comanda.historialPlatos = [];
+    }
+    
+    comanda.platos.forEach((platoItem, index) => {
+      const cantidad = comanda.cantidades[index] || 1;
+      comanda.historialPlatos.push({
+        platoId: platoItem.platoId,
+        nombreOriginal: platoItem.plato?.nombre || 'Plato desconocido',
+        cantidadOriginal: cantidad,
+        cantidadFinal: 0,
+        estado: 'eliminado-completo',
+        timestamp: new Date(),
+        usuario: usuarioId,
+        motivo: `comanda-${motivo}`
+      });
+    });
+    
+    await comanda.save();
+    console.log('🗑️ Comanda eliminada lógicamente (soft-delete):', comandaId);
+    
+    // Guardar en historial de comandas
+    try {
+      await HistorialComandas.create({
+        comandaId: comanda._id,
+        version: comanda.version,
+        status: comanda.status,
+        platos: comanda.platos.map((p, idx) => ({
+          plato: p.plato,
+          platoId: p.platoId,
+          estado: p.estado,
+          cantidad: comanda.cantidades[idx] || 1,
+          nombre: p.plato?.nombre || 'Plato desconocido',
+          precio: p.plato?.precio || 0
+        })),
+        cantidades: comanda.cantidades,
+        observaciones: comanda.observaciones,
+        usuario: usuarioId,
+        accion: 'eliminada',
+        motivo: motivo,
+        precioTotal: comanda.precioTotalOriginal || 0
+      });
+    } catch (historialError) {
+      console.error('⚠️ Error al guardar historial de comanda:', historialError.message);
+    }
+    
+    return comanda;
+  } catch (error) {
+    console.error("❌ Error al eliminar comanda lógicamente:", error);
+    throw error;
+  }
+};
+
+/**
+ * Función legacy - Mantener compatibilidad pero usar soft-delete
+ * @deprecated Usar eliminarLogicamente en su lugar
+ */
+const eliminarComanda = async (comandaId, usuarioId = null, motivo = 'Eliminación sin motivo especificado') => {
   try {
     // Validar que el ID sea válido
     const mongoose = require('mongoose');
@@ -392,9 +504,9 @@ const eliminarComanda = async (comandaId) => {
     
     const mesaId = comandaAEliminar.mesas;
     
-    // Eliminar la comanda
-    const deletedComanda = await comandaModel.findByIdAndDelete(comandaId);
-    console.log('🗑️ Comanda eliminada:', comandaId);
+    // Usar soft-delete en lugar de eliminación física
+    const deletedComanda = await eliminarLogicamente(comandaId, usuarioId, motivo);
+    console.log('🗑️ Comanda eliminada (soft-delete):', comandaId);
     
     // Verificar si hay otras comandas activas en la mesa
     // IMPORTANTE: Incluir comandas en estado "entregado" que aún no están pagadas
@@ -471,10 +583,150 @@ const eliminarComanda = async (comandaId) => {
   }
 };
 
+/**
+ * Editar comanda con auditoría completa de cambios
+ * @param {String} comandaId - ID de la comanda
+ * @param {Array} platosNuevos - Array de platos nuevos
+ * @param {Array} platosEliminados - Array de IDs de platos eliminados
+ * @param {String} usuarioId - ID del usuario que edita
+ * @param {String} motivo - Motivo de la edición (opcional)
+ * @returns {Promise<Object>} - Comanda actualizada
+ */
+const editarConAuditoria = async (comandaId, platosNuevos, platosEliminados, usuarioId, motivo = null) => {
+  try {
+    const comanda = await comandaModel.findById(comandaId);
+    if (!comanda) {
+      throw new Error('Comanda no encontrada');
+    }
+    
+    // Snapshot antes de la edición
+    const snapshotAntes = {
+      platos: comanda.platos.map((p, idx) => ({
+        platoId: p.platoId,
+        nombre: p.plato?.nombre || 'Plato desconocido',
+        cantidad: comanda.cantidades[idx] || 1,
+        estado: p.estado
+      })),
+      cantidades: [...comanda.cantidades],
+      observaciones: comanda.observaciones
+    };
+    
+    // Inicializar historialPlatos si no existe
+    if (!comanda.historialPlatos) {
+      comanda.historialPlatos = [];
+    }
+    
+    // Registrar platos eliminados en historial
+    if (platosEliminados && platosEliminados.length > 0) {
+      platosEliminados.forEach(platoEliminado => {
+        const platoOriginal = comanda.platos.find(p => 
+          p.platoId === platoEliminado.platoId || 
+          p.plato?.toString() === platoEliminado.platoId
+        );
+        
+        if (platoOriginal) {
+          const index = comanda.platos.indexOf(platoOriginal);
+          const cantidad = comanda.cantidades[index] || 1;
+          
+          comanda.historialPlatos.push({
+            platoId: platoOriginal.platoId,
+            nombreOriginal: platoOriginal.plato?.nombre || 'Plato desconocido',
+            cantidadOriginal: cantidad,
+            cantidadFinal: 0,
+            estado: 'eliminado',
+            timestamp: new Date(),
+            usuario: usuarioId,
+            motivo: motivo || 'Plato eliminado de comanda'
+          });
+          
+          // Remover el plato de la comanda
+          comanda.platos = comanda.platos.filter(p => p !== platoOriginal);
+          comanda.cantidades.splice(index, 1);
+        }
+      });
+    }
+    
+    // Agregar nuevos platos
+    if (platosNuevos && platosNuevos.length > 0) {
+      for (const nuevoPlato of platosNuevos) {
+        // Buscar el plato completo
+        const platoCompleto = await platoModel.findById(nuevoPlato.plato);
+        if (platoCompleto) {
+          comanda.platos.push({
+            plato: nuevoPlato.plato,
+            platoId: platoCompleto.id,
+            estado: nuevoPlato.estado || 'en_espera'
+          });
+          comanda.cantidades.push(nuevoPlato.cantidad || 1);
+        }
+      }
+    }
+    
+    comanda.version++;
+    await comanda.save();
+    
+    // Guardar en historial de comandas
+    try {
+      await HistorialComandas.create({
+        comandaId: comanda._id,
+        version: comanda.version,
+        status: comanda.status,
+        platos: comanda.platos.map((p, idx) => ({
+          plato: p.plato,
+          platoId: p.platoId,
+          estado: p.estado,
+          cantidad: comanda.cantidades[idx] || 1,
+          nombre: p.plato?.nombre || 'Plato desconocido',
+          precio: p.plato?.precio || 0
+        })),
+        cantidades: comanda.cantidades,
+        observaciones: comanda.observaciones,
+        usuario: usuarioId,
+        accion: 'editada',
+        motivo: motivo
+      });
+    } catch (historialError) {
+      console.error('⚠️ Error al guardar historial de comanda:', historialError.message);
+    }
+    
+    // Obtener comanda actualizada con populate
+    const comandaActualizada = await comandaModel.findById(comandaId)
+      .populate({
+        path: "mozos",
+      })
+      .populate({
+        path: "mesas",
+        populate: {
+          path: "area"
+        }
+      })
+      .populate({
+        path: "cliente"
+      })
+      .populate({
+        path: "platos.plato",
+        model: "platos"
+      });
+    
+    return comandaActualizada;
+  } catch (error) {
+    console.error("❌ Error al editar comanda con auditoría:", error);
+    throw error;
+  }
+};
+
 const actualizarComanda = async (comandaId, newData) => {
   try {
     console.log('✏️ Actualizando comanda:', comandaId);
     console.log('📋 Datos a actualizar:', JSON.stringify(newData, null, 2));
+    
+    // Si se están actualizando platos, incrementar versión
+    if (newData.platos) {
+      const comanda = await comandaModel.findById(comandaId);
+      if (comanda) {
+        newData.version = (comanda.version || 1) + 1;
+      }
+    }
     
     // Validar que los platos y cantidades estén correctos si se están actualizando
     if (newData.platos) {
@@ -1138,4 +1390,18 @@ const revertirStatusComanda = async (comandaId, nuevoStatus, usuarioId) => {
   }
 };
 
-module.exports = { listarComanda, agregarComanda, eliminarComanda, actualizarComanda, cambiarStatusComanda, cambiarEstadoComanda, listarComandaPorFecha, listarComandaPorFechaEntregado, cambiarEstadoPlato, revertirStatusComanda, recalcularEstadoMesa};
+module.exports = { 
+  listarComanda, 
+  agregarComanda, 
+  eliminarComanda, 
+  eliminarLogicamente,
+  editarConAuditoria,
+  actualizarComanda, 
+  cambiarStatusComanda, 
+  cambiarEstadoComanda, 
+  listarComandaPorFecha, 
+  listarComandaPorFechaEntregado, 
+  cambiarEstadoPlato, 
+  revertirStatusComanda, 
+  recalcularEstadoMesa
+};

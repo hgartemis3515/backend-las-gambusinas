@@ -10,6 +10,7 @@ const comandaRoutes = require('./src/controllers/comandaController')
 const areaRoutes = require('./src/controllers/areaController')
 const boucherRoutes = require('./src/controllers/boucherController')
 const clientesRoutes = require('./src/controllers/clientesController')
+const auditoriaRoutes = require('./src/controllers/auditoriaController')
 
 const app = express();
 const server = http.createServer(app);
@@ -45,7 +46,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-const routes = [mesasRoutes, mozosRoutes, platoRoutes, comandaRoutes, areaRoutes, boucherRoutes, clientesRoutes];
+const routes = [mesasRoutes, mozosRoutes, platoRoutes, comandaRoutes, areaRoutes, boucherRoutes, clientesRoutes, auditoriaRoutes];
 
 app.use(express.json());
 app.use('/api',routes);

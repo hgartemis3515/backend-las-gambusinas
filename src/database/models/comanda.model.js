@@ -71,7 +71,53 @@ const comandaSchema = new mongoose.Schema({
             required: false
         },
         accion: { type: String }
-    }]
+    }],
+    // Campos de auditoría para soft-delete y tracking
+    eliminada: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
+    fechaEliminacion: {
+        type: Date,
+        default: null
+    },
+    motivoEliminacion: {
+        type: String,
+        default: null
+    },
+    eliminadaPor: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'mozos',
+        default: null
+    },
+    historialPlatos: [{
+        platoId: { type: Number },
+        nombreOriginal: { type: String },
+        cantidadOriginal: { type: Number },
+        cantidadFinal: { type: Number },
+        estado: { 
+            type: String,
+            enum: ['activo', 'eliminado', 'modificado', 'eliminado-completo'],
+            default: 'activo'
+        },
+        timestamp: { type: Date, default: Date.now },
+        usuario: { 
+            type: mongoose.Schema.Types.ObjectId, 
+            ref: 'mozos',
+            default: null
+        },
+        motivo: { type: String, default: null }
+    }],
+    precioTotalOriginal: {
+        type: Number,
+        default: 0
+    },
+    version: {
+        type: Number,
+        default: 1,
+        index: true
+    }
 }, { setDefaultsOnInsert: true });
 
 comandaSchema.plugin(AutoIncrement, { inc_field: 'comandaNumber' });

@@ -307,6 +307,7 @@
             <button class="tab" onclick="showTab('comandas')">Comandas</button>
             <button class="tab" onclick="showTab('bouchers')">Bouchers</button>
             <button class="tab" onclick="showTab('clientes')">Clientes</button>
+            <button class="tab" onclick="showTab('auditoria')">🔒 Auditoría</button>
         </div>
 
         <div class="content">
@@ -380,6 +381,34 @@
                         <button class="btn btn-primary" onclick="loadClientes()">🔄 Actualizar</button>
                     </div>
                 </div>
+
+            <!-- Tab Auditoría -->
+            <div id="auditoria" class="tab-content">
+                <div class="section-header">
+                    <h2>🔒 Sistema de Auditoría</h2>
+                    <div>
+                        <input type="date" id="auditoria-fecha" style="padding: 10px; margin-right: 10px; border: 2px solid #ddd; border-radius: 8px;">
+                        <button class="btn btn-primary" onclick="loadAuditoria()">🔄 Actualizar</button>
+                        <button class="btn btn-primary" onclick="loadReporteCompleto()" style="margin-left: 10px;">📊 Reporte Completo</button>
+                    </div>
+                </div>
+                <div style="margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
+                    <h3 style="margin-bottom: 15px; color: #333;">Filtros</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #666;">Acción:</label>
+                            <select id="filtro-accion" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;" onchange="loadAuditoria()">
+                                <option value="">Todas</option>
+                                <option value="comanda_eliminada">Comanda Eliminada</option>
+                                <option value="comanda_editada">Comanda Editada</option>
+                                <option value="plato_eliminado">Plato Eliminado</option>
+                                <option value="plato_modificado">Plato Modificado</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div id="auditoria-list" class="loading">Cargando auditoría...</div>
+            </div>
                 <div style="margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
                     <h3 style="margin-bottom: 15px; color: #333;">Filtros</h3>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
@@ -1763,6 +1792,163 @@
         function exportarClientesCSV() {
             // Esta función se puede implementar para exportar a CSV
             alert('Función de exportación CSV próximamente disponible');
+        }
+
+        // Funciones de Auditoría
+        async function loadAuditoria() {
+            try {
+                const fecha = document.getElementById('auditoria-fecha')?.value || '';
+                const accion = document.getElementById('filtro-accion')?.value || '';
+                
+                let url = `${API_BASE}/auditoria/comandas`;
+                const params = [];
+                if (fecha) params.push(`fecha=${fecha}`);
+                if (accion) params.push(`accion=${accion}`);
+                if (params.length > 0) url += '?' + params.join('&');
+                
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const data = await response.json();
+                displayAuditoria(data.auditorias || []);
+            } catch (error) {
+                document.getElementById('auditoria-list').innerHTML = 
+                    `<div class="alert alert-error">Error al cargar auditoría: ${error.message}</div>`;
+            }
+        }
+
+        function displayAuditoria(auditorias) {
+            const container = document.getElementById('auditoria-list');
+            if (auditorias.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay registros de auditoría</div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha/Hora</th>
+                                <th>Acción</th>
+                                <th>Usuario</th>
+                                <th>Comanda #</th>
+                                <th>Motivo</th>
+                                <th>IP</th>
+                                <th>Detalles</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${auditorias.map(aud => `
+                                <tr>
+                                    <td>${new Date(aud.timestamp).toLocaleString('es-PE')}</td>
+                                    <td><span style="padding: 4px 8px; border-radius: 4px; background: ${getAccionColor(aud.accion)}; color: white; font-size: 12px;">${aud.accion}</span></td>
+                                    <td>${aud.usuario?.name || 'Sistema'}</td>
+                                    <td>${aud.metadata?.comandaNumber || 'N/A'}</td>
+                                    <td>${aud.motivo || '-'}</td>
+                                    <td>${aud.ip || '-'}</td>
+                                    <td><button class="btn btn-sm" onclick="verDetalleAuditoria('${aud._id}')">Ver</button></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function getAccionColor(accion) {
+            const colors = {
+                'comanda_eliminada': '#DC2626',
+                'comanda_editada': '#F59E0B',
+                'plato_eliminado': '#EF4444',
+                'plato_modificado': '#10B981',
+                'comanda_creada': '#3B82F6'
+            };
+            return colors[accion] || '#6B7280';
+        }
+
+        async function verDetalleAuditoria(auditoriaId) {
+            try {
+                const response = await fetch(`${API_BASE}/auditoria/comandas?entidadId=${auditoriaId}`);
+                const data = await response.json();
+                const aud = data.auditorias?.[0];
+                
+                if (!aud) {
+                    alert('No se encontró el registro de auditoría');
+                    return;
+                }
+
+                const modalBody = `
+                    <div style="padding: 20px;">
+                        <div style="margin-bottom: 15px;">
+                            <strong>Acción:</strong> ${aud.accion}<br>
+                            <strong>Fecha:</strong> ${new Date(aud.timestamp).toLocaleString('es-PE')}<br>
+                            <strong>Usuario:</strong> ${aud.usuario?.name || 'Sistema'}<br>
+                            <strong>Motivo:</strong> ${aud.motivo || 'N/A'}<br>
+                            <strong>IP:</strong> ${aud.ip || 'N/A'}<br>
+                        </div>
+                        <details style="margin-top: 15px;">
+                            <summary style="cursor: pointer; font-weight: bold; margin-bottom: 10px;">Datos Antes</summary>
+                            <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow: auto; max-height: 200px;">${JSON.stringify(aud.datosAntes, null, 2)}</pre>
+                        </details>
+                        <details style="margin-top: 15px;">
+                            <summary style="cursor: pointer; font-weight: bold; margin-bottom: 10px;">Datos Después</summary>
+                            <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow: auto; max-height: 200px;">${JSON.stringify(aud.datosDespues, null, 2)}</pre>
+                        </details>
+                    </div>
+                `;
+
+                document.getElementById('modal-title').textContent = 'Detalle de Auditoría';
+                document.getElementById('modal-body').innerHTML = modalBody;
+                document.getElementById('modal').style.display = 'block';
+            } catch (error) {
+                alert('Error al cargar detalle: ' + error.message);
+            }
+        }
+
+        async function loadReporteCompleto() {
+            try {
+                const fechaInicio = prompt('Fecha inicio (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+                if (!fechaInicio) return;
+                
+                const fechaFin = prompt('Fecha fin (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+                if (!fechaFin) return;
+                
+                const response = await fetch(`${API_BASE}/auditoria/reporte-completo?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`);
+                const data = await response.json();
+                
+                const modalBody = `
+                    <div style="padding: 20px; max-height: 600px; overflow-y: auto;">
+                        <h3>Resumen del Período</h3>
+                        <p><strong>Desde:</strong> ${data.periodo.fechaInicio}</p>
+                        <p><strong>Hasta:</strong> ${data.periodo.fechaFin}</p>
+                        <hr>
+                        <h3>Estadísticas</h3>
+                        <p><strong>Total de Acciones:</strong> ${data.resumen.totalAcciones}</p>
+                        <p><strong>Comandas Eliminadas:</strong> ${data.resumen.comandasEliminadas}</p>
+                        <hr>
+                        <h3>Resumen por Acción</h3>
+                        <ul>
+                            ${Object.entries(data.resumen.resumenPorAccion || {}).map(([accion, count]) => 
+                                `<li><strong>${accion}:</strong> ${count}</li>`
+                            ).join('')}
+                        </ul>
+                        <hr>
+                        <h3>Resumen por Usuario</h3>
+                        <ul>
+                            ${Object.entries(data.resumen.resumenPorUsuario || {}).map(([userId, info]) => 
+                                `<li><strong>${info.nombre}:</strong> ${info.total} acciones</li>`
+                            ).join('')}
+                        </ul>
+                    </div>
+                `;
+
+                document.getElementById('modal-title').textContent = 'Reporte Completo de Auditoría';
+                document.getElementById('modal-body').innerHTML = modalBody;
+                document.getElementById('modal').style.display = 'block';
+            } catch (error) {
+                alert('Error al cargar reporte: ' + error.message);
+            }
         }
 
         // Cargar datos iniciales
