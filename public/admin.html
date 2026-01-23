@@ -300,14 +300,16 @@
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="showTab('mesas')">Mesas</button>
-            <button class="tab" onclick="showTab('areas')">Áreas</button>
-            <button class="tab" onclick="showTab('mozos')">Mozos</button>
-            <button class="tab" onclick="showTab('platos')">Platos</button>
-            <button class="tab" onclick="showTab('comandas')">Comandas</button>
-            <button class="tab" onclick="showTab('bouchers')">Bouchers</button>
-            <button class="tab" onclick="showTab('clientes')">Clientes</button>
-            <button class="tab" onclick="showTab('auditoria')">🔒 Auditoría</button>
+            <button class="tab active" onclick="showTab('mesas', this)">Mesas</button>
+            <button class="tab" onclick="showTab('areas', this)">Áreas</button>
+            <button class="tab" onclick="showTab('mozos', this)">Mozos</button>
+            <button class="tab" onclick="showTab('platos', this)">Platos</button>
+            <button class="tab" onclick="showTab('comandas', this)">Comandas</button>
+            <button class="tab" onclick="showTab('bouchers', this)">Bouchers</button>
+            <button class="tab" onclick="showTab('clientes', this)">Clientes</button>
+            <button class="tab" onclick="showTab('auditoria', this)">🔒 Auditoría</button>
+            <button class="tab" onclick="showTab('platos-eliminados', this)">❌ Platos Eliminados</button>
+            <button class="tab" onclick="showTab('cierre-caja', this)">🏦 Cierre de Caja</button>
         </div>
 
         <div class="content">
@@ -372,16 +374,6 @@
                 <div id="bouchers-list" class="loading">Cargando bouchers...</div>
             </div>
 
-            <!-- Tab Clientes -->
-            <div id="clientes" class="tab-content">
-                <div class="section-header">
-                    <h2>Gestión de Clientes</h2>
-                    <div>
-                        <button class="btn btn-primary" onclick="exportarClientesCSV()" style="margin-right: 10px;">📥 Exportar CSV</button>
-                        <button class="btn btn-primary" onclick="loadClientes()">🔄 Actualizar</button>
-                    </div>
-                </div>
-
             <!-- Tab Auditoría -->
             <div id="auditoria" class="tab-content">
                 <div class="section-header">
@@ -409,6 +401,41 @@
                 </div>
                 <div id="auditoria-list" class="loading">Cargando auditoría...</div>
             </div>
+
+            <!-- Tab Platos Eliminados -->
+            <div id="platos-eliminados" class="tab-content">
+                <div class="section-header">
+                    <h2>❌ Platos Eliminados con Motivos</h2>
+                    <div>
+                        <input type="date" id="platos-eliminados-fecha" style="padding: 10px; margin-right: 10px; border: 2px solid #ddd; border-radius: 8px;">
+                        <button class="btn btn-primary" onclick="loadPlatosEliminados()">🔄 Actualizar</button>
+                    </div>
+                </div>
+                <div id="platos-eliminados-list" class="loading">Cargando platos eliminados...</div>
+            </div>
+
+            <!-- Tab Cierre de Caja -->
+            <div id="cierre-caja" class="tab-content">
+                <div class="section-header">
+                    <h2>🏦 Cierre de Caja Diario</h2>
+                    <div>
+                        <input type="date" id="cierre-fecha" style="padding: 10px; margin-right: 10px; border: 2px solid #ddd; border-radius: 8px;">
+                        <button class="btn btn-primary" onclick="loadCierresCaja()">🔄 Actualizar</button>
+                        <button class="btn btn-primary" onclick="generarCierreCaja()" style="margin-left: 10px;">➕ Generar Cierre</button>
+                    </div>
+                </div>
+                <div id="cierre-caja-list" class="loading">Cargando cierres de caja...</div>
+            </div>
+
+            <!-- Tab Clientes -->
+            <div id="clientes" class="tab-content">
+                <div class="section-header">
+                    <h2>Gestión de Clientes</h2>
+                    <div>
+                        <button class="btn btn-primary" onclick="exportarClientesCSV()" style="margin-right: 10px;">📥 Exportar CSV</button>
+                        <button class="btn btn-primary" onclick="loadClientes()">🔄 Actualizar</button>
+                    </div>
+                </div>
                 <div style="margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
                     <h3 style="margin-bottom: 15px; color: #333;">Filtros</h3>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
@@ -458,20 +485,44 @@
         const API_BASE = '/api';
 
         // Funciones de navegación
-        function showTab(tabName) {
+        function showTab(tabName, clickedElement) {
+            // Remover active de todos los tabs
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             
-            event.target.classList.add('active');
-            document.getElementById(tabName).classList.add('active');
+            // Activar el tab clickeado
+            const clickedTab = clickedElement || (window.event ? window.event.target : document.querySelector(`[onclick*="showTab('${tabName}')"]`));
+            if (clickedTab) {
+                clickedTab.classList.add('active');
+            }
+            
+            // Activar el contenido del tab
+            const tabContent = document.getElementById(tabName);
+            if (tabContent) {
+                tabContent.classList.add('active');
+            } else {
+                console.error(`Tab content no encontrado: ${tabName}`);
+            }
             
             // Cargar datos cuando se muestra el tab
-            if (tabName === 'mesas') loadMesas();
-            else if (tabName === 'areas') loadAreas();
-            else if (tabName === 'mozos') loadMozos();
-            else if (tabName === 'platos') loadPlatos();
-            else if (tabName === 'comandas') loadComandas();
-            else if (tabName === 'bouchers') loadBouchers();
+            try {
+                if (tabName === 'mesas') loadMesas();
+                else if (tabName === 'areas') loadAreas();
+                else if (tabName === 'mozos') loadMozos();
+                else if (tabName === 'platos') loadPlatos();
+                else if (tabName === 'comandas') loadComandas();
+                else if (tabName === 'bouchers') loadBouchers();
+                else if (tabName === 'clientes') loadClientes();
+                else if (tabName === 'auditoria') loadAuditoria();
+                else if (tabName === 'platos-eliminados') loadPlatosEliminados();
+                else if (tabName === 'cierre-caja') loadCierresCaja();
+            } catch (error) {
+                console.error(`Error cargando datos para ${tabName}:`, error);
+                const container = document.getElementById(`${tabName}-list`) || document.getElementById(tabName);
+                if (container) {
+                    container.innerHTML = `<div class="alert alert-error">Error al cargar datos: ${error.message}</div>`;
+                }
+            }
         }
 
         // Funciones para cargar datos
@@ -1948,6 +1999,242 @@
                 document.getElementById('modal').style.display = 'block';
             } catch (error) {
                 alert('Error al cargar reporte: ' + error.message);
+            }
+        }
+
+        // Función para cargar platos eliminados
+        async function loadPlatosEliminados() {
+            try {
+                const fecha = document.getElementById('platos-eliminados-fecha')?.value || '';
+                let url = `${API_BASE}/auditoria/platos-eliminados`;
+                if (fecha) url += `?fecha=${fecha}`;
+                
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const data = await response.json();
+                displayPlatosEliminados(data.platosEliminados || []);
+            } catch (error) {
+                document.getElementById('platos-eliminados-list').innerHTML = 
+                    `<div class="alert alert-error">Error al cargar platos eliminados: ${error.message}</div>`;
+            }
+        }
+
+        function displayPlatosEliminados(platos) {
+            const container = document.getElementById('platos-eliminados-list');
+            if (platos.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay platos eliminados registrados</div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha/Hora</th>
+                                <th>Comanda #</th>
+                                <th>Plato</th>
+                                <th>Cantidad Original</th>
+                                <th>Estado</th>
+                                <th>Motivo</th>
+                                <th>Usuario</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${platos.map(plato => `
+                                <tr style="${plato.estado?.includes('eliminado') ? 'background-color: #fee;' : ''}">
+                                    <td>${new Date(plato.timestamp).toLocaleString('es-PE')}</td>
+                                    <td>#${plato.comandaNumber || plato.comandaId?.slice(-6) || 'N/A'}</td>
+                                    <td><strong>${plato.nombreOriginal || 'Plato desconocido'}</strong></td>
+                                    <td>${plato.cantidadOriginal || 0}</td>
+                                    <td>
+                                        <span class="badge ${plato.estado?.includes('eliminado') ? 'badge-danger' : 'badge-warning'}">
+                                            ${plato.estado || 'N/A'}
+                                        </span>
+                                    </td>
+                                    <td style="max-width: 300px; word-wrap: break-word;">
+                                        <strong style="color: #d32f2f;">${plato.motivo || 'Sin motivo registrado'}</strong>
+                                    </td>
+                                    <td>${plato.usuario?.name || plato.usuarioNombre || 'Sistema'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // Funciones para Cierre de Caja
+        async function loadCierresCaja() {
+            try {
+                const fecha = document.getElementById('cierre-fecha')?.value || '';
+                let url = `${API_BASE}/cierreCaja`;
+                if (fecha) url += `?fechaDesde=${fecha}&fechaHasta=${fecha}`;
+                
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const data = await response.json();
+                displayCierresCaja(Array.isArray(data) ? data : (data.cierres || []));
+            } catch (error) {
+                document.getElementById('cierre-caja-list').innerHTML = 
+                    `<div class="alert alert-error">Error al cargar cierres de caja: ${error.message}</div>`;
+            }
+        }
+
+        function displayCierresCaja(cierres) {
+            const container = document.getElementById('cierre-caja-list');
+            if (cierres.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay cierres de caja registrados</div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Mozo</th>
+                                <th>Fecha</th>
+                                <th>Turno</th>
+                                <th>Efectivo Sistema</th>
+                                <th>Efectivo Físico</th>
+                                <th>Diferencia</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${cierres.map(cierre => `
+                                <tr style="${Math.abs(cierre.diferencia || 0) > 5 ? 'background-color: #fee;' : ''}">
+                                    <td>#${cierre.cierreId || cierre._id?.slice(-6)}</td>
+                                    <td>${cierre.nombreMozo || cierre.mozoId?.name || 'N/A'}</td>
+                                    <td>${new Date(cierre.fechaCierre).toLocaleDateString('es-PE')}</td>
+                                    <td><span class="badge badge-info">${cierre.turno || 'N/A'}</span></td>
+                                    <td>S/. ${(cierre.totalEfectivoSistema || 0).toFixed(2)}</td>
+                                    <td>S/. ${(cierre.totalEfectivoFisico || 0).toFixed(2)}</td>
+                                    <td style="color: ${Math.abs(cierre.diferencia || 0) > 5 ? '#d32f2f' : '#4caf50'}; font-weight: bold;">
+                                        S/. ${(cierre.diferencia || 0).toFixed(2)}
+                                    </td>
+                                    <td>
+                                        <span class="badge ${getEstadoCierreColor(cierre.estado)}">
+                                            ${cierre.estado || 'borrador'}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-primary" style="margin-right: 5px; padding: 5px 10px; font-size: 12px;" onclick="verCierreCaja('${cierre._id}')">👁️ Ver</button>
+                                        <button class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;" onclick="descargarPDFCierre('${cierre._id}')">📄 PDF</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function getEstadoCierreColor(estado) {
+            const colors = {
+                'borrador': 'badge-warning',
+                'pendiente': 'badge-warning',
+                'aprobado': 'badge-success',
+                'rechazado': 'badge-danger'
+            };
+            return colors[estado] || 'badge-warning';
+        }
+
+        async function verCierreCaja(cierreId) {
+            try {
+                const response = await fetch(`${API_BASE}/cierreCaja/${cierreId}`);
+                const cierre = await response.json();
+                
+                const modalBody = `
+                    <div style="padding: 20px; max-width: 900px;">
+                        <h3>Cierre de Caja #${cierre.cierreId || cierre._id?.slice(-6)}</h3>
+                        <div style="margin: 20px 0;">
+                            <p><strong>Mozo:</strong> ${cierre.nombreMozo || 'N/A'}</p>
+                            <p><strong>Fecha:</strong> ${new Date(cierre.fechaCierre).toLocaleDateString('es-PE')}</p>
+                            <p><strong>Turno:</strong> ${cierre.turno || 'N/A'}</p>
+                            <p><strong>Estado:</strong> <span class="badge ${getEstadoCierreColor(cierre.estado)}">${cierre.estado || 'borrador'}</span></p>
+                        </div>
+                        <hr>
+                        <h4>Totales del Sistema</h4>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin: 15px 0;">
+                            <div><strong>Efectivo:</strong> S/. ${(cierre.totalEfectivoSistema || 0).toFixed(2)}</div>
+                            <div><strong>Tarjeta:</strong> S/. ${(cierre.totalTarjetaSistema || 0).toFixed(2)}</div>
+                            <div><strong>Yape:</strong> S/. ${(cierre.totalYapeSistema || 0).toFixed(2)}</div>
+                            <div><strong>Plin:</strong> S/. ${(cierre.totalPlinSistema || 0).toFixed(2)}</div>
+                            <div><strong>Transferencia:</strong> S/. ${(cierre.totalTransferenciaSistema || 0).toFixed(2)}</div>
+                            <div><strong>Propinas:</strong> S/. ${(cierre.totalPropinas || 0).toFixed(2)}</div>
+                        </div>
+                        <hr>
+                        <h4>Validación Física</h4>
+                        <div style="margin: 15px 0;">
+                            <p><strong>Efectivo Físico Reportado:</strong> S/. ${(cierre.totalEfectivoFisico || 0).toFixed(2)}</p>
+                            <p style="font-size: 1.2em; font-weight: bold; color: ${Math.abs(cierre.diferencia || 0) > 5 ? '#d32f2f' : '#4caf50'};">
+                                <strong>DIFERENCIA:</strong> S/. ${(cierre.diferencia || 0).toFixed(2)}
+                            </p>
+                            ${cierre.observaciones ? `<p><strong>Observaciones:</strong> ${cierre.observaciones}</p>` : ''}
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('modal-title').textContent = 'Detalle Cierre de Caja';
+                document.getElementById('modal-body').innerHTML = modalBody;
+                document.getElementById('modal').classList.add('active');
+            } catch (error) {
+                alert('Error al cargar cierre de caja: ' + error.message);
+            }
+        }
+
+        async function descargarPDFCierre(cierreId) {
+            try {
+                const response = await fetch(`${API_BASE}/cierreCaja/${cierreId}/reporte-pdf`);
+                if (!response.ok) throw new Error('Error al generar PDF');
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `cierre_caja_${cierreId}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (error) {
+                alert('Error al descargar PDF: ' + error.message);
+            }
+        }
+
+        async function generarCierreCaja() {
+            const mozoId = prompt('ID del Mozo:');
+            if (!mozoId) return;
+            
+            const fecha = prompt('Fecha (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+            if (!fecha) return;
+            
+            const turno = prompt('Turno (mañana/tarde/noche):', 'tarde');
+            if (!turno) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/cierreCaja/generar`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mozoId: parseInt(mozoId), fecha, turno })
+                });
+                
+                if (response.ok) {
+                    const cierre = await response.json();
+                    showAlert('Cierre de caja generado exitosamente', 'success');
+                    loadCierresCaja();
+                } else {
+                    const error = await response.json();
+                    showAlert('Error: ' + (error.error || 'No se pudo generar el cierre'), 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
             }
         }
 

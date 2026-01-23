@@ -11,6 +11,7 @@ const areaRoutes = require('./src/controllers/areaController')
 const boucherRoutes = require('./src/controllers/boucherController')
 const clientesRoutes = require('./src/controllers/clientesController')
 const auditoriaRoutes = require('./src/controllers/auditoriaController')
+const cierreCajaRoutes = require('./src/controllers/cierreCajaController')
 
 const app = express();
 const server = http.createServer(app);
@@ -20,7 +21,7 @@ const path = require('path');
 // Configurar Socket.io con CORS
 const io = new Server(server, {
   cors: {
-    origin: ['http://localhost:3000', 'http://192.168.18.11:3000', 'http://localhost:3001', 'http://192.168.18.11:3001', '*'],
+    origin: ['http://localhost:3000', 'http://192.168.18.11:3000', 'http://192.168.18.127:3000', 'http://localhost:3001', 'http://192.168.18.11:3001', 'http://192.168.18.127:3001', '*'],
     methods: ['GET', 'POST'],
     credentials: true
   },
@@ -46,7 +47,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-const routes = [mesasRoutes, mozosRoutes, platoRoutes, comandaRoutes, areaRoutes, boucherRoutes, clientesRoutes, auditoriaRoutes];
+const routes = [mesasRoutes, mozosRoutes, platoRoutes, comandaRoutes, areaRoutes, boucherRoutes, clientesRoutes, auditoriaRoutes, cierreCajaRoutes];
 
 app.use(express.json());
 app.use('/api',routes);
