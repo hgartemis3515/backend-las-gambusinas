@@ -20,24 +20,25 @@ const {
 const { registrarAuditoria } = require('../middleware/auditoria');
 const HistorialComandas = require('../database/models/historialComandas.model');
 const comandaModel = require('../database/models/comanda.model');
+const logger = require('../utils/logger');
+const { handleError, createErrorResponse } = require('../utils/errorHandler');
 
 router.get('/comanda', async (req, res) => {
     try {
         const data = await listarComanda();
         // Asegurar que siempre retornamos un array
         if (!Array.isArray(data)) {
-            console.warn('⚠️ listarComanda no retornó un array:', typeof data);
-            console.warn('Datos recibidos:', data);
+            logger.warn('listarComanda no retornó un array', { type: typeof data, data });
             res.json([]);
         } else {
             res.json(data);
         }
     } catch (error) {
-        console.error('❌ Error en GET /api/comanda:', error.message);
-        console.error('Stack trace:', error.stack);
-        // Retornar array vacío en lugar de objeto de error para evitar problemas en el frontend
-        // Pero también loggear el error completo para debugging
-        res.status(500).json([]);
+        logger.error('Error en GET /api/comanda', {
+            message: error.message,
+            stack: error.stack
+        });
+        handleError(error, res, logger);
     }
 });
 
@@ -47,8 +48,12 @@ router.get('/comanda/fecha/:fecha', async (req, res) => {
         const data = await listarComandaPorFecha (fecha);
         res.json(data);
     } catch (error) {
-        console.error(error.message);
-        res.status(500).json({ message: 'Error al obtener las comandas por fecha' });
+        logger.error('Error al obtener comandas por fecha', {
+            fecha,
+            error: error.message,
+            stack: error.stack
+        });
+        handleError(error, res, logger);
     }
 });
 
@@ -58,27 +63,52 @@ router.get('/comanda/fechastatus/:fecha', async (req, res) => {
         const data = await listarComandaPorFechaEntregado(fecha);
         res.json(data);
     } catch (error) {
-        console.error(error.message);
-        res.status(500).json({ message: 'Error al obtener las comandas por fecha' });
+        logger.error('Error al obtener comandas por fecha y status', {
+            fecha,
+            error: error.message,
+            stack: error.stack
+        });
+        handleError(error, res, logger);
     }
 });
 
 
 router.post('/comanda', async (req, res) => {
     try {
+        // Extraer información de auditoría desde headers o body
+        const deviceId = req.body.deviceId || req.headers['x-device-id'] || null;
+        const sourceApp = req.body.sourceApp || req.headers['x-source-app'] || 'api';
+        
+        // Agregar campos de auditoría al body si no están presentes
+        if (!req.body.deviceId && deviceId) {
+            req.body.deviceId = deviceId;
+        }
+        if (!req.body.sourceApp && sourceApp) {
+            req.body.sourceApp = sourceApp;
+        }
+        if (!req.body.createdBy && req.body.mozos) {
+            req.body.createdBy = req.body.mozos;
+        }
+        
         const data = await agregarComanda(req.body);
         res.json(data);
-        console.log('Reserva exitosa');
+        logger.info('Comanda creada exitosamente', {
+            comandaId: data.comanda?._id,
+            comandaNumber: data.comanda?.comandaNumber,
+            sourceApp
+        });
         
         // Emitir evento Socket.io de nueva comanda
         if (global.emitNuevaComanda && data.comanda) {
             await global.emitNuevaComanda(data.comanda);
         }
     } catch (error) {
-        console.error(error.message);
-        // Si el error tiene statusCode, usarlo; sino, usar 400 por defecto
-        const statusCode = error.statusCode || 400;
-        res.status(statusCode).json({ message: error.message });
+        logger.error('Error al crear comanda', {
+            error: error.message,
+            stack: error.stack,
+            body: req.body
+        });
+        handleError(error, res, logger);
     }
 });
 
@@ -188,60 +218,108 @@ router.put('/comanda/:id/eliminar', async (req, res) => {
 });
 
 /**
- * ✅ NUEVO ENDPOINT: Editar platos con auditoría completa
+ * 🔥 NUEVO ENDPOINT: Eliminar plato individual (marcar como eliminado)
+ * Solo permite eliminar si la comanda está en estado "pedido" (status: "en_espera")
  */
-router.put('/comanda/:id/editar-platos', async (req, res) => {
-    const { id } = req.params;
-    const { platosNuevos, platosEliminados, motivo } = req.body;
+router.put('/comanda/:id/eliminar-plato/:platoIndex', async (req, res) => {
+    const { id, platoIndex } = req.params;
+    const { razon } = req.body;
     const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
     
+    // Debounce map para evitar duplicados
+    const debounceKey = `eliminar_${id}_${platoIndex}`;
+    if (global.debounceMap && global.debounceMap.has(debounceKey)) {
+        return res.status(429).json({ message: 'Procesando eliminación, por favor espere...' });
+    }
+    if (!global.debounceMap) global.debounceMap = new Map();
+    global.debounceMap.set(debounceKey, true);
+    setTimeout(() => global.debounceMap.delete(debounceKey), 500);
+    
     try {
-        // Obtener snapshot antes de editar
-        const snapshotAntes = await comandaModel.findById(id);
-        if (!snapshotAntes) {
+        // 1. Validar comanda existe y estado "pedido" (en_espera)
+        const comanda = await comandaModel.findById(id)
+            .populate('platos.plato')
+            .populate('mesas');
+        
+        if (!comanda) {
             return res.status(404).json({ message: 'Comanda no encontrada' });
         }
         
-        const comanda = await editarConAuditoria(
-            id, 
-            platosNuevos || [], 
-            platosEliminados || [], 
-            usuarioId,
-            motivo || 'Edición de platos'
-        );
+        // Validar que la comanda esté en estado editable (en_espera = pedido)
+        if (comanda.status !== 'en_espera') {
+            return res.status(400).json({ 
+                message: `No se puede eliminar platos. La comanda está en estado "${comanda.status}" y solo se pueden eliminar platos cuando está en estado "en_espera" (pedido).` 
+            });
+        }
         
-        // Guardar versión completa en historial
-        await HistorialComandas.create({
-            comandaId: id,
-            version: comanda.version,
-            status: comanda.status,
-            platos: comanda.platos.map((p, idx) => ({
-                plato: p.plato,
-                platoId: p.platoId,
-                estado: p.estado,
-                cantidad: comanda.cantidades[idx] || 1,
-                nombre: p.plato?.nombre || 'Plato desconocido',
-                precio: p.plato?.precio || 0
-            })),
-            cantidades: comanda.cantidades,
-            observaciones: comanda.observaciones,
+        // 2. Validar índice de plato
+        const index = parseInt(platoIndex);
+        if (isNaN(index) || index < 0 || index >= comanda.platos.length) {
+            return res.status(400).json({ message: 'Índice de plato inválido' });
+        }
+        
+        const plato = comanda.platos[index];
+        if (!plato) {
+            return res.status(404).json({ message: 'Plato no encontrado en la comanda' });
+        }
+        
+        // Validar que el plato no esté ya eliminado
+        if (plato.eliminado) {
+            return res.status(400).json({ message: 'Este plato ya fue eliminado' });
+        }
+        
+        // 3. Marcar plato como ELIMINADO (NO BORRAR)
+        plato.eliminado = true;
+        plato.eliminadoPor = usuarioId;
+        plato.eliminadoAt = new Date();
+        plato.eliminadoRazon = razon || 'Eliminado por mozo';
+        
+        // 4. Registrar en historialPlatos
+        if (!comanda.historialPlatos) {
+            comanda.historialPlatos = [];
+        }
+        
+        const platoModel = require('../database/models/plato.model');
+        let nombrePlato = 'Plato desconocido';
+        if (plato.plato) {
+            if (typeof plato.plato === 'object' && plato.plato.nombre) {
+                nombrePlato = plato.plato.nombre;
+            } else {
+                const platoCompleto = await platoModel.findById(plato.plato._id || plato.plato);
+                if (platoCompleto) {
+                    nombrePlato = platoCompleto.nombre;
+                } else if (plato.platoId) {
+                    const platoPorId = await platoModel.findOne({ id: plato.platoId });
+                    if (platoPorId) {
+                        nombrePlato = platoPorId.nombre;
+                    }
+                }
+            }
+        } else if (plato.platoId) {
+            const platoPorId = await platoModel.findOne({ id: plato.platoId });
+            if (platoPorId) {
+                nombrePlato = platoPorId.nombre;
+            }
+        }
+        
+        comanda.historialPlatos.push({
+            platoId: plato.platoId,
+            nombreOriginal: nombrePlato,
+            cantidadOriginal: comanda.cantidades[index] || 1,
+            cantidadFinal: 0,
+            estado: 'eliminado',
+            timestamp: new Date(),
             usuario: usuarioId,
-            accion: 'editada',
-            motivo: motivo || 'Edición de platos'
+            motivo: razon || 'Plato eliminado de comanda'
         });
         
-        // Registrar auditoría
-        req.auditoria = {
-            accion: 'comanda_editada',
-            entidadId: id,
-            entidadTipo: 'comanda',
-            usuario: usuarioId,
-            ip: req.ip,
-            deviceId: req.headers['device-id'] || req.headers['x-device-id']
-        };
-        await registrarAuditoria(req, snapshotAntes, comanda, motivo);
+        // 5. Recalcular total comanda (solo platos activos) - si existe campo total
+        // Nota: El total se calcula en el frontend, pero aquí podemos actualizar si existe
         
-        // Obtener comanda completa con populate para emitir
+        comanda.version = (comanda.version || 1) + 1;
+        await comanda.save();
+        
+        // 6. Obtener comanda completa con populate para emitir
         const comandaCompleta = await comandaModel.findById(id)
             .populate({
                 path: "mozos",
@@ -260,6 +338,328 @@ router.put('/comanda/:id/editar-platos', async (req, res) => {
                 model: "platos"
             });
         
+        // 7. Calcular auditoría (activos vs eliminados)
+        const platosActivos = comandaCompleta.platos.filter(p => !p.eliminado).length;
+        const platosEliminados = comandaCompleta.platos.filter(p => p.eliminado).length;
+        
+        // 8. BROADCAST a COCINA y MOZOS (solo comanda actualizada)
+        if (global.emitComandaActualizada) {
+            await global.emitComandaActualizada(comandaCompleta._id);
+        }
+        
+        // También emitir directamente con información de auditoría
+        if (global.io) {
+            const cocinaNamespace = global.io.of('/cocina');
+            const mozosNamespace = global.io.of('/mozos');
+            const fecha = require('moment-timezone')(comandaCompleta.createdAt).tz("America/Lima").format('YYYY-MM-DD');
+            const roomName = `fecha-${fecha}`;
+            const timestamp = require('moment-timezone')().tz('America/Lima').toISOString();
+            
+            const eventData = {
+                comandaId: comandaCompleta._id,
+                comanda: comandaCompleta,
+                platoEliminado: {
+                    index: index,
+                    platoId: plato.platoId,
+                    nombre: nombrePlato,
+                    razon: razon || 'Eliminado por mozo',
+                    eliminadoAt: plato.eliminadoAt
+                },
+                auditoria: {
+                    activos: platosActivos,
+                    eliminados: platosEliminados
+                },
+                socketId: 'server',
+                timestamp: timestamp
+            };
+            
+            // Emitir a cocina (room por fecha)
+            cocinaNamespace.to(roomName).emit('comanda:plato-eliminado', eventData);
+            
+            // Emitir a mozos (todos)
+            mozosNamespace.emit('comanda:plato-eliminado', eventData);
+            
+            // También emitir comanda-actualizada para sincronización completa
+            cocinaNamespace.to(roomName).emit('comanda-actualizada', {
+                comandaId: comandaCompleta._id,
+                comanda: comandaCompleta,
+                platosEliminados: comandaCompleta.historialPlatos?.filter(h => h.estado === 'eliminado') || [],
+                auditoria: {
+                    activos: platosActivos,
+                    eliminados: platosEliminados
+                },
+                socketId: 'server',
+                timestamp: timestamp
+            });
+            
+            mozosNamespace.emit('comanda-actualizada', {
+                comandaId: comandaCompleta._id,
+                comanda: comandaCompleta,
+                platosEliminados: comandaCompleta.historialPlatos?.filter(h => h.estado === 'eliminado') || [],
+                auditoria: {
+                    activos: platosActivos,
+                    eliminados: platosEliminados
+                },
+                socketId: 'server',
+                timestamp: timestamp
+            });
+        }
+        
+        // 9. Registrar auditoría
+        req.auditoria = {
+            accion: 'plato_eliminado',
+            entidadId: id,
+            entidadTipo: 'comanda',
+            usuario: usuarioId,
+            ip: req.ip,
+            deviceId: req.headers['device-id'] || req.headers['x-device-id']
+        };
+        
+        const snapshotAntes = {
+            platos: [{
+                platoId: plato.platoId,
+                nombre: nombrePlato,
+                cantidad: comanda.cantidades[index] || 1,
+                estado: plato.estado,
+                eliminado: false
+            }]
+        };
+        
+        const snapshotDespues = {
+            platos: [{
+                platoId: plato.platoId,
+                nombre: nombrePlato,
+                cantidad: comanda.cantidades[index] || 1,
+                estado: plato.estado,
+                eliminado: true,
+                eliminadoRazon: razon || 'Eliminado por mozo',
+                eliminadoAt: plato.eliminadoAt
+            }]
+        };
+        
+        await registrarAuditoria(req, snapshotAntes, snapshotDespues, razon || 'Plato eliminado');
+        
+        console.log(`✅ Plato eliminado de comanda #${comandaCompleta.comandaNumber}: ${nombrePlato} (Index: ${index})`);
+        
+        res.json({
+            message: 'Plato marcado como eliminado',
+            comanda: comandaCompleta,
+            platoEliminado: {
+                index: index,
+                nombre: nombrePlato,
+                razon: razon || 'Eliminado por mozo'
+            },
+            auditoria: {
+                activos: platosActivos,
+                eliminados: platosEliminados
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Error al eliminar plato:', error);
+        res.status(500).json({ 
+            message: 'Error al eliminar plato', 
+            error: error.message 
+        });
+    }
+});
+
+/**
+ * ✅ NUEVO ENDPOINT: Editar platos con auditoría completa
+ */
+router.put('/comanda/:id/editar-platos', async (req, res) => {
+    const { id } = req.params;
+    const { platosNuevos, platosEliminados, motivo } = req.body;
+    const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+    
+    try {
+        // Obtener snapshot antes de editar (con platos populados)
+        const snapshotAntesRaw = await comandaModel.findById(id)
+            .populate('platos.plato');
+        if (!snapshotAntesRaw) {
+            return res.status(404).json({ message: 'Comanda no encontrada' });
+        }
+        
+        // Crear snapshot manual con nombres explícitos para auditoría
+        const platoModel = require('../database/models/plato.model');
+        const snapshotAntes = {
+            _id: snapshotAntesRaw._id,
+            comandaNumber: snapshotAntesRaw.comandaNumber,
+            status: snapshotAntesRaw.status,
+            platos: await Promise.all(snapshotAntesRaw.platos.map(async (p, idx) => {
+                let nombrePlato = 'Plato desconocido';
+                let precioPlato = 0;
+                
+                if (p.plato) {
+                    if (typeof p.plato === 'object' && p.plato.nombre) {
+                        nombrePlato = p.plato.nombre;
+                        precioPlato = p.plato.precio || 0;
+                    } else if (p.plato._id || p.plato) {
+                        const platoCompleto = await platoModel.findById(p.plato._id || p.plato);
+                        if (platoCompleto) {
+                            nombrePlato = platoCompleto.nombre;
+                            precioPlato = platoCompleto.precio || 0;
+                        }
+                    }
+                } else if (p.platoId) {
+                    // Buscar por platoId numérico
+                    const platoCompleto = await platoModel.findOne({ id: p.platoId });
+                    if (platoCompleto) {
+                        nombrePlato = platoCompleto.nombre;
+                        precioPlato = platoCompleto.precio || 0;
+                    }
+                }
+                
+                return {
+                    platoId: p.platoId,
+                    plato: p.plato?._id || p.plato,
+                    nombre: nombrePlato,
+                    precio: precioPlato,
+                    cantidad: snapshotAntesRaw.cantidades?.[idx] || 1,
+                    estado: p.estado
+                };
+            })),
+            cantidades: [...(snapshotAntesRaw.cantidades || [])],
+            observaciones: snapshotAntesRaw.observaciones
+        };
+        
+        const comanda = await editarConAuditoria(
+            id, 
+            platosNuevos || [], 
+            platosEliminados || [], 
+            usuarioId,
+            motivo || 'Edición de platos'
+        );
+        
+        // Obtener comanda completa con populate para historial y auditoría
+        // IMPORTANTE: Recargar desde BD para asegurar que tenemos la versión actualizada
+        const comandaConPlatosRaw = await comandaModel.findById(id)
+            .populate('platos.plato');
+        
+        console.log(`📋 Comanda actualizada - Platos en BD: ${comandaConPlatosRaw.platos.length}`);
+        
+        // Crear snapshot después con nombres explícitos para auditoría
+        const comandaConPlatos = {
+            _id: comandaConPlatosRaw._id,
+            comandaNumber: comandaConPlatosRaw.comandaNumber,
+            status: comandaConPlatosRaw.status,
+            platos: await Promise.all(comandaConPlatosRaw.platos.map(async (p, idx) => {
+                let nombrePlato = 'Plato desconocido';
+                let precioPlato = 0;
+                
+                if (p.plato) {
+                    if (typeof p.plato === 'object' && p.plato.nombre) {
+                        nombrePlato = p.plato.nombre;
+                        precioPlato = p.plato.precio || 0;
+                    } else if (p.plato._id || p.plato) {
+                        const platoCompleto = await platoModel.findById(p.plato._id || p.plato);
+                        if (platoCompleto) {
+                            nombrePlato = platoCompleto.nombre;
+                            precioPlato = platoCompleto.precio || 0;
+                        }
+                    }
+                } else if (p.platoId) {
+                    // Buscar por platoId numérico
+                    const platoCompleto = await platoModel.findOne({ id: p.platoId });
+                    if (platoCompleto) {
+                        nombrePlato = platoCompleto.nombre;
+                        precioPlato = platoCompleto.precio || 0;
+                    }
+                }
+                
+                return {
+                    platoId: p.platoId,
+                    plato: p.plato?._id || p.plato,
+                    nombre: nombrePlato,
+                    precio: precioPlato,
+                    cantidad: comandaConPlatosRaw.cantidades?.[idx] || 1,
+                    estado: p.estado
+                };
+            })),
+            cantidades: [...(comandaConPlatosRaw.cantidades || [])],
+            observaciones: comandaConPlatosRaw.observaciones,
+            historialPlatos: comandaConPlatosRaw.historialPlatos || []
+        };
+        
+        // Guardar versión completa en historial
+        await HistorialComandas.create({
+            comandaId: id,
+            version: comanda.version,
+            status: comanda.status,
+            platos: comandaConPlatos.platos.map((p, idx) => {
+                let nombrePlato = 'Plato desconocido';
+                let precioPlato = 0;
+                
+                if (p.plato) {
+                    if (typeof p.plato === 'object' && p.plato.nombre) {
+                        nombrePlato = p.plato.nombre;
+                        precioPlato = p.plato.precio || 0;
+                    }
+                }
+                
+                return {
+                    plato: p.plato?._id || p.plato,
+                    platoId: p.platoId,
+                    estado: p.estado,
+                    cantidad: comandaConPlatos.cantidades[idx] || 1,
+                    nombre: nombrePlato,
+                    precio: precioPlato
+                };
+            }),
+            cantidades: comandaConPlatos.cantidades,
+            observaciones: comandaConPlatos.observaciones,
+            usuario: usuarioId,
+            accion: 'editada',
+            motivo: motivo || 'Edición de platos'
+        });
+        
+        // Registrar auditoría (usar comanda con platos populados)
+        req.auditoria = {
+            accion: 'comanda_editada',
+            entidadId: id,
+            entidadTipo: 'comanda',
+            usuario: usuarioId,
+            ip: req.ip,
+            deviceId: req.headers['device-id'] || req.headers['x-device-id']
+        };
+        await registrarAuditoria(req, snapshotAntes, comandaConPlatos, motivo);
+        
+        // Obtener comanda completa con populate para emitir
+        const comandaCompletaRaw = await comandaModel.findById(id)
+            .populate({
+                path: "mozos",
+            })
+            .populate({
+                path: "mesas",
+                populate: {
+                    path: "area"
+                }
+            })
+            .populate({
+                path: "cliente"
+            })
+            .populate({
+                path: "platos.plato",
+                model: "platos"
+            });
+        
+        // Asegurar que los nombres estén en historialPlatos
+        if (comandaCompletaRaw.historialPlatos && comandaCompletaRaw.historialPlatos.length > 0) {
+            for (let i = 0; i < comandaCompletaRaw.historialPlatos.length; i++) {
+                const h = comandaCompletaRaw.historialPlatos[i];
+                if (!h.nombreOriginal || h.nombreOriginal === 'Plato desconocido' || h.nombreOriginal === 'Sin nombre') {
+                    // Buscar el plato por platoId
+                    const plato = await platoModel.findOne({ id: h.platoId });
+                    if (plato) {
+                        comandaCompletaRaw.historialPlatos[i].nombreOriginal = plato.nombre;
+                    }
+                }
+            }
+        }
+        
+        // Usar comanda completa populada para emitir
+        const comandaCompleta = comandaCompletaRaw;
+        
         // Emitir evento Socket.io a cocina y mozos
         if (global.emitComandaActualizada) {
             await global.emitComandaActualizada(comandaCompleta._id);
@@ -272,16 +672,39 @@ router.put('/comanda/:id/editar-platos', async (req, res) => {
             const fechaActual = new Date().toISOString().split('T')[0];
             const roomName = `fecha-${fechaActual}`;
             
-            // Emitir a cocina (room por fecha)
+            // Obtener platos eliminados del historial con nombres correctos
+            const platosEliminadosHistorial = [];
+            if (comandaCompleta.historialPlatos && comandaCompleta.historialPlatos.length > 0) {
+                for (const h of comandaCompleta.historialPlatos) {
+                    if (h.estado === 'eliminado') {
+                        let nombrePlato = h.nombreOriginal;
+                        // Si no tiene nombre, buscarlo
+                        if (!nombrePlato || nombrePlato === 'Plato desconocido' || nombrePlato === 'Sin nombre') {
+                            const plato = await platoModel.findOne({ id: h.platoId });
+                            if (plato) {
+                                nombrePlato = plato.nombre;
+                            }
+                        }
+                        platosEliminadosHistorial.push({
+                            ...h,
+                            nombreOriginal: nombrePlato
+                        });
+                    }
+                }
+            }
+            
+            // Emitir a cocina (room por fecha) - Incluir información de platos eliminados
             cocinaNamespace.to(roomName).emit('comanda-actualizada', {
                 comanda: comandaCompleta,
+                platosEliminados: platosEliminadosHistorial,
                 socketId: 'server',
                 timestamp: new Date().toISOString()
             });
             
-            // Emitir a mozos (todos)
+            // Emitir a mozos (todos) - Incluir información de platos eliminados
             mozosNamespace.emit('comanda-actualizada', {
                 comanda: comandaCompleta,
+                platosEliminados: platosEliminadosHistorial,
                 socketId: 'server',
                 timestamp: new Date().toISOString()
             });
@@ -317,20 +740,36 @@ router.put("/comanda/:id", async (req, res) => {
 
 router.put('/comanda/:id/status', async (req, res) => {
     const { id } = req.params;
-    const { nuevoStatus } = req.body;
+    const { nuevoStatus, motivo } = req.body;
+    
+    // Extraer información del usuario y dispositivo desde headers o body
+    const usuario = req.body.usuarioId || req.headers['x-user-id'] || null;
+    const deviceId = req.body.deviceId || req.headers['x-device-id'] || null;
+    const sourceApp = req.body.sourceApp || req.headers['x-source-app'] || 'api';
     
     try {
-        const updatedComanda = await cambiarStatusComanda(id, nuevoStatus);
+        const options = {
+            usuario,
+            deviceId,
+            sourceApp,
+            motivo
+        };
+        
+        const updatedComanda = await cambiarStatusComanda(id, nuevoStatus, options);
         res.json(updatedComanda);
-        console.log("Estado de la comanda actualizado exitosamente");
+        logger.info("Estado de la comanda actualizado exitosamente", {
+            comandaId: id,
+            nuevoStatus,
+            usuario,
+            sourceApp
+        });
         
         // Emitir evento Socket.io de comanda actualizada
         if (global.emitComandaActualizada) {
             await global.emitComandaActualizada(id);
         }
     } catch (error) {
-        console.error(error.message);
-        res.status(400).json({ message: error.message });
+        handleError(error, res, logger);
     }
 });
 

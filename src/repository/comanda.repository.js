@@ -3,6 +3,9 @@ const mesasModel = require("../database/models/mesas.model");
 const platoModel = require("../database/models/plato.model");
 const HistorialComandas = require("../database/models/historialComandas.model");
 const { syncJsonFile } = require('../utils/jsonSync');
+const logger = require('../utils/logger');
+const { AppError } = require('../utils/errorHandler');
+const moment = require('moment-timezone');
 
 // Función helper para asegurar que los platos estén populados
 const ensurePlatosPopulated = async (comandas) => {
@@ -88,7 +91,8 @@ const ensurePlatosPopulated = async (comandas) => {
 
 const listarComanda = async (incluirEliminadas = false) => {
   try {
-    const query = incluirEliminadas ? {} : { eliminada: { $ne: true } };
+    // ESTANDARIZADO: Solo usar IsActive para soft-delete
+    const query = incluirEliminadas ? {} : { IsActive: { $ne: false } };
     
     const data = await comandaModel
       .find(query)
@@ -112,6 +116,24 @@ const listarComanda = async (incluirEliminadas = false) => {
 
     // Asegurar que los platos estén populados (fallback manual)
     const dataConPlatos = await ensurePlatosPopulated(data);
+    
+    // 🔥 AUDITORÍA: Asegurar que historialPlatos tenga nombres correctos en todas las comandas
+    for (const comanda of dataConPlatos) {
+      if (comanda.historialPlatos && comanda.historialPlatos.length > 0) {
+        for (let i = 0; i < comanda.historialPlatos.length; i++) {
+          const h = comanda.historialPlatos[i];
+          if (h.estado === 'eliminado' && (!h.nombreOriginal || h.nombreOriginal === 'Plato desconocido' || h.nombreOriginal === 'Sin nombre')) {
+            // Buscar el plato por platoId numérico
+            if (h.platoId) {
+              const plato = await platoModel.findOne({ id: h.platoId });
+              if (plato && plato.nombre) {
+                h.nombreOriginal = plato.nombre;
+              }
+            }
+          }
+        }
+      }
+    }
 
     // Obtener IDs de mesas que tienen comandas (con validación de null)
     const mesasIds = dataConPlatos
@@ -291,23 +313,44 @@ const agregarComanda = async (data) => {
     }
   }
   
-  // Validar que las cantidades coincidan con los platos
+  // Validar que las cantidades coincidan con los platos (REQUERIDO - rechazar si no coincide)
   if (data.platos.length !== data.cantidades.length) {
-    console.warn(`⚠️ Advertencia: ${data.platos.length} platos pero ${data.cantidades.length} cantidades. Ajustando...`);
-    // Ajustar cantidades si no coinciden
-    while (data.cantidades.length < data.platos.length) {
-      data.cantidades.push(1);
-    }
-    data.cantidades = data.cantidades.slice(0, data.platos.length);
+    const error = new Error(`Desincronización: ${data.platos.length} platos pero ${data.cantidades.length} cantidades. Deben coincidir.`);
+    error.statusCode = 400;
+    throw error;
   }
   
-  console.log('📊 Resumen de platos y cantidades:');
-  data.platos.forEach((plato, index) => {
-    console.log(`  - Plato ${index}: ID=${plato.plato}, Cantidad=${data.cantidades[index] || 1}`);
+  logger.info('Resumen de platos y cantidades', {
+    platosCount: data.platos.length,
+    cantidadesCount: data.cantidades.length
   });
   
+  // Establecer timestamp inicial para estado 'en_espera' (estado por defecto)
+  if (!data.tiempoEnEspera && (!data.status || data.status === 'en_espera')) {
+    data.tiempoEnEspera = moment.tz("America/Lima").toDate();
+  }
+  
+  // Inicializar historial de estados con el estado inicial
+  if (!data.historialEstados || data.historialEstados.length === 0) {
+    data.historialEstados = [{
+      status: data.status || 'en_espera',
+      statusAnterior: null,
+      timestamp: moment.tz("America/Lima").toDate(),
+      usuario: data.createdBy || data.mozos || null,
+      accion: 'Comanda creada',
+      deviceId: data.deviceId || null,
+      sourceApp: data.sourceApp || null,
+      motivo: null
+    }];
+  }
+  
   const nuevaComanda = await comandaModel.create(data);
-  console.log('✅ Comanda creada:', nuevaComanda._id);
+  logger.info('Comanda creada exitosamente', {
+    comandaId: nuevaComanda._id,
+    comandaNumber: nuevaComanda.comandaNumber,
+    mesaId: nuevaComanda.mesas,
+    mozoId: nuevaComanda.mozos
+  });
   
   // Actualizar estado de la mesa a "pedido" automáticamente cuando se crea la comanda
   // Si la mesa estaba en "preparado", cambiar a "pedido" para la nueva comanda
@@ -323,7 +366,7 @@ const agregarComanda = async (data) => {
     await global.emitMesaActualizada(mesa._id);
   }
   
-  console.log('📋 Comanda guardada en MongoDB:', {
+  logger.debug('Comanda guardada en MongoDB', {
     _id: nuevaComanda._id,
     platosCount: nuevaComanda.platos?.length,
     cantidadesCount: nuevaComanda.cantidades?.length,
@@ -418,12 +461,11 @@ const eliminarLogicamente = async (comandaId, usuarioId, motivo) => {
       comanda.precioTotalOriginal = precioTotal;
     }
     
-    // Marcar como eliminada (soft-delete)
-    comanda.eliminada = true;
-    comanda.fechaEliminacion = new Date();
+    // ESTANDARIZADO: Soft-delete solo con IsActive
+    comanda.fechaEliminacion = moment.tz("America/Lima").toDate();
     comanda.motivoEliminacion = motivo;
     comanda.eliminadaPor = usuarioId;
-    comanda.IsActive = false; // También desactivar
+    comanda.IsActive = false; // Soft-delete estándar
     comanda.version++;
     
     // Registrar historial de platos eliminados
@@ -599,71 +641,234 @@ const editarConAuditoria = async (comandaId, platosNuevos, platosEliminados, usu
       throw new Error('Comanda no encontrada');
     }
     
+    // Populate platos antes de crear snapshot para obtener nombres
+    await comanda.populate('platos.plato');
+    
     // Snapshot antes de la edición
     const snapshotAntes = {
-      platos: comanda.platos.map((p, idx) => ({
-        platoId: p.platoId,
-        nombre: p.plato?.nombre || 'Plato desconocido',
-        cantidad: comanda.cantidades[idx] || 1,
-        estado: p.estado
-      })),
+      platos: comanda.platos.map((p, idx) => {
+        let nombrePlato = 'Plato desconocido';
+        if (p.plato) {
+          if (typeof p.plato === 'object' && p.plato.nombre) {
+            nombrePlato = p.plato.nombre;
+          } else if (p.plato._id) {
+            // Si es ObjectId, buscar el plato completo
+            // Nota: esto se hará de forma asíncrona, pero para el snapshot usamos el ID
+            nombrePlato = 'Plato desconocido'; // Se actualizará después
+          }
+        }
+        return {
+          platoId: p.platoId,
+          plato: p.plato?._id || p.plato,
+          nombre: nombrePlato,
+          precio: p.plato?.precio || 0,
+          cantidad: comanda.cantidades[idx] || 1,
+          estado: p.estado
+        };
+      }),
       cantidades: [...comanda.cantidades],
       observaciones: comanda.observaciones
     };
+    
+    // Obtener nombres de platos si no están populados
+    for (let i = 0; i < snapshotAntes.platos.length; i++) {
+      const p = snapshotAntes.platos[i];
+      if (p.nombre === 'Plato desconocido' && p.plato) {
+        const platoCompleto = await platoModel.findById(p.plato);
+        if (platoCompleto) {
+          snapshotAntes.platos[i].nombre = platoCompleto.nombre;
+          snapshotAntes.platos[i].precio = platoCompleto.precio || 0;
+        }
+      }
+    }
     
     // Inicializar historialPlatos si no existe
     if (!comanda.historialPlatos) {
       comanda.historialPlatos = [];
     }
     
-    // Registrar platos eliminados en historial
+    // Registrar platos eliminados en historial y REMOVER completamente del array
     if (platosEliminados && platosEliminados.length > 0) {
-      platosEliminados.forEach(platoEliminado => {
+      // Populate platos antes de procesar eliminados para obtener nombres
+      await comanda.populate('platos.plato');
+      
+      // Array para almacenar índices a eliminar (en orden inverso para evitar problemas al eliminar)
+      const indicesAEliminar = [];
+      const platosInfoEliminados = [];
+      
+      for (const platoEliminado of platosEliminados) {
         const platoOriginal = comanda.platos.find(p => 
           p.platoId === platoEliminado.platoId || 
-          p.plato?.toString() === platoEliminado.platoId
+          p.plato?.toString() === platoEliminado.platoId ||
+          (p.plato && p.plato._id && p.plato._id.toString() === platoEliminado.platoId?.toString())
         );
         
         if (platoOriginal) {
           const index = comanda.platos.indexOf(platoOriginal);
           const cantidad = comanda.cantidades[index] || 1;
           
-          comanda.historialPlatos.push({
+          // Obtener nombre del plato (populado o desde el modelo)
+          let nombrePlato = 'Plato desconocido';
+          if (platoOriginal.plato) {
+            if (typeof platoOriginal.plato === 'object' && platoOriginal.plato.nombre) {
+              nombrePlato = platoOriginal.plato.nombre;
+            } else if (platoOriginal.plato._id) {
+              // Si es ObjectId, buscar el plato completo
+              const platoCompleto = await platoModel.findById(platoOriginal.plato._id || platoOriginal.plato);
+              if (platoCompleto) {
+                nombrePlato = platoCompleto.nombre || 'Plato desconocido';
+              }
+            }
+          }
+          
+          // Si aún no tenemos nombre, intentar buscar por platoId numérico
+          if ((!nombrePlato || nombrePlato === 'Plato desconocido') && platoOriginal.platoId) {
+            const platoPorId = await platoModel.findOne({ id: platoOriginal.platoId });
+            if (platoPorId && platoPorId.nombre) {
+              nombrePlato = platoPorId.nombre;
+              console.log(`✅ Nombre encontrado por platoId ${platoOriginal.platoId}: ${nombrePlato}`);
+            }
+          }
+          
+          console.log(`📝 Guardando plato eliminado: platoId=${platoOriginal.platoId}, nombre=${nombrePlato}`);
+          
+          // Guardar información para historial
+          platosInfoEliminados.push({
             platoId: platoOriginal.platoId,
-            nombreOriginal: platoOriginal.plato?.nombre || 'Plato desconocido',
+            nombreOriginal: nombrePlato,
             cantidadOriginal: cantidad,
-            cantidadFinal: 0,
-            estado: 'eliminado',
-            timestamp: new Date(),
-            usuario: usuarioId,
-            motivo: motivo || 'Plato eliminado de comanda'
+            index: index
           });
           
-          // Remover el plato de la comanda
-          comanda.platos = comanda.platos.filter(p => p !== platoOriginal);
-          comanda.cantidades.splice(index, 1);
+          // Agregar índice a la lista (solo si no está ya)
+          if (indicesAEliminar.indexOf(index) === -1) {
+            indicesAEliminar.push(index);
+          }
         }
-      });
+      }
+      
+      // Registrar en historialPlatos
+      for (const info of platosInfoEliminados) {
+        comanda.historialPlatos.push({
+          platoId: info.platoId,
+          nombreOriginal: info.nombreOriginal,
+          cantidadOriginal: info.cantidadOriginal,
+          cantidadFinal: 0,
+          estado: 'eliminado',
+          timestamp: new Date(),
+          usuario: usuarioId,
+          motivo: motivo || 'Plato eliminado de comanda'
+        });
+      }
+      
+      // Eliminar platos del array (en orden inverso para evitar problemas de índices)
+      indicesAEliminar.sort((a, b) => b - a); // Ordenar descendente
+      const platosAntes = comanda.platos.length;
+      const cantidadesAntes = comanda.cantidades.length;
+      
+      for (const index of indicesAEliminar) {
+        const platoEliminado = comanda.platos[index];
+        const nombrePlato = platoEliminado?.plato?.nombre || platoEliminado?.platoId || 'desconocido';
+        console.log(`🗑️ Eliminando plato en índice ${index}: ${nombrePlato}`);
+        comanda.platos.splice(index, 1);
+        comanda.cantidades.splice(index, 1);
+      }
+      
+      console.log(`✅ ${platosInfoEliminados.length} plato(s) eliminado(s) completamente de comanda ${comanda.comandaNumber}`);
+      console.log(`📊 Platos antes: ${platosAntes}, después: ${comanda.platos.length}`);
+      console.log(`📊 Cantidades antes: ${cantidadesAntes}, después: ${comanda.cantidades.length}`);
+      
+      // Verificar que los arrays estén sincronizados (deben estar siempre sincronizados)
+      if (comanda.platos.length !== comanda.cantidades.length) {
+        const error = new AppError(
+          `Desincronización crítica: ${comanda.platos.length} platos pero ${comanda.cantidades.length} cantidades después de eliminar. Deben coincidir.`,
+          500
+        );
+        logger.error('Desincronización después de eliminar platos', {
+          comandaId: comanda._id,
+          comandaNumber: comanda.comandaNumber,
+          platosLength: comanda.platos.length,
+          cantidadesLength: comanda.cantidades.length
+        });
+        throw error;
+      }
     }
     
     // Agregar nuevos platos
     if (platosNuevos && platosNuevos.length > 0) {
+      console.log(`➕ Agregando ${platosNuevos.length} plato(s) nuevo(s) a comanda ${comanda.comandaNumber}`);
+      
       for (const nuevoPlato of platosNuevos) {
-        // Buscar el plato completo
-        const platoCompleto = await platoModel.findById(nuevoPlato.plato);
+        console.log(`🔍 Buscando plato: _id=${nuevoPlato.plato}, platoId=${nuevoPlato.platoId}`);
+        
+        // Buscar el plato completo por _id
+        let platoCompleto = await platoModel.findById(nuevoPlato.plato);
+        
+        // Si no se encuentra por _id, intentar buscar por platoId numérico
+        if (!platoCompleto && nuevoPlato.platoId) {
+          console.log(`⚠️ No se encontró plato por _id, intentando por platoId numérico: ${nuevoPlato.platoId}`);
+          platoCompleto = await platoModel.findOne({ id: nuevoPlato.platoId });
+        }
+        
         if (platoCompleto) {
-          comanda.platos.push({
-            plato: nuevoPlato.plato,
-            platoId: platoCompleto.id,
+          const platoAgregado = {
+            plato: platoCompleto._id, // Usar el _id del plato encontrado
+            platoId: platoCompleto.id, // ID numérico del plato
             estado: nuevoPlato.estado || 'en_espera'
-          });
+          };
+          
+          comanda.platos.push(platoAgregado);
           comanda.cantidades.push(nuevoPlato.cantidad || 1);
+          
+          console.log(`✅ Plato agregado: ${platoCompleto.nombre} (id numérico: ${platoCompleto.id}, cantidad: ${nuevoPlato.cantidad || 1})`);
+        } else {
+          const errorMsg = `❌ ERROR: No se pudo encontrar el plato con _id=${nuevoPlato.plato} o platoId=${nuevoPlato.platoId}`;
+          console.error(errorMsg);
+          logger.error('Plato no encontrado al agregar a comanda', {
+            comandaId: comanda._id,
+            comandaNumber: comanda.comandaNumber,
+            nuevoPlato: nuevoPlato
+          });
+          // Lanzar error para que el usuario sepa que algo salió mal
+          throw new AppError(
+            `No se pudo encontrar el plato para agregar a la comanda. ID: ${nuevoPlato.plato || nuevoPlato.platoId}`,
+            404
+          );
         }
       }
+      
+      console.log(`✅ Total de platos agregados: ${platosNuevos.length}. Platos totales en comanda: ${comanda.platos.length}`);
     }
     
     comanda.version++;
+    
+    console.log(`💾 Guardando comanda ${comanda.comandaNumber} con ${comanda.platos.length} plato(s) después de edición`);
+    console.log(`📋 Cantidades: ${comanda.cantidades.length}`);
+    
     await comanda.save();
+    
+    // Verificar que se guardó correctamente
+    const comandaVerificada = await comandaModel.findById(comanda._id);
+    console.log(`✅ Comanda guardada. Platos en BD: ${comandaVerificada.platos.length}, Cantidades: ${comandaVerificada.cantidades.length}`);
+    
+    if (comandaVerificada.platos.length !== comanda.platos.length) {
+      console.error(`❌ ERROR: Desincronización! Platos en memoria: ${comanda.platos.length}, Platos en BD: ${comandaVerificada.platos.length}`);
+    }
+    
+    // Populate platos después de guardar para obtener nombres en el snapshot
+    await comanda.populate('platos.plato');
+    
+    // Obtener nombres de platos si no están populados
+    for (let i = 0; i < comanda.platos.length; i++) {
+      const p = comanda.platos[i];
+      if (p.plato && typeof p.plato === 'object' && !p.plato.nombre) {
+        const platoCompleto = await platoModel.findById(p.plato._id || p.plato);
+        if (platoCompleto) {
+          // Actualizar referencia del plato con datos completos
+          p.plato = platoCompleto;
+        }
+      }
+    }
     
     // Guardar en historial de comandas
     try {
@@ -671,14 +876,32 @@ const editarConAuditoria = async (comandaId, platosNuevos, platosEliminados, usu
         comandaId: comanda._id,
         version: comanda.version,
         status: comanda.status,
-        platos: comanda.platos.map((p, idx) => ({
-          plato: p.plato,
-          platoId: p.platoId,
-          estado: p.estado,
-          cantidad: comanda.cantidades[idx] || 1,
-          nombre: p.plato?.nombre || 'Plato desconocido',
-          precio: p.plato?.precio || 0
-        })),
+        platos: comanda.platos.map((p, idx) => {
+          let nombrePlato = 'Plato desconocido';
+          let precioPlato = 0;
+          
+          if (p.plato) {
+            if (typeof p.plato === 'object' && p.plato.nombre) {
+              nombrePlato = p.plato.nombre;
+              precioPlato = p.plato.precio || 0;
+            } else if (p.plato._id) {
+              const platoCompleto = p.plato;
+              if (platoCompleto && platoCompleto.nombre) {
+                nombrePlato = platoCompleto.nombre;
+                precioPlato = platoCompleto.precio || 0;
+              }
+            }
+          }
+          
+          return {
+            plato: p.plato?._id || p.plato,
+            platoId: p.platoId,
+            estado: p.estado,
+            cantidad: comanda.cantidades[idx] || 1,
+            nombre: nombrePlato,
+            precio: precioPlato
+          };
+        }),
         cantidades: comanda.cantidades,
         observaciones: comanda.observaciones,
         usuario: usuarioId,
@@ -690,6 +913,7 @@ const editarConAuditoria = async (comandaId, platosNuevos, platosEliminados, usu
     }
     
     // Obtener comanda actualizada con populate
+    // IMPORTANTE: Recargar desde BD para asegurar que tenemos la versión más reciente
     const comandaActualizada = await comandaModel.findById(comandaId)
       .populate({
         path: "mozos",
@@ -707,6 +931,32 @@ const editarConAuditoria = async (comandaId, platosNuevos, platosEliminados, usu
         path: "platos.plato",
         model: "platos"
       });
+    
+    // 🔥 AUDITORÍA: Asegurar que historialPlatos tenga nombres correctos
+    if (comandaActualizada.historialPlatos && comandaActualizada.historialPlatos.length > 0) {
+      let necesitaGuardar = false;
+      for (let i = 0; i < comandaActualizada.historialPlatos.length; i++) {
+        const h = comandaActualizada.historialPlatos[i];
+        if (h.estado === 'eliminado' && (!h.nombreOriginal || h.nombreOriginal === 'Plato desconocido' || h.nombreOriginal === 'Sin nombre')) {
+          // Buscar el plato por platoId numérico
+          if (h.platoId) {
+            const plato = await platoModel.findOne({ id: h.platoId });
+            if (plato && plato.nombre) {
+              comandaActualizada.historialPlatos[i].nombreOriginal = plato.nombre;
+              necesitaGuardar = true;
+              console.log(`✅ Nombre corregido en historialPlatos: platoId=${h.platoId}, nombre=${plato.nombre}`);
+            }
+          }
+        }
+      }
+      // Guardar los cambios en el historialPlatos si hubo correcciones
+      if (necesitaGuardar) {
+        await comandaActualizada.save();
+      }
+    }
+    
+    console.log(`✅ Comanda ${comandaActualizada.comandaNumber} actualizada - Platos finales: ${comandaActualizada.platos.length}`);
+    console.log(`📊 HistorialPlatos eliminados: ${comandaActualizada.historialPlatos?.filter(h => h.estado === 'eliminado').length || 0}`);
     
     return comandaActualizada;
   } catch (error) {
@@ -761,13 +1011,18 @@ const actualizarComanda = async (comandaId, newData) => {
         throw new Error('Las cantidades deben ser un array');
       }
       
-      // Validar que las cantidades coincidan con los platos
+      // Validar que las cantidades coincidan con los platos (REQUERIDO - rechazar si no coincide)
       if (newData.platos && newData.platos.length !== newData.cantidades.length) {
-        console.warn(`⚠️ Advertencia: ${newData.platos.length} platos pero ${newData.cantidades.length} cantidades. Ajustando...`);
-        while (newData.cantidades.length < newData.platos.length) {
-          newData.cantidades.push(1);
-        }
-        newData.cantidades = newData.cantidades.slice(0, newData.platos.length);
+        const error = new AppError(
+          `Desincronización: ${newData.platos.length} platos pero ${newData.cantidades.length} cantidades. Deben coincidir.`,
+          400
+        );
+        logger.warn('Intento de actualizar comanda con platos/cantidades desincronizados', {
+          comandaId,
+          platosLength: newData.platos.length,
+          cantidadesLength: newData.cantidades.length
+        });
+        throw error;
       }
     }
     
@@ -923,17 +1178,119 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
   }
 };
 
-const cambiarStatusComanda = async (comandaId, nuevoStatus) => {
+/**
+ * Valida si una transición de estado es válida
+ * Transiciones permitidas:
+ * - en_espera -> recoger
+ * - recoger -> entregado
+ * - entregado -> pagado
+ * - Cualquier estado -> en_espera (revertir)
+ * @param {string} estadoActual - Estado actual de la comanda
+ * @param {string} nuevoEstado - Nuevo estado solicitado
+ * @returns {boolean} true si la transición es válida
+ */
+const validarTransicionEstado = (estadoActual, nuevoEstado) => {
+  // Permitir revertir a en_espera desde cualquier estado
+  if (nuevoEstado === 'en_espera') {
+    return true;
+  }
+  
+  // Definir transiciones válidas
+  const transicionesValidas = {
+    'en_espera': ['recoger'],
+    'recoger': ['entregado'],
+    'entregado': ['pagado'],
+    'pagado': [] // No se puede cambiar desde pagado (excepto revertir)
+  };
+  
+  const estadosPermitidos = transicionesValidas[estadoActual] || [];
+  return estadosPermitidos.includes(nuevoEstado);
+};
+
+/**
+ * Cambia el status de una comanda con validación de transiciones y registro de timestamps
+ * @param {string} comandaId - ID de la comanda
+ * @param {string} nuevoStatus - Nuevo status
+ * @param {Object} options - Opciones adicionales { usuario, deviceId, sourceApp, motivo }
+ * @returns {Promise<Object>} Comanda actualizada
+ */
+const cambiarStatusComanda = async (comandaId, nuevoStatus, options = {}) => {
   try {
+      // Obtener comanda actual
+      const comandaActual = await comandaModel.findById(comandaId);
+      
+      if (!comandaActual) {
+        throw new AppError('Comanda no encontrada', 404);
+      }
+      
+      const estadoActual = comandaActual.status;
+      
+      // Validar transición de estado
+      if (!validarTransicionEstado(estadoActual, nuevoStatus)) {
+        const error = new AppError(
+          `Transición inválida: no se puede cambiar de "${estadoActual}" a "${nuevoStatus}"`,
+          400
+        );
+        logger.warn('Intento de transición inválida', {
+          comandaId,
+          estadoActual,
+          nuevoStatus,
+          usuario: options.usuario
+        });
+        throw error;
+      }
+      
+      // Preparar actualización con timestamps
+      const updateData = {
+        status: nuevoStatus,
+        updatedAt: moment.tz("America/Lima").toDate(),
+        updatedBy: options.usuario || null
+      };
+      
+      // TIMESTAMPS AUTOMÁTICOS: Actualizar siempre al cambiar de estado
+      const timestampActual = moment.tz("America/Lima").toDate();
+      if (nuevoStatus === 'en_espera') {
+        updateData.tiempoEnEspera = timestampActual;
+      } else if (nuevoStatus === 'recoger') {
+        updateData.tiempoRecoger = timestampActual;
+      } else if (nuevoStatus === 'entregado') {
+        updateData.tiempoEntregado = timestampActual;
+      } else if (nuevoStatus === 'pagado') {
+        updateData.tiempoPagado = timestampActual;
+      }
+      
+      // Actualizar historial de estados
+      const historialEntry = {
+        status: nuevoStatus,
+        statusAnterior: estadoActual,
+        timestamp: moment.tz("America/Lima").toDate(),
+        usuario: options.usuario || null,
+        accion: `Cambio de estado de "${estadoActual}" a "${nuevoStatus}"`,
+        deviceId: options.deviceId || null,
+        sourceApp: options.sourceApp || null,
+        motivo: options.motivo || null
+      };
+      
+      // Usar $set para campos regulares y $push para arrays
+      const updateQuery = {
+        $set: updateData,
+        $push: { historialEstados: historialEntry }
+      };
+      
       const updatedComanda = await comandaModel.findByIdAndUpdate(
           comandaId,
-          { status: nuevoStatus },
+          updateQuery,
           { new: true }
       ).populate('mesas');
       
-      if (!updatedComanda) {
-        throw new Error('Comanda no encontrada');
-      }
+      logger.info('Estado de comanda actualizado', {
+        comandaId,
+        comandaNumber: updatedComanda.comandaNumber,
+        estadoAnterior: estadoActual,
+        nuevoEstado: nuevoStatus,
+        usuario: options.usuario,
+        sourceApp: options.sourceApp
+      });
       
       // Si el nuevo status es "recoger", actualizar la mesa a "preparado"
       if (nuevoStatus === "recoger" && updatedComanda.mesas) {
@@ -942,7 +1299,7 @@ const cambiarStatusComanda = async (comandaId, nuevoStatus) => {
         if (mesa && mesa.estado !== "preparado" && mesa.estado !== "pagando") {
           mesa.estado = "preparado";
           await mesa.save();
-          console.log(`✅ Mesa ${mesa.nummesa} actualizada a estado "preparado" - Comanda lista para recoger`);
+          logger.info(`Mesa ${mesa.nummesa} actualizada a estado "preparado" - Comanda lista para recoger`);
           
           // Emitir evento Socket.io de mesa actualizada
           if (global.emitMesaActualizada) {
@@ -952,7 +1309,6 @@ const cambiarStatusComanda = async (comandaId, nuevoStatus) => {
       }
       
       // Si el nuevo status es "entregado", verificar si todas las comandas están entregadas
-      // y actualizar la mesa a "libre" si corresponde
       if (nuevoStatus === "entregado" && updatedComanda.mesas) {
         const mesaId = updatedComanda.mesas._id || updatedComanda.mesas;
         const comandasActivas = await comandaModel.find({
@@ -976,7 +1332,12 @@ const cambiarStatusComanda = async (comandaId, nuevoStatus) => {
       
       return updatedComanda;
   } catch (error) {
-      console.error("Error al cambiar el estado de la comanda", error);
+      logger.error("Error al cambiar el estado de la comanda", {
+        comandaId,
+        nuevoStatus,
+        error: error.message,
+        stack: error.stack
+      });
       throw error;
   }
 };
@@ -1185,6 +1546,13 @@ const listarComandaPorFecha = async (fecha) => {
  * @param {Session} session - Sesión de MongoDB para transacciones (opcional)
  * @returns {Promise<String>} - Nuevo estado de la mesa
  */
+/**
+ * Recalcula el estado de una mesa basado en las comandas activas
+ * PRIORIDAD SIMPLIFICADA: en_espera > recoger > entregado > pagado
+ * @param {string} mesaId - ID de la mesa
+ * @param {object} session - Sesión de MongoDB (opcional)
+ * @returns {Promise<string>} - Nuevo estado de la mesa
+ */
 const recalcularEstadoMesa = async (mesaId, session = null) => {
   try {
     const query = {
@@ -1200,30 +1568,37 @@ const recalcularEstadoMesa = async (mesaId, session = null) => {
     let nuevoEstadoMesa = 'libre';
     
     if (comandasActivas.length > 0) {
-      // Contar comandas por estado
-      const comandasEnEspera = comandasActivas.filter(c => c.status?.toLowerCase() === 'en_espera');
-      const comandasRecoger = comandasActivas.filter(c => c.status?.toLowerCase() === 'recoger');
-      const comandasEntregadas = comandasActivas.filter(c => c.status?.toLowerCase() === 'entregado');
+      // Contar comandas por estado (simplificado)
+      const comandasEnEspera = comandasActivas.filter(c => c.status === 'en_espera');
+      const comandasRecoger = comandasActivas.filter(c => c.status === 'recoger');
+      const comandasEntregadas = comandasActivas.filter(c => c.status === 'entregado');
       
-      // PRIORIDAD CORREGIDA: "en_espera" tiene máxima prioridad (hay trabajo pendiente)
-      // Si hay alguna comanda en "en_espera", la mesa debe estar en "pedido"
+      // PRIORIDAD CLARA Y SIMPLE
       if (comandasEnEspera.length > 0) {
         nuevoEstadoMesa = 'pedido';
-        console.log(`✅ Mesa tiene ${comandasActivas.length} comanda(s) activa(s): ${comandasEnEspera.length} en "en_espera", ${comandasRecoger.length} en "recoger", ${comandasEntregadas.length} en "entregado" - Mesa a "pedido" (prioridad: en_espera)`);
-      } 
-      // Si no hay "en_espera" pero hay "recoger", la mesa está "preparado"
-      else if (comandasRecoger.length > 0) {
+        logger.debug('Mesa con comandas en espera', {
+          mesaId,
+          comandasEnEspera: comandasEnEspera.length,
+          nuevoEstado: nuevoEstadoMesa
+        });
+      } else if (comandasRecoger.length > 0) {
         nuevoEstadoMesa = 'preparado';
-        console.log(`✅ Mesa tiene ${comandasActivas.length} comanda(s) activa(s): ${comandasRecoger.length} en "recoger", ${comandasEntregadas.length} en "entregado" - Mesa a "preparado"`);
-      }
-      // Si solo hay comandas "entregado" (todas entregadas pero no pagadas), mesa en "preparado"
-      else if (comandasEntregadas.length > 0) {
+        logger.debug('Mesa con comandas listas para recoger', {
+          mesaId,
+          comandasRecoger: comandasRecoger.length,
+          nuevoEstado: nuevoEstadoMesa
+        });
+      } else if (comandasEntregadas.length > 0) {
         nuevoEstadoMesa = 'preparado';
-        console.log(`✅ Mesa tiene ${comandasEntregadas.length} comanda(s) en estado "entregado" (todas entregadas, esperando pago) - Mesa a "preparado"`);
+        logger.debug('Mesa con comandas entregadas esperando pago', {
+          mesaId,
+          comandasEntregadas: comandasEntregadas.length,
+          nuevoEstado: nuevoEstadoMesa
+        });
       }
     } else {
       nuevoEstadoMesa = 'libre';
-      console.log(`✅ No hay comandas activas - Mesa a "libre"`);
+      logger.debug('Mesa sin comandas activas', { mesaId, nuevoEstado: nuevoEstadoMesa });
     }
     
     // Actualizar el estado de la mesa
@@ -1240,22 +1615,35 @@ const recalcularEstadoMesa = async (mesaId, session = null) => {
         } else {
           await mesa.save();
         }
-        console.log(`✅ Mesa ${mesa.nummesa} actualizada de "${estadoAnterior}" a "${nuevoEstadoMesa}"`);
+        logger.info('Estado de mesa actualizado', {
+          mesaId: mesa._id,
+          numMesa: mesa.nummesa,
+          estadoAnterior,
+          nuevoEstado: nuevoEstadoMesa
+        });
         
         // Emitir evento Socket.io de mesa actualizada (solo si no hay sesión activa, para evitar duplicados)
         if (!session && global.emitMesaActualizada) {
           await global.emitMesaActualizada(mesa._id);
         }
       } else {
-        console.log(`ℹ️ Mesa ${mesa.nummesa} ya está en estado "${nuevoEstadoMesa}" - No se requiere actualización`);
+        logger.debug('Mesa ya está en el estado correcto', {
+          mesaId: mesa._id,
+          numMesa: mesa.nummesa,
+          estado: nuevoEstadoMesa
+        });
       }
     } else {
-      console.warn(`⚠️ No se encontró la mesa ${mesaId} para actualizar su estado`);
+      logger.warn('Mesa no encontrada para actualizar estado', { mesaId });
     }
     
     return nuevoEstadoMesa;
   } catch (error) {
-    console.error("❌ Error al recalcular estado de mesa:", error);
+    logger.error("Error al recalcular estado de mesa", {
+      mesaId,
+      error: error.message,
+      stack: error.stack
+    });
     throw error;
   }
 };
@@ -1403,5 +1791,6 @@ module.exports = {
   listarComandaPorFechaEntregado, 
   cambiarEstadoPlato, 
   revertirStatusComanda, 
-  recalcularEstadoMesa
+  recalcularEstadoMesa,
+  validarTransicionEstado // Exportar para tests
 };

@@ -1063,7 +1063,9 @@
         }
 
         function closeModal() {
-            document.getElementById('modal').classList.remove('active');
+            const modal = document.getElementById('modal');
+            modal.classList.remove('active');
+            modal.style.display = 'none';
             editingId = null;
         }
 
@@ -1920,15 +1922,191 @@
 
         async function verDetalleAuditoria(auditoriaId) {
             try {
-                const response = await fetch(`${API_BASE}/auditoria/comandas?entidadId=${auditoriaId}`);
+                // Buscar el registro de auditoría directamente por su ID
+                const response = await fetch(`${API_BASE}/auditoria/comandas?id=${auditoriaId}`);
                 const data = await response.json();
-                const aud = data.auditorias?.[0];
+                let aud = data.auditorias?.[0];
                 
                 if (!aud) {
-                    alert('No se encontró el registro de auditoría');
-                    return;
+                    // Si no se encuentra por ID, intentar buscar por entidadId (puede ser que auditoriaId sea el ID de la comanda)
+                    const response2 = await fetch(`${API_BASE}/auditoria/comandas?entidadId=${auditoriaId}`);
+                    const data2 = await response2.json();
+                    aud = data2.auditorias?.[0];
+                    
+                    if (!aud) {
+                        alert('No se encontró el registro de auditoría');
+                        return;
+                    }
                 }
 
+                // Función para generar tabla de platos
+                function generarTablaPlatos(platos, cantidades, esAntes = false) {
+                    if (!platos || platos.length === 0) {
+                        return '<p style="color: #999;">No hay platos</p>';
+                    }
+                    
+                    let html = '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+                    html += '<thead><tr style="background: #f0f0f0;"><th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Cantidad</th><th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Plato</th><th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Precio</th></tr></thead>';
+                    html += '<tbody>';
+                    
+                    platos.forEach((plato, idx) => {
+                        const platoObj = plato.plato || plato;
+                        const nombre = platoObj?.nombre || plato?.nombre || 'Sin nombre';
+                        const precio = platoObj?.precio || plato?.precio || 0;
+                        const cantidad = cantidades?.[idx] || 1;
+                        const estado = plato.estado || 'en_espera';
+                        
+                        // Verde si existe, rojo tachado si está eliminado
+                        const color = estado === 'eliminado' ? '#ef4444' : '#10b981';
+                        const textDecoration = estado === 'eliminado' ? 'line-through' : 'none';
+                        const bgColor = estado === 'eliminado' ? '#fee2e2' : '#d1fae5';
+                        
+                        html += `<tr style="background: ${bgColor};">
+                            <td style="padding: 8px; border: 1px solid #ddd;">${cantidad}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd; color: ${color}; text-decoration: ${textDecoration};">${nombre}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">S/. ${precio.toFixed(2)}</td>
+                        </tr>`;
+                    });
+                    
+                    html += '</tbody></table>';
+                    return html;
+                }
+                
+                // Comparar platos antes y después para detectar cambios
+                function compararPlatos(platosAntes, cantidadesAntes, platosDespues, cantidadesDespues) {
+                    const platosAntesMap = new Map();
+                    const platosDespuesMap = new Map();
+                    
+                    // Mapear platos antes
+                    platosAntes?.forEach((p, idx) => {
+                        // El plato puede venir de diferentes formas:
+                        // 1. Como objeto con plato populado: { plato: { _id, nombre, precio } }
+                        // 2. Como objeto plano con nombre directo: { nombre, precio, platoId }
+                        // 3. Como ObjectId: { plato: ObjectId }
+                        const platoObj = p.plato || p;
+                        let platoId = null;
+                        let nombre = 'Sin nombre';
+                        let precio = 0;
+                        
+                        // Intentar obtener platoId
+                        if (platoObj?._id) {
+                            platoId = platoObj._id.toString();
+                        } else if (p.platoId) {
+                            platoId = p.platoId.toString();
+                        } else if (p._id) {
+                            platoId = p._id.toString();
+                        } else if (typeof platoObj === 'string') {
+                            platoId = platoObj;
+                        }
+                        
+                        // Intentar obtener nombre (prioridad: nombre directo > plato.nombre > nombre del objeto)
+                        if (p.nombre && p.nombre !== 'Plato desconocido' && p.nombre !== 'Sin nombre') {
+                            nombre = p.nombre;
+                        } else if (platoObj?.nombre && platoObj.nombre !== 'Plato desconocido') {
+                            nombre = platoObj.nombre;
+                        } else if (p?.nombre && p.nombre !== 'Plato desconocido') {
+                            nombre = p.nombre;
+                        }
+                        
+                        // Intentar obtener precio
+                        precio = p.precio || platoObj?.precio || p?.precio || 0;
+                        
+                        if (platoId) {
+                            platosAntesMap.set(platoId.toString(), {
+                                nombre: nombre,
+                                precio: precio,
+                                cantidad: cantidadesAntes?.[idx] || 1
+                            });
+                        }
+                    });
+                    
+                    // Mapear platos después
+                    platosDespues?.forEach((p, idx) => {
+                        const platoObj = p.plato || p;
+                        let platoId = null;
+                        let nombre = 'Sin nombre';
+                        let precio = 0;
+                        
+                        // Intentar obtener platoId
+                        if (platoObj?._id) {
+                            platoId = platoObj._id.toString();
+                        } else if (p.platoId) {
+                            platoId = p.platoId.toString();
+                        } else if (p._id) {
+                            platoId = p._id.toString();
+                        } else if (typeof platoObj === 'string') {
+                            platoId = platoObj;
+                        }
+                        
+                        // Intentar obtener nombre
+                        if (p.nombre && p.nombre !== 'Plato desconocido' && p.nombre !== 'Sin nombre') {
+                            nombre = p.nombre;
+                        } else if (platoObj?.nombre && platoObj.nombre !== 'Plato desconocido') {
+                            nombre = platoObj.nombre;
+                        } else if (p?.nombre && p.nombre !== 'Plato desconocido') {
+                            nombre = p.nombre;
+                        }
+                        
+                        // Intentar obtener precio
+                        precio = p.precio || platoObj?.precio || p?.precio || 0;
+                        
+                        if (platoId) {
+                            platosDespuesMap.set(platoId.toString(), {
+                                nombre: nombre,
+                                precio: precio,
+                                cantidad: cantidadesDespues?.[idx] || 1
+                            });
+                        }
+                    });
+                    
+                    // Generar lista combinada
+                    const todosPlatos = new Set([...platosAntesMap.keys(), ...platosDespuesMap.keys()]);
+                    let html = '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+                    html += '<thead><tr style="background: #f0f0f0;"><th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Cantidad</th><th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Plato</th><th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Precio</th><th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Estado</th></tr></thead>';
+                    html += '<tbody>';
+                    
+                    todosPlatos.forEach(platoId => {
+                        const antes = platosAntesMap.get(platoId);
+                        const despues = platosDespuesMap.get(platoId);
+                        
+                        if (antes && !despues) {
+                            // Plato eliminado (rojo tachado)
+                            html += `<tr style="background: #fee2e2;">
+                                <td style="padding: 8px; border: 1px solid #ddd;">${antes.cantidad}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd; color: #ef4444; text-decoration: line-through;">${antes.nombre}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd;">S/. ${antes.precio.toFixed(2)}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd; color: #ef4444;">🗑️ Eliminado</td>
+                            </tr>`;
+                        } else if (!antes && despues) {
+                            // Plato nuevo (verde)
+                            html += `<tr style="background: #d1fae5;">
+                                <td style="padding: 8px; border: 1px solid #ddd;">${despues.cantidad}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd; color: #10b981;">${despues.nombre}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd;">S/. ${despues.precio.toFixed(2)}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd; color: #10b981;">➕ Nuevo</td>
+                            </tr>`;
+                        } else if (antes && despues) {
+                            // Plato existente (verde)
+                            html += `<tr style="background: #d1fae5;">
+                                <td style="padding: 8px; border: 1px solid #ddd;">${despues.cantidad}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd; color: #10b981;">${despues.nombre}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd;">S/. ${despues.precio.toFixed(2)}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd; color: #10b981;">✓ Existente</td>
+                            </tr>`;
+                        }
+                    });
+                    
+                    html += '</tbody></table>';
+                    return html;
+                }
+                
+                const datosAntes = aud.datosAntes || {};
+                const datosDespues = aud.datosDespues || {};
+                const platosAntes = datosAntes.platos || [];
+                const cantidadesAntes = datosAntes.cantidades || [];
+                const platosDespues = datosDespues.platos || [];
+                const cantidadesDespues = datosDespues.cantidades || [];
+                
                 const modalBody = `
                     <div style="padding: 20px;">
                         <div style="margin-bottom: 15px;">
@@ -1938,12 +2116,16 @@
                             <strong>Motivo:</strong> ${aud.motivo || 'N/A'}<br>
                             <strong>IP:</strong> ${aud.ip || 'N/A'}<br>
                         </div>
+                        <details style="margin-top: 15px;" open>
+                            <summary style="cursor: pointer; font-weight: bold; margin-bottom: 10px;">Comparación de Platos</summary>
+                            ${compararPlatos(platosAntes, cantidadesAntes, platosDespues, cantidadesDespues)}
+                        </details>
                         <details style="margin-top: 15px;">
-                            <summary style="cursor: pointer; font-weight: bold; margin-bottom: 10px;">Datos Antes</summary>
+                            <summary style="cursor: pointer; font-weight: bold; margin-bottom: 10px;">Datos Antes (JSON)</summary>
                             <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow: auto; max-height: 200px;">${JSON.stringify(aud.datosAntes, null, 2)}</pre>
                         </details>
                         <details style="margin-top: 15px;">
-                            <summary style="cursor: pointer; font-weight: bold; margin-bottom: 10px;">Datos Después</summary>
+                            <summary style="cursor: pointer; font-weight: bold; margin-bottom: 10px;">Datos Después (JSON)</summary>
                             <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow: auto; max-height: 200px;">${JSON.stringify(aud.datosDespues, null, 2)}</pre>
                         </details>
                     </div>
@@ -1951,7 +2133,9 @@
 
                 document.getElementById('modal-title').textContent = 'Detalle de Auditoría';
                 document.getElementById('modal-body').innerHTML = modalBody;
-                document.getElementById('modal').style.display = 'block';
+                const modal = document.getElementById('modal');
+                modal.style.display = 'block';
+                modal.classList.add('active');
             } catch (error) {
                 alert('Error al cargar detalle: ' + error.message);
             }

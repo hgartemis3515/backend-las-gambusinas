@@ -1,568 +1,82 @@
 [
   {
-    "_id": "696ed5633dcfe4563a159350",
-    "mesa": "696927be5debe6069279ced1",
-    "numMesa": 6,
-    "mozo": "69679ba5dda2fed66098bd99",
-    "nombreMozo": "Humberto",
-    "cliente": "696ed55c985ba4ae73742e50",
-    "usadoEnComanda": "696ed28bc588d0fdb1513e0e",
-    "fechaUso": "2026-01-20T01:09:04.092Z",
+    "_id": "69860b00be2d99fda4c23e2d",
+    "mesa": "69860a415e59135b4d2c56c1",
+    "numMesa": 1,
+    "mozo": "69860821b6273b9647faf872",
+    "nombreMozo": "admin",
+    "cliente": "69860af6bd74da1e6d20e6c3",
+    "usadoEnComanda": "69860ac9d1fef731e6bc9ccb",
+    "fechaUso": "2026-02-06T15:37:55.401Z",
     "comandas": [
-      "696ed28bc588d0fdb1513e0e"
+      "69860ac9d1fef731e6bc9ccb",
+      "69860a68f3a817ddcca922d4"
     ],
     "comandasNumbers": [
-      253
+      2,
+      1
     ],
     "platos": [
       {
-        "plato": "6966afbc7bf36a5ee11f02ec",
-        "platoId": 36,
-        "nombre": "Papa a la huancaína",
-        "precio": 13,
-        "cantidad": 1,
-        "subtotal": 13,
-        "comandaNumber": 253,
-        "_id": "696ed5633dcfe4563a159351"
-      },
-      {
-        "plato": "6966afbc7bf36a5ee11f02e7",
-        "platoId": 35,
-        "nombre": "Tamal + zarza criolla",
-        "precio": 10,
-        "cantidad": 1,
-        "subtotal": 10,
-        "comandaNumber": 253,
-        "_id": "696ed5633dcfe4563a159352"
-      },
-      {
-        "plato": "6966afbc7bf36a5ee11f02f1",
+        "plato": "69860a42e52589a753836081",
         "platoId": 37,
         "nombre": "Ensalada especial (limon o vinagreta)",
         "precio": 15,
         "cantidad": 1,
         "subtotal": 15,
-        "comandaNumber": 253,
-        "_id": "696ed5633dcfe4563a159353"
-      }
-    ],
-    "subtotal": 38,
-    "igv": 6.84,
-    "total": 44.839999999999996,
-    "observaciones": "",
-    "fechaPago": "2026-01-20T01:09:04.092Z",
-    "fechaPagoString": "19/01/2026 20:09:04",
-    "isActive": true,
-    "createdAt": "2026-01-20T01:07:47.839Z",
-    "updatedAt": "2026-01-20T01:07:47.839Z",
-    "boucherNumber": 54
-  },
-  {
-    "_id": "696eda8d4cee9bde0fccf50e",
-    "mesa": "696927b579ece4325488f351",
-    "numMesa": 2,
-    "mozo": "69679ba5dda2fed66098bd99",
-    "nombreMozo": "Humberto",
-    "cliente": "696eda83220d82e61a4bf953",
-    "usadoEnComanda": "696eda68690ed534c8502ada",
-    "fechaUso": "2026-01-20T01:31:06.204Z",
-    "comandas": [
-      "696eda68690ed534c8502ada",
-      "696eda3631634dfacb8843bf",
-      "696eda277d8dd26d4d290ff0"
-    ],
-    "comandasNumbers": [
-      278,
-      276,
-      275
-    ],
-    "platos": [
+        "comandaNumber": 2,
+        "_id": "69860b00be2d99fda4c23e2e"
+      },
       {
-        "plato": "6966af0256fa7b365dea1476",
-        "platoId": 5,
+        "plato": "69860821b6273b9647faf89b",
+        "platoId": 1,
         "nombre": "Pan solo",
         "precio": 0.5,
         "cantidad": 1,
         "subtotal": 0.5,
-        "comandaNumber": 278,
-        "_id": "696eda8d4cee9bde0fccf50f"
+        "comandaNumber": 2,
+        "_id": "69860b00be2d99fda4c23e2f"
       },
       {
-        "plato": "6966afbc7bf36a5ee11f02ec",
-        "platoId": 36,
-        "nombre": "Papa a la huancaína",
-        "precio": 13,
-        "cantidad": 1,
-        "subtotal": 13,
-        "comandaNumber": 276,
-        "_id": "696eda8d4cee9bde0fccf510"
-      },
-      {
-        "plato": "6966af0256fa7b365dea1476",
-        "platoId": 5,
+        "plato": "69860821b6273b9647faf89b",
+        "platoId": 1,
         "nombre": "Pan solo",
         "precio": 0.5,
         "cantidad": 1,
         "subtotal": 0.5,
-        "comandaNumber": 275,
-        "_id": "696eda8d4cee9bde0fccf511"
-      }
-    ],
-    "subtotal": 14,
-    "igv": 2.52,
-    "total": 16.52,
-    "observaciones": "",
-    "fechaPago": "2026-01-20T01:31:06.204Z",
-    "fechaPagoString": "19/01/2026 20:31:06",
-    "isActive": true,
-    "createdAt": "2026-01-20T01:29:49.959Z",
-    "updatedAt": "2026-01-20T01:29:49.959Z",
-    "boucherNumber": 55
-  },
-  {
-    "_id": "696edca8b92732c13e98bc3d",
-    "mesa": "696927b7c7ce1219b7e95092",
-    "numMesa": 3,
-    "mozo": "69679ba5dda2fed66098bd99",
-    "nombreMozo": "Humberto",
-    "cliente": "696edc9e49bc8dd1f8fd84a3",
-    "usadoEnComanda": "696edc325169f93dc28cfeaf",
-    "fechaUso": "2026-01-20T01:40:04.977Z",
-    "comandas": [
-      "696edc325169f93dc28cfeaf",
-      "696edbd926f0098a1387263d",
-      "696edbc1a62aaa1004ca92ab"
-    ],
-    "comandasNumbers": [
-      287,
-      286,
-      285
-    ],
-    "platos": [
-      {
-        "plato": "6966afbc7bf36a5ee11f02e7",
-        "platoId": 35,
-        "nombre": "Tamal + zarza criolla",
-        "precio": 10,
-        "cantidad": 1,
-        "subtotal": 10,
-        "comandaNumber": 287,
-        "_id": "696edca8b92732c13e98bc3e"
+        "comandaNumber": 1,
+        "_id": "69860b00be2d99fda4c23e30"
       },
       {
-        "plato": "6966afbc7bf36a5ee11f02ec",
-        "platoId": 36,
-        "nombre": "Papa a la huancaína",
-        "precio": 13,
-        "cantidad": 1,
-        "subtotal": 13,
-        "comandaNumber": 287,
-        "_id": "696edca8b92732c13e98bc3f"
-      },
-      {
-        "plato": "6966afbc7bf36a5ee11f039b",
-        "platoId": 71,
-        "nombre": "1/2 cuy frito + arroz + papas doradas + zarza criolla",
-        "precio": 49,
-        "cantidad": 1,
-        "subtotal": 49,
-        "comandaNumber": 286,
-        "_id": "696edca8b92732c13e98bc40"
-      },
-      {
-        "plato": "6966afbc7bf36a5ee11f03a0",
-        "platoId": 72,
-        "nombre": "Cuy entero frito + arroz + papas doradas + zarza criolla",
-        "precio": 90,
-        "cantidad": 1,
-        "subtotal": 90,
-        "comandaNumber": 286,
-        "_id": "696edca8b92732c13e98bc41"
-      },
-      {
-        "plato": "6966afbc7bf36a5ee11f0396",
-        "platoId": 70,
-        "nombre": "Ceviche de trucha",
-        "precio": 39,
-        "cantidad": 1,
-        "subtotal": 39,
-        "comandaNumber": 286,
-        "_id": "696edca8b92732c13e98bc42"
-      },
-      {
-        "plato": "6966afbc7bf36a5ee11f0391",
-        "platoId": 69,
-        "nombre": "Chicharrón de trucha",
-        "precio": 39,
-        "cantidad": 18,
-        "subtotal": 702,
-        "comandaNumber": 286,
-        "_id": "696edca8b92732c13e98bc43"
-      },
-      {
-        "plato": "6966af0256fa7b365dea1476",
-        "platoId": 5,
-        "nombre": "Pan solo",
-        "precio": 0.5,
-        "cantidad": 1,
-        "subtotal": 0.5,
-        "comandaNumber": 285,
-        "_id": "696edca8b92732c13e98bc44"
-      },
-      {
-        "plato": "6966afbb7bf36a5ee11f0252",
-        "platoId": 6,
+        "plato": "69860821b6273b9647faf8a1",
+        "platoId": 2,
         "nombre": "Pan con queso",
         "precio": 4,
         "cantidad": 1,
         "subtotal": 4,
-        "comandaNumber": 285,
-        "_id": "696edca8b92732c13e98bc45"
+        "comandaNumber": 1,
+        "_id": "69860b00be2d99fda4c23e31"
+      },
+      {
+        "plato": "69860a3b5e59135b4d2c561d",
+        "platoId": 36,
+        "nombre": "Papa a la huancaína",
+        "precio": 13,
+        "cantidad": 1,
+        "subtotal": 13,
+        "comandaNumber": 1,
+        "_id": "69860b00be2d99fda4c23e32"
       }
     ],
-    "subtotal": 907.5,
-    "igv": 163.35,
-    "total": 1070.85,
+    "subtotal": 33,
+    "igv": 5.9399999999999995,
+    "total": 38.94,
     "observaciones": "",
-    "fechaPago": "2026-01-20T01:40:04.976Z",
-    "fechaPagoString": "19/01/2026 20:40:04",
+    "fechaPago": "2026-02-06T15:37:55.401Z",
+    "fechaPagoString": "06/02/2026 10:37:55",
     "isActive": true,
-    "createdAt": "2026-01-20T01:38:48.720Z",
-    "updatedAt": "2026-01-20T01:38:48.720Z",
-    "boucherNumber": 56
-  },
-  {
-    "_id": "696ef2d637ec5fb91eaf5667",
-    "mesa": "696927b7c7ce1219b7e95092",
-    "numMesa": 3,
-    "mozo": "69679ba5dda2fed66098bd99",
-    "nombreMozo": "Humberto",
-    "cliente": "696ef2c9face2fe1753f7d68",
-    "usadoEnComanda": "696ef287415766851924e788",
-    "fechaUso": "2026-01-20T03:14:42.863Z",
-    "comandas": [
-      "696ef287415766851924e788",
-      "696edf345dd36284683a9d60",
-      "696edc325169f93dc28cfeaf",
-      "696edbd926f0098a1387263d",
-      "696edbc1a62aaa1004ca92ab"
-    ],
-    "comandasNumbers": [
-      306,
-      293,
-      287,
-      286,
-      285
-    ],
-    "platos": [
-      {
-        "plato": "6966af0256fa7b365dea1476",
-        "platoId": 5,
-        "nombre": "Pan solo",
-        "precio": 0.5,
-        "cantidad": 1,
-        "subtotal": 0.5,
-        "comandaNumber": 306,
-        "_id": "696ef2d637ec5fb91eaf5668"
-      },
-      {
-        "plato": "6966afbb7bf36a5ee11f0260",
-        "platoId": 8,
-        "nombre": "Pan con huevo",
-        "precio": 4,
-        "cantidad": 1,
-        "subtotal": 4,
-        "comandaNumber": 306,
-        "_id": "696ef2d637ec5fb91eaf5669"
-      },
-      {
-        "plato": "6966afbb7bf36a5ee11f025b",
-        "platoId": 7,
-        "nombre": "Pan con palta",
-        "precio": 4,
-        "cantidad": 1,
-        "subtotal": 4,
-        "comandaNumber": 306,
-        "_id": "696ef2d637ec5fb91eaf566a"
-      },
-      {
-        "plato": "6966afbb7bf36a5ee11f0252",
-        "platoId": 6,
-        "nombre": "Pan con queso",
-        "precio": 4,
-        "cantidad": 1,
-        "subtotal": 4,
-        "comandaNumber": 306,
-        "_id": "696ef2d637ec5fb91eaf566b"
-      },
-      {
-        "plato": "6966afbb7bf36a5ee11f027e",
-        "platoId": 14,
-        "nombre": "Pollo al jugo + 3 panes",
-        "precio": 35,
-        "cantidad": 1,
-        "subtotal": 35,
-        "comandaNumber": 306,
-        "_id": "696ef2d637ec5fb91eaf566c"
-      },
-      {
-        "plato": "6966afbb7bf36a5ee11f0279",
-        "platoId": 13,
-        "nombre": "Huevo revuelto + 2 panes",
-        "precio": 10,
-        "cantidad": 1,
-        "subtotal": 10,
-        "comandaNumber": 306,
-        "_id": "696ef2d637ec5fb91eaf566d"
-      },
-      {
-        "plato": "6966afbc7bf36a5ee11f02f6",
-        "platoId": 38,
-        "nombre": "Patasca",
-        "precio": 25,
-        "cantidad": 1,
-        "subtotal": 25,
-        "comandaNumber": 306,
-        "_id": "696ef2d637ec5fb91eaf566e"
-      },
-      {
-        "plato": "6966afbc7bf36a5ee11f02f1",
-        "platoId": 37,
-        "nombre": "Ensalada especial (limon o vinagreta)",
-        "precio": 15,
-        "cantidad": 1,
-        "subtotal": 15,
-        "comandaNumber": 306,
-        "_id": "696ef2d637ec5fb91eaf566f"
-      },
-      {
-        "plato": "6966afbc7bf36a5ee11f02ec",
-        "platoId": 36,
-        "nombre": "Papa a la huancaína",
-        "precio": 13,
-        "cantidad": 1,
-        "subtotal": 13,
-        "comandaNumber": 306,
-        "_id": "696ef2d637ec5fb91eaf5670"
-      },
-      {
-        "plato": "6966afbc7bf36a5ee11f02e7",
-        "platoId": 35,
-        "nombre": "Tamal + zarza criolla",
-        "precio": 10,
-        "cantidad": 1,
-        "subtotal": 10,
-        "comandaNumber": 306,
-        "_id": "696ef2d637ec5fb91eaf5671"
-      },
-      {
-        "plato": "6966af0256fa7b365dea1476",
-        "platoId": 5,
-        "nombre": "Pan solo",
-        "precio": 0.5,
-        "cantidad": 1,
-        "subtotal": 0.5,
-        "comandaNumber": 293,
-        "_id": "696ef2d637ec5fb91eaf5672"
-      },
-      {
-        "plato": "6966afbc7bf36a5ee11f02e7",
-        "platoId": 35,
-        "nombre": "Tamal + zarza criolla",
-        "precio": 10,
-        "cantidad": 1,
-        "subtotal": 10,
-        "comandaNumber": 287,
-        "_id": "696ef2d637ec5fb91eaf5673"
-      },
-      {
-        "plato": "6966afbc7bf36a5ee11f02ec",
-        "platoId": 36,
-        "nombre": "Papa a la huancaína",
-        "precio": 13,
-        "cantidad": 1,
-        "subtotal": 13,
-        "comandaNumber": 287,
-        "_id": "696ef2d637ec5fb91eaf5674"
-      },
-      {
-        "plato": "6966afbc7bf36a5ee11f039b",
-        "platoId": 71,
-        "nombre": "1/2 cuy frito + arroz + papas doradas + zarza criolla",
-        "precio": 49,
-        "cantidad": 1,
-        "subtotal": 49,
-        "comandaNumber": 286,
-        "_id": "696ef2d637ec5fb91eaf5675"
-      },
-      {
-        "plato": "6966afbc7bf36a5ee11f03a0",
-        "platoId": 72,
-        "nombre": "Cuy entero frito + arroz + papas doradas + zarza criolla",
-        "precio": 90,
-        "cantidad": 1,
-        "subtotal": 90,
-        "comandaNumber": 286,
-        "_id": "696ef2d637ec5fb91eaf5676"
-      },
-      {
-        "plato": "6966afbc7bf36a5ee11f0396",
-        "platoId": 70,
-        "nombre": "Ceviche de trucha",
-        "precio": 39,
-        "cantidad": 1,
-        "subtotal": 39,
-        "comandaNumber": 286,
-        "_id": "696ef2d637ec5fb91eaf5677"
-      },
-      {
-        "plato": "6966afbc7bf36a5ee11f0391",
-        "platoId": 69,
-        "nombre": "Chicharrón de trucha",
-        "precio": 39,
-        "cantidad": 18,
-        "subtotal": 702,
-        "comandaNumber": 286,
-        "_id": "696ef2d637ec5fb91eaf5678"
-      },
-      {
-        "plato": "6966af0256fa7b365dea1476",
-        "platoId": 5,
-        "nombre": "Pan solo",
-        "precio": 0.5,
-        "cantidad": 1,
-        "subtotal": 0.5,
-        "comandaNumber": 285,
-        "_id": "696ef2d637ec5fb91eaf5679"
-      },
-      {
-        "plato": "6966afbb7bf36a5ee11f0252",
-        "platoId": 6,
-        "nombre": "Pan con queso",
-        "precio": 4,
-        "cantidad": 1,
-        "subtotal": 4,
-        "comandaNumber": 285,
-        "_id": "696ef2d637ec5fb91eaf567a"
-      }
-    ],
-    "subtotal": 1028.5,
-    "igv": 185.13,
-    "total": 1213.6299999999999,
-    "observaciones": "",
-    "fechaPago": "2026-01-20T03:14:42.863Z",
-    "fechaPagoString": "19/01/2026 22:14:42",
-    "isActive": true,
-    "createdAt": "2026-01-20T03:13:26.632Z",
-    "updatedAt": "2026-01-20T03:13:26.632Z",
-    "boucherNumber": 57
-  },
-  {
-    "_id": "696ef30626f3db3e20a67f6f",
-    "mesa": "696927b579ece4325488f351",
-    "numMesa": 2,
-    "mozo": "69679ba5dda2fed66098bd99",
-    "nombreMozo": "Humberto",
-    "cliente": "696ef2ed5eb35d922038c04e",
-    "usadoEnComanda": "696ef17ce53b68935884d6de",
-    "fechaUso": "2026-01-20T03:15:30.542Z",
-    "comandas": [
-      "696ef17ce53b68935884d6de",
-      "696edf749ef94a6e0131c4fd",
-      "696edf5362fbb35d16fbc639",
-      "696eda68690ed534c8502ada",
-      "696eda3631634dfacb8843bf",
-      "696eda277d8dd26d4d290ff0"
-    ],
-    "comandasNumbers": [
-      303,
-      296,
-      295,
-      278,
-      276,
-      275
-    ],
-    "platos": [
-      {
-        "plato": "6966af0256fa7b365dea1476",
-        "platoId": 5,
-        "nombre": "Pan solo",
-        "precio": 0.5,
-        "cantidad": 1,
-        "subtotal": 0.5,
-        "comandaNumber": 303,
-        "_id": "696ef30626f3db3e20a67f70"
-      },
-      {
-        "plato": "6966afbc7bf36a5ee11f02e7",
-        "platoId": 35,
-        "nombre": "Tamal + zarza criolla",
-        "precio": 10,
-        "cantidad": 1,
-        "subtotal": 10,
-        "comandaNumber": 296,
-        "_id": "696ef30626f3db3e20a67f71"
-      },
-      {
-        "plato": "6966afbc7bf36a5ee11f02ec",
-        "platoId": 36,
-        "nombre": "Papa a la huancaína",
-        "precio": 13,
-        "cantidad": 1,
-        "subtotal": 13,
-        "comandaNumber": 296,
-        "_id": "696ef30626f3db3e20a67f72"
-      },
-      {
-        "plato": "6966af0256fa7b365dea1476",
-        "platoId": 5,
-        "nombre": "Pan solo",
-        "precio": 0.5,
-        "cantidad": 1,
-        "subtotal": 0.5,
-        "comandaNumber": 295,
-        "_id": "696ef30626f3db3e20a67f73"
-      },
-      {
-        "plato": "6966af0256fa7b365dea1476",
-        "platoId": 5,
-        "nombre": "Pan solo",
-        "precio": 0.5,
-        "cantidad": 1,
-        "subtotal": 0.5,
-        "comandaNumber": 278,
-        "_id": "696ef30626f3db3e20a67f74"
-      },
-      {
-        "plato": "6966afbc7bf36a5ee11f02ec",
-        "platoId": 36,
-        "nombre": "Papa a la huancaína",
-        "precio": 13,
-        "cantidad": 1,
-        "subtotal": 13,
-        "comandaNumber": 276,
-        "_id": "696ef30626f3db3e20a67f75"
-      },
-      {
-        "plato": "6966af0256fa7b365dea1476",
-        "platoId": 5,
-        "nombre": "Pan solo",
-        "precio": 0.5,
-        "cantidad": 1,
-        "subtotal": 0.5,
-        "comandaNumber": 275,
-        "_id": "696ef30626f3db3e20a67f76"
-      }
-    ],
-    "subtotal": 38,
-    "igv": 6.84,
-    "total": 44.839999999999996,
-    "observaciones": "",
-    "fechaPago": "2026-01-20T03:15:30.542Z",
-    "fechaPagoString": "19/01/2026 22:15:30",
-    "isActive": true,
-    "createdAt": "2026-01-20T03:14:14.315Z",
-    "updatedAt": "2026-01-20T03:14:14.315Z",
-    "boucherNumber": 58
+    "createdAt": "2026-02-06T15:38:40.748Z",
+    "updatedAt": "2026-02-06T15:38:40.748Z",
+    "boucherNumber": 1
   }
 ]

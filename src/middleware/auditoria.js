@@ -75,13 +75,63 @@ const registrarAuditoria = async (req, datosAntes, datosDespues, motivo = null) 
       return;
     }
     
+    // Convertir snapshots a objetos planos con nombres explícitos
+    let datosAntesPlain = null;
+    let datosDespuesPlain = null;
+    
+    if (datosAntes) {
+      if (typeof datosAntes.toObject === 'function') {
+        datosAntesPlain = datosAntes.toObject();
+      } else {
+        datosAntesPlain = datosAntes;
+      }
+      
+      // Asegurar que los platos tengan nombres explícitos
+      if (datosAntesPlain.platos && Array.isArray(datosAntesPlain.platos)) {
+        datosAntesPlain.platos = datosAntesPlain.platos.map(p => {
+          // Si ya tiene nombre explícito, mantenerlo
+          if (p.nombre && p.nombre !== 'Plato desconocido' && p.nombre !== 'Sin nombre') {
+            return p;
+          }
+          // Si tiene plato populado, usar su nombre
+          if (p.plato && typeof p.plato === 'object' && p.plato.nombre) {
+            return { ...p, nombre: p.plato.nombre, precio: p.plato.precio || 0 };
+          }
+          return p;
+        });
+      }
+    }
+    
+    if (datosDespues) {
+      if (typeof datosDespues.toObject === 'function') {
+        datosDespuesPlain = datosDespues.toObject();
+      } else {
+        datosDespuesPlain = datosDespues;
+      }
+      
+      // Asegurar que los platos tengan nombres explícitos
+      if (datosDespuesPlain.platos && Array.isArray(datosDespuesPlain.platos)) {
+        datosDespuesPlain.platos = datosDespuesPlain.platos.map(p => {
+          // Si ya tiene nombre explícito, mantenerlo
+          if (p.nombre && p.nombre !== 'Plato desconocido' && p.nombre !== 'Sin nombre') {
+            return p;
+          }
+          // Si tiene plato populado, usar su nombre
+          if (p.plato && typeof p.plato === 'object' && p.plato.nombre) {
+            return { ...p, nombre: p.plato.nombre, precio: p.plato.precio || 0 };
+          }
+          return p;
+        });
+      }
+    }
+    
     const auditoriaData = {
       accion: req.auditoria.accion,
       entidadId: req.auditoria.entidadId || datosDespues?._id || datosAntes?._id,
       entidadTipo: req.auditoria.entidadTipo,
       usuario: req.auditoria.usuario,
-      datosAntes: datosAntes ? (typeof datosAntes.toObject === 'function' ? datosAntes.toObject() : datosAntes) : null,
-      datosDespues: datosDespues ? (typeof datosDespues.toObject === 'function' ? datosDespues.toObject() : datosDespues) : null,
+      datosAntes: datosAntesPlain,
+      datosDespues: datosDespuesPlain,
       motivo: motivo || req.body?.motivo || null,
       ip: req.auditoria.ip,
       deviceId: req.auditoria.deviceId,

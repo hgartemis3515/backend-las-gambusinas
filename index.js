@@ -1,7 +1,9 @@
+require('dotenv').config();
 require ('./src/database/database');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const logger = require('./src/utils/logger');
 
 const mesasRoutes = require('./src/controllers/mesasController')
 const mozosRoutes = require('./src/controllers/mozosController')
@@ -18,10 +20,29 @@ const server = http.createServer(app);
 const port = process.env.PORT || 3000;
 const path = require('path');
 
+// Configurar orígenes permitidos desde variables de entorno
+const getAllowedOrigins = () => {
+  if (process.env.ALLOWED_ORIGINS) {
+    return process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
+  }
+  // Fallback para desarrollo: orígenes comunes
+  return [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://192.168.18.11:3000',
+    'http://192.168.18.11:3001',
+    'http://192.168.18.127:3000',
+    'http://192.168.18.127:3001'
+  ];
+};
+
+const allowedOrigins = getAllowedOrigins();
+logger.info('Orígenes CORS permitidos:', { origins: allowedOrigins });
+
 // Configurar Socket.io con CORS
 const io = new Server(server, {
   cors: {
-    origin: ['http://localhost:3000', 'http://192.168.18.11:3000', 'http://192.168.18.127:3000', 'http://localhost:3001', 'http://192.168.18.11:3001', 'http://192.168.18.127:3001', '*'],
+    origin: allowedOrigins, // Removido wildcard '*'
     methods: ['GET', 'POST'],
     credentials: true
   },
@@ -42,9 +63,23 @@ var cors = require('cors');
 
 // Configurar CORS para permitir conexiones desde la app móvil
 app.use(cors({
-  origin: '*', // Permitir todas las conexiones (para desarrollo)
+  origin: (origin, callback) => {
+    // Permitir requests sin origin (mobile apps, Postman, etc.)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Verificar si el origin está en la lista permitida
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      logger.warn('CORS bloqueado para origin:', { origin, allowedOrigins });
+      callback(new Error('No permitido por CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-User-Id', 'X-Device-Id', 'X-Source-App'],
+  credentials: true
 }));
 
 const routes = [mesasRoutes, mozosRoutes, platoRoutes, comandaRoutes, areaRoutes, boucherRoutes, clientesRoutes, auditoriaRoutes, cierreCajaRoutes];
@@ -112,9 +147,15 @@ app.get('/', (req, res)=>{
 
 // Escuchar en todas las interfaces de red (0.0.0.0) para permitir conexiones desde otros dispositivos
 server.listen(port, '0.0.0.0', ()=> {
+  logger.info('Servidor iniciado', {
+    port,
+    nodeEnv: process.env.NODE_ENV || 'development',
+    allowedOrigins
+  });
   console.log('servidor corriendo en el puerto', port);
   console.log('Servidor accesible desde:');
   console.log('  - Local: http://localhost:' + port);
   console.log('  - Red local: http://192.168.18.11:' + port);
   console.log('  - Socket.io WebSockets activo en /cocina y /mozos');
+  console.log('  - Orígenes CORS permitidos:', allowedOrigins.join(', '));
 });

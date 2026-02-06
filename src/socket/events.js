@@ -1,9 +1,11 @@
 const comandaModel = require('../database/models/comanda.model');
 const mesasModel = require('../database/models/mesas.model');
 const moment = require('moment-timezone');
+const logger = require('../utils/logger');
 
 /**
  * Configuración de eventos Socket.io para namespaces /cocina y /mozos
+ * Con reconexión robusta y backoff exponencial
  * @param {Server} io - Instancia principal de Socket.io
  * @param {Namespace} cocinaNamespace - Namespace /cocina para app cocina
  * @param {Namespace} mozosNamespace - Namespace /mozos para app mozos
@@ -11,13 +13,31 @@ const moment = require('moment-timezone');
 module.exports = (io, cocinaNamespace, mozosNamespace) => {
   // ========== NAMESPACE /COCINA ==========
   cocinaNamespace.on('connection', (socket) => {
-    console.log(`✅ Socket cocina conectado: ${socket.id}`);
+    logger.info('Socket cocina conectado', { socketId: socket.id });
+
+    // Validar namespace (seguridad)
+    if (socket.nsp.name !== '/cocina') {
+      logger.warn('Intento de conexión a namespace incorrecto', {
+        socketId: socket.id,
+        namespace: socket.nsp.name
+      });
+      socket.disconnect();
+      return;
+    }
 
     // Unirse a room por fecha para recibir solo comandas del día activo
     socket.on('join-fecha', async (fecha) => {
+      if (!fecha) {
+        logger.warn('Intento de join-fecha sin fecha', { socketId: socket.id });
+        return;
+      }
+      
       const roomName = `fecha-${fecha}`;
       socket.join(roomName);
-      console.log(`📅 Socket ${socket.id} se unió a room: ${roomName}`);
+      logger.debug('Socket cocina se unió a room', { socketId: socket.id, roomName });
+      
+      // Confirmar join
+      socket.emit('joined-fecha', { fecha, roomName });
     });
 
     // Heartbeat para detectar desconexión
@@ -25,33 +45,68 @@ module.exports = (io, cocinaNamespace, mozosNamespace) => {
       socket.emit('heartbeat-ack');
     });
 
-    socket.on('disconnect', () => {
-      console.log(`❌ Socket cocina desconectado: ${socket.id}`);
+    // Manejo de errores de conexión
+    socket.on('error', (error) => {
+      logger.error('Error en socket cocina', { socketId: socket.id, error: error.message });
+    });
+
+    socket.on('disconnect', (reason) => {
+      logger.info('Socket cocina desconectado', { socketId: socket.id, reason });
     });
   });
 
   // ========== NAMESPACE /MOZOS ==========
   mozosNamespace.on('connection', (socket) => {
-    console.log(`✅ Socket mozos conectado: ${socket.id}`);
+    logger.info('Socket mozos conectado', { socketId: socket.id });
+
+    // Validar namespace (seguridad)
+    if (socket.nsp.name !== '/mozos') {
+      logger.warn('Intento de conexión a namespace incorrecto', {
+        socketId: socket.id,
+        namespace: socket.nsp.name
+      });
+      socket.disconnect();
+      return;
+    }
 
     // 🔥 ROOMS POR MESA - Estándar industria (Odoo POS, restaurant Vue.js)
     socket.on('join-mesa', (mesaId) => {
+      if (!mesaId) {
+        logger.warn('Intento de join-mesa sin mesaId', { socketId: socket.id });
+        return;
+      }
+      
       const roomName = `mesa-${mesaId}`;
       socket.join(roomName);
-      console.log(`📌 Mozo ${socket.id} se unió a room: ${roomName}`);
+      logger.debug('Mozo se unió a room', { socketId: socket.id, mesaId, roomName });
       
       // Confirmar join
       socket.emit('joined-mesa', { mesaId, roomName });
     });
 
     socket.on('leave-mesa', (mesaId) => {
+      if (!mesaId) {
+        logger.warn('Intento de leave-mesa sin mesaId', { socketId: socket.id });
+        return;
+      }
+      
       const roomName = `mesa-${mesaId}`;
       socket.leave(roomName);
-      console.log(`📌 Mozo ${socket.id} salió de room: ${roomName}`);
+      logger.debug('Mozo salió de room', { socketId: socket.id, mesaId, roomName });
     });
 
-    socket.on('disconnect', () => {
-      console.log(`❌ Socket mozos desconectado: ${socket.id}`);
+    // Heartbeat para detectar desconexión
+    socket.on('heartbeat', () => {
+      socket.emit('heartbeat-ack');
+    });
+
+    // Manejo de errores de conexión
+    socket.on('error', (error) => {
+      logger.error('Error en socket mozos', { socketId: socket.id, error: error.message });
+    });
+
+    socket.on('disconnect', (reason) => {
+      logger.info('Socket mozos desconectado', { socketId: socket.id, reason });
     });
   });
 
@@ -83,7 +138,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace) => {
         });
 
       if (!comandaCompleta) {
-        console.warn('⚠️ Comanda no encontrada para emitir evento');
+        logger.warn('Comanda no encontrada para emitir evento');
         return;
       }
 
@@ -99,16 +154,27 @@ module.exports = (io, cocinaNamespace, mozosNamespace) => {
         timestamp: timestamp
       });
 
-      // Emitir a mozos (todos los mozos conectados)
-      mozosNamespace.emit('nueva-comanda', {
-        comanda: comandaCompleta,
-        socketId: 'server',
-        timestamp: timestamp
-      });
+      // Emitir a mozos (todos los mozos conectados) - Datos completos populados
+      // Validar que el namespace existe antes de emitir
+      if (mozosNamespace && mozosNamespace.sockets) {
+        mozosNamespace.emit('nueva-comanda', {
+          comanda: comandaCompleta,
+          socketId: 'server',
+          timestamp: timestamp
+        });
+      }
 
-      console.log(`📤 Evento 'nueva-comanda' emitido a COCINA (${roomName}) y MOZOS - Comanda #${comandaCompleta.comandaNumber}`);
+      logger.info('Evento nueva-comanda emitido', {
+        comandaNumber: comandaCompleta.comandaNumber,
+        roomName,
+        timestamp,
+        mozosConnected: mozosNamespace?.sockets?.size || 0
+      });
     } catch (error) {
-      console.error('❌ Error al emitir nueva-comanda:', error);
+      logger.error('Error al emitir nueva-comanda', {
+        error: error.message,
+        stack: error.stack
+      });
     }
   };
 
@@ -137,7 +203,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace) => {
         });
 
       if (!comanda) {
-        console.warn('⚠️ Comanda no encontrada para emitir evento');
+        logger.warn('Comanda no encontrada para emitir evento');
         return;
       }
 
@@ -145,25 +211,65 @@ module.exports = (io, cocinaNamespace, mozosNamespace) => {
       const roomName = `fecha-${fecha}`;
       const timestamp = moment().tz('America/Lima').toISOString();
 
-      // Emitir a cocina (room por fecha)
+      // Obtener platos eliminados del historial con nombres correctos
+      const platosEliminados = [];
+      if (comanda.historialPlatos && comanda.historialPlatos.length > 0) {
+        const platoModel = require('../database/models/plato.model');
+        for (const h of comanda.historialPlatos) {
+          if (h.estado === 'eliminado') {
+            let nombrePlato = h.nombreOriginal;
+            // Si no tiene nombre o es un placeholder, buscarlo desde la BD
+            if (!nombrePlato || nombrePlato === 'Plato desconocido' || nombrePlato === 'Sin nombre' || nombrePlato.startsWith('Plato #')) {
+              if (h.platoId) {
+                const plato = await platoModel.findOne({ id: h.platoId });
+                if (plato && plato.nombre) {
+                  nombrePlato = plato.nombre;
+                  console.log(`✅ Nombre encontrado para plato eliminado: platoId=${h.platoId}, nombre=${nombrePlato}`);
+                } else {
+                  console.warn(`⚠️ No se encontró plato con id=${h.platoId} para obtener nombre`);
+                }
+              }
+            }
+            platosEliminados.push({
+              ...h,
+              nombreOriginal: nombrePlato || `Plato #${h.platoId || 'N/A'}`
+            });
+          }
+        }
+      }
+
+      // Emitir a cocina (room por fecha) - Incluir información de platos eliminados
       cocinaNamespace.to(roomName).emit('comanda-actualizada', {
         comandaId: comandaId,
         comanda: comanda,
+        platosEliminados: platosEliminados,
         socketId: 'server',
         timestamp: timestamp
       });
 
-      // Emitir a mozos (todos los mozos conectados)
-      mozosNamespace.emit('comanda-actualizada', {
-        comandaId: comandaId,
-        comanda: comanda,
-        socketId: 'server',
-        timestamp: timestamp
-      });
+      // Emitir a mozos (todos los mozos conectados) - Datos completos populados
+      // Validar que el namespace existe antes de emitir
+      if (mozosNamespace && mozosNamespace.sockets) {
+        mozosNamespace.emit('comanda-actualizada', {
+          comandaId: comandaId,
+          comanda: comanda,
+          platosEliminados: platosEliminados,
+          socketId: 'server',
+          timestamp: timestamp
+        });
+      }
 
-      console.log(`📤 Evento 'comanda-actualizada' emitido a COCINA (${roomName}) y MOZOS - Comanda #${comanda.comandaNumber || comandaId}`);
+      logger.info('Evento comanda-actualizada emitido', {
+        comandaNumber: comanda.comandaNumber || comandaId,
+        roomName,
+        timestamp,
+        mozosConnected: mozosNamespace?.sockets?.size || 0
+      });
     } catch (error) {
-      console.error('❌ Error al emitir comanda-actualizada:', error);
+      logger.error('Error al emitir comanda-actualizada', {
+        error: error.message,
+        stack: error.stack
+      });
     }
   };
 
@@ -192,7 +298,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace) => {
         });
 
       if (!comanda) {
-        console.warn('⚠️ Comanda no encontrada para emitir evento');
+        logger.warn('Comanda no encontrada para emitir evento');
         return;
       }
 
@@ -210,19 +316,32 @@ module.exports = (io, cocinaNamespace, mozosNamespace) => {
         timestamp: timestamp
       });
 
-      // Emitir a mozos (todos los mozos conectados)
-      mozosNamespace.emit('plato-actualizado', {
-        comandaId: comandaId,
-        platoId: platoId,
-        nuevoEstado: nuevoEstado,
-        comanda: comanda,
-        socketId: 'server',
-        timestamp: timestamp
-      });
+      // Emitir a mozos (todos los mozos conectados) - Datos completos populados
+      // Validar que el namespace existe antes de emitir
+      if (mozosNamespace && mozosNamespace.sockets) {
+        mozosNamespace.emit('plato-actualizado', {
+          comandaId: comandaId,
+          platoId: platoId,
+          nuevoEstado: nuevoEstado,
+          comanda: comanda,
+          socketId: 'server',
+          timestamp: timestamp
+        });
+      }
 
-      console.log(`📤 Evento 'plato-actualizado' emitido a COCINA (${roomName}) y MOZOS - Comanda #${comanda.comandaNumber}, Plato ${platoId}, Estado: ${nuevoEstado}`);
+      logger.info('Evento plato-actualizado emitido', {
+        comandaNumber: comanda.comandaNumber,
+        platoId,
+        nuevoEstado,
+        roomName,
+        timestamp,
+        mozosConnected: mozosNamespace?.sockets?.size || 0
+      });
     } catch (error) {
-      console.error('❌ Error al emitir plato-actualizado:', error);
+      logger.error('Error al emitir plato-actualizado', {
+        error: error.message,
+        stack: error.stack
+      });
     }
   };
 
@@ -233,31 +352,46 @@ module.exports = (io, cocinaNamespace, mozosNamespace) => {
     try {
       const mesa = await mesasModel.findById(mesaId).populate('area');
       if (!mesa) {
-        console.warn('⚠️ Mesa no encontrada para emitir evento');
+        logger.warn('Mesa no encontrada para emitir evento');
         return;
       }
 
       const timestamp = moment().tz('America/Lima').toISOString();
 
-      // Emitir a mozos (todos los mozos conectados)
-      mozosNamespace.emit('mesa-actualizada', {
-        mesaId: mesaId,
-        mesa: mesa,
-        socketId: 'server',
-        timestamp: timestamp
-      });
+      // Emitir a mozos (todos los mozos conectados) - Datos completos populados
+      // Validar que el namespace existe antes de emitir
+      if (mozosNamespace && mozosNamespace.sockets) {
+        mozosNamespace.emit('mesa-actualizada', {
+          mesaId: mesaId,
+          mesa: mesa,
+          socketId: 'server',
+          timestamp: timestamp
+        });
+      }
 
       // También emitir a cocina para que sepan el estado de las mesas
-      cocinaNamespace.emit('mesa-actualizada', {
-        mesaId: mesaId,
-        mesa: mesa,
-        socketId: 'server',
-        timestamp: timestamp
-      });
+      if (cocinaNamespace && cocinaNamespace.sockets) {
+        cocinaNamespace.emit('mesa-actualizada', {
+          mesaId: mesaId,
+          mesa: mesa,
+          socketId: 'server',
+          timestamp: timestamp
+        });
+      }
 
-      console.log(`📤 Evento 'mesa-actualizada' emitido a MOZOS y COCINA - Mesa #${mesa.nummesa}`);
+      logger.info('Evento mesa-actualizada emitido', {
+        mesaId: mesa._id,
+        numMesa: mesa.nummesa,
+        estado: mesa.estado,
+        timestamp,
+        mozosConnected: mozosNamespace?.sockets?.size || 0,
+        cocinaConnected: cocinaNamespace?.sockets?.size || 0
+      });
     } catch (error) {
-      console.error('❌ Error al emitir mesa-actualizada:', error);
+      logger.error('Error al emitir mesa-actualizada', {
+        error: error.message,
+        stack: error.stack
+      });
     }
   };
 
@@ -293,7 +427,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace) => {
       }
 
       if (!comandaCompleta) {
-        console.warn('⚠️ Comanda no encontrada para emitir evento de reversión');
+        logger.warn('Comanda no encontrada para emitir evento de reversión');
         return;
       }
 
@@ -329,16 +463,36 @@ module.exports = (io, cocinaNamespace, mozosNamespace) => {
       cocinaNamespace.to(roomNameCocina).emit('comanda-revertida', eventData);
 
       // 🔥 ESTÁNDAR INDUSTRIA: Emitir a ROOM específico de la mesa (solo mozos de esa mesa)
-      if (roomNameMesa) {
-        mozosNamespace.to(roomNameMesa).emit('comanda-revertida', eventData);
-        console.log(`📤 Evento 'comanda-revertida' emitido a COCINA (${roomNameCocina}) y MOZOS ROOM (${roomNameMesa}) - Comanda #${comandaCompleta.comandaNumber || comandaCompleta._id} - Status: ${comandaCompleta.status} - Mesa: ${mesaActualizada?.nummesa || 'N/A'} → ${mesaActualizada?.estado || 'N/A'}`);
-      } else {
-        // Fallback: emitir a todos los mozos si no hay mesaId
-        mozosNamespace.emit('comanda-revertida', eventData);
-        console.log(`📤 Evento 'comanda-revertida' emitido a COCINA (${roomNameCocina}) y TODOS LOS MOZOS (fallback) - Comanda #${comandaCompleta.comandaNumber || comandaCompleta._id}`);
+      // Validar que el namespace existe antes de emitir
+      if (mozosNamespace && mozosNamespace.sockets) {
+        if (roomNameMesa) {
+          mozosNamespace.to(roomNameMesa).emit('comanda-revertida', eventData);
+          logger.info('Evento comanda-revertida emitido a room', {
+            comandaNumber: comandaCompleta.comandaNumber || comandaCompleta._id,
+            status: comandaCompleta.status,
+            roomNameCocina,
+            roomNameMesa,
+            numMesa: mesaActualizada?.nummesa,
+            estadoMesa: mesaActualizada?.estado,
+            timestamp,
+            mozosInRoom: mozosNamespace.adapter.rooms.get(roomNameMesa)?.size || 0
+          });
+        } else {
+          // Fallback: emitir a todos los mozos si no hay mesaId
+          mozosNamespace.emit('comanda-revertida', eventData);
+          logger.info('Evento comanda-revertida emitido (fallback)', {
+            comandaNumber: comandaCompleta.comandaNumber || comandaCompleta._id,
+            roomNameCocina,
+            timestamp,
+            mozosConnected: mozosNamespace.sockets.size
+          });
+        }
       }
     } catch (error) {
-      console.error('❌ Error al emitir comanda-revertida:', error);
+      logger.error('Error al emitir comanda-revertida', {
+        error: error.message,
+        stack: error.stack
+      });
     }
   };
 
@@ -364,6 +518,8 @@ module.exports = (io, cocinaNamespace, mozosNamespace) => {
     clearInterval(statusInterval);
   });
 
-  console.log('✅ Eventos Socket.io configurados correctamente');
+  logger.info('Eventos Socket.io configurados correctamente', {
+    namespaces: ['/cocina', '/mozos']
+  });
 };
 

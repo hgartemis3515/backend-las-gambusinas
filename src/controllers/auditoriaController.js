@@ -9,15 +9,33 @@ const moment = require('moment-timezone');
 /**
  * GET /auditoria/comandas
  * Obtener auditoría de comandas con filtros opcionales
- * Query params: fecha, usuario, accion, entidadId
+ * Query params: fecha, usuario, accion, entidadId, id (para buscar por ID de auditoría)
  */
 router.get('/auditoria/comandas', async (req, res) => {
   try {
-    const { fecha, usuario, accion, entidadId, limit = 100 } = req.query;
+    const { fecha, usuario, accion, entidadId, id, limit = 100 } = req.query;
     
     const query = {
       entidadTipo: 'comanda'
     };
+    
+    // Si se proporciona id, buscar directamente por ID de auditoría
+    if (id) {
+      const auditoria = await AuditoriaAcciones.findById(id)
+        .populate('usuario', 'name DNI');
+      
+      if (!auditoria) {
+        return res.json({
+          total: 0,
+          auditorias: []
+        });
+      }
+      
+      return res.json({
+        total: 1,
+        auditorias: [auditoria]
+      });
+    }
     
     // Filtro por fecha
     if (fecha) {

@@ -28,6 +28,25 @@ const comandaSchema = new mongoose.Schema({
                 },
                 message: 'El estado del plato debe ser: en_espera, recoger o entregado'
             }
+        },
+        // 🔥 AUDITORÍA: Campos para tracking de eliminación
+        eliminado: { 
+            type: Boolean, 
+            default: false,
+            index: true
+        },
+        eliminadoPor: { 
+            type: mongoose.Schema.Types.ObjectId, 
+            ref: 'mozos',
+            default: null
+        },
+        eliminadoAt: { 
+            type: Date, 
+            default: null
+        },
+        eliminadoRazon: { 
+            type: String, 
+            default: null
         }
     }],
     cantidades: {
@@ -40,12 +59,12 @@ const comandaSchema = new mongoose.Schema({
     status: {
         type: String,
         default: 'en_espera',
-        enum: ['en_espera', 'recoger', 'entregado'],
+        enum: ['en_espera', 'recoger', 'entregado', 'pagado'],
         validate: {
             validator: function(v) {
-                return ['en_espera', 'recoger', 'entregado'].includes(v);
+                return ['en_espera', 'recoger', 'entregado', 'pagado'].includes(v);
             },
-            message: 'El status de la comanda debe ser: en_espera, recoger o entregado'
+            message: 'El status de la comanda debe ser: en_espera, recoger, entregado o pagado'
         }
     },
     IsActive: {
@@ -58,26 +77,68 @@ const comandaSchema = new mongoose.Schema({
             return moment.tz("America/Lima").toDate();
         }
     },
+    updatedAt: {
+        type: Date,
+        default: () => {
+            return moment.tz("America/Lima").toDate();
+        }
+    },
     comandaNumber: {
         type: Number
     },
+    // Timestamps de cambios de estado
+    tiempoEnEspera: {
+        type: Date,
+        default: null
+    },
+    tiempoRecoger: {
+        type: Date,
+        default: null
+    },
+    tiempoEntregado: {
+        type: Date,
+        default: null
+    },
+    tiempoPagado: {
+        type: Date,
+        default: null
+    },
+    // Campos de auditoría
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'mozos',
+        default: null
+    },
+    updatedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'mozos',
+        default: null
+    },
+    deviceId: {
+        type: String,
+        default: null
+    },
+    sourceApp: {
+        type: String,
+        enum: ['mozos', 'cocina', 'admin', 'api'],
+        default: null
+    },
     historialEstados: [{
         status: { type: String },
-        timestamp: { type: Date, default: Date.now },
+        statusAnterior: { type: String },
+        timestamp: { type: Date, default: () => moment.tz("America/Lima").toDate() },
         usuario: { 
             type: mongoose.Schema.Types.ObjectId, 
             ref: 'mozos',
             default: null,
             required: false
         },
-        accion: { type: String }
+        accion: { type: String },
+        deviceId: { type: String, default: null },
+        sourceApp: { type: String, enum: ['mozos', 'cocina', 'admin', 'api'], default: null },
+        motivo: { type: String, default: null }
     }],
-    // Campos de auditoría para soft-delete y tracking
-    eliminada: {
-        type: Boolean,
-        default: false,
-        index: true
-    },
+    // Campos de auditoría para soft-delete (ESTANDARIZADO: solo IsActive)
     fechaEliminacion: {
         type: Date,
         default: null
@@ -113,6 +174,11 @@ const comandaSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    precioTotal: {
+        type: Number,
+        default: 0,
+        index: true
+    },
     version: {
         type: Number,
         default: 1,
@@ -122,18 +188,65 @@ const comandaSchema = new mongoose.Schema({
 
 comandaSchema.plugin(AutoIncrement, { inc_field: 'comandaNumber' });
 
-comandaSchema.pre('save', function (next) {
+comandaSchema.pre('save', async function (next) {
+    // Validar que platos y cantidades tengan la misma longitud
     if (this.isNew || this.isModified('platos')) {
-        if (!this.cantidades || this.cantidades.length === 0) {
-            this.cantidades = new Array(this.platos.length).fill(1);
-        } else {
-            const diff = this.platos.length - this.cantidades.length;
-            if (diff > 0) {
-                this.cantidades = this.cantidades.concat(new Array(diff).fill(1));
+        if (this.platos && this.platos.length > 0) {
+            if (!this.cantidades || this.cantidades.length === 0) {
+                this.cantidades = new Array(this.platos.length).fill(1);
+            } else if (this.platos.length !== this.cantidades.length) {
+                // Rechazar si no coinciden (no corregir automáticamente)
+                const error = new Error(`Desincronización: ${this.platos.length} platos pero ${this.cantidades.length} cantidades. Deben coincidir.`);
+                error.name = 'ValidationError';
+                return next(error);
             }
             this.cantidades = this.cantidades.map(cantidad => cantidad == null ? 1 : cantidad);
         }
     }
+    
+    // Calcular precioTotal automáticamente si hay platos
+    if ((this.isNew || this.isModified('platos') || this.isModified('cantidades')) && this.platos && this.platos.length > 0) {
+        try {
+            const platoModel = mongoose.model('platos');
+            let precioTotal = 0;
+            
+            // Si los platos están populados, usar directamente
+            for (let i = 0; i < this.platos.length; i++) {
+                const platoItem = this.platos[i];
+                const cantidad = this.cantidades[i] || 1;
+                
+                let precio = 0;
+                if (platoItem.plato && typeof platoItem.plato === 'object' && platoItem.plato.precio) {
+                    // Plato ya populado
+                    precio = platoItem.plato.precio;
+                } else if (platoItem.plato) {
+                    // Buscar plato en BD
+                    const plato = await platoModel.findById(platoItem.plato);
+                    if (plato && plato.precio) {
+                        precio = plato.precio;
+                    }
+                }
+                
+                precioTotal += precio * cantidad;
+            }
+            
+            this.precioTotal = precioTotal;
+            
+            // Si es nueva comanda, también establecer precioTotalOriginal
+            if (this.isNew && !this.precioTotalOriginal) {
+                this.precioTotalOriginal = precioTotal;
+            }
+        } catch (error) {
+            // Si hay error al calcular, continuar sin precioTotal
+            console.warn('⚠️ Error al calcular precioTotal:', error.message);
+        }
+    }
+    
+    // Actualizar updatedAt en cada modificación
+    if (!this.isNew) {
+        this.updatedAt = moment.tz("America/Lima").toDate();
+    }
+    
     next();
 });
 

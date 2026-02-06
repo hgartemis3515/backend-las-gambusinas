@@ -11,10 +11,26 @@
 		"mongoose-sequence": "^6.0.1",
 		"nodemon": "^3.0.3",
 		"pdfkit": "^0.14.0",
-		"socket.io": "^4.8.3"
+		"socket.io": "^4.8.3",
+		"winston": "^3.19.0"
 	},
 	"scripts": {
 		"start": "nodemon index.js",
-		"migrate:estados": "node src/utils/migrateEstados.js"
+		"migrate:estados": "node src/utils/migrateEstados.js",
+		"test": "jest --verbose",
+		"test:watch": "jest --watch"
+	},
+	"jest": {
+		"testEnvironment": "node",
+		"testMatch": ["**/tests/**/*.test.js"],
+		"collectCoverageFrom": [
+			"src/**/*.js",
+			"!src/database/**",
+			"!src/socket/**"
+		]
+	},
+	"devDependencies": {
+		"jest": "^30.2.0",
+		"supertest": "^7.2.2"
 	}
 }
