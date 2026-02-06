@@ -1,31 +1,62 @@
 [
   {
-    "_id": "69860b00be2d99fda4c23e2d",
+    "_id": "698638abb3b37ce8119d05d1",
+    "voucherId": "8EP8W",
     "mesa": "69860a415e59135b4d2c56c1",
     "numMesa": 1,
     "mozo": "69860821b6273b9647faf872",
     "nombreMozo": "admin",
-    "cliente": "69860af6bd74da1e6d20e6c3",
-    "usadoEnComanda": "69860ac9d1fef731e6bc9ccb",
-    "fechaUso": "2026-02-06T15:37:55.401Z",
+    "cliente": "698638a9f3e31698666cf288",
+    "usadoEnComanda": null,
+    "fechaUso": null,
     "comandas": [
-      "69860ac9d1fef731e6bc9ccb",
-      "69860a68f3a817ddcca922d4"
+      "69863893e797926bacf1b2d5",
+      "6986387a3d2e475d4fab2424"
     ],
     "comandasNumbers": [
-      2,
-      1
+      27,
+      28
     ],
     "platos": [
       {
-        "plato": "69860a42e52589a753836081",
-        "platoId": 37,
-        "nombre": "Ensalada especial (limon o vinagreta)",
-        "precio": 15,
+        "plato": "69860a30ed5eabc74c183d25",
+        "platoId": 35,
+        "nombre": "Tamal + zarza criolla",
+        "precio": 10,
         "cantidad": 1,
-        "subtotal": 15,
-        "comandaNumber": 2,
-        "_id": "69860b00be2d99fda4c23e2e"
+        "subtotal": 10,
+        "comandaNumber": 27,
+        "_id": "698638abb3b37ce8119d05d2"
+      },
+      {
+        "plato": "69860aca2f068d633cfde0ed",
+        "platoId": 43,
+        "nombre": "Chicharrón de pollo acevichada + arroz y yuca frita",
+        "precio": 42,
+        "cantidad": 1,
+        "subtotal": 42,
+        "comandaNumber": 27,
+        "_id": "698638abb3b37ce8119d05d3"
+      },
+      {
+        "plato": "69860aa6d1fef731e6bc993c",
+        "platoId": 42,
+        "nombre": "Chicharrón de pollo a la BBQ + arroz + papas fritas",
+        "precio": 40,
+        "cantidad": 1,
+        "subtotal": 40,
+        "comandaNumber": 27,
+        "_id": "698638abb3b37ce8119d05d4"
+      },
+      {
+        "plato": "69860a6961acf47fddd2fe41",
+        "platoId": 41,
+        "nombre": "Chancho a la BBQ + arroz + papas",
+        "precio": 45,
+        "cantidad": 1,
+        "subtotal": 45,
+        "comandaNumber": 27,
+        "_id": "698638abb3b37ce8119d05d5"
       },
       {
         "plato": "69860821b6273b9647faf89b",
@@ -34,28 +65,49 @@
         "precio": 0.5,
         "cantidad": 1,
         "subtotal": 0.5,
-        "comandaNumber": 2,
-        "_id": "69860b00be2d99fda4c23e2f"
-      },
+        "comandaNumber": 28,
+        "_id": "698638abb3b37ce8119d05d6"
+      }
+    ],
+    "subtotal": 137.5,
+    "igv": 24.75,
+    "total": 162.25,
+    "observaciones": "",
+    "fechaPago": "2026-02-06T18:53:31.227Z",
+    "fechaPagoString": "06/02/2026 13:53:31",
+    "isActive": true,
+    "createdAt": "2026-02-06T18:53:31.234Z",
+    "updatedAt": "2026-02-06T18:53:31.234Z",
+    "boucherNumber": 8
+  },
+  {
+    "_id": "698643bcd4595f196615a60b",
+    "voucherId": "GQDFA",
+    "mesa": "69860a47e52589a753836126",
+    "numMesa": 2,
+    "mozo": "69860821b6273b9647faf872",
+    "nombreMozo": "admin",
+    "cliente": "698643bac67c08662da76b37",
+    "usadoEnComanda": null,
+    "fechaUso": null,
+    "comandas": [
+      "698643addf0bd0c63c150b9b",
+      "69864398e450d483b6c7a1fe"
+    ],
+    "comandasNumbers": [
+      29,
+      30
+    ],
+    "platos": [
       {
-        "plato": "69860821b6273b9647faf89b",
-        "platoId": 1,
-        "nombre": "Pan solo",
-        "precio": 0.5,
+        "plato": "69860a30ed5eabc74c183d25",
+        "platoId": 35,
+        "nombre": "Tamal + zarza criolla",
+        "precio": 10,
         "cantidad": 1,
-        "subtotal": 0.5,
-        "comandaNumber": 1,
-        "_id": "69860b00be2d99fda4c23e30"
-      },
-      {
-        "plato": "69860821b6273b9647faf8a1",
-        "platoId": 2,
-        "nombre": "Pan con queso",
-        "precio": 4,
-        "cantidad": 1,
-        "subtotal": 4,
-        "comandaNumber": 1,
-        "_id": "69860b00be2d99fda4c23e31"
+        "subtotal": 10,
+        "comandaNumber": 29,
+        "_id": "698643bcd4595f196615a60c"
       },
       {
         "plato": "69860a3b5e59135b4d2c561d",
@@ -64,19 +116,90 @@
         "precio": 13,
         "cantidad": 1,
         "subtotal": 13,
-        "comandaNumber": 1,
-        "_id": "69860b00be2d99fda4c23e32"
+        "comandaNumber": 29,
+        "_id": "698643bcd4595f196615a60d"
+      },
+      {
+        "plato": "69860a42e52589a753836081",
+        "platoId": 37,
+        "nombre": "Ensalada especial (limon o vinagreta)",
+        "precio": 15,
+        "cantidad": 1,
+        "subtotal": 15,
+        "comandaNumber": 29,
+        "_id": "698643bcd4595f196615a60e"
+      },
+      {
+        "plato": "69860821b6273b9647faf8a1",
+        "platoId": 2,
+        "nombre": "Pan con queso",
+        "precio": 4,
+        "cantidad": 1,
+        "subtotal": 4,
+        "comandaNumber": 30,
+        "_id": "698643bcd4595f196615a60f"
       }
     ],
-    "subtotal": 33,
-    "igv": 5.9399999999999995,
-    "total": 38.94,
+    "subtotal": 42,
+    "igv": 7.56,
+    "total": 49.56,
     "observaciones": "",
-    "fechaPago": "2026-02-06T15:37:55.401Z",
-    "fechaPagoString": "06/02/2026 10:37:55",
+    "fechaPago": "2026-02-06T19:40:44.320Z",
+    "fechaPagoString": "06/02/2026 14:40:44",
     "isActive": true,
-    "createdAt": "2026-02-06T15:38:40.748Z",
-    "updatedAt": "2026-02-06T15:38:40.748Z",
-    "boucherNumber": 1
+    "createdAt": "2026-02-06T19:40:44.328Z",
+    "updatedAt": "2026-02-06T19:40:44.328Z",
+    "boucherNumber": 9
+  },
+  {
+    "_id": "6986485b83f923ac4b59ed51",
+    "voucherId": "M5TPE",
+    "mesa": "69860a415e59135b4d2c56c1",
+    "numMesa": 1,
+    "mozo": "69860821b6273b9647faf872",
+    "nombreMozo": "admin",
+    "cliente": "698648595960b19a29de0f78",
+    "usadoEnComanda": null,
+    "fechaUso": null,
+    "comandas": [
+      "698648410ed4416a75668126",
+      "69864833adf6fdb86905a41d"
+    ],
+    "comandasNumbers": [
+      34,
+      35
+    ],
+    "platos": [
+      {
+        "plato": "69860a30ed5eabc74c183d25",
+        "platoId": 35,
+        "nombre": "Tamal + zarza criolla",
+        "precio": 10,
+        "cantidad": 1,
+        "subtotal": 10,
+        "comandaNumber": 34,
+        "_id": "6986485b83f923ac4b59ed52"
+      },
+      {
+        "plato": "69860821b6273b9647faf89b",
+        "platoId": 1,
+        "nombre": "Pan solo",
+        "precio": 0.5,
+        "cantidad": 1,
+        "subtotal": 0.5,
+        "comandaNumber": 35,
+        "_id": "6986485b83f923ac4b59ed53"
+      }
+    ],
+    "subtotal": 10.5,
+    "igv": 1.89,
+    "total": 12.39,
+    "observaciones": "",
+    "fechaPago": "2026-02-06T20:00:27.131Z",
+    "fechaPagoString": "06/02/2026 15:00:27",
+    "isActive": true,
+    "createdAt": "2026-02-06T20:00:27.138Z",
+    "updatedAt": "2026-02-06T20:00:27.138Z",
+    "boucherNumber": 10
   }
 ]

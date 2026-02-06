@@ -6,6 +6,14 @@ const boucherSchema = new mongoose.Schema({
     boucherNumber: {
         type: Number
     },
+    voucherId: {
+        type: String,
+        required: true,
+        unique: true,
+        minlength: 5,
+        maxlength: 5,
+        uppercase: true
+    },
     mesa: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'mesas',

@@ -14,7 +14,8 @@ const {
   listarComandaPorFechaEntregado, 
   listarComandaPorFecha, 
   cambiarEstadoPlato, 
-  revertirStatusComanda 
+  revertirStatusComanda,
+  getComandasParaPagar
 } = require('../repository/comanda.repository');
 
 const { registrarAuditoria } = require('../middleware/auditoria');
@@ -824,6 +825,52 @@ router.put('/comanda/:id/revertir/:nuevoStatus', async (req, res) => {
         console.error('❌ Error al revertir comanda:', error.message);
         res.status(400).json({ error: error.message });
     }
+});
+
+/**
+ * ✅ NUEVO ENDPOINT: Obtener comandas listas para pagar de una mesa
+ * GET /comanda/comandas-para-pagar/:mesaId
+ * Filtra solo comandas activas con status 'preparado', 'recoger' o 'entregado' y platos no eliminados
+ */
+router.get('/comanda/comandas-para-pagar/:mesaId', async (req, res) => {
+  try {
+    const { mesaId } = req.params;
+    
+    // FILTRADO EXACTO según diagrama
+    const comandas = await getComandasParaPagar(mesaId);
+    
+    // Calcular total pendiente (solo platos no eliminados)
+    const totalPendiente = comandas.reduce((sum, c) => {
+      return sum + c.platos.reduce((s, p, i) => {
+        if (!p.eliminado) {
+          const cantidad = c.cantidades?.[i] || 1;
+          const precio = p.plato?.precio || p.precio || 0;
+          return s + (precio * cantidad);
+        }
+        return s;
+      }, 0);
+    }, 0);
+
+    // Obtener información de la mesa desde la primera comanda
+    const mesaInfo = comandas[0]?.mesas || null;
+
+    res.json({
+      mesa: { 
+        _id: mesaId, 
+        nummesa: mesaInfo?.nummesa || null 
+      },
+      comandas,
+      totalPendiente,
+      cantidadComandas: comandas.length
+    });
+  } catch (error) {
+    logger.error('Error en GET /comanda/comandas-para-pagar/:mesaId', {
+      mesaId: req.params.mesaId,
+      error: error.message,
+      stack: error.stack
+    });
+    handleError(error, res, logger);
+  }
 });
 
 module.exports = router;

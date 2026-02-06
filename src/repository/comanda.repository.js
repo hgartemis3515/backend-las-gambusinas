@@ -1778,6 +1778,91 @@ const revertirStatusComanda = async (comandaId, nuevoStatus, usuarioId) => {
   }
 };
 
+/**
+ * Obtiene las comandas listas para pagar de una mesa específica
+ * Filtra solo comandas activas con status 'preparado' o 'entregado' y platos no eliminados
+ * @param {string} mesaId - ID de la mesa
+ * @returns {Promise<Array>} Array de comandas listas para pagar
+ */
+const getComandasParaPagar = async (mesaId) => {
+  try {
+    // ✅ FILTRADO EXACTO: Solo comandas listas para pagar
+    // - mesas: mesaId específica
+    // - IsActive: true (no eliminadas)
+    // - status: ['preparado', 'recoger', 'entregado'] (listas para pagar, excluye 'pagado')
+    // - Excluir platos eliminados
+    const comandas = await comandaModel.find({
+      mesas: mesaId,
+      IsActive: true,
+      status: { $in: ['preparado', 'recoger', 'entregado'] } // Solo listas para pagar (excluye 'pagado' automáticamente)
+    })
+    .populate('platos.plato', 'nombre precio')
+    .populate('mozos', 'name')
+    .populate('mesas', 'nummesa estado')
+    .sort({ createdAt: -1 }); // Más recientes primero
+
+    // Filtrar comandas que tengan al menos un plato no eliminado
+    const comandasConPlatosValidos = comandas.filter(comanda => {
+      if (!comanda.platos || comanda.platos.length === 0) {
+        return false; // Excluir comandas sin platos
+      }
+      // Verificar que tenga al menos un plato no eliminado
+      const tienePlatosNoEliminados = comanda.platos.some(p => !p.eliminado);
+      return tienePlatosNoEliminados;
+    });
+
+    // Asegurar que los platos estén populados (fallback manual)
+    const comandasConPlatos = await ensurePlatosPopulated(comandasConPlatosValidos);
+    
+    console.log(`✅ [getComandasParaPagar] Mesa ${mesaId}: ${comandasConPlatos.length} comandas listas para pagar`);
+    
+    return comandasConPlatos;
+  } catch (error) {
+    console.error("❌ Error al obtener comandas para pagar:", error);
+    throw error;
+  }
+};
+
+/**
+ * Valida que las comandas proporcionadas pertenecen a la mesa y no están pagadas
+ * @param {string} mesaId - ID de la mesa
+ * @param {Array<string>} comandasIds - Array de IDs de comandas a validar
+ * @returns {Promise<Array>} Array de comandas válidas
+ */
+const validarComandasParaPagar = async (mesaId, comandasIds) => {
+  try {
+    if (!Array.isArray(comandasIds) || comandasIds.length === 0) {
+      throw new Error('Debe proporcionar al menos una comanda');
+    }
+
+    const comandas = await comandaModel.find({
+      _id: { $in: comandasIds },
+      mesas: mesaId,
+      IsActive: true,
+      status: { $in: ['preparado', 'recoger', 'entregado'] }, // Solo preparadas o entregadas (incluye preparado)
+      'platos.eliminado': { $ne: true }
+    })
+    .populate('platos.plato', 'nombre precio')
+    .populate('mozos')
+    .populate('mesas', 'nummesa');
+
+    // Verificar que todas las comandas solicitadas fueron encontradas
+    if (comandas.length !== comandasIds.length) {
+      const encontradas = comandas.map(c => c._id.toString());
+      const faltantes = comandasIds.filter(id => !encontradas.includes(id.toString()));
+      throw new Error(`Algunas comandas no son válidas para pagar: ${faltantes.join(', ')}`);
+    }
+
+    // Asegurar que los platos estén populados
+    const comandasConPlatos = await ensurePlatosPopulated(comandas);
+    
+    return comandasConPlatos;
+  } catch (error) {
+    console.error("❌ Error al validar comandas para pagar:", error);
+    throw error;
+  }
+};
+
 module.exports = { 
   listarComanda, 
   agregarComanda, 
@@ -1792,5 +1877,7 @@ module.exports = {
   cambiarEstadoPlato, 
   revertirStatusComanda, 
   recalcularEstadoMesa,
-  validarTransicionEstado // Exportar para tests
+  validarTransicionEstado, // Exportar para tests
+  getComandasParaPagar,
+  validarComandasParaPagar
 };
