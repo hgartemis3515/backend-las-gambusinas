@@ -392,6 +392,9 @@
                             <select id="filtro-accion" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;" onchange="loadAuditoria()">
                                 <option value="">Todas</option>
                                 <option value="comanda_eliminada">Comanda Eliminada</option>
+                                <option value="ELIMINAR_ULTIMA_COMANDA">🗑️ Eliminar Última Comanda</option>
+                                <option value="ELIMINAR_TODAS_COMANDAS">🗑️ Eliminar Todas las Comandas</option>
+                                <option value="ELIMINAR_COMANDA_INDIVIDUAL">🗑️ Eliminar Comanda Individual</option>
                                 <option value="comanda_editada">Comanda Editada</option>
                                 <option value="plato_eliminado">Plato Eliminado</option>
                                 <option value="plato_modificado">Plato Modificado</option>
@@ -1892,17 +1895,33 @@
                             </tr>
                         </thead>
                         <tbody>
-                            ${auditorias.map(aud => `
+                            ${auditorias.map(aud => {
+                                // Formatear nombre de acción más legible
+                                let accionNombre = aud.accion;
+                                if (aud.accion === 'ELIMINAR_ULTIMA_COMANDA') accionNombre = '🗑️ Última Comanda';
+                                else if (aud.accion === 'ELIMINAR_TODAS_COMANDAS') accionNombre = '🗑️ Todas las Comandas';
+                                else if (aud.accion === 'ELIMINAR_COMANDA_INDIVIDUAL') accionNombre = '🗑️ Comanda Individual';
+                                
+                                // Mostrar información adicional según el tipo
+                                const totalEliminado = aud.metadata?.totalEliminado;
+                                const cantidadComandas = aud.metadata?.cantidadComandas;
+                                const infoAdicional = totalEliminado ? ` (S/. ${totalEliminado.toFixed(2)})` : '';
+                                const comandaInfo = cantidadComandas > 1 
+                                    ? `${cantidadComandas} comandas` 
+                                    : (aud.metadata?.comandaNumber || 'N/A');
+                                
+                                return `
                                 <tr>
                                     <td>${new Date(aud.timestamp).toLocaleString('es-PE')}</td>
-                                    <td><span style="padding: 4px 8px; border-radius: 4px; background: ${getAccionColor(aud.accion)}; color: white; font-size: 12px;">${aud.accion}</span></td>
+                                    <td><span style="padding: 4px 8px; border-radius: 4px; background: ${getAccionColor(aud.accion)}; color: white; font-size: 12px;">${accionNombre}</span></td>
                                     <td>${aud.usuario?.name || 'Sistema'}</td>
-                                    <td>${aud.metadata?.comandaNumber || 'N/A'}</td>
+                                    <td>${comandaInfo}${infoAdicional}</td>
                                     <td>${aud.motivo || '-'}</td>
                                     <td>${aud.ip || '-'}</td>
                                     <td><button class="btn btn-sm" onclick="verDetalleAuditoria('${aud._id}')">Ver</button></td>
                                 </tr>
-                            `).join('')}
+                            `;
+                            }).join('')}
                         </tbody>
                     </table>
                 </div>
@@ -1912,6 +1931,9 @@
         function getAccionColor(accion) {
             const colors = {
                 'comanda_eliminada': '#DC2626',
+                'ELIMINAR_ULTIMA_COMANDA': '#DC2626',
+                'ELIMINAR_TODAS_COMANDAS': '#B91C1C',
+                'ELIMINAR_COMANDA_INDIVIDUAL': '#DC2626',
                 'comanda_editada': '#F59E0B',
                 'plato_eliminado': '#EF4444',
                 'plato_modificado': '#10B981',
@@ -2107,18 +2129,97 @@
                 const platosDespues = datosDespues.platos || [];
                 const cantidadesDespues = datosDespues.cantidades || [];
                 
+                // Verificar si es una eliminación nueva (con metadata de platos eliminados)
+                const esEliminacionNueva = ['ELIMINAR_ULTIMA_COMANDA', 'ELIMINAR_TODAS_COMANDAS', 'ELIMINAR_COMANDA_INDIVIDUAL'].includes(aud.accion);
+                const platosEliminados = aud.metadata?.platosEliminados || [];
+                const totalEliminado = aud.metadata?.totalEliminado || 0;
+                const tipoEliminacion = aud.metadata?.tipoEliminacion || '';
+                const cantidadComandas = aud.metadata?.cantidadComandas || 1;
+                const comandasNumbers = aud.metadata?.comandasNumbers || [aud.metadata?.comandaNumber].filter(Boolean);
+                
+                // Función para generar tabla de platos eliminados desde metadata
+                function generarTablaPlatosEliminados(platos) {
+                    if (!platos || platos.length === 0) {
+                        return '<p style="color: #999;">No hay platos eliminados registrados</p>';
+                    }
+                    
+                    let html = '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+                    html += '<thead><tr style="background: #fee2e2;"><th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Cantidad</th><th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Plato</th><th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Precio Unit.</th><th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Subtotal</th></tr></thead>';
+                    html += '<tbody>';
+                    
+                    let total = 0;
+                    platos.forEach(plato => {
+                        const subtotal = plato.subtotal || (plato.precio * plato.cantidad) || 0;
+                        total += subtotal;
+                        html += `<tr style="background: #fee2e2;">
+                            <td style="padding: 8px; border: 1px solid #ddd;">${plato.cantidad || 1}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd; color: #dc2626; text-decoration: line-through;">${plato.nombre || 'Plato desconocido'}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">S/. ${(plato.precio || 0).toFixed(2)}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">S/. ${subtotal.toFixed(2)}</td>
+                        </tr>`;
+                    });
+                    
+                    html += `<tr style="background: #dc2626; color: white; font-weight: bold;">
+                        <td colspan="3" style="padding: 8px; border: 1px solid #ddd; text-align: right;">TOTAL ELIMINADO:</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">S/. ${total.toFixed(2)}</td>
+                    </tr>`;
+                    html += '</tbody></table>';
+                    return html;
+                }
+                
+                // Generar información específica según el tipo de eliminación
+                let infoEspecifica = '';
+                if (esEliminacionNueva) {
+                    if (aud.accion === 'ELIMINAR_TODAS_COMANDAS') {
+                        infoEspecifica = `
+                            <div style="background: #fee2e2; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #dc2626;">
+                                <h3 style="margin-top: 0; color: #dc2626;">🗑️ Eliminación de Todas las Comandas</h3>
+                                <p><strong>Mesa:</strong> ${aud.metadata?.mesaNum || 'N/A'}</p>
+                                <p><strong>Cantidad de Comandas Eliminadas:</strong> ${cantidadComandas}</p>
+                                <p><strong>Comandas:</strong> ${comandasNumbers.join(', ') || 'N/A'}</p>
+                                <p><strong>Total Eliminado:</strong> <span style="font-size: 18px; font-weight: bold; color: #dc2626;">S/. ${totalEliminado.toFixed(2)}</span></p>
+                            </div>
+                            <details style="margin-top: 15px;" open>
+                                <summary style="cursor: pointer; font-weight: bold; margin-bottom: 10px; color: #dc2626;">📋 Platos Eliminados (${platosEliminados.length})</summary>
+                                ${generarTablaPlatosEliminados(platosEliminados)}
+                            </details>
+                        `;
+                    } else {
+                        infoEspecifica = `
+                            <div style="background: #fee2e2; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #dc2626;">
+                                <h3 style="margin-top: 0; color: #dc2626;">🗑️ Eliminación de Comanda</h3>
+                                <p><strong>Comanda #:</strong> ${aud.metadata?.comandaNumber || 'N/A'}</p>
+                                <p><strong>Mesa:</strong> ${aud.metadata?.mesaNum || 'N/A'}</p>
+                                <p><strong>Tipo:</strong> ${aud.accion === 'ELIMINAR_ULTIMA_COMANDA' ? 'Última Comanda' : 'Comanda Individual'}</p>
+                                <p><strong>Total Eliminado:</strong> <span style="font-size: 18px; font-weight: bold; color: #dc2626;">S/. ${totalEliminado.toFixed(2)}</span></p>
+                            </div>
+                            <details style="margin-top: 15px;" open>
+                                <summary style="cursor: pointer; font-weight: bold; margin-bottom: 10px; color: #dc2626;">📋 Platos Eliminados (${platosEliminados.length})</summary>
+                                ${generarTablaPlatosEliminados(platosEliminados)}
+                            </details>
+                        `;
+                    }
+                }
+                
                 const modalBody = `
                     <div style="padding: 20px;">
                         <div style="margin-bottom: 15px;">
-                            <strong>Acción:</strong> ${aud.accion}<br>
+                            <strong>Acción:</strong> <span style="padding: 4px 8px; border-radius: 4px; background: ${getAccionColor(aud.accion)}; color: white; font-size: 12px;">${aud.accion}</span><br>
                             <strong>Fecha:</strong> ${new Date(aud.timestamp).toLocaleString('es-PE')}<br>
                             <strong>Usuario:</strong> ${aud.usuario?.name || 'Sistema'}<br>
                             <strong>Motivo:</strong> ${aud.motivo || 'N/A'}<br>
                             <strong>IP:</strong> ${aud.ip || 'N/A'}<br>
                         </div>
+                        ${infoEspecifica}
+                        ${!esEliminacionNueva ? `
                         <details style="margin-top: 15px;" open>
                             <summary style="cursor: pointer; font-weight: bold; margin-bottom: 10px;">Comparación de Platos</summary>
                             ${compararPlatos(platosAntes, cantidadesAntes, platosDespues, cantidadesDespues)}
+                        </details>
+                        ` : ''}
+                        <details style="margin-top: 15px;">
+                            <summary style="cursor: pointer; font-weight: bold; margin-bottom: 10px;">Metadata Completa</summary>
+                            <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow: auto; max-height: 200px;">${JSON.stringify(aud.metadata, null, 2)}</pre>
                         </details>
                         <details style="margin-top: 15px;">
                             <summary style="cursor: pointer; font-weight: bold; margin-bottom: 10px;">Datos Antes (JSON)</summary>

@@ -125,6 +125,19 @@ const registrarAuditoria = async (req, datosAntes, datosDespues, motivo = null) 
       }
     }
     
+    // Combinar metadata del request con datos adicionales de auditoría
+    const metadataCompleto = {
+      ...req.auditoria.metadata,
+      comandaNumber: datosDespues?.comandaNumber || datosAntes?.comandaNumber || req.auditoria.comandaNumber,
+      mesaId: datosDespues?.mesas || datosAntes?.mesas || req.auditoria.mesaId,
+      // Incluir datos específicos de eliminación si existen
+      ...(req.auditoria.platosEliminados ? { platosEliminados: req.auditoria.platosEliminados } : {}),
+      ...(req.auditoria.totalEliminado !== undefined ? { totalEliminado: req.auditoria.totalEliminado } : {}),
+      ...(req.auditoria.comandasIds ? { comandasIds: req.auditoria.comandasIds } : {}),
+      ...(req.auditoria.cantidadComandas !== undefined ? { cantidadComandas: req.auditoria.cantidadComandas } : {}),
+      ...(req.auditoria.tipoEliminacion ? { tipoEliminacion: req.auditoria.tipoEliminacion } : {})
+    };
+    
     const auditoriaData = {
       accion: req.auditoria.accion,
       entidadId: req.auditoria.entidadId || datosDespues?._id || datosAntes?._id,
@@ -132,14 +145,10 @@ const registrarAuditoria = async (req, datosAntes, datosDespues, motivo = null) 
       usuario: req.auditoria.usuario,
       datosAntes: datosAntesPlain,
       datosDespues: datosDespuesPlain,
-      motivo: motivo || req.body?.motivo || null,
+      motivo: motivo || req.body?.motivo || req.auditoria.motivo || null,
       ip: req.auditoria.ip,
       deviceId: req.auditoria.deviceId,
-      metadata: {
-        ...req.auditoria.metadata,
-        comandaNumber: datosDespues?.comandaNumber || datosAntes?.comandaNumber,
-        mesaId: datosDespues?.mesas || datosAntes?.mesas
-      }
+      metadata: metadataCompleto
     };
     
     await AuditoriaAcciones.create(auditoriaData);

@@ -11,6 +11,9 @@ const auditoriaSchema = new mongoose.Schema({
     enum: [
       'comanda_creada',
       'comanda_eliminada',
+      'ELIMINAR_ULTIMA_COMANDA',
+      'ELIMINAR_TODAS_COMANDAS',
+      'ELIMINAR_COMANDA_INDIVIDUAL',
       'comanda_editada',
       'comanda_status_cambiado',
       'plato_agregado',

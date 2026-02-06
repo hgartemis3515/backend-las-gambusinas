@@ -92,7 +92,13 @@ const ensurePlatosPopulated = async (comandas) => {
 const listarComanda = async (incluirEliminadas = false) => {
   try {
     // ESTANDARIZADO: Solo usar IsActive para soft-delete
-    const query = incluirEliminadas ? {} : { IsActive: { $ne: false } };
+    // ✅ FILTRAR EXPLÍCITAMENTE comandas eliminadas
+    const query = incluirEliminadas 
+      ? {} 
+      : { 
+          IsActive: { $ne: false, $exists: true }, // Solo comandas activas
+          eliminada: { $ne: true } // También filtrar por campo eliminada si existe
+        };
     
     const data = await comandaModel
       .find(query)
@@ -425,7 +431,7 @@ const agregarComanda = async (data) => {
  * @param {String} motivo - Motivo de la eliminación (obligatorio)
  * @returns {Promise<Object>} - Comanda eliminada
  */
-const eliminarLogicamente = async (comandaId, usuarioId, motivo) => {
+const eliminarLogicamente = async (comandaId, usuarioId, motivo, requerirMotivo = false) => {
   try {
     const mongoose = require('mongoose');
     if (!mongoose.Types.ObjectId.isValid(comandaId)) {
@@ -434,10 +440,17 @@ const eliminarLogicamente = async (comandaId, usuarioId, motivo) => {
       throw error;
     }
     
-    if (!motivo || motivo.trim() === '') {
+    // El motivo es obligatorio solo si se requiere explícitamente (nuevos endpoints con modal)
+    // Para endpoints legacy, usar motivo por defecto
+    if (requerirMotivo && (!motivo || motivo.trim() === '')) {
       const error = new Error('El motivo de eliminación es obligatorio');
       error.statusCode = 400;
       throw error;
+    }
+    
+    // Si no se proporciona motivo y no se requiere, usar uno por defecto
+    if (!motivo || motivo.trim() === '') {
+      motivo = 'Eliminación sin motivo especificado (legacy)';
     }
     
     // Obtener la comanda antes de eliminarla
@@ -462,10 +475,12 @@ const eliminarLogicamente = async (comandaId, usuarioId, motivo) => {
     }
     
     // ESTANDARIZADO: Soft-delete solo con IsActive
+    // ✅ MARCAR COMANDA COMO ELIMINADA (para que no aparezca en app de cocina)
     comanda.fechaEliminacion = moment.tz("America/Lima").toDate();
     comanda.motivoEliminacion = motivo;
     comanda.eliminadaPor = usuarioId;
-    comanda.IsActive = false; // Soft-delete estándar
+    comanda.IsActive = false; // Soft-delete estándar - CRÍTICO para filtrar en app de cocina
+    comanda.eliminada = true; // Campo adicional para compatibilidad
     comanda.version++;
     
     // Registrar historial de platos eliminados
@@ -513,6 +528,18 @@ const eliminarLogicamente = async (comandaId, usuarioId, motivo) => {
       });
     } catch (historialError) {
       console.error('⚠️ Error al guardar historial de comanda:', historialError.message);
+    }
+    
+    // ✅ RECALCULAR ESTADO DE LA MESA después de eliminar comanda
+    const mesaId = comanda.mesas;
+    if (mesaId) {
+      try {
+        await recalcularEstadoMesa(mesaId);
+        console.log(`✅ Estado de mesa ${mesaId} recalculado después de eliminar comanda`);
+      } catch (error) {
+        console.error(`⚠️ Error al recalcular estado de mesa después de eliminar comanda:`, error.message);
+        // No lanzar error para no interrumpir el flujo principal
+      }
     }
     
     return comanda;
@@ -1375,6 +1402,7 @@ const listarComandaPorFechaEntregado = async (fecha) => {
     });
     
     // Buscar comandas activas que no estén entregadas
+    // ✅ FILTRAR EXPLÍCITAMENTE comandas eliminadas (IsActive debe ser explícitamente true)
     // Primero intentar búsqueda por rango de fechas
     let data = await comandaModel.find({ 
       createdAt: {
@@ -1382,7 +1410,7 @@ const listarComandaPorFechaEntregado = async (fecha) => {
         $lte: fechaFin
       },
       status: { $ne: "entregado" },
-      IsActive: { $ne: false }
+      IsActive: true // ✅ SOLO comandas activas (IsActive debe ser explícitamente true)
     })
     .populate({
       path: "mozos",
@@ -1407,7 +1435,7 @@ const listarComandaPorFechaEntregado = async (fecha) => {
       console.log('⚠️ No se encontraron comandas con el filtro de fecha. Buscando todas las comandas activas...');
       data = await comandaModel.find({ 
         status: { $ne: "entregado" },
-        IsActive: { $ne: false }
+        IsActive: true // ✅ SOLO comandas activas (IsActive debe ser explícitamente true)
       })
       .populate({
         path: "mozos",

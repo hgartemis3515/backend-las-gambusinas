@@ -346,6 +346,75 @@ module.exports = (io, cocinaNamespace, mozosNamespace) => {
   };
 
   /**
+   * Emitir evento de comanda eliminada a cocina y mozos
+   */
+  global.emitComandaEliminada = async (comandaId) => {
+    try {
+      const comanda = await comandaModel
+        .findById(comandaId)
+        .populate({
+          path: "mozos",
+        })
+        .populate({
+          path: "mesas",
+          populate: {
+            path: "area"
+          }
+        })
+        .populate({
+          path: "cliente"
+        })
+        .populate({
+          path: "platos.plato",
+          model: "platos"
+        });
+
+      if (!comanda) {
+        logger.warn('Comanda no encontrada para emitir evento de eliminación');
+        return;
+      }
+
+      const fecha = moment(comanda.createdAt).tz("America/Lima").format('YYYY-MM-DD');
+      const roomName = `fecha-${fecha}`;
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      // Emitir a cocina (room por fecha) - IMPORTANTE: La comanda eliminada debe desaparecer
+      cocinaNamespace.to(roomName).emit('comanda-eliminada', {
+        comandaId: comandaId,
+        comanda: comanda,
+        socketId: 'server',
+        timestamp: timestamp
+      });
+
+      // Emitir a mozos (room por mesa) - IMPORTANTE: Notificar a los mozos de la mesa
+      const mesaId = comanda.mesas?._id || comanda.mesas;
+      if (mesaId && mozosNamespace && mozosNamespace.sockets) {
+        mozosNamespace.to(`mesa-${mesaId}`).emit('comanda-eliminada', {
+          comandaId: comandaId,
+          comanda: comanda,
+          socketId: 'server',
+          timestamp: timestamp
+        });
+      }
+
+      logger.info('Evento comanda-eliminada emitido', {
+        comandaNumber: comanda.comandaNumber,
+        comandaId: comandaId,
+        roomName,
+        mesaId: mesaId,
+        timestamp,
+        cocinaConnected: cocinaNamespace?.sockets?.size || 0,
+        mozosConnected: mozosNamespace?.sockets?.size || 0
+      });
+    } catch (error) {
+      logger.error('Error al emitir comanda-eliminada', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  };
+
+  /**
    * Emitir evento de mesa actualizada a mozos
    */
   global.emitMesaActualizada = async (mesaId) => {

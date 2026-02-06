@@ -15,7 +15,8 @@ const {
   listarComandaPorFecha, 
   cambiarEstadoPlato, 
   revertirStatusComanda,
-  getComandasParaPagar
+  getComandasParaPagar,
+  recalcularEstadoMesa
 } = require('../repository/comanda.repository');
 
 const { registrarAuditoria } = require('../middleware/auditoria');
@@ -124,29 +125,80 @@ router.delete('/comanda/:id', async (req, res) => {
     const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
     
     try {
-        // Obtener snapshot antes de eliminar
-        const snapshotAntes = await comandaModel.findById(id);
+        // Obtener snapshot antes de eliminar con datos completos
+        const snapshotAntes = await comandaModel.findById(id)
+            .populate('platos.plato')
+            .populate('mesas')
+            .lean();
+        
         if (!snapshotAntes) {
             return res.status(404).json({ message: 'Comanda no encontrada' });
         }
         
+        // Calcular total eliminado y platos eliminados
+        let totalEliminado = 0;
+        const platosEliminados = [];
+        
+        if (snapshotAntes.platos && Array.isArray(snapshotAntes.platos)) {
+            snapshotAntes.platos.forEach((platoItem, index) => {
+                if (!platoItem.eliminado) {
+                    const plato = platoItem.plato || platoItem;
+                    const cantidad = snapshotAntes.cantidades?.[index] || 1;
+                    const precio = plato?.precio || 0;
+                    const subtotal = precio * cantidad;
+                    totalEliminado += subtotal;
+                    
+                    platosEliminados.push({
+                        nombre: plato?.nombre || 'Plato desconocido',
+                        cantidad: cantidad,
+                        precio: precio,
+                        subtotal: subtotal
+                    });
+                }
+            });
+        }
+        
         const deletedComanda = await eliminarLogicamente(id, usuarioId, motivo);
         
+        // ✅ La función eliminarLogicamente ya recalcula el estado de la mesa automáticamente
+        // No necesitamos hacerlo aquí porque ya se hace en el repository
+        
         if (deletedComanda) {
-            // Registrar auditoría
+            // Registrar auditoría con datos completos
             req.auditoria = {
-                accion: 'comanda_eliminada',
+                accion: 'ELIMINAR_COMANDA_INDIVIDUAL',
                 entidadId: id,
                 entidadTipo: 'comanda',
                 usuario: usuarioId,
+                mesaId: snapshotAntes.mesas?._id || snapshotAntes.mesas,
+                comandaId: id,
+                motivo: motivo.trim(),
+                platosEliminados: platosEliminados,
+                totalEliminado: totalEliminado,
+                comandaNumber: snapshotAntes.comandaNumber,
                 ip: req.ip,
                 deviceId: req.headers['device-id'] || req.headers['x-device-id']
             };
+            
+            // Guardar datos adicionales en metadata para consultas
+            const metadataAdicional = {
+                comandaNumber: snapshotAntes.comandaNumber,
+                mesaId: snapshotAntes.mesas?._id || snapshotAntes.mesas,
+                mesaNum: snapshotAntes.mesas?.nummesa || null,
+                platosEliminados: platosEliminados,
+                totalEliminado: totalEliminado,
+                cantidadPlatos: platosEliminados.length
+            };
+            
+            req.auditoria.metadata = { ...req.auditoria.metadata, ...metadataAdicional };
+            
             await registrarAuditoria(req, snapshotAntes, deletedComanda, motivo);
             
             res.json({ 
                 message: 'Comanda archivada con auditoría (soft-delete)',
-                comanda: deletedComanda
+                comanda: deletedComanda,
+                totalEliminado: totalEliminado,
+                platosEliminados: platosEliminados.length
             });
             
             // Emitir evento Socket.io de comanda eliminada
@@ -215,6 +267,387 @@ router.put('/comanda/:id/eliminar', async (req, res) => {
         console.error('❌ Error al eliminar comanda:', error.message);
         const statusCode = error.statusCode || 500;
         res.status(statusCode).json({ message: error.message || 'Error al eliminar la comanda' });
+    }
+});
+
+/**
+ * ✅ NUEVO ENDPOINT: Eliminar última comanda con auditoría completa
+ * DELETE /comanda/:id/ultima
+ */
+router.delete('/comanda/:id/ultima', async (req, res) => {
+    const { id } = req.params;
+    const { motivo } = req.body;
+    const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+    
+    // Validar que el motivo sea obligatorio
+    if (!motivo || motivo.trim() === '') {
+        return res.status(400).json({ 
+            message: 'El motivo de eliminación es obligatorio' 
+        });
+    }
+    
+    try {
+        // Obtener snapshot antes de eliminar
+        const snapshotAntes = await comandaModel.findById(id)
+            .populate('platos.plato')
+            .populate('mesas')
+            .lean();
+        
+        if (!snapshotAntes) {
+            return res.status(404).json({ message: 'Comanda no encontrada' });
+        }
+        
+        // Calcular total eliminado
+        let totalEliminado = 0;
+        const platosEliminados = [];
+        
+        if (snapshotAntes.platos && Array.isArray(snapshotAntes.platos)) {
+            snapshotAntes.platos.forEach((platoItem, index) => {
+                if (!platoItem.eliminado) {
+                    const plato = platoItem.plato || platoItem;
+                    const cantidad = snapshotAntes.cantidades?.[index] || 1;
+                    const precio = plato?.precio || 0;
+                    const subtotal = precio * cantidad;
+                    totalEliminado += subtotal;
+                    
+                    platosEliminados.push({
+                        nombre: plato?.nombre || 'Plato desconocido',
+                        cantidad: cantidad,
+                        precio: precio,
+                        subtotal: subtotal
+                    });
+                }
+            });
+        }
+        
+        // Eliminar comanda
+        const comanda = await eliminarLogicamente(id, usuarioId, motivo);
+        
+        // Registrar auditoría específica con metadata completa
+        req.auditoria = {
+            accion: 'ELIMINAR_ULTIMA_COMANDA',
+            entidadId: id,
+            entidadTipo: 'comanda',
+            usuario: usuarioId,
+            mesaId: snapshotAntes.mesas?._id || snapshotAntes.mesas,
+            comandaId: id,
+            motivo: motivo.trim(),
+            platosEliminados: platosEliminados,
+            totalEliminado: totalEliminado,
+            comandaNumber: snapshotAntes.comandaNumber,
+            ip: req.ip,
+            deviceId: req.headers['device-id'] || req.headers['x-device-id']
+        };
+        
+        // Guardar datos adicionales en metadata para consultas desde auditoriaController
+        const metadataAdicional = {
+            comandaNumber: snapshotAntes.comandaNumber,
+            mesaId: snapshotAntes.mesas?._id || snapshotAntes.mesas,
+            mesaNum: snapshotAntes.mesas?.nummesa || null,
+            platosEliminados: platosEliminados,
+            totalEliminado: totalEliminado,
+            cantidadPlatos: platosEliminados.length,
+            tipoEliminacion: 'ultima_comanda'
+        };
+        
+        req.auditoria.metadata = { ...req.auditoria.metadata, ...metadataAdicional };
+        
+        await registrarAuditoria(req, snapshotAntes, comanda, motivo);
+        
+        // Emitir evento Socket.io a mozos (room por mesa)
+        const mesaId = comanda.mesas?._id || comanda.mesas;
+        if (mesaId && global.io) {
+            global.io.to(`mesa-${mesaId}`).emit('comanda-eliminada', comanda);
+        }
+        
+        // ✅ Emitir evento a app de cocina (room por fecha) para que desaparezca la tarjeta en tiempo real
+        if (global.emitComandaEliminada) {
+            await global.emitComandaEliminada(id);
+        }
+        
+        res.json({ 
+            message: 'Última comanda eliminada con auditoría completa',
+            comanda: comanda,
+            totalEliminado: totalEliminado,
+            platosEliminados: platosEliminados.length
+        });
+    } catch (error) {
+        console.error('❌ Error al eliminar última comanda:', error.message);
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json({ message: error.message || 'Error al eliminar la última comanda' });
+    }
+});
+
+/**
+ * ✅ NUEVO ENDPOINT: Eliminar comanda individual con auditoría completa (desde modal)
+ * DELETE /comanda/:id/individual
+ */
+router.delete('/comanda/:id/individual', async (req, res) => {
+    const { id } = req.params;
+    const { motivo } = req.body;
+    const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+    
+    // Validar que el motivo sea obligatorio
+    if (!motivo || motivo.trim() === '') {
+        return res.status(400).json({ 
+            message: 'El motivo de eliminación es obligatorio' 
+        });
+    }
+    
+    try {
+        // Obtener snapshot antes de eliminar con datos completos
+        const snapshotAntes = await comandaModel.findById(id)
+            .populate('platos.plato')
+            .populate('mesas')
+            .lean();
+        
+        if (!snapshotAntes) {
+            return res.status(404).json({ message: 'Comanda no encontrada' });
+        }
+        
+        // Calcular total eliminado y platos eliminados
+        let totalEliminado = 0;
+        const platosEliminados = [];
+        
+        if (snapshotAntes.platos && Array.isArray(snapshotAntes.platos)) {
+            snapshotAntes.platos.forEach((platoItem, index) => {
+                if (!platoItem.eliminado) {
+                    const plato = platoItem.plato || platoItem;
+                    const cantidad = snapshotAntes.cantidades?.[index] || 1;
+                    const precio = plato?.precio || 0;
+                    const subtotal = precio * cantidad;
+                    totalEliminado += subtotal;
+                    
+                    platosEliminados.push({
+                        nombre: plato?.nombre || 'Plato desconocido',
+                        cantidad: cantidad,
+                        precio: precio,
+                        subtotal: subtotal
+                    });
+                }
+            });
+        }
+        
+        // Eliminar comanda
+        const comanda = await eliminarLogicamente(id, usuarioId, motivo);
+        
+        // Registrar auditoría específica con metadata completa
+        req.auditoria = {
+            accion: 'ELIMINAR_COMANDA_INDIVIDUAL',
+            entidadId: id,
+            entidadTipo: 'comanda',
+            usuario: usuarioId,
+            mesaId: snapshotAntes.mesas?._id || snapshotAntes.mesas,
+            comandaId: id,
+            motivo: motivo.trim(),
+            platosEliminados: platosEliminados,
+            totalEliminado: totalEliminado,
+            comandaNumber: snapshotAntes.comandaNumber,
+            ip: req.ip,
+            deviceId: req.headers['device-id'] || req.headers['x-device-id']
+        };
+        
+        // Guardar datos adicionales en metadata para consultas desde auditoriaController
+        const metadataAdicional = {
+            comandaNumber: snapshotAntes.comandaNumber,
+            mesaId: snapshotAntes.mesas?._id || snapshotAntes.mesas,
+            mesaNum: snapshotAntes.mesas?.nummesa || null,
+            platosEliminados: platosEliminados,
+            totalEliminado: totalEliminado,
+            cantidadPlatos: platosEliminados.length,
+            tipoEliminacion: 'comanda_individual',
+            estadoComanda: snapshotAntes.status
+        };
+        
+        req.auditoria.metadata = { ...req.auditoria.metadata, ...metadataAdicional };
+        
+        await registrarAuditoria(req, snapshotAntes, comanda, motivo);
+        
+        // Emitir evento Socket.io a mozos (room por mesa)
+        const mesaId = comanda.mesas?._id || comanda.mesas;
+        if (mesaId && global.io) {
+            global.io.to(`mesa-${mesaId}`).emit('comanda-eliminada', comanda);
+        }
+        
+        // ✅ Emitir evento a app de cocina (room por fecha) para que desaparezca la tarjeta en tiempo real
+        if (global.emitComandaEliminada) {
+            await global.emitComandaEliminada(id);
+        }
+        
+        res.json({ 
+            message: 'Comanda eliminada con auditoría completa',
+            comanda: comanda,
+            totalEliminado: totalEliminado,
+            platosEliminados: platosEliminados.length
+        });
+    } catch (error) {
+        console.error('❌ Error al eliminar comanda individual:', error.message);
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json({ message: error.message || 'Error al eliminar la comanda' });
+    }
+});
+
+/**
+ * ✅ NUEVO ENDPOINT: Eliminar todas las comandas de una mesa con auditoría completa
+ * DELETE /comanda/mesa/:mesaId/todas
+ */
+router.delete('/comanda/mesa/:mesaId/todas', async (req, res) => {
+    const { mesaId } = req.params;
+    const { motivo } = req.body;
+    const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+    
+    // Validar que el motivo sea obligatorio
+    if (!motivo || motivo.trim() === '') {
+        return res.status(400).json({ 
+            message: 'El motivo de eliminación es obligatorio' 
+        });
+    }
+    
+    try {
+        // Obtener todas las comandas activas de la mesa
+        const comandas = await comandaModel.find({
+            mesas: mesaId,
+            IsActive: true,
+            status: { $nin: ['pagado', 'completado'] }
+        })
+        .populate('platos.plato')
+        .populate('mesas')
+        .lean();
+        
+        if (!comandas || comandas.length === 0) {
+            return res.status(404).json({ message: 'No hay comandas activas para eliminar en esta mesa' });
+        }
+        
+        // Calcular totales y preparar datos de auditoría
+        let totalGeneralEliminado = 0;
+        const comandasEliminadas = [];
+        const platosEliminados = [];
+        
+        comandas.forEach(comanda => {
+            let totalComanda = 0;
+            const platosComanda = [];
+            
+            if (comanda.platos && Array.isArray(comanda.platos)) {
+                comanda.platos.forEach((platoItem, index) => {
+                    if (!platoItem.eliminado) {
+                        const plato = platoItem.plato || platoItem;
+                        const cantidad = comanda.cantidades?.[index] || 1;
+                        const precio = plato?.precio || 0;
+                        const subtotal = precio * cantidad;
+                        totalComanda += subtotal;
+                        
+                        platosComanda.push({
+                            nombre: plato?.nombre || 'Plato desconocido',
+                            cantidad: cantidad,
+                            precio: precio,
+                            subtotal: subtotal
+                        });
+                        
+                        platosEliminados.push({
+                            comandaId: comanda._id,
+                            comandaNumber: comanda.comandaNumber,
+                            nombre: plato?.nombre || 'Plato desconocido',
+                            cantidad: cantidad,
+                            precio: precio,
+                            subtotal: subtotal
+                        });
+                    }
+                });
+            }
+            
+            totalGeneralEliminado += totalComanda;
+            
+            comandasEliminadas.push({
+                comandaId: comanda._id,
+                comandaNumber: comanda.comandaNumber,
+                total: totalComanda,
+                platos: platosComanda
+            });
+        });
+        
+        // Eliminar todas las comandas
+        const eliminaciones = comandas.map(comanda => 
+            eliminarLogicamente(comanda._id.toString(), usuarioId, motivo)
+        );
+        
+        const comandasEliminadasResult = await Promise.all(eliminaciones);
+        
+        // ✅ RECALCULAR ESTADO DE LA MESA después de eliminar todas las comandas
+        // (cada eliminarLogicamente ya recalcula, pero hacemos una llamada final para asegurar que quede en "libre")
+        try {
+          await recalcularEstadoMesa(mesaId);
+          console.log(`✅ Estado de mesa ${mesaId} recalculado después de eliminar todas las comandas - Debe estar en "libre"`);
+        } catch (error) {
+          console.error(`⚠️ Error al recalcular estado de mesa después de eliminar todas las comandas:`, error.message);
+          // No lanzar error para no interrumpir el flujo principal
+        }
+        
+        // Registrar auditoría específica con metadata completa
+        const mesaNum = comandas[0]?.mesas?.nummesa || null;
+        req.auditoria = {
+            accion: 'ELIMINAR_TODAS_COMANDAS',
+            entidadId: mesaId,
+            entidadTipo: 'mesa',
+            usuario: usuarioId,
+            mesaId: mesaId,
+            comandasIds: comandas.map(c => c._id.toString()),
+            motivo: motivo.trim(),
+            comandasEliminadas: comandasEliminadas,
+            platosEliminados: platosEliminados,
+            totalEliminado: totalGeneralEliminado,
+            cantidadComandas: comandas.length,
+            ip: req.ip,
+            deviceId: req.headers['device-id'] || req.headers['x-device-id']
+        };
+        
+        // Guardar datos adicionales en metadata para consultas desde auditoriaController
+        const metadataAdicional = {
+            mesaId: mesaId,
+            mesaNum: mesaNum,
+            comandasIds: comandas.map(c => c._id.toString()),
+            comandasNumbers: comandas.map(c => c.comandaNumber),
+            comandasEliminadas: comandasEliminadas,
+            platosEliminados: platosEliminados,
+            totalEliminado: totalGeneralEliminado,
+            cantidadComandas: comandas.length,
+            cantidadPlatos: platosEliminados.length,
+            tipoEliminacion: 'todas_comandas'
+        };
+        
+        req.auditoria.metadata = { ...req.auditoria.metadata, ...metadataAdicional };
+        
+        // Registrar auditoría usando la primera comanda como snapshot
+        await registrarAuditoria(req, comandas[0], { eliminadas: comandasEliminadasResult }, motivo);
+        
+        // Emitir eventos Socket.io a mozos (room por mesa)
+        if (global.io) {
+            global.io.to(`mesa-${mesaId}`).emit('comandas-eliminadas', {
+                mesaId: mesaId,
+                cantidad: comandas.length
+            });
+        }
+        
+        // ✅ Emitir eventos de eliminación a app de cocina para cada comanda eliminada
+        comandas.forEach(comanda => {
+            if (global.emitComandaEliminada) {
+                global.emitComandaEliminada(comanda._id.toString());
+            }
+        });
+        
+        res.json({ 
+            message: `Todas las comandas de la mesa eliminadas con auditoría completa`,
+            cantidadComandas: comandas.length,
+            totalEliminado: totalGeneralEliminado,
+            comandasEliminadas: comandasEliminadas.map(c => ({
+                comandaNumber: c.comandaNumber,
+                total: c.total,
+                platos: c.platos.length
+            }))
+        });
+    } catch (error) {
+        console.error('❌ Error al eliminar todas las comandas:', error.message);
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json({ message: error.message || 'Error al eliminar todas las comandas' });
     }
 });
 
