@@ -7,8 +7,9 @@
 .iq-top-navbar {
     position: fixed;
     top: 0;
-    left: 260px;
+    left: auto;
     right: 0;
+    width: calc(100% - 260px);
     height: 70px;
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
     background: -webkit-linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -17,6 +18,11 @@
     -webkit-box-shadow: 0 2px 10px rgba(212, 175, 55, 0.1);
     box-shadow: 0 2px 10px rgba(212, 175, 55, 0.1);
     border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+    -webkit-transition: all 0.3s ease-in-out;
+    -moz-transition: all 0.3s ease-in-out;
+    -ms-transition: all 0.3s ease-in-out;
+    -o-transition: all 0.3s ease-in-out;
+    transition: all 0.3s ease-in-out;
 }
 
 .iq-navbar-custom {
@@ -532,10 +538,25 @@ body.theme-light .iq-sub-card {
     transform: scale(0.95);
 }
 
+/* Sidebar Colapsado - Ajustar Header (PosDash style) */
+body.sidebar-main .iq-top-navbar {
+    width: calc(100% - 60px);
+    -webkit-transition: all 0.6s ease-in-out;
+    -moz-transition: all 0.6s ease-in-out;
+    -ms-transition: all 0.6s ease-in-out;
+    -o-transition: all 0.6s ease-in-out;
+    transition: all 0.6s ease-in-out;
+}
+
 /* Responsive */
 @media (max-width: 991px) {
     .iq-top-navbar {
         left: 0;
+        width: 100% !important;
+    }
+    
+    body.sidebar-main .iq-top-navbar {
+        width: 100% !important;
     }
     
     .iq-search-bar {
@@ -544,6 +565,10 @@ body.theme-light .iq-sub-card {
     
     .iq-navbar-logo {
         min-width: auto;
+    }
+    
+    .iq-top-navbar .iq-navbar-custom .wrapper-menu {
+        display: block !important;
     }
 }
 

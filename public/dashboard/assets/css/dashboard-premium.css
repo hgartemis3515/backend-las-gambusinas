@@ -160,6 +160,329 @@ body.dashboard-premium {
     width: 24px;
 }
 
+/* Sidebar Colapsado (Main) - Estilo PosDash Exacto */
+body.sidebar-main .iq-sidebar {
+    width: 60px;
+    -webkit-transition: all 0.6s ease-in-out;
+    -moz-transition: all 0.6s ease-in-out;
+    -ms-transition: all 0.6s ease-in-out;
+    -o-transition: all 0.6s ease-in-out;
+    transition: all 0.6s ease-in-out;
+}
+
+body.sidebar-main .iq-sidebar .iq-sidebar-menu .iq-menu li a span,
+body.sidebar-main .iq-sidebar .iq-sidebar-menu .iq-menu li a .ml-4 {
+    opacity: 0;
+    display: none;
+    -webkit-transition: all 0.6s ease-in-out;
+    -moz-transition: all 0.6s ease-in-out;
+    -ms-transition: all 0.6s ease-in-out;
+    -o-transition: all 0.6s ease-in-out;
+    transition: all 0.6s ease-in-out;
+}
+
+body.sidebar-main .iq-sidebar .iq-sidebar-menu .iq-menu li a .iq-arrow-right,
+body.sidebar-main .iq-sidebar .iq-sidebar-menu .iq-menu li a .arrow-active {
+    display: none;
+}
+
+body.sidebar-main .iq-sidebar .iq-sidebar-menu .iq-menu .iq-submenu {
+    display: none;
+}
+
+body.sidebar-main .iq-sidebar-logo {
+    transform: translateX(-100px);
+    -webkit-transition: all 0.6s ease-in-out;
+    -moz-transition: all 0.6s ease-in-out;
+    -ms-transition: all 0.6s ease-in-out;
+    -o-transition: all 0.6s ease-in-out;
+    transition: all 0.6s ease-in-out;
+}
+
+body.sidebar-main .iq-sidebar-logo a {
+    opacity: 0;
+    display: flex;
+    -webkit-transition: all 0.6s ease-in-out;
+    -moz-transition: all 0.6s ease-in-out;
+    -ms-transition: all 0.6s ease-in-out;
+    -o-transition: all 0.6s ease-in-out;
+    transition: all 0.6s ease-in-out;
+}
+
+body.sidebar-main .iq-sidebar-logo a .logo-title {
+    opacity: 0;
+    display: none;
+    -webkit-transition: all 0.6s ease-in-out;
+    -moz-transition: all 0.6s ease-in-out;
+    -ms-transition: all 0.6s ease-in-out;
+    -o-transition: all 0.6s ease-in-out;
+    transition: all 0.6s ease-in-out;
+}
+
+body.sidebar-main .iq-sidebar .sidebar-user-info {
+    display: none;
+}
+
+body.sidebar-main .iq-sidebar .iq-menu li a {
+    justify-content: center;
+    padding: 12px;
+}
+
+body.sidebar-main .iq-sidebar .iq-menu li a i {
+    margin: 0 auto;
+}
+
+body.sidebar-main .content-page {
+    margin-left: 60px;
+    width: calc(100% - 60px);
+    -webkit-transition: all 0.6s ease-in-out;
+    -moz-transition: all 0.6s ease-in-out;
+    -ms-transition: all 0.6s ease-in-out;
+    -o-transition: all 0.6s ease-in-out;
+    transition: all 0.6s ease-in-out;
+}
+
+/* Submenús Acordeón */
+.iq-submenu {
+    list-style: none;
+    padding: 0;
+    background: rgba(0, 0, 0, 0.2);
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.iq-submenu.show {
+    max-height: 500px;
+}
+
+.iq-submenu li {
+    margin: 0;
+}
+
+.iq-submenu li a {
+    padding: 10px 20px 10px 50px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+}
+
+.iq-submenu li a:hover {
+    background: rgba(212, 175, 55, 0.1);
+    color: var(--accent-gold);
+}
+
+.iq-submenu li a i.las.la-minus {
+    font-size: 0.7rem;
+    margin-right: 10px;
+}
+
+/* Arrow para submenús */
+.iq-arrow-right,
+.arrow-active {
+    margin-left: auto;
+    transition: transform 0.3s ease;
+    font-size: 0.9rem;
+}
+
+.iq-menu li a[data-toggle="collapse"] {
+    cursor: pointer;
+}
+
+/* Estados Visuales Mejorados */
+.iq-menu li.active {
+    background: rgba(212, 175, 55, 0.15);
+}
+
+.iq-menu li.active a {
+    color: var(--accent-gold);
+    background: rgba(212, 175, 55, 0.2);
+    border-left-color: var(--accent-gold);
+    font-weight: 600;
+}
+
+.iq-menu li a:hover {
+    background: rgba(212, 175, 55, 0.1);
+    color: var(--accent-gold);
+    transform: translateX(5px);
+}
+
+/* Scrollbar Suave Custom */
+.data-scrollbar.smooth-scrollbar {
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: calc(100vh - 200px);
+}
+
+.data-scrollbar.smooth-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.data-scrollbar.smooth-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+
+.data-scrollbar.smooth-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(212, 175, 55, 0.3);
+    border-radius: 3px;
+    transition: background 0.3s ease;
+}
+
+.data-scrollbar.smooth-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(212, 175, 55, 0.6);
+}
+
+/* Responsive Mobile - Estilo PosDash */
+@media (max-width: 991px) {
+    .iq-sidebar {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease-in-out;
+        z-index: 1050;
+        width: 260px !important;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+    }
+    
+    .iq-sidebar.sidebar-mobile {
+        position: fixed !important;
+        z-index: 1050;
+    }
+    
+    .iq-sidebar.sidebar-open {
+        transform: translateX(0) !important;
+    }
+    
+    .content-page {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+    
+    body.sidebar-open {
+        overflow: hidden !important;
+    }
+    
+    /* Asegurar que sidebar-main no afecte en mobile */
+    body.sidebar-main .iq-sidebar {
+        width: 260px !important;
+        left: 0 !important;
+    }
+    
+    body.sidebar-main .iq-sidebar .logo-title,
+    body.sidebar-main .iq-sidebar .ml-4,
+    body.sidebar-main .iq-sidebar .sidebar-user-info,
+    body.sidebar-main .iq-sidebar .iq-sidebar-menu .iq-menu li a span {
+        display: block !important;
+        opacity: 1 !important;
+    }
+    
+    body.sidebar-main .iq-sidebar .iq-menu li a {
+        justify-content: flex-start !important;
+        padding: 12px 20px !important;
+    }
+    
+    body.sidebar-main .iq-sidebar-logo {
+        transform: translateX(0) !important;
+    }
+    
+    body.sidebar-main .iq-sidebar-logo a {
+        opacity: 1 !important;
+    }
+}
+
+/* Overlay Mobile - Estilo PosDash */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 1040;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.sidebar-overlay[style*="display: block"] {
+    opacity: 1;
+}
+
+/* Page Loader */
+.page-loader {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(26, 26, 46, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+
+.loader-spinner {
+    text-align: center;
+    color: var(--accent-gold);
+}
+
+.loader-spinner i {
+    font-size: 2rem;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Toggle Button - Estilo PosDash Exacto */
+.wrapper-menu {
+    font-size: 25px;
+    text-align: center;
+    color: var(--accent-gold);
+    position: relative;
+    cursor: pointer;
+    -webkit-transition: all 0.6s ease-in-out;
+    -moz-transition: all 0.6s ease-in-out;
+    -ms-transition: all 0.6s ease-in-out;
+    -o-transition: all 0.6s ease-in-out;
+    transition: all 0.6s ease-in-out;
+}
+
+.wrapper-menu:hover {
+    color: var(--accent-gold);
+    -webkit-transform: scale(1.1);
+    -moz-transform: scale(1.1);
+    -ms-transform: scale(1.1);
+    -o-transform: scale(1.1);
+    transform: scale(1.1);
+}
+
+.wrapper-menu.open {
+    color: var(--accent-gold);
+}
+
+.iq-top-navbar .wrapper-menu {
+    margin: 0 15px 0 0;
+}
+
+.iq-menu-bt-sidebar .wrapper-menu {
+    color: var(--accent-gold);
+}
+
+@media (min-width: 1300px) {
+    .iq-top-navbar .iq-navbar-custom .wrapper-menu {
+        display: none;
+    }
+}
+
 /* Content Page */
 .content-page {
     margin-left: 260px;
