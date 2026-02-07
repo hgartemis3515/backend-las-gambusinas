@@ -14,6 +14,10 @@ const boucherRoutes = require('./src/controllers/boucherController')
 const clientesRoutes = require('./src/controllers/clientesController')
 const auditoriaRoutes = require('./src/controllers/auditoriaController')
 const cierreCajaRoutes = require('./src/controllers/cierreCajaController')
+const adminRoutes = require('./src/controllers/adminController')
+const notificacionesRoutes = require('./src/controllers/notificacionesController')
+const mensajesRoutes = require('./src/controllers/mensajesController')
+const { adminAuth } = require('./src/middleware/adminAuth')
 
 const app = express();
 const server = http.createServer(app);
@@ -82,7 +86,7 @@ app.use(cors({
   credentials: true
 }));
 
-const routes = [mesasRoutes, mozosRoutes, platoRoutes, comandaRoutes, areaRoutes, boucherRoutes, clientesRoutes, auditoriaRoutes, cierreCajaRoutes];
+const routes = [mesasRoutes, mozosRoutes, platoRoutes, comandaRoutes, areaRoutes, boucherRoutes, clientesRoutes, auditoriaRoutes, cierreCajaRoutes, adminRoutes, notificacionesRoutes, mensajesRoutes];
 
 app.use(express.json());
 app.use('/api',routes);
@@ -90,9 +94,38 @@ app.use('/api',routes);
 // Servir archivos estáticos desde la carpeta public
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Ruta para el panel de administración
+// Ruta para el panel de administración (sin protección)
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+// Ruta de login (pública)
+app.get('/dashboard/login.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard', 'login.html'));
+});
+
+// Servir assets del dashboard (públicos)
+app.use('/dashboard/assets', express.static(path.join(__dirname, 'public', 'dashboard', 'assets')));
+
+// Proteger solo las rutas HTML del dashboard (no assets)
+app.get('/dashboard', (req, res, next) => {
+  // Verificar token desde query o cookie (para navegación directa)
+  const token = req.query.token || 
+                (req.headers.cookie && req.headers.cookie.match(/adminToken=([^;]+)/)?.[1]);
+  
+  if (token) {
+    req.headers.authorization = `Bearer ${token}`;
+  }
+  
+  // Si no hay token, redirigir a login
+  if (!req.headers.authorization) {
+    return res.redirect('/dashboard/login.html');
+  }
+  
+  // Usar middleware de autenticación
+  adminAuth(req, res, next);
+}, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard', 'index.html'));
 });
 
 app.get('/', (req, res)=>{

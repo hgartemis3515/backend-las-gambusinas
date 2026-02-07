@@ -16,6 +16,50 @@ try {
 }
 
 /**
+ * GET /cierreCaja/estado
+ * Obtener estado actual de la caja (abierta/cerrada y total)
+ */
+router.get('/estado', async (req, res) => {
+  try {
+    const hoy = new Date().toISOString().split('T')[0];
+    
+    // Buscar bouchers del día de hoy
+    const inicioDia = new Date(hoy);
+    inicioDia.setHours(0, 0, 0, 0);
+    const finDia = new Date(hoy);
+    finDia.setHours(23, 59, 59, 999);
+    
+    const bouchers = await Boucher.find({
+      fechaPago: { $gte: inicioDia, $lte: finDia },
+      isActive: true
+    });
+    
+    const total = bouchers.reduce((sum, b) => sum + (b.total || 0), 0);
+    
+    // Verificar si hay cierres pendientes
+    const cierresPendientes = await CierreCaja.find({
+      fechaCierre: { $gte: inicioDia, $lte: finDia },
+      estado: 'pendiente',
+      isActive: true
+    });
+    
+    res.json({
+      abierta: true, // Asumimos que la caja está abierta si hay bouchers
+      total: total,
+      bouchers: bouchers.length,
+      cierresPendientes: cierresPendientes.length,
+      fecha: hoy
+    });
+  } catch (error) {
+    console.error('❌ Error obteniendo estado de caja:', error);
+    res.status(500).json({ 
+      error: 'Error al obtener estado de caja', 
+      message: error.message 
+    });
+  }
+});
+
+/**
  * GET /cierreCaja
  * Listado de cierres con filtros
  * Query params: mozoId, fechaDesde, fechaHasta, estado
