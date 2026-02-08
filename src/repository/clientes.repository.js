@@ -206,7 +206,21 @@ const listarClientes = async (filtros = {}) => {
             })
             .sort({ createdAt: -1 });
 
-        return clientes;
+        // Calcular totalConsumido desde bouchers si está en 0 o no existe
+        const clientesConTotal = clientes.map(cliente => {
+            const clienteObj = cliente.toObject ? cliente.toObject() : cliente;
+            
+            // Si totalConsumido es 0 o no existe, calcular desde bouchers
+            if ((!clienteObj.totalConsumido || clienteObj.totalConsumido === 0) && clienteObj.bouchers && clienteObj.bouchers.length > 0) {
+                clienteObj.totalConsumido = clienteObj.bouchers.reduce((sum, boucher) => {
+                    return sum + (boucher.total || 0);
+                }, 0);
+            }
+            
+            return clienteObj;
+        });
+
+        return clientesConTotal;
     } catch (error) {
         console.error("❌ Error al listar clientes:", error);
         throw error;

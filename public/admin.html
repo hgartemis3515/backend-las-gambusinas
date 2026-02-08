@@ -487,6 +487,78 @@
     <script>
         const API_BASE = '/api';
 
+        // ========== MODAL MANAGER (Anti-bug modales) ==========
+        const ModalManager = {
+            modal: null,
+            modalTitle: null,
+            modalBody: null,
+            
+            init() {
+                this.modal = document.getElementById('modal');
+                this.modalTitle = document.getElementById('modal-title');
+                this.modalBody = document.getElementById('modal-body');
+                
+                // Listener para cerrar con ESC
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && this.modal.classList.contains('active')) {
+                        this.cerrar();
+                    }
+                });
+                
+                // Listener para cerrar al hacer click fuera
+                this.modal.addEventListener('click', (e) => {
+                    if (e.target === this.modal) {
+                        this.cerrar();
+                    }
+                });
+            },
+            
+            abrir(titulo, contenido) {
+                if (!this.modal || !this.modalTitle || !this.modalBody) {
+                    console.error('❌ Modal no inicializado. Llamar ModalManager.init() primero.');
+                    return;
+                }
+                
+                // Limpiar contenido anterior
+                this.limpiar();
+                
+                // Establecer nuevo contenido
+                this.modalTitle.textContent = titulo || 'Detalle';
+                this.modalBody.innerHTML = contenido || '';
+                
+                // Mostrar modal
+                this.modal.style.display = 'flex';
+                this.modal.classList.add('active');
+                
+                console.log('✅ Modal abierto:', titulo);
+            },
+            
+            cerrar() {
+                if (!this.modal) return;
+                
+                // Ocultar modal
+                this.modal.classList.remove('active');
+                this.modal.style.display = 'none';
+                
+                // Limpiar contenido después de un pequeño delay para animación
+                setTimeout(() => {
+                    this.limpiar();
+                }, 300);
+                
+                console.log('✅ Modal cerrado');
+            },
+            
+            limpiar() {
+                if (this.modalTitle) this.modalTitle.textContent = '';
+                if (this.modalBody) this.modalBody.innerHTML = '';
+            }
+        };
+        
+        // Inicializar ModalManager al cargar
+        document.addEventListener('DOMContentLoaded', () => {
+            ModalManager.init();
+        });
+
         // Funciones de navegación
         function showTab(tabName, clickedElement) {
             // Remover active de todos los tabs
@@ -837,6 +909,7 @@
                                 <th>Platos</th>
                                 <th>Estado</th>
                                 <th>Fecha</th>
+                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -847,17 +920,150 @@
                                     <td>${comanda.mesas?.nummesa || 'N/A'}</td>
                                     <td>${comanda.platos?.length || 0} plato(s)</td>
                                     <td>
-                                        <span class="badge ${comanda.status === 'ingresante' ? 'badge-warning' : 'badge-success'}">
+                                        <span class="badge ${comanda.status === 'ingresante' ? 'badge-warning' : comanda.status === 'pagado' ? 'badge-success' : comanda.status === 'entregado' ? 'badge-info' : 'badge-secondary'}">
                                             ${comanda.status || 'N/A'}
                                         </span>
                                     </td>
                                     <td>${comanda.createdAt ? new Date(comanda.createdAt).toLocaleDateString() : 'N/A'}</td>
+                                    <td>
+                                        <button class="btn btn-primary" onclick="verDetalleComanda('${comanda._id}')">Ver Detalle</button>
+                                    </td>
                                 </tr>
                             `).join('')}
                         </tbody>
                     </table>
                 </div>
             `;
+        }
+
+        // Función para ver detalle de comanda
+        async function verDetalleComanda(comandaId) {
+            try {
+                console.log('🔍 [verDetalleComanda] Buscando comanda:', comandaId);
+                console.log('🔗 [verDetalleComanda] Endpoint:', `${API_BASE}/comanda/${comandaId}`);
+                
+                const response = await fetch(`${API_BASE}/comanda/${comandaId}`);
+                
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        throw new Error('Comanda no encontrada. Puede haber sido eliminada.');
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const comanda = await response.json();
+                console.log('✅ [verDetalleComanda] Comanda obtenida:', {
+                    id: comanda._id,
+                    numero: comanda.comandaNumber,
+                    platos: comanda.platos?.length || 0
+                });
+                
+                // Calcular total de la comanda
+                let totalComanda = 0;
+                if (comanda.platos && Array.isArray(comanda.platos)) {
+                    comanda.platos.forEach((platoItem, index) => {
+                        if (!platoItem.eliminado) {
+                            const plato = platoItem.plato || platoItem;
+                            const cantidad = comanda.cantidades?.[index] || 1;
+                            const precio = plato?.precio || platoItem.precio || 0;
+                            totalComanda += precio * cantidad;
+                        }
+                    });
+                }
+                const igv = totalComanda * 0.18;
+                const totalConIgv = totalComanda + igv;
+                
+                // Generar tabla de platos
+                let platosHtml = '';
+                if (comanda.platos && comanda.platos.length > 0) {
+                    platosHtml = '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;"><thead><tr style="background: #f0f0f0;"><th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Cantidad</th><th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Plato</th><th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Precio</th><th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Subtotal</th><th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Estado</th></tr></thead><tbody>';
+                    
+                    comanda.platos.forEach((platoItem, index) => {
+                        const plato = platoItem.plato || platoItem;
+                        const cantidad = comanda.cantidades?.[index] || 1;
+                        const precio = plato?.precio || platoItem.precio || 0;
+                        const subtotal = precio * cantidad;
+                        const estado = platoItem.estado || 'en_espera';
+                        const eliminado = platoItem.eliminado || false;
+                        
+                        const color = eliminado ? '#ef4444' : estado === 'entregado' ? '#10b981' : estado === 'recoger' ? '#f59e0b' : '#3b82f6';
+                        const textDecoration = eliminado ? 'line-through' : 'none';
+                        const bgColor = eliminado ? '#fee2e2' : estado === 'entregado' ? '#d1fae5' : estado === 'recoger' ? '#fef3c7' : '#dbeafe';
+                        
+                        platosHtml += `<tr style="background: ${bgColor};">
+                            <td style="padding: 8px; border: 1px solid #ddd;">${cantidad}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd; color: ${color}; text-decoration: ${textDecoration};">${plato?.nombre || platoItem.nombre || 'Sin nombre'}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">S/. ${precio.toFixed(2)}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">S/. ${subtotal.toFixed(2)}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">
+                                <span style="padding: 2px 6px; border-radius: 4px; background: ${color}; color: white; font-size: 11px;">
+                                    ${eliminado ? 'Eliminado' : estado}
+                                </span>
+                            </td>
+                        </tr>`;
+                    });
+                    
+                    platosHtml += '</tbody></table>';
+                } else {
+                    platosHtml = '<p style="color: #999;">No hay platos en esta comanda</p>';
+                }
+                
+                const modalBody = `
+                    <div style="max-width: 900px; padding: 20px;">
+                        <h3 style="margin-bottom: 20px; color: #333;">Comanda #${comanda.comandaNumber || comanda._id.slice(-6)}</h3>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
+                            <div>
+                                <strong>Mesa:</strong> ${comanda.mesas?.nummesa || 'N/A'}
+                            </div>
+                            <div>
+                                <strong>Mozo:</strong> ${comanda.mozos?.name || 'N/A'}
+                            </div>
+                            <div>
+                                <strong>Estado:</strong> 
+                                <span style="padding: 4px 8px; border-radius: 4px; background: ${comanda.status === 'pagado' ? '#10b981' : comanda.status === 'entregado' ? '#3b82f6' : comanda.status === 'recoger' ? '#f59e0b' : '#6b7280'}; color: white; font-size: 12px;">
+                                    ${comanda.status || 'N/A'}
+                                </span>
+                            </div>
+                            <div>
+                                <strong>Fecha:</strong> ${comanda.createdAt ? new Date(comanda.createdAt).toLocaleString('es-PE') : 'N/A'}
+                            </div>
+                            ${comanda.cliente ? `
+                                <div>
+                                    <strong>Cliente:</strong> ${comanda.cliente?.nombre || comanda.cliente?.dni || 'N/A'}
+                                </div>
+                            ` : ''}
+                            ${comanda.observaciones ? `
+                                <div style="grid-column: 1 / -1;">
+                                    <strong>Observaciones:</strong> ${comanda.observaciones}
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <h4 style="margin-bottom: 10px; color: #333;">Platos</h4>
+                            ${platosHtml}
+                        </div>
+                        <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #ddd;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <strong>Subtotal:</strong>
+                                <strong>S/. ${totalComanda.toFixed(2)}</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <strong>IGV (18%):</strong>
+                                <strong>S/. ${igv.toFixed(2)}</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 18px; color: #10b981; font-weight: bold; padding-top: 10px; border-top: 1px solid #ddd;">
+                                <strong>TOTAL:</strong>
+                                <strong>S/. ${totalConIgv.toFixed(2)}</strong>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                ModalManager.abrir('Detalle de Comanda', modalBody);
+            } catch (error) {
+                console.error('Error al cargar comanda:', error);
+                alert('Error al cargar la comanda: ' + error.message);
+            }
         }
 
         // Variable global para almacenar el ID del item en edición
@@ -1062,13 +1268,12 @@
                 `;
             }
 
-            modal.classList.add('active');
+            // Usar ModalManager para abrir
+            ModalManager.abrir(modalTitle.textContent, modalBody.innerHTML);
         }
 
         function closeModal() {
-            const modal = document.getElementById('modal');
-            modal.classList.remove('active');
-            modal.style.display = 'none';
+            ModalManager.cerrar();
             editingId = null;
         }
 
@@ -1432,9 +1637,7 @@
                     </div>
                 `;
                 
-                document.getElementById('modal-title').textContent = 'Detalle del Boucher';
-                document.getElementById('modal-body').innerHTML = modalBody;
-                document.getElementById('modal').classList.add('active');
+                ModalManager.abrir('Detalle del Boucher', modalBody);
             } catch (error) {
                 alert('Error al cargar el boucher: ' + error.message);
             }
@@ -1625,6 +1828,29 @@
                 return;
             }
 
+            // Calcular totalConsumido desde bouchers si está en 0 (fallback frontend)
+            const clientesConTotal = clientes.map(cliente => {
+                let totalConsumido = cliente.totalConsumido || 0;
+                
+                // Si totalConsumido es 0 pero hay bouchers, calcular desde bouchers
+                if (totalConsumido === 0 && cliente.bouchers && cliente.bouchers.length > 0) {
+                    totalConsumido = cliente.bouchers.reduce((sum, boucher) => {
+                        return sum + (boucher.total || 0);
+                    }, 0);
+                }
+                
+                return { ...cliente, totalConsumido };
+            });
+
+            console.group('📊 Clientes cargados:');
+            console.table(clientesConTotal.map(c => ({
+                id: c.clienteId || c._id?.slice(-6),
+                nombre: c.nombre || '-',
+                totalConsumido: c.totalConsumido,
+                bouchers: c.bouchers?.length || 0
+            })));
+            console.groupEnd();
+
             container.innerHTML = `
                 <div class="table-container">
                     <table>
@@ -1641,7 +1867,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            ${clientes.map(cliente => `
+                            ${clientesConTotal.map(cliente => `
                                 <tr style="cursor: pointer;" onclick="verDetalleCliente('${cliente._id}')">
                                     <td>${cliente.clienteId || cliente._id.slice(-6)}</td>
                                     <td>${cliente.nombre || '-'}</td>
@@ -1767,9 +1993,7 @@
                     </div>
                 `;
 
-                document.getElementById('modal-title').textContent = `Detalle Cliente: ${cliente.nombre || 'Invitado'}`;
-                document.getElementById('modal-body').innerHTML = modalBody;
-                document.getElementById('modal').classList.add('active');
+                ModalManager.abrir(`Detalle Cliente: ${cliente.nombre || 'Invitado'}`, modalBody);
             } catch (error) {
                 alert('Error al cargar detalle del cliente: ' + error.message);
             }
@@ -2466,9 +2690,7 @@
                     </div>
                 `;
                 
-                document.getElementById('modal-title').textContent = 'Detalle Cierre de Caja';
-                document.getElementById('modal-body').innerHTML = modalBody;
-                document.getElementById('modal').classList.add('active');
+                ModalManager.abrir('Detalle Cierre de Caja', modalBody);
             } catch (error) {
                 alert('Error al cargar cierre de caja: ' + error.message);
             }

@@ -16,7 +16,8 @@ const {
   cambiarEstadoPlato, 
   revertirStatusComanda,
   getComandasParaPagar,
-  recalcularEstadoMesa
+  recalcularEstadoMesa,
+  ensurePlatosPopulated
 } = require('../repository/comanda.repository');
 
 const { registrarAuditoria } = require('../middleware/auditoria');
@@ -74,6 +75,42 @@ router.get('/comanda/fechastatus/:fecha', async (req, res) => {
     }
 });
 
+// GET /api/comanda/:id - Obtener comanda por ID
+router.get('/comanda/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const mongoose = require('mongoose');
+        
+        // Validar que el ID sea un ObjectId válido
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'ID de comanda inválido' });
+        }
+        
+        const comanda = await comandaModel
+            .findById(id)
+            .populate('mozos', 'name DNI')
+            .populate('mesas', 'nummesa estado area')
+            .populate('cliente', 'nombre dni telefono tipo')
+            .populate('platos.plato', 'nombre precio categoria')
+            .lean();
+        
+        if (!comanda) {
+            return res.status(404).json({ message: 'Comanda no encontrada' });
+        }
+        
+        // Asegurar que los platos estén populados
+        const comandasConPlatos = await ensurePlatosPopulated([comanda]);
+        
+        res.json(comandasConPlatos[0] || comanda);
+    } catch (error) {
+        logger.error('Error al obtener comanda por ID', {
+            id,
+            error: error.message,
+            stack: error.stack
+        });
+        handleError(error, res, logger);
+    }
+});
 
 router.post('/comanda', async (req, res) => {
     try {

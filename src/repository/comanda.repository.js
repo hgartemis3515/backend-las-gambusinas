@@ -2025,5 +2025,6 @@ module.exports = {
   getComandasParaPagar,
   validarComandasParaPagar,
   importarComandasDesdeJSON,
-  buildPlatoIdToObjectIdMap
+  buildPlatoIdToObjectIdMap,
+  ensurePlatosPopulated
 };
