@@ -159,17 +159,24 @@ router.post('/comanda', async (req, res) => {
 router.delete('/comanda/:id', async (req, res) => {
     const { id } = req.params;
     const motivo = req.body?.motivo || 'Eliminación desde endpoint DELETE (legacy)';
-    const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+    let usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
     
     try {
         // Obtener snapshot antes de eliminar con datos completos
         const snapshotAntes = await comandaModel.findById(id)
             .populate('platos.plato')
             .populate('mesas')
+            .populate('mozos')
             .lean();
         
         if (!snapshotAntes) {
             return res.status(404).json({ message: 'Comanda no encontrada' });
+        }
+        
+        // Si no hay usuarioId en el request, obtenerlo de la comanda (mozo que creó la comanda)
+        if (!usuarioId && snapshotAntes.mozos) {
+            usuarioId = snapshotAntes.mozos._id || snapshotAntes.mozos;
+            console.log('✅ [DELETE /comanda/:id] UsuarioId obtenido de comanda.mozos:', usuarioId);
         }
         
         // Calcular total eliminado y platos eliminados
@@ -258,7 +265,7 @@ router.delete('/comanda/:id', async (req, res) => {
 router.put('/comanda/:id/eliminar', async (req, res) => {
     const { id } = req.params;
     const { motivo } = req.body;
-    const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+    let usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
     
     // Validar que el motivo sea obligatorio
     if (!motivo || motivo.trim() === '') {
@@ -268,8 +275,24 @@ router.put('/comanda/:id/eliminar', async (req, res) => {
     }
     
     try {
-        // Obtener snapshot antes de eliminar
-        const snapshotAntes = await comandaModel.findById(id);
+        // Obtener comanda para verificar y obtener mozo si no hay usuarioId
+        const comandaCheck = await comandaModel.findById(id).populate('mozos').lean();
+        if (!comandaCheck) {
+            return res.status(404).json({ message: 'Comanda no encontrada' });
+        }
+        
+        // Si no hay usuarioId en el request, obtenerlo de la comanda (mozo que creó la comanda)
+        if (!usuarioId && comandaCheck.mozos) {
+            usuarioId = comandaCheck.mozos._id || comandaCheck.mozos;
+            console.log('✅ [PUT /comanda/:id/eliminar] UsuarioId obtenido de comanda.mozos:', usuarioId);
+        }
+        
+        // Obtener snapshot antes de eliminar (ya tenemos comandaCheck, pero necesitamos snapshot completo para auditoría)
+        const snapshotAntes = await comandaModel.findById(id)
+            .populate('platos.plato')
+            .populate('mesas')
+            .populate('mozos')
+            .lean();
         if (!snapshotAntes) {
             return res.status(404).json({ message: 'Comanda no encontrada' });
         }
@@ -314,7 +337,7 @@ router.put('/comanda/:id/eliminar', async (req, res) => {
 router.delete('/comanda/:id/ultima', async (req, res) => {
     const { id } = req.params;
     const { motivo } = req.body;
-    const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+    let usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
     
     // Validar que el motivo sea obligatorio
     if (!motivo || motivo.trim() === '') {
@@ -328,10 +351,17 @@ router.delete('/comanda/:id/ultima', async (req, res) => {
         const snapshotAntes = await comandaModel.findById(id)
             .populate('platos.plato')
             .populate('mesas')
+            .populate('mozos')
             .lean();
         
         if (!snapshotAntes) {
             return res.status(404).json({ message: 'Comanda no encontrada' });
+        }
+        
+        // Si no hay usuarioId en el request, obtenerlo de la comanda (mozo que creó la comanda)
+        if (!usuarioId && snapshotAntes.mozos) {
+            usuarioId = snapshotAntes.mozos._id || snapshotAntes.mozos;
+            console.log('✅ [DELETE /comanda/:id/ultima] UsuarioId obtenido de comanda.mozos:', usuarioId);
         }
         
         // Calcular total eliminado
@@ -422,7 +452,7 @@ router.delete('/comanda/:id/ultima', async (req, res) => {
 router.delete('/comanda/:id/individual', async (req, res) => {
     const { id } = req.params;
     const { motivo } = req.body;
-    const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+    let usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
     
     // Validar que el motivo sea obligatorio
     if (!motivo || motivo.trim() === '') {
@@ -436,10 +466,17 @@ router.delete('/comanda/:id/individual', async (req, res) => {
         const snapshotAntes = await comandaModel.findById(id)
             .populate('platos.plato')
             .populate('mesas')
+            .populate('mozos')
             .lean();
         
         if (!snapshotAntes) {
             return res.status(404).json({ message: 'Comanda no encontrada' });
+        }
+        
+        // Si no hay usuarioId en el request, obtenerlo de la comanda (mozo que creó la comanda)
+        if (!usuarioId && snapshotAntes.mozos) {
+            usuarioId = snapshotAntes.mozos._id || snapshotAntes.mozos;
+            console.log('✅ [DELETE /comanda/:id/individual] UsuarioId obtenido de comanda.mozos:', usuarioId);
         }
         
         // Calcular total eliminado y platos eliminados
@@ -531,7 +568,7 @@ router.delete('/comanda/:id/individual', async (req, res) => {
 router.delete('/comanda/mesa/:mesaId/todas', async (req, res) => {
     const { mesaId } = req.params;
     const { motivo } = req.body;
-    const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+    let usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
     
     // Validar que el motivo sea obligatorio
     if (!motivo || motivo.trim() === '') {
@@ -549,10 +586,17 @@ router.delete('/comanda/mesa/:mesaId/todas', async (req, res) => {
         })
         .populate('platos.plato')
         .populate('mesas')
+        .populate('mozos')
         .lean();
         
         if (!comandas || comandas.length === 0) {
             return res.status(404).json({ message: 'No hay comandas activas para eliminar en esta mesa' });
+        }
+        
+        // Si no hay usuarioId en el request, obtenerlo de la primera comanda (mozo que creó la comanda)
+        if (!usuarioId && comandas.length > 0 && comandas[0].mozos) {
+            usuarioId = comandas[0].mozos._id || comandas[0].mozos;
+            console.log('✅ [DELETE /comanda/mesa/:mesaId/todas] UsuarioId obtenido de primera comanda.mozos:', usuarioId);
         }
         
         // Calcular totales y preparar datos de auditoría

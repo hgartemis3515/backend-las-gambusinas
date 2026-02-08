@@ -2104,6 +2104,21 @@
                 return;
             }
 
+            // Debug: Log primeros 5 registros para verificar estructura
+            console.group('🔍 [displayAuditoria] Debug - Primeros 5 registros:');
+            auditorias.slice(0, 5).forEach((aud, idx) => {
+                console.log(`Registro ${idx + 1}:`, {
+                    _id: aud._id,
+                    accion: aud.accion,
+                    usuario: aud.usuario,
+                    usuarioType: typeof aud.usuario,
+                    usuarioName: aud.usuario?.name,
+                    usuarioNombre: aud.usuario?.nombre,
+                    usuarioId: aud.usuario?._id
+                });
+            });
+            console.groupEnd();
+
             container.innerHTML = `
                 <div class="table-container">
                     <table>
@@ -2134,11 +2149,40 @@
                                     ? `${cantidadComandas} comandas` 
                                     : (aud.metadata?.comandaNumber || 'N/A');
                                 
+                                // LÓGICA ROBUSTA TRIPLE PRIORIDAD para extraer nombre de usuario
+                                let nombreUsuario = 'Sistema';
+                                
+                                // PRIORIDAD 1: Usuario populado como objeto con name
+                                if (aud.usuario && typeof aud.usuario === 'object' && aud.usuario !== null) {
+                                    // Verificar si tiene la propiedad name
+                                    if (aud.usuario.name) {
+                                        nombreUsuario = aud.usuario.name;
+                                    } else if (aud.usuario.nombre) {
+                                        nombreUsuario = aud.usuario.nombre;
+                                    } else if (aud.usuario._id) {
+                                        // Tiene _id pero no name - puede ser que el populate falló parcialmente
+                                        console.warn('⚠️ Usuario populado sin name:', aud._id, aud.usuario);
+                                        nombreUsuario = 'Usuario sin nombre';
+                                    } else {
+                                        nombreUsuario = 'Usuario desconocido';
+                                    }
+                                }
+                                // PRIORIDAD 2: Usuario como string (ObjectId no populado - raro pero posible)
+                                else if (aud.usuario && typeof aud.usuario === 'string') {
+                                    console.warn('⚠️ Usuario no populado (solo ObjectId):', aud._id, aud.usuario);
+                                    nombreUsuario = 'Sistema'; // Mantener "Sistema" si no está populado
+                                }
+                                // PRIORIDAD 3: Sin usuario (null/undefined) - acción automática
+                                else {
+                                    // aud.usuario es null/undefined - acción del sistema
+                                    nombreUsuario = 'Sistema';
+                                }
+                                
                                 return `
                                 <tr>
                                     <td>${new Date(aud.timestamp).toLocaleString('es-PE')}</td>
                                     <td><span style="padding: 4px 8px; border-radius: 4px; background: ${getAccionColor(aud.accion)}; color: white; font-size: 12px;">${accionNombre}</span></td>
-                                    <td>${aud.usuario?.name || 'Sistema'}</td>
+                                    <td>${nombreUsuario}</td>
                                     <td>${comandaInfo}${infoAdicional}</td>
                                     <td>${aud.motivo || '-'}</td>
                                     <td>${aud.ip || '-'}</td>
@@ -2425,12 +2469,43 @@
                     }
                 }
                 
+                // LÓGICA ROBUSTA TRIPLE PRIORIDAD (igual que en tabla)
+                let nombreUsuarioDetalle = 'Sistema';
+                
+                // PRIORIDAD 1: Usuario populado como objeto con name
+                if (aud.usuario && typeof aud.usuario === 'object' && aud.usuario !== null) {
+                    if (aud.usuario.name) {
+                        nombreUsuarioDetalle = aud.usuario.name;
+                    } else if (aud.usuario.nombre) {
+                        nombreUsuarioDetalle = aud.usuario.nombre;
+                    } else if (aud.usuario._id) {
+                        nombreUsuarioDetalle = 'Usuario sin nombre';
+                    } else {
+                        nombreUsuarioDetalle = 'Usuario desconocido';
+                    }
+                }
+                // PRIORIDAD 2: Usuario como string (ObjectId no populado)
+                else if (aud.usuario && typeof aud.usuario === 'string') {
+                    nombreUsuarioDetalle = 'Sistema';
+                }
+                // PRIORIDAD 3: Sin usuario (null/undefined)
+                else {
+                    nombreUsuarioDetalle = 'Sistema';
+                }
+                
+                console.log('🔍 [verDetalleAuditoria] Usuario extraído:', {
+                    auditoriaId: aud._id,
+                    usuarioRaw: aud.usuario,
+                    usuarioType: typeof aud.usuario,
+                    nombreFinal: nombreUsuarioDetalle
+                });
+                
                 const modalBody = `
                     <div style="padding: 20px;">
                         <div style="margin-bottom: 15px;">
                             <strong>Acción:</strong> <span style="padding: 4px 8px; border-radius: 4px; background: ${getAccionColor(aud.accion)}; color: white; font-size: 12px;">${aud.accion}</span><br>
                             <strong>Fecha:</strong> ${new Date(aud.timestamp).toLocaleString('es-PE')}<br>
-                            <strong>Usuario:</strong> ${aud.usuario?.name || 'Sistema'}<br>
+                            <strong>Usuario:</strong> ${nombreUsuarioDetalle}<br>
                             <strong>Motivo:</strong> ${aud.motivo || 'N/A'}<br>
                             <strong>IP:</strong> ${aud.ip || 'N/A'}<br>
                         </div>
@@ -2456,11 +2531,7 @@
                     </div>
                 `;
 
-                document.getElementById('modal-title').textContent = 'Detalle de Auditoría';
-                document.getElementById('modal-body').innerHTML = modalBody;
-                const modal = document.getElementById('modal');
-                modal.style.display = 'block';
-                modal.classList.add('active');
+                ModalManager.abrir('Detalle de Auditoría', modalBody);
             } catch (error) {
                 alert('Error al cargar detalle: ' + error.message);
             }

@@ -60,13 +60,68 @@ router.get('/auditoria/comandas', async (req, res) => {
     }
     
     const auditorias = await AuditoriaAcciones.find(query)
-      .populate('usuario', 'name DNI')
+      .populate({
+        path: 'usuario',
+        model: 'mozos',
+        select: 'name DNI',
+        options: { lean: false }
+      })
+      .lean() // Convertir a objetos planos para mejor serialización JSON
       .sort({ timestamp: -1 })
       .limit(parseInt(limit));
     
+    // Importar modelo de mozos para fallback si populate falla
+    const mozosModel = require('../database/models/mozos.model');
+    
+    // Verificar y corregir populate de usuario
+    const auditoriasConNombre = await Promise.all(auditorias.map(async (aud) => {
+      // Si usuario existe pero no está populado (es solo ObjectId string)
+      if (aud.usuario && typeof aud.usuario === 'string') {
+        try {
+          // Fallback: buscar el mozo manualmente
+          const mozo = await mozosModel.findById(aud.usuario).select('name DNI').lean();
+          if (mozo && mozo.name) {
+            aud.usuario = { _id: mozo._id, name: mozo.name, DNI: mozo.DNI };
+            console.log('✅ [auditoriaController] Usuario populado manualmente (fallback):', {
+              auditoriaId: aud._id,
+              usuarioName: mozo.name
+            });
+          } else {
+            console.warn('⚠️ [auditoriaController] No se encontró mozo para ObjectId:', aud.usuario);
+            aud.usuario = null;
+          }
+        } catch (error) {
+          console.error('❌ [auditoriaController] Error al buscar mozo:', error.message);
+          aud.usuario = null;
+        }
+      }
+      
+      // Debug: Verificar populate de usuario
+      if (aud.usuario) {
+        if (typeof aud.usuario === 'object' && aud.usuario !== null) {
+          if (aud.usuario.name) {
+            console.log('✅ [auditoriaController] Usuario populado correctamente:', {
+              auditoriaId: aud._id,
+              usuarioName: aud.usuario.name
+            });
+          } else if (aud.usuario._id) {
+            console.warn('⚠️ [auditoriaController] Usuario populado sin name:', {
+              auditoriaId: aud._id,
+              usuarioId: aud.usuario._id,
+              usuarioObj: aud.usuario
+            });
+          }
+        }
+      } else {
+        console.log('ℹ️ [auditoriaController] Auditoría sin usuario (acción automática):', aud._id);
+      }
+      
+      return aud;
+    }));
+    
     res.json({
-      total: auditorias.length,
-      auditorias: auditorias
+      total: auditoriasConNombre.length,
+      auditorias: auditoriasConNombre
     });
   } catch (error) {
     console.error('❌ Error al obtener auditoría de comandas:', error);
