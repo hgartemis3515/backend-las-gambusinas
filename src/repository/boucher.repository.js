@@ -1,6 +1,11 @@
 const boucherModel = require("../database/models/boucher.model");
 const { syncJsonFile } = require('../utils/jsonSync');
 const { asociarBoucherACliente } = require('./clientes.repository');
+const fs = require('fs');
+const path = require('path');
+const mongoose = require('mongoose');
+
+const DATA_DIR = path.join(__dirname, '../../data');
 
 /**
  * Generates a random 5-character alphanumeric voucher ID
@@ -350,12 +355,86 @@ const obtenerBoucherPorMesa = async (mesaId) => {
     }
 };
 
+/**
+ * Importa bouchers desde data/boucher.json. Reemplaza refs de plato por _id actual en BD.
+ */
+const importarBoucherDesdeJSON = async () => {
+    try {
+        const filePath = path.join(DATA_DIR, 'boucher.json');
+        if (!fs.existsSync(filePath)) {
+            console.log('⚠️ Archivo boucher.json no encontrado');
+            return { imported: 0, updated: 0, errors: 0 };
+        }
+        const jsonData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        if (!Array.isArray(jsonData)) {
+            console.log('⚠️ boucher.json no contiene un array válido');
+            return { imported: 0, updated: 0, errors: 0 };
+        }
+        const platoModel = require('../database/models/plato.model');
+        const platos = await platoModel.find({}).select('id _id').lean();
+        const platoIdMap = new Map();
+        platos.forEach(p => { if (p.id != null) platoIdMap.set(Number(p.id), p._id); });
+        const toObjId = (id) => (id ? new mongoose.Types.ObjectId(id) : null);
+        let imported = 0, errors = 0;
+        for (const item of jsonData) {
+            try {
+                const existente = await boucherModel.findOne({ voucherId: item.voucherId });
+                if (existente) continue;
+                const platosArr = (item.platos || []).map(p => ({
+                    plato: platoIdMap.get(Number(p.platoId)) || toObjId(p.plato),
+                    platoId: p.platoId,
+                    nombre: p.nombre,
+                    precio: p.precio,
+                    cantidad: p.cantidad ?? 1,
+                    subtotal: p.subtotal,
+                    comandaNumber: p.comandaNumber
+                }));
+                await boucherModel.create({
+                    _id: toObjId(item._id),
+                    voucherId: item.voucherId,
+                    mesa: toObjId(item.mesa),
+                    numMesa: item.numMesa,
+                    mozo: toObjId(item.mozo),
+                    nombreMozo: item.nombreMozo,
+                    cliente: toObjId(item.cliente),
+                    usadoEnComanda: toObjId(item.usadoEnComanda),
+                    fechaUso: item.fechaUso ? new Date(item.fechaUso) : null,
+                    comandas: Array.isArray(item.comandas) ? item.comandas.map(id => toObjId(id)) : [],
+                    comandasNumbers: item.comandasNumbers || [],
+                    platos: platosArr,
+                    subtotal: item.subtotal ?? 0,
+                    igv: item.igv ?? 0,
+                    total: item.total ?? 0,
+                    observaciones: item.observaciones || '',
+                    fechaPago: item.fechaPago ? new Date(item.fechaPago) : new Date(),
+                    fechaPagoString: item.fechaPagoString || null,
+                    isActive: item.isActive !== false,
+                    createdAt: item.createdAt ? new Date(item.createdAt) : undefined,
+                    updatedAt: item.updatedAt ? new Date(item.updatedAt) : undefined
+                });
+                imported++;
+            } catch (err) {
+                errors++;
+                console.error(`❌ Error al importar boucher ${item.voucherId}:`, err.message);
+            }
+        }
+        if (imported > 0 || errors > 0) {
+            console.log(`✅ Boucher: ${imported} importados${errors ? `, ${errors} errores` : ''}`);
+        }
+        return { imported, updated: 0, errors };
+    } catch (error) {
+        console.error('❌ Error al importar boucher:', error.message);
+        return { imported: 0, updated: 0, errors: 1 };
+    }
+};
+
 module.exports = {
     listarBouchers,
     listarBouchersPorFecha,
     obtenerBoucherPorId,
     crearBoucher,
     eliminarBoucher,
-    obtenerBoucherPorMesa
+    obtenerBoucherPorMesa,
+    importarBoucherDesdeJSON
 };
 

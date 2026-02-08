@@ -1,6 +1,10 @@
 const mozos = require('../database/models/mozos.model');
 const mongoose = require('mongoose');
 const { syncJsonFile } = require('../utils/jsonSync');
+const fs = require('fs');
+const path = require('path');
+
+const DATA_DIR = path.join(__dirname, '../../data');
 
 const listarMozos = async () => {
     const data = await mozos.find();
@@ -129,6 +133,47 @@ const autenticarMozo = async (name, DNI) => {
     }
 };
 
+/**
+ * Importa mozos desde data/mozos.json.
+ */
+const importarMozosDesdeJSON = async () => {
+    try {
+        const filePath = path.join(DATA_DIR, 'mozos.json');
+        if (!fs.existsSync(filePath)) {
+            console.log('⚠️ Archivo mozos.json no encontrado');
+            return { imported: 0, updated: 0, errors: 0 };
+        }
+        const jsonData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        const arr = Array.isArray(jsonData) ? jsonData : [jsonData];
+        let imported = 0, errors = 0;
+        for (const item of arr) {
+            try {
+                const key = item.mozoId != null ? item.mozoId : item.DNI;
+                const existente = await mozos.findOne({ $or: [{ mozoId: item.mozoId }, { DNI: item.DNI }, { name: item.name }] });
+                if (existente) continue;
+                await mozos.create({
+                    _id: item._id ? new mongoose.Types.ObjectId(item._id) : undefined,
+                    mozoId: item.mozoId,
+                    name: item.name,
+                    DNI: item.DNI,
+                    phoneNumber: item.phoneNumber != null ? item.phoneNumber : 0
+                });
+                imported++;
+            } catch (err) {
+                errors++;
+                console.error(`❌ Error al importar mozo ${item.name}:`, err.message);
+            }
+        }
+        if (imported > 0 || errors > 0) {
+            console.log(`✅ Mozos: ${imported} importados${errors ? `, ${errors} errores` : ''}`);
+        }
+        return { imported, updated: 0, errors };
+    } catch (error) {
+        console.error('❌ Error al importar mozos:', error.message);
+        return { imported: 0, updated: 0, errors: 1 };
+    }
+};
+
 const inicializarUsuarioAdmin = async () => {
     try {
         // Verificar si el usuario admin ya existe (buscar por nombre primero)
@@ -184,5 +229,6 @@ module.exports = {
     actualizarMozo,
     borrarMozo,
     autenticarMozo,
-    inicializarUsuarioAdmin
+    inicializarUsuarioAdmin,
+    importarMozosDesdeJSON
 };

@@ -6,6 +6,11 @@ const { syncJsonFile } = require('../utils/jsonSync');
 const logger = require('../utils/logger');
 const { AppError } = require('../utils/errorHandler');
 const moment = require('moment-timezone');
+const fs = require('fs');
+const path = require('path');
+const mongoose = require('mongoose');
+
+const DATA_DIR = path.join(__dirname, '../../data');
 
 // Función helper para asegurar que los platos estén populados
 const ensurePlatosPopulated = async (comandas) => {
@@ -1891,6 +1896,117 @@ const validarComandasParaPagar = async (mesaId, comandasIds) => {
   }
 };
 
+/**
+ * Construye mapa platoId (numérico) -> _id actual en BD. Llamar después de importar platos.
+ */
+const buildPlatoIdToObjectIdMap = async () => {
+  const platos = await platoModel.find({}).select('id _id').lean();
+  const map = new Map();
+  platos.forEach(p => { if (p.id != null) map.set(Number(p.id), p._id); });
+  return map;
+};
+
+/**
+ * Importa comandas desde data/comandas.json. Reemplaza refs de plato por _id actual en BD.
+ */
+const importarComandasDesdeJSON = async () => {
+  try {
+    const filePath = path.join(DATA_DIR, 'comandas.json');
+    if (!fs.existsSync(filePath)) {
+      console.log('⚠️ Archivo comandas.json no encontrado');
+      return { imported: 0, updated: 0, errors: 0 };
+    }
+    const jsonData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    if (!Array.isArray(jsonData)) {
+      console.log('⚠️ comandas.json no contiene un array válido');
+      return { imported: 0, updated: 0, errors: 0 };
+    }
+    const platoIdMap = await buildPlatoIdToObjectIdMap();
+    const toObjId = (id) => (id ? new mongoose.Types.ObjectId(id) : null);
+    let imported = 0, errors = 0;
+    for (const item of jsonData) {
+      try {
+        const existente = await comandaModel.findById(item._id).lean();
+        if (existente) continue;
+        const platos = (item.platos || []).map(p => ({
+          plato: platoIdMap.get(Number(p.platoId)) || toObjId(p.plato),
+          platoId: p.platoId,
+          estado: p.estado || 'en_espera',
+          eliminado: p.eliminado === true,
+          eliminadoPor: toObjId(p.eliminadoPor),
+          eliminadoAt: p.eliminadoAt ? new Date(p.eliminadoAt) : null,
+          eliminadoRazon: p.eliminadoRazon || null
+        }));
+        const doc = {
+          _id: toObjId(item._id),
+          mozos: toObjId(item.mozos),
+          mesas: toObjId(item.mesas),
+          cliente: toObjId(item.cliente),
+          dividedFrom: toObjId(item.dividedFrom),
+          platos,
+          cantidades: item.cantidades || platos.map(() => 1),
+          observaciones: item.observaciones || '',
+          status: item.status || 'en_espera',
+          IsActive: item.IsActive !== false,
+          comandaNumber: item.comandaNumber,
+          tiempoEnEspera: item.tiempoEnEspera ? new Date(item.tiempoEnEspera) : null,
+          tiempoRecoger: item.tiempoRecoger ? new Date(item.tiempoRecoger) : null,
+          tiempoEntregado: item.tiempoEntregado ? new Date(item.tiempoEntregado) : null,
+          tiempoPagado: item.tiempoPagado ? new Date(item.tiempoPagado) : null,
+          createdBy: toObjId(item.createdBy),
+          updatedBy: toObjId(item.updatedBy),
+          deviceId: item.deviceId || null,
+          sourceApp: item.sourceApp || null,
+          fechaEliminacion: item.fechaEliminacion ? new Date(item.fechaEliminacion) : null,
+          motivoEliminacion: item.motivoEliminacion || null,
+          eliminadaPor: toObjId(item.eliminadaPor),
+          precioTotalOriginal: item.precioTotalOriginal ?? 0,
+          precioTotal: item.precioTotal ?? 0,
+          version: item.version ?? 1,
+          createdAt: item.createdAt ? new Date(item.createdAt) : undefined,
+          updatedAt: item.updatedAt ? new Date(item.updatedAt) : undefined
+        };
+        if (item.historialEstados && item.historialEstados.length) {
+          doc.historialEstados = item.historialEstados.map(h => ({
+            status: h.status,
+            statusAnterior: h.statusAnterior,
+            timestamp: h.timestamp ? new Date(h.timestamp) : new Date(),
+            usuario: toObjId(h.usuario),
+            accion: h.accion,
+            deviceId: h.deviceId,
+            sourceApp: h.sourceApp,
+            motivo: h.motivo
+          }));
+        }
+        if (item.historialPlatos && item.historialPlatos.length) {
+          doc.historialPlatos = item.historialPlatos.map(h => ({
+            platoId: h.platoId,
+            nombreOriginal: h.nombreOriginal,
+            cantidadOriginal: h.cantidadOriginal,
+            cantidadFinal: h.cantidadFinal,
+            estado: h.estado || 'activo',
+            timestamp: h.timestamp ? new Date(h.timestamp) : new Date(),
+            usuario: toObjId(h.usuario),
+            motivo: h.motivo
+          }));
+        }
+        await comandaModel.create(doc);
+        imported++;
+      } catch (err) {
+        errors++;
+        console.error(`❌ Error al importar comanda ${item.comandaNumber || item._id}:`, err.message);
+      }
+    }
+    if (imported > 0 || errors > 0) {
+      console.log(`✅ Comandas: ${imported} importadas${errors ? `, ${errors} errores` : ''}`);
+    }
+    return { imported, updated: 0, errors };
+  } catch (error) {
+    console.error('❌ Error al importar comandas:', error.message);
+    return { imported: 0, updated: 0, errors: 1 };
+  }
+};
+
 module.exports = { 
   listarComanda, 
   agregarComanda, 
@@ -1907,5 +2023,7 @@ module.exports = {
   recalcularEstadoMesa,
   validarTransicionEstado, // Exportar para tests
   getComandasParaPagar,
-  validarComandasParaPagar
+  validarComandasParaPagar,
+  importarComandasDesdeJSON,
+  buildPlatoIdToObjectIdMap
 };

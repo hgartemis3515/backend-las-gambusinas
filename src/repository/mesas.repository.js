@@ -1,5 +1,10 @@
 const mesas = require('../database/models/mesas.model');
 const { syncJsonFile } = require('../utils/jsonSync');
+const fs = require('fs');
+const path = require('path');
+const mongoose = require('mongoose');
+
+const DATA_DIR = path.join(__dirname, '../../data');
 
 const listarMesas = async () => {
     const data = await mesas.find({}).populate('area');
@@ -177,6 +182,55 @@ const actualizarEstadoMesa = async (mesaId, nuevoEstado, esAdmin = false) => {
 }
 
 
+/**
+ * Importa mesas desde data/mesas.json. Ejecutar después de importar áreas.
+ */
+const importarMesasDesdeJSON = async () => {
+    try {
+        const filePath = path.join(DATA_DIR, 'mesas.json');
+        if (!fs.existsSync(filePath)) {
+            console.log('⚠️ Archivo mesas.json no encontrado');
+            return { imported: 0, updated: 0, errors: 0 };
+        }
+        const jsonData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        if (!Array.isArray(jsonData)) {
+            console.log('⚠️ mesas.json no contiene un array válido');
+            return { imported: 0, updated: 0, errors: 0 };
+        }
+        let imported = 0, errors = 0;
+        for (const item of jsonData) {
+            try {
+                const existente = await mesas.findOne({ mesasId: item.mesasId });
+                if (existente) continue;
+                const areaId = item.area && (item.area._id || item.area) ? new mongoose.Types.ObjectId(item.area._id || item.area) : null;
+                if (!areaId) {
+                    errors++;
+                    continue;
+                }
+                await mesas.create({
+                    _id: item._id ? new mongoose.Types.ObjectId(item._id) : undefined,
+                    mesasId: item.mesasId,
+                    nummesa: item.nummesa,
+                    isActive: item.isActive !== false,
+                    estado: item.estado || 'libre',
+                    area: areaId
+                });
+                imported++;
+            } catch (err) {
+                errors++;
+                console.error(`❌ Error al importar mesa ${item.nummesa}:`, err.message);
+            }
+        }
+        if (imported > 0 || errors > 0) {
+            console.log(`✅ Mesas: ${imported} importadas${errors ? `, ${errors} errores` : ''}`);
+        }
+        return { imported, updated: 0, errors };
+    } catch (error) {
+        console.error('❌ Error al importar mesas:', error.message);
+        return { imported: 0, updated: 0, errors: 1 };
+    }
+};
+
 const borrarMesa = async (id) => {
     // Usar _id (ObjectId de MongoDB) para eliminar
     await mesas.findByIdAndDelete(id);
@@ -226,5 +280,6 @@ module.exports = {
     actualizarMesa,
     borrarMesa,
     actualizarEstadoMesa,
-    liberarTodasLasMesas
+    liberarTodasLasMesas,
+    importarMesasDesdeJSON
 };

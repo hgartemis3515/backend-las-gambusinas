@@ -1,5 +1,10 @@
 const Area = require('../database/models/area.model');
 const { syncJsonFile } = require('../utils/jsonSync');
+const fs = require('fs');
+const path = require('path');
+const mongoose = require('mongoose');
+
+const DATA_DIR = path.join(__dirname, '../../data');
 
 const listarAreas = async () => {
     try {
@@ -67,6 +72,52 @@ const actualizarArea = async (id, newData) => {
     }
 };
 
+/**
+ * Importa áreas desde data/areas.json a MongoDB.
+ * Preserva _id del JSON para que mesas puedan referenciarlas.
+ */
+const importarAreasDesdeJSON = async () => {
+    try {
+        const filePath = path.join(DATA_DIR, 'areas.json');
+        if (!fs.existsSync(filePath)) {
+            console.log('⚠️ Archivo areas.json no encontrado');
+            return { imported: 0, updated: 0, errors: 0 };
+        }
+        const jsonData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        if (!Array.isArray(jsonData)) {
+            console.log('⚠️ areas.json no contiene un array válido');
+            return { imported: 0, updated: 0, errors: 0 };
+        }
+        let imported = 0, errors = 0;
+        for (const item of jsonData) {
+            try {
+                const existente = await Area.findOne({ areaId: item.areaId });
+                if (existente) continue;
+                await Area.create({
+                    _id: item._id ? new mongoose.Types.ObjectId(item._id) : undefined,
+                    areaId: item.areaId,
+                    nombre: item.nombre,
+                    descripcion: item.descripcion != null ? item.descripcion : '',
+                    isActive: item.isActive !== false,
+                    createdAt: item.createdAt ? new Date(item.createdAt) : undefined,
+                    updatedAt: item.updatedAt ? new Date(item.updatedAt) : undefined
+                });
+                imported++;
+            } catch (err) {
+                errors++;
+                console.error(`❌ Error al importar área ${item.nombre || item.areaId}:`, err.message);
+            }
+        }
+        if (imported > 0 || errors > 0) {
+            console.log(`✅ Áreas: ${imported} importadas${errors ? `, ${errors} errores` : ''}`);
+        }
+        return { imported, updated: 0, errors };
+    } catch (error) {
+        console.error('❌ Error al importar áreas:', error.message);
+        return { imported: 0, updated: 0, errors: 1 };
+    }
+};
+
 const borrarArea = async (id) => {
     try {
         // Verificar si hay mesas asociadas a esta área
@@ -92,6 +143,7 @@ module.exports = {
     obtenerAreaPorId,
     crearArea,
     actualizarArea,
-    borrarArea
+    borrarArea,
+    importarAreasDesdeJSON
 };
 

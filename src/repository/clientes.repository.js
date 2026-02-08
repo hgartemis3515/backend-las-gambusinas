@@ -1,5 +1,63 @@
 const clienteModel = require("../database/models/cliente.model");
 const { syncJsonFile } = require('../utils/jsonSync');
+const fs = require('fs');
+const path = require('path');
+const mongoose = require('mongoose');
+
+const DATA_DIR = path.join(__dirname, '../../data');
+
+/**
+ * Importa clientes desde data/clientes.json.
+ */
+const importarClientesDesdeJSON = async () => {
+    try {
+        const filePath = path.join(DATA_DIR, 'clientes.json');
+        if (!fs.existsSync(filePath)) {
+            console.log('⚠️ Archivo clientes.json no encontrado');
+            return { imported: 0, updated: 0, errors: 0 };
+        }
+        const jsonData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        if (!Array.isArray(jsonData)) {
+            console.log('⚠️ clientes.json no contiene un array válido');
+            return { imported: 0, updated: 0, errors: 0 };
+        }
+        let imported = 0, errors = 0;
+        for (const item of jsonData) {
+            try {
+                const existente = await clienteModel.findOne({ clienteId: item.clienteId });
+                if (existente) continue;
+                const doc = {
+                    _id: item._id ? new mongoose.Types.ObjectId(item._id) : undefined,
+                    clienteId: item.clienteId,
+                    dni: item.dni ?? null,
+                    nombre: item.nombre ?? null,
+                    telefono: item.telefono ?? null,
+                    email: item.email ?? null,
+                    tipo: item.tipo || 'invitado',
+                    numeroInvitado: item.numeroInvitado ?? null,
+                    totalConsumido: item.totalConsumido ?? 0,
+                    visitas: item.visitas ?? 0,
+                    comandas: Array.isArray(item.comandas) ? item.comandas.map(id => new mongoose.Types.ObjectId(id)) : [],
+                    bouchers: Array.isArray(item.bouchers) ? item.bouchers.map(id => new mongoose.Types.ObjectId(id)) : []
+                };
+                if (item.createdAt) doc.createdAt = new Date(item.createdAt);
+                if (item.updatedAt) doc.updatedAt = new Date(item.updatedAt);
+                await clienteModel.create(doc);
+                imported++;
+            } catch (err) {
+                errors++;
+                console.error(`❌ Error al importar cliente ${item.nombre || item.clienteId}:`, err.message);
+            }
+        }
+        if (imported > 0 || errors > 0) {
+            console.log(`✅ Clientes: ${imported} importados${errors ? `, ${errors} errores` : ''}`);
+        }
+        return { imported, updated: 0, errors };
+    } catch (error) {
+        console.error('❌ Error al importar clientes:', error.message);
+        return { imported: 0, updated: 0, errors: 1 };
+    }
+};
 
 /**
  * Genera un nuevo cliente tipo "Invitado-#" con número secuencial único
@@ -352,6 +410,7 @@ module.exports = {
     buscarClientePorDni,
     actualizarCliente,
     asociarClienteAComanda,
-    asociarBoucherACliente
+    asociarBoucherACliente,
+    importarClientesDesdeJSON
 };
 
