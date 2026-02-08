@@ -14,6 +14,8 @@ const auditoriaSchema = new mongoose.Schema({
       'ELIMINAR_ULTIMA_COMANDA',
       'ELIMINAR_TODAS_COMANDAS',
       'ELIMINAR_COMANDA_INDIVIDUAL',
+      'ELIMINAR_PLATO_COMANDA',
+      'ELIMINAR_PLATO_RECOGER',
       'comanda_editada',
       'comanda_status_cambiado',
       'plato_agregado',

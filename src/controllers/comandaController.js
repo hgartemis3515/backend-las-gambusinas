@@ -1387,4 +1387,301 @@ router.get('/comanda/comandas-para-pagar/:mesaId', async (req, res) => {
   }
 });
 
+/**
+ * ✅ NUEVO ENDPOINT: Eliminar platos de comanda (solo platos entregados o recoger)
+ * PUT /comanda/:id/eliminar-platos
+ * Permite eliminar múltiples platos de una comanda que estén en estado "entregado" o "recoger"
+ */
+router.put('/comanda/:id/eliminar-platos', async (req, res) => {
+    const { id } = req.params;
+    const { platosAEliminar, motivo, mozoId } = req.body;
+    const usuarioId = req.userId || mozoId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+    
+    // Validaciones
+    if (!platosAEliminar || !Array.isArray(platosAEliminar) || platosAEliminar.length === 0) {
+        return res.status(400).json({ message: 'Debe seleccionar al menos un plato para eliminar' });
+    }
+    
+    if (!motivo || motivo.trim().length < 5) {
+        return res.status(400).json({ message: 'El motivo de eliminación es obligatorio (mínimo 5 caracteres)' });
+    }
+    
+    try {
+        // 1. Obtener comanda para validación (con lean para lectura rápida)
+        const comandaCheck = await comandaModel.findById(id)
+            .populate('platos.plato')
+            .populate('mesas')
+            .populate('mozos')
+            .lean();
+        
+        if (!comandaCheck) {
+            return res.status(404).json({ message: 'Comanda no encontrada' });
+        }
+        
+        // 2. Validar que los índices sean válidos
+        const indicesValidos = platosAEliminar.filter(idx => {
+            const index = parseInt(idx);
+            return !isNaN(index) && index >= 0 && index < comandaCheck.platos.length;
+        });
+        
+        if (indicesValidos.length === 0) {
+            return res.status(400).json({ message: 'Índices de platos inválidos' });
+        }
+        
+        // 3. Validar que todos los platos seleccionados estén en estado "entregado" o "recoger" y no eliminados
+        const platosInvalidos = [];
+        indicesValidos.forEach(idx => {
+            const index = parseInt(idx);
+            const platoItem = comandaCheck.platos[index];
+            if (!platoItem) {
+                platosInvalidos.push(`Índice ${index} no existe`);
+            } else {
+                const estado = platoItem.estado?.toLowerCase() || "";
+                // Aceptar tanto "entregado" como "recoger"
+                if (estado !== "entregado" && estado !== "recoger") {
+                    platosInvalidos.push(`Plato en índice ${index} no está en estado "entregado" o "recoger" (estado actual: ${estado})`);
+                }
+                if (platoItem.eliminado) {
+                    platosInvalidos.push(`Plato en índice ${index} ya fue eliminado`);
+                }
+            }
+        });
+        
+        if (platosInvalidos.length > 0) {
+            return res.status(400).json({ 
+                message: 'Algunos platos no pueden ser eliminados',
+                detalles: platosInvalidos
+            });
+        }
+        
+        // 4. Obtener snapshot antes de eliminar para auditoría
+        const platoModel = require('../database/models/plato.model');
+        const platosEliminadosData = [];
+        let totalEliminado = 0;
+        
+        indicesValidos.forEach(idx => {
+            const index = parseInt(idx);
+            const platoItem = comandaCheck.platos[index];
+            const plato = platoItem.plato || platoItem;
+            const cantidad = comandaCheck.cantidades?.[index] || 1;
+            const precio = plato?.precio || 0;
+            const subtotal = precio * cantidad;
+            totalEliminado += subtotal;
+            
+            platosEliminadosData.push({
+                index: index,
+                nombre: plato?.nombre || 'Plato desconocido',
+                cantidad: cantidad,
+                precioUnit: precio,
+                subtotal: subtotal
+            });
+        });
+        
+        // 5. Actualizar comanda: marcar platos como eliminados (SIN lean para poder modificar)
+        const comandaActualizar = await comandaModel.findById(id);
+        if (!comandaActualizar) {
+            return res.status(404).json({ message: 'Comanda no encontrada' });
+        }
+        
+        indicesValidos.forEach(idx => {
+            const index = parseInt(idx);
+            const platoItem = comandaActualizar.platos[index];
+            if (platoItem) {
+                platoItem.eliminado = true;
+                platoItem.eliminadoPor = usuarioId;
+                platoItem.eliminadoRazon = motivo.trim();
+                platoItem.eliminadoAt = new Date();
+            }
+        });
+        
+        // 6. Registrar en historialPlatos
+        if (!comandaActualizar.historialPlatos) {
+            comandaActualizar.historialPlatos = [];
+        }
+        
+        // Usar for...of para manejar await correctamente
+        for (const idx of indicesValidos) {
+            const index = parseInt(idx);
+            const platoItem = comandaActualizar.platos[index];
+            const plato = platoItem.plato || platoItem;
+            let nombrePlato = 'Plato desconocido';
+            
+            if (plato) {
+                if (typeof plato === 'object' && plato.nombre) {
+                    nombrePlato = plato.nombre;
+                } else if (plato._id || plato) {
+                    // Buscar nombre del plato
+                    try {
+                        const platoCompleto = await platoModel.findById(plato._id || plato).lean();
+                        if (platoCompleto) {
+                            nombrePlato = platoCompleto.nombre;
+                        }
+                    } catch (error) {
+                        console.warn(`Error buscando plato ${plato._id || plato}:`, error.message);
+                    }
+                }
+            }
+            
+            comandaActualizar.historialPlatos.push({
+                platoId: platoItem.platoId,
+                nombreOriginal: nombrePlato,
+                cantidadOriginal: comandaActualizar.cantidades?.[index] || 1,
+                cantidadFinal: 0,
+                estado: 'eliminado',
+                timestamp: new Date(),
+                usuario: usuarioId,
+                motivo: motivo.trim()
+            });
+        }
+        
+        // 7. Incrementar versión
+        comandaActualizar.version = (comandaActualizar.version || 1) + 1;
+        await comandaActualizar.save();
+        
+        // 8. Obtener comanda completa actualizada para respuesta
+        const comandaCompleta = await comandaModel.findById(id)
+            .populate({
+                path: "mozos",
+            })
+            .populate({
+                path: "mesas",
+                populate: {
+                    path: "area"
+                }
+            })
+            .populate({
+                path: "cliente"
+            })
+            .populate({
+                path: "platos.plato",
+                model: "platos"
+            });
+        
+        // 9. Determinar acción de auditoría según el estado de los platos eliminados
+        const estadosPlatosEliminados = indicesValidos.map(idx => {
+            const index = parseInt(idx);
+            const platoItem = comandaCheck.platos[index];
+            return platoItem?.estado?.toLowerCase() || "";
+        });
+        const tieneRecoger = estadosPlatosEliminados.some(e => e === "recoger");
+        const accionAuditoria = tieneRecoger ? 'ELIMINAR_PLATO_RECOGER' : 'ELIMINAR_PLATO_COMANDA';
+        
+        // 10. Registrar auditoría
+        req.auditoria = {
+            accion: accionAuditoria,
+            entidadId: id,
+            entidadTipo: 'comanda',
+            usuario: usuarioId,
+            mesaId: comandaCheck.mesas?._id || comandaCheck.mesas,
+            comandaId: id,
+            motivo: motivo.trim(),
+            platosEliminados: platosEliminadosData,
+            totalEliminado: totalEliminado,
+            comandaNumber: comandaCheck.comandaNumber,
+            ip: req.ip,
+            deviceId: req.headers['device-id'] || req.headers['x-device-id']
+        };
+        
+        const metadataAdicional = {
+            comandaNumber: comandaCheck.comandaNumber,
+            mesaId: comandaCheck.mesas?._id || comandaCheck.mesas,
+            mesaNum: comandaCheck.mesas?.nummesa || null,
+            platosEliminados: platosEliminadosData,
+            totalEliminado: totalEliminado,
+            cantidadPlatos: platosEliminadosData.length
+        };
+        
+        req.auditoria.metadata = { ...req.auditoria.metadata, ...metadataAdicional };
+        
+        const snapshotAntes = {
+            platos: indicesValidos.map(idx => {
+                const index = parseInt(idx);
+                const platoItem = comandaCheck.platos[index];
+                const plato = platoItem.plato || platoItem;
+                return {
+                    index: index,
+                    nombre: plato?.nombre || 'Plato desconocido',
+                    cantidad: comandaCheck.cantidades?.[index] || 1,
+                    estado: platoItem.estado,
+                    eliminado: false
+                };
+            })
+        };
+        
+        const snapshotDespues = {
+            platos: indicesValidos.map(idx => {
+                const index = parseInt(idx);
+                const platoItem = comandaCheck.platos[index];
+                const plato = platoItem.plato || platoItem;
+                return {
+                    index: index,
+                    nombre: plato?.nombre || 'Plato desconocido',
+                    cantidad: comandaCheck.cantidades?.[index] || 1,
+                    estado: platoItem.estado,
+                    eliminado: true,
+                    eliminadoRazon: motivo.trim(),
+                    eliminadoAt: new Date()
+                };
+            })
+        };
+        
+        // Registrar auditoría (registrarAuditoria ya guarda en auditoriaAcciones, no duplicar)
+        // Asegurar que los datos de platos eliminados estén en el formato correcto para el frontend
+        req.auditoria.platosEliminados = platosEliminadosData;
+        req.auditoria.totalEliminado = totalEliminado;
+        req.auditoria.cantidadPlatos = platosEliminadosData.length;
+        
+        await registrarAuditoria(req, snapshotAntes, snapshotDespues, motivo.trim());
+        
+        // 11. Emitir eventos Socket.io
+        if (global.emitComandaActualizada) {
+            await global.emitComandaActualizada(comandaCompleta._id);
+        }
+        
+        if (global.io) {
+            const cocinaNamespace = global.io.of('/cocina');
+            const mozosNamespace = global.io.of('/mozos');
+            const fecha = require('moment-timezone')(comandaCompleta.createdAt).tz("America/Lima").format('YYYY-MM-DD');
+            const roomName = `fecha-${fecha}`;
+            const timestamp = require('moment-timezone')().tz('America/Lima').toISOString();
+            
+            const eventData = {
+                comandaId: comandaCompleta._id,
+                comanda: comandaCompleta,
+                platosEliminados: platosEliminadosData,
+                motivo: motivo.trim(),
+                mozoId: usuarioId,
+                socketId: 'server',
+                timestamp: timestamp
+            };
+            
+            // Emitir a cocina (room por fecha)
+            cocinaNamespace.to(roomName).emit('plato-actualizado', eventData);
+            cocinaNamespace.to(roomName).emit('comanda-actualizada', eventData);
+            
+            // Emitir a mozos (todos)
+            mozosNamespace.emit('plato-actualizado', eventData);
+            mozosNamespace.emit('comanda-actualizada', eventData);
+        }
+        
+        console.log(`✅ Platos eliminados de comanda #${comandaCompleta.comandaNumber}: ${platosEliminadosData.length} plato(s)`);
+        
+        res.json({
+            message: 'Platos eliminados exitosamente',
+            comanda: comandaCompleta,
+            platosEliminados: platosEliminadosData,
+            totalEliminado: totalEliminado
+        });
+        
+    } catch (error) {
+        console.error('❌ Error al eliminar platos de comanda:', error);
+        logger.error('Error en PUT /comanda/:id/eliminar-platos', {
+            id,
+            error: error.message,
+            stack: error.stack
+        });
+        handleError(error, res, logger);
+    }
+});
+
 module.exports = router;

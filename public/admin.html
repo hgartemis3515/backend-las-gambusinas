@@ -522,8 +522,12 @@
                 // Limpiar contenido anterior
                 this.limpiar();
                 
-                // Establecer nuevo contenido
-                this.modalTitle.textContent = titulo || 'Detalle';
+                // Establecer nuevo contenido (soporta HTML en título)
+                if (typeof titulo === 'string' && titulo.includes('<')) {
+                    this.modalTitle.innerHTML = titulo || 'Detalle';
+                } else {
+                    this.modalTitle.textContent = titulo || 'Detalle';
+                }
                 this.modalBody.innerHTML = contenido || '';
                 
                 // Mostrar modal
@@ -2140,11 +2144,21 @@
                                 if (aud.accion === 'ELIMINAR_ULTIMA_COMANDA') accionNombre = '🗑️ Última Comanda';
                                 else if (aud.accion === 'ELIMINAR_TODAS_COMANDAS') accionNombre = '🗑️ Todas las Comandas';
                                 else if (aud.accion === 'ELIMINAR_COMANDA_INDIVIDUAL') accionNombre = '🗑️ Comanda Individual';
+                                else if (aud.accion === 'ELIMINAR_PLATO_COMANDA') accionNombre = '🗑️ Eliminar Plato Entregado';
+                                else if (aud.accion === 'ELIMINAR_PLATO_RECOGER') accionNombre = '🗑️ Eliminar Plato Recoger';
                                 
                                 // Mostrar información adicional según el tipo
                                 const totalEliminado = aud.metadata?.totalEliminado;
                                 const cantidadComandas = aud.metadata?.cantidadComandas;
-                                const infoAdicional = totalEliminado ? ` (S/. ${totalEliminado.toFixed(2)})` : '';
+                                const cantidadPlatos = aud.metadata?.cantidadPlatos;
+                                let infoAdicional = '';
+                                if (totalEliminado) {
+                                    if (aud.accion === 'ELIMINAR_PLATO_COMANDA' || aud.accion === 'ELIMINAR_PLATO_RECOGER') {
+                                        infoAdicional = ` (${cantidadPlatos || 0} plato(s), S/. ${totalEliminado.toFixed(2)})`;
+                                    } else {
+                                        infoAdicional = ` (S/. ${totalEliminado.toFixed(2)})`;
+                                    }
+                                }
                                 const comandaInfo = cantidadComandas > 1 
                                     ? `${cantidadComandas} comandas` 
                                     : (aud.metadata?.comandaNumber || 'N/A');
@@ -2202,6 +2216,8 @@
                 'ELIMINAR_ULTIMA_COMANDA': '#DC2626',
                 'ELIMINAR_TODAS_COMANDAS': '#B91C1C',
                 'ELIMINAR_COMANDA_INDIVIDUAL': '#DC2626',
+                'ELIMINAR_PLATO_COMANDA': '#DC2626',
+                'ELIMINAR_PLATO_RECOGER': '#DC2626',
                 'comanda_editada': '#F59E0B',
                 'plato_eliminado': '#EF4444',
                 'plato_modificado': '#10B981',
@@ -2398,7 +2414,7 @@
                 const cantidadesDespues = datosDespues.cantidades || [];
                 
                 // Verificar si es una eliminación nueva (con metadata de platos eliminados)
-                const esEliminacionNueva = ['ELIMINAR_ULTIMA_COMANDA', 'ELIMINAR_TODAS_COMANDAS', 'ELIMINAR_COMANDA_INDIVIDUAL'].includes(aud.accion);
+                const esEliminacionNueva = ['ELIMINAR_ULTIMA_COMANDA', 'ELIMINAR_TODAS_COMANDAS', 'ELIMINAR_COMANDA_INDIVIDUAL', 'ELIMINAR_PLATO_COMANDA', 'ELIMINAR_PLATO_RECOGER'].includes(aud.accion);
                 const platosEliminados = aud.metadata?.platosEliminados || [];
                 const totalEliminado = aud.metadata?.totalEliminado || 0;
                 const tipoEliminacion = aud.metadata?.tipoEliminacion || '';
@@ -2417,12 +2433,15 @@
                     
                     let total = 0;
                     platos.forEach(plato => {
-                        const subtotal = plato.subtotal || (plato.precio * plato.cantidad) || 0;
+                        // Manejar diferentes formatos de precio
+                        const precioUnit = plato.precioUnit || plato.precio || 0;
+                        const cantidad = plato.cantidad || 1;
+                        const subtotal = plato.subtotal || (precioUnit * cantidad) || 0;
                         total += subtotal;
                         html += `<tr style="background: #fee2e2;">
-                            <td style="padding: 8px; border: 1px solid #ddd;">${plato.cantidad || 1}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${cantidad}</td>
                             <td style="padding: 8px; border: 1px solid #ddd; color: #dc2626; text-decoration: line-through;">${plato.nombre || 'Plato desconocido'}</td>
-                            <td style="padding: 8px; border: 1px solid #ddd;">S/. ${(plato.precio || 0).toFixed(2)}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">S/. ${precioUnit.toFixed(2)}</td>
                             <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">S/. ${subtotal.toFixed(2)}</td>
                         </tr>`;
                     });
@@ -2531,7 +2550,12 @@
                     </div>
                 `;
 
-                ModalManager.abrir('Detalle de Auditoría', modalBody);
+                // Determinar si es una eliminación para mostrar título en rojo
+                const esEliminacion = ['ELIMINAR_ULTIMA_COMANDA', 'ELIMINAR_TODAS_COMANDAS', 'ELIMINAR_COMANDA_INDIVIDUAL', 'ELIMINAR_PLATO_COMANDA', 'ELIMINAR_PLATO_RECOGER'].includes(aud.accion);
+                const tituloModal = esEliminacion 
+                    ? '<span style="color: #dc2626; font-weight: bold;">🗑️ Detalle de Auditoría - Eliminación</span>'
+                    : 'Detalle de Auditoría';
+                ModalManager.abrir(tituloModal, modalBody);
             } catch (error) {
                 alert('Error al cargar detalle: ' + error.message);
             }
