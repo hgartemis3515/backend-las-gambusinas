@@ -8,6 +8,7 @@ const { importarMesasDesdeJSON } = require('../repository/mesas.repository');
 const { importarClientesDesdeJSON } = require('../repository/clientes.repository');
 const { importarComandasDesdeJSON } = require('../repository/comanda.repository');
 const { importarBoucherDesdeJSON } = require('../repository/boucher.repository');
+const { importarAuditoriaDesdeJSON } = require('../repository/auditoria.repository');
 
 mongoose.connect(process.env.DBLOCAL);
 
@@ -25,6 +26,7 @@ db.once('open', async () => {
   await importarClientesDesdeJSON();
   await importarComandasDesdeJSON();
   await importarBoucherDesdeJSON();
+  await importarAuditoriaDesdeJSON();
   console.log('✅ Importación de datos finalizada.');
 });
 

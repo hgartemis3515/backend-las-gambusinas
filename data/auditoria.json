@@ -1,0 +1,291 @@
+[
+  {
+    "_id": "698638abb3b37ce8119d05d1",
+    "accion": "comanda_creada",
+    "entidadId": "69863893e797926bacf1b2d5",
+    "entidadTipo": "comanda",
+    "usuario": "69860821b6273b9647faf872",
+    "datosAntes": null,
+    "datosDespues": {
+      "comandaNumber": 27,
+      "mesas": "69860a415e59135b4d2c56c1",
+      "mozos": "69860821b6273b9647faf872",
+      "status": "en_espera",
+      "platos": [
+        {
+          "platoId": 35,
+          "nombre": "Tamal + zarza criolla",
+          "precio": 10,
+          "cantidad": 1
+        }
+      ]
+    },
+    "motivo": null,
+    "ip": "192.168.1.100",
+    "deviceId": "device-001",
+    "timestamp": "2026-02-06T18:50:00.000Z",
+    "metadata": {
+      "metodo": "POST",
+      "ruta": "/comanda",
+      "userAgent": "Mozilla/5.0",
+      "comandaNumber": 27,
+      "mesaId": "69860a415e59135b4d2c56c1"
+    },
+    "createdAt": "2026-02-06T18:50:00.000Z",
+    "updatedAt": "2026-02-06T18:50:00.000Z"
+  },
+  {
+    "_id": "698638abb3b37ce8119d05d2",
+    "accion": "comanda_editada",
+    "entidadId": "69863893e797926bacf1b2d5",
+    "entidadTipo": "comanda",
+    "usuario": "69860821b6273b9647faf872",
+    "datosAntes": {
+      "comandaNumber": 27,
+      "platos": [
+        {
+          "platoId": 35,
+          "nombre": "Tamal + zarza criolla",
+          "cantidad": 1
+        }
+      ]
+    },
+    "datosDespues": {
+      "comandaNumber": 27,
+      "platos": [
+        {
+          "platoId": 35,
+          "nombre": "Tamal + zarza criolla",
+          "cantidad": 1
+        },
+        {
+          "platoId": 43,
+          "nombre": "Chicharrón de pollo acevichada + arroz y yuca frita",
+          "cantidad": 1
+        }
+      ]
+    },
+    "motivo": "Agregar plato adicional",
+    "ip": "192.168.1.100",
+    "deviceId": "device-001",
+    "timestamp": "2026-02-06T18:51:00.000Z",
+    "metadata": {
+      "metodo": "PUT",
+      "ruta": "/comanda/69863893e797926bacf1b2d5",
+      "userAgent": "Mozilla/5.0",
+      "comandaNumber": 27
+    },
+    "createdAt": "2026-02-06T18:51:00.000Z",
+    "updatedAt": "2026-02-06T18:51:00.000Z"
+  },
+  {
+    "_id": "698638abb3b37ce8119d05d3",
+    "accion": "plato_eliminado",
+    "entidadId": "69863893e797926bacf1b2d5",
+    "entidadTipo": "comanda",
+    "usuario": "69860821b6273b9647faf872",
+    "datosAntes": {
+      "comandaNumber": 27,
+      "platos": [
+        {
+          "platoId": 35,
+          "nombre": "Tamal + zarza criolla",
+          "cantidad": 1,
+          "eliminado": false
+        },
+        {
+          "platoId": 43,
+          "nombre": "Chicharrón de pollo acevichada + arroz y yuca frita",
+          "cantidad": 1,
+          "eliminado": false
+        }
+      ]
+    },
+    "datosDespues": {
+      "comandaNumber": 27,
+      "platos": [
+        {
+          "platoId": 35,
+          "nombre": "Tamal + zarza criolla",
+          "cantidad": 1,
+          "eliminado": true,
+          "eliminadoPor": "69860821b6273b9647faf872",
+          "eliminadoAt": "2026-02-06T18:52:00.000Z"
+        },
+        {
+          "platoId": 43,
+          "nombre": "Chicharrón de pollo acevichada + arroz y yuca frita",
+          "cantidad": 1,
+          "eliminado": false
+        }
+      ]
+    },
+    "motivo": "Cliente canceló el plato",
+    "ip": "192.168.1.100",
+    "deviceId": "device-001",
+    "timestamp": "2026-02-06T18:52:00.000Z",
+    "metadata": {
+      "metodo": "PUT",
+      "ruta": "/comanda/69863893e797926bacf1b2d5/eliminar-plato",
+      "userAgent": "Mozilla/5.0",
+      "comandaNumber": 27,
+      "platosEliminados": [35]
+    },
+    "createdAt": "2026-02-06T18:52:00.000Z",
+    "updatedAt": "2026-02-06T18:52:00.000Z"
+  },
+  {
+    "_id": "698638abb3b37ce8119d05d4",
+    "accion": "mesa_estado_cambiado",
+    "entidadId": "69860a415e59135b4d2c56c1",
+    "entidadTipo": "mesa",
+    "usuario": "69860821b6273b9647faf872",
+    "datosAntes": {
+      "nummesa": 1,
+      "estado": "libre"
+    },
+    "datosDespues": {
+      "nummesa": 1,
+      "estado": "ocupada"
+    },
+    "motivo": null,
+    "ip": "192.168.1.100",
+    "deviceId": "device-001",
+    "timestamp": "2026-02-06T18:50:00.000Z",
+    "metadata": {
+      "metodo": "PUT",
+      "ruta": "/mesas/69860a415e59135b4d2c56c1",
+      "userAgent": "Mozilla/5.0"
+    },
+    "createdAt": "2026-02-06T18:50:00.000Z",
+    "updatedAt": "2026-02-06T18:50:00.000Z"
+  },
+  {
+    "_id": "698638abb3b37ce8119d05d5",
+    "accion": "pago_procesado",
+    "entidadId": "698638abb3b37ce8119d05d1",
+    "entidadTipo": "pago",
+    "usuario": "69860821b6273b9647faf872",
+    "datosAntes": {
+      "comandas": [
+        {
+          "comandaNumber": 27,
+          "status": "entregado"
+        }
+      ]
+    },
+    "datosDespues": {
+      "voucherId": "8EP8W",
+      "total": 162.25,
+      "fechaPago": "2026-02-06T18:53:31.227Z",
+      "comandas": [
+        {
+          "comandaNumber": 27,
+          "status": "pagado"
+        }
+      ]
+    },
+    "motivo": null,
+    "ip": "192.168.1.100",
+    "deviceId": "device-001",
+    "timestamp": "2026-02-06T18:53:31.227Z",
+    "metadata": {
+      "metodo": "POST",
+      "ruta": "/boucher",
+      "userAgent": "Mozilla/5.0",
+      "voucherId": "8EP8W",
+      "total": 162.25
+    },
+    "createdAt": "2026-02-06T18:53:31.227Z",
+    "updatedAt": "2026-02-06T18:53:31.227Z"
+  },
+  {
+    "_id": "698638abb3b37ce8119d05d6",
+    "accion": "usuario_autenticado",
+    "entidadId": "69860821b6273b9647faf872",
+    "entidadTipo": "mozo",
+    "usuario": "69860821b6273b9647faf872",
+    "datosAntes": null,
+    "datosDespues": {
+      "name": "admin",
+      "DNI": 12345678,
+      "ultimaSesion": "2026-02-06T18:49:00.000Z"
+    },
+    "motivo": null,
+    "ip": "192.168.1.100",
+    "deviceId": "device-001",
+    "timestamp": "2026-02-06T18:49:00.000Z",
+    "metadata": {
+      "metodo": "POST",
+      "ruta": "/auth/login",
+      "userAgent": "Mozilla/5.0"
+    },
+    "createdAt": "2026-02-06T18:49:00.000Z",
+    "updatedAt": "2026-02-06T18:49:00.000Z"
+  },
+  {
+    "_id": "698643bcd4595f196615a60b",
+    "accion": "comanda_status_cambiado",
+    "entidadId": "698643addf0bd0c63c150b9b",
+    "entidadTipo": "comanda",
+    "usuario": "69860821b6273b9647faf872",
+    "datosAntes": {
+      "comandaNumber": 29,
+      "status": "en_espera"
+    },
+    "datosDespues": {
+      "comandaNumber": 29,
+      "status": "recoger"
+    },
+    "motivo": null,
+    "ip": "192.168.1.100",
+    "deviceId": "device-002",
+    "timestamp": "2026-02-06T19:10:00.000Z",
+    "metadata": {
+      "metodo": "PUT",
+      "ruta": "/comanda/698643addf0bd0c63c150b9b/status",
+      "userAgent": "Mozilla/5.0",
+      "comandaNumber": 29
+    },
+    "createdAt": "2026-02-06T19:10:00.000Z",
+    "updatedAt": "2026-02-06T19:10:00.000Z"
+  },
+  {
+    "_id": "698643bcd4595f196615a60c",
+    "accion": "ELIMINAR_COMANDA_INDIVIDUAL",
+    "entidadId": "69864398e450d483b6c7a1fe",
+    "entidadTipo": "comanda",
+    "usuario": "69860821b6273b9647faf872",
+    "datosAntes": {
+      "comandaNumber": 30,
+      "status": "en_espera",
+      "platos": [
+        {
+          "platoId": 1,
+          "nombre": "Pan solo",
+          "cantidad": 1
+        }
+      ]
+    },
+    "datosDespues": {
+      "comandaNumber": 30,
+      "status": "eliminada",
+      "eliminada": true,
+      "fechaEliminacion": "2026-02-06T19:15:00.000Z"
+    },
+    "motivo": "Comanda duplicada por error",
+    "ip": "192.168.1.100",
+    "deviceId": "device-002",
+    "timestamp": "2026-02-06T19:15:00.000Z",
+    "metadata": {
+      "metodo": "PUT",
+      "ruta": "/comanda/69864398e450d483b6c7a1fe/eliminar",
+      "userAgent": "Mozilla/5.0",
+      "comandaNumber": 30,
+      "tipoEliminacion": "individual"
+    },
+    "createdAt": "2026-02-06T19:15:00.000Z",
+    "updatedAt": "2026-02-06T19:15:00.000Z"
+  }
+]
+
