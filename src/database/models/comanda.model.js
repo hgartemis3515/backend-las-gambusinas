@@ -20,14 +20,22 @@ const comandaSchema = new mongoose.Schema({
         platoId: { type: Number }, // ID numérico del plato para búsqueda alternativa
         estado: { 
             type: String, 
-            default: 'en_espera',
-            enum: ['en_espera', 'recoger', 'entregado'],
+            default: 'pedido',
+            enum: ['pedido', 'en_espera', 'recoger', 'entregado', 'pagado'],
             validate: {
                 validator: function(v) {
-                    return ['en_espera', 'recoger', 'entregado'].includes(v);
+                    return ['pedido', 'en_espera', 'recoger', 'entregado', 'pagado'].includes(v);
                 },
-                message: 'El estado del plato debe ser: en_espera, recoger o entregado'
+                message: 'El estado del plato debe ser: pedido, en_espera, recoger, entregado o pagado'
             }
+        },
+        // NUEVO: Timestamps de transiciones de estado
+        tiempos: {
+            pedido: { type: Date, default: () => moment.tz("America/Lima").toDate() },
+            en_espera: Date,
+            recoger: Date,
+            entregado: Date,
+            pagado: Date
         },
         // 🔥 AUDITORÍA: Campos para tracking de eliminación
         eliminado: { 

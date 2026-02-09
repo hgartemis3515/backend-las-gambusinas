@@ -2007,6 +2007,185 @@ const importarComandasDesdeJSON = async () => {
   }
 };
 
+/**
+ * Marca un plato individual como entregado
+ * Solo permite transición desde estado "recoger" a "entregado"
+ * @param {String} comandaId - ID de la comanda
+ * @param {String|Number} platoId - ID del plato (puede ser ObjectId o platoId numérico)
+ * @returns {Object} Comanda actualizada
+ */
+const marcarPlatoComoEntregado = async (comandaId, platoId) => {
+  try {
+    // Buscar comanda
+    const comanda = await comandaModel.findById(comandaId);
+    if (!comanda) {
+      throw new Error('Comanda no encontrada');
+    }
+    
+    // Encontrar plato - buscar por platoId numérico o ObjectId
+    const platoIndex = comanda.platos.findIndex(p => {
+      // Comparar por platoId numérico
+      if (p.platoId && p.platoId.toString() === platoId.toString()) {
+        return true;
+      }
+      // Comparar por ObjectId
+      if (p.plato && (p.plato.toString() === platoId.toString() || p.plato._id?.toString() === platoId.toString())) {
+        return true;
+      }
+      return false;
+    });
+    
+    if (platoIndex === -1) {
+      throw new Error('Plato no encontrado en la comanda');
+    }
+    
+    const plato = comanda.platos[platoIndex];
+    
+    // VALIDACIÓN CRÍTICA: Solo desde "recoger"
+    if (plato.estado !== 'recoger' && plato.estado !== 'en_espera') {
+      throw new Error(`No se puede marcar como entregado un plato en estado "${plato.estado}". Solo se permiten platos en estado "recoger" o "en_espera".`);
+    }
+    
+    // VALIDACIÓN: No revertir si ya está entregado
+    if (plato.estado === 'entregado') {
+      throw new Error('Este plato ya fue marcado como entregado. No se puede revertir.');
+    }
+    
+    // Actualizar estado y timestamp
+    const estadoAnterior = plato.estado;
+    comanda.platos[platoIndex].estado = 'entregado';
+    
+    // Inicializar tiempos si no existe
+    if (!comanda.platos[platoIndex].tiempos) {
+      comanda.platos[platoIndex].tiempos = {};
+    }
+    
+    // Actualizar timestamp de entregado
+    comanda.platos[platoIndex].tiempos.entregado = moment.tz("America/Lima").toDate();
+    
+    // Si no tiene timestamp de pedido, establecerlo ahora
+    if (!comanda.platos[platoIndex].tiempos.pedido) {
+      comanda.platos[platoIndex].tiempos.pedido = comanda.createdAt || moment.tz("America/Lima").toDate();
+    }
+    
+    await comanda.save();
+    
+    // Recalcular estado de comanda basado en estados de platos
+    await recalcularEstadoComandaPorPlatos(comandaId);
+    
+    // Obtener plato populado para el evento
+    const platoPopulado = await comandaModel.findById(comandaId)
+      .populate('platos.plato')
+      .then(c => c.platos[platoIndex]);
+    
+    // Emitir evento WebSocket
+    if (global.emitPlatoEntregado) {
+      const platoNombre = platoPopulado?.plato?.nombre || 'Plato desconocido';
+      await global.emitPlatoEntregado(comandaId, platoId, platoNombre, estadoAnterior);
+    }
+    
+    // Retornar comanda actualizada populada
+    return await comandaModel.findById(comandaId)
+      .populate('mozos')
+      .populate('mesas')
+      .populate('platos.plato');
+      
+  } catch (error) {
+    console.error('❌ Error al marcar plato como entregado:', error);
+    throw error;
+  }
+};
+
+/**
+ * Recalcula el estado de la comanda basado en los estados individuales de los platos
+ * @param {String} comandaId - ID de la comanda
+ */
+const recalcularEstadoComandaPorPlatos = async (comandaId) => {
+  try {
+    const comanda = await comandaModel.findById(comandaId);
+    if (!comanda) {
+      console.warn(`⚠️ Comanda ${comandaId} no encontrada para recalcular estado`);
+      return;
+    }
+    
+    // Contar platos por estado (solo platos no eliminados)
+    const platosActivos = comanda.platos.filter(p => !p.eliminado);
+    
+    const cuentas = {
+      pedido: 0,
+      en_espera: 0,
+      recoger: 0,
+      entregado: 0,
+      pagado: 0
+    };
+    
+    platosActivos.forEach(plato => {
+      const estado = plato.estado || 'pedido';
+      // Normalizar 'en_espera' como 'pedido'
+      const estadoNormalizado = estado === 'en_espera' ? 'pedido' : estado;
+      cuentas[estadoNormalizado] = (cuentas[estadoNormalizado] || 0) + 1;
+    });
+    
+    const total = platosActivos.length;
+    
+    // Determinar nuevo estado de comanda
+    let nuevoEstado = comanda.status;
+    const estadoAnterior = comanda.status;
+    
+    if (total === 0) {
+      // Sin platos activos, mantener estado actual o cambiar a 'en_espera'
+      nuevoEstado = 'en_espera';
+    } else if (cuentas.pagado === total) {
+      // Todos pagados
+      nuevoEstado = 'pagado';
+    } else if (cuentas.entregado === total) {
+      // Todos entregados
+      nuevoEstado = 'entregado';
+    } else if (cuentas.recoger > 0 || cuentas.entregado > 0) {
+      // Al menos uno listo para recoger o entregado
+      nuevoEstado = 'recoger';
+    } else if (cuentas.pedido === total) {
+      // Todos en pedido
+      nuevoEstado = 'en_espera';
+    }
+    
+    // Actualizar si cambió
+    if (comanda.status !== nuevoEstado) {
+      comanda.status = nuevoEstado;
+      
+      // Actualizar timestamps de estado de comanda
+      if (nuevoEstado === 'recoger' && !comanda.tiempoRecoger) {
+        comanda.tiempoRecoger = moment.tz("America/Lima").toDate();
+      } else if (nuevoEstado === 'entregado' && !comanda.tiempoEntregado) {
+        comanda.tiempoEntregado = moment.tz("America/Lima").toDate();
+      }
+      
+      await comanda.save();
+      
+      // Recalcular estado de mesa
+      if (comanda.mesas) {
+        await recalcularEstadoMesa(comanda.mesas);
+      }
+      
+      // Emitir evento WebSocket
+      if (global.emitComandaActualizada) {
+        await global.emitComandaActualizada(comandaId, estadoAnterior, nuevoEstado, cuentas);
+      }
+      
+      logger.debug('Estado de comanda recalculado', {
+        comandaId,
+        estadoAnterior,
+        nuevoEstado,
+        cuentas
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Error al recalcular estado de comanda por platos:', error);
+    // No lanzar error para no interrumpir el flujo principal
+  }
+};
+
 module.exports = { 
   listarComanda, 
   agregarComanda, 
@@ -2026,5 +2205,7 @@ module.exports = {
   validarComandasParaPagar,
   importarComandasDesdeJSON,
   buildPlatoIdToObjectIdMap,
-  ensurePlatosPopulated
+  ensurePlatosPopulated,
+  marcarPlatoComoEntregado,
+  recalcularEstadoComandaPorPlatos
 };

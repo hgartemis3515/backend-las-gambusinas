@@ -17,7 +17,8 @@ const {
   revertirStatusComanda,
   getComandasParaPagar,
   recalcularEstadoMesa,
-  ensurePlatosPopulated
+  ensurePlatosPopulated,
+  marcarPlatoComoEntregado
 } = require('../repository/comanda.repository');
 
 const { registrarAuditoria } = require('../middleware/auditoria');
@@ -1323,6 +1324,24 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
     } catch (error) {
         console.error(error.message);
         res.status(400).json({ message: error.message });
+    }
+});
+
+// Nuevo endpoint: Marcar plato como entregado (solo desde estado "recoger")
+router.put('/comanda/:comandaId/plato/:platoId/entregar', async (req, res) => {
+    const { comandaId, platoId } = req.params;
+    
+    try {
+        const comandaActualizada = await marcarPlatoComoEntregado(comandaId, platoId);
+        res.json({ success: true, comanda: comandaActualizada });
+        logger.info('Plato marcado como entregado', { comandaId, platoId });
+    } catch (error) {
+        logger.error('Error al marcar plato como entregado', {
+            comandaId,
+            platoId,
+            error: error.message
+        });
+        res.status(400).json({ error: error.message });
     }
 });
 
