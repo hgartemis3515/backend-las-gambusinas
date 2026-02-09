@@ -14,6 +14,7 @@ const boucherRoutes = require('./src/controllers/boucherController')
 const clientesRoutes = require('./src/controllers/clientesController')
 const auditoriaRoutes = require('./src/controllers/auditoriaController')
 const cierreCajaRoutes = require('./src/controllers/cierreCajaController')
+const cierreCajaRestauranteRoutes = require('./src/controllers/cierreCajaRestauranteController')
 const adminRoutes = require('./src/controllers/adminController')
 const notificacionesRoutes = require('./src/controllers/notificacionesController')
 const mensajesRoutes = require('./src/controllers/mensajesController')
@@ -86,7 +87,7 @@ app.use(cors({
   credentials: true
 }));
 
-const routes = [mesasRoutes, mozosRoutes, platoRoutes, comandaRoutes, areaRoutes, boucherRoutes, clientesRoutes, auditoriaRoutes, cierreCajaRoutes, adminRoutes, notificacionesRoutes, mensajesRoutes];
+const routes = [mesasRoutes, mozosRoutes, platoRoutes, comandaRoutes, areaRoutes, boucherRoutes, clientesRoutes, auditoriaRoutes, cierreCajaRoutes, cierreCajaRestauranteRoutes, adminRoutes, notificacionesRoutes, mensajesRoutes];
 
 app.use(express.json());
 app.use('/api',routes);

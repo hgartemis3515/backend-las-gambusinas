@@ -183,6 +183,13 @@ const comandaSchema = new mongoose.Schema({
         type: Number,
         default: 1,
         index: true
+    },
+    // Campo para prevenir duplicación en cierres de caja
+    incluidoEnCierre: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'CierreCajaRestaurante',
+        default: null,
+        index: true
     }
 }, { setDefaultsOnInsert: true });
 

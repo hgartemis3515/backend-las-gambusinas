@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel de Administración - Las Gambusinas</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -209,6 +212,17 @@
             color: white;
         }
 
+        .badge-info {
+            background: #2196f3;
+            color: white;
+        }
+
+        .tab-estadistica.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
         .modal {
             display: none;
             position: fixed;
@@ -308,7 +322,6 @@
             <button class="tab" onclick="showTab('bouchers', this)">Bouchers</button>
             <button class="tab" onclick="showTab('clientes', this)">Clientes</button>
             <button class="tab" onclick="showTab('auditoria', this)">🔒 Auditoría</button>
-            <button class="tab" onclick="showTab('platos-eliminados', this)">❌ Platos Eliminados</button>
             <button class="tab" onclick="showTab('cierre-caja', this)">🏦 Cierre de Caja</button>
         </div>
 
@@ -405,26 +418,26 @@
                 <div id="auditoria-list" class="loading">Cargando auditoría...</div>
             </div>
 
-            <!-- Tab Platos Eliminados -->
-            <div id="platos-eliminados" class="tab-content">
-                <div class="section-header">
-                    <h2>❌ Platos Eliminados con Motivos</h2>
-                    <div>
-                        <input type="date" id="platos-eliminados-fecha" style="padding: 10px; margin-right: 10px; border: 2px solid #ddd; border-radius: 8px;">
-                        <button class="btn btn-primary" onclick="loadPlatosEliminados()">🔄 Actualizar</button>
-                    </div>
-                </div>
-                <div id="platos-eliminados-list" class="loading">Cargando platos eliminados...</div>
-            </div>
-
             <!-- Tab Cierre de Caja -->
             <div id="cierre-caja" class="tab-content">
+                <!-- Panel de Control Cierre Actual -->
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 12px; margin-bottom: 25px; color: white;">
+                    <h2 style="color: white; margin-bottom: 20px;">🏦 Sistema de Cierre de Caja</h2>
+                    <div id="estado-actual-cierre" class="loading" style="color: white;">Cargando estado actual...</div>
+                    <div style="margin-top: 20px;">
+                        <button class="btn" style="background: white; color: #667eea; font-weight: bold; font-size: 18px; padding: 15px 30px;" onclick="abrirModalCerrarCaja()">
+                            💰 Cerrar Caja Ahora
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Histórico de Cierres -->
                 <div class="section-header">
-                    <h2>🏦 Cierre de Caja Diario</h2>
+                    <h2>📊 Histórico de Cierres</h2>
                     <div>
-                        <input type="date" id="cierre-fecha" style="padding: 10px; margin-right: 10px; border: 2px solid #ddd; border-radius: 8px;">
+                        <input type="date" id="cierre-fecha-desde" style="padding: 10px; margin-right: 10px; border: 2px solid #ddd; border-radius: 8px;" placeholder="Desde">
+                        <input type="date" id="cierre-fecha-hasta" style="padding: 10px; margin-right: 10px; border: 2px solid #ddd; border-radius: 8px;" placeholder="Hasta">
                         <button class="btn btn-primary" onclick="loadCierresCaja()">🔄 Actualizar</button>
-                        <button class="btn btn-primary" onclick="generarCierreCaja()" style="margin-left: 10px;">➕ Generar Cierre</button>
                     </div>
                 </div>
                 <div id="cierre-caja-list" class="loading">Cargando cierres de caja...</div>
@@ -593,8 +606,10 @@
                 else if (tabName === 'bouchers') loadBouchers();
                 else if (tabName === 'clientes') loadClientes();
                 else if (tabName === 'auditoria') loadAuditoria();
-                else if (tabName === 'platos-eliminados') loadPlatosEliminados();
-                else if (tabName === 'cierre-caja') loadCierresCaja();
+                else if (tabName === 'cierre-caja') {
+                    loadEstadoActualCierre();
+                    loadCierresCaja();
+                }
             } catch (error) {
                 console.error(`Error cargando datos para ${tabName}:`, error);
                 const container = document.getElementById(`${tabName}-list`) || document.getElementById(tabName);
@@ -2606,81 +2621,61 @@
             }
         }
 
-        // Función para cargar platos eliminados
-        async function loadPlatosEliminados() {
+        // ========== FUNCIONES CIERRE DE CAJA RESTAURANTE ==========
+        
+        // Cargar estado actual sin cerrar
+        async function loadEstadoActualCierre() {
             try {
-                const fecha = document.getElementById('platos-eliminados-fecha')?.value || '';
-                let url = `${API_BASE}/auditoria/platos-eliminados`;
-                if (fecha) url += `?fecha=${fecha}`;
-                
-                const response = await fetch(url);
+                const response = await fetch(`${API_BASE}/cierre-caja/estado/actual`);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 
-                const data = await response.json();
-                displayPlatosEliminados(data.platosEliminados || []);
+                const estado = await response.json();
+                const container = document.getElementById('estado-actual-cierre');
+                
+                const fechaUltimo = estado.ultimoCierre 
+                    ? new Date(estado.ultimoCierre).toLocaleString('es-PE')
+                    : 'Nunca';
+                
+                container.innerHTML = `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                        <div>
+                            <div style="font-size: 14px; opacity: 0.9;">Último Cierre</div>
+                            <div style="font-size: 20px; font-weight: bold;">${fechaUltimo}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 14px; opacity: 0.9;">Días Transcurridos</div>
+                            <div style="font-size: 20px; font-weight: bold;">${estado.diasTranscurridos || 0} días</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 14px; opacity: 0.9;">Comandas Pendientes</div>
+                            <div style="font-size: 20px; font-weight: bold;">${estado.comandasPendientes || 0}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 14px; opacity: 0.9;">Monto Pendiente</div>
+                            <div style="font-size: 20px; font-weight: bold;">S/. ${(estado.montoPendiente || 0).toFixed(2)}</div>
+                        </div>
+                    </div>
+                `;
             } catch (error) {
-                document.getElementById('platos-eliminados-list').innerHTML = 
-                    `<div class="alert alert-error">Error al cargar platos eliminados: ${error.message}</div>`;
+                document.getElementById('estado-actual-cierre').innerHTML = 
+                    `<div style="color: #ffebee;">Error al cargar estado: ${error.message}</div>`;
             }
         }
 
-        function displayPlatosEliminados(platos) {
-            const container = document.getElementById('platos-eliminados-list');
-            if (platos.length === 0) {
-                container.innerHTML = '<div class="empty-state">No hay platos eliminados registrados</div>';
-                return;
-            }
-
-            container.innerHTML = `
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Fecha/Hora</th>
-                                <th>Comanda #</th>
-                                <th>Plato</th>
-                                <th>Cantidad Original</th>
-                                <th>Estado</th>
-                                <th>Motivo</th>
-                                <th>Usuario</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${platos.map(plato => `
-                                <tr style="${plato.estado?.includes('eliminado') ? 'background-color: #fee;' : ''}">
-                                    <td>${new Date(plato.timestamp).toLocaleString('es-PE')}</td>
-                                    <td>#${plato.comandaNumber || plato.comandaId?.slice(-6) || 'N/A'}</td>
-                                    <td><strong>${plato.nombreOriginal || 'Plato desconocido'}</strong></td>
-                                    <td>${plato.cantidadOriginal || 0}</td>
-                                    <td>
-                                        <span class="badge ${plato.estado?.includes('eliminado') ? 'badge-danger' : 'badge-warning'}">
-                                            ${plato.estado || 'N/A'}
-                                        </span>
-                                    </td>
-                                    <td style="max-width: 300px; word-wrap: break-word;">
-                                        <strong style="color: #d32f2f;">${plato.motivo || 'Sin motivo registrado'}</strong>
-                                    </td>
-                                    <td>${plato.usuario?.name || plato.usuarioNombre || 'Sistema'}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            `;
-        }
-
-        // Funciones para Cierre de Caja
+        // Funciones para Cierre de Caja Restaurante
         async function loadCierresCaja() {
             try {
-                const fecha = document.getElementById('cierre-fecha')?.value || '';
-                let url = `${API_BASE}/cierreCaja`;
-                if (fecha) url += `?fechaDesde=${fecha}&fechaHasta=${fecha}`;
+                const fechaDesde = document.getElementById('cierre-fecha-desde')?.value || '';
+                const fechaHasta = document.getElementById('cierre-fecha-hasta')?.value || '';
+                let url = `${API_BASE}/cierre-caja/historial?page=1&limit=50`;
+                if (fechaDesde) url += `&fechaDesde=${fechaDesde}`;
+                if (fechaHasta) url += `&fechaHasta=${fechaHasta}`;
                 
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 
                 const data = await response.json();
-                displayCierresCaja(Array.isArray(data) ? data : (data.cierres || []));
+                displayCierresCaja(data.cierres || []);
             } catch (error) {
                 document.getElementById('cierre-caja-list').innerHTML = 
                     `<div class="alert alert-error">Error al cargar cierres de caja: ${error.message}</div>`;
@@ -2699,145 +2694,771 @@
                     <table>
                         <thead>
                             <tr>
-                                <th>ID</th>
-                                <th>Mozo</th>
-                                <th>Fecha</th>
-                                <th>Turno</th>
-                                <th>Efectivo Sistema</th>
-                                <th>Efectivo Físico</th>
-                                <th>Diferencia</th>
-                                <th>Estado</th>
+                                <th>Fecha Cierre</th>
+                                <th>Período</th>
+                                <th>Total Comandas</th>
+                                <th>Monto Total</th>
+                                <th>Ticket Promedio</th>
+                                <th>Usuario Admin</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${cierres.map(cierre => `
-                                <tr style="${Math.abs(cierre.diferencia || 0) > 5 ? 'background-color: #fee;' : ''}">
-                                    <td>#${cierre.cierreId || cierre._id?.slice(-6)}</td>
-                                    <td>${cierre.nombreMozo || cierre.mozoId?.name || 'N/A'}</td>
-                                    <td>${new Date(cierre.fechaCierre).toLocaleDateString('es-PE')}</td>
-                                    <td><span class="badge badge-info">${cierre.turno || 'N/A'}</span></td>
-                                    <td>S/. ${(cierre.totalEfectivoSistema || 0).toFixed(2)}</td>
-                                    <td>S/. ${(cierre.totalEfectivoFisico || 0).toFixed(2)}</td>
-                                    <td style="color: ${Math.abs(cierre.diferencia || 0) > 5 ? '#d32f2f' : '#4caf50'}; font-weight: bold;">
-                                        S/. ${(cierre.diferencia || 0).toFixed(2)}
-                                    </td>
+                            ${cierres.map(cierre => {
+                                const resumen = cierre.resumenFinanciero || {};
+                                const periodoInicio = cierre.periodoInicio ? new Date(cierre.periodoInicio).toLocaleDateString('es-PE') : 'N/A';
+                                const periodoFin = cierre.periodoFin ? new Date(cierre.periodoFin).toLocaleDateString('es-PE') : 'N/A';
+                                return `
+                                <tr>
+                                    <td>${new Date(cierre.fechaCierre).toLocaleString('es-PE')}</td>
+                                    <td>${periodoInicio} - ${periodoFin}</td>
+                                    <td>${resumen.totalComandas || 0}</td>
+                                    <td><strong>S/. ${(resumen.montoTotalVendido || 0).toFixed(2)}</strong></td>
+                                    <td>S/. ${(resumen.ticketPromedio || 0).toFixed(2)}</td>
+                                    <td>${cierre.usuarioAdmin || 'N/A'}</td>
                                     <td>
-                                        <span class="badge ${getEstadoCierreColor(cierre.estado)}">
-                                            ${cierre.estado || 'borrador'}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <button class="btn btn-primary" style="margin-right: 5px; padding: 5px 10px; font-size: 12px;" onclick="verCierreCaja('${cierre._id}')">👁️ Ver</button>
-                                        <button class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;" onclick="descargarPDFCierre('${cierre._id}')">📄 PDF</button>
+                                        <button class="btn btn-primary" style="margin-right: 5px; padding: 5px 10px; font-size: 12px;" onclick="verDetallesCierre('${cierre._id}')">📊 Ver Detalles</button>
                                     </td>
                                 </tr>
-                            `).join('')}
+                            `;
+                            }).join('')}
                         </tbody>
                     </table>
                 </div>
             `;
         }
 
-        function getEstadoCierreColor(estado) {
-            const colors = {
-                'borrador': 'badge-warning',
-                'pendiente': 'badge-warning',
-                'aprobado': 'badge-success',
-                'rechazado': 'badge-danger'
-            };
-            return colors[estado] || 'badge-warning';
-        }
-
-        async function verCierreCaja(cierreId) {
+        // Abrir modal de confirmación para cerrar caja
+        async function abrirModalCerrarCaja() {
             try {
-                const response = await fetch(`${API_BASE}/cierreCaja/${cierreId}`);
-                const cierre = await response.json();
+                const estado = await fetch(`${API_BASE}/cierre-caja/estado/actual`).then(r => r.json());
+                
+                const periodoInicio = estado.ultimoCierre 
+                    ? new Date(estado.ultimoCierre).toLocaleString('es-PE')
+                    : 'Inicio de operaciones';
+                const periodoFin = new Date(estado.periodoFin).toLocaleString('es-PE');
+                const dias = estado.diasTranscurridos || 0;
                 
                 const modalBody = `
-                    <div style="padding: 20px; max-width: 900px;">
-                        <h3>Cierre de Caja #${cierre.cierreId || cierre._id?.slice(-6)}</h3>
+                    <div style="padding: 20px;">
+                        <h3 style="color: #d32f2f; margin-bottom: 20px;">⚠️ Confirmar Cierre de Caja</h3>
+                        <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
+                            <p><strong>Este proceso es irreversible.</strong> Una vez cerrado, las comandas serán marcadas como procesadas.</p>
+                        </div>
                         <div style="margin: 20px 0;">
-                            <p><strong>Mozo:</strong> ${cierre.nombreMozo || 'N/A'}</p>
-                            <p><strong>Fecha:</strong> ${new Date(cierre.fechaCierre).toLocaleDateString('es-PE')}</p>
-                            <p><strong>Turno:</strong> ${cierre.turno || 'N/A'}</p>
-                            <p><strong>Estado:</strong> <span class="badge ${getEstadoCierreColor(cierre.estado)}">${cierre.estado || 'borrador'}</span></p>
+                            <p><strong>Período a cerrar:</strong></p>
+                            <p>Desde: ${periodoInicio}</p>
+                            <p>Hasta: ${periodoFin}</p>
+                            <p><strong>Días transcurridos:</strong> ${dias} días</p>
+                            <p><strong>Comandas pendientes:</strong> ${estado.comandasPendientes || 0}</p>
+                            <p><strong>Monto estimado:</strong> S/. ${(estado.montoPendiente || 0).toFixed(2)}</p>
                         </div>
-                        <hr>
-                        <h4>Totales del Sistema</h4>
-                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin: 15px 0;">
-                            <div><strong>Efectivo:</strong> S/. ${(cierre.totalEfectivoSistema || 0).toFixed(2)}</div>
-                            <div><strong>Tarjeta:</strong> S/. ${(cierre.totalTarjetaSistema || 0).toFixed(2)}</div>
-                            <div><strong>Yape:</strong> S/. ${(cierre.totalYapeSistema || 0).toFixed(2)}</div>
-                            <div><strong>Plin:</strong> S/. ${(cierre.totalPlinSistema || 0).toFixed(2)}</div>
-                            <div><strong>Transferencia:</strong> S/. ${(cierre.totalTransferenciaSistema || 0).toFixed(2)}</div>
-                            <div><strong>Propinas:</strong> S/. ${(cierre.totalPropinas || 0).toFixed(2)}</div>
-                        </div>
-                        <hr>
-                        <h4>Validación Física</h4>
-                        <div style="margin: 15px 0;">
-                            <p><strong>Efectivo Físico Reportado:</strong> S/. ${(cierre.totalEfectivoFisico || 0).toFixed(2)}</p>
-                            <p style="font-size: 1.2em; font-weight: bold; color: ${Math.abs(cierre.diferencia || 0) > 5 ? '#d32f2f' : '#4caf50'};">
-                                <strong>DIFERENCIA:</strong> S/. ${(cierre.diferencia || 0).toFixed(2)}
-                            </p>
-                            ${cierre.observaciones ? `<p><strong>Observaciones:</strong> ${cierre.observaciones}</p>` : ''}
+                        <div style="margin-top: 30px; display: flex; gap: 10px; justify-content: flex-end;">
+                            <button class="btn" style="background: #6c757d; color: white;" onclick="ModalManager.cerrar()">Cancelar</button>
+                            <button class="btn btn-danger" onclick="ejecutarCierreCaja()">✅ Confirmar Cierre</button>
                         </div>
                     </div>
                 `;
                 
-                ModalManager.abrir('Detalle Cierre de Caja', modalBody);
+                ModalManager.abrir('Confirmar Cierre de Caja', modalBody);
             } catch (error) {
-                alert('Error al cargar cierre de caja: ' + error.message);
+                alert('Error al cargar información: ' + error.message);
             }
         }
 
-        async function descargarPDFCierre(cierreId) {
-            try {
-                const response = await fetch(`${API_BASE}/cierreCaja/${cierreId}/reporte-pdf`);
-                if (!response.ok) throw new Error('Error al generar PDF');
-                
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `cierre_caja_${cierreId}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-            } catch (error) {
-                alert('Error al descargar PDF: ' + error.message);
-            }
-        }
-
-        async function generarCierreCaja() {
-            const mozoId = prompt('ID del Mozo:');
-            if (!mozoId) return;
+        // Ejecutar el cierre de caja
+        async function ejecutarCierreCaja() {
+            const notas = prompt('Notas adicionales (opcional):', '');
             
-            const fecha = prompt('Fecha (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
-            if (!fecha) return;
-            
-            const turno = prompt('Turno (mañana/tarde/noche):', 'tarde');
-            if (!turno) return;
+            // Mostrar indicador de progreso
+            const modalBody = `
+                <div style="padding: 40px; text-align: center;">
+                    <div class="loading" style="font-size: 18px;">
+                        <div style="margin-bottom: 20px;">⏳ Procesando cierre de caja...</div>
+                        <div style="color: #666;">Por favor espere, esto puede tomar varios segundos.</div>
+                    </div>
+                </div>
+            `;
+            ModalManager.abrir('Procesando Cierre', modalBody);
             
             try {
-                const response = await fetch(`${API_BASE}/cierreCaja/generar`, {
+                const response = await fetch(`${API_BASE}/cierre-caja`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ mozoId: parseInt(mozoId), fecha, turno })
+                    body: JSON.stringify({ 
+                        usuarioAdmin: 'admin', // Se puede obtener del token de sesión
+                        notasAdmin: notas || ''
+                    })
                 });
                 
-                if (response.ok) {
-                    const cierre = await response.json();
-                    showAlert('Cierre de caja generado exitosamente', 'success');
-                    loadCierresCaja();
-                } else {
+                if (!response.ok) {
                     const error = await response.json();
-                    showAlert('Error: ' + (error.error || 'No se pudo generar el cierre'), 'error');
+                    throw new Error(error.message || 'Error al generar cierre');
                 }
+                
+                const result = await response.json();
+                
+                // Mostrar resultado exitoso
+                const successBody = `
+                    <div style="padding: 30px; text-align: center;">
+                        <div style="font-size: 60px; margin-bottom: 20px;">✅</div>
+                        <h3 style="color: #4caf50; margin-bottom: 20px;">Cierre Completado Exitosamente</h3>
+                        <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: left;">
+                            <p><strong>Período:</strong> ${new Date(result.cierre.periodoInicio).toLocaleDateString('es-PE')} - ${new Date(result.cierre.periodoFin).toLocaleDateString('es-PE')}</p>
+                            <p><strong>Total vendido:</strong> S/. ${result.cierre.resumen.montoTotalVendido.toFixed(2)}</p>
+                            <p><strong>Comandas procesadas:</strong> ${result.cierre.resumen.totalComandas}</p>
+                            <p><strong>Ticket promedio:</strong> S/. ${result.cierre.resumen.ticketPromedio.toFixed(2)}</p>
+                        </div>
+                        <div style="margin-top: 30px; display: flex; gap: 10px; justify-content: center;">
+                            <button class="btn" style="background: #6c757d; color: white;" onclick="ModalManager.cerrar(); loadEstadoActualCierre(); loadCierresCaja();">Cerrar</button>
+                            <button class="btn btn-primary" onclick="verDetallesCierre('${result.cierre._id}'); ModalManager.cerrar();">📊 Ver Detalles</button>
+                        </div>
+                    </div>
+                `;
+                
+                ModalManager.abrir('Cierre Exitoso', successBody);
+                
+                // Recargar estado y lista
+                loadEstadoActualCierre();
+                loadCierresCaja();
+                
             } catch (error) {
-                showAlert('Error: ' + error.message, 'error');
+                ModalManager.cerrar();
+                alert('Error al cerrar caja: ' + error.message);
             }
+        }
+
+        // Ver detalles completos de un cierre con gráficos
+        async function verDetallesCierre(cierreId) {
+            try {
+                const response = await fetch(`${API_BASE}/cierre-caja/${cierreId}`);
+                if (!response.ok) throw new Error('Error al cargar cierre');
+                
+                const cierre = await response.json();
+                mostrarVistaEstadisticas(cierre);
+            } catch (error) {
+                alert('Error al cargar detalles: ' + error.message);
+            }
+        }
+
+        // Variable global para almacenar datos del cierre actual
+        let cierreActual = null;
+
+        // Mostrar vista completa de estadísticas con gráficos
+        function mostrarVistaEstadisticas(cierre) {
+            cierreActual = cierre; // Guardar para uso en las pestañas
+            
+            const modalBody = `
+                <div style="padding: 20px; max-width: 1200px; max-height: 90vh; overflow-y: auto;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2>📊 Estadísticas del Cierre</h2>
+                        <div>
+                            <button class="btn btn-primary" style="margin-right: 5px;" onclick="exportarPDFCierre('${cierre._id}')">📄 PDF</button>
+                            <button class="btn btn-primary" onclick="exportarExcelCierre('${cierre._id}')">📊 Excel</button>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                        <button id="tab-resumen" class="btn btn-primary tab-estadistica active" onclick="mostrarTabEstadisticas('resumen')">💰 Resumen</button>
+                        <button id="tab-productos" class="btn btn-primary tab-estadistica" onclick="mostrarTabEstadisticas('productos')">🍽️ Productos</button>
+                        <button id="tab-mozos" class="btn btn-primary tab-estadistica" onclick="mostrarTabEstadisticas('mozos')">👥 Mozos</button>
+                        <button id="tab-mesas" class="btn btn-primary tab-estadistica" onclick="mostrarTabEstadisticas('mesas')">🪑 Mesas</button>
+                        <button id="tab-clientes" class="btn btn-primary tab-estadistica" onclick="mostrarTabEstadisticas('clientes')">👤 Clientes</button>
+                        <button id="tab-auditoria" class="btn btn-primary tab-estadistica" onclick="mostrarTabEstadisticas('auditoria')">🔒 Auditoría</button>
+                    </div>
+                    
+                    <div id="contenido-estadisticas">
+                        ${generarContenidoResumen(cierre)}
+                    </div>
+                </div>
+            `;
+            
+            ModalManager.abrir('Estadísticas del Cierre', modalBody);
+            
+            // Renderizar gráficos después de un pequeño delay para que el modal esté visible
+            setTimeout(() => {
+                const datosGraficos = cierre.datosGraficos || {};
+                const resumen = cierre.resumenFinanciero || {};
+                renderizarGraficosResumen(datosGraficos, resumen);
+            }, 100);
+        }
+
+        function generarContenidoResumen(cierre) {
+            const resumen = cierre.resumenFinanciero || {};
+            return `
+                <div id="tab-resumen">
+                    <h3>💰 Resumen Financiero</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px; color: white;">
+                            <div style="font-size: 14px; opacity: 0.9;">Total Vendido</div>
+                            <div style="font-size: 28px; font-weight: bold;">S/. ${(resumen.montoTotalVendido || 0).toFixed(2)}</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 8px; color: white;">
+                            <div style="font-size: 14px; opacity: 0.9;">Total Comandas</div>
+                            <div style="font-size: 28px; font-weight: bold;">${resumen.totalComandas || 0}</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 20px; border-radius: 8px; color: white;">
+                            <div style="font-size: 14px; opacity: 0.9;">Ticket Promedio</div>
+                            <div style="font-size: 28px; font-weight: bold;">S/. ${(resumen.ticketPromedio || 0).toFixed(2)}</div>
+                        </div>
+                    </div>
+                    <div style="margin: 30px 0;">
+                        <h4>Ventas por Día</h4>
+                        <canvas id="chartVentasDia" style="max-height: 300px;"></canvas>
+                    </div>
+                    <div style="margin: 30px 0;">
+                        <h4>Ventas por Hora</h4>
+                        <canvas id="chartVentasHora" style="max-height: 300px;"></canvas>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderizarGraficosResumen(datosGraficos, resumen) {
+            // Gráfico de ventas por día
+            const ctxDia = document.getElementById('chartVentasDia');
+            if (ctxDia && datosGraficos.ventasPorDia) {
+                new Chart(ctxDia, {
+                    type: 'bar',
+                    data: {
+                        labels: datosGraficos.ventasPorDia.map(d => d.fecha),
+                        datasets: [{
+                            label: 'Monto Vendido (S/.)',
+                            data: datosGraficos.ventasPorDia.map(d => d.monto),
+                            backgroundColor: 'rgba(102, 126, 234, 0.6)',
+                            borderColor: 'rgba(102, 126, 234, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+            
+            // Gráfico de ventas por hora
+            const ctxHora = document.getElementById('chartVentasHora');
+            if (ctxHora && datosGraficos.ventasPorHora) {
+                new Chart(ctxHora, {
+                    type: 'line',
+                    data: {
+                        labels: datosGraficos.ventasPorHora.map(h => `${h.hora}:00`),
+                        datasets: [{
+                            label: 'Monto Promedio (S/.)',
+                            data: datosGraficos.ventasPorHora.map(h => h.monto),
+                            borderColor: 'rgba(245, 87, 108, 1)',
+                            backgroundColor: 'rgba(245, 87, 108, 0.1)',
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+        }
+
+        function mostrarTabEstadisticas(tab) {
+            if (!cierreActual) {
+                console.error('No hay cierre actual cargado');
+                return;
+            }
+            
+            // Remover clase active de todos los botones
+            document.querySelectorAll('.tab-estadistica').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Agregar clase active al botón seleccionado
+            const btnTab = document.getElementById(`tab-${tab}`);
+            if (btnTab) {
+                btnTab.classList.add('active');
+            }
+            
+            // Cambiar contenido según la pestaña
+            const contenidoDiv = document.getElementById('contenido-estadisticas');
+            if (!contenidoDiv) return;
+            
+            let contenido = '';
+            
+            switch(tab) {
+                case 'resumen':
+                    contenido = generarContenidoResumen(cierreActual);
+                    break;
+                case 'productos':
+                    contenido = generarContenidoProductos(cierreActual);
+                    break;
+                case 'mozos':
+                    contenido = generarContenidoMozos(cierreActual);
+                    break;
+                case 'mesas':
+                    contenido = generarContenidoMesas(cierreActual);
+                    break;
+                case 'clientes':
+                    contenido = generarContenidoClientes(cierreActual);
+                    break;
+                case 'auditoria':
+                    contenido = generarContenidoAuditoria(cierreActual);
+                    break;
+                default:
+                    contenido = generarContenidoResumen(cierreActual);
+            }
+            
+            contenidoDiv.innerHTML = contenido;
+            
+            // Renderizar gráficos si es necesario
+            setTimeout(() => {
+                if (tab === 'resumen') {
+                    const datosGraficos = cierreActual.datosGraficos || {};
+                    const resumen = cierreActual.resumenFinanciero || {};
+                    renderizarGraficosResumen(datosGraficos, resumen);
+                } else if (tab === 'productos') {
+                    renderizarGraficosProductos(cierreActual);
+                } else if (tab === 'mozos') {
+                    renderizarGraficosMozos(cierreActual);
+                } else if (tab === 'mesas') {
+                    renderizarGraficosMesas(cierreActual);
+                }
+            }, 100);
+        }
+        
+        function generarContenidoProductos(cierre) {
+            const productos = cierre.productos || {};
+            const topProductos = productos.topProductos || [];
+            const productosPorCategoria = productos.productosPorCategoria || {};
+            
+            return `
+                <div id="tab-productos">
+                    <h3>🍽️ Análisis de Productos</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px; color: white;">
+                            <div style="font-size: 14px; opacity: 0.9;">Total Productos Vendidos</div>
+                            <div style="font-size: 28px; font-weight: bold;">${productos.totalProductosVendidos || 0}</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin: 30px 0;">
+                        <h4>Top 10 Productos Más Vendidos</h4>
+                        <canvas id="chartProductosTop" style="max-height: 400px;"></canvas>
+                    </div>
+                    
+                    <div style="margin: 30px 0;">
+                        <h4>Ventas por Categoría</h4>
+                        <canvas id="chartProductosCategoria" style="max-height: 300px;"></canvas>
+                    </div>
+                    
+                    <div style="margin: 30px 0;">
+                        <h4>Tabla Detallada de Productos</h4>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Producto</th>
+                                        <th>Categoría</th>
+                                        <th>Cantidad</th>
+                                        <th>Monto (S/.)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${topProductos.slice(0, 20).map((p, index) => `
+                                        <tr>
+                                            <td>${index + 1}</td>
+                                            <td><strong>${p.nombre}</strong></td>
+                                            <td>${p.categoria || 'Sin categoría'}</td>
+                                            <td>${p.cantidad}</td>
+                                            <td>S/. ${p.monto.toFixed(2)}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function generarContenidoMozos(cierre) {
+            const mozos = cierre.mozos || {};
+            const desempeño = mozos.desempeñoPorMozo || [];
+            
+            // Ordenar desempeño por monto total vendido para crear el ranking
+            const ranking = desempeño
+                .sort((a, b) => (b.montoTotalVendido || 0) - (a.montoTotalVendido || 0))
+                .map((m, index) => ({ ...m, posicion: index + 1 }));
+            
+            return `
+                <div id="tab-mozos">
+                    <h3>👥 Desempeño de Mozos</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px; color: white;">
+                            <div style="font-size: 14px; opacity: 0.9;">Total Mozos</div>
+                            <div style="font-size: 28px; font-weight: bold;">${mozos.totalMozos || desempeño.length || 0}</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin: 30px 0;">
+                        <h4>Ventas por Mozo</h4>
+                        <canvas id="chartMozosVentas" style="max-height: 400px;"></canvas>
+                    </div>
+                    
+                    <div style="margin: 30px 0;">
+                        <h4>Ranking de Mozos</h4>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Posición</th>
+                                        <th>Mozo</th>
+                                        <th>Comandas</th>
+                                        <th>Monto Total (S/.)</th>
+                                        <th>Ticket Promedio (S/.)</th>
+                                        <th>Tiempo Promedio (min)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${ranking.length > 0 ? ranking.map((m, index) => `
+                                        <tr>
+                                            <td><strong>#${m.posicion || index + 1}</strong></td>
+                                            <td>${m.nombre || 'Sin nombre'}</td>
+                                            <td>${m.comandasAtendidas || 0}</td>
+                                            <td>S/. ${(m.montoTotalVendido || 0).toFixed(2)}</td>
+                                            <td>S/. ${(m.ticketPromedio || 0).toFixed(2)}</td>
+                                            <td>${m.tiempoPromedioAtencion || 0}</td>
+                                        </tr>
+                                    `).join('') : '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #999;">No hay datos de mozos disponibles</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function generarContenidoMesas(cierre) {
+            const mesas = cierre.mesas || {};
+            const ocupacionAreas = mesas.ocupacionPorArea || {};
+            
+            return `
+                <div id="tab-mesas">
+                    <h3>🪑 Ocupación y Uso de Mesas</h3>
+                    
+                    <div style="margin: 30px 0;">
+                        <h4>Ocupación por Área</h4>
+                        <canvas id="chartOcupacionAreas" style="max-height: 400px;"></canvas>
+                    </div>
+                    
+                    <div style="margin: 30px 0;">
+                        <h4>Rotación de Mesas</h4>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Mesa</th>
+                                        <th>Área</th>
+                                        <th>Usos</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${(mesas.mesasUsadas || []).slice(0, 30).map(m => `
+                                        <tr>
+                                            <td><strong>Mesa ${m.numMesa || 'N/A'}</strong></td>
+                                            <td>${m.area || 'Sin área'}</td>
+                                            <td>${mesas.rotacionPorMesa?.[m.mesaId] || 0}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function generarContenidoClientes(cierre) {
+            const clientes = cierre.clientes || {};
+            
+            return `
+                <div id="tab-clientes">
+                    <h3>👤 Análisis de Clientes</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px; color: white;">
+                            <div style="font-size: 14px; opacity: 0.9;">Total Clientes</div>
+                            <div style="font-size: 28px; font-weight: bold;">${clientes.totalClientes || 0}</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 8px; color: white;">
+                            <div style="font-size: 14px; opacity: 0.9;">Clientes Nuevos</div>
+                            <div style="font-size: 28px; font-weight: bold;">${clientes.clientesNuevos || 0}</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 20px; border-radius: 8px; color: white;">
+                            <div style="font-size: 14px; opacity: 0.9;">Ticket Promedio</div>
+                            <div style="font-size: 28px; font-weight: bold;">S/. ${(clientes.ticketPromedioPorCliente || 0).toFixed(2)}</div>
+                        </div>
+                    </div>
+                    
+                    ${clientes.topClientes && clientes.topClientes.length > 0 ? `
+                        <div style="margin: 30px 0;">
+                            <h4>Top Clientes</h4>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Cliente</th>
+                                            <th>Monto Total (S/.)</th>
+                                            <th>Visitas</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${clientes.topClientes.map(c => `
+                                            <tr>
+                                                <td><strong>${c.nombre || 'Sin nombre'}</strong></td>
+                                                <td>S/. ${(c.montoTotal || 0).toFixed(2)}</td>
+                                                <td>${c.cantidadVisitas || 0}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ` : '<p style="color: #999; text-align: center; padding: 40px;">No hay información de clientes disponible</p>'}
+                </div>
+            `;
+        }
+        
+        function generarContenidoAuditoria(cierre) {
+            const auditoria = cierre.auditoria || {};
+            const canceladas = auditoria.comandasCanceladas || [];
+            const modificaciones = auditoria.modificaciones || [];
+            const operacionesEspeciales = auditoria.operacionesEspeciales || [];
+            
+            return `
+                <div id="tab-auditoria">
+                    <h3>🔒 Auditoría de Operaciones</h3>
+                    
+                    ${canceladas.length > 0 ? `
+                        <div style="margin: 30px 0;">
+                            <h4>Comandas Canceladas (${canceladas.length})</h4>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Comanda #</th>
+                                            <th>Fecha</th>
+                                            <th>Mozo</th>
+                                            <th>Monto (S/.)</th>
+                                            <th>Motivo</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${canceladas.map(c => `
+                                            <tr style="background-color: #fee;">
+                                                <td><strong>#${c.comandaNumber || 'N/A'}</strong></td>
+                                                <td>${new Date(c.fecha).toLocaleString('es-PE')}</td>
+                                                <td>${c.mozo || 'N/A'}</td>
+                                                <td>S/. ${(c.monto || 0).toFixed(2)}</td>
+                                                <td style="max-width: 300px; word-wrap: break-word;">${c.motivo || 'Sin motivo'}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ` : '<p style="color: #999; text-align: center; padding: 20px;">No hay comandas canceladas en este período</p>'}
+                    
+                    ${modificaciones.length > 0 ? `
+                        <div style="margin: 30px 0;">
+                            <h4>Modificaciones Realizadas (${modificaciones.length})</h4>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Tipo</th>
+                                            <th>Fecha</th>
+                                            <th>Usuario</th>
+                                            <th>Descripción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${modificaciones.slice(0, 50).map(m => `
+                                            <tr>
+                                                <td><span class="badge badge-warning">${m.tipo || 'N/A'}</span></td>
+                                                <td>${new Date(m.fecha).toLocaleString('es-PE')}</td>
+                                                <td>${m.usuario || 'N/A'}</td>
+                                                <td>${m.descripcion || 'Sin descripción'}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    ${operacionesEspeciales.length > 0 ? `
+                        <div style="margin: 30px 0;">
+                            <h4>Operaciones Especiales (${operacionesEspeciales.length})</h4>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Tipo</th>
+                                            <th>Fecha</th>
+                                            <th>Descripción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${operacionesEspeciales.map(o => `
+                                            <tr>
+                                                <td><span class="badge badge-info">${o.tipo || 'N/A'}</span></td>
+                                                <td>${new Date(o.fecha).toLocaleString('es-PE')}</td>
+                                                <td>${o.descripcion || 'Sin descripción'}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+        
+        function renderizarGraficosProductos(cierre) {
+            const productos = cierre.productos || {};
+            const topProductos = productos.topProductos || [];
+            const productosPorCategoria = productos.productosPorCategoria || {};
+            
+            // Gráfico de barras horizontal - Top productos
+            const ctxProductos = document.getElementById('chartProductosTop');
+            if (ctxProductos && topProductos.length > 0) {
+                const top10 = topProductos.slice(0, 10);
+                new Chart(ctxProductos, {
+                    type: 'bar',
+                    data: {
+                        labels: top10.map(p => p.nombre),
+                        datasets: [{
+                            label: 'Cantidad Vendida',
+                            data: top10.map(p => p.cantidad),
+                            backgroundColor: 'rgba(102, 126, 234, 0.6)',
+                            borderColor: 'rgba(102, 126, 234, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        scales: {
+                            x: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+            
+            // Gráfico de pie - Ventas por categoría
+            const ctxCategoria = document.getElementById('chartProductosCategoria');
+            if (ctxCategoria && Object.keys(productosPorCategoria).length > 0) {
+                const categorias = Object.keys(productosPorCategoria);
+                const montos = categorias.map(cat => productosPorCategoria[cat].monto || 0);
+                
+                new Chart(ctxCategoria, {
+                    type: 'pie',
+                    data: {
+                        labels: categorias,
+                        datasets: [{
+                            data: montos,
+                            backgroundColor: [
+                                'rgba(102, 126, 234, 0.6)',
+                                'rgba(245, 87, 108, 0.6)',
+                                'rgba(79, 172, 254, 0.6)',
+                                'rgba(240, 147, 251, 0.6)',
+                                'rgba(118, 75, 162, 0.6)',
+                                'rgba(255, 152, 0, 0.6)'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true
+                    }
+                });
+            }
+        }
+        
+        function renderizarGraficosMozos(cierre) {
+            const mozos = cierre.mozos || {};
+            const desempeño = mozos.desempeñoPorMozo || [];
+            
+            const ctxMozos = document.getElementById('chartMozosVentas');
+            if (ctxMozos && desempeño.length > 0) {
+                new Chart(ctxMozos, {
+                    type: 'bar',
+                    data: {
+                        labels: desempeño.map(m => m.nombre),
+                        datasets: [{
+                            label: 'Monto Vendido (S/.)',
+                            data: desempeño.map(m => m.montoTotalVendido),
+                            backgroundColor: 'rgba(245, 87, 108, 0.6)',
+                            borderColor: 'rgba(245, 87, 108, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+        }
+        
+        function renderizarGraficosMesas(cierre) {
+            const mesas = cierre.mesas || {};
+            const ocupacionAreas = mesas.ocupacionPorArea || {};
+            
+            const ctxAreas = document.getElementById('chartOcupacionAreas');
+            if (ctxAreas && Object.keys(ocupacionAreas).length > 0) {
+                const areas = Object.keys(ocupacionAreas);
+                const cantidades = areas.map(area => ocupacionAreas[area]);
+                
+                new Chart(ctxAreas, {
+                    type: 'bar',
+                    data: {
+                        labels: areas,
+                        datasets: [{
+                            label: 'Cantidad de Usos',
+                            data: cantidades,
+                            backgroundColor: 'rgba(79, 172, 254, 0.6)',
+                            borderColor: 'rgba(79, 172, 254, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+        }
+
+        function exportarPDFCierre(cierreId) {
+            window.open(`${API_BASE}/cierre-caja/${cierreId}/exportar-pdf`, '_blank');
+        }
+
+        function exportarExcelCierre(cierreId) {
+            window.open(`${API_BASE}/cierre-caja/${cierreId}/exportar-excel`, '_blank');
         }
 
         // Cargar datos iniciales
