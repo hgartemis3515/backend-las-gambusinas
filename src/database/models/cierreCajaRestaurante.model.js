@@ -228,3 +228,4 @@ const CierreCajaRestaurante = mongoose.model('CierreCajaRestaurante', cierreCaja
 
 module.exports = CierreCajaRestaurante;
 
+
