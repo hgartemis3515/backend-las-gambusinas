@@ -1454,7 +1454,7 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             });
         }
         
-        // 4. Obtener snapshot antes de eliminar para auditoría
+        // 4. Obtener snapshot antes de eliminar para auditoría y calcular total
         const platoModel = require('../database/models/plato.model');
         const platosEliminadosData = [];
         let totalEliminado = 0;
@@ -1470,75 +1470,122 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             
             platosEliminadosData.push({
                 index: index,
+                platoId: platoItem.platoId,
                 nombre: plato?.nombre || 'Plato desconocido',
                 cantidad: cantidad,
                 precioUnit: precio,
-                subtotal: subtotal
+                subtotal: subtotal,
+                estado: platoItem.estado
             });
         });
         
-        // 5. Actualizar comanda: marcar platos como eliminados (SIN lean para poder modificar)
+        // 5. Actualizar comanda: REMOVER platos del array (HARD DELETE)
         const comandaActualizar = await comandaModel.findById(id);
         if (!comandaActualizar) {
             return res.status(404).json({ message: 'Comanda no encontrada' });
         }
         
-        indicesValidos.forEach(idx => {
-            const index = parseInt(idx);
-            const platoItem = comandaActualizar.platos[index];
-            if (platoItem) {
-                platoItem.eliminado = true;
-                platoItem.eliminadoPor = usuarioId;
-                platoItem.eliminadoRazon = motivo.trim();
-                platoItem.eliminadoAt = new Date();
+        // 🔥 CRÍTICO: Guardar ID antes de cualquier modificación
+        const idAntes = comandaActualizar._id.toString();
+        console.log(`[ELIMINAR PLATOS] ID antes de modificar: ${idAntes}`);
+        console.log(`[ELIMINAR PLATOS] Iniciando eliminación de ${indicesValidos.length} plato(s) - HARD DELETE`);
+        
+        // 🔥 HARD DELETE: REMOVER platos del array completamente (no solo marcar)
+        // Ordenar índices descendente para eliminar de atrás hacia adelante (evita problemas de índices)
+        const indicesAEliminar = indicesValidos.map(idx => parseInt(idx)).sort((a, b) => b - a);
+        
+        indicesAEliminar.forEach(index => {
+            // Remover del array de platos
+            comandaActualizar.platos.splice(index, 1);
+            // Remover cantidad correspondiente
+            if (comandaActualizar.cantidades && Array.isArray(comandaActualizar.cantidades)) {
+                comandaActualizar.cantidades.splice(index, 1);
             }
         });
         
-        // 6. Registrar en historialPlatos
-        if (!comandaActualizar.historialPlatos) {
-            comandaActualizar.historialPlatos = [];
+        console.log(`✅ [ELIMINAR PLATOS] ${indicesAEliminar.length} plato(s) removido(s) del array. Platos restantes: ${comandaActualizar.platos.length}`);
+        
+        // 6. Registrar en historialPlatos (OPCIONAL - solo si existe el campo)
+        if (comandaActualizar.historialPlatos && Array.isArray(comandaActualizar.historialPlatos)) {
+            platosEliminadosData.forEach(platoData => {
+                comandaActualizar.historialPlatos.push({
+                    platoId: platoData.platoId,
+                    nombreOriginal: platoData.nombre,
+                    cantidadOriginal: platoData.cantidad,
+                    cantidadFinal: 0,
+                    estado: 'eliminado',
+                    timestamp: new Date(),
+                    usuario: usuarioId,
+                    motivo: motivo.trim()
+                });
+            });
+        } else {
+            console.log(`[ELIMINAR PLATOS] historialPlatos no existe - omitiendo (auditoría en colección separada)`);
         }
         
-        // Usar for...of para manejar await correctamente
-        for (const idx of indicesValidos) {
-            const index = parseInt(idx);
-            const platoItem = comandaActualizar.platos[index];
-            const plato = platoItem.plato || platoItem;
-            let nombrePlato = 'Plato desconocido';
+        // 6.1. Enriquecer platosEliminadosData con datos adicionales para auditoría
+        platosEliminadosData.forEach(platoData => {
+            platoData.eliminadoPor = usuarioId;
+            platoData.eliminadoAt = new Date();
+            platoData.razon = motivo.trim();
+        });
+        
+        // 7. Verificar si TODOS los platos fueron eliminados (ahora verificar array vacío)
+        const todosPlatosEliminados = comandaActualizar.platos.length === 0;
+        
+        if (todosPlatosEliminados) {
+            // Marcar comanda como eliminada completamente
+            comandaActualizar.eliminada = true;
+            comandaActualizar.status = "cancelado";
+            console.log(`⚠️ [ELIMINAR PLATOS] Todos los platos eliminados - marcando comanda ${id} como eliminada`);
             
-            if (plato) {
-                if (typeof plato === 'object' && plato.nombre) {
-                    nombrePlato = plato.nombre;
-                } else if (plato._id || plato) {
-                    // Buscar nombre del plato
-                    try {
-                        const platoCompleto = await platoModel.findById(plato._id || plato).lean();
-                        if (platoCompleto) {
-                            nombrePlato = platoCompleto.nombre;
+            // Recalcular estado de la mesa (puede quedar libre si no hay más comandas activas)
+            const mesaModel = require('../database/models/mesa.model');
+            const mesaId = comandaActualizar.mesas?._id || comandaActualizar.mesas;
+            if (mesaId) {
+                try {
+                    const mesa = await mesaModel.findById(mesaId);
+                    if (mesa) {
+                        // Verificar si hay otras comandas activas en esta mesa
+                        const otrasComandasActivas = await comandaModel.countDocuments({
+                            mesas: mesaId,
+                            eliminada: { $ne: true },
+                            status: { $nin: ['pagado', 'completado', 'cancelado'] }
+                        });
+                        
+                        if (otrasComandasActivas === 0) {
+                            // No hay más comandas activas, mesa puede quedar libre
+                            mesa.estado = "libre";
+                            await mesa.save();
+                            console.log(`✅ [ELIMINAR PLATOS] Mesa ${mesa.nummesa} actualizada a "libre" (sin comandas activas)`);
                         }
-                    } catch (error) {
-                        console.warn(`Error buscando plato ${plato._id || plato}:`, error.message);
                     }
+                } catch (error) {
+                    console.warn(`⚠️ [ELIMINAR PLATOS] Error actualizando estado de mesa:`, error.message);
                 }
             }
-            
-            comandaActualizar.historialPlatos.push({
-                platoId: platoItem.platoId,
-                nombreOriginal: nombrePlato,
-                cantidadOriginal: comandaActualizar.cantidades?.[index] || 1,
-                cantidadFinal: 0,
-                estado: 'eliminado',
-                timestamp: new Date(),
-                usuario: usuarioId,
-                motivo: motivo.trim()
-            });
         }
         
-        // 7. Incrementar versión
+        // 8. Incrementar versión
         comandaActualizar.version = (comandaActualizar.version || 1) + 1;
+        
+        // 🔥 CRÍTICO: Guardar y verificar que el ID NO cambió
         await comandaActualizar.save();
         
-        // 8. Obtener comanda completa actualizada para respuesta
+        const idDespues = comandaActualizar._id.toString();
+        console.log(`[ELIMINAR PLATOS] ID después de save: ${idDespues}`);
+        
+        if (idAntes !== idDespues) {
+            console.error(`❌ [ELIMINAR PLATOS] ERROR CRÍTICO: ID cambió después de save!`);
+            console.error(`   Antes: ${idAntes}`);
+            console.error(`   Después: ${idDespues}`);
+            // No lanzar error, pero registrar para debugging
+            // El ID no debería cambiar nunca en MongoDB
+        } else {
+            console.log(`✅ [ELIMINAR PLATOS] ID verificado correctamente (no cambió)`);
+        }
+        
+        // 9. Obtener comanda completa actualizada para respuesta
         const comandaCompleta = await comandaModel.findById(id)
             .populate({
                 path: "mozos",
@@ -1557,7 +1604,7 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
                 model: "platos"
             });
         
-        // 9. Determinar acción de auditoría según el estado de los platos eliminados
+        // 10. Determinar acción de auditoría según el estado de los platos eliminados
         const estadosPlatosEliminados = indicesValidos.map(idx => {
             const index = parseInt(idx);
             const platoItem = comandaCheck.platos[index];
@@ -1566,7 +1613,7 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
         const tieneRecoger = estadosPlatosEliminados.some(e => e === "recoger");
         const accionAuditoria = tieneRecoger ? 'ELIMINAR_PLATO_RECOGER' : 'ELIMINAR_PLATO_COMANDA';
         
-        // 10. Registrar auditoría
+        // 11. Registrar auditoría
         req.auditoria = {
             accion: accionAuditoria,
             entidadId: id,
@@ -1633,7 +1680,7 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
         
         await registrarAuditoria(req, snapshotAntes, snapshotDespues, motivo.trim());
         
-        // 11. Emitir eventos Socket.io
+        // 12. Emitir eventos Socket.io
         if (global.emitComandaActualizada) {
             await global.emitComandaActualizada(comandaCompleta._id);
         }
@@ -1664,13 +1711,23 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             mozosNamespace.emit('comanda-actualizada', eventData);
         }
         
-        console.log(`✅ Platos eliminados de comanda #${comandaCompleta.comandaNumber}: ${platosEliminadosData.length} plato(s)`);
+        console.log(`✅ Platos eliminados de comanda #${comandaCompleta.comandaNumber}: ${indicesValidos.length} plato(s) REMOVIDOS`);
+        console.log(`[ELIMINAR PLATOS] Response preparado:`, {
+            comandaId: comandaCompleta._id.toString(),
+            mismoID: idAntes === comandaCompleta._id.toString(),
+            comandaEliminadaCompleta: todosPlatosEliminados,
+            platosEliminados: indicesValidos.length,
+            platosRestantes: comandaCompleta.platos.length
+        });
         
         res.json({
             message: 'Platos eliminados exitosamente',
             comanda: comandaCompleta,
             platosEliminados: platosEliminadosData,
-            totalEliminado: totalEliminado
+            totalEliminado: totalEliminado,
+            comandaEliminadaCompleta: todosPlatosEliminados || false, // Flag para frontend
+            platosRestantes: comandaCompleta.platos.length, // Nuevo: cantidad de platos restantes
+            idVerificado: idAntes === comandaCompleta._id.toString() // Verificación adicional
         });
         
     } catch (error) {
