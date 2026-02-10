@@ -254,11 +254,11 @@ module.exports = (io, cocinaNamespace, mozosNamespace) => {
       // Emitir a mozos - Si hay mesaId, usar room por mesa, sino a todos
       const mesaId = comanda.mesas?._id || comanda.mesas;
       const eventData = {
-        comandaId: comandaId,
-        comanda: comanda,
-        platosEliminados: platosEliminados,
-        socketId: 'server',
-        timestamp: timestamp
+          comandaId: comandaId,
+          comanda: comanda,
+          platosEliminados: platosEliminados,
+          socketId: 'server',
+          timestamp: timestamp
       };
       
       // Agregar información adicional si está disponible

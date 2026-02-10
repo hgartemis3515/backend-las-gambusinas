@@ -1,6 +1,6 @@
 [
   {
-    "_id": "698a0d957a0bce3afef48483",
+    "_id": "698b56b77575692c125ba029",
     "mozos": "69860821b6273b9647faf872",
     "mesas": "69860a415e59135b4d2c56c1",
     "cliente": null,
@@ -8,466 +8,16 @@
     "platos": [
       {
         "tiempos": {
-          "pedido": "2026-02-09T19:01:22.493Z"
+          "pedido": "2026-02-10T16:06:40.201Z"
         },
         "plato": "69860821b6273b9647faf89b",
         "platoId": 1,
-        "estado": "recoger",
-        "eliminado": false,
-        "eliminadoPor": null,
-        "eliminadoAt": null,
-        "eliminadoRazon": null,
-        "_id": "698a0d957a0bce3afef48484"
-      },
-      {
-        "tiempos": {
-          "pedido": "2026-02-09T19:01:22.493Z"
-        },
-        "plato": "69860821b6273b9647faf8a1",
-        "platoId": 2,
-        "estado": "recoger",
-        "eliminado": false,
-        "eliminadoPor": null,
-        "eliminadoAt": null,
-        "eliminadoRazon": null,
-        "_id": "698a0d957a0bce3afef48485"
-      },
-      {
-        "tiempos": {
-          "pedido": "2026-02-09T19:01:22.493Z"
-        },
-        "plato": "69860821b6273b9647faf8a8",
-        "platoId": 3,
-        "estado": "recoger",
-        "eliminado": false,
-        "eliminadoPor": null,
-        "eliminadoAt": null,
-        "eliminadoRazon": null,
-        "_id": "698a0d957a0bce3afef48486"
-      }
-    ],
-    "cantidades": [
-      1,
-      1,
-      1
-    ],
-    "observaciones": "",
-    "status": "recoger",
-    "IsActive": true,
-    "tiempoEnEspera": "2026-02-09T16:38:45.092Z",
-    "tiempoRecoger": "2026-02-09T17:04:46.401Z",
-    "tiempoEntregado": null,
-    "tiempoPagado": null,
-    "createdBy": "69860821b6273b9647faf872",
-    "updatedBy": null,
-    "deviceId": null,
-    "sourceApp": "api",
-    "historialEstados": [
-      {
-        "status": "en_espera",
-        "statusAnterior": null,
-        "timestamp": "2026-02-09T16:38:45.092Z",
-        "usuario": "69860821b6273b9647faf872",
-        "accion": "Comanda creada",
-        "deviceId": null,
-        "sourceApp": "api",
-        "motivo": null,
-        "_id": "698a0d957a0bce3afef48487"
-      },
-      {
-        "status": "recoger",
-        "statusAnterior": "en_espera",
-        "timestamp": "2026-02-09T17:04:46.401Z",
-        "usuario": null,
-        "accion": "Cambio de estado de \"en_espera\" a \"recoger\"",
-        "deviceId": null,
-        "sourceApp": "api",
-        "motivo": null,
-        "_id": "698a13ae7ea813957c3c31d8"
-      }
-    ],
-    "fechaEliminacion": null,
-    "motivoEliminacion": null,
-    "eliminadaPor": null,
-    "precioTotalOriginal": 8.5,
-    "precioTotal": 8.5,
-    "version": 1,
-    "incluidoEnCierre": null,
-    "createdAt": "2026-02-09T16:38:45.094Z",
-    "updatedAt": "2026-02-09T17:04:46.401Z",
-    "historialPlatos": [],
-    "comandaNumber": 289
-  },
-  {
-    "_id": "698a13a698cde3dee86535cd",
-    "mozos": "69860821b6273b9647faf872",
-    "mesas": "69860a47e52589a753836126",
-    "cliente": "698a29499739fadab5ff7c66",
-    "dividedFrom": null,
-    "platos": [
-      {
-        "tiempos": {
-          "entregado": "2026-02-09T18:36:18.475Z",
-          "pedido": "2026-02-09T19:01:22.493Z"
-        },
-        "plato": "69860821b6273b9647faf8ae",
-        "platoId": 4,
-        "estado": "entregado",
-        "eliminado": false,
-        "eliminadoPor": null,
-        "eliminadoAt": null,
-        "eliminadoRazon": null,
-        "_id": "698a13a698cde3dee86535ce"
-      },
-      {
-        "tiempos": {
-          "entregado": "2026-02-09T18:36:16.847Z",
-          "pedido": "2026-02-09T19:01:22.493Z"
-        },
-        "plato": "69860821b6273b9647faf8a8",
-        "platoId": 3,
-        "estado": "entregado",
-        "eliminado": false,
-        "eliminadoPor": null,
-        "eliminadoAt": null,
-        "eliminadoRazon": null,
-        "_id": "698a13a698cde3dee86535cf"
-      },
-      {
-        "tiempos": {
-          "entregado": "2026-02-09T18:36:24.669Z",
-          "pedido": "2026-02-09T19:01:22.494Z"
-        },
-        "plato": "69860821b6273b9647faf8a1",
-        "platoId": 2,
-        "estado": "entregado",
-        "eliminado": false,
-        "eliminadoPor": null,
-        "eliminadoAt": null,
-        "eliminadoRazon": null,
-        "_id": "698a13a698cde3dee86535d0"
-      },
-      {
-        "tiempos": {
-          "entregado": "2026-02-09T18:36:22.686Z",
-          "pedido": "2026-02-09T19:01:22.494Z"
-        },
-        "plato": "69860821b6273b9647faf89b",
-        "platoId": 1,
-        "estado": "entregado",
-        "eliminado": false,
-        "eliminadoPor": null,
-        "eliminadoAt": null,
-        "eliminadoRazon": null,
-        "_id": "698a13a698cde3dee86535d1"
-      }
-    ],
-    "cantidades": [
-      1,
-      1,
-      1,
-      1
-    ],
-    "observaciones": "",
-    "status": "pagado",
-    "IsActive": true,
-    "tiempoEnEspera": "2026-02-09T17:04:38.842Z",
-    "tiempoRecoger": "2026-02-09T18:34:05.863Z",
-    "tiempoEntregado": "2026-02-09T18:36:24.675Z",
-    "tiempoPagado": null,
-    "createdBy": "69860821b6273b9647faf872",
-    "updatedBy": null,
-    "deviceId": null,
-    "sourceApp": "api",
-    "historialEstados": [
-      {
-        "status": "en_espera",
-        "statusAnterior": null,
-        "timestamp": "2026-02-09T17:04:38.842Z",
-        "usuario": "69860821b6273b9647faf872",
-        "accion": "Comanda creada",
-        "deviceId": null,
-        "sourceApp": "api",
-        "motivo": null,
-        "_id": "698a13a698cde3dee86535d2"
-      },
-      {
-        "status": "recoger",
-        "statusAnterior": "en_espera",
-        "timestamp": "2026-02-09T18:34:05.863Z",
-        "usuario": null,
-        "accion": "Cambio de estado de \"en_espera\" a \"recoger\"",
-        "deviceId": null,
-        "sourceApp": "api",
-        "motivo": null,
-        "_id": "698a289d5878bc12667d3485"
-      }
-    ],
-    "fechaEliminacion": null,
-    "motivoEliminacion": null,
-    "eliminadaPor": null,
-    "precioTotalOriginal": 12.5,
-    "precioTotal": 12.5,
-    "version": 1,
-    "incluidoEnCierre": null,
-    "createdAt": "2026-02-09T17:04:38.844Z",
-    "updatedAt": "2026-02-09T18:36:24.676Z",
-    "historialPlatos": [],
-    "comandaNumber": 290
-  },
-  {
-    "_id": "698a28b45878bc12667d353c",
-    "mozos": "69860821b6273b9647faf872",
-    "mesas": "69860a47e52589a753836126",
-    "cliente": "698a29499739fadab5ff7c66",
-    "dividedFrom": null,
-    "platos": [
-      {
-        "tiempos": {
-          "pedido": "2026-02-09T18:34:28.118Z",
-          "entregado": "2026-02-09T18:36:47.827Z"
-        },
-        "plato": "69860821b6273b9647faf89b",
-        "platoId": 1,
-        "estado": "entregado",
-        "eliminado": false,
-        "eliminadoPor": null,
-        "eliminadoAt": null,
-        "eliminadoRazon": null,
-        "_id": "698a28b45878bc12667d353d"
-      },
-      {
-        "tiempos": {
-          "pedido": "2026-02-09T18:34:28.118Z",
-          "entregado": "2026-02-09T18:36:49.264Z"
-        },
-        "plato": "69860821b6273b9647faf8a1",
-        "platoId": 2,
-        "estado": "entregado",
-        "eliminado": false,
-        "eliminadoPor": null,
-        "eliminadoAt": null,
-        "eliminadoRazon": null,
-        "_id": "698a28b45878bc12667d353e"
-      },
-      {
-        "tiempos": {
-          "pedido": "2026-02-09T18:34:28.118Z",
-          "entregado": "2026-02-09T18:36:50.648Z"
-        },
-        "plato": "69860821b6273b9647faf8a8",
-        "platoId": 3,
-        "estado": "entregado",
-        "eliminado": false,
-        "eliminadoPor": null,
-        "eliminadoAt": null,
-        "eliminadoRazon": null,
-        "_id": "698a28b45878bc12667d353f"
-      },
-      {
-        "tiempos": {
-          "pedido": "2026-02-09T18:34:28.118Z",
-          "entregado": "2026-02-09T18:36:26.187Z"
-        },
-        "plato": "69860821b6273b9647faf8ae",
-        "platoId": 4,
-        "estado": "entregado",
-        "eliminado": false,
-        "eliminadoPor": null,
-        "eliminadoAt": null,
-        "eliminadoRazon": null,
-        "_id": "698a28b45878bc12667d3540"
-      }
-    ],
-    "cantidades": [
-      1,
-      1,
-      1,
-      1
-    ],
-    "observaciones": "",
-    "status": "pagado",
-    "IsActive": true,
-    "tiempoEnEspera": "2026-02-09T18:34:28.117Z",
-    "tiempoRecoger": "2026-02-09T18:34:40.172Z",
-    "tiempoEntregado": "2026-02-09T18:36:50.653Z",
-    "tiempoPagado": null,
-    "createdBy": "69860821b6273b9647faf872",
-    "updatedBy": null,
-    "deviceId": null,
-    "sourceApp": "api",
-    "historialEstados": [
-      {
-        "status": "en_espera",
-        "statusAnterior": null,
-        "timestamp": "2026-02-09T18:34:28.117Z",
-        "usuario": "69860821b6273b9647faf872",
-        "accion": "Comanda creada",
-        "deviceId": null,
-        "sourceApp": "api",
-        "motivo": null,
-        "_id": "698a28b45878bc12667d3541"
-      },
-      {
-        "status": "recoger",
-        "statusAnterior": "en_espera",
-        "timestamp": "2026-02-09T18:34:40.172Z",
-        "usuario": null,
-        "accion": "Cambio de estado de \"en_espera\" a \"recoger\"",
-        "deviceId": null,
-        "sourceApp": "api",
-        "motivo": null,
-        "_id": "698a28c0c2f37b6a53c00498"
-      }
-    ],
-    "fechaEliminacion": null,
-    "motivoEliminacion": null,
-    "eliminadaPor": null,
-    "precioTotalOriginal": 12.5,
-    "precioTotal": 12.5,
-    "version": 1,
-    "incluidoEnCierre": null,
-    "createdAt": "2026-02-09T18:34:28.119Z",
-    "updatedAt": "2026-02-09T18:36:50.654Z",
-    "historialPlatos": [],
-    "comandaNumber": 291
-  },
-  {
-    "_id": "698a28d0c2f37b6a53c005b4",
-    "mozos": "69860821b6273b9647faf872",
-    "mesas": "69860a47e52589a753836126",
-    "cliente": "698a29499739fadab5ff7c66",
-    "dividedFrom": null,
-    "platos": [
-      {
-        "tiempos": {
-          "pedido": "2026-02-09T18:34:56.374Z",
-          "entregado": "2026-02-09T18:36:41.713Z"
-        },
-        "plato": "69860821b6273b9647faf8a8",
-        "platoId": 3,
-        "estado": "entregado",
-        "eliminado": false,
-        "eliminadoPor": null,
-        "eliminadoAt": null,
-        "eliminadoRazon": null,
-        "_id": "698a28d0c2f37b6a53c005b5"
-      },
-      {
-        "tiempos": {
-          "pedido": "2026-02-09T18:34:56.374Z",
-          "entregado": "2026-02-09T18:36:43.393Z"
-        },
-        "plato": "69860821b6273b9647faf8a1",
-        "platoId": 2,
-        "estado": "entregado",
-        "eliminado": false,
-        "eliminadoPor": null,
-        "eliminadoAt": null,
-        "eliminadoRazon": null,
-        "_id": "698a28d0c2f37b6a53c005b6"
-      },
-      {
-        "tiempos": {
-          "pedido": "2026-02-09T18:34:56.374Z",
-          "entregado": "2026-02-09T18:36:44.830Z"
-        },
-        "plato": "69860821b6273b9647faf89b",
-        "platoId": 1,
-        "estado": "entregado",
-        "eliminado": false,
-        "eliminadoPor": null,
-        "eliminadoAt": null,
-        "eliminadoRazon": null,
-        "_id": "698a28d0c2f37b6a53c005b7"
-      },
-      {
-        "tiempos": {
-          "pedido": "2026-02-09T18:34:56.374Z",
-          "entregado": "2026-02-09T18:36:46.325Z"
-        },
-        "plato": "69860821b6273b9647faf8ae",
-        "platoId": 4,
-        "estado": "entregado",
-        "eliminado": false,
-        "eliminadoPor": null,
-        "eliminadoAt": null,
-        "eliminadoRazon": null,
-        "_id": "698a28d0c2f37b6a53c005b8"
-      }
-    ],
-    "cantidades": [
-      1,
-      1,
-      1,
-      1
-    ],
-    "observaciones": "",
-    "status": "pagado",
-    "IsActive": true,
-    "tiempoEnEspera": "2026-02-09T18:34:56.373Z",
-    "tiempoRecoger": "2026-02-09T18:36:14.359Z",
-    "tiempoEntregado": "2026-02-09T18:36:46.329Z",
-    "tiempoPagado": null,
-    "createdBy": "69860821b6273b9647faf872",
-    "updatedBy": null,
-    "deviceId": null,
-    "sourceApp": "api",
-    "historialEstados": [
-      {
-        "status": "en_espera",
-        "statusAnterior": null,
-        "timestamp": "2026-02-09T18:34:56.373Z",
-        "usuario": "69860821b6273b9647faf872",
-        "accion": "Comanda creada",
-        "deviceId": null,
-        "sourceApp": "api",
-        "motivo": null,
-        "_id": "698a28d0c2f37b6a53c005b9"
-      },
-      {
-        "status": "recoger",
-        "statusAnterior": "en_espera",
-        "timestamp": "2026-02-09T18:36:14.359Z",
-        "usuario": null,
-        "accion": "Cambio de estado de \"en_espera\" a \"recoger\"",
-        "deviceId": null,
-        "sourceApp": "api",
-        "motivo": null,
-        "_id": "698a291e9739fadab5ff7243"
-      }
-    ],
-    "fechaEliminacion": null,
-    "motivoEliminacion": null,
-    "eliminadaPor": null,
-    "precioTotalOriginal": 12.5,
-    "precioTotal": 12.5,
-    "version": 1,
-    "incluidoEnCierre": null,
-    "createdAt": "2026-02-09T18:34:56.375Z",
-    "updatedAt": "2026-02-09T18:36:46.330Z",
-    "historialPlatos": [],
-    "comandaNumber": 292
-  },
-  {
-    "_id": "698a2e99b0f4364af1cb5ef7",
-    "mozos": "69860821b6273b9647faf872",
-    "mesas": "69860a415e59135b4d2c56c1",
-    "cliente": null,
-    "dividedFrom": null,
-    "platos": [
-      {
-        "tiempos": {
-          "pedido": "2026-02-09T19:01:22.466Z"
-        },
-        "plato": "69860a30ed5eabc74c183d25",
-        "platoId": 35,
         "estado": "pedido",
         "eliminado": false,
         "eliminadoPor": null,
         "eliminadoAt": null,
         "eliminadoRazon": null,
-        "_id": "698a2f0264deb00049ed8175"
+        "_id": "698b57901fccc9ffdea7534a"
       }
     ],
     "cantidades": [
@@ -475,8 +25,8 @@
     ],
     "observaciones": "",
     "status": "en_espera",
-    "IsActive": true,
-    "tiempoEnEspera": "2026-02-09T18:59:37.063Z",
+    "IsActive": false,
+    "tiempoEnEspera": "2026-02-10T16:03:03.341Z",
     "tiempoRecoger": null,
     "tiempoEntregado": null,
     "tiempoPagado": null,
@@ -488,13 +38,582 @@
       {
         "status": "en_espera",
         "statusAnterior": null,
-        "timestamp": "2026-02-09T18:59:37.063Z",
+        "timestamp": "2026-02-10T16:03:03.341Z",
         "usuario": "69860821b6273b9647faf872",
         "accion": "Comanda creada",
         "deviceId": null,
         "sourceApp": "api",
         "motivo": null,
-        "_id": "698a2e99b0f4364af1cb5efc"
+        "_id": "698b56b77575692c125ba02d"
+      }
+    ],
+    "fechaEliminacion": "2026-02-10T16:08:30.970Z",
+    "motivoEliminacion": "Krkrkrk",
+    "eliminadaPor": "69860821b6273b9647faf872",
+    "precioTotalOriginal": 8.5,
+    "precioTotal": 8.5,
+    "version": 3,
+    "incluidoEnCierre": null,
+    "createdAt": "2026-02-10T16:03:03.344Z",
+    "updatedAt": "2026-02-10T16:08:30.974Z",
+    "historialPlatos": [
+      {
+        "platoId": 1,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-02-10T16:08:30.971Z",
+        "usuario": "69860821b6273b9647faf872",
+        "motivo": "comanda-Krkrkrk",
+        "_id": "698b57feaf5efb4f6cfb4c42"
+      }
+    ],
+    "comandaNumber": 294
+  },
+  {
+    "_id": "698b5810af5efb4f6cfb4c6b",
+    "mozos": "69860821b6273b9647faf872",
+    "mesas": "69860a415e59135b4d2c56c1",
+    "cliente": null,
+    "dividedFrom": null,
+    "platos": [
+      {
+        "tiempos": {
+          "pedido": "2026-02-10T16:09:29.645Z"
+        },
+        "plato": "69860821b6273b9647faf8a1",
+        "platoId": 2,
+        "estado": "pedido",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "_id": "698b58394dddb160cdf338f4"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-02-10T16:09:29.646Z"
+        },
+        "plato": "69860821b6273b9647faf89b",
+        "platoId": 1,
+        "estado": "pedido",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "_id": "698b58394dddb160cdf338f5"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-02-10T16:09:29.646Z"
+        },
+        "plato": "69860821b6273b9647faf8a8",
+        "platoId": 3,
+        "estado": "pedido",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "_id": "698b58394dddb160cdf338f6"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-02-10T16:09:29.646Z"
+        },
+        "plato": "69860afdbfd42807e4552019",
+        "platoId": 47,
+        "estado": "pedido",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "_id": "698b58394dddb160cdf338f7"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-02-10T16:09:29.646Z"
+        },
+        "plato": "69860b00be2d99fda4c23e38",
+        "platoId": 48,
+        "estado": "pedido",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "_id": "698b58394dddb160cdf338f8"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-02-10T16:09:29.646Z"
+        },
+        "plato": "69860b021d69108aba6a4869",
+        "platoId": 49,
+        "estado": "pedido",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "_id": "698b58394dddb160cdf338f9"
+      }
+    ],
+    "cantidades": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "observaciones": "",
+    "status": "en_espera",
+    "IsActive": false,
+    "tiempoEnEspera": "2026-02-10T16:08:48.232Z",
+    "tiempoRecoger": null,
+    "tiempoEntregado": null,
+    "tiempoPagado": null,
+    "createdBy": "69860821b6273b9647faf872",
+    "updatedBy": null,
+    "deviceId": null,
+    "sourceApp": "api",
+    "historialEstados": [
+      {
+        "status": "en_espera",
+        "statusAnterior": null,
+        "timestamp": "2026-02-10T16:08:48.232Z",
+        "usuario": "69860821b6273b9647faf872",
+        "accion": "Comanda creada",
+        "deviceId": null,
+        "sourceApp": "api",
+        "motivo": null,
+        "_id": "698b5810af5efb4f6cfb4c6f"
+      }
+    ],
+    "fechaEliminacion": "2026-02-10T16:10:25.066Z",
+    "motivoEliminacion": "Kjjjj",
+    "eliminadaPor": "69860821b6273b9647faf872",
+    "precioTotalOriginal": 8.5,
+    "precioTotal": 8.5,
+    "version": 3,
+    "incluidoEnCierre": null,
+    "createdAt": "2026-02-10T16:08:48.233Z",
+    "updatedAt": "2026-02-10T16:10:25.071Z",
+    "historialPlatos": [
+      {
+        "platoId": 2,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-02-10T16:10:25.067Z",
+        "usuario": "69860821b6273b9647faf872",
+        "motivo": "comanda-Kjjjj",
+        "_id": "698b5871a4f86f2ed6c31342"
+      },
+      {
+        "platoId": 1,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-02-10T16:10:25.068Z",
+        "usuario": "69860821b6273b9647faf872",
+        "motivo": "comanda-Kjjjj",
+        "_id": "698b5871a4f86f2ed6c31343"
+      },
+      {
+        "platoId": 3,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-02-10T16:10:25.068Z",
+        "usuario": "69860821b6273b9647faf872",
+        "motivo": "comanda-Kjjjj",
+        "_id": "698b5871a4f86f2ed6c31344"
+      },
+      {
+        "platoId": 47,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-02-10T16:10:25.069Z",
+        "usuario": "69860821b6273b9647faf872",
+        "motivo": "comanda-Kjjjj",
+        "_id": "698b5871a4f86f2ed6c31345"
+      },
+      {
+        "platoId": 48,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-02-10T16:10:25.069Z",
+        "usuario": "69860821b6273b9647faf872",
+        "motivo": "comanda-Kjjjj",
+        "_id": "698b5871a4f86f2ed6c31346"
+      },
+      {
+        "platoId": 49,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-02-10T16:10:25.069Z",
+        "usuario": "69860821b6273b9647faf872",
+        "motivo": "comanda-Kjjjj",
+        "_id": "698b5871a4f86f2ed6c31347"
+      }
+    ],
+    "comandaNumber": 295
+  },
+  {
+    "_id": "698b5879a4f86f2ed6c3137a",
+    "mozos": "69860821b6273b9647faf872",
+    "mesas": "69860a415e59135b4d2c56c1",
+    "cliente": null,
+    "dividedFrom": null,
+    "platos": [
+      {
+        "tiempos": {
+          "pedido": "2026-02-10T18:36:18.435Z"
+        },
+        "plato": "69860a30ed5eabc74c183d25",
+        "platoId": 35,
+        "estado": "pedido",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "_id": "698b7aa2c0b03639b088d0ad"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-02-10T18:36:18.436Z"
+        },
+        "plato": "69860a3b5e59135b4d2c561d",
+        "platoId": 36,
+        "estado": "pedido",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "_id": "698b7aa2c0b03639b088d0ae"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-02-10T18:36:18.436Z"
+        },
+        "plato": "69860a42e52589a753836081",
+        "platoId": 37,
+        "estado": "pedido",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "_id": "698b7aa2c0b03639b088d0af"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-02-10T18:36:18.436Z"
+        },
+        "plato": "69860a4d228000fd5ede1120",
+        "platoId": 39,
+        "estado": "pedido",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "_id": "698b7aa2c0b03639b088d0b0"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-02-10T18:36:18.436Z"
+        },
+        "plato": "69860a48bb20969ed3d22b2c",
+        "platoId": 38,
+        "estado": "pedido",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "_id": "698b7aa2c0b03639b088d0b1"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-02-10T18:36:18.436Z"
+        },
+        "plato": "69860a6961acf47fddd2fe41",
+        "platoId": 41,
+        "estado": "pedido",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "_id": "698b7aa2c0b03639b088d0b2"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-02-10T18:36:18.436Z"
+        },
+        "plato": "69860a53f3a817ddcca92229",
+        "platoId": 40,
+        "estado": "pedido",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "_id": "698b7aa2c0b03639b088d0b3"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-02-10T18:36:18.436Z"
+        },
+        "plato": "69860aa6d1fef731e6bc993c",
+        "platoId": 42,
+        "estado": "pedido",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "_id": "698b7aa2c0b03639b088d0b4"
+      }
+    ],
+    "cantidades": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      2,
+      2,
+      2
+    ],
+    "observaciones": "",
+    "status": "en_espera",
+    "IsActive": false,
+    "tiempoEnEspera": "2026-02-10T16:10:33.183Z",
+    "tiempoRecoger": null,
+    "tiempoEntregado": null,
+    "tiempoPagado": null,
+    "createdBy": "69860821b6273b9647faf872",
+    "updatedBy": null,
+    "deviceId": null,
+    "sourceApp": "api",
+    "historialEstados": [
+      {
+        "status": "en_espera",
+        "statusAnterior": null,
+        "timestamp": "2026-02-10T16:10:33.183Z",
+        "usuario": "69860821b6273b9647faf872",
+        "accion": "Comanda creada",
+        "deviceId": null,
+        "sourceApp": "api",
+        "motivo": null,
+        "_id": "698b5879a4f86f2ed6c3137e"
+      }
+    ],
+    "fechaEliminacion": "2026-02-10T21:28:03.156Z",
+    "motivoEliminacion": "Ueururur",
+    "eliminadaPor": "69860821b6273b9647faf872",
+    "precioTotalOriginal": 38,
+    "precioTotal": 38,
+    "version": 4,
+    "incluidoEnCierre": null,
+    "createdAt": "2026-02-10T16:10:33.185Z",
+    "updatedAt": "2026-02-10T21:28:03.162Z",
+    "historialPlatos": [
+      {
+        "platoId": 35,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-02-10T21:28:03.157Z",
+        "usuario": "69860821b6273b9647faf872",
+        "motivo": "comanda-Ueururur",
+        "_id": "698ba2e3a59e1283723c79cf"
+      },
+      {
+        "platoId": 36,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-02-10T21:28:03.158Z",
+        "usuario": "69860821b6273b9647faf872",
+        "motivo": "comanda-Ueururur",
+        "_id": "698ba2e3a59e1283723c79d0"
+      },
+      {
+        "platoId": 37,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-02-10T21:28:03.159Z",
+        "usuario": "69860821b6273b9647faf872",
+        "motivo": "comanda-Ueururur",
+        "_id": "698ba2e3a59e1283723c79d1"
+      },
+      {
+        "platoId": 39,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-02-10T21:28:03.159Z",
+        "usuario": "69860821b6273b9647faf872",
+        "motivo": "comanda-Ueururur",
+        "_id": "698ba2e3a59e1283723c79d2"
+      },
+      {
+        "platoId": 38,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-02-10T21:28:03.159Z",
+        "usuario": "69860821b6273b9647faf872",
+        "motivo": "comanda-Ueururur",
+        "_id": "698ba2e3a59e1283723c79d3"
+      },
+      {
+        "platoId": 41,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 2,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-02-10T21:28:03.159Z",
+        "usuario": "69860821b6273b9647faf872",
+        "motivo": "comanda-Ueururur",
+        "_id": "698ba2e3a59e1283723c79d4"
+      },
+      {
+        "platoId": 40,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 2,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-02-10T21:28:03.159Z",
+        "usuario": "69860821b6273b9647faf872",
+        "motivo": "comanda-Ueururur",
+        "_id": "698ba2e3a59e1283723c79d5"
+      },
+      {
+        "platoId": 42,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 2,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-02-10T21:28:03.159Z",
+        "usuario": "69860821b6273b9647faf872",
+        "motivo": "comanda-Ueururur",
+        "_id": "698ba2e3a59e1283723c79d6"
+      }
+    ],
+    "comandaNumber": 296
+  },
+  {
+    "_id": "698ba2f0a59e1283723c7a10",
+    "mozos": "69860821b6273b9647faf872",
+    "mesas": "69860a415e59135b4d2c56c1",
+    "cliente": null,
+    "dividedFrom": null,
+    "platos": [
+      {
+        "tiempos": {
+          "pedido": "2026-02-10T21:28:16.836Z"
+        },
+        "plato": "69860a30ed5eabc74c183d25",
+        "platoId": 35,
+        "estado": "recoger",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "_id": "698ba2f0a59e1283723c7a11"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-02-10T21:28:16.836Z"
+        },
+        "plato": "69860a3b5e59135b4d2c561d",
+        "platoId": 36,
+        "estado": "recoger",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "_id": "698ba2f0a59e1283723c7a12"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-02-10T21:28:16.836Z"
+        },
+        "plato": "69860a42e52589a753836081",
+        "platoId": 37,
+        "estado": "recoger",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "_id": "698ba2f0a59e1283723c7a13"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-02-10T21:28:16.836Z"
+        },
+        "plato": "69860a48bb20969ed3d22b2c",
+        "platoId": 38,
+        "estado": "recoger",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "_id": "698ba2f0a59e1283723c7a14"
+      }
+    ],
+    "cantidades": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "observaciones": "",
+    "status": "recoger",
+    "IsActive": true,
+    "tiempoEnEspera": "2026-02-10T21:28:16.835Z",
+    "tiempoRecoger": "2026-02-10T21:36:11.635Z",
+    "tiempoEntregado": null,
+    "tiempoPagado": null,
+    "createdBy": "69860821b6273b9647faf872",
+    "updatedBy": null,
+    "deviceId": null,
+    "sourceApp": "api",
+    "historialEstados": [
+      {
+        "status": "en_espera",
+        "statusAnterior": null,
+        "timestamp": "2026-02-10T21:28:16.835Z",
+        "usuario": "69860821b6273b9647faf872",
+        "accion": "Comanda creada",
+        "deviceId": null,
+        "sourceApp": "api",
+        "motivo": null,
+        "_id": "698ba2f0a59e1283723c7a15"
+      },
+      {
+        "status": "recoger",
+        "statusAnterior": "en_espera",
+        "timestamp": "2026-02-10T21:36:11.635Z",
+        "usuario": null,
+        "accion": "Cambio de estado de \"en_espera\" a \"recoger\"",
+        "deviceId": null,
+        "sourceApp": "api",
+        "motivo": null,
+        "_id": "698ba4cbee71533433df958f"
       }
     ],
     "fechaEliminacion": null,
@@ -502,11 +621,113 @@
     "eliminadaPor": null,
     "precioTotalOriginal": 63,
     "precioTotal": 63,
-    "version": 5,
+    "version": 1,
     "incluidoEnCierre": null,
-    "createdAt": "2026-02-09T18:59:37.065Z",
-    "updatedAt": "2026-02-09T18:59:37.065Z",
+    "createdAt": "2026-02-10T21:28:16.836Z",
+    "updatedAt": "2026-02-10T21:36:11.635Z",
     "historialPlatos": [],
-    "comandaNumber": 293
+    "comandaNumber": 297
+  },
+  {
+    "_id": "698ba50fee71533433df95d7",
+    "mozos": "69860821b6273b9647faf872",
+    "mesas": "69860a47e52589a753836126",
+    "cliente": null,
+    "dividedFrom": null,
+    "platos": [
+      {
+        "tiempos": {
+          "pedido": "2026-02-10T21:37:19.764Z"
+        },
+        "plato": "69860821b6273b9647faf8a1",
+        "platoId": 2,
+        "estado": "en_espera",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "_id": "698ba50fee71533433df95d8"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-02-10T21:37:19.764Z"
+        },
+        "plato": "69860821b6273b9647faf89b",
+        "platoId": 1,
+        "estado": "en_espera",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "_id": "698ba50fee71533433df95d9"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-02-10T21:37:19.764Z"
+        },
+        "plato": "69860821b6273b9647faf8a8",
+        "platoId": 3,
+        "estado": "en_espera",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "_id": "698ba50fee71533433df95da"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-02-10T21:37:19.764Z"
+        },
+        "plato": "69860821b6273b9647faf8ae",
+        "platoId": 4,
+        "estado": "en_espera",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "_id": "698ba50fee71533433df95db"
+      }
+    ],
+    "cantidades": [
+      1,
+      2,
+      1,
+      1
+    ],
+    "observaciones": "",
+    "status": "en_espera",
+    "IsActive": true,
+    "tiempoEnEspera": "2026-02-10T21:37:19.763Z",
+    "tiempoRecoger": null,
+    "tiempoEntregado": null,
+    "tiempoPagado": null,
+    "createdBy": "69860821b6273b9647faf872",
+    "updatedBy": null,
+    "deviceId": null,
+    "sourceApp": "api",
+    "historialEstados": [
+      {
+        "status": "en_espera",
+        "statusAnterior": null,
+        "timestamp": "2026-02-10T21:37:19.763Z",
+        "usuario": "69860821b6273b9647faf872",
+        "accion": "Comanda creada",
+        "deviceId": null,
+        "sourceApp": "api",
+        "motivo": null,
+        "_id": "698ba50fee71533433df95dc"
+      }
+    ],
+    "fechaEliminacion": null,
+    "motivoEliminacion": null,
+    "eliminadaPor": null,
+    "precioTotalOriginal": 13,
+    "precioTotal": 13,
+    "version": 1,
+    "incluidoEnCierre": null,
+    "createdAt": "2026-02-10T21:37:19.765Z",
+    "updatedAt": "2026-02-10T21:37:19.765Z",
+    "historialPlatos": [],
+    "comandaNumber": 298
   }
 ]
