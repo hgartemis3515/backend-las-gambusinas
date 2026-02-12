@@ -1574,5 +1574,64 @@
     "createdAt": "2026-02-09T18:37:01.178Z",
     "updatedAt": "2026-02-09T18:37:01.178Z",
     "boucherNumber": 53
+  },
+  {
+    "_id": "698df531ed5ca8990a34ada7",
+    "voucherId": "NDZBU",
+    "mesa": "69860a47e52589a753836126",
+    "numMesa": 2,
+    "mozo": "69860821b6273b9647faf872",
+    "nombreMozo": "admin",
+    "cliente": "698df52f0ea17d5fb295aee8",
+    "usadoEnComanda": null,
+    "fechaUso": null,
+    "comandas": [
+      "698df4dcb54f349463659161"
+    ],
+    "comandasNumbers": [
+      303
+    ],
+    "platos": [
+      {
+        "plato": "69860a30ed5eabc74c183d25",
+        "platoId": 35,
+        "nombre": "Tamal + zarza criolla",
+        "precio": 10,
+        "cantidad": 1,
+        "subtotal": 10,
+        "comandaNumber": 303,
+        "_id": "698df531ed5ca8990a34ada8"
+      },
+      {
+        "plato": "69860a3b5e59135b4d2c561d",
+        "platoId": 36,
+        "nombre": "Papa a la huancaína",
+        "precio": 13,
+        "cantidad": 1,
+        "subtotal": 13,
+        "comandaNumber": 303,
+        "_id": "698df531ed5ca8990a34ada9"
+      },
+      {
+        "plato": "69860a42e52589a753836081",
+        "platoId": 37,
+        "nombre": "Ensalada especial (limon o vinagreta)",
+        "precio": 15,
+        "cantidad": 1,
+        "subtotal": 15,
+        "comandaNumber": 303,
+        "_id": "698df531ed5ca8990a34adaa"
+      }
+    ],
+    "subtotal": 38,
+    "igv": 6.84,
+    "total": 44.84,
+    "observaciones": "",
+    "fechaPago": "2026-02-12T15:43:45.673Z",
+    "fechaPagoString": "12/02/2026 10:43:45",
+    "isActive": true,
+    "createdAt": "2026-02-12T15:43:45.680Z",
+    "updatedAt": "2026-02-12T15:43:45.680Z",
+    "boucherNumber": 54
   }
 ]

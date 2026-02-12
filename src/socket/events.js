@@ -376,11 +376,95 @@ module.exports = (io, cocinaNamespace, mozosNamespace) => {
   };
 
   /**
+   * FASE 5: Emitir batch de platos actualizados (optimización batching)
+   * @param {Object} batch - {comandaId, platos: Array, mesaId, fecha}
+   */
+  global.emitPlatoBatch = async (batch) => {
+    try {
+      const { comandaId, platos, mesaId, fecha } = batch;
+      
+      if (!comandaId || !platos || platos.length === 0) {
+        logger.warn('FASE5: Batch inválido', batch);
+        return;
+      }
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+      const fechaComanda = fecha || moment().tz("America/Lima").format('YYYY-MM-DD');
+      const roomNameCocina = `fecha-${fechaComanda}`;
+      const roomNameMesa = mesaId ? `mesa-${mesaId}` : null;
+
+      // Payload batch: múltiples platos en 1 evento
+      const eventData = {
+        comandaId: comandaId.toString(),
+        platos: platos.map(p => ({
+          platoId: p.platoId?.toString(),
+          nuevoEstado: p.nuevoEstado,
+          estadoAnterior: p.estadoAnterior || null
+        })),
+        timestamp: timestamp,
+        socketId: 'server',
+        batchSize: platos.length
+      };
+
+      // Emitir a cocina (room por fecha)
+      const cocinaClients = cocinaNamespace.adapter.rooms.get(roomNameCocina)?.size || 0;
+      cocinaNamespace.to(roomNameCocina).emit('plato-actualizado-batch', eventData);
+
+      // Emitir a mozos (room por mesa si existe, sino a todos)
+      let mozosClients = 0;
+      if (mozosNamespace && mozosNamespace.sockets) {
+        if (roomNameMesa) {
+          mozosClients = mozosNamespace.adapter.rooms.get(roomNameMesa)?.size || 0;
+          mozosNamespace.to(roomNameMesa).emit('plato-actualizado-batch', eventData);
+        } else {
+          mozosClients = mozosNamespace.sockets.size;
+          mozosNamespace.emit('plato-actualizado-batch', eventData);
+        }
+      }
+
+      const totalClients = cocinaClients + mozosClients;
+      const payloadSize = JSON.stringify(eventData).length;
+      
+      logger.info('FASE5: Batch de platos emitido', {
+        comandaId: comandaId.toString(),
+        platosCount: platos.length,
+        roomNameCocina,
+        roomNameMesa: roomNameMesa || 'todos',
+        cocinaClients,
+        mozosClients,
+        totalClients,
+        payloadSize,
+        reduction: `${Math.round((1 - payloadSize / (platos.length * 200)) * 100)}%`,
+        timestamp
+      });
+
+      console.log(`FASE5: Batch ${platos.length} platos → ${totalClients} clientes (${payloadSize}B payload)`);
+    } catch (error) {
+      logger.error('FASE5: Error al emitir batch de platos', {
+        error: error.message,
+        stack: error.stack,
+        batch
+      });
+    }
+  };
+
+  /**
    * FASE 2: Emitir evento GRANULAR de plato actualizado (solo datos mínimos)
+   * FASE 5: Ahora usa batching para optimizar múltiples eventos
    * Optimización: En lugar de emitir toda la comanda (10KB), solo emite el plato cambiado (200B)
    * @param {Object} datos - {comandaId, platoId, nuevoEstado, estadoAnterior, mesaId, fecha}
    */
   global.emitPlatoActualizadoGranular = async (datos) => {
+    // FASE 5: Agregar a queue de batching en lugar de emitir inmediatamente
+    const batchQueue = require('../utils/websocketBatch');
+    batchQueue.addPlatoEvent(datos);
+    
+    // FASE 5: El evento se emitirá en batch cada 300ms
+    // Mantener compatibilidad: también emitir evento individual si es necesario
+    // (comentado para forzar uso de batching - descomentar si se necesita compatibilidad)
+    return; // Salir temprano para usar solo batching
+    
+    /* CÓDIGO ORIGINAL (comentado para usar batching):
     try {
       const { comandaId, platoId, nuevoEstado, estadoAnterior, mesaId, fecha } = datos;
       
@@ -460,6 +544,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace) => {
         datos
       });
     }
+    */
   };
 
   /**

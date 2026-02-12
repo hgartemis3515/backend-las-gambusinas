@@ -10,6 +10,9 @@ const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
 
+// FASE 5: Redis Cache para comandas activas
+const redisCache = require('../utils/redisCache');
+
 const DATA_DIR = path.join(__dirname, '../../data');
 
 // Función helper para asegurar que los platos estén populados
@@ -1193,9 +1196,33 @@ const actualizarComanda = async (comandaId, newData) => {
 
 const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
   try {
-    // FASE 1: Obtener comanda sin populate primero para validar
-    let comanda = await comandaModel.findById(comandaId);
-    if (!comanda) throw new Error('Comanda no encontrada');
+    // FASE 5: Intentar obtener del cache primero (si está disponible)
+    let comanda = null;
+    try {
+      comanda = await redisCache.get(comandaId);
+    } catch (cacheError) {
+      // Si cache falla, continuar sin cache
+      logger.debug('FASE5: Cache no disponible, obteniendo de MongoDB', { error: cacheError.message });
+    }
+    
+    if (!comanda) {
+      // Cache miss: obtener de MongoDB
+      comanda = await comandaModel.findById(comandaId);
+      if (!comanda) throw new Error('Comanda no encontrada');
+      
+      // Guardar en cache (sin populate para ahorrar espacio) - opcional
+      try {
+        await redisCache.set(comandaId, comanda.toObject());
+      } catch (cacheError) {
+        // Si cache falla, continuar sin cache
+        logger.debug('FASE5: No se pudo guardar en cache', { error: cacheError.message });
+      }
+    } else {
+      // Cache hit: convertir a Mongoose document si es necesario
+      if (!comanda._id) {
+        comanda = await comandaModel.findById(comandaId);
+      }
+    }
     
     // Populate mesas si es necesario
     if (comanda.mesas && typeof comanda.mesas === 'object' && !comanda.mesas._id) {
@@ -1241,6 +1268,14 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
     
     // FASE 1: Recalcular estado global de comanda DESPUÉS de actualizar plato
     await recalcularEstadoComandaPorPlatos(comandaId);
+    
+    // FASE 5: Invalidar cache de la comanda después de actualizar (opcional)
+    try {
+      await redisCache.invalidate(comandaId);
+    } catch (cacheError) {
+      // Si cache falla, continuar sin cache
+      logger.debug('FASE5: No se pudo invalidar cache', { error: cacheError.message });
+    }
     
     // Obtener comanda actualizada después del recálculo
     const comandaActualizada = await comandaModel.findById(comandaId);

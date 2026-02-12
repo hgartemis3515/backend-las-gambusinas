@@ -1,10 +1,13 @@
 {
 	"dependencies": {
 		"@socket.io/admin-ui": "^0.5.1",
+		"@socket.io/redis-adapter": "^8.2.1",
 		"body-parser": "^1.20.2",
 		"cors": "^2.8.5",
 		"dotenv": "^16.4.5",
 		"express": "^4.18.2",
+		"express-rate-limit": "^7.1.5",
+		"ioredis": "^5.3.2",
 		"jsonwebtoken": "^9.0.3",
 		"moment-timezone": "^0.5.45",
 		"mongodb": "^6.4.0",
@@ -12,6 +15,7 @@
 		"mongoose-sequence": "^6.0.1",
 		"nodemon": "^3.0.3",
 		"pdfkit": "^0.14.0",
+		"pm2": "^5.3.0",
 		"socket.io": "^4.8.3",
 		"winston": "^3.19.0",
 		"xlsx": "^0.18.5"

@@ -5,6 +5,16 @@ const http = require('http');
 const { Server } = require('socket.io');
 const logger = require('./src/utils/logger');
 
+// FASE 5: Inicializar Redis Cache (opcional - funciona sin Redis)
+const redisCache = require('./src/utils/redisCache');
+// Inicializar Redis de forma asíncrona sin bloquear el inicio
+// Solo un log inicial si Redis está deshabilitado o no disponible
+setImmediate(() => {
+  redisCache.init().catch(() => {
+    // Error ya manejado internamente con un solo log
+  });
+});
+
 const mesasRoutes = require('./src/controllers/mesasController')
 const mozosRoutes = require('./src/controllers/mozosController')
 const platoRoutes = require('./src/controllers/platoController')
@@ -127,6 +137,60 @@ app.get('/dashboard', (req, res, next) => {
   adminAuth(req, res, next);
 }, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard', 'index.html'));
+});
+
+// FASE 5: Health Check Endpoint
+app.get('/health', async (req, res) => {
+  try {
+    const os = require('os');
+    const redisCache = require('./src/utils/redisCache');
+    const cacheStats = await redisCache.getStats();
+    
+    // Obtener estadísticas de WebSocket
+    const websocketStats = {
+      cocina: global.io?.of('/cocina')?.sockets?.size || 0,
+      mozos: global.io?.of('/mozos')?.sockets?.size || 0,
+      total: (global.io?.of('/cocina')?.sockets?.size || 0) + (global.io?.of('/mozos')?.sockets?.size || 0)
+    };
+    
+    // Obtener estadísticas de batch queue
+    const batchQueue = require('./src/utils/websocketBatch');
+    const batchStats = batchQueue.getStats();
+    
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: {
+        used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+        total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+        rss: Math.round(process.memoryUsage().rss / 1024 / 1024)
+      },
+      cpu: {
+        loadAverage: os.loadavg(),
+        cores: os.cpus().length
+      },
+      redis: {
+        enabled: cacheStats.enabled,
+        type: cacheStats.type,
+        status: cacheStats.status || 'disabled',
+        hitRate: cacheStats.stats?.hitRate || '0%',
+        hits: cacheStats.stats?.hits || 0,
+        misses: cacheStats.stats?.misses || 0
+      },
+      websockets: websocketStats,
+      batching: {
+        comandasEnQueue: batchStats.comandasEnQueue || 0,
+        totalPlatosEnQueue: batchStats.totalPlatosEnQueue || 0,
+        isProcessing: batchStats.isProcessing || false
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      error: error.message
+    });
+  }
 });
 
 app.get('/', (req, res)=>{
