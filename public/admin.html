@@ -368,8 +368,35 @@
             <!-- Tab Comandas -->
             <div id="comandas" class="tab-content">
                 <div class="section-header">
-                    <h2>Comandas</h2>
+                    <h2>Gestión de Comandas</h2>
                     <button class="btn btn-primary" onclick="loadComandas()">🔄 Actualizar</button>
+                </div>
+                <div style="margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
+                    <h3 style="margin-bottom: 15px; color: #333;">Filtros de Búsqueda</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #666;">ID Comanda:</label>
+                            <input type="text" id="filtro-comanda-id" placeholder="Ej: 289" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;" onkeyup="filtrarComandas()">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #666;">Mesa:</label>
+                            <input type="text" id="filtro-comanda-mesa" placeholder="Ej: Mesa 2" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;" onkeyup="filtrarComandas()">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #666;">Estado:</label>
+                            <select id="filtro-comanda-estado" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;" onchange="filtrarComandas()">
+                                <option value="">Todos</option>
+                                <option value="en_espera">En Espera</option>
+                                <option value="recoger">Recoger</option>
+                                <option value="entregado">Entregado</option>
+                                <option value="pagado">Pagado</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #666;">Mozo:</label>
+                            <input type="text" id="filtro-comanda-mozo" placeholder="Nombre mozo" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;" onkeyup="filtrarComandas()">
+                        </div>
+                    </div>
                 </div>
                 <div id="comandas-list" class="loading">Cargando comandas...</div>
             </div>
@@ -499,6 +526,10 @@
 
     <script>
         const API_BASE = '/api';
+        
+        // ObjectId fijo para admin (24 caracteres hexadecimales válidos)
+        // Este ID representa al usuario administrador del sistema
+        const ADMIN_USER_ID = '507f191e810c19729de860ea';
 
         // ========== MODAL MANAGER (Anti-bug modales) ==========
         const ModalManager = {
@@ -692,7 +723,8 @@
 
         async function loadComandas() {
             try {
-                const response = await fetch(`${API_BASE}/comanda`);
+                // Cargar solo comandas activas
+                const response = await fetch(`${API_BASE}/comanda?IsActive=true&limit=100`);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -712,6 +744,9 @@
                     console.warn('Respuesta inesperada del API:', data);
                     comandas = [];
                 }
+                
+                // Filtrar solo comandas activas y no eliminadas
+                comandas = comandas.filter(c => c.IsActive !== false && !c.eliminada);
                 
                 displayComandas(comandas);
             } catch (error) {
@@ -902,8 +937,17 @@
             `;
         }
 
+        // Variable global para almacenar todas las comandas (para filtrado)
+        let todasLasComandas = [];
+
         function displayComandas(comandas) {
             const container = document.getElementById('comandas-list');
+            
+            // Guardar comandas en variable global para filtrado
+            todasLasComandas = comandas;
+            
+            // Aplicar filtros
+            comandas = aplicarFiltrosComandas(comandas);
             
             // Validar que comandas sea un array
             if (!Array.isArray(comandas)) {
@@ -913,7 +957,7 @@
             }
             
             if (comandas.length === 0) {
-                container.innerHTML = '<div class="empty-state">No hay comandas registradas</div>';
+                container.innerHTML = '<div class="empty-state">No hay comandas que coincidan con los filtros</div>';
                 return;
             }
 
@@ -932,27 +976,65 @@
                             </tr>
                         </thead>
                         <tbody>
-                            ${comandas.map(comanda => `
+                            ${comandas.map(comanda => {
+                                const platosActivos = comanda.platos?.filter(p => !p.eliminado).length || comanda.platos?.length || 0;
+                                const estadoBadgeClass = comanda.status === 'pagado' ? 'badge-success' : 
+                                                       comanda.status === 'entregado' ? 'badge-info' : 
+                                                       comanda.status === 'recoger' ? 'badge-warning' : 
+                                                       'badge-secondary';
+                                return `
                                 <tr>
-                                    <td>${comanda.comandaNumber || '-'}</td>
+                                    <td>#${comanda.comandaNumber || comanda._id.slice(-6)}</td>
                                     <td>${comanda.mozos?.name || 'N/A'}</td>
                                     <td>${comanda.mesas?.nummesa || 'N/A'}</td>
-                                    <td>${comanda.platos?.length || 0} plato(s)</td>
+                                    <td>${platosActivos} plato(s)</td>
                                     <td>
-                                        <span class="badge ${comanda.status === 'ingresante' ? 'badge-warning' : comanda.status === 'pagado' ? 'badge-success' : comanda.status === 'entregado' ? 'badge-info' : 'badge-secondary'}">
+                                        <span class="badge ${estadoBadgeClass}">
                                             ${comanda.status || 'N/A'}
                                         </span>
                                     </td>
-                                    <td>${comanda.createdAt ? new Date(comanda.createdAt).toLocaleDateString() : 'N/A'}</td>
+                                    <td>${comanda.createdAt ? new Date(comanda.createdAt).toLocaleDateString('es-PE') : 'N/A'}</td>
                                     <td>
-                                        <button class="btn btn-primary" onclick="verDetalleComanda('${comanda._id}')">Ver Detalle</button>
+                                        <button class="btn btn-primary" style="margin-right: 5px;" onclick="verDetalleComanda('${comanda._id}')">👁️ Ver</button>
+                                        <button class="btn btn-success" style="margin-right: 5px;" onclick="cargarModalEditar('${comanda._id}')">✏️ Editar</button>
+                                        <button class="btn btn-danger" onclick="confirmarEliminarComanda('${comanda._id}', '${comanda.comandaNumber || comanda._id.slice(-6)}')">🗑️ Eliminar</button>
                                     </td>
                                 </tr>
-                            `).join('')}
+                            `;
+                            }).join('')}
                         </tbody>
                     </table>
                 </div>
             `;
+        }
+
+        // Función para aplicar filtros a las comandas
+        function aplicarFiltrosComandas(comandas) {
+            const filtroId = document.getElementById('filtro-comanda-id')?.value.toLowerCase() || '';
+            const filtroMesa = document.getElementById('filtro-comanda-mesa')?.value.toLowerCase() || '';
+            const filtroEstado = document.getElementById('filtro-comanda-estado')?.value || '';
+            const filtroMozo = document.getElementById('filtro-comanda-mozo')?.value.toLowerCase() || '';
+
+            return comandas.filter(comanda => {
+                const matchId = !filtroId || 
+                    (comanda.comandaNumber && comanda.comandaNumber.toString().includes(filtroId)) ||
+                    comanda._id.toLowerCase().includes(filtroId);
+                
+                const matchMesa = !filtroMesa || 
+                    (comanda.mesas?.nummesa && comanda.mesas.nummesa.toString().toLowerCase().includes(filtroMesa));
+                
+                const matchEstado = !filtroEstado || comanda.status === filtroEstado;
+                
+                const matchMozo = !filtroMozo || 
+                    (comanda.mozos?.name && comanda.mozos.name.toLowerCase().includes(filtroMozo));
+
+                return matchId && matchMesa && matchEstado && matchMozo;
+            });
+        }
+
+        // Función para filtrar comandas en tiempo real
+        function filtrarComandas() {
+            displayComandas(todasLasComandas);
         }
 
         // Función para ver detalle de comanda
@@ -1083,6 +1165,428 @@
                 console.error('Error al cargar comanda:', error);
                 alert('Error al cargar la comanda: ' + error.message);
             }
+        }
+
+        // ========== FUNCIONES DE EDICIÓN DE COMANDAS ==========
+        
+        // Variable global para almacenar la comanda en edición
+        let comandaEditando = null;
+        let platosEditados = [];
+
+        // Función para cargar el modal de edición
+        async function cargarModalEditar(comandaId) {
+            try {
+                console.log('🔍 [cargarModalEditar] Cargando comanda:', comandaId);
+                
+                const response = await fetch(`${API_BASE}/comanda/${comandaId}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const comanda = await response.json();
+                comandaEditando = comanda;
+                
+                // Preparar platos para edición (excluir eliminados)
+                platosEditados = comanda.platos
+                    .map((platoItem, indexOriginal) => {
+                        // Saltar platos ya eliminados
+                        if (platoItem.eliminado) return null;
+                        
+                        const plato = platoItem.plato || platoItem;
+                        const cantidad = comanda.cantidades?.[indexOriginal] || platoItem.cantidad || 1;
+                        
+                        return {
+                            _id: platoItem._id || platoItem.plato?._id || plato._id,
+                            platoId: platoItem.platoId || plato.id || plato._id,
+                            nombre: plato?.nombre || platoItem.nombre || 'Sin nombre',
+                            precio: plato?.precio || platoItem.precio || 0,
+                            cantidad: cantidad,
+                            estado: platoItem.estado || 'en_espera',
+                            eliminado: false,
+                            indexOriginal: indexOriginal // Mantener índice original para referencia
+                        };
+                    })
+                    .filter(p => p !== null); // Filtrar nulls
+
+                // Generar HTML del modal
+                const modalBody = generarHTMLModalEdicion(comanda);
+                ModalManager.abrir(`✏️ Editar Comanda #${comanda.comandaNumber || comanda._id.slice(-6)}`, modalBody);
+                
+            } catch (error) {
+                console.error('Error al cargar comanda para edición:', error);
+                mostrarToast('Error al cargar la comanda: ' + error.message, 'error');
+            }
+        }
+
+        // Función para generar el HTML del modal de edición
+        function generarHTMLModalEdicion(comanda) {
+            const estadosValidos = ['pedido', 'en_espera', 'recoger', 'entregado', 'pagado'];
+            
+            let platosHTML = '';
+            if (platosEditados.length === 0) {
+                platosHTML = '<p style="color: #999; text-align: center; padding: 20px;">No hay platos para editar</p>';
+            } else {
+                platosHTML = platosEditados.map((plato, index) => {
+                    const estadoActual = plato.estado;
+                    const estadosDisponibles = estadosValidos.map(estado => {
+                        const esValido = validarTransicionEstado(estadoActual, estado);
+                        return `<option value="${estado}" ${estado === estadoActual ? 'selected' : ''} ${!esValido ? 'disabled' : ''}>
+                            ${estado} ${!esValido && estado !== estadoActual ? '(inválido)' : ''}
+                        </option>`;
+                    }).join('');
+                    
+                    const estadoColor = estadoActual === 'pagado' ? '#10b981' : 
+                                      estadoActual === 'entregado' ? '#3b82f6' : 
+                                      estadoActual === 'recoger' ? '#f59e0b' : '#6b7280';
+                    
+                    return `
+                        <div class="plato-editable" data-index="${index}" style="padding: 15px; margin-bottom: 10px; border: 2px solid #e5e7eb; border-radius: 8px; background: #f9fafb;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                                <div style="flex: 1; min-width: 200px;">
+                                    <strong style="color: #333;">${plato.nombre}</strong>
+                                    <div style="color: #666; font-size: 14px; margin-top: 5px;">
+                                        Cantidad: ${plato.cantidad} | Precio: S/. ${plato.precio.toFixed(2)} | Subtotal: S/. ${(plato.precio * plato.cantidad).toFixed(2)}
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 10px; align-items: center;">
+                                    <select id="estado-plato-${index}" 
+                                            class="select-estado-plato" 
+                                            data-index="${index}"
+                                            style="padding: 8px 12px; border: 2px solid #ddd; border-radius: 6px; background: white; cursor: pointer; min-width: 150px;"
+                                            onchange="actualizarEstadoPlato(${index}, this.value)">
+                                        ${estadosDisponibles}
+                                    </select>
+                                    <button class="btn btn-danger" 
+                                            onclick="marcarPlatoEliminar(${index})"
+                                            style="padding: 8px 15px; font-size: 14px;">
+                                        🗑️ Eliminar
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="validacion-plato-${index}" style="margin-top: 8px; font-size: 12px;"></div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            return `
+                <div style="max-width: 900px; padding: 20px;">
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
+                        <div>
+                            <strong>Mozo:</strong> ${comanda.mozos?.name || 'N/A'}
+                        </div>
+                        <div>
+                            <strong>Mesa:</strong> ${comanda.mesas?.nummesa || 'N/A'}
+                        </div>
+                        <div>
+                            <strong>Fecha:</strong> ${comanda.createdAt ? new Date(comanda.createdAt).toLocaleDateString('es-PE') : 'N/A'}
+                        </div>
+                        <div>
+                            <strong>Estado Global:</strong> 
+                            <span style="padding: 4px 8px; border-radius: 4px; background: ${comanda.status === 'pagado' ? '#10b981' : comanda.status === 'entregado' ? '#3b82f6' : comanda.status === 'recoger' ? '#f59e0b' : '#6b7280'}; color: white; font-size: 12px;">
+                                ${comanda.status || 'N/A'}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="margin-bottom: 15px; color: #333;">Platos de la Comanda</h4>
+                        <div id="platos-edicion-container">
+                            ${platosHTML}
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 25px; padding-top: 20px; border-top: 2px solid #ddd; display: flex; justify-content: space-between; gap: 10px;">
+                        <button class="btn" style="background: #6b7280; color: white;" onclick="ModalManager.cerrar()">
+                            Cancelar
+                        </button>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-danger" onclick="confirmarEliminarComandaDesdeModal('${comanda._id}', '${comanda.comandaNumber || comanda._id.slice(-6)}')">
+                                🗑️ Eliminar Comanda
+                            </button>
+                            <button class="btn btn-success" onclick="guardarCambiosComanda()" style="font-weight: bold;">
+                                💾 Guardar Cambios
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Función para validar transiciones de estado
+        function validarTransicionEstado(estadoActual, nuevoEstado) {
+            // Permitir mantener el mismo estado
+            if (estadoActual === nuevoEstado) return true;
+            
+            // Permitir revertir a estados iniciales (solo admin)
+            if (nuevoEstado === 'pedido' || nuevoEstado === 'en_espera') return true;
+            
+            // Transiciones válidas según FASE 1
+            const transicionesValidas = {
+                'pedido': ['recoger', 'entregado'],
+                'en_espera': ['recoger', 'entregado'],
+                'recoger': ['entregado'],
+                'entregado': ['pagado'],
+                'pagado': [] // Estado final, no se puede cambiar (excepto revertir)
+            };
+            
+            const estadosPermitidos = transicionesValidas[estadoActual] || [];
+            return estadosPermitidos.includes(nuevoEstado);
+        }
+
+        // Función para actualizar estado de un plato en la edición
+        function actualizarEstadoPlato(index, nuevoEstado) {
+            if (platosEditados[index]) {
+                const estadoAnterior = platosEditados[index].estado;
+                
+                if (validarTransicionEstado(estadoAnterior, nuevoEstado)) {
+                    platosEditados[index].estado = nuevoEstado;
+                    mostrarValidacionPlato(index, `✅ Estado válido: ${estadoAnterior} → ${nuevoEstado}`, 'success');
+                } else {
+                    // Revertir al estado anterior
+                    document.getElementById(`estado-plato-${index}`).value = estadoAnterior;
+                    mostrarValidacionPlato(index, `❌ Transición inválida: ${estadoAnterior} → ${nuevoEstado}`, 'error');
+                }
+            }
+        }
+
+        // Función para mostrar validación de plato
+        function mostrarValidacionPlato(index, mensaje, tipo) {
+            const div = document.getElementById(`validacion-plato-${index}`);
+            if (div) {
+                div.innerHTML = `<span style="color: ${tipo === 'success' ? '#10b981' : '#ef4444'}; font-weight: 600;">${mensaje}</span>`;
+                setTimeout(() => {
+                    div.innerHTML = '';
+                }, 3000);
+            }
+        }
+
+        // Función para marcar plato para eliminar
+        function marcarPlatoEliminar(index) {
+            if (confirm(`¿Eliminar el plato "${platosEditados[index].nombre}"?`)) {
+                platosEditados[index].eliminado = true;
+                const elemento = document.querySelector(`.plato-editable[data-index="${index}"]`);
+                if (elemento) {
+                    elemento.style.opacity = '0.5';
+                    elemento.style.textDecoration = 'line-through';
+                    elemento.style.background = '#fee2e2';
+                    elemento.querySelector('select').disabled = true;
+                    elemento.querySelector('button').disabled = true;
+                    elemento.querySelector('button').textContent = '✓ Eliminado';
+                }
+            }
+        }
+
+        // Función para guardar cambios de la comanda
+        async function guardarCambiosComanda() {
+            if (!comandaEditando) {
+                mostrarToast('No hay comanda en edición', 'error');
+                return;
+            }
+
+            try {
+                // Separar platos nuevos (mantenidos) y eliminados
+                const platosMantenidos = platosEditados.filter(p => !p.eliminado);
+                const platosEliminados = platosEditados.filter(p => p.eliminado);
+
+                if (platosMantenidos.length === 0) {
+                    alert('No se puede guardar una comanda sin platos. Elimine la comanda completa en su lugar.');
+                    return;
+                }
+
+                // Preparar datos para el endpoint
+                const platosNuevosData = platosMantenidos.map(p => ({
+                    plato: p._id,
+                    platoId: p.platoId,
+                    estado: p.estado,
+                    cantidad: p.cantidad
+                }));
+
+                const platosEliminadosData = platosEliminados.map(p => ({
+                    platoId: p.platoId || p._id,
+                    motivo: 'Eliminado desde admin panel'
+                }));
+
+                // Mostrar loading
+                const btnGuardar = event?.target || document.querySelector('button[onclick="guardarCambiosComanda()"]');
+                const textoOriginal = btnGuardar?.textContent || '💾 Guardar Cambios';
+                if (btnGuardar) {
+                    btnGuardar.disabled = true;
+                    btnGuardar.textContent = '⏳ Guardando...';
+                }
+
+                console.log('📤 Guardando cambios:', {
+                    comandaId: comandaEditando._id,
+                    platosNuevos: platosNuevosData.length,
+                    platosEliminados: platosEliminadosData.length
+                });
+
+                const response = await fetch(`${API_BASE}/comanda/${comandaEditando._id}/editar-platos`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        platosNuevos: platosNuevosData,
+                        platosEliminados: platosEliminadosData,
+                        motivo: 'Edición desde admin panel',
+                        usuarioId: ADMIN_USER_ID // ObjectId válido para admin
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ message: 'Error desconocido' }));
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
+
+                const resultado = await response.json();
+                console.log('✅ Cambios guardados:', resultado);
+
+                // Cerrar modal y refrescar
+                ModalManager.cerrar();
+                mostrarToast(`✅ Comanda actualizada - ${platosMantenidos.length} plato(s) mantenido(s), ${platosEliminados.length} plato(s) eliminado(s) - Auditada ✓`, 'success');
+                
+                // Refrescar lista de comandas
+                await loadComandas();
+
+            } catch (error) {
+                console.error('Error al guardar cambios:', error);
+                mostrarToast('Error al guardar cambios: ' + error.message, 'error');
+                
+                // Restaurar botón
+                const btnGuardar = document.querySelector('button[onclick="guardarCambiosComanda()"]');
+                if (btnGuardar) {
+                    btnGuardar.disabled = false;
+                    btnGuardar.textContent = '💾 Guardar Cambios';
+                }
+            }
+        }
+
+        // Función para confirmar eliminación de comanda desde modal
+        function confirmarEliminarComandaDesdeModal(comandaId, comandaNumber) {
+            ModalManager.cerrar();
+            setTimeout(() => {
+                confirmarEliminarComanda(comandaId, comandaNumber);
+            }, 300);
+        }
+
+        // Función para confirmar eliminación de comanda
+        function confirmarEliminarComanda(comandaId, comandaNumber) {
+            const motivo = prompt(`¿Eliminar comanda #${comandaNumber}?\n\nIngrese el motivo de eliminación:`);
+            if (motivo && motivo.trim()) {
+                eliminarComanda(comandaId, motivo.trim());
+            }
+        }
+
+        // Función para eliminar comanda
+        async function eliminarComanda(comandaId, motivo) {
+            try {
+                console.log('🗑️ Eliminando comanda:', comandaId);
+
+                const response = await fetch(`${API_BASE}/comanda/${comandaId}/eliminar`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        motivo: motivo || 'Eliminado desde admin panel',
+                        usuarioId: ADMIN_USER_ID, // ObjectId válido para admin
+                        mozoId: null
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ message: 'Error desconocido' }));
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
+
+                const resultado = await response.json();
+                console.log('✅ Comanda eliminada:', resultado);
+
+                mostrarToast(`✅ Comanda #${resultado.comanda?.comandaNumber || comandaId.slice(-6)} eliminada - Auditada ✓`, 'success');
+                
+                // Refrescar lista de comandas
+                await loadComandas();
+
+            } catch (error) {
+                console.error('Error al eliminar comanda:', error);
+                mostrarToast('Error al eliminar comanda: ' + error.message, 'error');
+            }
+        }
+
+        // Función para mostrar toasts/notificaciones
+        function mostrarToast(mensaje, tipo = 'info') {
+            // Crear elemento toast si no existe
+            let toastContainer = document.getElementById('toast-container');
+            if (!toastContainer) {
+                toastContainer = document.createElement('div');
+                toastContainer.id = 'toast-container';
+                toastContainer.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    z-index: 10000;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                `;
+                document.body.appendChild(toastContainer);
+            }
+
+            const toast = document.createElement('div');
+            const bgColor = tipo === 'success' ? '#10b981' : tipo === 'error' ? '#ef4444' : '#3b82f6';
+            toast.style.cssText = `
+                background: ${bgColor};
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                min-width: 300px;
+                max-width: 500px;
+                animation: slideInRight 0.3s ease-out;
+            `;
+            toast.textContent = mensaje;
+
+            // Agregar animación CSS si no existe
+            if (!document.getElementById('toast-animations')) {
+                const style = document.createElement('style');
+                style.id = 'toast-animations';
+                style.textContent = `
+                    @keyframes slideInRight {
+                        from {
+                            transform: translateX(100%);
+                            opacity: 0;
+                        }
+                        to {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
+                    }
+                    @keyframes slideOutRight {
+                        from {
+                            transform: translateX(0);
+                            opacity: 1;
+                        }
+                        to {
+                            transform: translateX(100%);
+                            opacity: 0;
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            toastContainer.appendChild(toast);
+
+            // Auto-remover después de 5 segundos
+            setTimeout(() => {
+                toast.style.animation = 'slideOutRight 0.3s ease-out';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 300);
+            }, 5000);
         }
 
         // Variable global para almacenar el ID del item en edición
