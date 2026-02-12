@@ -376,6 +376,93 @@ module.exports = (io, cocinaNamespace, mozosNamespace) => {
   };
 
   /**
+   * FASE 2: Emitir evento GRANULAR de plato actualizado (solo datos mínimos)
+   * Optimización: En lugar de emitir toda la comanda (10KB), solo emite el plato cambiado (200B)
+   * @param {Object} datos - {comandaId, platoId, nuevoEstado, estadoAnterior, mesaId, fecha}
+   */
+  global.emitPlatoActualizadoGranular = async (datos) => {
+    try {
+      const { comandaId, platoId, nuevoEstado, estadoAnterior, mesaId, fecha } = datos;
+      
+      if (!comandaId || !platoId || !nuevoEstado) {
+        logger.warn('FASE2: Datos incompletos para emitPlatoActualizadoGranular', datos);
+        return;
+      }
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+      
+      // Determinar fecha si no se proporciona
+      let fechaComanda = fecha;
+      if (!fechaComanda) {
+        try {
+          const comanda = await comandaModel.findById(comandaId);
+          if (comanda && comanda.createdAt) {
+            fechaComanda = moment(comanda.createdAt).tz("America/Lima").format('YYYY-MM-DD');
+          } else {
+            fechaComanda = moment().tz("America/Lima").format('YYYY-MM-DD');
+          }
+        } catch (error) {
+          fechaComanda = moment().tz("America/Lima").format('YYYY-MM-DD');
+        }
+      }
+
+      const roomNameCocina = `fecha-${fechaComanda}`;
+      const roomNameMesa = mesaId ? `mesa-${mesaId}` : null;
+
+      // Payload mínimo (200 bytes vs 10KB de comanda completa)
+      const eventData = {
+        comandaId: comandaId.toString(),
+        platoId: platoId.toString(),
+        nuevoEstado: nuevoEstado,
+        estadoAnterior: estadoAnterior || null,
+        timestamp: timestamp,
+        socketId: 'server'
+      };
+
+      // Emitir a cocina (room por fecha)
+      const cocinaClients = cocinaNamespace.adapter.rooms.get(roomNameCocina)?.size || 0;
+      cocinaNamespace.to(roomNameCocina).emit('plato-actualizado', eventData);
+
+      // Emitir a mozos (room por mesa si existe, sino a todos)
+      let mozosClients = 0;
+      if (mozosNamespace && mozosNamespace.sockets) {
+        if (roomNameMesa) {
+          mozosClients = mozosNamespace.adapter.rooms.get(roomNameMesa)?.size || 0;
+          mozosNamespace.to(roomNameMesa).emit('plato-actualizado', eventData);
+        } else {
+          // Fallback: emitir a todos los mozos si no hay mesaId
+          mozosClients = mozosNamespace.sockets.size;
+          mozosNamespace.emit('plato-actualizado', eventData);
+        }
+      }
+
+      const totalClients = cocinaClients + mozosClients;
+      
+      logger.info('FASE2: Plato actualizado granular emitido', {
+        comandaId: comandaId.toString(),
+        platoId: platoId.toString(),
+        estadoAnterior: estadoAnterior || 'N/A',
+        nuevoEstado: nuevoEstado,
+        roomNameCocina,
+        roomNameMesa: roomNameMesa || 'todos',
+        cocinaClients,
+        mozosClients,
+        totalClients,
+        payloadSize: JSON.stringify(eventData).length,
+        timestamp
+      });
+
+      console.log(`FASE2: Plato ${platoId} → estado ${nuevoEstado} → ${totalClients} clientes notificados`);
+    } catch (error) {
+      logger.error('FASE2: Error al emitir plato-actualizado granular', {
+        error: error.message,
+        stack: error.stack,
+        datos
+      });
+    }
+  };
+
+  /**
    * Emitir evento de comanda eliminada a cocina y mozos
    */
   global.emitComandaEliminada = async (comandaId) => {
