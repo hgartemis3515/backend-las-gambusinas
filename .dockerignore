@@ -1,0 +1,66 @@
+# FASE 7: .dockerignore (Optimize Docker Build)
+# Excluir archivos innecesarios del contexto Docker
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Logs
+logs/
+*.log
+
+# Environment files (se pasan como variables)
+.env
+.env.local
+.env.*.local
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tests
+tests/
+*.test.js
+*.spec.js
+coverage/
+.nyc_output/
+
+# Documentation
+*.md
+docs/
+
+# Backups
+backups/
+*.gz
+*.gpg
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Misc
+*.rar
+*.zip
+*.tar.gz
+

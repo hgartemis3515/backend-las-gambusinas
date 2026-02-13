@@ -99,6 +99,24 @@ app.use(cors({
 
 const routes = [mesasRoutes, mozosRoutes, platoRoutes, comandaRoutes, areaRoutes, boucherRoutes, clientesRoutes, auditoriaRoutes, cierreCajaRoutes, cierreCajaRestauranteRoutes, adminRoutes, notificacionesRoutes, mensajesRoutes];
 
+// FASE 7: Security Headers (Helmet.js)
+const helmet = require('helmet');
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "ws:", "wss:"]
+    }
+  },
+  crossOriginEmbedderPolicy: false // Necesario para Socket.io
+}));
+
+// FASE 7: Correlation ID Middleware (Request Tracing)
+app.use(logger.correlationMiddleware);
+
 app.use(express.json());
 app.use('/api',routes);
 
@@ -139,57 +157,238 @@ app.get('/dashboard', (req, res, next) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard', 'index.html'));
 });
 
-// FASE 5: Health Check Endpoint
+// FASE 7: Health Check Endpoint Enterprise Grade (Deep Health Checks)
 app.get('/health', async (req, res) => {
+  const startTime = Date.now();
+  const healthStatus = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    version: process.env.APP_VERSION || '1.0.0-fase7',
+    uptime: Math.round(process.uptime()),
+    services: {}
+  };
+
   try {
     const os = require('os');
+    const mongoose = require('mongoose');
     const redisCache = require('./src/utils/redisCache');
-    const cacheStats = await redisCache.getStats();
-    
-    // Obtener estadísticas de WebSocket
-    const websocketStats = {
-      cocina: global.io?.of('/cocina')?.sockets?.size || 0,
-      mozos: global.io?.of('/mozos')?.sockets?.size || 0,
-      total: (global.io?.of('/cocina')?.sockets?.size || 0) + (global.io?.of('/mozos')?.sockets?.size || 0)
-    };
-    
-    // Obtener estadísticas de batch queue
-    const batchQueue = require('./src/utils/websocketBatch');
-    const batchStats = batchQueue.getStats();
-    
-    res.json({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      memory: {
-        used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-        total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
-        rss: Math.round(process.memoryUsage().rss / 1024 / 1024)
-      },
-      cpu: {
-        loadAverage: os.loadavg(),
-        cores: os.cpus().length
-      },
-      redis: {
-        enabled: cacheStats.enabled,
-        type: cacheStats.type,
-        status: cacheStats.status || 'disabled',
+    const fs = require('fs').promises;
+
+    // ============================================
+    // MongoDB Health Check (Deep)
+    // ============================================
+    try {
+      const mongoStart = Date.now();
+      const dbState = mongoose.connection.readyState;
+      const mongoLatency = Date.now() - mongoStart;
+      
+      let mongoStatus = 'down';
+      let replicaSetStatus = 'unknown';
+      let connections = 0;
+      
+      if (dbState === 1) { // Connected
+        mongoStatus = 'up';
+        connections = mongoose.connection.db?.serverConfig?.s?.pool?.totalConnectionCount || 0;
+        
+        // Verificar replica set si está configurado
+        try {
+          const admin = mongoose.connection.db.admin();
+          const replStatus = await admin.command({ replSetGetStatus: 1 }).catch(() => null);
+          if (replStatus) {
+            replicaSetStatus = replStatus.members?.some(m => m.stateStr === 'PRIMARY') ? 'healthy' : 'degraded';
+          }
+        } catch (e) {
+          replicaSetStatus = 'not-configured';
+        }
+      }
+      
+      healthStatus.services.mongodb = {
+        status: mongoStatus,
+        latency: `${mongoLatency}ms`,
+        connections: connections,
+        replicaSet: replicaSetStatus,
+        readyState: dbState
+      };
+    } catch (error) {
+      healthStatus.services.mongodb = {
+        status: 'error',
+        error: error.message
+      };
+      healthStatus.status = 'degraded';
+    }
+
+    // ============================================
+    // Redis Health Check (Deep)
+    // ============================================
+    try {
+      const redisStart = Date.now();
+      const cacheStats = await redisCache.getStats();
+      const redisLatency = Date.now() - redisStart;
+      
+      healthStatus.services.redis = {
+        status: cacheStats.enabled ? 'up' : 'disabled',
+        latency: `${redisLatency}ms`,
+        type: cacheStats.type || 'memory',
         hitRate: cacheStats.stats?.hitRate || '0%',
         hits: cacheStats.stats?.hits || 0,
-        misses: cacheStats.stats?.misses || 0
-      },
-      websockets: websocketStats,
-      batching: {
-        comandasEnQueue: batchStats.comandasEnQueue || 0,
-        totalPlatosEnQueue: batchStats.totalPlatosEnQueue || 0,
-        isProcessing: batchStats.isProcessing || false
+        misses: cacheStats.stats?.misses || 0,
+        memory: cacheStats.memorySize || 0
+      };
+      
+      if (!cacheStats.enabled && process.env.NODE_ENV === 'production') {
+        healthStatus.status = 'degraded';
       }
-    });
+    } catch (error) {
+      healthStatus.services.redis = {
+        status: 'error',
+        error: error.message
+      };
+      healthStatus.status = 'degraded';
+    }
+
+    // ============================================
+    // WebSocket Health Check
+    // ============================================
+    try {
+      const websocketStats = {
+        cocina: global.io?.of('/cocina')?.sockets?.size || 0,
+        mozos: global.io?.of('/mozos')?.sockets?.size || 0,
+        admin: global.io?.of('/admin')?.sockets?.size || 0,
+        total: (global.io?.of('/cocina')?.sockets?.size || 0) + 
+               (global.io?.of('/mozos')?.sockets?.size || 0) +
+               (global.io?.of('/admin')?.sockets?.size || 0)
+      };
+      
+      healthStatus.services.websockets = websocketStats;
+    } catch (error) {
+      healthStatus.services.websockets = {
+        status: 'error',
+        error: error.message
+      };
+    }
+
+    // ============================================
+    // System Resources Health Check
+    // ============================================
+    try {
+      const memUsage = process.memoryUsage();
+      const totalMem = os.totalmem();
+      const freeMem = os.freemem();
+      const usedMem = totalMem - freeMem;
+      
+      const cpuUsage = process.cpuUsage();
+      const cpuPercent = ((cpuUsage.user + cpuUsage.system) / 1000000 / process.uptime() * 100).toFixed(2);
+      
+      healthStatus.services.system = {
+        cpu: {
+          usage: `${cpuPercent}%`,
+          cores: os.cpus().length,
+          loadAverage: os.loadavg().map(l => l.toFixed(2))
+        },
+        memory: {
+          used: `${Math.round(memUsage.heapUsed / 1024 / 1024)}MB`,
+          total: `${Math.round(memUsage.heapTotal / 1024 / 1024)}MB`,
+          rss: `${Math.round(memUsage.rss / 1024 / 1024)}MB`,
+          systemTotal: `${Math.round(totalMem / 1024 / 1024)}MB`,
+          systemUsed: `${Math.round(usedMem / 1024 / 1024)}MB`,
+          systemFree: `${Math.round(freeMem / 1024 / 1024)}MB`,
+          usagePercent: `${Math.round((usedMem / totalMem) * 100)}%`
+        },
+        disk: {
+          // Verificar espacio en disco (si es posible)
+          status: 'ok' // Simplificado, puede mejorarse con diskusage
+        }
+      };
+      
+      // Alertar si memoria > 80%
+      if ((usedMem / totalMem) > 0.8) {
+        healthStatus.status = 'degraded';
+        healthStatus.warnings = healthStatus.warnings || [];
+        healthStatus.warnings.push('High memory usage detected');
+      }
+    } catch (error) {
+      healthStatus.services.system = {
+        status: 'error',
+        error: error.message
+      };
+    }
+
+    // ============================================
+    // Response Time
+    // ============================================
+    healthStatus.responseTime = `${Date.now() - startTime}ms`;
+    
+    // Si algún servicio crítico está down, cambiar status
+    if (healthStatus.services.mongodb?.status === 'down') {
+      healthStatus.status = 'error';
+    }
+
+    const statusCode = healthStatus.status === 'ok' ? 200 : 
+                      healthStatus.status === 'degraded' ? 200 : 503;
+    
+    res.status(statusCode).json(healthStatus);
   } catch (error) {
-    res.status(500).json({
+    logger.error('Health check failed', { error: error.message, stack: error.stack });
+    res.status(503).json({
       status: 'error',
-      error: error.message
+      timestamp: new Date().toISOString(),
+      error: error.message,
+      responseTime: `${Date.now() - startTime}ms`
     });
+  }
+});
+
+// FASE 7: Metrics Endpoint (Prometheus Format)
+app.get('/metrics', async (req, res) => {
+  try {
+    const os = require('os');
+    const mongoose = require('mongoose');
+    const redisCache = require('./src/utils/redisCache');
+    
+    const memUsage = process.memoryUsage();
+    const cacheStats = await redisCache.getStats();
+    
+    // Prometheus metrics format
+    const metrics = [
+      `# HELP nodejs_uptime_seconds Uptime in seconds`,
+      `# TYPE nodejs_uptime_seconds gauge`,
+      `nodejs_uptime_seconds ${process.uptime()}`,
+      ``,
+      `# HELP nodejs_memory_heap_used_bytes Heap memory used in bytes`,
+      `# TYPE nodejs_memory_heap_used_bytes gauge`,
+      `nodejs_memory_heap_used_bytes ${memUsage.heapUsed}`,
+      ``,
+      `# HELP nodejs_memory_heap_total_bytes Heap memory total in bytes`,
+      `# TYPE nodejs_memory_heap_total_bytes gauge`,
+      `nodejs_memory_heap_total_bytes ${memUsage.heapTotal}`,
+      ``,
+      `# HELP nodejs_memory_rss_bytes Resident set size in bytes`,
+      `# TYPE nodejs_memory_rss_bytes gauge`,
+      `nodejs_memory_rss_bytes ${memUsage.rss}`,
+      ``,
+      `# HELP mongodb_connections_active Active MongoDB connections`,
+      `# TYPE mongodb_connections_active gauge`,
+      `mongodb_connections_active ${mongoose.connection.db?.serverConfig?.s?.pool?.totalConnectionCount || 0}`,
+      ``,
+      `# HELP redis_cache_hits_total Total Redis cache hits`,
+      `# TYPE redis_cache_hits_total counter`,
+      `redis_cache_hits_total ${cacheStats.stats?.hits || 0}`,
+      ``,
+      `# HELP redis_cache_misses_total Total Redis cache misses`,
+      `# TYPE redis_cache_misses_total counter`,
+      `redis_cache_misses_total ${cacheStats.stats?.misses || 0}`,
+      ``,
+      `# HELP websocket_connections_total Total WebSocket connections`,
+      `# TYPE websocket_connections_total gauge`,
+      `websocket_connections_total ${(global.io?.of('/cocina')?.sockets?.size || 0) + (global.io?.of('/mozos')?.sockets?.size || 0)}`,
+      ``
+    ].join('\n');
+    
+    res.set('Content-Type', 'text/plain');
+    res.send(metrics);
+  } catch (error) {
+    logger.error('Metrics endpoint failed', { error: error.message });
+    res.status(500).send(`# ERROR: ${error.message}\n`);
   }
 });
 

@@ -1,0 +1,241 @@
+# FASE 7: Docker Compose Production Enterprise Grade
+# Inspiración: Toast POS / Square / Rappi Architecture
+# Stack: MongoDB Replica Set + Redis Cluster + Node.js Backend + Nginx
+
+version: '3.8'
+
+services:
+  # ============================================
+  # MongoDB Replica Set (Alta Disponibilidad)
+  # ============================================
+  mongodb-primary:
+    image: mongo:6.0
+    container_name: lasgambusinas-mongodb-primary
+    restart: unless-stopped
+    command: mongod --replSet rs0 --bind_ip_all --wiredTigerCacheSizeGB 1
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-changeme}
+    volumes:
+      - mongodb-primary-data:/data/db
+      - mongodb-primary-config:/data/configdb
+    networks:
+      - backend-internal
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  mongodb-secondary-1:
+    image: mongo:6.0
+    container_name: lasgambusinas-mongodb-secondary-1
+    restart: unless-stopped
+    command: mongod --replSet rs0 --bind_ip_all
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+    volumes:
+      - mongodb-secondary1-data:/data/db
+      - mongodb-secondary1-config:/data/configdb
+    networks:
+      - backend-internal
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  mongodb-secondary-2:
+    image: mongo:6.0
+    container_name: lasgambusinas-mongodb-secondary-2
+    restart: unless-stopped
+    command: mongod --replSet rs0 --bind_ip_all
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+    volumes:
+      - mongodb-secondary2-data:/data/db
+      - mongodb-secondary2-config:/data/configdb
+    networks:
+      - backend-internal
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  # Script para inicializar replica set
+  mongodb-init:
+    image: mongo:6.0
+    container_name: lasgambusinas-mongodb-init
+    depends_on:
+      - mongodb-primary
+      - mongodb-secondary-1
+      - mongodb-secondary-2
+    networks:
+      - backend-internal
+    restart: "no"
+    command: >
+      bash -c "
+        sleep 10 &&
+        mongosh --host mongodb-primary:27017 -u ${MONGO_ROOT_USERNAME:-admin} -p ${MONGO_ROOT_PASSWORD:-changeme} --authenticationDatabase admin --eval '
+          rs.initiate({
+            _id: \"rs0\",
+            members: [
+              {_id: 0, host: \"mongodb-primary:27017\"},
+              {_id: 1, host: \"mongodb-secondary-1:27017\"},
+              {_id: 2, host: \"mongodb-secondary-2:27017\"}
+            ]
+          })
+        ' || true
+      "
+
+  # ============================================
+  # Redis Cluster (Cache + Socket.io Adapter)
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: lasgambusinas-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 2gb
+      --maxmemory-policy allkeys-lru
+      --save 300 10
+    volumes:
+      - redis-data:/data
+    networks:
+      - backend-internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # ============================================
+  # Backend Node.js (PM2 Cluster Mode)
+  # ============================================
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: lasgambusinas-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DBLOCAL: mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-changeme}@mongodb-primary:27017/lasgambusinas?authSource=admin&replicaSet=rs0&readPreference=secondaryPreferred
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-changeme-production-secret}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      PM2_INSTANCES: ${PM2_INSTANCES:-4}
+    volumes:
+      - ./logs:/app/logs
+      - ./backups:/app/backups
+    ports:
+      - "3000:3000"
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-internal
+      - backend-external
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  # ============================================
+  # Nginx Reverse Proxy + Load Balancer
+  # ============================================
+  nginx:
+    image: nginx:alpine
+    container_name: lasgambusinas-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx-cache:/var/cache/nginx
+    depends_on:
+      - backend
+    networks:
+      - backend-external
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+
+# ============================================
+# Networks (Aislamiento de seguridad)
+# ============================================
+networks:
+  backend-internal:
+    driver: bridge
+    internal: false  # Permite salida a internet para backups S3
+  backend-external:
+    driver: bridge
+
+# ============================================
+# Volumes (Persistencia de datos)
+# ============================================
+volumes:
+  mongodb-primary-data:
+    driver: local
+  mongodb-primary-config:
+    driver: local
+  mongodb-secondary1-data:
+    driver: local
+  mongodb-secondary1-config:
+    driver: local
+  mongodb-secondary2-data:
+    driver: local
+  mongodb-secondary2-config:
+    driver: local
+  redis-data:
+    driver: local
+  nginx-cache:
+    driver: local
+
