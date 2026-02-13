@@ -28,6 +28,7 @@ const cierreCajaRestauranteRoutes = require('./src/controllers/cierreCajaRestaur
 const adminRoutes = require('./src/controllers/adminController')
 const notificacionesRoutes = require('./src/controllers/notificacionesController')
 const mensajesRoutes = require('./src/controllers/mensajesController')
+const reportesRoutes = require('./src/controllers/reportesController')
 const { adminAuth } = require('./src/middleware/adminAuth')
 
 const app = express();
@@ -97,7 +98,7 @@ app.use(cors({
   credentials: true
 }));
 
-const routes = [mesasRoutes, mozosRoutes, platoRoutes, comandaRoutes, areaRoutes, boucherRoutes, clientesRoutes, auditoriaRoutes, cierreCajaRoutes, cierreCajaRestauranteRoutes, adminRoutes, notificacionesRoutes, mensajesRoutes];
+const routes = [mesasRoutes, mozosRoutes, platoRoutes, comandaRoutes, areaRoutes, boucherRoutes, clientesRoutes, auditoriaRoutes, cierreCajaRoutes, cierreCajaRestauranteRoutes, adminRoutes, notificacionesRoutes, mensajesRoutes, reportesRoutes];
 
 // FASE 7: Security Headers (Helmet.js)
 const helmet = require('helmet');

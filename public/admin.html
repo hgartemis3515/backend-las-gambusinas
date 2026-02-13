@@ -304,6 +304,38 @@
             margin-bottom: 20px;
             opacity: 0.3;
         }
+
+        .reporte-tab-content {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .insight-card {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .insight-card.success {
+            border-left-color: #4caf50;
+            background: #e8f5e9;
+        }
+
+        .insight-card.warning {
+            border-left-color: #ff9800;
+            background: #fff3e0;
+        }
+
+        .insight-card.info {
+            border-left-color: #2196f3;
+            background: #e3f2fd;
+        }
     </style>
 </head>
 <body>
@@ -321,6 +353,7 @@
             <button class="tab" onclick="showTab('comandas', this)">Comandas</button>
             <button class="tab" onclick="showTab('bouchers', this)">Bouchers</button>
             <button class="tab" onclick="showTab('clientes', this)">Clientes</button>
+            <button class="tab" onclick="showTab('reportes', this)">📊 Reportes</button>
             <button class="tab" onclick="showTab('auditoria', this)">🔒 Auditoría</button>
             <button class="tab" onclick="showTab('cierre-caja', this)">🏦 Cierre de Caja</button>
         </div>
@@ -509,6 +542,143 @@
                     </div>
                 </div>
                 <div id="clientes-list" class="loading">Cargando clientes...</div>
+            </div>
+
+            <!-- Tab Reportes -->
+            <div id="reportes" class="tab-content">
+                <div class="section-header">
+                    <h2>📊 Reportes y Analítica</h2>
+                    <div>
+                        <button class="btn btn-primary" onclick="exportarReportePDF()" style="margin-right: 10px;">📄 Exportar PDF</button>
+                        <button class="btn btn-primary" onclick="exportarReporteExcel()">📊 Exportar Excel</button>
+                    </div>
+                </div>
+
+                <!-- KPIs Dashboard -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; color: white;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 14px; opacity: 0.9;">Ventas Hoy</h3>
+                        <div id="kpi-ventas-hoy" style="font-size: 32px; font-weight: bold;">S/0.00</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 12px; color: white;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 14px; opacity: 0.9;">Top Plato</h3>
+                        <div id="kpi-top-plato" style="font-size: 24px; font-weight: bold;">-</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 20px; border-radius: 12px; color: white;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 14px; opacity: 0.9;">Hora Pico</h3>
+                        <div id="kpi-hora-pico" style="font-size: 24px; font-weight: bold;">-</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); padding: 20px; border-radius: 12px; color: white;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 14px; opacity: 0.9;">Margen Global</h3>
+                        <div id="kpi-margen" style="font-size: 24px; font-weight: bold;">-</div>
+                    </div>
+                </div>
+
+                <!-- Filtros -->
+                <div style="background: #f5f5f5; padding: 20px; border-radius: 12px; margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 15px; color: #333;">Filtros de Reporte</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #666;">Fecha Inicio:</label>
+                            <input type="date" id="reporte-fecha-inicio" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #666;">Fecha Fin:</label>
+                            <input type="date" id="reporte-fecha-fin" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #666;">Agrupar Por:</label>
+                            <select id="reporte-agrupar-por" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+                                <option value="dia">Día</option>
+                                <option value="hora">Hora</option>
+                                <option value="mesa">Mesa</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; align-items: flex-end;">
+                            <button class="btn btn-primary" onclick="cargarReportes()" style="width: 100%;">🔄 Generar Reporte</button>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn" onclick="setRangoFecha('hoy')" style="background: #e0e0e0; color: #333;">Hoy</button>
+                        <button class="btn" onclick="setRangoFecha('ayer')" style="background: #e0e0e0; color: #333;">Ayer</button>
+                        <button class="btn" onclick="setRangoFecha('semana')" style="background: #e0e0e0; color: #333;">Semana</button>
+                        <button class="btn" onclick="setRangoFecha('mes')" style="background: #e0e0e0; color: #333;">Mes</button>
+                    </div>
+                </div>
+
+                <!-- Tabs de Reportes -->
+                <div style="margin-bottom: 20px; border-bottom: 2px solid #ddd;">
+                    <button class="btn tab-estadistica active" onclick="mostrarReporteTab('ventas', this)" style="margin-right: 10px;">💰 Ventas</button>
+                    <button class="btn tab-estadistica" onclick="mostrarReporteTab('platos', this)" style="margin-right: 10px;">🍽️ Top Platos</button>
+                    <button class="btn tab-estadistica" onclick="mostrarReporteTab('mozos', this)" style="margin-right: 10px;">👥 Mozos</button>
+                    <button class="btn tab-estadistica" onclick="mostrarReporteTab('mesas', this)">🪑 Mesas</button>
+                </div>
+
+                <!-- Tab Ventas -->
+                <div id="reporte-ventas" class="reporte-tab-content">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+                        <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                            <h3 style="margin-bottom: 15px;">Gráfico de Ventas</h3>
+                            <canvas id="chartVentas" style="max-height: 400px;"></canvas>
+                        </div>
+                        <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                            <h3 style="margin-bottom: 15px;">Resumen</h3>
+                            <div id="resumen-ventas" class="loading">Cargando...</div>
+                        </div>
+                    </div>
+                    <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                        <h3 style="margin-bottom: 15px;">Detalle de Ventas</h3>
+                        <div id="tabla-ventas" class="loading">Cargando...</div>
+                    </div>
+                </div>
+
+                <!-- Tab Top Platos -->
+                <div id="reporte-platos" class="reporte-tab-content" style="display: none;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+                        <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                            <h3 style="margin-bottom: 15px;">Top Platos por Ingreso</h3>
+                            <canvas id="chartPlatos" style="max-height: 400px;"></canvas>
+                        </div>
+                        <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                            <h3 style="margin-bottom: 15px;">Insights</h3>
+                            <div id="insights-platos"></div>
+                        </div>
+                    </div>
+                    <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                        <h3 style="margin-bottom: 15px;">Ranking de Platos</h3>
+                        <div id="tabla-platos" class="loading">Cargando...</div>
+                    </div>
+                </div>
+
+                <!-- Tab Mozos -->
+                <div id="reporte-mozos" class="reporte-tab-content" style="display: none;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+                        <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                            <h3 style="margin-bottom: 15px;">Performance de Mozos</h3>
+                            <canvas id="chartMozos" style="max-height: 400px;"></canvas>
+                        </div>
+                        <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                            <h3 style="margin-bottom: 15px;">Ranking</h3>
+                            <div id="ranking-mozos"></div>
+                        </div>
+                    </div>
+                    <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                        <h3 style="margin-bottom: 15px;">Detalle de Mozos</h3>
+                        <div id="tabla-mozos" class="loading">Cargando...</div>
+                    </div>
+                </div>
+
+                <!-- Tab Mesas -->
+                <div id="reporte-mesas" class="reporte-tab-content" style="display: none;">
+                    <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px;">
+                        <h3 style="margin-bottom: 15px;">Ocupación de Mesas</h3>
+                        <canvas id="chartMesas" style="max-height: 400px;"></canvas>
+                    </div>
+                    <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                        <h3 style="margin-bottom: 15px;">Detalle de Ocupación</h3>
+                        <div id="tabla-mesas" class="loading">Cargando...</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -3964,6 +4134,1259 @@
         function exportarExcelCierre(cierreId) {
             window.open(`${API_BASE}/cierre-caja/${cierreId}/exportar-excel`, '_blank');
         }
+
+        // ========== REPORTES Y ANALÍTICA ==========
+        let chartVentas = null;
+        let chartPlatos = null;
+        let chartMozos = null;
+        let chartMesas = null;
+        let datosReportesCache = null; // Cache de datos cargados
+
+        // Inicializar fechas por defecto (hoy)
+        function inicializarFechasReportes() {
+            const hoy = new Date();
+            const fechaFin = hoy.toISOString().split('T')[0];
+            const fechaInicio = new Date(hoy.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            
+            document.getElementById('reporte-fecha-inicio').value = fechaInicio;
+            document.getElementById('reporte-fecha-fin').value = fechaFin;
+        }
+
+        // Función central: Cargar todos los bouchers del rango de fechas
+        async function cargarBouchersPorRango(fechaInicio, fechaFin) {
+            const bouchers = [];
+            const fechaInicioDate = new Date(fechaInicio);
+            const fechaFinDate = new Date(fechaFin);
+            
+            // Iterar por cada día en el rango
+            for (let fecha = new Date(fechaInicioDate); fecha <= fechaFinDate; fecha.setDate(fecha.getDate() + 1)) {
+                const fechaStr = fecha.toISOString().split('T')[0];
+                try {
+                    const response = await fetch(`${API_BASE}/boucher/fecha/${fechaStr}`);
+                    if (response.ok) {
+                        const bouchersDia = await response.json();
+                        if (Array.isArray(bouchersDia)) {
+                            bouchers.push(...bouchersDia);
+                        }
+                    }
+                } catch (error) {
+                    console.warn(`⚠️ Error cargando bouchers del ${fechaStr}:`, error);
+                }
+            }
+            
+            // Asegurar que siempre retornamos un array
+            return Array.isArray(bouchers) ? bouchers.filter(b => b.isActive !== false) : [];
+        }
+
+        // Función central: Cargar comandas del rango (si es necesario)
+        async function cargarComandasPorRango(fechaInicio, fechaFin) {
+            const comandas = [];
+            const fechaInicioDate = new Date(fechaInicio);
+            const fechaFinDate = new Date(fechaFin);
+            
+            for (let fecha = new Date(fechaInicioDate); fecha <= fechaFinDate; fecha.setDate(fecha.getDate() + 1)) {
+                const fechaStr = fecha.toISOString().split('T')[0];
+                try {
+                    const response = await fetch(`${API_BASE}/comanda/fecha/${fechaStr}`);
+                    if (response.ok) {
+                        const comandasDia = await response.json();
+                        if (Array.isArray(comandasDia)) {
+                            comandas.push(...comandasDia);
+                        }
+                    }
+                } catch (error) {
+                    console.warn(`⚠️ Error cargando comandas del ${fechaStr}:`, error);
+                }
+            }
+            
+            // Asegurar que siempre retornamos un array
+            return Array.isArray(comandas) ? comandas.filter(c => c.IsActive !== false) : [];
+        }
+
+        function setRangoFecha(tipo) {
+            const hoy = new Date();
+            let fechaInicio, fechaFin;
+
+            switch(tipo) {
+                case 'hoy':
+                    fechaInicio = fechaFin = hoy.toISOString().split('T')[0];
+                    break;
+                case 'ayer':
+                    const ayer = new Date(hoy.getTime() - 24 * 60 * 60 * 1000);
+                    fechaInicio = fechaFin = ayer.toISOString().split('T')[0];
+                    break;
+                case 'semana':
+                    fechaFin = hoy.toISOString().split('T')[0];
+                    fechaInicio = new Date(hoy.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                    break;
+                case 'mes':
+                    fechaFin = hoy.toISOString().split('T')[0];
+                    fechaInicio = new Date(hoy.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                    break;
+            }
+
+            document.getElementById('reporte-fecha-inicio').value = fechaInicio;
+            document.getElementById('reporte-fecha-fin').value = fechaFin;
+            cargarReportes();
+        }
+
+        function mostrarReporteTab(tab, elemento) {
+            // Ocultar todos los tabs
+            document.querySelectorAll('.reporte-tab-content').forEach(t => t.style.display = 'none');
+            document.querySelectorAll('.tab-estadistica').forEach(t => t.classList.remove('active'));
+
+            // Mostrar tab seleccionado
+            document.getElementById(`reporte-${tab}`).style.display = 'block';
+            elemento.classList.add('active');
+
+            // Cargar datos si no están cargados
+            if (tab === 'ventas' && !chartVentas) cargarReporteVentas();
+            if (tab === 'platos' && !chartPlatos) cargarReportePlatos();
+            if (tab === 'mozos' && !chartMozos) cargarReporteMozos();
+            if (tab === 'mesas' && !chartMesas) cargarReporteMesas();
+        }
+
+        async function cargarKPIs() {
+            try {
+                const hoy = new Date().toISOString().split('T')[0];
+                console.log('📤 Cargando KPIs para:', hoy);
+                
+                // Cargar bouchers del día
+                const bouchers = await cargarBouchersPorRango(hoy, hoy);
+                
+                // Calcular KPIs
+                const ventasHoy = bouchers.reduce((sum, b) => sum + (b.total || 0), 0);
+                
+                // Top plato del día
+                const platosMap = {};
+                bouchers.forEach(b => {
+                    if (b.platos && Array.isArray(b.platos)) {
+                        b.platos.forEach(p => {
+                            const nombre = p.nombre || 'Plato desconocido';
+                            if (!platosMap[nombre]) {
+                                platosMap[nombre] = { cantidad: 0, nombre };
+                            }
+                            platosMap[nombre].cantidad += (p.cantidad || 0);
+                        });
+                    }
+                });
+                const topPlato = Object.values(platosMap).sort((a, b) => b.cantidad - a.cantidad)[0]?.nombre || '-';
+                
+                // Hora pico
+                const horasMap = {};
+                bouchers.forEach(b => {
+                    if (b.fechaPago) {
+                        const hora = new Date(b.fechaPago).getHours();
+                        horasMap[hora] = (horasMap[hora] || 0) + 1;
+                    }
+                });
+                const horaPico = Object.entries(horasMap).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+                
+                // Actualizar UI
+                document.getElementById('kpi-ventas-hoy').textContent = `S/${ventasHoy.toFixed(2)}`;
+                document.getElementById('kpi-top-plato').textContent = topPlato;
+                document.getElementById('kpi-hora-pico').textContent = horaPico !== null ? `${horaPico}:00` : '-';
+                document.getElementById('kpi-margen').textContent = '-'; // Margen requiere costo de platos
+            } catch (error) {
+                console.error('❌ Error cargando KPIs:', error);
+            }
+        }
+
+        async function cargarReportes() {
+            const fechaInicio = document.getElementById('reporte-fecha-inicio').value;
+            const fechaFin = document.getElementById('reporte-fecha-fin').value;
+
+            if (!fechaInicio || !fechaFin) {
+                alert('Por favor seleccione fechas');
+                return;
+            }
+
+            // Cargar datos base una sola vez
+            console.log('📊 Cargando datos base para reportes...');
+            try {
+                const bouchers = await cargarBouchersPorRango(fechaInicio, fechaFin);
+                const comandas = await cargarComandasPorRango(fechaInicio, fechaFin);
+                
+                // Asegurar que siempre sean arrays
+                datosReportesCache = {
+                    bouchers: Array.isArray(bouchers) ? bouchers : [],
+                    comandas: Array.isArray(comandas) ? comandas : []
+                };
+                
+                console.log('✅ Datos cargados:', {
+                    bouchers: datosReportesCache.bouchers.length,
+                    comandas: datosReportesCache.comandas.length
+                });
+
+                // Cargar todos los reportes con los datos en cache
+                await Promise.all([
+                    cargarReporteVentas(),
+                    cargarReportePlatos(),
+                    cargarReporteMozos(),
+                    cargarReporteMesas(),
+                    cargarKPIs()
+                ]);
+            } catch (error) {
+                console.error('❌ Error cargando datos base:', error);
+                alert('Error al cargar datos: ' + error.message);
+            }
+        }
+
+        async function cargarReporteVentas() {
+            try {
+                const fechaInicio = document.getElementById('reporte-fecha-inicio').value;
+                const fechaFin = document.getElementById('reporte-fecha-fin').value;
+                const agruparPor = document.getElementById('reporte-agrupar-por').value;
+
+                if (!fechaInicio || !fechaFin) {
+                    document.getElementById('resumen-ventas').innerHTML = '<div class="alert alert-error">Por favor seleccione fechas</div>';
+                    document.getElementById('tabla-ventas').innerHTML = '<div class="alert alert-error">Por favor seleccione fechas</div>';
+                    return;
+                }
+
+                document.getElementById('resumen-ventas').innerHTML = '<div class="loading">Calculando...</div>';
+                document.getElementById('tabla-ventas').innerHTML = '<div class="loading">Calculando...</div>';
+
+                // Usar datos del cache o cargar si no existen
+                if (!datosReportesCache) {
+                    datosReportesCache = {
+                        bouchers: await cargarBouchersPorRango(fechaInicio, fechaFin)
+                    };
+                }
+
+                const bouchers = datosReportesCache.bouchers;
+                
+                if (bouchers.length === 0) {
+                    document.getElementById('resumen-ventas').innerHTML = `
+                        <div class="alert alert-info">
+                            <strong>Sin datos</strong><br>
+                            No hay ventas registradas para el período seleccionado (${fechaInicio} al ${fechaFin})
+                        </div>
+                    `;
+                    document.getElementById('tabla-ventas').innerHTML = `
+                        <div class="alert alert-info">
+                            No hay datos para mostrar en este período
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Agregar datos por período según agruparPor
+                const grupos = {};
+                bouchers.forEach(boucher => {
+                    const fechaPago = new Date(boucher.fechaPago);
+                    let key;
+                    
+                    if (agruparPor === 'hora') {
+                        key = fechaPago.getHours();
+                    } else if (agruparPor === 'mesa') {
+                        key = boucher.numMesa || boucher.mesa?.nummesa || 'N/A';
+                    } else { // dia
+                        key = fechaPago.toISOString().split('T')[0];
+                    }
+                    
+                    if (!grupos[key]) {
+                        grupos[key] = {
+                            fecha: key,
+                            total: 0,
+                            subtotal: 0,
+                            igv: 0,
+                            cantidadBouchers: 0,
+                            cantidadItems: 0
+                        };
+                    }
+                    
+                    grupos[key].total += (boucher.total || 0);
+                    grupos[key].subtotal += (boucher.subtotal || 0);
+                    grupos[key].igv += (boucher.igv || 0);
+                    grupos[key].cantidadBouchers += 1;
+                    grupos[key].cantidadItems += (boucher.platos?.length || 0);
+                });
+
+                // Convertir a array y ordenar
+                const datos = Object.values(grupos).map(g => ({
+                    ...g,
+                    promedioPorItem: g.cantidadItems > 0 ? g.subtotal / g.cantidadItems : 0
+                })).sort((a, b) => {
+                    if (agruparPor === 'hora') return a.fecha - b.fecha;
+                    return a.fecha.localeCompare(b.fecha);
+                });
+
+                // Calcular totales
+                const totales = datos.reduce((acc, item) => ({
+                    total: acc.total + item.total,
+                    subtotal: acc.subtotal + item.subtotal,
+                    igv: acc.igv + item.igv,
+                    cantidadBouchers: acc.cantidadBouchers + item.cantidadBouchers,
+                    cantidadItems: acc.cantidadItems + item.cantidadItems
+                }), { total: 0, subtotal: 0, igv: 0, cantidadBouchers: 0, cantidadItems: 0 });
+
+                const promedioPorBoucher = totales.cantidadBouchers > 0 ? totales.total / totales.cantidadBouchers : 0;
+
+                // Gráfico
+                const ctx = document.getElementById('chartVentas');
+                if (ctx && datos.length > 0) {
+                    if (chartVentas) chartVentas.destroy();
+                    
+                    const labels = datos.map(d => {
+                        if (agruparPor === 'hora') return `${d.fecha}:00`;
+                        return d.fecha;
+                    });
+                    
+                    chartVentas = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Ventas (S/.)',
+                                data: datos.map(d => d.total),
+                                borderColor: 'rgb(102, 126, 234)',
+                                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { display: true },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return `S/${context.parsed.y.toFixed(2)}`;
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: { beginAtZero: true }
+                            }
+                        }
+                    });
+                }
+
+                // Resumen
+                const resumenHTML = `
+                    <div style="font-size: 18px; margin-bottom: 10px;">
+                        <strong>Total:</strong> S/${totales.total.toFixed(2)}
+                    </div>
+                    <div style="font-size: 14px; color: #666; margin-bottom: 5px;">
+                        Subtotal: S/${totales.subtotal.toFixed(2)}
+                    </div>
+                    <div style="font-size: 14px; color: #666; margin-bottom: 5px;">
+                        IGV: S/${totales.igv.toFixed(2)}
+                    </div>
+                    <div style="font-size: 14px; color: #666; margin-bottom: 5px;">
+                        Bouchers: ${totales.cantidadBouchers}
+                    </div>
+                    <div style="font-size: 14px; color: #666;">
+                        Promedio por Boucher: S/${promedioPorBoucher.toFixed(2)}
+                    </div>
+                `;
+                document.getElementById('resumen-ventas').innerHTML = resumenHTML;
+
+                // Tabla
+                const tablaHTML = `
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>${agruparPor === 'hora' ? 'Hora' : agruparPor === 'mesa' ? 'Mesa' : 'Fecha'}</th>
+                                    <th>Total</th>
+                                    <th>Subtotal</th>
+                                    <th>IGV</th>
+                                    <th>Bouchers</th>
+                                    <th>Items</th>
+                                    <th>Promedio/Item</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${datos.map(d => `
+                                    <tr>
+                                        <td>${agruparPor === 'hora' ? `${d.fecha}:00` : d.fecha}</td>
+                                        <td>S/${d.total.toFixed(2)}</td>
+                                        <td>S/${d.subtotal.toFixed(2)}</td>
+                                        <td>S/${d.igv.toFixed(2)}</td>
+                                        <td>${d.cantidadBouchers}</td>
+                                        <td>${d.cantidadItems}</td>
+                                        <td>S/${d.promedioPorItem.toFixed(2)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                document.getElementById('tabla-ventas').innerHTML = tablaHTML;
+            } catch (error) {
+                console.error('❌ Error cargando reporte de ventas:', error);
+                const errorMessage = error.message || 'Error desconocido al cargar datos';
+                document.getElementById('resumen-ventas').innerHTML = `
+                    <div class="alert alert-error">
+                        <strong>Error al cargar datos</strong><br>
+                        <small>${errorMessage}</small><br>
+                        <small>Verifique la consola del navegador (F12) para más detalles</small>
+                    </div>
+                `;
+                document.getElementById('tabla-ventas').innerHTML = `
+                    <div class="alert alert-error">
+                        <strong>Error al cargar datos</strong><br>
+                        <small>${errorMessage}</small>
+                    </div>
+                `;
+            }
+        }
+
+        async function cargarReportePlatos() {
+            try {
+                const fechaInicio = document.getElementById('reporte-fecha-inicio').value;
+                const fechaFin = document.getElementById('reporte-fecha-fin').value;
+
+                if (!fechaInicio || !fechaFin) {
+                    document.getElementById('tabla-platos').innerHTML = '<div class="alert alert-error">Por favor seleccione fechas</div>';
+                    document.getElementById('insights-platos').innerHTML = '';
+                    return;
+                }
+
+                document.getElementById('tabla-platos').innerHTML = '<div class="loading">Calculando...</div>';
+                document.getElementById('insights-platos').innerHTML = '<div class="loading">Calculando...</div>';
+
+                // Usar datos del cache
+                if (!datosReportesCache) {
+                    datosReportesCache = {
+                        bouchers: await cargarBouchersPorRango(fechaInicio, fechaFin)
+                    };
+                }
+
+                const bouchers = datosReportesCache.bouchers;
+                
+                // Agregar platos desde bouchers
+                const platosMap = {};
+                bouchers.forEach(boucher => {
+                    if (boucher.platos && Array.isArray(boucher.platos)) {
+                        boucher.platos.forEach(plato => {
+                            const nombre = plato.nombre || 'Plato desconocido';
+                            if (!platosMap[nombre]) {
+                                platosMap[nombre] = {
+                                    nombre,
+                                    vendidos: 0,
+                                    ingreso: 0,
+                                    costoTotal: 0
+                                };
+                            }
+                            platosMap[nombre].vendidos += (plato.cantidad || 0);
+                            platosMap[nombre].ingreso += (plato.subtotal || 0);
+                            // Nota: costo no está disponible en bouchers, usar 0 por ahora
+                        });
+                    }
+                });
+
+                // Convertir a array y calcular métricas
+                let datos = Object.values(platosMap).map(p => ({
+                    ...p,
+                    costoTotal: 0, // No disponible sin endpoint de platos
+                    ganancia: p.ingreso - 0,
+                    margen: p.ingreso > 0 ? 0 : 0 // Sin costo no se puede calcular margen
+                }));
+
+                // Ordenar por ingreso
+                datos.sort((a, b) => b.ingreso - a.ingreso);
+                
+                // Limitar a top 10
+                datos = datos.slice(0, 10);
+
+                // Calcular porcentaje del menú
+                const totalIngreso = datos.reduce((sum, d) => sum + d.ingreso, 0);
+                datos = datos.map((d, idx) => ({
+                    ...d,
+                    posicion: idx + 1,
+                    porcentajeMenu: totalIngreso > 0 ? (d.ingreso / totalIngreso * 100) : 0
+                }));
+
+                if (datos.length === 0) {
+                    document.getElementById('tabla-platos').innerHTML = '<div class="alert alert-info">No hay platos vendidos en este período</div>';
+                    document.getElementById('insights-platos').innerHTML = '<div class="alert alert-info">No hay datos para análisis</div>';
+                    return;
+                }
+
+                // Gráfico
+                const ctx = document.getElementById('chartPlatos');
+                if (ctx && datos.length > 0) {
+                    if (chartPlatos) chartPlatos.destroy();
+                    
+                    chartPlatos = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: datos.map(d => d.nombre),
+                            datasets: [{
+                                label: 'Ingreso (S/.)',
+                                data: datos.map(d => d.ingreso),
+                                backgroundColor: 'rgba(102, 126, 234, 0.6)',
+                                borderColor: 'rgba(102, 126, 234, 1)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            indexAxis: 'y',
+                            responsive: true,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            const item = datos[context.dataIndex];
+                                            return [
+                                                `Ingreso: S/${item.ingreso.toFixed(2)}`,
+                                                `Vendidos: ${item.vendidos}`,
+                                                `% Menú: ${item.porcentajeMenu.toFixed(1)}%`
+                                            ];
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: { beginAtZero: true }
+                            }
+                        }
+                    });
+                }
+
+                // Insights
+                if (datos.length > 0) {
+                    const topPlato = datos[0];
+                    const insightsHTML = `
+                        <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                            <strong>🥇 Top Plato:</strong> ${topPlato.nombre}<br>
+                            <small>${topPlato.porcentajeMenu.toFixed(1)}% del menú | ${topPlato.vendidos} vendidos</small>
+                        </div>
+                        <button class="btn btn-primary" onclick="agregarPromocion('${topPlato.nombre}')" style="width: 100%; margin-top: 10px;">
+                            🎯 Agregar Promoción
+                        </button>
+                    `;
+                    document.getElementById('insights-platos').innerHTML = insightsHTML;
+                }
+
+                // Tabla
+                const tablaHTML = `
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Pos</th>
+                                    <th>Plato</th>
+                                    <th>Vendidos</th>
+                                    <th>Ingreso</th>
+                                    <th>% Menú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${datos.map((d, idx) => `
+                                    <tr>
+                                        <td>
+                                            ${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : d.posicion}
+                                        </td>
+                                        <td>${d.nombre}</td>
+                                        <td>${d.vendidos}</td>
+                                        <td>S/${d.ingreso.toFixed(2)}</td>
+                                        <td>${d.porcentajeMenu.toFixed(1)}%</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                document.getElementById('tabla-platos').innerHTML = tablaHTML;
+            } catch (error) {
+                console.error('❌ Error cargando reporte de platos:', error);
+                document.getElementById('tabla-platos').innerHTML = `
+                    <div class="alert alert-error">
+                        <strong>Error al cargar datos</strong><br>
+                        <small>${error.message || 'Error desconocido'}</small>
+                    </div>
+                `;
+                document.getElementById('insights-platos').innerHTML = '';
+            }
+        }
+
+        async function cargarReporteMozos() {
+            try {
+                const fechaInicio = document.getElementById('reporte-fecha-inicio').value;
+                const fechaFin = document.getElementById('reporte-fecha-fin').value;
+
+                if (!fechaInicio || !fechaFin) {
+                    document.getElementById('tabla-mozos').innerHTML = '<div class="alert alert-error">Por favor seleccione fechas</div>';
+                    document.getElementById('ranking-mozos').innerHTML = '';
+                    return;
+                }
+
+                document.getElementById('tabla-mozos').innerHTML = '<div class="loading">Calculando...</div>';
+                document.getElementById('ranking-mozos').innerHTML = '<div class="loading">Calculando...</div>';
+
+                // Usar datos del cache
+                if (!datosReportesCache) {
+                    const bouchersLoaded = await cargarBouchersPorRango(fechaInicio, fechaFin);
+                    const comandasLoaded = await cargarComandasPorRango(fechaInicio, fechaFin);
+                    datosReportesCache = {
+                        bouchers: Array.isArray(bouchersLoaded) ? bouchersLoaded : [],
+                        comandas: Array.isArray(comandasLoaded) ? comandasLoaded : []
+                    };
+                }
+
+                const bouchers = Array.isArray(datosReportesCache.bouchers) ? datosReportesCache.bouchers : [];
+                const comandas = Array.isArray(datosReportesCache.comandas) ? datosReportesCache.comandas : [];
+
+                // Validar que tenemos datos
+                if (bouchers.length === 0) {
+                    document.getElementById('tabla-mozos').innerHTML = '<div class="alert alert-info">No hay datos de mozos en este período</div>';
+                    document.getElementById('ranking-mozos').innerHTML = '<div class="alert alert-info">No hay datos para ranking</div>';
+                    return;
+                }
+
+                // Agregar por mozo desde bouchers
+                const mozosMap = {};
+                bouchers.forEach(boucher => {
+                    const mozoId = boucher.mozo?._id || boucher.mozo;
+                    const nombreMozo = boucher.nombreMozo || boucher.mozo?.name || 'Mozo desconocido';
+                    
+                    // Usar nombre como key si no hay ID
+                    const key = mozoId || nombreMozo;
+                    
+                    if (!mozosMap[key]) {
+                        mozosMap[key] = {
+                            mozoId: mozoId,
+                            nombre: nombreMozo,
+                            totalVentas: 0,
+                            cantidadBouchers: 0
+                        };
+                    }
+                    mozosMap[key].totalVentas += (boucher.total || 0);
+                    mozosMap[key].cantidadBouchers += 1;
+                });
+
+                // Agregar comandas por mozo (si hay comandas)
+                const comandasPorMozo = {};
+                if (Array.isArray(comandas) && comandas.length > 0) {
+                    comandas.forEach(comanda => {
+                        const mozoId = comanda.mozos?._id || comanda.mozos;
+                        const nombreMozo = comanda.mozos?.name || 'Mozo desconocido';
+                        const key = mozoId || nombreMozo;
+                        
+                        if (!comandasPorMozo[key]) {
+                            comandasPorMozo[key] = 0;
+                        }
+                        comandasPorMozo[key] += 1;
+                    });
+                }
+
+                // Combinar datos
+                let datos = Object.values(mozosMap).map(m => {
+                    const key = m.mozoId || m.nombre;
+                    return {
+                        ...m,
+                        cantidadComandas: comandasPorMozo[key] || 0,
+                        promedioPorBoucher: m.cantidadBouchers > 0 ? m.totalVentas / m.cantidadBouchers : 0,
+                        tiempoPromedioMinutos: 0 // No disponible sin cálculo de tiempos
+                    };
+                });
+
+                // Calcular promedio para ranking
+                const promedioVentas = datos.length > 0 
+                    ? datos.reduce((sum, m) => sum + m.totalVentas, 0) / datos.length 
+                    : 0;
+
+                // Ordenar por ventas
+                datos.sort((a, b) => b.totalVentas - a.totalVentas);
+
+                // Agregar ranking y badges
+                datos = datos.map((mozo, index) => {
+                    const badge = index === 0 ? 'oro' : index === 1 ? 'plata' : index === 2 ? 'bronce' : null;
+                    const performance = mozo.totalVentas >= promedioVentas ? 'alto' : 'bajo';
+                    
+                    return {
+                        ...mozo,
+                        posicion: index + 1,
+                        badge,
+                        performance,
+                        diferenciaPromedio: mozo.totalVentas - promedioVentas
+                    };
+                });
+
+                if (datos.length === 0) {
+                    document.getElementById('tabla-mozos').innerHTML = '<div class="alert alert-info">No hay datos de mozos en este período</div>';
+                    document.getElementById('ranking-mozos').innerHTML = '<div class="alert alert-info">No hay datos para ranking</div>';
+                    return;
+                }
+
+                // Gráfico
+                const ctx = document.getElementById('chartMozos');
+                if (ctx && datos.length > 0) {
+                    if (chartMozos) chartMozos.destroy();
+                    
+                    chartMozos = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: datos.map(d => d.nombre),
+                            datasets: [{
+                                label: 'Ventas (S/.)',
+                                data: datos.map(d => d.totalVentas),
+                                backgroundColor: datos.map(d => 
+                                    d.badge === 'oro' ? 'rgba(255, 215, 0, 0.6)' :
+                                    d.badge === 'plata' ? 'rgba(192, 192, 192, 0.6)' :
+                                    d.badge === 'bronce' ? 'rgba(205, 127, 50, 0.6)' :
+                                    'rgba(102, 126, 234, 0.6)'
+                                ),
+                                borderColor: datos.map(d => 
+                                    d.badge === 'oro' ? 'rgba(255, 215, 0, 1)' :
+                                    d.badge === 'plata' ? 'rgba(192, 192, 192, 1)' :
+                                    d.badge === 'bronce' ? 'rgba(205, 127, 50, 1)' :
+                                    'rgba(102, 126, 234, 1)'
+                                ),
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            const item = datos[context.dataIndex];
+                                            return [
+                                                `Ventas: S/${item.totalVentas.toFixed(2)}`,
+                                                `Bouchers: ${item.cantidadBouchers}`,
+                                                `Comandas: ${item.cantidadComandas}`
+                                            ];
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: { beginAtZero: true }
+                            }
+                        }
+                    });
+                }
+
+                // Ranking
+                const top3 = datos.slice(0, 3);
+                const rankingHTML = `
+                    ${top3.map((m, idx) => `
+                        <div style="background: ${idx === 0 ? '#fff9c4' : idx === 1 ? '#f5f5f5' : '#ffe0b2'}; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                            <strong>${idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'} ${m.nombre}</strong><br>
+                            <small>Ventas: S/${m.totalVentas.toFixed(2)} | ${m.cantidadBouchers} bouchers</small>
+                        </div>
+                    `).join('')}
+                    ${datos.some(m => m.performance === 'bajo') ? `
+                        <button class="btn btn-primary" onclick="programarTraining()" style="width: 100%; margin-top: 10px;">
+                            📚 Programar Training
+                        </button>
+                    ` : ''}
+                `;
+                document.getElementById('ranking-mozos').innerHTML = rankingHTML;
+
+                // Tabla
+                const tablaHTML = `
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Pos</th>
+                                    <th>Mozo</th>
+                                    <th>Ventas</th>
+                                    <th>Bouchers</th>
+                                    <th>Comandas</th>
+                                    <th>Promedio/Boucher</th>
+                                    <th>Performance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${datos.map(d => `
+                                    <tr>
+                                        <td>
+                                            ${d.badge === 'oro' ? '🥇' : d.badge === 'plata' ? '🥈' : d.badge === 'bronce' ? '🥉' : d.posicion}
+                                        </td>
+                                        <td>${d.nombre}</td>
+                                        <td>S/${d.totalVentas.toFixed(2)}</td>
+                                        <td>${d.cantidadBouchers}</td>
+                                        <td>${d.cantidadComandas}</td>
+                                        <td>S/${d.promedioPorBoucher.toFixed(2)}</td>
+                                        <td>
+                                            <span class="badge ${d.performance === 'alto' ? 'badge-success' : 'badge-warning'}">
+                                                ${d.performance === 'alto' ? 'Alto' : 'Bajo'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                document.getElementById('tabla-mozos').innerHTML = tablaHTML;
+            } catch (error) {
+                console.error('❌ Error cargando reporte de mozos:', error);
+                document.getElementById('tabla-mozos').innerHTML = `
+                    <div class="alert alert-error">
+                        <strong>Error al cargar datos</strong><br>
+                        <small>${error.message || 'Error desconocido'}</small>
+                    </div>
+                `;
+                document.getElementById('ranking-mozos').innerHTML = '';
+            }
+        }
+
+        async function cargarReporteMesas() {
+            try {
+                const fechaInicio = document.getElementById('reporte-fecha-inicio').value;
+                const fechaFin = document.getElementById('reporte-fecha-fin').value;
+                const agruparPor = document.getElementById('reporte-agrupar-por').value;
+
+                if (!fechaInicio || !fechaFin) {
+                    document.getElementById('tabla-mesas').innerHTML = '<div class="alert alert-error">Por favor seleccione fechas</div>';
+                    return;
+                }
+
+                document.getElementById('tabla-mesas').innerHTML = '<div class="loading">Calculando...</div>';
+
+                // Usar datos del cache
+                if (!datosReportesCache) {
+                    datosReportesCache = {
+                        bouchers: await cargarBouchersPorRango(fechaInicio, fechaFin)
+                    };
+                }
+
+                const bouchers = datosReportesCache.bouchers;
+
+                // Agregar por período y mesa
+                const grupos = {};
+                bouchers.forEach(boucher => {
+                    const fechaPago = new Date(boucher.fechaPago);
+                    const numMesa = boucher.numMesa || boucher.mesa?.nummesa || 'N/A';
+                    
+                    let periodoKey;
+                    if (agruparPor === 'hora') {
+                        periodoKey = fechaPago.getHours();
+                    } else { // dia
+                        periodoKey = fechaPago.toISOString().split('T')[0];
+                    }
+                    
+                    const key = `${periodoKey}_${numMesa}`;
+                    
+                    if (!grupos[key]) {
+                        grupos[key] = {
+                            periodo: periodoKey,
+                            numMesa: numMesa,
+                            cantidad: 0,
+                            totalFacturado: 0
+                        };
+                    }
+                    grupos[key].cantidad += 1;
+                    grupos[key].totalFacturado += (boucher.total || 0);
+                });
+
+                // Agregar por período
+                const periodosMap = {};
+                Object.values(grupos).forEach(grupo => {
+                    if (!periodosMap[grupo.periodo]) {
+                        periodosMap[grupo.periodo] = {
+                            periodo: grupo.periodo,
+                            mesasUnicas: new Set(),
+                            cantidadBouchers: 0,
+                            totalFacturado: 0
+                        };
+                    }
+                    periodosMap[grupo.periodo].mesasUnicas.add(grupo.numMesa);
+                    periodosMap[grupo.periodo].cantidadBouchers += grupo.cantidad;
+                    periodosMap[grupo.periodo].totalFacturado += grupo.totalFacturado;
+                });
+
+                // Convertir a array
+                const datos = Object.values(periodosMap).map(p => ({
+                    periodo: p.periodo,
+                    mesasOcupadas: p.mesasUnicas.size,
+                    cantidadBouchers: p.cantidadBouchers,
+                    totalFacturado: p.totalFacturado
+                })).sort((a, b) => {
+                    if (agruparPor === 'hora') return a.periodo - b.periodo;
+                    return a.periodo.localeCompare(b.periodo);
+                });
+
+                if (datos.length === 0) {
+                    document.getElementById('tabla-mesas').innerHTML = '<div class="alert alert-info">No hay datos de ocupación de mesas en este período</div>';
+                    return;
+                }
+
+                // Gráfico
+                const ctx = document.getElementById('chartMesas');
+                if (ctx && datos.length > 0) {
+                    if (chartMesas) chartMesas.destroy();
+                    
+                    chartMesas = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: datos.map(d => `${d.periodo}${agruparPor === 'hora' ? ':00' : ''}`),
+                            datasets: [{
+                                label: 'Mesas Ocupadas',
+                                data: datos.map(d => d.mesasOcupadas),
+                                backgroundColor: 'rgba(79, 172, 254, 0.6)',
+                                borderColor: 'rgba(79, 172, 254, 1)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                y: { beginAtZero: true }
+                            }
+                        }
+                    });
+                }
+
+                // Tabla
+                const tablaHTML = `
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Período</th>
+                                    <th>Mesas Ocupadas</th>
+                                    <th>Bouchers</th>
+                                    <th>Total Facturado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${datos.map(d => `
+                                    <tr>
+                                        <td>${d.periodo}${agruparPor === 'hora' ? ':00' : ''}</td>
+                                        <td>${d.mesasOcupadas}</td>
+                                        <td>${d.cantidadBouchers}</td>
+                                        <td>S/${d.totalFacturado.toFixed(2)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                document.getElementById('tabla-mesas').innerHTML = tablaHTML;
+            } catch (error) {
+                console.error('❌ Error cargando reporte de mesas:', error);
+                document.getElementById('tabla-mesas').innerHTML = `
+                    <div class="alert alert-error">
+                        <strong>Error al cargar datos</strong><br>
+                        <small>${error.message || 'Error desconocido'}</small>
+                    </div>
+                `;
+            }
+        }
+
+        function agregarPromocion(nombrePlato) {
+            alert(`Función de promoción para: ${nombrePlato}\n(Integrar con sistema de promociones)`);
+        }
+
+        function programarTraining() {
+            alert('Función de training\n(Integrar con sistema de capacitación)');
+        }
+
+        async function exportarReportePDF() {
+            try {
+                const fechaInicio = document.getElementById('reporte-fecha-inicio').value;
+                const fechaFin = document.getElementById('reporte-fecha-fin').value;
+
+                if (!fechaInicio || !fechaFin) {
+                    alert('Por favor seleccione fechas');
+                    return;
+                }
+
+                // Asegurar que tenemos datos en cache
+                if (!datosReportesCache) {
+                    datosReportesCache = {
+                        bouchers: await cargarBouchersPorRango(fechaInicio, fechaFin),
+                        comandas: await cargarComandasPorRango(fechaInicio, fechaFin)
+                    };
+                }
+
+                const bouchers = datosReportesCache.bouchers;
+                
+                // Calcular ventas (agrupado por día)
+                const ventasPorDia = {};
+                bouchers.forEach(b => {
+                    const fecha = new Date(b.fechaPago).toISOString().split('T')[0];
+                    if (!ventasPorDia[fecha]) {
+                        ventasPorDia[fecha] = { total: 0, subtotal: 0, igv: 0, cantidadBouchers: 0 };
+                    }
+                    ventasPorDia[fecha].total += (b.total || 0);
+                    ventasPorDia[fecha].subtotal += (b.subtotal || 0);
+                    ventasPorDia[fecha].igv += (b.igv || 0);
+                    ventasPorDia[fecha].cantidadBouchers += 1;
+                });
+                const totalesVentas = Object.values(ventasPorDia).reduce((acc, v) => ({
+                    total: acc.total + v.total,
+                    subtotal: acc.subtotal + v.subtotal,
+                    igv: acc.igv + v.igv,
+                    cantidadBouchers: acc.cantidadBouchers + v.cantidadBouchers
+                }), { total: 0, subtotal: 0, igv: 0, cantidadBouchers: 0 });
+
+                // Calcular top platos
+                const platosMap = {};
+                bouchers.forEach(b => {
+                    if (b.platos && Array.isArray(b.platos)) {
+                        b.platos.forEach(p => {
+                            const nombre = p.nombre || 'Plato desconocido';
+                            if (!platosMap[nombre]) {
+                                platosMap[nombre] = { nombre, vendidos: 0, ingreso: 0 };
+                            }
+                            platosMap[nombre].vendidos += (p.cantidad || 0);
+                            platosMap[nombre].ingreso += (p.subtotal || 0);
+                        });
+                    }
+                });
+                const topPlatos = Object.values(platosMap).sort((a, b) => b.ingreso - a.ingreso).slice(0, 20);
+
+                // Calcular mozos
+                const mozosMap = {};
+                bouchers.forEach(b => {
+                    const nombreMozo = b.nombreMozo || b.mozo?.name || 'Mozo desconocido';
+                    if (!mozosMap[nombreMozo]) {
+                        mozosMap[nombreMozo] = { nombre: nombreMozo, totalVentas: 0, cantidadBouchers: 0 };
+                    }
+                    mozosMap[nombreMozo].totalVentas += (b.total || 0);
+                    mozosMap[nombreMozo].cantidadBouchers += 1;
+                });
+                const topMozos = Object.values(mozosMap).sort((a, b) => b.totalVentas - a.totalVentas).slice(0, 10);
+
+                // Crear PDF con jsPDF
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                // Header
+                doc.setFontSize(20);
+                doc.text('REPORTE DE VENTAS - LAS GAMBUSINAS', 105, 20, { align: 'center' });
+                doc.setFontSize(12);
+                doc.text(`Período: ${fechaInicio} al ${fechaFin}`, 105, 30, { align: 'center' });
+                doc.text(`Generado: ${new Date().toLocaleString('es-PE')}`, 105, 37, { align: 'center' });
+
+                let y = 50;
+
+                // Ventas
+                doc.setFontSize(16);
+                doc.text('VENTAS', 14, y);
+                y += 10;
+                doc.setFontSize(10);
+                doc.text(`Total: S/${totalesVentas.total.toFixed(2)}`, 14, y);
+                y += 7;
+                doc.text(`Bouchers: ${totalesVentas.cantidadBouchers}`, 14, y);
+                y += 15;
+
+                // Top Platos
+                doc.setFontSize(16);
+                doc.text('TOP PLATOS', 14, y);
+                y += 10;
+                doc.setFontSize(10);
+                topPlatos.slice(0, 10).forEach((plato, idx) => {
+                    if (y > 270) {
+                        doc.addPage();
+                        y = 20;
+                    }
+                    doc.text(`${idx + 1}. ${plato.nombre} - S/${plato.ingreso.toFixed(2)} (${plato.vendidos} vendidos)`, 14, y);
+                    y += 7;
+                });
+                y += 5;
+
+                // Mozos
+                if (y > 250) {
+                    doc.addPage();
+                    y = 20;
+                }
+                doc.setFontSize(16);
+                doc.text('PERFORMANCE MOZOS', 14, y);
+                y += 10;
+                doc.setFontSize(10);
+                topMozos.slice(0, 10).forEach((mozo, idx) => {
+                    if (y > 270) {
+                        doc.addPage();
+                        y = 20;
+                    }
+                    doc.text(`${idx + 1}. ${mozo.nombre} - S/${mozo.totalVentas.toFixed(2)}`, 14, y);
+                    y += 7;
+                });
+
+                // Footer
+                const pageCount = doc.internal.pages.length - 1;
+                for (let i = 1; i <= pageCount; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(8);
+                    doc.text(`Página ${i} de ${pageCount}`, 105, 285, { align: 'center' });
+                }
+
+                doc.save(`reporte-${fechaInicio}-${fechaFin}.pdf`);
+            } catch (error) {
+                console.error('Error exportando PDF:', error);
+                alert('Error al exportar PDF');
+            }
+        }
+
+        async function exportarReporteExcel() {
+            try {
+                const fechaInicio = document.getElementById('reporte-fecha-inicio').value;
+                const fechaFin = document.getElementById('reporte-fecha-fin').value;
+
+                if (!fechaInicio || !fechaFin) {
+                    alert('Por favor seleccione fechas');
+                    return;
+                }
+
+                // Asegurar que tenemos datos en cache
+                if (!datosReportesCache) {
+                    datosReportesCache = {
+                        bouchers: await cargarBouchersPorRango(fechaInicio, fechaFin),
+                        comandas: await cargarComandasPorRango(fechaInicio, fechaFin)
+                    };
+                }
+
+                const bouchers = datosReportesCache.bouchers;
+                
+                // Calcular ventas por día
+                const ventasPorDia = {};
+                bouchers.forEach(b => {
+                    const fecha = new Date(b.fechaPago).toISOString().split('T')[0];
+                    if (!ventasPorDia[fecha]) {
+                        ventasPorDia[fecha] = { fecha, total: 0, subtotal: 0, igv: 0, cantidadBouchers: 0, cantidadItems: 0 };
+                    }
+                    ventasPorDia[fecha].total += (b.total || 0);
+                    ventasPorDia[fecha].subtotal += (b.subtotal || 0);
+                    ventasPorDia[fecha].igv += (b.igv || 0);
+                    ventasPorDia[fecha].cantidadBouchers += 1;
+                    ventasPorDia[fecha].cantidadItems += (b.platos?.length || 0);
+                });
+                const datosVentas = Object.values(ventasPorDia).sort((a, b) => a.fecha.localeCompare(b.fecha));
+                const totalesVentas = datosVentas.reduce((acc, v) => ({
+                    total: acc.total + v.total,
+                    subtotal: acc.subtotal + v.subtotal,
+                    igv: acc.igv + v.igv,
+                    cantidadBouchers: acc.cantidadBouchers + v.cantidadBouchers,
+                    cantidadItems: acc.cantidadItems + v.cantidadItems
+                }), { total: 0, subtotal: 0, igv: 0, cantidadBouchers: 0, cantidadItems: 0 });
+
+                // Calcular top platos
+                const platosMap = {};
+                bouchers.forEach(b => {
+                    if (b.platos && Array.isArray(b.platos)) {
+                        b.platos.forEach(p => {
+                            const nombre = p.nombre || 'Plato desconocido';
+                            if (!platosMap[nombre]) {
+                                platosMap[nombre] = { nombre, vendidos: 0, ingreso: 0 };
+                            }
+                            platosMap[nombre].vendidos += (p.cantidad || 0);
+                            platosMap[nombre].ingreso += (p.subtotal || 0);
+                        });
+                    }
+                });
+                const topPlatos = Object.values(platosMap).sort((a, b) => b.ingreso - a.ingreso).slice(0, 50);
+                const totalIngreso = topPlatos.reduce((sum, p) => sum + p.ingreso, 0);
+                const platosConPorcentaje = topPlatos.map((p, idx) => ({
+                    ...p,
+                    posicion: idx + 1,
+                    porcentajeMenu: totalIngreso > 0 ? (p.ingreso / totalIngreso * 100) : 0
+                }));
+
+                // Calcular mozos
+                const mozosMap = {};
+                const comandas = datosReportesCache.comandas || [];
+                bouchers.forEach(b => {
+                    const nombreMozo = b.nombreMozo || b.mozo?.name || 'Mozo desconocido';
+                    if (!mozosMap[nombreMozo]) {
+                        mozosMap[nombreMozo] = { nombre: nombreMozo, totalVentas: 0, cantidadBouchers: 0, cantidadComandas: 0 };
+                    }
+                    mozosMap[nombreMozo].totalVentas += (b.total || 0);
+                    mozosMap[nombreMozo].cantidadBouchers += 1;
+                });
+                comandas.forEach(c => {
+                    const nombreMozo = c.mozos?.name || 'Mozo desconocido';
+                    if (mozosMap[nombreMozo]) {
+                        mozosMap[nombreMozo].cantidadComandas += 1;
+                    }
+                });
+                const topMozos = Object.values(mozosMap).sort((a, b) => b.totalVentas - a.totalVentas).map((m, idx) => ({
+                    ...m,
+                    posicion: idx + 1,
+                    promedioPorBoucher: m.cantidadBouchers > 0 ? m.totalVentas / m.cantidadBouchers : 0
+                }));
+
+                // Crear workbook
+                const wb = XLSX.utils.book_new();
+
+                // Hoja Ventas
+                const ventasData = [
+                    ['Fecha', 'Total', 'Subtotal', 'IGV', 'Bouchers', 'Items'],
+                    ...datosVentas.map(d => [
+                        d.fecha,
+                        d.total,
+                        d.subtotal,
+                        d.igv,
+                        d.cantidadBouchers,
+                        d.cantidadItems
+                    ]),
+                    ['TOTAL', totalesVentas.total, totalesVentas.subtotal, totalesVentas.igv, totalesVentas.cantidadBouchers, totalesVentas.cantidadItems]
+                ];
+                const wsVentas = XLSX.utils.aoa_to_sheet(ventasData);
+                XLSX.utils.book_append_sheet(wb, wsVentas, 'Ventas');
+
+                // Hoja Platos
+                const platosData = [
+                    ['Pos', 'Plato', 'Vendidos', 'Ingreso', '% Menú'],
+                    ...platosConPorcentaje.map(d => [
+                        d.posicion,
+                        d.nombre,
+                        d.vendidos,
+                        d.ingreso,
+                        d.porcentajeMenu.toFixed(2)
+                    ])
+                ];
+                const wsPlatos = XLSX.utils.aoa_to_sheet(platosData);
+                XLSX.utils.book_append_sheet(wb, wsPlatos, 'Platos');
+
+                // Hoja Mozos
+                const mozosData = [
+                    ['Pos', 'Mozo', 'Ventas', 'Bouchers', 'Comandas', 'Promedio/Boucher'],
+                    ...topMozos.map(d => [
+                        d.posicion,
+                        d.nombre,
+                        d.totalVentas,
+                        d.cantidadBouchers,
+                        d.cantidadComandas,
+                        d.promedioPorBoucher.toFixed(2)
+                    ])
+                ];
+                const wsMozos = XLSX.utils.aoa_to_sheet(mozosData);
+                XLSX.utils.book_append_sheet(wb, wsMozos, 'Mozos');
+
+                // Descargar
+                XLSX.writeFile(wb, `reporte-${fechaInicio}-${fechaFin}.xlsx`);
+            } catch (error) {
+                console.error('Error exportando Excel:', error);
+                alert('Error al exportar Excel');
+            }
+        }
+
+        // Inicializar al mostrar tab de reportes
+        document.addEventListener('DOMContentLoaded', () => {
+            inicializarFechasReportes();
+            
+            // Cargar KPIs cada vez que se muestra el tab de reportes
+            const reportesTab = document.querySelector('[onclick*="showTab(\'reportes\'"]');
+            if (reportesTab) {
+                reportesTab.addEventListener('click', () => {
+                    setTimeout(() => {
+                        cargarKPIs();
+                        if (document.getElementById('reporte-ventas').style.display !== 'none') {
+                            cargarReporteVentas();
+                        }
+                    }, 100);
+                });
+            }
+        });
 
         // Cargar datos iniciales
         loadMesas();
