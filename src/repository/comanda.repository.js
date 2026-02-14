@@ -1261,8 +1261,25 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
     
     console.log(`FASE1: plato ${platoId} → estado ${nuevoEstado} (anterior: ${estadoActual})`);
     
-    // FASE 1: Actualización GRANULAR con MongoDB updateOne (solo el plato específico)
+    // FASE 7: Actualización GRANULAR con MongoDB updateOne (solo el plato específico) + Auditoría
     const ahora = moment.tz("America/Lima").toDate();
+    
+    // Obtener información de usuario/device desde headers o contexto
+    const usuarioId = global.currentRequestId ? null : null; // Se puede obtener de req si está disponible
+    const deviceId = null; // Se puede obtener de headers
+    const sourceApp = 'cocina'; // Por defecto cocina para cambios de estado de platos
+    
+    // Entrada de historial para el cambio de estado del plato
+    const historialEntry = {
+      status: `plato_${nuevoEstado}`,
+      statusAnterior: `plato_${estadoActual}`,
+      timestamp: ahora,
+      usuario: usuarioId || null,
+      accion: `Plato ${platoId} cambió de "${estadoActual}" a "${nuevoEstado}"`,
+      deviceId: deviceId || null,
+      sourceApp: sourceApp,
+      motivo: null
+    };
     
     // Usar updateOne con $set específico para evitar sobrescribir otros campos
     await comandaModel.updateOne(
@@ -1272,7 +1289,8 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
           "platos.$.estado": nuevoEstado,
           [`platos.$.tiempos.${nuevoEstado}`]: ahora,
           updatedAt: ahora
-        }
+        },
+        $push: { historialEstados: historialEntry }
       }
     );
     
@@ -2467,12 +2485,32 @@ const recalcularEstadoComandaPorPlatos = async (comandaId) => {
     if (comanda.status !== nuevoEstado) {
       comanda.status = nuevoEstado;
       
-      // Actualizar timestamps de estado de comanda
+      // FASE 7: Actualizar timestamps de estado de comanda + historial
+      const ahora = moment.tz("America/Lima").toDate();
       if (nuevoEstado === 'recoger' && !comanda.tiempoRecoger) {
-        comanda.tiempoRecoger = moment.tz("America/Lima").toDate();
+        comanda.tiempoRecoger = ahora;
       } else if (nuevoEstado === 'entregado' && !comanda.tiempoEntregado) {
-        comanda.tiempoEntregado = moment.tz("America/Lima").toDate();
+        comanda.tiempoEntregado = ahora;
+      } else if (nuevoEstado === 'en_espera' && !comanda.tiempoEnEspera) {
+        comanda.tiempoEnEspera = ahora;
+      } else if (nuevoEstado === 'pagado' && !comanda.tiempoPagado) {
+        comanda.tiempoPagado = ahora;
       }
+      
+      // Agregar entrada al historial si cambió el estado
+      if (!comanda.historialEstados) {
+        comanda.historialEstados = [];
+      }
+      comanda.historialEstados.push({
+        status: nuevoEstado,
+        statusAnterior: estadoAnterior,
+        timestamp: ahora,
+        usuario: null, // Se puede obtener del contexto si está disponible
+        accion: `Estado recalculado automáticamente: "${estadoAnterior}" → "${nuevoEstado}"`,
+        deviceId: null,
+        sourceApp: 'sistema',
+        motivo: `Recálculo por cambio de estado de platos`
+      });
       
       await comanda.save();
       
