@@ -1570,6 +1570,66 @@ const cambiarStatusComanda = async (comandaId, nuevoStatus, options = {}) => {
         motivo: options.motivo || null
       };
       
+      // ACTUALIZACIÓN INTELIGENTE DE PLATOS: Actualizar platos cuando cambia status de comanda
+      // Reutilizar timestampActual ya declarado arriba
+      let platosModificados = false;
+      
+      // Si el nuevo status es "recoger", actualizar TODOS los platos que NO estén ya en "recoger" o "entregado"
+      if (nuevoStatus === "recoger") {
+        let cantidadActualizados = 0;
+        comandaActual.platos.forEach((plato, index) => {
+          // Solo actualizar platos que están en "en_espera" o "ingresante"
+          // Dejar intactos los que ya están en "recoger" o "entregado" (idempotente)
+          if (plato.estado === "en_espera" || plato.estado === "ingresante") {
+            comandaActual.platos[index].estado = "recoger";
+            // Actualizar timestamp del plato
+            if (!comandaActual.platos[index].tiempos) {
+              comandaActual.platos[index].tiempos = {};
+            }
+            comandaActual.platos[index].tiempos.recoger = timestampActual;
+            platosModificados = true;
+            cantidadActualizados++;
+          }
+        });
+        
+        if (platosModificados) {
+          logger.info('Platos modificados para actualización a "recoger"', {
+            comandaId,
+            platosActualizados: cantidadActualizados,
+            totalPlatos: comandaActual.platos.length
+          });
+        }
+      }
+      
+      // Si el nuevo status es "entregado", actualizar TODOS los platos a "entregado" (sin excepciones)
+      if (nuevoStatus === "entregado") {
+        comandaActual.platos.forEach((plato, index) => {
+          comandaActual.platos[index].estado = "entregado";
+          // Actualizar timestamp del plato
+          if (!comandaActual.platos[index].tiempos) {
+            comandaActual.platos[index].tiempos = {};
+          }
+          comandaActual.platos[index].tiempos.entregado = timestampActual;
+        });
+        platosModificados = true;
+        
+        logger.info('Platos modificados para actualización a "entregado"', {
+          comandaId,
+          totalPlatos: comandaActual.platos.length
+        });
+      }
+      
+      // Si se modificaron platos, guardar primero los cambios en platos (antes de actualizar status)
+      if (platosModificados) {
+        // Guardar cambios en platos directamente en el documento
+        await comandaActual.save();
+        logger.info('Platos guardados exitosamente antes de actualizar status', {
+          comandaId,
+          nuevoStatus,
+          totalPlatos: comandaActual.platos.length
+        });
+      }
+      
       // Usar $set para campos regulares y $push para arrays
       const updateQuery = {
         $set: updateData,
@@ -1581,6 +1641,30 @@ const cambiarStatusComanda = async (comandaId, nuevoStatus, options = {}) => {
           updateQuery,
           { new: true }
       ).populate('mesas');
+      
+      // Verificar que los platos se actualizaron correctamente
+      if (platosModificados) {
+        const platosEnEstadoCorrecto = updatedComanda.platos.filter(p => {
+          if (nuevoStatus === "recoger") {
+            return p.estado === "recoger" || p.estado === "entregado";
+          } else if (nuevoStatus === "entregado") {
+            return p.estado === "entregado";
+          }
+          return true;
+        }).length;
+        
+        logger.info('Comanda y platos actualizados exitosamente', {
+          comandaId,
+          comandaNumber: updatedComanda.comandaNumber,
+          nuevoStatus,
+          platosEnEstadoCorrecto,
+          totalPlatos: updatedComanda.platos.length,
+          detallePlatos: updatedComanda.platos.map(p => ({
+            nombre: p.plato?.nombre || p.nombre,
+            estado: p.estado
+          }))
+        });
+      }
       
       logger.info('Estado de comanda actualizado', {
         comandaId,
@@ -2473,9 +2557,13 @@ const recalcularEstadoComandaPorPlatos = async (comandaId) => {
     } else if (cuentas.entregado === total) {
       // Todos entregados
       nuevoEstado = 'entregado';
-    } else if (cuentas.recoger > 0 || cuentas.entregado > 0) {
-      // Al menos uno listo para recoger o entregado
+    } else if (cuentas.recoger === total) {
+      // TODOS los platos están en 'recoger' → comanda lista para recoger
       nuevoEstado = 'recoger';
+    } else if (cuentas.recoger > 0 || cuentas.entregado > 0) {
+      // Algunos platos listos pero NO todos → mantener 'en_espera' (no cambiar a 'recoger' prematuramente)
+      // Solo cambiar a 'recoger' cuando TODOS los platos estén listos
+      nuevoEstado = 'en_espera';
     } else if (cuentas.pedido === total) {
       // Todos en pedido
       nuevoEstado = 'en_espera';
