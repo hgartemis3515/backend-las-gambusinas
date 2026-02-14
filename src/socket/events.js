@@ -4,13 +4,14 @@ const moment = require('moment-timezone');
 const logger = require('../utils/logger');
 
 /**
- * Configuración de eventos Socket.io para namespaces /cocina y /mozos
+ * Configuración de eventos Socket.io para namespaces /cocina, /mozos y /admin
  * Con reconexión robusta y backoff exponencial
  * @param {Server} io - Instancia principal de Socket.io
  * @param {Namespace} cocinaNamespace - Namespace /cocina para app cocina
  * @param {Namespace} mozosNamespace - Namespace /mozos para app mozos
+ * @param {Namespace} adminNamespace - Namespace /admin para dashboard admin
  */
-module.exports = (io, cocinaNamespace, mozosNamespace) => {
+module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
   // ========== NAMESPACE /COCINA ==========
   cocinaNamespace.on('connection', (socket) => {
     logger.info('Socket cocina conectado', { socketId: socket.id });
@@ -107,6 +108,35 @@ module.exports = (io, cocinaNamespace, mozosNamespace) => {
 
     socket.on('disconnect', (reason) => {
       logger.info('Socket mozos desconectado', { socketId: socket.id, reason });
+    });
+  });
+
+  // ========== NAMESPACE /ADMIN ==========
+  adminNamespace.on('connection', (socket) => {
+    logger.info('Socket admin conectado', { socketId: socket.id });
+
+    // Validar namespace (seguridad)
+    if (socket.nsp.name !== '/admin') {
+      logger.warn('Intento de conexión a namespace incorrecto', {
+        socketId: socket.id,
+        namespace: socket.nsp.name
+      });
+      socket.disconnect();
+      return;
+    }
+
+    // Heartbeat para detectar desconexión
+    socket.on('heartbeat', () => {
+      socket.emit('heartbeat-ack');
+    });
+
+    // Manejo de errores de conexión
+    socket.on('error', (error) => {
+      logger.error('Error en socket admin', { socketId: socket.id, error: error.message });
+    });
+
+    socket.on('disconnect', (reason) => {
+      logger.info('Socket admin desconectado', { socketId: socket.id, reason });
     });
   });
 
@@ -853,6 +883,12 @@ module.exports = (io, cocinaNamespace, mozosNamespace) => {
       socketId: 'server',
       timestamp: timestamp
     });
+
+    adminNamespace.emit('socket-status', {
+      connected: true,
+      socketId: 'server',
+      timestamp: timestamp
+    });
   }, 30000); // Cada 30 segundos
 
   // Limpiar intervalo al cerrar (opcional, pero buena práctica)
@@ -860,8 +896,146 @@ module.exports = (io, cocinaNamespace, mozosNamespace) => {
     clearInterval(statusInterval);
   });
 
+  // ========== FUNCIONES PARA EMITIR EVENTOS DE REPORTES ==========
+
+  /**
+   * Emitir evento cuando se crea un boucher (afecta reportes de ventas)
+   * @param {Object} boucher - Boucher creado
+   */
+  global.emitReporteBoucherNuevo = async (boucher) => {
+    try {
+      if (!adminNamespace || !adminNamespace.sockets) {
+        return; // No hay clientes admin conectados
+      }
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+      const fechaPago = moment(boucher.fechaPago || new Date()).tz('America/Lima').format('YYYY-MM-DD');
+
+      // Payload mínimo para reportes (optimizado)
+      const eventData = {
+        boucherId: boucher._id?.toString() || boucher._id,
+        boucherNumber: boucher.boucherNumber,
+        monto: boucher.total || 0,
+        subtotal: boucher.subtotal || 0,
+        igv: boucher.igv || 0,
+        fecha: fechaPago,
+        fechaPago: boucher.fechaPago,
+        numMesa: boucher.numMesa || boucher.mesa?.nummesa,
+        mozoId: boucher.mozo?._id?.toString() || boucher.mozo?.toString() || boucher.mozo,
+        nombreMozo: boucher.nombreMozo || boucher.mozo?.name || 'Desconocido',
+        cantidadPlatos: boucher.platos?.length || 0,
+        platos: (boucher.platos || []).map(p => ({
+          nombre: p.nombre || 'Plato desconocido',
+          cantidad: p.cantidad || 0,
+          precio: p.precio || 0,
+          subtotal: p.subtotal || 0
+        })),
+        timestamp: timestamp
+      };
+
+      adminNamespace.emit('reportes:boucher-nuevo', eventData);
+
+      logger.info('Evento reportes:boucher-nuevo emitido', {
+        boucherNumber: boucher.boucherNumber,
+        monto: eventData.monto,
+        adminConnected: adminNamespace.sockets.size
+      });
+    } catch (error) {
+      logger.error('Error al emitir reportes:boucher-nuevo', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  };
+
+  /**
+   * Emitir evento cuando se crea una comanda (afecta reportes de comandas)
+   * @param {Object} comanda - Comanda creada
+   */
+  global.emitReporteComandaNueva = async (comanda) => {
+    try {
+      if (!adminNamespace || !adminNamespace.sockets) {
+        return; // No hay clientes admin conectados
+      }
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+      const fechaCreacion = moment(comanda.createdAt || new Date()).tz('America/Lima').format('YYYY-MM-DD');
+
+      // Payload mínimo para reportes
+      const eventData = {
+        comandaId: comanda._id?.toString() || comanda._id,
+        comandaNumber: comanda.comandaNumber,
+        fecha: fechaCreacion,
+        fechaCreacion: comanda.createdAt,
+        numMesa: comanda.mesas?.nummesa || comanda.mesas?.numMesa,
+        mozoId: comanda.mozos?._id?.toString() || comanda.mozos?.toString() || comanda.mozos,
+        nombreMozo: comanda.mozos?.name || 'Desconocido',
+        cantidadPlatos: comanda.platos?.length || 0,
+        platos: (comanda.platos || []).map(p => ({
+          nombre: p.plato?.nombre || 'Plato desconocido',
+          cantidad: p.cantidad || 1,
+          estado: p.estado || 'pedido'
+        })),
+        timestamp: timestamp
+      };
+
+      adminNamespace.emit('reportes:comanda-nueva', eventData);
+
+      logger.info('Evento reportes:comanda-nueva emitido', {
+        comandaNumber: comanda.comandaNumber,
+        cantidadPlatos: eventData.cantidadPlatos,
+        adminConnected: adminNamespace.sockets.size
+      });
+    } catch (error) {
+      logger.error('Error al emitir reportes:comanda-nueva', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  };
+
+  /**
+   * Emitir evento cuando un plato cambia a estado "listo" (entregado)
+   * @param {String} comandaId - ID de la comanda
+   * @param {String|Number} platoId - ID del plato
+   * @param {String} nombrePlato - Nombre del plato
+   * @param {Number} precio - Precio del plato
+   */
+  global.emitReportePlatoListo = async (comandaId, platoId, nombrePlato, precio) => {
+    try {
+      if (!adminNamespace || !adminNamespace.sockets) {
+        return; // No hay clientes admin conectados
+      }
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      const eventData = {
+        comandaId: comandaId?.toString() || comandaId,
+        platoId: platoId?.toString() || platoId,
+        nombre: nombrePlato || 'Plato desconocido',
+        precio: precio || 0,
+        estado: 'entregado',
+        timestamp: timestamp
+      };
+
+      adminNamespace.emit('reportes:plato-listo', eventData);
+
+      logger.debug('Evento reportes:plato-listo emitido', {
+        comandaId: eventData.comandaId,
+        platoId: eventData.platoId,
+        nombre: eventData.nombre,
+        adminConnected: adminNamespace.sockets.size
+      });
+    } catch (error) {
+      logger.error('Error al emitir reportes:plato-listo', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  };
+
   logger.info('Eventos Socket.io configurados correctamente', {
-    namespaces: ['/cocina', '/mozos']
+    namespaces: ['/cocina', '/mozos', '/admin']
   });
 };
 

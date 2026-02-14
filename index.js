@@ -71,9 +71,10 @@ global.io = io;
 // Configurar namespaces
 const cocinaNamespace = io.of('/cocina');
 const mozosNamespace = io.of('/mozos');
+const adminNamespace = io.of('/admin');
 
 // Configurar eventos Socket.io
-require('./src/socket/events')(io, cocinaNamespace, mozosNamespace);
+require('./src/socket/events')(io, cocinaNamespace, mozosNamespace, adminNamespace);
 
 var cors = require('cors');
 
@@ -104,12 +105,46 @@ const routes = [mesasRoutes, mozosRoutes, platoRoutes, comandaRoutes, areaRoutes
 const helmet = require('helmet');
 app.use(helmet({
   contentSecurityPolicy: {
+    useDefaults: false, // Deshabilitar defaults para control total
     directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "ws:", "wss:"]
+      'default-src': ["'self'"],
+      'script-src': [
+        "'self'",
+        "'unsafe-inline'",
+        "'unsafe-eval'",
+        "https://cdn.jsdelivr.net",
+        "https://*.cdn.jsdelivr.net",
+        "https://cdnjs.cloudflare.com",
+        "https://*.cdnjs.cloudflare.com",
+        "https://cdn.socket.io",
+        "https://*.cdn.socket.io"
+      ],
+      'script-src-attr': ["'unsafe-inline'"], // Permitir onclick inline
+      'style-src': [
+        "'self'",
+        "'unsafe-inline'"
+      ],
+      'connect-src': [
+        "'self'",
+        "ws:",      // ✅ FIX: ws: NO ws://
+        "wss:",     // ✅ FIX: wss: NO wss://
+        "https://cdn.socket.io"
+      ],
+      'img-src': [
+        "'self'",
+        "data:",
+        "blob:",
+        "https:"
+      ],
+      'font-src': [
+        "'self'",
+        "https:",
+        "data:"
+      ],
+      'worker-src': ["'self'", "blob:"],
+      'object-src': ["'none'"],
+      'base-uri': ["'self'"],
+      'form-action': ["'self'"]
     }
   },
   crossOriginEmbedderPolicy: false // Necesario para Socket.io

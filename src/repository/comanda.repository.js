@@ -509,6 +509,16 @@ const agregarComanda = async (data) => {
     console.error('⚠️ Error al sincronizar comandas.json:', error);
   }
   
+  // FASE 9: Emitir evento para actualización de reportes en tiempo real
+  if (global.emitReporteComandaNueva) {
+    try {
+      await global.emitReporteComandaNueva(comandaCreada);
+      console.log('✅ Evento reportes:comanda-nueva emitido');
+    } catch (error) {
+      console.error('⚠️ Error al emitir evento reportes:comanda-nueva (no crítico):', error);
+    }
+  }
+  
   return { comanda: comandaCreada, todaslascomandas: await listarComanda() };
 };
 
@@ -2321,6 +2331,18 @@ const marcarPlatoComoEntregado = async (comandaId, platoId) => {
     if (global.emitPlatoEntregado) {
       const platoNombre = platoPopulado?.plato?.nombre || 'Plato desconocido';
       await global.emitPlatoEntregado(comandaId, platoId, platoNombre, estadoAnterior);
+    }
+    
+    // FASE 9: Emitir evento para actualización de reportes en tiempo real
+    if (global.emitReportePlatoListo) {
+      try {
+        const platoNombre = platoPopulado?.plato?.nombre || 'Plato desconocido';
+        const platoPrecio = platoPopulado?.plato?.precio || 0;
+        await global.emitReportePlatoListo(comandaId, platoId, platoNombre, platoPrecio);
+        console.log('✅ Evento reportes:plato-listo emitido');
+      } catch (error) {
+        console.error('⚠️ Error al emitir evento reportes:plato-listo (no crítico):', error);
+      }
     }
     
     // Retornar comanda actualizada populada

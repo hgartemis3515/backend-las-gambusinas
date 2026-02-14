@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel de Administración - Las Gambusinas</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Scripts CDN con crossorigin para CSP -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" crossorigin="anonymous"></script>
     <style>
         * {
             margin: 0;
@@ -547,7 +549,11 @@
             <!-- Tab Reportes -->
             <div id="reportes" class="tab-content">
                 <div class="section-header">
-                    <h2>📊 Reportes y Analítica</h2>
+                    <h2>📊 Reportes y Analítica 
+                        <span id="liveIndicator" class="badge" style="background: #ff4444; color: white; margin-left: 10px; padding: 5px 12px; border-radius: 20px; font-size: 12px; display: none;">
+                            🔴 LIVE
+                        </span>
+                    </h2>
                     <div>
                         <button class="btn btn-primary" onclick="exportarReportePDF()" style="margin-right: 10px;">📄 Exportar PDF</button>
                         <button class="btn btn-primary" onclick="exportarReporteExcel()">📊 Exportar Excel</button>
@@ -777,24 +783,47 @@
             ModalManager.init();
         });
 
-        // Funciones de navegación
+        // Funciones de navegación (con debug y manejo robusto)
         function showTab(tabName, clickedElement) {
-            // Remover active de todos los tabs
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            console.log('🖱️ showTab llamado:', tabName);
             
-            // Activar el tab clickeado
-            const clickedTab = clickedElement || (window.event ? window.event.target : document.querySelector(`[onclick*="showTab('${tabName}')"]`));
-            if (clickedTab) {
-                clickedTab.classList.add('active');
+            try {
+                // Remover active de todos los tabs
+                document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                
+                // Activar el tab clickeado
+                const clickedTab = clickedElement || (window.event ? window.event.target : document.querySelector(`[onclick*="showTab('${tabName}')"]`));
+                if (clickedTab) {
+                    clickedTab.classList.add('active');
+                    console.log('✅ Tab activado:', tabName);
+                } else {
+                    console.warn('⚠️ No se encontró clickedTab para:', tabName);
+                }
+                
+                // Activar el contenido del tab
+                const tabContent = document.getElementById(tabName);
+                if (tabContent) {
+                    tabContent.classList.add('active');
+                    console.log('✅ Contenido del tab activado:', tabName);
+                } else {
+                    console.error(`❌ Tab content no encontrado: ${tabName}`);
+                }
+            } catch (error) {
+                console.error('❌ Error en showTab:', error);
+                alert(`Error al cambiar de pestaña: ${error.message}`);
             }
             
-            // Activar el contenido del tab
-            const tabContent = document.getElementById(tabName);
-            if (tabContent) {
-                tabContent.classList.add('active');
-            } else {
-                console.error(`Tab content no encontrado: ${tabName}`);
+            // FASE 9: Activar/desactivar listeners de reportes (aislado, no debe romper navegación)
+            try {
+                if (tabName === 'reportes') {
+                    activarListenersReportes();
+                } else {
+                    desactivarListenersReportes();
+                }
+            } catch (error) {
+                console.warn('⚠️ Error en listeners de reportes (no crítico):', error);
+                // NO lanzar error - no debe romper navegación
             }
             
             // Cargar datos cuando se muestra el tab
@@ -822,13 +851,37 @@
 
         // Funciones para cargar datos
         async function loadMesas() {
+            const container = document.getElementById('mesas-list');
+            if (!container) {
+                console.error('❌ Container mesas-list no encontrado');
+                return;
+            }
+            
             try {
+                // Mostrar loading
+                container.innerHTML = '<div class="loading">Cargando mesas...</div>';
+                
                 const response = await fetch(`${API_BASE}/mesas`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const mesas = await response.json();
+                
+                if (!Array.isArray(mesas)) {
+                    throw new Error('Respuesta inválida del servidor');
+                }
+                
                 displayMesas(mesas);
             } catch (error) {
-                document.getElementById('mesas-list').innerHTML = 
-                    `<div class="alert alert-error">Error al cargar mesas: ${error.message}</div>`;
+                console.error('❌ Error cargando mesas:', error);
+                container.innerHTML = 
+                    `<div class="alert alert-error">
+                        <strong>Error al cargar mesas</strong><br>
+                        ${error.message || 'Error desconocido'}<br>
+                        <small>Verifique la consola (F12) para más detalles</small>
+                    </div>`;
             }
         }
 
@@ -859,13 +912,35 @@
         }
 
         async function loadMozos() {
+            const container = document.getElementById('mozos-list');
+            if (!container) {
+                console.error('❌ Container mozos-list no encontrado');
+                return;
+            }
+            
             try {
+                container.innerHTML = '<div class="loading">Cargando mozos...</div>';
+                
                 const response = await fetch(`${API_BASE}/mozos`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const mozos = await response.json();
+                
+                if (!Array.isArray(mozos)) {
+                    throw new Error('Respuesta inválida del servidor');
+                }
+                
                 displayMozos(mozos);
             } catch (error) {
-                document.getElementById('mozos-list').innerHTML = 
-                    `<div class="alert alert-error">Error al cargar mozos: ${error.message}</div>`;
+                console.error('❌ Error cargando mozos:', error);
+                container.innerHTML = 
+                    `<div class="alert alert-error">
+                        <strong>Error al cargar mozos</strong><br>
+                        ${error.message || 'Error desconocido'}
+                    </div>`;
             }
         }
 
@@ -3592,7 +3667,12 @@
             // Gráfico de ventas por día
             const ctxDia = document.getElementById('chartVentasDia');
             if (ctxDia && datosGraficos.ventasPorDia) {
-                new Chart(ctxDia, {
+                // Destruir gráfico anterior si existe
+                if (chartVentasDia) {
+                    chartVentasDia.destroy();
+                }
+                
+                chartVentasDia = new Chart(ctxDia, {
                     type: 'bar',
                     data: {
                         labels: datosGraficos.ventasPorDia.map(d => d.fecha),
@@ -3612,12 +3692,20 @@
                         }
                     }
                 });
+                
+                // Guardar referencia en objeto global
+                window.reportesCharts.ventasDia = chartVentasDia;
             }
             
             // Gráfico de ventas por hora
             const ctxHora = document.getElementById('chartVentasHora');
             if (ctxHora && datosGraficos.ventasPorHora) {
-                new Chart(ctxHora, {
+                // Destruir gráfico anterior si existe
+                if (chartVentasHora) {
+                    chartVentasHora.destroy();
+                }
+                
+                chartVentasHora = new Chart(ctxHora, {
                     type: 'line',
                     data: {
                         labels: datosGraficos.ventasPorHora.map(h => `${h.hora}:00`),
@@ -3637,6 +3725,9 @@
                         }
                     }
                 });
+                
+                // Guardar referencia en objeto global
+                window.reportesCharts.ventasHora = chartVentasHora;
             }
         }
 
@@ -4136,11 +4227,1012 @@
         }
 
         // ========== REPORTES Y ANALÍTICA ==========
+        // Objeto global para gestionar todas las instancias de Chart de forma uniforme
+        window.reportesCharts = {
+            ventas: null,
+            platos: null,
+            mozos: null,
+            mesas: null,
+            ventasDia: null,
+            ventasHora: null
+        };
+        
+        // Mantener compatibilidad con variables existentes
         let chartVentas = null;
         let chartPlatos = null;
         let chartMozos = null;
         let chartMesas = null;
-        let datosReportesCache = null; // Cache de datos cargados
+        let chartVentasDia = null;      // Gráfico ventas por día (resumen)
+        let chartVentasHora = null;    // Gráfico ventas por hora (resumen)
+        let datosReportesCache = null; // Cache de datos cargados (FUENTE DE VERDAD)
+        
+        // FASE 9: WebSocket para actualizaciones en tiempo real (AISLADO)
+        let socketAdmin = null;
+        let reportesListenersActivos = false;
+        let updateTimeout = null;
+        let eventosPendientes = []; // Acumular eventos para batch update
+        
+        // Conectar a namespace /admin (con manejo robusto de errores)
+        function conectarSocketAdmin() {
+            // Verificar que socket.io esté disponible
+            if (typeof io === 'undefined') {
+                console.warn('⚠️ Socket.io no disponible, reportes en tiempo real deshabilitado');
+                return;
+            }
+            
+            if (socketAdmin && socketAdmin.connected) {
+                return; // Ya conectado
+            }
+            
+            try {
+                // Obtener URL base del servidor
+                const wsURL = window.location.origin.replace(/^http/, 'ws');
+                socketAdmin = io(`${wsURL}/admin`, {
+                    transports: ['websocket', 'polling'],
+                    reconnection: true,
+                    reconnectionDelay: 1000,
+                    reconnectionAttempts: 5,
+                    timeout: 5000
+                });
+                
+                socketAdmin.on('connect', () => {
+                    console.log('✅ Socket /admin conectado');
+                    
+                    // Re-sincronizar cache cuando se reconecta (robustez)
+                    if (reportesListenersActivos && datosReportesCache) {
+                        console.log('🔄 Re-sincronizando cache después de reconexión...');
+                        // Recargar datos del día actual para asegurar sincronización
+                        const fechaInicio = document.getElementById('reporte-fecha-inicio')?.value;
+                        const fechaFin = document.getElementById('reporte-fecha-fin')?.value;
+                        if (fechaInicio && fechaFin) {
+                            // Recargar cache y recalcular todos los gráficos
+                            cargarBouchersPorRango(fechaInicio, fechaFin).then(bouchers => {
+                                if (Array.isArray(bouchers)) {
+                                    datosReportesCache.bouchers = bouchers;
+                                    recalcularTodosLosGraficosDesdeCache();
+                                    console.log('✅ Cache re-sincronizada');
+                                }
+                            }).catch(error => {
+                                console.warn('⚠️ Error re-sincronizando cache (no crítico):', error);
+                            });
+                        }
+                    }
+                    
+                    if (reportesListenersActivos) {
+                        activarListenersReportes();
+                    }
+                });
+                
+                socketAdmin.on('disconnect', () => {
+                    console.log('⚠️ Socket /admin desconectado');
+                    ocultarLiveIndicator();
+                });
+                
+                socketAdmin.on('connect_error', (error) => {
+                    console.warn('⚠️ Error conectando socket /admin (no crítico):', error);
+                    ocultarLiveIndicator();
+                });
+            } catch (error) {
+                console.warn('⚠️ Error inicializando socket /admin (no crítico):', error);
+                // NO lanzar error, solo loguear - no debe romper la app
+            }
+        }
+        
+        // Activar listeners de reportes cuando se abre el tab (con manejo robusto)
+        function activarListenersReportes() {
+            try {
+                // Verificar que socket.io esté disponible
+                if (typeof io === 'undefined') {
+                    console.warn('⚠️ Socket.io no disponible, reportes en tiempo real deshabilitado');
+                    return;
+                }
+                
+                if (!socketAdmin || !socketAdmin.connected) {
+                    conectarSocketAdmin();
+                    // Esperar a que se conecte antes de activar listeners
+                    if (socketAdmin) {
+                        socketAdmin.once('connect', () => {
+                            activarListenersReportes();
+                        });
+                    }
+                    return;
+                }
+                
+                if (reportesListenersActivos) {
+                    return; // Ya activos
+                }
+                
+                reportesListenersActivos = true;
+                mostrarLiveIndicator();
+                
+                // Listener para boucher nuevo
+                socketAdmin.on('reportes:boucher-nuevo', (data) => {
+                    try {
+                        console.log('📊 Evento reportes:boucher-nuevo recibido:', data);
+                        eventosPendientes.push({ tipo: 'boucher', data });
+                        programarUpdateReportes();
+                    } catch (error) {
+                        console.error('❌ Error procesando evento boucher-nuevo:', error);
+                    }
+                });
+                
+                // Listener para comanda nueva
+                socketAdmin.on('reportes:comanda-nueva', (data) => {
+                    try {
+                        console.log('📊 Evento reportes:comanda-nueva recibido:', data);
+                        eventosPendientes.push({ tipo: 'comanda', data });
+                        programarUpdateReportes();
+                    } catch (error) {
+                        console.error('❌ Error procesando evento comanda-nueva:', error);
+                    }
+                });
+                
+                // Listener para plato listo
+                socketAdmin.on('reportes:plato-listo', (data) => {
+                    try {
+                        console.log('📊 Evento reportes:plato-listo recibido:', data);
+                        eventosPendientes.push({ tipo: 'plato', data });
+                        programarUpdateReportes();
+                    } catch (error) {
+                        console.error('❌ Error procesando evento plato-listo:', error);
+                    }
+                });
+                
+                console.log('✅ Listeners de reportes activados');
+            } catch (error) {
+                console.error('❌ Error activando listeners de reportes (no crítico):', error);
+                // NO lanzar error - no debe romper la app
+            }
+        }
+        
+        // Desactivar listeners cuando se sale del tab (con manejo robusto)
+        function desactivarListenersReportes() {
+            try {
+                if (!socketAdmin) return;
+                
+                reportesListenersActivos = false;
+                ocultarLiveIndicator();
+                
+                socketAdmin.off('reportes:boucher-nuevo');
+                socketAdmin.off('reportes:comanda-nueva');
+                socketAdmin.off('reportes:plato-listo');
+                
+                // Limpiar timeout pendiente
+                if (updateTimeout) {
+                    clearTimeout(updateTimeout);
+                    updateTimeout = null;
+                }
+                eventosPendientes = [];
+                
+                console.log('✅ Listeners de reportes desactivados');
+            } catch (error) {
+                console.warn('⚠️ Error desactivando listeners (no crítico):', error);
+                // NO lanzar error
+            }
+        }
+        
+        // Throttle: Acumular eventos y actualizar cada 2 segundos
+        function programarUpdateReportes() {
+            if (updateTimeout) {
+                clearTimeout(updateTimeout);
+            }
+            
+            updateTimeout = setTimeout(() => {
+                try {
+                    procesarEventosPendientes();
+                } catch (error) {
+                    console.error('❌ Error en programarUpdateReportes (no crítico):', error);
+                }
+            }, 2000); // 2 segundos de debounce
+        }
+        
+        // Procesar eventos acumulados (con manejo robusto)
+        function procesarEventosPendientes() {
+            try {
+                if (eventosPendientes.length === 0) return;
+                
+                const fechaInicio = document.getElementById('reporte-fecha-inicio')?.value;
+                const fechaFin = document.getElementById('reporte-fecha-fin')?.value;
+                
+                if (!fechaInicio || !fechaFin) {
+                    eventosPendientes = [];
+                    return;
+                }
+                
+                // Filtrar eventos dentro del rango de fechas
+                const eventosValidos = eventosPendientes.filter(evento => {
+                    try {
+                        const fechaEvento = evento.data.fecha || evento.data.fechaCreacion || evento.data.fechaPago;
+                        if (!fechaEvento) return false;
+                        
+                        const fechaEventoDate = new Date(fechaEvento);
+                        const fechaInicioDate = new Date(fechaInicio);
+                        const fechaFinDate = new Date(fechaFin);
+                        fechaFinDate.setHours(23, 59, 59, 999); // Incluir todo el día
+                        
+                        return fechaEventoDate >= fechaInicioDate && fechaEventoDate <= fechaFinDate;
+                    } catch (error) {
+                        console.warn('⚠️ Error filtrando evento (no crítico):', error);
+                        return false;
+                    }
+                });
+                
+                if (eventosValidos.length === 0) {
+                    eventosPendientes = [];
+                    return;
+                }
+                
+                // Procesar cada evento válido usando función centralizada
+                eventosValidos.forEach(evento => {
+                    try {
+                        if (evento.tipo === 'boucher') {
+                            // Usar función centralizada que actualiza TODOS los gráficos
+                            procesarEventoVentaLive(evento.data);
+                        } else if (evento.tipo === 'comanda') {
+                            actualizarReportesIncrementalComanda(evento.data);
+                        } else if (evento.tipo === 'plato') {
+                            actualizarReportesIncrementalPlato(evento.data);
+                        }
+                    } catch (error) {
+                        console.error('❌ Error procesando evento individual (no crítico):', error);
+                    }
+                });
+                
+                // Limpiar eventos procesados
+                eventosPendientes = [];
+                updateTimeout = null;
+                
+                // Pulso visual del indicador LIVE
+                pulsarLiveIndicator();
+            } catch (error) {
+                console.error('❌ Error procesando eventos pendientes (no crítico):', error);
+                eventosPendientes = [];
+                updateTimeout = null;
+            }
+        }
+        
+        // ========== FUNCIÓN CENTRALIZADA: Procesar Evento de Venta/Boucher en Tiempo Real ==========
+        /**
+         * Función única de alto nivel que procesa eventos de venta/boucher en tiempo real
+         * Actualiza la cache y dispara recálculo de TODOS los gráficos
+         * @param {Object} boucherData - Datos del boucher/venta recibido por WebSocket
+         */
+        function procesarEventoVentaLive(boucherData) {
+            try {
+                console.log('🔄 procesarEventoVentaLive:', boucherData);
+                
+                // 1. Asegurar que la cache existe
+                if (!datosReportesCache) {
+                    datosReportesCache = { bouchers: [], comandas: [] };
+                }
+                
+                // 2. Verificar si el boucher ya existe en cache (evitar duplicados)
+                const boucherId = boucherData.boucherId || boucherData._id;
+                const existeEnCache = datosReportesCache.bouchers.some(b => 
+                    (b.boucherId || b._id) === boucherId
+                );
+                
+                if (!existeEnCache) {
+                    // 3. Agregar boucher a la cache (fuente de verdad)
+                    datosReportesCache.bouchers.push(boucherData);
+                    console.log('✅ Boucher agregado a cache. Total:', datosReportesCache.bouchers.length);
+                } else {
+                    console.log('⚠️ Boucher ya existe en cache, actualizando...');
+                    // Actualizar boucher existente
+                    const index = datosReportesCache.bouchers.findIndex(b => 
+                        (b.boucherId || b._id) === boucherId
+                    );
+                    if (index !== -1) {
+                        datosReportesCache.bouchers[index] = boucherData;
+                    }
+                }
+                
+                // 4. Recalcular TODOS los gráficos desde la cache (no solo el tab activo)
+                recalcularTodosLosGraficosDesdeCache();
+                
+                // 5. Actualizar KPIs
+                actualizarKPIsIncremental();
+                
+                console.log('✅ Todos los gráficos actualizados desde cache');
+            } catch (error) {
+                console.error('❌ Error en procesarEventoVentaLive (no crítico):', error);
+            }
+        }
+        
+        /**
+         * Recalcula TODOS los gráficos desde la cache (fuente de verdad única)
+         * Esta función se llama cada vez que la cache se actualiza
+         */
+        function recalcularTodosLosGraficosDesdeCache() {
+            try {
+                if (!datosReportesCache || !datosReportesCache.bouchers) {
+                    return; // Cache vacía, no hay nada que recalcular
+                }
+                
+                // Recalcular cada gráfico si está inicializado
+                // No importa si el tab está activo o no, todos se actualizan
+                recalcularGraficoVentasDesdeCache();
+                recalcularGraficoPlatosDesdeCache();
+                recalcularGraficoMozosDesdeCache();
+                recalcularGraficoMesasDesdeCache();
+                
+                // Actualizar gráficos de resumen también
+                recalcularGraficosResumenDesdeCache();
+                
+            } catch (error) {
+                console.error('❌ Error recalculando gráficos desde cache (no crítico):', error);
+            }
+        }
+        
+        // ========== FUNCIONES DE RECÁLCULO DESDE CACHE ==========
+        // Estas funciones leen de datosReportesCache y actualizan los gráficos existentes
+        
+        /**
+         * Recalcula el gráfico de Ventas desde la cache
+         * Actualiza chartVentas sin destruirlo
+         */
+        function recalcularGraficoVentasDesdeCache() {
+            try {
+                // Usar referencia global si está disponible, sino usar variable local
+                const chart = window.reportesCharts?.ventas || chartVentas;
+                if (!chart || !datosReportesCache || !datosReportesCache.bouchers) {
+                    return; // Gráfico no inicializado o cache vacía
+                }
+                
+                const agruparPor = document.getElementById('reporte-agrupar-por')?.value || 'dia';
+                const bouchers = datosReportesCache.bouchers;
+                
+                if (bouchers.length === 0) return;
+                
+                // Agregar datos por período (misma lógica que cargarReporteVentas)
+                const grupos = {};
+                bouchers.forEach(boucher => {
+                    const fechaPago = new Date(boucher.fechaPago);
+                    let key;
+                    
+                    if (agruparPor === 'hora') {
+                        key = fechaPago.getHours();
+                    } else if (agruparPor === 'mesa') {
+                        key = boucher.numMesa || boucher.mesa?.nummesa || 'N/A';
+                    } else {
+                        key = fechaPago.toISOString().split('T')[0];
+                    }
+                    
+                    if (!grupos[key]) {
+                        grupos[key] = { fecha: key, total: 0 };
+                    }
+                    grupos[key].total += (boucher.total || 0);
+                });
+                
+                // Convertir a array y ordenar
+                const datos = Object.values(grupos).sort((a, b) => {
+                    if (agruparPor === 'hora') return a.fecha - b.fecha;
+                    return a.fecha.localeCompare(b.fecha);
+                });
+                
+                // Actualizar gráfico
+                const labels = datos.map(d => {
+                    if (agruparPor === 'hora') return `${d.fecha}:00`;
+                    return d.fecha;
+                });
+                
+                chart.data.labels = labels;
+                chart.data.datasets[0].data = datos.map(d => d.total);
+                chart.update('none'); // Update sin animación para ser rápido
+                
+                // Sincronizar variable local si se usó referencia global
+                if (window.reportesCharts?.ventas && !chartVentas) {
+                    chartVentas = chart;
+                }
+                
+                // Actualizar resumen también
+                const totales = datos.reduce((sum, d) => sum + d.total, 0);
+                const resumenEl = document.getElementById('resumen-ventas');
+                if (resumenEl) {
+                    resumenEl.innerHTML = `
+                        <div style="font-size: 18px; margin-bottom: 10px;">
+                            <strong>Total:</strong> S/${totales.toFixed(2)}
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                console.error('❌ Error recalculando gráfico ventas desde cache:', error);
+            }
+        }
+        
+        /**
+         * Recalcula el gráfico de Top Platos desde la cache
+         */
+        function recalcularGraficoPlatosDesdeCache() {
+            try {
+                const chart = window.reportesCharts?.platos || chartPlatos;
+                if (!chart || !datosReportesCache || !datosReportesCache.bouchers) {
+                    return;
+                }
+                
+                const bouchers = datosReportesCache.bouchers;
+                
+                // Agregar platos desde bouchers (misma lógica que cargarReportePlatos)
+                const platosMap = {};
+                bouchers.forEach(boucher => {
+                    if (boucher.platos && Array.isArray(boucher.platos)) {
+                        boucher.platos.forEach(plato => {
+                            const nombre = plato.nombre || 'Plato desconocido';
+                            if (!platosMap[nombre]) {
+                                platosMap[nombre] = { nombre, ingreso: 0 };
+                            }
+                            platosMap[nombre].ingreso += (plato.subtotal || 0);
+                        });
+                    }
+                });
+                
+                // Ordenar y limitar a top 10
+                let datos = Object.values(platosMap)
+                    .sort((a, b) => b.ingreso - a.ingreso)
+                    .slice(0, 10);
+                
+                if (datos.length === 0) return;
+                
+                // Actualizar gráfico
+                chart.data.labels = datos.map(d => d.nombre);
+                chart.data.datasets[0].data = datos.map(d => d.ingreso);
+                chart.update('none');
+                
+                // Sincronizar variable local si se usó referencia global
+                if (window.reportesCharts?.platos && !chartPlatos) {
+                    chartPlatos = chart;
+                }
+                
+            } catch (error) {
+                console.error('❌ Error recalculando gráfico platos desde cache:', error);
+            }
+        }
+        
+        /**
+         * Recalcula el gráfico de Mozos desde la cache
+         */
+        function recalcularGraficoMozosDesdeCache() {
+            try {
+                const chart = window.reportesCharts?.mozos || chartMozos;
+                if (!chart || !datosReportesCache || !datosReportesCache.bouchers) {
+                    return;
+                }
+                
+                const bouchers = datosReportesCache.bouchers;
+                
+                // Agregar por mozo (misma lógica que cargarReporteMozos)
+                const mozosMap = {};
+                bouchers.forEach(boucher => {
+                    const nombreMozo = boucher.nombreMozo || boucher.mozo?.name || 'Mozo desconocido';
+                    const key = boucher.mozo?._id || boucher.mozo || nombreMozo;
+                    
+                    if (!mozosMap[key]) {
+                        mozosMap[key] = { nombre: nombreMozo, totalVentas: 0 };
+                    }
+                    mozosMap[key].totalVentas += (boucher.total || 0);
+                });
+                
+                // Ordenar por ventas
+                const datos = Object.values(mozosMap)
+                    .sort((a, b) => b.totalVentas - a.totalVentas);
+                
+                if (datos.length === 0) return;
+                
+                // Actualizar gráfico
+                chart.data.labels = datos.map(d => d.nombre);
+                chart.data.datasets[0].data = datos.map(d => d.totalVentas);
+                chart.update('none');
+                
+                // Sincronizar variable local si se usó referencia global
+                if (window.reportesCharts?.mozos && !chartMozos) {
+                    chartMozos = chart;
+                }
+                
+            } catch (error) {
+                console.error('❌ Error recalculando gráfico mozos desde cache:', error);
+            }
+        }
+        
+        /**
+         * Recalcula el gráfico de Mesas desde la cache
+         */
+        function recalcularGraficoMesasDesdeCache() {
+            try {
+                const chart = window.reportesCharts?.mesas || chartMesas;
+                if (!chart || !datosReportesCache || !datosReportesCache.bouchers) {
+                    return;
+                }
+                
+                const agruparPor = document.getElementById('reporte-agrupar-por')?.value || 'dia';
+                const bouchers = datosReportesCache.bouchers;
+                
+                // Agregar por período (misma lógica que cargarReporteMesas)
+                const periodosMap = {};
+                bouchers.forEach(boucher => {
+                    const fechaPago = new Date(boucher.fechaPago);
+                    let periodoKey;
+                    
+                    if (agruparPor === 'hora') {
+                        periodoKey = fechaPago.getHours();
+                    } else {
+                        periodoKey = fechaPago.toISOString().split('T')[0];
+                    }
+                    
+                    if (!periodosMap[periodoKey]) {
+                        periodosMap[periodoKey] = {
+                            periodo: periodoKey,
+                            cantidadBouchers: 0,
+                            totalFacturado: 0
+                        };
+                    }
+                    periodosMap[periodoKey].cantidadBouchers += 1;
+                    periodosMap[periodoKey].totalFacturado += (boucher.total || 0);
+                });
+                
+                // Convertir a array y ordenar
+                const datos = Object.values(periodosMap).sort((a, b) => {
+                    if (agruparPor === 'hora') return a.periodo - b.periodo;
+                    return a.periodo.localeCompare(b.periodo);
+                });
+                
+                if (datos.length === 0) return;
+                
+                // Actualizar gráfico
+                const labels = datos.map(d => {
+                    if (agruparPor === 'hora') return `${d.periodo}:00`;
+                    return d.periodo;
+                });
+                
+                chart.data.labels = labels;
+                chart.data.datasets[0].data = datos.map(d => d.totalFacturado);
+                chart.update('none');
+                
+                // Sincronizar variable local si se usó referencia global
+                if (window.reportesCharts?.mesas && !chartMesas) {
+                    chartMesas = chart;
+                }
+                
+            } catch (error) {
+                console.error('❌ Error recalculando gráfico mesas desde cache:', error);
+            }
+        }
+        
+        /**
+         * Recalcula los gráficos de resumen (ventas por día y hora) desde la cache
+         */
+        function recalcularGraficosResumenDesdeCache() {
+            try {
+                if (!datosReportesCache || !datosReportesCache.bouchers) {
+                    return;
+                }
+                
+                const bouchers = datosReportesCache.bouchers;
+                
+                // Agregar por día
+                const ventasPorDia = {};
+                bouchers.forEach(boucher => {
+                    const fechaPago = new Date(boucher.fechaPago);
+                    const dia = fechaPago.toISOString().split('T')[0];
+                    
+                    if (!ventasPorDia[dia]) {
+                        ventasPorDia[dia] = { fecha: dia, monto: 0 };
+                    }
+                    ventasPorDia[dia].monto += (boucher.total || boucher.monto || 0);
+                });
+                
+                // Agregar por hora
+                const ventasPorHora = {};
+                bouchers.forEach(boucher => {
+                    const fechaPago = new Date(boucher.fechaPago);
+                    const hora = fechaPago.getHours();
+                    
+                    if (!ventasPorHora[hora]) {
+                        ventasPorHora[hora] = { hora, monto: 0 };
+                    }
+                    ventasPorHora[hora].monto += (boucher.total || boucher.monto || 0);
+                });
+                
+                // Actualizar gráfico de ventas por día
+                const chartDia = window.reportesCharts?.ventasDia || chartVentasDia;
+                if (chartDia) {
+                    const datosDia = Object.values(ventasPorDia).sort((a, b) => 
+                        a.fecha.localeCompare(b.fecha)
+                    );
+                    chartDia.data.labels = datosDia.map(d => d.fecha);
+                    chartDia.data.datasets[0].data = datosDia.map(d => d.monto);
+                    chartDia.update('none');
+                }
+                
+                // Actualizar gráfico de ventas por hora
+                const chartHora = window.reportesCharts?.ventasHora || chartVentasHora;
+                if (chartHora) {
+                    const datosHora = Object.values(ventasPorHora)
+                        .sort((a, b) => a.hora - b.hora)
+                        .map(h => ({ hora: `${h.hora}:00`, monto: h.monto }));
+                    chartHora.data.labels = datosHora.map(h => h.hora);
+                    chartHora.data.datasets[0].data = datosHora.map(h => h.monto);
+                    chartHora.update('none');
+                }
+                
+            } catch (error) {
+                console.error('❌ Error recalculando gráficos resumen desde cache:', error);
+            }
+        }
+        
+        // Actualizar reportes incrementalmente cuando llega una comanda nueva (con manejo robusto)
+        function actualizarReportesIncrementalComanda(data) {
+            try {
+                if (!datosReportesCache) {
+                    datosReportesCache = { bouchers: [], comandas: [] };
+                }
+                
+                // Agregar comanda al cache
+                datosReportesCache.comandas.push(data);
+                
+                // Actualizar gráficos si están activos
+                const tabActivo = document.querySelector('.tab-estadistica.active');
+                if (tabActivo) {
+                    try {
+                        const tabText = tabActivo.textContent.trim();
+                        if (tabText.includes('Mozos')) {
+                            actualizarGraficoMozosIncremental(null, data);
+                        }
+                    } catch (error) {
+                        console.error('❌ Error actualizando gráfico mozos (no crítico):', error);
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Error en actualizarReportesIncrementalComanda (no crítico):', error);
+            }
+        }
+        
+        // Actualizar reportes incrementalmente cuando un plato se marca como listo (con manejo robusto)
+        function actualizarReportesIncrementalPlato(data) {
+            try {
+                // Actualizar gráfico de platos si está activo
+                const tabActivo = document.querySelector('.tab-estadistica.active');
+                if (tabActivo && tabActivo.textContent.trim().includes('Platos')) {
+                    actualizarGraficoPlatosIncrementalPorPlato(data);
+                }
+            } catch (error) {
+                console.error('❌ Error en actualizarReportesIncrementalPlato (no crítico):', error);
+            }
+        }
+        
+        // Actualizar gráfico de ventas incrementalmente
+        function actualizarGraficoVentasIncremental(boucherData) {
+            try {
+                const agruparPor = document.getElementById('reporte-agrupar-por')?.value || 'dia';
+                const fechaPago = new Date(boucherData.fechaPago);
+                const monto = boucherData.monto || boucherData.total || 0;
+                
+                // Actualizar gráfico principal de ventas (si existe)
+                if (chartVentas) {
+                    let key;
+                    
+                    if (agruparPor === 'hora') {
+                        key = fechaPago.getHours();
+                    } else if (agruparPor === 'mesa') {
+                        key = boucherData.numMesa || 'N/A';
+                    } else {
+                        key = fechaPago.toISOString().split('T')[0];
+                    }
+                    
+                    // Buscar índice en labels
+                    const labels = chartVentas.data.labels;
+                    let index = labels.findIndex(l => {
+                        if (agruparPor === 'hora') {
+                            return parseInt(l.replace(':00', '')) === key;
+                        }
+                        return l === key || l === `${key}:00`;
+                    });
+                    
+                    if (index === -1) {
+                        // Agregar nuevo punto al gráfico
+                        labels.push(agruparPor === 'hora' ? `${key}:00` : key);
+                        chartVentas.data.datasets[0].data.push(monto);
+                    } else {
+                        // Incrementar valor existente
+                        chartVentas.data.datasets[0].data[index] += monto;
+                    }
+                    
+                    // Actualizar gráfico sin animación (instantáneo)
+                    chartVentas.update('none');
+                }
+                
+                // Actualizar gráfico de ventas por día (resumen)
+                if (chartVentasDia) {
+                    try {
+                        const fechaDia = fechaPago.toISOString().split('T')[0];
+                        const labelsDia = chartVentasDia.data.labels;
+                        const indexDia = labelsDia.indexOf(fechaDia);
+                        
+                        if (indexDia !== -1) {
+                            // Incrementar día existente
+                            chartVentasDia.data.datasets[0].data[indexDia] += monto;
+                        } else {
+                            // Agregar nuevo día
+                            labelsDia.push(fechaDia);
+                            chartVentasDia.data.datasets[0].data.push(monto);
+                        }
+                        chartVentasDia.update('none');
+                    } catch (error) {
+                        console.warn('⚠️ Error actualizando chartVentasDia (no crítico):', error);
+                    }
+                }
+                
+                // Actualizar gráfico de ventas por hora (resumen)
+                if (chartVentasHora) {
+                    try {
+                        const hora = fechaPago.getHours();
+                        const labelsHora = chartVentasHora.data.labels;
+                        const horaLabel = `${hora}:00`;
+                        const indexHora = labelsHora.indexOf(horaLabel);
+                        
+                        if (indexHora !== -1) {
+                            // Incrementar hora existente
+                            chartVentasHora.data.datasets[0].data[indexHora] += monto;
+                        } else {
+                            // Agregar nueva hora (insertar ordenada)
+                            let insertIndex = labelsHora.length;
+                            for (let i = 0; i < labelsHora.length; i++) {
+                                const h = parseInt(labelsHora[i].replace(':00', ''));
+                                if (hora < h) {
+                                    insertIndex = i;
+                                    break;
+                                }
+                            }
+                            labelsHora.splice(insertIndex, 0, horaLabel);
+                            chartVentasHora.data.datasets[0].data.splice(insertIndex, 0, monto);
+                        }
+                        chartVentasHora.update('none');
+                    } catch (error) {
+                        console.warn('⚠️ Error actualizando chartVentasHora (no crítico):', error);
+                    }
+                }
+                
+                // Actualizar resumen de ventas
+                actualizarResumenVentasIncremental(monto);
+            } catch (error) {
+                console.error('❌ Error actualizando gráfico ventas incremental:', error);
+            }
+        }
+        
+        // Actualizar gráfico de platos incrementalmente
+        function actualizarGraficoPlatosIncremental(boucherData) {
+            if (!chartPlatos || !boucherData.platos) return;
+            
+            try {
+                boucherData.platos.forEach(plato => {
+                    const nombre = plato.nombre || 'Plato desconocido';
+                    const labels = chartPlatos.data.labels;
+                    const index = labels.indexOf(nombre);
+                    
+                    if (index !== -1) {
+                        // Incrementar plato existente
+                        chartPlatos.data.datasets[0].data[index] += (plato.subtotal || 0);
+                    } else {
+                        // Agregar nuevo plato (si cabe en top 10)
+                        if (labels.length < 10) {
+                            labels.push(nombre);
+                            chartPlatos.data.datasets[0].data.push(plato.subtotal || 0);
+                        } else {
+                            // Recalcular top 10 completo - recargar desde cache
+                            if (datosReportesCache) {
+                                cargarReportePlatos();
+                            }
+                            return;
+                        }
+                    }
+                });
+                
+                chartPlatos.update('active'); // Con animación suave
+            } catch (error) {
+                console.error('❌ Error actualizando gráfico platos incremental:', error);
+            }
+        }
+        
+        // Actualizar gráfico de platos cuando un plato se marca como listo
+        function actualizarGraficoPlatosIncrementalPorPlato(platoData) {
+            if (!chartPlatos) return;
+            
+            try {
+                const nombre = platoData.nombre || 'Plato desconocido';
+                const labels = chartPlatos.data.labels;
+                const index = labels.indexOf(nombre);
+                
+                if (index !== -1) {
+                    // Incrementar contador (asumiendo que el precio es el incremento)
+                    chartPlatos.data.datasets[0].data[index] += (platoData.precio || 0);
+                    chartPlatos.update('active');
+                }
+            } catch (error) {
+                console.error('❌ Error actualizando gráfico platos por plato:', error);
+            }
+        }
+        
+        // Actualizar gráfico de mozos incrementalmente
+        function actualizarGraficoMozosIncremental(boucherData, comandaData) {
+            if (!chartMozos) return;
+            
+            try {
+                const data = boucherData || comandaData;
+                const nombreMozo = data.nombreMozo || data.mozo?.name || 'Desconocido';
+                const labels = chartMozos.data.labels;
+                const index = labels.indexOf(nombreMozo);
+                
+                if (index !== -1) {
+                    // Incrementar mozo existente
+                    if (boucherData) {
+                        chartMozos.data.datasets[0].data[index] += (boucherData.monto || 0);
+                    }
+                } else {
+                    // Agregar nuevo mozo
+                    labels.push(nombreMozo);
+                    chartMozos.data.datasets[0].data.push(boucherData ? (boucherData.monto || 0) : 0);
+                }
+                
+                chartMozos.update('active');
+            } catch (error) {
+                console.error('❌ Error actualizando gráfico mozos incremental:', error);
+            }
+        }
+        
+        // Actualizar gráfico de mesas incrementalmente
+        function actualizarGraficoMesasIncremental(boucherData) {
+            if (!chartMesas) return;
+            
+            try {
+                const agruparPor = document.getElementById('reporte-agrupar-por')?.value || 'dia';
+                const fechaPago = new Date(boucherData.fechaPago);
+                let periodoKey;
+                
+                if (agruparPor === 'hora') {
+                    periodoKey = fechaPago.getHours();
+                } else {
+                    periodoKey = fechaPago.toISOString().split('T')[0];
+                }
+                
+                const labels = chartMesas.data.labels;
+                const labelText = `${periodoKey}${agruparPor === 'hora' ? ':00' : ''}`;
+                const index = labels.indexOf(labelText);
+                
+                if (index !== -1) {
+                    // Incrementar contador de mesas ocupadas
+                    chartMesas.data.datasets[0].data[index] += 1;
+                } else {
+                    // Agregar nuevo período
+                    labels.push(labelText);
+                    chartMesas.data.datasets[0].data.push(1);
+                }
+                
+                chartMesas.update('active');
+            } catch (error) {
+                console.error('❌ Error actualizando gráfico mesas incremental:', error);
+            }
+        }
+        
+        // Actualizar resumen de ventas incrementalmente
+        function actualizarResumenVentasIncremental(monto) {
+            const resumenEl = document.getElementById('resumen-ventas');
+            if (!resumenEl) return;
+            
+            try {
+                // Intentar múltiples métodos de actualización
+                const texto = resumenEl.textContent || resumenEl.innerText || '';
+                const html = resumenEl.innerHTML || '';
+                
+                // Método 1: Buscar patrón en texto
+                const match = texto.match(/Total:.*?S\/([\d,]+\.?\d*)/);
+                if (match) {
+                    const totalActual = parseFloat(match[1].replace(/,/g, '')) || 0;
+                    const nuevoTotal = totalActual + monto;
+                    
+                    // Actualizar solo el total (mantener otros valores)
+                    const nuevoTexto = texto.replace(
+                        /Total:.*?S\/[\d,]+\.?\d*/,
+                        `Total: S/${nuevoTotal.toFixed(2)}`
+                    );
+                    resumenEl.innerHTML = nuevoTexto;
+                    return;
+                }
+                
+                // Método 2: Buscar en HTML
+                const matchHtml = html.match(/<strong>Total:<\/strong>.*?S\/([\d,]+\.?\d*)/);
+                if (matchHtml) {
+                    const totalActual = parseFloat(matchHtml[1].replace(/,/g, '')) || 0;
+                    const nuevoTotal = totalActual + monto;
+                    
+                    resumenEl.innerHTML = html.replace(
+                        /<strong>Total:<\/strong>.*?S\/[\d,]+\.?\d*/,
+                        `<strong>Total:</strong> S/${nuevoTotal.toFixed(2)}`
+                    );
+                    return;
+                }
+                
+                // Método 3: Buscar cualquier número después de "Total"
+                const matchGeneric = (texto + html).match(/Total[^0-9]*([0-9,]+\.?[0-9]*)/);
+                if (matchGeneric) {
+                    const totalActual = parseFloat(matchGeneric[1].replace(/,/g, '')) || 0;
+                    const nuevoTotal = totalActual + monto;
+                    
+                    // Actualizar el primer número encontrado después de "Total"
+                    resumenEl.innerHTML = html.replace(
+                        /(Total[^0-9]*)([0-9,]+\.?[0-9]*)/,
+                        `$1${nuevoTotal.toFixed(2)}`
+                    );
+                    return;
+                }
+                
+                // Si no se encuentra patrón, recalcular desde cache
+                if (datosReportesCache && datosReportesCache.bouchers) {
+                    const totalCache = datosReportesCache.bouchers.reduce((sum, b) => 
+                        sum + (b.monto || b.total || 0), 0
+                    );
+                    resumenEl.innerHTML = `
+                        <div style="font-size: 18px; margin-bottom: 10px;">
+                            <strong>Total:</strong> S/${totalCache.toFixed(2)}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('❌ Error actualizando resumen ventas:', error);
+            }
+        }
+        
+        // Actualizar KPIs incrementalmente
+        function actualizarKPIsIncremental() {
+            // Recalcular KPIs desde cache actualizado
+            if (datosReportesCache && datosReportesCache.bouchers) {
+                cargarKPIs();
+            }
+        }
+        
+        // Mostrar indicador LIVE (con manejo robusto)
+        function mostrarLiveIndicator() {
+            try {
+                const indicator = document.getElementById('liveIndicator');
+                if (indicator) {
+                    indicator.style.display = 'inline-block';
+                }
+            } catch (error) {
+                console.warn('⚠️ Error mostrando indicador LIVE (no crítico):', error);
+            }
+        }
+        
+        // Ocultar indicador LIVE (con manejo robusto)
+        function ocultarLiveIndicator() {
+            try {
+                const indicator = document.getElementById('liveIndicator');
+                if (indicator) {
+                    indicator.style.display = 'none';
+                }
+            } catch (error) {
+                console.warn('⚠️ Error ocultando indicador LIVE (no crítico):', error);
+            }
+        }
+        
+        // Pulso visual cuando hay actualización (con manejo robusto)
+        function pulsarLiveIndicator() {
+            try {
+                const indicator = document.getElementById('liveIndicator');
+                if (indicator) {
+                    indicator.style.background = '#00ff00';
+                    indicator.style.transform = 'scale(1.1)';
+                    indicator.style.transition = 'all 0.3s';
+                    
+                    setTimeout(() => {
+                        if (indicator) {
+                            indicator.style.background = '#ff4444';
+                            indicator.style.transform = 'scale(1)';
+                        }
+                    }, 500);
+                }
+            } catch (error) {
+                console.warn('⚠️ Error pulsando indicador LIVE (no crítico):', error);
+            }
+        }
 
         // Inicializar fechas por defecto (hoy)
         function inicializarFechasReportes() {
@@ -4463,6 +5555,9 @@
                             }
                         }
                     });
+                    
+                    // Guardar referencia en objeto global
+                    window.reportesCharts.ventas = chartVentas;
                 }
 
                 // Resumen
@@ -4648,6 +5743,9 @@
                             }
                         }
                     });
+                    
+                    // Guardar referencia en objeto global
+                    window.reportesCharts.platos = chartPlatos;
                 }
 
                 // Insights
@@ -4865,6 +5963,9 @@
                             }
                         }
                     });
+                    
+                    // Guardar referencia en objeto global
+                    window.reportesCharts.mozos = chartMozos;
                 }
 
                 // Ranking
@@ -5042,6 +6143,9 @@
                             }
                         }
                     });
+                    
+                    // Guardar referencia en objeto global
+                    window.reportesCharts.mesas = chartMesas;
                 }
 
                 // Tabla
@@ -5370,22 +6474,194 @@
             }
         }
 
-        // Inicializar al mostrar tab de reportes
+        // Inicializar al mostrar tab de reportes (con manejo robusto)
         document.addEventListener('DOMContentLoaded', () => {
-            inicializarFechasReportes();
-            
-            // Cargar KPIs cada vez que se muestra el tab de reportes
-            const reportesTab = document.querySelector('[onclick*="showTab(\'reportes\'"]');
-            if (reportesTab) {
-                reportesTab.addEventListener('click', () => {
-                    setTimeout(() => {
-                        cargarKPIs();
-                        if (document.getElementById('reporte-ventas').style.display !== 'none') {
-                            cargarReporteVentas();
-                        }
-                    }, 100);
-                });
+            try {
+                inicializarFechasReportes();
+                
+                // FASE 9: Inicializar conexión WebSocket (no activar listeners hasta que se abra tab reportes)
+                // Aislado en try-catch para no romper si falla
+                try {
+                    conectarSocketAdmin();
+                } catch (error) {
+                    console.warn('⚠️ Error inicializando WebSocket (no crítico):', error);
+                }
+                
+                // Cargar KPIs cada vez que se muestra el tab de reportes
+                const reportesTab = document.querySelector('[onclick*="showTab(\'reportes\'"]');
+                if (reportesTab) {
+                    reportesTab.addEventListener('click', () => {
+                        setTimeout(() => {
+                            try {
+                                cargarKPIs();
+                                if (document.getElementById('reporte-ventas') && document.getElementById('reporte-ventas').style.display !== 'none') {
+                                    cargarReporteVentas();
+                                }
+                            } catch (error) {
+                                console.error('❌ Error cargando reportes:', error);
+                            }
+                        }, 100);
+                    });
+                }
+            } catch (error) {
+                console.error('❌ Error en inicialización DOMContentLoaded:', error);
             }
+        });
+
+        // ========== EVENT DELEGATION GLOBAL (Reemplaza onclick inline) ==========
+        // Sistema moderno para manejar clicks sin onclick inline (compatible con CSP)
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('✅ Event delegation inicializado');
+            
+            // Event delegation para botones con onclick (mantener compatibilidad)
+            // Captura clicks y ejecuta funciones basadas en onclick attribute
+            document.addEventListener('click', function(e) {
+                let target = e.target;
+                
+                // Subir hasta encontrar elemento con onclick o data-action
+                while (target && target !== document && target !== document.body) {
+                    // Verificar si tiene onclick attribute
+                    const onclickAttr = target.getAttribute('onclick');
+                    if (onclickAttr) {
+                        try {
+                            // Extraer función y argumentos del onclick (ej: "showTab('mesas', this)")
+                            const match = onclickAttr.match(/(\w+)\s*\(([^)]*)\)/);
+                            if (match) {
+                                const funcName = match[1];
+                                const argsStr = match[2].trim();
+                                
+                                // Parsear argumentos básicos
+                                let args = [];
+                                if (argsStr) {
+                                    // Dividir por comas, respetando strings
+                                    const parts = [];
+                                    let current = '';
+                                    let inString = false;
+                                    let stringChar = '';
+                                    
+                                    for (let i = 0; i < argsStr.length; i++) {
+                                        const char = argsStr[i];
+                                        if ((char === '"' || char === "'") && !inString) {
+                                            inString = true;
+                                            stringChar = char;
+                                            current += char;
+                                        } else if (char === stringChar && inString) {
+                                            inString = false;
+                                            stringChar = '';
+                                            current += char;
+                                        } else if (char === ',' && !inString) {
+                                            parts.push(current.trim());
+                                            current = '';
+                                        } else {
+                                            current += char;
+                                        }
+                                    }
+                                    if (current) parts.push(current.trim());
+                                    
+                                    // Procesar cada argumento
+                                    args = parts.map(arg => {
+                                        arg = arg.trim();
+                                        // String con comillas
+                                        if ((arg.startsWith("'") && arg.endsWith("'")) || 
+                                            (arg.startsWith('"') && arg.endsWith('"'))) {
+                                            return arg.slice(1, -1);
+                                        }
+                                        // 'this' → elemento
+                                        if (arg === 'this') {
+                                            return target;
+                                        }
+                                        // Número
+                                        if (/^\d+$/.test(arg)) {
+                                            return parseInt(arg);
+                                        }
+                                        // Boolean
+                                        if (arg === 'true') return true;
+                                        if (arg === 'false') return false;
+                                        // Por defecto, retornar como string
+                                        return arg;
+                                    });
+                                } else {
+                                    args = [target]; // Sin argumentos, pasar el elemento
+                                }
+                                
+                                // Ejecutar función global
+                                if (typeof window[funcName] === 'function') {
+                                    window[funcName].apply(target, args);
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    return;
+                                } else {
+                                    console.warn('⚠️ Función no encontrada:', funcName);
+                                }
+                            }
+                        } catch (error) {
+                            console.error('❌ Error parseando onclick:', onclickAttr, error);
+                        }
+                    }
+                    
+                    // Si el elemento tiene data-action, ejecutar función global
+                    if (target.hasAttribute('data-action')) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const action = target.getAttribute('data-action');
+                        try {
+                            if (typeof window[action] === 'function') {
+                                window[action].call(target, e);
+                            } else {
+                                console.warn('⚠️ Función no encontrada:', action);
+                            }
+                        } catch (error) {
+                            console.error('❌ Error ejecutando data-action:', error);
+                        }
+                        return;
+                    }
+                    
+                    // Subir al elemento padre
+                    target = target.parentElement;
+                }
+            });
+            
+            // Event delegation para cambios en inputs/selects
+            document.addEventListener('change', function(e) {
+                const target = e.target;
+                if (target.hasAttribute('data-onchange')) {
+                    const handler = target.getAttribute('data-onchange');
+                    try {
+                        if (typeof window[handler] === 'function') {
+                            window[handler].call(target, e);
+                        }
+                    } catch (error) {
+                        console.error('❌ Error ejecutando data-onchange:', error);
+                    }
+                }
+            });
+            
+            // Verificar que scripts CDN se cargaron correctamente
+            setTimeout(() => {
+                if (typeof Chart === 'undefined') {
+                    console.error('❌ Chart.js NO cargado - verificar CSP y CDN');
+                } else {
+                    console.log('✅ Chart.js cargado correctamente');
+                }
+                
+                if (typeof io === 'undefined') {
+                    console.warn('⚠️ Socket.io NO cargado - verificar CSP y CDN');
+                } else {
+                    console.log('✅ Socket.io cargado correctamente');
+                }
+                
+                if (typeof window.jspdf === 'undefined') {
+                    console.warn('⚠️ jsPDF NO cargado - verificar CSP y CDN');
+                } else {
+                    console.log('✅ jsPDF cargado correctamente');
+                }
+                
+                if (typeof XLSX === 'undefined') {
+                    console.warn('⚠️ XLSX NO cargado - verificar CSP y CDN');
+                } else {
+                    console.log('✅ XLSX cargado correctamente');
+                }
+            }, 1000);
         });
 
         // Cargar datos iniciales

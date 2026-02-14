@@ -176,6 +176,16 @@ const crearBoucher = async (data) => {
             }
         }
         
+        // FASE 9: Emitir evento para actualización de reportes en tiempo real
+        if (global.emitReporteBoucherNuevo) {
+            try {
+                await global.emitReporteBoucherNuevo(boucherCompleto);
+                console.log('✅ Evento reportes:boucher-nuevo emitido');
+            } catch (error) {
+                console.error('⚠️ Error al emitir evento reportes:boucher-nuevo (no crítico):', error);
+            }
+        }
+        
         return boucherCompleto;
     } catch (error) {
         console.error("Error al crear boucher:", error);
