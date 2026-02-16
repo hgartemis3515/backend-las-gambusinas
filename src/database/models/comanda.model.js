@@ -55,7 +55,9 @@ const comandaSchema = new mongoose.Schema({
         eliminadoRazon: { 
             type: String, 
             default: null
-        }
+        },
+        estadoAlEliminar: { type: String, default: null },
+        generoDesperdicio: { type: Boolean, default: false }
     }],
     cantidades: {
         type: [Number],
@@ -67,12 +69,12 @@ const comandaSchema = new mongoose.Schema({
     status: {
         type: String,
         default: 'en_espera',
-        enum: ['en_espera', 'recoger', 'entregado', 'pagado'],
+        enum: ['en_espera', 'recoger', 'entregado', 'pagado', 'cancelado'],
         validate: {
             validator: function(v) {
-                return ['en_espera', 'recoger', 'entregado', 'pagado'].includes(v);
+                return ['en_espera', 'recoger', 'entregado', 'pagado', 'cancelado'].includes(v);
             },
-            message: 'El status de la comanda debe ser: en_espera, recoger, entregado o pagado'
+            message: 'El status de la comanda debe ser: en_espera, recoger, entregado, pagado o cancelado'
         }
     },
     IsActive: {
