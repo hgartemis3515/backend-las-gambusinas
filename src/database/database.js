@@ -18,7 +18,11 @@ db.once('open', async () => {
   console.log('Conectado a MongoDB');
 
   console.log('🔄 Importando datos desde data/*.json...');
-  await importarPlatosDesdeJSON();
+  const platosImport = await importarPlatosDesdeJSON();
+  if (platosImport && (platosImport.imported > 0 || platosImport.skipped > 0)) {
+    const seq = platosImport.sequenceNext != null ? `, sequence next=${platosImport.sequenceNext}` : '';
+    console.log(`   Platos: ${platosImport.imported} agregados, ${platosImport.skipped} existentes saltados${seq}`);
+  }
   await importarAreasDesdeJSON();
   await importarMesasDesdeJSON();
   await importarMozosDesdeJSON();

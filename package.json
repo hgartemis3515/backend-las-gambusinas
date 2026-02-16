@@ -35,6 +35,8 @@
 		"logs:pm2": "pm2 logs",
 		"monit:pm2": "pm2 monit",
 		"migrate:estados": "node src/utils/migrateEstados.js",
+		"migrate:platos-tipos": "node src/utils/migratePlatosTipos.js",
+		"clean:duplicate-platos": "node src/utils/cleanDuplicatePlatos.js",
 		"backup:mongo": "bash scripts/backup-mongo.sh",
 		"restore:mongo": "bash scripts/restore-mongo.sh",
 		"docker:build": "docker build -t lasgambusinas-backend .",

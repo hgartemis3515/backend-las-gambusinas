@@ -350,6 +350,34 @@ app.get('/health', async (req, res) => {
     }
 
     // ============================================
+    // Platos por tipo y categoría (stats menú)
+    // ============================================
+    try {
+      const platoModel = require('./src/database/models/plato.model');
+      const platosPorTipo = await platoModel.aggregate([
+        { $group: { _id: '$tipo', count: { $sum: 1 } } },
+        { $sort: { _id: 1 } }
+      ]);
+      const platosPorCategoria = await platoModel.aggregate([
+        { $group: { _id: '$categoria', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 20 }
+      ]);
+      const distinctNombres = await platoModel.distinct('nombreLower');
+      const platosUnicos = distinctNombres.filter(Boolean).length;
+      const platosTotal = await platoModel.countDocuments();
+      healthStatus.services.platos = {
+        porTipo: platosPorTipo.reduce((acc, x) => { acc[x._id] = x.count; return acc; }, {}),
+        porCategoria: platosPorCategoria.length,
+        topCategorias: platosPorCategoria.slice(0, 5).map(c => ({ nombre: c._id, count: c.count })),
+        platos_unicos: platosUnicos,
+        platos_total: platosTotal
+      };
+    } catch (error) {
+      healthStatus.services.platos = { status: 'error', error: error.message };
+    }
+
+    // ============================================
     // Response Time
     // ============================================
     healthStatus.responseTime = `${Date.now() - startTime}ms`;

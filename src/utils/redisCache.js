@@ -18,6 +18,7 @@ class RedisCache {
     this.ttl = 60; // segundos
     this.warningLogged = false; // Evitar spam de warnings
     this.cleanupInterval = null; // Interval para limpiar cache expirado
+    this.stats = { hits: 0, misses: 0, sets: 0, invalidates: 0 };
   }
 
   /**
@@ -307,6 +308,89 @@ class RedisCache {
       }
     } catch (error) {
       // Silencioso: memoria ya está invalidada como fallback
+    }
+  }
+
+  /**
+   * Obtener valor por clave custom (ej. plato:menu:platos-desayuno)
+   * @param {String} prefix - Prefijo (ej. 'plato:menu')
+   * @param {String} keySuffix - Sufijo (ej. tipo de menú)
+   * @returns {Object|null}
+   */
+  async getCustom(prefix, keySuffix) {
+    const fullKey = `${this.keyPrefix || ''}${prefix}:${keySuffix}`;
+    try {
+      if (!this.enabled || !this.client || this.client.status !== 'ready') {
+        const cached = this.memoryCache.get(fullKey);
+        if (cached && cached.expiresAt > Date.now()) {
+          this.stats.hits++;
+          return cached.data;
+        }
+        this.stats.misses++;
+        return null;
+      }
+      const data = await this.client.get(fullKey);
+      if (data) {
+        this.stats.hits++;
+        return JSON.parse(data);
+      }
+      this.stats.misses++;
+      return null;
+    } catch (error) {
+      const cached = this.memoryCache.get(fullKey);
+      if (cached && cached.expiresAt > Date.now()) {
+        return cached.data;
+      }
+      return null;
+    }
+  }
+
+  /**
+   * Guardar valor por clave custom con TTL opcional
+   * @param {String} prefix - Prefijo
+   * @param {String} keySuffix - Sufijo
+   * @param {Object} value - Valor a cachear
+   * @param {Number} ttlSeconds - TTL en segundos (default 300)
+   */
+  async setCustom(prefix, keySuffix, value, ttlSeconds = 300) {
+    const fullKey = `${this.keyPrefix || ''}${prefix}:${keySuffix}`;
+    try {
+      this.memoryCache.set(fullKey, {
+        data: value,
+        expiresAt: Date.now() + (ttlSeconds * 1000)
+      });
+      if (this.enabled && this.client && this.client.status === 'ready') {
+        try {
+          await this.client.setex(fullKey, ttlSeconds, JSON.stringify(value));
+          this.stats.sets++;
+        } catch (redisError) {
+          // silencioso
+        }
+      }
+    } catch (error) {
+      // silencioso
+    }
+  }
+
+  /**
+   * Invalidar clave custom
+   * @param {String} prefix - Prefijo
+   * @param {String} keySuffix - Sufijo
+   */
+  async invalidateCustom(prefix, keySuffix) {
+    const fullKey = `${this.keyPrefix || ''}${prefix}:${keySuffix}`;
+    try {
+      this.memoryCache.delete(fullKey);
+      if (this.enabled && this.client && this.client.status === 'ready') {
+        try {
+          await this.client.del(fullKey);
+          this.stats.invalidates++;
+        } catch (redisError) {
+          // silencioso
+        }
+      }
+    } catch (error) {
+      // silencioso
     }
   }
 

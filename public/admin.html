@@ -219,6 +219,58 @@
             color: white;
         }
 
+        .platos-wrap {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+        .platos-tabla-wrap {
+            flex: 1;
+            min-width: 0;
+        }
+        .platos-panel-derecho {
+            width: 320px;
+            min-width: 280px;
+            background: #f9f9f9;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #eee;
+            height: fit-content;
+        }
+        .platos-panel-derecho h3 {
+            margin-bottom: 12px;
+            color: #333;
+            font-size: 1.1em;
+        }
+        .platos-panel-derecho ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        .platos-panel-derecho li {
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            background: white;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #eee;
+        }
+        .platos-tabs-internos {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .platos-tabs-internos .btn {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+        .platos-tabs-internos .btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
         .tab-estadistica.active {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             transform: translateY(-2px);
@@ -397,7 +449,23 @@
                     <h2>Gestión de Platos</h2>
                     <button class="btn btn-primary" onclick="openModal('plato')">➕ Nuevo Plato</button>
                 </div>
-                <div id="platos-list" class="loading">Cargando platos...</div>
+                <div class="platos-tabs-internos">
+                    <button type="button" class="btn active" id="plato-tab-todos" onclick="setPlatosFiltroTipo('todos')">Todos</button>
+                    <button type="button" class="btn" id="plato-tab-desayuno" onclick="setPlatosFiltroTipo('platos-desayuno')">Desayuno</button>
+                    <button type="button" class="btn" id="plato-tab-carta" onclick="setPlatosFiltroTipo('plato-carta normal')">Carta</button>
+                </div>
+                <div class="platos-wrap">
+                    <div class="platos-tabla-wrap">
+                        <div id="platos-list" class="loading">Cargando platos...</div>
+                    </div>
+                    <div class="platos-panel-derecho">
+                        <h3>📂 Categorías / Tipo</h3>
+                        <div id="platos-panel-categorias">
+                            <p class="empty-state">Cargando categorías...</p>
+                        </div>
+                        <button type="button" class="btn btn-primary" style="margin-top: 12px; width: 100%;" onclick="openModal('plato')">➕ Nueva categoría (nuevo plato)</button>
+                    </div>
+                </div>
             </div>
 
             <!-- Tab Comandas -->
@@ -831,7 +899,10 @@
                 if (tabName === 'mesas') loadMesas();
                 else if (tabName === 'areas') loadAreas();
                 else if (tabName === 'mozos') loadMozos();
-                else if (tabName === 'platos') loadPlatos();
+                else if (tabName === 'platos') {
+                    conectarSocketAdmin && conectarSocketAdmin();
+                    loadPlatos();
+                }
                 else if (tabName === 'comandas') loadComandas();
                 else if (tabName === 'bouchers') loadBouchers();
                 else if (tabName === 'clientes') loadClientes();
@@ -944,15 +1015,75 @@
             }
         }
 
+        let platosFiltroTipo = 'todos';
+
+        function setPlatosFiltroTipo(tipo) {
+            platosFiltroTipo = tipo;
+            document.querySelectorAll('.platos-tabs-internos .btn').forEach(btn => btn.classList.remove('active'));
+            const id = tipo === 'todos' ? 'plato-tab-todos' : tipo === 'platos-desayuno' ? 'plato-tab-desayuno' : 'plato-tab-carta';
+            const el = document.getElementById(id);
+            if (el) el.classList.add('active');
+            loadPlatos();
+        }
+
         async function loadPlatos() {
+            const listEl = document.getElementById('platos-list');
+            const panelEl = document.getElementById('platos-panel-categorias');
             try {
-                const response = await fetch(`${API_BASE}/platos`);
-                const platos = await response.json();
-                displayPlatos(platos);
+                let platos = [];
+                if (platosFiltroTipo === 'todos') {
+                    const res = await fetch(`${API_BASE}/platos`);
+                    platos = await res.json();
+                    if (!Array.isArray(platos)) platos = [];
+                } else {
+                    const tipoEnc = encodeURIComponent(platosFiltroTipo);
+                    const res = await fetch(`${API_BASE}/platos/menu/${tipoEnc}`);
+                    const data = await res.json();
+                    platos = data.platos || [];
+                }
+                const emptyMsg = (platosFiltroTipo !== 'todos' && platos.length === 0)
+                    ? 'Sin platos activos en este menú. Puedes importar desde JSON o crear uno nuevo.'
+                    : null;
+                displayPlatos(platos, emptyMsg);
+                // Cargar categorías para el panel derecho
+                const catRes = await fetch(`${API_BASE}/platos/categorias`);
+                const categoriasData = await catRes.json();
+                renderPanelCategorias(categoriasData);
             } catch (error) {
-                document.getElementById('platos-list').innerHTML = 
-                    `<div class="alert alert-error">Error al cargar platos: ${error.message}</div>`;
+                listEl.innerHTML = `<div class="alert alert-error">Error al cargar platos: ${error.message}</div>`;
+                if (panelEl) panelEl.innerHTML = `<p class="empty-state">Error al cargar categorías</p>`;
             }
+        }
+
+        function renderPanelCategorias(data) {
+            const panel = document.getElementById('platos-panel-categorias');
+            if (!panel) return;
+            const desayuno = data.desayuno || [];
+            const carta = data.carta || [];
+            const map = new Map();
+            desayuno.forEach(item => {
+                const cat = item.categoria || 'General';
+                map.set(cat, (map.get(cat) || 0) + (item.count || 0));
+            });
+            carta.forEach(item => {
+                const cat = item.categoria || 'General';
+                map.set(cat, (map.get(cat) || 0) + (item.count || 0));
+            });
+            const items = Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+            if (items.length === 0) {
+                panel.innerHTML = '<p class="empty-state">Sin categorías con stock</p>';
+                return;
+            }
+            panel.innerHTML = `
+                <ul>
+                    ${items.map(([cat, count]) => `
+                        <li>
+                            <span>${cat}</span>
+                            <span class="badge badge-info">${count}</span>
+                        </li>
+                    `).join('')}
+                </ul>
+            `;
         }
 
         async function loadAreas() {
@@ -1130,10 +1261,10 @@
             `;
         }
 
-        function displayPlatos(platos) {
+        function displayPlatos(platos, emptyMessage) {
             const container = document.getElementById('platos-list');
             if (platos.length === 0) {
-                container.innerHTML = '<div class="empty-state">No hay platos registrados</div>';
+                container.innerHTML = '<div class="empty-state">' + (emptyMessage || 'No hay platos registrados') + '</div>';
                 return;
             }
 
@@ -1158,20 +1289,20 @@
                                     <td>${index + 1}</td>
                                     <td>${plato.id || plato._id}</td>
                                     <td>${plato.nombre}</td>
-                                    <td>S/. ${plato.precio.toFixed(2)}</td>
+                                    <td>S/. ${(plato.precio != null ? Number(plato.precio) : 0).toFixed(2)}</td>
                                     <td>
-                                        <span class="badge ${plato.stock > 0 ? 'badge-success' : 'badge-danger'}">
-                                            ${plato.stock}
+                                        <span class="badge ${(plato.stock != null ? plato.stock : 0) > 0 ? 'badge-success' : 'badge-danger'}">
+                                            ${plato.stock != null ? plato.stock : 0}
                                         </span>
                                     </td>
-                                    <td>${plato.categoria}</td>
+                                    <td>${plato.categoria || 'General'}</td>
                                     <td>
                                         <span class="badge ${plato.tipo === 'platos-desayuno' ? 'badge-warning' : 'badge-success'}">
                                             ${plato.tipo || 'N/A'}
                                         </span>
                                     </td>
                                     <td>
-                                        <button class="btn btn-primary" style="margin-right: 5px;" onclick="editPlato('${plato._id}')">Editar</button>
+                                        <button class="btn btn-primary" style="margin-right: 5px;" onclick="editPlato('${plato.id != null ? plato.id : plato._id}')">Editar</button>
                                         <button class="btn btn-danger" onclick="deletePlato('${plato._id}')">Eliminar</button>
                                     </td>
                                 </tr>
@@ -4311,6 +4442,13 @@
                 socketAdmin.on('connect_error', (error) => {
                     console.warn('⚠️ Error conectando socket /admin (no crítico):', error);
                     ocultarLiveIndicator();
+                });
+
+                socketAdmin.on('plato-menu-actualizado', () => {
+                    const platosContent = document.getElementById('platos');
+                    if (platosContent && platosContent.classList.contains('active')) {
+                        loadPlatos();
+                    }
                 });
             } catch (error) {
                 console.warn('⚠️ Error inicializando socket /admin (no crítico):', error);

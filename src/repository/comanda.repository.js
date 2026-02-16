@@ -277,25 +277,36 @@ const agregarComanda = async (data) => {
   // ========== FASE 1: VALIDACIÓN Y NORMALIZACIÓN DE ESTADOS POR PLATO ==========
   const ahora = moment.tz("America/Lima").toDate();
   
-  // Validar que cada plato tenga un ID válido y obtener el id numérico
+  // Validar que cada plato tenga un ID válido, exista en BD (activo) y obtener el id numérico
   for (let index = 0; index < data.platos.length; index++) {
     const plato = data.platos[index];
-    if (!plato.plato) {
-      throw new Error(`El plato en la posición ${index} no tiene ID`);
+    const platoRef = plato.plato ?? plato.platoId;
+    if (platoRef == null || platoRef === '') {
+      const err = new Error(`El plato en la posición ${index} no tiene ID`);
+      err.statusCode = 400;
+      throw err;
     }
-    
-    // Buscar el plato para obtener su id numérico
+
     let platoCompleto = null;
-    try {
-      platoCompleto = await platoModel.findById(plato.plato);
-      if (platoCompleto && platoCompleto.id) {
-        plato.platoId = platoCompleto.id;
-      } else {
-        console.warn(`⚠️ No se encontró el id numérico para el plato ${plato.plato}`);
-      }
-    } catch (error) {
-      console.error(`Error al buscar el plato ${plato.plato}:`, error);
+    const isObjectId = mongoose.Types.ObjectId.isValid(platoRef) && String(platoRef).length === 24;
+    if (isObjectId) {
+      platoCompleto = await platoModel.findById(platoRef);
     }
+    if (!platoCompleto && (typeof platoRef === 'number' || !Number.isNaN(Number(platoRef)))) {
+      platoCompleto = await platoModel.findOne({ id: Number(platoRef) });
+    }
+    if (!platoCompleto) {
+      const err = new Error(`Plato no encontrado. ID: ${platoRef}`);
+      err.statusCode = 404;
+      throw err;
+    }
+    if (platoCompleto.isActive === false) {
+      const err = new Error(`Plato inactivo o eliminado. ID: ${platoCompleto.id ?? platoCompleto._id}`);
+      err.statusCode = 400;
+      throw err;
+    }
+    plato.plato = platoCompleto._id;
+    plato.platoId = platoCompleto.id;
     
     // FASE 1: Validar y normalizar estado del plato
     // 1. Establecer estado default si no existe
@@ -871,15 +882,16 @@ const editarConAuditoria = async (comandaId, platosNuevos, platosEliminados, usu
         }
         
         if (platoCompleto) {
+          if (platoCompleto.isActive === false) {
+            throw new AppError(`Plato inactivo o eliminado. ID: ${platoCompleto.id ?? platoCompleto._id}`, 400);
+          }
           const platoAgregado = {
-            plato: platoCompleto._id, // Usar el _id del plato encontrado
-            platoId: platoCompleto.id, // ID numérico del plato
+            plato: platoCompleto._id,
+            platoId: platoCompleto.id,
             estado: nuevoPlato.estado || 'en_espera'
           };
-          
           comanda.platos.push(platoAgregado);
           comanda.cantidades.push(nuevoPlato.cantidad || 1);
-          
           console.log(`✅ Plato agregado: ${platoCompleto.nombre} (id numérico: ${platoCompleto.id}, cantidad: ${nuevoPlato.cantidad || 1})`);
         } else {
           const errorMsg = `❌ ERROR: No se pudo encontrar el plato con _id=${nuevoPlato.plato} o platoId=${nuevoPlato.platoId}`;

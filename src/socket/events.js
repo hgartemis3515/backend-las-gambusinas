@@ -647,6 +647,46 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
   };
 
   /**
+   * Emitir evento cuando se actualiza un plato del menú (tipo/categoría) para que mozos y cocina refresquen listas
+   * @param {Object} plato - Documento plato (puede ser lean o mongoose doc)
+   */
+  global.emitPlatoMenuActualizado = async (plato) => {
+    try {
+      const payload = plato && plato.toObject ? plato.toObject() : plato;
+      if (!payload || !payload._id) {
+        logger.warn('emitPlatoMenuActualizado: plato inválido');
+        return;
+      }
+      const timestamp = moment().tz('America/Lima').toISOString();
+      const eventData = {
+        plato: payload,
+        socketId: 'server',
+        timestamp
+      };
+      if (cocinaNamespace && cocinaNamespace.sockets) {
+        cocinaNamespace.emit('plato-menu-actualizado', eventData);
+      }
+      if (mozosNamespace && mozosNamespace.sockets) {
+        mozosNamespace.emit('plato-menu-actualizado', eventData);
+      }
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('plato-menu-actualizado', eventData);
+      }
+      logger.info('Evento plato-menu-actualizado emitido', {
+        platoId: payload.id || payload._id,
+        tipo: payload.tipo,
+        cocinaConnected: cocinaNamespace?.sockets?.size || 0,
+        mozosConnected: mozosNamespace?.sockets?.size || 0
+      });
+    } catch (error) {
+      logger.error('Error al emitir plato-menu-actualizado', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  };
+
+  /**
    * Emitir evento de mesa actualizada a mozos
    */
   global.emitMesaActualizada = async (mesaId) => {

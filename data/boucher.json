@@ -2765,5 +2765,54 @@
     "createdAt": "2026-02-16T04:15:16.505Z",
     "updatedAt": "2026-02-16T04:15:16.505Z",
     "boucherNumber": 72
+  },
+  {
+    "_id": "6992ba8bd845b119c1d02cfe",
+    "voucherId": "KQJQW",
+    "mesa": "69860a415e59135b4d2c56c1",
+    "numMesa": 1,
+    "mozo": "69860821b6273b9647faf872",
+    "nombreMozo": "admin",
+    "cliente": "6992ba8ad845b119c1d02b2d",
+    "usadoEnComanda": null,
+    "fechaUso": null,
+    "comandas": [
+      "6992ba74d845b119c1d01d15"
+    ],
+    "comandasNumbers": [
+      369
+    ],
+    "platos": [
+      {
+        "plato": "6992b9dad845b119c1d00c87",
+        "platoId": 37,
+        "nombre": "Ensalada especial (limon o vinagreta)",
+        "precio": 15,
+        "cantidad": 1,
+        "subtotal": 15,
+        "comandaNumber": 369,
+        "_id": "6992ba8bd845b119c1d02cff"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c86",
+        "platoId": 36,
+        "nombre": "Papa a la huancaína",
+        "precio": 13,
+        "cantidad": 1,
+        "subtotal": 13,
+        "comandaNumber": 369,
+        "_id": "6992ba8bd845b119c1d02d00"
+      }
+    ],
+    "subtotal": 28,
+    "igv": 5.04,
+    "total": 33.04,
+    "observaciones": "",
+    "fechaPago": "2026-02-16T06:34:51.309Z",
+    "fechaPagoString": "16/02/2026 01:34:51",
+    "isActive": true,
+    "createdAt": "2026-02-16T06:34:51.313Z",
+    "updatedAt": "2026-02-16T06:34:51.313Z",
+    "boucherNumber": 73
   }
 ]
