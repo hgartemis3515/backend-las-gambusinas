@@ -258,87 +258,60 @@ const agregarComanda = async (data) => {
     throw new Error(errorMsg);
   }
 
-  // Validar que la mesa esté en estado "libre" o "preparado" (para nueva comanda)
+  // Validar que la mesa esté en estado "libre", "pedido" o "preparado" (permitir múltiples comandas por mesa)
   const estadoMesa = (mesa.estado || 'libre').toLowerCase();
   let permitirNuevaComanda = false;
-  
-  if (estadoMesa !== 'libre') {
-    // Si la mesa está en estado "preparado", permitir crear nueva comanda si es el mismo mozo
-    if (estadoMesa === 'preparado') {
-      // Buscar comandas activas de la mesa para verificar el mozo
-      const comandasActivas = await comandaModel.find({
-        mesas: mesa._id,
-        IsActive: true,
-        status: { $in: ['en_espera', 'recoger'] }
-      });
-      
-      if (comandasActivas.length > 0) {
-        // Verificar que el mozo que crea la nueva comanda sea el mismo que creó la comanda original
-        const primeraComanda = comandasActivas[0];
-        const mozoComandaId = primeraComanda.mozos?.toString ? primeraComanda.mozos.toString() : (primeraComanda.mozos ? String(primeraComanda.mozos) : null);
-        const mozoNuevaComandaId = data.mozos?.toString ? data.mozos.toString() : (data.mozos ? String(data.mozos) : null);
-        
-        if (mozoComandaId && mozoNuevaComandaId && mozoComandaId === mozoNuevaComandaId) {
-          // Es el mismo mozo, permitir crear nueva comanda
-          permitirNuevaComanda = true;
-          console.log(`✅ Permitiendo nueva comanda en mesa ${mesa.nummesa} (estado: preparado) - Mismo mozo`);
-        } else {
-          const errorMsg = 'Solo el mozo que creó la comanda original puede agregar una nueva comanda a esta mesa';
-          console.error(`❌ ${errorMsg} - Mesa ${mesa.nummesa}`);
-          const error = new Error(errorMsg);
-          error.statusCode = 403; // Forbidden
-          throw error;
-        }
-      } else {
-        // No hay comandas activas, pero la mesa está en preparado (puede ser un estado inconsistente)
-        // Permitir crear nueva comanda
-        permitirNuevaComanda = true;
-        console.log(`✅ Permitiendo nueva comanda en mesa ${mesa.nummesa} (estado: preparado) - Sin comandas activas`);
-      }
-    } else {
-      // Para otros estados (esperando, pedido, pagado), rechazar
-      const comandaActiva = await comandaModel.findOne({
-        mesas: mesa._id,
-        IsActive: true,
-        status: { $in: ['en_espera', 'recoger'] }
-      });
 
-      if (comandaActiva || ['esperando', 'pedido', 'pagado'].includes(estadoMesa)) {
-        const errorMsg = 'Mesa ocupada con comanda existente';
-        console.error(`❌ ${errorMsg} - Mesa ${mesa.nummesa} en estado: ${estadoMesa}`);
-        // Log para auditoría
-        console.log(`📝 AUDITORÍA - Intento inválido de crear comanda:`, {
-          timestamp: new Date().toISOString(),
-          mesaId: mesa._id,
-          numMesa: mesa.nummesa,
-          estadoActual: estadoMesa,
-          estadoSolicitado: 'esperando',
-          razon: errorMsg
-        });
+  if (estadoMesa === 'libre') {
+    permitirNuevaComanda = true;
+  } else if (estadoMesa === 'pedido' || estadoMesa === 'preparado') {
+    // Mesa con comandas: permitir nueva comanda si es el mismo mozo (múltiples comandas por mesa)
+    const comandasActivas = await comandaModel.find({
+      mesas: mesa._id,
+      IsActive: true,
+      status: { $in: ['en_espera', 'recoger', 'entregado'] }
+    });
+
+    if (comandasActivas.length > 0) {
+      const primeraComanda = comandasActivas[0];
+      const mozoComandaId = primeraComanda.mozos?.toString ? primeraComanda.mozos.toString() : (primeraComanda.mozos ? String(primeraComanda.mozos) : null);
+      const mozoNuevaComandaId = data.mozos?.toString ? data.mozos.toString() : (data.mozos ? String(data.mozos) : null);
+
+      if (mozoComandaId && mozoNuevaComandaId && mozoComandaId === mozoNuevaComandaId) {
+        permitirNuevaComanda = true;
+        console.log(`✅ Permitiendo nueva comanda en mesa ${mesa.nummesa} (estado: ${estadoMesa}) - Mismo mozo`);
+      } else {
+        const errorMsg = 'Solo el mozo que creó la comanda original puede agregar una nueva comanda a esta mesa';
+        console.error(`❌ ${errorMsg} - Mesa ${mesa.nummesa}`);
         const error = new Error(errorMsg);
-        error.statusCode = 409; // Conflict
+        error.statusCode = 403; // Forbidden
         throw error;
       }
+    } else {
+      permitirNuevaComanda = true;
+      console.log(`✅ Permitiendo nueva comanda en mesa ${mesa.nummesa} (estado: ${estadoMesa}) - Sin comandas activas`);
     }
-
-    if (estadoMesa === 'reservado') {
-      const errorMsg = 'Mesa reservada. Solo un administrador puede liberarla.';
-      console.error(`❌ ${errorMsg} - Mesa ${mesa.nummesa}`);
-      // Log para auditoría
-      console.log(`📝 AUDITORÍA - Intento inválido de crear comanda:`, {
-        timestamp: new Date().toISOString(),
-        mesaId: mesa._id,
-        numMesa: mesa.nummesa,
-        estadoActual: estadoMesa,
-        estadoSolicitado: 'esperando',
-        razon: errorMsg
-      });
-      const error = new Error(errorMsg);
-      error.statusCode = 409; // Conflict
-      throw error;
-    }
+  } else if (estadoMesa === 'reservado') {
+    const errorMsg = 'Mesa reservada. Solo un administrador puede liberarla.';
+    console.error(`❌ ${errorMsg} - Mesa ${mesa.nummesa}`);
+    const error = new Error(errorMsg);
+    error.statusCode = 409; // Conflict
+    throw error;
+  } else {
+    // esperando, pagado u otro: no permitir nueva comanda
+    const errorMsg = 'Mesa ocupada o no disponible para nueva comanda';
+    console.error(`❌ ${errorMsg} - Mesa ${mesa.nummesa} en estado: ${estadoMesa}`);
+    const error = new Error(errorMsg);
+    error.statusCode = 409; // Conflict
+    throw error;
   }
-  
+
+  if (!permitirNuevaComanda) {
+    const error = new Error('No se puede crear comanda en esta mesa');
+    error.statusCode = 409;
+    throw error;
+  }
+
   // ========== FASE 1: VALIDACIÓN Y NORMALIZACIÓN DE ESTADOS POR PLATO ==========
   const ahora = moment.tz("America/Lima").toDate();
   
@@ -1293,10 +1266,14 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
         $push: { historialEstados: historialEntry }
       }
     );
-    
-    // FASE 1: Recalcular estado global de comanda DESPUÉS de actualizar plato
-    await recalcularEstadoComandaPorPlatos(comandaId);
-    
+
+    // Crítico: verificación dedicada "todos los platos entregados → status recoger" (desbloquea pago)
+    const resultadoTodosEntregados = await actualizarComandaSiTodosEntregados(comandaId);
+    if (!resultadoTodosEntregados.updated) {
+      // Si no se actualizó por "todos entregados", aplicar recálculo general
+      await recalcularEstadoComandaPorPlatos(comandaId);
+    }
+
     // FASE 5: Invalidar cache de la comanda después de actualizar (opcional)
     try {
       await redisCache.invalidate(comandaId);
@@ -2163,43 +2140,52 @@ const revertirStatusComanda = async (comandaId, nuevoStatus, usuarioId) => {
 };
 
 /**
- * Obtiene las comandas listas para pagar de una mesa específica
- * Filtra solo comandas activas con status 'preparado' o 'entregado' y platos no eliminados
+ * Obtiene las comandas listas para pagar de una mesa (todas sus platos no eliminados en estado 'entregado').
+ * Incluye comandas con status 'recoger' o 'entregado' y filtra por estado real de platos; opcionalmente
+ * auto-corrige status cuando todos los platos están entregados pero el status estaba desincronizado.
  * @param {string} mesaId - ID de la mesa
- * @returns {Promise<Array>} Array de comandas listas para pagar
+ * @returns {Promise<Array>} Array de comandas listas para pagar (todas con todos los platos entregados)
  */
 const getComandasParaPagar = async (mesaId) => {
   try {
-    // ✅ FILTRADO EXACTO: Solo comandas listas para pagar
-    // - mesas: mesaId específica
-    // - IsActive: true (no eliminadas)
-    // - status: ['preparado', 'recoger', 'entregado'] (listas para pagar, excluye 'pagado')
-    // - Excluir platos eliminados
+    // Enum comanda.status: en_espera, recoger, entregado, pagado (no existe 'preparado')
     const comandas = await comandaModel.find({
       mesas: mesaId,
       IsActive: true,
-      status: { $in: ['preparado', 'recoger', 'entregado'] } // Solo listas para pagar (excluye 'pagado' automáticamente)
+      status: { $in: ['recoger', 'entregado'] }
     })
-    .populate('platos.plato', 'nombre precio')
-    .populate('mozos', 'name')
-    .populate('mesas', 'nummesa estado')
-    .sort({ createdAt: -1 }); // Más recientes primero
+      .populate('platos.plato', 'nombre precio')
+      .populate('mozos', 'name')
+      .populate('mesas', 'nummesa estado')
+      .sort({ createdAt: -1 });
 
-    // Filtrar comandas que tengan al menos un plato no eliminado
-    const comandasConPlatosValidos = comandas.filter(comanda => {
-      if (!comanda.platos || comanda.platos.length === 0) {
-        return false; // Excluir comandas sin platos
+    const comandasListasParaPagar = [];
+    for (const comanda of comandas) {
+      if (!comanda.platos || comanda.platos.length === 0) continue;
+      const platosActivos = comanda.platos.filter(p => p.eliminado !== true);
+      if (platosActivos.length === 0) continue;
+
+      const todosEntregados = platosActivos.every(p => {
+        const e = (p.estado || '').toLowerCase();
+        return e === 'entregado';
+      });
+
+      if (todosEntregados) {
+        if (comanda.status !== 'entregado') {
+          try {
+            await comandaModel.findByIdAndUpdate(comanda._id, { status: 'entregado' });
+            comanda.status = 'entregado';
+            logger.info('[getComandasParaPagar] Auto-corregido status a entregado', { comandaId: comanda._id, comandaNumber: comanda.comandaNumber });
+          } catch (e) {
+            logger.warn('[getComandasParaPagar] No se pudo auto-corregir status', { comandaId: comanda._id, error: e.message });
+          }
+        }
+        comandasListasParaPagar.push(comanda);
       }
-      // Verificar que tenga al menos un plato no eliminado
-      const tienePlatosNoEliminados = comanda.platos.some(p => !p.eliminado);
-      return tienePlatosNoEliminados;
-    });
+    }
 
-    // Asegurar que los platos estén populados (fallback manual)
-    const comandasConPlatos = await ensurePlatosPopulated(comandasConPlatosValidos);
-    
-    console.log(`✅ [getComandasParaPagar] Mesa ${mesaId}: ${comandasConPlatos.length} comandas listas para pagar`);
-    
+    const comandasConPlatos = await ensurePlatosPopulated(comandasListasParaPagar);
+    console.log(`✅ [getComandasParaPagar] Mesa ${mesaId}: ${comandasConPlatos.length} comandas listas para pagar (todos los platos entregados)`);
     return comandasConPlatos;
   } catch (error) {
     console.error("❌ Error al obtener comandas para pagar:", error);
@@ -2208,7 +2194,7 @@ const getComandasParaPagar = async (mesaId) => {
 };
 
 /**
- * Valida que las comandas proporcionadas pertenecen a la mesa y no están pagadas
+ * Valida que las comandas pertenecen a la mesa, no están pagadas, y que TODOS sus platos no eliminados están en estado 'entregado'.
  * @param {string} mesaId - ID de la mesa
  * @param {Array<string>} comandasIds - Array de IDs de comandas a validar
  * @returns {Promise<Array>} Array de comandas válidas
@@ -2223,23 +2209,30 @@ const validarComandasParaPagar = async (mesaId, comandasIds) => {
       _id: { $in: comandasIds },
       mesas: mesaId,
       IsActive: true,
-      status: { $in: ['preparado', 'recoger', 'entregado'] }, // Solo preparadas o entregadas (incluye preparado)
-      'platos.eliminado': { $ne: true }
+      status: { $in: ['recoger', 'entregado'] }
     })
-    .populate('platos.plato', 'nombre precio')
-    .populate('mozos')
-    .populate('mesas', 'nummesa');
+      .populate('platos.plato', 'nombre precio')
+      .populate('mozos')
+      .populate('mesas', 'nummesa');
 
-    // Verificar que todas las comandas solicitadas fueron encontradas
     if (comandas.length !== comandasIds.length) {
       const encontradas = comandas.map(c => c._id.toString());
       const faltantes = comandasIds.filter(id => !encontradas.includes(id.toString()));
       throw new Error(`Algunas comandas no son válidas para pagar: ${faltantes.join(', ')}`);
     }
 
-    // Asegurar que los platos estén populados
+    for (const comanda of comandas) {
+      const platosActivos = (comanda.platos || []).filter(p => p.eliminado !== true);
+      const noEntregados = platosActivos.filter(p => (p.estado || '').toLowerCase() !== 'entregado');
+      if (noEntregados.length > 0) {
+        const estados = noEntregados.map(p => p.estado || 'sin estado');
+        throw new Error(
+          `No se puede procesar el pago. La comanda #${comanda.comandaNumber || comanda._id.toString().slice(-6)} tiene platos que aún no han sido entregados al cliente (estados: ${[...new Set(estados)].join(', ')}). Todos los platos deben estar en estado "entregado".`
+        );
+      }
+    }
+
     const comandasConPlatos = await ensurePlatosPopulated(comandas);
-    
     return comandasConPlatos;
   } catch (error) {
     console.error("❌ Error al validar comandas para pagar:", error);
@@ -2420,10 +2413,14 @@ const marcarPlatoComoEntregado = async (comandaId, platoId) => {
     }
     
     await comanda.save();
-    
-    // Recalcular estado de comanda basado en estados de platos
-    await recalcularEstadoComandaPorPlatos(comandaId);
-    
+
+    // Crítico: verificación dedicada "todos los platos entregados → status recoger" (desbloquea pago)
+    const resultadoTodosEntregados = await actualizarComandaSiTodosEntregados(comandaId);
+    if (!resultadoTodosEntregados.updated) {
+      // Si no se actualizó por "todos entregados", aplicar recálculo general (recoger, en_espera, etc.)
+      await recalcularEstadoComandaPorPlatos(comandaId);
+    }
+
     // Obtener plato populado para el evento
     const platoPopulado = await comandaModel.findById(comandaId)
       .populate('platos.plato')
@@ -2513,20 +2510,141 @@ const calcularEstadoGlobalInicial = (platos) => {
 };
 
 /**
- * Recalcula el estado de la comanda basado en los estados individuales de los platos
+ * Actualiza el status de la comanda a 'recoger' cuando TODOS los platos activos están en estado 'entregado'.
+ * Función dedicada de una sola regla: evita bloqueos de pago cuando los platos se entregan de forma gradual.
+ * Se debe llamar DESPUÉS de persistir el cambio de estado del plato (después de comanda.save() o updateOne).
+ * Idempotente: si el status ya es 'recoger' o 'entregado', no hace nada.
+ *
+ * @param {string} comandaId - ID de la comanda
+ * @returns {Promise<{updated: boolean, estadoAnterior?: string, nuevoEstado?: string, totalPlatos?: number, platosEntregados?: number, reason?: string}>}
+ */
+const actualizarComandaSiTodosEntregados = async (comandaId) => {
+  const logPrefix = `[actualizarComandaSiTodosEntregados] ${comandaId}`;
+  try {
+    logger.info(`${logPrefix} Iniciando verificación (todos los platos entregados → status recoger)`);
+
+    const comanda = await comandaModel
+      .findById(comandaId)
+      .select('platos status comandaNumber mesas tiempoRecoger tiempoEntregado tiempoEnEspera tiempoPagado historialEstados')
+      .lean();
+
+    if (!comanda) {
+      logger.warn(`${logPrefix} Comanda no encontrada`);
+      return { updated: false, reason: 'comanda_no_encontrada' };
+    }
+
+    const totalPlatos = comanda.platos?.length ?? 0;
+    const platosActivos = (comanda.platos || []).filter(p => p.eliminado !== true);
+    const numActivos = platosActivos.length;
+    const statusActual = comanda.status || 'en_espera';
+
+    logger.info(`${logPrefix} Comanda #${comanda.comandaNumber} | Total platos: ${totalPlatos} | Eliminados: ${totalPlatos - numActivos} | Activos: ${numActivos} | Status actual: ${statusActual}`);
+
+    if (numActivos === 0) {
+      logger.warn(`${logPrefix} Sin platos activos, no se actualiza`);
+      return { updated: false, reason: 'sin_platos_activos', totalPlatos: 0, platosEntregados: 0 };
+    }
+
+    const platosEntregados = platosActivos.filter(p => (p.estado || '').toLowerCase() === 'entregado').length;
+    logger.info(`${logPrefix} Platos activos: ${numActivos} | Con estado entregado: ${platosEntregados}`);
+
+    if (platosEntregados !== numActivos) {
+      logger.info(`${logPrefix} No todos entregados (faltan ${numActivos - platosEntregados}), no se actualiza`);
+      return {
+        updated: false,
+        reason: 'no_todos_entregados',
+        totalPlatos: numActivos,
+        platosEntregados
+      };
+    }
+
+    if (statusActual === 'recoger' || statusActual === 'entregado') {
+      logger.info(`${logPrefix} Status ya es "${statusActual}", no se actualiza`);
+      return {
+        updated: false,
+        reason: 'status_ya_correcto',
+        estadoAnterior: statusActual,
+        totalPlatos: numActivos,
+        platosEntregados
+      };
+    }
+
+    const ahora = moment.tz("America/Lima").toDate();
+    await comandaModel.updateOne(
+      { _id: comandaId },
+      {
+        $set: { status: 'recoger', updatedAt: ahora },
+        $push: {
+          historialEstados: {
+            status: 'recoger',
+            statusAnterior: statusActual,
+            timestamp: ahora,
+            usuario: null,
+            accion: `Auto-actualización: todos los platos entregados → status "recoger" (antes: "${statusActual}")`,
+            deviceId: null,
+            sourceApp: 'sistema',
+            motivo: 'actualizarComandaSiTodosEntregados'
+          }
+        }
+      }
+    );
+
+    logger.info(`${logPrefix} Comanda #${comanda.comandaNumber} actualizada: "${statusActual}" → "recoger" (todos los platos entregados)`);
+
+    const mesaId = comanda.mesas?._id || comanda.mesas;
+    if (mesaId) {
+      try {
+        await recalcularEstadoMesa(mesaId);
+      } catch (err) {
+        logger.warn(`${logPrefix} Error al recalcular estado de mesa (no crítico):`, err.message);
+      }
+    }
+
+    if (global.emitComandaActualizada) {
+      try {
+        await global.emitComandaActualizada(comandaId, statusActual, 'recoger', {
+          pedido: 0,
+          en_espera: 0,
+          recoger: 0,
+          entregado: numActivos,
+          pagado: 0
+        });
+      } catch (err) {
+        logger.warn(`${logPrefix} Error al emitir comanda-actualizada (no crítico):`, err.message);
+      }
+    }
+
+    return {
+      updated: true,
+      estadoAnterior: statusActual,
+      nuevoEstado: 'recoger',
+      totalPlatos: numActivos,
+      platosEntregados
+    };
+  } catch (error) {
+    logger.error(`${logPrefix} Error (no debe interrumpir el flujo principal):`, { error: error.message, stack: error.stack });
+    return { updated: false, reason: 'error', error: error.message };
+  }
+};
+
+/**
+ * Recalcula el estado de la comanda basado en los estados individuales de los platos.
+ * Se debe llamar después de cada cambio de estado de un plato (cambiarEstadoPlato, marcarPlatoComoEntregado).
  * @param {String} comandaId - ID de la comanda
+ * @returns {Promise<{changed: boolean, estadoAnterior?: string, nuevoEstado?: string, cuentas?: object}>}
  */
 const recalcularEstadoComandaPorPlatos = async (comandaId) => {
   try {
-    const comanda = await comandaModel.findById(comandaId);
+    const comanda = await comandaModel.findById(comandaId).select('platos status mesas tiempoRecoger tiempoEntregado tiempoEnEspera tiempoPagado historialEstados');
     if (!comanda) {
-      console.warn(`⚠️ Comanda ${comandaId} no encontrada para recalcular estado`);
-      return;
+      console.warn(`⚠️ [recalcularEstadoComanda] Comanda ${comandaId} no encontrada`);
+      return { changed: false };
     }
-    
+
     // Contar platos por estado (solo platos no eliminados)
-    const platosActivos = comanda.platos.filter(p => !p.eliminado);
-    
+    const platosActivos = comanda.platos.filter(p => p.eliminado !== true);
+    const estadosPlatos = platosActivos.map(p => (p.estado || 'pedido'));
+
     const cuentas = {
       pedido: 0,
       en_espera: 0,
@@ -2534,95 +2652,80 @@ const recalcularEstadoComandaPorPlatos = async (comandaId) => {
       entregado: 0,
       pagado: 0
     };
-    
+
     platosActivos.forEach(plato => {
       const estado = plato.estado || 'pedido';
-      // Normalizar 'en_espera' como 'pedido'
       const estadoNormalizado = estado === 'en_espera' ? 'pedido' : estado;
       cuentas[estadoNormalizado] = (cuentas[estadoNormalizado] || 0) + 1;
     });
-    
+
     const total = platosActivos.length;
-    
-    // Determinar nuevo estado de comanda
-    let nuevoEstado = comanda.status;
-    const estadoAnterior = comanda.status;
-    
+    let nuevoEstado = comanda.status || 'en_espera';
+    const estadoAnterior = comanda.status || 'en_espera';
+
     if (total === 0) {
-      // Sin platos activos, mantener estado actual o cambiar a 'en_espera'
       nuevoEstado = 'en_espera';
     } else if (cuentas.pagado === total) {
-      // Todos pagados
       nuevoEstado = 'pagado';
     } else if (cuentas.entregado === total) {
-      // Todos entregados
       nuevoEstado = 'entregado';
     } else if (cuentas.recoger === total) {
-      // TODOS los platos están en 'recoger' → comanda lista para recoger
       nuevoEstado = 'recoger';
     } else if (cuentas.recoger > 0 || cuentas.entregado > 0) {
-      // Algunos platos listos pero NO todos → mantener 'en_espera' (no cambiar a 'recoger' prematuramente)
-      // Solo cambiar a 'recoger' cuando TODOS los platos estén listos
       nuevoEstado = 'en_espera';
     } else if (cuentas.pedido === total) {
-      // Todos en pedido
       nuevoEstado = 'en_espera';
     }
-    
-    // Actualizar si cambió
-    if (comanda.status !== nuevoEstado) {
+
+    const changed = comanda.status !== nuevoEstado;
+
+    logger.info('[recalcularEstadoComanda] Ejecutado', {
+      comandaId: comandaId.toString(),
+      estadosPlatos,
+      estadoAnterior,
+      nuevoEstado,
+      changed,
+      totalPlatos: total,
+      cuentas,
+      timestamp: new Date().toISOString()
+    });
+
+    if (changed) {
       comanda.status = nuevoEstado;
-      
-      // FASE 7: Actualizar timestamps de estado de comanda + historial
       const ahora = moment.tz("America/Lima").toDate();
-      if (nuevoEstado === 'recoger' && !comanda.tiempoRecoger) {
-        comanda.tiempoRecoger = ahora;
-      } else if (nuevoEstado === 'entregado' && !comanda.tiempoEntregado) {
-        comanda.tiempoEntregado = ahora;
-      } else if (nuevoEstado === 'en_espera' && !comanda.tiempoEnEspera) {
-        comanda.tiempoEnEspera = ahora;
-      } else if (nuevoEstado === 'pagado' && !comanda.tiempoPagado) {
-        comanda.tiempoPagado = ahora;
-      }
-      
-      // Agregar entrada al historial si cambió el estado
-      if (!comanda.historialEstados) {
-        comanda.historialEstados = [];
-      }
+      if (nuevoEstado === 'recoger' && !comanda.tiempoRecoger) comanda.tiempoRecoger = ahora;
+      else if (nuevoEstado === 'entregado' && !comanda.tiempoEntregado) comanda.tiempoEntregado = ahora;
+      else if (nuevoEstado === 'en_espera' && !comanda.tiempoEnEspera) comanda.tiempoEnEspera = ahora;
+      else if (nuevoEstado === 'pagado' && !comanda.tiempoPagado) comanda.tiempoPagado = ahora;
+
+      if (!comanda.historialEstados) comanda.historialEstados = [];
       comanda.historialEstados.push({
         status: nuevoEstado,
         statusAnterior: estadoAnterior,
         timestamp: ahora,
-        usuario: null, // Se puede obtener del contexto si está disponible
+        usuario: null,
         accion: `Estado recalculado automáticamente: "${estadoAnterior}" → "${nuevoEstado}"`,
         deviceId: null,
         sourceApp: 'sistema',
-        motivo: `Recálculo por cambio de estado de platos`
+        motivo: 'Recálculo por cambio de estado de platos'
       });
-      
+
       await comanda.save();
-      
-      // Recalcular estado de mesa
+
       if (comanda.mesas) {
         await recalcularEstadoMesa(comanda.mesas);
       }
-      
-      // Emitir evento WebSocket
+
       if (global.emitComandaActualizada) {
         await global.emitComandaActualizada(comandaId, estadoAnterior, nuevoEstado, cuentas);
       }
-      
-      logger.debug('Estado de comanda recalculado', {
-        comandaId,
-        estadoAnterior,
-        nuevoEstado,
-        cuentas
-      });
     }
-    
+
+    return { changed, estadoAnterior, nuevoEstado, cuentas };
   } catch (error) {
     console.error('❌ Error al recalcular estado de comanda por platos:', error);
-    // No lanzar error para no interrumpir el flujo principal
+    logger.error('recalcularEstadoComandaPorPlatos', { comandaId, error: error.message, stack: error.stack });
+    return { changed: false };
   }
 };
 
@@ -2649,5 +2752,6 @@ module.exports = {
   buildPlatoIdToObjectIdMap,
   ensurePlatosPopulated,
   marcarPlatoComoEntregado,
-  recalcularEstadoComandaPorPlatos
+  recalcularEstadoComandaPorPlatos,
+  actualizarComandaSiTodosEntregados
 };
