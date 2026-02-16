@@ -201,6 +201,8 @@ app.get('/health', async (req, res) => {
     timestamp: new Date().toISOString(),
     version: process.env.APP_VERSION || '1.0.0-fase7',
     uptime: Math.round(process.uptime()),
+    serverIP: process.env.IP || null,
+    serverUrl: process.env.IP && port ? `http://${process.env.IP}:${port}` : null,
     services: {}
   };
 
