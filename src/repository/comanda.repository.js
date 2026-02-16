@@ -241,7 +241,9 @@ const agregarComanda = async (data) => {
     throw new Error('Debe proporcionarse una mesa');
   }
 
-  // Validar estado de la mesa antes de crear la comanda
+  // Validar que la mesa exista. NO se valida el estado de comandas existentes en la mesa:
+  // las comandas son entidades independientes y una mesa puede tener múltiples comandas
+  // simultáneas en cualquier estado (en_espera, recoger, entregado).
   const mesa = await mesasModel.findById(data.mesas);
   if (!mesa) {
     throw new Error('Mesa no encontrada');
@@ -258,59 +260,19 @@ const agregarComanda = async (data) => {
     throw new Error(errorMsg);
   }
 
-  // Validar que la mesa esté en estado "libre", "pedido" o "preparado" (permitir múltiples comandas por mesa)
+  // Validación de mesa: solo rechazar si está reservada. NO validar estado de comandas existentes.
+  // Las comandas son independientes: una mesa puede tener múltiples comandas en cualquier combinación
+  // de estados (en_espera, recoger, entregado). No hay restricción por "mismo mozo" ni por estado previo.
   const estadoMesa = (mesa.estado || 'libre').toLowerCase();
-  let permitirNuevaComanda = false;
-
-  if (estadoMesa === 'libre') {
-    permitirNuevaComanda = true;
-  } else if (estadoMesa === 'pedido' || estadoMesa === 'preparado') {
-    // Mesa con comandas: permitir nueva comanda si es el mismo mozo (múltiples comandas por mesa)
-    const comandasActivas = await comandaModel.find({
-      mesas: mesa._id,
-      IsActive: true,
-      status: { $in: ['en_espera', 'recoger', 'entregado'] }
-    });
-
-    if (comandasActivas.length > 0) {
-      const primeraComanda = comandasActivas[0];
-      const mozoComandaId = primeraComanda.mozos?.toString ? primeraComanda.mozos.toString() : (primeraComanda.mozos ? String(primeraComanda.mozos) : null);
-      const mozoNuevaComandaId = data.mozos?.toString ? data.mozos.toString() : (data.mozos ? String(data.mozos) : null);
-
-      if (mozoComandaId && mozoNuevaComandaId && mozoComandaId === mozoNuevaComandaId) {
-        permitirNuevaComanda = true;
-        console.log(`✅ Permitiendo nueva comanda en mesa ${mesa.nummesa} (estado: ${estadoMesa}) - Mismo mozo`);
-      } else {
-        const errorMsg = 'Solo el mozo que creó la comanda original puede agregar una nueva comanda a esta mesa';
-        console.error(`❌ ${errorMsg} - Mesa ${mesa.nummesa}`);
-        const error = new Error(errorMsg);
-        error.statusCode = 403; // Forbidden
-        throw error;
-      }
-    } else {
-      permitirNuevaComanda = true;
-      console.log(`✅ Permitiendo nueva comanda en mesa ${mesa.nummesa} (estado: ${estadoMesa}) - Sin comandas activas`);
-    }
-  } else if (estadoMesa === 'reservado') {
+  if (estadoMesa === 'reservado') {
     const errorMsg = 'Mesa reservada. Solo un administrador puede liberarla.';
     console.error(`❌ ${errorMsg} - Mesa ${mesa.nummesa}`);
     const error = new Error(errorMsg);
     error.statusCode = 409; // Conflict
     throw error;
-  } else {
-    // esperando, pagado u otro: no permitir nueva comanda
-    const errorMsg = 'Mesa ocupada o no disponible para nueva comanda';
-    console.error(`❌ ${errorMsg} - Mesa ${mesa.nummesa} en estado: ${estadoMesa}`);
-    const error = new Error(errorMsg);
-    error.statusCode = 409; // Conflict
-    throw error;
   }
-
-  if (!permitirNuevaComanda) {
-    const error = new Error('No se puede crear comanda en esta mesa');
-    error.statusCode = 409;
-    throw error;
-  }
+  // Libre, pedido, preparado, esperando, pagado: permitir crear comanda. La mesa existe y está activa.
+  console.log(`✅ Permitiendo nueva comanda en mesa ${mesa.nummesa} (estado: ${estadoMesa}) - Sin restricción por comandas existentes`);
 
   // ========== FASE 1: VALIDACIÓN Y NORMALIZACIÓN DE ESTADOS POR PLATO ==========
   const ahora = moment.tz("America/Lima").toDate();
