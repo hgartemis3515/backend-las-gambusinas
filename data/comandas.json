@@ -1028,7 +1028,7 @@
       {
         "tiempos": {
           "en_espera": "2026-02-11T16:30:28.671Z",
-          "pedido": "2026-02-23T05:48:10.196Z"
+          "pedido": "2026-02-23T06:18:55.763Z"
         },
         "notaEspecial": "",
         "estadoAlEliminar": null,
@@ -1048,7 +1048,7 @@
       {
         "tiempos": {
           "en_espera": "2026-02-11T16:30:28.671Z",
-          "pedido": "2026-02-23T05:48:10.196Z"
+          "pedido": "2026-02-23T06:18:55.763Z"
         },
         "notaEspecial": "",
         "estadoAlEliminar": null,
@@ -1068,7 +1068,7 @@
       {
         "tiempos": {
           "en_espera": "2026-02-11T16:30:28.671Z",
-          "pedido": "2026-02-23T05:48:10.197Z"
+          "pedido": "2026-02-23T06:18:55.763Z"
         },
         "notaEspecial": "",
         "estadoAlEliminar": null,
@@ -1088,7 +1088,7 @@
       {
         "tiempos": {
           "en_espera": "2026-02-11T16:30:28.671Z",
-          "pedido": "2026-02-23T05:48:10.197Z"
+          "pedido": "2026-02-23T06:18:55.763Z"
         },
         "notaEspecial": "",
         "estadoAlEliminar": null,
@@ -1108,7 +1108,7 @@
       {
         "tiempos": {
           "en_espera": "2026-02-11T16:30:28.672Z",
-          "pedido": "2026-02-23T05:48:10.197Z"
+          "pedido": "2026-02-23T06:18:55.763Z"
         },
         "notaEspecial": "",
         "estadoAlEliminar": null,
@@ -1128,7 +1128,7 @@
       {
         "tiempos": {
           "en_espera": "2026-02-11T16:30:28.672Z",
-          "pedido": "2026-02-23T05:48:10.197Z"
+          "pedido": "2026-02-23T06:18:55.763Z"
         },
         "notaEspecial": "",
         "estadoAlEliminar": null,
@@ -1270,7 +1270,7 @@
       {
         "tiempos": {
           "en_espera": "2026-02-11T16:29:30.227Z",
-          "pedido": "2026-02-23T05:48:10.197Z"
+          "pedido": "2026-02-23T06:18:55.764Z"
         },
         "notaEspecial": "",
         "estadoAlEliminar": null,
@@ -1290,7 +1290,7 @@
       {
         "tiempos": {
           "en_espera": "2026-02-11T16:29:30.227Z",
-          "pedido": "2026-02-23T05:48:10.197Z"
+          "pedido": "2026-02-23T06:18:55.764Z"
         },
         "notaEspecial": "",
         "estadoAlEliminar": null,
@@ -1310,7 +1310,7 @@
       {
         "tiempos": {
           "en_espera": "2026-02-11T16:29:30.228Z",
-          "pedido": "2026-02-23T05:48:10.197Z"
+          "pedido": "2026-02-23T06:18:55.764Z"
         },
         "notaEspecial": "",
         "estadoAlEliminar": null,
@@ -13327,11 +13327,13 @@
       {
         "tiempos": {
           "pedido": "2026-02-23T05:48:10.156Z",
-          "en_espera": "2026-02-23T05:48:10.156Z"
+          "en_espera": "2026-02-23T05:48:10.156Z",
+          "recoger": "2026-02-23T05:49:49.564Z",
+          "entregado": "2026-02-23T05:49:53.988Z"
         },
         "plato": "6992b9dad845b119c1d00ca2",
         "platoId": 64,
-        "estado": "en_espera",
+        "estado": "entregado",
         "complementosSeleccionados": [
           {
             "grupo": "Sabores Pachamanca",
@@ -13351,11 +13353,13 @@
       {
         "tiempos": {
           "pedido": "2026-02-23T05:48:10.156Z",
-          "en_espera": "2026-02-23T05:48:10.156Z"
+          "en_espera": "2026-02-23T05:48:10.156Z",
+          "recoger": "2026-02-23T05:49:49.563Z",
+          "entregado": "2026-02-23T05:49:52.617Z"
         },
         "plato": "6992b9dad845b119c1d00c68",
         "platoId": 5,
-        "estado": "en_espera",
+        "estado": "entregado",
         "complementosSeleccionados": [],
         "notaEspecial": "",
         "eliminado": false,
@@ -13372,10 +13376,10 @@
       1
     ],
     "observaciones": "",
-    "status": "en_espera",
+    "status": "entregado",
     "IsActive": true,
     "tiempoEnEspera": "2026-02-23T05:48:10.158Z",
-    "tiempoRecoger": null,
+    "tiempoRecoger": "2026-02-23T05:49:50.223Z",
     "tiempoEntregado": null,
     "tiempoPagado": null,
     "createdBy": "69860821b6273b9647faf872",
@@ -13393,6 +13397,39 @@
         "sourceApp": "api",
         "motivo": null,
         "_id": "699bea1ac2194b9a3a36377b"
+      },
+      {
+        "status": "plato_recoger",
+        "statusAnterior": "plato_en_espera",
+        "timestamp": "2026-02-23T05:49:49.563Z",
+        "usuario": null,
+        "accion": "Plato 6992b9dad845b119c1d00c68 cambió de \"en_espera\" a \"recoger\"",
+        "deviceId": null,
+        "sourceApp": "cocina",
+        "motivo": null,
+        "_id": "699bea7dc2194b9a3a364582"
+      },
+      {
+        "status": "plato_recoger",
+        "statusAnterior": "plato_en_espera",
+        "timestamp": "2026-02-23T05:49:49.564Z",
+        "usuario": null,
+        "accion": "Plato 6992b9dad845b119c1d00ca2 cambió de \"en_espera\" a \"recoger\"",
+        "deviceId": null,
+        "sourceApp": "cocina",
+        "motivo": null,
+        "_id": "699bea7dc2194b9a3a364584"
+      },
+      {
+        "status": "recoger",
+        "statusAnterior": "en_espera",
+        "timestamp": "2026-02-23T05:49:50.223Z",
+        "usuario": null,
+        "accion": "Cambio de estado de \"en_espera\" a \"recoger\"",
+        "deviceId": null,
+        "sourceApp": "api",
+        "motivo": null,
+        "_id": "699bea7ec2194b9a3a364655"
       }
     ],
     "fechaEliminacion": null,
@@ -13403,8 +13440,79 @@
     "version": 1,
     "incluidoEnCierre": null,
     "createdAt": "2026-02-23T05:48:10.161Z",
-    "updatedAt": "2026-02-23T05:48:10.161Z",
+    "updatedAt": "2026-02-23T05:49:53.991Z",
     "historialPlatos": [],
     "comandaNumber": 382
+  },
+  {
+    "_id": "699bf14fc2194b9a3a364af8",
+    "mozos": "69860821b6273b9647faf872",
+    "mesas": "69860a47e52589a753836126",
+    "cliente": null,
+    "dividedFrom": null,
+    "platos": [
+      {
+        "tiempos": {
+          "pedido": "2026-02-23T06:18:55.737Z",
+          "en_espera": "2026-02-23T06:18:55.737Z"
+        },
+        "plato": "6992b9dad845b119c1d00ca2",
+        "platoId": 64,
+        "estado": "en_espera",
+        "complementosSeleccionados": [
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "1/4 cerdo",
+            "_id": "699bf14fc2194b9a3a364afa"
+          }
+        ],
+        "notaEspecial": "",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "estadoAlEliminar": null,
+        "generoDesperdicio": false,
+        "_id": "699bf14fc2194b9a3a364af9"
+      }
+    ],
+    "cantidades": [
+      1
+    ],
+    "observaciones": "",
+    "status": "en_espera",
+    "IsActive": true,
+    "tiempoEnEspera": "2026-02-23T06:18:55.738Z",
+    "tiempoRecoger": null,
+    "tiempoEntregado": null,
+    "tiempoPagado": null,
+    "createdBy": "69860821b6273b9647faf872",
+    "updatedBy": null,
+    "deviceId": null,
+    "sourceApp": "api",
+    "historialEstados": [
+      {
+        "status": "en_espera",
+        "statusAnterior": null,
+        "timestamp": "2026-02-23T06:18:55.739Z",
+        "usuario": "69860821b6273b9647faf872",
+        "accion": "Comanda creada",
+        "deviceId": null,
+        "sourceApp": "api",
+        "motivo": null,
+        "_id": "699bf14fc2194b9a3a364afb"
+      }
+    ],
+    "fechaEliminacion": null,
+    "motivoEliminacion": null,
+    "eliminadaPor": null,
+    "precioTotalOriginal": 33,
+    "precioTotal": 33,
+    "version": 1,
+    "incluidoEnCierre": null,
+    "createdAt": "2026-02-23T06:18:55.740Z",
+    "updatedAt": "2026-02-23T06:18:55.740Z",
+    "historialPlatos": [],
+    "comandaNumber": 383
   }
 ]

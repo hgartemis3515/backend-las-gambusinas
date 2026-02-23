@@ -76,7 +76,11 @@ const boucherSchema = new mongoose.Schema({
             type: Number,
             required: true
         },
-        comandaNumber: Number // Número de comanda a la que pertenece
+        comandaNumber: Number, // Número de comanda a la que pertenece
+        complementosSeleccionados: [{
+            grupo: { type: String },
+            opcion: { type: String }
+        }]
     }],
     subtotal: {
         type: Number,

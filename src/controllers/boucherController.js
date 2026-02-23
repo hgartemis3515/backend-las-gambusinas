@@ -86,7 +86,8 @@ router.post('/boucher', async (req, res) => {
                             precio: precio,
                             cantidad: cantidad,
                             subtotal: subtotal,
-                            comandaNumber: comanda.comandaNumber || null
+                            comandaNumber: comanda.comandaNumber || null,
+                            complementosSeleccionados: platoItem.complementosSeleccionados || []
                         });
                     }
                 });
