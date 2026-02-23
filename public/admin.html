@@ -162,10 +162,56 @@
         .table-container {
             overflow-x: auto;
             margin-top: 20px;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        
+        /* Estilos para scroll horizontal visible */
+        .table-container::-webkit-scrollbar,
+        #platos-scroll-container::-webkit-scrollbar {
+            height: 10px;
+        }
+        
+        .table-container::-webkit-scrollbar-track,
+        #platos-scroll-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 5px;
+        }
+        
+        .table-container::-webkit-scrollbar-thumb,
+        #platos-scroll-container::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 5px;
+        }
+        
+        .table-container::-webkit-scrollbar-thumb:hover,
+        #platos-scroll-container::-webkit-scrollbar-thumb:hover {
+            background: #5a6fd6;
+        }
+        
+        /* Indicador de scroll para PC */
+        .table-container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 30px;
+            background: linear-gradient(to right, transparent, rgba(102, 126, 234, 0.1));
+            pointer-events: none;
+            opacity: 1;
+            transition: opacity 0.3s;
+        }
+        
+        .table-container.scrolled-right::after {
+            opacity: 0;
         }
 
         table {
             width: 100%;
+            min-width: 800px;
             border-collapse: collapse;
             background: white;
             border-radius: 8px;
@@ -179,8 +225,52 @@
         }
 
         th, td {
-            padding: 15px;
+            padding: 10px 12px;
             text-align: left;
+            white-space: nowrap;
+            font-size: 14px;
+        }
+        
+        th {
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        tbody tr {
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s;
+        }
+        
+        tbody tr:hover {
+            background-color: #f8f9ff;
+        }
+        
+        tbody tr:last-child {
+            border-bottom: none;
+        }
+        
+        /* Columna de acciones sticky a la derecha */
+        th:last-child, td:last-child {
+            position: sticky;
+            right: 0;
+            background: white;
+            min-width: 160px;
+            box-shadow: -5px 0 10px rgba(0,0,0,0.05);
+            z-index: 1;
+        }
+        
+        thead th:last-child {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        tbody tr:hover td:last-child {
+            background: #f8f9fa;
+        }
+
+        thead th:last-child {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
 
         tbody tr {
@@ -189,6 +279,10 @@
         }
 
         tbody tr:hover {
+            background: #f9f9f9;
+        }
+
+        tbody tr:hover td:last-child {
             background: #f9f9f9;
         }
 
@@ -1269,48 +1363,78 @@
             }
 
             container.innerHTML = `
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>ID</th>
-                                <th>Nombre</th>
-                                <th>Precio</th>
-                                <th>Stock</th>
-                                <th>Categoría</th>
-                                <th>Tipo</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${platos.map((plato, index) => `
+                <div class="table-wrapper" style="position: relative; margin-top: 10px;">
+                    <!-- Indicador superior de scroll -->
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px;">
+                        <button onclick="scrollPlatosTable(-300)" style="background: #667eea; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
+                            ← Izquierda
+                        </button>
+                        <span style="color: #666; font-size: 12px;">📜 Desplaza para ver todas las columnas</span>
+                        <button onclick="scrollPlatosTable(300)" style="background: #667eea; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
+                            Derecha →
+                        </button>
+                    </div>
+                    
+                    <!-- Contenedor con scroll horizontal -->
+                    <div id="platos-scroll-container" style="overflow-x: auto; overflow-y: visible; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <table style="min-width: 900px; width: 100%;">
+                            <thead>
                                 <tr>
-                                    <td>${index + 1}</td>
-                                    <td>${plato.id || plato._id}</td>
-                                    <td>${plato.nombre}</td>
-                                    <td>S/. ${(plato.precio != null ? Number(plato.precio) : 0).toFixed(2)}</td>
-                                    <td>
-                                        <span class="badge ${(plato.stock != null ? plato.stock : 0) > 0 ? 'badge-success' : 'badge-danger'}">
-                                            ${plato.stock != null ? plato.stock : 0}
-                                        </span>
-                                    </td>
-                                    <td>${plato.categoria || 'General'}</td>
-                                    <td>
-                                        <span class="badge ${plato.tipo === 'platos-desayuno' ? 'badge-warning' : 'badge-success'}">
-                                            ${plato.tipo || 'N/A'}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <button class="btn btn-primary" style="margin-right: 5px;" onclick="editPlato('${plato.id != null ? plato.id : plato._id}')">Editar</button>
-                                        <button class="btn btn-danger" onclick="deletePlato('${plato._id}')">Eliminar</button>
-                                    </td>
+                                    <th style="width: 40px; text-align: center;">#</th>
+                                    <th style="width: 60px;">ID</th>
+                                    <th style="min-width: 150px;">Nombre</th>
+                                    <th style="width: 80px; text-align: right;">Precio</th>
+                                    <th style="width: 60px; text-align: center;">Stock</th>
+                                    <th style="min-width: 100px;">Categoría</th>
+                                    <th style="width: 100px;">Tipo</th>
+                                    <th style="width: 90px; text-align: center;">Complementos</th>
+                                    <th style="width: 140px; text-align: center;">Acciones</th>
                                 </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                ${platos.map((plato, index) => `
+                                    <tr>
+                                        <td style="text-align: center; color: #888;">${index + 1}</td>
+                                        <td style="font-size: 12px; color: #666;">${plato.id || plato._id?.slice(-6)}</td>
+                                        <td style="font-weight: 500;">${plato.nombre}</td>
+                                        <td style="text-align: right; font-weight: 600; color: #28a745;">S/. ${(plato.precio != null ? Number(plato.precio) : 0).toFixed(2)}</td>
+                                        <td style="text-align: center;">
+                                            <span class="badge ${(plato.stock != null ? plato.stock : 0) > 0 ? 'badge-success' : 'badge-danger'}" style="font-size: 11px;">
+                                                ${plato.stock != null ? plato.stock : 0}
+                                            </span>
+                                        </td>
+                                        <td style="font-size: 13px;">${plato.categoria || 'General'}</td>
+                                        <td>
+                                            <span class="badge ${plato.tipo === 'platos-desayuno' ? 'badge-warning' : 'badge-success'}" style="font-size: 10px;">
+                                                ${plato.tipo === 'platos-desayuno' ? 'Desayuno' : 'Carta'}
+                                            </span>
+                                        </td>
+                                        <td style="text-align: center;">
+                                            ${plato.complementos && plato.complementos.length > 0 
+                                                ? `<span class="badge badge-info" style="font-size: 11px;" title="${plato.complementos.map(c => c.grupo).join(', ')}">
+                                                       🍽️ ${plato.complementos.length}
+                                                   </span>` 
+                                                : '<span style="color: #ccc;">-</span>'}
+                                        </td>
+                                        <td style="text-align: center; white-space: nowrap;">
+                                            <button class="btn btn-primary" style="padding: 4px 10px; font-size: 12px; margin-right: 4px;" onclick="editPlato('${plato._id}')">Editar</button>
+                                            <button class="btn btn-danger" style="padding: 4px 10px; font-size: 12px;" onclick="deletePlato('${plato._id}')">Eliminar</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             `;
+        }
+        
+        // Función para controlar el scroll de la tabla de platos
+        function scrollPlatosTable(amount) {
+            const scrollContainer = document.getElementById('platos-scroll-container');
+            if (scrollContainer) {
+                scrollContainer.scrollBy({ left: amount, behavior: 'smooth' });
+            }
         }
 
         // Variable global para almacenar todas las comandas (para filtrado)
@@ -2134,6 +2258,10 @@
                 `;
             } else if (type === 'plato') {
                 modalTitle.textContent = data ? 'Editar Plato' : 'Nuevo Plato';
+                
+                // Preparar complementos existentes como JSON para pasarlos al formulario
+                const complementosJson = JSON.stringify(data?.complementos || []).replace(/"/g, '&quot;');
+                
                 modalBody.innerHTML = `
                     <form id="plato-form" onsubmit="savePlato(event)">
                         <input type="hidden" name="id" value="${data?._id || ''}">
@@ -2162,9 +2290,42 @@
                                 <option value="platos-desayuno" ${data?.tipo === 'platos-desayuno' ? 'selected' : ''}>Desayuno</option>
                             </select>
                         </div>
-                        <button type="submit" class="btn btn-primary">${data ? 'Actualizar' : 'Guardar'}</button>
+                        
+                        <!-- SECCIÓN: COMPLEMENTOS DEL PLATO -->
+                        <hr style="margin: 20px 0; border-color: #eee;">
+                        <div class="form-group">
+                            <label style="font-size: 1.1em; color: #667eea;">
+                                🍽️ Complementos del Plato
+                                <span style="font-size: 0.75em; font-weight: normal; color: #888; margin-left: 8px;">
+                                    (Opciones que el mozo puede elegir al tomar el pedido)
+                                </span>
+                            </label>
+                            
+                            <!-- Contenedor donde se renderizan los grupos de complementos -->
+                            <div id="complementos-container" style="margin-top: 10px;"></div>
+                            
+                            <!-- Botón para agregar nuevo grupo -->
+                            <button type="button" onclick="agregarGrupoComplemento()" 
+                                style="margin-top: 10px; padding: 8px 16px; background: #667eea; color: white; 
+                                       border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                                + Agregar Grupo de Complemento
+                            </button>
+                            
+                            <!-- Campo oculto que almacena el JSON de complementos para el submit -->
+                            <input type="hidden" name="complementos" id="complementos-hidden" value="${complementosJson}">
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary" style="margin-top: 10px;">
+                            ${data ? 'Actualizar Plato' : 'Guardar Plato'}
+                        </button>
                     </form>
                 `;
+                
+                // Inicializar el editor de complementos con los datos existentes
+                // Nota: Se hace después de que ModalManager.abrir() inserte el contenido
+                setTimeout(() => {
+                    initComplementosEditor(data?.complementos || []);
+                }, 50);
             }
 
             // Usar ModalManager para abrir
@@ -2296,12 +2457,23 @@
             event.preventDefault();
             const formData = new FormData(event.target);
             const id = formData.get('id');
+            
+            // Parsear complementos desde el campo hidden
+            let complementos = [];
+            try {
+                const compStr = formData.get('complementos') || '[]';
+                complementos = JSON.parse(compStr);
+            } catch (e) {
+                complementos = [];
+            }
+            
             const data = {
                 nombre: formData.get('nombre'),
                 precio: parseFloat(formData.get('precio')),
                 stock: parseInt(formData.get('stock')),
                 categoria: formData.get('categoria'),
-                tipo: formData.get('tipo')
+                tipo: formData.get('tipo'),
+                complementos: complementos
             };
 
             try {
@@ -6804,6 +6976,240 @@
 
         // Cargar datos iniciales
         loadMesas();
+        
+        // ============================================================
+        // EDITOR DE COMPLEMENTOS DE PLATO
+        // ============================================================
+        
+        // Estado en memoria del editor de complementos
+        let complementosEditorData = [];
+        
+        /**
+         * Inicializa el editor de complementos con datos existentes del plato.
+         * @param {Array} complementos - Array de grupos de complementos del plato
+         */
+        function initComplementosEditor(complementos) {
+            complementosEditorData = JSON.parse(JSON.stringify(complementos || [])); // deep copy
+            renderComplementosEditor();
+        }
+        
+        /**
+         * Renderiza todos los grupos de complementos en el DOM.
+         */
+        function renderComplementosEditor() {
+            const container = document.getElementById('complementos-container');
+            if (!container) return;
+            
+            if (complementosEditorData.length === 0) {
+                container.innerHTML = `
+                    <p style="color: #aaa; font-style: italic; font-size: 13px; padding: 10px 0;">
+                        Sin complementos definidos. Haz clic en "+ Agregar Grupo" para empezar.
+                    </p>`;
+                syncComplementosHidden();
+                return;
+            }
+            
+            container.innerHTML = complementosEditorData.map((grupo, gi) => `
+                <div style="border: 1px solid #ddd; border-radius: 8px; padding: 14px; margin-bottom: 12px; background: #fafafa;">
+                    
+                    <!-- Header del grupo -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <strong style="color: #444; font-size: 14px;">Grupo ${gi + 1}</strong>
+                        <button type="button" onclick="eliminarGrupoComplemento(${gi})"
+                            style="background: #f5576c; color: white; border: none; border-radius: 4px; 
+                                   padding: 3px 10px; cursor: pointer; font-size: 12px;">
+                            Eliminar grupo
+                        </button>
+                    </div>
+                    
+                    <!-- Nombre del grupo -->
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label style="font-size: 13px;">Nombre del grupo <span style="color: red">*</span></label>
+                        <input type="text" 
+                            value="${grupo.grupo || ''}" 
+                            placeholder="Ej: Proteína, Guarnición, Término de cocción"
+                            oninput="actualizarGrupoComplemento(${gi}, 'grupo', this.value)"
+                            style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                    </div>
+                    
+                    <!-- Opciones del grupo -->
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label style="font-size: 13px;">Opciones disponibles <span style="color: red">*</span></label>
+                        <div id="opciones-grupo-${gi}">
+                            ${(grupo.opciones || []).map((op, oi) => `
+                                <div style="display: flex; gap: 8px; margin-bottom: 6px; align-items: center;">
+                                    <input type="text" 
+                                        value="${op}" 
+                                        placeholder="Ej: Pollo, Con ensalada..."
+                                        oninput="actualizarOpcionComplemento(${gi}, ${oi}, this.value)"
+                                        style="flex: 1; padding: 7px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                                    <button type="button" onclick="eliminarOpcionComplemento(${gi}, ${oi})"
+                                        style="background: #ff6b6b; color: white; border: none; border-radius: 4px; 
+                                               padding: 4px 10px; cursor: pointer; font-size: 12px; white-space: nowrap;">
+                                        ✕
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <button type="button" onclick="agregarOpcionComplemento(${gi})"
+                            style="margin-top: 4px; padding: 5px 12px; background: #28a745; color: white; 
+                                   border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">
+                            + Agregar opción
+                        </button>
+                    </div>
+                    
+                    <!-- Configuración del grupo -->
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;">
+                            <input type="checkbox" 
+                                ${grupo.obligatorio ? 'checked' : ''} 
+                                onchange="actualizarGrupoComplemento(${gi}, 'obligatorio', this.checked)">
+                            <span>Obligatorio</span>
+                            <span style="color: #888; font-size: 11px;">(el mozo debe elegir una opción)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;">
+                            <input type="checkbox" 
+                                ${grupo.seleccionMultiple ? 'checked' : ''} 
+                                onchange="actualizarGrupoComplemento(${gi}, 'seleccionMultiple', this.checked)">
+                            <span>Selección múltiple</span>
+                            <span style="color: #888; font-size: 11px;">(puede elegir varias opciones)</span>
+                        </label>
+                    </div>
+                </div>
+            `).join('');
+            
+            syncComplementosHidden();
+        }
+        
+        /** Agrega un nuevo grupo vacío */
+        function agregarGrupoComplemento() {
+            complementosEditorData.push({
+                grupo: '',
+                obligatorio: false,
+                seleccionMultiple: false,
+                opciones: ['']
+            });
+            renderComplementosEditor();
+        }
+        
+        /** Elimina un grupo por índice */
+        function eliminarGrupoComplemento(gi) {
+            complementosEditorData.splice(gi, 1);
+            renderComplementosEditor();
+        }
+        
+        /** Actualiza una propiedad de un grupo (grupo, obligatorio, seleccionMultiple) */
+        function actualizarGrupoComplemento(gi, campo, valor) {
+            if (complementosEditorData[gi]) {
+                complementosEditorData[gi][campo] = valor;
+                syncComplementosHidden(); // Solo sync, no re-render (evita perder focus del input)
+            }
+        }
+        
+        /** Actualiza el texto de una opción */
+        function actualizarOpcionComplemento(gi, oi, valor) {
+            if (complementosEditorData[gi]?.opciones?.[oi] !== undefined) {
+                complementosEditorData[gi].opciones[oi] = valor;
+                syncComplementosHidden();
+            }
+        }
+        
+        /** Agrega una opción vacía a un grupo */
+        function agregarOpcionComplemento(gi) {
+            if (complementosEditorData[gi]) {
+                complementosEditorData[gi].opciones = complementosEditorData[gi].opciones || [];
+                complementosEditorData[gi].opciones.push('');
+                renderComplementosEditor();
+            }
+        }
+        
+        /** Elimina una opción de un grupo */
+        function eliminarOpcionComplemento(gi, oi) {
+            if (complementosEditorData[gi]?.opciones) {
+                complementosEditorData[gi].opciones.splice(oi, 1);
+                renderComplementosEditor();
+            }
+        }
+        
+        /** Sincroniza el estado en memoria con el campo hidden del form */
+        function syncComplementosHidden() {
+            const hidden = document.getElementById('complementos-hidden');
+            if (hidden) {
+                // Limpiar opciones vacías antes de guardar
+                const limpio = complementosEditorData
+                    .filter(g => g.grupo && g.grupo.trim() !== '')
+                    .map(g => ({
+                        ...g,
+                        grupo: g.grupo.trim(),
+                        opciones: (g.opciones || []).filter(o => o && o.trim() !== '').map(o => o.trim())
+                    }));
+                hidden.value = JSON.stringify(limpio);
+            }
+        }
+        
+        // ============================================================
+        // FUNCIONES DE SCROLL PARA TABLAS
+        // ============================================================
+        
+        /**
+         * Desplaza una tabla horizontalmente y actualiza los indicadores de scroll
+         * @param {string} containerId - ID del contenedor de la tabla
+         * @param {number} amount - Cantidad de píxeles a desplazar (positivo = derecha, negativo = izquierda)
+         */
+        function scrollTable(containerId, amount) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            container.scrollBy({ left: amount, behavior: 'smooth' });
+        }
+        
+        /**
+         * Actualiza la visibilidad de los indicadores de scroll según la posición
+         */
+        function updateScrollIndicators(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            const scrollLeft = container.scrollLeft;
+            const maxScroll = container.scrollWidth - container.clientWidth;
+            
+            const leftIndicator = container.querySelector('.scroll-left');
+            const rightIndicator = container.querySelector('.scroll-right');
+            
+            if (leftIndicator) {
+                leftIndicator.style.opacity = scrollLeft > 10 ? '1' : '0';
+                leftIndicator.style.pointerEvents = scrollLeft > 10 ? 'auto' : 'none';
+            }
+            
+            if (rightIndicator) {
+                rightIndicator.style.opacity = scrollLeft < maxScroll - 10 ? '1' : '0';
+                rightIndicator.style.pointerEvents = scrollLeft < maxScroll - 10 ? 'auto' : 'none';
+            }
+        }
+        
+        // Agregar listeners para actualizar indicadores cuando se hace scroll
+        document.addEventListener('DOMContentLoaded', function() {
+            // Observar cuando se carga la tabla de platos
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.target.id === 'platos-list' || mutation.target.querySelector('#platos-table-container')) {
+                        const tableContainer = document.getElementById('platos-table-container');
+                        if (tableContainer) {
+                            tableContainer.addEventListener('scroll', function() {
+                                updateScrollIndicators('platos-table-container');
+                            });
+                            // Inicializar indicadores
+                            setTimeout(() => updateScrollIndicators('platos-table-container'), 100);
+                        }
+                    }
+                });
+            });
+            
+            const platosList = document.getElementById('platos-list');
+            if (platosList) {
+                observer.observe(platosList, { childList: true, subtree: true });
+            }
+        });
     </script>
 </body>
 </html>

@@ -23,7 +23,14 @@ const platoSchema = new mongoose.Schema({
     isActive: {
         type: Boolean,
         default: true
-    }
+    },
+    // Complementos/variantes disponibles para este plato
+    complementos: [{
+        grupo: { type: String, required: true },           // Ej: "Proteína", "Guarnición", "Término"
+        obligatorio: { type: Boolean, default: false },    // Si el mozo DEBE elegir una opción
+        seleccionMultiple: { type: Boolean, default: false }, // Si puede elegir varias opciones
+        opciones: [{ type: String }]                       // Ej: ["Pollo", "Carne", "Mixto"]
+    }]
 });
 
 // Índices para queries por tipo y categoría

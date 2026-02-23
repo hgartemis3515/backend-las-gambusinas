@@ -277,11 +277,30 @@ const crearPlato = async (data) => {
 };
 
 const actualizarPlato = async (id, newData) => {
-    const anterior = await plato.findOne({ id: Number(id) }).lean();
-    await plato.findOneAndUpdate({ id: id }, newData);
+    const mongoose = require('mongoose');
+    
+    // Buscar el plato por _id (ObjectId) o por id numérico
+    let filter;
+    if (mongoose.Types.ObjectId.isValid(id) && String(id).length === 24) {
+        filter = { _id: id };
+    } else {
+        const numId = Number(id);
+        filter = isNaN(numId) ? { _id: id } : { id: numId };
+    }
+    
+    const anterior = await plato.findOne(filter).lean();
+    if (!anterior) {
+        const err = new Error('Plato no encontrado para actualizar');
+        err.statusCode = 404;
+        throw err;
+    }
+    
+    await plato.findOneAndUpdate(filter, newData, { new: true });
+    
     if (anterior?.tipo) invalidatePlatoMenuCache(anterior.tipo);
     if (newData.tipo) invalidatePlatoMenuCache(newData.tipo);
-    const actualizado = await plato.findOne({ id: Number(id) });
+    
+    const actualizado = await plato.findOne(filter);
     if (actualizado && global.emitPlatoMenuActualizado) await global.emitPlatoMenuActualizado(actualizado).catch(() => {});
     const todosLosPlatos = await listarPlatos();
     await syncJsonFile('platos.json', todosLosPlatos);

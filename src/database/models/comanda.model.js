@@ -37,6 +37,13 @@ const comandaSchema = new mongoose.Schema({
             entregado: Date,
             pagado: Date
         },
+        // Complementos seleccionados por el mozo para este plato
+        complementosSeleccionados: [{
+            grupo: { type: String },   // Ej: "Proteína"
+            opcion: { type: String }   // Ej: "Pollo"
+        }],
+        // Nota especial para este plato (ej: "Sin sal, extra limón")
+        notaEspecial: { type: String, default: '' },
         // 🔥 AUDITORÍA: Campos para tracking de eliminación
         eliminado: { 
             type: Boolean, 
