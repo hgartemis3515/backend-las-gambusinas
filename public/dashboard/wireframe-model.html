@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Modelo Dashboard — Las Gambusinas (Wireframe)</title>
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a28;
+            --gold: #d4af37;
+            --gold-dim: rgba(212,175,55,0.25);
+            --emerald: #00d4aa;
+            --amber: #ffa502;
+            --rose: #ff4757;
+            --sapphire: #5352ed;
+            --text: #ffffff;
+            --text-dim: rgba(255,255,255,0.65);
+            --text-muted: rgba(255,255,255,0.35);
+            --border: rgba(255,255,255,0.06);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-primary); color: var(--text); min-height: 100vh; }
+
+        /* Topbar */
+        .topbar {
+            height: 68px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+        }
+        .topbar-left { display: flex; align-items: center; gap: 16px; }
+        .logo { color: var(--gold); font-weight: 700; font-size: 1.1rem; }
+        .search { width: 280px; height: 40px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 0 12px; color: var(--text); }
+        .search::placeholder { color: var(--text-muted); }
+        .topbar-right { display: flex; align-items: center; gap: 20px; }
+        .topbar-right span { color: var(--text-dim); font-size: 0.9rem; }
+        .icon-btn { width: 40px; height: 40px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-dim); cursor: pointer; position: relative; }
+        .icon-btn .badge { position: absolute; top: 4px; right: 4px; background: var(--rose); color: #fff; font-size: 10px; padding: 2px 5px; border-radius: 10px; }
+        .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--gold-dim); border: 1px solid var(--gold); }
+
+        /* Layout principal */
+        .layout { display: flex; min-height: calc(100vh - 68px); }
+        .sidebar {
+            width: 270px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 16px 0;
+            display: flex; flex-direction: column;
+        }
+        .sidebar-item { padding: 12px 20px; color: var(--text-dim); display: flex; align-items: center; gap: 12px; cursor: pointer; border-left: 3px solid transparent; }
+        .sidebar-item:hover { background: var(--bg-card); color: var(--text); }
+        .sidebar-item.active { color: var(--gold); border-left-color: var(--gold); background: rgba(212,175,55,0.08); }
+        .sidebar-item .icon { width: 20px; text-align: center; }
+        .sidebar-footer { margin-top: auto; padding: 16px 20px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+        .sidebar-footer .avatar { width: 32px; height: 32px; }
+        .sidebar-footer .name { font-size: 0.9rem; color: var(--text); }
+        .sidebar-footer .role { font-size: 0.75rem; color: var(--text-muted); }
+
+        .content { flex: 1; padding: 24px; overflow: auto; }
+        .content h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 4px; }
+        .content .sub { color: var(--text-dim); font-size: 0.9rem; margin-bottom: 24px; display: flex; align-items: center; gap: 16px; }
+        .content .sub button { padding: 8px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-dim); cursor: pointer; font-size: 0.85rem; }
+        .content .sub button:hover { color: var(--gold); border-color: var(--gold-dim); }
+
+        /* KPI cards */
+        .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--gold-dim);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        .kpi-card .icon { color: var(--gold); font-size: 1.5rem; margin-bottom: 8px; }
+        .kpi-card .label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+        .kpi-card .value { font-size: 1.5rem; font-weight: 700; color: var(--text); }
+        .kpi-card .extra { font-size: 0.8rem; color: var(--text-dim); margin-top: 4px; }
+
+        /* Dos columnas */
+        .two-cols { display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; margin-bottom: 24px; }
+        .panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; min-height: 280px; }
+        .panel h3 { font-size: 0.9rem; color: var(--text-dim); margin-bottom: 16px; font-weight: 500; }
+        .mesas-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+        .mesa-tile {
+            aspect-ratio: 1;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.9rem;
+            border: 2px solid;
+        }
+        .mesa-tile.libre { border-color: var(--emerald); background: rgba(0,212,170,0.1); }
+        .mesa-tile.ocupada { border-color: var(--amber); background: rgba(255,165,2,0.1); }
+        .mesa-tile.pagando { border-color: var(--rose); background: rgba(255,71,87,0.1); }
+        .mesa-tile.reservada { border-color: var(--sapphire); background: rgba(83,82,237,0.1); }
+        .chart-placeholder { height: 200px; background: rgba(255,255,255,0.03); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.9rem; }
+
+        /* Actividad */
+        .actividad { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; }
+        .actividad h3 { font-size: 0.9rem; color: var(--text-dim); margin-bottom: 12px; font-weight: 500; }
+        .actividad ul { list-style: none; }
+        .actividad li { padding: 10px 0; border-bottom: 1px solid var(--border); color: var(--text-dim); font-size: 0.9rem; }
+        .actividad li:last-child { border-bottom: none; }
+
+        .wireframe-badge { position: fixed; bottom: 16px; right: 16px; background: var(--bg-card); border: 1px solid var(--gold-dim); color: var(--text-muted); padding: 8px 12px; border-radius: 8px; font-size: 0.75rem; }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-left">
+            <span class="logo">🍽️ Las Gambusinas</span>
+            <input type="text" class="search" placeholder="Buscar...">
+        </div>
+        <div class="topbar-right">
+            <span>12:34</span>
+            <button type="button" class="icon-btn">🔔 <span class="badge">2</span></button>
+            <div class="avatar" title="Usuario"></div>
+        </div>
+    </header>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-item active"><span class="icon">📊</span> Dashboard</div>
+            <div class="sidebar-item"><span class="icon">🪑</span> Mesas</div>
+            <div class="sidebar-item"><span class="icon">🗺️</span> Áreas</div>
+            <div class="sidebar-item"><span class="icon">👤</span> Mozos</div>
+            <div class="sidebar-item"><span class="icon">🍲</span> Platos</div>
+            <div class="sidebar-item"><span class="icon">📋</span> Comandas</div>
+            <div class="sidebar-item"><span class="icon">🧾</span> Bouchers</div>
+            <div class="sidebar-item"><span class="icon">👥</span> Clientes</div>
+            <div class="sidebar-item"><span class="icon">🔍</span> Auditoría</div>
+            <div class="sidebar-item"><span class="icon">💰</span> Cierre Caja</div>
+            <div class="sidebar-footer">
+                <div class="avatar"></div>
+                <div>
+                    <div class="name">Admin</div>
+                    <div class="role">Gerente</div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="content">
+            <h1>Buenas tardes, Admin</h1>
+            <div class="sub">
+                <span>Lunes 23 Feb 2026</span>
+                <button>↺ Actualizar</button>
+                <button>📊 Exportar</button>
+            </div>
+
+            <div class="kpi-grid">
+                <div class="kpi-card"><div class="icon">🪑</div><div class="label">Mesas</div><div class="value">12 / 20</div><div class="extra">60%</div></div>
+                <div class="kpi-card"><div class="icon">💰</div><div class="label">Ventas</div><div class="value">S/. 2k</div><div class="extra">47 tickets</div></div>
+                <div class="kpi-card"><div class="icon">🍲</div><div class="label">Platos top</div><div class="value">Ceviche</div><div class="extra">Paella</div></div>
+                <div class="kpi-card"><div class="icon">👤</div><div class="label">Mozos</div><div class="value">Juan</div><div class="extra">S/. 980</div></div>
+                <div class="kpi-card"><div class="icon">🔔</div><div class="label">Alertas</div><div class="value">2</div><div class="extra">pendientes</div></div>
+            </div>
+
+            <div class="two-cols">
+                <div class="panel">
+                    <h3>Mapa de mesas</h3>
+                    <div class="mesas-grid">
+                        <div class="mesa-tile libre">M1</div>
+                        <div class="mesa-tile ocupada">M2</div>
+                        <div class="mesa-tile libre">M3</div>
+                        <div class="mesa-tile pagando">M4</div>
+                        <div class="mesa-tile ocupada">M5</div>
+                        <div class="mesa-tile reservada">M6</div>
+                        <div class="mesa-tile libre">M7</div>
+                        <div class="mesa-tile libre">M8</div>
+                        <div class="mesa-tile ocupada">M9</div>
+                        <div class="mesa-tile libre">M10</div>
+                    </div>
+                </div>
+                <div class="panel">
+                    <h3>Ventas por hora</h3>
+                    <div class="chart-placeholder">Gráfica (placeholder)</div>
+                </div>
+            </div>
+
+            <div class="actividad">
+                <h3>Actividad reciente</h3>
+                <ul>
+                    <li>Mesa 5 — Juan — Ceviche x2</li>
+                    <li>Mesa 2 — María — Paella x1</li>
+                    <li>Mesa 4 — Pedro — Cierre de cuenta</li>
+                </ul>
+            </div>
+        </main>
+    </div>
+
+    <div class="wireframe-badge">Modelo wireframe — Ver DESIGN_MODEL_DASHBOARD.md para Pencil/Figma</div>
+</body>
+</html>

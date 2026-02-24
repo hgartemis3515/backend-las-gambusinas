@@ -3,22 +3,16 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>Las Gambusinas - Dashboard Premium</title>
+    <title>Las Gambusinas - Dashboard Premium v2.0</title>
     
     <!-- Favicon -->
     <link rel="shortcut icon" href="/dashboard/assets/images/favicon.ico" />
     
-    <!-- Bootstrap 4 -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" integrity="sha384-xOolHFLEh07PJGoPkLv1IbcEPTNtaed2xpHsD9ESMhqIYd0nLMwNLD69Npy4HI+N" crossorigin="anonymous">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
-    
-    <!-- Line Awesome -->
-    <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css">
-    
-    <!-- Remix Icon (para ri-menu-line como PosDash) -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css">
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     
     <!-- Custom CSS -->
     <link rel="stylesheet" href="/dashboard/assets/css/dashboard-premium.css">
@@ -37,9 +31,9 @@
             }
         })();
         
-        // FUNCIÓN LOGOUT GLOBAL - Disponible INMEDIATAMENTE
+        // FUNCIÓN LOGOUT GLOBAL
         window.logout = function() {
-            console.log('🚪 LOGOUT EJECUTADO');
+            console.log('Logout ejecutado');
             try {
                 localStorage.removeItem('adminToken');
                 localStorage.removeItem('theme');
@@ -51,7 +45,7 @@
         
         window.cerrarSesion = window.logout;
         
-        // FUNCIÓN TOGGLE DROPDOWN - Disponible INMEDIATAMENTE
+        // FUNCIÓN TOGGLE DROPDOWN
         window.toggleDropdown = function(tipo) {
             const dropdowns = {
                 'notificaciones': 'dropdownNotifications',
@@ -66,10 +60,10 @@
             if (!toggleEl) return;
             
             let menuEl = toggleEl.nextElementSibling;
-            if (!menuEl || !menuEl.classList.contains('dropdown-menu')) {
+            if (!menuEl || !menuEl.classList.contains('dropdown-menu') && !menuEl.classList.contains('iq-sub-dropdown')) {
                 const parentLi = toggleEl.closest('li');
                 if (parentLi) {
-                    menuEl = parentLi.querySelector('.dropdown-menu');
+                    menuEl = parentLi.querySelector('.dropdown-menu, .iq-sub-dropdown');
                 }
             }
             
@@ -77,12 +71,10 @@
             
             const isOpen = menuEl.classList.contains('show');
             
-            // Cerrar todos
-            document.querySelectorAll('.dropdown-menu').forEach(m => {
+            document.querySelectorAll('.dropdown-menu, .iq-sub-dropdown').forEach(m => {
                 if (m !== menuEl) m.classList.remove('show');
             });
             
-            // Toggle actual
             if (isOpen) {
                 menuEl.classList.remove('show');
             } else {
@@ -90,7 +82,7 @@
             }
         };
         
-        // FUNCIÓN TOGGLE MODO - Disponible INMEDIATAMENTE
+        // FUNCIÓN TOGGLE MODO
         window.toggleModo = function() {
             const isDark = document.body.classList.contains('theme-dark') || !document.body.classList.contains('theme-light');
             if (isDark) {
@@ -107,12 +99,10 @@
                 if (icon) icon.className = 'las la-moon';
             }
         };
-        
-        console.log('✅ Funciones globales registradas');
     </script>
 </head>
-<body class="dashboard-premium" onload="document.getElementById('loading') && (document.getElementById('loading').style.display = 'none')">
-    <!-- Loader SVG Aprycot -->
+<body class="dashboard-premium theme-dark" onload="document.getElementById('loading') && (document.getElementById('loading').style.display = 'none')">
+    <!-- Loader SVG -->
     <div id="loading">
         <div class="loader simple-loader">
             <svg width="257" height="76" viewBox="0 0 257 76" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -140,16 +130,18 @@
     <!-- Wrapper Start -->
     <div class="wrapper">
         <!-- Sidebar -->
-        <div class="iq-sidebar sidebar-premium">
+        <aside class="iq-sidebar sidebar-premium">
             <div class="iq-sidebar-logo d-flex align-items-center justify-content-between">
                 <a href="/dashboard" class="header-logo">
-                    <h5 class="logo-title ml-3">🍽️ Las Gambusinas</h5>
+                    <h5 class="logo-title m-0">🍽️ <span>Las Gambusinas</span></h5>
                 </a>
-                <div class="iq-menu-bt-sidebar ml-0">
+                <div class="iq-menu-bt-sidebar">
                     <i class="las la-bars wrapper-menu"></i>
                 </div>
             </div>
-            <div class="sidebar-user-info p-3 border-top border-bottom" style="border-color: rgba(212, 175, 55, 0.2) !important;">
+            
+            <!-- User Info -->
+            <div class="sidebar-user-info">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
                         <small class="text-muted d-block">Usuario</small>
@@ -160,341 +152,423 @@
                     </button>
                 </div>
             </div>
-            <div class="data-scrollbar" data-scroll="1">
-                <nav class="iq-sidebar-menu">
-                    <ul id="iq-sidebar-toggle" class="iq-menu">
-                        <li class="active">
-                            <a href="/dashboard" data-page="dashboard" class="svg-icon">
-                                <i class="las la-home"></i>
-                                <span class="ml-4">Dashboard</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="/dashboard/pages/mesas.html" data-page="mesas">
-                                <i class="las la-clipboard-list"></i>
-                                <span class="ml-4">Mesas</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="/dashboard/pages/areas.html" data-page="areas">
-                                <i class="las la-map-marked-alt"></i>
-                                <span class="ml-4">Áreas</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="/dashboard/pages/mozos.html" data-page="mozos">
-                                <i class="las la-users"></i>
-                                <span class="ml-4">Mozos</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="/dashboard/pages/platos.html" data-page="platos">
-                                <i class="las la-utensils"></i>
-                                <span class="ml-4">Platos</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="/dashboard/pages/comandas.html" data-page="comandas">
-                                <i class="las la-file-invoice"></i>
-                                <span class="ml-4">Comandas</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="/dashboard/pages/bouchers.html" data-page="bouchers">
-                                <i class="las la-receipt"></i>
-                                <span class="ml-4">Bouchers</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="/dashboard/pages/clientes.html" data-page="clientes">
-                                <i class="las la-user-friends"></i>
-                                <span class="ml-4">Clientes</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="/dashboard/pages/auditoria.html" data-page="auditoria">
-                                <i class="las la-search"></i>
-                                <span class="ml-4">Auditoría</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="/dashboard/pages/cierre-caja.html" data-page="cierre-caja">
-                                <i class="las la-cash-register"></i>
-                                <span class="ml-4">Cierre Caja</span>
-                            </a>
-                        </li>
-                    </ul>
-                </nav>
-            </div>
-        </div>
+            
+            <nav class="iq-sidebar-menu">
+                <ul id="iq-sidebar-toggle" class="iq-menu">
+                    <li class="active">
+                        <a href="/dashboard" data-page="dashboard">
+                            <i class="las la-home"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/dashboard/pages/mesas.html" data-page="mesas">
+                            <i class="las la-clipboard-list"></i>
+                            <span>Mesas</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/dashboard/pages/areas.html" data-page="areas">
+                            <i class="las la-map-marked-alt"></i>
+                            <span>Áreas</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/dashboard/pages/mozos.html" data-page="mozos">
+                            <i class="las la-users"></i>
+                            <span>Mozos</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/dashboard/pages/platos.html" data-page="platos">
+                            <i class="las la-utensils"></i>
+                            <span>Platos</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/dashboard/pages/comandas.html" data-page="comandas">
+                            <i class="las la-file-invoice"></i>
+                            <span>Comandas</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/dashboard/pages/bouchers.html" data-page="bouchers">
+                            <i class="las la-receipt"></i>
+                            <span>Bouchers</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/dashboard/pages/clientes.html" data-page="clientes">
+                            <i class="las la-user-friends"></i>
+                            <span>Clientes</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/dashboard/pages/auditoria.html" data-page="auditoria">
+                            <i class="las la-search"></i>
+                            <span>Auditoría</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/dashboard/pages/cierre-caja.html" data-page="cierre-caja">
+                            <i class="las la-cash-register"></i>
+                            <span>Cierre Caja</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
         
-        <!-- Top Navbar Start -->
-        <div class="iq-top-navbar">
+        <!-- Top Navbar -->
+        <header class="iq-top-navbar">
             <div class="iq-navbar-custom">
-                <nav class="navbar navbar-expand-lg navbar-light p-0">
-                    <div class="iq-navbar-logo d-flex align-items-center justify-content-between">
+                <nav class="navbar p-0">
+                    <div class="iq-navbar-logo">
                         <i class="las la-bars wrapper-menu"></i>
                         <a href="/dashboard" class="header-logo">
-                            <h5 class="logo-title ml-3">🍽️ Las Gambusinas</h5>
+                            <span>🍽️ Las Gambusinas</span>
                         </a>
                     </div>
                     
                     <!-- Búsqueda Global -->
-                    <div class="iq-search-bar device-search">
-                        <form action="#" class="searchbox" id="searchForm">
-                            <a class="search-link" href="#" onclick="event.preventDefault(); document.getElementById('searchInput').focus();">
+                    <div class="iq-search-bar">
+                        <form class="searchbox" id="searchForm">
+                            <input type="text" class="search-input" id="searchInput" placeholder="Buscar mesas, platos, clientes...">
+                            <a class="search-link" href="#">
                                 <i class="las la-search"></i>
                             </a>
-                            <input type="text" class="text search-input" id="searchInput" placeholder="Buscar mesas, platos, clientes...">
                             <div class="search-results" id="searchResults"></div>
                         </form>
                     </div>
                     
-                    <div class="d-flex align-items-center">
-                        <button class="navbar-toggler" type="button" data-toggle="collapse"
-                            data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent"
-                            aria-label="Toggle navigation">
-                            <i class="las la-bars"></i>
-                        </button>
-                        <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                            <ul class="navbar-nav ml-auto navbar-list align-items-center">
-                                
-                                <!-- Estado Caja -->
-                                <li class="nav-item nav-icon">
-                                    <a href="#" class="caja-status-badge caja-abierta" id="cajaStatus" onclick="event.preventDefault(); mostrarModalCaja();">
-                                        <span id="cajaStatusText"><i class="las la-cash-register"></i> Abierta S/. 0.00</span>
-                                    </a>
-                                </li>
-                                
-                                <!-- Alertas Urgentes -->
-                                <li class="nav-item nav-icon">
-                                    <a href="#" class="alertas-urgentes-badge" id="alertasUrgentes" onclick="event.preventDefault(); mostrarAlertasUrgentes();">
-                                        <i class="las la-exclamation-triangle"></i>
-                                        <span class="badge-count" id="alertasCount">0</span>
-                                    </a>
-                                </li>
-                                
-                                <!-- Notificaciones -->
-                                <li class="nav-item nav-icon dropdown">
-                                    <a href="#" class="search-toggle dropdown-toggle" id="dropdownNotifications"
-                                        onclick="event.preventDefault(); toggleDropdown('notificaciones');" aria-haspopup="true" aria-expanded="false">
-                                        <i class="las la-bell"></i>
-                                        <span class="bg-primary badge-notification" id="notificacionesBadge">0</span>
-                                    </a>
-                                    <div class="iq-sub-dropdown dropdown-menu dropdown-menu-right" aria-labelledby="dropdownNotifications">
-                                        <div class="card shadow-none m-0">
-                                            <div class="card-body p-0">
-                                                <div class="cust-title p-3">
-                                                    <div class="d-flex align-items-center justify-content-between">
-                                                        <h5 class="mb-0">Notificaciones</h5>
-                                                        <a class="badge badge-primary badge-card" href="#" id="notificacionesCount">0</a>
-                                                    </div>
-                                                </div>
-                                                <div class="px-3 pt-0 pb-0 sub-card" id="notificacionesList">
-                                                    <div class="text-center p-3">
-                                                        <i class="las la-spinner la-spin"></i> Cargando...
-                                                    </div>
-                                                </div>
-                                                <a class="right-ic btn btn-primary btn-block position-relative p-2" href="#" role="button" onclick="marcarTodasLeidas();">
-                                                    Marcar todas como leídas
-                                                </a>
-                                            </div>
-                                        </div>
+                    <ul class="navbar-nav ml-auto navbar-list align-items-center">
+                        <!-- Estado Caja -->
+                        <li class="nav-item">
+                            <a href="#" class="caja-status-badge caja-abierta" id="cajaStatus" onclick="event.preventDefault();">
+                                <span id="cajaStatusText"><i class="las la-cash-register"></i> Abierta S/. 0.00</span>
+                            </a>
+                        </li>
+                        
+                        <!-- Alertas -->
+                        <li class="nav-item nav-icon">
+                            <a href="#" class="alertas-urgentes-badge" id="alertasUrgentes">
+                                <i class="las la-exclamation-triangle"></i>
+                                <span class="badge-count" id="alertasCount">0</span>
+                            </a>
+                        </li>
+                        
+                        <!-- Notificaciones -->
+                        <li class="nav-item nav-icon dropdown">
+                            <a href="#" class="dropdown-toggle" id="dropdownNotifications" onclick="event.preventDefault(); toggleDropdown('notificaciones');">
+                                <i class="las la-bell"></i>
+                                <span class="badge-notification" id="notificacionesBadge">0</span>
+                            </a>
+                            <div class="iq-sub-dropdown dropdown-menu" aria-labelledby="dropdownNotifications">
+                                <div class="cust-title">
+                                    <h5>Notificaciones</h5>
+                                    <span class="badge badge-card" id="notificacionesCount">0</span>
+                                </div>
+                                <div class="sub-card" id="notificacionesList">
+                                    <div class="text-center p-3">
+                                        <i class="las la-spinner la-spin"></i> Cargando...
                                     </div>
-                                </li>
-                                
-                                <!-- Mensajes -->
-                                <li class="nav-item nav-icon dropdown">
-                                    <a href="#" class="search-toggle dropdown-toggle" id="dropdownMessages"
-                                        onclick="event.preventDefault(); toggleDropdown('mensajes');" aria-haspopup="true" aria-expanded="false">
-                                        <i class="las la-envelope"></i>
-                                        <span class="bg-primary badge-notification" id="mensajesBadge">0</span>
-                                    </a>
-                                    <div class="iq-sub-dropdown dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMessages">
-                                        <div class="card shadow-none m-0">
-                                            <div class="card-body p-0">
-                                                <div class="cust-title p-3">
-                                                    <div class="d-flex align-items-center justify-content-between">
-                                                        <h5 class="mb-0">Mensajes</h5>
-                                                        <a class="badge badge-primary badge-card" href="#" id="mensajesCount">0</a>
-                                                    </div>
-                                                </div>
-                                                <div class="px-3 pt-0 pb-0 sub-card" id="mensajesList">
-                                                    <div class="text-center p-3">
-                                                        <i class="las la-spinner la-spin"></i> Cargando...
-                                                    </div>
-                                                </div>
-                                                <a class="right-ic btn btn-primary btn-block position-relative p-2" href="#" role="button">
-                                                    Ver todos los mensajes
-                                                </a>
-                                            </div>
-                                        </div>
+                                </div>
+                                <a class="right-ic" href="#" onclick="marcarTodasLeidas();">
+                                    Marcar todas como leídas
+                                </a>
+                            </div>
+                        </li>
+                        
+                        <!-- Mensajes -->
+                        <li class="nav-item nav-icon dropdown">
+                            <a href="#" class="dropdown-toggle" id="dropdownMessages" onclick="event.preventDefault(); toggleDropdown('mensajes');">
+                                <i class="las la-envelope"></i>
+                                <span class="badge-notification" id="mensajesBadge">0</span>
+                            </a>
+                            <div class="iq-sub-dropdown dropdown-menu" aria-labelledby="dropdownMessages">
+                                <div class="cust-title">
+                                    <h5>Mensajes</h5>
+                                    <span class="badge badge-card" id="mensajesCount">0</span>
+                                </div>
+                                <div class="sub-card" id="mensajesList">
+                                    <div class="text-center p-3">
+                                        <i class="las la-spinner la-spin"></i> Cargando...
                                     </div>
-                                </li>
-                                
-                                <!-- Modo Oscuro/Claro -->
-                                <li class="nav-item nav-icon">
-                                    <a href="#" class="modo-toggle" id="modoToggle" onclick="event.preventDefault(); toggleModo();" title="Cambiar tema">
-                                        <i class="las la-moon" id="modoIcon"></i>
-                                    </a>
-                                </li>
-                                
-                                <!-- Usuario -->
-                                <li class="nav-item nav-icon dropdown caption-content">
-                                    <a href="#" class="search-toggle dropdown-toggle" id="dropdownUser"
-                                        onclick="event.preventDefault(); toggleDropdown('usuario');" aria-haspopup="true" aria-expanded="false">
-                                        <img src="/dashboard/assets/images/user/1.jpg" class="img-fluid rounded" alt="user" id="userAvatar" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Ccircle cx=%2220%22 cy=%2220%22 r=%2218%22 fill=%22%23d4af37%22/%3E%3Ctext x=%2220%22 y=%2225%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2216%22 font-weight=%22bold%22%3EA%3C/text%3E%3C/svg%3E'">
-                                    </a>
-                                    <div class="iq-sub-dropdown dropdown-menu dropdown-menu-right" aria-labelledby="dropdownUser">
-                                        <div class="card shadow-none m-0">
-                                            <div class="card-body p-0 text-center">
-                                                <div class="media-body profile-detail text-center">
-                                                    <img src="/dashboard/assets/images/user/1.jpg" alt="profile-img"
-                                                        class="rounded profile-img img-fluid avatar-70 mb-2">
-                                                </div>
-                                                <div class="p-3">
-                                                    <h5 class="mb-1" id="userName">Admin</h5>
-                                                    <p class="mb-0" id="userRole">Gerente</p>
-                                                    <div class="d-flex align-items-center justify-content-center mt-3">
-                                                        <a href="#" class="btn border mr-2 logout-btn" onclick="event.preventDefault(); mostrarPerfil();">Perfil</a>
-                                                        <a href="#" class="btn border logout-btn" onclick="event.preventDefault(); if(typeof logout === 'function') { logout(); } else { localStorage.removeItem('adminToken'); window.location.href='/dashboard/login.html'; }">Salir</a>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                </div>
+                                <a class="right-ic" href="#">
+                                    Ver todos los mensajes
+                                </a>
+                            </div>
+                        </li>
+                        
+                        <!-- Modo Oscuro/Claro -->
+                        <li class="nav-item nav-icon">
+                            <a href="#" class="modo-toggle" id="modoToggle" onclick="event.preventDefault(); toggleModo();" title="Cambiar tema">
+                                <i class="las la-moon" id="modoIcon"></i>
+                            </a>
+                        </li>
+                        
+                        <!-- Usuario -->
+                        <li class="nav-item nav-icon dropdown caption-content">
+                            <a href="#" class="dropdown-toggle" id="dropdownUser" onclick="event.preventDefault(); toggleDropdown('usuario');">
+                                <img src="/dashboard/assets/images/user/1.jpg" class="rounded-circle" width="32" height="32" alt="user" id="userAvatar" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2214%22 fill=%22%23d4af37%22/%3E%3Ctext x=%2216%22 y=%2220%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2212%22 font-weight=%22bold%22%3EA%3C/text%3E%3C/svg%3E'">
+                            </a>
+                            <div class="iq-sub-dropdown dropdown-menu" aria-labelledby="dropdownUser">
+                                <div class="profile-detail text-center">
+                                    <img src="/dashboard/assets/images/user/1.jpg" alt="profile" class="profile-img img-fluid avatar-70 mb-3">
+                                    <h5 id="userName">Admin</h5>
+                                    <p id="userRole">Gerente</p>
+                                    <div class="d-flex justify-content-center gap-2 mt-3">
+                                        <a href="#" class="btn btn-sm border" onclick="event.preventDefault();">Perfil</a>
+                                        <a href="#" class="btn btn-sm logout-btn" onclick="event.preventDefault(); logout();">Salir</a>
                                     </div>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
                 </nav>
             </div>
-        </div>
-        <!-- Top Navbar END -->
+        </header>
         
         <!-- Main Content -->
-        <div class="content-page">
+        <main class="content-page">
             <div class="container-fluid">
                 <!-- Page Header -->
-                <div class="row">
-                    <div class="col-lg-12">
-                        <div class="iq-card iq-card-block iq-card-stretch iq-card-height">
-                            <div class="iq-card-header d-flex justify-content-between align-items-center">
-                                <div class="iq-header-title">
-                                    <h4 class="card-title">Dashboard Principal</h4>
-                                    <p class="text-muted mb-0">Vista general del restaurante en tiempo real</p>
-                                </div>
-                                <div class="d-flex align-items-center gap-3">
-                                    <button class="btn btn-sm btn-outline-gold" onclick="refreshDashboard()" title="Actualizar todos los datos">
-                                        <i class="las la-sync"></i> Actualizar
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger logout-btn" onclick="if(typeof logout === 'function') { logout(); } else { localStorage.removeItem('adminToken'); window.location.href='/dashboard/login.html'; }" title="Cerrar sesión">
-                                        <i class="las la-sign-out-alt"></i> Salir
-                                    </button>
-                                </div>
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                            <div>
+                                <h4 class="mb-1" style="color: var(--text-primary); font-weight: 700;">Buenas tardes, Admin</h4>
+                                <p style="color: var(--text-muted); font-size: 0.875rem; margin: 0;">
+                                    <span id="current-date">Lunes 23 Feb 2026</span>
+                                </p>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-ghost btn-sm" onclick="refreshDashboard()" title="Actualizar">
+                                    <i class="las la-sync"></i>
+                                </button>
+                                <button class="btn btn-outline-gold btn-sm" onclick="logout()">
+                                    <i class="las la-sign-out-alt"></i> Salir
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- 5 Cards Principales -->
+                <!-- KPI Cards -->
                 <div class="row">
-                    <!-- Card 1: Mesas Real-Time -->
-                    <div class="col-lg-4 col-md-6">
-                        <div class="iq-card iq-card-block iq-card-stretch iq-card-height premium-card">
+                    <!-- Card 1: Mesas -->
+                    <div class="col-12 col-md-6 col-lg-4 col-xl">
+                        <div class="kpi-card premium-card">
                             <div class="iq-card-body">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <div>
-                                        <h6 class="card-title text-uppercase text-muted mb-2">Mesas Ocupadas</h6>
-                                        <h2 class="counter mb-0" data-target="12">0</h2>
-                                        <p class="text-muted mb-0">de <span id="total-mesas">20</span> mesas</p>
+                                <div class="kpi-header">
+                                    <div class="kpi-content">
+                                        <div class="kpi-label">Mesas Ocupadas</div>
+                                        <div class="kpi-value"><span class="counter" data-target="12">0</span> / <span id="total-mesas">20</span></div>
+                                        <div class="kpi-subtitle">60% ocupación</div>
                                     </div>
-                                    <div class="icon-box icon-box-premium">
+                                    <div class="kpi-icon emerald">
                                         <i class="las la-clipboard-list"></i>
                                     </div>
                                 </div>
-                                <div class="mt-3">
-                                    <div class="progress progress-premium" style="height: 8px;">
-                                        <div class="progress-bar progress-bar-premium" role="progressbar" style="width: 60%" aria-valuenow="60" aria-valuemin="0" aria-valuemax="100"></div>
+                                <div class="kpi-footer">
+                                    <div class="kpi-progress">
+                                        <div class="kpi-progress-bar emerald" style="width: 60%"></div>
                                     </div>
-                                    <small class="text-muted mt-2 d-block">60% ocupación</small>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Card 2: Ventas Hoy -->
-                    <div class="col-lg-4 col-md-6">
-                        <div class="iq-card iq-card-block iq-card-stretch iq-card-height premium-card">
+                    <!-- Card 2: Ventas -->
+                    <div class="col-12 col-md-6 col-lg-4 col-xl">
+                        <div class="kpi-card premium-card">
                             <div class="iq-card-body">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <div>
-                                        <h6 class="card-title text-uppercase text-muted mb-2">Ventas Hoy</h6>
-                                        <h2 class="counter mb-0" data-target="2450">0</h2>
-                                        <p class="text-muted mb-0">S/. <span class="counter" data-target="2450">0</span> | <span id="tickets-hoy">47</span> tickets</p>
+                                <div class="kpi-header">
+                                    <div class="kpi-content">
+                                        <div class="kpi-label">Ventas Hoy</div>
+                                        <div class="kpi-value">S/. <span class="counter" data-target="2450">0</span></div>
+                                        <div class="kpi-subtitle"><span id="tickets-hoy">47</span> tickets</div>
                                     </div>
-                                    <div class="icon-box icon-box-premium icon-box-sales">
+                                    <div class="kpi-icon gold">
                                         <i class="las la-chart-line"></i>
                                     </div>
                                 </div>
-                                <div class="mt-3">
-                                    <span class="badge badge-success badge-premium">+12% vs ayer</span>
+                                <div class="kpi-footer">
+                                    <span class="kpi-badge success">
+                                        <i class="las la-arrow-up"></i> +12% vs ayer
+                                    </span>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Card 3: Top Platos -->
-                    <div class="col-lg-4 col-md-6">
-                        <div class="iq-card iq-card-block iq-card-stretch iq-card-height premium-card">
+                    <!-- Card 3: Platos -->
+                    <div class="col-12 col-md-6 col-lg-4 col-xl">
+                        <div class="kpi-card premium-card">
                             <div class="iq-card-body">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <div>
-                                        <h6 class="card-title text-uppercase text-muted mb-2">Top Platos</h6>
-                                        <h5 class="mb-1">Ceviche</h5>
-                                        <p class="text-muted mb-0"><span class="counter" data-target="12">0</span> unidades</p>
-                                        <small class="text-muted">Paella: <span class="counter" data-target="8">0</span> und</small>
+                                <div class="kpi-header">
+                                    <div class="kpi-content">
+                                        <div class="kpi-label">Top Platos</div>
+                                        <div class="kpi-value" style="font-size: 1.25rem;">Ceviche</div>
+                                        <div class="kpi-subtitle"><span class="counter" data-target="12">0</span> unidades</div>
                                     </div>
-                                    <div class="icon-box icon-box-premium icon-box-platos">
+                                    <div class="kpi-icon violet">
                                         <i class="las la-utensils"></i>
                                     </div>
+                                </div>
+                                <div class="kpi-footer">
+                                    <span style="font-size: 0.75rem; color: var(--text-muted);">
+                                        Paella: <span class="counter" data-target="8">0</span> und
+                                    </span>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
                     <!-- Card 4: Mozos -->
-                    <div class="col-lg-4 col-md-6">
-                        <div class="iq-card iq-card-block iq-card-stretch iq-card-height premium-card">
+                    <div class="col-12 col-md-6 col-lg-4 col-xl">
+                        <div class="kpi-card premium-card">
                             <div class="iq-card-body">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <div>
-                                        <h6 class="card-title text-uppercase text-muted mb-2">Top Mozos</h6>
-                                        <h5 class="mb-1">Juan</h5>
-                                        <p class="text-muted mb-0">S/. <span class="counter" data-target="980">0</span> | <span id="mesas-mozo-1">18</span> mesas</p>
-                                        <small class="text-muted">María: S/. <span class="counter" data-target="720">0</span></small>
+                                <div class="kpi-header">
+                                    <div class="kpi-content">
+                                        <div class="kpi-label">Top Mozo</div>
+                                        <div class="kpi-value" style="font-size: 1.25rem;">Juan</div>
+                                        <div class="kpi-subtitle">S/. <span class="counter" data-target="980">0</span> | <span id="mesas-mozo-1">18</span> mesas</div>
                                     </div>
-                                    <div class="icon-box icon-box-premium icon-box-mozos">
+                                    <div class="kpi-icon sapphire">
                                         <i class="las la-user-tie"></i>
                                     </div>
+                                </div>
+                                <div class="kpi-footer">
+                                    <span style="font-size: 0.75rem; color: var(--text-muted);">
+                                        María: S/. <span class="counter" data-target="720">0</span>
+                                    </span>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
                     <!-- Card 5: Alertas -->
-                    <div class="col-lg-4 col-md-6">
-                        <div class="iq-card iq-card-block iq-card-stretch iq-card-height premium-card">
+                    <div class="col-12 col-md-6 col-lg-4 col-xl">
+                        <div class="kpi-card premium-card">
                             <div class="iq-card-body">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <div>
-                                        <h6 class="card-title text-uppercase text-muted mb-2">Alertas</h6>
-                                        <h5 class="mb-1"><span id="alertas-count">2</span> pendientes</h5>
-                                        <p class="text-muted mb-0">Mesas pagadas pendientes</p>
-                                        <small class="text-success">Cierre caja listo</small>
+                                <div class="kpi-header">
+                                    <div class="kpi-content">
+                                        <div class="kpi-label">Alertas</div>
+                                        <div class="kpi-value"><span id="alertas-count">2</span></div>
+                                        <div class="kpi-subtitle">Mesas pendientes</div>
                                     </div>
-                                    <div class="icon-box icon-box-premium icon-box-alertas">
+                                    <div class="kpi-icon rose">
                                         <i class="las la-bell"></i>
+                                    </div>
+                                </div>
+                                <div class="kpi-footer">
+                                    <span class="kpi-badge warning">
+                                        <i class="las la-clock"></i> Cierre caja listo
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Second Row: Mapa Mesas + Gráfica -->
+                <div class="row mt-4">
+                    <!-- Mapa de Mesas -->
+                    <div class="col-12 col-lg-8">
+                        <div class="iq-card">
+                            <div class="iq-card-header">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <h5 style="color: var(--gold-primary); font-weight: 600; margin: 0;">
+                                        <i class="las la-map"></i> Mapa de Mesas
+                                    </h5>
+                                    <div class="d-flex gap-2">
+                                        <span class="badge" style="background: rgba(0,212,170,0.15); color: var(--accent-emerald); border: 1px solid rgba(0,212,170,0.3); font-size: 0.7rem;">● Libre</span>
+                                        <span class="badge" style="background: rgba(255,165,2,0.15); color: var(--accent-amber); border: 1px solid rgba(255,165,2,0.3); font-size: 0.7rem;">● Ocupada</span>
+                                        <span class="badge" style="background: rgba(255,71,87,0.15); color: var(--accent-rose); border: 1px solid rgba(255,71,87,0.3); font-size: 0.7rem;">● Pagando</span>
+                                        <span class="badge" style="background: rgba(83,82,237,0.15); color: var(--accent-sapphire); border: 1px solid rgba(83,82,237,0.3); font-size: 0.7rem;">● Reservada</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="iq-card-body">
+                                <div class="mesa-grid" id="mesaGrid">
+                                    <!-- Mesas generadas dinámicamente -->
+                                    <div class="mesa-tile libre"><span>1</span></div>
+                                    <div class="mesa-tile libre"><span>2</span></div>
+                                    <div class="mesa-tile ocupada"><span>3</span><span class="mesa-badge">1:23</span></div>
+                                    <div class="mesa-tile libre"><span>4</span></div>
+                                    <div class="mesa-tile pagando"><span>5</span></div>
+                                    <div class="mesa-tile libre"><span>6</span></div>
+                                    <div class="mesa-tile ocupada"><span>7</span><span class="mesa-badge">0:45</span></div>
+                                    <div class="mesa-tile libre"><span>8</span></div>
+                                    <div class="mesa-tile libre"><span>9</span></div>
+                                    <div class="mesa-tile reservada"><span>10</span><span class="mesa-badge">🔒</span></div>
+                                    <div class="mesa-tile libre"><span>11</span></div>
+                                    <div class="mesa-tile ocupada"><span>12</span><span class="mesa-badge">0:30</span></div>
+                                    <div class="mesa-tile libre"><span>13</span></div>
+                                    <div class="mesa-tile libre"><span>14</span></div>
+                                    <div class="mesa-tile libre"><span>15</span></div>
+                                    <div class="mesa-tile libre"><span>16</span></div>
+                                    <div class="mesa-tile libre"><span>17</span></div>
+                                    <div class="mesa-tile libre"><span>18</span></div>
+                                    <div class="mesa-tile libre"><span>19</span></div>
+                                    <div class="mesa-tile libre"><span>20</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Gráfica Ventas -->
+                    <div class="col-12 col-lg-4">
+                        <div class="iq-card h-100">
+                            <div class="iq-card-header">
+                                <h5 style="color: var(--gold-primary); font-weight: 600; margin: 0;">
+                                    <i class="las la-chart-bar"></i> Ventas por Hora
+                                </h5>
+                            </div>
+                            <div class="iq-card-body">
+                                <canvas id="ventasChart" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Third Row: Actividad Reciente -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="activity-feed">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <h5 style="color: var(--gold-primary); font-weight: 600; margin: 0;">
+                                    <i class="las la-history"></i> Actividad Reciente
+                                </h5>
+                            </div>
+                            <div id="activityList">
+                                <div class="activity-item">
+                                    <div class="activity-icon" style="background: rgba(0, 212, 170, 0.15); color: var(--accent-emerald);">
+                                        <i class="las la-receipt"></i>
+                                    </div>
+                                    <div class="activity-content">
+                                        <div class="activity-title">Mesa 5 — Juan — Ceviche x2</div>
+                                        <div class="activity-time">Hace 5 minutos</div>
+                                    </div>
+                                </div>
+                                <div class="activity-item">
+                                    <div class="activity-icon" style="background: rgba(255, 165, 2, 0.15); color: var(--accent-amber);">
+                                        <i class="las la-credit-card"></i>
+                                    </div>
+                                    <div class="activity-content">
+                                        <div class="activity-title">Mesa 2 — María — Paella x1</div>
+                                        <div class="activity-time">Hace 12 minutos</div>
+                                    </div>
+                                </div>
+                                <div class="activity-item">
+                                    <div class="activity-icon" style="background: rgba(212, 175, 55, 0.15); color: var(--gold-primary);">
+                                        <i class="las la-utensils"></i>
+                                    </div>
+                                    <div class="activity-content">
+                                        <div class="activity-title">Comanda #58 lista para servir</div>
+                                        <div class="activity-time">Hace 20 minutos</div>
                                     </div>
                                 </div>
                             </div>
@@ -502,7 +576,7 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </main>
     </div>
     
     <!-- Modal -->
@@ -510,22 +584,63 @@
         <div class="modal-content-premium">
             <div class="modal-header-premium">
                 <h5 id="modal-title">Modal</h5>
-                <span class="close-modal" onclick="closeModal()">&times;</span>
+                <button class="close-modal" onclick="closeModal()">&times;</button>
             </div>
             <div id="modal-body" class="modal-body-premium"></div>
         </div>
     </div>
     
+    <!-- Sidebar Overlay (Mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    
     <!-- Scripts -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-+sLIOodYLS7CIrQpBjl+C7nPvqq+FbNUBDunl/OZv93DB7Ln/533i8e/mZXLi/P+" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/waypoints@4.0.1/lib/noframework.waypoints.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/counterup2@2.0.2/dist/index.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <!-- Bootstrap 5 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="/dashboard/assets/js/animations.js"></script>
     <script src="/dashboard/assets/js/sidebar.js"></script>
-    <script src="/dashboard/assets/js/admin-functions.js"></script>
     <script src="/dashboard/assets/js/header.js"></script>
+    <script src="/dashboard/assets/js/admin-functions.js"></script>
     <script src="/dashboard/assets/js/dashboard.js"></script>
+    
+    <script>
+        // Initialize Lucide icons
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+        
+        // Set current date
+        document.getElementById('current-date').textContent = new Date().toLocaleDateString('es-ES', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        });
+        
+        // Close modal function
+        function closeModal() {
+            const modal = document.getElementById('modal');
+            if (modal) {
+                modal.classList.remove('active');
+                modal.style.display = 'none';
+            }
+        }
+        
+        // Refresh dashboard
+        function refreshDashboard() {
+            if (typeof window.loadDashboardDataWithTimeout === 'function') {
+                window.loadDashboardDataWithTimeout();
+            } else {
+                location.reload();
+            }
+        }
+    </script>
 </body>
 </html>
-
-
