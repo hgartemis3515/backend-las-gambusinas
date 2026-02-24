@@ -212,132 +212,10 @@
           "name": "Topbar",
           "fill": "#12121a",
           "width": 1170,
-          "height": 68
-        },
-        {
-          "type": "text",
-          "id": "eaBNz",
-          "x": 298,
-          "y": 24,
-          "name": "Hamburger",
-          "fill": "#d4af37",
-          "content": "☰",
-          "textAlign": "center",
-          "fontFamily": "Inter",
-          "fontSize": 20,
-          "fontWeight": "normal"
-        },
-        {
-          "type": "rectangle",
-          "cornerRadius": 8,
-          "id": "D8Llo",
-          "x": 350,
-          "y": 18,
-          "name": "Search Bar",
-          "fill": "#1a1a28",
-          "width": 320,
-          "height": 32,
+          "height": 72,
           "stroke": {
             "thickness": 1,
             "fill": "#d4af3740"
-          }
-        },
-        {
-          "type": "text",
-          "id": "yGMNB",
-          "x": 366,
-          "y": 24,
-          "name": "Search Placeholder",
-          "fill": "#5a5a7a",
-          "content": "🔍 Buscar...",
-          "fontFamily": "Inter",
-          "fontSize": 14,
-          "fontWeight": "normal"
-        },
-        {
-          "type": "text",
-          "id": "dVyHh",
-          "x": 1100,
-          "y": 24,
-          "name": "Clock",
-          "fill": "#d4af37",
-          "textGrowth": "fixed-width",
-          "width": 80,
-          "content": "09:45:32",
-          "textAlign": "right",
-          "fontFamily": "Inter",
-          "fontSize": 15,
-          "fontWeight": "600"
-        },
-        {
-          "type": "ellipse",
-          "id": "6AjFn",
-          "x": 1196,
-          "y": 28,
-          "name": "Online Dot",
-          "fill": "#00d4aa",
-          "width": 8,
-          "height": 8
-        },
-        {
-          "type": "text",
-          "id": "qxxo7",
-          "x": 1210,
-          "y": 24,
-          "name": "Online Text",
-          "fill": "#a0a0b8",
-          "content": "Online",
-          "fontFamily": "Inter",
-          "fontSize": 13,
-          "fontWeight": "normal"
-        },
-        {
-          "type": "text",
-          "id": "xV6Wl",
-          "x": 1290,
-          "y": 22,
-          "name": "Bell",
-          "content": "🔔",
-          "textAlign": "center",
-          "fontFamily": "Inter",
-          "fontSize": 20,
-          "fontWeight": "normal"
-        },
-        {
-          "type": "ellipse",
-          "id": "qvmD1",
-          "x": 1304,
-          "y": 20,
-          "name": "Badge",
-          "fill": "#ff4757",
-          "width": 16,
-          "height": 16
-        },
-        {
-          "type": "text",
-          "id": "cc4sA",
-          "x": 1304,
-          "y": 22,
-          "name": "Badge Number",
-          "fill": "#ffffff",
-          "content": "3",
-          "textAlign": "center",
-          "fontFamily": "Inter",
-          "fontSize": 10,
-          "fontWeight": "700"
-        },
-        {
-          "type": "ellipse",
-          "id": "fJn2z",
-          "x": 1340,
-          "y": 18,
-          "name": "Topbar Avatar",
-          "fill": "#d4af3740",
-          "width": 32,
-          "height": 32,
-          "stroke": {
-            "thickness": 2,
-            "fill": "#d4af37"
           }
         },
         {
@@ -1508,6 +1386,258 @@
           "fontFamily": "Inter",
           "fontSize": 12,
           "fontWeight": "500"
+        },
+        {
+          "type": "rectangle",
+          "cornerRadius": 10,
+          "id": "OhSNC",
+          "x": 282,
+          "y": 14,
+          "name": "Hamburger BG",
+          "fill": "transparent",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "type": "text",
+          "id": "Szjbk",
+          "x": 282,
+          "y": 22,
+          "name": "Hamburger",
+          "fill": "#d4af37",
+          "textGrowth": "fixed-width",
+          "width": 44,
+          "content": "☰",
+          "textAlign": "center",
+          "fontFamily": "Inter",
+          "fontSize": 22,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "8ICXk",
+          "x": 338,
+          "y": 28,
+          "name": "Breadcrumb",
+          "fill": "#a0a0b8",
+          "content": "🏠 > Dashboard",
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "rectangle",
+          "cornerRadius": 22,
+          "id": "lPQCZ",
+          "x": 540,
+          "y": 14,
+          "name": "Search Global",
+          "fill": "#1a1a28",
+          "width": 420,
+          "height": 44,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3740"
+          }
+        },
+        {
+          "type": "text",
+          "id": "YPQsK",
+          "x": 572,
+          "y": 26,
+          "name": "Search Placeholder",
+          "fill": "#5a5a7a",
+          "content": "🔍 Buscar mesas, comandas, platos, clientes... (Ctrl+K)",
+          "fontFamily": "Inter",
+          "fontSize": 12,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "QMlTr",
+          "x": 982,
+          "y": 16,
+          "name": "Clock Time",
+          "fill": "#ffffff",
+          "content": "14:32:18",
+          "fontFamily": "Inter",
+          "fontSize": 16,
+          "fontWeight": "600"
+        },
+        {
+          "type": "text",
+          "id": "EegNQ",
+          "x": 982,
+          "y": 40,
+          "name": "Clock Date",
+          "fill": "#a0a0b8",
+          "content": "Mar 24 Feb 2026",
+          "fontFamily": "Inter",
+          "fontSize": 11,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "line",
+          "id": "6APif",
+          "x": 1126,
+          "y": 14,
+          "width": 1,
+          "height": 44,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3720"
+          }
+        },
+        {
+          "type": "ellipse",
+          "id": "sXS7r",
+          "x": 1140,
+          "y": 18,
+          "name": "Status Dot",
+          "fill": "#2ecc71",
+          "width": 10,
+          "height": 10
+        },
+        {
+          "type": "text",
+          "id": "n0HEC",
+          "x": 1156,
+          "y": 16,
+          "name": "Status Text",
+          "fill": "#2ecc71",
+          "content": "Online",
+          "fontFamily": "Inter",
+          "fontSize": 12,
+          "fontWeight": "600"
+        },
+        {
+          "type": "text",
+          "id": "Mu9BO",
+          "x": 1140,
+          "y": 38,
+          "name": "Status Detail",
+          "fill": "#5a5a7a",
+          "content": "8 mozos | 2 cocinas",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "line",
+          "id": "oAUKY",
+          "x": 1270,
+          "y": 14,
+          "width": 1,
+          "height": 44,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3720"
+          }
+        },
+        {
+          "type": "rectangle",
+          "cornerRadius": 10,
+          "id": "ax0XC",
+          "x": 1284,
+          "y": 14,
+          "name": "Shortcuts BG",
+          "fill": "transparent",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "type": "text",
+          "id": "4oULU",
+          "x": 1284,
+          "y": 22,
+          "name": "Shortcuts Icon",
+          "fill": "#d4af37",
+          "textGrowth": "fixed-width",
+          "width": 44,
+          "content": "⚡",
+          "textAlign": "center",
+          "fontFamily": "Inter",
+          "fontSize": 20,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "rectangle",
+          "cornerRadius": 10,
+          "id": "ueU2z",
+          "x": 1340,
+          "y": 14,
+          "name": "Notif BG",
+          "fill": "transparent",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "type": "text",
+          "id": "D20Eh",
+          "x": 1340,
+          "y": 22,
+          "name": "Notif Icon",
+          "fill": "#ffffff",
+          "textGrowth": "fixed-width",
+          "width": 44,
+          "content": "🔔",
+          "textAlign": "center",
+          "fontFamily": "Inter",
+          "fontSize": 20,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "ellipse",
+          "id": "unNRC",
+          "x": 1368,
+          "y": 10,
+          "name": "Notif Badge",
+          "fill": "#ff4757",
+          "width": 20,
+          "height": 20
+        },
+        {
+          "type": "text",
+          "id": "HtOx7",
+          "x": 1368,
+          "y": 13,
+          "name": "Notif Badge Num",
+          "fill": "#ffffff",
+          "textGrowth": "fixed-width",
+          "width": 20,
+          "content": "5",
+          "textAlign": "center",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "700"
+        },
+        {
+          "type": "ellipse",
+          "id": "rAVfw",
+          "x": 1396,
+          "y": 18,
+          "name": "Profile Avatar",
+          "fill": "#d4af3740",
+          "width": 36,
+          "height": 36,
+          "stroke": {
+            "thickness": 2,
+            "fill": "#d4af37"
+          }
+        },
+        {
+          "type": "ellipse",
+          "id": "louPY",
+          "x": 1422,
+          "y": 46,
+          "name": "Profile Status",
+          "fill": "#2ecc71",
+          "width": 10,
+          "height": 10,
+          "stroke": {
+            "thickness": 2,
+            "fill": "#12121a"
+          }
         }
       ]
     },
@@ -24622,6 +24752,1618 @@
             "thickness": 1,
             "fill": "#d4af3720"
           }
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "O5MN3",
+      "x": 3000,
+      "y": 8100,
+      "name": "Dropdown — Notificaciones",
+      "clip": true,
+      "width": 340,
+      "height": 420,
+      "fill": "#0a0a0f",
+      "layout": "none",
+      "children": [
+        {
+          "type": "rectangle",
+          "cornerRadius": 12,
+          "id": "ELNRY",
+          "x": 0,
+          "y": 0,
+          "name": "DD BG",
+          "fill": "#1a1a28",
+          "width": 340,
+          "height": 420,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3740"
+          }
+        },
+        {
+          "type": "rectangle",
+          "cornerRadius": [
+            12,
+            12,
+            0,
+            0
+          ],
+          "id": "L0vZV",
+          "x": 0,
+          "y": 0,
+          "name": "DD Header",
+          "fill": "#12121a",
+          "width": 340,
+          "height": 52
+        },
+        {
+          "type": "text",
+          "id": "0aFiX",
+          "x": 20,
+          "y": 16,
+          "fill": "#ffffff",
+          "content": "Notificaciones",
+          "fontFamily": "Inter",
+          "fontSize": 15,
+          "fontWeight": "600"
+        },
+        {
+          "type": "text",
+          "id": "jGE1C",
+          "x": 190,
+          "y": 20,
+          "fill": "#d4af37",
+          "content": "Marcar todas como leídas",
+          "fontFamily": "Inter",
+          "fontSize": 11,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "rectangle",
+          "cornerRadius": 14,
+          "id": "9TIh3",
+          "x": 20,
+          "y": 56,
+          "fill": "#d4af3720",
+          "width": 80,
+          "height": 28
+        },
+        {
+          "type": "text",
+          "id": "yWld6",
+          "x": 20,
+          "y": 62,
+          "fill": "#d4af37",
+          "textGrowth": "fixed-width",
+          "width": 80,
+          "content": "Todas (5)",
+          "textAlign": "center",
+          "fontFamily": "Inter",
+          "fontSize": 11,
+          "fontWeight": "600"
+        },
+        {
+          "type": "rectangle",
+          "cornerRadius": 14,
+          "id": "9Egqb",
+          "x": 108,
+          "y": 56,
+          "fill": "transparent",
+          "width": 100,
+          "height": 28
+        },
+        {
+          "type": "text",
+          "id": "oMmxn",
+          "x": 108,
+          "y": 62,
+          "fill": "#a0a0b8",
+          "textGrowth": "fixed-width",
+          "width": 100,
+          "content": "No leídas (3)",
+          "textAlign": "center",
+          "fontFamily": "Inter",
+          "fontSize": 11,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "line",
+          "id": "5piis",
+          "x": 0,
+          "y": 92,
+          "width": 340,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3720"
+          }
+        },
+        {
+          "type": "rectangle",
+          "id": "Es1ZO",
+          "x": 0,
+          "y": 93,
+          "fill": "#d4af3720",
+          "width": 340,
+          "height": 64
+        },
+        {
+          "type": "ellipse",
+          "id": "fWWP8",
+          "x": 20,
+          "y": 105,
+          "fill": "#ff4757",
+          "width": 8,
+          "height": 8
+        },
+        {
+          "type": "text",
+          "id": "q8iuO",
+          "x": 40,
+          "y": 102,
+          "fill": "#ffffff",
+          "content": "🔴 Mesa 8 sin liberar",
+          "fontFamily": "Inter",
+          "fontSize": 12,
+          "fontWeight": "600"
+        },
+        {
+          "type": "text",
+          "id": "xNaPo",
+          "x": 40,
+          "y": 120,
+          "fill": "#a0a0b8",
+          "content": "La mesa lleva 15+ min en estado pagado",
+          "fontFamily": "Inter",
+          "fontSize": 11,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "VrQ4Y",
+          "x": 40,
+          "y": 138,
+          "fill": "#5a5a7a",
+          "content": "hace 2 min",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "ellipse",
+          "id": "kJ6Lz",
+          "x": 310,
+          "y": 114,
+          "fill": "#d4af37",
+          "width": 8,
+          "height": 8
+        },
+        {
+          "type": "line",
+          "id": "JpeU7",
+          "x": 20,
+          "y": 157,
+          "width": 300,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3710"
+          }
+        },
+        {
+          "type": "rectangle",
+          "id": "AuOHe",
+          "x": 0,
+          "y": 158,
+          "fill": "#d4af3715",
+          "width": 340,
+          "height": 64
+        },
+        {
+          "type": "ellipse",
+          "id": "TIRl2",
+          "x": 20,
+          "y": 170,
+          "fill": "#ffa502",
+          "width": 8,
+          "height": 8
+        },
+        {
+          "type": "text",
+          "id": "BIezX",
+          "x": 40,
+          "y": 167,
+          "fill": "#ffffff",
+          "content": "🟡 Stock bajo: Inca Kola",
+          "fontFamily": "Inter",
+          "fontSize": 12,
+          "fontWeight": "600"
+        },
+        {
+          "type": "text",
+          "id": "vI7Em",
+          "x": 40,
+          "y": 185,
+          "fill": "#a0a0b8",
+          "content": "Quedan solo 5 unidades en inventario",
+          "fontFamily": "Inter",
+          "fontSize": 11,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "TBJlx",
+          "x": 40,
+          "y": 203,
+          "fill": "#5a5a7a",
+          "content": "hace 12 min",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "ellipse",
+          "id": "KvGkD",
+          "x": 310,
+          "y": 179,
+          "fill": "#d4af37",
+          "width": 8,
+          "height": 8
+        },
+        {
+          "type": "line",
+          "id": "bYjqW",
+          "x": 20,
+          "y": 222,
+          "width": 300,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3710"
+          }
+        },
+        {
+          "type": "rectangle",
+          "id": "MX9EA",
+          "x": 0,
+          "y": 223,
+          "fill": "transparent",
+          "width": 340,
+          "height": 64
+        },
+        {
+          "type": "text",
+          "id": "bZlBY",
+          "x": 40,
+          "y": 232,
+          "fill": "#ffffff",
+          "content": "🔵 Nueva comanda #312",
+          "fontFamily": "Inter",
+          "fontSize": 12,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "A9iAD",
+          "x": 40,
+          "y": 250,
+          "fill": "#a0a0b8",
+          "content": "Mesa 5 • 4 platos • Juan Pérez",
+          "fontFamily": "Inter",
+          "fontSize": 11,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "iIVeg",
+          "x": 40,
+          "y": 268,
+          "fill": "#5a5a7a",
+          "content": "hace 25 min",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "ellipse",
+          "id": "lSdzZ",
+          "x": 310,
+          "y": 244,
+          "fill": "#d4af37",
+          "width": 8,
+          "height": 8
+        },
+        {
+          "type": "line",
+          "id": "iwzej",
+          "x": 20,
+          "y": 287,
+          "width": 300,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3710"
+          }
+        },
+        {
+          "type": "text",
+          "id": "Ja2XH",
+          "x": 40,
+          "y": 297,
+          "fill": "#a0a0b8",
+          "content": "🟢 Pago procesado S/.185",
+          "fontFamily": "Inter",
+          "fontSize": 12,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "qnYma",
+          "x": 40,
+          "y": 315,
+          "fill": "#5a5a7a",
+          "content": "Mesa 2 • Visa • Admin",
+          "fontFamily": "Inter",
+          "fontSize": 11,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "9lz8e",
+          "x": 40,
+          "y": 333,
+          "fill": "#5a5a7a",
+          "content": "hace 1 hora",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "line",
+          "id": "odUFi",
+          "x": 20,
+          "y": 352,
+          "width": 300,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3710"
+          }
+        },
+        {
+          "type": "text",
+          "id": "eYWJc",
+          "x": 40,
+          "y": 362,
+          "fill": "#a0a0b8",
+          "content": "🟢 Comanda #308 lista",
+          "fontFamily": "Inter",
+          "fontSize": 12,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "yzRv8",
+          "x": 40,
+          "y": 380,
+          "fill": "#5a5a7a",
+          "content": "Mesa 12 • Terraza • 3 platos",
+          "fontFamily": "Inter",
+          "fontSize": 11,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "line",
+          "id": "tiCIC",
+          "x": 0,
+          "y": 398,
+          "width": 340,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3730"
+          }
+        },
+        {
+          "type": "text",
+          "id": "AswaZ",
+          "x": 88,
+          "y": 404,
+          "fill": "#d4af37",
+          "content": "Ver todas las notificaciones",
+          "fontFamily": "Inter",
+          "fontSize": 12,
+          "fontWeight": "normal"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "mDzXb",
+      "x": 3400,
+      "y": 8100,
+      "name": "Dropdown — Perfil Usuario",
+      "clip": true,
+      "width": 280,
+      "height": 420,
+      "fill": "#0a0a0f",
+      "layout": "none",
+      "children": [
+        {
+          "type": "rectangle",
+          "cornerRadius": 12,
+          "id": "g61Bz",
+          "x": 0,
+          "y": 0,
+          "name": "DD BG",
+          "fill": "#1a1a28",
+          "width": 280,
+          "height": 420,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3740"
+          }
+        },
+        {
+          "type": "rectangle",
+          "cornerRadius": [
+            12,
+            12,
+            0,
+            0
+          ],
+          "id": "VgomB",
+          "x": 0,
+          "y": 0,
+          "fill": "#12121a",
+          "width": 280,
+          "height": 130
+        },
+        {
+          "type": "ellipse",
+          "id": "VfABN",
+          "x": 108,
+          "y": 20,
+          "fill": "#d4af3740",
+          "width": 64,
+          "height": 64,
+          "stroke": {
+            "thickness": 2,
+            "fill": "#d4af37"
+          }
+        },
+        {
+          "type": "text",
+          "id": "x9NMi",
+          "x": 0,
+          "y": 90,
+          "fill": "#ffffff",
+          "textGrowth": "fixed-width",
+          "width": 280,
+          "content": "Admin Principal",
+          "textAlign": "center",
+          "fontFamily": "Inter",
+          "fontSize": 15,
+          "fontWeight": "600"
+        },
+        {
+          "type": "text",
+          "id": "pU6pa",
+          "x": 0,
+          "y": 110,
+          "fill": "#5a5a7a",
+          "textGrowth": "fixed-width",
+          "width": 280,
+          "content": "admin@lasgambusinas.com",
+          "textAlign": "center",
+          "fontFamily": "Inter",
+          "fontSize": 11,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "rectangle",
+          "cornerRadius": 11,
+          "id": "1Ix6D",
+          "x": 100,
+          "y": 128,
+          "fill": "#d4af3720",
+          "width": 80,
+          "height": 22
+        },
+        {
+          "type": "text",
+          "id": "zFIDp",
+          "x": 100,
+          "y": 132,
+          "fill": "#d4af37",
+          "textGrowth": "fixed-width",
+          "width": 80,
+          "content": "Administrador",
+          "textAlign": "center",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "600"
+        },
+        {
+          "type": "line",
+          "id": "4EDQs",
+          "x": 20,
+          "y": 158,
+          "width": 240,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3720"
+          }
+        },
+        {
+          "type": "text",
+          "id": "NpcOb",
+          "x": 20,
+          "y": 170,
+          "fill": "#a0a0b8",
+          "content": "👤 Mi perfil",
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "Az1SG",
+          "x": 20,
+          "y": 200,
+          "fill": "#a0a0b8",
+          "content": "⚙️ Configuración",
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "line",
+          "id": "1ejwW",
+          "x": 20,
+          "y": 228,
+          "width": 240,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3720"
+          }
+        },
+        {
+          "type": "text",
+          "id": "KAgk3",
+          "x": 20,
+          "y": 242,
+          "fill": "#a0a0b8",
+          "content": "🎨 Modo oscuro",
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "rectangle",
+          "cornerRadius": 11,
+          "id": "7CbHN",
+          "x": 220,
+          "y": 240,
+          "fill": "#d4af37",
+          "width": 40,
+          "height": 22
+        },
+        {
+          "type": "ellipse",
+          "id": "7Wmxb",
+          "x": 240,
+          "y": 242,
+          "fill": "#ffffff",
+          "width": 18,
+          "height": 18
+        },
+        {
+          "type": "text",
+          "id": "af7pt",
+          "x": 20,
+          "y": 272,
+          "fill": "#a0a0b8",
+          "content": "🔔 Notificaciones",
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "rectangle",
+          "cornerRadius": 11,
+          "id": "Qkg63",
+          "x": 220,
+          "y": 270,
+          "fill": "#d4af37",
+          "width": 40,
+          "height": 22
+        },
+        {
+          "type": "ellipse",
+          "id": "Qh2Zd",
+          "x": 240,
+          "y": 272,
+          "fill": "#ffffff",
+          "width": 18,
+          "height": 18
+        },
+        {
+          "type": "text",
+          "id": "0FPie",
+          "x": 20,
+          "y": 302,
+          "fill": "#a0a0b8",
+          "content": "🌐 Idioma: Español",
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "746JY",
+          "x": 248,
+          "y": 304,
+          "fill": "#a0a0b8",
+          "content": "▼",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "line",
+          "id": "EAcVE",
+          "x": 20,
+          "y": 330,
+          "width": 240,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3720"
+          }
+        },
+        {
+          "type": "text",
+          "id": "39JNV",
+          "x": 20,
+          "y": 342,
+          "fill": "#a0a0b8",
+          "content": "🔐 Cambiar contraseña",
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "GaHBu",
+          "x": 20,
+          "y": 368,
+          "fill": "#a0a0b8",
+          "content": "📊 Mi actividad",
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "n8NB3",
+          "x": 20,
+          "y": 394,
+          "fill": "#ff4757",
+          "content": "🚪 Cerrar sesión",
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "500"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "5O2oo",
+      "x": 3740,
+      "y": 8100,
+      "name": "Dropdown — Atajos Rápidos",
+      "clip": true,
+      "width": 260,
+      "height": 280,
+      "fill": "#0a0a0f",
+      "layout": "none",
+      "children": [
+        {
+          "type": "rectangle",
+          "cornerRadius": 12,
+          "id": "HLIVc",
+          "x": 0,
+          "y": 0,
+          "fill": "#1a1a28",
+          "width": 260,
+          "height": 280,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3740"
+          }
+        },
+        {
+          "type": "rectangle",
+          "cornerRadius": [
+            12,
+            12,
+            0,
+            0
+          ],
+          "id": "HETjS",
+          "x": 0,
+          "y": 0,
+          "fill": "#12121a",
+          "width": 260,
+          "height": 42
+        },
+        {
+          "type": "text",
+          "id": "z0udk",
+          "x": 20,
+          "y": 12,
+          "fill": "#d4af37",
+          "content": "⚡ Atajos Rápidos",
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "600"
+        },
+        {
+          "type": "line",
+          "id": "UdijQ",
+          "x": 0,
+          "y": 42,
+          "width": 260,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3720"
+          }
+        },
+        {
+          "type": "text",
+          "id": "IyyiV",
+          "x": 20,
+          "y": 56,
+          "fill": "#ffffff",
+          "content": "🆕 Nueva comanda",
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "AQHjR",
+          "x": 190,
+          "y": 58,
+          "fill": "#5a5a7a",
+          "content": "Ctrl+N",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "line",
+          "id": "l4OV2",
+          "x": 20,
+          "y": 80,
+          "width": 220,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3710"
+          }
+        },
+        {
+          "type": "text",
+          "id": "zhjKK",
+          "x": 20,
+          "y": 92,
+          "fill": "#ffffff",
+          "content": "💰 Procesar pago",
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "B64MF",
+          "x": 190,
+          "y": 94,
+          "fill": "#5a5a7a",
+          "content": "Ctrl+P",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "line",
+          "id": "f9Spk",
+          "x": 20,
+          "y": 116,
+          "width": 220,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3710"
+          }
+        },
+        {
+          "type": "text",
+          "id": "3TSvX",
+          "x": 20,
+          "y": 128,
+          "fill": "#ffffff",
+          "content": "🪑 Ver mapa de mesas",
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "wnxl8",
+          "x": 190,
+          "y": 130,
+          "fill": "#5a5a7a",
+          "content": "Ctrl+M",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "line",
+          "id": "fLS8I",
+          "x": 20,
+          "y": 152,
+          "width": 220,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3710"
+          }
+        },
+        {
+          "type": "text",
+          "id": "jrzev",
+          "x": 20,
+          "y": 164,
+          "fill": "#ffffff",
+          "content": "📊 Abrir reportes",
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "dzX5f",
+          "x": 190,
+          "y": 166,
+          "fill": "#5a5a7a",
+          "content": "Ctrl+R",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "line",
+          "id": "Z8pZW",
+          "x": 20,
+          "y": 188,
+          "width": 220,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3710"
+          }
+        },
+        {
+          "type": "text",
+          "id": "vcdFn",
+          "x": 20,
+          "y": 200,
+          "fill": "#ffffff",
+          "content": "⚙️ Configuración",
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "rcuTW",
+          "x": 194,
+          "y": 202,
+          "fill": "#5a5a7a",
+          "content": "Ctrl+,",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "line",
+          "id": "DeYTu",
+          "x": 20,
+          "y": 224,
+          "width": 220,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3710"
+          }
+        },
+        {
+          "type": "text",
+          "id": "8791G",
+          "x": 20,
+          "y": 236,
+          "fill": "#ffffff",
+          "content": "🔍 Buscar",
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "NH7my",
+          "x": 190,
+          "y": 238,
+          "fill": "#5a5a7a",
+          "content": "Ctrl+K",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "line",
+          "id": "riVGU",
+          "x": 0,
+          "y": 260,
+          "width": 260,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3720"
+          }
+        },
+        {
+          "type": "text",
+          "id": "Ytz3y",
+          "x": 20,
+          "y": 266,
+          "fill": "#5a5a7a",
+          "content": "Esc para cerrar",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "normal"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "Djscq",
+      "x": 4060,
+      "y": 8100,
+      "name": "Dropdown — Búsqueda Global",
+      "clip": true,
+      "width": 420,
+      "height": 360,
+      "fill": "#0a0a0f",
+      "layout": "none",
+      "children": [
+        {
+          "type": "rectangle",
+          "cornerRadius": 12,
+          "id": "XgA5e",
+          "x": 0,
+          "y": 0,
+          "fill": "#1a1a28",
+          "width": 420,
+          "height": 360,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af37"
+          }
+        },
+        {
+          "type": "rectangle",
+          "cornerRadius": [
+            12,
+            12,
+            0,
+            0
+          ],
+          "id": "suaAD",
+          "x": 0,
+          "y": 0,
+          "fill": "#12121a",
+          "width": 420,
+          "height": 48
+        },
+        {
+          "type": "text",
+          "id": "XMQb6",
+          "x": 20,
+          "y": 14,
+          "fill": "#d4af37",
+          "content": "🔍",
+          "fontFamily": "Inter",
+          "fontSize": 18,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "rALk4",
+          "x": 50,
+          "y": 16,
+          "fill": "#ffffff",
+          "content": "cevi",
+          "fontFamily": "Inter",
+          "fontSize": 14,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "rectangle",
+          "id": "auazg",
+          "x": 86,
+          "y": 16,
+          "fill": "#d4af37",
+          "width": 2,
+          "height": 18
+        },
+        {
+          "type": "text",
+          "id": "t9Tsi",
+          "x": 350,
+          "y": 18,
+          "fill": "#5a5a7a",
+          "content": "Esc cerrar",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "line",
+          "id": "HfwBX",
+          "x": 0,
+          "y": 48,
+          "width": 420,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3730"
+          }
+        },
+        {
+          "type": "text",
+          "id": "ERuqh",
+          "x": 20,
+          "y": 62,
+          "fill": "#5a5a7a",
+          "content": "PLATOS",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "700"
+        },
+        {
+          "type": "rectangle",
+          "id": "KAGGV",
+          "x": 0,
+          "y": 80,
+          "fill": "#d4af3720",
+          "width": 420,
+          "height": 44
+        },
+        {
+          "type": "text",
+          "id": "8LitY",
+          "x": 20,
+          "y": 88,
+          "fill": "#ffffff",
+          "content": "🍽️ Ceviche Clásico",
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "500"
+        },
+        {
+          "type": "text",
+          "id": "Ddmfv",
+          "x": 20,
+          "y": 106,
+          "fill": "#a0a0b8",
+          "content": "S/. 45.00 • Ceviches • 12 vendidos hoy",
+          "fontFamily": "Inter",
+          "fontSize": 11,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "cN8yj",
+          "x": 20,
+          "y": 132,
+          "fill": "#ffffff",
+          "content": "🍽️ Ceviche Mixto",
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "AiVwh",
+          "x": 20,
+          "y": 150,
+          "fill": "#a0a0b8",
+          "content": "S/. 55.00 • Ceviches • 6 vendidos hoy",
+          "fontFamily": "Inter",
+          "fontSize": 11,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "line",
+          "id": "PMaXD",
+          "x": 20,
+          "y": 174,
+          "width": 380,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3720"
+          }
+        },
+        {
+          "type": "text",
+          "id": "WlMVW",
+          "x": 20,
+          "y": 186,
+          "fill": "#5a5a7a",
+          "content": "MESAS",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "700"
+        },
+        {
+          "type": "text",
+          "id": "zfAka",
+          "x": 20,
+          "y": 206,
+          "fill": "#ffffff",
+          "content": "🪑 Mesa 5 • Ceviche Clásico x2",
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "YAnQ7",
+          "x": 20,
+          "y": 224,
+          "fill": "#a0a0b8",
+          "content": "Ocupada • Juan Pérez • 4 personas",
+          "fontFamily": "Inter",
+          "fontSize": 11,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "line",
+          "id": "yhmRH",
+          "x": 20,
+          "y": 248,
+          "width": 380,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3720"
+          }
+        },
+        {
+          "type": "text",
+          "id": "cYHM4",
+          "x": 20,
+          "y": 260,
+          "fill": "#5a5a7a",
+          "content": "COMANDAS",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "700"
+        },
+        {
+          "type": "text",
+          "id": "X8v0a",
+          "x": 20,
+          "y": 280,
+          "fill": "#ffffff",
+          "content": "📋 Comanda #305 • Ceviche Clásico x2",
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "9Pa7I",
+          "x": 20,
+          "y": 298,
+          "fill": "#a0a0b8",
+          "content": "Mesa 5 • En preparación • 14:10",
+          "fontFamily": "Inter",
+          "fontSize": 11,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "line",
+          "id": "2UXDB",
+          "x": 0,
+          "y": 326,
+          "width": 420,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3730"
+          }
+        },
+        {
+          "type": "text",
+          "id": "hNktn",
+          "x": 130,
+          "y": 336,
+          "fill": "#5a5a7a",
+          "content": "↑↓ navegar · Enter seleccionar · Esc cerrar",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "normal"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "Jlw97",
+      "x": 4540,
+      "y": 8100,
+      "name": "Dropdown — Estado del Sistema",
+      "clip": true,
+      "width": 300,
+      "height": 340,
+      "fill": "#0a0a0f",
+      "layout": "none",
+      "children": [
+        {
+          "type": "rectangle",
+          "cornerRadius": 12,
+          "id": "SJAHL",
+          "x": 0,
+          "y": 0,
+          "fill": "#1a1a28",
+          "width": 300,
+          "height": 340,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3740"
+          }
+        },
+        {
+          "type": "rectangle",
+          "cornerRadius": [
+            12,
+            12,
+            0,
+            0
+          ],
+          "id": "YQyqg",
+          "x": 0,
+          "y": 0,
+          "fill": "#12121a",
+          "width": 300,
+          "height": 48
+        },
+        {
+          "type": "text",
+          "id": "Q2lFo",
+          "x": 20,
+          "y": 14,
+          "fill": "#ffffff",
+          "content": "Estado del Sistema",
+          "fontFamily": "Inter",
+          "fontSize": 14,
+          "fontWeight": "600"
+        },
+        {
+          "type": "rectangle",
+          "cornerRadius": 11,
+          "id": "V5AU1",
+          "x": 220,
+          "y": 14,
+          "fill": "#2ecc7120",
+          "width": 60,
+          "height": 22
+        },
+        {
+          "type": "text",
+          "id": "azpQ7",
+          "x": 220,
+          "y": 18,
+          "fill": "#2ecc71",
+          "textGrowth": "fixed-width",
+          "width": 60,
+          "content": "🟢 OK",
+          "textAlign": "center",
+          "fontFamily": "Inter",
+          "fontSize": 11,
+          "fontWeight": "600"
+        },
+        {
+          "type": "line",
+          "id": "tCjOd",
+          "x": 0,
+          "y": 48,
+          "width": 300,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3720"
+          }
+        },
+        {
+          "type": "text",
+          "id": "mOvS6",
+          "x": 20,
+          "y": 62,
+          "fill": "#5a5a7a",
+          "content": "CONEXIONES",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "700"
+        },
+        {
+          "type": "text",
+          "id": "bXEX5",
+          "x": 20,
+          "y": 84,
+          "fill": "#a0a0b8",
+          "content": "Cocina (Socket.io)",
+          "fontFamily": "Inter",
+          "fontSize": 12,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "sqEXE",
+          "x": 220,
+          "y": 84,
+          "fill": "#2ecc71",
+          "content": "2 clientes",
+          "fontFamily": "Inter",
+          "fontSize": 12,
+          "fontWeight": "600"
+        },
+        {
+          "type": "text",
+          "id": "MJUXD",
+          "x": 20,
+          "y": 108,
+          "fill": "#a0a0b8",
+          "content": "Mozos (Socket.io)",
+          "fontFamily": "Inter",
+          "fontSize": 12,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "HVWfh",
+          "x": 220,
+          "y": 108,
+          "fill": "#2ecc71",
+          "content": "8 clientes",
+          "fontFamily": "Inter",
+          "fontSize": 12,
+          "fontWeight": "600"
+        },
+        {
+          "type": "text",
+          "id": "ajpay",
+          "x": 20,
+          "y": 132,
+          "fill": "#a0a0b8",
+          "content": "Admin (Socket.io)",
+          "fontFamily": "Inter",
+          "fontSize": 12,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "YHBnS",
+          "x": 220,
+          "y": 132,
+          "fill": "#2ecc71",
+          "content": "1 cliente",
+          "fontFamily": "Inter",
+          "fontSize": 12,
+          "fontWeight": "600"
+        },
+        {
+          "type": "line",
+          "id": "xoAdY",
+          "x": 20,
+          "y": 158,
+          "width": 260,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3720"
+          }
+        },
+        {
+          "type": "text",
+          "id": "8edFH",
+          "x": 20,
+          "y": 172,
+          "fill": "#5a5a7a",
+          "content": "SERVICIOS",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "700"
+        },
+        {
+          "type": "text",
+          "id": "u4Rve",
+          "x": 20,
+          "y": 194,
+          "fill": "#a0a0b8",
+          "content": "MongoDB",
+          "fontFamily": "Inter",
+          "fontSize": 12,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "rectangle",
+          "cornerRadius": 10,
+          "id": "QB9fC",
+          "x": 220,
+          "y": 192,
+          "fill": "#2ecc7120",
+          "width": 60,
+          "height": 20
+        },
+        {
+          "type": "text",
+          "id": "2yqa9",
+          "x": 220,
+          "y": 196,
+          "fill": "#2ecc71",
+          "textGrowth": "fixed-width",
+          "width": 60,
+          "content": "OK",
+          "textAlign": "center",
+          "fontFamily": "Inter",
+          "fontSize": 11,
+          "fontWeight": "600"
+        },
+        {
+          "type": "text",
+          "id": "IB53B",
+          "x": 20,
+          "y": 220,
+          "fill": "#a0a0b8",
+          "content": "Redis Cache",
+          "fontFamily": "Inter",
+          "fontSize": 12,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "rectangle",
+          "cornerRadius": 10,
+          "id": "xmBAY",
+          "x": 220,
+          "y": 218,
+          "fill": "#2ecc7120",
+          "width": 60,
+          "height": 20
+        },
+        {
+          "type": "text",
+          "id": "g12NL",
+          "x": 220,
+          "y": 222,
+          "fill": "#2ecc71",
+          "textGrowth": "fixed-width",
+          "width": 60,
+          "content": "OK",
+          "textAlign": "center",
+          "fontFamily": "Inter",
+          "fontSize": 11,
+          "fontWeight": "600"
+        },
+        {
+          "type": "text",
+          "id": "p0UxO",
+          "x": 20,
+          "y": 246,
+          "fill": "#a0a0b8",
+          "content": "API Server",
+          "fontFamily": "Inter",
+          "fontSize": 12,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "rectangle",
+          "cornerRadius": 10,
+          "id": "C7ujR",
+          "x": 220,
+          "y": 244,
+          "fill": "#2ecc7120",
+          "width": 60,
+          "height": 20
+        },
+        {
+          "type": "text",
+          "id": "FKL0L",
+          "x": 220,
+          "y": 248,
+          "fill": "#2ecc71",
+          "textGrowth": "fixed-width",
+          "width": 60,
+          "content": "OK",
+          "textAlign": "center",
+          "fontFamily": "Inter",
+          "fontSize": 11,
+          "fontWeight": "600"
+        },
+        {
+          "type": "line",
+          "id": "geaCu",
+          "x": 20,
+          "y": 274,
+          "width": 260,
+          "height": 1,
+          "stroke": {
+            "thickness": 1,
+            "fill": "#d4af3720"
+          }
+        },
+        {
+          "type": "text",
+          "id": "5hFWL",
+          "x": 20,
+          "y": 288,
+          "fill": "#5a5a7a",
+          "content": "MÉTRICAS",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "700"
+        },
+        {
+          "type": "text",
+          "id": "1ECKr",
+          "x": 20,
+          "y": 308,
+          "fill": "#a0a0b8",
+          "content": "Latencia promedio",
+          "fontFamily": "Inter",
+          "fontSize": 12,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "1fTwS",
+          "x": 230,
+          "y": 308,
+          "fill": "#2ecc71",
+          "content": "12 ms",
+          "fontFamily": "Inter",
+          "fontSize": 12,
+          "fontWeight": "600"
+        },
+        {
+          "type": "text",
+          "id": "3sHOo",
+          "x": 20,
+          "y": 328,
+          "fill": "#5a5a7a",
+          "content": "Uptime: 48h 23m",
+          "fontFamily": "Inter",
+          "fontSize": 10,
+          "fontWeight": "normal"
         }
       ]
     }

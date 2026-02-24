@@ -3,7 +3,7 @@
 ## Archivo
 - **Ruta:** `Backend-LasGambusinas/public/pencil-new.pen`
 - **Herramienta:** Pencil Design Tool (MCP)
-- **Total de frames:** 25
+- **Total de frames:** 30
 - **Resolución desktop:** 1440×900px por frame
 - **Tema:** Dark mode con dorado como color de marca
 
@@ -46,17 +46,20 @@ Fila 5 (y: 4100):   Bouchers            | Clientes            | Auditoría
 Fila 6 (y: 5100):   Cierre de Caja      | Reportes (General)   | Reportes — Platos
 Fila 7 (y: 6100):   Configuración       |                      |
 Fila 8 (y: 7100):   Reportes — Mozos    | Reportes — Mesas     | Reportes — Clientes
-Fila 9 (y: 8100):   Mesas — Vista Tabla | Dashboard Modal Personalizar |
+Fila 9 (y: 8100):   Mesas — Vista Tabla | Dashboard Modal Personalizar | DD Notificaciones | DD Perfil | DD Atajos | DD Búsqueda | DD Estado Sistema
 ```
 
 ---
 
-## Descripción de los 25 Frames
+## Descripción de los 30 Frames
 
 ### 1. Dashboard Principal (`92u69`) — 1440×900
 Vista principal del dashboard con toda la información resumida.
 - **Sidebar** (270px): Logo "Las Gambusinas" dorado, avatar, 10 ítems de menú (Dashboard activo con indicador dorado)
-- **Topbar** (68px alto): Hamburguesa, búsqueda, reloj "09:45:32", status Online, campana con badge, avatar
+- **Topbar** (72px, fondo `#12121a`, border-bottom `#d4af3740`):
+  - **Zona Izquierda:** Hamburguesa (☰ dorado, 44×44) + Breadcrumb "🏠 > Dashboard" (gris `#a0a0b8`, 13px)
+  - **Zona Central:** Buscador global pill (420×44px, cornerRadius 22, placeholder "Buscar mesas, comandas, platos, clientes... (Ctrl+K)")
+  - **Zona Derecha:** Reloj (14:32:18 blanco 16px bold + "Mar 24 Feb 2026" gris 11px) | separador | Status (🟢 Online verde + "8 mozos | 2 cocinas") | separador | ⚡ Atajos (44×44) | 🔔 Notificaciones (44×44 + badge rojo "5") | Avatar perfil (36×36 con borde dorado + dot verde de status)
 - **Contenido:**
   - Saludo "Buenas tardes, Admin" + fecha + botones Actualizar/Exportar/Personalizar Dashboard
   - 5 KPI cards (210×130px): Mesas Ocupadas, Ventas Hoy, Top Platos, Top Mozos, Alertas
@@ -339,7 +342,48 @@ Modal de personalización del dashboard con catálogo de widgets.
   - **Categorías colapsadas:** ▶ Operaciones (6 widgets), ▶ Análisis (4 widgets)
   - **Footer:** "Restaurar predeterminados" (gris) | "Cerrar" (outline dorado) | "Guardar" (dorado sólido)
 
-### 25. (Reservado para futuras ampliaciones)
+### 25. Dropdown — Notificaciones (`O5MN3`) — 340×420
+Dropdown del icono de campana en la topbar.
+- **Header:** "Notificaciones" + link "Marcar todas como leídas" dorado
+- **Tabs:** [ Todas (5) activo ] [ No leídas (3) ]
+- **5 notificaciones:**
+  - 🔴 "Mesa 8 sin liberar" (urgente, no leída — fondo destacado + dot dorado)
+  - 🟡 "Stock bajo: Inca Kola" (advertencia, no leída — fondo destacado + dot dorado)
+  - 🔵 "Nueva comanda #312" (info, no leída — dot dorado)
+  - 🟢 "Pago procesado S/.185" (éxito, leída — texto gris)
+  - 🟢 "Comanda #308 lista" (éxito, leída — texto gris)
+- **Footer:** "Ver todas las notificaciones" (link dorado centrado)
+
+### 26. Dropdown — Perfil Usuario (`mDzXb`) — 280×420
+Dropdown del avatar de perfil en la topbar.
+- **Header (130px):** Avatar 64px centrado, "Admin Principal" (bold), email (muted), badge "Administrador" (pill dorado)
+- **Sección Perfil:** 👤 Mi perfil, ⚙️ Configuración
+- **Sección Sistema:** 🎨 Modo oscuro (toggle ON dorado), 🔔 Notificaciones (toggle ON), 🌐 Idioma: Español (dropdown)
+- **Sección Sesión:** 🔐 Cambiar contraseña, 📊 Mi actividad, 🚪 Cerrar sesión (rojo)
+
+### 27. Dropdown — Atajos Rápidos (`5O2oo`) — 260×280
+Dropdown del botón ⚡ en la topbar.
+- **Header:** "⚡ Atajos Rápidos" (dorado)
+- **6 acciones con shortcuts:** 🆕 Nueva comanda (Ctrl+N), 💰 Procesar pago (Ctrl+P), 🪑 Ver mapa de mesas (Ctrl+M), 📊 Abrir reportes (Ctrl+R), ⚙️ Configuración (Ctrl+,), 🔍 Buscar (Ctrl+K)
+- **Footer:** "Esc para cerrar" (muted)
+
+### 28. Dropdown — Búsqueda Global (`Djscq`) — 420×360
+Autocompletado del buscador central de la topbar.
+- **Header:** Input con texto "cevi" + cursor dorado + "Esc cerrar"
+- **Resultados agrupados por tipo:**
+  - PLATOS: Ceviche Clásico (hover activo, S/.45, 12 vendidos), Ceviche Mixto (S/.55, 6 vendidos)
+  - MESAS: Mesa 5 con Ceviche Clásico x2 (Ocupada, Juan Pérez)
+  - COMANDAS: Comanda #305 con Ceviche Clásico x2 (En preparación)
+- **Footer:** "↑↓ navegar · Enter seleccionar · Esc cerrar"
+
+### 29. Dropdown — Estado del Sistema (`Jlw97`) — 300×340
+Dropdown del indicador de status en la topbar.
+- **Header:** "Estado del Sistema" + badge "🟢 OK" verde
+- **Conexiones:** Cocina (2 clientes), Mozos (8 clientes), Admin (1 cliente) — todos Socket.io
+- **Servicios:** MongoDB (OK), Redis Cache (OK), API Server (OK) — badges verdes
+- **Métricas:** Latencia promedio 12ms, Uptime 48h 23m
+
+### 30. (Reservado para futuras ampliaciones)
 
 ---
 
@@ -428,6 +472,7 @@ El diseño fue modelado analizando completamente el archivo `admin.html` (7217 l
 14. **Cierre de Caja con complementos:** Desglose detallado de complementos vendidos con tabs (Platos/Complementos/Categorías), mini-cards por tipo, tabla con badges, y panel de análisis comparativo (ticket CON vs SIN complementos, +62% incremento)
 15. **Vista dual de Mesas:** Toggle tarjetas/tabla con filtros avanzados (mozo, área, estado), acciones masivas (liberar, cambiar área), badges de estado y área, paginación y exportación Excel
 16. **Dashboard configurable con widgets:** Sistema de widgets drag & drop con catálogo (26 widgets en 4 categorías: Métricas, Gráficos, Operaciones, Análisis), panel lateral de personalización, layouts guardados (Ejecutivo, Operativo, Analítico, Minimalista), persistencia en MongoDB
+17. **Topbar rediseñada (72px):** Breadcrumb navegable, buscador global con autocompletado (agrupado por Platos/Mesas/Comandas), reloj en tiempo real con fecha, indicador de estado del sistema (conexiones Socket.io + servicios), atajos rápidos con shortcuts de teclado (Ctrl+K/N/P/M/R), notificaciones con 4 tipos (urgente/advertencia/info/éxito) y estados leído/no leído, perfil con toggles y badge de rol
 
 ---
 
