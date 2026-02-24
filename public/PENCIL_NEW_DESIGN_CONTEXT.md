@@ -3,7 +3,7 @@
 ## Archivo
 - **Ruta:** `Backend-LasGambusinas/public/pencil-new.pen`
 - **Herramienta:** Pencil Design Tool (MCP)
-- **Total de frames:** 30
+- **Total de frames:** 37
 - **Resolución desktop:** 1440×900px por frame
 - **Tema:** Dark mode con dorado como color de marca
 
@@ -47,11 +47,13 @@ Fila 6 (y: 5100):   Cierre de Caja      | Reportes (General)   | Reportes — Pl
 Fila 7 (y: 6100):   Configuración       |                      |
 Fila 8 (y: 7100):   Reportes — Mozos    | Reportes — Mesas     | Reportes — Clientes
 Fila 9 (y: 8100):   Mesas — Vista Tabla | Dashboard Modal Personalizar | DD Notificaciones | DD Perfil | DD Atajos | DD Búsqueda | DD Estado Sistema
+Fila 10 (y: 9100):  Modal Crear Plato   | Modal Ver Comanda            | Modal Ver Boucher
+Fila 11 (y: 10100): Modal Crear Mesa    | Modal Crear Mozo             | Modal Editar Cliente | Modal Ver Auditoría
 ```
 
 ---
 
-## Descripción de los 30 Frames
+## Descripción de los 37 Frames
 
 ### 1. Dashboard Principal (`92u69`) — 1440×900
 Vista principal del dashboard con toda la información resumida.
@@ -142,12 +144,18 @@ Administración de mozos (corresponde a tab "Mozos" del `admin.html`).
 - 3 filas de datos de mozos
 
 ### 11. Carta / Platos (`VU44j`) — 1440×900
-Gestión de menú (corresponde a tab "Platos" del `admin.html`).
-- **Sidebar:** Platos activo
-- **Sub-tabs:** Todos / Desayuno / Carta
-- **Tabla** con columnas: #, Nombre, Precio, Stock, Categoría, Tipo, Acciones
-- **Panel lateral** (234px): Categorías con conteos (Ceviches, Arroces, Carnes, etc.) + Tipos (Carta normal, Desayuno) + botón "+ Nueva categoría"
-- 3 filas de datos: Ceviche Clásico, Paella Marinera, Lomo Saltado
+Gestión de menú con soporte completo de complementos (corresponde a tab "Platos" del `admin.html`).
+- **Sidebar:** Platos activo (12 ítems de menú completos)
+- **Topbar:** Título "Carta / Platos" + botones "Actualizar" (outline gris), "Importar JSON" (outline dorado), "+ Nuevo Plato" (dorado sólido)
+- **Sub-tabs** (pills): Todos (53) activo | Desayuno (15) | Carta (38) | Inactivos (3)
+- **Barra de filtros** (44px): Búsqueda, dropdown Categoría, dropdown Stock, checkbox "Solo con complementos"
+- **Tabla** con columnas: #, NOMBRE (nombre + subcategoría muted), PRECIO (dorado), STOCK (pill verde/ámbar/rojo), CATEGORÍA (badge color), TIPO (badge azul/ámbar), **COMPLEMENTOS** (badge "● X grupos" dorado + nombres de grupos, o "Sin complementos"), ACC. (👁 ✏️ 📋 🗑)
+- 6 filas de datos: Ceviche Clásico (2 grupos), Paella Marinera (1 grupo), Desayuno Andino (3 grupos), Lomo Saltado (sin complementos), Ají de Gallina (2 grupos), Jugo Natural (1 grupo)
+- Paginación: "Mostrando 6 de 53 platos" + ◀ 1 2 3 ▶
+- **Panel lateral** (234px):
+  - **Categorías:** Lista con conteos (Ceviches 24, Arroces 18, Carnes 12, Bebidas 35, Desayunos 15, Postres 9) + botón "+ Nueva categoría"
+  - **Tipo de Menú:** Pills "Carta (38)" activo, "Desayuno (15)"
+  - **Complementos (NUEVA SECCIÓN):** KPIs "Platos con complementos: 18 de 32", "Grupos definidos: 42", "Opciones totales: 136" + lista de grupos más usados (Proteína 18 platos, Guarnición 15, Bebida incluida 9, Salsa 7, Tamaño 5)
 
 ### 12. Comandas (`r9Gae`) — 1440×900
 Vista de órdenes activas (corresponde a tab "Comandas" del `admin.html`).
@@ -383,7 +391,67 @@ Dropdown del indicador de status en la topbar.
 - **Servicios:** MongoDB (OK), Redis Cache (OK), API Server (OK) — badges verdes
 - **Métricas:** Latencia promedio 12ms, Uptime 48h 23m
 
-### 30. (Reservado para futuras ampliaciones)
+### 30. Modal — Crear Plato (`E9zvL`) — 720×700
+Modal completo para crear un plato nuevo con editor visual de complementos.
+- **Header:** "Crear Nuevo Plato" con subtítulo y botón X
+- **Datos Básicos:** Nombre (full-width), Precio (S/.), Stock inicial, Categoría (dropdown), Tipo (dropdown), Toggle "Disponible para venta"
+- **Detalles:** Descripción (textarea), Tiempo preparación (min), Alérgenos (input libre)
+- **Complementos del Plato:** Editor de grupos con botón "+ Agregar grupo"
+  - Cada grupo: nombre, checkboxes Obligatorio/Selección múltiple, opciones como chips removibles con "+ Agregar"
+  - 2 grupos de ejemplo: Proteína (Pollo/Carne/Mixto, obligatorio) y Guarnición (Arroz/Ensalada/Papas, sel. múltiple)
+  - Contador: "Este plato tiene 2 grupos y 6 opciones en total"
+- **Footer:** Cancelar + "Crear Plato" (dorado) + hint "POST /api/platos"
+
+### 31. Modal — Ver Comanda (`wmbyw`) — 840×680
+Modal de detalle completo de una comanda con complementos seleccionados.
+- **Header:** "Comanda #42" + badge "Preparado" (verde) + "Mesa 5 — Juan Pérez · 2 comensales"
+- **Info General:** Creada 14:15, Enviada cocina 14:20, Preparada 14:35, Tiempo total 20 min, Mozo Juan Pérez, Cliente Invitado #45
+- **Tabla de Platos:** PLATO | CANT. | P. UNIT. | SUBTOTAL | **COMPLEMENTOS SELECCIONADOS**
+  - Ceviche Clásico x2 S/.90 — Proteína: Pollo, Guarnición: Arroz
+  - Lomo Saltado x1 S/.35 — Bebida: Inca Kola 500ml
+  - Paella Marinera x1 S/.68 — Sin complementos
+  - **TOTAL: 4 platos, S/. 193.00**
+- **Historial de Estados:** Timeline visual con dots de color (azul=creada, ámbar=cocina, verde=preparada)
+- **Footer:** Cerrar | 🖨 PDF | 🍳 Cocina
+
+### 32. Modal — Ver Boucher (`Z1h1R`) — 720×560
+Modal de detalle del comprobante de pago con complementos.
+- **Header:** "Boucher #100" + "Mesa 5 · Mar 24 Feb 2026 · 14:42"
+- **Totales:** Subtotal S/.163.56, IGV (18%) S/.29.44 (ámbar), **TOTAL S/.193.00** (dorado grande 22px), Propina S/.10 (verde), Descuento S/.0
+- **Tabla Ítems:** PLATO | CANT. | PRECIO | COMPLEMENTOS | SUBTOTAL
+  - Mismos ítems que la comanda con complementos inline
+- **Info de Pago:** Método 💵 Efectivo (verde), Cliente Invitado #45, Hora 14:42, Comprobante Boleta, Serie BCH-001-00100, Cajero Admin Principal
+- **Footer:** "Anular" (rojo outline) | Cerrar | "🖨 Reimprimir" (dorado)
+
+### 33. Modal — Crear/Editar Mesa (`6mFV8`) — 520×480
+Modal para crear o editar una mesa del restaurante.
+- **Campos:** Número de mesa, Área (dropdown), Capacidad (personas), Estado inicial (dropdown, Libre en verde), Notas (textarea), Toggle "Mesa activa"
+- **Vista previa:** Mini tile del estado con color, indicando cómo se verá en el mapa
+- **Footer:** Cancelar + "Crear Mesa" (dorado)
+
+### 34. Modal — Crear/Editar Mozo (`O9Cqx`) — 520×500
+Modal para registrar o editar personal de atención.
+- **Campos:** Nombre completo, DNI, Teléfono, Rol (dropdown: Mozo/Supervisor/Admin), Pin de acceso (masked), Toggle "Activo"
+- **Turnos:** Pills seleccionables Mañana/Tarde/Noche (activos: dorado, inactivos: gris outline)
+- **Footer:** Cancelar + "Crear Mozo" (dorado)
+
+### 35. Modal — Editar Cliente (`mjCf5`) — 520×480
+Modal para editar datos de un cliente registrado.
+- **Header:** "Editar Cliente" con ID y fecha de registro
+- **Campos:** Nombre completo (prellenado), DNI, Teléfono, Email, Tipo de cliente (dropdown: Frecuente dorado)
+- **Estadísticas read-only:** Visitas: 15, Consumo: S/.2,340, Última visita: Hoy 14:32
+- **Footer:** "Eliminar" (rojo outline) | Cancelar | "Guardar" (dorado)
+
+### 36. Modal — Ver Auditoría (`8ORKa`) — 720×480
+Modal de detalle de un registro de auditoría con cambios realizados.
+- **Header:** "Detalle de Auditoría" + Registro #AUD-0142 · fecha/hora
+- **Info:** Usuario: Admin Principal, Acción: Editar plato (ámbar), IP: 192.168.1.45, Entidad: Plato — Ceviche Clásico
+- **Tabla Cambios:** CAMPO | VALOR ANTERIOR (rojo) | VALOR NUEVO (verde)
+  - precio: S/.45 → S/.48, stock: 50 → 32, complementos: [1 grupo] → [2 grupos], categoria: sin cambio
+- **Payload Completo:** JSON formateado del cambio (fondo `#12121a`, texto dorado)
+- **Footer:** Cerrar
+
+### 37. (Reservado para futuras ampliaciones: Modal Ver Cierre de Caja, Modal Crear/Editar Área)
 
 ---
 
@@ -412,6 +480,13 @@ El diseño fue modelado analizando completamente el archivo `admin.html` (7217 l
 | *(nuevo)* | Configuración | `yg9wT` |
 | Mesas (vista tabla) | Mesas — Vista Tabla | `VcRJC` |
 | *(nuevo)* | Dashboard Modal Personalizar | `Oc3ma` |
+| Platos (modal crear) | Modal Crear Plato | `E9zvL` |
+| Comandas (modal ver) | Modal Ver Comanda | `wmbyw` |
+| Bouchers (modal ver) | Modal Ver Boucher | `Z1h1R` |
+| Mesas (modal crear) | Modal Crear/Editar Mesa | `6mFV8` |
+| Mozos (modal crear) | Modal Crear/Editar Mozo | `O9Cqx` |
+| Clientes (modal editar) | Modal Editar Cliente | `mjCf5` |
+| Auditoría (modal ver) | Modal Ver Auditoría | `8ORKa` |
 
 ---
 
@@ -473,6 +548,8 @@ El diseño fue modelado analizando completamente el archivo `admin.html` (7217 l
 15. **Vista dual de Mesas:** Toggle tarjetas/tabla con filtros avanzados (mozo, área, estado), acciones masivas (liberar, cambiar área), badges de estado y área, paginación y exportación Excel
 16. **Dashboard configurable con widgets:** Sistema de widgets drag & drop con catálogo (26 widgets en 4 categorías: Métricas, Gráficos, Operaciones, Análisis), panel lateral de personalización, layouts guardados (Ejecutivo, Operativo, Analítico, Minimalista), persistencia en MongoDB
 17. **Topbar rediseñada (72px):** Breadcrumb navegable, buscador global con autocompletado (agrupado por Platos/Mesas/Comandas), reloj en tiempo real con fecha, indicador de estado del sistema (conexiones Socket.io + servicios), atajos rápidos con shortcuts de teclado (Ctrl+K/N/P/M/R), notificaciones con 4 tipos (urgente/advertencia/info/éxito) y estados leído/no leído, perfil con toggles y badge de rol
+18. **Platos con complementos mejorados:** Tabla Pro con columna Complementos (badges "● X grupos" + nombres), barra de filtros (búsqueda, categoría, stock, checkbox "solo con complementos"), panel lateral con sección de resumen de complementos (KPIs + grupos más usados), 4 sub-tabs con conteos, paginación
+19. **Familia de modals CRUD:** Patrón base reutilizable (header con título/subtítulo/X, body scrollable, footer con botones), implementado para: Crear Plato (con editor visual de complementos), Ver Comanda (tabla con complementos seleccionados + timeline de estados), Ver Boucher (totales IGV + tabla + info de pago), Crear Mesa, Crear Mozo, Editar Cliente, Ver Auditoría (diff de cambios antes/después + payload JSON)
 
 ---
 
