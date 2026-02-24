@@ -3,7 +3,7 @@
 ## Archivo
 - **Ruta:** `Backend-LasGambusinas/public/pencil-new.pen`
 - **Herramienta:** Pencil Design Tool (MCP)
-- **Total de frames:** 22
+- **Total de frames:** 25
 - **Resolución desktop:** 1440×900px por frame
 - **Tema:** Dark mode con dorado como color de marca
 
@@ -46,19 +46,21 @@ Fila 5 (y: 4100):   Bouchers            | Clientes            | Auditoría
 Fila 6 (y: 5100):   Cierre de Caja      | Reportes (General)   | Reportes — Platos
 Fila 7 (y: 6100):   Configuración       |                      |
 Fila 8 (y: 7100):   Reportes — Mozos    | Reportes — Mesas     | Reportes — Clientes
+Fila 9 (y: 8100):   Mesas — Vista Tabla | Dashboard Modal Personalizar |
 ```
 
 ---
 
-## Descripción de los 22 Frames
+## Descripción de los 25 Frames
 
 ### 1. Dashboard Principal (`92u69`) — 1440×900
 Vista principal del dashboard con toda la información resumida.
 - **Sidebar** (270px): Logo "Las Gambusinas" dorado, avatar, 10 ítems de menú (Dashboard activo con indicador dorado)
 - **Topbar** (68px alto): Hamburguesa, búsqueda, reloj "09:45:32", status Online, campana con badge, avatar
 - **Contenido:**
-  - Saludo "Buenas tardes, Admin" + fecha + botones Actualizar/Exportar
+  - Saludo "Buenas tardes, Admin" + fecha + botones Actualizar/Exportar/Personalizar Dashboard
   - 5 KPI cards (210×130px): Mesas Ocupadas, Ventas Hoy, Top Platos, Top Mozos, Alertas
+  - Botón "⚙️ Personalizar Dashboard" para abrir modal de widgets configurables
   - Mapa de Mesas: grid 20 mesas (4×5) de 52×52px coloreadas por estado
   - Gráfica de Ventas del Día con línea dorada
   - Panel Actividad Reciente con 5 ítems
@@ -112,14 +114,15 @@ Pantalla de inicio de sesión.
 - Versión "v2.0.0 — Las Gambusinas © 2026"
 
 ### 8. Gestión de Mesas (`YGw8u`) — 1440×900
-Vista completa de administración de mesas (corresponde a tab "Mesas" del `admin.html`).
+Vista completa de administración de mesas — vista tarjetas (corresponde a tab "Mesas" del `admin.html`).
 - **Sidebar:** Mesas activo (indicador dorado)
-- **Topbar:** Título + botón rojo "LIBRE TOTAL" + botón dorado "+ Nueva Mesa"
+- **Topbar:** Título + botón rojo "LIBRE TOTAL" + **toggle vista (🃏 Tarjetas / 📋 Tabla)** + botón dorado "+ Nueva Mesa"
 - **Filtros:** Búsqueda + 7 botones de filtro (Todas, Libre, Esperando, Pedido, Preparado, Pagado, Reservado)
 - **Cards de mesas** organizadas por áreas:
   - Salón Principal (12 mesas): cards 190×160px con borde del color del estado, nombre, estado, detalle (mozo, personas, tiempo, monto)
   - Terraza (8 mesas): misma estructura
 - **Panel Resumen** lateral (260×360px): estadísticas totales
+- **Toggle de vista**: Tarjetas activo (dorado), Tabla inactivo (outline)
 
 ### 9. Áreas del Restaurante (`nFdcp`) — 1440×900
 Administración de áreas (corresponde a tab "Áreas" del `admin.html`).
@@ -176,12 +179,16 @@ Log de auditoría del sistema (corresponde a tab "Auditoría" del `admin.html`).
 - Módulos con colores diferenciados
 
 ### 16. Cierre de Caja (`evx3r`) — 1440×900
-Cierre diario de caja (corresponde a tab "Cierre de Caja" del `admin.html`).
+Cierre diario de caja con desglose de complementos (corresponde a tab "Cierre de Caja" del `admin.html`).
 - **Sidebar:** Cierre Caja activo
 - **Topbar:** Botón rojo "Cerrar Caja"
-- **4 KPIs grandes:** Ventas del día (S/. 2,450 dorado), Tickets (47), Efectivo (S/. 1,580 verde), Tarjeta/Digital (S/. 870 morado)
-- **Panel Desglose:** Ingresos por categoría, total bruto, IGV, propinas, métodos de pago
-- **Panel Historial de Cierres:** Tabla con Fecha, Total, Tickets, Cerrado por
+- **5 KPIs:** Ventas del día (S/. 2,450 dorado), Tickets (47), Efectivo (S/. 1,580 verde), Tarjeta/Digital (S/. 870 morado), **Complementos (S/. 1,290 morado `#5352ed`)**
+- **Tabs secundarios:** [ Platos ] [ Complementos (activo) ] [ Categorías ] — estilo pills
+- **Mini-cards tipo:** 🥤 Bebidas S/.450 (35%), ➕ Extras S/.320 (25%), 📏 Tamaños S/.180 (14%), 🌟 Adicionales S/.340 (26%)
+- **Tabla de Complementos:** #, Complemento, Tipo (badge), Cantidad, P. Unit., Subtotal, % — 5 filas con total footer
+- **Botones de exportación:** "📄 Cierre Completo (PDF)" dorado + "📊 Complementos (Excel)" verde
+- **Panel Análisis de Complementos** (derecha): Ratio complementos/plato (1.8), Más popular (Inca Kola 500ml), Ticket CON (S/. 68.50) vs SIN (S/. 42.30), Incremento +62%
+- **Panel Historial de Cierres** (derecha inferior): Tabla con Fecha, Total, Tickets, Cerrado por
 
 ### 17. Reportes — General (`lUCQ5`) — 1440×900
 Dashboard analítico avanzado con múltiples gráficos estadísticos (rediseño completo). Vista General con section tabs.
@@ -297,6 +304,43 @@ Panel centralizado de configuración del sistema (nuevo, sin correspondencia dir
 - **Iconos:** Lucide (chevron-down para dropdowns), Material Symbols Rounded (timer para horarios)
 - **10 tabs disponibles** cubren: General, Moneda/Precios, Mesas/Áreas, Cocina, Pagos/Facturación, Notificaciones, Cierre de Caja, Seguridad, Integraciones, Avanzado
 
+### 23. Gestión de Mesas — Vista Tabla (`VcRJC`) — 1440×900
+Vista alternativa de mesas en formato tabla (toggle desde frame 8).
+- **Sidebar** (270px): Mesas activo
+- **Topbar:** Título + toggle vista (Tarjetas inactivo / **Tabla activo dorado**) + botón "+ Nueva Mesa"
+- **Filtros avanzados** (barra 44px): 🔍 Buscar N° mesa, Mozo (dropdown), Área (dropdown), Estado (dropdown) + botón Exportar (verde)
+- **Acciones masivas:** Checkbox "Seleccionar todas" + botones "Liberar seleccionadas" (rojo outline) y "Cambiar área" (dorado outline)
+- **Tabla completa** (1114×700px, card `#1a1a28`, cornerRadius 10):
+  - Header: #↑, ÁREA, ESTADO, MOZO, PERS., COMANDAS, MONTO, ÚLTIMA ACT., ACCIONES
+  - 10 filas con datos variados mostrando todos los estados:
+    - Badges de área: Salón (azul), Terraza (ámbar), VIP (morado)
+    - Badges de estado: 🟢 Libre, 🟡 Ocupada (+ tiempo), 🔵 Pedido (+ tiempo), 🟢 Preparado, 🔴 Pagando, 🔵 Reservada
+    - Montos en dorado para valores > S/. 0
+    - Tiempo de última actividad coloreado (verde = reciente, ámbar = moderado, rojo = largo)
+    - Acciones: 👁 ✏️ 🔓 por fila
+  - Checkbox de selección por fila (una marcada dorada como ejemplo)
+  - Footer: resumen por estados (🟢 Libre: 3, 🟡 Ocupada: 4, 🔵 Pedido: 1, 🔴 Pagando: 1, 🔵 Reservada: 1, 🟢 Preparado: 1) + paginación "Pág. 1 de 1"
+
+### 24. Dashboard — Modal Personalizar (`Oc3ma`) — 1440×900
+Modal de personalización del dashboard con catálogo de widgets.
+- **Fondo:** Overlay oscuro (85% opacidad) con dashboard ghost visible debajo
+- **Dashboard ghost (izquierda):** Sidebar transparente, widgets placeholder con labels (Mesas Ocupadas, Ventas del Día, Ventas por Hora, Mapa de Mesas), grid lines punteadas doradas
+- **Widget seleccionado:** Borde dorado sólido 2px con handles de resize (dots dorados 8px en esquinas)
+- **Panel lateral derecho** (500px, fondo `#1a1a28`):
+  - **Header:** "Personalizar Dashboard" + botón ✕
+  - **3 tabs:** Agregar Widgets (activo) | Widgets Activos | Layouts Guardados
+  - **Buscador:** Input "🔍 Buscar widget..."
+  - **Categoría Métricas (8 widgets):** 4 cards (2×2) con thumbnails:
+    - Mesas Ocupadas (🪑 12/20), Ventas del Día (💰 S/.2,450), Top Plato (🍽️ Ceviche), Tiempo Prom. Cocina (⏰ 4.2 min)
+    - Cada card: thumbnail 120×54px, nombre, tamaño "3 cols · Métrica", botón "+ Añadir"
+    - Widgets ya activos: badge verde "Activo" + borde verde
+  - **Categoría Gráficos (8 widgets):** 2 cards con previews:
+    - Ventas por Hora (línea dorada ascendente), Distribución Categoría (donut dorado/azul)
+  - **Categorías colapsadas:** ▶ Operaciones (6 widgets), ▶ Análisis (4 widgets)
+  - **Footer:** "Restaurar predeterminados" (gris) | "Cerrar" (outline dorado) | "Guardar" (dorado sólido)
+
+### 25. (Reservado para futuras ampliaciones)
+
 ---
 
 ## Correspondencia con admin.html
@@ -322,6 +366,8 @@ El diseño fue modelado analizando completamente el archivo `admin.html` (7217 l
 | *(nuevo)* | Login | `M2uAS` |
 | *(nuevo)* | Dashboard Principal | `92u69` |
 | *(nuevo)* | Configuración | `yg9wT` |
+| Mesas (vista tabla) | Mesas — Vista Tabla | `VcRJC` |
+| *(nuevo)* | Dashboard Modal Personalizar | `Oc3ma` |
 
 ---
 
@@ -348,6 +394,20 @@ El diseño fue modelado analizando completamente el archivo `admin.html` (7217 l
 | Mesas | `GET /api/reportes/mesas` | `area`, `mesa`, `estado` |
 | Clientes | `GET /api/reportes/clientes` | `tipo`, `buscar` |
 
+### Endpoints de Dashboard Configurable
+| Acción | Endpoint | Método |
+|--------|----------|--------|
+| Obtener layout | `GET /api/dashboard/layout` | GET |
+| Guardar layout | `POST /api/dashboard/layout` | POST |
+| Layouts predefinidos | `GET /api/dashboard/layouts/presets` | GET |
+
+### Endpoints de Cierre de Caja con Complementos
+| Acción | Endpoint | Método |
+|--------|----------|--------|
+| Desglose complementos | `GET /api/cierre/complementos` | GET |
+| Exportar cierre (PDF) | `GET /api/cierre/exportar/pdf` | GET |
+| Exportar complementos (Excel) | `GET /api/cierre/complementos/excel` | GET |
+
 ---
 
 ## Funcionalidades Clave Identificadas
@@ -365,6 +425,9 @@ El diseño fue modelado analizando completamente el archivo `admin.html` (7217 l
 11. **Reportes con secciones:** 5 vistas (General, Platos, Mozos, Mesas, Clientes) con filtros específicos, gráficos y tablas por sección. Section tabs en topbar con underline dorado activo. Cada sección tiene filtros contextuales (ej: Platos → Categoría/Tipo/Complementos, Mozos → Mozo/Turno, Mesas → Área/N°Mesa/Estado, Clientes → Tipo/Buscar)
 12. **Tablas de datos detalladas:** Cada sección de reportes incluye tablas con datos exportables, sorteo por columna, badges de estado coloreados y filas totalizadas
 13. **Heatmap de ocupación:** Matriz día×hora con celdas coloreadas según % ocupación para análisis visual de patrones
+14. **Cierre de Caja con complementos:** Desglose detallado de complementos vendidos con tabs (Platos/Complementos/Categorías), mini-cards por tipo, tabla con badges, y panel de análisis comparativo (ticket CON vs SIN complementos, +62% incremento)
+15. **Vista dual de Mesas:** Toggle tarjetas/tabla con filtros avanzados (mozo, área, estado), acciones masivas (liberar, cambiar área), badges de estado y área, paginación y exportación Excel
+16. **Dashboard configurable con widgets:** Sistema de widgets drag & drop con catálogo (26 widgets en 4 categorías: Métricas, Gráficos, Operaciones, Análisis), panel lateral de personalización, layouts guardados (Ejecutivo, Operativo, Analítico, Minimalista), persistencia en MongoDB
 
 ---
 
