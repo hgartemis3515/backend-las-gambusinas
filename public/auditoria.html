@@ -35,11 +35,16 @@ tailwind.config = {
     <!-- HEADER -->
     <div class="flex items-center justify-between mb-5">
       <h1 class="text-xl font-bold">Auditoría</h1>
-      <button class="px-4 py-2 border border-gold/40 rounded-lg text-sm text-gold hover:bg-gold-20 transition">📊 Reporte Completo</button>
+      <button @click="loadAuditoria()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
+    </div>
+
+    <!-- LOADING STATE -->
+    <div x-show="loading && registros.length === 0" class="flex items-center justify-center h-32">
+      <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
     </div>
 
     <!-- TABLA -->
-    <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+    <div x-show="!loading || registros.length > 0" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
       <table class="w-full text-sm">
         <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
           <th class="text-left px-4 py-3 font-semibold">Hora</th>
@@ -47,17 +52,22 @@ tailwind.config = {
           <th class="text-left px-4 py-3 font-semibold">Acción</th>
           <th class="text-left px-4 py-3 font-semibold">Módulo</th>
           <th class="text-left px-4 py-3 font-semibold">IP</th>
-          <th class="text-left px-4 py-3 font-semibold">Acciones</th>
         </tr></thead>
         <tbody>
-          <template x-for="a in sharedData.mockAuditoria" :key="a.hora">
+          <tr x-show="registros.length === 0">
+            <td colspan="5" class="px-4 py-8 text-center text-txt-muted">No hay registros de auditoría</td>
+          </tr>
+          <template x-for="a in registros" :key="a._id || a.hora">
             <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
-              <td class="px-4 py-3 text-txt-muted text-xs" x-text="a.hora"></td>
-              <td class="px-4 py-3" x-text="a.usuario"></td>
-              <td class="px-4 py-3"><span class="text-xs font-medium" :class="a.color" x-text="a.accion"></span></td>
+              <td class="px-4 py-3 text-txt-muted text-xs" x-text="a.createdAt ? new Date(a.createdAt).toLocaleTimeString('es-PE') : a.hora"></td>
+              <td class="px-4 py-3" x-text="a.usuario?.nombre || a.usuario || '—'"></td>
+              <td class="px-4 py-3">
+                <span class="text-xs font-medium"
+                  :class="a.accion?.includes('eliminar') || a.accion?.includes('Eliminar') ? 'text-st-pagado' : a.accion?.includes('crear') || a.accion?.includes('Crear') ? 'text-st-preparado' : 'text-st-esperando'"
+                  x-text="a.accion"></span>
+              </td>
               <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full bg-bg-sidebar" x-text="a.modulo"></span></td>
               <td class="px-4 py-3 text-txt-muted text-xs" x-text="a.ip"></td>
-              <td class="px-4 py-3"><span class="cursor-pointer hover:text-gold text-sm">👁 Ver</span></td>
             </tr>
           </template>
         </tbody>
@@ -72,10 +82,37 @@ tailwind.config = {
 function auditoriaApp() {
   return {
     sidebarOpen: true,
+    loading: true,
+    registros: [],
     activeNav: 'auditoria',
     pageTitle: 'Auditoría',
-    init() {},
-    logout() { localStorage.removeItem('adminToken'); window.location.href = '/login'; }
+    
+    async init() {
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        window.location.href = '/login.html';
+        return;
+      }
+      await this.loadAuditoria();
+    },
+    
+    async loadAuditoria() {
+      this.loading = true;
+      const data = await apiGet('/auditoria');
+      if (data && Array.isArray(data)) {
+        this.registros = data;
+      } else if (data && data.auditoria) {
+        this.registros = data.auditoria;
+      } else if (data && data.registros) {
+        this.registros = data.registros;
+      }
+      this.loading = false;
+    },
+    
+    logout() {
+      localStorage.removeItem('adminToken');
+      window.location.href = '/login';
+    }
   };
 }
 </script>

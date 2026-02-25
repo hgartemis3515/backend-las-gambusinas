@@ -35,19 +35,27 @@ tailwind.config = {
     <!-- HEADER -->
     <div class="flex items-center justify-between mb-5">
       <h1 class="text-xl font-bold">Comandas</h1>
-      <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold">+ Nueva Comanda</button>
+      <button @click="loadComandas()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
     </div>
 
     <!-- FILTROS -->
-    <div class="flex gap-2 mb-5">
-      <input class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-36 placeholder-txt-muted" placeholder="ID Comanda">
-      <input class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-28 placeholder-txt-muted" placeholder="Mesa">
-      <select class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary"><option>Estado: Todos</option></select>
-      <button class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold">🔄 Actualizar</button>
+    <div class="flex gap-2 mb-5 flex-wrap">
+      <input type="text" x-model="filterMesa" @input="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-28 placeholder-txt-muted" placeholder="Mesa">
+      <select x-model="filterEstado" @change="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary">
+        <option value="">Estado: Todos</option>
+        <option value="en cocina">En cocina</option>
+        <option value="preparado">Preparado</option>
+        <option value="entregado">Entregado</option>
+      </select>
+    </div>
+
+    <!-- LOADING STATE -->
+    <div x-show="loading && comandas.length === 0" class="flex items-center justify-center h-32">
+      <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
     </div>
 
     <!-- TABLA -->
-    <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+    <div x-show="!loading || comandas.length > 0" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
       <table class="w-full text-sm">
         <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
           <th class="text-left px-4 py-3 font-semibold">#</th>
@@ -60,17 +68,25 @@ tailwind.config = {
           <th class="text-left px-4 py-3 font-semibold">Acciones</th>
         </tr></thead>
         <tbody>
-          <template x-for="c in sharedData.mockComandas" :key="c.id">
+          <tr x-show="filteredComandas.length === 0">
+            <td colspan="8" class="px-4 py-8 text-center text-txt-muted">No hay comandas</td>
+          </tr>
+          <template x-for="c in filteredComandas" :key="c._id || c.numComanda">
             <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
-              <td class="px-4 py-3 font-medium" x-text="'#'+c.id"></td>
-              <td class="px-4 py-3" x-text="'Mesa '+c.mesa"></td>
-              <td class="px-4 py-3 text-txt-secondary" x-text="c.mozo"></td>
-              <td class="px-4 py-3" x-text="c.items+' platos'"></td>
-              <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. '+c.total"></td>
-              <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full font-semibold"
-                :class="c.estado==='Preparado' ? 'bg-st-preparado/20 text-st-preparado' : c.estado==='En cocina' ? 'bg-st-esperando/20 text-st-esperando' : 'bg-st-pedido/20 text-st-pedido'" x-text="c.estado"></span></td>
-              <td class="px-4 py-3 text-txt-muted" x-text="c.hora"></td>
-              <td class="px-4 py-3 space-x-2 text-base"><span class="cursor-pointer hover:text-gold" @click="modal='verComanda'">👁</span> <span class="cursor-pointer hover:text-gold">✏️</span> <span class="cursor-pointer hover:text-st-pagado">🗑</span></td>
+              <td class="px-4 py-3 font-medium" x-text="'#' + (c.numComanda || c._id?.slice(-4) || '—')"></td>
+              <td class="px-4 py-3" x-text="'Mesa ' + (c.mesa?.numMesa || c.mesa || '—')"></td>
+              <td class="px-4 py-3 text-txt-secondary" x-text="c.idMozo?.nombre || c.mozo || '—'"></td>
+              <td class="px-4 py-3" x-text="(c.items?.length || c.items || 0) + ' platos'"></td>
+              <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. ' + (c.total || 0)"></td>
+              <td class="px-4 py-3">
+                <span class="text-xs px-2 py-0.5 rounded-full font-semibold cursor-pointer"
+                  :class="c.estado === 'preparado' ? 'bg-st-preparado/20 text-st-preparado' : c.estado === 'en cocina' ? 'bg-st-esperando/20 text-st-esperando' : 'bg-st-pedido/20 text-st-pedido'"
+                  @click="cambiarEstado(c)" x-text="c.estado || 'pendiente'"></span>
+              </td>
+              <td class="px-4 py-3 text-txt-muted" x-text="c.createdAt ? new Date(c.createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : (c.hora || '—')"></td>
+              <td class="px-4 py-3 space-x-2 text-base">
+                <span class="cursor-pointer hover:text-gold" @click="openDetailModal(c)">👁</span>
+              </td>
             </tr>
           </template>
         </tbody>
@@ -81,40 +97,56 @@ tailwind.config = {
 </div>
 
 <!-- MODAL: VER COMANDA -->
-<div x-show="modal==='verComanda'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=null">
-  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[840px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
+<div x-show="modal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=null">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[600px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
     <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
       <div>
-        <div class="flex items-center gap-2"><h2 class="text-lg font-bold">Comanda #42</h2><span class="text-[10px] px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-bold">Preparado</span></div>
-        <p class="text-xs text-txt-muted">Mesa 5 — Juan Pérez · 2 comensales</p>
+        <div class="flex items-center gap-2">
+          <h2 class="text-lg font-bold" x-text="'Comanda #' + (selectedComanda?.numComanda || selectedComanda?._id?.slice(-4) || '—')"></h2>
+          <span class="text-[10px] px-2 py-0.5 rounded-full font-bold"
+            :class="selectedComanda?.estado === 'preparado' ? 'bg-st-preparado/20 text-st-preparado' : 'bg-st-esperando/20 text-st-esperando'"
+            x-text="selectedComanda?.estado"></span>
+        </div>
+        <p class="text-xs text-txt-muted" x-text="'Mesa ' + (selectedComanda?.mesa?.numMesa || selectedComanda?.mesa || '—') + ' — ' + (selectedComanda?.idMozo?.nombre || selectedComanda?.mozo || '—')"></p>
       </div>
       <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
     </div>
     <div class="p-5">
-      <div class="bg-bg-sidebar rounded-lg p-4 flex gap-8 mb-5 text-sm">
-        <div><p class="text-[10px] text-txt-muted">Creada</p><p class="font-semibold">14:15</p></div>
-        <div><p class="text-[10px] text-txt-muted">Enviada</p><p class="font-semibold">14:20</p></div>
-        <div><p class="text-[10px] text-txt-muted">Preparada</p><p class="font-semibold text-st-preparado">14:35</p></div>
-        <div><p class="text-[10px] text-txt-muted">Tiempo total</p><p class="font-semibold text-gold">20 min</p></div>
-      </div>
       <table class="w-full text-sm mb-5">
         <thead><tr class="text-[10px] uppercase text-txt-secondary border-b border-[rgba(212,175,55,0.15)]">
-          <th class="text-left py-2">Plato</th><th class="text-left py-2">Cant.</th><th class="text-left py-2">P.Unit.</th><th class="text-left py-2">Subtotal</th>
+          <th class="text-left py-2">Plato</th>
+          <th class="text-left py-2">Cant.</th>
+          <th class="text-left py-2">P.Unit.</th>
+          <th class="text-left py-2">Subtotal</th>
         </tr></thead>
         <tbody>
-          <tr class="border-b border-[rgba(212,175,55,0.08)]"><td class="py-2.5"><p class="font-medium">Ceviche Clásico</p></td><td>2</td><td class="text-txt-secondary">S/.45</td><td class="text-gold font-semibold">S/.90</td></tr>
-          <tr class="border-b border-[rgba(212,175,55,0.08)]"><td class="py-2.5"><p class="font-medium">Lomo Saltado</p></td><td>1</td><td class="text-txt-secondary">S/.35</td><td class="text-gold font-semibold">S/.35</td></tr>
+          <template x-for="item in (selectedComanda?.items || [])" :key="item._id || item.plato">
+            <tr class="border-b border-[rgba(212,175,55,0.08)]">
+              <td class="py-2.5"><p class="font-medium" x-text="item.plato?.nombre || item.nombre || item.plato"></p></td>
+              <td x-text="item.cantidad || 1"></td>
+              <td class="text-txt-secondary" x-text="'S/.' + (item.precioUnitario || item.precio || 0)"></td>
+              <td class="text-gold font-semibold" x-text="'S/.' + ((item.cantidad || 1) * (item.precioUnitario || item.precio || 0))"></td>
+            </tr>
+          </template>
         </tbody>
-        <tfoot><tr class="border-t-2 border-gold/25 font-bold"><td class="py-2.5">TOTAL</td><td>3</td><td></td><td class="text-gold text-lg">S/.125</td></tr></tfoot>
+        <tfoot>
+          <tr class="border-t-2 border-gold/25 font-bold">
+            <td class="py-2.5">TOTAL</td>
+            <td x-text="selectedComanda?.items?.reduce((s,i) => s + (i.cantidad || 1), 0) || 0"></td>
+            <td></td>
+            <td class="text-gold text-lg" x-text="'S/.' + (selectedComanda?.total || 0)"></td>
+          </tr>
+        </tfoot>
       </table>
     </div>
     <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
-      <button @click="modal=null" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary">Cerrar</button>
-      <button class="px-4 py-2 border border-gold/40 rounded-lg text-sm text-gold">🖨 PDF</button>
-      <button class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold">🍳 Cocina</button>
+      <button @click="modal=null" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cerrar</button>
     </div>
   </div>
 </div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container" class="fixed bottom-6 right-6 z-[9999] space-y-2"></div>
 
 <script src="/assets/js/shared.js"></script>
 <script>
@@ -122,10 +154,75 @@ function comandasApp() {
   return {
     sidebarOpen: true,
     modal: null,
+    loading: true,
+    comandas: [],
+    filteredComandas: [],
+    selectedComanda: null,
+    filterMesa: '',
+    filterEstado: '',
     activeNav: 'comandas',
     pageTitle: 'Comandas',
-    init() {},
-    logout() { localStorage.removeItem('adminToken'); window.location.href = '/login'; }
+    
+    async init() {
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        window.location.href = '/login.html';
+        return;
+      }
+      await this.loadComandas();
+    },
+    
+    async loadComandas() {
+      this.loading = true;
+      const data = await apiGet('/comandas');
+      if (data && Array.isArray(data)) {
+        this.comandas = data;
+      } else if (data && data.comandas) {
+        this.comandas = data.comandas;
+      }
+      this.filterComandas();
+      this.loading = false;
+    },
+    
+    filterComandas() {
+      this.filteredComandas = this.comandas.filter(c => {
+        const matchMesa = !this.filterMesa || String(c.mesa?.numMesa || c.mesa || '').includes(this.filterMesa);
+        const matchEstado = !this.filterEstado || c.estado === this.filterEstado;
+        return matchMesa && matchEstado;
+      });
+    },
+    
+    openDetailModal(c) {
+      this.selectedComanda = c;
+      this.modal = true;
+    },
+    
+    async cambiarEstado(c) {
+      const estados = ['en cocina', 'preparado', 'entregado'];
+      const idx = estados.indexOf(c.estado);
+      const nuevoEstado = estados[(idx + 1) % estados.length];
+      
+      const res = await apiPut('/comandas/' + c._id, { estado: nuevoEstado });
+      if (res && !res.error) {
+        c.estado = nuevoEstado;
+        this.showToast('Estado actualizado a "' + nuevoEstado + '"');
+      }
+    },
+    
+    showToast(msg, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const t = document.createElement('div');
+      t.className = 'px-4 py-3 rounded-xl text-sm font-medium shadow-xl ' +
+        (type === 'error' ? 'bg-st-pagado text-white' : 'bg-st-preparado text-white');
+      t.textContent = msg;
+      container.appendChild(t);
+      setTimeout(() => t.remove(), 3000);
+    },
+    
+    logout() {
+      localStorage.removeItem('adminToken');
+      window.location.href = '/login';
+    }
   };
 }
 </script>

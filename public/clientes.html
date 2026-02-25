@@ -36,20 +36,33 @@ tailwind.config = {
     <div class="flex items-center justify-between mb-5">
       <h1 class="text-xl font-bold">Clientes</h1>
       <div class="flex gap-2">
-        <button class="px-4 py-2 border border-gold/40 rounded-lg text-sm text-gold hover:bg-gold-20 transition">📥 Exportar CSV</button>
-        <button class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary">🔄 Actualizar</button>
+        <button @click="loadClientes()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
       </div>
     </div>
 
     <!-- KPIs -->
     <div class="grid grid-cols-3 gap-4 mb-6">
-      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4"><p class="text-[11px] text-txt-muted uppercase">Total Clientes</p><p class="text-2xl font-bold text-white mt-1">347</p></div>
-      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4"><p class="text-[11px] text-txt-muted uppercase">Nuevos Este Mes</p><p class="text-2xl font-bold text-st-preparado mt-1">23</p></div>
-      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4"><p class="text-[11px] text-txt-muted uppercase">Frecuentes</p><p class="text-2xl font-bold text-gold mt-1">85</p></div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+        <p class="text-[11px] text-txt-muted uppercase">Total Clientes</p>
+        <p class="text-2xl font-bold text-white mt-1" x-text="clientes.length"></p>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+        <p class="text-[11px] text-txt-muted uppercase">Nuevos Este Mes</p>
+        <p class="text-2xl font-bold text-st-preparado mt-1" x-text="clientes.filter(c=>isThisMonth(c.createdAt)).length"></p>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+        <p class="text-[11px] text-txt-muted uppercase">Frecuentes</p>
+        <p class="text-2xl font-bold text-gold mt-1" x-text="clientes.filter(c=>(c.visitas||0)>=5).length"></p>
+      </div>
+    </div>
+
+    <!-- LOADING STATE -->
+    <div x-show="loading && clientes.length === 0" class="flex items-center justify-center h-32">
+      <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
     </div>
 
     <!-- TABLA -->
-    <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+    <div x-show="!loading || clientes.length > 0" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
       <table class="w-full text-sm">
         <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
           <th class="text-left px-4 py-3 font-semibold">Nombre</th>
@@ -61,16 +74,24 @@ tailwind.config = {
           <th class="text-left px-4 py-3 font-semibold">Acciones</th>
         </tr></thead>
         <tbody>
-          <template x-for="c in sharedData.mockClientes" :key="c.nombre">
+          <tr x-show="clientes.length === 0">
+            <td colspan="7" class="px-4 py-8 text-center text-txt-muted">No hay clientes registrados</td>
+          </tr>
+          <template x-for="c in clientes" :key="c._id || c.dni">
             <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
               <td class="px-4 py-3 font-medium" x-text="c.nombre"></td>
-              <td class="px-4 py-3 text-txt-secondary" x-text="c.dni"></td>
-              <td class="px-4 py-3 text-txt-secondary" x-text="c.tel"></td>
-              <td class="px-4 py-3" x-text="c.visitas"></td>
-              <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. ' + c.gasto"></td>
-              <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full font-semibold"
-                :class="c.tipo==='Frecuente' ? 'bg-gold/20 text-gold' : 'bg-st-preparado/20 text-st-preparado'" x-text="c.tipo"></span></td>
-              <td class="px-4 py-3 space-x-2 text-base"><span class="cursor-pointer hover:text-gold">👁</span> <span class="cursor-pointer hover:text-gold">✏️</span></td>
+              <td class="px-4 py-3 text-txt-secondary" x-text="c.dni || '—'"></td>
+              <td class="px-4 py-3 text-txt-secondary" x-text="c.telefono || c.tel || '—'"></td>
+              <td class="px-4 py-3" x-text="c.visitas || 0"></td>
+              <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. ' + (c.gastoTotal || c.gasto || 0)"></td>
+              <td class="px-4 py-3">
+                <span class="text-xs px-2 py-0.5 rounded-full font-semibold"
+                  :class="(c.visitas||0)>=10 ? 'bg-gold/20 text-gold' : (c.visitas||0)>=5 ? 'bg-st-preparado/20 text-st-preparado' : 'bg-txt-muted/20 text-txt-muted'"
+                  x-text="(c.visitas||0)>=10 ? 'VIP' : (c.visitas||0)>=5 ? 'Frecuente' : 'Registrado'"></span>
+              </td>
+              <td class="px-4 py-3 space-x-2 text-base">
+                <span class="cursor-pointer hover:text-gold" @click="openEditModal(c)">✏️</span>
+              </td>
             </tr>
           </template>
         </tbody>
@@ -80,15 +101,118 @@ tailwind.config = {
   </main>
 </div>
 
+<!-- MODAL: EDITAR CLIENTE -->
+<div x-show="modal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=null">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[480px] shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
+      <div><h2 class="text-lg font-bold">Editar Cliente</h2><p class="text-xs text-txt-muted">Modifique los datos del cliente</p></div>
+      <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="text-xs text-txt-secondary mb-1 block">Nombre</label>
+        <input type="text" x-model="formCliente.nombre" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="text-xs text-txt-secondary mb-1 block">DNI</label><input type="text" x-model="formCliente.dni" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
+        <div><label class="text-xs text-txt-secondary mb-1 block">Teléfono</label><input type="text" x-model="formCliente.telefono" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
+      </div>
+      <div>
+        <label class="text-xs text-txt-secondary mb-1 block">Notas</label>
+        <textarea x-model="formCliente.notas" placeholder="Preferencias, alergias, etc." class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm h-20 resize-none focus:border-gold focus:outline-none"></textarea>
+      </div>
+    </div>
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="modal=null" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+      <button @click="guardarCliente()" class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container" class="fixed bottom-6 right-6 z-[9999] space-y-2"></div>
+
 <script src="/assets/js/shared.js"></script>
 <script>
 function clientesApp() {
   return {
     sidebarOpen: true,
+    modal: null,
+    loading: true,
+    clientes: [],
+    formCliente: {
+      _id: null,
+      nombre: '',
+      dni: '',
+      telefono: '',
+      notas: ''
+    },
     activeNav: 'clientes',
     pageTitle: 'Clientes',
-    init() {},
-    logout() { localStorage.removeItem('adminToken'); window.location.href = '/login'; }
+    
+    async init() {
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        window.location.href = '/login.html';
+        return;
+      }
+      await this.loadClientes();
+    },
+    
+    async loadClientes() {
+      this.loading = true;
+      const data = await apiGet('/clientes');
+      if (data && Array.isArray(data)) {
+        this.clientes = data;
+      } else if (data && data.clientes) {
+        this.clientes = data.clientes;
+      }
+      this.loading = false;
+    },
+    
+    isThisMonth(dateStr) {
+      if (!dateStr) return false;
+      const date = new Date(dateStr);
+      const now = new Date();
+      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    },
+    
+    openEditModal(c) {
+      this.formCliente = {
+        _id: c._id,
+        nombre: c.nombre || '',
+        dni: c.dni || '',
+        telefono: c.telefono || c.tel || '',
+        notas: c.notas || ''
+      };
+      this.modal = true;
+    },
+    
+    async guardarCliente() {
+      const res = await apiPut('/clientes/' + this.formCliente._id, this.formCliente);
+      if (res && !res.error) {
+        await this.loadClientes();
+        this.modal = null;
+        this.showToast('Cliente actualizado ✅');
+      } else {
+        this.showToast('Error: ' + (res?.error || 'Fallo al guardar'), 'error');
+      }
+    },
+    
+    showToast(msg, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const t = document.createElement('div');
+      t.className = 'px-4 py-3 rounded-xl text-sm font-medium shadow-xl ' +
+        (type === 'error' ? 'bg-st-pagado text-white' : 'bg-st-preparado text-white');
+      t.textContent = msg;
+      container.appendChild(t);
+      setTimeout(() => t.remove(), 3000);
+    },
+    
+    logout() {
+      localStorage.removeItem('adminToken');
+      window.location.href = '/login';
+    }
   };
 }
 </script>

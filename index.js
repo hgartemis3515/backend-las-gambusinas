@@ -189,7 +189,7 @@ app.get('/dashboard/login.html', (req, res) => {
 const dashboardPages = [
   'index', 'mesas', 'mozos', 'platos', 'comandas',
   'bouchers', 'clientes', 'auditoria', 'cierre-caja',
-  'reportes', 'configuracion'
+  'reportes', 'configuracion', 'areas'
 ];
 
 // Rutas sin extensión (ej: /mesas)

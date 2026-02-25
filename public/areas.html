@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Áreas — Las Gambusinas</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        bg: { primary: '#0a0a0f', card: '#1a1a28', sidebar: '#12121a' },
+        gold: { DEFAULT: '#d4af37', '20': 'rgba(212,175,55,0.125)', '40': 'rgba(212,175,55,0.25)' },
+        st: { libre: '#00d4aa', esperando: '#ffa502', pedido: '#3498db', preparado: '#2ecc71', pagado: '#ff4757', reservado: '#5352ed' },
+        txt: { primary: '#ffffff', secondary: '#a0a0b8', muted: '#5a5a7a' }
+      },
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+    }
+  }
+}
+</script>
+<link rel="stylesheet" href="/assets/css/dashboard.css">
+</head>
+<body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="areasApp()" x-cloak>
+
+<div id="topbar-container"></div>
+<div class="flex pt-[72px] min-h-screen">
+  <div id="sidebar-container"></div>
+  <main :class="sidebarOpen ? 'ml-[270px]' : 'ml-[68px]'" class="flex-1 transition-all duration-300 min-h-[calc(100vh-72px)] p-6">
+    
+    <!-- HEADER -->
+    <div class="flex items-center justify-between mb-5">
+      <h1 class="text-xl font-bold">Gestión de Áreas</h1>
+      <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold" @click="openCreateModal()">+ Nueva Área</button>
+    </div>
+
+    <!-- LOADING STATE -->
+    <div x-show="loading" class="flex items-center justify-center h-32">
+      <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+    </div>
+
+    <!-- TABLA DE ÁREAS -->
+    <div x-show="!loading" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
+          <th class="text-left px-4 py-3 font-semibold">ID</th>
+          <th class="text-left px-4 py-3 font-semibold">Nombre</th>
+          <th class="text-left px-4 py-3 font-semibold">Descripción</th>
+          <th class="text-left px-4 py-3 font-semibold">Nº Mesas</th>
+          <th class="text-left px-4 py-3 font-semibold">Acciones</th>
+        </tr></thead>
+        <tbody>
+          <!-- Empty state -->
+          <tr x-show="areas.length === 0">
+            <td colspan="5" class="px-4 py-8 text-center text-txt-muted">No hay áreas registradas</td>
+          </tr>
+          <!-- Data rows -->
+          <template x-for="a in areas" :key="a._id || a.id">
+            <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
+              <td class="px-4 py-3 text-txt-muted" x-text="a._id?.slice(-6) || a.id"></td>
+              <td class="px-4 py-3 font-medium" x-text="a.nombre"></td>
+              <td class="px-4 py-3 text-txt-secondary" x-text="a.descripcion || '—'"></td>
+              <td class="px-4 py-3">
+                <span class="text-xs px-2 py-0.5 rounded-full bg-gold-20 text-gold" x-text="a.mesas?.length || a.numMesas || 0"></span>
+              </td>
+              <td class="px-4 py-3 space-x-2 text-base">
+                <span class="cursor-pointer hover:text-gold" @click="openEditModal(a)">✏️</span>
+                <span class="cursor-pointer hover:text-st-pagado" @click="eliminarArea(a._id || a.id)">🗑️</span>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODAL: CREAR / EDITAR ÁREA -->
+<div x-show="modal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=false">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[480px] shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-bold" x-text="isEditing ? 'Editar Área' : 'Crear Nueva Área'"></h2>
+        <p class="text-xs text-txt-muted" x-text="isEditing ? 'Modifique los datos del área' : 'Configure el área del restaurante'"></p>
+      </div>
+      <button @click="closeModal()" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="text-xs text-txt-secondary mb-1 block">Nombre del área <span class="text-st-pagado">*</span></label>
+        <input type="text" x-model="formArea.nombre" placeholder="Ej: Salón Principal" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+      </div>
+      <div>
+        <label class="text-xs text-txt-secondary mb-1 block">Descripción</label>
+        <textarea x-model="formArea.descripcion" placeholder="Ej: Área principal del restaurante" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm h-20 resize-none focus:border-gold focus:outline-none"></textarea>
+      </div>
+    </div>
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="closeModal()" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+      <button @click="guardarArea()" class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition" x-text="isEditing ? 'Actualizar Área' : 'Guardar Área'"></button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container" class="fixed bottom-6 right-6 z-[9999] space-y-2"></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>
+function areasApp() {
+  return {
+    sidebarOpen: true,
+    modal: false,
+    isEditing: false,
+    loading: true,
+    areas: [],
+    formArea: {
+      _id: null,
+      nombre: '',
+      descripcion: ''
+    },
+    activeNav: 'areas',
+    pageTitle: 'Áreas',
+    
+    async init() {
+      await this.loadAreas();
+    },
+    
+    async loadAreas() {
+      this.loading = true;
+      const data = await apiGet('/areas');
+      if (data) {
+        this.areas = Array.isArray(data) ? data : (data.areas || data.data || []);
+      }
+      this.loading = false;
+    },
+    
+    openCreateModal() {
+      this.isEditing = false;
+      this.formArea = { _id: null, nombre: '', descripcion: '' };
+      this.modal = true;
+    },
+    
+    openEditModal(area) {
+      this.isEditing = true;
+      this.formArea = {
+        _id: area._id || area.id,
+        nombre: area.nombre,
+        descripcion: area.descripcion || ''
+      };
+      this.modal = true;
+    },
+    
+    closeModal() {
+      this.modal = false;
+      this.formArea = { _id: null, nombre: '', descripcion: '' };
+    },
+    
+    async guardarArea() {
+      if (!this.formArea.nombre.trim()) {
+        this.showToast('El nombre es requerido', 'error');
+        return;
+      }
+      
+      const isEdit = !!this.formArea._id;
+      const res = isEdit
+        ? await apiPut('/areas/' + this.formArea._id, this.formArea)
+        : await apiPost('/areas', this.formArea);
+      
+      if (res && !res.error) {
+        await this.loadAreas();
+        this.closeModal();
+        this.showToast(isEdit ? 'Área actualizada ✅' : 'Área creada ✅');
+      } else {
+        this.showToast('Error: ' + (res?.error || 'Fallo al guardar'), 'error');
+      }
+    },
+    
+    async eliminarArea(id) {
+      if (!confirm('¿Eliminar esta área? Las mesas asociadas quedarán sin área.')) return;
+      const res = await apiDelete('/areas/' + id);
+      if (res && !res.error) {
+        await this.loadAreas();
+        this.showToast('Área eliminada');
+      } else {
+        this.showToast('Error al eliminar', 'error');
+      }
+    },
+    
+    showToast(msg, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const t = document.createElement('div');
+      t.className = 'px-4 py-3 rounded-xl text-sm font-medium shadow-xl ' +
+        (type === 'error' ? 'bg-st-pagado text-white' : 'bg-st-preparado text-white');
+      t.textContent = msg;
+      container.appendChild(t);
+      setTimeout(() => t.remove(), 3000);
+    },
+    
+    logout() {
+      localStorage.removeItem('adminToken');
+      window.location.href = '/login';
+    }
+  };
+}
+</script>
+</body>
+</html>

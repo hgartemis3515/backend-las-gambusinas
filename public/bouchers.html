@@ -35,11 +35,16 @@ tailwind.config = {
     <!-- HEADER -->
     <div class="flex items-center justify-between mb-5">
       <h1 class="text-xl font-bold">Bouchers</h1>
-      <button class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold">🔄 Actualizar</button>
+      <button @click="loadBouchers()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
+    </div>
+
+    <!-- LOADING STATE -->
+    <div x-show="loading && bouchers.length === 0" class="flex items-center justify-center h-32">
+      <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
     </div>
 
     <!-- TABLA -->
-    <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+    <div x-show="!loading || bouchers.length > 0" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
       <table class="w-full text-sm">
         <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
           <th class="text-left px-4 py-3 font-semibold">Código</th>
@@ -51,15 +56,24 @@ tailwind.config = {
           <th class="text-left px-4 py-3 font-semibold">Acciones</th>
         </tr></thead>
         <tbody>
-          <template x-for="b in sharedData.mockBouchers" :key="b.codigo">
+          <tr x-show="bouchers.length === 0">
+            <td colspan="7" class="px-4 py-8 text-center text-txt-muted">No hay bouchers registrados</td>
+          </tr>
+          <template x-for="b in bouchers" :key="b._id || b.codigo">
             <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
-              <td class="px-4 py-3 text-txt-muted font-mono text-xs" x-text="b.codigo"></td>
-              <td class="px-4 py-3 font-medium" x-text="b.numero"></td>
-              <td class="px-4 py-3 text-txt-secondary" x-text="b.fecha"></td>
-              <td class="px-4 py-3" x-text="'Mesa '+b.mesa"></td>
-              <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. '+b.total"></td>
-              <td class="px-4 py-3"><span class="text-xs" :class="b.metodo==='Efectivo' ? 'text-st-preparado' : 'text-st-pedido'" x-text="b.metodo"></span></td>
-              <td class="px-4 py-3 space-x-2 text-base"><span class="cursor-pointer hover:text-gold">👁</span> <span class="cursor-pointer hover:text-gold">📄</span></td>
+              <td class="px-4 py-3 text-txt-muted font-mono text-xs" x-text="b.codigo || b._id?.slice(-12)"></td>
+              <td class="px-4 py-3 font-medium" x-text="'#' + (b.numero || b.numBoucher || '—')"></td>
+              <td class="px-4 py-3 text-txt-secondary" x-text="b.fecha || (b.createdAt ? new Date(b.createdAt).toLocaleString('es-PE') : '—')"></td>
+              <td class="px-4 py-3" x-text="'Mesa ' + (b.mesa?.numMesa || b.mesa || '—')"></td>
+              <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. ' + (b.total || 0)"></td>
+              <td class="px-4 py-3">
+                <span class="text-xs px-2 py-0.5 rounded-full"
+                  :class="b.metodoPago === 'Efectivo' || b.metodo === 'Efectivo' ? 'bg-st-preparado/20 text-st-preparado' : b.metodoPago === 'Tarjeta' || b.metodo === 'Tarjeta' ? 'bg-st-pedido/20 text-st-pedido' : 'bg-st-reservado/20 text-st-reservado'"
+                  x-text="b.metodoPago || b.metodo || '—'"></span>
+              </td>
+              <td class="px-4 py-3 space-x-2 text-base">
+                <span class="cursor-pointer hover:text-gold" @click="openDetailModal(b)">👁</span>
+              </td>
             </tr>
           </template>
         </tbody>
@@ -69,15 +83,74 @@ tailwind.config = {
   </main>
 </div>
 
+<!-- MODAL: DETALLE BOUCHER -->
+<div x-show="modal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=null">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[500px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-bold" x-text="'Boucher #' + (selectedBoucher?.numero || selectedBoucher?.numBoucher || '—')"></h2>
+        <p class="text-xs text-txt-muted" x-text="selectedBoucher?.fecha || (selectedBoucher?.createdAt ? new Date(selectedBoucher.createdAt).toLocaleString('es-PE') : '')"></p>
+      </div>
+      <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+    </div>
+    <div class="p-5">
+      <div class="space-y-3 text-sm mb-4">
+        <div class="flex justify-between"><span class="text-txt-muted">Mesa:</span><span x-text="selectedBoucher?.mesa?.numMesa || selectedBoucher?.mesa || '—'"></span></div>
+        <div class="flex justify-between"><span class="text-txt-muted">Mozo:</span><span x-text="selectedBoucher?.mozo?.nombre || selectedBoucher?.mozo || '—'"></span></div>
+        <div class="flex justify-between"><span class="text-txt-muted">Método:</span><span x-text="selectedBoucher?.metodoPago || selectedBoucher?.metodo || '—'"></span></div>
+      </div>
+      <div class="border-t border-[rgba(212,175,55,0.15)] pt-3 flex justify-between">
+        <span class="font-semibold">TOTAL</span>
+        <span class="text-gold text-xl font-bold" x-text="'S/. ' + (selectedBoucher?.total || 0)"></span>
+      </div>
+    </div>
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="modal=null" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <script src="/assets/js/shared.js"></script>
 <script>
 function bouchersApp() {
   return {
     sidebarOpen: true,
+    modal: null,
+    loading: true,
+    bouchers: [],
+    selectedBoucher: null,
     activeNav: 'bouchers',
     pageTitle: 'Bouchers',
-    init() {},
-    logout() { localStorage.removeItem('adminToken'); window.location.href = '/login'; }
+    
+    async init() {
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        window.location.href = '/login.html';
+        return;
+      }
+      await this.loadBouchers();
+    },
+    
+    async loadBouchers() {
+      this.loading = true;
+      const data = await apiGet('/bouchers');
+      if (data && Array.isArray(data)) {
+        this.bouchers = data;
+      } else if (data && data.bouchers) {
+        this.bouchers = data.bouchers;
+      }
+      this.loading = false;
+    },
+    
+    openDetailModal(b) {
+      this.selectedBoucher = b;
+      this.modal = true;
+    },
+    
+    logout() {
+      localStorage.removeItem('adminToken');
+      window.location.href = '/login';
+    }
   };
 }
 </script>

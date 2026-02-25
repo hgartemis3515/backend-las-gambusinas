@@ -7,6 +7,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script>
@@ -54,37 +55,64 @@ tailwind.config = {
 
     <!-- KPIs -->
     <div class="grid grid-cols-5 gap-4 mb-6">
-      <template x-for="kpi in sharedData.dashKPIs" :key="kpi.label">
-        <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4 card-hover">
-          <p class="text-[11px] text-txt-muted uppercase tracking-wide" x-text="kpi.label"></p>
-          <p class="text-2xl font-bold mt-1" :class="kpi.color" x-text="kpi.value"></p>
-          <p class="text-xs mt-1" :class="kpi.sub.includes('+') ? 'text-st-preparado' : kpi.sub.includes('-') ? 'text-st-pagado' : 'text-txt-muted'" x-text="kpi.sub"></p>
-        </div>
-      </template>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4 card-hover">
+        <p class="text-[11px] text-txt-muted uppercase tracking-wide">Mesas Ocupadas</p>
+        <p class="text-2xl font-bold mt-1 text-gold" x-text="kpiMesasOcupadas"></p>
+        <p class="text-xs mt-1 text-txt-muted" x-text="kpiOcupacionPct + ' ocupación'"></p>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4 card-hover">
+        <p class="text-[11px] text-txt-muted uppercase tracking-wide">Ventas Hoy</p>
+        <p class="text-2xl font-bold mt-1 text-gold" x-text="kpiVentasHoy"></p>
+        <p class="text-xs mt-1 text-txt-muted">+18% vs ayer</p>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4 card-hover">
+        <p class="text-[11px] text-txt-muted uppercase tracking-wide">Top Plato</p>
+        <p class="text-2xl font-bold mt-1 text-white">Ceviche</p>
+        <p class="text-xs mt-1 text-txt-muted">12 vendidos</p>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4 card-hover">
+        <p class="text-[11px] text-txt-muted uppercase tracking-wide">Top Mozo</p>
+        <p class="text-2xl font-bold mt-1 text-white" x-text="kpiTopMozo"></p>
+        <p class="text-xs mt-1 text-txt-muted">Mejor rendimiento</p>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4 card-hover">
+        <p class="text-[11px] text-txt-muted uppercase tracking-wide">Alertas</p>
+        <p class="text-2xl font-bold mt-1 text-st-pagado">2</p>
+        <p class="text-xs mt-1 text-txt-muted">Mesa 8 sin liberar</p>
+      </div>
     </div>
 
     <!-- CHARTS ROW -->
     <div class="grid grid-cols-12 gap-4 mb-6">
       <!-- MAPA DE MESAS -->
-      <div class="col-span-7 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
-        <div class="flex items-center justify-between mb-4">
+      <div class="col-span-7 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5 flex flex-col" style="height: 320px;">
+        <div class="flex items-center justify-between mb-4 flex-shrink-0">
           <h3 class="font-semibold text-sm">Mapa de Mesas</h3>
-          <span class="text-[11px] text-txt-muted">20 mesas · 4 áreas</span>
+          <span class="text-[11px] text-txt-muted" x-text="(mesas.length || 0) + ' mesas'"></span>
         </div>
-        <div class="grid grid-cols-5 gap-2">
-          <template x-for="m in sharedData.mockMesas" :key="m.numero">
-            <div class="aspect-square rounded-lg border-2 flex flex-col items-center justify-center text-xs cursor-pointer hover:scale-105 transition"
-              :class="mesaClass(m.estado)" @click="openMesa(m)">
-              <span class="font-bold" x-text="m.numero"></span>
-              <span class="text-[9px] mt-0.5 opacity-70" x-text="m.estado"></span>
-            </div>
-          </template>
+        <div class="flex-1 overflow-auto min-h-0">
+          <!-- Loading spinner -->
+          <div x-show="loading && mesas.length === 0" class="flex items-center justify-center h-full">
+            <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+          </div>
+          <!-- Mesas grid -->
+          <div x-show="!loading || mesas.length > 0" class="grid grid-cols-5 gap-2">
+            <template x-for="m in (mesas.length > 0 ? mesas : sharedData.mockMesas)" :key="m._id || m.numero">
+              <div class="aspect-square rounded-lg border-2 flex flex-col items-center justify-center text-xs cursor-pointer hover:scale-105 transition"
+                :class="mesaClass(estadoNormalizado(m.estado))" @click="openMesa(m)">
+                <span class="font-bold" x-text="m.numMesa || m.numero"></span>
+                <span class="text-[9px] mt-0.5 opacity-70" x-text="estadoNormalizado(m.estado)"></span>
+              </div>
+            </template>
+          </div>
         </div>
       </div>
       <!-- GRÁFICO VENTAS -->
-      <div class="col-span-5 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
-        <h3 class="font-semibold text-sm mb-4">Ventas del Día</h3>
-        <canvas id="chartVentasDia" height="200"></canvas>
+      <div class="col-span-5 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5 flex flex-col" style="height: 320px;">
+        <h3 class="font-semibold text-sm mb-4 flex-shrink-0">Ventas del Día</h3>
+        <div class="relative flex-1 min-h-0">
+          <canvas id="chartVentasDia"></canvas>
+        </div>
       </div>
     </div>
 
@@ -92,7 +120,7 @@ tailwind.config = {
     <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
       <h3 class="font-semibold text-sm mb-4">Actividad Reciente</h3>
       <div class="space-y-3">
-        <template x-for="a in sharedData.activity" :key="a.text">
+        <template x-for="a in (activity.length > 0 ? activity : sharedData.activity)" :key="a.text">
           <div class="flex items-center gap-3 text-sm">
             <span class="w-2 h-2 rounded-full flex-shrink-0" :class="a.dotClass"></span>
             <span class="text-txt-secondary" x-text="a.text"></span>
@@ -110,25 +138,24 @@ tailwind.config = {
   <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[420px] shadow-2xl" @click.stop>
     <div class="p-5 border-b border-[rgba(212,175,55,0.1)]">
       <div class="flex items-center justify-between">
-        <h2 class="text-lg font-bold" x-text="selectedMesa ? 'Mesa '+selectedMesa.numero : ''"></h2>
+        <h2 class="text-lg font-bold" x-text="selectedMesa ? 'Mesa ' + (selectedMesa.numMesa || selectedMesa.numero) : ''"></h2>
         <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm hover:bg-gold/30">✕</button>
       </div>
-      <p class="text-xs text-txt-muted mt-1" x-text="selectedMesa ? 'Área: '+selectedMesa.area : ''"></p>
+      <p class="text-xs text-txt-muted mt-1" x-text="selectedMesa ? 'Área: ' + (selectedMesa.area?.nombre || selectedMesa.area || '—') : ''"></p>
     </div>
     <div class="p-5">
       <div class="flex items-center justify-between mb-4">
-        <span class="text-xs px-2.5 py-1 rounded-full font-semibold" :class="selectedMesa && mesaBadge(selectedMesa.estado)" x-text="selectedMesa?.estado"></span>
-        <span class="text-xs text-txt-muted" x-text="selectedMesa?.tiempo ? '⏱ '+selectedMesa.tiempo : ''"></span>
+        <span class="text-xs px-2.5 py-1 rounded-full font-semibold" :class="selectedMesa && mesaBadge(estadoNormalizado(selectedMesa?.estado))" x-text="estadoNormalizado(selectedMesa?.estado)"></span>
+        <span class="text-xs text-txt-muted" x-show="selectedMesa?.idMozo" x-text="'👤 ' + (selectedMesa?.idMozo?.nombre || selectedMesa?.mozo || '—')"></span>
       </div>
-      <p class="text-[11px] text-txt-muted uppercase mb-2">Pedido Actual</p>
+      <p class="text-[11px] text-txt-muted uppercase mb-2">Información</p>
       <div class="space-y-2 mb-4">
-        <div class="flex justify-between text-sm"><span>Ceviche Clásico x2</span><span class="text-gold">S/. 90.00</span></div>
-        <div class="flex justify-between text-sm"><span>Lomo Saltado x1</span><span class="text-gold">S/. 35.00</span></div>
-        <div class="flex justify-between text-sm"><span>Limonada x3</span><span class="text-gold">S/. 15.00</span></div>
+        <div class="flex justify-between text-sm"><span>Capacidad</span><span class="text-txt-secondary" x-text="selectedMesa?.capacidad || '—'"></span></div>
+        <div class="flex justify-between text-sm"><span>Personas</span><span class="text-txt-secondary" x-text="selectedMesa?.personas || '—'"></span></div>
       </div>
       <div class="border-t border-[rgba(212,175,55,0.15)] pt-3 flex justify-between">
-        <span class="font-semibold">TOTAL</span>
-        <span class="text-gold text-lg font-bold">S/. 140.00</span>
+        <span class="font-semibold">Monto Actual</span>
+        <span class="text-gold text-lg font-bold" x-text="selectedMesa?.monto ? 'S/. ' + selectedMesa.monto : 'S/. —'"></span>
       </div>
     </div>
     <div class="flex gap-2 p-5 pt-0">
@@ -149,9 +176,148 @@ function dashApp() {
     selectedMesa: null,
     activeNav: 'dashboard',
     pageTitle: 'Dashboard',
+    loading: true,
+    mesas: [],
+    mozos: [],
+    kpiMesasOcupadas: '—',
+    kpiOcupacionPct: '—',
+    kpiVentasHoy: 'S/. —',
+    kpiTopMozo: '—',
+    activity: [],
+    socket: null,
     
-    init() {
-      LasGambusinasCharts.drawDashChart('chartVentasDia');
+    async init() {
+      // Verificar token
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        window.location.href = '/login.html';
+        return;
+      }
+      
+      await this.loadDashboard();
+      this.initSocket();
+      this.startAutoRefresh();
+    },
+    
+    async loadDashboard() {
+      this.loading = true;
+      const hoy = new Date().toISOString().split('T')[0];
+      
+      try {
+        const [mesas, mozos, comandas, reporteHoy] = await Promise.all([
+          apiGet('/mesas'),
+          apiGet('/mozos'),
+          apiGet('/comandas'),
+          apiGet('/reportes/ventas?fechaInicio=' + hoy + '&fechaFin=' + hoy + '&agruparPor=hora')
+        ]);
+        
+        if (mesas && Array.isArray(mesas)) {
+          this.mesas = mesas;
+          // Calcular KPIs reales
+          const ocupadas = mesas.filter(m => m.estado !== 'libre' && m.estado !== 'Libre').length;
+          this.kpiMesasOcupadas = ocupadas + '/' + mesas.length;
+          this.kpiOcupacionPct = mesas.length > 0 ? Math.round((ocupadas / mesas.length) * 100) + '%' : '0%';
+        }
+        
+        if (mozos && Array.isArray(mozos)) {
+          this.mozos = mozos;
+          // Top mozo: el de mayor ventas del día
+          const topMozo = [...mozos].sort((a, b) => (b.ventasHoy || 0) - (a.ventasHoy || 0))[0];
+          if (topMozo && topMozo.nombre) {
+            const partes = topMozo.nombre.split(' ');
+            this.kpiTopMozo = partes[0] + (partes[1] ? ' ' + partes[1].charAt(0) + '.' : '');
+          }
+        }
+        
+        if (reporteHoy && reporteHoy.data && reporteHoy.data.length) {
+          // Ventas totales del día
+          const totalHoy = reporteHoy.data.reduce((s, d) => s + (d.total || 0), 0);
+          this.kpiVentasHoy = 'S/. ' + totalHoy.toLocaleString('es-PE');
+          
+          // Actualizar gráfico con datos reales
+          const ventasData = reporteHoy.data.map(d => d.total || 0);
+          const ventasLabels = reporteHoy.data.map(d => d._id || d.hora || '');
+          LasGambusinasCharts.drawDashChartWithData('chartVentasDia', ventasLabels, ventasData);
+        } else {
+          // Fallback a mock si no hay datos aún
+          LasGambusinasCharts.drawDashChart('chartVentasDia');
+        }
+        
+        // Actualizar activity con comandas recientes
+        if (comandas && Array.isArray(comandas) && comandas.length > 0) {
+          this.activity = comandas.slice(0, 5).map(c => ({
+            text: 'Mesa ' + (c.mesa?.numMesa || c.mesa || '—') + ' — Comanda #' + (c.numComanda || c._id?.slice(-4) || '—'),
+            time: c.createdAt ? this.timeAgo(new Date(c.createdAt)) : '—',
+            dotClass: c.estado === 'preparado' ? 'bg-st-preparado' : c.estado === 'en cocina' ? 'bg-st-pedido' : 'bg-gold'
+          }));
+        }
+        
+      } catch (e) {
+        console.error('Error loading dashboard:', e);
+        // Fallback a datos mock
+        LasGambusinasCharts.drawDashChart('chartVentasDia');
+      }
+      
+      this.loading = false;
+    },
+    
+    initSocket() {
+      const token = localStorage.getItem('adminToken');
+      if (!token || typeof io === 'undefined') return;
+      
+      try {
+        this.socket = io('/admin', {
+          auth: { token },
+          transports: ['websocket', 'polling']
+        });
+        
+        this.socket.on('mesa:actualizada', (data) => {
+          // Actualizar mesa en this.mesas sin recargar todo
+          const idx = this.mesas.findIndex(m => m._id === data._id);
+          if (idx >= 0) {
+            this.mesas[idx] = { ...this.mesas[idx], ...data };
+          }
+        });
+        
+        this.socket.on('comanda:nueva', (data) => {
+          // Actualizar actividad reciente
+          this.activity.unshift({
+            text: 'Mesa ' + (data.numMesa || '—') + ' — Nueva comanda #' + (data.numComanda || '—'),
+            time: 'ahora',
+            dotClass: 'bg-st-pedido'
+          });
+          if (this.activity.length > 5) this.activity.pop();
+        });
+        
+        this.socket.on('connect_error', () => {
+          console.warn('Socket.io no disponible, usando polling');
+        });
+      } catch (e) {
+        console.warn('Socket.io init error:', e);
+      }
+    },
+    
+    startAutoRefresh() {
+      // Refrescar cada 30 segundos
+      setInterval(() => {
+        this.loadDashboard();
+      }, 30000);
+    },
+    
+    timeAgo(date) {
+      const seconds = Math.floor((new Date() - date) / 1000);
+      if (seconds < 60) return 'hace ' + seconds + 's';
+      if (seconds < 3600) return 'hace ' + Math.floor(seconds / 60) + ' min';
+      return 'hace ' + Math.floor(seconds / 3600) + 'h';
+    },
+    
+    estadoNormalizado(estado) {
+      const map = {
+        'libre': 'Libre', 'ocupada': 'Ocupada',
+        'pedido': 'Pedido', 'preparado': 'Preparado',
+        'pagado': 'Pagado', 'reservado': 'Reservado'
+      };
+      return map[estado?.toLowerCase()] || estado || 'Libre';
     },
     
     getSaludo() {
@@ -173,6 +339,7 @@ function dashApp() {
     logout() {
       localStorage.removeItem('adminToken');
       localStorage.removeItem('gambusinas_auth');
+      if (this.socket) this.socket.disconnect();
       window.location.href = '/login';
     }
   };

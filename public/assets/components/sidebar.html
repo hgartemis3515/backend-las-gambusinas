@@ -6,7 +6,7 @@
   </div>
   <nav class="flex-1 overflow-y-auto px-2 space-y-0.5">
     <template x-for="(item, key) in sharedData.pages" :key="key">
-      <a :href="item.href" :class="activeNav === key && 'active'" data-nav=""
+      <a :href="item.href" :class="activeNav === key && 'active'" :data-nav="key"
         class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm relative">
         <span :class="activeNav === key ? 'text-gold' : 'opacity-60'" class="text-lg flex-shrink-0 w-7 text-center" x-text="item.icon"></span>
         <span x-show="sidebarOpen" x-transition class="whitespace-nowrap" :class="activeNav === key ? 'text-gold font-medium' : 'text-txt-secondary'" x-text="item.label"></span>

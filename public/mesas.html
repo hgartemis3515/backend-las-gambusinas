@@ -40,7 +40,7 @@ tailwind.config = {
           <button @click="view='cards'" :class="view==='cards' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:bg-gold-20'" class="px-3 py-1.5 text-sm font-medium transition">🃏 Tarjetas</button>
           <button @click="view='table'" :class="view==='table' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:bg-gold-20'" class="px-3 py-1.5 text-sm font-medium transition">📋 Tabla</button>
         </div>
-        <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition" @click="modal='crearMesa'">+ Nueva Mesa</button>
+        <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition" @click="openCreateModal()">+ Nueva Mesa</button>
       </div>
     </div>
 
@@ -52,23 +52,27 @@ tailwind.config = {
       </template>
     </div>
 
+    <!-- LOADING STATE -->
+    <div x-show="loading && mesas.length === 0" class="flex items-center justify-center h-32">
+      <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+    </div>
+
     <!-- VISTA TARJETAS -->
-    <div x-show="view==='cards'" class="space-y-6">
-      <template x-for="area in ['Salón Principal','Terraza','VIP']" :key="area">
-        <div>
-          <h3 class="text-sm font-semibold text-txt-secondary mb-3" x-text="area"></h3>
+    <div x-show="view==='cards' && (mesas.length > 0 || !loading)" class="space-y-6">
+      <template x-for="area in areasList" :key="area._id || area">
+        <div x-show="getMesasByArea(area).length > 0">
+          <h3 class="text-sm font-semibold text-txt-secondary mb-3" x-text="area.nombre || area"></h3>
           <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-            <template x-for="m in filteredMesas(area, filterEstado)" :key="m.numero">
+            <template x-for="m in getMesasByArea(area)" :key="m._id || m.numMesa">
               <div class="bg-bg-card border-2 rounded-xl p-3.5 cursor-pointer card-hover transition hover:scale-[1.02]"
-                :class="mesaBorderClass(m.estado)" @click="modal='detalleMesa'; selectedMesa=m">
+                :class="mesaBorderClass(estadoNormalizado(m.estado))" @click="openDetailModal(m)">
                 <div class="flex items-center justify-between mb-2">
-                  <span class="font-bold text-lg" x-text="'Mesa ' + m.numero"></span>
-                  <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold" :class="mesaBadge(m.estado)" x-text="m.estado"></span>
+                  <span class="font-bold text-lg" x-text="'Mesa ' + m.numMesa"></span>
+                  <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold" :class="mesaBadge(estadoNormalizado(m.estado))" x-text="estadoNormalizado(m.estado)"></span>
                 </div>
                 <div class="space-y-1 text-xs text-txt-muted">
-                  <p x-show="m.mozo"><span class="text-txt-secondary">👤</span> <span x-text="m.mozo"></span></p>
+                  <p x-show="m.idMozo?.nombre || m.mozo"><span class="text-txt-secondary">👤</span> <span x-text="m.idMozo?.nombre || m.mozo"></span></p>
                   <p x-show="m.personas"><span class="text-txt-secondary">👥</span> <span x-text="m.personas + ' personas'"></span></p>
-                  <p x-show="m.tiempo"><span class="text-txt-secondary">⏱</span> <span x-text="m.tiempo"></span></p>
                   <p x-show="m.monto" class="text-gold font-semibold text-sm mt-1" x-text="'S/. ' + m.monto"></p>
                 </div>
               </div>
@@ -89,20 +93,22 @@ tailwind.config = {
             <th class="text-left px-4 py-3 font-semibold">Mozo</th>
             <th class="text-left px-4 py-3 font-semibold">Pers.</th>
             <th class="text-left px-4 py-3 font-semibold">Monto</th>
-            <th class="text-left px-4 py-3 font-semibold">Última Act.</th>
             <th class="text-left px-4 py-3 font-semibold">Acciones</th>
           </tr></thead>
           <tbody>
-            <template x-for="m in sharedData.mockMesas.filter(m => filterEstado==='Todas' || m.estado===filterEstado)" :key="m.numero">
+            <template x-for="m in filteredMesasList" :key="m._id || m.numMesa">
               <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
-                <td class="px-4 py-3 font-medium" x-text="m.numero"></td>
-                <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full" :class="m.area==='VIP' ? 'bg-st-reservado/20 text-st-reservado' : m.area==='Terraza' ? 'bg-st-esperando/20 text-st-esperando' : 'bg-st-pedido/20 text-st-pedido'" x-text="m.area"></span></td>
-                <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full font-semibold" :class="mesaBadge(m.estado)" x-text="m.estado"></span></td>
-                <td class="px-4 py-3 text-txt-secondary" x-text="m.mozo || '—'"></td>
+                <td class="px-4 py-3 font-medium" x-text="m.numMesa"></td>
+                <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full bg-gold-20 text-gold" x-text="m.area?.nombre || m.area || '—'"></span></td>
+                <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full font-semibold" :class="mesaBadge(estadoNormalizado(m.estado))" x-text="estadoNormalizado(m.estado)"></span></td>
+                <td class="px-4 py-3 text-txt-secondary" x-text="m.idMozo?.nombre || m.mozo || '—'"></td>
                 <td class="px-4 py-3" x-text="m.personas || '—'"></td>
                 <td class="px-4 py-3" :class="m.monto ? 'text-gold font-semibold' : 'text-txt-muted'" x-text="m.monto ? 'S/. '+m.monto : '—'"></td>
-                <td class="px-4 py-3 text-txt-muted text-xs" x-text="m.tiempo || '—'"></td>
-                <td class="px-4 py-3 space-x-2 text-base"><span class="cursor-pointer hover:text-gold" @click="modal='detalleMesa'; selectedMesa=m">👁</span> <span class="cursor-pointer hover:text-gold">✏️</span></td>
+                <td class="px-4 py-3 space-x-2 text-base">
+                  <span class="cursor-pointer hover:text-gold" @click="openDetailModal(m)">👁</span>
+                  <span class="cursor-pointer hover:text-gold" @click="openEditModal(m)">✏️</span>
+                  <span class="cursor-pointer hover:text-st-pagado" @click="eliminarMesa(m._id)">🗑️</span>
+                </td>
               </tr>
             </template>
           </tbody>
@@ -110,11 +116,11 @@ tailwind.config = {
       </div>
       <div class="flex items-center justify-between px-4 py-3 border-t border-[rgba(212,175,55,0.08)] text-xs text-txt-muted">
         <div class="flex gap-3">
-          <span>🟢 Libre: <span x-text="sharedData.mockMesas.filter(m=>m.estado==='Libre').length"></span></span>
-          <span>🟡 Ocupada: <span x-text="sharedData.mockMesas.filter(m=>m.estado==='Ocupada').length"></span></span>
-          <span>🔵 Pedido: <span x-text="sharedData.mockMesas.filter(m=>m.estado==='Pedido').length"></span></span>
+          <span>🟢 Libre: <span x-text="mesas.filter(m=>estadoNormalizado(m.estado)==='Libre').length"></span></span>
+          <span>🟡 Ocupada: <span x-text="mesas.filter(m=>estadoNormalizado(m.estado)==='Ocupada').length"></span></span>
+          <span>🔵 Pedido: <span x-text="mesas.filter(m=>estadoNormalizado(m.estado)==='Pedido').length"></span></span>
         </div>
-        <span>Pág. 1 de 1</span>
+        <span x-text="mesas.length + ' mesas'"></span>
       </div>
     </div>
 
@@ -126,58 +132,77 @@ tailwind.config = {
   <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[420px] shadow-2xl" @click.stop>
     <div class="p-5 border-b border-[rgba(212,175,55,0.1)]">
       <div class="flex items-center justify-between">
-        <h2 class="text-lg font-bold" x-text="selectedMesa ? 'Mesa '+selectedMesa.numero : ''"></h2>
+        <h2 class="text-lg font-bold" x-text="selectedMesa ? 'Mesa ' + selectedMesa.numMesa : ''"></h2>
         <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm hover:bg-gold/30">✕</button>
       </div>
-      <p class="text-xs text-txt-muted mt-1" x-text="selectedMesa ? 'Área: '+selectedMesa.area : ''"></p>
+      <p class="text-xs text-txt-muted mt-1" x-text="selectedMesa ? 'Área: ' + (selectedMesa.area?.nombre || selectedMesa.area || '—') : ''"></p>
     </div>
     <div class="p-5">
       <div class="flex items-center justify-between mb-4">
-        <span class="text-xs px-2.5 py-1 rounded-full font-semibold" :class="selectedMesa && mesaBadge(selectedMesa.estado)" x-text="selectedMesa?.estado"></span>
-        <span class="text-xs text-txt-muted" x-text="selectedMesa?.tiempo ? '⏱ '+selectedMesa.tiempo : ''"></span>
+        <span class="text-xs px-2.5 py-1 rounded-full font-semibold" :class="selectedMesa && mesaBadge(estadoNormalizado(selectedMesa.estado))" x-text="estadoNormalizado(selectedMesa?.estado)"></span>
+        <span class="text-xs text-txt-muted" x-show="selectedMesa?.idMozo" x-text="'👤 ' + (selectedMesa?.idMozo?.nombre || '—')"></span>
       </div>
-      <p class="text-[11px] text-txt-muted uppercase mb-2">Pedido Actual</p>
+      <p class="text-[11px] text-txt-muted uppercase mb-2">Información</p>
       <div class="space-y-2 mb-4">
-        <div class="flex justify-between text-sm"><span>Ceviche Clásico x2</span><span class="text-gold">S/. 90.00</span></div>
-        <div class="flex justify-between text-sm"><span>Lomo Saltado x1</span><span class="text-gold">S/. 35.00</span></div>
+        <div class="flex justify-between text-sm"><span>Capacidad</span><span class="text-txt-secondary" x-text="selectedMesa?.capacidad || '—'"></span></div>
+        <div class="flex justify-between text-sm"><span>Personas</span><span class="text-txt-secondary" x-text="selectedMesa?.personas || '—'"></span></div>
       </div>
       <div class="border-t border-[rgba(212,175,55,0.15)] pt-3 flex justify-between">
-        <span class="font-semibold">TOTAL</span>
-        <span class="text-gold text-lg font-bold" x-text="selectedMesa?.monto ? 'S/. '+selectedMesa.monto : 'S/. 0'"></span>
+        <span class="font-semibold">Monto</span>
+        <span class="text-gold text-lg font-bold" x-text="selectedMesa?.monto ? 'S/. '+selectedMesa.monto : 'S/. —'"></span>
       </div>
     </div>
     <div class="flex gap-2 p-5 pt-0">
-      <button class="flex-1 py-2.5 border border-st-pagado text-st-pagado rounded-lg text-sm font-medium hover:bg-st-pagado/10">Liberar Mesa</button>
-      <a href="/comandas.html" class="flex-1 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 text-center">Ver Comanda</a>
+      <button @click="liberarMesa(selectedMesa?._id)" class="flex-1 py-2.5 border border-st-pagado text-st-pagado rounded-lg text-sm font-medium hover:bg-st-pagado/10">Liberar Mesa</button>
+      <a :href="'/comandas.html?mesa=' + selectedMesa?._id" class="flex-1 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 text-center">Ver Comanda</a>
     </div>
   </div>
 </div>
 
-<!-- MODAL: CREAR MESA -->
-<div x-show="modal==='crearMesa'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=null">
+<!-- MODAL: CREAR/EDITAR MESA -->
+<div x-show="modal==='crearMesa' || modal==='editarMesa'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=null">
   <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[520px] shadow-2xl" @click.stop>
     <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
-      <div><h2 class="text-lg font-bold">Crear Nueva Mesa</h2><p class="text-xs text-txt-muted">Configure la mesa y asigne al área</p></div>
+      <div><h2 class="text-lg font-bold" x-text="isEditing ? 'Editar Mesa' : 'Crear Nueva Mesa'"></h2><p class="text-xs text-txt-muted" x-text="isEditing ? 'Modifique los datos de la mesa' : 'Configure la mesa y asigne al área'"></p></div>
       <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
     </div>
     <div class="p-6 space-y-4">
       <div class="grid grid-cols-2 gap-4">
-        <div><label class="text-xs text-txt-secondary mb-1 block">Número de mesa</label><input type="number" placeholder="Ej: 21" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
-        <div><label class="text-xs text-txt-secondary mb-1 block">Área</label><select class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-secondary"><option>Salón Principal</option><option>Terraza</option><option>VIP</option></select></div>
+        <div><label class="text-xs text-txt-secondary mb-1 block">Número de mesa <span class="text-st-pagado">*</span></label><input type="number" x-model="formMesa.numMesa" placeholder="Ej: 21" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
+        <div><label class="text-xs text-txt-secondary mb-1 block">Área</label>
+          <select x-model="formMesa.idArea" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+            <option value="">Sin área</option>
+            <template x-for="a in areasList" :key="a._id">
+              <option :value="a._id" x-text="a.nombre"></option>
+            </template>
+          </select>
+        </div>
       </div>
       <div class="grid grid-cols-2 gap-4">
-        <div><label class="text-xs text-txt-secondary mb-1 block">Capacidad</label><input type="number" value="4" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
-        <div><label class="text-xs text-txt-secondary mb-1 block">Estado inicial</label><select class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-st-libre"><option>Libre</option></select></div>
+        <div><label class="text-xs text-txt-secondary mb-1 block">Capacidad</label><input type="number" x-model="formMesa.capacidad" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
+        <div><label class="text-xs text-txt-secondary mb-1 block">Estado</label>
+          <select x-model="formMesa.estado" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+            <option value="libre">Libre</option>
+            <option value="ocupada">Ocupada</option>
+            <option value="reservado">Reservado</option>
+          </select>
+        </div>
       </div>
-      <div><label class="text-xs text-txt-secondary mb-1 block">Notas</label><textarea placeholder="Ej: Mesa cerca a la ventana..." class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm h-16 resize-none"></textarea></div>
-      <label class="flex items-center gap-2 text-sm"><span class="text-txt-secondary">Mesa activa</span><div class="w-9 h-5 bg-gold rounded-full relative cursor-pointer"><div class="absolute right-0.5 top-0.5 w-4 h-4 bg-white rounded-full"></div></div></label>
+      <div><label class="text-xs text-txt-secondary mb-1 block">Notas</label><textarea x-model="formMesa.notas" placeholder="Ej: Mesa cerca a la ventana..." class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm h-16 resize-none focus:border-gold focus:outline-none"></textarea></div>
+      <label class="flex items-center gap-2 text-sm cursor-pointer">
+        <input type="checkbox" x-model="formMesa.activa" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+        <span class="text-txt-secondary">Mesa activa</span>
+      </label>
     </div>
     <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
-      <button @click="modal=null" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary">Cancelar</button>
-      <button class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold">Crear Mesa</button>
+      <button @click="modal=null" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+      <button @click="guardarMesa()" class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition" x-text="isEditing ? 'Actualizar' : 'Crear Mesa'"></button>
     </div>
   </div>
 </div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container" class="fixed bottom-6 right-6 z-[9999] space-y-2"></div>
 
 <script src="/assets/js/shared.js"></script>
 <script>
@@ -186,15 +211,153 @@ function mesasApp() {
     sidebarOpen: true,
     modal: null,
     selectedMesa: null,
+    isEditing: false,
+    loading: true,
+    mesas: [],
+    areasList: [],
+    formMesa: {
+      _id: null,
+      numMesa: '',
+      idArea: '',
+      capacidad: 4,
+      estado: 'libre',
+      notas: '',
+      activa: true
+    },
     activeNav: 'mesas',
     pageTitle: 'Mesas',
     view: 'cards',
     filterEstado: 'Todas',
     
-    init() {},
+    async init() {
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        window.location.href = '/login.html';
+        return;
+      }
+      await Promise.all([this.loadMesas(), this.loadAreas()]);
+    },
     
-    filteredMesas(area, filter) {
-      return sharedData.mockMesas.filter(m => m.area === area && (filter === 'Todas' || m.estado === filter));
+    async loadMesas() {
+      this.loading = true;
+      const data = await apiGet('/mesas');
+      if (data && Array.isArray(data)) {
+        this.mesas = data;
+      } else if (data && data.mesas) {
+        this.mesas = data.mesas;
+      }
+      this.loading = false;
+    },
+    
+    async loadAreas() {
+      const data = await apiGet('/areas');
+      if (data && Array.isArray(data)) {
+        this.areasList = data;
+      } else if (data && data.areas) {
+        this.areasList = data.areas;
+      } else {
+        this.areasList = ['Salón Principal', 'Terraza', 'VIP'];
+      }
+    },
+    
+    estadoNormalizado(estado) {
+      const map = {
+        'libre': 'Libre', 'ocupada': 'Ocupada',
+        'pedido': 'Pedido', 'preparado': 'Preparado',
+        'pagado': 'Pagado', 'reservado': 'Reservado'
+      };
+      return map[estado?.toLowerCase()] || estado || 'Libre';
+    },
+    
+    getMesasByArea(area) {
+      const areaId = area._id || area;
+      const areaNombre = area.nombre || area;
+      return this.mesas.filter(m => {
+        const matchArea = m.area?._id === areaId || m.area?.nombre === areaNombre || m.area === areaNombre || m.area === areaId;
+        const matchEstado = this.filterEstado === 'Todas' || this.estadoNormalizado(m.estado) === this.filterEstado;
+        return matchArea && matchEstado;
+      });
+    },
+    
+    get filteredMesasList() {
+      if (this.filterEstado === 'Todas') return this.mesas;
+      return this.mesas.filter(m => this.estadoNormalizado(m.estado) === this.filterEstado);
+    },
+    
+    openDetailModal(m) {
+      this.selectedMesa = m;
+      this.modal = 'detalleMesa';
+    },
+    
+    openCreateModal() {
+      this.isEditing = false;
+      this.formMesa = { _id: null, numMesa: '', idArea: '', capacidad: 4, estado: 'libre', notas: '', activa: true };
+      this.modal = 'crearMesa';
+    },
+    
+    openEditModal(m) {
+      this.isEditing = true;
+      this.formMesa = {
+        _id: m._id,
+        numMesa: m.numMesa,
+        idArea: m.area?._id || m.idArea || '',
+        capacidad: m.capacidad || 4,
+        estado: m.estado || 'libre',
+        notas: m.notas || '',
+        activa: m.activa !== false
+      };
+      this.modal = 'editarMesa';
+    },
+    
+    async guardarMesa() {
+      if (!this.formMesa.numMesa) {
+        this.showToast('El número de mesa es requerido', 'error');
+        return;
+      }
+      
+      const isEdit = !!this.formMesa._id;
+      const res = isEdit
+        ? await apiPut('/mesas/' + this.formMesa._id, this.formMesa)
+        : await apiPost('/mesas', this.formMesa);
+      
+      if (res && !res.error) {
+        await this.loadMesas();
+        this.modal = null;
+        this.showToast(isEdit ? 'Mesa actualizada ✅' : 'Mesa creada ✅');
+      } else {
+        this.showToast('Error: ' + (res?.error || 'Fallo al guardar'), 'error');
+      }
+    },
+    
+    async eliminarMesa(id) {
+      if (!confirm('¿Eliminar esta mesa?')) return;
+      const res = await apiDelete('/mesas/' + id);
+      if (res && !res.error) {
+        await this.loadMesas();
+        this.showToast('Mesa eliminada');
+      } else {
+        this.showToast('Error al eliminar', 'error');
+      }
+    },
+    
+    async liberarMesa(id) {
+      if (!id) return;
+      const res = await apiPut('/mesas/' + id, { estado: 'libre' });
+      if (res && !res.error) {
+        await this.loadMesas();
+        this.modal = null;
+        this.showToast('Mesa liberada ✅');
+      }
+    },
+    
+    showToast(msg, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const t = document.createElement('div');
+      t.className = 'px-4 py-3 rounded-xl text-sm font-medium shadow-xl ' +
+        (type === 'error' ? 'bg-st-pagado text-white' : 'bg-st-preparado text-white');
+      t.textContent = msg;
+      container.appendChild(t);
+      setTimeout(() => t.remove(), 3000);
     },
     
     logout() {

@@ -148,7 +148,7 @@ const sharedData = {
   pages: {
     dashboard: { label: 'Dashboard', icon: '📊', href: '/index.html' },
     mesas: { label: 'Mesas', icon: '🪑', href: '/mesas.html' },
-    areas: { label: 'Áreas', icon: '🗺️', href: '/mesas.html#areas' },
+    areas: { label: 'Áreas', icon: '🗺️', href: '/areas.html' },
     mozos: { label: 'Mozos', icon: '👤', href: '/mozos.html' },
     platos: { label: 'Platos', icon: '🍲', href: '/platos.html' },
     comandas: { label: 'Comandas', icon: '📋', href: '/comandas.html' },
@@ -274,6 +274,108 @@ document.addEventListener('DOMContentLoaded', () => {
   loadComponents();
 });
 
+// ============================================
+// API HELPERS CON AUTENTICACIÓN JWT
+// ============================================
+async function apiGet(endpoint) {
+  const token = localStorage.getItem('adminToken');
+  if (!token) {
+    window.location.href = '/login.html';
+    return null;
+  }
+  try {
+    const res = await fetch('/api' + endpoint, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (res.status === 401) {
+      localStorage.removeItem('adminToken');
+      window.location.href = '/login.html';
+      return null;
+    }
+    return await res.json();
+  } catch (e) {
+    console.error('API Error:', endpoint, e);
+    return null;
+  }
+}
+
+async function apiPost(endpoint, body) {
+  const token = localStorage.getItem('adminToken');
+  if (!token) {
+    window.location.href = '/login.html';
+    return null;
+  }
+  try {
+    const res = await fetch('/api' + endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    if (res.status === 401) {
+      localStorage.removeItem('adminToken');
+      window.location.href = '/login.html';
+      return null;
+    }
+    return await res.json();
+  } catch (e) {
+    console.error('API Error:', endpoint, e);
+    return null;
+  }
+}
+
+async function apiPut(endpoint, body) {
+  const token = localStorage.getItem('adminToken');
+  if (!token) {
+    window.location.href = '/login.html';
+    return null;
+  }
+  try {
+    const res = await fetch('/api' + endpoint, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    if (res.status === 401) {
+      localStorage.removeItem('adminToken');
+      window.location.href = '/login.html';
+      return null;
+    }
+    return await res.json();
+  } catch (e) {
+    console.error('API Error:', endpoint, e);
+    return null;
+  }
+}
+
+async function apiDelete(endpoint) {
+  const token = localStorage.getItem('adminToken');
+  if (!token) {
+    window.location.href = '/login.html';
+    return null;
+  }
+  try {
+    const res = await fetch('/api' + endpoint, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (res.status === 401) {
+      localStorage.removeItem('adminToken');
+      window.location.href = '/login.html';
+      return null;
+    }
+    return await res.json();
+  } catch (e) {
+    console.error('API Error:', endpoint, e);
+    return null;
+  }
+}
+
 // Exponer globalmente
 window.sharedData = sharedData;
 window.mesaClass = mesaClass;
@@ -282,3 +384,7 @@ window.mesaBadge = mesaBadge;
 window.filteredMesas = filteredMesas;
 window.initClock = initClock;
 window.setActiveNav = setActiveNav;
+window.apiGet = apiGet;
+window.apiPost = apiPost;
+window.apiPut = apiPut;
+window.apiDelete = apiDelete;

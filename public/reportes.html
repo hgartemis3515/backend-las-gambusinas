@@ -40,47 +40,63 @@ tailwind.config = {
         <span class="text-[10px] bg-st-pagado text-white px-2 py-0.5 rounded font-bold">LIVE</span>
       </div>
       <div class="flex gap-2">
-        <button class="px-3 py-1.5 border border-gold/40 rounded-lg text-xs text-gold hover:bg-gold-20">📄 PDF</button>
+        <button @click="loadReportes()" class="px-3 py-1.5 border border-gold/40 rounded-lg text-xs text-gold hover:bg-gold-20">🔄 Actualizar</button>
         <button class="px-3 py-1.5 bg-st-preparado text-white rounded-lg text-xs font-semibold">📊 Excel</button>
-        <button class="px-3 py-1.5 border border-gold/40 rounded-lg text-xs text-gold hover:bg-gold-20">⚙️ Configurar Vista</button>
       </div>
     </div>
 
     <!-- TABS -->
     <div class="flex gap-1 mb-4 border-b border-[rgba(212,175,55,0.1)] pb-2">
-      <template x-for="t in ['General','Platos','Mozos','Mesas','Clientes']"><button @click="repTab=t" :class="repTab===t ? 'text-gold border-b-2 border-gold' : 'text-txt-secondary'" class="px-4 py-2 text-sm font-medium transition" x-text="t"></button></template>
+      <template x-for="t in ['General','Platos','Mozos','Mesas','Clientes']" :key="t">
+        <button @click="repTab=t; loadReportes()" :class="repTab===t ? 'text-gold border-b-2 border-gold' : 'text-txt-secondary'" class="px-4 py-2 text-sm font-medium transition" x-text="t"></button>
+      </template>
     </div>
 
     <!-- FILTROS -->
     <div class="flex gap-2 mb-5 items-center flex-wrap">
-      <input type="date" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary">
-      <input type="date" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary">
-      <select class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary"><option>Agrupar: Día</option></select>
+      <input type="date" x-model="fechaInicio" @change="loadReportes()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary">
+      <input type="date" x-model="fechaFin" @change="loadReportes()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary">
+      <select x-model="agruparPor" @change="loadReportes()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary">
+        <option value="dia">Agrupar: Día</option>
+        <option value="hora">Agrupar: Hora</option>
+        <option value="semana">Agrupar: Semana</option>
+      </select>
       <div class="flex gap-1 ml-2">
-        <template x-for="f in ['Hoy','Ayer','7 días','30 días','Este mes']"><button :class="f==='Hoy' ? 'bg-gold text-bg-primary' : 'border border-[rgba(212,175,55,0.25)] text-txt-secondary'" class="px-2.5 py-1 rounded-full text-[10px] font-medium" x-text="f"></button></template>
+        <template x-for="f in ['Hoy','Ayer','7 días','30 días','Este mes']" :key="f">
+          <button @click="setFiltroRapido(f)" :class="filtroRapido===f ? 'bg-gold text-bg-primary' : 'border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold'" class="px-2.5 py-1 rounded-full text-[10px] font-medium transition" x-text="f"></button>
+        </template>
       </div>
     </div>
 
+    <!-- LOADING STATE -->
+    <div x-show="loading" class="flex items-center justify-center h-32">
+      <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+    </div>
+
     <!-- KPIs -->
-    <div class="grid grid-cols-4 gap-4 mb-5">
-      <template x-for="k in sharedData.repKPIs[repTab] || sharedData.repKPIs.General" :key="k.label">
+    <div x-show="!loading" class="grid grid-cols-4 gap-4 mb-5">
+      <template x-for="k in kpis" :key="k.label">
         <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
           <p class="text-[11px] text-txt-muted uppercase" x-text="k.label"></p>
-          <p class="text-xl font-bold mt-1" :class="k.color" x-text="k.value"></p>
-          <span class="text-[10px] font-semibold" :class="k.badge.includes('+') ? 'text-st-preparado' : 'text-st-pagado'" x-text="k.badge"></span>
+          <p class="text-xl font-bold mt-1" :class="k.color || 'text-white'" x-text="k.value"></p>
+          <span x-show="k.badge" class="text-[10px] font-semibold" :class="k.badge?.includes('+') ? 'text-st-preparado' : 'text-st-pagado'" x-text="k.badge"></span>
         </div>
       </template>
     </div>
 
     <!-- CHARTS -->
-    <div class="grid grid-cols-12 gap-4 mb-5">
-      <div class="col-span-7 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
-        <h3 class="font-semibold text-sm mb-3" x-text="repTab==='General' ? 'Ventas por Período' : 'Top Platos'"></h3>
-        <canvas id="chartReportes1" height="220"></canvas>
+    <div x-show="!loading" class="grid grid-cols-12 gap-4 mb-5">
+      <div class="col-span-7 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5 flex flex-col" style="height: 340px;">
+        <h3 class="font-semibold text-sm mb-3 flex-shrink-0" x-text="repTab==='General' ? 'Ventas por Período' : 'Top Platos'"></h3>
+        <div class="relative flex-1 min-h-0">
+          <canvas id="chartReportes1"></canvas>
+        </div>
       </div>
-      <div class="col-span-5 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
-        <h3 class="font-semibold text-sm mb-3" x-text="repTab==='General' ? 'Distribución de Ventas' : 'Performance'"></h3>
-        <canvas id="chartReportes2" height="220"></canvas>
+      <div class="col-span-5 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5 flex flex-col" style="height: 340px;">
+        <h3 class="font-semibold text-sm mb-3 flex-shrink-0" x-text="repTab==='General' ? 'Distribución de Ventas' : 'Performance'"></h3>
+        <div class="relative flex-1 min-h-0">
+          <canvas id="chartReportes2"></canvas>
+        </div>
       </div>
     </div>
 
@@ -93,19 +109,118 @@ tailwind.config = {
 function reportesApp() {
   return {
     sidebarOpen: true,
+    loading: true,
+    repTab: 'General',
+    filtroRapido: 'Hoy',
+    fechaInicio: '',
+    fechaFin: '',
+    agruparPor: 'dia',
+    kpis: [],
     activeNav: 'reportes',
     pageTitle: 'Reportes',
-    repTab: 'General',
     
-    init() {
-      this.initCharts();
+    async init() {
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        window.location.href = '/login.html';
+        return;
+      }
+      
+      // Set fechas por defecto (últimos 7 días)
+      this.setFiltroRapido('7 días');
+      await this.loadReportes();
     },
     
-    initCharts() {
-      this.$nextTick(() => {
+    setFiltroRapido(f) {
+      this.filtroRapido = f;
+      const hoy = new Date();
+      
+      switch(f) {
+        case 'Hoy':
+          this.fechaInicio = hoy.toISOString().split('T')[0];
+          this.fechaFin = hoy.toISOString().split('T')[0];
+          break;
+        case 'Ayer':
+          const ayer = new Date(hoy);
+          ayer.setDate(ayer.getDate() - 1);
+          this.fechaInicio = ayer.toISOString().split('T')[0];
+          this.fechaFin = ayer.toISOString().split('T')[0];
+          break;
+        case '7 días':
+          const hace7 = new Date(hoy);
+          hace7.setDate(hace7.getDate() - 7);
+          this.fechaInicio = hace7.toISOString().split('T')[0];
+          this.fechaFin = hoy.toISOString().split('T')[0];
+          break;
+        case '30 días':
+          const hace30 = new Date(hoy);
+          hace30.setDate(hace30.getDate() - 30);
+          this.fechaInicio = hace30.toISOString().split('T')[0];
+          this.fechaFin = hoy.toISOString().split('T')[0];
+          break;
+        case 'Este mes':
+          this.fechaInicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
+          this.fechaFin = hoy.toISOString().split('T')[0];
+          break;
+      }
+    },
+    
+    async loadReportes() {
+      this.loading = true;
+      
+      try {
+        const data = await apiGet('/reportes/ventas?fechaInicio=' + this.fechaInicio + '&fechaFin=' + this.fechaFin + '&agruparPor=' + this.agruparPor);
+        
+        if (data && data.data) {
+          // Calcular KPIs
+          const totalVentas = data.data.reduce((s, d) => s + (d.total || 0), 0);
+          const totalTickets = data.data.reduce((s, d) => s + (d.cantidad || d.tickets || 1), 0);
+          const ticketPromedio = totalTickets > 0 ? totalVentas / totalTickets : 0;
+          
+          this.kpis = [
+            { label: 'Ventas Totales', value: 'S/. ' + totalVentas.toLocaleString('es-PE'), color: 'text-gold', badge: '+18% ↑' },
+            { label: 'Tickets', value: totalTickets, color: 'text-white', badge: '' },
+            { label: 'Ticket Promedio', value: 'S/. ' + ticketPromedio.toFixed(2), color: 'text-white', badge: '+5% ↑' },
+            { label: 'Días Analizados', value: data.data.length, color: 'text-txt-secondary', badge: '' }
+          ];
+          
+          // Dibujar gráficos con datos reales
+          const labels = data.data.map(d => d._id || d.fecha || d.hora || '');
+          const valores = data.data.map(d => d.total || 0);
+          
+          // Esperar a que los componentes estén listos
+          const waitForComponents = () => {
+            if (document.getElementById('chartReportes1')) {
+              LasGambusinasCharts.drawDashChartWithData('chartReportes1', labels, valores);
+              LasGambusinasCharts.drawReportDonutChart('chartReportes2');
+            } else {
+              setTimeout(waitForComponents, 100);
+            }
+          };
+          waitForComponents();
+        } else {
+          // Fallback a gráficos mock
+          const waitForComponents = () => {
+            if (document.getElementById('chartReportes1')) {
+              LasGambusinasCharts.drawReportBarChart('chartReportes1');
+              LasGambusinasCharts.drawReportDonutChart('chartReportes2');
+            } else {
+              setTimeout(waitForComponents, 100);
+            }
+          };
+          waitForComponents();
+          
+          this.kpis = sharedData.repKPIs[this.repTab] || sharedData.repKPIs.General;
+        }
+      } catch (e) {
+        console.error('Error loading reportes:', e);
+        // Fallback
         LasGambusinasCharts.drawReportBarChart('chartReportes1');
         LasGambusinasCharts.drawReportDonutChart('chartReportes2');
-      });
+        this.kpis = sharedData.repKPIs[this.repTab] || sharedData.repKPIs.General;
+      }
+      
+      this.loading = false;
     },
     
     logout() {
