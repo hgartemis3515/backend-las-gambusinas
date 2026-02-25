@@ -117,12 +117,16 @@ app.use(helmet({
         "https://cdnjs.cloudflare.com",
         "https://*.cdnjs.cloudflare.com",
         "https://cdn.socket.io",
-        "https://*.cdn.socket.io"
+        "https://*.cdn.socket.io",
+        "https://cdn.tailwindcss.com",
+        "https://unpkg.com",
+        "https://*.unpkg.com"
       ],
       'script-src-attr': ["'unsafe-inline'"], // Permitir onclick inline
       'style-src': [
         "'self'",
-        "'unsafe-inline'"
+        "'unsafe-inline'",
+        "https://fonts.googleapis.com"
       ],
       'connect-src': [
         "'self'",
@@ -139,7 +143,8 @@ app.use(helmet({
       'font-src': [
         "'self'",
         "https:",
-        "data:"
+        "data:",
+        "https://fonts.gstatic.com"
       ],
       'worker-src': ["'self'", "blob:"],
       'object-src': ["'none'"],
@@ -159,14 +164,47 @@ app.use('/api',routes);
 // Servir archivos estáticos desde la carpeta public
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Ruta raíz: mostrar el dashboard multi-página (mismo que index.html)
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // Ruta para el panel de administración (sin protección)
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
-// Ruta de login (pública)
+// Ruta de login (pública) — diseño según pencil-new.pen
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
 app.get('/dashboard/login.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'dashboard', 'login.html'));
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+// ============================================
+// RUTAS DEL DASHBOARD MULTI-PÁGINA
+// Catch-all para navegación directa a cada página
+// ============================================
+const dashboardPages = [
+  'index', 'mesas', 'mozos', 'platos', 'comandas',
+  'bouchers', 'clientes', 'auditoria', 'cierre-caja',
+  'reportes', 'configuracion'
+];
+
+// Rutas sin extensión (ej: /mesas)
+dashboardPages.forEach(page => {
+  if (page === 'index') return; // La raíz ya está manejada arriba
+  app.get(`/${page}`, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', `${page}.html`));
+  });
+});
+
+// Rutas con extensión .html (ej: /mesas.html) - para compatibilidad
+dashboardPages.forEach(page => {
+  app.get(`/${page}.html`, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', `${page}.html`));
+  });
 });
 
 // Servir assets del dashboard (públicos)
@@ -184,13 +222,14 @@ app.get('/dashboard', (req, res, next) => {
   
   // Si no hay token, redirigir a login
   if (!req.headers.authorization) {
-    return res.redirect('/dashboard/login.html');
+    return res.redirect('/login');
   }
   
   // Usar middleware de autenticación
   adminAuth(req, res, next);
 }, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'dashboard', 'index.html'));
+  // Dashboard completo (todo en una página) — archivo en dashboard/
+  res.sendFile(path.join(__dirname, 'public', 'dashboard', 'lasgambusinas-dashboard.html'));
 });
 
 // FASE 7: Health Check Endpoint Enterprise Grade (Deep Health Checks)
@@ -456,56 +495,6 @@ app.get('/metrics', async (req, res) => {
     logger.error('Metrics endpoint failed', { error: error.message });
     res.status(500).send(`# ERROR: ${error.message}\n`);
   }
-});
-
-app.get('/', (req, res)=>{
-  res.send(`
-    <html>
-      <head>
-        <title>Las Gambusinas - Backend</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          }
-          .container {
-            text-align: center;
-            background: white;
-            padding: 40px;
-            border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-          }
-          h1 { color: #333; margin-bottom: 20px; }
-          a {
-            display: inline-block;
-            margin-top: 20px;
-            padding: 15px 30px;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: bold;
-            transition: transform 0.3s;
-          }
-          a:hover {
-            transform: translateY(-2px);
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h1>🍽️ Las Gambusinas</h1>
-          <p>Backend API funcionando correctamente</p>
-          <a href="/admin">🔧 Ir al Panel de Administración</a>
-        </div>
-      </body>
-    </html>
-  `);
 });
 
 // Escuchar en todas las interfaces de red (0.0.0.0) para permitir conexiones desde otros dispositivos

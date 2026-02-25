@@ -16,11 +16,12 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .then(response => {
             if (response.ok) {
-                window.location.href = '/dashboard';
+                window.location.href = '/';
             }
         })
         .catch(() => {
             localStorage.removeItem('adminToken');
+            localStorage.removeItem('gambusinas_auth');
         });
     }
     
@@ -87,6 +88,7 @@ async function handleLogin(event) {
         
         // Guardar token
         localStorage.setItem('adminToken', data.token);
+        localStorage.setItem('gambusinas_auth', 'true');
         
         // Mostrar loader SVG Aprycot
         const mainLoader = document.getElementById('loading');
@@ -94,9 +96,9 @@ async function handleLogin(event) {
             mainLoader.style.display = 'flex';
         }
         
-        // Redirigir después de breve delay
+        // Redirigir al dashboard multi-página (público)
         setTimeout(() => {
-            window.location.href = '/dashboard';
+            window.location.href = '/';
         }, 1000);
         
     } catch (error) {

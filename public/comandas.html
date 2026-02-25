@@ -1,72 +1,133 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="scroll-smooth">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Comandas — Las Gambusinas</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = { theme: { extend: { colors: { primary: '#0a0a0f', card: '#1a1a28', sidebar: '#12121a', gold: '#d4af37', 'gold-20': 'rgba(212,175,55,0.125)', 'gold-40': 'rgba(212,175,55,0.25)', muted: '#a0a0b8', esperando: '#ffa502' }, fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } };
-  </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link href="assets/css/dashboard.css" rel="stylesheet">
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
-  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-  <script src="https://unpkg.com/lucide@0.263.1/dist/umd/lucide.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comandas — Las Gambusinas</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        bg: { primary: '#0a0a0f', card: '#1a1a28', sidebar: '#12121a' },
+        gold: { DEFAULT: '#d4af37', '20': 'rgba(212,175,55,0.125)', '40': 'rgba(212,175,55,0.25)' },
+        st: { libre: '#00d4aa', esperando: '#ffa502', pedido: '#3498db', preparado: '#2ecc71', pagado: '#ff4757', reservado: '#5352ed' },
+        txt: { primary: '#ffffff', secondary: '#a0a0b8', muted: '#5a5a7a' }
+      },
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+    }
+  }
+}
+</script>
+<link rel="stylesheet" href="/assets/css/dashboard.css">
 </head>
-<body class="bg-primary text-white min-h-screen">
-  <div id="app" class="min-h-screen flex flex-col" x-data="dashboardApp()" x-init="init()">
-    <div x-html="topbarHtml"></div>
-    <div class="flex flex-1 min-h-0">
-      <div x-html="sidebarHtml"></div>
-      <main class="flex-1 overflow-auto p-4 md:p-6 bg-primary">
-        <div class="space-y-4">
-          <h1 class="text-xl font-bold">Comandas</h1>
-          <div class="flex flex-wrap gap-2">
-            <input type="text" placeholder="ID Comanda" class="h-10 px-3 rounded-lg bg-card border border-gold-40 text-white">
-            <input type="text" placeholder="Mesa" class="h-10 px-3 rounded-lg bg-card border border-gold-40 text-white">
-            <select class="h-10 px-3 rounded-lg bg-card border border-gold-40 text-white"><option>Estado</option></select>
-            <input type="text" placeholder="Mozo" class="h-10 px-3 rounded-lg bg-card border border-gold-40 text-white">
-            <button class="px-4 py-2 rounded-lg btn-gold">Actualizar</button>
-          </div>
-          <div class="bg-card rounded-xl border border-gold-40 overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead class="table-header"><tr><th class="text-left p-3">#</th><th class="text-left p-3">Mesa</th><th class="text-left p-3">Mozo</th><th class="text-left p-3">Items</th><th class="text-left p-3">Total</th><th class="text-left p-3">Estado</th><th class="text-left p-3">Acciones</th></tr></thead>
-              <tbody>
-                <template x-for="c in mockData.comandas" :key="c.id">
-                  <tr class="border-t border-white/5 hover:bg-gold-20">
-                    <td class="p-3" x-text="c.id"></td>
-                    <td class="p-3" x-text="c.mesa"></td>
-                    <td class="p-3" x-text="c.mozo"></td>
-                    <td class="p-3" x-text="c.items"></td>
-                    <td class="p-3 text-gold" x-text="'S/.' + c.total"></td>
-                    <td class="p-3"><span class="rounded px-2 py-0.5 text-xs bg-esperando/20" x-text="c.estado"></span></td>
-                    <td class="p-3"><button @click="openModalComanda(c)" class="text-gold hover:underline">Ver</button></td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div x-show="modalComanda" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" @click.self="modalComanda = false">
-          <div class="bg-card rounded-xl border border-gold-40 w-full max-w-2xl p-6">
-            <div class="flex justify-between items-center mb-4">
-              <h2 class="text-xl font-bold text-gold">Comanda #<span x-text="selectedComanda?.id"></span></h2>
-              <button @click="modalComanda = false" class="p-2 rounded hover:bg-gold-20 text-muted">&times;</button>
-            </div>
-            <template x-if="selectedComanda">
-              <div class="space-y-2 text-sm">
-                <p>Mesa: <span x-text="selectedComanda.mesa"></span> · Mozo: <span x-text="selectedComanda.mozo"></span></p>
-                <p class="text-gold font-semibold">Total: S/.<span x-text="selectedComanda.total"></span></p>
-              </div>
-            </template>
-            <div class="mt-4"><button @click="modalComanda = false" class="px-4 py-2 rounded-lg btn-gold">Cerrar</button></div>
-          </div>
-        </div>
-      </main>
+<body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="comandasApp()" x-cloak>
+
+<div id="topbar-container"></div>
+<div class="flex pt-[72px] min-h-screen">
+  <div id="sidebar-container"></div>
+  <main :class="sidebarOpen ? 'ml-[270px]' : 'ml-[68px]'" class="flex-1 transition-all duration-300 min-h-[calc(100vh-72px)] p-6">
+    
+    <!-- HEADER -->
+    <div class="flex items-center justify-between mb-5">
+      <h1 class="text-xl font-bold">Comandas</h1>
+      <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold">+ Nueva Comanda</button>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="flex gap-2 mb-5">
+      <input class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-36 placeholder-txt-muted" placeholder="ID Comanda">
+      <input class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-28 placeholder-txt-muted" placeholder="Mesa">
+      <select class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary"><option>Estado: Todos</option></select>
+      <button class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold">🔄 Actualizar</button>
+    </div>
+
+    <!-- TABLA -->
+    <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
+          <th class="text-left px-4 py-3 font-semibold">#</th>
+          <th class="text-left px-4 py-3 font-semibold">Mesa</th>
+          <th class="text-left px-4 py-3 font-semibold">Mozo</th>
+          <th class="text-left px-4 py-3 font-semibold">Items</th>
+          <th class="text-left px-4 py-3 font-semibold">Total</th>
+          <th class="text-left px-4 py-3 font-semibold">Estado</th>
+          <th class="text-left px-4 py-3 font-semibold">Hora</th>
+          <th class="text-left px-4 py-3 font-semibold">Acciones</th>
+        </tr></thead>
+        <tbody>
+          <template x-for="c in sharedData.mockComandas" :key="c.id">
+            <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
+              <td class="px-4 py-3 font-medium" x-text="'#'+c.id"></td>
+              <td class="px-4 py-3" x-text="'Mesa '+c.mesa"></td>
+              <td class="px-4 py-3 text-txt-secondary" x-text="c.mozo"></td>
+              <td class="px-4 py-3" x-text="c.items+' platos'"></td>
+              <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. '+c.total"></td>
+              <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full font-semibold"
+                :class="c.estado==='Preparado' ? 'bg-st-preparado/20 text-st-preparado' : c.estado==='En cocina' ? 'bg-st-esperando/20 text-st-esperando' : 'bg-st-pedido/20 text-st-pedido'" x-text="c.estado"></span></td>
+              <td class="px-4 py-3 text-txt-muted" x-text="c.hora"></td>
+              <td class="px-4 py-3 space-x-2 text-base"><span class="cursor-pointer hover:text-gold" @click="modal='verComanda'">👁</span> <span class="cursor-pointer hover:text-gold">✏️</span> <span class="cursor-pointer hover:text-st-pagado">🗑</span></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODAL: VER COMANDA -->
+<div x-show="modal==='verComanda'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=null">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[840px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
+      <div>
+        <div class="flex items-center gap-2"><h2 class="text-lg font-bold">Comanda #42</h2><span class="text-[10px] px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-bold">Preparado</span></div>
+        <p class="text-xs text-txt-muted">Mesa 5 — Juan Pérez · 2 comensales</p>
+      </div>
+      <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+    </div>
+    <div class="p-5">
+      <div class="bg-bg-sidebar rounded-lg p-4 flex gap-8 mb-5 text-sm">
+        <div><p class="text-[10px] text-txt-muted">Creada</p><p class="font-semibold">14:15</p></div>
+        <div><p class="text-[10px] text-txt-muted">Enviada</p><p class="font-semibold">14:20</p></div>
+        <div><p class="text-[10px] text-txt-muted">Preparada</p><p class="font-semibold text-st-preparado">14:35</p></div>
+        <div><p class="text-[10px] text-txt-muted">Tiempo total</p><p class="font-semibold text-gold">20 min</p></div>
+      </div>
+      <table class="w-full text-sm mb-5">
+        <thead><tr class="text-[10px] uppercase text-txt-secondary border-b border-[rgba(212,175,55,0.15)]">
+          <th class="text-left py-2">Plato</th><th class="text-left py-2">Cant.</th><th class="text-left py-2">P.Unit.</th><th class="text-left py-2">Subtotal</th>
+        </tr></thead>
+        <tbody>
+          <tr class="border-b border-[rgba(212,175,55,0.08)]"><td class="py-2.5"><p class="font-medium">Ceviche Clásico</p></td><td>2</td><td class="text-txt-secondary">S/.45</td><td class="text-gold font-semibold">S/.90</td></tr>
+          <tr class="border-b border-[rgba(212,175,55,0.08)]"><td class="py-2.5"><p class="font-medium">Lomo Saltado</p></td><td>1</td><td class="text-txt-secondary">S/.35</td><td class="text-gold font-semibold">S/.35</td></tr>
+        </tbody>
+        <tfoot><tr class="border-t-2 border-gold/25 font-bold"><td class="py-2.5">TOTAL</td><td>3</td><td></td><td class="text-gold text-lg">S/.125</td></tr></tfoot>
+      </table>
+    </div>
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="modal=null" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary">Cerrar</button>
+      <button class="px-4 py-2 border border-gold/40 rounded-lg text-sm text-gold">🖨 PDF</button>
+      <button class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold">🍳 Cocina</button>
     </div>
   </div>
-  <script src="assets/js/shared.js"></script>
+</div>
+
+<script src="/assets/js/shared.js"></script>
+<script>
+function comandasApp() {
+  return {
+    sidebarOpen: true,
+    modal: null,
+    activeNav: 'comandas',
+    pageTitle: 'Comandas',
+    init() {},
+    logout() { localStorage.removeItem('adminToken'); window.location.href = '/login'; }
+  };
+}
+</script>
 </body>
 </html>

@@ -1,103 +1,178 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="scroll-smooth">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Platos — Las Gambusinas</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = { theme: { extend: { colors: { primary: '#0a0a0f', card: '#1a1a28', sidebar: '#12121a', gold: '#d4af37', 'gold-20': 'rgba(212,175,55,0.125)', 'gold-40': 'rgba(212,175,55,0.25)', muted: '#a0a0b8', pedido: '#3498db', preparado: '#2ecc71', pagado: '#ff4757' }, fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } };
-  </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link href="assets/css/dashboard.css" rel="stylesheet">
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
-  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-  <script src="https://unpkg.com/lucide@0.263.1/dist/umd/lucide.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Platos — Las Gambusinas</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        bg: { primary: '#0a0a0f', card: '#1a1a28', sidebar: '#12121a' },
+        gold: { DEFAULT: '#d4af37', '20': 'rgba(212,175,55,0.125)', '40': 'rgba(212,175,55,0.25)' },
+        st: { libre: '#00d4aa', esperando: '#ffa502', pedido: '#3498db', preparado: '#2ecc71', pagado: '#ff4757', reservado: '#5352ed' },
+        txt: { primary: '#ffffff', secondary: '#a0a0b8', muted: '#5a5a7a' }
+      },
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+    }
+  }
+}
+</script>
+<link rel="stylesheet" href="/assets/css/dashboard.css">
 </head>
-<body class="bg-primary text-white min-h-screen">
-  <div id="app" class="min-h-screen flex flex-col" x-data="dashboardApp()" x-init="init()">
-    <div x-html="topbarHtml"></div>
-    <div class="flex flex-1 min-h-0">
-      <div x-html="sidebarHtml"></div>
-      <main class="flex-1 overflow-auto p-4 md:p-6 bg-primary">
-        <div class="space-y-4">
-          <div class="flex flex-wrap justify-between items-center gap-4">
-            <h1 class="text-xl font-bold">Carta / Platos</h1>
-            <div class="flex gap-2">
-              <button class="px-3 py-2 rounded-lg border border-gold-40 text-gold">Actualizar</button>
-              <button class="px-3 py-2 rounded-lg border border-gold-40 text-gold">Importar JSON</button>
-              <button @click="openModalPlato()" class="px-4 py-2 rounded-lg btn-gold font-medium">+ Nuevo Plato</button>
-            </div>
-          </div>
-          <div class="flex gap-2 flex-wrap">
-            <button @click="platosTab = 'todos'" :class="platosTab === 'todos' ? 'bg-gold text-primary' : 'bg-card border border-gold-40'" class="px-3 py-1.5 rounded-lg">Todos (53)</button>
-            <button @click="platosTab = 'desayuno'" :class="platosTab === 'desayuno' ? 'bg-gold text-primary' : 'bg-card border border-gold-40'" class="px-3 py-1.5 rounded-lg">Desayuno (15)</button>
-            <button @click="platosTab = 'carta'" :class="platosTab === 'carta' ? 'bg-gold text-primary' : 'bg-card border border-gold-40'" class="px-3 py-1.5 rounded-lg">Carta (38)</button>
-            <button @click="platosTab = 'inactivos'" :class="platosTab === 'inactivos' ? 'bg-gold text-primary' : 'bg-card border border-gold-40'" class="px-3 py-1.5 rounded-lg">Inactivos (3)</button>
-          </div>
-          <div class="flex gap-4 flex-col lg:flex-row">
-            <div class="flex-1 min-w-0">
-              <div class="bg-card rounded-xl border border-gold-40 overflow-x-auto">
-                <table class="w-full text-sm">
-                  <thead class="table-header"><tr><th class="text-left p-3">#</th><th class="text-left p-3">Nombre</th><th class="text-left p-3">Precio</th><th class="text-left p-3">Stock</th><th class="text-left p-3">Categoría</th><th class="text-left p-3">Complementos</th><th class="text-left p-3">Acc.</th></tr></thead>
-                  <tbody>
-                    <template x-for="(p, i) in mockData.platos" :key="p.id">
-                      <tr class="border-t border-white/5 hover:bg-gold-20">
-                        <td class="p-3" x-text="i + 1"></td>
-                        <td class="p-3"><span x-text="p.nombre"></span><div class="text-muted text-xs" x-text="p.subcategoria || ''"></div></td>
-                        <td class="p-3 text-gold" x-text="'S/.' + p.precio"></td>
-                        <td class="p-3"><span class="rounded px-2 py-0.5 text-xs" :class="p.stock < 10 ? 'bg-pagado/20' : 'bg-preparado/20'" x-text="p.stock"></span></td>
-                        <td class="p-3"><span class="rounded px-2 py-0.5 text-xs bg-pedido/20" x-text="p.categoria"></span></td>
-                        <td class="p-3"><span class="rounded px-2 py-0.5 text-xs bg-gold/20 text-gold" x-text="(p.complementos?.length || 0) + ' grupos'"></span></td>
-                        <td class="p-3"><button @click="openModalPlato(p)" class="text-gold hover:underline">Editar</button></td>
-                      </tr>
-                    </template>
-                  </tbody>
-                </table>
-              </div>
-              <div class="text-muted text-sm mt-2">Mostrando 6 de 53 platos</div>
-            </div>
-            <div class="w-full lg:w-56 shrink-0 space-y-4">
-              <div class="bg-card rounded-xl p-4 border border-gold-40">
-                <h3 class="font-semibold text-gold mb-2">Categorías</h3>
-                <ul class="space-y-1 text-sm">
-                  <template x-for="c in categoriasPlatos" :key="c.nombre"><li class="flex justify-between"><span x-text="c.nombre"></span><span x-text="c.count"></span></li></template>
-                </ul>
-                <button class="mt-2 text-gold text-sm">+ Nueva categoría</button>
-              </div>
-              <div class="bg-card rounded-xl p-4 border border-gold-40">
-                <h3 class="font-semibold text-gold mb-2">Complementos</h3>
-                <div class="text-muted text-sm">Platos con complementos: 18 de 32</div>
-                <div class="text-muted text-sm">Grupos: 42 · Opciones: 136</div>
-              </div>
-            </div>
+<body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="platosApp()" x-cloak>
+
+<div id="topbar-container"></div>
+<div class="flex pt-[72px] min-h-screen">
+  <div id="sidebar-container"></div>
+  <main :class="sidebarOpen ? 'ml-[270px]' : 'ml-[68px]'" class="flex-1 transition-all duration-300 min-h-[calc(100vh-72px)] p-6">
+    
+    <!-- HEADER -->
+    <div class="flex items-center justify-between mb-5">
+      <h1 class="text-xl font-bold">Carta y Platos</h1>
+      <div class="flex gap-2">
+        <button class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
+        <button class="px-4 py-2 border border-gold/40 rounded-lg text-sm text-gold hover:bg-gold-20 transition">Importar JSON</button>
+        <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold" @click="modal='crearPlato'">+ Nuevo Plato</button>
+      </div>
+    </div>
+
+    <!-- SUB TABS -->
+    <div class="flex gap-2 mb-4">
+      <template x-for="t in [{l:'Todos',c:53},{l:'Desayuno',c:15},{l:'Carta',c:38},{l:'Inactivos',c:3}]" :key="t.l">
+        <button @click="subTab=t.l" :class="subTab===t.l ? 'bg-gold-20 text-gold' : 'text-txt-secondary hover:text-gold'"
+          class="px-4 py-1.5 rounded-full text-xs font-medium transition"><span x-text="t.l"></span> (<span x-text="t.c"></span>)</button>
+      </template>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="flex gap-2 mb-5 items-center">
+      <input type="text" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-48 placeholder-txt-muted" placeholder="🔍 Buscar plato...">
+      <select class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary"><option>Cat: Todas</option></select>
+      <select class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary"><option>Stock: Todos</option></select>
+      <label class="flex items-center gap-2 text-xs text-txt-secondary cursor-pointer"><input type="checkbox" x-model="soloCompl" class="accent-gold w-3.5 h-3.5"> Solo con complementos</label>
+    </div>
+
+    <div class="flex gap-4">
+      <!-- TABLA -->
+      <div class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+        <table class="w-full text-sm">
+          <thead><tr class="bg-bg-sidebar text-txt-secondary text-[10px] uppercase">
+            <th class="text-left px-3 py-2.5 font-semibold">#</th>
+            <th class="text-left px-3 py-2.5 font-semibold">Nombre</th>
+            <th class="text-left px-3 py-2.5 font-semibold">Precio</th>
+            <th class="text-left px-3 py-2.5 font-semibold">Stock</th>
+            <th class="text-left px-3 py-2.5 font-semibold">Categoría</th>
+            <th class="text-left px-3 py-2.5 font-semibold">Tipo</th>
+            <th class="text-left px-3 py-2.5 font-semibold">Complementos</th>
+            <th class="text-left px-3 py-2.5 font-semibold">Acc.</th>
+          </tr></thead>
+          <tbody>
+            <template x-for="(p,i) in sharedData.mockPlatos.filter(p => !soloCompl || p.grupos > 0)" :key="p.nombre">
+              <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
+                <td class="px-3 py-2.5 text-txt-muted" x-text="i+1"></td>
+                <td class="px-3 py-2.5"><p class="font-medium text-sm" x-text="p.nombre"></p><p class="text-[10px] text-txt-muted" x-text="p.cat + ' · ' + p.tipo"></p></td>
+                <td class="px-3 py-2.5 text-gold font-semibold" x-text="'S/. ' + p.precio"></td>
+                <td class="px-3 py-2.5"><span class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                  :class="p.stock > 20 ? 'bg-st-preparado/15 text-st-preparado' : p.stock > 0 ? 'bg-st-esperando/15 text-st-esperando' : 'bg-st-pagado/15 text-st-pagado'"
+                  x-text="p.stock"></span></td>
+                <td class="px-3 py-2.5"><span class="text-[10px] px-2 py-0.5 rounded-full bg-gold/10 text-gold" x-text="p.cat"></span></td>
+                <td class="px-3 py-2.5"><span class="text-[10px] px-2 py-0.5 rounded-full bg-st-pedido/10 text-st-pedido" x-text="p.tipo"></span></td>
+                <td class="px-3 py-2.5">
+                  <template x-if="p.grupos > 0">
+                    <div><span class="text-[10px] px-2 py-0.5 rounded-full bg-gold/15 text-gold font-semibold" x-text="'● '+p.grupos+' grupo'+(p.grupos>1?'s':'')"></span>
+                    <p class="text-[9px] text-txt-muted mt-0.5" x-text="p.grupoNames"></p></div>
+                  </template>
+                  <template x-if="p.grupos === 0"><span class="text-[10px] text-txt-muted">Sin complementos</span></template>
+                </td>
+                <td class="px-3 py-2.5 space-x-1 text-sm"><span class="cursor-pointer hover:text-gold">👁</span><span class="cursor-pointer hover:text-gold">✏️</span><span class="cursor-pointer hover:text-st-pagado">🗑</span></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+        <div class="flex items-center justify-between px-3 py-2.5 text-[11px] text-txt-muted border-t border-[rgba(212,175,55,0.08)]">
+          <span>Mostrando 6 de 53 platos</span><span>◀ 1 2 3 ▶</span>
+        </div>
+      </div>
+
+      <!-- PANEL LATERAL -->
+      <div class="w-60 space-y-4 flex-shrink-0">
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+          <h4 class="font-semibold text-sm mb-3">Categorías</h4>
+          <template x-for="c in [{n:'Ceviches',c:24},{n:'Arroces',c:18},{n:'Carnes',c:12},{n:'Bebidas',c:35},{n:'Desayunos',c:15},{n:'Postres',c:9}]">
+            <div class="flex justify-between text-xs py-1"><span class="text-white" x-text="c.n"></span><span class="text-txt-muted" x-text="c.c"></span></div>
+          </template>
+          <button class="w-full mt-3 border border-gold/40 text-gold text-xs py-1.5 rounded-lg hover:bg-gold-20 transition">+ Nueva categoría</button>
+        </div>
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+          <h4 class="font-semibold text-sm mb-3">Complementos</h4>
+          <div class="bg-bg-sidebar rounded-lg p-3 space-y-2">
+            <div><p class="text-[10px] text-txt-muted">Platos con complementos</p><p class="text-gold font-bold">18 de 32</p></div>
+            <div><p class="text-[10px] text-txt-muted">Grupos definidos</p><p class="text-gold font-bold">42</p></div>
+            <div><p class="text-[10px] text-txt-muted">Opciones totales</p><p class="text-gold font-bold">136</p></div>
           </div>
         </div>
-        <!-- Modal Plato -->
-        <div x-show="modalPlato" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" @click.self="modalPlato = false">
-          <div class="bg-card rounded-xl border border-gold-40 w-full max-w-2xl max-h-[90vh] overflow-auto p-6">
-            <div class="flex justify-between items-center mb-4">
-              <h2 class="text-xl font-bold text-gold" x-text="editingPlato ? 'Editar Plato' : 'Crear Nuevo Plato'"></h2>
-              <button @click="modalPlato = false" class="p-2 rounded hover:bg-gold-20 text-muted">&times;</button>
-            </div>
-            <div class="space-y-4">
-              <div><label class="text-muted text-sm block mb-1">Nombre</label><input type="text" x-model="formPlato.nombre" class="w-full h-10 px-3 rounded-lg bg-sidebar border border-gold-40 text-white"></div>
-              <div class="grid grid-cols-2 gap-4">
-                <div><label class="text-muted text-sm block mb-1">Precio (S/.)</label><input type="number" x-model="formPlato.precio" class="w-full h-10 px-3 rounded-lg bg-sidebar border border-gold-40 text-white"></div>
-                <div><label class="text-muted text-sm block mb-1">Stock</label><input type="number" x-model="formPlato.stock" class="w-full h-10 px-3 rounded-lg bg-sidebar border border-gold-40 text-white"></div>
-              </div>
-              <div><label class="text-muted text-sm block mb-1">Categoría</label><select x-model="formPlato.categoria" class="w-full h-10 px-3 rounded-lg bg-sidebar border border-gold-40 text-white"><option>Ceviches</option><option>Arroces</option><option>Bebidas</option></select></div>
-            </div>
-            <div class="flex gap-2 justify-end mt-6">
-              <button @click="modalPlato = false" class="px-4 py-2 rounded-lg border border-gold-40 text-gold">Cancelar</button>
-              <button @click="savePlato()" class="px-4 py-2 rounded-lg btn-gold">Guardar</button>
-            </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODAL: CREAR PLATO -->
+<div x-show="modal==='crearPlato'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=null">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[720px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl sticky top-0 z-10">
+      <div class="flex items-center justify-between">
+        <div><h2 class="text-lg font-bold">Crear Nuevo Plato</h2><p class="text-xs text-txt-muted">Completa los datos del plato</p></div>
+        <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+      </div>
+    </div>
+    <div class="p-6 space-y-5">
+      <div><p class="text-[11px] text-txt-secondary uppercase font-semibold mb-3">Datos Básicos</p>
+        <div class="space-y-3">
+          <div><label class="text-xs text-txt-secondary mb-1 block">Nombre del plato</label><input type="text" placeholder="Ej: Ceviche Clásico" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
+          <div class="grid grid-cols-4 gap-3">
+            <div><label class="text-xs text-txt-secondary mb-1 block">Precio (S/.)</label><input type="number" placeholder="0.00" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2.5 text-sm"></div>
+            <div><label class="text-xs text-txt-secondary mb-1 block">Stock</label><input type="number" value="0" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2.5 text-sm"></div>
+            <div><label class="text-xs text-txt-secondary mb-1 block">Categoría</label><select class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2.5 text-sm text-txt-secondary"><option>Ceviches</option><option>Arroces</option><option>Carnes</option></select></div>
+            <div><label class="text-xs text-txt-secondary mb-1 block">Tipo</label><select class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2.5 text-sm text-txt-secondary"><option>Carta</option><option>Desayuno</option></select></div>
           </div>
         </div>
-      </main>
+      </div>
+    </div>
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex items-center justify-between border-t border-[rgba(212,175,55,0.15)]">
+      <div class="flex gap-2">
+        <button @click="modal=null" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary">Cancelar</button>
+        <button class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold">Crear Plato</button>
+      </div>
     </div>
   </div>
-  <script src="assets/js/shared.js"></script>
+</div>
+
+<script src="/assets/js/shared.js"></script>
+<script>
+function platosApp() {
+  return {
+    sidebarOpen: true,
+    modal: null,
+    activeNav: 'platos',
+    pageTitle: 'Platos',
+    subTab: 'Todos',
+    soloCompl: false,
+    
+    init() {},
+    
+    logout() {
+      localStorage.removeItem('adminToken');
+      window.location.href = '/login';
+    }
+  };
+}
+</script>
 </body>
 </html>

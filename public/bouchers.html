@@ -1,64 +1,85 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="scroll-smooth">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bouchers — Las Gambusinas</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = { theme: { extend: { colors: { primary: '#0a0a0f', card: '#1a1a28', sidebar: '#12121a', gold: '#d4af37', 'gold-20': 'rgba(212,175,55,0.125)', 'gold-40': 'rgba(212,175,55,0.25)', muted: '#a0a0b8' }, fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } };
-  </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link href="assets/css/dashboard.css" rel="stylesheet">
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
-  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-  <script src="https://unpkg.com/lucide@0.263.1/dist/umd/lucide.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bouchers — Las Gambusinas</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        bg: { primary: '#0a0a0f', card: '#1a1a28', sidebar: '#12121a' },
+        gold: { DEFAULT: '#d4af37', '20': 'rgba(212,175,55,0.125)', '40': 'rgba(212,175,55,0.25)' },
+        st: { libre: '#00d4aa', esperando: '#ffa502', pedido: '#3498db', preparado: '#2ecc71', pagado: '#ff4757', reservado: '#5352ed' },
+        txt: { primary: '#ffffff', secondary: '#a0a0b8', muted: '#5a5a7a' }
+      },
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+    }
+  }
+}
+</script>
+<link rel="stylesheet" href="/assets/css/dashboard.css">
 </head>
-<body class="bg-primary text-white min-h-screen">
-  <div id="app" class="min-h-screen flex flex-col" x-data="dashboardApp()" x-init="init()">
-    <div x-html="topbarHtml"></div>
-    <div class="flex flex-1 min-h-0">
-      <div x-html="sidebarHtml"></div>
-      <main class="flex-1 overflow-auto p-4 md:p-6 bg-primary">
-        <div class="space-y-4">
-          <h1 class="text-xl font-bold">Bouchers</h1>
-          <div class="flex gap-2">
-            <input type="date" class="h-10 px-3 rounded-lg bg-card border border-gold-40 text-white">
-            <button class="px-4 py-2 rounded-lg btn-gold">Filtrar</button>
-          </div>
-          <div class="bg-card rounded-xl border border-gold-40 overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead class="table-header"><tr><th class="text-left p-3">Código</th><th class="text-left p-3">N° Boucher</th><th class="text-left p-3">Fecha</th><th class="text-left p-3">Total</th><th class="text-left p-3">Acciones</th></tr></thead>
-              <tbody>
-                <template x-for="b in mockData.bouchers" :key="b.id">
-                  <tr class="border-t border-white/5 hover:bg-gold-20">
-                    <td class="p-3" x-text="b.codigo"></td>
-                    <td class="p-3" x-text="b.numero"></td>
-                    <td class="p-3" x-text="b.fecha"></td>
-                    <td class="p-3 text-gold" x-text="'S/.' + b.total"></td>
-                    <td class="p-3"><button @click="openModalBoucher(b)" class="text-gold hover:underline">Ver</button> <button class="text-gold hover:underline ml-2">PDF</button></td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div x-show="modalBoucher" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" @click.self="modalBoucher = false">
-          <div class="bg-card rounded-xl border border-gold-40 w-full max-w-lg p-6">
-            <div class="flex justify-between items-center mb-4">
-              <h2 class="text-xl font-bold text-gold">Boucher #<span x-text="selectedBoucher?.numero"></span></h2>
-              <button @click="modalBoucher = false" class="p-2 rounded hover:bg-gold-20 text-muted">&times;</button>
-            </div>
-            <template x-if="selectedBoucher">
-              <p class="text-gold font-semibold text-lg">Total: S/.<span x-text="selectedBoucher.total"></span></p>
-            </template>
-            <div class="mt-4"><button @click="modalBoucher = false" class="px-4 py-2 rounded-lg btn-gold">Cerrar</button></div>
-          </div>
-        </div>
-      </main>
+<body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="bouchersApp()" x-cloak>
+
+<div id="topbar-container"></div>
+<div class="flex pt-[72px] min-h-screen">
+  <div id="sidebar-container"></div>
+  <main :class="sidebarOpen ? 'ml-[270px]' : 'ml-[68px]'" class="flex-1 transition-all duration-300 min-h-[calc(100vh-72px)] p-6">
+    
+    <!-- HEADER -->
+    <div class="flex items-center justify-between mb-5">
+      <h1 class="text-xl font-bold">Bouchers</h1>
+      <button class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold">🔄 Actualizar</button>
     </div>
-  </div>
-  <script src="assets/js/shared.js"></script>
+
+    <!-- TABLA -->
+    <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
+          <th class="text-left px-4 py-3 font-semibold">Código</th>
+          <th class="text-left px-4 py-3 font-semibold">N° Boucher</th>
+          <th class="text-left px-4 py-3 font-semibold">Fecha</th>
+          <th class="text-left px-4 py-3 font-semibold">Mesa</th>
+          <th class="text-left px-4 py-3 font-semibold">Total</th>
+          <th class="text-left px-4 py-3 font-semibold">Método</th>
+          <th class="text-left px-4 py-3 font-semibold">Acciones</th>
+        </tr></thead>
+        <tbody>
+          <template x-for="b in sharedData.mockBouchers" :key="b.codigo">
+            <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
+              <td class="px-4 py-3 text-txt-muted font-mono text-xs" x-text="b.codigo"></td>
+              <td class="px-4 py-3 font-medium" x-text="b.numero"></td>
+              <td class="px-4 py-3 text-txt-secondary" x-text="b.fecha"></td>
+              <td class="px-4 py-3" x-text="'Mesa '+b.mesa"></td>
+              <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. '+b.total"></td>
+              <td class="px-4 py-3"><span class="text-xs" :class="b.metodo==='Efectivo' ? 'text-st-preparado' : 'text-st-pedido'" x-text="b.metodo"></span></td>
+              <td class="px-4 py-3 space-x-2 text-base"><span class="cursor-pointer hover:text-gold">👁</span> <span class="cursor-pointer hover:text-gold">📄</span></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+
+  </main>
+</div>
+
+<script src="/assets/js/shared.js"></script>
+<script>
+function bouchersApp() {
+  return {
+    sidebarOpen: true,
+    activeNav: 'bouchers',
+    pageTitle: 'Bouchers',
+    init() {},
+    logout() { localStorage.removeItem('adminToken'); window.location.href = '/login'; }
+  };
+}
+</script>
 </body>
 </html>

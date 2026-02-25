@@ -1,75 +1,159 @@
 /**
- * Chart.js inicializadores reutilizables — Las Gambusinas
+ * Las Gambusinas - charts.js
+ * Funciones para gráficos Chart.js
  */
-(function (window) {
-  const gold = 'rgba(212,175,55,0.8)';
-  const defaultOptions = {
-    responsive: true,
-    maintainAspectRatio: true,
-    plugins: { legend: { display: false } },
-    scales: {
-      y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
-      x: { grid: { display: false } }
-    }
-  };
 
-  function chartVentasHora(canvasId) {
+const LasGambusinasCharts = {
+  // ============================================
+  // GRÁFICO VENTAS DEL DÍA (Dashboard)
+  // ============================================
+  drawDashChart: function(canvasId) {
     const el = document.getElementById(canvasId);
-    if (!el || typeof Chart === 'undefined') return null;
-    return new Chart(el.getContext('2d'), {
+    if (!el) return;
+    
+    const ctx = el.getContext('2d');
+    if (el._chart) el._chart.destroy();
+    
+    el._chart = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: ['08h', '10h', '12h', '14h', '16h', '18h'],
+        labels: ['8h', '9h', '10h', '11h', '12h', '13h', '14h', '15h', '16h'],
         datasets: [{
           label: 'Ventas',
-          data: [120, 340, 580, 720, 650, 430],
-          borderColor: gold,
+          data: [120, 280, 450, 680, 1200, 1800, 2100, 2300, 2450],
+          borderColor: '#d4af37',
           backgroundColor: 'rgba(212,175,55,0.1)',
-          fill: true
-        }]
-      },
-      options: defaultOptions
-    });
-  }
-
-  function chartVentasPeriodo(canvasId) {
-    const el = document.getElementById(canvasId);
-    if (!el || typeof Chart === 'undefined') return null;
-    return new Chart(el.getContext('2d'), {
-      type: 'line',
-      data: {
-        labels: ['08h', '10h', '12h', '14h', '16h'],
-        datasets: [{
-          label: 'Ventas',
-          data: [1200, 2800, 4200, 5800, 7200],
-          borderColor: gold,
           fill: true,
-          backgroundColor: 'rgba(212,175,55,0.15)'
+          tension: 0.4,
+          pointRadius: 3,
+          pointBackgroundColor: '#d4af37'
         }]
       },
-      options: defaultOptions
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#a0a0b8', font: { size: 10 } },
+            grid: { color: 'rgba(212,175,55,0.06)' }
+          },
+          y: {
+            ticks: { 
+              color: '#a0a0b8', 
+              font: { size: 10 },
+              callback: v => 'S/.' + v
+            },
+            grid: { color: 'rgba(212,175,55,0.06)' }
+          }
+        }
+      }
     });
-  }
+    
+    return el._chart;
+  },
 
-  function chartDonut(canvasId) {
+  // ============================================
+  // GRÁFICO BARRAS HORIZONTALES (Reportes - Top Platos)
+  // ============================================
+  drawReportBarChart: function(canvasId) {
     const el = document.getElementById(canvasId);
-    if (!el || typeof Chart === 'undefined') return null;
-    return new Chart(el.getContext('2d'), {
+    if (!el) return;
+    
+    const ctx = el.getContext('2d');
+    if (el._chart) el._chart.destroy();
+    
+    el._chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['Ceviche', 'Paella', 'Lomo', 'Arroz Mar.', 'Tiradito', 'Ají', 'Anticuchos', 'Chicharrón'],
+        datasets: [{
+          data: [12, 9, 8, 7, 6, 5, 4, 3],
+          backgroundColor: [
+            '#d4af37', '#3498db', '#2ecc71', '#ffa502',
+            '#5352ed', '#ff4757', '#00d4aa', '#f1c40f'
+          ],
+          borderRadius: 4
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#a0a0b8', font: { size: 10 } },
+            grid: { color: 'rgba(212,175,55,0.06)' }
+          },
+          y: {
+            ticks: { color: '#a0a0b8', font: { size: 10 } },
+            grid: { display: false }
+          }
+        }
+      }
+    });
+    
+    return el._chart;
+  },
+
+  // ============================================
+  // GRÁFICO DONUT (Reportes - Por Categoría)
+  // ============================================
+  drawReportDonutChart: function(canvasId) {
+    const el = document.getElementById(canvasId);
+    if (!el) return;
+    
+    const ctx = el.getContext('2d');
+    if (el._chart) el._chart.destroy();
+    
+    el._chart = new Chart(ctx, {
       type: 'doughnut',
       data: {
         labels: ['Ceviches', 'Arroces', 'Carnes', 'Bebidas', 'Otros'],
         datasets: [{
           data: [30, 22, 18, 15, 15],
-          backgroundColor: [gold, '#3498db', '#2ecc71', '#ffa502', '#5352ed']
+          backgroundColor: ['#d4af37', '#3498db', '#2ecc71', '#ffa502', '#5352ed'],
+          borderWidth: 0
         }]
       },
-      options: { responsive: true, plugins: { legend: { position: 'right' } } }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: {
+              color: '#a0a0b8',
+              font: { size: 11 },
+              padding: 12
+            }
+          }
+        }
+      }
     });
-  }
+    
+    return el._chart;
+  },
 
-  window.LasGambusinasCharts = {
-    chartVentasHora,
-    chartVentasPeriodo,
-    chartDonut
-  };
-})(window);
+  // ============================================
+  // INICIALIZAR GRÁFICOS POR PÁGINA
+  // ============================================
+  initForPage: function(pageName) {
+    if (pageName === 'dashboard') {
+      this.drawDashChart('chartVentasDia');
+    }
+    if (pageName === 'reportes') {
+      this.drawReportBarChart('chartReportes1');
+      this.drawReportDonutChart('chartReportes2');
+    }
+  }
+};
+
+// Exponer globalmente
+window.LasGambusinasCharts = LasGambusinasCharts;

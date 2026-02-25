@@ -1,56 +1,131 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="scroll-smooth">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mozos — Las Gambusinas</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = { theme: { extend: { colors: { primary: '#0a0a0f', card: '#1a1a28', sidebar: '#12121a', gold: '#d4af37', 'gold-20': 'rgba(212,175,55,0.125)', 'gold-40': 'rgba(212,175,55,0.25)', muted: '#a0a0b8', preparado: '#2ecc71' }, fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } };
-  </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link href="assets/css/dashboard.css" rel="stylesheet">
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
-  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-  <script src="https://unpkg.com/lucide@0.263.1/dist/umd/lucide.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mozos — Las Gambusinas</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        bg: { primary: '#0a0a0f', card: '#1a1a28', sidebar: '#12121a' },
+        gold: { DEFAULT: '#d4af37', '20': 'rgba(212,175,55,0.125)', '40': 'rgba(212,175,55,0.25)' },
+        st: { libre: '#00d4aa', esperando: '#ffa502', pedido: '#3498db', preparado: '#2ecc71', pagado: '#ff4757', reservado: '#5352ed' },
+        txt: { primary: '#ffffff', secondary: '#a0a0b8', muted: '#5a5a7a' }
+      },
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+    }
+  }
+}
+</script>
+<link rel="stylesheet" href="/assets/css/dashboard.css">
 </head>
-<body class="bg-primary text-white min-h-screen">
-  <div id="app" class="min-h-screen flex flex-col" x-data="dashboardApp()" x-init="init()">
-    <div x-html="topbarHtml"></div>
-    <div class="flex flex-1 min-h-0">
-      <div x-html="sidebarHtml"></div>
-      <main class="flex-1 overflow-auto p-4 md:p-6 bg-primary">
-        <div class="space-y-4">
-          <div class="flex justify-between items-center">
-            <h1 class="text-xl font-bold">Gestión de Mozos</h1>
-            <button @click="openModalMozo()" class="px-4 py-2 rounded-lg btn-gold font-medium">+ Nuevo Mozo</button>
-          </div>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div class="bg-card rounded-xl p-4 border border-gold-40"><div class="text-muted text-sm">Activos hoy</div><div class="text-2xl font-bold text-gold" x-text="mockData.mozos.length"></div></div>
-            <div class="bg-card rounded-xl p-4 border border-gold-40"><div class="text-muted text-sm">Total</div><div class="text-2xl font-bold" x-text="mockData.mozos.length"></div></div>
-            <div class="bg-card rounded-xl p-4 border border-gold-40"><div class="text-muted text-sm">Mejor mozo</div><div class="text-lg font-semibold" x-text="mockData.mozos[0]?.nombre || '-'"></div></div>
-          </div>
-          <div class="bg-card rounded-xl border border-gold-40 overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead class="table-header"><tr><th class="text-left p-3">ID</th><th class="text-left p-3">Nombre</th><th class="text-left p-3">DNI</th><th class="text-left p-3">Teléfono</th><th class="text-left p-3">Acciones</th></tr></thead>
-              <tbody>
-                <template x-for="m in mockData.mozos" :key="m.id">
-                  <tr class="border-t border-white/5 hover:bg-gold-20">
-                    <td class="p-3" x-text="m.id"></td>
-                    <td class="p-3" x-text="m.nombre"></td>
-                    <td class="p-3 text-muted" x-text="m.dni"></td>
-                    <td class="p-3" x-text="m.telefono"></td>
-                    <td class="p-3"><button @click="openModalMozo(m)" class="text-gold hover:underline">Editar</button></td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
+<body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="mozosApp()" x-cloak>
+
+<div id="topbar-container"></div>
+<div class="flex pt-[72px] min-h-screen">
+  <div id="sidebar-container"></div>
+  <main :class="sidebarOpen ? 'ml-[270px]' : 'ml-[68px]'" class="flex-1 transition-all duration-300 min-h-[calc(100vh-72px)] p-6">
+    
+    <!-- HEADER -->
+    <div class="flex items-center justify-between mb-5">
+      <h1 class="text-xl font-bold">Gestión de Mozos</h1>
+      <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold" @click="modal='crearMozo'">+ Nuevo Mozo</button>
+    </div>
+
+    <!-- KPIs -->
+    <div class="grid grid-cols-3 gap-4 mb-6">
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4"><p class="text-[11px] text-txt-muted uppercase">Activos Hoy</p><p class="text-2xl font-bold text-gold mt-1">8 <span class="text-sm text-txt-muted font-normal">de 12</span></p></div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4"><p class="text-[11px] text-txt-muted uppercase">Total Registrados</p><p class="text-2xl font-bold text-white mt-1">12</p></div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4"><p class="text-[11px] text-txt-muted uppercase">Mejor Mozo</p><p class="text-2xl font-bold text-st-preparado mt-1">Juan P.</p><p class="text-xs text-txt-muted">S/. 980 hoy</p></div>
+    </div>
+
+    <!-- TABLA -->
+    <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
+          <th class="text-left px-4 py-3 font-semibold">ID</th>
+          <th class="text-left px-4 py-3 font-semibold">Nombre</th>
+          <th class="text-left px-4 py-3 font-semibold">DNI</th>
+          <th class="text-left px-4 py-3 font-semibold">Teléfono</th>
+          <th class="text-left px-4 py-3 font-semibold">Ventas</th>
+          <th class="text-left px-4 py-3 font-semibold">Estado</th>
+          <th class="text-left px-4 py-3 font-semibold">Acciones</th>
+        </tr></thead>
+        <tbody>
+          <template x-for="m in sharedData.mockMozos" :key="m.id">
+            <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
+              <td class="px-4 py-3 text-txt-muted" x-text="m.id"></td>
+              <td class="px-4 py-3 font-medium" x-text="m.nombre"></td>
+              <td class="px-4 py-3 text-txt-secondary" x-text="m.dni"></td>
+              <td class="px-4 py-3 text-txt-secondary" x-text="m.tel"></td>
+              <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. ' + m.ventas"></td>
+              <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full font-semibold" :class="m.activo ? 'bg-st-preparado/20 text-st-preparado' : 'bg-txt-muted/20 text-txt-muted'" x-text="m.activo ? 'Activo' : 'Inactivo'"></span></td>
+              <td class="px-4 py-3 space-x-2 text-base"><span class="cursor-pointer hover:text-gold">👁</span> <span class="cursor-pointer hover:text-gold">✏️</span> <span class="cursor-pointer hover:text-st-pagado">🗑</span></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODAL: CREAR MOZO -->
+<div x-show="modal==='crearMozo'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=null">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[520px] shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
+      <div><h2 class="text-lg font-bold">Crear Nuevo Mozo</h2><p class="text-xs text-txt-muted">Registre al personal de atención</p></div>
+      <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div><label class="text-xs text-txt-secondary mb-1 block">Nombre completo</label><input type="text" placeholder="Ej: Juan Pérez" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="text-xs text-txt-secondary mb-1 block">DNI</label><input type="text" placeholder="12345678" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
+        <div><label class="text-xs text-txt-secondary mb-1 block">Teléfono</label><input type="text" placeholder="987 654 321" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="text-xs text-txt-secondary mb-1 block">Rol</label><select class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-secondary"><option>Mozo</option><option>Supervisor</option><option>Admin</option></select></div>
+        <div><label class="text-xs text-txt-secondary mb-1 block">Pin</label><input type="password" placeholder="••••" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
+      </div>
+      <div>
+        <p class="text-xs text-txt-secondary mb-2">Turnos:</p>
+        <div class="flex gap-2">
+          <button class="px-4 py-1.5 rounded-full text-xs font-medium bg-gold-20 text-gold">Mañana</button>
+          <button class="px-4 py-1.5 rounded-full text-xs font-medium bg-gold-20 text-gold">Tarde</button>
+          <button class="px-4 py-1.5 rounded-full text-xs font-medium border border-txt-muted/30 text-txt-muted">Noche</button>
         </div>
-      </main>
+      </div>
+    </div>
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="modal=null" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary">Cancelar</button>
+      <button class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold">Crear Mozo</button>
     </div>
   </div>
-  <script src="assets/js/shared.js"></script>
+</div>
+
+<script src="/assets/js/shared.js"></script>
+<script>
+function mozosApp() {
+  return {
+    sidebarOpen: true,
+    modal: null,
+    activeNav: 'mozos',
+    pageTitle: 'Mozos',
+    
+    init() {},
+    
+    logout() {
+      localStorage.removeItem('adminToken');
+      window.location.href = '/login';
+    }
+  };
+}
+</script>
 </body>
 </html>

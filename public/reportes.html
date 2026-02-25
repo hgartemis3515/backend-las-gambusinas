@@ -1,69 +1,119 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="scroll-smooth">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reportes — Las Gambusinas</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = { theme: { extend: { colors: { primary: '#0a0a0f', card: '#1a1a28', sidebar: '#12121a', gold: '#d4af37', 'gold-20': 'rgba(212,175,55,0.125)', 'gold-40': 'rgba(212,175,55,0.25)', muted: '#a0a0b8', preparado: '#2ecc71', pedido: '#3498db', pagado: '#ff4757' }, fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } };
-  </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link href="assets/css/dashboard.css" rel="stylesheet">
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-  <script src="https://unpkg.com/lucide@0.263.1/dist/umd/lucide.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reportes — Las Gambusinas</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        bg: { primary: '#0a0a0f', card: '#1a1a28', sidebar: '#12121a' },
+        gold: { DEFAULT: '#d4af37', '20': 'rgba(212,175,55,0.125)', '40': 'rgba(212,175,55,0.25)' },
+        st: { libre: '#00d4aa', esperando: '#ffa502', pedido: '#3498db', preparado: '#2ecc71', pagado: '#ff4757', reservado: '#5352ed' },
+        txt: { primary: '#ffffff', secondary: '#a0a0b8', muted: '#5a5a7a' }
+      },
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+    }
+  }
+}
+</script>
+<link rel="stylesheet" href="/assets/css/dashboard.css">
 </head>
-<body class="bg-primary text-white min-h-screen">
-  <div id="app" class="min-h-screen flex flex-col" x-data="dashboardApp()" x-init="init()">
-    <div x-html="topbarHtml"></div>
-    <div class="flex flex-1 min-h-0">
-      <div x-html="sidebarHtml"></div>
-      <main class="flex-1 overflow-auto p-4 md:p-6 bg-primary">
-        <div class="space-y-4">
-          <div class="flex flex-wrap justify-between items-center gap-4">
-            <h1 class="text-xl font-bold">Reportes y Analítica</h1>
-            <div class="flex gap-2">
-              <span class="px-2 py-1 rounded bg-pagado/20 text-pagado text-xs">LIVE</span>
-              <button class="px-3 py-2 rounded-lg border border-gold-40 text-gold">PDF</button>
-              <button class="px-3 py-2 rounded-lg border border-gold-40 text-gold">Excel</button>
-              <button class="px-4 py-2 rounded-lg btn-outline-gold">Configurar Vista</button>
-            </div>
-          </div>
-          <div class="flex gap-2 flex-wrap border-b border-gold-40 pb-2">
-            <button @click="currentReportTab = 'general'" :class="currentReportTab === 'general' ? 'border-b-2 border-gold text-gold' : 'text-muted'" class="px-3 py-1.5">General</button>
-            <button @click="currentReportTab = 'platos'" :class="currentReportTab === 'platos' ? 'border-b-2 border-gold text-gold' : 'text-muted'" class="px-3 py-1.5">Platos</button>
-            <button @click="currentReportTab = 'mozos'" :class="currentReportTab === 'mozos' ? 'border-b-2 border-gold text-gold' : 'text-muted'" class="px-3 py-1.5">Mozos</button>
-            <button @click="currentReportTab = 'mesas'" :class="currentReportTab === 'mesas' ? 'border-b-2 border-gold text-gold' : 'text-muted'" class="px-3 py-1.5">Mesas</button>
-            <button @click="currentReportTab = 'clientes'" :class="currentReportTab === 'clientes' ? 'border-b-2 border-gold text-gold' : 'text-muted'" class="px-3 py-1.5">Clientes</button>
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <input type="date" class="h-10 px-3 rounded-lg bg-card border border-gold-40 text-white">
-            <input type="date" class="h-10 px-3 rounded-lg bg-card border border-gold-40 text-white">
-            <select class="h-10 px-3 rounded-lg bg-card border border-gold-40 text-white"><option>Agrupar: Día</option></select>
-            <button class="px-3 py-1.5 rounded-lg bg-gold text-primary">Hoy</button>
-            <button class="px-3 py-1.5 rounded-lg bg-card border border-gold-40">7 días</button>
-          </div>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4" x-show="currentReportTab === 'general'">
-            <div class="bg-card rounded-xl p-4 border border-gold-40"><div class="text-muted text-sm">Ventas Totales</div><div class="text-xl font-bold text-gold">S/. 12,450</div><span class="text-xs text-preparado">+18%</span></div>
-            <div class="bg-card rounded-xl p-4 border border-gold-40"><div class="text-muted text-sm">Ticket Promedio</div><div class="text-xl font-bold">S/. 52.13</div></div>
-            <div class="bg-card rounded-xl p-4 border border-gold-40"><div class="text-muted text-sm">Margen Bruto</div><div class="text-xl font-bold text-preparado">68.5%</div></div>
-            <div class="bg-card rounded-xl p-4 border border-gold-40"><div class="text-muted text-sm">Ocupación Prom.</div><div class="text-xl font-bold text-pedido">74%</div></div>
-          </div>
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" x-show="currentReportTab === 'general'">
-            <div class="bg-card rounded-xl p-4 border border-gold-40"><h3 class="font-semibold mb-4">Ventas por Período</h3><canvas id="chartReportesVentas" height="200"></canvas></div>
-            <div class="bg-card rounded-xl p-4 border border-gold-40"><h3 class="font-semibold mb-4">Distribución</h3><canvas id="chartReportesDonut" height="200"></canvas></div>
-          </div>
-          <div x-show="currentReportTab !== 'general'">
-            <div class="bg-card rounded-xl p-4 border border-gold-40"><p class="text-muted">Vista: <span x-text="currentReportTab"></span></p></div>
-          </div>
-        </div>
-      </main>
+<body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="reportesApp()" x-cloak>
+
+<div id="topbar-container"></div>
+<div class="flex pt-[72px] min-h-screen">
+  <div id="sidebar-container"></div>
+  <main :class="sidebarOpen ? 'ml-[270px]' : 'ml-[68px]'" class="flex-1 transition-all duration-300 min-h-[calc(100vh-72px)] p-6">
+    
+    <!-- HEADER -->
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-3">
+        <h1 class="text-xl font-bold">Reportes y Analítica</h1>
+        <span class="text-[10px] bg-st-pagado text-white px-2 py-0.5 rounded font-bold">LIVE</span>
+      </div>
+      <div class="flex gap-2">
+        <button class="px-3 py-1.5 border border-gold/40 rounded-lg text-xs text-gold hover:bg-gold-20">📄 PDF</button>
+        <button class="px-3 py-1.5 bg-st-preparado text-white rounded-lg text-xs font-semibold">📊 Excel</button>
+        <button class="px-3 py-1.5 border border-gold/40 rounded-lg text-xs text-gold hover:bg-gold-20">⚙️ Configurar Vista</button>
+      </div>
     </div>
-  </div>
-  <script src="assets/js/charts.js"></script>
-  <script src="assets/js/shared.js"></script>
+
+    <!-- TABS -->
+    <div class="flex gap-1 mb-4 border-b border-[rgba(212,175,55,0.1)] pb-2">
+      <template x-for="t in ['General','Platos','Mozos','Mesas','Clientes']"><button @click="repTab=t" :class="repTab===t ? 'text-gold border-b-2 border-gold' : 'text-txt-secondary'" class="px-4 py-2 text-sm font-medium transition" x-text="t"></button></template>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="flex gap-2 mb-5 items-center flex-wrap">
+      <input type="date" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary">
+      <input type="date" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary">
+      <select class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary"><option>Agrupar: Día</option></select>
+      <div class="flex gap-1 ml-2">
+        <template x-for="f in ['Hoy','Ayer','7 días','30 días','Este mes']"><button :class="f==='Hoy' ? 'bg-gold text-bg-primary' : 'border border-[rgba(212,175,55,0.25)] text-txt-secondary'" class="px-2.5 py-1 rounded-full text-[10px] font-medium" x-text="f"></button></template>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="grid grid-cols-4 gap-4 mb-5">
+      <template x-for="k in sharedData.repKPIs[repTab] || sharedData.repKPIs.General" :key="k.label">
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+          <p class="text-[11px] text-txt-muted uppercase" x-text="k.label"></p>
+          <p class="text-xl font-bold mt-1" :class="k.color" x-text="k.value"></p>
+          <span class="text-[10px] font-semibold" :class="k.badge.includes('+') ? 'text-st-preparado' : 'text-st-pagado'" x-text="k.badge"></span>
+        </div>
+      </template>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="grid grid-cols-12 gap-4 mb-5">
+      <div class="col-span-7 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
+        <h3 class="font-semibold text-sm mb-3" x-text="repTab==='General' ? 'Ventas por Período' : 'Top Platos'"></h3>
+        <canvas id="chartReportes1" height="220"></canvas>
+      </div>
+      <div class="col-span-5 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
+        <h3 class="font-semibold text-sm mb-3" x-text="repTab==='General' ? 'Distribución de Ventas' : 'Performance'"></h3>
+        <canvas id="chartReportes2" height="220"></canvas>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="/assets/js/shared.js"></script>
+<script src="/assets/js/charts.js"></script>
+<script>
+function reportesApp() {
+  return {
+    sidebarOpen: true,
+    activeNav: 'reportes',
+    pageTitle: 'Reportes',
+    repTab: 'General',
+    
+    init() {
+      this.initCharts();
+    },
+    
+    initCharts() {
+      this.$nextTick(() => {
+        LasGambusinasCharts.drawReportBarChart('chartReportes1');
+        LasGambusinasCharts.drawReportDonutChart('chartReportes2');
+      });
+    },
+    
+    logout() {
+      localStorage.removeItem('adminToken');
+      window.location.href = '/login';
+    }
+  };
+}
+</script>
 </body>
 </html>
