@@ -1,0 +1,90 @@
+<nav class="h-[72px] bg-[#12121a] border-b border-[rgba(212,175,55,0.25)] flex items-center px-4 md:px-6 shrink-0">
+  <button @click="sidebarOpen = !sidebarOpen" class="p-2 rounded-lg hover:bg-[rgba(212,175,55,0.125)] text-[#d4af37] md:hidden"><i data-lucide="menu" class="w-6 h-6"></i></button>
+  <div class="flex items-center gap-4 flex-1 min-w-0">
+    <div class="hidden md:flex items-center gap-2 text-[#a0a0b8] text-sm"><span>🏠</span><span x-text="breadcrumb"></span></div>
+    <div class="flex-1 max-w-md mx-2">
+      <div class="relative" @click.away="searchOpen = false">
+        <input type="text" x-model="searchQuery" @focus="searchOpen = true" @keydown.escape="searchOpen = false" placeholder="Buscar mesas, comandas, platos... (Ctrl+K)" class="w-full h-11 pl-4 pr-10 rounded-full bg-[#1a1a28] border border-[rgba(212,175,55,0.25)] text-white placeholder-[#a0a0b8] focus:ring-1 focus:ring-[#d4af37] focus:border-[#d4af37]">
+        <i data-lucide="search" class="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-[#a0a0b8]"></i>
+        <div x-show="searchOpen" x-cloak class="absolute top-full left-0 right-0 mt-1 bg-[#1a1a28] rounded-lg border border-[rgba(212,175,55,0.25)] shadow-xl z-50 max-h-80 overflow-auto">
+          <template x-if="searchQuery.length >= 2">
+            <div class="p-2">
+              <div class="text-[#a0a0b8] text-xs uppercase px-2 py-1">Platos</div>
+              <template x-for="r in searchResults.platos" :key="r.id">
+                <a :href="'platos.html'" class="px-3 py-2 rounded hover:bg-[rgba(212,175,55,0.125)] cursor-pointer flex justify-between block"><span x-text="r.nombre"></span><span class="text-[#d4af37]" x-text="'S/.' + r.precio"></span></a>
+              </template>
+              <div class="text-[#a0a0b8] text-xs uppercase px-2 py-1 mt-2">Mesas</div>
+              <template x-for="r in searchResults.mesas" :key="r.id">
+                <a :href="'mesas.html'" class="px-3 py-2 rounded hover:bg-[rgba(212,175,55,0.125)] cursor-pointer block" x-text="'Mesa ' + r.numero"></a>
+              </template>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="flex items-center gap-2 shrink-0">
+    <div class="hidden sm:flex flex-col items-end text-sm"><span class="font-bold text-white" x-text="clockTime"></span><span class="text-[#a0a0b8] text-xs" x-text="clockDate"></span></div>
+    <div class="w-px h-8 bg-[rgba(212,175,55,0.25)] hidden sm:block"></div>
+    <div class="relative" @click.away="statusOpen = false">
+      <button @click="statusOpen = !statusOpen" class="flex items-center gap-2 px-2 py-1 rounded hover:bg-[rgba(212,175,55,0.125)]"><span class="w-2 h-2 rounded-full bg-[#2ecc71]"></span><span class="text-sm hidden md:inline">Online</span></button>
+      <div x-show="statusOpen" x-cloak class="absolute right-0 top-full mt-1 w-72 bg-[#1a1a28] border border-[rgba(212,175,55,0.25)] rounded-lg shadow-xl z-50 p-4">
+        <div class="font-semibold text-[#d4af37] mb-2">Estado del Sistema</div>
+        <div class="text-sm space-y-1 text-[#a0a0b8]">Cocina: 2 clientes · Mozos: 8 · Admin: 1</div>
+        <div class="text-xs text-[#2ecc71] mt-2">MongoDB OK · API OK · Latencia 12ms</div>
+      </div>
+    </div>
+    <div class="w-px h-8 bg-[rgba(212,175,55,0.25)] hidden sm:block"></div>
+    <div class="relative" @click.away="shortcutsOpen = false">
+      <button @click="shortcutsOpen = !shortcutsOpen; notificationsOpen = false; profileOpen = false" class="p-2 rounded-lg hover:bg-[rgba(212,175,55,0.125)] text-[#d4af37]"><i data-lucide="zap" class="w-5 h-5"></i></button>
+      <div x-show="shortcutsOpen" x-cloak class="absolute right-0 top-full mt-1 w-64 bg-[#1a1a28] border border-[rgba(212,175,55,0.25)] rounded-lg shadow-xl z-50 p-3">
+        <div class="font-semibold text-[#d4af37] mb-2">Atajos Rápidos</div>
+        <div class="text-sm space-y-1">
+          <a href="comandas.html" class="flex justify-between py-1 hover:text-[#d4af37] block"><span>Nueva comanda</span><span class="text-[#a0a0b8]">Ctrl+N</span></a>
+          <a href="mesas.html" class="flex justify-between py-1 hover:text-[#d4af37] block"><span>Mapa mesas</span><span class="text-[#a0a0b8]">Ctrl+M</span></a>
+          <a href="reportes.html" class="flex justify-between py-1 hover:text-[#d4af37] block"><span>Reportes</span><span class="text-[#a0a0b8]">Ctrl+R</span></a>
+          <a href="configuracion.html" class="flex justify-between py-1 hover:text-[#d4af37] block"><span>Configuración</span><span class="text-[#a0a0b8]">Ctrl+,</span></a>
+        </div>
+        <div class="text-[#a0a0b8] text-xs mt-2">Esc para cerrar</div>
+      </div>
+    </div>
+    <div class="relative" @click.away="notificationsOpen = false">
+      <button @click="notificationsOpen = !notificationsOpen; profileOpen = false; shortcutsOpen = false" class="p-2 rounded-lg hover:bg-[rgba(212,175,55,0.125)] text-[#d4af37] relative">
+        <i data-lucide="bell" class="w-5 h-5"></i>
+        <span class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#ff4757] rounded-full text-xs flex items-center justify-center" x-show="notifUnread > 0" x-text="notifUnread"></span>
+      </button>
+      <div x-show="notificationsOpen" x-cloak class="absolute right-0 top-full mt-1 w-80 bg-[#1a1a28] border border-[rgba(212,175,55,0.25)] rounded-lg shadow-xl z-50 overflow-hidden">
+        <div class="p-3 border-b border-[rgba(212,175,55,0.25)] flex justify-between items-center"><span class="font-semibold">Notificaciones</span><button class="text-[#d4af37] text-sm">Marcar leídas</button></div>
+        <div class="max-h-64 overflow-auto">
+          <template x-for="n in notifications" :key="n.id">
+            <div class="p-3 border-b border-white/5 hover:bg-[rgba(212,175,55,0.125)] flex gap-2" :class="!n.leida && 'bg-[rgba(212,175,55,0.125)]'">
+              <span :class="n.urgente ? 'text-[#ff4757]' : 'text-[#ffa502]'" x-text="n.icono"></span>
+              <div class="flex-1 min-w-0"><div class="text-sm" x-text="n.texto"></div><div class="text-xs text-[#a0a0b8]" x-text="n.hora"></div></div>
+            </div>
+          </template>
+        </div>
+        <div class="p-2 text-center"><a href="#" class="text-[#d4af37] text-sm">Ver todas</a></div>
+      </div>
+    </div>
+    <div class="relative" @click.away="profileOpen = false">
+      <button @click="profileOpen = !profileOpen; notificationsOpen = false; shortcutsOpen = false" class="flex items-center gap-2 p-1 rounded-full border-2 border-[#d4af37]">
+        <div class="w-9 h-9 rounded-full bg-[#d4af37]/30 flex items-center justify-center text-[#d4af37] font-bold">A</div>
+        <span class="w-2 h-2 rounded-full bg-[#2ecc71] absolute bottom-0 right-0 border-2 border-[#12121a]"></span>
+      </button>
+      <div x-show="profileOpen" x-cloak class="absolute right-0 top-full mt-1 w-64 bg-[#1a1a28] border border-[rgba(212,175,55,0.25)] rounded-lg shadow-xl z-50 overflow-hidden">
+        <div class="p-4 text-center border-b border-[rgba(212,175,55,0.25)]">
+          <div class="w-14 h-14 rounded-full bg-[#d4af37]/30 mx-auto flex items-center justify-center text-[#d4af37] font-bold text-xl mb-2">A</div>
+          <div class="font-semibold">Admin Principal</div>
+          <div class="text-[#a0a0b8] text-sm">admin@lasgambusinas.com</div>
+          <span class="inline-block mt-1 px-2 py-0.5 rounded-full bg-[#d4af37]/20 text-[#d4af37] text-xs">Administrador</span>
+        </div>
+        <div class="p-2">
+          <a href="#" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-[rgba(212,175,55,0.125)]"><i data-lucide="user" class="w-4 h-4"></i> Mi perfil</a>
+          <a href="configuracion.html" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-[rgba(212,175,55,0.125)]"><i data-lucide="settings" class="w-4 h-4"></i> Configuración</a>
+          <div class="flex items-center justify-between px-3 py-2"><span>Modo oscuro</span><div class="w-10 h-5 rounded-full bg-[#d4af37] flex justify-end items-center px-1"><span class="w-4 h-4 rounded-full bg-[#0a0a0f]"></span></div></div>
+          <button class="flex items-center gap-2 px-3 py-2 rounded w-full text-[#ff4757] hover:bg-[#ff4757]/20"><i data-lucide="log-out" class="w-4 h-4"></i> Cerrar sesión</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>

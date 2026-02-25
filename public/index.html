@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Las Gambusinas Dashboard v2.0</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#0a0a0f', card: '#1a1a28', sidebar: '#12121a', gold: '#d4af37',
+            'gold-20': 'rgba(212,175,55,0.125)', 'gold-40': 'rgba(212,175,55,0.25)',
+            muted: '#a0a0b8', libre: '#00d4aa', esperando: '#ffa502', pedido: '#3498db',
+            preparado: '#2ecc71', pagado: '#ff4757', reservado: '#5352ed'
+          },
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+        }
+      }
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="assets/css/dashboard.css" rel="stylesheet">
+  <style>
+    /* Crítico: mismo bloque que lasgambusinas-dashboard.html para que se vea igual sin depender de Tailwind/CDN */
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-card: #1a1a28;
+      --bg-sidebar: #12121a;
+      --gold: #d4af37;
+      --gold-20: rgba(212,175,55,0.125);
+      --gold-40: rgba(212,175,55,0.25);
+      --text-muted: #a0a0b8;
+    }
+    body { font-family: 'Inter', system-ui, sans-serif; background-color: var(--bg-primary); color: #fff; }
+    [x-cloak] { display: none !important; }
+    .sidebar-item-active { background: var(--gold-20); border-left: 4px solid var(--gold); color: var(--gold); }
+    .table-header { background: #12121a; }
+    .btn-gold { background: #d4af37; color: #0a0a0f; }
+    .btn-gold:hover { background: #c4a030; }
+    .btn-outline-gold { border: 1px solid #d4af37; color: #d4af37; }
+    .btn-outline-gold:hover { background: var(--gold-20); }
+    /* Fallbacks por si Tailwind no aplica colores personalizados */
+    .bg-primary { background-color: #0a0a0f !important; }
+    .bg-card { background-color: #1a1a28 !important; }
+    .bg-sidebar { background-color: #12121a !important; }
+    .text-gold { color: #d4af37 !important; }
+    .text-muted { color: #a0a0b8 !important; }
+    .border-gold-40 { border-color: rgba(212,175,55,0.25) !important; }
+    .bg-gold-20 { background-color: rgba(212,175,55,0.125) !important; }
+    .bg-preparado { background-color: #2ecc71 !important; }
+    .bg-pagado { background-color: #ff4757 !important; }
+    /* Evitar sidebar duplicado si Tailwind no aplica */
+    .hidden { display: none !important; }
+    @media (min-width: 768px) {
+      .md\:flex { display: flex !important; }
+      .md\:hidden { display: none !important; }
+      .md\:inline { display: inline !important; }
+      .md\:block { display: block !important; }
+    }
+  </style>
+  <style>
+    [x-cloak] { display: none !important; }
+  </style>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <script src="https://unpkg.com/lucide@0.263.1/dist/umd/lucide.min.js"></script>
+</head>
+<body class="bg-primary text-white min-h-screen" x-data="dashboardApp()" x-init="init()">
+
+<div class="min-h-screen flex flex-col">
+  <!-- TOPBAR 72px -->
+  <nav class="h-[72px] bg-sidebar border-b border-gold-40 flex items-center px-4 md:px-6 shrink-0">
+    <button @click="sidebarOpen = !sidebarOpen" class="p-2 rounded-lg hover:bg-gold-20 text-gold md:hidden">
+      <i data-lucide="menu" class="w-6 h-6"></i>
+    </button>
+    <div class="flex items-center gap-4 flex-1 min-w-0">
+      <div class="hidden md:flex items-center gap-2 text-muted text-sm">
+        <span>🏠</span>
+        <span x-text="breadcrumb"></span>
+      </div>
+      <div class="flex-1 max-w-md mx-2">
+        <div class="relative" @click.away="searchOpen = false">
+          <input type="text" x-model="searchQuery" @focus="searchOpen = true" @keydown.escape="searchOpen = false"
+            placeholder="Buscar mesas, comandas, platos... (Ctrl+K)" class="w-full h-11 pl-4 pr-10 rounded-full bg-card border border-gold-40 text-white placeholder-muted focus:ring-1 focus:ring-gold focus:border-gold">
+          <i data-lucide="search" class="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-muted"></i>
+          <div x-show="searchOpen" x-cloak class="absolute top-full left-0 right-0 mt-1 bg-card rounded-lg border border-gold-40 shadow-xl z-50 max-h-80 overflow-auto">
+            <template x-if="searchQuery.length >= 2">
+              <div class="p-2">
+                <div class="text-muted text-xs uppercase px-2 py-1">Platos</div>
+                <template x-for="r in searchResults.platos" :key="r.id">
+                  <a :href="'platos.html'" class="px-3 py-2 rounded hover:bg-gold-20 cursor-pointer flex justify-between block"><span x-text="r.nombre"></span><span class="text-gold" x-text="'S/.' + r.precio"></span></a>
+                </template>
+                <div class="text-muted text-xs uppercase px-2 py-1 mt-2">Mesas</div>
+                <template x-for="r in searchResults.mesas" :key="r.id">
+                  <a :href="'mesas.html'" class="px-3 py-2 rounded hover:bg-gold-20 cursor-pointer block" x-text="'Mesa ' + r.numero"></a>
+                </template>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+      <div class="hidden sm:flex flex-col items-end text-sm">
+        <span class="font-bold text-white" x-text="clockTime"></span>
+        <span class="text-muted text-xs" x-text="clockDate"></span>
+      </div>
+      <div class="w-px h-8 bg-gold-40 hidden sm:block"></div>
+      <div class="relative" @click.away="statusOpen = false">
+        <button @click="statusOpen = !statusOpen" class="flex items-center gap-2 px-2 py-1 rounded hover:bg-gold-20">
+          <span class="w-2 h-2 rounded-full bg-preparado"></span>
+          <span class="text-sm hidden md:inline">Online</span>
+        </button>
+        <div x-show="statusOpen" x-cloak class="absolute right-0 top-full mt-1 w-72 bg-card border border-gold-40 rounded-lg shadow-xl z-50 p-4">
+          <div class="font-semibold text-gold mb-2">Estado del Sistema</div>
+          <div class="text-sm space-y-1 text-muted">Cocina: 2 clientes · Mozos: 8 · Admin: 1</div>
+          <div class="text-xs text-preparado mt-2">MongoDB OK · API OK · Latencia 12ms</div>
+        </div>
+      </div>
+      <div class="w-px h-8 bg-gold-40 hidden sm:block"></div>
+      <div class="relative" @click.away="shortcutsOpen = false">
+        <button @click="shortcutsOpen = !shortcutsOpen; notificationsOpen = false; profileOpen = false" class="p-2 rounded-lg hover:bg-gold-20 text-gold relative">
+          <i data-lucide="zap" class="w-5 h-5"></i>
+        </button>
+        <div x-show="shortcutsOpen" x-cloak class="absolute right-0 top-full mt-1 w-64 bg-card border border-gold-40 rounded-lg shadow-xl z-50 p-3">
+          <div class="font-semibold text-gold mb-2">Atajos Rápidos</div>
+          <div class="text-sm space-y-1">
+            <a href="comandas.html" class="flex justify-between py-1 hover:text-gold block"><span>Nueva comanda</span><span class="text-muted">Ctrl+N</span></a>
+            <a href="mesas.html" class="flex justify-between py-1 hover:text-gold block"><span>Mapa mesas</span><span class="text-muted">Ctrl+M</span></a>
+            <a href="reportes.html" class="flex justify-between py-1 hover:text-gold block"><span>Reportes</span><span class="text-muted">Ctrl+R</span></a>
+            <a href="configuracion.html" class="flex justify-between py-1 hover:text-gold block"><span>Configuración</span><span class="text-muted">Ctrl+,</span></a>
+          </div>
+          <div class="text-muted text-xs mt-2">Esc para cerrar</div>
+        </div>
+      </div>
+      <div class="relative" @click.away="notificationsOpen = false">
+        <button @click="notificationsOpen = !notificationsOpen; profileOpen = false; shortcutsOpen = false" class="p-2 rounded-lg hover:bg-gold-20 text-gold relative">
+          <i data-lucide="bell" class="w-5 h-5"></i>
+          <span class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-pagado rounded-full text-xs flex items-center justify-center" x-show="notifUnread > 0" x-text="notifUnread"></span>
+        </button>
+        <div x-show="notificationsOpen" x-cloak class="absolute right-0 top-full mt-1 w-80 bg-card border border-gold-40 rounded-lg shadow-xl z-50 overflow-hidden">
+          <div class="p-3 border-b border-gold-40 flex justify-between items-center">
+            <span class="font-semibold">Notificaciones</span>
+            <button class="text-gold text-sm">Marcar leídas</button>
+          </div>
+          <div class="max-h-64 overflow-auto">
+            <template x-for="n in notifications" :key="n.id">
+              <div class="p-3 border-b border-white/5 hover:bg-gold-20 flex gap-2" :class="!n.leida && 'bg-gold-20'">
+                <span :class="n.urgente ? 'text-pagado' : 'text-esperando'" x-text="n.icono"></span>
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm" x-text="n.texto"></div>
+                  <div class="text-xs text-muted" x-text="n.hora"></div>
+                </div>
+              </div>
+            </template>
+          </div>
+          <div class="p-2 text-center"><a href="#" class="text-gold text-sm">Ver todas</a></div>
+        </div>
+      </div>
+      <div class="relative" @click.away="profileOpen = false">
+        <button @click="profileOpen = !profileOpen; notificationsOpen = false; shortcutsOpen = false" class="flex items-center gap-2 p-1 rounded-full border-2 border-gold">
+          <div class="w-9 h-9 rounded-full bg-gold/30 flex items-center justify-center text-gold font-bold">A</div>
+          <span class="w-2 h-2 rounded-full bg-preparado absolute bottom-0 right-0 border-2 border-sidebar"></span>
+        </button>
+        <div x-show="profileOpen" x-cloak class="absolute right-0 top-full mt-1 w-64 bg-card border border-gold-40 rounded-lg shadow-xl z-50 overflow-hidden">
+          <div class="p-4 text-center border-b border-gold-40">
+            <div class="w-14 h-14 rounded-full bg-gold/30 mx-auto flex items-center justify-center text-gold font-bold text-xl mb-2">A</div>
+            <div class="font-semibold">Admin Principal</div>
+            <div class="text-muted text-sm">admin@lasgambusinas.com</div>
+            <span class="inline-block mt-1 px-2 py-0.5 rounded-full bg-gold/20 text-gold text-xs">Administrador</span>
+          </div>
+          <div class="p-2">
+            <a href="#" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gold-20"><i data-lucide="user" class="w-4 h-4"></i> Mi perfil</a>
+            <a href="configuracion.html" class="flex items-center gap-2 px-3 py-2 rounded hover:bg-gold-20"><i data-lucide="settings" class="w-4 h-4"></i> Configuración</a>
+            <div class="flex items-center justify-between px-3 py-2"><span>Modo oscuro</span><div class="w-10 h-5 rounded-full bg-gold flex justify-end items-center px-1"><span class="w-4 h-4 rounded-full bg-primary"></span></div></div>
+            <button class="flex items-center gap-2 px-3 py-2 rounded w-full text-pagado hover:bg-pagado/20"><i data-lucide="log-out" class="w-4 h-4"></i> Cerrar sesión</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="flex flex-1 min-h-0">
+    <!-- SIDEBAR -->
+    <aside :class="sidebarOpen ? 'w-[270px]' : 'w-[68px]'" class="bg-sidebar border-r border-gold-40 shrink-0 transition-all duration-200 hidden md:flex md:flex-col overflow-hidden">
+      <div class="p-4 border-b border-gold-40 flex items-center gap-2 shrink-0">
+        <a href="index.html" class="w-10 h-10 rounded-lg bg-gold/20 flex items-center justify-center text-gold shrink-0"><span class="text-xl">🍽️</span></a>
+        <a href="index.html" class="font-semibold text-gold truncate" x-show="sidebarOpen">Las Gambusinas</a>
+      </div>
+      <nav class="flex-1 overflow-y-auto py-2">
+        <template x-for="item in menuItems" :key="item.id">
+          <a :href="item.href" class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gold-20 transition-colors" :class="currentPage === item.id ? 'sidebar-item-active' : 'text-muted'">
+            <span class="shrink-0 text-lg" x-text="item.icon"></span>
+            <span class="truncate" x-show="sidebarOpen" x-text="item.label"></span>
+          </a>
+        </template>
+      </nav>
+      <div class="p-2 border-t border-gold-40">
+        <button @click="sidebarOpen = !sidebarOpen" class="w-full flex items-center justify-center gap-2 py-2 rounded hover:bg-gold-20 text-muted">
+          <i :data-lucide="sidebarOpen ? 'panel-left-close' : 'panel-left'" class="w-5 h-5"></i>
+          <span x-show="sidebarOpen">Colapsar</span>
+        </button>
+        <a href="lasgambusinas-dashboard.html" class="w-full flex items-center justify-center gap-2 py-2 rounded hover:bg-gold-20 text-gold text-sm mt-1" title="Abrir dashboard completo (todo en una sola página)">
+          <i data-lucide="layout" class="w-4 h-4 shrink-0"></i>
+          <span x-show="sidebarOpen">Dashboard completo</span>
+        </a>
+      </div>
+    </aside>
+
+    <div x-show="sidebarOpen" x-cloak @click="sidebarOpen = false" class="fixed inset-0 bg-black/60 z-40 md:hidden"></div>
+    <aside x-show="sidebarOpen" x-cloak class="fixed top-[72px] left-0 bottom-0 w-64 bg-sidebar border-r border-gold-40 z-50 md:hidden overflow-y-auto">
+      <nav class="py-2">
+        <template x-for="item in menuItems" :key="item.id">
+          <a :href="item.href" class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gold-20" :class="currentPage === item.id ? 'sidebar-item-active' : 'text-muted'">
+            <span x-text="item.icon"></span>
+            <span x-text="item.label"></span>
+          </a>
+        </template>
+      </nav>
+    </aside>
+
+    <main class="flex-1 overflow-auto p-4 md:p-6 bg-primary">
+      <div class="space-y-6">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-bold" x-text="'Buenas ' + saludo + ', Admin'"></h1>
+            <p class="text-muted" x-text="clockDate"></p>
+          </div>
+          <div class="flex gap-2">
+            <button class="px-4 py-2 rounded-lg border border-gold-40 text-gold hover:bg-gold-20">Actualizar</button>
+            <button class="px-4 py-2 rounded-lg border border-gold-40 text-gold hover:bg-gold-20">Exportar</button>
+            <button @click="modalPersonalizar = true" class="px-4 py-2 rounded-lg btn-gold font-medium">Personalizar Dashboard</button>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          <div class="bg-card rounded-xl p-4 border border-gold-40">
+            <div class="text-muted text-sm">Mesas Ocupadas</div>
+            <div class="text-2xl font-bold text-gold mt-1" x-text="dashboardKpis.mesasOcupadas + '/' + dashboardKpis.mesasTotal"></div>
+          </div>
+          <div class="bg-card rounded-xl p-4 border border-gold-40">
+            <div class="text-muted text-sm">Ventas Hoy</div>
+            <div class="text-2xl font-bold text-gold mt-1" x-text="'S/.' + dashboardKpis.ventasHoy"></div>
+          </div>
+          <div class="bg-card rounded-xl p-4 border border-gold-40">
+            <div class="text-muted text-sm">Top Plato</div>
+            <div class="text-xl font-bold mt-1" x-text="dashboardKpis.topPlato"></div>
+          </div>
+          <div class="bg-card rounded-xl p-4 border border-gold-40">
+            <div class="text-muted text-sm">Top Mozo</div>
+            <div class="text-xl font-bold mt-1" x-text="dashboardKpis.topMozo"></div>
+          </div>
+          <div class="bg-card p-4 rounded-xl border border-pagado/40">
+            <div class="text-muted text-sm">Alertas</div>
+            <div class="text-xl font-bold text-pagado mt-1" x-text="dashboardKpis.alertas"></div>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-card rounded-xl p-4 border border-gold-40">
+            <h3 class="font-semibold mb-4">Ventas por Hora</h3>
+            <canvas id="chartVentasHora" height="200"></canvas>
+          </div>
+          <div class="bg-card rounded-xl p-4 border border-gold-40">
+            <h3 class="font-semibold mb-4">Mapa de Mesas</h3>
+            <div class="grid grid-cols-5 gap-2">
+              <template x-for="m in mesasMapa" :key="m.id">
+                <a href="mesas.html" class="aspect-square rounded-lg flex items-center justify-center text-xs font-medium cursor-pointer hover:ring-2 ring-gold" :style="'background-color:' + mesaColor(m.estadoColor)" :title="'Mesa ' + m.numero" x-text="m.numero"></a>
+              </template>
+            </div>
+          </div>
+        </div>
+        <div class="bg-card rounded-xl p-4 border border-gold-40">
+          <h3 class="font-semibold mb-4">Actividad Reciente</h3>
+          <ul class="space-y-2">
+            <template x-for="a in actividadReciente" :key="a.id">
+              <li class="flex items-center gap-3 py-2 border-b border-white/5 last:border-0"><span class="text-muted text-sm" x-text="a.hora"></span><span x-text="a.texto"></span></li>
+            </template>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Modal Personalizar -->
+      <div x-show="modalPersonalizar" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/70" @click.self="modalPersonalizar = false">
+        <div class="bg-card rounded-xl border border-gold-40 w-full max-w-2xl max-h-[90vh] overflow-auto p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-gold">Personalizar Dashboard</h2>
+            <button @click="modalPersonalizar = false" class="p-2 rounded hover:bg-gold-20 text-muted">&times;</button>
+          </div>
+          <p class="text-muted text-sm mb-4">Arrastra los widgets para reordenar.</p>
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            <div class="p-3 rounded-lg border border-gold-40">Mesas Ocupadas</div>
+            <div class="p-3 rounded-lg border border-gold-40">Ventas del Día</div>
+            <div class="p-3 rounded-lg border border-gold-40">Ventas por Hora</div>
+            <div class="p-3 rounded-lg border border-gold-40">Mapa de Mesas</div>
+          </div>
+          <div class="flex gap-2 justify-end">
+            <button @click="modalPersonalizar = false" class="px-4 py-2 rounded-lg border border-gold-40 text-gold">Cerrar</button>
+            <button @click="modalPersonalizar = false" class="px-4 py-2 rounded-lg btn-gold">Guardar</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/shared.js"></script>
+</body>
+</html>

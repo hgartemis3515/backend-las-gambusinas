@@ -1,0 +1,31 @@
+<aside :class="sidebarOpen ? 'w-[270px]' : 'w-[68px]'" class="bg-[#12121a] border-r border-[rgba(212,175,55,0.25)] shrink-0 transition-all duration-200 hidden md:flex md:flex-col overflow-hidden">
+  <div class="p-4 border-b border-[rgba(212,175,55,0.25)] flex items-center gap-2 shrink-0">
+    <a href="index.html" class="w-10 h-10 rounded-lg bg-[#d4af37]/20 flex items-center justify-center text-[#d4af37] shrink-0"><span class="text-xl">🍽️</span></a>
+    <a href="index.html" class="font-semibold text-[#d4af37] truncate" x-show="sidebarOpen">Las Gambusinas</a>
+  </div>
+  <nav class="flex-1 overflow-y-auto py-2">
+    <template x-for="item in menuItems" :key="item.id">
+      <a :href="item.href" class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[rgba(212,175,55,0.125)] transition-colors" :class="currentPage === item.id ? 'sidebar-item-active' : 'text-[#a0a0b8]'">
+        <span class="shrink-0 text-lg" x-text="item.icon"></span>
+        <span class="truncate" x-show="sidebarOpen" x-text="item.label"></span>
+      </a>
+    </template>
+  </nav>
+  <div class="p-2 border-t border-[rgba(212,175,55,0.25)]">
+    <button @click="sidebarOpen = !sidebarOpen" class="w-full flex items-center justify-center gap-2 py-2 rounded hover:bg-[rgba(212,175,55,0.125)] text-[#a0a0b8]">
+      <i :data-lucide="sidebarOpen ? 'panel-left-close' : 'panel-left'" class="w-5 h-5"></i>
+      <span x-show="sidebarOpen">Colapsar</span>
+    </button>
+  </div>
+</aside>
+<div x-show="sidebarOpen" x-cloak @click="sidebarOpen = false" class="fixed inset-0 bg-black/60 z-40 md:hidden"></div>
+<aside x-show="sidebarOpen" x-cloak class="fixed top-[72px] left-0 bottom-0 w-64 bg-[#12121a] border-r border-[rgba(212,175,55,0.25)] z-50 md:hidden overflow-y-auto">
+  <nav class="py-2">
+    <template x-for="item in menuItems" :key="item.id">
+      <a :href="item.href" class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[rgba(212,175,55,0.125)]" :class="currentPage === item.id ? 'sidebar-item-active' : 'text-[#a0a0b8]'">
+        <span x-text="item.icon"></span>
+        <span x-text="item.label"></span>
+      </a>
+    </template>
+  </nav>
+</aside>

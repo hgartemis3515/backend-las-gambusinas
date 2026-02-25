@@ -1,0 +1,73 @@
+/**
+ * Las Gambusinas — Dashboard CSS
+ * Variables globales, topbar, sidebar, temas, estados de mesas
+ */
+
+:root {
+  --bg-primary: #0a0a0f;
+  --bg-card: #1a1a28;
+  --bg-sidebar: #12121a;
+  --gold: #d4af37;
+  --gold-20: rgba(212, 175, 55, 0.125);
+  --gold-40: rgba(212, 175, 55, 0.25);
+  --text-muted: #a0a0b8;
+  --text-muted-dark: #5a5a7a;
+  /* Estados de mesas */
+  --estado-libre: #00d4aa;
+  --estado-esperando: #ffa502;
+  --estado-pedido: #3498db;
+  --estado-preparado: #2ecc71;
+  --estado-pagado: #ff4757;
+  --estado-reservado: #5352ed;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+[x-cloak] {
+  display: none !important;
+}
+
+/* Sidebar */
+.sidebar-item-active {
+  background: var(--gold-20);
+  border-left: 4px solid var(--gold);
+  color: var(--gold);
+}
+
+/* Tablas */
+.table-header {
+  background: var(--bg-sidebar);
+}
+
+/* Botones */
+.btn-gold {
+  background: var(--gold);
+  color: var(--bg-primary);
+}
+.btn-gold:hover {
+  background: #c4a030;
+}
+.btn-outline-gold {
+  border: 1px solid var(--gold);
+  color: var(--gold);
+}
+.btn-outline-gold:hover {
+  background: var(--gold-20);
+}
+
+/* Estados de mesas (utilidades) */
+.bg-estado-libre { background-color: var(--estado-libre); }
+.bg-estado-esperando { background-color: var(--estado-esperando); }
+.bg-estado-pedido { background-color: var(--estado-pedido); }
+.bg-estado-preparado { background-color: var(--estado-preparado); }
+.bg-estado-pagado { background-color: var(--estado-pagado); }
+.bg-estado-reservado { background-color: var(--estado-reservado); }
+
+.text-estado-libre { color: var(--estado-libre); }
+.text-estado-esperando { color: var(--estado-esperando); }
+.text-estado-pedido { color: var(--estado-pedido); }
+.text-estado-preparado { color: var(--estado-preparado); }
+.text-estado-pagado { color: var(--estado-pagado); }
+.text-estado-reservado { color: var(--estado-reservado); }

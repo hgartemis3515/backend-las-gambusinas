@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Las Gambusinas Dashboard v2.0</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        bg: { primary: '#0a0a0f', card: '#1a1a28', sidebar: '#12121a' },
+        gold: { DEFAULT: '#d4af37', '20': 'rgba(212,175,55,0.125)', '40': 'rgba(212,175,55,0.25)' },
+        st: { libre: '#00d4aa', esperando: '#ffa502', pedido: '#3498db', preparado: '#2ecc71', pagado: '#ff4757', reservado: '#5352ed' },
+        txt: { primary: '#ffffff', secondary: '#a0a0b8', muted: '#5a5a7a' }
+      },
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+    }
+  }
+}
+</script>
+<style>
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #0a0a0f; }
+  ::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.25); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(212,175,55,0.4); }
+  [x-cloak] { display: none !important; }
+  .sidebar-item { transition: all 0.2s ease; }
+  .sidebar-item:hover { background: rgba(212,175,55,0.08); }
+  .sidebar-item.active { background: rgba(212,175,55,0.125); }
+  .card-hover:hover { border-color: rgba(212,175,55,0.4) !important; }
+  .gold-glow { box-shadow: 0 0 20px rgba(212,175,55,0.15); }
+  .modal-overlay { backdrop-filter: blur(4px); }
+  @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .pulse-dot { animation: pulse-dot 2s infinite; }
+  .table-row:hover { background: rgba(212,175,55,0.06) !important; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: #d4af37 !important; box-shadow: 0 0 0 2px rgba(212,175,55,0.15); }
+  .toggle-track { transition: background 0.2s; }
+  .toggle-thumb { transition: transform 0.2s; }
+</style>
+</head>
+<body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="app()" x-cloak>
+
+<!-- ===== TOPBAR (72px) ===== -->
+<nav class="h-[72px] bg-bg-sidebar border-b border-[rgba(212,175,55,0.25)] flex items-center px-4 fixed top-0 left-0 right-0 z-40">
+  <!-- Left Zone -->
+  <div class="flex items-center gap-3 w-[280px]">
+    <button @click="sidebarOpen = !sidebarOpen" class="w-11 h-11 flex items-center justify-center rounded-lg hover:bg-gold-20 text-gold text-xl">☰</button>
+    <div class="text-txt-secondary text-sm">🏠 <span class="mx-1">›</span> <span class="text-white" x-text="pages[page].label"></span></div>
+  </div>
+  <!-- Center Zone -->
+  <div class="flex-1 max-w-[500px] mx-auto relative" x-data="{searchOpen:false, q:''}">
+    <div class="relative">
+      <input type="text" x-model="q" @focus="searchOpen=true" @keydown.escape="searchOpen=false;q=''"
+        class="w-full h-11 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-full px-5 pl-11 text-sm text-white placeholder-txt-muted focus:border-gold"
+        placeholder="Buscar mesas, comandas, platos, clientes... (Ctrl+K)">
+      <span class="absolute left-4 top-3 text-txt-muted">🔍</span>
+    </div>
+    <div x-show="searchOpen && q.length > 1" @click.outside="searchOpen=false" x-transition
+      class="absolute top-14 left-0 right-0 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl shadow-2xl p-3 z-50">
+      <p class="text-[10px] text-txt-muted uppercase mb-2">Platos</p>
+      <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gold-20 cursor-pointer"><span>🍽️</span><div><p class="text-sm">Ceviche Clásico</p><p class="text-xs text-txt-muted">S/.45 · 12 vendidos</p></div></div>
+      <p class="text-[10px] text-txt-muted uppercase mt-3 mb-2">Mesas</p>
+      <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gold-20 cursor-pointer"><span>🪑</span><div><p class="text-sm">Mesa 5</p><p class="text-xs text-txt-muted">Ocupada · Juan Pérez</p></div></div>
+      <p class="text-xs text-txt-muted text-center mt-2 pt-2 border-t border-[rgba(212,175,55,0.1)]">↑↓ navegar · Enter seleccionar · Esc cerrar</p>
+    </div>
+  </div>
+  <!-- Right Zone -->
+  <div class="flex items-center gap-3 ml-4">
+    <div class="text-right mr-2 hidden lg:block">
+      <p class="text-white text-sm font-semibold tabular-nums" x-text="clock"></p>
+      <p class="text-txt-muted text-[11px]" x-text="dateStr"></p>
+    </div>
+    <div class="w-px h-8 bg-[rgba(212,175,55,0.15)] hidden lg:block"></div>
+    <div class="hidden lg:flex items-center gap-1.5 px-2">
+      <span class="w-2 h-2 rounded-full bg-st-preparado pulse-dot"></span>
+      <span class="text-xs text-st-preparado font-medium">Online</span>
+      <span class="text-[10px] text-txt-muted ml-1">8 mozos</span>
+    </div>
+    <div class="w-px h-8 bg-[rgba(212,175,55,0.15)] hidden lg:block"></div>
+    <!-- Shortcuts -->
+    <div class="relative" x-data="{open:false}">
+      <button @click="open=!open" class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gold-20 text-lg">⚡</button>
+      <div x-show="open" @click.outside="open=false" x-transition class="absolute right-0 top-12 w-64 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl shadow-2xl p-2 z-50">
+        <p class="text-gold font-semibold text-sm px-3 py-2">⚡ Atajos Rápidos</p>
+        <template x-for="s in [{i:'🆕',l:'Nueva comanda',k:'Ctrl+N'},{i:'💰',l:'Procesar pago',k:'Ctrl+P'},{i:'🪑',l:'Ver mapa mesas',k:'Ctrl+M'},{i:'📊',l:'Abrir reportes',k:'Ctrl+R'},{i:'⚙️',l:'Configuración',k:'Ctrl+,'},{i:'🔍',l:'Buscar',k:'Ctrl+K'}]">
+          <div class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gold-20 cursor-pointer">
+            <span class="text-sm"><span x-text="s.i"></span> <span x-text="s.l" class="ml-1"></span></span>
+            <span class="text-[10px] text-txt-muted bg-bg-sidebar px-1.5 py-0.5 rounded" x-text="s.k"></span>
+          </div>
+        </template>
+      </div>
+    </div>
+    <!-- Notifications -->
+    <div class="relative" x-data="{open:false}">
+      <button @click="open=!open" class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gold-20 text-lg relative">
+        🔔<span class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-st-pagado rounded-full text-[9px] font-bold flex items-center justify-center">5</span>
+      </button>
+      <div x-show="open" @click.outside="open=false" x-transition class="absolute right-0 top-12 w-80 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl shadow-2xl z-50">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-[rgba(212,175,55,0.1)]">
+          <span class="font-semibold text-sm">Notificaciones</span>
+          <span class="text-xs text-gold cursor-pointer hover:underline">Marcar todas leídas</span>
+        </div>
+        <div class="max-h-72 overflow-y-auto">
+          <template x-for="(n,i) in notifs" :key="i">
+            <div class="flex gap-3 px-4 py-3 hover:bg-gold-20 cursor-pointer border-b border-[rgba(212,175,55,0.05)]" :class="n.unread && 'bg-[rgba(212,175,55,0.04)]'">
+              <span x-text="n.icon" class="text-lg mt-0.5"></span>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium truncate" x-text="n.title"></p>
+                <p class="text-xs text-txt-muted" x-text="n.time"></p>
+              </div>
+              <span x-show="n.unread" class="w-2 h-2 rounded-full bg-gold mt-2 flex-shrink-0"></span>
+            </div>
+          </template>
+        </div>
+        <div class="px-4 py-2.5 text-center border-t border-[rgba(212,175,55,0.1)]">
+          <span class="text-xs text-gold cursor-pointer hover:underline">Ver todas las notificaciones</span>
+        </div>
+      </div>
+    </div>
+    <!-- Profile -->
+    <div class="relative" x-data="{open:false}">
+      <button @click="open=!open" class="relative">
+        <div class="w-9 h-9 rounded-full bg-gold flex items-center justify-center text-bg-primary font-bold text-sm border-2 border-[rgba(212,175,55,0.4)]">A</div>
+        <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-st-preparado border-2 border-bg-sidebar"></span>
+      </button>
+      <div x-show="open" @click.outside="open=false" x-transition class="absolute right-0 top-12 w-72 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl shadow-2xl z-50">
+        <div class="text-center py-5 border-b border-[rgba(212,175,55,0.1)]">
+          <div class="w-16 h-16 rounded-full bg-gold mx-auto flex items-center justify-center text-bg-primary font-bold text-2xl mb-2">A</div>
+          <p class="font-semibold">Admin Principal</p>
+          <p class="text-xs text-txt-muted">admin@lasgambusinas.com</p>
+          <span class="inline-block mt-1.5 text-[10px] font-bold bg-gold text-bg-primary px-2.5 py-0.5 rounded-full">Administrador</span>
+        </div>
+        <div class="p-2">
+          <div class="px-3 py-2 rounded-lg hover:bg-gold-20 cursor-pointer text-sm">👤 Mi perfil</div>
+          <div class="px-3 py-2 rounded-lg hover:bg-gold-20 cursor-pointer text-sm" @click="page='config'">⚙️ Configuración</div>
+          <div class="flex items-center justify-between px-3 py-2">
+            <span class="text-sm">🎨 Modo oscuro</span>
+            <div class="w-9 h-5 bg-gold rounded-full relative cursor-pointer"><div class="absolute right-0.5 top-0.5 w-4 h-4 bg-white rounded-full"></div></div>
+          </div>
+          <div class="border-t border-[rgba(212,175,55,0.1)] mt-1 pt-1">
+            <div class="px-3 py-2 rounded-lg hover:bg-[rgba(255,71,87,0.1)] cursor-pointer text-sm text-st-pagado">🚪 Cerrar sesión</div>
+          </div>
+        </div>
+        <div class="px-4 py-2 border-t border-[rgba(212,175,55,0.1)] text-[10px] text-txt-muted">v2.0.0-fase7 · Sesión: 2h 34m</div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ===== LAYOUT: SIDEBAR + MAIN ===== -->
+<div class="flex pt-[72px] min-h-screen">
+
+<!-- ===== SIDEBAR ===== -->
+<aside :class="sidebarOpen ? 'w-[270px]' : 'w-[68px]'" class="bg-bg-sidebar fixed top-[72px] left-0 bottom-0 z-30 transition-all duration-300 flex flex-col border-r border-[rgba(212,175,55,0.1)]">
+  <div class="px-4 py-5 flex items-center gap-3 overflow-hidden">
+    <span class="text-2xl flex-shrink-0">🍽️</span>
+    <span x-show="sidebarOpen" x-transition class="text-gold font-bold text-lg whitespace-nowrap">Las Gambusinas</span>
+  </div>
+  <nav class="flex-1 overflow-y-auto px-2 space-y-0.5">
+    <template x-for="(item, key) in pages" :key="key">
+      <button @click="page=key" :class="page===key && 'active'"
+        class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm relative"
+        :title="!sidebarOpen ? item.label : ''">
+        <span x-show="page===key" class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-11 bg-gold rounded-r"></span>
+        <span class="text-lg flex-shrink-0 w-7 text-center" :class="page===key ? 'grayscale-0' : 'opacity-60'" x-text="item.icon"></span>
+        <span x-show="sidebarOpen" x-transition class="whitespace-nowrap" :class="page===key ? 'text-gold font-medium' : 'text-txt-secondary'" x-text="item.label"></span>
+      </button>
+    </template>
+  </nav>
+  <div class="px-4 py-4 border-t border-[rgba(212,175,55,0.1)] flex items-center gap-3 overflow-hidden">
+    <div class="w-9 h-9 rounded-full bg-gold flex-shrink-0 flex items-center justify-center text-bg-primary font-bold text-sm">A</div>
+    <div x-show="sidebarOpen" x-transition class="min-w-0">
+      <p class="text-sm font-medium truncate">Admin</p>
+      <p class="text-[11px] text-txt-muted truncate">Gerente</p>
+    </div>
+  </div>
+</aside>
+
+<!-- ===== MAIN CONTENT ===== -->
+<main :class="sidebarOpen ? 'ml-[270px]' : 'ml-[68px]'" class="flex-1 transition-all duration-300 min-h-[calc(100vh-72px)]">
+
+<!-- =============================== -->
+<!-- PAGE: DASHBOARD                 -->
+<!-- =============================== -->
+<div x-show="page==='dashboard'" x-transition.opacity class="p-6">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold">Buenas tardes, Admin 👋</h1>
+      <p class="text-txt-muted text-sm mt-1" x-text="'Martes, ' + dateStr"></p>
+    </div>
+    <div class="flex gap-2">
+      <button class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
+      <button class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">📥 Exportar</button>
+      <button class="px-4 py-2 border border-gold/40 rounded-lg text-sm text-gold hover:bg-gold-20 transition">⚙️ Personalizar</button>
+    </div>
+  </div>
+  <!-- KPIs -->
+  <div class="grid grid-cols-5 gap-4 mb-6">
+    <template x-for="kpi in dashKPIs" :key="kpi.label">
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4 card-hover">
+        <p class="text-[11px] text-txt-muted uppercase tracking-wide" x-text="kpi.label"></p>
+        <p class="text-2xl font-bold mt-1" :class="kpi.color" x-text="kpi.value"></p>
+        <p class="text-xs mt-1" :class="kpi.sub.includes('+') ? 'text-st-preparado' : kpi.sub.includes('-') ? 'text-st-pagado' : 'text-txt-muted'" x-text="kpi.sub"></p>
+      </div>
+    </template>
+  </div>
+  <!-- Charts row -->
+  <div class="grid grid-cols-12 gap-4 mb-6">
+    <div class="col-span-7 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-sm">Mapa de Mesas</h3>
+        <span class="text-[11px] text-txt-muted">20 mesas · 4 áreas</span>
+      </div>
+      <div class="grid grid-cols-5 gap-2">
+        <template x-for="m in mockMesas" :key="m.numero">
+          <div class="aspect-square rounded-lg border-2 flex flex-col items-center justify-center text-xs cursor-pointer hover:scale-105 transition"
+            :class="mesaClass(m.estado)" @click="modal='detalleMesa'; selectedMesa=m">
+            <span class="font-bold" x-text="m.numero"></span>
+            <span class="text-[9px] mt-0.5 opacity-70" x-text="m.estado"></span>
+          </div>
+        </template>
+      </div>
+    </div>
+    <div class="col-span-5 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
+      <h3 class="font-semibold text-sm mb-4">Ventas del Día</h3>
+      <canvas id="chartVentasDia" height="200"></canvas>
+    </div>
+  </div>
+  <!-- Activity -->
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
+    <h3 class="font-semibold text-sm mb-4">Actividad Reciente</h3>
+    <div class="space-y-3">
+      <template x-for="a in activity" :key="a.text">
+        <div class="flex items-center gap-3 text-sm">
+          <span class="w-2 h-2 rounded-full flex-shrink-0" :class="a.dotClass"></span>
+          <span class="text-txt-secondary" x-text="a.text"></span>
+          <span class="ml-auto text-xs text-txt-muted" x-text="a.time"></span>
+        </div>
+      </template>
+    </div>
+  </div>
+</div>
+
+<!-- =============================== -->
+<!-- PAGE: MESAS                     -->
+<!-- =============================== -->
+<div x-show="page==='mesas'" x-transition.opacity class="p-6" x-data="{view:'cards', filterEstado:'Todas'}">
+  <div class="flex items-center justify-between mb-5">
+    <h1 class="text-xl font-bold">Gestión de Mesas</h1>
+    <div class="flex items-center gap-3">
+      <div class="flex border border-[rgba(212,175,55,0.25)] rounded-lg overflow-hidden">
+        <button @click="view='cards'" :class="view==='cards' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:bg-gold-20'" class="px-3 py-1.5 text-sm font-medium transition">🃏 Tarjetas</button>
+        <button @click="view='table'" :class="view==='table' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:bg-gold-20'" class="px-3 py-1.5 text-sm font-medium transition">📋 Tabla</button>
+      </div>
+      <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition" @click="modal='crearMesa'">+ Nueva Mesa</button>
+    </div>
+  </div>
+  <!-- Filters -->
+  <div class="flex gap-2 mb-5 flex-wrap">
+    <template x-for="f in ['Todas','Libre','Esperando','Pedido','Preparado','Pagado','Reservado']" :key="f">
+      <button @click="filterEstado=f" :class="filterEstado===f ? 'bg-gold text-bg-primary' : 'border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold'"
+        class="px-3 py-1.5 rounded-full text-xs font-medium transition" x-text="f"></button>
+    </template>
+  </div>
+  <!-- Cards View -->
+  <div x-show="view==='cards'" class="space-y-6">
+    <template x-for="area in ['Salón Principal','Terraza','VIP']" :key="area">
+      <div>
+        <h3 class="text-sm font-semibold text-txt-secondary mb-3" x-text="area"></h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+          <template x-for="m in filteredMesas(area, filterEstado)" :key="m.numero">
+            <div class="bg-bg-card border-2 rounded-xl p-3.5 cursor-pointer card-hover transition hover:scale-[1.02]"
+              :class="mesaBorderClass(m.estado)" @click="modal='detalleMesa'; selectedMesa=m">
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-bold text-lg" x-text="'Mesa ' + m.numero"></span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold" :class="mesaBadge(m.estado)" x-text="m.estado"></span>
+              </div>
+              <div class="space-y-1 text-xs text-txt-muted">
+                <p x-show="m.mozo"><span class="text-txt-secondary">👤</span> <span x-text="m.mozo"></span></p>
+                <p x-show="m.personas"><span class="text-txt-secondary">👥</span> <span x-text="m.personas + ' personas'"></span></p>
+                <p x-show="m.tiempo"><span class="text-txt-secondary">⏱</span> <span x-text="m.tiempo"></span></p>
+                <p x-show="m.monto" class="text-gold font-semibold text-sm mt-1" x-text="'S/. ' + m.monto"></p>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+  </div>
+  <!-- Table View -->
+  <div x-show="view==='table'" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
+          <th class="text-left px-4 py-3 font-semibold">#</th><th class="text-left px-4 py-3 font-semibold">Área</th>
+          <th class="text-left px-4 py-3 font-semibold">Estado</th><th class="text-left px-4 py-3 font-semibold">Mozo</th>
+          <th class="text-left px-4 py-3 font-semibold">Pers.</th><th class="text-left px-4 py-3 font-semibold">Monto</th>
+          <th class="text-left px-4 py-3 font-semibold">Última Act.</th><th class="text-left px-4 py-3 font-semibold">Acciones</th>
+        </tr></thead>
+        <tbody>
+          <template x-for="m in mockMesas.filter(m => filterEstado==='Todas' || m.estado===filterEstado)" :key="m.numero">
+            <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
+              <td class="px-4 py-3 font-medium" x-text="m.numero"></td>
+              <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full" :class="m.area==='VIP' ? 'bg-st-reservado/20 text-st-reservado' : m.area==='Terraza' ? 'bg-st-esperando/20 text-st-esperando' : 'bg-st-pedido/20 text-st-pedido'" x-text="m.area"></span></td>
+              <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full font-semibold" :class="mesaBadge(m.estado)" x-text="m.estado"></span></td>
+              <td class="px-4 py-3 text-txt-secondary" x-text="m.mozo || '—'"></td>
+              <td class="px-4 py-3" x-text="m.personas || '—'"></td>
+              <td class="px-4 py-3" :class="m.monto ? 'text-gold font-semibold' : 'text-txt-muted'" x-text="m.monto ? 'S/. '+m.monto : '—'"></td>
+              <td class="px-4 py-3 text-txt-muted text-xs" x-text="m.tiempo || '—'"></td>
+              <td class="px-4 py-3 space-x-2 text-base"><span class="cursor-pointer hover:text-gold" @click="modal='detalleMesa'; selectedMesa=m">👁</span> <span class="cursor-pointer hover:text-gold">✏️</span></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+    <div class="flex items-center justify-between px-4 py-3 border-t border-[rgba(212,175,55,0.08)] text-xs text-txt-muted">
+      <div class="flex gap-3">
+        <span>🟢 Libre: <span x-text="mockMesas.filter(m=>m.estado==='Libre').length"></span></span>
+        <span>🟡 Ocupada: <span x-text="mockMesas.filter(m=>m.estado==='Ocupada').length"></span></span>
+        <span>🔵 Pedido: <span x-text="mockMesas.filter(m=>m.estado==='Pedido').length"></span></span>
+        <span>🔴 Pagado: <span x-text="mockMesas.filter(m=>m.estado==='Pagado').length"></span></span>
+      </div>
+      <span>Pág. 1 de 1</span>
+    </div>
+  </div>
+</div>
+
+<!-- =============================== -->
+<!-- PAGE: AREAS                     -->
+<!-- =============================== -->
+<div x-show="page==='areas'" x-transition.opacity class="p-6">
+  <div class="flex items-center justify-between mb-5">
+    <h1 class="text-xl font-bold">Áreas del Restaurante</h1>
+    <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold">+ Nueva Área</button>
+  </div>
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+    <table class="w-full text-sm">
+      <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
+        <th class="text-left px-4 py-3 font-semibold">ID</th><th class="text-left px-4 py-3 font-semibold">Nombre</th>
+        <th class="text-left px-4 py-3 font-semibold">Descripción</th><th class="text-left px-4 py-3 font-semibold">Mesas</th>
+        <th class="text-left px-4 py-3 font-semibold">Estado</th><th class="text-left px-4 py-3 font-semibold">Acciones</th>
+      </tr></thead>
+      <tbody>
+        <template x-for="a in mockAreas" :key="a.id">
+          <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
+            <td class="px-4 py-3 text-txt-muted" x-text="a.id"></td>
+            <td class="px-4 py-3 font-medium" x-text="a.nombre"></td>
+            <td class="px-4 py-3 text-txt-secondary" x-text="a.desc"></td>
+            <td class="px-4 py-3" x-text="a.mesas"></td>
+            <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-semibold">Activa</span></td>
+            <td class="px-4 py-3 space-x-2 text-base"><span class="cursor-pointer hover:text-gold">✏️</span> <span class="cursor-pointer hover:text-st-pagado">🗑</span></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- =============================== -->
+<!-- PAGE: MOZOS                     -->
+<!-- =============================== -->
+<div x-show="page==='mozos'" x-transition.opacity class="p-6">
+  <div class="flex items-center justify-between mb-5">
+    <h1 class="text-xl font-bold">Gestión de Mozos</h1>
+    <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold" @click="modal='crearMozo'">+ Nuevo Mozo</button>
+  </div>
+  <div class="grid grid-cols-3 gap-4 mb-6">
+    <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4"><p class="text-[11px] text-txt-muted uppercase">Activos Hoy</p><p class="text-2xl font-bold text-gold mt-1">8 <span class="text-sm text-txt-muted font-normal">de 12</span></p></div>
+    <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4"><p class="text-[11px] text-txt-muted uppercase">Total Registrados</p><p class="text-2xl font-bold text-white mt-1">12</p></div>
+    <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4"><p class="text-[11px] text-txt-muted uppercase">Mejor Mozo</p><p class="text-2xl font-bold text-st-preparado mt-1">Juan P.</p><p class="text-xs text-txt-muted">S/. 980 hoy</p></div>
+  </div>
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+    <table class="w-full text-sm">
+      <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
+        <th class="text-left px-4 py-3 font-semibold">ID</th><th class="text-left px-4 py-3 font-semibold">Nombre</th>
+        <th class="text-left px-4 py-3 font-semibold">DNI</th><th class="text-left px-4 py-3 font-semibold">Teléfono</th>
+        <th class="text-left px-4 py-3 font-semibold">Ventas</th><th class="text-left px-4 py-3 font-semibold">Estado</th>
+        <th class="text-left px-4 py-3 font-semibold">Acciones</th>
+      </tr></thead>
+      <tbody>
+        <template x-for="m in mockMozos" :key="m.id">
+          <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
+            <td class="px-4 py-3 text-txt-muted" x-text="m.id"></td>
+            <td class="px-4 py-3 font-medium" x-text="m.nombre"></td>
+            <td class="px-4 py-3 text-txt-secondary" x-text="m.dni"></td>
+            <td class="px-4 py-3 text-txt-secondary" x-text="m.tel"></td>
+            <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. ' + m.ventas"></td>
+            <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full font-semibold" :class="m.activo ? 'bg-st-preparado/20 text-st-preparado' : 'bg-txt-muted/20 text-txt-muted'" x-text="m.activo ? 'Activo' : 'Inactivo'"></span></td>
+            <td class="px-4 py-3 space-x-2 text-base"><span class="cursor-pointer hover:text-gold">👁</span> <span class="cursor-pointer hover:text-gold">✏️</span> <span class="cursor-pointer hover:text-st-pagado">🗑</span></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- =============================== -->
+<!-- PAGE: PLATOS                    -->
+<!-- =============================== -->
+<div x-show="page==='platos'" x-transition.opacity class="p-6" x-data="{subTab:'Todos', soloCompl:false}">
+  <div class="flex items-center justify-between mb-5">
+    <h1 class="text-xl font-bold">Carta y Platos</h1>
+    <div class="flex gap-2">
+      <button class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
+      <button class="px-4 py-2 border border-gold/40 rounded-lg text-sm text-gold hover:bg-gold-20 transition">Importar JSON</button>
+      <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold" @click="modal='crearPlato'">+ Nuevo Plato</button>
+    </div>
+  </div>
+  <!-- Sub tabs -->
+  <div class="flex gap-2 mb-4">
+    <template x-for="t in [{l:'Todos',c:53},{l:'Desayuno',c:15},{l:'Carta',c:38},{l:'Inactivos',c:3}]" :key="t.l">
+      <button @click="subTab=t.l" :class="subTab===t.l ? 'bg-gold-20 text-gold' : 'text-txt-secondary hover:text-gold'"
+        class="px-4 py-1.5 rounded-full text-xs font-medium transition"><span x-text="t.l"></span> (<span x-text="t.c"></span>)</button>
+    </template>
+  </div>
+  <!-- Filters -->
+  <div class="flex gap-2 mb-5 items-center">
+    <input type="text" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-48 placeholder-txt-muted" placeholder="🔍 Buscar plato...">
+    <select class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary"><option>Cat: Todas</option></select>
+    <select class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary"><option>Stock: Todos</option></select>
+    <label class="flex items-center gap-2 text-xs text-txt-secondary cursor-pointer"><input type="checkbox" x-model="soloCompl" class="accent-gold w-3.5 h-3.5"> Solo con complementos</label>
+  </div>
+  <div class="flex gap-4">
+    <!-- Table -->
+    <div class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead><tr class="bg-bg-sidebar text-txt-secondary text-[10px] uppercase">
+          <th class="text-left px-3 py-2.5 font-semibold">#</th><th class="text-left px-3 py-2.5 font-semibold">Nombre</th>
+          <th class="text-left px-3 py-2.5 font-semibold">Precio</th><th class="text-left px-3 py-2.5 font-semibold">Stock</th>
+          <th class="text-left px-3 py-2.5 font-semibold">Categoría</th><th class="text-left px-3 py-2.5 font-semibold">Tipo</th>
+          <th class="text-left px-3 py-2.5 font-semibold">Complementos</th><th class="text-left px-3 py-2.5 font-semibold">Acc.</th>
+        </tr></thead>
+        <tbody>
+          <template x-for="(p,i) in mockPlatos.filter(p => !soloCompl || p.grupos > 0)" :key="p.nombre">
+            <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
+              <td class="px-3 py-2.5 text-txt-muted" x-text="i+1"></td>
+              <td class="px-3 py-2.5"><p class="font-medium text-sm" x-text="p.nombre"></p><p class="text-[10px] text-txt-muted" x-text="p.cat + ' · ' + p.tipo"></p></td>
+              <td class="px-3 py-2.5 text-gold font-semibold" x-text="'S/. ' + p.precio"></td>
+              <td class="px-3 py-2.5"><span class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                :class="p.stock > 20 ? 'bg-st-preparado/15 text-st-preparado' : p.stock > 0 ? 'bg-st-esperando/15 text-st-esperando' : 'bg-st-pagado/15 text-st-pagado'"
+                x-text="p.stock"></span></td>
+              <td class="px-3 py-2.5"><span class="text-[10px] px-2 py-0.5 rounded-full bg-gold/10 text-gold" x-text="p.cat"></span></td>
+              <td class="px-3 py-2.5"><span class="text-[10px] px-2 py-0.5 rounded-full bg-st-pedido/10 text-st-pedido" x-text="p.tipo"></span></td>
+              <td class="px-3 py-2.5">
+                <template x-if="p.grupos > 0">
+                  <div><span class="text-[10px] px-2 py-0.5 rounded-full bg-gold/15 text-gold font-semibold" x-text="'● '+p.grupos+' grupo'+(p.grupos>1?'s':'')"></span>
+                  <p class="text-[9px] text-txt-muted mt-0.5" x-text="p.grupoNames"></p></div>
+                </template>
+                <template x-if="p.grupos === 0"><span class="text-[10px] text-txt-muted">Sin complementos</span></template>
+              </td>
+              <td class="px-3 py-2.5 space-x-1 text-sm"><span class="cursor-pointer hover:text-gold">👁</span><span class="cursor-pointer hover:text-gold">✏️</span><span class="cursor-pointer hover:text-st-pagado">🗑</span></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+      <div class="flex items-center justify-between px-3 py-2.5 text-[11px] text-txt-muted border-t border-[rgba(212,175,55,0.08)]">
+        <span>Mostrando 6 de 53 platos</span><span>◀ 1 2 3 ▶</span>
+      </div>
+    </div>
+    <!-- Side Panel -->
+    <div class="w-60 space-y-4 flex-shrink-0">
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <h4 class="font-semibold text-sm mb-3">Categorías</h4>
+        <template x-for="c in [{n:'Ceviches',c:24},{n:'Arroces',c:18},{n:'Carnes',c:12},{n:'Bebidas',c:35},{n:'Desayunos',c:15},{n:'Postres',c:9}]">
+          <div class="flex justify-between text-xs py-1"><span class="text-white" x-text="c.n"></span><span class="text-txt-muted" x-text="c.c"></span></div>
+        </template>
+        <button class="w-full mt-3 border border-gold/40 text-gold text-xs py-1.5 rounded-lg hover:bg-gold-20 transition">+ Nueva categoría</button>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <h4 class="font-semibold text-sm mb-3">Complementos</h4>
+        <div class="bg-bg-sidebar rounded-lg p-3 space-y-2">
+          <div><p class="text-[10px] text-txt-muted">Platos con complementos</p><p class="text-gold font-bold">18 de 32</p></div>
+          <div><p class="text-[10px] text-txt-muted">Grupos definidos</p><p class="text-gold font-bold">42</p></div>
+          <div><p class="text-[10px] text-txt-muted">Opciones totales</p><p class="text-gold font-bold">136</p></div>
+        </div>
+        <p class="text-[11px] text-txt-secondary mt-3 mb-1 font-medium">Grupos más usados:</p>
+        <template x-for="g in [{n:'Proteína',c:'18 platos'},{n:'Guarnición',c:'15 platos'},{n:'Bebida incluida',c:'9 platos'},{n:'Salsa',c:'7 platos'}]">
+          <div class="flex justify-between text-xs py-1"><span class="text-white" x-text="g.n"></span><span class="text-txt-muted" x-text="g.c"></span></div>
+        </template>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================== -->
+<!-- PAGE: COMANDAS                  -->
+<!-- =============================== -->
+<div x-show="page==='comandas'" x-transition.opacity class="p-6">
+  <div class="flex items-center justify-between mb-5">
+    <h1 class="text-xl font-bold">Comandas</h1>
+    <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold">+ Nueva Comanda</button>
+  </div>
+  <div class="flex gap-2 mb-5">
+    <input class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-36 placeholder-txt-muted" placeholder="ID Comanda">
+    <input class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-28 placeholder-txt-muted" placeholder="Mesa">
+    <select class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary"><option>Estado: Todos</option></select>
+    <button class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold">🔄 Actualizar</button>
+  </div>
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+    <table class="w-full text-sm">
+      <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
+        <th class="text-left px-4 py-3 font-semibold">#</th><th class="text-left px-4 py-3 font-semibold">Mesa</th>
+        <th class="text-left px-4 py-3 font-semibold">Mozo</th><th class="text-left px-4 py-3 font-semibold">Items</th>
+        <th class="text-left px-4 py-3 font-semibold">Total</th><th class="text-left px-4 py-3 font-semibold">Estado</th>
+        <th class="text-left px-4 py-3 font-semibold">Hora</th><th class="text-left px-4 py-3 font-semibold">Acciones</th>
+      </tr></thead>
+      <tbody>
+        <template x-for="c in mockComandas" :key="c.id">
+          <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
+            <td class="px-4 py-3 font-medium" x-text="'#'+c.id"></td>
+            <td class="px-4 py-3" x-text="'Mesa '+c.mesa"></td>
+            <td class="px-4 py-3 text-txt-secondary" x-text="c.mozo"></td>
+            <td class="px-4 py-3" x-text="c.items+' platos'"></td>
+            <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. '+c.total"></td>
+            <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full font-semibold"
+              :class="c.estado==='Preparado' ? 'bg-st-preparado/20 text-st-preparado' : c.estado==='En cocina' ? 'bg-st-esperando/20 text-st-esperando' : 'bg-st-pedido/20 text-st-pedido'" x-text="c.estado"></span></td>
+            <td class="px-4 py-3 text-txt-muted" x-text="c.hora"></td>
+            <td class="px-4 py-3 space-x-2 text-base"><span class="cursor-pointer hover:text-gold" @click="modal='verComanda'">👁</span> <span class="cursor-pointer hover:text-gold">✏️</span> <span class="cursor-pointer hover:text-st-pagado">🗑</span></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- =============================== -->
+<!-- PAGE: BOUCHERS                  -->
+<!-- =============================== -->
+<div x-show="page==='bouchers'" x-transition.opacity class="p-6">
+  <div class="flex items-center justify-between mb-5">
+    <h1 class="text-xl font-bold">Bouchers</h1>
+    <button class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold">🔄 Actualizar</button>
+  </div>
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+    <table class="w-full text-sm">
+      <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
+        <th class="text-left px-4 py-3 font-semibold">Código</th><th class="text-left px-4 py-3 font-semibold">N° Boucher</th>
+        <th class="text-left px-4 py-3 font-semibold">Fecha</th><th class="text-left px-4 py-3 font-semibold">Mesa</th>
+        <th class="text-left px-4 py-3 font-semibold">Total</th><th class="text-left px-4 py-3 font-semibold">Método</th>
+        <th class="text-left px-4 py-3 font-semibold">Acciones</th>
+      </tr></thead>
+      <tbody>
+        <template x-for="b in mockBouchers" :key="b.codigo">
+          <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
+            <td class="px-4 py-3 text-txt-muted font-mono text-xs" x-text="b.codigo"></td>
+            <td class="px-4 py-3 font-medium" x-text="b.numero"></td>
+            <td class="px-4 py-3 text-txt-secondary" x-text="b.fecha"></td>
+            <td class="px-4 py-3" x-text="'Mesa '+b.mesa"></td>
+            <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. '+b.total"></td>
+            <td class="px-4 py-3"><span class="text-xs" :class="b.metodo==='Efectivo' ? 'text-st-preparado' : 'text-st-pedido'" x-text="b.metodo"></span></td>
+            <td class="px-4 py-3 space-x-2 text-base"><span class="cursor-pointer hover:text-gold" @click="modal='verBoucher'">👁</span> <span class="cursor-pointer hover:text-gold">📄</span></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- =============================== -->
+<!-- PAGE: CLIENTES                  -->
+<!-- =============================== -->
+<div x-show="page==='clientes'" x-transition.opacity class="p-6">
+  <div class="flex items-center justify-between mb-5">
+    <h1 class="text-xl font-bold">Clientes</h1>
+    <div class="flex gap-2">
+      <button class="px-4 py-2 border border-gold/40 rounded-lg text-sm text-gold hover:bg-gold-20 transition">📥 Exportar CSV</button>
+      <button class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary">🔄 Actualizar</button>
+    </div>
+  </div>
+  <div class="grid grid-cols-3 gap-4 mb-6">
+    <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4"><p class="text-[11px] text-txt-muted uppercase">Total Clientes</p><p class="text-2xl font-bold text-white mt-1">347</p></div>
+    <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4"><p class="text-[11px] text-txt-muted uppercase">Nuevos Este Mes</p><p class="text-2xl font-bold text-st-preparado mt-1">23</p></div>
+    <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4"><p class="text-[11px] text-txt-muted uppercase">Frecuentes</p><p class="text-2xl font-bold text-gold mt-1">85</p></div>
+  </div>
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+    <table class="w-full text-sm">
+      <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
+        <th class="text-left px-4 py-3 font-semibold">Nombre</th><th class="text-left px-4 py-3 font-semibold">DNI</th>
+        <th class="text-left px-4 py-3 font-semibold">Teléfono</th><th class="text-left px-4 py-3 font-semibold">Visitas</th>
+        <th class="text-left px-4 py-3 font-semibold">Gasto Total</th><th class="text-left px-4 py-3 font-semibold">Tipo</th>
+        <th class="text-left px-4 py-3 font-semibold">Acciones</th>
+      </tr></thead>
+      <tbody>
+        <template x-for="c in mockClientes" :key="c.nombre">
+          <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
+            <td class="px-4 py-3 font-medium" x-text="c.nombre"></td>
+            <td class="px-4 py-3 text-txt-secondary" x-text="c.dni"></td>
+            <td class="px-4 py-3 text-txt-secondary" x-text="c.tel"></td>
+            <td class="px-4 py-3" x-text="c.visitas"></td>
+            <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. ' + c.gasto"></td>
+            <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full font-semibold"
+              :class="c.tipo==='Frecuente' ? 'bg-gold/20 text-gold' : 'bg-st-preparado/20 text-st-preparado'" x-text="c.tipo"></span></td>
+            <td class="px-4 py-3 space-x-2 text-base"><span class="cursor-pointer hover:text-gold">👁</span> <span class="cursor-pointer hover:text-gold" @click="modal='editarCliente'">✏️</span></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- =============================== -->
+<!-- PAGE: AUDITORIA                 -->
+<!-- =============================== -->
+<div x-show="page==='auditoria'" x-transition.opacity class="p-6">
+  <div class="flex items-center justify-between mb-5">
+    <h1 class="text-xl font-bold">Auditoría</h1>
+    <button class="px-4 py-2 border border-gold/40 rounded-lg text-sm text-gold hover:bg-gold-20 transition">📊 Reporte Completo</button>
+  </div>
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+    <table class="w-full text-sm">
+      <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
+        <th class="text-left px-4 py-3 font-semibold">Hora</th><th class="text-left px-4 py-3 font-semibold">Usuario</th>
+        <th class="text-left px-4 py-3 font-semibold">Acción</th><th class="text-left px-4 py-3 font-semibold">Módulo</th>
+        <th class="text-left px-4 py-3 font-semibold">IP</th><th class="text-left px-4 py-3 font-semibold">Acciones</th>
+      </tr></thead>
+      <tbody>
+        <template x-for="a in mockAuditoria" :key="a.hora">
+          <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
+            <td class="px-4 py-3 text-txt-muted text-xs" x-text="a.hora"></td>
+            <td class="px-4 py-3" x-text="a.usuario"></td>
+            <td class="px-4 py-3"><span class="text-xs font-medium" :class="a.color" x-text="a.accion"></span></td>
+            <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full bg-bg-sidebar" x-text="a.modulo"></span></td>
+            <td class="px-4 py-3 text-txt-muted text-xs" x-text="a.ip"></td>
+            <td class="px-4 py-3"><span class="cursor-pointer hover:text-gold" @click="modal='verAuditoria'">👁 Ver</span></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- =============================== -->
+<!-- PAGE: CIERRE CAJA               -->
+<!-- =============================== -->
+<div x-show="page==='cierre'" x-transition.opacity class="p-6" x-data="{cierreTab:'Complementos'}">
+  <div class="flex items-center justify-between mb-5">
+    <h1 class="text-xl font-bold">Cierre de Caja</h1>
+    <button class="bg-st-pagado text-white px-4 py-2 rounded-lg text-sm font-semibold">🔒 Cerrar Caja</button>
+  </div>
+  <!-- KPIs -->
+  <div class="grid grid-cols-5 gap-4 mb-5">
+    <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4"><p class="text-[11px] text-txt-muted uppercase">Ventas del Día</p><p class="text-2xl font-bold text-gold mt-1">S/. 2,450</p></div>
+    <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4"><p class="text-[11px] text-txt-muted uppercase">Tickets</p><p class="text-2xl font-bold text-white mt-1">47</p></div>
+    <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4"><p class="text-[11px] text-txt-muted uppercase">Efectivo</p><p class="text-2xl font-bold text-st-preparado mt-1">S/. 1,580</p></div>
+    <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4"><p class="text-[11px] text-txt-muted uppercase">Tarjeta/Digital</p><p class="text-2xl font-bold text-st-reservado mt-1">S/. 870</p></div>
+    <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4"><p class="text-[11px] text-txt-muted uppercase">Complementos</p><p class="text-2xl font-bold text-st-reservado mt-1">S/. 1,290</p></div>
+  </div>
+  <!-- Tabs + Content -->
+  <div class="flex gap-2 mb-4">
+    <template x-for="t in ['Platos','Complementos','Categorías']"><button @click="cierreTab=t" :class="cierreTab===t ? 'bg-gold-20 text-gold' : 'text-txt-secondary'" class="px-4 py-1.5 rounded-full text-xs font-medium transition" x-text="t"></button></template>
+  </div>
+  <div class="flex gap-4">
+    <div class="flex-1">
+      <!-- Mini cards -->
+      <div class="flex gap-2 mb-4" x-show="cierreTab==='Complementos'">
+        <div class="bg-bg-card border border-st-pedido/30 rounded-lg px-3 py-2 text-xs"><span class="text-st-pedido">🥤 Bebidas</span><br><span class="text-gold font-bold">S/.450</span> <span class="text-txt-muted">(35%)</span></div>
+        <div class="bg-bg-card border border-st-preparado/30 rounded-lg px-3 py-2 text-xs"><span class="text-st-preparado">➕ Extras</span><br><span class="text-gold font-bold">S/.320</span> <span class="text-txt-muted">(25%)</span></div>
+        <div class="bg-bg-card border border-st-esperando/30 rounded-lg px-3 py-2 text-xs"><span class="text-st-esperando">📏 Tamaños</span><br><span class="text-gold font-bold">S/.180</span> <span class="text-txt-muted">(14%)</span></div>
+        <div class="bg-bg-card border border-st-reservado/30 rounded-lg px-3 py-2 text-xs"><span class="text-st-reservado">🌟 Adicionales</span><br><span class="text-gold font-bold">S/.340</span> <span class="text-txt-muted">(26%)</span></div>
+      </div>
+      <!-- Table -->
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+        <table class="w-full text-sm">
+          <thead><tr class="bg-bg-sidebar text-txt-secondary text-[10px] uppercase">
+            <th class="text-left px-3 py-2.5 font-semibold">#</th><th class="text-left px-3 py-2.5 font-semibold">Complemento</th>
+            <th class="text-left px-3 py-2.5 font-semibold">Tipo</th><th class="text-left px-3 py-2.5 font-semibold">Cant.</th>
+            <th class="text-left px-3 py-2.5 font-semibold">P. Unit.</th><th class="text-left px-3 py-2.5 font-semibold">Subtotal</th>
+            <th class="text-left px-3 py-2.5 font-semibold">%</th>
+          </tr></thead>
+          <tbody>
+            <template x-for="(c,i) in mockCierreCompl" :key="c.nombre">
+              <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
+                <td class="px-3 py-2.5 text-txt-muted" x-text="i+1"></td>
+                <td class="px-3 py-2.5 font-medium" x-text="c.nombre"></td>
+                <td class="px-3 py-2.5"><span class="text-[10px] px-2 py-0.5 rounded-full" :class="c.tipoClass" x-text="c.tipo"></span></td>
+                <td class="px-3 py-2.5" x-text="c.cant"></td>
+                <td class="px-3 py-2.5 text-txt-secondary" x-text="'S/. '+c.pu"></td>
+                <td class="px-3 py-2.5 text-gold font-semibold" x-text="'S/. '+c.sub"></td>
+                <td class="px-3 py-2.5 text-txt-muted" x-text="c.pct+'%'"></td>
+              </tr>
+            </template>
+          </tbody>
+          <tfoot><tr class="bg-bg-sidebar font-semibold"><td colspan="3" class="px-3 py-2.5">TOTAL COMPLEMENTOS</td><td class="px-3 py-2.5">213</td><td></td><td class="px-3 py-2.5 text-gold">S/. 1,290</td><td class="px-3 py-2.5">100%</td></tr></tfoot>
+        </table>
+      </div>
+      <div class="flex gap-2 mt-4">
+        <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold">📄 Cierre Completo (PDF)</button>
+        <button class="bg-st-preparado text-white px-4 py-2 rounded-lg text-sm font-semibold">📊 Complementos (Excel)</button>
+      </div>
+    </div>
+    <!-- Right Panel -->
+    <div class="w-[280px] space-y-4 flex-shrink-0">
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <h4 class="font-semibold text-sm mb-3">Análisis de Complementos</h4>
+        <div class="space-y-3 text-xs">
+          <div><p class="text-txt-muted">Ratio complementos/plato</p><p class="text-gold text-xl font-bold">1.8</p></div>
+          <div><p class="text-txt-muted">Más popular</p><p class="text-white font-medium">Inca Kola 500ml (85)</p></div>
+          <div class="border-t border-[rgba(212,175,55,0.1)] pt-2">
+            <p class="text-txt-muted">Ticket CON complementos</p><p class="text-st-preparado font-bold">S/. 68.50</p>
+            <p class="text-txt-muted mt-1">Ticket SIN complementos</p><p class="text-st-esperando font-bold">S/. 42.30</p>
+            <p class="text-st-preparado font-semibold mt-1">Incremento: +62%</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================== -->
+<!-- PAGE: REPORTES                  -->
+<!-- =============================== -->
+<div x-show="page==='reportes'" x-transition.opacity class="p-6" x-data="{repTab:'General'}">
+  <div class="flex items-center justify-between mb-4">
+    <div class="flex items-center gap-3">
+      <h1 class="text-xl font-bold">Reportes y Analítica</h1>
+      <span class="text-[10px] bg-st-pagado text-white px-2 py-0.5 rounded font-bold">LIVE</span>
+    </div>
+    <div class="flex gap-2">
+      <button class="px-3 py-1.5 border border-gold/40 rounded-lg text-xs text-gold hover:bg-gold-20">📄 PDF</button>
+      <button class="px-3 py-1.5 bg-st-preparado text-white rounded-lg text-xs font-semibold">📊 Excel</button>
+      <button class="px-3 py-1.5 border border-gold/40 rounded-lg text-xs text-gold hover:bg-gold-20">⚙️ Configurar Vista</button>
+    </div>
+  </div>
+  <!-- Tabs -->
+  <div class="flex gap-1 mb-4 border-b border-[rgba(212,175,55,0.1)] pb-2">
+    <template x-for="t in ['General','Platos','Mozos','Mesas','Clientes']"><button @click="repTab=t" :class="repTab===t ? 'text-gold border-b-2 border-gold' : 'text-txt-secondary'" class="px-4 py-2 text-sm font-medium transition" x-text="t"></button></template>
+  </div>
+  <!-- Filters -->
+  <div class="flex gap-2 mb-5 items-center flex-wrap">
+    <input type="date" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary">
+    <input type="date" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary">
+    <select class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary"><option>Agrupar: Día</option></select>
+    <div class="flex gap-1 ml-2">
+      <template x-for="f in ['Hoy','Ayer','7 días','30 días','Este mes']"><button :class="f==='Hoy' ? 'bg-gold text-bg-primary' : 'border border-[rgba(212,175,55,0.25)] text-txt-secondary'" class="px-2.5 py-1 rounded-full text-[10px] font-medium" x-text="f"></button></template>
+    </div>
+  </div>
+  <!-- KPIs -->
+  <div class="grid grid-cols-4 gap-4 mb-5">
+    <template x-for="k in repKPIs[repTab] || repKPIs.General" :key="k.label">
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+        <p class="text-[11px] text-txt-muted uppercase" x-text="k.label"></p>
+        <p class="text-xl font-bold mt-1" :class="k.color" x-text="k.value"></p>
+        <span class="text-[10px] font-semibold" :class="k.badge.includes('+') ? 'text-st-preparado' : 'text-st-pagado'" x-text="k.badge"></span>
+      </div>
+    </template>
+  </div>
+  <!-- Charts -->
+  <div class="grid grid-cols-12 gap-4 mb-5">
+    <div class="col-span-7 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
+      <h3 class="font-semibold text-sm mb-3" x-text="repTab==='General' ? 'Ventas por Período' : 'Top Platos'"></h3>
+      <canvas id="chartReportes1" height="220"></canvas>
+    </div>
+    <div class="col-span-5 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
+      <h3 class="font-semibold text-sm mb-3" x-text="repTab==='General' ? 'Distribución de Ventas' : 'Performance'"></h3>
+      <canvas id="chartReportes2" height="220"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- =============================== -->
+<!-- PAGE: CONFIGURACIÓN             -->
+<!-- =============================== -->
+<div x-show="page==='config'" x-transition.opacity class="p-6" x-data="{cfgTab:'General'}">
+  <div class="flex items-center justify-between mb-5">
+    <h1 class="text-xl font-bold">Configuración del Sistema</h1>
+    <button class="bg-gold text-bg-primary px-5 py-2 rounded-lg text-sm font-semibold">💾 Guardar Cambios</button>
+  </div>
+  <div class="flex gap-5">
+    <!-- Vertical Tabs -->
+    <div class="w-[200px] space-y-1 flex-shrink-0">
+      <template x-for="t in ['General','Moneda y Precios','Mesas y Áreas','Cocina','Pagos','Notificaciones','Cierre de Caja','Seguridad','Integraciones','Avanzado']" :key="t">
+        <button @click="cfgTab=t" :class="cfgTab===t ? 'bg-gold-20 text-gold border-l-[3px] border-gold' : 'text-txt-secondary hover:bg-gold-20/50 border-l-[3px] border-transparent'"
+          class="w-full text-left px-4 py-2.5 text-sm rounded-r-lg transition" x-text="t"></button>
+      </template>
+    </div>
+    <!-- Content -->
+    <div class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-8">
+      <div x-show="cfgTab==='General'">
+        <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Información del Restaurante</h3>
+        <div class="space-y-4">
+          <div><label class="text-xs text-txt-secondary mb-1 block">Nombre del restaurante</label><input type="text" value="Las Gambusinas" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
+          <div class="grid grid-cols-2 gap-4">
+            <div><label class="text-xs text-txt-secondary mb-1 block">Dirección</label><input type="text" value="Av. Marina 1234, Lima" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
+            <div><label class="text-xs text-txt-secondary mb-1 block">Teléfono</label><input type="text" value="+51 1 234 5678" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div><label class="text-xs text-txt-secondary mb-1 block">Email</label><input type="email" value="contacto@lasgambusinas.com" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
+            <div><label class="text-xs text-txt-secondary mb-1 block">RUC</label><input type="text" value="20123456789" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
+          </div>
+        </div>
+        <div class="border-t border-[rgba(212,175,55,0.15)] mt-6 pt-6">
+          <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Horarios de Operación</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <div><label class="text-xs text-txt-secondary mb-1 block">Hora de apertura</label><input type="time" value="08:00" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
+            <div><label class="text-xs text-txt-secondary mb-1 block">Hora de cierre</label><input type="time" value="23:00" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
+          </div>
+        </div>
+        <div class="border-t border-[rgba(212,175,55,0.15)] mt-6 pt-6">
+          <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Preferencias</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <div><label class="text-xs text-txt-secondary mb-1 block">Zona horaria</label><select class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"><option>America/Lima</option></select></div>
+            <div><label class="text-xs text-txt-secondary mb-1 block">Idioma</label><select class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"><option>Español</option></select></div>
+          </div>
+        </div>
+      </div>
+      <div x-show="cfgTab!=='General'" class="text-center py-20">
+        <p class="text-txt-muted text-lg">⚙️</p>
+        <p class="text-txt-secondary mt-2" x-text="'Configuración de ' + cfgTab"></p>
+        <p class="text-txt-muted text-xs mt-1">Panel en desarrollo — los campos se cargarán dinámicamente</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- ============================= -->
+<!-- MODALS                        -->
+<!-- ============================= -->
+
+<!-- Modal: Detalle Mesa -->
+<div x-show="modal==='detalleMesa'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=null">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[420px] shadow-2xl" @click.stop>
+    <div class="p-5 border-b border-[rgba(212,175,55,0.1)]">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-bold" x-text="selectedMesa ? 'Mesa '+selectedMesa.numero : ''"></h2>
+        <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm hover:bg-gold/30">✕</button>
+      </div>
+      <p class="text-xs text-txt-muted mt-1" x-text="selectedMesa ? 'Área: '+selectedMesa.area : ''"></p>
+    </div>
+    <div class="p-5">
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-xs px-2.5 py-1 rounded-full font-semibold" :class="selectedMesa && mesaBadge(selectedMesa.estado)" x-text="selectedMesa?.estado"></span>
+        <span class="text-xs text-txt-muted" x-text="selectedMesa?.tiempo ? '⏱ '+selectedMesa.tiempo : ''"></span>
+      </div>
+      <p class="text-[11px] text-txt-muted uppercase mb-2">Pedido Actual</p>
+      <div class="space-y-2 mb-4">
+        <div class="flex justify-between text-sm"><span>Ceviche Clásico x2</span><span class="text-gold">S/. 90.00</span></div>
+        <div class="flex justify-between text-sm"><span>Lomo Saltado x1</span><span class="text-gold">S/. 35.00</span></div>
+        <div class="flex justify-between text-sm"><span>Limonada x3</span><span class="text-gold">S/. 15.00</span></div>
+      </div>
+      <div class="border-t border-[rgba(212,175,55,0.15)] pt-3 flex justify-between">
+        <span class="font-semibold">TOTAL</span><span class="text-gold text-lg font-bold">S/. 140.00</span>
+      </div>
+    </div>
+    <div class="flex gap-2 p-5 pt-0">
+      <button class="flex-1 py-2.5 border border-st-pagado text-st-pagado rounded-lg text-sm font-medium hover:bg-st-pagado/10">Liberar Mesa</button>
+      <button class="flex-1 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110">Ver Comanda</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Crear Plato -->
+<div x-show="modal==='crearPlato'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=null">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[720px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl sticky top-0 z-10">
+      <div class="flex items-center justify-between">
+        <div><h2 class="text-lg font-bold">Crear Nuevo Plato</h2><p class="text-xs text-txt-muted">Completa los datos del plato y sus complementos</p></div>
+        <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+      </div>
+    </div>
+    <div class="p-6 space-y-5">
+      <div><p class="text-[11px] text-txt-secondary uppercase font-semibold mb-3">Datos Básicos</p>
+        <div class="space-y-3">
+          <div><label class="text-xs text-txt-secondary mb-1 block">Nombre del plato</label><input type="text" placeholder="Ej: Ceviche Clásico" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
+          <div class="grid grid-cols-4 gap-3">
+            <div><label class="text-xs text-txt-secondary mb-1 block">Precio (S/.)</label><input type="number" placeholder="0.00" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2.5 text-sm"></div>
+            <div><label class="text-xs text-txt-secondary mb-1 block">Stock</label><input type="number" value="0" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2.5 text-sm"></div>
+            <div><label class="text-xs text-txt-secondary mb-1 block">Categoría</label><select class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2.5 text-sm text-txt-secondary"><option>Seleccionar</option><option>Ceviches</option><option>Arroces</option><option>Carnes</option></select></div>
+            <div><label class="text-xs text-txt-secondary mb-1 block">Tipo</label><select class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2.5 text-sm text-txt-secondary"><option>Carta</option><option>Desayuno</option></select></div>
+          </div>
+        </div>
+      </div>
+      <div class="border-t border-[rgba(212,175,55,0.15)] pt-5">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-[11px] text-txt-secondary uppercase font-semibold">Complementos del Plato</p>
+          <button class="border border-gold text-gold px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gold-20">+ Agregar grupo</button>
+        </div>
+        <div class="grid grid-cols-2 gap-3" x-data="{grupos:[{nombre:'Proteína',obligatorio:true,multi:false,opciones:['Pollo','Carne','Mixto']},{nombre:'Guarnición',obligatorio:false,multi:true,opciones:['Arroz','Ensalada','Papas']}]}">
+          <template x-for="(g,i) in grupos" :key="i">
+            <div class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+              <div class="flex items-center justify-between mb-2">
+                <input :value="g.nombre" class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-md px-2 py-1.5 text-xs w-32">
+                <button class="w-5 h-5 flex items-center justify-center rounded bg-st-pagado/20 text-st-pagado text-[10px]">✕</button>
+              </div>
+              <div class="flex gap-3 mb-2 text-[10px]">
+                <label class="flex items-center gap-1" :class="g.obligatorio ? 'text-gold' : 'text-txt-muted'"><input type="checkbox" :checked="g.obligatorio" class="accent-gold w-3 h-3"> Obligatorio</label>
+                <label class="flex items-center gap-1" :class="g.multi ? 'text-gold' : 'text-txt-muted'"><input type="checkbox" :checked="g.multi" class="accent-gold w-3 h-3"> Sel. múltiple</label>
+              </div>
+              <p class="text-[10px] text-txt-muted mb-1">Opciones:</p>
+              <div class="flex flex-wrap gap-1">
+                <template x-for="o in g.opciones" :key="o">
+                  <span class="bg-gold/10 text-white text-[10px] px-2 py-1 rounded-full flex items-center gap-1" x-text="o"><span class="text-txt-muted cursor-pointer">✕</span></span>
+                </template>
+                <button class="text-[10px] text-gold hover:underline">+ Agregar</button>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex items-center justify-between border-t border-[rgba(212,175,55,0.15)]">
+      <span class="text-[10px] text-txt-muted">ℹ️ POST /api/platos</span>
+      <div class="flex gap-2">
+        <button @click="modal=null" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary">Cancelar</button>
+        <button class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold">Crear Plato</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Ver Comanda -->
+<div x-show="modal==='verComanda'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=null">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[840px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
+      <div>
+        <div class="flex items-center gap-2"><h2 class="text-lg font-bold">Comanda #42</h2><span class="text-[10px] px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-bold">Preparado</span></div>
+        <p class="text-xs text-txt-muted">Mesa 5 — Juan Pérez · 2 comensales</p>
+      </div>
+      <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+    </div>
+    <div class="p-5">
+      <div class="bg-bg-sidebar rounded-lg p-4 flex gap-8 mb-5 text-sm">
+        <div><p class="text-[10px] text-txt-muted">Creada</p><p class="font-semibold">14:15</p></div>
+        <div><p class="text-[10px] text-txt-muted">Enviada</p><p class="font-semibold">14:20</p></div>
+        <div><p class="text-[10px] text-txt-muted">Preparada</p><p class="font-semibold text-st-preparado">14:35</p></div>
+        <div><p class="text-[10px] text-txt-muted">Tiempo total</p><p class="font-semibold text-gold">20 min</p></div>
+        <div><p class="text-[10px] text-txt-muted">Mozo</p><p class="font-medium">Juan Pérez</p></div>
+      </div>
+      <table class="w-full text-sm mb-5">
+        <thead><tr class="text-[10px] uppercase text-txt-secondary border-b border-[rgba(212,175,55,0.15)]">
+          <th class="text-left py-2">Plato</th><th class="text-left py-2">Cant.</th><th class="text-left py-2">P.Unit.</th><th class="text-left py-2">Subtotal</th><th class="text-left py-2">Complementos</th>
+        </tr></thead>
+        <tbody>
+          <tr class="border-b border-[rgba(212,175,55,0.08)]"><td class="py-2.5"><p class="font-medium">Ceviche Clásico</p><p class="text-[10px] text-txt-muted">Ceviches · Carta</p></td><td>2</td><td class="text-txt-secondary">S/.45</td><td class="text-gold font-semibold">S/.90</td><td class="text-xs">Proteína: Pollo<br>Guarnición: Arroz</td></tr>
+          <tr class="border-b border-[rgba(212,175,55,0.08)]"><td class="py-2.5"><p class="font-medium">Lomo Saltado</p></td><td>1</td><td class="text-txt-secondary">S/.35</td><td class="text-gold font-semibold">S/.35</td><td class="text-xs">Bebida: Inca Kola</td></tr>
+          <tr><td class="py-2.5"><p class="font-medium">Paella Marinera</p></td><td>1</td><td class="text-txt-secondary">S/.68</td><td class="text-gold font-semibold">S/.68</td><td class="text-xs text-txt-muted">Sin complementos</td></tr>
+        </tbody>
+        <tfoot><tr class="border-t-2 border-gold/25 font-bold"><td class="py-2.5">TOTAL</td><td>4</td><td></td><td class="text-gold text-lg">S/.193</td><td></td></tr></tfoot>
+      </table>
+      <!-- Timeline -->
+      <p class="text-[11px] text-txt-secondary uppercase font-semibold mb-3">Historial de Estados</p>
+      <div class="bg-bg-sidebar rounded-lg p-4 space-y-4">
+        <div class="flex items-start gap-3"><span class="w-3 h-3 rounded-full bg-st-pedido mt-0.5 flex-shrink-0"></span><div><p class="text-sm"><span class="font-semibold">14:15</span> — Comanda creada</p></div></div>
+        <div class="flex items-start gap-3"><span class="w-3 h-3 rounded-full bg-st-esperando mt-0.5 flex-shrink-0"></span><div><p class="text-sm"><span class="font-semibold">14:20</span> — Enviada a cocina <span class="text-[10px] text-txt-muted">5 min después</span></p></div></div>
+        <div class="flex items-start gap-3"><span class="w-3 h-3 rounded-full bg-st-preparado mt-0.5 flex-shrink-0"></span><div><p class="text-sm text-st-preparado"><span class="font-semibold">14:35</span> — Preparada — Lista para servir <span class="text-[10px] text-txt-muted">15 min en cocina</span></p></div></div>
+      </div>
+    </div>
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="modal=null" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary">Cerrar</button>
+      <button class="px-4 py-2 border border-gold/40 rounded-lg text-sm text-gold">🖨 PDF</button>
+      <button class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold">🍳 Cocina</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Crear Mesa -->
+<div x-show="modal==='crearMesa'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=null">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[520px] shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
+      <div><h2 class="text-lg font-bold">Crear Nueva Mesa</h2><p class="text-xs text-txt-muted">Configure la mesa y asigne al área</p></div>
+      <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="text-xs text-txt-secondary mb-1 block">Número de mesa</label><input type="number" placeholder="Ej: 21" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
+        <div><label class="text-xs text-txt-secondary mb-1 block">Área</label><select class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-secondary"><option>Seleccionar área</option><option>Salón Principal</option><option>Terraza</option><option>VIP</option></select></div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="text-xs text-txt-secondary mb-1 block">Capacidad</label><input type="number" value="4" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
+        <div><label class="text-xs text-txt-secondary mb-1 block">Estado inicial</label><select class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-st-libre"><option>Libre</option></select></div>
+      </div>
+      <div><label class="text-xs text-txt-secondary mb-1 block">Notas</label><textarea placeholder="Ej: Mesa cerca a la ventana..." class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm h-16 resize-none"></textarea></div>
+      <label class="flex items-center gap-2 text-sm"><span class="text-txt-secondary">Mesa activa</span><div class="w-9 h-5 bg-gold rounded-full relative cursor-pointer"><div class="absolute right-0.5 top-0.5 w-4 h-4 bg-white rounded-full"></div></div></label>
+    </div>
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="modal=null" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary">Cancelar</button>
+      <button class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold">Crear Mesa</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Crear Mozo -->
+<div x-show="modal==='crearMozo'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=null">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[520px] shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
+      <div><h2 class="text-lg font-bold">Crear Nuevo Mozo</h2><p class="text-xs text-txt-muted">Registre al personal de atención</p></div>
+      <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div><label class="text-xs text-txt-secondary mb-1 block">Nombre completo</label><input type="text" placeholder="Ej: Juan Pérez" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="text-xs text-txt-secondary mb-1 block">DNI</label><input type="text" placeholder="12345678" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
+        <div><label class="text-xs text-txt-secondary mb-1 block">Teléfono</label><input type="text" placeholder="987 654 321" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="text-xs text-txt-secondary mb-1 block">Rol</label><select class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-secondary"><option>Mozo</option><option>Supervisor</option><option>Admin</option></select></div>
+        <div><label class="text-xs text-txt-secondary mb-1 block">Pin</label><input type="password" placeholder="••••" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
+      </div>
+      <div>
+        <p class="text-xs text-txt-secondary mb-2">Turnos:</p>
+        <div class="flex gap-2">
+          <button class="px-4 py-1.5 rounded-full text-xs font-medium bg-gold-20 text-gold">Mañana</button>
+          <button class="px-4 py-1.5 rounded-full text-xs font-medium bg-gold-20 text-gold">Tarde</button>
+          <button class="px-4 py-1.5 rounded-full text-xs font-medium border border-txt-muted/30 text-txt-muted">Noche</button>
+        </div>
+      </div>
+    </div>
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="modal=null" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary">Cancelar</button>
+      <button class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold">Crear Mozo</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================= -->
+<!-- JAVASCRIPT APP                -->
+<!-- ============================= -->
+<script>
+function app() {
+  return {
+    page: 'dashboard',
+    sidebarOpen: true,
+    modal: null,
+    selectedMesa: null,
+    clock: '',
+    dateStr: '',
+    pages: {
+      dashboard: { label: 'Dashboard', icon: '📊' },
+      mesas: { label: 'Mesas', icon: '🪑' },
+      areas: { label: 'Áreas', icon: '🗺️' },
+      mozos: { label: 'Mozos', icon: '👤' },
+      platos: { label: 'Platos', icon: '🍲' },
+      comandas: { label: 'Comandas', icon: '📋' },
+      bouchers: { label: 'Bouchers', icon: '🧾' },
+      clientes: { label: 'Clientes', icon: '👥' },
+      auditoria: { label: 'Auditoría', icon: '🔍' },
+      cierre: { label: 'Cierre Caja', icon: '💰' },
+      reportes: { label: 'Reportes', icon: '📊' },
+      config: { label: 'Configuración', icon: '⚙️' }
+    },
+    dashKPIs: [
+      { label: 'Mesas Ocupadas', value: '12/20', color: 'text-gold', sub: '60% ocupación' },
+      { label: 'Ventas Hoy', value: 'S/. 2,450', color: 'text-gold', sub: '+18% vs ayer' },
+      { label: 'Top Plato', value: 'Ceviche', color: 'text-white', sub: '12 vendidos' },
+      { label: 'Top Mozo', value: 'Juan P.', color: 'text-white', sub: 'S/. 980' },
+      { label: 'Alertas', value: '2', color: 'text-st-pagado', sub: 'Mesa 8 sin liberar' }
+    ],
+    repKPIs: {
+      General: [
+        { label: 'Ventas Totales', value: 'S/. 12,450', color: 'text-gold', badge: '+18% ↑' },
+        { label: 'Ticket Promedio', value: 'S/. 52.13', color: 'text-white', badge: '+5% ↑' },
+        { label: 'Margen Bruto', value: '68.5%', color: 'text-st-preparado', badge: '-2.1% ↓' },
+        { label: 'Ocupación Prom.', value: '74%', color: 'text-st-pedido', badge: '+8% ↑' }
+      ],
+      Platos: [
+        { label: 'Platos Vendidos', value: '847', color: 'text-white', badge: '+7% ↑' },
+        { label: 'Categoría Top', value: 'Ceviches', color: 'text-gold', badge: '32% del total' },
+        { label: 'Ticket c/ Plato', value: 'S/. 58.20', color: 'text-white', badge: '+3% ↑' },
+        { label: 'Cancelados', value: '8', color: 'text-st-preparado', badge: '0.9%' }
+      ],
+      Mozos: [
+        { label: 'Mozos Activos', value: '8 de 12', color: 'text-gold', badge: '+2 vs ayer' },
+        { label: 'Top Mozo', value: 'Juan P.', color: 'text-white', badge: 'S/.980' },
+        { label: 'Propinas Total', value: 'S/. 245', color: 'text-st-preparado', badge: '+12% ↑' },
+        { label: 'Tiempo Prom.', value: '4.2 min', color: 'text-st-preparado', badge: '-8% ↑' }
+      ],
+      Mesas: [
+        { label: 'Ocupación', value: '74%', color: 'text-gold', badge: '14 de 19' },
+        { label: 'Mesa Top', value: 'Mesa 5', color: 'text-white', badge: 'S/.680' },
+        { label: 'Rotación Prom.', value: '3.2', color: 'text-white', badge: 'comandas/mesa' },
+        { label: 'Tiempo Ocup.', value: '48 min', color: 'text-st-esperando', badge: '+5 min' }
+      ],
+      Clientes: [
+        { label: 'Clientes Únicos', value: '187', color: 'text-white', badge: '+12% ↑' },
+        { label: 'Cliente Top', value: 'María S.', color: 'text-gold', badge: 'S/.340' },
+        { label: 'Nuevos Registros', value: '12', color: 'text-st-preparado', badge: '+30% ↑' },
+        { label: 'Fidelización', value: '28%', color: 'text-gold', badge: 'frecuentes' }
+      ]
+    },
+    notifs: [
+      { icon: '🔴', title: 'Mesa 8 sin liberar hace 15 min', time: 'hace 2 min', unread: true },
+      { icon: '🟡', title: 'Stock bajo: Inca Kola 500ml', time: 'hace 10 min', unread: true },
+      { icon: '🔵', title: 'Nueva comanda #312 — Mesa 3', time: 'hace 15 min', unread: true },
+      { icon: '🟢', title: 'Pago procesado S/.185 — Mesa 12', time: 'hace 25 min', unread: false },
+      { icon: '🟢', title: 'Comanda #308 lista para servir', time: 'hace 30 min', unread: false }
+    ],
+    activity: [
+      { text: 'Mesa 5 — Comanda #42 preparada', time: 'hace 2 min', dotClass: 'bg-st-preparado' },
+      { text: 'Mesa 12 — Pago procesado S/.185', time: 'hace 8 min', dotClass: 'bg-st-pagado' },
+      { text: 'Mesa 3 — Nueva comanda #312', time: 'hace 15 min', dotClass: 'bg-st-pedido' },
+      { text: 'Juan Pérez — Login al sistema', time: 'hace 22 min', dotClass: 'bg-gold' },
+      { text: 'Mesa 7 — Liberada por Admin', time: 'hace 30 min', dotClass: 'bg-st-libre' }
+    ],
+    mockMesas: [
+      { numero: 1, area: 'Salón Principal', estado: 'Libre', mozo: '', personas: 0, tiempo: '', monto: 0 },
+      { numero: 2, area: 'Salón Principal', estado: 'Ocupada', mozo: 'Juan P.', personas: 4, tiempo: '45 min', monto: 120 },
+      { numero: 3, area: 'Salón Principal', estado: 'Pedido', mozo: 'María G.', personas: 2, tiempo: '12 min', monto: 68 },
+      { numero: 4, area: 'Salón Principal', estado: 'Libre', mozo: '', personas: 0, tiempo: '', monto: 0 },
+      { numero: 5, area: 'Salón Principal', estado: 'Ocupada', mozo: 'Juan P.', personas: 6, tiempo: '1h 23m', monto: 340 },
+      { numero: 6, area: 'Salón Principal', estado: 'Preparado', mozo: 'Pedro R.', personas: 3, tiempo: '35 min', monto: 185 },
+      { numero: 7, area: 'Salón Principal', estado: 'Libre', mozo: '', personas: 0, tiempo: '', monto: 0 },
+      { numero: 8, area: 'Salón Principal', estado: 'Pagado', mozo: 'Ana L.', personas: 2, tiempo: '15 min', monto: 95 },
+      { numero: 9, area: 'Salón Principal', estado: 'Ocupada', mozo: 'María G.', personas: 4, tiempo: '28 min', monto: 145 },
+      { numero: 10, area: 'Salón Principal', estado: 'Reservado', mozo: '', personas: 0, tiempo: '19:00', monto: 0 },
+      { numero: 11, area: 'Terraza', estado: 'Libre', mozo: '', personas: 0, tiempo: '', monto: 0 },
+      { numero: 12, area: 'Terraza', estado: 'Ocupada', mozo: 'Juan P.', personas: 4, tiempo: '52 min', monto: 220 },
+      { numero: 13, area: 'Terraza', estado: 'Ocupada', mozo: 'Pedro R.', personas: 2, tiempo: '18 min', monto: 75 },
+      { numero: 14, area: 'Terraza', estado: 'Libre', mozo: '', personas: 0, tiempo: '', monto: 0 },
+      { numero: 15, area: 'Terraza', estado: 'Pedido', mozo: 'Ana L.', personas: 3, tiempo: '8 min', monto: 90 },
+      { numero: 16, area: 'Terraza', estado: 'Ocupada', mozo: 'María G.', personas: 5, tiempo: '40 min', monto: 280 },
+      { numero: 17, area: 'VIP', estado: 'Reservado', mozo: '', personas: 0, tiempo: '20:00', monto: 0 },
+      { numero: 18, area: 'VIP', estado: 'Ocupada', mozo: 'Juan P.', personas: 8, tiempo: '1h 10m', monto: 680 },
+      { numero: 19, area: 'VIP', estado: 'Libre', mozo: '', personas: 0, tiempo: '', monto: 0 },
+      { numero: 20, area: 'VIP', estado: 'Ocupada', mozo: 'Pedro R.', personas: 6, tiempo: '55 min', monto: 420 }
+    ],
+    mockAreas: [
+      { id: 'A001', nombre: 'Salón Principal', desc: 'Área principal del restaurante', mesas: 10 },
+      { id: 'A002', nombre: 'Terraza', desc: 'Zona al aire libre con vista', mesas: 6 },
+      { id: 'A003', nombre: 'VIP / Privado', desc: 'Reservaciones especiales', mesas: 4 }
+    ],
+    mockMozos: [
+      { id: 'M001', nombre: 'Juan Pérez', dni: '12345678', tel: '987 654 321', ventas: 980, activo: true },
+      { id: 'M002', nombre: 'María González', dni: '87654321', tel: '987 123 456', ventas: 720, activo: true },
+      { id: 'M003', nombre: 'Pedro Ruiz', dni: '11223344', tel: '987 789 012', ventas: 540, activo: true },
+      { id: 'M004', nombre: 'Ana López', dni: '44556677', tel: '987 456 789', ventas: 410, activo: true },
+      { id: 'M005', nombre: 'Carlos Mendoza', dni: '99887766', tel: '987 321 654', ventas: 180, activo: false }
+    ],
+    mockPlatos: [
+      { nombre: 'Ceviche Clásico', cat: 'Ceviches', tipo: 'Carta', precio: '45.00', stock: 32, grupos: 2, grupoNames: 'Proteína · Guarnición' },
+      { nombre: 'Paella Marinera', cat: 'Arroces', tipo: 'Carta', precio: '68.00', stock: 12, grupos: 1, grupoNames: 'Guarnición' },
+      { nombre: 'Desayuno Andino', cat: 'Desayunos', tipo: 'Desayuno', precio: '22.00', stock: 40, grupos: 3, grupoNames: 'Bebida · Jugo · Pan' },
+      { nombre: 'Lomo Saltado', cat: 'Carnes', tipo: 'Carta', precio: '35.00', stock: 45, grupos: 0, grupoNames: '' },
+      { nombre: 'Ají de Gallina', cat: 'Carnes', tipo: 'Carta', precio: '28.00', stock: 8, grupos: 2, grupoNames: 'Guarnición · Salsa' },
+      { nombre: 'Jugo Natural', cat: 'Bebidas', tipo: 'Carta', precio: '10.00', stock: 0, grupos: 1, grupoNames: 'Tamaño' }
+    ],
+    mockComandas: [
+      { id: 42, mesa: 5, mozo: 'Juan Pérez', items: 4, total: '193.00', estado: 'Preparado', hora: '14:35' },
+      { id: 41, mesa: 3, mozo: 'María González', items: 2, total: '68.00', estado: 'En cocina', hora: '14:20' },
+      { id: 40, mesa: 12, mozo: 'Pedro Ruiz', items: 3, total: '185.00', estado: 'Entregado', hora: '14:10' },
+      { id: 39, mesa: 9, mozo: 'María González', items: 5, total: '245.00', estado: 'En cocina', hora: '14:05' }
+    ],
+    mockBouchers: [
+      { codigo: 'BCH-001-00100', numero: '#100', fecha: '24/02/2026 14:42', mesa: 5, total: '193.00', metodo: 'Efectivo' },
+      { codigo: 'BCH-001-00099', numero: '#099', fecha: '24/02/2026 13:55', mesa: 12, total: '185.00', metodo: 'Tarjeta' },
+      { codigo: 'BCH-001-00098', numero: '#098', fecha: '24/02/2026 13:20', mesa: 8, total: '95.00', metodo: 'Yape' }
+    ],
+    mockClientes: [
+      { nombre: 'María Sánchez', dni: '12345678', tel: '987 654 321', visitas: 15, gasto: '2,340', tipo: 'Frecuente' },
+      { nombre: 'Carlos López', dni: '87654321', tel: '987 123 456', visitas: 8, gasto: '1,120', tipo: 'Registrado' },
+      { nombre: 'Ana Torres', dni: '11223344', tel: '987 789 012', visitas: 22, gasto: '3,890', tipo: 'Frecuente' },
+      { nombre: 'Pedro García', dni: '55667788', tel: '987 456 789', visitas: 3, gasto: '280', tipo: 'Registrado' }
+    ],
+    mockAuditoria: [
+      { hora: '14:32:18', usuario: 'Admin', accion: 'Editar plato', modulo: 'Platos', ip: '192.168.1.45', color: 'text-st-esperando' },
+      { hora: '14:28:05', usuario: 'Juan P.', accion: 'Comanda creada', modulo: 'Comandas', ip: '192.168.1.52', color: 'text-st-pedido' },
+      { hora: '14:15:33', usuario: 'Admin', accion: 'Comanda eliminada', modulo: 'Comandas', ip: '192.168.1.45', color: 'text-st-pagado' },
+      { hora: '13:55:12', usuario: 'María G.', accion: 'Pago procesado', modulo: 'Bouchers', ip: '192.168.1.53', color: 'text-st-preparado' }
+    ],
+    mockCierreCompl: [
+      { nombre: 'Inca Kola 500ml', tipo: '🥤 Bebida', tipoClass: 'bg-st-pedido/20 text-st-pedido', cant: 85, pu: '5.00', sub: '425.00', pct: 33 },
+      { nombre: 'Porción extra arroz', tipo: '➕ Extra', tipoClass: 'bg-st-preparado/20 text-st-preparado', cant: 42, pu: '8.00', sub: '336.00', pct: 26 },
+      { nombre: 'Tamaño familiar', tipo: '📏 Tamaño', tipoClass: 'bg-st-esperando/20 text-st-esperando', cant: 18, pu: '10.00', sub: '180.00', pct: 14 },
+      { nombre: 'Salsa picante', tipo: '🌟 Adicional', tipoClass: 'bg-st-reservado/20 text-st-reservado', cant: 68, pu: '2.00', sub: '136.00', pct: 11 }
+    ],
+    init() {
+      this.updateClock();
+      setInterval(() => this.updateClock(), 1000);
+      this.$nextTick(() => { this.initCharts(); });
+      this.$watch('page', () => { this.$nextTick(() => this.initCharts()); });
+    },
+    updateClock() {
+      const now = new Date();
+      this.clock = now.toLocaleTimeString('es-PE', { hour12: false });
+      this.dateStr = now.toLocaleDateString('es-PE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    },
+    mesaClass(estado) {
+      const map = { Libre: 'border-st-libre/60 bg-st-libre/10 text-st-libre', Ocupada: 'border-st-esperando/60 bg-st-esperando/10 text-st-esperando', Pedido: 'border-st-pedido/60 bg-st-pedido/10 text-st-pedido', Preparado: 'border-st-preparado/60 bg-st-preparado/10 text-st-preparado', Pagado: 'border-st-pagado/60 bg-st-pagado/10 text-st-pagado', Reservado: 'border-st-reservado/60 bg-st-reservado/10 text-st-reservado' };
+      return map[estado] || '';
+    },
+    mesaBorderClass(estado) {
+      const map = { Libre: 'border-st-libre/40', Ocupada: 'border-st-esperando/40', Pedido: 'border-st-pedido/40', Preparado: 'border-st-preparado/40', Pagado: 'border-st-pagado/40', Reservado: 'border-st-reservado/40' };
+      return map[estado] || 'border-[rgba(212,175,55,0.25)]';
+    },
+    mesaBadge(estado) {
+      const map = { Libre: 'bg-st-libre/20 text-st-libre', Ocupada: 'bg-st-esperando/20 text-st-esperando', Pedido: 'bg-st-pedido/20 text-st-pedido', Preparado: 'bg-st-preparado/20 text-st-preparado', Pagado: 'bg-st-pagado/20 text-st-pagado', Reservado: 'bg-st-reservado/20 text-st-reservado' };
+      return map[estado] || '';
+    },
+    filteredMesas(area, filter) {
+      return this.mockMesas.filter(m => m.area === area && (filter === 'Todas' || m.estado === filter));
+    },
+    initCharts() {
+      if (this.page === 'dashboard') this.drawDashChart();
+      if (this.page === 'reportes') this.drawReportCharts();
+    },
+    drawDashChart() {
+      const el = document.getElementById('chartVentasDia');
+      if (!el) return;
+      const ctx = el.getContext('2d');
+      if (el._chart) el._chart.destroy();
+      el._chart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: ['8h','9h','10h','11h','12h','13h','14h','15h','16h'], datasets: [{ label: 'Ventas', data: [120,280,450,680,1200,1800,2100,2300,2450], borderColor: '#d4af37', backgroundColor: 'rgba(212,175,55,0.1)', fill: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: '#d4af37' }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#a0a0b8', font: { size: 10 } }, grid: { color: 'rgba(212,175,55,0.06)' } }, y: { ticks: { color: '#a0a0b8', font: { size: 10 }, callback: v => 'S/.'+v }, grid: { color: 'rgba(212,175,55,0.06)' } } } }
+      });
+    },
+    drawReportCharts() {
+      const el1 = document.getElementById('chartReportes1');
+      const el2 = document.getElementById('chartReportes2');
+      if (!el1 || !el2) return;
+      if (el1._chart) el1._chart.destroy();
+      if (el2._chart) el2._chart.destroy();
+      el1._chart = new Chart(el1.getContext('2d'), {
+        type: 'bar',
+        data: { labels: ['Ceviche','Paella','Lomo','Arroz Mar.','Tiradito','Ají','Anticuchos','Chicharrón'], datasets: [{ data: [12,9,8,7,6,5,4,3], backgroundColor: ['#d4af37','#3498db','#2ecc71','#ffa502','#5352ed','#ff4757','#00d4aa','#f1c40f'], borderRadius: 4 }] },
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#a0a0b8', font: { size: 10 } }, grid: { color: 'rgba(212,175,55,0.06)' } }, y: { ticks: { color: '#a0a0b8', font: { size: 10 } }, grid: { display: false } } } }
+      });
+      el2._chart = new Chart(el2.getContext('2d'), {
+        type: 'doughnut',
+        data: { labels: ['Ceviches','Arroces','Carnes','Bebidas','Otros'], datasets: [{ data: [30,22,18,15,15], backgroundColor: ['#d4af37','#3498db','#2ecc71','#ffa502','#5352ed'], borderWidth: 0 }] },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'right', labels: { color: '#a0a0b8', font: { size: 11 }, padding: 12 } } } }
+      });
+    }
+  };
+}
+</script>
+</body>
+</html>
