@@ -6,6 +6,8 @@
 <title>Cierre de Caja — Las Gambusinas</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script>
@@ -35,7 +37,10 @@ tailwind.config = {
     <!-- HEADER -->
     <div class="flex items-center justify-between mb-5">
       <h1 class="text-xl font-bold">Cierre de Caja</h1>
-      <button class="bg-st-pagado text-white px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">🔒 Cerrar Caja</button>
+      <div class="flex gap-2">
+        <input type="date" x-model="fechaCierre" @change="loadCierre()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary">
+        <button @click="cerrarCaja()" class="bg-st-pagado text-white px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">🔒 Cerrar Caja</button>
+      </div>
     </div>
 
     <!-- LOADING STATE -->
@@ -85,10 +90,10 @@ tailwind.config = {
           <th class="text-left px-3 py-2.5 font-semibold">%</th>
         </tr></thead>
         <tbody>
-          <tr x-show="datos.detalle?.length === 0">
+          <tr x-show="tabData.length === 0">
             <td colspan="5" class="px-4 py-8 text-center text-txt-muted">No hay datos de cierre</td>
           </tr>
-          <template x-for="(d, i) in (datos.detalle || sharedData.mockCierreCompl)" :key="i">
+          <template x-for="(d, i) in tabData" :key="i">
             <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
               <td class="px-3 py-2.5 text-txt-muted" x-text="i+1"></td>
               <td class="px-3 py-2.5 font-medium" x-text="d.nombre || d.concepto"></td>
@@ -101,7 +106,7 @@ tailwind.config = {
         <tfoot>
           <tr class="bg-bg-sidebar font-semibold">
             <td colspan="2" class="px-3 py-2.5">TOTAL</td>
-            <td class="px-3 py-2.5" x-text="datos.detalle?.reduce((s,d) => s + (d.cant || d.cantidad || 0), 0) || 0"></td>
+            <td class="px-3 py-2.5" x-text="tabData.reduce((s,d) => s + (d.cant || d.cantidad || 0), 0) || 0"></td>
             <td class="px-3 py-2.5 text-gold" x-text="'S/. ' + (datos.ventasDia || 0).toLocaleString('es-PE')"></td>
             <td class="px-3 py-2.5">100%</td>
           </tr>
@@ -110,12 +115,15 @@ tailwind.config = {
     </div>
 
     <div class="flex gap-2 mt-4">
-      <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">📄 Cierre Completo (PDF)</button>
-      <button class="bg-st-preparado text-white px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">📊 Excel</button>
+      <button @click="exportarPDF()" class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">📄 Cierre Completo (PDF)</button>
+      <button @click="exportarExcel()" class="bg-st-preparado text-white px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">📊 Excel</button>
     </div>
 
   </main>
 </div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container" class="fixed bottom-6 right-6 z-[9999] space-y-2"></div>
 
 <script src="/assets/js/shared.js"></script>
 <script>
@@ -123,13 +131,16 @@ function cierreApp() {
   return {
     sidebarOpen: true,
     loading: true,
+    fechaCierre: new Date().toISOString().split('T')[0],
     datos: {
       ventasDia: 0,
       tickets: 0,
       efectivo: 0,
       tarjeta: 0,
       propinas: 0,
-      detalle: []
+      detalle: [],
+      detalleXPlato: [],
+      detalleXPago: []
     },
     cierreTab: 'Resumen',
     activeNav: 'cierre',
@@ -144,13 +155,25 @@ function cierreApp() {
       await this.loadCierre();
     },
     
+    get tabData() {
+      switch(this.cierreTab) {
+        case 'Platos':
+          return this.datos.detalleXPlato || this.datos.detalle || [];
+        case 'Pagos':
+          return this.datos.detalleXPago || [
+            { nombre: 'Efectivo', cant: this.datos.ticketsEfectivo || 0, monto: this.datos.efectivo || 0, pct: this.datos.ventasDia ? Math.round((this.datos.efectivo / this.datos.ventasDia) * 100) : 0 },
+            { nombre: 'Tarjeta/Digital', cant: this.datos.ticketsTarjeta || 0, monto: this.datos.tarjeta || 0, pct: this.datos.ventasDia ? Math.round((this.datos.tarjeta / this.datos.ventasDia) * 100) : 0 },
+          ];
+        default:
+          return this.datos.detalle || [];
+      }
+    },
+    
     async loadCierre() {
       this.loading = true;
-      const hoy = new Date().toISOString().split('T')[0];
       
       try {
-        // Cargar datos de cierre
-        const cierre = await apiGet('/cierre-caja?fecha=' + hoy);
+        const cierre = await apiGet('/cierre-caja?fecha=' + this.fechaCierre);
         if (cierre) {
           this.datos = {
             ventasDia: cierre.ventasDia || cierre.ventasTotales || 0,
@@ -158,30 +181,88 @@ function cierreApp() {
             efectivo: cierre.efectivo || cierre.totalEfectivo || 0,
             tarjeta: cierre.tarjeta || cierre.totalTarjeta || 0,
             propinas: cierre.propinas || cierre.totalPropinas || 0,
-            detalle: cierre.detalle || cierre.desglose || []
+            detalle: cierre.detalle || cierre.desglose || [],
+            detalleXPlato: cierre.detalleXPlato || [],
+            detalleXPago: cierre.detalleXPago || []
           };
         }
         
-        // Si no hay datos de cierre, calcular desde bouchers
+        // Si no hay datos, calcular desde bouchers
         if (!cierre || !cierre.ventasDia) {
-          const bouchers = await apiGet('/bouchers');
-          if (bouchers && Array.isArray(bouchers)) {
-            const hoyBouchers = bouchers.filter(b => {
-              const fecha = b.fecha || b.createdAt;
-              return fecha && new Date(fecha).toISOString().split('T')[0] === hoy;
-            });
-            
-            this.datos.tickets = hoyBouchers.length;
-            this.datos.ventasDia = hoyBouchers.reduce((s, b) => s + (b.total || 0), 0);
-            this.datos.efectivo = hoyBouchers.filter(b => b.metodoPago === 'Efectivo' || b.metodo === 'Efectivo').reduce((s, b) => s + (b.total || 0), 0);
-            this.datos.tarjeta = hoyBouchers.filter(b => b.metodoPago === 'Tarjeta' || b.metodo === 'Tarjeta').reduce((s, b) => s + (b.total || 0), 0);
-          }
+          let data = await apiGet('/boucher');
+          if (!data) data = await apiGet('/bouchers');
+          const bouchers = Array.isArray(data) ? data : (data?.bouchers || data?.data || []);
+          
+          const hoyBouchers = bouchers.filter(b => {
+            const fecha = b.fechaPago || b.fecha || b.createdAt;
+            return fecha && new Date(fecha).toISOString().split('T')[0] === this.fechaCierre;
+          });
+          
+          this.datos.tickets = hoyBouchers.length;
+          this.datos.ventasDia = hoyBouchers.reduce((s, b) => s + (b.total || 0), 0);
+          this.datos.efectivo = hoyBouchers.filter(b => b.metodoPago === 'Efectivo' || b.metodo === 'Efectivo').reduce((s, b) => s + (b.total || 0), 0);
+          this.datos.tarjeta = hoyBouchers.filter(b => b.metodoPago === 'Tarjeta' || b.metodo === 'Tarjeta').reduce((s, b) => s + (b.total || 0), 0);
         }
       } catch (e) {
         console.error('Error loading cierre:', e);
       }
       
       this.loading = false;
+    },
+    
+    async cerrarCaja() {
+      if (!confirm('¿Confirmar cierre de caja del día ' + this.fechaCierre + '? Esta acción generará el resumen definitivo.')) return;
+      
+      const res = await apiPost('/cierre-caja', { fecha: this.fechaCierre });
+      if (res && !res.error) {
+        await this.loadCierre();
+        this.showToast('Caja cerrada exitosamente ✅');
+      } else {
+        this.showToast('Error al cerrar caja: ' + (res?.error || res?.message || 'Sin respuesta'), 'error');
+      }
+    },
+    
+    exportarPDF() {
+      if (typeof window.jspdf !== 'undefined') {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.text('Cierre de Caja — Las Gambusinas', 20, 20);
+        doc.text('Fecha: ' + this.fechaCierre, 20, 30);
+        doc.text('Ventas del Día: S/. ' + (this.datos.ventasDia || 0), 20, 40);
+        doc.text('Tickets: ' + (this.datos.tickets || 0), 20, 50);
+        doc.text('Efectivo: S/. ' + (this.datos.efectivo || 0), 20, 60);
+        doc.text('Tarjeta/Digital: S/. ' + (this.datos.tarjeta || 0), 20, 70);
+        doc.text('Propinas: S/. ' + (this.datos.propinas || 0), 20, 80);
+        doc.save('cierre-caja-' + this.fechaCierre + '.pdf');
+      } else {
+        window.print();
+      }
+    },
+    
+    exportarExcel() {
+      if (typeof XLSX !== 'undefined') {
+        const wsData = [
+          ['Concepto', 'Cantidad', 'Monto', '%'],
+          ...this.tabData.map(d => [d.nombre || d.concepto, d.cant || d.cantidad || 0, d.sub || d.monto || 0, (d.pct || d.porcentaje || 0) + '%'])
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Cierre');
+        XLSX.writeFile(wb, 'cierre-caja-' + this.fechaCierre + '.xlsx');
+      } else {
+        this.showToast('Excel no disponible', 'error');
+      }
+    },
+    
+    showToast(msg, type = 'success') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      const t = document.createElement('div');
+      t.className = 'px-4 py-3 rounded-xl text-sm font-medium shadow-xl ' +
+        (type === 'error' ? 'bg-st-pagado text-white' : 'bg-st-preparado text-white');
+      t.textContent = msg;
+      container.appendChild(t);
+      setTimeout(() => t.remove(), 3000);
     },
     
     logout() {

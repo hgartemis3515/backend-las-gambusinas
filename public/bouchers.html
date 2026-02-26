@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bouchers — Las Gambusinas</title>
+<title>Vouchers — Las Gambusinas</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,7 +34,7 @@ tailwind.config = {
     
     <!-- HEADER -->
     <div class="flex items-center justify-between mb-5">
-      <h1 class="text-xl font-bold">Bouchers</h1>
+      <h1 class="text-xl font-bold">Vouchers</h1>
       <button @click="loadBouchers()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
     </div>
 
@@ -48,7 +48,7 @@ tailwind.config = {
       <table class="w-full text-sm">
         <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
           <th class="text-left px-4 py-3 font-semibold">Código</th>
-          <th class="text-left px-4 py-3 font-semibold">N° Boucher</th>
+          <th class="text-left px-4 py-3 font-semibold">N° Voucher</th>
           <th class="text-left px-4 py-3 font-semibold">Fecha</th>
           <th class="text-left px-4 py-3 font-semibold">Mesa</th>
           <th class="text-left px-4 py-3 font-semibold">Total</th>
@@ -57,14 +57,14 @@ tailwind.config = {
         </tr></thead>
         <tbody>
           <tr x-show="bouchers.length === 0">
-            <td colspan="7" class="px-4 py-8 text-center text-txt-muted">No hay bouchers registrados</td>
+            <td colspan="7" class="px-4 py-8 text-center text-txt-muted">No hay vouchers registrados</td>
           </tr>
           <template x-for="b in bouchers" :key="b._id || b.codigo">
             <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
               <td class="px-4 py-3 text-txt-muted font-mono text-xs" x-text="b.codigo || b._id?.slice(-12)"></td>
-              <td class="px-4 py-3 font-medium" x-text="'#' + (b.numero || b.numBoucher || '—')"></td>
-              <td class="px-4 py-3 text-txt-secondary" x-text="b.fecha || (b.createdAt ? new Date(b.createdAt).toLocaleString('es-PE') : '—')"></td>
-              <td class="px-4 py-3" x-text="'Mesa ' + (b.mesa?.numMesa || b.mesa || '—')"></td>
+              <td class="px-4 py-3 font-medium" x-text="'#' + (b.numero || b.boucherNumber || b.numBoucher || '—')"></td>
+              <td class="px-4 py-3 text-txt-secondary" x-text="b.fecha || (b.fechaPago ? new Date(b.fechaPago).toLocaleString('es-PE') : (b.createdAt ? new Date(b.createdAt).toLocaleString('es-PE') : '—'))"></td>
+              <td class="px-4 py-3" x-text="'Mesa ' + (b.mesa?.nummesa || b.mesa?.numMesa || b.numMesa || b.mesa || '—')"></td>
               <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. ' + (b.total || 0)"></td>
               <td class="px-4 py-3">
                 <span class="text-xs px-2 py-0.5 rounded-full"
@@ -83,29 +83,137 @@ tailwind.config = {
   </main>
 </div>
 
-<!-- MODAL: DETALLE BOUCHER -->
-<div x-show="modal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=null">
-  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[500px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
-    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
+<!-- MODAL: VER VOUCHER — Diseño según pencil-new.pen frame Z1h1R -->
+<div x-show="modal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="modal=null">
+  <div class="bg-[#1a1a28] border border-[rgba(212,175,55,0.25)] rounded-2xl w-[720px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
+    
+    <!-- HEADER -->
+    <div class="bg-[#12121a] p-5 rounded-t-2xl sticky top-0 z-10 flex items-center justify-between">
       <div>
-        <h2 class="text-lg font-bold" x-text="'Boucher #' + (selectedBoucher?.numero || selectedBoucher?.numBoucher || '—')"></h2>
-        <p class="text-xs text-txt-muted" x-text="selectedBoucher?.fecha || (selectedBoucher?.createdAt ? new Date(selectedBoucher.createdAt).toLocaleString('es-PE') : '')"></p>
+        <h2 class="text-lg font-bold" x-text="'Voucher #' + (selectedBoucher?.boucherNumber || selectedBoucher?.numero || selectedBoucher?.numBoucher || '—')"></h2>
+        <p class="text-xs text-[#5a5a7a] mt-0.5">
+          <span x-text="'Mesa ' + (selectedBoucher?.mesa?.nummesa || selectedBoucher?.mesa?.numMesa || selectedBoucher?.numMesa || selectedBoucher?.mesa || '—')"></span>
+          <span> · </span>
+          <span x-text="selectedBoucher?.fechaPago ? new Date(selectedBoucher.fechaPago).toLocaleDateString('es-PE', {weekday:'short', day:'numeric', month:'short', year:'numeric'}) : (selectedBoucher?.fecha || '—')"></span>
+          <span x-show="selectedBoucher?.fechaPago"> · </span>
+          <span x-show="selectedBoucher?.fechaPago" x-text="selectedBoucher?.fechaPago ? new Date(selectedBoucher.fechaPago).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : ''"></span>
+        </p>
       </div>
-      <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+      <button @click="modal=null" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
     </div>
-    <div class="p-5">
-      <div class="space-y-3 text-sm mb-4">
-        <div class="flex justify-between"><span class="text-txt-muted">Mesa:</span><span x-text="selectedBoucher?.mesa?.numMesa || selectedBoucher?.mesa || '—'"></span></div>
-        <div class="flex justify-between"><span class="text-txt-muted">Mozo:</span><span x-text="selectedBoucher?.mozo?.nombre || selectedBoucher?.mozo || '—'"></span></div>
-        <div class="flex justify-between"><span class="text-txt-muted">Método:</span><span x-text="selectedBoucher?.metodoPago || selectedBoucher?.metodo || '—'"></span></div>
+
+    <div class="p-5 space-y-4">
+      
+      <!-- TOTALES PROMINENTES -->
+      <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.2)] rounded-xl p-5">
+        <div class="flex items-start justify-between gap-8">
+          <div class="space-y-2.5 text-sm flex-1">
+            <div class="flex justify-between">
+              <span class="text-[#a0a0b8]">Subtotal</span>
+              <span class="font-medium" x-text="'S/. ' + Number(selectedBoucher?.subtotal || 0).toFixed(2)"></span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-[#ffa502]">IGV (18%)</span>
+              <span class="text-[#ffa502] font-medium" x-text="'S/. ' + Number(selectedBoucher?.igv || 0).toFixed(2)"></span>
+            </div>
+            <div x-show="selectedBoucher?.propina > 0" class="flex justify-between">
+              <span class="text-[#2ecc71]">Propina</span>
+              <span class="text-[#2ecc71] font-medium" x-text="'S/. ' + Number(selectedBoucher?.propina || 0).toFixed(2)"></span>
+            </div>
+            <div x-show="selectedBoucher?.descuento > 0" class="flex justify-between">
+              <span class="text-[#ff4757]">Descuento</span>
+              <span class="text-[#ff4757] font-medium" x-text="'- S/. ' + Number(selectedBoucher?.descuento || 0).toFixed(2)"></span>
+            </div>
+            <div class="flex justify-between pt-2 border-t border-[rgba(212,175,55,0.2)]">
+              <span class="font-bold text-base">TOTAL</span>
+              <span class="text-[#d4af37] font-bold text-2xl" x-text="'S/. ' + Number(selectedBoucher?.total || 0).toFixed(2)"></span>
+            </div>
+          </div>
+          <div class="text-right space-y-3 text-xs text-[#5a5a7a] min-w-[120px]">
+            <div>
+              <p>Voucher ID</p>
+              <p class="text-[#d4af37] font-mono font-semibold text-[11px]" x-text="(selectedBoucher?.voucherId || selectedBoucher?._id?.slice(-8) || '—')"></p>
+            </div>
+            <div>
+              <p>Comprobante</p>
+              <p class="text-white font-medium">Boleta</p>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="border-t border-[rgba(212,175,55,0.15)] pt-3 flex justify-between">
-        <span class="font-semibold">TOTAL</span>
-        <span class="text-gold text-xl font-bold" x-text="'S/. ' + (selectedBoucher?.total || 0)"></span>
+
+      <!-- TABLA DE ÍTEMS -->
+      <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-[#12121a] text-[#a0a0b8] text-[10px] uppercase">
+              <th class="text-left px-4 py-2.5 font-semibold">Plato</th>
+              <th class="text-center px-3 py-2.5 font-semibold">Cant.</th>
+              <th class="text-right px-3 py-2.5 font-semibold">Precio</th>
+              <th class="text-left px-3 py-2.5 font-semibold">Complementos</th>
+              <th class="text-right px-3 py-2.5 font-semibold">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-if="!selectedBoucher?.platos || selectedBoucher.platos.length === 0">
+              <tr><td colspan="5" class="px-4 py-6 text-center text-[#5a5a7a] text-xs">Sin ítems registrados</td></tr>
+            </template>
+            <template x-for="(item, idx) in (selectedBoucher?.platos || [])" :key="idx">
+              <tr class="border-b border-[rgba(212,175,55,0.08)]">
+                <td class="px-4 py-3 font-medium" x-text="item.nombre || item.plato?.nombre || '—'"></td>
+                <td class="px-3 py-3 text-center" x-text="item.cantidad || 1"></td>
+                <td class="px-3 py-3 text-right text-[#a0a0b8]" x-text="'S/. ' + Number(item.precio || 0).toFixed(2)"></td>
+                <td class="px-3 py-3">
+                  <template x-if="item.complementosSeleccionados && item.complementosSeleccionados.length > 0">
+                    <div class="flex flex-wrap gap-1">
+                      <template x-for="comp in item.complementosSeleccionados" :key="comp.grupo">
+                        <span class="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" x-text="comp.grupo + ': ' + comp.opcion"></span>
+                      </template>
+                    </div>
+                  </template>
+                  <template x-if="!item.complementosSeleccionados || item.complementosSeleccionados.length === 0">
+                    <span class="text-[10px] text-[#5a5a7a]">—</span>
+                  </template>
+                </td>
+                <td class="px-3 py-3 text-right text-[#d4af37] font-semibold" x-text="'S/. ' + Number(item.subtotal || (item.cantidad || 1) * (item.precio || 0)).toFixed(2)"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
       </div>
+
+      <!-- INFO DE PAGO -->
+      <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <p class="text-[10px] text-[#5a5a7a] uppercase mb-3 font-semibold tracking-wider">Información de Pago</p>
+        <div class="grid grid-cols-2 gap-x-6 gap-y-2.5 text-sm">
+          <div class="flex justify-between">
+            <span class="text-[#5a5a7a]">Método de pago</span>
+            <span class="font-medium text-[#2ecc71]" x-text="selectedBoucher?.metodoPago || selectedBoucher?.metodo || '—'"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-[#5a5a7a]">Mozo</span>
+            <span class="font-medium" x-text="selectedBoucher?.mozo?.name || selectedBoucher?.nombreMozo || selectedBoucher?.mozo?.nombre || '—'"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-[#5a5a7a]">Hora de pago</span>
+            <span class="font-medium" x-text="selectedBoucher?.fechaPago ? new Date(selectedBoucher.fechaPago).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : (selectedBoucher?.hora || '—')"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-[#5a5a7a]">Serie / ID</span>
+            <span class="font-mono text-xs font-medium" x-text="selectedBoucher?.voucherId || selectedBoucher?._id?.slice(-12) || '—'"></span>
+          </div>
+        </div>
+      </div>
+
     </div>
-    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
-      <button @click="modal=null" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cerrar</button>
+
+    <!-- FOOTER -->
+    <div class="bg-[#12121a] p-4 rounded-b-2xl flex justify-between items-center border-t border-[rgba(212,175,55,0.1)]">
+      <button class="px-4 py-2 border border-[#ff4757] text-[#ff4757] rounded-lg text-sm font-medium hover:bg-[#ff4757]/10 transition">Anular</button>
+      <div class="flex gap-2">
+        <button @click="modal=null" class="px-4 py-2 border border-[#5a5a7a]/40 rounded-lg text-sm text-[#a0a0b8] hover:border-[#d4af37] hover:text-[#d4af37] transition">Cerrar</button>
+        <button class="px-4 py-2 bg-[#d4af37] text-[#0a0a0f] rounded-lg text-sm font-semibold hover:brightness-110 transition">🖨 Reimprimir</button>
+      </div>
     </div>
   </div>
 </div>
@@ -120,7 +228,7 @@ function bouchersApp() {
     bouchers: [],
     selectedBoucher: null,
     activeNav: 'bouchers',
-    pageTitle: 'Bouchers',
+    pageTitle: 'Vouchers',
     
     async init() {
       const token = localStorage.getItem('adminToken');
@@ -133,12 +241,23 @@ function bouchersApp() {
     
     async loadBouchers() {
       this.loading = true;
-      const data = await apiGet('/bouchers');
-      if (data && Array.isArray(data)) {
-        this.bouchers = data;
-      } else if (data && data.bouchers) {
-        this.bouchers = data.bouchers;
-      }
+      // Endpoint real es /boucher (singular)
+      let data = await apiGet('/boucher');
+      if (!data) data = await apiGet('/bouchers');
+      
+      let raw = [];
+      if (data && Array.isArray(data)) raw = data;
+      else if (data && data.bouchers) raw = data.bouchers;
+      else if (data && data.data) raw = data.data;
+      
+      // Normalizar campos
+      this.bouchers = raw.map(b => ({
+        ...b,
+        numero: b.boucherNumber || b.numero || b.numBoucher,
+        mesa: b.mesa || { numMesa: b.numMesa },
+        mozo: b.mozo || { nombre: b.nombreMozo },
+        fecha: b.fechaPago ? new Date(b.fechaPago).toLocaleString('es-PE') : b.fecha,
+      }));
       this.loading = false;
     },
     

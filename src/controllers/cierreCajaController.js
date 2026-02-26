@@ -1,8 +1,14 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const CierreCajaRepository = require('../repository/cierreCaja.repository');
 const CierreCaja = require('../database/models/cierreCaja.model');
 const Boucher = require('../database/models/boucher.model');
+
+// Helper para validar ObjectIds de MongoDB
+function isValidObjectId(id) {
+  return mongoose.Types.ObjectId.isValid(id) && /^[a-fA-F0-9]{24}$/.test(id);
+}
 // PDF generation - se importa dinámicamente si pdfkit está instalado
 let generarPDFCierreCaja;
 try {
@@ -93,6 +99,15 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Validar que el ID sea un ObjectId válido de MongoDB
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ 
+        error: 'ID de cierre de caja inválido',
+        message: `"${id}" no es un ObjectId válido de MongoDB`
+      });
+    }
+    
     const cierre = await CierreCajaRepository.obtenerCierrePorId(id);
     
     if (!cierre) {
@@ -181,6 +196,15 @@ router.post('/generar', async (req, res) => {
 router.post('/:id/validar', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Validar que el ID sea un ObjectId válido de MongoDB
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ 
+        error: 'ID de cierre inválido',
+        message: `"${id}" no es un ObjectId válido de MongoDB`
+      });
+    }
+    
     const { totalEfectivoFisico } = req.body;
     
     if (totalEfectivoFisico === undefined || totalEfectivoFisico === null) {
@@ -221,6 +245,14 @@ router.post('/:id/validar', async (req, res) => {
 router.get('/:id/reporte-pdf', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Validar que el ID sea un ObjectId válido de MongoDB
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ 
+        error: 'ID de cierre inválido',
+        message: `"${id}" no es un ObjectId válido de MongoDB`
+      });
+    }
     
     const cierre = await CierreCajaRepository.obtenerCierrePorId(id);
     

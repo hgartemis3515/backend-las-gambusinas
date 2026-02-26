@@ -176,11 +176,18 @@ function mozosApp() {
     async loadMozos() {
       this.loading = true;
       const data = await apiGet('/mozos');
-      if (data && Array.isArray(data)) {
-        this.mozos = data;
-      } else if (data && data.mozos) {
-        this.mozos = data.mozos;
-      }
+      let raw = [];
+      if (data && Array.isArray(data)) raw = data;
+      else if (data && data.mozos) raw = data.mozos;
+      
+      // Normalizar campos del modelo real a los esperados por la UI
+      this.mozos = raw.map(m => ({
+        ...m,
+        nombre: m.name || m.nombre || '—',          // name → nombre
+        dni: m.DNI?.toString() || m.dni || '—',     // DNI (Number) → dni (String)
+        telefono: m.phoneNumber?.toString() || m.telefono || m.tel || '—', // phoneNumber → telefono
+        activo: m.activo ?? m.isActive ?? true,
+      }));
       this.loading = false;
     },
     
@@ -199,9 +206,9 @@ function mozosApp() {
       this.isEditing = true;
       this.formMozo = {
         _id: m._id,
-        nombre: m.nombre,
-        dni: m.dni || '',
-        telefono: m.telefono || m.tel || '',
+        nombre: m.nombre || m.name || '',
+        dni: m.dni || m.DNI?.toString() || '',
+        telefono: m.telefono || m.phoneNumber?.toString() || '',
         rol: m.rol || 'mozo',
         pin: '',
         activo: m.activo !== false
@@ -216,8 +223,16 @@ function mozosApp() {
       }
       
       const isEdit = !!this.formMozo._id;
-      const body = { ...this.formMozo };
-      if (!body.pin) delete body.pin; // No enviar PIN vacío
+      // Mapear campos al formato del modelo backend
+      const body = {
+        name: this.formMozo.nombre,                        // nombre → name
+        DNI: parseInt(this.formMozo.dni) || 0,              // dni → DNI (Number)
+        phoneNumber: parseInt(this.formMozo.telefono) || 0, // telefono → phoneNumber (Number)
+        rol: this.formMozo.rol,
+        activo: this.formMozo.activo,
+      };
+      if (this.formMozo.pin) body.pin = this.formMozo;
+      if (!this.formMozo.pin) delete body.pin;
       
       const res = isEdit
         ? await apiPut('/mozos/' + this.formMozo._id, body)
@@ -228,7 +243,7 @@ function mozosApp() {
         this.modal = null;
         this.showToast(isEdit ? 'Mozo actualizado ✅' : 'Mozo creado ✅');
       } else {
-        this.showToast('Error: ' + (res?.error || 'Fallo al guardar'), 'error');
+        this.showToast('Error: ' + (res?.error || res?.message || 'Fallo al guardar'), 'error');
       }
     },
     

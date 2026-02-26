@@ -152,7 +152,7 @@ const sharedData = {
     mozos: { label: 'Mozos', icon: '👤', href: '/mozos.html' },
     platos: { label: 'Platos', icon: '🍲', href: '/platos.html' },
     comandas: { label: 'Comandas', icon: '📋', href: '/comandas.html' },
-    bouchers: { label: 'Bouchers', icon: '🧾', href: '/bouchers.html' },
+    bouchers: { label: 'Vouchers', icon: '🧾', href: '/bouchers.html' },
     clientes: { label: 'Clientes', icon: '👥', href: '/clientes.html' },
     auditoria: { label: 'Auditoría', icon: '🔍', href: '/auditoria.html' },
     cierre: { label: 'Cierre Caja', icon: '💰', href: '/cierre-caja.html' },

@@ -50,8 +50,8 @@ tailwind.config = {
       </select>
       <select x-model="filterTipo" @change="filterPlatos()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary">
         <option value="">Tipo: Todos</option>
-        <option value="Carta">Carta</option>
-        <option value="Desayuno">Desayuno</option>
+        <option value="plato-carta normal">🍽️ Carta</option>
+        <option value="platos-desayuno">🌅 Desayuno</option>
       </select>
     </div>
 
@@ -82,7 +82,7 @@ tailwind.config = {
                 <td class="px-3 py-2.5 text-txt-muted" x-text="i+1"></td>
                 <td class="px-3 py-2.5">
                   <p class="font-medium text-sm" x-text="p.nombre"></p>
-                  <p class="text-[10px] text-txt-muted" x-text="(p.categoria || p.cat) + ' · ' + (p.tipo || 'Carta')"></p>
+                  <p class="text-[10px] text-txt-muted" x-text="(p.categoria || p.cat) + ' · ' + tipoLabel(p.tipo)"></p>
                 </td>
                 <td class="px-3 py-2.5 text-gold font-semibold" x-text="'S/. ' + (p.precio || '0.00')"></td>
                 <td class="px-3 py-2.5">
@@ -91,7 +91,11 @@ tailwind.config = {
                     x-text="p.stock || 0"></span>
                 </td>
                 <td class="px-3 py-2.5"><span class="text-[10px] px-2 py-0.5 rounded-full bg-gold/10 text-gold" x-text="p.categoria || p.cat || '—'"></span></td>
-                <td class="px-3 py-2.5"><span class="text-[10px] px-2 py-0.5 rounded-full bg-st-pedido/10 text-st-pedido" x-text="p.tipo || 'Carta'"></span></td>
+                <td class="px-3 py-2.5">
+                  <span class="text-[10px] px-2 py-0.5 rounded-full"
+                    :class="(p.tipo === 'platos-desayuno' || p.tipo === 'Desayuno') ? 'bg-st-esperando/10 text-st-esperando' : 'bg-st-pedido/10 text-st-pedido'"
+                    x-text="tipoLabel(p.tipo)"></span>
+                </td>
                 <td class="px-3 py-2.5 space-x-1 text-sm">
                   <span class="cursor-pointer hover:text-gold" @click="openEditModal(p)">✏️</span>
                   <span class="cursor-pointer hover:text-st-pagado" @click="eliminarPlato(p._id)">🗑️</span>
@@ -152,8 +156,8 @@ tailwind.config = {
         <div>
           <label class="text-xs text-txt-secondary mb-1 block">Tipo</label>
           <select x-model="formPlato.tipo" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
-            <option value="Carta">Carta</option>
-            <option value="Desayuno">Desayuno</option>
+            <option value="plato-carta normal">🍽️ Carta</option>
+            <option value="platos-desayuno">🌅 Desayuno</option>
           </select>
         </div>
       </div>
@@ -227,9 +231,23 @@ function platosApp() {
       this.filteredPlatos = this.platos.filter(p => {
         const matchSearch = !this.searchTerm || p.nombre?.toLowerCase().includes(this.searchTerm.toLowerCase());
         const matchCat = !this.filterCategoria || p.categoria === this.filterCategoria || p.cat === this.filterCategoria;
-        const matchTipo = !this.filterTipo || p.tipo === this.filterTipo;
+        // Normalizar comparación de tipo
+        const pTipo = p.tipo || 'plato-carta normal';
+        const matchTipo = !this.filterTipo || pTipo === this.filterTipo || 
+          (this.filterTipo === 'Carta' && (pTipo === 'Carta' || pTipo === 'plato-carta normal')) ||
+          (this.filterTipo === 'Desayuno' && (pTipo === 'Desayuno' || pTipo === 'platos-desayuno'));
         return matchSearch && matchCat && matchTipo;
       });
+    },
+    
+    tipoLabel(tipo) {
+      const map = {
+        'platos-desayuno': '🌅 Desayuno',
+        'plato-carta normal': '🍽️ Carta',
+        'Desayuno': '🌅 Desayuno',
+        'Carta': '🍽️ Carta',
+      };
+      return map[tipo] || tipo || '🍽️ Carta';
     },
     
     get categorias() {
@@ -249,19 +267,24 @@ function platosApp() {
     
     openCreateModal() {
       this.isEditing = false;
-      this.formPlato = { _id: null, nombre: '', precio: '', stock: 0, categoria: '', tipo: 'Carta', descripcion: '', disponible: true };
+      this.formPlato = { _id: null, nombre: '', precio: '', stock: 0, categoria: '', tipo: 'plato-carta normal', descripcion: '', disponible: true };
       this.modal = true;
     },
     
     openEditModal(p) {
       this.isEditing = true;
+      // Normalizar tipo del modelo
+      let tipoNormalizado = p.tipo || 'plato-carta normal';
+      if (tipoNormalizado === 'Desayuno') tipoNormalizado = 'platos-desayuno';
+      if (tipoNormalizado === 'Carta') tipoNormalizado = 'plato-carta normal';
+      
       this.formPlato = {
         _id: p._id,
         nombre: p.nombre,
         precio: p.precio,
         stock: p.stock || 0,
         categoria: p.categoria || p.cat || '',
-        tipo: p.tipo || 'Carta',
+        tipo: tipoNormalizado,
         descripcion: p.descripcion || '',
         disponible: p.disponible !== false
       };

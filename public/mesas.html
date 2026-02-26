@@ -241,11 +241,17 @@ function mesasApp() {
     async loadMesas() {
       this.loading = true;
       const data = await apiGet('/mesas');
-      if (data && Array.isArray(data)) {
-        this.mesas = data;
-      } else if (data && data.mesas) {
-        this.mesas = data.mesas;
-      }
+      let raw = [];
+      if (data && Array.isArray(data)) raw = data;
+      else if (data && data.mesas) raw = data.mesas;
+      
+      // Normalizar campos del modelo real a los esperados por la UI
+      this.mesas = raw.map(m => ({
+        ...m,
+        numMesa: m.nummesa ?? m.numMesa ?? m.mesasId,   // nummesa → numMesa
+        activa: m.isActive ?? m.activa ?? true,           // isActive → activa
+        // area ya viene populado (objeto con _id y nombre) o como string
+      }));
       this.loading = false;
     },
     
@@ -270,10 +276,14 @@ function mesasApp() {
     },
     
     getMesasByArea(area) {
-      const areaId = area._id || area;
+      const areaId = area._id?.toString() || area?.toString();
       const areaNombre = area.nombre || area;
       return this.mesas.filter(m => {
-        const matchArea = m.area?._id === areaId || m.area?.nombre === areaNombre || m.area === areaNombre || m.area === areaId;
+        const mArea = m.area;
+        const matchArea = 
+          (mArea?._id?.toString() === areaId) ||
+          (mArea?.nombre === areaNombre) ||
+          (typeof mArea === 'string' && (mArea === areaId || mArea === areaNombre));
         const matchEstado = this.filterEstado === 'Todas' || this.estadoNormalizado(m.estado) === this.filterEstado;
         return matchArea && matchEstado;
       });
@@ -299,7 +309,7 @@ function mesasApp() {
       this.isEditing = true;
       this.formMesa = {
         _id: m._id,
-        numMesa: m.numMesa,
+        numMesa: m.numMesa || m.nummesa,
         idArea: m.area?._id || m.idArea || '',
         capacidad: m.capacidad || 4,
         estado: m.estado || 'libre',
@@ -316,9 +326,18 @@ function mesasApp() {
       }
       
       const isEdit = !!this.formMesa._id;
+      // Mapear campos al formato del modelo backend
+      const body = {
+        nummesa: parseInt(this.formMesa.numMesa),  // numMesa → nummesa
+        area: this.formMesa.idArea,
+        estado: this.formMesa.estado,
+        isActive: this.formMesa.activa,
+        notas: this.formMesa.notas
+      };
+      
       const res = isEdit
-        ? await apiPut('/mesas/' + this.formMesa._id, this.formMesa)
-        : await apiPost('/mesas', this.formMesa);
+        ? await apiPut('/mesas/' + this.formMesa._id, body)
+        : await apiPost('/mesas', body);
       
       if (res && !res.error) {
         await this.loadMesas();

@@ -43,9 +43,11 @@ tailwind.config = {
       <input type="text" x-model="filterMesa" @input="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-28 placeholder-txt-muted" placeholder="Mesa">
       <select x-model="filterEstado" @change="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary">
         <option value="">Estado: Todos</option>
-        <option value="en cocina">En cocina</option>
-        <option value="preparado">Preparado</option>
+        <option value="en_espera">En espera</option>
+        <option value="recoger">Listo para recoger</option>
         <option value="entregado">Entregado</option>
+        <option value="pagado">Pagado</option>
+        <option value="cancelado">Cancelado</option>
       </select>
     </div>
 
@@ -74,18 +76,26 @@ tailwind.config = {
           <template x-for="c in filteredComandas" :key="c._id || c.numComanda">
             <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
               <td class="px-4 py-3 font-medium" x-text="'#' + (c.numComanda || c._id?.slice(-4) || '—')"></td>
-              <td class="px-4 py-3" x-text="'Mesa ' + (c.mesa?.numMesa || c.mesa || '—')"></td>
-              <td class="px-4 py-3 text-txt-secondary" x-text="c.idMozo?.nombre || c.mozo || '—'"></td>
-              <td class="px-4 py-3" x-text="(c.items?.length || c.items || 0) + ' platos'"></td>
+              <td class="px-4 py-3" x-text="'Mesa ' + (c.mesa?.nummesa || c.mesa?.numMesa || c.mesa || '—')"></td>
+              <td class="px-4 py-3 text-txt-secondary" x-text="c.mozo || '—'"></td>
+              <td class="px-4 py-3" x-text="(c.items?.length || 0) + ' platos'"></td>
               <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. ' + (c.total || 0)"></td>
               <td class="px-4 py-3">
                 <span class="text-xs px-2 py-0.5 rounded-full font-semibold cursor-pointer"
-                  :class="c.estado === 'preparado' ? 'bg-st-preparado/20 text-st-preparado' : c.estado === 'en cocina' ? 'bg-st-esperando/20 text-st-esperando' : 'bg-st-pedido/20 text-st-pedido'"
-                  @click="cambiarEstado(c)" x-text="c.estado || 'pendiente'"></span>
+                  :class="{
+                    'bg-st-preparado/20 text-st-preparado': c.estado === 'recoger' || c.estado === 'preparado',
+                    'bg-st-esperando/20 text-st-esperando': c.estado === 'en_espera' || c.estado === 'en cocina',
+                    'bg-st-pedido/20 text-st-pedido': c.estado === 'entregado',
+                    'bg-st-libre/20 text-st-libre': c.estado === 'pagado',
+                    'bg-txt-muted/20 text-txt-muted': c.estado === 'cancelado'
+                  }"
+                  @click="cambiarEstado(c)" x-text="estadoLabel(c.estado)"></span>
               </td>
               <td class="px-4 py-3 text-txt-muted" x-text="c.createdAt ? new Date(c.createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : (c.hora || '—')"></td>
-              <td class="px-4 py-3 space-x-2 text-base">
-                <span class="cursor-pointer hover:text-gold" @click="openDetailModal(c)">👁</span>
+              <td class="px-4 py-3 space-x-2 text-base whitespace-nowrap">
+                <span class="cursor-pointer hover:text-[#d4af37] transition" @click="openDetailModal(c)" title="Ver comanda">👁</span>
+                <span class="cursor-pointer hover:text-[#d4af37] transition" @click="openEditModal(c)" title="Editar estado">✏️</span>
+                <span class="cursor-pointer hover:text-[#ff4757] transition" @click="eliminarComanda(c._id || c.id)" title="Eliminar comanda">🗑️</span>
               </td>
             </tr>
           </template>
@@ -96,51 +106,201 @@ tailwind.config = {
   </main>
 </div>
 
-<!-- MODAL: VER COMANDA -->
-<div x-show="modal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=null">
-  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[600px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
-    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
-      <div>
-        <div class="flex items-center gap-2">
-          <h2 class="text-lg font-bold" x-text="'Comanda #' + (selectedComanda?.numComanda || selectedComanda?._id?.slice(-4) || '—')"></h2>
-          <span class="text-[10px] px-2 py-0.5 rounded-full font-bold"
-            :class="selectedComanda?.estado === 'preparado' ? 'bg-st-preparado/20 text-st-preparado' : 'bg-st-esperando/20 text-st-esperando'"
-            x-text="selectedComanda?.estado"></span>
+<!-- MODAL: VER COMANDA — Diseño según pencil-new.pen frame wmbyw -->
+<div x-show="modal==='verComanda'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="modal=null">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[840px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
+    
+    <!-- HEADER -->
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl sticky top-0 z-10">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="flex items-center gap-3">
+            <h2 class="text-lg font-bold" x-text="'Comanda #' + (selectedComanda?.numComanda || selectedComanda?.comandaNumber || selectedComanda?._id?.slice(-4) || '—')"></h2>
+            <span class="text-[10px] px-2.5 py-1 rounded-full font-bold"
+              :class="{
+                'bg-[#2ecc71]/20 text-[#2ecc71]': selectedComanda?.estado === 'recoger' || selectedComanda?.estado === 'preparado',
+                'bg-[#ffa502]/20 text-[#ffa502]': selectedComanda?.estado === 'en_espera' || selectedComanda?.estado === 'en cocina',
+                'bg-[#3498db]/20 text-[#3498db]': selectedComanda?.estado === 'entregado',
+                'bg-[#00d4aa]/20 text-[#00d4aa]': selectedComanda?.estado === 'pagado',
+                'bg-[#ff4757]/20 text-[#ff4757]': selectedComanda?.estado === 'cancelado'
+              }"
+              x-text="estadoLabel(selectedComanda?.estado)"></span>
+          </div>
+          <p class="text-xs text-txt-muted mt-0.5">
+            <span x-text="'Mesa ' + (selectedComanda?.mesa?.nummesa || selectedComanda?.mesa?.numMesa || selectedComanda?.mesa || '—')"></span>
+            <template x-if="selectedComanda?.mozo"><span> — <span x-text="selectedComanda.mozo"></span></span></template>
+          </p>
         </div>
-        <p class="text-xs text-txt-muted" x-text="'Mesa ' + (selectedComanda?.mesa?.numMesa || selectedComanda?.mesa || '—') + ' — ' + (selectedComanda?.idMozo?.nombre || selectedComanda?.mozo || '—')"></p>
+        <button @click="modal=null" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
       </div>
-      <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
     </div>
-    <div class="p-5">
-      <table class="w-full text-sm mb-5">
-        <thead><tr class="text-[10px] uppercase text-txt-secondary border-b border-[rgba(212,175,55,0.15)]">
-          <th class="text-left py-2">Plato</th>
-          <th class="text-left py-2">Cant.</th>
-          <th class="text-left py-2">P.Unit.</th>
-          <th class="text-left py-2">Subtotal</th>
-        </tr></thead>
-        <tbody>
-          <template x-for="item in (selectedComanda?.items || [])" :key="item._id || item.plato">
-            <tr class="border-b border-[rgba(212,175,55,0.08)]">
-              <td class="py-2.5"><p class="font-medium" x-text="item.plato?.nombre || item.nombre || item.plato"></p></td>
-              <td x-text="item.cantidad || 1"></td>
-              <td class="text-txt-secondary" x-text="'S/.' + (item.precioUnitario || item.precio || 0)"></td>
-              <td class="text-gold font-semibold" x-text="'S/.' + ((item.cantidad || 1) * (item.precioUnitario || item.precio || 0))"></td>
+
+    <div class="p-5 space-y-4">
+      
+      <!-- INFO GENERAL -->
+      <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <p class="text-[10px] text-[#5a5a7a] uppercase mb-3 font-semibold tracking-wider">Información General</p>
+        <div class="grid grid-cols-3 gap-3 text-sm mb-3">
+          <div>
+            <p class="text-[10px] text-[#5a5a7a]">Creada</p>
+            <p class="font-medium" x-text="selectedComanda?.createdAt ? new Date(selectedComanda.createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : (selectedComanda?.hora || '—')"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-[#5a5a7a]">Enviada a cocina</p>
+            <p class="font-medium" x-text="selectedComanda?.tiempoEnEspera ? new Date(selectedComanda.tiempoEnEspera).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-[#5a5a7a]">Preparada</p>
+            <p class="font-medium text-[#2ecc71]" x-text="selectedComanda?.tiempoRecoger ? new Date(selectedComanda.tiempoRecoger).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-3 text-sm border-t border-[rgba(212,175,55,0.1)] pt-3">
+          <div>
+            <p class="text-[10px] text-[#5a5a7a]">Mozo</p>
+            <p class="font-medium" x-text="selectedComanda?.mozo || '—'"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-[#5a5a7a]">Observaciones</p>
+            <p class="font-medium text-[#a0a0b8]" x-text="selectedComanda?.observaciones || 'Sin observaciones'"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-[#5a5a7a]">Versión</p>
+            <p class="font-medium text-[#a0a0b8]" x-text="'v' + (selectedComanda?.version || 1)"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABLA DE PLATOS -->
+      <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-[#12121a] text-[#a0a0b8] text-[10px] uppercase">
+              <th class="text-left px-4 py-2.5 font-semibold">Plato</th>
+              <th class="text-center px-3 py-2.5 font-semibold">Cant.</th>
+              <th class="text-right px-3 py-2.5 font-semibold">P. Unit.</th>
+              <th class="text-right px-3 py-2.5 font-semibold">Subtotal</th>
+              <th class="text-left px-3 py-2.5 font-semibold">Complementos</th>
             </tr>
-          </template>
-        </tbody>
-        <tfoot>
-          <tr class="border-t-2 border-gold/25 font-bold">
-            <td class="py-2.5">TOTAL</td>
-            <td x-text="selectedComanda?.items?.reduce((s,i) => s + (i.cantidad || 1), 0) || 0"></td>
-            <td></td>
-            <td class="text-gold text-lg" x-text="'S/.' + (selectedComanda?.total || 0)"></td>
-          </tr>
-        </tfoot>
-      </table>
+          </thead>
+          <tbody>
+            <template x-if="!selectedComanda?.items || selectedComanda.items.length === 0">
+              <tr><td colspan="5" class="px-4 py-6 text-center text-[#5a5a7a] text-xs">Sin platos registrados</td></tr>
+            </template>
+            <template x-for="(item, idx) in (selectedComanda?.items || [])" :key="idx">
+              <tr class="border-b border-[rgba(212,175,55,0.08)]">
+                <td class="px-4 py-3">
+                  <p class="font-medium" x-text="item.plato?.nombre || item.nombre || '—'"></p>
+                  <p class="text-[10px] text-[#5a5a7a]" x-show="item.notaEspecial" x-text="'📝 ' + item.notaEspecial"></p>
+                </td>
+                <td class="px-3 py-3 text-center font-semibold" x-text="item.cantidad || 1"></td>
+                <td class="px-3 py-3 text-right text-[#a0a0b8]" x-text="'S/. ' + Number(item.plato?.precio || item.precio || item.precioUnitario || 0).toFixed(2)"></td>
+                <td class="px-3 py-3 text-right text-[#d4af37] font-semibold" x-text="'S/. ' + ((item.cantidad || 1) * Number(item.plato?.precio || item.precio || item.precioUnitario || 0)).toFixed(2)"></td>
+                <td class="px-3 py-3">
+                  <template x-if="item.complementosSeleccionados && item.complementosSeleccionados.length > 0">
+                    <div class="flex flex-wrap gap-1">
+                      <template x-for="comp in item.complementosSeleccionados" :key="comp.grupo">
+                        <span class="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" x-text="comp.grupo + ': ' + comp.opcion"></span>
+                      </template>
+                    </div>
+                  </template>
+                  <template x-if="!item.complementosSeleccionados || item.complementosSeleccionados.length === 0">
+                    <span class="text-[10px] text-[#5a5a7a]">—</span>
+                  </template>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+          <tfoot>
+            <tr class="border-t-2 border-[rgba(212,175,55,0.25)] bg-[#12121a]">
+              <td class="px-4 py-3 font-bold text-xs uppercase" colspan="2">TOTAL</td>
+              <td class="px-3 py-3 text-right text-xs text-[#5a5a7a]" x-text="(selectedComanda?.items || []).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
+              <td class="px-3 py-3 text-right text-[#d4af37] font-bold text-lg" x-text="'S/. ' + Number(selectedComanda?.total || selectedComanda?.precioTotal || 0).toFixed(2)"></td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- TIMELINE DE ESTADOS -->
+      <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <p class="text-[10px] text-[#5a5a7a] uppercase mb-4 font-semibold tracking-wider">Historial de Estados</p>
+        <div class="relative flex items-start justify-between">
+          <div class="absolute top-1.5 left-0 right-0 h-0.5 bg-[rgba(212,175,55,0.15)]" style="margin: 0 6%"></div>
+          <!-- Creada -->
+          <div class="flex flex-col items-center flex-1 relative z-10">
+            <div class="w-3 h-3 rounded-full bg-[#3498db] mb-2"></div>
+            <p class="text-[10px] font-semibold text-[#3498db]">Creada</p>
+            <p class="text-[9px] text-[#5a5a7a]" x-text="selectedComanda?.createdAt ? new Date(selectedComanda.createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+          <!-- En cocina -->
+          <div class="flex flex-col items-center flex-1 relative z-10">
+            <div class="w-3 h-3 rounded-full mb-2" :class="selectedComanda?.tiempoEnEspera ? 'bg-[#ffa502]' : 'bg-[#5a5a7a]/30'"></div>
+            <p class="text-[10px] font-semibold" :class="selectedComanda?.tiempoEnEspera ? 'text-[#ffa502]' : 'text-[#5a5a7a]'">En cocina</p>
+            <p class="text-[9px] text-[#5a5a7a]" x-text="selectedComanda?.tiempoEnEspera ? new Date(selectedComanda.tiempoEnEspera).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+          <!-- Preparado -->
+          <div class="flex flex-col items-center flex-1 relative z-10">
+            <div class="w-3 h-3 rounded-full mb-2" :class="selectedComanda?.tiempoRecoger ? 'bg-[#2ecc71]' : 'bg-[#5a5a7a]/30'"></div>
+            <p class="text-[10px] font-semibold" :class="selectedComanda?.tiempoRecoger ? 'text-[#2ecc71]' : 'text-[#5a5a7a]'">Preparado</p>
+            <p class="text-[9px] text-[#5a5a7a]" x-text="selectedComanda?.tiempoRecoger ? new Date(selectedComanda.tiempoRecoger).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+          <!-- Entregado -->
+          <div class="flex flex-col items-center flex-1 relative z-10">
+            <div class="w-3 h-3 rounded-full mb-2" :class="selectedComanda?.tiempoEntregado ? 'bg-[#d4af37]' : 'bg-[#5a5a7a]/30'"></div>
+            <p class="text-[10px] font-semibold" :class="selectedComanda?.tiempoEntregado ? 'text-[#d4af37]' : 'text-[#5a5a7a]'">Entregado</p>
+            <p class="text-[9px] text-[#5a5a7a]" x-text="selectedComanda?.tiempoEntregado ? new Date(selectedComanda.tiempoEntregado).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+          <!-- Pagado -->
+          <div class="flex flex-col items-center flex-1 relative z-10">
+            <div class="w-3 h-3 rounded-full mb-2" :class="selectedComanda?.tiempoPagado ? 'bg-[#00d4aa]' : 'bg-[#5a5a7a]/30'"></div>
+            <p class="text-[10px] font-semibold" :class="selectedComanda?.tiempoPagado ? 'text-[#00d4aa]' : 'text-[#5a5a7a]'">Pagado</p>
+            <p class="text-[9px] text-[#5a5a7a]" x-text="selectedComanda?.tiempoPagado ? new Date(selectedComanda.tiempoPagado).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+        </div>
+      </div>
+
     </div>
-    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
-      <button @click="modal=null" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cerrar</button>
+
+    <!-- FOOTER -->
+    <div class="bg-[#12121a] p-4 rounded-b-2xl flex justify-between items-center border-t border-[rgba(212,175,55,0.1)]">
+      <button @click="modal=null" class="px-4 py-2 border border-[#5a5a7a]/40 rounded-lg text-sm text-[#a0a0b8] hover:border-[#d4af37] hover:text-[#d4af37] transition">Cerrar</button>
+      <div class="flex gap-2">
+        <button class="px-4 py-2 border border-[rgba(212,175,55,0.4)] text-[#d4af37] rounded-lg text-sm font-medium hover:bg-[rgba(212,175,55,0.1)] transition">🖨 PDF</button>
+        <button class="px-4 py-2 bg-[#d4af37] text-[#0a0a0f] rounded-lg text-sm font-semibold hover:brightness-110 transition">🍳 Cocina</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: EDITAR ESTADO COMANDA -->
+<div x-show="modal==='editarComanda'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="modal=null">
+  <div class="bg-[#1a1a28] border border-[rgba(212,175,55,0.25)] rounded-2xl w-[480px] shadow-2xl" @click.stop>
+    <div class="bg-[#12121a] p-5 rounded-t-2xl flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-bold" x-text="'Editar Comanda #' + (editComanda?.numComanda || editComanda?.comandaNumber || '—')"></h2>
+        <p class="text-xs text-[#5a5a7a]" x-text="'Mesa ' + (editComanda?.mesa?.nummesa || editComanda?.mesa?.numMesa || editComanda?.mesa || '—')"></p>
+      </div>
+      <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] text-sm">✕</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="text-xs text-[#a0a0b8] mb-2 block font-semibold">Estado de la Comanda</label>
+        <select x-model="editComanda.estado" class="w-full bg-[#12121a] border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-[#d4af37] focus:outline-none text-white">
+          <option value="en_espera">⏳ En espera</option>
+          <option value="recoger">✅ Listo para recoger</option>
+          <option value="entregado">🚀 Entregado</option>
+          <option value="pagado">💰 Pagado</option>
+          <option value="cancelado">❌ Cancelado</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs text-[#a0a0b8] mb-2 block font-semibold">Observaciones</label>
+        <textarea x-model="editComanda.observaciones" placeholder="Notas adicionales..." class="w-full bg-[#12121a] border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm h-20 resize-none focus:border-[#d4af37] focus:outline-none text-white"></textarea>
+      </div>
+    </div>
+    <div class="bg-[#12121a] p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="modal=null" class="px-5 py-2.5 border border-[#5a5a7a]/40 rounded-lg text-sm text-[#a0a0b8] hover:border-[#d4af37] hover:text-[#d4af37] transition">Cancelar</button>
+      <button @click="guardarEdicionComanda()" class="px-5 py-2.5 bg-[#d4af37] text-[#0a0a0f] rounded-lg text-sm font-semibold hover:brightness-110 transition">Guardar Cambios</button>
     </div>
   </div>
 </div>
@@ -158,6 +318,7 @@ function comandasApp() {
     comandas: [],
     filteredComandas: [],
     selectedComanda: null,
+    editComanda: { _id: null, estado: '', observaciones: '', numComanda: null, mesa: null },
     filterMesa: '',
     filterEstado: '',
     activeNav: 'comandas',
@@ -174,27 +335,94 @@ function comandasApp() {
     
     async loadComandas() {
       this.loading = true;
-      const data = await apiGet('/comandas');
-      if (data && Array.isArray(data)) {
-        this.comandas = data;
-      } else if (data && data.comandas) {
-        this.comandas = data.comandas;
-      }
+      // Probar ambos endpoints: /comanda (real) y /comandas (alias)
+      let data = await apiGet('/comanda');
+      if (!data) data = await apiGet('/comandas');
+      
+      let raw = [];
+      if (data && Array.isArray(data)) raw = data;
+      else if (data && data.comandas) raw = data.comandas;
+      else if (data && data.data) raw = data.data;
+      
+      // Normalizar campos del modelo real a los esperados por la UI
+      this.comandas = raw.map(c => ({
+        ...c,
+        numComanda: c.comandaNumber || c.numComanda,
+        mesa: c.mesas || c.mesa,
+        mozo: c.mozos?.name || c.mozos || c.idMozo?.nombre || c.mozo,
+        items: c.platos || c.items || [],
+        total: c.precioTotal || c.total || 0,
+        estado: c.status || c.estado || 'pendiente',
+      }));
+      
       this.filterComandas();
       this.loading = false;
     },
     
     filterComandas() {
       this.filteredComandas = this.comandas.filter(c => {
-        const matchMesa = !this.filterMesa || String(c.mesa?.numMesa || c.mesa || '').includes(this.filterMesa);
+        const mesaNum = c.mesa?.nummesa || c.mesa?.numMesa || c.mesa;
+        const matchMesa = !this.filterMesa || String(mesaNum || '').includes(this.filterMesa);
         const matchEstado = !this.filterEstado || c.estado === this.filterEstado;
         return matchMesa && matchEstado;
       });
     },
     
+    estadoLabel(estado) {
+      const map = {
+        'en_espera': 'En espera',
+        'recoger': 'Listo para recoger',
+        'entregado': 'Entregado',
+        'pagado': 'Pagado',
+        'cancelado': 'Cancelado',
+        'en cocina': 'En cocina',
+        'preparado': 'Preparado',
+        'pendiente': 'Pendiente'
+      };
+      return map[estado] || estado || 'pendiente';
+    },
+    
     openDetailModal(c) {
       this.selectedComanda = c;
-      this.modal = true;
+      this.modal = 'verComanda';
+    },
+    
+    openEditModal(c) {
+      this.editComanda = {
+        _id: c._id,
+        estado: c.estado || 'en_espera',
+        observaciones: c.observaciones || '',
+        numComanda: c.numComanda || c.comandaNumber,
+        mesa: c.mesa,
+      };
+      this.modal = 'editarComanda';
+    },
+    
+    async guardarEdicionComanda() {
+      if (!this.editComanda._id) return;
+      const res = await apiPut('/comanda/' + this.editComanda._id, {
+        status: this.editComanda.estado,
+        observaciones: this.editComanda.observaciones
+      });
+      if (res && !res.error) {
+        await this.loadComandas();
+        this.modal = null;
+        this.showToast('Comanda actualizada ✅');
+      } else {
+        alert('Error al actualizar: ' + (res?.error || res?.message || 'Fallo desconocido'));
+      }
+    },
+    
+    async eliminarComanda(id) {
+      if (!id) return;
+      if (!confirm('¿Eliminar esta comanda? Esta acción quedará registrada en auditoría.')) return;
+      const res = await apiDelete('/comanda/' + id);
+      if (res && !res.error) {
+        await this.loadComandas();
+        this.showToast('Comanda eliminada ✅');
+      } else {
+        alert('Error al eliminar: ' + (res?.error || res?.message || 'Fallo desconocido'));
+      }
     },
     
     async cambiarEstado(c) {

@@ -35,7 +35,10 @@ tailwind.config = {
     <!-- HEADER -->
     <div class="flex items-center justify-between mb-5">
       <h1 class="text-xl font-bold">Auditoría</h1>
-      <button @click="loadAuditoria()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
+      <div class="flex gap-2">
+        <input type="date" x-model="fechaFiltro" @change="loadAuditoria()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary">
+        <button @click="loadAuditoria()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
+      </div>
     </div>
 
     <!-- LOADING STATE -->
@@ -84,6 +87,7 @@ function auditoriaApp() {
     sidebarOpen: true,
     loading: true,
     registros: [],
+    fechaFiltro: '',
     activeNav: 'auditoria',
     pageTitle: 'Auditoría',
     
@@ -98,14 +102,39 @@ function auditoriaApp() {
     
     async loadAuditoria() {
       this.loading = true;
-      const data = await apiGet('/auditoria');
-      if (data && Array.isArray(data)) {
-        this.registros = data;
-      } else if (data && data.auditoria) {
-        this.registros = data.auditoria;
-      } else if (data && data.registros) {
-        this.registros = data.registros;
+      
+      // El endpoint correcto es /auditoria/reporte-completo o /auditoria/comandas
+      let data = await apiGet('/auditoria/reporte-completo');
+      
+      let raw = [];
+      if (data && data.auditorias) raw = data.auditorias;
+      else if (data && Array.isArray(data)) raw = data;
+      
+      // Si no hay datos, intentar con /auditoria/comandas
+      if (raw.length === 0) {
+        const data2 = await apiGet('/auditoria/comandas');
+        if (data2 && data2.auditorias) raw = data2.auditorias;
+        else if (data2 && Array.isArray(data2)) raw = data2;
       }
+      
+      // Si aún no hay datos, intentar /auditoria simple
+      if (raw.length === 0) {
+        const data3 = await apiGet('/auditoria');
+        if (data3 && Array.isArray(data3)) raw = data3;
+        else if (data3 && data3.auditorias) raw = data3.auditorias;
+        else if (data3 && data3.registros) raw = data3.registros;
+      }
+      
+      // Normalizar campos del modelo real
+      this.registros = raw.map(a => ({
+        ...a,
+        hora: a.timestamp || a.createdAt,
+        usuario: a.usuario?.name || a.usuario?.nombre || a.usuario || 'Sistema',
+        accion: a.accion,
+        modulo: a.entidadTipo || a.modulo || '—',
+        ip: a.ip || '—',
+      }));
+      
       this.loading = false;
     },
     

@@ -87,13 +87,25 @@ tailwind.config = {
     <!-- CHARTS -->
     <div x-show="!loading" class="grid grid-cols-12 gap-4 mb-5">
       <div class="col-span-7 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5 flex flex-col" style="height: 340px;">
-        <h3 class="font-semibold text-sm mb-3 flex-shrink-0" x-text="repTab==='General' ? 'Ventas por Período' : 'Top Platos'"></h3>
+        <h3 class="font-semibold text-sm mb-3 flex-shrink-0" x-text="{
+          'General':'📈 Ventas por Período',
+          'Platos':'🏆 Top Platos Vendidos',
+          'Mozos':'👤 Rendimiento por Mozo',
+          'Mesas':'🪑 Rotación por Mesa',
+          'Clientes':'📊 Tendencia de Visitas'
+        }[repTab] || 'Ventas por Período'"></h3>
         <div class="relative flex-1 min-h-0">
           <canvas id="chartReportes1"></canvas>
         </div>
       </div>
       <div class="col-span-5 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5 flex flex-col" style="height: 340px;">
-        <h3 class="font-semibold text-sm mb-3 flex-shrink-0" x-text="repTab==='General' ? 'Distribución de Ventas' : 'Performance'"></h3>
+        <h3 class="font-semibold text-sm mb-3 flex-shrink-0" x-text="{
+          'General':'💳 Distribución de Pagos',
+          'Platos':'🍽️ Platos por Categoría',
+          'Mozos':'📊 Participación por Mozo',
+          'Mesas':'🏷️ Estado Actual de Mesas',
+          'Clientes':'👥 Tipos de Cliente'
+        }[repTab] || 'Distribución de Ventas'"></h3>
         <div class="relative flex-1 min-h-0">
           <canvas id="chartReportes2"></canvas>
         </div>
@@ -104,8 +116,31 @@ tailwind.config = {
 </div>
 
 <script src="/assets/js/shared.js"></script>
-<script src="/assets/js/charts.js"></script>
 <script>
+// Registro de instancias Chart activas para destruir antes de redibujar
+const _activeCharts = {};
+
+function destroyChart(canvasId) {
+  if (_activeCharts[canvasId]) {
+    try { _activeCharts[canvasId].destroy(); } catch(e) {}
+    delete _activeCharts[canvasId];
+  }
+  const canvas = document.getElementById(canvasId);
+  if (canvas) {
+    const existing = Chart.getChart(canvas);
+    if (existing) { try { existing.destroy(); } catch(e) {} }
+  }
+}
+
+function createChart(canvasId, config) {
+  destroyChart(canvasId);
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return null;
+  const chart = new Chart(canvas, config);
+  _activeCharts[canvasId] = chart;
+  return chart;
+}
+
 function reportesApp() {
   return {
     sidebarOpen: true,
@@ -118,6 +153,17 @@ function reportesApp() {
     kpis: [],
     activeNav: 'reportes',
     pageTitle: 'Reportes',
+    
+    // Colores del tema
+    _c: {
+      gold: '#d4af37', goldA: 'rgba(212,175,55,0.7)', goldFill: 'rgba(212,175,55,0.12)',
+      blue: '#3498db', blueA: 'rgba(52,152,219,0.7)',
+      green: '#2ecc71', greenA: 'rgba(46,204,113,0.7)',
+      amber: '#ffa502', amberA: 'rgba(255,165,2,0.7)',
+      purple: '#5352ed', red: '#ff4757', teal: '#00d4aa',
+      grid: 'rgba(255,255,255,0.05)',
+      label: '#5a5a7a', legend: '#a0a0b8'
+    },
     
     async init() {
       const token = localStorage.getItem('adminToken');
@@ -165,62 +211,201 @@ function reportesApp() {
       }
     },
     
+    _baseOpts(extra = {}) {
+      return {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: this._c.legend, font: { size: 11 }, padding: 12 } } },
+        scales: {
+          x: { ticks: { color: this._c.label, font: { size: 10 } }, grid: { color: this._c.grid } },
+          y: { ticks: { color: this._c.label, font: { size: 10 } }, grid: { color: this._c.grid } }
+        },
+        ...extra
+      };
+    },
+    
     async loadReportes() {
       this.loading = true;
       
+      let data = null;
       try {
-        const data = await apiGet('/reportes/ventas?fechaInicio=' + this.fechaInicio + '&fechaFin=' + this.fechaFin + '&agruparPor=' + this.agruparPor);
-        
-        if (data && data.data) {
-          // Calcular KPIs
-          const totalVentas = data.data.reduce((s, d) => s + (d.total || 0), 0);
-          const totalTickets = data.data.reduce((s, d) => s + (d.cantidad || d.tickets || 1), 0);
-          const ticketPromedio = totalTickets > 0 ? totalVentas / totalTickets : 0;
-          
-          this.kpis = [
-            { label: 'Ventas Totales', value: 'S/. ' + totalVentas.toLocaleString('es-PE'), color: 'text-gold', badge: '+18% ↑' },
-            { label: 'Tickets', value: totalTickets, color: 'text-white', badge: '' },
-            { label: 'Ticket Promedio', value: 'S/. ' + ticketPromedio.toFixed(2), color: 'text-white', badge: '+5% ↑' },
-            { label: 'Días Analizados', value: data.data.length, color: 'text-txt-secondary', badge: '' }
-          ];
-          
-          // Dibujar gráficos con datos reales
-          const labels = data.data.map(d => d._id || d.fecha || d.hora || '');
-          const valores = data.data.map(d => d.total || 0);
-          
-          // Esperar a que los componentes estén listos
-          const waitForComponents = () => {
-            if (document.getElementById('chartReportes1')) {
-              LasGambusinasCharts.drawDashChartWithData('chartReportes1', labels, valores);
-              LasGambusinasCharts.drawReportDonutChart('chartReportes2');
-            } else {
-              setTimeout(waitForComponents, 100);
-            }
-          };
-          waitForComponents();
-        } else {
-          // Fallback a gráficos mock
-          const waitForComponents = () => {
-            if (document.getElementById('chartReportes1')) {
-              LasGambusinasCharts.drawReportBarChart('chartReportes1');
-              LasGambusinasCharts.drawReportDonutChart('chartReportes2');
-            } else {
-              setTimeout(waitForComponents, 100);
-            }
-          };
-          waitForComponents();
-          
-          this.kpis = sharedData.repKPIs[this.repTab] || sharedData.repKPIs.General;
-        }
-      } catch (e) {
-        console.error('Error loading reportes:', e);
-        // Fallback
-        LasGambusinasCharts.drawReportBarChart('chartReportes1');
-        LasGambusinasCharts.drawReportDonutChart('chartReportes2');
-        this.kpis = sharedData.repKPIs[this.repTab] || sharedData.repKPIs.General;
+        const params = `?fechaInicio=${this.fechaInicio || ''}&fechaFin=${this.fechaFin || ''}&agruparPor=${this.agruparPor || 'dia'}`;
+        const endpointMap = {
+          'General':  '/reportes/ventas',
+          'Platos':   '/reportes/platos',
+          'Mozos':    '/reportes/mozos',
+          'Mesas':    '/reportes/mesas',
+          'Clientes': '/reportes/clientes'
+        };
+        const endpoint = endpointMap[this.repTab] || '/reportes/ventas';
+        data = await apiGet(endpoint + params);
+      } catch(e) {
+        console.error('Error cargando reportes:', e);
       }
       
       this.loading = false;
+      
+      // Esperar a que Alpine actualice el DOM antes de dibujar
+      await new Promise(r => setTimeout(r, 60));
+      this.renderChartsByTab(data);
+    },
+    
+    renderChartsByTab(data) {
+      switch(this.repTab) {
+        case 'Platos':   this.renderPlatosCharts(data); break;
+        case 'Mozos':    this.renderMozosCharts(data); break;
+        case 'Mesas':    this.renderMesasCharts(data); break;
+        case 'Clientes': this.renderClientesCharts(data); break;
+        default:         this.renderGeneralCharts(data); break;
+      }
+    },
+    
+    renderGeneralCharts(data) {
+      const c = this._c;
+      const raw = data?.data || [];
+      const labels = raw.length ? raw.map(d => d._id || d.fecha || d.hora || '') : ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+      const valores = raw.length ? raw.map(d => d.total || 0) : [1200,1800,1400,2100,1900,2800,2400];
+      
+      const totalVentas = valores.reduce((a, b) => a + b, 0);
+      const totalTickets = raw.length ? raw.reduce((s, d) => s + (d.cantidad || d.tickets || 1), 0) : 45;
+      const ticketPromedio = totalTickets > 0 ? totalVentas / totalTickets : 0;
+      
+      this.kpis = [
+        { label: 'Ventas Totales', value: 'S/. ' + totalVentas.toLocaleString('es-PE'), color: 'text-[#d4af37]', badge: '+18% ↑' },
+        { label: 'Tickets', value: totalTickets, color: 'text-white', badge: '' },
+        { label: 'Ticket Promedio', value: 'S/. ' + ticketPromedio.toFixed(2), color: 'text-white', badge: '+5% ↑' },
+        { label: 'Días Analizados', value: labels.length, color: 'text-[#5a5a7a]', badge: '' }
+      ];
+      
+      createChart('chartReportes1', {
+        type: 'line',
+        data: { labels, datasets: [{ label: 'Ventas (S/.)', data: valores, borderColor: c.gold, backgroundColor: c.goldFill, fill: true, tension: 0.4, pointBackgroundColor: c.gold, pointRadius: 4, borderWidth: 2 }] },
+        options: { ...this._baseOpts(), plugins: { legend: { display: false } } }
+      });
+      
+      const porMetodo = data?.porMetodo;
+      createChart('chartReportes2', {
+        type: 'doughnut',
+        data: { labels: ['Efectivo','Tarjeta','Yape/Plin'], datasets: [{ data: [porMetodo?.efectivo||55, porMetodo?.tarjeta||30, porMetodo?.digital||15], backgroundColor: [c.teal, c.blue, c.gold], borderWidth: 0 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: c.legend, padding: 12, font: { size: 11 } } } }, cutout: '60%' }
+      });
+    },
+    
+    renderPlatosCharts(data) {
+      const c = this._c;
+      const top = data?.data?.slice(0, 8) || [];
+      const labels = top.length ? top.map(p => (p.nombre || p._id || 'Plato').substring(0, 22)) : ['Ceviche Clásico','Paella Marinera','Lomo Saltado','Ají de Gallina','Anticuchos'];
+      const vals   = top.length ? top.map(p => p.cantidad || p.total || 0) : [12,9,8,6,4];
+      const colors = [c.gold, c.blue, c.teal, c.amber, c.purple, c.red, '#00bcd4', '#ff9800'];
+      
+      const totalPlatos = vals.reduce((a, b) => a + b, 0);
+      this.kpis = [
+        { label: 'Platos Vendidos', value: totalPlatos, color: 'text-[#d4af37]', badge: '+12% ↑' },
+        { label: 'Top Plato', value: labels[0]?.substring(0, 15) || '—', color: 'text-white', badge: '' },
+        { label: 'Categorías', value: data?.categorias?.length || 5, color: 'text-white', badge: '' },
+        { label: 'Promedio/plato', value: (totalPlatos / (labels.length || 1)).toFixed(1), color: 'text-[#5a5a7a]', badge: '' }
+      ];
+      
+      createChart('chartReportes1', {
+        type: 'bar',
+        data: { labels, datasets: [{ label: 'Cantidad vendida', data: vals, backgroundColor: colors.slice(0, labels.length), borderWidth: 0, borderRadius: 4 }] },
+        options: { ...this._baseOpts(), indexAxis: 'y', plugins: { legend: { display: false } } }
+      });
+      
+      const cats = data?.categorias || ['Ceviches','Arroces','Carnes','Bebidas','Desayunos'];
+      const catV  = data?.cantXCategoria || [32,21,18,15,14];
+      createChart('chartReportes2', {
+        type: 'pie',
+        data: { labels: cats, datasets: [{ data: catV, backgroundColor: [c.gold, c.blue, c.teal, c.amber, c.purple], borderWidth: 0 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: c.legend, padding: 10, font: { size: 11 } } } } }
+      });
+    },
+    
+    renderMozosCharts(data) {
+      const c = this._c;
+      const mozos = data?.data?.slice(0, 6) || [];
+      const labels  = mozos.length ? mozos.map(m => (m.nombre || m.name || m._id || 'Mozo').split(' ')[0]) : ['Juan P.','María G.','Pedro R.','Ana L.'];
+      const ventas  = mozos.length ? mozos.map(m => m.ventas || m.total || 0) : [980,720,540,410];
+      const tickets = mozos.length ? mozos.map(m => m.tickets || 0) : [19,15,11,8];
+      const propinas= mozos.length ? mozos.map(m => m.propinas || 0) : [85,65,42,30];
+      
+      const totalVentas = ventas.reduce((a, b) => a + b, 0);
+      const totalPropinas = propinas.reduce((a, b) => a + b, 0);
+      this.kpis = [
+        { label: 'Ventas Mozos', value: 'S/. ' + totalVentas.toLocaleString('es-PE'), color: 'text-[#d4af37]', badge: '' },
+        { label: 'Top Mozo', value: labels[0] || '—', color: 'text-white', badge: 'S/.' + ventas[0] },
+        { label: 'Total Propinas', value: 'S/. ' + totalPropinas, color: 'text-[#2ecc71]', badge: '' },
+        { label: 'Mozos Activos', value: labels.length, color: 'text-[#5a5a7a]', badge: '' }
+      ];
+      
+      createChart('chartReportes1', {
+        type: 'bar',
+        data: { labels, datasets: [
+          { label: 'Ventas (S/.)', data: ventas,  backgroundColor: c.goldA,  borderColor: c.gold,  borderWidth: 1, borderRadius: 4 },
+          { label: 'Tickets',      data: tickets, backgroundColor: c.blueA,  borderColor: c.blue,  borderWidth: 1, borderRadius: 4 },
+          { label: 'Propinas',     data: propinas,backgroundColor: c.greenA, borderColor: c.green, borderWidth: 1, borderRadius: 4 }
+        ] },
+        options: this._baseOpts()
+      });
+      
+      createChart('chartReportes2', {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data: ventas, backgroundColor: [c.gold, c.blue, c.teal, c.amber, c.purple, c.red], borderWidth: 0 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: c.legend, padding: 10, font: { size: 11 } } } }, cutout: '55%' }
+      });
+    },
+    
+    renderMesasCharts(data) {
+      const c = this._c;
+      const mesas = data?.data?.slice(0, 10) || [];
+      const labels = mesas.length ? mesas.map(m => 'Mesa ' + (m.nummesa || m.numMesa || m._id)) : ['Mesa 1','Mesa 2','Mesa 5','Mesa 8','Mesa 12'];
+      const cmds   = mesas.length ? mesas.map(m => m.comandas || m.total || 0) : [8,6,12,4,9];
+      
+      const totalComandas = cmds.reduce((a, b) => a + b, 0);
+      this.kpis = [
+        { label: 'Total Comandas', value: totalComandas, color: 'text-[#d4af37]', badge: '' },
+        { label: 'Top Mesa', value: labels[cmds.indexOf(Math.max(...cmds))] || '—', color: 'text-white', badge: Math.max(...cmds) + ' comandas' },
+        { label: 'Mesas Activas', value: labels.length, color: 'text-white', badge: '' },
+        { label: 'Promedio/Mesa', value: (totalComandas / (labels.length || 1)).toFixed(1), color: 'text-[#5a5a7a]', badge: '' }
+      ];
+      
+      createChart('chartReportes1', {
+        type: 'bar',
+        data: { labels, datasets: [{ label: 'Comandas', data: cmds, backgroundColor: c.amberA, borderColor: c.amber, borderWidth: 1, borderRadius: 4 }] },
+        options: { ...this._baseOpts(), plugins: { legend: { display: false } } }
+      });
+      
+      createChart('chartReportes2', {
+        type: 'doughnut',
+        data: { labels: ['Libre','Ocupada','Reservada','Pedido'], datasets: [{ data: [data?.libre??8, data?.ocupada??10, data?.reservada??2, data?.pedido??0], backgroundColor: [c.teal, c.amber, c.purple, c.blue], borderWidth: 0 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: c.legend, padding: 10, font: { size: 11 } } } }, cutout: '55%' }
+      });
+    },
+    
+    renderClientesCharts(data) {
+      const c = this._c;
+      const raw = data?.data || [];
+      const labels = raw.length ? raw.map(d => d._id || d.fecha || '') : ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+      const visitas = raw.length ? raw.map(d => d.visitas || d.clientes || 0) : [12,18,9,22,15,28,20];
+      
+      const totalVisitas = visitas.reduce((a, b) => a + b, 0);
+      this.kpis = [
+        { label: 'Total Visitas', value: totalVisitas, color: 'text-[#d4af37]', badge: '+8% ↑' },
+        { label: 'Clientes Nuevos', value: data?.nuevos || 23, color: 'text-[#3498db]', badge: '' },
+        { label: 'Recurrentes', value: data?.frecuentes || 45, color: 'text-[#2ecc71]', badge: '' },
+        { label: 'Promedio/Día', value: (totalVisitas / (labels.length || 1)).toFixed(1), color: 'text-[#5a5a7a]', badge: '' }
+      ];
+      
+      createChart('chartReportes1', {
+        type: 'line',
+        data: { labels, datasets: [{ label: 'Visitas', data: visitas, borderColor: c.gold, backgroundColor: c.goldFill, fill: true, tension: 0.4, pointBackgroundColor: c.gold, pointRadius: 4, borderWidth: 2 }] },
+        options: { ...this._baseOpts(), plugins: { legend: { display: false } } }
+      });
+      
+      createChart('chartReportes2', {
+        type: 'doughnut',
+        data: { labels: ['Invitados','Registrados','Frecuentes'], datasets: [{ data: [data?.invitados??114, data?.registrados??45, data?.frecuentes??28], backgroundColor: ['#5a5a7a', c.blue, c.gold], borderWidth: 0 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: c.legend, padding: 10, font: { size: 11 } } } }, cutout: '55%' }
+      });
     },
     
     logout() {
