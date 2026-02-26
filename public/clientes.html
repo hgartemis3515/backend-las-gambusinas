@@ -36,8 +36,21 @@ tailwind.config = {
     <div class="flex items-center justify-between mb-5">
       <h1 class="text-xl font-bold">Clientes</h1>
       <div class="flex gap-2">
+        <button @click="exportarCSV()" class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">📥 Exportar CSV</button>
         <button @click="loadClientes()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
       </div>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="flex gap-3 mb-5 flex-wrap">
+      <select x-model="filterTipo" @change="loadClientes()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary">
+        <option value="">Tipo: Todos</option>
+        <option value="frecuente">Frecuentes</option>
+        <option value="registrado">Registrados</option>
+        <option value="invitado">Invitados</option>
+      </select>
+      <input type="text" x-model="filterNombre" @input="filterClientes()" placeholder="Buscar por nombre..." class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-48 placeholder-txt-muted">
+      <input type="text" x-model="filterDNI" @input="filterClientes()" placeholder="Buscar por DNI..." class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-36 placeholder-txt-muted">
     </div>
 
     <!-- KPIs -->
@@ -68,22 +81,24 @@ tailwind.config = {
           <th class="text-left px-4 py-3 font-semibold">Nombre</th>
           <th class="text-left px-4 py-3 font-semibold">DNI</th>
           <th class="text-left px-4 py-3 font-semibold">Teléfono</th>
+          <th class="text-left px-4 py-3 font-semibold">Email</th>
           <th class="text-left px-4 py-3 font-semibold">Visitas</th>
           <th class="text-left px-4 py-3 font-semibold">Gasto Total</th>
           <th class="text-left px-4 py-3 font-semibold">Tipo</th>
           <th class="text-left px-4 py-3 font-semibold">Acciones</th>
         </tr></thead>
         <tbody>
-          <tr x-show="clientes.length === 0">
-            <td colspan="7" class="px-4 py-8 text-center text-txt-muted">No hay clientes registrados</td>
+          <tr x-show="filteredClientes.length === 0">
+            <td colspan="8" class="px-4 py-8 text-center text-txt-muted">No hay clientes registrados</td>
           </tr>
-          <template x-for="c in clientes" :key="c._id || c.dni">
+          <template x-for="c in filteredClientes" :key="c._id || c.dni">
             <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
               <td class="px-4 py-3 font-medium" x-text="c.nombre"></td>
               <td class="px-4 py-3 text-txt-secondary" x-text="c.dni || '—'"></td>
               <td class="px-4 py-3 text-txt-secondary" x-text="c.telefono || c.tel || '—'"></td>
+              <td class="px-4 py-3 text-txt-secondary text-xs" x-text="c.email || '—'"></td>
               <td class="px-4 py-3" x-text="c.visitas || 0"></td>
-              <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. ' + (c.gastoTotal || c.gasto || 0)"></td>
+              <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. ' + (c.gastoTotal || c.gasto || 0).toLocaleString('es-PE')"></td>
               <td class="px-4 py-3">
                 <span class="text-xs px-2 py-0.5 rounded-full font-semibold"
                   :class="(c.visitas||0)>=10 ? 'bg-gold/20 text-gold' : (c.visitas||0)>=5 ? 'bg-st-preparado/20 text-st-preparado' : 'bg-txt-muted/20 text-txt-muted'"
@@ -118,6 +133,10 @@ tailwind.config = {
         <div><label class="text-xs text-txt-secondary mb-1 block">Teléfono</label><input type="text" x-model="formCliente.telefono" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
       </div>
       <div>
+        <label class="text-xs text-txt-secondary mb-1 block">Email</label>
+        <input type="email" x-model="formCliente.email" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+      </div>
+      <div>
         <label class="text-xs text-txt-secondary mb-1 block">Notas</label>
         <textarea x-model="formCliente.notas" placeholder="Preferencias, alergias, etc." class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm h-20 resize-none focus:border-gold focus:outline-none"></textarea>
       </div>
@@ -140,11 +159,16 @@ function clientesApp() {
     modal: null,
     loading: true,
     clientes: [],
+    filteredClientes: [],
+    filterTipo: '',
+    filterNombre: '',
+    filterDNI: '',
     formCliente: {
       _id: null,
       nombre: '',
       dni: '',
       telefono: '',
+      email: '',
       notas: ''
     },
     activeNav: 'clientes',
@@ -161,13 +185,47 @@ function clientesApp() {
     
     async loadClientes() {
       this.loading = true;
-      const data = await apiGet('/clientes');
+      
+      let endpoint = '/clientes';
+      const params = [];
+      if (this.filterTipo) params.push(`tipo=${this.filterTipo}`);
+      if (params.length) endpoint += '?' + params.join('&');
+      
+      const data = await apiGet(endpoint);
       if (data && Array.isArray(data)) {
-        this.clientes = data;
+        this.clientes = data.map(c => this.normalizeCliente(c));
       } else if (data && data.clientes) {
-        this.clientes = data.clientes;
+        this.clientes = data.clientes.map(c => this.normalizeCliente(c));
+      } else if (data && data.data) {
+        this.clientes = data.data.map(c => this.normalizeCliente(c));
       }
+      
+      this.filterClientes();
       this.loading = false;
+    },
+    
+    normalizeCliente(c) {
+      return {
+        ...c,
+        nombre: c.nombre || c.name || '—',
+        dni: c.dni || c.DNI || '—',
+        telefono: c.telefono || c.tel || c.phoneNumber || '—',
+        email: c.email || '',
+        visitas: c.visitas || c.totalVisitas || 0,
+        gastoTotal: c.gastoTotal || c.totalGastado || c.gasto || 0,
+        tipo: c.tipo || c.tipoCliente || 'registrado'
+      };
+    },
+    
+    filterClientes() {
+      this.filteredClientes = this.clientes.filter(c => {
+        const matchTipo = !this.filterTipo || c.tipo === this.filterTipo;
+        const matchNombre = !this.filterNombre || 
+          c.nombre?.toLowerCase().includes(this.filterNombre.toLowerCase());
+        const matchDNI = !this.filterDNI || 
+          (c.dni && c.dni.includes(this.filterDNI));
+        return matchTipo && matchNombre && matchDNI;
+      });
     },
     
     isThisMonth(dateStr) {
@@ -183,13 +241,20 @@ function clientesApp() {
         nombre: c.nombre || '',
         dni: c.dni || '',
         telefono: c.telefono || c.tel || '',
+        email: c.email || '',
         notas: c.notas || ''
       };
       this.modal = true;
     },
     
     async guardarCliente() {
-      const res = await apiPut('/clientes/' + this.formCliente._id, this.formCliente);
+      const res = await apiPut('/clientes/' + this.formCliente._id, {
+        nombre: this.formCliente.nombre,
+        dni: this.formCliente.dni,
+        telefono: this.formCliente.telefono,
+        email: this.formCliente.email,
+        notas: this.formCliente.notas
+      });
       if (res && !res.error) {
         await this.loadClientes();
         this.modal = null;
@@ -197,6 +262,38 @@ function clientesApp() {
       } else {
         this.showToast('Error: ' + (res?.error || 'Fallo al guardar'), 'error');
       }
+    },
+    
+    exportarCSV() {
+      if (this.filteredClientes.length === 0) {
+        this.showToast('No hay clientes para exportar', 'error');
+        return;
+      }
+      
+      const headers = ['Nombre', 'DNI', 'Teléfono', 'Email', 'Visitas', 'Gasto Total', 'Tipo'];
+      const rows = this.filteredClientes.map(c => [
+        c.nombre,
+        c.dni,
+        c.telefono,
+        c.email || '',
+        c.visitas,
+        c.gastoTotal,
+        c.tipo
+      ]);
+      
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+      
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `clientes_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      
+      this.showToast(`Exportados ${this.filteredClientes.length} clientes ✅`);
     },
     
     showToast(msg, type = 'success') {

@@ -55,10 +55,11 @@ tailwind.config = {
           <th class="text-left px-4 py-3 font-semibold">Acción</th>
           <th class="text-left px-4 py-3 font-semibold">Módulo</th>
           <th class="text-left px-4 py-3 font-semibold">IP</th>
+          <th class="text-left px-4 py-3 font-semibold">Acciones</th>
         </tr></thead>
         <tbody>
           <tr x-show="registros.length === 0">
-            <td colspan="5" class="px-4 py-8 text-center text-txt-muted">No hay registros de auditoría</td>
+            <td colspan="6" class="px-4 py-8 text-center text-txt-muted">No hay registros de auditoría</td>
           </tr>
           <template x-for="a in registros" :key="a._id || a.hora">
             <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
@@ -71,6 +72,9 @@ tailwind.config = {
               </td>
               <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full bg-bg-sidebar" x-text="a.modulo"></span></td>
               <td class="px-4 py-3 text-txt-muted text-xs" x-text="a.ip"></td>
+              <td class="px-4 py-3">
+                <span class="cursor-pointer hover:text-[#d4af37] transition text-base" @click="openDetailModal(a)" title="Ver detalle">👁</span>
+              </td>
             </tr>
           </template>
         </tbody>
@@ -80,13 +84,115 @@ tailwind.config = {
   </main>
 </div>
 
+<!-- MODAL: VER AUDITORÍA — Diseño según pencil-new.pen frame 8ORKa -->
+<div x-show="modal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="modal=null">
+  <div class="bg-[#1a1a28] border border-[rgba(212,175,55,0.25)] rounded-2xl w-[720px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
+    
+    <!-- HEADER -->
+    <div class="bg-[#12121a] p-5 rounded-t-2xl sticky top-0 z-10 flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-bold">Detalle de Auditoría</h2>
+        <p class="text-xs text-[#5a5a7a] mt-0.5">
+          <span x-text="'Registro #' + (selectedRegistro?._id?.slice(-8)?.toUpperCase() || 'AUD-' + (selectedRegistro?.hora?.replace(/[:\s]/g, '')?.slice(-6) || '—'))"></span>
+          <span x-show="selectedRegistro?.createdAt || selectedRegistro?.hora"> · </span>
+          <span x-text="selectedRegistro?.createdAt ? new Date(selectedRegistro.createdAt).toLocaleString('es-PE') : (selectedRegistro?.hora || '—')"></span>
+        </p>
+      </div>
+      <button @click="modal=null" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
+    </div>
+
+    <div class="p-5 space-y-4">
+      
+      <!-- INFO GENERAL -->
+      <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <p class="text-[10px] text-[#5a5a7a] uppercase mb-3 font-semibold tracking-wider">Información General</p>
+        <div class="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p class="text-[10px] text-[#5a5a7a] mb-0.5">Usuario</p>
+            <p class="font-medium" x-text="(selectedRegistro?.usuario?.nombre || selectedRegistro?.usuario || 'Sistema') + (selectedRegistro?.usuario?.rol ? ' (' + selectedRegistro.usuario.rol + ')' : '')"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-[#5a5a7a] mb-0.5">Acción</p>
+            <p class="font-semibold"
+              :class="{
+                'text-[#ff4757]': selectedRegistro?.accion?.toLowerCase()?.includes('eliminar'),
+                'text-[#2ecc71]': selectedRegistro?.accion?.toLowerCase()?.includes('crear') || selectedRegistro?.accion?.toLowerCase()?.includes('nuevo'),
+                'text-[#ffa502]': selectedRegistro?.accion?.toLowerCase()?.includes('editar') || selectedRegistro?.accion?.toLowerCase()?.includes('modificar')
+              }"
+              x-text="selectedRegistro?.accion || '—'"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-[#5a5a7a] mb-0.5">Dirección IP</p>
+            <p class="font-mono text-xs" x-text="selectedRegistro?.ip || '—'"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-[#5a5a7a] mb-0.5">Entidad</p>
+            <p class="font-medium" x-text="(selectedRegistro?.modulo || selectedRegistro?.entidadTipo || '—') + (selectedRegistro?.entidadNombre ? ' — ' + selectedRegistro.entidadNombre : '')"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABLA DE CAMBIOS -->
+      <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+        <div class="px-4 py-3 border-b border-[rgba(212,175,55,0.1)]">
+          <p class="text-[10px] text-[#5a5a7a] uppercase font-semibold tracking-wider">Cambios Realizados</p>
+        </div>
+        <template x-if="!selectedRegistro?.cambios || selectedRegistro.cambios.length === 0">
+          <div class="px-4 py-6 text-center text-[#5a5a7a] text-xs">
+            <p x-show="selectedRegistro?.accion?.toLowerCase()?.includes('eliminar') || selectedRegistro?.accion?.toLowerCase()?.includes('ver')">No hay cambios registrados (acción de solo lectura/eliminación)</p>
+            <p x-show="!selectedRegistro?.accion?.toLowerCase()?.includes('eliminar') && !selectedRegistro?.accion?.toLowerCase()?.includes('ver')">No hay cambios detallados disponibles</p>
+          </div>
+        </template>
+        <template x-if="selectedRegistro?.cambios && selectedRegistro.cambios.length > 0">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="bg-[#12121a] text-[#a0a0b8] text-[10px] uppercase">
+                <th class="text-left px-4 py-2.5 font-semibold">Campo</th>
+                <th class="text-left px-4 py-2.5 font-semibold">Valor Anterior</th>
+                <th class="text-left px-4 py-2.5 font-semibold">Valor Nuevo</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="(cambio, idx) in selectedRegistro.cambios" :key="idx">
+                <tr class="border-b border-[rgba(212,175,55,0.08)]">
+                  <td class="px-4 py-2.5 font-medium" x-text="cambio.campo"></td>
+                  <td class="px-4 py-2.5 text-[#ff4757] text-xs font-mono" x-text="cambio.valorAnterior || '—'"></td>
+                  <td class="px-4 py-2.5 text-[#2ecc71] text-xs font-mono" x-text="cambio.valorNuevo || '—'"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </template>
+      </div>
+
+      <!-- PAYLOAD COMPLETO -->
+      <div x-show="selectedRegistro?.metadata || selectedRegistro?.payload" class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+        <div class="px-4 py-3 border-b border-[rgba(212,175,55,0.1)]">
+          <p class="text-[10px] text-[#5a5a7a] uppercase font-semibold tracking-wider">Payload Completo</p>
+        </div>
+        <div class="p-4">
+          <pre class="text-xs font-mono text-[#d4af37] whitespace-pre-wrap overflow-x-auto" x-text="JSON.stringify(selectedRegistro?.metadata || selectedRegistro?.payload || {}, null, 2)"></pre>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- FOOTER -->
+    <div class="bg-[#12121a] p-4 rounded-b-2xl flex justify-end border-t border-[rgba(212,175,55,0.1)]">
+      <button @click="modal=null" class="px-5 py-2 border border-[#5a5a7a]/40 rounded-lg text-sm text-[#a0a0b8] hover:border-[#d4af37] hover:text-[#d4af37] transition">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <script src="/assets/js/shared.js"></script>
 <script>
 function auditoriaApp() {
   return {
     sidebarOpen: true,
     loading: true,
+    modal: null,
     registros: [],
+    selectedRegistro: null,
     fechaFiltro: '',
     activeNav: 'auditoria',
     pageTitle: 'Auditoría',
@@ -133,9 +239,16 @@ function auditoriaApp() {
         accion: a.accion,
         modulo: a.entidadTipo || a.modulo || '—',
         ip: a.ip || '—',
+        cambios: a.cambios || a.diferencias || [],
+        metadata: a.metadata || a.payload || a.datos || null
       }));
       
       this.loading = false;
+    },
+    
+    openDetailModal(a) {
+      this.selectedRegistro = a;
+      this.modal = true;
     },
     
     logout() {

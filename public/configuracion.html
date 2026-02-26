@@ -35,69 +35,624 @@ tailwind.config = {
     <!-- HEADER -->
     <div class="flex items-center justify-between mb-5">
       <h1 class="text-xl font-bold">Configuración del Sistema</h1>
-      <button class="bg-gold text-bg-primary px-5 py-2 rounded-lg text-sm font-semibold">💾 Guardar Cambios</button>
+      <div class="flex gap-2">
+        <button @click="loadConfig()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
+        <button @click="guardarConfig()" class="bg-gold text-bg-primary px-5 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition" :disabled="saving">
+          <span x-show="!saving">💾 Guardar Cambios</span>
+          <span x-show="saving" class="flex items-center gap-2">
+            <span class="w-4 h-4 border-2 border-bg-primary border-t-transparent rounded-full animate-spin"></span>
+            Guardando...
+          </span>
+        </button>
+      </div>
     </div>
 
-    <div class="flex gap-5">
+    <!-- LOADING STATE -->
+    <div x-show="loading" class="flex items-center justify-center h-64">
+      <div class="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+    </div>
+
+    <div x-show="!loading" class="flex gap-5">
       <!-- VERTICAL TABS -->
       <div class="w-[200px] space-y-1 flex-shrink-0">
-        <template x-for="t in ['General','Moneda y Precios','Mesas y Áreas','Cocina','Pagos','Notificaciones','Cierre de Caja','Seguridad','Integraciones','Avanzado']" :key="t">
-          <button @click="cfgTab=t" :class="cfgTab===t ? 'bg-gold-20 text-gold border-l-[3px] border-gold' : 'text-txt-secondary hover:bg-gold-20/50 border-l-[3px] border-transparent'"
-            class="w-full text-left px-4 py-2.5 text-sm rounded-r-lg transition" x-text="t"></button>
+        <template x-for="t in tabs" :key="t.id">
+          <button @click="cfgTab=t.id" :class="cfgTab===t.id ? 'bg-gold-20 text-gold border-l-[3px] border-gold' : 'text-txt-secondary hover:bg-gold-20/50 border-l-[3px] border-transparent'"
+            class="w-full text-left px-4 py-2.5 text-sm rounded-r-lg transition flex items-center gap-2">
+            <span x-text="t.icon"></span>
+            <span x-text="t.label"></span>
+          </button>
         </template>
       </div>
 
       <!-- CONTENT -->
-      <div class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-8">
-        <div x-show="cfgTab==='General'">
-          <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Información del Restaurante</h3>
-          <div class="space-y-4">
-            <div><label class="text-xs text-txt-secondary mb-1 block">Nombre del restaurante</label><input type="text" value="Las Gambusinas" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
-            <div class="grid grid-cols-2 gap-4">
-              <div><label class="text-xs text-txt-secondary mb-1 block">Dirección</label><input type="text" value="Av. Marina 1234, Lima" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
-              <div><label class="text-xs text-txt-secondary mb-1 block">Teléfono</label><input type="text" value="+51 1 234 5678" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-              <div><label class="text-xs text-txt-secondary mb-1 block">Email</label><input type="email" value="contacto@lasgambusinas.com" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
-              <div><label class="text-xs text-txt-secondary mb-1 block">RUC</label><input type="text" value="20123456789" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
+      <div class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+        
+        <!-- GENERAL -->
+        <div x-show="cfgTab==='general'" class="p-6 space-y-6">
+          <div>
+            <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Información del Restaurante</h3>
+            <div class="space-y-4">
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Nombre del restaurante</label>
+                <input type="text" x-model="config.nombre" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="text-xs text-txt-secondary mb-1 block">Dirección</label>
+                  <input type="text" x-model="config.direccion" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+                </div>
+                <div>
+                  <label class="text-xs text-txt-secondary mb-1 block">Teléfono</label>
+                  <input type="text" x-model="config.telefono" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="text-xs text-txt-secondary mb-1 block">Email</label>
+                  <input type="email" x-model="config.email" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+                </div>
+                <div>
+                  <label class="text-xs text-txt-secondary mb-1 block">RUC</label>
+                  <input type="text" x-model="config.ruc" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+                </div>
+              </div>
             </div>
           </div>
-          <div class="border-t border-[rgba(212,175,55,0.15)] mt-6 pt-6">
+          <div class="border-t border-[rgba(212,175,55,0.15)] pt-6">
             <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Horarios de Operación</h3>
             <div class="grid grid-cols-2 gap-4">
-              <div><label class="text-xs text-txt-secondary mb-1 block">Hora de apertura</label><input type="time" value="08:00" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
-              <div><label class="text-xs text-txt-secondary mb-1 block">Hora de cierre</label><input type="time" value="23:00" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"></div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Hora de apertura</label>
+                <input type="time" x-model="config.horaApertura" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+              </div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Hora de cierre</label>
+                <input type="time" x-model="config.horaCierre" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+              </div>
             </div>
           </div>
-          <div class="border-t border-[rgba(212,175,55,0.15)] mt-6 pt-6">
+          <div class="border-t border-[rgba(212,175,55,0.15)] pt-6">
             <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Preferencias</h3>
             <div class="grid grid-cols-2 gap-4">
-              <div><label class="text-xs text-txt-secondary mb-1 block">Zona horaria</label><select class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"><option>America/Lima</option></select></div>
-              <div><label class="text-xs text-txt-secondary mb-1 block">Idioma</label><select class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm"><option>Español</option></select></div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Zona horaria</label>
+                <select x-model="config.zonaHoraria" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                  <option value="America/Lima">America/Lima</option>
+                  <option value="America/New_York">America/New_York</option>
+                  <option value="Europe/Madrid">Europe/Madrid</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Idioma</label>
+                <select x-model="config.idioma" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                  <option value="es">Español</option>
+                  <option value="en">English</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
-        <div x-show="cfgTab!=='General'" class="text-center py-20">
-          <p class="text-txt-muted text-lg">⚙️</p>
-          <p class="text-txt-secondary mt-2" x-text="'Configuración de ' + cfgTab"></p>
-          <p class="text-txt-muted text-xs mt-1">Panel en desarrollo</p>
+
+        <!-- MONEDA Y PRECIOS -->
+        <div x-show="cfgTab==='moneda'" class="p-6 space-y-6">
+          <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Moneda y Precios</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Moneda</label>
+              <select x-model="config.moneda" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                <option value="PEN">Soles (PEN)</option>
+                <option value="USD">Dólares (USD)</option>
+                <option value="EUR">Euros (EUR)</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Símbolo</label>
+              <input type="text" x-model="config.simboloMoneda" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Decimales</label>
+              <select x-model="config.decimales" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                <option value="2">2 decimales</option>
+                <option value="0">Sin decimales</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">IGV (%)</label>
+              <input type="number" x-model="config.igvPorcentaje" step="0.01" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+            </div>
+          </div>
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" x-model="config.igvIncluido" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+            <span class="text-sm text-txt-secondary">Precios ya incluyen IGV</span>
+          </label>
         </div>
+
+        <!-- MESAS Y ÁREAS -->
+        <div x-show="cfgTab==='mesas'" class="p-6 space-y-6">
+          <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Mesas y Áreas</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Alerta de espera (min)</label>
+              <input type="number" x-model="config.alertaEsperaMin" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+            </div>
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Auto liberación (min, 0=desactivado)</label>
+              <input type="number" x-model="config.autoLiberacionMin" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Duración máxima reserva (horas)</label>
+              <input type="number" x-model="config.duracionMaxReserva" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+            </div>
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Capacidad por defecto</label>
+              <input type="number" x-model="config.capacidadPorDefecto" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+            </div>
+          </div>
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" x-model="config.permitirReservas" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+            <span class="text-sm text-txt-secondary">Permitir reservas</span>
+          </label>
+        </div>
+
+        <!-- COCINA -->
+        <div x-show="cfgTab==='cocina'" class="p-6 space-y-6">
+          <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Cocina</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Alerta amarilla (min)</label>
+              <input type="number" x-model="config.alertaAmarillaMin" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+            </div>
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Alerta roja (min)</label>
+              <input type="number" x-model="config.alertaRojaMin" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Volumen notificaciones (%)</label>
+              <input type="number" x-model="config.volumenNotif" min="0" max="100" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+            </div>
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Impresora por defecto</label>
+              <input type="text" x-model="config.impresoraDefault" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+            </div>
+          </div>
+          <div class="space-y-3">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.sonidoNotif" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Sonido de notificaciones</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.autoImpresion" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Auto impresión de comandas</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.mostrarComplementos" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Mostrar complementos en tickets</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- PAGOS -->
+        <div x-show="cfgTab==='pagos'" class="p-6 space-y-6">
+          <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Pagos y Facturación</h3>
+          <div>
+            <label class="text-xs text-txt-secondary mb-2 block">Métodos de pago habilitados</label>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="flex items-center gap-2 cursor-pointer bg-bg-sidebar p-3 rounded-lg">
+                <input type="checkbox" x-model="config.metodoEfectivo" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-primary text-gold focus:ring-gold">
+                <span class="text-sm">💵 Efectivo</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer bg-bg-sidebar p-3 rounded-lg">
+                <input type="checkbox" x-model="config.metodoTarjeta" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-primary text-gold focus:ring-gold">
+                <span class="text-sm">💳 Tarjeta</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer bg-bg-sidebar p-3 rounded-lg">
+                <input type="checkbox" x-model="config.metodoYape" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-primary text-gold focus:ring-gold">
+                <span class="text-sm">📱 Yape/Plin</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer bg-bg-sidebar p-3 rounded-lg">
+                <input type="checkbox" x-model="config.metodoTransferencia" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-primary text-gold focus:ring-gold">
+                <span class="text-sm">🏦 Transferencia</span>
+              </label>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Propina sugerida (%)</label>
+              <input type="number" x-model="config.propinaSugeridaPct" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+            </div>
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Descuento máximo (%)</label>
+              <input type="number" x-model="config.descuentoMaxPct" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Prefijo de voucher</label>
+              <input type="text" x-model="config.prefijoVoucher" placeholder="BCH-001" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+            </div>
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Serie comprobantes</label>
+              <input type="text" x-model="config.serieComprobantes" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+            </div>
+          </div>
+          <div class="space-y-3">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.propinasHabilitadas" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Propinas habilitadas</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.descuentosHabilitados" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Descuentos habilitados</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.numeracionAuto" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Numeración automática de comprobantes</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- NOTIFICACIONES -->
+        <div x-show="cfgTab==='notificaciones'" class="p-6 space-y-6">
+          <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Notificaciones</h3>
+          <div class="space-y-3">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.pushHabilitado" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Notificaciones push</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.emailAlertas" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Alertas por email</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.notifNuevasComandas" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Notificar nuevas comandas</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.notifComandasListas" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Notificar comandas listas</span>
+            </label>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Alerta mesa abandonada (min)</label>
+              <input type="number" x-model="config.alertaMesaAbandonada" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+            </div>
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Stock mínimo alerta</label>
+              <input type="number" x-model="config.stockMinimoAlerta" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+            </div>
+          </div>
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" x-model="config.stockBajoAlerta" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+            <span class="text-sm text-txt-secondary">Alertar stock bajo</span>
+          </label>
+        </div>
+
+        <!-- CIERRE DE CAJA -->
+        <div x-show="cfgTab==='cierre'" class="p-6 space-y-6">
+          <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Cierre de Caja</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Hora cierre automático</label>
+              <input type="time" x-model="config.horaCierreAuto" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+            </div>
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Email reportes</label>
+              <input type="email" x-model="config.emailReportes" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+            </div>
+          </div>
+          <div class="space-y-3">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.cierreAutomatico" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Cierre automático diario</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.validacionAdmin" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Requiere validación de admin</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.exportAutoPdf" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Exportar PDF automáticamente</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.exportAutoExcel" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Exportar Excel automáticamente</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.desgloseComplementos" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Desglose de complementos</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- SEGURIDAD -->
+        <div x-show="cfgTab==='seguridad'" class="p-6 space-y-6">
+          <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Seguridad</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Timeout inactividad (min)</label>
+              <input type="number" x-model="config.timeoutInactividadMin" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+            </div>
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Sesiones simultáneas</label>
+              <select x-model="config.sesionesSimultaneas" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                <option value="1">Una sesión</option>
+                <option value="3">Hasta 3</option>
+                <option value="0">Sin límite</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="text-xs text-txt-secondary mb-1 block">IPs permitidas (una por línea, vacío = todas)</label>
+            <textarea x-model="config.ipPermitidas" placeholder="192.168.1.100&#10;192.168.1.101" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm h-24 resize-none focus:border-gold focus:outline-none font-mono"></textarea>
+          </div>
+          <div class="space-y-3">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.requiere2fa" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Requiere autenticación de dos factores</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.auditoriaExtendida" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Auditoría extendida</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.logsDetallados" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Logs detallados</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- INTEGRACIONES -->
+        <div x-show="cfgTab==='integraciones'" class="p-6 space-y-6">
+          <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Integraciones</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Endpoint API externo</label>
+              <input type="url" x-model="config.endpointApiExterno" placeholder="https://api.example.com" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none font-mono">
+            </div>
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Webhook comandas</label>
+              <input type="url" x-model="config.webhookComandas" placeholder="https://hooks.example.com/comandas" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none font-mono">
+            </div>
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Token de integración</label>
+              <input type="text" x-model="config.tokenIntegracion" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none font-mono">
+            </div>
+          </div>
+          <div class="space-y-3">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.socketioActivo" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Socket.io activo</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.redisActivo" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Redis cache activo</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- AVANZADO -->
+        <div x-show="cfgTab==='avanzado'" class="p-6 space-y-6">
+          <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Configuración Avanzada</h3>
+          <div class="bg-st-pagado/10 border border-st-pagado/30 rounded-lg p-4 mb-4">
+            <p class="text-xs text-st-pagado">⚠️ Estas configuraciones son avanzadas. Modificarlas puede afectar el funcionamiento del sistema.</p>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Versión del sistema</label>
+              <input type="text" x-model="config.versionSistema" readonly class="w-full bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-muted">
+            </div>
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Última actualización</label>
+              <input type="text" :value="config.fechaActualizacion ? new Date(config.fechaActualizacion).toLocaleString('es-PE') : '—'" readonly class="w-full bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-muted">
+            </div>
+          </div>
+          <div>
+            <label class="text-xs text-txt-secondary mb-1 block">Mensaje de mantenimiento</label>
+            <textarea x-model="config.mensajeMantenimiento" placeholder="El sistema está en mantenimiento..." class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm h-20 resize-none focus:border-gold focus:outline-none"></textarea>
+          </div>
+          <div class="space-y-3">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.modoMantenimiento" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Modo mantenimiento</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.syncJsonLegacy" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Sincronizar con JSON legacy</span>
+            </label>
+          </div>
+        </div>
+
       </div>
     </div>
 
   </main>
 </div>
 
+<!-- TOAST CONTAINER -->
+<div id="toast-container" class="fixed bottom-6 right-6 z-[9999] space-y-2"></div>
+
 <script src="/assets/js/shared.js"></script>
 <script>
 function configApp() {
   return {
     sidebarOpen: true,
+    loading: true,
+    saving: false,
+    cfgTab: 'general',
     activeNav: 'config',
     pageTitle: 'Configuración',
-    cfgTab: 'General',
-    init() {},
-    logout() { localStorage.removeItem('adminToken'); window.location.href = '/login'; }
+    
+    tabs: [
+      { id: 'general', label: 'General', icon: '⚙️' },
+      { id: 'moneda', label: 'Moneda y Precios', icon: '💰' },
+      { id: 'mesas', label: 'Mesas y Áreas', icon: '🪑' },
+      { id: 'cocina', label: 'Cocina', icon: '🍳' },
+      { id: 'pagos', label: 'Pagos', icon: '💳' },
+      { id: 'notificaciones', label: 'Notificaciones', icon: '🔔' },
+      { id: 'cierre', label: 'Cierre de Caja', icon: '📊' },
+      { id: 'seguridad', label: 'Seguridad', icon: '🔒' },
+      { id: 'integraciones', label: 'Integraciones', icon: '🔗' },
+      { id: 'avanzado', label: 'Avanzado', icon: '🛠️' }
+    ],
+    
+    config: {
+      // General
+      nombre: 'Las Gambusinas',
+      direccion: '',
+      telefono: '',
+      email: '',
+      ruc: '',
+      horaApertura: '08:00',
+      horaCierre: '23:00',
+      zonaHoraria: 'America/Lima',
+      idioma: 'es',
+      // Moneda
+      moneda: 'PEN',
+      simboloMoneda: 'S/.',
+      decimales: 2,
+      igvPorcentaje: 18,
+      igvIncluido: false,
+      // Mesas
+      alertaEsperaMin: 15,
+      autoLiberacionMin: 0,
+      permitirReservas: true,
+      duracionMaxReserva: 2,
+      capacidadPorDefecto: 4,
+      // Cocina
+      alertaAmarillaMin: 10,
+      alertaRojaMin: 20,
+      sonidoNotif: true,
+      volumenNotif: 80,
+      autoImpresion: false,
+      impresoraDefault: '',
+      mostrarComplementos: true,
+      // Pagos
+      metodoEfectivo: true,
+      metodoTarjeta: true,
+      metodoYape: true,
+      metodoTransferencia: false,
+      propinasHabilitadas: true,
+      propinaSugeridaPct: 10,
+      descuentosHabilitados: true,
+      descuentoMaxPct: 15,
+      prefijoVoucher: 'BCH-001',
+      numeracionAuto: true,
+      serieComprobantes: '',
+      // Notificaciones
+      pushHabilitado: true,
+      emailAlertas: false,
+      alertaMesaAbandonada: 30,
+      stockBajoAlerta: true,
+      stockMinimoAlerta: 5,
+      notifNuevasComandas: true,
+      notifComandasListas: true,
+      // Cierre de Caja
+      cierreAutomatico: false,
+      horaCierreAuto: '23:59',
+      validacionAdmin: true,
+      exportAutoPdf: false,
+      exportAutoExcel: false,
+      emailReportes: '',
+      desgloseComplementos: true,
+      // Seguridad
+      sesionesSimultaneas: '3',
+      timeoutInactividadMin: 30,
+      requiere2fa: false,
+      auditoriaExtendida: true,
+      logsDetallados: false,
+      ipPermitidas: '',
+      // Integraciones
+      socketioActivo: true,
+      redisActivo: true,
+      endpointApiExterno: '',
+      webhookComandas: '',
+      tokenIntegracion: '',
+      // Avanzado
+      modoMantenimiento: false,
+      mensajeMantenimiento: '',
+      syncJsonLegacy: false,
+      versionSistema: '2.0.0',
+      fechaActualizacion: null
+    },
+    
+    async init() {
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        window.location.href = '/login.html';
+        return;
+      }
+      await this.loadConfig();
+    },
+    
+    async loadConfig() {
+      this.loading = true;
+      
+      try {
+        const data = await apiGet('/configuracion');
+        if (data && !data.error) {
+          // Mapear la respuesta de la API al objeto config
+          const cfg = data.configuracion || data;
+          this.config = {
+            ...this.config,
+            ...cfg,
+            // Asegurar valores por defecto para campos que puedan venir null
+            nombre: cfg.nombre || 'Las Gambusinas',
+            moneda: cfg.moneda || 'PEN',
+            simboloMoneda: cfg.simboloMoneda || 'S/.',
+            igvPorcentaje: cfg.igvPorcentaje ?? 18,
+            decimales: cfg.decimales ?? 2,
+          };
+        }
+      } catch (e) {
+        console.error('Error cargando configuración:', e);
+        // Si hay error, mantener valores por defecto
+      }
+      
+      this.loading = false;
+    },
+    
+    async guardarConfig() {
+      this.saving = true;
+      
+      try {
+        const res = await apiPut('/configuracion', this.config);
+        if (res && !res.error) {
+          this.showToast('Configuración guardada exitosamente ✅');
+          // Recargar para confirmar
+          await this.loadConfig();
+        } else {
+          this.showToast('Error al guardar: ' + (res?.error || res?.message || 'Fallo desconocido'), 'error');
+        }
+      } catch (e) {
+        console.error('Error guardando configuración:', e);
+        this.showToast('Error de conexión al guardar', 'error');
+      }
+      
+      this.saving = false;
+    },
+    
+    showToast(msg, type = 'success') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      const t = document.createElement('div');
+      t.className = 'px-4 py-3 rounded-xl text-sm font-medium shadow-xl ' +
+        (type === 'error' ? 'bg-st-pagado text-white' : 'bg-st-preparado text-white');
+      t.textContent = msg;
+      container.appendChild(t);
+      setTimeout(() => t.remove(), 4000);
+    },
+    
+    logout() {
+      localStorage.removeItem('adminToken');
+      window.location.href = '/login';
+    }
   };
 }
 </script>

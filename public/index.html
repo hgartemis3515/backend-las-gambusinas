@@ -47,8 +47,8 @@ tailwind.config = {
         <p class="text-txt-muted text-sm mt-1" x-text="getFecha()"></p>
       </div>
       <div class="flex gap-2">
-        <button class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
-        <button class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">📥 Exportar</button>
+        <button @click="loadDashboard()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
+        <button @click="exportarDashboard()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">📥 Exportar</button>
         <button class="px-4 py-2 border border-gold/40 rounded-lg text-sm text-gold hover:bg-gold-20 transition">⚙️ Personalizar</button>
       </div>
     </div>
@@ -159,8 +159,8 @@ tailwind.config = {
       </div>
     </div>
     <div class="flex gap-2 p-5 pt-0">
-      <button class="flex-1 py-2.5 border border-st-pagado text-st-pagado rounded-lg text-sm font-medium hover:bg-st-pagado/10">Liberar Mesa</button>
-      <a href="/comandas.html" class="flex-1 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 text-center">Ver Comanda</a>
+      <button @click="liberarMesa()" class="flex-1 py-2.5 border border-st-pagado text-st-pagado rounded-lg text-sm font-medium hover:bg-st-pagado/10">Liberar Mesa</button>
+      <a :href="'/comandas.html?mesa=' + (selectedMesa?._id || '')" class="flex-1 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 text-center">Ver Comanda</a>
     </div>
   </div>
 </div>
@@ -334,6 +334,43 @@ function dashApp() {
     openMesa(m) {
       this.selectedMesa = m;
       this.modal = 'detalleMesa';
+    },
+    
+    async liberarMesa() {
+      if (!this.selectedMesa?._id) return;
+      const res = await apiPut('/mesas/' + this.selectedMesa._id, { estado: 'libre' });
+      if (res && !res.error) {
+        this.modal = null;
+        await this.loadDashboard();
+      }
+    },
+    
+    exportarDashboard() {
+      // Exportar resumen del dashboard como texto
+      const resumen = `
+LAS GAMBUSINAS - RESUMEN DEL DÍA
+================================
+Fecha: ${this.getFecha()}
+
+MESAS
+- Ocupadas: ${this.kpiMesasOcupadas}
+- Ocupación: ${this.kpiOcupacionPct}
+
+VENTAS
+- Total hoy: ${this.kpiVentasHoy}
+
+MOZOS
+- Top mozo: ${this.kpiTopMozo}
+
+Generado: ${new Date().toLocaleString('es-PE')}
+      `.trim();
+      
+      const blob = new Blob([resumen], { type: 'text/plain;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `dashboard_${new Date().toISOString().split('T')[0]}.txt`;
+      link.click();
+      URL.revokeObjectURL(link.href);
     },
     
     logout() {

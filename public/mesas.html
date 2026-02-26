@@ -36,6 +36,7 @@ tailwind.config = {
     <div class="flex items-center justify-between mb-5">
       <h1 class="text-xl font-bold">Gestión de Mesas</h1>
       <div class="flex items-center gap-3">
+        <button @click="liberarTodas()" class="bg-st-pagado text-white px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">🔴 LIBRE TOTAL</button>
         <div class="flex border border-[rgba(212,175,55,0.25)] rounded-lg overflow-hidden">
           <button @click="view='cards'" :class="view==='cards' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:bg-gold-20'" class="px-3 py-1.5 text-sm font-medium transition">🃏 Tarjetas</button>
           <button @click="view='table'" :class="view==='table' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:bg-gold-20'" class="px-3 py-1.5 text-sm font-medium transition">📋 Tabla</button>
@@ -366,6 +367,18 @@ function mesasApp() {
         await this.loadMesas();
         this.modal = null;
         this.showToast('Mesa liberada ✅');
+      }
+    },
+    
+    async liberarTodas() {
+      if (!confirm('⚠️ ¿Liberar TODAS las mesas?\n\nEsta acción pondrá todas las mesas en estado "Libre" y no se puede deshacer.')) return;
+      
+      const res = await apiPut('/mesas/liberar-todas', {});
+      if (res && !res.error) {
+        await this.loadMesas();
+        this.showToast(`Liberadas ${res.liberadas || 'todas'} las mesas ✅`);
+      } else {
+        this.showToast('Error: ' + (res?.error || 'No se pudieron liberar las mesas'), 'error');
       }
     },
     
