@@ -264,51 +264,145 @@ function dashApp() {
     initSocket() {
       const token = localStorage.getItem('adminToken');
       if (!token || typeof io === 'undefined') return;
-      
+
       try {
         this.socket = io('/admin', {
           auth: { token },
           transports: ['websocket', 'polling']
         });
-        
+
+        // === EVENTO: Mesa actualizada ===
         this.socket.on('mesa:actualizada', (data) => {
-          // Actualizar mesa en this.mesas sin recargar todo
           const idx = this.mesas.findIndex(m => m._id === data._id);
           if (idx >= 0) {
             this.mesas[idx] = { ...this.mesas[idx], ...data };
           }
-        });
-        
-        this.socket.on('comanda:nueva', (data) => {
-          // Actualizar actividad reciente
-          this.activity.unshift({
-            text: 'Mesa ' + (data.numMesa || '—') + ' — Nueva comanda #' + (data.numComanda || '—'),
-            time: 'ahora',
-            dotClass: 'bg-st-pedido'
+          // Agregar a actividad reciente
+          this.addActivity({
+            text: 'Mesa ' + (data.numMesa || '—') + ' — Estado: ' + this.estadoNormalizado(data.estado),
+            dotClass: 'bg-st-libre'
           });
-          if (this.activity.length > 5) this.activity.pop();
         });
-        
+
+        // === EVENTO: Nueva comanda ===
+        this.socket.on('comanda:nueva', (data) => {
+          const comanda = data.comanda || data;
+          this.addActivity({
+            text: 'Mesa ' + (comanda.mesa?.numMesa || comanda.numMesa || '—') + ' — Nueva comanda #' + (comanda.comandaNumber || comanda.numComanda || '—'),
+            dotClass: 'bg-gold'
+          });
+        });
+
+        // === EVENTO: Comanda actualizada (incluye cambio de estado) ===
+        this.socket.on('comanda-actualizada', (data) => {
+          const comanda = data.comanda || data;
+          const estado = comanda.status || comanda.estado || '';
+          let dotClass = 'bg-st-esperando';
+          if (estado.toLowerCase().includes('preparado') || estado.toLowerCase().includes('listo')) {
+            dotClass = 'bg-st-preparado';
+          }
+          this.addActivity({
+            text: 'Comanda #' + (comanda.comandaNumber || '—') + ' — ' + this.estadoNormalizado(estado),
+            dotClass: dotClass
+          });
+        });
+
+        // === EVENTO: Plato actualizado (cambio de estado individual) ===
+        this.socket.on('plato-actualizado', (data) => {
+          if (data.nuevoEstado === 'preparado' || data.nuevoEstado === 'listo') {
+            this.addActivity({
+              text: 'Plato listo — Comanda #' + (data.comandaNumber || data.comandaId?.slice(-4) || '—'),
+              dotClass: 'bg-st-preparado'
+            });
+          }
+        });
+
+        // === EVENTO: Pago procesado / Boucher nuevo ===
+        this.socket.on('reportes:boucher-nuevo', (data) => {
+          this.addActivity({
+            text: 'Pago procesado — S/. ' + (data.monto || data.total || '—') + ' (Mesa ' + (data.mesaNum || '—') + ')',
+            dotClass: 'bg-st-pagado'
+          });
+          // Actualizar gráfico de ventas en tiempo real
+          this.refreshVentasChart();
+        });
+
+        // === EVENTO: Comanda eliminada ===
+        this.socket.on('comanda-eliminada', (data) => {
+          this.addActivity({
+            text: 'Comanda #' + (data.comandaNumber || '—') + ' eliminada',
+            dotClass: 'bg-st-pagado'
+          });
+        });
+
         this.socket.on('connect_error', () => {
           console.warn('Socket.io no disponible, usando polling');
         });
+
+        console.log('Socket.io /admin conectado');
       } catch (e) {
         console.warn('Socket.io init error:', e);
       }
     },
+
+    // Agregar item a actividad reciente (máximo 6 items)
+    addActivity(item) {
+      item.time = 'ahora';
+      item.timestamp = Date.now();
+      this.activity.unshift(item);
+      if (this.activity.length > 6) this.activity.pop();
+    },
+
+    // Actualizar gráfico de ventas (llamado cuando llega un pago)
+    async refreshVentasChart() {
+      const hoy = new Date().toISOString().split('T')[0];
+      try {
+        const reporteHoy = await apiGet('/reportes/ventas?fechaInicio=' + hoy + '&fechaFin=' + hoy + '&agruparPor=hora');
+        if (reporteHoy && reporteHoy.data && reporteHoy.data.length) {
+          const ventasData = reporteHoy.data.map(d => d.total || 0);
+          const ventasLabels = reporteHoy.data.map(d => (d._id || d.hora || '') + 'h');
+          LasGambusinasCharts.drawDashChartWithData('chartVentasDia', ventasLabels, ventasData);
+          // Actualizar KPI de ventas
+          const totalHoy = reporteHoy.data.reduce((s, d) => s + (d.total || 0), 0);
+          this.kpiVentasHoy = 'S/. ' + totalHoy.toLocaleString('es-PE');
+        }
+      } catch (e) {
+        console.warn('Error actualizando gráfico:', e);
+      }
+    },
     
     startAutoRefresh() {
-      // Refrescar cada 30 segundos
+      // Actualizar tiempos relativos cada minuto
+      setInterval(() => {
+        this.updateActivityTimes();
+      }, 60000);
+
+      // Refrescar dashboard completo cada 30 segundos
       setInterval(() => {
         this.loadDashboard();
       }, 30000);
     },
+
+    // Actualizar tiempos relativos de la actividad
+    updateActivityTimes() {
+      this.activity = this.activity.map(a => {
+        if (a.timestamp) {
+          a.time = this.timeAgo(new Date(a.timestamp));
+        }
+        return a;
+      });
+    },
     
     timeAgo(date) {
-      const seconds = Math.floor((new Date() - date) / 1000);
+      const now = new Date();
+      const then = new Date(date);
+      const seconds = Math.floor((now - then) / 1000);
+
+      if (seconds < 10) return 'ahora';
       if (seconds < 60) return 'hace ' + seconds + 's';
       if (seconds < 3600) return 'hace ' + Math.floor(seconds / 60) + ' min';
-      return 'hace ' + Math.floor(seconds / 3600) + 'h';
+      if (seconds < 86400) return 'hace ' + Math.floor(seconds / 3600) + 'h';
+      return 'hace ' + Math.floor(seconds / 86400) + ' días';
     },
     
     estadoNormalizado(estado) {
