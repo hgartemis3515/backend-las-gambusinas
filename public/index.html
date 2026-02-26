@@ -49,7 +49,7 @@ tailwind.config = {
       <div class="flex gap-2">
         <button @click="loadDashboard()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
         <button @click="exportarDashboard()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">📥 Exportar</button>
-        <button class="px-4 py-2 border border-gold/40 rounded-lg text-sm text-gold hover:bg-gold-20 transition">⚙️ Personalizar</button>
+        <button @click="modal='personalizar'" class="px-4 py-2 border border-gold/40 rounded-lg text-sm text-gold hover:bg-gold-20 transition">⚙️ Personalizar</button>
       </div>
     </div>
 
@@ -165,6 +165,212 @@ tailwind.config = {
   </div>
 </div>
 
+<!-- MODAL: PERSONALIZAR DASHBOARD -->
+<div x-show="modal==='personalizar'" x-transition.opacity class="fixed inset-0 z-50 flex modal-overlay bg-black/85" @click.self="modal=null" x-data="personalizarApp()">
+  <!-- Dashboard Ghost (izquierda) -->
+  <div class="flex-1 relative opacity-30 pointer-events-none">
+    <div class="absolute inset-0 flex items-center justify-center">
+      <div class="text-center">
+        <p class="text-txt-muted text-sm">Vista previa del dashboard</p>
+        <p class="text-txt-muted text-xs mt-1">Los widgets se muestran como referencia</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel Lateral (derecha) -->
+  <div class="w-[500px] bg-bg-card border-l border-[rgba(212,175,55,0.25)] flex flex-col h-full" @click.stop>
+    <!-- Header -->
+    <div class="p-5 border-b border-[rgba(212,175,55,0.15)] flex items-center justify-between">
+      <h2 class="text-lg font-bold">Personalizar Dashboard</h2>
+      <button @click="modal=null" class="w-8 h-8 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm hover:bg-gold/30">✕</button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex border-b border-[rgba(212,175,55,0.15)]">
+      <button @click="persTab='agregar'" :class="persTab==='agregar' ? 'text-gold border-b-2 border-gold' : 'text-txt-secondary'" class="px-5 py-3 text-sm font-medium transition">Agregar Widgets</button>
+      <button @click="persTab='activos'" :class="persTab==='activos' ? 'text-gold border-b-2 border-gold' : 'text-txt-secondary'" class="px-5 py-3 text-sm font-medium transition">Widgets Activos</button>
+      <button @click="persTab='layouts'" :class="persTab==='layouts' ? 'text-gold border-b-2 border-gold' : 'text-txt-secondary'" class="px-5 py-3 text-sm font-medium transition">Layouts Guardados</button>
+    </div>
+
+    <!-- Contenido: Agregar Widgets -->
+    <div x-show="persTab==='agregar'" class="flex-1 overflow-y-auto p-4">
+      <!-- Buscador -->
+      <input type="text" x-model="widgetSearch" placeholder="🔍 Buscar widget..." class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm mb-4 focus:border-gold focus:outline-none">
+
+      <!-- Categoría: Métricas -->
+      <div class="mb-4">
+        <button @click="catMetricas=!catMetricas" class="flex items-center justify-between w-full py-2 text-sm font-semibold text-txt-secondary">
+          <span>📊 Métricas (8 widgets)</span>
+          <span x-text="catMetricas ? '▼' : '▶'" class="text-xs"></span>
+        </button>
+        <div x-show="catMetricas" x-collapse class="grid grid-cols-2 gap-2 mt-2">
+          <template x-for="w in widgetsMetricas" :key="w.id">
+            <div class="bg-bg-sidebar border rounded-xl p-3 transition hover:border-gold/40" :class="isWidgetActive(w.id) ? 'border-st-preparado' : 'border-[rgba(212,175,55,0.15)]'">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="text-xl" x-text="w.icon"></span>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium truncate" x-text="w.nombre"></p>
+                  <p class="text-[10px] text-txt-muted" x-text="w.tamano"></p>
+                </div>
+              </div>
+              <template x-if="isWidgetActive(w.id)">
+                <span class="text-[10px] px-2 py-1 rounded-full bg-st-preparado/20 text-st-preparado font-semibold">Activo</span>
+              </template>
+              <template x-if="!isWidgetActive(w.id)">
+                <button @click="addWidget(w)" class="text-[10px] px-3 py-1.5 rounded-lg bg-gold text-bg-primary font-semibold hover:brightness-110">+ Añadir</button>
+              </template>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Categoría: Gráficos -->
+      <div class="mb-4">
+        <button @click="catGraficos=!catGraficos" class="flex items-center justify-between w-full py-2 text-sm font-semibold text-txt-secondary">
+          <span>📈 Gráficos (8 widgets)</span>
+          <span x-text="catGraficos ? '▼' : '▶'" class="text-xs"></span>
+        </button>
+        <div x-show="catGraficos" x-collapse class="grid grid-cols-2 gap-2 mt-2">
+          <template x-for="w in widgetsGraficos" :key="w.id">
+            <div class="bg-bg-sidebar border rounded-xl p-3 transition hover:border-gold/40" :class="isWidgetActive(w.id) ? 'border-st-preparado' : 'border-[rgba(212,175,55,0.15)]'">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="text-xl" x-text="w.icon"></span>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium truncate" x-text="w.nombre"></p>
+                  <p class="text-[10px] text-txt-muted" x-text="w.tamano"></p>
+                </div>
+              </div>
+              <template x-if="isWidgetActive(w.id)">
+                <span class="text-[10px] px-2 py-1 rounded-full bg-st-preparado/20 text-st-preparado font-semibold">Activo</span>
+              </template>
+              <template x-if="!isWidgetActive(w.id)">
+                <button @click="addWidget(w)" class="text-[10px] px-3 py-1.5 rounded-lg bg-gold text-bg-primary font-semibold hover:brightness-110">+ Añadir</button>
+              </template>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Categoría: Operaciones (colapsada por defecto) -->
+      <div class="mb-4">
+        <button @click="catOperaciones=!catOperaciones" class="flex items-center justify-between w-full py-2 text-sm font-semibold text-txt-secondary">
+          <span>⚙️ Operaciones (6 widgets)</span>
+          <span x-text="catOperaciones ? '▼' : '▶'" class="text-xs"></span>
+        </button>
+        <div x-show="catOperaciones" x-collapse class="grid grid-cols-2 gap-2 mt-2">
+          <template x-for="w in widgetsOperaciones" :key="w.id">
+            <div class="bg-bg-sidebar border rounded-xl p-3 transition hover:border-gold/40" :class="isWidgetActive(w.id) ? 'border-st-preparado' : 'border-[rgba(212,175,55,0.15)]'">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="text-xl" x-text="w.icon"></span>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium truncate" x-text="w.nombre"></p>
+                  <p class="text-[10px] text-txt-muted" x-text="w.tamano"></p>
+                </div>
+              </div>
+              <template x-if="isWidgetActive(w.id)">
+                <span class="text-[10px] px-2 py-1 rounded-full bg-st-preparado/20 text-st-preparado font-semibold">Activo</span>
+              </template>
+              <template x-if="!isWidgetActive(w.id)">
+                <button @click="addWidget(w)" class="text-[10px] px-3 py-1.5 rounded-lg bg-gold text-bg-primary font-semibold hover:brightness-110">+ Añadir</button>
+              </template>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Categoría: Análisis (colapsada por defecto) -->
+      <div class="mb-4">
+        <button @click="catAnalisis=!catAnalisis" class="flex items-center justify-between w-full py-2 text-sm font-semibold text-txt-secondary">
+          <span>🧠 Análisis (4 widgets)</span>
+          <span x-text="catAnalisis ? '▼' : '▶'" class="text-xs"></span>
+        </button>
+        <div x-show="catAnalisis" x-collapse class="grid grid-cols-2 gap-2 mt-2">
+          <template x-for="w in widgetsAnalisis" :key="w.id">
+            <div class="bg-bg-sidebar border rounded-xl p-3 transition hover:border-gold/40" :class="isWidgetActive(w.id) ? 'border-st-preparado' : 'border-[rgba(212,175,55,0.15)]'">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="text-xl" x-text="w.icon"></span>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium truncate" x-text="w.nombre"></p>
+                  <p class="text-[10px] text-txt-muted" x-text="w.tamano"></p>
+                </div>
+              </div>
+              <template x-if="isWidgetActive(w.id)">
+                <span class="text-[10px] px-2 py-1 rounded-full bg-st-preparado/20 text-st-preparado font-semibold">Activo</span>
+              </template>
+              <template x-if="!isWidgetActive(w.id)">
+                <button @click="addWidget(w)" class="text-[10px] px-3 py-1.5 rounded-lg bg-gold text-bg-primary font-semibold hover:brightness-110">+ Añadir</button>
+              </template>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contenido: Widgets Activos -->
+    <div x-show="persTab==='activos'" class="flex-1 overflow-y-auto p-4">
+      <p class="text-xs text-txt-muted mb-3">Widgets actualmente en tu dashboard:</p>
+      <div class="space-y-2">
+        <template x-for="w in activeWidgets" :key="w.id">
+          <div class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg p-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="text-lg" x-text="w.icon"></span>
+              <div>
+                <p class="text-sm font-medium" x-text="w.nombre"></p>
+                <p class="text-[10px] text-txt-muted" x-text="w.tamano"></p>
+              </div>
+            </div>
+            <button @click="removeWidget(w.id)" class="w-7 h-7 flex items-center justify-center rounded bg-st-pagado/20 text-st-pagado text-xs hover:bg-st-pagado/30">✕</button>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- Contenido: Layouts Guardados -->
+    <div x-show="persTab==='layouts'" class="flex-1 overflow-y-auto p-4">
+      <p class="text-xs text-txt-muted mb-3">Configuraciones guardadas:</p>
+      <div class="space-y-2">
+        <div class="bg-bg-sidebar border border-gold/40 rounded-lg p-3 cursor-pointer">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gold">🔧 Predeterminado</p>
+              <p class="text-[10px] text-txt-muted">5 KPIs, Mapa mesas, Gráfico ventas, Actividad</p>
+            </div>
+            <span class="text-[10px] px-2 py-1 rounded-full bg-gold/20 text-gold">Actual</span>
+          </div>
+        </div>
+        <div class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg p-3 cursor-pointer hover:border-gold/40 transition">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium">📊 Ejecutivo</p>
+              <p class="text-[10px] text-txt-muted">KPIs extendidos, gráficos detallados</p>
+            </div>
+          </div>
+        </div>
+        <div class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg p-3 cursor-pointer hover:border-gold/40 transition">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium">🎯 Operativo</p>
+              <p class="text-[10px] text-txt-muted">Mesas, comandas, tiempos</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="p-4 border-t border-[rgba(212,175,55,0.15)] flex items-center justify-between">
+      <button @click="restoreDefaults()" class="px-4 py-2 text-sm text-txt-muted hover:text-white transition">Restaurar predeterminados</button>
+      <div class="flex gap-2">
+        <button @click="modal=null" class="px-4 py-2 border border-gold/40 rounded-lg text-sm text-gold hover:bg-gold-20 transition">Cerrar</button>
+        <button @click="saveLayout()" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container" class="fixed bottom-6 right-6 z-[9999] space-y-2"></div>
+
 <!-- SCRIPTS -->
 <script src="/assets/js/shared.js"></script>
 <script src="/assets/js/charts.js"></script>
@@ -204,16 +410,16 @@ function dashApp() {
       const hoy = new Date().toISOString().split('T')[0];
       
       try {
-        const [mesas, mozos, comandas, reporteHoy] = await Promise.all([
+        const [mesas, mozos, comandas, reporteHoy, auditoria] = await Promise.all([
           apiGet('/mesas'),
           apiGet('/mozos'),
           apiGet('/comandas'),
-          apiGet('/reportes/ventas?fechaInicio=' + hoy + '&fechaFin=' + hoy + '&agruparPor=hora')
+          apiGet('/reportes/ventas?fechaInicio=' + hoy + '&fechaFin=' + hoy + '&agruparPor=hora'),
+          apiGet('/auditoria/comandas?limit=6').catch(() => null)
         ]);
         
         if (mesas && Array.isArray(mesas)) {
           this.mesas = mesas;
-          // Calcular KPIs reales
           const ocupadas = mesas.filter(m => m.estado !== 'libre' && m.estado !== 'Libre').length;
           this.kpiMesasOcupadas = ocupadas + '/' + mesas.length;
           this.kpiOcupacionPct = mesas.length > 0 ? Math.round((ocupadas / mesas.length) * 100) + '%' : '0%';
@@ -221,7 +427,6 @@ function dashApp() {
         
         if (mozos && Array.isArray(mozos)) {
           this.mozos = mozos;
-          // Top mozo: el de mayor ventas del día
           const topMozo = [...mozos].sort((a, b) => (b.ventasHoy || 0) - (a.ventasHoy || 0))[0];
           if (topMozo && topMozo.nombre) {
             const partes = topMozo.nombre.split(' ');
@@ -229,36 +434,64 @@ function dashApp() {
           }
         }
         
-        if (reporteHoy && reporteHoy.data && reporteHoy.data.length) {
-          // Ventas totales del día
+        // Cargar ventas del día
+        if (reporteHoy && reporteHoy.data && reporteHoy.data.length > 0) {
           const totalHoy = reporteHoy.data.reduce((s, d) => s + (d.total || 0), 0);
           this.kpiVentasHoy = 'S/. ' + totalHoy.toLocaleString('es-PE');
-          
-          // Actualizar gráfico con datos reales
           const ventasData = reporteHoy.data.map(d => d.total || 0);
           const ventasLabels = reporteHoy.data.map(d => d._id || d.hora || '');
           LasGambusinasCharts.drawDashChartWithData('chartVentasDia', ventasLabels, ventasData);
         } else {
-          // Fallback a mock si no hay datos aún
-          LasGambusinasCharts.drawDashChart('chartVentasDia');
+          // Mostrar estado vacío
+          LasGambusinasCharts.drawEmptyChart('chartVentasDia', 'Sin ventas registradas hoy');
+          this.kpiVentasHoy = 'S/. 0';
         }
         
-        // Actualizar activity con comandas recientes
-        if (comandas && Array.isArray(comandas) && comandas.length > 0) {
-          this.activity = comandas.slice(0, 5).map(c => ({
-            text: 'Mesa ' + (c.mesa?.numMesa || c.mesa || '—') + ' — Comanda #' + (c.numComanda || c._id?.slice(-4) || '—'),
-            time: c.createdAt ? this.timeAgo(new Date(c.createdAt)) : '—',
-            dotClass: c.estado === 'preparado' ? 'bg-st-preparado' : c.estado === 'en cocina' ? 'bg-st-pedido' : 'bg-gold'
-          }));
+        // Cargar actividad reciente - priorizar auditoría si está disponible
+        if (auditoria && Array.isArray(auditoria) && auditoria.length > 0) {
+          this.activity = auditoria.slice(0, 6).map(a => {
+            const dotClass = this.getDotClassForAction(a.accion);
+            return {
+              text: a.accion + ' — ' + (a.modulo || '') + (a.comandaNum ? ' #' + a.comandaNum : ''),
+              time: a.hora ? this.timeAgo(new Date(a.hora)) : '—',
+              timestamp: a.hora ? new Date(a.hora).getTime() : Date.now(),
+              dotClass: dotClass
+            };
+          });
+        } else if (comandas && Array.isArray(comandas) && comandas.length > 0) {
+          // Fallback a comandas
+          this.activity = comandas.slice(0, 6).map(c => {
+            let dotClass = 'bg-gold';
+            let estado = (c.status || c.estado || '').toLowerCase();
+            if (estado.includes('preparado') || estado.includes('listo')) dotClass = 'bg-st-preparado';
+            else if (estado.includes('cocina') || estado.includes('pedido')) dotClass = 'bg-st-pedido';
+            else if (estado.includes('entregado')) dotClass = 'bg-st-esperando';
+            
+            return {
+              text: 'Mesa ' + (c.mesa?.numMesa || c.mesa || '—') + ' — Comanda #' + (c.comandaNumber || c._id?.slice(-4) || '—'),
+              time: c.createdAt ? this.timeAgo(new Date(c.createdAt)) : '—',
+              timestamp: c.createdAt ? new Date(c.createdAt).getTime() : Date.now(),
+              dotClass: dotClass
+            };
+          });
         }
         
       } catch (e) {
         console.error('Error loading dashboard:', e);
-        // Fallback a datos mock
-        LasGambusinasCharts.drawDashChart('chartVentasDia');
+        LasGambusinasCharts.drawEmptyChart('chartVentasDia', 'Error al cargar datos');
       }
       
       this.loading = false;
+    },
+    
+    getDotClassForAction(accion) {
+      const a = (accion || '').toLowerCase();
+      if (a.includes('eliminado') || a.includes('eliminada')) return 'bg-st-pagado';
+      if (a.includes('pago') || a.includes('pagado')) return 'bg-st-pagado';
+      if (a.includes('preparado') || a.includes('listo')) return 'bg-st-preparado';
+      if (a.includes('creado') || a.includes('nueva')) return 'bg-gold';
+      if (a.includes('editado') || a.includes('modificado')) return 'bg-st-esperando';
+      return 'bg-st-pedido';
     },
     
     initSocket() {
@@ -273,73 +506,63 @@ function dashApp() {
 
         // === EVENTO: Mesa actualizada ===
         this.socket.on('mesa:actualizada', (data) => {
-          const idx = this.mesas.findIndex(m => m._id === data._id);
+          const idx = this.mesas.findIndex(m => m._id === data._id || m._id === data.id);
           if (idx >= 0) {
             this.mesas[idx] = { ...this.mesas[idx], ...data };
           }
-          // Agregar a actividad reciente
           this.addActivity({
-            text: 'Mesa ' + (data.numMesa || '—') + ' — Estado: ' + this.estadoNormalizado(data.estado),
+            text: 'Mesa ' + (data.numMesa || data.numero || '—') + ' — Estado: ' + this.estadoNormalizado(data.estado),
             dotClass: 'bg-st-libre'
           });
         });
 
-        // === EVENTO: Nueva comanda ===
-        this.socket.on('comanda:nueva', (data) => {
+        // === EVENTO: Nueva comanda (desde admin namespace) ===
+        this.socket.on('reportes:comanda-nueva', (data) => {
           const comanda = data.comanda || data;
           this.addActivity({
-            text: 'Mesa ' + (comanda.mesa?.numMesa || comanda.numMesa || '—') + ' — Nueva comanda #' + (comanda.comandaNumber || comanda.numComanda || '—'),
+            text: 'Mesa ' + (comanda.mesa?.numMesa || data.mesaNum || '—') + ' — Nueva comanda #' + (comanda.comandaNumber || data.comandaNumber || '—'),
             dotClass: 'bg-gold'
           });
         });
 
-        // === EVENTO: Comanda actualizada (incluye cambio de estado) ===
-        this.socket.on('comanda-actualizada', (data) => {
-          const comanda = data.comanda || data;
-          const estado = comanda.status || comanda.estado || '';
-          let dotClass = 'bg-st-esperando';
-          if (estado.toLowerCase().includes('preparado') || estado.toLowerCase().includes('listo')) {
-            dotClass = 'bg-st-preparado';
-          }
+        // === EVENTO: Plato listo ===
+        this.socket.on('reportes:plato-listo', (data) => {
           this.addActivity({
-            text: 'Comanda #' + (comanda.comandaNumber || '—') + ' — ' + this.estadoNormalizado(estado),
-            dotClass: dotClass
+            text: 'Plato listo — Comanda #' + (data.comandaNumber || data.comandaId?.slice(-4) || '—') + (data.platoNombre ? ' (' + data.platoNombre + ')' : ''),
+            dotClass: 'bg-st-preparado'
           });
-        });
-
-        // === EVENTO: Plato actualizado (cambio de estado individual) ===
-        this.socket.on('plato-actualizado', (data) => {
-          if (data.nuevoEstado === 'preparado' || data.nuevoEstado === 'listo') {
-            this.addActivity({
-              text: 'Plato listo — Comanda #' + (data.comandaNumber || data.comandaId?.slice(-4) || '—'),
-              dotClass: 'bg-st-preparado'
-            });
-          }
         });
 
         // === EVENTO: Pago procesado / Boucher nuevo ===
         this.socket.on('reportes:boucher-nuevo', (data) => {
+          const monto = data.monto || data.total || 0;
+          const mesaNum = data.mesaNum || data.mesa?.numMesa || '—';
           this.addActivity({
-            text: 'Pago procesado — S/. ' + (data.monto || data.total || '—') + ' (Mesa ' + (data.mesaNum || '—') + ')',
+            text: 'Pago procesado — S/. ' + monto.toLocaleString('es-PE') + ' (Mesa ' + mesaNum + ')',
             dotClass: 'bg-st-pagado'
           });
           // Actualizar gráfico de ventas en tiempo real
           this.refreshVentasChart();
         });
 
-        // === EVENTO: Comanda eliminada ===
-        this.socket.on('comanda-eliminada', (data) => {
-          this.addActivity({
-            text: 'Comanda #' + (data.comandaNumber || '—') + ' eliminada',
-            dotClass: 'bg-st-pagado'
-          });
+        // === EVENTO: Plato del menú actualizado ===
+        this.socket.on('plato-menu-actualizado', (data) => {
+          // Recargar platos si estamos en esa página (no aplica al dashboard pero dejamos el handler)
         });
 
-        this.socket.on('connect_error', () => {
-          console.warn('Socket.io no disponible, usando polling');
+        // === EVENTO: Estado del socket ===
+        this.socket.on('socket-status', (data) => {
+          console.log('Socket status:', data);
         });
 
-        console.log('Socket.io /admin conectado');
+        this.socket.on('connect_error', (err) => {
+          console.warn('Socket.io no disponible:', err.message);
+        });
+
+        this.socket.on('connect', () => {
+          console.log('Socket.io /admin conectado');
+        });
+
       } catch (e) {
         console.warn('Socket.io init error:', e);
       }
@@ -358,13 +581,17 @@ function dashApp() {
       const hoy = new Date().toISOString().split('T')[0];
       try {
         const reporteHoy = await apiGet('/reportes/ventas?fechaInicio=' + hoy + '&fechaFin=' + hoy + '&agruparPor=hora');
-        if (reporteHoy && reporteHoy.data && reporteHoy.data.length) {
+        if (reporteHoy && reporteHoy.data && reporteHoy.data.length > 0) {
           const ventasData = reporteHoy.data.map(d => d.total || 0);
-          const ventasLabels = reporteHoy.data.map(d => (d._id || d.hora || '') + 'h');
+          const ventasLabels = reporteHoy.data.map(d => d._id || d.hora || '');
           LasGambusinasCharts.drawDashChartWithData('chartVentasDia', ventasLabels, ventasData);
           // Actualizar KPI de ventas
           const totalHoy = reporteHoy.data.reduce((s, d) => s + (d.total || 0), 0);
           this.kpiVentasHoy = 'S/. ' + totalHoy.toLocaleString('es-PE');
+        } else {
+          // Mostrar estado vacío
+          LasGambusinasCharts.drawEmptyChart('chartVentasDia', 'Sin ventas registradas hoy');
+          this.kpiVentasHoy = 'S/. 0';
         }
       } catch (e) {
         console.warn('Error actualizando gráfico:', e);
@@ -472,6 +699,133 @@ Generado: ${new Date().toLocaleString('es-PE')}
       localStorage.removeItem('gambusinas_auth');
       if (this.socket) this.socket.disconnect();
       window.location.href = '/login';
+    }
+  };
+}
+
+// ============================================
+// APP: PERSONALIZAR DASHBOARD
+// ============================================
+function personalizarApp() {
+  return {
+    persTab: 'agregar',
+    widgetSearch: '',
+    catMetricas: true,
+    catGraficos: true,
+    catOperaciones: false,
+    catAnalisis: false,
+    activeWidgets: [
+      { id: 'kpi-mesas', icon: '🪑', nombre: 'Mesas Ocupadas', tamano: '1 col · Métrica' },
+      { id: 'kpi-ventas', icon: '💰', nombre: 'Ventas del Día', tamano: '1 col · Métrica' },
+      { id: 'kpi-plato', icon: '🍽️', nombre: 'Top Plato', tamano: '1 col · Métrica' },
+      { id: 'kpi-mozo', icon: '👤', nombre: 'Top Mozo', tamano: '1 col · Métrica' },
+      { id: 'kpi-alertas', icon: '🔴', nombre: 'Alertas', tamano: '1 col · Métrica' },
+      { id: 'mapa-mesas', icon: '🗺️', nombre: 'Mapa de Mesas', tamano: '7 cols · Visual' },
+      { id: 'grafico-ventas', icon: '📈', nombre: 'Ventas del Día', tamano: '5 cols · Gráfico' },
+      { id: 'actividad', icon: '📋', nombre: 'Actividad Reciente', tamano: '12 cols · Lista' }
+    ],
+    
+    widgetsMetricas: [
+      { id: 'kpi-mesas', icon: '🪑', nombre: 'Mesas Ocupadas', tamano: '1 col · Métrica' },
+      { id: 'kpi-ventas', icon: '💰', nombre: 'Ventas del Día', tamano: '1 col · Métrica' },
+      { id: 'kpi-plato', icon: '🍽️', nombre: 'Top Plato', tamano: '1 col · Métrica' },
+      { id: 'kpi-mozo', icon: '👤', nombre: 'Top Mozo', tamano: '1 col · Métrica' },
+      { id: 'kpi-alertas', icon: '🔴', nombre: 'Alertas', tamano: '1 col · Métrica' },
+      { id: 'kpi-tiempo', icon: '⏰', nombre: 'Tiempo Prom. Cocina', tamano: '1 col · Métrica' },
+      { id: 'kpi-tickets', icon: '🧾', nombre: 'Tickets Hoy', tamano: '1 col · Métrica' },
+      { id: 'kpi-satisfaccion', icon: '⭐', nombre: 'Satisfacción', tamano: '1 col · Métrica' }
+    ],
+    
+    widgetsGraficos: [
+      { id: 'grafico-ventas', icon: '📈', nombre: 'Ventas por Hora', tamano: '5 cols · Gráfico' },
+      { id: 'grafico-categorias', icon: '🥧', nombre: 'Distribución Categorías', tamano: '4 cols · Donut' },
+      { id: 'grafico-mozos', icon: '📊', nombre: 'Performance Mozos', tamano: '6 cols · Barras' },
+      { id: 'grafico-mesas', icon: '🗺️', nombre: 'Ocupación por Mesa', tamano: '6 cols · Heatmap' },
+      { id: 'grafico-semanal', icon: '📉', nombre: 'Ventas Semanales', tamano: '6 cols · Área' },
+      { id: 'grafico-historico', icon: '📈', nombre: 'Tendencia Mensual', tamano: '8 cols · Línea' },
+      { id: 'grafico-propinas', icon: '💵', nombre: 'Propinas por Día', tamano: '4 cols · Barras' },
+      { id: 'grafico-tiempos', icon: '⏱️', nombre: 'Tiempos de Servicio', tamano: '4 cols · Barras' }
+    ],
+    
+    widgetsOperaciones: [
+      { id: 'mapa-mesas', icon: '🗺️', nombre: 'Mapa de Mesas', tamano: '7 cols · Visual' },
+      { id: 'actividad', icon: '📋', nombre: 'Actividad Reciente', tamano: '12 cols · Lista' },
+      { id: 'comandas-activas', icon: '🍳', nombre: 'Comandas Activas', tamano: '4 cols · Lista' },
+      { id: 'pedidos-listos', icon: '✅', nombre: 'Pedidos Listos', tamano: '3 cols · Lista' },
+      { id: 'stock-bajo', icon: '⚠️', nombre: 'Alertas Stock', tamano: '3 cols · Tabla' },
+      { id: 'mozos-turno', icon: '👥', nombre: 'Mozos en Turno', tamano: '4 cols · Tarjetas' }
+    ],
+    
+    widgetsAnalisis: [
+      { id: 'top-platos', icon: '🏆', nombre: 'Top 10 Platos', tamano: '6 cols · Tabla' },
+      { id: 'clientes-frecuentes', icon: '💎', nombre: 'Clientes Frecuentes', tamano: '4 cols · Lista' },
+      { id: 'hora-pico', icon: '🕐', nombre: 'Análisis Hora Pico', tamano: '4 cols · Tarjeta' },
+      { id: 'comparativo', icon: '📊', nombre: 'Comparativo', tamano: '6 cols · Tarjetas' }
+    ],
+    
+    isWidgetActive(id) {
+      return this.activeWidgets.some(w => w.id === id);
+    },
+    
+    addWidget(widget) {
+      if (!this.isWidgetActive(widget.id)) {
+        this.activeWidgets.push(widget);
+        this.showToast('Widget añadido: ' + widget.nombre);
+      }
+    },
+    
+    removeWidget(id) {
+      this.activeWidgets = this.activeWidgets.filter(w => w.id !== id);
+      this.showToast('Widget eliminado');
+    },
+    
+    restoreDefaults() {
+      this.activeWidgets = [
+        { id: 'kpi-mesas', icon: '🪑', nombre: 'Mesas Ocupadas', tamano: '1 col · Métrica' },
+        { id: 'kpi-ventas', icon: '💰', nombre: 'Ventas del Día', tamano: '1 col · Métrica' },
+        { id: 'kpi-plato', icon: '🍽️', nombre: 'Top Plato', tamano: '1 col · Métrica' },
+        { id: 'kpi-mozo', icon: '👤', nombre: 'Top Mozo', tamano: '1 col · Métrica' },
+        { id: 'kpi-alertas', icon: '🔴', nombre: 'Alertas', tamano: '1 col · Métrica' },
+        { id: 'mapa-mesas', icon: '🗺️', nombre: 'Mapa de Mesas', tamano: '7 cols · Visual' },
+        { id: 'grafico-ventas', icon: '📈', nombre: 'Ventas del Día', tamano: '5 cols · Gráfico' },
+        { id: 'actividad', icon: '📋', nombre: 'Actividad Reciente', tamano: '12 cols · Lista' }
+      ];
+      this.showToast('Configuración restaurada');
+    },
+    
+    async saveLayout() {
+      // Intentar guardar en API, si falla usar localStorage
+      const layoutData = {
+        widgets: this.activeWidgets,
+        savedAt: new Date().toISOString()
+      };
+      
+      try {
+        const res = await apiPost('/dashboard/layout', layoutData);
+        if (res && !res.error) {
+          this.showToast('Layout guardado en servidor ✅');
+        } else {
+          // Fallback a localStorage
+          localStorage.setItem('dashboardLayout', JSON.stringify(layoutData));
+          this.showToast('Layout guardado localmente ✅');
+        }
+      } catch (e) {
+        localStorage.setItem('dashboardLayout', JSON.stringify(layoutData));
+        this.showToast('Layout guardado localmente ✅');
+      }
+      
+      // Cerrar modal
+      this.modal = null;
+    },
+    
+    showToast(msg) {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      const t = document.createElement('div');
+      t.className = 'px-4 py-3 rounded-xl text-sm font-medium shadow-xl bg-st-preparado text-white';
+      t.textContent = msg;
+      container.appendChild(t);
+      setTimeout(() => t.remove(), 2500);
     }
   };
 }
