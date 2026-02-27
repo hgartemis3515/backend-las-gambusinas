@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Comandas — Las Gambusinas</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="/socket.io/socket.io.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -35,7 +36,12 @@ tailwind.config = {
     <!-- HEADER -->
     <div class="flex items-center justify-between mb-5">
       <h1 class="text-xl font-bold">Comandas</h1>
-      <button @click="loadComandas()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
+      <div class="flex gap-2">
+        <span x-show="socketConnected" class="flex items-center gap-1 text-xs text-st-libre">
+          <span class="w-2 h-2 rounded-full bg-st-libre animate-pulse"></span> Conectado
+        </span>
+        <button @click="loadComandas()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
+      </div>
     </div>
 
     <!-- FILTROS -->
@@ -79,7 +85,7 @@ tailwind.config = {
               <td class="px-4 py-3" x-text="'Mesa ' + (c.mesa?.nummesa || c.mesa?.numMesa || c.mesa || '—')"></td>
               <td class="px-4 py-3 text-txt-secondary" x-text="c.mozo || '—'"></td>
               <td class="px-4 py-3" x-text="(c.items?.length || 0) + ' platos'"></td>
-              <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. ' + (c.total || 0)"></td>
+              <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. ' + (c.total || 0).toFixed(2)"></td>
               <td class="px-4 py-3">
                 <span class="text-xs px-2 py-0.5 rounded-full font-semibold cursor-pointer"
                   :class="{
@@ -94,8 +100,8 @@ tailwind.config = {
               <td class="px-4 py-3 text-txt-muted" x-text="c.createdAt ? new Date(c.createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : (c.hora || '—')"></td>
               <td class="px-4 py-3 space-x-2 text-base whitespace-nowrap">
                 <span class="cursor-pointer hover:text-[#d4af37] transition" @click="openDetailModal(c)" title="Ver comanda">👁</span>
-                <span class="cursor-pointer hover:text-[#d4af37] transition" @click="openEditModal(c)" title="Editar estado">✏️</span>
-                <span class="cursor-pointer hover:text-[#ff4757] transition" @click="eliminarComanda(c._id || c.id)" title="Eliminar comanda">🗑️</span>
+                <span class="cursor-pointer hover:text-[#d4af37] transition" @click="openEditModal(c)" title="Editar comanda">✏️</span>
+                <span class="cursor-pointer hover:text-[#ff4757] transition" @click="confirmarEliminarComanda(c)" title="Eliminar comanda">🗑️</span>
               </td>
             </tr>
           </template>
@@ -106,7 +112,7 @@ tailwind.config = {
   </main>
 </div>
 
-<!-- MODAL: VER COMANDA — Diseño según pencil-new.pen frame wmbyw -->
+<!-- MODAL: VER COMANDA — Diseño segun pencil-new.pen frame wmbyw -->
 <div x-show="modal==='verComanda'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="modal=null">
   <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[840px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
     
@@ -135,11 +141,19 @@ tailwind.config = {
       </div>
     </div>
 
-    <div class="p-5 space-y-4">
+    <!-- LOADING DETALLE -->
+    <div x-show="loadingDetalle" class="p-10 flex items-center justify-center">
+      <div class="text-center">
+        <div class="w-10 h-10 border-2 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+        <p class="text-txt-muted text-sm">Cargando detalle...</p>
+      </div>
+    </div>
+
+    <div x-show="!loadingDetalle" class="p-5 space-y-4">
       
       <!-- INFO GENERAL -->
       <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
-        <p class="text-[10px] text-[#5a5a7a] uppercase mb-3 font-semibold tracking-wider">Información General</p>
+        <p class="text-[10px] text-[#5a5a7a] uppercase mb-3 font-semibold tracking-wider">Informacion General</p>
         <div class="grid grid-cols-3 gap-3 text-sm mb-3">
           <div>
             <p class="text-[10px] text-[#5a5a7a]">Creada</p>
@@ -164,7 +178,7 @@ tailwind.config = {
             <p class="font-medium text-[#a0a0b8]" x-text="selectedComanda?.observaciones || 'Sin observaciones'"></p>
           </div>
           <div>
-            <p class="text-[10px] text-[#5a5a7a]">Versión</p>
+            <p class="text-[10px] text-[#5a5a7a]">Version</p>
             <p class="font-medium text-[#a0a0b8]" x-text="'v' + (selectedComanda?.version || 1)"></p>
           </div>
         </div>
@@ -180,21 +194,22 @@ tailwind.config = {
               <th class="text-right px-3 py-2.5 font-semibold">P. Unit.</th>
               <th class="text-right px-3 py-2.5 font-semibold">Subtotal</th>
               <th class="text-left px-3 py-2.5 font-semibold">Complementos</th>
+              <th class="text-center px-3 py-2.5 font-semibold">Estado</th>
             </tr>
           </thead>
           <tbody>
             <template x-if="!selectedComanda?.items || selectedComanda.items.length === 0">
-              <tr><td colspan="5" class="px-4 py-6 text-center text-[#5a5a7a] text-xs">Sin platos registrados</td></tr>
+              <tr><td colspan="6" class="px-4 py-6 text-center text-[#5a5a7a] text-xs">Sin platos registrados</td></tr>
             </template>
             <template x-for="(item, idx) in (selectedComanda?.items || [])" :key="idx">
-              <tr class="border-b border-[rgba(212,175,55,0.08)]">
+              <tr class="border-b border-[rgba(212,175,55,0.08)]" :class="item.eliminado ? 'opacity-50' : ''">
                 <td class="px-4 py-3">
-                  <p class="font-medium" x-text="item.plato?.nombre || item.nombre || '—'"></p>
+                  <p class="font-medium" :class="item.eliminado ? 'line-through text-txt-muted' : ''" x-text="item.nombre || '—'"></p>
                   <p class="text-[10px] text-[#5a5a7a]" x-show="item.notaEspecial" x-text="'📝 ' + item.notaEspecial"></p>
                 </td>
                 <td class="px-3 py-3 text-center font-semibold" x-text="item.cantidad || 1"></td>
-                <td class="px-3 py-3 text-right text-[#a0a0b8]" x-text="'S/. ' + Number(item.plato?.precio || item.precio || item.precioUnitario || 0).toFixed(2)"></td>
-                <td class="px-3 py-3 text-right text-[#d4af37] font-semibold" x-text="'S/. ' + ((item.cantidad || 1) * Number(item.plato?.precio || item.precio || item.precioUnitario || 0)).toFixed(2)"></td>
+                <td class="px-3 py-3 text-right text-[#a0a0b8]" x-text="'S/. ' + (item.precio || 0).toFixed(2)"></td>
+                <td class="px-3 py-3 text-right text-[#d4af37] font-semibold" x-text="'S/. ' + (item.subtotal || (item.cantidad || 1) * (item.precio || 0)).toFixed(2)"></td>
                 <td class="px-3 py-3">
                   <template x-if="item.complementosSeleccionados && item.complementosSeleccionados.length > 0">
                     <div class="flex flex-wrap gap-1">
@@ -207,15 +222,26 @@ tailwind.config = {
                     <span class="text-[10px] text-[#5a5a7a]">—</span>
                   </template>
                 </td>
+                <td class="px-3 py-3 text-center">
+                  <span class="text-[9px] px-2 py-0.5 rounded-full font-semibold"
+                    :class="{
+                      'bg-st-esperando/20 text-st-esperando': item.estado === 'en_espera' || item.estado === 'pedido',
+                      'bg-st-preparado/20 text-st-preparado': item.estado === 'recoger',
+                      'bg-st-pedido/20 text-st-pedido': item.estado === 'entregado',
+                      'bg-st-libre/20 text-st-libre': item.estado === 'pagado',
+                      'bg-txt-muted/20 text-txt-muted': item.eliminado
+                    }"
+                    x-text="item.eliminado ? 'Eliminado' : estadoLabel(item.estado)"></span>
+                </td>
               </tr>
             </template>
           </tbody>
           <tfoot>
             <tr class="border-t-2 border-[rgba(212,175,55,0.25)] bg-[#12121a]">
               <td class="px-4 py-3 font-bold text-xs uppercase" colspan="2">TOTAL</td>
-              <td class="px-3 py-3 text-right text-xs text-[#5a5a7a]" x-text="(selectedComanda?.items || []).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
-              <td class="px-3 py-3 text-right text-[#d4af37] font-bold text-lg" x-text="'S/. ' + Number(selectedComanda?.total || selectedComanda?.precioTotal || 0).toFixed(2)"></td>
-              <td></td>
+              <td class="px-3 py-3 text-right text-xs text-[#5a5a7a]" x-text="(selectedComanda?.items || []).filter(i => !i.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
+              <td class="px-3 py-3 text-right text-[#d4af37] font-bold text-lg" x-text="'S/. ' + Number(selectedComanda?.total || 0).toFixed(2)"></td>
+              <td colspan="2"></td>
             </tr>
           </tfoot>
         </table>
@@ -265,42 +291,247 @@ tailwind.config = {
     <div class="bg-[#12121a] p-4 rounded-b-2xl flex justify-between items-center border-t border-[rgba(212,175,55,0.1)]">
       <button @click="modal=null" class="px-4 py-2 border border-[#5a5a7a]/40 rounded-lg text-sm text-[#a0a0b8] hover:border-[#d4af37] hover:text-[#d4af37] transition">Cerrar</button>
       <div class="flex gap-2">
-        <button class="px-4 py-2 border border-[rgba(212,175,55,0.4)] text-[#d4af37] rounded-lg text-sm font-medium hover:bg-[rgba(212,175,55,0.1)] transition">🖨 PDF</button>
-        <button class="px-4 py-2 bg-[#d4af37] text-[#0a0a0f] rounded-lg text-sm font-semibold hover:brightness-110 transition">🍳 Cocina</button>
+        <button @click="openEditModalFromDetail()" class="px-4 py-2 border border-[rgba(212,175,55,0.4)] text-[#d4af37] rounded-lg text-sm font-medium hover:bg-[rgba(212,175,55,0.1)] transition">✏️ Editar</button>
+        <button class="px-4 py-2 bg-[#d4af37] text-[#0a0a0f] rounded-lg text-sm font-semibold hover:brightness-110 transition">🖨 PDF</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- MODAL: EDITAR ESTADO COMANDA -->
+<!-- MODAL: EDITAR COMANDA — Mismo diseño que verComanda con funciones de edicion -->
 <div x-show="modal==='editarComanda'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="modal=null">
-  <div class="bg-[#1a1a28] border border-[rgba(212,175,55,0.25)] rounded-2xl w-[480px] shadow-2xl" @click.stop>
-    <div class="bg-[#12121a] p-5 rounded-t-2xl flex items-center justify-between">
-      <div>
-        <h2 class="text-lg font-bold" x-text="'Editar Comanda #' + (editComanda?.numComanda || editComanda?.comandaNumber || '—')"></h2>
-        <p class="text-xs text-[#5a5a7a]" x-text="'Mesa ' + (editComanda?.mesa?.nummesa || editComanda?.mesa?.numMesa || editComanda?.mesa || '—')"></p>
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[840px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
+    
+    <!-- HEADER -->
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl sticky top-0 z-10">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="flex items-center gap-3">
+            <h2 class="text-lg font-bold" x-text="'Editar Comanda #' + (editComanda?.numComanda || '—')"></h2>
+            <span class="text-[10px] px-2.5 py-1 rounded-full font-bold"
+              :class="{
+                'bg-[#2ecc71]/20 text-[#2ecc71]': editComanda?.estado === 'recoger' || editComanda?.estado === 'preparado',
+                'bg-[#ffa502]/20 text-[#ffa502]': editComanda?.estado === 'en_espera' || editComanda?.estado === 'en cocina',
+                'bg-[#3498db]/20 text-[#3498db]': editComanda?.estado === 'entregado',
+                'bg-[#00d4aa]/20 text-[#00d4aa]': editComanda?.estado === 'pagado',
+                'bg-[#ff4757]/20 text-[#ff4757]': editComanda?.estado === 'cancelado'
+              }"
+              x-text="estadoLabel(editComanda?.estado)"></span>
+          </div>
+          <p class="text-xs text-txt-muted mt-0.5">
+            <span x-text="'Mesa ' + (editComanda?.mesa?.nummesa || editComanda?.mesa || '—')"></span>
+            <template x-if="editComanda?.mozo"><span> — <span x-text="editComanda.mozo"></span></span></template>
+          </p>
+        </div>
+        <button @click="modal=null" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
       </div>
-      <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] text-sm">✕</button>
     </div>
-    <div class="p-6 space-y-4">
-      <div>
-        <label class="text-xs text-[#a0a0b8] mb-2 block font-semibold">Estado de la Comanda</label>
-        <select x-model="editComanda.estado" class="w-full bg-[#12121a] border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-[#d4af37] focus:outline-none text-white">
-          <option value="en_espera">⏳ En espera</option>
-          <option value="recoger">✅ Listo para recoger</option>
-          <option value="entregado">🚀 Entregado</option>
-          <option value="pagado">💰 Pagado</option>
-          <option value="cancelado">❌ Cancelado</option>
-        </select>
-      </div>
-      <div>
-        <label class="text-xs text-[#a0a0b8] mb-2 block font-semibold">Observaciones</label>
-        <textarea x-model="editComanda.observaciones" placeholder="Notas adicionales..." class="w-full bg-[#12121a] border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm h-20 resize-none focus:border-[#d4af37] focus:outline-none text-white"></textarea>
+
+    <!-- LOADING -->
+    <div x-show="loadingDetalle" class="p-10 flex items-center justify-center">
+      <div class="text-center">
+        <div class="w-10 h-10 border-2 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+        <p class="text-txt-muted text-sm">Cargando comanda...</p>
       </div>
     </div>
-    <div class="bg-[#12121a] p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
-      <button @click="modal=null" class="px-5 py-2.5 border border-[#5a5a7a]/40 rounded-lg text-sm text-[#a0a0b8] hover:border-[#d4af37] hover:text-[#d4af37] transition">Cancelar</button>
-      <button @click="guardarEdicionComanda()" class="px-5 py-2.5 bg-[#d4af37] text-[#0a0a0f] rounded-lg text-sm font-semibold hover:brightness-110 transition">Guardar Cambios</button>
+
+    <div x-show="!loadingDetalle" class="p-5 space-y-4">
+      
+      <!-- INFO GENERAL -->
+      <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <p class="text-[10px] text-[#5a5a7a] uppercase mb-3 font-semibold tracking-wider">Informacion General</p>
+        <div class="grid grid-cols-3 gap-3 text-sm mb-3">
+          <div>
+            <p class="text-[10px] text-[#5a5a7a]">Creada</p>
+            <p class="font-medium" x-text="editComanda?.createdAt ? new Date(editComanda.createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-[#5a5a7a]">Enviada a cocina</p>
+            <p class="font-medium" x-text="editComanda?.tiempoEnEspera ? new Date(editComanda.tiempoEnEspera).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-[#5a5a7a]">Preparada</p>
+            <p class="font-medium text-[#2ecc71]" x-text="editComanda?.tiempoRecoger ? new Date(editComanda.tiempoRecoger).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-3 text-sm border-t border-[rgba(212,175,55,0.1)] pt-3">
+          <div>
+            <p class="text-[10px] text-[#5a5a7a]">Mozo</p>
+            <p class="font-medium" x-text="editComanda?.mozo || '—'"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-[#5a5a7a]">Observaciones</p>
+            <textarea x-model="editComanda.observaciones" placeholder="Sin observaciones" class="w-full bg-transparent border-b border-[rgba(212,175,55,0.2)] text-[#a0a0b8] text-sm py-0.5 focus:border-[#d4af37] focus:outline-none resize-none h-6" rows="1"></textarea>
+          </div>
+          <div>
+            <p class="text-[10px] text-[#5a5a7a]">Estado Global</p>
+            <select x-model="editComanda.estado" class="w-full bg-[#12121a] border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1 text-xs font-semibold focus:border-[#d4af37] focus:outline-none"
+              :class="{
+                'text-[#2ecc71]': editComanda?.estado === 'recoger' || editComanda?.estado === 'preparado',
+                'text-[#ffa502]': editComanda?.estado === 'en_espera' || editComanda?.estado === 'en cocina',
+                'text-[#3498db]': editComanda?.estado === 'entregado',
+                'text-[#00d4aa]': editComanda?.estado === 'pagado',
+                'text-[#ff4757]': editComanda?.estado === 'cancelado'
+              }">
+              <option value="en_espera">⏳ En espera</option>
+              <option value="recoger">✅ Listo</option>
+              <option value="entregado">🚀 Entregado</option>
+              <option value="pagado">💰 Pagado</option>
+              <option value="cancelado">❌ Cancelado</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABLA DE PLATOS EDITABLE -->
+      <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-[#12121a] text-[#a0a0b8] text-[10px] uppercase">
+              <th class="text-left px-4 py-2.5 font-semibold">Plato</th>
+              <th class="text-center px-3 py-2.5 font-semibold w-20">Cant.</th>
+              <th class="text-right px-3 py-2.5 font-semibold">P. Unit.</th>
+              <th class="text-right px-3 py-2.5 font-semibold">Subtotal</th>
+              <th class="text-left px-3 py-2.5 font-semibold">Complementos</th>
+              <th class="text-center px-3 py-2.5 font-semibold w-28">Estado</th>
+              <th class="text-center px-2 py-2.5 font-semibold w-10"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-if="!editPlatos || editPlatos.length === 0">
+              <tr><td colspan="7" class="px-4 py-6 text-center text-[#5a5a7a] text-xs">Sin platos registrados</td></tr>
+            </template>
+            <template x-for="(plato, idx) in (editPlatos || [])" :key="idx">
+              <tr class="border-b border-[rgba(212,175,55,0.08)]" :class="plato.eliminado ? 'opacity-40 bg-[#ff4757]/5' : ''">
+                <td class="px-4 py-3">
+                  <p class="font-medium" :class="plato.eliminado ? 'line-through text-txt-muted' : ''" x-text="plato.nombre || '—'"></p>
+                  <p class="text-[10px] text-[#5a5a7a]" x-show="plato.notaEspecial" x-text="'📝 ' + plato.notaEspecial"></p>
+                </td>
+                <td class="px-3 py-3 text-center">
+                  <input type="number" min="1" max="99" x-model.number="plato.cantidad" @input="recalcularTotales()" 
+                    class="w-14 h-8 bg-bg-sidebar border-2 border-[rgba(212,175,55,0.4)] rounded-lg px-2 py-1 text-white text-center text-sm font-bold focus:border-[#d4af37] focus:outline-none focus:bg-[rgba(212,175,55,0.1)]"
+                    :disabled="plato.eliminado"
+                    :class="plato.eliminado ? 'opacity-50' : ''">
+                </td>
+                <td class="px-3 py-3 text-right text-[#a0a0b8]" x-text="'S/. ' + (plato.precio || 0).toFixed(2)"></td>
+                <td class="px-3 py-3 text-right text-[#d4af37] font-semibold" x-text="'S/. ' + (plato.subtotal || plato.cantidad * plato.precio || 0).toFixed(2)"></td>
+                <td class="px-3 py-3">
+                  <template x-if="plato.complementosSeleccionados && plato.complementosSeleccionados.length > 0">
+                    <div class="flex flex-wrap gap-1">
+                      <template x-for="comp in plato.complementosSeleccionados" :key="comp.grupo">
+                        <span class="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" x-text="comp.grupo + ': ' + comp.opcion"></span>
+                      </template>
+                    </div>
+                  </template>
+                  <template x-if="!plato.complementosSeleccionados || plato.complementosSeleccionados.length === 0">
+                    <span class="text-[10px] text-[#5a5a7a]">—</span>
+                  </template>
+                </td>
+                <td class="px-3 py-3 text-center">
+                  <select x-model="plato.estado" class="bg-bg-sidebar border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[9px] text-white focus:border-[#d4af37] focus:outline-none w-full"
+                    :disabled="plato.eliminado"
+                    :class="{
+                      'text-st-esperando': plato.estado === 'en_espera' || plato.estado === 'pedido',
+                      'text-st-preparado': plato.estado === 'recoger',
+                      'text-st-pedido': plato.estado === 'entregado',
+                      'text-st-libre': plato.estado === 'pagado'
+                    }">
+                    <option value="en_espera">En espera</option>
+                    <option value="recoger">Listo</option>
+                    <option value="entregado">Entregado</option>
+                    <option value="pagado">Pagado</option>
+                  </select>
+                </td>
+                <td class="px-2 py-3 text-center">
+                  <button @click="toggleEliminarPlato(idx)" class="p-1 rounded hover:bg-[rgba(212,175,55,0.1)] transition" :title="plato.eliminado ? 'Restaurar plato' : 'Eliminar plato'">
+                    <span x-text="plato.eliminado ? '↩️' : '🗑️'" class="text-sm"></span>
+                  </button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+          <tfoot>
+            <tr class="border-t-2 border-[rgba(212,175,55,0.25)] bg-[#12121a]">
+              <td class="px-4 py-3 font-bold text-xs uppercase" colspan="2">TOTAL</td>
+              <td class="px-3 py-3 text-right text-xs text-[#5a5a7a]" x-text="(editPlatos || []).filter(p => !p.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
+              <td class="px-3 py-3 text-right text-[#d4af37] font-bold text-lg" x-text="'S/. ' + calcularTotalEdit().toFixed(2)"></td>
+              <td colspan="3"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- TIMELINE DE ESTADOS -->
+      <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <p class="text-[10px] text-[#5a5a7a] uppercase mb-4 font-semibold tracking-wider">Historial de Estados</p>
+        <div class="relative flex items-start justify-between">
+          <div class="absolute top-1.5 left-0 right-0 h-0.5 bg-[rgba(212,175,55,0.15)]" style="margin: 0 6%"></div>
+          <!-- Creada -->
+          <div class="flex flex-col items-center flex-1 relative z-10">
+            <div class="w-3 h-3 rounded-full bg-[#3498db] mb-2"></div>
+            <p class="text-[10px] font-semibold text-[#3498db]">Creada</p>
+            <p class="text-[9px] text-[#5a5a7a]" x-text="editComanda?.createdAt ? new Date(editComanda.createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+          <!-- En cocina -->
+          <div class="flex flex-col items-center flex-1 relative z-10">
+            <div class="w-3 h-3 rounded-full mb-2" :class="editComanda?.tiempoEnEspera ? 'bg-[#ffa502]' : 'bg-[#5a5a7a]/30'"></div>
+            <p class="text-[10px] font-semibold" :class="editComanda?.tiempoEnEspera ? 'text-[#ffa502]' : 'text-[#5a5a7a]'">En cocina</p>
+            <p class="text-[9px] text-[#5a5a7a]" x-text="editComanda?.tiempoEnEspera ? new Date(editComanda.tiempoEnEspera).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+          <!-- Preparado -->
+          <div class="flex flex-col items-center flex-1 relative z-10">
+            <div class="w-3 h-3 rounded-full mb-2" :class="editComanda?.tiempoRecoger ? 'bg-[#2ecc71]' : 'bg-[#5a5a7a]/30'"></div>
+            <p class="text-[10px] font-semibold" :class="editComanda?.tiempoRecoger ? 'text-[#2ecc71]' : 'text-[#5a5a7a]'">Preparado</p>
+            <p class="text-[9px] text-[#5a5a7a]" x-text="editComanda?.tiempoRecoger ? new Date(editComanda.tiempoRecoger).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+          <!-- Entregado -->
+          <div class="flex flex-col items-center flex-1 relative z-10">
+            <div class="w-3 h-3 rounded-full mb-2" :class="editComanda?.tiempoEntregado ? 'bg-[#d4af37]' : 'bg-[#5a5a7a]/30'"></div>
+            <p class="text-[10px] font-semibold" :class="editComanda?.tiempoEntregado ? 'text-[#d4af37]' : 'text-[#5a5a7a]'">Entregado</p>
+            <p class="text-[9px] text-[#5a5a7a]" x-text="editComanda?.tiempoEntregado ? new Date(editComanda.tiempoEntregado).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+          <!-- Pagado -->
+          <div class="flex flex-col items-center flex-1 relative z-10">
+            <div class="w-3 h-3 rounded-full mb-2" :class="editComanda?.tiempoPagado ? 'bg-[#00d4aa]' : 'bg-[#5a5a7a]/30'"></div>
+            <p class="text-[10px] font-semibold" :class="editComanda?.tiempoPagado ? 'text-[#00d4aa]' : 'text-[#5a5a7a]'">Pagado</p>
+            <p class="text-[9px] text-[#5a5a7a]" x-text="editComanda?.tiempoPagado ? new Date(editComanda.tiempoPagado).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- FOOTER -->
+    <div class="bg-[#12121a] p-4 rounded-b-2xl flex justify-between items-center border-t border-[rgba(212,175,55,0.1)]">
+      <button @click="confirmarEliminarComanda(editComanda)" class="px-4 py-2 border border-st-pagado/40 text-st-pagado rounded-lg text-sm font-medium hover:bg-st-pagado/10 transition">
+        🗑️ Eliminar Comanda
+      </button>
+      <div class="flex gap-2">
+        <button @click="modal=null" class="px-4 py-2 border border-[#5a5a7a]/40 rounded-lg text-sm text-[#a0a0b8] hover:border-[#d4af37] hover:text-[#d4af37] transition">Cancelar</button>
+        <button @click="guardarEdicionComanda()" :disabled="guardando" class="px-5 py-2.5 bg-[#d4af37] text-[#0a0a0f] rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50">
+          <span x-text="guardando ? 'Guardando...' : 'Guardar Cambios'"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CONFIRMAR ELIMINACION -->
+<div x-show="modal==='confirmarEliminar'" x-transition.opacity class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80">
+  <div class="bg-bg-card border border-st-pagado/40 rounded-2xl w-[400px] shadow-2xl" @click.stop>
+    <div class="p-6 text-center">
+      <div class="w-16 h-16 rounded-full bg-st-pagado/20 flex items-center justify-center mx-auto mb-4">
+        <span class="text-3xl">🗑️</span>
+      </div>
+      <h3 class="text-lg font-bold mb-2">Eliminar Comanda</h3>
+      <p class="text-txt-secondary text-sm mb-4" x-text="'¿Eliminar la comanda #' + (comandaEliminar?.numComanda || '—') + '? Esta accion quedara registrada en auditoria.'"></p>
+      <textarea x-model="motivoEliminacion" placeholder="Motivo de eliminacion (requerido)..." class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm h-20 resize-none focus:border-st-pagado focus:outline-none text-white mb-4"></textarea>
+    </div>
+    <div class="bg-bg-sidebar p-4 rounded-b-2xl flex justify-end gap-2">
+      <button @click="modal='editarComanda'; comandaEliminar=null; motivoEliminacion=''" class="px-4 py-2 border border-[#5a5a7a]/40 rounded-lg text-sm text-[#a0a0b8] hover:border-gold hover:text-gold transition">Cancelar</button>
+      <button @click="ejecutarEliminarComanda()" :disabled="!motivoEliminacion.trim() || eliminando" class="px-4 py-2 bg-st-pagado text-white rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50">
+        <span x-text="eliminando ? 'Eliminando...' : 'Eliminar'"></span>
+      </button>
     </div>
   </div>
 </div>
@@ -310,15 +541,39 @@ tailwind.config = {
 
 <script src="/assets/js/shared.js"></script>
 <script>
+// Debounce helper
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func.apply(this, args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
 function comandasApp() {
   return {
     sidebarOpen: true,
     modal: null,
     loading: true,
+    loadingDetalle: false,
+    guardando: false,
+    eliminando: false,
+    socketConnected: false,
+    socket: null,
+    
     comandas: [],
     filteredComandas: [],
     selectedComanda: null,
-    editComanda: { _id: null, estado: '', observaciones: '', numComanda: null, mesa: null },
+    editComanda: { _id: null, estado: '', observaciones: '', numComanda: null, mesa: null, mozo: null, version: 1 },
+    editPlatos: [],
+    
+    comandaEliminar: null,
+    motivoEliminacion: '',
+    
     filterMesa: '',
     filterEstado: '',
     activeNav: 'comandas',
@@ -330,13 +585,110 @@ function comandasApp() {
         window.location.href = '/login.html';
         return;
       }
+      
+      // Inicializar Socket.io
+      this.initSocket();
+      
       await this.loadComandas();
+    },
+    
+    initSocket() {
+      try {
+        // Verificar que Socket.io esta disponible
+        if (typeof io === 'undefined') {
+          console.warn('Socket.io no disponible');
+          return;
+        }
+        
+        // Conectar al namespace /admin
+        this.socket = io('/admin', {
+          auth: { token: localStorage.getItem('adminToken') },
+          transports: ['websocket', 'polling']
+        });
+        
+        this.socket.on('connect', () => {
+          console.log('✅ Socket conectado');
+          this.socketConnected = true;
+        });
+        
+        this.socket.on('disconnect', () => {
+          console.log('⚠️ Socket desconectado');
+          this.socketConnected = false;
+        });
+        
+        // Escuchar actualizaciones de comanda
+        this.socket.on('comandaActualizada', (comanda) => {
+          console.log('📡 Comanda actualizada via Socket:', comanda._id);
+          this.handleComandaActualizada(comanda);
+        });
+        
+        // Escuchar nueva comanda
+        this.socket.on('nuevaComanda', (comanda) => {
+          console.log('📡 Nueva comanda via Socket:', comanda.comandaNumber);
+          this.handleNuevaComanda(comanda);
+        });
+        
+        // Escuchar eliminacion de comanda
+        this.socket.on('comandaEliminada', (data) => {
+          console.log('📡 Comanda eliminada via Socket:', data._id);
+          this.handleComandaEliminada(data);
+        });
+        
+      } catch (error) {
+        console.error('Error inicializando Socket:', error);
+      }
+    },
+    
+    handleComandaActualizada(comanda) {
+      // Si estamos viendo esta comanda en detalle, actualizar
+      if (this.selectedComanda?._id === comanda._id) {
+        this.selectedComanda = this.normalizarComanda(comanda);
+      }
+      
+      // Si estamos editando esta comanda, advertir
+      if (this.editComanda._id === comanda._id && this.modal === 'editarComanda') {
+        if (comanda.version > this.editComanda.version) {
+          alert('Esta comanda fue modificada por otro usuario. Los datos se han actualizado.');
+          this.editComanda = { ...this.normalizarComanda(comanda) };
+          this.editPlatos = [...(this.normalizarComanda(comanda).items || [])];
+        }
+      }
+      
+      // Actualizar en la lista
+      const idx = this.comandas.findIndex(c => c._id === comanda._id);
+      if (idx !== -1) {
+        this.comandas[idx] = this.normalizarComanda(comanda);
+        this.filterComandas();
+      }
+    },
+    
+    handleNuevaComanda(comanda) {
+      const normalizada = this.normalizarComanda(comanda);
+      // Verificar que no exista ya
+      if (!this.comandas.find(c => c._id === comanda._id)) {
+        this.comandas.unshift(normalizada);
+        this.filterComandas();
+        this.showToast(`Nueva comanda #${comanda.comandaNumber} 📋`);
+      }
+    },
+    
+    handleComandaEliminada(data) {
+      const idx = this.comandas.findIndex(c => c._id === data._id);
+      if (idx !== -1) {
+        this.comandas.splice(idx, 1);
+        this.filterComandas();
+      }
+      // Cerrar modal si estaba abierto
+      if (this.selectedComanda?._id === data._id || this.editComanda._id === data._id) {
+        this.modal = null;
+      }
     },
     
     async loadComandas() {
       this.loading = true;
-      // Probar ambos endpoints: /comanda (real) y /comandas (alias)
-      let data = await apiGet('/comanda');
+      
+      // Probar endpoint principal
+      let data = await apiGet('/comanda?IsActive=true');
       if (!data) data = await apiGet('/comandas');
       
       let raw = [];
@@ -344,24 +696,72 @@ function comandasApp() {
       else if (data && data.comandas) raw = data.comandas;
       else if (data && data.data) raw = data.data;
       
-      // Normalizar campos del modelo real a los esperados por la UI
-      this.comandas = raw.map(c => ({
-        ...c,
-        numComanda: c.comandaNumber || c.numComanda,
-        mesa: c.mesas || c.mesa,
-        mozo: c.mozos?.name || c.mozos || c.idMozo?.nombre || c.mozo,
-        items: c.platos || c.items || [],
-        total: c.precioTotal || c.total || 0,
-        estado: c.status || c.estado || 'pendiente',
-      }));
+      // Normalizar y ordenar por fecha descendente
+      this.comandas = raw
+        .map(c => this.normalizarComanda(c))
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       
       this.filterComandas();
       this.loading = false;
     },
     
+    normalizarComanda(raw) {
+      if (!raw) return null;
+      
+      // Normalizar platos con sus cantidades y complementos
+      const platosNorm = (raw.platos || raw.items || []).map((item, index) => {
+        const plato = item.plato || item;
+        const cantidad = raw.cantidades?.[index] || item.cantidad || 1;
+        const precio = plato.precio || item.precio || item.precioUnitario || 0;
+        const subtotal = cantidad * precio;
+        
+        return {
+          _id: item._id || plato._id,
+          platoId: item.platoId || plato.id || plato._id,
+          nombre: plato.nombre || item.nombre || 'Sin nombre',
+          precio: Number(precio),
+          cantidad: Number(cantidad),
+          subtotal: Number(subtotal),
+          estado: item.estado || 'en_espera',
+          eliminado: item.eliminado || false,
+          notaEspecial: item.notaEspecial || '',
+          complementosSeleccionados: item.complementosSeleccionados || []
+        };
+      });
+      
+      // Calcular total de platos no eliminados
+      const totalPlatos = platosNorm.filter(p => !p.eliminado);
+      const total = totalPlatos.reduce((sum, p) => sum + p.subtotal, 0);
+      
+      // Normalizar mesa
+      const mesa = raw.mesas || raw.mesa;
+      const mesaNorm = mesa && typeof mesa === 'object' 
+        ? { nummesa: mesa.nummesa || mesa.numMesa, area: mesa.area?.nombre || mesa.area || '' }
+        : { nummesa: mesa, area: '' };
+      
+      return {
+        _id: raw._id,
+        numComanda: raw.comandaNumber || raw.numComanda,
+        mesa: mesaNorm,
+        mozo: raw.mozos?.name || raw.mozo || 'Sin asignar',
+        cliente: raw.cliente?.nombre || raw.cliente?.dni || null,
+        items: platosNorm,
+        total: Number(raw.precioTotal || raw.total || total),
+        estado: raw.status || raw.estado || 'en_espera',
+        observaciones: raw.observaciones || '',
+        createdAt: raw.createdAt,
+        updatedAt: raw.updatedAt,
+        tiempoEnEspera: raw.tiempoEnEspera,
+        tiempoRecoger: raw.tiempoRecoger,
+        tiempoEntregado: raw.tiempoEntregado,
+        tiempoPagado: raw.tiempoPagado,
+        version: raw.version || 1
+      };
+    },
+    
     filterComandas() {
       this.filteredComandas = this.comandas.filter(c => {
-        const mesaNum = c.mesa?.nummesa || c.mesa?.numMesa || c.mesa;
+        const mesaNum = c.mesa?.nummesa || c.mesa;
         const matchMesa = !this.filterMesa || String(mesaNum || '').includes(this.filterMesa);
         const matchEstado = !this.filterEstado || c.estado === this.filterEstado;
         return matchMesa && matchEstado;
@@ -377,74 +777,274 @@ function comandasApp() {
         'cancelado': 'Cancelado',
         'en cocina': 'En cocina',
         'preparado': 'Preparado',
-        'pendiente': 'Pendiente'
+        'pendiente': 'Pendiente',
+        'pedido': 'Pedido'
       };
       return map[estado] || estado || 'pendiente';
     },
     
-    openDetailModal(c) {
-      this.selectedComanda = c;
-      this.modal = 'verComanda';
+    // Cargar detalle completo de una comanda desde el backend
+    async loadComandaDetalle(comandaId) {
+      try {
+        const data = await apiGet('/comanda/' + comandaId);
+        if (!data) {
+          throw new Error('No se recibieron datos');
+        }
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        return this.normalizarComanda(data);
+      } catch (error) {
+        console.error('Error cargando detalle de comanda:', error);
+        this.showToast('Error al cargar comanda: ' + error.message, 'error');
+        return null;
+      }
     },
     
-    openEditModal(c) {
-      this.editComanda = {
-        _id: c._id,
-        estado: c.estado || 'en_espera',
-        observaciones: c.observaciones || '',
-        numComanda: c.numComanda || c.comandaNumber,
-        mesa: c.mesa,
-      };
+    async openDetailModal(c) {
+      const comandaId = c._id || c.id;
+      if (!comandaId) {
+        this.showToast('ID de comanda no valido', 'error');
+        return;
+      }
+      
+      // Abrir modal con loading
+      this.modal = 'verComanda';
+      this.loadingDetalle = true;
+      this.selectedComanda = null;
+      
+      // Cargar datos completos desde el backend
+      const detalle = await this.loadComandaDetalle(comandaId);
+      
+      this.loadingDetalle = false;
+      
+      if (!detalle) {
+        this.modal = null;
+        return;
+      }
+      
+      this.selectedComanda = detalle;
+    },
+    
+    async openEditModal(c) {
+      const comandaId = c._id || c.id;
+      if (!comandaId) {
+        this.showToast('ID de comanda no valido', 'error');
+        return;
+      }
+      
+      // Abrir modal con loading
       this.modal = 'editarComanda';
+      this.loadingDetalle = true;
+      
+      // Cargar datos completos desde el backend
+      const detalle = await this.loadComandaDetalle(comandaId);
+      
+      this.loadingDetalle = false;
+      
+      if (!detalle) {
+        this.modal = null;
+        return;
+      }
+      
+      // Preparar datos de edicion
+      this.editComanda = {
+        _id: detalle._id,
+        estado: detalle.estado,
+        observaciones: detalle.observaciones || '',
+        numComanda: detalle.numComanda,
+        mesa: detalle.mesa,
+        mozo: detalle.mozo,
+        version: detalle.version,
+        total: detalle.total,
+        createdAt: detalle.createdAt,
+        tiempoEnEspera: detalle.tiempoEnEspera,
+        tiempoRecoger: detalle.tiempoRecoger,
+        tiempoEntregado: detalle.tiempoEntregado,
+        tiempoPagado: detalle.tiempoPagado
+      };
+      
+      // Copiar platos para edicion
+      this.editPlatos = detalle.items.map(item => ({ ...item }));
+    },
+    
+    openEditModalFromDetail() {
+      // Abrir edicion desde el modal de detalle
+      if (this.selectedComanda) {
+        this.editComanda = {
+          _id: this.selectedComanda._id,
+          estado: this.selectedComanda.estado,
+          observaciones: this.selectedComanda.observaciones || '',
+          numComanda: this.selectedComanda.numComanda,
+          mesa: this.selectedComanda.mesa,
+          mozo: this.selectedComanda.mozo,
+          version: this.selectedComanda.version,
+          total: this.selectedComanda.total,
+          createdAt: this.selectedComanda.createdAt,
+          tiempoEnEspera: this.selectedComanda.tiempoEnEspera,
+          tiempoRecoger: this.selectedComanda.tiempoRecoger,
+          tiempoEntregado: this.selectedComanda.tiempoEntregado,
+          tiempoPagado: this.selectedComanda.tiempoPagado
+        };
+        this.editPlatos = this.selectedComanda.items.map(item => ({ ...item }));
+        this.modal = 'editarComanda';
+      }
+    },
+    
+    toggleEliminarPlato(idx) {
+      if (this.editPlatos[idx]) {
+        this.editPlatos[idx].eliminado = !this.editPlatos[idx].eliminado;
+        this.recalcularTotales();
+      }
+    },
+    
+    recalcularTotales() {
+      this.editPlatos.forEach(p => {
+        p.subtotal = (p.cantidad || 1) * (p.precio || 0);
+      });
+    },
+    
+    calcularTotalEdit() {
+      return this.editPlatos
+        .filter(p => !p.eliminado)
+        .reduce((sum, p) => sum + (p.subtotal || p.cantidad * p.precio || 0), 0);
     },
     
     async guardarEdicionComanda() {
       if (!this.editComanda._id) return;
-      const res = await apiPut('/comanda/' + this.editComanda._id, {
-        status: this.editComanda.estado,
-        observaciones: this.editComanda.observaciones
+      
+      // Validar
+      const errores = [];
+      this.editPlatos.forEach((p, idx) => {
+        if (!p.eliminado && p.cantidad < 1) {
+          errores.push(`Plato ${idx + 1}: cantidad debe ser mayor a 0`);
+        }
       });
-      if (res && !res.error) {
-        await this.loadComandas();
-        this.modal = null;
-        this.showToast('Comanda actualizada ✅');
-      } else {
-        alert('Error al actualizar: ' + (res?.error || res?.message || 'Fallo desconocido'));
+      
+      if (errores.length > 0) {
+        alert('Errores de validacion:\n' + errores.join('\n'));
+        return;
+      }
+      
+      this.guardando = true;
+      
+      try {
+        // Preparar datos para enviar
+        const payload = {
+          status: this.editComanda.estado,
+          observaciones: this.editComanda.observaciones,
+          platos: this.editPlatos.map(p => ({
+            platoId: p.platoId,
+            cantidad: p.cantidad,
+            estado: p.estado,
+            eliminado: p.eliminado
+          }))
+        };
+        
+        // Intentar endpoint de edicion completa primero
+        let res = await apiPut('/comanda/' + this.editComanda._id + '/editar-platos', payload);
+        
+        // Si falla, usar endpoint simple
+        if (!res || res.error) {
+          res = await apiPut('/comanda/' + this.editComanda._id, {
+            status: this.editComanda.estado,
+            observaciones: this.editComanda.observaciones
+          });
+        }
+        
+        if (res && !res.error) {
+          // Emitir evento Socket si esta disponible
+          if (this.socket && this.socket.connected) {
+            this.socket.emit('comandaActualizada', res);
+          }
+          
+          await this.loadComandas();
+          this.modal = null;
+          this.showToast('✅ Comanda actualizada correctamente');
+        } else {
+          throw new Error(res?.error || res?.message || 'Error desconocido');
+        }
+      } catch (error) {
+        console.error('Error guardando comanda:', error);
+        this.showToast('Error: ' + error.message, 'error');
+      } finally {
+        this.guardando = false;
       }
     },
     
-    async eliminarComanda(id) {
-      if (!id) return;
-      if (!confirm('¿Eliminar esta comanda? Esta acción quedará registrada en auditoría.')) return;
-      const res = await apiDelete('/comanda/' + id);
-      if (res && !res.error) {
-        await this.loadComandas();
-        this.showToast('Comanda eliminada ✅');
-      } else {
-        alert('Error al eliminar: ' + (res?.error || res?.message || 'Fallo desconocido'));
+    confirmarEliminarComanda(c) {
+      this.comandaEliminar = c;
+      this.motivoEliminacion = '';
+      this.modal = 'confirmarEliminar';
+    },
+    
+    async ejecutarEliminarComanda() {
+      if (!this.comandaEliminar?._id || !this.motivoEliminacion.trim()) return;
+      
+      this.eliminando = true;
+      
+      try {
+        // Endpoint de eliminacion con soft delete y auditoria
+        const res = await apiPut('/comanda/' + this.comandaEliminar._id + '/eliminar', {
+          motivo: this.motivoEliminacion.trim(),
+          usuarioId: 'admin',
+          mozoId: null
+        });
+        
+        if (res && !res.error) {
+          // Emitir Socket
+          if (this.socket && this.socket.connected) {
+            this.socket.emit('comandaEliminada', { _id: this.comandaEliminar._id });
+          }
+          
+          await this.loadComandas();
+          this.modal = null;
+          this.comandaEliminar = null;
+          this.motivoEliminacion = '';
+          this.showToast(`✅ Comanda eliminada - Auditada`);
+        } else {
+          throw new Error(res?.error || res?.message || 'Error al eliminar');
+        }
+      } catch (error) {
+        console.error('Error eliminando comanda:', error);
+        this.showToast('Error: ' + error.message, 'error');
+      } finally {
+        this.eliminando = false;
       }
     },
     
     async cambiarEstado(c) {
-      const estados = ['en cocina', 'preparado', 'entregado'];
+      const estados = ['en_espera', 'recoger', 'entregado', 'pagado'];
       const idx = estados.indexOf(c.estado);
       const nuevoEstado = estados[(idx + 1) % estados.length];
       
-      const res = await apiPut('/comandas/' + c._id, { estado: nuevoEstado });
+      const res = await apiPut('/comanda/' + c._id + '/status', { status: nuevoEstado });
+      
       if (res && !res.error) {
         c.estado = nuevoEstado;
-        this.showToast('Estado actualizado a "' + nuevoEstado + '"');
+        
+        // Emitir Socket
+        if (this.socket && this.socket.connected) {
+          this.socket.emit('comandaActualizada', { _id: c._id, status: nuevoEstado });
+        }
+        
+        this.showToast('Estado: "' + this.estadoLabel(nuevoEstado) + '"');
       }
     },
     
     showToast(msg, type = 'success') {
       const container = document.getElementById('toast-container');
       const t = document.createElement('div');
-      t.className = 'px-4 py-3 rounded-xl text-sm font-medium shadow-xl ' +
+      t.className = 'px-4 py-3 rounded-xl text-sm font-medium shadow-xl flex items-center gap-2 ' +
         (type === 'error' ? 'bg-st-pagado text-white' : 'bg-st-preparado text-white');
-      t.textContent = msg;
+      t.innerHTML = `<span>${msg}</span>`;
       container.appendChild(t);
-      setTimeout(() => t.remove(), 3000);
+      setTimeout(() => {
+        t.style.opacity = '0';
+        t.style.transform = 'translateX(100%)';
+        t.style.transition = 'all 0.3s';
+        setTimeout(() => t.remove(), 300);
+      }, 3000);
     },
     
     logout() {
