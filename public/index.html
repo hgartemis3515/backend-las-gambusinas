@@ -53,81 +53,239 @@ tailwind.config = {
       </div>
     </div>
 
-    <!-- KPIs -->
-    <div class="grid grid-cols-5 gap-4 mb-6">
-      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4 card-hover">
-        <p class="text-[11px] text-txt-muted uppercase tracking-wide">Mesas Ocupadas</p>
-        <p class="text-2xl font-bold mt-1 text-gold" x-text="kpiMesasOcupadas"></p>
-        <p class="text-xs mt-1 text-txt-muted" x-text="kpiOcupacionPct + ' ocupación'"></p>
-      </div>
-      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4 card-hover">
-        <p class="text-[11px] text-txt-muted uppercase tracking-wide">Ventas Hoy</p>
-        <p class="text-2xl font-bold mt-1 text-gold" x-text="kpiVentasHoy"></p>
-        <p class="text-xs mt-1 text-txt-muted">+18% vs ayer</p>
-      </div>
-      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4 card-hover">
-        <p class="text-[11px] text-txt-muted uppercase tracking-wide">Top Plato</p>
-        <p class="text-2xl font-bold mt-1 text-white">Ceviche</p>
-        <p class="text-xs mt-1 text-txt-muted">12 vendidos</p>
-      </div>
-      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4 card-hover">
-        <p class="text-[11px] text-txt-muted uppercase tracking-wide">Top Mozo</p>
-        <p class="text-2xl font-bold mt-1 text-white" x-text="kpiTopMozo"></p>
-        <p class="text-xs mt-1 text-txt-muted">Mejor rendimiento</p>
-      </div>
-      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4 card-hover">
-        <p class="text-[11px] text-txt-muted uppercase tracking-wide">Alertas</p>
-        <p class="text-2xl font-bold mt-1 text-st-pagado">2</p>
-        <p class="text-xs mt-1 text-txt-muted">Mesa 8 sin liberar</p>
-      </div>
+    <!-- DYNAMIC KPIs ROW -->
+    <div x-show="activeKpis.length > 0" class="grid gap-4 mb-6" :style="'grid-template-columns: repeat(' + Math.min(activeKpis.length, 5) + ', 1fr)'">
+      <template x-for="w in activeKpis" :key="w.id">
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4 card-hover">
+          <!-- kpi-mesas -->
+          <template x-if="w.id === 'kpi-mesas'">
+            <div>
+              <p class="text-[11px] text-txt-muted uppercase tracking-wide">Mesas Ocupadas</p>
+              <p class="text-2xl font-bold mt-1 text-gold" x-text="kpiMesasOcupadas"></p>
+              <p class="text-xs mt-1 text-txt-muted" x-text="kpiOcupacionPct + ' ocupación'"></p>
+            </div>
+          </template>
+          <!-- kpi-ventas -->
+          <template x-if="w.id === 'kpi-ventas'">
+            <div>
+              <p class="text-[11px] text-txt-muted uppercase tracking-wide">Ventas Hoy</p>
+              <p class="text-2xl font-bold mt-1 text-gold" x-text="kpiVentasHoy"></p>
+              <p class="text-xs mt-1 text-txt-muted" x-text="kpiVentasPct"></p>
+            </div>
+          </template>
+          <!-- kpi-plato -->
+          <template x-if="w.id === 'kpi-plato'">
+            <div>
+              <p class="text-[11px] text-txt-muted uppercase tracking-wide">Top Plato</p>
+              <p class="text-2xl font-bold mt-1 text-white" x-text="kpiTopPlato"></p>
+              <p class="text-xs mt-1 text-txt-muted" x-text="kpiTopPlatoSub"></p>
+            </div>
+          </template>
+          <!-- kpi-mozo -->
+          <template x-if="w.id === 'kpi-mozo'">
+            <div>
+              <p class="text-[11px] text-txt-muted uppercase tracking-wide">Top Mozo</p>
+              <p class="text-2xl font-bold mt-1 text-white" x-text="kpiTopMozo"></p>
+              <p class="text-xs mt-1 text-txt-muted" x-text="kpiTopMozoSub"></p>
+            </div>
+          </template>
+          <!-- kpi-alertas -->
+          <template x-if="w.id === 'kpi-alertas'">
+            <div>
+              <p class="text-[11px] text-txt-muted uppercase tracking-wide">Alertas</p>
+              <p class="text-2xl font-bold mt-1 text-st-pagado" x-text="kpiAlertas"></p>
+              <p class="text-xs mt-1 text-txt-muted" x-text="kpiAlertasSub"></p>
+            </div>
+          </template>
+          <!-- kpi-tiempo -->
+          <template x-if="w.id === 'kpi-tiempo'">
+            <div>
+              <p class="text-[11px] text-txt-muted uppercase tracking-wide">Tiempo Prom. Cocina</p>
+              <p class="text-2xl font-bold mt-1 text-st-esperando" x-text="kpiTiempoCocina"></p>
+              <p class="text-xs mt-1 text-txt-muted">promedio hoy</p>
+            </div>
+          </template>
+          <!-- kpi-tickets -->
+          <template x-if="w.id === 'kpi-tickets'">
+            <div>
+              <p class="text-[11px] text-txt-muted uppercase tracking-wide">Tickets Hoy</p>
+              <p class="text-2xl font-bold mt-1 text-st-pedido" x-text="kpiTicketsHoy"></p>
+              <p class="text-xs mt-1 text-txt-muted">comandas cerradas</p>
+            </div>
+          </template>
+          <!-- kpi-satisfaccion -->
+          <template x-if="w.id === 'kpi-satisfaccion'">
+            <div>
+              <p class="text-[11px] text-txt-muted uppercase tracking-wide">Satisfacción</p>
+              <p class="text-2xl font-bold mt-1 text-st-preparado">94%</p>
+              <p class="text-xs mt-1 text-txt-muted">basado en feedback</p>
+            </div>
+          </template>
+        </div>
+      </template>
     </div>
 
-    <!-- CHARTS ROW -->
-    <div class="grid grid-cols-12 gap-4 mb-6">
-      <!-- MAPA DE MESAS -->
-      <div class="col-span-7 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5 flex flex-col" style="height: 320px;">
-        <div class="flex items-center justify-between mb-4 flex-shrink-0">
-          <h3 class="font-semibold text-sm">Mapa de Mesas</h3>
-          <span class="text-[11px] text-txt-muted" x-text="(mesas.length || 0) + ' mesas'"></span>
-        </div>
-        <div class="flex-1 overflow-auto min-h-0">
-          <!-- Loading spinner -->
-          <div x-show="loading && mesas.length === 0" class="flex items-center justify-center h-full">
-            <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
-          </div>
-          <!-- Mesas grid -->
-          <div x-show="!loading || mesas.length > 0" class="grid grid-cols-5 gap-2">
-            <template x-for="m in (mesas.length > 0 ? mesas : sharedData.mockMesas)" :key="m._id || m.numero">
-              <div class="aspect-square rounded-lg border-2 flex flex-col items-center justify-center text-xs cursor-pointer hover:scale-105 transition"
-                :class="mesaClass(estadoNormalizado(m.estado))" @click="openMesa(m)">
-                <span class="font-bold" x-text="m.numMesa || m.numero"></span>
-                <span class="text-[9px] mt-0.5 opacity-70" x-text="estadoNormalizado(m.estado)"></span>
+    <!-- DYNAMIC CHARTS ROW -->
+    <div x-show="activePanels.length > 0" class="grid grid-cols-12 gap-4 mb-6">
+      <template x-for="w in activePanels" :key="w.id">
+        <div :class="'col-span-' + getWidgetColSpan(w.id)" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5 flex flex-col" style="min-height: 320px;">
+
+          <!-- mapa-mesas -->
+          <template x-if="w.id === 'mapa-mesas'">
+            <div class="flex flex-col h-full" style="min-height: 280px;">
+              <div class="flex items-center justify-between mb-4 flex-shrink-0">
+                <h3 class="font-semibold text-sm">Mapa de Mesas</h3>
+                <span class="text-[11px] text-txt-muted" x-text="(mesas.length || 0) + ' mesas'"></span>
               </div>
-            </template>
-          </div>
+              <div class="flex-1 overflow-auto min-h-0">
+                <div x-show="loading && mesas.length === 0" class="flex items-center justify-center h-full">
+                  <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+                </div>
+                <div x-show="!loading || mesas.length > 0" class="grid grid-cols-5 gap-2">
+                  <template x-for="m in (mesas.length > 0 ? mesas : sharedData.mockMesas)" :key="m._id || m.numero">
+                    <div class="aspect-square rounded-lg border-2 flex flex-col items-center justify-center text-xs cursor-pointer hover:scale-105 transition"
+                      :class="mesaClass(estadoNormalizado(m.estado))" @click="openMesa(m)">
+                      <span class="font-bold" x-text="m.numMesa || m.numero"></span>
+                      <span class="text-[9px] mt-0.5 opacity-70" x-text="estadoNormalizado(m.estado)"></span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- grafico-ventas -->
+          <template x-if="w.id === 'grafico-ventas'">
+            <div class="flex flex-col h-full" style="min-height: 280px;">
+              <h3 class="font-semibold text-sm mb-4 flex-shrink-0">Ventas del Día</h3>
+              <div class="relative flex-1 min-h-0">
+                <canvas :id="'chartVentasDia'" x-init="$nextTick(() => initChartVentas())"></canvas>
+              </div>
+            </div>
+          </template>
+
+          <!-- grafico-categorias -->
+          <template x-if="w.id === 'grafico-categorias'">
+            <div class="flex flex-col h-full" style="min-height: 280px;">
+              <h3 class="font-semibold text-sm mb-4 flex-shrink-0">Distribución Categorías</h3>
+              <div class="relative flex-1 min-h-0">
+                <canvas :id="'chartCategorias'" x-init="$nextTick(() => initChartCategorias())"></canvas>
+              </div>
+            </div>
+          </template>
+
+          <!-- grafico-mozos -->
+          <template x-if="w.id === 'grafico-mozos'">
+            <div class="flex flex-col h-full" style="min-height: 280px;">
+              <h3 class="font-semibold text-sm mb-4 flex-shrink-0">Performance Mozos</h3>
+              <div class="relative flex-1 min-h-0">
+                <canvas :id="'chartMozos'" x-init="$nextTick(() => initChartMozos())"></canvas>
+              </div>
+            </div>
+          </template>
+
+          <!-- comandas-activas -->
+          <template x-if="w.id === 'comandas-activas'">
+            <div class="flex flex-col h-full" style="min-height: 280px;">
+              <h3 class="font-semibold text-sm mb-4 flex-shrink-0">Comandas Activas</h3>
+              <div class="flex-1 overflow-auto min-h-0 space-y-2">
+                <template x-for="c in comandasActivas" :key="c._id || c.id">
+                  <div class="flex items-center justify-between text-sm p-2 rounded-lg bg-bg-sidebar">
+                    <span class="text-txt-secondary" x-text="'#' + (c.comandaNumber || c._id?.slice(-4) || '—') + ' · Mesa ' + (c.mesa?.numMesa || c.mesa || '—')"></span>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                      :class="(c.status||c.estado||'').toLowerCase().includes('preparado') ? 'bg-st-preparado/20 text-st-preparado' : 'bg-st-esperando/20 text-st-esperando'"
+                      x-text="c.status || c.estado || '—'"></span>
+                  </div>
+                </template>
+                <div x-show="comandasActivas.length === 0" class="text-center text-txt-muted text-xs py-8">Sin comandas activas</div>
+              </div>
+            </div>
+          </template>
+
+          <!-- mozos-turno -->
+          <template x-if="w.id === 'mozos-turno'">
+            <div class="flex flex-col h-full" style="min-height: 280px;">
+              <h3 class="font-semibold text-sm mb-4 flex-shrink-0">Mozos en Turno</h3>
+              <div class="flex-1 overflow-auto min-h-0 space-y-2">
+                <template x-for="mz in mozos.filter(m => m.isActive !== false)" :key="mz._id || mz.id">
+                  <div class="flex items-center gap-3 text-sm p-2 rounded-lg bg-bg-sidebar">
+                    <span class="w-2 h-2 rounded-full bg-st-preparado flex-shrink-0"></span>
+                    <span class="text-txt-secondary" x-text="mz.nombre || mz.name || '—'"></span>
+                    <span class="ml-auto text-xs text-gold" x-text="'S/. ' + (mz.ventasHoy || 0)"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+
+          <!-- placeholder for other panel widgets -->
+          <template x-if="!['mapa-mesas','grafico-ventas','grafico-categorias','grafico-mozos','comandas-activas','mozos-turno','actividad'].includes(w.id)">
+            <div class="flex flex-col h-full items-center justify-center" style="min-height: 280px;">
+              <span class="text-3xl mb-2" x-text="getWidgetIcon(w.id)"></span>
+              <p class="text-sm text-txt-secondary" x-text="getWidgetNombre(w.id)"></p>
+              <p class="text-[10px] text-txt-muted mt-1">Próximamente</p>
+            </div>
+          </template>
+
         </div>
-      </div>
-      <!-- GRÁFICO VENTAS -->
-      <div class="col-span-5 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5 flex flex-col" style="height: 320px;">
-        <h3 class="font-semibold text-sm mb-4 flex-shrink-0">Ventas del Día</h3>
-        <div class="relative flex-1 min-h-0">
-          <canvas id="chartVentasDia"></canvas>
-        </div>
-      </div>
+      </template>
     </div>
 
-    <!-- ACTIVIDAD RECIENTE -->
-    <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
-      <h3 class="font-semibold text-sm mb-4">Actividad Reciente</h3>
-      <div class="space-y-3">
-        <template x-for="a in (activity.length > 0 ? activity : sharedData.activity)" :key="a.text">
-          <div class="flex items-center gap-3 text-sm">
-            <span class="w-2 h-2 rounded-full flex-shrink-0" :class="a.dotClass"></span>
-            <span class="text-txt-secondary" x-text="a.text"></span>
-            <span class="ml-auto text-xs text-txt-muted" x-text="a.time"></span>
+    <!-- DYNAMIC FULL-WIDTH WIDGETS -->
+    <template x-for="w in activeFullWidgets" :key="w.id">
+      <div class="mb-6">
+        <!-- actividad -->
+        <template x-if="w.id === 'actividad'">
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
+            <h3 class="font-semibold text-sm mb-4">Actividad Reciente</h3>
+            <div class="space-y-3">
+              <template x-for="a in activity" :key="a.timestamp || a.text">
+                <div class="flex items-center gap-3 text-sm">
+                  <span class="w-2 h-2 rounded-full flex-shrink-0" :class="a.dotClass"></span>
+                  <span class="text-txt-secondary" x-text="a.text"></span>
+                  <span class="ml-auto text-xs text-txt-muted" x-text="a.time"></span>
+                </div>
+              </template>
+              <div x-show="activity.length === 0" class="text-center text-txt-muted text-xs py-6">
+                Sin actividad reciente
+              </div>
+            </div>
+          </div>
+        </template>
+        <!-- top-platos -->
+        <template x-if="w.id === 'top-platos'">
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
+            <h3 class="font-semibold text-sm mb-4">Top 10 Platos</h3>
+            <div class="space-y-2">
+              <template x-for="(p, i) in topPlatosData" :key="p.nombre">
+                <div class="flex items-center gap-3 text-sm">
+                  <span class="w-6 text-center text-xs text-txt-muted font-bold" x-text="i + 1"></span>
+                  <span class="flex-1 text-txt-secondary" x-text="p.nombre"></span>
+                  <span class="text-xs text-gold font-semibold" x-text="p.cantidad + ' vendidos'"></span>
+                </div>
+              </template>
+              <div x-show="topPlatosData.length === 0" class="text-center text-txt-muted text-xs py-4">Sin datos de platos</div>
+            </div>
+          </div>
+        </template>
+        <!-- placeholder full-width -->
+        <template x-if="!['actividad','top-platos'].includes(w.id)">
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5 text-center py-8">
+            <span class="text-2xl" x-text="getWidgetIcon(w.id)"></span>
+            <p class="text-sm text-txt-secondary mt-2" x-text="getWidgetNombre(w.id)"></p>
+            <p class="text-[10px] text-txt-muted mt-1">Próximamente</p>
           </div>
         </template>
       </div>
+    </template>
+
+    <!-- Empty state when no widgets -->
+    <div x-show="activeKpis.length === 0 && activePanels.length === 0 && activeFullWidgets.length === 0"
+      class="flex flex-col items-center justify-center py-20 text-center">
+      <p class="text-4xl mb-4">📊</p>
+      <p class="text-lg font-semibold text-txt-secondary">No hay widgets activos</p>
+      <p class="text-sm text-txt-muted mt-1 mb-4">Usa el botón Personalizar para agregar widgets a tu dashboard</p>
+      <button @click="modal='personalizar'" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110">⚙️ Personalizar Dashboard</button>
     </div>
 
   </main>
@@ -200,11 +358,11 @@ tailwind.config = {
       <!-- Categoría: Métricas -->
       <div class="mb-4">
         <button @click="catMetricas=!catMetricas" class="flex items-center justify-between w-full py-2 text-sm font-semibold text-txt-secondary">
-          <span>📊 Métricas (8 widgets)</span>
+          <span x-text="'📊 Métricas (' + filteredWidgets(widgetsMetricas).length + ' widgets)'"></span>
           <span x-text="catMetricas ? '▼' : '▶'" class="text-xs"></span>
         </button>
         <div x-show="catMetricas" x-collapse class="grid grid-cols-2 gap-2 mt-2">
-          <template x-for="w in widgetsMetricas" :key="w.id">
+          <template x-for="w in filteredWidgets(widgetsMetricas)" :key="w.id">
             <div class="bg-bg-sidebar border rounded-xl p-3 transition hover:border-gold/40" :class="isWidgetActive(w.id) ? 'border-st-preparado' : 'border-[rgba(212,175,55,0.15)]'">
               <div class="flex items-center gap-2 mb-2">
                 <span class="text-xl" x-text="w.icon"></span>
@@ -227,11 +385,11 @@ tailwind.config = {
       <!-- Categoría: Gráficos -->
       <div class="mb-4">
         <button @click="catGraficos=!catGraficos" class="flex items-center justify-between w-full py-2 text-sm font-semibold text-txt-secondary">
-          <span>📈 Gráficos (8 widgets)</span>
+          <span x-text="'📈 Gráficos (' + filteredWidgets(widgetsGraficos).length + ' widgets)'"></span>
           <span x-text="catGraficos ? '▼' : '▶'" class="text-xs"></span>
         </button>
         <div x-show="catGraficos" x-collapse class="grid grid-cols-2 gap-2 mt-2">
-          <template x-for="w in widgetsGraficos" :key="w.id">
+          <template x-for="w in filteredWidgets(widgetsGraficos)" :key="w.id">
             <div class="bg-bg-sidebar border rounded-xl p-3 transition hover:border-gold/40" :class="isWidgetActive(w.id) ? 'border-st-preparado' : 'border-[rgba(212,175,55,0.15)]'">
               <div class="flex items-center gap-2 mb-2">
                 <span class="text-xl" x-text="w.icon"></span>
@@ -254,11 +412,11 @@ tailwind.config = {
       <!-- Categoría: Operaciones (colapsada por defecto) -->
       <div class="mb-4">
         <button @click="catOperaciones=!catOperaciones" class="flex items-center justify-between w-full py-2 text-sm font-semibold text-txt-secondary">
-          <span>⚙️ Operaciones (6 widgets)</span>
+          <span x-text="'⚙️ Operaciones (' + filteredWidgets(widgetsOperaciones).length + ' widgets)'"></span>
           <span x-text="catOperaciones ? '▼' : '▶'" class="text-xs"></span>
         </button>
         <div x-show="catOperaciones" x-collapse class="grid grid-cols-2 gap-2 mt-2">
-          <template x-for="w in widgetsOperaciones" :key="w.id">
+          <template x-for="w in filteredWidgets(widgetsOperaciones)" :key="w.id">
             <div class="bg-bg-sidebar border rounded-xl p-3 transition hover:border-gold/40" :class="isWidgetActive(w.id) ? 'border-st-preparado' : 'border-[rgba(212,175,55,0.15)]'">
               <div class="flex items-center gap-2 mb-2">
                 <span class="text-xl" x-text="w.icon"></span>
@@ -281,11 +439,11 @@ tailwind.config = {
       <!-- Categoría: Análisis (colapsada por defecto) -->
       <div class="mb-4">
         <button @click="catAnalisis=!catAnalisis" class="flex items-center justify-between w-full py-2 text-sm font-semibold text-txt-secondary">
-          <span>🧠 Análisis (4 widgets)</span>
+          <span x-text="'🧠 Análisis (' + filteredWidgets(widgetsAnalisis).length + ' widgets)'"></span>
           <span x-text="catAnalisis ? '▼' : '▶'" class="text-xs"></span>
         </button>
         <div x-show="catAnalisis" x-collapse class="grid grid-cols-2 gap-2 mt-2">
-          <template x-for="w in widgetsAnalisis" :key="w.id">
+          <template x-for="w in filteredWidgets(widgetsAnalisis)" :key="w.id">
             <div class="bg-bg-sidebar border rounded-xl p-3 transition hover:border-gold/40" :class="isWidgetActive(w.id) ? 'border-st-preparado' : 'border-[rgba(212,175,55,0.15)]'">
               <div class="flex items-center gap-2 mb-2">
                 <span class="text-xl" x-text="w.icon"></span>
@@ -308,17 +466,25 @@ tailwind.config = {
 
     <!-- Contenido: Widgets Activos -->
     <div x-show="persTab==='activos'" class="flex-1 overflow-y-auto p-4">
-      <p class="text-xs text-txt-muted mb-3">Widgets actualmente en tu dashboard:</p>
-      <div class="space-y-2">
-        <template x-for="w in activeWidgets" :key="w.id">
-          <div class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg p-3 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <span class="text-lg" x-text="w.icon"></span>
-              <div>
-                <p class="text-sm font-medium" x-text="w.nombre"></p>
-                <p class="text-[10px] text-txt-muted" x-text="w.tamano"></p>
-              </div>
+      <p class="text-xs text-txt-muted mb-3">Arrastra para reordenar. <span x-text="activeWidgets.length"></span> widgets activos.</p>
+      <div class="space-y-2" id="sortable-widgets">
+        <template x-for="(w, idx) in activeWidgets" :key="w.id">
+          <div class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg p-3 flex items-center gap-2 group"
+            draggable="true"
+            @dragstart="dragStart($event, idx)"
+            @dragover.prevent="dragOver($event, idx)"
+            @dragend="dragEnd()"
+            :class="dragIdx === idx ? 'opacity-40 border-gold' : ''">
+            <!-- Drag handle -->
+            <span class="text-txt-muted cursor-grab active:cursor-grabbing text-xs select-none mr-1" title="Arrastrar">⠿</span>
+            <span class="text-lg" x-text="w.icon"></span>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium truncate" x-text="w.nombre"></p>
+              <p class="text-[10px] text-txt-muted" x-text="w.tamano"></p>
             </div>
+            <!-- Move buttons -->
+            <button @click="moveWidget(idx, -1)" :disabled="idx === 0" class="w-6 h-6 flex items-center justify-center rounded text-xs transition" :class="idx === 0 ? 'text-txt-muted/30' : 'text-txt-muted hover:text-gold hover:bg-gold-20'">▲</button>
+            <button @click="moveWidget(idx, 1)" :disabled="idx === activeWidgets.length - 1" class="w-6 h-6 flex items-center justify-center rounded text-xs transition" :class="idx === activeWidgets.length - 1 ? 'text-txt-muted/30' : 'text-txt-muted hover:text-gold hover:bg-gold-20'">▼</button>
             <button @click="removeWidget(w.id)" class="w-7 h-7 flex items-center justify-center rounded bg-st-pagado/20 text-st-pagado text-xs hover:bg-st-pagado/30">✕</button>
           </div>
         </template>
@@ -327,33 +493,21 @@ tailwind.config = {
 
     <!-- Contenido: Layouts Guardados -->
     <div x-show="persTab==='layouts'" class="flex-1 overflow-y-auto p-4">
-      <p class="text-xs text-txt-muted mb-3">Configuraciones guardadas:</p>
+      <p class="text-xs text-txt-muted mb-3">Selecciona un layout para aplicarlo:</p>
       <div class="space-y-2">
-        <div class="bg-bg-sidebar border border-gold/40 rounded-lg p-3 cursor-pointer">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm font-medium text-gold">🔧 Predeterminado</p>
-              <p class="text-[10px] text-txt-muted">5 KPIs, Mapa mesas, Gráfico ventas, Actividad</p>
-            </div>
-            <span class="text-[10px] px-2 py-1 rounded-full bg-gold/20 text-gold">Actual</span>
-          </div>
-        </div>
-        <div class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg p-3 cursor-pointer hover:border-gold/40 transition">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm font-medium">📊 Ejecutivo</p>
-              <p class="text-[10px] text-txt-muted">KPIs extendidos, gráficos detallados</p>
+        <template x-for="preset in layoutPresets" :key="preset.name">
+          <div @click="applyPreset(preset)"
+            class="bg-bg-sidebar border rounded-lg p-3 cursor-pointer transition hover:border-gold/40"
+            :class="currentPresetName === preset.name ? 'border-gold/40' : 'border-[rgba(212,175,55,0.25)]'">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium" :class="currentPresetName === preset.name ? 'text-gold' : ''" x-text="preset.icon + ' ' + preset.name"></p>
+                <p class="text-[10px] text-txt-muted" x-text="preset.desc"></p>
+              </div>
+              <span x-show="currentPresetName === preset.name" class="text-[10px] px-2 py-1 rounded-full bg-gold/20 text-gold">Actual</span>
             </div>
           </div>
-        </div>
-        <div class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg p-3 cursor-pointer hover:border-gold/40 transition">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm font-medium">🎯 Operativo</p>
-              <p class="text-[10px] text-txt-muted">Mesas, comandas, tiempos</p>
-            </div>
-          </div>
-        </div>
+        </template>
       </div>
     </div>
 
@@ -375,6 +529,57 @@ tailwind.config = {
 <script src="/assets/js/shared.js"></script>
 <script src="/assets/js/charts.js"></script>
 <script>
+// ============================================
+// WIDGET CATALOG — Single source of truth
+// ============================================
+const WIDGET_CATALOG = {
+  'kpi-mesas':          { icon: '🪑', nombre: 'Mesas Ocupadas',         tamano: '1 col · Métrica',    tipo: 'kpi',   colSpan: 1 },
+  'kpi-ventas':         { icon: '💰', nombre: 'Ventas del Día',         tamano: '1 col · Métrica',    tipo: 'kpi',   colSpan: 1 },
+  'kpi-plato':          { icon: '🍽️', nombre: 'Top Plato',             tamano: '1 col · Métrica',    tipo: 'kpi',   colSpan: 1 },
+  'kpi-mozo':           { icon: '👤', nombre: 'Top Mozo',               tamano: '1 col · Métrica',    tipo: 'kpi',   colSpan: 1 },
+  'kpi-alertas':        { icon: '🔴', nombre: 'Alertas',                tamano: '1 col · Métrica',    tipo: 'kpi',   colSpan: 1 },
+  'kpi-tiempo':         { icon: '⏰', nombre: 'Tiempo Prom. Cocina',    tamano: '1 col · Métrica',    tipo: 'kpi',   colSpan: 1 },
+  'kpi-tickets':        { icon: '🧾', nombre: 'Tickets Hoy',            tamano: '1 col · Métrica',    tipo: 'kpi',   colSpan: 1 },
+  'kpi-satisfaccion':   { icon: '⭐', nombre: 'Satisfacción',           tamano: '1 col · Métrica',    tipo: 'kpi',   colSpan: 1 },
+  'mapa-mesas':         { icon: '🗺️', nombre: 'Mapa de Mesas',         tamano: '7 cols · Visual',    tipo: 'panel', colSpan: 7 },
+  'grafico-ventas':     { icon: '📈', nombre: 'Ventas por Hora',        tamano: '5 cols · Gráfico',   tipo: 'panel', colSpan: 5 },
+  'grafico-categorias': { icon: '🥧', nombre: 'Distribución Categorías',tamano: '4 cols · Donut',    tipo: 'panel', colSpan: 4 },
+  'grafico-mozos':      { icon: '📊', nombre: 'Performance Mozos',      tamano: '6 cols · Barras',    tipo: 'panel', colSpan: 6 },
+  'grafico-mesas':      { icon: '🗺️', nombre: 'Ocupación por Mesa',    tamano: '6 cols · Heatmap',   tipo: 'panel', colSpan: 6 },
+  'grafico-semanal':    { icon: '📉', nombre: 'Ventas Semanales',       tamano: '6 cols · Área',      tipo: 'panel', colSpan: 6 },
+  'grafico-historico':  { icon: '📈', nombre: 'Tendencia Mensual',      tamano: '8 cols · Línea',     tipo: 'panel', colSpan: 8 },
+  'grafico-propinas':   { icon: '💵', nombre: 'Propinas por Día',       tamano: '4 cols · Barras',    tipo: 'panel', colSpan: 4 },
+  'grafico-tiempos':    { icon: '⏱️', nombre: 'Tiempos de Servicio',   tamano: '4 cols · Barras',    tipo: 'panel', colSpan: 4 },
+  'actividad':          { icon: '📋', nombre: 'Actividad Reciente',     tamano: '12 cols · Lista',    tipo: 'full',  colSpan: 12 },
+  'comandas-activas':   { icon: '🍳', nombre: 'Comandas Activas',       tamano: '4 cols · Lista',     tipo: 'panel', colSpan: 4 },
+  'pedidos-listos':     { icon: '✅', nombre: 'Pedidos Listos',          tamano: '3 cols · Lista',     tipo: 'panel', colSpan: 3 },
+  'stock-bajo':         { icon: '⚠️', nombre: 'Alertas Stock',          tamano: '3 cols · Tabla',     tipo: 'panel', colSpan: 3 },
+  'mozos-turno':        { icon: '👥', nombre: 'Mozos en Turno',          tamano: '4 cols · Tarjetas',  tipo: 'panel', colSpan: 4 },
+  'top-platos':         { icon: '🏆', nombre: 'Top 10 Platos',          tamano: '12 cols · Tabla',    tipo: 'full',  colSpan: 12 },
+  'clientes-frecuentes':{ icon: '💎', nombre: 'Clientes Frecuentes',    tamano: '4 cols · Lista',     tipo: 'panel', colSpan: 4 },
+  'hora-pico':          { icon: '🕐', nombre: 'Análisis Hora Pico',     tamano: '4 cols · Tarjeta',   tipo: 'panel', colSpan: 4 },
+  'comparativo':        { icon: '📊', nombre: 'Comparativo',             tamano: '6 cols · Tarjetas',  tipo: 'panel', colSpan: 6 }
+};
+
+const DEFAULT_LAYOUT = [
+  'kpi-mesas','kpi-ventas','kpi-plato','kpi-mozo','kpi-alertas',
+  'mapa-mesas','grafico-ventas','actividad'
+];
+
+const LAYOUT_PRESETS = [
+  { name: 'Predeterminado', icon: '🔧', desc: '5 KPIs, Mapa mesas, Gráfico ventas, Actividad',
+    widgets: ['kpi-mesas','kpi-ventas','kpi-plato','kpi-mozo','kpi-alertas','mapa-mesas','grafico-ventas','actividad'] },
+  { name: 'Ejecutivo', icon: '📊', desc: 'KPIs extendidos, gráficos detallados, top platos',
+    widgets: ['kpi-mesas','kpi-ventas','kpi-plato','kpi-mozo','kpi-alertas','kpi-tickets','kpi-tiempo','grafico-ventas','grafico-categorias','grafico-mozos','top-platos'] },
+  { name: 'Operativo', icon: '🎯', desc: 'Mesas, comandas activas, mozos en turno, actividad',
+    widgets: ['kpi-mesas','kpi-alertas','kpi-tiempo','mapa-mesas','comandas-activas','mozos-turno','actividad'] },
+  { name: 'Minimalista', icon: '✨', desc: 'Solo KPIs y actividad reciente',
+    widgets: ['kpi-mesas','kpi-ventas','kpi-alertas','actividad'] }
+];
+
+// ============================================
+// MAIN DASHBOARD APP
+// ============================================
 function dashApp() {
   return {
     sidebarOpen: true,
@@ -385,105 +590,247 @@ function dashApp() {
     loading: true,
     mesas: [],
     mozos: [],
+    comandasActivas: [],
+    topPlatosData: [],
+    // KPI data
     kpiMesasOcupadas: '—',
     kpiOcupacionPct: '—',
     kpiVentasHoy: 'S/. —',
+    kpiVentasPct: '+0% vs ayer',
+    kpiTopPlato: '—',
+    kpiTopPlatoSub: '—',
     kpiTopMozo: '—',
+    kpiTopMozoSub: 'Mejor rendimiento',
+    kpiAlertas: '0',
+    kpiAlertasSub: 'Sin alertas',
+    kpiTiempoCocina: '—',
+    kpiTicketsHoy: '0',
     activity: [],
     socket: null,
-    
+    // Widget layout
+    dashboardLayout: [],
+    _ventasLabelsCache: [],
+    _ventasDataCache: [],
+
+    // Computed: split layout into rows
+    get activeKpis() {
+      return this.dashboardLayout.filter(id => WIDGET_CATALOG[id]?.tipo === 'kpi').map(id => ({ id }));
+    },
+    get activePanels() {
+      return this.dashboardLayout
+        .filter(id => WIDGET_CATALOG[id]?.tipo === 'panel')
+        .map(id => ({ id }));
+    },
+    get activeFullWidgets() {
+      return this.dashboardLayout
+        .filter(id => WIDGET_CATALOG[id]?.tipo === 'full')
+        .map(id => ({ id }));
+    },
+
+    getWidgetColSpan(id) { return WIDGET_CATALOG[id]?.colSpan || 6; },
+    getWidgetIcon(id)    { return WIDGET_CATALOG[id]?.icon || '📦'; },
+    getWidgetNombre(id)  { return WIDGET_CATALOG[id]?.nombre || id; },
+
     async init() {
-      // Verificar token
       const token = localStorage.getItem('adminToken');
-      if (!token) {
-        window.location.href = '/login.html';
-        return;
-      }
-      
+      if (!token) { window.location.href = '/login.html'; return; }
+
+      // Load saved layout
+      this.loadLayoutFromStorage();
+
+      // Listen for layout changes from the personalizar modal
+      this.$el.addEventListener('layout-updated', (e) => {
+        this.dashboardLayout = [...e.detail.layout];
+        this.saveLayoutToStorage();
+        // Re-init charts after DOM settles
+        this.$nextTick(() => { this.reinitCharts(); });
+      });
+
       await this.loadDashboard();
       this.initSocket();
       this.startAutoRefresh();
     },
-    
+
+    loadLayoutFromStorage() {
+      try {
+        const saved = localStorage.getItem('dashboardLayout');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          const ids = parsed.widgets || parsed;
+          if (Array.isArray(ids) && ids.length > 0) {
+            // Support both formats: array of strings or array of objects
+            this.dashboardLayout = ids.map(w => typeof w === 'string' ? w : w.id).filter(id => WIDGET_CATALOG[id]);
+            return;
+          }
+        }
+      } catch (e) { /* ignore */ }
+      this.dashboardLayout = [...DEFAULT_LAYOUT];
+    },
+
+    saveLayoutToStorage() {
+      localStorage.setItem('dashboardLayout', JSON.stringify({ widgets: this.dashboardLayout, savedAt: new Date().toISOString() }));
+    },
+
+    isWidgetActive(id) { return this.dashboardLayout.includes(id); },
+
     async loadDashboard() {
       this.loading = true;
       const hoy = new Date().toISOString().split('T')[0];
-      
+      const needs = (id) => this.dashboardLayout.includes(id);
+
       try {
-        const [mesas, mozos, comandas, reporteHoy, auditoria] = await Promise.all([
+        // Always fetch mesas and mozos (used by multiple widgets)
+        const fetches = [
           apiGet('/mesas'),
-          apiGet('/mozos'),
-          apiGet('/comandas'),
-          apiGet('/reportes/ventas?fechaInicio=' + hoy + '&fechaFin=' + hoy + '&agruparPor=hora'),
-          apiGet('/auditoria/comandas?limit=6').catch(() => null)
-        ]);
-        
+          apiGet('/mozos')
+        ];
+        // Conditionally fetch based on active widgets
+        const needsComandas = needs('comandas-activas') || needs('actividad') || needs('kpi-tickets');
+        const needsVentas = needs('kpi-ventas') || needs('grafico-ventas');
+        const needsAuditoria = needs('actividad');
+        const needsTopPlatos = needs('kpi-plato') || needs('top-platos');
+
+        fetches.push(needsComandas ? apiGet('/comandas') : Promise.resolve(null));
+        fetches.push(needsVentas ? apiGet('/reportes/ventas?fechaInicio=' + hoy + '&fechaFin=' + hoy + '&agruparPor=hora') : Promise.resolve(null));
+        fetches.push(needsAuditoria ? apiGet('/auditoria/comandas?limit=6').catch(() => null) : Promise.resolve(null));
+        fetches.push(needsTopPlatos ? apiGet('/reportes/platos-top').catch(() => null) : Promise.resolve(null));
+
+        const [mesas, mozos, comandas, reporteHoy, auditoria, topPlatos] = await Promise.all(fetches);
+
+        // --- MESAS ---
         if (mesas && Array.isArray(mesas)) {
           this.mesas = mesas;
           const ocupadas = mesas.filter(m => m.estado !== 'libre' && m.estado !== 'Libre').length;
           this.kpiMesasOcupadas = ocupadas + '/' + mesas.length;
           this.kpiOcupacionPct = mesas.length > 0 ? Math.round((ocupadas / mesas.length) * 100) + '%' : '0%';
+          // Alertas: mesas pagadas sin liberar
+          const alertas = mesas.filter(m => (m.estado || '').toLowerCase() === 'pagado');
+          this.kpiAlertas = String(alertas.length);
+          this.kpiAlertasSub = alertas.length > 0 ? 'Mesa ' + (alertas[0].numMesa || alertas[0].nummesa || '?') + ' sin liberar' : 'Sin alertas';
         }
-        
+
+        // --- MOZOS ---
         if (mozos && Array.isArray(mozos)) {
           this.mozos = mozos;
-          const topMozo = [...mozos].sort((a, b) => (b.ventasHoy || 0) - (a.ventasHoy || 0))[0];
-          if (topMozo && topMozo.nombre) {
-            const partes = topMozo.nombre.split(' ');
+          const sorted = [...mozos].sort((a, b) => (b.ventasHoy || 0) - (a.ventasHoy || 0));
+          const topMozo = sorted[0];
+          if (topMozo && (topMozo.nombre || topMozo.name)) {
+            const nombre = topMozo.nombre || topMozo.name;
+            const partes = nombre.split(' ');
             this.kpiTopMozo = partes[0] + (partes[1] ? ' ' + partes[1].charAt(0) + '.' : '');
+            this.kpiTopMozoSub = 'S/. ' + (topMozo.ventasHoy || 0);
           }
         }
-        
-        // Cargar ventas del día
+
+        // --- COMANDAS ---
+        if (comandas && Array.isArray(comandas)) {
+          this.comandasActivas = comandas.filter(c => {
+            const st = (c.status || c.estado || '').toLowerCase();
+            return !st.includes('entregado') && !st.includes('cancelado');
+          }).slice(0, 8);
+          this.kpiTicketsHoy = String(comandas.length);
+        }
+
+        // --- VENTAS ---
         if (reporteHoy && reporteHoy.data && reporteHoy.data.length > 0) {
           const totalHoy = reporteHoy.data.reduce((s, d) => s + (d.total || 0), 0);
           this.kpiVentasHoy = 'S/. ' + totalHoy.toLocaleString('es-PE');
-          const ventasData = reporteHoy.data.map(d => d.total || 0);
-          const ventasLabels = reporteHoy.data.map(d => d._id || d.hora || '');
-          LasGambusinasCharts.drawDashChartWithData('chartVentasDia', ventasLabels, ventasData);
+          this._ventasDataCache = reporteHoy.data.map(d => d.total || 0);
+          this._ventasLabelsCache = reporteHoy.data.map(d => d._id || d.hora || '');
+          this.initChartVentas();
         } else {
-          // Mostrar estado vacío
-          LasGambusinasCharts.drawEmptyChart('chartVentasDia', 'Sin ventas registradas hoy');
           this.kpiVentasHoy = 'S/. 0';
+          this._ventasDataCache = [];
+          this._ventasLabelsCache = [];
+          if (needs('grafico-ventas')) {
+            LasGambusinasCharts.drawEmptyChart('chartVentasDia', 'Sin ventas registradas hoy');
+          }
         }
-        
-        // Cargar actividad reciente - priorizar auditoría si está disponible
-        if (auditoria && Array.isArray(auditoria) && auditoria.length > 0) {
-          this.activity = auditoria.slice(0, 6).map(a => {
-            const dotClass = this.getDotClassForAction(a.accion);
+
+        // --- TOP PLATOS ---
+        if (topPlatos && Array.isArray(topPlatos) && topPlatos.length > 0) {
+          this.topPlatosData = topPlatos.slice(0, 10);
+          const top = topPlatos[0];
+          this.kpiTopPlato = top.nombre || top._id || '—';
+          this.kpiTopPlatoSub = (top.cantidad || top.total || 0) + ' vendidos';
+        } else {
+          this.kpiTopPlato = '—';
+          this.kpiTopPlatoSub = 'sin datos';
+        }
+
+        // --- AUDITORIA / ACTIVIDAD ---
+        if (auditoria && auditoria.auditorias && Array.isArray(auditoria.auditorias) && auditoria.auditorias.length > 0) {
+          this.activity = auditoria.auditorias.slice(0, 6).map(a => {
+            const usuarioNombre = a.usuario?.name || a.usuario?.nombre || 'Sistema';
+            const comandaNum = a.entidadId?.toString()?.slice(-4) || a.comandaNum || '';
+            const hora = a.timestamp ? new Date(a.timestamp) : null;
             return {
-              text: a.accion + ' — ' + (a.modulo || '') + (a.comandaNum ? ' #' + a.comandaNum : ''),
-              time: a.hora ? this.timeAgo(new Date(a.hora)) : '—',
-              timestamp: a.hora ? new Date(a.hora).getTime() : Date.now(),
-              dotClass: dotClass
+              text: (a.accion || 'Acción') + ' — ' + (a.entidadTipo || '') + (comandaNum ? ' #' + comandaNum : '') + (a.detalles?.mesaNum ? ' (Mesa ' + a.detalles.mesaNum + ')' : ''),
+              time: hora ? this.timeAgo(hora) : '—',
+              timestamp: hora ? hora.getTime() : Date.now(),
+              dotClass: this.getDotClassForAction(a.accion)
             };
           });
         } else if (comandas && Array.isArray(comandas) && comandas.length > 0) {
-          // Fallback a comandas
           this.activity = comandas.slice(0, 6).map(c => {
             let dotClass = 'bg-gold';
             let estado = (c.status || c.estado || '').toLowerCase();
             if (estado.includes('preparado') || estado.includes('listo')) dotClass = 'bg-st-preparado';
             else if (estado.includes('cocina') || estado.includes('pedido')) dotClass = 'bg-st-pedido';
             else if (estado.includes('entregado')) dotClass = 'bg-st-esperando';
-            
             return {
               text: 'Mesa ' + (c.mesa?.numMesa || c.mesa || '—') + ' — Comanda #' + (c.comandaNumber || c._id?.slice(-4) || '—'),
               time: c.createdAt ? this.timeAgo(new Date(c.createdAt)) : '—',
               timestamp: c.createdAt ? new Date(c.createdAt).getTime() : Date.now(),
-              dotClass: dotClass
+              dotClass
             };
           });
         }
-        
+
       } catch (e) {
         console.error('Error loading dashboard:', e);
-        LasGambusinasCharts.drawEmptyChart('chartVentasDia', 'Error al cargar datos');
       }
-      
+
       this.loading = false;
     },
-    
+
+    // Chart init functions (called by x-init on canvas elements)
+    initChartVentas() {
+      if (this._ventasDataCache.length > 0) {
+        LasGambusinasCharts.drawDashChartWithData('chartVentasDia', this._ventasLabelsCache, this._ventasDataCache);
+      } else {
+        LasGambusinasCharts.drawEmptyChart('chartVentasDia', 'Sin ventas registradas hoy');
+      }
+    },
+    initChartCategorias() {
+      LasGambusinasCharts.drawReportDonutChart('chartCategorias');
+    },
+    initChartMozos() {
+      const el = document.getElementById('chartMozos');
+      if (!el) return;
+      if (el._chart) el._chart.destroy();
+      const nombres = this.mozos.slice(0, 5).map(m => (m.nombre || m.name || '—').split(' ')[0]);
+      const ventas = this.mozos.slice(0, 5).map(m => m.ventasHoy || 0);
+      el._chart = new Chart(el.getContext('2d'), {
+        type: 'bar',
+        data: { labels: nombres.length ? nombres : ['—'], datasets: [{ label: 'Ventas', data: ventas.length ? ventas : [0], backgroundColor: '#d4af37', borderRadius: 4 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+          scales: { x: { ticks: { color: '#a0a0b8', font: { size: 10 } }, grid: { display: false } },
+                    y: { ticks: { color: '#a0a0b8', font: { size: 10 }, callback: v => 'S/.' + v }, grid: { color: 'rgba(212,175,55,0.06)' } } } }
+      });
+    },
+    reinitCharts() {
+      if (this.dashboardLayout.includes('grafico-ventas')) {
+        this.$nextTick(() => this.initChartVentas());
+      }
+      if (this.dashboardLayout.includes('grafico-categorias')) {
+        this.$nextTick(() => this.initChartCategorias());
+      }
+      if (this.dashboardLayout.includes('grafico-mozos')) {
+        this.$nextTick(() => this.initChartMozos());
+      }
+    },
+
     getDotClassForAction(accion) {
       const a = (accion || '').toLowerCase();
       if (a.includes('eliminado') || a.includes('eliminada')) return 'bg-st-pagado';
@@ -493,82 +840,49 @@ function dashApp() {
       if (a.includes('editado') || a.includes('modificado')) return 'bg-st-esperando';
       return 'bg-st-pedido';
     },
-    
+
     initSocket() {
       const token = localStorage.getItem('adminToken');
       if (!token || typeof io === 'undefined') return;
-
       try {
-        this.socket = io('/admin', {
-          auth: { token },
-          transports: ['websocket', 'polling']
-        });
+        this.socket = io('/admin', { auth: { token }, transports: ['websocket', 'polling'] });
 
-        // === EVENTO: Mesa actualizada ===
         this.socket.on('mesa:actualizada', (data) => {
           const idx = this.mesas.findIndex(m => m._id === data._id || m._id === data.id);
-          if (idx >= 0) {
-            this.mesas[idx] = { ...this.mesas[idx], ...data };
-          }
-          this.addActivity({
-            text: 'Mesa ' + (data.numMesa || data.numero || '—') + ' — Estado: ' + this.estadoNormalizado(data.estado),
-            dotClass: 'bg-st-libre'
-          });
+          if (idx >= 0) this.mesas[idx] = { ...this.mesas[idx], ...data };
+          // Recalculate KPIs
+          const ocupadas = this.mesas.filter(m => m.estado !== 'libre' && m.estado !== 'Libre').length;
+          this.kpiMesasOcupadas = ocupadas + '/' + this.mesas.length;
+          this.kpiOcupacionPct = this.mesas.length > 0 ? Math.round((ocupadas / this.mesas.length) * 100) + '%' : '0%';
+          const alertas = this.mesas.filter(m => (m.estado || '').toLowerCase() === 'pagado');
+          this.kpiAlertas = String(alertas.length);
+          this.kpiAlertasSub = alertas.length > 0 ? 'Mesa ' + (alertas[0].numMesa || alertas[0].nummesa || '?') + ' sin liberar' : 'Sin alertas';
+          this.addActivity({ text: 'Mesa ' + (data.numMesa || data.numero || '—') + ' — Estado: ' + this.estadoNormalizado(data.estado), dotClass: 'bg-st-libre' });
         });
 
-        // === EVENTO: Nueva comanda (desde admin namespace) ===
         this.socket.on('reportes:comanda-nueva', (data) => {
           const comanda = data.comanda || data;
-          this.addActivity({
-            text: 'Mesa ' + (comanda.mesa?.numMesa || data.mesaNum || '—') + ' — Nueva comanda #' + (comanda.comandaNumber || data.comandaNumber || '—'),
-            dotClass: 'bg-gold'
-          });
+          this.addActivity({ text: 'Mesa ' + (comanda.mesa?.numMesa || data.mesaNum || '—') + ' — Nueva comanda #' + (comanda.comandaNumber || data.comandaNumber || '—'), dotClass: 'bg-gold' });
         });
 
-        // === EVENTO: Plato listo ===
         this.socket.on('reportes:plato-listo', (data) => {
-          this.addActivity({
-            text: 'Plato listo — Comanda #' + (data.comandaNumber || data.comandaId?.slice(-4) || '—') + (data.platoNombre ? ' (' + data.platoNombre + ')' : ''),
-            dotClass: 'bg-st-preparado'
-          });
+          this.addActivity({ text: 'Plato listo — Comanda #' + (data.comandaNumber || data.comandaId?.slice(-4) || '—') + (data.platoNombre ? ' (' + data.platoNombre + ')' : ''), dotClass: 'bg-st-preparado' });
         });
 
-        // === EVENTO: Pago procesado / Boucher nuevo ===
         this.socket.on('reportes:boucher-nuevo', (data) => {
           const monto = data.monto || data.total || 0;
           const mesaNum = data.mesaNum || data.mesa?.numMesa || '—';
-          this.addActivity({
-            text: 'Pago procesado — S/. ' + monto.toLocaleString('es-PE') + ' (Mesa ' + mesaNum + ')',
-            dotClass: 'bg-st-pagado'
-          });
-          // Actualizar gráfico de ventas en tiempo real
+          this.addActivity({ text: 'Pago procesado — S/. ' + monto.toLocaleString('es-PE') + ' (Mesa ' + mesaNum + ')', dotClass: 'bg-st-pagado' });
           this.refreshVentasChart();
         });
 
-        // === EVENTO: Plato del menú actualizado ===
-        this.socket.on('plato-menu-actualizado', (data) => {
-          // Recargar platos si estamos en esa página (no aplica al dashboard pero dejamos el handler)
-        });
-
-        // === EVENTO: Estado del socket ===
-        this.socket.on('socket-status', (data) => {
-          console.log('Socket status:', data);
-        });
-
-        this.socket.on('connect_error', (err) => {
-          console.warn('Socket.io no disponible:', err.message);
-        });
-
-        this.socket.on('connect', () => {
-          console.log('Socket.io /admin conectado');
-        });
-
-      } catch (e) {
-        console.warn('Socket.io init error:', e);
-      }
+        this.socket.on('plato-menu-actualizado', () => {});
+        this.socket.on('socket-status', (data) => { console.log('Socket status:', data); });
+        this.socket.on('connect_error', (err) => { console.warn('Socket.io no disponible:', err.message); });
+        this.socket.on('connect', () => { console.log('Socket.io /admin conectado'); });
+      } catch (e) { console.warn('Socket.io init error:', e); }
     },
 
-    // Agregar item a actividad reciente (máximo 6 items)
     addActivity(item) {
       item.time = 'ahora';
       item.timestamp = Date.now();
@@ -576,124 +890,73 @@ function dashApp() {
       if (this.activity.length > 6) this.activity.pop();
     },
 
-    // Actualizar gráfico de ventas (llamado cuando llega un pago)
     async refreshVentasChart() {
       const hoy = new Date().toISOString().split('T')[0];
       try {
         const reporteHoy = await apiGet('/reportes/ventas?fechaInicio=' + hoy + '&fechaFin=' + hoy + '&agruparPor=hora');
         if (reporteHoy && reporteHoy.data && reporteHoy.data.length > 0) {
-          const ventasData = reporteHoy.data.map(d => d.total || 0);
-          const ventasLabels = reporteHoy.data.map(d => d._id || d.hora || '');
-          LasGambusinasCharts.drawDashChartWithData('chartVentasDia', ventasLabels, ventasData);
-          // Actualizar KPI de ventas
+          this._ventasDataCache = reporteHoy.data.map(d => d.total || 0);
+          this._ventasLabelsCache = reporteHoy.data.map(d => d._id || d.hora || '');
           const totalHoy = reporteHoy.data.reduce((s, d) => s + (d.total || 0), 0);
           this.kpiVentasHoy = 'S/. ' + totalHoy.toLocaleString('es-PE');
+          if (this.dashboardLayout.includes('grafico-ventas')) {
+            LasGambusinasCharts.drawDashChartWithData('chartVentasDia', this._ventasLabelsCache, this._ventasDataCache);
+          }
         } else {
-          // Mostrar estado vacío
-          LasGambusinasCharts.drawEmptyChart('chartVentasDia', 'Sin ventas registradas hoy');
           this.kpiVentasHoy = 'S/. 0';
+          if (this.dashboardLayout.includes('grafico-ventas')) {
+            LasGambusinasCharts.drawEmptyChart('chartVentasDia', 'Sin ventas registradas hoy');
+          }
         }
-      } catch (e) {
-        console.warn('Error actualizando gráfico:', e);
-      }
+      } catch (e) { console.warn('Error actualizando gráfico:', e); }
     },
-    
+
     startAutoRefresh() {
-      // Actualizar tiempos relativos cada minuto
-      setInterval(() => {
-        this.updateActivityTimes();
-      }, 60000);
-
-      // Refrescar dashboard completo cada 30 segundos
-      setInterval(() => {
-        this.loadDashboard();
-      }, 30000);
+      setInterval(() => { this.updateActivityTimes(); }, 60000);
+      setInterval(() => { this.loadDashboard(); }, 30000);
     },
 
-    // Actualizar tiempos relativos de la actividad
     updateActivityTimes() {
       this.activity = this.activity.map(a => {
-        if (a.timestamp) {
-          a.time = this.timeAgo(new Date(a.timestamp));
-        }
+        if (a.timestamp) a.time = this.timeAgo(new Date(a.timestamp));
         return a;
       });
     },
-    
-    timeAgo(date) {
-      const now = new Date();
-      const then = new Date(date);
-      const seconds = Math.floor((now - then) / 1000);
 
+    timeAgo(date) {
+      const seconds = Math.floor((new Date() - new Date(date)) / 1000);
       if (seconds < 10) return 'ahora';
       if (seconds < 60) return 'hace ' + seconds + 's';
       if (seconds < 3600) return 'hace ' + Math.floor(seconds / 60) + ' min';
       if (seconds < 86400) return 'hace ' + Math.floor(seconds / 3600) + 'h';
       return 'hace ' + Math.floor(seconds / 86400) + ' días';
     },
-    
+
     estadoNormalizado(estado) {
-      const map = {
-        'libre': 'Libre', 'ocupada': 'Ocupada',
-        'pedido': 'Pedido', 'preparado': 'Preparado',
-        'pagado': 'Pagado', 'reservado': 'Reservado'
-      };
+      const map = { 'libre':'Libre','ocupada':'Ocupada','pedido':'Pedido','preparado':'Preparado','pagado':'Pagado','reservado':'Reservado' };
       return map[estado?.toLowerCase()] || estado || 'Libre';
     },
-    
-    getSaludo() {
-      const h = new Date().getHours();
-      if (h < 12) return 'días';
-      if (h < 19) return 'tardes';
-      return 'noches';
-    },
-    
-    getFecha() {
-      return new Date().toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
-    },
-    
-    openMesa(m) {
-      this.selectedMesa = m;
-      this.modal = 'detalleMesa';
-    },
-    
+
+    getSaludo() { const h = new Date().getHours(); return h < 12 ? 'días' : h < 19 ? 'tardes' : 'noches'; },
+    getFecha() { return new Date().toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }); },
+    openMesa(m) { this.selectedMesa = m; this.modal = 'detalleMesa'; },
+
     async liberarMesa() {
       if (!this.selectedMesa?._id) return;
       const res = await apiPut('/mesas/' + this.selectedMesa._id, { estado: 'libre' });
-      if (res && !res.error) {
-        this.modal = null;
-        await this.loadDashboard();
-      }
+      if (res && !res.error) { this.modal = null; await this.loadDashboard(); }
     },
-    
+
     exportarDashboard() {
-      // Exportar resumen del dashboard como texto
-      const resumen = `
-LAS GAMBUSINAS - RESUMEN DEL DÍA
-================================
-Fecha: ${this.getFecha()}
-
-MESAS
-- Ocupadas: ${this.kpiMesasOcupadas}
-- Ocupación: ${this.kpiOcupacionPct}
-
-VENTAS
-- Total hoy: ${this.kpiVentasHoy}
-
-MOZOS
-- Top mozo: ${this.kpiTopMozo}
-
-Generado: ${new Date().toLocaleString('es-PE')}
-      `.trim();
-      
+      const resumen = `LAS GAMBUSINAS - RESUMEN DEL DÍA\n================================\nFecha: ${this.getFecha()}\n\nMESAS\n- Ocupadas: ${this.kpiMesasOcupadas}\n- Ocupación: ${this.kpiOcupacionPct}\n\nVENTAS\n- Total hoy: ${this.kpiVentasHoy}\n\nMOZOS\n- Top mozo: ${this.kpiTopMozo}\n\nGenerado: ${new Date().toLocaleString('es-PE')}`;
       const blob = new Blob([resumen], { type: 'text/plain;charset=utf-8' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `dashboard_${new Date().toISOString().split('T')[0]}.txt`;
+      link.download = 'dashboard_' + new Date().toISOString().split('T')[0] + '.txt';
       link.click();
       URL.revokeObjectURL(link.href);
     },
-    
+
     logout() {
       localStorage.removeItem('adminToken');
       localStorage.removeItem('gambusinas_auth');
@@ -714,118 +977,146 @@ function personalizarApp() {
     catGraficos: true,
     catOperaciones: false,
     catAnalisis: false,
-    activeWidgets: [
-      { id: 'kpi-mesas', icon: '🪑', nombre: 'Mesas Ocupadas', tamano: '1 col · Métrica' },
-      { id: 'kpi-ventas', icon: '💰', nombre: 'Ventas del Día', tamano: '1 col · Métrica' },
-      { id: 'kpi-plato', icon: '🍽️', nombre: 'Top Plato', tamano: '1 col · Métrica' },
-      { id: 'kpi-mozo', icon: '👤', nombre: 'Top Mozo', tamano: '1 col · Métrica' },
-      { id: 'kpi-alertas', icon: '🔴', nombre: 'Alertas', tamano: '1 col · Métrica' },
-      { id: 'mapa-mesas', icon: '🗺️', nombre: 'Mapa de Mesas', tamano: '7 cols · Visual' },
-      { id: 'grafico-ventas', icon: '📈', nombre: 'Ventas del Día', tamano: '5 cols · Gráfico' },
-      { id: 'actividad', icon: '📋', nombre: 'Actividad Reciente', tamano: '12 cols · Lista' }
-    ],
-    
-    widgetsMetricas: [
-      { id: 'kpi-mesas', icon: '🪑', nombre: 'Mesas Ocupadas', tamano: '1 col · Métrica' },
-      { id: 'kpi-ventas', icon: '💰', nombre: 'Ventas del Día', tamano: '1 col · Métrica' },
-      { id: 'kpi-plato', icon: '🍽️', nombre: 'Top Plato', tamano: '1 col · Métrica' },
-      { id: 'kpi-mozo', icon: '👤', nombre: 'Top Mozo', tamano: '1 col · Métrica' },
-      { id: 'kpi-alertas', icon: '🔴', nombre: 'Alertas', tamano: '1 col · Métrica' },
-      { id: 'kpi-tiempo', icon: '⏰', nombre: 'Tiempo Prom. Cocina', tamano: '1 col · Métrica' },
-      { id: 'kpi-tickets', icon: '🧾', nombre: 'Tickets Hoy', tamano: '1 col · Métrica' },
-      { id: 'kpi-satisfaccion', icon: '⭐', nombre: 'Satisfacción', tamano: '1 col · Métrica' }
-    ],
-    
-    widgetsGraficos: [
-      { id: 'grafico-ventas', icon: '📈', nombre: 'Ventas por Hora', tamano: '5 cols · Gráfico' },
-      { id: 'grafico-categorias', icon: '🥧', nombre: 'Distribución Categorías', tamano: '4 cols · Donut' },
-      { id: 'grafico-mozos', icon: '📊', nombre: 'Performance Mozos', tamano: '6 cols · Barras' },
-      { id: 'grafico-mesas', icon: '🗺️', nombre: 'Ocupación por Mesa', tamano: '6 cols · Heatmap' },
-      { id: 'grafico-semanal', icon: '📉', nombre: 'Ventas Semanales', tamano: '6 cols · Área' },
-      { id: 'grafico-historico', icon: '📈', nombre: 'Tendencia Mensual', tamano: '8 cols · Línea' },
-      { id: 'grafico-propinas', icon: '💵', nombre: 'Propinas por Día', tamano: '4 cols · Barras' },
-      { id: 'grafico-tiempos', icon: '⏱️', nombre: 'Tiempos de Servicio', tamano: '4 cols · Barras' }
-    ],
-    
-    widgetsOperaciones: [
-      { id: 'mapa-mesas', icon: '🗺️', nombre: 'Mapa de Mesas', tamano: '7 cols · Visual' },
-      { id: 'actividad', icon: '📋', nombre: 'Actividad Reciente', tamano: '12 cols · Lista' },
-      { id: 'comandas-activas', icon: '🍳', nombre: 'Comandas Activas', tamano: '4 cols · Lista' },
-      { id: 'pedidos-listos', icon: '✅', nombre: 'Pedidos Listos', tamano: '3 cols · Lista' },
-      { id: 'stock-bajo', icon: '⚠️', nombre: 'Alertas Stock', tamano: '3 cols · Tabla' },
-      { id: 'mozos-turno', icon: '👥', nombre: 'Mozos en Turno', tamano: '4 cols · Tarjetas' }
-    ],
-    
+    dragIdx: null,
+    overIdx: null,
+    currentPresetName: '',
+    activeWidgets: [],
+
+    // Widget catalog arrays (for display in the "Agregar" tab)
+    widgetsMetricas: Object.entries(WIDGET_CATALOG).filter(([,v]) => v.tipo === 'kpi').map(([id, v]) => ({ id, ...v })),
+    widgetsGraficos: Object.entries(WIDGET_CATALOG).filter(([id, v]) => v.tipo === 'panel' && id.startsWith('grafico')).map(([id, v]) => ({ id, ...v })),
+    widgetsOperaciones: Object.entries(WIDGET_CATALOG).filter(([id, v]) => (v.tipo === 'panel' || v.tipo === 'full') && !id.startsWith('grafico') && !id.startsWith('kpi')).map(([id, v]) => ({ id, ...v })),
     widgetsAnalisis: [
-      { id: 'top-platos', icon: '🏆', nombre: 'Top 10 Platos', tamano: '6 cols · Tabla' },
-      { id: 'clientes-frecuentes', icon: '💎', nombre: 'Clientes Frecuentes', tamano: '4 cols · Lista' },
-      { id: 'hora-pico', icon: '🕐', nombre: 'Análisis Hora Pico', tamano: '4 cols · Tarjeta' },
-      { id: 'comparativo', icon: '📊', nombre: 'Comparativo', tamano: '6 cols · Tarjetas' }
+      { id: 'top-platos', ...WIDGET_CATALOG['top-platos'] },
+      { id: 'clientes-frecuentes', ...WIDGET_CATALOG['clientes-frecuentes'] },
+      { id: 'hora-pico', ...WIDGET_CATALOG['hora-pico'] },
+      { id: 'comparativo', ...WIDGET_CATALOG['comparativo'] }
     ],
-    
-    isWidgetActive(id) {
-      return this.activeWidgets.some(w => w.id === id);
+    layoutPresets: LAYOUT_PRESETS,
+
+    init() {
+      // Clone current layout from dashApp
+      const dashEl = document.querySelector('[x-data="dashApp()"]');
+      if (dashEl && dashEl.__x) {
+        const layout = dashEl.__x.$data.dashboardLayout || DEFAULT_LAYOUT;
+        this.activeWidgets = layout.map(id => ({ id, ...(WIDGET_CATALOG[id] || { icon: '📦', nombre: id, tamano: '—' }) }));
+      } else {
+        // Fallback: read from storage
+        try {
+          const saved = localStorage.getItem('dashboardLayout');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            const ids = parsed.widgets || parsed;
+            const arr = (Array.isArray(ids) ? ids : DEFAULT_LAYOUT).map(w => typeof w === 'string' ? w : w.id);
+            this.activeWidgets = arr.filter(id => WIDGET_CATALOG[id]).map(id => ({ id, ...WIDGET_CATALOG[id] }));
+          } else {
+            this.activeWidgets = DEFAULT_LAYOUT.map(id => ({ id, ...WIDGET_CATALOG[id] }));
+          }
+        } catch (e) {
+          this.activeWidgets = DEFAULT_LAYOUT.map(id => ({ id, ...WIDGET_CATALOG[id] }));
+        }
+      }
+      this.detectCurrentPreset();
     },
-    
+
+    // Search filter: expose filtered arrays as getters
+    filteredWidgets(list) {
+      if (!this.widgetSearch.trim()) return list;
+      const q = this.widgetSearch.toLowerCase();
+      return list.filter(w => w.nombre.toLowerCase().includes(q) || w.id.toLowerCase().includes(q));
+    },
+
+    isWidgetActive(id) { return this.activeWidgets.some(w => w.id === id); },
+
     addWidget(widget) {
       if (!this.isWidgetActive(widget.id)) {
-        this.activeWidgets.push(widget);
+        this.activeWidgets.push({ id: widget.id, ...(WIDGET_CATALOG[widget.id] || widget) });
+        this.currentPresetName = '';
         this.showToast('Widget añadido: ' + widget.nombre);
       }
     },
-    
+
     removeWidget(id) {
       this.activeWidgets = this.activeWidgets.filter(w => w.id !== id);
+      this.currentPresetName = '';
       this.showToast('Widget eliminado');
     },
-    
-    restoreDefaults() {
-      this.activeWidgets = [
-        { id: 'kpi-mesas', icon: '🪑', nombre: 'Mesas Ocupadas', tamano: '1 col · Métrica' },
-        { id: 'kpi-ventas', icon: '💰', nombre: 'Ventas del Día', tamano: '1 col · Métrica' },
-        { id: 'kpi-plato', icon: '🍽️', nombre: 'Top Plato', tamano: '1 col · Métrica' },
-        { id: 'kpi-mozo', icon: '👤', nombre: 'Top Mozo', tamano: '1 col · Métrica' },
-        { id: 'kpi-alertas', icon: '🔴', nombre: 'Alertas', tamano: '1 col · Métrica' },
-        { id: 'mapa-mesas', icon: '🗺️', nombre: 'Mapa de Mesas', tamano: '7 cols · Visual' },
-        { id: 'grafico-ventas', icon: '📈', nombre: 'Ventas del Día', tamano: '5 cols · Gráfico' },
-        { id: 'actividad', icon: '📋', nombre: 'Actividad Reciente', tamano: '12 cols · Lista' }
-      ];
-      this.showToast('Configuración restaurada');
+
+    // Drag & drop
+    dragStart(e, idx) { this.dragIdx = idx; e.dataTransfer.effectAllowed = 'move'; },
+    dragOver(e, idx) {
+      if (this.dragIdx === null || this.dragIdx === idx) return;
+      const items = [...this.activeWidgets];
+      const [moved] = items.splice(this.dragIdx, 1);
+      items.splice(idx, 0, moved);
+      this.activeWidgets = items;
+      this.dragIdx = idx;
     },
-    
+    dragEnd() { this.dragIdx = null; this.currentPresetName = ''; },
+
+    // Button reorder
+    moveWidget(idx, direction) {
+      const newIdx = idx + direction;
+      if (newIdx < 0 || newIdx >= this.activeWidgets.length) return;
+      const items = [...this.activeWidgets];
+      [items[idx], items[newIdx]] = [items[newIdx], items[idx]];
+      this.activeWidgets = items;
+      this.currentPresetName = '';
+    },
+
+    // Presets
+    applyPreset(preset) {
+      this.activeWidgets = preset.widgets.filter(id => WIDGET_CATALOG[id]).map(id => ({ id, ...WIDGET_CATALOG[id] }));
+      this.currentPresetName = preset.name;
+      this.showToast('Layout "' + preset.name + '" aplicado');
+    },
+
+    detectCurrentPreset() {
+      const currentIds = this.activeWidgets.map(w => w.id).join(',');
+      const match = LAYOUT_PRESETS.find(p => p.widgets.join(',') === currentIds);
+      this.currentPresetName = match ? match.name : '';
+    },
+
+    restoreDefaults() {
+      this.applyPreset(LAYOUT_PRESETS[0]);
+    },
+
     async saveLayout() {
-      // Intentar guardar en API, si falla usar localStorage
-      const layoutData = {
-        widgets: this.activeWidgets,
-        savedAt: new Date().toISOString()
-      };
-      
+      const layoutIds = this.activeWidgets.map(w => w.id);
+
+      // Dispatch to dashApp
+      this.$el.closest('[x-data="dashApp()"]')?.dispatchEvent(
+        new CustomEvent('layout-updated', { detail: { layout: layoutIds } })
+      );
+
+      // Try API, fallback localStorage
+      const layoutData = { widgets: layoutIds, savedAt: new Date().toISOString() };
       try {
         const res = await apiPost('/dashboard/layout', layoutData);
         if (res && !res.error) {
-          this.showToast('Layout guardado en servidor ✅');
+          this.showToast('Layout guardado en servidor');
         } else {
-          // Fallback a localStorage
           localStorage.setItem('dashboardLayout', JSON.stringify(layoutData));
-          this.showToast('Layout guardado localmente ✅');
+          this.showToast('Layout guardado localmente');
         }
       } catch (e) {
         localStorage.setItem('dashboardLayout', JSON.stringify(layoutData));
-        this.showToast('Layout guardado localmente ✅');
+        this.showToast('Layout guardado localmente');
       }
-      
-      // Cerrar modal
-      this.modal = null;
+
+      // Close modal
+      const dashData = this.$el.closest('[x-data="dashApp()"]');
+      if (dashData && dashData.__x) dashData.__x.$data.modal = null;
     },
-    
+
     showToast(msg) {
       const container = document.getElementById('toast-container');
       if (!container) return;
       const t = document.createElement('div');
-      t.className = 'px-4 py-3 rounded-xl text-sm font-medium shadow-xl bg-st-preparado text-white';
+      t.className = 'px-4 py-3 rounded-xl text-sm font-medium shadow-xl bg-st-preparado text-white animate-[fadeIn_0.2s]';
       t.textContent = msg;
       container.appendChild(t);
-      setTimeout(() => t.remove(), 2500);
+      setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 2500);
     }
   };
 }
