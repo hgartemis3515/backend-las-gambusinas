@@ -45,7 +45,7 @@ tailwind.config = {
     </div>
 
     <!-- FILTROS -->
-    <div class="flex gap-2 mb-5 flex-wrap">
+    <div class="flex gap-2 mb-5 flex-wrap items-center">
       <input type="text" x-model="filterMesa" @input="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-28 placeholder-txt-muted" placeholder="Mesa">
       <select x-model="filterEstado" @change="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary">
         <option value="">Estado: Todos</option>
@@ -55,6 +55,38 @@ tailwind.config = {
         <option value="pagado">Pagado</option>
         <option value="cancelado">Cancelado</option>
       </select>
+      
+      <!-- Divisor visual -->
+      <div class="w-px h-6 bg-txt-muted/30 mx-1"></div>
+      
+      <!-- Filtro ID Comanda -->
+      <input type="text" x-model="filterIdComanda" @input="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-28 placeholder-txt-muted" placeholder="# Comanda">
+      
+      <!-- Filtro Mozo -->
+      <select x-model="filterMozo" @change="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary min-w-[140px]">
+        <option value="">Mozo: Todos</option>
+        <template x-for="mozo in mozosList" :key="mozo">
+          <option :value="mozo" x-text="mozo"></option>
+        </template>
+      </select>
+      
+      <!-- Filtro Fecha Desde -->
+      <div class="flex items-center gap-1">
+        <span class="text-xs text-txt-muted">Desde:</span>
+        <input type="date" x-model="filterFechaDesde" @change="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-sm text-txt-secondary w-36">
+      </div>
+      
+      <!-- Filtro Fecha Hasta -->
+      <div class="flex items-center gap-1">
+        <span class="text-xs text-txt-muted">Hasta:</span>
+        <input type="date" x-model="filterFechaHasta" @change="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-sm text-txt-secondary w-36">
+      </div>
+      
+      <!-- Botón limpiar filtros -->
+      <button @click="limpiarFiltros()" x-show="filterMesa || filterEstado || filterIdComanda || filterMozo || filterFechaDesde || filterFechaHasta" 
+        class="px-3 py-2 text-xs text-txt-muted hover:text-gold transition border border-transparent hover:border-gold/30 rounded-lg">
+        ✕ Limpiar
+      </button>
     </div>
 
     <!-- LOADING STATE -->
@@ -576,6 +608,11 @@ function comandasApp() {
     
     filterMesa: '',
     filterEstado: '',
+    filterIdComanda: '',
+    filterMozo: '',
+    filterFechaDesde: '',
+    filterFechaHasta: '',
+    mozosList: [],
     activeNav: 'comandas',
     pageTitle: 'Comandas',
     
@@ -701,8 +738,21 @@ function comandasApp() {
         .map(c => this.normalizarComanda(c))
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       
+      // Extraer lista de mozos unicos
+      this.extraerMozosUnicos();
+      
       this.filterComandas();
       this.loading = false;
+    },
+    
+    extraerMozosUnicos() {
+      const mozosSet = new Set();
+      this.comandas.forEach(c => {
+        if (c.mozo && c.mozo !== 'Sin asignar') {
+          mozosSet.add(c.mozo);
+        }
+      });
+      this.mozosList = Array.from(mozosSet).sort();
     },
     
     normalizarComanda(raw) {
@@ -764,8 +814,40 @@ function comandasApp() {
         const mesaNum = c.mesa?.nummesa || c.mesa;
         const matchMesa = !this.filterMesa || String(mesaNum || '').includes(this.filterMesa);
         const matchEstado = !this.filterEstado || c.estado === this.filterEstado;
-        return matchMesa && matchEstado;
+        
+        // Filtro por ID de comanda
+        const comandaNum = c.numComanda || c._id?.slice(-4) || '';
+        const matchIdComanda = !this.filterIdComanda || String(comandaNum).toLowerCase().includes(this.filterIdComanda.toLowerCase());
+        
+        // Filtro por mozo
+        const matchMozo = !this.filterMozo || c.mozo === this.filterMozo;
+        
+        // Filtro por fecha desde
+        let matchFechaDesde = true;
+        if (this.filterFechaDesde && c.createdAt) {
+          const fechaComanda = new Date(c.createdAt).toISOString().split('T')[0];
+          matchFechaDesde = fechaComanda >= this.filterFechaDesde;
+        }
+        
+        // Filtro por fecha hasta
+        let matchFechaHasta = true;
+        if (this.filterFechaHasta && c.createdAt) {
+          const fechaComanda = new Date(c.createdAt).toISOString().split('T')[0];
+          matchFechaHasta = fechaComanda <= this.filterFechaHasta;
+        }
+        
+        return matchMesa && matchEstado && matchIdComanda && matchMozo && matchFechaDesde && matchFechaHasta;
       });
+    },
+    
+    limpiarFiltros() {
+      this.filterMesa = '';
+      this.filterEstado = '';
+      this.filterIdComanda = '';
+      this.filterMozo = '';
+      this.filterFechaDesde = '';
+      this.filterFechaHasta = '';
+      this.filterComandas();
     },
     
     estadoLabel(estado) {
