@@ -18,7 +18,7 @@ router.get('/ventas', async (req, res) => {
         const { fechaInicio, fechaFin, agruparPor = 'dia' } = req.query;
 
         // Log de debug
-        logger.info('📊 Request reportes/ventas', { fechaInicio, fechaFin, agruparPor });
+        logger.info('📊 Request reportes/ventas', { fechaInicio, fechaFin, agruparPor, query: req.query });
 
         // Validar fechas
         if (!fechaInicio || !fechaFin) {
@@ -34,17 +34,24 @@ router.get('/ventas', async (req, res) => {
 
         logger.info('🔍 Fechas procesadas', { 
             fechaInicioDate: fechaInicioDate.toISOString(), 
-            fechaFinDate: fechaFinDate.toISOString() 
+            fechaFinDate: fechaFinDate.toISOString(),
+            fechaInicioInput: fechaInicio,
+            fechaFinInput: fechaFin
         });
-
-        // Cache key
-        const cacheKey = `reporte:ventas:${fechaInicio}:${fechaFin}:${agruparPor}`;
         
-        // Intentar obtener de cache
-        const cached = await redisCache.get(cacheKey);
-        if (cached) {
-            return res.json(cached);
-        }
+        // Verificar cuántos bouchers hay en total
+        const totalBouchers = await boucherModel.countDocuments({ isActive: true });
+        logger.info('📊 Total bouchers activos en BD', { totalBouchers });
+        
+        // Verificar cuántos bouchers hay en el rango
+        const bouchersEnRango = await boucherModel.countDocuments({
+            isActive: true,
+            fechaPago: {
+                $gte: fechaInicioDate,
+                $lte: fechaFinDate
+            }
+        });
+        logger.info('📊 Bouchers en rango', { bouchersEnRango, fechaInicio: fechaInicioDate, fechaFin: fechaFinDate });
 
         let groupByField;
         let dateFormat;
@@ -110,13 +117,17 @@ router.get('/ventas', async (req, res) => {
             }
         ];
 
-        logger.info('🔍 Ejecutando aggregation pipeline', { pipeline: JSON.stringify(pipeline, null, 2) });
+        logger.info('🔍 Ejecutando aggregation pipeline', { 
+            match: { isActive: true, fechaPago: { $gte: fechaInicioDate, $lte: fechaFinDate } },
+            groupBy: agruparPor
+        });
         
         const resultados = await boucherModel.aggregate(pipeline);
 
         logger.info('✅ Resultado aggregation', { 
             cantidad: resultados.length, 
-            primeros: resultados.slice(0, 3) 
+            primeros: resultados.slice(0, 3),
+            totalBouchers: resultados.reduce((s, r) => s + r.cantidadBouchers, 0)
         });
 
         // Calcular totales generales
@@ -140,14 +151,10 @@ router.get('/ventas', async (req, res) => {
                 : 0
         };
 
-        // Guardar en cache por 5 minutos
-        await redisCache.set(cacheKey, respuesta, 300).catch(err => {
-            logger.warn('⚠️ Error guardando en cache', { error: err.message });
-        });
-
         logger.info('📤 Enviando respuesta', { 
             datosCount: resultados.length, 
-            total: totales.total 
+            total: totales.total,
+            cantidadBouchers: totales.cantidadBouchers
         });
 
         res.json(respuesta);
@@ -675,12 +682,6 @@ router.get('/kpis', async (req, res) => {
             { $limit: 1 }
         ]);
 
-        logger.info('📊 KPIs calculados', { 
-            ventasHoy: totalVentas, 
-            topPlato: topPlato[0]?._id || 'N/A',
-            horaPico: horaPico[0]?._id || null
-        });
-
         // Hora pico
         const horaPico = await boucherModel.aggregate([
             {
@@ -698,6 +699,12 @@ router.get('/kpis', async (req, res) => {
             { $sort: { cantidad: -1 } },
             { $limit: 1 }
         ]);
+
+        logger.info('📊 KPIs calculados', { 
+            ventasHoy: totalVentas, 
+            topPlato: topPlato[0]?._id || 'N/A',
+            horaPico: horaPico[0]?._id || null
+        });
 
         // Margen global (necesitaríamos costo de platos)
         const margenGlobal = 0; // Placeholder - se calcularía con costo de platos
@@ -723,6 +730,134 @@ router.get('/kpis', async (req, res) => {
         res.status(500).json({ 
             success: false,
             message: 'Error al generar KPIs', 
+            error: error.message 
+        });
+    }
+});
+
+/**
+ * GET /api/reportes/clientes
+ * Reporte de clientes: frecuencia, gasto, tipo
+ * Query params: fechaInicio, fechaFin
+ */
+router.get('/clientes', async (req, res) => {
+    try {
+        const { fechaInicio, fechaFin } = req.query;
+
+        logger.info('📊 Request reportes/clientes', { fechaInicio, fechaFin });
+
+        if (!fechaInicio || !fechaFin) {
+            return res.status(400).json({ 
+                success: false,
+                message: 'fechaInicio y fechaFin son requeridos (formato: YYYY-MM-DD)' 
+            });
+        }
+
+        const fechaInicioDate = moment.tz(fechaInicio, 'America/Lima').startOf('day').toDate();
+        const fechaFinDate = moment.tz(fechaFin, 'America/Lima').endOf('day').toDate();
+
+        const cacheKey = `reporte:clientes:${fechaInicio}:${fechaFin}`;
+        const cached = await redisCache.get(cacheKey);
+        if (cached) {
+            return res.json(cached);
+        }
+
+        // Agregación de clientes desde bouchers
+        const pipeline = [
+            {
+                $match: {
+                    isActive: true,
+                    fechaPago: {
+                        $gte: fechaInicioDate,
+                        $lte: fechaFinDate
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: '$clienteId',
+                    nombre: { $first: '$clienteNombre' },
+                    dni: { $first: '$clienteDni' },
+                    totalVisitas: { $sum: 1 },
+                    gastoTotal: { $sum: '$total' },
+                    ultimaVisita: { $max: '$fechaPago' }
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    clienteId: '$_id',
+                    nombre: 1,
+                    dni: 1,
+                    visitas: '$totalVisitas',
+                    gastoTotal: { $round: ['$gastoTotal', 2] },
+                    ultimaVisita: 1,
+                    ticketPromedio: { 
+                        $round: [
+                            { $divide: ['$gastoTotal', { $max: ['$totalVisitas', 1] }] }, 
+                            2
+                        ] 
+                    }
+                }
+            },
+            {
+                $sort: { gastoTotal: -1 }
+            },
+            {
+                $limit: 50
+            }
+        ];
+
+        const clientes = await boucherModel.aggregate(pipeline);
+
+        // Calcular estadísticas agregadas
+        const totalClientes = clientes.length;
+        const totalVisitas = clientes.reduce((sum, c) => sum + c.visitas, 0);
+        const totalGastado = clientes.reduce((sum, c) => sum + c.gastoTotal, 0);
+
+        // Clasificar clientes por tipo (basado en frecuencia)
+        const clasificacion = clientes.map(c => {
+            let tipo = 'invitado';
+            if (c.visitas >= 5) tipo = 'frecuente';
+            else if (c.visitas >= 2) tipo = 'registrado';
+            return { ...c, tipo };
+        });
+
+        // Contar por tipo
+        const porTipo = clasificacion.reduce((acc, c) => {
+            acc[c.tipo] = (acc[c.tipo] || 0) + 1;
+            return acc;
+        }, {});
+
+        const respuesta = {
+            success: true,
+            fechaInicio,
+            fechaFin,
+            datos: [], // Para compatibilidad con gráfico de línea
+            clientes: clasificacion,
+            totales: {
+                totalClientes,
+                totalVisitas,
+                totalGastado: parseFloat(totalGastado.toFixed(2))
+            },
+            porTipo: {
+                invitados: porTipo.invitado || 0,
+                registrados: porTipo.registrado || 0,
+                frecuentes: porTipo.frecuente || 0
+            }
+        };
+
+        await redisCache.set(cacheKey, respuesta, 300).catch(err => {
+            logger.warn('⚠️ Error guardando en cache', { error: err.message });
+        });
+
+        logger.info('📤 Enviando respuesta clientes', { cantidad: clientes.length });
+        res.json(respuesta);
+    } catch (error) {
+        logger.error('❌ Error en reporte de clientes', { error: error.message, stack: error.stack });
+        res.status(500).json({ 
+            success: false,
+            message: 'Error al generar reporte de clientes', 
             error: error.message 
         });
     }

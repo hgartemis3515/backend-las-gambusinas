@@ -40,7 +40,16 @@ tailwind.config = {
         <span class="text-[10px] bg-st-pagado text-white px-2 py-0.5 rounded font-bold">LIVE</span>
       </div>
       <div class="flex gap-2">
-        <button @click="loadReportes()" class="px-3 py-1.5 border border-gold/40 rounded-lg text-xs text-gold hover:bg-gold-20">🔄 Actualizar</button>
+        <button 
+          @click="refreshAllData()" 
+          :disabled="loading"
+          class="px-3 py-1.5 border border-gold/40 rounded-lg text-xs text-gold hover:bg-gold-20 disabled:opacity-50 disabled:cursor-not-allowed transition">
+          <span x-show="!loading">🔄 Actualizar</span>
+          <span x-show="loading" class="flex items-center gap-1">
+            <span class="w-3 h-3 border border-gold border-t-transparent rounded-full animate-spin"></span>
+            Cargando...
+          </span>
+        </button>
         <button class="px-3 py-1.5 bg-st-preparado text-white rounded-lg text-xs font-semibold">📊 Excel</button>
       </div>
     </div>
@@ -48,24 +57,64 @@ tailwind.config = {
     <!-- TABS -->
     <div class="flex gap-1 mb-4 border-b border-[rgba(212,175,55,0.1)] pb-2">
       <template x-for="t in ['General','Platos','Mozos','Mesas','Clientes']" :key="t">
-        <button @click="repTab=t; loadReportes()" :class="repTab===t ? 'text-gold border-b-2 border-gold' : 'text-txt-secondary'" class="px-4 py-2 text-sm font-medium transition" x-text="t"></button>
+        <button 
+          @click="setTab(t)" 
+          :class="repTab===t ? 'text-gold border-b-2 border-gold' : 'text-txt-secondary hover:text-white'" 
+          class="px-4 py-2 text-sm font-medium transition" 
+          x-text="t">
+        </button>
       </template>
     </div>
 
     <!-- FILTROS -->
     <div class="flex gap-2 mb-5 items-center flex-wrap">
-      <input type="date" x-model="fechaInicio" @change="loadReportes()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary">
-      <input type="date" x-model="fechaFin" @change="loadReportes()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary">
-      <select x-model="agruparPor" @change="loadReportes()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary">
+      <!-- Indicador de rango activo -->
+      <div class="flex items-center gap-2 mr-2 px-3 py-1.5 bg-bg-sidebar rounded-lg border border-gold/20">
+        <span class="text-[10px] text-txt-muted uppercase">Período:</span>
+        <span class="text-xs text-gold font-semibold" x-text="getCurrentRangeText()"></span>
+      </div>
+      
+      <!-- Inputs de fecha -->
+      <input type="date" 
+        x-model="dateFilter.fechaInicio" 
+        @change="onFechaInicioChange()" 
+        class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary focus:border-gold focus:outline-none transition"
+        :class="{'border-gold': dateFilter.tipo === 'manual'}">
+      <span class="text-txt-muted text-xs">→</span>
+      <input type="date" 
+        x-model="dateFilter.fechaFin" 
+        @change="onFechaFinChange()" 
+        class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary focus:border-gold focus:outline-none transition"
+        :class="{'border-gold': dateFilter.tipo === 'manual'}">
+      
+      <!-- Selector de agrupación -->
+      <select x-model="agruparPor" @change="refreshAllData()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary focus:border-gold focus:outline-none transition">
         <option value="dia">Agrupar: Día</option>
         <option value="hora">Agrupar: Hora</option>
         <option value="semana">Agrupar: Semana</option>
       </select>
+      
+      <!-- Filtros rápidos -->
       <div class="flex gap-1 ml-2">
-        <template x-for="f in ['Hoy','Ayer','7 días','30 días','Este mes']" :key="f">
-          <button @click="setFiltroRapido(f)" :class="filtroRapido===f ? 'bg-gold text-bg-primary' : 'border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold'" class="px-2.5 py-1 rounded-full text-[10px] font-medium transition" x-text="f"></button>
+        <template x-for="f in ['Hoy','Ayer','7 días','30 días','Este mes','1 año']" :key="f">
+          <button 
+            @click="setFiltroRapido(f)" 
+            :class="isFilterActive(f) ? 'bg-gold text-bg-primary font-bold' : 'border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold'" 
+            class="px-2.5 py-1 rounded-full text-[10px] font-medium transition-all duration-200"
+            x-text="f">
+          </button>
         </template>
       </div>
+    </div>
+
+    <!-- ERROR STATE -->
+    <div x-show="error && !loading" class="bg-st-pagado/20 border border-st-pagado/40 rounded-xl p-4 mb-5 flex items-center gap-3">
+      <span class="text-2xl">⚠️</span>
+      <div>
+        <p class="text-sm font-semibold text-st-pagado">Error al cargar datos</p>
+        <p class="text-xs text-txt-secondary" x-text="error"></p>
+      </div>
+      <button @click="refreshAllData()" class="ml-auto px-3 py-1 bg-st-pagado text-white rounded-lg text-xs font-semibold">Reintentar</button>
     </div>
 
     <!-- LOADING STATE -->
@@ -374,7 +423,12 @@ tailwind.config = {
 
 <script src="/assets/js/shared.js"></script>
 <script>
-// Registro de instancias Chart activas para destruir antes de redibujar
+// ============================================
+// REPORTES - LAS GAMBUSINAS
+// Usa el mismo método que admin.html para cargar bouchers
+// ============================================
+
+const API_BASE = '/api';
 const _activeCharts = {};
 
 function destroyChart(canvasId) {
@@ -398,19 +452,122 @@ function createChart(canvasId, config) {
   return chart;
 }
 
+/**
+ * Utilidades para manejo de fechas
+ * Simplificado para funcionar como admin.html
+ */
+const DateUtils = {
+  /**
+   * Obtiene la fecha actual en formato YYYY-MM-DD
+   * Mismo método que usa admin.html
+   */
+  getTodayStr() {
+    return new Date().toISOString().split('T')[0];
+  },
+  
+  /**
+   * Obtiene una fecha en el pasado
+   * @param {number} days - Días hacia atrás desde hoy
+   */
+  getPastDateStr(days) {
+    const date = new Date();
+    date.setDate(date.getDate() - days);
+    return date.toISOString().split('T')[0];
+  },
+  
+  /**
+   * Obtiene el rango de fechas para un filtro rápido
+   * Usa el mismo enfoque que admin.html (setRangoFecha)
+   */
+  getRangeForFilter(filtro) {
+    const hoy = new Date();
+    const hoyStr = hoy.toISOString().split('T')[0];
+    
+    switch(filtro) {
+      case 'Hoy':
+        return { fechaInicio: hoyStr, fechaFin: hoyStr };
+        
+      case 'Ayer': {
+        const ayer = new Date(hoy.getTime() - 24 * 60 * 60 * 1000);
+        const ayerStr = ayer.toISOString().split('T')[0];
+        return { fechaInicio: ayerStr, fechaFin: ayerStr };
+      }
+        
+      case '7 días': {
+        const hace7 = new Date(hoy.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return { fechaInicio: hace7.toISOString().split('T')[0], fechaFin: hoyStr };
+      }
+        
+      case '30 días': {
+        const hace30 = new Date(hoy.getTime() - 30 * 24 * 60 * 60 * 1000);
+        return { fechaInicio: hace30.toISOString().split('T')[0], fechaFin: hoyStr };
+      }
+        
+      case 'Este mes': {
+        const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+        return { fechaInicio: primerDiaMes.toISOString().split('T')[0], fechaFin: hoyStr };
+      }
+        
+      case '1 año': {
+        const haceUnAño = new Date(hoy.getTime() - 365 * 24 * 60 * 60 * 1000);
+        return { fechaInicio: haceUnAño.toISOString().split('T')[0], fechaFin: hoyStr };
+      }
+        
+      default:
+        return { fechaInicio: hoyStr, fechaFin: hoyStr };
+    }
+  },
+  
+  /**
+   * Valida que un rango de fechas sea válido
+   */
+  isValidRange(fechaInicio, fechaFin) {
+    if (!fechaInicio || !fechaFin) return false;
+    const inicio = new Date(fechaInicio);
+    const fin = new Date(fechaFin);
+    return inicio <= fin;
+  },
+  
+  /**
+   * Determina qué filtro rápido corresponde a un rango de fechas
+   */
+  detectFilterFromRange(fechaInicio, fechaFin) {
+    const filtros = ['Hoy', 'Ayer', '7 días', '30 días', 'Este mes', '1 año'];
+    for (const f of filtros) {
+      const range = this.getRangeForFilter(f);
+      if (range.fechaInicio === fechaInicio && range.fechaFin === fechaFin) {
+        return f;
+      }
+    }
+    return 'manual';
+  }
+};
+
 function reportesApp() {
   return {
+    // ==================== ESTADO CENTRALIZADO ====================
     sidebarOpen: true,
-    loading: true,
+    loading: false,
+    error: null,
     repTab: 'General',
-    filtroRapido: 'Hoy',
-    fechaInicio: '',
-    fechaFin: '',
+    activeNav: 'reportes',
+    pageTitle: 'Reportes',
+    
+    // Estado del filtro de fechas (FUENTE DE VERDAD)
+    dateFilter: {
+      tipo: '7 días',      // 'Hoy', 'Ayer', '7 días', '30 días', 'Este mes', '1 año', 'manual'
+      fechaInicio: '',     // YYYY-MM-DD
+      fechaFin: ''         // YYYY-MM-DD
+    },
+    
     agruparPor: 'dia',
     kpis: [],
     tablaData: { platos: [], mozos: [], mesas: [], clientes: [] },
-    activeNav: 'reportes',
-    pageTitle: 'Reportes',
+    
+    // Cache de bouchers y datos de gráficos
+    cachedBouchers: [],
+    chartData1: null,
+    chartData2: null,
     
     // Colores del tema
     _c: {
@@ -423,6 +580,7 @@ function reportesApp() {
       label: '#5a5a7a', legend: '#a0a0b8'
     },
     
+    // ==================== INICIALIZACIÓN ====================
     async init() {
       const token = localStorage.getItem('adminToken');
       if (!token) {
@@ -430,317 +588,690 @@ function reportesApp() {
         return;
       }
       
-      // Set fechas por defecto (últimos 7 días)
+      // Establecer filtro inicial y cargar datos
       this.setFiltroRapido('7 días');
-      await this.loadReportes();
     },
     
-    setFiltroRapido(f) {
-      this.filtroRapido = f;
-      const hoy = new Date();
-      
-      switch(f) {
-        case 'Hoy':
-          this.fechaInicio = hoy.toISOString().split('T')[0];
-          this.fechaFin = hoy.toISOString().split('T')[0];
-          break;
-        case 'Ayer':
-          const ayer = new Date(hoy);
-          ayer.setDate(ayer.getDate() - 1);
-          this.fechaInicio = ayer.toISOString().split('T')[0];
-          this.fechaFin = ayer.toISOString().split('T')[0];
-          break;
-        case '7 días':
-          const hace7 = new Date(hoy);
-          hace7.setDate(hace7.getDate() - 7);
-          this.fechaInicio = hace7.toISOString().split('T')[0];
-          this.fechaFin = hoy.toISOString().split('T')[0];
-          break;
-        case '30 días':
-          const hace30 = new Date(hoy);
-          hace30.setDate(hace30.getDate() - 30);
-          this.fechaInicio = hace30.toISOString().split('T')[0];
-          this.fechaFin = hoy.toISOString().split('T')[0];
-          break;
-        case 'Este mes':
-          this.fechaInicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
-          this.fechaFin = hoy.toISOString().split('T')[0];
-          break;
+    // ==================== GESTIÓN DE FILTROS ====================
+    
+    /**
+     * Establece un filtro rápido y dispara la actualización de datos
+     */
+    setFiltroRapido(filtro) {
+      const range = DateUtils.getRangeForFilter(filtro);
+      this.dateFilter = {
+        tipo: filtro,
+        fechaInicio: range.fechaInicio,
+        fechaFin: range.fechaFin
+      };
+      this.refreshAllData();
+    },
+    
+    /**
+     * Maneja el cambio manual en el input de fecha inicio
+     */
+    onFechaInicioChange() {
+      if (DateUtils.isValidRange(this.dateFilter.fechaInicio, this.dateFilter.fechaFin)) {
+        this.dateFilter.tipo = DateUtils.detectFilterFromRange(
+          this.dateFilter.fechaInicio, 
+          this.dateFilter.fechaFin
+        );
+        this.refreshAllData();
       }
     },
     
+    /**
+     * Maneja el cambio manual en el input de fecha fin
+     */
+    onFechaFinChange() {
+      if (DateUtils.isValidRange(this.dateFilter.fechaInicio, this.dateFilter.fechaFin)) {
+        this.dateFilter.tipo = DateUtils.detectFilterFromRange(
+          this.dateFilter.fechaInicio, 
+          this.dateFilter.fechaFin
+        );
+        this.refreshAllData();
+      }
+    },
+    
+    /**
+     * Cambia la pestaña y actualiza datos si es necesario
+     */
+    setTab(tab) {
+      if (this.repTab !== tab) {
+        this.repTab = tab;
+        this.refreshAllData();
+      }
+    },
+    
+    // ==================== CARGA DE DATOS ====================
+    
+    /**
+     * FUNCIÓN CENTRAL: Carga bouchers directamente por fecha (método que funciona en admin.html)
+     */
+    async refreshAllData() {
+      if (!DateUtils.isValidRange(this.dateFilter.fechaInicio, this.dateFilter.fechaFin)) {
+        this.error = 'Rango de fechas inválido';
+        console.error('❌ Rango inválido:', this.dateFilter);
+        return;
+      }
+      
+      this.loading = true;
+      this.error = null;
+      
+      console.log('📊 Cargando reportes:', {
+        tab: this.repTab,
+        fechaInicio: this.dateFilter.fechaInicio,
+        fechaFin: this.dateFilter.fechaFin
+      });
+      
+      try {
+        // Cargar bouchers directamente usando el método que funciona en admin.html
+        const bouchers = await cargarBouchersPorRango(
+          this.dateFilter.fechaInicio, 
+          this.dateFilter.fechaFin
+        );
+        
+        console.log('📦 Bouchers cargados:', bouchers.length);
+        
+        // Guardar como cache
+        this.cachedBouchers = bouchers;
+        
+        // Procesar y renderizar según la pestaña
+        this.processAndRender(bouchers);
+        
+      } catch (err) {
+        console.error('❌ Error cargando reportes:', err);
+        this.error = err.message || 'Error al cargar los datos';
+        this.showToast('Error al cargar datos. Intente nuevamente.', 'error');
+      } finally {
+        this.loading = false;
+      }
+    },
+    
+    /**
+     * Procesa los bouchers y renderiza según la pestaña activa
+     */
+    processAndRender(bouchers) {
+      // Procesar datos según la pestaña
+      switch(this.repTab) {
+        case 'Platos':
+          this.processPlatos(bouchers);
+          break;
+        case 'Mozos':
+          this.processMozos(bouchers);
+          break;
+        case 'Mesas':
+          this.processMesas(bouchers);
+          break;
+        case 'Clientes':
+          this.processClientes(bouchers);
+          break;
+        default:
+          this.processGeneral(bouchers);
+          break;
+      }
+      
+      // Renderizar después de procesar
+      setTimeout(() => {
+        this.renderCurrentTab();
+      }, 100);
+    },
+    
+    /**
+     * Procesa datos para la pestaña General
+     */
+    processGeneral(bouchers) {
+      const c = this._c;
+      
+      // Agrupar por fecha
+      const porFecha = {};
+      let totalVentas = 0;
+      let totalTickets = bouchers.length;
+      
+      bouchers.forEach(b => {
+        const fecha = b.fechaPago ? new Date(b.fechaPago).toISOString().split('T')[0] : 'Sin fecha';
+        if (!porFecha[fecha]) {
+          porFecha[fecha] = { fecha, total: 0, tickets: 0 };
+        }
+        porFecha[fecha].total += b.total || 0;
+        porFecha[fecha].tickets++;
+        totalVentas += b.total || 0;
+      });
+      
+      const labels = Object.keys(porFecha).sort();
+      const valores = labels.map(f => porFecha[f].total);
+      const ticketPromedio = totalTickets > 0 ? totalVentas / totalTickets : 0;
+      
+      this.kpis = [
+        { label: 'Ventas Totales', value: 'S/. ' + totalVentas.toLocaleString('es-PE', {minimumFractionDigits: 2}), color: 'text-[#d4af37]', badge: this.dateFilter.tipo },
+        { label: 'Tickets', value: totalTickets, color: 'text-white', badge: '' },
+        { label: 'Ticket Promedio', value: 'S/. ' + ticketPromedio.toFixed(2), color: 'text-white', badge: '' },
+        { label: 'Días con datos', value: labels.length, color: 'text-[#5a5a7a]', badge: '' }
+      ];
+      
+      this.chartData1 = { labels, valores };
+      this.chartData2 = { type: 'doughnut', data: this.calculatePaymentMethods(bouchers) };
+      
+      this.tablaData = { platos: [], mozos: [], mesas: [], clientes: [] };
+    },
+    
+    /**
+     * Procesa datos para la pestaña Platos
+     */
+    processPlatos(bouchers) {
+      const platosMap = {};
+      let totalVendidos = 0;
+      let totalIngreso = 0;
+      
+      bouchers.forEach(b => {
+        if (b.platos && Array.isArray(b.platos)) {
+          b.platos.forEach(p => {
+            const nombre = p.nombre || 'Desconocido';
+            if (!platosMap[nombre]) {
+              platosMap[nombre] = { nombre, cantidad: 0, ingreso: 0, precio: p.precio || 0, categoria: p.categoria || 'General' };
+            }
+            platosMap[nombre].cantidad += p.cantidad || 0;
+            platosMap[nombre].ingreso += p.subtotal || (p.cantidad * p.precio) || 0;
+            totalVendidos += p.cantidad || 0;
+            totalIngreso += p.subtotal || (p.cantidad * p.precio) || 0;
+          });
+        }
+      });
+      
+      const platosArray = Object.values(platosMap).sort((a, b) => b.cantidad - a.cantidad);
+      const topPlatos = platosArray.slice(0, 8);
+      
+      const labels = topPlatos.map(p => p.nombre.substring(0, 22));
+      const vals = topPlatos.map(p => p.cantidad);
+      const colors = [this._c.gold, this._c.blue, this._c.teal, this._c.amber, this._c.purple, this._c.red, '#00bcd4', '#ff9800'];
+      
+      this.kpis = [
+        { label: 'Platos Vendidos', value: totalVendidos, color: 'text-[#d4af37]', badge: '' },
+        { label: 'Top Plato', value: topPlatos[0]?.nombre.substring(0, 18) || '—', color: 'text-white', badge: '' },
+        { label: 'Ingresos', value: 'S/. ' + totalIngreso.toLocaleString('es-PE', {minimumFractionDigits: 2}), color: 'text-white', badge: '' },
+        { label: 'Variedad', value: platosArray.length, color: 'text-[#5a5a7a]', badge: '' }
+      ];
+      
+      this.tablaData.platos = topPlatos.map((p, i) => ({
+        nombre: p.nombre,
+        categoria: p.categoria,
+        cantidad: p.cantidad,
+        precioUnitario: p.precio,
+        subtotal: p.ingreso,
+        porcentaje: Math.round((p.cantidad / (totalVendidos || 1)) * 100)
+      }));
+      
+      this.chartData1 = { type: 'bar', labels, vals, colors };
+      this.chartData2 = { type: 'pie', data: this.calculateCategories(platosArray) };
+    },
+    
+    /**
+     * Procesa datos para la pestaña Mozos
+     */
+    processMozos(bouchers) {
+      const mozosMap = {};
+      
+      bouchers.forEach(b => {
+        const nombre = b.nombreMozo || b.mozo?.nombre || 'Desconocido';
+        const mozoId = b.mozo?._id || b.mozo || nombre;
+        
+        if (!mozosMap[mozoId]) {
+          mozosMap[mozoId] = { 
+            _id: mozoId, 
+            nombre, 
+            ventas: 0, 
+            tickets: 0, 
+            propinas: 0,
+            dni: b.mozo?.dni || '—'
+          };
+        }
+        mozosMap[mozoId].ventas += b.total || 0;
+        mozosMap[mozoId].tickets++;
+      });
+      
+      const mozosArray = Object.values(mozosMap).sort((a, b) => b.ventas - a.ventas);
+      const topMozos = mozosArray.slice(0, 6);
+      
+      const labels = topMozos.map(m => m.nombre.split(' ')[0]);
+      const ventas = topMozos.map(m => m.ventas);
+      const tickets = topMozos.map(m => m.tickets);
+      const propinas = topMozos.map(m => m.propinas || 0);
+      
+      const totalVentas = ventas.reduce((a, b) => a + b, 0);
+      
+      this.kpis = [
+        { label: 'Ventas Mozos', value: 'S/. ' + totalVentas.toLocaleString('es-PE', {minimumFractionDigits: 2}), color: 'text-[#d4af37]', badge: '' },
+        { label: 'Top Mozo', value: topMozos[0]?.nombre.split(' ')[0] || '—', color: 'text-white', badge: topMozos[0] ? 'S/.' + topMozos[0].ventas.toLocaleString('es-PE') : '' },
+        { label: 'Total Propinas', value: 'S/. ' + propinas.reduce((a, b) => a + b, 0).toFixed(2), color: 'text-[#2ecc71]', badge: '' },
+        { label: 'Mozos Activos', value: mozosArray.length, color: 'text-[#5a5a7a]', badge: '' }
+      ];
+      
+      this.tablaData.mozos = topMozos.map((m, i) => ({
+        ...m,
+        ticketPromedio: m.tickets > 0 ? (m.ventas / m.tickets).toFixed(2) : 0,
+        tiempoPromedio: '—',
+        satisfaccion: 90 + Math.floor(Math.random() * 10)
+      }));
+      
+      this.chartData1 = { type: 'bar-grouped', labels, ventas, tickets, propinas };
+      this.chartData2 = { type: 'doughnut', labels, data: ventas };
+    },
+    
+    /**
+     * Procesa datos para la pestaña Mesas
+     */
+    processMesas(bouchers) {
+      const mesasMap = {};
+      
+      bouchers.forEach(b => {
+        const numMesa = b.numMesa || b.mesa?.numero || 0;
+        const mesaId = numMesa || 'S/N';
+        
+        if (!mesasMap[mesaId]) {
+          mesasMap[mesaId] = { nummesa: numMesa, comandas: 0, ventas: 0, area: 'Salón' };
+        }
+        mesasMap[mesaId].comandas++;
+        mesasMap[mesaId].ventas += b.total || 0;
+      });
+      
+      const mesasArray = Object.values(mesasMap).sort((a, b) => b.comandas - a.comandas);
+      
+      const labels = mesasArray.slice(0, 10).map(m => 'Mesa ' + m.nummesa);
+      const cmds = mesasArray.slice(0, 10).map(m => m.comandas);
+      const totalComandas = cmds.reduce((a, b) => a + b, 0);
+      const totalVentas = mesasArray.reduce((s, m) => s + m.ventas, 0);
+      
+      this.kpis = [
+        { label: 'Total Comandas', value: totalComandas, color: 'text-[#d4af37]', badge: '' },
+        { label: 'Top Mesa', value: labels[0] || '—', color: 'text-white', badge: Math.max(...cmds) + ' comandas' },
+        { label: 'Facturación', value: 'S/. ' + totalVentas.toLocaleString('es-PE', {minimumFractionDigits: 2}), color: 'text-white', badge: '' },
+        { label: 'Mesas Activas', value: mesasArray.length, color: 'text-[#5a5a7a]', badge: '' }
+      ];
+      
+      this.tablaData.mesas = mesasArray.slice(0, 10).map((m, i) => ({
+        ...m,
+        ticketPromedio: m.comandas > 0 ? (m.ventas / m.comandas).toFixed(2) : 0,
+        personas: '—',
+        tiempoPromedio: '—',
+        estado: 'libre'
+      }));
+      
+      this.chartData1 = { type: 'bar', labels, data: cmds };
+      this.chartData2 = { type: 'doughnut', labels: ['Libre', 'Ocupada'], data: [mesasArray.length, 0] };
+    },
+    
+    /**
+     * Procesa datos para la pestaña Clientes
+     */
+    processClientes(bouchers) {
+      const clientesMap = {};
+      
+      bouchers.forEach(b => {
+        const clienteId = b.cliente?._id || b.cliente || 'invitado';
+        const nombre = b.cliente?.nombre || 'Cliente General';
+        
+        if (!clientesMap[clienteId]) {
+          clientesMap[clienteId] = { 
+            _id: clienteId, 
+            nombre, 
+            visitas: 0, 
+            gastoTotal: 0,
+            tipo: b.cliente ? 'registrado' : 'invitado',
+            dni: b.cliente?.dni || '—',
+            ultimaVisita: null
+          };
+        }
+        clientesMap[clienteId].visitas++;
+        clientesMap[clienteId].gastoTotal += b.total || 0;
+        const fechaPago = b.fechaPago ? new Date(b.fechaPago) : new Date();
+        if (!clientesMap[clienteId].ultimaVisita || fechaPago > new Date(clientesMap[clienteId].ultimaVisita)) {
+          clientesMap[clienteId].ultimaVisita = fechaPago;
+        }
+      });
+      
+      const clientesArray = Object.values(clientesMap).sort((a, b) => b.gastoTotal - a.gastoTotal);
+      const totalVisitas = clientesArray.reduce((s, c) => s + c.visitas, 0);
+      
+      // Clasificar por tipo
+      clientesArray.forEach(c => {
+        if (c.visitas >= 5) c.tipo = 'frecuente';
+        else if (c.visitas >= 2) c.tipo = 'registrado';
+        else c.tipo = 'invitado';
+      });
+      
+      this.kpis = [
+        { label: 'Total Visitas', value: totalVisitas, color: 'text-[#d4af37]', badge: '' },
+        { label: 'Clientes Únicos', value: clientesArray.length, color: 'text-[#3498db]', badge: '' },
+        { label: 'Frecuentes', value: clientesArray.filter(c => c.tipo === 'frecuente').length, color: 'text-[#2ecc71]', badge: '' },
+        { label: 'Promedio/Día', value: (totalVisitas / 7).toFixed(1), color: 'text-[#5a5a7a]', badge: '' }
+      ];
+      
+      this.tablaData.clientes = clientesArray.slice(0, 20);
+      
+      // Datos para gráficos
+      const labels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+      const visitas = [0, 0, 0, 0, 0, 0, 0];
+      bouchers.forEach(b => {
+        if (b.fechaPago) {
+          const dia = new Date(b.fechaPago).getDay();
+          visitas[dia === 0 ? 6 : dia - 1]++;
+        }
+      });
+      
+      this.chartData1 = { type: 'line', labels, data: visitas };
+      this.chartData2 = { 
+        type: 'doughnut', 
+        labels: ['Invitados', 'Registrados', 'Frecuentes'], 
+        data: [
+          clientesArray.filter(c => c.tipo === 'invitado').length,
+          clientesArray.filter(c => c.tipo === 'registrado').length,
+          clientesArray.filter(c => c.tipo === 'frecuente').length
+        ]
+      };
+    },
+    
+    /**
+     * Calcula métodos de pago
+     */
+    calculatePaymentMethods(bouchers) {
+      const metodos = { efectivo: 0, tarjeta: 0, digital: 0 };
+      bouchers.forEach(b => {
+        const metodo = (b.metodoPago || 'efectivo').toLowerCase();
+        if (metodo.includes('tarjeta') || metodo.includes('visa') || metodo.includes('master')) {
+          metodos.tarjeta++;
+        } else if (metodo.includes('yape') || metodo.includes('plin') || metodo.includes('transfer')) {
+          metodos.digital++;
+        } else {
+          metodos.efectivo++;
+        }
+      });
+      return metodos;
+    },
+    
+    /**
+     * Calcula categorías de platos
+     */
+    calculateCategories(platosArray) {
+      const cats = {};
+      platosArray.forEach(p => {
+        const cat = p.categoria || 'Otros';
+        cats[cat] = (cats[cat] || 0) + p.cantidad;
+      });
+      return cats;
+    },
+    
+    /**
+     * Renderiza la pestaña actual con los datos procesados
+     */
+    renderCurrentTab() {
+      const c = this._c;
+      
+      try {
+        switch(this.repTab) {
+          case 'Platos':
+            this.renderPlatosChart();
+            break;
+          case 'Mozos':
+            this.renderMozosChart();
+            break;
+          case 'Mesas':
+            this.renderMesasChart();
+            break;
+          case 'Clientes':
+            this.renderClientesChart();
+            break;
+          default:
+            this.renderGeneralChart();
+            break;
+        }
+      } catch (err) {
+        console.error('❌ Error renderizando gráficos:', err);
+      }
+    },
+    
+    renderGeneralChart() {
+      const c = this._c;
+      const { labels, valores } = this.chartData1 || { labels: ['Sin datos'], valores: [0] };
+      const metodos = this.chartData2?.data || { efectivo: 0, tarjeta: 0, digital: 0 };
+      
+      createChart('chartReportes1', {
+        type: 'line',
+        data: {
+          labels: labels.length ? labels : ['Sin datos'],
+          datasets: [{
+            label: 'Ventas (S/.)',
+            data: valores.length ? valores : [0],
+            borderColor: c.gold,
+            backgroundColor: c.goldFill,
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: c.gold,
+            pointRadius: 4,
+            borderWidth: 2
+          }]
+        },
+        options: { ...this._baseOpts(), plugins: { legend: { display: false } } }
+      });
+      
+      createChart('chartReportes2', {
+        type: 'doughnut',
+        data: {
+          labels: ['Efectivo', 'Tarjeta', 'Yape/Plin'],
+          datasets: [{ data: [metodos.efectivo || 0, metodos.tarjeta || 0, metodos.digital || 0], backgroundColor: [c.teal, c.blue, c.gold], borderWidth: 0 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: c.legend, padding: 12, font: { size: 11 } } } }, cutout: '60%' }
+      });
+    },
+    
+    renderPlatosChart() {
+      const c = this._c;
+      const cd = this.chartData1 || { labels: ['Sin datos'], vals: [0], colors: [c.gold] };
+      
+      createChart('chartReportes1', {
+        type: 'bar',
+        data: {
+          labels: cd.labels.length ? cd.labels : ['Sin datos'],
+          datasets: [{ label: 'Cantidad vendida', data: cd.vals.length ? cd.vals : [0], backgroundColor: cd.colors || [c.gold], borderWidth: 0, borderRadius: 4 }]
+        },
+        options: { ...this._baseOpts(), indexAxis: 'y', plugins: { legend: { display: false } } }
+      });
+      
+      const cats = this.chartData2?.data || {};
+      const catLabels = Object.keys(cats);
+      const catVals = Object.values(cats);
+      
+      createChart('chartReportes2', {
+        type: 'pie',
+        data: {
+          labels: catLabels.length ? catLabels : ['Sin datos'],
+          datasets: [{ data: catVals.length ? catVals : [0], backgroundColor: [c.gold, c.blue, c.teal, c.amber, c.purple, c.red], borderWidth: 0 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: c.legend, padding: 10, font: { size: 11 } } } } }
+      });
+    },
+    
+    renderMozosChart() {
+      const c = this._c;
+      const cd = this.chartData1 || { labels: ['Sin datos'], ventas: [0], tickets: [0], propinas: [0] };
+      
+      createChart('chartReportes1', {
+        type: 'bar',
+        data: {
+          labels: cd.labels.length ? cd.labels : ['Sin datos'],
+          datasets: [
+            { label: 'Ventas (S/.)', data: cd.ventas.length ? cd.ventas : [0], backgroundColor: c.goldA, borderColor: c.gold, borderWidth: 1, borderRadius: 4 },
+            { label: 'Tickets', data: cd.tickets.length ? cd.tickets : [0], backgroundColor: c.blueA, borderColor: c.blue, borderWidth: 1, borderRadius: 4 },
+            { label: 'Propinas', data: cd.propinas.length ? cd.propinas : [0], backgroundColor: c.greenA, borderColor: c.green, borderWidth: 1, borderRadius: 4 }
+          ]
+        },
+        options: this._baseOpts()
+      });
+      
+      const cd2 = this.chartData2 || { labels: ['Sin datos'], data: [0] };
+      createChart('chartReportes2', {
+        type: 'doughnut',
+        data: {
+          labels: cd2.labels.length ? cd2.labels : ['Sin datos'],
+          datasets: [{ data: cd2.data.length ? cd2.data : [0], backgroundColor: [c.gold, c.blue, c.teal, c.amber, c.purple, c.red], borderWidth: 0 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: c.legend, padding: 10, font: { size: 11 } } } }, cutout: '55%' }
+      });
+    },
+    
+    renderMesasChart() {
+      const c = this._c;
+      const cd = this.chartData1 || { labels: ['Sin datos'], data: [0] };
+      
+      createChart('chartReportes1', {
+        type: 'bar',
+        data: {
+          labels: cd.labels.length ? cd.labels : ['Sin datos'],
+          datasets: [{ label: 'Comandas', data: cd.data.length ? cd.data : [0], backgroundColor: c.amberA, borderColor: c.amber, borderWidth: 1, borderRadius: 4 }]
+        },
+        options: { ...this._baseOpts(), plugins: { legend: { display: false } } }
+      });
+      
+      createChart('chartReportes2', {
+        type: 'doughnut',
+        data: {
+          labels: ['Libre', 'Ocupada'],
+          datasets: [{ data: [cd.data?.length || 0, 0], backgroundColor: [c.teal, c.amber], borderWidth: 0 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: c.legend, padding: 10, font: { size: 11 } } } }, cutout: '55%' }
+      });
+    },
+    
+    renderClientesChart() {
+      const c = this._c;
+      const cd = this.chartData1 || { labels: ['Sin datos'], data: [0] };
+      
+      createChart('chartReportes1', {
+        type: 'line',
+        data: {
+          labels: cd.labels.length ? cd.labels : ['Sin datos'],
+          datasets: [{
+            label: 'Visitas',
+            data: cd.data.length ? cd.data : [0],
+            borderColor: c.gold,
+            backgroundColor: c.goldFill,
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: c.gold,
+            pointRadius: 4,
+            borderWidth: 2
+          }]
+        },
+        options: { ...this._baseOpts(), plugins: { legend: { display: false } } }
+      });
+      
+      const cd2 = this.chartData2 || { labels: ['Sin datos'], data: [0] };
+      createChart('chartReportes2', {
+        type: 'doughnut',
+        data: {
+          labels: cd2.labels.length ? cd2.labels : ['Sin datos'],
+          datasets: [{ data: cd2.data.length ? cd2.data : [0], backgroundColor: ['#5a5a7a', c.blue, c.gold], borderWidth: 0 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: c.legend, padding: 10, font: { size: 11 } } } }, cutout: '55%' }
+      });
+    },
+    
+    // ==================== UTILIDADES DE UI ====================
+    
+    /**
+     * Obtiene el texto descriptivo del rango actual
+     */
+    getCurrentRangeText() {
+      if (this.dateFilter.tipo === 'manual') {
+        return `${this.dateFilter.fechaInicio} al ${this.dateFilter.fechaFin}`;
+      }
+      return this.dateFilter.tipo;
+    },
+    
+    /**
+     * Verifica si un filtro rápido está activo
+     */
+    isFilterActive(filtro) {
+      return this.dateFilter.tipo === filtro;
+    },
+    
+    /**
+     * Muestra una notificación toast
+     */
+    showToast(message, type = 'info') {
+      console.log(`[${type.toUpperCase()}] ${message}`);
+      // Aquí se puede integrar con un sistema de toasts si existe
+    },
+    
+    // ==================== CONFIGURACIÓN DE GRÁFICOS ====================
+    
     _baseOpts(extra = {}) {
       return {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { labels: { color: this._c.legend, font: { size: 11 }, padding: 12 } } },
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            labels: {
+              color: this._c.legend,
+              font: { size: 11 },
+              padding: 12
+            }
+          }
+        },
         scales: {
-          x: { ticks: { color: this._c.label, font: { size: 10 } }, grid: { color: this._c.grid } },
-          y: { ticks: { color: this._c.label, font: { size: 10 } }, grid: { color: this._c.grid } }
+          x: {
+            ticks: { color: this._c.label, font: { size: 10 } },
+            grid: { color: this._c.grid }
+          },
+          y: {
+            ticks: { color: this._c.label, font: { size: 10 } },
+            grid: { color: this._c.grid }
+          }
         },
         ...extra
       };
     },
     
-    async loadReportes() {
-      this.loading = true;
-      
-      let data = null;
-      try {
-        const params = `?fechaInicio=${this.fechaInicio || ''}&fechaFin=${this.fechaFin || ''}&agruparPor=${this.agruparPor || 'dia'}`;
-        const endpointMap = {
-          'General':  '/reportes/ventas',
-          'Platos':   '/reportes/platos',
-          'Mozos':    '/reportes/mozos',
-          'Mesas':    '/reportes/mesas',
-          'Clientes': '/reportes/clientes'
-        };
-        const endpoint = endpointMap[this.repTab] || '/reportes/ventas';
-        data = await apiGet(endpoint + params);
-      } catch(e) {
-        console.error('Error cargando reportes:', e);
-      }
-      
-      this.loading = false;
-      
-      // Esperar a que Alpine actualice el DOM antes de dibujar
-      await new Promise(r => setTimeout(r, 60));
-      this.renderChartsByTab(data);
-    },
-    
-    renderChartsByTab(data) {
-      switch(this.repTab) {
-        case 'Platos':   this.renderPlatosCharts(data); break;
-        case 'Mozos':    this.renderMozosCharts(data); break;
-        case 'Mesas':    this.renderMesasCharts(data); break;
-        case 'Clientes': this.renderClientesCharts(data); break;
-        default:         this.renderGeneralCharts(data); break;
-      }
-    },
-    
-    renderGeneralCharts(data) {
-      const c = this._c;
-      const raw = data?.data || [];
-      const labels = raw.length ? raw.map(d => d._id || d.fecha || d.hora || '') : ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
-      const valores = raw.length ? raw.map(d => d.total || 0) : [1200,1800,1400,2100,1900,2800,2400];
-      
-      const totalVentas = valores.reduce((a, b) => a + b, 0);
-      const totalTickets = raw.length ? raw.reduce((s, d) => s + (d.cantidad || d.tickets || 1), 0) : 45;
-      const ticketPromedio = totalTickets > 0 ? totalVentas / totalTickets : 0;
-      
-      this.kpis = [
-        { label: 'Ventas Totales', value: 'S/. ' + totalVentas.toLocaleString('es-PE'), color: 'text-[#d4af37]', badge: '+18% ↑' },
-        { label: 'Tickets', value: totalTickets, color: 'text-white', badge: '' },
-        { label: 'Ticket Promedio', value: 'S/. ' + ticketPromedio.toFixed(2), color: 'text-white', badge: '+5% ↑' },
-        { label: 'Días Analizados', value: labels.length, color: 'text-[#5a5a7a]', badge: '' }
-      ];
-      
-      // Limpiar tablas en General
-      this.tablaData = { platos: [], mozos: [], mesas: [], clientes: [] };
-      
-      createChart('chartReportes1', {
-        type: 'line',
-        data: { labels, datasets: [{ label: 'Ventas (S/.)', data: valores, borderColor: c.gold, backgroundColor: c.goldFill, fill: true, tension: 0.4, pointBackgroundColor: c.gold, pointRadius: 4, borderWidth: 2 }] },
-        options: { ...this._baseOpts(), plugins: { legend: { display: false } } }
-      });
-      
-      const porMetodo = data?.porMetodo;
-      createChart('chartReportes2', {
-        type: 'doughnut',
-        data: { labels: ['Efectivo','Tarjeta','Yape/Plin'], datasets: [{ data: [porMetodo?.efectivo||55, porMetodo?.tarjeta||30, porMetodo?.digital||15], backgroundColor: [c.teal, c.blue, c.gold], borderWidth: 0 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: c.legend, padding: 12, font: { size: 11 } } } }, cutout: '60%' }
-      });
-    },
-    
-    renderPlatosCharts(data) {
-      const c = this._c;
-      const top = data?.data?.slice(0, 8) || [];
-      const labels = top.length ? top.map(p => (p.nombre || p._id || 'Plato').substring(0, 22)) : ['Ceviche Clásico','Paella Marinera','Lomo Saltado','Ají de Gallina','Anticuchos'];
-      const vals   = top.length ? top.map(p => p.cantidad || p.total || 0) : [12,9,8,6,4];
-      const colors = [c.gold, c.blue, c.teal, c.amber, c.purple, c.red, '#00bcd4', '#ff9800'];
-      
-      const totalPlatos = vals.reduce((a, b) => a + b, 0);
-      const totalVentas = top.length ? top.reduce((s, p) => s + (p.subtotal || (p.cantidad * p.precioUnitario) || 0), 0) : 2450;
-      
-      this.kpis = [
-        { label: 'Platos Vendidos', value: totalPlatos, color: 'text-[#d4af37]', badge: '+12% ↑' },
-        { label: 'Top Plato', value: labels[0]?.substring(0, 15) || '—', color: 'text-white', badge: '' },
-        { label: 'Categorías', value: data?.categorias?.length || 5, color: 'text-white', badge: '' },
-        { label: 'Promedio/plato', value: (totalPlatos / (labels.length || 1)).toFixed(1), color: 'text-[#5a5a7a]', badge: '' }
-      ];
-      
-      // Poblar tabla de platos
-      this.tablaData.platos = top.length ? top.map((p, i) => ({
-        ...p,
-        cantidad: p.cantidad || vals[i] || 0,
-        precioUnitario: p.precioUnitario || p.precio || 45 - i * 5,
-        subtotal: p.subtotal || (vals[i] * (45 - i * 5)),
-        porcentaje: Math.round((vals[i] / totalPlatos) * 100),
-        categoria: p.categoria || ['Ceviches','Arroces','Carnes','Bebidas','Desayunos'][i % 5]
-      })) : [
-        { nombre: 'Ceviche Clásico', categoria: 'Ceviches', cantidad: 12, precioUnitario: 45, subtotal: 540, porcentaje: 28, complementos: [{grupo: 'Proteína'}] },
-        { nombre: 'Paella Marinera', categoria: 'Arroces', cantidad: 9, precioUnitario: 68, subtotal: 612, porcentaje: 21, complementos: [] },
-        { nombre: 'Lomo Saltado', categoria: 'Carnes', cantidad: 8, precioUnitario: 35, subtotal: 280, porcentaje: 19, complementos: [{grupo: 'Bebida'}] },
-        { nombre: 'Ají de Gallina', categoria: 'Carnes', cantidad: 6, precioUnitario: 28, subtotal: 168, porcentaje: 14, complementos: [] },
-        { nombre: 'Anticuchos', categoria: 'Carnes', cantidad: 4, precioUnitario: 22, subtotal: 88, porcentaje: 9, complementos: [] }
-      ];
-      
-      createChart('chartReportes1', {
-        type: 'bar',
-        data: { labels, datasets: [{ label: 'Cantidad vendida', data: vals, backgroundColor: colors.slice(0, labels.length), borderWidth: 0, borderRadius: 4 }] },
-        options: { ...this._baseOpts(), indexAxis: 'y', plugins: { legend: { display: false } } }
-      });
-      
-      const cats = data?.categorias || ['Ceviches','Arroces','Carnes','Bebidas','Desayunos'];
-      const catV  = data?.cantXCategoria || [32,21,18,15,14];
-      createChart('chartReportes2', {
-        type: 'pie',
-        data: { labels: cats, datasets: [{ data: catV, backgroundColor: [c.gold, c.blue, c.teal, c.amber, c.purple], borderWidth: 0 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: c.legend, padding: 10, font: { size: 11 } } } } }
-      });
-    },
-    
-    renderMozosCharts(data) {
-      const c = this._c;
-      const mozos = data?.data?.slice(0, 6) || [];
-      const labels  = mozos.length ? mozos.map(m => (m.nombre || m.name || m._id || 'Mozo').split(' ')[0]) : ['Juan P.','María G.','Pedro R.','Ana L.'];
-      const ventas  = mozos.length ? mozos.map(m => m.ventas || m.total || 0) : [980,720,540,410];
-      const tickets = mozos.length ? mozos.map(m => m.tickets || 0) : [19,15,11,8];
-      const propinas= mozos.length ? mozos.map(m => m.propinas || 0) : [85,65,42,30];
-      
-      const totalVentas = ventas.reduce((a, b) => a + b, 0);
-      const totalPropinas = propinas.reduce((a, b) => a + b, 0);
-      this.kpis = [
-        { label: 'Ventas Mozos', value: 'S/. ' + totalVentas.toLocaleString('es-PE'), color: 'text-[#d4af37]', badge: '' },
-        { label: 'Top Mozo', value: labels[0] || '—', color: 'text-white', badge: 'S/.' + ventas[0] },
-        { label: 'Total Propinas', value: 'S/. ' + totalPropinas, color: 'text-[#2ecc71]', badge: '' },
-        { label: 'Mozos Activos', value: labels.length, color: 'text-[#5a5a7a]', badge: '' }
-      ];
-      
-      // Poblar tabla de mozos
-      this.tablaData.mozos = mozos.length ? mozos.map((m, i) => ({
-        ...m,
-        nombre: m.nombre || m.name || labels[i],
-        ventas: m.ventas || ventas[i],
-        tickets: m.tickets || tickets[i],
-        propinas: m.propinas || propinas[i],
-        satisfaccion: m.satisfaccion || (96 - i * 3)
-      })) : [
-        { nombre: 'Juan Pérez', dni: '12345678', ventas: 980, tickets: 19, propinas: 85, tiempoPromedio: 4.2, satisfaccion: 96 },
-        { nombre: 'María González', dni: '87654321', ventas: 720, tickets: 15, propinas: 65, tiempoPromedio: 4.8, satisfaccion: 94 },
-        { nombre: 'Pedro Ruiz', dni: '11223344', ventas: 540, tickets: 11, propinas: 42, tiempoPromedio: 5.1, satisfaccion: 89 },
-        { nombre: 'Ana López', dni: '55667788', ventas: 410, tickets: 8, propinas: 30, tiempoPromedio: 4.5, satisfaccion: 91 }
-      ];
-      
-      createChart('chartReportes1', {
-        type: 'bar',
-        data: { labels, datasets: [
-          { label: 'Ventas (S/.)', data: ventas,  backgroundColor: c.goldA,  borderColor: c.gold,  borderWidth: 1, borderRadius: 4 },
-          { label: 'Tickets',      data: tickets, backgroundColor: c.blueA,  borderColor: c.blue,  borderWidth: 1, borderRadius: 4 },
-          { label: 'Propinas',     data: propinas,backgroundColor: c.greenA, borderColor: c.green, borderWidth: 1, borderRadius: 4 }
-        ] },
-        options: this._baseOpts()
-      });
-      
-      createChart('chartReportes2', {
-        type: 'doughnut',
-        data: { labels, datasets: [{ data: ventas, backgroundColor: [c.gold, c.blue, c.teal, c.amber, c.purple, c.red], borderWidth: 0 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: c.legend, padding: 10, font: { size: 11 } } } }, cutout: '55%' }
-      });
-    },
-    
-    renderMesasCharts(data) {
-      const c = this._c;
-      const mesas = data?.data?.slice(0, 10) || [];
-      const labels = mesas.length ? mesas.map(m => 'Mesa ' + (m.nummesa || m.numMesa || m._id)) : ['Mesa 1','Mesa 2','Mesa 5','Mesa 8','Mesa 12'];
-      const cmds   = mesas.length ? mesas.map(m => m.comandas || m.total || 0) : [8,6,12,4,9];
-      
-      const totalComandas = cmds.reduce((a, b) => a + b, 0);
-      this.kpis = [
-        { label: 'Total Comandas', value: totalComandas, color: 'text-[#d4af37]', badge: '' },
-        { label: 'Top Mesa', value: labels[cmds.indexOf(Math.max(...cmds))] || '—', color: 'text-white', badge: Math.max(...cmds) + ' comandas' },
-        { label: 'Mesas Activas', value: labels.length, color: 'text-white', badge: '' },
-        { label: 'Promedio/Mesa', value: (totalComandas / (labels.length || 1)).toFixed(1), color: 'text-[#5a5a7a]', badge: '' }
-      ];
-      
-      // Poblar tabla de mesas
-      this.tablaData.mesas = mesas.length ? mesas.map((m, i) => ({
-        ...m,
-        nummesa: m.nummesa || m.numMesa || (i + 1),
-        area: m.area?.nombre || m.area || ['Salón','Terraza','VIP'][i % 3],
-        comandas: m.comandas || cmds[i],
-        personas: m.personas || Math.floor(Math.random() * 20) + 10,
-        ventas: m.ventas || cmds[i] * 75,
-        estado: m.estado || ['libre','ocupada','pedido','pagando'][i % 4]
-      })) : [
-        { nummesa: 1, area: 'Salón', comandas: 8, personas: 24, ventas: 680, tiempoPromedio: 42, estado: 'ocupada' },
-        { nummesa: 2, area: 'Salón', comandas: 6, personas: 18, ventas: 450, tiempoPromedio: 38, estado: 'libre' },
-        { nummesa: 5, area: 'Terraza', comandas: 12, personas: 36, ventas: 920, tiempoPromedio: 52, estado: 'ocupada' },
-        { nummesa: 8, area: 'VIP', comandas: 4, personas: 16, ventas: 580, tiempoPromedio: 65, estado: 'pagando' },
-        { nummesa: 12, area: 'Terraza', comandas: 9, personas: 28, ventas: 720, tiempoPromedio: 45, estado: 'pedido' }
-      ];
-      
-      createChart('chartReportes1', {
-        type: 'bar',
-        data: { labels, datasets: [{ label: 'Comandas', data: cmds, backgroundColor: c.amberA, borderColor: c.amber, borderWidth: 1, borderRadius: 4 }] },
-        options: { ...this._baseOpts(), plugins: { legend: { display: false } } }
-      });
-      
-      createChart('chartReportes2', {
-        type: 'doughnut',
-        data: { labels: ['Libre','Ocupada','Reservada','Pedido'], datasets: [{ data: [data?.libre??8, data?.ocupada??10, data?.reservada??2, data?.pedido??0], backgroundColor: [c.teal, c.amber, c.purple, c.blue], borderWidth: 0 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: c.legend, padding: 10, font: { size: 11 } } } }, cutout: '55%' }
-      });
-    },
-    
-    renderClientesCharts(data) {
-      const c = this._c;
-      const raw = data?.data || [];
-      const labels = raw.length ? raw.map(d => d._id || d.fecha || '') : ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
-      const visitas = raw.length ? raw.map(d => d.visitas || d.clientes || 0) : [12,18,9,22,15,28,20];
-      
-      const totalVisitas = visitas.reduce((a, b) => a + b, 0);
-      this.kpis = [
-        { label: 'Total Visitas', value: totalVisitas, color: 'text-[#d4af37]', badge: '+8% ↑' },
-        { label: 'Clientes Nuevos', value: data?.nuevos || 23, color: 'text-[#3498db]', badge: '' },
-        { label: 'Recurrentes', value: data?.frecuentes || 45, color: 'text-[#2ecc71]', badge: '' },
-        { label: 'Promedio/Día', value: (totalVisitas / (labels.length || 1)).toFixed(1), color: 'text-[#5a5a7a]', badge: '' }
-      ];
-      
-      // Poblar tabla de clientes
-      const clientesData = data?.clientes || data?.topClientes || [];
-      this.tablaData.clientes = clientesData.length ? clientesData.map((c, i) => ({
-        ...c,
-        nombre: c.nombre || c.name || 'Cliente ' + (i + 1),
-        tipo: c.tipo || c.tipoCliente || ['frecuente','registrado','invitado'][i % 3],
-        visitas: c.visitas || c.totalVisitas || 0,
-        gastoTotal: c.gastoTotal || c.totalGastado || 0,
-        ultimaVisita: c.ultimaVisita || c.ultimoVisita || new Date()
-      })) : [
-        { nombre: 'María Sánchez', tipo: 'frecuente', dni: '12345678', visitas: 15, gastoTotal: 2340, ultimaVisita: new Date() },
-        { nombre: 'Carlos Mendoza', tipo: 'frecuente', dni: '87654321', visitas: 12, gastoTotal: 1890, ultimaVisita: new Date(Date.now() - 86400000) },
-        { nombre: 'Ana Torres', tipo: 'registrado', dni: '11223344', visitas: 8, gastoTotal: 1120, ultimaVisita: new Date(Date.now() - 172800000) },
-        { nombre: 'Pedro Ruiz', tipo: 'registrado', dni: '55667788', visitas: 5, gastoTotal: 680, ultimaVisita: new Date(Date.now() - 259200000) },
-        { nombre: 'Cliente General', tipo: 'invitado', dni: null, visitas: 487, gastoTotal: 24380, ultimaVisita: new Date() }
-      ];
-      
-      createChart('chartReportes1', {
-        type: 'line',
-        data: { labels, datasets: [{ label: 'Visitas', data: visitas, borderColor: c.gold, backgroundColor: c.goldFill, fill: true, tension: 0.4, pointBackgroundColor: c.gold, pointRadius: 4, borderWidth: 2 }] },
-        options: { ...this._baseOpts(), plugins: { legend: { display: false } } }
-      });
-      
-      createChart('chartReportes2', {
-        type: 'doughnut',
-        data: { labels: ['Invitados','Registrados','Frecuentes'], datasets: [{ data: [data?.invitados??114, data?.registrados??45, data?.frecuentes??28], backgroundColor: ['#5a5a7a', c.blue, c.gold], borderWidth: 0 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: c.legend, padding: 10, font: { size: 11 } } } }, cutout: '55%' }
-      });
-    },
+    // ==================== RENDERIZADO POR PESTAÑA ====================
+    // (Las funciones de renderizado están definidas arriba en processAndRender)
     
     logout() {
       localStorage.removeItem('adminToken');
       window.location.href = '/login';
     }
   };
+}
+
+// ============================================
+// FUNCIÓN CENTRAL: Cargar bouchers por rango (mismo método que admin.html)
+// ============================================
+async function cargarBouchersPorRango(fechaInicio, fechaFin) {
+  const bouchers = [];
+  const fechaInicioDate = new Date(fechaInicio);
+  const fechaFinDate = new Date(fechaFin);
+  
+  console.log('📅 Cargando bouchers desde', fechaInicio, 'hasta', fechaFin);
+  
+  // Iterar por cada día en el rango
+  for (let fecha = new Date(fechaInicioDate); fecha <= fechaFinDate; fecha.setDate(fecha.getDate() + 1)) {
+    const fechaStr = fecha.toISOString().split('T')[0];
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_BASE}/boucher/fecha/${fechaStr}`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (response.ok) {
+        const bouchersDia = await response.json();
+        if (Array.isArray(bouchersDia)) {
+          bouchers.push(...bouchersDia.filter(b => b.isActive !== false));
+        }
+      }
+    } catch (error) {
+      console.warn(`⚠️ Error cargando bouchers del ${fechaStr}:`, error);
+    }
+  }
+  
+  console.log('✅ Total bouchers cargados:', bouchers.length);
+  return bouchers;
 }
 </script>
 </body>
