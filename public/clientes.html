@@ -42,7 +42,7 @@ tailwind.config = {
     </div>
 
     <!-- FILTROS -->
-    <div class="flex gap-3 mb-5 flex-wrap">
+    <div class="flex gap-3 mb-5 flex-wrap items-center">
       <select x-model="filterTipo" @change="loadClientes()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary">
         <option value="">Tipo: Todos</option>
         <option value="frecuente">Frecuentes</option>
@@ -51,6 +51,24 @@ tailwind.config = {
       </select>
       <input type="text" x-model="filterNombre" @input="filterClientes()" placeholder="Buscar por nombre..." class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-48 placeholder-txt-muted">
       <input type="text" x-model="filterDNI" @input="filterClientes()" placeholder="Buscar por DNI..." class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-36 placeholder-txt-muted">
+      
+      <!-- Filtro Fecha Desde -->
+      <div class="flex items-center gap-1">
+        <span class="text-xs text-txt-muted">Desde:</span>
+        <input type="date" x-model="filterFechaDesde" @change="filterClientes()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-sm text-txt-secondary w-36">
+      </div>
+      
+      <!-- Filtro Fecha Hasta -->
+      <div class="flex items-center gap-1">
+        <span class="text-xs text-txt-muted">Hasta:</span>
+        <input type="date" x-model="filterFechaHasta" @change="filterClientes()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-sm text-txt-secondary w-36">
+      </div>
+      
+      <!-- Botón limpiar filtros -->
+      <button @click="limpiarFiltros()" x-show="filterTipo || filterNombre || filterDNI || filterFechaDesde || filterFechaHasta" 
+        class="px-3 py-2 text-xs text-txt-muted hover:text-gold transition border border-transparent hover:border-gold/30 rounded-lg">
+        ✕ Limpiar
+      </button>
     </div>
 
     <!-- KPIs -->
@@ -163,6 +181,8 @@ function clientesApp() {
     filterTipo: '',
     filterNombre: '',
     filterDNI: '',
+    filterFechaDesde: '',
+    filterFechaHasta: '',
     formCliente: {
       _id: null,
       nombre: '',
@@ -224,8 +244,32 @@ function clientesApp() {
           c.nombre?.toLowerCase().includes(this.filterNombre.toLowerCase());
         const matchDNI = !this.filterDNI || 
           (c.dni && c.dni.includes(this.filterDNI));
-        return matchTipo && matchNombre && matchDNI;
+        
+        // Filtro por fecha desde
+        let matchFechaDesde = true;
+        if (this.filterFechaDesde && c.createdAt) {
+          const fechaCliente = new Date(c.createdAt).toISOString().split('T')[0];
+          matchFechaDesde = fechaCliente >= this.filterFechaDesde;
+        }
+        
+        // Filtro por fecha hasta
+        let matchFechaHasta = true;
+        if (this.filterFechaHasta && c.createdAt) {
+          const fechaCliente = new Date(c.createdAt).toISOString().split('T')[0];
+          matchFechaHasta = fechaCliente <= this.filterFechaHasta;
+        }
+        
+        return matchTipo && matchNombre && matchDNI && matchFechaDesde && matchFechaHasta;
       });
+    },
+    
+    limpiarFiltros() {
+      this.filterTipo = '';
+      this.filterNombre = '';
+      this.filterDNI = '';
+      this.filterFechaDesde = '';
+      this.filterFechaHasta = '';
+      this.filterClientes();
     },
     
     isThisMonth(dateStr) {
