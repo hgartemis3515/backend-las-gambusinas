@@ -6,8 +6,7 @@
 <title>Cierre de Caja — Las Gambusinas</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script>
@@ -26,6 +25,22 @@ tailwind.config = {
 }
 </script>
 <link rel="stylesheet" href="/assets/css/dashboard.css">
+<style>
+  .kpi-card { transition: all 0.2s ease; }
+  .kpi-card:hover { border-color: rgba(212,175,55,0.4) !important; transform: translateY(-1px); }
+  .status-pulse { animation: pulse-dot 2s infinite; }
+  .tab-btn.active { background: rgba(212,175,55,0.125); color: #d4af37; }
+  .tab-btn { transition: all 0.15s ease; }
+  .tab-btn:hover:not(.active) { color: #d4af37; background: rgba(212,175,55,0.06); }
+  .hist-row { transition: background 0.15s ease; }
+  .hist-row:hover { background: rgba(212,175,55,0.06) !important; }
+  .detail-tab.active { background: rgba(212,175,55,0.125); color: #d4af37; border-color: rgba(212,175,55,0.3); }
+  .detail-tab { transition: all 0.15s ease; border: 1px solid transparent; }
+  .detail-tab:hover:not(.active) { color: #d4af37; border-color: rgba(212,175,55,0.15); }
+  .metric-card { background: linear-gradient(135deg, rgba(212,175,55,0.08) 0%, rgba(212,175,55,0.02) 100%); }
+  .danger-glow { box-shadow: 0 0 20px rgba(255,71,87,0.1); }
+  .success-glow { box-shadow: 0 0 20px rgba(46,204,113,0.1); }
+</style>
 </head>
 <body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="cierreApp()" x-cloak>
 
@@ -33,241 +48,850 @@ tailwind.config = {
 <div class="flex pt-[72px] min-h-screen">
   <div id="sidebar-container"></div>
   <main :class="sidebarOpen ? 'ml-[270px]' : 'ml-[68px]'" class="flex-1 transition-all duration-300 min-h-[calc(100vh-72px)] p-6">
-    
+
+    <!-- ============================================ -->
     <!-- HEADER -->
-    <div class="flex items-center justify-between mb-5">
-      <h1 class="text-xl font-bold">Cierre de Caja</h1>
-      <div class="flex gap-2">
-        <input type="date" x-model="fechaCierre" @change="loadCierre()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary">
-        <button @click="cerrarCaja()" class="bg-st-pagado text-white px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">🔒 Cerrar Caja</button>
+    <!-- ============================================ -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-bold">Cierre de Caja</h1>
+        <p class="text-txt-muted text-sm mt-0.5">Sistema de auditoría financiera y operativa</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl px-4 py-2.5">
+          <div class="w-2 h-2 rounded-full status-pulse" :class="estado.diasTranscurridos > 3 ? 'bg-st-pagado' : estado.diasTranscurridos > 1 ? 'bg-st-esperando' : 'bg-st-preparado'"></div>
+          <span class="text-xs text-txt-secondary" x-text="estado.diasTranscurridos > 3 ? 'Cierre pendiente' : estado.diasTranscurridos > 1 ? 'Revisar cierre' : 'Al día'"></span>
+        </div>
+        <button @click="abrirModalCerrarCaja()" class="bg-gold text-bg-primary px-5 py-2.5 rounded-xl text-sm font-bold hover:brightness-110 transition flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+          Cerrar Caja
+        </button>
       </div>
     </div>
 
+    <!-- ============================================ -->
     <!-- LOADING STATE -->
-    <div x-show="loading" class="flex items-center justify-center h-32">
-      <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
-    </div>
-
-    <!-- KPIs -->
-    <div x-show="!loading" class="grid grid-cols-5 gap-4 mb-5">
-      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
-        <p class="text-[11px] text-txt-muted uppercase">Ventas del Día</p>
-        <p class="text-2xl font-bold text-gold mt-1" x-text="'S/. ' + (datos.ventasDia || 0).toLocaleString('es-PE')"></p>
-      </div>
-      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
-        <p class="text-[11px] text-txt-muted uppercase">Tickets</p>
-        <p class="text-2xl font-bold text-white mt-1" x-text="datos.tickets || 0"></p>
-      </div>
-      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
-        <p class="text-[11px] text-txt-muted uppercase">Efectivo</p>
-        <p class="text-2xl font-bold text-st-preparado mt-1" x-text="'S/. ' + (datos.efectivo || 0).toLocaleString('es-PE')"></p>
-      </div>
-      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
-        <p class="text-[11px] text-txt-muted uppercase">Tarjeta/Digital</p>
-        <p class="text-2xl font-bold text-st-reservado mt-1" x-text="'S/. ' + (datos.tarjeta || 0).toLocaleString('es-PE')"></p>
-      </div>
-      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
-        <p class="text-[11px] text-txt-muted uppercase">Propinas</p>
-        <p class="text-2xl font-bold text-gold mt-1" x-text="'S/. ' + (datos.propinas || 0).toLocaleString('es-PE')"></p>
+    <!-- ============================================ -->
+    <div x-show="loadingEstado" class="flex items-center justify-center h-40">
+      <div class="flex flex-col items-center gap-3">
+        <div class="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+        <span class="text-txt-muted text-sm">Cargando estado de caja...</span>
       </div>
     </div>
 
-    <!-- TABS -->
-    <div class="flex gap-2 mb-4">
-      <template x-for="t in ['Resumen','Platos','Pagos']" :key="t">
-        <button @click="cierreTab=t" :class="cierreTab===t ? 'bg-gold-20 text-gold' : 'text-txt-secondary hover:text-gold'" class="px-4 py-1.5 rounded-full text-xs font-medium transition" x-text="t"></button>
-      </template>
+    <!-- ============================================ -->
+    <!-- ESTADO ACTUAL - 4 KPI CARDS -->
+    <!-- ============================================ -->
+    <div x-show="!loadingEstado" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <!-- Último Cierre -->
+      <div class="kpi-card bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold">Último Cierre</p>
+          <div class="w-8 h-8 rounded-lg bg-st-pedido/10 flex items-center justify-center">
+            <svg class="w-4 h-4 text-st-pedido" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+        </div>
+        <p class="text-lg font-bold text-white leading-tight" x-text="estado.ultimoCierreTexto"></p>
+        <p class="text-xs text-txt-muted mt-1" x-text="(estado.diasTranscurridos || 0) + ' días transcurridos'"></p>
+      </div>
+
+      <!-- Comandas Pendientes -->
+      <div class="kpi-card bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold">Comandas Pendientes</p>
+          <div class="w-8 h-8 rounded-lg bg-st-esperando/10 flex items-center justify-center">
+            <svg class="w-4 h-4 text-st-esperando" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"/></svg>
+          </div>
+        </div>
+        <p class="text-3xl font-bold text-st-esperando" x-text="estado.comandasPendientes || 0"></p>
+        <p class="text-xs text-txt-muted mt-1">por procesar</p>
+      </div>
+
+      <!-- Monto Pendiente -->
+      <div class="kpi-card bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold">Monto Pendiente</p>
+          <div class="w-8 h-8 rounded-lg bg-gold/10 flex items-center justify-center">
+            <svg class="w-4 h-4 text-gold" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+        </div>
+        <p class="text-3xl font-bold text-gold" x-text="'S/. ' + (estado.montoPendiente || 0).toFixed(2)"></p>
+        <p class="text-xs text-txt-muted mt-1">acumulado sin cerrar</p>
+      </div>
+
+      <!-- Estado -->
+      <div class="kpi-card bg-bg-card border rounded-xl p-4" :class="estado.diasTranscurridos > 3 ? 'border-st-pagado/30 danger-glow' : 'border-[rgba(212,175,55,0.15)]'">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold">Estado</p>
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center" :class="estado.diasTranscurridos > 3 ? 'bg-st-pagado/10' : estado.diasTranscurridos > 1 ? 'bg-st-esperando/10' : 'bg-st-preparado/10'">
+            <svg class="w-4 h-4" :class="estado.diasTranscurridos > 3 ? 'text-st-pagado' : estado.diasTranscurridos > 1 ? 'text-st-esperando' : 'text-st-preparado'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>
+          </div>
+        </div>
+        <p class="text-lg font-bold" :class="estado.diasTranscurridos > 3 ? 'text-st-pagado' : estado.diasTranscurridos > 1 ? 'text-st-esperando' : 'text-st-preparado'" x-text="estado.diasTranscurridos > 3 ? 'Requiere cierre' : estado.diasTranscurridos > 1 ? 'Revisar pronto' : 'Operando normal'"></p>
+        <p class="text-xs text-txt-muted mt-1" x-text="estado.diasTranscurridos + ' día(s) desde último cierre'"></p>
+      </div>
     </div>
 
-    <!-- TABLA -->
-    <div x-show="!loading" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
-      <table class="w-full text-sm">
-        <thead><tr class="bg-bg-sidebar text-txt-secondary text-[10px] uppercase">
-          <th class="text-left px-3 py-2.5 font-semibold">#</th>
-          <th class="text-left px-3 py-2.5 font-semibold">Concepto</th>
-          <th class="text-left px-3 py-2.5 font-semibold">Cantidad</th>
-          <th class="text-left px-3 py-2.5 font-semibold">Monto</th>
-          <th class="text-left px-3 py-2.5 font-semibold">%</th>
-        </tr></thead>
-        <tbody>
-          <tr x-show="tabData.length === 0">
-            <td colspan="5" class="px-4 py-8 text-center text-txt-muted">No hay datos de cierre</td>
-          </tr>
-          <template x-for="(d, i) in tabData" :key="i">
-            <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
-              <td class="px-3 py-2.5 text-txt-muted" x-text="i+1"></td>
-              <td class="px-3 py-2.5 font-medium" x-text="d.nombre || d.concepto"></td>
-              <td class="px-3 py-2.5" x-text="d.cant || d.cantidad || 0"></td>
-              <td class="px-3 py-2.5 text-gold font-semibold" x-text="'S/. ' + (d.sub || d.monto || 0)"></td>
-              <td class="px-3 py-2.5 text-txt-muted" x-text="(d.pct || d.porcentaje || 0) + '%'"></td>
-            </tr>
-          </template>
-        </tbody>
-        <tfoot>
-          <tr class="bg-bg-sidebar font-semibold">
-            <td colspan="2" class="px-3 py-2.5">TOTAL</td>
-            <td class="px-3 py-2.5" x-text="tabData.reduce((s,d) => s + (d.cant || d.cantidad || 0), 0) || 0"></td>
-            <td class="px-3 py-2.5 text-gold" x-text="'S/. ' + (datos.ventasDia || 0).toLocaleString('es-PE')"></td>
-            <td class="px-3 py-2.5">100%</td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
+    <!-- ============================================ -->
+    <!-- HISTÓRICO DE CIERRES -->
+    <!-- ============================================ -->
+    <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+      <!-- Header del historial -->
+      <div class="flex items-center justify-between px-5 py-4 border-b border-[rgba(212,175,55,0.1)]">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-gold" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"/></svg>
+          <h2 class="text-sm font-bold">Histórico de Cierres</h2>
+          <span class="text-[10px] bg-gold/10 text-gold px-2 py-0.5 rounded-full font-medium" x-text="cierres.length + ' registros'"></span>
+        </div>
+        <div class="flex gap-2 items-center">
+          <input type="date" x-model="fechaDesde" class="bg-bg-sidebar border border-[rgba(212,175,55,0.2)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary w-[130px]">
+          <input type="date" x-model="fechaHasta" class="bg-bg-sidebar border border-[rgba(212,175,55,0.2)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary w-[130px]">
+          <button @click="loadCierresCaja()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.2)] text-txt-secondary hover:text-gold hover:border-gold/40 px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182"/></svg>
+            Actualizar
+          </button>
+        </div>
+      </div>
 
-    <div class="flex gap-2 mt-4">
-      <button @click="exportarPDF()" class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">📄 Cierre Completo (PDF)</button>
-      <button @click="exportarExcel()" class="bg-st-preparado text-white px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">📊 Excel</button>
+      <!-- Loading -->
+      <div x-show="loadingHistorial" class="flex items-center justify-center py-16">
+        <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+      </div>
+
+      <!-- Empty State -->
+      <div x-show="!loadingHistorial && cierres.length === 0" class="flex flex-col items-center justify-center py-16">
+        <svg class="w-12 h-12 text-txt-muted/40 mb-3" fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m6 4.125l2.25 2.25m0 0l2.25 2.25M12 13.875l2.25-2.25M12 13.875l-2.25 2.25M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>
+        <p class="text-txt-muted text-sm">No hay cierres de caja registrados</p>
+        <p class="text-txt-muted/60 text-xs mt-1">Ejecuta tu primer cierre para ver el historial</p>
+      </div>
+
+      <!-- Tabla -->
+      <div x-show="!loadingHistorial && cierres.length > 0">
+        <table class="w-full text-sm">
+          <thead><tr class="bg-bg-sidebar/50 text-txt-muted text-[10px] uppercase tracking-wider">
+            <th class="text-left px-5 py-3 font-semibold">Fecha Cierre</th>
+            <th class="text-left px-5 py-3 font-semibold">Período</th>
+            <th class="text-right px-5 py-3 font-semibold">Comandas</th>
+            <th class="text-right px-5 py-3 font-semibold">Monto Total</th>
+            <th class="text-right px-5 py-3 font-semibold">Ticket Prom.</th>
+            <th class="text-left px-5 py-3 font-semibold">Admin</th>
+            <th class="text-center px-5 py-3 font-semibold">Acciones</th>
+          </tr></thead>
+          <tbody>
+            <template x-for="(c, i) in cierres" :key="c._id || i">
+              <tr class="hist-row border-b border-[rgba(212,175,55,0.06)]">
+                <td class="px-5 py-3">
+                  <span class="text-white text-xs font-medium" x-text="formatFecha(c.fechaCierre)"></span>
+                </td>
+                <td class="px-5 py-3">
+                  <span class="text-txt-secondary text-xs" x-text="formatPeriodo(c.periodoInicio, c.periodoFin)"></span>
+                </td>
+                <td class="px-5 py-3 text-right">
+                  <span class="text-white font-semibold text-xs" x-text="c.resumenFinanciero?.totalComandas || 0"></span>
+                </td>
+                <td class="px-5 py-3 text-right">
+                  <span class="text-gold font-bold text-xs" x-text="'S/. ' + (c.resumenFinanciero?.montoTotalVendido || 0).toFixed(2)"></span>
+                </td>
+                <td class="px-5 py-3 text-right">
+                  <span class="text-txt-secondary text-xs" x-text="'S/. ' + (c.resumenFinanciero?.ticketPromedio || 0).toFixed(2)"></span>
+                </td>
+                <td class="px-5 py-3">
+                  <span class="bg-bg-sidebar text-txt-secondary text-[10px] px-2 py-0.5 rounded-md font-medium" x-text="c.usuarioAdmin || 'N/A'"></span>
+                </td>
+                <td class="px-5 py-3 text-center">
+                  <button @click="verDetallesCierre(c._id)" class="bg-gold/10 text-gold hover:bg-gold/20 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition inline-flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    Detalles
+                  </button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
     </div>
 
   </main>
 </div>
 
+<!-- ============================================ -->
+<!-- MODAL OVERLAY -->
+<!-- ============================================ -->
+<div x-show="modalOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 z-[9998] bg-black/70 backdrop-blur-sm" @click="cerrarModal()"></div>
+
+<!-- ============================================ -->
+<!-- MODAL -->
+<!-- ============================================ -->
+<div x-show="modalOpen" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 translate-y-4" class="fixed inset-0 z-[9999] flex items-center justify-center p-4" @keydown.escape.window="cerrarModal()">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-2xl shadow-2xl w-full max-w-[1200px] max-h-[92vh] flex flex-col" @click.stop>
+    <!-- Modal Header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-[rgba(212,175,55,0.1)] shrink-0">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gold/10 flex items-center justify-center">
+          <svg class="w-4 h-4 text-gold" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+        </div>
+        <h3 class="text-base font-bold" x-text="modalTitle"></h3>
+      </div>
+      <div class="flex items-center gap-2">
+        <!-- Export buttons (visible when viewing details) -->
+        <template x-if="cierreActual && cierreActual._id && modalTitle.includes('Estadísticas')">
+          <div class="flex gap-2">
+            <button @click="exportarPDF()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.15)] text-txt-secondary hover:text-gold hover:border-gold/30 px-3 py-1.5 rounded-lg text-[11px] font-medium transition flex items-center gap-1.5">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+              PDF
+            </button>
+            <button @click="exportarExcel()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.15)] text-txt-secondary hover:text-gold hover:border-gold/30 px-3 py-1.5 rounded-lg text-[11px] font-medium transition flex items-center gap-1.5">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0112 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125M13.125 12h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125M20.625 12c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5M12 14.625v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 14.625c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m0 0v1.5c0 .621-.504 1.125-1.125 1.125"/></svg>
+              Excel
+            </button>
+          </div>
+        </template>
+        <button @click="cerrarModal()" class="w-8 h-8 rounded-lg bg-bg-sidebar flex items-center justify-center text-txt-muted hover:text-white transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+    <!-- Modal Body -->
+    <div class="p-6 overflow-y-auto flex-1" id="modal-body-container" x-html="modalBody"></div>
+  </div>
+</div>
+
 <!-- TOAST CONTAINER -->
-<div id="toast-container" class="fixed bottom-6 right-6 z-[9999] space-y-2"></div>
+<div id="toast-container" class="fixed bottom-6 right-6 z-[10000] space-y-2"></div>
 
 <script src="/assets/js/shared.js"></script>
 <script>
 function cierreApp() {
   return {
     sidebarOpen: true,
-    loading: true,
-    fechaCierre: new Date().toISOString().split('T')[0],
-    datos: {
-      ventasDia: 0,
-      tickets: 0,
-      efectivo: 0,
-      tarjeta: 0,
-      propinas: 0,
-      detalle: [],
-      detalleXPlato: [],
-      detalleXPago: []
+    loadingEstado: true,
+    loadingHistorial: true,
+    fechaDesde: '',
+    fechaHasta: '',
+    estado: {
+      ultimoCierre: null,
+      ultimoCierreTexto: 'Nunca',
+      diasTranscurridos: 0,
+      comandasPendientes: 0,
+      montoPendiente: 0,
+      periodoFin: null
     },
-    cierreTab: 'Resumen',
+    cierres: [],
+    cierreActual: null,
+    modalOpen: false,
+    modalTitle: '',
+    modalBody: '',
     activeNav: 'cierre',
     pageTitle: 'Cierre Caja',
-    
+    chartInstances: [],
+
     async init() {
       const token = localStorage.getItem('adminToken');
-      if (!token) {
-        window.location.href = '/login.html';
-        return;
-      }
-      await this.loadCierre();
+      if (!token) { window.location.href = '/login.html'; return; }
+      await Promise.all([this.loadEstadoActual(), this.loadCierresCaja()]);
     },
-    
-    get tabData() {
-      switch(this.cierreTab) {
-        case 'Platos':
-          return this.datos.detalleXPlato || this.datos.detalle || [];
-        case 'Pagos':
-          return this.datos.detalleXPago || [
-            { nombre: 'Efectivo', cant: this.datos.ticketsEfectivo || 0, monto: this.datos.efectivo || 0, pct: this.datos.ventasDia ? Math.round((this.datos.efectivo / this.datos.ventasDia) * 100) : 0 },
-            { nombre: 'Tarjeta/Digital', cant: this.datos.ticketsTarjeta || 0, monto: this.datos.tarjeta || 0, pct: this.datos.ventasDia ? Math.round((this.datos.tarjeta / this.datos.ventasDia) * 100) : 0 },
-          ];
-        default:
-          return this.datos.detalle || [];
-      }
-    },
-    
-    async loadCierre() {
-      this.loading = true;
-      
+
+    // ========== CARGAR ESTADO ACTUAL ==========
+    async loadEstadoActual() {
+      this.loadingEstado = true;
       try {
-        const cierre = await apiGet('/cierre-caja?fecha=' + this.fechaCierre);
-        if (cierre) {
-          this.datos = {
-            ventasDia: cierre.ventasDia || cierre.ventasTotales || 0,
-            tickets: cierre.tickets || cierre.totalTickets || 0,
-            efectivo: cierre.efectivo || cierre.totalEfectivo || 0,
-            tarjeta: cierre.tarjeta || cierre.totalTarjeta || 0,
-            propinas: cierre.propinas || cierre.totalPropinas || 0,
-            detalle: cierre.detalle || cierre.desglose || [],
-            detalleXPlato: cierre.detalleXPlato || [],
-            detalleXPago: cierre.detalleXPago || []
+        const data = await apiGet('/cierre-caja/estado/actual');
+        if (data) {
+          this.estado = {
+            ultimoCierre: data.ultimoCierre,
+            ultimoCierreTexto: data.ultimoCierre ? new Date(data.ultimoCierre).toLocaleString('es-PE') : 'Nunca',
+            diasTranscurridos: data.diasTranscurridos || 0,
+            comandasPendientes: data.comandasPendientes || 0,
+            montoPendiente: data.montoPendiente || 0,
+            periodoFin: data.periodoFin
           };
         }
-        
-        // Si no hay datos, calcular desde bouchers
-        if (!cierre || !cierre.ventasDia) {
-          let data = await apiGet('/boucher');
-          if (!data) data = await apiGet('/bouchers');
-          const bouchers = Array.isArray(data) ? data : (data?.bouchers || data?.data || []);
-          
-          const hoyBouchers = bouchers.filter(b => {
-            const fecha = b.fechaPago || b.fecha || b.createdAt;
-            return fecha && new Date(fecha).toISOString().split('T')[0] === this.fechaCierre;
-          });
-          
-          this.datos.tickets = hoyBouchers.length;
-          this.datos.ventasDia = hoyBouchers.reduce((s, b) => s + (b.total || 0), 0);
-          this.datos.efectivo = hoyBouchers.filter(b => b.metodoPago === 'Efectivo' || b.metodo === 'Efectivo').reduce((s, b) => s + (b.total || 0), 0);
-          this.datos.tarjeta = hoyBouchers.filter(b => b.metodoPago === 'Tarjeta' || b.metodo === 'Tarjeta').reduce((s, b) => s + (b.total || 0), 0);
-        }
+      } catch (e) { console.error('Error loading estado:', e); }
+      this.loadingEstado = false;
+    },
+
+    // ========== CARGAR HISTORIAL ==========
+    async loadCierresCaja() {
+      this.loadingHistorial = true;
+      try {
+        let ep = '/cierre-caja/historial?page=1&limit=50';
+        if (this.fechaDesde) ep += '&fechaDesde=' + this.fechaDesde;
+        if (this.fechaHasta) ep += '&fechaHasta=' + this.fechaHasta;
+        const data = await apiGet(ep);
+        this.cierres = data?.cierres || [];
+      } catch (e) { console.error('Error loading cierres:', e); }
+      this.loadingHistorial = false;
+    },
+
+    // ========== CERRAR CAJA ==========
+    async abrirModalCerrarCaja() {
+      try {
+        const data = await apiGet('/cierre-caja/estado/actual');
+        if (!data) { this.showToast('Error al cargar estado', 'error'); return; }
+
+        const desde = data.ultimoCierre ? new Date(data.ultimoCierre).toLocaleString('es-PE') : 'Inicio de operaciones';
+        const hasta = data.periodoFin ? new Date(data.periodoFin).toLocaleString('es-PE') : new Date().toLocaleString('es-PE');
+
+        this.modalTitle = 'Confirmar Cierre de Caja';
+        this.modalBody = `
+          <div class="max-w-lg mx-auto">
+            <div class="bg-st-pagado/5 border border-st-pagado/20 rounded-xl p-4 mb-6">
+              <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 text-st-pagado shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                <div>
+                  <p class="text-st-pagado font-semibold text-sm">Este proceso es irreversible</p>
+                  <p class="text-txt-secondary text-xs mt-1">Las comandas serán marcadas como procesadas y no se podrán modificar.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-bg-sidebar rounded-xl p-5 mb-6 space-y-3">
+              <div class="flex justify-between items-center">
+                <span class="text-txt-muted text-xs">Período desde</span>
+                <span class="text-white text-xs font-medium">${desde}</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-txt-muted text-xs">Período hasta</span>
+                <span class="text-white text-xs font-medium">${hasta}</span>
+              </div>
+              <div class="border-t border-[rgba(212,175,55,0.08)] pt-3"></div>
+              <div class="flex justify-between items-center">
+                <span class="text-txt-muted text-xs">Días transcurridos</span>
+                <span class="text-st-esperando text-xs font-bold">${data.diasTranscurridos || 0} días</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-txt-muted text-xs">Comandas pendientes</span>
+                <span class="text-white text-xs font-bold">${data.comandasPendientes || 0}</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-txt-muted text-xs">Monto estimado</span>
+                <span class="text-gold text-sm font-bold">S/. ${(data.montoPendiente || 0).toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div class="flex gap-3">
+              <button onclick="document.querySelector('[x-data]').__x.$data.cerrarModal()" class="flex-1 bg-bg-sidebar border border-[rgba(212,175,55,0.15)] text-txt-secondary px-4 py-2.5 rounded-xl text-sm font-semibold hover:text-white transition">Cancelar</button>
+              <button onclick="document.querySelector('[x-data]').__x.$data.ejecutarCierreCaja()" class="flex-1 bg-gold text-bg-primary px-4 py-2.5 rounded-xl text-sm font-bold hover:brightness-110 transition">Confirmar Cierre</button>
+            </div>
+          </div>
+        `;
+        this.modalOpen = true;
+      } catch (e) { this.showToast('Error: ' + e.message, 'error'); }
+    },
+
+    async ejecutarCierreCaja() {
+      const notas = prompt('Notas adicionales (opcional):', '');
+      this.modalTitle = 'Procesando Cierre';
+      this.modalBody = `
+        <div class="text-center py-12 max-w-sm mx-auto">
+          <div class="w-12 h-12 border-2 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-5"></div>
+          <p class="text-white font-semibold mb-2">Procesando cierre de caja...</p>
+          <p class="text-txt-muted text-xs">Esto puede tomar varios segundos</p>
+        </div>
+      `;
+      try {
+        const result = await apiPost('/cierre-caja', { usuarioAdmin: 'admin', notasAdmin: notas || '' });
+        if (!result || result.error || result.message?.includes('Error')) throw new Error(result?.message || result?.error || 'Error al generar cierre');
+
+        const cierre = result.cierre || result;
+        const resumen = cierre.resumen || cierre.resumenFinanciero || {};
+
+        this.modalTitle = 'Cierre Completado';
+        this.modalBody = `
+          <div class="text-center max-w-md mx-auto">
+            <div class="w-16 h-16 rounded-full bg-st-preparado/10 flex items-center justify-center mx-auto mb-4 success-glow">
+              <svg class="w-8 h-8 text-st-preparado" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <h3 class="text-st-preparado text-lg font-bold mb-5">Cierre exitoso</h3>
+            <div class="bg-bg-sidebar rounded-xl p-5 mb-6 text-left space-y-2.5">
+              <div class="flex justify-between"><span class="text-txt-muted text-xs">Período</span><span class="text-white text-xs font-medium">${cierre.periodoInicio ? new Date(cierre.periodoInicio).toLocaleDateString('es-PE') : 'N/A'} - ${cierre.periodoFin ? new Date(cierre.periodoFin).toLocaleDateString('es-PE') : 'N/A'}</span></div>
+              <div class="flex justify-between"><span class="text-txt-muted text-xs">Total vendido</span><span class="text-gold text-sm font-bold">S/. ${(resumen.montoTotalVendido || 0).toFixed(2)}</span></div>
+              <div class="flex justify-between"><span class="text-txt-muted text-xs">Comandas procesadas</span><span class="text-white text-xs font-bold">${resumen.totalComandas || 0}</span></div>
+              <div class="flex justify-between"><span class="text-txt-muted text-xs">Ticket promedio</span><span class="text-white text-xs font-medium">S/. ${(resumen.ticketPromedio || 0).toFixed(2)}</span></div>
+            </div>
+            <div class="flex gap-3">
+              <button onclick="document.querySelector('[x-data]').__x.$data.cerrarModal(); document.querySelector('[x-data]').__x.$data.loadEstadoActual(); document.querySelector('[x-data]').__x.$data.loadCierresCaja();" class="flex-1 bg-bg-sidebar border border-[rgba(212,175,55,0.15)] text-txt-secondary px-4 py-2.5 rounded-xl text-sm font-semibold hover:text-white transition">Cerrar</button>
+              ${cierre._id ? `<button onclick="document.querySelector('[x-data]').__x.$data.verDetallesCierre('${cierre._id}')" class="flex-1 bg-gold text-bg-primary px-4 py-2.5 rounded-xl text-sm font-bold hover:brightness-110 transition">Ver Detalles</button>` : ''}
+            </div>
+          </div>
+        `;
+        this.loadEstadoActual();
+        this.loadCierresCaja();
       } catch (e) {
-        console.error('Error loading cierre:', e);
-      }
-      
-      this.loading = false;
-    },
-    
-    async cerrarCaja() {
-      if (!confirm('¿Confirmar cierre de caja del día ' + this.fechaCierre + '? Esta acción generará el resumen definitivo.')) return;
-      
-      const res = await apiPost('/cierre-caja', { fecha: this.fechaCierre });
-      if (res && !res.error) {
-        await this.loadCierre();
-        this.showToast('Caja cerrada exitosamente ✅');
-      } else {
-        this.showToast('Error al cerrar caja: ' + (res?.error || res?.message || 'Sin respuesta'), 'error');
+        this.cerrarModal();
+        this.showToast('Error: ' + e.message, 'error');
       }
     },
-    
-    exportarPDF() {
-      if (typeof window.jspdf !== 'undefined') {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        doc.text('Cierre de Caja — Las Gambusinas', 20, 20);
-        doc.text('Fecha: ' + this.fechaCierre, 20, 30);
-        doc.text('Ventas del Día: S/. ' + (this.datos.ventasDia || 0), 20, 40);
-        doc.text('Tickets: ' + (this.datos.tickets || 0), 20, 50);
-        doc.text('Efectivo: S/. ' + (this.datos.efectivo || 0), 20, 60);
-        doc.text('Tarjeta/Digital: S/. ' + (this.datos.tarjeta || 0), 20, 70);
-        doc.text('Propinas: S/. ' + (this.datos.propinas || 0), 20, 80);
-        doc.save('cierre-caja-' + this.fechaCierre + '.pdf');
-      } else {
-        window.print();
+
+    // ========== VER DETALLES ==========
+    async verDetallesCierre(cierreId) {
+      this.modalTitle = 'Cargando estadísticas...';
+      this.modalBody = '<div class="flex items-center justify-center py-16"><div class="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin"></div></div>';
+      this.modalOpen = true;
+      try {
+        const cierre = await apiGet('/cierre-caja/' + cierreId);
+        if (!cierre) throw new Error('No se pudo cargar');
+        this.cierreActual = cierre;
+        this.renderDetalles('resumen');
+      } catch (e) {
+        this.showToast('Error: ' + e.message, 'error');
+        this.cerrarModal();
       }
     },
-    
-    exportarExcel() {
-      if (typeof XLSX !== 'undefined') {
-        const wsData = [
-          ['Concepto', 'Cantidad', 'Monto', '%'],
-          ...this.tabData.map(d => [d.nombre || d.concepto, d.cant || d.cantidad || 0, d.sub || d.monto || 0, (d.pct || d.porcentaje || 0) + '%'])
-        ];
-        const ws = XLSX.utils.aoa_to_sheet(wsData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Cierre');
-        XLSX.writeFile(wb, 'cierre-caja-' + this.fechaCierre + '.xlsx');
-      } else {
-        this.showToast('Excel no disponible', 'error');
+
+    renderDetalles(tab) {
+      const c = this.cierreActual;
+      if (!c) return;
+      const res = c.resumenFinanciero || {};
+      const prod = c.productos || {};
+      const moz = c.mozos || {};
+      const mes = c.mesas || {};
+      const cli = c.clientes || {};
+      const aud = c.auditoria || {};
+      const info = c.informacionOperativa || {};
+      const dg = c.datosGraficos || {};
+
+      const tabs = [
+        { id: 'resumen', label: 'Resumen', icon: 'M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+        { id: 'productos', label: 'Productos', icon: 'M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z' },
+        { id: 'mozos', label: 'Mozos', icon: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z' },
+        { id: 'mesas', label: 'Mesas', icon: 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z' },
+        { id: 'clientes', label: 'Clientes', icon: 'M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z' },
+        { id: 'auditoria', label: 'Auditoría', icon: 'M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z' },
+        { id: 'operativo', label: 'Operativo', icon: 'M11.42 15.17l-5.1-5.1m0 0L12 4.37m-5.68 5.7h14.56' }
+      ];
+
+      const tabsHtml = tabs.map(t => `
+        <button class="detail-tab ${tab === t.id ? 'active' : 'text-txt-secondary'} px-3 py-1.5 rounded-lg text-[11px] font-medium flex items-center gap-1.5"
+                onclick="document.querySelector('[x-data]').__x.$data.renderDetalles('${t.id}')">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="${t.icon}"/></svg>
+          ${t.label}
+        </button>
+      `).join('');
+
+      let content = '';
+
+      switch(tab) {
+        case 'resumen':
+          const estados = res.comandasPorEstado || {};
+          content = `
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Total Vendido</p>
+                <p class="text-xl font-bold text-gold">S/. ${(res.montoTotalVendido || 0).toFixed(2)}</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Total Comandas</p>
+                <p class="text-xl font-bold text-white">${res.totalComandas || 0}</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Ticket Promedio</p>
+                <p class="text-xl font-bold text-st-preparado">S/. ${(res.ticketPromedio || 0).toFixed(2)}</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Pico de Ventas</p>
+                <p class="text-xl font-bold text-st-esperando">${res.picoVentas?.hora != null ? res.picoVentas.hora + ':00' : 'N/A'}</p>
+                <p class="text-[10px] text-txt-muted">${res.picoVentas?.monto ? 'S/. ' + res.picoVentas.monto.toFixed(2) : ''}</p>
+              </div>
+            </div>
+
+            <!-- Comandas por Estado -->
+            <div class="bg-bg-sidebar rounded-xl p-4 mb-6">
+              <p class="text-xs font-semibold text-txt-secondary mb-3">Comandas por Estado</p>
+              <div class="grid grid-cols-4 gap-3">
+                <div class="text-center"><p class="text-lg font-bold text-st-esperando">${estados.pendientes || 0}</p><p class="text-[10px] text-txt-muted">Pendientes</p></div>
+                <div class="text-center"><p class="text-lg font-bold text-st-pedido">${estados.enProceso || 0}</p><p class="text-[10px] text-txt-muted">En Proceso</p></div>
+                <div class="text-center"><p class="text-lg font-bold text-st-preparado">${estados.completadas || 0}</p><p class="text-[10px] text-txt-muted">Completadas</p></div>
+                <div class="text-center"><p class="text-lg font-bold text-st-pagado">${estados.canceladas || 0}</p><p class="text-[10px] text-txt-muted">Canceladas</p></div>
+              </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div class="bg-bg-sidebar rounded-xl p-4">
+                <p class="text-xs font-semibold text-txt-secondary mb-3">Ventas por Día</p>
+                <canvas id="chartVentasDia" style="max-height: 220px;"></canvas>
+              </div>
+              <div class="bg-bg-sidebar rounded-xl p-4">
+                <p class="text-xs font-semibold text-txt-secondary mb-3">Ventas por Hora</p>
+                <canvas id="chartVentasHora" style="max-height: 220px;"></canvas>
+              </div>
+            </div>
+          `;
+          break;
+
+        case 'productos':
+          const topP = prod.topProductos || [];
+          const lessP = prod.productosMenosVendidos || [];
+          const catP = prod.productosPorCategoria || {};
+          content = `
+            <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Productos Vendidos</p>
+                <p class="text-xl font-bold text-gold">${prod.totalProductosVendidos || 0}</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Categorías</p>
+                <p class="text-xl font-bold text-white">${Object.keys(catP).length}</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Producto Top</p>
+                <p class="text-sm font-bold text-st-preparado truncate">${topP[0]?.nombre || 'N/A'}</p>
+                <p class="text-[10px] text-txt-muted">${topP[0] ? topP[0].cantidad + ' uds - S/. ' + (topP[0].monto||0).toFixed(2) : ''}</p>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+              <div class="bg-bg-sidebar rounded-xl p-4">
+                <p class="text-xs font-semibold text-txt-secondary mb-3">Top 10 Productos</p>
+                <canvas id="chartProductosTop" style="max-height: 260px;"></canvas>
+              </div>
+              <div class="bg-bg-sidebar rounded-xl p-4">
+                <p class="text-xs font-semibold text-txt-secondary mb-3">Ventas por Categoría</p>
+                <canvas id="chartProductosCategoria" style="max-height: 260px;"></canvas>
+              </div>
+            </div>
+            ${topP.length > 0 ? `
+            <div class="bg-bg-sidebar rounded-xl overflow-hidden">
+              <table class="w-full text-xs">
+                <thead><tr class="text-txt-muted text-[10px] uppercase tracking-wider">
+                  <th class="text-left px-4 py-2.5 font-semibold">#</th>
+                  <th class="text-left px-4 py-2.5 font-semibold">Producto</th>
+                  <th class="text-left px-4 py-2.5 font-semibold">Categoría</th>
+                  <th class="text-right px-4 py-2.5 font-semibold">Cantidad</th>
+                  <th class="text-right px-4 py-2.5 font-semibold">Monto</th>
+                </tr></thead>
+                <tbody>${topP.slice(0, 15).map((p, i) => `
+                  <tr class="border-t border-[rgba(212,175,55,0.06)] hist-row">
+                    <td class="px-4 py-2 text-txt-muted">${i + 1}</td>
+                    <td class="px-4 py-2 font-medium text-white">${p.nombre}</td>
+                    <td class="px-4 py-2 text-txt-secondary">${p.categoria || '-'}</td>
+                    <td class="px-4 py-2 text-right font-medium">${p.cantidad}</td>
+                    <td class="px-4 py-2 text-right text-gold font-semibold">S/. ${(p.monto||0).toFixed(2)}</td>
+                  </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>` : '<p class="text-txt-muted text-center py-8 text-sm">Sin datos de productos</p>'}
+          `;
+          break;
+
+        case 'mozos':
+          const ranking = [...(moz.desempeñoPorMozo || [])].sort((a, b) => (b.montoTotalVendido || 0) - (a.montoTotalVendido || 0));
+          content = `
+            <div class="grid grid-cols-2 gap-3 mb-6">
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Total Mozos</p>
+                <p class="text-xl font-bold text-gold">${moz.totalMozos || ranking.length || 0}</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Mejor Mozo</p>
+                <p class="text-sm font-bold text-st-preparado">${ranking[0]?.nombre || 'N/A'}</p>
+                <p class="text-[10px] text-txt-muted">${ranking[0] ? 'S/. ' + (ranking[0].montoTotalVendido||0).toFixed(2) : ''}</p>
+              </div>
+            </div>
+            <div class="bg-bg-sidebar rounded-xl p-4 mb-6">
+              <p class="text-xs font-semibold text-txt-secondary mb-3">Ventas por Mozo</p>
+              <canvas id="chartMozosVentas" style="max-height: 260px;"></canvas>
+            </div>
+            ${ranking.length > 0 ? `
+            <div class="bg-bg-sidebar rounded-xl overflow-hidden">
+              <table class="w-full text-xs">
+                <thead><tr class="text-txt-muted text-[10px] uppercase tracking-wider">
+                  <th class="text-left px-4 py-2.5 font-semibold">Pos.</th>
+                  <th class="text-left px-4 py-2.5 font-semibold">Mozo</th>
+                  <th class="text-right px-4 py-2.5 font-semibold">Comandas</th>
+                  <th class="text-right px-4 py-2.5 font-semibold">Monto Total</th>
+                  <th class="text-right px-4 py-2.5 font-semibold">Ticket Prom.</th>
+                  <th class="text-right px-4 py-2.5 font-semibold">Tiempo Prom.</th>
+                </tr></thead>
+                <tbody>${ranking.map((m, i) => `
+                  <tr class="border-t border-[rgba(212,175,55,0.06)] hist-row">
+                    <td class="px-4 py-2"><span class="text-gold font-bold">#${i + 1}</span></td>
+                    <td class="px-4 py-2 font-medium text-white">${m.nombre || '-'}</td>
+                    <td class="px-4 py-2 text-right">${m.comandasAtendidas || 0}</td>
+                    <td class="px-4 py-2 text-right text-gold font-semibold">S/. ${(m.montoTotalVendido||0).toFixed(2)}</td>
+                    <td class="px-4 py-2 text-right text-txt-secondary">S/. ${(m.ticketPromedio||0).toFixed(2)}</td>
+                    <td class="px-4 py-2 text-right text-txt-secondary">${m.tiempoPromedioAtencion || 0} min</td>
+                  </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>` : '<p class="text-txt-muted text-center py-8 text-sm">Sin datos de mozos</p>'}
+          `;
+          break;
+
+        case 'mesas':
+          const occ = mes.ocupacionPorArea || {};
+          const mesasU = mes.mesasUsadas || [];
+          const hPico = mes.horasPicoOcupacion || [];
+          content = `
+            <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Mesas Usadas</p>
+                <p class="text-xl font-bold text-gold">${mesasU.length}</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Tiempo Prom. Ocupación</p>
+                <p class="text-xl font-bold text-st-esperando">${mes.tiempoPromedioOcupacion || 0} min</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Áreas Activas</p>
+                <p class="text-xl font-bold text-white">${Object.keys(occ).length}</p>
+              </div>
+            </div>
+            <div class="bg-bg-sidebar rounded-xl p-4 mb-6">
+              <p class="text-xs font-semibold text-txt-secondary mb-3">Ocupación por Área</p>
+              <canvas id="chartOcupacionAreas" style="max-height: 260px;"></canvas>
+            </div>
+            ${mesasU.length > 0 ? `
+            <div class="bg-bg-sidebar rounded-xl overflow-hidden">
+              <table class="w-full text-xs">
+                <thead><tr class="text-txt-muted text-[10px] uppercase tracking-wider">
+                  <th class="text-left px-4 py-2.5 font-semibold">Mesa</th>
+                  <th class="text-left px-4 py-2.5 font-semibold">Área</th>
+                  <th class="text-right px-4 py-2.5 font-semibold">Rotación</th>
+                </tr></thead>
+                <tbody>${mesasU.slice(0, 25).map(m => `
+                  <tr class="border-t border-[rgba(212,175,55,0.06)] hist-row">
+                    <td class="px-4 py-2 font-medium text-white">Mesa ${m.numMesa || '-'}</td>
+                    <td class="px-4 py-2 text-txt-secondary">${m.area || '-'}</td>
+                    <td class="px-4 py-2 text-right font-medium">${(mes.rotacionPorMesa && mes.rotacionPorMesa[m.mesaId]) || 0}</td>
+                  </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>` : '<p class="text-txt-muted text-center py-8 text-sm">Sin datos de mesas</p>'}
+          `;
+          break;
+
+        case 'clientes':
+          const topC = cli.topClientes || [];
+          content = `
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Total Clientes</p>
+                <p class="text-xl font-bold text-gold">${cli.totalClientes || 0}</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Nuevos</p>
+                <p class="text-xl font-bold text-st-preparado">${cli.clientesNuevos || 0}</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Recurrentes</p>
+                <p class="text-xl font-bold text-st-pedido">${cli.clientesRecurrentes || 0}</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Ticket Prom./Cliente</p>
+                <p class="text-xl font-bold text-st-esperando">S/. ${(cli.ticketPromedioPorCliente || 0).toFixed(2)}</p>
+              </div>
+            </div>
+            ${topC.length > 0 ? `
+            <div class="bg-bg-sidebar rounded-xl overflow-hidden">
+              <p class="text-xs font-semibold text-txt-secondary px-4 pt-4 pb-2">Top Clientes</p>
+              <table class="w-full text-xs">
+                <thead><tr class="text-txt-muted text-[10px] uppercase tracking-wider">
+                  <th class="text-left px-4 py-2.5 font-semibold">Cliente</th>
+                  <th class="text-right px-4 py-2.5 font-semibold">Monto Total</th>
+                  <th class="text-right px-4 py-2.5 font-semibold">Visitas</th>
+                </tr></thead>
+                <tbody>${topC.map(cl => `
+                  <tr class="border-t border-[rgba(212,175,55,0.06)] hist-row">
+                    <td class="px-4 py-2 font-medium text-white">${cl.nombre || '-'}</td>
+                    <td class="px-4 py-2 text-right text-gold font-semibold">S/. ${(cl.montoTotal||0).toFixed(2)}</td>
+                    <td class="px-4 py-2 text-right">${cl.cantidadVisitas || 0}</td>
+                  </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>` : '<p class="text-txt-muted text-center py-8 text-sm">Sin datos de clientes</p>'}
+          `;
+          break;
+
+        case 'auditoria':
+          const canc = aud.comandasCanceladas || [];
+          const mods = aud.modificaciones || [];
+          const desc = aud.descuentosAplicados || [];
+          const ops = aud.operacionesEspeciales || [];
+          content = `
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+              <div class="metric-card rounded-xl p-4 border border-st-pagado/15">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Cancelaciones</p>
+                <p class="text-xl font-bold text-st-pagado">${canc.length}</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-st-esperando/15">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Modificaciones</p>
+                <p class="text-xl font-bold text-st-esperando">${mods.length}</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-st-reservado/15">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Descuentos</p>
+                <p class="text-xl font-bold text-st-reservado">${desc.length}</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-st-pedido/15">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Ops. Especiales</p>
+                <p class="text-xl font-bold text-st-pedido">${ops.length}</p>
+              </div>
+            </div>
+            ${canc.length > 0 ? `
+            <div class="bg-bg-sidebar rounded-xl overflow-hidden mb-4">
+              <p class="text-xs font-semibold text-st-pagado px-4 pt-4 pb-2">Comandas Canceladas</p>
+              <table class="w-full text-xs">
+                <thead><tr class="text-txt-muted text-[10px] uppercase tracking-wider">
+                  <th class="text-left px-4 py-2 font-semibold">#</th>
+                  <th class="text-left px-4 py-2 font-semibold">Fecha</th>
+                  <th class="text-left px-4 py-2 font-semibold">Mozo</th>
+                  <th class="text-right px-4 py-2 font-semibold">Monto</th>
+                  <th class="text-left px-4 py-2 font-semibold">Motivo</th>
+                </tr></thead>
+                <tbody>${canc.map(x => `
+                  <tr class="border-t border-[rgba(212,175,55,0.06)]">
+                    <td class="px-4 py-2 text-st-pagado font-bold">#${x.comandaNumber || '-'}</td>
+                    <td class="px-4 py-2 text-txt-secondary">${x.fecha ? new Date(x.fecha).toLocaleString('es-PE') : '-'}</td>
+                    <td class="px-4 py-2">${x.mozo || '-'}</td>
+                    <td class="px-4 py-2 text-right text-st-pagado font-semibold">S/. ${(x.monto||0).toFixed(2)}</td>
+                    <td class="px-4 py-2 text-txt-secondary truncate max-w-[200px]">${x.motivo || '-'}</td>
+                  </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>` : ''}
+            ${desc.length > 0 ? `
+            <div class="bg-bg-sidebar rounded-xl overflow-hidden mb-4">
+              <p class="text-xs font-semibold text-st-reservado px-4 pt-4 pb-2">Descuentos Aplicados</p>
+              <table class="w-full text-xs">
+                <thead><tr class="text-txt-muted text-[10px] uppercase tracking-wider">
+                  <th class="text-left px-4 py-2 font-semibold">Fecha</th>
+                  <th class="text-right px-4 py-2 font-semibold">Monto Descuento</th>
+                  <th class="text-left px-4 py-2 font-semibold">Motivo</th>
+                </tr></thead>
+                <tbody>${desc.map(d => `
+                  <tr class="border-t border-[rgba(212,175,55,0.06)]">
+                    <td class="px-4 py-2 text-txt-secondary">${d.fecha ? new Date(d.fecha).toLocaleString('es-PE') : '-'}</td>
+                    <td class="px-4 py-2 text-right text-st-reservado font-semibold">S/. ${(d.montoDescuento||0).toFixed(2)}</td>
+                    <td class="px-4 py-2 text-txt-secondary">${d.motivo || '-'}</td>
+                  </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>` : ''}
+            ${canc.length === 0 && mods.length === 0 && desc.length === 0 && ops.length === 0 ? '<p class="text-txt-muted text-center py-8 text-sm">Sin eventos de auditoría</p>' : ''}
+          `;
+          break;
+
+        case 'operativo':
+          const reservas = info.reservas || {};
+          const problemas = info.problemasReportados || [];
+          content = `
+            <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Reservas Cumplidas</p>
+                <p class="text-xl font-bold text-st-preparado">${reservas.cumplidas || 0}</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Reservas No Show</p>
+                <p class="text-xl font-bold text-st-pagado">${reservas.noCumplidas || 0}</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Problemas Reportados</p>
+                <p class="text-xl font-bold text-st-esperando">${problemas.length}</p>
+              </div>
+            </div>
+            ${info.horariosOperacion ? `
+            <div class="bg-bg-sidebar rounded-xl p-4 mb-4">
+              <p class="text-xs font-semibold text-txt-secondary mb-2">Horario de Operación</p>
+              <div class="flex gap-6">
+                <div><span class="text-txt-muted text-[10px]">Inicio:</span> <span class="text-white text-xs font-medium">${info.horariosOperacion.inicio ? new Date(info.horariosOperacion.inicio).toLocaleTimeString('es-PE') : 'N/A'}</span></div>
+                <div><span class="text-txt-muted text-[10px]">Fin:</span> <span class="text-white text-xs font-medium">${info.horariosOperacion.fin ? new Date(info.horariosOperacion.fin).toLocaleTimeString('es-PE') : 'N/A'}</span></div>
+              </div>
+            </div>` : ''}
+            ${info.notasAdmin ? `
+            <div class="bg-bg-sidebar rounded-xl p-4 mb-4">
+              <p class="text-xs font-semibold text-txt-secondary mb-2">Notas del Administrador</p>
+              <p class="text-white text-sm">${info.notasAdmin}</p>
+            </div>` : ''}
+            ${problemas.length > 0 ? `
+            <div class="bg-bg-sidebar rounded-xl overflow-hidden">
+              <p class="text-xs font-semibold text-st-esperando px-4 pt-4 pb-2">Problemas Reportados</p>
+              <table class="w-full text-xs">
+                <thead><tr class="text-txt-muted text-[10px] uppercase tracking-wider">
+                  <th class="text-left px-4 py-2 font-semibold">Tipo</th>
+                  <th class="text-left px-4 py-2 font-semibold">Fecha</th>
+                  <th class="text-left px-4 py-2 font-semibold">Descripción</th>
+                </tr></thead>
+                <tbody>${problemas.map(p => `
+                  <tr class="border-t border-[rgba(212,175,55,0.06)]">
+                    <td class="px-4 py-2"><span class="bg-st-esperando/10 text-st-esperando px-2 py-0.5 rounded text-[10px] font-medium">${p.tipo || '-'}</span></td>
+                    <td class="px-4 py-2 text-txt-secondary">${p.fecha ? new Date(p.fecha).toLocaleString('es-PE') : '-'}</td>
+                    <td class="px-4 py-2 text-txt-secondary">${p.descripcion || '-'}</td>
+                  </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>` : ''}
+            ${!info.notasAdmin && problemas.length === 0 && !info.horariosOperacion ? '<p class="text-txt-muted text-center py-8 text-sm">Sin información operativa adicional</p>' : ''}
+          `;
+          break;
+      }
+
+      this.modalTitle = 'Estadísticas del Cierre';
+      this.modalBody = `
+        <div class="flex gap-2 mb-5 flex-wrap">${tabsHtml}</div>
+        <div>${content}</div>
+      `;
+
+      // Render charts after DOM update
+      this.$nextTick(() => { setTimeout(() => this._renderCharts(tab, c), 120); });
+    },
+
+    _renderCharts(tab, c) {
+      this._destroyCharts();
+      const chartOpts = (type = 'bar') => ({
+        responsive: true, maintainAspectRatio: true,
+        scales: type !== 'pie' && type !== 'doughnut' ? { y: { beginAtZero: true, ticks: { color: '#5a5a7a', font: { size: 10 } }, grid: { color: 'rgba(212,175,55,0.05)' } }, x: { ticks: { color: '#5a5a7a', font: { size: 10 } }, grid: { color: 'rgba(212,175,55,0.05)' } } } : undefined,
+        plugins: { legend: { labels: { color: '#a0a0b8', font: { size: 10 } } } }
+      });
+
+      if (tab === 'resumen') {
+        const dg = c.datosGraficos || {};
+        const el1 = document.getElementById('chartVentasDia');
+        if (el1 && dg.ventasPorDia?.length) this.chartInstances.push(new Chart(el1, { type: 'bar', data: { labels: dg.ventasPorDia.map(d => d.fecha), datasets: [{ label: 'Ventas (S/.)', data: dg.ventasPorDia.map(d => d.monto), backgroundColor: 'rgba(212,175,55,0.3)', borderColor: 'rgba(212,175,55,0.8)', borderWidth: 1, borderRadius: 4 }] }, options: chartOpts('bar') }));
+        const el2 = document.getElementById('chartVentasHora');
+        if (el2 && dg.ventasPorHora?.length) this.chartInstances.push(new Chart(el2, { type: 'line', data: { labels: dg.ventasPorHora.map(h => h.hora + ':00'), datasets: [{ label: 'Monto (S/.)', data: dg.ventasPorHora.map(h => h.monto), borderColor: '#d4af37', backgroundColor: 'rgba(212,175,55,0.08)', tension: 0.4, fill: true, pointRadius: 3, pointBackgroundColor: '#d4af37' }] }, options: chartOpts('line') }));
+      }
+      if (tab === 'productos') {
+        const prod = c.productos || {};
+        const top = (prod.topProductos || []).slice(0, 10);
+        const cats = prod.productosPorCategoria || {};
+        const el1 = document.getElementById('chartProductosTop');
+        if (el1 && top.length) this.chartInstances.push(new Chart(el1, { type: 'bar', data: { labels: top.map(p => p.nombre), datasets: [{ label: 'Cantidad', data: top.map(p => p.cantidad), backgroundColor: 'rgba(212,175,55,0.3)', borderColor: 'rgba(212,175,55,0.8)', borderWidth: 1, borderRadius: 4 }] }, options: { ...chartOpts('bar'), indexAxis: 'y' } }));
+        const el2 = document.getElementById('chartProductosCategoria');
+        const ck = Object.keys(cats);
+        if (el2 && ck.length) this.chartInstances.push(new Chart(el2, { type: 'doughnut', data: { labels: ck, datasets: [{ data: ck.map(k => cats[k].monto || 0), backgroundColor: ['rgba(212,175,55,0.5)','rgba(0,212,170,0.5)','rgba(52,152,219,0.5)','rgba(255,165,2,0.5)','rgba(83,82,237,0.5)','rgba(255,71,87,0.5)'], borderWidth: 0 }] }, options: chartOpts('doughnut') }));
+      }
+      if (tab === 'mozos') {
+        const d = (c.mozos || {}).desempeñoPorMozo || [];
+        const el = document.getElementById('chartMozosVentas');
+        if (el && d.length) this.chartInstances.push(new Chart(el, { type: 'bar', data: { labels: d.map(m => m.nombre), datasets: [{ label: 'Ventas (S/.)', data: d.map(m => m.montoTotalVendido), backgroundColor: 'rgba(46,204,113,0.3)', borderColor: 'rgba(46,204,113,0.8)', borderWidth: 1, borderRadius: 4 }] }, options: chartOpts('bar') }));
+      }
+      if (tab === 'mesas') {
+        const occ = (c.mesas || {}).ocupacionPorArea || {};
+        const el = document.getElementById('chartOcupacionAreas');
+        const areas = Object.keys(occ);
+        if (el && areas.length) this.chartInstances.push(new Chart(el, { type: 'bar', data: { labels: areas, datasets: [{ label: 'Usos', data: areas.map(a => occ[a]), backgroundColor: 'rgba(52,152,219,0.3)', borderColor: 'rgba(52,152,219,0.8)', borderWidth: 1, borderRadius: 4 }] }, options: chartOpts('bar') }));
       }
     },
-    
+
+    _destroyCharts() { this.chartInstances.forEach(c => c.destroy()); this.chartInstances = []; },
+
+    exportarPDF() { if (this.cierreActual?._id) window.open('/api/cierre-caja/' + this.cierreActual._id + '/exportar-pdf', '_blank'); },
+    exportarExcel() { if (this.cierreActual?._id) window.open('/api/cierre-caja/' + this.cierreActual._id + '/exportar-excel', '_blank'); },
+
+    cerrarModal() { this.modalOpen = false; this._destroyCharts(); },
+
+    formatFecha(f) { return f ? new Date(f).toLocaleString('es-PE') : 'N/A'; },
+    formatPeriodo(i, f) { return (i ? new Date(i).toLocaleDateString('es-PE') : 'N/A') + ' - ' + (f ? new Date(f).toLocaleDateString('es-PE') : 'N/A'); },
+
     showToast(msg, type = 'success') {
-      const container = document.getElementById('toast-container');
-      if (!container) return;
+      const c = document.getElementById('toast-container');
+      if (!c) return;
       const t = document.createElement('div');
-      t.className = 'px-4 py-3 rounded-xl text-sm font-medium shadow-xl ' +
-        (type === 'error' ? 'bg-st-pagado text-white' : 'bg-st-preparado text-white');
-      t.textContent = msg;
-      container.appendChild(t);
-      setTimeout(() => t.remove(), 3000);
-    },
-    
-    logout() {
-      localStorage.removeItem('adminToken');
-      window.location.href = '/login';
+      t.className = 'flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium shadow-xl backdrop-blur-sm ' + (type === 'error' ? 'bg-st-pagado/90 text-white' : 'bg-st-preparado/90 text-white');
+      t.innerHTML = `<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="${type === 'error' ? 'M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z' : 'M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z'}"/></svg>${msg}`;
+      c.appendChild(t);
+      setTimeout(() => { t.style.transition = 'opacity 0.3s'; t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 4000);
     }
   };
 }
