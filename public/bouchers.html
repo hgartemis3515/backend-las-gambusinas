@@ -38,6 +38,41 @@ tailwind.config = {
       <button @click="loadBouchers()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
     </div>
 
+    <!-- FILTROS -->
+    <div class="flex gap-2 mb-5 flex-wrap items-center">
+      <!-- Filtro Código -->
+      <input type="text" x-model="filterCodigo" @input="filterBouchers()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-32 placeholder-txt-muted" placeholder="Código">
+      
+      <!-- Filtro N° Voucher -->
+      <input type="text" x-model="filterNumero" @input="filterBouchers()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-32 placeholder-txt-muted" placeholder="# Voucher">
+      
+      <!-- Filtro Mozo -->
+      <select x-model="filterMozo" @change="filterBouchers()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary min-w-[140px]">
+        <option value="">Mozo: Todos</option>
+        <template x-for="mozo in mozosList" :key="mozo">
+          <option :value="mozo" x-text="mozo"></option>
+        </template>
+      </select>
+      
+      <!-- Filtro Fecha Desde -->
+      <div class="flex items-center gap-1">
+        <span class="text-xs text-txt-muted">Desde:</span>
+        <input type="date" x-model="filterFechaDesde" @change="filterBouchers()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-sm text-txt-secondary w-36">
+      </div>
+      
+      <!-- Filtro Fecha Hasta -->
+      <div class="flex items-center gap-1">
+        <span class="text-xs text-txt-muted">Hasta:</span>
+        <input type="date" x-model="filterFechaHasta" @change="filterBouchers()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-sm text-txt-secondary w-36">
+      </div>
+      
+      <!-- Botón limpiar filtros -->
+      <button @click="limpiarFiltros()" x-show="filterCodigo || filterNumero || filterMozo || filterFechaDesde || filterFechaHasta" 
+        class="px-3 py-2 text-xs text-txt-muted hover:text-gold transition border border-transparent hover:border-gold/30 rounded-lg">
+        ✕ Limpiar
+      </button>
+    </div>
+
     <!-- LOADING STATE -->
     <div x-show="loading && bouchers.length === 0" class="flex items-center justify-center h-32">
       <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
@@ -50,20 +85,22 @@ tailwind.config = {
           <th class="text-left px-4 py-3 font-semibold">Código</th>
           <th class="text-left px-4 py-3 font-semibold">N° Voucher</th>
           <th class="text-left px-4 py-3 font-semibold">Fecha</th>
+          <th class="text-left px-4 py-3 font-semibold">Mozo</th>
           <th class="text-left px-4 py-3 font-semibold">Mesa</th>
           <th class="text-left px-4 py-3 font-semibold">Total</th>
           <th class="text-left px-4 py-3 font-semibold">Método</th>
           <th class="text-left px-4 py-3 font-semibold">Acciones</th>
         </tr></thead>
         <tbody>
-          <tr x-show="bouchers.length === 0">
-            <td colspan="7" class="px-4 py-8 text-center text-txt-muted">No hay vouchers registrados</td>
+          <tr x-show="filteredBouchers.length === 0">
+            <td colspan="8" class="px-4 py-8 text-center text-txt-muted">No hay vouchers registrados</td>
           </tr>
-          <template x-for="b in bouchers" :key="b._id || b.codigo">
+          <template x-for="b in filteredBouchers" :key="b._id || b.codigo">
             <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
               <td class="px-4 py-3 text-txt-muted font-mono text-xs" x-text="b.codigo || b._id?.slice(-12)"></td>
               <td class="px-4 py-3 font-medium" x-text="'#' + (b.numero || b.boucherNumber || b.numBoucher || '—')"></td>
               <td class="px-4 py-3 text-txt-secondary" x-text="b.fecha || (b.fechaPago ? new Date(b.fechaPago).toLocaleString('es-PE') : (b.createdAt ? new Date(b.createdAt).toLocaleString('es-PE') : '—'))"></td>
+              <td class="px-4 py-3 text-txt-secondary" x-text="b.mozo?.name || b.mozo?.nombre || b.nombreMozo || '—'"></td>
               <td class="px-4 py-3" x-text="'Mesa ' + (b.mesa?.nummesa || b.mesa?.numMesa || b.numMesa || b.mesa || '—')"></td>
               <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. ' + (b.total || 0)"></td>
               <td class="px-4 py-3">
@@ -227,9 +264,18 @@ function bouchersApp() {
     modal: null,
     loading: true,
     bouchers: [],
+    filteredBouchers: [],
     selectedBoucher: null,
     activeNav: 'bouchers',
     pageTitle: 'Vouchers',
+    
+    // Filtros
+    filterCodigo: '',
+    filterNumero: '',
+    filterMozo: '',
+    filterFechaDesde: '',
+    filterFechaHasta: '',
+    mozosList: [],
     
     async init() {
       const token = localStorage.getItem('adminToken');
@@ -259,7 +305,65 @@ function bouchersApp() {
         mozo: b.mozo || { nombre: b.nombreMozo },
         fecha: b.fechaPago ? new Date(b.fechaPago).toLocaleString('es-PE') : b.fecha,
       }));
+      
+      // Extraer mozos unicos
+      this.extraerMozosUnicos();
+      
+      this.filterBouchers();
       this.loading = false;
+    },
+    
+    extraerMozosUnicos() {
+      const mozosSet = new Set();
+      this.bouchers.forEach(b => {
+        const nombreMozo = b.mozo?.name || b.mozo?.nombre || b.nombreMozo;
+        if (nombreMozo && nombreMozo !== '—') {
+          mozosSet.add(nombreMozo);
+        }
+      });
+      this.mozosList = Array.from(mozosSet).sort();
+    },
+    
+    filterBouchers() {
+      this.filteredBouchers = this.bouchers.filter(b => {
+        // Filtro por codigo
+        const codigo = b.codigo || b._id?.slice(-12) || '';
+        const matchCodigo = !this.filterCodigo || String(codigo).toLowerCase().includes(this.filterCodigo.toLowerCase());
+        
+        // Filtro por numero de voucher
+        const numero = b.numero || b.boucherNumber || b.numBoucher || '';
+        const matchNumero = !this.filterNumero || String(numero).toLowerCase().includes(this.filterNumero.toLowerCase());
+        
+        // Filtro por mozo
+        const nombreMozo = b.mozo?.name || b.mozo?.nombre || b.nombreMozo || '';
+        const matchMozo = !this.filterMozo || nombreMozo === this.filterMozo;
+        
+        // Filtro por fecha desde
+        let matchFechaDesde = true;
+        const fechaBase = b.fechaPago || b.createdAt;
+        if (this.filterFechaDesde && fechaBase) {
+          const fechaBoucher = new Date(fechaBase).toISOString().split('T')[0];
+          matchFechaDesde = fechaBoucher >= this.filterFechaDesde;
+        }
+        
+        // Filtro por fecha hasta
+        let matchFechaHasta = true;
+        if (this.filterFechaHasta && fechaBase) {
+          const fechaBoucher = new Date(fechaBase).toISOString().split('T')[0];
+          matchFechaHasta = fechaBoucher <= this.filterFechaHasta;
+        }
+        
+        return matchCodigo && matchNumero && matchMozo && matchFechaDesde && matchFechaHasta;
+      });
+    },
+    
+    limpiarFiltros() {
+      this.filterCodigo = '';
+      this.filterNumero = '';
+      this.filterMozo = '';
+      this.filterFechaDesde = '';
+      this.filterFechaHasta = '';
+      this.filterBouchers();
     },
     
     openDetailModal(b) {
