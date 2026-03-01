@@ -29,6 +29,7 @@ const adminRoutes = require('./src/controllers/adminController')
 const notificacionesRoutes = require('./src/controllers/notificacionesController')
 const mensajesRoutes = require('./src/controllers/mensajesController')
 const reportesRoutes = require('./src/controllers/reportesController')
+const rolesRoutes = require('./src/controllers/rolesController')
 const { adminAuth } = require('./src/middleware/adminAuth')
 
 const app = express();
@@ -99,7 +100,7 @@ app.use(cors({
   credentials: true
 }));
 
-const routes = [mesasRoutes, mozosRoutes, platoRoutes, comandaRoutes, areaRoutes, boucherRoutes, clientesRoutes, auditoriaRoutes, cierreCajaRoutes, cierreCajaRestauranteRoutes, adminRoutes, notificacionesRoutes, mensajesRoutes, reportesRoutes];
+const routes = [mesasRoutes, mozosRoutes, platoRoutes, comandaRoutes, areaRoutes, boucherRoutes, clientesRoutes, auditoriaRoutes, cierreCajaRoutes, cierreCajaRestauranteRoutes, adminRoutes, notificacionesRoutes, mensajesRoutes, reportesRoutes, rolesRoutes];
 
 // FASE 7: Security Headers (Helmet.js)
 const helmet = require('helmet');
@@ -187,9 +188,9 @@ app.get('/dashboard/login.html', (req, res) => {
 // Catch-all para navegación directa a cada página
 // ============================================
 const dashboardPages = [
-  'index', 'mesas', 'mozos', 'platos', 'comandas',
+  'index', 'mesas', 'usuarios', 'platos', 'comandas',
   'bouchers', 'clientes', 'auditoria', 'cierre-caja',
-  'reportes', 'configuracion', 'areas'
+  'reportes', 'configuracion', 'areas', 'roles'
 ];
 
 // Rutas sin extensión (ej: /mesas)
@@ -504,10 +505,24 @@ server.listen(port, '0.0.0.0', ()=> {
     nodeEnv: process.env.NODE_ENV || 'development',
     allowedOrigins
   });
-  console.log('servidor corriendo en el puerto', port);
-  console.log('Servidor accesible desde:');
-  console.log('  - Local: http://localhost:' + port);
-  console.log('  - Red local: http://192.168.18.11:' + port);
-  console.log('  - Socket.io WebSockets activo en /cocina y /mozos');
-  console.log('  - Orígenes CORS permitidos:', allowedOrigins.join(', '));
+  
+  console.log('');
+  console.log('═══════════════════════════════════════════════════════════════');
+  console.log('🚀 SERVIDOR INICIADO EXITOSAMENTE');
+  console.log('═══════════════════════════════════════════════════════════════');
+  console.log('');
+  console.log('📡 Accesible desde:');
+  console.log('   • Local:      http://localhost:' + port);
+  console.log('   • Red local:  http://192.168.18.11:' + port);
+  console.log('');
+  console.log('🔌 WebSockets activos:');
+  console.log('   • /cocina  - App Cocina');
+  console.log('   • /mozos   - App Mozos');
+  console.log('   • /admin   - Dashboard Admin');
+  console.log('');
+  console.log('🌐 Orígenes CORS permitidos:');
+  allowedOrigins.forEach(origin => console.log('   • ' + origin));
+  console.log('');
+  console.log('═══════════════════════════════════════════════════════════════');
+  console.log('');
 });

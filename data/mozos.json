@@ -4,13 +4,55 @@
     "name": "admin",
     "DNI": 12345678,
     "phoneNumber": 0,
-    "mozoId": 1
+    "mozoId": 1,
+    "activo": true,
+    "permisos": [],
+    "rol": "admin",
+    "updatedAt": "2026-03-01T06:39:14.385Z",
+    "permisosEfectivos": [
+      "ver-mesas",
+      "editar-mesas",
+      "ver-platos",
+      "editar-platos",
+      "ver-areas",
+      "editar-areas",
+      "ver-clientes",
+      "editar-clientes",
+      "ver-mozos",
+      "editar-mozos",
+      "gestionar-roles",
+      "ver-auditoria",
+      "ver-reportes",
+      "cierre-caja",
+      "ver-notificaciones",
+      "crear-comandas",
+      "editar-comandas",
+      "eliminar-platos-comandas",
+      "procesar-pagos",
+      "asociar-clientes",
+      "ver-comandas-cocina",
+      "cambiar-estados-platos",
+      "revertir-comandas"
+    ],
+    "id": "69860821b6273b9647faf872"
   },
   {
+    "rol": "mozos",
+    "activo": true,
     "_id": "6993350add56aff12441caca",
     "name": "Humberto",
     "DNI": 12345678,
     "phoneNumber": 9999999,
-    "mozoId": 2
+    "mozoId": 2,
+    "permisos": [],
+    "permisosEfectivos": [
+      "ver-mesas",
+      "ver-platos",
+      "ver-clientes",
+      "crear-comandas",
+      "editar-comandas",
+      "asociar-clientes"
+    ],
+    "id": "6993350add56aff12441caca"
   }
 ]

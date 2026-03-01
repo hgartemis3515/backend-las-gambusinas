@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roles y Permisos — Las Gambusinas</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        bg: { primary: '#0a0a0f', card: '#1a1a28', sidebar: '#12121a' },
+        gold: { DEFAULT: '#d4af37', '20': 'rgba(212,175,55,0.125)', '40': 'rgba(212,175,55,0.25)' },
+        st: { libre: '#00d4aa', esperando: '#ffa502', pedido: '#3498db', preparado: '#2ecc71', pagado: '#ff4757', reservado: '#5352ed' },
+        txt: { primary: '#ffffff', secondary: '#a0a0b8', muted: '#5a5a7a' }
+      },
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+    }
+  }
+}
+</script>
+<link rel="stylesheet" href="/assets/css/dashboard.css">
+</head>
+<body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="rolesApp()" x-cloak>
+
+<div id="topbar-container"></div>
+<div class="flex pt-[72px] min-h-screen">
+  <div id="sidebar-container"></div>
+  <main :class="sidebarOpen ? 'ml-[270px]' : 'ml-[68px]'" class="flex-1 transition-all duration-300 min-h-[calc(100vh-72px)] p-6">
+    
+    <!-- HEADER -->
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h1 class="text-xl font-bold">Gestión de Roles y Permisos</h1>
+        <p class="text-txt-muted text-sm mt-1">Configura los permisos de cada rol del sistema</p>
+      </div>
+    </div>
+
+    <!-- TABLA DE ROLES -->
+    <div class="space-y-4">
+      <template x-for="rol in roles" :key="rol.id">
+        <div class="bg-bg-card border rounded-xl overflow-hidden" 
+          :class="{
+            'border-gold/40': rol.id === 'admin',
+            'border-st-preparado/40': rol.id === 'supervisor',
+            'border-st-pedido/40': rol.id === 'cocinero',
+            'border-st-libre/40': rol.id === 'mozos',
+            'border-st-esperando/40': rol.id === 'cajero'
+          }">
+          
+          <!-- HEADER DEL ROL -->
+          <div class="p-4 flex items-center justify-between cursor-pointer hover:bg-bg-sidebar/50 transition"
+            @click="rol.expandido = !rol.expandido">
+            <div class="flex items-center gap-4">
+              <span class="text-xs px-3 py-1.5 rounded-full font-bold" 
+                :class="{
+                  'bg-gold/20 text-gold': rol.id === 'admin',
+                  'bg-st-preparado/20 text-st-preparado': rol.id === 'supervisor',
+                  'bg-st-pedido/20 text-st-pedido': rol.id === 'cocinero',
+                  'bg-st-libre/20 text-st-libre': rol.id === 'mozos',
+                  'bg-st-esperando/20 text-st-esperando': rol.id === 'cajero'
+                }" x-text="rol.nombre"></span>
+              <span class="text-sm text-txt-muted" x-text="rol.descripcion"></span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-xs text-txt-secondary bg-bg-sidebar px-2 py-1 rounded" x-text="rol.permisos.length + ' permisos'"></span>
+              <span class="text-lg transition-transform" :class="rol.expandido ? 'rotate-180' : ''">▼</span>
+            </div>
+          </div>
+          
+          <!-- PERMISOS EXPANDIDOS -->
+          <div x-show="rol.expandido" x-collapse class="border-t border-[rgba(212,175,55,0.15)]">
+            <div class="p-4">
+              <template x-for="(permisosGrupo, grupo) in getPermisosAgrupados(rol)" :key="grupo">
+                <div class="mb-4 last:mb-0">
+                  <p class="text-[11px] text-txt-muted uppercase mb-2 font-semibold" x-text="grupo"></p>
+                  <div class="grid grid-cols-3 gap-2">
+                    <template x-for="permiso in permisosGrupo" :key="permiso.id">
+                      <label class="flex items-center gap-2 p-2 rounded-lg bg-bg-sidebar border border-[rgba(212,175,55,0.1)] cursor-pointer hover:border-gold/30 transition"
+                        :class="{'opacity-50 cursor-not-allowed': rol.id === 'admin'}">
+                        <input type="checkbox" 
+                          :checked="rol.permisos.includes(permiso.id)"
+                          @change="togglePermisoRol(rol, permiso.id)"
+                          :disabled="rol.id === 'admin'"
+                          class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+                        <div class="flex-1 min-w-0">
+                          <p class="text-xs font-medium truncate" x-text="permiso.nombre"></p>
+                          <p class="text-[10px] text-txt-muted truncate" x-text="permiso.descripcion"></p>
+                        </div>
+                      </label>
+                    </template>
+                  </div>
+                </div>
+              </template>
+              
+              <!-- BOTONES DE ACCIÓN -->
+              <div x-show="rol.id !== 'admin'" class="flex justify-end gap-2 mt-4 pt-4 border-t border-[rgba(212,175,55,0.1)]">
+                <button @click="resetearPermisosRol(rol)" class="px-3 py-1.5 text-xs border border-txt-muted/30 rounded-lg text-txt-secondary hover:border-gold hover:text-gold transition">
+                  Resetear a default
+                </button>
+                <button @click="guardarPermisosRol(rol)" class="px-4 py-1.5 text-xs bg-gold text-bg-primary rounded-lg font-semibold hover:brightness-110 transition">
+                  Guardar cambios
+                </button>
+              </div>
+              
+              <!-- INFO ADMIN -->
+              <div x-show="rol.id === 'admin'" class="mt-4 pt-4 border-t border-[rgba(212,175,55,0.1)]">
+                <p class="text-xs text-txt-muted text-center">
+                  ⚠️ El rol <span class="text-gold font-semibold">Admin</span> tiene todos los permisos por defecto y no puede ser modificado.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- LEYENDA -->
+    <div class="mt-6 p-4 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl">
+      <h3 class="text-sm font-semibold mb-3">📖 Descripción de Roles</h3>
+      <div class="grid grid-cols-5 gap-4 text-xs">
+        <div>
+          <span class="text-gold font-semibold">Admin</span>
+          <p class="text-txt-muted mt-1">Acceso total al sistema. Puede gestionar usuarios, roles y configuración.</p>
+        </div>
+        <div>
+          <span class="text-st-preparado font-semibold">Supervisor</span>
+          <p class="text-txt-muted mt-1">Gestión de usuarios, reportes, auditoría y cierre de caja.</p>
+        </div>
+        <div>
+          <span class="text-st-pedido font-semibold">Cocinero</span>
+          <p class="text-txt-muted mt-1">Acceso a App Cocina para ver y gestionar comandas.</p>
+        </div>
+        <div>
+          <span class="text-st-libre font-semibold">Mozo</span>
+          <p class="text-txt-muted mt-1">Acceso a App Mozos para crear comandas y gestionar mesas.</p>
+        </div>
+        <div>
+          <span class="text-st-esperando font-semibold">Cajero</span>
+          <p class="text-txt-muted mt-1">Procesar pagos, generar bouchers y cierre de caja.</p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container" class="fixed bottom-6 right-6 z-[9999] space-y-2"></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>
+function rolesApp() {
+  return {
+    sidebarOpen: true,
+    loading: true,
+    roles: [],
+    permisosFundamentales: [],
+    permisosOriginales: {}, // Para detectar cambios
+    activeNav: 'roles',
+    pageTitle: 'Roles',
+    
+    async init() {
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        window.location.href = '/login.html';
+        return;
+      }
+      
+      // Verificar que sea admin
+      const userData = this.parseJwt(token);
+      if (userData.rol !== 'admin') {
+        this.showToast('Solo administradores pueden gestionar roles', 'error');
+        setTimeout(() => window.location.href = '/index.html', 1500);
+        return;
+      }
+      
+      await this.cargarRolesYPermisos();
+    },
+    
+    parseJwt(token) {
+      try {
+        return JSON.parse(atob(token.split('.')[1]));
+      } catch (e) {
+        return {};
+      }
+    },
+    
+    async cargarRolesYPermisos() {
+      this.loading = true;
+      const data = await apiGet('/roles/mostrar');
+      
+      if (data && data.success) {
+        this.permisosFundamentales = data.data.permisos;
+        
+        // Crear array de roles con sus permisos
+        this.roles = data.data.roles.map(r => ({
+          id: r.id,
+          nombre: r.nombre,
+          descripcion: this.getDescripcionRol(r.id),
+          permisos: [...(r.permisosPorDefecto || [])],
+          expandido: false
+        }));
+        
+        // Guardar copia original para detectar cambios
+        this.roles.forEach(r => {
+          this.permisosOriginales[r.id] = [...r.permisos];
+        });
+      }
+      
+      this.loading = false;
+    },
+    
+    getDescripcionRol(rolId) {
+      const descripciones = {
+        admin: 'Acceso total al sistema y todas las funcionalidades',
+        supervisor: 'Gestión operativa, reportes y supervisión del personal',
+        cocinero: 'Gestión de comandas en la cocina',
+        mozos: 'Atención al cliente y gestión de pedidos',
+        cajero: 'Procesamiento de pagos y cierre de caja'
+      };
+      return descripciones[rolId] || '';
+    },
+    
+    getPermisosAgrupados(rol) {
+      const grupos = {};
+      this.permisosFundamentales.forEach(p => {
+        if (!grupos[p.grupo]) grupos[p.grupo] = [];
+        grupos[p.grupo].push({
+          ...p,
+          activo: rol.permisos.includes(p.id)
+        });
+      });
+      return grupos;
+    },
+    
+    togglePermisoRol(rol, permisoId) {
+      const idx = rol.permisos.indexOf(permisoId);
+      if (idx >= 0) {
+        rol.permisos.splice(idx, 1);
+      } else {
+        rol.permisos.push(permisoId);
+      }
+    },
+    
+    async guardarPermisosRol(rol) {
+      // Aquí iría la llamada a la API para guardar los permisos del rol
+      // Por ahora solo actualizamos localmente
+      
+      this.permisosOriginales[rol.id] = [...rol.permisos];
+      this.showToast('Permisos del rol ' + rol.nombre + ' actualizados');
+    },
+    
+    resetearPermisosRol(rol) {
+      // Resetear a los permisos por defecto del sistema
+      const permisosPorDefecto = {
+        supervisor: [
+          'ver-mesas', 'editar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas',
+          'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria', 'ver-reportes',
+          'cierre-caja', 'ver-notificaciones', 'crear-comandas', 'editar-comandas',
+          'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina'
+        ],
+        cocinero: ['ver-platos', 'ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas'],
+        mozos: ['ver-mesas', 'ver-platos', 'ver-clientes', 'crear-comandas', 'editar-comandas', 'asociar-clientes'],
+        cajero: ['ver-mesas', 'ver-platos', 'ver-clientes', 'procesar-pagos', 'cierre-caja']
+      };
+      
+      if (permisosPorDefecto[rol.id]) {
+        rol.permisos = [...permisosPorDefecto[rol.id]];
+        this.showToast('Permisos reseteados a valores por defecto');
+      }
+    },
+    
+    showToast(msg, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const t = document.createElement('div');
+      t.className = 'px-4 py-3 rounded-xl text-sm font-medium shadow-xl ' +
+        (type === 'error' ? 'bg-st-pagado text-white' : 'bg-st-preparado text-white');
+      t.textContent = msg;
+      container.appendChild(t);
+      setTimeout(() => t.remove(), 3000);
+    }
+  };
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Usuarios — Las Gambusinas</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        bg: { primary: '#0a0a0f', card: '#1a1a28', sidebar: '#12121a' },
+        gold: { DEFAULT: '#d4af37', '20': 'rgba(212,175,55,0.125)', '40': 'rgba(212,175,55,0.25)' },
+        st: { libre: '#00d4aa', esperando: '#ffa502', pedido: '#3498db', preparado: '#2ecc71', pagado: '#ff4757', reservado: '#5352ed' },
+        txt: { primary: '#ffffff', secondary: '#a0a0b8', muted: '#5a5a7a' }
+      },
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+    }
+  }
+}
+</script>
+<link rel="stylesheet" href="/assets/css/dashboard.css">
+</head>
+<body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="usuariosApp()" x-cloak>
+
+<div id="topbar-container"></div>
+<div class="flex pt-[72px] min-h-screen">
+  <div id="sidebar-container"></div>
+  <main :class="sidebarOpen ? 'ml-[270px]' : 'ml-[68px]'" class="flex-1 transition-all duration-300 min-h-[calc(100vh-72px)] p-6">
+    
+    <!-- HEADER -->
+    <div class="flex items-center justify-between mb-5">
+      <h1 class="text-xl font-bold">Gestión de Usuarios</h1>
+      <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold" @click="openCreateModal()">+ Nuevo Usuario</button>
+    </div>
+
+    <!-- KPIs -->
+    <div class="grid grid-cols-5 gap-4 mb-6">
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+        <p class="text-[11px] text-txt-muted uppercase">Total Usuarios</p>
+        <p class="text-2xl font-bold text-white mt-1" x-text="usuarios.length"></p>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+        <p class="text-[11px] text-txt-muted uppercase">Activos</p>
+        <p class="text-2xl font-bold text-st-preparado mt-1" x-text="usuarios.filter(m=>m.activo!==false).length"></p>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+        <p class="text-[11px] text-txt-muted uppercase text-gold">Admin</p>
+        <p class="text-2xl font-bold text-gold mt-1" x-text="usuarios.filter(m=>m.rol==='admin').length"></p>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+        <p class="text-[11px] text-txt-muted uppercase text-st-preparado">Supervisores</p>
+        <p class="text-2xl font-bold text-st-preparado mt-1" x-text="usuarios.filter(m=>m.rol==='supervisor').length"></p>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+        <p class="text-[11px] text-txt-muted uppercase text-st-libre">Mozos</p>
+        <p class="text-2xl font-bold text-st-libre mt-1" x-text="usuarios.filter(m=>m.rol==='mozos' || !m.rol).length"></p>
+      </div>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4 mb-6">
+      <div class="flex flex-wrap items-center gap-4">
+        <div class="flex-1 min-w-[200px]">
+          <input type="text" x-model="busqueda" placeholder="Buscar por nombre o DNI..." 
+            class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2 text-sm focus:border-gold focus:outline-none">
+        </div>
+        <div class="flex gap-2">
+          <select x-model="filtroRol" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+            <option value="">Todos los roles</option>
+            <option value="admin">Admin</option>
+            <option value="supervisor">Supervisor</option>
+            <option value="cocinero">Cocinero</option>
+            <option value="mozos">Mozo</option>
+            <option value="cajero">Cajero</option>
+          </select>
+          <select x-model="filtroEstado" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+            <option value="">Todos los estados</option>
+            <option value="activo">Activos</option>
+            <option value="inactivo">Inactivos</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOADING STATE -->
+    <div x-show="loading && usuarios.length === 0" class="flex items-center justify-center h-32">
+      <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+    </div>
+
+    <!-- TABLA -->
+    <div x-show="!loading || usuarios.length > 0" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
+          <th class="text-left px-4 py-3 font-semibold">Usuario</th>
+          <th class="text-left px-4 py-3 font-semibold">DNI</th>
+          <th class="text-left px-4 py-3 font-semibold">Teléfono</th>
+          <th class="text-left px-4 py-3 font-semibold">Rol</th>
+          <th class="text-left px-4 py-3 font-semibold">Estado</th>
+          <th class="text-left px-4 py-3 font-semibold">Acciones</th>
+        </tr></thead>
+        <tbody>
+          <tr x-show="usuariosFiltrados.length === 0">
+            <td colspan="6" class="px-4 py-8 text-center text-txt-muted">No se encontraron usuarios</td>
+          </tr>
+          <template x-for="m in usuariosFiltrados" :key="m._id || m.id">
+            <tr class="border-b border-[rgba(212,175,55,0.08)] table-row hover:bg-bg-sidebar/50">
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center text-gold text-xs font-bold" x-text="m.nombre?.charAt(0)?.toUpperCase() || '?'"></div>
+                  <span class="font-medium" x-text="m.nombre"></span>
+                </div>
+              </td>
+              <td class="px-4 py-3 text-txt-secondary" x-text="m.dni || '—'"></td>
+              <td class="px-4 py-3 text-txt-secondary" x-text="m.telefono || '—'"></td>
+              <td class="px-4 py-3">
+                <span class="text-xs px-2 py-0.5 rounded-full font-semibold" 
+                  :class="{
+                    'bg-gold/20 text-gold': m.rol === 'admin',
+                    'bg-st-preparado/20 text-st-preparado': m.rol === 'supervisor',
+                    'bg-st-pedido/20 text-st-pedido': m.rol === 'cocinero',
+                    'bg-st-libre/20 text-st-libre': m.rol === 'mozos' || !m.rol,
+                    'bg-st-esperando/20 text-st-esperando': m.rol === 'cajero'
+                  }" x-text="getRolNombre(m.rol)"></span>
+              </td>
+              <td class="px-4 py-3">
+                <span class="text-xs px-2 py-0.5 rounded-full font-semibold cursor-pointer" 
+                  :class="m.activo !== false ? 'bg-st-preparado/20 text-st-preparado' : 'bg-txt-muted/20 text-txt-muted'"
+                  @click="toggleActivo(m)" x-text="m.activo !== false ? 'Activo' : 'Inactivo'"></span>
+              </td>
+              <td class="px-4 py-3 space-x-2 text-base">
+                <span class="cursor-pointer hover:text-gold" @click="openEditModal(m)" title="Editar usuario">✏️</span>
+                <span class="cursor-pointer hover:text-st-pagado" @click="eliminarUsuario(m._id)" title="Eliminar usuario">🗑️</span>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODAL: CREAR/EDITAR USUARIO -->
+<div x-show="modal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=null">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[520px] shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
+      <div><h2 class="text-lg font-bold" x-text="isEditing ? 'Editar Usuario' : 'Crear Nuevo Usuario'"></h2><p class="text-xs text-txt-muted" x-text="isEditing ? 'Modifique los datos del usuario' : 'Registre un nuevo usuario en el sistema'"></p></div>
+      <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="text-xs text-txt-secondary mb-1 block">Nombre completo <span class="text-st-pagado">*</span></label>
+        <input type="text" x-model="formUsuario.nombre" placeholder="Ej: Juan Pérez" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="text-xs text-txt-secondary mb-1 block">DNI <span class="text-st-pagado">*</span></label><input type="text" x-model="formUsuario.dni" placeholder="12345678" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
+        <div><label class="text-xs text-txt-secondary mb-1 block">Teléfono</label><input type="text" x-model="formUsuario.telefono" placeholder="987 654 321" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
+      </div>
+      <div>
+        <label class="text-xs text-txt-secondary mb-2 block">Rol del Usuario</label>
+        <div class="grid grid-cols-5 gap-2">
+          <template x-for="rolItem in ['admin', 'supervisor', 'cocinero', 'mozos', 'cajero']" :key="rolItem">
+            <button type="button" @click="formUsuario.rol = rolItem"
+              :class="formUsuario.rol === rolItem ? 'bg-gold text-bg-primary border-gold' : 'bg-bg-sidebar border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold'"
+              class="px-2 py-1.5 rounded-lg text-[10px] font-semibold border transition" x-text="rolItem.charAt(0).toUpperCase() + rolItem.slice(1)"></button>
+          </template>
+        </div>
+      </div>
+      <label class="flex items-center gap-2 text-sm cursor-pointer">
+        <input type="checkbox" x-model="formUsuario.activo" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+        <span class="text-txt-secondary">Usuario activo</span>
+      </label>
+    </div>
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="modal=null" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+      <button @click="guardarUsuario()" class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition" x-text="isEditing ? 'Actualizar' : 'Crear Usuario'"></button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container" class="fixed bottom-6 right-6 z-[9999] space-y-2"></div>
+
+<script src="/assets/js/shared.js"></script>
+<script>
+function usuariosApp() {
+  return {
+    sidebarOpen: true,
+    modal: null,
+    isEditing: false,
+    loading: true,
+    usuarios: [],
+    busqueda: '',
+    filtroRol: '',
+    filtroEstado: '',
+    formUsuario: {
+      _id: null,
+      nombre: '',
+      dni: '',
+      telefono: '',
+      rol: 'mozos',
+      activo: true
+    },
+    activeNav: 'usuarios',
+    pageTitle: 'Usuarios',
+    
+    async init() {
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        window.location.href = '/login.html';
+        return;
+      }
+      await this.loadUsuarios();
+    },
+    
+    async loadUsuarios() {
+      this.loading = true;
+      const data = await apiGet('/mozos');
+      let raw = [];
+      if (data && Array.isArray(data)) raw = data;
+      else if (data && data.mozos) raw = data.mozos;
+      
+      // Normalizar campos del modelo real a los esperados por la UI
+      this.usuarios = raw.map(m => ({
+        ...m,
+        nombre: m.name || m.nombre || '—',
+        dni: m.DNI?.toString() || m.dni || '—',
+        telefono: m.phoneNumber?.toString() || m.telefono || m.tel || '—',
+        activo: m.activo ?? m.isActive ?? true,
+        rol: m.rol || 'mozos'
+      }));
+      this.loading = false;
+    },
+    
+    get usuariosFiltrados() {
+      return this.usuarios.filter(u => {
+        const matchBusqueda = !this.busqueda || 
+          u.nombre?.toLowerCase().includes(this.busqueda.toLowerCase()) ||
+          u.dni?.toString().includes(this.busqueda);
+        const matchRol = !this.filtroRol || u.rol === this.filtroRol;
+        const matchEstado = !this.filtroEstado || 
+          (this.filtroEstado === 'activo' && u.activo !== false) ||
+          (this.filtroEstado === 'inactivo' && u.activo === false);
+        return matchBusqueda && matchRol && matchEstado;
+      });
+    },
+    
+    getRolNombre(rol) {
+      const roles = {
+        admin: 'Admin',
+        supervisor: 'Supervisor',
+        cocinero: 'Cocinero',
+        mozos: 'Mozo',
+        cajero: 'Cajero'
+      };
+      return roles[rol] || 'Mozo';
+    },
+    
+    openCreateModal() {
+      this.isEditing = false;
+      this.formUsuario = { _id: null, nombre: '', dni: '', telefono: '', rol: 'mozos', activo: true };
+      this.modal = true;
+    },
+    
+    openEditModal(m) {
+      this.isEditing = true;
+      this.formUsuario = {
+        _id: m._id,
+        nombre: m.nombre || m.name || '',
+        dni: m.dni || m.DNI?.toString() || '',
+        telefono: m.telefono || m.phoneNumber?.toString() || '',
+        rol: m.rol || 'mozos',
+        activo: m.activo !== false
+      };
+      this.modal = true;
+    },
+    
+    async guardarUsuario() {
+      if (!this.formUsuario.nombre.trim()) {
+        this.showToast('El nombre es requerido', 'error');
+        return;
+      }
+      
+      if (!this.formUsuario.dni.trim()) {
+        this.showToast('El DNI es requerido', 'error');
+        return;
+      }
+      
+      const isEdit = !!this.formUsuario._id;
+      const body = {
+        name: this.formUsuario.nombre,
+        DNI: parseInt(this.formUsuario.dni) || 0,
+        phoneNumber: parseInt(this.formUsuario.telefono) || 0,
+        rol: this.formUsuario.rol,
+        activo: this.formUsuario.activo,
+      };
+      
+      const res = isEdit
+        ? await apiPut('/mozos/' + this.formUsuario._id, body)
+        : await apiPost('/mozos', body);
+      
+      if (res && !res.error) {
+        await this.loadUsuarios();
+        this.modal = null;
+        this.showToast(isEdit ? 'Usuario actualizado ✅' : 'Usuario creado ✅');
+      } else {
+        this.showToast('Error: ' + (res?.error || res?.message || 'Fallo al guardar'), 'error');
+      }
+    },
+    
+    async eliminarUsuario(id) {
+      if (!confirm('¿Eliminar este usuario?')) return;
+      const res = await apiDelete('/mozos/' + id);
+      if (res && !res.error) {
+        await this.loadUsuarios();
+        this.showToast('Usuario eliminado');
+      } else {
+        this.showToast('Error al eliminar', 'error');
+      }
+    },
+    
+    async toggleActivo(m) {
+      const res = await apiPut('/mozos/' + m._id, { activo: !m.activo });
+      if (res && !res.error) {
+        m.activo = !m.activo;
+        this.showToast(m.activo ? 'Usuario activado ✅' : 'Usuario desactivado');
+      }
+    },
+    
+    showToast(msg, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const t = document.createElement('div');
+      t.className = 'px-4 py-3 rounded-xl text-sm font-medium shadow-xl ' +
+        (type === 'error' ? 'bg-st-pagado text-white' : 'bg-st-preparado text-white');
+      t.textContent = msg;
+      container.appendChild(t);
+      setTimeout(() => t.remove(), 3000);
+    },
+    
+    logout() {
+      localStorage.removeItem('adminToken');
+      window.location.href = '/login';
+    }
+  };
+}
+</script>
+</body>
+</html>

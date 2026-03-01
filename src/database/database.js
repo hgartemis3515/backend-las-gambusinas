@@ -15,7 +15,12 @@ mongoose.connect(process.env.DBLOCAL);
 const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'Error de conexión a MongoDB:'));
 db.once('open', async () => {
-  console.log('Conectado a MongoDB');
+  console.log('');
+  console.log('═══════════════════════════════════════════════════════════════');
+  console.log('📊 LAS GAMBUSINAS - SISTEMA POS');
+  console.log('═══════════════════════════════════════════════════════════════');
+  console.log('✅ Conectado a MongoDB');
+  console.log('');
 
   console.log('🔄 Importando datos desde data/*.json...');
   const platosImport = await importarPlatosDesdeJSON();

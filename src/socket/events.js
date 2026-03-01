@@ -1077,5 +1077,40 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
   logger.info('Eventos Socket.io configurados correctamente', {
     namespaces: ['/cocina', '/mozos', '/admin']
   });
+
+  /**
+   * Emitir evento de roles actualizados al namespace admin
+   * @param {String} mozoId - ID del mozo actualizado
+   * @param {String} tipo - Tipo de cambio: 'asignacion', 'actualizacion', 'reset'
+   */
+  global.emitRolesActualizados = async (mozoId, tipo = 'actualizacion') => {
+    try {
+      if (!adminNamespace || !adminNamespace.sockets) {
+        return;
+      }
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      const eventData = {
+        mozoId: mozoId?.toString(),
+        tipo: tipo,
+        timestamp: timestamp
+      };
+
+      adminNamespace.emit('roles-actualizados', eventData);
+
+      logger.info('Evento roles-actualizados emitido', {
+        mozoId,
+        tipo,
+        adminConnected: adminNamespace.sockets.size
+      });
+    } catch (error) {
+      logger.error('Error al emitir roles-actualizados', {
+        error: error.message,
+        stack: error.stack,
+        mozoId
+      });
+    }
+  };
 };
 

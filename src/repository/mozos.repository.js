@@ -43,6 +43,9 @@ const actualizarMozo = async (id, newData) => {
         if (newData.name !== undefined) mozo.name = newData.name;
         if (newData.DNI !== undefined) mozo.DNI = newData.DNI;
         if (newData.phoneNumber !== undefined) mozo.phoneNumber = newData.phoneNumber;
+        if (newData.rol !== undefined) mozo.rol = newData.rol;
+        if (newData.activo !== undefined) mozo.activo = newData.activo;
+        if (newData.permisos !== undefined) mozo.permisos = newData.permisos;
 
         await mozo.save();
         const todoslosmozos = await listarMozos();
@@ -176,6 +179,11 @@ const importarMozosDesdeJSON = async () => {
 
 const inicializarUsuarioAdmin = async () => {
     try {
+        console.log('');
+        console.log('═══════════════════════════════════════════════════════════════');
+        console.log('🔐 VERIFICANDO USUARIO ADMINISTRADOR');
+        console.log('═══════════════════════════════════════════════════════════════');
+
         // Verificar si el usuario admin ya existe (buscar por nombre primero)
         const adminExistente = await mozos.findOne({
             name: 'admin'
@@ -186,32 +194,69 @@ const inicializarUsuarioAdmin = async () => {
             const nuevoAdmin = await mozos.create({
                 name: 'admin',
                 DNI: 12345678,
-                phoneNumber: 0 // Número de teléfono por defecto para admin
+                phoneNumber: 0,
+                rol: 'admin',
+                activo: true
             });
-            console.log('✅ Usuario admin creado exitosamente');
-            console.log('   - Usuario: admin');
-            console.log('   - Contraseña: 12345678');
-            console.log('   - DNI guardado:', nuevoAdmin.DNI, 'tipo:', typeof nuevoAdmin.DNI);
-            console.log('   - ID:', nuevoAdmin._id);
+            
+            console.log('');
+            console.log('┌─────────────────────────────────────────────────────────────┐');
+            console.log('│  ✅ USUARIO ADMIN CREADO EXITOSAMENTE                        │');
+            console.log('├─────────────────────────────────────────────────────────────┤');
+            console.log('│                                                             │');
+            console.log('│   📧 Usuario:    admin                                      │');
+            console.log('│   🔑 Contraseña: 12345678                                   │');
+            console.log('│   👤 Rol:        admin                                      │');
+            console.log('│                                                             │');
+            console.log('│   ⚠️  IMPORTANTE: Cambie la contraseña después del primer    │');
+            console.log('│      inicio de sesión en el dashboard.                      │');
+            console.log('│                                                             │');
+            console.log('└─────────────────────────────────────────────────────────────┘');
+            console.log('');
+            
             // Sincronizar con el archivo JSON
             const todoslosmozos = await listarMozos();
             await syncJsonFile('mozos.json', todoslosmozos);
         } else {
-            console.log('✅ Usuario admin ya existe en la base de datos');
-            console.log('   - Usuario: admin');
-            console.log('   - DNI guardado:', adminExistente.DNI, 'tipo:', typeof adminExistente.DNI);
-            console.log('   - ID:', adminExistente._id);
+            // Asegurar que el admin tenga el rol correcto y DNI correcto
+            let necesitaActualizacion = false;
             
-            // Verificar si el DNI es correcto, si no, actualizarlo
             if (adminExistente.DNI !== 12345678) {
-                console.log('⚠️ El DNI del admin no es 12345678, actualizando...');
                 adminExistente.DNI = 12345678;
-                await adminExistente.save();
-                console.log('✅ DNI del admin actualizado a 12345678');
-                // Sincronizar con el archivo JSON
-                const todoslosmozos = await listarMozos();
-                await syncJsonFile('mozos.json', todoslosmozos);
+                necesitaActualizacion = true;
             }
+            
+            if (adminExistente.rol !== 'admin') {
+                adminExistente.rol = 'admin';
+                necesitaActualizacion = true;
+            }
+            
+            if (adminExistente.activo !== true) {
+                adminExistente.activo = true;
+                necesitaActualizacion = true;
+            }
+            
+            if (necesitaActualizacion) {
+                await adminExistente.save();
+            }
+            
+            console.log('');
+            console.log('┌─────────────────────────────────────────────────────────────┐');
+            console.log('│  ℹ️  USUARIO ADMIN YA EXISTE EN LA BASE DE DATOS             │');
+            console.log('├─────────────────────────────────────────────────────────────┤');
+            console.log('│                                                             │');
+            console.log('│   📧 Usuario:    admin                                      │');
+            console.log('│   🔑 Contraseña: 12345678                                   │');
+            console.log('│   👤 Rol:        admin                                      │');
+            console.log('│                                                             │');
+            console.log('│   💡 Use estas credenciales para acceder al dashboard.      │');
+            console.log('│                                                             │');
+            console.log('└─────────────────────────────────────────────────────────────┘');
+            console.log('');
+            
+            // Sincronizar con el archivo JSON
+            const todoslosmozos = await listarMozos();
+            await syncJsonFile('mozos.json', todoslosmozos);
         }
     } catch (error) {
         console.error('❌ Error al inicializar usuario admin:', error);
