@@ -278,10 +278,22 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================
 // API HELPERS CON AUTENTICACIÓN JWT
 // ============================================
+function getToken() {
+  return localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+}
+
+function clearAuthAndRedirect() {
+  localStorage.removeItem('adminToken');
+  localStorage.removeItem('gambusinas_auth');
+  sessionStorage.removeItem('adminToken');
+  sessionStorage.removeItem('gambusinas_auth');
+  window.location.href = '/login.html';
+}
+
 async function apiGet(endpoint) {
-  const token = localStorage.getItem('adminToken');
+  const token = getToken();
   if (!token) {
-    window.location.href = '/login.html';
+    clearAuthAndRedirect();
     return null;
   }
   try {
@@ -289,8 +301,7 @@ async function apiGet(endpoint) {
       headers: { 'Authorization': 'Bearer ' + token }
     });
     if (res.status === 401) {
-      localStorage.removeItem('adminToken');
-      window.location.href = '/login.html';
+      clearAuthAndRedirect();
       return null;
     }
     return await res.json();
@@ -301,9 +312,9 @@ async function apiGet(endpoint) {
 }
 
 async function apiPost(endpoint, body) {
-  const token = localStorage.getItem('adminToken');
+  const token = getToken();
   if (!token) {
-    window.location.href = '/login.html';
+    clearAuthAndRedirect();
     return null;
   }
   try {
@@ -316,8 +327,7 @@ async function apiPost(endpoint, body) {
       body: JSON.stringify(body)
     });
     if (res.status === 401) {
-      localStorage.removeItem('adminToken');
-      window.location.href = '/login.html';
+      clearAuthAndRedirect();
       return null;
     }
     return await res.json();
@@ -328,9 +338,9 @@ async function apiPost(endpoint, body) {
 }
 
 async function apiPut(endpoint, body) {
-  const token = localStorage.getItem('adminToken');
+  const token = getToken();
   if (!token) {
-    window.location.href = '/login.html';
+    clearAuthAndRedirect();
     return null;
   }
   try {
@@ -343,8 +353,7 @@ async function apiPut(endpoint, body) {
       body: JSON.stringify(body)
     });
     if (res.status === 401) {
-      localStorage.removeItem('adminToken');
-      window.location.href = '/login.html';
+      clearAuthAndRedirect();
       return null;
     }
     return await res.json();
@@ -355,9 +364,9 @@ async function apiPut(endpoint, body) {
 }
 
 async function apiDelete(endpoint) {
-  const token = localStorage.getItem('adminToken');
+  const token = getToken();
   if (!token) {
-    window.location.href = '/login.html';
+    clearAuthAndRedirect();
     return null;
   }
   try {
@@ -366,8 +375,7 @@ async function apiDelete(endpoint) {
       headers: { 'Authorization': 'Bearer ' + token }
     });
     if (res.status === 401) {
-      localStorage.removeItem('adminToken');
-      window.location.href = '/login.html';
+      clearAuthAndRedirect();
       return null;
     }
     return await res.json();
@@ -385,6 +393,8 @@ window.mesaBadge = mesaBadge;
 window.filteredMesas = filteredMesas;
 window.initClock = initClock;
 window.setActiveNav = setActiveNav;
+window.getToken = getToken;
+window.clearAuthAndRedirect = clearAuthAndRedirect;
 window.apiGet = apiGet;
 window.apiPost = apiPost;
 window.apiPut = apiPut;

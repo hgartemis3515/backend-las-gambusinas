@@ -1,0 +1,575 @@
+/* ============================================
+   ANIMATIONS.CSS - Sistema de Animaciones Premium
+   Proyecto: Las Gambusinas - Dashboard Admin
+   ============================================ */
+
+/* ============================================
+   PREFERS REDUCED MOTION
+   Desactiva animaciones para usuarios que lo prefieran
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================
+   KEYFRAMES PERSONALIZADOS
+   ============================================ */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes scaleOut {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.9); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4); }
+  50% { box-shadow: 0 0 20px 5px rgba(212, 175, 55, 0.2); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes bounce-subtle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes flash-green {
+  0% { background-color: rgba(46, 204, 113, 0.3); }
+  100% { background-color: transparent; }
+}
+
+@keyframes flash-yellow {
+  0% { background-color: rgba(255, 165, 2, 0.3); }
+  100% { background-color: transparent; }
+}
+
+@keyframes flash-red {
+  0% { background-color: rgba(255, 71, 87, 0.3); }
+  100% { background-color: transparent; }
+}
+
+/* ============================================
+   SKELETON LOADER CON SHIMMER
+   ============================================ */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(212, 175, 55, 0.05) 25%,
+    rgba(212, 175, 55, 0.15) 50%,
+    rgba(212, 175, 55, 0.05) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+.skeleton-text {
+  height: 14px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+}
+
+.skeleton-title {
+  height: 24px;
+  width: 60%;
+  margin-bottom: 12px;
+  border-radius: 6px;
+}
+
+.skeleton-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+}
+
+.skeleton-card {
+  background: var(--bg-card, #1a1a28);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.skeleton-row {
+  display: flex;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+/* ============================================
+   CARD ANIMATIONS
+   ============================================ */
+.card-hover {
+  transition: transform 200ms ease-out, box-shadow 200ms ease-out, border-color 200ms ease-out;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.card-enter {
+  animation: fadeInUp 400ms ease-out;
+}
+
+.card-enter-delay-1 { animation-delay: 50ms; }
+.card-enter-delay-2 { animation-delay: 100ms; }
+.card-enter-delay-3 { animation-delay: 150ms; }
+.card-enter-delay-4 { animation-delay: 200ms; }
+.card-enter-delay-5 { animation-delay: 250ms; }
+.card-enter-delay-6 { animation-delay: 300ms; }
+.card-enter-delay-7 { animation-delay: 350ms; }
+.card-enter-delay-8 { animation-delay: 400ms; }
+
+/* ============================================
+   BUTTON ANIMATIONS
+   ============================================ */
+.btn-lift {
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+}
+
+.btn-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+}
+
+.btn-lift:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.btn-glow:hover {
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+}
+
+.btn-pulse:active {
+  animation: pulse-glow 0.3s ease-out;
+}
+
+/* Ripple effect container */
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+/* ============================================
+   INPUT ANIMATIONS
+   ============================================ */
+.input-glow:focus {
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
+}
+
+.input-scale:focus {
+  transform: scale(1.02);
+}
+
+.input-underline {
+  position: relative;
+}
+
+.input-underline::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: #d4af37;
+  transition: width 300ms ease-out;
+}
+
+.input-underline:focus-within::after {
+  width: 100%;
+}
+
+/* ============================================
+   MODAL ANIMATIONS
+   ============================================ */
+.modal-overlay {
+  backdrop-filter: blur(4px);
+}
+
+.modal-enter {
+  animation: modalEnter 400ms ease-out;
+}
+
+@keyframes modalEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-exit {
+  animation: modalExit 300ms ease-in forwards;
+}
+
+@keyframes modalExit {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+}
+
+.modal-backdrop-enter {
+  animation: fadeIn 200ms ease-out;
+}
+
+.modal-backdrop-exit {
+  animation: fadeOut 300ms ease-in forwards;
+}
+
+/* ============================================
+   TABLE ANIMATIONS
+   ============================================ */
+.table-row {
+  transition: background-color 150ms ease-out;
+}
+
+.table-row-enter {
+  animation: fadeInUp 300ms ease-out;
+}
+
+.table-row-new {
+  animation: rowSlideIn 400ms ease-out, flash-green 1s ease-out;
+}
+
+@keyframes rowSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.table-row-update {
+  animation: flash-yellow 0.5s ease-out;
+}
+
+.table-row-delete {
+  animation: rowSlideOut 300ms ease-in forwards;
+}
+
+@keyframes rowSlideOut {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+}
+
+/* ============================================
+   SIDEBAR ANIMATIONS
+   ============================================ */
+.sidebar-transition {
+  transition: width 300ms ease-out, transform 300ms ease-out;
+}
+
+.sidebar-item {
+  transition: background-color 150ms ease-out, transform 150ms ease-out;
+}
+
+.sidebar-item:hover {
+  transform: translateX(4px);
+}
+
+.sidebar-item-enter {
+  animation: fadeInLeft 200ms ease-out;
+}
+
+/* ============================================
+   KPI ANIMATIONS
+   ============================================ */
+.kpi-bounce {
+  animation: bounce-subtle 0.5s ease-out;
+}
+
+.kpi-glow {
+  animation: pulse-glow 2s infinite;
+}
+
+.kpi-counter {
+  transition: color 300ms ease-out;
+}
+
+.kpi-counter.animating {
+  color: #d4af37;
+}
+
+/* ============================================
+   NOTIFICATION / TOAST ANIMATIONS
+   ============================================ */
+.toast-enter {
+  animation: slideInRight 300ms ease-out;
+}
+
+@keyframes slideInRight {
+  0% {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.toast-exit {
+  animation: slideOutRight 300ms ease-in forwards;
+}
+
+@keyframes slideOutRight {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+.notification-bounce {
+  animation: bounce-subtle 0.3s ease-out;
+}
+
+/* ============================================
+   SOCKET UPDATE ANIMATIONS
+   ============================================ */
+.socket-highlight {
+  animation: flash-green 1s ease-out;
+}
+
+.socket-update-pulse {
+  animation: pulse-glow 0.5s ease-out;
+}
+
+.socket-mesa-update {
+  animation: bounce-subtle 0.3s ease-out;
+}
+
+/* ============================================
+   LOADING ANIMATIONS
+   ============================================ */
+.spinner-gold {
+  border: 3px solid rgba(212, 175, 55, 0.2);
+  border-top-color: #d4af37;
+  border-radius: 50%;
+  animation: spin-slow 1s linear infinite;
+}
+
+.dots-loader {
+  display: flex;
+  gap: 4px;
+}
+
+.dots-loader span {
+  width: 8px;
+  height: 8px;
+  background: #d4af37;
+  border-radius: 50%;
+  animation: bounce-subtle 0.6s ease-in-out infinite;
+}
+
+.dots-loader span:nth-child(2) { animation-delay: 0.1s; }
+.dots-loader span:nth-child(3) { animation-delay: 0.2s; }
+
+/* ============================================
+   EMPTY STATE ANIMATIONS
+   ============================================ */
+.empty-state {
+  animation: fadeInUp 500ms ease-out;
+}
+
+.empty-state-icon {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* ============================================
+   TAB ANIMATIONS
+   ============================================ */
+.tab-indicator {
+  transition: transform 200ms ease-out, width 200ms ease-out;
+}
+
+.tab-content-enter {
+  animation: fadeIn 300ms ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* ============================================
+   CHART ANIMATIONS
+   ============================================ */
+.chart-container {
+  animation: fadeIn 500ms ease-out;
+}
+
+.chart-bar-animate {
+  transform-origin: bottom;
+  animation: chartBarGrow 800ms ease-out;
+}
+
+@keyframes chartBarGrow {
+  0% { transform: scaleY(0); }
+  100% { transform: scaleY(1); }
+}
+
+/* ============================================
+   MESAS GRID ANIMATIONS
+   ============================================ */
+.mesa-tile {
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+}
+
+.mesa-tile:hover {
+  transform: scale(1.05);
+}
+
+.mesa-tile-selecting {
+  animation: pulse-glow 0.5s ease-out;
+}
+
+.mesa-status-change {
+  animation: flash-yellow 0.5s ease-out;
+}
+
+/* ============================================
+   STAGGER DELAYS
+   Para animaciones en secuencia
+   ============================================ */
+.stagger-1 { animation-delay: 50ms; }
+.stagger-2 { animation-delay: 100ms; }
+.stagger-3 { animation-delay: 150ms; }
+.stagger-4 { animation-delay: 200ms; }
+.stagger-5 { animation-delay: 250ms; }
+.stagger-6 { animation-delay: 300ms; }
+.stagger-7 { animation-delay: 350ms; }
+.stagger-8 { animation-delay: 400ms; }
+.stagger-9 { animation-delay: 450ms; }
+.stagger-10 { animation-delay: 500ms; }
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+.animate-on-scroll {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 400ms ease-out, transform 400ms ease-out;
+}
+
+.animate-on-scroll.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.hover-lift {
+  transition: transform 200ms ease-out;
+}
+
+.hover-lift:hover {
+  transform: translateY(-3px);
+}
+
+.hover-scale {
+  transition: transform 200ms ease-out;
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+/* ============================================
+   RESPONSIVE ANIMATIONS
+   ============================================ */
+@media (max-width: 768px) {
+  /* Reducir intensidad de animaciones en móvil */
+  .card-hover:hover {
+    transform: none;
+  }
+  
+  .btn-lift:hover {
+    transform: none;
+  }
+  
+  /* Sidebar móvil overlay */
+  .sidebar-mobile-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 40;
+    animation: fadeIn 200ms ease-out;
+  }
+  
+  .sidebar-mobile-enter {
+    animation: slideInLeft 300ms ease-out;
+  }
+  
+  @keyframes slideInLeft {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(0); }
+  }
+}

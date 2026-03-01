@@ -3,8 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Roles y Permisos — Las Gambusinas</title>
-<script src="https://cdn.tailwindcss.com"></script>
+  <title>Roles y Permisos — Las Gambusinas</title>
+  <!-- Animate.css - Animaciones CSS puras -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+  <!-- AOS - Animate On Scroll -->
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -24,6 +28,7 @@ tailwind.config = {
 }
 </script>
 <link rel="stylesheet" href="/assets/css/dashboard.css">
+<link rel="stylesheet" href="/assets/css/animations.css">
 </head>
 <body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="rolesApp()" x-cloak>
 
@@ -149,8 +154,22 @@ tailwind.config = {
 </div>
 
 <!-- MODAL: EDITAR ROL -->
-<div x-show="modalEditar" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modalEditar=false">
-  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[800px] max-h-[90vh] overflow-hidden shadow-2xl" @click.stop>
+<div x-show="modalEditar" 
+     x-transition:enter="transition ease-out duration-200"
+     x-transition:enter-start="opacity-0"
+     x-transition:enter-end="opacity-100"
+     x-transition:leave="transition ease-in duration-150"
+     x-transition:leave-start="opacity-100"
+     x-transition:leave-end="opacity-0"
+     class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modalEditar=false">
+  <div x-show="modalEditar"
+       x-transition:enter="transition ease-out duration-300"
+       x-transition:enter-start="opacity-0 transform scale-95 translate-y-4"
+       x-transition:enter-end="opacity-100 transform scale-100 translate-y-0"
+       x-transition:leave="transition ease-in duration-200"
+       x-transition:leave-start="opacity-100 transform scale-100 translate-y-0"
+       x-transition:leave-end="opacity-0 transform scale-95 translate-y-4"
+       class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[800px] max-h-[90vh] overflow-hidden shadow-2xl" @click.stop>
     <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
       <div>
         <h2 class="text-lg font-bold" x-text="isEditing ? 'Editar Rol' : 'Crear Nuevo Rol'"></h2>
@@ -227,8 +246,22 @@ tailwind.config = {
 </div>
 
 <!-- MODAL: VER PERMISOS -->
-<div x-show="modalPermisos" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modalPermisos=false">
-  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[500px] max-h-[90vh] overflow-hidden shadow-2xl" @click.stop>
+<div x-show="modalPermisos" 
+     x-transition:enter="transition ease-out duration-200"
+     x-transition:enter-start="opacity-0"
+     x-transition:enter-end="opacity-100"
+     x-transition:leave="transition ease-in duration-150"
+     x-transition:leave-start="opacity-100"
+     x-transition:leave-end="opacity-0"
+     class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modalPermisos=false">
+  <div x-show="modalPermisos"
+       x-transition:enter="transition ease-out duration-300"
+       x-transition:enter-start="opacity-0 transform scale-95 translate-y-4"
+       x-transition:enter-end="opacity-100 transform scale-100 translate-y-0"
+       x-transition:leave="transition ease-in duration-200"
+       x-transition:leave-start="opacity-100 transform scale-100 translate-y-0"
+       x-transition:leave-end="opacity-0 transform scale-95 translate-y-4"
+       class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[500px] max-h-[90vh] overflow-hidden shadow-2xl" @click.stop>
     <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
       <div>
         <h2 class="text-lg font-bold" x-text="'Permisos de ' + (rolDetalle?.nombreDisplay || rolDetalle?.nombre)"></h2>
@@ -257,6 +290,8 @@ tailwind.config = {
 <!-- TOAST CONTAINER -->
 <div id="toast-container" class="fixed bottom-6 right-6 z-[9999] space-y-2"></div>
 
+<!-- SCRIPTS -->
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script>
 function rolesApp() {
@@ -285,7 +320,7 @@ function rolesApp() {
     pageTitle: 'Roles',
     
     async init() {
-      const token = localStorage.getItem('adminToken');
+      const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
       if (!token) {
         window.location.href = '/login.html';
         return;
@@ -300,6 +335,13 @@ function rolesApp() {
       }
       
       await this.cargarDatos();
+      
+      // Inicializar AOS
+      this.$nextTick(() => {
+        if (typeof AOS !== 'undefined') {
+          AOS.refresh();
+        }
+      });
     },
     
     parseJwt(token) {
@@ -347,6 +389,14 @@ function rolesApp() {
       }
       
       this.loading = false;
+      
+      // Animar tabla después de cargar
+      this.$nextTick(() => {
+        const table = document.querySelector('table');
+        if (table && window.Animations?.Table) {
+          Animations.Table.animateRows(table);
+        }
+      });
     },
     
     get rolesFiltrados() {
@@ -471,11 +521,17 @@ function rolesApp() {
     showToast(msg, type = 'success') {
       const container = document.getElementById('toast-container');
       const t = document.createElement('div');
-      t.className = 'px-4 py-3 rounded-xl text-sm font-medium shadow-xl ' +
+      t.className = 'px-4 py-3 rounded-xl text-sm font-medium shadow-xl animate__animated animate__slideInRight ' +
         (type === 'error' ? 'bg-st-pagado text-white' : 'bg-st-preparado text-white');
       t.textContent = msg;
       container.appendChild(t);
-      setTimeout(() => t.remove(), 3000);
+      
+      // Auto-remove con animación
+      setTimeout(() => {
+        t.classList.remove('animate__slideInRight');
+        t.classList.add('animate__slideOutRight');
+        setTimeout(() => t.remove(), 300);
+      }, 3000);
     }
   };
 }

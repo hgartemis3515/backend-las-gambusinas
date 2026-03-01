@@ -3,8 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Las Gambusinas Dashboard v2.0</title>
-<script src="https://cdn.tailwindcss.com"></script>
+  <title>Las Gambusinas Dashboard v2.0</title>
+  <!-- Animate.css - Animaciones CSS puras -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+  <!-- AOS - Animate On Scroll -->
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -144,7 +148,7 @@ tailwind.config = {
             <div class="w-9 h-5 bg-gold rounded-full relative cursor-pointer"><div class="absolute right-0.5 top-0.5 w-4 h-4 bg-white rounded-full"></div></div>
           </div>
           <div class="border-t border-[rgba(212,175,55,0.1)] mt-1 pt-1">
-            <div class="px-3 py-2 rounded-lg hover:bg-[rgba(255,71,87,0.1)] cursor-pointer text-sm text-st-pagado">🚪 Cerrar sesión</div>
+            <div @click="logout()" class="px-3 py-2 rounded-lg hover:bg-[rgba(255,71,87,0.1)] cursor-pointer text-sm text-st-pagado">🚪 Cerrar sesión</div>
           </div>
         </div>
         <div class="px-4 py-2 border-t border-[rgba(212,175,55,0.1)] text-[10px] text-txt-muted">v2.0.0-fase7 · Sesión: 2h 34m</div>
@@ -1175,6 +1179,22 @@ function app() {
       setInterval(() => this.updateClock(), 1000);
       this.$nextTick(() => { this.initCharts(); });
       this.$watch('page', () => { this.$nextTick(() => this.initCharts()); });
+    },
+    logout() {
+      console.log('Logout ejecutado desde Alpine.js');
+      // Limpiar localStorage
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('gambusinas_auth');
+      localStorage.removeItem('gambusinas_remember');
+      // Limpiar sessionStorage
+      sessionStorage.removeItem('adminToken');
+      sessionStorage.removeItem('gambusinas_auth');
+      // Animación de fade out
+      document.body.style.transition = 'opacity 300ms ease-out';
+      document.body.style.opacity = '0';
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 300);
     },
     updateClock() {
       const now = new Date();

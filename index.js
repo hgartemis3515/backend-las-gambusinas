@@ -127,13 +127,21 @@ app.use(helmet({
       'style-src': [
         "'self'",
         "'unsafe-inline'",
-        "https://fonts.googleapis.com"
+        "https://fonts.googleapis.com",
+        "https://cdnjs.cloudflare.com",
+        "https://*.cdnjs.cloudflare.com",
+        "https://unpkg.com",
+        "https://*.unpkg.com",
+        "https://maxst.icons8.com"
       ],
       'connect-src': [
         "'self'",
-        "ws:",      // ✅ FIX: ws: NO ws://
-        "wss:",     // ✅ FIX: wss: NO wss://
-        "https://cdn.socket.io"
+        "ws:",      // WebSockets
+        "wss:",     // WebSockets seguros
+        "https://cdn.socket.io",
+        "https://cdnjs.cloudflare.com",
+        "https://unpkg.com",
+        "https://cdn.jsdelivr.net"  // Chart.js source maps
       ],
       'img-src': [
         "'self'",

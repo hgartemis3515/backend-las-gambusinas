@@ -3,8 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard — Las Gambusinas</title>
-<script src="https://cdn.tailwindcss.com"></script>
+  <title>Dashboard — Las Gambusinas</title>
+  <!-- Animate.css - Animaciones CSS puras -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+  <!-- AOS - Animate On Scroll -->
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+<!-- Alpine.js + Collapse Plugin -->
+<script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
@@ -26,6 +32,7 @@ tailwind.config = {
 }
 </script>
 <link rel="stylesheet" href="/assets/css/dashboard.css">
+<link rel="stylesheet" href="/assets/css/animations.css">
 </head>
 <body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="dashApp()" x-cloak>
 
@@ -526,6 +533,7 @@ tailwind.config = {
 <div id="toast-container" class="fixed bottom-6 right-6 z-[9999] space-y-2"></div>
 
 <!-- SCRIPTS -->
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script src="/assets/js/charts.js"></script>
 <script>
@@ -632,7 +640,8 @@ function dashApp() {
     getWidgetNombre(id)  { return WIDGET_CATALOG[id]?.nombre || id; },
 
     async init() {
-      const token = localStorage.getItem('adminToken');
+      // Verificar token en ambos storages
+      const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
       if (!token) { window.location.href = '/login.html'; return; }
 
       // Load saved layout
@@ -842,7 +851,7 @@ function dashApp() {
     },
 
     initSocket() {
-      const token = localStorage.getItem('adminToken');
+      const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
       if (!token || typeof io === 'undefined') return;
       try {
         this.socket = io('/admin', { auth: { token }, transports: ['websocket', 'polling'] });

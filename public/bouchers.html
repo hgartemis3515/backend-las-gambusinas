@@ -3,8 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Vouchers — Las Gambusinas</title>
-<script src="https://cdn.tailwindcss.com"></script>
+  <title>Vouchers — Las Gambusinas</title>
+  <!-- Animate.css - Animaciones CSS puras -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+  <!-- AOS - Animate On Scroll -->
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -24,6 +28,7 @@ tailwind.config = {
 }
 </script>
 <link rel="stylesheet" href="/assets/css/dashboard.css">
+<link rel="stylesheet" href="/assets/css/animations.css">
 </head>
 <body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="bouchersApp()" x-cloak>
 
@@ -278,7 +283,7 @@ function bouchersApp() {
     mozosList: [],
     
     async init() {
-      const token = localStorage.getItem('adminToken');
+      const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
       if (!token) {
         window.location.href = '/login.html';
         return;

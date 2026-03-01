@@ -3,8 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cierre de Caja — Las Gambusinas</title>
-<script src="https://cdn.tailwindcss.com"></script>
+  <title>Cierre de Caja — Las Gambusinas</title>
+  <!-- Animate.css - Animaciones CSS puras -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+  <!-- AOS - Animate On Scroll -->
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -25,6 +29,7 @@ tailwind.config = {
 }
 </script>
 <link rel="stylesheet" href="/assets/css/dashboard.css">
+<link rel="stylesheet" href="/assets/css/animations.css">
 <style>
   .kpi-card { transition: all 0.2s ease; }
   .kpi-card:hover { border-color: rgba(212,175,55,0.4) !important; transform: translateY(-1px); }
@@ -292,7 +297,7 @@ function cierreApp() {
     chartInstances: [],
 
     async init() {
-      const token = localStorage.getItem('adminToken');
+      const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
       if (!token) { window.location.href = '/login.html'; return; }
       await Promise.all([this.loadEstadoActual(), this.loadCierresCaja()]);
     },

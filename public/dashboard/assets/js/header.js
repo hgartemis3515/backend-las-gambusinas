@@ -37,13 +37,28 @@
     // ============================================
     window.logout = function() {
         console.log('Logout ejecutado');
-        try {
-            localStorage.removeItem('adminToken');
-            localStorage.removeItem('theme');
-            window.location.href = '/dashboard/login.html';
-        } catch(e) {
-            window.location.href = '/dashboard/login.html';
-        }
+        
+        // Animación de fade out
+        document.body.style.transition = 'opacity 300ms ease-out';
+        document.body.style.opacity = '0';
+        
+        setTimeout(() => {
+            try {
+                // Limpiar localStorage
+                localStorage.removeItem('adminToken');
+                localStorage.removeItem('gambusinas_auth');
+                localStorage.removeItem('theme');
+                
+                // Limpiar sessionStorage también
+                sessionStorage.removeItem('adminToken');
+                sessionStorage.removeItem('gambusinas_auth');
+                
+                // Redirigir al login
+                window.location.href = '/login';
+            } catch(e) {
+                window.location.href = '/login';
+            }
+        }, 300);
     };
     window.cerrarSesion = window.logout;
     
