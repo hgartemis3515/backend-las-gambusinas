@@ -9,6 +9,7 @@ const { importarClientesDesdeJSON } = require('../repository/clientes.repository
 const { importarComandasDesdeJSON } = require('../repository/comanda.repository');
 const { importarBoucherDesdeJSON } = require('../repository/boucher.repository');
 const { importarAuditoriaDesdeJSON } = require('../repository/auditoria.repository');
+const { inicializarRolesSistema } = require('../repository/roles.repository');
 
 mongoose.connect(process.env.DBLOCAL);
 
@@ -32,6 +33,7 @@ db.once('open', async () => {
   await importarMesasDesdeJSON();
   await importarMozosDesdeJSON();
   await inicializarUsuarioAdmin();
+  await inicializarRolesSistema();
   await importarClientesDesdeJSON();
   await importarComandasDesdeJSON();
   await importarBoucherDesdeJSON();

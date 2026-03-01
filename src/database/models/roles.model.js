@@ -1,10 +1,15 @@
+/**
+ * ROLES MODEL
+ * Modelo para roles personalizados del sistema
+ */
+
 const mongoose = require('mongoose');
 const AutoIncrement = require('mongoose-sequence')(mongoose);
 
-// Roles disponibles en el sistema
-const ROLES = ['admin', 'supervisor', 'cocinero', 'mozos', 'cajero'];
+// Roles del sistema (no editables)
+const ROLES_SISTEMA = ['admin', 'supervisor', 'cocinero', 'mozos', 'cajero'];
 
-// Permisos fundamentales agrupados por aplicación
+// Permisos fundamentales disponibles
 const PERMISOS_FUNDAMENTALES = {
     // Backend/Dashboard - Gestión general
     'ver-mesas': { nombre: 'Ver Mesas', grupo: 'Backend/Dashboard', descripcion: 'Visualizar lista y estado de mesas' },
@@ -15,9 +20,9 @@ const PERMISOS_FUNDAMENTALES = {
     'editar-areas': { nombre: 'Editar Áreas', grupo: 'Backend/Dashboard', descripcion: 'Crear, modificar y eliminar áreas' },
     'ver-clientes': { nombre: 'Ver Clientes', grupo: 'Backend/Dashboard', descripcion: 'Visualizar lista de clientes' },
     'editar-clientes': { nombre: 'Editar Clientes', grupo: 'Backend/Dashboard', descripcion: 'Crear, modificar y eliminar clientes' },
-    'ver-mozos': { nombre: 'Ver Mozos', grupo: 'Backend/Dashboard', descripcion: 'Visualizar lista de personal' },
-    'editar-mozos': { nombre: 'Editar Mozos', grupo: 'Backend/Dashboard', descripcion: 'Crear, modificar y eliminar mozos' },
-    'gestionar-roles': { nombre: 'Gestionar Roles', grupo: 'Backend/Dashboard', descripcion: 'Asignar y modificar roles y permisos' },
+    'ver-mozos': { nombre: 'Ver Usuarios', grupo: 'Backend/Dashboard', descripcion: 'Visualizar lista de usuarios' },
+    'editar-mozos': { nombre: 'Editar Usuarios', grupo: 'Backend/Dashboard', descripcion: 'Crear, modificar y eliminar usuarios' },
+    'gestionar-roles': { nombre: 'Gestionar Roles', grupo: 'Backend/Dashboard', descripcion: 'Crear y asignar roles y permisos' },
     'ver-auditoria': { nombre: 'Ver Auditoría', grupo: 'Backend/Dashboard', descripcion: 'Acceder al registro de acciones del sistema' },
     'ver-reportes': { nombre: 'Ver Reportes', grupo: 'Backend/Dashboard', descripcion: 'Acceder a reportes y estadísticas' },
     'cierre-caja': { nombre: 'Cierre de Caja', grupo: 'Backend/Dashboard', descripcion: 'Realizar cierre de caja diario' },
@@ -36,8 +41,8 @@ const PERMISOS_FUNDAMENTALES = {
     'revertir-comandas': { nombre: 'Revertir Comandas', grupo: 'App Cocina', descripcion: 'Deshacer comandas desde cocina' }
 };
 
-// Permisos por defecto según rol
-const PERMISOS_POR_ROL = {
+// Permisos por defecto para roles del sistema
+const PERMISOS_POR_ROL_SISTEMA = {
     admin: Object.keys(PERMISOS_FUNDAMENTALES),
     supervisor: [
         'ver-mesas', 'editar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas',
@@ -57,74 +62,56 @@ const PERMISOS_POR_ROL = {
     ]
 };
 
-const permisoSchema = new mongoose.Schema({
-    permiso: { type: String, required: true, enum: Object.keys(PERMISOS_FUNDAMENTALES) },
-    permitido: { type: Boolean, default: true }
-}, { _id: false });
-
-const mozosSchema = new mongoose.Schema({
-    mozoId: { type: Number, unique: true },
-    name: { type: String, required: true },
-    DNI: { type: Number, required: true, min: 0 },
-    phoneNumber: { type: Number, required: true, min: 0 },
-    rol: { 
+const rolesSchema = new mongoose.Schema({
+    rolId: { type: Number, unique: true },
+    nombre: { 
         type: String, 
-        default: 'mozos',
-        required: true
+        required: true, 
+        unique: true,
+        lowercase: true,
+        trim: true
     },
-    permisos: [permisoSchema],
-    activo: { type: Boolean, default: true }
-}, { 
-    timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true }
-});
-
-// Virtual para obtener permisos efectivos (rol + personalizados)
-// Nota: Para roles personalizados, los permisos se obtienen de la colección 'roles'
-mozosSchema.virtual('permisosEfectivos').get(function() {
-    const permisosRol = PERMISOS_POR_ROL[this.rol] || [];
-    const permisosPersonalizados = this.permisos || [];
-    
-    // Si tiene permisos personalizados, estos sobrescriben los del rol
-    if (permisosPersonalizados.length > 0) {
-        const permisosMap = new Map();
-        
-        // Primero agregar permisos del rol
-        permisosRol.forEach(p => permisosMap.set(p, true));
-        
-        // Luego sobrescribir con permisos personalizados
-        permisosPersonalizados.forEach(p => {
-            permisosMap.set(p.permiso, p.permitido);
-        });
-        
-        return Array.from(permisosMap.entries())
-            .filter(([_, permitido]) => permitido)
-            .map(([permiso]) => permiso);
+    nombreDisplay: { 
+        type: String, 
+        required: true 
+    },
+    descripcion: { 
+        type: String, 
+        default: '' 
+    },
+    permisos: [{ 
+        type: String, 
+        enum: Object.keys(PERMISOS_FUNDAMENTALES) 
+    }],
+    esSistema: { 
+        type: Boolean, 
+        default: false 
+    },
+    activo: { 
+        type: Boolean, 
+        default: true 
+    },
+    color: {
+        type: String,
+        default: 'st-libre'
+    },
+    creadoPor: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'mozos'
     }
-    
-    return permisosRol;
+}, { 
+    timestamps: true 
 });
 
-// Método estático para obtener roles disponibles
-mozosSchema.statics.getRoles = function() {
-    return ROLES;
-};
+rolesSchema.plugin(AutoIncrement, { inc_field: 'rolId' });
 
-// Método estático para obtener permisos fundamentales
-mozosSchema.statics.getPermisosFundamentales = function() {
-    return PERMISOS_FUNDAMENTALES;
-};
+// Índices
+rolesSchema.index({ nombre: 1 });
+rolesSchema.index({ esSistema: 1 });
 
-// Método estático para obtener permisos por rol
-mozosSchema.statics.getPermisosPorRol = function(rol) {
-    return PERMISOS_POR_ROL[rol] || [];
-};
+const roles = mongoose.model('roles', rolesSchema);
 
-mozosSchema.plugin(AutoIncrement, { inc_field: 'mozoId' });
-const mozos = mongoose.model('mozos', mozosSchema);
-
-module.exports = mozos;
-module.exports.ROLES = ROLES;
+module.exports = roles;
+module.exports.ROLES_SISTEMA = ROLES_SISTEMA;
 module.exports.PERMISOS_FUNDAMENTALES = PERMISOS_FUNDAMENTALES;
-module.exports.PERMISOS_POR_ROL = PERMISOS_POR_ROL;
+module.exports.PERMISOS_POR_ROL_SISTEMA = PERMISOS_POR_ROL_SISTEMA;

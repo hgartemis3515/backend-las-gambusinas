@@ -25,7 +25,7 @@ try {
  * GET /cierreCaja/estado
  * Obtener estado actual de la caja (abierta/cerrada y total)
  */
-router.get('/estado', async (req, res) => {
+router.get('/cierreCaja/estado', async (req, res) => {
   try {
     const hoy = new Date().toISOString().split('T')[0];
     
@@ -70,7 +70,7 @@ router.get('/estado', async (req, res) => {
  * Listado de cierres con filtros
  * Query params: mozoId, fechaDesde, fechaHasta, estado
  */
-router.get('/', async (req, res) => {
+router.get('/cierreCaja', async (req, res) => {
   try {
     const { mozoId, fechaDesde, fechaHasta, estado } = req.query;
     
@@ -96,7 +96,7 @@ router.get('/', async (req, res) => {
  * GET /cierreCaja/:id
  * Obtener cierre por ID
  */
-router.get('/:id', async (req, res) => {
+router.get('/cierreCaja/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -129,7 +129,7 @@ router.get('/:id', async (req, res) => {
  * Generar cierre automático
  * Body: { mozoId, fecha, turno }
  */
-router.post('/generar', async (req, res) => {
+router.post('/cierreCaja/generar', async (req, res) => {
   try {
     const { mozoId, fecha, turno } = req.body;
     
@@ -193,7 +193,7 @@ router.post('/generar', async (req, res) => {
  * Validar cierre físico
  * Body: { totalEfectivoFisico }
  */
-router.post('/:id/validar', async (req, res) => {
+router.post('/cierreCaja/:id/validar', async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -242,7 +242,7 @@ router.post('/:id/validar', async (req, res) => {
  * GET /cierreCaja/:id/reporte-pdf
  * Generar PDF del cierre de caja
  */
-router.get('/:id/reporte-pdf', async (req, res) => {
+router.get('/cierreCaja/:id/reporte-pdf', async (req, res) => {
   try {
     const { id } = req.params;
     

@@ -36,117 +36,222 @@ tailwind.config = {
     <div class="flex items-center justify-between mb-5">
       <div>
         <h1 class="text-xl font-bold">Gestión de Roles y Permisos</h1>
-        <p class="text-txt-muted text-sm mt-1">Configura los permisos de cada rol del sistema</p>
+        <p class="text-txt-muted text-sm mt-1">Asigna roles y permisos a los usuarios del sistema</p>
       </div>
+      <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition" @click="openCreateModal()">
+        + Nuevo Rol
+      </button>
+    </div>
+
+    <!-- KPIs -->
+    <div class="grid grid-cols-4 gap-4 mb-6">
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+        <p class="text-[11px] text-txt-muted uppercase">Total Roles</p>
+        <p class="text-2xl font-bold text-white mt-1" x-text="roles.length"></p>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+        <p class="text-[11px] text-txt-muted uppercase">Roles Sistema</p>
+        <p class="text-2xl font-bold text-gold mt-1" x-text="roles.filter(r=>r.esSistema).length"></p>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+        <p class="text-[11px] text-txt-muted uppercase">Roles Personalizados</p>
+        <p class="text-2xl font-bold text-st-preparado mt-1" x-text="roles.filter(r=>!r.esSistema).length"></p>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+        <p class="text-[11px] text-txt-muted uppercase">Permisos Disponibles</p>
+        <p class="text-2xl font-bold text-st-pedido mt-1" x-text="permisosFundamentales.length"></p>
+      </div>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4 mb-6">
+      <div class="flex flex-wrap items-center gap-4">
+        <div class="flex-1 min-w-[200px]">
+          <input type="text" x-model="busqueda" placeholder="Buscar por nombre de rol..." 
+            class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2 text-sm focus:border-gold focus:outline-none">
+        </div>
+        <div class="flex gap-2">
+          <select x-model="filtroTipo" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+            <option value="">Todos los tipos</option>
+            <option value="sistema">Sistema</option>
+            <option value="personalizado">Personalizados</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOADING STATE -->
+    <div x-show="loading && roles.length === 0" class="flex items-center justify-center h-32">
+      <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
     </div>
 
     <!-- TABLA DE ROLES -->
-    <div class="space-y-4">
-      <template x-for="rol in roles" :key="rol.id">
-        <div class="bg-bg-card border rounded-xl overflow-hidden" 
-          :class="{
-            'border-gold/40': rol.id === 'admin',
-            'border-st-preparado/40': rol.id === 'supervisor',
-            'border-st-pedido/40': rol.id === 'cocinero',
-            'border-st-libre/40': rol.id === 'mozos',
-            'border-st-esperando/40': rol.id === 'cajero'
-          }">
-          
-          <!-- HEADER DEL ROL -->
-          <div class="p-4 flex items-center justify-between cursor-pointer hover:bg-bg-sidebar/50 transition"
-            @click="rol.expandido = !rol.expandido">
-            <div class="flex items-center gap-4">
-              <span class="text-xs px-3 py-1.5 rounded-full font-bold" 
-                :class="{
-                  'bg-gold/20 text-gold': rol.id === 'admin',
-                  'bg-st-preparado/20 text-st-preparado': rol.id === 'supervisor',
-                  'bg-st-pedido/20 text-st-pedido': rol.id === 'cocinero',
-                  'bg-st-libre/20 text-st-libre': rol.id === 'mozos',
-                  'bg-st-esperando/20 text-st-esperando': rol.id === 'cajero'
-                }" x-text="rol.nombre"></span>
-              <span class="text-sm text-txt-muted" x-text="rol.descripcion"></span>
-            </div>
-            <div class="flex items-center gap-3">
-              <span class="text-xs text-txt-secondary bg-bg-sidebar px-2 py-1 rounded" x-text="rol.permisos.length + ' permisos'"></span>
-              <span class="text-lg transition-transform" :class="rol.expandido ? 'rotate-180' : ''">▼</span>
-            </div>
-          </div>
-          
-          <!-- PERMISOS EXPANDIDOS -->
-          <div x-show="rol.expandido" x-collapse class="border-t border-[rgba(212,175,55,0.15)]">
-            <div class="p-4">
-              <template x-for="(permisosGrupo, grupo) in getPermisosAgrupados(rol)" :key="grupo">
-                <div class="mb-4 last:mb-0">
-                  <p class="text-[11px] text-txt-muted uppercase mb-2 font-semibold" x-text="grupo"></p>
-                  <div class="grid grid-cols-3 gap-2">
-                    <template x-for="permiso in permisosGrupo" :key="permiso.id">
-                      <label class="flex items-center gap-2 p-2 rounded-lg bg-bg-sidebar border border-[rgba(212,175,55,0.1)] cursor-pointer hover:border-gold/30 transition"
-                        :class="{'opacity-50 cursor-not-allowed': rol.id === 'admin'}">
-                        <input type="checkbox" 
-                          :checked="rol.permisos.includes(permiso.id)"
-                          @change="togglePermisoRol(rol, permiso.id)"
-                          :disabled="rol.id === 'admin'"
-                          class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
-                        <div class="flex-1 min-w-0">
-                          <p class="text-xs font-medium truncate" x-text="permiso.nombre"></p>
-                          <p class="text-[10px] text-txt-muted truncate" x-text="permiso.descripcion"></p>
-                        </div>
-                      </label>
-                    </template>
-                  </div>
+    <div x-show="!loading || roles.length > 0" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
+          <th class="text-left px-4 py-3 font-semibold">Rol</th>
+          <th class="text-left px-4 py-3 font-semibold">Tipo</th>
+          <th class="text-left px-4 py-3 font-semibold">Descripción</th>
+          <th class="text-left px-4 py-3 font-semibold">Permisos</th>
+          <th class="text-left px-4 py-3 font-semibold">Estado</th>
+          <th class="text-left px-4 py-3 font-semibold">Acciones</th>
+        </tr></thead>
+        <tbody>
+          <tr x-show="rolesFiltrados.length === 0">
+            <td colspan="6" class="px-4 py-8 text-center text-txt-muted">No se encontraron roles</td>
+          </tr>
+          <template x-for="rol in rolesFiltrados" :key="rol._id || rol.id">
+            <tr class="border-b border-[rgba(212,175,55,0.08)] table-row hover:bg-bg-sidebar/50">
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-3">
+                  <span class="text-xs px-3 py-1.5 rounded-full font-bold" 
+                    :class="{
+                      'bg-gold/20 text-gold': rol.color === 'gold',
+                      'bg-st-preparado/20 text-st-preparado': rol.color === 'st-preparado',
+                      'bg-st-pedido/20 text-st-pedido': rol.color === 'st-pedido',
+                      'bg-st-libre/20 text-st-libre': rol.color === 'st-libre' || !rol.color,
+                      'bg-st-esperando/20 text-st-esperando': rol.color === 'st-esperando',
+                      'bg-st-pagado/20 text-st-pagado': rol.color === 'st-pagado',
+                      'bg-st-reservado/20 text-st-reservado': rol.color === 'st-reservado'
+                    }" x-text="rol.nombreDisplay || rol.nombre"></span>
                 </div>
-              </template>
-              
-              <!-- BOTONES DE ACCIÓN -->
-              <div x-show="rol.id !== 'admin'" class="flex justify-end gap-2 mt-4 pt-4 border-t border-[rgba(212,175,55,0.1)]">
-                <button @click="resetearPermisosRol(rol)" class="px-3 py-1.5 text-xs border border-txt-muted/30 rounded-lg text-txt-secondary hover:border-gold hover:text-gold transition">
-                  Resetear a default
-                </button>
-                <button @click="guardarPermisosRol(rol)" class="px-4 py-1.5 text-xs bg-gold text-bg-primary rounded-lg font-semibold hover:brightness-110 transition">
-                  Guardar cambios
-                </button>
-              </div>
-              
-              <!-- INFO ADMIN -->
-              <div x-show="rol.id === 'admin'" class="mt-4 pt-4 border-t border-[rgba(212,175,55,0.1)]">
-                <p class="text-xs text-txt-muted text-center">
-                  ⚠️ El rol <span class="text-gold font-semibold">Admin</span> tiene todos los permisos por defecto y no puede ser modificado.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </template>
-    </div>
-
-    <!-- LEYENDA -->
-    <div class="mt-6 p-4 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl">
-      <h3 class="text-sm font-semibold mb-3">📖 Descripción de Roles</h3>
-      <div class="grid grid-cols-5 gap-4 text-xs">
-        <div>
-          <span class="text-gold font-semibold">Admin</span>
-          <p class="text-txt-muted mt-1">Acceso total al sistema. Puede gestionar usuarios, roles y configuración.</p>
-        </div>
-        <div>
-          <span class="text-st-preparado font-semibold">Supervisor</span>
-          <p class="text-txt-muted mt-1">Gestión de usuarios, reportes, auditoría y cierre de caja.</p>
-        </div>
-        <div>
-          <span class="text-st-pedido font-semibold">Cocinero</span>
-          <p class="text-txt-muted mt-1">Acceso a App Cocina para ver y gestionar comandas.</p>
-        </div>
-        <div>
-          <span class="text-st-libre font-semibold">Mozo</span>
-          <p class="text-txt-muted mt-1">Acceso a App Mozos para crear comandas y gestionar mesas.</p>
-        </div>
-        <div>
-          <span class="text-st-esperando font-semibold">Cajero</span>
-          <p class="text-txt-muted mt-1">Procesar pagos, generar bouchers y cierre de caja.</p>
-        </div>
-      </div>
+              </td>
+              <td class="px-4 py-3">
+                <span x-show="rol.esSistema" class="text-[10px] bg-gold/10 text-gold px-2 py-0.5 rounded">SISTEMA</span>
+                <span x-show="!rol.esSistema" class="text-[10px] bg-st-preparado/10 text-st-preparado px-2 py-0.5 rounded">PERSONALIZADO</span>
+              </td>
+              <td class="px-4 py-3 text-txt-secondary text-xs" x-text="rol.descripcion || '—'"></td>
+              <td class="px-4 py-3">
+                <div class="flex flex-wrap gap-1 max-w-[300px]">
+                  <template x-for="(p, i) in getTopPermisos(rol.permisos, 4)" :key="i">
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-bg-sidebar text-txt-secondary" x-text="p"></span>
+                  </template>
+                  <span x-show="rol.permisos?.length > 4" class="text-[10px] px-1.5 py-0.5 rounded bg-gold/20 text-gold" x-text="'+' + (rol.permisos?.length - 4) + ' más'"></span>
+                </div>
+              </td>
+              <td class="px-4 py-3">
+                <span class="text-xs px-2 py-0.5 rounded-full font-semibold" 
+                  :class="rol.activo !== false ? 'bg-st-preparado/20 text-st-preparado' : 'bg-txt-muted/20 text-txt-muted'"
+                  x-text="rol.activo !== false ? 'Activo' : 'Inactivo'"></span>
+              </td>
+              <td class="px-4 py-3 space-x-2 text-base">
+                <span class="cursor-pointer hover:text-gold" @click="openEditModal(rol)" title="Editar permisos">✏️</span>
+                <span class="cursor-pointer hover:text-st-pedido" @click="verPermisos(rol)" title="Ver todos los permisos">📋</span>
+                <span x-show="!rol.esSistema" class="cursor-pointer hover:text-st-pagado" @click="eliminarRol(rol)" title="Eliminar rol">🗑️</span>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
     </div>
 
   </main>
+</div>
+
+<!-- MODAL: EDITAR ROL -->
+<div x-show="modalEditar" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modalEditar=false">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[800px] max-h-[90vh] overflow-hidden shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-bold" x-text="isEditing ? 'Editar Rol' : 'Crear Nuevo Rol'"></h2>
+        <p class="text-xs text-txt-muted" x-text="formRol.esSistema ? 'Ver permisos del rol del sistema' : 'Configura los permisos del rol'"></p>
+      </div>
+      <button @click="modalEditar=false" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+    </div>
+    
+    <div class="p-6 space-y-4 overflow-y-auto max-h-[60vh]">
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="text-xs text-txt-secondary mb-1 block">Nombre del Rol</label>
+          <input type="text" x-model="formRol.nombreDisplay" placeholder="Ej: Gerente" 
+            class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+            :disabled="formRol.esSistema">
+        </div>
+        <div>
+          <label class="text-xs text-txt-secondary mb-1 block">Color</label>
+          <select x-model="formRol.color" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none" :disabled="formRol.esSistema">
+            <option value="gold">Dorado</option>
+            <option value="st-preparado">Verde</option>
+            <option value="st-pedido">Azul</option>
+            <option value="st-libre">Turquesa</option>
+            <option value="st-esperando">Naranja</option>
+            <option value="st-pagado">Rojo</option>
+            <option value="st-reservado">Púrpura</option>
+          </select>
+        </div>
+      </div>
+      
+      <div>
+        <label class="text-xs text-txt-secondary mb-1 block">Descripción</label>
+        <input type="text" x-model="formRol.descripcion" placeholder="Descripción del rol" 
+          class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+          :disabled="formRol.esSistema">
+      </div>
+      
+      <!-- Permisos por Grupo -->
+      <div class="border-t border-[rgba(212,175,55,0.15)] pt-4">
+        <div class="flex items-center justify-between mb-3">
+          <label class="text-xs text-txt-secondary font-medium">Permisos</label>
+          <span x-show="!formRol.esSistema" class="text-[11px] text-gold cursor-pointer hover:underline" @click="seleccionarTodosPermisos()">Seleccionar todos</span>
+        </div>
+        
+        <template x-for="(permisosGrupo, grupo) in permisosAgrupados" :key="grupo">
+          <div class="mb-4">
+            <p class="text-[11px] text-txt-muted uppercase mb-2 font-semibold" x-text="grupo"></p>
+            <div class="grid grid-cols-3 gap-2">
+              <template x-for="permiso in permisosGrupo" :key="permiso.id">
+                <label class="flex items-center gap-2 p-2 rounded-lg bg-bg-sidebar border border-[rgba(212,175,55,0.1)] cursor-pointer hover:border-gold/30 transition"
+                  :class="{'opacity-60 cursor-not-allowed': formRol.esSistema}">
+                  <input type="checkbox" 
+                    :checked="formRol.permisos.includes(permiso.id)"
+                    @change="togglePermiso(permiso.id)"
+                    :disabled="formRol.esSistema"
+                    class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+                  <div class="flex-1 min-w-0">
+                    <p class="text-xs font-medium truncate" x-text="permiso.nombre"></p>
+                    <p class="text-[10px] text-txt-muted truncate" x-text="permiso.descripcion"></p>
+                  </div>
+                </label>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="modalEditar=false" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+      <button x-show="!formRol.esSistema" @click="guardarRol()" class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition" x-text="isEditing ? 'Actualizar' : 'Crear Rol'"></button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: VER PERMISOS -->
+<div x-show="modalPermisos" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modalPermisos=false">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[500px] max-h-[90vh] overflow-hidden shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-bold" x-text="'Permisos de ' + (rolDetalle?.nombreDisplay || rolDetalle?.nombre)"></h2>
+        <p class="text-xs text-txt-muted" x-text="rolDetalle?.permisos?.length + ' permisos asignados'"></p>
+      </div>
+      <button @click="modalPermisos=false" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+    </div>
+    
+    <div class="p-6 overflow-y-auto max-h-[60vh]">
+      <div class="space-y-1">
+        <template x-for="permiso in rolDetalle?.permisos" :key="permiso">
+          <div class="flex items-center gap-2 p-2 rounded-lg bg-bg-sidebar">
+            <span class="text-st-preparado text-xs">✓</span>
+            <span class="text-sm" x-text="getNombrePermiso(permiso)"></span>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="modalPermisos=false" class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">Cerrar</button>
+    </div>
+  </div>
 </div>
 
 <!-- TOAST CONTAINER -->
@@ -160,7 +265,22 @@ function rolesApp() {
     loading: true,
     roles: [],
     permisosFundamentales: [],
-    permisosOriginales: {}, // Para detectar cambios
+    permisosAgrupados: {},
+    busqueda: '',
+    filtroTipo: '',
+    modalEditar: false,
+    modalPermisos: false,
+    isEditing: false,
+    formRol: {
+      _id: null,
+      nombre: '',
+      nombreDisplay: '',
+      descripcion: '',
+      permisos: [],
+      color: 'st-libre',
+      esSistema: false
+    },
+    rolDetalle: null,
     activeNav: 'roles',
     pageTitle: 'Roles',
     
@@ -179,7 +299,7 @@ function rolesApp() {
         return;
       }
       
-      await this.cargarRolesYPermisos();
+      await this.cargarDatos();
     },
     
     parseJwt(token) {
@@ -190,88 +310,161 @@ function rolesApp() {
       }
     },
     
-    async cargarRolesYPermisos() {
+    async cargarDatos() {
       this.loading = true;
-      const data = await apiGet('/roles/mostrar');
       
-      if (data && data.success) {
-        this.permisosFundamentales = data.data.permisos;
+      try {
+        // Cargar permisos
+        const permisosRes = await apiGet('/roles/permisos');
+        if (permisosRes && permisosRes.success) {
+          this.permisosFundamentales = permisosRes.data.permisos;
+          this.permisosAgrupados = permisosRes.data.permisosAgrupados;
+        } else {
+          console.error('Error al cargar permisos:', permisosRes);
+        }
         
-        // Crear array de roles con sus permisos
-        this.roles = data.data.roles.map(r => ({
-          id: r.id,
-          nombre: r.nombre,
-          descripcion: this.getDescripcionRol(r.id),
-          permisos: [...(r.permisosPorDefecto || [])],
-          expandido: false
-        }));
-        
-        // Guardar copia original para detectar cambios
-        this.roles.forEach(r => {
-          this.permisosOriginales[r.id] = [...r.permisos];
-        });
+        // Cargar roles
+        const rolesRes = await apiGet('/roles');
+        if (rolesRes && rolesRes.success) {
+          this.roles = rolesRes.data;
+        } else {
+          console.error('Error al cargar roles:', rolesRes);
+          // Si el error indica que no tiene permisos, mostrar mensaje
+          if (rolesRes && rolesRes.error) {
+            if (rolesRes.error.includes('permisos') || rolesRes.error.includes('rol')) {
+              this.showToast('Tu sesión no tiene rol asignado. Por favor, vuelve a iniciar sesión.', 'error');
+              // Opcional: redirigir al login después de 3 segundos
+              setTimeout(() => {
+                localStorage.removeItem('adminToken');
+                window.location.href = '/login.html';
+              }, 3000);
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error cargando datos:', e);
+        this.showToast('Error al cargar datos. Verifica tu conexión.', 'error');
       }
       
       this.loading = false;
     },
     
-    getDescripcionRol(rolId) {
-      const descripciones = {
-        admin: 'Acceso total al sistema y todas las funcionalidades',
-        supervisor: 'Gestión operativa, reportes y supervisión del personal',
-        cocinero: 'Gestión de comandas en la cocina',
-        mozos: 'Atención al cliente y gestión de pedidos',
-        cajero: 'Procesamiento de pagos y cierre de caja'
-      };
-      return descripciones[rolId] || '';
-    },
-    
-    getPermisosAgrupados(rol) {
-      const grupos = {};
-      this.permisosFundamentales.forEach(p => {
-        if (!grupos[p.grupo]) grupos[p.grupo] = [];
-        grupos[p.grupo].push({
-          ...p,
-          activo: rol.permisos.includes(p.id)
-        });
+    get rolesFiltrados() {
+      return this.roles.filter(r => {
+        const matchBusqueda = !this.busqueda || 
+          r.nombre?.toLowerCase().includes(this.busqueda.toLowerCase()) ||
+          r.nombreDisplay?.toLowerCase().includes(this.busqueda.toLowerCase());
+        const matchTipo = !this.filtroTipo || 
+          (this.filtroTipo === 'sistema' && r.esSistema) ||
+          (this.filtroTipo === 'personalizado' && !r.esSistema);
+        return matchBusqueda && matchTipo;
       });
-      return grupos;
     },
     
-    togglePermisoRol(rol, permisoId) {
-      const idx = rol.permisos.indexOf(permisoId);
+    getTopPermisos(permisos, count) {
+      if (!permisos || permisos.length === 0) return [];
+      return permisos.slice(0, count).map(p => {
+        const permiso = this.permisosFundamentales.find(pf => pf.id === p);
+        return permiso ? permiso.nombre : p;
+      });
+    },
+    
+    getNombrePermiso(permisoId) {
+      const permiso = this.permisosFundamentales.find(p => p.id === permisoId);
+      return permiso ? permiso.nombre : permisoId;
+    },
+    
+    openCreateModal() {
+      this.isEditing = false;
+      this.formRol = {
+        _id: null,
+        nombre: '',
+        nombreDisplay: '',
+        descripcion: '',
+        permisos: [],
+        color: 'st-libre',
+        esSistema: false
+      };
+      this.modalEditar = true;
+    },
+    
+    openEditModal(rol) {
+      this.isEditing = true;
+      this.formRol = {
+        _id: rol._id,
+        nombre: rol.nombre,
+        nombreDisplay: rol.nombreDisplay || rol.nombre,
+        descripcion: rol.descripcion || '',
+        permisos: [...(rol.permisos || [])],
+        color: rol.color || 'st-libre',
+        esSistema: rol.esSistema
+      };
+      this.modalEditar = true;
+    },
+    
+    verPermisos(rol) {
+      this.rolDetalle = rol;
+      this.modalPermisos = true;
+    },
+    
+    togglePermiso(permisoId) {
+      const idx = this.formRol.permisos.indexOf(permisoId);
       if (idx >= 0) {
-        rol.permisos.splice(idx, 1);
+        this.formRol.permisos.splice(idx, 1);
       } else {
-        rol.permisos.push(permisoId);
+        this.formRol.permisos.push(permisoId);
       }
     },
     
-    async guardarPermisosRol(rol) {
-      // Aquí iría la llamada a la API para guardar los permisos del rol
-      // Por ahora solo actualizamos localmente
-      
-      this.permisosOriginales[rol.id] = [...rol.permisos];
-      this.showToast('Permisos del rol ' + rol.nombre + ' actualizados');
+    seleccionarTodosPermisos() {
+      this.formRol.permisos = this.permisosFundamentales.map(p => p.id);
     },
     
-    resetearPermisosRol(rol) {
-      // Resetear a los permisos por defecto del sistema
-      const permisosPorDefecto = {
-        supervisor: [
-          'ver-mesas', 'editar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas',
-          'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria', 'ver-reportes',
-          'cierre-caja', 'ver-notificaciones', 'crear-comandas', 'editar-comandas',
-          'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina'
-        ],
-        cocinero: ['ver-platos', 'ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas'],
-        mozos: ['ver-mesas', 'ver-platos', 'ver-clientes', 'crear-comandas', 'editar-comandas', 'asociar-clientes'],
-        cajero: ['ver-mesas', 'ver-platos', 'ver-clientes', 'procesar-pagos', 'cierre-caja']
+    async guardarRol() {
+      if (!this.formRol.nombreDisplay?.trim()) {
+        this.showToast('El nombre del rol es requerido', 'error');
+        return;
+      }
+      
+      const body = {
+        nombre: this.formRol.nombreDisplay.toLowerCase().replace(/\s+/g, '-'),
+        nombreDisplay: this.formRol.nombreDisplay,
+        descripcion: this.formRol.descripcion,
+        permisos: this.formRol.permisos,
+        color: this.formRol.color
       };
       
-      if (permisosPorDefecto[rol.id]) {
-        rol.permisos = [...permisosPorDefecto[rol.id]];
-        this.showToast('Permisos reseteados a valores por defecto');
+      let res;
+      if (this.isEditing && this.formRol._id) {
+        res = await apiPut('/roles/' + this.formRol._id, body);
+      } else {
+        res = await apiPost('/roles', body);
+      }
+      
+      if (res && res.success) {
+        await this.cargarDatos();
+        this.modalEditar = false;
+        this.showToast(this.isEditing ? 'Rol actualizado correctamente' : 'Rol creado correctamente');
+      } else {
+        this.showToast('Error: ' + (res?.error || 'No se pudo guardar'), 'error');
+      }
+    },
+    
+    async eliminarRol(rol) {
+      if (rol.esSistema) {
+        this.showToast('Los roles del sistema no se pueden eliminar', 'error');
+        return;
+      }
+      
+      if (!confirm(`¿Eliminar el rol "${rol.nombreDisplay || rol.nombre}"?`)) return;
+      
+      const res = await apiDelete('/roles/' + rol._id);
+      
+      if (res && res.success) {
+        await this.cargarDatos();
+        this.showToast('Rol eliminado correctamente');
+      } else {
+        this.showToast('Error: ' + (res?.error || 'No se pudo eliminar'), 'error');
       }
     },
     

@@ -42,7 +42,7 @@ router.post('/admin/auth', async (req, res) => {
         
         // Determinar el rol (usar el de BD o default)
         const rol = mozoConRol?.rol || mozo.rol || 'mozos';
-        const permisos = mozoConRol?.permisosEfectivos || rolesRepository.PERMISOS_POR_ROL[rol] || [];
+        const permisos = mozoConRol?.permisosEfectivos || rolesRepository.PERMISOS_POR_ROL_SISTEMA[rol] || [];
         
         // Verificar si tiene acceso al dashboard (admin o supervisor)
         const tieneAccesoDashboard = rol === 'admin' || rol === 'supervisor';

@@ -3,8 +3,9 @@
  * Operaciones CRUD para gestión de roles y permisos
  */
 
-const mozos = require('../database/models/mozos.model');
-const { ROLES, PERMISOS_FUNDAMENTALES, PERMISOS_POR_ROL } = require('../database/models/mozos.model');
+const rolesModel = require('../database/models/roles.model');
+const mozosModel = require('../database/models/mozos.model');
+const { ROLES_SISTEMA, PERMISOS_FUNDAMENTALES, PERMISOS_POR_ROL_SISTEMA } = require('../database/models/roles.model');
 const { syncJsonFile } = require('../utils/jsonSync');
 const logger = require('../utils/logger');
 const redisCache = require('../utils/redisCache');
@@ -12,209 +13,230 @@ const redisCache = require('../utils/redisCache');
 const CACHE_TTL = 300; // 5 minutos
 
 /**
- * Obtener todos los mozos con sus roles y permisos
+ * Inicializar roles del sistema (crear si no existen)
  */
-const listarMozosConRoles = async () => {
+const inicializarRolesSistema = async () => {
     try {
-        const data = await mozos.find({}).select('-__v').lean();
-        return data.map(m => ({
-            ...m,
-            permisosEfectivos: calcularPermisosEfectivos(m)
-        }));
+        const colores = {
+            admin: 'gold',
+            supervisor: 'st-preparado',
+            cocinero: 'st-pedido',
+            mozos: 'st-libre',
+            cajero: 'st-esperando'
+        };
+
+        const descripciones = {
+            admin: 'Acceso total al sistema y todas las funcionalidades',
+            supervisor: 'Gestión operativa, reportes y supervisión del personal',
+            cocinero: 'Gestión de comandas en la cocina',
+            mozos: 'Atención al cliente y gestión de pedidos',
+            cajero: 'Procesamiento de pagos y cierre de caja'
+        };
+
+        for (const rolNombre of ROLES_SISTEMA) {
+            const existe = await rolesModel.findOne({ nombre: rolNombre, esSistema: true });
+            
+            if (!existe) {
+                await rolesModel.create({
+                    nombre: rolNombre,
+                    nombreDisplay: rolNombre.charAt(0).toUpperCase() + rolNombre.slice(1),
+                    descripcion: descripciones[rolNombre] || '',
+                    permisos: PERMISOS_POR_ROL_SISTEMA[rolNombre] || [],
+                    esSistema: true,
+                    activo: true,
+                    color: colores[rolNombre] || 'st-libre'
+                });
+                logger.info(`Rol del sistema creado: ${rolNombre}`);
+            } else {
+                // Actualizar permisos si cambiaron
+                existe.permisos = PERMISOS_POR_ROL_SISTEMA[rolNombre] || [];
+                existe.descripcion = descripciones[rolNombre] || '';
+                existe.color = colores[rolNombre] || 'st-libre';
+                await existe.save();
+            }
+        }
+
+        logger.info('Roles del sistema inicializados correctamente');
     } catch (error) {
-        logger.error('Error al listar mozos con roles', { error: error.message });
+        logger.error('Error al inicializar roles del sistema', { error: error.message });
         throw error;
     }
 };
 
 /**
- * Obtener un mozo con su rol y permisos por ID
+ * Obtener todos los roles (sistema + personalizados)
  */
-const obtenerMozoConRol = async (mozoId) => {
+const obtenerTodosLosRoles = async () => {
     try {
-        // Intentar obtener de cache primero
-        const cacheKey = `mozo:rol:${mozoId}`;
+        const roles = await rolesModel.find({ activo: true }).sort({ esSistema: -1, nombre: 1 }).lean();
+        return roles.map(r => ({
+            ...r,
+            permisosDetalle: r.permisos.map(p => ({
+                id: p,
+                ...PERMISOS_FUNDAMENTALES[p]
+            }))
+        }));
+    } catch (error) {
+        logger.error('Error al obtener roles', { error: error.message });
+        throw error;
+    }
+};
+
+/**
+ * Obtener un rol por ID
+ */
+const obtenerRolPorId = async (rolId) => {
+    try {
+        const cacheKey = `rol:${rolId}`;
         const cached = await redisCache.get(cacheKey);
-        if (cached) {
-            return cached;
+        if (cached) return cached;
+
+        let rol = await rolesModel.findById(rolId).lean();
+        if (!rol) {
+            rol = await rolesModel.findOne({ rolId: parseInt(rolId) }).lean();
         }
 
-        let mozo = await mozos.findById(mozoId).select('-__v').lean();
-        if (!mozo) {
-            mozo = await mozos.findOne({ mozoId: parseInt(mozoId) }).select('-__v').lean();
+        if (rol) {
+            await redisCache.set(cacheKey, rol, CACHE_TTL);
         }
 
-        if (!mozo) {
-            return null;
-        }
-
-        const result = {
-            ...mozo,
-            permisosEfectivos: calcularPermisosEfectivos(mozo)
-        };
-
-        // Guardar en cache
-        await redisCache.set(cacheKey, result, CACHE_TTL);
-
-        return result;
+        return rol;
     } catch (error) {
-        logger.error('Error al obtener mozo con rol', { error: error.message, mozoId });
+        logger.error('Error al obtener rol por ID', { error: error.message, rolId });
         throw error;
     }
 };
 
 /**
- * Asignar rol a un mozo
+ * Crear un nuevo rol personalizado
  */
-const asignarRol = async (mozoId, rol, permisosPersonalizados = null) => {
+const crearRol = async (data, creadoPor = null) => {
     try {
-        if (!ROLES.includes(rol)) {
-            throw new Error(`Rol inválido. Roles válidos: ${ROLES.join(', ')}`);
+        const { nombre, nombreDisplay, descripcion, permisos, color } = data;
+
+        // Validar que no sea un nombre de sistema
+        if (ROLES_SISTEMA.includes(nombre.toLowerCase())) {
+            throw new Error(`No se puede crear un rol con nombre reservado del sistema: ${nombre}`);
         }
 
-        let mozo = await mozos.findById(mozoId);
-        if (!mozo) {
-            mozo = await mozos.findOne({ mozoId: parseInt(mozoId) });
+        // Verificar que no exista
+        const existe = await rolesModel.findOne({ nombre: nombre.toLowerCase() });
+        if (existe) {
+            throw new Error(`Ya existe un rol con el nombre: ${nombre}`);
         }
 
-        if (!mozo) {
-            throw new Error('Mozo no encontrado');
-        }
+        // Validar permisos
+        const permisosValidos = (permisos || []).filter(p => PERMISOS_FUNDAMENTALES[p]);
 
-        mozo.rol = rol;
-
-        // Si se proporcionan permisos personalizados, validar y asignar
-        if (permisosPersonalizados && Array.isArray(permisosPersonalizados)) {
-            const permisosValidados = permisosPersonalizados.filter(p => 
-                PERMISOS_FUNDAMENTALES[p.permiso] !== undefined
-            ).map(p => ({
-                permiso: p.permiso,
-                permitido: p.permitido !== false
-            }));
-            mozo.permisos = permisosValidados;
-        } else {
-            // Si no hay permisos personalizados, limpiar para usar los del rol
-            mozo.permisos = [];
-        }
-
-        await mozo.save();
-
-        // Invalidar cache
-        await invalidarCacheMozo(mozoId);
-
-        // Sincronizar con JSON
-        const todosLosMozos = await mozos.find({}).lean();
-        await syncJsonFile('mozos.json', todosLosMozos);
-
-        logger.info('Rol asignado correctamente', { 
-            mozoId: mozo._id, 
-            mozoIdNum: mozo.mozoId,
-            nombre: mozo.name, 
-            rol 
+        const nuevoRol = await rolesModel.create({
+            nombre: nombre.toLowerCase(),
+            nombreDisplay: nombreDisplay || nombre,
+            descripcion: descripcion || '',
+            permisos: permisosValidos,
+            esSistema: false,
+            activo: true,
+            color: color || 'st-libre',
+            creadoPor
         });
 
-        return {
-            ...mozo.toObject(),
-            permisosEfectivos: calcularPermisosEfectivos(mozo.toObject())
-        };
-    } catch (error) {
-        logger.error('Error al asignar rol', { error: error.message, mozoId, rol });
-        throw error;
-    }
-};
-
-/**
- * Actualizar permisos personalizados de un mozo
- */
-const actualizarPermisos = async (mozoId, permisos) => {
-    try {
-        let mozo = await mozos.findById(mozoId);
-        if (!mozo) {
-            mozo = await mozos.findOne({ mozoId: parseInt(mozoId) });
-        }
-
-        if (!mozo) {
-            throw new Error('Mozo no encontrado');
-        }
-
-        // Validar y filtrar permisos
-        const permisosValidados = permisos.filter(p => 
-            PERMISOS_FUNDAMENTALES[p.permiso] !== undefined
-        ).map(p => ({
-            permiso: p.permiso,
-            permitido: p.permitido !== false
-        }));
-
-        mozo.permisos = permisosValidados;
-        await mozo.save();
-
-        // Invalidar cache
-        await invalidarCacheMozo(mozoId);
-
-        // Sincronizar con JSON
-        const todosLosMozos = await mozos.find({}).lean();
-        await syncJsonFile('mozos.json', todosLosMozos);
-
-        logger.info('Permisos actualizados', { 
-            mozoId: mozo._id, 
-            nombre: mozo.name,
-            permisosCount: permisosValidados.length 
+        logger.info('Rol personalizado creado', { 
+            rolId: nuevoRol._id, 
+            nombre: nuevoRol.nombre,
+            creadoPor 
         });
 
-        return {
-            ...mozo.toObject(),
-            permisosEfectivos: calcularPermisosEfectivos(mozo.toObject())
-        };
+        return nuevoRol.toObject();
     } catch (error) {
-        logger.error('Error al actualizar permisos', { error: error.message, mozoId });
+        logger.error('Error al crear rol', { error: error.message, data });
         throw error;
     }
 };
 
 /**
- * Verificar si un mozo tiene un permiso específico
+ * Actualizar un rol
  */
-const tienePermiso = async (mozoId, permiso) => {
+const actualizarRol = async (rolId, data) => {
     try {
-        const mozo = await obtenerMozoConRol(mozoId);
-        if (!mozo) return false;
+        let rol = await rolesModel.findById(rolId);
+        if (!rol) {
+            rol = await rolesModel.findOne({ rolId: parseInt(rolId) });
+        }
 
-        return mozo.permisosEfectivos.includes(permiso);
+        if (!rol) {
+            throw new Error('Rol no encontrado');
+        }
+
+        // No permitir modificar roles del sistema
+        if (rol.esSistema) {
+            throw new Error('No se puede modificar un rol del sistema');
+        }
+
+        // Actualizar campos
+        if (data.nombreDisplay) rol.nombreDisplay = data.nombreDisplay;
+        if (data.descripcion !== undefined) rol.descripcion = data.descripcion;
+        if (data.permisos) {
+            rol.permisos = data.permisos.filter(p => PERMISOS_FUNDAMENTALES[p]);
+        }
+        if (data.color) rol.color = data.color;
+        if (data.activo !== undefined) rol.activo = data.activo;
+
+        await rol.save();
+
+        // Invalidar cache
+        await redisCache.del(`rol:${rolId}`);
+
+        logger.info('Rol actualizado', { rolId: rol._id, nombre: rol.nombre });
+
+        return rol.toObject();
     } catch (error) {
-        logger.error('Error al verificar permiso', { error: error.message, mozoId, permiso });
-        return false;
+        logger.error('Error al actualizar rol', { error: error.message, rolId });
+        throw error;
     }
 };
 
 /**
- * Verificar si un mozo tiene un rol específico o superior
+ * Eliminar un rol (soft delete)
  */
-const tieneRol = async (mozoId, rolesPermitidos) => {
+const eliminarRol = async (rolId) => {
     try {
-        const mozo = await obtenerMozoConRol(mozoId);
-        if (!mozo) return false;
+        let rol = await rolesModel.findById(rolId);
+        if (!rol) {
+            rol = await rolesModel.findOne({ rolId: parseInt(rolId) });
+        }
 
-        const rolesArray = Array.isArray(rolesPermitidos) ? rolesPermitidos : [rolesPermitidos];
-        return rolesArray.includes(mozo.rol);
+        if (!rol) {
+            throw new Error('Rol no encontrado');
+        }
+
+        // No permitir eliminar roles del sistema
+        if (rol.esSistema) {
+            throw new Error('No se puede eliminar un rol del sistema');
+        }
+
+        // Verificar si hay usuarios usando este rol
+        const usuariosConRol = await mozosModel.countDocuments({ rol: rol.nombre });
+        if (usuariosConRol > 0) {
+            throw new Error(`No se puede eliminar el rol porque ${usuariosConRol} usuario(s) lo están usando`);
+        }
+
+        // Soft delete
+        rol.activo = false;
+        await rol.save();
+
+        // Invalidar cache
+        await redisCache.del(`rol:${rolId}`);
+
+        logger.info('Rol eliminado (soft delete)', { rolId: rol._id, nombre: rol.nombre });
+
+        return { success: true, message: 'Rol eliminado correctamente' };
     } catch (error) {
-        logger.error('Error al verificar rol', { error: error.message, mozoId, rolesPermitidos });
-        return false;
+        logger.error('Error al eliminar rol', { error: error.message, rolId });
+        throw error;
     }
 };
 
 /**
- * Obtener lista de roles disponibles
- */
-const obtenerRolesDisponibles = () => {
-    return ROLES.map(rol => ({
-        id: rol,
-        nombre: rol.charAt(0).toUpperCase() + rol.slice(1),
-        permisosPorDefecto: PERMISOS_POR_ROL[rol] || []
-    }));
-};
-
-/**
- * Obtener lista de permisos fundamentales
+ * Obtener permisos fundamentales disponibles
  */
 const obtenerPermisosFundamentales = () => {
     return Object.entries(PERMISOS_FUNDAMENTALES).map(([key, value]) => ({
@@ -226,67 +248,81 @@ const obtenerPermisosFundamentales = () => {
 };
 
 /**
- * Calcular permisos efectivos basados en rol y permisos personalizados
+ * Obtener permisos agrupados
  */
-const calcularPermisosEfectivos = (mozo) => {
-    const permisosRol = PERMISOS_POR_ROL[mozo.rol] || [];
-    const permisosPersonalizados = mozo.permisos || [];
+const obtenerPermisosAgrupados = () => {
+    const grupos = {};
+    Object.entries(PERMISOS_FUNDAMENTALES).forEach(([key, value]) => {
+        if (!grupos[value.grupo]) grupos[value.grupo] = [];
+        grupos[value.grupo].push({
+            id: key,
+            nombre: value.nombre,
+            descripcion: value.descripcion
+        });
+    });
+    return grupos;
+};
 
-    if (permisosPersonalizados.length > 0) {
-        const permisosMap = new Map();
+/**
+ * Obtener un mozo con su rol y permisos efectivos
+ */
+const obtenerMozoConRol = async (mozoId) => {
+    try {
+        let mozo = await mozosModel.findById(mozoId).lean();
+        if (!mozo) {
+            mozo = await mozosModel.findOne({ mozoId: parseInt(mozoId) }).lean();
+        }
+        
+        if (!mozo) return null;
+        
+        // Obtener permisos efectivos según el rol
+        const permisosRol = PERMISOS_POR_ROL_SISTEMA[mozo.rol] || [];
+        
+        return {
+            ...mozo,
+            permisosEfectivos: permisosRol
+        };
+    } catch (error) {
+        logger.error('Error al obtener mozo con rol', { error: error.message, mozoId });
+        throw error;
+    }
+};
 
-        // Primero agregar permisos del rol
-        permisosRol.forEach(p => permisosMap.set(p, true));
+/**
+ * Asignar rol a un usuario
+ */
+const asignarRolAUsuario = async (usuarioId, rolNombre) => {
+    try {
+        // Verificar que el rol existe
+        const rol = await rolesModel.findOne({ nombre: rolNombre.toLowerCase(), activo: true });
+        if (!rol) {
+            throw new Error(`El rol "${rolNombre}" no existe`);
+        }
 
-        // Luego sobrescribir con permisos personalizados
-        permisosPersonalizados.forEach(p => {
-            permisosMap.set(p.permiso, p.permitido);
+        // Actualizar usuario
+        let usuario = await mozosModel.findById(usuarioId);
+        if (!usuario) {
+            usuario = await mozosModel.findOne({ mozoId: parseInt(usuarioId) });
+        }
+
+        if (!usuario) {
+            throw new Error('Usuario no encontrado');
+        }
+
+        usuario.rol = rolNombre.toLowerCase();
+        await usuario.save();
+
+        // Invalidar cache del usuario
+        await redisCache.del(`mozo:rol:${usuarioId}`);
+
+        logger.info('Rol asignado a usuario', { 
+            usuarioId: usuario._id, 
+            rol: rolNombre 
         });
 
-        return Array.from(permisosMap.entries())
-            .filter(([_, permitido]) => permitido)
-            .map(([permiso]) => permiso);
-    }
-
-    return permisosRol;
-};
-
-/**
- * Invalidar cache de un mozo específico
- */
-const invalidarCacheMozo = async (mozoId) => {
-    try {
-        const cacheKey = `mozo:rol:${mozoId}`;
-        await redisCache.del(cacheKey);
-        
-        // También invalidar por mozoId numérico si es diferente
-        if (!isNaN(mozoId)) {
-            await redisCache.del(`mozo:rol:${parseInt(mozoId)}`);
-        }
+        return usuario.toObject();
     } catch (error) {
-        logger.warn('Error al invalidar cache', { error: error.message, mozoId });
-    }
-};
-
-/**
- * Migrar usuarios existentes sin rol al rol por defecto 'mozos'
- */
-const migrarRolesDefault = async () => {
-    try {
-        const resultado = await mozos.updateMany(
-            { rol: { $exists: false } },
-            { $set: { rol: 'mozos', activo: true } }
-        );
-
-        if (resultado.modifiedCount > 0) {
-            logger.info('Migración de roles completada', { 
-                usuariosMigrados: resultado.modifiedCount 
-            });
-        }
-
-        return resultado;
-    } catch (error) {
-        logger.error('Error en migración de roles', { error: error.message });
+        logger.error('Error al asignar rol a usuario', { error: error.message, usuarioId, rolNombre });
         throw error;
     }
 };
@@ -294,37 +330,74 @@ const migrarRolesDefault = async () => {
 /**
  * Obtener usuarios por rol
  */
-const obtenerUsuariosPorRol = async (rol) => {
+const obtenerUsuariosPorRol = async (rolNombre) => {
     try {
-        if (!ROLES.includes(rol)) {
-            throw new Error(`Rol inválido: ${rol}`);
-        }
+        const usuarios = await mozosModel.find({ 
+            rol: rolNombre.toLowerCase(), 
+            activo: { $ne: false } 
+        }).lean();
 
-        const usuarios = await mozos.find({ rol, activo: true }).lean();
-        return usuarios.map(u => ({
-            ...u,
-            permisosEfectivos: calcularPermisosEfectivos(u)
-        }));
+        return usuarios;
     } catch (error) {
-        logger.error('Error al obtener usuarios por rol', { error: error.message, rol });
+        logger.error('Error al obtener usuarios por rol', { error: error.message, rolNombre });
         throw error;
     }
 };
 
+/**
+ * Verificar si un usuario tiene un permiso específico
+ */
+const tienePermiso = async (usuarioId, permiso) => {
+    try {
+        const usuario = await mozosModel.findById(usuarioId).lean();
+        if (!usuario) return false;
+        
+        // Admin tiene todos los permisos
+        if (usuario.rol === 'admin') return true;
+        
+        // Obtener permisos del rol del sistema
+        const permisosRol = PERMISOS_POR_ROL_SISTEMA[usuario.rol] || [];
+        
+        // Verificar si tiene el permiso
+        return permisosRol.includes(permiso);
+    } catch (error) {
+        logger.error('Error al verificar permiso', { error: error.message, usuarioId, permiso });
+        return false;
+    }
+};
+
+/**
+ * Verificar si un usuario tiene un rol específico
+ */
+const tieneRol = async (usuarioId, rolesPermitidos) => {
+    try {
+        const usuario = await mozosModel.findById(usuarioId).lean();
+        if (!usuario) return false;
+        
+        const rolesArray = Array.isArray(rolesPermitidos) ? rolesPermitidos : [rolesPermitidos];
+        return rolesArray.includes(usuario.rol);
+    } catch (error) {
+        logger.error('Error al verificar rol', { error: error.message, usuarioId, rolesPermitidos });
+        return false;
+    }
+};
+
 module.exports = {
-    listarMozosConRoles,
+    inicializarRolesSistema,
+    obtenerTodosLosRoles,
+    obtenerRolPorId,
+    crearRol,
+    actualizarRol,
+    eliminarRol,
+    obtenerPermisosFundamentales,
+    obtenerPermisosAgrupados,
     obtenerMozoConRol,
-    asignarRol,
-    actualizarPermisos,
+    asignarRolAUsuario,
+    obtenerUsuariosPorRol,
     tienePermiso,
     tieneRol,
-    obtenerRolesDisponibles,
-    obtenerPermisosFundamentales,
-    calcularPermisosEfectivos,
-    migrarRolesDefault,
-    obtenerUsuariosPorRol,
-    invalidarCacheMozo,
-    ROLES,
+    ROLES_SISTEMA,
     PERMISOS_FUNDAMENTALES,
-    PERMISOS_POR_ROL
+    PERMISOS_POR_ROL_SISTEMA,
+    PERMISOS_POR_ROL: PERMISOS_POR_ROL_SISTEMA
 };
