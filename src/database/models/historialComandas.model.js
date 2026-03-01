@@ -27,8 +27,8 @@ const historialComandaSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['en_espera', 'recoger', 'entregado'],
-    required: true
+    enum: ['en_espera', 'recoger', 'entregado', 'pagado', 'cancelado'],
+    required: false
   },
   platos: {
     type: [platoHistorialSchema],
@@ -46,6 +46,7 @@ const historialComandaSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'mozos',
     required: false,
+    default: null,
     index: true
   },
   timestamp: {

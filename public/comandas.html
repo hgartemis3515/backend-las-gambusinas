@@ -687,7 +687,10 @@ function comandasApp() {
         if (comanda.version > this.editComanda.version) {
           alert('Esta comanda fue modificada por otro usuario. Los datos se han actualizado.');
           this.editComanda = { ...this.normalizarComanda(comanda) };
-          this.editPlatos = [...(this.normalizarComanda(comanda).items || [])];
+          this.editPlatos = (this.normalizarComanda(comanda).items || []).map(item => ({ 
+            ...item, 
+            estadoOriginal: item.estado 
+          }));
         }
       }
       
@@ -765,9 +768,18 @@ function comandasApp() {
         const precio = plato.precio || item.precio || item.precioUnitario || 0;
         const subtotal = cantidad * precio;
         
+        // IMPORTANTE: Separar claramente los IDs
+        // - platoObjectId: ObjectId del plato (para referencia en BD)
+        // - platoId: ID numérico del plato (para búsqueda alternativa)
+        // - subdocumentoId: _id del item dentro del array platos
+        const platoObjectId = plato._id || null;  // ObjectId del plato poblado
+        const platoIdNumerico = item.platoId || plato.id || null;  // ID numérico
+        const subdocumentoId = item._id || null;  // _id del subdocumento
+        
         return {
-          _id: item._id || plato._id,
-          platoId: item.platoId || plato.id || plato._id,
+          _id: platoObjectId,  // ObjectId del plato (para referencias)
+          platoId: platoIdNumerico,  // ID numérico del plato
+          subdocumentoId: subdocumentoId,  // _id del item en el array
           nombre: plato.nombre || item.nombre || 'Sin nombre',
           precio: Number(precio),
           cantidad: Number(cantidad),
@@ -946,8 +958,11 @@ function comandasApp() {
         tiempoPagado: detalle.tiempoPagado
       };
       
-      // Copiar platos para edicion
-      this.editPlatos = detalle.items.map(item => ({ ...item }));
+      // Copiar platos para edicion (guardar estado original para detectar cambios)
+      this.editPlatos = detalle.items.map(item => ({ 
+        ...item, 
+        estadoOriginal: item.estado  // Guardar estado original para detectar cambios
+      }));
     },
     
     openEditModalFromDetail() {
@@ -968,7 +983,10 @@ function comandasApp() {
           tiempoEntregado: this.selectedComanda.tiempoEntregado,
           tiempoPagado: this.selectedComanda.tiempoPagado
         };
-        this.editPlatos = this.selectedComanda.items.map(item => ({ ...item }));
+        this.editPlatos = this.selectedComanda.items.map(item => ({ 
+          ...item, 
+          estadoOriginal: item.estado  // Guardar estado original para detectar cambios
+        }));
         this.modal = 'editarComanda';
       }
     },
@@ -1011,30 +1029,95 @@ function comandasApp() {
       this.guardando = true;
       
       try {
-        // Preparar datos para enviar
-        const payload = {
-          status: this.editComanda.estado,
-          observaciones: this.editComanda.observaciones,
-          platos: this.editPlatos.map(p => ({
-            platoId: p.platoId,
-            cantidad: p.cantidad,
-            estado: p.estado,
-            eliminado: p.eliminado
-          }))
-        };
+        // Separar platos mantenidos y eliminados
+        const platosMantenidos = this.editPlatos.filter(p => !p.eliminado);
+        const platosEliminadosArr = this.editPlatos.filter(p => p.eliminado);
         
-        // Intentar endpoint de edicion completa primero
-        let res = await apiPut('/comanda/' + this.editComanda._id + '/editar-platos', payload);
+        if (platosMantenidos.length === 0) {
+          alert('No se puede guardar una comanda sin platos. Elimine la comanda completa en su lugar.');
+          this.guardando = false;
+          return;
+        }
         
-        // Si falla, usar endpoint simple
-        if (!res || res.error) {
-          res = await apiPut('/comanda/' + this.editComanda._id, {
-            status: this.editComanda.estado,
-            observaciones: this.editComanda.observaciones
+        // IMPORTANTE: Usar ÍNDICES para identificar platos a eliminar
+        // Esto es más confiable que usar platoId que puede estar duplicado
+        const indicesEliminados = [];
+        this.editPlatos.forEach((p, idx) => {
+          if (p.eliminado) {
+            indicesEliminados.push(idx);
+          }
+        });
+        
+        // Preparar datos con los IDs correctos
+        const platosNuevosData = platosMantenidos.map(p => ({
+          plato: p._id,
+          platoId: p.platoId,
+          estado: p.estado,
+          cantidad: p.cantidad
+        }));
+        
+        // Usar endpoint específico para eliminar por índices
+        console.log('📤 Guardando cambios comanda:', {
+          comandaId: this.editComanda._id,
+          platosNuevos: platosNuevosData.length,
+          indicesEliminados: indicesEliminados
+        });
+        
+        // Si hay platos para eliminar, usar el endpoint de eliminar-platos
+        if (indicesEliminados.length > 0) {
+          const resEliminar = await apiPut('/comanda/' + this.editComanda._id + '/eliminar-platos', {
+            platosAEliminar: indicesEliminados,
+            motivo: 'Eliminado desde panel admin',
+            mozoId: null,
+            forzarAdmin: true  // Permitir eliminar platos entregados desde admin
           });
+          
+          console.log('📥 Respuesta eliminar-platos:', resEliminar);
+          
+          // Manejar respuesta de error con detalles
+          if (resEliminar && (resEliminar.error || resEliminar.detalles)) {
+            const errorMsg = resEliminar.detalles 
+              ? resEliminar.detalles.join('\n') 
+              : (resEliminar.message || 'Error al eliminar platos');
+            throw new Error(errorMsg);
+          }
+        }
+        
+        // Actualizar estados de platos individuales si cambiaron
+        const platosConCambios = [];
+        this.editPlatos.forEach((p, idx) => {
+          if (!p.eliminado && p.estado && p.estadoOriginal !== p.estado) {
+            platosConCambios.push({ index: idx, estado: p.estado });
+          }
+        });
+        
+        if (platosConCambios.length > 0) {
+          console.log('📤 Actualizando estados de platos:', platosConCambios);
+          const resEstados = await apiPut('/comanda/' + this.editComanda._id + '/actualizar-estados-platos', {
+            platos: platosConCambios
+          });
+          console.log('📥 Respuesta actualizar-estados-platos:', resEstados);
+          
+          if (resEstados && resEstados.error) {
+            throw new Error(resEstados.message || 'Error al actualizar estados de platos');
+          }
+        }
+        
+        // Luego cambiar el estado global si es necesario
+        let res = { success: true };
+        
+        // Cambiar estado global si cambió
+        if (this.editComanda.estado) {
+          res = await apiPut('/comanda/' + this.editComanda._id + '/status', {
+            nuevoStatus: this.editComanda.estado,
+            motivo: 'Cambio de estado desde panel admin'
+          });
+          console.log('📥 Respuesta status:', res);
         }
         
         if (res && !res.error) {
+          console.log('✅ Comanda actualizada');
+          
           // Emitir evento Socket si esta disponible
           if (this.socket && this.socket.connected) {
             this.socket.emit('comandaActualizada', res);
@@ -1042,9 +1125,9 @@ function comandasApp() {
           
           await this.loadComandas();
           this.modal = null;
-          this.showToast('✅ Comanda actualizada correctamente');
+          this.showToast(`✅ Comanda actualizada - ${platosMantenidos.length} plato(s), ${indicesEliminados.length} eliminado(s)`);
         } else {
-          throw new Error(res?.error || res?.message || 'Error desconocido');
+          throw new Error(res?.message || 'Error desconocido');
         }
       } catch (error) {
         console.error('Error guardando comanda:', error);
@@ -1061,31 +1144,46 @@ function comandasApp() {
     },
     
     async ejecutarEliminarComanda() {
-      if (!this.comandaEliminar?._id || !this.motivoEliminacion.trim()) return;
+      if (!this.comandaEliminar?._id || !this.motivoEliminacion.trim()) {
+        this.showToast('El motivo de eliminacion es obligatorio', 'error');
+        return;
+      }
       
       this.eliminando = true;
       
       try {
-        // Endpoint de eliminacion con soft delete y auditoria
+        console.log('🗑️ Eliminando comanda:', this.comandaEliminar._id);
+        
+        // Endpoint de eliminacion con soft delete y auditoria (formato exacto de admin.html)
         const res = await apiPut('/comanda/' + this.comandaEliminar._id + '/eliminar', {
           motivo: this.motivoEliminacion.trim(),
           usuarioId: 'admin',
           mozoId: null
         });
         
+        console.log('📥 Respuesta eliminacion:', res);
+        
         if (res && !res.error) {
+          const comandaNum = res.comanda?.comandaNumber || this.comandaEliminar.numComanda || this.comandaEliminar._id.slice(-6);
+          
           // Emitir Socket
           if (this.socket && this.socket.connected) {
             this.socket.emit('comandaEliminada', { _id: this.comandaEliminar._id });
           }
           
-          await this.loadComandas();
+          // Actualizar lista localmente tambien
+          const idx = this.comandas.findIndex(c => c._id === this.comandaEliminar._id);
+          if (idx !== -1) {
+            this.comandas.splice(idx, 1);
+            this.filterComandas();
+          }
+          
           this.modal = null;
           this.comandaEliminar = null;
           this.motivoEliminacion = '';
-          this.showToast(`✅ Comanda eliminada - Auditada`);
+          this.showToast(`✅ Comanda #${comandaNum} eliminada - Auditada`);
         } else {
-          throw new Error(res?.error || res?.message || 'Error al eliminar');
+          throw new Error(res?.message || res?.error || 'Error al eliminar');
         }
       } catch (error) {
         console.error('Error eliminando comanda:', error);
@@ -1100,7 +1198,11 @@ function comandasApp() {
       const idx = estados.indexOf(c.estado);
       const nuevoEstado = estados[(idx + 1) % estados.length];
       
-      const res = await apiPut('/comanda/' + c._id + '/status', { status: nuevoEstado });
+      // Endpoint correcto: PUT /comanda/:id/status con { nuevoStatus, motivo }
+      const res = await apiPut('/comanda/' + c._id + '/status', {
+        nuevoStatus: nuevoEstado,
+        motivo: 'Cambio de estado desde panel admin'
+      });
       
       if (res && !res.error) {
         c.estado = nuevoEstado;
@@ -1111,6 +1213,8 @@ function comandasApp() {
         }
         
         this.showToast('Estado: "' + this.estadoLabel(nuevoEstado) + '"');
+      } else {
+        this.showToast('Error al cambiar estado: ' + (res?.message || 'Error desconocido'), 'error');
       }
     },
     

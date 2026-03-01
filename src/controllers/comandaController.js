@@ -1361,6 +1361,93 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
     }
 });
 
+/**
+ * PUT /comanda/:id/actualizar-estados-platos
+ * Actualiza los estados de múltiples platos en una comanda (para edición admin)
+ */
+router.put('/comanda/:id/actualizar-estados-platos', async (req, res) => {
+    const { id } = req.params;
+    const { platos } = req.body; // Array de { index, estado }
+    const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || 'admin';
+
+    if (!platos || !Array.isArray(platos) || platos.length === 0) {
+        return res.status(400).json({ message: 'No hay platos para actualizar' });
+    }
+
+    try {
+        const comanda = await comandaModel.findById(id);
+        if (!comanda) {
+            return res.status(404).json({ message: 'Comanda no encontrada' });
+        }
+
+        const cambiosRealizados = [];
+        const errores = [];
+
+        platos.forEach(item => {
+            const index = parseInt(item.index);
+            const nuevoEstado = item.estado;
+
+            if (isNaN(index) || index < 0 || index >= comanda.platos.length) {
+                errores.push(`Índice ${index} inválido`);
+                return;
+            }
+
+            const platoItem = comanda.platos[index];
+            if (platoItem.eliminado) {
+                errores.push(`Plato en índice ${index} está eliminado`);
+                return;
+            }
+
+            // Actualizar estado del plato
+            const estadoAnterior = platoItem.estado;
+            platoItem.estado = nuevoEstado;
+            cambiosRealizados.push({
+                index,
+                estadoAnterior,
+                nuevoEstado
+            });
+        });
+
+        if (errores.length > 0) {
+            return res.status(400).json({ 
+                message: 'Algunos platos no pudieron ser actualizados',
+                detalles: errores
+            });
+        }
+
+        // Recalcular estado de la comanda basado en los platos
+        const resultadoRecalculo = await recalcularEstadoComandaPorPlatos(id);
+
+        comanda.version = (comanda.version || 1) + 1;
+        await comanda.save();
+
+        // Emitir eventos socket
+        if (global.emitComandaActualizada) {
+            await global.emitComandaActualizada(id);
+        }
+
+        logger.info('Estados de platos actualizados', {
+            comandaId: id,
+            cambios: cambiosRealizados.length,
+            usuarioId
+        });
+
+        res.json({
+            success: true,
+            comanda,
+            cambios: cambiosRealizados,
+            recalculo: resultadoRecalculo
+        });
+
+    } catch (error) {
+        logger.error('Error al actualizar estados de platos', {
+            comandaId: id,
+            error: error.message
+        });
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // Nuevo endpoint: Marcar plato como entregado (solo desde estado "recoger")
 router.put('/comanda/:comandaId/plato/:platoId/entregar', async (req, res) => {
     const { comandaId, platoId } = req.params;
@@ -1447,14 +1534,14 @@ router.get('/comanda/comandas-para-pagar/:mesaId', async (req, res) => {
  */
 router.put('/comanda/:id/eliminar-platos', async (req, res) => {
     const { id } = req.params;
-    const { platosAEliminar, motivo, mozoId } = req.body;
+    const { platosAEliminar, motivo, mozoId, forzarAdmin } = req.body;
     const usuarioId = req.userId || mozoId || req.body?.usuarioId || req.headers['x-user-id'] || null;
-    
+
     // Validaciones
     if (!platosAEliminar || !Array.isArray(platosAEliminar) || platosAEliminar.length === 0) {
         return res.status(400).json({ message: 'Debe seleccionar al menos un plato para eliminar' });
     }
-    
+
     if (!motivo || motivo.trim().length < 5) {
         return res.status(400).json({ message: 'El motivo de eliminación es obligatorio (mínimo 5 caracteres)' });
     }
@@ -1482,7 +1569,9 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
         }
         
         // Validación: RECHAZAR solo platos en "entregado". Permitir pedido, en_espera, recoger.
+        // Si forzarAdmin es true, permitir eliminar platos entregados (para panel admin)
         const platosInvalidos = [];
+        const platosEntregadosAEliminar = [];
         indicesValidos.forEach(idx => {
             const index = parseInt(idx);
             const platoItem = comandaCheck.platos[index];
@@ -1493,7 +1582,12 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             } else {
                 const estado = (platoItem.estado || '').toLowerCase();
                 if (estado === 'entregado') {
-                    platosInvalidos.push('No se puede eliminar este plato porque ya fue entregado al cliente. Para devoluciones use el flujo de reembolsos.');
+                    if (forzarAdmin) {
+                        // Admin puede eliminar platos entregados, lo registramos para auditoría
+                        platosEntregadosAEliminar.push(index);
+                    } else {
+                        platosInvalidos.push('No se puede eliminar este plato porque ya fue entregado al cliente. Para devoluciones use el flujo de reembolsos.');
+                    }
                 }
             }
         });
@@ -1534,7 +1628,8 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             platoData.eliminadoPor = usuarioId;
             platoData.eliminadoAt = new Date();
             platoData.razon = motivo.trim();
-            platoData.generoDesperdicio = (platoData.estado || '').toLowerCase() === 'recoger';
+            const estadoLower = (platoData.estado || '').toLowerCase();
+            platoData.generoDesperdicio = estadoLower === 'recoger' || estadoLower === 'entregado';
         });
         
         const comandaActualizar = await comandaModel.findById(id);
@@ -1555,7 +1650,8 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             platoItem.eliminadoAt = ahora;
             platoItem.eliminadoRazon = motivo.trim();
             platoItem.estadoAlEliminar = platoItem.estado || null;
-            platoItem.generoDesperdicio = estado === 'recoger';
+            // Marcar como desperdicio si ya estaba en recoger o entregado
+            platoItem.generoDesperdicio = estado === 'recoger' || estado === 'entregado';
         });
         
         if (comandaActualizar.historialPlatos && Array.isArray(comandaActualizar.historialPlatos)) {
