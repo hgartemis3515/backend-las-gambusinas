@@ -257,10 +257,12 @@ router.put('/roles/:id', adminAuth, async (req, res) => {
             data: rolActualizado
         });
     } catch (error) {
-        logger.error('Error al actualizar rol', { error: error.message, id: req.params.id });
-        res.status(400).json({ 
-            success: false, 
-            error: error.message || 'Error al actualizar rol' 
+        logger.error('Error al actualizar rol', { error: error.message, stack: error.stack, id: req.params.id, body: req.body });
+        const statusCode = error.name === 'CastError' || error.name === 'ValidationError' ? 400 : 400;
+        res.status(statusCode).json({
+            success: false,
+            error: error.message || 'Error al actualizar rol',
+            type: error.name
         });
     }
 });

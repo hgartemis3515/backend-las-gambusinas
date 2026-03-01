@@ -87,8 +87,7 @@ const obtenerTodosLosRoles = async () => {
  */
 const obtenerRolPorId = async (rolId) => {
     try {
-        const cacheKey = `rol:${rolId}`;
-        const cached = await redisCache.get(cacheKey);
+        const cached = await redisCache.getCustom('rol', rolId);
         if (cached) return cached;
 
         let rol = await rolesModel.findById(rolId).lean();
@@ -97,7 +96,7 @@ const obtenerRolPorId = async (rolId) => {
         }
 
         if (rol) {
-            await redisCache.set(cacheKey, rol, CACHE_TTL);
+            await redisCache.setCustom('rol', rolId, rol, CACHE_TTL);
         }
 
         return rol;
@@ -157,9 +156,20 @@ const crearRol = async (data, creadoPor = null) => {
  */
 const actualizarRol = async (rolId, data) => {
     try {
-        let rol = await rolesModel.findById(rolId);
+        const mongoose = require('mongoose');
+        let rol = null;
+
+        // Intentar buscar por ObjectId si es válido
+        if (mongoose.Types.ObjectId.isValid(rolId)) {
+            rol = await rolesModel.findById(rolId);
+        }
+
+        // Si no se encontró, intentar por rolId numérico
         if (!rol) {
-            rol = await rolesModel.findOne({ rolId: parseInt(rolId) });
+            const numId = parseInt(rolId);
+            if (!isNaN(numId)) {
+                rol = await rolesModel.findOne({ rolId: numId });
+            }
         }
 
         if (!rol) {
@@ -180,10 +190,10 @@ const actualizarRol = async (rolId, data) => {
         if (data.color) rol.color = data.color;
         if (data.activo !== undefined) rol.activo = data.activo;
 
-        await rol.save();
+        await rol.save({ validateModifiedOnly: true });
 
         // Invalidar cache
-        await redisCache.del(`rol:${rolId}`);
+        await redisCache.invalidateCustom('rol', rolId);
 
         logger.info('Rol actualizado', { rolId: rol._id, nombre: rol.nombre });
 
@@ -224,7 +234,7 @@ const eliminarRol = async (rolId) => {
         await rol.save();
 
         // Invalidar cache
-        await redisCache.del(`rol:${rolId}`);
+        await redisCache.invalidateCustom('rol', rolId);
 
         logger.info('Rol eliminado (soft delete)', { rolId: rol._id, nombre: rol.nombre });
 
@@ -313,7 +323,7 @@ const asignarRolAUsuario = async (usuarioId, rolNombre) => {
         await usuario.save();
 
         // Invalidar cache del usuario
-        await redisCache.del(`mozo:rol:${usuarioId}`);
+        await redisCache.invalidateCustom('mozo:rol', usuarioId);
 
         logger.info('Rol asignado a usuario', { 
             usuarioId: usuario._id, 
