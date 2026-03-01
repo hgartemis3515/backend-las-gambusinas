@@ -11,6 +11,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<!-- Page Transitions CSS -->
+<link rel="stylesheet" href="/assets/css/page-transitions.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script>
@@ -1177,8 +1179,45 @@ function app() {
     init() {
       this.updateClock();
       setInterval(() => this.updateClock(), 1000);
-      this.$nextTick(() => { this.initCharts(); });
-      this.$watch('page', () => { this.$nextTick(() => this.initCharts()); });
+      this.$nextTick(() => { this.initCharts(); this.animatePageContent(); });
+      this.$watch('page', (newPage, oldPage) => { 
+        this.animatePageTransition(newPage, oldPage);
+        this.$nextTick(() => this.initCharts()); 
+      });
+    },
+    animatePageContent() {
+      // Animate content with stagger effect
+      setTimeout(() => {
+        const cards = document.querySelectorAll('.bg-bg-card');
+        cards.forEach((card, i) => {
+          card.style.opacity = '0';
+          card.style.transform = 'translateY(20px)';
+          setTimeout(() => {
+            card.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+          }, i * 50);
+        });
+      }, 100);
+    },
+    animatePageTransition(newPage, oldPage) {
+      // Get main content element
+      const main = document.querySelector('main');
+      if (!main) return;
+      
+      // Add exit animation class
+      main.style.opacity = '0';
+      main.style.transform = 'translateX(-20px)';
+      
+      // After short delay, animate in
+      setTimeout(() => {
+        main.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+        main.style.opacity = '1';
+        main.style.transform = 'translateX(0)';
+        
+        // Animate content elements
+        this.animatePageContent();
+      }, 150);
     },
     logout() {
       console.log('Logout ejecutado desde Alpine.js');
@@ -1251,5 +1290,7 @@ function app() {
   };
 }
 </script>
+<!-- Page Transitions JS -->
+<script src="/assets/js/page-transitions.js"></script>
 </body>
 </html>
