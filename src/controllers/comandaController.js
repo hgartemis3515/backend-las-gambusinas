@@ -1337,6 +1337,44 @@ router.put('/comanda/:id/estado', async (req, res) => {
     }
 });
 
+// v5.5: PUT /api/comanda/:id/prioridad - Actualizar prioridad de comanda
+router.put('/comanda/:id/prioridad', async (req, res) => {
+    const { id } = req.params;
+    const { prioridadOrden } = req.body;
+
+    try {
+        const mongoose = require('mongoose');
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'ID de comanda inválido' });
+        }
+
+        const comanda = await comandaModel.findByIdAndUpdate(
+            id,
+            { prioridadOrden: prioridadOrden || 0, updatedAt: new Date() },
+            { new: true }
+        )
+        .populate('mozos', 'name DNI')
+        .populate('mesas', 'nummesa estado area')
+        .populate('platos.plato', 'nombre precio categoria')
+        .lean();
+
+        if (!comanda) {
+            return res.status(404).json({ message: 'Comanda no encontrada' });
+        }
+
+        // Emitir evento Socket.io para que cocina actualice en tiempo real
+        if (global.emitComandaActualizada) {
+            await global.emitComandaActualizada(id);
+        }
+
+        res.json(comanda);
+        logger.info(`Prioridad de comanda ${id} actualizada a ${prioridadOrden}`);
+    } catch (error) {
+        logger.error('Error al actualizar prioridad', { error: error.message, id });
+        handleError(error, res, logger);
+    }
+});
+
 router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
     const { id, platoId } = req.params;
     const { nuevoEstado } = req.body;

@@ -207,6 +207,12 @@ const comandaSchema = new mongoose.Schema({
         ref: 'CierreCajaRestaurante',
         default: null,
         index: true
+    },
+    // v5.5: Campo de prioridad para ordenamiento en cocina
+    prioridadOrden: {
+        type: Number,
+        default: 0,
+        index: true
     }
 }, { setDefaultsOnInsert: true });
 
