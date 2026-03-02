@@ -168,7 +168,57 @@ tailwind.config = {
     </div>
 
     <!-- TABLAS DE DATOS POR SECCIÓN -->
-    
+
+    <!-- Tabla General - Detalles de Venta -->
+    <div x-show="!loading && repTab === 'General'" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+      <div class="px-5 py-3 border-b border-[rgba(212,175,55,0.1)] flex justify-between items-center">
+        <h3 class="font-semibold text-sm">📋 Detalles de Venta</h3>
+        <span class="text-[10px] text-txt-muted" x-text="(tablaData.ventas?.length || 0) + ' registros'"></span>
+      </div>
+      <div class="overflow-x-auto max-h-[400px] overflow-y-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-bg-sidebar sticky top-0">
+            <tr class="text-[10px] uppercase text-txt-secondary">
+              <th class="text-left px-4 py-2.5 font-semibold">Fecha</th>
+              <th class="text-right px-3 py-2.5 font-semibold">Total</th>
+              <th class="text-right px-3 py-2.5 font-semibold">Subtotal</th>
+              <th class="text-right px-3 py-2.5 font-semibold">IGV</th>
+              <th class="text-right px-3 py-2.5 font-semibold">Bouchers</th>
+              <th class="text-right px-3 py-2.5 font-semibold">Items</th>
+              <th class="text-right px-3 py-2.5 font-semibold">Promedio/Item</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-if="!tablaData.ventas || tablaData.ventas.length === 0">
+              <tr><td colspan="7" class="px-4 py-8 text-center text-txt-muted text-xs">No hay datos de ventas para el período seleccionado</td></tr>
+            </template>
+            <template x-for="(v, idx) in (tablaData.ventas || [])" :key="idx">
+              <tr class="border-b border-[rgba(212,175,55,0.08)] hover:bg-[rgba(212,175,55,0.03)]">
+                <td class="px-4 py-2.5 font-medium" x-text="v.fecha"></td>
+                <td class="px-3 py-2.5 text-right text-[#d4af37] font-semibold" x-text="'S/. ' + Number(v.total || 0).toLocaleString('es-PE', {minimumFractionDigits: 2})"></td>
+                <td class="px-3 py-2.5 text-right text-txt-secondary" x-text="'S/. ' + Number(v.subtotal || 0).toLocaleString('es-PE', {minimumFractionDigits: 2})"></td>
+                <td class="px-3 py-2.5 text-right text-txt-muted" x-text="'S/. ' + Number(v.igv || 0).toLocaleString('es-PE', {minimumFractionDigits: 2})"></td>
+                <td class="px-3 py-2.5 text-right font-semibold" x-text="v.cantidadBouchers || 0"></td>
+                <td class="px-3 py-2.5 text-right" x-text="v.cantidadItems || 0"></td>
+                <td class="px-3 py-2.5 text-right text-txt-secondary" x-text="'S/. ' + Number(v.promedioPorItem || 0).toLocaleString('es-PE', {minimumFractionDigits: 2})"></td>
+              </tr>
+            </template>
+          </tbody>
+          <tfoot class="bg-bg-sidebar border-t-2 border-[rgba(212,175,55,0.25)]">
+            <tr class="font-bold text-xs">
+              <td class="px-4 py-3 uppercase">TOTAL</td>
+              <td class="px-3 py-3 text-right text-[#d4af37] text-base" x-text="'S/. ' + (tablaData.ventas || []).reduce((s, v) => s + (v.total || 0), 0).toLocaleString('es-PE', {minimumFractionDigits: 2})"></td>
+              <td class="px-3 py-3 text-right" x-text="'S/. ' + (tablaData.ventas || []).reduce((s, v) => s + (v.subtotal || 0), 0).toLocaleString('es-PE', {minimumFractionDigits: 2})"></td>
+              <td class="px-3 py-3 text-right text-txt-muted" x-text="'S/. ' + (tablaData.ventas || []).reduce((s, v) => s + (v.igv || 0), 0).toLocaleString('es-PE', {minimumFractionDigits: 2})"></td>
+              <td class="px-3 py-3 text-right" x-text="(tablaData.ventas || []).reduce((s, v) => s + (v.cantidadBouchers || 0), 0)"></td>
+              <td class="px-3 py-3 text-right" x-text="(tablaData.ventas || []).reduce((s, v) => s + (v.cantidadItems || 0), 0)"></td>
+              <td class="px-3 py-3 text-right text-txt-muted" x-text="'S/. ' + ((tablaData.ventas || []).reduce((s, v) => s + (v.total || 0), 0) / Math.max((tablaData.ventas || []).reduce((s, v) => s + (v.cantidadItems || 0), 0), 1)).toLocaleString('es-PE', {minimumFractionDigits: 2})"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
     <!-- Tabla Platos -->
     <div x-show="!loading && repTab === 'Platos'" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
       <div class="px-5 py-3 border-b border-[rgba(212,175,55,0.1)] flex justify-between items-center">
@@ -568,7 +618,7 @@ function reportesApp() {
     
     agruparPor: 'dia',
     kpis: [],
-    tablaData: { platos: [], mozos: [], mesas: [], clientes: [] },
+    tablaData: { ventas: [], platos: [], mozos: [], mesas: [], clientes: [] },
     
     // Cache de bouchers y datos de gráficos
     cachedBouchers: [],
@@ -737,10 +787,20 @@ function reportesApp() {
       bouchers.forEach(b => {
         const fecha = b.fechaPago ? new Date(b.fechaPago).toISOString().split('T')[0] : 'Sin fecha';
         if (!porFecha[fecha]) {
-          porFecha[fecha] = { fecha, total: 0, tickets: 0 };
+          porFecha[fecha] = { 
+            fecha, 
+            total: 0, 
+            subtotal: 0,
+            igv: 0,
+            tickets: 0,
+            cantidadItems: 0
+          };
         }
         porFecha[fecha].total += b.total || 0;
+        porFecha[fecha].subtotal += b.subtotal || (b.total || 0) / 1.18;
+        porFecha[fecha].igv += b.igv || (b.total || 0) * 0.18;
         porFecha[fecha].tickets++;
+        porFecha[fecha].cantidadItems += (b.platos?.length || 0);
         totalVentas += b.total || 0;
       });
       
@@ -758,7 +818,19 @@ function reportesApp() {
       this.chartData1 = { labels, valores };
       this.chartData2 = { type: 'doughnut', data: this.calculatePaymentMethods(bouchers) };
       
-      this.tablaData = { platos: [], mozos: [], mesas: [], clientes: [] };
+      // Datos para la tabla de detalles de venta
+      this.tablaData.ventas = labels.map(f => {
+        const d = porFecha[f];
+        return {
+          fecha: f,
+          total: d.total,
+          subtotal: d.subtotal,
+          igv: d.igv,
+          cantidadBouchers: d.tickets,
+          cantidadItems: d.cantidadItems,
+          promedioPorItem: d.cantidadItems > 0 ? d.total / d.cantidadItems : 0
+        };
+      });
     },
     
     /**
