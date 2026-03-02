@@ -125,42 +125,50 @@ tailwind.config = {
   </main>
 </div>
 
-<!-- MODAL: VER AUDITORÍA — Diseño según pencil-new.pen frame 8ORKa -->
+<!-- MODAL: VER AUDITORÍA — Versión mejorada con info detallada -->
 <div x-show="modal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="modal=null">
-  <div class="bg-[#1a1a28] border border-[rgba(212,175,55,0.25)] rounded-2xl w-[720px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
-    
+  <div class="bg-[#1a1a28] border border-[rgba(212,175,55,0.25)] rounded-2xl w-[800px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
+
     <!-- HEADER -->
-    <div class="bg-[#12121a] p-5 rounded-t-2xl sticky top-0 z-10 flex items-center justify-between">
+    <div class="bg-[#12121a] p-5 rounded-t-2xl sticky top-0 z-10 flex items-center justify-between"
+      :class="esEliminacionSeleccionada() ? 'border-b-2 border-[#ff4757]' : ''">
       <div>
-        <h2 class="text-lg font-bold">Detalle de Auditoría</h2>
+        <h2 class="text-lg font-bold flex items-center gap-2">
+          <span x-show="esEliminacionSeleccionada()" class="text-[#ff4757]">🗑️</span>
+          <span x-text="esEliminacionSeleccionada() ? 'Detalle de Auditoría - Eliminación' : 'Detalle de Auditoría'"></span>
+        </h2>
         <p class="text-xs text-[#5a5a7a] mt-0.5">
           <span x-text="'Registro #' + (selectedRegistro?._id?.slice(-8)?.toUpperCase() || 'AUD-' + (selectedRegistro?.hora?.replace(/[:\s]/g, '')?.slice(-6) || '—'))"></span>
-          <span x-show="selectedRegistro?.createdAt || selectedRegistro?.hora"> · </span>
-          <span x-text="selectedRegistro?.createdAt ? new Date(selectedRegistro.createdAt).toLocaleString('es-PE') : (selectedRegistro?.hora || '—')"></span>
+          <span x-show="selectedRegistro?.createdAt || selectedRegistro?.timestamp || selectedRegistro?.hora"> · </span>
+          <span x-text="formatFechaAuditoria(selectedRegistro)"></span>
         </p>
       </div>
       <button @click="modal=null" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
     </div>
 
     <div class="p-5 space-y-4">
-      
+
       <!-- INFO GENERAL -->
       <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
         <p class="text-[10px] text-[#5a5a7a] uppercase mb-3 font-semibold tracking-wider">Información General</p>
         <div class="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <p class="text-[10px] text-[#5a5a7a] mb-0.5">Usuario</p>
-            <p class="font-medium" x-text="(selectedRegistro?.usuario?.nombre || selectedRegistro?.usuario || 'Sistema') + (selectedRegistro?.usuario?.rol ? ' (' + selectedRegistro.usuario.rol + ')' : '')"></p>
+            <p class="text-[10px] text-[#5a5a7a] mb-0.5">Acción</p>
+            <p class="font-semibold px-2 py-1 rounded inline-block text-xs"
+              :class="getAccionBadgeClass(selectedRegistro?.accion)"
+              x-text="selectedRegistro?.accion || '—'"></p>
           </div>
           <div>
-            <p class="text-[10px] text-[#5a5a7a] mb-0.5">Acción</p>
-            <p class="font-semibold"
-              :class="{
-                'text-[#ff4757]': selectedRegistro?.accion?.toLowerCase()?.includes('eliminar'),
-                'text-[#2ecc71]': selectedRegistro?.accion?.toLowerCase()?.includes('crear') || selectedRegistro?.accion?.toLowerCase()?.includes('nuevo'),
-                'text-[#ffa502]': selectedRegistro?.accion?.toLowerCase()?.includes('editar') || selectedRegistro?.accion?.toLowerCase()?.includes('modificar')
-              }"
-              x-text="selectedRegistro?.accion || '—'"></p>
+            <p class="text-[10px] text-[#5a5a7a] mb-0.5">Fecha</p>
+            <p class="font-medium" x-text="formatFechaAuditoria(selectedRegistro)"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-[#5a5a7a] mb-0.5">Usuario</p>
+            <p class="font-medium" x-text="getNombreUsuario(selectedRegistro)"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-[#5a5a7a] mb-0.5">Motivo</p>
+            <p class="font-medium" x-text="selectedRegistro?.motivo || 'N/A'"></p>
           </div>
           <div>
             <p class="text-[10px] text-[#5a5a7a] mb-0.5">Dirección IP</p>
@@ -173,18 +181,134 @@ tailwind.config = {
         </div>
       </div>
 
-      <!-- TABLA DE CAMBIOS -->
-      <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
-        <div class="px-4 py-3 border-b border-[rgba(212,175,55,0.1)]">
-          <p class="text-[10px] text-[#5a5a7a] uppercase font-semibold tracking-wider">Cambios Realizados</p>
-        </div>
-        <template x-if="!selectedRegistro?.cambios || selectedRegistro.cambios.length === 0">
-          <div class="px-4 py-6 text-center text-[#5a5a7a] text-xs">
-            <p x-show="selectedRegistro?.accion?.toLowerCase()?.includes('eliminar') || selectedRegistro?.accion?.toLowerCase()?.includes('ver')">No hay cambios registrados (acción de solo lectura/eliminación)</p>
-            <p x-show="!selectedRegistro?.accion?.toLowerCase()?.includes('eliminar') && !selectedRegistro?.accion?.toLowerCase()?.includes('ver')">No hay cambios detallados disponibles</p>
+      <!-- INFO ESPECÍFICA PARA ELIMINACIONES -->
+      <template x-if="esEliminacionSeleccionada()">
+        <div class="bg-[rgba(255,71,87,0.1)] border border-[rgba(255,71,87,0.3)] rounded-xl p-4">
+          <h3 class="text-[#ff4757] font-bold mb-3 flex items-center gap-2">
+            <span>🗑️</span>
+            <span x-text="getTituloEliminacion(selectedRegistro)"></span>
+          </h3>
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <template x-if="selectedRegistro?.accion === 'ELIMINAR_TODAS_COMANDAS'">
+              <template>
+                <div class="col-span-2">
+                  <p class="text-[10px] text-[#5a5a7a] mb-0.5">Cantidad de Comandas</p>
+                  <p class="font-medium" x-text="selectedRegistro?.metadata?.cantidadComandas || 1"></p>
+                </div>
+                <div class="col-span-2">
+                  <p class="text-[10px] text-[#5a5a7a] mb-0.5">Comandas Eliminadas</p>
+                  <p class="font-medium" x-text="getComandasNumbers(selectedRegistro)"></p>
+                </div>
+              </template>
+            </template>
+            <template x-if="selectedRegistro?.accion !== 'ELIMINAR_TODAS_COMANDAS'">
+              <div>
+                <p class="text-[10px] text-[#5a5a7a] mb-0.5">Comanda #</p>
+                <p class="font-medium" x-text="selectedRegistro?.metadata?.comandaNumber || 'N/A'"></p>
+              </div>
+            </template>
+            <div>
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Mesa</p>
+              <p class="font-medium" x-text="selectedRegistro?.metadata?.mesaNum || 'N/A'"></p>
+            </div>
+            <template x-if="selectedRegistro?.accion !== 'ELIMINAR_TODAS_COMANDAS'">
+              <div>
+                <p class="text-[10px] text-[#5a5a7a] mb-0.5">Tipo</p>
+                <p class="font-medium" x-text="getTipoEliminacion(selectedRegistro)"></p>
+              </div>
+            </template>
+            <div>
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Total Eliminado</p>
+              <p class="font-bold text-lg text-[#ff4757]" x-text="'S/. ' + (selectedRegistro?.metadata?.totalEliminado || 0).toFixed(2)"></p>
+            </div>
           </div>
-        </template>
-        <template x-if="selectedRegistro?.cambios && selectedRegistro.cambios.length > 0">
+        </div>
+      </template>
+
+      <!-- PLATOS ELIMINADOS -->
+      <template x-if="esEliminacionSeleccionada() && getPlatosEliminados(selectedRegistro).length > 0">
+        <div class="bg-[#0a0a0f] border border-[rgba(255,71,87,0.2)] rounded-xl overflow-hidden">
+          <div class="px-4 py-3 border-b border-[rgba(212,175,55,0.1)] bg-[rgba(255,71,87,0.05)]">
+            <p class="text-[10px] text-[#ff4757] uppercase font-semibold tracking-wider flex items-center gap-2">
+              <span>📋</span>
+              <span x-text="'Platos Eliminados (' + getPlatosEliminados(selectedRegistro).length + ')'"></span>
+            </p>
+          </div>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="bg-[#12121a] text-[#a0a0b8] text-[10px] uppercase">
+                <th class="text-left px-4 py-2.5 font-semibold">Cantidad</th>
+                <th class="text-left px-4 py-2.5 font-semibold">Plato</th>
+                <th class="text-left px-4 py-2.5 font-semibold">Precio Unit.</th>
+                <th class="text-left px-4 py-2.5 font-semibold">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="(plato, idx) in getPlatosEliminados(selectedRegistro)" :key="idx">
+                <tr class="border-b border-[rgba(255,71,87,0.1)] bg-[rgba(255,71,87,0.03)]">
+                  <td class="px-4 py-2.5" x-text="plato.cantidad || 1"></td>
+                  <td class="px-4 py-2.5 text-[#ff4757] line-through" x-text="plato.nombre || 'Plato desconocido'"></td>
+                  <td class="px-4 py-2.5 text-xs font-mono" x-text="'S/. ' + (plato.precioUnit || plato.precio || 0).toFixed(2)"></td>
+                  <td class="px-4 py-2.5 text-xs font-mono font-bold" x-text="'S/. ' + (plato.subtotal || ((plato.precioUnit || plato.precio || 0) * (plato.cantidad || 1))).toFixed(2)"></td>
+                </tr>
+              </template>
+              <tr class="bg-[#ff4757] text-white font-bold">
+                <td colspan="3" class="px-4 py-2.5 text-right">TOTAL ELIMINADO:</td>
+                <td class="px-4 py-2.5" x-text="'S/. ' + (selectedRegistro?.metadata?.totalEliminado || 0).toFixed(2)"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+
+      <!-- COMPARACIÓN DE PLATOS (ANTES/DESPUÉS) -->
+      <template x-if="!esEliminacionSeleccionada() && tieneComparacionPlatos(selectedRegistro)">
+        <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+          <div class="px-4 py-3 border-b border-[rgba(212,175,55,0.1)]">
+            <p class="text-[10px] text-[#5a5a7a] uppercase font-semibold tracking-wider">Comparación de Platos</p>
+          </div>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="bg-[#12121a] text-[#a0a0b8] text-[10px] uppercase">
+                <th class="text-left px-4 py-2.5 font-semibold">Cantidad</th>
+                <th class="text-left px-4 py-2.5 font-semibold">Plato</th>
+                <th class="text-left px-4 py-2.5 font-semibold">Precio</th>
+                <th class="text-left px-4 py-2.5 font-semibold">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="(plato, idx) in getComparacionPlatos(selectedRegistro)" :key="idx">
+                <tr class="border-b border-[rgba(212,175,55,0.08)]"
+                  :class="{
+                    'bg-[rgba(255,71,87,0.1)]': plato.estado === 'eliminado',
+                    'bg-[rgba(46,204,113,0.1)]': plato.estado === 'nuevo' || plato.estado === 'existente'
+                  }">
+                  <td class="px-4 py-2.5" x-text="plato.cantidad"></td>
+                  <td class="px-4 py-2.5"
+                    :class="{
+                      'text-[#ff4757] line-through': plato.estado === 'eliminado',
+                      'text-[#2ecc71]': plato.estado === 'nuevo' || plato.estado === 'existente'
+                    }"
+                    x-text="plato.nombre"></td>
+                  <td class="px-4 py-2.5 text-xs font-mono" x-text="'S/. ' + plato.precio.toFixed(2)"></td>
+                  <td class="px-4 py-2.5 text-xs">
+                    <span x-show="plato.estado === 'eliminado'" class="text-[#ff4757]">🗑️ Eliminado</span>
+                    <span x-show="plato.estado === 'nuevo'" class="text-[#2ecc71]">➕ Nuevo</span>
+                    <span x-show="plato.estado === 'existente'" class="text-[#2ecc71]">✓ Existente</span>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </template>
+
+      <!-- TABLA DE CAMBIOS TRADICIONAL -->
+      <template x-if="selectedRegistro?.cambios && selectedRegistro.cambios.length > 0">
+        <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+          <div class="px-4 py-3 border-b border-[rgba(212,175,55,0.1)]">
+            <p class="text-[10px] text-[#5a5a7a] uppercase font-semibold tracking-wider">Cambios Realizados</p>
+          </div>
           <table class="w-full text-sm">
             <thead>
               <tr class="bg-[#12121a] text-[#a0a0b8] text-[10px] uppercase">
@@ -203,18 +327,40 @@ tailwind.config = {
               </template>
             </tbody>
           </table>
-        </template>
-      </div>
+        </div>
+      </template>
 
-      <!-- PAYLOAD COMPLETO -->
-      <div x-show="selectedRegistro?.metadata || selectedRegistro?.payload" class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
-        <div class="px-4 py-3 border-b border-[rgba(212,175,55,0.1)]">
-          <p class="text-[10px] text-[#5a5a7a] uppercase font-semibold tracking-wider">Payload Completo</p>
-        </div>
+      <!-- METADATA COMPLETA -->
+      <details x-show="selectedRegistro?.metadata" class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+        <summary class="px-4 py-3 border-b border-[rgba(212,175,55,0.1)] cursor-pointer text-[10px] text-[#5a5a7a] uppercase font-semibold tracking-wider hover:text-[#d4af37] transition">Metadata Completa</summary>
         <div class="p-4">
-          <pre class="text-xs font-mono text-[#d4af37] whitespace-pre-wrap overflow-x-auto" x-text="JSON.stringify(selectedRegistro?.metadata || selectedRegistro?.payload || {}, null, 2)"></pre>
+          <pre class="text-xs font-mono text-[#d4af37] whitespace-pre-wrap overflow-x-auto" x-text="JSON.stringify(selectedRegistro?.metadata || {}, null, 2)"></pre>
         </div>
-      </div>
+      </details>
+
+      <!-- DATOS ANTES -->
+      <details x-show="selectedRegistro?.datosAntes && Object.keys(selectedRegistro?.datosAntes || {}).length > 0" class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+        <summary class="px-4 py-3 border-b border-[rgba(212,175,55,0.1)] cursor-pointer text-[10px] text-[#5a5a7a] uppercase font-semibold tracking-wider hover:text-[#d4af37] transition">Datos Antes (JSON)</summary>
+        <div class="p-4">
+          <pre class="text-xs font-mono text-[#ff4757] whitespace-pre-wrap overflow-x-auto" x-text="JSON.stringify(selectedRegistro?.datosAntes || {}, null, 2)"></pre>
+        </div>
+      </details>
+
+      <!-- DATOS DESPUÉS -->
+      <details x-show="selectedRegistro?.datosDespues && Object.keys(selectedRegistro?.datosDespues || {}).length > 0" class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+        <summary class="px-4 py-3 border-b border-[rgba(212,175,55,0.1)] cursor-pointer text-[10px] text-[#5a5a7a] uppercase font-semibold tracking-wider hover:text-[#d4af37] transition">Datos Después (JSON)</summary>
+        <div class="p-4">
+          <pre class="text-xs font-mono text-[#2ecc71] whitespace-pre-wrap overflow-x-auto" x-text="JSON.stringify(selectedRegistro?.datosDespues || {}, null, 2)"></pre>
+        </div>
+      </details>
+
+      <!-- PAYLOAD COMPLETO (legacy) -->
+      <details x-show="selectedRegistro?.payload && !selectedRegistro?.metadata" class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+        <summary class="px-4 py-3 border-b border-[rgba(212,175,55,0.1)] cursor-pointer text-[10px] text-[#5a5a7a] uppercase font-semibold tracking-wider hover:text-[#d4af37] transition">Payload Completo</summary>
+        <div class="p-4">
+          <pre class="text-xs font-mono text-[#d4af37] whitespace-pre-wrap overflow-x-auto" x-text="JSON.stringify(selectedRegistro?.payload || {}, null, 2)"></pre>
+        </div>
+      </details>
 
     </div>
 
@@ -235,17 +381,17 @@ function auditoriaApp() {
     registros: [],
     filteredRegistros: [],
     selectedRegistro: null,
-    
+
     // Filtros
     filterAccion: '',
     filterUsuario: '',
     filterFechaDesde: '',
     filterFechaHasta: '',
     usuariosList: [],
-    
+
     activeNav: 'auditoria',
     pageTitle: 'Auditoría',
-    
+
     async init() {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
       if (!token) {
@@ -254,24 +400,24 @@ function auditoriaApp() {
       }
       await this.loadAuditoria();
     },
-    
+
     async loadAuditoria() {
       this.loading = true;
-      
+
       // El endpoint correcto es /auditoria/reporte-completo o /auditoria/comandas
       let data = await apiGet('/auditoria/reporte-completo');
-      
+
       let raw = [];
       if (data && data.auditorias) raw = data.auditorias;
       else if (data && Array.isArray(data)) raw = data;
-      
+
       // Si no hay datos, intentar con /auditoria/comandas
       if (raw.length === 0) {
         const data2 = await apiGet('/auditoria/comandas');
         if (data2 && data2.auditorias) raw = data2.auditorias;
         else if (data2 && Array.isArray(data2)) raw = data2;
       }
-      
+
       // Si aún no hay datos, intentar /auditoria simple
       if (raw.length === 0) {
         const data3 = await apiGet('/auditoria');
@@ -279,7 +425,7 @@ function auditoriaApp() {
         else if (data3 && data3.auditorias) raw = data3.auditorias;
         else if (data3 && data3.registros) raw = data3.registros;
       }
-      
+
       // Normalizar campos del modelo real
       this.registros = raw.map(a => ({
         ...a,
@@ -289,16 +435,18 @@ function auditoriaApp() {
         modulo: a.entidadTipo || a.modulo || '—',
         ip: a.ip || '—',
         cambios: a.cambios || a.diferencias || [],
-        metadata: a.metadata || a.payload || a.datos || null
+        metadata: a.metadata || a.payload || a.datos || null,
+        datosAntes: a.datosAntes || null,
+        datosDespues: a.datosDespues || null
       }));
-      
+
       // Extraer usuarios unicos
       this.extraerUsuariosUnicos();
-      
+
       this.filterRegistros();
       this.loading = false;
     },
-    
+
     extraerUsuariosUnicos() {
       const usuariosSet = new Set();
       this.registros.forEach(r => {
@@ -309,7 +457,7 @@ function auditoriaApp() {
       });
       this.usuariosList = Array.from(usuariosSet).sort();
     },
-    
+
     filterRegistros() {
       this.filteredRegistros = this.registros.filter(r => {
         // Filtro por tipo de accion
@@ -318,11 +466,11 @@ function auditoriaApp() {
           const accionLower = (r.accion || '').toLowerCase();
           matchAccion = accionLower.includes(this.filterAccion.toLowerCase());
         }
-        
+
         // Filtro por usuario
         const nombreUsuario = r.usuario?.nombre || r.usuario || '';
         const matchUsuario = !this.filterUsuario || nombreUsuario === this.filterUsuario;
-        
+
         // Filtro por fecha desde
         let matchFechaDesde = true;
         const fechaBase = r.createdAt || r.timestamp;
@@ -330,18 +478,18 @@ function auditoriaApp() {
           const fechaRegistro = new Date(fechaBase).toISOString().split('T')[0];
           matchFechaDesde = fechaRegistro >= this.filterFechaDesde;
         }
-        
+
         // Filtro por fecha hasta
         let matchFechaHasta = true;
         if (this.filterFechaHasta && fechaBase) {
           const fechaRegistro = new Date(fechaBase).toISOString().split('T')[0];
           matchFechaHasta = fechaRegistro <= this.filterFechaHasta;
         }
-        
+
         return matchAccion && matchUsuario && matchFechaDesde && matchFechaHasta;
       });
     },
-    
+
     limpiarFiltros() {
       this.filterAccion = '';
       this.filterUsuario = '';
@@ -349,15 +497,205 @@ function auditoriaApp() {
       this.filterFechaHasta = '';
       this.filterRegistros();
     },
-    
+
     openDetailModal(a) {
       this.selectedRegistro = a;
       this.modal = true;
     },
-    
+
     logout() {
       localStorage.removeItem('adminToken');
       window.location.href = '/login';
+    },
+
+    // === FUNCIONES AUXILIARES PARA EL MODAL ===
+
+    esEliminacionSeleccionada() {
+      if (!this.selectedRegistro?.accion) return false;
+      const accionesEliminacion = [
+        'ELIMINAR_ULTIMA_COMANDA',
+        'ELIMINAR_TODAS_COMANDAS',
+        'ELIMINAR_COMANDA_INDIVIDUAL',
+        'ELIMINAR_PLATO_COMANDA',
+        'ELIMINAR_PLATO_RECOGER'
+      ];
+      return accionesEliminacion.includes(this.selectedRegistro.accion);
+    },
+
+    formatFechaAuditoria(reg) {
+      if (!reg) return '—';
+      const fecha = reg.createdAt || reg.timestamp || reg.hora;
+      if (!fecha) return '—';
+      try {
+        return new Date(fecha).toLocaleString('es-PE');
+      } catch (e) {
+        return fecha;
+      }
+    },
+
+    getNombreUsuario(reg) {
+      if (!reg) return 'Sistema';
+      const usuario = reg.usuario;
+
+      // Usuario populado como objeto
+      if (usuario && typeof usuario === 'object' && usuario !== null) {
+        if (usuario.name) return usuario.name;
+        if (usuario.nombre) return usuario.nombre;
+        if (usuario._id) return 'Usuario sin nombre';
+        return 'Usuario desconocido';
+      }
+
+      // Usuario como string
+      if (usuario && typeof usuario === 'string' && usuario !== 'Sistema') {
+        return usuario;
+      }
+
+      return 'Sistema';
+    },
+
+    getAccionBadgeClass(accion) {
+      if (!accion) return 'bg-bg-sidebar text-txt-secondary';
+      const a = accion.toLowerCase();
+      if (a.includes('eliminar')) return 'bg-[rgba(255,71,87,0.2)] text-[#ff4757]';
+      if (a.includes('crear') || a.includes('nuevo')) return 'bg-[rgba(46,204,113,0.2)] text-[#2ecc71]';
+      if (a.includes('editar') || a.includes('modificar')) return 'bg-[rgba(255,165,2,0.2)] text-[#ffa502]';
+      return 'bg-bg-sidebar text-txt-secondary';
+    },
+
+    getTituloEliminacion(reg) {
+      if (!reg?.accion) return 'Eliminación';
+      switch (reg.accion) {
+        case 'ELIMINAR_TODAS_COMANDAS':
+          return 'Eliminación de Todas las Comandas';
+        case 'ELIMINAR_ULTIMA_COMANDA':
+          return 'Eliminación de Comanda';
+        case 'ELIMINAR_COMANDA_INDIVIDUAL':
+          return 'Eliminación de Comanda Individual';
+        case 'ELIMINAR_PLATO_COMANDA':
+          return 'Eliminación de Plato de Comanda';
+        case 'ELIMINAR_PLATO_RECOGER':
+          return 'Eliminación de Plato para Recoger';
+        default:
+          return 'Eliminación';
+      }
+    },
+
+    getTipoEliminacion(reg) {
+      if (!reg?.accion) return 'N/A';
+      switch (reg.accion) {
+        case 'ELIMINAR_ULTIMA_COMANDA':
+          return 'Última Comanda';
+        case 'ELIMINAR_COMANDA_INDIVIDUAL':
+          return 'Comanda Individual';
+        case 'ELIMINAR_PLATO_COMANDA':
+          return 'Plato de Comanda';
+        default:
+          return reg.accion;
+      }
+    },
+
+    getComandasNumbers(reg) {
+      if (!reg?.metadata) return 'N/A';
+      const numbers = reg.metadata.comandasNumbers || [reg.metadata.comandaNumber].filter(Boolean);
+      return numbers.length > 0 ? numbers.join(', ') : 'N/A';
+    },
+
+    getPlatosEliminados(reg) {
+      if (!reg?.metadata?.platosEliminados) return [];
+      return reg.metadata.platosEliminados.map(p => ({
+        nombre: p.nombre || 'Plato desconocido',
+        cantidad: p.cantidad || 1,
+        precioUnit: p.precioUnit || p.precio || 0,
+        subtotal: p.subtotal || ((p.precioUnit || p.precio || 0) * (p.cantidad || 1))
+      }));
+    },
+
+    tieneComparacionPlatos(reg) {
+      if (!reg) return false;
+      const datosAntes = reg.datosAntes || {};
+      const datosDespues = reg.datosDespues || {};
+      const platosAntes = datosAntes.platos || [];
+      const platosDespues = datosDespues.platos || [];
+      return platosAntes.length > 0 || platosDespues.length > 0;
+    },
+
+    getComparacionPlatos(reg) {
+      if (!reg) return [];
+      const datosAntes = reg.datosAntes || {};
+      const datosDespues = reg.datosDespues || {};
+      const platosAntes = datosAntes.platos || [];
+      const cantidadesAntes = datosAntes.cantidades || [];
+      const platosDespues = datosDespues.platos || [];
+      const cantidadesDespues = datosDespues.cantidades || [];
+
+      const platosAntesMap = new Map();
+      const platosDespuesMap = new Map();
+
+      // Mapear platos antes
+      platosAntes.forEach((p, idx) => {
+        const platoObj = p.plato || p;
+        let platoId = platoObj?._id?.toString() || p.platoId?.toString() || p._id?.toString() || (typeof platoObj === 'string' ? platoObj : null);
+        const nombre = p.nombre || platoObj?.nombre || 'Sin nombre';
+        const precio = p.precio || platoObj?.precio || 0;
+
+        if (platoId) {
+          platosAntesMap.set(platoId.toString(), {
+            nombre: nombre,
+            precio: precio,
+            cantidad: cantidadesAntes?.[idx] || 1
+          });
+        }
+      });
+
+      // Mapear platos después
+      platosDespues.forEach((p, idx) => {
+        const platoObj = p.plato || p;
+        let platoId = platoObj?._id?.toString() || p.platoId?.toString() || p._id?.toString() || (typeof platoObj === 'string' ? platoObj : null);
+        const nombre = p.nombre || platoObj?.nombre || 'Sin nombre';
+        const precio = p.precio || platoObj?.precio || 0;
+
+        if (platoId) {
+          platosDespuesMap.set(platoId.toString(), {
+            nombre: nombre,
+            precio: precio,
+            cantidad: cantidadesDespues?.[idx] || 1
+          });
+        }
+      });
+
+      // Generar lista combinada
+      const resultado = [];
+      const todosPlatos = new Set([...platosAntesMap.keys(), ...platosDespuesMap.keys()]);
+
+      todosPlatos.forEach(platoId => {
+        const antes = platosAntesMap.get(platoId);
+        const despues = platosDespuesMap.get(platoId);
+
+        if (antes && !despues) {
+          resultado.push({
+            nombre: antes.nombre,
+            precio: antes.precio,
+            cantidad: antes.cantidad,
+            estado: 'eliminado'
+          });
+        } else if (!antes && despues) {
+          resultado.push({
+            nombre: despues.nombre,
+            precio: despues.precio,
+            cantidad: despues.cantidad,
+            estado: 'nuevo'
+          });
+        } else if (antes && despues) {
+          resultado.push({
+            nombre: despues.nombre,
+            precio: despues.precio,
+            cantidad: despues.cantidad,
+            estado: 'existente'
+          });
+        }
+      });
+
+      return resultado;
     }
   };
 }
