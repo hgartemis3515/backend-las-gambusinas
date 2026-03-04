@@ -1074,6 +1074,174 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
     }
   };
 
+  /**
+   * Emitir evento de plato anulado por cocina
+   * @param {String} comandaId - ID de la comanda
+   * @param {Object} platoData - Datos del plato anulado
+   */
+  global.emitPlatoAnulado = async (comandaId, platoData) => {
+    try {
+      const comanda = await comandaModel
+        .findById(comandaId)
+        .populate('mozos')
+        .populate({ path: 'mesas', populate: { path: 'area' } })
+        .populate('cliente')
+        .populate('platos.plato');
+
+      if (!comanda) {
+        logger.warn('Comanda no encontrada para emitir evento plato-anulado');
+        return;
+      }
+
+      const fecha = moment(comanda.createdAt).tz("America/Lima").format('YYYY-MM-DD');
+      const roomNameCocina = `fecha-${fecha}`;
+      const mesaId = comanda.mesas?._id || comanda.mesas;
+      const roomNameMesa = mesaId ? `mesa-${mesaId}` : null;
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      const platosActivos = comanda.platos.filter(p => !p.anulado && !p.eliminado);
+      const platosAnulados = comanda.platos.filter(p => p.anulado);
+      const platosEliminados = comanda.platos.filter(p => p.eliminado);
+
+      const eventData = {
+        comandaId: comandaId.toString(),
+        comanda: comanda,
+        platoAnulado: platoData,
+        auditoria: {
+          activos: platosActivos.length,
+          anulados: platosAnulados.length,
+          eliminados: platosEliminados.length
+        },
+        socketId: 'server',
+        timestamp: timestamp
+      };
+
+      // Emitir a cocina (room por fecha)
+      cocinaNamespace.to(roomNameCocina).emit('plato-anulado', eventData);
+      logger.debug('Evento plato-anulado emitido a cocina', {
+        comandaId: comandaId.toString(),
+        roomNameCocina,
+        platoNombre: platoData?.nombre
+      });
+
+      // Emitir a mozos de la mesa específica
+      if (roomNameMesa && mozosNamespace && mozosNamespace.sockets) {
+        mozosNamespace.to(roomNameMesa).emit('plato-anulado', eventData);
+        logger.debug('Evento plato-anulado emitido a mozos', {
+          comandaId: comandaId.toString(),
+          roomNameMesa,
+          platoNombre: platoData?.nombre
+        });
+      }
+
+      logger.info('Evento plato-anulado emitido', {
+        comandaNumber: comanda.comandaNumber,
+        platoNombre: platoData?.nombre,
+        motivo: platoData?.motivo,
+        roomNameCocina,
+        roomNameMesa: roomNameMesa || 'todos'
+      });
+    } catch (error) {
+      logger.error('Error al emitir plato-anulado', {
+        error: error.message,
+        stack: error.stack,
+        comandaId
+      });
+    }
+  };
+
+  /**
+   * Emitir evento de comanda completamente anulada por cocina
+   * @param {String} comandaId - ID de la comanda
+   * @param {String} motivoGeneral - Motivo de la anulación
+   */
+  global.emitComandaAnulada = async (comandaId, motivoGeneral) => {
+    try {
+      const comanda = await comandaModel
+        .findById(comandaId)
+        .populate('mozos')
+        .populate({ path: 'mesas', populate: { path: 'area' } })
+        .populate('cliente')
+        .populate('platos.plato');
+
+      if (!comanda) {
+        logger.warn('Comanda no encontrada para emitir evento comanda-anulada');
+        return;
+      }
+
+      const fecha = moment(comanda.createdAt).tz("America/Lima").format('YYYY-MM-DD');
+      const roomNameCocina = `fecha-${fecha}`;
+      const mesaId = comanda.mesas?._id || comanda.mesas;
+      const roomNameMesa = mesaId ? `mesa-${mesaId}` : null;
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      // Preparar lista de platos anulados para el evento
+      const platosAnulados = comanda.platos
+        .filter(p => p.anulado)
+        .map((p, idx) => ({
+          nombre: p.plato?.nombre || 'Plato desconocido',
+          cantidad: comanda.cantidades?.[idx] || 1,
+          motivo: p.anuladoRazon,
+          estadoAlAnular: p.estadoAlAnular
+        }));
+
+      // Calcular total anulado
+      const totalAnulado = comanda.platos
+        .filter(p => p.anulado)
+        .reduce((sum, p, idx) => {
+          const precio = p.plato?.precio || 0;
+          const cantidad = comanda.cantidades?.[idx] || 1;
+          return sum + (precio * cantidad);
+        }, 0);
+
+      const eventData = {
+        comandaId: comandaId.toString(),
+        comanda: comanda,
+        platosAnulados: platosAnulados,
+        motivoGeneral: motivoGeneral,
+        totalAnulado: totalAnulado,
+        mesaId: mesaId,
+        numMesa: comanda.mesas?.nummesa,
+        comandaNumber: comanda.comandaNumber,
+        socketId: 'server',
+        timestamp: timestamp
+      };
+
+      // Emitir a cocina (room por fecha)
+      cocinaNamespace.to(roomNameCocina).emit('comanda-anulada', eventData);
+      logger.debug('Evento comanda-anulada emitido a cocina', {
+        comandaId: comandaId.toString(),
+        roomNameCocina,
+        comandaNumber: comanda.comandaNumber
+      });
+
+      // Emitir a mozos de la mesa específica
+      if (roomNameMesa && mozosNamespace && mozosNamespace.sockets) {
+        mozosNamespace.to(roomNameMesa).emit('comanda-anulada', eventData);
+        logger.debug('Evento comanda-anulada emitido a mozos', {
+          comandaId: comandaId.toString(),
+          roomNameMesa,
+          comandaNumber: comanda.comandaNumber
+        });
+      }
+
+      logger.info('Evento comanda-anulada emitido', {
+        comandaNumber: comanda.comandaNumber,
+        totalAnulado,
+        cantidadPlatos: platosAnulados.length,
+        motivoGeneral,
+        roomNameCocina,
+        roomNameMesa: roomNameMesa || 'todos'
+      });
+    } catch (error) {
+      logger.error('Error al emitir comanda-anulada', {
+        error: error.message,
+        stack: error.stack,
+        comandaId
+      });
+    }
+  };
+
   logger.info('Eventos Socket.io configurados correctamente', {
     namespaces: ['/cocina', '/mozos', '/admin']
   });

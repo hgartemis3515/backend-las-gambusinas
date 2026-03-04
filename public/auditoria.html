@@ -47,12 +47,31 @@ tailwind.config = {
     <!-- FILTROS -->
     <div class="flex gap-2 mb-5 flex-wrap items-center">
       <!-- Filtro Tipo de Acción -->
-      <select x-model="filterAccion" @change="filterRegistros()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary min-w-[140px]">
+      <select x-model="filterAccion" @change="filterRegistros()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary min-w-[160px]">
         <option value="">Acción: Todas</option>
-        <option value="crear">Crear</option>
-        <option value="editar">Editar</option>
-        <option value="eliminar">Eliminar</option>
-        <option value="ver">Ver</option>
+        <optgroup label="📋 Creación/Edición">
+          <option value="crear">Crear</option>
+          <option value="editar">Editar</option>
+          <option value="ver">Ver</option>
+        </optgroup>
+        <optgroup label="🗑️ Eliminación">
+          <option value="eliminar">Eliminar</option>
+          <option value="ELIMINAR_ULTIMA_COMANDA">Eliminar Última Comanda</option>
+          <option value="ELIMINAR_TODAS_COMANDAS">Eliminar Todas Comandas</option>
+          <option value="ELIMINAR_COMANDA_INDIVIDUAL">Eliminar Comanda Individual</option>
+          <option value="ELIMINAR_PLATO_COMANDA">Eliminar Plato</option>
+          <option value="ELIMINAR_PLATO_RECOGER">Eliminar Plato Recoger</option>
+        </optgroup>
+        <optgroup label="🚫 Anulación">
+          <option value="PLATO_ANULADO_COCINA">Plato Anulado</option>
+          <option value="COMANDA_ANULADA_COCINA">Comanda Anulada</option>
+          <option value="INTENTO_ANULACION">Intento Fallido</option>
+        </optgroup>
+        <optgroup label="↩️ Reversión">
+          <option value="reversion">Revertir</option>
+          <option value="reversion_comanda">Revertir Comanda</option>
+          <option value="reversion_plato">Revertir Plato</option>
+        </optgroup>
       </select>
       
       <!-- Filtro Usuario -->
@@ -94,22 +113,33 @@ tailwind.config = {
           <th class="text-left px-4 py-3 font-semibold">Hora</th>
           <th class="text-left px-4 py-3 font-semibold">Usuario</th>
           <th class="text-left px-4 py-3 font-semibold">Acción</th>
+          <th class="text-left px-4 py-3 font-semibold">Detalle</th>
           <th class="text-left px-4 py-3 font-semibold">Módulo</th>
           <th class="text-left px-4 py-3 font-semibold">IP</th>
           <th class="text-left px-4 py-3 font-semibold">Acciones</th>
         </tr></thead>
         <tbody>
           <tr x-show="filteredRegistros.length === 0">
-            <td colspan="6" class="px-4 py-8 text-center text-txt-muted">No hay registros de auditoría</td>
+            <td colspan="7" class="px-4 py-8 text-center text-txt-muted">No hay registros de auditoría</td>
           </tr>
           <template x-for="a in filteredRegistros" :key="a._id || a.hora">
-            <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
+            <tr class="border-b border-[rgba(212,175,55,0.08)] table-row"
+              :class="{
+                'bg-[rgba(255,71,87,0.05)]': esAccionEliminacion(a.accion),
+                'bg-[rgba(255,165,2,0.05)]': esAccionAnulacion(a.accion),
+                'bg-[rgba(0,212,170,0.05)]': esAccionReversion(a.accion)
+              }">
               <td class="px-4 py-3 text-txt-muted text-xs" x-text="a.createdAt ? new Date(a.createdAt).toLocaleTimeString('es-PE') : a.hora"></td>
               <td class="px-4 py-3" x-text="a.usuario?.nombre || a.usuario || '—'"></td>
               <td class="px-4 py-3">
-                <span class="text-xs font-medium"
-                  :class="a.accion?.includes('eliminar') || a.accion?.includes('Eliminar') ? 'text-st-pagado' : a.accion?.includes('crear') || a.accion?.includes('Crear') ? 'text-st-preparado' : 'text-st-esperando'"
-                  x-text="a.accion"></span>
+                <span class="text-xs font-medium px-2 py-0.5 rounded-full"
+                  :class="getAccionBadgeClass(a.accion)"
+                  x-text="getAccionLabel(a.accion)"></span>
+              </td>
+              <td class="px-4 py-3 text-xs">
+                <span x-show="a.metadata?.comandaNumber" class="text-gold" x-text="'#' + a.metadata.comandaNumber"></span>
+                <span x-show="a.metadata?.platoNombre" class="text-txt-secondary" x-text="a.metadata.platoNombre"></span>
+                <span x-show="a.motivo" class="text-txt-muted block text-[10px]" x-text="a.motivo?.substring(0, 30) + (a.motivo?.length > 30 ? '...' : '')"></span>
               </td>
               <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full bg-bg-sidebar" x-text="a.modulo"></span></td>
               <td class="px-4 py-3 text-txt-muted text-xs" x-text="a.ip"></td>
@@ -131,11 +161,17 @@ tailwind.config = {
 
     <!-- HEADER -->
     <div class="bg-[#12121a] p-5 rounded-t-2xl sticky top-0 z-10 flex items-center justify-between"
-      :class="esEliminacionSeleccionada() ? 'border-b-2 border-[#ff4757]' : ''">
+      :class="{
+        'border-b-2 border-[#ff4757]': esAccionEliminacion(selectedRegistro?.accion),
+        'border-b-2 border-[#ffa502]': esAccionAnulacion(selectedRegistro?.accion),
+        'border-b-2 border-[#00d4aa]': esAccionReversion(selectedRegistro?.accion)
+      }">
       <div>
         <h2 class="text-lg font-bold flex items-center gap-2">
-          <span x-show="esEliminacionSeleccionada()" class="text-[#ff4757]">🗑️</span>
-          <span x-text="esEliminacionSeleccionada() ? 'Detalle de Auditoría - Eliminación' : 'Detalle de Auditoría'"></span>
+          <span x-show="esAccionEliminacion(selectedRegistro?.accion)" class="text-[#ff4757]">🗑️</span>
+          <span x-show="esAccionAnulacion(selectedRegistro?.accion)" class="text-[#ffa502]">🚫</span>
+          <span x-show="esAccionReversion(selectedRegistro?.accion)" class="text-[#00d4aa]">↩️</span>
+          <span x-text="getTituloModal(selectedRegistro)"></span>
         </h2>
         <p class="text-xs text-[#5a5a7a] mt-0.5">
           <span x-text="'Registro #' + (selectedRegistro?._id?.slice(-8)?.toUpperCase() || 'AUD-' + (selectedRegistro?.hora?.replace(/[:\s]/g, '')?.slice(-6) || '—'))"></span>
@@ -156,7 +192,7 @@ tailwind.config = {
             <p class="text-[10px] text-[#5a5a7a] mb-0.5">Acción</p>
             <p class="font-semibold px-2 py-1 rounded inline-block text-xs"
               :class="getAccionBadgeClass(selectedRegistro?.accion)"
-              x-text="selectedRegistro?.accion || '—'"></p>
+              x-text="getAccionLabel(selectedRegistro?.accion)"></p>
           </div>
           <div>
             <p class="text-[10px] text-[#5a5a7a] mb-0.5">Fecha</p>
@@ -182,7 +218,7 @@ tailwind.config = {
       </div>
 
       <!-- INFO ESPECÍFICA PARA ELIMINACIONES -->
-      <template x-if="esEliminacionSeleccionada()">
+      <template x-if="esAccionEliminacion(selectedRegistro?.accion)">
         <div class="bg-[rgba(255,71,87,0.1)] border border-[rgba(255,71,87,0.3)] rounded-xl p-4">
           <h3 class="text-[#ff4757] font-bold mb-3 flex items-center gap-2">
             <span>🗑️</span>
@@ -225,8 +261,72 @@ tailwind.config = {
         </div>
       </template>
 
+      <!-- INFO ESPECÍFICA PARA ANULACIONES -->
+      <template x-if="esAccionAnulacion(selectedRegistro?.accion)">
+        <div class="bg-[rgba(255,165,2,0.1)] border border-[rgba(255,165,2,0.3)] rounded-xl p-4">
+          <h3 class="text-[#ffa502] font-bold mb-3 flex items-center gap-2">
+            <span>🚫</span>
+            <span x-text="getTituloAnulacion(selectedRegistro)"></span>
+          </h3>
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Comanda #</p>
+              <p class="font-medium text-gold" x-text="selectedRegistro?.metadata?.comandaNumber || 'N/A'"></p>
+            </div>
+            <div>
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Tipo de Anulación</p>
+              <p class="font-medium" x-text="getTipoAnulacionLabel(selectedRegistro?.metadata?.tipoAnulacion)"></p>
+            </div>
+            <div>
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Estado al Anular</p>
+              <p class="font-medium" x-text="selectedRegistro?.metadata?.estadoAlAnular || 'N/A'"></p>
+            </div>
+            <div>
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Origen</p>
+              <p class="font-medium" x-text="selectedRegistro?.metadata?.sourceApp || 'cocina'"></p>
+            </div>
+            <template x-if="selectedRegistro?.datosDespues?.nombre || selectedRegistro?.datosAntes?.nombre">
+              <div class="col-span-2">
+                <p class="text-[10px] text-[#5a5a7a] mb-0.5">Plato Anulado</p>
+                <p class="font-medium text-[#ffa502]" x-text="selectedRegistro?.datosDespues?.nombre || selectedRegistro?.datosAntes?.nombre || 'N/A'"></p>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+
+      <!-- INFO ESPECÍFICA PARA REVERSIONES -->
+      <template x-if="esAccionReversion(selectedRegistro?.accion)">
+        <div class="bg-[rgba(0,212,170,0.1)] border border-[rgba(0,212,170,0.3)] rounded-xl p-4">
+          <h3 class="text-[#00d4aa] font-bold mb-3 flex items-center gap-2">
+            <span>↩️</span>
+            <span x-text="getTituloReversion(selectedRegistro)"></span>
+          </h3>
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Comanda #</p>
+              <p class="font-medium text-gold" x-text="selectedRegistro?.metadata?.comandaNumber || 'N/A'"></p>
+            </div>
+            <div>
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Estado Anterior</p>
+              <p class="font-medium" x-text="selectedRegistro?.datosAntes?.estado || 'N/A'"></p>
+            </div>
+            <div>
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Estado Nuevo</p>
+              <p class="font-medium text-[#00d4aa]" x-text="selectedRegistro?.datosDespues?.estado || 'en_espera'"></p>
+            </div>
+            <template x-if="selectedRegistro?.datosDespues?.nombre || selectedRegistro?.datosAntes?.nombre">
+              <div class="col-span-2">
+                <p class="text-[10px] text-[#5a5a7a] mb-0.5">Plato Revertido</p>
+                <p class="font-medium text-[#00d4aa]" x-text="selectedRegistro?.datosDespues?.nombre || selectedRegistro?.datosAntes?.nombre || 'N/A'"></p>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+
       <!-- PLATOS ELIMINADOS -->
-      <template x-if="esEliminacionSeleccionada() && getPlatosEliminados(selectedRegistro).length > 0">
+      <template x-if="esAccionEliminacion(selectedRegistro?.accion) && getPlatosEliminados(selectedRegistro).length > 0">
         <div class="bg-[#0a0a0f] border border-[rgba(255,71,87,0.2)] rounded-xl overflow-hidden">
           <div class="px-4 py-3 border-b border-[rgba(212,175,55,0.1)] bg-[rgba(255,71,87,0.05)]">
             <p class="text-[10px] text-[#ff4757] uppercase font-semibold tracking-wider flex items-center gap-2">
@@ -262,7 +362,7 @@ tailwind.config = {
       </template>
 
       <!-- COMPARACIÓN DE PLATOS (ANTES/DESPUÉS) -->
-      <template x-if="!esEliminacionSeleccionada() && tieneComparacionPlatos(selectedRegistro)">
+      <template x-if="!esAccionEliminacion(selectedRegistro?.accion) && !esAccionAnulacion(selectedRegistro?.accion) && !esAccionReversion(selectedRegistro?.accion) && tieneComparacionPlatos(selectedRegistro)">
         <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
           <div class="px-4 py-3 border-b border-[rgba(212,175,55,0.1)]">
             <p class="text-[10px] text-[#5a5a7a] uppercase font-semibold tracking-wider">Comparación de Platos</p>
@@ -464,7 +564,18 @@ function auditoriaApp() {
         let matchAccion = true;
         if (this.filterAccion) {
           const accionLower = (r.accion || '').toLowerCase();
-          matchAccion = accionLower.includes(this.filterAccion.toLowerCase());
+          const filterLower = this.filterAccion.toLowerCase();
+          
+          // Filtros especiales para grupos
+          if (this.filterAccion === 'eliminar') {
+            matchAccion = this.esAccionEliminacion(r.accion);
+          } else if (this.filterAccion === 'reversion') {
+            matchAccion = this.esAccionReversion(r.accion);
+          } else if (this.filterAccion === 'INTENTO_ANULACION') {
+            matchAccion = accionLower.includes('intento');
+          } else {
+            matchAccion = accionLower.includes(filterLower);
+          }
         }
 
         // Filtro por usuario
@@ -508,18 +619,156 @@ function auditoriaApp() {
       window.location.href = '/login';
     },
 
-    // === FUNCIONES AUXILIARES PARA EL MODAL ===
+    // === FUNCIONES PARA CLASIFICAR ACCIONES ===
 
-    esEliminacionSeleccionada() {
-      if (!this.selectedRegistro?.accion) return false;
+    esAccionEliminacion(accion) {
+      if (!accion) return false;
       const accionesEliminacion = [
         'ELIMINAR_ULTIMA_COMANDA',
         'ELIMINAR_TODAS_COMANDAS',
         'ELIMINAR_COMANDA_INDIVIDUAL',
         'ELIMINAR_PLATO_COMANDA',
-        'ELIMINAR_PLATO_RECOGER'
+        'ELIMINAR_PLATO_RECOGER',
+        'comanda_eliminada',
+        'plato_eliminado'
       ];
-      return accionesEliminacion.includes(this.selectedRegistro.accion);
+      return accionesEliminacion.includes(accion) || accion.toLowerCase().includes('eliminar');
+    },
+
+    esAccionAnulacion(accion) {
+      if (!accion) return false;
+      const accionesAnulacion = [
+        'PLATO_ANULADO_COCINA',
+        'COMANDA_ANULADA_COCINA',
+        'INTENTO_ANULACION_COMANDA_PAGADA',
+        'INTENTO_ANULACION_PLATO_ENTREGADO'
+      ];
+      return accionesAnulacion.includes(accion) || accion.toLowerCase().includes('anulad');
+    },
+
+    esAccionReversion(accion) {
+      if (!accion) return false;
+      const accionesReversion = [
+        'reversion_comanda',
+        'reversion_plato'
+      ];
+      return accionesReversion.includes(accion) || accion.toLowerCase().includes('revertir') || accion.toLowerCase().includes('reversion');
+    },
+
+    // === FUNCIONES AUXILIARES PARA EL MODAL ===
+
+    getTituloModal(reg) {
+      if (!reg?.accion) return 'Detalle de Auditoría';
+      if (this.esAccionEliminacion(reg.accion)) return 'Detalle de Eliminación';
+      if (this.esAccionAnulacion(reg.accion)) return 'Detalle de Anulación';
+      if (this.esAccionReversion(reg.accion)) return 'Detalle de Reversión';
+      return 'Detalle de Auditoría';
+    },
+
+    getAccionLabel(accion) {
+      if (!accion) return '—';
+      const labels = {
+        'comanda_creada': '📝 Comanda Creada',
+        'comanda_eliminada': '🗑️ Comanda Eliminada',
+        'comanda_editada': '✏️ Comanda Editada',
+        'comanda_status_cambiado': '🔄 Estado Cambiado',
+        'ELIMINAR_ULTIMA_COMANDA': '🗑️ Eliminar Última',
+        'ELIMINAR_TODAS_COMANDAS': '🗑️ Eliminar Todas',
+        'ELIMINAR_COMANDA_INDIVIDUAL': '🗑️ Eliminar Comanda',
+        'ELIMINAR_PLATO_COMANDA': '🗑️ Eliminar Plato',
+        'ELIMINAR_PLATO_RECOGER': '🗑️ Eliminar Plato Recoger',
+        'PLATO_ANULADO_COCINA': '🚫 Plato Anulado',
+        'COMANDA_ANULADA_COCINA': '🚫 Comanda Anulada',
+        'INTENTO_ANULACION_COMANDA_PAGADA': '⚠️ Intento Fallido',
+        'INTENTO_ANULACION_PLATO_ENTREGADO': '⚠️ Intento Fallido',
+        'reversion_comanda': '↩️ Revertir Comanda',
+        'reversion_plato': '↩️ Revertir Plato',
+        'plato_agregado': '➕ Plato Agregado',
+        'plato_modificado': '✏️ Plato Modificado',
+        'plato_eliminado': '🗑️ Plato Eliminado',
+        'mesa_modificada': '✏️ Mesa Modificada',
+        'mesa_estado_cambiado': '🔄 Mesa Cambiada',
+        'usuario_autenticado': '🔐 Login',
+        'usuario_desconectado': '🚪 Logout',
+        'pago_procesado': '💳 Pago Procesado'
+      };
+      return labels[accion] || accion;
+    },
+
+    getAccionBadgeClass(accion) {
+      if (!accion) return 'bg-bg-sidebar text-txt-secondary';
+      if (this.esAccionEliminacion(accion)) return 'bg-[rgba(255,71,87,0.2)] text-[#ff4757]';
+      if (this.esAccionAnulacion(accion)) return 'bg-[rgba(255,165,2,0.2)] text-[#ffa502]';
+      if (this.esAccionReversion(accion)) return 'bg-[rgba(0,212,170,0.2)] text-[#00d4aa]';
+      if (accion.includes('crear') || accion.includes('nuevo') || accion.includes('agregado')) return 'bg-[rgba(46,204,113,0.2)] text-[#2ecc71]';
+      if (accion.includes('editar') || accion.includes('modificar')) return 'bg-[rgba(255,165,2,0.2)] text-[#ffa502]';
+      return 'bg-bg-sidebar text-txt-secondary';
+    },
+
+    getTituloEliminacion(reg) {
+      if (!reg?.accion) return 'Eliminación';
+      switch (reg.accion) {
+        case 'ELIMINAR_TODAS_COMANDAS':
+          return 'Eliminación de Todas las Comandas';
+        case 'ELIMINAR_ULTIMA_COMANDA':
+          return 'Eliminación de Comanda';
+        case 'ELIMINAR_COMANDA_INDIVIDUAL':
+          return 'Eliminación de Comanda Individual';
+        case 'ELIMINAR_PLATO_COMANDA':
+          return 'Eliminación de Plato de Comanda';
+        case 'ELIMINAR_PLATO_RECOGER':
+          return 'Eliminación de Plato para Recoger';
+        default:
+          return 'Eliminación';
+      }
+    },
+
+    getTituloAnulacion(reg) {
+      if (!reg?.accion) return 'Anulación';
+      switch (reg.accion) {
+        case 'PLATO_ANULADO_COCINA':
+          return 'Plato Anulado desde Cocina';
+        case 'COMANDA_ANULADA_COCINA':
+          return 'Comanda Anulada desde Cocina';
+        case 'INTENTO_ANULACION_COMANDA_PAGADA':
+          return 'Intento de Anulación en Comanda Pagada';
+        case 'INTENTO_ANULACION_PLATO_ENTREGADO':
+          return 'Intento de Anulación en Plato Entregado';
+        default:
+          return 'Anulación';
+      }
+    },
+
+    getTituloReversion(reg) {
+      if (!reg?.accion) return 'Reversión';
+      if (reg.accion === 'reversion_plato') return 'Plato Revertido a Preparación';
+      return 'Comanda Revertida';
+    },
+
+    getTipoEliminacion(reg) {
+      if (!reg?.accion) return 'N/A';
+      switch (reg.accion) {
+        case 'ELIMINAR_ULTIMA_COMANDA':
+          return 'Última Comanda';
+        case 'ELIMINAR_COMANDA_INDIVIDUAL':
+          return 'Comanda Individual';
+        case 'ELIMINAR_PLATO_COMANDA':
+          return 'Plato de Comanda';
+        default:
+          return reg.accion;
+      }
+    },
+
+    getTipoAnulacionLabel(tipo) {
+      if (!tipo) return 'N/A';
+      const labels = {
+        'producto_roto': 'Producto Roto',
+        'insumo_agotado': 'Insumo Agotado',
+        'error_preparacion': 'Error en Preparación',
+        'cliente_cancelo': 'Cliente Canceló',
+        'otro': 'Otro'
+      };
+      return labels[tipo] || tipo;
     },
 
     formatFechaAuditoria(reg) {
@@ -551,47 +800,6 @@ function auditoriaApp() {
       }
 
       return 'Sistema';
-    },
-
-    getAccionBadgeClass(accion) {
-      if (!accion) return 'bg-bg-sidebar text-txt-secondary';
-      const a = accion.toLowerCase();
-      if (a.includes('eliminar')) return 'bg-[rgba(255,71,87,0.2)] text-[#ff4757]';
-      if (a.includes('crear') || a.includes('nuevo')) return 'bg-[rgba(46,204,113,0.2)] text-[#2ecc71]';
-      if (a.includes('editar') || a.includes('modificar')) return 'bg-[rgba(255,165,2,0.2)] text-[#ffa502]';
-      return 'bg-bg-sidebar text-txt-secondary';
-    },
-
-    getTituloEliminacion(reg) {
-      if (!reg?.accion) return 'Eliminación';
-      switch (reg.accion) {
-        case 'ELIMINAR_TODAS_COMANDAS':
-          return 'Eliminación de Todas las Comandas';
-        case 'ELIMINAR_ULTIMA_COMANDA':
-          return 'Eliminación de Comanda';
-        case 'ELIMINAR_COMANDA_INDIVIDUAL':
-          return 'Eliminación de Comanda Individual';
-        case 'ELIMINAR_PLATO_COMANDA':
-          return 'Eliminación de Plato de Comanda';
-        case 'ELIMINAR_PLATO_RECOGER':
-          return 'Eliminación de Plato para Recoger';
-        default:
-          return 'Eliminación';
-      }
-    },
-
-    getTipoEliminacion(reg) {
-      if (!reg?.accion) return 'N/A';
-      switch (reg.accion) {
-        case 'ELIMINAR_ULTIMA_COMANDA':
-          return 'Última Comanda';
-        case 'ELIMINAR_COMANDA_INDIVIDUAL':
-          return 'Comanda Individual';
-        case 'ELIMINAR_PLATO_COMANDA':
-          return 'Plato de Comanda';
-        default:
-          return reg.accion;
-      }
     },
 
     getComandasNumbers(reg) {

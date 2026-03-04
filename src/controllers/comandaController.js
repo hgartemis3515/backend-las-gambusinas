@@ -19,7 +19,9 @@ const {
   recalcularEstadoMesa,
   recalcularEstadoComandaPorPlatos,
   ensurePlatosPopulated,
-  marcarPlatoComoEntregado
+  marcarPlatoComoEntregado,
+  anularPlato,
+  anularComandaCompleta
 } = require('../repository/comanda.repository');
 
 const { registrarAuditoria } = require('../middleware/auditoria');
@@ -1293,13 +1295,17 @@ router.put('/comanda/:id/status', async (req, res) => {
     const { nuevoStatus, motivo } = req.body;
     
     // Extraer información del usuario y dispositivo desde headers o body
-    const usuario = req.body.usuarioId || req.headers['x-user-id'] || null;
+    const usuarioId = req.body.usuarioId || req.headers['x-user-id'] || null;
     const deviceId = req.body.deviceId || req.headers['x-device-id'] || null;
     const sourceApp = req.body.sourceApp || req.headers['x-source-app'] || 'api';
     
     try {
+        // Obtener estado anterior para auditoría
+        const comandaAntes = await comandaModel.findById(id);
+        const estadoAnterior = comandaAntes?.status || 'en_espera';
+        
         const options = {
-            usuario,
+            usuario: usuarioId,
             deviceId,
             sourceApp,
             motivo
@@ -1310,9 +1316,34 @@ router.put('/comanda/:id/status', async (req, res) => {
         logger.info("Estado de la comanda actualizado exitosamente", {
             comandaId: id,
             nuevoStatus,
-            usuario,
+            usuarioId,
             sourceApp
         });
+        
+        // Registrar auditoría si es una reversión (vuelve a en_espera desde recoger/entregado)
+        if (nuevoStatus === 'en_espera' && (estadoAnterior === 'recoger' || estadoAnterior === 'entregado')) {
+            req.auditoria = {
+                accion: 'reversion_comanda',
+                entidadId: id,
+                entidadTipo: 'comanda',
+                usuario: usuarioId,
+                ip: req.ip,
+                motivo: motivo || 'Reversión de comanda'
+            };
+            
+            const snapshotAntes = {
+                comandaNumber: comandaAntes?.comandaNumber,
+                estado: estadoAnterior
+            };
+            
+            const snapshotDespues = {
+                comandaNumber: comandaAntes?.comandaNumber,
+                estado: nuevoStatus
+            };
+            
+            await registrarAuditoria(req, snapshotAntes, snapshotDespues, motivo || 'Reversión de comanda');
+            console.log('✅ Auditoría de reversión de comanda registrada');
+        }
         
         // Emitir evento Socket.io de comanda actualizada
         if (global.emitComandaActualizada) {
@@ -1377,12 +1408,48 @@ router.put('/comanda/:id/prioridad', async (req, res) => {
 
 router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
     const { id, platoId } = req.params;
-    const { nuevoEstado } = req.body;
+    const { nuevoEstado, motivo } = req.body;
+    const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
 
     try {
+        // Obtener estado anterior para auditoría
+        const comandaAntes = await comandaModel.findById(id);
+        const platoAntes = comandaAntes?.platos?.find(p => {
+            const pId = p.plato?._id?.toString() || p._id?.toString() || p.platoId?.toString();
+            return pId === platoId;
+        });
+        const estadoAnterior = platoAntes?.estado || 'en_espera';
+
         const updatedComanda = await cambiarEstadoPlato(id, platoId, nuevoEstado);
         res.json(updatedComanda);
         console.log('Estado del plato en la comanda actualizado exitosamente');
+        
+        // Registrar auditoría si es una reversión (vuelve a en_espera desde recoger)
+        if (nuevoEstado === 'en_espera' && (estadoAnterior === 'recoger' || estadoAnterior === 'entregado')) {
+            req.auditoria = {
+                accion: 'reversion_plato',
+                entidadId: id,
+                entidadTipo: 'comanda',
+                usuario: usuarioId,
+                ip: req.ip,
+                motivo: motivo || 'Reversión de plato a preparación'
+            };
+            
+            const snapshotAntes = {
+                platoId: platoId,
+                nombre: platoAntes?.plato?.nombre || platoAntes?.nombre || 'Plato',
+                estado: estadoAnterior
+            };
+            
+            const snapshotDespues = {
+                platoId: platoId,
+                nombre: platoAntes?.plato?.nombre || platoAntes?.nombre || 'Plato',
+                estado: nuevoEstado
+            };
+            
+            await registrarAuditoria(req, snapshotAntes, snapshotDespues, motivo || 'Reversión de plato a preparación');
+            console.log('✅ Auditoría de reversión registrada');
+        }
         
         // Emitir evento Socket.io de plato actualizado
         if (global.emitPlatoActualizado) {
@@ -1924,6 +1991,223 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             stack: error.stack
         });
         handleError(error, res, logger);
+    }
+});
+
+/**
+ * ✅ NUEVO ENDPOINT: Anular plato individual desde cocina
+ * PUT /api/comanda/:id/anular-plato/:platoIndex
+ */
+router.put('/comanda/:id/anular-plato/:platoIndex', async (req, res) => {
+    const { id, platoIndex } = req.params;
+    const { motivo, observaciones, forzarAdmin } = req.body;
+    const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+    const sourceApp = req.body.sourceApp || req.headers['x-source-app'] || 'cocina';
+    const deviceId = req.body.deviceId || req.headers['x-device-id'] || null;
+
+    // Validar que el motivo sea obligatorio
+    if (!motivo || motivo.trim() === '') {
+        return res.status(400).json({ 
+            message: 'El motivo de anulación es obligatorio' 
+        });
+    }
+
+    // Motivos válidos
+    const motivosValidos = ['producto_roto', 'insumo_agotado', 'error_preparacion', 'cliente_cancelo', 'otro'];
+    if (!motivosValidos.includes(motivo)) {
+        return res.status(400).json({ 
+            message: `Motivo inválido. Debe ser uno de: ${motivosValidos.join(', ')}` 
+        });
+    }
+
+    try {
+        const resultado = await anularPlato(
+            id, 
+            platoIndex, 
+            motivo, 
+            observaciones || '', 
+            usuarioId, 
+            sourceApp
+        );
+
+        // Registrar auditoría
+        req.auditoria = {
+            accion: 'PLATO_ANULADO_COCINA',
+            entidadId: id,
+            entidadTipo: 'comanda',
+            usuario: usuarioId,
+            mesaId: resultado.comanda.mesas?._id || resultado.comanda.mesas,
+            comandaId: id,
+            motivo: motivo + (observaciones ? ` - ${observaciones}` : ''),
+            platoAnulado: resultado.platoAnulado,
+            comandaNumber: resultado.comanda.comandaNumber,
+            ip: req.ip,
+            deviceId: deviceId,
+            metadata: {
+                tipoAnulacion: motivo,
+                estadoAlAnular: resultado.platoAnulado.estadoAlAnular,
+                sourceApp
+            }
+        };
+
+        const snapshotAntes = {
+            platoId: resultado.platoAnulado.platoId,
+            nombre: resultado.platoAnulado.nombre,
+            estado: resultado.platoAnulado.estadoAlAnular,
+            anulado: false
+        };
+
+        const snapshotDespues = {
+            platoId: resultado.platoAnulado.platoId,
+            nombre: resultado.platoAnulado.nombre,
+            estado: resultado.platoAnulado.estadoAlAnular,
+            anulado: true,
+            anuladoRazon: motivo,
+            tipoAnulacion: motivo
+        };
+
+        await registrarAuditoria(req, snapshotAntes, snapshotDespues, motivo);
+
+        // Emitir evento Socket.io
+        if (global.emitPlatoAnulado) {
+            await global.emitPlatoAnulado(id, resultado.platoAnulado);
+        }
+
+        // También emitir comanda-actualizada para sincronización general
+        if (global.emitComandaActualizada) {
+            await global.emitComandaActualizada(id);
+        }
+
+        logger.info(`✅ Plato anulado desde ${sourceApp}`, {
+            comandaNumber: resultado.comanda.comandaNumber,
+            platoNombre: resultado.platoAnulado.nombre,
+            motivo,
+            usuarioId
+        });
+
+        res.json({
+            message: 'Plato anulado exitosamente',
+            ...resultado
+        });
+
+    } catch (error) {
+        logger.error('Error en PUT /comanda/:id/anular-plato/:platoIndex', {
+            id,
+            platoIndex,
+            error: error.message,
+            stack: error.stack
+        });
+        
+        // Si es intento de anular comanda pagada, registrar en auditoría
+        if (error.message.includes('ya pagada')) {
+            req.auditoria = {
+                accion: 'INTENTO_ANULACION_COMANDA_PAGADA',
+                entidadId: id,
+                entidadTipo: 'comanda',
+                usuario: usuarioId,
+                motivo: `Intento fallido: ${error.message}`,
+                ip: req.ip,
+                deviceId
+            };
+            await registrarAuditoria(req, null, null, 'Intento de anulación en comanda pagada');
+        }
+        
+        const statusCode = error.statusCode || 400;
+        res.status(statusCode).json({ message: error.message });
+    }
+});
+
+/**
+ * ✅ NUEVO ENDPOINT: Anular toda la comanda desde cocina
+ * PUT /api/comanda/:id/anular-todo
+ */
+router.put('/comanda/:id/anular-todo', async (req, res) => {
+    const { id } = req.params;
+    const { motivo, observaciones } = req.body;
+    const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+    const sourceApp = req.body.sourceApp || req.headers['x-source-app'] || 'cocina';
+    const deviceId = req.body.deviceId || req.headers['x-device-id'] || null;
+
+    // Validar que el motivo sea obligatorio
+    if (!motivo || motivo.trim() === '') {
+        return res.status(400).json({ 
+            message: 'El motivo de anulación es obligatorio' 
+        });
+    }
+
+    // Motivos válidos
+    const motivosValidos = ['producto_roto', 'insumo_agotado', 'error_preparacion', 'cliente_cancelo', 'otro'];
+    if (!motivosValidos.includes(motivo)) {
+        return res.status(400).json({ 
+            message: `Motivo inválido. Debe ser uno de: ${motivosValidos.join(', ')}` 
+        });
+    }
+
+    try {
+        const resultado = await anularComandaCompleta(
+            id, 
+            motivo, 
+            observaciones || '', 
+            usuarioId, 
+            sourceApp
+        );
+
+        // Registrar auditoría
+        req.auditoria = {
+            accion: 'COMANDA_ANULADA_COCINA',
+            entidadId: id,
+            entidadTipo: 'comanda',
+            usuario: usuarioId,
+            mesaId: resultado.mesaId,
+            comandaId: id,
+            motivo: motivo + (observaciones ? ` - ${observaciones}` : ''),
+            platosAnulados: resultado.platosAnulados,
+            totalAnulado: resultado.totalAnulado,
+            comandaNumber: resultado.comandaNumber,
+            ip: req.ip,
+            deviceId: deviceId,
+            metadata: {
+                tipoAnulacion: motivo,
+                cantidadPlatos: resultado.platosAnulados.length,
+                totalAnulado: resultado.totalAnulado,
+                sourceApp
+            }
+        };
+
+        await registrarAuditoria(req, { comandaNumber: resultado.comandaNumber }, resultado, motivo);
+
+        // Emitir evento Socket.io
+        if (global.emitComandaAnulada) {
+            await global.emitComandaAnulada(id, resultado.motivoGeneral);
+        }
+
+        // También emitir comanda-actualizada para sincronización general
+        if (global.emitComandaActualizada) {
+            await global.emitComandaActualizada(id);
+        }
+
+        logger.info(`✅ Comanda anulada completamente desde ${sourceApp}`, {
+            comandaNumber: resultado.comandaNumber,
+            cantidadPlatos: resultado.platosAnulados.length,
+            totalAnulado: resultado.totalAnulado,
+            motivo,
+            usuarioId
+        });
+
+        res.json({
+            message: 'Comanda anulada completamente',
+            ...resultado
+        });
+
+    } catch (error) {
+        logger.error('Error en PUT /comanda/:id/anular-todo', {
+            id,
+            error: error.message,
+            stack: error.stack
+        });
+        
+        const statusCode = error.statusCode || 400;
+        res.status(statusCode).json({ message: error.message });
     }
 });
 

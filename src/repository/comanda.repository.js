@@ -2800,6 +2800,322 @@ const recalcularEstadoComandaPorPlatos = async (comandaId) => {
   }
 };
 
+/**
+ * Anula un plato individual desde la App de Cocina
+ * Diferente de eliminación (mozo): la anulación es por motivos operativos de cocina
+ * @param {String} comandaId - ID de la comanda
+ * @param {Number} platoIndex - Índice del plato en el array
+ * @param {String} motivo - Tipo de anulación (producto_roto, insumo_agotado, etc.)
+ * @param {String} observaciones - Observaciones adicionales
+ * @param {String} usuarioId - ID del usuario que anula
+ * @param {String} sourceApp - App origen (cocina, admin, etc.)
+ * @returns {Object} Comanda actualizada y datos del plato anulado
+ */
+const anularPlato = async (comandaId, platoIndex, motivo, observaciones, usuarioId, sourceApp = 'cocina') => {
+  const logPrefix = `[anularPlato] ${comandaId} index=${platoIndex}`;
+  logger.info(logPrefix, { motivo, observaciones, usuarioId, sourceApp });
+
+  try {
+    const comanda = await comandaModel.findById(comandaId).populate('platos.plato');
+    if (!comanda) {
+      throw new AppError('Comanda no encontrada', 404);
+    }
+
+    // Validación: no anular comandas pagadas
+    if (comanda.status === 'pagado') {
+      throw new AppError('No se puede anular platos de una comanda ya pagada. Use el flujo de reembolsos.', 400);
+    }
+
+    // Validar índice
+    const index = parseInt(platoIndex);
+    if (isNaN(index) || index < 0 || index >= comanda.platos.length) {
+      throw new AppError('Índice de plato inválido', 400);
+    }
+
+    const plato = comanda.platos[index];
+    if (!plato) {
+      throw new AppError('Plato no encontrado en la comanda', 404);
+    }
+
+    // Validar que no esté ya anulado o eliminado
+    if (plato.anulado) {
+      throw new AppError('Este plato ya fue anulado', 400);
+    }
+    if (plato.eliminado) {
+      throw new AppError('Este plato ya fue eliminado', 400);
+    }
+
+    // Validación: no anular platos ya entregados (a menos que sea admin con permisos especiales)
+    if (plato.estado === 'entregado' && sourceApp !== 'admin') {
+      throw new AppError('No se puede anular un plato que ya fue entregado al cliente. Para devoluciones use el flujo de reembolsos.', 400);
+    }
+
+    const ahora = moment.tz("America/Lima").toDate();
+    const estadoAlAnular = plato.estado;
+    const razonCompleta = observaciones ? `${motivo} - ${observaciones}` : motivo;
+
+    // 🔥 IMPORTANTE: Marcar como ELIMINADO (igual que eliminación desde app mozos)
+    // Esto asegura que el sistema de pagos lo excluya correctamente
+    plato.eliminado = true;
+    plato.eliminadoPor = usuarioId ? new mongoose.Types.ObjectId(usuarioId) : null;
+    plato.eliminadoAt = ahora;
+    plato.eliminadoRazon = razonCompleta;
+    plato.estadoAlEliminar = estadoAlAnular;
+    
+    // Campos adicionales para auditoría (source app cocina)
+    plato.anulado = true;
+    plato.anuladoPor = usuarioId ? new mongoose.Types.ObjectId(usuarioId) : null;
+    plato.anuladoAt = ahora;
+    plato.anuladoRazon = razonCompleta;
+    plato.anuladoSourceApp = sourceApp;
+    plato.tipoAnulacion = motivo;
+
+    // Si estaba en recoger, marcar como desperdicio
+    if (estadoAlAnular === 'recoger') {
+      plato.generoDesperdicio = true;
+    }
+
+    // Registrar en historialPlatos como 'eliminado' (igual que app mozos)
+    if (!comanda.historialPlatos) {
+      comanda.historialPlatos = [];
+    }
+
+    const nombrePlato = plato.plato?.nombre || 'Plato desconocido';
+    comanda.historialPlatos.push({
+      platoId: plato.platoId,
+      nombreOriginal: nombrePlato,
+      cantidadOriginal: comanda.cantidades[index] || 1,
+      cantidadFinal: 0,
+      estado: 'eliminado', // Usar 'eliminado' para consistencia con app mozos
+      timestamp: ahora,
+      usuario: usuarioId ? new mongoose.Types.ObjectId(usuarioId) : null,
+      motivo: razonCompleta,
+      anuladoPor: usuarioId ? new mongoose.Types.ObjectId(usuarioId) : null,
+      anuladoSourceApp: sourceApp,
+      tipoAnulacion: motivo
+    });
+
+    // Incrementar versión
+    comanda.version = (comanda.version || 1) + 1;
+    await comanda.save();
+
+    // Verificar si todos los platos están anulados/eliminados
+    const platosActivos = comanda.platos.filter(p => !p.anulado && !p.eliminado);
+    if (platosActivos.length === 0) {
+      comanda.status = 'cancelado';
+      await comanda.save();
+      logger.info(`${logPrefix} Comanda #${comanda.comandaNumber} cancelada automáticamente (todos los platos anulados/eliminados)`);
+    }
+
+    // Recalcular estado de la mesa si es necesario
+    const mesaId = comanda.mesas?._id || comanda.mesas;
+    if (mesaId && platosActivos.length === 0) {
+      try {
+        await recalcularEstadoMesa(mesaId);
+      } catch (err) {
+        logger.warn(`${logPrefix} Error al recalcular estado de mesa:`, err.message);
+      }
+    }
+
+    // Obtener comanda completa populada
+    const comandaActualizada = await comandaModel.findById(comandaId)
+      .populate('mozos')
+      .populate({ path: 'mesas', populate: { path: 'area' } })
+      .populate('cliente')
+      .populate('platos.plato');
+
+    const cantidadAnulada = comanda.cantidades[index] || 1;
+    const precioUnitario = plato.plato?.precio || 0;
+
+    logger.info(`${logPrefix} Plato anulado/eliminado exitosamente`, {
+      comandaNumber: comanda.comandaNumber,
+      platoNombre: nombrePlato,
+      motivo,
+      estadoAlAnular,
+      cantidad: cantidadAnulada
+    });
+
+    return {
+      comanda: comandaActualizada,
+      platoAnulado: {
+        index,
+        platoId: plato.platoId,
+        nombre: nombrePlato,
+        cantidad: cantidadAnulada,
+        precioUnitario,
+        subtotal: precioUnitario * cantidadAnulada,
+        estadoAlAnular,
+        motivo,
+        observaciones,
+        anuladoAt: ahora,
+        tipoAnulacion: motivo
+      },
+      auditoria: {
+        activos: comandaActualizada.platos.filter(p => !p.anulado && !p.eliminado).length,
+        anulados: comandaActualizada.platos.filter(p => p.anulado).length,
+        eliminados: comandaActualizada.platos.filter(p => p.eliminado).length
+      }
+    };
+  } catch (error) {
+    logger.error(`${logPrefix} Error:`, { error: error.message, stack: error.stack });
+    throw error;
+  }
+};
+
+/**
+ * Anula todos los platos de una comanda desde la App de Cocina
+ * @param {String} comandaId - ID de la comanda
+ * @param {String} motivo - Tipo de anulación
+ * @param {String} observaciones - Observaciones adicionales
+ * @param {String} usuarioId - ID del usuario que anula
+ * @param {String} sourceApp - App origen
+ * @returns {Object} Comanda actualizada y resumen de anulaciones
+ */
+const anularComandaCompleta = async (comandaId, motivo, observaciones, usuarioId, sourceApp = 'cocina') => {
+  const logPrefix = `[anularComandaCompleta] ${comandaId}`;
+  logger.info(logPrefix, { motivo, observaciones, usuarioId, sourceApp });
+
+  try {
+    const comanda = await comandaModel.findById(comandaId).populate('platos.plato');
+    if (!comanda) {
+      throw new AppError('Comanda no encontrada', 404);
+    }
+
+    // Validación: no anular comandas pagadas
+    if (comanda.status === 'pagado') {
+      throw new AppError('No se puede anular una comanda ya pagada. Use el flujo de reembolsos.', 400);
+    }
+
+    const ahora = moment.tz("America/Lima").toDate();
+    const razonCompleta = observaciones ? `${motivo} - ${observaciones}` : motivo;
+    const platosAnulados = [];
+    let totalAnulado = 0;
+
+    // Anular cada plato que no esté ya anulado o eliminado
+    for (let index = 0; index < comanda.platos.length; index++) {
+      const plato = comanda.platos[index];
+      
+      if (plato.anulado || plato.eliminado) {
+        continue; // Saltar platos ya anulados/eliminados
+      }
+
+      const estadoAlAnular = plato.estado;
+      const nombrePlato = plato.plato?.nombre || 'Plato desconocido';
+      const cantidad = comanda.cantidades[index] || 1;
+      const precioUnitario = plato.plato?.precio || 0;
+
+      // 🔥 IMPORTANTE: Marcar como ELIMINADO (igual que eliminación desde app mozos)
+      // Esto asegura que el sistema de pagos lo excluya correctamente
+      plato.eliminado = true;
+      plato.eliminadoPor = usuarioId ? new mongoose.Types.ObjectId(usuarioId) : null;
+      plato.eliminadoAt = ahora;
+      plato.eliminadoRazon = razonCompleta;
+      plato.estadoAlEliminar = estadoAlAnular;
+
+      // Marcar plato como anulado (campos adicionales para auditoría)
+      plato.anulado = true;
+      plato.anuladoPor = usuarioId ? new mongoose.Types.ObjectId(usuarioId) : null;
+      plato.anuladoAt = ahora;
+      plato.anuladoRazon = razonCompleta;
+      plato.anuladoSourceApp = sourceApp;
+      plato.estadoAlAnular = estadoAlAnular;
+      plato.tipoAnulacion = motivo;
+
+      if (estadoAlAnular === 'recoger') {
+        plato.generoDesperdicio = true;
+      }
+
+      // Registrar en historialPlatos como 'eliminado' (consistencia con app mozos)
+      if (!comanda.historialPlatos) {
+        comanda.historialPlatos = [];
+      }
+      comanda.historialPlatos.push({
+        platoId: plato.platoId,
+        nombreOriginal: nombrePlato,
+        cantidadOriginal: cantidad,
+        cantidadFinal: 0,
+        estado: 'eliminado',
+        timestamp: ahora,
+        usuario: usuarioId ? new mongoose.Types.ObjectId(usuarioId) : null,
+        motivo: razonCompleta,
+        anuladoPor: usuarioId ? new mongoose.Types.ObjectId(usuarioId) : null,
+        anuladoSourceApp: sourceApp,
+        tipoAnulacion: motivo
+      });
+
+      platosAnulados.push({
+        index,
+        platoId: plato.platoId,
+        nombre: nombrePlato,
+        cantidad,
+        precioUnitario,
+        subtotal: precioUnitario * cantidad,
+        estadoAlAnular,
+        motivo
+      });
+
+      totalAnulado += precioUnitario * cantidad;
+    }
+
+    // Cambiar estado de la comanda a cancelado
+    comanda.status = 'cancelado';
+    comanda.version = (comanda.version || 1) + 1;
+    
+    // Registrar en historialEstados
+    if (!comanda.historialEstados) {
+      comanda.historialEstados = [];
+    }
+    comanda.historialEstados.push({
+      status: 'cancelado',
+      statusAnterior: comanda.status,
+      timestamp: ahora,
+      usuario: usuarioId ? new mongoose.Types.ObjectId(usuarioId) : null,
+      accion: `Comanda anulada completamente desde ${sourceApp}`,
+      deviceId: null,
+      sourceApp,
+      motivo: razonCompleta
+    });
+
+    await comanda.save();
+
+    // Recalcular estado de la mesa
+    const mesaId = comanda.mesas?._id || comanda.mesas;
+    if (mesaId) {
+      try {
+        await recalcularEstadoMesa(mesaId);
+        logger.info(`${logPrefix} Estado de mesa ${mesaId} recalculado`);
+      } catch (err) {
+        logger.warn(`${logPrefix} Error al recalcular estado de mesa:`, err.message);
+      }
+    }
+
+    // Obtener comanda completa populada
+    const comandaActualizada = await comandaModel.findById(comandaId)
+      .populate('mozos')
+      .populate({ path: 'mesas', populate: { path: 'area' } })
+      .populate('cliente')
+      .populate('platos.plato');
+
+    logger.info(`${logPrefix} Comanda #${comanda.comandaNumber} anulada completamente`, {
+      platosAnulados: platosAnulados.length,
+      totalAnulado
+    });
+
+    return {
+      comanda: comandaActualizada,
+      platosAnulados,
+      totalAnulado,
+      motivoGeneral: razonCompleta,
+      mesaId,
+      numMesa: comandaActualizada.mesas?.nummesa,
+      comandaNumber: comanda.comandaNumber
+    };
+  } catch (error) {
+    logger.error(`${logPrefix} Error:`, { error: error.message, stack: error.stack });
+    throw error;
+  }
+};
+
 module.exports = { 
   listarComanda, 
   agregarComanda, 
@@ -2824,5 +3140,7 @@ module.exports = {
   ensurePlatosPopulated,
   marcarPlatoComoEntregado,
   recalcularEstadoComandaPorPlatos,
-  actualizarComandaSiTodosEntregados
+  actualizarComandaSiTodosEntregados,
+  anularPlato,
+  anularComandaCompleta
 };

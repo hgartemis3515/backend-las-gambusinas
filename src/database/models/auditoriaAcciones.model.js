@@ -16,6 +16,10 @@ const auditoriaSchema = new mongoose.Schema({
       'ELIMINAR_COMANDA_INDIVIDUAL',
       'ELIMINAR_PLATO_COMANDA',
       'ELIMINAR_PLATO_RECOGER',
+      'PLATO_ANULADO_COCINA',
+      'COMANDA_ANULADA_COCINA',
+      'INTENTO_ANULACION_COMANDA_PAGADA',
+      'INTENTO_ANULACION_PLATO_ENTREGADO',
       'comanda_editada',
       'comanda_status_cambiado',
       'plato_agregado',
@@ -26,7 +30,8 @@ const auditoriaSchema = new mongoose.Schema({
       'usuario_autenticado',
       'usuario_desconectado',
       'pago_procesado',
-      'reversion_comanda'
+      'reversion_comanda',
+      'reversion_plato'
     ],
     index: true
   },

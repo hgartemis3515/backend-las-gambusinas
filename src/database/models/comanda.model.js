@@ -64,7 +64,37 @@ const comandaSchema = new mongoose.Schema({
             default: null
         },
         estadoAlEliminar: { type: String, default: null },
-        generoDesperdicio: { type: Boolean, default: false }
+        generoDesperdicio: { type: Boolean, default: false },
+        // 🔥 ANULACIÓN DESDE COCINA: Campos para tracking de anulación
+        anulado: { 
+            type: Boolean, 
+            default: false,
+            index: true
+        },
+        anuladoPor: { 
+            type: mongoose.Schema.Types.ObjectId, 
+            ref: 'mozos',
+            default: null
+        },
+        anuladoAt: { 
+            type: Date, 
+            default: null
+        },
+        anuladoRazon: { 
+            type: String, 
+            default: null
+        },
+        anuladoSourceApp: {
+            type: String,
+            enum: ['mozos', 'cocina', 'admin', 'api'],
+            default: null
+        },
+        estadoAlAnular: { type: String, default: null },
+        tipoAnulacion: { 
+            type: String, 
+            enum: ['producto_roto', 'insumo_agotado', 'error_preparacion', 'cliente_cancelo', 'otro', null],
+            default: null
+        }
     }],
     cantidades: {
         type: [Number],
@@ -176,7 +206,7 @@ const comandaSchema = new mongoose.Schema({
         cantidadFinal: { type: Number },
         estado: { 
             type: String,
-            enum: ['activo', 'eliminado', 'modificado', 'eliminado-completo'],
+            enum: ['activo', 'eliminado', 'modificado', 'eliminado-completo', 'anulado'],
             default: 'activo'
         },
         timestamp: { type: Date, default: Date.now },
@@ -185,7 +215,19 @@ const comandaSchema = new mongoose.Schema({
             ref: 'mozos',
             default: null
         },
-        motivo: { type: String, default: null }
+        motivo: { type: String, default: null },
+        // Campos específicos para anulación desde cocina
+        anuladoPor: { 
+            type: mongoose.Schema.Types.ObjectId, 
+            ref: 'mozos', 
+            default: null 
+        },
+        anuladoSourceApp: { 
+            type: String, 
+            enum: ['mozos', 'cocina', 'admin', 'api', null], 
+            default: null 
+        },
+        tipoAnulacion: { type: String, default: null }
     }],
     precioTotalOriginal: {
         type: Number,
