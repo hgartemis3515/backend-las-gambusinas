@@ -19,11 +19,8 @@ const adminAuth = (req, res, next) => {
         const authHeader = req.headers.authorization;
         
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            // Si es una petición HTML, redirigir a login
-            if (req.accepts('html')) {
-                return res.redirect('/dashboard/login.html');
-            }
-            // Si es API, devolver 401
+            // Para rutas API siempre devolver JSON
+            // Las peticiones fetch pueden tener Accept: */* que acepta HTML
             return res.status(401).json({ error: 'Token no proporcionado' });
         }
         
@@ -39,12 +36,7 @@ const adminAuth = (req, res, next) => {
     } catch (error) {
         logger.error('Error en adminAuth', { error: error.message });
         
-        // Si es una petición HTML, redirigir a login
-        if (req.accepts('html')) {
-            return res.redirect('/dashboard/login.html');
-        }
-        
-        // Si es API, devolver 401
+        // Para rutas API siempre devolver JSON
         return res.status(401).json({ error: 'Token inválido o expirado' });
     }
 };
@@ -84,10 +76,7 @@ const requireDashboardAccess = async (req, res, next) => {
                 rol: rol
             });
             
-            if (req.accepts('html')) {
-                return res.redirect('/login?error=unauthorized');
-            }
-            
+            // Para rutas API siempre devolver JSON
             return res.status(403).json({ 
                 error: 'No tiene permisos para acceder al dashboard' 
             });

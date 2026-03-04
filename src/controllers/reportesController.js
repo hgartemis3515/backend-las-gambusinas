@@ -13,7 +13,7 @@ const logger = require('../utils/logger');
  * Reporte de ventas con agregación por fecha/hora/mesa
  * Query params: fechaInicio, fechaFin, agruparPor (dia|hora|mesa)
  */
-router.get('/ventas', async (req, res) => {
+router.get('/reportes/ventas', async (req, res) => {
     try {
         const { fechaInicio, fechaFin, agruparPor = 'dia' } = req.query;
 
@@ -177,7 +177,7 @@ router.get('/ventas', async (req, res) => {
  * Top platos más vendidos con cálculo de margen
  * Query params: fechaInicio, fechaFin, limit (default: 10)
  */
-router.get('/platos-top', async (req, res) => {
+router.get('/reportes/platos-top', async (req, res) => {
     try {
         const { fechaInicio, fechaFin, limit = 10 } = req.query;
 
@@ -350,7 +350,7 @@ router.get('/platos-top', async (req, res) => {
  * Performance de mozos: comandas, tiempo promedio, facturación
  * Query params: fechaInicio, fechaFin
  */
-router.get('/mozos-performance', async (req, res) => {
+router.get('/reportes/mozos-performance', async (req, res) => {
     try {
         const { fechaInicio, fechaFin } = req.query;
 
@@ -522,7 +522,7 @@ router.get('/mozos-performance', async (req, res) => {
  * Ocupación de mesas por hora/día
  * Query params: fechaInicio, fechaFin, agruparPor (hora|dia)
  */
-router.get('/mesas-ocupacion', async (req, res) => {
+router.get('/reportes/mesas-ocupacion', async (req, res) => {
     try {
         const { fechaInicio, fechaFin, agruparPor = 'hora' } = req.query;
 
@@ -627,7 +627,7 @@ router.get('/mesas-ocupacion', async (req, res) => {
  * KPIs generales del día/semana/mes
  * Query params: fecha (default: hoy)
  */
-router.get('/kpis', async (req, res) => {
+router.get('/reportes/kpis', async (req, res) => {
     try {
         const { fecha } = req.query;
         const fechaConsulta = fecha 
@@ -740,7 +740,7 @@ router.get('/kpis', async (req, res) => {
  * Reporte de clientes: frecuencia, gasto, tipo
  * Query params: fechaInicio, fechaFin
  */
-router.get('/clientes', async (req, res) => {
+router.get('/reportes/clientes', async (req, res) => {
     try {
         const { fechaInicio, fechaFin } = req.query;
 

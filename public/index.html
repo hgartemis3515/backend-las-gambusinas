@@ -700,10 +700,10 @@ function dashApp() {
         const needsAuditoria = needs('actividad');
         const needsTopPlatos = needs('kpi-plato') || needs('top-platos');
 
-        fetches.push(needsComandas ? apiGet('/comandas') : Promise.resolve(null));
+        fetches.push(needsComandas ? apiGet('/comanda') : Promise.resolve(null));
         fetches.push(needsVentas ? apiGet('/reportes/ventas?fechaInicio=' + hoy + '&fechaFin=' + hoy + '&agruparPor=hora') : Promise.resolve(null));
         fetches.push(needsAuditoria ? apiGet('/auditoria/comandas?limit=6').catch(() => null) : Promise.resolve(null));
-        fetches.push(needsTopPlatos ? apiGet('/reportes/platos-top').catch(() => null) : Promise.resolve(null));
+        fetches.push(needsTopPlatos ? apiGet('/reportes/platos-top?fechaInicio=' + hoy + '&fechaFin=' + hoy).catch(() => null) : Promise.resolve(null));
 
         const [mesas, mozos, comandas, reporteHoy, auditoria, topPlatos] = await Promise.all(fetches);
 
@@ -742,11 +742,11 @@ function dashApp() {
         }
 
         // --- VENTAS ---
-        if (reporteHoy && reporteHoy.data && reporteHoy.data.length > 0) {
-          const totalHoy = reporteHoy.data.reduce((s, d) => s + (d.total || 0), 0);
+        if (reporteHoy && reporteHoy.datos && reporteHoy.datos.length > 0) {
+          const totalHoy = reporteHoy.datos.reduce((s, d) => s + (d.total || 0), 0);
           this.kpiVentasHoy = 'S/. ' + totalHoy.toLocaleString('es-PE');
-          this._ventasDataCache = reporteHoy.data.map(d => d.total || 0);
-          this._ventasLabelsCache = reporteHoy.data.map(d => d._id || d.hora || '');
+          this._ventasDataCache = reporteHoy.datos.map(d => d.total || 0);
+          this._ventasLabelsCache = reporteHoy.datos.map(d => d._id || d.hora || d.fecha || '');
           this.initChartVentas();
         } else {
           this.kpiVentasHoy = 'S/. 0';
@@ -758,11 +758,11 @@ function dashApp() {
         }
 
         // --- TOP PLATOS ---
-        if (topPlatos && Array.isArray(topPlatos) && topPlatos.length > 0) {
-          this.topPlatosData = topPlatos.slice(0, 10);
-          const top = topPlatos[0];
+        if (topPlatos && topPlatos.datos && Array.isArray(topPlatos.datos) && topPlatos.datos.length > 0) {
+          this.topPlatosData = topPlatos.datos.slice(0, 10);
+          const top = topPlatos.datos[0];
           this.kpiTopPlato = top.nombre || top._id || '—';
-          this.kpiTopPlatoSub = (top.cantidad || top.total || 0) + ' vendidos';
+          this.kpiTopPlatoSub = (top.vendidos || top.cantidad || 0) + ' vendidos';
         } else {
           this.kpiTopPlato = '—';
           this.kpiTopPlatoSub = 'sin datos';
@@ -904,10 +904,10 @@ function dashApp() {
       const hoy = new Date().toISOString().split('T')[0];
       try {
         const reporteHoy = await apiGet('/reportes/ventas?fechaInicio=' + hoy + '&fechaFin=' + hoy + '&agruparPor=hora');
-        if (reporteHoy && reporteHoy.data && reporteHoy.data.length > 0) {
-          this._ventasDataCache = reporteHoy.data.map(d => d.total || 0);
-          this._ventasLabelsCache = reporteHoy.data.map(d => d._id || d.hora || '');
-          const totalHoy = reporteHoy.data.reduce((s, d) => s + (d.total || 0), 0);
+        if (reporteHoy && reporteHoy.datos && reporteHoy.datos.length > 0) {
+          this._ventasDataCache = reporteHoy.datos.map(d => d.total || 0);
+          this._ventasLabelsCache = reporteHoy.datos.map(d => d._id || d.hora || d.fecha || '');
+          const totalHoy = reporteHoy.datos.reduce((s, d) => s + (d.total || 0), 0);
           this.kpiVentasHoy = 'S/. ' + totalHoy.toLocaleString('es-PE');
           if (this.dashboardLayout.includes('grafico-ventas')) {
             LasGambusinasCharts.drawDashChartWithData('chartVentasDia', this._ventasLabelsCache, this._ventasDataCache);
