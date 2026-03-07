@@ -100,10 +100,11 @@ const actualizarEstadoMesa = async (mesaId, nuevoEstado, esAdmin = false) => {
     const estadoSolicitado = nuevoEstado.toLowerCase();
 
     // Definir transiciones permitidas
+    // ACTUALIZADO: Permitir pagado desde pedido o preparado (cuando todos los platos están entregados)
     const transicionesPermitidas = {
         'libre': ['esperando', 'reservado'],
         'esperando': ['pedido'],
-        'pedido': ['preparado', 'libre'], // Permitir volver a libre cuando se elimina la comanda
+        'pedido': ['preparado', 'pagado', 'libre'], // Permitir pagado directamente cuando platos están entregados
         'preparado': ['pagado', 'libre'], // Permitir volver a libre si se elimina la comanda
         'pagado': ['libre'],
         'reservado': ['libre'] // Solo admin puede liberar reservas

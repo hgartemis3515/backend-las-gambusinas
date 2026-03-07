@@ -10,6 +10,16 @@ const comandaSchema = new mongoose.Schema({
         ref: 'Cliente',
         default: null // Se asigna automáticamente al confirmar pago
     },
+    // ========== FASE A1: CAMPOS DESNORMALIZADOS PARA LECTURA RÁPIDA ==========
+    // Estos campos se actualizan al crear/modificar la comanda para evitar populate en listados
+    mozoNombre: { type: String, default: null },           // Ej: "Juan Pérez"
+    mesaNumero: { type: Number, default: null },            // Ej: 15
+    areaNombre: { type: String, default: null },            // Ej: "Terraza"
+    clienteNombre: { type: String, default: null },         // Ej: "María García"
+    // Resumen de platos para listados ligeros
+    totalPlatos: { type: Number, default: 0 },              // Total de items en la comanda
+    platosActivos: { type: Number, default: 0 },            // Platos no eliminados/anulados
+    // ==========================================================================
     dividedFrom: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'Comanda',
@@ -257,6 +267,45 @@ const comandaSchema = new mongoose.Schema({
         index: true
     }
 }, { setDefaultsOnInsert: true });
+
+// ========== FASE A1: ÍNDICES COMPUESTOS OPTIMIZADOS (Patrón ESR: Equality-Sort-Range) ==========
+
+// ÍNDICE 1: Comandas del día para cocina (CRÍTICO - endpoint más usado)
+// Query: listarComandaPorFechaEntregado
+// Filtros: createdAt (rango), status, IsActive
+// Sort: prioridadOrden, createdAt, comandaNumber
+comandaSchema.index(
+    { IsActive: 1, status: 1, createdAt: -1 },
+    { name: 'idx_comanda_cocina_fecha' }
+);
+
+// ÍNDICE 2: Comandas activas por mesa (para pagos y estado de mesa)
+// Query: getComandasParaPagar, validaciones de mesa
+comandaSchema.index(
+    { mesas: 1, IsActive: 1, status: 1 },
+    { name: 'idx_comanda_mesa_activa' }
+);
+
+// ÍNDICE 3: Comandas por fecha general (mozos y dashboard)
+// Query: listarComandaPorFecha
+comandaSchema.index(
+    { createdAt: -1, IsActive: 1 },
+    { name: 'idx_comanda_fecha_general' }
+);
+
+// ÍNDICE 4: Para filtrado de eliminadas y activas (limpieza y auditoría)
+comandaSchema.index(
+    { IsActive: 1, eliminada: 1 },
+    { name: 'idx_comanda_activa_eliminada' }
+);
+
+// ÍNDICE 5: Para ordenamiento por prioridad en cocina
+comandaSchema.index(
+    { IsActive: 1, status: 1, prioridadOrden: -1, createdAt: -1 },
+    { name: 'idx_comanda_prioridad_cocina' }
+);
+
+// ========== FIN ÍNDICES FASE A1 ==========
 
 comandaSchema.plugin(AutoIncrement, { inc_field: 'comandaNumber' });
 

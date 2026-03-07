@@ -79,6 +79,47 @@ router.get('/comanda/fechastatus/:fecha', async (req, res) => {
     }
 });
 
+// ==================== FASE A1: ENDPOINT OPTIMIZADO PARA COCINA ====================
+/**
+ * GET /api/comanda/cocina/:fecha
+ * Endpoint ultra-optimizado para app de cocina
+ * - Usa índice compuesto idx_comanda_cocina_fecha
+ * - Retorna solo campos necesarios para tablero Kanban
+ * - Usa lean() y proyecciones
+ * - Incluye tiempo de respuesta para monitoreo
+ */
+router.get('/comanda/cocina/:fecha', async (req, res) => {
+    const { fecha } = req.params;
+    const startTime = Date.now();
+    
+    try {
+        // Usar la función optimizada con proyección
+        const data = await listarComandaPorFechaEntregado(fecha, true);
+        
+        const elapsedMs = Date.now() - startTime;
+        
+        // Log para monitoreo de rendimiento
+        logger.info('[FASE A1] Endpoint cocina optimizado', {
+            fecha,
+            cantidadComandas: data.length,
+            tiempoRespuestaMs: elapsedMs
+        });
+        
+        // Añadir header con tiempo de respuesta para monitoreo
+        res.set('X-Response-Time', `${elapsedMs}ms`);
+        res.json(data);
+    } catch (error) {
+        logger.error('Error en endpoint cocina optimizado', {
+            fecha,
+            error: error.message,
+            stack: error.stack
+        });
+        handleError(error, res, logger);
+    }
+});
+
+// ==================== FIN FASE A1 ====================
+
 // GET /api/comanda/:id - Obtener comanda por ID
 router.get('/comanda/:id', async (req, res) => {
     const { id } = req.params;
@@ -1411,18 +1452,59 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
     const { nuevoEstado, motivo } = req.body;
     const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
 
+    // Validar que nuevoEstado sea válido
+    const estadosValidos = ['recoger', 'entregado', 'en_espera', 'pedido'];
+    if (!nuevoEstado || !estadosValidos.includes(nuevoEstado)) {
+        return res.status(400).json({ 
+            error: `Estado inválido. Debe ser uno de: ${estadosValidos.join(', ')}`,
+            recibido: nuevoEstado
+        });
+    }
+
     try {
+        console.log(`🔄 [PUT /plato/:platoId/estado] Comanda ${id}, Plato ${platoId}, Nuevo estado: ${nuevoEstado}`);
+        
         // Obtener estado anterior para auditoría
         const comandaAntes = await comandaModel.findById(id);
-        const platoAntes = comandaAntes?.platos?.find(p => {
-            const pId = p.plato?._id?.toString() || p._id?.toString() || p.platoId?.toString();
-            return pId === platoId;
+        if (!comandaAntes) {
+            return res.status(404).json({ error: 'Comanda no encontrada', comandaId: id });
+        }
+        
+        // Buscar plato para obtener estado anterior (usar misma lógica que el repository)
+        const platoAntes = comandaAntes.platos?.find(p => {
+            return (p._id?.toString() === platoId.toString()) ||
+                   (p.platoId?.toString() === platoId.toString()) ||
+                   (p.plato?.toString() === platoId.toString());
         });
-        const estadoAnterior = platoAntes?.estado || 'en_espera';
+        
+        if (!platoAntes) {
+            console.error(`❌ [PUT /plato/:platoId/estado] Plato ${platoId} no encontrado en comanda ${id}`);
+            console.error(`   Platos disponibles:`, comandaAntes.platos?.map(p => ({
+                _id: p._id?.toString(),
+                platoId: p.platoId,
+                estado: p.estado
+            })));
+            return res.status(404).json({ 
+                error: 'Plato no encontrado en la comanda',
+                platoId: platoId,
+                comandaId: id
+            });
+        }
+        
+        const estadoAnterior = platoAntes.estado || 'en_espera';
 
         const updatedComanda = await cambiarEstadoPlato(id, platoId, nuevoEstado);
-        res.json(updatedComanda);
-        console.log('Estado del plato en la comanda actualizado exitosamente');
+        
+        console.log(`✅ [PUT /plato/:platoId/estado] Estado actualizado: ${estadoAnterior} → ${nuevoEstado}`);
+        res.json({ 
+            success: true, 
+            message: 'Estado del plato actualizado exitosamente',
+            platoId: platoId,
+            estadoAnterior: estadoAnterior,
+            nuevoEstado: nuevoEstado,
+            comandaStatus: updatedComanda.status,
+            comanda: updatedComanda
+        });
         
         // Registrar auditoría si es una reversión (vuelve a en_espera desde recoger)
         if (nuevoEstado === 'en_espera' && (estadoAnterior === 'recoger' || estadoAnterior === 'entregado')) {
@@ -1461,8 +1543,19 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
             await global.emitComandaActualizada(id);
         }
     } catch (error) {
-        console.error(error.message);
-        res.status(400).json({ message: error.message });
+        console.error('❌ [PUT /plato/:platoId/estado] Error:', error.message);
+        
+        // Determinar código de estado HTTP apropiado
+        let statusCode = 400;
+        if (error.message.includes('no encontrada') || error.message.includes('no encontrado')) {
+            statusCode = 404;
+        }
+        
+        res.status(statusCode).json({ 
+            error: error.message,
+            platoId: platoId,
+            comandaId: id
+        });
     }
 });
 

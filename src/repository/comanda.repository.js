@@ -15,6 +15,99 @@ const redisCache = require('../utils/redisCache');
 
 const DATA_DIR = path.join(__dirname, '../../data');
 
+// ==================== FASE A1: PROYECCIONES OPTIMIZADAS ====================
+/**
+ * Proyecciones para reducir el tamaño de los documentos retornados
+ * Solo incluye los campos que realmente necesita cada tipo de cliente
+ */
+
+// Proyección para app de Cocina (endpoint más crítico)
+const PROYECCION_COCINA = {
+    _id: 1,
+    comandaNumber: 1,
+    status: 1,
+    prioridadOrden: 1,
+    createdAt: 1,
+    updatedAt: 1,
+    observaciones: 1,
+    cantidades: 1,
+    IsActive: 1,
+    eliminada: 1,
+    // Campos desnormalizados (evitan populate)
+    mozoNombre: 1,
+    mesaNumero: 1,
+    areaNombre: 1,
+    // Referencias mínimas (solo para fallback si no hay desnormalizados)
+    mozos: 1,
+    mesas: 1,
+    // Platos con solo campos necesarios
+    'platos._id': 1,  // 🔥 CRÍTICO: ID único del subdocumento (distingue platos duplicados con diferentes complementos)
+    'platos.platoId': 1,
+    'platos.estado': 1,
+    'platos.eliminado': 1,
+    'platos.anulado': 1,
+    'platos.complementosSeleccionados': 1,
+    'platos.notaEspecial': 1,
+    'platos.tiempos': 1,
+    'platos.eliminadoPor': 1,
+    'platos.eliminadoAt': 1,
+    'platos.eliminadoRazon': 1,
+    'platos.anuladoPor': 1,
+    'platos.anuladoRazon': 1,
+    'platos.plato': 1,  // Se popula solo con nombre y precio
+    // Auditoría mínima
+    historialPlatos: 1
+};
+
+// Proyección para resumen de mesas (app de mozos - mapa de mesas)
+const PROYECCION_RESUMEN_MESA = {
+    _id: 1,
+    comandaNumber: 1,
+    status: 1,
+    precioTotal: 1,
+    mesaNumero: 1,
+    mozoNombre: 1,
+    areaNombre: 1,
+    totalPlatos: 1,
+    platosActivos: 1,
+    createdAt: 1,
+    mesas: 1,
+    mozos: 1,
+    IsActive: 1,
+    'platos._id': 1,  // 🔥 CRÍTICO: ID único del subdocumento
+    'platos.estado': 1,
+    'platos.eliminado': 1,
+    'platos.anulado': 1
+};
+
+// Proyección para pagos (campos necesarios para cálculo)
+const PROYECCION_PAGOS = {
+    _id: 1,
+    comandaNumber: 1,
+    status: 1,
+    precioTotal: 1,
+    precioTotalOriginal: 1,
+    mesaNumero: 1,
+    mozoNombre: 1,
+    clienteNombre: 1,
+    observaciones: 1,
+    createdAt: 1,
+    cantidades: 1,
+    mesas: 1,
+    mozos: 1,
+    cliente: 1,
+    IsActive: 1,
+    'platos._id': 1,  // 🔥 CRÍTICO: ID único del subdocumento
+    'platos.platoId': 1,
+    'platos.estado': 1,
+    'platos.eliminado': 1,
+    'platos.anulado': 1,
+    'platos.complementosSeleccionados': 1,
+    'platos.plato': 1
+};
+
+// ==================== FIN PROYECCIONES FASE A1 ====================
+
 /**
  * Helper para validar y convertir usuarioId a ObjectId válido
  * Si no es un ObjectId válido, retorna null
@@ -131,132 +224,223 @@ const ensurePlatosPopulated = async (comandas) => {
   }
 };
 
-const listarComanda = async (incluirEliminadas = false) => {
+const listarComanda = async (incluirEliminadas = false, usarProyeccion = true) => {
   try {
+    console.log('🔍 [FASE A1] Listando comandas...');
+    const startTime = Date.now();
+    
     // ESTANDARIZADO: Solo usar IsActive para soft-delete
-    // ✅ FILTRAR EXPLÍCITAMENTE comandas eliminadas
     const query = incluirEliminadas 
       ? {} 
       : { 
-          IsActive: { $ne: false, $exists: true }, // Solo comandas activas
-          eliminada: { $ne: true } // También filtrar por campo eliminada si existe
+          IsActive: { $ne: false, $exists: true },
+          eliminada: { $ne: true }
         };
     
-    // Obtener datos (compatible con tests - sort y populate opcionales)
-    let data;
-    try {
-      // Intentar con sort y populate (producción)
-      data = await comandaModel
-        .find(query)
-        .populate({
-          path: "mozos",
-        })
-        .populate({
-          path: "mesas",
-          populate: {
-            path: "area"
-          }
-        })
-        .populate({
-          path: "cliente"
-        })
-        .populate({
-          path: "platos.plato",
-          model: "platos"
-        })
-        .sort({ createdAt: -1, comandaNumber: -1 });
-      console.log('✅ FASE1: listarComanda populada correctamente');
-    } catch (error) {
-      // Si falla (tests), intentar solo con find
-      try {
-        data = await comandaModel.find(query);
-        // Intentar sort si existe
-        if (data && typeof data.sort === 'function') {
-          data = data.sort((a, b) => {
-            const dateA = a.createdAt || new Date(0);
-            const dateB = b.createdAt || new Date(0);
-            if (dateB.getTime() !== dateA.getTime()) {
-              return dateB.getTime() - dateA.getTime();
-            }
-            return (b.comandaNumber || 0) - (a.comandaNumber || 0);
-          });
-        }
-        console.warn('⚠️ Tests: listarComanda retornando sin populate/sort:', error.message);
-      } catch (findError) {
-        // Si incluso find falla, retornar array vacío
-        console.warn('⚠️ Tests: listarComanda falló completamente, retornando []:', findError.message);
-        data = [];
-      }
-    }
-
-    // Asegurar que los platos estén populados (fallback manual) - solo si populate funcionó
-    let dataConPlatos = data;
-    try {
-      dataConPlatos = await ensurePlatosPopulated(data);
-    } catch (ensureError) {
-      console.warn('⚠️ Tests: ensurePlatosPopulated falló, usando datos sin populate:', ensureError.message);
-      // En tests, usar datos sin populate
+    // ==================== FASE A1: QUERY OPTIMIZADA ====================
+    // Construir query con lean() y proyecciones
+    let dbQuery = comandaModel.find(query);
+    
+    // Aplicar proyección para reducir payload
+    if (usarProyeccion) {
+      dbQuery = dbQuery.select({
+        _id: 1,
+        comandaNumber: 1,
+        status: 1,
+        precioTotal: 1,
+        prioridadOrden: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        observaciones: 1,
+        cantidades: 1,
+        IsActive: 1,
+        eliminada: 1,
+        // Campos desnormalizados
+        mozoNombre: 1,
+        mesaNumero: 1,
+        areaNombre: 1,
+        totalPlatos: 1,
+        platosActivos: 1,
+        // Referencias mínimas
+        mozos: 1,
+        mesas: 1,
+        cliente: 1,
+        // Platos con campos necesarios
+        'platos.platoId': 1,
+        'platos.estado': 1,
+        'platos.eliminado': 1,
+        'platos.anulado': 1,
+        'platos.complementosSeleccionados': 1,
+        'platos.notaEspecial': 1,
+        'platos.plato': 1
+      });
     }
     
-    // 🔥 AUDITORÍA: Asegurar que historialPlatos tenga nombres correctos en todas las comandas
-    for (const comanda of dataConPlatos) {
-      if (comanda.historialPlatos && comanda.historialPlatos.length > 0) {
-        for (let i = 0; i < comanda.historialPlatos.length; i++) {
-          const h = comanda.historialPlatos[i];
-          if (h.estado === 'eliminado' && (!h.nombreOriginal || h.nombreOriginal === 'Plato desconocido' || h.nombreOriginal === 'Sin nombre')) {
-            // Buscar el plato por platoId numérico
-            if (h.platoId) {
-              const plato = await platoModel.findOne({ id: h.platoId });
-              if (plato && plato.nombre) {
-                h.nombreOriginal = plato.nombre;
-              }
-            }
-          }
-        }
+    // Usar lean() para objetos planos (mucho más rápido)
+    dbQuery = dbQuery
+      .sort({ createdAt: -1, comandaNumber: -1 })
+      .lean();
+    
+    // Populate MÍNIMO: solo campos necesarios
+    dbQuery = dbQuery.populate({
+      path: "mozos",
+      select: "name DNI",
+      options: { lean: true }
+    });
+    dbQuery = dbQuery.populate({
+      path: "mesas",
+      select: "nummesa estado area",
+      options: { lean: true },
+      populate: {
+        path: "area",
+        select: "nombre",
+        options: { lean: true }
       }
-    }
-
-    // Obtener IDs de mesas que tienen comandas (con validación de null)
-    const mesasIds = dataConPlatos
-      .map(comanda => {
-        // Manejar casos donde mesas puede ser null, undefined, o un objeto
-        if (!comanda.mesas) return null;
-        if (typeof comanda.mesas === 'object' && comanda.mesas._id) {
-          return comanda.mesas._id;
-        }
-        if (typeof comanda.mesas === 'string') {
-          return comanda.mesas;
-        }
-        return null;
-      })
-      .filter(id => id !== null); // Filtrar nulls
-
-    // Solo buscar mesas sin comandas si hay IDs válidos
-    if (mesasIds.length > 0) {
-      try {
-        const mesasSinComandas = await mesasModel.find({
-          _id: { $nin: mesasIds }
-        });
-
-        await Promise.all(mesasSinComandas.map(async (mesa) => {
-          if (!mesa.isActive) {
-            mesa.isActive = true;
-            await mesa.save();
-          }
-        }));
-      } catch (mesaError) {
-        // Si hay error al actualizar mesas, no fallar toda la operación
-        console.warn('⚠️ Error al actualizar mesas sin comandas:', mesaError.message);
+    });
+    dbQuery = dbQuery.populate({
+      path: "cliente",
+      select: "nombre dni telefono",
+      options: { lean: true }
+    });
+    dbQuery = dbQuery.populate({
+      path: "platos.plato",
+      select: "nombre precio categoria",
+      options: { lean: true }
+    });
+    
+    let data = await dbQuery.exec();
+    // ==================== FIN QUERY OPTIMIZADA ====================
+    
+    // Procesar comandas para usar campos desnormalizados
+    const dataProcesada = data.map(comanda => {
+      // Usar campos desnormalizados si existen, sino usar populate
+      if (!comanda.mozoNombre && comanda.mozos?.name) {
+        comanda.mozoNombre = comanda.mozos.name;
       }
-    }
-
-    return dataConPlatos;
+      if (!comanda.mesaNumero && comanda.mesas?.nummesa) {
+        comanda.mesaNumero = comanda.mesas.nummesa;
+      }
+      if (!comanda.areaNombre && comanda.mesas?.area?.nombre) {
+        comanda.areaNombre = comanda.mesas.area.nombre;
+      }
+      return comanda;
+    });
+    
+    const elapsedMs = Date.now() - startTime;
+    console.log(`✅ [FASE A1] listarComanda: ${dataProcesada.length} comandas en ${elapsedMs}ms`);
+    
+    return dataProcesada;
   } catch (error) {
     console.error("❌ Error al listar la comanda:", error);
     console.error("Stack trace:", error.stack);
     throw error;
   }
 };
+
+// ==================== FASE A1: VALIDACIÓN BATCH DE PLATOS ====================
+/**
+ * Valida múltiples platos en una sola consulta (optimización)
+ * Antes: N consultas (una por plato)
+ * Ahora: 1-2 consultas (batch con $in)
+ * @param {Array} platosRefs - Array de referencias a platos (ObjectId o ID numérico)
+ * @returns {Promise<Map>} - Mapa de platos encontrados con su información
+ */
+const validarPlatosBatch = async (platosRefs) => {
+  const startTime = Date.now();
+  const platoMap = new Map();
+  
+  if (!platosRefs || platosRefs.length === 0) {
+    return platoMap;
+  }
+  
+  // Separar ObjectIds de IDs numéricos
+  const objectIds = [];
+  const numericIds = [];
+  
+  platosRefs.forEach(ref => {
+    const platoRef = ref?.plato ?? ref?.platoId ?? ref;
+    if (platoRef == null || platoRef === '') return;
+    
+    if (mongoose.Types.ObjectId.isValid(platoRef) && String(platoRef).length === 24) {
+      objectIds.push(platoRef);
+    } else if (typeof platoRef === 'number' || !Number.isNaN(Number(platoRef))) {
+      numericIds.push(Number(platoRef));
+    }
+  });
+  
+  // Construir query con $or para buscar ambos tipos de IDs
+  const orConditions = [];
+  if (objectIds.length > 0) {
+    orConditions.push({ _id: { $in: objectIds } });
+  }
+  if (numericIds.length > 0) {
+    orConditions.push({ id: { $in: numericIds } });
+  }
+  
+  if (orConditions.length === 0) {
+    return platoMap;
+  }
+  
+  // UNA sola consulta para todos los platos
+  const platosEncontrados = await platoModel.find({
+    $or: orConditions,
+    isActive: { $ne: false }
+  }).lean();
+  
+  // Llenar el mapa para lookup O(1)
+  platosEncontrados.forEach(plato => {
+    // Por ObjectId
+    platoMap.set(plato._id.toString(), plato);
+    // Por ID numérico
+    if (plato.id) {
+      platoMap.set(plato.id, plato);
+      platoMap.set(String(plato.id), plato);
+    }
+  });
+  
+  const elapsedMs = Date.now() - startTime;
+  console.log(`✅ [FASE A1] Validados ${platosEncontrados.length} platos en ${elapsedMs}ms (batch)`);
+  
+  return platoMap;
+};
+
+/**
+ * Obtiene información de mesa y mozo para desnormalización
+ * @param {ObjectId} mesaId - ID de la mesa
+ * @param {ObjectId} mozoId - ID del mozo
+ * @returns {Promise<Object>} - Objeto con datos desnormalizados
+ */
+const obtenerDatosDesnormalizados = async (mesaId, mozoId) => {
+  const datos = {
+    mozoNombre: null,
+    mesaNumero: null,
+    areaNombre: null
+  };
+  
+  // Obtener mesa con área en una consulta
+  if (mesaId) {
+    const mesa = await mesasModel.findById(mesaId)
+      .populate('area', 'nombre')
+      .lean();
+    
+    if (mesa) {
+      datos.mesaNumero = mesa.nummesa;
+      datos.areaNombre = mesa.area?.nombre || null;
+    }
+  }
+  
+  // Obtener mozo en una consulta separada (podría combinarse si es necesario)
+  if (mozoId) {
+    const mozoModel = require('../database/models/mozos.model');
+    const mozo = await mozoModel.findById(mozoId).select('name').lean();
+    if (mozo) {
+      datos.mozoNombre = mozo.name;
+    }
+  }
+  
+  return datos;
+};
+// ==================== FIN VALIDACIÓN BATCH FASE A1 ====================
 
 const agregarComanda = async (data) => {
   console.log('📤 Creando comanda con datos:', JSON.stringify(data, null, 2));
@@ -308,10 +492,14 @@ const agregarComanda = async (data) => {
   // Libre, pedido, preparado, esperando, pagado: permitir crear comanda. La mesa existe y está activa.
   console.log(`✅ Permitiendo nueva comanda en mesa ${mesa.nummesa} (estado: ${estadoMesa}) - Sin restricción por comandas existentes`);
 
-  // ========== FASE 1: VALIDACIÓN Y NORMALIZACIÓN DE ESTADOS POR PLATO ==========
+  // ========== FASE A1: VALIDACIÓN BATCH DE PLATOS (OPTIMIZADO) ==========
   const ahora = moment.tz("America/Lima").toDate();
   
-  // Validar que cada plato tenga un ID válido, exista en BD (activo) y obtener el id numérico
+  // 🚀 OPTIMIZACIÓN: Validar TODOS los platos en una sola consulta
+  console.log(`🔍 [FASE A1] Validando ${data.platos.length} platos en batch...`);
+  const platosMap = await validarPlatosBatch(data.platos);
+  
+  // Validar que cada plato tenga un ID válido y exista
   for (let index = 0; index < data.platos.length; index++) {
     const plato = data.platos[index];
     const platoRef = plato.plato ?? plato.platoId;
@@ -321,14 +509,17 @@ const agregarComanda = async (data) => {
       throw err;
     }
 
+    // Buscar en el mapa (O(1)) en lugar de consulta individual
     let platoCompleto = null;
     const isObjectId = mongoose.Types.ObjectId.isValid(platoRef) && String(platoRef).length === 24;
+    
     if (isObjectId) {
-      platoCompleto = await platoModel.findById(platoRef);
+      platoCompleto = platosMap.get(String(platoRef));
     }
-    if (!platoCompleto && (typeof platoRef === 'number' || !Number.isNaN(Number(platoRef)))) {
-      platoCompleto = await platoModel.findOne({ id: Number(platoRef) });
+    if (!platoCompleto) {
+      platoCompleto = platosMap.get(Number(platoRef)) || platosMap.get(String(platoRef));
     }
+    
     if (!platoCompleto) {
       const err = new Error(`Plato no encontrado. ID: ${platoRef}`);
       err.statusCode = 404;
@@ -343,24 +534,17 @@ const agregarComanda = async (data) => {
     plato.platoId = platoCompleto.id;
     
     // FASE 1: Validar y normalizar estado del plato
-    // 1. Establecer estado default si no existe
     if (!plato.estado) {
       plato.estado = 'pedido';
-      console.log(`FASE1: Plato ${index} sin estado → establecido 'pedido' (default)`);
     }
     
-    // 2. Normalizar 'en_espera' a 'pedido' para consistencia (opcional, mantener ambos)
-    // Mantenemos ambos estados pero los tratamos igual
-    
-    // 3. Validar que estado inicial es válido (solo 'pedido' o 'en_espera' permitidos)
     const estadosInicialesValidos = ['pedido', 'en_espera'];
     if (!estadosInicialesValidos.includes(plato.estado)) {
-      const errorMsg = `FASE1: Estado inicial inválido para plato ${index}: "${plato.estado}". Solo se permiten: pedido, en_espera`;
-      console.error(`❌ ${errorMsg}`);
+      const errorMsg = `Estado inicial inválido para plato ${index}: "${plato.estado}". Solo se permiten: pedido, en_espera`;
       throw new Error(errorMsg);
     }
     
-    // 4. Inicializar timestamps del plato
+    // Inicializar timestamps del plato
     if (!plato.tiempos) {
       plato.tiempos = {};
     }
@@ -369,8 +553,26 @@ const agregarComanda = async (data) => {
       plato.tiempos.en_espera = ahora;
     }
     
-    console.log(`FASE1: Plato ${index}: _id=${plato.plato}, id=${plato.platoId}, nombre=${platoCompleto?.nombre || 'N/A'}, Estado=${plato.estado}`);
+    console.log(`✅ Plato ${index}: ${platoCompleto.nombre} (id=${platoCompleto.id})`);
   }
+  
+  // ========== OBTENER DATOS DESNORMALIZADOS ==========
+  // Obtener mozoNombre, mesaNumero, areaNombre para guardar en el documento
+  const datosDesnormalizados = await obtenerDatosDesnormalizados(data.mesas, data.mozos);
+  
+  // Calcular totales de platos
+  const totalPlatos = data.platos.length;
+  const platosActivos = data.platos.filter(p => !p.eliminado && !p.anulado).length;
+  
+  // Añadir campos desnormalizados a data
+  data.mozoNombre = datosDesnormalizados.mozoNombre;
+  data.mesaNumero = datosDesnormalizados.mesaNumero;
+  data.areaNombre = datosDesnormalizados.areaNombre;
+  data.totalPlatos = totalPlatos;
+  data.platosActivos = platosActivos;
+  
+  console.log(`✅ [FASE A1] Datos desnormalizados: mozo="${data.mozoNombre}", mesa=${data.mesaNumero}, área="${data.areaNombre}"`);
+  // ========== FIN FASE A1 ==========
   
   // FASE 1: Calcular estado global inicial basado en estados de platos
   if (!data.status) {
@@ -1240,6 +1442,8 @@ const actualizarComanda = async (comandaId, newData) => {
 
 const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
   try {
+    console.log(`🔄 [cambiarEstadoPlato] Iniciando cambio de estado para comanda ${comandaId}, plato ${platoId} → ${nuevoEstado}`);
+    
     // FASE 5: Intentar obtener del cache primero (si está disponible)
     let comanda = null;
     try {
@@ -1252,7 +1456,10 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
     if (!comanda) {
       // Cache miss: obtener de MongoDB
       comanda = await comandaModel.findById(comandaId);
-      if (!comanda) throw new Error('Comanda no encontrada');
+      if (!comanda) {
+        console.error(`❌ [cambiarEstadoPlato] Comanda ${comandaId} no encontrada`);
+        throw new Error('Comanda no encontrada');
+      }
       
       // Guardar en cache (sin populate para ahorrar espacio) - opcional
       try {
@@ -1273,27 +1480,77 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
       await comanda.populate('mesas');
     }
 
-    // FASE 1: Buscar plato por ObjectId o id numérico
-    const platoIndex = comanda.platos.findIndex(p => 
-      p.plato.toString() === platoId.toString() || 
-      p.platoId?.toString() === platoId.toString()
+    // 🔥 FIX CRÍTICO: Buscar plato por PRIORIDAD para distinguir platos duplicados
+    // PRIORIDAD:
+    // 1. p._id (ObjectId del subdocumento) - ÚNICO por cada instancia de plato
+    // 2. p.platoId (ID numérico del plato)
+    // 3. p.plato (ObjectId del plato referenciado)
+    
+    let platoIndex = -1;
+    
+    // PRIORIDAD 1: Buscar por _id del subdocumento (ÚNICO - es la clave para platos duplicados)
+    platoIndex = comanda.platos.findIndex(p => 
+      p._id && p._id.toString() === platoId.toString()
     );
     
+    if (platoIndex !== -1) {
+      console.log(`✅ [cambiarEstadoPlato] Plato encontrado por _id de subdocumento (único): índice ${platoIndex}`);
+    } else {
+      // PRIORIDAD 2: Buscar por platoId numérico
+      platoIndex = comanda.platos.findIndex(p => 
+        p.platoId && p.platoId.toString() === platoId.toString()
+      );
+      
+      if (platoIndex !== -1) {
+        console.log(`✅ [cambiarEstadoPlato] Plato encontrado por platoId numérico: índice ${platoIndex}`);
+      } else {
+        // PRIORIDAD 3: Buscar por plato ObjectId (referencia al modelo)
+        platoIndex = comanda.platos.findIndex(p => 
+          p.plato && p.plato.toString() === platoId.toString()
+        );
+        
+        if (platoIndex !== -1) {
+          console.log(`✅ [cambiarEstadoPlato] Plato encontrado por plato ObjectId: índice ${platoIndex}`);
+        }
+      }
+    }
+    
     if (platoIndex === -1) {
-      throw new Error('Plato no encontrado en la comanda');
+      // Debug detallado para identificar el problema
+      console.error(`❌ [cambiarEstadoPlato] Plato NO encontrado`);
+      console.error(`   Buscado: ${platoId}`);
+      console.error(`   Platos disponibles en comanda:`);
+      comanda.platos.forEach((p, idx) => {
+        console.error(`   [${idx}] _id=${p._id?.toString()}, platoId=${p.platoId}, plato=${p.plato?.toString()}, estado=${p.estado}`);
+      });
+      
+      const error = new Error('Plato no encontrado en comanda');
+      error.status = 404;
+      error.platoId = platoId;
+      error.comandaId = comandaId;
+      throw error;
     }
     
     const plato = comanda.platos[platoIndex];
     const estadoActual = plato.estado || 'pedido';
     
-    // FASE 1: Validar transición de estado
-    if (!validarTransicionPlato(estadoActual, nuevoEstado)) {
-      const errorMsg = `FASE1: Transición inválida de estado: "${estadoActual}" → "${nuevoEstado}"`;
-      console.error(`❌ ${errorMsg}`);
-      throw new Error(errorMsg);
+    // Validación: Si el plato ya está en el estado destino, retornar éxito sin error
+    if (estadoActual === nuevoEstado) {
+      console.log(`ℹ️ [cambiarEstadoPlato] Plato ${platoId} ya está en estado "${nuevoEstado}" - Sin cambios necesarios`);
+      // Retornar la comanda sin modificar
+      return comanda;
     }
     
-    console.log(`FASE1: plato ${platoId} → estado ${nuevoEstado} (anterior: ${estadoActual})`);
+    // FASE 1: Validar transición de estado
+    if (!validarTransicionPlato(estadoActual, nuevoEstado)) {
+      const errorMsg = `Transición inválida de estado: "${estadoActual}" → "${nuevoEstado}". Estados permitidos desde "${estadoActual}": pedido/en_espera → recoger, recoger → entregado`;
+      console.error(`❌ [cambiarEstadoPlato] ${errorMsg}`);
+      const error = new Error(errorMsg);
+      error.status = 400;
+      throw error;
+    }
+    
+    console.log(`✅ [cambiarEstadoPlato] Plato ${platoId}: ${estadoActual} → ${nuevoEstado}`);
     
     // FASE 7: Actualización GRANULAR con MongoDB updateOne (solo el plato específico) + Auditoría
     const ahora = moment.tz("America/Lima").toDate();
@@ -1315,13 +1572,13 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
       motivo: null
     };
     
-    // Usar updateOne con $set específico para evitar sobrescribir otros campos
+    // Usar updateOne con índice explícito para mayor precisión
     await comandaModel.updateOne(
-      { _id: comandaId, "platos.plato": plato.plato },
+      { _id: comandaId },
       { 
         $set: { 
-          "platos.$.estado": nuevoEstado,
-          [`platos.$.tiempos.${nuevoEstado}`]: ahora,
+          [`platos.${platoIndex}.estado`]: nuevoEstado,
+          [`platos.${platoIndex}.tiempos.${nuevoEstado}`]: ahora,
           updatedAt: ahora
         },
         $push: { historialEstados: historialEntry }
@@ -1787,126 +2044,12 @@ const cambiarEstadoComanda = async (comandaId, nuevoEstado) => {
   }
 };
 
-const listarComandaPorFechaEntregado = async (fecha) => {
+const listarComandaPorFechaEntregado = async (fecha, usarProyeccion = true) => {
   try {
-    console.log('🔍 Buscando comandas para fecha:', fecha);
+    console.log('🔍 [FASE A1] Buscando comandas para fecha:', fecha);
+    const startTime = Date.now();
     
     // Convertir fecha string a rango de fechas (inicio y fin del día)
-    const moment = require('moment-timezone');
-    const fechaInicio = moment.tz(fecha, "YYYY-MM-DD", "America/Lima").startOf('day').toDate();
-    const fechaFin = moment.tz(fecha, "YYYY-MM-DD", "America/Lima").endOf('day').toDate();
-    
-    // También buscar por string de fecha para compatibilidad
-    const fechaString = moment.tz(fecha, "YYYY-MM-DD", "America/Lima").format('YYYY-MM-DD');
-    
-    console.log('📅 Rango de búsqueda:', {
-      desde: fechaInicio,
-      hasta: fechaFin,
-      fechaString: fechaString
-    });
-    
-    // Buscar comandas activas que no estén entregadas
-    // ✅ FILTRAR EXPLÍCITAMENTE comandas eliminadas (IsActive debe ser explícitamente true)
-    // Primero intentar búsqueda por rango de fechas
-    let data = await comandaModel.find({ 
-      createdAt: {
-        $gte: fechaInicio,
-        $lte: fechaFin
-      },
-      status: { $ne: "entregado" },
-      IsActive: true // ✅ SOLO comandas activas (IsActive debe ser explícitamente true)
-    })
-    .populate({
-      path: "mozos",
-    })
-    .populate({
-      path: "mesas",
-      populate: {
-        path: "area"
-      }
-    })
-    .populate({
-      path: "cliente"
-    })
-    .populate({
-      path: "platos.plato",
-      model: "platos"
-    })
-    .sort({ comandaNumber: -1 }); // Ordenar por número de comanda descendente
-    
-    // Si no se encuentran comandas, intentar búsqueda más amplia (sin filtro de fecha)
-    if (data.length === 0) {
-      console.log('⚠️ No se encontraron comandas con el filtro de fecha. Buscando todas las comandas activas...');
-      data = await comandaModel.find({ 
-        status: { $ne: "entregado" },
-        IsActive: true // ✅ SOLO comandas activas (IsActive debe ser explícitamente true)
-      })
-      .populate({
-        path: "mozos",
-      })
-      .populate({
-        path: "mesas",
-        populate: {
-          path: "area"
-        }
-      })
-      .populate({
-        path: "cliente"
-      })
-      .populate({
-        path: "platos.plato",
-        model: "platos"
-      })
-      .sort({ comandaNumber: -1 })
-      .limit(50); // Limitar a 50 para no sobrecargar
-      
-      console.log(`📊 Encontradas ${data.length} comandas activas (sin filtro de fecha)`);
-    }
-    
-    // Asegurar que los platos estén populados (fallback manual)
-    const dataConPlatos = await ensurePlatosPopulated(data);
-    
-    console.log(`✅ Encontradas ${dataConPlatos.length} comandas para la fecha ${fecha}`);
-    if (dataConPlatos.length > 0) {
-      const primeraComanda = dataConPlatos[0];
-      console.log('📋 Ejemplo de comanda:', {
-        _id: primeraComanda._id,
-        numero: primeraComanda.comandaNumber,
-        status: primeraComanda.status,
-        IsActive: primeraComanda.IsActive,
-        createdAt: primeraComanda.createdAt,
-        tipoCreatedAt: typeof primeraComanda.createdAt,
-        mesa: primeraComanda.mesas?.nummesa,
-        mozo: primeraComanda.mozos?.name,
-        platos: primeraComanda.platos?.length,
-        cantidades: primeraComanda.cantidades?.length,
-        primerPlato: primeraComanda.platos?.[0]?.plato?.nombre || 'N/A',
-        estadosPlatos: primeraComanda.platos?.map(p => p.estado) || []
-      });
-      
-      // Validar que los datos estén correctamente populados
-      if (primeraComanda.platos && primeraComanda.platos.length > 0) {
-        primeraComanda.platos.forEach((platoObj, index) => {
-          if (!platoObj.plato || !platoObj.plato.nombre) {
-            console.warn(`⚠️ Plato en índice ${index} no está correctamente populado:`, platoObj);
-          }
-        });
-      }
-    }
-    
-    return dataConPlatos;
-  } catch (error) {
-    console.error("❌ Error al listar la comanda por fecha:", error);
-    throw error;
-  }
-};
-
-const listarComandaPorFecha = async (fecha) => {
-  try {
-    console.log('🔍 Buscando comandas para fecha:', fecha);
-    
-    // Convertir fecha string a rango de fechas (inicio y fin del día)
-    const moment = require('moment-timezone');
     const fechaInicio = moment.tz(fecha, "YYYY-MM-DD", "America/Lima").startOf('day').toDate();
     const fechaFin = moment.tz(fecha, "YYYY-MM-DD", "America/Lima").endOf('day').toDate();
     
@@ -1915,57 +2058,216 @@ const listarComandaPorFecha = async (fecha) => {
       hasta: fechaFin
     });
     
-    const data = await comandaModel.find({ 
-      createdAt: {
-        $gte: fechaInicio,
-        $lte: fechaFin
-      },
+    // ==================== FASE A1: QUERY OPTIMIZADA ====================
+    // Usar índice idx_comanda_cocina_fecha
+    // Filtrar comandas activas que NO estén entregadas ni pagadas
+    let query = comandaModel.find({ 
+      createdAt: { $gte: fechaInicio, $lte: fechaFin },
+      status: { $nin: ["entregado", "pagado"] },
       IsActive: true
-    })
-    .populate({
-      path: "mozos",
-    })
-    .populate({
-      path: "mesas",
-      populate: {
-        path: "area"
-      }
-    })
-    .populate({
-      path: "cliente"
-    })
-    .populate({
-      path: "platos.plato",
-      model: "platos"
-    })
-    .sort({ comandaNumber: -1 });
+    });
     
-    // Asegurar que los platos estén populados (fallback manual)
-    const dataConPlatos = await ensurePlatosPopulated(data);
-    
-    console.log(`✅ Encontradas ${dataConPlatos.length} comandas para la fecha ${fecha}`);
-    if (dataConPlatos.length > 0) {
-      const primeraComanda = dataConPlatos[0];
-      console.log('📋 Ejemplo de comanda:', {
-        numero: primeraComanda.comandaNumber,
-        mesa: primeraComanda.mesas?.nummesa,
-        mozo: primeraComanda.mozos?.name,
-        platos: primeraComanda.platos?.length,
-        cantidades: primeraComanda.cantidades?.length,
-        primerPlato: primeraComanda.platos?.[0]?.plato?.nombre || 'N/A'
-      });
-      
-      // Validar que los datos estén correctamente populados
-      if (primeraComanda.platos && primeraComanda.platos.length > 0) {
-        primeraComanda.platos.forEach((platoObj, index) => {
-          if (!platoObj.plato || !platoObj.plato.nombre) {
-            console.warn(`⚠️ Plato en índice ${index} no está correctamente populado:`, platoObj);
-          }
-        });
-      }
+    // Aplicar proyección si está habilitada (reducir tamaño del documento)
+    if (usarProyeccion) {
+      query = query.select(PROYECCION_COCINA);
     }
     
-    return dataConPlatos;
+    // Ordenar por prioridad y fecha (usará índice)
+    query = query.sort({ prioridadOrden: -1, createdAt: -1, comandaNumber: -1 });
+    
+    // Usar lean() para obtener objetos planos (más rápido)
+    query = query.lean();
+    
+    // Populate MÍNIMO: solo campos necesarios para la UI
+    query = query.populate({
+      path: "mozos",
+      select: "name DNI",
+      options: { lean: true }
+    });
+    query = query.populate({
+      path: "mesas",
+      select: "nummesa estado area",
+      options: { lean: true },
+      populate: {
+        path: "area",
+        select: "nombre",
+        options: { lean: true }
+      }
+    });
+    // Solo nombre y precio del plato (no todo el documento)
+    query = query.populate({
+      path: "platos.plato",
+      select: "nombre precio categoria",
+      options: { lean: true }
+    });
+    
+    let data = await query.exec();
+    
+    // Si no se encuentran comandas, intentar búsqueda más amplia (sin filtro de fecha)
+    if (data.length === 0) {
+      console.log('⚠️ No se encontraron comandas con el filtro de fecha. Buscando últimas comandas activas...');
+      
+      let fallbackQuery = comandaModel.find({ 
+        status: { $nin: ["entregado", "pagado"] },
+        IsActive: true
+      });
+      
+      if (usarProyeccion) {
+        fallbackQuery = fallbackQuery.select(PROYECCION_COCINA);
+      }
+      
+      fallbackQuery = fallbackQuery
+        .sort({ prioridadOrden: -1, createdAt: -1 })
+        .limit(50)
+        .lean()
+        .populate({
+          path: "mozos",
+          select: "name DNI",
+          options: { lean: true }
+        })
+        .populate({
+          path: "mesas",
+          select: "nummesa estado area",
+          options: { lean: true },
+          populate: {
+            path: "area",
+            select: "nombre",
+            options: { lean: true }
+          }
+        })
+        .populate({
+          path: "platos.plato",
+          select: "nombre precio categoria",
+          options: { lean: true }
+        });
+      
+      data = await fallbackQuery.exec();
+      console.log(`📊 Encontradas ${data.length} comandas activas (sin filtro de fecha)`);
+    }
+    // ==================== FIN QUERY OPTIMIZADA ====================
+    
+    // Procesar comandas para usar campos desnormalizados o fallback a populate
+    const dataProcesada = data.map(comanda => {
+      // Usar campos desnormalizados si existen, sino usar populate
+      if (!comanda.mozoNombre && comanda.mozos?.name) {
+        comanda.mozoNombre = comanda.mozos.name;
+      }
+      if (!comanda.mesaNumero && comanda.mesas?.nummesa) {
+        comanda.mesaNumero = comanda.mesas.nummesa;
+      }
+      if (!comanda.areaNombre && comanda.mesas?.area?.nombre) {
+        comanda.areaNombre = comanda.mesas.area.nombre;
+      }
+      return comanda;
+    });
+    
+    const elapsedMs = Date.now() - startTime;
+    console.log(`✅ [FASE A1] Encontradas ${dataProcesada.length} comandas en ${elapsedMs}ms`);
+    
+    if (dataProcesada.length > 0) {
+      const primeraComanda = dataProcesada[0];
+      console.log('📋 Ejemplo de comanda:', {
+        _id: primeraComanda._id,
+        numero: primeraComanda.comandaNumber,
+        status: primeraComanda.status,
+        mesa: primeraComanda.mesaNumero || primeraComanda.mesas?.nummesa,
+        mozo: primeraComanda.mozoNombre || primeraComanda.mozos?.name,
+        platos: primeraComanda.platos?.length,
+        prioridad: primeraComanda.prioridadOrden
+      });
+    }
+    
+    return dataProcesada;
+  } catch (error) {
+    logger.error("Error al listar comandas por fecha (entregado)", {
+      fecha,
+      error: error.message,
+      stack: error.stack
+    });
+    throw error;
+  }
+};
+
+const listarComandaPorFecha = async (fecha, usarProyeccion = true) => {
+  try {
+    console.log('🔍 [FASE A1] Buscando comandas para fecha:', fecha);
+    const startTime = Date.now();
+    
+    // Convertir fecha string a rango de fechas (inicio y fin del día)
+    const fechaInicio = moment.tz(fecha, "YYYY-MM-DD", "America/Lima").startOf('day').toDate();
+    const fechaFin = moment.tz(fecha, "YYYY-MM-DD", "America/Lima").endOf('day').toDate();
+    
+    console.log('📅 Rango de búsqueda:', {
+      desde: fechaInicio,
+      hasta: fechaFin
+    });
+    
+    // ==================== FASE A1: QUERY OPTIMIZADA ====================
+    // Usar índice idx_comanda_fecha_general
+    let query = comandaModel.find({ 
+      createdAt: { $gte: fechaInicio, $lte: fechaFin },
+      IsActive: true
+    });
+    
+    // Aplicar proyección si está habilitada
+    if (usarProyeccion) {
+      query = query.select(PROYECCION_RESUMEN_MESA);
+    }
+    
+    query = query.sort({ createdAt: -1, comandaNumber: -1 }).lean();
+    
+    // Populate mínimo
+    query = query.populate({
+      path: "mozos",
+      select: "name DNI",
+      options: { lean: true }
+    });
+    query = query.populate({
+      path: "mesas",
+      select: "nummesa estado area",
+      options: { lean: true },
+      populate: {
+        path: "area",
+        select: "nombre",
+        options: { lean: true }
+      }
+    });
+    query = query.populate({
+      path: "platos.plato",
+      select: "nombre precio",
+      options: { lean: true }
+    });
+    
+    const data = await query.exec();
+    
+    // Procesar comandas para usar campos desnormalizados
+    const dataProcesada = data.map(comanda => {
+      if (!comanda.mozoNombre && comanda.mozos?.name) {
+        comanda.mozoNombre = comanda.mozos.name;
+      }
+      if (!comanda.mesaNumero && comanda.mesas?.nummesa) {
+        comanda.mesaNumero = comanda.mesas.nummesa;
+      }
+      if (!comanda.areaNombre && comanda.mesas?.area?.nombre) {
+        comanda.areaNombre = comanda.mesas.area.nombre;
+      }
+      return comanda;
+    });
+    
+    const elapsedMs = Date.now() - startTime;
+    console.log(`✅ [FASE A1] Encontradas ${dataProcesada.length} comandas para la fecha ${fecha} en ${elapsedMs}ms`);
+    
+    if (dataProcesada.length > 0) {
+      const primeraComanda = dataProcesada[0];
+      console.log('📋 Ejemplo de comanda:', {
+        numero: primeraComanda.comandaNumber,
+        mesa: primeraComanda.mesaNumero || primeraComanda.mesas?.nummesa,
+        mozo: primeraComanda.mozoNombre || primeraComanda.mozos?.name,
+        platos: primeraComanda.platos?.length
+      });
+    }
+    
+    return dataProcesada;
   } catch (error) {
     console.error("error al listar la comanda por fecha", error);
     throw error;
@@ -3142,5 +3444,11 @@ module.exports = {
   recalcularEstadoComandaPorPlatos,
   actualizarComandaSiTodosEntregados,
   anularPlato,
-  anularComandaCompleta
+  anularComandaCompleta,
+  // FASE A1: Nuevas funciones optimizadas
+  validarPlatosBatch,
+  obtenerDatosDesnormalizados,
+  PROYECCION_COCINA,
+  PROYECCION_RESUMEN_MESA,
+  PROYECCION_PAGOS
 };

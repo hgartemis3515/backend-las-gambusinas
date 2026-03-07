@@ -33,9 +33,24 @@ const platoSchema = new mongoose.Schema({
     }]
 });
 
-// Índices para queries por tipo y categoría
+// ========== FASE A1: ÍNDICES OPTIMIZADOS ==========
+// Índices existentes para queries por tipo y categoría
 platoSchema.index({ categoria: 1 });
 platoSchema.index({ tipo: 1, categoria: 1 });
+
+// ÍNDICE 1: Platos activos por tipo y categoría (menú - endpoint frecuente)
+// Query: platos para menú filtrados por isActive y tipo
+platoSchema.index(
+    { isActive: 1, tipo: 1, categoria: 1 },
+    { name: 'idx_plato_menu' }
+);
+
+// ÍNDICE 2: Búsqueda por nombre para autocompletado (activos primero)
+platoSchema.index(
+    { isActive: 1, nombreLower: 1 },
+    { name: 'idx_plato_nombre_search' }
+);
+// ========== FIN ÍNDICES FASE A1 ==========
 
 platoSchema.pre('save', function (next) {
     if (this.nombre != null) {
