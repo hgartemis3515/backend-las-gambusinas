@@ -129,7 +129,8 @@ tailwind.config = {
                   x-text="(c.visitas||0)>=10 ? 'VIP' : (c.visitas||0)>=5 ? 'Frecuente' : 'Registrado'"></span>
               </td>
               <td class="px-4 py-3 space-x-2 text-base">
-                <span class="cursor-pointer hover:text-gold" @click="openEditModal(c)">✏️</span>
+                <span class="cursor-pointer hover:text-gold transition" @click="openDetalleModal(c)" title="Ver detalle">👁️</span>
+                <span class="cursor-pointer hover:text-gold transition" @click="openEditModal(c)" title="Editar">✏️</span>
               </td>
             </tr>
           </template>
@@ -172,6 +173,159 @@ tailwind.config = {
   </div>
 </div>
 
+<!-- MODAL: DETALLE CLIENTE -->
+<div x-show="modalDetalle" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="modalDetalle=false">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[700px] max-h-[85vh] shadow-2xl overflow-hidden" @click.stop>
+    <!-- Header -->
+    <div class="bg-bg-sidebar p-5 flex items-center justify-between border-b border-[rgba(212,175,55,0.15)]">
+      <div>
+        <h2 class="text-lg font-bold" x-text="'Detalle Cliente: ' + (clienteDetalle?.nombre || 'Cargando...')"></h2>
+        <p class="text-xs text-txt-muted">Información completa y bouchers asociados</p>
+      </div>
+      <button @click="modalDetalle=false" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm hover:bg-gold/30 transition">✕</button>
+    </div>
+    
+    <!-- Loading state -->
+    <div x-show="loadingDetalle" class="p-12 flex items-center justify-center">
+      <div class="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+    </div>
+    
+    <!-- Content -->
+    <div x-show="!loadingDetalle && clienteDetalle" class="p-6 overflow-y-auto max-h-[calc(85vh-140px)]">
+      <!-- Info Grid -->
+      <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="bg-bg-sidebar/50 rounded-lg p-3">
+          <p class="text-[10px] text-txt-muted uppercase">ID</p>
+          <p class="text-sm font-medium" x-text="clienteDetalle?.clienteId || (clienteDetalle?._id?.slice(-6) || 'N/A')"></p>
+        </div>
+        <div class="bg-bg-sidebar/50 rounded-lg p-3">
+          <p class="text-[10px] text-txt-muted uppercase">Nombre</p>
+          <p class="text-sm font-medium" x-text="clienteDetalle?.nombre || '—'"></p>
+        </div>
+        <div class="bg-bg-sidebar/50 rounded-lg p-3">
+          <p class="text-[10px] text-txt-muted uppercase">DNI</p>
+          <p class="text-sm font-medium" x-text="clienteDetalle?.dni || '—'"></p>
+        </div>
+        <div class="bg-bg-sidebar/50 rounded-lg p-3">
+          <p class="text-[10px] text-txt-muted uppercase">Teléfono</p>
+          <p class="text-sm font-medium" x-text="clienteDetalle?.telefono || '—'"></p>
+        </div>
+        <div class="bg-bg-sidebar/50 rounded-lg p-3">
+          <p class="text-[10px] text-txt-muted uppercase">Email</p>
+          <p class="text-sm font-medium" x-text="clienteDetalle?.email || '—'"></p>
+        </div>
+        <div class="bg-bg-sidebar/50 rounded-lg p-3">
+          <p class="text-[10px] text-txt-muted uppercase">Tipo</p>
+          <span class="text-xs px-2 py-0.5 rounded-full font-semibold"
+            :class="clienteDetalle?.tipo === 'registrado' ? 'bg-st-preparado/20 text-st-preparado' : 'bg-gold/20 text-gold'"
+            x-text="clienteDetalle?.tipo === 'registrado' ? 'Registrado' : 'Invitado'"></span>
+        </div>
+        <div class="bg-bg-sidebar/50 rounded-lg p-3">
+          <p class="text-[10px] text-txt-muted uppercase">Total Consumido</p>
+          <p class="text-sm font-bold text-gold" x-text="'S/. ' + (clienteDetalle?.totalConsumido || 0).toLocaleString('es-PE', {minimumFractionDigits: 2})"></p>
+        </div>
+        <div class="bg-bg-sidebar/50 rounded-lg p-3">
+          <p class="text-[10px] text-txt-muted uppercase">Visitas</p>
+          <p class="text-sm font-bold" x-text="clienteDetalle?.visitas || 0"></p>
+        </div>
+      </div>
+      
+      <!-- Bouchers Section -->
+      <div class="mt-4">
+        <h3 class="text-sm font-semibold text-txt-secondary mb-3 flex items-center gap-2">
+          <span>🎫 Bouchers</span>
+          <span x-show="clienteDetalle?.bouchers?.length" class="text-xs bg-gold/20 text-gold px-2 py-0.5 rounded-full" x-text="clienteDetalle?.bouchers?.length || 0"></span>
+        </h3>
+        
+        <!-- No bouchers message -->
+        <div x-show="!clienteDetalle?.bouchers || clienteDetalle?.bouchers?.length === 0" class="text-center py-8 text-txt-muted text-sm">
+          <p class="text-2xl mb-2">📋</p>
+          <p>No hay bouchers registrados</p>
+        </div>
+        
+        <!-- Bouchers table -->
+        <div x-show="clienteDetalle?.bouchers?.length > 0" class="bg-bg-sidebar/30 rounded-xl overflow-hidden border border-[rgba(212,175,55,0.1)]">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="bg-bg-sidebar text-txt-muted text-[10px] uppercase">
+                <th class="text-left px-4 py-2 font-semibold">Código</th>
+                <th class="text-left px-4 py-2 font-semibold">N° Boucher</th>
+                <th class="text-left px-4 py-2 font-semibold">Fecha</th>
+                <th class="text-left px-4 py-2 font-semibold">Total</th>
+                <th class="text-left px-4 py-2 font-semibold">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="b in clienteDetalle?.bouchers" :key="b._id">
+                <tr class="border-b border-[rgba(212,175,55,0.08)] hover:bg-bg-sidebar/50 transition">
+                  <td class="px-4 py-2.5 font-medium text-gold" x-text="b.boucherNumber ? 'BOU-' + b.boucherNumber : (b._id?.slice(-6) || 'N/A')"></td>
+                  <td class="px-4 py-2.5 text-txt-secondary" x-text="'#' + (b.boucherNumber || b._id?.slice(-6) || 'N/A')"></td>
+                  <td class="px-4 py-2.5 text-txt-secondary" x-text="formatFecha(b.fechaPago || b.fechaUso)"></td>
+                  <td class="px-4 py-2.5 font-semibold" x-text="'S/. ' + (b.total || 0).toLocaleString('es-PE', {minimumFractionDigits: 2})"></td>
+                  <td class="px-4 py-2.5 space-x-2">
+                    <button @click="verBoucher(b._id)" class="text-xs px-2 py-1 bg-gold/20 text-gold rounded hover:bg-gold/30 transition">👁️ Ver</button>
+                    <button @click="imprimirBoucher(b._id)" class="text-xs px-2 py-1 bg-txt-muted/20 text-txt-secondary rounded hover:bg-txt-muted/30 transition">📄 PDF</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Footer -->
+    <div class="bg-bg-sidebar p-4 flex justify-end border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="modalDetalle=false" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: DETALLE BOUCHER -->
+<div x-show="modalBoucher" x-transition.opacity class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70" @click.self="modalBoucher=false">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[500px] max-h-[80vh] shadow-2xl overflow-hidden" @click.stop>
+    <div class="bg-bg-sidebar p-4 flex items-center justify-between border-b border-[rgba(212,175,55,0.15)]">
+      <h2 class="text-base font-bold" x-text="'Boucher #' + (boucherDetalle?.boucherNumber || boucherDetalle?._id?.slice(-6) || 'N/A')"></h2>
+      <button @click="modalBoucher=false" class="w-6 h-6 flex items-center justify-center rounded-full bg-gold-20 text-gold text-xs hover:bg-gold/30 transition">✕</button>
+    </div>
+    
+    <div x-show="boucherDetalle" class="p-5 overflow-y-auto max-h-[calc(80vh-120px)]">
+      <!-- Info del boucher -->
+      <div class="grid grid-cols-2 gap-3 mb-4 text-sm">
+        <div><span class="text-txt-muted">Mesa:</span> <span class="font-medium" x-text="boucherDetalle?.mesa?.nummesa || 'N/A'"></span></div>
+        <div><span class="text-txt-muted">Mozo:</span> <span class="font-medium" x-text="boucherDetalle?.mozo?.name || 'N/A'"></span></div>
+        <div><span class="text-txt-muted">Fecha:</span> <span class="font-medium" x-text="formatFecha(boucherDetalle?.fechaPago)"></span></div>
+        <div><span class="text-txt-muted">Método:</span> <span class="font-medium" x-text="boucherDetalle?.metodoPago || 'N/A'"></span></div>
+      </div>
+      
+      <!-- Platos -->
+      <div class="mb-4">
+        <h4 class="text-xs text-txt-muted uppercase mb-2">Platos</h4>
+        <div class="bg-bg-sidebar/50 rounded-lg p-3 space-y-2">
+          <template x-for="p in boucherDetalle?.platos" :key="p._id">
+            <div class="flex justify-between text-sm">
+              <span x-text="(p.plato?.nombre || 'Plato') + ' x' + (p.cantidad || 1)"></span>
+              <span class="text-txt-secondary" x-text="'S/. ' + ((p.precioUnitario || p.plato?.precio || 0) * (p.cantidad || 1)).toFixed(2)"></span>
+            </div>
+          </template>
+        </div>
+      </div>
+      
+      <!-- Totales -->
+      <div class="bg-bg-sidebar rounded-lg p-3 space-y-1 text-sm">
+        <div class="flex justify-between"><span class="text-txt-muted">Subtotal:</span> <span x-text="'S/. ' + (boucherDetalle?.subtotal || 0).toFixed(2)"></span></div>
+        <div class="flex justify-between"><span class="text-txt-muted">IGV (18%):</span> <span x-text="'S/. ' + (boucherDetalle?.igv || 0).toFixed(2)"></span></div>
+        <div class="flex justify-between font-bold text-gold text-base pt-1 border-t border-gold/20"><span>Total:</span> <span x-text="'S/. ' + (boucherDetalle?.total || 0).toFixed(2)"></span></div>
+      </div>
+    </div>
+    
+    <div class="bg-bg-sidebar p-3 flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="imprimirBoucher(boucherDetalle?._id)" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">🖨️ Imprimir</button>
+      <button @click="modalBoucher=false" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST CONTAINER -->
 <div id="toast-container" class="fixed bottom-6 right-6 z-[9999] space-y-2"></div>
 
@@ -181,6 +335,11 @@ function clientesApp() {
   return {
     sidebarOpen: true,
     modal: null,
+    modalDetalle: false,
+    loadingDetalle: false,
+    clienteDetalle: null,
+    modalBoucher: false,
+    boucherDetalle: null,
     loading: true,
     clientes: [],
     filteredClientes: [],
@@ -237,8 +396,8 @@ function clientesApp() {
         dni: c.dni || c.DNI || '—',
         telefono: c.telefono || c.tel || c.phoneNumber || '—',
         email: c.email || '',
-        visitas: c.visitas || c.totalVisitas || 0,
-        gastoTotal: c.gastoTotal || c.totalGastado || c.gasto || 0,
+        visitas: c.visitas ?? c.totalVisitas ?? 0,
+        gastoTotal: c.totalConsumido ?? c.gastoTotal ?? c.totalGastado ?? c.gasto ?? 0,
         tipo: c.tipo || c.tipoCliente || 'registrado'
       };
     },
@@ -354,6 +513,110 @@ function clientesApp() {
       t.textContent = msg;
       container.appendChild(t);
       setTimeout(() => t.remove(), 3000);
+    },
+    
+    formatFecha(fecha) {
+      if (!fecha) return '—';
+      return new Date(fecha).toLocaleDateString('es-PE', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    },
+    
+    async openDetalleModal(cliente) {
+      this.loadingDetalle = true;
+      this.modalDetalle = true;
+      this.clienteDetalle = null;
+      
+      const data = await apiGet('/clientes/' + cliente._id);
+      if (data && !data.error) {
+        this.clienteDetalle = data;
+      } else {
+        this.showToast('Error al cargar detalle del cliente', 'error');
+        this.modalDetalle = false;
+      }
+      
+      this.loadingDetalle = false;
+    },
+    
+    async verBoucher(boucherId) {
+      const data = await apiGet('/boucher/' + boucherId);
+      if (data && !data.error) {
+        this.boucherDetalle = data;
+        this.modalBoucher = true;
+      } else {
+        this.showToast('Error al cargar el boucher', 'error');
+      }
+    },
+    
+    async imprimirBoucher(boucherId) {
+      const data = await apiGet('/boucher/' + boucherId);
+      if (data && !data.error) {
+        const b = data;
+        const platosHTML = b.platos?.map(p => `
+          <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">${p.plato?.nombre || 'Plato'}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${p.cantidad || 1}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">S/. ${(p.precioUnitario || p.plato?.precio || 0).toFixed(2)}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">S/. ${((p.precioUnitario || p.plato?.precio || 0) * (p.cantidad || 1)).toFixed(2)}</td>
+          </tr>
+        `).join('') || '';
+        
+        const printContent = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Boucher #${b.boucherNumber || b._id?.slice(-6)}</title>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 20px; max-width: 400px; margin: 0 auto; }
+              .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #d4af37; padding-bottom: 15px; }
+              .logo { font-size: 24px; font-weight: bold; color: #d4af37; }
+              .info { margin-bottom: 15px; }
+              .info-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 12px; }
+              table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 12px; }
+              th { background: #f5f5f5; padding: 8px; text-align: left; }
+              .totals { margin-top: 15px; padding-top: 10px; border-top: 2px dashed #ccc; }
+              .total-row { display: flex; justify-content: space-between; padding: 3px 0; }
+              .grand-total { font-weight: bold; font-size: 16px; color: #d4af37; }
+              .footer { text-align: center; margin-top: 20px; font-size: 10px; color: #888; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div class="logo">Las Gambusinas</div>
+              <div style="font-size: 12px; color: #666;">Boucher #${b.boucherNumber || b._id?.slice(-6)}</div>
+            </div>
+            <div class="info">
+              <div class="info-row"><span>Fecha:</span><span>${new Date(b.fechaPago).toLocaleString('es-PE')}</span></div>
+              <div class="info-row"><span>Mesa:</span><span>${b.mesa?.nummesa || 'N/A'}</span></div>
+              <div class="info-row"><span>Mozo:</span><span>${b.mozo?.name || 'N/A'}</span></div>
+              <div class="info-row"><span>Método:</span><span>${b.metodoPago || 'N/A'}</span></div>
+            </div>
+            <table>
+              <thead><tr><th>Producto</th><th>Cant.</th><th>P.U.</th><th>Total</th></tr></thead>
+              <tbody>${platosHTML}</tbody>
+            </table>
+            <div class="totals">
+              <div class="total-row"><span>Subtotal:</span><span>S/. ${(b.subtotal || 0).toFixed(2)}</span></div>
+              <div class="total-row"><span>IGV (18%):</span><span>S/. ${(b.igv || 0).toFixed(2)}</span></div>
+              <div class="total-row grand-total"><span>TOTAL:</span><span>S/. ${(b.total || 0).toFixed(2)}</span></div>
+            </div>
+            <div class="footer">
+              <p>¡Gracias por su visita!</p>
+              <p>Las Gambusinas - Restaurante</p>
+            </div>
+          </body>
+          </html>
+        `;
+        
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        printWindow.print();
+      } else {
+        this.showToast('Error al cargar el boucher para imprimir', 'error');
+      }
     },
     
     logout() {
