@@ -133,11 +133,12 @@ const crearBoucher = async (data) => {
         // Usar la utilidad centralizada para calcular IGV y totales
         const totales = calculosPrecios.calcularTotales(data.subtotal || 0, configMoneda);
         
-        if (!data.igv) {
+        // FIX: Usar == null para no sobreescribir 0 válido (descuento 100%)
+        if (data.igv == null) {
             data.igv = totales.igv;
         }
-        
-        if (!data.total) {
+
+        if (data.total == null) {
             data.total = totales.total;
         }
         

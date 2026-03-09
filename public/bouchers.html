@@ -108,7 +108,7 @@ tailwind.config = {
               <td class="px-4 py-3 text-txt-secondary" x-text="b.fecha || (b.fechaPago ? new Date(b.fechaPago).toLocaleString('es-PE') : (b.createdAt ? new Date(b.createdAt).toLocaleString('es-PE') : '—'))"></td>
               <td class="px-4 py-3 text-txt-secondary" x-text="b.mozo?.name || b.mozo?.nombre || b.nombreMozo || '—'"></td>
               <td class="px-4 py-3" x-text="'Mesa ' + (b.mesa?.nummesa || b.mesa?.numMesa || b.numMesa || b.mesa || '—')"></td>
-              <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. ' + (b.total || 0)"></td>
+              <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. ' + Number(b.montoDescuento > 0 ? (b.totalConDescuento != null ? b.totalConDescuento : b.total) : (b.total || 0)).toFixed(2)"></td>
               <td class="px-4 py-3">
                 <span class="text-xs px-2 py-0.5 rounded-full"
                   :class="b.metodoPago === 'Efectivo' || b.metodo === 'Efectivo' ? 'bg-st-preparado/20 text-st-preparado' : b.metodoPago === 'Tarjeta' || b.metodo === 'Tarjeta' ? 'bg-st-pedido/20 text-st-pedido' : 'bg-st-reservado/20 text-st-reservado'"
@@ -164,13 +164,25 @@ tailwind.config = {
               <span class="text-[#2ecc71]">Propina</span>
               <span class="text-[#2ecc71] font-medium" x-text="'S/. ' + Number(selectedBoucher?.propina || 0).toFixed(2)"></span>
             </div>
-            <div x-show="selectedBoucher?.descuento > 0" class="flex justify-between">
-              <span class="text-[#ff4757]">Descuento</span>
-              <span class="text-[#ff4757] font-medium" x-text="'- S/. ' + Number(selectedBoucher?.descuento || 0).toFixed(2)"></span>
-            </div>
+            <!-- Sección de descuentos -->
+            <template x-if="selectedBoucher?.montoDescuento > 0 || (selectedBoucher?.descuentos && selectedBoucher.descuentos.length > 0)">
+              <div class="py-2 border-t border-b border-[rgba(212,175,55,0.15)] my-1">
+                <p class="text-[#d4af37] text-xs font-semibold mb-1">🎁 Descuento Aplicado</p>
+                <template x-for="(desc, idx) in (selectedBoucher?.descuentos || [])" :key="idx">
+                  <div class="flex justify-between text-xs">
+                    <span class="text-[#d4af37]" x-text="desc.porcentaje + '%' + (desc.motivo ? ' - ' + desc.motivo : '')"></span>
+                    <span class="text-[#d4af37] font-medium" x-text="'- S/. ' + Number(desc.monto || 0).toFixed(2)"></span>
+                  </div>
+                </template>
+                <div x-show="selectedBoucher?.montoDescuento > 0" class="flex justify-between text-xs font-semibold mt-1">
+                  <span class="text-[#2ecc71]">Ahorro Total</span>
+                  <span class="text-[#2ecc71]" x-text="'- S/. ' + Number(selectedBoucher?.montoDescuento || 0).toFixed(2)"></span>
+                </div>
+              </div>
+            </template>
             <div class="flex justify-between pt-2 border-t border-[rgba(212,175,55,0.2)]">
-              <span class="font-bold text-base">TOTAL</span>
-              <span class="text-[#d4af37] font-bold text-2xl" x-text="'S/. ' + Number(selectedBoucher?.total || 0).toFixed(2)"></span>
+              <span class="font-bold text-base" x-text="selectedBoucher?.montoDescuento > 0 ? 'TOTAL FINAL' : 'TOTAL'"></span>
+              <span class="text-[#d4af37] font-bold text-2xl" x-text="'S/. ' + Number(selectedBoucher?.montoDescuento > 0 ? (selectedBoucher.totalConDescuento != null ? selectedBoucher.totalConDescuento : selectedBoucher.total) : (selectedBoucher?.total || 0)).toFixed(2)"></span>
             </div>
           </div>
           <div class="text-right space-y-3 text-xs text-[#5a5a7a] min-w-[120px]">
@@ -304,13 +316,19 @@ function bouchersApp() {
       else if (data && data.data) raw = data.data;
       
       // Normalizar campos
-      this.bouchers = raw.map(b => ({
-        ...b,
-        numero: b.boucherNumber || b.numero || b.numBoucher,
-        mesa: b.mesa || { numMesa: b.numMesa },
-        mozo: b.mozo || { nombre: b.nombreMozo },
-        fecha: b.fechaPago ? new Date(b.fechaPago).toLocaleString('es-PE') : b.fecha,
-      }));
+      this.bouchers = raw.map(b => {
+        // FIX: Limpiar totalConDescuento=0 heredado del default viejo en bouchers sin descuento real
+        const tieneDescuentoReal = (b.montoDescuento > 0) || (b.descuentos && b.descuentos.length > 0);
+        return {
+          ...b,
+          numero: b.boucherNumber || b.numero || b.numBoucher,
+          mesa: b.mesa || { numMesa: b.numMesa },
+          mozo: b.mozo || { nombre: b.nombreMozo },
+          fecha: b.fechaPago ? new Date(b.fechaPago).toLocaleString('es-PE') : b.fecha,
+          // Si no tiene descuento real, ignorar totalConDescuento (puede ser 0 por default viejo)
+          totalConDescuento: tieneDescuentoReal ? b.totalConDescuento : null,
+        };
+      });
       
       // Extraer mozos unicos
       this.extraerMozosUnicos();
@@ -384,10 +402,18 @@ function bouchersApp() {
       const items = voucher?.platos || [];
       const fecha = voucher?.fechaPago ? new Date(voucher.fechaPago) : new Date();
       
-      // Calcular subtotal si no viene
-      const total = Number(voucher?.total || 0);
-      const subtotal = voucher?.subtotal || (total / 1.18);
-      const igv = voucher?.igv || (total - subtotal);
+      // Calcular totales
+      const totalSinDescuento = Number(voucher?.totalSinDescuento || voucher?.total || 0);
+      const montoDescuento = Number(voucher?.montoDescuento || 0);
+      // FIX: Usar totalConDescuento solo si hay descuento real (montoDescuento > 0)
+      const tieneDescuentoReal = Number(voucher?.montoDescuento || 0) > 0;
+      const total = Number(tieneDescuentoReal && voucher?.totalConDescuento != null ? voucher.totalConDescuento : (voucher?.total || 0));
+      const subtotal = Number(voucher?.subtotal || 0);
+      const igv = Number(voucher?.igv || 0);
+      
+      // Información de descuentos
+      const descuentos = voucher?.descuentos || [];
+      const tieneDescuento = montoDescuento > 0 || descuentos.length > 0;
       
       const html = `
 <!DOCTYPE html>
@@ -461,8 +487,17 @@ function bouchersApp() {
       <tr><td>Subtotal:</td><td class="right">S/. ${subtotal.toFixed(2)}</td></tr>
       <tr><td>IGV (18%):</td><td class="right">S/. ${igv.toFixed(2)}</td></tr>
       ${voucher?.propina ? `<tr><td>Propina:</td><td class="right">S/. ${Number(voucher.propina).toFixed(2)}</td></tr>` : ''}
-      ${voucher?.descuento ? `<tr><td>Descuento:</td><td class="right">- S/. ${Number(voucher.descuento).toFixed(2)}</td></tr>` : ''}
-      <tr style="font-size:16px;"><td><strong>TOTAL:</strong></td><td class="right"><strong>S/. ${total.toFixed(2)}</strong></td></tr>
+      ${tieneDescuento ? `
+        <tr style="color:#d4af37;"><td colspan="2" style="padding-top:5px;border-top:1px dashed #ddd;">─ Descuento aplicado ─</td></tr>
+        ${descuentos.map(d => `
+          <tr style="color:#d4af37;font-size:10px;">
+            <td>Desc. ${d.porcentaje}%${d.motivo ? ` (${d.motivo.substring(0,20)}${d.motivo.length > 20 ? '...' : ''})` : ''}:</td>
+            <td class="right">- S/. ${Number(d.monto || montoDescuento).toFixed(2)}</td>
+          </tr>
+        `).join('')}
+        <tr style="color:#d4af37;"><td>Ahorro total:</td><td class="right">- S/. ${montoDescuento.toFixed(2)}</td></tr>
+      ` : ''}
+      <tr style="font-size:16px;border-top:2px solid #333;padding-top:5px;"><td><strong>TOTAL${tieneDescuento ? ' FINAL' : ''}:</strong></td><td class="right"><strong>S/. ${total.toFixed(2)}</strong></td></tr>
     </table>
   </div>
   

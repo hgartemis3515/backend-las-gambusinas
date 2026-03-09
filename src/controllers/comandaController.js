@@ -2,6 +2,8 @@ const express = require('express');
 
 const router = express.Router();
 
+const mongoose = require('mongoose');
+
 const { 
   listarComanda, 
   agregarComanda, 
@@ -21,7 +23,8 @@ const {
   ensurePlatosPopulated,
   marcarPlatoComoEntregado,
   anularPlato,
-  anularComandaCompleta
+  anularComandaCompleta,
+  aplicarDescuento
 } = require('../repository/comanda.repository');
 
 const { registrarAuditoria } = require('../middleware/auditoria');
@@ -1691,8 +1694,14 @@ router.get('/comanda/comandas-para-pagar/:mesaId', async (req, res) => {
     // FILTRADO EXACTO según diagrama
     const comandas = await getComandasParaPagar(mesaId);
     
-    // Calcular total pendiente (solo platos no eliminados)
+    // 🔥 CORREGIDO: Calcular total pendiente considerando descuentos
+    // Si la comanda tiene descuento, usar totalCalculado (ya tiene el descuento aplicado)
     const totalPendiente = comandas.reduce((sum, c) => {
+      // Si la comanda tiene descuento aplicado, usar totalCalculado (puede ser 0 para 100%)
+      if (c.descuento > 0 && c.totalCalculado != null) {
+        return sum + c.totalCalculado;
+      }
+      // Si no tiene descuento, calcular normalmente
       return sum + c.platos.reduce((s, p, i) => {
         if (!p.eliminado) {
           const cantidad = c.cantidades?.[i] || 1;
@@ -2301,6 +2310,281 @@ router.put('/comanda/:id/anular-todo', async (req, res) => {
         
         const statusCode = error.statusCode || 400;
         res.status(statusCode).json({ message: error.message });
+    }
+});
+
+/**
+ * ✅ NUEVO ENDPOINT: Aplicar descuento a una comanda
+ * PUT /api/comanda/:id/descuento
+ * Solo usuarios con rol 'admin' o 'supervisor' pueden aplicar descuentos
+ * Body: { descuento: number (0-100), motivo: string, usuarioId: string, usuarioRol: string }
+ */
+router.put('/comanda/:id/descuento', async (req, res) => {
+    const { id } = req.params;
+    const { descuento, motivo, usuarioId, usuarioRol } = req.body;
+    const sourceApp = req.body.sourceApp || req.headers['x-source-app'] || 'api';
+    const deviceId = req.body.deviceId || req.headers['x-device-id'] || null;
+
+    try {
+        // Validar que el ID sea válido
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'ID de comanda inválido' });
+        }
+
+        // Obtener snapshot antes del descuento para auditoría
+        const comandaAntes = await comandaModel.findById(id)
+            .populate('platos.plato')
+            .populate('mozos')
+            .populate('mesas')
+            .lean();
+
+        if (!comandaAntes) {
+            return res.status(404).json({ message: 'Comanda no encontrada' });
+        }
+
+        // Calcular total antes del descuento
+        let totalAntes = 0;
+        for (let i = 0; i < comandaAntes.platos.length; i++) {
+            const platoItem = comandaAntes.platos[i];
+            if (platoItem.eliminado || platoItem.anulado) continue;
+            const cantidad = comandaAntes.cantidades?.[i] || 1;
+            const precio = platoItem.plato?.precio || 0;
+            totalAntes += precio * cantidad;
+        }
+
+        // Aplicar descuento
+        const resultado = await aplicarDescuento(id, descuento, motivo, usuarioId, usuarioRol);
+
+        // Registrar auditoría
+        req.auditoria = {
+            accion: 'DESCUENTO_COMANDA',
+            entidadId: id,
+            entidadTipo: 'comanda',
+            usuario: usuarioId,
+            mesaId: resultado.comanda.mesas?._id || resultado.comanda.mesas,
+            comandaId: id,
+            motivo: motivo || 'Sin motivo especificado',
+            descuento: descuento,
+            comandaNumber: resultado.comanda.comandaNumber,
+            ip: req.ip,
+            deviceId: deviceId,
+            metadata: {
+                descuentoPorcentaje: descuento,
+                motivoDescuento: motivo,
+                totalAntes: totalAntes,
+                totalDespues: resultado.descuentoAplicado.totalCalculado,
+                montoAhorro: resultado.descuentoAplicado.montoDescuento,
+                aplicadoPor: usuarioId,
+                rolUsuario: usuarioRol,
+                sourceApp
+            }
+        };
+
+        const snapshotAntes = {
+            comandaNumber: comandaAntes.comandaNumber,
+            total: totalAntes,
+            descuento: comandaAntes.descuento || 0
+        };
+
+        const snapshotDespues = {
+            comandaNumber: resultado.comanda.comandaNumber,
+            total: resultado.descuentoAplicado.totalCalculado,
+            descuento: descuento,
+            motivoDescuento: motivo,
+            montoDescuento: resultado.descuentoAplicado.montoDescuento
+        };
+
+        await registrarAuditoria(req, snapshotAntes, snapshotDespues, motivo || 'Descuento aplicado');
+
+        // Emitir evento Socket.io
+        if (global.emitComandaActualizada) {
+            await global.emitComandaActualizada(id);
+        }
+
+        logger.info(`✅ Descuento aplicado a comanda`, {
+            comandaId: id,
+            comandaNumber: resultado.comanda.comandaNumber,
+            descuento: descuento,
+            motivo: motivo?.substring(0, 50),
+            usuarioId,
+            usuarioRol,
+            totalAntes,
+            totalDespues: resultado.descuentoAplicado.totalCalculado
+        });
+
+        res.json({
+            message: 'Descuento aplicado exitosamente',
+            comanda: resultado.comanda,
+            descuentoAplicado: resultado.descuentoAplicado
+        });
+
+    } catch (error) {
+        logger.error('Error en PUT /comanda/:id/descuento', {
+            id,
+            error: error.message,
+            stack: error.stack
+        });
+        
+        const statusCode = error.statusCode || 400;
+        res.status(statusCode).json({ 
+            message: error.message,
+            error: 'ERROR_DESCUENTO'
+        });
+    }
+});
+
+/**
+ * ✅ NUEVO ENDPOINT: Eliminar descuento de una comanda
+ * DELETE /api/comanda/:id/descuento
+ * Solo usuarios con rol 'admin' o 'supervisor' pueden eliminar descuentos
+ * Body: { usuarioId: string, usuarioRol: string, motivoEliminacion: string }
+ */
+router.delete('/comanda/:id/descuento', async (req, res) => {
+    const { id } = req.params;
+    const { usuarioId, usuarioRol, motivoEliminacion } = req.body;
+    const sourceApp = req.body.sourceApp || req.headers['x-source-app'] || 'api';
+    const deviceId = req.body.deviceId || req.headers['x-device-id'] || null;
+
+    try {
+        // Validar que el ID sea válido
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'ID de comanda inválido' });
+        }
+
+        // Validar rol
+        const rolesPermitidos = ['admin', 'supervisor'];
+        if (!rolesPermitidos.includes(usuarioRol)) {
+            return res.status(403).json({ 
+                message: `No autorizado. Solo usuarios con rol 'admin' o 'supervisor' pueden eliminar descuentos.` 
+            });
+        }
+
+        // Obtener comanda
+        const comanda = await comandaModel.findById(id)
+            .populate('platos.plato')
+            .populate('mozos')
+            .populate('mesas');
+
+        if (!comanda) {
+            return res.status(404).json({ message: 'Comanda no encontrada' });
+        }
+
+        // Verificar que tenga descuento
+        if (!comanda.descuento || comanda.descuento === 0) {
+            return res.status(400).json({ message: 'Esta comanda no tiene descuento aplicado' });
+        }
+
+        // Validar que la comanda no esté pagada
+        if (comanda.status === 'pagado') {
+            return res.status(400).json({ message: 'No se puede eliminar descuento de una comanda ya pagada' });
+        }
+
+        // Guardar valores para auditoría
+        const descuentoAnterior = comanda.descuento;
+        const motivoAnterior = comanda.motivoDescuento;
+        const montoDescuentoAnterior = comanda.montoDescuento;
+
+        // Calcular nuevo total sin descuento
+        let subtotalActual = 0;
+        for (let i = 0; i < comanda.platos.length; i++) {
+            const platoItem = comanda.platos[i];
+            if (platoItem.eliminado || platoItem.anulado) continue;
+            const cantidad = comanda.cantidades?.[i] || 1;
+            const precio = platoItem.plato?.precio || platoItem.precio || 0;
+            subtotalActual += precio * cantidad;
+        }
+
+        const igvPorcentaje = 0.18;
+        const nuevoTotal = subtotalActual * (1 + igvPorcentaje);
+
+        // Eliminar descuento
+        comanda.descuento = 0;
+        comanda.motivoDescuento = null;
+        comanda.descuentoAplicadoPor = null;
+        comanda.descuentoAplicadoAt = null;
+        comanda.montoDescuento = 0;
+        comanda.totalSinDescuento = nuevoTotal;
+        comanda.totalCalculado = nuevoTotal;
+        comanda.precioTotal = subtotalActual;
+        comanda.version = (comanda.version || 1) + 1;
+        comanda.updatedAt = require('moment-timezone')().tz("America/Lima").toDate();
+
+        await comanda.save();
+
+        // Registrar auditoría
+        req.auditoria = {
+            accion: 'ELIMINAR_DESCUENTO_COMANDA',
+            entidadId: id,
+            entidadTipo: 'comanda',
+            usuario: usuarioId,
+            mesaId: comanda.mesas?._id || comanda.mesas,
+            comandaId: id,
+            comandaNumber: comanda.comandaNumber,
+            motivo: motivoEliminacion || 'Descuento eliminado',
+            ip: req.ip,
+            deviceId: deviceId,
+            metadata: {
+                descuentoEliminado: descuentoAnterior,
+                motivoDescuentoAnterior: motivoAnterior,
+                montoDescuentoAnterior: montoDescuentoAnterior,
+                nuevoTotal: nuevoTotal,
+                aplicadoPor: usuarioId,
+                rolUsuario: usuarioRol,
+                sourceApp
+            }
+        };
+
+        const snapshotAntes = {
+            comandaNumber: comanda.comandaNumber,
+            descuentoEliminado: descuentoAnterior,
+            motivoDescuento: motivoAnterior,
+            montoDescuento: montoDescuentoAnterior
+        };
+
+        const snapshotDespues = {
+            comandaNumber: comanda.comandaNumber,
+            descuento: 0,
+            nuevoTotal: nuevoTotal
+        };
+
+        await registrarAuditoria(req, snapshotAntes, snapshotDespues, motivoEliminacion || 'Descuento eliminado');
+
+        // Emitir evento Socket.io
+        if (global.emitComandaActualizada) {
+            await global.emitComandaActualizada(id);
+        }
+
+        logger.info(`✅ Descuento eliminado de comanda`, {
+            comandaId: id,
+            comandaNumber: comanda.comandaNumber,
+            descuentoAnterior,
+            nuevoTotal,
+            usuarioId,
+            usuarioRol
+        });
+
+        res.json({
+            message: 'Descuento eliminado exitosamente',
+            comanda: comanda.toObject(),
+            descuentoEliminado: {
+                porcentaje: descuentoAnterior,
+                motivo: motivoAnterior,
+                monto: montoDescuentoAnterior
+            }
+        });
+
+    } catch (error) {
+        logger.error('Error en DELETE /comanda/:id/descuento', {
+            id,
+            error: error.message,
+            stack: error.stack
+        });
+        
+        const statusCode = error.statusCode || 400;
+        res.status(statusCode).json({ 
+            message: error.message,
+            error: 'ERROR_ELIMINAR_DESCUENTO'
+        });
     }
 });
 

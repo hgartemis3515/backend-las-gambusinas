@@ -265,7 +265,47 @@ const comandaSchema = new mongoose.Schema({
         type: Number,
         default: 0,
         index: true
+    },
+    // ========== DESCUENTOS: Campos para gestión de descuentos (solo admin/supervisor) ==========
+    descuento: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 100,
+        validate: {
+            validator: function(v) {
+                return Number.isInteger(v) && v >= 0 && v <= 100;
+            },
+            message: 'El descuento debe ser un número entero entre 0 y 100'
+        }
+    },
+    motivoDescuento: {
+        type: String,
+        default: null
+    },
+    descuentoAplicadoPor: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'mozos',
+        default: null
+    },
+    descuentoAplicadoAt: {
+        type: Date,
+        default: null
+    },
+    totalCalculado: {
+        type: Number,
+        default: 0,
+        index: true
+    },
+    totalSinDescuento: {
+        type: Number,
+        default: 0
+    },
+    montoDescuento: {
+        type: Number,
+        default: 0
     }
+    // ========== FIN DESCUENTOS ==========
 }, { setDefaultsOnInsert: true });
 
 // ========== FASE A1: ÍNDICES COMPUESTOS OPTIMIZADOS (Patrón ESR: Equality-Sort-Range) ==========
@@ -356,6 +396,45 @@ comandaSchema.pre('save', async function (next) {
             // Si es nueva comanda, también establecer precioTotalOriginal
             if (this.isNew && !this.precioTotalOriginal) {
                 this.precioTotalOriginal = precioTotal;
+            }
+            
+            // 🔥 IMPORTANTE: Recalcular totalCalculado si hay descuento aplicado
+            // Esto asegura que al agregar nuevos platos, el descuento persista sobre el nuevo total
+            if (this.descuento > 0) {
+                // Calcular precioTotalSinEliminar (solo platos activos)
+                let precioTotalSinEliminar = 0;
+                for (let i = 0; i < this.platos.length; i++) {
+                    const platoItem = this.platos[i];
+                    if (!platoItem.eliminado && !platoItem.anulado) {
+                        const cantidad = this.cantidades[i] || 1;
+                        let precio = 0;
+                        if (platoItem.plato && typeof platoItem.plato === 'object' && platoItem.plato.precio) {
+                            precio = platoItem.plato.precio;
+                        } else if (platoItem.plato) {
+                            const plato = await platoModel.findById(platoItem.plato);
+                            if (plato && plato.precio) {
+                                precio = plato.precio;
+                            }
+                        }
+                        precioTotalSinEliminar += precio * cantidad;
+                    }
+                }
+                
+                const igvPorcentaje = 0.18;
+                const subtotalSinDescuento = precioTotalSinEliminar;
+                const montoDescuento = subtotalSinDescuento * (this.descuento / 100);
+                const subtotalConDescuento = subtotalSinDescuento - montoDescuento;
+                const igvConDescuento = subtotalConDescuento * igvPorcentaje;
+                
+                this.totalSinDescuento = subtotalSinDescuento * (1 + igvPorcentaje);
+                this.montoDescuento = montoDescuento;
+                this.totalCalculado = subtotalConDescuento + igvConDescuento;
+                
+                console.log(`💰 [pre-save] Recalculando totales con descuento ${this.descuento}%:`, {
+                    subtotalSinDescuento,
+                    montoDescuento,
+                    totalCalculado: this.totalCalculado
+                });
             }
         } catch (error) {
             // Si hay error al calcular, continuar sin precioTotal

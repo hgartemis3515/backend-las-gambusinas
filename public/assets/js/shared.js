@@ -363,17 +363,22 @@ async function apiPut(endpoint, body) {
   }
 }
 
-async function apiDelete(endpoint) {
+async function apiDelete(endpoint, body) {
   const token = getToken();
   if (!token) {
     clearAuthAndRedirect();
     return null;
   }
   try {
-    const res = await fetch('/api' + endpoint, {
+    const options = {
       method: 'DELETE',
       headers: { 'Authorization': 'Bearer ' + token }
-    });
+    };
+    if (body) {
+      options.headers['Content-Type'] = 'application/json';
+      options.body = JSON.stringify(body);
+    }
+    const res = await fetch('/api' + endpoint, options);
     if (res.status === 401) {
       clearAuthAndRedirect();
       return null;

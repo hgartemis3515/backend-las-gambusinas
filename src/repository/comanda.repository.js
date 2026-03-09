@@ -12,6 +12,8 @@ const mongoose = require('mongoose');
 
 // FASE 5: Redis Cache para comandas activas
 const redisCache = require('../utils/redisCache');
+const calculosPrecios = require('../utils/calculosPrecios');
+const configuracionRepository = require('./configuracion.repository');
 
 const DATA_DIR = path.join(__dirname, '../../data');
 
@@ -3418,6 +3420,153 @@ const anularComandaCompleta = async (comandaId, motivo, observaciones, usuarioId
   }
 };
 
+/**
+ * 🔥 NUEVA FUNCIÓN: Aplicar descuento a una comanda
+ * Solo usuarios con rol 'admin' o 'supervisor' pueden aplicar descuentos
+ * @param {string} comandaId - ID de la comanda
+ * @param {number} descuento - Porcentaje de descuento (0-100)
+ * @param {string} motivo - Motivo del descuento (requerido si descuento > 0)
+ * @param {string} usuarioId - ID del usuario que aplica el descuento
+ * @param {string} usuarioRol - Rol del usuario para validación
+ * @returns {Object} Comanda actualizada con descuento aplicado
+ */
+const aplicarDescuento = async (comandaId, descuento, motivo, usuarioId, usuarioRol) => {
+  const logPrefix = '💰 [aplicarDescuento]';
+  
+  try {
+    // 1. Validar rol del usuario
+    const rolesPermitidos = ['admin', 'supervisor'];
+    if (!rolesPermitidos.includes(usuarioRol)) {
+      const error = new Error(`No autorizado. Solo usuarios con rol 'admin' o 'supervisor' pueden aplicar descuentos. Tu rol: ${usuarioRol}`);
+      error.statusCode = 403;
+      throw error;
+    }
+
+    // 2. Validar que el descuento esté en rango válido
+    const descuentoNum = Number(descuento);
+    if (isNaN(descuentoNum) || descuentoNum < 0 || descuentoNum > 100 || !Number.isInteger(descuentoNum)) {
+      const error = new Error('El descuento debe ser un número entero entre 0 y 100');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // 3. Validar motivo obligatorio si hay descuento
+    if (descuentoNum > 0 && (!motivo || motivo.trim().length < 3)) {
+      const error = new Error('El motivo del descuento es obligatorio (mínimo 3 caracteres)');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // 4. Buscar la comanda
+    const comanda = await comandaModel.findById(comandaId)
+      .populate('platos.plato')
+      .populate('mozos')
+      .populate('mesas');
+
+    if (!comanda) {
+      const error = new Error('Comanda no encontrada');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // 5. Validar que la comanda no esté pagada
+    if (comanda.status === 'pagado') {
+      const error = new Error('No se puede aplicar descuento a una comanda ya pagada');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // 6. Calcular el subtotal actual de la comanda (platos activos)
+    let subtotalActual = 0;
+
+    for (let i = 0; i < comanda.platos.length; i++) {
+      const platoItem = comanda.platos[i];
+      // Solo contar platos no eliminados ni anulados
+      if (platoItem.eliminado || platoItem.anulado) continue;
+
+      const cantidad = comanda.cantidades?.[i] || 1;
+      const precio = platoItem.plato?.precio || platoItem.precio || 0;
+      subtotalActual += precio * cantidad;
+    }
+
+    // 7. Calcular totales usando calculosPrecios (respeta preciosIncluyenIGV)
+    const configMoneda = await configuracionRepository.obtenerConfiguracionMoneda();
+    const totalesOriginales = calculosPrecios.calcularTotales(subtotalActual, configMoneda);
+    const totalSinDescuento = totalesOriginales.total;
+    const subtotalSinIGV = totalesOriginales.subtotalSinIGV;
+
+    // Aplicar descuento al subtotal sin IGV, luego recalcular IGV
+    const subtotalConDescuento = subtotalSinIGV * (1 - descuentoNum / 100);
+    const totalesConDescuento = calculosPrecios.calcularTotales(
+      configMoneda.preciosIncluyenIGV ? subtotalConDescuento * (1 + configMoneda.igvPorcentaje / 100) : subtotalConDescuento,
+      configMoneda
+    );
+    const totalCalculado = descuentoNum === 100 ? 0 : totalesConDescuento.total;
+    // montoDescuento = ahorro TOTAL (subtotal + IGV), no solo subtotal
+    const montoDescuento = Number((totalSinDescuento - totalCalculado).toFixed(2));
+    const igvConDescuento = descuentoNum === 100 ? 0 : totalesConDescuento.igv;
+
+    // 8. Guardar valores anteriores para auditoría
+    const valoresAnteriores = {
+      descuento: comanda.descuento || 0,
+      motivoDescuento: comanda.motivoDescuento,
+      totalCalculado: comanda.totalCalculado != null ? comanda.totalCalculado : totalSinDescuento,
+      precioTotal: comanda.precioTotal || subtotalActual
+    };
+
+    // 9. Actualizar la comanda
+    comanda.descuento = descuentoNum;
+    comanda.motivoDescuento = descuentoNum > 0 ? motivo.trim() : null;
+    comanda.descuentoAplicadoPor = validarUsuarioId(usuarioId);
+    comanda.descuentoAplicadoAt = descuentoNum > 0 ? moment.tz("America/Lima").toDate() : null;
+    comanda.totalSinDescuento = totalSinDescuento;
+    comanda.montoDescuento = montoDescuento;
+    comanda.totalCalculado = totalCalculado;
+    comanda.precioTotal = subtotalConDescuento; // Actualizar precioTotal para consistencia
+    comanda.version = (comanda.version || 1) + 1;
+    comanda.updatedAt = moment.tz("America/Lima").toDate();
+
+    await comanda.save();
+
+    // 10. Obtener comanda completa actualizada
+    const comandaActualizada = await comandaModel.findById(comandaId)
+      .populate('mozos', 'name DNI rol')
+      .populate({ path: 'mesas', populate: { path: 'area' } })
+      .populate('cliente')
+      .populate('platos.plato');
+
+    logger.info(`${logPrefix} Descuento aplicado exitosamente`, {
+      comandaId,
+      comandaNumber: comanda.comandaNumber,
+      descuento: descuentoNum,
+      motivo: motivo?.substring(0, 50),
+      totalAnterior: valoresAnteriores.totalCalculado,
+      totalNuevo: totalCalculado,
+      montoAhorro: totalSinDescuento - totalCalculado,
+      aplicadoPor: usuarioId
+    });
+
+    return {
+      comanda: comandaActualizada,
+      descuentoAplicado: {
+        porcentaje: descuentoNum,
+        motivo: motivo?.trim(),
+        totalSinDescuento: Number(totalSinDescuento.toFixed(2)),
+        montoDescuento: Number(montoDescuento.toFixed(2)),
+        igv: Number(igvConDescuento.toFixed(2)),
+        totalCalculado: Number(totalCalculado.toFixed(2)),
+        aplicadoPor: comandaActualizada.descuentoAplicadoPor,
+        aplicadoAt: comanda.descuentoAplicadoAt
+      },
+      valoresAnteriores,
+      usuarioRol
+    };
+  } catch (error) {
+    logger.error(`${logPrefix} Error:`, { error: error.message, stack: error.stack });
+    throw error;
+  }
+};
+
 module.exports = { 
   listarComanda, 
   agregarComanda, 
@@ -3445,6 +3594,7 @@ module.exports = {
   actualizarComandaSiTodosEntregados,
   anularPlato,
   anularComandaCompleta,
+  aplicarDescuento,
   // FASE A1: Nuevas funciones optimizadas
   validarPlatosBatch,
   obtenerDatosDesnormalizados,

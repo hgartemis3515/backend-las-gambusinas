@@ -98,6 +98,29 @@ const boucherSchema = new mongoose.Schema({
         required: true,
         default: 0
     },
+    // 🔥 CAMPOS DE DESCUENTO
+    descuentos: [{
+        comandaNumber: { type: Number },
+        porcentaje: { type: Number, default: 0 },
+        motivo: { type: String },
+        monto: { type: Number, default: 0 },
+        aplicadoPor: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'mozos'
+        }
+    }],
+    totalSinDescuento: {
+        type: Number,
+        default: null
+    },
+    montoDescuento: {
+        type: Number,
+        default: null
+    },
+    totalConDescuento: {
+        type: Number,
+        default: null
+    },
     // Snapshot de configuración de IGV para auditoría
     configuracionIGV: {
         igvPorcentaje: { type: Number, default: 18 },
@@ -152,11 +175,12 @@ boucherSchema.pre('save', async function (next) {
         // Calcular IGV y totales usando la configuración
         const totales = calculosPrecios.calcularTotales(this.subtotal || 0, configMoneda);
         
-        if (!this.igv) {
+        // FIX: Usar == null para no sobreescribir 0 válido (descuento 100%)
+        if (this.igv == null) {
             this.igv = totales.igv;
         }
-        
-        if (!this.total) {
+
+        if (this.total == null) {
             this.total = totales.total;
         }
         
@@ -170,11 +194,11 @@ boucherSchema.pre('save', async function (next) {
         // Fallback si falla la obtención de configuración
         console.error('Error en pre-save boucher:', error.message);
         
-        // Usar valores por defecto
-        if (!this.igv && this.subtotal) {
+        // Usar valores por defecto (== null para no sobreescribir 0 válido)
+        if (this.igv == null && this.subtotal) {
             this.igv = this.subtotal * 0.18;
         }
-        if (!this.total && this.subtotal) {
+        if (this.total == null && this.subtotal) {
             this.total = this.subtotal + (this.igv || this.subtotal * 0.18);
         }
         if (this.fechaPago && !this.fechaPagoString) {

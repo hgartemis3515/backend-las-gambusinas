@@ -27,6 +27,7 @@ const PERMISOS_FUNDAMENTALES = {
     'ver-reportes': { nombre: 'Ver Reportes', grupo: 'Backend/Dashboard', descripcion: 'Acceder a reportes y estadísticas' },
     'cierre-caja': { nombre: 'Cierre de Caja', grupo: 'Backend/Dashboard', descripcion: 'Realizar cierre de caja diario' },
     'ver-notificaciones': { nombre: 'Ver Notificaciones', grupo: 'Backend/Dashboard', descripcion: 'Acceder al centro de notificaciones' },
+    'aplicar-descuentos': { nombre: 'Aplicar Descuentos', grupo: 'Backend/Dashboard', descripcion: 'Aplicar descuentos a comandas (admin/supervisor)' },
     
     // App Mozos
     'crear-comandas': { nombre: 'Crear Comandas', grupo: 'App Mozos', descripcion: 'Crear nuevas comandas en App Mozos' },
@@ -48,7 +49,7 @@ const PERMISOS_POR_ROL_SISTEMA = {
         'ver-mesas', 'editar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas',
         'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria', 'ver-reportes',
         'cierre-caja', 'ver-notificaciones', 'crear-comandas', 'editar-comandas',
-        'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina'
+        'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina', 'aplicar-descuentos'
     ],
     cocinero: [
         'ver-platos', 'ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas'

@@ -62,7 +62,7 @@ router.post('/boucher', async (req, res) => {
         // Validar que se proporcionen los datos requeridos
         if (!mesaId || !mozoId || !comandasIds || !Array.isArray(comandasIds) || comandasIds.length === 0) {
             return res.status(400).json({ 
-                message: 'Datos incompletos: se requiere mesaId, mozoId y comandasIds (array no vacío)' 
+                message: 'Datos incompletos: se requiere mesaId, mozoId y comandasIds (array no vacío)'
             });
         }
         
@@ -71,7 +71,22 @@ router.post('/boucher', async (req, res) => {
         
         // Extraer platos SOLO de las comandas validadas
         const platosParaBoucher = [];
+        let totalDescuentos = 0;
+        const descuentos = [];
+        
         comandasValidas.forEach((comanda) => {
+            // 🔥 NUEVO: Recopilar información de descuentos
+            if (comanda.descuento > 0) {
+                totalDescuentos += comanda.montoDescuento || 0;
+                descuentos.push({
+                    comandaNumber: comanda.comandaNumber || null,
+                    porcentaje: comanda.descuento,
+                    motivo: comanda.motivoDescuento || 'Sin motivo',
+                    monto: comanda.montoDescuento || 0,
+                    aplicadoPor: comanda.descuentoAplicadoPor || null
+                });
+            }
+            
             if (comanda.platos && Array.isArray(comanda.platos)) {
                 comanda.platos.forEach((platoItem, index) => {
                     // Solo incluir platos no eliminados
@@ -98,7 +113,7 @@ router.post('/boucher', async (req, res) => {
         
         if (platosParaBoucher.length === 0) {
             return res.status(400).json({ 
-                message: 'No hay platos válidos para crear el boucher' 
+                message: 'No hay platos válidos para crear el boucher'
             });
         }
         
@@ -110,6 +125,36 @@ router.post('/boucher', async (req, res) => {
         
         // Calcular IGV y total usando la utilidad centralizada
         const totales = calculosPrecios.calcularTotales(subtotal, configMoneda);
+        
+        // 🔥 FIX: Calcular totales con descuento usando totalCalculado de las comandas
+        const totalSinDescuento = totales.total;
+        let totalConDescuento;
+        let montoDescuento;
+
+        // Si hay descuentos, sumar totalCalculado de cada comanda (fuente de verdad del backend)
+        const comandasConDescuento = comandasValidas.filter(c => c.descuento > 0);
+        if (comandasConDescuento.length > 0) {
+            // Sumar totalCalculado de comandas con descuento + subtotal normal de las sin descuento
+            const totalDesdeComandas = comandasValidas.reduce((sum, c) => {
+                if (c.descuento > 0 && c.totalCalculado != null) {
+                    return sum + c.totalCalculado;
+                }
+                // Sin descuento: calcular normalmente
+                return sum + (c.platos || []).reduce((s, p, i) => {
+                    if (!p.eliminado) {
+                        const precio = (p.plato?.precio || p.precio || 0);
+                        const cant = c.cantidades?.[i] || 1;
+                        return s + (precio * cant);
+                    }
+                    return s;
+                }, 0) * (1 + (configMoneda.igvPorcentaje || 18) / 100);
+            }, 0);
+            totalConDescuento = Math.max(0, Number(totalDesdeComandas.toFixed(2)));
+            montoDescuento = Number((totalSinDescuento - totalConDescuento).toFixed(2));
+        } else {
+            montoDescuento = 0;
+            totalConDescuento = totalSinDescuento;
+        }
         
         // Obtener información de la mesa y mozo desde la primera comanda
         const primeraComanda = comandasValidas[0];
@@ -128,7 +173,11 @@ router.post('/boucher', async (req, res) => {
             platos: platosParaBoucher,
             subtotal: totales.subtotalSinIGV,
             igv: totales.igv,
-            total: totales.total,
+            total: totalConDescuento, // 🔥 Total con descuento aplicado
+            totalSinDescuento: totalSinDescuento,
+            montoDescuento: montoDescuento,
+            totalConDescuento: totalConDescuento,
+            descuentos: descuentos,
             observaciones: observaciones || '',
             fechaPago: new Date(),
             fechaPagoString: require('moment-timezone')().tz(configMoneda.zonaHoraria || "America/Lima").format("DD/MM/YYYY HH:mm:ss"),
@@ -160,6 +209,9 @@ router.post('/boucher', async (req, res) => {
         res.json(boucherCreado);
         console.log('✅ Boucher creado exitosamente con', comandasIds.length, 'comanda(s)');
         console.log(`💰 IGV aplicado: ${configMoneda.igvPorcentaje}%, Total: ${totales.total}`);
+        if (descuentos.length > 0) {
+            console.log(`💰 Descuentos aplicados: ${descuentos.length}, Total descuento: S/. ${montoDescuento.toFixed(2)}`);
+        }
     } catch (error) {
         console.error(error.message);
         const statusCode = error.statusCode || 400;
