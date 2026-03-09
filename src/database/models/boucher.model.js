@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const moment = require('moment-timezone');
 const AutoIncrement = require('mongoose-sequence')(mongoose);
+const calculosPrecios = require('../../utils/calculosPrecios');
 
 const boucherSchema = new mongoose.Schema({
     boucherNumber: {
@@ -97,6 +98,14 @@ const boucherSchema = new mongoose.Schema({
         required: true,
         default: 0
     },
+    // Snapshot de configuración de IGV para auditoría
+    configuracionIGV: {
+        igvPorcentaje: { type: Number, default: 18 },
+        preciosIncluyenIGV: { type: Boolean, default: false },
+        nombreImpuesto: { type: String, default: 'IGV' },
+        moneda: { type: String, default: 'PEN' },
+        simboloMoneda: { type: String, default: 'S/.' }
+    },
     observaciones: String,
     fechaPago: {
         type: Date,
@@ -119,30 +128,61 @@ const boucherSchema = new mongoose.Schema({
 boucherSchema.plugin(AutoIncrement, { inc_field: 'boucherNumber' });
 
 // Pre-save hook para calcular totales y formatear fecha
-boucherSchema.pre('save', function (next) {
-    // Calcular subtotal si no está definido
-    if (!this.subtotal && this.platos && this.platos.length > 0) {
-        this.subtotal = this.platos.reduce((sum, plato) => {
-            return sum + (plato.subtotal || (plato.precio * plato.cantidad));
-        }, 0);
+boucherSchema.pre('save', async function (next) {
+    try {
+        // Calcular subtotal si no está definido
+        if (!this.subtotal && this.platos && this.platos.length > 0) {
+            this.subtotal = this.platos.reduce((sum, plato) => {
+                return sum + (plato.subtotal || (plato.precio * plato.cantidad));
+            }, 0);
+        }
+        
+        // Obtener configuración de IGV desde la utilidad centralizada
+        const configMoneda = await calculosPrecios.getConfigMonedaCached();
+        
+        // Guardar snapshot de configuración para auditoría
+        this.configuracionIGV = {
+            igvPorcentaje: configMoneda.igvPorcentaje,
+            preciosIncluyenIGV: configMoneda.preciosIncluyenIGV,
+            nombreImpuesto: configMoneda.nombreImpuestoPrincipal || 'IGV',
+            moneda: configMoneda.moneda,
+            simboloMoneda: configMoneda.simboloMoneda
+        };
+        
+        // Calcular IGV y totales usando la configuración
+        const totales = calculosPrecios.calcularTotales(this.subtotal || 0, configMoneda);
+        
+        if (!this.igv) {
+            this.igv = totales.igv;
+        }
+        
+        if (!this.total) {
+            this.total = totales.total;
+        }
+        
+        // Formatear fecha de pago
+        if (this.fechaPago && !this.fechaPagoString) {
+            this.fechaPagoString = moment(this.fechaPago).tz("America/Lima").format("DD/MM/YYYY HH:mm:ss");
+        }
+        
+        next();
+    } catch (error) {
+        // Fallback si falla la obtención de configuración
+        console.error('Error en pre-save boucher:', error.message);
+        
+        // Usar valores por defecto
+        if (!this.igv && this.subtotal) {
+            this.igv = this.subtotal * 0.18;
+        }
+        if (!this.total && this.subtotal) {
+            this.total = this.subtotal + (this.igv || this.subtotal * 0.18);
+        }
+        if (this.fechaPago && !this.fechaPagoString) {
+            this.fechaPagoString = moment(this.fechaPago).tz("America/Lima").format("DD/MM/YYYY HH:mm:ss");
+        }
+        
+        next();
     }
-    
-    // Calcular IGV (18%)
-    if (!this.igv && this.subtotal) {
-        this.igv = this.subtotal * 0.18;
-    }
-    
-    // Calcular total
-    if (!this.total && this.subtotal) {
-        this.total = this.subtotal + (this.igv || this.subtotal * 0.18);
-    }
-    
-    // Formatear fecha de pago
-    if (this.fechaPago && !this.fechaPagoString) {
-        this.fechaPagoString = moment(this.fechaPago).tz("America/Lima").format("DD/MM/YYYY HH:mm:ss");
-    }
-    
-    next();
 });
 
 // Especificar el nombre de la colección explícitamente como 'boucher'

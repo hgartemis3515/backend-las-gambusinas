@@ -9,6 +9,8 @@ const {
     eliminarBoucher,
     obtenerBoucherPorMesa
 } = require('../repository/boucher.repository');
+const configuracionRepository = require('../repository/configuracion.repository');
+const calculosPrecios = require('../utils/calculosPrecios');
 
 const { validarComandasParaPagar } = require('../repository/comanda.repository');
 const comandaModel = require('../database/models/comanda.model');
@@ -100,10 +102,14 @@ router.post('/boucher', async (req, res) => {
             });
         }
         
-        // Calcular totales
+        // Obtener configuración de moneda y precios
+        const configMoneda = await configuracionRepository.obtenerConfiguracionMoneda();
+        
+        // Calcular subtotal
         const subtotal = platosParaBoucher.reduce((sum, p) => sum + (p.subtotal || 0), 0);
-        const igv = subtotal * 0.18;
-        const total = subtotal + igv;
+        
+        // Calcular IGV y total usando la utilidad centralizada
+        const totales = calculosPrecios.calcularTotales(subtotal, configMoneda);
         
         // Obtener información de la mesa y mozo desde la primera comanda
         const primeraComanda = comandasValidas[0];
@@ -120,12 +126,20 @@ router.post('/boucher', async (req, res) => {
             comandas: comandasIds,
             comandasNumbers: comandasValidas.map(c => c.comandaNumber).filter(n => n != null),
             platos: platosParaBoucher,
-            subtotal: subtotal,
-            igv: igv,
-            total: total,
+            subtotal: totales.subtotalSinIGV,
+            igv: totales.igv,
+            total: totales.total,
             observaciones: observaciones || '',
             fechaPago: new Date(),
-            fechaPagoString: require('moment-timezone')().tz("America/Lima").format("DD/MM/YYYY HH:mm:ss")
+            fechaPagoString: require('moment-timezone')().tz(configMoneda.zonaHoraria || "America/Lima").format("DD/MM/YYYY HH:mm:ss"),
+            // Snapshot de configuración para auditoría
+            configuracionIGV: {
+                igvPorcentaje: configMoneda.igvPorcentaje,
+                preciosIncluyenIGV: configMoneda.preciosIncluyenIGV,
+                nombreImpuesto: configMoneda.nombreImpuestoPrincipal || 'IGV',
+                moneda: configMoneda.moneda,
+                simboloMoneda: configMoneda.simboloMoneda
+            }
         };
         
         // Crear boucher
@@ -145,6 +159,7 @@ router.post('/boucher', async (req, res) => {
         
         res.json(boucherCreado);
         console.log('✅ Boucher creado exitosamente con', comandasIds.length, 'comanda(s)');
+        console.log(`💰 IGV aplicado: ${configMoneda.igvPorcentaje}%, Total: ${totales.total}`);
     } catch (error) {
         console.error(error.message);
         const statusCode = error.statusCode || 400;

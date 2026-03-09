@@ -142,6 +142,12 @@ tailwind.config = {
         <!-- MONEDA Y PRECIOS -->
         <div x-show="cfgTab==='moneda'" class="p-6 space-y-6">
           <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Moneda y Precios</h3>
+          
+          <!-- Aviso importante -->
+          <div class="bg-gold-20 border border-gold/30 rounded-lg p-4 mb-4">
+            <p class="text-xs text-gold">💡 Los cambios en IGV y política de precios afectarán todos los nuevos bouchers y comandas. Los bouchers ya emitidos mantienen su configuración original.</p>
+          </div>
+          
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="text-xs text-txt-secondary mb-1 block">Moneda</label>
@@ -153,26 +159,110 @@ tailwind.config = {
             </div>
             <div>
               <label class="text-xs text-txt-secondary mb-1 block">Símbolo</label>
-              <input type="text" x-model="config.simboloMoneda" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+              <input type="text" x-model="config.simboloMoneda" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none" placeholder="S/.">
             </div>
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="text-xs text-txt-secondary mb-1 block">Decimales</label>
               <select x-model="config.decimales" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
-                <option value="2">2 decimales</option>
                 <option value="0">Sin decimales</option>
+                <option value="1">1 decimal</option>
+                <option value="2">2 decimales</option>
+                <option value="3">3 decimales</option>
+                <option value="4">4 decimales</option>
               </select>
             </div>
             <div>
-              <label class="text-xs text-txt-secondary mb-1 block">IGV (%)</label>
-              <input type="number" x-model="config.igvPorcentaje" step="0.01" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+              <label class="text-xs text-txt-secondary mb-1 block">Posición del símbolo</label>
+              <select x-model="config.posicionSimbolo" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                <option value="antes">Antes del monto (S/. 100.00)</option>
+                <option value="despues">Después del monto (100.00 S/.)</option>
+              </select>
             </div>
           </div>
-          <label class="flex items-center gap-3 cursor-pointer">
-            <input type="checkbox" x-model="config.igvIncluido" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
-            <span class="text-sm text-txt-secondary">Precios ya incluyen IGV</span>
-          </label>
+          
+          <div class="border-t border-[rgba(212,175,55,0.15)] pt-4">
+            <h4 class="text-sm font-semibold text-txt-secondary mb-3">Impuesto Principal</h4>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Nombre del impuesto</label>
+                <input type="text" x-model="config.nombreImpuestoPrincipal" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none" placeholder="IGV, IVA, Tax...">
+              </div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Porcentaje (%)</label>
+                <input type="number" x-model="config.igvPorcentaje" step="0.01" min="0" max="100" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-st-libre/10 border border-st-libre/30 rounded-lg p-4">
+            <label class="flex items-start gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.preciosIncluyenIGV" class="w-4 h-4 mt-1 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <div>
+                <span class="text-sm text-txt-primary font-medium">Los precios ya incluyen IGV</span>
+                <p class="text-xs text-txt-secondary mt-1">Activa esta opción si los precios de tus productos ya tienen el IGV incluido. El sistema calculará automáticamente el desglose.</p>
+              </div>
+            </label>
+          </div>
+          
+          <div class="border-t border-[rgba(212,175,55,0.15)] pt-4">
+            <h4 class="text-sm font-semibold text-txt-secondary mb-3">Política de Redondeo</h4>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Tipo de redondeo</label>
+                <select x-model="config.politicaRedondeo" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                  <option value="total">Solo en el total</option>
+                  <option value="linea">Por cada línea</option>
+                  <option value="banco-peru">Redondeo bancario</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Redondear a</label>
+                <select x-model="config.redondearA" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                  <option value="0.01">0.01 (centavos)</option>
+                  <option value="0.05">0.05 (5 centavos)</option>
+                  <option value="0.1">0.10 (10 centavos)</option>
+                  <option value="1">1.00 (unidad)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <div class="border-t border-[rgba(212,175,55,0.15)] pt-4">
+            <h4 class="text-sm font-semibold text-txt-secondary mb-3">Cargo de Servicio (Opcional)</h4>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Porcentaje (%)</label>
+                <input type="number" x-model="config.cargoServicioPorcentaje" step="1" min="0" max="100" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+              </div>
+              <div class="flex items-end">
+                <label class="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" x-model="config.cargoServicioActivo" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+                  <span class="text-sm text-txt-secondary">Activar cargo automático</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Vista previa -->
+          <div class="border-t border-[rgba(212,175,55,0.15)] pt-4">
+            <h4 class="text-sm font-semibold text-txt-secondary mb-3">Vista Previa</h4>
+            <div class="bg-bg-sidebar rounded-lg p-4 font-mono text-sm">
+              <div class="flex justify-between mb-1">
+                <span class="text-txt-secondary">Subtotal:</span>
+                <span x-text="`${config.simboloMoneda} 100.00`"></span>
+              </div>
+              <div class="flex justify-between mb-1">
+                <span class="text-txt-secondary" x-text="`${config.nombreImpuestoPrincipal || 'IGV'} (${config.igvPorcentaje}%):`"></span>
+                <span x-text="`${config.simboloMoneda} ${(100 * config.igvPorcentaje / 100).toFixed(config.decimales || 2)}`"></span>
+              </div>
+              <div class="flex justify-between pt-2 border-t border-[rgba(255,255,255,0.1)]">
+                <span class="text-txt-primary font-bold">Total:</span>
+                <span class="text-gold font-bold" x-text="`${config.simboloMoneda} ${(100 * (1 + config.igvPorcentaje / 100)).toFixed(config.decimales || 2)}`"></span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- MESAS Y ÁREAS -->
@@ -519,27 +609,73 @@ function configApp() {
       horaCierre: '23:00',
       zonaHoraria: 'America/Lima',
       idioma: 'es',
-      // Moneda
+      // Moneda y Precios
       moneda: 'PEN',
       simboloMoneda: 'S/.',
       decimales: 2,
+      posicionSimbolo: 'antes',
       igvPorcentaje: 18,
-      igvIncluido: false,
-      // Mesas
-      alertaEsperaMin: 15,
-      autoLiberacionMin: 0,
-      permitirReservas: true,
-      duracionMaxReserva: 2,
-      capacidadPorDefecto: 4,
-      // Cocina
-      alertaAmarillaMin: 10,
-      alertaRojaMin: 20,
-      sonidoNotif: true,
-      volumenNotif: 80,
-      autoImpresion: false,
-      impresoraDefault: '',
-      mostrarComplementos: true,
-      // Pagos
+      preciosIncluyenIGV: false,
+      nombreImpuestoPrincipal: 'IGV',
+      politicaRedondeo: 'total',
+      redondearA: 0.01,
+      // Cargo de servicio
+      cargoServicioActivo: false,
+      cargoServicioPorcentaje: 10,
+      // Modo de precios
+      modoPrecios: 'unico',
+      // Metodos de pago
+      metodosPago: {
+        efectivo: { activo: true, requiereReferencia: false },
+        tarjeta: { activo: true, requiereReferencia: true },
+        yape: { activo: true, requiereReferencia: true },
+        plin: { activo: true, requiereReferencia: true },
+        transferencia: { activo: false, requiereReferencia: true }
+      },
+      // Propinas
+      propinas: {
+        habilitadas: true,
+        sugerida: 10,
+        obligatoria: false
+      },
+      // Descuentos
+      descuentos: {
+        habilitados: true,
+        maximoSinAutorizacion: 15
+      },
+      // Numeracion
+      numeracion: {
+        prefijoVoucher: '',
+        serieBoleta: 'B001',
+        serieFactura: 'F001',
+        numeracionAutomatica: true
+      },
+      // Tickets
+      tickets: {
+        mostrarIGVDesglosado: true,
+        mensajePie: 'Gracias por su visita',
+        mostrarComplementos: true
+      },
+      // Horarios
+      horarios: {
+        horaApertura: '08:00',
+        horaCierre: '23:00'
+      },
+      // Seguridad
+      seguridad: {
+        timeoutInactividadMin: 30,
+        sesionesSimultaneas: 3,
+        requiere2FA: false,
+        auditoriaExtendida: true
+      },
+      // Cierre de caja
+      cierreCaja: {
+        bloquearSinCierreAnterior: false,
+        requerirEfectivoInicial: true,
+        cierreAutomatico: false,
+        horaCierreAutomatico: '23:59'
+      },
+      // Legacy (para compatibilidad con UI)
       metodoEfectivo: true,
       metodoTarjeta: true,
       metodoYape: true,
@@ -548,18 +684,9 @@ function configApp() {
       propinaSugeridaPct: 10,
       descuentosHabilitados: true,
       descuentoMaxPct: 15,
-      prefijoVoucher: 'BCH-001',
+      prefijoVoucher: '',
+      serieComprobantes: 'B001',
       numeracionAuto: true,
-      serieComprobantes: '',
-      // Notificaciones
-      pushHabilitado: true,
-      emailAlertas: false,
-      alertaMesaAbandonada: 30,
-      stockBajoAlerta: true,
-      stockMinimoAlerta: 5,
-      notifNuevasComandas: true,
-      notifComandasListas: true,
-      // Cierre de Caja
       cierreAutomatico: false,
       horaCierreAuto: '23:59',
       validacionAdmin: true,
@@ -567,20 +694,17 @@ function configApp() {
       exportAutoExcel: false,
       emailReportes: '',
       desgloseComplementos: true,
-      // Seguridad
-      sesionesSimultaneas: '3',
+      sesionesSimultaneas: 3,
       timeoutInactividadMin: 30,
       requiere2fa: false,
       auditoriaExtendida: true,
       logsDetallados: false,
       ipPermitidas: '',
-      // Integraciones
       socketioActivo: true,
       redisActivo: true,
       endpointApiExterno: '',
       webhookComandas: '',
       tokenIntegracion: '',
-      // Avanzado
       modoMantenimiento: false,
       mensajeMantenimiento: '',
       syncJsonLegacy: false,
@@ -602,23 +726,111 @@ function configApp() {
       
       try {
         const data = await apiGet('/configuracion');
-        if (data && !data.error) {
-          // Mapear la respuesta de la API al objeto config
-          const cfg = data.configuracion || data;
-          this.config = {
-            ...this.config,
-            ...cfg,
-            // Asegurar valores por defecto para campos que puedan venir null
-            nombre: cfg.nombre || 'Las Gambusinas',
-            moneda: cfg.moneda || 'PEN',
-            simboloMoneda: cfg.simboloMoneda || 'S/.',
-            igvPorcentaje: cfg.igvPorcentaje ?? 18,
-            decimales: cfg.decimales ?? 2,
-          };
+        if (data && data.success && data.configuracion) {
+          const cfg = data.configuracion;
+          
+          // Mapear datos fiscales
+          if (cfg.datosFiscales) {
+            this.config.nombre = cfg.datosFiscales.nombreComercial || 'Las Gambusinas';
+            this.config.direccion = cfg.datosFiscales.direccionFiscal || '';
+            this.config.telefono = cfg.datosFiscales.telefono || '';
+            this.config.email = cfg.datosFiscales.email || '';
+            this.config.ruc = cfg.datosFiscales.ruc || '';
+          }
+          
+          // Mapear moneda y precios
+          this.config.moneda = cfg.moneda || 'PEN';
+          this.config.simboloMoneda = cfg.simboloMoneda || 'S/.';
+          this.config.decimales = cfg.decimales ?? 2;
+          this.config.posicionSimbolo = cfg.posicionSimbolo || 'antes';
+          this.config.igvPorcentaje = cfg.igvPorcentaje ?? 18;
+          this.config.preciosIncluyenIGV = cfg.preciosIncluyenIGV || false;
+          this.config.nombreImpuestoPrincipal = cfg.nombreImpuestoPrincipal || 'IGV';
+          this.config.politicaRedondeo = cfg.politicaRedondeo || 'total';
+          this.config.redondearA = cfg.redondearA || 0.01;
+          
+          // Mapear cargo de servicio
+          if (cfg.cargoServicio) {
+            this.config.cargoServicioActivo = cfg.cargoServicio.activo || false;
+            this.config.cargoServicioPorcentaje = cfg.cargoServicio.porcentaje || 10;
+          }
+          
+          // Mapear metodos de pago
+          if (cfg.metodosPago) {
+            this.config.metodosPago = cfg.metodosPago;
+            // Para UI legacy
+            this.config.metodoEfectivo = cfg.metodosPago.efectivo?.activo ?? true;
+            this.config.metodoTarjeta = cfg.metodosPago.tarjeta?.activo ?? true;
+            this.config.metodoYape = cfg.metodosPago.yape?.activo ?? true;
+            this.config.metodoTransferencia = cfg.metodosPago.transferencia?.activo ?? false;
+          }
+          
+          // Mapear propinas
+          if (cfg.propinas) {
+            this.config.propinas = cfg.propinas;
+            this.config.propinasHabilitadas = cfg.propinas.habilitadas ?? true;
+            this.config.propinaSugeridaPct = cfg.propinas.sugerida ?? 10;
+          }
+          
+          // Mapear descuentos
+          if (cfg.descuentos) {
+            this.config.descuentos = cfg.descuentos;
+            this.config.descuentosHabilitados = cfg.descuentos.habilitados ?? true;
+            this.config.descuentoMaxPct = cfg.descuentos.maximoSinAutorizacion ?? 15;
+          }
+          
+          // Mapear numeracion
+          if (cfg.numeracion) {
+            this.config.numeracion = cfg.numeracion;
+            this.config.prefijoVoucher = cfg.numeracion.prefijoVoucher || '';
+            this.config.serieComprobantes = cfg.numeracion.serieBoleta || 'B001';
+            this.config.numeracionAuto = cfg.numeracion.numeracionAutomatica ?? true;
+          }
+          
+          // Mapear tickets
+          if (cfg.tickets) {
+            this.config.tickets = cfg.tickets;
+            this.config.desgloseComplementos = cfg.tickets.mostrarComplementos ?? true;
+          }
+          
+          // Mapear horarios
+          if (cfg.horarios) {
+            this.config.horarios = cfg.horarios;
+            this.config.horaApertura = cfg.horarios.horaApertura || '08:00';
+            this.config.horaCierre = cfg.horarios.horaCierre || '23:00';
+          }
+          
+          // Mapear zona horaria y otros
+          this.config.zonaHoraria = cfg.zonaHoraria || 'America/Lima';
+          this.config.idiomaPrincipal = cfg.idiomaPrincipal || 'es-PE';
+          this.config.modoPrecios = cfg.modoPrecios || 'unico';
+          
+          // Mapear seguridad
+          if (cfg.seguridad) {
+            this.config.seguridad = cfg.seguridad;
+            this.config.timeoutInactividadMin = cfg.seguridad.timeoutInactividadMin ?? 30;
+            this.config.sesionesSimultaneas = cfg.seguridad.sesionesSimultaneas ?? 3;
+            this.config.requiere2fa = cfg.seguridad.requiere2FA ?? false;
+            this.config.auditoriaExtendida = cfg.seguridad.auditoriaExtendida ?? true;
+          }
+          
+          // Mapear cierre de caja
+          if (cfg.cierreCaja) {
+            this.config.cierreCaja = cfg.cierreCaja;
+            this.config.cierreAutomatico = cfg.cierreCaja.cierreAutomatico ?? false;
+            this.config.horaCierreAuto = cfg.cierreCaja.horaCierreAutomatico || '23:59';
+            this.config.validacionAdmin = cfg.cierreCaja.requerirEfectivoInicial ?? true;
+          }
+          
+          // Version
+          this.config.versionSistema = cfg.version || '2.0.0';
+          this.config.fechaActualizacion = cfg.updatedAt || null;
+          
+          console.log('✅ Configuración cargada desde API');
         }
       } catch (e) {
         console.error('Error cargando configuración:', e);
-        // Si hay error, mantener valores por defecto
+        this.showToast('Error al cargar configuración: ' + (e.message || 'Error desconocido'), 'error');
       }
       
       this.loading = false;
@@ -628,17 +840,103 @@ function configApp() {
       this.saving = true;
       
       try {
-        const res = await apiPut('/configuracion', this.config);
-        if (res && !res.error) {
-          this.showToast('Configuración guardada exitosamente ✅');
+        // Construir objeto de datos para enviar a la API
+        const dataToSave = {
+          // Moneda y precios
+          moneda: this.config.moneda,
+          simboloMoneda: this.config.simboloMoneda,
+          decimales: Number(this.config.decimales),
+          posicionSimbolo: this.config.posicionSimbolo || 'antes',
+          igvPorcentaje: Number(this.config.igvPorcentaje),
+          preciosIncluyenIGV: this.config.preciosIncluyenIGV,
+          nombreImpuestoPrincipal: this.config.nombreImpuestoPrincipal || 'IGV',
+          politicaRedondeo: this.config.politicaRedondeo || 'total',
+          redondearA: Number(this.config.redondearA) || 0.01,
+          
+          // Datos fiscales
+          datosFiscales: {
+            nombreComercial: this.config.nombre || 'Las Gambusinas',
+            direccionFiscal: this.config.direccion || '',
+            telefono: this.config.telefono || '',
+            email: this.config.email || '',
+            ruc: this.config.ruc || ''
+          },
+          
+          // Zona horaria e idioma
+          zonaHoraria: this.config.zonaHoraria || 'America/Lima',
+          idiomaPrincipal: this.config.idiomaPrincipal || 'es-PE',
+          
+          // Metodos de pago
+          metodosPago: {
+            efectivo: { activo: this.config.metodoEfectivo, requiereReferencia: false },
+            tarjeta: { activo: this.config.metodoTarjeta, requiereReferencia: true },
+            yape: { activo: this.config.metodoYape, requiereReferencia: true },
+            plin: { activo: this.config.metodoYape, requiereReferencia: true },
+            transferencia: { activo: this.config.metodoTransferencia, requiereReferencia: true }
+          },
+          
+          // Propinas
+          propinas: {
+            habilitadas: this.config.propinasHabilitadas,
+            sugerida: Number(this.config.propinaSugeridaPct) || 10,
+            obligatoria: false
+          },
+          
+          // Descuentos
+          descuentos: {
+            habilitados: this.config.descuentosHabilitados,
+            maximoSinAutorizacion: Number(this.config.descuentoMaxPct) || 15
+          },
+          
+          // Numeracion
+          numeracion: {
+            prefijoVoucher: this.config.prefijoVoucher || '',
+            serieBoleta: this.config.serieComprobantes || 'B001',
+            serieFactura: 'F001',
+            numeracionAutomatica: this.config.numeracionAuto
+          },
+          
+          // Tickets
+          tickets: {
+            mostrarIGVDesglosado: true,
+            mensajePie: 'Gracias por su visita',
+            mostrarComplementos: this.config.desgloseComplementos
+          },
+          
+          // Horarios
+          horarios: {
+            horaApertura: this.config.horaApertura || '08:00',
+            horaCierre: this.config.horaCierre || '23:00'
+          },
+          
+          // Seguridad
+          seguridad: {
+            timeoutInactividadMin: Number(this.config.timeoutInactividadMin) || 30,
+            sesionesSimultaneas: Number(this.config.sesionesSimultaneas) || 3,
+            requiere2FA: this.config.requiere2fa || false,
+            auditoriaExtendida: this.config.auditoriaExtendida ?? true
+          },
+          
+          // Cierre de caja
+          cierreCaja: {
+            bloquearSinCierreAnterior: false,
+            requerirEfectivoInicial: this.config.validacionAdmin ?? true,
+            cierreAutomatico: this.config.cierreAutomatico || false,
+            horaCierreAutomatico: this.config.horaCierreAuto || '23:59'
+          }
+        };
+        
+        const res = await apiPut('/configuracion', dataToSave);
+        if (res && res.success) {
+          this.showToast('✅ Configuración guardada exitosamente');
           // Recargar para confirmar
           await this.loadConfig();
         } else {
-          this.showToast('Error al guardar: ' + (res?.error || res?.message || 'Fallo desconocido'), 'error');
+          this.showToast('Error al guardar: ' + (res?.message || 'Fallo desconocido'), 'error');
         }
       } catch (e) {
         console.error('Error guardando configuración:', e);
-        this.showToast('Error de conexión al guardar', 'error');
+        this.showToast('Error de conexión al guardar: ' + (e.message || 'Error desconocido'), 'error');
       }
       
       this.saving = false;

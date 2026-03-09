@@ -1,6 +1,8 @@
 const boucherModel = require("../database/models/boucher.model");
 const { syncJsonFile } = require('../utils/jsonSync');
 const { asociarBoucherACliente } = require('./clientes.repository');
+const configuracionRepository = require('./configuracion.repository');
+const calculosPrecios = require('../utils/calculosPrecios');
 const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
@@ -110,6 +112,9 @@ const crearBoucher = async (data) => {
             throw new Error('Datos incompletos para crear el boucher');
         }
         
+        // Obtener configuración de moneda y precios
+        const configMoneda = await configuracionRepository.obtenerConfiguracionMoneda();
+        
         // Asegurar que los subtotales de los platos estén calculados
         if (data.platos && data.platos.length > 0) {
             data.platos = data.platos.map(plato => {
@@ -120,25 +125,37 @@ const crearBoucher = async (data) => {
             });
         }
         
-        // Calcular totales si no están definidos
+        // Calcular totales si no están definidos usando la configuración
         if (!data.subtotal && data.platos) {
             data.subtotal = data.platos.reduce((sum, plato) => sum + (plato.subtotal || 0), 0);
         }
         
-        if (!data.igv && data.subtotal) {
-            data.igv = data.subtotal * 0.18;
+        // Usar la utilidad centralizada para calcular IGV y totales
+        const totales = calculosPrecios.calcularTotales(data.subtotal || 0, configMoneda);
+        
+        if (!data.igv) {
+            data.igv = totales.igv;
         }
         
-        if (!data.total && data.subtotal) {
-            data.total = data.subtotal + (data.igv || data.subtotal * 0.18);
+        if (!data.total) {
+            data.total = totales.total;
         }
+        
+        // Guardar snapshot de configuración para auditoría
+        data.configuracionIGV = {
+            igvPorcentaje: configMoneda.igvPorcentaje,
+            preciosIncluyenIGV: configMoneda.preciosIncluyenIGV,
+            nombreImpuesto: configMoneda.nombreImpuestoPrincipal || 'IGV',
+            moneda: configMoneda.moneda,
+            simboloMoneda: configMoneda.simboloMoneda
+        };
         
         // Formatear fecha de pago
         const moment = require('moment-timezone');
         if (!data.fechaPagoString && data.fechaPago) {
-            data.fechaPagoString = moment(data.fechaPago).tz("America/Lima").format("DD/MM/YYYY HH:mm:ss");
+            data.fechaPagoString = moment(data.fechaPago).tz(configMoneda.zonaHoraria || "America/Lima").format("DD/MM/YYYY HH:mm:ss");
         } else if (!data.fechaPagoString) {
-            data.fechaPagoString = moment().tz("America/Lima").format("DD/MM/YYYY HH:mm:ss");
+            data.fechaPagoString = moment().tz(configMoneda.zonaHoraria || "America/Lima").format("DD/MM/YYYY HH:mm:ss");
         }
         
         // Generar voucherId único si no se proporciona
@@ -149,6 +166,7 @@ const crearBoucher = async (data) => {
         
         const nuevoBoucher = await boucherModel.create(data);
         console.log('✅ Boucher creado:', nuevoBoucher._id, 'Número:', nuevoBoucher.boucherNumber);
+        console.log(`💰 Totales - Subtotal: ${data.subtotal}, IGV (${configMoneda.igvPorcentaje}%): ${data.igv}, Total: ${data.total}`);
         
         // Sincronizar con archivo JSON
         try {
