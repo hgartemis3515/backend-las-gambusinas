@@ -1690,9 +1690,14 @@ router.put('/comanda/:id/revertir/:nuevoStatus', async (req, res) => {
 router.get('/comanda/comandas-para-pagar/:mesaId', async (req, res) => {
   try {
     const { mesaId } = req.params;
-    
-    // FILTRADO EXACTO según diagrama
-    const comandas = await getComandasParaPagar(mesaId);
+    const comandaIdsParam = req.query.comandaIds;
+    const comandaIds = comandaIdsParam
+      ? comandaIdsParam.split(',').map(id => id.trim()).filter(Boolean)
+      : null;
+
+    // Si el cliente pasa comandaIds (ej. desde detalle de una comanda), solo devolver esas comandas
+    // para evitar mostrar comandas de pedidos anteriores en mesas reutilizadas.
+    const comandas = await getComandasParaPagar(mesaId, comandaIds);
     
     // 🔥 CORREGIDO: Calcular total pendiente considerando descuentos
     // Si la comanda tiene descuento, usar totalCalculado (ya tiene el descuento aplicado)

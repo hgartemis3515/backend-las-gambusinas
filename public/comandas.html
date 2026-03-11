@@ -130,7 +130,7 @@ tailwind.config = {
  <th class="text-center px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-16">Items</th>
  <th class="text-right px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Total</th>
  <th class="text-center px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Estado</th>
- <th class="text-center px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-16">Hora</th>
+ <th class="text-center px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Fecha / Hora</th>
  <th class="text-center px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Acciones</th>
  </tr>
  </thead>
@@ -229,13 +229,13 @@ tailwind.config = {
  </template>
  </td>
  
- <!-- Hora -->
+ <!-- Fecha / Hora -->
  <td class="px-3 py-2.5 text-xs text-txt-muted text-center">
  <template x-if="row.tipo === 'grupo'">
- <span x-text="row.horaPrimera"></span>
+ <span x-text="row.comandas?.length && row.comandas[0]?.createdAt ? new Date(row.comandas[0].createdAt).toLocaleString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : (row.horaPrimera || '—')"></span>
  </template>
  <template x-if="row.tipo === 'individual'">
- <span x-text="row.comanda.createdAt ? new Date(row.comanda.createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></span>
+ <span x-text="row.comanda.createdAt ? new Date(row.comanda.createdAt).toLocaleString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'"></span>
  </template>
  </td>
  
@@ -299,9 +299,9 @@ tailwind.config = {
  }"
  x-text="estadoLabel(comanda.estado)"></span>
  </td>
- <!-- Hora -->
+ <!-- Fecha / Hora -->
  <td class="px-3 py-2 text-xs text-txt-muted text-center">
- <span x-text="comanda.createdAt ? new Date(comanda.createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></span>
+ <span x-text="comanda.createdAt ? new Date(comanda.createdAt).toLocaleString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'"></span>
  </td>
  <!-- Acciones -->
  <td class="px-3 py-2 text-center">
@@ -1666,11 +1666,13 @@ function comandasApp() {
  comanda: c
  }));
 
- // Ordenar: grupos primero, luego individuales
- this.groupedRows = [
- ...filasGrupos.sort((a, b) => (a.clienteNombre || '').localeCompare(b.clienteNombre || '')),
- ...filasIndividuales.sort((a, b) => (a.comanda?.numComanda || 0) - (b.comanda?.numComanda || 0))
- ];
+ // Ordenar todas las filas (grupos e individuales) por fecha/hora: de reciente a primero
+ const fechaParaOrden = (row) => {
+   if (row.tipo === 'grupo' && row.comandas?.length)
+     return Math.max(...row.comandas.map(c => new Date(c.createdAt || 0).getTime()));
+   return new Date(row.comanda?.createdAt || 0).getTime();
+ };
+ this.groupedRows = [...filasGrupos, ...filasIndividuales].sort((a, b) => fechaParaOrden(b) - fechaParaOrden(a));
  },
 
  /**

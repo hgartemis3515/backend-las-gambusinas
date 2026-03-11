@@ -2518,17 +2518,26 @@ const revertirStatusComanda = async (comandaId, nuevoStatus, usuarioId) => {
  * Obtiene las comandas listas para pagar de una mesa (todas sus platos no eliminados en estado 'entregado').
  * Incluye comandas con status 'recoger' o 'entregado' y filtra por estado real de platos; opcionalmente
  * auto-corrige status cuando todos los platos están entregados pero el status estaba desincronizado.
+ * Si se pasa comandaIds, solo se devuelven esas comandas (útil para pagar solo la comanda actual en mesa reutilizada).
  * @param {string} mesaId - ID de la mesa
+ * @param {string[]} [comandaIds] - Opcional. IDs de comandas a incluir; si se pasa, solo se devuelven esas comandas de la mesa
  * @returns {Promise<Array>} Array de comandas listas para pagar (todas con todos los platos entregados)
  */
-const getComandasParaPagar = async (mesaId) => {
+const getComandasParaPagar = async (mesaId, comandaIds = null) => {
   try {
-    // Enum comanda.status: en_espera, recoger, entregado, pagado (no existe 'preparado')
-    const comandas = await comandaModel.find({
+    const query = {
       mesas: mesaId,
       IsActive: true,
       status: { $in: ['recoger', 'entregado'] }
-    })
+    };
+    if (comandaIds && Array.isArray(comandaIds) && comandaIds.length > 0) {
+      const ids = comandaIds.map(id => (typeof id === 'string' ? id.trim() : id)).filter(Boolean);
+      if (ids.length > 0) {
+        query._id = { $in: ids };
+      }
+    }
+    // Enum comanda.status: en_espera, recoger, entregado, pagado (no existe 'preparado')
+    const comandas = await comandaModel.find(query)
       .populate('platos.plato', 'nombre precio')
       .populate('mozos', 'name')
       .populate('mesas', 'nummesa estado')
