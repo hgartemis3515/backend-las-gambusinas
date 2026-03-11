@@ -1079,22 +1079,53 @@ tailwind.config = {
  </div>
  </div>
 
- <!-- ACCIONES RÁPIDAS PARA TODO EL GRUPO -->
+ <!-- INFORMACIÓN GENERAL DEL GRUPO -->
  <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
- <p class="text-[10px] text-[#5a5a7a] uppercase mb-3 font-semibold tracking-wider">Acciones para Todo el Grupo</p>
- <div class="grid grid-cols-4 gap-2">
- <button @click="cambiarEstadoGrupo(editGrupo, 'recoger')" class="px-3 py-2 bg-st-preparado/20 text-st-preparado border border-st-preparado/40 rounded-lg text-xs font-medium hover:bg-st-preparado/30 transition flex items-center justify-center gap-1">
- <span>✅</span> Todo Listo
- </button>
- <button @click="cambiarEstadoGrupo(editGrupo, 'entregado')" class="px-3 py-2 bg-st-pedido/20 text-st-pedido border border-st-pedido/40 rounded-lg text-xs font-medium hover:bg-st-pedido/30 transition flex items-center justify-center gap-1">
- <span>🚀</span> Todo Entregado
- </button>
- <button @click="cambiarEstadoGrupo(editGrupo, 'pagado')" class="px-3 py-2 bg-st-libre/20 text-st-libre border border-st-libre/40 rounded-lg text-xs font-medium hover:bg-st-libre/30 transition flex items-center justify-center gap-1">
- <span>💰</span> Todo Pagado
- </button>
- <button @click="confirmarEliminarGrupo(editGrupo)" class="px-3 py-2 bg-st-pagado/20 text-st-pagado border border-st-pagado/40 rounded-lg text-xs font-medium hover:bg-st-pagado/30 transition flex items-center justify-center gap-1">
- <span>🗑️</span> Eliminar Grupo
- </button>
+ <p class="text-[10px] text-[#5a5a7a] uppercase mb-3 font-semibold tracking-wider">Información General</p>
+ <div class="grid grid-cols-3 gap-3 text-sm mb-3">
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Cliente</p>
+ <p class="font-medium text-gold" x-text="editGrupo?.clienteNombre || 'Sin cliente'"></p>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Mesa</p>
+ <p class="font-medium" x-text="'Mesa ' + (editGrupo?.mesaNum || '—')"></p>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Nº comandas</p>
+ <p class="font-medium" x-text="editGrupo?.comandas?.length || 0"></p>
+ </div>
+ </div>
+ <div class="grid grid-cols-3 gap-3 text-sm border-t border-[rgba(212,175,55,0.1)] pt-3">
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Total platos</p>
+ <p class="font-medium" x-text="(editGrupo?.totalPlatos || 0) + ' platos'"></p>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Mozos</p>
+ <p class="font-medium" x-text="(editGrupo?.mozosUnicos || []).join(', ') || '—'"></p>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Estado del grupo</p>
+ <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+ :class="{
+ 'bg-st-preparado/20 text-st-preparado': editGrupo?.estadoGrupo === 'recoger',
+ 'bg-st-esperando/20 text-st-esperando': editGrupo?.estadoGrupo === 'en_espera',
+ 'bg-st-pedido/20 text-st-pedido': editGrupo?.estadoGrupo === 'entregado',
+ 'bg-st-libre/20 text-st-libre': editGrupo?.estadoGrupo === 'pagado'
+ }"
+ x-text="estadoLabel(editGrupo?.estadoGrupo)"></span>
+ </div>
+ </div>
+ <div class="grid grid-cols-2 gap-3 text-sm border-t border-[rgba(212,175,55,0.1)] pt-3">
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Hora primera comanda</p>
+ <p class="font-medium" x-text="getHoraPrimeraGrupo(editGrupo)"></p>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Hora última comanda</p>
+ <p class="font-medium" x-text="getHoraUltimaGrupo(editGrupo)"></p>
+ </div>
  </div>
  </div>
 
@@ -1127,7 +1158,7 @@ tailwind.config = {
  </div>
  </div>
 
- <!-- TABLA DE PLATOS DE ESTA COMANDA -->
+ <!-- TABLA DE PLATOS DE ESTA COMANDA (editable como en editar comanda) -->
  <table class="w-full text-sm">
  <thead>
  <tr class="text-[#a0a0b8] text-[10px] uppercase border-b border-[rgba(212,175,55,0.08)]">
@@ -1135,15 +1166,16 @@ tailwind.config = {
  <th class="text-center px-3 py-2 font-semibold w-16">Cant.</th>
  <th class="text-right px-3 py-2 font-semibold w-24">P. Unit.</th>
  <th class="text-right px-3 py-2 font-semibold w-24">Subtotal</th>
- <th class="text-center px-3 py-2 font-semibold w-24">Estado</th>
+ <th class="text-center px-3 py-2 font-semibold w-28">Estado</th>
+ <th class="text-center px-2 py-2 font-semibold w-10"></th>
  </tr>
  </thead>
  <tbody>
  <template x-if="!comanda.items || comanda.items.length === 0">
- <tr><td colspan="5" class="px-4 py-4 text-center text-[#5a5a7a] text-xs">Sin platos</td></tr>
+ <tr><td colspan="6" class="px-4 py-4 text-center text-[#5a5a7a] text-xs">Sin platos</td></tr>
  </template>
  <template x-for="(item, idx) in (comanda.items || [])" :key="idx">
- <tr class="border-b border-[rgba(212,175,55,0.05)]" :class="item.eliminado ? 'opacity-40' : ''">
+ <tr class="border-b border-[rgba(212,175,55,0.05)]" :class="item.eliminado ? 'opacity-40 bg-[#ff4757]/5' : ''">
  <td class="px-4 py-2">
  <p class="font-medium text-sm" :class="item.eliminado ? 'line-through text-txt-muted' : ''" x-text="item.nombre || '—'"></p>
  <p class="text-[10px] text-[#5a5a7a]" x-show="item.notaEspecial" x-text="'📝 ' + item.notaEspecial"></p>
@@ -1152,15 +1184,24 @@ tailwind.config = {
  <td class="px-3 py-2 text-right text-[#a0a0b8] text-sm" x-text="'S/. ' + (item.precio || 0).toFixed(2)"></td>
  <td class="px-3 py-2 text-right text-[#d4af37] font-semibold text-sm" x-text="'S/. ' + (item.subtotal || (item.cantidad || 1) * (item.precio || 0)).toFixed(2)"></td>
  <td class="px-3 py-2 text-center">
- <span class="text-[9px] px-2 py-0.5 rounded-full font-semibold"
+ <select x-model="item.estado" :disabled="item.eliminado"
+ class="bg-bg-sidebar border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[9px] text-white focus:border-[#d4af37] focus:outline-none w-full"
  :class="{
- 'bg-st-esperando/20 text-st-esperando': item.estado === 'en_espera',
- 'bg-st-preparado/20 text-st-preparado': item.estado === 'recoger',
- 'bg-st-pedido/20 text-st-pedido': item.estado === 'entregado',
- 'bg-st-libre/20 text-st-libre': item.estado === 'pagado',
- 'bg-txt-muted/20 text-txt-muted': item.eliminado
- }"
- x-text="item.eliminado ? 'Eliminado' : estadoLabel(item.estado)"></span>
+ 'text-st-esperando': item.estado === 'en_espera' || item.estado === 'pedido',
+ 'text-st-preparado': item.estado === 'recoger',
+ 'text-st-pedido': item.estado === 'entregado',
+ 'text-st-libre': item.estado === 'pagado'
+ }">
+ <option value="en_espera">En espera</option>
+ <option value="recoger">Listo</option>
+ <option value="entregado">Entregado</option>
+ <option value="pagado">Pagado</option>
+ </select>
+ </td>
+ <td class="px-2 py-2 text-center">
+ <button @click="toggleEliminarPlatoEnGrupo(comanda, idx)" class="p-1 rounded hover:bg-[rgba(212,175,55,0.1)] transition" :title="item.eliminado ? 'Restaurar plato' : 'Eliminar plato'">
+ <span x-text="item.eliminado ? '↩️' : '🗑️'" class="text-sm"></span>
+ </button>
  </td>
  </tr>
  </template>
@@ -1170,12 +1211,70 @@ tailwind.config = {
  <td class="px-4 py-2 font-bold text-xs uppercase" colspan="2">SUBTOTAL</td>
  <td class="px-3 py-2 text-right text-xs text-[#5a5a7a]" x-text="(comanda.items || []).filter(i => !i.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
  <td class="px-3 py-2 text-right text-[#d4af37] font-bold" x-text="'S/. ' + Number(comanda.total || 0).toFixed(2)"></td>
- <td></td>
+ <td colspan="2"></td>
  </tr>
  </tfoot>
  </table>
  </div>
  </template>
+ </div>
+
+ <!-- DESCUENTO PARA EL GRUPO (igual que editar comanda) -->
+ <div x-show="puedeAplicarDescuento" x-data="{ descuentoGrupoInput: 0, motivoDescuentoGrupo: '' }"
+ class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+ <div class="flex items-center justify-between mb-3">
+ <div class="flex items-center gap-2">
+ <span class="text-lg">💰</span>
+ <p class="text-[10px] text-[#5a5a7a] uppercase font-semibold tracking-wider">Descuento para el Grupo</p>
+ </div>
+ <span x-show="getDescuentoGrupoAplicado(editGrupo) > 0" class="text-xs px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-semibold" x-text="'Aplicado: ' + getDescuentoGrupoAplicado(editGrupo) + '%'"></span>
+ </div>
+
+ <!-- Descuento actual aplicado al grupo -->
+ <div x-show="getDescuentoGrupoAplicado(editGrupo) > 0" class="mb-3 p-3 bg-[rgba(46,204,113,0.1)] border border-st-preparado/30 rounded-lg">
+ <div class="flex items-center justify-between text-sm">
+ <span class="text-txt-secondary">Descuento grupo:</span>
+ <span class="text-st-preparado font-bold" x-text="getDescuentoGrupoAplicado(editGrupo) + '%'"></span>
+ </div>
+ <div class="flex items-center justify-between text-sm mt-1">
+ <span class="text-txt-secondary">Ahorro total:</span>
+ <span class="text-st-pagado font-bold" x-text="'-S/. ' + (getMontoDescuentoGrupo(editGrupo) || 0).toFixed(2)"></span>
+ </div>
+ <button @click="eliminarDescuentoGrupo()"
+ :disabled="grupoTodoPagado(editGrupo)"
+ class="mt-3 w-full py-2 bg-st-pagado/20 text-st-pagado border border-st-pagado/40 rounded-lg text-xs font-semibold hover:bg-st-pagado/30 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+ <span>🗑️</span> Quitar Descuento del Grupo
+ </button>
+ </div>
+
+ <!-- Formulario para aplicar descuento al grupo -->
+ <div class="grid grid-cols-12 gap-3 items-end">
+ <div class="col-span-3">
+ <label class="text-[10px] text-txt-muted mb-1 block">Porcentaje (%)</label>
+ <input type="number" x-model.number="descuentoGrupoInput" min="0" max="100" step="1"
+ class="w-full h-9 bg-bg-sidebar border-2 border-[rgba(212,175,55,0.4)] rounded-lg px-3 py-1 text-white text-sm font-bold focus:border-gold focus:outline-none text-center">
+ </div>
+ <div class="col-span-5">
+ <label class="text-[10px] text-txt-muted mb-1 block">Motivo del descuento</label>
+ <input type="text" x-model="motivoDescuentoGrupo" placeholder="Ej: Voucher VIP, Cliente frecuente..."
+ class="w-full h-9 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1 text-white text-sm focus:border-gold focus:outline-none">
+ </div>
+ <div class="col-span-4">
+ <button @click="aplicarDescuentoGrupo(descuentoGrupoInput, motivoDescuentoGrupo)"
+ :disabled="aplicandoDescuentoGrupo || grupoTodoPagado(editGrupo)"
+ class="w-full h-9 bg-st-preparado text-white rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+ <span x-show="!aplicandoDescuentoGrupo">✓ Aplicar al Grupo</span>
+ <span x-show="aplicandoDescuentoGrupo" class="flex items-center gap-1">
+ <span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+ Aplicando...
+ </span>
+ </button>
+ </div>
+ </div>
+
+ <div x-show="grupoTodoPagado(editGrupo)" class="mt-2 text-xs text-st-pagado flex items-center gap-1">
+ <span>⚠️</span> No se puede modificar descuento en grupos con comandas pagadas
+ </div>
  </div>
 
  <!-- TOTAL AGRUPADO -->
@@ -1192,11 +1291,17 @@ tailwind.config = {
 
  <!-- FOOTER -->
  <div class="bg-[#12121a] p-4 rounded-b-2xl flex justify-between items-center border-t border-[rgba(212,175,55,0.1)]">
+ <button @click="confirmarEliminarGrupo(editGrupo)" class="px-4 py-2 border border-st-pagado/40 text-st-pagado rounded-lg text-sm font-medium hover:bg-st-pagado/10 transition">
+ 🗑️ Eliminar Grupo
+ </button>
+ <div class="flex gap-2">
  <button @click="openGrupoModal(editGrupo)" class="px-4 py-2 border border-[#5a5a7a]/40 rounded-lg text-sm text-[#a0a0b8] hover:border-gold hover:text-gold transition">
  👁️ Ver Detalle
  </button>
- <div class="flex gap-2">
  <button @click="modal=null" class="px-4 py-2 border border-[#5a5a7a]/40 rounded-lg text-sm text-[#a0a0b8] hover:border-[#d4af37] hover:text-[#d4af37] transition">Cerrar</button>
+ <button @click="guardarEdicionGrupo()" :disabled="guardandoGrupo" class="px-5 py-2.5 bg-[#d4af37] text-[#0a0a0f] rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50">
+ <span x-text="guardandoGrupo ? 'Guardando...' : 'Guardar Cambios'"></span>
+ </button>
  </div>
  </div>
  </div>
@@ -1262,7 +1367,9 @@ function comandasApp() {
  pageTitle: 'Comandas',
  userRole: null,
  puedeAplicarDescuento: false,
- 
+ guardandoGrupo: false,
+ aplicandoDescuentoGrupo: false,
+
  // NUEVO: Toggle para agrupación
  agruparPorCliente: true,
 
@@ -1853,9 +1960,135 @@ function comandasApp() {
  },
 
  openEditGrupoModal(grupo) {
- // Abrir modal de edición masiva del grupo
- this.editGrupo = grupo;
+ // Clonar para no mutar y marcar estado original de cada ítem
+ const clone = JSON.parse(JSON.stringify(grupo));
+ (clone.comandas || []).forEach(c => {
+ (c.items || []).forEach(item => { item.estadoOriginal = item.estado; });
+ });
+ this.editGrupo = clone;
  this.modal = 'editarGrupo';
+ },
+
+ getHoraPrimeraGrupo(grupo) {
+ if (!grupo?.comandas?.length) return '—';
+ const dates = grupo.comandas.map(c => c.createdAt ? new Date(c.createdAt) : null).filter(Boolean);
+ return dates.length ? new Date(Math.min(...dates)).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }) : '—';
+ },
+
+ getHoraUltimaGrupo(grupo) {
+ if (!grupo?.comandas?.length) return '—';
+ const dates = grupo.comandas.map(c => c.createdAt ? new Date(c.createdAt) : null).filter(Boolean);
+ return dates.length ? new Date(Math.max(...dates)).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }) : '—';
+ },
+
+ toggleEliminarPlatoEnGrupo(comanda, idx) {
+ if (!comanda?.items?.[idx]) return;
+ comanda.items[idx].eliminado = !comanda.items[idx].eliminado;
+ },
+
+ getDescuentoGrupoAplicado(grupo) {
+ if (!grupo?.comandas?.length) return 0;
+ const descuentos = grupo.comandas.map(c => c.descuento || 0).filter(d => d > 0);
+ if (descuentos.length === 0) return 0;
+ const first = descuentos[0];
+ return descuentos.every(d => d === first) ? first : 0;
+ },
+
+ getMontoDescuentoGrupo(grupo) {
+ if (!grupo?.comandas?.length) return 0;
+ return grupo.comandas.reduce((sum, c) => sum + (c.montoDescuento || 0), 0);
+ },
+
+ grupoTodoPagado(grupo) {
+ if (!grupo?.comandas?.length) return false;
+ return grupo.comandas.every(c => c.estado === 'pagado');
+ },
+
+ async aplicarDescuentoGrupo(porcentaje, motivo) {
+ if (!this.editGrupo?.comandas?.length) return;
+ if (porcentaje < 0 || porcentaje > 100) { this.showToast('El descuento debe estar entre 0 y 100%', 'error'); return; }
+ if (porcentaje > 0 && (!motivo || motivo.trim().length < 3)) { this.showToast('El motivo del descuento es obligatorio (mínimo 3 caracteres)', 'error'); return; }
+ if (!this.puedeAplicarDescuento) { this.showToast('No tienes permisos para aplicar descuentos', 'error'); return; }
+ const pagadas = this.editGrupo.comandas.filter(c => c.estado === 'pagado');
+ if (pagadas.length) { this.showToast('No se puede aplicar descuento a comandas ya pagadas', 'error'); return; }
+ this.aplicandoDescuentoGrupo = true;
+ try {
+ let exitosos = 0;
+ for (const comanda of this.editGrupo.comandas) {
+ try {
+ const res = await apiPut('/comanda/' + comanda._id + '/descuento', {
+ descuento: parseInt(porcentaje),
+ motivo: motivo.trim(),
+ usuarioId: 'admin',
+ usuarioRol: this.userRole
+ });
+ if (res && !res.error) {
+ comanda.descuento = porcentaje;
+ comanda.motivoDescuento = motivo;
+ comanda.montoDescuento = res.descuentoAplicado?.montoDescuento != null ? res.descuentoAplicado.montoDescuento : (comanda.total || 0) * porcentaje / 100;
+ exitosos++;
+ }
+ } catch (e) { console.error(e); }
+ }
+ this.showToast('Descuento aplicado a ' + exitosos + ' comandas del grupo');
+ if (this.socket && this.socket.connected) this.editGrupo.comandas.forEach(c => this.socket.emit('comandaActualizada', { _id: c._id }));
+ await this.loadComandas();
+ const row = this.groupedRows.find(r => r.tipo === 'grupo' && r.id === this.editGrupo.id);
+ if (row) this.editGrupo = row;
+ } catch (e) { this.showToast('Error: ' + e.message, 'error'); } finally { this.aplicandoDescuentoGrupo = false; }
+ },
+
+ async eliminarDescuentoGrupo() {
+ if (!this.editGrupo?.comandas?.length) return;
+ if (!this.puedeAplicarDescuento) { this.showToast('No tienes permisos', 'error'); return; }
+ if (this.grupoTodoPagado(this.editGrupo)) { this.showToast('No se puede quitar descuento en comandas pagadas', 'error'); return; }
+ if (!confirm('¿Quitar el descuento de todas las comandas del grupo?')) return;
+ try {
+ for (const comanda of this.editGrupo.comandas) {
+ if (comanda.descuento && comanda.descuento > 0) {
+ const res = await apiDelete('/comanda/' + comanda._id + '/descuento', { usuarioId: 'admin', usuarioRol: this.userRole, motivoEliminacion: 'Descuento quitado desde grupo' });
+ if (res && !res.error) { comanda.descuento = 0; comanda.montoDescuento = 0; comanda.motivoDescuento = null; }
+ }
+ }
+ this.showToast('Descuento quitado del grupo');
+ await this.loadComandas();
+ const row = this.groupedRows.find(r => r.tipo === 'grupo' && r.id === this.editGrupo.id);
+ if (row) this.editGrupo = row;
+ } catch (e) { this.showToast('Error: ' + e.message, 'error'); }
+ },
+
+ async guardarEdicionGrupo() {
+ if (!this.editGrupo?.comandas?.length) return;
+ this.guardandoGrupo = true;
+ try {
+ for (const comanda of this.editGrupo.comandas) {
+ const items = comanda.items || [];
+ const indicesEliminados = [];
+ const platosConCambios = [];
+ items.forEach((p, idx) => {
+ if (p.eliminado) indicesEliminados.push(idx);
+ else if (p.estado && p.estadoOriginal !== p.estado) platosConCambios.push({ index: idx, estado: p.estado });
+ });
+ if (indicesEliminados.length > 0) {
+ await apiPut('/comanda/' + comanda._id + '/eliminar-platos', {
+ platosAEliminar: indicesEliminados,
+ motivo: 'Eliminado desde edición de grupo',
+ mozoId: null,
+ forzarAdmin: true
+ });
+ }
+ if (platosConCambios.length > 0) {
+ await apiPut('/comanda/' + comanda._id + '/actualizar-estados-platos', { platos: platosConCambios });
+ }
+ if (comanda.estado) {
+ await apiPut('/comanda/' + comanda._id + '/status', { nuevoStatus: comanda.estado, motivo: 'Edición desde grupo' });
+ }
+ }
+ if (this.socket && this.socket.connected) this.editGrupo.comandas.forEach(c => this.socket.emit('comandaActualizada', { _id: c._id }));
+ await this.loadComandas();
+ this.modal = null;
+ this.showToast('Grupo actualizado correctamente');
+ } catch (e) { this.showToast('Error: ' + e.message, 'error'); } finally { this.guardandoGrupo = false; }
  },
 
  /**
