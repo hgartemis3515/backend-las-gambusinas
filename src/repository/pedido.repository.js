@@ -319,11 +319,11 @@ const obtenerComandasAgrupadas = async (filtros = {}) => {
             // Ordenar por fecha
             { $sort: { createdAt: -1 } },
             
-            // Agrupar por pedidoId
+            // Agrupar por campo pedido (referencia al modelo Pedido)
             {
                 $group: {
-                    _id: '$pedidoId',
-                    pedidoId: { $first: '$pedidoId' },
+                    _id: '$pedido',
+                    pedidoId: { $first: '$pedido' },
                     pedidoNumber: { $first: '$pedidoNumber' },
                     mesaId: { $first: '$mesas' },
                     mesaNumero: { $first: '$mesaNumero' },

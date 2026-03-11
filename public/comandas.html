@@ -145,7 +145,7 @@ tailwind.config = {
  <template x-if="row.tipo === 'grupo'">
  <button @click.stop="toggleExpandGrupo(row.id)" class="flex items-center gap-2 w-full">
  <span class="text-gold font-bold text-sm" x-text="expandedGroups.includes(row.id) ? '▼' : '▶'"></span>
- <span class="text-gold font-bold text-sm" x-text="'GRUPO ' + (row.clienteNombre || 'Cliente')"></span>
+ <span class="text-gold font-bold text-sm" x-text="'GRUPO ' + (row.clienteNombre || ('Mesa ' + (row.mesaNum || '?')))"></span>
  </button>
  </template>
  <template x-if="row.tipo === 'individual'">
@@ -1563,6 +1563,10 @@ function comandasApp() {
  ? { nummesa: mesa.nummesa || mesa.numMesa, area: mesa.area?.nombre || mesa.area || '' }
  : { nummesa: mesa, area: '' };
 
+ // Extraer pedidoId: puede venir como ObjectId string o como objeto populated
+ const pedidoRef = raw.pedido;
+ const pedidoId = pedidoRef?._id || pedidoRef || null;
+
  return {
  _id: raw._id,
  numComanda: raw.comandaNumber || raw.numComanda,
@@ -1570,6 +1574,7 @@ function comandasApp() {
  mozo: raw.mozos?.name || raw.mozo || 'Sin asignar',
  cliente: raw.cliente,
  clienteNombre: raw.clienteNombre || raw.cliente?.nombre || raw.cliente?.dni || null,
+ pedidoId: pedidoId,
  items: platosNorm,
  total: Number(raw.precioTotal || raw.total || total),
  totalCalculado: Number(raw.totalCalculado != null ? raw.totalCalculado : (raw.precioTotal || raw.total || total)),
@@ -1592,7 +1597,7 @@ function comandasApp() {
  },
 
  /**
-  * Agrupa comandas por clienteId
+  * Agrupa comandas por pedidoId (primario) o clienteId+mesaNum (fallback histórico)
   * Retorna array de objetos: { tipo: 'grupo'|'individual', ... }
   */
  processGrouping() {
@@ -1606,42 +1611,54 @@ function comandasApp() {
  return;
  }
 
- const grupos = new Map(); // clienteId -> { comandas: [] }
+ const gruposPedido = new Map();   // pedidoId -> { comandas: [] }
+ const gruposCliente = new Map();  // clienteId_mesaNum -> { comandas: [] } (fallback histórico)
  const individuales = [];
 
  this.comandas.forEach(c => {
+ const pedidoId = c.pedidoId || null;
  const clienteId = c.cliente?._id || c.cliente || null;
  const mesaNum = c.mesa?.nummesa || c.mesa;
- 
- // Clave de agrupación: clienteId + mesaNum (mismo cliente en misma mesa)
- const grupoKey = clienteId ? `${clienteId}_${mesaNum}` : null;
 
- if (clienteId && grupoKey) {
- if (!grupos.has(grupoKey)) {
- grupos.set(grupoKey, {
- clienteId: clienteId,
- clienteNombre: c.clienteNombre || c.cliente?.nombre || 'Cliente',
- mesaNum: mesaNum,
- comandas: []
- });
- }
- grupos.get(grupoKey).comandas.push(c);
+ if (pedidoId) {
+   // PRIMARIO: agrupar por pedidoId (comandas nuevas con Pedido asociado)
+   const key = `pedido_${pedidoId}`;
+   if (!gruposPedido.has(key)) {
+     gruposPedido.set(key, {
+       pedidoId: pedidoId,
+       clienteId: clienteId,
+       clienteNombre: c.clienteNombre || c.cliente?.nombre || null,
+       mesaNum: mesaNum,
+       mozo: c.mozo,
+       comandas: []
+     });
+   }
+   gruposPedido.get(key).comandas.push(c);
+ } else if (clienteId) {
+   // FALLBACK: agrupar por clienteId + mesaNum (datos históricos sin pedidoId)
+   const key = `cliente_${clienteId}_${mesaNum}`;
+   if (!gruposCliente.has(key)) {
+     gruposCliente.set(key, {
+       clienteId: clienteId,
+       clienteNombre: c.clienteNombre || c.cliente?.nombre || 'Cliente',
+       mesaNum: mesaNum,
+       comandas: []
+     });
+   }
+   gruposCliente.get(key).comandas.push(c);
  } else {
- // Comandas sin cliente: individuales
- individuales.push(c);
+   // Sin pedido ni cliente: individual
+   individuales.push(c);
  }
  });
 
- // Convertir grupos a filas
- const filasGrupos = [];
- grupos.forEach((grupo, key) => {
- if (grupo.comandas.length > 1) {
- // Grupo de múltiples comandas
- filasGrupos.push({
+ // Función para convertir un grupo a fila
+ const crearFilaGrupo = (grupo, key) => ({
  tipo: 'grupo',
  id: key,
+ pedidoId: grupo.pedidoId || null,
  clienteId: grupo.clienteId,
- clienteNombre: grupo.clienteNombre,
+ clienteNombre: grupo.clienteNombre || 'Mesa ' + grupo.mesaNum,
  mesaNum: grupo.mesaNum,
  comandas: grupo.comandas,
  numComandas: grupo.comandas.length,
@@ -1649,13 +1666,28 @@ function comandasApp() {
  totalPlatos: grupo.comandas.reduce((sum, c) => sum + (c.items?.length || 0), 0),
  estadoGrupo: this.calcularEstadoGrupo(grupo.comandas),
  mozosUnicos: [...new Set(grupo.comandas.map(c => c.mozo))],
- horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length - 1]?.createdAt 
+ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length - 1]?.createdAt
  ? new Date(grupo.comandas[grupo.comandas.length - 1].createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'})
  : '—'
  });
+
+ const filasGrupos = [];
+
+ // Procesar grupos por pedidoId
+ gruposPedido.forEach((grupo, key) => {
+ if (grupo.comandas.length > 1) {
+   filasGrupos.push(crearFilaGrupo(grupo, key));
  } else {
- // Solo una comanda en el grupo: tratar como individual
- individuales.push(grupo.comandas[0]);
+   individuales.push(grupo.comandas[0]);
+ }
+ });
+
+ // Procesar grupos por clienteId (fallback histórico)
+ gruposCliente.forEach((grupo, key) => {
+ if (grupo.comandas.length > 1) {
+   filasGrupos.push(crearFilaGrupo(grupo, key));
+ } else {
+   individuales.push(grupo.comandas[0]);
  }
  });
 

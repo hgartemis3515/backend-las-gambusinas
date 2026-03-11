@@ -2,6 +2,7 @@ const comandaModel = require("../database/models/comanda.model");
 const mesasModel = require("../database/models/mesas.model");
 const platoModel = require("../database/models/plato.model");
 const HistorialComandas = require("../database/models/historialComandas.model");
+const pedidoModel = require("../database/models/pedido.model");
 const { syncJsonFile } = require('../utils/jsonSync');
 const logger = require('../utils/logger');
 const { AppError } = require('../utils/errorHandler');
@@ -267,6 +268,7 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true) =
         mozos: 1,
         mesas: 1,
         cliente: 1,
+        pedido: 1,
         // Platos con campos necesarios
         'platos.platoId': 1,
         'platos.estado': 1,
@@ -620,7 +622,41 @@ const agregarComanda = async (data) => {
     mesaId: nuevaComanda.mesas,
     mozoId: nuevaComanda.mozos
   });
-  
+
+  // ========== ASOCIAR COMANDA AL PEDIDO ABIERTO DE LA MESA ==========
+  try {
+    const pedido = await pedidoModel.obtenerOcrearPedidoAbierto(
+      nuevaComanda.mesas,
+      nuevaComanda.mozos,
+      {
+        numMesa: datosDesnormalizados.mesaNumero,
+        areaNombre: datosDesnormalizados.areaNombre,
+        nombreMozo: datosDesnormalizados.mozoNombre || 'Sin asignar'
+      }
+    );
+
+    // Agregar comanda al pedido si no existe ya
+    if (!pedido.comandas.some(c => c.toString() === nuevaComanda._id.toString())) {
+      pedido.comandas.push(nuevaComanda._id);
+      pedido.comandasNumbers.push(nuevaComanda.comandaNumber);
+      await pedido.save(); // pre-save hook recalcula totales
+    }
+
+    // Guardar referencia del pedido en la comanda
+    nuevaComanda.pedido = pedido._id;
+    await nuevaComanda.save();
+
+    console.log(`✅ Comanda #${nuevaComanda.comandaNumber} asociada al Pedido #${pedido.pedidoId} (mesa ${datosDesnormalizados.mesaNumero})`);
+  } catch (pedidoError) {
+    // No bloquear la creación de comanda si falla la asociación con pedido
+    console.error('⚠️ Error al asociar comanda con pedido (no crítico):', pedidoError.message);
+    logger.warn('Error al asociar comanda con pedido', {
+      comandaId: nuevaComanda._id,
+      error: pedidoError.message
+    });
+  }
+  // ========== FIN ASOCIACIÓN PEDIDO ==========
+
   // Actualizar estado de la mesa a "pedido" automáticamente cuando se crea la comanda
   // Si la mesa estaba en "preparado", cambiar a "pedido" para la nueva comanda
   // Si la mesa estaba en "libre", cambiar a "pedido"
@@ -826,10 +862,23 @@ const eliminarLogicamente = async (comandaId, usuarioId, motivo, requerirMotivo 
         console.log(`✅ Estado de mesa ${mesaId} recalculado después de eliminar comanda`);
       } catch (error) {
         console.error(`⚠️ Error al recalcular estado de mesa después de eliminar comanda:`, error.message);
-        // No lanzar error para no interrumpir el flujo principal
       }
     }
-    
+
+    // Recalcular totales del Pedido asociado
+    if (comanda.pedido) {
+      try {
+        const pedido = await pedidoModel.findById(comanda.pedido);
+        if (pedido && pedido.estado === 'abierto') {
+          await pedido.calcularTotales();
+          await pedido.save();
+          console.log(`✅ Pedido #${pedido.pedidoId} recalculado tras eliminar comanda`);
+        }
+      } catch (pedidoError) {
+        console.error('⚠️ Error al recalcular pedido tras eliminar comanda:', pedidoError.message);
+      }
+    }
+
     return comanda;
   } catch (error) {
     console.error("❌ Error al eliminar comanda lógicamente:", error);

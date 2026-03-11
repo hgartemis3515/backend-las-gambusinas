@@ -13,6 +13,7 @@ const configuracionRepository = require('../repository/configuracion.repository'
 const calculosPrecios = require('../utils/calculosPrecios');
 
 const { validarComandasParaPagar } = require('../repository/comanda.repository');
+const pedidoModel = require('../database/models/pedido.model');
 const comandaModel = require('../database/models/comanda.model');
 
 // Obtener todos los bouchers
@@ -206,6 +207,27 @@ router.post('/boucher', async (req, res) => {
             }
         }));
         
+        // Marcar Pedido asociado como pagado (si existe)
+        try {
+            const pedidoAbierto = await pedidoModel.findOne({
+                mesa: mesaId,
+                estado: 'abierto',
+                isActive: true
+            });
+            if (pedidoAbierto) {
+                pedidoAbierto.estado = 'pagado';
+                pedidoAbierto.fechaPago = new Date();
+                pedidoAbierto.boucher = boucherCreado._id;
+                if (clienteId) {
+                    pedidoAbierto.cliente = clienteId;
+                }
+                await pedidoAbierto.save();
+                console.log(`✅ Pedido #${pedidoAbierto.pedidoId} marcado como pagado`);
+            }
+        } catch (pedidoError) {
+            console.error('⚠️ Error al cerrar pedido (no crítico):', pedidoError.message);
+        }
+
         res.json(boucherCreado);
         console.log('✅ Boucher creado exitosamente con', comandasIds.length, 'comanda(s)');
         console.log(`💰 IGV aplicado: ${configMoneda.igvPorcentaje}%, Total: ${totales.total}`);

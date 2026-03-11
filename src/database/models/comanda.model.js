@@ -20,7 +20,14 @@ const comandaSchema = new mongoose.Schema({
     totalPlatos: { type: Number, default: 0 },              // Total de items en la comanda
     platosActivos: { type: Number, default: 0 },            // Platos no eliminados/anulados
     // ==========================================================================
-    dividedFrom: { 
+    // Referencia al Pedido que agrupa esta comanda (se asigna automáticamente al crear)
+    pedido: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Pedido',
+        default: null,
+        index: true
+    },
+    dividedFrom: {
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'Comanda',
         default: null // Para rastrear si esta comanda fue dividida
