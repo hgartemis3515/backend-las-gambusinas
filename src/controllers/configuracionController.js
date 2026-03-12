@@ -346,6 +346,97 @@ router.post('/configuracion/formatear-monto', async (req, res) => {
 });
 
 /**
+ * GET /api/configuracion/seo
+ * Obtiene solo la configuración SEO del sistema
+ */
+router.get('/configuracion/seo', async (req, res) => {
+    try {
+        const config = await configuracionRepository.obtenerConfiguracion();
+        
+        const seoConfig = config.seo || {
+            metaTitle: 'Las Gambusinas - Sistema POS',
+            metaDescription: 'Sistema de punto de venta para gestión de restaurante.',
+            canonicalUrl: '',
+            ogTitle: '',
+            ogDescription: '',
+            ogImage: '',
+            ogUrl: '',
+            ogType: 'website',
+            twitterCard: 'summary_large_image',
+            twitterSite: '',
+            twitterTitle: '',
+            twitterDescription: '',
+            twitterImage: ''
+        };
+        
+        res.json({
+            success: true,
+            seo: seoConfig
+        });
+    } catch (error) {
+        logger.error('Error al obtener configuración SEO:', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener la configuración SEO'
+        });
+    }
+});
+
+/**
+ * PATCH /api/configuracion/seo
+ * Actualiza solo la configuración SEO
+ */
+router.patch('/configuracion/seo', async (req, res) => {
+    try {
+        const seoData = req.body;
+        const modificadoPor = req.user?._id || req.headers['x-user-id'] || null;
+        
+        // Construir objeto de actualización con notación de punto para campos anidados
+        const updateData = {};
+        const seoFields = [
+            'metaTitle', 'metaDescription', 'canonicalUrl',
+            'ogTitle', 'ogDescription', 'ogImage', 'ogUrl', 'ogType',
+            'twitterCard', 'twitterSite', 'twitterTitle', 'twitterDescription', 'twitterImage'
+        ];
+        
+        seoFields.forEach(field => {
+            if (seoData[field] !== undefined) {
+                updateData[`seo.${field}`] = seoData[field];
+            }
+        });
+        
+        if (Object.keys(updateData).length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'No se proporcionaron campos SEO para actualizar'
+            });
+        }
+        
+        const configuracionActualizada = await configuracionRepository.actualizarConfiguracion(
+            updateData,
+            modificadoPor
+        );
+        
+        logger.info('Configuración SEO actualizada', {
+            modificadoPor,
+            camposActualizados: Object.keys(updateData)
+        });
+        
+        res.json({
+            success: true,
+            message: 'Configuración SEO actualizada exitosamente',
+            seo: configuracionActualizada.seo
+        });
+    } catch (error) {
+        logger.error('Error al actualizar configuración SEO:', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: error.message || 'Error al actualizar la configuración SEO'
+        });
+    }
+});
+
+/**
  * POST /api/configuracion/invalidar-cache
  * Fuerza la recarga de configuración desde la base de datos
  */

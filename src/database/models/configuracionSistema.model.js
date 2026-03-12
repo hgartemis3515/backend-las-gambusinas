@@ -119,6 +119,23 @@ const CONFIGURACION_DEFAULT = {
         requerirEfectivoInicial: true,
         cierreAutomatico: false,
         horaCierreAutomatico: '23:59'
+    },
+    
+    // SEO y Metadatos
+    seo: {
+        metaTitle: 'Las Gambusinas - Sistema POS',
+        metaDescription: 'Sistema de punto de venta para gestión de restaurante. Control de mesas, comandas, pedidos y más.',
+        canonicalUrl: '',
+        ogTitle: 'Las Gambusinas - Restaurante',
+        ogDescription: 'Sistema de gestión integral para restaurantes. Control de mesas, comandas y pedidos en tiempo real.',
+        ogImage: '',
+        ogUrl: '',
+        ogType: 'website',
+        twitterCard: 'summary_large_image',
+        twitterSite: '',
+        twitterTitle: 'Las Gambusinas - Sistema POS',
+        twitterDescription: 'Sistema de punto de venta para gestión de restaurante',
+        twitterImage: ''
     }
 };
 
@@ -422,6 +439,70 @@ const configuracionSistemaSchema = new mongoose.Schema({
         horaCierreAutomatico: {
             type: String,
             default: CONFIGURACION_DEFAULT.cierreCaja.horaCierreAutomatico
+        }
+    },
+    
+    // SEO y Metadatos
+    seo: {
+        metaTitle: {
+            type: String,
+            default: CONFIGURACION_DEFAULT.seo.metaTitle,
+            maxlength: 60
+        },
+        metaDescription: {
+            type: String,
+            default: CONFIGURACION_DEFAULT.seo.metaDescription,
+            maxlength: 160
+        },
+        canonicalUrl: {
+            type: String,
+            default: CONFIGURACION_DEFAULT.seo.canonicalUrl
+        },
+        ogTitle: {
+            type: String,
+            default: CONFIGURACION_DEFAULT.seo.ogTitle,
+            maxlength: 60
+        },
+        ogDescription: {
+            type: String,
+            default: CONFIGURACION_DEFAULT.seo.ogDescription,
+            maxlength: 200
+        },
+        ogImage: {
+            type: String,
+            default: CONFIGURACION_DEFAULT.seo.ogImage
+        },
+        ogUrl: {
+            type: String,
+            default: CONFIGURACION_DEFAULT.seo.ogUrl
+        },
+        ogType: {
+            type: String,
+            enum: ['website', 'article', 'product', 'profile'],
+            default: CONFIGURACION_DEFAULT.seo.ogType
+        },
+        twitterCard: {
+            type: String,
+            enum: ['summary', 'summary_large_image', 'app', 'player'],
+            default: CONFIGURACION_DEFAULT.seo.twitterCard
+        },
+        twitterSite: {
+            type: String,
+            default: CONFIGURACION_DEFAULT.seo.twitterSite
+        },
+        twitterTitle: {
+            type: String,
+            default: CONFIGURACION_DEFAULT.seo.twitterTitle,
+            maxlength: 70
+        },
+        twitterDescription: {
+            type: String,
+            default: CONFIGURACION_DEFAULT.seo.twitterDescription,
+            maxlength: 200
+        },
+        twitterImage: {
+            type: String,
+            default: CONFIGURACION_DEFAULT.seo.twitterImage
         }
     },
     

@@ -30,6 +30,8 @@ tailwind.config = {
 <link rel="stylesheet" href="/assets/css/dashboard.css">
 <link rel="stylesheet" href="/assets/css/animations.css">
 <link rel="stylesheet" href="/assets/css/page-transitions.css">
+<!-- SEO Meta Tags Manager -->
+<script src="/assets/js/seo-meta.js"></script>
 </head>
 <body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="configApp()" x-cloak>
 
@@ -504,6 +506,141 @@ tailwind.config = {
           </div>
         </div>
 
+        <!-- SEO Y METADATOS -->
+        <div x-show="cfgTab==='seo'" class="p-6 space-y-6">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-semibold text-txt-secondary uppercase">SEO y Metadatos</h3>
+            <span class="text-[10px] text-txt-muted">Optimiza tu sitio para buscadores y redes sociales</span>
+          </div>
+          
+          <!-- Info box -->
+          <div class="bg-gold-20 border border-gold/30 rounded-lg p-4">
+            <p class="text-xs text-gold">💡 Configura los meta tags que aparecerán en Google, Facebook, Twitter/X y otras plataformas cuando se comparta tu sitio.</p>
+          </div>
+
+          <!-- Meta Tags Básicos -->
+          <div>
+            <h4 class="text-xs font-semibold text-txt-secondary mb-3 flex items-center gap-2">
+              <span>📄</span> Meta Tags Básicos
+            </h4>
+            <div class="space-y-4">
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Título del sitio (max 60 caracteres)</label>
+                <input type="text" x-model="config.seoMetaTitle" maxlength="60" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none" placeholder="Las Gambusinas - Sistema POS">
+                <p class="text-[10px] text-txt-muted mt-1" x-text="(config.seoMetaTitle || '').length + '/60 caracteres'"></p>
+              </div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Descripción meta (max 160 caracteres)</label>
+                <textarea x-model="config.seoMetaDescription" maxlength="160" rows="2" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm h-20 resize-none focus:border-gold focus:outline-none" placeholder="Sistema de punto de venta para gestión de restaurante..."></textarea>
+                <p class="text-[10px] text-txt-muted mt-1" x-text="(config.seoMetaDescription || '').length + '/160 caracteres'"></p>
+              </div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">URL Canónica (dejar vacío para usar la URL actual)</label>
+                <input type="url" x-model="config.seoCanonicalUrl" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none font-mono" placeholder="https://tudominio.com/">
+              </div>
+            </div>
+          </div>
+
+          <!-- Open Graph -->
+          <div class="border-t border-[rgba(212,175,55,0.15)] pt-4">
+            <h4 class="text-xs font-semibold text-txt-secondary mb-3 flex items-center gap-2">
+              <span>📘</span> Open Graph (Facebook, LinkedIn, WhatsApp)
+            </h4>
+            <div class="space-y-4">
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="text-xs text-txt-secondary mb-1 block">og:title (max 60)</label>
+                  <input type="text" x-model="config.seoOgTitle" maxlength="60" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none" placeholder="Las Gambusinas - Restaurante">
+                </div>
+                <div>
+                  <label class="text-xs text-txt-secondary mb-1 block">og:type</label>
+                  <select x-model="config.seoOgType" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                    <option value="website">website</option>
+                    <option value="article">article</option>
+                    <option value="product">product</option>
+                    <option value="profile">profile</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">og:description (max 200)</label>
+                <textarea x-model="config.seoOgDescription" maxlength="200" rows="2" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm h-20 resize-none focus:border-gold focus:outline-none" placeholder="Sistema de gestión integral para restaurantes..."></textarea>
+              </div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">og:image (URL absoluta de la imagen)</label>
+                <input type="url" x-model="config.seoOgImage" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none font-mono" placeholder="https://tudominio.com/imagen-og.jpg">
+                <p class="text-[10px] text-txt-muted mt-1">Recomendado: 1200x630px para Facebook</p>
+              </div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">og:url (URL del sitio)</label>
+                <input type="url" x-model="config.seoOgUrl" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none font-mono" placeholder="https://tudominio.com/">
+              </div>
+            </div>
+          </div>
+
+          <!-- Twitter Card -->
+          <div class="border-t border-[rgba(212,175,55,0.15)] pt-4">
+            <h4 class="text-xs font-semibold text-txt-secondary mb-3 flex items-center gap-2">
+              <span>🐦</span> Twitter/X Card
+            </h4>
+            <div class="space-y-4">
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="text-xs text-txt-secondary mb-1 block">twitter:card</label>
+                  <select x-model="config.seoTwitterCard" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                    <option value="summary">summary</option>
+                    <option value="summary_large_image">summary_large_image</option>
+                    <option value="app">app</option>
+                    <option value="player">player</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-xs text-txt-secondary mb-1 block">twitter:site (@usuario)</label>
+                  <input type="text" x-model="config.seoTwitterSite" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none" placeholder="@lasgambusinas">
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="text-xs text-txt-secondary mb-1 block">twitter:title (max 70)</label>
+                  <input type="text" x-model="config.seoTwitterTitle" maxlength="70" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none" placeholder="Las Gambusinas - Sistema POS">
+                </div>
+                <div>
+                  <label class="text-xs text-txt-secondary mb-1 block">twitter:image</label>
+                  <input type="url" x-model="config.seoTwitterImage" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none font-mono" placeholder="https://tudominio.com/imagen-twitter.jpg">
+                </div>
+              </div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">twitter:description (max 200)</label>
+                <textarea x-model="config.seoTwitterDescription" maxlength="200" rows="2" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm h-20 resize-none focus:border-gold focus:outline-none" placeholder="Sistema de punto de venta para gestión de restaurante..."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Vista previa -->
+          <div class="border-t border-[rgba(212,175,55,0.15)] pt-4">
+            <h4 class="text-xs font-semibold text-txt-secondary mb-3 flex items-center gap-2">
+              <span>👁️</span> Vista Previa (simulada)
+            </h4>
+            <div class="bg-bg-sidebar rounded-lg p-4 space-y-3">
+              <!-- Google preview -->
+              <div class="border-b border-[rgba(255,255,255,0.1)] pb-3">
+                <p class="text-[10px] text-txt-muted mb-1">Google Search:</p>
+                <p class="text-st-pedido text-sm font-medium truncate" x-text="config.seoMetaTitle || 'Las Gambusinas - Sistema POS'"></p>
+                <p class="text-st-libere text-xs truncate" x-text="config.seoMetaDescription || 'Descripción del sitio...'"></p>
+              </div>
+              <!-- Social preview -->
+              <div>
+                <p class="text-[10px] text-txt-muted mb-1">Redes Sociales:</p>
+                <div class="flex gap-2">
+                  <span class="text-xs bg-st-pedido/20 text-st-pedido px-2 py-0.5 rounded">Facebook ✓</span>
+                  <span class="text-xs bg-st-esperando/20 text-st-esperando px-2 py-0.5 rounded">Twitter ✓</span>
+                  <span class="text-xs bg-st-libre/20 text-st-libre px-2 py-0.5 rounded">LinkedIn ✓</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- INTEGRACIONES -->
         <div x-show="cfgTab==='integraciones'" class="p-6 space-y-6">
           <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Integraciones</h3>
@@ -594,6 +731,7 @@ function configApp() {
       { id: 'notificaciones', label: 'Notificaciones', icon: '🔔' },
       { id: 'cierre', label: 'Cierre de Caja', icon: '📊' },
       { id: 'seguridad', label: 'Seguridad', icon: '🔒' },
+      { id: 'seo', label: 'SEO', icon: '🌐' },
       { id: 'integraciones', label: 'Integraciones', icon: '🔗' },
       { id: 'avanzado', label: 'Avanzado', icon: '🛠️' }
     ],
@@ -709,7 +847,21 @@ function configApp() {
       mensajeMantenimiento: '',
       syncJsonLegacy: false,
       versionSistema: '2.0.0',
-      fechaActualizacion: null
+      fechaActualizacion: null,
+      // SEO y Metadatos
+      seoMetaTitle: 'Las Gambusinas - Sistema POS',
+      seoMetaDescription: 'Sistema de punto de venta para gestión de restaurante. Control de mesas, comandas, pedidos y más.',
+      seoCanonicalUrl: '',
+      seoOgTitle: 'Las Gambusinas - Restaurante',
+      seoOgDescription: 'Sistema de gestión integral para restaurantes. Control de mesas, comandas y pedidos en tiempo real.',
+      seoOgImage: '',
+      seoOgUrl: '',
+      seoOgType: 'website',
+      seoTwitterCard: 'summary_large_image',
+      seoTwitterSite: '',
+      seoTwitterTitle: 'Las Gambusinas - Sistema POS',
+      seoTwitterDescription: 'Sistema de punto de venta para gestión de restaurante',
+      seoTwitterImage: ''
     },
     
     async init() {
@@ -826,6 +978,23 @@ function configApp() {
           this.config.versionSistema = cfg.version || '2.0.0';
           this.config.fechaActualizacion = cfg.updatedAt || null;
           
+          // Mapear SEO
+          if (cfg.seo) {
+            this.config.seoMetaTitle = cfg.seo.metaTitle || 'Las Gambusinas - Sistema POS';
+            this.config.seoMetaDescription = cfg.seo.metaDescription || '';
+            this.config.seoCanonicalUrl = cfg.seo.canonicalUrl || '';
+            this.config.seoOgTitle = cfg.seo.ogTitle || '';
+            this.config.seoOgDescription = cfg.seo.ogDescription || '';
+            this.config.seoOgImage = cfg.seo.ogImage || '';
+            this.config.seoOgUrl = cfg.seo.ogUrl || '';
+            this.config.seoOgType = cfg.seo.ogType || 'website';
+            this.config.seoTwitterCard = cfg.seo.twitterCard || 'summary_large_image';
+            this.config.seoTwitterSite = cfg.seo.twitterSite || '';
+            this.config.seoTwitterTitle = cfg.seo.twitterTitle || '';
+            this.config.seoTwitterDescription = cfg.seo.twitterDescription || '';
+            this.config.seoTwitterImage = cfg.seo.twitterImage || '';
+          }
+          
           console.log('✅ Configuración cargada desde API');
         }
       } catch (e) {
@@ -923,12 +1092,33 @@ function configApp() {
             requerirEfectivoInicial: this.config.validacionAdmin ?? true,
             cierreAutomatico: this.config.cierreAutomatico || false,
             horaCierreAutomatico: this.config.horaCierreAuto || '23:59'
+          },
+          
+          // SEO y Metadatos
+          seo: {
+            metaTitle: this.config.seoMetaTitle || 'Las Gambusinas - Sistema POS',
+            metaDescription: this.config.seoMetaDescription || '',
+            canonicalUrl: this.config.seoCanonicalUrl || '',
+            ogTitle: this.config.seoOgTitle || '',
+            ogDescription: this.config.seoOgDescription || '',
+            ogImage: this.config.seoOgImage || '',
+            ogUrl: this.config.seoOgUrl || '',
+            ogType: this.config.seoOgType || 'website',
+            twitterCard: this.config.seoTwitterCard || 'summary_large_image',
+            twitterSite: this.config.seoTwitterSite || '',
+            twitterTitle: this.config.seoTwitterTitle || '',
+            twitterDescription: this.config.seoTwitterDescription || '',
+            twitterImage: this.config.seoTwitterImage || ''
           }
         };
         
         const res = await apiPut('/configuracion', dataToSave);
         if (res && res.success) {
           this.showToast('✅ Configuración guardada exitosamente');
+          // Invalidar cache SEO para que se recargue
+          if (typeof SEOMeta !== 'undefined') {
+            SEOMeta.invalidateCache();
+          }
           // Recargar para confirmar
           await this.loadConfig();
         } else {
