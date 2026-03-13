@@ -471,6 +471,7 @@ tailwind.config = {
   </div>
 </div>
 
+<script src="/assets/js/notifications.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script>
 function auditoriaApp() {
@@ -498,7 +499,39 @@ function auditoriaApp() {
         window.location.href = '/login.html';
         return;
       }
+      
+      // Verificar si hay parámetros de URL (desde notificación)
+      this.checkUrlParams();
+      
       await this.loadAuditoria();
+    },
+    
+    checkUrlParams() {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+      const accion = params.get('accion');
+      
+      // Si hay ID de auditoría específico, cargar y mostrar
+      if (id) {
+        this.loadAndShowAuditoriaById(id);
+      }
+      
+      // Si hay filtro de acción, aplicarlo
+      if (accion) {
+        this.filterAccion = accion;
+      }
+    },
+    
+    async loadAndShowAuditoriaById(id) {
+      try {
+        const data = await apiGet(`/auditoria/comandas?id=${id}`);
+        if (data && data.auditorias && data.auditorias.length > 0) {
+          // Marcar que estamos cargando un registro específico
+          this.highlightedId = id;
+        }
+      } catch (e) {
+        console.warn('No se pudo cargar auditoría específica:', e);
+      }
     },
 
     async loadAuditoria() {

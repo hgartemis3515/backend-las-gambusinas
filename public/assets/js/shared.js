@@ -307,6 +307,10 @@ async function apiGet(endpoint) {
     return await res.json();
   } catch (e) {
     console.error('API Error:', endpoint, e);
+    // Notificar error de red
+    if (window.GambusinasNotifications) {
+      GambusinasNotifications.networkError(e);
+    }
     return null;
   }
 }
@@ -386,9 +390,363 @@ async function apiDelete(endpoint, body) {
     return await res.json();
   } catch (e) {
     console.error('API Error:', endpoint, e);
+    // Notificar error de red
+    if (window.GambusinasNotifications) {
+      GambusinasNotifications.networkError(e);
+    }
     return null;
   }
 }
+
+// ============================================
+// API HELPERS CON NOTIFICACIONES AUTOMÁTICAS
+// ============================================
+
+/**
+ * API GET con notificación automática de error
+ */
+async function apiGetWithNotify(endpoint, options = {}) {
+  const { silentError = false, silentSuccess = true } = options;
+  const result = await apiGet(endpoint);
+  
+  if (!result) {
+    if (!silentError && window.GambusinasNotifications) {
+      GambusinasNotifications.error('Error de conexión', 'No se pudo obtener los datos');
+    }
+    return { success: false, error: 'connection_error' };
+  }
+  
+  if (result.success === false && !silentError) {
+    if (window.GambusinasNotifications) {
+      GambusinasNotifications.error(result.message || 'Error al obtener datos');
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * API POST con notificación automática
+ */
+async function apiPostWithNotify(endpoint, body, options = {}) {
+  const { 
+    silentError = false, 
+    silentSuccess = false,
+    successMessage = null,
+    auditEvent = null,
+    entityId = null,
+    entityType = null,
+    entityName = null
+  } = options;
+  
+  const result = await apiPost(endpoint, body);
+  
+  if (!result) {
+    if (!silentError && window.GambusinasNotifications) {
+      GambusinasNotifications.networkError({});
+    }
+    return { success: false, error: 'connection_error' };
+  }
+  
+  if (result.success === false) {
+    if (!silentError && window.GambusinasNotifications) {
+      GambusinasNotifications.error(result.message || 'Error en la operación');
+    }
+    return result;
+  }
+  
+  // Éxito
+  if (!silentSuccess && window.GambusinasNotifications) {
+    // Si es un evento de auditoría, usar notificación especial
+    if (auditEvent) {
+      GambusinasNotifications.audit({
+        eventType: auditEvent,
+        entityId: entityId || result.data?._id || result._id,
+        entityType: entityType,
+        entityName: entityName || result.data?.nombre || result.nombre,
+        title: successMessage || result.message || 'Operación completada'
+      });
+    } else {
+      GambusinasNotifications.success(successMessage || result.message || 'Operación exitosa');
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * API PUT con notificación automática
+ */
+async function apiPutWithNotify(endpoint, body, options = {}) {
+  const { 
+    silentError = false, 
+    silentSuccess = false,
+    successMessage = null,
+    auditEvent = null,
+    entityId = null,
+    entityType = null,
+    entityName = null
+  } = options;
+  
+  const result = await apiPut(endpoint, body);
+  
+  if (!result) {
+    if (!silentError && window.GambusinasNotifications) {
+      GambusinasNotifications.networkError({});
+    }
+    return { success: false, error: 'connection_error' };
+  }
+  
+  if (result.success === false) {
+    if (!silentError && window.GambusinasNotifications) {
+      GambusinasNotifications.error(result.message || 'Error en la operación');
+    }
+    return result;
+  }
+  
+  // Éxito
+  if (!silentSuccess && window.GambusinasNotifications) {
+    if (auditEvent) {
+      GambusinasNotifications.audit({
+        eventType: auditEvent,
+        entityId: entityId || result.data?._id || result._id,
+        entityType: entityType,
+        entityName: entityName || result.data?.nombre || result.nombre,
+        title: successMessage || result.message || 'Actualizado correctamente'
+      });
+    } else {
+      GambusinasNotifications.success(successMessage || result.message || 'Actualizado correctamente');
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * API DELETE con notificación de auditoría automática
+ */
+async function apiDeleteWithNotify(endpoint, body, options = {}) {
+  const { 
+    silentError = false, 
+    silentSuccess = false,
+    successMessage = null,
+    auditEvent = 'eliminacion', // Por defecto es un evento de auditoría
+    entityId = null,
+    entityType = null,
+    entityName = null,
+    confirmMessage = null // Si se provee, muestra advertencia antes
+  } = options;
+  
+  // Si hay mensaje de confirmación y no se confirmó, mostrar advertencia
+  if (confirmMessage && window.GambusinasNotifications) {
+    GambusinasNotifications.warning('Confirmación requerida', confirmMessage);
+    // Nota: La confirmación real debe manejarse con un modal en la UI
+  }
+  
+  const result = await apiDelete(endpoint, body);
+  
+  if (!result) {
+    if (!silentError && window.GambusinasNotifications) {
+      GambusinasNotifications.networkError({});
+    }
+    return { success: false, error: 'connection_error' };
+  }
+  
+  if (result.success === false) {
+    if (!silentError && window.GambusinasNotifications) {
+      GambusinasNotifications.error(result.message || 'Error al eliminar');
+    }
+    return result;
+  }
+  
+  // Éxito - Las eliminaciones siempre son eventos de auditoría
+  if (!silentSuccess && window.GambusinasNotifications) {
+    GambusinasNotifications.audit({
+      eventType: auditEvent,
+      entityId: entityId || result.data?._id || result._id,
+      entityType: entityType,
+      entityName: entityName || result.data?.nombre || result.nombre,
+      title: successMessage || result.message || 'Elemento eliminado',
+      message: 'Esta acción ha sido registrada en auditoría'
+    });
+  }
+  
+  return result;
+}
+
+// ============================================
+// HELPERS ESPECÍFICOS POR MÓDULO
+// ============================================
+
+/**
+ * Helper para operaciones de Comandas
+ */
+const ComandaAPI = {
+  async crear(data) {
+    return apiPostWithNotify('/comanda', data, {
+      successMessage: 'Comanda creada correctamente',
+      auditEvent: 'comanda_creada',
+      entityType: 'comanda'
+    });
+  },
+  
+  async editar(id, data) {
+    return apiPutWithNotify(`/comanda/${id}`, data, {
+      successMessage: 'Comanda actualizada',
+      auditEvent: 'comanda_editada',
+      entityId: id,
+      entityType: 'comanda'
+    });
+  },
+  
+  async eliminar(id, motivo, comandaNumber) {
+    return apiDeleteWithNotify(`/comanda/${id}`, { motivo }, {
+      successMessage: `Comanda #${comandaNumber} eliminada`,
+      auditEvent: 'comanda_eliminada',
+      entityId: id,
+      entityType: 'comanda',
+      entityName: `Comanda #${comandaNumber}`
+    });
+  },
+  
+  async eliminarPlato(comandaId, platoId, motivo, platoNombre) {
+    return apiDeleteWithNotify(`/comanda/${comandaId}/plato/${platoId}`, { motivo }, {
+      successMessage: `Plato "${platoNombre}" eliminado`,
+      auditEvent: 'ELIMINAR_PLATO_COMANDA',
+      entityId: comandaId,
+      entityType: 'comanda',
+      entityName: platoNombre
+    });
+  }
+};
+
+/**
+ * Helper para operaciones de Platos
+ */
+const PlatoAPI = {
+  async crear(data) {
+    return apiPostWithNotify('/platos', data, {
+      successMessage: `Plato "${data.nombre}" creado`,
+      auditEvent: 'plato_agregado',
+      entityType: 'plato'
+    });
+  },
+  
+  async editar(id, data) {
+    return apiPutWithNotify(`/platos/${id}`, data, {
+      successMessage: 'Plato actualizado',
+      auditEvent: 'plato_modificado',
+      entityId: id,
+      entityType: 'plato'
+    });
+  },
+  
+  async eliminar(id, nombre) {
+    return apiDeleteWithNotify(`/platos/${id}`, {}, {
+      successMessage: `Plato "${nombre}" eliminado`,
+      auditEvent: 'plato_eliminado',
+      entityId: id,
+      entityType: 'plato',
+      entityName: nombre
+    });
+  }
+};
+
+/**
+ * Helper para operaciones de Mesas
+ */
+const MesaAPI = {
+  async crear(data) {
+    return apiPostWithNotify('/mesas', data, {
+      successMessage: `Mesa ${data.numero} creada`,
+      auditEvent: 'mesa_creada',
+      entityType: 'mesa'
+    });
+  },
+  
+  async editar(id, data) {
+    return apiPutWithNotify(`/mesas/${id}`, data, {
+      successMessage: 'Mesa actualizada',
+      auditEvent: 'mesa_modificada',
+      entityId: id,
+      entityType: 'mesa'
+    });
+  },
+  
+  async eliminar(id, numero) {
+    return apiDeleteWithNotify(`/mesas/${id}`, {}, {
+      successMessage: `Mesa ${numero} eliminada`,
+      auditEvent: 'mesa_eliminada',
+      entityId: id,
+      entityType: 'mesa',
+      entityName: `Mesa ${numero}`
+    });
+  },
+  
+  async cambiarEstado(id, estado, numero) {
+    return apiPutWithNotify(`/mesas/${id}/estado`, { estado }, {
+      successMessage: `Mesa ${numero}: ${estado}`,
+      silentSuccess: true // No mostrar notificación para cambios de estado frecuentes
+    });
+  }
+};
+
+/**
+ * Helper para operaciones de Bouchers/Pagos
+ */
+const BoucherAPI = {
+  async crear(data) {
+    return apiPostWithNotify('/bouchers', data, {
+      successMessage: 'Pago procesado correctamente',
+      auditEvent: 'pago_procesado',
+      entityType: 'pago'
+    });
+  },
+  
+  async anular(id, motivo) {
+    return apiDeleteWithNotify(`/bouchers/${id}`, { motivo }, {
+      successMessage: 'Boucher anulado',
+      auditEvent: 'boucher_anulado',
+      entityId: id,
+      entityType: 'boucher'
+    });
+  }
+};
+
+/**
+ * Helper para operaciones de Cierre de Caja
+ */
+const CierreCajaAPI = {
+  async generar(data) {
+    return apiPostWithNotify('/cierre-caja', data, {
+      successMessage: 'Cierre de caja generado',
+      auditEvent: 'cierre_caja_generado',
+      entityType: 'cierre_caja'
+    });
+  },
+  
+  async reabrir(id) {
+    return apiPutWithNotify(`/cierre-caja/${id}/reabrir`, {}, {
+      successMessage: 'Cierre de caja reabierto',
+      auditEvent: 'cierre_caja_reapertura',
+      entityId: id,
+      entityType: 'cierre_caja'
+    });
+  }
+};
+
+/**
+ * Helper para operaciones de Configuración
+ */
+const ConfiguracionAPI = {
+  async guardar(data) {
+    return apiPutWithNotify('/configuracion', data, {
+      successMessage: 'Configuración guardada',
+      auditEvent: 'configuracion_actualizada',
+      entityType: 'configuracion'
+    });
+  }
+};
 
 // Exponer globalmente
 window.sharedData = sharedData;
@@ -404,3 +762,17 @@ window.apiGet = apiGet;
 window.apiPost = apiPost;
 window.apiPut = apiPut;
 window.apiDelete = apiDelete;
+
+// API con notificaciones
+window.apiGetWithNotify = apiGetWithNotify;
+window.apiPostWithNotify = apiPostWithNotify;
+window.apiPutWithNotify = apiPutWithNotify;
+window.apiDeleteWithNotify = apiDeleteWithNotify;
+
+// Helpers específicos por módulo
+window.ComandaAPI = ComandaAPI;
+window.PlatoAPI = PlatoAPI;
+window.MesaAPI = MesaAPI;
+window.BoucherAPI = BoucherAPI;
+window.CierreCajaAPI = CierreCajaAPI;
+window.ConfiguracionAPI = ConfiguracionAPI;

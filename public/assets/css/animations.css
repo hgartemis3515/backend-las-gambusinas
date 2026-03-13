@@ -353,8 +353,62 @@
 
 /* ============================================
    NOTIFICATION / TOAST ANIMATIONS
+   Inspirado en Sileo - Spring Physics & Morphing
+   ============================================ */
+
+/* ============================================
+   SPRING PHYSICS ENTRANCE (Sileo-style)
+   Efecto de rebote elástico con física realista
    ============================================ */
 .toast-enter {
+  animation: toastSpringEnter 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes toastSpringEnter {
+  0% {
+    opacity: 0;
+    transform: translateX(100%) scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-10%) scale(1.02);
+  }
+  70% {
+    transform: translateX(5%) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* ============================================
+   SPRING EXIT (Sileo-style)
+   Salida con efecto de contracción elástica
+   ============================================ */
+.toast-exit {
+  animation: toastSpringExit 400ms cubic-bezier(0.55, 0, 0.85, 0.36) forwards;
+}
+
+@keyframes toastSpringExit {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  30% {
+    opacity: 0.8;
+    transform: translateX(-5%) scale(1.02);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(100%) scale(0.8);
+  }
+}
+
+/* ============================================
+   LEGACY SLIDE ANIMATIONS (fallback)
+   ============================================ */
+.toast-slide-in {
   animation: slideInRight 300ms ease-out;
 }
 
@@ -369,7 +423,7 @@
   }
 }
 
-.toast-exit {
+.toast-slide-out {
   animation: slideOutRight 300ms ease-in forwards;
 }
 
@@ -384,8 +438,472 @@
   }
 }
 
+/* ============================================
+   MORPHING GLOW EFFECT (Sileo-style)
+   Efecto de brillo pulsante con morphing
+   ============================================ */
+.notification-morph-glow {
+  position: relative;
+  overflow: hidden;
+}
+
+.notification-morph-glow::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(
+    circle at center,
+    rgba(212, 175, 55, 0.15) 0%,
+    transparent 50%
+  );
+  animation: morphGlow 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes morphGlow {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.2) rotate(180deg);
+    opacity: 0.8;
+  }
+}
+
+/* ============================================
+   BOUNCE SUBTLE (mantenido para compatibilidad)
+   ============================================ */
 .notification-bounce {
   animation: bounce-subtle 0.3s ease-out;
+}
+
+/* ============================================
+   SUCCESS ENTRANCE (Sileo-style verde)
+   Animación específica para notificaciones de éxito
+   ============================================ */
+.toast-success-enter {
+  animation: toastSuccessEnter 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes toastSuccessEnter {
+  0% {
+    opacity: 0;
+    transform: translateX(100%) scale(0.5) rotate(-10deg);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-15%) scale(1.1) rotate(3deg);
+  }
+  75% {
+    transform: translateX(5%) scale(0.95) rotate(-1deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1) rotate(0deg);
+  }
+}
+
+/* ============================================
+   ERROR ENTRANCE (Sileo-style rojo)
+   Animación con shake para errores
+   ============================================ */
+.toast-error-enter {
+  animation: toastErrorEnter 600ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes toastErrorEnter {
+  0% {
+    opacity: 0;
+    transform: translateX(100%) scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: translateX(-20%) scale(1.05);
+  }
+  50% {
+    transform: translateX(-15%) scale(1.02);
+  }
+  60% {
+    transform: translateX(-10%) rotate(-2deg);
+  }
+  70% {
+    transform: translateX(-5%) rotate(2deg);
+  }
+  80% {
+    transform: translateX(0) rotate(-1deg);
+  }
+  90% {
+    transform: translateX(0) rotate(1deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1) rotate(0deg);
+  }
+}
+
+/* ============================================
+   WARNING ENTRANCE (Sileo-style naranja)
+   Animación con wobble para advertencias
+   ============================================ */
+.toast-warning-enter {
+  animation: toastWarningEnter 550ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes toastWarningEnter {
+  0% {
+    opacity: 0;
+    transform: translateX(100%) scale(0.6);
+  }
+  30% {
+    opacity: 1;
+    transform: translateX(-10%) scale(1.08);
+  }
+  45% {
+    transform: translateX(5%) scale(0.96);
+  }
+  60% {
+    transform: translateX(-3%) scale(1.03);
+  }
+  75% {
+    transform: translateX(2%) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* ============================================
+   INFO ENTRANCE (Sileo-style azul)
+   Animación suave para información
+   ============================================ */
+.toast-info-enter {
+  animation: toastInfoEnter 450ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes toastInfoEnter {
+  0% {
+    opacity: 0;
+    transform: translateX(100%) scale(0.7);
+  }
+  60% {
+    opacity: 1;
+    transform: translateX(-5%) scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* ============================================
+   AUDIT ENTRANCE (Sileo-style gold)
+   Animación premium para auditoría con glow
+   ============================================ */
+.toast-audit-enter {
+  animation: toastAuditEnter 600ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes toastAuditEnter {
+  0% {
+    opacity: 0;
+    transform: translateX(100%) scale(0.5);
+    box-shadow: 0 0 0 0 rgba(212, 175, 55, 0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-15%) scale(1.05);
+    box-shadow: 0 0 30px 10px rgba(212, 175, 55, 0.3);
+  }
+  75% {
+    transform: translateX(5%) scale(0.98);
+    box-shadow: 0 0 15px 5px rgba(212, 175, 55, 0.2);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    box-shadow: 0 0 10px 2px rgba(212, 175, 55, 0.15);
+  }
+}
+
+/* ============================================
+   PROGRESS BAR ANIMATION (Sileo-style)
+   Barra de progreso con efecto smooth
+   ============================================ */
+.notification-progress-animated {
+  position: relative;
+  overflow: hidden;
+}
+
+.notification-progress-animated::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 100%
+  );
+  animation: progressShimmer 2s ease-in-out infinite;
+}
+
+@keyframes progressShimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ============================================
+   ICON BOUNCE (Sileo-style)
+   Animación del icono dentro del toast
+   ============================================ */
+.toast-icon-bounce {
+  animation: iconBounce 500ms cubic-bezier(0.34, 1.56, 0.64, 1) 100ms both;
+}
+
+@keyframes iconBounce {
+  0% {
+    opacity: 0;
+    transform: scale(0) rotate(-180deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.3) rotate(10deg);
+  }
+  75% {
+    transform: scale(0.9) rotate(-5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* ============================================
+   CLOSE BUTTON HOVER (Sileo-style)
+   Animación del botón de cerrar
+   ============================================ */
+.notification-close-animated {
+  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              background-color 200ms ease,
+              opacity 200ms ease;
+}
+
+.notification-close-animated:hover {
+  transform: rotate(90deg) scale(1.1);
+  opacity: 1;
+}
+
+.notification-close-animated:active {
+  transform: rotate(90deg) scale(0.9);
+}
+
+/* ============================================
+   RIPPLE EFFECT (Sileo-style)
+   Efecto ripple al hacer click
+   ============================================ */
+.toast-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.toast-ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0);
+}
+
+.toast-ripple:active::after {
+  animation: rippleEffect 400ms ease-out;
+}
+
+@keyframes rippleEffect {
+  0% {
+    opacity: 0.5;
+    transform: translate(-50%, -50%) scale(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(40);
+  }
+}
+
+/* ============================================
+   STACKED NOTIFICATIONS (Sileo-style)
+   Animación para notificaciones apiladas
+   ============================================ */
+.notification-stack-enter {
+  animation: stackEnter 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes stackEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-5px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.notification-stack-exit {
+  animation: stackExit 300ms cubic-bezier(0.55, 0, 0.85, 0.36) forwards;
+}
+
+@keyframes stackExit {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.9);
+  }
+}
+
+/* ============================================
+   POSITION-BASED ANIMATIONS
+   Animaciones según posición del toast
+   ============================================ */
+
+/* Top positions - entrada desde arriba */
+.toast-enter-top {
+  animation: toastEnterTop 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes toastEnterTop {
+  0% {
+    opacity: 0;
+    transform: translateY(-100%) scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(10px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Bottom positions - entrada desde abajo */
+.toast-enter-bottom {
+  animation: toastEnterBottom 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes toastEnterBottom {
+  0% {
+    opacity: 0;
+    transform: translateY(100%) scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Left positions - entrada desde izquierda */
+.toast-enter-left {
+  animation: toastEnterLeft 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes toastEnterLeft {
+  0% {
+    opacity: 0;
+    transform: translateX(-100%) scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(10px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* Center positions - entrada con scale */
+.toast-enter-center {
+  animation: toastEnterCenter 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes toastEnterCenter {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ============================================
+   PULSE ATTENTION (Sileo-style)
+   Animación para llamar la atención
+   ============================================ */
+.notification-pulse-attention {
+  animation: pulseAttention 2s ease-in-out infinite;
+}
+
+@keyframes pulseAttention {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px 5px rgba(212, 175, 55, 0.2);
+  }
+}
+
+/* ============================================
+   NEW CONTENT HIGHLIGHT
+   Efecto para notificaciones con nuevo contenido
+   ============================================ */
+.notification-new-content {
+  animation: newContentFlash 1s ease-out;
+}
+
+@keyframes newContentFlash {
+  0% {
+    background-color: rgba(212, 175, 55, 0.2);
+  }
+  50% {
+    background-color: rgba(212, 175, 55, 0.05);
+  }
+  100% {
+    background-color: transparent;
+  }
 }
 
 /* ============================================

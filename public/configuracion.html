@@ -397,39 +397,235 @@ tailwind.config = {
 
         <!-- NOTIFICACIONES -->
         <div x-show="cfgTab==='notificaciones'" class="p-6 space-y-6">
-          <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Notificaciones</h3>
-          <div class="space-y-3">
-            <label class="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" x-model="config.pushHabilitado" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
-              <span class="text-sm text-txt-secondary">Notificaciones push</span>
-            </label>
-            <label class="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" x-model="config.emailAlertas" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
-              <span class="text-sm text-txt-secondary">Alertas por email</span>
-            </label>
-            <label class="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" x-model="config.notifNuevasComandas" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
-              <span class="text-sm text-txt-secondary">Notificar nuevas comandas</span>
-            </label>
-            <label class="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" x-model="config.notifComandasListas" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
-              <span class="text-sm text-txt-secondary">Notificar comandas listas</span>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-semibold text-txt-secondary uppercase">Notificaciones del Sistema</h3>
+            <span class="text-[10px] text-txt-muted">Configura cómo y cuándo recibes alertas</span>
+          </div>
+          
+          <!-- Info box -->
+          <div class="bg-gold-20 border border-gold/30 rounded-lg p-4">
+            <p class="text-xs text-gold">💡 Las notificaciones te mantienen informado sobre operaciones importantes. Las notificaciones de auditoría (⚠️) siempre están habilitadas para acciones sensibles como eliminaciones y anulaciones.</p>
+          </div>
+          
+          <!-- Categorías de notificación -->
+          <div>
+            <h4 class="text-xs font-semibold text-txt-secondary mb-3 flex items-center gap-2">
+              <span>🔔</span> Categorías de Notificación
+            </h4>
+            <div class="space-y-3">
+              <!-- Éxito -->
+              <div class="bg-bg-sidebar border border-[rgba(212,175,55,0.15)] rounded-lg p-3 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-st-preparado/20 flex items-center justify-center text-st-preparado">✓</div>
+                  <div>
+                    <p class="text-sm font-medium">Operaciones exitosas</p>
+                    <p class="text-[10px] text-txt-muted">Crear, editar y actualizar elementos</p>
+                  </div>
+                </div>
+                <label class="flex items-center cursor-pointer">
+                  <input type="checkbox" x-model="config.notifSuccessEnabled" class="sr-only peer">
+                  <div class="w-9 h-5 bg-bg-card rounded-full peer-checked:bg-st-preparado transition-colors relative">
+                    <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4"></div>
+                  </div>
+                </label>
+              </div>
+              
+              <!-- Error -->
+              <div class="bg-bg-sidebar border border-[rgba(212,175,55,0.15)] rounded-lg p-3 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-st-pagado/20 flex items-center justify-center text-st-pagado">✕</div>
+                  <div>
+                    <p class="text-sm font-medium">Errores</p>
+                    <p class="text-[10px] text-txt-muted">Fallos de conexión y errores del servidor</p>
+                  </div>
+                </div>
+                <label class="flex items-center cursor-pointer">
+                  <input type="checkbox" x-model="config.notifErrorEnabled" class="sr-only peer" checked disabled>
+                  <div class="w-9 h-5 bg-st-pagado rounded-full relative opacity-60 cursor-not-allowed">
+                    <div class="absolute top-0.5 right-0.5 w-4 h-4 bg-white rounded-full"></div>
+                  </div>
+                  <span class="text-[9px] text-txt-muted ml-2">Siempre activo</span>
+                </label>
+              </div>
+              
+              <!-- Advertencia -->
+              <div class="bg-bg-sidebar border border-[rgba(212,175,55,0.15)] rounded-lg p-3 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-st-esperando/20 flex items-center justify-center text-st-esperando">⚠</div>
+                  <div>
+                    <p class="text-sm font-medium">Advertencias</p>
+                    <p class="text-[10px] text-txt-muted">Acciones potencialmente peligrosas</p>
+                  </div>
+                </div>
+                <label class="flex items-center cursor-pointer">
+                  <input type="checkbox" x-model="config.notifWarningEnabled" class="sr-only peer" checked>
+                  <div class="w-9 h-5 bg-bg-card rounded-full peer-checked:bg-st-esperando transition-colors relative">
+                    <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4"></div>
+                  </div>
+                </label>
+              </div>
+              
+              <!-- Información -->
+              <div class="bg-bg-sidebar border border-[rgba(212,175,55,0.15)] rounded-lg p-3 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-st-pedido/20 flex items-center justify-center text-st-pedido">ℹ</div>
+                  <div>
+                    <p class="text-sm font-medium">Información</p>
+                    <p class="text-[10px] text-txt-muted">Estados de conexión y actualizaciones</p>
+                  </div>
+                </div>
+                <label class="flex items-center cursor-pointer">
+                  <input type="checkbox" x-model="config.notifInfoEnabled" class="sr-only peer">
+                  <div class="w-9 h-5 bg-bg-card rounded-full peer-checked:bg-st-pedido transition-colors relative">
+                    <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4"></div>
+                  </div>
+                </label>
+              </div>
+              
+              <!-- Auditoría - Siempre activo -->
+              <div class="bg-bg-sidebar border-2 border-gold/30 rounded-lg p-3 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-gold/20 flex items-center justify-center text-gold">🔍</div>
+                  <div>
+                    <p class="text-sm font-medium">Auditoría <span class="text-[9px] bg-gold text-bg-primary px-1.5 py-0.5 rounded ml-1">SIEMPRE</span></p>
+                    <p class="text-[10px] text-txt-muted">Eliminaciones, anulaciones y acciones sensibles</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] text-gold font-medium">Activo</span>
+                  <div class="w-9 h-5 bg-gold rounded-full relative">
+                    <div class="absolute top-0.5 right-0.5 w-4 h-4 bg-white rounded-full"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Configuración visual -->
+          <div class="border-t border-[rgba(212,175,55,0.15)] pt-4">
+            <h4 class="text-xs font-semibold text-txt-secondary mb-3 flex items-center gap-2">
+              <span>🎨</span> Apariencia
+            </h4>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Posición</label>
+                <select x-model="config.notifPosition" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                  <option value="bottom-right">Esquina inferior derecha</option>
+                  <option value="bottom-left">Esquina inferior izquierda</option>
+                  <option value="top-right">Esquina superior derecha</option>
+                  <option value="top-left">Esquina superior izquierda</option>
+                  <option value="top-center">Centro superior</option>
+                  <option value="bottom-center">Centro inferior</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Duración por defecto</label>
+                <select x-model="config.notifDuration" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                  <option value="3000">3 segundos</option>
+                  <option value="4000">4 segundos</option>
+                  <option value="5000">5 segundos</option>
+                  <option value="6000">6 segundos</option>
+                  <option value="8000">8 segundos (audit)</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mt-4">
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Máximo visible</label>
+                <select x-model="config.notifMaxVisible" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                  <option value="3">3 notificaciones</option>
+                  <option value="5">5 notificaciones</option>
+                  <option value="7">7 notificaciones</option>
+                  <option value="10">10 notificaciones</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Opciones adicionales -->
+          <div class="border-t border-[rgba(212,175,55,0.15)] pt-4">
+            <h4 class="text-xs font-semibold text-txt-secondary mb-3 flex items-center gap-2">
+              <span>⚙️</span> Opciones
+            </h4>
+            <div class="space-y-3">
+              <label class="flex items-center justify-between cursor-pointer bg-bg-sidebar p-3 rounded-lg">
+                <div>
+                  <span class="text-sm text-txt-primary">Pausar al pasar el mouse</span>
+                  <p class="text-[10px] text-txt-muted">El temporizador se detiene cuando hover</p>
+                </div>
+                <input type="checkbox" x-model="config.notifPauseOnHover" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-primary text-gold focus:ring-gold">
+              </label>
+              
+              <label class="flex items-center justify-between cursor-pointer bg-bg-sidebar p-3 rounded-lg">
+                <div>
+                  <span class="text-sm text-txt-primary">Mostrar barra de progreso</span>
+                  <p class="text-[10px] text-txt-muted">Indica el tiempo restante</p>
+                </div>
+                <input type="checkbox" x-model="config.notifShowProgress" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-primary text-gold focus:ring-gold">
+              </label>
+              
+              <label class="flex items-center justify-between cursor-pointer bg-bg-sidebar p-3 rounded-lg">
+                <div>
+                  <span class="text-sm text-txt-primary">Mostrar botón cerrar</span>
+                  <p class="text-[10px] text-txt-muted">Permite descartar manualmente</p>
+                </div>
+                <input type="checkbox" x-model="config.notifShowClose" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-primary text-gold focus:ring-gold">
+              </label>
+              
+              <label class="flex items-center justify-between cursor-pointer bg-bg-sidebar p-3 rounded-lg">
+                <div>
+                  <span class="text-sm text-txt-primary">Enlace a Auditoría</span>
+                  <p class="text-[10px] text-txt-muted">Botón "Ver en Auditoría" en eventos sensibles</p>
+                </div>
+                <input type="checkbox" x-model="config.notifShowAuditLink" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-primary text-gold focus:ring-gold">
+              </label>
+            </div>
+          </div>
+          
+          <!-- Alertas específicas -->
+          <div class="border-t border-[rgba(212,175,55,0.15)] pt-4">
+            <h4 class="text-xs font-semibold text-txt-secondary mb-3 flex items-center gap-2">
+              <span>🚨</span> Alertas Específicas
+            </h4>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Alerta mesa abandonada (min)</label>
+                <input type="number" x-model="config.alertaMesaAbandonada" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+              </div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Stock mínimo alerta</label>
+                <input type="number" x-model="config.stockMinimoAlerta" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+              </div>
+            </div>
+            <label class="flex items-center gap-3 cursor-pointer mt-3">
+              <input type="checkbox" x-model="config.stockBajoAlerta" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Alertar stock bajo</span>
             </label>
           </div>
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="text-xs text-txt-secondary mb-1 block">Alerta mesa abandonada (min)</label>
-              <input type="number" x-model="config.alertaMesaAbandonada" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
-            </div>
-            <div>
-              <label class="text-xs text-txt-secondary mb-1 block">Stock mínimo alerta</label>
-              <input type="number" x-model="config.stockMinimoAlerta" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+          
+          <!-- Test de notificaciones -->
+          <div class="border-t border-[rgba(212,175,55,0.15)] pt-4">
+            <h4 class="text-xs font-semibold text-txt-secondary mb-3 flex items-center gap-2">
+              <span>🧪</span> Probar Notificaciones
+            </h4>
+            <div class="flex flex-wrap gap-2">
+              <button @click="testNotification('success')" class="px-3 py-1.5 bg-st-preparado/20 text-st-preparado rounded-lg text-xs font-medium hover:bg-st-preparado/30 transition">
+                ✓ Éxito
+              </button>
+              <button @click="testNotification('error')" class="px-3 py-1.5 bg-st-pagado/20 text-st-pagado rounded-lg text-xs font-medium hover:bg-st-pagado/30 transition">
+                ✕ Error
+              </button>
+              <button @click="testNotification('warning')" class="px-3 py-1.5 bg-st-esperando/20 text-st-esperando rounded-lg text-xs font-medium hover:bg-st-esperando/30 transition">
+                ⚠ Advertencia
+              </button>
+              <button @click="testNotification('info')" class="px-3 py-1.5 bg-st-pedido/20 text-st-pedido rounded-lg text-xs font-medium hover:bg-st-pedido/30 transition">
+                ℹ Info
+              </button>
+              <button @click="testNotification('audit')" class="px-3 py-1.5 bg-gold/20 text-gold border border-gold/30 rounded-lg text-xs font-medium hover:bg-gold/30 transition">
+                🔍 Auditoría
+              </button>
             </div>
           </div>
-          <label class="flex items-center gap-3 cursor-pointer">
-            <input type="checkbox" x-model="config.stockBajoAlerta" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
-            <span class="text-sm text-txt-secondary">Alertar stock bajo</span>
-          </label>
         </div>
 
         <!-- CIERRE DE CAJA -->
@@ -711,6 +907,8 @@ tailwind.config = {
 <!-- TOAST CONTAINER -->
 <div id="toast-container" class="fixed bottom-6 right-6 z-[9999] space-y-2"></div>
 
+<!-- Notifications JS -->
+<script src="/assets/js/notifications.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script>
 function configApp() {
@@ -747,6 +945,18 @@ function configApp() {
       horaCierre: '23:00',
       zonaHoraria: 'America/Lima',
       idioma: 'es',
+      // Notificaciones
+      notifSuccessEnabled: true,
+      notifErrorEnabled: true,
+      notifWarningEnabled: true,
+      notifInfoEnabled: true,
+      notifPosition: 'bottom-right',
+      notifDuration: 4000,
+      notifMaxVisible: 5,
+      notifPauseOnHover: true,
+      notifShowProgress: true,
+      notifShowClose: true,
+      notifShowAuditLink: true,
       // Moneda y Precios
       moneda: 'PEN',
       simboloMoneda: 'S/.',
@@ -1114,6 +1324,9 @@ function configApp() {
         
         const res = await apiPut('/configuracion', dataToSave);
         if (res && res.success) {
+          // Guardar configuración de notificaciones
+          this.saveNotificationConfig();
+          
           this.showToast('✅ Configuración guardada exitosamente');
           // Invalidar cache SEO para que se recargue
           if (typeof SEOMeta !== 'undefined') {
@@ -1141,6 +1354,62 @@ function configApp() {
       t.textContent = msg;
       container.appendChild(t);
       setTimeout(() => t.remove(), 4000);
+    },
+    
+    testNotification(type) {
+      if (!window.GambusinasNotifications) {
+        this.showToast('Sistema de notificaciones no disponible', 'error');
+        return;
+      }
+      
+      const messages = {
+        success: { title: 'Operación exitosa', message: 'Los cambios se guardaron correctamente' },
+        error: { title: 'Error de conexión', message: 'No se pudo conectar con el servidor' },
+        warning: { title: 'Acción requerida', message: 'Esta operación requiere confirmación' },
+        info: { title: 'Conexión establecida', message: 'WebSocket reconectado correctamente' },
+        audit: { title: 'Comanda eliminada', message: 'Esta acción ha sido registrada en auditoría' }
+      };
+      
+      const msg = messages[type];
+      
+      if (type === 'audit') {
+        GambusinasNotifications.audit({
+          eventType: 'test_audit',
+          title: msg.title,
+          message: msg.message,
+          showLink: this.config.notifShowAuditLink
+        });
+      } else {
+        GambusinasNotifications[type](msg.title, msg.message);
+      }
+    },
+    
+    saveNotificationConfig() {
+      if (!window.GambusinasNotifications) return;
+      
+      const config = {
+        position: this.config.notifPosition,
+        duration: {
+          success: parseInt(this.config.notifDuration),
+          error: parseInt(this.config.notifDuration) + 2000,
+          warning: parseInt(this.config.notifDuration) + 1000,
+          info: parseInt(this.config.notifDuration) - 1000,
+          audit: parseInt(this.config.notifDuration) + 4000
+        },
+        maxVisible: parseInt(this.config.notifMaxVisible),
+        pauseOnHover: this.config.notifPauseOnHover,
+        showCloseButton: this.config.notifShowClose,
+        showProgressBar: this.config.notifShowProgress,
+        categories: {
+          success: { enabled: this.config.notifSuccessEnabled },
+          error: { enabled: true }, // Siempre activo
+          warning: { enabled: this.config.notifWarningEnabled },
+          info: { enabled: this.config.notifInfoEnabled },
+          audit: { enabled: true } // Siempre activo
+        }
+      };
+      
+      GambusinasNotifications.saveConfig(config);
     },
     
     logout() {
