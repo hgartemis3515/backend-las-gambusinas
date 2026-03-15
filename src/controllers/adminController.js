@@ -259,87 +259,68 @@ router.post('/admin/mozos/auth', async (req, res) => {
 
 /**
  * POST /api/admin/cocina/auth
- * Autenticación rápida para App Cocina (solo DNI)
+ * Autenticación para App Cocina (usuario + contraseña/DNI)
  */
 router.post('/admin/cocina/auth', async (req, res) => {
     try {
-        const { dni } = req.body;
+        const { username, password, dni } = req.body;
         
-        if (!dni) {
-            return res.status(400).json({ error: 'DNI es requerido' });
-        }
+        // Log de depuración
+        console.log('[Cocina Auth] Request recibido:', { username, password, dni });
         
-        const dniNumber = parseInt(dni, 10);
+        // Soportar tanto el formato nuevo (username + password) como el anterior (solo dni)
+        let dniNumber;
+        let mozo;
         
-        if (isNaN(dniNumber) || dniNumber <= 0) {
-            return res.status(400).json({ error: 'DNI inválido' });
-        }
-        
-        // Buscar mozo por DNI
-        const mozo = await obtenerMozosPorId(dniNumber);
-        
-        if (!mozo) {
-            // Intentar buscar por campo DNI
-            const mozos = require('../database/models/mozos.model');
-            const mozoPorDNI = await mozos.findOne({ DNI: dniNumber });
+        if (username && password) {
+            // Formato nuevo: usuario + contraseña
+            dniNumber = parseInt(password, 10);
             
-            if (!mozoPorDNI) {
-                return res.status(401).json({ error: 'DNI no registrado' });
+            if (isNaN(dniNumber) || dniNumber <= 0) {
+                return res.status(400).json({ error: 'Contraseña inválida' });
             }
             
-            const mozoConRol = await rolesRepository.obtenerMozoConRol(mozoPorDNI._id);
+            // Autenticar con nombre + DNI
+            mozo = await autenticarMozo(username, dniNumber);
             
-            // Verificar que tenga rol de cocinero o admin
-            if (mozoConRol?.rol !== 'cocinero' && mozoConRol?.rol !== 'admin') {
-                return res.status(403).json({ 
-                    error: 'No tiene permisos para acceder a la App Cocina',
-                    rol: mozoConRol?.rol
-                });
+            if (!mozo) {
+                return res.status(401).json({ error: 'Credenciales incorrectas' });
+            }
+        } else if (dni) {
+            // Formato anterior: solo DNI (mantener retrocompatibilidad)
+            dniNumber = parseInt(dni, 10);
+            
+            if (isNaN(dniNumber) || dniNumber <= 0) {
+                return res.status(400).json({ error: 'DNI inválido' });
             }
             
-            if (mozoConRol?.activo === false) {
-                return res.status(403).json({ error: 'Usuario inactivo' });
-            }
+            // Buscar mozo por DNI
+            mozo = await obtenerMozosPorId(dniNumber);
             
-            const permisos = mozoConRol?.permisosEfectivos || [];
-            
-            const token = jwt.sign(
-                {
-                    id: mozoPorDNI._id,
-                    name: mozoPorDNI.name,
-                    DNI: mozoPorDNI.DNI,
-                    rol: mozoConRol?.rol || 'cocinero',
-                    permisos: permisos,
-                    app: 'cocina'
-                },
-                JWT_SECRET,
-                { expiresIn: '8h' }
-            );
-            
-            logger.info('Usuario autenticado en App Cocina', {
-                mozoId: mozoPorDNI._id,
-                name: mozoPorDNI.name,
-                rol: mozoConRol?.rol
-            });
-            
-            return res.json({
-                token,
-                usuario: {
-                    id: mozoPorDNI._id,
-                    name: mozoPorDNI.name,
-                    rol: mozoConRol?.rol || 'cocinero',
-                    permisos: permisos
+            if (!mozo) {
+                // Intentar buscar por campo DNI
+                const mozosModel = require('../database/models/mozos.model');
+                mozo = await mozosModel.findOne({ DNI: dniNumber });
+                
+                if (!mozo) {
+                    return res.status(401).json({ error: 'DNI no registrado' });
                 }
-            });
+            }
+        } else {
+            return res.status(400).json({ error: 'Usuario y contraseña son requeridos' });
         }
         
+        // Obtener información del rol
         const mozoConRol = await rolesRepository.obtenerMozoConRol(mozo._id);
         
-        // Verificar que tenga rol de cocinero o admin
-        if (mozoConRol?.rol !== 'cocinero' && mozoConRol?.rol !== 'admin') {
+        // Determinar el rol (usar el de BD o verificar si es admin por nombre)
+        const rolUsuario = mozoConRol?.rol || (username?.toLowerCase() === 'admin' ? 'admin' : null);
+        
+        // Verificar que tenga rol de cocinero, supervisor o admin
+        if (rolUsuario !== 'cocinero' && rolUsuario !== 'admin' && rolUsuario !== 'supervisor') {
             return res.status(403).json({ 
                 error: 'No tiene permisos para acceder a la App Cocina',
-                rol: mozoConRol?.rol
+                rol: rolUsuario || 'sin rol'
             });
         }
         
@@ -347,14 +328,14 @@ router.post('/admin/cocina/auth', async (req, res) => {
             return res.status(403).json({ error: 'Usuario inactivo' });
         }
         
-        const permisos = mozoConRol?.permisosEfectivos || [];
+        const permisos = rolesRepository.PERMISOS_POR_ROL_SISTEMA[rolUsuario] || [];
         
         const token = jwt.sign(
             {
                 id: mozo._id,
                 name: mozo.name,
                 DNI: mozo.DNI,
-                rol: mozoConRol?.rol || 'cocinero',
+                rol: rolUsuario,
                 permisos: permisos,
                 app: 'cocina'
             },
@@ -365,7 +346,7 @@ router.post('/admin/cocina/auth', async (req, res) => {
         logger.info('Usuario autenticado en App Cocina', {
             mozoId: mozo._id,
             name: mozo.name,
-            rol: mozoConRol?.rol
+            rol: rolUsuario
         });
         
         res.json({
@@ -373,7 +354,7 @@ router.post('/admin/cocina/auth', async (req, res) => {
             usuario: {
                 id: mozo._id,
                 name: mozo.name,
-                rol: mozoConRol?.rol || 'cocinero',
+                rol: rolUsuario,
                 permisos: permisos
             }
         });
