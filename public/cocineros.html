@@ -164,7 +164,7 @@ tailwind.config = {
                     <p>No se encontraron cocineros con esos filtros</p>
                   </td>
                 </tr>
-                <template x-for="c in cocinerosFiltrados" :key="c._id">
+                <template x-for="c in cocinerosFiltrados" :key="c._id || 'cocinero-' + (cocinerosFiltrados.indexOf(c))">
                   <tr class="border-b border-[rgba(212,175,55,0.08)] table-row hover:bg-bg-sidebar/50 cursor-pointer"
                     :class="{'bg-gold/5': selectedCocinero?._id === c._id}"
                     @click="seleccionarCocinero(c)">
@@ -217,7 +217,7 @@ tailwind.config = {
             <p class="text-xs text-txt-muted mt-1">Los cocineros aparecerán aquí cuando registren actividad</p>
           </div>
           <div x-show="!loadingMetricas && rankingMetricas.length > 0" class="space-y-2">
-            <template x-for="(item, index) in rankingMetricas" :key="item.usuarioId">
+            <template x-for="(item, index) in rankingMetricas" :key="item.usuarioId || item._id || 'rank-' + index">
               <div class="flex items-center gap-3 p-3 bg-bg-sidebar rounded-lg transition hover:bg-bg-sidebar/80" :class="{'border border-gold/30': index === 0}">
                 <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
                   :class="{
@@ -392,7 +392,7 @@ tailwind.config = {
           <div>
             <label class="text-[11px] text-txt-secondary block mb-1">Categorías permitidas</label>
             <div class="flex flex-wrap gap-2">
-              <template x-for="cat in categoriasDisponibles" :key="cat">
+              <template x-for="(cat, catIdx) in categoriasDisponibles" :key="cat || 'cat-' + catIdx">
                 <label class="flex items-center gap-1 px-2 py-1 rounded-lg bg-bg-sidebar border border-[rgba(212,175,55,0.15)] cursor-pointer hover:border-gold/50 transition text-xs">
                   <input type="checkbox" :value="cat" x-model="formConfig.filtrosPlatos.categoriasPermitidas" class="w-3 h-3 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold">
                   <span x-text="cat"></span>
@@ -432,7 +432,7 @@ tailwind.config = {
           <div>
             <label class="text-[11px] text-txt-secondary block mb-1">Áreas permitidas</label>
             <div class="flex flex-wrap gap-2">
-              <template x-for="area in areasDisponibles" :key="area">
+              <template x-for="(area, areaIdx) in areasDisponibles" :key="area || 'area-' + areaIdx">
                 <label class="flex items-center gap-1 px-2 py-1 rounded-lg bg-bg-sidebar border border-[rgba(212,175,55,0.15)] cursor-pointer hover:border-gold/50 transition text-xs">
                   <input type="checkbox" :value="area" x-model="formConfig.filtrosComandas.areasPermitidas" class="w-3 h-3 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold">
                   <span x-text="area"></span>
@@ -575,7 +575,7 @@ tailwind.config = {
           class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
       </div>
       <div class="max-h-[300px] overflow-y-auto space-y-2">
-        <template x-for="u in usuariosParaAsignar" :key="u._id">
+        <template x-for="u in usuariosParaAsignar" :key="u._id || 'usuario-' + (usuariosParaAsignar.indexOf(u))">
           <div class="flex items-center justify-between p-3 bg-bg-sidebar rounded-lg hover:bg-gold/10 transition cursor-pointer"
             @click="seleccionarUsuario(u)">
             <div class="flex items-center gap-3">
@@ -647,7 +647,7 @@ tailwind.config = {
           Sin datos de platos para el período
         </div>
         <div x-show="platosTop.length > 0" class="space-y-2">
-          <template x-for="p in platosTop" :key="p.platoId">
+          <template x-for="(p, pIndex) in platosTop" :key="p.platoId || 'plato-' + pIndex">
             <div class="flex items-center justify-between p-3 bg-bg-sidebar rounded-lg">
               <div>
                 <p class="font-medium text-sm" x-text="p.nombre || 'Plato #' + p.platoId"></p>
@@ -848,7 +848,8 @@ function cocinerosApp() {
       if (data && data.success !== false) {
         // La respuesta viene en data.data.ranking o data.ranking
         const responseData = data.data || data;
-        this.rankingMetricas = responseData.ranking || responseData || [];
+        const ranking = responseData.ranking || responseData || [];
+        this.rankingMetricas = Array.isArray(ranking) ? ranking : [];
         
         // Calcular métricas generales
         if (this.rankingMetricas.length > 0) {
