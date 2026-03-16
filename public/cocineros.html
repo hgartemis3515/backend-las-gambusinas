@@ -827,7 +827,13 @@ function cocinerosApp() {
       const data = await apiGet('/cocineros');
       if (data && data.success !== false) {
         // Priorizar data.data que es lo que devuelve el backend
-        this.cocineros = data.data || data.cocineros || (Array.isArray(data) ? data : []);
+        const rawData = data.data || data.cocineros || (Array.isArray(data) ? data : []);
+        // Normalizar campos: name -> nombre, DNI -> dni
+        this.cocineros = rawData.map(u => ({
+          ...u,
+          nombre: u.nombre || u.name || '—',
+          dni: u.dni || u.DNI || '—'
+        }));
       } else {
         this.cocineros = [];
         throw new Error('Error al cargar cocineros');
