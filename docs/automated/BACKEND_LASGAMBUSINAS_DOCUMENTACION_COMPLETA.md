@@ -1,10 +1,10 @@
 # 🖥️ Documentación Completa - Backend Las Gambusinas
 
-**Versión:** 2.3  
-**Última Actualización:** Marzo 2026 (Comandas: grupos de comandas, tabla unificada y relación con App Mozos)  
+**Versión:** 2.4  
+**Última Actualización:** Marzo 2026 (Nueva sección Cocineros: gestión de configuración KDS, métricas de rendimiento y asignación de roles)  
 **Tecnología:** Node.js + Express + MongoDB + Socket.io + Redis
 
-**Propósito del documento:** Análisis completo del backend de Las Gambusinas: arquitectura, flujo de datos, carga de datos, endpoints, modelos MongoDB, WebSockets, caché, logging, integración con App Mozos, App Cocina y Dashboard Administrativo. Documento alineado con el codebase actual (marzo 2026).
+**Propósito del documento:** Análisis completo del backend de Las Gambusinas: arquitectura, flujo de datos, carga de datos, endpoints, modelos MongoDB, WebSockets, caché, logging, integración con App Mozos, App Cocina, Dashboard Administrativo y módulo de Cocineros con configuración KDS. Documento alineado con el codebase actual (marzo 2026).
 
 ---
 
@@ -12,6 +12,7 @@
 
 | Fecha       | Cambios |
 |------------|---------|
+| Marzo 2026 | **Sección Cocineros:** Nueva sección documentando el módulo de gestión de cocineros: modelo ConfigCocinero para configuración personalizada del tablero KDS; filtros de platos y comandas; métricas de rendimiento (tiempos de preparación, platos top, SLA); endpoints `/api/cocineros/*` con autenticación JWT y permisos; asignación y remoción de rol de cocinero. |
 | Marzo 2026 | **Comandas y grupos de comandas:** Nueva sección detallando la implementación deseada: tabla unificada que ordene comandas y grupos de comandas según tipo de pedido (multi-comanda vs una sola comanda); modelo Pedido como grupo de comandas; relación con la App de Mozos; endpoints y flujo de datos. |
 | Marzo 2026 | Actualización exhaustiva del Dashboard Administrativo: auditoría de `public/dashboard/` y `public/`; nueva sección "Dashboard Administrativo" con tecnologías, arquitectura de archivos, autenticación JWT, módulos, endpoints consumidos y eventos Socket.io; corrección de rutas (GET `/`, GET `/dashboard`, GET `/dashboard/login.html`); diferenciación entre Panel Admin (admin.html) y Dashboard con JWT; expansión del namespace `/admin` con eventos documentados. |
 | Febrero 2026 | admin.html: complementos, cierre de caja, reportes, auditoría. |
@@ -36,11 +37,12 @@
 14. [Health Check y Métricas](#health-check-y-métricas)
 15. [Dashboard Administrativo](#dashboard-administrativo)
 16. [Panel Admin (admin.html)](#panel-admin-adminhtml)
-17. [Comandas y Grupos de Comandas (Pedidos)](#comandas-y-grupos-de-comandas-pedidos)
-18. [Integración con Otras Aplicaciones](#integración-con-otras-aplicaciones)
-19. [Variables de Entorno y Despliegue](#variables-de-entorno-y-despliegue)
-20. [Testing y Scripts](#testing-y-scripts)
-21. [Problemas Resueltos y Pendientes](#problemas-resueltos-y-pendientes)
+17. [Cocineros y Configuración KDS](#cocineros-y-configuración-kds)
+18. [Comandas y Grupos de Comandas (Pedidos)](#comandas-y-grupos-de-comandas-pedidos)
+19. [Integración con Otras Aplicaciones](#integración-con-otras-aplicaciones)
+20. [Variables de Entorno y Despliegue](#variables-de-entorno-y-despliegue)
+21. [Testing y Scripts](#testing-y-scripts)
+22. [Problemas Resueltos y Pendientes](#problemas-resueltos-y-pendientes)
 
 ---
 
@@ -79,6 +81,7 @@ El **Backend** es el núcleo del sistema POS (Point of Sale) de Las Gambusinas. 
 | Sentry (opcional en logger) | ✅ |
 | Jest + Supertest (testing) | ✅ |
 | Scripts migración (migrateEstados, migratePlatosTipos, cleanDuplicatePlatos) | ✅ |
+| Gestión de Cocineros y configuración KDS | ✅ |
 
 ---
 
@@ -142,7 +145,9 @@ Backend-LasGambusinas/
 │   │       ├── cierreCajaRestaurante.model.js
 │   │       ├── auditoriaAcciones.model.js
 │   │       ├── historialComandas.model.js
-│   │       └── sesionesUsuarios.model.js
+│   │       ├── sesionesUsuarios.model.js
+│   │       ├── configCocinero.model.js
+│   │       └── pedido.model.js
 │   ├── controllers/                   # Rutas Express (validación + llamada a repository + res.json)
 │   │   ├── comandaController.js
 │   │   ├── mesasController.js
@@ -157,7 +162,9 @@ Backend-LasGambusinas/
 │   │   ├── adminController.js
 │   │   ├── reportesController.js
 │   │   ├── notificacionesController.js
-│   │   └── mensajesController.js
+│   │   ├── mensajesController.js
+│   │   ├── cocinerosController.js
+│   │   └── pedidoController.js
 │   ├── repository/
 │   │   ├── comanda.repository.js
 │   │   ├── mesas.repository.js
@@ -167,7 +174,9 @@ Backend-LasGambusinas/
 │   │   ├── boucher.repository.js
 │   │   ├── area.repository.js
 │   │   ├── auditoria.repository.js
-│   │   └── cierreCaja.repository.js
+│   │   ├── cierreCaja.repository.js
+│   │   ├── cocineros.repository.js
+│   │   └── pedido.repository.js
 │   ├── socket/
 │   │   └── events.js                  # Namespaces /cocina, /mozos, /admin + funciones globales emit*
 │   ├── middleware/
@@ -301,6 +310,22 @@ Response JSON (res.json) o handleError en catch
 
 - **Boucher**, **Cliente**, **Mozos**, **Area**, **CierreCaja**, **CierreCajaRestaurante**, **AuditoriaAcciones**, **HistorialComandas**, **SesionesUsuarios** — ver esquemas en código y en `DIAGRAMA_FLUJO_DATOS_Y_FUNCIONES.md`.
 
+### ConfigCocinero (`configCocinero.model.js`)
+
+Modelo para configuración personalizada del tablero KDS de cada cocinero. Ver [Cocineros y Configuración KDS](#cocineros-y-configuración-kds) para documentación completa.
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| **usuarioId** | ObjectId ref `mozos` | Único, índice. |
+| **aliasCocinero** | String | Nombre a mostrar (opcional). |
+| **filtrosPlatos** | Object | Configuración de filtros de platos (modoInclusion, platosPermitidos, categoriasPermitidas, tiposPermitidos). |
+| **filtrosComandas** | Object | Configuración de filtros de comandas (areasPermitidas, mesasEspecificas, rangoHorario, soloPrioritarias). |
+| **configTableroKDS** | Object | Preferencias visuales (tiempos de alerta, grid, sonido, modo nocturno, etc.). |
+| **estadisticas** | Object | Métricas de sesión (ultimaConexion, totalSesiones, platosPreparados). |
+| **activo** | Boolean | Estado de la configuración. |
+
+Métodos: `getConfiguracionPorDefecto()`, `debeMostrarPlato(plato)`, `debeMostrarComanda(comanda)`.
+
 ---
 
 ## 🔀 Patrón Controller → Repository
@@ -331,6 +356,7 @@ Todas las rutas bajo `/api`. Los controladores exportan routers con rutas relati
 | Reportes | (sin prefijo) | GET ventas, GET platos-top, GET mozos-performance, GET mesas-ocupacion, GET kpis |
 | Notificaciones | `/notificaciones` | GET, PATCH :id/leida, PATCH leidas |
 | Mensajes | `/mensajes` | GET mensajes-no-leidos |
+| Cocineros | `/cocineros` | GET, GET :id, GET :id/config, PUT :id/config, POST :id/asignar-rol, POST :id/quitar-rol, GET :id/metricas, GET metricas/todos, POST :id/conexion |
 
 **Platos:** GET /api/platos/categorias, GET /api/platos/menu/:tipo, GET /api/platos/menu/:tipo/categoria/:categoria, PATCH /api/platos/:id/tipo (body: { tipo }). Cache Redis 5 min en menu/:tipo; emisión `plato-menu-actualizado` en crear/actualizar/cambiar tipo.
 
@@ -570,6 +596,193 @@ Los platos pueden tener **grupos de complementos**: opciones que el mozo elige a
 
 ---
 
+## 👨‍🍳 Cocineros y Configuración KDS
+
+Esta sección describe el módulo de **gestión de cocineros**, que permite administrar usuarios con rol de cocinero y su configuración personalizada para el tablero KDS (Kitchen Display System). El módulo incluye filtros de platos/comandas, métricas de rendimiento y asignación de roles.
+
+### Objetivo
+
+Permitir que cada cocinero tenga una **vista personalizada del KDS** según su especialidad, área de trabajo y preferencias visuales, además de brindar métricas de rendimiento para supervisores y administradores.
+
+### Modelo ConfigCocinero (`configCocinero.model.js`)
+
+El modelo almacena la configuración personalizada de cada cocinero para su tablero KDS:
+
+| Campo / concepto | Descripción |
+|------------------|-------------|
+| **usuarioId** | ObjectId ref `mozos` — único, índice. Referencia al usuario/cocinero. |
+| **aliasCocinero** | String opcional — nombre a mostrar en cocina (puede diferir del nombre real). |
+| **filtrosPlatos** | Configuración de qué platos ver en el KDS: |
+| → modoInclusion | Boolean — `true` = inclusivo (solo mostrar estos), `false` = exclusivo (ocultar estos). |
+| → platosPermitidos | Array de Number (platoId) — IDs de platos específicos permitidos/bloqueados. |
+| → categoriasPermitidas | Array de String — categorías permitidas/bloqueadas. |
+| → tiposPermitidos | Array de String (enum: `platos-desayuno`, `plato-carta normal`). |
+| **filtrosComandas** | Configuración de qué comandas ver: |
+| → areasPermitidas | Array de String — áreas del restaurante que puede ver. |
+| → mesasEspecificas | Array de Number — mesas específicas (null = todas las de áreas permitidas). |
+| → rangoHorario | Objeto con `inicio` y `fin` (formato HH:mm) — filtro por horario. |
+| → soloPrioritarias | Boolean — si true, solo muestra comandas urgentes/prioritarias. |
+| **configTableroKDS** | Preferencias visuales del tablero: |
+| → tiempoAmarillo | Number (minutos, default 15) — tiempo para alerta amarilla. |
+| → tiempoRojo | Number (minutos, default 20) — tiempo para alerta roja. |
+| → maxTarjetasVisibles | Number (default 20, rango 5-100) — tarjetas visibles en pantalla. |
+| → modoAltoVolumen | Boolean — vista compacta con menos animaciones. |
+| → sonidoNotificacion | Boolean — activar/desactivar sonido de nuevas comandas. |
+| → modoNocturno | Boolean — tema oscuro. |
+| → columnasGrid | Number (default 5, rango 1-8) — columnas del grid de tarjetas. |
+| → filasGrid | Number (default 1, rango 1-4) — filas del grid. |
+| → tamanioFuente | Number (default 15, rango 12-24) — tamaño de texto. |
+| **estadisticas** | Métricas de sesión del cocinero: |
+| → ultimaConexion | Date — timestamp de última conexión. |
+| → totalSesiones | Number — contador de sesiones totales. |
+| → platosPreparados | Number — contador de platos marcados como listos. |
+| **activo** | Boolean — estado activo/inactivo de la configuración. |
+| **creadoPor**, **actualizadoPor** | ObjectId ref `mozos` — auditoría. |
+| **createdAt**, **updatedAt** | Timestamps automáticos. |
+
+**Métodos del esquema:**
+
+- `configCocineroSchema.statics.getConfiguracionPorDefecto()` — Retorna configuración por defecto para nuevos cocineros.
+- `configCocineroSchema.methods.debeMostrarPlato(plato)` — Verifica si un plato debe mostrarse según los filtros configurados.
+- `configCocineroSchema.methods.debeMostrarComanda(comanda)` — Verifica si una comanda debe mostrarse según los filtros.
+
+**Índices:** `usuarioId`, `activo`.
+
+### Repository (`cocineros.repository.js`)
+
+Funciones principales de acceso a datos:
+
+| Función | Descripción |
+|---------|-------------|
+| `obtenerCocineros(filtros)` | Lista todos los usuarios con rol `cocinero`, incluye su configuración KDS. |
+| `obtenerCocineroPorId(usuarioId)` | Obtiene un cocinero específico con su configuración. |
+| `obtenerConfigKDS(usuarioId)` | Obtiene configuración KDS; crea una por defecto si no existe. |
+| `actualizarConfigKDS(usuarioId, datosConfig, actualizadoPor)` | Crea o actualiza la configuración KDS de un cocinero. |
+| `asignarRolCocinero(usuarioId, asignadoPor)` | Asigna rol `cocinero` a un usuario existente; crea configuración por defecto. |
+| `quitarRolCocinero(usuarioId, nuevoRol, quitadoPor)` | Quita rol de cocinero y desactiva su configuración. |
+| `registrarConexion(usuarioId)` | Registra conexión del cocinero (actualiza `ultimaConexion`, incrementa `totalSesiones`). |
+| `incrementarPlatosPreparados(usuarioId, cantidad)` | Incrementa contador de platos preparados. |
+| `calcularMetricasRendimiento(usuarioId, fechaInicio, fechaFin)` | Calcula métricas de rendimiento: total platos, tiempo promedio/min/max de preparación, % dentro SLA (15 min). |
+| `obtenerMetricasTodosCocineros(fechaInicio, fechaFin)` | Ranking de todos los cocineros ordenados por tiempo promedio de preparación. |
+| `obtenerPlatosTopPorCocinero(usuarioId, fechaInicio, fechaFin, limite)` | Platos más preparados por un cocinero con cantidad y tiempo promedio. |
+
+### Controller (`cocinerosController.js`)
+
+Endpoints bajo el prefijo `/api/cocineros`:
+
+| Método | Ruta | Descripción | Permiso requerido |
+|--------|------|-------------|-------------------|
+| GET | `/cocineros` | Listar todos los cocineros con su configuración | `ver-mozos` |
+| GET | `/cocineros/:id` | Obtener un cocinero específico | Propio o `ver-mozos` |
+| GET | `/cocineros/:id/config` | Obtener configuración KDS de un cocinero | Propio o `ver-mozos` |
+| PUT | `/cocineros/:id/config` | Actualizar configuración KDS | Propio o `editar-mozos` |
+| POST | `/cocineros/:id/asignar-rol` | Asignar rol de cocinero a un usuario | `gestionar-roles` |
+| POST | `/cocineros/:id/quitar-rol` | Quitar rol de cocinero | `gestionar-roles` |
+| GET | `/cocineros/:id/metricas` | Métricas de rendimiento de un cocinero | Propio o `ver-reportes` |
+| GET | `/cocineros/metricas/todos` | Ranking de métricas de todos los cocineros | `ver-reportes` |
+| POST | `/cocineros/:id/conexion` | Registrar conexión (uso interno) | Solo propio usuario |
+
+**Autenticación:** Todos los endpoints requieren JWT (`adminAuth` middleware).
+
+**Parámetros:**
+- `GET /cocineros?activo=true/false` — Filtrar por estado activo.
+- `GET /cocineros/:id/metricas?desde=YYYY-MM-DD&hasta=YYYY-MM-DD` — Rango de fechas para métricas.
+- `GET /cocineros/metricas/todos?desde=YYYY-MM-DD&hasta=YYYY-MM-DD` — Rango para ranking.
+
+### Estructura de la request PUT /cocineros/:id/config
+
+```json
+{
+  "aliasCocinero": "Chef Juan",
+  "filtrosPlatos": {
+    "modoInclusion": true,
+    "platosPermitidos": [1, 5, 12],
+    "categoriasPermitidas": ["Entradas", "Platos de fondo"],
+    "tiposPermitidos": ["plato-carta normal"]
+  },
+  "filtrosComandas": {
+    "areasPermitidas": ["Terraza", "Salón Principal"],
+    "mesasEspecificas": [1, 2, 3, 4, 5],
+    "rangoHorario": { "inicio": "12:00", "fin": "22:00" },
+    "soloPrioritarias": false
+  },
+  "configTableroKDS": {
+    "tiempoAmarillo": 15,
+    "tiempoRojo": 20,
+    "maxTarjetasVisibles": 20,
+    "modoAltoVolumen": false,
+    "sonidoNotificacion": true,
+    "modoNocturno": true,
+    "columnasGrid": 5,
+    "filasGrid": 1,
+    "tamanioFuente": 15
+  }
+}
+```
+
+### Métricas de rendimiento
+
+El sistema calcula métricas basadas en los tiempos de preparación de los platos:
+
+| Métrica | Descripción |
+|---------|-------------|
+| **totalPlatos** | Cantidad de platos preparados en el período. |
+| **tiempoPromedioPreparacion** | Promedio de minutos entre `en_espera` y `recoger`. |
+| **tiempoMinPreparacion** | Tiempo mínimo de preparación. |
+| **tiempoMaxPreparacion** | Tiempo máximo de preparación. |
+| **porcentajeDentroSLA** | % de platos preparados en ≤15 minutos. |
+
+**Cálculo:** Se usa aggregation pipeline sobre `Comanda` con `$unwind` de `platos`, filtrando los que tienen `tiempos.en_espera` y `tiempos.recoger`.
+
+### Integración con Socket.io
+
+Cuando se actualiza la configuración KDS de un cocinero, el controller emite un evento para actualizar el tablero en tiempo real:
+
+```javascript
+if (global.emitConfigCocineroActualizada) {
+    global.emitConfigCocineroActualizada(id, datosSanitizados);
+}
+```
+
+**Nota:** La función `emitConfigCocineroActualizada` debe estar definida en `src/socket/events.js` para notificar al namespace `/cocina` o a un room específico del cocinero.
+
+### Flujo de asignación de rol
+
+1. **Admin/Supervisor** llama a `POST /api/cocineros/:id/asignar-rol`.
+2. El repository actualiza `rol` a `cocinero` en el documento del usuario (modelo `Mozos`).
+3. Se crea una configuración KDS por defecto si no existe.
+4. Se registra en el log: usuario, rol anterior, asignado por.
+
+### Flujo de quitar rol
+
+1. **Admin/Supervisor** llama a `POST /api/cocineros/:id/quitar-rol` con body `{ "nuevoRol": "mozos" }`.
+2. El repository actualiza `rol` al nuevo valor.
+3. Se desactiva la configuración KDS (`activo: false`).
+4. Se registra en el log: usuario, rol quitado, nuevo rol, quitado por.
+
+### Archivos del módulo
+
+```
+src/
+├── database/models/
+│   └── configCocinero.model.js     # Esquema ConfigCocinero
+├── controllers/
+│   └── cocinerosController.js      # Endpoints /api/cocineros/*
+├── repository/
+│   └── cocineros.repository.js     # Lógica de acceso a datos
+└── middleware/
+    └── adminAuth.js                # JWT + permisos (ver-mozos, editar-mozos, gestionar-roles, ver-reportes)
+```
+
+### Relación con App Cocina
+
+- La **App Cocina** puede usar `GET /api/cocineros/:id/config` al iniciar sesión para cargar la configuración personalizada del cocinero.
+- Los filtros de platos y comandas se aplican en el cliente para mostrar solo lo relevante.
+- `configTableroKDS` define la apariencia visual del tablero KDS.
+- El método `debeMostrarPlato()` y `debeMostrarComanda()` pueden usarse para filtrar en frontend o backend.
+
+---
+
 ## 📋 Comandas y Grupos de Comandas (Pedidos)
 
 Esta sección detalla lo que se quiere implementar en el módulo de **comandas** del backend y del dashboard: una **tabla unificada** que muestre tanto **grupos de comandas (Pedidos)** como **comandas individuales**, ordenadas según el tipo de pedido (multi-comanda o una sola comanda), y la **relación con la App de Mozos**.
@@ -654,9 +867,9 @@ Opcional: **GET /api/comanda/vista-tabla/:fecha** (o similar) que devuelva un ú
 ## 🔗 Integración con Otras Aplicaciones
 
 - **App Mozos:** GET /api/comanda/fecha/:fecha, GET /api/mesas, GET /api/platos, GET /api/areas, POST /api/comanda, PUT comanda y platos, PUT eliminar-plato, PUT eliminar-platos, POST /api/mozos/auth, POST /api/boucher, etc. Socket namespace `/mozos`, rooms `mesa-{mesaId}`. **Relación con grupos:** la app puede usar el modelo Pedido (obtener/crear pedido abierto por mesa, asociar comandas al pedido); el dashboard de comandas debe reflejar esos mismos Pedidos como “grupos” en la tabla unificada (ver [Comandas y Grupos de Comandas (Pedidos)](#comandas-y-grupos-de-comandas-pedidos)).
-- **App Cocina:** GET /api/comanda/fecha/:fecha o fechastatus, PUT plato estado, PUT revertir. Socket namespace `/cocina`, room `fecha-YYYY-MM-DD`.
+- **App Cocina:** GET /api/comanda/fecha/:fecha o fechastatus, PUT plato estado, PUT revertir. Socket namespace `/cocina`, room `fecha-YYYY-MM-DD`. **Relación con Cocineros:** la app puede usar `GET /api/cocineros/:id/config` al iniciar sesión para cargar la configuración personalizada del cocinero; los filtros de platos y comandas se aplican en el cliente; `configTableroKDS` define la apariencia visual del tablero KDS. Ver [Cocineros y Configuración KDS](#cocineros-y-configuración-kds).
 - **Dashboard (JWT):** Login en `/login` o `/dashboard/login.html` → POST /api/admin/auth (username, password=DNI). Token en localStorage; GET /api/admin/verify para validar. Redirección a `/` (index.html) o acceso a GET /dashboard (lasgambusinas-dashboard.html). Carga de datos vía GET /api/mesas, /api/boucher/fecha/:fecha, /api/comanda, /api/mozos (dashboard.js o lógica en index.html). Socket namespace `/admin` para reportes y plato-menu-actualizado. Ver [Dashboard Administrativo](#dashboard-administrativo).
-- **Panel Admin (admin.html):** CRUD vía /api (mesas, áreas, mozos, platos con complementos, comandas con edición de platos, bouchers, clientes); reportes por fecha; auditoría con filtros; cierre de caja con histórico y export PDF/Excel; Socket `/admin` para plato-menu-actualizado y reportes en tiempo real.
+- **Panel Admin (admin.html):** CRUD vía /api (mesas, áreas, mozos, platos con complementos, comandas con edición de platos, bouchers, clientes); reportes por fecha; auditoría con filtros; cierre de caja con histórico y export PDF/Excel; Socket `/admin` para plato-menu-actualizado y reportes en tiempo real. **Módulo Cocineros:** gestión de cocineros (`GET /api/cocineros`), configuración KDS, métricas de rendimiento, asignación de roles.
 
 ---
 
@@ -711,4 +924,4 @@ Scripts en `package.json`: `start`, `dev` (nodemon), `start:pm2`, `stop:pm2`, `r
 
 ---
 
-*Documento generado para el proyecto Las Gambusinas — Backend Node.js/Express/MongoDB/Socket.io. Versión 2.1, febrero 2026. Incluye documentación completa del panel admin.html: complementos en platos, cierre de caja con estadísticas y export, reportes, auditoría y comandas editables.*
+*Documento generado para el proyecto Las Gambusinas — Backend Node.js/Express/MongoDB/Socket.io. Versión 2.4, marzo 2026. Incluye documentación completa del panel admin.html: complementos en platos, cierre de caja con estadísticas y export, reportes, auditoría, comandas editables y sección Cocineros con configuración KDS.*
