@@ -1280,5 +1280,56 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       });
     }
   };
+
+  /**
+   * Emitir evento de configuración de cocinero actualizada
+   * Se emite cuando un admin cambia la configuración KDS de un cocinero
+   * Si el cocinero está conectado, recibirá la actualización en tiempo real
+   * @param {String} cocineroId - ID del usuario/cocinero
+   * @param {Object} cambios - Campos actualizados
+   */
+  global.emitConfigCocineroActualizada = async (cocineroId, cambios = {}) => {
+    try {
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      const eventData = {
+        cocineroId: cocineroId?.toString(),
+        cambios: cambios,
+        timestamp: timestamp
+      };
+
+      // Emitir al namespace admin para que el dashboard se actualice
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('config-cocinero-actualizada', eventData);
+        logger.debug('Evento config-cocinero-actualizada emitido a admin', {
+          cocineroId,
+          adminConnected: adminNamespace.sockets.size
+        });
+      }
+
+      // Emitir al namespace cocina para que el KDS del cocinero se actualice
+      // El cocinero debe estar escuchando este evento con su ID
+      if (cocinaNamespace && cocinaNamespace.sockets) {
+        cocinaNamespace.emit('config-cocinero-actualizada', eventData);
+        logger.debug('Evento config-cocinero-actualizada emitido a cocina', {
+          cocineroId,
+          cocinaConnected: cocinaNamespace.sockets.size
+        });
+      }
+
+      logger.info('Evento config-cocinero-actualizada emitido', {
+        cocineroId,
+        camposActualizados: Object.keys(cambios),
+        adminConnected: adminNamespace?.sockets?.size || 0,
+        cocinaConnected: cocinaNamespace?.sockets?.size || 0
+      });
+    } catch (error) {
+      logger.error('Error al emitir config-cocinero-actualizada', {
+        error: error.message,
+        stack: error.stack,
+        cocineroId
+      });
+    }
+  };
 };
 

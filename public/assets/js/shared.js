@@ -150,6 +150,7 @@ const sharedData = {
     mesas: { label: 'Mesas', icon: '🪑', href: '/mesas.html' },
     areas: { label: 'Áreas', icon: '🗺️', href: '/areas.html' },
     usuarios: { label: 'Usuarios', icon: '👤', href: '/usuarios.html' },
+    cocineros: { label: 'Cocineros', icon: '👨‍🍳', href: '/cocineros.html' },
     roles: { label: 'Roles', icon: '🔐', href: '/roles.html' },
     platos: { label: 'Platos', icon: '🍲', href: '/platos.html' },
     comandas: { label: 'Comandas', icon: '📋', href: '/comandas.html' },

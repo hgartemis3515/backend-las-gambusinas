@@ -422,6 +422,226 @@ tailwind.config = {
 </div>
 
 <!-- =============================== -->
+<!-- PAGE: COCINEROS                 -->
+<!-- =============================== -->
+<div x-show="page==='cocineros'" x-transition.opacity class="p-6" x-data="{cocineroTab:'Gestión', cocineroSeleccionado:null, modalCocinero:null}">
+  <div class="flex items-center justify-between mb-5">
+    <h1 class="text-xl font-bold">Gestión de Cocineros</h1>
+    <div class="flex gap-2">
+      <button class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
+      <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold" @click="modalCocinero='asignarRol'">+ Asignar Cocinero</button>
+    </div>
+  </div>
+  <!-- Tabs -->
+  <div class="flex gap-1 mb-4 border-b border-[rgba(212,175,55,0.1)] pb-2">
+    <template x-for="t in ['Gestión', 'Configuración KDS', 'Métricas']">
+      <button @click="cocineroTab=t" :class="cocineroTab===t ? 'text-gold border-b-2 border-gold' : 'text-txt-secondary'" class="px-4 py-2 text-sm font-medium transition" x-text="t"></button>
+    </template>
+  </div>
+  
+  <!-- TAB: GESTIÓN -->
+  <div x-show="cocineroTab==='Gestión'">
+    <div class="grid grid-cols-4 gap-4 mb-6">
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+        <p class="text-[11px] text-txt-muted uppercase">Total Cocineros</p>
+        <p class="text-2xl font-bold text-white mt-1" x-text="mockCocineros?.length || 4">4</p>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+        <p class="text-[11px] text-txt-muted uppercase">Activos Hoy</p>
+        <p class="text-2xl font-bold text-st-preparado mt-1">3</p>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+        <p class="text-[11px] text-txt-muted uppercase">Platos Preparados Hoy</p>
+        <p class="text-2xl font-bold text-gold mt-1">127</p>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+        <p class="text-[11px] text-txt-muted uppercase">Tiempo Promedio</p>
+        <p class="text-2xl font-bold text-white mt-1">12.3 <span class="text-sm text-txt-muted font-normal">min</span></p>
+      </div>
+    </div>
+    <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
+          <th class="text-left px-4 py-3 font-semibold">Nombre</th>
+          <th class="text-left px-4 py-3 font-semibold">Alias Cocina</th>
+          <th class="text-left px-4 py-3 font-semibold">DNI</th>
+          <th class="text-left px-4 py-3 font-semibold">Estado</th>
+          <th class="text-left px-4 py-3 font-semibold">Platos Hoy</th>
+          <th class="text-left px-4 py-3 font-semibold">T. Promedio</th>
+          <th class="text-left px-4 py-3 font-semibold">Acciones</th>
+        </tr></thead>
+        <tbody>
+          <template x-for="c in mockCocineros" :key="c.id">
+            <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
+              <td class="px-4 py-3 font-medium" x-text="c.nombre"></td>
+              <td class="px-4 py-3">
+                <span class="text-gold" x-text="c.alias || c.nombre"></span>
+              </td>
+              <td class="px-4 py-3 text-txt-secondary" x-text="c.dni"></td>
+              <td class="px-4 py-3">
+                <span class="text-xs px-2 py-0.5 rounded-full font-semibold" :class="c.activo ? 'bg-st-preparado/20 text-st-preparado' : 'bg-txt-muted/20 text-txt-muted'" x-text="c.activo ? 'Activo' : 'Inactivo'"></span>
+              </td>
+              <td class="px-4 py-3 text-white" x-text="c.platosHoy || 0"></td>
+              <td class="px-4 py-3">
+                <span :class="c.tiempoPromedio <= 15 ? 'text-st-preparado' : c.tiempoPromedio <= 20 ? 'text-st-esperando' : 'text-st-pagado'" x-text="c.tiempoPromedio + ' min'"></span>
+              </td>
+              <td class="px-4 py-3 space-x-2 text-base">
+                <span class="cursor-pointer hover:text-gold" @click="cocineroSeleccionado=c; modalCocinero='verConfig'">👁</span>
+                <span class="cursor-pointer hover:text-gold" @click="cocineroSeleccionado=c; modalCocinero='editarConfig'">✏️</span>
+                <span class="cursor-pointer hover:text-st-pagado" @click="modalCocinero='confirmarQuitar'">🗑</span>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+  <!-- TAB: CONFIGURACIÓN KDS -->
+  <div x-show="cocineroTab==='Configuración KDS'">
+    <div class="grid grid-cols-3 gap-6">
+      <!-- Lista de cocineros -->
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <h3 class="font-semibold text-sm mb-3">Seleccionar Cocinero</h3>
+        <div class="space-y-2">
+          <template x-for="c in mockCocineros" :key="c.id">
+            <div @click="cocineroSeleccionado=c" :class="cocineroSeleccionado?.id===c.id ? 'bg-gold-20 border-gold' : 'border-transparent hover:bg-gold-20/50'" class="p-3 rounded-lg border cursor-pointer transition">
+              <p class="font-medium text-sm" x-text="c.nombre"></p>
+              <p class="text-xs text-txt-muted" x-text="c.alias || 'Sin alias'"></p>
+            </div>
+          </template>
+        </div>
+      </div>
+      <!-- Formulario de configuración -->
+      <div class="col-span-2 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5" x-show="cocineroSeleccionado">
+        <h3 class="font-semibold text-sm mb-4">Configuración de <span x-text="cocineroSeleccionado?.nombre || ''"></span></h3>
+        <div class="space-y-5">
+          <!-- Filtros de Platos -->
+          <div>
+            <p class="text-[11px] text-txt-secondary uppercase font-semibold mb-2">Filtros de Platos</p>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Modo de Filtro</label>
+                <select class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary">
+                  <option>Inclusivo (solo mostrar seleccionados)</option>
+                  <option>Exclusivo (ocultar seleccionados)</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Categorías</label>
+                <select class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary">
+                  <option>Todas las categorías</option>
+                  <option>Ceviches</option>
+                  <option>Arroces</option>
+                  <option>Carnes</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <!-- Filtros de Comandas -->
+          <div class="border-t border-[rgba(212,175,55,0.15)] pt-4">
+            <p class="text-[11px] text-txt-secondary uppercase font-semibold mb-2">Filtros de Comandas</p>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Áreas Permitidas</label>
+                <select class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary">
+                  <option>Todas las áreas</option>
+                  <option>Salón Principal</option>
+                  <option>Terraza</option>
+                  <option>VIP</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Mesas Específicas</label>
+                <input type="text" placeholder="Ej: 1,2,5,8" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm">
+              </div>
+            </div>
+            <label class="flex items-center gap-2 mt-3 text-xs text-txt-secondary cursor-pointer">
+              <input type="checkbox" class="accent-gold w-3.5 h-3.5"> Solo mostrar comandas prioritarias
+            </label>
+          </div>
+          <!-- Configuración del Tablero -->
+          <div class="border-t border-[rgba(212,175,55,0.15)] pt-4">
+            <p class="text-[11px] text-txt-secondary uppercase font-semibold mb-2">Vista del Tablero KDS</p>
+            <div class="grid grid-cols-4 gap-3">
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Alerta Amarilla</label>
+                <input type="number" value="15" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-center"> 
+                <p class="text-[9px] text-txt-muted text-center mt-1">minutos</p>
+              </div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Alerta Roja</label>
+                <input type="number" value="20" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-center">
+                <p class="text-[9px] text-txt-muted text-center mt-1">minutos</p>
+              </div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Columnas</label>
+                <input type="number" value="5" min="1" max="8" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-center">
+              </div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Max Tarjetas</label>
+                <input type="number" value="20" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-center">
+              </div>
+            </div>
+            <div class="flex gap-6 mt-3">
+              <label class="flex items-center gap-2 text-xs text-txt-secondary cursor-pointer"><input type="checkbox" checked class="accent-gold w-3.5 h-3.5"> Sonido de notificación</label>
+              <label class="flex items-center gap-2 text-xs text-txt-secondary cursor-pointer"><input type="checkbox" checked class="accent-gold w-3.5 h-3.5"> Modo nocturno</label>
+              <label class="flex items-center gap-2 text-xs text-txt-secondary cursor-pointer"><input type="checkbox" class="accent-gold w-3.5 h-3.5"> Modo alto volumen</label>
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 mt-5 pt-4 border-t border-[rgba(212,175,55,0.15)]">
+          <button class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary">Cancelar</button>
+          <button class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold">Guardar Configuración</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- TAB: MÉTRICAS -->
+  <div x-show="cocineroTab==='Métricas'">
+    <div class="flex gap-2 mb-5 items-center">
+      <input type="date" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary">
+      <input type="date" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary">
+      <select class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary">
+        <option>Turno: Todos</option>
+        <option>Mañana</option>
+        <option>Tarde</option>
+        <option>Noche</option>
+      </select>
+      <button class="px-3 py-1.5 bg-gold text-bg-primary rounded-lg text-xs font-semibold">Aplicar Filtros</button>
+    </div>
+    <!-- Ranking de Cocineros -->
+    <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5 mb-5">
+      <h3 class="font-semibold text-sm mb-4">🏆 Ranking de Rendimiento</h3>
+      <div class="grid grid-cols-4 gap-4">
+        <template x-for="(c, i) in mockCocinerosRanking" :key="c.id">
+          <div class="bg-bg-sidebar rounded-xl p-4 relative">
+            <div class="absolute -top-2 -left-2 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold" 
+              :class="i===0 ? 'bg-gold text-bg-primary' : i===1 ? 'bg-st-libre text-bg-primary' : i===2 ? 'bg-st-esperando text-bg-primary' : 'bg-bg-card text-txt-muted'"
+              x-text="'#' + (i+1)"></div>
+            <p class="font-medium text-sm mt-2" x-text="c.nombre"></p>
+            <p class="text-2xl font-bold text-gold mt-1" x-text="c.tiempoPromedio + ' min'"></p>
+            <p class="text-xs text-txt-muted"><span x-text="c.platos"></span> platos · <span x-text="c.dentroSLA"></span>% en SLA</p>
+          </div>
+        </template>
+      </div>
+    </div>
+    <!-- Gráfico de rendimiento -->
+    <div class="grid grid-cols-2 gap-4">
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
+        <h3 class="font-semibold text-sm mb-3">Tiempos de Preparación</h3>
+        <canvas id="chartCocinerosTiempos" height="200"></canvas>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
+        <h3 class="font-semibold text-sm mb-3">Distribución por Cocinero</h3>
+        <canvas id="chartCocinerosDist" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================== -->
 <!-- PAGE: PLATOS                    -->
 <!-- =============================== -->
 <div x-show="page==='platos'" x-transition.opacity class="p-6" x-data="{subTab:'Todos', soloCompl:false}">
@@ -1058,6 +1278,7 @@ function app() {
       mesas: { label: 'Mesas', icon: '🪑' },
       areas: { label: 'Áreas', icon: '🗺️' },
       mozos: { label: 'Mozos', icon: '👤' },
+      cocineros: { label: 'Cocineros', icon: '👨‍🍳' },
       platos: { label: 'Platos', icon: '🍲' },
       comandas: { label: 'Comandas', icon: '📋' },
       bouchers: { label: 'Bouchers', icon: '🧾' },
@@ -1190,6 +1411,18 @@ function app() {
       { nombre: 'Porción extra arroz', tipo: '➕ Extra', tipoClass: 'bg-st-preparado/20 text-st-preparado', cant: 42, pu: '8.00', sub: '336.00', pct: 26 },
       { nombre: 'Tamaño familiar', tipo: '📏 Tamaño', tipoClass: 'bg-st-esperando/20 text-st-esperando', cant: 18, pu: '10.00', sub: '180.00', pct: 14 },
       { nombre: 'Salsa picante', tipo: '🌟 Adicional', tipoClass: 'bg-st-reservado/20 text-st-reservado', cant: 68, pu: '2.00', sub: '136.00', pct: 11 }
+    ],
+    mockCocineros: [
+      { id: 'C001', nombre: 'Carlos Mendoza', alias: 'Carlos', dni: '12345678', activo: true, platosHoy: 42, tiempoPromedio: 11.5 },
+      { id: 'C002', nombre: 'María Torres', alias: 'María T.', dni: '87654321', activo: true, platosHoy: 38, tiempoPromedio: 13.2 },
+      { id: 'C003', nombre: 'Juan Rojas', alias: 'Juan', dni: '11223344', activo: true, platosHoy: 35, tiempoPromedio: 12.8 },
+      { id: 'C004', nombre: 'Ana Vargas', alias: 'Ana', dni: '44556677', activo: false, platosHoy: 12, tiempoPromedio: 15.5 }
+    ],
+    mockCocinerosRanking: [
+      { nombre: 'Carlos M.', tiempoPromedio: 11.5, platos: 42, dentroSLA: 92 },
+      { nombre: 'Juan R.', tiempoPromedio: 12.8, platos: 35, dentroSLA: 88 },
+      { nombre: 'María T.', tiempoPromedio: 13.2, platos: 38, dentroSLA: 85 },
+      { nombre: 'Ana V.', tiempoPromedio: 15.5, platos: 12, dentroSLA: 75 }
     ],
     init() {
       this.updateClock();
