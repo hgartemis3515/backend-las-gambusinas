@@ -1,7 +1,7 @@
 # 🖥️ Documentación Completa - Backend Las Gambusinas
 
-**Versión:** 2.4  
-**Última Actualización:** Marzo 2026 (Nueva sección Cocineros: gestión de configuración KDS, métricas de rendimiento y asignación de roles)  
+**Versión:** 2.5  
+**Última Actualización:** Marzo 2026 (Nueva página cocineros.html con gestión de zonas KDS, documentación completa de integración App Cocina, modelo Zona, pendientes y sugerencias)  
 **Tecnología:** Node.js + Express + MongoDB + Socket.io + Redis
 
 **Propósito del documento:** Análisis completo del backend de Las Gambusinas: arquitectura, flujo de datos, carga de datos, endpoints, modelos MongoDB, WebSockets, caché, logging, integración con App Mozos, App Cocina, Dashboard Administrativo y módulo de Cocineros con configuración KDS. Documento alineado con el codebase actual (marzo 2026).
@@ -12,6 +12,8 @@
 
 | Fecha       | Cambios |
 |------------|---------|
+| Marzo 2026 | **Página cocineros.html y Zonas KDS:** Nueva sección documentando la página `public/cocineros.html`: interfaz completa para gestión de cocineros y zonas KDS con dos tabs; tabla de cocineros con paginación; ranking de métricas; modal de configuración KDS; gestión de zonas con filtros de platos/comandas; integración en tiempo real con Socket.io; modelo `Zona` para organizar estaciones de cocina. |
+| Marzo 2026 | **Integración App Cocina - Cocineros:** Documentación completa de la relación entre la página de cocineros y la App de Cocina: flujo de datos, endpoints consumidos, eventos Socket.io (`config-cocinero-actualizada`), filtros KDS (`kdsFilters.js`), autenticación JWT específica para cocineros, sincronización de configuración en tiempo real. Pendientes identificados y sugerencias de mejora. |
 | Marzo 2026 | **Sección Cocineros:** Nueva sección documentando el módulo de gestión de cocineros: modelo ConfigCocinero para configuración personalizada del tablero KDS; filtros de platos y comandas; métricas de rendimiento (tiempos de preparación, platos top, SLA); endpoints `/api/cocineros/*` con autenticación JWT y permisos; asignación y remoción de rol de cocinero. |
 | Marzo 2026 | **Comandas y grupos de comandas:** Nueva sección detallando la implementación deseada: tabla unificada que ordene comandas y grupos de comandas según tipo de pedido (multi-comanda vs una sola comanda); modelo Pedido como grupo de comandas; relación con la App de Mozos; endpoints y flujo de datos. |
 | Marzo 2026 | Actualización exhaustiva del Dashboard Administrativo: auditoría de `public/dashboard/` y `public/`; nueva sección "Dashboard Administrativo" con tecnologías, arquitectura de archivos, autenticación JWT, módulos, endpoints consumidos y eventos Socket.io; corrección de rutas (GET `/`, GET `/dashboard`, GET `/dashboard/login.html`); diferenciación entre Panel Admin (admin.html) y Dashboard con JWT; expansión del namespace `/admin` con eventos documentados. |
@@ -37,12 +39,16 @@
 14. [Health Check y Métricas](#health-check-y-métricas)
 15. [Dashboard Administrativo](#dashboard-administrativo)
 16. [Panel Admin (admin.html)](#panel-admin-adminhtml)
-17. [Cocineros y Configuración KDS](#cocineros-y-configuración-kds)
-18. [Comandas y Grupos de Comandas (Pedidos)](#comandas-y-grupos-de-comandas-pedidos)
-19. [Integración con Otras Aplicaciones](#integración-con-otras-aplicaciones)
-20. [Variables de Entorno y Despliegue](#variables-de-entorno-y-despliegue)
-21. [Testing y Scripts](#testing-y-scripts)
-22. [Problemas Resueltos y Pendientes](#problemas-resueltos-y-pendientes)
+17. [Página de Cocineros (cocineros.html)](#página-de-cocineros-cocineroshtml)
+18. [Cocineros y Configuración KDS](#cocineros-y-configuración-kds)
+19. [Zonas KDS](#zonas-kds)
+20. [Comandas y Grupos de Comandas (Pedidos)](#comandas-y-grupos-de-comandas-pedidos)
+21. [Integración con App de Cocina](#integración-con-app-de-cocina)
+22. [Integración con Otras Aplicaciones](#integración-con-otras-aplicaciones)
+23. [Variables de Entorno y Despliegue](#variables-de-entorno-y-despliegue)
+24. [Testing y Scripts](#testing-y-scripts)
+25. [Problemas Resueltos y Pendientes](#problemas-resueltos-y-pendientes)
+26. [Sugerencias y Mejoras Futuras](#sugerencias-y-mejoras-futuras)
 
 ---
 
@@ -783,6 +789,304 @@ src/
 
 ---
 
+## 📄 Página de Cocineros (cocineros.html)
+
+### Descripción General
+
+La página `public/cocineros.html` es una interfaz administrativa completa para la gestión de cocineros y zonas KDS. Permite a administradores y supervisores configurar el tablero KDS de cada cocinero, asignar zonas de trabajo, ver métricas de rendimiento y gestionar roles.
+
+### Tecnologías Utilizadas
+
+| Tecnología | Uso |
+|------------|-----|
+| **HTML5** | Estructura semántica con Alpine.js para reactividad |
+| **Tailwind CSS** | Sistema de diseño con tema oscuro personalizado |
+| **Alpine.js** | Estado reactivo, modales, paginación, tabs |
+| **Tabler Icons** | Biblioteca de iconos para cocina y restaurantes |
+| **Animate.css / AOS** | Animaciones de entrada y transiciones |
+| **Socket.io-client** | Actualizaciones en tiempo real |
+| **Fetch API** | Llamadas a `/api/*` con autenticación JWT |
+
+### Estructura de la Página
+
+La página tiene **dos tabs principales**:
+
+#### Tab 1: Cocineros
+
+- **KPIs superiores:** Total cocineros, activos, conectados hoy, platos hoy, % dentro SLA
+- **Filtros globales:** Búsqueda por nombre/alias, filtro de estado, selector de período (hoy, 7 días, 30 días, personalizado)
+- **Tabla de cocineros:**
+  - Columnas: Nombre, Alias, Estado, Última conexión, Platos preparados, Acciones
+  - Paginación configurable (5, 10, 20 filas)
+  - Selección de cocinero para ver detalle
+- **Panel lateral derecho:**
+  - Información del cocinero seleccionado
+  - KPIs individuales (platos, sesiones)
+  - Resumen de configuración KDS
+  - Zonas asignadas
+  - Métricas detalladas del período
+- **Ranking de rendimiento:** Lista ordenada por tiempo promedio de preparación
+
+#### Tab 2: Zonas
+
+- **KPIs de zonas:** Total zonas, activas, con filtros, asignadas
+- **Filtros:** Búsqueda por nombre, filtro de estado
+- **Tabla de zonas:**
+  - Columnas: Color/icono, Nombre, Descripción, Filtros aplicados, Cocineros asignados, Estado, Acciones
+  - Paginación completa
+
+### Modales Disponibles
+
+| Modal | Función |
+|-------|---------|
+| **Configuración KDS** | Editar alias, zonas asignadas, preferencias del tablero (tiempos de alerta, grid, sonido, modo nocturno, etc.), horario de trabajo |
+| **Asignar Rol Cocinero** | Seleccionar usuario existente para asignar rol de cocinero |
+| **Métricas Detalladas** | Ver métricas completas de un cocinero con platos más preparados |
+| **Quitar Rol** | Confirmar eliminación del rol de cocinero |
+| **Crear/Editar Zona** | Configurar nombre, descripción, color, icono, filtros de platos y comandas |
+| **Selector de Iconos** | Elegir icono para la zona (búsqueda por keywords) |
+| **Asignar Zonas** | Gestionar zonas asignadas a un cocinero |
+
+### Funciones Principales (JavaScript)
+
+```javascript
+// Estado reactivo principal
+{
+  cocineros: [],           // Lista de cocineros con su configuración
+  selectedCocinero: null,  // Cocinero seleccionado para detalle
+  zonas: [],              // Lista de zonas KDS
+  rankingMetricas: [],    // Ranking de rendimiento
+  metricasCocinero: {},   // Métricas del cocinero seleccionado
+  
+  // Filtros y paginación
+  busqueda: '',
+  filtroEstado: '',
+  filtroFecha: 'hoy',
+  currentPageCocineros: 1,
+  pageSizeCocineros: 10,
+  
+  // Formularios
+  formConfig: { ... },    // Configuración KDS a guardar
+  formZona: { ... }       // Datos de zona a crear/editar
+}
+```
+
+### Endpoints Consumidos
+
+| Método | Ruta | Uso en la página |
+|--------|------|------------------|
+| GET | `/api/cocineros` | Listar todos los cocineros |
+| GET | `/api/cocineros/:id/config` | Obtener configuración KDS |
+| PUT | `/api/cocineros/:id/config` | Actualizar configuración KDS |
+| POST | `/api/cocineros/:id/asignar-rol` | Asignar rol de cocinero |
+| POST | `/api/cocineros/:id/quitar-rol` | Quitar rol de cocinero |
+| GET | `/api/cocineros/:id/metricas` | Métricas de un cocinero |
+| GET | `/api/cocineros/metricas/todos` | Ranking de todos los cocineros |
+| GET | `/api/cocineros/:id/zonas` | Zonas asignadas a un cocinero |
+| PUT | `/api/cocineros/:id/zonas` | Asignar zonas a un cocinero |
+| GET | `/api/platos/categorias` | Categorías para filtros de zona |
+| GET | `/api/areas` | Áreas para filtros de zona |
+| GET | `/api/mesas` | Mesas para filtros de zona |
+| GET | `/api/platos` | Platos para filtros de zona |
+
+### Eventos Socket.io
+
+| Evento | Descripción |
+|--------|-------------|
+| `roles-actualizados` | Actualizar lista cuando cambian roles |
+| `plato-menu-actualizado` | Actualizar platos disponibles |
+
+### Autenticación
+
+La página requiere **JWT válido** almacenado en `localStorage` como `adminToken`. Si no hay token, redirige a `/login.html`.
+
+---
+
+## 📍 Zonas KDS
+
+### Concepto
+
+Las **Zonas KDS** son estaciones o áreas de trabajo dentro de la cocina que permiten organizar los tableros por especialidad (ej: Parrilla, Postres, Wok, Desayunos). Cada zona tiene filtros específicos que determinan qué platos y comandas se muestran en ella.
+
+### Modelo Zona (`zona.model.js`)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| **nombre** | String | Nombre de la zona (ej: "Parrilla", "Postres") |
+| **descripcion** | String | Descripción opcional |
+| **color** | String | Color hexadecimal para identificación visual |
+| **icono** | String | Nombre del icono Tabler Icons |
+| **filtrosPlatos** | Object | Configuración de filtros de platos |
+| → modoInclusion | Boolean | Si true, solo mostrar los seleccionados |
+| → categoriasPermitidas | Array | Categorías de platos para esta zona |
+| → tiposPermitidos | Array | Tipos de menú (desayuno, carta) |
+| → platosPermitidos | Array | IDs de platos específicos |
+| **filtrosComandas** | Object | Configuración de filtros de comandas |
+| → areasPermitidas | Array | Áreas del restaurante |
+| → mesasEspecificas | Array | Mesas específicas |
+| → soloPrioritarias | Boolean | Solo mostrar comandas urgentes |
+| **activo** | Boolean | Estado de la zona |
+| **createdAt** | Date | Fecha de creación |
+
+### Relación Cocinero - Zona
+
+Los cocineros pueden ser asignados a una o más zonas mediante el campo `zonaIds` en el modelo `Mozos`. La configuración de la zona se hereda al cocinero:
+
+```
+Zona (filtros) → Cocinero (zonaIds) → App Cocina (aplica filtros)
+```
+
+### Flujo de Trabajo
+
+1. **Admin** crea zonas en `cocineros.html` (tab "Zonas")
+2. **Admin** asigna zonas a cocineros en el modal de configuración
+3. **Cocinero** inicia sesión en App Cocina
+4. **App Cocina** carga configuración desde `GET /api/cocineros/:id/config`
+5. **App Cocina** aplica filtros de las zonas asignadas usando `kdsFilters.js`
+
+### Iconos Disponibles
+
+La página incluye un catálogo de iconos de cocina organizados por keywords:
+
+| Categoría | Iconos |
+|-----------|--------|
+| **Cocina** | tools-kitchen, chef-hat, pot, knife |
+| **Fuego** | flame, grill, barbecue, zap (picante) |
+| **Proteínas** | meat, fish, egg-fried |
+| **Vegetales** | salad, carrot, pepper, leaf |
+| **Carbohidratos** | bread, rice, noodles, pizza |
+| **Bebidas** | coffee, tea-cup, cup, glass, bottle |
+| **Postres** | ice-cream, cake, cookie, apple, lemon |
+| **Especiales** | heart, star, snowflake |
+
+---
+
+## 🍳 Integración con App de Cocina
+
+Esta sección documenta la relación completa entre la página `cocineros.html` (administración) y la **App de Cocina** (uso operativo por parte de los cocineros).
+
+### Arquitectura de Integración
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  cocineros.html │     │    Backend      │     │   App Cocina    │
+│  (Administración)│     │   (API REST)    │     │   (Operativo)   │
+└────────┬────────┘     └────────┬────────┘     └────────┬────────┘
+         │                       │                       │
+         │  PUT /cocineros/:id/config                  │
+         │──────────────────────►│                       │
+         │                       │                       │
+         │                       │  emitConfigActualizada │
+         │                       │──────────────────────►│
+         │                       │                       │
+         │                       │◄──────────────────────│
+         │                       │  GET /cocineros/:id/config
+         │                       │                       │
+         │                       │──────────────────────►│
+         │                       │  { filtros, config }  │
+         │                       │                       │
+```
+
+### Flujo de Datos
+
+#### 1. Inicio de Sesión en App Cocina
+
+```javascript
+// AuthContext.jsx - App Cocina
+const login = async (username, password) => {
+  // POST /api/admin/cocina/auth
+  // Recibe: { token, usuario: { id, name, rol } }
+  // Guarda token en localStorage como 'cocinaAuth'
+};
+```
+
+#### 2. Carga de Configuración KDS
+
+```javascript
+// AuthContext.jsx - App Cocina
+const loadCocineroConfig = async () => {
+  // GET /api/cocineros/:id/config
+  // Headers: Authorization: Bearer <token>
+  // Recibe: { aliasCocinero, filtrosPlatos, filtrosComandas, configTableroKDS }
+  // Guarda en localStorage como 'cocinaKdsConfig'
+};
+```
+
+#### 3. Aplicación de Filtros en Tiempo Real
+
+```javascript
+// kdsFilters.js - App Cocina
+export const aplicarFiltrosCompletos = (comandas, config) => {
+  return comandas
+    .filter(comanda => debeMostrarComanda(comanda, config.filtrosComandas))
+    .map(comanda => ({
+      ...comanda,
+      platos: filtrarPlatos(comanda.platos, config.filtrosPlatos)
+    }));
+};
+```
+
+#### 4. Actualización en Tiempo Real
+
+```javascript
+// useSocketCocina.js - App Cocina
+socket.on('config-cocinero-actualizada', (data) => {
+  // data: { cocineroId, config }
+  // Actualiza cocineroConfig en AuthContext
+  // Re-aplica filtros a las comandas visibles
+});
+```
+
+### Endpoints Específicos para App Cocina
+
+| Endpoint | Propósito | Frecuencia |
+|----------|-----------|------------|
+| `POST /api/admin/cocina/auth` | Autenticación de cocinero | Una vez por sesión |
+| `GET /api/cocineros/:id/config` | Cargar configuración KDS | Al iniciar sesión + cambios |
+| `POST /api/cocineros/:id/conexion` | Registrar conexión | Al iniciar sesión |
+| `GET /api/comanda/fecha/:fecha` | Cargar comandas del día | Periódicamente + WebSocket |
+| `PUT /api/comanda/:id/plato/:platoId/estado` | Cambiar estado de plato | Al preparar/entregar |
+
+### Archivos Clave en App Cocina
+
+| Archivo | Función |
+|---------|---------|
+| `src/contexts/AuthContext.jsx` | Autenticación JWT, carga de configuración KDS, timers de seguridad |
+| `src/hooks/useSocketCocina.js` | Conexión Socket.io con autenticación, eventos de comandas y config |
+| `src/utils/kdsFilters.js` | Funciones de filtrado de platos y comandas |
+| `src/components/Principal/ConfigModal.jsx` | Modal de configuración local (servidor, tiempos, grid) |
+| `src/config/apiConfig.js` | Configuración de URL del servidor con validación de hosts |
+
+### Configuración Local vs Servidor
+
+La App Cocina maneja **dos niveles de configuración**:
+
+| Nivel | Origen | Contenido |
+|-------|--------|-----------|
+| **Servidor** | `GET /api/cocineros/:id/config` | Filtros de platos/comandas, zonas asignadas, métricas |
+| **Local** | `ConfigModal.jsx` + localStorage | URL del servidor, tiempos de alerta, grid, sonido, modo nocturno |
+
+**Sincronización:** Los valores de `configTableroKDS` del servidor pueden sobrescribir o complementar la configuración local.
+
+### Eventos Socket.io para Cocineros
+
+| Evento | Dirección | Datos |
+|--------|-----------|-------|
+| `join-fecha` | App → Server | Fecha YYYY-MM-DD |
+| `heartbeat` | App → Server | Keepalive |
+| `config-cocinero-actualizada` | Server → App | `{ cocineroId, config }` |
+| `nueva-comanda` | Server → App | `{ comanda }` |
+| `plato-actualizado` | Server → App | `{ comandaId, platoId, nuevoEstado }` |
+
+### Seguridad
+
+- **JWT obligatorio:** El token debe incluir `rol: 'cocinero'` para acceso a endpoints de configuración
+- **Validación de hosts:** Solo URLs autorizadas en `apiConfig.js` (previene conexiones a servidores maliciosos)
+- **Logout por inactividad:** 30 minutos sin actividad cierra sesión automáticamente
+- **Advertencia previa:** A los 25 minutos de inactividad se muestra advertencia
+
+---
+
 ## 📋 Comandas y Grupos de Comandas (Pedidos)
 
 Esta sección detalla lo que se quiere implementar en el módulo de **comandas** del backend y del dashboard: una **tabla unificada** que muestre tanto **grupos de comandas (Pedidos)** como **comandas individuales**, ordenadas según el tipo de pedido (multi-comanda o una sola comanda), y la **relación con la App de Mozos**.
@@ -913,6 +1217,242 @@ Scripts en `package.json`: `start`, `dev` (nodemon), `start:pm2`, `stop:pm2`, `r
 - **Redis Adapter Socket.io:** Dependencia instalada (`@socket.io/redis-adapter`) pero no aplicada en `index.js`; para multi-instancia habría que configurar el adapter explícitamente.
 - **Rutas cierre de caja:** Existen dos módulos (cierreCajaController con rutas como /estado, /generar y cierreCajaRestauranteController con /cierre-caja/*). admin.html usa solo `/api/cierre-caja/*`. Documentar claramente cuál es el estándar para nuevos desarrollos.
 - **Rutas de Pedidos:** El controlador y el repository de Pedidos existen (`pedidoController.js`, `pedido.repository.js`) pero el router **no está montado** en `index.js`. Para que el dashboard consuma grupos de comandas vía API hay que añadir `pedidoRoutes` al array `routes`. Opcional: vincular la creación de comandas (en `comanda.repository.js`) con `Pedido.obtenerOcrearPedidoAbierto` y agregar la comanda al pedido, para que la tabla unificada y la App de Mozos compartan la misma fuente de verdad (ver [Comandas y Grupos de Comandas (Pedidos)](#comandas-y-grupos-de-comandas-pedidos)).
+- **Modelo Zona no existe:** La página `cocineros.html` gestiona zonas KDS pero el modelo `zona.model.js` **no está creado** en el backend. Se referencia en `cocinerosController.js` pero no existe el archivo. **Acción requerida:** Crear el modelo Zona con los campos documentados.
+- **Endpoint de zonas no implementado:** No hay rutas CRUD para zonas (crear, listar, actualizar, eliminar). La página `cocineros.html` asume que existen pero el backend no las sirve.
+- **Función `emitConfigCocineroActualizada` no definida:** En `cocinerosController.js` se llama a `global.emitConfigCocineroActualizada` pero no está implementada en `src/socket/events.js`. El evento `config-cocinero-actualizada` nunca se emite.
+
+---
+
+## 💡 Sugerencias y Mejoras Futuras
+
+### Mejoras en la Página de Cocineros (cocineros.html)
+
+#### 1. Implementación del Backend para Zonas
+
+**Prioridad: Alta**
+
+Crear el modelo y endpoints para gestión de zonas:
+
+```javascript
+// src/database/models/zona.model.js
+const zonaSchema = new mongoose.Schema({
+  nombre: { type: String, required: true },
+  descripcion: String,
+  color: { type: String, default: '#d4af37' },
+  icono: { type: String, default: 'tools-kitchen' },
+  filtrosPlatos: {
+    modoInclusion: { type: Boolean, default: false },
+    categoriasPermitidas: [String],
+    tiposPermitidos: [String],
+    platosPermitidos: [Number]
+  },
+  filtrosComandas: {
+    areasPermitidas: [String],
+    mesasEspecificas: [Number],
+    soloPrioritarias: { type: Boolean, default: false }
+  },
+  activo: { type: Boolean, default: true },
+  creadoPor: { type: mongoose.Schema.Types.ObjectId, ref: 'Mozos' }
+}, { timestamps: true });
+
+// Endpoints necesarios
+// GET    /api/zonas           - Listar zonas
+// POST   /api/zonas           - Crear zona
+// PUT    /api/zonas/:id       - Actualizar zona
+// DELETE /api/zonas/:id       - Eliminar zona
+```
+
+#### 2. Evento Socket.io para Actualización de Configuración
+
+**Prioridad: Alta**
+
+Implementar en `src/socket/events.js`:
+
+```javascript
+// Agregar a las funciones globales
+global.emitConfigCocineroActualizada = (cocineroId, config) => {
+  // Emitir al room específico del cocinero
+  cocinaNamespace.to(`cocinero-${cocineroId}`).emit('config-cocinero-actualizada', {
+    cocineroId,
+    config,
+    timestamp: new Date()
+  });
+  
+  // También emitir al namespace admin para actualización de UI
+  adminNamespace.emit('cocinero-config-actualizada', { cocineroId });
+};
+```
+
+#### 3. Métricas por Zona
+
+**Prioridad: Media**
+
+Agregar métricas agregadas por zona:
+
+```javascript
+// GET /api/zonas/:id/metricas
+{
+  zona: "Parrilla",
+  cocinerosAsignados: 3,
+  platosPreparados: 156,
+  tiempoPromedio: 12.5,
+  porcentajeDentroSLA: 89
+}
+```
+
+### Mejoras en la App de Cocina
+
+#### 1. Sincronización Bidireccional de Configuración
+
+**Prioridad: Media**
+
+Actualmente la configuración se carga al iniciar sesión. Implementar:
+
+- **Pull periódico:** Re-cargar configuración cada 5 minutos
+- **Push en cambios:** Socket.io ya escucha `config-cocinero-actualizada`, aplicar cambios en tiempo real
+- **Persistencia inteligente:** Combinar config del servidor con preferencias locales del dispositivo
+
+#### 2. Vista Previa de Zonas
+
+**Prioridad: Media**
+
+Agregar tab o selector para cambiar entre zonas asignadas:
+
+```jsx
+// Nuevo componente: ZoneSelector.jsx
+const ZoneSelector = ({ zonas, onZoneChange }) => {
+  return (
+    <div className="zone-tabs">
+      {zonas.map(zona => (
+        <button 
+          key={zona._id}
+          onClick={() => onZoneChange(zona)}
+          className="zone-tab"
+          style={{ borderColor: zona.color }}
+        >
+          <Icon name={zona.icono} />
+          {zona.nombre}
+        </button>
+      ))}
+    </div>
+  );
+};
+```
+
+#### 3. Indicador de Platos Ocultos
+
+**Prioridad: Baja**
+
+Mostrar cuántos platos están ocultos por los filtros:
+
+```jsx
+const FilterStats = ({ comandasOriginales, comandasFiltradas }) => {
+  const ocultos = calcularEstadisticasFiltrado(comandasOriginales, comandasFiltradas);
+  
+  return (
+    <div className="filter-stats">
+      <span>Filtrando {ocultos.platosOcultos} platos</span>
+      <span>{ocultos.comandasOcultas} comandas ocultas</span>
+    </div>
+  );
+};
+```
+
+#### 4. Historial de Métricas Personales
+
+**Prioridad: Baja**
+
+Agregar vista de histórico en la App de Cocina:
+
+```javascript
+// GET /api/cocineros/:id/historico
+{
+  hoy: { platos: 23, tiempoPromedio: 14.2 },
+  ayer: { platos: 45, tiempoPromedio: 13.8 },
+  semana: { platos: 234, tiempoPromedio: 14.0 },
+  mes: { platos: 987, tiempoPromedio: 14.3 }
+}
+```
+
+### Mejoras de Arquitectura
+
+#### 1. Namespace Socket.io por Cocinero
+
+**Prioridad: Media**
+
+Crear rooms específicos para cada cocinero en el namespace `/cocina`:
+
+```javascript
+// Al conectar
+socket.on('connection', (socket) => {
+  const cocineroId = socket.handshake.auth.cocineroId;
+  if (cocineroId) {
+    socket.join(`cocinero-${cocineroId}`);
+  }
+});
+
+// Emitir cambios de configuración solo al cocinero afectado
+emitConfigCocineroActualizada(cocineroId, config);
+```
+
+#### 2. Cache Redis para Configuración KDS
+
+**Prioridad: Baja**
+
+Evitar consultas frecuentes a MongoDB:
+
+```javascript
+// Al cargar configuración
+const cachedConfig = await redisCache.get(`kds-config:${cocineroId}`);
+if (cachedConfig) return cachedConfig;
+
+const config = await ConfigCocinero.findOne({ usuarioId: cocineroId });
+await redisCache.set(`kds-config:${cocineroId}`, config, 300); // 5 min TTL
+```
+
+#### 3. Auditoría de Cambios de Configuración
+
+**Prioridad: Media**
+
+Registrar quién cambia la configuración y cuándo:
+
+```javascript
+// Modelo: ConfigCocineroHistory
+{
+  configId: ObjectId,
+  cambiadoPor: ObjectId, // Admin que hizo el cambio
+  cambios: Object,       // Diferencia antes/después
+  fecha: Date
+}
+```
+
+### Funcionalidades Futuras
+
+#### 1. Turnos y Horarios de Cocineros
+
+Asignar horarios de trabajo y validar que los cocineros solo vean comandas durante su turno.
+
+#### 2. Notificaciones Push
+
+Enviar notificaciones a dispositivos móviles cuando:
+- Se asigna una nueva zona al cocinero
+- Hay comandas prioritarias sin atender
+- La configuración KDS ha sido modificada por un supervisor
+
+#### 3. Dashboard de Supervisión en Tiempo Real
+
+Vista para supervisores que muestre:
+- Qué cocineros están conectados
+- Cuántos platos pendientes tiene cada uno
+- Alertas cuando un cocinero excede tiempo SLA promedio
+- Distribución de carga de trabajo
+
+#### 4. Reportes Exportables
+
+Generar PDFs/Excel con:
+- Métricas de rendimiento por cocinero/zona
+- Comparativa entre períodos
+- Rankings históricos
 
 ---
 
@@ -924,4 +1464,4 @@ Scripts en `package.json`: `start`, `dev` (nodemon), `start:pm2`, `stop:pm2`, `r
 
 ---
 
-*Documento generado para el proyecto Las Gambusinas — Backend Node.js/Express/MongoDB/Socket.io. Versión 2.4, marzo 2026. Incluye documentación completa del panel admin.html: complementos en platos, cierre de caja con estadísticas y export, reportes, auditoría, comandas editables y sección Cocineros con configuración KDS.*
+*Documento generado para el proyecto Las Gambusinas — Backend Node.js/Express/MongoDB/Socket.io. Versión 2.5, marzo 2026. Incluye documentación completa del panel admin.html: complementos en platos, cierre de caja con estadísticas y export, reportes, auditoría, comandas editables; página cocineros.html: gestión de cocineros y zonas KDS con métricas de rendimiento; integración completa con App de Cocina: filtros KDS, eventos Socket.io, autenticación JWT; y sección de sugerencias y mejoras futuras.*
