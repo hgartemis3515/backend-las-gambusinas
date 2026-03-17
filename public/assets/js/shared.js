@@ -291,6 +291,11 @@ function clearAuthAndRedirect() {
   window.location.href = '/login.html';
 }
 
+// Función de logout para el menú del usuario
+function logout() {
+  clearAuthAndRedirect();
+}
+
 async function apiGet(endpoint) {
   const token = getToken();
   if (!token) {
