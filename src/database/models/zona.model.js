@@ -29,11 +29,11 @@ const zonaSchema = new mongoose.Schema({
         match: /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/
     },
     
-    // Emoji o nombre de icono
+    // Emoji o nombre de icono (Tabler Icons)
     icono: {
         type: String,
-        default: '🍳',
-        maxlength: 4
+        default: 'tools-kitchen',
+        maxlength: 50
     },
     
     // ========== FILTROS DE PLATOS ==========
@@ -60,11 +60,11 @@ const zonaSchema = new mongoose.Schema({
     
     // ========== FILTROS DE COMANDAS ==========
     filtrosComandas: {
-        // Áreas del restaurante que puede ver
+        // Áreas del restaurante que puede ver (areaId)
         areasPermitidas: [{
-            type: String
+            type: Number
         }],
-        // Mesas específicas
+        // Mesas específicas (mesasId)
         mesasEspecificas: [{
             type: Number
         }],
@@ -119,7 +119,7 @@ zonaSchema.statics.getZonaPorDefecto = function() {
         nombre: '',
         descripcion: '',
         color: '#d4af37',
-        icono: '🍳',
+        icono: 'tools-kitchen',
         filtrosPlatos: {
             modoInclusion: true,
             platosPermitidos: [],
@@ -175,18 +175,18 @@ zonaSchema.methods.debeMostrarPlato = function(plato) {
 zonaSchema.methods.debeMostrarComanda = function(comanda) {
     const filtros = this.filtrosComandas;
     
-    // Verificar filtro de áreas
+    // Verificar filtro de áreas (por areaId)
     if (filtros.areasPermitidas?.length > 0) {
-        const areaComanda = comanda.areaNombre || comanda.mesas?.areaNombre;
-        if (!filtros.areasPermitidas.includes(areaComanda)) {
+        const areaIdComanda = comanda.areaId || comanda.mesas?.areaId || comanda.mesas?.area;
+        if (!filtros.areasPermitidas.includes(areaIdComanda)) {
             return false;
         }
     }
     
-    // Verificar filtro de mesas específicas
+    // Verificar filtro de mesas específicas (por mesasId)
     if (filtros.mesasEspecificas?.length > 0) {
-        const mesaNumero = comanda.mesaNumero || comanda.mesas?.nummesa;
-        if (!filtros.mesasEspecificas.includes(mesaNumero)) {
+        const mesaIdComanda = comanda.mesasId || comanda.mesas?.mesasId;
+        if (!filtros.mesasEspecificas.includes(mesaIdComanda)) {
             return false;
         }
     }

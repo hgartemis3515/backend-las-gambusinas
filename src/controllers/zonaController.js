@@ -135,7 +135,7 @@ router.post('/zonas', adminAuth, checkPermission('editar-mozos'), async (req, re
             nombre: datosZona.nombre.trim(),
             descripcion: datosZona.descripcion?.trim() || '',
             color: datosZona.color || '#d4af37',
-            icono: datosZona.icono || '🍳',
+            icono: datosZona.icono || 'tools-kitchen',
             activo: datosZona.activo !== false,
             filtrosPlatos: {
                 modoInclusion: datosZona.filtrosPlatos?.modoInclusion ?? true,
