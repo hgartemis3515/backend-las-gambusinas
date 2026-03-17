@@ -40,17 +40,34 @@ tailwind.config = {
   <div id="sidebar-container"></div>
   <main :class="sidebarOpen ? 'ml-[270px]' : 'ml-[68px]'" class="flex-1 transition-all duration-300 min-h-[calc(100vh-72px)] p-6">
     
-    <!-- HEADER -->
+    <!-- HEADER CON TABS -->
     <div class="flex items-center justify-between mb-5">
       <div>
-        <h1 class="text-xl font-bold">Gestión de Cocineros</h1>
+        <h1 class="text-xl font-bold">Gestión de Cocina</h1>
         <p class="text-txt-muted text-sm mt-1">Configuración KDS, métricas de rendimiento y asignación de roles</p>
       </div>
       <div class="flex items-center gap-3">
-        <button @click="openAsignarRolModal()" class="bg-st-pedido text-white px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">
+        <button x-show="activeTab === 'cocineros'" @click="openAsignarRolModal()" class="bg-st-pedido text-white px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">
           + Asignar Rol Cocinero
         </button>
+        <button x-show="activeTab === 'zonas'" @click="openCrearZonaModal()" class="bg-st-preparado text-white px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">
+          + Nueva Zona
+        </button>
       </div>
+    </div>
+
+    <!-- TABS DE NAVEGACIÓN -->
+    <div class="flex gap-1 mb-4 bg-bg-card rounded-lg p-1 border border-[rgba(212,175,55,0.15)] w-fit">
+      <button @click="cambiarTab('cocineros')"
+        class="px-4 py-2 rounded-lg text-sm font-medium transition"
+        :class="activeTab === 'cocineros' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
+        👨‍🍳 Cocineros
+      </button>
+      <button @click="cambiarTab('zonas')"
+        class="px-4 py-2 rounded-lg text-sm font-medium transition"
+        :class="activeTab === 'zonas' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
+        📍 Zonas
+      </button>
     </div>
 
     <!-- ERROR STATE -->
@@ -60,6 +77,9 @@ tailwind.config = {
         Reintentar
       </button>
     </div>
+
+    <!-- ==================== TAB: COCINEROS ==================== -->
+    <div x-show="activeTab === 'cocineros'" x-cloak>
 
     <!-- KPIs -->
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
@@ -158,13 +178,13 @@ tailwind.config = {
                 <th class="text-left px-4 py-3 font-semibold">Acciones</th>
               </tr></thead>
               <tbody>
-                <tr x-show="cocinerosFiltrados.length === 0 && cocineros.length > 0">
+                <tr x-show="cocinerosPaginados.length === 0 && cocineros.length > 0">
                   <td colspan="6" class="px-4 py-8 text-center text-txt-muted">
                     <div class="text-2xl mb-2">🔍</div>
                     <p>No se encontraron cocineros con esos filtros</p>
                   </td>
                 </tr>
-                <template x-for="c in cocinerosFiltrados" :key="c._id || 'cocinero-' + (cocinerosFiltrados.indexOf(c))">
+                <template x-for="c in cocinerosPaginados" :key="c._id || 'cocinero-' + (cocinerosPaginados.indexOf(c))">
                   <tr class="border-b border-[rgba(212,175,55,0.08)] table-row hover:bg-bg-sidebar/50 cursor-pointer"
                     :class="{'bg-gold/5': selectedCocinero?._id === c._id}"
                     @click="seleccionarCocinero(c)">
@@ -182,7 +202,7 @@ tailwind.config = {
                       <span x-show="!c.configKDS?.aliasCocinero" class="text-txt-muted text-xs">—</span>
                     </td>
                     <td class="px-4 py-3">
-                      <span class="text-xs px-2 py-0.5 rounded-full font-semibold" 
+                      <span class="text-xs px-2 py-0.5 rounded-full font-semibold"
                         :class="c.configKDS?.activo !== false ? 'bg-st-preparado/20 text-st-preparado' : 'bg-txt-muted/20 text-txt-muted'"
                         x-text="c.configKDS?.activo !== false ? 'Activo' : 'Inactivo'"></span>
                     </td>
@@ -199,6 +219,41 @@ tailwind.config = {
                 </template>
               </tbody>
             </table>
+          </div>
+
+          <!-- CONTROLES DE PAGINACIÓN COCINEROS -->
+          <div x-show="totalCocinerosFiltrados > 0" class="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-[rgba(212,175,55,0.1)] bg-bg-sidebar/30">
+            <div class="text-xs text-txt-muted">
+              Mostrando <span class="text-white font-medium" x-text="paginaInicioCocineros"></span>–<span class="text-white font-medium" x-text="paginaFinCocineros"></span> de <span class="text-white font-medium" x-text="totalCocinerosFiltrados"></span> cocineros
+            </div>
+            <div class="flex items-center gap-2">
+              <select x-model="pageSizeCocineros" @change="cambiarPageSizeCocineros(parseInt($event.target.value))"
+                class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1 text-xs text-txt-secondary focus:border-gold focus:outline-none">
+                <template x-for="size in pageSizeOptions" :key="size">
+                  <option :value="size" x-text="size + ' filas'"></option>
+                </template>
+              </select>
+              <div class="flex items-center gap-1">
+                <button @click="irAPrimeraPaginaCocineros()" :disabled="currentPageCocineros === 1"
+                  class="w-7 h-7 flex items-center justify-center rounded border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  title="Primera página">«</button>
+                <button @click="paginaAnteriorCocineros()" :disabled="currentPageCocineros === 1"
+                  class="w-7 h-7 flex items-center justify-center rounded border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  title="Página anterior">‹</button>
+                <template x-for="p in paginasVisiblesCocineros" :key="p">
+                  <button @click="irAPaginaCocineros(p)"
+                    class="w-7 h-7 flex items-center justify-center rounded text-xs font-medium transition"
+                    :class="p === currentPageCocineros ? 'bg-gold text-bg-primary' : 'border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold'"
+                    x-text="p"></button>
+                </template>
+                <button @click="paginaSiguienteCocineros()" :disabled="currentPageCocineros === totalPaginasCocineros"
+                  class="w-7 h-7 flex items-center justify-center rounded border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  title="Página siguiente">›</button>
+                <button @click="irAUltimaPaginaCocineros()" :disabled="currentPageCocineros === totalPaginasCocineros"
+                  class="w-7 h-7 flex items-center justify-center rounded border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  title="Última página">»</button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -297,6 +352,32 @@ tailwind.config = {
           </div>
         </div>
 
+        <!-- ZONAS ASIGNADAS AL COCINERO -->
+        <div x-show="selectedCocinero" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold">📍 Zonas Asignadas</h3>
+            <button @click="openAsignarZonasModal()" class="text-xs text-gold hover:text-white transition">
+              Gestionar
+            </button>
+          </div>
+          <div x-show="getZonasAsignadasCocinero().length === 0" class="text-center py-4">
+            <div class="text-2xl mb-2">📍</div>
+            <p class="text-txt-muted text-xs">Sin zonas asignadas</p>
+            <button @click="openAsignarZonasModal()" class="mt-2 text-gold text-xs hover:underline">
+              Asignar zonas
+            </button>
+          </div>
+          <div x-show="getZonasAsignadasCocinero().length > 0" class="flex flex-wrap gap-2">
+            <template x-for="z in getZonasAsignadasCocinero()" :key="z._id || z.id">
+              <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
+                :style="'background-color: ' + (z.color || '#d4af37') + '25; border: 1px solid ' + (z.color || '#d4af37')">
+                <span x-text="z.icono || '🍳'"></span>
+                <span x-text="z.nombre"></span>
+              </div>
+            </template>
+          </div>
+        </div>
+
         <!-- PANEL VACÍO -->
         <div x-show="!selectedCocinero" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-8 text-center">
           <div class="text-4xl mb-3">👨‍🍳</div>
@@ -339,6 +420,164 @@ tailwind.config = {
 
       </div>
     </div>
+
+    </div>
+    <!-- FIN TAB: COCINEROS -->
+
+    <!-- ==================== TAB: ZONAS ==================== -->
+    <div x-show="activeTab === 'zonas'" x-cloak>
+
+    <!-- KPIs ZONAS -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+        <p class="text-[11px] text-txt-muted uppercase">Total Zonas</p>
+        <p class="text-2xl font-bold text-white mt-1" x-text="zonas.length"></p>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+        <p class="text-[11px] text-txt-muted uppercase">Activas</p>
+        <p class="text-2xl font-bold text-st-preparado mt-1" x-text="zonas.filter(z => z.activo !== false).length"></p>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+        <p class="text-[11px] text-txt-muted uppercase">Con Filtros</p>
+        <p class="text-2xl font-bold text-st-pedido mt-1" x-text="zonas.filter(z => z.filtrosPlatos?.categoriasPermitidas?.length || z.filtrosComandas?.areasPermitidas?.length).length"></p>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+        <p class="text-[11px] text-txt-muted uppercase text-gold">Asignadas</p>
+        <p class="text-2xl font-bold text-gold mt-1" x-text="zonas.filter(z => getCocinerosAsignadosZona(z._id || z.id) > 0).length"></p>
+      </div>
+    </div>
+
+    <!-- FILTROS ZONAS -->
+    <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4 mb-6">
+      <div class="flex flex-wrap items-center gap-4">
+        <div class="flex-1 min-w-[200px]">
+          <input type="text" x-model="busquedaZonas" placeholder="Buscar zona..."
+            class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2 text-sm focus:border-gold focus:outline-none"
+            @input.debounce.300ms="currentPageZonas = 1">
+        </div>
+        <div class="flex gap-2">
+          <select x-model="filtroEstadoZonas" @change="currentPageZonas = 1" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+            <option value="">Todos los estados</option>
+            <option value="activo">Activas</option>
+            <option value="inactivo">Inactivas</option>
+          </select>
+        </div>
+        <button @click="cargarZonas()" class="bg-gold/20 text-gold px-4 py-2 rounded-lg text-sm font-medium hover:bg-gold/30 transition">
+          🔄 Actualizar
+        </button>
+      </div>
+    </div>
+
+    <!-- TABLA DE ZONAS -->
+    <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+      <!-- LOADING -->
+      <div x-show="loadingZonas" class="flex items-center justify-center h-32">
+        <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+      </div>
+
+      <!-- EMPTY STATE -->
+      <div x-show="!loadingZonas && zonas.length === 0" class="p-8 text-center">
+        <div class="text-5xl mb-4">📍</div>
+        <h3 class="text-lg font-semibold mb-2">No hay zonas configuradas</h3>
+        <p class="text-txt-muted text-sm mb-4">Crea zonas para organizar los tableros de cocina por estación o especialidad.</p>
+        <button @click="openCrearZonaModal()" class="bg-st-preparado text-white px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">
+          + Nueva Zona
+        </button>
+      </div>
+
+      <!-- TABLA -->
+      <div x-show="!loadingZonas && zonas.length > 0">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
+              <th class="text-left px-4 py-3 font-semibold w-16">Color</th>
+              <th class="text-left px-4 py-3 font-semibold">Nombre</th>
+              <th class="text-left px-4 py-3 font-semibold hidden md:table-cell">Descripción</th>
+              <th class="text-left px-4 py-3 font-semibold hidden sm:table-cell">Filtros</th>
+              <th class="text-left px-4 py-3 font-semibold hidden sm:table-cell">Asignada a</th>
+              <th class="text-left px-4 py-3 font-semibold">Estado</th>
+              <th class="text-left px-4 py-3 font-semibold">Acciones</th>
+            </tr></thead>
+            <tbody>
+              <tr x-show="zonasPaginadas.length === 0">
+                <td colspan="7" class="px-4 py-8 text-center text-txt-muted">
+                  <div class="text-2xl mb-2">🔍</div>
+                  <p>No se encontraron zonas con esos filtros</p>
+                </td>
+              </tr>
+              <template x-for="z in zonasPaginadas" :key="z._id || z.id || 'zona-' + zonasPaginadas.indexOf(z)">
+                <tr class="border-b border-[rgba(212,175,55,0.08)] table-row hover:bg-bg-sidebar/50">
+                  <td class="px-4 py-3">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center text-lg"
+                      :style="'background-color: ' + (z.color || '#d4af37') + '30; border: 2px solid ' + (z.color || '#d4af37')"
+                      x-text="z.icono || '🍳'"></div>
+                  </td>
+                  <td class="px-4 py-3">
+                    <span class="font-medium" x-text="z.nombre"></span>
+                  </td>
+                  <td class="px-4 py-3 text-txt-secondary text-xs hidden md:table-cell">
+                    <span x-text="z.descripcion || '—'"></span>
+                  </td>
+                  <td class="px-4 py-3 text-xs hidden sm:table-cell">
+                    <span class="text-txt-muted" x-text="getResumenFiltrosZona(z)"></span>
+                  </td>
+                  <td class="px-4 py-3 text-xs hidden sm:table-cell">
+                    <span class="text-gold font-medium" x-text="getCocinerosAsignadosZona(z._id || z.id) + ' cocineros'"></span>
+                  </td>
+                  <td class="px-4 py-3">
+                    <span class="text-xs px-2 py-0.5 rounded-full font-semibold"
+                      :class="z.activo !== false ? 'bg-st-preparado/20 text-st-preparado' : 'bg-txt-muted/20 text-txt-muted'"
+                      x-text="z.activo !== false ? 'Activa' : 'Inactiva'"></span>
+                  </td>
+                  <td class="px-4 py-3 space-x-2 text-base">
+                    <span class="cursor-pointer hover:text-gold transition" @click="openEditarZonaModal(z)" title="Editar zona">✏️</span>
+                    <span class="cursor-pointer hover:text-st-pagado transition" @click="eliminarZona(z)" title="Eliminar zona">🗑️</span>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- CONTROLES DE PAGINACIÓN ZONAS -->
+        <div x-show="totalZonasFiltradas > 0" class="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-[rgba(212,175,55,0.1)] bg-bg-sidebar/30">
+          <div class="text-xs text-txt-muted">
+            Mostrando <span class="text-white font-medium" x-text="paginaInicioZonas"></span>–<span class="text-white font-medium" x-text="paginaFinZonas"></span> de <span class="text-white font-medium" x-text="totalZonasFiltradas"></span> zonas
+          </div>
+          <div class="flex items-center gap-2">
+            <select x-model="pageSizeZonas" @change="cambiarPageSizeZonas(parseInt($event.target.value))"
+              class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1 text-xs text-txt-secondary focus:border-gold focus:outline-none">
+              <template x-for="size in pageSizeOptions" :key="size">
+                <option :value="size" x-text="size + ' filas'"></option>
+              </template>
+            </select>
+            <div class="flex items-center gap-1">
+              <button @click="currentPageZonas = 1" :disabled="currentPageZonas === 1"
+                class="w-7 h-7 flex items-center justify-center rounded border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold transition disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Primera página">«</button>
+              <button @click="paginaAnteriorZonas()" :disabled="currentPageZonas === 1"
+                class="w-7 h-7 flex items-center justify-center rounded border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold transition disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Página anterior">‹</button>
+              <template x-for="p in paginasVisiblesZonas" :key="p">
+                <button @click="irAPaginaZonas(p)"
+                  class="w-7 h-7 flex items-center justify-center rounded text-xs font-medium transition"
+                  :class="p === currentPageZonas ? 'bg-gold text-bg-primary' : 'border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold'"
+                  x-text="p"></button>
+              </template>
+              <button @click="paginaSiguienteZonas()" :disabled="currentPageZonas === totalPaginasZonas"
+                class="w-7 h-7 flex items-center justify-center rounded border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold transition disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Página siguiente">›</button>
+              <button @click="currentPageZonas = totalPaginasZonas" :disabled="currentPageZonas === totalPaginasZonas"
+                class="w-7 h-7 flex items-center justify-center rounded border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold transition disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Última página">»</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    </div>
+    <!-- FIN TAB: ZONAS -->
 
   </main>
 </div>
@@ -700,6 +939,182 @@ tailwind.config = {
   </div>
 </div>
 
+<!-- MODAL: CREAR/EDITAR ZONA -->
+<div x-show="modalZona" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modalZona=false">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-full max-w-[700px] max-h-[90vh] overflow-hidden shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-bold" x-text="formZona.id ? 'Editar Zona' : 'Nueva Zona'"></h2>
+        <p class="text-xs text-txt-muted">Configura los filtros de cocina para esta zona</p>
+      </div>
+      <button @click="modalZona=false" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+    </div>
+    
+    <div class="p-6 space-y-5 overflow-y-auto max-h-[60vh]">
+      <!-- INFO BÁSICA -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="sm:col-span-2">
+          <label class="text-xs text-txt-secondary mb-1 block">Nombre de la zona *</label>
+          <input type="text" x-model="formZona.nombre" placeholder="Ej: Plancha, Parrilla, Postres..."
+            class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+        </div>
+        <div>
+          <label class="text-xs text-txt-secondary mb-1 block">Icono</label>
+          <input type="text" x-model="formZona.icono" placeholder="🍳"
+            class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="text-xs text-txt-secondary mb-1 block">Descripción</label>
+          <input type="text" x-model="formZona.descripcion" placeholder="Descripción corta..."
+            class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+        </div>
+        <div>
+          <label class="text-xs text-txt-secondary mb-1 block">Color</label>
+          <div class="flex gap-2">
+            <input type="color" x-model="formZona.color" class="w-10 h-10 rounded border-0 cursor-pointer">
+            <input type="text" x-model="formZona.color" placeholder="#d4af37"
+              class="flex-1 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+          </div>
+        </div>
+      </div>
+
+      <!-- FILTROS DE PLATOS -->
+      <div class="border-t border-[rgba(212,175,55,0.15)] pt-4">
+        <h4 class="text-xs text-txt-muted uppercase font-semibold mb-3">Filtros de Platos</h4>
+        <div class="space-y-3">
+          <label class="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" x-model="formZona.filtrosPlatos.modoInclusion" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+            <span class="text-txt-secondary">Modo inclusivo (solo mostrar seleccionados)</span>
+          </label>
+          
+          <div>
+            <label class="text-[11px] text-txt-secondary block mb-1">Categorías</label>
+            <div class="flex flex-wrap gap-2">
+              <template x-for="(cat, catIdx) in categoriasDisponibles" :key="cat || 'cat-' + catIdx">
+                <label class="flex items-center gap-1 px-2 py-1 rounded-lg bg-bg-sidebar border border-[rgba(212,175,55,0.15)] cursor-pointer hover:border-gold/50 transition text-xs">
+                  <input type="checkbox" :value="cat" x-model="formZona.filtrosPlatos.categoriasPermitidas" class="w-3 h-3 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold">
+                  <span x-text="cat"></span>
+                </label>
+              </template>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-[11px] text-txt-secondary block mb-1">Tipos de menú</label>
+            <div class="flex gap-2">
+              <label class="flex items-center gap-1 px-2 py-1 rounded-lg bg-bg-sidebar border border-[rgba(212,175,55,0.15)] cursor-pointer hover:border-gold/50 transition text-xs">
+                <input type="checkbox" value="platos-desayuno" x-model="formZona.filtrosPlatos.tiposPermitidos" class="w-3 h-3 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold">
+                <span>Desayuno</span>
+              </label>
+              <label class="flex items-center gap-1 px-2 py-1 rounded-lg bg-bg-sidebar border border-[rgba(212,175,55,0.15)] cursor-pointer hover:border-gold/50 transition text-xs">
+                <input type="checkbox" value="plato-carta normal" x-model="formZona.filtrosPlatos.tiposPermitidos" class="w-3 h-3 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold">
+                <span>Carta Normal</span>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-[11px] text-txt-secondary block mb-1">Platos específicos (IDs)</label>
+            <input type="text" x-model="formZona.platosPermitidosTexto" placeholder="Ej: 1, 5, 12, 23"
+              class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2 text-sm focus:border-gold focus:outline-none">
+          </div>
+        </div>
+      </div>
+
+      <!-- FILTROS DE COMANDAS -->
+      <div class="border-t border-[rgba(212,175,55,0.15)] pt-4">
+        <h4 class="text-xs text-txt-muted uppercase font-semibold mb-3">Filtros de Comandas</h4>
+        <div class="space-y-3">
+          <div>
+            <label class="text-[11px] text-txt-secondary block mb-1">Áreas permitidas</label>
+            <div class="flex flex-wrap gap-2">
+              <template x-for="(area, areaIdx) in areasDisponibles" :key="area || 'area-' + areaIdx">
+                <label class="flex items-center gap-1 px-2 py-1 rounded-lg bg-bg-sidebar border border-[rgba(212,175,55,0.15)] cursor-pointer hover:border-gold/50 transition text-xs">
+                  <input type="checkbox" :value="area" x-model="formZona.filtrosComandas.areasPermitidas" class="w-3 h-3 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold">
+                  <span x-text="area"></span>
+                </label>
+              </template>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="text-[11px] text-txt-secondary block mb-1">Mesas específicas</label>
+              <input type="text" x-model="formZona.mesasEspecificasTexto" placeholder="Ej: 1, 2, 3, 4, 5"
+                class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2 text-sm focus:border-gold focus:outline-none">
+            </div>
+            <label class="flex items-center gap-2 text-sm cursor-pointer self-end">
+              <input type="checkbox" x-model="formZona.filtrosComandas.soloPrioritarias" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-txt-secondary">Solo prioritarias</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- ESTADO -->
+      <div class="border-t border-[rgba(212,175,55,0.15)] pt-4">
+        <label class="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" x-model="formZona.activo" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+          <span class="text-txt-secondary">Zona activa</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="modalZona=false" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+      <button @click="guardarZona()" class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">
+        Guardar Zona
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ASIGNAR ZONAS A COCINERO -->
+<div x-show="modalAsignarZonas" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modalAsignarZonas=false">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-full max-w-[500px] shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-bold">Asignar Zonas</h2>
+        <p class="text-xs text-txt-muted" x-text="'Cocinero: ' + (selectedCocinero?.nombre || 'Seleccionado')"></p>
+      </div>
+      <button @click="modalAsignarZonas=false" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+    </div>
+    <div class="p-6">
+      <div x-show="zonas.filter(z => z.activo !== false).length === 0" class="text-center text-txt-muted py-4">
+        <p class="text-sm">No hay zonas activas disponibles</p>
+        <button @click="modalAsignarZonas=false; activeTab='zonas'" class="mt-2 text-gold text-xs hover:underline">Crear zona</button>
+      </div>
+      <div x-show="zonas.filter(z => z.activo !== false).length > 0" class="space-y-2 max-h-[300px] overflow-y-auto">
+        <template x-for="z in zonas.filter(z => z.activo !== false)" :key="z._id || z.id">
+          <label class="flex items-center gap-3 p-3 bg-bg-sidebar rounded-lg hover:bg-gold/10 transition cursor-pointer"
+            :class="{'border border-gold/30': selectedCocinero?.zonaIds?.includes(z._id || z.id)}">
+            <input type="checkbox"
+              :checked="selectedCocinero?.zonaIds?.includes(z._id || z.id)"
+              @change="z._asignada = $event.target.checked"
+              class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center text-lg"
+              :style="'background-color: ' + (z.color || '#d4af37') + '30; border: 2px solid ' + (z.color || '#d4af37')"
+              x-text="z.icono || '🍳'"></div>
+            <div class="flex-1">
+              <p class="font-medium text-sm" x-text="z.nombre"></p>
+              <p class="text-[10px] text-txt-muted" x-text="z.descripcion || getResumenFiltrosZona(z)"></p>
+            </div>
+          </label>
+        </template>
+      </div>
+    </div>
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="modalAsignarZonas=false" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+      <button @click="guardarZonasAsignadas()" class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">
+        Guardar Asignación
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST CONTAINER -->
 <div id="toast-container" class="fixed bottom-6 right-6 z-[9999] space-y-2"></div>
 
@@ -732,7 +1147,48 @@ function cocinerosApp() {
     fechaHasta: '',
     busquedaUsuario: '',
     usuarioSeleccionado: null,
-    
+
+    // Paginación cocineros
+    pageSizeCocineros: 10,
+    currentPageCocineros: 1,
+    pageSizeOptions: [5, 10, 20],
+
+    // Sistema de tabs
+    activeTab: 'cocineros', // 'cocineros' o 'zonas'
+
+    // Zonas
+    zonas: [],
+    zonaSeleccionada: null,
+    busquedaZonas: '',
+    filtroEstadoZonas: '',
+    pageSizeZonas: 10,
+    currentPageZonas: 1,
+    modalZona: false,
+    modalAsignarZonas: false,
+    formZona: {
+      id: null,
+      nombre: '',
+      descripcion: '',
+      color: '#d4af37',
+      icono: '🍳',
+      filtrosPlatos: {
+        modoInclusion: false,
+        platosPermitidos: [],
+        categoriasPermitidas: [],
+        tiposPermitidos: []
+      },
+      filtrosComandas: {
+        areasPermitidas: [],
+        mesasEspecificas: [],
+        rangoHorario: { inicio: '', fin: '' },
+        soloPrioritarias: false
+      },
+      activo: true,
+      platosPermitidosTexto: '',
+      mesasEspecificasTexto: ''
+    },
+    loadingZonas: false,
+
     modalConfig: false,
     modalAsignarRol: false,
     modalMetricas: false,
@@ -785,14 +1241,20 @@ function cocinerosApp() {
         window.location.href = '/login.html';
         return;
       }
-      
+
       // Inicializar sistema de notificaciones
       if (window.GambusinasNotifications) {
         window.GambusinasNotifications.init();
       }
-      
+
       await this.cargarDatos();
-      
+
+      // Watchers para ajustar paginación cuando cambian los filtros
+      this.$watch('busqueda', () => { this.currentPageCocineros = 1; });
+      this.$watch('filtroEstado', () => { this.currentPageCocineros = 1; });
+      this.$watch('busquedaZonas', () => { this.currentPageZonas = 1; });
+      this.$watch('filtroEstadoZonas', () => { this.currentPageZonas = 1; });
+
       this.$nextTick(() => {
         if (typeof AOS !== 'undefined') {
           AOS.refresh();
@@ -940,27 +1402,139 @@ function cocinerosApp() {
     get cocinerosFiltrados() {
       // Filtrar
       let resultados = this.cocineros.filter(c => {
-        const matchBusqueda = !this.busqueda || 
+        const matchBusqueda = !this.busqueda ||
           c.nombre?.toLowerCase().includes(this.busqueda.toLowerCase()) ||
           c.configKDS?.aliasCocinero?.toLowerCase().includes(this.busqueda.toLowerCase());
-        const matchEstado = !this.filtroEstado || 
+        const matchEstado = !this.filtroEstado ||
           (this.filtroEstado === 'activo' && c.configKDS?.activo !== false) ||
           (this.filtroEstado === 'inactivo' && c.configKDS?.activo === false);
         return matchBusqueda && matchEstado;
       });
-      
+
       // Ordenar: activos primero, luego por última conexión descendente
       resultados.sort((a, b) => {
         const aActivo = a.configKDS?.activo !== false ? 1 : 0;
         const bActivo = b.configKDS?.activo !== false ? 1 : 0;
         if (aActivo !== bActivo) return bActivo - aActivo;
-        
+
         const aConexion = a.configKDS?.estadisticas?.ultimaConexion ? new Date(a.configKDS.estadisticas.ultimaConexion).getTime() : 0;
         const bConexion = b.configKDS?.estadisticas?.ultimaConexion ? new Date(b.configKDS.estadisticas.ultimaConexion).getTime() : 0;
         return bConexion - aConexion;
       });
-      
+
       return resultados;
+    },
+
+    // Paginación de cocineros
+    get totalCocinerosFiltrados() {
+      return this.cocinerosFiltrados.length;
+    },
+
+    get totalPaginasCocineros() {
+      return Math.ceil(this.totalCocinerosFiltrados / this.pageSizeCocineros) || 1;
+    },
+
+    get cocinerosPaginados() {
+      const inicio = (this.currentPageCocineros - 1) * this.pageSizeCocineros;
+      const fin = inicio + this.pageSizeCocineros;
+      return this.cocinerosFiltrados.slice(inicio, fin);
+    },
+
+    get paginaInicioCocineros() {
+      if (this.totalCocinerosFiltrados === 0) return 0;
+      return (this.currentPageCocineros - 1) * this.pageSizeCocineros + 1;
+    },
+
+    get paginaFinCocineros() {
+      const fin = this.currentPageCocineros * this.pageSizeCocineros;
+      return Math.min(fin, this.totalCocinerosFiltrados);
+    },
+
+    get paginasVisiblesCocineros() {
+      const total = this.totalPaginasCocineros;
+      const current = this.currentPageCocineros;
+      const maxVisible = 5;
+
+      if (total <= maxVisible) {
+        return Array.from({ length: total }, (_, i) => i + 1);
+      }
+
+      let start = Math.max(1, current - Math.floor(maxVisible / 2));
+      let end = start + maxVisible - 1;
+
+      if (end > total) {
+        end = total;
+        start = Math.max(1, end - maxVisible + 1);
+      }
+
+      return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+    },
+
+    // Zonas filtradas y paginadas
+    get zonasFiltradas() {
+      let resultados = this.zonas.filter(z => {
+        const matchBusqueda = !this.busquedaZonas ||
+          z.nombre?.toLowerCase().includes(this.busquedaZonas.toLowerCase()) ||
+          z.descripcion?.toLowerCase().includes(this.busquedaZonas.toLowerCase());
+        const matchEstado = !this.filtroEstadoZonas ||
+          (this.filtroEstadoZonas === 'activo' && z.activo !== false) ||
+          (this.filtroEstadoZonas === 'inactivo' && z.activo === false);
+        return matchBusqueda && matchEstado;
+      });
+
+      // Ordenar: activos primero, luego por nombre
+      resultados.sort((a, b) => {
+        const aActivo = a.activo !== false ? 1 : 0;
+        const bActivo = b.activo !== false ? 1 : 0;
+        if (aActivo !== bActivo) return bActivo - aActivo;
+        return (a.nombre || '').localeCompare(b.nombre || '');
+      });
+
+      return resultados;
+    },
+
+    get totalZonasFiltradas() {
+      return this.zonasFiltradas.length;
+    },
+
+    get totalPaginasZonas() {
+      return Math.ceil(this.totalZonasFiltradas / this.pageSizeZonas) || 1;
+    },
+
+    get zonasPaginadas() {
+      const inicio = (this.currentPageZonas - 1) * this.pageSizeZonas;
+      const fin = inicio + this.pageSizeZonas;
+      return this.zonasFiltradas.slice(inicio, fin);
+    },
+
+    get paginaInicioZonas() {
+      if (this.totalZonasFiltradas === 0) return 0;
+      return (this.currentPageZonas - 1) * this.pageSizeZonas + 1;
+    },
+
+    get paginaFinZonas() {
+      const fin = this.currentPageZonas * this.pageSizeZonas;
+      return Math.min(fin, this.totalZonasFiltradas);
+    },
+
+    get paginasVisiblesZonas() {
+      const total = this.totalPaginasZonas;
+      const current = this.currentPageZonas;
+      const maxVisible = 5;
+
+      if (total <= maxVisible) {
+        return Array.from({ length: total }, (_, i) => i + 1);
+      }
+
+      let start = Math.max(1, current - Math.floor(maxVisible / 2));
+      let end = start + maxVisible - 1;
+
+      if (end > total) {
+        end = total;
+        start = Math.max(1, end - maxVisible + 1);
+      }
+
+      return Array.from({ length: end - start + 1 }, (_, i) => start + i);
     },
     
     get usuariosParaAsignar() {
@@ -1327,7 +1901,288 @@ function cocinerosApp() {
     tooltipSoloPrioritarias: 'Solo mostrar comandas marcadas como urgentes o prioritarias en el tablero KDS.',
     tooltipMaxTarjetas: 'Número máximo de comandas visibles en pantalla simultáneamente.',
     tooltipTiempoAmarillo: 'Tiempo en minutos para mostrar alerta amarilla en una comanda en espera.',
-    tooltipTiempoRojo: 'Tiempo en minutos para mostrar alerta roja (crítica) en una comanda en espera.'
+    tooltipTiempoRojo: 'Tiempo en minutos para mostrar alerta roja (crítica) en una comanda en espera.',
+
+    // === FUNCIONES DE PAGINACIÓN COCINEROS ===
+    cambiarPageSizeCocineros(nuevoSize) {
+      this.pageSizeCocineros = nuevoSize;
+      this.currentPageCocineros = 1;
+    },
+
+    irAPaginaCocineros(num) {
+      if (num >= 1 && num <= this.totalPaginasCocineros) {
+        this.currentPageCocineros = num;
+      }
+    },
+
+    paginaAnteriorCocineros() {
+      if (this.currentPageCocineros > 1) {
+        this.currentPageCocineros--;
+      }
+    },
+
+    paginaSiguienteCocineros() {
+      if (this.currentPageCocineros < this.totalPaginasCocineros) {
+        this.currentPageCocineros++;
+      }
+    },
+
+    irAPrimeraPaginaCocineros() {
+      this.currentPageCocineros = 1;
+    },
+
+    irAUltimaPaginaCocineros() {
+      this.currentPageCocineros = this.totalPaginasCocineros;
+    },
+
+    ajustarPaginaCocinerosSiExcede() {
+      if (this.currentPageCocineros > this.totalPaginasCocineros) {
+        this.currentPageCocineros = Math.max(1, this.totalPaginasCocineros);
+      }
+    },
+
+    // === FUNCIONES DE PAGINACIÓN ZONAS ===
+    cambiarPageSizeZonas(nuevoSize) {
+      this.pageSizeZonas = nuevoSize;
+      this.currentPageZonas = 1;
+    },
+
+    irAPaginaZonas(num) {
+      if (num >= 1 && num <= this.totalPaginasZonas) {
+        this.currentPageZonas = num;
+      }
+    },
+
+    paginaAnteriorZonas() {
+      if (this.currentPageZonas > 1) {
+        this.currentPageZonas--;
+      }
+    },
+
+    paginaSiguienteZonas() {
+      if (this.currentPageZonas < this.totalPaginasZonas) {
+        this.currentPageZonas++;
+      }
+    },
+
+    // === FUNCIONES DE ZONAS ===
+    getDefaultFormZona() {
+      return {
+        id: null,
+        nombre: '',
+        descripcion: '',
+        color: '#d4af37',
+        icono: '🍳',
+        filtrosPlatos: {
+          modoInclusion: false,
+          platosPermitidos: [],
+          categoriasPermitidas: [],
+          tiposPermitidos: []
+        },
+        filtrosComandas: {
+          areasPermitidas: [],
+          mesasEspecificas: [],
+          rangoHorario: { inicio: '', fin: '' },
+          soloPrioritarias: false
+        },
+        activo: true,
+        platosPermitidosTexto: '',
+        mesasEspecificasTexto: ''
+      };
+    },
+
+    async cargarZonas() {
+      this.loadingZonas = true;
+      try {
+        const data = await apiGet('/zonas');
+        if (data && data.success !== false) {
+          this.zonas = data.data || data.zonas || (Array.isArray(data) ? data : []);
+        } else {
+          this.zonas = [];
+        }
+      } catch (error) {
+        this.zonas = [];
+        if (window.GambusinasNotifications) {
+          window.GambusinasNotifications.networkError(error);
+        }
+      }
+      this.loadingZonas = false;
+    },
+
+    openCrearZonaModal() {
+      this.formZona = this.getDefaultFormZona();
+      this.modalZona = true;
+    },
+
+    openEditarZonaModal(zona) {
+      this.formZona = {
+        id: zona._id || zona.id,
+        nombre: zona.nombre || '',
+        descripcion: zona.descripcion || '',
+        color: zona.color || '#d4af37',
+        icono: zona.icono || '🍳',
+        filtrosPlatos: {
+          modoInclusion: zona.filtrosPlatos?.modoInclusion || false,
+          platosPermitidos: zona.filtrosPlatos?.platosPermitidos || [],
+          categoriasPermitidas: zona.filtrosPlatos?.categoriasPermitidas || [],
+          tiposPermitidos: zona.filtrosPlatos?.tiposPermitidos || []
+        },
+        filtrosComandas: {
+          areasPermitidas: zona.filtrosComandas?.areasPermitidas || [],
+          mesasEspecificas: zona.filtrosComandas?.mesasEspecificas || [],
+          rangoHorario: zona.filtrosComandas?.rangoHorario || { inicio: '', fin: '' },
+          soloPrioritarias: zona.filtrosComandas?.soloPrioritarias || false
+        },
+        activo: zona.activo !== false,
+        platosPermitidosTexto: (zona.filtrosPlatos?.platosPermitidos || []).join(', '),
+        mesasEspecificasTexto: (zona.filtrosComandas?.mesasEspecificas || []).join(', ')
+      };
+      this.modalZona = true;
+    },
+
+    async guardarZona() {
+      if (!this.formZona.nombre?.trim()) {
+        if (window.GambusinasNotifications) {
+          window.GambusinasNotifications.warning('El nombre de la zona es obligatorio');
+        }
+        return;
+      }
+
+      const platosTexto = this.formZona.platosPermitidosTexto.trim();
+      const platosPermitidos = platosTexto
+        ? platosTexto.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p))
+        : [];
+
+      const mesasTexto = this.formZona.mesasEspecificasTexto.trim();
+      const mesasEspecificas = mesasTexto
+        ? mesasTexto.split(',').map(m => parseInt(m.trim())).filter(m => !isNaN(m))
+        : [];
+
+      const body = {
+        nombre: this.formZona.nombre.trim(),
+        descripcion: this.formZona.descripcion?.trim() || '',
+        color: this.formZona.color || '#d4af37',
+        icono: this.formZona.icono || '🍳',
+        filtrosPlatos: {
+          ...this.formZona.filtrosPlatos,
+          platosPermitidos
+        },
+        filtrosComandas: {
+          ...this.formZona.filtrosComandas,
+          mesasEspecificas
+        },
+        activo: this.formZona.activo
+      };
+
+      let res;
+      if (this.formZona.id) {
+        res = await apiPut(`/zonas/${this.formZona.id}`, body);
+      } else {
+        res = await apiPost('/zonas', body);
+      }
+
+      if (res && res.success !== false) {
+        if (window.GambusinasNotifications) {
+          window.GambusinasNotifications.success(
+            this.formZona.id ? 'Zona actualizada' : 'Zona creada',
+            `La zona "${this.formZona.nombre}" se guardó correctamente`
+          );
+        }
+        this.modalZona = false;
+        await this.cargarZonas();
+      } else {
+        if (window.GambusinasNotifications) {
+          window.GambusinasNotifications.error('Error', res?.error || res?.message || 'No se pudo guardar la zona');
+        }
+      }
+    },
+
+    async eliminarZona(zona) {
+      if (!confirm(`¿Estás seguro de eliminar la zona "${zona.nombre}"?`)) return;
+
+      const res = await apiDelete(`/zonas/${zona._id || zona.id}`);
+      if (res && res.success !== false) {
+        if (window.GambusinasNotifications) {
+          window.GambusinasNotifications.success('Zona eliminada', `La zona "${zona.nombre}" fue desactivada`);
+        }
+        await this.cargarZonas();
+      } else {
+        if (window.GambusinasNotifications) {
+          window.GambusinasNotifications.error('Error', res?.error || res?.message || 'No se pudo eliminar la zona');
+        }
+      }
+    },
+
+    // Funciones de asignación de zonas a cocineros
+    async openAsignarZonasModal() {
+      this.modalAsignarZonas = true;
+      // Cargar zonas asignadas al cocinero seleccionado
+      if (this.selectedCocinero) {
+        // Las zonas asignadas están en selectedCocinero.zonaIds o similar
+      }
+    },
+
+    async guardarZonasAsignadas() {
+      if (!this.selectedCocinero) return;
+
+      const zonaIdsSeleccionadas = this.zonas
+        .filter(z => z._asignada && z.activo !== false)
+        .map(z => z._id || z.id);
+
+      const res = await apiPut(`/cocineros/${this.selectedCocinero._id}/zonas`, { zonaIds: zonaIdsSeleccionadas });
+
+      if (res && res.success !== false) {
+        if (window.GambusinasNotifications) {
+          window.GambusinasNotifications.success('Zonas asignadas', `Se actualizaron las zonas de ${this.selectedCocinero.nombre}`);
+        }
+        this.modalAsignarZonas = false;
+        await this.loadCocineros();
+        if (this.selectedCocinero) {
+          this.selectedCocinero = this.cocineros.find(c => c._id === this.selectedCocinero._id);
+        }
+      } else {
+        if (window.GambusinasNotifications) {
+          window.GambusinasNotifications.error('Error', res?.error || res?.message || 'No se pudieron asignar las zonas');
+        }
+      }
+    },
+
+    getZonasAsignadasCocinero() {
+      if (!this.selectedCocinero?.zonaIds || !this.zonas.length) return [];
+      return this.zonas.filter(z =>
+        this.selectedCocinero.zonaIds.includes(z._id || z.id) && z.activo !== false
+      );
+    },
+
+    // Función para cambiar de tab
+    cambiarTab(tab) {
+      this.activeTab = tab;
+      if (tab === 'zonas' && this.zonas.length === 0) {
+        this.cargarZonas();
+      }
+    },
+
+    // Resumen de filtros de zona para mostrar en tabla
+    getResumenFiltrosZona(zona) {
+      const partes = [];
+      if (zona.filtrosPlatos?.categoriasPermitidas?.length) {
+        partes.push(`${zona.filtrosPlatos.categoriasPermitidas.length} cat.`);
+      }
+      if (zona.filtrosPlatos?.tiposPermitidos?.length) {
+        partes.push(`${zona.filtrosPlatos.tiposPermitidos.length} tipos`);
+      }
+      if (zona.filtrosComandas?.areasPermitidas?.length) {
+        partes.push(`${zona.filtrosComandas.areasPermitidas.length} áreas`);
+      }
+      return partes.length ? partes.join(', ') : 'Sin filtros';
+    },
+
+    // Contar cocineros asignados a una zona
+    getCocinerosAsignadosZona(zonaId) {
+      return this.cocineros.filter(c =>
+        c.zonaIds?.includes(zonaId) && c.configKDS?.activo !== false
+      ).length;
+    }
   };
 }
 </script>

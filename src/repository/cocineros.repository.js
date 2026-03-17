@@ -20,7 +20,7 @@ async function obtenerCocineros(filtros = {}) {
         }
         
         const cocineros = await Mozos.find(query)
-            .select('name DNI phoneNumber rol activo createdAt')
+            .select('name DNI phoneNumber rol activo zonaIds createdAt')
             .sort({ name: 1 })
             .lean();
         
@@ -30,7 +30,8 @@ async function obtenerCocineros(filtros = {}) {
                 const config = await ConfigCocinero.findOne({ usuarioId: cocinero._id }).lean();
                 return {
                     ...cocinero,
-                    configuracion: config || null,
+                    nombre: cocinero.name,
+                    configKDS: config || null,
                     tieneConfiguracion: !!config
                 };
             })

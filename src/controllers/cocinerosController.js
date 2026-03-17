@@ -397,4 +397,86 @@ router.post('/cocineros/:id/conexion', adminAuth, async (req, res) => {
     }
 });
 
+/**
+ * GET /api/cocineros/:id/zonas
+ * Obtener zonas asignadas a un cocinero
+ */
+router.get('/cocineros/:id/zonas', adminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const Mozos = require('../database/models/mozos.model');
+        const Zona = require('../database/models/zona.model');
+        
+        const cocinero = await Mozos.findById(id).select('zonaIds').lean();
+        
+        if (!cocinero) {
+            return res.status(404).json({
+                success: false,
+                error: 'Cocinero no encontrado'
+            });
+        }
+        
+        // Obtener detalles de las zonas
+        const zonas = await Zona.find({
+            _id: { $in: cocinero.zonaIds || [] }
+        }).select('nombre descripcion color icono').lean();
+        
+        res.json({
+            success: true,
+            data: zonas
+        });
+    } catch (error) {
+        logger.error('Error al obtener zonas del cocinero', { error: error.message });
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener zonas asignadas'
+        });
+    }
+});
+
+/**
+ * PUT /api/cocineros/:id/zonas
+ * Asignar zonas a un cocinero
+ */
+router.put('/cocineros/:id/zonas', adminAuth, checkPermission('editar-mozos'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { zonaIds } = req.body;
+        
+        const Mozos = require('../database/models/mozos.model');
+        
+        const cocinero = await Mozos.findByIdAndUpdate(
+            id,
+            { zonaIds: zonaIds || [] },
+            { new: true }
+        ).select('_id name zonaIds');
+        
+        if (!cocinero) {
+            return res.status(404).json({
+                success: false,
+                error: 'Cocinero no encontrado'
+            });
+        }
+        
+        logger.info('Zonas asignadas a cocinero', {
+            cocineroId: id,
+            zonaIds,
+            actualizadoPor: req.admin.id
+        });
+        
+        res.json({
+            success: true,
+            message: 'Zonas asignadas correctamente',
+            data: cocinero
+        });
+    } catch (error) {
+        logger.error('Error al asignar zonas al cocinero', { error: error.message });
+        res.status(500).json({
+            success: false,
+            error: 'Error al asignar zonas'
+        });
+    }
+});
+
 module.exports = router;

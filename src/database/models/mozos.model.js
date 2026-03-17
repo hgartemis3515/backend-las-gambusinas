@@ -73,6 +73,11 @@ const mozosSchema = new mongoose.Schema({
         required: true
     },
     permisos: [permisoSchema],
+    // Zonas asignadas (para cocineros)
+    zonaIds: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Zona'
+    }],
     activo: { type: Boolean, default: true }
 }, { 
     timestamps: true,
