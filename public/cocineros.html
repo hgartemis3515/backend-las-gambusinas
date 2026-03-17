@@ -1624,6 +1624,7 @@ function cocinerosApp() {
 
       await this.cargarDatos();
       await this.cargarDatosSelectores();
+      await this.cargarZonas(); // Cargar zonas al inicio para el modal de configuración
 
       // Watchers para ajustar paginación cuando cambian los filtros
       this.$watch('busqueda', () => { this.currentPageCocineros = 1; });
@@ -2476,12 +2477,16 @@ function cocinerosApp() {
       this.loadingZonas = true;
       try {
         const data = await apiGet('/zonas');
+        console.log('Respuesta de /zonas:', data); // Debug
         if (data && data.success !== false) {
           this.zonas = data.data || data.zonas || (Array.isArray(data) ? data : []);
+          console.log('Zonas cargadas:', this.zonas); // Debug
         } else {
           this.zonas = [];
+          console.log('No se pudieron cargar zonas:', data); // Debug
         }
       } catch (error) {
+        console.error('Error al cargar zonas:', error);
         this.zonas = [];
         if (window.GambusinasNotifications) {
           window.GambusinasNotifications.networkError(error);
