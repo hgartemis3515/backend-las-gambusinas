@@ -593,7 +593,7 @@ tailwind.config = {
      x-transition:leave="transition ease-in duration-150"
      x-transition:leave-start="opacity-100"
      x-transition:leave-end="opacity-0"
-     class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modalConfig=false">
+     class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/80 backdrop-blur-sm" @click.self="modalConfig=false">
   <div x-show="modalConfig"
        x-transition:enter="transition ease-out duration-300"
        x-transition:enter-start="opacity-0 transform scale-95 translate-y-4"
@@ -601,201 +601,284 @@ tailwind.config = {
        x-transition:leave="transition ease-in duration-200"
        x-transition:leave-start="opacity-100 transform scale-100 translate-y-0"
        x-transition:leave-end="opacity-0 transform scale-95 translate-y-4"
-       class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[800px] max-h-[90vh] overflow-hidden shadow-2xl" @click.stop>
-    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
-      <div>
-        <h2 class="text-lg font-bold">Configuración KDS</h2>
-        <p class="text-xs text-txt-muted" x-text="'Editando: ' + (formConfig.nombreCocinero || 'Cocinero')"></p>
+       class="bg-bg-card border border-gold/20 rounded-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden shadow-2xl" @click.stop>
+    
+    <!-- HEADER -->
+    <div class="relative bg-gradient-to-r from-bg-sidebar to-bg-card p-5 border-b border-gold/10">
+      <div class="absolute top-0 left-0 w-1 h-full bg-gold"></div>
+      <div class="flex items-start justify-between">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-gold/10 border border-gold/30 flex items-center justify-center">
+            <i class="ti ti-device-tablet text-xl text-gold"></i>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold">Configuración del Cocinero</h2>
+            <p class="text-xs text-txt-muted mt-0.5" x-text="formConfig.nombreCocinero || 'Nuevo cocinero'"></p>
+          </div>
+        </div>
+        <button @click="modalConfig=false" class="w-8 h-8 flex items-center justify-center rounded-full bg-bg-sidebar/80 text-txt-muted hover:text-white hover:bg-bg-sidebar transition">✕</button>
       </div>
-      <button @click="modalConfig=false" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
     </div>
     
-    <div class="p-6 space-y-6 overflow-y-auto max-h-[60vh]">
+    <div class="p-5 space-y-4 overflow-y-auto max-h-[calc(92vh-140px)]">
       
-      <!-- SECCIÓN: ALIAS -->
-      <div>
-        <label class="text-xs text-txt-secondary mb-1 block">Alias del Cocinero (opcional)</label>
-        <input type="text" x-model="formConfig.aliasCocinero" placeholder="Ej: Chef Juan" 
-          class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
-      </div>
-
-      <!-- SECCIÓN: FILTROS DE PLATOS -->
-      <div class="border-t border-[rgba(212,175,55,0.15)] pt-4">
-        <h4 class="text-xs text-txt-muted uppercase font-semibold mb-3">Filtros de Platos</h4>
-        <div class="space-y-3">
-          <label class="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" x-model="formConfig.filtrosPlatos.modoInclusion" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
-            <span class="text-txt-secondary flex items-center gap-1">
-              Modo inclusivo
-              <span class="cursor-help text-txt-muted" :title="tooltipModoInclusion">ℹ️</span>
-            </span>
-          </label>
-          
-          <div>
-            <label class="text-[11px] text-txt-secondary block mb-1">Categorías permitidas</label>
-            <div class="flex flex-wrap gap-2">
-              <template x-for="(cat, catIdx) in categoriasReales" :key="cat || 'cat-' + catIdx">
-                <label class="flex items-center gap-1 px-2 py-1 rounded-lg bg-bg-sidebar border border-[rgba(212,175,55,0.15)] cursor-pointer hover:border-gold/50 transition text-xs">
-                  <input type="checkbox" :value="cat" x-model="formConfig.filtrosPlatos.categoriasPermitidas" class="w-3 h-3 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold">
-                  <span x-text="cat"></span>
-                </label>
-              </template>
-            </div>
-          </div>
-
-          <div>
-            <label class="text-[11px] text-txt-secondary block mb-1">Tipos de menú</label>
-            <div class="flex gap-2">
-              <label class="flex items-center gap-1 px-2 py-1 rounded-lg bg-bg-sidebar border border-[rgba(212,175,55,0.15)] cursor-pointer hover:border-gold/50 transition text-xs">
-                <input type="checkbox" value="platos-desayuno" x-model="formConfig.filtrosPlatos.tiposPermitidos" class="w-3 h-3 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold">
-                <span>Desayuno</span>
-              </label>
-              <label class="flex items-center gap-1 px-2 py-1 rounded-lg bg-bg-sidebar border border-[rgba(212,175,55,0.15)] cursor-pointer hover:border-gold/50 transition text-xs">
-                <input type="checkbox" value="plato-carta normal" x-model="formConfig.filtrosPlatos.tiposPermitidos" class="w-3 h-3 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold">
-                <span>Carta Normal</span>
-              </label>
-            </div>
-          </div>
-
-          <div>
-            <label class="text-[11px] text-txt-secondary block mb-1">Platos específicos (IDs separados por coma)</label>
-            <input type="text" x-model="formConfig.platosPermitidosTexto" placeholder="Ej: 1, 5, 12, 23" 
-              class="w-full bg-bg-sidebar border rounded-lg px-4 py-2 text-sm focus:border-gold focus:outline-none"
-              :class="formErrors.platosPermitidos ? 'border-st-pagado' : 'border-[rgba(212,175,55,0.25)]'">
-            <p x-show="formErrors.platosPermitidos" class="text-[10px] text-st-pagado mt-1" x-text="formErrors.platosPermitidos"></p>
-          </div>
-        </div>
-      </div>
-
-      <!-- SECCIÓN: FILTROS DE COMANDAS -->
-      <div class="border-t border-[rgba(212,175,55,0.15)] pt-4">
-        <h4 class="text-xs text-txt-muted uppercase font-semibold mb-3">Filtros de Comandas</h4>
+      <!-- SECCIÓN: INFORMACIÓN BÁSICA -->
+      <div class="bg-bg-sidebar/50 rounded-xl p-4 border border-white/5">
+        <h3 class="text-xs font-semibold text-gold uppercase tracking-wider mb-4 flex items-center gap-2">
+          <i class="ti ti-user"></i> Información Básica
+        </h3>
+        
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="text-[11px] text-txt-secondary block mb-1">Áreas permitidas</label>
-            <div class="flex flex-wrap gap-2">
-              <template x-for="(area, areaIdx) in todasLasAreas" :key="area._id || area.areaId || 'area-' + areaIdx">
-                <label class="flex items-center gap-1 px-2 py-1 rounded-lg bg-bg-sidebar border border-[rgba(212,175,55,0.15)] cursor-pointer hover:border-gold/50 transition text-xs">
-                  <input type="checkbox" :value="area.areaId" x-model="formConfig.filtrosComandas.areasPermitidas" class="w-3 h-3 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold">
-                  <span x-text="area.nombre"></span>
-                </label>
-              </template>
-            </div>
+            <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium">Alias del Cocinero</label>
+            <input type="text" x-model="formConfig.aliasCocinero" placeholder="Ej: Chef Juan" 
+              class="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2.5 text-sm focus:border-gold focus:ring-1 focus:ring-gold/30 focus:outline-none transition">
+            <p class="text-[10px] text-txt-muted mt-1">Nombre que aparecerá en el KDS</p>
           </div>
-          <div>
-            <label class="text-[11px] text-txt-secondary block mb-1">Mesas específicas</label>
-            <input type="text" x-model="formConfig.mesasEspecificasTexto" placeholder="Ej: 1, 2, 3, 4, 5" 
-              class="w-full bg-bg-sidebar border rounded-lg px-4 py-2 text-sm focus:border-gold focus:outline-none"
-              :class="formErrors.mesasEspecificas ? 'border-st-pagado' : 'border-[rgba(212,175,55,0.25)]'">
-            <p x-show="formErrors.mesasEspecificas" class="text-[10px] text-st-pagado mt-1" x-text="formErrors.mesasEspecificas"></p>
-          </div>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
-          <div>
-            <label class="text-[11px] text-txt-secondary block mb-1">Horario inicio</label>
-            <input type="time" x-model="formConfig.filtrosComandas.rangoHorario.inicio" 
-              class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2 text-sm focus:border-gold focus:outline-none">
-          </div>
-          <div>
-            <label class="text-[11px] text-txt-secondary block mb-1">Horario fin</label>
-            <input type="time" x-model="formConfig.filtrosComandas.rangoHorario.fin" 
-              class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2 text-sm focus:border-gold focus:outline-none">
+          
+          <div class="flex items-end">
+            <label class="flex items-center gap-3 px-3 py-2.5 bg-bg-card border border-white/10 rounded-lg cursor-pointer hover:border-gold/30 transition w-full">
+              <div class="relative">
+                <input type="checkbox" x-model="formConfig.activo" class="sr-only peer">
+                <div class="w-10 h-5 bg-bg-sidebar rounded-full peer-checked:bg-st-preparado transition-colors"></div>
+                <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></div>
+              </div>
+              <div>
+                <span class="text-sm text-txt-secondary block">Cocinero Activo</span>
+                <span class="text-[10px] text-txt-muted">Puede recibir pedidos</span>
+              </div>
+            </label>
           </div>
         </div>
-        <label class="flex items-center gap-2 text-sm mt-3 cursor-pointer">
-          <input type="checkbox" x-model="formConfig.filtrosComandas.soloPrioritarias" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
-          <span class="text-txt-secondary flex items-center gap-1">
-            Solo mostrar comandas prioritarias
-            <span class="cursor-help text-txt-muted" :title="tooltipSoloPrioritarias">ℹ️</span>
-          </span>
-        </label>
       </div>
 
-      <!-- SECCIÓN: PREFERENCIAS VISUALES -->
-      <div class="border-t border-[rgba(212,175,55,0.15)] pt-4">
-        <h4 class="text-xs text-txt-muted uppercase font-semibold mb-3">Preferencias del Tablero KDS</h4>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <label class="text-[11px] text-txt-secondary mb-1 flex items-center gap-1">
-              Alerta amarilla (min)
-              <span class="cursor-help text-txt-muted" :title="tooltipTiempoAmarillo">ℹ️</span>
+      <!-- SECCIÓN: ASIGNACIÓN DE ZONAS -->
+      <div class="bg-bg-sidebar/50 rounded-xl p-4 border border-white/5">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xs font-semibold text-gold uppercase tracking-wider flex items-center gap-2">
+            <i class="ti ti-layout-grid"></i> Zonas Asignadas
+          </h3>
+          <span class="text-[10px] text-txt-muted bg-bg-card px-2 py-1 rounded-md">
+            <span x-text="formConfig.zonaIdsSeleccionadas?.length || 0"></span> seleccionada(s)
+          </span>
+        </div>
+        
+        <div x-show="zonas.filter(z => z.activo !== false).length === 0" class="text-center py-6">
+          <i class="ti ti-layout-grid text-3xl text-txt-muted mb-2"></i>
+          <p class="text-sm text-txt-muted">No hay zonas activas configuradas</p>
+          <button @click="modalConfig=false; activeTab='zonas'" class="mt-2 text-gold text-xs hover:underline">Crear zona</button>
+        </div>
+        
+        <div x-show="zonas.filter(z => z.activo !== false).length > 0" class="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+          <template x-for="z in zonas.filter(z => z.activo !== false)" :key="z._id || z.id">
+            <label class="flex items-center gap-3 p-3 bg-bg-card rounded-lg hover:bg-gold/5 transition cursor-pointer border border-transparent"
+              :class="{'border-gold/30 bg-gold/5': formConfig.zonaIdsSeleccionadas?.includes(z._id || z.id)}">
+              <input type="checkbox" 
+                :checked="formConfig.zonaIdsSeleccionadas?.includes(z._id || z.id)"
+                @change="toggleZonaAsignada(z._id || z.id)"
+                class="sr-only peer">
+              <div class="w-4 h-4 rounded border-2 flex items-center justify-center transition"
+                :class="formConfig.zonaIdsSeleccionadas?.includes(z._id || z.id) ? 'bg-gold border-gold' : 'border-txt-muted'">
+                <i x-show="formConfig.zonaIdsSeleccionadas?.includes(z._id || z.id)" class="ti ti-check text-xs text-bg-primary"></i>
+              </div>
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm"
+                :style="'background-color: ' + (z.color || '#d4af37') + '30; border: 2px solid ' + (z.color || '#d4af37')">
+                <i :class="'ti ti-' + (z.icono || 'tools-kitchen')" :style="'color: ' + (z.color || '#d4af37')"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="font-medium text-sm truncate" x-text="z.nombre"></p>
+                <p class="text-[10px] text-txt-muted truncate" x-text="z.descripcion || getResumenFiltrosZona(z)"></p>
+              </div>
+              <div x-show="formConfig.zonaIdsSeleccionadas?.includes(z._id || z.id)" class="text-st-preparado text-xs">
+                <i class="ti ti-check"></i>
+              </div>
             </label>
-            <input type="number" x-model="formConfig.configTableroKDS.tiempoAmarillo" min="5" max="30" 
-              class="w-full bg-bg-sidebar border rounded-lg px-4 py-2 text-sm focus:border-gold focus:outline-none"
-              :class="formErrors.tiempoAmarillo ? 'border-st-pagado' : 'border-[rgba(212,175,55,0.25)]'">
+          </template>
+        </div>
+        
+        <p class="text-[10px] text-txt-muted mt-3 flex items-center gap-1">
+          <i class="ti ti-info-circle"></i>
+          Los filtros de platos y comandas se heredan de las zonas asignadas
+        </p>
+      </div>
+
+      <!-- SECCIÓN: PREFERENCIAS DEL TABLERO KDS -->
+      <div class="bg-bg-sidebar/50 rounded-xl p-4 border border-white/5">
+        <h3 class="text-xs font-semibold text-gold uppercase tracking-wider mb-4 flex items-center gap-2">
+          <i class="ti ti-adjustments"></i> Preferencias del Tablero KDS
+        </h3>
+        
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div>
+            <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium">Alerta Amarilla</label>
+            <div class="relative">
+              <input type="number" x-model="formConfig.configTableroKDS.tiempoAmarillo" min="5" max="30" 
+                class="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-gold focus:ring-1 focus:ring-gold/30 focus:outline-none transition pr-10"
+                :class="formErrors.tiempoAmarillo ? 'border-st-pagado' : ''">
+              <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-txt-muted">min</span>
+            </div>
             <p x-show="formErrors.tiempoAmarillo" class="text-[10px] text-st-pagado mt-1" x-text="formErrors.tiempoAmarillo"></p>
           </div>
           <div>
-            <label class="text-[11px] text-txt-secondary mb-1 flex items-center gap-1">
-              Alerta roja (min)
-              <span class="cursor-help text-txt-muted" :title="tooltipTiempoRojo">ℹ️</span>
-            </label>
-            <input type="number" x-model="formConfig.configTableroKDS.tiempoRojo" min="10" max="60" 
-              class="w-full bg-bg-sidebar border rounded-lg px-4 py-2 text-sm focus:border-gold focus:outline-none"
-              :class="formErrors.tiempoRojo ? 'border-st-pagado' : 'border-[rgba(212,175,55,0.25)]'">
+            <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium">Alerta Roja</label>
+            <div class="relative">
+              <input type="number" x-model="formConfig.configTableroKDS.tiempoRojo" min="10" max="60" 
+                class="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-gold focus:ring-1 focus:ring-gold/30 focus:outline-none transition pr-10"
+                :class="formErrors.tiempoRojo ? 'border-st-pagado' : ''">
+              <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-txt-muted">min</span>
+            </div>
             <p x-show="formErrors.tiempoRojo" class="text-[10px] text-st-pagado mt-1" x-text="formErrors.tiempoRojo"></p>
           </div>
           <div>
-            <label class="text-[11px] text-txt-secondary mb-1 flex items-center gap-1">
-              Max tarjetas
-              <span class="cursor-help text-txt-muted" :title="tooltipMaxTarjetas">ℹ️</span>
-            </label>
-            <input type="number" x-model="formConfig.configTableroKDS.maxTarjetasVisibles" min="5" max="100" 
-              class="w-full bg-bg-sidebar border rounded-lg px-4 py-2 text-sm focus:border-gold focus:outline-none"
-              :class="formErrors.maxTarjetas ? 'border-st-pagado' : 'border-[rgba(212,175,55,0.25)]'">
-            <p x-show="formErrors.maxTarjetas" class="text-[10px] text-st-pagado mt-1" x-text="formErrors.maxTarjetas"></p>
-          </div>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">
-          <div>
-            <label class="text-[11px] text-txt-secondary mb-1 block">Columnas grid</label>
+            <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium">Columnas</label>
             <input type="number" x-model="formConfig.configTableroKDS.columnasGrid" min="1" max="8" 
-              class="w-full bg-bg-sidebar border rounded-lg px-4 py-2 text-sm focus:border-gold focus:outline-none"
-              :class="formErrors.columnasGrid ? 'border-st-pagado' : 'border-[rgba(212,175,55,0.25)]'">
+              class="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-gold focus:ring-1 focus:ring-gold/30 focus:outline-none transition"
+              :class="formErrors.columnasGrid ? 'border-st-pagado' : ''">
             <p x-show="formErrors.columnasGrid" class="text-[10px] text-st-pagado mt-1" x-text="formErrors.columnasGrid"></p>
           </div>
           <div>
-            <label class="text-[11px] text-txt-secondary mb-1 block">Filas grid</label>
+            <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium">Filas</label>
             <input type="number" x-model="formConfig.configTableroKDS.filasGrid" min="1" max="4" 
-              class="w-full bg-bg-sidebar border rounded-lg px-4 py-2 text-sm focus:border-gold focus:outline-none"
-              :class="formErrors.filasGrid ? 'border-st-pagado' : 'border-[rgba(212,175,55,0.25)]'">
+              class="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-gold focus:ring-1 focus:ring-gold/30 focus:outline-none transition"
+              :class="formErrors.filasGrid ? 'border-st-pagado' : ''">
             <p x-show="formErrors.filasGrid" class="text-[10px] text-st-pagado mt-1" x-text="formErrors.filasGrid"></p>
           </div>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-3 mt-3">
           <div>
-            <label class="text-[11px] text-txt-secondary mb-1 block">Tamaño fuente</label>
+            <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium">Máx. Tarjetas Visibles</label>
+            <input type="number" x-model="formConfig.configTableroKDS.maxTarjetasVisibles" min="5" max="100" 
+              class="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-gold focus:ring-1 focus:ring-gold/30 focus:outline-none transition"
+              :class="formErrors.maxTarjetas ? 'border-st-pagado' : ''">
+            <p x-show="formErrors.maxTarjetas" class="text-[10px] text-st-pagado mt-1" x-text="formErrors.maxTarjetas"></p>
+          </div>
+          <div>
+            <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium">Tamaño Fuente</label>
             <input type="number" x-model="formConfig.configTableroKDS.tamanioFuente" min="12" max="24" 
-              class="w-full bg-bg-sidebar border rounded-lg px-4 py-2 text-sm focus:border-gold focus:outline-none"
-              :class="formErrors.tamanioFuente ? 'border-st-pagado' : 'border-[rgba(212,175,55,0.25)]'">
+              class="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-gold focus:ring-1 focus:ring-gold/30 focus:outline-none transition"
+              :class="formErrors.tamanioFuente ? 'border-st-pagado' : ''">
             <p x-show="formErrors.tamanioFuente" class="text-[10px] text-st-pagado mt-1" x-text="formErrors.tamanioFuente"></p>
           </div>
         </div>
-        <div class="flex flex-wrap gap-4 mt-4">
-          <label class="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" x-model="formConfig.configTableroKDS.modoAltoVolumen" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
-            <span class="text-txt-secondary">Modo alto volumen</span>
+      </div>
+
+      <!-- SECCIÓN: NOTIFICACIONES Y SONIDO -->
+      <div class="bg-bg-sidebar/50 rounded-xl p-4 border border-white/5">
+        <h3 class="text-xs font-semibold text-gold uppercase tracking-wider mb-4 flex items-center gap-2">
+          <i class="ti ti-bell"></i> Notificaciones y Sonido
+        </h3>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label class="flex items-center gap-3 p-3 bg-bg-card rounded-lg cursor-pointer hover:border-gold/30 transition border border-transparent">
+            <div class="relative">
+              <input type="checkbox" x-model="formConfig.configTableroKDS.sonidoNotificacion" class="sr-only peer">
+              <div class="w-10 h-5 bg-bg-sidebar rounded-full peer-checked:bg-gold transition-colors"></div>
+              <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></div>
+            </div>
+            <div>
+              <span class="text-sm text-txt-secondary block">Sonido de Notificación</span>
+              <span class="text-[10px] text-txt-muted">Alerta sonora al nuevo pedido</span>
+            </div>
+            <i class="ti ti-volume ml-auto text-txt-muted"></i>
           </label>
-          <label class="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" x-model="formConfig.configTableroKDS.sonidoNotificacion" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
-            <span class="text-txt-secondary">Sonido notificación</span>
+          
+          <label class="flex items-center gap-3 p-3 bg-bg-card rounded-lg cursor-pointer hover:border-gold/30 transition border border-transparent">
+            <div class="relative">
+              <input type="checkbox" x-model="formConfig.configTableroKDS.modoAltoVolumen" class="sr-only peer">
+              <div class="w-10 h-5 bg-bg-sidebar rounded-full peer-checked:bg-st-pedido transition-colors"></div>
+              <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></div>
+            </div>
+            <div>
+              <span class="text-sm text-txt-secondary block">Modo Alto Volumen</span>
+              <span class="text-[10px] text-txt-muted">Más pedidos, alertas más frecuentes</span>
+            </div>
+            <i class="ti ti-zap ml-auto text-txt-muted"></i>
           </label>
-          <label class="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" x-model="formConfig.configTableroKDS.modoNocturno" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
-            <span class="text-txt-secondary">Modo nocturno</span>
+          
+          <label class="flex items-center gap-3 p-3 bg-bg-card rounded-lg cursor-pointer hover:border-gold/30 transition border border-transparent">
+            <div class="relative">
+              <input type="checkbox" x-model="formConfig.configTableroKDS.modoNocturno" class="sr-only peer">
+              <div class="w-10 h-5 bg-bg-sidebar rounded-full peer-checked:bg-indigo-500 transition-colors"></div>
+              <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></div>
+            </div>
+            <div>
+              <span class="text-sm text-txt-secondary block">Modo Nocturno</span>
+              <span class="text-[10px] text-txt-muted">Reduce brillo para la noche</span>
+            </div>
+            <i class="ti ti-moon ml-auto text-txt-muted"></i>
           </label>
-          <label class="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" x-model="formConfig.activo" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
-            <span class="text-txt-secondary">Configuración activa</span>
+          
+          <label class="flex items-center gap-3 p-3 bg-bg-card rounded-lg cursor-pointer hover:border-gold/30 transition border border-transparent">
+            <div class="relative">
+              <input type="checkbox" x-model="formConfig.configTableroKDS.vibracion" class="sr-only peer">
+              <div class="w-10 h-5 bg-bg-sidebar rounded-full peer-checked:bg-st-preparado transition-colors"></div>
+              <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></div>
+            </div>
+            <div>
+              <span class="text-sm text-txt-secondary block">Vibración</span>
+              <span class="text-[10px] text-txt-muted">Vibrar al recibir pedido (móvil)</span>
+            </div>
+            <i class="ti ti-device-mobile-vibration ml-auto text-txt-muted"></i>
           </label>
+        </div>
+        
+        <!-- Volumen del sonido -->
+        <div x-show="formConfig.configTableroKDS.sonidoNotificacion" class="mt-4 p-3 bg-bg-card/50 rounded-lg">
+          <label class="text-[11px] text-txt-secondary mb-2 block font-medium">Volumen de Alerta</label>
+          <div class="flex items-center gap-3">
+            <i class="ti ti-volume-2 text-txt-muted"></i>
+            <input type="range" x-model="formConfig.configTableroKDS.volumenSonido" min="0" max="100" step="10"
+              class="flex-1 h-2 bg-bg-sidebar rounded-lg appearance-none cursor-pointer accent-gold">
+            <span class="text-sm text-txt-muted w-8 text-right" x-text="(formConfig.configTableroKDS.volumenSonido || 70) + '%'"></span>
+          </div>
         </div>
       </div>
 
+      <!-- SECCIÓN: HORARIO DE TRABAJO -->
+      <div class="bg-bg-sidebar/50 rounded-xl p-4 border border-white/5">
+        <h3 class="text-xs font-semibold text-gold uppercase tracking-wider mb-4 flex items-center gap-2">
+          <i class="ti ti-clock"></i> Horario de Trabajo (Opcional)
+        </h3>
+        
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium">Hora de Inicio</label>
+            <input type="time" x-model="formConfig.filtrosComandas.rangoHorario.inicio" 
+              class="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2.5 text-sm focus:border-gold focus:ring-1 focus:ring-gold/30 focus:outline-none transition">
+          </div>
+          <div>
+            <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium">Hora de Fin</label>
+            <input type="time" x-model="formConfig.filtrosComandas.rangoHorario.fin" 
+              class="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2.5 text-sm focus:border-gold focus:ring-1 focus:ring-gold/30 focus:outline-none transition">
+          </div>
+        </div>
+        
+        <label class="flex items-center gap-3 mt-3 p-3 bg-bg-card/50 rounded-lg cursor-pointer hover:border-gold/30 transition border border-transparent">
+          <input type="checkbox" x-model="formConfig.filtrosComandas.soloPrioritarias" class="sr-only peer">
+          <div class="w-4 h-4 rounded border-2 flex items-center justify-center transition"
+            :class="formConfig.filtrosComandas.soloPrioritarias ? 'bg-st-pagado border-st-pagado' : 'border-txt-muted'">
+            <i x-show="formConfig.filtrosComandas.soloPrioritarias" class="ti ti-check text-xs text-bg-primary"></i>
+          </div>
+          <span class="text-sm text-txt-secondary">Solo mostrar comandas prioritarias</span>
+        </label>
+      </div>
+      
     </div>
 
-    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
-      <button @click="modalConfig=false" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
-      <button @click="guardarConfiguracion()" class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">
-        Guardar Configuración
-      </button>
+    <!-- FOOTER -->
+    <div class="bg-bg-sidebar border-t border-gold/10 p-4 flex items-center justify-between">
+      <div class="text-xs text-txt-muted flex items-center gap-2">
+        <i class="ti ti-info-circle"></i>
+        <span>Los cambios se aplicarán en el próximo inicio de sesión</span>
+      </div>
+      <div class="flex gap-2">
+        <button @click="modalConfig=false" class="px-4 py-2 rounded-lg text-sm text-txt-secondary hover:text-white hover:bg-white/5 transition">Cancelar</button>
+        <button @click="guardarConfiguracion()" class="px-5 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition flex items-center gap-2 shadow-lg shadow-gold/20">
+          <i class="ti ti-device-floppy"></i>
+          Guardar Configuración
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -1492,6 +1575,7 @@ function cocinerosApp() {
       nombreCocinero: '',
       aliasCocinero: '',
       activo: true,
+      zonaIdsSeleccionadas: [],
       filtrosPlatos: {
         modoInclusion: false,
         platosPermitidos: [],
@@ -1511,6 +1595,8 @@ function cocinerosApp() {
         modoAltoVolumen: false,
         sonidoNotificacion: true,
         modoNocturno: false,
+        vibracion: true,
+        volumenSonido: 70,
         columnasGrid: 5,
         filasGrid: 1,
         tamanioFuente: 15
@@ -1976,6 +2062,7 @@ function cocinerosApp() {
         nombreCocinero: c.nombre,
         aliasCocinero: config.aliasCocinero || '',
         activo: config.activo !== false,
+        zonaIdsSeleccionadas: c.zonaIds || [],
         filtrosPlatos: {
           modoInclusion: config.filtrosPlatos?.modoInclusion || false,
           platosPermitidos: config.filtrosPlatos?.platosPermitidos || [],
@@ -1995,6 +2082,8 @@ function cocinerosApp() {
           modoAltoVolumen: config.configTableroKDS?.modoAltoVolumen || false,
           sonidoNotificacion: config.configTableroKDS?.sonidoNotificacion !== false,
           modoNocturno: config.configTableroKDS?.modoNocturno || false,
+          vibracion: config.configTableroKDS?.vibracion !== false,
+          volumenSonido: config.configTableroKDS?.volumenSonido || 70,
           columnasGrid: config.configTableroKDS?.columnasGrid || 5,
           filasGrid: config.configTableroKDS?.filasGrid || 1,
           tamanioFuente: config.configTableroKDS?.tamanioFuente || 15
@@ -2004,6 +2093,19 @@ function cocinerosApp() {
       };
       
       this.modalConfig = true;
+    },
+    
+    // Toggle zona asignada en el modal de configuración
+    toggleZonaAsignada(zonaId) {
+      if (!this.formConfig.zonaIdsSeleccionadas) {
+        this.formConfig.zonaIdsSeleccionadas = [];
+      }
+      const index = this.formConfig.zonaIdsSeleccionadas.indexOf(zonaId);
+      if (index > -1) {
+        this.formConfig.zonaIdsSeleccionadas.splice(index, 1);
+      } else {
+        this.formConfig.zonaIdsSeleccionadas.push(zonaId);
+      }
     },
     
     validarFormConfig() {
@@ -2103,6 +2205,7 @@ function cocinerosApp() {
       const body = {
         aliasCocinero: this.formConfig.aliasCocinero,
         activo: this.formConfig.activo,
+        zonaIds: this.formConfig.zonaIdsSeleccionadas || [],
         filtrosPlatos: {
           ...this.formConfig.filtrosPlatos,
           platosPermitidos
@@ -2118,13 +2221,21 @@ function cocinerosApp() {
           modoAltoVolumen: this.formConfig.configTableroKDS.modoAltoVolumen || false,
           sonidoNotificacion: this.formConfig.configTableroKDS.sonidoNotificacion !== false,
           modoNocturno: this.formConfig.configTableroKDS.modoNocturno || false,
+          vibracion: this.formConfig.configTableroKDS.vibracion !== false,
+          volumenSonido: parseInt(this.formConfig.configTableroKDS.volumenSonido) || 70,
           columnasGrid: parseInt(this.formConfig.configTableroKDS.columnasGrid) || 5,
           filasGrid: parseInt(this.formConfig.configTableroKDS.filasGrid) || 1,
           tamanioFuente: parseInt(this.formConfig.configTableroKDS.tamanioFuente) || 15
         }
       };
       
+      // Guardar configuración KDS
       const res = await apiPut(`/cocineros/${this.formConfig.usuarioId}/config`, body);
+      
+      // También actualizar las zonas asignadas si cambiaron
+      if (this.formConfig.zonaIdsSeleccionadas) {
+        await apiPut(`/cocineros/${this.formConfig.usuarioId}/zonas`, { zonaIds: this.formConfig.zonaIdsSeleccionadas });
+      }
       
       if (res && res.success !== false) {
         if (window.GambusinasNotifications) {
