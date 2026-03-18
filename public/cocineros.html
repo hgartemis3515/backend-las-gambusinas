@@ -1170,9 +1170,9 @@ tailwind.config = {
 
 <!-- MODAL: CREAR/EDITAR ZONA (RENOVADO) -->
 <div x-show="modalZona" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/80 backdrop-blur-sm" @click.self="modalZona=false">
-  <div class="bg-bg-card border border-gold/20 rounded-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden shadow-2xl" @click.stop>
+  <div class="bg-bg-card border border-gold/20 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col" @click.stop>
     <!-- HEADER CON PREVIEW -->
-    <div class="relative bg-gradient-to-r from-bg-sidebar to-bg-card p-5 border-b border-gold/10">
+    <div class="relative bg-gradient-to-r from-bg-sidebar to-bg-card p-5 border-b border-gold/10 flex-shrink-0">
       <div class="absolute top-0 left-0 w-1 h-full bg-gold"></div>
       <div class="flex items-start justify-between">
         <div class="flex items-center gap-4">
@@ -1193,7 +1193,8 @@ tailwind.config = {
       </div>
     </div>
     
-    <div class="p-5 space-y-4 overflow-y-auto max-h-[calc(92vh-140px)]">
+    <!-- CONTENIDO CON SCROLL -->
+    <div class="p-5 space-y-4 overflow-y-auto flex-1 min-h-0">
       <!-- SECCIÓN: INFORMACIÓN BÁSICA -->
       <div class="bg-bg-sidebar/50 rounded-xl p-4 border border-white/5">
         <h3 class="text-xs font-semibold text-gold uppercase tracking-wider mb-4 flex items-center gap-2">
@@ -1262,12 +1263,37 @@ tailwind.config = {
           <h3 class="text-xs font-semibold text-gold uppercase tracking-wider flex items-center gap-2">
             <i class="ti ti-tools-kitchen-2"></i> Filtros de Platos
           </h3>
-          <label class="flex items-center gap-2 px-2 py-1 rounded-md bg-bg-card border border-white/10 cursor-pointer hover:border-gold/30 transition text-xs">
-            <input type="checkbox" x-model="formZona.filtrosPlatos.modoInclusion" class="sr-only peer">
-            <div class="w-8 h-4 bg-bg-sidebar rounded-full peer-checked:bg-st-pedido transition-colors"></div>
-            <div class="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform peer-checked:translate-x-4" style="position:relative;display:none;"></div>
-            <span class="text-txt-secondary peer-checked:text-st-pedido">Inclusivo</span>
-          </label>
+          <!-- Selector de modo: Ver todos / Solo ver / No ver -->
+          <div class="flex items-center gap-1 p-1 bg-bg-card rounded-lg border border-white/10">
+            <button type="button" @click="formZona.filtrosPlatos.modoFiltro = 'todos'"
+              class="px-2 py-1 rounded-md text-[10px] font-medium transition"
+              :class="formZona.filtrosPlatos.modoFiltro === 'todos' ? 'bg-gold/20 text-gold' : 'text-txt-muted hover:text-white'">
+              Ver todos
+            </button>
+            <button type="button" @click="formZona.filtrosPlatos.modoFiltro = 'solo'"
+              class="px-2 py-1 rounded-md text-[10px] font-medium transition"
+              :class="formZona.filtrosPlatos.modoFiltro === 'solo' ? 'bg-st-preparado/20 text-st-preparado' : 'text-txt-muted hover:text-white'">
+              Solo ver
+            </button>
+            <button type="button" @click="formZona.filtrosPlatos.modoFiltro = 'no-ver'"
+              class="px-2 py-1 rounded-md text-[10px] font-medium transition"
+              :class="formZona.filtrosPlatos.modoFiltro === 'no-ver' ? 'bg-st-pagado/20 text-st-pagado' : 'text-txt-muted hover:text-white'">
+              No ver
+            </button>
+          </div>
+        </div>
+
+        <!-- Descripción del modo seleccionado -->
+        <div class="mb-3 p-2 rounded-lg text-[11px]" 
+          :class="{
+            'bg-bg-card/50 text-txt-muted': formZona.filtrosPlatos.modoFiltro === 'todos',
+            'bg-st-preparado/10 text-st-preparado': formZona.filtrosPlatos.modoFiltro === 'solo',
+            'bg-st-pagado/10 text-st-pagado': formZona.filtrosPlatos.modoFiltro === 'no-ver'
+          }">
+          <i class="ti ti-info-circle mr-1"></i>
+          <span x-show="formZona.filtrosPlatos.modoFiltro === 'todos'">Mostrar todos los platos disponibles</span>
+          <span x-show="formZona.filtrosPlatos.modoFiltro === 'solo'">Mostrar SOLO los platos seleccionados abajo</span>
+          <span x-show="formZona.filtrosPlatos.modoFiltro === 'no-ver'">OCULTAR los platos seleccionados abajo</span>
         </div>
         
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1325,12 +1351,23 @@ tailwind.config = {
         
         <!-- Platos específicos -->
         <div class="mt-3 relative" x-data="{ open: false }">
-          <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium">
-            Platos Específicos
-            <span class="text-st-preparado text-[10px] ml-1" x-show="platosSeleccionados.length > 0">
-              (<span x-text="platosSeleccionados.length"></span> seleccionados)
-            </span>
-          </label>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="text-[11px] text-txt-secondary font-medium">
+              Platos Específicos
+              <span class="text-st-preparado text-[10px] ml-1" x-show="platosSeleccionados.length > 0">
+                (<span x-text="platosSeleccionados.length"></span> seleccionados)
+              </span>
+            </label>
+            <!-- Toggle para incluir complementos -->
+            <label class="flex items-center gap-1.5 cursor-pointer" x-show="platosSeleccionados.length > 0">
+              <input type="checkbox" x-model="formZona.filtrosPlatos.incluirComplementos" class="sr-only peer">
+              <div class="w-4 h-4 rounded border-2 flex items-center justify-center transition"
+                :class="formZona.filtrosPlatos.incluirComplementos ? 'bg-gold border-gold' : 'border-txt-muted'">
+                <i x-show="formZona.filtrosPlatos.incluirComplementos" class="ti ti-check text-[8px] text-bg-primary"></i>
+              </div>
+              <span class="text-[10px] text-txt-muted">Ver complementos</span>
+            </label>
+          </div>
           
           <div class="flex gap-2">
             <div class="flex-1 relative">
@@ -1351,6 +1388,10 @@ tailwind.config = {
                   <div>
                     <span class="text-sm" x-text="plato.nombre"></span>
                     <span class="text-[10px] text-txt-muted ml-2" x-text="plato.categoria"></span>
+                    <!-- Mostrar si tiene complementos -->
+                    <span x-show="plato.complementos && plato.complementos.length > 0" class="text-[9px] text-gold ml-1">
+                      <i class="ti ti-tools-kitchen-2"></i> <span x-text="plato.complementos.length + ' comp.'"></span>
+                    </span>
                   </div>
                   <i x-show="platosSeleccionados.find(p => p.id === plato.id)" class="ti ti-check text-st-preparado"></i>
                 </button>
@@ -1358,16 +1399,38 @@ tailwind.config = {
             </div>
           </div>
           
-          <!-- Chips -->
+          <!-- Chips con complementos -->
           <div class="flex flex-wrap gap-1.5 mt-2" x-show="platosSeleccionados.length > 0">
             <template x-for="plato in platosSeleccionados" :key="plato.id">
-              <span class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-st-preparado/15 border border-st-preparado/30 text-st-preparado text-xs">
-                <span x-text="plato.nombre"></span>
-                <button @click="quitarPlato(plato.id)" class="hover:text-white ml-0.5">×</button>
+              <span class="inline-flex flex-col items-start px-2 py-1 rounded-md bg-st-preparado/15 border border-st-preparado/30 text-st-preparado text-xs">
+                <div class="flex items-center gap-1 w-full">
+                  <span x-text="plato.nombre"></span>
+                  <button @click="quitarPlato(plato.id)" class="hover:text-white ml-0.5">×</button>
+                </div>
+                <!-- Mostrar complementos del plato si tiene y está habilitado -->
+                <div x-show="formZona.filtrosPlatos.incluirComplementos && plato.complementos && plato.complementos.length > 0" 
+                  class="text-[9px] text-gold/80 mt-0.5 flex flex-wrap gap-0.5">
+                  <template x-for="comp in plato.complementos" :key="comp.grupo">
+                    <span class="bg-gold/10 px-1 rounded" x-text="comp.grupo"></span>
+                  </template>
+                </div>
               </span>
             </template>
           </div>
         </div>
+        
+        <!-- Opción para incluir todos los complementos -->
+        <label x-show="formZona.filtrosPlatos.modoFiltro !== 'todos'" class="flex items-center gap-3 mt-3 p-2 bg-bg-card/50 rounded-lg cursor-pointer hover:border-gold/30 transition border border-transparent">
+          <input type="checkbox" x-model="formZona.filtrosPlatos.incluirComplementos" class="sr-only peer">
+          <div class="w-4 h-4 rounded border-2 flex items-center justify-center transition"
+            :class="formZona.filtrosPlatos.incluirComplementos ? 'bg-gold border-gold' : 'border-txt-muted'">
+            <i x-show="formZona.filtrosPlatos.incluirComplementos" class="ti ti-check text-xs text-bg-primary"></i>
+          </div>
+          <div>
+            <span class="text-sm text-txt-secondary block">Incluir complementos</span>
+            <span class="text-[10px] text-txt-muted">Mostrar complementos de los platos seleccionados</span>
+          </div>
+        </label>
       </div>
 
       <!-- SECCIÓN: FILTROS DE COMANDAS -->
@@ -1376,18 +1439,42 @@ tailwind.config = {
           <i class="ti ti-receipt"></i> Filtros de Comandas
         </h3>
         
+        <!-- Selector de modo para áreas -->
+        <div class="mb-3 p-2 bg-bg-card/50 rounded-lg">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-[10px] text-txt-muted font-medium">Filtro de Áreas:</span>
+            <div class="flex items-center gap-1 p-0.5 bg-bg-sidebar rounded-md">
+              <button type="button" @click="formZona.filtrosComandas.modoAreas = 'todas'"
+                class="px-2 py-0.5 rounded text-[9px] font-medium transition"
+                :class="(!formZona.filtrosComandas.modoAreas || formZona.filtrosComandas.modoAreas === 'todas') ? 'bg-gold/20 text-gold' : 'text-txt-muted hover:text-white'">
+                Todas
+              </button>
+              <button type="button" @click="formZona.filtrosComandas.modoAreas = 'solo'"
+                class="px-2 py-0.5 rounded text-[9px] font-medium transition"
+                :class="formZona.filtrosComandas.modoAreas === 'solo' ? 'bg-st-preparado/20 text-st-preparado' : 'text-txt-muted hover:text-white'">
+                Solo
+              </button>
+              <button type="button" @click="formZona.filtrosComandas.modoAreas = 'excluir'"
+                class="px-2 py-0.5 rounded text-[9px] font-medium transition"
+                :class="formZona.filtrosComandas.modoAreas === 'excluir' ? 'bg-st-pagado/20 text-st-pagado' : 'text-txt-muted hover:text-white'">
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+        
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <!-- Áreas -->
           <div class="relative" x-data="{ open: false }">
             <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium">
-              Áreas Permitidas
-              <span class="text-st-pedido text-[10px] ml-1" x-show="formZona.filtrosComandas.areasPermitidas.length > 0">
-                (<span x-text="formZona.filtrosComandas.areasPermitidas.length"></span>)
+              <span x-text="formZona.filtrosComandas.modoAreas === 'excluir' ? 'Áreas a Excluir' : 'Áreas Permitidas'"></span>
+              <span class="text-st-pedido text-[10px] ml-1" x-show="formZona.filtrosComandas.areasPermitidas.length > 0 || formZona.filtrosComandas.areasExcluidas.length > 0">
+                (<span x-text="(formZona.filtrosComandas.modoAreas === 'excluir' ? formZona.filtrosComandas.areasExcluidas : formZona.filtrosComandas.areasPermitidas).length"></span>)
               </span>
             </label>
             <button type="button" @click="open = !open"
               class="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2.5 flex items-center justify-between hover:border-gold/30 transition">
-              <span class="text-sm text-txt-muted truncate" x-text="formZona.filtrosComandas.areasPermitidas.length ? todasLasAreas.filter(a => formZona.filtrosComandas.areasPermitidas.includes(a.areaId)).map(a => a.nombre).join(', ') : 'Seleccionar áreas'"></span>
+              <span class="text-sm text-txt-muted truncate" x-text="(formZona.filtrosComandas.modoAreas === 'excluir' ? formZona.filtrosComandas.areasExcluidas : formZona.filtrosComandas.areasPermitidas).length ? todasLasAreas.filter(a => (formZona.filtrosComandas.modoAreas === 'excluir' ? formZona.filtrosComandas.areasExcluidas : formZona.filtrosComandas.areasPermitidas).includes(a.areaId)).map(a => a.nombre).join(', ') : 'Seleccionar áreas'"></span>
               <i class="ti ti-chevron-down text-txt-muted text-xs"></i>
             </button>
             
@@ -1401,11 +1488,11 @@ tailwind.config = {
               <div class="max-h-32 overflow-y-auto p-1">
                 <template x-for="area in filtrarAreas()" :key="area.areaId">
                   <label class="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-gold/10 transition"
-                    :class="formZona.filtrosComandas.areasPermitidas.includes(area.areaId) ? 'bg-st-pedido/10' : ''">
-                    <input type="checkbox" :checked="formZona.filtrosComandas.areasPermitidas.includes(area.areaId)" @change="toggleArea(area.areaId)" class="sr-only">
+                    :class="(formZona.filtrosComandas.modoAreas === 'excluir' ? formZona.filtrosComandas.areasExcluidas : formZona.filtrosComandas.areasPermitidas).includes(area.areaId) ? (formZona.filtrosComandas.modoAreas === 'excluir' ? 'bg-st-pagado/10' : 'bg-st-pedido/10') : ''">
+                    <input type="checkbox" :checked="(formZona.filtrosComandas.modoAreas === 'excluir' ? formZona.filtrosComandas.areasExcluidas : formZona.filtrosComandas.areasPermitidas).includes(area.areaId)" @change="toggleAreaConModo(area.areaId)" class="sr-only">
                     <div class="w-4 h-4 rounded border-2 flex items-center justify-center transition"
-                      :class="formZona.filtrosComandas.areasPermitidas.includes(area.areaId) ? 'bg-st-pedido border-st-pedido' : 'border-txt-muted'">
-                      <i x-show="formZona.filtrosComandas.areasPermitidas.includes(area.areaId)" class="ti ti-check text-xs text-bg-primary"></i>
+                      :class="(formZona.filtrosComandas.modoAreas === 'excluir' ? formZona.filtrosComandas.areasExcluidas : formZona.filtrosComandas.areasPermitidas).includes(area.areaId) ? (formZona.filtrosComandas.modoAreas === 'excluir' ? 'bg-st-pagado border-st-pagado' : 'bg-st-pedido border-st-pedido') : 'border-txt-muted'">
+                      <i x-show="(formZona.filtrosComandas.modoAreas === 'excluir' ? formZona.filtrosComandas.areasExcluidas : formZona.filtrosComandas.areasPermitidas).includes(area.areaId)" class="ti ti-check text-xs text-bg-primary"></i>
                     </div>
                     <span class="text-sm" x-text="area.nombre"></span>
                   </label>
@@ -1452,6 +1539,68 @@ tailwind.config = {
           </div>
         </div>
         
+        <!-- Filtros adicionales de comandas -->
+        <div class="mt-4 space-y-3">
+          <!-- Estados de comanda -->
+          <div class="p-3 bg-bg-card/50 rounded-lg border border-white/5">
+            <label class="text-[11px] text-txt-secondary mb-2 block font-medium">
+              Estados de Comanda
+              <span class="text-gold text-[10px] ml-1" x-show="formZona.filtrosComandas.estadosPermitidos.length > 0">
+                (<span x-text="formZona.filtrosComandas.estadosPermitidos.length"></span>)
+              </span>
+            </label>
+            <div class="flex flex-wrap gap-1.5">
+              <template x-for="estado in ['en_espera', 'recoger', 'entregado']" :key="estado">
+                <button type="button" @click="toggleEstadoComanda(estado)"
+                  class="px-2 py-1 rounded-md text-[10px] font-medium transition border"
+                  :class="formZona.filtrosComandas.estadosPermitidos.includes(estado) ? 'bg-gold/20 border-gold/30 text-gold' : 'bg-bg-sidebar border-white/10 text-txt-muted hover:border-gold/30'">
+                  <span x-text="getEstadoLabel(estado)"></span>
+                </button>
+              </template>
+            </div>
+            <p class="text-[9px] text-txt-muted mt-1.5">Dejar vacío para ver todos los estados</p>
+          </div>
+          
+          <!-- Rango de mesas -->
+          <div class="p-3 bg-bg-card/50 rounded-lg border border-white/5">
+            <label class="text-[11px] text-txt-secondary mb-2 block font-medium">Rango de Mesas</label>
+            <div class="flex items-center gap-2">
+              <input type="number" x-model="formZona.filtrosComandas.mesaInicio" min="1" placeholder="Desde"
+                class="w-20 bg-bg-sidebar border border-white/10 rounded-lg px-2 py-1.5 text-sm focus:border-gold focus:outline-none">
+              <span class="text-txt-muted text-xs">a</span>
+              <input type="number" x-model="formZona.filtrosComandas.mesaFin" min="1" placeholder="Hasta"
+                class="w-20 bg-bg-sidebar border border-white/10 rounded-lg px-2 py-1.5 text-sm focus:border-gold focus:outline-none">
+            </div>
+          </div>
+          
+          <!-- Cantidad de platos -->
+          <div class="p-3 bg-bg-card/50 rounded-lg border border-white/5">
+            <label class="text-[11px] text-txt-secondary mb-2 block font-medium">Cantidad de Platos por Comanda</label>
+            <div class="flex items-center gap-2">
+              <input type="number" x-model="formZona.filtrosComandas.minimoPlatos" min="1" placeholder="Mín."
+                class="w-20 bg-bg-sidebar border border-white/10 rounded-lg px-2 py-1.5 text-sm focus:border-gold focus:outline-none">
+              <span class="text-txt-muted text-xs">a</span>
+              <input type="number" x-model="formZona.filtrosComandas.maximoPlatos" min="1" placeholder="Máx."
+                class="w-20 bg-bg-sidebar border border-white/10 rounded-lg px-2 py-1.5 text-sm focus:border-gold focus:outline-none">
+            </div>
+          </div>
+          
+          <!-- Tiempo en cocina -->
+          <div class="p-3 bg-bg-card/50 rounded-lg border border-white/5">
+            <label class="text-[11px] text-txt-secondary mb-2 block font-medium">
+              <i class="ti ti-clock mr-1"></i>Tiempo en Cocina (minutos)
+            </label>
+            <div class="flex items-center gap-2">
+              <input type="number" x-model="formZona.filtrosComandas.tiempoMinimoCocina" min="0" placeholder="Mín."
+                class="w-20 bg-bg-sidebar border border-white/10 rounded-lg px-2 py-1.5 text-sm focus:border-gold focus:outline-none">
+              <span class="text-txt-muted text-xs">a</span>
+              <input type="number" x-model="formZona.filtrosComandas.tiempoMaximoCocina" min="0" placeholder="Máx."
+                class="w-20 bg-bg-sidebar border border-white/10 rounded-lg px-2 py-1.5 text-sm focus:border-gold focus:outline-none">
+            </div>
+            <p class="text-[9px] text-txt-muted mt-1.5">Filtra comandas por tiempo transcurrido desde que llegaron a cocina</p>
+          </div>
+        </div>
+        
         <!-- Solo prioritarias -->
         <div class="mt-3 flex items-center gap-3 p-3 bg-bg-card/50 rounded-lg border border-white/5">
           <label class="flex items-center gap-3 cursor-pointer flex-1">
@@ -1461,21 +1610,63 @@ tailwind.config = {
             </div>
             <div>
               <span class="text-sm text-txt-secondary block">Solo Prioritarias</span>
-              <span class="text-[10px] text-txt-muted">Mostrar únicamente comandas urgentes</span>
+              <span class="text-[10px] text-txt-muted">Mostrar únicamente comandas urgentes/VIP</span>
             </div>
           </label>
         </div>
       </div>
     </div>
 
-    <!-- FOOTER -->
-    <div class="bg-bg-sidebar border-t border-gold/10 p-4 flex items-center justify-between">
-      <div class="text-xs text-txt-muted flex items-center gap-2">
+    <!-- FOOTER - Siempre visible -->
+    <div class="bg-bg-sidebar border-t border-gold/10 p-4 flex items-center justify-between flex-shrink-0 gap-3">
+      <div class="text-xs text-txt-muted flex items-center gap-2 flex-shrink-0">
         <i class="ti ti-info-circle"></i>
-        <span x-show="formZona.filtrosPlatos.modoInclusion" class="text-st-pedido">Solo mostrar seleccionados</span>
-        <span x-show="!formZona.filtrosPlatos.modoInclusion">Mostrar todo excepto seleccionados</span>
+        <span x-show="formZona.filtrosPlatos.modoFiltro === 'todos'" class="text-txt-muted">Mostrar todos los platos</span>
+        <span x-show="formZona.filtrosPlatos.modoFiltro === 'solo'" class="text-st-preparado">Solo mostrar platos seleccionados</span>
+        <span x-show="formZona.filtrosPlatos.modoFiltro === 'no-ver'" class="text-st-pagado">Ocultar platos seleccionados</span>
       </div>
-      <div class="flex gap-2">
+      <div class="flex gap-2 flex-shrink-0">
+        <!-- Botón para guardar como preset con dropdown -->
+        <div class="relative" x-data="{ presetOpen: false }">
+          <button type="button" @click="presetOpen = !presetOpen" :disabled="guardandoZona" 
+            class="px-3 py-2 rounded-lg text-sm text-txt-secondary hover:text-gold border border-white/10 hover:border-gold/30 transition disabled:opacity-50 flex items-center gap-1.5"
+            title="Presets de filtros">
+            <i class="ti ti-bookmark"></i>
+            <span class="hidden sm:inline">Preset</span>
+            <i class="ti ti-chevron-down text-[10px]"></i>
+          </button>
+          <!-- Dropdown de presets -->
+          <div x-show="presetOpen" @click.away="presetOpen = false" x-transition
+            class="absolute bottom-full left-0 mb-2 w-56 bg-bg-card border border-gold/20 rounded-xl shadow-2xl overflow-hidden z-50">
+            <div class="p-2 border-b border-white/5">
+              <button type="button" @click="guardarFiltrosPreset(); presetOpen = false"
+                class="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gold/10 transition text-left">
+                <i class="ti ti-plus text-gold"></i>
+                <span class="text-sm">Guardar como preset</span>
+              </button>
+            </div>
+            <div class="max-h-40 overflow-y-auto">
+              <template x-if="cargarPresetsFiltros().length === 0">
+                <div class="p-3 text-center text-txt-muted text-xs">
+                  No hay presets guardados
+                </div>
+              </template>
+              <template x-for="(preset, index) in cargarPresetsFiltros()" :key="index">
+                <div class="flex items-center justify-between px-3 py-2 hover:bg-gold/10 transition group">
+                  <button type="button" @click="aplicarPresetFiltros(preset); presetOpen = false"
+                    class="flex-1 text-left text-sm text-txt-secondary hover:text-white">
+                    <i class="ti ti-bookmark mr-2 text-gold/60"></i>
+                    <span x-text="preset.nombre"></span>
+                  </button>
+                  <button type="button" @click="eliminarPresetFiltros(index)" 
+                    class="text-txt-muted hover:text-st-pagado opacity-0 group-hover:opacity-100 transition">
+                    <i class="ti ti-trash text-xs"></i>
+                  </button>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
         <button @click="modalZona=false" :disabled="guardandoZona" class="px-4 py-2 rounded-lg text-sm text-txt-secondary hover:text-white hover:bg-white/5 transition disabled:opacity-50">Cancelar</button>
         <button @click="guardarZona()" :disabled="guardandoZona" class="px-5 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition flex items-center gap-2 shadow-lg shadow-gold/20 disabled:opacity-70 disabled:cursor-not-allowed">
           <div x-show="guardandoZona" class="w-4 h-4 border-2 border-bg-primary border-t-transparent rounded-full animate-spin"></div>
@@ -1655,16 +1846,25 @@ function cocinerosApp() {
       color: '#d4af37',
       icono: 'chef-hat',
       filtrosPlatos: {
-        modoInclusion: false,
+        modoFiltro: 'todos',
         platosPermitidos: [],
         categoriasPermitidas: [],
-        tiposPermitidos: []
+        tiposPermitidos: [],
+        platosExcluidos: [],
+        incluirComplementos: true
       },
       filtrosComandas: {
         areasPermitidas: [],
+        areasExcluidas: [],
         mesasEspecificas: [],
+        mesasExcluidas: [],
         rangoHorario: { inicio: '', fin: '' },
-        soloPrioritarias: false
+        soloPrioritarias: false,
+        estadosPermitidos: [],
+        minimoPlatos: null,
+        maximoPlatos: null,
+        tiempoMinimoCocina: null,
+        tiempoMaximoCocina: null
       },
       activo: true
     },
@@ -1760,16 +1960,25 @@ function cocinerosApp() {
       activo: true,
       zonaIdsSeleccionadas: [],
       filtrosPlatos: {
-        modoInclusion: false,
+        modoFiltro: 'todos',
         platosPermitidos: [],
         categoriasPermitidas: [],
-        tiposPermitidos: []
+        tiposPermitidos: [],
+        platosExcluidos: [],
+        incluirComplementos: true
       },
       filtrosComandas: {
         areasPermitidas: [],
+        areasExcluidas: [],
         mesasEspecificas: [],
+        mesasExcluidas: [],
         rangoHorario: { inicio: '', fin: '' },
-        soloPrioritarias: false
+        soloPrioritarias: false,
+        estadosPermitidos: [],
+        minimoPlatos: null,
+        maximoPlatos: null,
+        tiempoMinimoCocina: null,
+        tiempoMaximoCocina: null
       },
       configTableroKDS: {
         tiempoAmarillo: 15,
@@ -1895,7 +2104,8 @@ function cocinerosApp() {
           id: p.id || p._id,
           nombre: p.nombre,
           categoria: p.categoria,
-          tipo: p.tipo
+          tipo: p.tipo,
+          complementos: p.complementos || [] // Incluir complementos del plato
         }));
       } catch (error) {
         console.error('Error al cargar platos:', error);
@@ -2694,16 +2904,25 @@ function cocinerosApp() {
         color: '#d4af37',
         icono: 'chef-hat',
         filtrosPlatos: {
-          modoInclusion: false,
+          modoFiltro: 'todos', // 'todos', 'solo', 'no-ver'
           platosPermitidos: [],
           categoriasPermitidas: [],
-          tiposPermitidos: []
+          tiposPermitidos: [],
+          platosExcluidos: [], // Para el modo "no-ver"
+          incluirComplementos: true // Mostrar complementos de platos seleccionados
         },
         filtrosComandas: {
           areasPermitidas: [],
+          areasExcluidas: [], // Áreas a ocultar
           mesasEspecificas: [],
+          mesasExcluidas: [], // Mesas a ocultar
           rangoHorario: { inicio: '', fin: '' },
-          soloPrioritarias: false
+          soloPrioritarias: false,
+          estadosPermitidos: [], // Filtrar por estado de comanda
+          minimoPlatos: null, // Mínimo de platos en comanda
+          maximoPlatos: null, // Máximo de platos en comanda
+          tiempoMinimoCocina: null, // Tiempo mínimo en cocina (minutos)
+          tiempoMaximoCocina: null // Tiempo máximo en cocina (minutos)
         },
         activo: true
       };
@@ -2744,6 +2963,12 @@ function cocinerosApp() {
     },
 
     async openEditarZonaModal(zona) {
+      // Migrar modoInclusion antiguo a modoFiltro nuevo
+      let modoFiltro = zona.filtrosPlatos?.modoFiltro || 'todos';
+      if (!zona.filtrosPlatos?.modoFiltro && zona.filtrosPlatos?.modoInclusion !== undefined) {
+        modoFiltro = zona.filtrosPlatos.modoInclusion ? 'solo' : 'todos';
+      }
+      
       this.formZona = {
         id: zona._id || zona.id,
         nombre: zona.nombre || '',
@@ -2751,16 +2976,28 @@ function cocinerosApp() {
         color: zona.color || '#d4af37',
         icono: zona.icono || 'tools-kitchen',
         filtrosPlatos: {
-          modoInclusion: zona.filtrosPlatos?.modoInclusion || false,
+          modoFiltro: modoFiltro,
           platosPermitidos: zona.filtrosPlatos?.platosPermitidos || [],
           categoriasPermitidas: zona.filtrosPlatos?.categoriasPermitidas || [],
-          tiposPermitidos: zona.filtrosPlatos?.tiposPermitidos || []
+          tiposPermitidos: zona.filtrosPlatos?.tiposPermitidos || [],
+          platosExcluidos: zona.filtrosPlatos?.platosExcluidos || [],
+          incluirComplementos: zona.filtrosPlatos?.incluirComplementos !== false
         },
         filtrosComandas: {
           areasPermitidas: zona.filtrosComandas?.areasPermitidas || [],
+          areasExcluidas: zona.filtrosComandas?.areasExcluidas || [],
           mesasEspecificas: zona.filtrosComandas?.mesasEspecificas || [],
+          mesasExcluidas: zona.filtrosComandas?.mesasExcluidas || [],
           rangoHorario: zona.filtrosComandas?.rangoHorario || { inicio: '', fin: '' },
-          soloPrioritarias: zona.filtrosComandas?.soloPrioritarias || false
+          soloPrioritarias: zona.filtrosComandas?.soloPrioritarias || false,
+          modoAreas: zona.filtrosComandas?.modoAreas || 'todas',
+          estadosPermitidos: zona.filtrosComandas?.estadosPermitidos || [],
+          minimoPlatos: zona.filtrosComandas?.minimoPlatos || null,
+          maximoPlatos: zona.filtrosComandas?.maximoPlatos || null,
+          tiempoMinimoCocina: zona.filtrosComandas?.tiempoMinimoCocina || null,
+          tiempoMaximoCocina: zona.filtrosComandas?.tiempoMaximoCocina || null,
+          mesaInicio: zona.filtrosComandas?.mesaInicio || null,
+          mesaFin: zona.filtrosComandas?.mesaFin || null
         },
         activo: zona.activo !== false
       };
@@ -2797,7 +3034,8 @@ function cocinerosApp() {
                 id: data.id || data._id,
                 nombre: data.nombre,
                 categoria: data.categoria,
-                tipo: data.tipo
+                tipo: data.tipo,
+                complementos: data.complementos || []
               });
             }
           } catch {
@@ -3000,10 +3238,120 @@ function cocinerosApp() {
       }
     },
     
+    // Nueva función para manejar áreas con modo (permitir/excluir)
+    toggleAreaConModo(areaId) {
+      const modo = this.formZona.filtrosComandas.modoAreas || 'todas';
+      if (modo === 'excluir') {
+        const index = this.formZona.filtrosComandas.areasExcluidas.indexOf(areaId);
+        if (index > -1) {
+          this.formZona.filtrosComandas.areasExcluidas.splice(index, 1);
+        } else {
+          this.formZona.filtrosComandas.areasExcluidas.push(areaId);
+        }
+      } else if (modo === 'solo') {
+        const index = this.formZona.filtrosComandas.areasPermitidas.indexOf(areaId);
+        if (index > -1) {
+          this.formZona.filtrosComandas.areasPermitidas.splice(index, 1);
+        } else {
+          this.formZona.filtrosComandas.areasPermitidas.push(areaId);
+        }
+      }
+    },
+    
+    // Función para toggle de estados de comanda
+    toggleEstadoComanda(estado) {
+      if (!this.formZona.filtrosComandas.estadosPermitidos) {
+        this.formZona.filtrosComandas.estadosPermitidos = [];
+      }
+      const index = this.formZona.filtrosComandas.estadosPermitidos.indexOf(estado);
+      if (index > -1) {
+        this.formZona.filtrosComandas.estadosPermitidos.splice(index, 1);
+      } else {
+        this.formZona.filtrosComandas.estadosPermitidos.push(estado);
+      }
+    },
+    
+    // Función para obtener label de estado
+    getEstadoLabel(estado) {
+      const labels = {
+        'en_espera': 'En Espera',
+        'recoger': 'Para Recoger',
+        'entregado': 'Entregado',
+        'pagado': 'Pagado',
+        'cancelado': 'Cancelado'
+      };
+      return labels[estado] || estado;
+    },
+    
+    // === FUNCIONES DE PRESETS DE FILTROS ===
+    
+    // Guardar filtros actuales como preset
+    guardarFiltrosPreset() {
+      const nombre = prompt('Nombre para el preset de filtros:');
+      if (!nombre) return;
+      
+      const preset = {
+        nombre: nombre,
+        filtrosPlatos: JSON.parse(JSON.stringify(this.formZona.filtrosPlatos)),
+        filtrosComandas: JSON.parse(JSON.stringify(this.formZona.filtrosComandas)),
+        creadoEn: new Date().toISOString()
+      };
+      
+      // Obtener presets existentes
+      let presets = JSON.parse(localStorage.getItem('filtrosPresets') || '[]');
+      presets.push(preset);
+      localStorage.setItem('filtrosPresets', JSON.stringify(presets));
+      
+      if (window.GambusinasNotifications) {
+        window.GambusinasNotifications.success('Preset guardado', `El preset "${nombre}" fue guardado correctamente`);
+      }
+    },
+    
+    // Cargar presets guardados
+    cargarPresetsFiltros() {
+      return JSON.parse(localStorage.getItem('filtrosPresets') || '[]');
+    },
+    
+    // Aplicar un preset
+    aplicarPresetFiltros(preset) {
+      if (!preset) return;
+      
+      this.formZona.filtrosPlatos = JSON.parse(JSON.stringify(preset.filtrosPlatos));
+      this.formZona.filtrosComandas = JSON.parse(JSON.stringify(preset.filtrosComandas));
+      
+      // Actualizar platos seleccionados basados en el preset
+      if (preset.filtrosPlatos?.platosPermitidos?.length > 0) {
+        this.cargarPlatosSeleccionados(preset.filtrosPlatos.platosPermitidos);
+      } else {
+        this.platosSeleccionados = [];
+      }
+      
+      if (window.GambusinasNotifications) {
+        window.GambusinasNotifications.success('Preset aplicado', `Se aplicó el preset "${preset.nombre}"`);
+      }
+    },
+    
+    // Eliminar un preset
+    eliminarPresetFiltros(index) {
+      let presets = JSON.parse(localStorage.getItem('filtrosPresets') || '[]');
+      if (index >= 0 && index < presets.length) {
+        const eliminado = presets[index].nombre;
+        presets.splice(index, 1);
+        localStorage.setItem('filtrosPresets', JSON.stringify(presets));
+        if (window.GambusinasNotifications) {
+          window.GambusinasNotifications.success('Preset eliminado', `El preset "${eliminado}" fue eliminado`);
+        }
+      }
+    },
+    
     agregarPlato(plato) {
       const existe = this.platosSeleccionados.find(p => p.id === plato.id);
       if (!existe) {
-        this.platosSeleccionados.push(plato);
+        // Incluir complementos del plato si los tiene
+        this.platosSeleccionados.push({
+          ...plato,
+          complementos: plato.complementos || []
+        });
       }
       this.busquedaPlato = '';
       this.dropdownPlatoAbierto = false;

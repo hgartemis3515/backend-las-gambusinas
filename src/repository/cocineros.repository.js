@@ -87,11 +87,27 @@ async function obtenerConfigKDS(usuarioId) {
             logger.info('Configuración KDS creada por defecto', { usuarioId });
         }
         
-        // Obtener nombre del usuario para el alias
-        const usuario = await Mozos.findById(usuarioId).select('name').lean();
+        // Obtener nombre del usuario para el alias y sus zonas asignadas
+        const usuario = await Mozos.findById(usuarioId)
+            .select('name zonaIds')
+            .populate({
+                path: 'zonaIds',
+                select: 'nombre descripcion color icono activo filtrosPlatos filtrosComandas'
+            })
+            .lean();
+            
         if (usuario && !config.aliasCocinero) {
             config.aliasCocinero = usuario.name;
         }
+        
+        // Agregar zonas asignadas al config
+        config.zonasAsignadas = usuario?.zonaIds || [];
+        
+        logger.info('Configuración KDS obtenida', { 
+            usuarioId, 
+            alias: config.aliasCocinero,
+            zonasAsignadas: config.zonasAsignadas.length 
+        });
         
         return config;
     } catch (error) {
