@@ -32,8 +32,21 @@ tailwind.config = {
 <link rel="stylesheet" href="/assets/css/dashboard.css">
 <link rel="stylesheet" href="/assets/css/animations.css">
 <link rel="stylesheet" href="/assets/css/page-transitions.css">
-  <!-- Tabler Icons - Biblioteca de iconos para cocina -->
-  <link rel="stylesheet" href="https://unpkg.com/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <!-- Lucide Icons - Biblioteca de iconos moderna -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <style>
+    /* Estilos para iconos Lucide */
+    .lucide-icon {
+      width: 1em;
+      height: 1em;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .lucide-icon svg {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
 </head>
 <body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="cocinerosApp()" x-cloak>
 
@@ -86,23 +99,63 @@ tailwind.config = {
     <!-- KPIs -->
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
       <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
-        <p class="text-[11px] text-txt-muted uppercase">Total Cocineros</p>
+        <p class="text-[11px] text-txt-muted uppercase flex items-center gap-1">
+          Total Cocineros
+          <span class="relative group cursor-help">
+            <i class="ti ti-info-circle text-txt-muted text-[10px]"></i>
+            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-bg-card border border-gold/20 rounded-lg text-[11px] text-white w-40 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 shadow-xl">
+              Usuarios con rol de cocinero activo en el sistema.
+            </div>
+          </span>
+        </p>
         <p class="text-2xl font-bold text-white mt-1" x-text="cocineros.length"></p>
       </div>
       <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
-        <p class="text-[11px] text-txt-muted uppercase">Activos</p>
+        <p class="text-[11px] text-txt-muted uppercase flex items-center gap-1">
+          Activos
+          <span class="relative group cursor-help">
+            <i class="ti ti-info-circle text-txt-muted text-[10px]"></i>
+            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-bg-card border border-gold/20 rounded-lg text-[11px] text-white w-40 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 shadow-xl">
+              Cocineros con configuración KDS activa.
+            </div>
+          </span>
+        </p>
         <p class="text-2xl font-bold text-st-preparado mt-1" x-text="totalActivos"></p>
       </div>
       <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
-        <p class="text-[11px] text-txt-muted uppercase">Conectados Hoy</p>
+        <p class="text-[11px] text-txt-muted uppercase flex items-center gap-1">
+          Conectados Hoy
+          <span class="relative group cursor-help">
+            <i class="ti ti-info-circle text-txt-muted text-[10px]"></i>
+            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-bg-card border border-gold/20 rounded-lg text-[11px] text-white w-40 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 shadow-xl">
+              Cocineros que iniciaron sesión en la App Cocina hoy.
+            </div>
+          </span>
+        </p>
         <p class="text-2xl font-bold text-st-pedido mt-1" x-text="totalConectadosHoy"></p>
       </div>
       <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
-        <p class="text-[11px] text-txt-muted uppercase text-gold">Platos Hoy</p>
+        <p class="text-[11px] text-txt-muted uppercase text-gold flex items-center gap-1">
+          Platos Hoy
+          <span class="relative group cursor-help">
+            <i class="ti ti-info-circle text-txt-muted text-[10px]"></i>
+            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-bg-card border border-gold/20 rounded-lg text-[11px] text-white w-40 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 shadow-xl">
+              Total de platos marcados como listos hoy.
+            </div>
+          </span>
+        </p>
         <p class="text-2xl font-bold text-gold mt-1" x-text="totalPlatosHoy"></p>
       </div>
       <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
-        <p class="text-[11px] text-txt-muted uppercase">% Dentro SLA</p>
+        <p class="text-[11px] text-txt-muted uppercase flex items-center gap-1">
+          % Dentro SLA
+          <span class="relative group cursor-help">
+            <i class="ti ti-info-circle text-txt-muted text-[10px]"></i>
+            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-bg-card border border-gold/20 rounded-lg text-[11px] text-white w-44 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 shadow-xl">
+              Platos preparados en ≤15 minutos (Objetivo: ≥80%).
+            </div>
+          </span>
+        </p>
         <p class="text-2xl font-bold mt-1" :class="metricasGenerales.porcentajeDentroSLA >= 80 ? 'text-st-preparado' : 'text-st-esperando'" x-text="(metricasGenerales.porcentajeDentroSLA || 0) + '%'"></p>
       </div>
     </div>
@@ -264,6 +317,12 @@ tailwind.config = {
           <h3 class="text-sm font-bold mb-4 flex items-center gap-2">
             📊 Ranking de Rendimiento
             <span class="text-[10px] text-txt-muted font-normal" x-text="getPeriodoTexto()"></span>
+            <span class="relative group cursor-help ml-auto">
+              <i class="ti ti-info-circle text-txt-muted text-sm"></i>
+              <div class="absolute bottom-full right-0 mb-2 px-3 py-2 bg-bg-card border border-gold/20 rounded-lg text-[11px] text-white w-56 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 shadow-xl">
+                El ranking ordena a los cocineros por tiempo promedio de preparación. Menor tiempo = mejor posición.
+              </div>
+            </span>
           </h3>
           <div x-show="loadingMetricas" class="flex justify-center py-8">
             <div class="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
@@ -271,11 +330,13 @@ tailwind.config = {
           <div x-show="!loadingMetricas && rankingMetricas.length === 0" class="text-center text-txt-muted py-6">
             <div class="text-3xl mb-2">📈</div>
             <p class="text-sm">Sin datos de métricas para el período seleccionado</p>
-            <p class="text-xs text-txt-muted mt-1">Los cocineros aparecerán aquí cuando registren actividad</p>
+            <p class="text-xs text-txt-muted mt-1">Los cocineros aparecerán aquí cuando registren actividad en la App Cocina</p>
           </div>
           <div x-show="!loadingMetricas && rankingMetricas.length > 0" class="space-y-2">
-            <template x-for="(item, index) in rankingMetricas" :key="item.usuarioId || item._id || 'rank-' + index">
-              <div class="flex items-center gap-3 p-3 bg-bg-sidebar rounded-lg transition hover:bg-bg-sidebar/80" :class="{'border border-gold/30': index === 0}">
+            <template x-for="(item, index) in rankingMetricas" :key="(item.usuarioId || item._id) + '-' + index">
+              <div class="flex items-center gap-3 p-3 bg-bg-sidebar rounded-lg transition hover:bg-bg-sidebar/80 cursor-pointer"
+                :class="{'border border-gold/30': index === 0}"
+                @click="irACocineroDesdeRanking(item)">
                 <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
                   :class="{
                     'bg-gold text-bg-primary': index === 0,
@@ -283,13 +344,18 @@ tailwind.config = {
                     'bg-st-pedido/20 text-st-pedido': index === 2,
                     'bg-txt-muted/20 text-txt-muted': index > 2
                   }" x-text="index + 1"></span>
+                <div class="w-8 h-8 rounded-full bg-st-pedido/20 flex items-center justify-center text-st-pedido text-xs font-bold flex-shrink-0" x-text="getNombreCocineroRanking(item).charAt(0)?.toUpperCase() || '?'"></div>
                 <div class="flex-1 min-w-0">
-                  <p class="font-medium text-sm truncate" x-text="item.nombre || 'Cocinero'"></p>
-                  <p class="text-[10px] text-txt-muted" x-text="(item.totalPlatos || 0) + ' platos'"></p>
+                  <div class="flex items-center gap-2">
+                    <p class="font-medium text-sm truncate" x-text="getNombreCocineroRanking(item)"></p>
+                    <span x-show="(item.tiempoPromedio || 0) > 20" class="text-[9px] px-1.5 py-0.5 rounded bg-st-pagado/20 text-st-pagado font-medium">Lento</span>
+                    <span x-show="(item.porcentajeDentroSLA || 0) < 70" class="text-[9px] px-1.5 py-0.5 rounded bg-st-esperando/20 text-st-esperando font-medium">SLA bajo</span>
+                  </div>
+                  <p class="text-[10px] text-txt-muted" x-text="(item.totalPlatos || 0) + ' platos preparados'"></p>
                 </div>
                 <div class="text-right flex-shrink-0">
-                  <p class="text-sm font-bold" :class="(item.tiempoPromedio || 0) <= 15 ? 'text-st-preparado' : 'text-st-esperando'" x-text="(item.tiempoPromedio || 0).toFixed(1) + ' min'"></p>
-                  <p class="text-[10px]" :class="(item.porcentajeDentroSLA || 0) >= 80 ? 'text-st-preparado' : 'text-st-pagado'" x-text="(item.porcentajeDentroSLA || 0) + '% SLA'"></p>
+                  <p class="text-sm font-bold" :class="(item.tiempoPromedio || 0) <= 15 ? 'text-st-preparado' : (item.tiempoPromedio || 0) <= 20 ? 'text-st-esperando' : 'text-st-pagado'" x-text="(item.tiempoPromedio || 0).toFixed(1) + ' min'"></p>
+                  <p class="text-[10px]" :class="(item.porcentajeDentroSLA || 0) >= 80 ? 'text-st-preparado' : (item.porcentajeDentroSLA || 0) >= 60 ? 'text-st-esperando' : 'text-st-pagado'" x-text="(item.porcentajeDentroSLA || 0) + '% SLA'"></p>
                 </div>
               </div>
             </template>
@@ -373,7 +439,7 @@ tailwind.config = {
             <template x-for="z in getZonasAsignadasCocinero()" :key="z._id || z.id">
               <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
                 :style="'background-color: ' + (z.color || '#d4af37') + '25; border: 1px solid ' + (z.color || '#d4af37')">
-                <i :class="'ti ti-' + (z.icono || 'tools-kitchen')" :style="'color: ' + (z.color || '#d4af37')"></i>
+                <span x-html="getIconSvg(z.icono || 'chef-hat', z.color || '#d4af37')"></span>
                 <span x-text="z.nombre"></span>
               </div>
             </template>
@@ -388,14 +454,33 @@ tailwind.config = {
 
         <!-- MÉTRICAS DETALLADAS -->
         <div x-show="selectedCocinero && !loadingMetricasCocinero" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
-          <h3 class="text-sm font-bold mb-4">📈 Métricas del Período</h3>
+          <h3 class="text-sm font-bold mb-4 flex items-center gap-2">
+            📈 Métricas del Período
+            <span class="text-[10px] text-txt-muted font-normal" x-text="getPeriodoTexto()"></span>
+          </h3>
           <div class="space-y-3">
             <div class="flex justify-between items-center">
-              <span class="text-txt-secondary text-xs">Total platos</span>
+              <span class="text-txt-secondary text-xs flex items-center gap-1">
+                Total platos
+                <span class="relative group cursor-help">
+                  <i class="ti ti-info-circle text-txt-muted text-[10px]"></i>
+                  <div class="absolute bottom-full left-0 mb-2 px-3 py-2 bg-bg-card border border-gold/20 rounded-lg text-[11px] text-white w-36 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 shadow-xl">
+                    Platos marcados como listos en el período.
+                  </div>
+                </span>
+              </span>
               <span class="font-bold" x-text="metricasCocinero.totalPlatos || 0"></span>
             </div>
             <div class="flex justify-between items-center">
-              <span class="text-txt-secondary text-xs">Tiempo promedio</span>
+              <span class="text-txt-secondary text-xs flex items-center gap-1">
+                Tiempo promedio
+                <span class="relative group cursor-help">
+                  <i class="ti ti-info-circle text-txt-muted text-[10px]"></i>
+                  <div class="absolute bottom-full left-0 mb-2 px-3 py-2 bg-bg-card border border-gold/20 rounded-lg text-[11px] text-white w-44 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 shadow-xl">
+                    Promedio de minutos entre "en espera" y "listo".
+                  </div>
+                </span>
+              </span>
               <span class="font-bold" :class="(metricasCocinero.tiempoPromedioPreparacion || 0) <= 15 ? 'text-st-preparado' : 'text-st-esperando'" x-text="(metricasCocinero.tiempoPromedioPreparacion || 0).toFixed(1) + ' min'"></span>
             </div>
             <div class="flex justify-between items-center">
@@ -408,12 +493,20 @@ tailwind.config = {
             </div>
             <div class="pt-2 border-t border-[rgba(212,175,55,0.1)]">
               <div class="flex justify-between items-center">
-                <span class="text-txt-secondary text-xs">% Dentro SLA (≤15 min)</span>
-                <span class="font-bold text-lg" :class="(metricasCocinero.porcentajeDentroSLA || 0) >= 80 ? 'text-st-preparado' : 'text-st-pagado'" x-text="(metricasCocinero.porcentajeDentroSLA || 0) + '%'"></span>
+                <span class="text-txt-secondary text-xs flex items-center gap-1">
+                  % Dentro SLA (≤15 min)
+                  <span class="relative group cursor-help">
+                    <i class="ti ti-info-circle text-txt-muted text-[10px]"></i>
+                    <div class="absolute bottom-full right-0 mb-2 px-3 py-2 bg-bg-card border border-gold/20 rounded-lg text-[11px] text-white w-44 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 shadow-xl">
+                      Porcentaje de platos preparados en 15 minutos o menos. Objetivo: ≥80%.
+                    </div>
+                  </span>
+                </span>
+                <span class="font-bold text-lg" :class="(metricasCocinero.porcentajeDentroSLA || 0) >= 80 ? 'text-st-preparado' : (metricasCocinero.porcentajeDentroSLA || 0) >= 60 ? 'text-st-esperando' : 'text-st-pagado'" x-text="(metricasCocinero.porcentajeDentroSLA || 0) + '%'"></span>
               </div>
               <div class="w-full bg-bg-sidebar rounded-full h-2 mt-2">
                 <div class="h-2 rounded-full transition-all duration-500" 
-                  :class="(metricasCocinero.porcentajeDentroSLA || 0) >= 80 ? 'bg-st-preparado' : 'bg-st-pagado'"
+                  :class="(metricasCocinero.porcentajeDentroSLA || 0) >= 80 ? 'bg-st-preparado' : (metricasCocinero.porcentajeDentroSLA || 0) >= 60 ? 'bg-st-esperando' : 'bg-st-pagado'"
                   :style="'width: ' + Math.min(100, (metricasCocinero.porcentajeDentroSLA || 0)) + '%'"></div>
               </div>
             </div>
@@ -510,9 +603,9 @@ tailwind.config = {
               <template x-for="z in zonasPaginadas" :key="z._id || z.id || 'zona-' + zonasPaginadas.indexOf(z)">
                 <tr class="border-b border-[rgba(212,175,55,0.08)] table-row hover:bg-bg-sidebar/50">
                   <td class="px-4 py-3">
-                    <div class="w-8 h-8 rounded-lg flex items-center justify-center text-lg"
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center"
                       :style="'background-color: ' + (z.color || '#d4af37') + '30; border: 2px solid ' + (z.color || '#d4af37')">
-                      <i :class="'ti ti-' + (z.icono || 'tools-kitchen')" :style="'color: ' + (z.color || '#d4af37')"></i>
+                      <span x-html="getIconSvg(z.icono || 'chef-hat', z.color || '#d4af37')"></span>
                     </div>
                   </td>
                   <td class="px-4 py-3">
@@ -679,11 +772,11 @@ tailwind.config = {
                 class="sr-only peer">
               <div class="w-4 h-4 rounded border-2 flex items-center justify-center transition"
                 :class="formConfig.zonaIdsSeleccionadas?.includes(z._id || z.id) ? 'bg-gold border-gold' : 'border-txt-muted'">
-                <i x-show="formConfig.zonaIdsSeleccionadas?.includes(z._id || z.id)" class="ti ti-check text-xs text-bg-primary"></i>
+                <span x-show="formConfig.zonaIdsSeleccionadas?.includes(z._id || z.id)" class="text-xs text-bg-primary">✓</span>
               </div>
-              <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm"
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center"
                 :style="'background-color: ' + (z.color || '#d4af37') + '30; border: 2px solid ' + (z.color || '#d4af37')">
-                <i :class="'ti ti-' + (z.icono || 'tools-kitchen')" :style="'color: ' + (z.color || '#d4af37')"></i>
+                <span x-html="getIconSvg(z.icono || 'chef-hat', z.color || '#d4af37')"></span>
               </div>
               <div class="flex-1 min-w-0">
                 <p class="font-medium text-sm truncate" x-text="z.nombre"></p>
@@ -710,7 +803,15 @@ tailwind.config = {
         
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div>
-            <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium">Alerta Amarilla</label>
+            <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium flex items-center gap-1">
+              Alerta Amarilla
+              <span class="relative group cursor-help">
+                <i class="ti ti-info-circle text-txt-muted text-[10px]"></i>
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-bg-card border border-gold/20 rounded-lg text-[11px] text-white w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 shadow-xl">
+                  Tiempo en minutos para mostrar alerta amarilla (precaución) en comandas en espera.
+                </div>
+              </span>
+            </label>
             <div class="relative">
               <input type="number" x-model="formConfig.configTableroKDS.tiempoAmarillo" min="5" max="30" 
                 class="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-gold focus:ring-1 focus:ring-gold/30 focus:outline-none transition pr-10"
@@ -720,7 +821,15 @@ tailwind.config = {
             <p x-show="formErrors.tiempoAmarillo" class="text-[10px] text-st-pagado mt-1" x-text="formErrors.tiempoAmarillo"></p>
           </div>
           <div>
-            <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium">Alerta Roja</label>
+            <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium flex items-center gap-1">
+              Alerta Roja
+              <span class="relative group cursor-help">
+                <i class="ti ti-info-circle text-txt-muted text-[10px]"></i>
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-bg-card border border-gold/20 rounded-lg text-[11px] text-white w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 shadow-xl">
+                  Tiempo crítico para alertas rojas. Debe ser mayor que la alerta amarilla.
+                </div>
+              </span>
+            </label>
             <div class="relative">
               <input type="number" x-model="formConfig.configTableroKDS.tiempoRojo" min="10" max="60" 
                 class="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-gold focus:ring-1 focus:ring-gold/30 focus:outline-none transition pr-10"
@@ -730,14 +839,30 @@ tailwind.config = {
             <p x-show="formErrors.tiempoRojo" class="text-[10px] text-st-pagado mt-1" x-text="formErrors.tiempoRojo"></p>
           </div>
           <div>
-            <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium">Columnas</label>
+            <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium flex items-center gap-1">
+              Columnas
+              <span class="relative group cursor-help">
+                <i class="ti ti-info-circle text-txt-muted text-[10px]"></i>
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-bg-card border border-gold/20 rounded-lg text-[11px] text-white w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 shadow-xl">
+                  Número de columnas en el grid de tarjetas del KDS (1-8).
+                </div>
+              </span>
+            </label>
             <input type="number" x-model="formConfig.configTableroKDS.columnasGrid" min="1" max="8" 
               class="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-gold focus:ring-1 focus:ring-gold/30 focus:outline-none transition"
               :class="formErrors.columnasGrid ? 'border-st-pagado' : ''">
             <p x-show="formErrors.columnasGrid" class="text-[10px] text-st-pagado mt-1" x-text="formErrors.columnasGrid"></p>
           </div>
           <div>
-            <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium">Filas</label>
+            <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium flex items-center gap-1">
+              Filas
+              <span class="relative group cursor-help">
+                <i class="ti ti-info-circle text-txt-muted text-[10px]"></i>
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-bg-card border border-gold/20 rounded-lg text-[11px] text-white w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 shadow-xl">
+                  Número de filas visibles en el grid (1-4).
+                </div>
+              </span>
+            </label>
             <input type="number" x-model="formConfig.configTableroKDS.filasGrid" min="1" max="4" 
               class="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-gold focus:ring-1 focus:ring-gold/30 focus:outline-none transition"
               :class="formErrors.filasGrid ? 'border-st-pagado' : ''">
@@ -747,14 +872,30 @@ tailwind.config = {
         
         <div class="grid grid-cols-2 gap-3 mt-3">
           <div>
-            <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium">Máx. Tarjetas Visibles</label>
+            <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium flex items-center gap-1">
+              Máx. Tarjetas Visibles
+              <span class="relative group cursor-help">
+                <i class="ti ti-info-circle text-txt-muted text-[10px]"></i>
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-bg-card border border-gold/20 rounded-lg text-[11px] text-white w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 shadow-xl">
+                  Cantidad máxima de comandas visibles en pantalla (5-100).
+                </div>
+              </span>
+            </label>
             <input type="number" x-model="formConfig.configTableroKDS.maxTarjetasVisibles" min="5" max="100" 
               class="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-gold focus:ring-1 focus:ring-gold/30 focus:outline-none transition"
               :class="formErrors.maxTarjetas ? 'border-st-pagado' : ''">
             <p x-show="formErrors.maxTarjetas" class="text-[10px] text-st-pagado mt-1" x-text="formErrors.maxTarjetas"></p>
           </div>
           <div>
-            <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium">Tamaño Fuente</label>
+            <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium flex items-center gap-1">
+              Tamaño Fuente
+              <span class="relative group cursor-help">
+                <i class="ti ti-info-circle text-txt-muted text-[10px]"></i>
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-bg-card border border-gold/20 rounded-lg text-[11px] text-white w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 shadow-xl">
+                  Tamaño de la fuente en el tablero KDS (12-24px).
+                </div>
+              </span>
+            </label>
             <input type="number" x-model="formConfig.configTableroKDS.tamanioFuente" min="12" max="24" 
               class="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-gold focus:ring-1 focus:ring-gold/30 focus:outline-none transition"
               :class="formErrors.tamanioFuente ? 'border-st-pagado' : ''">
@@ -873,10 +1014,11 @@ tailwind.config = {
         <span>Los cambios se aplicarán en el próximo inicio de sesión</span>
       </div>
       <div class="flex gap-2">
-        <button @click="modalConfig=false" class="px-4 py-2 rounded-lg text-sm text-txt-secondary hover:text-white hover:bg-white/5 transition">Cancelar</button>
-        <button @click="guardarConfiguracion()" class="px-5 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition flex items-center gap-2 shadow-lg shadow-gold/20">
-          <i class="ti ti-device-floppy"></i>
-          Guardar Configuración
+        <button @click="modalConfig=false" :disabled="guardandoConfig" class="px-4 py-2 rounded-lg text-sm text-txt-secondary hover:text-white hover:bg-white/5 transition disabled:opacity-50">Cancelar</button>
+        <button @click="guardarConfiguracion()" :disabled="guardandoConfig" class="px-5 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition flex items-center gap-2 shadow-lg shadow-gold/20 disabled:opacity-70 disabled:cursor-not-allowed">
+          <div x-show="guardandoConfig" class="w-4 h-4 border-2 border-bg-primary border-t-transparent rounded-full animate-spin"></div>
+          <i x-show="!guardandoConfig" class="ti ti-device-floppy"></i>
+          <span x-text="guardandoConfig ? 'Guardando...' : 'Guardar Configuración'"></span>
         </button>
       </div>
     </div>
@@ -919,10 +1061,11 @@ tailwind.config = {
       </div>
     </div>
     <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
-      <button @click="modalAsignarRol=false" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
-      <button @click="confirmarAsignarRol()" :disabled="!usuarioSeleccionado" 
-        class="px-5 py-2.5 bg-st-pedido text-white rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed">
-        Asignar Rol
+      <button @click="modalAsignarRol=false" :disabled="asignandoRol" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition disabled:opacity-50">Cancelar</button>
+      <button @click="confirmarAsignarRol()" :disabled="!usuarioSeleccionado || asignandoRol" 
+        class="px-5 py-2.5 bg-st-pedido text-white rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+        <div x-show="asignandoRol" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+        <span x-text="asignandoRol ? 'Asignando...' : 'Asignar Rol'"></span>
       </button>
     </div>
   </div>
@@ -1036,7 +1179,7 @@ tailwind.config = {
           <!-- Preview de la zona -->
           <div class="w-14 h-14 rounded-xl flex items-center justify-center shadow-lg transition-all duration-300"
             :style="'background: linear-gradient(135deg, ' + formZona.color + '20, ' + formZona.color + '40); border: 2px solid ' + formZona.color">
-            <i :class="'ti ti-' + (formZona.icono || 'tools-kitchen')" class="text-2xl" :style="'color: ' + formZona.color"></i>
+            <span class="text-2xl" x-html="getIconSvg(formZona.icono || 'chef-hat', formZona.color)"></span>
           </div>
           <div>
             <h2 class="text-lg font-bold" x-text="formZona.id ? 'Editar Zona' : 'Nueva Zona'"></h2>
@@ -1078,10 +1221,10 @@ tailwind.config = {
             <button type="button" @click="modalIconos = true" 
               class="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2 flex items-center justify-between gap-2 hover:border-gold/50 transition group">
               <div class="flex items-center gap-2">
-                <i :class="'ti ti-' + (formZona.icono || 'tools-kitchen')" class="text-lg" :style="'color: ' + formZona.color"></i>
+                <span x-html="getIconSvg(formZona.icono || 'chef-hat', formZona.color)"></span>
                 <span class="text-sm text-txt-muted group-hover:text-white transition" x-text="formZona.icono || 'Seleccionar'"></span>
               </div>
-              <i class="ti ti-chevron-down text-txt-muted text-xs group-hover:text-gold transition"></i>
+              <span class="text-txt-muted text-xs group-hover:text-gold transition">▼</span>
             </button>
           </div>
           
@@ -1333,10 +1476,11 @@ tailwind.config = {
         <span x-show="!formZona.filtrosPlatos.modoInclusion">Mostrar todo excepto seleccionados</span>
       </div>
       <div class="flex gap-2">
-        <button @click="modalZona=false" class="px-4 py-2 rounded-lg text-sm text-txt-secondary hover:text-white hover:bg-white/5 transition">Cancelar</button>
-        <button @click="guardarZona()" class="px-5 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition flex items-center gap-2 shadow-lg shadow-gold/20">
-          <i class="ti ti-device-floppy"></i>
-          Guardar Zona
+        <button @click="modalZona=false" :disabled="guardandoZona" class="px-4 py-2 rounded-lg text-sm text-txt-secondary hover:text-white hover:bg-white/5 transition disabled:opacity-50">Cancelar</button>
+        <button @click="guardarZona()" :disabled="guardandoZona" class="px-5 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition flex items-center gap-2 shadow-lg shadow-gold/20 disabled:opacity-70 disabled:cursor-not-allowed">
+          <div x-show="guardandoZona" class="w-4 h-4 border-2 border-bg-primary border-t-transparent rounded-full animate-spin"></div>
+          <i x-show="!guardandoZona" class="ti ti-device-floppy"></i>
+          <span x-text="guardandoZona ? 'Guardando...' : 'Guardar Zona'"></span>
         </button>
       </div>
     </div>
@@ -1348,7 +1492,7 @@ tailwind.config = {
   <div class="bg-bg-card border border-gold/20 rounded-2xl w-full max-w-md shadow-2xl" @click.stop>
     <div class="p-4 border-b border-white/5 flex items-center justify-between">
       <h3 class="font-semibold flex items-center gap-2">
-        <i class="ti ti-palette text-gold"></i> Seleccionar Icono
+        <span class="text-gold">🎨</span> Seleccionar Icono
       </h3>
       <button @click="modalIconos=false" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 text-txt-muted hover:text-white transition">✕</button>
     </div>
@@ -1362,7 +1506,7 @@ tailwind.config = {
           <button type="button" @click="seleccionarIcono(icono.nombre)"
             class="p-3 rounded-xl border-2 transition flex flex-col items-center gap-1.5 group"
             :class="formZona.icono === icono.nombre ? 'border-gold bg-gold/10' : 'border-transparent bg-bg-sidebar hover:border-gold/30 hover:bg-gold/5'">
-            <i :class="'ti ti-' + icono.nombre" class="text-xl transition" :style="'color: ' + (formZona.icono === icono.nombre ? formZona.color : 'inherit')" :class="formZona.icono === icono.nombre ? '' : 'text-txt-muted group-hover:text-white'"></i>
+            <span class="text-xl" x-html="getIconSvg(icono.nombre, formZona.icono === icono.nombre ? formZona.color : '#6b7280')"></span>
             <span class="text-[9px] text-txt-muted text-center leading-tight" x-text="icono.label"></span>
           </button>
         </template>
@@ -1400,9 +1544,9 @@ tailwind.config = {
               :checked="selectedCocinero?.zonaIds?.includes(z._id || z.id)"
               @change="z._asignada = $event.target.checked"
               class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
-            <div class="w-8 h-8 rounded-lg flex items-center justify-center text-lg"
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center"
               :style="'background-color: ' + (z.color || '#d4af37') + '30; border: 2px solid ' + (z.color || '#d4af37')">
-              <i :class="'ti ti-' + (z.icono || 'tools-kitchen')" :style="'color: ' + (z.color || '#d4af37')"></i>
+              <span x-html="getIconSvg(z.icono || 'chef-hat', z.color || '#d4af37')"></span>
             </div>
             <div class="flex-1">
               <p class="font-medium text-sm" x-text="z.nombre"></p>
@@ -1416,6 +1560,39 @@ tailwind.config = {
       <button @click="modalAsignarZonas=false" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
       <button @click="guardarZonasAsignadas()" class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">
         Guardar Asignación
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CONFIRMAR ELIMINAR ZONA -->
+<div x-show="modalConfirmarEliminarZona" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modalConfirmarEliminarZona=false">
+  <div class="bg-bg-card border border-st-pagado/40 rounded-2xl w-full max-w-[420px] shadow-2xl" @click.stop>
+    <div class="bg-st-pagado/10 p-5 rounded-t-2xl flex items-center gap-4">
+      <div class="w-12 h-12 rounded-full bg-st-pagado/20 flex items-center justify-center text-2xl">🗑️</div>
+      <div>
+        <h2 class="text-lg font-bold text-st-pagado">Eliminar Zona</h2>
+        <p class="text-xs text-txt-muted">Esta acción no se puede deshacer</p>
+      </div>
+    </div>
+    <div class="p-6">
+      <p class="text-sm text-txt-secondary mb-4">
+        ¿Estás seguro de que deseas eliminar la zona 
+        <span class="font-semibold text-white" x-text="zonaParaEliminar?.nombre"></span>?
+      </p>
+      <div class="bg-bg-sidebar rounded-lg p-4 mb-4">
+        <p class="text-xs text-txt-muted mb-2">⚠️ Consecuencias:</p>
+        <ul class="text-xs text-txt-secondary space-y-1">
+          <li>• La zona será desactivada permanentemente</li>
+          <li>• Los cocineros asignados perderán esta zona</li>
+          <li>• Los filtros de la zona dejarán de aplicarse</li>
+        </ul>
+      </div>
+    </div>
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-3 border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="modalConfirmarEliminarZona=false; zonaParaEliminar=null" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+      <button @click="confirmarEliminarZona()" class="px-5 py-2.5 bg-st-pagado text-white rounded-lg text-sm font-semibold hover:brightness-110 transition">
+        Sí, eliminar zona
       </button>
     </div>
   </div>
@@ -1476,7 +1653,7 @@ function cocinerosApp() {
       nombre: '',
       descripcion: '',
       color: '#d4af37',
-      icono: 'tools-kitchen',
+      icono: 'chef-hat',
       filtrosPlatos: {
         modoInclusion: false,
         platosPermitidos: [],
@@ -1493,44 +1670,48 @@ function cocinerosApp() {
     },
     loadingZonas: false,
     
+    // Estados de carga para acciones
+    guardandoConfig: false,
+    guardandoZona: false,
+    asignandoZonas: false,
+    asignandoRol: false,
+    quitandoRol: false,
+    
     // === NUEVOS ESTADOS PARA SELECTORES MEJORADOS ===
     // Selector de iconos
     modalIconos: false,
     busquedaIcono: '',
     iconosCocina: [
-      { nombre: 'tools-kitchen', label: 'Cocina', keywords: ['cocina', 'kitchen', 'utensilios'] },
-      { nombre: 'flame', label: 'Fuego', keywords: ['fuego', 'flame', 'calor', 'llama'] },
+      { nombre: 'chef-hat', label: 'Chef', keywords: ['chef', 'sombrero', 'cocinero', 'cocina'] },
+      { nombre: 'utensils', label: 'Utensilios', keywords: ['utensilios', 'cocina', 'kitchen', 'tools'] },
+      { nombre: 'flame', label: 'Fuego', keywords: ['fuego', 'flame', 'calor', 'llama', 'parrilla'] },
       { nombre: 'knife', label: 'Cuchillo', keywords: ['cuchillo', 'knife', 'cortar'] },
-      { nombre: 'chef-hat', label: 'Chef', keywords: ['chef', 'sombrero', 'cocinero'] },
-      { nombre: 'pot', label: 'Olla', keywords: ['olla', 'pot', 'cocinar'] },
-      { nombre: 'grill', label: 'Parrilla', keywords: ['parrilla', 'grill', 'barbacoa'] },
-      { nombre: 'barbecue', label: 'Barbacoa', keywords: ['barbacoa', 'bbq', 'asado'] },
-      { nombre: 'meat', label: 'Carne', keywords: ['carne', 'meat', 'res', 'vacuno'] },
-      { nombre: 'salad', label: 'Ensalada', keywords: ['ensalada', 'salad', 'verdura'] },
-      { nombre: 'egg-fried', label: 'Huevo', keywords: ['huevo', 'egg', 'frito'] },
+      { nombre: 'soup', label: 'Sopa', keywords: ['sopa', 'soup', 'caldo', 'olla'] },
+      { nombre: 'beef', label: 'Carne', keywords: ['carne', 'beef', 'res', 'vacuno', 'meat'] },
       { nombre: 'fish', label: 'Pescado', keywords: ['pescado', 'fish', 'marisco'] },
-      { nombre: 'cup', label: 'Taza', keywords: ['taza', 'cup', 'cafe', 'bebida'] },
-      { nombre: 'bottle', label: 'Botella', keywords: ['botella', 'bottle', 'bebida'] },
-      { nombre: 'glass', label: 'Vaso', keywords: ['vaso', 'glass', 'bebida'] },
-      { nombre: 'ice-cream', label: 'Postre', keywords: ['postre', 'helado', 'dessert'] },
+      { nombre: 'salad', label: 'Ensalada', keywords: ['ensalada', 'salad', 'verdura'] },
+      { nombre: 'egg', label: 'Huevo', keywords: ['huevo', 'egg', 'frito'] },
+      { nombre: 'coffee', label: 'Café', keywords: ['cafe', 'coffee', 'bebida', 'taza'] },
+      { nombre: 'cup-soda', label: 'Bebida', keywords: ['bebida', 'vaso', 'trago', 'drink'] },
+      { nombre: 'wine', label: 'Vino', keywords: ['vino', 'wine', 'copa', 'botella'] },
+      { nombre: 'ice-cream-bowl', label: 'Postre', keywords: ['postre', 'helado', 'dessert', 'dulce'] },
       { nombre: 'cake', label: 'Torta', keywords: ['torta', 'cake', 'pastel', 'postre'] },
       { nombre: 'cookie', label: 'Galleta', keywords: ['galleta', 'cookie', 'dulce'] },
-      { nombre: 'pepper', label: 'Pimiento', keywords: ['pimiento', 'pepper', 'picante'] },
-      { nombre: 'carrot', label: 'Verdura', keywords: ['verdura', 'carrot', 'zanahoria', 'vegetales'] },
-      { nombre: 'bread', label: 'Pan', keywords: ['pan', 'bread', 'bakery'] },
       { nombre: 'pizza', label: 'Pizza', keywords: ['pizza', 'italiana'] },
-      { nombre: 'soup', label: 'Sopa', keywords: ['sopa', 'soup', 'caldo'] },
-      { nombre: 'noodles', label: 'Fideos', keywords: ['fideos', 'noodles', 'pasta'] },
+      { nombre: 'croissant', label: 'Pan', keywords: ['pan', 'bread', 'bakery', 'croissant'] },
       { nombre: 'rice', label: 'Arroz', keywords: ['arroz', 'rice'] },
-      { nombre: 'coffee', label: 'Café', keywords: ['cafe', 'coffee', 'bebida caliente'] },
-      { nombre: 'tea-cup', label: 'Té', keywords: ['te', 'tea', 'infusion'] },
-      { nombre: 'lemon', label: 'Limón', keywords: ['limon', 'lemon', 'citrico'] },
+      { nombre: 'citrus', label: 'Limón', keywords: ['limon', 'lemon', 'citrico', 'naranja'] },
       { nombre: 'apple', label: 'Fruta', keywords: ['fruta', 'apple', 'manzana'] },
-      { nombre: 'leaf', label: 'Hoja', keywords: ['hoja', 'leaf', 'natural', 'organico'] },
+      { nombre: 'carrot', label: 'Verdura', keywords: ['verdura', 'carrot', 'zanahoria', 'vegetales'] },
+      { nombre: 'leaf', label: 'Hoja', keywords: ['hoja', 'leaf', 'natural', 'organico', 'ensalada'] },
       { nombre: 'heart', label: 'Favorito', keywords: ['favorito', 'heart', 'corazon', 'especial'] },
       { nombre: 'star', label: 'Especial', keywords: ['especial', 'star', 'estrella'] },
-      { nombre: 'zap', label: 'Picante', keywords: ['picante', 'spicy', 'hot', 'intenso'] },
-      { nombre: 'snowflake', label: 'Frío', keywords: ['frio', 'cold', 'helado'] }
+      { nombre: 'zap', label: 'Picante', keywords: ['picante', 'spicy', 'hot', 'intenso', 'zap'] },
+      { nombre: 'snowflake', label: 'Frío', keywords: ['frio', 'cold', 'helado', 'nieve'] },
+      { nombre: 'sun', label: 'Caliente', keywords: ['caliente', 'sun', 'sol', 'dia'] },
+      { nombre: 'timer', label: 'Tiempo', keywords: ['tiempo', 'timer', 'reloj'] },
+      { nombre: 'microwave', label: 'Microondas', keywords: ['microondas', 'microwave'] },
+      { nombre: 'refrigerator', label: 'Refrigerador', keywords: ['refrigerador', 'nevera', 'frigo'] }
     ],
     
     // Selectores de datos reales
@@ -1569,6 +1750,8 @@ function cocinerosApp() {
     modalMetricas: false,
     modalConfirmarQuitar: false,
     cocineroParaQuitar: null,
+    modalConfirmarEliminarZona: false,
+    zonaParaEliminar: null,
     
     formConfig: {
       usuarioId: null,
@@ -1771,25 +1954,58 @@ function cocinerosApp() {
       if (hasta) params.push(`hasta=${hasta}`);
       if (params.length > 0) url += '?' + params.join('&');
       
-      const data = await apiGet(url);
-      if (data && data.success !== false) {
-        // La respuesta viene en data.data.ranking o data.ranking
-        const responseData = data.data || data;
-        const ranking = responseData.ranking || responseData || [];
-        this.rankingMetricas = Array.isArray(ranking) ? ranking : [];
-        
-        // Calcular métricas generales
-        if (this.rankingMetricas.length > 0) {
-          const totalPlatos = this.rankingMetricas.reduce((sum, r) => sum + (r.totalPlatos || 0), 0);
-          const avgSLA = this.rankingMetricas.reduce((sum, r) => sum + (r.porcentajeDentroSLA || 0), 0) / this.rankingMetricas.length;
-          this.metricasGenerales = {
-            totalPlatos,
-            porcentajeDentroSLA: Math.round(avgSLA)
-          };
+      try {
+        const data = await apiGet(url);
+        if (data && data.success !== false) {
+          // La respuesta viene en data.data.ranking o data.ranking
+          const responseData = data.data || data;
+          let ranking = responseData.ranking || responseData || [];
+          
+          // Normalizar el ranking: asegurar que cada item tenga nombre
+          ranking = ranking.map(item => {
+            // Buscar el cocinero correspondiente en la lista cargada
+            const cocinero = this.cocineros.find(c => 
+              c._id === item.usuarioId || 
+              c._id === item._id ||
+              c.usuarioId === item.usuarioId
+            );
+            
+            return {
+              ...item,
+              nombre: item.nombre || cocinero?.nombre || cocinero?.name || 'Cocinero'
+            };
+          });
+          
+          // Eliminar duplicados por usuarioId (mantener el primero)
+          const vistos = new Set();
+          ranking = ranking.filter(item => {
+            const id = item.usuarioId || item._id;
+            if (vistos.has(id)) {
+              return false;
+            }
+            vistos.add(id);
+            return true;
+          });
+          
+          this.rankingMetricas = Array.isArray(ranking) ? ranking : [];
+          
+          // Calcular métricas generales
+          if (this.rankingMetricas.length > 0) {
+            const totalPlatos = this.rankingMetricas.reduce((sum, r) => sum + (r.totalPlatos || 0), 0);
+            const avgSLA = this.rankingMetricas.reduce((sum, r) => sum + (r.porcentajeDentroSLA || 0), 0) / this.rankingMetricas.length;
+            this.metricasGenerales = {
+              totalPlatos,
+              porcentajeDentroSLA: Math.round(avgSLA)
+            };
+          } else {
+            this.metricasGenerales = { totalPlatos: 0, porcentajeDentroSLA: 0 };
+          }
         } else {
+          this.rankingMetricas = [];
           this.metricasGenerales = { totalPlatos: 0, porcentajeDentroSLA: 0 };
         }
-      } else {
+      } catch (error) {
+        console.error('Error al cargar métricas:', error);
         this.rankingMetricas = [];
         this.metricasGenerales = { totalPlatos: 0, porcentajeDentroSLA: 0 };
       }
@@ -2192,6 +2408,8 @@ function cocinerosApp() {
         return;
       }
       
+      this.guardandoConfig = true;
+      
       // Parsear campos de texto
       const platosTexto = this.formConfig.platosPermitidosTexto.trim();
       const platosPermitidos = platosTexto 
@@ -2230,30 +2448,38 @@ function cocinerosApp() {
         }
       };
       
-      // Guardar configuración KDS
-      const res = await apiPut(`/cocineros/${this.formConfig.usuarioId}/config`, body);
-      
-      // También actualizar las zonas asignadas si cambiaron
-      if (this.formConfig.zonaIdsSeleccionadas) {
-        await apiPut(`/cocineros/${this.formConfig.usuarioId}/zonas`, { zonaIds: this.formConfig.zonaIdsSeleccionadas });
-      }
-      
-      if (res && res.success !== false) {
-        if (window.GambusinasNotifications) {
-          window.GambusinasNotifications.success('Configuración guardada', 'Los cambios se aplicarán en el próximo inicio de sesión');
-        }
-        this.modalConfig = false;
-        await this.loadCocineros();
+      try {
+        // Guardar configuración KDS
+        const res = await apiPut(`/cocineros/${this.formConfig.usuarioId}/config`, body);
         
-        // Actualizar cocinero seleccionado si aplica
-        if (this.selectedCocinero?._id === this.formConfig.usuarioId) {
-          this.selectedCocinero = this.cocineros.find(c => c._id === this.formConfig.usuarioId);
+        // También actualizar las zonas asignadas si cambiaron
+        if (this.formConfig.zonaIdsSeleccionadas) {
+          await apiPut(`/cocineros/${this.formConfig.usuarioId}/zonas`, { zonaIds: this.formConfig.zonaIdsSeleccionadas });
         }
-      } else {
+        
+        if (res && res.success !== false) {
+          if (window.GambusinasNotifications) {
+            window.GambusinasNotifications.success('Configuración guardada', 'Los cambios se aplicarán en el próximo inicio de sesión');
+          }
+          this.modalConfig = false;
+          await this.loadCocineros();
+          
+          // Actualizar cocinero seleccionado si aplica
+          if (this.selectedCocinero?._id === this.formConfig.usuarioId) {
+            this.selectedCocinero = this.cocineros.find(c => c._id === this.formConfig.usuarioId);
+          }
+        } else {
+          if (window.GambusinasNotifications) {
+            window.GambusinasNotifications.error('Error al guardar', res?.error || res?.message || 'No se pudo guardar la configuración');
+          }
+        }
+      } catch (error) {
         if (window.GambusinasNotifications) {
-          window.GambusinasNotifications.error('Error al guardar', res?.error || res?.message || 'No se pudo guardar la configuración');
+          window.GambusinasNotifications.networkError(error);
         }
       }
+      
+      this.guardandoConfig = false;
     },
     
     // === MODAL ASIGNAR ROL ===
@@ -2310,19 +2536,29 @@ function cocinerosApp() {
     async confirmarAsignarRol() {
       if (!this.usuarioSeleccionado) return;
       
-      const res = await apiPost(`/cocineros/${this.usuarioSeleccionado._id}/asignar-rol`, {});
+      this.asignandoRol = true;
       
-      if (res && res.success !== false) {
-        if (window.GambusinasNotifications) {
-          window.GambusinasNotifications.success('Rol asignado', `${this.usuarioSeleccionado.nombre} ahora es cocinero`);
+      try {
+        const res = await apiPost(`/cocineros/${this.usuarioSeleccionado._id}/asignar-rol`, {});
+        
+        if (res && res.success !== false) {
+          if (window.GambusinasNotifications) {
+            window.GambusinasNotifications.success('Rol asignado', `${this.usuarioSeleccionado.nombre} ahora es cocinero`);
+          }
+          this.modalAsignarRol = false;
+          await this.cargarDatos();
+        } else {
+          if (window.GambusinasNotifications) {
+            window.GambusinasNotifications.error('Error', res?.error || res?.message || 'No se pudo asignar el rol');
+          }
         }
-        this.modalAsignarRol = false;
-        await this.cargarDatos();
-      } else {
+      } catch (error) {
         if (window.GambusinasNotifications) {
-          window.GambusinasNotifications.error('Error', res?.error || res?.message || 'No se pudo asignar el rol');
+          window.GambusinasNotifications.networkError(error);
         }
       }
+      
+      this.asignandoRol = false;
     },
     
     // === MODAL MÉTRICAS ===
@@ -2456,7 +2692,7 @@ function cocinerosApp() {
         nombre: '',
         descripcion: '',
         color: '#d4af37',
-        icono: 'tools-kitchen',
+        icono: 'chef-hat',
         filtrosPlatos: {
           modoInclusion: false,
           platosPermitidos: [],
@@ -2633,6 +2869,8 @@ function cocinerosApp() {
         }
       }
 
+      this.guardandoZona = true;
+
       // Extraer IDs de las selecciones
       const platosPermitidos = this.platosSeleccionados.map(p => p.id);
       const mesasEspecificas = this.mesasSeleccionadas.map(m => m.mesasId);
@@ -2657,27 +2895,35 @@ function cocinerosApp() {
         activo: this.formZona.activo
       };
 
-      let res;
-      if (this.formZona.id) {
-        res = await apiPut(`/zonas/${this.formZona.id}`, body);
-      } else {
-        res = await apiPost('/zonas', body);
-      }
+      try {
+        let res;
+        if (this.formZona.id) {
+          res = await apiPut(`/zonas/${this.formZona.id}`, body);
+        } else {
+          res = await apiPost('/zonas', body);
+        }
 
-      if (res && res.success !== false) {
-        if (window.GambusinasNotifications) {
-          window.GambusinasNotifications.success(
-            this.formZona.id ? 'Zona actualizada' : 'Zona creada',
-            `La zona "${this.formZona.nombre}" se guardó correctamente`
-          );
+        if (res && res.success !== false) {
+          if (window.GambusinasNotifications) {
+            window.GambusinasNotifications.success(
+              this.formZona.id ? 'Zona actualizada' : 'Zona creada',
+              `La zona "${this.formZona.nombre}" se guardó correctamente`
+            );
+          }
+          this.modalZona = false;
+          await this.cargarZonas();
+        } else {
+          if (window.GambusinasNotifications) {
+            window.GambusinasNotifications.error('Error', res?.error || res?.message || 'No se pudo guardar la zona');
+          }
         }
-        this.modalZona = false;
-        await this.cargarZonas();
-      } else {
+      } catch (error) {
         if (window.GambusinasNotifications) {
-          window.GambusinasNotifications.error('Error', res?.error || res?.message || 'No se pudo guardar la zona');
+          window.GambusinasNotifications.networkError(error);
         }
       }
+      
+      this.guardandoZona = false;
     },
     
     // === FUNCIONES DE SELECCIÓN ===
@@ -2792,13 +3038,20 @@ function cocinerosApp() {
     },
 
     async eliminarZona(zona) {
-      if (!confirm(`¿Estás seguro de eliminar la zona "${zona.nombre}"?`)) return;
+      this.zonaParaEliminar = zona;
+      this.modalConfirmarEliminarZona = true;
+    },
 
-      const res = await apiDelete(`/zonas/${zona._id || zona.id}`);
+    async confirmarEliminarZona() {
+      if (!this.zonaParaEliminar) return;
+
+      const res = await apiDelete(`/zonas/${this.zonaParaEliminar._id || this.zonaParaEliminar.id}`);
       if (res && res.success !== false) {
         if (window.GambusinasNotifications) {
-          window.GambusinasNotifications.success('Zona eliminada', `La zona "${zona.nombre}" fue desactivada`);
+          window.GambusinasNotifications.success('Zona eliminada', `La zona "${this.zonaParaEliminar.nombre}" fue desactivada`);
         }
+        this.modalConfirmarEliminarZona = false;
+        this.zonaParaEliminar = null;
         await this.cargarZonas();
       } else {
         if (window.GambusinasNotifications) {
@@ -2856,6 +3109,43 @@ function cocinerosApp() {
       }
     },
 
+    // Obtener SVG de icono por nombre
+    getIconSvg(nombre, color = '#d4af37') {
+      const iconos = {
+        'chef-hat': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/><line x1="6" y1="17" x2="18" y2="17"/></svg>`,
+        'utensils': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>`,
+        'flame': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.8 2 8.5-2 8.5-2.398 0-4.064-1.14-4.92-2.86a2.5 2.5 0 0 0 2.92-.64Z"/><path d="M12 12a5 5 0 0 0 4-2"/></svg>`,
+        'knife': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v18a2 2 0 0 0 2 2h16"/><path d="M7 2v8a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V2"/></svg>`,
+        'soup': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9Z"/><path d="M7 21h10"/><path d="M19.5 12 22 6"/><path d="M16.25 3c.27.1.8.53.75 1.36-.06.83-.47 1.54-.47 1.84s.24.66.79.62c.55-.04.93-.28 1.18-.65.25-.38.33-.87.2-1.32-.2-.72-.85-1.26-1.6-1.46a3.5 3.5 0 0 0-2.16.17c-.73.32-1.28.92-1.53 1.66-.16.48-.2.99-.11 1.49.1.51.33.98.68 1.36.35.38.81.66 1.31.81"/></svg>`,
+        'beef': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12.5" cy="8.5" r="2.5"/><path d="M12.5 2a6.5 6.5 0 0 0-6.22 4.6c-1.1 3.13-.78 3.9-3.18 6.08A3 3 0 0 0 5 18c4 0 8.4-1.8 11.4-4.3A6.5 6.5 0 0 0 12.5 2Z"/><path d="m18.5 6 2.19 4.5a6.48 6.48 0 0 1 .31 2 6.49 6.49 0 0 1-2.6 5.2C15.4 20.2 11 22 7 22a3 3 0 0 1-1.9-5.32c2.4-2.18 2.08-2.95 3.18-6.08A6.5 6.5 0 0 1 12.5 6"/></svg>`,
+        'fish': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.47-3.44 6-7 6-3.56 0-7.56-2.53-8.5-6Z"/><path d="M18 12v.5"/><path d="M16 17.93a9.77 9.77 0 0 1 0-11.86"/><path d="M7 10.67C7 8 5.58 5.42 2.73 5.02A1 1 0 0 0 2 6v12a1 1 0 0 0 .73.98c2.85-.4 4.27-2.98 4.27-5.68Z"/></svg>`,
+        'salad': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 21h10"/><path d="M12 21a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9Z"/><path d="M11.38 12a2.4 2.4 0 0 1-.4-4.77 2.4 2.4 0 0 1 3.2-2.77 2.4 2.4 0 0 1 3.47-.63 2.4 2.4 0 0 1 3.37 3.37 2.4 2.4 0 0 1-1.1 3.7 2.51 2.51 0 0 1 .03 1.1"/></svg>`,
+        'egg': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c6.23-.05 7.87-5.57 7.5-10-.36-4.34-3.95-9.96-7.5-10-3.55.04-7.14 5.66-7.5 10-.37 4.43 1.27 9.95 7.5 10z"/></svg>`,
+        'coffee': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v2"/><path d="M14 2v2"/><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/><path d="M6 2v2"/></svg>`,
+        'cup-soda': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 2 1 5.23L5 17a4.87 4.87 0 0 0 4 5H15a4.87 4.87 0 0 0 4-5l-1-9.77L19 2"/><path d="M5 2h14"/><path d="M6 7h12"/></svg>`,
+        'wine': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 22h8"/><path d="M12 11v11"/><path d="M12 15a7 7 0 0 0 7-7c0-2-1-3.5-1-5H6c0 1.5-1 3-1 5a7 7 0 0 0 7 7Z"/></svg>`,
+        'ice-cream-bowl': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17c5.19 0 8.5-2.31 8.5-6.5S18.89 4 12 4s-8.5 2.31-8.5 6.5S6.81 17 12 17Z"/><path d="M12 17v5"/><path d="M8 22h8"/></svg>`,
+        'cake': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 16h20v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4Z"/><path d="M2 12h20"/><path d="M12 2a4 4 0 0 0-4 4v6h8V6a4 4 0 0 0-4-4Z"/><path d="M12 2v4"/></svg>`,
+        'cookie': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/><path d="M8.5 8.5v.01"/><path d="M16 15.5v.01"/><path d="M12 12v.01"/><path d="M11 17v.01"/><path d="M7 14v.01"/></svg>`,
+        'pizza': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 11h.01"/><path d="M11 13h.01"/><path d="M16 16h.01"/><path d="m2 16 20 6-6-20A20 20 0 0 0 2 16Z"/><path d="M5.71 17.11a17.04 17.04 0 0 1 11.4-11.4"/></svg>`,
+        'croissant': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 13.5A6.5 6.5 0 0 1 12 7a6.5 6.5 0 0 1 7.5 6.5 6.5 6.5 0 0 1-7.5 6.5 6.5 6.5 0 0 1-7.5-6.5Z"/><path d="M12 7v13"/></svg>`,
+        'rice': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2h18v8a9 9 0 0 1-18 0V2Z"/><path d="M12 2v8"/><path d="M3 10h18"/></svg>`,
+        'citrus': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>`,
+        'apple': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06Z"/><path d="M10 2c1 .5 2 2 2 5"/></svg>`,
+        'carrot': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.27 21.7s9.87-3.5 12.73-6.36a4.5 4.5 0 0 0-6.36-6.37C5.77 11.84 2.27 21.7 2.27 21.7zM8.64 14l-2.05-2.04M15.34 15l-2.46-2.46"/><path d="M22 9s-1.33-2-3.5-2C16.86 7 15 9 15 9s1.33 2 3.5 2S22 9 22 9z"/><path d="M15 2s-2 1.33-2 3.5S15 9 15 9s2-1.33 2-3.5S15 2 15 2z"/></svg>`,
+        'leaf': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>`,
+        'heart': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>`,
+        'star': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
+        'zap': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
+        'snowflake': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="22"/><path d="m20 16-4-4 4-4"/><path d="m4 8 4 4-4 4"/><path d="m16 4-4 4-4-4"/><path d="m8 20 4-4 4 4"/></svg>`,
+        'sun': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>`,
+        'timer': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg>`,
+        'microwave': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="4" rx="2"/><circle cx="14" cy="11" r="2"/><path d="M6 11h.01M6 8h.01M6 14h.01"/></svg>`,
+        'refrigerator': `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2"/><line x1="5" x2="19" y1="10" y2="10"/><line x1="9" x2="9" y1="6" y2="8"/><line x1="9" x2="9" y1="14" y2="16"/></svg>`
+      };
+      return iconos[nombre] || iconos['chef-hat'];
+    },
+
     // Resumen de filtros de zona para mostrar en tabla
     getResumenFiltrosZona(zona) {
       const partes = [];
@@ -2876,6 +3166,45 @@ function cocinerosApp() {
       return this.cocineros.filter(c =>
         c.zonaIds?.includes(zonaId) && c.configKDS?.activo !== false
       ).length;
+    },
+
+    // Obtener nombre del cocinero desde el ranking (busca en cocineros cargados)
+    getNombreCocineroRanking(item) {
+      // Si ya tiene nombre, usarlo
+      if (item.nombre) return item.nombre;
+      
+      // Buscar en la lista de cocineros por usuarioId o _id
+      const cocinero = this.cocineros.find(c => 
+        c._id === item.usuarioId || 
+        c._id === item._id ||
+        c.usuarioId === item.usuarioId
+      );
+      
+      if (cocinero) {
+        return cocinero.nombre || cocinero.name || 'Cocinero';
+      }
+      
+      return 'Cocinero';
+    },
+
+    // Navegar al cocinero desde el ranking
+    irACocineroDesdeRanking(item) {
+      const cocinero = this.cocineros.find(c => 
+        c._id === item.usuarioId || 
+        c._id === item._id ||
+        c.usuarioId === item.usuarioId
+      );
+      
+      if (cocinero) {
+        this.seleccionarCocinero(cocinero);
+        // Scroll a la tabla
+        this.$nextTick(() => {
+          const tabla = document.querySelector('.table-row');
+          if (tabla) {
+            tabla.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        });
+      }
     }
   };
 }
