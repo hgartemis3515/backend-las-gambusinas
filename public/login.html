@@ -59,11 +59,30 @@
       overflow: hidden;
       background: linear-gradient(135deg, #1a1a28 0%, #0f0f17 100%);
     }
+    /* Image Slider Background */
     .login-left-bg {
       position: absolute;
       inset: 0;
-      background: url('/assets/img/cocineros-bg.png') center center / cover no-repeat;
+    }
+    .slider-image {
+      position: absolute;
+      inset: 0;
+      background-position: center center;
+      background-size: cover;
+      background-repeat: no-repeat;
+      opacity: 0;
+      transition: opacity 1.5s ease-in-out;
+    }
+    .slider-image.active {
       opacity: 1;
+    }
+    /* Ken Burns effect for active image */
+    .slider-image.active {
+      animation: kenBurns 8s ease-out forwards;
+    }
+    @keyframes kenBurns {
+      0% { transform: scale(1); }
+      100% { transform: scale(1.05); }
     }
     .login-left-overlay {
       position: absolute;
@@ -568,7 +587,15 @@
 
   <!-- Left Panel - Image with Logo -->
   <div class="login-left">
-    <div class="login-left-bg"></div>
+    <div class="login-left-bg">
+      <div class="slider-image active" style="background-image: url('/assets/img/cocineros-bg.png');"></div>
+      <div class="slider-image" style="background-image: url('/assets/img/steptodown.com382489.jpg');"></div>
+      <div class="slider-image" style="background-image: url('/assets/img/steptodown.com545411.jpg');"></div>
+      <div class="slider-image" style="background-image: url('/assets/img/steptodown.com692175.jpg');"></div>
+      <div class="slider-image" style="background-image: url('/assets/img/steptodown.com822069.jpg');"></div>
+      <div class="slider-image" style="background-image: url('/assets/img/steptodown.com963693.jpg');"></div>
+      <div class="slider-image" style="background-image: url('/assets/img/steptodown.com965318.jpg');"></div>
+    </div>
     <div class="login-left-overlay"></div>
     <img src="/assets/img/logo-lasgambusinas.svg" alt="Las Gambusinas Logo" class="brand-logo-footer">
   </div>
@@ -645,5 +672,29 @@
   </div>
 
   <script src="/dashboard/assets/js/login.js"></script>
+  <script>
+    // Image Slider Animation
+    (function() {
+      const images = document.querySelectorAll('.slider-image');
+      let currentIndex = 0;
+      const interval = 5000; // 5 seconds between transitions
+      
+      function nextImage() {
+        // Remove active class from current image
+        images[currentIndex].classList.remove('active');
+        
+        // Move to next image (loop back to start)
+        currentIndex = (currentIndex + 1) % images.length;
+        
+        // Add active class to new image
+        images[currentIndex].classList.add('active');
+      }
+      
+      // Start the slider
+      if (images.length > 1) {
+        setInterval(nextImage, interval);
+      }
+    })();
+  </script>
 </body>
 </html>
