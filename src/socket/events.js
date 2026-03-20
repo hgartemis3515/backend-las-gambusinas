@@ -2,21 +2,49 @@ const comandaModel = require('../database/models/comanda.model');
 const mesasModel = require('../database/models/mesas.model');
 const moment = require('moment-timezone');
 const logger = require('../utils/logger');
+const { 
+  authenticateCocina, 
+  authenticateMozos, 
+  authenticateAdmin,
+  emitToZona 
+} = require('../middleware/socketAuth');
 
 /**
  * Configuración de eventos Socket.io para namespaces /cocina, /mozos y /admin
- * Con reconexión robusta y backoff exponencial
+ * Con reconexión robusta, backoff exponencial y autenticación JWT
+ * 
+ * @version 7.1
  * @param {Server} io - Instancia principal de Socket.io
  * @param {Namespace} cocinaNamespace - Namespace /cocina para app cocina
  * @param {Namespace} mozosNamespace - Namespace /mozos para app mozos
  * @param {Namespace} adminNamespace - Namespace /admin para dashboard admin
  */
 module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
+
+  // ==================== MIDDLEWARE DE AUTENTICACIÓN ====================
+  
+  /**
+   * Aplicar middleware de autenticación a cada namespace
+   * Los sockets no autenticados serán rechazados
+   */
+  cocinaNamespace.use(authenticateCocina);
+  mozosNamespace.use(authenticateMozos);
+  adminNamespace.use(authenticateAdmin);
+  
+  logger.info('Middlewares de autenticación Socket.io configurados', {
+    namespaces: ['/cocina', '/mozos', '/admin']
+  });
+
   // ========== NAMESPACE /COCINA ==========
   cocinaNamespace.on('connection', (socket) => {
-    logger.info('Socket cocina conectado', { socketId: socket.id });
+    logger.info('Socket cocina conectado', { 
+      socketId: socket.id,
+      userId: socket.user?.id,
+      userName: socket.user?.name,
+      rol: socket.user?.rol
+    });
 
-    // Validar namespace (seguridad)
+    // Validar namespace (seguridad adicional)
     if (socket.nsp.name !== '/cocina') {
       logger.warn('Intento de conexión a namespace incorrecto', {
         socketId: socket.id,
@@ -67,6 +95,147 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       const roomName = `cocinero-${cocineroId}`;
       socket.leave(roomName);
       logger.debug('Socket cocina salió de room personal', { socketId: socket.id, cocineroId, roomName });
+    });
+
+    // ==================== ROOMS POR ZONA (v7.1) ====================
+    
+    /**
+     * Unirse a room de zona específica
+     * Permite recibir eventos solo de comandas/platos de esa zona
+     * El cocinero se une automáticamente a sus zonas asignadas
+     */
+    socket.on('join-zona', async (zonaId) => {
+      if (!zonaId) {
+        logger.warn('Intento de join-zona sin zonaId', { socketId: socket.id });
+        return;
+      }
+      
+      // Validar que el usuario tiene acceso a esta zona
+      // (El cocinero debe tener la zona asignada o ser admin/supervisor)
+      const user = socket.user;
+      const isAdmin = ['admin', 'supervisor'].includes(user?.rol);
+      
+      // Si no es admin, verificar que la zona esté asignada
+      if (!isAdmin) {
+        try {
+          const Mozos = require('../database/models/mozos.model');
+          const cocinero = await Mozos.findById(user.id).select('zonaIds').lean();
+          
+          if (!cocinero || !cocinero.zonaIds?.some(z => z.toString() === zonaId)) {
+            logger.warn('Intento de join-zona sin permisos', { 
+              socketId: socket.id, 
+              zonaId, 
+              userId: user.id 
+            });
+            socket.emit('zona-error', { 
+              zonaId, 
+              error: 'No tiene acceso a esta zona' 
+            });
+            return;
+          }
+        } catch (error) {
+          logger.error('Error al validar zona del cocinero', { error: error.message });
+          return;
+        }
+      }
+      
+      const roomName = `zona-${zonaId}`;
+      socket.join(roomName);
+      
+      logger.info('Socket cocina se unió a room de zona', { 
+        socketId: socket.id, 
+        zonaId, 
+        roomName,
+        userId: user?.id 
+      });
+      
+      // Confirmar join
+      socket.emit('joined-zona', { zonaId, roomName });
+    });
+
+    /**
+     * Salir de room de zona
+     */
+    socket.on('leave-zona', (zonaId) => {
+      if (!zonaId) {
+        logger.warn('Intento de leave-zona sin zonaId', { socketId: socket.id });
+        return;
+      }
+      
+      const roomName = `zona-${zonaId}`;
+      socket.leave(roomName);
+      
+      logger.debug('Socket cocina salió de room de zona', { 
+        socketId: socket.id, 
+        zonaId, 
+        roomName 
+      });
+    });
+
+    /**
+     * Unirse a todas las zonas asignadas al cocinero
+     * Endpoint de conveniencia para no tener que hacer múltiples join-zona
+     */
+    socket.on('join-mis-zonas', async () => {
+      try {
+        const user = socket.user;
+        
+        if (!user?.id) {
+          logger.warn('join-mis-zonas sin usuario autenticado');
+          return;
+        }
+        
+        // Admins y supervisores se unen a todas las zonas
+        if (['admin', 'supervisor'].includes(user.rol)) {
+          const Zona = require('../database/models/zona.model');
+          const zonas = await Zona.find({ activo: { $ne: false } }).select('_id').lean();
+          
+          zonas.forEach(z => {
+            const roomName = `zona-${z._id}`;
+            socket.join(roomName);
+          });
+          
+          logger.info('Admin/supervisor se unió a todas las zonas', { 
+            socketId: socket.id, 
+            userId: user.id,
+            zonasCount: zonas.length 
+          });
+          
+          socket.emit('joined-mis-zonas', { 
+            zonas: zonas.map(z => z._id),
+            todas: true 
+          });
+          return;
+        }
+        
+        // Cocineros: unirse solo a sus zonas asignadas
+        const Mozos = require('../database/models/mozos.model');
+        const cocinero = await Mozos.findById(user.id).select('zonaIds').lean();
+        
+        if (!cocinero || !cocinero.zonaIds?.length) {
+          logger.info('Cocinero sin zonas asignadas', { userId: user.id });
+          socket.emit('joined-mis-zonas', { zonas: [] });
+          return;
+        }
+        
+        // Unirse a cada zona
+        const zonaIds = cocinero.zonaIds.map(z => z.toString());
+        zonaIds.forEach(zonaId => {
+          const roomName = `zona-${zonaId}`;
+          socket.join(roomName);
+        });
+        
+        logger.info('Cocinero se unió a sus zonas', { 
+          socketId: socket.id, 
+          userId: user.id,
+          zonas: zonaIds 
+        });
+        
+        socket.emit('joined-mis-zonas', { zonas: zonaIds });
+        
+      } catch (error) {
+        logger.error('Error en join-mis-zonas', { error: error.message });
+      }
     });
 
     // Heartbeat para detectar desconexión
@@ -1481,6 +1650,131 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       logger.info('Evento comanda-liberada emitido', { comandaId, cocineroId });
     } catch (error) {
       logger.error('Error al emitir comanda-liberada', { error: error.message });
+    }
+  };
+
+  // ========== FUNCIONES HELPER PARA EMITIR A ZONAS (v7.1) ==========
+
+  /**
+   * Emitir evento de nueva comanda a una zona específica
+   * @param {String} zonaId - ID de la zona
+   * @param {Object} comanda - Comanda completa
+   */
+  global.emitNuevaComandaToZona = async (zonaId, comanda) => {
+    try {
+      if (!zonaId || !comanda) {
+        logger.warn('emitNuevaComandaToZona: parámetros inválidos');
+        return;
+      }
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+      const roomName = `zona-${zonaId}`;
+
+      const eventData = {
+        comanda,
+        zonaId,
+        socketId: 'server',
+        timestamp
+      };
+
+      cocinaNamespace.to(roomName).emit('nueva-comanda-zona', eventData);
+
+      const clientsInRoom = cocinaNamespace.adapter.rooms.get(roomName)?.size || 0;
+      logger.info('Evento nueva-comanda-zona emitido', {
+        zonaId,
+        comandaNumber: comanda.comandaNumber,
+        roomName,
+        clientsInRoom
+      });
+    } catch (error) {
+      logger.error('Error al emitir nueva-comanda-zona', { error: error.message });
+    }
+  };
+
+  /**
+   * Emitir evento de conflicto de procesamiento
+   * Cuando un cocinero intenta tomar un plato que otro ya está procesando
+   */
+  global.emitConflictoProcesamiento = async (comandaId, platoId, cocineroActual, cocineroIntentando) => {
+    try {
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      // Emitir al cocinero que intentó tomar el plato
+      const roomName = `cocinero-${cocineroIntentando.cocineroId || cocineroIntentando}`;
+      
+      const eventData = {
+        comandaId: comandaId?.toString(),
+        platoId: platoId?.toString(),
+        procesadoPor: cocineroActual,
+        timestamp,
+        mensaje: `Este plato ya está siendo procesado por ${cocineroActual.nombre || 'otro cocinero'}`
+      };
+
+      cocinaNamespace.to(roomName).emit('conflicto-procesamiento', eventData);
+
+      logger.info('Evento conflicto-procesamiento emitido', {
+        comandaId,
+        platoId,
+        cocineroActual: cocineroActual.cocineroId,
+        cocineroIntentando: cocineroIntentando.cocineroId || cocineroIntentando
+      });
+    } catch (error) {
+      logger.error('Error al emitir conflicto-procesamiento', { error: error.message });
+    }
+  };
+
+  /**
+   * Emitir evento de liberación automática por desconexión
+   * Cuando un cocinero se desconecta, se liberan sus platos automáticamente
+   */
+  global.emitLiberacionAutomatica = async (cocineroId, platosLiberados) => {
+    try {
+      const timestamp = moment().tz('America/Lima').toISOString();
+      const fecha = moment().tz('America/Lima').format('YYYY-MM-DD');
+      const roomName = `fecha-${fecha}`;
+
+      const eventData = {
+        cocineroId: cocineroId?.toString(),
+        platosLiberados: platosLiberados || [],
+        timestamp,
+        motivo: 'desconexión'
+      };
+
+      cocinaNamespace.to(roomName).emit('liberacion-automatica', eventData);
+
+      logger.info('Evento liberacion-automatica emitido', {
+        cocineroId,
+        platosCount: platosLiberados?.length || 0
+      });
+    } catch (error) {
+      logger.error('Error al emitir liberacion-automatica', { error: error.message });
+    }
+  };
+
+  /**
+   * Obtener zonas activas de un cocinero
+   * Helper para el frontend
+   */
+  global.getZonasCocinero = async (cocineroId) => {
+    try {
+      const Mozos = require('../database/models/mozos.model');
+      const Zona = require('../database/models/zona.model');
+
+      const cocinero = await Mozos.findById(cocineroId).select('zonaIds').lean();
+      
+      if (!cocinero || !cocinero.zonaIds?.length) {
+        return [];
+      }
+
+      const zonas = await Zona.find({
+        _id: { $in: cocinero.zonaIds },
+        activo: { $ne: false }
+      }).select('nombre descripcion color icono').lean();
+
+      return zonas;
+    } catch (error) {
+      logger.error('Error al obtener zonas del cocinero', { error: error.message });
+      return [];
     }
   };
 };
