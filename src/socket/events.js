@@ -41,6 +41,34 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       socket.emit('joined-fecha', { fecha, roomName });
     });
 
+    // 🔥 TEMA 1: Unirse a room personal del cocinero para recibir actualizaciones de configuración
+    // Esto permite emitir eventos específicos a cada cocinero sin broadcast a todos
+    socket.on('join-cocinero', async (cocineroId) => {
+      if (!cocineroId) {
+        logger.warn('Intento de join-cocinero sin cocineroId', { socketId: socket.id });
+        return;
+      }
+      
+      const roomName = `cocinero-${cocineroId}`;
+      socket.join(roomName);
+      logger.debug('Socket cocina se unió a room personal', { socketId: socket.id, cocineroId, roomName });
+      
+      // Confirmar join
+      socket.emit('joined-cocinero', { cocineroId, roomName });
+    });
+
+    // Salir de room personal del cocinero
+    socket.on('leave-cocinero', (cocineroId) => {
+      if (!cocineroId) {
+        logger.warn('Intento de leave-cocinero sin cocineroId', { socketId: socket.id });
+        return;
+      }
+      
+      const roomName = `cocinero-${cocineroId}`;
+      socket.leave(roomName);
+      logger.debug('Socket cocina salió de room personal', { socketId: socket.id, cocineroId, roomName });
+    });
+
     // Heartbeat para detectar desconexión
     socket.on('heartbeat', () => {
       socket.emit('heartbeat-ack');
@@ -1285,6 +1313,10 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
    * Emitir evento de configuración de cocinero actualizada
    * Se emite cuando un admin cambia la configuración KDS de un cocinero
    * Si el cocinero está conectado, recibirá la actualización en tiempo real
+   * 
+   * TEMA 1: Ahora emite a la room específica del cocinero (cocinero-<id>)
+   * para garantizar que solo el cocinero afectado reciba su configuración
+   * 
    * @param {String} cocineroId - ID del usuario/cocinero
    * @param {Object} cambios - Campos actualizados
    */
@@ -1307,28 +1339,148 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         });
       }
 
-      // Emitir al namespace cocina para que el KDS del cocinero se actualice
-      // El cocinero debe estar escuchando este evento con su ID
-      if (cocinaNamespace && cocinaNamespace.sockets) {
-        cocinaNamespace.emit('config-cocinero-actualizada', eventData);
-        logger.debug('Evento config-cocinero-actualizada emitido a cocina', {
+      // TEMA 1: Emitir a la room específica del cocinero en el namespace cocina
+      // Esto garantiza que solo el cocinero afectado reciba su configuración
+      if (cocinaNamespace && cocinaNamespace.sockets && cocineroId) {
+        const roomName = `cocinero-${cocineroId}`;
+        const clientsInRoom = cocinaNamespace.adapter.rooms.get(roomName)?.size || 0;
+        
+        cocinaNamespace.to(roomName).emit('config-cocinero-actualizada', eventData);
+        
+        logger.info('Evento config-cocinero-actualizada emitido a room específica', {
           cocineroId,
-          cocinaConnected: cocinaNamespace.sockets.size
+          roomName,
+          clientsInRoom,
+          camposActualizados: Object.keys(cambios),
+          timestamp
         });
       }
-
-      logger.info('Evento config-cocinero-actualizada emitido', {
-        cocineroId,
-        camposActualizados: Object.keys(cambios),
-        adminConnected: adminNamespace?.sockets?.size || 0,
-        cocinaConnected: cocinaNamespace?.sockets?.size || 0
-      });
     } catch (error) {
       logger.error('Error al emitir config-cocinero-actualizada', {
         error: error.message,
         stack: error.stack,
         cocineroId
       });
+    }
+  };
+
+  // ========== TEMA 4: EVENTOS DE PROCESAMIENTO CON IDENTIFICACIÓN DE COCINERO ==========
+
+  /**
+   * Emitir evento cuando un cocinero toma un plato
+   * @param {String} comandaId - ID de la comanda
+   * @param {String} platoId - ID del plato
+   * @param {Object} cocinero - Info del cocinero { cocineroId, nombre, alias }
+   */
+  global.emitPlatoProcesando = async (comandaId, platoId, cocinero) => {
+    try {
+      const timestamp = moment().tz('America/Lima').toISOString();
+      const fecha = moment().tz('America/Lima').format('YYYY-MM-DD');
+      const roomName = `fecha-${fecha}`;
+
+      const eventData = {
+        comandaId: comandaId?.toString(),
+        platoId: platoId?.toString(),
+        cocinero,
+        timestamp
+      };
+
+      cocinaNamespace.to(roomName).emit('plato-procesando', eventData);
+
+      logger.info('Evento plato-procesando emitido', {
+        comandaId,
+        platoId,
+        cocineroId: cocinero?.cocineroId,
+        roomName
+      });
+    } catch (error) {
+      logger.error('Error al emitir plato-procesando', {
+        error: error.message,
+        comandaId,
+        platoId
+      });
+    }
+  };
+
+  /**
+   * Emitir evento cuando un cocinero libera un plato
+   */
+  global.emitPlatoLiberado = async (comandaId, platoId, cocineroId) => {
+    try {
+      const timestamp = moment().tz('America/Lima').toISOString();
+      const fecha = moment().tz('America/Lima').format('YYYY-MM-DD');
+      const roomName = `fecha-${fecha}`;
+
+      const eventData = {
+        comandaId: comandaId?.toString(),
+        platoId: platoId?.toString(),
+        cocineroId: cocineroId?.toString(),
+        timestamp
+      };
+
+      cocinaNamespace.to(roomName).emit('plato-liberado', eventData);
+
+      logger.info('Evento plato-liberado emitido', { comandaId, platoId, cocineroId });
+    } catch (error) {
+      logger.error('Error al emitir plato-liberado', { error: error.message });
+    }
+  };
+
+  /**
+   * Emitir evento cuando un cocinero toma una comanda completa
+   */
+  global.emitComandaProcesando = async (comandaId, cocinero) => {
+    try {
+      const comanda = await comandaModel.findById(comandaId);
+      if (!comanda) return;
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+      const fecha = moment(comanda.createdAt).tz('America/Lima').format('YYYY-MM-DD');
+      const roomName = `fecha-${fecha}`;
+
+      const eventData = {
+        comandaId: comandaId?.toString(),
+        comandaNumber: comanda.comandaNumber,
+        cocinero,
+        timestamp
+      };
+
+      cocinaNamespace.to(roomName).emit('comanda-procesando', eventData);
+
+      logger.info('Evento comanda-procesando emitido', {
+        comandaId,
+        comandaNumber: comanda.comandaNumber,
+        cocineroId: cocinero?.cocineroId
+      });
+    } catch (error) {
+      logger.error('Error al emitir comanda-procesando', { error: error.message });
+    }
+  };
+
+  /**
+   * Emitir evento cuando un cocinero libera una comanda
+   */
+  global.emitComandaLiberada = async (comandaId, cocineroId) => {
+    try {
+      const comanda = await comandaModel.findById(comandaId);
+      if (!comanda) return;
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+      const fecha = moment(comanda.createdAt).tz('America/Lima').format('YYYY-MM-DD');
+      const roomName = `fecha-${fecha}`;
+
+      const eventData = {
+        comandaId: comandaId?.toString(),
+        comandaNumber: comanda.comandaNumber,
+        cocineroId: cocineroId?.toString(),
+        timestamp
+      };
+
+      cocinaNamespace.to(roomName).emit('comanda-liberada', eventData);
+
+      logger.info('Evento comanda-liberada emitido', { comandaId, cocineroId });
+    } catch (error) {
+      logger.error('Error al emitir comanda-liberada', { error: error.message });
     }
   };
 };

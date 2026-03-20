@@ -111,6 +111,29 @@ const comandaSchema = new mongoose.Schema({
             type: String, 
             enum: ['producto_roto', 'insumo_agotado', 'error_preparacion', 'cliente_cancelo', 'otro', null],
             default: null
+        },
+        // ========== TEMA 4: PROCESAMIENTO CON IDENTIFICACIÓN DE COCINERO ==========
+        // Indica qué cocinero está actualmente preparando este plato
+        procesandoPor: {
+            cocineroId: { 
+                type: mongoose.Schema.Types.ObjectId, 
+                ref: 'mozos',
+                default: null 
+            },
+            nombre: { type: String, default: null },      // Nombre completo
+            alias: { type: String, default: null },       // Alias del cocinero
+            timestamp: { type: Date, default: null }      // Cuándo tomó el plato
+        },
+        // Indica qué cocinero terminó de preparar este plato
+        procesadoPor: {
+            cocineroId: { 
+                type: mongoose.Schema.Types.ObjectId, 
+                ref: 'mozos',
+                default: null 
+            },
+            nombre: { type: String, default: null },
+            alias: { type: String, default: null },
+            timestamp: { type: Date, default: null }
         }
     }],
     cantidades: {
@@ -272,6 +295,29 @@ const comandaSchema = new mongoose.Schema({
         type: Number,
         default: 0,
         index: true
+    },
+    // ========== TEMA 4: PROCESAMIENTO CON IDENTIFICACIÓN DE COCINERO (NIVEL COMANDA) ==========
+    // Indica qué cocinero está procesando TODA la comanda (cuando se toma completa)
+    procesandoPor: {
+        cocineroId: { 
+            type: mongoose.Schema.Types.ObjectId, 
+            ref: 'mozos',
+            default: null 
+        },
+        nombre: { type: String, default: null },
+        alias: { type: String, default: null },
+        timestamp: { type: Date, default: null }
+    },
+    // Indica qué cocinero completó TODA la comanda
+    procesadoPor: {
+        cocineroId: { 
+            type: mongoose.Schema.Types.ObjectId, 
+            ref: 'mozos',
+            default: null 
+        },
+        nombre: { type: String, default: null },
+        alias: { type: String, default: null },
+        timestamp: { type: Date, default: null }
     },
     // ========== DESCUENTOS: Campos para gestión de descuentos (solo admin/supervisor) ==========
     descuento: {

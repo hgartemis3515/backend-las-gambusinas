@@ -465,6 +465,15 @@ router.put('/cocineros/:id/zonas', adminAuth, checkPermission('editar-mozos'), a
             actualizadoPor: req.admin.id
         });
         
+        // TEMA 1: Emitir evento Socket.io para actualizar el KDS del cocinero en tiempo real
+        // Esto permite que el cocinero vea los cambios de zonas sin recargar
+        if (global.emitConfigCocineroActualizada) {
+            global.emitConfigCocineroActualizada(id, { 
+                zonasAsignadas: zonaIds,
+                tipoCambio: 'zonas'
+            });
+        }
+        
         res.json({
             success: true,
             message: 'Zonas asignadas correctamente',
