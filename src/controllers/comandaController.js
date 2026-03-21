@@ -1452,7 +1452,7 @@ router.put('/comanda/:id/prioridad', async (req, res) => {
 
 router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
     const { id, platoId } = req.params;
-    const { nuevoEstado, motivo } = req.body;
+    const { nuevoEstado, motivo, cocineroId } = req.body;
     const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
 
     // Validar que nuevoEstado sea válido
@@ -1495,6 +1495,26 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
         }
         
         const estadoAnterior = platoAntes.estado || 'en_espera';
+
+        // v7.2: VALIDACION MULTI-COCINERO
+        // Si el plato esta siendo procesado por un cocinero, validar que sea el mismo quien finaliza
+        if (nuevoEstado === 'recoger' && platoAntes.procesandoPor?.cocineroId) {
+            const cocineroQueTomo = platoAntes.procesandoPor.cocineroId.toString();
+            const cocineroQueFinaliza = (cocineroId || usuarioId)?.toString();
+            
+            if (cocineroQueFinaliza && cocineroQueTomo !== cocineroQueFinaliza) {
+                console.warn(`⚠️ [PUT /plato/:platoId/estado] Conflicto: Plato tomado por ${cocineroQueTomo}, intenta finalizar ${cocineroQueFinaliza}`);
+                return res.status(403).json({
+                    success: false,
+                    error: 'Solo el cocinero que tomó el plato puede finalizarlo',
+                    tomadoPor: {
+                        cocineroId: cocineroQueTomo,
+                        nombre: platoAntes.procesandoPor.nombre,
+                        alias: platoAntes.procesandoPor.alias
+                    }
+                });
+            }
+        }
 
         const updatedComanda = await cambiarEstadoPlato(id, platoId, nuevoEstado);
         
