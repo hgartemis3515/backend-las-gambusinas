@@ -11,7 +11,7 @@ const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
 
 // Configuración
-const JWT_SECRET = process.env.JWT_SECRET || 'las-gambusinas-secret-key-2024';
+const JWT_SECRET = process.env.JWT_SECRET || 'las-gambusinas-admin-secret-key-2024';
 const JWT_EXPIRY_MARGIN_MS = 5 * 60 * 1000; // 5 minutos antes de expirar
 
 /**
