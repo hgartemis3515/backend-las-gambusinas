@@ -57,6 +57,8 @@ const PROYECCION_COCINA = {
     'platos.eliminadoRazon': 1,
     'platos.anuladoPor': 1,
     'platos.anuladoRazon': 1,
+    'platos.procesandoPor': 1,  // 🔥 v7.2: Info del cocinero que está preparando el plato
+    'platos.procesadoPor': 1,   // 🔥 v7.2: Info del cocinero que terminó el plato
     'platos.plato': 1,  // Se popula solo con nombre y precio
     // Auditoría mínima
     historialPlatos: 1
