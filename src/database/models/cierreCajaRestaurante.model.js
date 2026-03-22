@@ -136,6 +136,43 @@ const cierreCajaRestauranteSchema = new mongoose.Schema({
     }]
   },
   
+  // Bloque 6.5: Rendimiento de Cocineros
+  cocineros: {
+    totalCocineros: { type: Number, default: 0 },
+    cocinerosActivos: { type: Number, default: 0 },
+    totalPlatosPreparados: { type: Number, default: 0 },
+    tiempoPromedioPreparacion: { type: Number, default: 0 }, // en minutos
+    porcentajeDentroSLA: { type: Number, default: 0 }, // % de platos dentro del tiempo límite
+    desempeñoPorCocinero: [{
+      cocineroId: { type: mongoose.Schema.Types.ObjectId, ref: 'Cocinero' },
+      nombre: String,
+      alias: String,
+      totalPlatos: { type: Number, default: 0 },
+      totalTickets: { type: Number, default: 0 },
+      tiempoPromedioPlato: { type: Number, default: 0 }, // en minutos
+      platosHora: { type: Number, default: 0 },
+      porcentajeSLA: { type: Number, default: 0 }, // % cumplimiento de tiempo
+      participacion: { type: Number, default: 0 }, // % del total de platos
+      score: { type: Number, default: 0 } // Puntuación combinada
+    }],
+    rankingCocineros: [{
+      cocineroId: { type: mongoose.Schema.Types.ObjectId, ref: 'Cocinero' },
+      nombre: String,
+      alias: String,
+      posicion: Number,
+      score: Number
+    }],
+    platosPorCategoria: [{
+      categoria: String,
+      cantidadPreparada: Number,
+      tiempoPromedio: Number
+    }],
+    horasPicoCocina: [{
+      hora: Number,
+      cantidadPlatos: Number
+    }]
+  },
+  
   // Bloque 7: Auditoría de cambios y operaciones
   auditoria: {
     comandasCanceladas: [{
@@ -214,7 +251,24 @@ const cierreCajaRestauranteSchema = new mongoose.Schema({
     ocupacionAreas: [{
       area: String,
       cantidad: Number
-    }]
+    }],
+    cocinerosRanking: [{
+      nombre: String,
+      alias: String,
+      totalPlatos: Number,
+      tiempoPromedio: Number,
+      porcentajeSLA: Number,
+      score: Number
+    }],
+    platosPorCocinero: [{
+      nombre: String,
+      cantidad: Number
+    }],
+    cumplimientoSLA: {
+      dentroSLA: Number,
+      fueraSLA: Number,
+      porcentajeGeneral: Number
+    }
   }
 }, {
   timestamps: true

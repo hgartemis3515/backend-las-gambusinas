@@ -7,6 +7,9 @@ const Mozo = require('../database/models/mozos.model');
 const Mesa = require('../database/models/mesas.model');
 const Cliente = require('../database/models/cliente.model');
 const AuditoriaAcciones = require('../database/models/auditoriaAcciones.model');
+const Boucher = require('../database/models/boucher.model');
+const ConfigCocinero = require('../database/models/configCocinero.model');
+const reportesRepository = require('../repository/reportes.repository');
 const moment = require('moment-timezone');
 const logger = require('../utils/logger');
 
@@ -75,6 +78,9 @@ router.post('/cierre-caja', async (req, res) => {
     // Paso 8: Analizar uso de mesas
     const mesas = await analizarMesas(comandas);
     
+    // Paso 8.5: Analizar desempeño de cocineros
+    const cocineros = await analizarCocineros(comandas, periodoInicio, periodoFin);
+    
     // Paso 9: Procesar información de clientes
     const clientes = analizarClientes(comandas);
     
@@ -92,6 +98,7 @@ router.post('/cierre-caja', async (req, res) => {
       productos,
       mozos,
       mesas,
+      cocineros,
       clientes,
       auditoria,
       informacionOperativa: {
@@ -107,7 +114,7 @@ router.post('/cierre-caja', async (req, res) => {
         notasAdmin: req.body.notasAdmin || ''
       },
       estado: 'completado',
-      datosGraficos: generarDatosGraficos(resumenFinanciero, productos, mozos, mesas)
+      datosGraficos: generarDatosGraficos(resumenFinanciero, productos, mozos, mesas, cocineros)
     });
     
     // Paso 12: Guardar cierre en base de datos
@@ -565,6 +572,140 @@ async function analizarMesas(comandas) {
   };
 }
 
+async function analizarCocineros(comandas, periodoInicio, periodoFin) {
+  try {
+    // Usar el repositorio de reportes que tiene la lógica correcta
+    // basada en platos.tiempos y platos.procesadoPor de las comandas
+    const fechaInicioStr = moment(periodoInicio).tz('America/Lima').format('YYYY-MM-DD');
+    const fechaFinStr = moment(periodoFin).tz('America/Lima').format('YYYY-MM-DD');
+    
+    logger.info('[CierreCaja] Obteniendo métricas de cocineros desde reportes', {
+      fechaInicio: fechaInicioStr,
+      fechaFin: fechaFinStr
+    });
+    
+    // Obtener métricas usando el repositorio de reportes (usa aggregation de Comanda)
+    const metricas = await reportesRepository.getMetricasCocineros(fechaInicioStr, fechaFinStr);
+    
+    const cocinerosData = metricas.cocineros || [];
+    const resumen = metricas.resumen || {};
+    
+    // Calcular horas pico de cocina
+    const horasPicoCocina = await calcularHorasPicoCocina(periodoInicio, periodoFin);
+    
+    // Formatear desempeñoPorCocinero con la estructura esperada por el modelo
+    const desempeñoPorCocinero = cocinerosData.map(coc => ({
+      cocineroId: coc._id,
+      nombre: coc.nombre || 'Sin nombre',
+      alias: coc.alias || coc.nombre || 'Cocinero',
+      totalPlatos: coc.totalPlatos || 0,
+      totalTickets: coc.totalTickets || 0,
+      tiempoPromedioPlato: coc.tiempoPromedioPlato || 0,
+      platosHora: coc.platosHora || 0,
+      porcentajeSLA: coc.porcentajeSLA || 0,
+      participacion: coc.participacion || 0,
+      score: coc.score || 0,
+      sinActividad: coc.sinActividad || false
+    }));
+    
+    // Crear ranking
+    const rankingCocineros = desempeñoPorCocinero
+      .filter(c => c.totalPlatos > 0)
+      .sort((a, b) => b.totalPlatos - a.totalPlatos)
+      .map((c, index) => ({
+        cocineroId: c.cocineroId,
+        nombre: c.nombre,
+        alias: c.alias,
+        posicion: index + 1,
+        score: c.score
+      }));
+    
+    // Obtener distribución por categoría
+    const distribucion = await reportesRepository.getDistribucionCategorias(fechaInicioStr, fechaFinStr);
+    const platosPorCategoria = (distribucion.general || []).map(d => ({
+      categoria: d.categoria || d._id || 'Sin categoría',
+      cantidadPreparada: d.cantidad || 0,
+      tiempoPromedio: d.tiempoPromedio || 0
+    }));
+    
+    return {
+      totalCocineros: cocinerosData.length,
+      cocinerosActivos: resumen.cocinerosActivos || cocinerosData.filter(c => c.totalPlatos > 0).length,
+      totalPlatosPreparados: resumen.totalPlatos || 0,
+      tiempoPromedioPreparacion: resumen.tiempoPromedioGeneral || 0,
+      porcentajeDentroSLA: resumen.porcentajeDentroSLA || 0,
+      desempeñoPorCocinero,
+      rankingCocineros,
+      platosPorCategoria,
+      horasPicoCocina
+    };
+    
+  } catch (error) {
+    logger.error('[CierreCaja] Error en analizarCocineros', { 
+      error: error.message, 
+      stack: error.stack 
+    });
+    
+    // Retornar estructura vacía en caso de error
+    return {
+      totalCocineros: 0,
+      cocinerosActivos: 0,
+      totalPlatosPreparados: 0,
+      tiempoPromedioPreparacion: 0,
+      porcentajeDentroSLA: 0,
+      desempeñoPorCocinero: [],
+      rankingCocineros: [],
+      platosPorCategoria: [],
+      horasPicoCocina: []
+    };
+  }
+}
+
+/**
+ * Calcula las horas pico de cocina basándose en los tiempos de finalización de platos
+ */
+async function calcularHorasPicoCocina(periodoInicio, periodoFin) {
+  try {
+    const pipeline = [
+      {
+        $match: {
+          IsActive: true,
+          createdAt: { $gte: periodoInicio, $lte: periodoFin }
+        }
+      },
+      { $unwind: '$platos' },
+      {
+        $match: {
+          'platos.eliminado': { $ne: true },
+          'platos.anulado': { $ne: true },
+          'platos.tiempos.recoger': { $exists: true, $ne: null }
+        }
+      },
+      {
+        $group: {
+          _id: { $hour: '$platos.tiempos.recoger' },
+          cantidadPlatos: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          hora: '$_id',
+          cantidadPlatos: 1,
+          _id: 0
+        }
+      },
+      { $sort: { hora: 1 } }
+    ];
+    
+    const resultados = await Comanda.aggregate(pipeline);
+    return resultados;
+    
+  } catch (error) {
+    logger.error('[CierreCaja] Error en calcularHorasPicoCocina', { error: error.message });
+    return [];
+  }
+}
+
 function analizarClientes(comandas) {
   const clientesSet = new Set();
   const clientesMap = new Map();
@@ -664,7 +805,7 @@ async function recopilarAuditoria(periodoInicio, periodoFin, comandas) {
   };
 }
 
-function generarDatosGraficos(resumenFinanciero, productos, mozos, mesas) {
+function generarDatosGraficos(resumenFinanciero, productos, mozos, mesas, cocineros) {
   return {
     ventasPorDia: resumenFinanciero.ventasPorDia.map(d => ({
       fecha: moment(d.fecha).format('YYYY-MM-DD'),
@@ -690,7 +831,32 @@ function generarDatosGraficos(resumenFinanciero, productos, mozos, mesas) {
     ocupacionAreas: Object.entries(mesas.ocupacionPorArea).map(([area, cantidad]) => ({
       area,
       cantidad
-    }))
+    })),
+    cocinerosRanking: (cocineros?.desempeñoPorCocinero || [])
+      .slice(0, 10)
+      .map(c => ({
+        nombre: c.nombre,
+        alias: c.alias,
+        totalPlatos: c.totalPlatos,
+        tiempoPromedio: c.tiempoPromedioPlato,
+        porcentajeSLA: c.porcentajeSLA,
+        score: c.score
+      })),
+    platosPorCocinero: (cocineros?.desempeñoPorCocinero || [])
+      .slice(0, 8)
+      .map(c => ({
+        nombre: c.alias || c.nombre,
+        cantidad: c.totalPlatos
+      })),
+    cumplimientoSLA: {
+      dentroSLA: cocineros?.totalPlatosPreparados 
+        ? Math.round(cocineros.totalPlatosPreparados * (cocineros.porcentajeDentroSLA / 100)) 
+        : 0,
+      fueraSLA: cocineros?.totalPlatosPreparados 
+        ? Math.round(cocineros.totalPlatosPreparados * (1 - cocineros.porcentajeDentroSLA / 100)) 
+        : 0,
+      porcentajeGeneral: cocineros?.porcentajeDentroSLA || 0
+    }
   };
 }
 
@@ -769,6 +935,23 @@ router.get('/cierre-caja/:id/exportar-pdf', async (req, res) => {
       mozos.desempeñoPorMozo.forEach((m, index) => {
         doc.fontSize(11);
         doc.text(`${m.nombre}: ${m.comandasAtendidas} comandas - S/. ${m.montoTotalVendido.toFixed(2)}`);
+      });
+      doc.moveDown();
+    }
+    
+    // Rendimiento de Cocineros
+    const cocineros = cierre.cocineros || {};
+    if (cocineros.desempeñoPorCocinero && cocineros.desempeñoPorCocinero.length > 0) {
+      doc.fontSize(16).text('RENDIMIENTO DE COCINEROS', { underline: true });
+      doc.moveDown(0.5);
+      doc.fontSize(12);
+      doc.text(`Total Platos: ${cocineros.totalPlatosPreparados || 0}`);
+      doc.text(`Tiempo Promedio: ${cocineros.tiempoPromedioPreparacion || 0} min`);
+      doc.text(`% Dentro SLA: ${cocineros.porcentajeDentroSLA || 0}%`);
+      doc.moveDown(0.5);
+      doc.fontSize(11);
+      cocineros.desempeñoPorCocinero.slice(0, 10).forEach((c, index) => {
+        doc.text(`${index + 1}. ${c.alias || c.nombre}: ${c.totalPlatos} platos - ${c.tiempoPromedioPlato}min prom - SLA ${c.porcentajeSLA}%`);
       });
       doc.moveDown();
     }
@@ -894,6 +1077,35 @@ router.get('/cierre-caja/:id/exportar-excel', async (req, res) => {
       });
       const mozosSheet = XLSX.utils.aoa_to_sheet(mozosData);
       XLSX.utils.book_append_sheet(workbook, mozosSheet, 'Mozos');
+    }
+    
+    // Hoja 3.5: Cocineros
+    const cocineros = cierre.cocineros || {};
+    if (cocineros.desempeñoPorCocinero && cocineros.desempeñoPorCocinero.length > 0) {
+      const cocinerosData = [
+        ['RENDIMIENTO DE COCINEROS'],
+        ['Total Platos Preparados', cocineros.totalPlatosPreparados || 0],
+        ['Tiempo Promedio (min)', cocineros.tiempoPromedioPreparacion || 0],
+        ['% Dentro SLA', (cocineros.porcentajeDentroSLA || 0) + '%'],
+        ['Cocineros Activos', cocineros.cocinerosActivos || 0],
+        [],
+        ['Cocinero', 'Alias', 'Total Platos', 'Tickets', 'T. Promedio (min)', 'P/Hora', '% SLA', 'Participación %', 'Score']
+      ];
+      cocineros.desempeñoPorCocinero.forEach(c => {
+        cocinerosData.push([
+          c.nombre,
+          c.alias || c.nombre,
+          c.totalPlatos,
+          c.totalTickets,
+          c.tiempoPromedioPlato,
+          c.platosHora,
+          c.porcentajeSLA + '%',
+          c.participacion + '%',
+          c.score
+        ]);
+      });
+      const cocinerosSheet = XLSX.utils.aoa_to_sheet(cocinerosData);
+      XLSX.utils.book_append_sheet(workbook, cocinerosSheet, 'Cocineros');
     }
     
     // Hoja 4: Ventas por Día

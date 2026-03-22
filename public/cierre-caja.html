@@ -465,11 +465,13 @@ function cierreApp() {
       const aud = c.auditoria || {};
       const info = c.informacionOperativa || {};
       const dg = c.datosGraficos || {};
+      const coc = c.cocineros || {};
 
       const tabs = [
         { id: 'resumen', label: 'Resumen', icon: 'M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
         { id: 'productos', label: 'Productos', icon: 'M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z' },
         { id: 'mozos', label: 'Mozos', icon: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z' },
+        { id: 'cocineros', label: 'Cocineros', icon: 'M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z' },
         { id: 'mesas', label: 'Mesas', icon: 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z' },
         { id: 'clientes', label: 'Clientes', icon: 'M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z' },
         { id: 'auditoria', label: 'Auditoría', icon: 'M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z' },
@@ -631,6 +633,87 @@ function cierreApp() {
                 </tbody>
               </table>
             </div>` : '<p class="text-txt-muted text-center py-8 text-sm">Sin datos de mozos</p>'}
+          `; 
+          break;
+
+        case 'cocineros':
+          const coc = c.cocineros || {};
+          const desempenoCoc = coc.desempeñoPorCocinero || [];
+          const rankingCoc = [...desempenoCoc].sort((a, b) => (b.totalPlatos || 0) - (a.totalPlatos || 0));
+          content = `
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Total Platos</p>
+                <p class="text-xl font-bold text-gold">${coc.totalPlatosPreparados || 0}</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Cocineros Activos</p>
+                <p class="text-xl font-bold text-st-pedido">${coc.cocinerosActivos || 0}</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Tiempo Promedio</p>
+                <p class="text-xl font-bold text-st-esperando">${coc.tiempoPromedioPreparacion || 0} min</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">% Dentro SLA</p>
+                <p class="text-xl font-bold ${coc.porcentajeDentroSLA >= 80 ? 'text-st-preparado' : coc.porcentajeDentroSLA >= 60 ? 'text-st-esperando' : 'text-st-pagado'}">${coc.porcentajeDentroSLA || 0}%</p>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+              <div class="bg-bg-sidebar rounded-xl p-4">
+                <p class="text-xs font-semibold text-txt-secondary mb-3">Platos por Cocinero</p>
+                <canvas id="chartCocinerosPlatos" style="max-height: 260px;"></canvas>
+              </div>
+              <div class="bg-bg-sidebar rounded-xl p-4">
+                <p class="text-xs font-semibold text-txt-secondary mb-3">Cumplimiento SLA</p>
+                <canvas id="chartCocinerosSLA" style="max-height: 260px;"></canvas>
+              </div>
+            </div>
+            ${rankingCoc.length > 0 ? `
+            <div class="bg-bg-sidebar rounded-xl overflow-hidden">
+              <table class="w-full text-xs">
+                <thead><tr class="text-txt-muted text-[10px] uppercase tracking-wider">
+                  <th class="text-center px-4 py-2.5 font-semibold w-12">Pos.</th>
+                  <th class="text-left px-4 py-2.5 font-semibold">Cocinero</th>
+                  <th class="text-right px-4 py-2.5 font-semibold">Platos</th>
+                  <th class="text-right px-4 py-2.5 font-semibold">Tickets</th>
+                  <th class="text-right px-4 py-2.5 font-semibold">T. Prom.</th>
+                  <th class="text-right px-4 py-2.5 font-semibold">P/Hora</th>
+                  <th class="text-right px-4 py-2.5 font-semibold">% SLA</th>
+                  <th class="text-right px-4 py-2.5 font-semibold">Part.</th>
+                  <th class="text-center px-4 py-2.5 font-semibold">Score</th>
+                </tr></thead>
+                <tbody>${rankingCoc.map((cocinero, i) => `
+                  <tr class="border-t border-[rgba(212,175,55,0.06)] hist-row">
+                    <td class="px-4 py-2 text-center">
+                      <span x-show="${i === 0}" class="text-lg">🥇</span>
+                      <span x-show="${i === 1}" class="text-lg">🥈</span>
+                      <span x-show="${i === 2}" class="text-lg">🥉</span>
+                      <span x-show="${i > 2}" class="text-txt-muted font-semibold">${i + 1}</span>
+                    </td>
+                    <td class="px-4 py-2">
+                      <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-full bg-gold/20 flex items-center justify-center text-gold text-xs font-bold">${(cocinero.alias || cocinero.nombre || 'C').charAt(0).toUpperCase()}</div>
+                        <span class="font-medium text-white">${cocinero.alias || cocinero.nombre || 'Sin nombre'}</span>
+                      </div>
+                    </td>
+                    <td class="px-4 py-2 text-right text-gold font-semibold">${cocinero.totalPlatos || 0}</td>
+                    <td class="px-4 py-2 text-right">${cocinero.totalTickets || 0}</td>
+                    <td class="px-4 py-2 text-right">
+                      <span class="${(cocinero.tiempoPromedioPlato || 0) <= 12 ? 'text-st-preparado' : (cocinero.tiempoPromedioPlato || 0) <= 18 ? 'text-st-esperando' : 'text-st-pagado'}">${cocinero.tiempoPromedioPlato || 0} min</span>
+                    </td>
+                    <td class="px-4 py-2 text-right text-txt-secondary">${(cocinero.platosHora || 0).toFixed(1)}</td>
+                    <td class="px-4 py-2 text-right">
+                      <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold ${(cocinero.porcentajeSLA || 0) >= 80 ? 'bg-st-preparado/20 text-st-preparado' : (cocinero.porcentajeSLA || 0) >= 60 ? 'bg-st-esperando/20 text-st-esperando' : 'bg-st-pagado/20 text-st-pagado'}">${cocinero.porcentajeSLA || 0}%</span>
+                    </td>
+                    <td class="px-4 py-2 text-right text-txt-secondary">${(cocinero.participacion || 0)}%</td>
+                    <td class="px-4 py-2 text-center">
+                      <span class="text-sm font-bold ${(cocinero.score || 0) >= 100 ? 'text-gold' : (cocinero.score || 0) >= 50 ? 'text-white' : 'text-txt-muted'}">${cocinero.score || 0}</span>
+                    </td>
+                  </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>` : '<p class="text-txt-muted text-center py-8 text-sm">Sin datos de cocineros</p>'}
           `;
           break;
 
@@ -886,6 +969,55 @@ function cierreApp() {
         const el = document.getElementById('chartOcupacionAreas');
         const areas = Object.keys(occ);
         if (el && areas.length) this.chartInstances.push(new Chart(el, { type: 'bar', data: { labels: areas, datasets: [{ label: 'Usos', data: areas.map(a => occ[a]), backgroundColor: 'rgba(52,152,219,0.3)', borderColor: 'rgba(52,152,219,0.8)', borderWidth: 1, borderRadius: 4 }] }, options: chartOpts('bar') }));
+      }
+      if (tab === 'cocineros') {
+        const coc = c.cocineros || {};
+        const desempeno = coc.desempeñoPorCocinero || [];
+        
+        // Gráfico de barras horizontales: Platos por cocinero
+        const el1 = document.getElementById('chartCocinerosPlatos');
+        if (el1 && desempeno.length) {
+          const topCocineros = desempeno.slice(0, 8);
+          this.chartInstances.push(new Chart(el1, {
+            type: 'bar',
+            data: {
+              labels: topCocineros.map(coc => coc.alias || coc.nombre || 'Sin nombre'),
+              datasets: [{
+                label: 'Platos preparados',
+                data: topCocineros.map(coc => coc.totalPlatos || 0),
+                backgroundColor: ['rgba(212,175,55,0.5)', 'rgba(52,152,219,0.5)', 'rgba(46,204,113,0.5)', 'rgba(255,165,2,0.5)', 'rgba(83,82,237,0.5)', 'rgba(255,71,87,0.5)', 'rgba(0,188,212,0.5)', 'rgba(255,152,0,0.5)'],
+                borderColor: ['rgba(212,175,55,0.8)', 'rgba(52,152,219,0.8)', 'rgba(46,204,113,0.8)', 'rgba(255,165,2,0.8)', 'rgba(83,82,237,0.8)', 'rgba(255,71,87,0.8)', 'rgba(0,188,212,0.8)', 'rgba(255,152,0,0.8)'],
+                borderWidth: 1,
+                borderRadius: 4
+              }]
+            },
+            options: { ...chartOpts('bar'), indexAxis: 'y' }
+          }));
+        }
+        
+        // Gráfico de doughnut: Cumplimiento SLA
+        const el2 = document.getElementById('chartCocinerosSLA');
+        if (el2) {
+          const slaData = c.datosGraficos?.cumplimientoSLA || {};
+          this.chartInstances.push(new Chart(el2, {
+            type: 'doughnut',
+            data: {
+              labels: ['Dentro SLA (≤15min)', 'Fuera SLA (>15min)'],
+              datasets: [{
+                data: [slaData.dentroSLA || 0, slaData.fueraSLA || 0],
+                backgroundColor: ['rgba(46,204,113,0.6)', 'rgba(255,71,87,0.6)'],
+                borderWidth: 0
+              }]
+            },
+            options: {
+              ...chartOpts('doughnut'),
+              cutout: '60%',
+              plugins: {
+                legend: { position: 'bottom', labels: { color: '#a0a0b8', font: { size: 10 }, padding: 10 } }
+              }
+            }
+          }));
+        }
       }
     },
 
