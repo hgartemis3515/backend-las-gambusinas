@@ -421,6 +421,33 @@ tailwind.config = {
  <p class="font-medium text-[#a0a0b8]" x-text="'v' + (selectedComanda?.version || 1)"></p>
  </div>
  </div>
+ 
+ <!-- 🔥 RESUMEN DE COCINEROS Y TIEMPOS -->
+ <template x-if="selectedComanda && getResumenCocineros(selectedComanda).cocineros.length > 0">
+ <div class="mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]">
+ <p class="text-[10px] text-gold uppercase mb-2 font-semibold tracking-wider flex items-center gap-1">
+ <span>👨‍🍳</span> Trazabilidad de Cocina
+ </p>
+ <div class="grid grid-cols-3 gap-3 text-sm">
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Cocineros</p>
+ <div class="flex flex-wrap gap-1 mt-1">
+ <template x-for="cocinero in getResumenCocineros(selectedComanda).cocineros" :key="cocinero.nombre">
+ <span class="text-[9px] px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-medium" x-text="cocinero.nombre"></span>
+ </template>
+ </div>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Tiempo promedio</p>
+ <p class="font-mono font-medium text-st-preparado" x-text="getResumenCocineros(selectedComanda).tiempoPromedio"></p>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Tiempo total cocina</p>
+ <p class="font-mono font-medium text-gold" x-text="getResumenCocineros(selectedComanda).tiempoTotal"></p>
+ </div>
+ </div>
+ </div>
+ </template>
  </div>
 
  <!-- TABLA DE PLATOS -->
@@ -433,12 +460,14 @@ tailwind.config = {
  <th class="text-right px-3 py-2.5 font-semibold">P. Unit.</th>
  <th class="text-right px-3 py-2.5 font-semibold">Subtotal</th>
  <th class="text-left px-3 py-2.5 font-semibold">Complementos</th>
+ <th class="text-center px-3 py-2.5 font-semibold">Cocinero</th>
+ <th class="text-center px-3 py-2.5 font-semibold">Tiempo</th>
  <th class="text-center px-3 py-2.5 font-semibold">Estado</th>
  </tr>
  </thead>
  <tbody>
  <template x-if="!selectedComanda?.items || selectedComanda.items.length === 0">
- <tr><td colspan="6" class="px-4 py-6 text-center text-[#5a5a7a] text-xs">Sin platos registrados</td></tr>
+ <tr><td colspan="8" class="px-4 py-6 text-center text-[#5a5a7a] text-xs">Sin platos registrados</td></tr>
  </template>
  <template x-for="(item, idx) in (selectedComanda?.items || [])" :key="idx">
  <tr class="border-b border-[rgba(212,175,55,0.08)]" :class="item.eliminado ? 'opacity-50' : ''">
@@ -461,6 +490,29 @@ tailwind.config = {
  <span class="text-[10px] text-[#5a5a7a]">—</span>
  </template>
  </td>
+ <!-- 🔥 COLUMNA COCINERO -->
+ <td class="px-3 py-3 text-center">
+ <template x-if="getCocineroPlato(item).nombre !== '—'">
+ <div class="flex flex-col items-center">
+ <span class="text-[10px] font-medium text-st-preparado" x-text="getCocineroPlato(item).nombre"></span>
+ <span x-show="getCocineroPlato(item).enPreparacion" class="text-[8px] text-st-esperando animate-pulse">En curso</span>
+ </div>
+ </template>
+ <template x-if="getCocineroPlato(item).nombre === '—'">
+ <span class="text-[10px] text-[#5a5a7a]">—</span>
+ </template>
+ </td>
+ <!-- 🔥 COLUMNA TIEMPO -->
+ <td class="px-3 py-3 text-center">
+ <template x-if="getTiempoPreparacion(item).tiempo !== '—'">
+ <span class="text-[10px] font-mono"
+ :class="getTiempoPreparacion(item).enPreparacion ? 'text-st-esperando' : 'text-txt-secondary'"
+ x-text="getTiempoPreparacion(item).tiempo"></span>
+ </template>
+ <template x-if="getTiempoPreparacion(item).tiempo === '—'">
+ <span class="text-[10px] text-[#5a5a7a]">—</span>
+ </template>
+ </td>
  <td class="px-3 py-3 text-center">
  <span class="text-[9px] px-2 py-0.5 rounded-full font-semibold"
  :class="{
@@ -480,7 +532,7 @@ tailwind.config = {
  <td class="px-4 py-3 font-bold text-xs uppercase" colspan="2">TOTAL</td>
  <td class="px-3 py-3 text-right text-xs text-[#5a5a7a]" x-text="(selectedComanda?.items || []).filter(i => !i.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
  <td class="px-3 py-3 text-right text-[#d4af37] font-bold text-lg" x-text="'S/. ' + Number(selectedComanda?.total || 0).toFixed(2)"></td>
- <td colspan="2"></td>
+ <td colspan="4"></td>
  </tr>
  </tfoot>
  </table>
@@ -1567,7 +1619,10 @@ function comandasApp() {
  estado: item.estado || 'en_espera',
  eliminado: item.eliminado || false,
  notaEspecial: item.notaEspecial || '',
- complementosSeleccionados: item.complementosSeleccionados || []
+ complementosSeleccionados: item.complementosSeleccionados || [],
+ // 🔥 TRAZABILIDAD DE COCINERO: Campos de procesamiento
+ procesandoPor: item.procesandoPor || null,
+ procesadoPor: item.procesadoPor || null
  };
  });
 
@@ -1611,6 +1666,180 @@ function comandasApp() {
  montoDescuento: raw.montoDescuento || 0
  };
  },
+
+ // ==================== FUNCIONES DE TRAZABILIDAD DE COCINERO ====================
+
+ /**
+  * Obtiene el nombre/alias del cocinero que procesó o está procesando un plato
+  * @param {Object} item - Plato de la comanda
+  * @returns {Object} { nombre: string, enPreparacion: boolean }
+  */
+ getCocineroPlato(item) {
+ if (!item) return { nombre: '—', enPreparacion: false };
+ 
+ // Si el plato fue finalizado, mostrar quien lo procesó
+ if (item.procesadoPor && (item.procesadoPor.alias || item.procesadoPor.nombre)) {
+ return {
+ nombre: item.procesadoPor.alias || item.procesadoPor.nombre,
+ enPreparacion: false
+ };
+ }
+ 
+ // Si está siendo procesado actualmente
+ if (item.procesandoPor && (item.procesandoPor.alias || item.procesandoPor.nombre)) {
+ return {
+ nombre: item.procesandoPor.alias || item.procesandoPor.nombre,
+ enPreparacion: true
+ };
+ }
+ 
+ // Sin información de cocinero
+ return { nombre: '—', enPreparacion: false };
+ },
+
+ /**
+  * Calcula el tiempo de preparación de un plato en formato MM:SS o HH:MM:SS
+  * @param {Object} item - Plato de la comanda
+  * @returns {Object} { tiempo: string, enPreparacion: boolean, segundos: number }
+  */
+ getTiempoPreparacion(item) {
+ if (!item) return { tiempo: '—', enPreparacion: false, segundos: 0 };
+ 
+ const procesandoDesde = item.procesandoPor?.timestamp || item.procesandoPor?.desde;
+ const procesadoEn = item.procesadoPor?.timestamp;
+ 
+ // Si hay ambos timestamps, calcular tiempo definitivo
+ if (procesandoDesde && procesadoEn) {
+ const inicio = new Date(procesandoDesde).getTime();
+ const fin = new Date(procesadoEn).getTime();
+ const diffMs = fin - inicio;
+ 
+ if (diffMs < 0) {
+ return { tiempo: '—', enPreparacion: false, segundos: 0 };
+ }
+ 
+ return {
+ tiempo: this.formatearTiempo(diffMs),
+ enPreparacion: false,
+ segundos: Math.floor(diffMs / 1000)
+ };
+ }
+ 
+ // Si solo está en preparación, calcular tiempo parcial
+ if (procesandoDesde && !procesadoEn) {
+ const inicio = new Date(procesandoDesde).getTime();
+ const ahora = Date.now();
+ const diffMs = ahora - inicio;
+ 
+ return {
+ tiempo: this.formatearTiempo(diffMs) + ' (en curso)',
+ enPreparacion: true,
+ segundos: Math.floor(diffMs / 1000)
+ };
+ }
+ 
+ // Sin datos de tiempo
+ return { tiempo: '—', enPreparacion: false, segundos: 0 };
+ },
+
+ /**
+  * Formatea milisegundos a formato MM:SS o HH:MM:SS
+  * @param {number} ms - Milisegundos
+  * @returns {string} Tiempo formateado
+  */
+ formatearTiempo(ms) {
+ if (!ms || ms < 0) return '—';
+ 
+ const segundos = Math.floor(ms / 1000);
+ const minutos = Math.floor(segundos / 60);
+ const horas = Math.floor(minutos / 60);
+ 
+ const seg = segundos % 60;
+ const min = minutos % 60;
+ 
+ if (horas > 0) {
+ return `${horas.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}:${seg.toString().padStart(2, '0')}`;
+ }
+ 
+ return `${min.toString().padStart(2, '0')}:${seg.toString().padStart(2, '0')}`;
+ },
+
+ /**
+  * Calcula el resumen de cocineros y tiempos de una comanda
+  * @param {Object} comanda - Comanda normalizada
+  * @returns {Object} { cocineros: [], tiempoPromedio: string, tiempoTotal: string }
+  */
+ getResumenCocineros(comanda) {
+ if (!comanda || !comanda.items || comanda.items.length === 0) {
+ return { cocineros: [], tiempoPromedio: '—', tiempoTotal: '—' };
+ }
+ 
+ const cocinerosMap = new Map();
+ const tiempos = [];
+ let primerInicio = null;
+ let ultimoFin = null;
+ 
+ comanda.items.forEach(item => {
+ // Obtener info del cocinero
+ const infoCocinero = this.getCocineroPlato(item);
+ if (infoCocinero.nombre && infoCocinero.nombre !== '—') {
+ if (!cocinerosMap.has(infoCocinero.nombre)) {
+ cocinerosMap.set(infoCocinero.nombre, {
+ nombre: infoCocinero.nombre,
+ platosPreparados: 0,
+ tiempoTotal: 0
+ });
+ }
+ cocinerosMap.get(infoCocinero.nombre).platosPreparados++;
+ }
+ 
+ // Calcular tiempo de preparación
+ const tiempoInfo = this.getTiempoPreparacion(item);
+ if (tiempoInfo.segundos > 0 && !tiempoInfo.enPreparacion) {
+ tiempos.push(tiempoInfo.segundos);
+ }
+ 
+ // Rastrear primer inicio y último fin para tiempo total de cocina
+ const procesandoDesde = item.procesandoPor?.timestamp || item.procesandoPor?.desde;
+ const procesadoEn = item.procesadoPor?.timestamp;
+ 
+ if (procesandoDesde) {
+ const fechaInicio = new Date(procesandoDesde);
+ if (!primerInicio || fechaInicio < primerInicio) {
+ primerInicio = fechaInicio;
+ }
+ }
+ 
+ if (procesadoEn) {
+ const fechaFin = new Date(procesadoEn);
+ if (!ultimoFin || fechaFin > ultimoFin) {
+ ultimoFin = fechaFin;
+ }
+ }
+ });
+ 
+ // Calcular tiempo promedio
+ let tiempoPromedio = '—';
+ if (tiempos.length > 0) {
+ const promedioSeg = tiempos.reduce((a, b) => a + b, 0) / tiempos.length;
+ tiempoPromedio = this.formatearTiempo(promedioSeg * 1000);
+ }
+ 
+ // Calcular tiempo total de cocina
+ let tiempoTotal = '—';
+ if (primerInicio && ultimoFin) {
+ const diffMs = ultimoFin.getTime() - primerInicio.getTime();
+ tiempoTotal = this.formatearTiempo(diffMs);
+ }
+ 
+ return {
+ cocineros: Array.from(cocinerosMap.values()),
+ tiempoPromedio,
+ tiempoTotal
+ };
+ },
+
+ // ==================== FIN FUNCIONES DE TRAZABILIDAD ====================
 
  /**
   * Agrupa comandas por pedidoId (primario) o clienteId+mesaNum (fallback histórico)

@@ -54,35 +54,43 @@ const boucherSchema = new mongoose.Schema({
     comandasNumbers: [{
         type: Number
     }],
-    platos: [{
-        plato: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'platos'
-        },
-        platoId: Number,
-        nombre: {
-            type: String,
-            required: true
-        },
-        precio: {
-            type: Number,
-            required: true
-        },
-        cantidad: {
-            type: Number,
-            required: true,
-            default: 1
-        },
-        subtotal: {
-            type: Number,
-            required: true
-        },
-        comandaNumber: Number, // Número de comanda a la que pertenece
-        complementosSeleccionados: [{
-            grupo: { type: String },
-            opcion: { type: String }
-        }]
-    }],
+ platos: [{
+ plato: {
+ type: mongoose.Schema.Types.ObjectId,
+ ref: 'platos'
+ },
+ platoId: Number,
+ nombre: {
+ type: String,
+ required: true
+ },
+ precio: {
+ type: Number,
+ required: true
+ },
+ cantidad: {
+ type: Number,
+ required: true,
+ default: 1
+ },
+ subtotal: {
+ type: Number,
+ required: true
+ },
+ comandaNumber: Number, // Número de comanda a la que pertenece
+ complementosSeleccionados: [{
+ grupo: { type: String },
+ opcion: { type: String }
+ }],
+ // 🔥 TRAZABILIDAD: Información del cocinero que preparó el plato
+ cocinero: { type: String, default: null },      // Nombre/alias del cocinero
+ cocineroId: { 
+ type: mongoose.Schema.Types.ObjectId,
+ ref: 'mozos',
+ default: null
+ },
+ tiempoPreparacion: { type: String, default: null } // Formato MM:SS
+ }],
     subtotal: {
         type: Number,
         required: true,

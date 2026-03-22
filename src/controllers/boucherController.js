@@ -88,28 +88,53 @@ router.post('/boucher', async (req, res) => {
                 });
             }
             
-            if (comanda.platos && Array.isArray(comanda.platos)) {
-                comanda.platos.forEach((platoItem, index) => {
-                    // Solo incluir platos no eliminados
-                    if (!platoItem.eliminado) {
-                        const plato = platoItem.plato || platoItem;
-                        const cantidad = comanda.cantidades?.[index] || 1;
-                        const precio = plato.precio || 0;
-                        const subtotal = precio * cantidad;
-                        
-                        platosParaBoucher.push({
-                            plato: plato._id || plato,
-                            platoId: platoItem.platoId || plato.id || null,
-                            nombre: plato.nombre || "Plato",
-                            precio: precio,
-                            cantidad: cantidad,
-                            subtotal: subtotal,
-                            comandaNumber: comanda.comandaNumber || null,
-                            complementosSeleccionados: platoItem.complementosSeleccionados || []
-                        });
-                    }
-                });
-            }
+ if (comanda.platos && Array.isArray(comanda.platos)) {
+ comanda.platos.forEach((platoItem, index) => {
+ // Solo incluir platos no eliminados
+ if (!platoItem.eliminado) {
+ const plato = platoItem.plato || platoItem;
+ const cantidad = comanda.cantidades?.[index] || 1;
+ const precio = plato.precio || 0;
+ const subtotal = precio * cantidad;
+ 
+ // 🔥 TRAZABILIDAD: Extraer información del cocinero
+ const cocineroInfo = platoItem.procesadoPor || platoItem.procesandoPor || null;
+ const cocineroNombre = cocineroInfo?.alias || cocineroInfo?.nombre || null;
+ const cocineroId = cocineroInfo?.cocineroId || null;
+ 
+ // 🔥 TRAZABILIDAD: Calcular tiempo de preparación si hay timestamps
+ let tiempoPreparacion = null;
+ const procesandoDesde = platoItem.procesandoPor?.timestamp;
+ const procesadoEn = platoItem.procesadoPor?.timestamp;
+ if (procesandoDesde && procesadoEn) {
+ const inicio = new Date(procesandoDesde).getTime();
+ const fin = new Date(procesadoEn).getTime();
+ const diffMs = fin - inicio;
+ if (diffMs > 0) {
+ const segundos = Math.floor(diffMs / 1000);
+ const minutos = Math.floor(segundos / 60);
+ const seg = segundos % 60;
+ tiempoPreparacion = `${minutos.toString().padStart(2, '0')}:${seg.toString().padStart(2, '0')}`;
+ }
+ }
+ 
+ platosParaBoucher.push({
+ plato: plato._id || plato,
+ platoId: platoItem.platoId || plato.id || null,
+ nombre: plato.nombre || "Plato",
+ precio: precio,
+ cantidad: cantidad,
+ subtotal: subtotal,
+ comandaNumber: comanda.comandaNumber || null,
+ complementosSeleccionados: platoItem.complementosSeleccionados || [],
+ // 🔥 TRAZABILIDAD: Información del cocinero
+ cocinero: cocineroNombre,
+ cocineroId: cocineroId,
+ tiempoPreparacion: tiempoPreparacion
+ });
+ }
+ });
+ }
         });
         
         if (platosParaBoucher.length === 0) {

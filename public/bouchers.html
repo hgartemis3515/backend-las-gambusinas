@@ -198,45 +198,91 @@ tailwind.config = {
         </div>
       </div>
 
-      <!-- TABLA DE ÍTEMS -->
-      <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="bg-[#12121a] text-[#a0a0b8] text-[10px] uppercase">
-              <th class="text-left px-4 py-2.5 font-semibold">Plato</th>
-              <th class="text-center px-3 py-2.5 font-semibold">Cant.</th>
-              <th class="text-right px-3 py-2.5 font-semibold">Precio</th>
-              <th class="text-left px-3 py-2.5 font-semibold">Complementos</th>
-              <th class="text-right px-3 py-2.5 font-semibold">Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>
-            <template x-if="!selectedBoucher?.platos || selectedBoucher.platos.length === 0">
-              <tr><td colspan="5" class="px-4 py-6 text-center text-[#5a5a7a] text-xs">Sin ítems registrados</td></tr>
-            </template>
-            <template x-for="(item, idx) in (selectedBoucher?.platos || [])" :key="idx">
-              <tr class="border-b border-[rgba(212,175,55,0.08)]">
-                <td class="px-4 py-3 font-medium" x-text="item.nombre || item.plato?.nombre || '—'"></td>
-                <td class="px-3 py-3 text-center" x-text="item.cantidad || 1"></td>
-                <td class="px-3 py-3 text-right text-[#a0a0b8]" x-text="'S/. ' + Number(item.precio || 0).toFixed(2)"></td>
-                <td class="px-3 py-3">
-                  <template x-if="item.complementosSeleccionados && item.complementosSeleccionados.length > 0">
-                    <div class="flex flex-wrap gap-1">
-                      <template x-for="comp in item.complementosSeleccionados" :key="comp.grupo">
-                        <span class="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" x-text="comp.grupo + ': ' + comp.opcion"></span>
-                      </template>
-                    </div>
-                  </template>
-                  <template x-if="!item.complementosSeleccionados || item.complementosSeleccionados.length === 0">
-                    <span class="text-[10px] text-[#5a5a7a]">—</span>
-                  </template>
-                </td>
-                <td class="px-3 py-3 text-right text-[#d4af37] font-semibold" x-text="'S/. ' + Number(item.subtotal || (item.cantidad || 1) * (item.precio || 0)).toFixed(2)"></td>
-              </tr>
-            </template>
-          </tbody>
-        </table>
-      </div>
+ <!-- TABLA DE ÍTEMS -->
+ <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+ <table class="w-full text-sm">
+ <thead>
+ <tr class="bg-[#12121a] text-[#a0a0b8] text-[10px] uppercase">
+ <th class="text-left px-4 py-2.5 font-semibold">Plato</th>
+ <th class="text-center px-3 py-2.5 font-semibold">Cant.</th>
+ <th class="text-right px-3 py-2.5 font-semibold">Precio</th>
+ <th class="text-left px-3 py-2.5 font-semibold">Complementos</th>
+ <th class="text-center px-3 py-2.5 font-semibold">Cocinero</th>
+ <th class="text-center px-3 py-2.5 font-semibold">Tiempo</th>
+ <th class="text-right px-3 py-2.5 font-semibold">Subtotal</th>
+ </tr>
+ </thead>
+ <tbody>
+ <template x-if="!selectedBoucher?.platos || selectedBoucher.platos.length === 0">
+ <tr><td colspan="7" class="px-4 py-6 text-center text-[#5a5a7a] text-xs">Sin ítems registrados</td></tr>
+ </template>
+ <template x-for="(item, idx) in (selectedBoucher?.platos || [])" :key="idx">
+ <tr class="border-b border-[rgba(212,175,55,0.08)]">
+ <td class="px-4 py-3">
+ <p class="font-medium" x-text="item.nombre || item.plato?.nombre || '—'"></p>
+ <p class="text-[9px] text-[#5a5a7a]" x-show="item.comandaNumber" x-text="'Comanda #' + item.comandaNumber"></p>
+ </td>
+ <td class="px-3 py-3 text-center" x-text="item.cantidad || 1"></td>
+ <td class="px-3 py-3 text-right text-[#a0a0b8]" x-text="'S/. ' + Number(item.precio || 0).toFixed(2)"></td>
+ <td class="px-3 py-3">
+ <template x-if="item.complementosSeleccionados && item.complementosSeleccionados.length > 0">
+ <div class="flex flex-wrap gap-1">
+ <template x-for="comp in item.complementosSeleccionados" :key="comp.grupo">
+ <span class="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" x-text="comp.grupo + ': ' + comp.opcion"></span>
+ </template>
+ </div>
+ </template>
+ <template x-if="!item.complementosSeleccionados || item.complementosSeleccionados.length === 0">
+ <span class="text-[10px] text-[#5a5a7a]">—</span>
+ </template>
+ </td>
+ <!-- 🔥 COLUMNA COCINERO -->
+ <td class="px-3 py-3 text-center">
+ <template x-if="item.cocinero || item.cocineroId?.name || item.cocineroId?.nombre">
+ <span class="text-[10px] font-medium text-st-preparado" x-text="item.cocinero || item.cocineroId?.name || item.cocineroId?.nombre || '—'"></span>
+ </template>
+ <template x-if="!item.cocinero && (!item.cocineroId || (!item.cocineroId?.name && !item.cocineroId?.nombre))">
+ <span class="text-[10px] text-[#5a5a7a]">—</span>
+ </template>
+ </td>
+ <!-- 🔥 COLUMNA TIEMPO -->
+ <td class="px-3 py-3 text-center">
+ <template x-if="item.tiempoPreparacion">
+ <span class="text-[10px] font-mono text-txt-secondary" x-text="item.tiempoPreparacion"></span>
+ </template>
+ <template x-if="!item.tiempoPreparacion">
+ <span class="text-[10px] text-[#5a5a7a]">—</span>
+ </template>
+ </td>
+ <td class="px-3 py-3 text-right text-[#d4af37] font-semibold" x-text="'S/. ' + Number(item.subtotal || (item.cantidad || 1) * (item.precio || 0)).toFixed(2)"></td>
+ </tr>
+ </template>
+ </tbody>
+ </table>
+ </div>
+ 
+ <!-- 🔥 RESUMEN DE COCINEROS DEL VOUCHER -->
+ <template x-if="selectedBoucher && getResumenCocinerosBoucher(selectedBoucher).cocineros.length > 0">
+ <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+ <p class="text-[10px] text-gold uppercase mb-3 font-semibold tracking-wider flex items-center gap-1">
+ <span>👨‍🍳</span> Resumen de Cocina
+ </p>
+ <div class="grid grid-cols-2 gap-4 text-sm">
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Cocineros que intervinieron</p>
+ <div class="flex flex-wrap gap-1 mt-1">
+ <template x-for="cocinero in getResumenCocinerosBoucher(selectedBoucher).cocineros" :key="cocinero">
+ <span class="text-[9px] px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-medium" x-text="cocinero"></span>
+ </template>
+ </div>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Tiempo promedio de preparación</p>
+ <p class="font-mono font-medium text-st-preparado" x-text="getResumenCocinerosBoucher(selectedBoucher).tiempoPromedio"></p>
+ </div>
+ </div>
+ </div>
+ </template>
 
       <!-- INFO DE PAGO -->
       <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
@@ -479,6 +525,12 @@ function bouchersApp() {
             <td></td><td></td><td></td>
           </tr>
         `).join('') : ''}
+        ${item.cocinero || item.cocineroId?.name || item.cocineroId?.nombre ? `
+          <tr style="font-size:9px;color:#2ecc71;">
+            <td>  Prep: ${item.cocinero || item.cocineroId?.name || item.cocineroId?.nombre}${item.tiempoPreparacion ? ' (' + item.tiempoPreparacion + ')' : ''}</td>
+            <td></td><td></td><td></td>
+          </tr>
+        ` : ''}
       `).join('')}
     </tbody>
   </table>
@@ -533,11 +585,52 @@ function bouchersApp() {
       alert('Función de anulación en desarrollo. Voucher: ' + (this.selectedBoucher?.boucherNumber || this.selectedBoucher?._id));
     },
     
-    logout() {
-      localStorage.removeItem('adminToken');
-      window.location.href = '/login';
-    }
-  };
+ getResumenCocinerosBoucher(boucher) {
+ if (!boucher || !boucher.platos || boucher.platos.length === 0) {
+ return { cocineros: [], tiempoPromedio: '—' };
+ }
+ 
+ const cocinerosSet = new Set();
+ const tiempos = [];
+ 
+ boucher.platos.forEach(item => {
+ // Recopilar cocineros - considerar tanto cocinero directo como cocineroId poblado
+ const nombreCocinero = item.cocinero || item.cocineroId?.name || item.cocineroId?.nombre || null;
+ if (nombreCocinero && nombreCocinero !== '—') {
+ cocinerosSet.add(nombreCocinero);
+ }
+ 
+ // Recopilar tiempos
+ if (item.tiempoPreparacion) {
+ const partes = item.tiempoPreparacion.split(':');
+ if (partes.length === 2) {
+ const minutos = parseInt(partes[0], 10);
+ const segundos = parseInt(partes[1], 10);
+ tiempos.push(minutos * 60 + segundos);
+ }
+ }
+ });
+ 
+ // Calcular tiempo promedio
+ let tiempoPromedio = '—';
+ if (tiempos.length > 0) {
+ const promedioSeg = tiempos.reduce((a, b) => a + b, 0) / tiempos.length;
+ const min = Math.floor(promedioSeg / 60);
+ const seg = Math.floor(promedioSeg % 60);
+ tiempoPromedio = `${min.toString().padStart(2, '0')}:${seg.toString().padStart(2, '0')}`;
+ }
+ 
+ return {
+ cocineros: Array.from(cocinerosSet),
+ tiempoPromedio
+ };
+ },
+ 
+ logout() {
+ localStorage.removeItem('adminToken');
+ window.location.href = '/login';
+ }
+ };
 }
 </script>
 <!-- Page Transitions JS -->

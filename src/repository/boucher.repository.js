@@ -48,6 +48,7 @@ const listarBouchers = async () => {
             .populate('cliente')
             .populate('comandas')
             .populate('platos.plato')
+            .populate('platos.cocineroId') // Poblar información del cocinero
             .sort({ fechaPago: -1 }); // Más recientes primero
         return bouchers;
     } catch (error) {
@@ -74,6 +75,7 @@ const listarBouchersPorFecha = async (fecha) => {
             .populate('cliente')
             .populate('comandas')
             .populate('platos.plato')
+            .populate('platos.cocineroId') // Poblar información del cocinero
             .sort({ fechaPago: -1 });
         
         return bouchers;
@@ -90,7 +92,8 @@ const obtenerBoucherPorId = async (boucherId) => {
             .populate('mozo')
             .populate('cliente')
             .populate('comandas')
-            .populate('platos.plato');
+            .populate('platos.plato')
+            .populate('platos.cocineroId'); // Poblar información del cocinero
         
         if (!boucher) {
             throw new Error('Boucher no encontrado');
@@ -183,7 +186,8 @@ const crearBoucher = async (data) => {
             .populate('mozo')
             .populate('cliente')
             .populate('comandas')
-            .populate('platos.plato');
+            .populate('platos.plato')
+            .populate('platos.cocineroId'); // Poblar información del cocinero
         
         // Si hay cliente asociado, asociar el boucher al cliente
         if (nuevoBoucher.cliente) {
@@ -295,6 +299,7 @@ const obtenerBoucherPorMesa = async (mesaId) => {
         .populate('cliente')
         .populate('comandas')
         .populate('platos.plato')
+        .populate('platos.cocineroId') // Poblar información del cocinero
         .sort({ fechaPago: -1 }) // Más reciente primero
         .limit(1); // Solo el más reciente
         

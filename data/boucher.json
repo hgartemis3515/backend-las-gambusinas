@@ -7351,5 +7351,78 @@
     "createdAt": "2026-03-12T07:46:42.973Z",
     "updatedAt": "2026-03-12T07:46:42.973Z",
     "boucherNumber": 128
+  },
+  {
+    "configuracionIGV": {
+      "igvPorcentaje": 18,
+      "preciosIncluyenIGV": true,
+      "nombreImpuesto": "IGV",
+      "moneda": "PEN",
+      "simboloMoneda": "S/."
+    },
+    "_id": "69bf699f73a4b08408031c59",
+    "voucherId": "IA4DI",
+    "mesa": "69860a47e52589a753836126",
+    "numMesa": 2,
+    "mozo": "69a51896782a5785d39b1232",
+    "nombreMozo": "Juan",
+    "cliente": "69bf699e73a4b08408031937",
+    "usadoEnComanda": null,
+    "fechaUso": null,
+    "comandas": [
+      "69be2e479d768be7c1e293d1"
+    ],
+    "comandasNumbers": [
+      470
+    ],
+    "platos": [
+      {
+        "plato": "6992b9dad845b119c1d00c6f",
+        "platoId": 12,
+        "nombre": "Tamal con 2 panes",
+        "precio": 10,
+        "cantidad": 1,
+        "subtotal": 10,
+        "comandaNumber": 470,
+        "complementosSeleccionados": [],
+        "_id": "69bf699f73a4b08408031c5a"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c6e",
+        "platoId": 11,
+        "nombre": "Jamón del pais Nino + mostaza + zarza criolla",
+        "precio": 10,
+        "cantidad": 1,
+        "subtotal": 10,
+        "comandaNumber": 470,
+        "complementosSeleccionados": [],
+        "_id": "69bf699f73a4b08408031c5b"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c6d",
+        "platoId": 10,
+        "nombre": "Pan con Pollo",
+        "precio": 8,
+        "cantidad": 1,
+        "subtotal": 8,
+        "comandaNumber": 470,
+        "complementosSeleccionados": [],
+        "_id": "69bf699f73a4b08408031c5c"
+      }
+    ],
+    "subtotal": 23.73,
+    "igv": 4.27,
+    "total": 28,
+    "descuentos": [],
+    "totalSinDescuento": 28,
+    "montoDescuento": 0,
+    "totalConDescuento": 28,
+    "observaciones": "",
+    "fechaPago": "2026-03-22T04:01:35.574Z",
+    "fechaPagoString": "21/03/2026 23:01:35",
+    "isActive": true,
+    "createdAt": "2026-03-22T04:01:35.582Z",
+    "updatedAt": "2026-03-22T04:01:35.582Z",
+    "boucherNumber": 129
   }
 ]
