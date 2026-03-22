@@ -1,27 +1,38 @@
 <!-- TOPBAR (72px) - Componente compartido -->
+<!-- Incluir cosmos-search.css y cosmos-search.js en cada página -->
 <nav class="h-[72px] bg-bg-sidebar border-b border-[rgba(212,175,55,0.25)] flex items-center px-4 fixed top-0 left-0 right-0 z-40">
   <!-- Left Zone -->
   <div class="flex items-center gap-3 w-[280px]">
     <button @click="sidebarOpen = !sidebarOpen" class="w-11 h-11 flex items-center justify-center rounded-lg hover:bg-gold-20 text-gold text-xl">☰</button>
     <div class="text-txt-secondary text-sm">🏠 <span class="mx-1">›</span> <span class="text-white" x-text="pageTitle"></span></div>
   </div>
-  <!-- Center Zone -->
-  <div class="flex-1 max-w-[500px] mx-auto relative" x-data="{searchOpen:false, q:''}">
-    <div class="relative">
-      <input type="text" x-model="q" @focus="searchOpen=true" @keydown.escape="searchOpen=false;q=''"
-        class="w-full h-11 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-full px-5 pl-11 text-sm text-white placeholder-txt-muted focus:border-gold"
-        placeholder="Buscar mesas, comandas, platos, clientes... (Ctrl+K)">
-      <span class="absolute left-4 top-3 text-txt-muted">🔍</span>
-    </div>
-    <div x-show="searchOpen && q.length > 1" @click.outside="searchOpen=false" x-transition
-      class="absolute top-14 left-0 right-0 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl shadow-2xl p-3 z-50">
-      <p class="text-[10px] text-txt-muted uppercase mb-2">Platos</p>
-      <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gold-20 cursor-pointer"><span>🍽️</span><div><p class="text-sm">Ceviche Clásico</p><p class="text-xs text-txt-muted">S/.45 · 12 vendidos</p></div></div>
-      <p class="text-[10px] text-txt-muted uppercase mt-3 mb-2">Mesas</p>
-      <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gold-20 cursor-pointer"><span>🪑</span><div><p class="text-sm">Mesa 5</p><p class="text-xs text-txt-muted">Ocupada · Juan Pérez</p></div></div>
-      <p class="text-xs text-txt-muted text-center mt-2 pt-2 border-t border-[rgba(212,175,55,0.1)]">↑↓ navegar · Enter seleccionar · Esc cerrar</p>
+  
+  <!-- Center Zone - COSMOS SEARCH TRIGGER -->
+  <div class="flex-1 max-w-[500px] mx-auto relative">
+    <!-- Cosmos Search Bar (Trigger) -->
+    <div class="cosmos-search-trigger" style="position: relative; top: 0;">
+      <div class="cosmos-search-box gold-theme" role="button" tabindex="0" aria-label="Abrir búsqueda (Ctrl+K)">
+        <span class="cosmos-search-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.35-4.35"/>
+          </svg>
+        </span>
+        <input 
+          type="text" 
+          class="cosmos-search-input" 
+          placeholder="Buscar platos, mesas, comandas, clientes, bouchers..." 
+          readonly 
+          tabindex="-1"
+        >
+        <span class="cosmos-search-kbd">
+          <span>⌘</span>
+          <span>K</span>
+        </span>
+      </div>
     </div>
   </div>
+  
   <!-- Right Zone -->
   <div class="flex items-center gap-3 ml-4">
     <div class="text-right mr-2 hidden lg:block">
@@ -41,7 +52,7 @@
       <div x-show="open" @click.outside="open=false" x-transition class="absolute right-0 top-12 w-64 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl shadow-2xl p-2 z-50">
         <p class="text-gold font-semibold text-sm px-3 py-2">⚡ Atajos Rápidos</p>
         <a href="/comandas.html" class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gold-20 cursor-pointer">
-          <span class="text-sm">🆕 Nueva comanda</span>
+          <span class="text-sm">📋 Ver Comandas</span>
           <span class="text-[10px] text-txt-muted bg-bg-sidebar px-1.5 py-0.5 rounded">Ctrl+N</span>
         </a>
         <a href="/mesas.html" class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gold-20 cursor-pointer">
@@ -56,7 +67,7 @@
           <span class="text-sm">⚙️ Configuración</span>
           <span class="text-[10px] text-txt-muted bg-bg-sidebar px-1.5 py-0.5 rounded">Ctrl+,</span>
         </a>
-        <div class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gold-20 cursor-pointer" @click="document.querySelector('[placeholder*=Buscar]')?.focus()">
+        <div class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gold-20 cursor-pointer" @click="if(window.cosmosSearch) cosmosSearch.open()">
           <span class="text-sm">🔍 Buscar</span>
           <span class="text-[10px] text-txt-muted bg-bg-sidebar px-1.5 py-0.5 rounded">Ctrl+K</span>
         </div>
