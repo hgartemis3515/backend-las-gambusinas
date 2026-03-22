@@ -22,6 +22,7 @@ const { registrarAuditoria } = require('../middleware/auditoria');
 
 const Comanda = mongoose.model('Comanda') || require('../database/models/comanda.model');
 const Mozos = mongoose.model('mozos') || require('../database/models/mozos.model');
+const cocinerosRepository = require('../repository/cocineros.repository');
 
 // ============================================================
 // HELPER: Obtener información del cocinero
@@ -415,6 +416,11 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
       platoId,
       cocineroId,
       estado: 'recoger'
+    });
+    
+    // Incrementar contador de platos preparados del cocinero (async, no bloquea)
+    cocinerosRepository.incrementarPlatosPreparados(cocineroId, 1).catch(err => {
+      logger.warn('No se pudo incrementar platos preparados', { error: err.message });
     });
     
     res.json({
