@@ -31,7 +31,8 @@ const auditoriaSchema = new mongoose.Schema({
       'usuario_desconectado',
       'pago_procesado',
       'reversion_comanda',
-      'reversion_plato'
+      'reversion_plato',
+      'PLATO_DEJADO_COCINA'
     ],
     index: true
   },

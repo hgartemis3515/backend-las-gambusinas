@@ -72,6 +72,9 @@ tailwind.config = {
           <option value="reversion_comanda">Revertir Comanda</option>
           <option value="reversion_plato">Revertir Plato</option>
         </optgroup>
+        <optgroup label="🚪 Liberación">
+          <option value="PLATO_DEJADO_COCINA">Plato Dejado</option>
+        </optgroup>
       </select>
       
       <!-- Filtro Usuario -->
@@ -127,7 +130,8 @@ tailwind.config = {
               :class="{
                 'bg-[rgba(255,71,87,0.05)]': esAccionEliminacion(a.accion),
                 'bg-[rgba(255,165,2,0.05)]': esAccionAnulacion(a.accion),
-                'bg-[rgba(0,212,170,0.05)]': esAccionReversion(a.accion)
+                'bg-[rgba(0,212,170,0.05)]': esAccionReversion(a.accion),
+                'bg-[rgba(156,136,255,0.05)]': esAccionLiberacion(a.accion)
               }">
               <td class="px-4 py-3 text-txt-muted text-xs" x-text="a.createdAt ? new Date(a.createdAt).toLocaleTimeString('es-PE') : a.hora"></td>
               <td class="px-4 py-3" x-text="a.usuario?.nombre || a.usuario || '—'"></td>
@@ -164,13 +168,15 @@ tailwind.config = {
       :class="{
         'border-b-2 border-[#ff4757]': esAccionEliminacion(selectedRegistro?.accion),
         'border-b-2 border-[#ffa502]': esAccionAnulacion(selectedRegistro?.accion),
-        'border-b-2 border-[#00d4aa]': esAccionReversion(selectedRegistro?.accion)
+        'border-b-2 border-[#00d4aa]': esAccionReversion(selectedRegistro?.accion),
+        'border-b-2 border-[#9c88ff]': esAccionLiberacion(selectedRegistro?.accion)
       }">
       <div>
         <h2 class="text-lg font-bold flex items-center gap-2">
           <span x-show="esAccionEliminacion(selectedRegistro?.accion)" class="text-[#ff4757]">🗑️</span>
           <span x-show="esAccionAnulacion(selectedRegistro?.accion)" class="text-[#ffa502]">🚫</span>
           <span x-show="esAccionReversion(selectedRegistro?.accion)" class="text-[#00d4aa]">↩️</span>
+          <span x-show="esAccionLiberacion(selectedRegistro?.accion)" class="text-[#9c88ff]">🚪</span>
           <span x-text="getTituloModal(selectedRegistro)"></span>
         </h2>
         <p class="text-xs text-[#5a5a7a] mt-0.5">
@@ -688,6 +694,14 @@ function auditoriaApp() {
       return accionesReversion.includes(accion) || accion.toLowerCase().includes('revertir') || accion.toLowerCase().includes('reversion');
     },
 
+    esAccionLiberacion(accion) {
+      if (!accion) return false;
+      const accionesLiberacion = [
+        'PLATO_DEJADO_COCINA'
+      ];
+      return accionesLiberacion.includes(accion) || accion.toLowerCase().includes('dejad') || accion.toLowerCase().includes('liberad');
+    },
+
     // === FUNCIONES AUXILIARES PARA EL MODAL ===
 
     getTituloModal(reg) {
@@ -695,6 +709,7 @@ function auditoriaApp() {
       if (this.esAccionEliminacion(reg.accion)) return 'Detalle de Eliminación';
       if (this.esAccionAnulacion(reg.accion)) return 'Detalle de Anulación';
       if (this.esAccionReversion(reg.accion)) return 'Detalle de Reversión';
+      if (this.esAccionLiberacion(reg.accion)) return 'Detalle de Liberación';
       return 'Detalle de Auditoría';
     },
 
@@ -716,6 +731,7 @@ function auditoriaApp() {
         'INTENTO_ANULACION_PLATO_ENTREGADO': '⚠️ Intento Fallido',
         'reversion_comanda': '↩️ Revertir Comanda',
         'reversion_plato': '↩️ Revertir Plato',
+        'PLATO_DEJADO_COCINA': '🚪 Plato Dejado',
         'plato_agregado': '➕ Plato Agregado',
         'plato_modificado': '✏️ Plato Modificado',
         'plato_eliminado': '🗑️ Plato Eliminado',
@@ -733,6 +749,7 @@ function auditoriaApp() {
       if (this.esAccionEliminacion(accion)) return 'bg-[rgba(255,71,87,0.2)] text-[#ff4757]';
       if (this.esAccionAnulacion(accion)) return 'bg-[rgba(255,165,2,0.2)] text-[#ffa502]';
       if (this.esAccionReversion(accion)) return 'bg-[rgba(0,212,170,0.2)] text-[#00d4aa]';
+      if (this.esAccionLiberacion(accion)) return 'bg-[rgba(156,136,255,0.2)] text-[#9c88ff]';
       if (accion.includes('crear') || accion.includes('nuevo') || accion.includes('agregado')) return 'bg-[rgba(46,204,113,0.2)] text-[#2ecc71]';
       if (accion.includes('editar') || accion.includes('modificar')) return 'bg-[rgba(255,165,2,0.2)] text-[#ffa502]';
       return 'bg-bg-sidebar text-txt-secondary';

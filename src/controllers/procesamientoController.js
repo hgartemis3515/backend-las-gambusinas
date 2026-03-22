@@ -18,6 +18,7 @@ const mongoose = require('mongoose');
 const moment = require('moment-timezone');
 const logger = require('../utils/logger');
 const { adminAuth } = require('../middleware/adminAuth');
+const { registrarAuditoria } = require('../middleware/auditoria');
 
 const Comanda = mongoose.model('Comanda') || require('../database/models/comanda.model');
 const Mozos = mongoose.model('mozos') || require('../database/models/mozos.model');
@@ -194,11 +195,12 @@ router.put('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, res)
 /**
  * DELETE /api/comanda/:id/plato/:platoId/procesando
  * Un cocinero libera un plato que había tomado
+ * v7.2.1: Ahora acepta motivo y registra en auditoría
  */
 router.delete('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, res) => {
   try {
     const { id: comandaId, platoId } = req.params;
-    const { cocineroId } = req.body;
+    const { cocineroId, motivo } = req.body;
     
     if (!cocineroId) {
       return res.status(400).json({
@@ -243,6 +245,15 @@ router.delete('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, r
       });
     }
     
+    // Snapshot antes para auditoría
+    const snapshotAntes = {
+      comandaId,
+      comandaNumber: comanda.comandaNumber,
+      platoId,
+      platoNombre: plato.plato?.nombre || plato.nombre || 'Plato',
+      procesandoPor: plato.procesandoPor
+    };
+    
     // Limpiar procesandoPor usando updateOne
     await Comanda.updateOne(
       { _id: comandaId },
@@ -259,12 +270,33 @@ router.delete('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, r
       }
     );
     
+    // Configurar auditoría con acción específica
+    req.auditoria = {
+      accion: 'PLATO_DEJADO_COCINA',
+      entidadTipo: 'comanda',
+      entidadId: comandaId,
+      usuario: cocineroId,
+      ip: req.ip || req.connection?.remoteAddress || null,
+      deviceId: req.headers['device-id'] || req.headers['x-device-id'] || null,
+      metadata: {
+        comandaNumber: comanda.comandaNumber,
+        platoId,
+        platoNombre: plato.plato?.nombre || plato.nombre || 'Plato',
+        mesaNum: comanda.mesas?.nummesa || 'N/A'
+      },
+      comandaNumber: comanda.comandaNumber
+    };
+    
+    // Registrar auditoría
+    const motivoAuditoria = motivo || 'Cocinero liberó el plato';
+    await registrarAuditoria(req, snapshotAntes, { liberado: true }, motivoAuditoria);
+    
     // Emitir evento Socket
     if (global.emitPlatoLiberado) {
       global.emitPlatoLiberado(comandaId, platoId, cocineroId);
     }
     
-    logger.info('Plato liberado', { comandaId, platoId, cocineroId });
+    logger.info('Plato liberado', { comandaId, platoId, cocineroId, motivo: motivoAuditoria });
     
     res.json({
       success: true,
