@@ -1440,6 +1440,10 @@ function comandasApp() {
 
  // NUEVO: Toggle para agrupación
  agruparPorCliente: true,
+ 
+ // TIEMPO REAL: Timestamp actual para cronómetros en vivo
+ now: Date.now(),
+ tiempoRealInterval: null,
 
  async init() {
  const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
@@ -1455,6 +1459,11 @@ function comandasApp() {
 
  // Inicializar Socket.io
  this.initSocket();
+
+ // Inicializar tiempo real para cronómetros
+ this.tiempoRealInterval = setInterval(() => {
+ this.now = Date.now();
+ }, 1000);
 
  await this.loadComandas();
  },
@@ -1622,7 +1631,10 @@ function comandasApp() {
  complementosSeleccionados: item.complementosSeleccionados || [],
  // 🔥 TRAZABILIDAD DE COCINERO: Campos de procesamiento
  procesandoPor: item.procesandoPor || null,
- procesadoPor: item.procesadoPor || null
+ procesadoPor: item.procesadoPor || null,
+ // 🔥 TIEMPOS: Timestamps de cada estado del plato
+ tiempos: item.tiempos || null,
+ createdAt: item.createdAt || raw.createdAt || null
  };
  });
 
@@ -1671,25 +1683,30 @@ function comandasApp() {
 
  /**
   * Obtiene el nombre/alias del cocinero que procesó o está procesando un plato
+  * CORREGIDO: Considera el estado del plato para determinar si está en preparación
   * @param {Object} item - Plato de la comanda
   * @returns {Object} { nombre: string, enPreparacion: boolean }
   */
  getCocineroPlato(item) {
  if (!item) return { nombre: '—', enPreparacion: false };
  
+ const estado = item.estado?.toLowerCase() || '';
+ const esEstadoFinal = estado === 'recoger' || estado === 'entregado' || estado === 'pagado';
+ 
  // Si el plato fue finalizado, mostrar quien lo procesó
  if (item.procesadoPor && (item.procesadoPor.alias || item.procesadoPor.nombre)) {
  return {
  nombre: item.procesadoPor.alias || item.procesadoPor.nombre,
- enPreparacion: false
+ enPreparacion: false // Ya terminó, no está en curso
  };
  }
  
  // Si está siendo procesado actualmente
+ // PERO: si el estado es final (recoger/entregado/pagado), NO mostrar como en curso
  if (item.procesandoPor && (item.procesandoPor.alias || item.procesandoPor.nombre)) {
  return {
  nombre: item.procesandoPor.alias || item.procesandoPor.nombre,
- enPreparacion: true
+ enPreparacion: !esEstadoFinal // Solo "En curso" si el estado no es final
  };
  }
  
@@ -1699,45 +1716,125 @@ function comandasApp() {
 
  /**
   * Calcula el tiempo de preparación de un plato en formato MM:SS o HH:MM:SS
+  * CORREGIDO: El tiempo se detiene cuando el plato está en estado recoger/entregado/pagado
   * @param {Object} item - Plato de la comanda
   * @returns {Object} { tiempo: string, enPreparacion: boolean, segundos: number }
   */
  getTiempoPreparacion(item) {
  if (!item) return { tiempo: '—', enPreparacion: false, segundos: 0 };
  
+ const estado = item.estado?.toLowerCase() || '';
  const procesandoDesde = item.procesandoPor?.timestamp || item.procesandoPor?.desde;
  const procesadoEn = item.procesadoPor?.timestamp;
  
- // Si hay ambos timestamps, calcular tiempo definitivo
- if (procesandoDesde && procesadoEn) {
- const inicio = new Date(procesandoDesde).getTime();
- const fin = new Date(procesadoEn).getTime();
- const diffMs = fin - inicio;
+ // Obtener timestamps del plato si existen
+ const tiempos = item.tiempos || {};
+ const tiempoRecoger = tiempos.recoger ? new Date(tiempos.recoger).getTime() : null;
+ const tiempoEnEspera = tiempos.en_espera ? new Date(tiempos.en_espera).getTime() : null;
+ const tiempoPedido = tiempos.pedido ? new Date(tiempos.pedido).getTime() : null;
  
- if (diffMs < 0) {
- return { tiempo: '—', enPreparacion: false, segundos: 0 };
+ // Si el plato está en estado final (recoger, entregado, pagado), el tiempo debe estar FIJO
+ if (estado === 'recoger' || estado === 'entregado' || estado === 'pagado') {
+   // Buscar el timestamp de finalización más apropiado
+   // 1. Si tiene tiempo de recoger, usar ese
+   // 2. Si tiene procesadoPor.timestamp, usar ese
+   // 3. Si tiene procesandoPor.timestamp, calcular diferencia
+   let tiempoFinal = null;
+   let tiempoInicio = null;
+   
+   // Determinar tiempo de inicio
+   if (tiempoEnEspera) {
+     tiempoInicio = tiempoEnEspera;
+   } else if (tiempoPedido) {
+     tiempoInicio = tiempoPedido;
+   } else if (procesandoDesde) {
+     tiempoInicio = new Date(procesandoDesde).getTime();
+   } else if (item.createdAt) {
+     tiempoInicio = new Date(item.createdAt).getTime();
+   }
+   
+   // Determinar tiempo final
+   if (tiempoRecoger) {
+     tiempoFinal = tiempoRecoger;
+   } else if (procesadoEn) {
+     tiempoFinal = new Date(procesadoEn).getTime();
+   }
+   
+   // Calcular diferencia si tenemos ambos tiempos
+   if (tiempoInicio && tiempoFinal) {
+     const diffMs = tiempoFinal - tiempoInicio;
+     if (diffMs >= 0) {
+       return {
+         tiempo: this.formatearTiempo(diffMs),
+         enPreparacion: false,
+         segundos: Math.floor(diffMs / 1000)
+       };
+     }
+   }
+   
+   // Si hay procesadoEn y procesandoDesde
+   if (procesandoDesde && procesadoEn) {
+     const inicio = new Date(procesandoDesde).getTime();
+     const fin = new Date(procesadoEn).getTime();
+     const diffMs = fin - inicio;
+     
+     if (diffMs >= 0) {
+       return {
+         tiempo: this.formatearTiempo(diffMs),
+         enPreparacion: false,
+         segundos: Math.floor(diffMs / 1000)
+       };
+     }
+   }
+   
+   // Sin datos suficientes para calcular
+   return { tiempo: '—', enPreparacion: false, segundos: 0 };
  }
  
- return {
- tiempo: this.formatearTiempo(diffMs),
- enPreparacion: false,
- segundos: Math.floor(diffMs / 1000)
- };
+ // Si el estado es en_espera o pedido, el tiempo puede seguir corriendo
+ if (estado === 'en_espera' || estado === 'pedido') {
+   // Si tiene ambos timestamps (caso raro: plato finalizado y revertido)
+   if (procesandoDesde && procesadoEn) {
+     const inicio = new Date(procesandoDesde).getTime();
+     const fin = new Date(procesadoEn).getTime();
+     const diffMs = fin - inicio;
+     
+     if (diffMs >= 0) {
+       return {
+         tiempo: this.formatearTiempo(diffMs),
+         enPreparacion: false,
+         segundos: Math.floor(diffMs / 1000)
+       };
+     }
+   }
+   
+   // Si está siendo procesado actualmente (en curso) - TIEMPO REAL
+   if (procesandoDesde && !procesadoEn) {
+     const inicio = new Date(procesandoDesde).getTime();
+     // Usar this.now para tiempo real (se actualiza cada segundo)
+     const ahora = this.now || Date.now();
+     const diffMs = ahora - inicio;
+     
+     return {
+       tiempo: this.formatearTiempo(diffMs) + ' (en curso)',
+       enPreparacion: true,
+       segundos: Math.floor(diffMs / 1000)
+     };
+   }
+   
+   // Si no tiene procesandoPor pero tiene tiempos.en_espera - calcular tiempo desde que llegó a cocina
+   if (tiempoEnEspera && !procesandoDesde) {
+     const ahora = this.now || Date.now();
+     const diffMs = ahora - tiempoEnEspera;
+     
+     return {
+       tiempo: this.formatearTiempo(diffMs),
+       enPreparacion: false,
+       segundos: Math.floor(diffMs / 1000)
+     };
+   }
  }
- 
- // Si solo está en preparación, calcular tiempo parcial
- if (procesandoDesde && !procesadoEn) {
- const inicio = new Date(procesandoDesde).getTime();
- const ahora = Date.now();
- const diffMs = ahora - inicio;
- 
- return {
- tiempo: this.formatearTiempo(diffMs) + ' (en curso)',
- enPreparacion: true,
- segundos: Math.floor(diffMs / 1000)
- };
- }
- 
+
  // Sin datos de tiempo
  return { tiempo: '—', enPreparacion: false, segundos: 0 };
  },
