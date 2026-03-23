@@ -503,18 +503,32 @@ const agregarComanda = async (data) => {
   // ========== RESERVAS: Validacion de mozo autorizado ==========
   if (estadoMesa === 'reservado') {
     console.log(`🔍 Mesa ${mesa.nummesa} está reservada. Verificando autorización del mozo...`);
+    console.log(`🔍 Mesa ID: ${mesa._id}, Mozo solicitante: ${data.mozos}`);
     
     try {
       const reservaActiva = await getReservaRepository().obtenerReservaActivaPorMesa(mesa._id);
       
+      console.log(`🔍 Resultado búsqueda reserva:`, reservaActiva ? {
+        id: reservaActiva._id,
+        estado: reservaActiva.estado,
+        mozo: reservaActiva.mozo
+      } : 'NO ENCONTRADA');
+      
       if (reservaActiva) {
         // Si hay un mozo asignado en la reserva
-        if (reservaActiva.mozo && reservaActiva.mozo._id) {
-          const mozoAsignado = reservaActiva.mozo._id.toString();
+        // El mozo puede ser un ObjectId directo o un objeto poblado
+        const mozoAsignadoId = reservaActiva.mozo?._id 
+          ? reservaActiva.mozo._id.toString() 
+          : (reservaActiva.mozo ? reservaActiva.mozo.toString() : null);
+        
+        if (mozoAsignadoId) {
           const mozoSolicitante = data.mozos ? data.mozos.toString() : null;
           
-          if (mozoSolicitante && mozoAsignado !== mozoSolicitante) {
-            const errorMsg = `Mesa reservada. Solo el mozo asignado (${reservaActiva.mozo.name || 'desconocido'}) puede atender esta mesa.`;
+          console.log(`🔍 Comparando mozos - Asignado: ${mozoAsignadoId}, Solicitante: ${mozoSolicitante}`);
+          
+          if (mozoSolicitante && mozoAsignadoId !== mozoSolicitante) {
+            const mozoNombre = reservaActiva.mozo?.name || 'desconocido';
+            const errorMsg = `Mesa reservada. Solo el mozo asignado (${mozoNombre}) puede atender esta mesa.`;
             console.error(`❌ ${errorMsg} - Mozo solicitante: ${mozoSolicitante}`);
             const error = new Error(errorMsg);
             error.statusCode = 403; // Forbidden
@@ -536,13 +550,15 @@ const agregarComanda = async (data) => {
         data.origenReserva = reservaActiva._id;
         
       } else {
-        // No hay reserva activa, pero la mesa está en estado reservado (inconsistencia)
-        // Solo admin puede liberarla
-        const errorMsg = 'Mesa reservada. Solo un administrador puede liberarla.';
-        console.error(`❌ ${errorMsg} - Mesa ${mesa.nummesa}`);
-        const error = new Error(errorMsg);
-        error.statusCode = 409; // Conflict
-        throw error;
+        // No hay reserva activa, pero la mesa está en estado reservado (inconsistencia o expiró)
+        // Permitir que cualquier mozo pueda atender y cambiar el estado de la mesa
+        console.log(`⚠️ Mesa ${mesa.nummesa} en estado 'reservado' sin reserva activa. Permitiendo crear comanda.`);
+        console.log(`📝 El estado de la mesa se actualizará a 'pedido' automáticamente.`);
+        
+        // Actualizar el estado de la mesa a 'pedido' para corregir la inconsistencia
+        mesa.estado = 'pedido';
+        await mesa.save();
+        console.log(`✅ Mesa ${mesa.nummesa} actualizada a estado 'pedido'`);
       }
     } catch (err) {
       if (err.statusCode) throw err; // Re-lanzar errores con status
@@ -718,7 +734,8 @@ const agregarComanda = async (data) => {
   // Actualizar estado de la mesa a "pedido" automáticamente cuando se crea la comanda
   // Si la mesa estaba en "preparado", cambiar a "pedido" para la nueva comanda
   // Si la mesa estaba en "libre", cambiar a "pedido"
-  if (estadoMesa === 'preparado' || estadoMesa === 'libre') {
+  // Si la mesa estaba en "reservado", cambiar a "pedido" (el mozo autorizado está atendiendo)
+  if (estadoMesa === 'preparado' || estadoMesa === 'libre' || estadoMesa === 'reservado') {
     await mesasModel.updateOne(
       { _id: data.mesas },
       { $set: { estado: 'pedido' } }

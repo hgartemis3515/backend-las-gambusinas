@@ -258,6 +258,21 @@ const obtenerReservaActivaPorMesa = async (mesaId) => {
         .populate('mozo', 'name _id')
         .lean();
         
+        // Log para debug
+        if (reserva) {
+            logger.info('Reserva activa encontrada', {
+                reservaId: reserva._id,
+                mesaId: mesaId,
+                estado: reserva.estado,
+                mozo: reserva.mozo ? {
+                    _id: reserva.mozo._id,
+                    name: reserva.mozo.name
+                } : null
+            });
+        } else {
+            logger.info('No se encontró reserva activa', { mesaId });
+        }
+        
         return reserva;
         
     } catch (error) {
