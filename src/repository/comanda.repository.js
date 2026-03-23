@@ -535,7 +535,7 @@ const agregarComanda = async (data) => {
             throw error;
           }
           
-          // Mozo autorizado: marcar reserva como activa
+          // Mozo autorizado
           console.log(`✅ Mozo autorizado para mesa reservada ${mesa.nummesa}`);
           
         } else {
@@ -543,8 +543,14 @@ const agregarComanda = async (data) => {
           console.log(`ℹ️ Mesa ${mesa.nummesa} reservada sin mozo asignado. Cualquier mozo puede atender.`);
         }
         
-        // Marcar la reserva como activa
-        await getReservaRepository().marcarReservaComoActiva(reservaActiva._id);
+        // Solo marcar como activa si está en estado pendiente
+        // Si ya está activa, significa que ya se creó una comanda antes
+        if (reservaActiva.estado === 'pendiente') {
+          await getReservaRepository().marcarReservaComoActiva(reservaActiva._id);
+          console.log(`✅ Reserva ${reservaActiva._id} marcada como activa`);
+        } else {
+          console.log(`ℹ️ Reserva ${reservaActiva._id} ya está en estado '${reservaActiva.estado}', no es necesario actualizar`);
+        }
         
         // Guardar referencia a la reserva en la comanda
         data.origenReserva = reservaActiva._id;

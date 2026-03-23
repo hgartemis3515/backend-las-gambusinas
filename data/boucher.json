@@ -8621,5 +8621,103 @@
     "createdAt": "2026-03-23T19:34:43.819Z",
     "updatedAt": "2026-03-23T19:34:43.819Z",
     "boucherNumber": 133
+  },
+  {
+    "configuracionIGV": {
+      "igvPorcentaje": 18,
+      "preciosIncluyenIGV": true,
+      "nombreImpuesto": "IGV",
+      "moneda": "PEN",
+      "simboloMoneda": "S/."
+    },
+    "_id": "69c1a0b8de72e7a95abb47ca",
+    "voucherId": "KI2PB",
+    "mesa": "69860a47e52589a753836126",
+    "numMesa": 2,
+    "mozo": "6993350add56aff12441caca",
+    "nombreMozo": "Humberto",
+    "cliente": "69c1a0b7de72e7a95abb4487",
+    "usadoEnComanda": null,
+    "fechaUso": null,
+    "comandas": [
+      "69c1a092de72e7a95abb1c4b",
+      "69c1a087de72e7a95abaf9dd"
+    ],
+    "comandasNumbers": [
+      478,
+      479
+    ],
+    "platos": [
+      {
+        "plato": "6992b9dad845b119c1d00c86",
+        "platoId": 36,
+        "nombre": "Papa a la huancaína",
+        "precio": 13,
+        "cantidad": 1,
+        "subtotal": 13,
+        "comandaNumber": 478,
+        "complementosSeleccionados": [],
+        "cocinero": null,
+        "cocineroId": null,
+        "tiempoPreparacion": null,
+        "_id": "69c1a0b8de72e7a95abb47cb"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c87",
+        "platoId": 37,
+        "nombre": "Ensalada especial (limon o vinagreta)",
+        "precio": 15,
+        "cantidad": 1,
+        "subtotal": 15,
+        "comandaNumber": 478,
+        "complementosSeleccionados": [],
+        "cocinero": null,
+        "cocineroId": null,
+        "tiempoPreparacion": null,
+        "_id": "69c1a0b8de72e7a95abb47cc"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c68",
+        "platoId": 5,
+        "nombre": "Pan solo",
+        "precio": 0.5,
+        "cantidad": 1,
+        "subtotal": 0.5,
+        "comandaNumber": 479,
+        "complementosSeleccionados": [],
+        "cocinero": null,
+        "cocineroId": null,
+        "tiempoPreparacion": null,
+        "_id": "69c1a0b8de72e7a95abb47cd"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c69",
+        "platoId": 6,
+        "nombre": "Pan con queso",
+        "precio": 4,
+        "cantidad": 1,
+        "subtotal": 4,
+        "comandaNumber": 479,
+        "complementosSeleccionados": [],
+        "cocinero": null,
+        "cocineroId": null,
+        "tiempoPreparacion": null,
+        "_id": "69c1a0b8de72e7a95abb47ce"
+      }
+    ],
+    "subtotal": 27.54,
+    "igv": 4.96,
+    "total": 32.5,
+    "descuentos": [],
+    "totalSinDescuento": 32.5,
+    "montoDescuento": 0,
+    "totalConDescuento": 32.5,
+    "observaciones": "",
+    "fechaPago": "2026-03-23T20:21:12.108Z",
+    "fechaPagoString": "23/03/2026 15:21:12",
+    "isActive": true,
+    "createdAt": "2026-03-23T20:21:12.114Z",
+    "updatedAt": "2026-03-23T20:21:12.114Z",
+    "boucherNumber": 134
   }
 ]
