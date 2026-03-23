@@ -9,6 +9,7 @@ const clienteSchema = new mongoose.Schema({
     dni: { 
         type: String, 
         sparse: true, // Permite múltiples nulls pero valores únicos
+        unique: true,
         default: null
     },
     nombre: { 
@@ -81,7 +82,6 @@ clienteSchema.pre('save', function(next) {
 });
 
 // Índices
-clienteSchema.index({ dni: 1 }, { sparse: true, unique: true });
 clienteSchema.index({ tipo: 1 });
 clienteSchema.index({ numeroInvitado: 1 }, { sparse: true });
 

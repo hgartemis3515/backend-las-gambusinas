@@ -16,6 +16,17 @@ const redisCache = require('../utils/redisCache');
 const calculosPrecios = require('../utils/calculosPrecios');
 const configuracionRepository = require('./configuracion.repository');
 
+// ========== RESERVAS: Importar repositorio de reservas ==========
+// Importacion diferida para evitar dependencia circular
+let reservaRepository = null;
+const getReservaRepository = () => {
+    if (!reservaRepository) {
+        reservaRepository = require('./reserva.repository');
+    }
+    return reservaRepository;
+};
+// ========== FIN RESERVAS ==========
+
 const DATA_DIR = path.join(__dirname, '../../data');
 
 // ==================== FASE A1: PROYECCIONES OPTIMIZADAS ====================
@@ -488,13 +499,58 @@ const agregarComanda = async (data) => {
   // Las comandas son independientes: una mesa puede tener múltiples comandas en cualquier combinación
   // de estados (en_espera, recoger, entregado). No hay restricción por "mismo mozo" ni por estado previo.
   const estadoMesa = (mesa.estado || 'libre').toLowerCase();
+  
+  // ========== RESERVAS: Validacion de mozo autorizado ==========
   if (estadoMesa === 'reservado') {
-    const errorMsg = 'Mesa reservada. Solo un administrador puede liberarla.';
-    console.error(`❌ ${errorMsg} - Mesa ${mesa.nummesa}`);
-    const error = new Error(errorMsg);
-    error.statusCode = 409; // Conflict
-    throw error;
+    console.log(`🔍 Mesa ${mesa.nummesa} está reservada. Verificando autorización del mozo...`);
+    
+    try {
+      const reservaActiva = await getReservaRepository().obtenerReservaActivaPorMesa(mesa._id);
+      
+      if (reservaActiva) {
+        // Si hay un mozo asignado en la reserva
+        if (reservaActiva.mozo && reservaActiva.mozo._id) {
+          const mozoAsignado = reservaActiva.mozo._id.toString();
+          const mozoSolicitante = data.mozos ? data.mozos.toString() : null;
+          
+          if (mozoSolicitante && mozoAsignado !== mozoSolicitante) {
+            const errorMsg = `Mesa reservada. Solo el mozo asignado (${reservaActiva.mozo.name || 'desconocido'}) puede atender esta mesa.`;
+            console.error(`❌ ${errorMsg} - Mozo solicitante: ${mozoSolicitante}`);
+            const error = new Error(errorMsg);
+            error.statusCode = 403; // Forbidden
+            throw error;
+          }
+          
+          // Mozo autorizado: marcar reserva como activa
+          console.log(`✅ Mozo autorizado para mesa reservada ${mesa.nummesa}`);
+          
+        } else {
+          // No hay mozo asignado: cualquier mozo puede atender
+          console.log(`ℹ️ Mesa ${mesa.nummesa} reservada sin mozo asignado. Cualquier mozo puede atender.`);
+        }
+        
+        // Marcar la reserva como activa
+        await getReservaRepository().marcarReservaComoActiva(reservaActiva._id);
+        
+        // Guardar referencia a la reserva en la comanda
+        data.origenReserva = reservaActiva._id;
+        
+      } else {
+        // No hay reserva activa, pero la mesa está en estado reservado (inconsistencia)
+        // Solo admin puede liberarla
+        const errorMsg = 'Mesa reservada. Solo un administrador puede liberarla.';
+        console.error(`❌ ${errorMsg} - Mesa ${mesa.nummesa}`);
+        const error = new Error(errorMsg);
+        error.statusCode = 409; // Conflict
+        throw error;
+      }
+    } catch (err) {
+      if (err.statusCode) throw err; // Re-lanzar errores con status
+      console.error('❌ Error al validar reserva:', err.message);
+      throw new Error('Error al validar reserva de mesa');
+    }
   }
+  // ========== FIN VALIDACION RESERVAS ==========
   // Libre, pedido, preparado, esperando, pagado: permitir crear comanda. La mesa existe y está activa.
   console.log(`✅ Permitiendo nueva comanda en mesa ${mesa.nummesa} (estado: ${estadoMesa}) - Sin restricción por comandas existentes`);
 

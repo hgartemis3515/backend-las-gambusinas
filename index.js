@@ -1,5 +1,5 @@
 require('dotenv').config();
-require ('./src/database/database');
+const { whenConnected } = require('./src/database/database');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -36,6 +36,10 @@ const cocinerosRoutes = require('./src/controllers/cocinerosController')
 const zonaRoutes = require('./src/controllers/zonaController')
 // TEMA 4: Controller para procesamiento con identificación de cocinero
 const procesamientoRoutes = require('./src/controllers/procesamientoController')
+// RESERVAS: Controller para gestión de reservas
+const reservaRoutes = require('./src/controllers/reservaController')
+// RESERVAS: Servicio de timeouts para expiración automática
+const timeoutService = require('./src/services/timeoutService')
 const { adminAuth } = require('./src/middleware/adminAuth')
 
 const app = express();
@@ -106,7 +110,7 @@ app.use(cors({
   credentials: true
 }));
 
-const routes = [mesasRoutes, mozosRoutes, platoRoutes, comandaRoutes, pedidoRoutes, areaRoutes, boucherRoutes, clientesRoutes, auditoriaRoutes, cierreCajaRoutes, cierreCajaRestauranteRoutes, adminRoutes, notificacionesRoutes, mensajesRoutes, reportesRoutes, rolesRoutes, configuracionRoutes, cocinerosRoutes, zonaRoutes, procesamientoRoutes];
+const routes = [mesasRoutes, mozosRoutes, platoRoutes, comandaRoutes, pedidoRoutes, areaRoutes, boucherRoutes, clientesRoutes, auditoriaRoutes, cierreCajaRoutes, cierreCajaRestauranteRoutes, adminRoutes, notificacionesRoutes, mensajesRoutes, reportesRoutes, rolesRoutes, configuracionRoutes, cocinerosRoutes, zonaRoutes, procesamientoRoutes, reservaRoutes];
 
 // FASE 7: Security Headers (Helmet.js)
 const helmet = require('helmet');
@@ -512,8 +516,20 @@ app.get('/metrics', async (req, res) => {
   }
 });
 
+// No abrir HTTP hasta que MongoDB responda (evita API “media viva” sin BD)
+whenConnected.then(() => {
 // Escuchar en todas las interfaces de red (0.0.0.0) para permitir conexiones desde otros dispositivos
-server.listen(port, '0.0.0.0', ()=> {
+server.listen(port, '0.0.0.0', async ()=> {
+  // ========== RESERVAS: Rehidratar timeouts al iniciar ==========
+  try {
+    logger.info('Rehidratando timeouts de reservas...');
+    const resultado = await timeoutService.rehidratarTimeouts();
+    logger.info('Rehidratacion completada', resultado);
+  } catch (error) {
+    logger.error('Error al rehidratar timeouts de reservas', { error: error.message });
+  }
+  // ========== FIN REHIDRATACION RESERVAS ==========
+  
   logger.info('Servidor iniciado', {
     port,
     nodeEnv: process.env.NODE_ENV || 'development',
@@ -534,9 +550,14 @@ server.listen(port, '0.0.0.0', ()=> {
   console.log('   • /mozos   - App Mozos');
   console.log('   • /admin   - Dashboard Admin');
   console.log('');
+  console.log('📅 Sistema de Reservas: ACTIVO');
+  console.log('');
   console.log('🌐 Orígenes CORS permitidos:');
   allowedOrigins.forEach(origin => console.log('   • ' + origin));
   console.log('');
   console.log('═══════════════════════════════════════════════════════════════');
   console.log('');
+});
+}).catch(() => {
+  // process.exit(1) ya se ejecutó en database.js
 });

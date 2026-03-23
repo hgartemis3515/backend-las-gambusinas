@@ -357,8 +357,16 @@ const comandaSchema = new mongoose.Schema({
     montoDescuento: {
         type: Number,
         default: 0
-    }
+    },
     // ========== FIN DESCUENTOS ==========
+    // ========== RESERVAS: Referencia a la reserva de origen ==========
+    origenReserva: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Reserva',
+        default: null,
+        index: true
+    }
+    // ========== FIN RESERVAS ==========
 }, { setDefaultsOnInsert: true });
 
 // ========== FASE A1: ÍNDICES COMPUESTOS OPTIMIZADOS (Patrón ESR: Equality-Sort-Range) ==========

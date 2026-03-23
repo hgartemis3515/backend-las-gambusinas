@@ -1777,5 +1777,183 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       return [];
     }
   };
+
+  // ========== FUNCIONES PARA EMITIR EVENTOS DE RESERVAS ==========
+
+  /**
+   * Emitir evento de nueva reserva creada
+   * @param {Object} reserva - Reserva creada
+   */
+  global.emitReservaCreada = async (reserva) => {
+    try {
+      if (!adminNamespace || !adminNamespace.sockets) {
+        return;
+      }
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      const eventData = {
+        reserva: reserva,
+        timestamp: timestamp
+      };
+
+      adminNamespace.emit('reserva-creada', eventData);
+
+      logger.info('Evento reserva-creada emitido', {
+        reservaId: reserva._id?.toString(),
+        mesaId: reserva.mesa?._id?.toString() || reserva.mesa?.toString(),
+        adminConnected: adminNamespace.sockets.size
+      });
+    } catch (error) {
+      logger.error('Error al emitir reserva-creada', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  };
+
+  /**
+   * Emitir evento de reserva actualizada
+   * @param {String} reservaId - ID de la reserva
+   * @param {Object} cambios - Campos actualizados
+   */
+  global.emitReservaActualizada = async (reservaId, cambios = {}) => {
+    try {
+      if (!adminNamespace || !adminNamespace.sockets) {
+        return;
+      }
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      const eventData = {
+        reservaId: reservaId?.toString(),
+        cambios: cambios,
+        timestamp: timestamp
+      };
+
+      adminNamespace.emit('reserva-actualizada', eventData);
+
+      logger.info('Evento reserva-actualizada emitido', {
+        reservaId: reservaId?.toString(),
+        adminConnected: adminNamespace.sockets.size
+      });
+    } catch (error) {
+      logger.error('Error al emitir reserva-actualizada', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  };
+
+  /**
+   * Emitir evento de reserva expirada/rechazada
+   * @param {String} reservaId - ID de la reserva
+   * @param {Object} reserva - Datos de la reserva expirada
+   */
+  global.emitReservaExpirada = async (reservaId, reserva = null) => {
+    try {
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      const eventData = {
+        reservaId: reservaId?.toString(),
+        reserva: reserva,
+        timestamp: timestamp
+      };
+
+      // Emitir a admin
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('reserva-expirada', eventData);
+      }
+
+      // Emitir a cocina para que actualicen estado de mesa
+      const fecha = moment().tz('America/Lima').format('YYYY-MM-DD');
+      const roomNameCocina = `fecha-${fecha}`;
+      if (cocinaNamespace) {
+        cocinaNamespace.to(roomNameCocina).emit('reserva-expirada', eventData);
+      }
+
+      logger.info('Evento reserva-expirada emitido', {
+        reservaId: reservaId?.toString(),
+        adminConnected: adminNamespace?.sockets?.size || 0,
+        cocinaConnected: cocinaNamespace?.sockets?.size || 0
+      });
+    } catch (error) {
+      logger.error('Error al emitir reserva-expirada', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  };
+
+  /**
+   * Emitir alerta de reserva proxima a expirar (5 minutos)
+   * @param {String} reservaId - ID de la reserva
+   * @param {Object} datos - Datos adicionales { mesa, cliente, minutosRestantes }
+   */
+  global.emitReservaAlertaExpiracion = async (reservaId, datos = {}) => {
+    try {
+      if (!adminNamespace || !adminNamespace.sockets) {
+        return;
+      }
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      const eventData = {
+        reservaId: reservaId?.toString(),
+        mesa: datos.mesa,
+        cliente: datos.cliente,
+        minutosRestantes: datos.minutosRestantes || 5,
+        timestamp: timestamp
+      };
+
+      adminNamespace.emit('reserva-alerta-expiracion', eventData);
+
+      logger.info('Evento reserva-alerta-expiracion emitido', {
+        reservaId: reservaId?.toString(),
+        mesa: datos.mesa,
+        minutosRestantes: datos.minutosRestantes,
+        adminConnected: adminNamespace.sockets.size
+      });
+    } catch (error) {
+      logger.error('Error al emitir reserva-alerta-expiracion', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  };
+
+  /**
+   * Emitir evento de reserva cancelada
+   * @param {String} reservaId - ID de la reserva
+   * @param {String} motivo - Motivo de cancelacion
+   */
+  global.emitReservaCancelada = async (reservaId, motivo = null) => {
+    try {
+      if (!adminNamespace || !adminNamespace.sockets) {
+        return;
+      }
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      const eventData = {
+        reservaId: reservaId?.toString(),
+        motivo: motivo,
+        timestamp: timestamp
+      };
+
+      adminNamespace.emit('reserva-cancelada', eventData);
+
+      logger.info('Evento reserva-cancelada emitido', {
+        reservaId: reservaId?.toString(),
+        motivo,
+        adminConnected: adminNamespace.sockets.size
+      });
+    } catch (error) {
+      logger.error('Error al emitir reserva-cancelada', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  };
 };
 

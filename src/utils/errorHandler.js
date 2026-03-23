@@ -35,7 +35,14 @@ const createErrorResponse = (message, code = 500, data = null) => {
  * @param {Object} logger - Logger de Winston (opcional)
  */
 const handleError = (error, res, logger = null) => {
-  const statusCode = error.statusCode || error.code || 500;
+  // Asegurar que statusCode sea un código HTTP válido (mínimo 100)
+  let statusCode = error.statusCode || 500;
+  
+  // Si statusCode no es válido, intentar error.code solo si es un código HTTP válido
+  if (statusCode < 100 || statusCode > 599) {
+    statusCode = (error.code && error.code >= 100 && error.code <= 599) ? error.code : 500;
+  }
+  
   const message = error.message || 'Error interno del servidor';
   const data = error.data || null;
 
