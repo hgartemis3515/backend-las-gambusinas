@@ -1,7 +1,7 @@
 # 🖥️ Documentación Completa - Backend Las Gambusinas
 
-**Versión:** 2.6  
-**Última Actualización:** Marzo 2026 (Sistema Multi-Cocinero v7.1, Cosmos Search, autenticación JWT en Socket.io, rooms por zona, procesamiento de platos con identificación de cocinero, auditoría de platos dejados)  
+**Versión:** 2.7  
+**Última Actualización:** Marzo 2026 (Sistema Multi-Cocinero v7.2.1, procesamiento de platos con identificación de cocinero en comandas, endpoints de procesamiento, métricas de rendimiento por cocinero en cierre de caja)  
 **Tecnología:** Node.js + Express + MongoDB + Socket.io + Redis
 
 **Propósito del documento:** Análisis completo del backend de Las Gambusinas: arquitectura, flujo de datos, carga de datos, endpoints, modelos MongoDB, WebSockets, caché, logging, integración con App Mozos, App Cocina, Dashboard Administrativo y módulo de Cocineros con configuración KDS. Documento alineado con el codebase actual (marzo 2026).
@@ -13,6 +13,7 @@
 
 | Fecha        | Cambios                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Marzo 2026   | **Funcionalidad de Cocineros en Comandas v7.2.1:** Ampliación de la documentación del modelo Comanda con campos `procesandoPor` y `procesadoPor` a nivel de plato y comanda; endpoints de procesamiento (`PUT/DELETE /api/comanda/:id/plato/:platoId/procesando`, `PUT /api/comanda/:id/plato/:platoId/finalizar`); eventos Socket.io (`plato-procesando`, `plato-liberado`, `comanda-procesando`, `comanda-liberada`, `conflicto-procesamiento`); métricas de cocineros en cierre de caja; auditoría de platos dejados (`PLATO_DEJADO_COCINA`). |
 | Marzo 2026   | **Sistema Multi-Cocinero v7.1:** Implementación completa de identificación de cocinero en procesamiento de platos: modelo `procesandoPor` y `procesadoPor` en comandas; endpoints PUT/DELETE `/api/comanda/:id/plato/:platoId/procesando` y `/finalizar`; registro de tiempos de preparación; auditoría de platos dejados (`PLATO_DEJADO_COCINA`); middleware de autenticación JWT para Socket.io (`socketAuth.js`); rooms por zona (`join-zona`, `join-mis-zonas`); eventos de conflicto y liberación automática. |
 | Marzo 2026   | **Cosmos Search:** Nuevo sistema de búsqueda unificada estilo Command Palette (⌘K/Ctrl+K): archivo `public/assets/js/cosmos-search.js` con glassmorphism UI; búsqueda en platos, mesas, clientes, comandas y bouchers; navegación por teclado; integración en todas las páginas del dashboard; componente `cosmos-searchbar.html` y estilos en `cosmos-search.css`.                                                                                                                                                |
 | Marzo 2026   | **Autenticación JWT en Socket.io:** Nuevo middleware `src/middleware/socketAuth.js` con validación JWT en conexión de sockets; roles permitidos por namespace (`/cocina`: cocinero/admin/supervisor, `/mozos`: mozos/admin/supervisor, `/admin`: admin/supervisor); advertencia de token próximo a expirar; rate limiting configurable; helpers `emitToUser` y `emitToZona`.                                                                                                                                       |
@@ -323,9 +324,33 @@ Response JSON (res.json) o handleError en catch
 ### Comanda (`comanda.model.js`)
 
 - **mozos**, **mesas**, **cliente**: ObjectId ref. **dividedFrom**: ObjectId ref Comanda (opcional).
-- **platos**: array de `{ plato, platoId, estado, tiempos { pedido, en_espera, recoger, entregado, pagado }, eliminado, eliminadoPor, eliminadoAt, eliminadoRazon, estadoAlEliminar, generoDesperdicio, complementosSeleccionados [{ grupo, opcion }], procesandoPor { cocineroId, nombre, alias, timestamp }, procesadoPor { cocineroId, nombre, alias, timestamp } }`. Estados plato: `pedido`, `en_espera`, `recoger`, `entregado`, `pagado`. Los ítems pueden incluir las opciones de complemento elegidas por el mozo (según los grupos definidos en el plato). **v7.1:** `procesandoPor` indica qué cocinero está preparando el plato; `procesadoPor` indica quién lo terminó.
+- **platos**: array de objetos con la siguiente estructura:
+  - `plato`: ObjectId ref `platos`
+  - `platoId`: Number (ID numérico del plato)
+  - `estado`: enum [`pedido`, `en_espera`, `recoger`, `entregado`, `pagado`]
+  - `tiempos`: objeto con timestamps de cada transición de estado:
+    - `pedido`: Date (default: fecha de creación)
+    - `en_espera`: Date
+    - `recoger`: Date
+    - `entregado`: Date
+    - `pagado`: Date
+  - `complementosSeleccionados`: array de `{ grupo, opcion }` — opciones elegidas por el mozo
+  - `notaEspecial`: String — nota específica para este plato
+  - `eliminado`, `eliminadoPor`, `eliminadoAt`, `eliminadoRazon`: campos de auditoría para eliminación
+  - `anulado`, `anuladoPor`, `anuladoAt`, `anuladoRazon`, `anuladoSourceApp`, `tipoAnulacion`: campos para anulación desde cocina
+  - **v7.2.1 Procesamiento por cocinero:**
+    - `procesandoPor`: objeto que indica qué cocinero está preparando activamente el plato:
+      - `cocineroId`: ObjectId ref `mozos`
+      - `nombre`: String (nombre completo)
+      - `alias`: String (alias del cocinero)
+      - `timestamp`: Date (cuándo tomó el plato)
+    - `procesadoPor`: objeto que indica qué cocinero terminó de preparar el plato:
+      - `cocineroId`: ObjectId ref `mozos`
+      - `nombre`: String
+      - `alias`: String
+      - `timestamp`: Date (cuándo finalizó)
 - **cantidades**: array de números (índice paralelo a platos).
-- **status**: `en_espera`, `recoger`, `entregado`, `pagado`, `**cancelado`**.
+- **status**: `en_espera`, `recoger`, `entregado`, `pagado`, `cancelado`.
 - **IsActive**, **eliminada** (soft delete); **fechaEliminacion**, **motivoEliminacion**, **eliminadaPor**.
 - **comandaNumber**: auto-incremento.
 - **createdAt**, **updatedAt**, **tiempoEnEspera**, **tiempoRecoger**, **tiempoEntregado**, **tiempoPagado**.
@@ -333,7 +358,7 @@ Response JSON (res.json) o handleError en catch
 - **createdBy**, **updatedBy**, **deviceId**, **sourceApp** (enum: mozos, cocina, admin, api).
 - **incluidoEnCierre**: ObjectId ref CierreCajaRestaurante (para no duplicar en cierres).
 - **FASE A1:** Campos desnormalizados para lectura rápida: `mozoNombre`, `mesaNumero`, `areaNombre`, `clienteNombre`, `totalPlatos`, `platosActivos`.
-- **v7.1 Multi-Cocinero:** `procesandoPor { cocineroId, nombre, alias, timestamp }` a nivel de comanda (cuando se toma completa).
+- **v7.2.1 Multi-Cocinero (nivel comanda):** `procesandoPor` y `procesadoPor` a nivel de comanda (cuando se toma completa por un cocinero).
 - **v5.5:** `prioridadOrden` para ordenamiento en cocina.
 - **Descuentos:** `descuento`, `motivoDescuento`, `descuentoAplicadoPor`, `descuentoAplicadoAt`, `totalCalculado`, `totalSinDescuento`, `montoDescuento`.
 
@@ -403,7 +428,7 @@ Todas las rutas bajo `/api`. Los controladores exportan routers con rutas relati
 | Notificaciones          | `/notificaciones`    | GET, PATCH :id/leida, PATCH leidas                                                                                                                                                                                                                                                                                                                                                                                                  |
 | Mensajes                | `/mensajes`          | GET mensajes-no-leidos                                                                                                                                                                                                                                                                                                                                                                                                              |
 | Cocineros               | `/cocineros`         | GET, GET :id, GET :id/config, PUT :id/config, POST :id/asignar-rol, POST :id/quitar-rol, GET :id/metricas, GET metricas/todos, POST :id/conexion                                                                                                                                                                                                                                                                                    |
-| Procesamiento (v7.1)    | `/comanda`           | PUT :id/plato/:platoId/procesando, DELETE :id/plato/:platoId/procesando, PUT :id/plato/:platoId/finalizar, PUT :id/procesando, DELETE :id/procesando                                                                                                                                                                                                                                                                                |
+| Procesamiento (v7.2.1)  | `/comanda`           | PUT :id/plato/:platoId/procesando, DELETE :id/plato/:platoId/procesando, PUT :id/plato/:platoId/finalizar, PUT :id/procesando, DELETE :id/procesando                                                                                                                                                                                                                                                                                |
 
 
 **Platos:** GET /api/platos/categorias, GET /api/platos/menu/:tipo, GET /api/platos/menu/:tipo/categoria/:categoria, PATCH /api/platos/:id/tipo (body: { tipo }). Cache Redis 5 min en menu/:tipo; emisión `plato-menu-actualizado` en crear/actualizar/cambiar tipo.
@@ -431,6 +456,16 @@ Todas las rutas bajo `/api`. Los controladores exportan routers con rutas relati
 - **emitPlatoEntregado(comandaId, platoId, platoNombre, estadoAnterior)** — Room mesa mozos y room fecha cocina.
 - **emitReporteBoucherNuevo(boucher)**, **emitReporteComandaNueva(comanda)**, **emitReportePlatoListo(...)** — Namespace `/admin`.
 - **emitPlatoMenuActualizado(plato)** — Emite `plato-menu-actualizado` a `/cocina`, `/mozos` y `/admin`.
+
+**Funciones de procesamiento de cocineros (v7.2.1):**
+
+- **emitPlatoProcesando(comandaId, platoId, cocinero)** — Emite `plato-procesando` cuando un cocinero toma un plato para prepararlo. Datos: `{ comandaId, platoId, cocinero: { cocineroId, nombre, alias }, timestamp }`.
+- **emitPlatoLiberado(comandaId, platoId, cocineroId)** — Emite `plato-liberado` cuando un cocinero libera un plato antes de terminarlo. Datos: `{ comandaId, platoId, cocineroId, timestamp }`.
+- **emitComandaProcesando(comandaId, cocinero)** — Emite `comanda-procesando` cuando un cocinero toma una comanda completa. Datos: `{ comandaId, comandaNumber, cocinero, timestamp }`.
+- **emitComandaLiberada(comandaId, cocineroId)** — Emite `comanda-liberada` cuando un cocinero libera una comanda. Datos: `{ comandaId, comandaNumber, cocineroId, timestamp }`.
+- **emitConflictoProcesamiento(comandaId, platoId, cocineroActual, cocineroIntentando)** — Emite `conflicto-procesamiento` al room del cocinero que intentó tomar un plato ya tomado. Datos: `{ comandaId, platoId, procesadoPor, mensaje }`.
+- **emitLiberacionAutomatica(cocineroId, platosLiberados)** — Emite `liberacion-automatica` cuando se liberan platos automáticamente por desconexión del cocinero. Datos: `{ cocineroId, platosLiberados, timestamp }`.
+- **emitNuevaComandaToZona(zonaId, comanda)** — Emite `nueva-comanda-zona` a un room de zona específica para cocineros asignados a esa área.
 
 Cada 30 s se emite `socket-status` (connected, socketId, timestamp) a los tres namespaces.
 
@@ -1036,7 +1071,7 @@ La página incluye un catálogo de iconos de cocina organizados por keywords:
 
 ---
 
-## 🍳 Sistema Multi-Cocinero v7.1
+## 🍳 Sistema Multi-Cocinero v7.2.1
 
 Esta sección documenta la implementación del **sistema multi-cocinero**, que permite identificar qué cocinero está procesando cada plato, gestionar conflictos de procesamiento, y llevar un registro de tiempos de preparación.
 
@@ -1083,18 +1118,153 @@ procesandoPor: {
 3. **Autenticación:** Todos los endpoints requieren JWT y verificación de identidad
 4. **Auditoría:** Se registra cuando un cocinero deja un plato (`PLATO_DEJADO_COCINA`)
 
+### Flujo de Procesamiento de Platos
+
+El flujo de procesamiento permite que los cocineros "tomen", "liberen" o "finalicen" platos individualmente o comandas completas:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     ESTADOS DE UN PLATO                          │
+├─────────────────────────────────────────────────────────────────┤
+│  pedido → en_espera → recoger → entregado → pagado              │
+│                                                                  │
+│  Estados de procesamiento (overlay):                             │
+│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐      │
+│  │  Sin tomar   │ ──► │ Procesando   │ ──► │  Procesado   │      │
+│  │procesandoPor │     │ (cocinero X) │     │ procesadoPor │      │
+│  │    = null    │     │    activo    │     │  completado  │      │
+│  └──────────────┘     └──────────────┘     └──────────────┘      │
+│         ▲                    │                    │              │
+│         │                    ▼                    │              │
+│         │            ┌──────────────┐             │              │
+│         └────────────│   Liberado   │◄────────────┘              │
+│                      │ (motivo opt.) │                            │
+│                      └──────────────┘                             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Acciones disponibles:**
+
+| Acción | Endpoint | Descripción |
+|--------|----------|-------------|
+| Tomar plato | `PUT /api/comanda/:id/plato/:platoId/procesando` | El cocinero indica que está preparando el plato. Si el estado era `pedido`, cambia a `en_espera`. |
+| Liberar plato | `DELETE /api/comanda/:id/plato/:platoId/procesando` | El cocinero libera el plato antes de terminarlo. Registra auditoría `PLATO_DEJADO_COCINA`. |
+| Finalizar plato | `PUT /api/comanda/:id/plato/:platoId/finalizar` | El cocinero termina el plato. Estado cambia a `recoger`. Se guarda `procesadoPor`. |
+| Tomar comanda | `PUT /api/comanda/:id/procesando` | El cocinero toma toda la comanda completa. |
+| Liberar comanda | `DELETE /api/comanda/:id/procesando` | El cocinero libera la comanda completa. |
+
+### Estructura de Respuestas
+
+**Éxito (200):**
+```json
+{
+  "success": true,
+  "message": "Plato tomado para preparación",
+  "data": {
+    "comandaId": "67abc...",
+    "platoId": "0",
+    "procesandoPor": {
+      "cocineroId": "67def...",
+      "nombre": "Juan Pérez",
+      "alias": "Chef Juan",
+      "timestamp": "2026-03-22T15:30:00.000Z"
+    }
+  }
+}
+```
+
+**Conflicto (409):**
+```json
+{
+  "success": false,
+  "error": "Este plato ya está siendo procesado por otro cocinero",
+  "procesandoPor": {
+    "cocineroId": "67xyz...",
+    "nombre": "María García",
+    "alias": "Chef María"
+  }
+}
+```
+
+**Sin permisos (403):**
+```json
+{
+  "success": false,
+  "error": "Solo el cocinero que tomó el plato puede liberarlo"
+}
+```
+
 ### Eventos Socket.io Nuevos
 
 
-| Evento                    | Dirección        | Datos                                  |
-| ------------------------- | ---------------- | -------------------------------------- |
-| `plato-procesando`        | Server → Cliente | `{ comandaId, platoId, cocinero }`     |
-| `plato-liberado`          | Server → Cliente | `{ comandaId, platoId, cocineroId }`   |
-| `comanda-procesando`      | Server → Cliente | `{ comandaId, cocinero }`              |
-| `comanda-liberada`        | Server → Cliente | `{ comandaId, cocineroId }`            |
-| `conflicto-procesamiento` | Server → Cliente | `{ comandaId, platoId, procesadoPor }` |
-| `liberacion-automatica`   | Server → Cliente | `{ cocineroId, platosLiberados }`      |
+| Evento                    | Dirección        | Datos                                  | Descripción |
+| ------------------------- | ---------------- | -------------------------------------- | ----------- |
+| `plato-procesando`        | Server → Cliente | `{ comandaId, platoId, cocinero, timestamp }` | Emitido cuando un cocinero toma un plato |
+| `plato-liberado`          | Server → Cliente | `{ comandaId, platoId, cocineroId, timestamp }` | Emitido cuando un cocinero libera un plato |
+| `comanda-procesando`      | Server → Cliente | `{ comandaId, comandaNumber, cocinero, timestamp }` | Emitido cuando un cocinero toma una comanda completa |
+| `comanda-liberada`        | Server → Cliente | `{ comandaId, comandaNumber, cocineroId, timestamp }` | Emitido cuando un cocinero libera una comanda |
+| `conflicto-procesamiento` | Server → Cliente | `{ comandaId, platoId, procesadoPor, mensaje }` | Emitido al room del cocinero que intentó tomar un plato ya tomado |
+| `liberacion-automatica`   | Server → Cliente | `{ cocineroId, platosLiberados, timestamp }` | Emitido cuando se liberan platos automáticamente por desconexión |
 
+
+### Métricas de Cocineros en Cierre de Caja
+
+El módulo de cierre de caja (`cierreCajaRestauranteController.js`) incluye análisis de desempeño de cocineros basado en los campos `procesadoPor` de las comandas:
+
+**Datos calculados:**
+
+```javascript
+cocineros: {
+  totalCocineros: Number,           // Total de cocineros en el sistema
+  cocinerosActivos: Number,         // Cocineros con platos preparados en el período
+  totalPlatosPreparados: Number,    // Suma de todos los platos preparados
+  tiempoPromedioPreparacion: Number, // Promedio en minutos
+  porcentajeDentroSLA: Number,      // % de platos preparados en ≤15 minutos
+  desempeñoPorCocinero: [
+    {
+      cocineroId: ObjectId,
+      nombre: String,
+      alias: String,
+      totalPlatos: Number,
+      totalTickets: Number,
+      tiempoPromedioPlato: Number,  // Minutos promedio
+      platosHora: Number,           // Productividad
+      porcentajeSLA: Number,        // % dentro del SLA
+      participacion: Number,        // % del total de platos
+      score: Number                 // Score de eficiencia
+    }
+  ],
+  rankingCocineros: [...]           // Top 5 cocineros por score
+}
+```
+
+**Exportación a PDF/Excel:**
+
+El cierre de caja incluye una hoja/sección específica para cocineros con:
+- Total de platos preparados
+- Tiempo promedio de preparación
+- Porcentaje dentro del SLA (15 min)
+- Cocineros activos
+- Tabla de rendimiento individual
+
+### Auditoría de Platos Dejados
+
+Cuando un cocinero libera un plato sin terminarlo, se registra en auditoría:
+
+```javascript
+{
+  accion: 'PLATO_DEJADO_COCINA',
+  entidadTipo: 'comanda',
+  entidadId: comandaId,
+  usuario: cocineroId,
+  metadata: {
+    comandaNumber: Number,
+    platoId: String,
+    platoNombre: String,
+    mesaNum: Number
+  }
+}
+```
 
 ### Documentación de Referencia
 
