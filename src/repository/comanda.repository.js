@@ -47,6 +47,7 @@ const PROYECCION_COCINA = {
     cantidades: 1,
     IsActive: 1,
     eliminada: 1,
+    procesandoPor: 1,  // 🔥 v7.4: Info del cocinero que está procesando la comanda completa
     // Campos desnormalizados (evitan populate)
     mozoNombre: 1,
     mesaNumero: 1,

@@ -1597,10 +1597,12 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
 
   /**
    * Emitir evento cuando un cocinero toma una comanda completa
+   * v7.4: Ahora incluye la comanda completa con los platos actualizados
    */
-  global.emitComandaProcesando = async (comandaId, cocinero) => {
+  global.emitComandaProcesando = async (comandaId, cocinero, comandaActualizada = null) => {
     try {
-      const comanda = await comandaModel.findById(comandaId);
+      const comanda = comandaActualizada || await comandaModel.findById(comandaId)
+        .populate({ path: "platos.plato", select: "nombre precio categoria" });
       if (!comanda) return;
 
       const timestamp = moment().tz('America/Lima').toISOString();
@@ -1611,6 +1613,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         comandaId: comandaId?.toString(),
         comandaNumber: comanda.comandaNumber,
         cocinero,
+        comanda, // Incluir comanda completa con platos actualizados
         timestamp
       };
 
@@ -1619,7 +1622,8 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       logger.info('Evento comanda-procesando emitido', {
         comandaId,
         comandaNumber: comanda.comandaNumber,
-        cocineroId: cocinero?.cocineroId
+        cocineroId: cocinero?.cocineroId,
+        roomName
       });
     } catch (error) {
       logger.error('Error al emitir comanda-procesando', { error: error.message });
@@ -1628,10 +1632,12 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
 
   /**
    * Emitir evento cuando un cocinero libera una comanda
+   * v7.4: Ahora incluye la comanda completa actualizada
    */
-  global.emitComandaLiberada = async (comandaId, cocineroId) => {
+  global.emitComandaLiberada = async (comandaId, cocineroId, comandaActualizada = null) => {
     try {
-      const comanda = await comandaModel.findById(comandaId);
+      const comanda = comandaActualizada || await comandaModel.findById(comandaId)
+        .populate({ path: "platos.plato", select: "nombre precio categoria" });
       if (!comanda) return;
 
       const timestamp = moment().tz('America/Lima').toISOString();
@@ -1642,14 +1648,50 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         comandaId: comandaId?.toString(),
         comandaNumber: comanda.comandaNumber,
         cocineroId: cocineroId?.toString(),
+        comanda: comanda, // Incluir comanda completa con platos actualizados
         timestamp
       };
 
       cocinaNamespace.to(roomName).emit('comanda-liberada', eventData);
 
-      logger.info('Evento comanda-liberada emitido', { comandaId, cocineroId });
+      logger.info('Evento comanda-liberada emitido', { comandaId, cocineroId, roomName });
     } catch (error) {
       logger.error('Error al emitir comanda-liberada', { error: error.message });
+    }
+  };
+
+  /**
+   * Emitir evento cuando un cocinero finaliza una comanda completa
+   * v7.4: Sistema de 3 estados para Finalizar Comanda
+   */
+  global.emitComandaFinalizada = async (comandaId, cocinero, comandaActualizada = null) => {
+    try {
+      const comanda = comandaActualizada || await comandaModel.findById(comandaId)
+        .populate({ path: "platos.plato", select: "nombre precio categoria" });
+      if (!comanda) return;
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+      const fecha = moment(comanda.createdAt).tz('America/Lima').format('YYYY-MM-DD');
+      const roomName = `fecha-${fecha}`;
+
+      const eventData = {
+        comandaId: comandaId?.toString(),
+        comandaNumber: comanda.comandaNumber,
+        cocinero,
+        comanda: comanda, // Incluir comanda completa con platos actualizados
+        timestamp
+      };
+
+      cocinaNamespace.to(roomName).emit('comanda-finalizada', eventData);
+
+      logger.info('Evento comanda-finalizada emitido', {
+        comandaId,
+        comandaNumber: comanda.comandaNumber,
+        cocineroId: cocinero?.cocineroId,
+        roomName
+      });
+    } catch (error) {
+      logger.error('Error al emitir comanda-finalizada', { error: error.message });
     }
   };
 

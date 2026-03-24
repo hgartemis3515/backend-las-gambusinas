@@ -457,6 +457,8 @@ router.put('/comanda/:id/procesando', adminAuth, async (req, res) => {
     const { id: comandaId } = req.params;
     const { cocineroId } = req.body;
     
+    logger.info('[TomarComanda] Request recibido', { comandaId, cocineroId });
+    
     if (!cocineroId) {
       return res.status(400).json({
         success: false,
@@ -484,32 +486,85 @@ router.put('/comanda/:id/procesando', adminAuth, async (req, res) => {
     }
     
     const cocineroInfo = await getCocineroInfo(cocineroId);
+    const timestampAhora = moment().tz('America/Lima').toDate();
     
-    comanda.procesandoPor = {
-      ...cocineroInfo,
-      timestamp: moment().tz('America/Lima').toDate()
-    };
-    comanda.updatedAt = moment().tz('America/Lima').toDate();
-    comanda.updatedBy = cocineroId;
+    // v7.4: Asignar procesandoPor a nivel de comanda usando updateOne
+    await Comanda.updateOne(
+      { _id: comandaId },
+      {
+        $set: {
+          procesandoPor: {
+            ...cocineroInfo,
+            timestamp: timestampAhora
+          },
+          updatedAt: timestampAhora,
+          updatedBy: cocineroId
+        }
+      }
+    );
     
-    await comanda.save();
+    // v7.4: Tomar TODOS los platos disponibles (igual que "Tomar Plato" pero en masa)
+    let platosTomados = 0;
     
-    if (global.emitComandaProcesando) {
-      global.emitComandaProcesando(comandaId, cocineroInfo);
+    if (comanda.platos && Array.isArray(comanda.platos)) {
+      for (let i = 0; i < comanda.platos.length; i++) {
+        const plato = comanda.platos[i];
+        
+        // Solo tomar platos que no estén eliminados, anulados ni ya tomados por otro
+        if (!plato.eliminado && !plato.anulado) {
+          const tomadoPorOtro = plato.procesandoPor?.cocineroId && 
+                                plato.procesandoPor.cocineroId.toString() !== cocineroId;
+          
+          if (!tomadoPorOtro && !plato.procesandoPor?.cocineroId) {
+            // Usar updateOne para garantizar que se guarde
+            await Comanda.updateOne(
+              { _id: comandaId },
+              {
+                $set: {
+                  [`platos.${i}.procesandoPor`]: {
+                    ...cocineroInfo,
+                    timestamp: timestampAhora
+                  },
+                  [`platos.${i}.estado`]: plato.estado === 'pedido' ? 'en_espera' : plato.estado,
+                  ...(plato.estado === 'pedido' && { [`platos.${i}.tiempos.en_espera`]: timestampAhora })
+                }
+              }
+            );
+            platosTomados++;
+          }
+        }
+      }
     }
     
-    logger.info('Comanda tomada para procesamiento', { comandaId, cocineroId });
+    logger.info('[TomarComanda] Comanda tomada con platos', { 
+      comandaId, 
+      cocineroId, 
+      platosTomados 
+    });
+    
+    // Obtener comanda actualizada poblada para emitir
+    const comandaActualizada = await Comanda.findById(comandaId)
+      .populate({ path: "platos.plato", select: "nombre precio categoria" })
+      .lean();
+    
+    // Emitir evento Socket con la comanda completa actualizada
+    if (global.emitComandaProcesando) {
+      global.emitComandaProcesando(comandaId, cocineroInfo, comandaActualizada);
+    }
     
     res.json({
       success: true,
       message: 'Comanda tomada para preparación',
       data: {
         comandaId,
-        procesandoPor: cocineroInfo
+        procesandoPor: cocineroInfo,
+        platosTomados,
+        comanda: comandaActualizada
       }
     });
     
   } catch (error) {
+    logger.error('[TomarComanda] Error', { error: error.message });
     res.status(500).json({
       success: false,
       error: error.message
@@ -519,12 +574,15 @@ router.put('/comanda/:id/procesando', adminAuth, async (req, res) => {
 
 /**
  * DELETE /api/comanda/:id/procesando
- * Libera una comanda que se había tomado
+ * Libera una comanda que se había tomado (Dejar Comanda)
+ * v7.4: También libera todos los platos que fueron tomados junto con la comanda
  */
 router.delete('/comanda/:id/procesando', adminAuth, async (req, res) => {
   try {
     const { id: comandaId } = req.params;
-    const { cocineroId } = req.body;
+    const { cocineroId, motivo } = req.body;
+    
+    logger.info('[DejarComanda] Request recibido', { comandaId, cocineroId });
     
     const comanda = await Comanda.findById(comandaId);
     
@@ -549,26 +607,239 @@ router.delete('/comanda/:id/procesando', adminAuth, async (req, res) => {
       });
     }
     
-    comanda.procesandoPor = {
-      cocineroId: null,
-      nombre: null,
-      alias: null,
-      timestamp: null
-    };
-    comanda.updatedAt = moment().tz('America/Lima').toDate();
+    const timestampAhora = moment().tz('America/Lima').toDate();
     
-    await comanda.save();
+    // 1. Liberar procesandoPor a nivel de comanda
+    await Comanda.updateOne(
+      { _id: comandaId },
+      {
+        $set: {
+          procesandoPor: {
+            cocineroId: null,
+            nombre: null,
+            alias: null,
+            timestamp: null
+          },
+          updatedAt: timestampAhora
+        }
+      }
+    );
+    
+    // 2. Liberar TODOS los platos que estaban siendo procesados por este cocinero
+    let platosLiberados = 0;
+    if (comanda.platos && Array.isArray(comanda.platos)) {
+      for (let i = 0; i < comanda.platos.length; i++) {
+        const plato = comanda.platos[i];
+        
+        // Solo liberar platos que estén siendo procesados por ESTE cocinero
+        if (plato.procesandoPor?.cocineroId?.toString() === cocineroId) {
+          await Comanda.updateOne(
+            { _id: comandaId },
+            {
+              $set: {
+                [`platos.${i}.procesandoPor`]: {
+                  cocineroId: null,
+                  nombre: null,
+                  alias: null,
+                  timestamp: null
+                }
+              }
+            }
+          );
+          platosLiberados++;
+        }
+      }
+    }
+    
+    logger.info('[DejarComanda] Comanda liberada', { 
+      comandaId, 
+      cocineroId, 
+      platosLiberados 
+    });
+    
+    // 3. Emitir evento Socket con la comanda completa actualizada
+    const comandaActualizada = await Comanda.findById(comandaId)
+      .populate({ path: "platos.plato", select: "nombre precio categoria" })
+      .lean();
     
     if (global.emitComandaLiberada) {
-      global.emitComandaLiberada(comandaId, cocineroId);
+      global.emitComandaLiberada(comandaId, cocineroId, comandaActualizada);
     }
     
     res.json({
       success: true,
-      message: 'Comanda liberada correctamente'
+      message: 'Comanda liberada correctamente',
+      data: {
+        comandaId,
+        platosLiberados,
+        comanda: comandaActualizada
+      }
     });
     
   } catch (error) {
+    logger.error('[DejarComanda] Error', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * PUT /api/comanda/:id/finalizar
+ * Finaliza una comanda completa (marca todos los platos como 'recoger')
+ * v7.4: Sistema de 3 estados para Finalizar Comanda
+ */
+router.put('/comanda/:id/finalizar', adminAuth, async (req, res) => {
+  try {
+    const { id: comandaId } = req.params;
+    const { cocineroId } = req.body;
+    
+    logger.info('[FinalizarComanda] Request recibido', { comandaId, cocineroId });
+    
+    if (!cocineroId) {
+      return res.status(400).json({
+        success: false,
+        error: 'cocineroId es requerido'
+      });
+    }
+    
+    const comanda = await Comanda.findById(comandaId);
+    
+    if (!comanda) {
+      return res.status(404).json({
+        success: false,
+        error: 'Comanda no encontrada'
+      });
+    }
+    
+    // Verificar que la comanda está siendo procesada por este cocinero
+    if (comanda.procesandoPor?.cocineroId && 
+        comanda.procesandoPor.cocineroId.toString() !== cocineroId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Solo el cocinero que tomó la comanda puede finalizarla'
+      });
+    }
+    
+    const cocineroInfo = await getCocineroInfo(cocineroId);
+    const timestampAhora = moment().tz('America/Lima').toDate();
+    
+    // Finalizar TODOS los platos que no estén ya finalizados
+    let platosFinalizados = 0;
+    let platosYaListos = 0;
+    
+    if (comanda.platos && Array.isArray(comanda.platos)) {
+      for (let i = 0; i < comanda.platos.length; i++) {
+        const plato = comanda.platos[i];
+        
+        // Saltar platos eliminados o anulados
+        if (plato.eliminado || plato.anulado) continue;
+        
+        const estado = plato.estado || 'en_espera';
+        
+        // Solo finalizar platos que no estén ya en 'recoger' o 'entregado'
+        if (estado !== 'recoger' && estado !== 'entregado') {
+          await Comanda.updateOne(
+            { _id: comandaId },
+            {
+              $set: {
+                [`platos.${i}.estado`]: 'recoger',
+                [`platos.${i}.tiempos.recoger`]: timestampAhora,
+                [`platos.${i}.procesadoPor`]: {
+                  ...cocineroInfo,
+                  timestamp: timestampAhora
+                },
+                [`platos.${i}.procesandoPor`]: {
+                  cocineroId: null,
+                  nombre: null,
+                  alias: null,
+                  timestamp: null
+                }
+              }
+            }
+          );
+          platosFinalizados++;
+        } else if (estado === 'recoger') {
+          platosYaListos++;
+        }
+      }
+    }
+    
+    // Limpiar procesandoPor de la comanda
+    await Comanda.updateOne(
+      { _id: comandaId },
+      {
+        $set: {
+          procesandoPor: {
+            cocineroId: null,
+            nombre: null,
+            alias: null,
+            timestamp: null
+          },
+          updatedAt: timestampAhora,
+          updatedBy: cocineroId
+        }
+      }
+    );
+    
+    // Verificar si toda la comanda está lista para cambiar status
+    const comandaActualizada = await Comanda.findById(comandaId);
+    const todosListos = comandaActualizada.platos.every(p => 
+      p.estado === 'recoger' || p.estado === 'entregado' || p.anulado || p.eliminado
+    );
+    
+    if (todosListos && comandaActualizada.status !== 'recoger') {
+      await Comanda.updateOne(
+        { _id: comandaId },
+        {
+          $set: {
+            status: 'recoger',
+            tiempoRecoger: timestampAhora
+          }
+        }
+      );
+    }
+    
+    // Obtener comanda completa poblada para emitir
+    const comandaFinalizada = await Comanda.findById(comandaId)
+      .populate({ path: "platos.plato", select: "nombre precio categoria" })
+      .lean();
+    
+    // Emitir evento Socket
+    if (global.emitComandaFinalizada) {
+      global.emitComandaFinalizada(comandaId, cocineroInfo, comandaFinalizada);
+    }
+    
+    // Incrementar contador de platos preparados del cocinero
+    if (platosFinalizados > 0) {
+      cocinerosRepository.incrementarPlatosPreparados(cocineroId, platosFinalizados).catch(err => {
+        logger.warn('No se pudo incrementar platos preparados', { error: err.message });
+      });
+    }
+    
+    logger.info('[FinalizarComanda] Comanda finalizada', {
+      comandaId,
+      cocineroId,
+      platosFinalizados,
+      platosYaListos,
+      todosListos
+    });
+    
+    res.json({
+      success: true,
+      message: 'Comanda finalizada correctamente',
+      data: {
+        comandaId,
+        platosFinalizados,
+        platosYaListos,
+        comandaLista: todosListos,
+        comanda: comandaFinalizada
+      }
+    });
+    
+  } catch (error) {
+    logger.error('[FinalizarComanda] Error', { error: error.message });
     res.status(500).json({
       success: false,
       error: error.message
