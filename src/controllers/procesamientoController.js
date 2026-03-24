@@ -576,13 +576,14 @@ router.put('/comanda/:id/procesando', adminAuth, async (req, res) => {
  * DELETE /api/comanda/:id/procesando
  * Libera una comanda que se había tomado (Dejar Comanda)
  * v7.4: También libera todos los platos que fueron tomados junto con la comanda
+ * v7.4.1: Registra auditoría con motivo
  */
 router.delete('/comanda/:id/procesando', adminAuth, async (req, res) => {
   try {
     const { id: comandaId } = req.params;
     const { cocineroId, motivo } = req.body;
     
-    logger.info('[DejarComanda] Request recibido', { comandaId, cocineroId });
+    logger.info('[DejarComanda] Request recibido', { comandaId, cocineroId, motivo });
     
     const comanda = await Comanda.findById(comandaId);
     
@@ -606,6 +607,14 @@ router.delete('/comanda/:id/procesando', adminAuth, async (req, res) => {
         error: 'Solo el cocinero que tomó la comanda puede liberarla'
       });
     }
+    
+    // Snapshot antes para auditoría
+    const snapshotAntes = {
+      comandaId,
+      comandaNumber: comanda.comandaNumber,
+      procesandoPor: comanda.procesandoPor,
+      platosTomados: comanda.platos?.filter(p => p.procesandoPor?.cocineroId?.toString() === cocineroId).length || 0
+    };
     
     const timestampAhora = moment().tz('America/Lima').toDate();
     
@@ -651,13 +660,33 @@ router.delete('/comanda/:id/procesando', adminAuth, async (req, res) => {
       }
     }
     
+    // 3. Registrar auditoría
+    req.auditoria = {
+      accion: 'COMANDA_DEJADA_COCINA',
+      entidadTipo: 'comanda',
+      entidadId: comandaId,
+      usuario: cocineroId,
+      ip: req.ip || req.connection?.remoteAddress || null,
+      deviceId: req.headers['device-id'] || req.headers['x-device-id'] || null,
+      metadata: {
+        comandaNumber: comanda.comandaNumber,
+        platosLiberados,
+        mesaNum: comanda.mesas?.nummesa || 'N/A'
+      },
+      comandaNumber: comanda.comandaNumber
+    };
+    
+    const motivoAuditoria = motivo || 'Cocinero liberó la comanda';
+    await registrarAuditoria(req, snapshotAntes, { liberada: true, platosLiberados }, motivoAuditoria);
+    
     logger.info('[DejarComanda] Comanda liberada', { 
       comandaId, 
       cocineroId, 
-      platosLiberados 
+      platosLiberados,
+      motivo: motivoAuditoria
     });
     
-    // 3. Emitir evento Socket con la comanda completa actualizada
+    // 4. Emitir evento Socket con la comanda completa actualizada
     const comandaActualizada = await Comanda.findById(comandaId)
       .populate({ path: "platos.plato", select: "nombre precio categoria" })
       .lean();
