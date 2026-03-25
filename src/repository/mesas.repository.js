@@ -381,15 +381,10 @@ const juntarMesas = async (mesasIds, mozoId, motivo = null) => {
         
         // ========== GENERAR NOMBRE COMBINADO ==========
         
-        // Crear el nombre combinado: "Mesa 1 y Mesa 2" o "Mesa 1, 2 y 3"
+        // Crear el nombre combinado compacto: "M1,2" o "M1,2,3,4,5"
+        // Este formato es más fácil de mostrar en la UI móvil
         const numerosMesas = mesasOrdenadas.map(m => m.nummesa);
-        let nombreCombinado = '';
-        if (numerosMesas.length === 2) {
-            nombreCombinado = `Mesa ${numerosMesas[0]} y ${numerosMesas[1]}`;
-        } else {
-            const ultimo = numerosMesas.pop();
-            nombreCombinado = `Mesa ${numerosMesas.join(', ')} y ${ultimo}`;
-        }
+        const nombreCombinado = `M${numerosMesas.join(',')}`;
         
         // ========== ACTUALIZAR MESA PRINCIPAL ==========
         

@@ -152,7 +152,7 @@ tailwind.config = {
                 </div>
                 
                 <div class="flex items-center justify-between mb-2">
-                  <span class="font-bold text-lg" x-text="m.nombreCombinado || ('Mesa ' + m.numMesa)"></span>
+                  <span class="font-bold text-lg" x-text="m.nombreCombinado || ('M' + m.numMesa)"></span>
                   <span x-show="!modoSeleccion" class="text-[10px] px-2 py-0.5 rounded-full font-semibold" :class="mesaBadge(estadoNormalizado(m.estado))" x-text="estadoNormalizado(m.estado)"></span>
                 </div>
                 
@@ -209,8 +209,7 @@ tailwind.config = {
                   </div>
                 </td>
                 <td class="px-4 py-3 font-medium">
-                  <span x-text="m.nombreCombinado || ('Mesa ' + m.numMesa)"></span>
-                  <span x-show="!m.esMesaPrincipal" class="text-st-pedido text-xs ml-1">(Unida)</span>
+                  <span x-text="m.nombreCombinado || ('M' + m.numMesa)"></span>
                 </td>
                 <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full bg-gold-20 text-gold" x-text="m.area?.nombre || m.area || '—'"></span></td>
                 <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full font-semibold" :class="mesaBadge(estadoNormalizado(m.estado))" x-text="estadoNormalizado(m.estado)"></span></td>
@@ -525,13 +524,17 @@ tailwind.config = {
           (mArea?.nombre === areaNombre) ||
           (typeof mArea === 'string' && (mArea === areaId || mArea === areaNombre));
         const matchEstado = this.filterEstado === 'Todas' || this.estadoNormalizado(m.estado) === this.filterEstado;
-        return matchArea && matchEstado;
+        // Ocultar mesas secundarias (las que están unidas a otra mesa)
+        const esVisible = m.esMesaPrincipal !== false;
+        return matchArea && matchEstado && esVisible;
       });
     },
     
     get filteredMesasList() {
-      if (this.filterEstado === 'Todas') return this.mesas;
-      return this.mesas.filter(m => this.estadoNormalizado(m.estado) === this.filterEstado);
+      // Ocultar mesas secundarias (las que están unidas a otra mesa)
+      const mesasVisibles = this.mesas.filter(m => m.esMesaPrincipal !== false);
+      if (this.filterEstado === 'Todas') return mesasVisibles;
+      return mesasVisibles.filter(m => this.estadoNormalizado(m.estado) === this.filterEstado);
     },
     
     // ========== FUNCIONES PARA JUNTAR/SEPARAR MESAS ==========
