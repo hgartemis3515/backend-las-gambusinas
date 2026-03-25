@@ -697,6 +697,178 @@ async function getDetalleCocinero(cocineroId, fechaInicio, fechaFin) {
 }
 
 // ============================================================
+// VENTAS POR FECHA
+// ============================================================
+
+/**
+ * Obtiene ventas agrupadas por hora, día o semana
+ * @param {string} fechaInicio - Fecha inicio (YYYY-MM-DD)
+ * @param {string} fechaFin - Fecha fin (YYYY-MM-DD)
+ * @param {string} agruparPor - 'hora', 'dia', 'semana'
+ * @returns {Promise<Object>} Ventas agrupadas
+ */
+async function getVentas(fechaInicio, fechaFin, agruparPor = 'dia') {
+    try {
+        const Boucher = mongoose.model('Boucher') || require('../database/models/boucher.model');
+        const fechaInicioDate = moment.tz(fechaInicio, 'America/Lima').startOf('day').toDate();
+        const fechaFinDate = moment.tz(fechaFin, 'America/Lima').endOf('day').toDate();
+
+        logger.info('[ReportesRepo] Obteniendo ventas', {
+            fechaInicio: fechaInicioDate,
+            fechaFin: fechaFinDate,
+            agruparPor
+        });
+
+        let formatoFecha;
+        switch (agruparPor) {
+            case 'hora':
+                formatoFecha = '%Y-%m-%d %H:00';
+                break;
+            case 'semana':
+                formatoFecha = '%Y-%U';
+                break;
+            default:
+                formatoFecha = '%Y-%m-%d';
+        }
+
+        const pipeline = [
+            {
+                $match: {
+                    isActive: true,
+                    fechaPago: { $gte: fechaInicioDate, $lte: fechaFinDate }
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        $dateToString: {
+                            format: formatoFecha,
+                            date: '$fechaPago',
+                            timezone: 'America/Lima'
+                        }
+                    },
+                    total: { $sum: '$total' },
+                    subtotal: { $sum: '$subtotal' },
+                    igv: { $sum: '$igv' },
+                    cantidadBouchers: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ];
+
+        const resultados = await Boucher.aggregate(pipeline);
+
+        // Formatear respuesta
+        const datos = resultados.map(r => ({
+            _id: r._id,
+            hora: agruparPor === 'hora' ? r._id : undefined,
+            fecha: agruparPor !== 'hora' ? r._id : undefined,
+            total: Math.round(r.total * 100) / 100,
+            subtotal: Math.round(r.subtotal * 100) / 100,
+            igv: Math.round(r.igv * 100) / 100,
+            cantidadBouchers: r.cantidadBouchers
+        }));
+
+        const resumen = {
+            totalVentas: datos.reduce((sum, d) => sum + d.total, 0),
+            totalBouchers: datos.reduce((sum, d) => sum + d.cantidadBouchers, 0),
+            promedioPorBoucher: datos.length > 0 
+                ? datos.reduce((sum, d) => sum + d.total, 0) / datos.reduce((sum, d) => sum + d.cantidadBouchers, 0)
+                : 0
+        };
+
+        return {
+            datos,
+            resumen: {
+                totalVentas: Math.round(resumen.totalVentas * 100) / 100,
+                totalBouchers: resumen.totalBouchers,
+                promedioPorBoucher: Math.round(resumen.promedioPorBoucher * 100) / 100
+            }
+        };
+
+    } catch (error) {
+        logger.error('[ReportesRepo] Error en getVentas', { error: error.message });
+        throw error;
+    }
+}
+
+// ============================================================
+// PLATOS TOP VENDIDOS
+// ============================================================
+
+/**
+ * Obtiene los platos más vendidos en un rango de fechas
+ * @param {string} fechaInicio - Fecha inicio (YYYY-MM-DD)
+ * @param {string} fechaFin - Fecha fin (YYYY-MM-DD)
+ * @returns {Promise<Object>} Platos más vendidos
+ */
+async function getPlatosTop(fechaInicio, fechaFin) {
+    try {
+        const Boucher = mongoose.model('Boucher') || require('../database/models/boucher.model');
+        const fechaInicioDate = moment.tz(fechaInicio, 'America/Lima').startOf('day').toDate();
+        const fechaFinDate = moment.tz(fechaFin, 'America/Lima').endOf('day').toDate();
+
+        logger.info('[ReportesRepo] Obteniendo platos top', {
+            fechaInicio: fechaInicioDate,
+            fechaFin: fechaFinDate
+        });
+
+        const pipeline = [
+            {
+                $match: {
+                    isActive: true,
+                    fechaPago: { $gte: fechaInicioDate, $lte: fechaFinDate }
+                }
+            },
+            { $unwind: '$platos' },
+            {
+                $group: {
+                    _id: '$platos.platoId',
+                    nombre: { $first: '$platos.nombre' },
+                    platoRef: { $first: '$platos.plato' },
+                    vendidos: { $sum: '$platos.cantidad' },
+                    ingresos: { $sum: '$platos.subtotal' },
+                    veces: { $sum: 1 }
+                }
+            },
+            { $sort: { vendidos: -1 } },
+            { $limit: 20 }
+        ];
+
+        const resultados = await Boucher.aggregate(pipeline);
+
+        // Formatear respuesta
+        const datos = resultados.map((r, index) => ({
+            posicion: index + 1,
+            _id: r._id,
+            nombre: r.nombre || 'Desconocido',
+            vendidos: r.vendidos,
+            ingresos: Math.round(r.ingresos * 100) / 100,
+            promedioPrecio: r.veces > 0 ? Math.round((r.ingresos / r.veces) * 100) / 100 : 0
+        }));
+
+        const resumen = {
+            totalPlatosVendidos: datos.reduce((sum, d) => sum + d.vendidos, 0),
+            totalIngresos: datos.reduce((sum, d) => sum + d.ingresos, 0),
+            platosUnicos: datos.length
+        };
+
+        return {
+            datos,
+            resumen: {
+                totalPlatosVendidos: resumen.totalPlatosVendidos,
+                totalIngresos: Math.round(resumen.totalIngresos * 100) / 100,
+                platosUnicos: resumen.platosUnicos
+            }
+        };
+
+    } catch (error) {
+        logger.error('[ReportesRepo] Error en getPlatosTop', { error: error.message });
+        throw error;
+    }
+}
+
+// ============================================================
 // EXPORTS
 // ============================================================
 
@@ -705,5 +877,7 @@ module.exports = {
     getSerieTemporalCocineros,
     getHeatmapHorario,
     getDistribucionCategorias,
-    getDetalleCocinero
+    getDetalleCocinero,
+    getVentas,
+    getPlatosTop
 };
