@@ -54,6 +54,12 @@ const mesasSchema = new mongoose.Schema({
     motivoUnion: {
         type: String,
         default: null
+    },
+    
+    // Nombre combinado para mesas juntadas (ej: "Mesa 1 y Mesa 2")
+    nombreCombinado: {
+        type: String,
+        default: null
     }
     // ========== FIN CAMPOS GRUPOS DE MESAS ==========
 });

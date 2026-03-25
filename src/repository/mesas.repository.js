@@ -379,12 +379,25 @@ const juntarMesas = async (mesasIds, mozoId, motivo = null) => {
             });
         }
         
+        // ========== GENERAR NOMBRE COMBINADO ==========
+        
+        // Crear el nombre combinado: "Mesa 1 y Mesa 2" o "Mesa 1, 2 y 3"
+        const numerosMesas = mesasOrdenadas.map(m => m.nummesa);
+        let nombreCombinado = '';
+        if (numerosMesas.length === 2) {
+            nombreCombinado = `Mesa ${numerosMesas[0]} y ${numerosMesas[1]}`;
+        } else {
+            const ultimo = numerosMesas.pop();
+            nombreCombinado = `Mesa ${numerosMesas.join(', ')} y ${ultimo}`;
+        }
+        
         // ========== ACTUALIZAR MESA PRINCIPAL ==========
         
         await mesas.findByIdAndUpdate(mesaPrincipal._id, {
             esMesaPrincipal: true,
             mesasUnidas: mesasSecundariasIds,
-            estado: 'esperando', // Lista para tomar pedido
+            nombreCombinado: nombreCombinado, // Nuevo campo para mostrar nombre combinado
+            estado: 'libre', // Estado libre para que pueda recibir comandas
             fechaUnion: fechaUnion,
             unidoPor: mozoId,
             motivoUnion: motivo
@@ -494,6 +507,7 @@ const separarMesas = async (mesaPrincipalId, mozoId, motivo = null) => {
         
         await mesas.findByIdAndUpdate(mesaPrincipal._id, {
             mesasUnidas: [],
+            nombreCombinado: null, // Limpiar nombre combinado
             estado: nuevoEstadoPrincipal,
             fechaUnion: null,
             unidoPor: null,
