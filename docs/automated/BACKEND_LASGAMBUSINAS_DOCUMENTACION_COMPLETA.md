@@ -1,10 +1,37 @@
 # 🖥️ Documentación Completa - Backend Las Gambusinas
 
-**Versión:** 2.7  
-**Última Actualización:** Marzo 2026 (Sistema Multi-Cocinero v7.2.1, procesamiento de platos con identificación de cocinero en comandas, endpoints de procesamiento, métricas de rendimiento por cocinero en cierre de caja)  
+**Versión:** 2.8  
+**Última Actualización:** Marzo 2026  
 **Tecnología:** Node.js + Express + MongoDB + Socket.io + Redis
 
 **Propósito del documento:** Análisis completo del backend de Las Gambusinas: arquitectura, flujo de datos, carga de datos, endpoints, modelos MongoDB, WebSockets, caché, logging, integración con App Mozos, App Cocina, Dashboard Administrativo y módulo de Cocineros con configuración KDS. Documento alineado con el codebase actual (marzo 2026).
+
+---
+
+## 🎯 Objetivo del Sistema
+
+### ¿Qué se está creando?
+
+El **Backend Las Gambusinas** es el núcleo de un **sistema POS (Point of Sale) integral para restaurantes** que busca digitalizar y optimizar todas las operaciones de un restaurante tradicional. El sistema está diseñado para funcionar en tiempo real, permitiendo la comunicación instantánea entre mozos, cocina y administración.
+
+### Visión del Proyecto
+
+Crear un ecosistema digital completo que permita:
+
+1. **Operación en tiempo real**: Sincronización instantánea entre todas las aplicaciones conectadas
+2. **Trazabilidad completa**: Auditoría de cada acción realizada (quién, qué, cuándo, por qué)
+3. **Multi-rol y multi-dispositivo**: Soporte para mozos, cocineros, supervisores y administradores
+4. **Escalabilidad**: Arquitectura preparada para crecimiento (Redis, Socket.io adapter)
+5. **Experiencia de usuario premium**: Interfaces modernas, animaciones fluidas, feedback visual
+
+### Aplicaciones Conectadas
+
+| Aplicación | Tecnología | Rol | Función Principal |
+|------------|------------|-----|-------------------|
+| **App Mozos** | React Native + Expo | Personal de sala | Tomar pedidos, gestionar mesas, procesar pagos |
+| **App Cocina** | React + Vite | Personal de cocina | KDS (Kitchen Display System), preparación de platos |
+| **Dashboard Admin** | HTML + Tailwind + Alpine.js | Administradores | Gestión completa, reportes, cierre de caja |
+| **Panel Admin** | HTML + CSS + JS | Operación rápida | CRUD sin autenticación JWT |
 
 ---
 
@@ -2009,6 +2036,135 @@ Generar PDFs/Excel con:
 
 ---
 
+## 🔧 Herramientas y Tecnologías Recomendadas
+
+### Herramientas de Desarrollo
+
+| Herramienta | Uso | Estado |
+|-------------|-----|--------|
+| **VS Code** | IDE principal | Recomendado |
+| **Postman** | Testing de API | Recomendado |
+| **MongoDB Compass** | Visualización de BD | Recomendado |
+| **PM2** | Gestión de procesos en producción | Implementado |
+| **Docker** | Containerización | Configurado |
+| **Jest** | Testing automatizado | Implementado |
+
+### Herramientas de Monitoreo
+
+| Herramienta | Uso | Estado |
+|-------------|-----|--------|
+| **Sentry** | Monitoreo de errores | Opcional (configurado) |
+| **Winston** | Logging estructurado | Implementado |
+| **Prometheus** | Métricas | Implementado (`/metrics`) |
+| **Socket.io Admin UI** | Monitoreo de WebSockets | Disponible |
+
+### Tecnologías Frontend del Dashboard
+
+| Tecnología | Uso | Ubicación |
+|------------|-----|-----------|
+| **Tailwind CSS** | Estilos y diseño responsive | Todas las páginas |
+| **Alpine.js** | Reactividad ligera | Dashboard y modales |
+| **Chart.js** | Gráficos estadísticos | Reportes y KPIs |
+| **Socket.io-client** | Tiempo real | Todas las páginas |
+| **Tabler Icons** | Iconografía | cocineros.html |
+
+---
+
+## 🚀 Roadmap de Desarrollo
+
+### Fase Actual (v2.8) - Marzo 2026
+
+- ✅ Sistema Multi-Cocinero v7.2.1 completo
+- ✅ Autenticación JWT en Socket.io
+- ✅ Rooms por zona
+- ✅ Cosmos Search (⌘K)
+- ✅ Auditoría de platos dejados
+- ✅ Modelo Zona implementado
+- ✅ Sistema de reservas
+
+### Próximas Implementaciones
+
+#### Corto Plazo (1-2 meses)
+
+1. **Implementar modelo Zona** con endpoints CRUD completos
+2. **Montar rutas de Pedidos** en index.js para habilitar API de grupos de comandas
+3. **Mejorar documentación de API** con Swagger/OpenAPI
+4. **Tests automatizados** para endpoints críticos
+
+#### Medio Plazo (3-6 meses)
+
+1. **Notificaciones push** para apps móviles
+2. **Dashboard de supervisión** en tiempo real
+3. **Sistema de turnos** para cocineros
+4. **Reportes avanzados** con exportación programada
+
+#### Largo Plazo (6-12 meses)
+
+1. **Multi-sucursal** con sincronización entre locales
+2. **App de clientes** para pedidos online
+3. **Integración con sistemas contables**
+4. **IA para predicción de demanda**
+
+---
+
+## 💡 Sugerencias para el Equipo de Desarrollo
+
+### Mejoras de Código
+
+1. **Unificar respuestas de API**: Crear un helper estándar para respuestas HTTP
+   ```javascript
+   // src/utils/responseHelper.js
+   const ApiResponse = {
+     success: (res, data, status = 200) => res.status(status).json({ success: true, data }),
+     error: (res, message, status = 400, errors = null) => 
+       res.status(status).json({ success: false, message, errors })
+   };
+   ```
+
+2. **Validación centralizada**: Usar Joi o Zod para validación de esquemas
+   ```javascript
+   // src/validators/comanda.validator.js
+   const Joi = require('joi');
+   const comandaSchema = Joi.object({
+     mozos: Joi.string().required(),
+     mesas: Joi.string().required(),
+     platos: Joi.array().min(1).required()
+   });
+   ```
+
+3. **Documentación automática**: Implementar Swagger UI
+   ```bash
+   npm install swagger-ui-express yamljs
+   ```
+
+### Mejoras de Arquitectura
+
+1. **Microservicios**: Separar servicios de notificaciones, reportes y auditoría
+2. **Event Sourcing**: Para trazabilidad completa de cambios
+3. **GraphQL**: Como alternativa a REST para consultas complejas
+4. **Webhooks**: Para integraciones con sistemas externos
+
+### Mejoras de Seguridad
+
+1. **Rate limiting por usuario**: No solo por IP
+2. **Encriptación de datos sensibles**: DNI, teléfonos en MongoDB
+3. **Auditoría de accesos**: Log de cada login/logout
+4. **2FA**: Para cuentas de administrador
+
+### Mejoras de Performance
+
+1. **Índices compuestos**: Optimizar consultas frecuentes
+   ```javascript
+   // En comanda.model.js
+   comandaSchema.index({ mesa: 1, status: 1, createdAt: -1 });
+   ```
+
+2. **Paginación en todos los listados**: Reducir carga de datos
+3. **Compresión de respuestas**: Usar `compression` middleware
+4. **CDN para archivos estáticos**: En producción
+
+---
+
 ## 📚 Referencias Cruzadas
 
 - **DIAGRAMA_FLUJO_DATOS_Y_FUNCIONES.md:** Arquitectura global, endpoints detallados, modelos, reglas de negocio, WebSockets, FASE 5/6/7.
@@ -2017,4 +2173,14 @@ Generar PDFs/Excel con:
 
 ---
 
-*Documento generado para el proyecto Las Gambusinas — Backend Node.js/Express/MongoDB/Socket.io. Versión 2.6, marzo 2026. Incluye: Sistema Multi-Cocinero v7.1 (identificación de cocinero en procesamiento, auditoría de platos dejados); autenticación JWT en Socket.io con rooms por zona; Cosmos Search (⌘K) para búsqueda unificada; documentación completa del panel admin.html: complementos en platos, cierre de caja con estadísticas y export, reportes, auditoría, comandas editables; página cocineros.html: gestión de cocineros y zonas KDS con métricas de rendimiento; integración completa con App de Cocina: filtros KDS, eventos Socket.io, autenticación JWT; y sección de sugerencias y mejoras futuras.*
+*Documento generado para el proyecto Las Gambusinas — Backend Node.js/Express/MongoDB/Socket.io. Versión 2.8, marzo 2026.*
+
+**Incluye:**
+- Sistema Multi-Cocinero v7.2.1 (identificación de cocinero en procesamiento, auditoría de platos dejados)
+- Autenticación JWT en Socket.io con rooms por zona
+- Cosmos Search (⌘K) para búsqueda unificada
+- Documentación completa del panel admin.html: complementos en platos, cierre de caja con estadísticas y export, reportes, auditoría, comandas editables
+- Página cocineros.html: gestión de cocineros y zonas KDS con métricas de rendimiento
+- Integración completa con App de Cocina: filtros KDS, eventos Socket.io, autenticación JWT
+- Sistema de reservas con timeout automático
+- Sección de sugerencias, herramientas y roadmap de desarrollo
