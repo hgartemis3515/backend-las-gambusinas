@@ -1,6 +1,6 @@
 # 🖥️ Documentación Completa - Backend Las Gambusinas
 
-**Versión:** 2.8  
+**Versión:** 2.10  
 **Última Actualización:** Marzo 2026  
 **Tecnología:** Node.js + Express + MongoDB + Socket.io + Redis
 
@@ -40,6 +40,8 @@ Crear un ecosistema digital completo que permita:
 
 | Fecha        | Cambios                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Marzo 2026   | **Corrección de Finalización de Comanda v7.4.1:** Bug corregido donde al finalizar comanda completa no se actualizaba en tiempo real en App de Mozos. Ahora se emiten eventos `plato-actualizado` por cada plato (igual que finalizar plato individual), más `comanda-actualizada` y `comanda-finalizada`. Agregado listener `comanda-finalizada` en App de Mozos. |
+| Marzo 2026   | **Sistema de Finalización de Platos y Comandas v7.4:** Nueva sección completa documentando el flujo de finalización: diferencias entre finalizar plato individual vs comanda completa; endpoints `PUT /api/comanda/:id/plato/:platoId/finalizar` y `PUT /api/comanda/:id/finalizar`; eventos Socket.io emitidos (`plato-actualizado`, `comanda-finalizada`); impacto en App de Mozos (alertas, cambio de estado de mesa); funciones del repository y controller involucradas; identificación de funciones faltantes (`finalizarPlatosBatch()`, `reabrirPlato()`, `getTiemposPreparacion()`). |
 | Marzo 2026   | **Funcionalidad de Cocineros en Comandas v7.2.1:** Ampliación de la documentación del modelo Comanda con campos `procesandoPor` y `procesadoPor` a nivel de plato y comanda; endpoints de procesamiento (`PUT/DELETE /api/comanda/:id/plato/:platoId/procesando`, `PUT /api/comanda/:id/plato/:platoId/finalizar`); eventos Socket.io (`plato-procesando`, `plato-liberado`, `comanda-procesando`, `comanda-liberada`, `conflicto-procesamiento`); métricas de cocineros en cierre de caja; auditoría de platos dejados (`PLATO_DEJADO_COCINA`). |
 | Marzo 2026   | **Sistema Multi-Cocinero v7.1:** Implementación completa de identificación de cocinero en procesamiento de platos: modelo `procesandoPor` y `procesadoPor` en comandas; endpoints PUT/DELETE `/api/comanda/:id/plato/:platoId/procesando` y `/finalizar`; registro de tiempos de preparación; auditoría de platos dejados (`PLATO_DEJADO_COCINA`); middleware de autenticación JWT para Socket.io (`socketAuth.js`); rooms por zona (`join-zona`, `join-mis-zonas`); eventos de conflicto y liberación automática. |
 | Marzo 2026   | **Cosmos Search:** Nuevo sistema de búsqueda unificada estilo Command Palette (⌘K/Ctrl+K): archivo `public/assets/js/cosmos-search.js` con glassmorphism UI; búsqueda en platos, mesas, clientes, comandas y bouchers; navegación por teclado; integración en todas las páginas del dashboard; componente `cosmos-searchbar.html` y estilos en `cosmos-search.css`.                                                                                                                                                |
@@ -1440,6 +1442,474 @@ const response = await fetch('/api/comanda/67abc.../plato/0/procesando', {
 
 ---
 
+## 🍽️ Finalización de Platos y Comandas (v7.4)
+
+Esta sección documenta detalladamente el proceso de **finalización de platos y comandas**, incluyendo la lógica de negocio, funciones involucradas, eventos Socket.io emitidos, y el impacto en las aplicaciones conectadas (App de Cocina, App de Mozos y Dashboard).
+
+### Visión General del Flujo
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    FLUJO DE FINALIZACIÓN EN COCINA                              │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│  App Cocina                              Backend                          App Mozos │
+│  ──────────                              ───────                          ───────── │
+│                                                                                 │
+│  1. Marcar plato ──────────────────►  cambiarEstadoPlato()                  │
+│     (checkbox visual)                 ├── validar transición               │
+│                                        ├── actualizar plato.estado         │
+│                                        ├── guardar tiempos.recoger         │
+│                                        ├── limpiar procesandoPor           │
+│                                        └── emitir plato-actualizado       │
+│                                                      │                         │
+│                                                      ▼                         │
+│  ◄────────────── plato-actualizado ◄──────────────────────────────────────►  │
+│  (UI actualizada)              (socket event)         (alerta "Plato Listo")  │
+│                                                                                 │
+│  2. Finalizar comanda ─────────────►  finalizarComanda()                    │
+│     (todos los platos)                ├── iterar todos los platos           │
+│                                        ├── cambiar estado a recoger         │
+│                                        ├── registrar procesadoPor           │
+│                                        ├── actualizar status comanda        │
+│                                        └── emitir comanda-finalizada        │
+│                                                      │                         │
+│                                                      ▼                         │
+│  ◄────────────── comanda-finalizada ◄─────────────────────────────────────►  │
+│  (UI actualizada)             (socket event)          (mesa en "preparado")   │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Diferencia entre Finalizar Plato y Finalizar Comanda
+
+| Aspecto | Finalizar Plato | Finalizar Comanda |
+|---------|-----------------|-------------------|
+| **Endpoint** | `PUT /api/comanda/:id/plato/:platoId/finalizar` | `PUT /api/comanda/:id/finalizar` |
+| **Alcance** | Un solo plato | Todos los platos de la comanda |
+| **Estado del plato** | Cambia a `recoger` | Todos cambian a `recoger` |
+| **Validación** | Solo el cocinero que tomó el plato puede finalizarlo | Solo el cocinero que tomó la comanda puede finalizarla |
+| **Evento Socket** | `plato-actualizado` | `comanda-finalizada` |
+| **Status comanda** | Puede cambiar si TODOS los platos están listos | Siempre cambia a `recoger` |
+| **Métricas** | Incrementa contador del cocinero (+1 plato) | Incrementa contador (+N platos) |
+| **Caso de uso** | Finalización individual por checkbox | Finalización en batch de comanda completa |
+
+### Finalizar Plato: Lógica Detallada
+
+#### Endpoint: `PUT /api/comanda/:id/plato/:platoId/finalizar`
+
+**Archivo:** `src/controllers/procesamientoController.js` (líneas 322-447)
+
+**Proceso paso a paso:**
+
+1. **Validaciones iniciales:**
+   - Verificar que `cocineroId` está presente en el body
+   - Buscar la comanda por ID (404 si no existe)
+   - Encontrar el índice del plato (por `_id` de subdocumento, `platoId` numérico, o índice)
+
+2. **Verificación de propiedad:**
+   ```javascript
+   if (plato.procesandoPor?.cocineroId && 
+       plato.procesandoPor.cocineroId.toString() !== cocineroId) {
+     return res.status(403).json({
+       error: 'Solo el cocinero que tomó el plato puede finalizarlo'
+     });
+   }
+   ```
+
+3. **Actualización del plato:**
+   ```javascript
+   await Comanda.updateOne(
+     { _id: comandaId },
+     {
+       $set: {
+         [`platos.${platoIndex}.estado`]: 'recoger',
+         [`platos.${platoIndex}.tiempos.recoger`]: timestamp,
+         [`platos.${platoIndex}.procesadoPor`]: {
+           cocineroId, nombre, alias, timestamp
+         },
+         [`platos.${platoIndex}.procesandoPor`]: null
+       }
+     }
+   );
+   ```
+
+4. **Verificación de comanda completa:**
+   ```javascript
+   const todosListos = comandaActualizada.platos.every(p => 
+     p.estado === 'recoger' || p.estado === 'entregado' || p.anulado || p.eliminado
+   );
+   
+   if (todosListos && comandaActualizada.status !== 'recoger') {
+     await Comanda.updateOne(
+       { _id: comandaId },
+       { $set: { status: 'recoger', tiempoRecoger: timestamp } }
+     );
+   }
+   ```
+
+5. **Emisión de eventos Socket.io:**
+   - `emitPlatoActualizado(comandaId, platoId, 'recoger')` → A `/cocina` y `/mozos`
+   - `emitComandaActualizada(comandaId)` → Si toda la comanda está lista
+
+6. **Actualización de métricas del cocinero:**
+   ```javascript
+   cocinerosRepository.incrementarPlatosPreparados(cocineroId, 1);
+   ```
+
+### Finalizar Comanda: Lógica Detallada
+
+#### Endpoint: `PUT /api/comanda/:id/finalizar`
+
+**Archivo:** `src/controllers/procesamientoController.js` (líneas 724-879)
+
+**Proceso paso a paso:**
+
+1. **Validaciones iniciales:**
+   - Verificar que `cocineroId` está presente
+   - Buscar la comanda por ID
+   - Verificar que el cocinero es quien tomó la comanda (`procesandoPor`)
+
+2. **Iteración sobre todos los platos:**
+   ```javascript
+   for (let i = 0; i < comanda.platos.length; i++) {
+     const plato = comanda.platos[i];
+     
+     // Saltar platos eliminados o anulados
+     if (plato.eliminado || plato.anulado) continue;
+     
+     const estado = plato.estado || 'en_espera';
+     
+     // Solo finalizar platos que no estén ya en 'recoger' o 'entregado'
+     if (estado !== 'recoger' && estado !== 'entregado') {
+       await Comanda.updateOne(
+         { _id: comandaId },
+         {
+           $set: {
+             [`platos.${i}.estado`]: 'recoger',
+             [`platos.${i}.tiempos.recoger`]: timestamp,
+             [`platos.${i}.procesadoPor`]: cocineroInfo,
+             [`platos.${i}.procesandoPor`]: null
+           }
+         }
+       );
+       platosFinalizados++;
+     }
+   }
+   ```
+
+3. **Limpieza de procesamiento a nivel comanda:**
+   ```javascript
+   await Comanda.updateOne(
+     { _id: comandaId },
+     {
+       $set: {
+         procesandoPor: null,
+         updatedAt: timestamp,
+         updatedBy: cocineroId
+       }
+     }
+   );
+   ```
+
+4. **Actualización del status de la comanda:**
+   ```javascript
+   if (todosListos && comandaActualizada.status !== 'recoger') {
+     await Comanda.updateOne(
+       { _id: comandaId },
+       { $set: { status: 'recoger', tiempoRecoger: timestamp } }
+     );
+   }
+   ```
+
+5. **Emisión de evento Socket:**
+   ```javascript
+   if (global.emitComandaFinalizada) {
+     global.emitComandaFinalizada(comandaId, cocineroInfo, comandaFinalizada);
+   }
+   ```
+
+6. **Actualización de métricas del cocinero:**
+   ```javascript
+   if (platosFinalizados > 0) {
+     cocinerosRepository.incrementarPlatosPreparados(cocineroId, platosFinalizados);
+   }
+   ```
+
+### Eventos Socket.io Emitidos
+
+#### Evento: `plato-actualizado`
+
+**Emitido cuando:** Un plato cambia de estado (incluyendo finalización).
+
+**Emisor:** `global.emitPlatoActualizado(comandaId, platoId, nuevoEstado)`
+
+**Archivo:** `src/socket/events.js`
+
+**Estructura del evento:**
+```javascript
+{
+  comandaId: "67abc...",
+  platoId: "0",
+  nuevoEstado: "recoger",
+  comanda: { /* comanda populada completa */ }
+}
+```
+
+**Namespaces destinatarios:**
+- `/cocina` → Room `fecha-{YYYY-MM-DD}`
+- `/mozos` → Broadcast o room `mesa-{mesaId}`
+
+**Recepción en App Mozos:**
+```javascript
+// ComandaDetalleScreen.js - Línea 361
+socket.on('plato-actualizado', (data) => {
+  // Actualizar estado local del plato
+  // Si nuevoEstado === 'recoger', mostrar alerta "🍽️ Plato Listo"
+  // Vibra el dispositivo (Haptics.notificationAsync)
+});
+```
+
+#### Evento: `comanda-finalizada`
+
+**Emitido cuando:** Una comanda completa es finalizada.
+
+**Emisor:** `global.emitComandaFinalizada(comandaId, cocinero, comanda)`
+
+**Archivo:** `src/socket/events.js` (líneas 1783-1812)
+
+**Estructura del evento:**
+```javascript
+{
+  comandaId: "67abc...",
+  comandaNumber: 472,
+  cocinero: {
+    cocineroId: "67def...",
+    nombre: "Juan Pérez",
+    alias: "Chef Juan"
+  },
+  comanda: { /* comanda completa con platos actualizados */ },
+  timestamp: "2026-03-25T15:30:00.000Z"
+}
+```
+
+**Namespaces destinatarios:**
+- `/cocina` → Room `fecha-{YYYY-MM-DD}`
+
+### Impacto en el Estado de la Mesa
+
+Cuando se finaliza un plato o comanda, el estado de la mesa puede cambiar:
+
+| Estado Mesa | Condición | Nuevo Estado |
+|-------------|-----------|--------------|
+| `pedido` | Todos los platos en `recoger` | `preparado` |
+| `pedido` | Algunos platos en `recoger` | `pedido` (sin cambio) |
+| `preparado` | Mesa con comandas pendientes | `preparado` (sin cambio) |
+
+**Lógica implementada en:** `src/repository/comanda.repository.js` - `cambiarEstadoPlato()`
+
+```javascript
+// Actualización automática de mesa
+if (nuevoEstado === 'recoger') {
+  const nuevaMesaEstado = comanda.platos.every(p => 
+    p.estado === 'recoger' || p.eliminado || p.anulado
+  ) ? 'preparado' : mesa.estado;
+  
+  await Mesas.updateOne(
+    { _id: mesa._id },
+    { $set: { estado: nuevaMesaEstado } }
+  );
+}
+```
+
+### Respuestas de la API
+
+#### Éxito (200 OK):
+
+```json
+{
+  "success": true,
+  "message": "Plato finalizado correctamente",
+  "data": {
+    "comandaId": "67abc...",
+    "platoId": "0",
+    "estado": "recoger",
+    "procesadoPor": {
+      "cocineroId": "67def...",
+      "nombre": "Juan Pérez",
+      "alias": "Chef Juan",
+      "timestamp": "2026-03-25T15:30:00.000Z"
+    },
+    "comandaLista": true
+  }
+}
+```
+
+#### Error 403 (Sin permisos):
+
+```json
+{
+  "success": false,
+  "error": "Solo el cocinero que tomó el plato puede finalizarlo"
+}
+```
+
+#### Error 404 (No encontrado):
+
+```json
+{
+  "success": false,
+  "error": "Plato no encontrado en la comanda"
+}
+```
+
+### Flujo de Datos entre Aplicaciones
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                    SINCRONIZACIÓN ENTRE APLICACIONES                            │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  [App Cocina]                    [Backend]                    [App Mozos]        │
+│       │                             │                             │               │
+│       │  PUT /comanda/:id/plato/    │                             │               │
+│       │  :platoId/finalizar         │                             │               │
+│       │ ───────────────────────────►│                             │               │
+│       │                             │                             │               │
+│       │                             │  emitPlatoActualizado()     │               │
+│       │                             │ ───────────────────────────►│               │
+│       │                             │                             │               │
+│       │  socket.on('plato-          │                             │               │
+│       │  actualizado') ◄────────────┼─────────────────────────────│               │
+│       │  (actualiza UI)             │  socket.on('plato-          │               │
+│       │                             │  actualizado') ◄────────────┘               │
+│       │                             │  (muestra alerta "Plato Listo")             │
+│       │                             │  (actualiza estado local)                    │
+│       │                             │                              │               │
+│       │  Si TODOS los platos listos:│                              │               │
+│       │                             │  emitComandaActualizada()    │               │
+│       │                             │ ────────────────────────────►│               │
+│       │                             │                              │               │
+│       │                             │                              │  Mesa cambia  │
+│       │                             │                              │  a "preparado"│
+│       │                             │                              │               │
+│       └─────────────────────────────┴──────────────────────────────┘               │
+│                                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Funciones Relacionadas
+
+#### Repository: `comanda.repository.js`
+
+| Función | Descripción |
+|---------|-------------|
+| `cambiarEstadoPlato(comandaId, platoId, nuevoEstado)` | Cambia el estado de un plato individual |
+| `cambiarStatusComanda(comandaId, nuevoStatus, options)` | Cambia el status global de la comanda |
+| `recalcularEstadoComandaPorPlatos(comandaId)` | Recalcula el status basado en estados de platos |
+| `marcarPlatoComoEntregado(comandaId, platoId)` | Marca un plato como entregado (desde App Mozos) |
+
+#### Controller: `procesamientoController.js`
+
+| Función | Endpoint | Descripción |
+|---------|----------|-------------|
+| `tomarPlato()` | `PUT /comanda/:id/plato/:platoId/procesando` | Cocinero toma un plato |
+| `liberarPlato()` | `DELETE /comanda/:id/plato/:platoId/procesando` | Cocinero libera un plato |
+| `finalizarPlato()` | `PUT /comanda/:id/plato/:platoId/finalizar` | Cocinero finaliza un plato |
+| `tomarComanda()` | `PUT /comanda/:id/procesando` | Cocinero toma comanda completa |
+| `liberarComanda()` | `DELETE /comanda/:id/procesando` | Cocinero libera comanda |
+| `finalizarComanda()` | `PUT /comanda/:id/finalizar` | Cocinero finaliza comanda completa |
+
+### Posibles Funciones Faltantes
+
+Basado en el análisis del código, se identifican las siguientes funciones que podrían mejorar el sistema:
+
+| Función | Descripción | Justificación |
+|---------|-------------|---------------|
+| `finalizarPlatosBatch()` | Finalizar múltiples platos en una sola transacción | Actualmente se usa `Promise.allSettled` en el frontend; una función backend reduciría latencia |
+| `reabrirPlato()` | Cambiar estado de `recoger` a `en_espera` | Útil para correcciones cuando un plato necesita repetirse |
+| `finalizarComandasMesa()` | Finalizar todas las comandas de una mesa | Optimización para when todas las comandas están listas |
+| `getTiemposPreparacion()` | Obtener tiempos de preparación de una comanda | Para métricas y reportes detallados |
+| `emitComandaParcialmenteLista()` | Notificar cuando X% de platos están listos | Para dar visibilidad al mozo del progreso |
+| `validarTransicionEstado()` | Validar si una transición de estado es válida | Centralizar lógica de validación |
+
+**Función sugerida - `finalizarPlatosBatch()`:**
+
+```javascript
+// Sugerencia de implementación
+const finalizarPlatosBatch = async (comandaId, platosIds, cocineroId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
+  try {
+    const comanda = await Comanda.findById(comandaId).session(session);
+    
+    for (const platoId of platosIds) {
+      const platoIndex = findPlatoIndex(comanda.platos, platoId);
+      if (platoIndex === -1) continue;
+      
+      // Verificar propiedad
+      if (comanda.platos[platoIndex].procesandoPor?.cocineroId?.toString() !== cocineroId) {
+        continue; // O lanzar error
+      }
+      
+      // Actualizar estado
+      comanda.platos[platoIndex].estado = 'recoger';
+      comanda.platos[platoIndex].tiempos.recoger = new Date();
+      // ...
+    }
+    
+    await comanda.save();
+    await session.commitTransaction();
+    
+    // Emitir evento batch
+    if (global.emitPlatoBatch) {
+      global.emitPlatoBatch(comandaId, platosIds, 'recoger');
+    }
+    
+    return { success: true, platosActualizados: platosIds.length };
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+```
+
+### Métricas y Auditoría
+
+#### Auditoría de Platos Dejados
+
+Cuando un cocinero libera un plato sin finalizarlo, se registra:
+
+```javascript
+{
+  accion: 'PLATO_DEJADO_COCINA',
+  entidadTipo: 'comanda',
+  entidadId: comandaId,
+  usuario: cocineroId,
+  metadata: {
+    comandaNumber: 472,
+    platoId: "0",
+    platoNombre: "Lomo Saltado",
+    mesaNum: 5
+  }
+}
+```
+
+#### Métricas del Cocinero
+
+Actualizadas en tiempo real:
+
+| Métrica | Incremento | Evento |
+|---------|-----------|--------|
+| `platosPreparados` | +1 por plato finalizado | `finalizarPlato()` |
+| `totalSesiones` | +1 por conexión | `registrarConexion()` |
+| `ultimaConexion` | Timestamp actual | Socket.io connection |
+
+---
+
 ## 🔍 Cosmos Search - Búsqueda Unificada
 
 ### Archivos Principales
@@ -2173,9 +2643,11 @@ Generar PDFs/Excel con:
 
 ---
 
-*Documento generado para el proyecto Las Gambusinas — Backend Node.js/Express/MongoDB/Socket.io. Versión 2.8, marzo 2026.*
+*Documento generado para el proyecto Las Gambusinas — Backend Node.js/Express/MongoDB/Socket.io. Versión 2.10, marzo 2026.*
 
 **Incluye:**
+- Corrección v7.4.1: Al finalizar comanda se emiten eventos plato-actualizado por cada plato (sincronización en tiempo real con App de Mozos)
+- Sistema de Finalización de Platos y Comandas v7.4 (documentación completa de endpoints, eventos Socket.io, impacto entre aplicaciones)
 - Sistema Multi-Cocinero v7.2.1 (identificación de cocinero en procesamiento, auditoría de platos dejados)
 - Autenticación JWT en Socket.io con rooms por zona
 - Cosmos Search (⌘K) para búsqueda unificada
