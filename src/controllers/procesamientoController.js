@@ -255,7 +255,8 @@ router.delete('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, r
       procesandoPor: plato.procesandoPor
     };
     
-    // Limpiar procesandoPor usando updateOne
+    // Limpiar procesandoPor y resetear tiempo en_espera usando updateOne
+    // 🔥 v7.3: Resetear tiempo en_espera para que el siguiente cocinero tenga tiempo limpio
     await Comanda.updateOne(
       { _id: comandaId },
       {
@@ -266,6 +267,7 @@ router.delete('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, r
             alias: null,
             timestamp: null
           },
+          [`platos.${platoIndex}.tiempos.en_espera`]: moment().tz('America/Lima').toDate(),
           updatedAt: moment().tz('America/Lima').toDate()
         }
       }

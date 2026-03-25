@@ -102,13 +102,13 @@ router.post('/boucher', async (req, res) => {
  const cocineroNombre = cocineroInfo?.alias || cocineroInfo?.nombre || null;
  const cocineroId = cocineroInfo?.cocineroId || null;
  
- // 🔥 TRAZABILIDAD: Calcular tiempo de preparación si hay timestamps
+ // 🔥 TRAZABILIDAD: Calcular tiempo de preparación desde tiempos oficiales
  let tiempoPreparacion = null;
- const procesandoDesde = platoItem.procesandoPor?.timestamp;
- const procesadoEn = platoItem.procesadoPor?.timestamp;
- if (procesandoDesde && procesadoEn) {
- const inicio = new Date(procesandoDesde).getTime();
- const fin = new Date(procesadoEn).getTime();
+ const tiempoInicio = platoItem.tiempos?.en_espera;
+ const tiempoFin = platoItem.tiempos?.recoger;
+ if (tiempoInicio && tiempoFin) {
+ const inicio = new Date(tiempoInicio).getTime();
+ const fin = new Date(tiempoFin).getTime();
  const diffMs = fin - inicio;
  if (diffMs > 0) {
  const segundos = Math.floor(diffMs / 1000);

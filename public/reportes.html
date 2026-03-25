@@ -1229,8 +1229,11 @@ function reportesApp() {
       bouchers.forEach(b => {
         if (b.platos && Array.isArray(b.platos)) {
           b.platos.forEach(p => {
-            const cocineroId = p.cocineroId || p.cocinero || 'sin-asignar';
-            const nombre = p.cocinero || 'Sin asignar';
+            // Buscar cocinero en múltiples campos posibles
+            const cocineroId = p.cocineroId?._id || p.cocineroId || p.cocinero || 'sin-asignar';
+            const nombre = p.cocinero || p.cocineroId?.name || p.cocineroId?.aliasCocinero || 
+                          (p.cocineroId && typeof p.cocineroId === 'object' ? p.cocineroId.name : null) ||
+                          'Sin asignar';
             
             if (!cocinerosMap[cocineroId]) {
               cocinerosMap[cocineroId] = {
@@ -1244,15 +1247,27 @@ function reportesApp() {
               };
             }
             
-            cocinerosMap[cocineroId].totalPlatos += p.cantidad || 1;
-            cocinerosMap[cocineroId].totalTickets.add(b._id || b.boucherNumber);
-            totalPlatosGeneral += p.cantidad || 1;
+            const cantidad = p.cantidad || 1;
+            cocinerosMap[cocineroId].totalPlatos += cantidad;
+            cocinerosMap[cocineroId].totalTickets.add(b._id || b.boucherNumber || b.voucherId);
+            totalPlatosGeneral += cantidad;
             
-            // Intentar parsear tiempo de preparación
+            // Intentar parsear tiempo de preparación desde el campo tiempoPreparacion
             if (p.tiempoPreparacion) {
-              const parts = p.tiempoPreparacion.split(':');
-              if (parts.length === 2) {
-                const minutos = parseInt(parts[0]) + parseInt(parts[1]) / 60;
+              // Puede venir en formato "MM:SS" o como número
+              let minutos = 0;
+              if (typeof p.tiempoPreparacion === 'string') {
+                const parts = p.tiempoPreparacion.split(':');
+                if (parts.length === 2) {
+                  minutos = parseInt(parts[0]) + parseInt(parts[1]) / 60;
+                } else {
+                  minutos = parseFloat(p.tiempoPreparacion);
+                }
+              } else if (typeof p.tiempoPreparacion === 'number') {
+                minutos = p.tiempoPreparacion;
+              }
+              
+              if (minutos > 0) {
                 cocinerosMap[cocineroId].tiempos.push(minutos);
                 if (minutos <= 15) cocinerosMap[cocineroId].dentroSLA++;
               }
@@ -1261,8 +1276,31 @@ function reportesApp() {
         }
       });
       
+      // Si no hay datos de cocineros, mostrar mensaje indicativo
+      if (Object.keys(cocinerosMap).length === 0 || (Object.keys(cocinerosMap).length === 1 && cocinerosMap['sin-asignar'])) {
+        this.kpis = [
+          { label: 'Total Platos', value: 0, color: 'text-[#d4af37]', badge: '' },
+          { label: 'Cocineros Activos', value: 0, color: 'text-[#3498db]', badge: '' },
+          { label: 'T. Promedio', value: '— min', color: 'text-white', badge: '' },
+          { label: '% Dentro SLA', value: '—%', color: 'text-txt-muted', badge: '' }
+        ];
+        
+        this.tablaData.cocineros = [];
+        this.tablaData.resumenCocineros = {
+          totalPlatos: 0,
+          cocinerosActivos: 0,
+          tiempoPromedioGeneral: 0,
+          porcentajeDentroSLA: 0
+        };
+        
+        this.chartData1 = { labels: ['Sin datos'], vals: [0] };
+        this.chartData2 = { labels: ['Sin datos'], data: [0] };
+        return;
+      }
+      
       // Convertir a array y calcular métricas
       const cocinerosArray = Object.values(cocinerosMap)
+        .filter(coc => coc._id !== 'sin-asignar' && coc.totalPlatos > 0)
         .map(coc => {
           const tiempoPromedio = coc.tiempos.length > 0 
             ? Math.round(coc.tiempos.reduce((a, b) => a + b, 0) / coc.tiempos.length * 10) / 10 
@@ -1285,7 +1323,8 @@ function reportesApp() {
             platosHora: tiempoPromedio > 0 ? Math.round(60 / tiempoPromedio * 10) / 10 : 0,
             porcentajeSLA: porcentajeSLA,
             participacion: participacion,
-            score: score
+            score: score,
+            sinActividad: false
           };
         })
         .sort((a, b) => b.totalPlatos - a.totalPlatos);
@@ -1302,8 +1341,8 @@ function reportesApp() {
       this.kpis = [
         { label: 'Total Platos', value: totalPlatos, color: 'text-[#d4af37]', badge: '' },
         { label: 'Cocineros Activos', value: cocinerosArray.length, color: 'text-[#3498db]', badge: '' },
-        { label: 'T. Promedio', value: tiempoPromedioGeneral + ' min', color: 'text-white', badge: '' },
-        { label: '% Dentro SLA', value: promedioSLA + '%', color: promedioSLA >= 80 ? 'text-[#2ecc71]' : 'text-[#ffa502]', badge: '' }
+        { label: 'T. Promedio', value: tiempoPromedioGeneral > 0 ? tiempoPromedioGeneral + ' min' : '— min', color: 'text-white', badge: '' },
+        { label: '% Dentro SLA', value: promedioSLA > 0 ? promedioSLA + '%' : '—%', color: promedioSLA >= 80 ? 'text-[#2ecc71]' : 'text-[#ffa502]', badge: '' }
       ];
       
       this.tablaData.cocineros = cocinerosArray;

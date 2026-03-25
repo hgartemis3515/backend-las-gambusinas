@@ -2578,14 +2578,31 @@ const revertirStatusComanda = async (comandaId, nuevoStatus, usuarioId) => {
     
     // 🔥 CRÍTICO: Revertir TODOS los platos a "en_espera" cuando se revierte la comanda
     // Esto asegura que los platos se muestren correctamente en la app de cocina
+    // 🔥 v7.3: También resetea información del cocinero y tiempos para métricas correctas
     if (comanda.platos && comanda.platos.length > 0) {
       comanda.platos.forEach(plato => {
         // Solo revertir platos que están en "recoger" o "entregado"
         if (plato.estado === 'recoger' || plato.estado === 'entregado') {
           plato.estado = 'en_espera';
+          
+          // 🔥 RESET de información del cocinero para métricas correctas
+          // Al revertir, el tiempo de preparación ya no es válido
+          plato.procesadoPor = {
+            cocineroId: null,
+            nombre: null,
+            alias: null,
+            timestamp: null
+          };
+          
+          // Resetear tiempo de recoger (el plato vuelve a cola de preparación)
+          plato.tiempos = {
+            ...plato.tiempos,
+            recoger: null,
+            entregado: null
+          };
         }
       });
-      console.log(`🔄 Revertidos ${comanda.platos.filter(p => p.estado === 'en_espera').length} plato(s) a "en_espera"`);
+      console.log(`🔄 Revertidos ${comanda.platos.filter(p => p.estado === 'en_espera').length} plato(s) a "en_espera" (cocinero y tiempos reseteados)`);
     }
     
     // Guardar comanda (incluye platos actualizados)

@@ -8719,5 +8719,117 @@
     "createdAt": "2026-03-23T20:21:12.114Z",
     "updatedAt": "2026-03-23T20:21:12.114Z",
     "boucherNumber": 134
+  },
+  {
+    "configuracionIGV": {
+      "igvPorcentaje": 18,
+      "preciosIncluyenIGV": true,
+      "nombreImpuesto": "IGV",
+      "moneda": "PEN",
+      "simboloMoneda": "S/."
+    },
+    "_id": "69c3585c183fac7f4950658f",
+    "voucherId": "RDPGJ",
+    "mesa": "69860a47e52589a753836126",
+    "numMesa": 2,
+    "mozo": "6993350add56aff12441caca",
+    "nombreMozo": "Humberto",
+    "cliente": "69c3585b183fac7f4950624a",
+    "usadoEnComanda": null,
+    "fechaUso": null,
+    "comandas": [
+      "69c2f28be77ce8840b30c3fe",
+      "69c2f26ee77ce8840b30a0b3"
+    ],
+    "comandasNumbers": [
+      482,
+      483
+    ],
+    "platos": [
+      {
+        "plato": "6992b9dad845b119c1d00c86",
+        "platoId": 36,
+        "nombre": "Papa a la huancaína",
+        "precio": 13,
+        "cantidad": 1,
+        "subtotal": 13,
+        "comandaNumber": 482,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": null,
+        "_id": "69c3585c183fac7f49506590"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c87",
+        "platoId": 37,
+        "nombre": "Ensalada especial (limon o vinagreta)",
+        "precio": 15,
+        "cantidad": 1,
+        "subtotal": 15,
+        "comandaNumber": 482,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": null,
+        "_id": "69c3585c183fac7f49506591"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c88",
+        "platoId": 38,
+        "nombre": "Patasca",
+        "precio": 25,
+        "cantidad": 1,
+        "subtotal": 25,
+        "comandaNumber": 482,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": null,
+        "_id": "69c3585c183fac7f49506592"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c86",
+        "platoId": 36,
+        "nombre": "Papa a la huancaína",
+        "precio": 13,
+        "cantidad": 1,
+        "subtotal": 13,
+        "comandaNumber": 483,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": null,
+        "_id": "69c3585c183fac7f49506593"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c87",
+        "platoId": 37,
+        "nombre": "Ensalada especial (limon o vinagreta)",
+        "precio": 15,
+        "cantidad": 1,
+        "subtotal": 15,
+        "comandaNumber": 483,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": null,
+        "_id": "69c3585c183fac7f49506594"
+      }
+    ],
+    "subtotal": 68.64,
+    "igv": 12.36,
+    "total": 81,
+    "descuentos": [],
+    "totalSinDescuento": 81,
+    "montoDescuento": 0,
+    "totalConDescuento": 81,
+    "observaciones": "",
+    "fechaPago": "2026-03-25T03:37:00.174Z",
+    "fechaPagoString": "24/03/2026 22:37:00",
+    "isActive": true,
+    "createdAt": "2026-03-25T03:37:00.177Z",
+    "updatedAt": "2026-03-25T03:37:00.177Z",
+    "boucherNumber": 135
   }
 ]
