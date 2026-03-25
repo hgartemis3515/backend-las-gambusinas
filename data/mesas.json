@@ -1,5 +1,12 @@
 [
   {
+    "esMesaPrincipal": true,
+    "mesaPrincipalId": null,
+    "mesasUnidas": [],
+    "fechaUnion": null,
+    "unidoPor": null,
+    "motivoUnion": null,
+    "nombreCombinado": null,
     "_id": "69860a415e59135b4d2c56c1",
     "nummesa": 1,
     "isActive": true,
@@ -16,6 +23,13 @@
     "mesasId": 1
   },
   {
+    "esMesaPrincipal": true,
+    "mesaPrincipalId": null,
+    "mesasUnidas": [],
+    "fechaUnion": null,
+    "unidoPor": null,
+    "motivoUnion": null,
+    "nombreCombinado": null,
     "_id": "69860a47e52589a753836126",
     "nummesa": 2,
     "isActive": true,
@@ -32,6 +46,13 @@
     "mesasId": 2
   },
   {
+    "esMesaPrincipal": true,
+    "mesaPrincipalId": null,
+    "mesasUnidas": [],
+    "fechaUnion": null,
+    "unidoPor": null,
+    "motivoUnion": null,
+    "nombreCombinado": null,
     "_id": "69860a4bbb20969ed3d22bcd",
     "nummesa": 3,
     "isActive": true,
@@ -48,6 +69,13 @@
     "mesasId": 3
   },
   {
+    "esMesaPrincipal": true,
+    "mesaPrincipalId": null,
+    "mesasUnidas": [],
+    "fechaUnion": null,
+    "unidoPor": null,
+    "motivoUnion": null,
+    "nombreCombinado": null,
     "_id": "69860a51228000fd5ede11c1",
     "nummesa": 4,
     "isActive": true,
@@ -64,6 +92,13 @@
     "mesasId": 4
   },
   {
+    "esMesaPrincipal": true,
+    "mesaPrincipalId": null,
+    "mesasUnidas": [],
+    "fechaUnion": null,
+    "unidoPor": null,
+    "motivoUnion": null,
+    "nombreCombinado": null,
     "_id": "69893445f42cb22ec21fd8a3",
     "nummesa": 6,
     "isActive": true,
@@ -80,6 +115,13 @@
     "mesasId": 5
   },
   {
+    "esMesaPrincipal": true,
+    "mesaPrincipalId": null,
+    "mesasUnidas": [],
+    "fechaUnion": null,
+    "unidoPor": null,
+    "motivoUnion": null,
+    "nombreCombinado": null,
     "_id": "6989344bf533484c92ce0b6d",
     "nummesa": 9,
     "isActive": true,
@@ -96,6 +138,13 @@
     "mesasId": 6
   },
   {
+    "esMesaPrincipal": true,
+    "mesaPrincipalId": null,
+    "mesasUnidas": [],
+    "fechaUnion": null,
+    "unidoPor": null,
+    "motivoUnion": null,
+    "nombreCombinado": null,
     "_id": "69893450005098fd3ca92c41",
     "nummesa": 99,
     "isActive": true,
@@ -112,6 +161,7 @@
     "mesasId": 7
   },
   {
+    "mesaPrincipalId": null,
     "_id": "6989345f914a31fe82a52cf4",
     "nummesa": 5,
     "isActive": true,
@@ -125,13 +175,22 @@
       "updatedAt": "2026-02-06T15:35:11.105Z",
       "areaId": 1
     },
-    "mesasId": 8
+    "mesasId": 8,
+    "esMesaPrincipal": true,
+    "fechaUnion": "2026-03-25T20:53:23.965Z",
+    "mesasUnidas": [
+      "69895e0d3f65baeb1dbdac98"
+    ],
+    "motivoUnion": null,
+    "nombreCombinado": "Mesa 5 y 13",
+    "unidoPor": "69860821b6273b9647faf872"
   },
   {
+    "nombreCombinado": null,
     "_id": "69895e0d3f65baeb1dbdac98",
     "nummesa": 13,
     "isActive": true,
-    "estado": "libre",
+    "estado": "ocupada",
     "area": {
       "_id": "69860a2f536044c2446a7d8c",
       "nombre": "Patio",
@@ -141,6 +200,58 @@
       "updatedAt": "2026-02-06T15:35:11.105Z",
       "areaId": 1
     },
-    "mesasId": 9
+    "mesasId": 9,
+    "esMesaPrincipal": false,
+    "fechaUnion": "2026-03-25T20:53:23.965Z",
+    "mesaPrincipalId": "6989345f914a31fe82a52cf4",
+    "mesasUnidas": [],
+    "motivoUnion": null,
+    "unidoPor": "69860821b6273b9647faf872"
+  },
+  {
+    "_id": "69c3d5ea76e3224b81e9749e",
+    "nummesa": 14,
+    "isActive": true,
+    "estado": "libre",
+    "area": {
+      "_id": "69860a3aed5eabc74c183dc5",
+      "nombre": "VIP",
+      "descripcion": "",
+      "isActive": true,
+      "createdAt": "2026-02-06T15:35:22.119Z",
+      "updatedAt": "2026-02-06T15:35:22.119Z",
+      "areaId": 2
+    },
+    "esMesaPrincipal": true,
+    "mesaPrincipalId": null,
+    "mesasUnidas": [],
+    "fechaUnion": null,
+    "unidoPor": null,
+    "motivoUnion": null,
+    "mesasId": 10,
+    "nombreCombinado": null
+  },
+  {
+    "nombreCombinado": null,
+    "_id": "69c3d5ef76e3224b81e974e3",
+    "nummesa": 15,
+    "isActive": true,
+    "estado": "libre",
+    "area": {
+      "_id": "69860a3aed5eabc74c183dc5",
+      "nombre": "VIP",
+      "descripcion": "",
+      "isActive": true,
+      "createdAt": "2026-02-06T15:35:22.119Z",
+      "updatedAt": "2026-02-06T15:35:22.119Z",
+      "areaId": 2
+    },
+    "esMesaPrincipal": true,
+    "mesaPrincipalId": null,
+    "mesasUnidas": [],
+    "fechaUnion": null,
+    "unidoPor": null,
+    "motivoUnion": null,
+    "mesasId": 11
   }
 ]

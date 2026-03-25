@@ -15,7 +15,47 @@ const mesasSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'areas',
         required: true
+    },
+    
+    // ========== CAMPOS PARA GRUPOS DE MESAS (Juntar/Separar) ==========
+    // Una mesa puede ser:
+    // - Independiente: esMesaPrincipal=true, mesasUnidas=[]
+    // - Principal de grupo: esMesaPrincipal=true, mesasUnidas=[...ids de secundarias]
+    // - Secundaria de grupo: esMesaPrincipal=false, mesaPrincipalId=ID de la principal
+    
+    esMesaPrincipal: {
+        type: Boolean,
+        default: true,
+        required: true
+    },
+    
+    mesaPrincipalId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'mesas',
+        default: null
+    },
+    
+    mesasUnidas: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'mesas'
+    }],
+    
+    fechaUnion: {
+        type: Date,
+        default: null
+    },
+    
+    unidoPor: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'mozos',
+        default: null
+    },
+    
+    motivoUnion: {
+        type: String,
+        default: null
     }
+    // ========== FIN CAMPOS GRUPOS DE MESAS ==========
 });
 
 // ========== FASE A1: ÍNDICES OPTIMIZADOS ==========
@@ -33,6 +73,18 @@ mesasSchema.index(
 mesasSchema.index(
     { isActive: 1, nummesa: 1 },
     { name: 'idx_mesa_activa_num' }
+);
+
+// ÍNDICE 3: Mesas que son principales de grupo
+mesasSchema.index(
+    { esMesaPrincipal: 1, isActive: 1 },
+    { name: 'idx_mesa_principal' }
+);
+
+// ÍNDICE 4: Buscar mesas secundarias por su mesa principal
+mesasSchema.index(
+    { mesaPrincipalId: 1 },
+    { name: 'idx_mesa_principal_ref' }
 );
 // ========== FIN ÍNDICES FASE A1 ==========
 

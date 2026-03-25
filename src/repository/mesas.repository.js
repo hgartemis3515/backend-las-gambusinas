@@ -274,6 +274,363 @@ const liberarTodasLasMesas = async () => {
     }
 }
 
+// ==================== FUNCIONES PARA JUNTAR Y SEPARAR MESAS ====================
+
+/**
+ * Juntar varias mesas en un grupo
+ * La mesa de menor número se convierte en la principal
+ * 
+ * @param {Array} mesasIds - Array de ObjectId de las mesas a juntar
+ * @param {ObjectId} mozoId - ID del mozo que ejecuta la acción
+ * @param {String} motivo - Motivo opcional de la unión
+ * @returns {Object} - { mesaPrincipal, mesasSecundarias, todaslasmesas }
+ */
+const juntarMesas = async (mesasIds, mozoId, motivo = null) => {
+    const Pedido = require('../database/models/pedido.model');
+    
+    try {
+        // ========== VALIDACIONES ==========
+        
+        // Validar cantidad de mesas
+        if (!mesasIds || !Array.isArray(mesasIds) || mesasIds.length < 2) {
+            throw new Error('Se necesitan al menos 2 mesas para juntar');
+        }
+        
+        if (mesasIds.length > 6) {
+            throw new Error('No se pueden juntar más de 6 mesas a la vez');
+        }
+        
+        // Obtener todas las mesas
+        const mesasEncontradas = await mesas.find({
+            _id: { $in: mesasIds.map(id => new mongoose.Types.ObjectId(id)) }
+        }).populate('area');
+        
+        if (mesasEncontradas.length !== mesasIds.length) {
+            throw new Error('Una o más mesas no fueron encontradas');
+        }
+        
+        // Verificar que todas están activas
+        const mesasInactivas = mesasEncontradas.filter(m => !m.isActive);
+        if (mesasInactivas.length > 0) {
+            throw new Error(`Las mesas ${mesasInactivas.map(m => m.nummesa).join(', ')} están inactivas`);
+        }
+        
+        // Verificar que todas son de la misma área
+        const areas = [...new Set(mesasEncontradas.map(m => m.area?._id?.toString() || m.area?.toString()))];
+        if (areas.length > 1) {
+            throw new Error('Solo se pueden juntar mesas de la misma área');
+        }
+        
+        // Verificar estados permitidos (solo libre o esperando)
+        const estadosInvalidos = mesasEncontradas.filter(m => 
+            !['libre', 'esperando'].includes(m.estado)
+        );
+        if (estadosInvalidos.length > 0) {
+            throw new Error(`Las mesas ${estadosInvalidos.map(m => m.nummesa).join(', ')} no están en estado libre o esperando`);
+        }
+        
+        // Verificar que ninguna está ya unida a otro grupo
+        const mesasYaUnidas = mesasEncontradas.filter(m => !m.esMesaPrincipal);
+        if (mesasYaUnidas.length > 0) {
+            throw new Error(`Las mesas ${mesasYaUnidas.map(m => m.nummesa).join(', ')} ya están unidas a otro grupo`);
+        }
+        
+        // Verificar que ninguna es principal de otro grupo
+        const mesasConGrupo = mesasEncontradas.filter(m => m.mesasUnidas && m.mesasUnidas.length > 0);
+        if (mesasConGrupo.length > 0) {
+            throw new Error(`Las mesas ${mesasConGrupo.map(m => m.nummesa).join(', ')} ya tienen mesas unidas`);
+        }
+        
+        // Verificar que no hay Pedidos abiertos
+        for (const mesa of mesasEncontradas) {
+            const pedidoAbierto = await Pedido.findOne({
+                mesa: mesa._id,
+                estado: 'abierto',
+                isActive: true
+            });
+            if (pedidoAbierto) {
+                throw new Error(`La mesa ${mesa.nummesa} tiene un pedido abierto. Ciérralo antes de juntar las mesas`);
+            }
+        }
+        
+        // ========== DETERMINAR MESA PRINCIPAL ==========
+        
+        // Ordenar por número de mesa y tomar la menor como principal
+        const mesasOrdenadas = mesasEncontradas.sort((a, b) => a.nummesa - b.nummesa);
+        const mesaPrincipal = mesasOrdenadas[0];
+        const mesasSecundarias = mesasOrdenadas.slice(1);
+        
+        console.log(`🔗 Juntando mesas: Principal=${mesaPrincipal.nummesa}, Secundarias=${mesasSecundarias.map(m => m.nummesa).join(', ')}`);
+        
+        // ========== ACTUALIZAR MESAS SECUNDARIAS ==========
+        
+        const fechaUnion = new Date();
+        const mesasSecundariasIds = mesasSecundarias.map(m => m._id);
+        
+        for (const mesaSecundaria of mesasSecundarias) {
+            await mesas.findByIdAndUpdate(mesaSecundaria._id, {
+                esMesaPrincipal: false,
+                mesaPrincipalId: mesaPrincipal._id,
+                mesasUnidas: [],
+                estado: 'ocupada', // Estado especial para mesas unidas
+                fechaUnion: fechaUnion,
+                unidoPor: mozoId,
+                motivoUnion: motivo
+            });
+        }
+        
+        // ========== ACTUALIZAR MESA PRINCIPAL ==========
+        
+        await mesas.findByIdAndUpdate(mesaPrincipal._id, {
+            esMesaPrincipal: true,
+            mesasUnidas: mesasSecundariasIds,
+            estado: 'esperando', // Lista para tomar pedido
+            fechaUnion: fechaUnion,
+            unidoPor: mozoId,
+            motivoUnion: motivo
+        });
+        
+        // ========== LOG Y RESPUESTA ==========
+        
+        console.log(`✅ Mesas juntadas exitosamente: Mesa ${mesaPrincipal.nummesa} como principal`);
+        
+        // Auditoría
+        console.log(`📝 AUDITORÍA - Mesas juntadas:`, {
+            timestamp: new Date().toISOString(),
+            mesaPrincipal: mesaPrincipal.nummesa,
+            mesasSecundarias: mesasSecundarias.map(m => m.nummesa),
+            mozoId: mozoId,
+            motivo: motivo
+        });
+        
+        const todaslasmesas = await listarMesas();
+        await syncJsonFile('mesas.json', todaslasmesas);
+        
+        // Obtener las mesas actualizadas
+        const mesaPrincipalActualizada = await mesas.findById(mesaPrincipal._id).populate('area').populate('mesasUnidas');
+        const mesasSecundariasActualizadas = await mesas.find({
+            _id: { $in: mesasSecundariasIds }
+        }).populate('area');
+        
+        return {
+            success: true,
+            message: `Mesas juntadas: Mesa ${mesaPrincipal.nummesa} como principal`,
+            mesaPrincipal: mesaPrincipalActualizada,
+            mesasSecundarias: mesasSecundariasActualizadas,
+            todaslasmesas
+        };
+        
+    } catch (error) {
+        console.error('❌ Error al juntar mesas:', error.message);
+        throw error;
+    }
+};
+
+/**
+ * Separar mesas previamente juntadas
+ * Solo se puede separar desde la mesa principal
+ * 
+ * @param {ObjectId} mesaPrincipalId - ID de la mesa principal del grupo
+ * @param {ObjectId} mozoId - ID del mozo que ejecuta la acción
+ * @param {String} motivo - Motivo opcional de la separación
+ * @returns {Object} - { mesaPrincipal, mesasSecundarias, todaslasmesas }
+ */
+const separarMesas = async (mesaPrincipalId, mozoId, motivo = null) => {
+    try {
+        // ========== VALIDACIONES ==========
+        
+        // Buscar la mesa principal
+        let mesaPrincipal = await mesas.findById(mesaPrincipalId);
+        if (!mesaPrincipal) {
+            mesaPrincipal = await mesas.findOne({ mesasId: parseInt(mesaPrincipalId) });
+        }
+        
+        if (!mesaPrincipal) {
+            throw new Error('Mesa no encontrada');
+        }
+        
+        // Verificar que es mesa principal con mesas unidas
+        if (!mesaPrincipal.esMesaPrincipal) {
+            throw new Error('Esta mesa no es la principal de un grupo. Use la mesa principal para separar');
+        }
+        
+        if (!mesaPrincipal.mesasUnidas || mesaPrincipal.mesasUnidas.length === 0) {
+            throw new Error('Esta mesa no tiene mesas unidas para separar');
+        }
+        
+        // ========== OBTENER MESAS SECUNDARIAS ==========
+        
+        const mesasSecundariasIds = mesaPrincipal.mesasUnidas;
+        const mesasSecundarias = await mesas.find({
+            _id: { $in: mesasSecundariasIds }
+        }).populate('area');
+        
+        console.log(`🔗 Separando mesas: Principal=${mesaPrincipal.nummesa}, Secundarias=${mesasSecundarias.map(m => m.nummesa).join(', ')}`);
+        
+        // ========== DETERMINAR ESTADOS POST-SEPARACIÓN ==========
+        
+        // Si la mesa principal está en 'esperando' o 'libre', todas quedan libres
+        // Si está en 'pedido', 'preparado', etc., la principal mantiene su estado y las secundarias quedan libres
+        const estadoPrincipal = mesaPrincipal.estado;
+        const principalQuedaLibre = ['esperando', 'libre'].includes(estadoPrincipal);
+        
+        // ========== ACTUALIZAR MESAS SECUNDARIAS ==========
+        
+        for (const mesaSecundaria of mesasSecundarias) {
+            await mesas.findByIdAndUpdate(mesaSecundaria._id, {
+                esMesaPrincipal: true,
+                mesaPrincipalId: null,
+                mesasUnidas: [],
+                estado: 'libre',
+                fechaUnion: null,
+                unidoPor: null,
+                motivoUnion: null
+            });
+        }
+        
+        // ========== ACTUALIZAR MESA PRINCIPAL ==========
+        
+        const nuevoEstadoPrincipal = principalQuedaLibre ? 'libre' : estadoPrincipal;
+        
+        await mesas.findByIdAndUpdate(mesaPrincipal._id, {
+            mesasUnidas: [],
+            estado: nuevoEstadoPrincipal,
+            fechaUnion: null,
+            unidoPor: null,
+            motivoUnion: motivo ? `Separación: ${motivo}` : null
+        });
+        
+        // ========== LOG Y RESPUESTA ==========
+        
+        console.log(`✅ Mesas separadas exitosamente`);
+        
+        // Auditoría
+        console.log(`📝 AUDITORÍA - Mesas separadas:`, {
+            timestamp: new Date().toISOString(),
+            mesaPrincipal: mesaPrincipal.nummesa,
+            mesasSecundarias: mesasSecundarias.map(m => m.nummesa),
+            mozoId: mozoId,
+            motivo: motivo
+        });
+        
+        const todaslasmesas = await listarMesas();
+        await syncJsonFile('mesas.json', todaslasmesas);
+        
+        // Obtener las mesas actualizadas
+        const mesaPrincipalActualizada = await mesas.findById(mesaPrincipal._id).populate('area');
+        const mesasSecundariasActualizadas = await mesas.find({
+            _id: { $in: mesasSecundariasIds }
+        }).populate('area');
+        
+        return {
+            success: true,
+            message: `Mesas separadas. Mesa ${mesaPrincipal.nummesa} ${principalQuedaLibre ? 'quedó libre' : 'mantiene su estado'}`,
+            mesaPrincipal: mesaPrincipalActualizada,
+            mesasSecundarias: mesasSecundariasActualizadas,
+            todaslasmesas
+        };
+        
+    } catch (error) {
+        console.error('❌ Error al separar mesas:', error.message);
+        throw error;
+    }
+};
+
+/**
+ * Obtener mesas agrupadas (para UI)
+ * Retorna información de qué mesas están juntas
+ * 
+ * @returns {Array} - Array de grupos de mesas
+ */
+const obtenerMesasAgrupadas = async () => {
+    try {
+        // Buscar todas las mesas que son principales con mesas unidas
+        const mesasPrincipales = await mesas.find({
+            esMesaPrincipal: true,
+            mesasUnidas: { $exists: true, $ne: [] }
+        })
+        .populate('area')
+        .populate('mesasUnidas');
+        
+        const grupos = [];
+        
+        for (const principal of mesasPrincipales) {
+            const mesasSecundarias = await mesas.find({
+                mesaPrincipalId: principal._id
+            }).populate('area');
+            
+            grupos.push({
+                mesaPrincipal: principal,
+                mesasSecundarias: mesasSecundarias,
+                totalMesas: 1 + mesasSecundarias.length,
+                fechaUnion: principal.fechaUnion,
+                unidoPor: principal.unidoPor
+            });
+        }
+        
+        return grupos;
+        
+    } catch (error) {
+        console.error('❌ Error al obtener mesas agrupadas:', error.message);
+        throw error;
+    }
+};
+
+/**
+ * Obtener una mesa con su grupo (si pertenece a uno)
+ * 
+ * @param {ObjectId} mesaId - ID de la mesa
+ * @returns {Object} - Mesa con información de grupo
+ */
+const obtenerMesaConGrupo = async (mesaId) => {
+    try {
+        let mesa = await mesas.findById(mesaId).populate('area');
+        if (!mesa) {
+            mesa = await mesas.findOne({ mesasId: parseInt(mesaId) }).populate('area');
+        }
+        
+        if (!mesa) {
+            throw new Error('Mesa no encontrada');
+        }
+        
+        const resultado = {
+            mesa,
+            esGrupo: false,
+            mesaPrincipal: null,
+            mesasSecundarias: [],
+            todasLasMesasDelGrupo: []
+        };
+        
+        // Si es mesa principal con mesas unidas
+        if (mesa.esMesaPrincipal && mesa.mesasUnidas && mesa.mesasUnidas.length > 0) {
+            resultado.esGrupo = true;
+            resultado.mesaPrincipal = mesa;
+            resultado.mesasSecundarias = await mesas.find({
+                mesaPrincipalId: mesa._id
+            }).populate('area').lean();
+            resultado.todasLasMesasDelGrupo = [mesa.toObject(), ...resultado.mesasSecundarias];
+        }
+        // Si es mesa secundaria
+        else if (!mesa.esMesaPrincipal && mesa.mesaPrincipalId) {
+            resultado.esGrupo = true;
+            resultado.mesaPrincipal = await mesas.findById(mesa.mesaPrincipalId).populate('area').lean();
+            resultado.mesasSecundarias = await mesas.find({
+                mesaPrincipalId: mesa.mesaPrincipalId,
+                _id: { $ne: mesa._id }
+            }).populate('area').lean();
+            resultado.todasLasMesasDelGrupo = [resultado.mesaPrincipal, mesa.toObject(), ...resultado.mesasSecundarias];
+        }
+        
+        return resultado;
+        
+    } catch (error) {
+        console.error('❌ Error al obtener mesa con grupo:', error.message);
+        throw error;
+    }
+};
+
+// ==================== FIN FUNCIONES JUNTAR/SEPARAR ====================
+
 module.exports = {
     listarMesas,
     crearMesa,
@@ -282,5 +639,9 @@ module.exports = {
     borrarMesa,
     actualizarEstadoMesa,
     liberarTodasLasMesas,
-    importarMesasDesdeJSON
+    importarMesasDesdeJSON,
+    juntarMesas,
+    separarMesas,
+    obtenerMesasAgrupadas,
+    obtenerMesaConGrupo
 };

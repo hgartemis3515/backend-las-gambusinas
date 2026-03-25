@@ -7,12 +7,33 @@ const {
     actualizarMesa,
     borrarMesa,
     actualizarEstadoMesa,
-    liberarTodasLasMesas
+    liberarTodasLasMesas,
+    juntarMesas,
+    separarMesas,
+    obtenerMesasAgrupadas,
+    obtenerMesaConGrupo
 } = require("../repository/mesas.repository");
 
 // Importar modelo de comandas para el resumen
 const comandaModel = require("../database/models/comanda.model");
 const moment = require("moment-timezone");
+const logger = require('../utils/logger');
+
+// Importar middleware de autenticación
+const { adminAuth } = require('../middleware/adminAuth');
+
+// Helper para verificar permisos
+const verificarPermiso = (req, permiso) => {
+    // El permiso viene del JWT decodificado en req.admin o req.user
+    const permisos = req.admin?.permisos || req.user?.permisos || [];
+    
+    // Admin tiene todos los permisos
+    if (req.admin?.rol === 'admin' || req.user?.rol === 'admin') {
+        return true;
+    }
+    
+    return permisos.includes(permiso);
+};
 
 // ==================== FASE A1: ENDPOINT OPTIMIZADO PARA MAPA DE MESAS ====================
 /**
@@ -284,5 +305,170 @@ router.delete('/mesas/:id', async (req, res) => {
         res.status(500).json({ error: "Error interno del servidor" });
     }
 });
+
+// ==================== ENDPOINTS PARA JUNTAR Y SEPARAR MESAS ====================
+
+/**
+ * POST /api/mesas/juntar
+ * Junta varias mesas en un grupo
+ * Requiere permiso: 'juntar-separar-mesas'
+ * 
+ * Body: { mesasIds: [ObjectId], motivo?: String }
+ */
+router.post('/mesas/juntar', adminAuth, async (req, res) => {
+    try {
+        // Verificar permiso
+        if (!verificarPermiso(req, 'juntar-separar-mesas')) {
+            return res.status(403).json({ 
+                success: false, 
+                error: 'No tiene permiso para juntar mesas' 
+            });
+        }
+        
+        const { mesasIds, motivo } = req.body;
+        const mozoId = req.admin?.id || req.user?._id || req.body.mozoId;
+        
+        if (!mesasIds || !Array.isArray(mesasIds)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Debe proporcionar un array de IDs de mesas' 
+            });
+        }
+        
+        const resultado = await juntarMesas(mesasIds, mozoId, motivo);
+        
+        // Emitir eventos Socket.io
+        if (global.emitMesasJuntadas) {
+            await global.emitMesasJuntadas(resultado.mesaPrincipal, resultado.mesasSecundarias, mozoId);
+        }
+        
+        // Emitir mesa-actualizada para cada mesa afectada
+        if (global.emitMesaActualizada) {
+            await global.emitMesaActualizada(resultado.mesaPrincipal._id);
+            for (const mesa of resultado.mesasSecundarias) {
+                await global.emitMesaActualizada(mesa._id);
+            }
+        }
+        
+        logger.info('Mesas juntadas', {
+            mesaPrincipal: resultado.mesaPrincipal.nummesa,
+            mesasSecundarias: resultado.mesasSecundarias.map(m => m.nummesa),
+            mozoId
+        });
+        
+        res.json(resultado);
+        
+    } catch (error) {
+        logger.error('Error al juntar mesas', { error: error.message });
+        const statusCode = error.statusCode || 400;
+        res.status(statusCode).json({ 
+            success: false, 
+            error: error.message || "Error al juntar mesas" 
+        });
+    }
+});
+
+/**
+ * POST /api/mesas/separar
+ * Separa mesas previamente juntadas
+ * Requiere permiso: 'juntar-separar-mesas'
+ * 
+ * Body: { mesaPrincipalId: ObjectId, motivo?: String }
+ */
+router.post('/mesas/separar', adminAuth, async (req, res) => {
+    try {
+        // Verificar permiso
+        if (!verificarPermiso(req, 'juntar-separar-mesas')) {
+            return res.status(403).json({ 
+                success: false, 
+                error: 'No tiene permiso para separar mesas' 
+            });
+        }
+        
+        const { mesaPrincipalId, motivo } = req.body;
+        const mozoId = req.admin?.id || req.user?._id || req.body.mozoId;
+        
+        if (!mesaPrincipalId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Debe proporcionar el ID de la mesa principal' 
+            });
+        }
+        
+        const resultado = await separarMesas(mesaPrincipalId, mozoId, motivo);
+        
+        // Emitir eventos Socket.io
+        if (global.emitMesasSeparadas) {
+            await global.emitMesasSeparadas(resultado.mesaPrincipal, resultado.mesasSecundarias, mozoId);
+        }
+        
+        // Emitir mesa-actualizada para cada mesa afectada
+        if (global.emitMesaActualizada) {
+            await global.emitMesaActualizada(resultado.mesaPrincipal._id);
+            for (const mesa of resultado.mesasSecundarias) {
+                await global.emitMesaActualizada(mesa._id);
+            }
+        }
+        
+        logger.info('Mesas separadas', {
+            mesaPrincipal: resultado.mesaPrincipal.nummesa,
+            mesasSecundarias: resultado.mesasSecundarias.map(m => m.nummesa),
+            mozoId
+        });
+        
+        res.json(resultado);
+        
+    } catch (error) {
+        logger.error('Error al separar mesas', { error: error.message });
+        const statusCode = error.statusCode || 400;
+        res.status(statusCode).json({ 
+            success: false, 
+            error: error.message || "Error al separar mesas" 
+        });
+    }
+});
+
+/**
+ * GET /api/mesas/grupos
+ * Obtiene todas las mesas agrupadas
+ */
+router.get('/mesas/grupos', async (req, res) => {
+    try {
+        const grupos = await obtenerMesasAgrupadas();
+        res.json({
+            success: true,
+            grupos,
+            totalGrupos: grupos.length
+        });
+    } catch (error) {
+        logger.error('Error al obtener grupos de mesas', { error: error.message });
+        res.status(500).json({ 
+            success: false, 
+            error: "Error al obtener grupos de mesas" 
+        });
+    }
+});
+
+/**
+ * GET /api/mesas/:id/grupo
+ * Obtiene una mesa con información de su grupo (si pertenece a uno)
+ */
+router.get('/mesas/:id/grupo', async (req, res) => {
+    try {
+        const resultado = await obtenerMesaConGrupo(req.params.id);
+        res.json({
+            success: true,
+            ...resultado
+        });
+    } catch (error) {
+        logger.error('Error al obtener mesa con grupo', { error: error.message });
+        res.status(500).json({ 
+            success: false, 
+            error: error.message || "Error al obtener mesa con grupo" 
+        });
+    }
+});
+
+// ==================== FIN ENDPOINTS JUNTAR/SEPARAR ====================
 
 module.exports = router;

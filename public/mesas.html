@@ -59,6 +59,15 @@ tailwind.config = {
     <div class="flex items-center justify-between mb-5">
       <h1 class="text-xl font-bold">Gestión de Mesas</h1>
       <div class="flex items-center gap-3">
+        <!-- Botón de modo selección (solo si tiene permiso) -->
+        <template x-if="tienePermisoJuntarSeparar">
+          <button @click="toggleModoSeleccion()" 
+            :class="modoSeleccion ? 'bg-st-pedido text-white' : 'bg-bg-sidebar border border-gold/25 text-txt-secondary hover:bg-gold/20'"
+            class="px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2">
+            <span x-text="modoSeleccion ? '✕ Cancelar' : '🔗 Juntar'"></span>
+            <span x-show="modoSeleccion && mesasSeleccionadas.length > 0" class="bg-gold text-bg-primary px-2 py-0.5 rounded-full text-xs" x-text="mesasSeleccionadas.length"></span>
+          </button>
+        </template>
         <button @click="liberarTodas()" class="bg-st-pagado text-white px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">🔴 LIBRE TOTAL</button>
         <div class="flex border border-[rgba(212,175,55,0.25)] rounded-lg overflow-hidden">
           <button @click="view='cards'" :class="view==='cards' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:bg-gold-20'" class="px-3 py-1.5 text-sm font-medium transition">🃏 Tarjetas</button>
@@ -66,6 +75,32 @@ tailwind.config = {
         </div>
         <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition" @click="openCreateModal()">+ Nueva Mesa</button>
       </div>
+    </div>
+    
+    <!-- BARRA DE ACCIONES PARA JUNTAR MESAS -->
+    <div x-show="modoSeleccion && mesasSeleccionadas.length >= 2" x-transition class="bg-st-pedido/20 border border-st-pedido/30 rounded-xl p-4 mb-5 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-st-pedido font-semibold" x-text="mesasSeleccionadas.length + ' mesas seleccionadas'"></span>
+        <div class="flex gap-1">
+          <template x-for="m in mesasSeleccionadas.slice(0, 4)" :key="m._id">
+            <span class="bg-gold/20 text-gold px-2 py-1 rounded text-xs" x-text="'Mesa ' + m.numMesa"></span>
+          </template>
+          <span x-show="mesasSeleccionadas.length > 4" class="text-txt-muted text-xs" x-text="'+' + (mesasSeleccionadas.length - 4) + ' más'"></span>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button @click="confirmarJuntarMesas()" 
+          :disabled="!puedeJuntarMesas"
+          :class="puedeJuntarMesas ? 'bg-st-preparado text-white hover:brightness-110' : 'bg-bg-sidebar text-txt-muted cursor-not-allowed'"
+          class="px-4 py-2 rounded-lg text-sm font-semibold transition">
+          🔗 Juntar Mesas
+        </button>
+      </div>
+    </div>
+    
+    <!-- MENSAJE DE VALIDACIÓN -->
+    <div x-show="modoSeleccion && mesasSeleccionadas.length >= 2 && !puedeJuntarMesas" x-transition class="bg-st-pagado/20 border border-st-pagado/30 rounded-xl p-3 mb-5 text-sm text-st-pagado">
+      <span x-text="mensajeValidacionJuntar"></span>
     </div>
 
     <!-- FILTROS -->
@@ -88,12 +123,47 @@ tailwind.config = {
           <h3 class="text-sm font-semibold text-txt-secondary mb-3" x-text="area.nombre || area"></h3>
           <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
             <template x-for="m in getMesasByArea(area)" :key="m._id || m.numMesa">
-              <div class="bg-bg-card border-2 rounded-xl p-3.5 cursor-pointer card-hover transition hover:scale-[1.02]"
-                :class="mesaBorderClass(estadoNormalizado(m.estado))" @click="openDetailModal(m)">
-                <div class="flex items-center justify-between mb-2">
-                  <span class="font-bold text-lg" x-text="'Mesa ' + m.numMesa"></span>
-                  <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold" :class="mesaBadge(estadoNormalizado(m.estado))" x-text="estadoNormalizado(m.estado)"></span>
+              <div class="relative bg-bg-card border-2 rounded-xl p-3.5 cursor-pointer card-hover transition hover:scale-[1.02]"
+                :class="[
+                  mesaBorderClass(estadoNormalizado(m.estado)),
+                  estaSeleccionada(m) ? 'ring-2 ring-gold ring-offset-2 ring-offset-bg-primary' : '',
+                  !m.esMesaPrincipal ? 'opacity-70' : ''
+                ]" 
+                @click="modoSeleccion ? toggleSeleccionMesa(m) : openDetailModal(m)">
+                
+                <!-- Checkbox en modo selección -->
+                <div x-show="modoSeleccion" class="absolute top-2 right-2">
+                  <div class="w-5 h-5 rounded border-2 flex items-center justify-center transition"
+                    :class="estaSeleccionada(m) ? 'bg-gold border-gold' : 'border-txt-muted bg-transparent'">
+                    <span x-show="estaSeleccionada(m)" class="text-bg-primary text-xs">✓</span>
+                  </div>
                 </div>
+                
+                <!-- Badge de grupo -->
+                <div x-show="!modoSeleccion && (m.mesasUnidas?.length > 0 || !m.esMesaPrincipal)" class="absolute top-2 right-2">
+                  <span x-show="m.esMesaPrincipal && m.mesasUnidas?.length > 0" 
+                    class="bg-gold text-bg-primary text-[9px] px-1.5 py-0.5 rounded font-bold">
+                    PRINCIPAL
+                  </span>
+                  <span x-show="!m.esMesaPrincipal" 
+                    class="bg-st-pedido text-white text-[9px] px-1.5 py-0.5 rounded font-bold">
+                    UNIDA
+                  </span>
+                </div>
+                
+                <div class="flex items-center justify-between mb-2">
+                  <span class="font-bold text-lg" x-text="m.nombreCombinado || ('Mesa ' + m.numMesa)"></span>
+                  <span x-show="!modoSeleccion" class="text-[10px] px-2 py-0.5 rounded-full font-semibold" :class="mesaBadge(estadoNormalizado(m.estado))" x-text="estadoNormalizado(m.estado)"></span>
+                </div>
+                
+                <!-- Información de grupo -->
+                <div x-show="m.esMesaPrincipal && m.mesasUnidas?.length > 0" class="text-[10px] text-gold mb-1">
+                  <span x-text="'+ ' + m.mesasUnidas.length + ' mesas unidas'"></span>
+                </div>
+                <div x-show="!m.esMesaPrincipal && m.mesaPrincipalId" class="text-[10px] text-st-pedido mb-1">
+                  <span x-text="'Unida a M' + getNumMesaPrincipal(m)"></span>
+                </div>
+                
                 <div class="space-y-1 text-xs text-txt-muted">
                   <p x-show="m.idMozo?.nombre || m.mozo"><span class="text-txt-secondary">👤</span> <span x-text="m.idMozo?.nombre || m.mozo"></span></p>
                   <p x-show="m.personas"><span class="text-txt-secondary">👥</span> <span x-text="m.personas + ' personas'"></span></p>
@@ -111,9 +181,13 @@ tailwind.config = {
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
+            <th x-show="modoSeleccion" class="text-left px-4 py-3 font-semibold">
+              <input type="checkbox" class="w-4 h-4 rounded border-txt-muted bg-bg-sidebar text-gold" @click="toggleSeleccionarTodas($event)">
+            </th>
             <th class="text-left px-4 py-3 font-semibold">#</th>
             <th class="text-left px-4 py-3 font-semibold">Área</th>
             <th class="text-left px-4 py-3 font-semibold">Estado</th>
+            <th class="text-left px-4 py-3 font-semibold">Grupo</th>
             <th class="text-left px-4 py-3 font-semibold">Mozo</th>
             <th class="text-left px-4 py-3 font-semibold">Pers.</th>
             <th class="text-left px-4 py-3 font-semibold">Monto</th>
@@ -121,17 +195,41 @@ tailwind.config = {
           </tr></thead>
           <tbody>
             <template x-for="m in filteredMesasList" :key="m._id || m.numMesa">
-              <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
-                <td class="px-4 py-3 font-medium" x-text="m.numMesa"></td>
+              <tr class="border-b border-[rgba(212,175,55,0.08)] table-row"
+                :class="[
+                  estaSeleccionada(m) ? 'bg-gold/10' : '',
+                  !m.esMesaPrincipal ? 'opacity-70' : ''
+                ]"
+                @click="modoSeleccion ? toggleSeleccionMesa(m) : null">
+                <!-- Checkbox en modo selección -->
+                <td x-show="modoSeleccion" class="px-4 py-3">
+                  <div class="w-5 h-5 rounded border-2 flex items-center justify-center transition"
+                    :class="estaSeleccionada(m) ? 'bg-gold border-gold' : 'border-txt-muted bg-transparent'">
+                    <span x-show="estaSeleccionada(m)" class="text-bg-primary text-xs">✓</span>
+                  </div>
+                </td>
+                <td class="px-4 py-3 font-medium">
+                  <span x-text="m.nombreCombinado || ('Mesa ' + m.numMesa)"></span>
+                  <span x-show="!m.esMesaPrincipal" class="text-st-pedido text-xs ml-1">(Unida)</span>
+                </td>
                 <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full bg-gold-20 text-gold" x-text="m.area?.nombre || m.area || '—'"></span></td>
                 <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full font-semibold" :class="mesaBadge(estadoNormalizado(m.estado))" x-text="estadoNormalizado(m.estado)"></span></td>
+                <td class="px-4 py-3">
+                  <span x-show="m.esMesaPrincipal && m.mesasUnidas?.length > 0" class="text-xs px-2 py-0.5 rounded-full bg-gold/20 text-gold">
+                    +<span x-text="m.mesasUnidas.length"></span> mesas
+                  </span>
+                  <span x-show="!m.esMesaPrincipal" class="text-xs px-2 py-0.5 rounded-full bg-st-pedido/20 text-st-pedido">
+                    M<span x-text="getNumMesaPrincipal(m)"></span>
+                  </span>
+                  <span x-show="m.esMesaPrincipal && (!m.mesasUnidas || m.mesasUnidas.length === 0)" class="text-txt-muted">—</span>
+                </td>
                 <td class="px-4 py-3 text-txt-secondary" x-text="m.idMozo?.nombre || m.mozo || '—'"></td>
                 <td class="px-4 py-3" x-text="m.personas || '—'"></td>
                 <td class="px-4 py-3" :class="m.monto ? 'text-gold font-semibold' : 'text-txt-muted'" x-text="m.monto ? 'S/. '+m.monto : '—'"></td>
                 <td class="px-4 py-3 space-x-2 text-base">
-                  <span class="cursor-pointer hover:text-gold" @click="openDetailModal(m)">👁</span>
-                  <span class="cursor-pointer hover:text-gold" @click="openEditModal(m)">✏️</span>
-                  <span class="cursor-pointer hover:text-st-pagado" @click="eliminarMesa(m._id)">🗑️</span>
+                  <span x-show="!modoSeleccion" class="cursor-pointer hover:text-gold" @click="openDetailModal(m)">👁</span>
+                  <span x-show="!modoSeleccion" class="cursor-pointer hover:text-gold" @click="openEditModal(m)">✏️</span>
+                  <span x-show="!modoSeleccion" class="cursor-pointer hover:text-st-pagado" @click="eliminarMesa(m._id)">🗑️</span>
                 </td>
               </tr>
             </template>
@@ -156,7 +254,20 @@ tailwind.config = {
   <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[420px] shadow-2xl" @click.stop>
     <div class="p-5 border-b border-[rgba(212,175,55,0.1)]">
       <div class="flex items-center justify-between">
-        <h2 class="text-lg font-bold" x-text="selectedMesa ? 'Mesa ' + selectedMesa.numMesa : ''"></h2>
+        <div>
+          <h2 class="text-lg font-bold" x-text="selectedMesa ? (selectedMesa.nombreCombinado || 'Mesa ' + selectedMesa.numMesa) : ''"></h2>
+          <!-- Badge de grupo si aplica -->
+          <div x-show="selectedMesa && selectedMesa.esMesaPrincipal && selectedMesa.mesasUnidas && selectedMesa.mesasUnidas.length > 0" class="mt-1">
+            <span class="text-[10px] bg-gold/20 text-gold px-2 py-0.5 rounded-full">
+              Principal de <span x-text="selectedMesa?.mesasUnidas?.length || 0"></span> mesas unidas
+            </span>
+          </div>
+          <div x-show="selectedMesa && selectedMesa.esMesaPrincipal === false" class="mt-1">
+            <span class="text-[10px] bg-st-pedido/20 text-st-pedido px-2 py-0.5 rounded-full">
+              Unida a Mesa <span x-text="getNumMesaPrincipal(selectedMesa)"></span>
+            </span>
+          </div>
+        </div>
         <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm hover:bg-gold/30">✕</button>
       </div>
       <p class="text-xs text-txt-muted mt-1" x-text="selectedMesa ? 'Área: ' + (selectedMesa.area?.nombre || selectedMesa.area || '—') : ''"></p>
@@ -166,6 +277,17 @@ tailwind.config = {
         <span class="text-xs px-2.5 py-1 rounded-full font-semibold" :class="selectedMesa && mesaBadge(estadoNormalizado(selectedMesa.estado))" x-text="estadoNormalizado(selectedMesa?.estado)"></span>
         <span class="text-xs text-txt-muted" x-show="selectedMesa?.idMozo" x-text="'👤 ' + (selectedMesa?.idMozo?.nombre || '—')"></span>
       </div>
+      
+      <!-- Lista de mesas unidas -->
+      <div x-show="selectedMesa && selectedMesa.esMesaPrincipal && selectedMesa.mesasUnidas && selectedMesa.mesasUnidas.length > 0" class="mb-4 bg-gold/10 rounded-lg p-3">
+        <p class="text-xs text-gold font-semibold mb-2">Mesas unidas:</p>
+        <div class="flex flex-wrap gap-1">
+          <template x-for="mesaUnida in (selectedMesa?.mesasUnidas || [])" :key="mesaUnida._id || mesaUnida">
+            <span class="text-xs bg-bg-sidebar text-txt-secondary px-2 py-1 rounded" x-text="'Mesa ' + (mesaUnida.numMesa || mesaUnida.nummesa || '?')"></span>
+          </template>
+        </div>
+      </div>
+      
       <p class="text-[11px] text-txt-muted uppercase mb-2">Información</p>
       <div class="space-y-2 mb-4">
         <div class="flex justify-between text-sm"><span>Capacidad</span><span class="text-txt-secondary" x-text="selectedMesa?.capacidad || '—'"></span></div>
@@ -178,7 +300,47 @@ tailwind.config = {
     </div>
     <div class="flex gap-2 p-5 pt-0">
       <button @click="liberarMesa(selectedMesa?._id)" class="flex-1 py-2.5 border border-st-pagado text-st-pagado rounded-lg text-sm font-medium hover:bg-st-pagado/10">Liberar Mesa</button>
+      <!-- Botón separar mesas si tiene mesas unidas -->
+      <template x-if="tienePermisoJuntarSeparar && selectedMesa && selectedMesa.esMesaPrincipal && selectedMesa.mesasUnidas && selectedMesa.mesasUnidas.length > 0">
+        <button @click="separarMesas(selectedMesa)" class="flex-1 py-2.5 border border-st-pedido text-st-pedido rounded-lg text-sm font-medium hover:bg-st-pedido/10">🔗 Separar</button>
+      </template>
       <a :href="'/comandas.html?mesa=' + selectedMesa?._id" class="flex-1 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 text-center">Ver Comanda</a>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CONFIRMAR JUNTAR MESAS -->
+<div x-show="modal==='juntarMesas'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=null">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[480px] shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-bold">🔗 Juntar Mesas</h2>
+        <p class="text-xs text-txt-muted">Se agruparán las mesas seleccionadas</p>
+      </div>
+      <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm hover:bg-gold/30">✕</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <p class="text-xs text-txt-secondary mb-2">Mesas a juntar:</p>
+        <div class="flex flex-wrap gap-2">
+          <template x-for="m in mesasSeleccionadas" :key="m._id">
+            <span class="bg-gold/20 text-gold px-3 py-1.5 rounded-lg text-sm font-medium" x-text="'Mesa ' + m.numMesa"></span>
+          </template>
+        </div>
+      </div>
+      <div class="bg-gold/10 rounded-lg p-3">
+        <p class="text-xs text-gold font-semibold mb-1">Mesa principal:</p>
+        <p class="text-sm text-white" x-text="'Mesa ' + mesaPrincipalSeleccionada?.numMesa + ' (la de menor número)'"></p>
+      </div>
+      <div>
+        <label class="text-xs text-txt-secondary mb-1 block">Motivo (opcional)</label>
+        <input type="text" x-model="motivoUnion" placeholder="Ej: Grupo familiar grande..." 
+          class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+      </div>
+    </div>
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="modal=null" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+      <button @click="ejecutarJuntarMesas()" class="px-5 py-2.5 bg-st-preparado text-white rounded-lg text-sm font-semibold hover:brightness-110 transition">Confirmar</button>
     </div>
   </div>
 </div>
@@ -254,13 +416,67 @@ tailwind.config = {
     view: 'cards',
     filterEstado: 'Todas',
     
+    // Estados para juntar/separar mesas
+    modoSeleccion: false,
+    mesasSeleccionadas: [],
+    motivoUnion: '',
+    tienePermisoJuntarSeparar: false,
+    mensajeValidacionJuntar: '',
+    
     async init() {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
       if (!token) {
         window.location.href = '/login.html';
         return;
       }
+      
+      // Verificar permisos del usuario
+      await this.verificarPermisos();
+      
       await Promise.all([this.loadMesas(), this.loadAreas()]);
+      
+      // Escuchar eventos Socket de mesas juntadas/separadas
+      this.setupSocketListeners();
+    },
+    
+    async verificarPermisos() {
+      try {
+        const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+        if (!token) return;
+        
+        // Decodificar JWT para obtener permisos
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const permisos = payload.permisos || [];
+        const rol = payload.rol || payload.role;
+        
+        // Admin tiene todos los permisos
+        if (rol === 'admin') {
+          this.tienePermisoJuntarSeparar = true;
+          return;
+        }
+        
+        this.tienePermisoJuntarSeparar = permisos.includes('juntar-separar-mesas');
+      } catch (e) {
+        console.error('Error al verificar permisos:', e);
+        this.tienePermisoJuntarSeparar = false;
+      }
+    },
+    
+    setupSocketListeners() {
+      // Escuchar evento mesas-juntadas
+      if (window.socketAdmin) {
+        window.socketAdmin.on('mesas-juntadas', async (data) => {
+          console.log('Mesas juntadas recibido:', data);
+          await this.loadMesas();
+          this.showToast(`Mesas juntadas: Mesa ${data.mesaPrincipal?.nummesa} como principal`);
+        });
+        
+        window.socketAdmin.on('mesas-separadas', async (data) => {
+          console.log('Mesas separadas recibido:', data);
+          await this.loadMesas();
+          this.showToast('Mesas separadas correctamente');
+        });
+      }
     },
     
     async loadMesas() {
@@ -273,9 +489,8 @@ tailwind.config = {
       // Normalizar campos del modelo real a los esperados por la UI
       this.mesas = raw.map(m => ({
         ...m,
-        numMesa: m.nummesa ?? m.numMesa ?? m.mesasId,   // nummesa → numMesa
-        activa: m.isActive ?? m.activa ?? true,           // isActive → activa
-        // area ya viene populado (objeto con _id y nombre) o como string
+        numMesa: m.nummesa ?? m.numMesa ?? m.mesasId,
+        activa: m.isActive ?? m.activa ?? true,
       }));
       this.loading = false;
     },
@@ -319,6 +534,155 @@ tailwind.config = {
       return this.mesas.filter(m => this.estadoNormalizado(m.estado) === this.filterEstado);
     },
     
+    // ========== FUNCIONES PARA JUNTAR/SEPARAR MESAS ==========
+    
+    toggleModoSeleccion() {
+      this.modoSeleccion = !this.modoSeleccion;
+      if (!this.modoSeleccion) {
+        this.mesasSeleccionadas = [];
+        this.mensajeValidacionJuntar = '';
+      }
+    },
+    
+    toggleSeleccionMesa(mesa) {
+      if (!this.modoSeleccion) return;
+      
+      const idx = this.mesasSeleccionadas.findIndex(m => m._id === mesa._id);
+      if (idx >= 0) {
+        this.mesasSeleccionadas.splice(idx, 1);
+      } else {
+        this.mesasSeleccionadas.push(mesa);
+      }
+      
+      this.validarMesasSeleccionadas();
+    },
+    
+    estaSeleccionada(mesa) {
+      return this.mesasSeleccionadas.some(m => m._id === mesa._id);
+    },
+    
+    toggleSeleccionarTodas(event) {
+      if (event.target.checked) {
+        // Seleccionar solo mesas válidas para juntar (libres, de la misma área, no unidas)
+        const mesasValidas = this.filteredMesasList.filter(m => 
+          ['libre', 'esperando'].includes(m.estado?.toLowerCase()) &&
+          m.esMesaPrincipal &&
+          (!m.mesasUnidas || m.mesasUnidas.length === 0)
+        );
+        this.mesasSeleccionadas = [...mesasValidas];
+      } else {
+        this.mesasSeleccionadas = [];
+      }
+      this.validarMesasSeleccionadas();
+    },
+    
+    validarMesasSeleccionadas() {
+      this.mensajeValidacionJuntar = '';
+      
+      if (this.mesasSeleccionadas.length < 2) return;
+      
+      // Verificar que todas son de la misma área
+      const areas = [...new Set(this.mesasSeleccionadas.map(m => m.area?._id?.toString() || m.area?.toString()))];
+      if (areas.length > 1) {
+        this.mensajeValidacionJuntar = 'Solo se pueden juntar mesas de la misma área';
+        return;
+      }
+      
+      // Verificar estados permitidos
+      const estadosInvalidos = this.mesasSeleccionadas.filter(m => 
+        !['libre', 'esperando'].includes(m.estado?.toLowerCase())
+      );
+      if (estadosInvalidos.length > 0) {
+        this.mensajeValidacionJuntar = `Las mesas ${estadosInvalidos.map(m => m.numMesa).join(', ')} no están en estado libre o esperando`;
+        return;
+      }
+      
+      // Verificar que ninguna está ya unida
+      const mesasYaUnidas = this.mesasSeleccionadas.filter(m => !m.esMesaPrincipal || (m.mesasUnidas && m.mesasUnidas.length > 0));
+      if (mesasYaUnidas.length > 0) {
+        this.mensajeValidacionJuntar = `Las mesas ${mesasYaUnidas.map(m => m.numMesa).join(', ')} ya están en un grupo`;
+        return;
+      }
+      
+      // Verificar máximo
+      if (this.mesasSeleccionadas.length > 6) {
+        this.mensajeValidacionJuntar = 'No se pueden juntar más de 6 mesas';
+        return;
+      }
+    },
+    
+    get puedeJuntarMesas() {
+      return this.mesasSeleccionadas.length >= 2 && 
+             this.mesasSeleccionadas.length <= 6 && 
+             !this.mensajeValidacionJuntar;
+    },
+    
+    get mesaPrincipalSeleccionada() {
+      if (this.mesasSeleccionadas.length === 0) return null;
+      // Ordenar por número y retornar la menor
+      return [...this.mesasSeleccionadas].sort((a, b) => a.numMesa - b.numMesa)[0];
+    },
+    
+    confirmarJuntarMesas() {
+      if (!this.puedeJuntarMesas) return;
+      this.motivoUnion = '';
+      this.modal = 'juntarMesas';
+    },
+    
+    async ejecutarJuntarMesas() {
+      try {
+        const mesasIds = this.mesasSeleccionadas.map(m => m._id);
+        const body = {
+          mesasIds: mesasIds,
+          motivo: this.motivoUnion || null
+        };
+        
+        const res = await apiPost('/mesas/juntar', body);
+        
+        if (res && res.success) {
+          this.modal = null;
+          this.modoSeleccion = false;
+          this.mesasSeleccionadas = [];
+          await this.loadMesas();
+          this.showToast(res.message || 'Mesas juntadas correctamente ✅');
+        } else {
+          this.showToast('Error: ' + (res?.error || 'No se pudieron juntar las mesas'), 'error');
+        }
+      } catch (error) {
+        console.error('Error al juntar mesas:', error);
+        this.showToast('Error al juntar mesas: ' + error.message, 'error');
+      }
+    },
+    
+    async separarMesas(mesaPrincipal) {
+      if (!confirm(`¿Separar las mesas unidas a la Mesa ${mesaPrincipal.numMesa}?`)) return;
+      
+      try {
+        const res = await apiPost('/mesas/separar', {
+          mesaPrincipalId: mesaPrincipal._id
+        });
+        
+        if (res && res.success) {
+          this.modal = null;
+          await this.loadMesas();
+          this.showToast(res.message || 'Mesas separadas correctamente ✅');
+        } else {
+          this.showToast('Error: ' + (res?.error || 'No se pudieron separar las mesas'), 'error');
+        }
+      } catch (error) {
+        console.error('Error al separar mesas:', error);
+        this.showToast('Error al separar mesas: ' + error.message, 'error');
+      }
+    },
+    
+    getNumMesaPrincipal(mesa) {
+      if (!mesa || !mesa.mesaPrincipalId) return '?';
+      const principal = this.mesas.find(m => m._id === mesa.mesaPrincipalId || m._id?.toString() === mesa.mesaPrincipalId?.toString());
+      return principal ? principal.numMesa : '?';
+    },
+    
+    // ========== FUNCIONES ORIGINALES ==========
+    
     openDetailModal(m) {
       this.selectedMesa = m;
       this.modal = 'detalleMesa';
@@ -351,9 +715,8 @@ tailwind.config = {
       }
       
       const isEdit = !!this.formMesa._id;
-      // Mapear campos al formato del modelo backend
       const body = {
-        nummesa: parseInt(this.formMesa.numMesa),  // numMesa → nummesa
+        nummesa: parseInt(this.formMesa.numMesa),
         area: this.formMesa.idArea,
         estado: this.formMesa.estado,
         isActive: this.formMesa.activa,
@@ -406,14 +769,42 @@ tailwind.config = {
       }
     },
     
+    mesaBorderClass(estado) {
+      const borders = {
+        'Libre': 'border-st-libre',
+        'Ocupada': 'border-st-esperando',
+        'Pedido': 'border-st-pedido',
+        'Preparado': 'border-st-preparado',
+        'Pagado': 'border-st-pagado',
+        'Reservado': 'border-st-reservado'
+      };
+      return borders[estado] || 'border-gold/25';
+    },
+    
+    mesaBadge(estado) {
+      const badges = {
+        'Libre': 'bg-st-libre/20 text-st-libre',
+        'Ocupada': 'bg-st-esperando/20 text-st-esperando',
+        'Pedido': 'bg-st-pedido/20 text-st-pedido',
+        'Preparado': 'bg-st-preparado/20 text-st-preparado',
+        'Pagado': 'bg-st-pagado/20 text-st-pagado',
+        'Reservado': 'bg-st-reservado/20 text-st-reservado'
+      };
+      return badges[estado] || 'bg-gold/20 text-gold';
+    },
+    
     showToast(msg, type = 'success') {
       const container = document.getElementById('toast-container');
       const t = document.createElement('div');
-      t.className = 'px-4 py-3 rounded-xl text-sm font-medium shadow-xl ' +
+      t.className = 'px-4 py-3 rounded-xl text-sm font-medium shadow-xl animate__animated animate__slideInRight ' +
         (type === 'error' ? 'bg-st-pagado text-white' : 'bg-st-preparado text-white');
       t.textContent = msg;
       container.appendChild(t);
-      setTimeout(() => t.remove(), 3000);
+      setTimeout(() => {
+        t.classList.remove('animate__slideInRight');
+        t.classList.add('animate__slideOutRight');
+        setTimeout(() => t.remove(), 300);
+      }, 3000);
     },
     
     logout() {

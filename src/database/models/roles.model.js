@@ -14,6 +14,7 @@ const PERMISOS_FUNDAMENTALES = {
     // Backend/Dashboard - Gestión general
     'ver-mesas': { nombre: 'Ver Mesas', grupo: 'Backend/Dashboard', descripcion: 'Visualizar lista y estado de mesas' },
     'editar-mesas': { nombre: 'Editar Mesas', grupo: 'Backend/Dashboard', descripcion: 'Crear, modificar y eliminar mesas' },
+    'juntar-separar-mesas': { nombre: 'Juntar y Separar Mesas', grupo: 'Backend/Dashboard', descripcion: 'Combinar varias mesas en un grupo y separarlas posteriormente' },
     'ver-platos': { nombre: 'Ver Platos', grupo: 'Backend/Dashboard', descripcion: 'Visualizar menú y lista de platos' },
     'editar-platos': { nombre: 'Editar Platos', grupo: 'Backend/Dashboard', descripcion: 'Crear, modificar y eliminar platos del menú' },
     'ver-areas': { nombre: 'Ver Áreas', grupo: 'Backend/Dashboard', descripcion: 'Visualizar áreas del restaurante' },
@@ -46,7 +47,7 @@ const PERMISOS_FUNDAMENTALES = {
 const PERMISOS_POR_ROL_SISTEMA = {
     admin: Object.keys(PERMISOS_FUNDAMENTALES),
     supervisor: [
-        'ver-mesas', 'editar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas',
+        'ver-mesas', 'editar-mesas', 'juntar-separar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas',
         'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria', 'ver-reportes',
         'cierre-caja', 'ver-notificaciones', 'crear-comandas', 'editar-comandas',
         'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina', 'aplicar-descuentos'

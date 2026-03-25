@@ -1478,6 +1478,122 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
     }
   };
 
+  // ========== FUNCIONES PARA EMITIR EVENTOS DE JUNTAR/SEPARAR MESAS ==========
+
+  /**
+   * Emitir evento cuando se juntan mesas
+   * @param {Object} mesaPrincipal - Mesa principal del grupo
+   * @param {Array} mesasSecundarias - Array de mesas secundarias
+   * @param {String} mozoId - ID del mozo que ejecutó la acción
+   */
+  global.emitMesasJuntadas = async (mesaPrincipal, mesasSecundarias, mozoId) => {
+    try {
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      const eventData = {
+        mesaPrincipal: mesaPrincipal,
+        mesasSecundarias: mesasSecundarias,
+        mozoId: mozoId?.toString(),
+        totalMesas: 1 + (mesasSecundarias?.length || 0),
+        timestamp: timestamp
+      };
+
+      // Emitir a namespace mozos (todos los mozos conectados)
+      if (mozosNamespace && mozosNamespace.sockets) {
+        mozosNamespace.emit('mesas-juntadas', eventData);
+        logger.debug('Evento mesas-juntadas emitido a mozos', {
+          mesaPrincipal: mesaPrincipal?.nummesa,
+          totalMesas: eventData.totalMesas,
+          mozosConnected: mozosNamespace.sockets.size
+        });
+      }
+
+      // Emitir a namespace admin para el dashboard
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('mesas-juntadas', eventData);
+        logger.debug('Evento mesas-juntadas emitido a admin', {
+          mesaPrincipal: mesaPrincipal?.nummesa,
+          adminConnected: adminNamespace.sockets.size
+        });
+      }
+
+      // Emitir a namespace cocina para que sepan el estado
+      if (cocinaNamespace && cocinaNamespace.sockets) {
+        cocinaNamespace.emit('mesas-juntadas', eventData);
+      }
+
+      logger.info('Evento mesas-juntadas emitido', {
+        mesaPrincipal: mesaPrincipal?.nummesa,
+        mesasSecundarias: mesasSecundarias?.map(m => m.nummesa),
+        mozoId,
+        totalMesas: eventData.totalMesas
+      });
+    } catch (error) {
+      logger.error('Error al emitir mesas-juntadas', {
+        error: error.message,
+        stack: error.stack,
+        mesaPrincipal: mesaPrincipal?._id
+      });
+    }
+  };
+
+  /**
+   * Emitir evento cuando se separan mesas
+   * @param {Object} mesaPrincipal - Mesa principal que se separa
+   * @param {Array} mesasSecundarias - Array de mesas secundarias liberadas
+   * @param {String} mozoId - ID del mozo que ejecutó la acción
+   */
+  global.emitMesasSeparadas = async (mesaPrincipal, mesasSecundarias, mozoId) => {
+    try {
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      const eventData = {
+        mesaPrincipal: mesaPrincipal,
+        mesasSecundarias: mesasSecundarias,
+        mozoId: mozoId?.toString(),
+        totalMesasLiberadas: (mesasSecundarias?.length || 0),
+        timestamp: timestamp
+      };
+
+      // Emitir a namespace mozos
+      if (mozosNamespace && mozosNamespace.sockets) {
+        mozosNamespace.emit('mesas-separadas', eventData);
+        logger.debug('Evento mesas-separadas emitido a mozos', {
+          mesaPrincipal: mesaPrincipal?.nummesa,
+          mesasLiberadas: eventData.totalMesasLiberadas,
+          mozosConnected: mozosNamespace.sockets.size
+        });
+      }
+
+      // Emitir a namespace admin
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('mesas-separadas', eventData);
+        logger.debug('Evento mesas-separadas emitido a admin', {
+          mesaPrincipal: mesaPrincipal?.nummesa,
+          adminConnected: adminNamespace.sockets.size
+        });
+      }
+
+      // Emitir a namespace cocina
+      if (cocinaNamespace && cocinaNamespace.sockets) {
+        cocinaNamespace.emit('mesas-separadas', eventData);
+      }
+
+      logger.info('Evento mesas-separadas emitido', {
+        mesaPrincipal: mesaPrincipal?.nummesa,
+        mesasSecundarias: mesasSecundarias?.map(m => m.nummesa),
+        mozoId,
+        totalMesasLiberadas: eventData.totalMesasLiberadas
+      });
+    } catch (error) {
+      logger.error('Error al emitir mesas-separadas', {
+        error: error.message,
+        stack: error.stack,
+        mesaPrincipal: mesaPrincipal?._id
+      });
+    }
+  };
+
   /**
    * Emitir evento de configuración de cocinero actualizada
    * Se emite cuando un admin cambia la configuración KDS de un cocinero
