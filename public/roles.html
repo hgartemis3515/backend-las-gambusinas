@@ -222,13 +222,22 @@ tailwind.config = {
             <p class="text-[11px] text-txt-muted uppercase mb-2 font-semibold" x-text="grupo"></p>
             <div class="grid grid-cols-3 gap-2">
               <template x-for="permiso in permisosGrupo" :key="permiso.id">
-                <label class="flex items-center gap-2 p-2 rounded-lg bg-bg-sidebar border border-[rgba(212,175,55,0.1)] cursor-pointer hover:border-gold/30 transition"
-                  :class="{'opacity-60 cursor-not-allowed': formRol.esSistema}">
+                <label class="relative flex items-center gap-2 p-2 rounded-lg bg-bg-sidebar border-2 cursor-pointer transition-all duration-200"
+                  :class="{
+                    'border-st-preparado hover:border-st-preparado/80': formRol.permisos.includes(permiso.id),
+                    'border-st-pagado/50 hover:border-st-pagado': !formRol.permisos.includes(permiso.id),
+                    'opacity-60 cursor-not-allowed pointer-events-none': formRol.esSistema
+                  }">
+                  <!-- Ícono de estado -->
+                  <div class="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
+                    :class="formRol.permisos.includes(permiso.id) ? 'bg-st-preparado text-white' : 'bg-st-pagado/20 text-st-pagado'">
+                    <span x-text="formRol.permisos.includes(permiso.id) ? '✓' : '✕'"></span>
+                  </div>
                   <input type="checkbox" 
                     :checked="formRol.permisos.includes(permiso.id)"
                     @change="togglePermiso(permiso.id)"
                     :disabled="formRol.esSistema"
-                    class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+                    class="sr-only">
                   <div class="flex-1 min-w-0">
                     <p class="text-xs font-medium truncate" x-text="permiso.nombre"></p>
                     <p class="text-[10px] text-txt-muted truncate" x-text="permiso.descripcion"></p>
