@@ -832,9 +832,29 @@ router.put('/comanda/:id/finalizar', adminAuth, async (req, res) => {
       );
     }
     
+    // 🔥 FIX: Actualizar estado de la mesa a "preparado" cuando la comanda está lista
+    // Esto es crítico para que la mesa se muestre correctamente en la app de mozos
+    const Mesas = mongoose.model('mesas') || require('../database/models/mesas.model');
+    const mesaId = comanda.mesas?._id || comanda.mesas;
+    if (mesaId) {
+      const mesa = await Mesas.findById(mesaId);
+      if (mesa && mesa.estado !== 'preparado' && mesa.estado !== 'pagando' && mesa.estado !== 'pagado') {
+        mesa.estado = 'preparado';
+        await mesa.save();
+        logger.info(`[FinalizarComanda] Mesa ${mesa.nummesa} actualizada a estado "preparado"`);
+        
+        // Emitir evento de mesa actualizada para sincronizar con mozos
+        if (global.emitMesaActualizada) {
+          await global.emitMesaActualizada(mesa._id);
+        }
+      }
+    }
+    
     // Obtener comanda completa poblada para emitir
     const comandaFinalizada = await Comanda.findById(comandaId)
       .populate({ path: "platos.plato", select: "nombre precio categoria" })
+      .populate({ path: "mozos" })
+      .populate({ path: "mesas", populate: { path: "area" } })
       .lean();
     
     // Emitir evento Socket
