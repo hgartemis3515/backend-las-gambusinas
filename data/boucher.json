@@ -8831,5 +8831,59 @@
     "createdAt": "2026-03-25T03:37:00.177Z",
     "updatedAt": "2026-03-25T03:37:00.177Z",
     "boucherNumber": 135
+  },
+  {
+    "configuracionIGV": {
+      "igvPorcentaje": 18,
+      "preciosIncluyenIGV": true,
+      "nombreImpuesto": "IGV",
+      "moneda": "PEN",
+      "simboloMoneda": "S/."
+    },
+    "_id": "69c455ffd8998a9e79eec69f",
+    "voucherId": "YO4TN",
+    "mesa": "6989345f914a31fe82a52cf4",
+    "numMesa": 5,
+    "mozo": "6993350add56aff12441caca",
+    "nombreMozo": "Humberto",
+    "cliente": "69c455fed8998a9e79eec35a",
+    "usadoEnComanda": null,
+    "fechaUso": null,
+    "comandas": [
+      "69c45554d8998a9e79ee4956"
+    ],
+    "comandasNumbers": [
+      485
+    ],
+    "platos": [
+      {
+        "plato": "6992b9dad845b119c1d00c86",
+        "platoId": 36,
+        "nombre": "Papa a la huancaína",
+        "precio": 13,
+        "cantidad": 1,
+        "subtotal": 13,
+        "comandaNumber": 485,
+        "complementosSeleccionados": [],
+        "cocinero": null,
+        "cocineroId": null,
+        "tiempoPreparacion": "01:10",
+        "_id": "69c455ffd8998a9e79eec6a0"
+      }
+    ],
+    "subtotal": 11.02,
+    "igv": 1.98,
+    "total": 13,
+    "descuentos": [],
+    "totalSinDescuento": 13,
+    "montoDescuento": 0,
+    "totalConDescuento": 13,
+    "observaciones": "",
+    "fechaPago": "2026-03-25T21:39:11.582Z",
+    "fechaPagoString": "25/03/2026 16:39:11",
+    "isActive": true,
+    "createdAt": "2026-03-25T21:39:11.587Z",
+    "updatedAt": "2026-03-25T21:39:11.587Z",
+    "boucherNumber": 136
   }
 ]
