@@ -268,6 +268,145 @@ router.put('/roles/:id', adminAuth, async (req, res) => {
 });
 
 /**
+ * PUT /roles/:id/usuarios/:usuarioId
+ * Agregar un usuario al rol
+ */
+router.put('/roles/:id/usuarios/:usuarioId', adminAuth, async (req, res) => {
+    try {
+        const userRol = req.admin?.rol || req.admin?.role;
+        
+        if (userRol && userRol !== 'admin') {
+            return res.status(403).json({ 
+                success: false, 
+                error: 'Solo administradores pueden asignar usuarios a roles' 
+            });
+        }
+
+        const { id, usuarioId } = req.params;
+        
+        // Obtener el rol
+        const rol = await rolesRepository.obtenerRolPorId(id);
+        if (!rol) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Rol no encontrado' 
+            });
+        }
+
+        // Asignar el rol al usuario
+        const usuario = await rolesRepository.asignarRolAUsuario(usuarioId, rol.nombre);
+
+        // Emitir evento WebSocket
+        if (global.io && global.io.of('/admin')) {
+            global.io.of('/admin').emit('usuario-rol-asignado', {
+                rolId: id,
+                usuarioId,
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        logger.info('Usuario asignado a rol', { 
+            adminId: req.admin?.id, 
+            rolId: id,
+            usuarioId
+        });
+
+        res.json({
+            success: true,
+            message: 'Usuario agregado al rol correctamente',
+            data: usuario
+        });
+    } catch (error) {
+        logger.error('Error al asignar usuario a rol', { error: error.message });
+        res.status(400).json({ 
+            success: false, 
+            error: error.message || 'Error al asignar usuario a rol' 
+        });
+    }
+});
+
+/**
+ * DELETE /roles/:id/usuarios/:usuarioId
+ * Quitar un usuario del rol (cambiar a rol por defecto 'mozos')
+ */
+router.delete('/roles/:id/usuarios/:usuarioId', adminAuth, async (req, res) => {
+    try {
+        const userRol = req.admin?.rol || req.admin?.role;
+        
+        if (userRol && userRol !== 'admin') {
+            return res.status(403).json({ 
+                success: false, 
+                error: 'Solo administradores pueden quitar usuarios de roles' 
+            });
+        }
+
+        const { id, usuarioId } = req.params;
+        
+        // Verificar que el rol existe
+        const rol = await rolesRepository.obtenerRolPorId(id);
+        if (!rol) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Rol no encontrado' 
+            });
+        }
+
+        // Quitar el usuario del rol (asignar rol por defecto 'mozos')
+        const mozosModel = require('../database/models/mozos.model');
+        let usuario = await mozosModel.findById(usuarioId);
+        if (!usuario) {
+            usuario = await mozosModel.findOne({ mozoId: parseInt(usuarioId) });
+        }
+
+        if (!usuario) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Usuario no encontrado' 
+            });
+        }
+
+        // Verificar que el usuario pertenece al rol
+        if (usuario.rol !== rol.nombre) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'El usuario no pertenece a este rol' 
+            });
+        }
+
+        // Asignar rol por defecto 'mozos'
+        usuario.rol = 'mozos';
+        await usuario.save();
+
+        // Emitir evento WebSocket
+        if (global.io && global.io.of('/admin')) {
+            global.io.of('/admin').emit('usuario-rol-removido', {
+                rolId: id,
+                usuarioId,
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        logger.info('Usuario removido del rol', { 
+            adminId: req.admin?.id, 
+            rolId: id,
+            usuarioId
+        });
+
+        res.json({
+            success: true,
+            message: 'Usuario removido del rol correctamente',
+            data: usuario.toObject()
+        });
+    } catch (error) {
+        logger.error('Error al remover usuario del rol', { error: error.message });
+        res.status(400).json({ 
+            success: false, 
+            error: error.message || 'Error al remover usuario del rol' 
+        });
+    }
+});
+
+/**
  * DELETE /roles/:id
  * Eliminar un rol (soft delete)
  * Solo admin puede eliminar roles
