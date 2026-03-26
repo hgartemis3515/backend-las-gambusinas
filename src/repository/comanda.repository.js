@@ -307,7 +307,7 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true) =
     });
     dbQuery = dbQuery.populate({
       path: "mesas",
-      select: "nummesa estado area",
+      select: "nummesa estado area nombreCombinado",
       options: { lean: true },
       populate: {
         path: "area",
@@ -2219,7 +2219,7 @@ const listarComandaPorFechaEntregado = async (fecha, usarProyeccion = true) => {
     });
     query = query.populate({
       path: "mesas",
-      select: "nummesa estado area",
+      select: "nummesa estado area nombreCombinado",
       options: { lean: true },
       populate: {
         path: "area",
@@ -2260,7 +2260,7 @@ const listarComandaPorFechaEntregado = async (fecha, usarProyeccion = true) => {
         })
         .populate({
           path: "mesas",
-          select: "nummesa estado area",
+          select: "nummesa estado area nombreCombinado",
           options: { lean: true },
           populate: {
             path: "area",
@@ -2357,7 +2357,7 @@ const listarComandaPorFecha = async (fecha, usarProyeccion = true) => {
     });
     query = query.populate({
       path: "mesas",
-      select: "nummesa estado area",
+      select: "nummesa estado area nombreCombinado",
       options: { lean: true },
       populate: {
         path: "area",
@@ -2688,7 +2688,7 @@ const getComandasParaPagar = async (mesaId, comandaIds = null) => {
     const comandas = await comandaModel.find(query)
       .populate('platos.plato', 'nombre precio')
       .populate('mozos', 'name')
-      .populate('mesas', 'nummesa estado')
+      .populate('mesas', 'nummesa estado nombreCombinado')
       .sort({ createdAt: -1 });
 
     const comandasListasParaPagar = [];
@@ -2745,7 +2745,7 @@ const validarComandasParaPagar = async (mesaId, comandasIds) => {
     })
       .populate('platos.plato', 'nombre precio')
       .populate('mozos')
-      .populate('mesas', 'nummesa');
+      .populate('mesas', 'nummesa nombreCombinado');
 
     if (comandas.length !== comandasIds.length) {
       const encontradas = comandas.map(c => c._id.toString());

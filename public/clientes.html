@@ -294,7 +294,7 @@ tailwind.config = {
     <div x-show="boucherDetalle" class="p-5 overflow-y-auto max-h-[calc(80vh-120px)]">
       <!-- Info del boucher -->
       <div class="grid grid-cols-2 gap-3 mb-4 text-sm">
-        <div><span class="text-txt-muted">Mesa:</span> <span class="font-medium" x-text="boucherDetalle?.mesa?.nummesa || 'N/A'"></span></div>
+        <div><span class="text-txt-muted">Mesa:</span> <span class="font-medium" x-text="boucherDetalle?.mesa?.nombreCombinado || boucherDetalle?.mesa?.nummesa || 'N/A'"></span></div>
         <div><span class="text-txt-muted">Mozo:</span> <span class="font-medium" x-text="boucherDetalle?.mozo?.name || 'N/A'"></span></div>
         <div><span class="text-txt-muted">Fecha:</span> <span class="font-medium" x-text="formatFecha(boucherDetalle?.fechaPago)"></span></div>
         <div><span class="text-txt-muted">Método:</span> <span class="font-medium" x-text="boucherDetalle?.metodoPago || 'N/A'"></span></div>

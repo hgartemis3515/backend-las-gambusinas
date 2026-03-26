@@ -8885,5 +8885,73 @@
     "createdAt": "2026-03-25T21:39:11.587Z",
     "updatedAt": "2026-03-25T21:39:11.587Z",
     "boucherNumber": 136
+  },
+  {
+    "configuracionIGV": {
+      "igvPorcentaje": 18,
+      "preciosIncluyenIGV": true,
+      "nombreImpuesto": "IGV",
+      "moneda": "PEN",
+      "simboloMoneda": "S/."
+    },
+    "_id": "69c4aead7b29c74070829f40",
+    "voucherId": "H6W6X",
+    "mesa": "69c3d5ea76e3224b81e9749e",
+    "numMesa": 14,
+    "mozo": "6993350add56aff12441caca",
+    "nombreMozo": "Humberto",
+    "cliente": "69c4aeab7b29c74070829bf0",
+    "usadoEnComanda": null,
+    "fechaUso": null,
+    "comandas": [
+      "69c45564d8998a9e79ee6c9c"
+    ],
+    "comandasNumbers": [
+      486
+    ],
+    "platos": [
+      {
+        "plato": "6992b9dad845b119c1d00c87",
+        "platoId": 37,
+        "nombre": "Ensalada especial (limon o vinagreta)",
+        "precio": 15,
+        "cantidad": 1,
+        "subtotal": 15,
+        "comandaNumber": 486,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "378:29",
+        "_id": "69c4aead7b29c74070829f41"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c88",
+        "platoId": 38,
+        "nombre": "Patasca",
+        "precio": 25,
+        "cantidad": 1,
+        "subtotal": 25,
+        "comandaNumber": 486,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "378:29",
+        "_id": "69c4aead7b29c74070829f42"
+      }
+    ],
+    "subtotal": 33.9,
+    "igv": 6.1,
+    "total": 40,
+    "descuentos": [],
+    "totalSinDescuento": 40,
+    "montoDescuento": 0,
+    "totalConDescuento": 40,
+    "observaciones": "",
+    "fechaPago": "2026-03-26T03:57:33.004Z",
+    "fechaPagoString": "25/03/2026 22:57:33",
+    "isActive": true,
+    "createdAt": "2026-03-26T03:57:33.013Z",
+    "updatedAt": "2026-03-26T03:57:33.013Z",
+    "boucherNumber": 137
   }
 ]

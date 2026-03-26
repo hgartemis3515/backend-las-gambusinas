@@ -2636,7 +2636,7 @@
                             ${bouchers.map(boucher => `
                                 <tr>
                                     <td><strong>#${boucher.boucherNumber || boucher._id.slice(-6)}</strong></td>
-                                    <td>${boucher.numMesa || boucher.mesa?.nummesa || 'N/A'}</td>
+                                    <td>${boucher.mesa?.nombreCombinado || boucher.numMesa || boucher.mesa?.nummesa || 'N/A'}</td>
                                     <td>${boucher.nombreMozo || boucher.mozo?.name || 'N/A'}</td>
                                     <td>${boucher.comandasNumbers?.join(', ') || boucher.comandas?.length || 0}</td>
                                     <td>${boucher.platos?.length || 0}</td>

@@ -137,7 +137,7 @@ router.get('/comanda/:id', async (req, res) => {
         const comanda = await comandaModel
             .findById(id)
             .populate('mozos', 'name DNI')
-            .populate('mesas', 'nummesa estado area')
+            .populate('mesas', 'nummesa estado area nombreCombinado')
             .populate('cliente', 'nombre dni telefono tipo')
             .populate('platos.plato', 'nombre precio categoria')
             .lean();
@@ -1429,7 +1429,7 @@ router.put('/comanda/:id/prioridad', async (req, res) => {
             { new: true }
         )
         .populate('mozos', 'name DNI')
-        .populate('mesas', 'nummesa estado area')
+        .populate('mesas', 'nummesa estado area nombreCombinado')
         .populate('platos.plato', 'nombre precio categoria')
         .lean();
 

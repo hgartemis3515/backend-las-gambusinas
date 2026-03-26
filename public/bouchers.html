@@ -500,7 +500,7 @@ function bouchersApp() {
     <p>Voucher #: ${voucher?.boucherNumber || voucher?.numero || '—'}</p>
     <p>Fecha: ${fecha.toLocaleDateString('es-PE')}</p>
     <p>Hora: ${fecha.toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'})}</p>
-    <p>Mesa: ${voucher?.mesa?.nummesa || voucher?.mesa?.numMesa || voucher?.numMesa || voucher?.mesa || '—'}</p>
+    <p>Mesa: ${voucher?.mesa?.nombreCombinado || voucher?.mesa?.nummesa || voucher?.mesa?.numMesa || voucher?.numMesa || voucher?.mesa || '—'}</p>
     <p>Mozo: ${voucher?.mozo?.name || voucher?.mozo?.nombre || voucher?.nombreMozo || '—'}</p>
   </div>
   

@@ -153,7 +153,7 @@ router.get('/auditoria/comanda/:id/historial', async (req, res) => {
     // Obtener comanda actual
     const comandaActual = await comandaModel.findById(id)
       .populate('mozos', 'name')
-      .populate('mesas', 'nummesa')
+      .populate('mesas', 'nummesa nombreCombinado')
       .populate('platos.plato', 'nombre precio');
     
     res.json({
@@ -192,7 +192,7 @@ router.get('/auditoria/platos-eliminados', async (req, res) => {
     
     const comandas = await comandaModel.find(query)
       .populate('eliminadaPor', 'name DNI')
-      .populate('mesas', 'nummesa')
+      .populate('mesas', 'nummesa nombreCombinado')
       .select('comandaNumber historialPlatos motivoEliminacion fechaEliminacion eliminadaPor mesas')
       .sort({ fechaEliminacion: -1 });
     
