@@ -1779,11 +1779,15 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
   /**
    * Emitir evento cuando un cocinero finaliza una comanda completa
    * v7.4: Sistema de 3 estados para Finalizar Comanda
+   * v7.5: Ahora también emite a /mozos para actualización en tiempo real
    */
   global.emitComandaFinalizada = async (comandaId, cocinero, comandaActualizada = null) => {
     try {
       const comanda = comandaActualizada || await comandaModel.findById(comandaId)
-        .populate({ path: "platos.plato", select: "nombre precio categoria" });
+        .populate({ path: "platos.plato", select: "nombre precio categoria" })
+        .populate({ path: "mozos" })
+        .populate({ path: "mesas", populate: { path: "area" } })
+        .populate({ path: "cliente" });
       if (!comanda) return;
 
       const timestamp = moment().tz('America/Lima').toISOString();
@@ -1798,13 +1802,43 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         timestamp
       };
 
+      // Emitir a cocina (room por fecha)
       cocinaNamespace.to(roomName).emit('comanda-finalizada', eventData);
+
+      // v7.5: También emitir a mozos para actualización en tiempo real
+      // Usar room de la mesa si está disponible, sino broadcast a todos
+      const mesaId = comanda.mesas?._id || comanda.mesas;
+      if (mesaId && mozosNamespace && mozosNamespace.sockets) {
+        const roomNameMesa = `mesa-${mesaId}`;
+        mozosNamespace.to(roomNameMesa).emit('comanda-actualizada', {
+          comandaId: comandaId?.toString(),
+          comanda: comanda,
+          tipo: 'comanda-finalizada',
+          socketId: 'server',
+          timestamp
+        });
+        logger.debug('Evento comanda-actualizada emitido a room de mozos', {
+          comandaId,
+          mesaId,
+          roomNameMesa
+        });
+      } else if (mozosNamespace && mozosNamespace.sockets) {
+        // Fallback: emitir a todos los mozos si no hay mesa
+        mozosNamespace.emit('comanda-actualizada', {
+          comandaId: comandaId?.toString(),
+          comanda: comanda,
+          tipo: 'comanda-finalizada',
+          socketId: 'server',
+          timestamp
+        });
+      }
 
       logger.info('Evento comanda-finalizada emitido', {
         comandaId,
         comandaNumber: comanda.comandaNumber,
         cocineroId: cocinero?.cocineroId,
-        roomName
+        roomName,
+        mozosNotified: !!(mozosNamespace && mozosNamespace.sockets)
       });
     } catch (error) {
       logger.error('Error al emitir comanda-finalizada', { error: error.message });
