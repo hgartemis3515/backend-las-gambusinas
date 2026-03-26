@@ -180,7 +180,7 @@ tailwind.config = {
  <template x-if="row.tipo === 'grupo'">
  <button @click.stop="toggleExpandGrupo(row.id)" class="flex items-center gap-2 w-full">
  <span class="text-gold font-bold text-sm" x-text="expandedGroups.includes(row.id) ? '▼' : '▶'"></span>
- <span class="text-gold font-bold text-sm" x-text="'GRUPO ' + (row.clienteNombre || formatearNombreMesa(row.mesaNum))"></span>
+ <span class="text-gold font-bold text-sm" x-text="'GRUPO ' + (row.clienteNombre || formatearNombreMesa(row.mesaNum, row.mesaObj))"></span>
  </button>
  </template>
  <template x-if="row.tipo === 'individual'">
@@ -194,7 +194,7 @@ tailwind.config = {
  <!-- Mesa -->
  <td class="px-3 py-2.5 text-sm">
  <template x-if="row.tipo === 'grupo'">
- <span x-text="formatearNombreMesa(row.mesaNum)"></span>
+ <span x-text="formatearNombreMesa(row.mesaNum, row.mesaObj)"></span>
  </template>
  <template x-if="row.tipo === 'individual'">
  <span x-text="formatearNombreMesa(row.comanda.mesa)"></span>
@@ -626,7 +626,7 @@ tailwind.config = {
  <span class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-gold/20 text-gold" x-text="selectedGrupo?.comandas?.length + ' comandas'"></span>
  </div>
  <p class="text-xs text-txt-muted mt-0.5">
- <span x-text="formatearNombreMesa(selectedGrupo?.mesaNum)"></span>
+ <span x-text="formatearNombreMesa(selectedGrupo?.mesaNum, selectedGrupo?.mesaObj)"></span>
  <span x-text="' | Total: S/. ' + (selectedGrupo?.totalAgrupado || 0).toFixed(2)"></span>
  <span x-text="' | ' + (selectedGrupo?.totalPlatos || 0) + ' platos'"></span>
  </p>
@@ -655,7 +655,7 @@ tailwind.config = {
  </div>
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Mesa</p>
- <p class="font-medium" x-text="formatearNombreMesa(selectedGrupo?.mesaNum)"></p>
+ <p class="font-medium" x-text="formatearNombreMesa(selectedGrupo?.mesaNum, selectedGrupo?.mesaObj)"></p>
  </div>
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Comandas</p>
@@ -1151,7 +1151,7 @@ tailwind.config = {
  <span class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-gold/20 text-gold" x-text="editGrupo?.comandas?.length + ' comandas'"></span>
  </div>
  <p class="text-xs text-txt-muted mt-0.5">
- <span x-text="formatearNombreMesa(editGrupo?.mesaNum)"></span>
+ <span x-text="formatearNombreMesa(editGrupo?.mesaNum, editGrupo?.mesaObj)"></span>
  <span x-text="' | Total: S/. ' + (editGrupo?.totalAgrupado || 0).toFixed(2)"></span>
  </p>
  </div>
@@ -1179,7 +1179,7 @@ tailwind.config = {
  </div>
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Mesa</p>
- <p class="font-medium" x-text="formatearNombreMesa(editGrupo?.mesaNum)"></p>
+ <p class="font-medium" x-text="formatearNombreMesa(editGrupo?.mesaNum, editGrupo?.mesaObj)"></p>
  </div>
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Nº comandas</p>
@@ -1503,14 +1503,18 @@ getMinDateTime() {
 // ========== FUNCIÓN HELPER: Obtener nombre de mesa con soporte para mesas juntadas ==========
 // Si la mesa tiene nombreCombinado (ej: "M5,6,7"), lo usa.
 // Si no, usa el formato tradicional "M{nummesa}".
-formatearNombreMesa(mesa) {
-  if (!mesa) return '—';
-  // Si es un objeto mesa con nombreCombinado (mesas juntadas)
-  if (mesa.nombreCombinado) {
+// Acepta: (mesaNum, mesaObj) o (mesa) donde mesa puede ser objeto o número
+formatearNombreMesa(mesa, mesaObj = null) {
+  // Si hay mesaObj con nombreCombinado, usarlo (para grupos de mesas juntadas)
+  if (mesaObj && mesaObj.nombreCombinado) {
+    return mesaObj.nombreCombinado;
+  }
+  // Si el primer argumento es un objeto mesa con nombreCombinado
+  if (mesa && typeof mesa === 'object' && mesa.nombreCombinado) {
     return mesa.nombreCombinado;
   }
   // Si es un objeto mesa con nummesa
-  if (mesa.nummesa) {
+  if (mesa && typeof mesa === 'object' && mesa.nummesa) {
     return `M${mesa.nummesa}`;
   }
   // Si es solo un número
@@ -2071,61 +2075,66 @@ formatearNombreMesa(mesa) {
  const gruposCliente = new Map();  // clienteId_mesaNum -> { comandas: [] } (fallback histórico)
  const individuales = [];
 
- this.comandas.forEach(c => {
- const pedidoId = c.pedidoId || null;
- const clienteId = c.cliente?._id || c.cliente || null;
- const mesaNum = c.mesa?.nummesa || c.mesa;
+this.comandas.forEach(c => {
+const pedidoId = c.pedidoId || null;
+const clienteId = c.cliente?._id || c.cliente || null;
+// Guardar objeto mesa completo para obtener nombreCombinado
+const mesaObj = c.mesa || null;
+const mesaNum = mesaObj?.nummesa || c.mesaNum || c.mesa;
 
- if (pedidoId) {
-   // PRIMARIO: agrupar por pedidoId (comandas nuevas con Pedido asociado)
-   const key = `pedido_${pedidoId}`;
-   if (!gruposPedido.has(key)) {
-     gruposPedido.set(key, {
-       pedidoId: pedidoId,
-       clienteId: clienteId,
-       clienteNombre: c.clienteNombre || c.cliente?.nombre || null,
-       mesaNum: mesaNum,
-       mozo: c.mozo,
-       comandas: []
-     });
-   }
-   gruposPedido.get(key).comandas.push(c);
- } else if (clienteId) {
-   // FALLBACK: agrupar por clienteId + mesaNum (datos históricos sin pedidoId)
-   const key = `cliente_${clienteId}_${mesaNum}`;
-   if (!gruposCliente.has(key)) {
-     gruposCliente.set(key, {
-       clienteId: clienteId,
-       clienteNombre: c.clienteNombre || c.cliente?.nombre || 'Cliente',
-       mesaNum: mesaNum,
-       comandas: []
-     });
-   }
-   gruposCliente.get(key).comandas.push(c);
- } else {
-   // Sin pedido ni cliente: individual
-   individuales.push(c);
- }
- });
+if (pedidoId) {
+  // PRIMARIO: agrupar por pedidoId (comandas nuevas con Pedido asociado)
+  const key = `pedido_${pedidoId}`;
+  if (!gruposPedido.has(key)) {
+    gruposPedido.set(key, {
+      pedidoId: pedidoId,
+      clienteId: clienteId,
+      clienteNombre: c.clienteNombre || c.cliente?.nombre || null,
+      mesaNum: mesaNum,
+      mesaObj: mesaObj, // Objeto mesa completo para nombreCombinado
+      mozo: c.mozo,
+      comandas: []
+    });
+  }
+  gruposPedido.get(key).comandas.push(c);
+} else if (clienteId) {
+  // FALLBACK: agrupar por clienteId + mesaNum (datos históricos sin pedidoId)
+  const key = `cliente_${clienteId}_${mesaNum}`;
+  if (!gruposCliente.has(key)) {
+    gruposCliente.set(key, {
+      clienteId: clienteId,
+      clienteNombre: c.clienteNombre || c.cliente?.nombre || 'Cliente',
+      mesaNum: mesaNum,
+      mesaObj: mesaObj, // Objeto mesa completo para nombreCombinado
+      comandas: []
+    });
+  }
+  gruposCliente.get(key).comandas.push(c);
+} else {
+  // Sin pedido ni cliente: individual
+  individuales.push(c);
+}
+});
 
- // Función para convertir un grupo a fila
- const crearFilaGrupo = (grupo, key) => ({
- tipo: 'grupo',
- id: key,
- pedidoId: grupo.pedidoId || null,
- clienteId: grupo.clienteId,
- clienteNombre: grupo.clienteNombre || 'Mesa ' + grupo.mesaNum,
- mesaNum: grupo.mesaNum,
- comandas: grupo.comandas,
- numComandas: grupo.comandas.length,
- totalAgrupado: grupo.comandas.reduce((sum, c) => sum + (c.total || 0), 0),
- totalPlatos: grupo.comandas.reduce((sum, c) => sum + (c.items?.length || 0), 0),
- estadoGrupo: this.calcularEstadoGrupo(grupo.comandas),
- mozosUnicos: [...new Set(grupo.comandas.map(c => c.mozo))],
- horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length - 1]?.createdAt
- ? new Date(grupo.comandas[grupo.comandas.length - 1].createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'})
- : '—'
- });
+// Función para convertir un grupo a fila
+const crearFilaGrupo = (grupo, key) => ({
+tipo: 'grupo',
+id: key,
+pedidoId: grupo.pedidoId || null,
+clienteId: grupo.clienteId,
+clienteNombre: grupo.clienteNombre || 'Mesa ' + grupo.mesaNum,
+mesaNum: grupo.mesaNum,
+mesaObj: grupo.mesaObj, // Objeto mesa completo para nombreCombinado
+comandas: grupo.comandas,
+numComandas: grupo.comandas.length,
+totalAgrupado: grupo.comandas.reduce((sum, c) => sum + (c.total || 0), 0),
+totalPlatos: grupo.comandas.reduce((sum, c) => sum + (c.items?.length || 0), 0),
+estadoGrupo: this.calcularEstadoGrupo(grupo.comandas),
+mozosUnicos: [...new Set(grupo.comandas.map(c => c.mozo))],
+horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length - 1]?.createdAt
+? new Date(grupo.comandas[grupo.comandas.length - 1].createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'})
+: '—'
+});
 
  const filasGrupos = [];
 
