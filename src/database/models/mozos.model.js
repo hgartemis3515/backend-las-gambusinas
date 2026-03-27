@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const AutoIncrement = require('mongoose-sequence')(mongoose);
 
 // Roles disponibles en el sistema
-const ROLES = ['admin', 'supervisor', 'cocinero', 'mozos', 'cajero'];
+const ROLES = ['admin', 'supervisor', 'cocinero', 'mozos', 'cajero', 'capitanMozos'];
 
 // Permisos fundamentales agrupados por aplicación
 const PERMISOS_FUNDAMENTALES = {
@@ -53,6 +53,10 @@ const PERMISOS_POR_ROL = {
         'ver-mesas', 'ver-platos', 'ver-clientes', 'crear-comandas', 'editar-comandas',
         'asociar-clientes'
     ],
+    capitanMozos: [
+        'ver-mesas', 'ver-platos', 'ver-clientes', 'crear-comandas', 'editar-comandas',
+        'eliminar-platos-comandas', 'procesar-pagos', 'asociar-clientes'
+    ],
     cajero: [
         'ver-mesas', 'ver-platos', 'ver-clientes', 'procesar-pagos', 'cierre-caja'
     ]
@@ -65,7 +69,10 @@ const permisoSchema = new mongoose.Schema({
 
 const mozosSchema = new mongoose.Schema({
     mozoId: { type: Number, unique: true },
+    /** Nombre completo (sincronizado con nombres + apellidos vía pre-validate) */
     name: { type: String, required: true },
+    nombres: { type: String, default: '' },
+    apellidos: { type: String, default: '' },
     DNI: { type: Number, required: true, min: 0 },
     phoneNumber: { type: Number, required: true, min: 0 },
     fotoUrl: { type: String, default: '' },
@@ -73,10 +80,17 @@ const mozosSchema = new mongoose.Schema({
     fechaNacimiento: { type: Date, default: null },
     genero: { type: String, default: '' },
     direccion: { type: String, default: '' },
-    rol: { 
-        type: String, 
+    contactoEmergenciaNombre: { type: String, default: '' },
+    contactoEmergenciaTelefono: { type: String, default: '' },
+    /** PIN numérico para acceso en POS / app mozos (alternativa coexistente con DNI en login) */
+    pinAcceso: { type: String, default: '' },
+    usuarioWeb: { type: String, default: '' },
+    passwordWeb: { type: String, default: '' },
+    rol: {
+        type: String,
         default: 'mozos',
-        required: true
+        required: true,
+        enum: ROLES
     },
     permisos: [permisoSchema],
     // Zonas asignadas (para cocineros)
@@ -84,11 +98,24 @@ const mozosSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Zona'
     }],
-    activo: { type: Boolean, default: true }
-}, { 
+    activo: { type: Boolean, default: true },
+    enTurno: { type: Boolean, default: false }
+}, {
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true }
+});
+
+mozosSchema.pre('validate', function(next) {
+    const n = (this.nombres || '').trim();
+    const a = (this.apellidos || '').trim();
+    if (n || a) {
+        this.name = [n, a].filter(Boolean).join(' ').trim();
+    }
+    if (!this.name || !String(this.name).trim()) {
+        return next(new Error('Nombre requerido (nombres y apellidos)'));
+    }
+    next();
 });
 
 // Virtual para obtener permisos efectivos (rol + personalizados)

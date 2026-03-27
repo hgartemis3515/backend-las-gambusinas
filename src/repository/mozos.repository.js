@@ -4,6 +4,10 @@ const { syncJsonFile } = require('../utils/jsonSync');
 const fs = require('fs');
 const path = require('path');
 
+function escapeRegex(s) {
+    return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 const DATA_DIR = path.join(__dirname, '../../data');
 
 const listarMozos = async () => {
@@ -40,6 +44,8 @@ const actualizarMozo = async (id, newData) => {
         }
 
         // Actualizar los campos
+        if (newData.nombres !== undefined) mozo.nombres = newData.nombres;
+        if (newData.apellidos !== undefined) mozo.apellidos = newData.apellidos;
         if (newData.name !== undefined) mozo.name = newData.name;
         if (newData.DNI !== undefined) mozo.DNI = newData.DNI;
         if (newData.phoneNumber !== undefined) mozo.phoneNumber = newData.phoneNumber;
@@ -48,8 +54,14 @@ const actualizarMozo = async (id, newData) => {
         if (newData.fechaNacimiento !== undefined) mozo.fechaNacimiento = newData.fechaNacimiento;
         if (newData.genero !== undefined) mozo.genero = newData.genero;
         if (newData.direccion !== undefined) mozo.direccion = newData.direccion;
+        if (newData.contactoEmergenciaNombre !== undefined) mozo.contactoEmergenciaNombre = newData.contactoEmergenciaNombre;
+        if (newData.contactoEmergenciaTelefono !== undefined) mozo.contactoEmergenciaTelefono = newData.contactoEmergenciaTelefono;
+        if (newData.pinAcceso !== undefined) mozo.pinAcceso = String(newData.pinAcceso || '').trim();
+        if (newData.usuarioWeb !== undefined) mozo.usuarioWeb = newData.usuarioWeb;
+        if (newData.passwordWeb !== undefined && newData.passwordWeb !== '') mozo.passwordWeb = newData.passwordWeb;
         if (newData.rol !== undefined) mozo.rol = newData.rol;
         if (newData.activo !== undefined) mozo.activo = newData.activo;
+        if (newData.enTurno !== undefined) mozo.enTurno = newData.enTurno;
         if (newData.permisos !== undefined) mozo.permisos = newData.permisos;
 
         await mozo.save();
@@ -96,19 +108,31 @@ const autenticarMozo = async (name, DNI) => {
             console.log(`   - ${m.name} (DNI: ${m.DNI}, tipo: ${typeof m.DNI})`);
         });
         
-        // Buscar el mozo con comparación exacta del nombre (case-sensitive)
+        const secretStr = String(DNI).trim();
+        const dniParsed = parseInt(secretStr, 10);
+        const secretIsPureDigits = /^\d+$/.test(secretStr);
+        const dniMatches = secretIsPureDigits && !isNaN(dniParsed) && String(dniParsed) === secretStr;
+
         let Mozo = await mozos.findOne({
             name: nameClean,
             DNI: dniNumber
         });
-        
-        // Si no se encuentra, intentar con comparación case-insensitive
+
         if (!Mozo) {
-            console.log('⚠️ No se encontró con búsqueda exacta, intentando case-insensitive...');
-            Mozo = todosLosMozos.find(m => 
-                m.name.toLowerCase().trim() === nameClean.toLowerCase() && 
-                Number(m.DNI) === dniNumber
-            );
+            console.log('⚠️ No se encontró con búsqueda exacta, intentando case-insensitive + PIN/DNI...');
+            const re = new RegExp('^' + escapeRegex(nameClean) + '$', 'i');
+            const candidatos = todosLosMozos.filter(m => re.test(String(m.name || '').trim()));
+            Mozo = candidatos.find(m => {
+                const pinOk = m.pinAcceso && String(m.pinAcceso).trim() === secretStr;
+                const dniOk = dniMatches && Number(m.DNI) === dniParsed;
+                return pinOk || dniOk;
+            }) || null;
+        } else {
+            const pinOk = Mozo.pinAcceso && String(Mozo.pinAcceso).trim() === secretStr;
+            const dniOk = dniMatches && Number(Mozo.DNI) === dniParsed;
+            if (!pinOk && !dniOk) {
+                Mozo = null;
+            }
         }
         
         if (Mozo) {

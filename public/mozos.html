@@ -7,6 +7,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Mozos — Panel ejecutivo | Las Gambusinas</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+<script src="https://unpkg.com/lucide@latest"></script>
 <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
@@ -62,6 +63,250 @@ tailwind.config = {
   .mozos-gauge-track { fill: none; stroke: rgba(212,175,55,0.12); stroke-width: 10; stroke-linecap: round; }
   .mozos-gauge-fill { fill: none; stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset 0.6s ease, stroke 0.35s ease; }
   .mozos-heat-cell { min-width: 1.5rem; height: 1.35rem; border-radius: 4px; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.92); border: 1px solid rgba(0,0,0,0.2); }
+  .mozos-foto-drop {
+    border: 2px dashed rgba(212,175,55,0.35);
+    border-radius: 1rem;
+    background: rgba(18,18,26,0.6);
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+  .mozos-foto-drop--active { border-color: rgba(212,175,55,0.85); background: rgba(212,175,55,0.08); }
+  /* Modal Premium Styles */
+  .mozos-modal-overlay {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .mozos-modal-container {
+    animation: modalSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 25px 80px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 175, 55, 0.15);
+  }
+  @keyframes modalSlideIn {
+    from { opacity: 0; transform: scale(0.95) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .mozos-modal-section {
+    animation: fadeInUp 0.3s ease-out;
+  }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .mozos-input-icon {
+    position: relative;
+  }
+  .mozos-input-icon > i {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(160, 160, 184, 0.7);
+    transition: color 0.2s ease;
+  }
+  .mozos-input-icon > input,
+  .mozos-input-icon > select {
+    padding-left: 42px;
+  }
+  .mozos-input-icon:focus-within > i {
+    color: #d4af37;
+  }
+  .mozos-input-premium {
+    background: rgba(18, 18, 26, 0.8);
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 14px;
+    color: #fff;
+    transition: all 0.2s ease;
+    width: 100%;
+  }
+  .mozos-input-premium:focus {
+    outline: none;
+    border-color: #d4af37;
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+    background: rgba(18, 18, 26, 1);
+  }
+  .mozos-input-premium::placeholder {
+    color: rgba(160, 160, 184, 0.5);
+  }
+  .mozos-label-premium {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(160, 160, 184, 0.9);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+    display: block;
+  }
+  .mozos-btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: none;
+  }
+  .mozos-btn-primary {
+    background: linear-gradient(135deg, #d4af37 0%, #c9a227 100%);
+    color: #0a0a0f;
+    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+  }
+  .mozos-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
+  }
+  .mozos-btn-secondary {
+    background: transparent;
+    border: 1px solid rgba(160, 160, 184, 0.3);
+    color: rgba(160, 160, 184, 0.9);
+  }
+  .mozos-btn-secondary:hover {
+    border-color: rgba(160, 160, 184, 0.5);
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .mozos-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.15), transparent);
+    margin: 20px 0;
+  }
+  .mozos-section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #d4af37;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 16px;
+  }
+  .mozos-section-title i {
+    width: 20px;
+    height: 20px;
+  }
+  .mozos-checkbox-premium {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(212, 175, 55, 0.4);
+    border-radius: 6px;
+    background: rgba(18, 18, 26, 0.8);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+  .mozos-checkbox-premium:checked {
+    background: #d4af37;
+    border-color: #d4af37;
+  }
+  .mozos-checkbox-premium:checked::after {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 2px;
+    width: 5px;
+    height: 10px;
+    border: solid #0a0a0f;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+  .mozos-info-card {
+    background: rgba(18, 18, 26, 0.6);
+    border: 1px solid rgba(212, 175, 55, 0.12);
+    border-radius: 14px;
+    padding: 14px 16px;
+    transition: all 0.2s ease;
+  }
+  .mozos-info-card:hover {
+    border-color: rgba(212, 175, 55, 0.25);
+    background: rgba(18, 18, 26, 0.8);
+  }
+  .mozos-info-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(160, 160, 184, 0.7);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+  }
+  .mozos-info-value {
+    font-size: 14px;
+    font-weight: 500;
+    color: #fff;
+  }
+  .mozos-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .mozos-status-active {
+    background: rgba(0, 212, 170, 0.15);
+    color: #00d4aa;
+    border: 1px solid rgba(0, 212, 170, 0.3);
+  }
+  .mozos-status-inactive {
+    background: rgba(160, 160, 184, 0.15);
+    color: rgba(160, 160, 184, 0.8);
+    border: 1px solid rgba(160, 160, 184, 0.3);
+  }
+  .mozos-status-turn {
+    background: rgba(0, 212, 170, 0.15);
+    color: #00d4aa;
+  }
+  .mozos-status-off {
+    background: rgba(255, 165, 2, 0.15);
+    color: #ffa502;
+  }
+  .mozos-close-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: rgba(212, 175, 55, 0.1);
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    color: #d4af37;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .mozos-close-btn:hover {
+    background: rgba(212, 175, 55, 0.2);
+    border-color: rgba(212, 175, 55, 0.4);
+    transform: rotate(90deg);
+  }
+  .mozos-foto-upload {
+    border: 2px dashed rgba(212, 175, 55, 0.3);
+    border-radius: 16px;
+    background: rgba(18, 18, 26, 0.5);
+    transition: all 0.25s ease;
+    cursor: pointer;
+  }
+  .mozos-foto-upload:hover, .mozos-foto-upload--active {
+    border-color: #d4af37;
+    background: rgba(212, 175, 55, 0.08);
+  }
+  .mozos-foto-preview {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 3px solid rgba(212, 175, 55, 0.4);
+    overflow: hidden;
+    background: rgba(18, 18, 26, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 </style>
 </head>
 <body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="mozosExecutiveApp()" :class="{ 'mozos-wall': wallMode }" x-cloak>
@@ -531,133 +776,351 @@ tailwind.config = {
   </main>
 </div>
 
-<!-- MODALES (reutilizan flujo existente) -->
-<div x-show="modal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="modal=null">
-  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-full max-w-[520px] shadow-2xl" @click.stop>
-    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
-      <div>
-        <h2 class="text-lg font-bold" x-text="isEditing ? 'Editar mozo' : 'Nuevo mozo'"></h2>
-        <p class="text-xs text-txt-muted" x-text="isEditing ? 'Actualice datos del personal' : 'Alta en catálogo'"></p>
-      </div>
-      <button type="button" @click="modal=null" class="w-8 h-8 rounded-full bg-gold-20 text-gold hover:bg-gold/30">✕</button>
-    </div>
-    <div class="p-6 space-y-4">
-      <div>
-        <label class="text-xs text-txt-secondary mb-1 block">Nombre <span class="text-st-pagado">*</span></label>
-        <input type="text" x-model="formMozo.nombre" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
-      </div>
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label class="text-xs text-txt-secondary mb-1 block">DNI <span class="text-st-pagado">*</span></label>
-          <input type="text" x-model="formMozo.dni" maxlength="8" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+<!-- MODAL CREAR / EDITAR MOZO - Vista unificada -->
+<div x-show="modal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 mozos-modal-overlay" @click.self="cerrarModalMozo()">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-3xl w-full max-w-3xl max-h-[90vh] shadow-2xl flex flex-col mozos-modal-container" @click.stop>
+    <!-- Header -->
+    <div class="relative px-6 py-5 border-b border-[rgba(212,175,55,0.12)] shrink-0">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-gold/20 to-gold/5 flex items-center justify-center border border-gold/30">
+            <i data-lucide="user-plus" class="w-6 h-6 text-gold" x-show="!isEditing"></i>
+            <i data-lucide="user-cog" class="w-6 h-6 text-gold" x-show="isEditing"></i>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold text-white" x-text="isEditing ? 'Editar mozo' : 'Nuevo mozo'"></h2>
+            <p class="text-xs text-txt-muted mt-0.5">Complete la información del personal de salón</p>
+          </div>
         </div>
-        <div>
-          <label class="text-xs text-txt-secondary mb-1 block">Correo</label>
-          <input type="email" x-model="formMozo.email" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
-        </div>
-      </div>
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label class="text-xs text-txt-secondary mb-1 block">Fecha de nacimiento</label>
-          <input type="date" x-model="formMozo.fechaNacimiento" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
-        </div>
-        <div>
-          <label class="text-xs text-txt-secondary mb-1 block">Género</label>
-          <select x-model="formMozo.genero" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
-            <option value="">Seleccionar</option>
-            <option value="Femenino">Femenino</option>
-            <option value="Masculino">Masculino</option>
-            <option value="No binario">No binario</option>
-            <option value="Prefiere no decir">Prefiere no decir</option>
-          </select>
-        </div>
-      </div>
-      <div>
-        <label class="text-xs text-txt-secondary mb-1 block">Foto (URL)</label>
-        <input type="url" x-model="formMozo.fotoUrl" placeholder="https://..." class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
-      </div>
-      <div>
-        <label class="text-xs text-txt-secondary mb-1 block">Dirección</label>
-        <input type="text" x-model="formMozo.direccion" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
-      </div>
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label class="text-xs text-txt-secondary mb-1 block">Usuario</label>
-          <input type="text" x-model="formMozo.usuario" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
-        </div>
-        <div>
-          <label class="text-xs text-txt-secondary mb-1 block">Contraseña</label>
-          <input type="password" x-model="formMozo.password" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
-        </div>
-      </div>
-      <div class="flex gap-4">
-        <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" x-model="formMozo.activo" class="rounded border-gold/40"> Activo</label>
-        <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" x-model="formMozo.enTurno" class="rounded border-gold/40"> En turno</label>
+        <button type="button" @click="cerrarModalMozo()" class="mozos-close-btn">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
       </div>
     </div>
-    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
-      <button type="button" @click="modal=null" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary">Cancelar</button>
-      <button type="button" @click="guardarMozo()" class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-bold" x-text="isEditing ? 'Guardar' : 'Crear'"></button>
+
+    <!-- Body - Formulario unificado -->
+    <div class="p-6 overflow-y-auto mozos-scrollbar flex-1 min-h-0 mozos-modal-section">
+      <form @submit.prevent="guardarMozo()" class="space-y-6">
+        
+        <!-- Foto y datos básicos -->
+        <div class="flex flex-col sm:flex-row gap-6">
+          <!-- Foto -->
+          <div class="shrink-0 flex flex-col items-center gap-3">
+            <div class="mozos-foto-preview relative" :class="fotoPreviewActual ? 'border-gold' : ''">
+              <img x-show="fotoPreviewActual" :src="fotoPreviewActual || ''" alt="Foto" class="w-full h-full object-cover rounded-full">
+              <i data-lucide="user" class="w-8 h-8 text-txt-muted" x-show="!fotoPreviewActual"></i>
+            </div>
+            <input type="file" id="mozo-foto-input" accept="image/jpeg,image/png,image/webp,image/gif" class="sr-only" @change="onMozoFotoInput($event)">
+            <button type="button" @click="document.getElementById('mozo-foto-input').click()" class="text-xs text-gold hover:underline flex items-center gap-1">
+              <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+              <span x-text="fotoPreviewActual ? 'Cambiar' : 'Subir foto'"></span>
+            </button>
+            <button type="button" x-show="fotoPreviewActual" @click="quitarFotoMozo()" class="text-xs text-st-pagado hover:underline">Quitar</button>
+          </div>
+
+          <!-- Datos básicos -->
+          <div class="flex-1 space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="mozos-label-premium">Nombres <span class="text-st-pagado">*</span></label>
+                <div class="mozos-input-icon">
+                  <i data-lucide="user" class="w-4 h-4"></i>
+                  <input type="text" x-model="formMozo.nombres" autocomplete="given-name" class="mozos-input-premium" placeholder="Ej. María">
+                </div>
+              </div>
+              <div>
+                <label class="mozos-label-premium">Apellidos <span class="text-st-pagado">*</span></label>
+                <div class="mozos-input-icon">
+                  <i data-lucide="user" class="w-4 h-4"></i>
+                  <input type="text" x-model="formMozo.apellidos" autocomplete="family-name" class="mozos-input-premium" placeholder="Ej. García López">
+                </div>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="mozos-label-premium">DNI / Documento <span class="text-st-pagado">*</span></label>
+                <div class="mozos-input-icon">
+                  <i data-lucide="id-card" class="w-4 h-4"></i>
+                  <input type="text" x-model="formMozo.dni" maxlength="12" inputmode="numeric" autocomplete="off" class="mozos-input-premium" placeholder="12345678">
+                </div>
+              </div>
+              <div>
+                <label class="mozos-label-premium">Fecha de nacimiento</label>
+                <div class="mozos-input-icon">
+                  <i data-lucide="calendar" class="w-4 h-4"></i>
+                  <input type="date" x-model="formMozo.fechaNacimiento" class="mozos-input-premium">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mozos-divider"></div>
+
+        <!-- Información personal adicional -->
+        <div>
+          <div class="mozos-section-title">
+            <i data-lucide="info"></i>
+            Información personal
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="mozos-label-premium">Género</label>
+              <div class="mozos-input-icon">
+                <i data-lucide="heart" class="w-4 h-4"></i>
+                <select x-model="formMozo.genero" class="mozos-input-premium">
+                  <option value="">Seleccionar</option>
+                  <option value="Femenino">Femenino</option>
+                  <option value="Masculino">Masculino</option>
+                  <option value="No binario">No binario</option>
+                  <option value="Prefiere no decir">Prefiere no decir</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="mozos-label-premium">Dirección</label>
+              <div class="mozos-input-icon">
+                <i data-lucide="map-pin" class="w-4 h-4"></i>
+                <input type="text" x-model="formMozo.direccion" autocomplete="street-address" class="mozos-input-premium" placeholder="Av. Principal 123">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mozos-divider"></div>
+
+        <!-- Contacto -->
+        <div>
+          <div class="mozos-section-title">
+            <i data-lucide="phone"></i>
+            Contacto
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="mozos-label-premium">Teléfono celular <span class="text-st-pagado">*</span></label>
+              <div class="mozos-input-icon">
+                <i data-lucide="smartphone" class="w-4 h-4"></i>
+                <input type="tel" x-model="formMozo.celular" inputmode="tel" autocomplete="tel" class="mozos-input-premium" placeholder="987654321">
+              </div>
+            </div>
+            <div>
+              <label class="mozos-label-premium">Correo electrónico</label>
+              <div class="mozos-input-icon">
+                <i data-lucide="mail" class="w-4 h-4"></i>
+                <input type="email" x-model="formMozo.email" autocomplete="email" class="mozos-input-premium" placeholder="correo@ejemplo.com">
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label class="mozos-label-premium">Contacto emergencia — Nombre</label>
+              <div class="mozos-input-icon">
+                <i data-lucide="user-check" class="w-4 h-4"></i>
+                <input type="text" x-model="formMozo.emergenciaNombre" class="mozos-input-premium" placeholder="Nombre del contacto">
+              </div>
+            </div>
+            <div>
+              <label class="mozos-label-premium">Contacto emergencia — Teléfono</label>
+              <div class="mozos-input-icon">
+                <i data-lucide="phone-call" class="w-4 h-4"></i>
+                <input type="tel" x-model="formMozo.emergenciaTelefono" inputmode="tel" class="mozos-input-premium" placeholder="987654321">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mozos-divider"></div>
+
+        <!-- Configuración operativa -->
+        <div>
+          <div class="mozos-section-title">
+            <i data-lucide="settings"></i>
+            Configuración operativa
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="mozos-label-premium">Rol / Permisos</label>
+              <div class="mozos-input-icon">
+                <i data-lucide="shield" class="w-4 h-4"></i>
+                <select x-model="formMozo.rolOperativo" class="mozos-input-premium">
+                  <option value="mozos">Mozo estándar</option>
+                  <option value="capitanMozos">Capitán de mozos</option>
+                </select>
+              </div>
+              <p class="text-[10px] text-txt-muted mt-1.5">Capitán: puede anular platos y procesar pagos</p>
+            </div>
+            <div class="flex items-end pb-2">
+              <div class="flex flex-wrap gap-4">
+                <label class="flex items-center gap-2.5 cursor-pointer select-none group">
+                  <input type="checkbox" x-model="formMozo.activo" class="mozos-checkbox-premium">
+                  <span class="text-sm text-txt-secondary group-hover:text-white transition">Activo</span>
+                </label>
+                <label class="flex items-center gap-2.5 cursor-pointer select-none group">
+                  <input type="checkbox" x-model="formMozo.enTurno" class="mozos-checkbox-premium">
+                  <span class="text-sm text-txt-secondary group-hover:text-white transition">En turno</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Footer -->
+    <div class="px-6 py-4 border-t border-[rgba(212,175,55,0.12)] shrink-0 flex justify-end gap-3 bg-bg-sidebar/50 rounded-b-3xl">
+      <button type="button" @click="cerrarModalMozo()" class="mozos-btn-icon mozos-btn-secondary">
+        <i data-lucide="x" class="w-4 h-4"></i>
+        Cancelar
+      </button>
+      <button type="button" @click="guardarMozo()" class="mozos-btn-icon mozos-btn-primary">
+        <i data-lucide="check" class="w-4 h-4"></i>
+        <span x-text="isEditing ? 'Guardar cambios' : 'Crear mozo'"></span>
+      </button>
     </div>
   </div>
 </div>
 
-<div x-show="modalDetalle && mozosDetalle" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="cerrarModalDetalle()">
-  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-full max-w-[480px] shadow-2xl" @click.stop>
-    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
-      <div>
-        <h2 class="text-lg font-bold" x-text="mozosDetalle?.nombre"></h2>
-        <p class="text-xs text-txt-muted font-mono" x-text="'ID ' + (mozosDetalle?.mozoId ?? '—')"></p>
-      </div>
-      <button type="button" @click="cerrarModalDetalle()" class="w-8 h-8 rounded-full bg-gold-20 text-gold">✕</button>
-    </div>
-    <div class="p-5 space-y-4">
-      <div class="flex items-center gap-3">
-        <template x-if="mozosDetalle?.fotoUrl">
-          <img :src="mozosDetalle.fotoUrl" alt="Foto mozo" class="w-14 h-14 rounded-full object-cover border border-gold/30">
-        </template>
-        <template x-if="!mozosDetalle?.fotoUrl">
-          <div class="w-14 h-14 rounded-full bg-gold/20 flex items-center justify-center text-gold text-lg font-bold" x-text="iniciales(mozosDetalle?.nombre || '')"></div>
-        </template>
-        <div class="text-xs text-txt-secondary">
-          <p class="font-semibold text-white" x-text="mozosDetalle?.nombre || 'Mozo'"></p>
-          <p x-text="mozosDetalle?.email || 'Sin correo registrado'"></p>
+<!-- MODAL VER DETALLE - Vista unificada -->
+<div x-show="modalDetalle && mozosDetalle" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 mozos-modal-overlay" @click.self="cerrarModalDetalle()">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-3xl w-full max-w-3xl max-h-[90vh] shadow-2xl flex flex-col mozos-modal-container" @click.stop>
+    <!-- Header con foto -->
+    <div class="relative px-6 py-5 border-b border-[rgba(212,175,55,0.12)] shrink-0">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <div class="w-16 h-16 rounded-2xl overflow-hidden border-2 border-gold/40 bg-bg-sidebar flex items-center justify-center relative">
+            <img x-show="mozosDetalle?.fotoUrl" :src="mozosDetalle?.fotoUrl || ''" alt="" class="w-full h-full object-cover">
+            <span x-show="!mozosDetalle?.fotoUrl" class="text-gold text-xl font-bold" x-text="iniciales(mozosDetalle?.nombre || '')"></span>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold text-white" x-text="mozosDetalle?.nombre || 'Mozo'"></h2>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="text-xs text-txt-muted font-mono" x-text="'ID ' + (mozosDetalle?.mozoId ?? '—')"></span>
+              <span class="text-xs">·</span>
+              <span class="mozos-status-badge" :class="mozosDetalle?.activo !== false ? 'mozos-status-active' : 'mozos-status-inactive'" x-text="mozosDetalle?.activo !== false ? 'Activo' : 'Inactivo'"></span>
+              <span class="mozos-status-badge" :class="mozosDetalle?.enTurno ? 'mozos-status-turn' : 'mozos-status-off'" x-text="mozosDetalle?.enTurno ? 'En turno' : 'Fuera'"></span>
+            </div>
+          </div>
         </div>
+        <button type="button" @click="cerrarModalDetalle()" class="mozos-close-btn">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
       </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div class="bg-bg-sidebar rounded-xl p-3"><p class="text-[10px] text-txt-muted uppercase">DNI</p><p class="font-semibold" x-text="mozosDetalle?.dni || '—'"></p></div>
-        <div class="bg-bg-sidebar rounded-xl p-3"><p class="text-[10px] text-txt-muted uppercase">Nacimiento</p><p class="font-semibold" x-text="mozosDetalle?.fechaNacimiento || '—'"></p></div>
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div class="bg-bg-sidebar rounded-xl p-3"><p class="text-[10px] text-txt-muted uppercase">Género</p><p class="font-semibold" x-text="mozosDetalle?.genero || '—'"></p></div>
-        <div class="bg-bg-sidebar rounded-xl p-3"><p class="text-[10px] text-txt-muted uppercase">Dirección</p><p class="font-semibold" x-text="mozosDetalle?.direccion || '—'"></p></div>
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div class="bg-bg-sidebar rounded-xl p-3 text-center">
-          <p class="text-[10px] text-txt-muted uppercase" x-text="'Ventas (' + etiquetaPeriodo + ')'"></p>
+    </div>
+
+    <!-- Body - Información unificada -->
+    <div class="p-6 overflow-y-auto mozos-scrollbar flex-1 min-h-0 mozos-modal-section">
+      <!-- Métricas destacadas -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div class="mozos-info-card text-center">
+          <p class="mozos-info-label">Ventas</p>
           <p class="text-xl font-bold text-gold" x-text="'S/. ' + fmt(mozosDetalle?.ventasHoy)"></p>
         </div>
-        <div class="bg-bg-sidebar rounded-xl p-3 text-center">
-          <p class="text-[10px] text-txt-muted uppercase">Propinas</p>
+        <div class="mozos-info-card text-center">
+          <p class="mozos-info-label">Propinas</p>
           <p class="text-xl font-bold text-st-preparado" x-text="'S/. ' + fmt(mozosDetalle?.propinasHoy)"></p>
         </div>
-        <div class="bg-bg-sidebar rounded-xl p-3 text-center">
-          <p class="text-[10px] text-txt-muted uppercase">Mesas atendidas</p>
+        <div class="mozos-info-card text-center">
+          <p class="mozos-info-label">Mesas atendidas</p>
           <p class="text-xl font-bold text-white" x-text="mesasAtendidasMozo(mozosDetalle)"></p>
         </div>
-        <div class="bg-bg-sidebar rounded-xl p-3 text-center">
-          <p class="text-[10px] text-txt-muted uppercase">Prom / boucher</p>
+        <div class="mozos-info-card text-center">
+          <p class="mozos-info-label">Prom / boucher</p>
           <p class="text-xl font-bold text-white" x-text="'S/. ' + fmt(promPropinaBoucher(mozosDetalle))"></p>
         </div>
       </div>
-      <div class="flex gap-2">
-        <span class="text-xs px-2 py-1 rounded-full font-bold" :class="mozosDetalle?.activo !== false ? 'bg-st-preparado/20 text-st-preparado' : 'bg-txt-muted/20'" x-text="mozosDetalle?.activo !== false ? 'Activo' : 'Inactivo'"></span>
-        <span class="text-xs px-2 py-1 rounded-full font-bold" :class="mozosDetalle?.enTurno ? 'bg-st-libre/20 text-st-libre' : 'bg-st-esperando/20'" x-text="mozosDetalle?.enTurno ? 'En turno' : 'Fuera de turno'"></span>
+
+      <!-- Datos personales -->
+      <div class="mb-6">
+        <div class="mozos-section-title">
+          <i data-lucide="user"></i>
+          Datos personales
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div class="mozos-info-card">
+            <p class="mozos-info-label">Nombres</p>
+            <p class="mozos-info-value" x-text="mozosDetalle?.nombres || '—'"></p>
+          </div>
+          <div class="mozos-info-card">
+            <p class="mozos-info-label">Apellidos</p>
+            <p class="mozos-info-value" x-text="mozosDetalle?.apellidos || '—'"></p>
+          </div>
+          <div class="mozos-info-card">
+            <p class="mozos-info-label">DNI</p>
+            <p class="mozos-info-value font-mono" x-text="mozosDetalle?.dni || '—'"></p>
+          </div>
+          <div class="mozos-info-card">
+            <p class="mozos-info-label">Nacimiento</p>
+            <p class="mozos-info-value" x-text="mozosDetalle?.fechaNacimiento || '—'"></p>
+          </div>
+          <div class="mozos-info-card">
+            <p class="mozos-info-label">Género</p>
+            <p class="mozos-info-value" x-text="mozosDetalle?.genero || '—'"></p>
+          </div>
+          <div class="mozos-info-card">
+            <p class="mozos-info-label">Dirección</p>
+            <p class="mozos-info-value truncate" x-text="mozosDetalle?.direccion || '—'"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contacto -->
+      <div class="mb-6">
+        <div class="mozos-section-title">
+          <i data-lucide="phone"></i>
+          Contacto
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div class="mozos-info-card">
+            <p class="mozos-info-label">Celular</p>
+            <p class="mozos-info-value font-mono" x-text="celularTextoMozo(mozosDetalle)"></p>
+          </div>
+          <div class="mozos-info-card sm:col-span-2">
+            <p class="mozos-info-label">Correo</p>
+            <p class="mozos-info-value truncate" x-text="mozosDetalle?.email || '—'"></p>
+          </div>
+          <div class="mozos-info-card">
+            <p class="mozos-info-label">Emergencia — Nombre</p>
+            <p class="mozos-info-value" x-text="mozosDetalle?.contactoEmergenciaNombre || '—'"></p>
+          </div>
+          <div class="mozos-info-card">
+            <p class="mozos-info-label">Emergencia — Teléfono</p>
+            <p class="mozos-info-value font-mono" x-text="mozosDetalle?.contactoEmergenciaTelefono || '—'"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Configuración -->
+      <div>
+        <div class="mozos-section-title">
+          <i data-lucide="settings"></i>
+          Configuración
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="mozos-info-card">
+            <p class="mozos-info-label">Rol</p>
+            <p class="mozos-info-value text-gold font-semibold" x-text="etiquetaRolMozo(mozosDetalle)"></p>
+          </div>
+          <div class="mozos-info-card">
+            <p class="mozos-info-label">Estado</p>
+            <div class="flex gap-2 mt-1">
+              <span class="mozos-status-badge" :class="mozosDetalle?.activo !== false ? 'mozos-status-active' : 'mozos-status-inactive'" x-text="mozosDetalle?.activo !== false ? 'Activo' : 'Inactivo'"></span>
+              <span class="mozos-status-badge" :class="mozosDetalle?.enTurno ? 'mozos-status-turn' : 'mozos-status-off'" x-text="mozosDetalle?.enTurno ? 'En turno' : 'Fuera de turno'"></span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="bg-bg-sidebar p-4 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
-      <button type="button" @click="cerrarModalDetalle()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm">Cerrar</button>
-      <button type="button" @click="editarDesdeDetalle()" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-bold wall-hide">Editar</button>
+
+    <!-- Footer -->
+    <div class="px-6 py-4 border-t border-[rgba(212,175,55,0.12)] shrink-0 flex justify-end gap-3 bg-bg-sidebar/50 rounded-b-3xl">
+      <button type="button" @click="cerrarModalDetalle()" class="mozos-btn-icon mozos-btn-secondary">
+        <i data-lucide="x" class="w-4 h-4"></i>
+        Cerrar
+      </button>
+      <button type="button" @click="editarDesdeDetalle()" class="mozos-btn-icon mozos-btn-primary wall-hide">
+        <i data-lucide="edit-3" class="w-4 h-4"></i>
+        Editar
+      </button>
     </div>
   </div>
 </div>
@@ -731,6 +1194,7 @@ function mozosExecutiveApp() {
     _chartVentasMesasHora: null,
     rendimientoHorarioVista: 'full',
     barMozoIdsMesas: [],
+    fotoDropActivo: false,
     _lastStableMozos: [],
     kpiPulse: null,
     filaAnimada: null,
@@ -743,7 +1207,25 @@ function mozosExecutiveApp() {
       { id: 'mes', label: 'Mes' },
       { id: 'custom', label: 'Personalizado' }
     ],
-    formMozo: { _id: null, nombre: '', dni: '', email: '', fechaNacimiento: '', genero: '', direccion: '', fotoUrl: '', usuario: '', password: '', activo: true, enTurno: false },
+    formMozo: {
+      _id: null,
+      nombres: '',
+      apellidos: '',
+      dni: '',
+      celular: '',
+      email: '',
+      fechaNacimiento: '',
+      genero: '',
+      direccion: '',
+      emergenciaNombre: '',
+      emergenciaTelefono: '',
+      rolOperativo: 'mozos',
+      fotoUrlPersist: '',
+      fotoDataUrl: null,
+      fotoCleared: false,
+      activo: true,
+      enTurno: false
+    },
 
     async init() {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
@@ -759,6 +1241,8 @@ function mozosExecutiveApp() {
       await this.refreshAll();
       queueMicrotask(() => this.updateCharts());
       this.connectSocket();
+      // Initialize Lucide icons
+      if (window.lucide) window.lucide.createIcons();
     },
 
     get rangoFechas() {
@@ -944,6 +1428,11 @@ function mozosExecutiveApp() {
         });
         return { id, nombre: shortName, cells: rowCells };
       });
+    },
+    get fotoPreviewActual() {
+      if (this.formMozo.fotoDataUrl) return this.formMozo.fotoDataUrl;
+      if (!this.formMozo.fotoCleared && this.formMozo.fotoUrlPersist) return this.formMozo.fotoUrlPersist;
+      return '';
     },
     get tituloGraficoLinea() {
       const { inicio, fin } = this.rangoFechas;
@@ -1156,13 +1645,22 @@ function mozosExecutiveApp() {
           const nextMozos = list.map(m => ({
           ...m,
           _id: m._id || m.id,
-          nombre: m.name || m.nombre || '—',
+          nombres: m.nombres || '',
+          apellidos: m.apellidos || '',
+          nombre: [m.nombres, m.apellidos].filter(Boolean).join(' ').trim() || m.name || m.nombre || '—',
           dni: m.DNI?.toString() || m.dni || '—',
           email: m.email || '',
           fechaNacimiento: m.fechaNacimiento ? String(m.fechaNacimiento).slice(0, 10) : '',
           genero: m.genero || '',
           direccion: m.direccion || '',
           fotoUrl: m.fotoUrl || '',
+          phoneNumber: m.phoneNumber,
+          celularDisplay: m.phoneNumber != null && m.phoneNumber !== '' ? String(m.phoneNumber) : '',
+          contactoEmergenciaNombre: m.contactoEmergenciaNombre || '',
+          contactoEmergenciaTelefono: m.contactoEmergenciaTelefono || '',
+          pinAcceso: m.pinAcceso || '',
+          usuarioWeb: m.usuarioWeb || '',
+          rol: m.rol || 'mozos',
           activo: m.activo ?? m.isActive ?? true,
           enTurno: m.enTurno ?? m.isWorking ?? false,
           ventasHoy: m.ventasHoy || m.ventasDelDia || 0,
@@ -1592,59 +2090,203 @@ function mozosExecutiveApp() {
       this.cerrarModalDetalle();
       if (d) this.openEditModal(d);
     },
+    nuevoFormMozoVacio() {
+      return {
+        _id: null,
+        nombres: '',
+        apellidos: '',
+        dni: '',
+        celular: '',
+        email: '',
+        fechaNacimiento: '',
+        genero: '',
+        direccion: '',
+        emergenciaNombre: '',
+        emergenciaTelefono: '',
+        rolOperativo: 'mozos',
+        fotoUrlPersist: '',
+        fotoDataUrl: null,
+        fotoCleared: false,
+        activo: true,
+        enTurno: false
+      };
+    },
+    parseNombresApellidosFromMozo(m) {
+      if (!m) return { nombres: '', apellidos: '' };
+      if (m.nombres || m.apellidos) {
+        return { nombres: m.nombres || '', apellidos: m.apellidos || '' };
+      }
+      const full = String(m.nombre || m.name || '').trim();
+      const p = full.split(/\s+/).filter(Boolean);
+      if (!p.length) return { nombres: '', apellidos: '' };
+      if (p.length === 1) return { nombres: p[0], apellidos: '' };
+      return { nombres: p[0], apellidos: p.slice(1).join(' ') };
+    },
+    celularTextoMozo(m) {
+      if (!m) return '—';
+      if (m.celularDisplay != null && String(m.celularDisplay).trim() !== '') return String(m.celularDisplay);
+      const p = m.phoneNumber;
+      if (p === undefined || p === null || p === '') return '—';
+      return String(p);
+    },
+    etiquetaRolMozo(m) {
+      if (!m || !m.rol) return 'Mozo estándar';
+      if (m.rol === 'capitanMozos') return 'Capitán de mozos';
+      return m.rol;
+    },
+    cerrarModalMozo() {
+      this.modal = null;
+      this.fotoDropActivo = false;
+    },
+    async comprimirImagenMozo(file) {
+      const maxW = 512;
+      const quality = 0.82;
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+          try {
+            URL.revokeObjectURL(url);
+            let w = img.width;
+            let h = img.height;
+            if (w > maxW) {
+              h = Math.round((h * maxW) / w);
+              w = maxW;
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+          } catch (e) {
+            reject(e);
+          }
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error('imagen'));
+        };
+        img.src = url;
+      });
+    },
+    async onMozoFotoInput(e) {
+      const f = e.target && e.target.files && e.target.files[0];
+      if (!f || !f.type || !f.type.startsWith('image/')) return;
+      try {
+        this.formMozo.fotoDataUrl = await this.comprimirImagenMozo(f);
+        this.formMozo.fotoCleared = false;
+      } catch (err) {
+        this.showToast('No se pudo procesar la imagen', 'error');
+      }
+      e.target.value = '';
+    },
+    async onMozoFotoDrop(e) {
+      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!f || !f.type || !f.type.startsWith('image/')) {
+        this.showToast('Suelta un archivo de imagen (JPG, PNG…)', 'error');
+        return;
+      }
+      try {
+        this.formMozo.fotoDataUrl = await this.comprimirImagenMozo(f);
+        this.formMozo.fotoCleared = false;
+      } catch (err) {
+        this.showToast('No se pudo procesar la imagen', 'error');
+      }
+    },
+    quitarFotoMozo() {
+      this.formMozo.fotoDataUrl = null;
+      this.formMozo.fotoUrlPersist = '';
+      this.formMozo.fotoCleared = true;
+    },
     openCreateModal() {
       this.isEditing = false;
-      this.formMozo = { _id: null, nombre: '', dni: '', email: '', fechaNacimiento: '', genero: '', direccion: '', fotoUrl: '', usuario: '', password: '', activo: true, enTurno: false };
+      this.formMozo = this.nuevoFormMozoVacio();
       this.modal = true;
+      this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); });
     },
     openEditModal(m) {
+      if (!m) return;
       this.isEditing = true;
+      const { nombres, apellidos } = this.parseNombresApellidosFromMozo(m);
+      const cel = m.phoneNumber != null && m.phoneNumber !== '' ? String(m.phoneNumber) : '';
       this.formMozo = {
+        ...this.nuevoFormMozoVacio(),
         _id: m._id,
-        nombre: m.nombre || m.name || '',
-        dni: m.dni || m.DNI?.toString() || '',
+        nombres,
+        apellidos,
+        dni: String(m.dni || m.DNI || '').replace(/\D/g, ''),
+        celular: cel,
         email: m.email || '',
         fechaNacimiento: m.fechaNacimiento ? String(m.fechaNacimiento).slice(0, 10) : '',
         genero: m.genero || '',
         direccion: m.direccion || '',
-        fotoUrl: m.fotoUrl || '',
-        usuario: m.usuario || m.username || '',
-        password: '',
+        emergenciaNombre: m.contactoEmergenciaNombre || '',
+        emergenciaTelefono: m.contactoEmergenciaTelefono != null ? String(m.contactoEmergenciaTelefono) : '',
+        rolOperativo: m.rol === 'capitanMozos' ? 'capitanMozos' : 'mozos',
+        fotoUrlPersist: m.fotoUrl || '',
+        fotoDataUrl: null,
+        fotoCleared: false,
         activo: m.activo !== false,
-        enTurno: m.enTurno || false
+        enTurno: !!m.enTurno
       };
       this.modal = true;
+      this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); });
     },
     verDetalleMozo(m) {
       if (!m) return;
       this.mozosDetalle = m;
       this.modalDetalle = true;
+      this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); });
     },
     async guardarMozo() {
-      if (!this.formMozo.nombre.trim()) { this.showToast('Nombre requerido', 'error'); return; }
-      if (!this.formMozo.dni.trim()) { this.showToast('DNI requerido', 'error'); return; }
+      const n = (this.formMozo.nombres || '').trim();
+      const a = (this.formMozo.apellidos || '').trim();
+      if (!n) {
+        this.showToast('Los nombres son obligatorios', 'error');
+        return;
+      }
+      if (!a) {
+        this.showToast('Los apellidos son obligatorios', 'error');
+        return;
+      }
+      const dniDigits = String(this.formMozo.dni || '').replace(/\D/g, '');
+      if (!dniDigits) {
+        this.showToast('DNI o documento requerido', 'error');
+        return;
+      }
+      const cel = String(this.formMozo.celular || '').replace(/\D/g, '');
+      if (!cel) {
+        this.showToast('Teléfono celular requerido', 'error');
+        return;
+      }
+
       const body = {
-        name: this.formMozo.nombre,
-        DNI: parseInt(this.formMozo.dni, 10) || 0,
-        phoneNumber: 0,
-        email: this.formMozo.email || '',
+        nombres: n,
+        apellidos: a,
+        DNI: parseInt(dniDigits, 10) || 0,
+        phoneNumber: parseInt(cel, 10) || 0,
+        email: (this.formMozo.email || '').trim(),
         fechaNacimiento: this.formMozo.fechaNacimiento || null,
         genero: this.formMozo.genero || '',
-        direccion: this.formMozo.direccion || '',
-        fotoUrl: this.formMozo.fotoUrl || '',
-        activo: this.formMozo.activo,
-        enTurno: this.formMozo.enTurno
+        direccion: (this.formMozo.direccion || '').trim(),
+        contactoEmergenciaNombre: (this.formMozo.emergenciaNombre || '').trim(),
+        contactoEmergenciaTelefono: String(this.formMozo.emergenciaTelefono || '').replace(/\D/g, ''),
+        rol: this.formMozo.rolOperativo === 'capitanMozos' ? 'capitanMozos' : 'mozos',
+        activo: !!this.formMozo.activo,
+        enTurno: !!this.formMozo.enTurno
       };
-      if (this.formMozo.usuario) body.usuario = this.formMozo.usuario;
-      if (this.formMozo.password) body.password = this.formMozo.password;
+      if (this.formMozo.fotoDataUrl) body.fotoUrl = this.formMozo.fotoDataUrl;
+      else if (this.formMozo.fotoCleared) body.fotoUrl = '';
+
       const res = this.formMozo._id
         ? await apiPut('/mozos/' + this.formMozo._id, body)
         : await apiPost('/mozos', body);
       if (res && !res.error) {
-        this.modal = null;
+        this.cerrarModalMozo();
         await this.refreshAll();
         this.showToast(this.formMozo._id ? 'Actualizado' : 'Creado');
-      } else this.showToast(res?.error || res?.message || 'Error', 'error');
+      } else this.showToast(res?.error || res?.message || 'Error al guardar', 'error');
     },
     async eliminarMozo(id) {
       if (!confirm('¿Eliminar este mozo?')) return;
@@ -1677,5 +2319,13 @@ function mozosExecutiveApp() {
 </script>
 <script src="/assets/js/page-transitions.js"></script>
 <script src="/assets/js/cosmos-search.js"></script>
+<script>
+  // Initialize Lucide icons when DOM is ready and on modal open
+  document.addEventListener('DOMContentLoaded', () => {
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+  });
+</script>
 </body>
 </html>
