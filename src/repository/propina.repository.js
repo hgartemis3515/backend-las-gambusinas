@@ -413,6 +413,102 @@ async function obtenerDatosDashboardMozos(fechaInicio, fechaFin) {
             total: Math.round(total * 100) / 100
         }));
 
+        // Ventas y mesas únicas por hora (Lima) + matriz mozo × hora (mesas distintas atendidas)
+        const ventasPorHoraArr = Array.from({ length: 24 }, (_, hora) => ({ hora, total: 0 }));
+        const mesasPorHoraArr = Array.from({ length: 24 }, (_, hora) => ({ hora, mesas: 0 }));
+        let productividadMozoHora = [];
+
+        try {
+            const facetAgg = await Boucher.aggregate([
+                {
+                    $match: {
+                        fechaPago: { $gte: inicio, $lte: fin },
+                        isActive: true,
+                        mozo: { $exists: true, $ne: null },
+                        mesa: { $exists: true, $ne: null }
+                    }
+                },
+                {
+                    $project: {
+                        total: { $ifNull: ['$total', 0] },
+                        mesa: 1,
+                        mozo: 1,
+                        hora: { $hour: { date: '$fechaPago', timezone: 'America/Lima' } }
+                    }
+                },
+                {
+                    $facet: {
+                        ventasPorHoraBuckets: [
+                            { $group: { _id: '$hora', ventas: { $sum: '$total' } } },
+                            { $sort: { _id: 1 } }
+                        ],
+                        mesasPorHoraBuckets: [
+                            { $group: { _id: '$hora', mesas: { $addToSet: '$mesa' } } },
+                            {
+                                $project: {
+                                    _id: 0,
+                                    hora: '$_id',
+                                    n: { $size: '$mesas' }
+                                }
+                            },
+                            { $sort: { hora: 1 } }
+                        ],
+                        mozoHoraBuckets: [
+                            {
+                                $group: {
+                                    _id: { mozo: '$mozo', hora: '$hora' },
+                                    mesas: { $addToSet: '$mesa' }
+                                }
+                            },
+                            {
+                                $project: {
+                                    _id: 0,
+                                    mozoId: '$_id.mozo',
+                                    hora: '$_id.hora',
+                                    mesas: { $size: '$mesas' }
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]);
+
+            const facet = facetAgg[0] || {};
+            (facet.ventasPorHoraBuckets || []).forEach(b => {
+                const h = b._id;
+                if (h >= 0 && h < 24) {
+                    ventasPorHoraArr[h].total = Math.round((b.ventas || 0) * 100) / 100;
+                }
+            });
+            (facet.mesasPorHoraBuckets || []).forEach(b => {
+                const h = b.hora;
+                if (h >= 0 && h < 24) mesasPorHoraArr[h].mesas = b.n || 0;
+            });
+            productividadMozoHora = (facet.mozoHoraBuckets || []).map(r => ({
+                mozoId: r.mozoId?.toString?.() || String(r.mozoId),
+                hora: r.hora,
+                mesas: r.mesas || 0
+            }));
+        } catch (aggErr) {
+            logger.warn('[PropinaRepo] Agregación horaria bouchers omitida', { error: aggErr.message });
+        }
+
+        let ocupacionSalon = { pct: 0, ocupadas: 0, capacidad: 0 };
+        try {
+            const capacidad = await Mesa.countDocuments({ isActive: true });
+            const ocupadas = await Mesa.countDocuments({
+                isActive: true,
+                estado: { $in: ['esperando', 'pedido', 'preparado', 'pagado'] }
+            });
+            ocupacionSalon = {
+                capacidad,
+                ocupadas,
+                pct: capacidad > 0 ? Math.round((ocupadas / capacidad) * 1000) / 10 : 0
+            };
+        } catch (ocErr) {
+            logger.warn('[PropinaRepo] Snapshot ocupación mesas omitido', { error: ocErr.message });
+        }
+
         // Participación en propinas del período (pastel)
         const totalP = totales.totalPropinas || 1;
         const participacionPropinas = porPropinas
@@ -437,8 +533,12 @@ async function obtenerDatosDashboardMozos(fechaInicio, fechaFin) {
             },
             series: {
                 propinasPorHora,
+                ventasPorHora: ventasPorHoraArr,
+                mesasPorHora: mesasPorHoraArr,
+                productividadMozoHora,
                 participacionPropinas
             },
+            ocupacionSalon,
             mozos: porPropinas
         };
     } catch (error) {

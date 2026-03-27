@@ -59,6 +59,9 @@ tailwind.config = {
   .mozos-wall .wall-hide { display: none !important; }
   .mozos-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
   .mozos-scrollbar::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.25); border-radius: 4px; }
+  .mozos-gauge-track { fill: none; stroke: rgba(212,175,55,0.12); stroke-width: 10; stroke-linecap: round; }
+  .mozos-gauge-fill { fill: none; stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset 0.6s ease, stroke 0.35s ease; }
+  .mozos-heat-cell { min-width: 1.5rem; height: 1.35rem; border-radius: 4px; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.92); border: 1px solid rgba(0,0,0,0.2); }
 </style>
 </head>
 <body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="mozosExecutiveApp()" :class="{ 'mozos-wall': wallMode }" x-cloak>
@@ -86,6 +89,25 @@ tailwind.config = {
         <button type="button" @click="openCreateModal()" class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-bold hover:brightness-110 transition shadow-glass wall-hide">+ Nuevo mozo</button>
       </div>
     </header>
+
+    <!-- SECCIONES -->
+    <div class="flex gap-1 mb-6 bg-bg-card rounded-lg p-1 border border-[rgba(212,175,55,0.15)] w-fit">
+      <button type="button" @click="cambiarSeccion('principal')"
+        class="px-4 py-2 rounded-lg text-sm font-medium transition"
+        :class="activeSection === 'principal' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
+        📋 Principal
+      </button>
+      <button type="button" @click="cambiarSeccion('rendimiento')"
+        class="px-4 py-2 rounded-lg text-sm font-medium transition"
+        :class="activeSection === 'rendimiento' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
+        📈 Rendimiento
+      </button>
+      <button type="button" @click="cambiarSeccion('propinas')"
+        class="px-4 py-2 rounded-lg text-sm font-medium transition"
+        :class="activeSection === 'propinas' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
+        💸 Propinas
+      </button>
+    </div>
 
     <!-- KPIs: 4 tarjetas premium -->
     <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6" aria-label="Indicadores clave">
@@ -115,25 +137,25 @@ tailwind.config = {
         </div>
       </article>
 
-      <article class="mozos-kpi-card rounded-2xl p-5" :class="{ 'mozos-kpi-card--pulse': kpiPulse === 'propinas' }">
+      <article class="mozos-kpi-card rounded-2xl p-5" :class="{ 'mozos-kpi-card--pulse': kpiPulse === 'ventas' }">
         <div class="flex items-start justify-between gap-2">
           <div>
-            <p class="text-[11px] font-semibold uppercase tracking-wider text-txt-muted" x-text="'Propinas · ' + etiquetaPeriodo"></p>
-            <p class="text-3xl font-extrabold text-st-preparado mt-2 tabular-nums" x-text="'S/. ' + fmt(totalPropinasPeriodo)"></p>
-            <p class="text-xs mt-2" :class="deltaPropinasClase" x-show="mostrarComparacion && deltaPropinasPct != null" x-text="formatDelta(deltaPropinasPct, 'vs período anterior')"></p>
-            <p class="text-xs text-txt-muted mt-1" x-show="metaPropinasAlcanzada" x-text="'Meta sugerida alcanzada (S/. ' + META_PROPINAS_SUGERIDA + ')'"></p>
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-txt-muted" x-text="'Ventas · ' + etiquetaPeriodo"></p>
+            <p class="text-3xl font-extrabold text-gold mt-2 tabular-nums" x-text="'S/. ' + fmt(totalVentasPeriodo)"></p>
+            <p class="text-xs mt-2" :class="deltaVentasPct > 0 ? 'text-st-preparado' : deltaVentasPct < 0 ? 'text-st-pagado' : 'text-txt-muted'" x-show="mostrarComparacion && deltaVentasPct != null" x-text="formatDelta(deltaVentasPct, 'vs período anterior')"></p>
+            <p class="text-xs text-txt-muted mt-1">Ingresos de salón en el período seleccionado</p>
           </div>
-          <span class="text-2xl opacity-80" aria-hidden="true">💚</span>
+          <span class="text-2xl opacity-80" aria-hidden="true">💰</span>
         </div>
       </article>
 
       <article class="mozos-kpi-card rounded-2xl p-5" :class="{ 'mozos-kpi-card--pulse': kpiPulse === 'lider' }">
         <div class="flex items-start justify-between gap-2">
           <div class="min-w-0">
-            <p class="text-[11px] font-semibold uppercase tracking-wider text-txt-muted">Líder del período</p>
-            <p class="text-lg font-bold text-white mt-2 truncate" x-text="liderPropinasNombre"></p>
-            <p class="text-sm text-st-preparado font-semibold" x-text="'S/. ' + fmt(liderPropinasMonto) + ' propinas'"></p>
-            <p class="text-xs text-gold mt-1 truncate" x-text="liderVentasLinea"></p>
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-txt-muted">Líder de ventas (mozo)</p>
+            <p class="text-lg font-bold text-white mt-2 truncate" x-text="liderVentasNombre"></p>
+            <p class="text-sm text-gold font-semibold" x-text="'S/. ' + fmt(liderVentasMonto) + ' ventas'"></p>
+            <p class="text-xs text-txt-muted mt-1 truncate">Mayor facturación del período</p>
           </div>
           <span class="text-2xl opacity-80" aria-hidden="true">🏆</span>
         </div>
@@ -145,7 +167,7 @@ tailwind.config = {
       <div class="flex flex-col xl:flex-row xl:items-center gap-4">
         <div class="flex-1 min-w-[200px]">
           <label class="text-[10px] uppercase text-txt-muted block mb-1">Buscar</label>
-          <input type="search" x-model="busqueda" placeholder="Nombre o DNI…" autocomplete="off"
+          <input type="text" x-model="busqueda" placeholder="Nombre o DNI…" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="search" readonly @focus="$el.removeAttribute('readonly')" @blur="$el.setAttribute('readonly','readonly')" name="mozos_search_query_nocreds" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other"
             class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-xl px-4 py-2.5 text-sm focus:border-gold focus:outline-none placeholder:text-txt-muted/60">
         </div>
         <div>
@@ -194,67 +216,25 @@ tailwind.config = {
         </p>
         <span class="text-txt-muted hidden sm:inline">·</span>
         <p class="text-xs text-txt-muted">Rango <span class="text-txt-secondary font-mono" x-text="rangoEtiqueta"></span></p>
-        <button type="button" @click="limpiarFocoMozo()" x-show="focoMozoId" class="text-xs text-gold hover:underline ml-auto">Quitar filtro de mozo</button>
+        <button type="button" @click="limpiarFocoMozo()" x-show="focoMozoId" class="text-xs text-gold hover:underline ml-auto">Quitar enfoque de mozo</button>
       </div>
     </section>
 
-    <!-- Rankings + contenido principal -->
-    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 mb-8">
-      <aside class="xl:col-span-3 space-y-4 order-2 xl:order-1">
-        <div class="mozos-kpi-card rounded-2xl p-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-txt-muted mb-3">Top 5 · Ventas</h2>
-          <ul class="space-y-2">
-            <template x-for="(m, idx) in top5Ventas" :key="'v-' + (m._id || idx)">
-              <li>
-                <button type="button" @click="enfocarMozo(m)" class="w-full flex items-center gap-2 text-left rounded-xl p-2 hover:bg-bg-sidebar/80 transition border border-transparent hover:border-gold/20">
-                  <span class="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-extrabold shrink-0"
-                    :class="idx === 0 ? 'mozos-rank-medal-1' : idx === 1 ? 'mozos-rank-medal-2' : idx === 2 ? 'mozos-rank-medal-3' : 'bg-bg-sidebar text-txt-muted'" x-text="idx + 1"></span>
-                  <div class="min-w-0 flex-1">
-                    <p class="text-sm font-semibold text-white truncate" x-text="m.nombre"></p>
-                    <p class="text-xs text-gold font-mono" x-text="'S/. ' + fmt(m.ventasHoy)"></p>
-                  </div>
-                </button>
-              </li>
-            </template>
-            <li x-show="top5Ventas.length === 0" class="text-xs text-txt-muted text-center py-4">Sin datos en el período</li>
-          </ul>
-        </div>
-        <div class="mozos-kpi-card rounded-2xl p-4">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-txt-muted mb-3">Top 5 · Propinas</h2>
-          <ul class="space-y-2">
-            <template x-for="(m, idx) in top5Propinas" :key="'p-' + (m._id || idx)">
-              <li>
-                <button type="button" @click="enfocarMozo(m)" class="w-full flex items-center gap-2 text-left rounded-xl p-2 hover:bg-bg-sidebar/80 transition border border-transparent hover:border-gold/20">
-                  <span class="w-7 h-7 rounded items-center justify-center text-[11px] font-extrabold shrink-0 flex"
-                    :class="idx === 0 ? 'mozos-rank-medal-1' : idx === 1 ? 'mozos-rank-medal-2' : idx === 2 ? 'mozos-rank-medal-3' : 'bg-bg-sidebar text-txt-muted'" x-text="idx + 1"></span>
-                  <div class="min-w-0 flex-1">
-                    <p class="text-sm font-semibold text-white truncate" x-text="m.nombre"></p>
-                    <p class="text-xs text-st-preparado font-mono" x-text="'S/. ' + fmt(m.propinasHoy)"></p>
-                  </div>
-                </button>
-              </li>
-            </template>
-            <li x-show="top5Propinas.length === 0" class="text-xs text-txt-muted text-center py-4">Sin propinas en el período</li>
-          </ul>
-        </div>
-        <p class="text-[10px] text-txt-muted px-1 leading-relaxed">Los rankings usan la lista agregada de <strong class="text-txt-secondary">mozos-dashboard</strong> (ventas/propinas por mozo en el rango). Clic en una fila aplica filtro visual en tabla y tarjetas.</p>
-      </aside>
-
-      <div class="xl:col-span-9 space-y-4 order-1 xl:order-2">
-        <div x-show="loading && mozos.length === 0" class="flex items-center justify-center h-40 mozos-kpi-card rounded-2xl">
-          <div class="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
-        </div>
-
-        <!-- Vista tabla -->
-        <div x-show="vistaPrincipal === 'tabla' && (!loading || mozos.length > 0)" class="mozos-kpi-card rounded-2xl overflow-hidden">
-          <div class="overflow-x-auto mozos-scrollbar">
+    <div x-show="activeSection === 'principal'" class="grid grid-cols-1 xl:grid-cols-12 gap-6 mb-8">
+      <!-- COLUMNA IZQUIERDA: TABLA DE MOZOS -->
+      <div class="xl:col-span-8 space-y-4">
+        <!-- Vista tabla: no enlazar visibilidad con loading; si loading y mozos=[] un frame, antes se ocultaba toda la tabla -->
+        <div x-show="vistaPrincipal === 'tabla'" class="mozos-kpi-card rounded-2xl overflow-hidden relative min-h-[200px]">
+          <div x-show="loading" x-transition.opacity class="absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-bg-primary/70 backdrop-blur-[2px]">
+            <div class="w-9 h-9 border-2 border-gold border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
+          </div>
+          <div class="overflow-x-auto mozos-scrollbar" :class="loading ? 'pointer-events-none opacity-70 min-h-[200px]' : ''">
             <table class="w-full text-sm min-w-[860px]">
               <thead>
                 <tr class="bg-bg-sidebar/90 text-txt-secondary text-[10px] uppercase tracking-wide border-b border-[rgba(212,175,55,0.12)]">
                   <th class="text-left px-3 py-3 font-bold w-10"></th>
                   <th class="text-left px-3 py-3 font-bold">Mozo</th>
                   <th class="text-left px-3 py-3 font-bold hidden md:table-cell">DNI</th>
-                  <th class="text-left px-3 py-3 font-bold hidden lg:table-cell">Teléfono</th>
                   <th class="text-left px-3 py-3 font-bold">Estado</th>
                   <th class="text-left px-3 py-3 font-bold">Turno</th>
                   <th class="text-right px-3 py-3 font-bold cursor-pointer hover:text-gold select-none wall-hide" @click="toggleSort('ventas')">Ventas <span class="text-gold" x-text="sortMark('ventas')"></span></th>
@@ -266,12 +246,13 @@ tailwind.config = {
                 </tr>
               </thead>
               <tbody>
-                <tr x-show="mozosVista.length === 0">
-                  <td colspan="12" class="px-4 py-10 text-center text-txt-muted">No hay mozos que coincidan con los filtros</td>
+                <tr x-show="!loading && mozosVista.length === 0">
+                  <td colspan="11" class="px-4 py-10 text-center text-txt-muted">No hay mozos que coincidan con los filtros</td>
                 </tr>
-                <template x-for="m in mozosVista" :key="m._id || m.id">
-                  <tr class="border-b border-[rgba(212,175,55,0.06)] hover:bg-bg-sidebar/40 transition"
-                    :class="{ 'mozos-row-flash': filaAnimada === (m._id || '').toString(), 'ring-1 ring-inset ring-gold/30': focoMozoId === (m._id || '').toString() }">
+                <template x-for="(m, idx) in mozosVista" :key="'row-' + idx + '-' + idMozoStr(m)">
+                  <tr class="border-b border-[rgba(212,175,55,0.06)] hover:bg-bg-sidebar/40 transition cursor-pointer"
+                    @click="seleccionarMozo(m)"
+                    :class="{ 'mozos-row-flash': filaAnimada === idMozoStr(m), 'ring-1 ring-inset ring-gold/30': focoIdStr() === idMozoStr(m), 'bg-gold/5': mozoSeleccionado && idMozoStr(mozoSeleccionado) === idMozoStr(m) }">
                     <td class="px-3 py-2">
                       <div class="w-9 h-9 rounded-full bg-gold/20 flex items-center justify-center text-gold text-sm font-bold" x-text="iniciales(m.nombre)"></div>
                     </td>
@@ -280,7 +261,6 @@ tailwind.config = {
                       <span class="text-[10px] text-txt-muted font-mono" x-text="'ID ' + (m.mozoId ?? '—')"></span>
                     </td>
                     <td class="px-3 py-2 text-txt-secondary hidden md:table-cell" x-text="m.dni || '—'"></td>
-                    <td class="px-3 py-2 text-txt-secondary hidden lg:table-cell" x-text="m.telefono || '—'"></td>
                     <td class="px-3 py-2">
                       <span class="text-[10px] px-2 py-0.5 rounded-full font-bold cursor-pointer wall-hide"
                         :class="m.activo !== false ? 'bg-st-preparado/20 text-st-preparado' : 'bg-txt-muted/20 text-txt-muted'"
@@ -315,9 +295,9 @@ tailwind.config = {
 
         <!-- Vista tarjetas -->
         <div x-show="vistaPrincipal === 'tarjetas'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <template x-for="m in mozosVista" :key="'card-' + (m._id || m.id)">
+          <template x-for="(m, idx) in mozosVista" :key="'card-' + idx + '-' + idMozoStr(m)">
             <article class="mozos-kpi-card rounded-2xl p-4 border transition"
-              :class="focoMozoId === (m._id || '').toString() ? 'ring-2 ring-gold/40' : ''">
+              :class="focoIdStr() === idMozoStr(m) ? 'ring-2 ring-gold/40' : ''">
               <div class="flex items-center gap-3 mb-3">
                 <div class="w-12 h-12 rounded-full bg-gold/20 flex items-center justify-center text-gold text-lg font-bold" x-text="iniciales(m.nombre)"></div>
                 <div class="min-w-0 flex-1">
@@ -354,25 +334,198 @@ tailwind.config = {
           </div>
         </div>
       </div>
+
+      <!-- COLUMNA DERECHA: SECCIÓN ACTIVA -->
+      <aside class="xl:col-span-4 space-y-4">
+        <div class="mozos-kpi-card rounded-2xl p-4" x-show="mozoSeleccionado">
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <h3 class="text-sm font-bold">Estadísticas del mozo</h3>
+            <button type="button" class="text-xs text-gold hover:underline" @click="selectedMozoId = null">Limpiar selección</button>
+          </div>
+          <template x-if="mozoSeleccionado">
+            <div class="space-y-3">
+              <div class="flex items-center gap-3">
+                <template x-if="mozoSeleccionado?.fotoUrl">
+                  <img :src="mozoSeleccionado.fotoUrl" alt="Foto mozo" class="w-10 h-10 rounded-full object-cover border border-gold/30">
+                </template>
+                <template x-if="!mozoSeleccionado?.fotoUrl">
+                  <div class="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center text-gold font-bold" x-text="iniciales(mozoSeleccionado.nombre)"></div>
+                </template>
+                <div class="min-w-0">
+                  <p class="font-semibold truncate" x-text="mozoSeleccionado.nombre"></p>
+                  <p class="text-[11px] text-txt-muted" x-text="'DNI ' + (mozoSeleccionado.dni || '—')"></p>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-2 text-center">
+                <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Ventas</p><p class="text-gold font-bold" x-text="'S/. ' + fmt(mozoSeleccionado.ventasHoy)"></p></div>
+                <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Propinas</p><p class="text-st-preparado font-bold" x-text="'S/. ' + fmt(mozoSeleccionado.propinasHoy)"></p></div>
+                <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Mesas atend.</p><p class="text-white font-semibold" x-text="mesasAtendidasMozo(mozoSeleccionado)"></p></div>
+                <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Prom/boucher</p><p class="text-white font-semibold" x-text="'S/. ' + fmt(promPropinaBoucher(mozoSeleccionado))"></p></div>
+              </div>
+              <div class="border-t border-[rgba(212,175,55,0.12)] pt-3">
+                <p class="text-[10px] uppercase tracking-wide text-txt-muted mb-2">Información personal</p>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div class="bg-bg-sidebar rounded-lg p-2"><span class="text-txt-muted block">Correo</span><span class="text-white break-all" x-text="mozoSeleccionado.email || '—'"></span></div>
+                  <div class="bg-bg-sidebar rounded-lg p-2"><span class="text-txt-muted block">Nacimiento</span><span class="text-white" x-text="mozoSeleccionado.fechaNacimiento || '—'"></span></div>
+                  <div class="bg-bg-sidebar rounded-lg p-2"><span class="text-txt-muted block">Género</span><span class="text-white" x-text="mozoSeleccionado.genero || '—'"></span></div>
+                  <div class="bg-bg-sidebar rounded-lg p-2"><span class="text-txt-muted block">Dirección</span><span class="text-white" x-text="mozoSeleccionado.direccion || '—'"></span></div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+        <div class="mozos-kpi-card rounded-2xl p-4 text-center" x-show="!mozoSeleccionado">
+          <p class="text-sm text-txt-muted">Selecciona un mozo en la tabla para ver su detalle rápido.</p>
+        </div>
+      </aside>
     </div>
 
-    <!-- Gráficos analíticos -->
-    <section class="space-y-4 mb-10" aria-label="Gráficos">
-      <h2 class="text-sm font-bold uppercase tracking-wider text-txt-muted">Analítica del período</h2>
-      <p class="text-xs text-txt-muted -mt-2">Clic en barras o segmentos del donut filtra la tabla al mozo. Datos: agregados de <strong>mozos-dashboard</strong> y serie diaria vía <strong>resumen/dia</strong> (máx. 31 días).</p>
+    <!-- Sección Rendimiento -->
+    <section x-show="activeSection === 'rendimiento'" class="space-y-4 mb-10" aria-label="Rendimiento">
+      <h2 class="text-sm font-bold uppercase tracking-wider text-txt-muted">Rendimiento del equipo</h2>
+      <p class="text-xs text-txt-muted -mt-2">Indicadores operativos de ventas y evolución temporal. Clic en gráficos de barras resalta al mozo en Principal. Las series por hora usan pagos de bouchers (Lima); el heatmap muestra mesas distintas atendidas por mozo y hora.</p>
+
+      <!-- Ranking -->
+      <div class="mozos-kpi-card rounded-2xl p-4 overflow-x-auto">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h3 class="text-xs font-bold uppercase text-txt-muted">Ranking de mozos</h3>
+          <span class="text-[10px] text-txt-muted" x-text="rangoEtiqueta"></span>
+        </div>
+        <table class="w-full text-sm min-w-[640px]">
+          <thead>
+            <tr class="text-left text-[10px] uppercase text-txt-muted border-b border-[rgba(212,175,55,0.12)]">
+              <th class="pb-2 pr-2 w-10">#</th>
+              <th class="pb-2 pr-2">Mozo</th>
+              <th class="pb-2 pr-2 text-right">Mesas</th>
+              <th class="pb-2 pr-2 text-right">Tickets</th>
+              <th class="pb-2 pr-2 text-right">Ventas</th>
+              <th class="pb-2 pr-2 text-right">Propinas</th>
+              <th class="pb-2 pr-2 text-right">S/. / mesa</th>
+              <th class="pb-2 text-right">S/. / ticket</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="(row, idx) in rankingRendimientoRows" :key="row.id">
+              <tr class="border-b border-[rgba(212,175,55,0.06)] hover:bg-gold/5 cursor-pointer transition"
+                :class="{ 'mozos-row-flash': filaAnimada === row.id }"
+                @click="seleccionarMozo(row.raw)">
+                <td class="py-2.5 pr-2">
+                  <span class="inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-extrabold"
+                    :class="idx === 0 ? 'mozos-rank-medal-1' : idx === 1 ? 'mozos-rank-medal-2' : idx === 2 ? 'mozos-rank-medal-3' : 'bg-bg-sidebar text-txt-secondary'"
+                    x-text="idx + 1"></span>
+                </td>
+                <td class="py-2.5 pr-2 font-semibold text-white" x-text="row.nombre"></td>
+                <td class="py-2.5 pr-2 text-right tabular-nums text-txt-secondary" x-text="row.mesas"></td>
+                <td class="py-2.5 pr-2 text-right tabular-nums text-txt-secondary" x-text="row.tickets"></td>
+                <td class="py-2.5 pr-2 text-right tabular-nums text-gold font-semibold" x-text="'S/. ' + fmt(row.ventas)"></td>
+                <td class="py-2.5 pr-2 text-right tabular-nums text-st-preparado" x-text="'S/. ' + fmt(row.propinas)"></td>
+                <td class="py-2.5 pr-2 text-right tabular-nums text-txt-secondary" x-text="'S/. ' + fmt(row.promMesa)"></td>
+                <td class="py-2.5 text-right tabular-nums text-txt-secondary" x-text="'S/. ' + fmt(row.promTicket)"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+        <p class="text-[10px] text-txt-muted mt-2" x-show="!rankingRendimientoRows.length">Sin datos en el período seleccionado.</p>
+      </div>
+
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div class="mozos-kpi-card rounded-2xl p-4 min-h-[300px]">
           <h3 class="text-xs font-bold uppercase text-txt-muted mb-2">Ventas vs propinas por mozo</h3>
           <div class="h-[260px]"><canvas id="chartMozosBar"></canvas></div>
         </div>
         <div class="mozos-kpi-card rounded-2xl p-4 min-h-[300px]">
-          <h3 class="text-xs font-bold uppercase text-txt-muted mb-2">Participación en propinas</h3>
-          <div class="h-[260px] flex items-center justify-center"><canvas id="chartMozosDonut"></canvas></div>
+          <h3 class="text-xs font-bold uppercase text-txt-muted mb-2">Tendencia temporal</h3>
+          <div class="h-[260px]"><canvas id="chartMozosLinea"></canvas></div>
         </div>
       </div>
-      <div class="mozos-kpi-card rounded-2xl p-4 min-h-[280px]">
-        <h3 class="text-xs font-bold uppercase text-txt-muted mb-2" x-text="tituloGraficoLinea"></h3>
-        <div class="h-[240px]"><canvas id="chartMozosLinea"></canvas></div>
+
+      <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <div class="mozos-kpi-card rounded-2xl p-4 xl:col-span-2 min-h-[320px]">
+          <h3 class="text-xs font-bold uppercase text-txt-muted mb-1">Mesas atendidas por mozo</h3>
+          <p class="text-[10px] text-txt-muted mb-2">Eje Y: mozo · Eje X: mesas distintas con pago en el período</p>
+          <div class="h-[280px]"><canvas id="chartMesasPorMozo"></canvas></div>
+        </div>
+        <div class="mozos-kpi-card rounded-2xl p-4 flex flex-col items-center justify-center min-h-[320px]">
+          <h3 class="text-xs font-bold uppercase text-txt-muted mb-1 w-full text-left">Ocupación de mesas</h3>
+          <p class="text-[10px] text-txt-muted mb-3 w-full text-left">Salón en vivo: ocupadas vs capacidad (no libre ni solo reserva)</p>
+          <div class="relative w-[200px] h-[200px] flex items-center justify-center">
+            <svg viewBox="0 0 120 120" class="w-full h-full -rotate-90" aria-hidden="true">
+              <circle class="mozos-gauge-track" cx="60" cy="60" r="48"/>
+              <circle class="mozos-gauge-fill"
+                cx="60" cy="60" r="48"
+                stroke="currentColor"
+                stroke-dasharray="301.59"
+                :stroke-dashoffset="301.59 - (301.59 * (Math.min(100, Math.max(0, ocupacionSalon.pct)) / 100))"
+                :class="ocupacionGaugeColorClass"/>
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none rotate-0">
+              <span class="text-3xl font-extrabold text-white tabular-nums" x-text="(ocupacionSalon.pct || 0).toFixed(1) + '%'"></span>
+              <span class="text-[10px] text-txt-muted mt-1 text-center px-2" x-text="(ocupacionSalon.ocupadas || 0) + ' / ' + (ocupacionSalon.capacidad || 0) + ' mesas'"></span>
+            </div>
+          </div>
+          <p class="text-[10px] text-txt-muted mt-3 text-center">Verde 70–90% · Amarillo 50–70% · Rojo &lt;50% · &gt;90% verde intenso</p>
+        </div>
+      </div>
+
+      <div class="mozos-kpi-card rounded-2xl p-4 min-h-[320px]">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <div>
+            <h3 class="text-xs font-bold uppercase text-txt-muted">Ventas y mesas por hora</h3>
+            <p class="text-[10px] text-txt-muted">Línea azul: S/. ventas/hora · Línea verde: mesas únicas/hora (por pago)</p>
+          </div>
+          <div class="flex flex-wrap gap-1">
+            <button type="button" @click="setRendimientoHorario('full')" class="px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition"
+              :class="rendimientoHorarioVista === 'full' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">8–23h</button>
+            <button type="button" @click="setRendimientoHorario('medio')" class="px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition"
+              :class="rendimientoHorarioVista === 'medio' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">12–14h</button>
+            <button type="button" @click="setRendimientoHorario('noche')" class="px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition"
+              :class="rendimientoHorarioVista === 'noche' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">19–21h</button>
+          </div>
+        </div>
+        <div class="h-[280px]"><canvas id="chartVentasMesasHora"></canvas></div>
+      </div>
+
+      <div class="mozos-kpi-card rounded-2xl p-4 overflow-x-auto">
+        <h3 class="text-xs font-bold uppercase text-txt-muted mb-1">Heatmap de productividad</h3>
+        <p class="text-[10px] text-txt-muted mb-3">Filas: mozos · Columnas: horas 8–23h · Intensidad = mesas distintas atendidas en esa hora (verde alto · rojo bajo). Picos y huecos visibles por franja.</p>
+        <div class="inline-block min-w-full">
+          <div class="flex text-[9px] uppercase text-txt-muted mb-1">
+            <div class="w-[120px] shrink-0 pr-2">Mozo</div>
+            <template x-for="h in rendimientoHeatmapHoras" :key="'hh-' + h">
+              <div class="w-8 shrink-0 text-center font-semibold" x-text="h"></div>
+            </template>
+          </div>
+          <template x-for="row in rendimientoHeatmapRows" :key="row.id">
+            <div class="flex items-center mb-1">
+              <div class="w-[120px] shrink-0 pr-2 text-[11px] font-medium text-white truncate" :title="row.nombre" x-text="row.nombre"></div>
+              <template x-for="cell in row.cells" :key="row.id + '-' + cell.h">
+                <div class="mozos-heat-cell w-8 shrink-0 mx-px" :style="'background:' + cell.color" :title="cell.title" x-text="cell.v > 0 ? cell.v : ''"></div>
+              </template>
+            </div>
+          </template>
+          <p class="text-[10px] text-txt-muted mt-3" x-show="!(dashboardData?.series?.productividadMozoHora || []).length">Sin datos de bouchers por hora en el período (matriz vacía).</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sección Propinas -->
+    <section x-show="activeSection === 'propinas'" class="space-y-4 mb-10" aria-label="Propinas">
+      <h2 class="text-sm font-bold uppercase tracking-wider text-txt-muted">Gestión de propinas</h2>
+      <p class="text-xs text-txt-muted -mt-2">Concentrado de distribución, promedio y objetivos de propinas del período.</p>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="mozos-kpi-card rounded-2xl p-4 lg:col-span-1">
+          <h3 class="text-xs font-bold uppercase text-txt-muted mb-2">Resumen</h3>
+          <div class="space-y-2 text-sm">
+            <p class="flex justify-between"><span class="text-txt-muted">Total período</span><span class="font-bold text-st-preparado" x-text="'S/. ' + fmt(totalPropinasPeriodo)"></span></p>
+            <p class="flex justify-between"><span class="text-txt-muted">Promedio / mozo</span><span class="font-bold text-white" x-text="'S/. ' + fmt(promedioPropinaMozo)"></span></p>
+            <p class="flex justify-between"><span class="text-txt-muted">Meta diaria sugerida</span><span class="font-bold text-gold" x-text="'S/. ' + fmt(META_PROPINAS_SUGERIDA)"></span></p>
+            <p class="flex justify-between"><span class="text-txt-muted">Estado</span><span class="font-bold" :class="metaPropinasAlcanzada ? 'text-st-preparado' : 'text-st-esperando'" x-text="metaPropinasAlcanzada ? 'Meta cumplida' : 'En progreso'"></span></p>
+          </div>
+        </div>
+        <div class="mozos-kpi-card rounded-2xl p-4 lg:col-span-2 min-h-[300px]">
+          <h3 class="text-xs font-bold uppercase text-txt-muted mb-2">Participación en propinas</h3>
+          <div class="h-[250px] flex items-center justify-center"><canvas id="chartMozosDonut"></canvas></div>
+        </div>
       </div>
     </section>
   </main>
@@ -399,9 +552,33 @@ tailwind.config = {
           <input type="text" x-model="formMozo.dni" maxlength="8" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
         </div>
         <div>
-          <label class="text-xs text-txt-secondary mb-1 block">Teléfono</label>
-          <input type="text" x-model="formMozo.telefono" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+          <label class="text-xs text-txt-secondary mb-1 block">Correo</label>
+          <input type="email" x-model="formMozo.email" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
         </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="text-xs text-txt-secondary mb-1 block">Fecha de nacimiento</label>
+          <input type="date" x-model="formMozo.fechaNacimiento" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+        </div>
+        <div>
+          <label class="text-xs text-txt-secondary mb-1 block">Género</label>
+          <select x-model="formMozo.genero" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+            <option value="">Seleccionar</option>
+            <option value="Femenino">Femenino</option>
+            <option value="Masculino">Masculino</option>
+            <option value="No binario">No binario</option>
+            <option value="Prefiere no decir">Prefiere no decir</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="text-xs text-txt-secondary mb-1 block">Foto (URL)</label>
+        <input type="url" x-model="formMozo.fotoUrl" placeholder="https://..." class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+      </div>
+      <div>
+        <label class="text-xs text-txt-secondary mb-1 block">Dirección</label>
+        <input type="text" x-model="formMozo.direccion" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
       </div>
       <div class="grid grid-cols-2 gap-4">
         <div>
@@ -425,19 +602,35 @@ tailwind.config = {
   </div>
 </div>
 
-<div x-show="modalDetalle" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="modalDetalle=null">
+<div x-show="modalDetalle && mozosDetalle" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="cerrarModalDetalle()">
   <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-full max-w-[480px] shadow-2xl" @click.stop>
     <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
       <div>
         <h2 class="text-lg font-bold" x-text="mozosDetalle?.nombre"></h2>
         <p class="text-xs text-txt-muted font-mono" x-text="'ID ' + (mozosDetalle?.mozoId ?? '—')"></p>
       </div>
-      <button type="button" @click="modalDetalle=null" class="w-8 h-8 rounded-full bg-gold-20 text-gold">✕</button>
+      <button type="button" @click="cerrarModalDetalle()" class="w-8 h-8 rounded-full bg-gold-20 text-gold">✕</button>
     </div>
     <div class="p-5 space-y-4">
+      <div class="flex items-center gap-3">
+        <template x-if="mozosDetalle?.fotoUrl">
+          <img :src="mozosDetalle.fotoUrl" alt="Foto mozo" class="w-14 h-14 rounded-full object-cover border border-gold/30">
+        </template>
+        <template x-if="!mozosDetalle?.fotoUrl">
+          <div class="w-14 h-14 rounded-full bg-gold/20 flex items-center justify-center text-gold text-lg font-bold" x-text="iniciales(mozosDetalle?.nombre || '')"></div>
+        </template>
+        <div class="text-xs text-txt-secondary">
+          <p class="font-semibold text-white" x-text="mozosDetalle?.nombre || 'Mozo'"></p>
+          <p x-text="mozosDetalle?.email || 'Sin correo registrado'"></p>
+        </div>
+      </div>
       <div class="grid grid-cols-2 gap-3">
         <div class="bg-bg-sidebar rounded-xl p-3"><p class="text-[10px] text-txt-muted uppercase">DNI</p><p class="font-semibold" x-text="mozosDetalle?.dni || '—'"></p></div>
-        <div class="bg-bg-sidebar rounded-xl p-3"><p class="text-[10px] text-txt-muted uppercase">Teléfono</p><p class="font-semibold" x-text="mozosDetalle?.telefono || '—'"></p></div>
+        <div class="bg-bg-sidebar rounded-xl p-3"><p class="text-[10px] text-txt-muted uppercase">Nacimiento</p><p class="font-semibold" x-text="mozosDetalle?.fechaNacimiento || '—'"></p></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-bg-sidebar rounded-xl p-3"><p class="text-[10px] text-txt-muted uppercase">Género</p><p class="font-semibold" x-text="mozosDetalle?.genero || '—'"></p></div>
+        <div class="bg-bg-sidebar rounded-xl p-3"><p class="text-[10px] text-txt-muted uppercase">Dirección</p><p class="font-semibold" x-text="mozosDetalle?.direccion || '—'"></p></div>
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div class="bg-bg-sidebar rounded-xl p-3 text-center">
@@ -463,8 +656,8 @@ tailwind.config = {
       </div>
     </div>
     <div class="bg-bg-sidebar p-4 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
-      <button type="button" @click="modalDetalle=null" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm">Cerrar</button>
-      <button type="button" @click="modalDetalle=null; openEditModal(mozosDetalle)" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-bold wall-hide">Editar</button>
+      <button type="button" @click="cerrarModalDetalle()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm">Cerrar</button>
+      <button type="button" @click="editarDesdeDetalle()" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-bold wall-hide">Editar</button>
     </div>
   </div>
 </div>
@@ -499,6 +692,9 @@ function mozosExecutiveApp() {
     sidebarOpen: true,
     pageTitle: 'Mozos',
     activeNav: 'mozos',
+    get sharedData() {
+      return window.sharedData || { pages: {}, notifs: [], mockMesas: [] };
+    },
     wallMode: false,
     META_PROPINAS_SUGERIDA,
     loading: true,
@@ -513,8 +709,10 @@ function mozosExecutiveApp() {
     rangoPreset: 'hoy',
     customDesde: '',
     customHasta: '',
+    activeSection: 'principal',
     vistaPrincipal: 'tabla',
     focoMozoId: null,
+    selectedMozoId: null,
     sortKey: 'propinas',
     sortDir: 'desc',
     dashboardData: null,
@@ -529,6 +727,11 @@ function mozosExecutiveApp() {
     _chartBar: null,
     _chartDonut: null,
     _chartLinea: null,
+    _chartMesasHBar: null,
+    _chartVentasMesasHora: null,
+    rendimientoHorarioVista: 'full',
+    barMozoIdsMesas: [],
+    _lastStableMozos: [],
     kpiPulse: null,
     filaAnimada: null,
     lastLiderPropinaId: null,
@@ -540,7 +743,7 @@ function mozosExecutiveApp() {
       { id: 'mes', label: 'Mes' },
       { id: 'custom', label: 'Personalizado' }
     ],
-    formMozo: { _id: null, nombre: '', dni: '', telefono: '', usuario: '', password: '', activo: true, enTurno: false },
+    formMozo: { _id: null, nombre: '', dni: '', email: '', fechaNacimiento: '', genero: '', direccion: '', fotoUrl: '', usuario: '', password: '', activo: true, enTurno: false },
 
     async init() {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
@@ -587,6 +790,11 @@ function mozosExecutiveApp() {
     get totalPropinasPeriodo() {
       return this.dashboardData?.totales?.totalPropinas ?? this.mozos.reduce((s, m) => s + (m.propinasHoy || 0), 0);
     },
+    get promedioPropinaMozo() {
+      const count = this.mozos.length || 0;
+      if (!count) return 0;
+      return this.totalPropinasPeriodo / count;
+    },
     get deltaVentasPct() {
       if (!this.mostrarComparacion) return null;
       const a = this.dashboardPrev.totales.totalVentas || 0;
@@ -629,10 +837,26 @@ function mozosExecutiveApp() {
       const top = [...this.mozos].sort((a, b) => (b.propinasHoy || 0) - (a.propinasHoy || 0))[0];
       return top?.propinasHoy || 0;
     },
+    get liderVentasNombre() {
+      const mv = this.dashboardData?.mejorMozoVentas;
+      if (mv?.nombre) return mv.nombre;
+      const top = [...this.mozos].sort((a, b) => (b.ventasHoy || 0) - (a.ventasHoy || 0))[0];
+      return top?.nombre || '—';
+    },
+    get liderVentasMonto() {
+      const mv = this.dashboardData?.mejorMozoVentas;
+      if (mv && mv.ventasHoy != null) return mv.ventasHoy;
+      const top = [...this.mozos].sort((a, b) => (b.ventasHoy || 0) - (a.ventasHoy || 0))[0];
+      return top?.ventasHoy || 0;
+    },
     get liderVentasLinea() {
       const mv = this.dashboardData?.mejorMozoVentas;
       if (mv?.nombre) return 'Top ventas: ' + mv.nombre.split(' ')[0] + ' · S/. ' + this.fmt(mv.ventasHoy || 0);
       return '';
+    },
+    get mozoSeleccionado() {
+      if (!this.selectedMozoId) return null;
+      return this.mozos.find(m => this.idMozoStr(m) === this.selectedMozoId) || null;
     },
     get top5Ventas() {
       const arr = [...this.mozos].filter(m => m.activo !== false);
@@ -643,6 +867,83 @@ function mozosExecutiveApp() {
       const arr = [...this.mozos].filter(m => m.activo !== false);
       arr.sort((a, b) => (b.propinasHoy || 0) - (a.propinasHoy || 0));
       return arr.slice(0, 5);
+    },
+    get ocupacionSalon() {
+      const o = this.dashboardData?.ocupacionSalon;
+      return o && typeof o === 'object'
+        ? { pct: Number(o.pct) || 0, ocupadas: Number(o.ocupadas) || 0, capacidad: Number(o.capacidad) || 0 }
+        : { pct: 0, ocupadas: 0, capacidad: 0 };
+    },
+    get ocupacionGaugeColorClass() {
+      const p = this.ocupacionSalon.pct;
+      if (p < 50) return 'text-st-pagado';
+      if (p < 70) return 'text-st-esperando';
+      if (p <= 90) return 'text-st-preparado';
+      return 'text-st-libre';
+    },
+    get rankingRendimientoRows() {
+      const arr = [...this.mozos].filter(m => m.activo !== false);
+      arr.sort((a, b) => (Number(b.ventasHoy) || 0) - (Number(a.ventasHoy) || 0));
+      return arr.map(m => {
+        const mesas = this.mesasAtendidasMozo(m);
+        const tickets = Number(m.bouchersHoy) || 0;
+        const ventas = Number(m.ventasHoy) || 0;
+        const propinas = Number(m.propinasHoy) || 0;
+        return {
+          id: this.idMozoStr(m),
+          nombre: m.nombre || '—',
+          mesas,
+          tickets,
+          ventas,
+          propinas,
+          promMesa: mesas > 0 ? Math.round((ventas / mesas) * 100) / 100 : 0,
+          promTicket: tickets > 0 ? Math.round((ventas / tickets) * 100) / 100 : 0,
+          raw: m
+        };
+      });
+    },
+    get rendimientoHeatmapHoras() {
+      return Array.from({ length: 16 }, (_, i) => i + 8);
+    },
+    get rendimientoHeatmapRows() {
+      const hours = this.rendimientoHeatmapHoras;
+      const cells = this.dashboardData?.series?.productividadMozoHora;
+      const map = new Map();
+      let maxV = 1;
+      (cells || []).forEach(c => {
+        const id = String(c.mozoId || '').trim();
+        const h = Number(c.hora);
+        if (!id || h < 0 || h > 23) return;
+        const k = id + ':' + h;
+        map.set(k, c.mesas || 0);
+        maxV = Math.max(maxV, c.mesas || 0);
+      });
+      const heatColor = (v, max) => {
+        if (v <= 0) return 'rgba(90,90,122,0.28)';
+        const t = v / max;
+        const r = Math.round(220 * (1 - t) + 46 * t);
+        const g = Math.round(71 * (1 - t) + 204 * t);
+        const b = Math.round(85 * (1 - t) + 113 * t);
+        return 'rgb(' + r + ',' + g + ',' + b + ')';
+      };
+      const mozosSorted = [...this.mozos]
+        .filter(m => m.activo !== false)
+        .sort((a, b) => this.mesasAtendidasMozo(b) - this.mesasAtendidasMozo(a))
+        .slice(0, 16);
+      return mozosSorted.map(m => {
+        const id = this.idMozoStr(m);
+        const shortName = (m.nombre || '—').split(/\s+/).slice(0, 2).join(' ');
+        const rowCells = hours.map(h => {
+          const v = map.get(id + ':' + h) || 0;
+          return {
+            h,
+            v,
+            color: heatColor(v, maxV),
+            title: (m.nombre || '') + ' · ' + h + ':00 — ' + v + ' mesa(s)'
+          };
+        });
+        return { id, nombre: shortName, cells: rowCells };
+      });
     },
     get tituloGraficoLinea() {
       const { inicio, fin } = this.rangoFechas;
@@ -663,6 +964,25 @@ function mozosExecutiveApp() {
       const p = nombre.trim().split(/\s+/);
       return (p[0][0] + (p[1]?.[0] || '')).toUpperCase();
     },
+    idMozoStr(m) {
+      if (m == null) return '';
+      const v = m._id ?? m.id;
+      if (v == null || v === '') return '';
+      return typeof v === 'object' && typeof v.toString === 'function' ? v.toString() : String(v);
+    },
+    focoIdStr() {
+      const f = this.focoMozoId;
+      if (f == null || f === '') return '';
+      return String(f).trim();
+    },
+    sanearFocoMozo() {
+      const f = this.focoIdStr();
+      if (!f) return;
+      if (!this.mozos.some(m => this.idMozoStr(m) === f)) this.focoMozoId = null;
+      if (this.selectedMozoId && !this.mozos.some(m => this.idMozoStr(m) === this.selectedMozoId)) {
+        this.selectedMozoId = null;
+      }
+    },
     mesasAtendidasMozo(m) {
       if (!m) return 0;
       if (m.mesasAtendidasDash != null) return m.mesasAtendidasDash;
@@ -675,10 +995,10 @@ function mozosExecutiveApp() {
       return Math.round(((m.propinasHoy || 0) / mesas) * 100) / 100;
     },
     promPropinaBoucher(m) {
-      if (!m) return 0;
-      const b = m.bouchersHoy || 0;
+      if (m == null || typeof m !== 'object') return 0;
+      const b = Number(m.bouchersHoy) || 0;
       if (!b) return 0;
-      return Math.round(((m.propinasHoy || 0) / b) * 100) / 100;
+      return Math.round(((Number(m.propinasHoy) || 0) / b) * 100) / 100;
     },
     prevMap() {
       const d = this.dashboardPrev;
@@ -703,10 +1023,7 @@ function mozosExecutiveApp() {
 
     get mozosFiltrados() {
       const q = (this.busqueda || '').toLowerCase().trim();
-      const foco = this.focoMozoId;
       return this.mozos.filter(m => {
-        const id = (m._id || m.id)?.toString?.() || '';
-        if (foco && id !== foco) return false;
         if (q && !m.nombre?.toLowerCase().includes(q) && !String(m.dni || '').includes(q)) return false;
         const fe = this.filtroEstado;
         if (fe === 'activo' && m.activo === false) return false;
@@ -721,11 +1038,18 @@ function mozosExecutiveApp() {
       const k = this.sortKey;
       const dir = this.sortDir === 'asc' ? 1 : -1;
       arr.sort((a, b) => {
-        let va, vb;
-        if (k === 'ventas') { va = a.ventasHoy || 0; vb = b.ventasHoy || 0; }
-        else if (k === 'propinas') { va = a.propinasHoy || 0; vb = b.propinasHoy || 0; }
-        else { va = (a.nombre || '').localeCompare(b.nombre || ''); return va * dir; }
-        return (va - vb) * dir;
+        if (k === 'ventas') {
+          const va = Number(a.ventasHoy) || 0;
+          const vb = Number(b.ventasHoy) || 0;
+          return (va - vb) * dir;
+        }
+        if (k === 'propinas') {
+          const va = Number(a.propinasHoy) || 0;
+          const vb = Number(b.propinasHoy) || 0;
+          return (va - vb) * dir;
+        }
+        const cmp = (a.nombre || '').localeCompare(b.nombre || '');
+        return cmp * dir;
       });
       return arr;
     },
@@ -737,6 +1061,21 @@ function mozosExecutiveApp() {
     sortMark(key) {
       if (this.sortKey !== key) return '';
       return this.sortDir === 'asc' ? '▲' : '▼';
+    },
+    cambiarSeccion(section) {
+      if (section === 'propinas') this.activeSection = 'propinas';
+      else if (section === 'rendimiento') this.activeSection = 'rendimiento';
+      else this.activeSection = 'principal';
+      if (this.activeSection !== 'principal') this.vistaPrincipal = 'tabla';
+      if (this.activeSection === 'propinas' || this.activeSection === 'rendimiento') {
+        queueMicrotask(() => this.updateCharts());
+      }
+    },
+    seleccionarMozo(m) {
+      const id = this.idMozoStr(m);
+      if (!id) return;
+      this.selectedMozoId = id;
+      this.focoMozoId = id;
     },
 
     setPreset(id) {
@@ -753,12 +1092,18 @@ function mozosExecutiveApp() {
     },
 
     enfocarMozo(m) {
-      const id = (m._id || m.id)?.toString?.();
-      this.focoMozoId = this.focoMozoId === id ? null : id;
+      const id = this.idMozoStr(m);
+      if (!id) return;
+      this.focoMozoId = this.focoIdStr() === id ? null : id;
       if (this.vistaPrincipal === 'mapa') this.vistaPrincipal = 'tabla';
     },
     limpiarFocoMozo() {
       this.focoMozoId = null;
+    },
+
+    setRendimientoHorario(vista) {
+      this.rendimientoHorarioVista = vista === 'medio' || vista === 'noche' ? vista : 'full';
+      queueMicrotask(() => this.updateCharts());
     },
 
     computePrevRange(inicio, fin) {
@@ -801,15 +1146,23 @@ function mozosExecutiveApp() {
         ]);
         let list = [];
         if (rawMozos && Array.isArray(rawMozos)) list = rawMozos;
-        else if (rawMozos?.mozos) list = rawMozos.mozos;
-        else if (rawMozos?.data) list = rawMozos.data;
+        else if (rawMozos?.mozos && Array.isArray(rawMozos.mozos)) list = rawMozos.mozos;
+        else if (rawMozos?.data && Array.isArray(rawMozos.data)) list = rawMozos.data;
 
-        this.mozos = list.map(m => ({
+        const mozosFetchFailed = rawMozos == null;
+        if (mozosFetchFailed && this.mozos.length > 0) {
+          this.showToast('No se pudo actualizar el listado de mozos; se mantiene la tabla actual.', 'error');
+        } else {
+          const nextMozos = list.map(m => ({
           ...m,
           _id: m._id || m.id,
           nombre: m.name || m.nombre || '—',
           dni: m.DNI?.toString() || m.dni || '—',
-          telefono: m.phoneNumber?.toString() || m.telefono || m.tel || '—',
+          email: m.email || '',
+          fechaNacimiento: m.fechaNacimiento ? String(m.fechaNacimiento).slice(0, 10) : '',
+          genero: m.genero || '',
+          direccion: m.direccion || '',
+          fotoUrl: m.fotoUrl || '',
           activo: m.activo ?? m.isActive ?? true,
           enTurno: m.enTurno ?? m.isWorking ?? false,
           ventasHoy: m.ventasHoy || m.ventasDelDia || 0,
@@ -820,12 +1173,27 @@ function mozosExecutiveApp() {
           mesasAtendidasDash: 0
         }));
 
+          // Guard defensivo: si de forma súbita la API reduce "muchos -> 1", preservamos el último estado estable.
+          // Evita que la tabla "colapse" por una respuesta inconsistente durante interacción/refresh.
+          const prevCount = this.mozos.length;
+          const nextCount = nextMozos.length;
+          const suddenCollapse = prevCount >= 3 && nextCount <= 1;
+          if (suddenCollapse && this._lastStableMozos.length > 1) {
+            console.warn('[mozos] respuesta sospechosa en /mozos: mantiene último estado estable', { prevCount, nextCount, rawMozos });
+            this.showToast('Se detectó una respuesta incompleta de mozos; se mantiene la lista previa.', 'error');
+            this.mozos = [...this._lastStableMozos];
+          } else {
+            this.mozos = nextMozos;
+            if (nextCount > 1) this._lastStableMozos = [...nextMozos];
+          }
+        }
+
         this.dashboardPrev = dashPrev;
         if (dash) {
           this.dashboardData = dash;
-          const map = new Map((dash.mozos || []).map(x => [(x._id || '').toString(), x]));
+          const map = new Map((dash.mozos || []).map(x => [this.idMozoStr(x), x]));
           this.mozos = this.mozos.map(m => {
-            const id = (m._id || m.id)?.toString?.() || String(m._id || '');
+            const id = this.idMozoStr(m);
             const d = map.get(id);
             if (!d) return { ...m, propinasHoy: 0 };
             return {
@@ -841,6 +1209,8 @@ function mozosExecutiveApp() {
             };
           });
         } else this.dashboardData = null;
+
+        this.sanearFocoMozo();
 
         if (inicio !== fin) await this.loadSerieDiaria(inicio, fin);
         else this.serieDiaria = [];
@@ -874,9 +1244,9 @@ function mozosExecutiveApp() {
 
     mergeDashboardIntoMozos(dash) {
       if (!dash) return;
-      const map = new Map((dash.mozos || []).map(x => [(x._id || '').toString(), x]));
+      const map = new Map((dash.mozos || []).map(x => [this.idMozoStr(x), x]));
       this.mozos = this.mozos.map(m => {
-        const id = (m._id || m.id)?.toString?.() || String(m._id || '');
+        const id = this.idMozoStr(m);
         const d = map.get(id);
         if (!d) return { ...m, propinasHoy: m.propinasHoy || 0 };
         return {
@@ -889,6 +1259,7 @@ function mozosExecutiveApp() {
         };
       });
       this.dashboardData = dash;
+      this.sanearFocoMozo();
     },
 
     scheduleSocketRefresh(mozoIdFromEvent) {
@@ -950,7 +1321,7 @@ function mozosExecutiveApp() {
           .filter(m => m.activo !== false && ((m.ventasHoy || 0) + (m.propinasHoy || 0) > 0))
           .sort((a, b) => (b.ventasHoy + b.propinasHoy) - (a.ventasHoy + a.propinasHoy))
           .slice(0, 14);
-        this.barMozoIds = mozosChart.map(m => (m._id || '').toString());
+        this.barMozoIds = mozosChart.map(m => this.idMozoStr(m));
 
         const ctxB = document.getElementById('chartMozosBar');
         if (ctxB && ctxB.getContext('2d')) {
@@ -970,6 +1341,7 @@ function mozosExecutiveApp() {
               ]
             },
             options: {
+              animation: false,
               responsive: true,
               maintainAspectRatio: false,
               plugins: { legend: { labels: { color: text } } },
@@ -980,8 +1352,10 @@ function mozosExecutiveApp() {
               onClick(_, els) {
                 if (!els.length || !mozosChart.length) return;
                 const i = els[0].index;
-                const id = self.barMozoIds[i];
-                if (id) { self.focoMozoId = id; self.vistaPrincipal = 'tabla'; }
+                const id = String(self.barMozoIds[i] || '').trim();
+                if (!id) return;
+                self.focoMozoId = self.mozos.some(m => self.idMozoStr(m) === id) ? id : null;
+                self.vistaPrincipal = 'tabla';
               }
             }
           });
@@ -1000,6 +1374,7 @@ function mozosExecutiveApp() {
                 datasets: [{ data: part.map(p => p.propinasHoy || 0), backgroundColor: part.map((_, i) => palette[i % palette.length]), borderWidth: 0 }]
               },
               options: {
+                animation: false,
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
@@ -1008,8 +1383,10 @@ function mozosExecutiveApp() {
                 onClick(_, els) {
                   if (!els.length) return;
                   const i = els[0].index;
-                  const id = part[i]?.mozoId;
-                  if (id) { self.focoMozoId = id; self.vistaPrincipal = 'tabla'; }
+                  const id = String(part[i]?.mozoId ?? '').trim();
+                  if (!id) return;
+                  self.focoMozoId = self.mozos.some(m => self.idMozoStr(m) === id) ? id : null;
+                  self.vistaPrincipal = 'tabla';
                 }
               }
             });
@@ -1039,12 +1416,137 @@ function mozosExecutiveApp() {
               datasets: [{ label: 'S/. propinas', data: dataLine, borderColor: gold, backgroundColor: 'rgba(212,175,55,0.12)', fill: true, tension: 0.35 }]
             },
             options: {
+              animation: false,
               responsive: true,
               maintainAspectRatio: false,
               plugins: { legend: { display: false } },
               scales: {
                 x: { ticks: { color: text }, grid: { color: grid } },
                 y: { ticks: { color: text }, grid: { color: grid }, beginAtZero: true }
+              }
+            }
+          });
+        }
+
+        const ctxMH = document.getElementById('chartMesasPorMozo');
+        if (ctxMH && ctxMH.getContext('2d')) {
+          this._chartMesasHBar = safeDestroy(this._chartMesasHBar);
+          const mozosH = [...this.mozos]
+            .filter(m => m.activo !== false && this.mesasAtendidasMozo(m) > 0)
+            .sort((a, b) => this.mesasAtendidasMozo(b) - this.mesasAtendidasMozo(a))
+            .slice(0, 14);
+          this.barMozoIdsMesas = mozosH.map(m => this.idMozoStr(m));
+          const labelsH = mozosH.length
+            ? mozosH.map(m => {
+                const n = (m.nombre || '').trim();
+                return n.length > 16 ? n.slice(0, 15) + '…' : n;
+              })
+            : ['Sin datos'];
+          const mesasVals = mozosH.length ? mozosH.map(m => this.mesasAtendidasMozo(m)) : [0];
+          this._chartMesasHBar = new Chart(ctxMH, {
+            type: 'bar',
+            data: {
+              labels: labelsH,
+              datasets: [{
+                label: 'Mesas atendidas',
+                data: mesasVals,
+                backgroundColor: 'rgba(52,152,219,0.78)',
+                borderRadius: 4
+              }]
+            },
+            options: {
+              animation: false,
+              indexAxis: 'y',
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                x: { ticks: { color: text, precision: 0 }, grid: { color: grid }, beginAtZero: true },
+                y: { ticks: { color: text, font: { size: 10 } }, grid: { color: grid } }
+              },
+              onClick(_, els) {
+                if (!els.length || !mozosH.length) return;
+                const i = els[0].index;
+                const id = String(self.barMozoIdsMesas[i] || '').trim();
+                if (!id) return;
+                self.focoMozoId = self.mozos.some(m => self.idMozoStr(m) === id) ? id : null;
+                self.activeSection = 'principal';
+                self.vistaPrincipal = 'tabla';
+              }
+            }
+          });
+        }
+
+        const ctxVM = document.getElementById('chartVentasMesasHora');
+        if (ctxVM && ctxVM.getContext('2d')) {
+          this._chartVentasMesasHora = safeDestroy(this._chartVentasMesasHora);
+          const ventasSeries = Array.isArray(d?.series?.ventasPorHora) ? d.series.ventasPorHora : [];
+          const mesasSeries = Array.isArray(d?.series?.mesasPorHora) ? d.series.mesasPorHora : [];
+          let hours = Array.from({ length: 16 }, (_, i) => i + 8);
+          if (self.rendimientoHorarioVista === 'medio') hours = [12, 13, 14];
+          else if (self.rendimientoHorarioVista === 'noche') hours = [19, 20, 21];
+          const labelsVM = hours.map(h => h + 'h');
+          const ventasData = hours.map(h => {
+            const row = ventasSeries[h];
+            return row && typeof row.total === 'number' ? row.total : 0;
+          });
+          const mesasData = hours.map(h => {
+            const row = mesasSeries[h];
+            return row && typeof row.mesas === 'number' ? row.mesas : 0;
+          });
+          this._chartVentasMesasHora = new Chart(ctxVM, {
+            type: 'line',
+            data: {
+              labels: labelsVM,
+              datasets: [
+                {
+                  label: 'Ventas S/. / hora',
+                  data: ventasData,
+                  borderColor: '#3498db',
+                  backgroundColor: 'rgba(52,152,219,0.12)',
+                  fill: false,
+                  tension: 0.35,
+                  yAxisID: 'y',
+                  borderWidth: 2
+                },
+                {
+                  label: 'Mesas / hora',
+                  data: mesasData,
+                  borderColor: '#2ecc71',
+                  backgroundColor: 'rgba(46,204,113,0.1)',
+                  fill: false,
+                  tension: 0.35,
+                  yAxisID: 'y1',
+                  borderWidth: 2
+                }
+              ]
+            },
+            options: {
+              animation: false,
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: { mode: 'index', intersect: false },
+              plugins: {
+                legend: { labels: { color: text, boxWidth: 12, font: { size: 10 } } }
+              },
+              scales: {
+                x: { ticks: { color: text }, grid: { color: grid } },
+                y: {
+                  type: 'linear',
+                  position: 'left',
+                  ticks: { color: '#7fb3d5' },
+                  grid: { color: grid },
+                  beginAtZero: true,
+                  title: { display: true, text: 'S/. ventas / hora', color: text, font: { size: 10 } }
+                },
+                y1: {
+                  type: 'linear',
+                  position: 'right',
+                  ticks: { color: '#58d68d', precision: 0 },
+                  grid: { drawOnChartArea: false },
+                  beginAtZero: true,
+                  title: { display: true, text: 'Mesas / hora', color: text, font: { size: 10 } }
+                }
               }
             }
           });
@@ -1081,9 +1583,18 @@ function mozosExecutiveApp() {
       return map[estado] || 'bg-txt-muted/20 text-txt-muted';
     },
 
+    cerrarModalDetalle() {
+      this.modalDetalle = false;
+      this.mozosDetalle = null;
+    },
+    editarDesdeDetalle() {
+      const d = this.mozosDetalle;
+      this.cerrarModalDetalle();
+      if (d) this.openEditModal(d);
+    },
     openCreateModal() {
       this.isEditing = false;
-      this.formMozo = { _id: null, nombre: '', dni: '', telefono: '', usuario: '', password: '', activo: true, enTurno: false };
+      this.formMozo = { _id: null, nombre: '', dni: '', email: '', fechaNacimiento: '', genero: '', direccion: '', fotoUrl: '', usuario: '', password: '', activo: true, enTurno: false };
       this.modal = true;
     },
     openEditModal(m) {
@@ -1092,7 +1603,11 @@ function mozosExecutiveApp() {
         _id: m._id,
         nombre: m.nombre || m.name || '',
         dni: m.dni || m.DNI?.toString() || '',
-        telefono: m.telefono || m.phoneNumber?.toString() || '',
+        email: m.email || '',
+        fechaNacimiento: m.fechaNacimiento ? String(m.fechaNacimiento).slice(0, 10) : '',
+        genero: m.genero || '',
+        direccion: m.direccion || '',
+        fotoUrl: m.fotoUrl || '',
         usuario: m.usuario || m.username || '',
         password: '',
         activo: m.activo !== false,
@@ -1101,6 +1616,7 @@ function mozosExecutiveApp() {
       this.modal = true;
     },
     verDetalleMozo(m) {
+      if (!m) return;
       this.mozosDetalle = m;
       this.modalDetalle = true;
     },
@@ -1110,7 +1626,12 @@ function mozosExecutiveApp() {
       const body = {
         name: this.formMozo.nombre,
         DNI: parseInt(this.formMozo.dni, 10) || 0,
-        phoneNumber: parseInt(this.formMozo.telefono, 10) || 0,
+        phoneNumber: 0,
+        email: this.formMozo.email || '',
+        fechaNacimiento: this.formMozo.fechaNacimiento || null,
+        genero: this.formMozo.genero || '',
+        direccion: this.formMozo.direccion || '',
+        fotoUrl: this.formMozo.fotoUrl || '',
         activo: this.formMozo.activo,
         enTurno: this.formMozo.enTurno
       };

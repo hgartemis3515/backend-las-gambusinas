@@ -68,6 +68,11 @@ const mozosSchema = new mongoose.Schema({
     name: { type: String, required: true },
     DNI: { type: Number, required: true, min: 0 },
     phoneNumber: { type: Number, required: true, min: 0 },
+    fotoUrl: { type: String, default: '' },
+    email: { type: String, default: '' },
+    fechaNacimiento: { type: Date, default: null },
+    genero: { type: String, default: '' },
+    direccion: { type: String, default: '' },
     rol: { 
         type: String, 
         default: 'mozos',

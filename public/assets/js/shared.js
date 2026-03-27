@@ -261,16 +261,9 @@ async function loadComponents() {
     setActiveNav();
     initClock();
 
-    // Alpine: el sidebar/topbar se inyectan tras el primer pase; enlazar con el x-data del body
-    if (typeof window.Alpine !== 'undefined' && typeof Alpine.initTree === 'function') {
-      try {
-        if (topbarContainer) Alpine.initTree(topbarContainer);
-        if (sidebarContainer) Alpine.initTree(sidebarContainer);
-      } catch (e) {
-        console.warn('Alpine.initTree (layout):', e);
-      }
-    }
-    
+    // Alpine 3 observa mutaciones: al inyectar topbar/sidebar el árbol nuevo queda bajo el x-data del body.
+    // Un initTree manual aquí creaba un contexto aislado (pageTitle/activeNav undefined).
+
     // Re-inicializar iconos Lucide si está disponible
     if (typeof lucide !== 'undefined') {
       lucide.createIcons();

@@ -43,6 +43,11 @@ const actualizarMozo = async (id, newData) => {
         if (newData.name !== undefined) mozo.name = newData.name;
         if (newData.DNI !== undefined) mozo.DNI = newData.DNI;
         if (newData.phoneNumber !== undefined) mozo.phoneNumber = newData.phoneNumber;
+        if (newData.fotoUrl !== undefined) mozo.fotoUrl = newData.fotoUrl;
+        if (newData.email !== undefined) mozo.email = newData.email;
+        if (newData.fechaNacimiento !== undefined) mozo.fechaNacimiento = newData.fechaNacimiento;
+        if (newData.genero !== undefined) mozo.genero = newData.genero;
+        if (newData.direccion !== undefined) mozo.direccion = newData.direccion;
         if (newData.rol !== undefined) mozo.rol = newData.rol;
         if (newData.activo !== undefined) mozo.activo = newData.activo;
         if (newData.permisos !== undefined) mozo.permisos = newData.permisos;
