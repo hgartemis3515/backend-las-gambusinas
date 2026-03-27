@@ -293,6 +293,24 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       logger.debug('Mozo salió de room', { socketId: socket.id, mesaId, roomName });
     });
 
+    socket.on('join-mozo-personal', async (mozoId) => {
+      if (!mozoId) {
+        logger.warn('Intento de join-mozo-personal sin mozoId', { socketId: socket.id });
+        return;
+      }
+      const roomName = `mozo-${mozoId}`;
+      socket.join(roomName);
+      logger.debug('Mozo se unió a room personal', { socketId: socket.id, mozoId, roomName });
+      socket.emit('joined-mozo-personal', { mozoId, roomName });
+    });
+
+    socket.on('leave-mozo-personal', (mozoId) => {
+      if (!mozoId) return;
+      const roomName = `mozo-${mozoId}`;
+      socket.leave(roomName);
+      logger.debug('Mozo salió de room personal', { socketId: socket.id, mozoId, roomName });
+    });
+
     // Heartbeat para detectar desconexión
     socket.on('heartbeat', () => {
       socket.emit('heartbeat-ack');
@@ -2147,5 +2165,247 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       });
     }
   };
+
+  // ========== FUNCIONES PARA EMITIR EVENTOS DE PROPINAS ==========
+
+  /**
+   * Emitir evento cuando se registra una propina
+   * @param {Object} propina - Propina registrada
+   */
+  global.emitPropinaRegistrada = async (propina) => {
+    try {
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      const eventData = {
+        propinaId: propina._id?.toString() || propina.propinaId,
+        propinaNumber: propina.propinaId,
+        mesaId: propina.mesaId?.toString() || propina.mesaId,
+        numMesa: propina.numMesa,
+        boucherId: propina.boucherId?.toString() || propina.boucherId,
+        mozoId: propina.mozoId?.toString() || propina.mozoId,
+        nombreMozo: propina.nombreMozo,
+        montoPropina: propina.montoPropina,
+        tipo: propina.tipo,
+        boucherNumber: propina.boucherNumber,
+        nota: propina.nota,
+        timestamp: timestamp
+      };
+
+      // Emitir a namespace admin (dashboard)
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('propina-registrada', eventData);
+        logger.debug('Evento propina-registrada emitido a admin', {
+          propinaId: eventData.propinaId,
+          monto: eventData.montoPropina,
+          adminConnected: adminNamespace.sockets.size
+        });
+      }
+
+      // Emitir a namespace mozos (room del mozo específico)
+      if (mozosNamespace && mozosNamespace.sockets && propina.mozoId) {
+        const roomNameMozo = `mozo-${propina.mozoId}`;
+        mozosNamespace.to(roomNameMozo).emit('propina-registrada', eventData);
+        logger.debug('Evento propina-registrada emitido a room de mozo', {
+          propinaId: eventData.propinaId,
+          roomNameMozo,
+          mozosConnected: mozosNamespace.sockets.size
+        });
+      }
+
+      logger.info('Evento propina-registrada emitido', {
+        propinaId: eventData.propinaId,
+        mozoId: eventData.mozoId,
+        monto: eventData.montoPropina,
+        mesa: eventData.numMesa
+      });
+    } catch (error) {
+      logger.error('Error al emitir propina-registrada', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  };
+
+  /**
+   * Emitir evento cuando se actualiza una propina
+   * @param {Object} propina - Propina actualizada
+   */
+  global.emitPropinaActualizada = async (propina) => {
+    try {
+      if (!adminNamespace || !adminNamespace.sockets) {
+        return;
+      }
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      const eventData = {
+        propinaId: propina._id?.toString() || propina.propinaId,
+        mozoId: propina.mozoId?.toString() || propina.mozoId,
+        nombreMozo: propina.nombreMozo,
+        montoPropina: propina.montoPropina,
+        tipo: propina.tipo,
+        boucherId: propina.boucherId?.toString() || propina.boucherId,
+        timestamp: timestamp
+      };
+
+      adminNamespace.emit('propina-actualizada', eventData);
+
+      logger.info('Evento propina-actualizada emitido', {
+        propinaId: eventData.propinaId,
+        monto: eventData.montoPropina,
+        adminConnected: adminNamespace.sockets.size
+      });
+    } catch (error) {
+      logger.error('Error al emitir propina-actualizada', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  };
+
+  /**
+   * Propina eliminada (soft delete)
+   */
+  global.emitPropinaEliminada = async (propina) => {
+    try {
+      if (!adminNamespace || !adminNamespace.sockets) {
+        return;
+      }
+      const timestamp = moment().tz('America/Lima').toISOString();
+      const eventData = {
+        propinaId: propina._id?.toString() || propina.propinaId,
+        mozoId: propina.mozoId?.toString() || propina.mozoId,
+        nombreMozo: propina.nombreMozo,
+        boucherId: propina.boucherId?.toString() || propina.boucherId,
+        activo: false,
+        timestamp
+      };
+      adminNamespace.emit('propina-eliminada', eventData);
+      logger.info('Evento propina-eliminada emitido', {
+        propinaId: eventData.propinaId,
+        adminConnected: adminNamespace.sockets.size
+      });
+    } catch (error) {
+      logger.error('Error al emitir propina-eliminada', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  };
+
+  /**
+   * Emitir actualización de rendimiento de mozo (ventas y propinas)
+   * @param {String} mozoId - ID del mozo
+   * @param {Object} datos - { ventasHoy, propinasHoy, mesasAtendidas }
+   */
+  global.emitMozoRendimientoUpdate = async (mozoId, datos = {}) => {
+    try {
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      const eventData = {
+        mozoId: mozoId?.toString(),
+        ventasHoy: datos.ventasHoy || 0,
+        propinasHoy: datos.propinasHoy || 0,
+        mesasAtendidas: datos.mesasAtendidas || 0,
+        promedioPropina: datos.promedioPropina || 0,
+        timestamp: timestamp
+      };
+
+      // Emitir a admin
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('mozo-rendimiento-update', eventData);
+      }
+
+      // Emitir al mozo específico
+      if (mozosNamespace && mozosNamespace.sockets && mozoId) {
+        const roomNameMozo = `mozo-${mozoId}`;
+        mozosNamespace.to(roomNameMozo).emit('mozo-rendimiento-update', eventData);
+      }
+
+      logger.info('Evento mozo-rendimiento-update emitido', {
+        mozoId: eventData.mozoId,
+        propinasHoy: eventData.propinasHoy,
+        ventasHoy: eventData.ventasHoy
+      });
+    } catch (error) {
+      logger.error('Error al emitir mozo-rendimiento-update', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  };
+
+  /**
+   * Emitir lista de mozos conectados
+   * @param {Object} datos - { conectados, total, mozos }
+   */
+  global.emitMozosConectados = async (datos = {}) => {
+    try {
+      if (!adminNamespace || !adminNamespace.sockets) {
+        return;
+      }
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      const eventData = {
+        conectados: datos.conectados || 0,
+        total: datos.total || 0,
+        mozos: datos.mozos || [],
+        timestamp: timestamp
+      };
+
+      adminNamespace.emit('mozos-conectados', eventData);
+
+      logger.info('Evento mozos-conectados emitido', {
+        conectados: eventData.conectados,
+        total: eventData.total,
+        adminConnected: adminNamespace.sockets.size
+      });
+    } catch (error) {
+      logger.error('Error al emitir mozos-conectados', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  };
+
+  /**
+   * Emitir alerta de propina inusualmente alta
+   * @param {String} mozoId - ID del mozo
+   * @param {Number} monto - Monto de la propina
+   * @param {Number} porcentajeDelPromedio - Porcentaje respecto al promedio
+   */
+  global.emitAlertaPropinaAlta = async (mozoId, monto, porcentajeDelPromedio) => {
+    try {
+      if (!adminNamespace || !adminNamespace.sockets) {
+        return;
+      }
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      const eventData = {
+        mozoId: mozoId?.toString(),
+        monto: monto,
+        porcentajeDelPromedio: porcentajeDelPromedio,
+        mensaje: `Propina de S/ ${monto.toFixed(2)} es ${porcentajeDelPromedio.toFixed(0)}% mayor al promedio`,
+        timestamp: timestamp
+      };
+
+      adminNamespace.emit('alerta-propina-alta', eventData);
+
+      logger.info('Evento alerta-propina-alta emitido', {
+        mozoId: eventData.mozoId,
+        monto: eventData.monto,
+        porcentajeDelPromedio: eventData.porcentajeDelPromedio,
+        adminConnected: adminNamespace.sockets.size
+      });
+    } catch (error) {
+      logger.error('Error al emitir alerta-propina-alta', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  };
+
 };
 

@@ -1,6 +1,7 @@
 const CierreCaja = require('../database/models/cierreCaja.model');
 const Boucher = require('../database/models/boucher.model');
 const Mozos = require('../database/models/mozos.model');
+const Propina = require('../database/models/propina.model');
 const moment = require('moment-timezone');
 
 /**
@@ -69,6 +70,18 @@ class CierreCajaRepository {
         // Si hay propinas o descuentos, agregarlos
         // TODO: Agregar campos propina y descuento al modelo Boucher si no existen
       });
+
+      const aggPropinas = await Propina.aggregate([
+        {
+          $match: {
+            mozoId: mozo._id,
+            activo: true,
+            fechaRegistro: { $gte: inicioDia, $lte: finDia }
+          }
+        },
+        { $group: { _id: null, total: { $sum: '$montoPropina' } } }
+      ]);
+      totalPropinas = Math.round(((aggPropinas[0] && aggPropinas[0].total) || 0) * 100) / 100;
       
       // 4. Crear cierre
       const cierre = new CierreCaja({

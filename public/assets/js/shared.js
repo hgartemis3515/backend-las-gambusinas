@@ -150,6 +150,7 @@ const sharedData = {
     mesas: { label: 'Mesas', icon: '🪑', href: '/mesas.html' },
     areas: { label: 'Áreas', icon: '🗺️', href: '/areas.html' },
     usuarios: { label: 'Usuarios', icon: '👤', href: '/usuarios.html' },
+    mozos: { label: 'Mozos', icon: '👥', href: '/mozos.html' },
     cocineros: { label: 'Cocineros', icon: '👨‍🍳', href: '/cocineros.html' },
     roles: { label: 'Roles', icon: '🔐', href: '/roles.html' },
     platos: { label: 'Platos', icon: '🍲', href: '/platos.html' },
@@ -259,6 +260,16 @@ async function loadComponents() {
     
     setActiveNav();
     initClock();
+
+    // Alpine: el sidebar/topbar se inyectan tras el primer pase; enlazar con el x-data del body
+    if (typeof window.Alpine !== 'undefined' && typeof Alpine.initTree === 'function') {
+      try {
+        if (topbarContainer) Alpine.initTree(topbarContainer);
+        if (sidebarContainer) Alpine.initTree(sidebarContainer);
+      } catch (e) {
+        console.warn('Alpine.initTree (layout):', e);
+      }
+    }
     
     // Re-inicializar iconos Lucide si está disponible
     if (typeof lucide !== 'undefined') {
@@ -310,7 +321,15 @@ async function apiGet(endpoint) {
       clearAuthAndRedirect();
       return null;
     }
-    return await res.json();
+    const text = await res.text();
+    if (!text || !text.trim()) return null;
+    try {
+      return JSON.parse(text);
+    } catch (parseErr) {
+      if (res.ok) console.warn('API respuesta no JSON:', endpoint, text.slice(0, 80));
+      else console.warn('API', res.status, endpoint, '(HTML o no JSON)');
+      return null;
+    }
   } catch (e) {
     console.error('API Error:', endpoint, e);
     // Notificar error de red

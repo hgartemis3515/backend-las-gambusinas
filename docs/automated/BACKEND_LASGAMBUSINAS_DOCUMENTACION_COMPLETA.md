@@ -41,6 +41,7 @@ Crear un ecosistema digital completo que permita:
 | Fecha        | Cambios                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Marzo 2026   | **Funcionalidad Juntar/Separar Mesas v2.8:** Nueva funcionalidad para combinar múltiples mesas en un grupo (usando la mesa de menor número como principal) y separarlas posteriormente. Modelo de datos actualizado con campos `esMesaPrincipal`, `mesaPrincipalId`, `mesasUnidas`, `fechaUnion`, `unidoPor`, `motivoUnion`, `nombreCombinado`. Nuevos endpoints `POST /api/mesas/juntar`, `POST /api/mesas/separar`, `GET /api/mesas/grupos`, `GET /api/mesas/:id/grupo`. Eventos Socket.io `mesas-juntadas` y `mesas-separadas`. Permiso `juntar-separar-mesas` para admin/supervisor. |
+| Marzo 2026   | **Sistema de Propinas para Mozos v1.0:** Nueva funcionalidad completa para gestión de propinas del personal de salón. Modelo `Propina` con campos para monto fijo y porcentaje, snapshots de datos históricos, y auditoría completa. Nuevos endpoints `/api/propinas/*` para CRUD y reportes. Página `public/mozos.html` en dashboard administrativo con KPIs de ventas y propinas, tabla de mozos con métricas en tiempo real, y gestión CRUD del personal. Integración con App Mozos para registro de propinas post-pago. Documentación completa en `docs/SISTEMA_PROPINAS_MOZOS_DOCUMENTACION.md`. |
 | Marzo 2026   | **Corrección de Finalización de Comanda v7.4.1:** Bug corregido donde al finalizar comanda completa no se actualizaba en tiempo real en App de Mozos. Ahora se emiten eventos `plato-actualizado` por cada plato (igual que finalizar plato individual), más `comanda-actualizada` y `comanda-finalizada`. Agregado listener `comanda-finalizada` en App de Mozos. |
 | Marzo 2026   | **Sistema de Finalización de Platos y Comandas v7.4:** Nueva sección completa documentando el flujo de finalización: diferencias entre finalizar plato individual vs comanda completa; endpoints `PUT /api/comanda/:id/plato/:platoId/finalizar` y `PUT /api/comanda/:id/finalizar`; eventos Socket.io emitidos (`plato-actualizado`, `comanda-finalizada`); impacto en App de Mozos (alertas, cambio de estado de mesa); funciones del repository y controller involucradas; identificación de funciones faltantes (`finalizarPlatosBatch()`, `reabrirPlato()`, `getTiemposPreparacion()`). |
 | Marzo 2026   | **Funcionalidad de Cocineros en Comandas v7.2.1:** Ampliación de la documentación del modelo Comanda con campos `procesandoPor` y `procesadoPor` a nivel de plato y comanda; endpoints de procesamiento (`PUT/DELETE /api/comanda/:id/plato/:platoId/procesando`, `PUT /api/comanda/:id/plato/:platoId/finalizar`); eventos Socket.io (`plato-procesando`, `plato-liberado`, `comanda-procesando`, `comanda-liberada`, `conflicto-procesamiento`); métricas de cocineros en cierre de caja; auditoría de platos dejados (`PLATO_DEJADO_COCINA`). |
@@ -89,6 +90,7 @@ Crear un ecosistema digital completo que permita:
 28. [Testing y Scripts](#testing-y-scripts)
 29. [Problemas Resueltos y Pendientes](#problemas-resueltos-y-pendientes)
 30. [Sugerencias y Mejoras Futuras](#sugerencias-y-mejoras-futuras)
+31. [Sistema de Propinas para Mozos](#sistema-de-propinas-para-mozos)
 
 ---
 
@@ -202,7 +204,8 @@ Backend-LasGambusinas/
 │   │       ├── historialComandas.model.js
 │   │       ├── sesionesUsuarios.model.js
 │   │       ├── configCocinero.model.js
-│   │       └── pedido.model.js
+│   │       ├── pedido.model.js
+│   │       └── propina.model.js          # Modelo para propinas de mozos
 │   ├── controllers/                   # Rutas Express (validación + llamada a repository + res.json)
 │   │   ├── comandaController.js
 │   │   ├── mesasController.js
@@ -220,7 +223,8 @@ Backend-LasGambusinas/
 │   │   ├── mensajesController.js
 │   │   ├── cocinerosController.js
 │   │   ├── pedidoController.js
-│   │   └── procesamientoController.js   # v7.1: Endpoints multi-cocinero
+│   │   ├── procesamientoController.js   # v7.1: Endpoints multi-cocinero
+│   │   └── propinaController.js          # Endpoints para gestión de propinas
 │   ├── repository/
 │   │   ├── comanda.repository.js
 │   │   ├── mesas.repository.js
@@ -232,7 +236,8 @@ Backend-LasGambusinas/
 │   │   ├── auditoria.repository.js
 │   │   ├── cierreCaja.repository.js
 │   │   ├── cocineros.repository.js
-│   │   └── pedido.repository.js
+│   │   ├── pedido.repository.js
+│   │   └── propina.repository.js         # Repository para propinas de mozos
 │   ├── socket/
 │   │   └── events.js                  # Namespaces /cocina, /mozos, /admin + funciones globales emit* + rooms por zona
 │   ├── middleware/
@@ -256,7 +261,7 @@ Backend-LasGambusinas/
 │   ├── index.html                     # Dashboard multi-página (GET /): Tailwind, Alpine.js, Chart.js, Socket.io; carga datos vía API
 │   ├── login.html                     # Login JWT (GET /login, GET /dashboard/login.html); usa /dashboard/assets/js/login.js
 │   ├── admin.html                     # Panel admin (GET /admin, sin JWT): Mesas, Áreas, Mozos, Platos, Comandas, Bouchers, Clientes, Reportes, Auditoría, Cierre de Caja
-│   ├── mesas.html, platos.html, comandas.html, bouchers.html, clientes.html, auditoria.html, cierre-caja.html, reportes.html, configuracion.html, areas.html, usuarios.html, roles.html, cocineros.html  # Páginas del dashboard multi-página
+│   ├── mesas.html, platos.html, comandas.html, bouchers.html, clientes.html, auditoria.html, cierre-caja.html, reportes.html, configuracion.html, areas.html, usuarios.html, roles.html, cocineros.html, mozos.html  # Páginas del dashboard multi-página
 │   ├── assets/
 │   │   ├── components/
 │   │   │   ├── cosmos-searchbar.html  # Componente de búsqueda Command Palette
@@ -458,6 +463,7 @@ Todas las rutas bajo `/api`. Los controladores exportan routers con rutas relati
 | Notificaciones          | `/notificaciones`    | GET, PATCH :id/leida, PATCH leidas                                                                                                                                                                                                                                                                                                                                                                                                  |
 | Mensajes                | `/mensajes`          | GET mensajes-no-leidos                                                                                                                                                                                                                                                                                                                                                                                                              |
 | Cocineros               | `/cocineros`         | GET, GET :id, GET :id/config, PUT :id/config, POST :id/asignar-rol, POST :id/quitar-rol, GET :id/metricas, GET metricas/todos, POST :id/conexion                                                                                                                                                                                                                                                                                    |
+| Propinas                | `/propinas`          | POST, GET, GET :id, GET mesa/:mesaId, GET mozo/:mozoId, GET resumen/dia, GET mozos-dashboard, PUT :id, DELETE :id                                                                                                                                                                                                                                                                                                                   |
 | Procesamiento (v7.2.1)  | `/comanda`           | PUT :id/plato/:platoId/procesando, DELETE :id/plato/:platoId/procesando, PUT :id/plato/:platoId/finalizar, PUT :id/procesando, DELETE :id/procesando                                                                                                                                                                                                                                                                                |
 
 
@@ -2636,6 +2642,117 @@ Generar PDFs/Excel con:
 
 ---
 
+## 💰 Sistema de Propinas para Mozos
+
+**Versión:** 1.0  
+**Documentación completa:** `docs/SISTEMA_PROPINAS_MOZOS_DOCUMENTACION.md`
+
+### Descripción General
+
+El Sistema de Propinas permite registrar y gestionar las propinas recibidas por el personal de salón. Se activa después de que una mesa es pagada (estado "pagado") y soporta múltiples tipos de propina.
+
+### Modelo de Datos
+
+**Colección:** `propinas`
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `propinaId` | Number | ID auto-incremental |
+| `mesaId` | ObjectId | Referencia a la mesa |
+| `numMesa` | Number | Snapshot del número de mesa |
+| `boucherId` | ObjectId | Referencia al boucher |
+| `boucherNumber` | Number | Snapshot del número de boucher |
+| `mozoId` | ObjectId | Mozo que recibe la propina |
+| `nombreMozo` | String | Snapshot del nombre |
+| `montoPropina` | Number | Monto final calculado |
+| `tipo` | String | "monto", "porcentaje" o "ninguna" |
+| `montoFijo` | Number | Si tipo = "monto" |
+| `porcentaje` | Number | Si tipo = "porcentaje" (0-100) |
+| `totalBoucher` | Number | Total sobre el que se calculó |
+| `nota` | String | Nota opcional (max 200 chars) |
+| `fechaRegistro` | Date | Timestamp de registro |
+| `registradoPor` | ObjectId | Usuario que registró |
+| `activo` | Boolean | Soft delete |
+
+### Índices
+
+```javascript
+{ mozoId: 1, fechaRegistro: -1 }  // Reportes por mozo
+{ mesaId: 1, fechaRegistro: -1 }  // Historial por mesa
+{ boucherId: 1 }                   // Relación con boucher
+{ fechaRegistro: -1 }              // Listado general
+{ activo: 1, fechaRegistro: -1 }   // Filtrar activos
+```
+
+### Endpoints API REST
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/api/propinas` | Crear nueva propina |
+| GET | `/api/propinas` | Listar con filtros |
+| GET | `/api/propinas/:id` | Obtener por ID |
+| GET | `/api/propinas/mesa/:mesaId` | Propinas de una mesa |
+| GET | `/api/propinas/mozo/:mozoId` | Propinas de un mozo |
+| GET | `/api/propinas/resumen/dia` | Resumen del día |
+| GET | `/api/propinas/mozos-dashboard` | Datos para dashboard |
+| PUT | `/api/propinas/:id` | Actualizar propina |
+| DELETE | `/api/propinas/:id` | Eliminar (soft delete) |
+
+### Validaciones
+
+- ✅ Mesa debe estar en estado "pagado"
+- ✅ Mozo, mesa y boucher deben existir
+- ✅ Porcentaje entre 0 y 100
+- ✅ Monto no negativo
+
+### Página Dashboard: `mozos.html`
+
+**Ubicación:** `public/mozos.html`
+
+**Características:**
+- KPIs: Total Mozos, Activos, En Turno, Ventas Hoy, Top Mozo
+- Tabla con métricas por mozo
+- Filtros por nombre, DNI, estado y turno
+- Modal crear/editar mozo
+- Modal detalle con estadísticas
+
+### Integración con App Mozos
+
+El flujo post-pago incluye la opción de registrar propina:
+
+1. Mozo genera boucher → mesa estado "pagado"
+2. Modal opciones post-pago: [Imprimir] [Liberar Mesa] **[Registrar Propina]**
+3. Modal propina con opciones: Sin propina | Monto fijo | Porcentaje (10%, 15%, 20%)
+4. POST `/api/propinas` → evento Socket `propina-registrada`
+5. Dashboard actualizado en tiempo real
+
+### Eventos WebSocket
+
+**Namespace `/mozos`:**
+- `propina-registrada` → Emitido al registrar propina
+
+**Namespace `/admin`:**
+- `propina-registrada` → Actualizar contadores
+- `mozos-conectados` → Lista de mozos online
+- `mozo-rendimiento-update` → Métricas actualizadas
+
+### Integración con Reportes
+
+- **GET /api/reportes/mozos-performance** incluye `propinasTotal`, `promedioPropina`, `porcentajePropinaVsVentas`
+- **Cierre de caja** incluye sección de propinas por mozo
+- **PDF de cierre** muestra desglose de propinas
+
+### Archivos del Sistema
+
+| Archivo | Propósito |
+|---------|-----------|
+| `src/database/models/propina.model.js` | Modelo Mongoose |
+| `src/repository/propina.repository.js` | Lógica de datos |
+| `src/controllers/propinaController.js` | Endpoints REST |
+| `public/mozos.html` | Página dashboard |
+
+---
+
 ## 📚 Referencias Cruzadas
 
 - **DIAGRAMA_FLUJO_DATOS_Y_FUNCIONES.md:** Arquitectura global, endpoints detallados, modelos, reglas de negocio, WebSockets, FASE 5/6/7.
@@ -2647,6 +2764,7 @@ Generar PDFs/Excel con:
 *Documento generado para el proyecto Las Gambusinas — Backend Node.js/Express/MongoDB/Socket.io. Versión 2.10, marzo 2026.*
 
 **Incluye:**
+- Sistema de Propinas para Mozos v1.0: gestión completa de propinas con modelo Propina, endpoints API REST, página mozos.html en dashboard, integración con App Mozos
 - Corrección v7.4.1: Al finalizar comanda se emiten eventos plato-actualizado por cada plato (sincronización en tiempo real con App de Mozos)
 - Sistema de Finalización de Platos y Comandas v7.4 (documentación completa de endpoints, eventos Socket.io, impacto entre aplicaciones)
 - Sistema Multi-Cocinero v7.2.1 (identificación de cocinero en procesamiento, auditoría de platos dejados)
