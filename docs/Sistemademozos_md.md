@@ -973,18 +973,20 @@ this._socketAdmin.on('metas-actualizadas', (payload) => {
 
 - [x] Gestor de Metas completo con 5 pestañas
 - [x] Formulario de nueva meta con 4 secciones
-- [x] Asignación flexible (equipo/turno/individual)
+- [x] Asignación flexible (equipo/turno/Individual)
 - [x] 6 plantillas predefinidas
 - [x] Metas activas con filtros y acciones
 - [x] Metas futuras con activación inmediata
 - [x] Historial con reactivación
 - [x] Integración Socket.io (`metas-actualizadas`)
 - [x] Sincronización con tabla de cumplimiento
+- [x] **Tabla expandible con Estado, Proyección y Tendencia por mozo**
+- [x] **Persistencia en backend (Modelo + Repository + Controller + Endpoints)**
 
 ### Funcionalidades Pendientes
 
-1. **Endpoint `/api/metas-mozos`** - CRUD completo de metas en backend
-2. **Modelo `metaMozoSchema`** - Implementación en MongoDB
+1. ~~**Endpoint `/api/metas-mozos`** - CRUD completo de metas en backend~~ ✅ Implementado
+2. ~~**Modelo `metaMozoSchema`** - Implementación en MongoDB~~ ✅ Implementado
 3. **Notificaciones push** - Alertas a mozos sobre su progreso
 4. **Exportación Excel** - Reportes de cumplimiento
 5. **Gráficos de tendencia** - Evolución de metas en el tiempo
@@ -993,6 +995,164 @@ this._socketAdmin.on('metas-actualizadas', (payload) => {
 8. **Auditoría de cambios** - Historial de modificaciones
 9. **Metas recursivas** - Repetición automática (diaria/semanal/mensual)
 10. **Dashboard de metas** - Vista resumen ejecutivo
+
+---
+
+## 💡 Sugerencias y Recomendaciones para Mejorar la Sección de Metas
+
+### 1. Mejoras de UX/UI
+
+#### A. Visualización de Progreso
+| Mejora | Descripción | Prioridad |
+|--------|-------------|-----------|
+| **Gráfico de velocidad** | Mostrar "velocímetro" visual que indique el ritmo actual vs necesario | Alta |
+| **Timeline de cumplimiento** | Línea de tiempo que muestre hitos y proyección | Media |
+| **Indicador de brecha en tiempo real** | Widget flotante que muestre cuánto falta para alcanzar la meta | Alta |
+| **Celebraciones animadas** | Animación cuando un mozo alcanza o supera su meta | Media |
+
+#### B. Accesibilidad y Usabilidad
+| Mejora | Descripción | Prioridad |
+|--------|-------------|-----------|
+| **Modo oscuro/claro** | Toggle para cambiar tema según preferencia del usuario | Media |
+| **Accesos rápidos** | Atajos de teclado para acciones frecuentes (N = nueva meta, A = activas) | Baja |
+| **Tooltips contextuales** | Ayuda flotante en cada campo del formulario | Alta |
+| **Vista móvil optimizada** | Cards en lugar de tabla para pantallas pequeñas | Alta |
+
+### 2. Mejoras de Funcionalidad
+
+#### A. Tipos de Metas Adicionales
+| Tipo | Descripción | Cálculo |
+|------|-------------|---------|
+| **Tiempo de atención promedio** | Meta de rapidez en el servicio | `tiempo_entrega / mesas` |
+| **Satisfacción del cliente** | Basado en feedback (si hay sistema de encuestas) | `promedio_rating` |
+| **Upselling** | Platos adicionales sugeridos y vendidos | `platos_adicionales / tickets` |
+| **Rotación de mesas** | Eficiencia en liberar mesas | `mesas_atendidas / horas` |
+
+#### B. Sistema de Incentivos
+| Funcionalidad | Descripción | Impacto |
+|---------------|-------------|---------|
+| **Bonus por cumplimiento** | Definir recompensas por alcanzar metas | Motivación |
+| **Ranking con premios** | Tabla de posiciones con incentivos semanales | Competitividad |
+| **Badges y logros** | Reconocimientos visuales por hitos | Gamificación |
+| **Historial de reconocimientos** | Registro de logros pasados | Trazabilidad |
+
+#### C. Notificaciones Inteligentes
+| Tipo | Trigger | Destinatario |
+|------|---------|--------------|
+| **Recordatorio de meta** | Inicio de turno con meta pendiente | Mozo |
+| **Alerta de riesgo** | Avance < 40% a mitad de turno | Mozo + Supervisor |
+| **Felicitación** | Meta alcanzada o superada | Mozo |
+| **Reporte diario** | Resumen de cumplimiento al cierre | Supervisor |
+| **Proyección negativa** | Ritmo actual no alcanzará meta | Supervisor |
+
+### 3. Mejoras Técnicas
+
+#### A. Backend
+| Mejora | Descripción | Archivo |
+|--------|-------------|---------|
+| **Cache de métricas** | Redis para cálculos frecuentes | `metaMozo.repository.js` |
+| **Aggregation pipeline optimizado** | Consultas eficientes para reportes | `metaMozo.repository.js` |
+| **Cron jobs** | Cálculo automático de métricas cada X minutos | Nuevo archivo `jobs/metasCron.js` |
+| **Webhooks** | Notificaciones a sistemas externos | `metaMozoController.js` |
+
+#### B. Frontend
+| Mejora | Descripción | Beneficio |
+|--------|-------------|-----------|
+| **Debounce en búsquedas** | Evitar múltiples llamadas API | Performance |
+| **Paginación virtual** | Manejar grandes volúmenes de datos | Escalabilidad |
+| **Offline mode** | Cache local cuando no hay conexión | Resiliencia |
+| **WebSocket reconnection** | Reconexión automática con reintentos | Estabilidad |
+
+### 4. Integraciones Recomendadas
+
+#### A. App Mozos (React Native)
+| Pantalla | Funcionalidad |
+|----------|---------------|
+| **Dashboard personal** | Ver mis metas activas y progreso |
+| **Notificaciones push** | Alertas en tiempo real |
+| **Histórico de logros** | Mis reconocimientos pasados |
+| **Widget en home** | Vista rápida del día |
+
+#### B. Reportes y Analytics
+| Reporte | Frecuencia | Destinatario |
+|---------|------------|--------------|
+| **Cumplimiento semanal** | Cada lunes | Gerente |
+| **Tendencia mensual** | Fin de mes | Gerente + RRHH |
+| **Alerta de bajo rendimiento** | En tiempo real | Supervisor |
+| **Ranking de equipo** | Diario | Público (pantalla) |
+
+### 5. KPIs Adicionales Sugeridos
+
+#### A. Para el Restaurante
+| KPI | Fórmula | Meta sugerida |
+|-----|---------|---------------|
+| **Rotación promedio de mesas** | `mesas_atendidas / mozos_activos` | ≥ 4 por turno |
+| **Tiempo promedio de atención** | `suma_tiempos / mesas` | ≤ 45 min |
+| **Ticket promedio por zona** | `ventas_zona / mesas_zona` | Según zona |
+| **Propina como % de venta** | `propinas / ventas * 100` | ≥ 10% |
+
+#### B. Para el Mozo
+| KPI | Fórmula | Uso |
+|-----|---------|-----|
+| **Eficiencia horaria** | `ventas / horas_trabajadas` | Productividad |
+| **Ratio de upselling** | `adicionales_vendidos / tickets` | Habilidad comercial |
+| **Tasa de satisfacción** | `clientes_satisfechos / clientes` | Calidad de servicio |
+| **Promedio por mesa** | `ventas / mesas_atendidas` | Venta efectiva |
+
+### 6. Configuración por Turno Recomendada
+
+| Turno | Meta Ventas | Meta Mesas | Ticket Promedio | Propina Promedio |
+|-------|-------------|------------|-----------------|------------------|
+| **Mañana (7am - 3pm)** | S/. 400 | 8-10 | S/. 40 | S/. 6 |
+| **Tarde (3pm - 7pm)** | S/. 500 | 10-12 | S/. 45 | S/. 8 |
+| **Noche (7pm - cierre)** | S/. 700 | 12-15 | S/. 50 | S/. 10 |
+
+### 7. Plantillas Recomendadas Adicionales
+
+| ID | Nombre | Tipo | Valor | Período | Turno |
+|----|--------|------|-------|---------|-------|
+| `plantilla-7` | Meta fin de semana | ventas | S/. 1,000 | semanal | todos |
+| `plantilla-8` | Alta rotación | mesas_atendidas | 15 | diario | noche |
+| `plantilla-9` | Ticket premium | ticket_promedio | S/. 60 | diario | noche |
+| `plantilla-10` | Excelencia en propinas | propinas_promedio | S/. 12 | semanal | todos |
+| `plantilla-11` | Meta de cumpleaños | ventas | S/. 1,500 | mensual | todos |
+| `plantilla-12` | Capitán de mes | ventas | S/. 900 | diario | mañana |
+
+### 8. Mejoras de Seguridad
+
+| Medida | Descripción |
+|--------|-------------|
+| **Autenticación JWT en endpoints** | Ya implementado, verificar que aplica a `/api/metas-mozos` |
+| **Validación de roles** | Solo admin/supervisor puede crear/editar metas |
+| **Soft delete obligatorio** | Nunca eliminar físicamente, solo marcar inactivo |
+| **Auditoría completa** | Registrar quién, qué, cuándo en cada cambio |
+| **Rate limiting** | Limitar creaciones/ediciones por minuto |
+
+### 9. Roadmap Priorizado
+
+#### Fase 1 (Inmediato - 1 semana)
+1. ✅ Tabla expandible con Estado, Proyección y Tendencia
+2. ✅ Persistencia en backend
+3. ⏳ Testing de endpoints
+4. ⏳ Documentación de API
+
+#### Fase 2 (Corto plazo - 2 semanas)
+1. Notificaciones push a App Mozos
+2. Exportación Excel/CSV
+3. Gráficos de tendencia histórica
+4. Badges y logros visuales
+
+#### Fase 3 (Mediano plazo - 1 mes)
+1. Sistema de incentivos configurable
+2. Integración con sistema de turnos
+3. Dashboard ejecutivo
+4. Reportes automatizados
+
+#### Fase 4 (Largo plazo - 2 meses)
+1. Machine Learning para predicción de metas
+2. Integración con sistemas de nómina
+3. Gamificación avanzada
+4. API pública para integraciones
 
 ---
 

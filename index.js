@@ -42,6 +42,8 @@ const reservaRoutes = require('./src/controllers/reservaController')
 const timeoutService = require('./src/services/timeoutService')
 // PROPINAS: Controller para gestión de propinas de mozos
 const propinaRoutes = require('./src/controllers/propinaController')
+// METAS MOZOS: Controller para gestión de metas de mozos
+const metasMozosRoutes = require('./src/controllers/metaMozoController')
 const { adminAuth } = require('./src/middleware/adminAuth')
 
 const app = express();
@@ -113,7 +115,7 @@ app.use(cors({
 }));
 
 // propinaRoutes cerca del inicio: evita que otra ruta genérica intercepte /propinas/*
-const routes = [mesasRoutes, mozosRoutes, propinaRoutes, platoRoutes, comandaRoutes, pedidoRoutes, areaRoutes, boucherRoutes, clientesRoutes, auditoriaRoutes, cierreCajaRoutes, cierreCajaRestauranteRoutes, adminRoutes, notificacionesRoutes, mensajesRoutes, reportesRoutes, rolesRoutes, configuracionRoutes, cocinerosRoutes, zonaRoutes, procesamientoRoutes, reservaRoutes];
+const routes = [mesasRoutes, mozosRoutes, propinaRoutes, metasMozosRoutes, platoRoutes, comandaRoutes, pedidoRoutes, areaRoutes, boucherRoutes, clientesRoutes, auditoriaRoutes, cierreCajaRoutes, cierreCajaRestauranteRoutes, adminRoutes, notificacionesRoutes, mensajesRoutes, reportesRoutes, rolesRoutes, configuracionRoutes, cocinerosRoutes, zonaRoutes, procesamientoRoutes, reservaRoutes];
 
 // FASE 7: Security Headers (Helmet.js)
 const helmet = require('helmet');

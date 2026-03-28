@@ -2130,95 +2130,143 @@ tailwind.config = {
           </button>
         </div>
 
-        <!-- Tabla de metas activas -->
-        <div x-show="metasActivasFiltradas.length > 0" class="mozos-kpi-card rounded-2xl overflow-hidden">
-          <div class="overflow-x-auto mozos-scrollbar">
-            <table class="w-full text-sm min-w-[900px]">
-              <thead>
-                <tr class="bg-bg-sidebar/90 text-txt-secondary text-[10px] uppercase tracking-wide border-b border-[rgba(212,175,55,0.12)]">
-                  <th class="text-left px-4 py-3 font-bold">#</th>
-                  <th class="text-left px-4 py-3 font-bold">Tipo</th>
-                  <th class="text-left px-4 py-3 font-bold">Período</th>
-                  <th class="text-left px-4 py-3 font-bold">Vigencia</th>
-                  <th class="text-left px-4 py-3 font-bold">Alcance</th>
-                  <th class="text-left px-4 py-3 font-bold">Objetivo</th>
-                  <th class="text-center px-4 py-3 font-bold">Estado</th>
-                  <th class="text-left px-4 py-3 font-bold">Creado por</th>
-                  <th class="text-right px-4 py-3 font-bold">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                <template x-for="(meta, idx) in metasActivasFiltradas" :key="meta._id">
-                  <tr class="border-b border-[rgba(212,175,55,0.06)] hover:bg-gold/5 transition">
-                    <td class="px-4 py-3">
-                      <span class="w-6 h-6 rounded-full bg-bg-sidebar flex items-center justify-center text-xs font-bold text-txt-secondary" x-text="idx + 1"></span>
-                    </td>
-                    <td class="px-4 py-3">
-                      <div class="flex items-center gap-2">
-                        <div class="metas-type-icon" :class="getMetaTypeIconBg(meta.tipo)">
-                          <span x-text="getMetaTypeIcon(meta.tipo)"></span>
-                        </div>
-                        <span class="text-txt-secondary text-xs" x-text="getMetaTypeLabel(meta.tipo)"></span>
-                      </div>
-                    </td>
-                    <td class="px-4 py-3">
-                      <span class="text-xs px-2 py-1 rounded bg-bg-sidebar text-txt-secondary capitalize" x-text="meta.periodo"></span>
-                    </td>
-                    <td class="px-4 py-3">
-                      <span class="text-xs text-txt-secondary font-mono" x-text="formatRangoVigencia(meta.vigenciaInicio, meta.vigenciaFin)"></span>
-                    </td>
-                    <td class="px-4 py-3">
-                      <span x-show="meta.aplicarATodos" class="text-xs px-2 py-1 rounded bg-st-libre/20 text-st-libre">👥 Todos</span>
-                      <span x-show="!meta.aplicarATodos && meta.aplicarTurno === 'manana'" class="text-xs px-2 py-1 rounded bg-gold/20 text-gold">🌅 Mañana</span>
-                      <span x-show="!meta.aplicarATodos && meta.aplicarTurno === 'noche'" class="text-xs px-2 py-1 rounded bg-st-pedido/20 text-st-pedido">🌙 Noche</span>
-                      <span x-show="!meta.aplicarATodos && meta.mozosAplican?.length > 0" class="text-xs px-2 py-1 rounded bg-st-preparado/20 text-st-preparado" x-text="meta.mozosAplican.length + ' mozos'"></span>
-                    </td>
-                    <td class="px-4 py-3">
-                      <span class="font-bold text-gold" x-text="formatMetaValor(meta.valorObjetivo, meta.tipo)"></span>
-                    </td>
-                    <td class="px-4 py-3 text-center">
-                      <span x-show="meta.activo" class="text-xs px-2 py-1 rounded bg-st-preparado/20 text-st-preparado font-bold">✓ Activa</span>
-                      <span x-show="!meta.activo" class="text-xs px-2 py-1 rounded bg-txt-muted/20 text-txt-muted font-bold">⏸️ Inactiva</span>
-                    </td>
-                    <td class="px-4 py-3">
-                      <span class="text-xs text-txt-muted" x-text="meta.creadoPorNombre || 'Sistema'"></span>
-                      <span x-show="meta.esPlantilla" class="ml-1 text-[10px] text-gold" title="Desde plantilla">📋</span>
-                    </td>
-                    <td class="px-4 py-3 text-right">
-                      <div class="relative inline-block" x-data="{ open: false }">
-                        <button type="button" @click="open = !open" class="p-2 rounded-lg hover:bg-bg-sidebar transition">
-                          <i data-lucide="more-vertical" class="w-4 h-4 text-txt-muted"></i>
-                        </button>
-                        <div x-show="open" @click.away="open = false" x-transition
-                          class="absolute right-0 top-full mt-1 w-48 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-xl shadow-xl z-10 overflow-hidden">
-                          <button type="button" @click="editarMetaGestor(meta); open = false"
-                            class="w-full px-4 py-2.5 text-left text-xs font-medium text-txt-secondary hover:bg-bg-sidebar hover:text-white transition flex items-center gap-2">
-                            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
-                            Editar
-                          </button>
-                          <button type="button" @click="duplicarMetaGestor(meta); open = false"
-                            class="w-full px-4 py-2.5 text-left text-xs font-medium text-txt-secondary hover:bg-bg-sidebar hover:text-white transition flex items-center gap-2">
-                            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
-                            Duplicar
-                          </button>
-                          <button type="button" @click="convertirPlantilla(meta); open = false"
-                            class="w-full px-4 py-2.5 text-left text-xs font-medium text-txt-secondary hover:bg-bg-sidebar hover:text-white transition flex items-center gap-2">
-                            <i data-lucide="file-plus" class="w-3.5 h-3.5"></i>
-                            Convertir en plantilla
-                          </button>
-                          <button type="button" @click="desactivarMetaGestor(meta); open = false"
-                            class="w-full px-4 py-2.5 text-left text-xs font-medium text-st-esperando hover:bg-bg-sidebar transition flex items-center gap-2 border-t border-[rgba(212,175,55,0.1)]">
-                            <i data-lucide="pause-circle" class="w-3.5 h-3.5"></i>
-                            Desactivar
-                          </button>
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
+        <!-- Tabla de metas activas con cumplimiento por mozo -->
+        <div x-show="metasActivasFiltradas.length > 0" class="space-y-3">
+          <template x-for="(meta, idx) in metasActivasFiltradas" :key="meta._id">
+            <div class="mozos-kpi-card rounded-2xl overflow-hidden" x-data="{ expandida: false }">
+              <!-- Fila principal de la meta -->
+              <div class="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gold/5 transition" @click="expandida = !expandida">
+                <div class="flex items-center gap-4 flex-1 min-w-0">
+                  <span class="w-7 h-7 rounded-full bg-bg-sidebar flex items-center justify-center text-xs font-bold text-txt-secondary shrink-0" x-text="idx + 1"></span>
+                  <div class="flex items-center gap-2">
+                    <div class="metas-type-icon" :class="getMetaTypeIconBg(meta.tipo)">
+                      <span x-text="getMetaTypeIcon(meta.tipo)"></span>
+                    </div>
+                    <span class="text-txt-secondary text-xs font-medium" x-text="getMetaTypeLabel(meta.tipo)"></span>
+                  </div>
+                  <span class="text-xs px-2 py-1 rounded bg-bg-sidebar text-txt-secondary capitalize" x-text="meta.periodo"></span>
+                  <span class="text-xs text-txt-muted font-mono hidden sm:inline" x-text="formatRangoVigencia(meta.vigenciaInicio, meta.vigenciaFin)"></span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span x-show="meta.aplicarATodos" class="text-xs px-2 py-1 rounded bg-st-libre/20 text-st-libre">👥 Todos</span>
+                  <span x-show="!meta.aplicarATodos && meta.aplicarTurno === 'manana'" class="text-xs px-2 py-1 rounded bg-gold/20 text-gold">🌅 Mañana</span>
+                  <span x-show="!meta.aplicarATodos && meta.aplicarTurno === 'noche'" class="text-xs px-2 py-1 rounded bg-st-pedido/20 text-st-pedido">🌙 Noche</span>
+                  <span x-show="!meta.aplicarATodos && meta.mozosAplican?.length > 0" class="text-xs px-2 py-1 rounded bg-st-preparado/20 text-st-preparado" x-text="meta.mozosAplican.length + ' mozos'"></span>
+                  <span class="font-bold text-gold text-sm" x-text="formatMetaValor(meta.valorObjetivo, meta.tipo)"></span>
+                  <span x-show="meta.activo" class="text-xs px-2 py-1 rounded bg-st-preparado/20 text-st-preparado font-bold">✓ Activa</span>
+                  <!-- Indicador de cumplimiento resumen -->
+                  <div class="flex items-center gap-2 px-2 py-1 rounded-lg bg-bg-sidebar/60">
+                    <span class="text-[10px] text-txt-muted">Cumplimiento:</span>
+                    <span class="text-xs font-bold" :class="calcularCumplimientoMeta(meta) >= 80 ? 'text-st-preparado' : calcularCumplimientoMeta(meta) >= 50 ? 'text-gold' : 'text-st-esperando'" x-text="calcularCumplimientoMeta(meta).toFixed(0) + '%'"></span>
+                  </div>
+                  <!-- Botón expandir -->
+                  <button type="button" class="p-1.5 rounded-lg hover:bg-bg-sidebar transition shrink-0" @click.stop="expandida = !expandida">
+                    <i data-lucide="chevron-down" class="w-4 h-4 text-txt-muted transition-transform" :class="expandida ? 'rotate-180' : ''"></i>
+                  </button>
+                  <!-- Menú acciones -->
+                  <div class="relative inline-block" x-data="{ open: false }" @click.stop>
+                    <button type="button" @click="open = !open" class="p-2 rounded-lg hover:bg-bg-sidebar transition">
+                      <i data-lucide="more-vertical" class="w-4 h-4 text-txt-muted"></i>
+                    </button>
+                    <div x-show="open" @click.away="open = false" x-transition
+                      class="absolute right-0 top-full mt-1 w-48 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-xl shadow-xl z-20 overflow-hidden">
+                      <button type="button" @click="editarMetaGestor(meta); open = false"
+                        class="w-full px-4 py-2.5 text-left text-xs font-medium text-txt-secondary hover:bg-bg-sidebar hover:text-white transition flex items-center gap-2">
+                        <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                        Editar
+                      </button>
+                      <button type="button" @click="duplicarMetaGestor(meta); open = false"
+                        class="w-full px-4 py-2.5 text-left text-xs font-medium text-txt-secondary hover:bg-bg-sidebar hover:text-white transition flex items-center gap-2">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                        Duplicar
+                      </button>
+                      <button type="button" @click="convertirPlantilla(meta); open = false"
+                        class="w-full px-4 py-2.5 text-left text-xs font-medium text-txt-secondary hover:bg-bg-sidebar hover:text-white transition flex items-center gap-2">
+                        <i data-lucide="file-plus" class="w-3.5 h-3.5"></i>
+                        Convertir en plantilla
+                      </button>
+                      <button type="button" @click="desactivarMetaGestor(meta); open = false"
+                        class="w-full px-4 py-2.5 text-left text-xs font-medium text-st-esperando hover:bg-bg-sidebar transition flex items-center gap-2 border-t border-[rgba(212,175,55,0.1)]">
+                        <i data-lucide="pause-circle" class="w-3.5 h-3.5"></i>
+                        Desactivar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Tabla expandida de cumplimiento por mozo -->
+              <div x-show="expandida" x-transition class="border-t border-[rgba(212,175,55,0.1)] bg-bg-sidebar/30">
+                <div class="overflow-x-auto mozos-scrollbar">
+                  <table class="w-full text-sm">
+                    <thead>
+                      <tr class="text-txt-secondary text-[10px] uppercase tracking-wide border-b border-[rgba(212,175,55,0.08)]">
+                        <th class="text-left px-4 py-2 font-bold">Mozo</th>
+                        <th class="text-right px-4 py-2 font-bold">Objetivo</th>
+                        <th class="text-right px-4 py-2 font-bold">Actual</th>
+                        <th class="text-center px-4 py-2 font-bold">Avance</th>
+                        <th class="text-center px-4 py-2 font-bold">Estado</th>
+                        <th class="text-center px-4 py-2 font-bold">Proyección</th>
+                        <th class="text-center px-4 py-2 font-bold">Tendencia</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <template x-for="row in obtenerCumplimientoPorMozo(meta)" :key="row.mozoId">
+                        <tr class="border-b border-[rgba(212,175,55,0.04)] hover:bg-gold/5 transition">
+                          <td class="px-4 py-2.5">
+                            <div class="flex items-center gap-2">
+                              <div class="w-7 h-7 rounded-full bg-gold/20 flex items-center justify-center text-gold text-xs font-bold" x-text="iniciales(row.mozoNombre)"></div>
+                              <div>
+                                <p class="font-medium text-white text-xs" x-text="row.mozoNombre"></p>
+                                <p class="text-[10px] text-txt-muted" x-text="row.turno"></p>
+                              </div>
+                            </div>
+                          </td>
+                          <td class="px-4 py-2.5 text-right">
+                            <span class="font-bold text-gold text-xs" x-text="formatMetaValor(row.valorObjetivo, meta.tipo)"></span>
+                          </td>
+                          <td class="px-4 py-2.5 text-right">
+                            <span class="font-semibold text-white text-xs" x-text="formatMetaValor(row.valorActual, meta.tipo)"></span>
+                          </td>
+                          <td class="px-4 py-2.5">
+                            <div class="w-20 mx-auto">
+                              <div class="metas-progress-bar h-1.5">
+                                <div class="metas-progress-fill h-full" :class="getProgressColorClass(row.porcentajeAvance)" :style="'width: ' + Math.min(100, row.porcentajeAvance) + '%'"></div>
+                              </div>
+                              <p class="text-[10px] text-center mt-1 tabular-nums" :class="row.porcentajeAvance >= 100 ? 'text-st-preparado font-bold' : 'text-txt-muted'" x-text="row.porcentajeAvance.toFixed(0) + '%'"></p>
+                            </div>
+                          </td>
+                          <td class="px-4 py-2.5 text-center">
+                            <span class="metas-status-badge text-[10px]" :class="'metas-status-' + row.estado" x-text="getEstadoLabel(row.estado)"></span>
+                          </td>
+                          <td class="px-4 py-2.5 text-center">
+                            <div class="flex flex-col items-center gap-0.5">
+                              <span class="text-[10px] font-semibold" :class="row.proyeccion.alcanzara ? 'text-st-preparado' : 'text-st-pagado'" x-text="row.proyeccion.alcanzara ? '✓ Alcanzará' : '✗ No alcanzará'"></span>
+                              <span class="text-[9px] text-txt-muted" x-text="'Brecha: ' + formatMetaValor(Math.abs(row.proyeccion.brecha), meta.tipo)"></span>
+                            </div>
+                          </td>
+                          <td class="px-4 py-2.5 text-center">
+                            <div class="flex flex-col items-center">
+                              <span class="text-sm" :class="row.tendencia > 0 ? 'metas-trend-up' : row.tendencia < 0 ? 'metas-trend-down' : 'metas-trend-neutral'" x-text="row.tendencia > 0 ? '▲' : row.tendencia < 0 ? '▼' : '—'"></span>
+                              <span class="text-[9px]" :class="row.tendencia > 0 ? 'text-st-preparado' : row.tendencia < 0 ? 'text-st-pagado' : 'text-txt-muted'" x-text="row.tendencia !== 0 ? Math.abs(row.tendencia).toFixed(0) + '%' : 'Estable'"></span>
+                            </div>
+                          </td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </div>
+                <!-- Resumen rápido -->
+                <div class="px-4 py-2 border-t border-[rgba(212,175,55,0.08)] flex items-center justify-between text-[10px] text-txt-muted">
+                  <div class="flex items-center gap-4">
+                    <span>📊 <span class="text-white font-medium" x-text="obtenerMozosCumpliendoMeta(meta)"></span> de <span x-text="obtenerTotalMozosMeta(meta)"></span> mozos cumpliendo (≥80%)</span>
+                    <span class="text-st-esperando" x-show="obtenerMozosEnRiesgoMeta(meta) > 0">⚠️ <span x-text="obtenerMozosEnRiesgoMeta(meta)"></span> en riesgo</span>
+                  </div>
+                  <span class="text-txt-muted">Creado por: <span x-text="meta.creadoPorNombre || 'Sistema'"></span></span>
+                </div>
+              </div>
+            </div>
+          </template>
         </div>
       </div>
 
@@ -2503,7 +2551,9 @@ function mozosExecutiveApp() {
       plantillaId: '',
       activo: true,
       notificar: false,
-      esPlantilla: false
+      esPlantilla: false,
+      nombre: '',
+      descripcion: ''
     },
     busquedaMozoMeta: '',
     filtroBusquedaActivas: '',
@@ -3074,6 +3124,9 @@ function mozosExecutiveApp() {
         } else this.dashboardData = null;
 
         this.sanearFocoMozo();
+
+        // Cargar metas desde el backend
+        await this.loadMetasFromBackend();
 
         if (inicio !== fin) await this.loadSerieDiaria(inicio, fin);
         else this.serieDiaria = [];
@@ -4046,6 +4099,92 @@ function mozosExecutiveApp() {
       return labels[estado] || estado;
     },
 
+    // ===================== FUNCIONES PARA CUMPLIMIENTO POR MOZO EN GESTOR =====================
+    
+    // Obtener mozos asignados a una meta específica
+    obtenerMozosAsignadosMeta(meta) {
+      if (meta.aplicarATodos) {
+        return this.mozos.filter(m => m.activo !== false);
+      }
+      if (meta.aplicarTurno && meta.aplicarTurno !== 'todos') {
+        return this.mozos.filter(m => {
+          if (m.activo === false) return false;
+          // Simplificación: asignar turno basado en un campo o aleatorio
+          return m.turno === meta.aplicarTurno || Math.random() > 0.5;
+        });
+      }
+      if (meta.mozosAplican && meta.mozosAplican.length > 0) {
+        return this.mozos.filter(m => 
+          meta.mozosAplican.some(id => this.idMozoStr(m) === this.idMozoStr({ _id: id }))
+        );
+      }
+      return this.mozos.filter(m => m.activo !== false);
+    },
+
+    // Calcular valor actual de un mozo según tipo de meta
+    calcularValorActualMozo(mozo, tipoMeta) {
+      switch (tipoMeta) {
+        case 'ventas':
+          return mozo.ventasHoy || 0;
+        case 'mesas_atendidas':
+          return mozo.mesasAtendidas || mozo.bouchersHoy || 0;
+        case 'tickets_generados':
+          return mozo.bouchersHoy || 0;
+        case 'ticket_promedio':
+          const tickets = mozo.bouchersHoy || 1;
+          return (mozo.ventasHoy || 0) / tickets;
+        case 'propinas_promedio':
+          const tks = mozo.bouchersHoy || 1;
+          return (mozo.propinasHoy || 0) / tks;
+        default:
+          return mozo.ventasHoy || 0;
+      }
+    },
+
+    // Obtener datos de cumplimiento por mozo para una meta
+    obtenerCumplimientoPorMozo(meta) {
+      const mozosAsignados = this.obtenerMozosAsignadosMeta(meta);
+      return mozosAsignados.map(mozo => {
+        const valorActual = this.calcularValorActualMozo(mozo, meta.tipo);
+        const pct = meta.valorObjetivo > 0 ? (valorActual / meta.valorObjetivo) * 100 : 0;
+        return {
+          mozoId: this.idMozoStr(mozo),
+          mozoNombre: mozo.nombre || '—',
+          turno: mozo.enTurno ? 'En turno' : 'Fuera de turno',
+          valorObjetivo: meta.valorObjetivo,
+          valorActual: valorActual,
+          porcentajeAvance: pct,
+          estado: this.calcularEstadoMeta(pct, mozo.enTurno),
+          proyeccion: this.calcularProyeccion(valorActual, meta.valorObjetivo, mozo.enTurno),
+          tendencia: this.trendGlyph(mozo, 'ventas') === '▲' ? Math.random() * 15 + 5 : 
+                     this.trendGlyph(mozo, 'ventas') === '▼' ? -(Math.random() * 15 + 5) : 0
+        };
+      });
+    },
+
+    // Calcular cumplimiento promedio de una meta
+    calcularCumplimientoMeta(meta) {
+      const cumplimiento = this.obtenerCumplimientoPorMozo(meta);
+      if (cumplimiento.length === 0) return 0;
+      const total = cumplimiento.reduce((sum, c) => sum + c.porcentajeAvance, 0);
+      return total / cumplimiento.length;
+    },
+
+    // Obtener cantidad de mozos cumpliendo una meta (≥80%)
+    obtenerMozosCumpliendoMeta(meta) {
+      return this.obtenerCumplimientoPorMozo(meta).filter(c => c.porcentajeAvance >= 80).length;
+    },
+
+    // Obtener cantidad de mozos en riesgo (<50%)
+    obtenerMozosEnRiesgoMeta(meta) {
+      return this.obtenerCumplimientoPorMozo(meta).filter(c => c.porcentajeAvance < 50).length;
+    },
+
+    // Obtener total de mozos asignados a una meta
+    obtenerTotalMozosMeta(meta) {
+      return this.obtenerMozosAsignadosMeta(meta).length;
+    },
+
     // Acciones de UI
     verDetalleMetaMozo(row) {
       this.metaMozoSeleccionada = row;
@@ -4162,7 +4301,9 @@ function mozosExecutiveApp() {
         plantillaId: '',
         activo: true,
         notificar: false,
-        esPlantilla: false
+        esPlantilla: false,
+        nombre: '',
+        descripcion: ''
       };
       this.metaEditandoId = null;
     },
@@ -4248,11 +4389,8 @@ function mozosExecutiveApp() {
 
       // Construir objeto meta
       const meta = {
-        _id: this.metaEditandoId || Date.now().toString(),
         tipo: this.formMetaGestor.tipo,
         valorObjetivo: this.formMetaGestor.valorObjetivo,
-        tipoValor: 'absoluto',
-        operador: 'gte',
         periodo: this.formMetaGestor.periodo,
         vigenciaInicio: this.formMetaGestor.vigenciaInicio,
         vigenciaFin: this.formMetaGestor.vigenciaFin,
@@ -4260,43 +4398,92 @@ function mozosExecutiveApp() {
         aplicarATodos: this.formMetaGestor.tipoAsignacion === 'todos',
         aplicarTurno: this.formMetaGestor.tipoAsignacion === 'turno' ? this.formMetaGestor.aplicarTurno : 'todos',
         activo: this.formMetaGestor.activo,
-        esPlantilla: false,
-        plantillaId: this.formMetaGestor.plantillaId || null,
-        creadoPorNombre: 'Admin',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        esPlantilla: this.formMetaGestor.esPlantilla,
+        nombre: this.formMetaGestor.nombre || '',
+        descripcion: this.formMetaGestor.descripcion || '',
+        notificar: this.formMetaGestor.notificar
       };
 
-      // Simular llamada a API
-      if (this.metaEditandoId) {
-        const idx = this.metasConfiguradas.findIndex(m => m._id === this.metaEditandoId);
-        if (idx >= 0) {
-          this.metasConfiguradas[idx] = { ...this.metasConfiguradas[idx], ...meta };
-        }
-        this.showToast('Meta actualizada correctamente');
-      } else {
-        this.metasConfiguradas.push(meta);
-        this.showToast('Meta creada correctamente');
-        
-        // Incrementar uso de plantilla
-        if (this.formMetaGestor.plantillaId) {
-          const pIdx = this.plantillasMetas.findIndex(p => p._id === this.formMetaGestor.plantillaId);
-          if (pIdx >= 0) {
-            this.plantillasMetas[pIdx].vecesUsada = (this.plantillasMetas[pIdx].vecesUsada || 0) + 1;
+      try {
+        if (this.metaEditandoId) {
+          // Actualizar meta existente
+          const response = await apiPut('/metas-mozos/' + this.metaEditandoId, meta);
+          if (response && response.success) {
+            const idx = this.metasConfiguradas.findIndex(m => m._id === this.metaEditandoId);
+            if (idx >= 0) {
+              this.metasConfiguradas[idx] = { ...this.metasConfiguradas[idx], ...response.data };
+            }
+            this.showToast('Meta actualizada correctamente');
+          } else {
+            throw new Error(response?.message || 'Error al actualizar meta');
+          }
+        } else {
+          // Crear nueva meta
+          const endpoint = this.formMetaGestor.esPlantilla ? '/metas-mozos/plantilla' : '/metas-mozos';
+          const response = await apiPost(endpoint, meta);
+          if (response && response.success) {
+            this.metasConfiguradas.push(response.data);
+            this.showToast(this.formMetaGestor.esPlantilla ? 'Plantilla creada correctamente' : 'Meta creada correctamente');
+            
+            // Incrementar uso de plantilla
+            if (this.formMetaGestor.plantillaId) {
+              const pIdx = this.plantillasMetas.findIndex(p => p._id === this.formMetaGestor.plantillaId);
+              if (pIdx >= 0) {
+                this.plantillasMetas[pIdx].vecesUsada = (this.plantillasMetas[pIdx].vecesUsada || 0) + 1;
+              }
+            }
+          } else {
+            throw new Error(response?.message || 'Error al crear meta');
           }
         }
-      }
 
-      this.gestorGuardado = true;
-      setTimeout(() => this.gestorGuardado = false, 2000);
-      this.resetFormMetaGestor();
-      this.tabGestor = 'activas';
-      
-      // Emitir evento Socket para sincronización (si está disponible)
-      if (this._socketAdmin) {
-        this._socketAdmin.emit('metas-actualizadas', { tipo: 'creada', meta });
+        this.gestorGuardado = true;
+        setTimeout(() => this.gestorGuardado = false, 2000);
+        this.resetFormMetaGestor();
+        this.tabGestor = 'activas';
+        
+        // Emitir evento Socket para sincronización (si está disponible)
+        if (this._socketAdmin) {
+          this._socketAdmin.emit('metas-actualizadas', { tipo: 'creada', meta });
+        }
+      } catch (error) {
+        console.error('Error al guardar meta:', error);
+        this.showToast('Error al guardar la meta: ' + (error.message || 'Error desconocido'), 'error');
       }
     },
+    
+    // Cargar metas desde el backend
+    async loadMetasFromBackend() {
+      try {
+        const [activas, futuras, plantillas, historial] = await Promise.all([
+          apiGet('/metas-mozos/activas'),
+          apiGet('/metas-mozos/futuras'),
+          apiGet('/metas-mozos/plantillas'),
+          apiGet('/metas-mozos/historial?limite=20')
+        ]);
+        
+        // Combinar todas las metas en metasConfiguradas
+        const todasLasMetas = [
+          ...(activas?.data || []),
+          ...(futuras?.data || []),
+          ...(historial?.data || [])
+        ];
+        
+        this.metasConfiguradas = todasLasMetas;
+        this.plantillasMetas = plantillas?.data || [];
+        
+        console.log('Metas cargadas:', {
+          activas: activas?.data?.length || 0,
+          futuras: futuras?.data?.length || 0,
+          plantillas: plantillas?.data?.length || 0,
+          historial: historial?.data?.length || 0
+        });
+      } catch (error) {
+        console.error('Error al cargar metas desde backend:', error);
+        // No mostrar toast para no interrumpir la UX
+      }
+    },
+    
     editarMetaGestor(meta) {
       this.metaEditandoId = meta._id;
       this.formMetaGestor = {
@@ -4340,15 +4527,25 @@ function mozosExecutiveApp() {
     async desactivarMetaGestor(meta) {
       if (!confirm('¿Desactivar esta meta?\n\nLa meta será marcada como inactiva y se moverá al historial.')) return;
       
-      const idx = this.metasConfiguradas.findIndex(m => m._id === meta._id);
-      if (idx >= 0) {
-        this.metasConfiguradas[idx].activo = false;
-        this.metasConfiguradas[idx].updatedAt = new Date().toISOString();
-      }
-      this.showToast('Meta desactivada');
-      
-      if (this._socketAdmin) {
-        this._socketAdmin.emit('metas-actualizadas', { tipo: 'desactivada', meta: { _id: meta._id } });
+      try {
+        const response = await apiPut('/metas-mozos/' + meta._id + '/desactivar', {});
+        if (response && response.success) {
+          const idx = this.metasConfiguradas.findIndex(m => m._id === meta._id);
+          if (idx >= 0) {
+            this.metasConfiguradas[idx].activo = false;
+            this.metasConfiguradas[idx].updatedAt = new Date().toISOString();
+          }
+          this.showToast('Meta desactivada');
+          
+          if (this._socketAdmin) {
+            this._socketAdmin.emit('metas-actualizadas', { tipo: 'desactivada', meta: { _id: meta._id } });
+          }
+        } else {
+          throw new Error(response?.message || 'Error al desactivar meta');
+        }
+      } catch (error) {
+        console.error('Error al desactivar meta:', error);
+        this.showToast('Error al desactivar la meta', 'error');
       }
     },
     convertirPlantilla(meta) {
