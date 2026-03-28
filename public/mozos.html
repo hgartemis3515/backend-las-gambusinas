@@ -2132,7 +2132,7 @@ tailwind.config = {
 
         <!-- Tabla de metas activas con cumplimiento por mozo -->
         <div x-show="metasActivasFiltradas.length > 0" class="space-y-3">
-          <template x-for="(meta, idx) in metasActivasFiltradas" :key="meta._id">
+          <template x-for="(meta, idx) in metasActivasFiltradas" :key="meta._id + '-' + idx">
             <div class="mozos-kpi-card rounded-2xl overflow-hidden" x-data="{ expandida: false }">
               <!-- Fila principal de la meta -->
               <div class="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gold/5 transition" @click="expandida = !expandida">
@@ -4228,9 +4228,10 @@ function mozosExecutiveApp() {
     get metasActivasGestor() {
       const hoy = new Date();
       return this.metasConfiguradas.filter(m => {
-        if (!m.activo) return false;
-        const inicio = new Date(m.vigenciaInicio);
-        const fin = new Date(m.vigenciaFin);
+        if (!m || !m.activo) return false;
+        const inicio = m.vigenciaInicio ? new Date(m.vigenciaInicio) : null;
+        const fin = m.vigenciaFin ? new Date(m.vigenciaFin) : null;
+        if (!inicio || !fin) return false;
         return inicio <= hoy && fin >= hoy;
       });
     },
@@ -4238,8 +4239,9 @@ function mozosExecutiveApp() {
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
       return this.metasConfiguradas.filter(m => {
-        if (!m.activo) return false;
-        const inicio = new Date(m.vigenciaInicio);
+        if (!m || !m.activo) return false;
+        const inicio = m.vigenciaInicio ? new Date(m.vigenciaInicio) : null;
+        if (!inicio) return false;
         inicio.setHours(0, 0, 0, 0);
         return inicio > hoy;
       });
@@ -4247,8 +4249,9 @@ function mozosExecutiveApp() {
     get metasHistorialGestor() {
       const hoy = new Date();
       return this.metasConfiguradas.filter(m => {
-        const fin = new Date(m.vigenciaFin);
-        return !m.activo || fin < hoy;
+        if (!m) return false;
+        const fin = m.vigenciaFin ? new Date(m.vigenciaFin) : null;
+        return !m.activo || (fin && fin < hoy);
       }).map(m => ({
         ...m,
         cumplimientoPct: Math.round(Math.random() * 40 + 60) // Mock para demo
@@ -4256,12 +4259,13 @@ function mozosExecutiveApp() {
     },
     get metasActivasFiltradas() {
       return this.metasActivasGestor.filter(m => {
+        if (!m) return false;
         if (this.filtroTipoActivas && m.tipo !== this.filtroTipoActivas) return false;
         if (this.filtroTurnoActivas && m.aplicarTurno !== this.filtroTurnoActivas) return false;
         if (this.filtroBusquedaActivas) {
           const search = this.filtroBusquedaActivas.toLowerCase();
           const matchTipo = this.getMetaTypeLabel(m.tipo).toLowerCase().includes(search);
-          const matchTurno = m.aplicarTurno?.toLowerCase().includes(search);
+          const matchTurno = (m.aplicarTurno || '').toLowerCase().includes(search);
           if (!matchTipo && !matchTurno) return false;
         }
         return true;
@@ -4462,21 +4466,33 @@ function mozosExecutiveApp() {
           apiGet('/metas-mozos/historial?limite=20')
         ]);
         
-        // Combinar todas las metas en metasConfiguradas
+        // Combinar todas las metas evitando duplicados por _id
         const todasLasMetas = [
           ...(activas?.data || []),
           ...(futuras?.data || []),
           ...(historial?.data || [])
         ];
         
-        this.metasConfiguradas = todasLasMetas;
+        // Filtrar duplicados por _id y asegurar que cada una tenga _id
+        const metasUnicas = [];
+        const idsVistos = new Set();
+        for (const meta of todasLasMetas) {
+          const id = meta._id || meta.metaId || `meta-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          if (!idsVistos.has(id)) {
+            idsVistos.add(id);
+            metasUnicas.push({ ...meta, _id: id });
+          }
+        }
+        
+        this.metasConfiguradas = metasUnicas;
         this.plantillasMetas = plantillas?.data || [];
         
         console.log('Metas cargadas:', {
           activas: activas?.data?.length || 0,
           futuras: futuras?.data?.length || 0,
           plantillas: plantillas?.data?.length || 0,
-          historial: historial?.data?.length || 0
+          historial: historial?.data?.length || 0,
+          unicas: metasUnicas.length
         });
       } catch (error) {
         console.error('Error al cargar metas desde backend:', error);
@@ -4573,19 +4589,56 @@ function mozosExecutiveApp() {
       }
       this.showToast('Meta activada para hoy');
     },
-    reactivarMeta(meta) {
-      const nuevaMeta = {
-        ...meta,
-        _id: Date.now().toString(),
-        vigenciaInicio: limaYMD(),
-        vigenciaFin: limaYMD(),
-        activo: true,
-        createdAt: new Date().toISOString()
-      };
-      delete nuevaMeta.cumplimientoPct;
-      this.metasConfiguradas.push(nuevaMeta);
-      this.showToast('Meta reactivada. Ajusta las fechas si es necesario.');
-      this.tabGestor = 'activas';
+    async reactivarMeta(meta) {
+      try {
+        // Primero intentar actualizar en el backend
+        const response = await apiPut('/metas-mozos/' + meta._id + '/activar', {});
+        
+        if (response && response.success) {
+          // Actualizar en el array local
+          const idx = this.metasConfiguradas.findIndex(m => m._id === meta._id);
+          if (idx >= 0) {
+            this.metasConfiguradas[idx] = {
+              ...this.metasConfiguradas[idx],
+              ...response.data,
+              activo: true
+            };
+            delete this.metasConfiguradas[idx].cumplimientoPct;
+          }
+          this.showToast('Meta reactivada correctamente');
+        } else {
+          // Si no existe en backend, actualizar solo localmente
+          const idx = this.metasConfiguradas.findIndex(m => m._id === meta._id);
+          if (idx >= 0) {
+            this.metasConfiguradas[idx] = {
+              ...this.metasConfiguradas[idx],
+              vigenciaInicio: limaYMD(),
+              vigenciaFin: limaYMD(),
+              activo: true,
+              updatedAt: new Date().toISOString()
+            };
+            delete this.metasConfiguradas[idx].cumplimientoPct;
+          }
+          this.showToast('Meta reactivada. Ajusta las fechas si es necesario.');
+        }
+        this.tabGestor = 'activas';
+      } catch (error) {
+        console.error('Error al reactivar meta:', error);
+        // Fallback: actualizar solo localmente
+        const idx = this.metasConfiguradas.findIndex(m => m._id === meta._id);
+        if (idx >= 0) {
+          this.metasConfiguradas[idx] = {
+            ...this.metasConfiguradas[idx],
+            vigenciaInicio: limaYMD(),
+            vigenciaFin: limaYMD(),
+            activo: true,
+            updatedAt: new Date().toISOString()
+          };
+          delete this.metasConfiguradas[idx].cumplimientoPct;
+        }
+        this.showToast('Meta reactivada localmente');
+        this.tabGestor = 'activas';
+      }
     },
     aplicarPlantillaGestor(plantilla) {
       this.formMetaGestor.plantillaId = plantilla._id;
