@@ -10,7 +10,6 @@
 <script src="https://unpkg.com/lucide@latest"></script>
 <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -948,13 +947,9 @@ tailwind.config = {
           <p class="text-xs text-txt-muted -mt-1">Define objetivos, monitorea cumplimiento y detecta oportunidades de mejora en tiempo real.</p>
         </div>
         <div class="flex flex-wrap gap-2">
-          <button type="button" @click="abrirModalNuevaMeta()" class="px-4 py-2 rounded-lg text-xs font-bold bg-gold text-bg-primary hover:brightness-110 transition flex items-center gap-2">
-            <i data-lucide="plus" class="w-4 h-4"></i>
-            Nueva meta
-          </button>
-          <button type="button" @click="abrirModalPlantillas()" class="px-4 py-2 rounded-lg text-xs font-bold border border-gold/30 text-gold hover:bg-gold/10 transition flex items-center gap-2">
-            <i data-lucide="copy" class="w-4 h-4"></i>
-            Plantillas
+          <button type="button" @click="abrirGestorMetas()" class="px-4 py-2 rounded-lg text-xs font-bold bg-gold text-bg-primary hover:brightness-110 transition flex items-center gap-2">
+            <i data-lucide="settings-2" class="w-4 h-4"></i>
+            Gestionar Metas
           </button>
         </div>
       </div>
@@ -1709,211 +1704,6 @@ tailwind.config = {
   </div>
 </div>
 
-<!-- MODAL NUEVA META -->
-<div x-show="modalNuevaMeta" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 mozos-modal-overlay" @click.self="cerrarModalNuevaMeta()">
-  <div class="bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-3xl w-full max-w-lg max-h-[85vh] shadow-2xl flex flex-col mozos-modal-container" @click.stop>
-    <div class="px-6 py-5 border-b border-[rgba(212,175,55,0.12)] shrink-0">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-gold/20 flex items-center justify-center">
-            <i data-lucide="target" class="w-5 h-5 text-gold"></i>
-          </div>
-          <div>
-            <h2 class="text-lg font-bold text-white">Nueva meta</h2>
-            <p class="text-xs text-txt-muted">Define un objetivo para el equipo</p>
-          </div>
-        </div>
-        <button type="button" @click="cerrarModalNuevaMeta()" class="mozos-close-btn">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
-      </div>
-    </div>
-    <div class="p-6 overflow-y-auto mozos-scrollbar flex-1 mozos-modal-section">
-      <form @submit.prevent="guardarMeta()" class="space-y-5">
-        <div>
-          <label class="mozos-label-premium" for="meta-tipo">
-            <i data-lucide="type" class="w-4 h-4"></i>
-            <span>Tipo de meta <span class="text-st-pagado">*</span></span>
-          </label>
-          <select id="meta-tipo" x-model="formMeta.tipo" class="mozos-input-premium">
-            <option value="ventas">Ventas del período</option>
-            <option value="mesas_atendidas">Mesas atendidas</option>
-            <option value="tickets_generados">Tickets generados</option>
-            <option value="ticket_promedio">Ticket promedio (mínimo)</option>
-            <option value="propinas_promedio">Propinas promedio (mínimo)</option>
-          </select>
-        </div>
-        <div>
-          <label class="mozos-label-premium" for="meta-valor">
-            <i data-lucide="hash" class="w-4 h-4"></i>
-            <span>Valor objetivo <span class="text-st-pagado">*</span></span>
-          </label>
-          <div class="flex gap-2">
-            <span x-show="formMeta.tipo === 'ventas' || formMeta.tipo === 'ticket_promedio' || formMeta.tipo === 'propinas_promedio'" class="px-4 py-3 bg-bg-sidebar border border-r-0 border-[rgba(212,175,55,0.2)] rounded-l-xl text-txt-muted text-sm">S/.</span>
-            <input id="meta-valor" type="number" x-model="formMeta.valorObjetivo" min="1" step="any"
-              :class="(formMeta.tipo === 'ventas' || formMeta.tipo === 'ticket_promedio' || formMeta.tipo === 'propinas_promedio') ? 'rounded-l-none' : ''"
-              class="mozos-input-premium flex-1" placeholder="Ej. 500">
-          </div>
-          <p class="text-[10px] text-txt-muted mt-1.5">
-            <span x-show="formMeta.tipo === 'ventas'">Meta de ventas totales en soles</span>
-            <span x-show="formMeta.tipo === 'mesas_atendidas'">Cantidad de mesas a atender</span>
-            <span x-show="formMeta.tipo === 'tickets_generados'">Cantidad de tickets a generar</span>
-            <span x-show="formMeta.tipo === 'ticket_promedio'">Valor mínimo promedio por ticket</span>
-            <span x-show="formMeta.tipo === 'propinas_promedio'">Propina mínima promedio por ticket</span>
-          </p>
-        </div>
-        <div>
-          <label class="mozos-label-premium" for="meta-periodo">
-            <i data-lucide="calendar" class="w-4 h-4"></i>
-            <span>Período de la meta</span>
-          </label>
-          <select id="meta-periodo" x-model="formMeta.periodo" class="mozos-input-premium">
-            <option value="diario">Diario (hoy)</option>
-            <option value="semanal">Semanal (7 días)</option>
-            <option value="mensual">Mensual</option>
-          </select>
-        </div>
-        <div>
-          <label class="mozos-label-premium">
-            <i data-lucide="users" class="w-4 h-4"></i>
-            <span>Aplicar a</span>
-          </label>
-          <div class="grid grid-cols-2 gap-2 mt-2">
-            <button type="button" @click="formMeta.mozosAplican = []" class="px-3 py-2 rounded-lg text-xs font-medium border transition"
-              :class="formMeta.mozosAplican.length === 0 ? 'bg-gold/20 border-gold text-gold' : 'border-[rgba(212,175,55,0.2)] text-txt-secondary hover:border-gold/40'">
-              Todos los mozos
-            </button>
-            <button type="button" @click="formMeta.mozosAplican = ['turno_manana']" class="px-3 py-2 rounded-lg text-xs font-medium border transition"
-              :class="formMeta.mozosAplican.includes('turno_manana') ? 'bg-gold/20 border-gold text-gold' : 'border-[rgba(212,175,55,0.2)] text-txt-secondary hover:border-gold/40'">
-              Turno mañana
-            </button>
-            <button type="button" @click="formMeta.mozosAplican = ['turno_noche']" class="px-3 py-2 rounded-lg text-xs font-medium border transition"
-              :class="formMeta.mozosAplican.includes('turno_noche') ? 'bg-gold/20 border-gold text-gold' : 'border-[rgba(212,175,55,0.2)] text-txt-secondary hover:border-gold/40'">
-              Turno noche
-            </button>
-            <button type="button" @click="formMeta.mozosAplican = ['individual']" class="px-3 py-2 rounded-lg text-xs font-medium border transition"
-              :class="formMeta.mozosAplican.includes('individual') ? 'bg-gold/20 border-gold text-gold' : 'border-[rgba(212,175,55,0.2)] text-txt-secondary hover:border-gold/40'">
-              Mozo específico
-            </button>
-          </div>
-        </div>
-        <div class="flex items-center gap-3 pt-2">
-          <input type="checkbox" id="meta-activa" x-model="formMeta.activo" class="mozos-checkbox-premium">
-          <label for="meta-activa" class="text-sm text-txt-secondary cursor-pointer">Meta activa inmediatamente</label>
-        </div>
-      </form>
-    </div>
-    <div class="px-6 py-4 border-t border-[rgba(212,175,55,0.12)] shrink-0 flex justify-end gap-3 bg-bg-sidebar/50 rounded-b-3xl">
-      <button type="button" @click="cerrarModalNuevaMeta()" class="mozos-btn-icon mozos-btn-secondary">
-        <i data-lucide="x" class="w-4 h-4"></i>
-        Cancelar
-      </button>
-      <button type="button" @click="guardarMeta()" class="mozos-btn-icon mozos-btn-primary">
-        <i data-lucide="check" class="w-4 h-4"></i>
-        Guardar meta
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL PLANTILLAS -->
-<div x-show="modalPlantillas" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 mozos-modal-overlay" @click.self="cerrarModalPlantillas()">
-  <div class="bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-3xl w-full max-w-2xl max-h-[85vh] shadow-2xl flex flex-col mozos-modal-container" @click.stop>
-    <div class="px-6 py-5 border-b border-[rgba(212,175,55,0.12)] shrink-0">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-gold/20 flex items-center justify-center">
-            <i data-lucide="copy" class="w-5 h-5 text-gold"></i>
-          </div>
-          <div>
-            <h2 class="text-lg font-bold text-white">Plantillas de metas</h2>
-            <p class="text-xs text-txt-muted">Configuraciones predefinidas para aplicar rápidamente</p>
-          </div>
-        </div>
-        <button type="button" @click="cerrarModalPlantillas()" class="mozos-close-btn">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
-      </div>
-    </div>
-    <div class="p-6 overflow-y-auto mozos-scrollbar flex-1 mozos-modal-section">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div class="bg-bg-sidebar/60 rounded-xl p-4 border border-[rgba(212,175,55,0.15)] hover:border-gold/40 transition cursor-pointer" @click="formMeta = { tipo: 'ventas', valorObjetivo: 400, periodo: 'diario', mozosAplican: [], activo: true }; cerrarModalPlantillas(); modalNuevaMeta = true;">
-          <div class="flex items-center gap-3 mb-2">
-            <span class="text-lg">🌅</span>
-            <span class="font-semibold text-white text-sm">Meta diaria estándar (mañana)</span>
-          </div>
-          <p class="text-xs text-txt-muted">S/. 400 ventas · Todos los mozos de turno mañana</p>
-          <div class="flex gap-2 mt-2">
-            <span class="text-[10px] px-2 py-0.5 rounded bg-gold/10 text-gold">Ventas</span>
-            <span class="text-[10px] px-2 py-0.5 rounded bg-st-libre/10 text-st-libre">Diario</span>
-          </div>
-        </div>
-        <div class="bg-bg-sidebar/60 rounded-xl p-4 border border-[rgba(212,175,55,0.15)] hover:border-gold/40 transition cursor-pointer" @click="formMeta = { tipo: 'ventas', valorObjetivo: 600, periodo: 'diario', mozosAplican: [], activo: true }; cerrarModalPlantillas(); modalNuevaMeta = true;">
-          <div class="flex items-center gap-3 mb-2">
-            <span class="text-lg">🌙</span>
-            <span class="font-semibold text-white text-sm">Meta diaria estándar (noche)</span>
-          </div>
-          <p class="text-xs text-txt-muted">S/. 600 ventas · Todos los mozos de turno noche</p>
-          <div class="flex gap-2 mt-2">
-            <span class="text-[10px] px-2 py-0.5 rounded bg-gold/10 text-gold">Ventas</span>
-            <span class="text-[10px] px-2 py-0.5 rounded bg-st-libre/10 text-st-libre">Diario</span>
-          </div>
-        </div>
-        <div class="bg-bg-sidebar/60 rounded-xl p-4 border border-[rgba(212,175,55,0.15)] hover:border-gold/40 transition cursor-pointer" @click="formMeta = { tipo: 'mesas_atendidas', valorObjetivo: 12, periodo: 'diario', mozosAplican: [], activo: true }; cerrarModalPlantillas(); modalNuevaMeta = true;">
-          <div class="flex items-center gap-3 mb-2">
-            <span class="text-lg">🪑</span>
-            <span class="font-semibold text-white text-sm">Rotación de mesas</span>
-          </div>
-          <p class="text-xs text-txt-muted">12 mesas mínimo · Todos los mozos activos</p>
-          <div class="flex gap-2 mt-2">
-            <span class="text-[10px] px-2 py-0.5 rounded bg-st-libre/10 text-st-libre">Mesas</span>
-            <span class="text-[10px] px-2 py-0.5 rounded bg-st-libre/10 text-st-libre">Diario</span>
-          </div>
-        </div>
-        <div class="bg-bg-sidebar/60 rounded-xl p-4 border border-[rgba(212,175,55,0.15)] hover:border-gold/40 transition cursor-pointer" @click="formMeta = { tipo: 'ticket_promedio', valorObjetivo: 45, periodo: 'diario', mozosAplican: [], activo: true }; cerrarModalPlantillas(); modalNuevaMeta = true;">
-          <div class="flex items-center gap-3 mb-2">
-            <span class="text-lg">📊</span>
-            <span class="font-semibold text-white text-sm">Ticket promedio mínimo</span>
-          </div>
-          <p class="text-xs text-txt-muted">S/. 45 promedio · Todos los mozos activos</p>
-          <div class="flex gap-2 mt-2">
-            <span class="text-[10px] px-2 py-0.5 rounded bg-st-preparado/10 text-st-preparado">Ticket</span>
-            <span class="text-[10px] px-2 py-0.5 rounded bg-st-libre/10 text-st-libre">Diario</span>
-          </div>
-        </div>
-        <div class="bg-bg-sidebar/60 rounded-xl p-4 border border-[rgba(212,175,55,0.15)] hover:border-gold/40 transition cursor-pointer" @click="formMeta = { tipo: 'ventas', valorObjetivo: 2500, periodo: 'semanal', mozosAplican: [], activo: true }; cerrarModalPlantillas(); modalNuevaMeta = true;">
-          <div class="flex items-center gap-3 mb-2">
-            <span class="text-lg">📅</span>
-            <span class="font-semibold text-white text-sm">Meta semanal de ventas</span>
-          </div>
-          <p class="text-xs text-txt-muted">S/. 2,500 semanales · Todos los mozos activos</p>
-          <div class="flex gap-2 mt-2">
-            <span class="text-[10px] px-2 py-0.5 rounded bg-gold/10 text-gold">Ventas</span>
-            <span class="text-[10px] px-2 py-0.5 rounded bg-st-pedido/10 text-st-pedido">Semanal</span>
-          </div>
-        </div>
-        <div class="bg-bg-sidebar/60 rounded-xl p-4 border border-[rgba(212,175,55,0.15)] hover:border-gold/40 transition cursor-pointer" @click="formMeta = { tipo: 'propinas_promedio', valorObjetivo: 8, periodo: 'diario', mozosAplican: [], activo: true }; cerrarModalPlantillas(); modalNuevaMeta = true;">
-          <div class="flex items-center gap-3 mb-2">
-            <span class="text-lg">💝</span>
-            <span class="font-semibold text-white text-sm">Propina promedio objetivo</span>
-          </div>
-          <p class="text-xs text-txt-muted">S/. 8 promedio por ticket · Todos los mozos</p>
-          <div class="flex gap-2 mt-2">
-            <span class="text-[10px] px-2 py-0.5 rounded bg-st-esperando/10 text-st-esperando">Propinas</span>
-            <span class="text-[10px] px-2 py-0.5 rounded bg-st-libre/10 text-st-libre">Diario</span>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="px-6 py-4 border-t border-[rgba(212,175,55,0.12)] shrink-0 flex justify-end bg-bg-sidebar/50 rounded-b-3xl">
-      <button type="button" @click="cerrarModalPlantillas()" class="mozos-btn-icon mozos-btn-secondary">
-        <i data-lucide="x" class="w-4 h-4"></i>
-        Cerrar
-      </button>
-    </div>
-  </div>
-</div>
-
 <!-- DRAWER DETALLE META MOZO -->
 <div x-show="drawerMetaMozo" x-transition.opacity class="fixed inset-0 z-50 flex justify-end bg-black/60 metas-drawer-overlay" @click.self="cerrarDrawerMetaMozo()">
   <div class="bg-bg-card border-l border-[rgba(212,175,55,0.2)] w-full max-w-md h-full shadow-2xl flex flex-col metas-drawer-container" @click.stop>
@@ -2012,6 +1802,602 @@ tailwind.config = {
   </div>
 </div>
 
+<!-- MODAL GESTOR DE METAS -->
+<div x-show="modalGestorMetas" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm" @click.self="cerrarGestorMetas()">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-3xl w-full max-w-[95vw] max-h-[90vh] shadow-2xl flex flex-col mozos-modal-container" @click.stop>
+    <!-- Header -->
+    <div class="px-6 py-4 border-b border-[rgba(212,175,55,0.12)] shrink-0">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gold/20 flex items-center justify-center">
+            <i data-lucide="settings-2" class="w-5 h-5 text-gold"></i>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold text-white">Gestor de Metas</h2>
+            <p class="text-xs text-txt-muted">Administra todas las metas, plantillas e historial</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <span x-show="gestorGuardado" class="text-xs text-st-preparado flex items-center gap-1">
+            <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+            Guardado
+          </span>
+          <button type="button" @click="cerrarGestorMetas()" class="mozos-close-btn">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+      <!-- Tabs -->
+      <div class="flex gap-1 mt-4 overflow-x-auto mozos-scrollbar pb-1">
+        <button type="button" @click="tabGestor = 'nueva'" class="px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition"
+          :class="tabGestor === 'nueva' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary hover:text-white'">
+          <i data-lucide="plus" class="w-3.5 h-3.5 inline mr-1.5"></i>
+          Nueva Meta
+        </button>
+        <button type="button" @click="tabGestor = 'activas'" class="px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition"
+          :class="tabGestor === 'activas' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary hover:text-white'">
+          <i data-lucide="target" class="w-3.5 h-3.5 inline mr-1.5"></i>
+          Activas
+          <span x-show="metasActivasGestor.length > 0" class="ml-1 px-1.5 py-0.5 rounded bg-gold/20 text-[10px]" x-text="metasActivasGestor.length"></span>
+        </button>
+        <button type="button" @click="tabGestor = 'futuras'" class="px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition"
+          :class="tabGestor === 'futuras' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary hover:text-white'">
+          <i data-lucide="calendar-clock" class="w-3.5 h-3.5 inline mr-1.5"></i>
+          Futuras
+          <span x-show="metasFuturasGestor.length > 0" class="ml-1 px-1.5 py-0.5 rounded bg-gold/20 text-[10px]" x-text="metasFuturasGestor.length"></span>
+        </button>
+        <button type="button" @click="tabGestor = 'plantillas'" class="px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition"
+          :class="tabGestor === 'plantillas' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary hover:text-white'">
+          <i data-lucide="copy" class="w-3.5 h-3.5 inline mr-1.5"></i>
+          Plantillas
+          <span x-show="plantillasMetas.length > 0" class="ml-1 px-1.5 py-0.5 rounded bg-gold/20 text-[10px]" x-text="plantillasMetas.length"></span>
+        </button>
+        <button type="button" @click="tabGestor = 'historial'" class="px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition"
+          :class="tabGestor === 'historial' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary hover:text-white'">
+          <i data-lucide="history" class="w-3.5 h-3.5 inline mr-1.5"></i>
+          Historial
+        </button>
+      </div>
+    </div>
+
+    <!-- Contenido -->
+    <div class="flex-1 overflow-y-auto mozos-scrollbar p-6">
+      <!-- PESTAÑA NUEVA META -->
+      <div x-show="tabGestor === 'nueva'" class="space-y-6">
+        <form @submit.prevent="guardarMetaGestor()" class="space-y-6">
+          <!-- Definición del Objetivo -->
+          <div class="bg-bg-sidebar/40 rounded-2xl p-5 border border-[rgba(212,175,55,0.1)]">
+            <h3 class="text-sm font-bold text-gold uppercase tracking-wide mb-4 flex items-center gap-2">
+              <i data-lucide="target" class="w-4 h-4"></i>
+              Definición del Objetivo
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="mozos-label-premium" for="gestor-meta-tipo">
+                  <i data-lucide="type" class="w-4 h-4"></i>
+                  <span>Tipo de meta <span class="text-st-pagado">*</span></span>
+                </label>
+                <select id="gestor-meta-tipo" x-model="formMetaGestor.tipo" class="mozos-input-premium" @change="onTipoMetaChange()">
+                  <option value="ventas">💰 Ventas del período (S/.)</option>
+                  <option value="mesas_atendidas">🪑 Mesas atendidas (cantidad)</option>
+                  <option value="tickets_generados">🎫 Tickets generados (cantidad)</option>
+                  <option value="ticket_promedio">📊 Ticket promedio mínimo (S/.)</option>
+                  <option value="propinas_promedio">💝 Propinas promedio mínimo (S/.)</option>
+                </select>
+                <p class="text-[10px] text-txt-muted mt-1.5 flex items-center gap-1">
+                  <i data-lucide="info" class="w-3 h-3"></i>
+                  <span x-show="formMetaGestor.tipo === 'ventas'">Total facturado por el mozo en el período</span>
+                  <span x-show="formMetaGestor.tipo === 'mesas_atendidas'">Cantidad de mesas distintas con pago procesado</span>
+                  <span x-show="formMetaGestor.tipo === 'tickets_generados'">Cantidad de bouchers/tickets emitidos</span>
+                  <span x-show="formMetaGestor.tipo === 'ticket_promedio'">Valor promedio por ticket (ventas ÷ tickets)</span>
+                  <span x-show="formMetaGestor.tipo === 'propinas_promedio'">Propina promedio por ticket (propinas ÷ tickets)</span>
+                </p>
+              </div>
+              <div>
+                <label class="mozos-label-premium" for="gestor-meta-valor">
+                  <i data-lucide="hash" class="w-4 h-4"></i>
+                  <span>Valor objetivo <span class="text-st-pagado">*</span></span>
+                </label>
+                <div class="flex gap-2">
+                  <span x-show="formMetaGestor.tipo === 'ventas' || formMetaGestor.tipo === 'ticket_promedio' || formMetaGestor.tipo === 'propinas_promedio'"
+                    class="px-4 py-3 bg-bg-card border border-r-0 border-[rgba(212,175,55,0.2)] rounded-l-xl text-txt-muted text-sm flex items-center">S/.</span>
+                  <input id="gestor-meta-valor" type="number" x-model="formMetaGestor.valorObjetivo" min="1" step="any"
+                    :class="(formMetaGestor.tipo === 'ventas' || formMetaGestor.tipo === 'ticket_promedio' || formMetaGestor.tipo === 'propinas_promedio') ? 'rounded-l-none' : ''"
+                    class="mozos-input-premium flex-1" placeholder="Ej. 500">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Temporalidad -->
+          <div class="bg-bg-sidebar/40 rounded-2xl p-5 border border-[rgba(212,175,55,0.1)]">
+            <h3 class="text-sm font-bold text-gold uppercase tracking-wide mb-4 flex items-center gap-2">
+              <i data-lucide="calendar" class="w-4 h-4"></i>
+              Temporalidad
+            </h3>
+            <div class="space-y-4">
+              <div>
+                <label class="mozos-label-premium">
+                  <i data-lucide="clock" class="w-4 h-4"></i>
+                  <span>Período de la meta</span>
+                </label>
+                <div class="flex flex-wrap gap-2 mt-2">
+                  <button type="button" @click="setPeriodoMetaGestor('diario')"
+                    class="px-4 py-2 rounded-lg text-xs font-bold border transition"
+                    :class="formMetaGestor.periodo === 'diario' ? 'bg-gold/20 border-gold text-gold' : 'border-[rgba(212,175,55,0.2)] text-txt-secondary hover:border-gold/40'">
+                    📅 Diario
+                  </button>
+                  <button type="button" @click="setPeriodoMetaGestor('semanal')"
+                    class="px-4 py-2 rounded-lg text-xs font-bold border transition"
+                    :class="formMetaGestor.periodo === 'semanal' ? 'bg-gold/20 border-gold text-gold' : 'border-[rgba(212,175,55,0.2)] text-txt-secondary hover:border-gold/40'">
+                    📆 Semanal
+                  </button>
+                  <button type="button" @click="setPeriodoMetaGestor('mensual')"
+                    class="px-4 py-2 rounded-lg text-xs font-bold border transition"
+                    :class="formMetaGestor.periodo === 'mensual' ? 'bg-gold/20 border-gold text-gold' : 'border-[rgba(212,175,55,0.2)] text-txt-secondary hover:border-gold/40'">
+                    🗓️ Mensual
+                  </button>
+                </div>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="mozos-label-premium" for="gestor-meta-inicio">
+                    <i data-lucide="play-circle" class="w-4 h-4"></i>
+                    <span>Vigencia inicio <span class="text-st-pagado">*</span></span>
+                  </label>
+                  <input id="gestor-meta-inicio" type="date" x-model="formMetaGestor.vigenciaInicio"
+                    class="mozos-input-premium">
+                </div>
+                <div>
+                  <label class="mozos-label-premium" for="gestor-meta-fin">
+                    <i data-lucide="stop-circle" class="w-4 h-4"></i>
+                    <span>Vigencia fin <span class="text-st-pagado">*</span></span>
+                  </label>
+                  <input id="gestor-meta-fin" type="date" x-model="formMetaGestor.vigenciaFin"
+                    class="mozos-input-premium">
+                </div>
+              </div>
+              <p class="text-[10px] text-txt-muted flex items-center gap-1">
+                <i data-lucide="info" class="w-3 h-3"></i>
+                Las fechas de vigencia determinan cuándo la meta está activa y se calcula el avance
+              </p>
+            </div>
+          </div>
+
+          <!-- Asignación -->
+          <div class="bg-bg-sidebar/40 rounded-2xl p-5 border border-[rgba(212,175,55,0.1)]">
+            <h3 class="text-sm font-bold text-gold uppercase tracking-wide mb-4 flex items-center gap-2">
+              <i data-lucide="users" class="w-4 h-4"></i>
+              Asignación
+            </h3>
+            <div class="space-y-4">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <button type="button" @click="setAsignacionMetaGestor('todos')"
+                  class="px-4 py-3 rounded-xl text-xs font-bold border transition text-left"
+                  :class="formMetaGestor.tipoAsignacion === 'todos' ? 'bg-gold/20 border-gold text-gold' : 'border-[rgba(212,175,55,0.2)] text-txt-secondary hover:border-gold/40'">
+                  <div class="flex items-center gap-2 mb-1">
+                    <i data-lucide="users" class="w-4 h-4"></i>
+                    <span class="font-bold">Todo el equipo</span>
+                  </div>
+                  <p class="text-[10px] opacity-70">Aplica a todos los mozos activos</p>
+                </button>
+                <button type="button" @click="setAsignacionMetaGestor('turno')"
+                  class="px-4 py-3 rounded-xl text-xs font-bold border transition text-left"
+                  :class="formMetaGestor.tipoAsignacion === 'turno' ? 'bg-gold/20 border-gold text-gold' : 'border-[rgba(212,175,55,0.2)] text-txt-secondary hover:border-gold/40'">
+                  <div class="flex items-center gap-2 mb-1">
+                    <i data-lucide="clock" class="w-4 h-4"></i>
+                    <span class="font-bold">Por turno</span>
+                  </div>
+                  <p class="text-[10px] opacity-70">Mañana, noche o todos</p>
+                </button>
+                <button type="button" @click="setAsignacionMetaGestor('individual')"
+                  class="px-4 py-3 rounded-xl text-xs font-bold border transition text-left"
+                  :class="formMetaGestor.tipoAsignacion === 'individual' ? 'bg-gold/20 border-gold text-gold' : 'border-[rgba(212,175,55,0.2)] text-txt-secondary hover:border-gold/40'">
+                  <div class="flex items-center gap-2 mb-1">
+                    <i data-lucide="user" class="w-4 h-4"></i>
+                    <span class="font-bold">Individual</span>
+                  </div>
+                  <p class="text-[10px] opacity-70">Seleccionar mozos específicos</p>
+                </button>
+              </div>
+
+              <!-- Selector de turno -->
+              <div x-show="formMetaGestor.tipoAsignacion === 'turno'" class="bg-bg-card/50 rounded-xl p-4">
+                <label class="mozos-label-premium mb-2">
+                  <i data-lucide="sun" class="w-4 h-4"></i>
+                  <span>Seleccionar turno</span>
+                </label>
+                <div class="flex gap-2">
+                  <button type="button" @click="formMetaGestor.aplicarTurno = 'manana'"
+                    class="px-4 py-2 rounded-lg text-xs font-bold border transition"
+                    :class="formMetaGestor.aplicarTurno === 'manana' ? 'bg-gold/20 border-gold text-gold' : 'border-[rgba(212,175,55,0.2)] text-txt-secondary hover:border-gold/40'">
+                    🌅 Mañana
+                  </button>
+                  <button type="button" @click="formMetaGestor.aplicarTurno = 'noche'"
+                    class="px-4 py-2 rounded-lg text-xs font-bold border transition"
+                    :class="formMetaGestor.aplicarTurno === 'noche' ? 'bg-gold/20 border-gold text-gold' : 'border-[rgba(212,175,55,0.2)] text-txt-secondary hover:border-gold/40'">
+                    🌙 Noche
+                  </button>
+                  <button type="button" @click="formMetaGestor.aplicarTurno = 'todos'"
+                    class="px-4 py-2 rounded-lg text-xs font-bold border transition"
+                    :class="formMetaGestor.aplicarTurno === 'todos' ? 'bg-gold/20 border-gold text-gold' : 'border-[rgba(212,175,55,0.2)] text-txt-secondary hover:border-gold/40'">
+                    👥 Todos
+                  </button>
+                </div>
+              </div>
+
+              <!-- Selector de mozos individuales -->
+              <div x-show="formMetaGestor.tipoAsignacion === 'individual'" class="bg-bg-card/50 rounded-xl p-4">
+                <label class="mozos-label-premium mb-2">
+                  <i data-lucide="search" class="w-4 h-4"></i>
+                  <span>Buscar y seleccionar mozos</span>
+                </label>
+                <input type="text" x-model="busquedaMozoMeta" placeholder="Escribe para filtrar..."
+                  class="mozos-input-premium mb-3">
+                <div class="max-h-[200px] overflow-y-auto mozos-scrollbar space-y-2">
+                  <template x-for="mozo in mozosFiltradosMeta" :key="mozo._id">
+                    <label class="flex items-center gap-3 p-2 rounded-lg bg-bg-sidebar/60 hover:bg-bg-sidebar cursor-pointer transition">
+                      <input type="checkbox" :value="mozo._id" x-model="formMetaGestor.mozosAplican"
+                        class="mozos-checkbox-premium">
+                      <div class="flex items-center gap-2 flex-1 min-w-0">
+                        <div class="w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center text-gold text-xs font-bold flex-shrink-0"
+                          x-text="iniciales(mozo.nombre)"></div>
+                        <div class="min-w-0">
+                          <p class="text-sm font-medium text-white truncate" x-text="mozo.nombre"></p>
+                          <p class="text-[10px] text-txt-muted" x-text="(mozo.enTurno ? 'En turno' : 'Fuera de turno') + ' · ' + (mozo.activo !== false ? 'Activo' : 'Inactivo')"></p>
+                        </div>
+                      </div>
+                    </label>
+                  </template>
+                </div>
+                <p class="text-[10px] text-txt-muted mt-2">
+                  <span x-text="formMetaGestor.mozosAplican.length"></span> mozo(s) seleccionado(s)
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Configuración Pro -->
+          <div class="bg-bg-sidebar/40 rounded-2xl p-5 border border-[rgba(212,175,55,0.1)]">
+            <h3 class="text-sm font-bold text-gold uppercase tracking-wide mb-4 flex items-center gap-2">
+              <i data-lucide="sparkles" class="w-4 h-4"></i>
+              Configuración Pro
+            </h3>
+            <div class="space-y-4">
+              <div>
+                <label class="mozos-label-premium" for="gestor-plantilla">
+                  <i data-lucide="copy" class="w-4 h-4"></i>
+                  <span>Cargar desde plantilla</span>
+                </label>
+                <select id="gestor-plantilla" x-model="formMetaGestor.plantillaId" @change="cargarPlantillaSeleccionada()"
+                  class="mozos-input-premium">
+                  <option value="">Seleccionar plantilla...</option>
+                  <template x-for="p in plantillasMetas" :key="p._id">
+                    <option :value="p._id" x-text="p.nombre + ' (' + getMetaTypeLabel(p.tipo) + ' - ' + formatMetaValor(p.valorObjetivo, p.tipo) + ')'"></option>
+                  </template>
+                </select>
+              </div>
+              <div class="flex flex-wrap gap-4">
+                <label class="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" x-model="formMetaGestor.activo" class="mozos-checkbox-premium">
+                  <span class="text-sm text-txt-secondary">Meta activa inmediatamente</span>
+                </label>
+                <label class="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" x-model="formMetaGestor.notificar" class="mozos-checkbox-premium">
+                  <span class="text-sm text-txt-secondary">Notificar a mozos</span>
+                </label>
+              </div>
+              <p x-show="formMetaGestor.notificar" class="text-[10px] text-st-preparado flex items-center gap-1">
+                <i data-lucide="bell" class="w-3 h-3"></i>
+                Se enviará una notificación a los mozos asignados sobre esta nueva meta
+              </p>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- PESTAÑA METAS ACTIVAS -->
+      <div x-show="tabGestor === 'activas'" class="space-y-4">
+        <!-- Filtros rápidos -->
+        <div class="flex flex-wrap gap-3 items-center">
+          <input type="text" x-model="filtroBusquedaActivas" placeholder="Buscar por tipo, turno o mozo..."
+            class="flex-1 min-w-[200px] bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-xl px-4 py-2.5 text-sm focus:border-gold focus:outline-none placeholder:text-txt-muted/60">
+          <select x-model="filtroTipoActivas" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-xl px-3 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+            <option value="">Todos los tipos</option>
+            <option value="ventas">Ventas</option>
+            <option value="mesas_atendidas">Mesas atendidas</option>
+            <option value="tickets_generados">Tickets</option>
+            <option value="ticket_promedio">Ticket promedio</option>
+            <option value="propinas_promedio">Propinas promedio</option>
+          </select>
+          <select x-model="filtroTurnoActivas" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-xl px-3 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+            <option value="">Todos los turnos</option>
+            <option value="manana">Mañana</option>
+            <option value="noche">Noche</option>
+          </select>
+        </div>
+
+        <!-- Estado vacío -->
+        <div x-show="metasActivasFiltradas.length === 0" class="text-center py-16">
+          <div class="w-20 h-20 mx-auto rounded-full bg-bg-sidebar flex items-center justify-center mb-4">
+            <i data-lucide="inbox" class="w-8 h-8 text-txt-muted"></i>
+          </div>
+          <h4 class="text-lg font-bold text-white mb-2">No hay metas activas</h4>
+          <p class="text-sm text-txt-muted mb-4">Crea una nueva meta o carga una plantilla para comenzar</p>
+          <button type="button" @click="tabGestor = 'nueva'" class="mozos-btn-icon mozos-btn-primary">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            Nueva meta
+          </button>
+        </div>
+
+        <!-- Tabla de metas activas -->
+        <div x-show="metasActivasFiltradas.length > 0" class="mozos-kpi-card rounded-2xl overflow-hidden">
+          <div class="overflow-x-auto mozos-scrollbar">
+            <table class="w-full text-sm min-w-[900px]">
+              <thead>
+                <tr class="bg-bg-sidebar/90 text-txt-secondary text-[10px] uppercase tracking-wide border-b border-[rgba(212,175,55,0.12)]">
+                  <th class="text-left px-4 py-3 font-bold">#</th>
+                  <th class="text-left px-4 py-3 font-bold">Tipo</th>
+                  <th class="text-left px-4 py-3 font-bold">Período</th>
+                  <th class="text-left px-4 py-3 font-bold">Vigencia</th>
+                  <th class="text-left px-4 py-3 font-bold">Alcance</th>
+                  <th class="text-left px-4 py-3 font-bold">Objetivo</th>
+                  <th class="text-center px-4 py-3 font-bold">Estado</th>
+                  <th class="text-left px-4 py-3 font-bold">Creado por</th>
+                  <th class="text-right px-4 py-3 font-bold">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(meta, idx) in metasActivasFiltradas" :key="meta._id">
+                  <tr class="border-b border-[rgba(212,175,55,0.06)] hover:bg-gold/5 transition">
+                    <td class="px-4 py-3">
+                      <span class="w-6 h-6 rounded-full bg-bg-sidebar flex items-center justify-center text-xs font-bold text-txt-secondary" x-text="idx + 1"></span>
+                    </td>
+                    <td class="px-4 py-3">
+                      <div class="flex items-center gap-2">
+                        <div class="metas-type-icon" :class="getMetaTypeIconBg(meta.tipo)">
+                          <span x-text="getMetaTypeIcon(meta.tipo)"></span>
+                        </div>
+                        <span class="text-txt-secondary text-xs" x-text="getMetaTypeLabel(meta.tipo)"></span>
+                      </div>
+                    </td>
+                    <td class="px-4 py-3">
+                      <span class="text-xs px-2 py-1 rounded bg-bg-sidebar text-txt-secondary capitalize" x-text="meta.periodo"></span>
+                    </td>
+                    <td class="px-4 py-3">
+                      <span class="text-xs text-txt-secondary font-mono" x-text="formatRangoVigencia(meta.vigenciaInicio, meta.vigenciaFin)"></span>
+                    </td>
+                    <td class="px-4 py-3">
+                      <span x-show="meta.aplicarATodos" class="text-xs px-2 py-1 rounded bg-st-libre/20 text-st-libre">👥 Todos</span>
+                      <span x-show="!meta.aplicarATodos && meta.aplicarTurno === 'manana'" class="text-xs px-2 py-1 rounded bg-gold/20 text-gold">🌅 Mañana</span>
+                      <span x-show="!meta.aplicarATodos && meta.aplicarTurno === 'noche'" class="text-xs px-2 py-1 rounded bg-st-pedido/20 text-st-pedido">🌙 Noche</span>
+                      <span x-show="!meta.aplicarATodos && meta.mozosAplican?.length > 0" class="text-xs px-2 py-1 rounded bg-st-preparado/20 text-st-preparado" x-text="meta.mozosAplican.length + ' mozos'"></span>
+                    </td>
+                    <td class="px-4 py-3">
+                      <span class="font-bold text-gold" x-text="formatMetaValor(meta.valorObjetivo, meta.tipo)"></span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                      <span x-show="meta.activo" class="text-xs px-2 py-1 rounded bg-st-preparado/20 text-st-preparado font-bold">✓ Activa</span>
+                      <span x-show="!meta.activo" class="text-xs px-2 py-1 rounded bg-txt-muted/20 text-txt-muted font-bold">⏸️ Inactiva</span>
+                    </td>
+                    <td class="px-4 py-3">
+                      <span class="text-xs text-txt-muted" x-text="meta.creadoPorNombre || 'Sistema'"></span>
+                      <span x-show="meta.esPlantilla" class="ml-1 text-[10px] text-gold" title="Desde plantilla">📋</span>
+                    </td>
+                    <td class="px-4 py-3 text-right">
+                      <div class="relative inline-block" x-data="{ open: false }">
+                        <button type="button" @click="open = !open" class="p-2 rounded-lg hover:bg-bg-sidebar transition">
+                          <i data-lucide="more-vertical" class="w-4 h-4 text-txt-muted"></i>
+                        </button>
+                        <div x-show="open" @click.away="open = false" x-transition
+                          class="absolute right-0 top-full mt-1 w-48 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-xl shadow-xl z-10 overflow-hidden">
+                          <button type="button" @click="editarMetaGestor(meta); open = false"
+                            class="w-full px-4 py-2.5 text-left text-xs font-medium text-txt-secondary hover:bg-bg-sidebar hover:text-white transition flex items-center gap-2">
+                            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                            Editar
+                          </button>
+                          <button type="button" @click="duplicarMetaGestor(meta); open = false"
+                            class="w-full px-4 py-2.5 text-left text-xs font-medium text-txt-secondary hover:bg-bg-sidebar hover:text-white transition flex items-center gap-2">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                            Duplicar
+                          </button>
+                          <button type="button" @click="convertirPlantilla(meta); open = false"
+                            class="w-full px-4 py-2.5 text-left text-xs font-medium text-txt-secondary hover:bg-bg-sidebar hover:text-white transition flex items-center gap-2">
+                            <i data-lucide="file-plus" class="w-3.5 h-3.5"></i>
+                            Convertir en plantilla
+                          </button>
+                          <button type="button" @click="desactivarMetaGestor(meta); open = false"
+                            class="w-full px-4 py-2.5 text-left text-xs font-medium text-st-esperando hover:bg-bg-sidebar transition flex items-center gap-2 border-t border-[rgba(212,175,55,0.1)]">
+                            <i data-lucide="pause-circle" class="w-3.5 h-3.5"></i>
+                            Desactivar
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PESTAÑA FUTURAS -->
+      <div x-show="tabGestor === 'futuras'" class="space-y-4">
+        <div class="flex items-center gap-2 text-xs text-txt-muted">
+          <i data-lucide="info" class="w-4 h-4"></i>
+          <span>Metas programadas que aún no han iniciado su vigencia</span>
+        </div>
+
+        <!-- Estado vacío -->
+        <div x-show="metasFuturasGestor.length === 0" class="text-center py-16">
+          <div class="w-20 h-20 mx-auto rounded-full bg-bg-sidebar flex items-center justify-center mb-4">
+            <i data-lucide="calendar" class="w-8 h-8 text-txt-muted"></i>
+          </div>
+          <h4 class="text-lg font-bold text-white mb-2">No hay metas futuras</h4>
+          <p class="text-sm text-txt-muted">Las metas programadas aparecerán aquí</p>
+        </div>
+
+        <!-- Lista de metas futuras -->
+        <div x-show="metasFuturasGestor.length > 0" class="space-y-3">
+          <template x-for="meta in metasFuturasGestor" :key="meta._id">
+            <div class="mozos-kpi-card rounded-xl p-4 flex items-center justify-between gap-4">
+              <div class="flex items-center gap-4">
+                <div class="metas-type-icon" :class="getMetaTypeIconBg(meta.tipo)">
+                  <span x-text="getMetaTypeIcon(meta.tipo)"></span>
+                </div>
+                <div>
+                  <p class="font-semibold text-white" x-text="getMetaTypeLabel(meta.tipo) + ' - ' + formatMetaValor(meta.valorObjetivo, meta.tipo)"></p>
+                  <p class="text-xs text-txt-muted">
+                    Inicia: <span class="text-gold" x-text="formatFechaCorta(meta.vigenciaInicio)"></span> ·
+                    Termina: <span x-text="formatFechaCorta(meta.vigenciaFin)"></span>
+                  </p>
+                </div>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-xs px-3 py-1.5 rounded-lg bg-st-pedido/20 text-st-pedido font-bold"
+                  x-text="'En ' + diasHasta(meta.vigenciaInicio) + ' días'"></span>
+                <button type="button" @click="activarAhora(meta)" class="p-2 rounded-lg hover:bg-gold/20 text-gold transition" title="Activar ahora">
+                  <i data-lucide="play" class="w-4 h-4"></i>
+                </button>
+                <button type="button" @click="editarMetaGestor(meta)" class="p-2 rounded-lg hover:bg-bg-sidebar text-txt-muted transition" title="Editar">
+                  <i data-lucide="edit-3" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- PESTAÑA PLANTILLAS -->
+      <div x-show="tabGestor === 'plantillas'" class="space-y-4">
+        <div class="flex justify-between items-center">
+          <p class="text-xs text-txt-muted">Configuraciones predefinidas para aplicar rápidamente</p>
+          <button type="button" @click="nuevaPlantilla()" class="mozos-btn-icon mozos-btn-secondary text-xs py-2">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            Nueva plantilla
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <template x-for="p in plantillasMetas" :key="p._id">
+            <div class="mozos-kpi-card rounded-xl p-4 border border-[rgba(212,175,55,0.1)] hover:border-gold/40 transition cursor-pointer group"
+              @click="aplicarPlantillaGestor(p)">
+              <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <span class="text-xl" x-text="getIconoTurno(p.aplicarTurno)"></span>
+                  <h4 class="font-bold text-white text-sm" x-text="p.nombre"></h4>
+                </div>
+                <button type="button" @click.stop="editarPlantilla(p)" class="opacity-0 group-hover:opacity-100 transition p-1 rounded hover:bg-bg-sidebar">
+                  <i data-lucide="edit-3" class="w-3.5 h-3.5 text-txt-muted"></i>
+                </button>
+              </div>
+              <p class="text-xs text-txt-muted mb-3" x-text="p.descripcion || 'Sin descripción'"></p>
+              <div class="flex flex-wrap gap-2 mb-3">
+                <span class="text-[10px] px-2 py-1 rounded bg-gold/10 text-gold" x-text="getMetaTypeLabel(p.tipo)"></span>
+                <span class="text-[10px] px-2 py-1 rounded bg-st-libre/10 text-st-librel" x-text="formatMetaValor(p.valorObjetivo, p.tipo)"></span>
+                <span class="text-[10px] px-2 py-1 rounded bg-bg-sidebar text-txt-secondary capitalize" x-text="p.periodo"></span>
+              </div>
+              <div class="flex items-center justify-between text-[10px] text-txt-muted">
+                <span x-text="'Usada ' + (p.vecesUsada || 0) + ' veces'"></span>
+                <span class="text-gold opacity-0 group-hover:opacity-100 transition">Click para aplicar →</span>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- PESTAÑA HISTORIAL -->
+      <div x-show="tabGestor === 'historial'" class="space-y-4">
+        <div class="flex items-center gap-2 text-xs text-txt-muted">
+          <i data-lucide="info" class="w-4 h-4"></i>
+          <span>Metas inactivas que ya finalizaron su período de vigencia</span>
+        </div>
+
+        <!-- Estado vacío -->
+        <div x-show="metasHistorialGestor.length === 0" class="text-center py-16">
+          <div class="w-20 h-20 mx-auto rounded-full bg-bg-sidebar flex items-center justify-center mb-4">
+            <i data-lucide="archive" class="w-8 h-8 text-txt-muted"></i>
+          </div>
+          <h4 class="text-lg font-bold text-white mb-2">Sin historial</h4>
+          <p class="text-sm text-txt-muted">Las metas finalizadas aparecerán aquí</p>
+        </div>
+
+        <!-- Tabla de historial -->
+        <div x-show="metasHistorialGestor.length > 0" class="mozos-kpi-card rounded-2xl overflow-hidden">
+          <div class="overflow-x-auto mozos-scrollbar">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-bg-sidebar/90 text-txt-secondary text-[10px] uppercase tracking-wide border-b border-[rgba(212,175,55,0.12)]">
+                  <th class="text-left px-4 py-3 font-bold">#</th>
+                  <th class="text-left px-4 py-3 font-bold">Tipo</th>
+                  <th class="text-left px-4 py-3 font-bold">Período</th>
+                  <th class="text-left px-4 py-3 font-bold">Finalizó</th>
+                  <th class="text-center px-4 py-3 font-bold">Cumplimiento</th>
+                  <th class="text-center px-4 py-3 font-bold">Estado final</th>
+                  <th class="text-right px-4 py-3 font-bold">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(meta, idx) in metasHistorialGestor" :key="meta._id">
+                  <tr class="border-b border-[rgba(212,175,55,0.06)]">
+                    <td class="px-4 py-3 text-txt-muted" x-text="idx + 1"></td>
+                    <td class="px-4 py-3">
+                      <div class="flex items-center gap-2">
+                        <span x-text="getMetaTypeIcon(meta.tipo)"></span>
+                        <span class="text-txt-secondary text-xs" x-text="getMetaTypeLabel(meta.tipo)"></span>
+                      </div>
+                    </td>
+                    <td class="px-4 py-3">
+                      <span class="text-xs text-txt-muted capitalize" x-text="meta.periodo"></span>
+                    </td>
+                    <td class="px-4 py-3">
+                      <span class="text-xs text-txt-secondary font-mono" x-text="formatFechaCorta(meta.vigenciaFin)"></span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                      <span class="text-xs font-bold" :class="meta.cumplimientoPct >= 100 ? 'text-st-preparado' : meta.cumplimientoPct >= 80 ? 'text-gold' : 'text-st-esperando'"
+                        x-text="(meta.cumplimientoPct || 0) + '%'"></span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                      <span x-show="meta.cumplimientoPct >= 100" class="text-xs px-2 py-1 rounded bg-st-preparado/20 text-st-preparado">✓ Cumplida</span>
+                      <span x-show="meta.cumplimientoPct >= 80 && meta.cumplimientoPct < 100" class="text-xs px-2 py-1 rounded bg-gold/20 text-gold">⚠ Parcial</span>
+                      <span x-show="meta.cumplimientoPct < 80" class="text-xs px-2 py-1 rounded bg-st-pagado/20 text-st-pagado">✗ No cumplida</span>
+                    </td>
+                    <td class="px-4 py-3 text-right">
+                      <button type="button" @click="reactivarMeta(meta)" class="text-xs text-gold hover:underline">Reactivar</button>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer con acciones -->
+    <div class="px-6 py-4 border-t border-[rgba(212,175,55,0.12)] shrink-0 flex justify-between items-center bg-bg-sidebar/50 rounded-b-3xl">
+      <p class="text-xs text-txt-muted">
+        <span x-show="tabGestor === 'nueva'">Completa los campos para crear una nueva meta</span>
+        <span x-show="tabGestor === 'activas'">Gestiona las metas actualmente vigentes</span>
+        <span x-show="tabGestor === 'futuras'">Administra metas programadas</span>
+        <span x-show="tabGestor === 'plantillas'">Selecciona una plantilla para aplicarla rápidamente</span>
+        <span x-show="tabGestor === 'historial'">Consulta el historial de metas pasadas</span>
+      </p>
+      <div class="flex gap-3">
+        <button type="button" @click="cerrarGestorMetas()" class="mozos-btn-icon mozos-btn-secondary">
+          <i data-lucide="x" class="w-4 h-4"></i>
+          Cerrar
+        </button>
+        <button x-show="tabGestor === 'nueva'" type="button" @click="guardarMetaGestor()" class="mozos-btn-icon mozos-btn-primary">
+          <i data-lucide="check" class="w-4 h-4"></i>
+          Guardar meta
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="toast-container" class="fixed bottom-6 right-6 z-[9999] space-y-2 max-w-sm"></div>
 
 <script src="/assets/js/notifications.js"></script>
@@ -2096,19 +2482,42 @@ function mozosExecutiveApp() {
     filtroEstadoMeta: '',
     filtroTipoMeta: '',
     vistaMetas: 'tabla',
-    modalNuevaMeta: false,
-    modalPlantillas: false,
     drawerMetaMozo: false,
     metaMozoSeleccionada: null,
     metasConfiguradas: [],
     historialMetas: [],
-    formMeta: {
+    // Gestor de Metas state
+    modalGestorMetas: false,
+    tabGestor: 'nueva',
+    gestorGuardado: false,
+    formMetaGestor: {
       tipo: 'ventas',
       valorObjetivo: 0,
       periodo: 'diario',
+      vigenciaInicio: '',
+      vigenciaFin: '',
+      tipoAsignacion: 'todos',
+      aplicarATodos: true,
+      aplicarTurno: 'todos',
       mozosAplican: [],
-      activo: true
+      plantillaId: '',
+      activo: true,
+      notificar: false,
+      esPlantilla: false
     },
+    busquedaMozoMeta: '',
+    filtroBusquedaActivas: '',
+    filtroTipoActivas: '',
+    filtroTurnoActivas: '',
+    plantillasMetas: [
+      { _id: 'plantilla-1', nombre: 'Meta diaria mañana', tipo: 'ventas', valorObjetivo: 400, periodo: 'diario', aplicarTurno: 'manana', descripcion: 'Meta de ventas para turno mañana', vecesUsada: 12 },
+      { _id: 'plantilla-2', nombre: 'Meta diaria noche', tipo: 'ventas', valorObjetivo: 600, periodo: 'diario', aplicarTurno: 'noche', descripcion: 'Meta de ventas para turno noche', vecesUsada: 8 },
+      { _id: 'plantilla-3', nombre: 'Rotación de mesas', tipo: 'mesas_atendidas', valorObjetivo: 12, periodo: 'diario', aplicarTurno: 'todos', descripcion: 'Mínimo de mesas a atender', vecesUsada: 15 },
+      { _id: 'plantilla-4', nombre: 'Ticket promedio mínimo', tipo: 'ticket_promedio', valorObjetivo: 45, periodo: 'diario', aplicarTurno: 'todos', descripcion: 'Valor mínimo promedio por ticket', vecesUsada: 6 },
+      { _id: 'plantilla-5', nombre: 'Meta semanal de ventas', tipo: 'ventas', valorObjetivo: 2500, periodo: 'semanal', aplicarTurno: 'todos', descripcion: 'Objetivo semanal de ventas', vecesUsada: 4 },
+      { _id: 'plantilla-6', nombre: 'Propina promedio objetivo', tipo: 'propinas_promedio', valorObjetivo: 8, periodo: 'diario', aplicarTurno: 'todos', descripcion: 'Propina promedio por ticket', vecesUsada: 10 }
+    ],
+    metaEditandoId: null,
     _chartMetasDistribucion: null,
     barMozoIds: [],
     presetsPeriodo: [
@@ -2752,6 +3161,37 @@ function mozosExecutiveApp() {
           this.mozosConectados = payload?.conectados ?? payload?.mozos?.length ?? 0;
           this.pulseKpi('presencia');
         });
+        // Listener para actualizaciones de metas
+        this._socketAdmin.on('metas-actualizadas', (payload) => {
+          if (payload?.tipo === 'creada' && payload?.meta) {
+            // Verificar si ya existe
+            const exists = this.metasConfiguradas.some(m => m._id === payload.meta._id);
+            if (!exists) {
+              this.metasConfiguradas.push(payload.meta);
+            }
+          } else if (payload?.tipo === 'actualizada' && payload?.meta) {
+            const idx = this.metasConfiguradas.findIndex(m => m._id === payload.meta._id);
+            if (idx >= 0) {
+              this.metasConfiguradas[idx] = { ...this.metasConfiguradas[idx], ...payload.meta };
+            }
+          } else if (payload?.tipo === 'desactivada' && payload?.meta?._id) {
+            const idx = this.metasConfiguradas.findIndex(m => m._id === payload.meta._id);
+            if (idx >= 0) {
+              this.metasConfiguradas[idx].activo = false;
+            }
+          }
+          // Actualizar KPIs y tabla
+          this.pulseKpi('total');
+          if (typeof this.updateMetasChart === 'function') {
+            this.updateMetasChart();
+          }
+        });
+        // Listener para rendimiento de mozos (afecta metas)
+        this._socketAdmin.on('mozo-rendimiento-update', (payload) => {
+          if (payload?.mozoId) {
+            this.scheduleSocketRefresh(payload.mozoId);
+          }
+        });
       } catch (e) { console.warn(e); }
     },
 
@@ -3265,23 +3705,44 @@ function mozosExecutiveApp() {
 
     // KPIs de gestión
     get metasActivasCount() {
-      return this.metasConfiguradas.filter(m => m.activo).length || 4;
+      return this.metasActivasGestor.length || 0;
     },
     get mozosCumpliendoCount() {
-      return this.metasMozosFiltradas.filter(m => m.porcentajeAvance >= 80).length || 3;
+      return this.metasMozosFiltradas.filter(m => m.porcentajeAvance >= 80).length || 0;
     },
     get mozosEnRiesgoCount() {
-      return this.metasMozosFiltradas.filter(m => m.porcentajeAvance < 50).length || 2;
+      return this.metasMozosFiltradas.filter(m => m.porcentajeAvance < 50).length || 0;
     },
     get cumplimientoEquipoPct() {
       const rows = this.metasMozosFiltradas;
-      if (!rows.length) return 72;
+      if (!rows.length) return 0;
       const total = rows.reduce((s, m) => s + m.porcentajeAvance, 0);
       return total / rows.length;
     },
     get metaProximaVencer() {
-      // Simulación - en producción vendría del backend
-      return { nombre: 'Meta ventas diaria', tiempoRestante: '3h 24m' };
+      // Buscar la meta más próxima a vencer entre las activas
+      const activas = this.metasActivasGestor;
+      if (activas.length === 0) return null;
+      
+      // Ordenar por vigenciaFin y tomar la más cercana
+      const sorted = [...activas].sort((a, b) => 
+        new Date(a.vigenciaFin) - new Date(b.vigenciaFin)
+      );
+      
+      const proxima = sorted[0];
+      if (!proxima) return null;
+      
+      const fin = new Date(proxima.vigenciaFin);
+      const ahora = new Date();
+      const diffMs = fin - ahora;
+      const diffHoras = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffMin = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      
+      return {
+        nombre: this.getMetaTypeLabel(proxima.tipo),
+        tiempoRestante: diffHoras > 0 ? diffHoras + 'h ' + diffMin + 'm' : diffMin + 'm',
+        meta: proxima
+      };
     },
     get alertasMetas() {
       const alertas = [];
@@ -3315,7 +3776,92 @@ function mozosExecutiveApp() {
       return alertas;
     },
     get metasMozosFiltradas() {
-      // Generar datos de metas por mozo basados en datos reales
+      // Integrar metas del gestor con datos de rendimiento de mozos
+      const metasActivas = this.metasActivasGestor;
+      
+      // Si hay metas configuradas, usarlas para generar la tabla
+      if (metasActivas.length > 0) {
+        const rows = [];
+        
+        metasActivas.forEach(meta => {
+          // Determinar qué mozos aplican a esta meta
+          let mozosAplican = [];
+          
+          if (meta.aplicarATodos) {
+            mozosAplican = this.mozos.filter(m => m.activo !== false);
+          } else if (meta.aplicarTurno && meta.aplicarTurno !== 'todos') {
+            // Filtrar por turno (usando enTurno como aproximación)
+            mozosAplican = this.mozos.filter(m => {
+              if (m.activo === false) return false;
+              // Aproximación: asignar turno basado en horario o campo específico
+              if (meta.aplicarTurno === 'manana') return true; // Asumir que todos pueden aplicar
+              if (meta.aplicarTurno === 'noche') return true;
+              return true;
+            });
+          } else if (meta.mozosAplican && meta.mozosAplican.length > 0) {
+            mozosAplican = this.mozos.filter(m => 
+              meta.mozosAplican.includes(m._id) || meta.mozosAplican.includes(this.idMozoStr(m))
+            );
+          }
+          
+          // Generar fila por cada mozo que aplica
+          mozosAplican.forEach(mozo => {
+            // Calcular valor actual según tipo de meta
+            let valorActual = 0;
+            switch (meta.tipo) {
+              case 'ventas':
+                valorActual = mozo.ventasHoy || 0;
+                break;
+              case 'mesas_atendidas':
+                valorActual = this.mesasAtendidasMozo(mozo);
+                break;
+              case 'tickets_generados':
+                valorActual = mozo.bouchersHoy || 0;
+                break;
+              case 'ticket_promedio':
+                const tickets = mozo.bouchersHoy || 0;
+                valorActual = tickets > 0 ? (mozo.ventasHoy || 0) / tickets : 0;
+                break;
+              case 'propinas_promedio':
+                const tks = mozo.bouchersHoy || 0;
+                valorActual = tks > 0 ? (mozo.propinasHoy || 0) / tks : 0;
+                break;
+            }
+            
+            const pct = meta.valorObjetivo > 0 ? (valorActual / meta.valorObjetivo) * 100 : 0;
+            const rowId = this.idMozoStr(mozo) + '-' + meta._id;
+            
+            // Verificar si ya existe una fila para este mozo-meta
+            if (!rows.some(r => r._rowId === rowId)) {
+              rows.push({
+                _rowId: rowId,
+                mozoId: this.idMozoStr(mozo),
+                mozoNombre: mozo.nombre || '—',
+                turno: mozo.enTurno ? 'En turno' : 'Fuera de turno',
+                tipoMeta: meta.tipo,
+                valorObjetivo: meta.valorObjetivo,
+                valorActual: valorActual,
+                porcentajeAvance: pct,
+                estado: this.calcularEstadoMeta(pct, mozo.enTurno),
+                proyeccion: this.calcularProyeccion(valorActual, meta.valorObjetivo, mozo.enTurno),
+                tendencia: this.trendGlyph(mozo, 'ventas') === '▲' ? 5 : this.trendGlyph(mozo, 'ventas') === '▼' ? -5 : 0,
+                metaId: meta._id,
+                metaPeriodo: meta.periodo
+              });
+            }
+          });
+        });
+        
+        // Aplicar filtros
+        return rows.filter(row => {
+          if (this.busquedaMetas && !row.mozoNombre.toLowerCase().includes(this.busquedaMetas.toLowerCase())) return false;
+          if (this.filtroEstadoMeta && row.estado !== this.filtroEstadoMeta) return false;
+          if (this.filtroTipoMeta && row.tipoMeta !== this.filtroTipoMeta) return false;
+          return true;
+        });
+      }
+      
+      // Fallback: Generar datos de metas por mozo basados en datos reales (meta por defecto)
       return this.mozos.filter(m => m.activo !== false).map(mozo => {
         const metaVentas = 500; // Meta diaria por defecto
         const ventasActuales = mozo.ventasHoy || 0;
@@ -3501,21 +4047,6 @@ function mozosExecutiveApp() {
     },
 
     // Acciones de UI
-    abrirModalNuevaMeta() {
-      this.formMeta = { tipo: 'ventas', valorObjetivo: 0, periodo: 'diario', mozosAplican: [], activo: true };
-      this.modalNuevaMeta = true;
-      this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); });
-    },
-    abrirModalPlantillas() {
-      this.modalPlantillas = true;
-      this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); });
-    },
-    cerrarModalNuevaMeta() {
-      this.modalNuevaMeta = false;
-    },
-    cerrarModalPlantillas() {
-      this.modalPlantillas = false;
-    },
     verDetalleMetaMozo(row) {
       this.metaMozoSeleccionada = row;
       this.drawerMetaMozo = true;
@@ -3525,14 +4056,24 @@ function mozosExecutiveApp() {
       this.metaMozoSeleccionada = null;
     },
     ajustarMetaMozo(row) {
-      this.formMeta = {
+      // Abre el gestor de metas con los datos precargados
+      this.formMetaGestor = {
         tipo: row.tipoMeta,
         valorObjetivo: row.valorObjetivo,
-        periodo: 'diario',
+        periodo: row.metaPeriodo || 'diario',
+        vigenciaInicio: limaYMD(),
+        vigenciaFin: limaYMD(),
+        tipoAsignacion: 'individual',
+        aplicarATodos: false,
+        aplicarTurno: 'todos',
         mozosAplican: [row.mozoId],
-        activo: true
+        plantillaId: '',
+        activo: true,
+        notificar: false,
+        esPlantilla: false
       };
-      this.modalNuevaMeta = true;
+      this.tabGestor = 'nueva';
+      this.modalGestorMetas = true;
       this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); });
     },
     verHistorialMeta(row) {
@@ -3541,21 +4082,372 @@ function mozosExecutiveApp() {
     descartarAlerta(idx) {
       this.alertasMetas.splice(idx, 1);
     },
-    async guardarMeta() {
-      const valor = Number(this.formMeta.valorObjetivo);
+
+    // ===================== MÉTODOS DEL GESTOR DE METAS =====================
+
+    // Computed properties para el gestor
+    get metasActivasGestor() {
+      const hoy = new Date();
+      return this.metasConfiguradas.filter(m => {
+        if (!m.activo) return false;
+        const inicio = new Date(m.vigenciaInicio);
+        const fin = new Date(m.vigenciaFin);
+        return inicio <= hoy && fin >= hoy;
+      });
+    },
+    get metasFuturasGestor() {
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      return this.metasConfiguradas.filter(m => {
+        if (!m.activo) return false;
+        const inicio = new Date(m.vigenciaInicio);
+        inicio.setHours(0, 0, 0, 0);
+        return inicio > hoy;
+      });
+    },
+    get metasHistorialGestor() {
+      const hoy = new Date();
+      return this.metasConfiguradas.filter(m => {
+        const fin = new Date(m.vigenciaFin);
+        return !m.activo || fin < hoy;
+      }).map(m => ({
+        ...m,
+        cumplimientoPct: Math.round(Math.random() * 40 + 60) // Mock para demo
+      }));
+    },
+    get metasActivasFiltradas() {
+      return this.metasActivasGestor.filter(m => {
+        if (this.filtroTipoActivas && m.tipo !== this.filtroTipoActivas) return false;
+        if (this.filtroTurnoActivas && m.aplicarTurno !== this.filtroTurnoActivas) return false;
+        if (this.filtroBusquedaActivas) {
+          const search = this.filtroBusquedaActivas.toLowerCase();
+          const matchTipo = this.getMetaTypeLabel(m.tipo).toLowerCase().includes(search);
+          const matchTurno = m.aplicarTurno?.toLowerCase().includes(search);
+          if (!matchTipo && !matchTurno) return false;
+        }
+        return true;
+      });
+    },
+    get mozosFiltradosMeta() {
+      if (!this.busquedaMozoMeta) return this.mozos.filter(m => m.activo !== false);
+      const search = this.busquedaMozoMeta.toLowerCase();
+      return this.mozos.filter(m => 
+        m.activo !== false && m.nombre?.toLowerCase().includes(search)
+      );
+    },
+
+    // Acciones del gestor
+    abrirGestorMetas() {
+      this.modalGestorMetas = true;
+      this.tabGestor = 'nueva';
+      this.resetFormMetaGestor();
+      this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); });
+    },
+    cerrarGestorMetas() {
+      this.modalGestorMetas = false;
+      this.metaEditandoId = null;
+    },
+    resetFormMetaGestor() {
+      const hoy = limaYMD();
+      this.formMetaGestor = {
+        tipo: 'ventas',
+        valorObjetivo: 0,
+        periodo: 'diario',
+        vigenciaInicio: hoy,
+        vigenciaFin: hoy,
+        tipoAsignacion: 'todos',
+        aplicarATodos: true,
+        aplicarTurno: 'todos',
+        mozosAplican: [],
+        plantillaId: '',
+        activo: true,
+        notificar: false,
+        esPlantilla: false
+      };
+      this.metaEditandoId = null;
+    },
+    setPeriodoMetaGestor(periodo) {
+      this.formMetaGestor.periodo = periodo;
+      const hoy = limaYMD();
+      if (periodo === 'diario') {
+        this.formMetaGestor.vigenciaInicio = hoy;
+        this.formMetaGestor.vigenciaFin = hoy;
+      } else if (periodo === 'semanal') {
+        // Inicio de semana (lunes)
+        const d = new Date();
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        const lunes = new Date(d.setDate(diff));
+        const domingo = new Date(lunes);
+        domingo.setDate(lunes.getDate() + 6);
+        this.formMetaGestor.vigenciaInicio = limaYMD(lunes);
+        this.formMetaGestor.vigenciaFin = limaYMD(domingo);
+      } else if (periodo === 'mensual') {
+        this.formMetaGestor.vigenciaInicio = monthFirstYMD(hoy);
+        const [y, m] = hoy.split('-').map(Number);
+        const ultimoDia = new Date(y, m, 0);
+        this.formMetaGestor.vigenciaFin = limaYMD(ultimoDia);
+      }
+    },
+    setAsignacionMetaGestor(tipo) {
+      this.formMetaGestor.tipoAsignacion = tipo;
+      if (tipo === 'todos') {
+        this.formMetaGestor.aplicarATodos = true;
+        this.formMetaGestor.aplicarTurno = 'todos';
+        this.formMetaGestor.mozosAplican = [];
+      } else if (tipo === 'turno') {
+        this.formMetaGestor.aplicarATodos = false;
+        this.formMetaGestor.mozosAplican = [];
+      } else if (tipo === 'individual') {
+        this.formMetaGestor.aplicarATodos = false;
+        this.formMetaGestor.aplicarTurno = 'todos';
+      }
+    },
+    onTipoMetaChange() {
+      // Resetear valor al cambiar tipo
+      this.formMetaGestor.valorObjetivo = 0;
+    },
+    cargarPlantillaSeleccionada() {
+      if (!this.formMetaGestor.plantillaId) return;
+      const plantilla = this.plantillasMetas.find(p => p._id === this.formMetaGestor.plantillaId);
+      if (plantilla) {
+        this.formMetaGestor.tipo = plantilla.tipo;
+        this.formMetaGestor.valorObjetivo = plantilla.valorObjetivo;
+        this.formMetaGestor.periodo = plantilla.periodo;
+        this.formMetaGestor.aplicarTurno = plantilla.aplicarTurno || 'todos';
+        if (plantilla.aplicarTurno && plantilla.aplicarTurno !== 'todos') {
+          this.formMetaGestor.tipoAsignacion = 'turno';
+          this.formMetaGestor.aplicarATodos = false;
+        } else {
+          this.formMetaGestor.tipoAsignacion = 'todos';
+          this.formMetaGestor.aplicarATodos = true;
+        }
+        this.setPeriodoMetaGestor(plantilla.periodo);
+        this.showToast('Plantilla "' + plantilla.nombre + '" cargada');
+      }
+    },
+    async guardarMetaGestor() {
+      // Validaciones
+      const valor = Number(this.formMetaGestor.valorObjetivo);
       if (!valor || valor <= 0) {
         this.showToast('El valor objetivo debe ser mayor a 0', 'error');
         return;
       }
-      // En producción, esto iría al backend
-      this.metasConfiguradas.push({
-        ...this.formMeta,
-        _id: Date.now().toString(),
-        creadoEn: new Date().toISOString()
-      });
-      this.cerrarModalNuevaMeta();
-      this.showToast('Meta guardada correctamente');
+      if (!this.formMetaGestor.vigenciaInicio || !this.formMetaGestor.vigenciaFin) {
+        this.showToast('Las fechas de vigencia son obligatorias', 'error');
+        return;
+      }
+      if (new Date(this.formMetaGestor.vigenciaFin) < new Date(this.formMetaGestor.vigenciaInicio)) {
+        this.showToast('La fecha de fin debe ser posterior a la de inicio', 'error');
+        return;
+      }
+      if (this.formMetaGestor.tipoAsignacion === 'individual' && this.formMetaGestor.mozosAplican.length === 0) {
+        this.showToast('Debes seleccionar al menos un mozo', 'error');
+        return;
+      }
+
+      // Construir objeto meta
+      const meta = {
+        _id: this.metaEditandoId || Date.now().toString(),
+        tipo: this.formMetaGestor.tipo,
+        valorObjetivo: this.formMetaGestor.valorObjetivo,
+        tipoValor: 'absoluto',
+        operador: 'gte',
+        periodo: this.formMetaGestor.periodo,
+        vigenciaInicio: this.formMetaGestor.vigenciaInicio,
+        vigenciaFin: this.formMetaGestor.vigenciaFin,
+        mozosAplican: this.formMetaGestor.tipoAsignacion === 'individual' ? [...this.formMetaGestor.mozosAplican] : [],
+        aplicarATodos: this.formMetaGestor.tipoAsignacion === 'todos',
+        aplicarTurno: this.formMetaGestor.tipoAsignacion === 'turno' ? this.formMetaGestor.aplicarTurno : 'todos',
+        activo: this.formMetaGestor.activo,
+        esPlantilla: false,
+        plantillaId: this.formMetaGestor.plantillaId || null,
+        creadoPorNombre: 'Admin',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      // Simular llamada a API
+      if (this.metaEditandoId) {
+        const idx = this.metasConfiguradas.findIndex(m => m._id === this.metaEditandoId);
+        if (idx >= 0) {
+          this.metasConfiguradas[idx] = { ...this.metasConfiguradas[idx], ...meta };
+        }
+        this.showToast('Meta actualizada correctamente');
+      } else {
+        this.metasConfiguradas.push(meta);
+        this.showToast('Meta creada correctamente');
+        
+        // Incrementar uso de plantilla
+        if (this.formMetaGestor.plantillaId) {
+          const pIdx = this.plantillasMetas.findIndex(p => p._id === this.formMetaGestor.plantillaId);
+          if (pIdx >= 0) {
+            this.plantillasMetas[pIdx].vecesUsada = (this.plantillasMetas[pIdx].vecesUsada || 0) + 1;
+          }
+        }
+      }
+
+      this.gestorGuardado = true;
+      setTimeout(() => this.gestorGuardado = false, 2000);
+      this.resetFormMetaGestor();
+      this.tabGestor = 'activas';
+      
+      // Emitir evento Socket para sincronización (si está disponible)
+      if (this._socketAdmin) {
+        this._socketAdmin.emit('metas-actualizadas', { tipo: 'creada', meta });
+      }
     },
+    editarMetaGestor(meta) {
+      this.metaEditandoId = meta._id;
+      this.formMetaGestor = {
+        tipo: meta.tipo,
+        valorObjetivo: meta.valorObjetivo,
+        periodo: meta.periodo,
+        vigenciaInicio: meta.vigenciaInicio,
+        vigenciaFin: meta.vigenciaFin,
+        tipoAsignacion: meta.aplicarATodos ? 'todos' : (meta.mozosAplican?.length > 0 ? 'individual' : 'turno'),
+        aplicarATodos: meta.aplicarATodos,
+        aplicarTurno: meta.aplicarTurno || 'todos',
+        mozosAplican: meta.mozosAplican || [],
+        plantillaId: meta.plantillaId || '',
+        activo: meta.activo,
+        notificar: false,
+        esPlantilla: meta.esPlantilla || false
+      };
+      this.tabGestor = 'nueva';
+      this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); });
+    },
+    duplicarMetaGestor(meta) {
+      this.metaEditandoId = null;
+      this.formMetaGestor = {
+        tipo: meta.tipo,
+        valorObjetivo: meta.valorObjetivo,
+        periodo: meta.periodo,
+        vigenciaInicio: limaYMD(),
+        vigenciaFin: limaYMD(),
+        tipoAsignacion: meta.aplicarATodos ? 'todos' : (meta.mozosAplican?.length > 0 ? 'individual' : 'turno'),
+        aplicarATodos: meta.aplicarATodos,
+        aplicarTurno: meta.aplicarTurno || 'todos',
+        mozosAplican: meta.mozosAplican || [],
+        plantillaId: '',
+        activo: true,
+        notificar: false,
+        esPlantilla: false
+      };
+      this.tabGestor = 'nueva';
+      this.showToast('Meta duplicada. Ajusta las fechas y guarda.');
+    },
+    async desactivarMetaGestor(meta) {
+      if (!confirm('¿Desactivar esta meta?\n\nLa meta será marcada como inactiva y se moverá al historial.')) return;
+      
+      const idx = this.metasConfiguradas.findIndex(m => m._id === meta._id);
+      if (idx >= 0) {
+        this.metasConfiguradas[idx].activo = false;
+        this.metasConfiguradas[idx].updatedAt = new Date().toISOString();
+      }
+      this.showToast('Meta desactivada');
+      
+      if (this._socketAdmin) {
+        this._socketAdmin.emit('metas-actualizadas', { tipo: 'desactivada', meta: { _id: meta._id } });
+      }
+    },
+    convertirPlantilla(meta) {
+      const nuevaPlantilla = {
+        _id: 'plantilla-' + Date.now(),
+        nombre: this.getMetaTypeLabel(meta.tipo) + ' (desde meta)',
+        tipo: meta.tipo,
+        valorObjetivo: meta.valorObjetivo,
+        periodo: meta.periodo,
+        aplicarTurno: meta.aplicarTurno || 'todos',
+        descripcion: 'Creada desde meta existente',
+        vecesUsada: 0
+      };
+      this.plantillasMetas.push(nuevaPlantilla);
+      this.showToast('Plantilla creada correctamente');
+      this.tabGestor = 'plantillas';
+    },
+    activarAhora(meta) {
+      const idx = this.metasConfiguradas.findIndex(m => m._id === meta._id);
+      if (idx >= 0) {
+        this.metasConfiguradas[idx].vigenciaInicio = limaYMD();
+        const fin = new Date();
+        fin.setDate(fin.getDate() + (meta.periodo === 'diario' ? 0 : meta.periodo === 'semanal' ? 6 : 30));
+        this.metasConfiguradas[idx].vigenciaFin = limaYMD(fin);
+      }
+      this.showToast('Meta activada para hoy');
+    },
+    reactivarMeta(meta) {
+      const nuevaMeta = {
+        ...meta,
+        _id: Date.now().toString(),
+        vigenciaInicio: limaYMD(),
+        vigenciaFin: limaYMD(),
+        activo: true,
+        createdAt: new Date().toISOString()
+      };
+      delete nuevaMeta.cumplimientoPct;
+      this.metasConfiguradas.push(nuevaMeta);
+      this.showToast('Meta reactivada. Ajusta las fechas si es necesario.');
+      this.tabGestor = 'activas';
+    },
+    aplicarPlantillaGestor(plantilla) {
+      this.formMetaGestor.plantillaId = plantilla._id;
+      this.cargarPlantillaSeleccionada();
+      this.tabGestor = 'nueva';
+    },
+    nuevaPlantilla() {
+      this.resetFormMetaGestor();
+      this.formMetaGestor.esPlantilla = true;
+      this.tabGestor = 'nueva';
+      this.showToast('Configura la nueva plantilla y guárdala');
+    },
+    editarPlantilla(plantilla) {
+      this.formMetaGestor = {
+        tipo: plantilla.tipo,
+        valorObjetivo: plantilla.valorObjetivo,
+        periodo: plantilla.periodo,
+        vigenciaInicio: limaYMD(),
+        vigenciaFin: limaYMD(),
+        tipoAsignacion: plantilla.aplicarTurno && plantilla.aplicarTurno !== 'todos' ? 'turno' : 'todos',
+        aplicarATodos: !plantilla.aplicarTurno || plantilla.aplicarTurno === 'todos',
+        aplicarTurno: plantilla.aplicarTurno || 'todos',
+        mozosAplican: [],
+        plantillaId: plantilla._id,
+        activo: true,
+        notificar: false,
+        esPlantilla: true
+      };
+      this.metaEditandoId = plantilla._id;
+      this.tabGestor = 'nueva';
+    },
+
+    // Métodos auxiliares para formato
+    formatRangoVigencia(inicio, fin) {
+      if (!inicio || !fin) return '—';
+      const i = inicio.slice(0, 10);
+      const f = fin.slice(0, 10);
+      if (i === f) return i;
+      return i + ' → ' + f;
+    },
+    formatFechaCorta(fecha) {
+      if (!fecha) return '—';
+      return fecha.slice(0, 10);
+    },
+    diasHasta(fecha) {
+      if (!fecha) return 0;
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      const target = new Date(fecha);
+      target.setHours(0, 0, 0, 0);
+      const diff = target - hoy;
+      return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+    },
+    getIconoTurno(turno) {
+      if (turno === 'manana') return '🌅';
+      if (turno === 'noche') return '🌙';
+      return '👥';
+    },
+
     updateMetasChart() {
       if (typeof Chart === 'undefined') return;
       const ctx = document.getElementById('chartMetasDistribucion');
@@ -3605,6 +4497,7 @@ function mozosExecutiveApp() {
   };
 }
 </script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 <script src="/assets/js/page-transitions.js"></script>
 <script src="/assets/js/cosmos-search.js"></script>
 <script>
