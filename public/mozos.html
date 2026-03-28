@@ -390,7 +390,7 @@ tailwind.config = {
       <button type="button" @click="cambiarSeccion('propinas')"
         class="px-4 py-2 rounded-lg text-sm font-medium transition"
         :class="activeSection === 'propinas' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
-        💸 Propinas
+        🎯 Meta
       </button>
     </div>
 
@@ -670,6 +670,31 @@ tailwind.config = {
       <h2 class="text-sm font-bold uppercase tracking-wider text-txt-muted">Rendimiento del equipo</h2>
       <p class="text-xs text-txt-muted -mt-2">Indicadores operativos de ventas y evolución temporal. Clic en gráficos de barras resalta al mozo en Principal. Las series por hora usan pagos de bouchers (Lima); el heatmap muestra mesas distintas atendidas por mozo y hora.</p>
 
+      <!-- KPI Cards Rendimiento -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="mozos-kpi-card rounded-xl p-4 flex items-center gap-3">
+          <div class="w-12 h-12 rounded-lg bg-gold/20 flex items-center justify-center text-2xl">🎫</div>
+          <div>
+            <p class="text-[10px] uppercase text-txt-muted">Tickets</p>
+            <p class="text-2xl font-bold text-white tabular-nums" x-text="totalTicketsPeriodo">156</p>
+          </div>
+        </div>
+        <div class="mozos-kpi-card rounded-xl p-4 flex items-center gap-3">
+          <div class="w-12 h-12 rounded-lg bg-st-preparado/20 flex items-center justify-center text-2xl">💰</div>
+          <div>
+            <p class="text-[10px] uppercase text-txt-muted">Ticket Promedio</p>
+            <p class="text-2xl font-bold text-white tabular-nums" x-text="'S/. ' + fmt(ticketPromedio)">S/45.20</p>
+          </div>
+        </div>
+        <div class="mozos-kpi-card rounded-xl p-4 flex items-center gap-3">
+          <div class="w-12 h-12 rounded-lg bg-blue-500/20 flex items-center justify-center text-2xl">⏱️</div>
+          <div>
+            <p class="text-[10px] uppercase text-txt-muted">Mesas/Hora</p>
+            <p class="text-2xl font-bold text-white tabular-nums" x-text="mesasPorHora.toFixed(1)">2.1</p>
+          </div>
+        </div>
+      </div>
+
       <!-- Ranking -->
       <div class="mozos-kpi-card rounded-2xl p-4 overflow-x-auto">
         <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -791,25 +816,69 @@ tailwind.config = {
           <p class="text-[10px] text-txt-muted mt-3" x-show="!(dashboardData?.series?.productividadMozoHora || []).length">Sin datos de bouchers por hora en el período (matriz vacía).</p>
         </div>
       </div>
-    </section>
 
-    <!-- Sección Propinas -->
-    <section x-show="activeSection === 'propinas'" class="space-y-4 mb-10" aria-label="Propinas">
-      <h2 class="text-sm font-bold uppercase tracking-wider text-txt-muted">Gestión de propinas</h2>
-      <p class="text-xs text-txt-muted -mt-2">Concentrado de distribución, promedio y objetivos de propinas del período.</p>
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div class="mozos-kpi-card rounded-2xl p-4 lg:col-span-1">
-          <h3 class="text-xs font-bold uppercase text-txt-muted mb-2">Resumen</h3>
-          <div class="space-y-2 text-sm">
-            <p class="flex justify-between"><span class="text-txt-muted">Total período</span><span class="font-bold text-st-preparado" x-text="'S/. ' + fmt(totalPropinasPeriodo)"></span></p>
-            <p class="flex justify-between"><span class="text-txt-muted">Promedio / mozo</span><span class="font-bold text-white" x-text="'S/. ' + fmt(promedioPropinaMozo)"></span></p>
-            <p class="flex justify-between"><span class="text-txt-muted">Meta diaria sugerida</span><span class="font-bold text-gold" x-text="'S/. ' + fmt(META_PROPINAS_SUGERIDA)"></span></p>
-            <p class="flex justify-between"><span class="text-txt-muted">Estado</span><span class="font-bold" :class="metaPropinasAlcanzada ? 'text-st-preparado' : 'text-st-esperando'" x-text="metaPropinasAlcanzada ? 'Meta cumplida' : 'En progreso'"></span></p>
+      <!-- Gestión de propinas -->
+      <div class="mt-6 pt-4 border-t border-[rgba(212,175,55,0.15)]">
+        <h3 class="text-sm font-bold uppercase tracking-wider text-txt-muted mb-3">Gestión de propinas</h3>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div class="mozos-kpi-card rounded-2xl p-4 lg:col-span-1">
+            <h4 class="text-xs font-bold uppercase text-txt-muted mb-2">Resumen</h4>
+            <div class="space-y-2 text-sm">
+              <p class="flex justify-between"><span class="text-txt-muted">Total período</span><span class="font-bold text-st-preparado" x-text="'S/. ' + fmt(totalPropinasPeriodo)"></span></p>
+              <p class="flex justify-between"><span class="text-txt-muted">Promedio / mozo</span><span class="font-bold text-white" x-text="'S/. ' + fmt(promedioPropinaMozo)"></span></p>
+              <p class="flex justify-between"><span class="text-txt-muted">Meta diaria sugerida</span><span class="font-bold text-gold" x-text="'S/. ' + fmt(META_PROPINAS_SUGERIDA)"></span></p>
+              <p class="flex justify-between"><span class="text-txt-muted">Estado</span><span class="font-bold" :class="metaPropinasAlcanzada ? 'text-st-preparado' : 'text-st-esperando'" x-text="metaPropinasAlcanzada ? 'Meta cumplida' : 'En progreso'"></span></p>
+            </div>
+          </div>
+          <div class="mozos-kpi-card rounded-2xl p-4 lg:col-span-2 min-h-[300px]">
+            <h4 class="text-xs font-bold uppercase text-txt-muted mb-2">Participación en propinas</h4>
+            <div class="h-[250px] flex items-center justify-center"><canvas id="chartMozosDonut"></canvas></div>
           </div>
         </div>
-        <div class="mozos-kpi-card rounded-2xl p-4 lg:col-span-2 min-h-[300px]">
-          <h3 class="text-xs font-bold uppercase text-txt-muted mb-2">Participación en propinas</h3>
-          <div class="h-[250px] flex items-center justify-center"><canvas id="chartMozosDonut"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Sección Meta (antes Propinas) -->
+    <section x-show="activeSection === 'propinas'" class="space-y-4 mb-10" aria-label="Meta">
+      <h2 class="text-sm font-bold uppercase tracking-wider text-txt-muted">Gestión de metas</h2>
+      <p class="text-xs text-txt-muted -mt-2">Seguimiento de objetivos y metas del equipo para el período seleccionado.</p>
+
+      <!-- Barras de Progreso Metas -->
+      <div class="mozos-kpi-card rounded-2xl p-4 space-y-4">
+        <h3 class="text-xs font-bold uppercase text-txt-muted mb-2">Barra de Progreso Metas</h3>
+        
+        <!-- Meta Mesas -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-sm text-white">Meta Mesas</span>
+            <span class="text-sm font-bold text-gold" x-text="metaMesasActual + '/' + META_MESAS_OBJETIVO"></span>
+          </div>
+          <div class="w-full h-4 bg-bg-sidebar rounded-full overflow-hidden">
+            <div class="h-full rounded-full transition-all duration-500"
+              :class="porcentajeMetaMesas >= 100 ? 'bg-st-preparado' : porcentajeMetaMesas >= 70 ? 'bg-gold' : 'bg-st-esperando'"
+              :style="'width: ' + Math.min(100, porcentajeMetaMesas) + '%'"></div>
+          </div>
+          <div class="flex justify-between mt-1">
+            <span class="text-[10px] text-txt-muted">Progreso</span>
+            <span class="text-[10px] text-txt-muted" x-text="porcentajeMetaMesas.toFixed(0) + '%'"></span>
+          </div>
+        </div>
+
+        <!-- Meta Ticket Promedio -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-sm text-white">Meta Ticket Prom.</span>
+            <span class="text-sm font-bold text-gold" x-text="'S/.' + fmt(ticketPromedio) + '/S/.' + fmt(META_TICKET_OBJETIVO)"></span>
+          </div>
+          <div class="w-full h-4 bg-bg-sidebar rounded-full overflow-hidden">
+            <div class="h-full rounded-full transition-all duration-500"
+              :class="porcentajeMetaTicket >= 100 ? 'bg-st-preparado' : porcentajeMetaTicket >= 80 ? 'bg-gold' : 'bg-st-esperando'"
+              :style="'width: ' + Math.min(100, porcentajeMetaTicket) + '%'"></div>
+          </div>
+          <div class="flex justify-between mt-1">
+            <span class="text-[10px] text-txt-muted">Progreso</span>
+            <span class="text-[10px] text-txt-muted" x-text="porcentajeMetaTicket.toFixed(0) + '%'"></span>
+          </div>
         </div>
       </div>
     </section>
@@ -1208,6 +1277,8 @@ tailwind.config = {
 <script>
 function mozosExecutiveApp() {
   const META_PROPINAS_SUGERIDA = 200;
+  const META_MESAS_OBJETIVO = 100;
+  const META_TICKET_OBJETIVO = 50;
 
   function limaYMD(d = new Date()) {
     return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
@@ -1236,6 +1307,8 @@ function mozosExecutiveApp() {
     },
     wallMode: false,
     META_PROPINAS_SUGERIDA,
+    META_MESAS_OBJETIVO,
+    META_TICKET_OBJETIVO,
     loading: true,
     loadingMesas: false,
     modal: null,
@@ -1378,6 +1451,49 @@ function mozosExecutiveApp() {
     },
     get metaPropinasAlcanzada() {
       return this.totalPropinasPeriodo >= META_PROPINAS_SUGERIDA;
+    },
+    get totalTicketsPeriodo() {
+      // bouchersHoy = tickets (pagos realizados)
+      if (this.dashboardData?.totales?.totalTickets != null) {
+        return this.dashboardData.totales.totalTickets;
+      }
+      return this.mozos.reduce((s, m) => s + (Number(m.bouchersHoy) || 0), 0);
+    },
+    get totalMesasPeriodo() {
+      // Usar mesasAtendidasDash o mesasAsignadas por cada mozo
+      if (this.dashboardData?.totales?.totalMesas != null) {
+        return this.dashboardData.totales.totalMesas;
+      }
+      return this.mozos.reduce((s, m) => s + this.mesasAtendidasMozo(m), 0);
+    },
+    get ticketPromedio() {
+      const tickets = this.totalTicketsPeriodo;
+      if (!tickets) return 0;
+      return Math.round((this.totalVentasPeriodo / tickets) * 100) / 100;
+    },
+    get mesasPorHora() {
+      // Calcular horas de operación basado en el rango
+      let horasOperacion = 8; // día normal
+      if (this.rangoPreset === 'semana') {
+        horasOperacion = 8 * 7;
+      } else if (this.rangoPreset === 'mes') {
+        horasOperacion = 8 * 30;
+      } else if (this.rangoPreset === 'custom') {
+        const { inicio, fin } = this.rangoFechas;
+        const dias = daysBetween(inicio, fin) + 1;
+        horasOperacion = 8 * dias;
+      }
+      if (!horasOperacion) return 0;
+      return Math.round((this.totalMesasPeriodo / horasOperacion) * 10) / 10;
+    },
+    get metaMesasActual() {
+      return this.totalMesasPeriodo;
+    },
+    get porcentajeMetaMesas() {
+      return (this.metaMesasActual / META_MESAS_OBJETIVO) * 100;
+    },
+    get porcentajeMetaTicket() {
+      return (this.ticketPromedio / META_TICKET_OBJETIVO) * 100;
     },
     get mozosActivosCatalogo() {
       return this.mozos.filter(m => m.activo !== false).length;
