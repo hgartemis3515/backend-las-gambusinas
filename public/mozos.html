@@ -347,6 +347,108 @@ tailwind.config = {
     align-items: center;
     justify-content: center;
   }
+  /* Metas Section Styles */
+  .metas-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .metas-status-sin-iniciar { background: rgba(90, 90, 122, 0.2); color: #a0a0b8; border: 1px solid rgba(90, 90, 122, 0.3); }
+  .metas-status-en-progreso { background: rgba(52, 152, 219, 0.15); color: #3498db; border: 1px solid rgba(52, 152, 219, 0.3); }
+  .metas-status-en-riesgo { background: rgba(255, 165, 2, 0.15); color: #ffa502; border: 1px solid rgba(255, 165, 2, 0.3); }
+  .metas-status-encaminado { background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.3); }
+  .metas-status-cumplido { background: rgba(0, 212, 170, 0.15); color: #00d4aa; border: 1px solid rgba(0, 212, 170, 0.3); }
+  .metas-status-superado { background: rgba(212, 175, 55, 0.2); color: #d4af37; border: 1px solid rgba(212, 175, 55, 0.4); }
+  .metas-progress-bar {
+    height: 8px;
+    background: rgba(18, 18, 26, 0.8);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+  .metas-progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.5s ease, background 0.3s ease;
+  }
+  .metas-kpi-gestion {
+    background: linear-gradient(145deg, rgba(26, 26, 40, 0.98) 0%, rgba(18, 18, 26, 0.95) 100%);
+    border: 1px solid rgba(212, 175, 55, 0.15);
+    border-radius: 16px;
+    padding: 16px 20px;
+    transition: all 0.25s ease;
+  }
+  .metas-kpi-gestion:hover {
+    border-color: rgba(212, 175, 55, 0.3);
+    transform: translateY(-2px);
+  }
+  .metas-alert-card {
+    background: linear-gradient(135deg, rgba(255, 71, 87, 0.08) 0%, rgba(255, 165, 2, 0.05) 100%);
+    border: 1px solid rgba(255, 71, 87, 0.2);
+    border-radius: 14px;
+    padding: 14px 16px;
+    transition: all 0.2s ease;
+  }
+  .metas-alert-card:hover {
+    border-color: rgba(255, 71, 87, 0.35);
+    background: linear-gradient(135deg, rgba(255, 71, 87, 0.12) 0%, rgba(255, 165, 2, 0.08) 100%);
+  }
+  .metas-recommendation-card {
+    background: rgba(52, 152, 219, 0.08);
+    border: 1px solid rgba(52, 152, 219, 0.2);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.9);
+    transition: all 0.2s ease;
+  }
+  .metas-recommendation-card:hover {
+    border-color: rgba(52, 152, 219, 0.35);
+    background: rgba(52, 152, 219, 0.12);
+  }
+  .metas-table-row {
+    transition: all 0.2s ease;
+  }
+  .metas-table-row:hover {
+    background: rgba(212, 175, 55, 0.05);
+  }
+  .metas-trend-up { color: #2ecc71; }
+  .metas-trend-down { color: #ff4757; }
+  .metas-trend-neutral { color: #a0a0b8; }
+  .metas-drawer-overlay {
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  .metas-drawer-container {
+    animation: drawerSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes drawerSlideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  .metas-mini-chart {
+    height: 40px;
+    background: rgba(18, 18, 26, 0.6);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .metas-type-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
 </style>
 </head>
 <body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="mozosExecutiveApp()" :class="{ 'mozos-wall': wallMode }" x-cloak>
@@ -838,46 +940,383 @@ tailwind.config = {
       </div>
     </section>
 
-    <!-- Sección Meta (antes Propinas) -->
-    <section x-show="activeSection === 'propinas'" class="space-y-4 mb-10" aria-label="Meta">
-      <h2 class="text-sm font-bold uppercase tracking-wider text-txt-muted">Gestión de metas</h2>
-      <p class="text-xs text-txt-muted -mt-2">Seguimiento de objetivos y metas del equipo para el período seleccionado.</p>
-
-      <!-- Barras de Progreso Metas -->
-      <div class="mozos-kpi-card rounded-2xl p-4 space-y-4">
-        <h3 class="text-xs font-bold uppercase text-txt-muted mb-2">Barra de Progreso Metas</h3>
-        
-        <!-- Meta Mesas -->
+    <!-- Sección Metas de Mozos -->
+    <section x-show="activeSection === 'propinas'" class="space-y-5 mb-10" aria-label="Metas de Mozos">
+      <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
         <div>
-          <div class="flex justify-between items-center mb-1">
-            <span class="text-sm text-white">Meta Mesas</span>
-            <span class="text-sm font-bold text-gold" x-text="metaMesasActual + '/' + META_MESAS_OBJETIVO"></span>
+          <h2 class="text-sm font-bold uppercase tracking-wider text-txt-muted">Metas de Mozos</h2>
+          <p class="text-xs text-txt-muted -mt-1">Define objetivos, monitorea cumplimiento y detecta oportunidades de mejora en tiempo real.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" @click="abrirModalNuevaMeta()" class="px-4 py-2 rounded-lg text-xs font-bold bg-gold text-bg-primary hover:brightness-110 transition flex items-center gap-2">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            Nueva meta
+          </button>
+          <button type="button" @click="abrirModalPlantillas()" class="px-4 py-2 rounded-lg text-xs font-bold border border-gold/30 text-gold hover:bg-gold/10 transition flex items-center gap-2">
+            <i data-lucide="copy" class="w-4 h-4"></i>
+            Plantillas
+          </button>
+        </div>
+      </div>
+
+      <!-- KPIs de Gestión -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div class="metas-kpi-gestion">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-8 h-8 rounded-lg bg-gold/20 flex items-center justify-center">
+              <i data-lucide="target" class="w-4 h-4 text-gold"></i>
+            </div>
+            <p class="text-[10px] uppercase text-txt-muted font-semibold">Metas activas</p>
           </div>
-          <div class="w-full h-4 bg-bg-sidebar rounded-full overflow-hidden">
-            <div class="h-full rounded-full transition-all duration-500"
-              :class="porcentajeMetaMesas >= 100 ? 'bg-st-preparado' : porcentajeMetaMesas >= 70 ? 'bg-gold' : 'bg-st-esperando'"
-              :style="'width: ' + Math.min(100, porcentajeMetaMesas) + '%'"></div>
+          <p class="text-2xl font-extrabold text-white tabular-nums" x-text="metasActivasCount">4</p>
+          <p class="text-[10px] text-txt-muted mt-1">En el período actual</p>
+        </div>
+        <div class="metas-kpi-gestion">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-8 h-8 rounded-lg bg-st-preparado/20 flex items-center justify-center">
+              <i data-lucide="check-circle" class="w-4 h-4 text-st-preparado"></i>
+            </div>
+            <p class="text-[10px] uppercase text-txt-muted font-semibold">Cumpliendo</p>
           </div>
-          <div class="flex justify-between mt-1">
-            <span class="text-[10px] text-txt-muted">Progreso</span>
-            <span class="text-[10px] text-txt-muted" x-text="porcentajeMetaMesas.toFixed(0) + '%'"></span>
+          <p class="text-2xl font-extrabold text-st-preparado tabular-nums" x-text="mozosCumpliendoCount">3</p>
+          <p class="text-[10px] text-txt-muted mt-1">≥80% de avance</p>
+        </div>
+        <div class="metas-kpi-gestion">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-8 h-8 rounded-lg bg-st-esperando/20 flex items-center justify-center">
+              <i data-lucide="alert-triangle" class="w-4 h-4 text-st-esperando"></i>
+            </div>
+            <p class="text-[10px] uppercase text-txt-muted font-semibold">En riesgo</p>
+          </div>
+          <p class="text-2xl font-extrabold text-st-esperando tabular-nums" x-text="mozosEnRiesgoCount">2</p>
+          <p class="text-[10px] text-txt-muted mt-1">&lt;50% de avance</p>
+        </div>
+        <div class="metas-kpi-gestion">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-8 h-8 rounded-lg bg-st-libre/20 flex items-center justify-center">
+              <i data-lucide="trending-up" class="w-4 h-4 text-st-libre"></i>
+            </div>
+            <p class="text-[10px] uppercase text-txt-muted font-semibold">Cumplimiento equipo</p>
+          </div>
+          <p class="text-2xl font-extrabold text-white tabular-nums" x-text="cumplimientoEquipoPct.toFixed(0) + '%'">72%</p>
+          <p class="text-[10px] text-txt-muted mt-1">Promedio del equipo</p>
+        </div>
+        <div class="metas-kpi-gestion col-span-2 sm:col-span-1">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-8 h-8 rounded-lg bg-st-pedido/20 flex items-center justify-center">
+              <i data-lucide="clock" class="w-4 h-4 text-st-pedido"></i>
+            </div>
+            <p class="text-[10px] uppercase text-txt-muted font-semibold">Próxima a vencer</p>
+          </div>
+          <p class="text-sm font-bold text-white truncate" x-text="metaProximaVencer?.nombre || 'Ninguna'">Meta ventas</p>
+          <p class="text-[10px] text-txt-muted mt-1" x-text="metaProximaVencer?.tiempoRestante || '—'">3h 24m restantes</p>
+        </div>
+      </div>
+
+      <!-- Alertas automáticas -->
+      <div x-show="alertasMetas.length > 0" class="space-y-2">
+        <template x-for="(alerta, idx) in alertasMetas" :key="'alerta-' + idx">
+          <div class="metas-alert-card flex items-start gap-3">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" :class="alerta.tipo === 'riesgo' ? 'bg-st-pagado/20' : alerta.tipo === 'proyeccion' ? 'bg-st-esperando/20' : 'bg-st-pedido/20'">
+              <i data-lucide="alert-circle" class="w-4 h-4" :class="alerta.tipo === 'riesgo' ? 'text-st-pagado' : alerta.tipo === 'proyeccion' ? 'text-st-esperando' : 'text-st-pedido'"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-white" x-text="alerta.titulo">3 mozos por debajo del 40%</p>
+              <p class="text-xs text-txt-muted mt-0.5" x-text="alerta.descripcion">Considerar reasignación de mesas</p>
+            </div>
+            <button type="button" @click="descartarAlerta(idx)" class="text-txt-muted hover:text-white transition p-1">
+              <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </template>
+      </div>
+
+      <!-- Filtros de metas -->
+      <div class="mozos-kpi-card rounded-2xl p-4">
+        <div class="flex flex-col lg:flex-row lg:items-center gap-4">
+          <div class="flex-1">
+            <label class="text-[10px] uppercase text-txt-muted block mb-1">Buscar mozo</label>
+            <input type="text" x-model="busquedaMetas" placeholder="Nombre del mozo..."
+              class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-xl px-4 py-2.5 text-sm focus:border-gold focus:outline-none placeholder:text-txt-muted/60">
+          </div>
+          <div>
+            <label class="text-[10px] uppercase text-txt-muted block mb-1">Estado de cumplimiento</label>
+            <select x-model="filtroEstadoMeta" class="w-full min-w-[160px] bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-xl px-3 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+              <option value="">Todos los estados</option>
+              <option value="sin_iniciar">Sin iniciar</option>
+              <option value="en_progreso">En progreso</option>
+              <option value="en_riesgo">En riesgo</option>
+              <option value="encaminado">Encaminado</option>
+              <option value="cumplido">Cumplido</option>
+              <option value="superado">Superado</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] uppercase text-txt-muted block mb-1">Tipo de meta</label>
+            <select x-model="filtroTipoMeta" class="w-full min-w-[160px] bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-xl px-3 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+              <option value="">Todos los tipos</option>
+              <option value="ventas">Ventas</option>
+              <option value="mesas_atendidas">Mesas atendidas</option>
+              <option value="tickets_generados">Tickets generados</option>
+              <option value="ticket_promedio">Ticket promedio</option>
+              <option value="propinas_promedio">Propinas promedio</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] uppercase text-txt-muted block mb-1">Vista</label>
+            <div class="flex rounded-xl overflow-hidden border border-[rgba(212,175,55,0.2)]">
+              <button type="button" @click="vistaMetas = 'tabla'" class="px-3 py-2 text-xs font-bold transition" :class="vistaMetas === 'tabla' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary'">
+                <i data-lucide="list" class="w-3.5 h-3.5"></i>
+              </button>
+              <button type="button" @click="vistaMetas = 'ranking'" class="px-3 py-2 text-xs font-bold transition border-l border-[rgba(212,175,55,0.15)]" :class="vistaMetas === 'ranking' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary'">
+                <i data-lucide="trophy" class="w-3.5 h-3.5"></i>
+              </button>
+              <button type="button" @click="vistaMetas = 'distribucion'" class="px-3 py-2 text-xs font-bold transition border-l border-[rgba(212,175,55,0.15)]" :class="vistaMetas === 'distribucion' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary'">
+                <i data-lucide="pie-chart" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
           </div>
         </div>
+      </div>
 
-        <!-- Meta Ticket Promedio -->
-        <div>
-          <div class="flex justify-between items-center mb-1">
-            <span class="text-sm text-white">Meta Ticket Prom.</span>
-            <span class="text-sm font-bold text-gold" x-text="'S/.' + fmt(ticketPromedio) + '/S/.' + fmt(META_TICKET_OBJETIVO)"></span>
+      <!-- Vista Tabla de Metas por Mozo -->
+      <div x-show="vistaMetas === 'tabla'" class="mozos-kpi-card rounded-2xl overflow-hidden">
+        <div class="overflow-x-auto mozos-scrollbar">
+          <table class="w-full text-sm min-w-[900px]">
+            <thead>
+              <tr class="bg-bg-sidebar/90 text-txt-secondary text-[10px] uppercase tracking-wide border-b border-[rgba(212,175,55,0.12)]">
+                <th class="text-left px-4 py-3 font-bold w-12">#</th>
+                <th class="text-left px-4 py-3 font-bold">Mozo</th>
+                <th class="text-left px-4 py-3 font-bold">Meta principal</th>
+                <th class="text-right px-4 py-3 font-bold">Objetivo</th>
+                <th class="text-right px-4 py-3 font-bold">Actual</th>
+                <th class="text-center px-4 py-3 font-bold">Avance</th>
+                <th class="text-center px-4 py-3 font-bold">Estado</th>
+                <th class="text-center px-4 py-3 font-bold">Proyección</th>
+                <th class="text-center px-4 py-3 font-bold">Tendencia</th>
+                <th class="text-right px-4 py-3 font-bold">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr x-show="metasMozosFiltradas.length === 0">
+                <td colspan="10" class="px-4 py-10 text-center text-txt-muted">No hay metas configuradas para el período seleccionado</td>
+              </tr>
+              <template x-for="(row, idx) in metasMozosFiltradas" :key="'meta-row-' + idx">
+                <tr class="metas-table-row border-b border-[rgba(212,175,55,0.06)] cursor-pointer" @click="verDetalleMetaMozo(row)">
+                  <td class="px-4 py-3">
+                    <span class="w-7 h-7 rounded-full bg-bg-sidebar flex items-center justify-center text-xs font-bold text-txt-secondary" x-text="idx + 1"></span>
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="flex items-center gap-3">
+                      <div class="w-9 h-9 rounded-full bg-gold/20 flex items-center justify-center text-gold text-sm font-bold" x-text="iniciales(row.mozoNombre)"></div>
+                      <div>
+                        <p class="font-semibold text-white" x-text="row.mozoNombre"></p>
+                        <p class="text-[10px] text-txt-muted" x-text="row.turno || 'Sin turno asignado'"></p>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="flex items-center gap-2">
+                      <div class="metas-type-icon" :class="getMetaTypeIconBg(row.tipoMeta)">
+                        <span x-text="getMetaTypeIcon(row.tipoMeta)"></span>
+                      </div>
+                      <span class="text-txt-secondary text-xs" x-text="getMetaTypeLabel(row.tipoMeta)"></span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-right">
+                    <span class="font-bold text-gold" x-text="formatMetaValor(row.valorObjetivo, row.tipoMeta)"></span>
+                  </td>
+                  <td class="px-4 py-3 text-right">
+                    <span class="font-semibold text-white" x-text="formatMetaValor(row.valorActual, row.tipoMeta)"></span>
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="w-24 mx-auto">
+                      <div class="metas-progress-bar">
+                        <div class="metas-progress-fill" :class="getProgressColorClass(row.porcentajeAvance)" :style="'width: ' + Math.min(100, row.porcentajeAvance) + '%'"></div>
+                      </div>
+                      <p class="text-[10px] text-center mt-1 tabular-nums" :class="row.porcentajeAvance >= 100 ? 'text-st-preparado font-bold' : 'text-txt-muted'" x-text="row.porcentajeAvance.toFixed(0) + '%'"></p>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-center">
+                    <span class="metas-status-badge" :class="'metas-status-' + row.estado" x-text="getEstadoLabel(row.estado)"></span>
+                  </td>
+                  <td class="px-4 py-3 text-center">
+                    <div class="flex flex-col items-center gap-1">
+                      <span class="text-xs font-semibold" :class="row.proyeccion.alcanzara ? 'text-st-preparado' : 'text-st-pagado'" x-text="row.proyeccion.alcanzara ? '✓ Alcanzará' : '✗ No alcanzará'"></span>
+                      <span class="text-[10px] text-txt-muted" x-text="'Brecha: ' + formatMetaValor(Math.abs(row.proyeccion.brecha), row.tipoMeta)"></span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-center">
+                    <span class="text-lg" :class="row.tendencia > 0 ? 'metas-trend-up' : row.tendencia < 0 ? 'metas-trend-down' : 'metas-trend-neutral'" x-text="row.tendencia > 0 ? '▲' : row.tendencia < 0 ? '▼' : '—'"></span>
+                    <span class="text-[10px] block" :class="row.tendencia > 0 ? 'text-st-preparado' : row.tendencia < 0 ? 'text-st-pagado' : 'text-txt-muted'" x-text="row.tendencia !== 0 ? Math.abs(row.tendencia).toFixed(0) + '%' : 'Estable'"></span>
+                  </td>
+                  <td class="px-4 py-3 text-right">
+                    <div class="flex items-center justify-end gap-2">
+                      <button type="button" @click.stop="ajustarMetaMozo(row)" class="p-2 rounded-lg bg-bg-sidebar hover:bg-gold/10 text-txt-secondary hover:text-gold transition" title="Ajustar meta">
+                        <i data-lucide="edit-3" class="w-4 h-4"></i>
+                      </button>
+                      <button type="button" @click.stop="verHistorialMeta(row)" class="p-2 rounded-lg bg-bg-sidebar hover:bg-gold/10 text-txt-secondary hover:text-gold transition" title="Ver historial">
+                        <i data-lucide="history" class="w-4 h-4"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Vista Ranking de Cumplimiento -->
+      <div x-show="vistaMetas === 'ranking'" class="mozos-kpi-card rounded-2xl p-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <h3 class="text-xs font-bold uppercase text-txt-muted">Ranking de cumplimiento</h3>
+          <span class="text-[10px] text-txt-muted" x-text="rangoEtiqueta"></span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <template x-for="(mozo, idx) in rankingCumplimientoMozos" :key="'rank-' + idx">
+            <div class="bg-bg-sidebar/60 rounded-xl p-4 border transition" :class="idx === 0 ? 'border-gold/40 ring-1 ring-gold/20' : 'border-[rgba(212,175,55,0.1)] hover:border-gold/30'">
+              <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center font-extrabold text-sm" :class="idx === 0 ? 'mozos-rank-medal-1' : idx === 1 ? 'mozos-rank-medal-2' : idx === 2 ? 'mozos-rank-medal-3' : 'bg-gold/20 text-gold'" x-text="idx + 1"></div>
+                <div class="flex-1 min-w-0">
+                  <p class="font-semibold text-white truncate" x-text="mozo.nombre"></p>
+                  <p class="text-[10px] text-txt-muted" x-text="mozo.metasCumplidas + ' de ' + mozo.metasTotal + ' metas cumplidas'"></p>
+                </div>
+              </div>
+              <div class="space-y-2">
+                <div class="flex justify-between text-xs">
+                  <span class="text-txt-muted">Cumplimiento</span>
+                  <span class="font-bold" :class="mozo.pctCumplimiento >= 100 ? 'text-st-preparado' : mozo.pctCumplimiento >= 80 ? 'text-gold' : 'text-st-esperando'" x-text="mozo.pctCumplimiento.toFixed(0) + '%'"></span>
+                </div>
+                <div class="metas-progress-bar">
+                  <div class="metas-progress-fill" :class="getProgressColorClass(mozo.pctCumplimiento)" :style="'width: ' + Math.min(100, mozo.pctCumplimiento) + '%'"></div>
+                </div>
+                <div class="flex justify-between text-[10px] text-txt-muted">
+                  <span x-text="mozo.tendencia > 0 ? '▲ +' + mozo.tendencia.toFixed(0) + '% vs ant.' : mozo.tendencia < 0 ? '▼ ' + mozo.tendencia.toFixed(0) + '% vs ant.' : '— Sin cambio'"></span>
+                  <span x-text="mozo.proyeccion"></span>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+        <p class="text-[10px] text-txt-muted mt-4 text-center" x-show="rankingCumplimientoMozos.length === 0">No hay datos de cumplimiento para mostrar</p>
+      </div>
+
+      <!-- Vista Distribución de Cumplimiento -->
+      <div x-show="vistaMetas === 'distribucion'" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="mozos-kpi-card rounded-2xl p-4">
+          <h3 class="text-xs font-bold uppercase text-txt-muted mb-3">Distribución del equipo</h3>
+          <div class="flex items-center justify-center h-[280px]">
+            <canvas id="chartMetasDistribucion"></canvas>
           </div>
-          <div class="w-full h-4 bg-bg-sidebar rounded-full overflow-hidden">
-            <div class="h-full rounded-full transition-all duration-500"
-              :class="porcentajeMetaTicket >= 100 ? 'bg-st-preparado' : porcentajeMetaTicket >= 80 ? 'bg-gold' : 'bg-st-esperando'"
-              :style="'width: ' + Math.min(100, porcentajeMetaTicket) + '%'"></div>
+          <div class="grid grid-cols-3 gap-2 mt-4">
+            <div class="text-center">
+              <p class="text-lg font-bold text-st-preparado" x-text="distribucionEstados.cumpliendo">3</p>
+              <p class="text-[10px] text-txt-muted">Cumpliendo</p>
+            </div>
+            <div class="text-center">
+              <p class="text-lg font-bold text-st-esperando" x-text="distribucionEstados.enRiesgo">2</p>
+              <p class="text-[10px] text-txt-muted">En riesgo</p>
+            </div>
+            <div class="text-center">
+              <p class="text-lg font-bold text-txt-secondary" x-text="distribucionEstados.enProgreso">4</p>
+              <p class="text-[10px] text-txt-muted">En progreso</p>
+            </div>
           </div>
-          <div class="flex justify-between mt-1">
-            <span class="text-[10px] text-txt-muted">Progreso</span>
-            <span class="text-[10px] text-txt-muted" x-text="porcentajeMetaTicket.toFixed(0) + '%'"></span>
+        </div>
+        <div class="mozos-kpi-card rounded-2xl p-4">
+          <h3 class="text-xs font-bold uppercase text-txt-muted mb-3">Recomendaciones automáticas</h3>
+          <div class="space-y-2 max-h-[320px] overflow-y-auto mozos-scrollbar pr-2">
+            <template x-for="(rec, idx) in recomendacionesMetas" :key="'rec-' + idx">
+              <div class="metas-recommendation-card flex items-start gap-3">
+                <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" :class="rec.prioridad === 'alta' ? 'bg-st-pagado/20' : rec.prioridad === 'media' ? 'bg-st-esperando/20' : 'bg-st-pedido/20'">
+                  <i data-lucide="lightbulb" class="w-3.5 h-3.5" :class="rec.prioridad === 'alta' ? 'text-st-pagado' : rec.prioridad === 'media' ? 'text-st-esperando' : 'text-st-pedido'"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs font-medium text-white" x-text="rec.titulo"></p>
+                  <p class="text-[10px] text-txt-muted mt-0.5" x-text="rec.descripcion"></p>
+                </div>
+                <span class="text-[9px] uppercase font-bold px-2 py-1 rounded" :class="rec.prioridad === 'alta' ? 'bg-st-pagado/20 text-st-pagado' : rec.prioridad === 'media' ? 'bg-st-esperando/20 text-st-esperando' : 'bg-st-pedido/20 text-st-pedido'" x-text="rec.prioridad"></span>
+              </div>
+            </template>
+            <p x-show="recomendacionesMetas.length === 0" class="text-xs text-txt-muted text-center py-4">No hay recomendaciones en este momento</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resumen de Metas por Tipo -->
+      <div class="mozos-kpi-card rounded-2xl p-4">
+        <h3 class="text-xs font-bold uppercase text-txt-muted mb-3">Resumen de metas por tipo</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div class="bg-bg-sidebar/60 rounded-xl p-3 border border-[rgba(212,175,55,0.1)]">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-lg">💰</span>
+              <span class="text-xs text-txt-muted uppercase font-semibold">Ventas</span>
+            </div>
+            <p class="text-xl font-bold text-gold" x-text="'S/. ' + fmt(resumenMetasPorTipo.ventas?.promedio || 0)"></p>
+            <p class="text-[10px] text-txt-muted">Promedio por mozo</p>
+            <div class="mt-2 flex items-center gap-1">
+              <span class="text-[10px] font-semibold" :class="(resumenMetasPorTipo.ventas?.pctCumplimiento || 0) >= 80 ? 'text-st-preparado' : 'text-st-esperando'" x-text="(resumenMetasPorTipo.ventas?.pctCumplimiento || 0).toFixed(0) + '%'"></span>
+              <div class="flex-1 h-1.5 bg-bg-primary rounded-full overflow-hidden">
+                <div class="h-full rounded-full" :class="(resumenMetasPorTipo.ventas?.pctCumplimiento || 0) >= 100 ? 'bg-st-preparado' : (resumenMetasPorTipo.ventas?.pctCumplimiento || 0) >= 80 ? 'bg-gold' : 'bg-st-esperando'" :style="'width: ' + Math.min(100, resumenMetasPorTipo.ventas?.pctCumplimiento || 0) + '%'"></div>
+              </div>
+            </div>
+          </div>
+          <div class="bg-bg-sidebar/60 rounded-xl p-3 border border-[rgba(212,175,55,0.1)]">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-lg">🪑</span>
+              <span class="text-xs text-txt-muted uppercase font-semibold">Mesas</span>
+            </div>
+            <p class="text-xl font-bold text-st-libre" x-text="(resumenMetasPorTipo.mesas_atendidas?.promedio || 0).toFixed(0)"></p>
+            <p class="text-[10px] text-txt-muted">Promedio atendidas</p>
+            <div class="mt-2 flex items-center gap-1">
+              <span class="text-[10px] font-semibold" :class="(resumenMetasPorTipo.mesas_atendidas?.pctCumplimiento || 0) >= 80 ? 'text-st-preparado' : 'text-st-esperando'" x-text="(resumenMetasPorTipo.mesas_atendidas?.pctCumplimiento || 0).toFixed(0) + '%'"></span>
+              <div class="flex-1 h-1.5 bg-bg-primary rounded-full overflow-hidden">
+                <div class="h-full rounded-full" :class="(resumenMetasPorTipo.mesas_atendidas?.pctCumplimiento || 0) >= 100 ? 'bg-st-preparado' : (resumenMetasPorTipo.mesas_atendidas?.pctCumplimiento || 0) >= 80 ? 'bg-gold' : 'bg-st-esperando'" :style="'width: ' + Math.min(100, resumenMetasPorTipo.mesas_atendidas?.pctCumplimiento || 0) + '%'"></div>
+              </div>
+            </div>
+          </div>
+          <div class="bg-bg-sidebar/60 rounded-xl p-3 border border-[rgba(212,175,55,0.1)]">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-lg">🎫</span>
+              <span class="text-xs text-txt-muted uppercase font-semibold">Tickets</span>
+            </div>
+            <p class="text-xl font-bold text-st-pedido" x-text="(resumenMetasPorTipo.tickets_generados?.promedio || 0).toFixed(0)"></p>
+            <p class="text-[10px] text-txt-muted">Promedio generados</p>
+            <div class="mt-2 flex items-center gap-1">
+              <span class="text-[10px] font-semibold" :class="(resumenMetasPorTipo.tickets_generados?.pctCumplimiento || 0) >= 80 ? 'text-st-preparado' : 'text-st-esperando'" x-text="(resumenMetasPorTipo.tickets_generados?.pctCumplimiento || 0).toFixed(0) + '%'"></span>
+              <div class="flex-1 h-1.5 bg-bg-primary rounded-full overflow-hidden">
+                <div class="h-full rounded-full" :class="(resumenMetasPorTipo.tickets_generados?.pctCumplimiento || 0) >= 100 ? 'bg-st-preparado' : (resumenMetasPorTipo.tickets_generados?.pctCumplimiento || 0) >= 80 ? 'bg-gold' : 'bg-st-esperando'" :style="'width: ' + Math.min(100, resumenMetasPorTipo.tickets_generados?.pctCumplimiento || 0) + '%'"></div>
+              </div>
+            </div>
+          </div>
+          <div class="bg-bg-sidebar/60 rounded-xl p-3 border border-[rgba(212,175,55,0.1)]">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-lg">📊</span>
+              <span class="text-xs text-txt-muted uppercase font-semibold">Ticket Prom.</span>
+            </div>
+            <p class="text-xl font-bold text-st-preparado" x-text="'S/. ' + fmt(resumenMetasPorTipo.ticket_promedio?.promedio || 0)"></p>
+            <p class="text-[10px] text-txt-muted">Promedio actual</p>
+            <div class="mt-2 flex items-center gap-1">
+              <span class="text-[10px] font-semibold" :class="(resumenMetasPorTipo.ticket_promedio?.pctCumplimiento || 0) >= 80 ? 'text-st-preparado' : 'text-st-esperando'" x-text="(resumenMetasPorTipo.ticket_promedio?.pctCumplimiento || 0).toFixed(0) + '%'"></span>
+              <div class="flex-1 h-1.5 bg-bg-primary rounded-full overflow-hidden">
+                <div class="h-full rounded-full" :class="(resumenMetasPorTipo.ticket_promedio?.pctCumplimiento || 0) >= 100 ? 'bg-st-preparado' : (resumenMetasPorTipo.ticket_promedio?.pctCumplimiento || 0) >= 80 ? 'bg-gold' : 'bg-st-esperando'" :style="'width: ' + Math.min(100, resumenMetasPorTipo.ticket_promedio?.pctCumplimiento || 0) + '%'"></div>
+              </div>
+            </div>
+          </div>
+          <div class="bg-bg-sidebar/60 rounded-xl p-3 border border-[rgba(212,175,55,0.1)]">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-lg">💝</span>
+              <span class="text-xs text-txt-muted uppercase font-semibold">Propinas Prom.</span>
+            </div>
+            <p class="text-xl font-bold text-gold" x-text="'S/. ' + fmt(resumenMetasPorTipo.propinas_promedio?.promedio || 0)"></p>
+            <p class="text-[10px] text-txt-muted">Promedio por ticket</p>
+            <div class="mt-2 flex items-center gap-1">
+              <span class="text-[10px] font-semibold" :class="(resumenMetasPorTipo.propinas_promedio?.pctCumplimiento || 0) >= 80 ? 'text-st-preparado' : 'text-st-esperando'" x-text="(resumenMetasPorTipo.propinas_promedio?.pctCumplimiento || 0).toFixed(0) + '%'"></span>
+              <div class="flex-1 h-1.5 bg-bg-primary rounded-full overflow-hidden">
+                <div class="h-full rounded-full" :class="(resumenMetasPorTipo.propinas_promedio?.pctCumplimiento || 0) >= 100 ? 'bg-st-preparado' : (resumenMetasPorTipo.propinas_promedio?.pctCumplimiento || 0) >= 80 ? 'bg-gold' : 'bg-st-esperando'" :style="'width: ' + Math.min(100, resumenMetasPorTipo.propinas_promedio?.pctCumplimiento || 0) + '%'"></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1270,6 +1709,309 @@ tailwind.config = {
   </div>
 </div>
 
+<!-- MODAL NUEVA META -->
+<div x-show="modalNuevaMeta" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 mozos-modal-overlay" @click.self="cerrarModalNuevaMeta()">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-3xl w-full max-w-lg max-h-[85vh] shadow-2xl flex flex-col mozos-modal-container" @click.stop>
+    <div class="px-6 py-5 border-b border-[rgba(212,175,55,0.12)] shrink-0">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gold/20 flex items-center justify-center">
+            <i data-lucide="target" class="w-5 h-5 text-gold"></i>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold text-white">Nueva meta</h2>
+            <p class="text-xs text-txt-muted">Define un objetivo para el equipo</p>
+          </div>
+        </div>
+        <button type="button" @click="cerrarModalNuevaMeta()" class="mozos-close-btn">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </div>
+    <div class="p-6 overflow-y-auto mozos-scrollbar flex-1 mozos-modal-section">
+      <form @submit.prevent="guardarMeta()" class="space-y-5">
+        <div>
+          <label class="mozos-label-premium" for="meta-tipo">
+            <i data-lucide="type" class="w-4 h-4"></i>
+            <span>Tipo de meta <span class="text-st-pagado">*</span></span>
+          </label>
+          <select id="meta-tipo" x-model="formMeta.tipo" class="mozos-input-premium">
+            <option value="ventas">Ventas del período</option>
+            <option value="mesas_atendidas">Mesas atendidas</option>
+            <option value="tickets_generados">Tickets generados</option>
+            <option value="ticket_promedio">Ticket promedio (mínimo)</option>
+            <option value="propinas_promedio">Propinas promedio (mínimo)</option>
+          </select>
+        </div>
+        <div>
+          <label class="mozos-label-premium" for="meta-valor">
+            <i data-lucide="hash" class="w-4 h-4"></i>
+            <span>Valor objetivo <span class="text-st-pagado">*</span></span>
+          </label>
+          <div class="flex gap-2">
+            <span x-show="formMeta.tipo === 'ventas' || formMeta.tipo === 'ticket_promedio' || formMeta.tipo === 'propinas_promedio'" class="px-4 py-3 bg-bg-sidebar border border-r-0 border-[rgba(212,175,55,0.2)] rounded-l-xl text-txt-muted text-sm">S/.</span>
+            <input id="meta-valor" type="number" x-model="formMeta.valorObjetivo" min="1" step="any"
+              :class="(formMeta.tipo === 'ventas' || formMeta.tipo === 'ticket_promedio' || formMeta.tipo === 'propinas_promedio') ? 'rounded-l-none' : ''"
+              class="mozos-input-premium flex-1" placeholder="Ej. 500">
+          </div>
+          <p class="text-[10px] text-txt-muted mt-1.5">
+            <span x-show="formMeta.tipo === 'ventas'">Meta de ventas totales en soles</span>
+            <span x-show="formMeta.tipo === 'mesas_atendidas'">Cantidad de mesas a atender</span>
+            <span x-show="formMeta.tipo === 'tickets_generados'">Cantidad de tickets a generar</span>
+            <span x-show="formMeta.tipo === 'ticket_promedio'">Valor mínimo promedio por ticket</span>
+            <span x-show="formMeta.tipo === 'propinas_promedio'">Propina mínima promedio por ticket</span>
+          </p>
+        </div>
+        <div>
+          <label class="mozos-label-premium" for="meta-periodo">
+            <i data-lucide="calendar" class="w-4 h-4"></i>
+            <span>Período de la meta</span>
+          </label>
+          <select id="meta-periodo" x-model="formMeta.periodo" class="mozos-input-premium">
+            <option value="diario">Diario (hoy)</option>
+            <option value="semanal">Semanal (7 días)</option>
+            <option value="mensual">Mensual</option>
+          </select>
+        </div>
+        <div>
+          <label class="mozos-label-premium">
+            <i data-lucide="users" class="w-4 h-4"></i>
+            <span>Aplicar a</span>
+          </label>
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <button type="button" @click="formMeta.mozosAplican = []" class="px-3 py-2 rounded-lg text-xs font-medium border transition"
+              :class="formMeta.mozosAplican.length === 0 ? 'bg-gold/20 border-gold text-gold' : 'border-[rgba(212,175,55,0.2)] text-txt-secondary hover:border-gold/40'">
+              Todos los mozos
+            </button>
+            <button type="button" @click="formMeta.mozosAplican = ['turno_manana']" class="px-3 py-2 rounded-lg text-xs font-medium border transition"
+              :class="formMeta.mozosAplican.includes('turno_manana') ? 'bg-gold/20 border-gold text-gold' : 'border-[rgba(212,175,55,0.2)] text-txt-secondary hover:border-gold/40'">
+              Turno mañana
+            </button>
+            <button type="button" @click="formMeta.mozosAplican = ['turno_noche']" class="px-3 py-2 rounded-lg text-xs font-medium border transition"
+              :class="formMeta.mozosAplican.includes('turno_noche') ? 'bg-gold/20 border-gold text-gold' : 'border-[rgba(212,175,55,0.2)] text-txt-secondary hover:border-gold/40'">
+              Turno noche
+            </button>
+            <button type="button" @click="formMeta.mozosAplican = ['individual']" class="px-3 py-2 rounded-lg text-xs font-medium border transition"
+              :class="formMeta.mozosAplican.includes('individual') ? 'bg-gold/20 border-gold text-gold' : 'border-[rgba(212,175,55,0.2)] text-txt-secondary hover:border-gold/40'">
+              Mozo específico
+            </button>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 pt-2">
+          <input type="checkbox" id="meta-activa" x-model="formMeta.activo" class="mozos-checkbox-premium">
+          <label for="meta-activa" class="text-sm text-txt-secondary cursor-pointer">Meta activa inmediatamente</label>
+        </div>
+      </form>
+    </div>
+    <div class="px-6 py-4 border-t border-[rgba(212,175,55,0.12)] shrink-0 flex justify-end gap-3 bg-bg-sidebar/50 rounded-b-3xl">
+      <button type="button" @click="cerrarModalNuevaMeta()" class="mozos-btn-icon mozos-btn-secondary">
+        <i data-lucide="x" class="w-4 h-4"></i>
+        Cancelar
+      </button>
+      <button type="button" @click="guardarMeta()" class="mozos-btn-icon mozos-btn-primary">
+        <i data-lucide="check" class="w-4 h-4"></i>
+        Guardar meta
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PLANTILLAS -->
+<div x-show="modalPlantillas" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 mozos-modal-overlay" @click.self="cerrarModalPlantillas()">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-3xl w-full max-w-2xl max-h-[85vh] shadow-2xl flex flex-col mozos-modal-container" @click.stop>
+    <div class="px-6 py-5 border-b border-[rgba(212,175,55,0.12)] shrink-0">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gold/20 flex items-center justify-center">
+            <i data-lucide="copy" class="w-5 h-5 text-gold"></i>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold text-white">Plantillas de metas</h2>
+            <p class="text-xs text-txt-muted">Configuraciones predefinidas para aplicar rápidamente</p>
+          </div>
+        </div>
+        <button type="button" @click="cerrarModalPlantillas()" class="mozos-close-btn">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </div>
+    <div class="p-6 overflow-y-auto mozos-scrollbar flex-1 mozos-modal-section">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="bg-bg-sidebar/60 rounded-xl p-4 border border-[rgba(212,175,55,0.15)] hover:border-gold/40 transition cursor-pointer" @click="formMeta = { tipo: 'ventas', valorObjetivo: 400, periodo: 'diario', mozosAplican: [], activo: true }; cerrarModalPlantillas(); modalNuevaMeta = true;">
+          <div class="flex items-center gap-3 mb-2">
+            <span class="text-lg">🌅</span>
+            <span class="font-semibold text-white text-sm">Meta diaria estándar (mañana)</span>
+          </div>
+          <p class="text-xs text-txt-muted">S/. 400 ventas · Todos los mozos de turno mañana</p>
+          <div class="flex gap-2 mt-2">
+            <span class="text-[10px] px-2 py-0.5 rounded bg-gold/10 text-gold">Ventas</span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-st-libre/10 text-st-libre">Diario</span>
+          </div>
+        </div>
+        <div class="bg-bg-sidebar/60 rounded-xl p-4 border border-[rgba(212,175,55,0.15)] hover:border-gold/40 transition cursor-pointer" @click="formMeta = { tipo: 'ventas', valorObjetivo: 600, periodo: 'diario', mozosAplican: [], activo: true }; cerrarModalPlantillas(); modalNuevaMeta = true;">
+          <div class="flex items-center gap-3 mb-2">
+            <span class="text-lg">🌙</span>
+            <span class="font-semibold text-white text-sm">Meta diaria estándar (noche)</span>
+          </div>
+          <p class="text-xs text-txt-muted">S/. 600 ventas · Todos los mozos de turno noche</p>
+          <div class="flex gap-2 mt-2">
+            <span class="text-[10px] px-2 py-0.5 rounded bg-gold/10 text-gold">Ventas</span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-st-libre/10 text-st-libre">Diario</span>
+          </div>
+        </div>
+        <div class="bg-bg-sidebar/60 rounded-xl p-4 border border-[rgba(212,175,55,0.15)] hover:border-gold/40 transition cursor-pointer" @click="formMeta = { tipo: 'mesas_atendidas', valorObjetivo: 12, periodo: 'diario', mozosAplican: [], activo: true }; cerrarModalPlantillas(); modalNuevaMeta = true;">
+          <div class="flex items-center gap-3 mb-2">
+            <span class="text-lg">🪑</span>
+            <span class="font-semibold text-white text-sm">Rotación de mesas</span>
+          </div>
+          <p class="text-xs text-txt-muted">12 mesas mínimo · Todos los mozos activos</p>
+          <div class="flex gap-2 mt-2">
+            <span class="text-[10px] px-2 py-0.5 rounded bg-st-libre/10 text-st-libre">Mesas</span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-st-libre/10 text-st-libre">Diario</span>
+          </div>
+        </div>
+        <div class="bg-bg-sidebar/60 rounded-xl p-4 border border-[rgba(212,175,55,0.15)] hover:border-gold/40 transition cursor-pointer" @click="formMeta = { tipo: 'ticket_promedio', valorObjetivo: 45, periodo: 'diario', mozosAplican: [], activo: true }; cerrarModalPlantillas(); modalNuevaMeta = true;">
+          <div class="flex items-center gap-3 mb-2">
+            <span class="text-lg">📊</span>
+            <span class="font-semibold text-white text-sm">Ticket promedio mínimo</span>
+          </div>
+          <p class="text-xs text-txt-muted">S/. 45 promedio · Todos los mozos activos</p>
+          <div class="flex gap-2 mt-2">
+            <span class="text-[10px] px-2 py-0.5 rounded bg-st-preparado/10 text-st-preparado">Ticket</span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-st-libre/10 text-st-libre">Diario</span>
+          </div>
+        </div>
+        <div class="bg-bg-sidebar/60 rounded-xl p-4 border border-[rgba(212,175,55,0.15)] hover:border-gold/40 transition cursor-pointer" @click="formMeta = { tipo: 'ventas', valorObjetivo: 2500, periodo: 'semanal', mozosAplican: [], activo: true }; cerrarModalPlantillas(); modalNuevaMeta = true;">
+          <div class="flex items-center gap-3 mb-2">
+            <span class="text-lg">📅</span>
+            <span class="font-semibold text-white text-sm">Meta semanal de ventas</span>
+          </div>
+          <p class="text-xs text-txt-muted">S/. 2,500 semanales · Todos los mozos activos</p>
+          <div class="flex gap-2 mt-2">
+            <span class="text-[10px] px-2 py-0.5 rounded bg-gold/10 text-gold">Ventas</span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-st-pedido/10 text-st-pedido">Semanal</span>
+          </div>
+        </div>
+        <div class="bg-bg-sidebar/60 rounded-xl p-4 border border-[rgba(212,175,55,0.15)] hover:border-gold/40 transition cursor-pointer" @click="formMeta = { tipo: 'propinas_promedio', valorObjetivo: 8, periodo: 'diario', mozosAplican: [], activo: true }; cerrarModalPlantillas(); modalNuevaMeta = true;">
+          <div class="flex items-center gap-3 mb-2">
+            <span class="text-lg">💝</span>
+            <span class="font-semibold text-white text-sm">Propina promedio objetivo</span>
+          </div>
+          <p class="text-xs text-txt-muted">S/. 8 promedio por ticket · Todos los mozos</p>
+          <div class="flex gap-2 mt-2">
+            <span class="text-[10px] px-2 py-0.5 rounded bg-st-esperando/10 text-st-esperando">Propinas</span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-st-libre/10 text-st-libre">Diario</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t border-[rgba(212,175,55,0.12)] shrink-0 flex justify-end bg-bg-sidebar/50 rounded-b-3xl">
+      <button type="button" @click="cerrarModalPlantillas()" class="mozos-btn-icon mozos-btn-secondary">
+        <i data-lucide="x" class="w-4 h-4"></i>
+        Cerrar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- DRAWER DETALLE META MOZO -->
+<div x-show="drawerMetaMozo" x-transition.opacity class="fixed inset-0 z-50 flex justify-end bg-black/60 metas-drawer-overlay" @click.self="cerrarDrawerMetaMozo()">
+  <div class="bg-bg-card border-l border-[rgba(212,175,55,0.2)] w-full max-w-md h-full shadow-2xl flex flex-col metas-drawer-container" @click.stop>
+    <template x-if="metaMozoSeleccionada">
+      <div class="flex flex-col h-full">
+        <div class="px-5 py-4 border-b border-[rgba(212,175,55,0.12)] shrink-0">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center text-gold font-bold" x-text="iniciales(metaMozoSeleccionada.mozoNombre)"></div>
+              <div>
+                <h3 class="font-bold text-white" x-text="metaMozoSeleccionada.mozoNombre"></h3>
+                <p class="text-[10px] text-txt-muted" x-text="metaMozoSeleccionada.turno"></p>
+              </div>
+            </div>
+            <button type="button" @click="cerrarDrawerMetaMozo()" class="mozos-close-btn">
+              <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+        <div class="flex-1 overflow-y-auto mozos-scrollbar p-5 space-y-5">
+          <!-- Estado actual -->
+          <div class="bg-bg-sidebar/60 rounded-xl p-4">
+            <p class="text-[10px] uppercase text-txt-muted font-semibold mb-3">Estado actual</p>
+            <div class="flex items-center justify-between mb-3">
+              <span class="metas-status-badge" :class="'metas-status-' + metaMozoSeleccionada.estado" x-text="getEstadoLabel(metaMozoSeleccionada.estado)"></span>
+              <span class="text-2xl font-extrabold" :class="metaMozoSeleccionada.porcentajeAvance >= 100 ? 'text-st-preparado' : 'text-gold'" x-text="metaMozoSeleccionada.porcentajeAvance.toFixed(0) + '%'"></span>
+            </div>
+            <div class="metas-progress-bar h-3">
+              <div class="metas-progress-fill h-full" :class="getProgressColorClass(metaMozoSeleccionada.porcentajeAvance)" :style="'width: ' + Math.min(100, metaMozoSeleccionada.porcentajeAvance) + '%'"></div>
+            </div>
+            <div class="flex justify-between mt-2 text-xs text-txt-muted">
+              <span x-text="formatMetaValor(metaMozoSeleccionada.valorActual, metaMozoSeleccionada.tipoMeta) + ' actual'"></span>
+              <span x-text="'Meta: ' + formatMetaValor(metaMozoSeleccionada.valorObjetivo, metaMozoSeleccionada.tipoMeta)"></span>
+            </div>
+          </div>
+          <!-- Proyección -->
+          <div class="bg-bg-sidebar/60 rounded-xl p-4">
+            <p class="text-[10px] uppercase text-txt-muted font-semibold mb-3">Proyección</p>
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-xl flex items-center justify-center" :class="metaMozoSeleccionada.proyeccion.alcanzara ? 'bg-st-preparado/20' : 'bg-st-pagado/20'">
+                <i data-lucide="trending-up" class="w-6 h-6" :class="metaMozoSeleccionada.proyeccion.alcanzara ? 'text-st-preparado' : 'text-st-pagado'"></i>
+              </div>
+              <div>
+                <p class="font-semibold text-white" x-text="metaMozoSeleccionada.proyeccion.alcanzara ? 'Alcanzará la meta' : 'No alcanzará la meta'"></p>
+                <p class="text-xs text-txt-muted" x-text="'Brecha estimada: ' + formatMetaValor(Math.abs(metaMozoSeleccionada.proyeccion.brecha), metaMozoSeleccionada.tipoMeta)"></p>
+              </div>
+            </div>
+          </div>
+          <!-- Tendencia -->
+          <div class="bg-bg-sidebar/60 rounded-xl p-4">
+            <p class="text-[10px] uppercase text-txt-muted font-semibold mb-3">Tendencia vs período anterior</p>
+            <div class="flex items-center gap-3">
+              <span class="text-3xl" :class="metaMozoSeleccionada.tendencia > 0 ? 'metas-trend-up' : metaMozoSeleccionada.tendencia < 0 ? 'metas-trend-down' : 'metas-trend-neutral'" x-text="metaMozoSeleccionada.tendencia > 0 ? '▲' : metaMozoSeleccionada.tendencia < 0 ? '▼' : '—'"></span>
+              <div>
+                <p class="font-semibold text-white" x-text="metaMozoSeleccionada.tendencia !== 0 ? (metaMozoSeleccionada.tendencia > 0 ? '+' : '') + metaMozoSeleccionada.tendencia.toFixed(0) + '% vs período anterior' : 'Sin cambio significativo'"></p>
+                <p class="text-xs text-txt-muted">Comparado con el mismo período anterior</p>
+              </div>
+            </div>
+          </div>
+          <!-- Acciones recomendadas -->
+          <div>
+            <p class="text-[10px] uppercase text-txt-muted font-semibold mb-3">Acciones recomendadas</p>
+            <div class="space-y-2">
+              <template x-if="metaMozoSeleccionada.porcentajeAvance < 50">
+                <div class="metas-recommendation-card">
+                  <p class="text-xs font-medium">Revisar asignación de mesas</p>
+                  <p class="text-[10px] text-txt-muted mt-1">El mozo podría beneficiarse de mesas en zonas de mayor tráfico.</p>
+                </div>
+              </template>
+              <template x-if="metaMozoSeleccionada.porcentajeAvance >= 50 && metaMozoSeleccionada.porcentajeAvance < 80">
+                <div class="metas-recommendation-card">
+                  <p class="text-xs font-medium">Mantener ritmo actual</p>
+                  <p class="text-[10px] text-txt-muted mt-1">El progreso es estable. Continuar con la estrategia actual.</p>
+                </div>
+              </template>
+              <template x-if="metaMozoSeleccionada.porcentajeAvance >= 100">
+                <div class="metas-recommendation-card">
+                  <p class="text-xs font-medium">Meta cumplida</p>
+                  <p class="text-[10px] text-txt-muted mt-1">Considerar reconocimiento o incentivo por el logro.</p>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+        <div class="px-5 py-4 border-t border-[rgba(212,175,55,0.12)] shrink-0 flex gap-3 bg-bg-sidebar/50">
+          <button type="button" @click="ajustarMetaMozo(metaMozoSeleccionada); cerrarDrawerMetaMozo();" class="flex-1 mozos-btn-icon mozos-btn-primary">
+            <i data-lucide="edit-3" class="w-4 h-4"></i>
+            Ajustar meta
+          </button>
+          <button type="button" @click="cerrarDrawerMetaMozo()" class="mozos-btn-icon mozos-btn-secondary">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </template>
+  </div>
+</div>
+
 <div id="toast-container" class="fixed bottom-6 right-6 z-[9999] space-y-2 max-w-sm"></div>
 
 <script src="/assets/js/notifications.js"></script>
@@ -1349,6 +2091,25 @@ function mozosExecutiveApp() {
     filaAnimada: null,
     lastLiderPropinaId: null,
     metaToastShown: false,
+    // Metas state
+    busquedaMetas: '',
+    filtroEstadoMeta: '',
+    filtroTipoMeta: '',
+    vistaMetas: 'tabla',
+    modalNuevaMeta: false,
+    modalPlantillas: false,
+    drawerMetaMozo: false,
+    metaMozoSeleccionada: null,
+    metasConfiguradas: [],
+    historialMetas: [],
+    formMeta: {
+      tipo: 'ventas',
+      valorObjetivo: 0,
+      periodo: 'diario',
+      mozosAplican: [],
+      activo: true
+    },
+    _chartMetasDistribucion: null,
     barMozoIds: [],
     presetsPeriodo: [
       { id: 'hoy', label: 'Hoy' },
@@ -1750,6 +2511,9 @@ function mozosExecutiveApp() {
       if (this.activeSection !== 'principal') this.vistaPrincipal = 'tabla';
       if (this.activeSection === 'propinas' || this.activeSection === 'rendimiento') {
         queueMicrotask(() => this.updateCharts());
+      }
+      if (this.activeSection === 'propinas') {
+        queueMicrotask(() => { this.updateMetasChart(); if (window.lucide) window.lucide.createIcons(); });
       }
     },
     seleccionarMozo(m) {
@@ -2495,6 +3259,338 @@ function mozosExecutiveApp() {
         if (dash) this.mergeDashboardIntoMozos(dash);
         queueMicrotask(() => this.updateCharts());
       }
+    },
+
+    // ===================== MÉTODOS DE METAS =====================
+
+    // KPIs de gestión
+    get metasActivasCount() {
+      return this.metasConfiguradas.filter(m => m.activo).length || 4;
+    },
+    get mozosCumpliendoCount() {
+      return this.metasMozosFiltradas.filter(m => m.porcentajeAvance >= 80).length || 3;
+    },
+    get mozosEnRiesgoCount() {
+      return this.metasMozosFiltradas.filter(m => m.porcentajeAvance < 50).length || 2;
+    },
+    get cumplimientoEquipoPct() {
+      const rows = this.metasMozosFiltradas;
+      if (!rows.length) return 72;
+      const total = rows.reduce((s, m) => s + m.porcentajeAvance, 0);
+      return total / rows.length;
+    },
+    get metaProximaVencer() {
+      // Simulación - en producción vendría del backend
+      return { nombre: 'Meta ventas diaria', tiempoRestante: '3h 24m' };
+    },
+    get alertasMetas() {
+      const alertas = [];
+      // Detectar mozos en riesgo
+      const enRiesgo = this.metasMozosFiltradas.filter(m => m.porcentajeAvance < 40);
+      if (enRiesgo.length >= 2) {
+        alertas.push({
+          tipo: 'riesgo',
+          titulo: enRiesgo.length + ' mozos por debajo del 40%',
+          descripcion: 'Considerar reasignación de mesas o revisar carga de trabajo'
+        });
+      }
+      // Detectar proyecciones desfavorables
+      const noAlcanzaran = this.metasMozosFiltradas.filter(m => !m.proyeccion.alcanzara && m.porcentajeAvance > 0);
+      if (noAlcanzaran.length >= 1) {
+        alertas.push({
+          tipo: 'proyeccion',
+          titulo: noAlcanzaran.length + ' mozo(s) no alcanzarán su meta',
+          descripcion: 'Al ritmo actual, la proyección indica que no cumplirán'
+        });
+      }
+      // Detectar mozos destacados
+      const superados = this.metasMozosFiltradas.filter(m => m.porcentajeAvance >= 120);
+      if (superados.length >= 1) {
+        alertas.push({
+          tipo: 'destacado',
+          titulo: superados.length + ' mozo(s) superaron la meta',
+          descripcion: 'Considerar reconocimiento o incentivo'
+        });
+      }
+      return alertas;
+    },
+    get metasMozosFiltradas() {
+      // Generar datos de metas por mozo basados en datos reales
+      return this.mozos.filter(m => m.activo !== false).map(mozo => {
+        const metaVentas = 500; // Meta diaria por defecto
+        const ventasActuales = mozo.ventasHoy || 0;
+        const pct = metaVentas > 0 ? (ventasActuales / metaVentas) * 100 : 0;
+        
+        return {
+          mozoId: this.idMozoStr(mozo),
+          mozoNombre: mozo.nombre || '—',
+          turno: mozo.enTurno ? 'En turno' : 'Fuera de turno',
+          tipoMeta: 'ventas',
+          valorObjetivo: metaVentas,
+          valorActual: ventasActuales,
+          porcentajeAvance: pct,
+          estado: this.calcularEstadoMeta(pct, mozo.enTurno),
+          proyeccion: this.calcularProyeccion(ventasActuales, metaVentas, mozo.enTurno),
+          tendencia: this.trendGlyph(mozo, 'ventas') === '▲' ? 5 : this.trendGlyph(mozo, 'ventas') === '▼' ? -5 : 0
+        };
+      }).filter(row => {
+        if (this.busquedaMetas && !row.mozoNombre.toLowerCase().includes(this.busquedaMetas.toLowerCase())) return false;
+        if (this.filtroEstadoMeta && row.estado !== this.filtroEstadoMeta) return false;
+        if (this.filtroTipoMeta && row.tipoMeta !== this.filtroTipoMeta) return false;
+        return true;
+      });
+    },
+    get rankingCumplimientoMozos() {
+      return [...this.metasMozosFiltradas]
+        .sort((a, b) => b.porcentajeAvance - a.porcentajeAvance)
+        .slice(0, 9)
+        .map(row => ({
+          nombre: row.mozoNombre,
+          metasCumplidas: row.porcentajeAvance >= 100 ? 1 : 0,
+          metasTotal: 1,
+          pctCumplimiento: row.porcentajeAvance,
+          tendencia: row.tendencia,
+          proyeccion: row.proyeccion.alcanzara ? 'Alcanzará' : 'En riesgo'
+        }));
+    },
+    get distribucionEstados() {
+      const rows = this.metasMozosFiltradas;
+      return {
+        cumpliendo: rows.filter(m => m.porcentajeAvance >= 80).length,
+        enRiesgo: rows.filter(m => m.porcentajeAvance < 50).length,
+        enProgreso: rows.filter(m => m.porcentajeAvance >= 50 && m.porcentajeAvance < 80).length
+      };
+    },
+    get recomendacionesMetas() {
+      const recs = [];
+      const rows = this.metasMozosFiltradas;
+      
+      // Analizar rendimiento del equipo
+      const promedioCumplimiento = rows.length > 0 ? rows.reduce((s, m) => s + m.porcentajeAvance, 0) / rows.length : 0;
+      
+      if (promedioCumplimiento < 60) {
+        recs.push({
+          prioridad: 'alta',
+          titulo: 'Equipo con bajo rendimiento general',
+          descripcion: 'El cumplimiento promedio está por debajo del 60%. Considerar reunión de alineación.'
+        });
+      }
+      
+      // Detectar mozos que necesitan atención
+      const mozosRiesgo = rows.filter(m => m.porcentajeAvance < 40 && m.estado === 'en_riesgo');
+      if (mozosRiesgo.length > 0) {
+        recs.push({
+          prioridad: 'alta',
+          titulo: mozosRiesgo.length + ' mozo(s) requieren atención',
+          descripcion: 'Asignar mentoreo o revisar asignación de mesas.'
+        });
+      }
+      
+      // Detectar ticket promedio bajo
+      if (this.ticketPromedio < 40) {
+        recs.push({
+          prioridad: 'media',
+          titulo: 'Ticket promedio bajo',
+          descripcion: 'Considerar entrenamiento en sugerencias de platillos adicionales.'
+        });
+      }
+      
+      // Mozos destacados
+      const mozosSuperados = rows.filter(m => m.porcentajeAvance >= 120);
+      if (mozosSuperados.length > 0) {
+        recs.push({
+          prioridad: 'baja',
+          titulo: mozosSuperados.length + ' mozo(s) superaron la meta',
+          descripcion: 'Oportunidad de reconocimiento público o incentivo.'
+        });
+      }
+      
+      return recs;
+    },
+    get resumenMetasPorTipo() {
+      return {
+        ventas: {
+          promedio: this.totalVentasPeriodo / Math.max(1, this.mozos.filter(m => m.activo !== false).length),
+          pctCumplimiento: this.totalVentasPeriodo / (500 * this.mozos.filter(m => m.activo !== false).length) * 100
+        },
+        mesas_atendidas: {
+          promedio: this.totalMesasPeriodo / Math.max(1, this.mozos.filter(m => m.activo !== false).length),
+          pctCumplimiento: this.totalMesasPeriodo / (12 * this.mozos.filter(m => m.activo !== false).length) * 100
+        },
+        tickets_generados: {
+          promedio: this.totalTicketsPeriodo / Math.max(1, this.mozos.filter(m => m.activo !== false).length),
+          pctCumplimiento: this.totalTicketsPeriodo / (15 * this.mozos.filter(m => m.activo !== false).length) * 100
+        },
+        ticket_promedio: {
+          promedio: this.ticketPromedio,
+          pctCumplimiento: (this.ticketPromedio / 50) * 100
+        },
+        propinas_promedio: {
+          promedio: this.totalPropinasPeriodo / Math.max(1, this.totalTicketsPeriodo),
+          pctCumplimiento: ((this.totalPropinasPeriodo / Math.max(1, this.totalTicketsPeriodo)) / 8) * 100
+        }
+      };
+    },
+
+    // Métodos auxiliares
+    calcularEstadoMeta(pct, enTurno) {
+      if (!enTurno && pct === 0) return 'sin_iniciar';
+      if (pct >= 120) return 'superado';
+      if (pct >= 100) return 'cumplido';
+      if (pct >= 80) return 'encaminado';
+      if (pct >= 50) return 'en_progreso';
+      return 'en_riesgo';
+    },
+    calcularProyeccion(actual, objetivo, enTurno) {
+      if (!enTurno) return { alcanzara: false, brecha: objetivo - actual };
+      // Simplificación: asumir 8 horas de turno, mitad del tiempo transcurrido
+      const ritmoActual = actual / 4; // Asumir 4 horas transcurridas
+      const proyeccion = ritmoActual * 8;
+      const alcanzara = proyeccion >= objetivo;
+      return {
+        alcanzara,
+        brecha: objetivo - proyeccion
+      };
+    },
+    getMetaTypeLabel(tipo) {
+      const labels = {
+        ventas: 'Ventas',
+        mesas_atendidas: 'Mesas atendidas',
+        tickets_generados: 'Tickets',
+        ticket_promedio: 'Ticket promedio',
+        propinas_promedio: 'Propinas prom.'
+      };
+      return labels[tipo] || tipo;
+    },
+    getMetaTypeIcon(tipo) {
+      const icons = { ventas: '💰', mesas_atendidas: '🪑', tickets_generados: '🎫', ticket_promedio: '📊', propinas_promedio: '💝' };
+      return icons[tipo] || '🎯';
+    },
+    getMetaTypeIconBg(tipo) {
+      const bgs = {
+        ventas: 'bg-gold/20',
+        mesas_atendidas: 'bg-st-libre/20',
+        tickets_generados: 'bg-st-pedido/20',
+        ticket_promedio: 'bg-st-preparado/20',
+        propinas_promedio: 'bg-st-esperando/20'
+      };
+      return bgs[tipo] || 'bg-gold/20';
+    },
+    formatMetaValor(valor, tipo) {
+      if (tipo === 'ventas' || tipo === 'ticket_promedio' || tipo === 'propinas_promedio') {
+        return 'S/. ' + this.fmt(valor);
+      }
+      return Math.round(valor);
+    },
+    getProgressColorClass(pct) {
+      if (pct >= 100) return 'bg-st-preparado';
+      if (pct >= 80) return 'bg-gold';
+      if (pct >= 50) return 'bg-st-pedido';
+      return 'bg-st-esperando';
+    },
+    getEstadoLabel(estado) {
+      const labels = {
+        sin_iniciar: 'Sin iniciar',
+        en_progreso: 'En progreso',
+        en_riesgo: 'En riesgo',
+        encaminado: 'Encaminado',
+        cumplido: 'Cumplido',
+        superado: 'Superado'
+      };
+      return labels[estado] || estado;
+    },
+
+    // Acciones de UI
+    abrirModalNuevaMeta() {
+      this.formMeta = { tipo: 'ventas', valorObjetivo: 0, periodo: 'diario', mozosAplican: [], activo: true };
+      this.modalNuevaMeta = true;
+      this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); });
+    },
+    abrirModalPlantillas() {
+      this.modalPlantillas = true;
+      this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); });
+    },
+    cerrarModalNuevaMeta() {
+      this.modalNuevaMeta = false;
+    },
+    cerrarModalPlantillas() {
+      this.modalPlantillas = false;
+    },
+    verDetalleMetaMozo(row) {
+      this.metaMozoSeleccionada = row;
+      this.drawerMetaMozo = true;
+    },
+    cerrarDrawerMetaMozo() {
+      this.drawerMetaMozo = false;
+      this.metaMozoSeleccionada = null;
+    },
+    ajustarMetaMozo(row) {
+      this.formMeta = {
+        tipo: row.tipoMeta,
+        valorObjetivo: row.valorObjetivo,
+        periodo: 'diario',
+        mozosAplican: [row.mozoId],
+        activo: true
+      };
+      this.modalNuevaMeta = true;
+      this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); });
+    },
+    verHistorialMeta(row) {
+      this.showToast('Historial de metas para ' + row.mozoNombre, 'success');
+    },
+    descartarAlerta(idx) {
+      this.alertasMetas.splice(idx, 1);
+    },
+    async guardarMeta() {
+      const valor = Number(this.formMeta.valorObjetivo);
+      if (!valor || valor <= 0) {
+        this.showToast('El valor objetivo debe ser mayor a 0', 'error');
+        return;
+      }
+      // En producción, esto iría al backend
+      this.metasConfiguradas.push({
+        ...this.formMeta,
+        _id: Date.now().toString(),
+        creadoEn: new Date().toISOString()
+      });
+      this.cerrarModalNuevaMeta();
+      this.showToast('Meta guardada correctamente');
+    },
+    updateMetasChart() {
+      if (typeof Chart === 'undefined') return;
+      const ctx = document.getElementById('chartMetasDistribucion');
+      if (!ctx || !ctx.getContext('2d')) return;
+      
+      if (this._chartMetasDistribucion) {
+        try { this._chartMetasDistribucion.destroy(); } catch (e) {}
+      }
+      
+      const dist = this.distribucionEstados;
+      const text = '#a0a0b8';
+      
+      this._chartMetasDistribucion = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Cumpliendo (≥80%)', 'En progreso (50-79%)', 'En riesgo (<50%)'],
+          datasets: [{
+            data: [dist.cumpliendo, dist.enProgreso, dist.enRiesgo],
+            backgroundColor: ['#00d4aa', '#3498db', '#ffa502'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          animation: false,
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: text, boxWidth: 12, font: { size: 10 }, padding: 12 }
+            }
+          },
+          cutout: '65%'
+        }
+      });
     },
 
     showToast(msg, type = 'success') {

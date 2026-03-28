@@ -41,7 +41,8 @@ Crear un ecosistema digital completo que permita:
 | Fecha        | Cambios                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Marzo 2026   | **Funcionalidad Juntar/Separar Mesas v2.8:** Nueva funcionalidad para combinar múltiples mesas en un grupo (usando la mesa de menor número como principal) y separarlas posteriormente. Modelo de datos actualizado con campos `esMesaPrincipal`, `mesaPrincipalId`, `mesasUnidas`, `fechaUnion`, `unidoPor`, `motivoUnion`, `nombreCombinado`. Nuevos endpoints `POST /api/mesas/juntar`, `POST /api/mesas/separar`, `GET /api/mesas/grupos`, `GET /api/mesas/:id/grupo`. Eventos Socket.io `mesas-juntadas` y `mesas-separadas`. Permiso `juntar-separar-mesas` para admin/supervisor. |
-| Marzo 2026   | **Sistema de Propinas para Mozos v1.0:** Nueva funcionalidad completa para gestión de propinas del personal de salón. Modelo `Propina` con campos para monto fijo y porcentaje, snapshots de datos históricos, y auditoría completa. Nuevos endpoints `/api/propinas/*` para CRUD y reportes. Página `public/mozos.html` en dashboard administrativo con KPIs de ventas y propinas, tabla de mozos con métricas en tiempo real, y gestión CRUD del personal. Integración con App Mozos para registro de propinas post-pago. Documentación completa en `docs/SISTEMA_PROPINAS_MOZOS_DOCUMENTACION.md`. |
+| Marzo 2026   | **Sistema de Mozos v2.0 con Metas:** Ampliación completa del sistema de mozos con nueva sección de Metas. Tipos de metas soportadas: ventas, mesas atendidas, tickets generados, ticket promedio, propinas promedio. Estados de cumplimiento semaforizados: sin_iniciar, en_progreso, en_riesgo, encaminado, cumplido, superado. KPIs de gestión: metas activas, mozos cumpliendo, mozos en riesgo, cumplimiento promedio. Proyección inteligente con algoritmo de ritmo y brecha. Ranking de cumplimiento con medallas. Distribución del equipo con gráfico donut. Recomendaciones automáticas contextuales. Plantillas predefinidas para turnos mañana/noche. Modal de nueva meta y drawer de detalle. Documentación actualizada en `docs/Sistemademozos_md.md`. |
+| Marzo 2026   | **Sistema de Propinas para Mozos v1.0:** Nueva funcionalidad completa para gestión de propinas del personal de salón. Modelo `Propina` con campos para monto fijo y porcentaje, snapshots de datos históricos, y auditoría completa. Nuevos endpoints `/api/propinas/*` para CRUD y reportes. Página `public/mozos.html` en dashboard administrativo con KPIs de ventas y propinas, tabla de mozos con métricas en tiempo real, y gestión CRUD del personal. Integración con App Mozos para registro de propinas post-pago. |
 | Marzo 2026   | **Corrección de Finalización de Comanda v7.4.1:** Bug corregido donde al finalizar comanda completa no se actualizaba en tiempo real en App de Mozos. Ahora se emiten eventos `plato-actualizado` por cada plato (igual que finalizar plato individual), más `comanda-actualizada` y `comanda-finalizada`. Agregado listener `comanda-finalizada` en App de Mozos. |
 | Marzo 2026   | **Sistema de Finalización de Platos y Comandas v7.4:** Nueva sección completa documentando el flujo de finalización: diferencias entre finalizar plato individual vs comanda completa; endpoints `PUT /api/comanda/:id/plato/:platoId/finalizar` y `PUT /api/comanda/:id/finalizar`; eventos Socket.io emitidos (`plato-actualizado`, `comanda-finalizada`); impacto en App de Mozos (alertas, cambio de estado de mesa); funciones del repository y controller involucradas; identificación de funciones faltantes (`finalizarPlatosBatch()`, `reabrirPlato()`, `getTiemposPreparacion()`). |
 | Marzo 2026   | **Funcionalidad de Cocineros en Comandas v7.2.1:** Ampliación de la documentación del modelo Comanda con campos `procesandoPor` y `procesadoPor` a nivel de plato y comanda; endpoints de procesamiento (`PUT/DELETE /api/comanda/:id/plato/:platoId/procesando`, `PUT /api/comanda/:id/plato/:platoId/finalizar`); eventos Socket.io (`plato-procesando`, `plato-liberado`, `comanda-procesando`, `comanda-liberada`, `conflicto-procesamiento`); métricas de cocineros en cierre de caja; auditoría de platos dejados (`PLATO_DEJADO_COCINA`). |
@@ -2709,12 +2710,96 @@ El Sistema de Propinas permite registrar y gestionar las propinas recibidas por 
 
 **Ubicación:** `public/mozos.html`
 
-**Características:**
-- KPIs: Total Mozos, Activos, En Turno, Ventas Hoy, Top Mozo
-- Tabla con métricas por mozo
-- Filtros por nombre, DNI, estado y turno
-- Modal crear/editar mozo
-- Modal detalle con estadísticas
+**Versión:** 2.0 - Sistema de Metas implementado
+
+#### Estructura de Secciones
+
+| Sección | Tab | Descripción |
+|---------|-----|-------------|
+| **Principal** | `principal` | Tabla de mozos con métricas, filtros y gestión CRUD |
+| **Rendimiento** | `rendimiento` | Gráficos de ventas, propinas, heatmap de productividad |
+| **Metas** | `propinas` | Sistema de metas con KPIs, tabla de cumplimiento, ranking |
+
+#### Características Principales
+
+- **KPIs:** Total Mozos, Presencia del equipo, Ventas del período, Líder de ventas
+- **Tabla de mozos** con métricas en tiempo real
+- **Filtros:** Período (hoy/7 días/mes/personalizado), Estado, Búsqueda
+- **Vistas:** Tabla, Tarjetas, Mapa de mesas
+- **Modales:** Crear/editar mozo, Detalle con estadísticas
+- **Actualización en tiempo real** vía Socket.io
+
+#### Sistema de Metas de Mozos (NUEVO v2.0)
+
+La sección de Metas permite al administrador gestionar objetivos del equipo:
+
+**Tipos de Metas Soportadas:**
+
+| Tipo | Descripción | Ejemplo |
+|------|-------------|---------|
+| `ventas` | Total facturado | S/. 500/día |
+| `mesas_atendidas` | Mesas cerradas con pago | 12 mesas/turno |
+| `tickets_generados` | Bouchers procesados | 15 tickets/día |
+| `ticket_promedio` | Valor promedio por ticket | S/. 45 mínimo |
+| `propinas_promedio` | Propina promedio por ticket | S/. 8 mínimo |
+
+**Estados de Cumplimiento:**
+
+| Estado | Criterio | Color |
+|--------|----------|-------|
+| `sin_iniciar` | Avance = 0%, mozo fuera de turno | Gris |
+| `en_progreso` | Avance 1-49% | Azul |
+| `en_riesgo` | Avance < 50% | Naranja |
+| `encaminado` | Avance 60-89% | Verde claro |
+| `cumplido` | Avance ≥ 100% | Verde |
+| `superado` | Avance > 120% | Dorado |
+
+**KPIs de Gestión:**
+
+- Metas activas en el período
+- Mozos cumpliendo (≥80%)
+- Mozos en riesgo (<50%)
+- Cumplimiento promedio del equipo
+- Meta más próxima a vencer
+
+**Componentes de la Sección Metas:**
+
+1. **Tabla de cumplimiento** - Por mozo con proyecciones y tendencias
+2. **Ranking de cumplimiento** - Top performers con medallas
+3. **Distribución del equipo** - Gráfico donut por estado
+4. **Recomendaciones automáticas** - Sugerencias contextuales
+5. **Modal de nueva meta** - Crear metas individuales o por equipo
+6. **Plantillas predefinidas** - 6 plantillas listas para usar
+7. **Drawer de detalle** - Vista completa de un mozo
+
+**Plantillas Disponibles:**
+
+| Plantilla | Tipo | Valor | Aplicación |
+|-----------|------|-------|------------|
+| Meta diaria mañana | Ventas | S/. 400 | Turno mañana |
+| Meta diaria noche | Ventas | S/. 600 | Turno noche |
+| Rotación de mesas | Mesas | 12 | Todos |
+| Ticket promedio mínimo | Ticket | S/. 45 | Todos |
+| Meta semanal | Ventas | S/. 2,500 | Todos |
+| Propina promedio | Propinas | S/. 8 | Todos |
+
+**Algoritmo de Proyección:**
+
+```javascript
+// Cálculo de proyección inteligente
+proyeccion = {
+  ritmoActual: valorActual / tiempoTranscurrido,
+  valorProyectado: ritmoActual * tiempoTotalPeriodo,
+  alcanzara: valorProyectado >= valorObjetivo,
+  brecha: valorObjetivo - valorProyectado
+};
+```
+
+**Alertas Automáticas:**
+
+- Mozos por debajo del 40% de avance
+- Mozos que no alcanzarán la meta según proyección
+- Mozos que superaron la meta (oportunidad de reconocimiento)
 
 ### Integración con App Mozos
 
@@ -2730,9 +2815,13 @@ El flujo post-pago incluye la opción de registrar propina:
 
 **Namespace `/mozos`:**
 - `propina-registrada` → Emitido al registrar propina
+- `propina-actualizada` → Emitido al actualizar propina
+- `propina-eliminada` → Emitido al eliminar propina
 
 **Namespace `/admin`:**
-- `propina-registrada` → Actualizar contadores
+- `propina-registrada` → Actualizar contadores y gráficos
+- `propina-actualizada` → Refrescar datos
+- `propina-eliminada` → Actualizar contadores
 - `mozos-conectados` → Lista de mozos online
 - `mozo-rendimiento-update` → Métricas actualizadas
 
@@ -2746,10 +2835,15 @@ El flujo post-pago incluye la opción de registrar propina:
 
 | Archivo | Propósito |
 |---------|-----------|
-| `src/database/models/propina.model.js` | Modelo Mongoose |
-| `src/repository/propina.repository.js` | Lógica de datos |
-| `src/controllers/propinaController.js` | Endpoints REST |
-| `public/mozos.html` | Página dashboard |
+| `src/database/models/propina.model.js` | Modelo Mongoose de Propina |
+| `src/repository/propina.repository.js` | Lógica de datos de propinas |
+| `src/controllers/propinaController.js` | Endpoints REST de propinas |
+| `public/mozos.html` | Página dashboard con sistema de metas |
+
+### Documentación Detallada
+
+Para información completa del sistema de mozos y metas, ver:
+- **`docs/Sistemademozos_md.md`** - Documentación completa del sistema de mozos (v2.0)
 
 ---
 
@@ -2758,12 +2852,14 @@ El flujo post-pago incluye la opción de registrar propina:
 - **DIAGRAMA_FLUJO_DATOS_Y_FUNCIONES.md:** Arquitectura global, endpoints detallados, modelos, reglas de negocio, WebSockets, FASE 5/6/7.
 - **APP_MOZOS_DOCUMENTACION_COMPLETA.md:** Uso de la API y Socket desde la app de mozos.
 - **APP_COCINA_DOCUMENTACION_COMPLETA.md:** Uso de la API y Socket desde la app de cocina.
+- **Sistemademozos_md.md:** Documentación completa del sistema de mozos con metas v2.0.
 
 ---
 
 *Documento generado para el proyecto Las Gambusinas — Backend Node.js/Express/MongoDB/Socket.io. Versión 2.10, marzo 2026.*
 
 **Incluye:**
+- Sistema de Mozos v2.0 con Metas: tipos de metas (ventas, mesas, tickets, ticket promedio, propinas), estados de cumplimiento semaforizados, proyección inteligente, ranking, recomendaciones automáticas
 - Sistema de Propinas para Mozos v1.0: gestión completa de propinas con modelo Propina, endpoints API REST, página mozos.html en dashboard, integración con App Mozos
 - Corrección v7.4.1: Al finalizar comanda se emiten eventos plato-actualizado por cada plato (sincronización en tiempo real con App de Mozos)
 - Sistema de Finalización de Platos y Comandas v7.4 (documentación completa de endpoints, eventos Socket.io, impacto entre aplicaciones)
