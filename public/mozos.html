@@ -75,6 +75,14 @@ tailwind.config = {
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }
+  /* Fix icon alignment in modals */
+  .mozos-modal-container i[data-lucide],
+  .mozos-modal-container [data-lucide] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
   .mozos-modal-container {
     animation: modalSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: 0 25px 80px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 175, 55, 0.15);
@@ -89,24 +97,6 @@ tailwind.config = {
   @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
-  }
-  .mozos-input-icon {
-    position: relative;
-  }
-  .mozos-input-icon > i {
-    position: absolute;
-    left: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: rgba(160, 160, 184, 0.7);
-    transition: color 0.2s ease;
-  }
-  .mozos-input-icon > input,
-  .mozos-input-icon > select {
-    padding-left: 42px;
-  }
-  .mozos-input-icon:focus-within > i {
-    color: #d4af37;
   }
   .mozos-input-premium {
     background: rgba(18, 18, 26, 0.8);
@@ -134,7 +124,35 @@ tailwind.config = {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 6px;
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+  .mozos-label-premium > i {
+    flex-shrink: 0;
+    color: rgba(212, 175, 55, 0.65);
+    width: 1rem;
+    height: 1rem;
+  }
+  .mozos-label-premium > span {
+    flex: 1;
+    min-width: 0;
+  }
+  .mozos-info-label-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+  .mozos-info-label-row .mozos-info-label {
+    margin-bottom: 0;
+  }
+  .mozos-info-label-row > i {
+    flex-shrink: 0;
+    color: rgba(212, 175, 55, 0.55);
+    width: 14px;
+    height: 14px;
   }
   .mozos-btn-icon {
     display: inline-flex;
@@ -148,6 +166,15 @@ tailwind.config = {
     transition: all 0.2s ease;
     cursor: pointer;
     border: none;
+  }
+  .mozos-btn-icon i {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .mozos-btn-icon span {
+    line-height: 1;
   }
   .mozos-btn-primary {
     background: linear-gradient(135deg, #d4af37 0%, #c9a227 100%);
@@ -185,8 +212,10 @@ tailwind.config = {
     margin-bottom: 16px;
   }
   .mozos-section-title i {
-    width: 20px;
-    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
   }
   .mozos-checkbox-premium {
     appearance: none;
@@ -279,6 +308,12 @@ tailwind.config = {
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s ease;
+    flex-shrink: 0;
+  }
+  .mozos-close-btn i {
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   .mozos-close-btn:hover {
     background: rgba(212, 175, 55, 0.2);
@@ -303,6 +338,11 @@ tailwind.config = {
     border: 3px solid rgba(212, 175, 55, 0.4);
     overflow: hidden;
     background: rgba(18, 18, 26, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mozos-foto-preview i {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -783,7 +823,7 @@ tailwind.config = {
     <div class="relative px-6 py-5 border-b border-[rgba(212,175,55,0.12)] shrink-0">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-4">
-          <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-gold/20 to-gold/5 flex items-center justify-center border border-gold/30">
+          <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-gold/20 to-gold/5 flex items-center justify-center border border-gold/30 shrink-0">
             <i data-lucide="user-plus" class="w-6 h-6 text-gold" x-show="!isEditing"></i>
             <i data-lucide="user-cog" class="w-6 h-6 text-gold" x-show="isEditing"></i>
           </div>
@@ -811,8 +851,8 @@ tailwind.config = {
               <i data-lucide="user" class="w-8 h-8 text-txt-muted" x-show="!fotoPreviewActual"></i>
             </div>
             <input type="file" id="mozo-foto-input" accept="image/jpeg,image/png,image/webp,image/gif" class="sr-only" @change="onMozoFotoInput($event)">
-            <button type="button" @click="document.getElementById('mozo-foto-input').click()" class="text-xs text-gold hover:underline flex items-center gap-1">
-              <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+            <button type="button" @click="document.getElementById('mozo-foto-input').click()" class="text-xs text-gold hover:underline flex items-center gap-1.5">
+              <i data-lucide="camera" class="w-3.5 h-3.5 shrink-0"></i>
               <span x-text="fotoPreviewActual ? 'Cambiar' : 'Subir foto'"></span>
             </button>
             <button type="button" x-show="fotoPreviewActual" @click="quitarFotoMozo()" class="text-xs text-st-pagado hover:underline">Quitar</button>
@@ -822,34 +862,34 @@ tailwind.config = {
           <div class="flex-1 space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="mozos-label-premium">Nombres <span class="text-st-pagado">*</span></label>
-                <div class="mozos-input-icon">
-                  <i data-lucide="user" class="w-4 h-4"></i>
-                  <input type="text" x-model="formMozo.nombres" autocomplete="given-name" class="mozos-input-premium" placeholder="Ej. María">
-                </div>
+                <label class="mozos-label-premium" for="mozo-nombres">
+                  <i data-lucide="user" class="w-4 h-4" aria-hidden="true"></i>
+                  <span>Nombres <span class="text-st-pagado">*</span></span>
+                </label>
+                <input id="mozo-nombres" type="text" x-model="formMozo.nombres" autocomplete="given-name" class="mozos-input-premium" placeholder="Ej. María">
               </div>
               <div>
-                <label class="mozos-label-premium">Apellidos <span class="text-st-pagado">*</span></label>
-                <div class="mozos-input-icon">
-                  <i data-lucide="user" class="w-4 h-4"></i>
-                  <input type="text" x-model="formMozo.apellidos" autocomplete="family-name" class="mozos-input-premium" placeholder="Ej. García López">
-                </div>
+                <label class="mozos-label-premium" for="mozo-apellidos">
+                  <i data-lucide="user" class="w-4 h-4" aria-hidden="true"></i>
+                  <span>Apellidos <span class="text-st-pagado">*</span></span>
+                </label>
+                <input id="mozo-apellidos" type="text" x-model="formMozo.apellidos" autocomplete="family-name" class="mozos-input-premium" placeholder="Ej. García López">
               </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="mozos-label-premium">DNI / Documento <span class="text-st-pagado">*</span></label>
-                <div class="mozos-input-icon">
-                  <i data-lucide="id-card" class="w-4 h-4"></i>
-                  <input type="text" x-model="formMozo.dni" maxlength="12" inputmode="numeric" autocomplete="off" class="mozos-input-premium" placeholder="12345678">
-                </div>
+                <label class="mozos-label-premium" for="mozo-dni">
+                  <i data-lucide="id-card" class="w-4 h-4" aria-hidden="true"></i>
+                  <span>DNI / Documento <span class="text-st-pagado">*</span></span>
+                </label>
+                <input id="mozo-dni" type="text" x-model="formMozo.dni" maxlength="12" inputmode="numeric" autocomplete="off" class="mozos-input-premium" placeholder="12345678">
               </div>
               <div>
-                <label class="mozos-label-premium">Fecha de nacimiento</label>
-                <div class="mozos-input-icon">
-                  <i data-lucide="calendar" class="w-4 h-4"></i>
-                  <input type="date" x-model="formMozo.fechaNacimiento" class="mozos-input-premium">
-                </div>
+                <label class="mozos-label-premium" for="mozo-fecha-nac">
+                  <i data-lucide="calendar" class="w-4 h-4" aria-hidden="true"></i>
+                  <span>Fecha de nacimiento</span>
+                </label>
+                <input id="mozo-fecha-nac" type="date" x-model="formMozo.fechaNacimiento" class="mozos-input-premium">
               </div>
             </div>
           </div>
@@ -865,24 +905,24 @@ tailwind.config = {
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label class="mozos-label-premium">Género</label>
-              <div class="mozos-input-icon">
-                <i data-lucide="heart" class="w-4 h-4"></i>
-                <select x-model="formMozo.genero" class="mozos-input-premium">
-                  <option value="">Seleccionar</option>
-                  <option value="Femenino">Femenino</option>
-                  <option value="Masculino">Masculino</option>
-                  <option value="No binario">No binario</option>
-                  <option value="Prefiere no decir">Prefiere no decir</option>
-                </select>
-              </div>
+              <label class="mozos-label-premium" for="mozo-genero">
+                <i data-lucide="heart" class="w-4 h-4" aria-hidden="true"></i>
+                <span>Género</span>
+              </label>
+              <select id="mozo-genero" x-model="formMozo.genero" class="mozos-input-premium">
+                <option value="">Seleccionar</option>
+                <option value="Femenino">Femenino</option>
+                <option value="Masculino">Masculino</option>
+                <option value="No binario">No binario</option>
+                <option value="Prefiere no decir">Prefiere no decir</option>
+              </select>
             </div>
             <div>
-              <label class="mozos-label-premium">Dirección</label>
-              <div class="mozos-input-icon">
-                <i data-lucide="map-pin" class="w-4 h-4"></i>
-                <input type="text" x-model="formMozo.direccion" autocomplete="street-address" class="mozos-input-premium" placeholder="Av. Principal 123">
-              </div>
+              <label class="mozos-label-premium" for="mozo-direccion">
+                <i data-lucide="map-pin" class="w-4 h-4" aria-hidden="true"></i>
+                <span>Dirección</span>
+              </label>
+              <input id="mozo-direccion" type="text" x-model="formMozo.direccion" autocomplete="street-address" class="mozos-input-premium" placeholder="Av. Principal 123">
             </div>
           </div>
         </div>
@@ -897,34 +937,34 @@ tailwind.config = {
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label class="mozos-label-premium">Teléfono celular <span class="text-st-pagado">*</span></label>
-              <div class="mozos-input-icon">
-                <i data-lucide="smartphone" class="w-4 h-4"></i>
-                <input type="tel" x-model="formMozo.celular" inputmode="tel" autocomplete="tel" class="mozos-input-premium" placeholder="987654321">
-              </div>
+              <label class="mozos-label-premium" for="mozo-celular">
+                <i data-lucide="smartphone" class="w-4 h-4" aria-hidden="true"></i>
+                <span>Teléfono celular <span class="text-st-pagado">*</span></span>
+              </label>
+              <input id="mozo-celular" type="tel" x-model="formMozo.celular" inputmode="tel" autocomplete="tel" class="mozos-input-premium" placeholder="987654321">
             </div>
             <div>
-              <label class="mozos-label-premium">Correo electrónico</label>
-              <div class="mozos-input-icon">
-                <i data-lucide="mail" class="w-4 h-4"></i>
-                <input type="email" x-model="formMozo.email" autocomplete="email" class="mozos-input-premium" placeholder="correo@ejemplo.com">
-              </div>
+              <label class="mozos-label-premium" for="mozo-email">
+                <i data-lucide="mail" class="w-4 h-4" aria-hidden="true"></i>
+                <span>Correo electrónico</span>
+              </label>
+              <input id="mozo-email" type="email" x-model="formMozo.email" autocomplete="email" class="mozos-input-premium" placeholder="correo@ejemplo.com">
             </div>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
             <div>
-              <label class="mozos-label-premium">Contacto emergencia — Nombre</label>
-              <div class="mozos-input-icon">
-                <i data-lucide="user-check" class="w-4 h-4"></i>
-                <input type="text" x-model="formMozo.emergenciaNombre" class="mozos-input-premium" placeholder="Nombre del contacto">
-              </div>
+              <label class="mozos-label-premium" for="mozo-emerg-nombre">
+                <i data-lucide="user-check" class="w-4 h-4" aria-hidden="true"></i>
+                <span>Contacto emergencia — Nombre</span>
+              </label>
+              <input id="mozo-emerg-nombre" type="text" x-model="formMozo.emergenciaNombre" class="mozos-input-premium" placeholder="Nombre del contacto">
             </div>
             <div>
-              <label class="mozos-label-premium">Contacto emergencia — Teléfono</label>
-              <div class="mozos-input-icon">
-                <i data-lucide="phone-call" class="w-4 h-4"></i>
-                <input type="tel" x-model="formMozo.emergenciaTelefono" inputmode="tel" class="mozos-input-premium" placeholder="987654321">
-              </div>
+              <label class="mozos-label-premium" for="mozo-emerg-tel">
+                <i data-lucide="phone-call" class="w-4 h-4" aria-hidden="true"></i>
+                <span>Contacto emergencia — Teléfono</span>
+              </label>
+              <input id="mozo-emerg-tel" type="tel" x-model="formMozo.emergenciaTelefono" inputmode="tel" class="mozos-input-premium" placeholder="987654321">
             </div>
           </div>
         </div>
@@ -939,14 +979,14 @@ tailwind.config = {
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label class="mozos-label-premium">Rol / Permisos</label>
-              <div class="mozos-input-icon">
-                <i data-lucide="shield" class="w-4 h-4"></i>
-                <select x-model="formMozo.rolOperativo" class="mozos-input-premium">
-                  <option value="mozos">Mozo estándar</option>
-                  <option value="capitanMozos">Capitán de mozos</option>
-                </select>
-              </div>
+              <label class="mozos-label-premium" for="mozo-rol">
+                <i data-lucide="shield" class="w-4 h-4" aria-hidden="true"></i>
+                <span>Rol / Permisos</span>
+              </label>
+              <select id="mozo-rol" x-model="formMozo.rolOperativo" class="mozos-input-premium">
+                <option value="mozos">Mozo estándar</option>
+                <option value="capitanMozos">Capitán de mozos</option>
+              </select>
               <p class="text-[10px] text-txt-muted mt-1.5">Capitán: puede anular platos y procesar pagos</p>
             </div>
             <div class="flex items-end pb-2">
@@ -987,7 +1027,7 @@ tailwind.config = {
     <div class="relative px-6 py-5 border-b border-[rgba(212,175,55,0.12)] shrink-0">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-4">
-          <div class="w-16 h-16 rounded-2xl overflow-hidden border-2 border-gold/40 bg-bg-sidebar flex items-center justify-center relative">
+          <div class="w-16 h-16 rounded-2xl overflow-hidden border-2 border-gold/40 bg-bg-sidebar flex items-center justify-center relative shrink-0">
             <img x-show="mozosDetalle?.fotoUrl" :src="mozosDetalle?.fotoUrl || ''" alt="" class="w-full h-full object-cover">
             <span x-show="!mozosDetalle?.fotoUrl" class="text-gold text-xl font-bold" x-text="iniciales(mozosDetalle?.nombre || '')"></span>
           </div>
@@ -1037,27 +1077,45 @@ tailwind.config = {
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div class="mozos-info-card">
-            <p class="mozos-info-label">Nombres</p>
+            <div class="mozos-info-label-row">
+              <i data-lucide="user" class="w-3.5 h-3.5" aria-hidden="true"></i>
+              <p class="mozos-info-label">Nombres</p>
+            </div>
             <p class="mozos-info-value" x-text="mozosDetalle?.nombres || '—'"></p>
           </div>
           <div class="mozos-info-card">
-            <p class="mozos-info-label">Apellidos</p>
+            <div class="mozos-info-label-row">
+              <i data-lucide="user" class="w-3.5 h-3.5" aria-hidden="true"></i>
+              <p class="mozos-info-label">Apellidos</p>
+            </div>
             <p class="mozos-info-value" x-text="mozosDetalle?.apellidos || '—'"></p>
           </div>
           <div class="mozos-info-card">
-            <p class="mozos-info-label">DNI</p>
+            <div class="mozos-info-label-row">
+              <i data-lucide="id-card" class="w-3.5 h-3.5" aria-hidden="true"></i>
+              <p class="mozos-info-label">DNI</p>
+            </div>
             <p class="mozos-info-value font-mono" x-text="mozosDetalle?.dni || '—'"></p>
           </div>
           <div class="mozos-info-card">
-            <p class="mozos-info-label">Nacimiento</p>
+            <div class="mozos-info-label-row">
+              <i data-lucide="calendar" class="w-3.5 h-3.5" aria-hidden="true"></i>
+              <p class="mozos-info-label">Nacimiento</p>
+            </div>
             <p class="mozos-info-value" x-text="mozosDetalle?.fechaNacimiento || '—'"></p>
           </div>
           <div class="mozos-info-card">
-            <p class="mozos-info-label">Género</p>
+            <div class="mozos-info-label-row">
+              <i data-lucide="heart" class="w-3.5 h-3.5" aria-hidden="true"></i>
+              <p class="mozos-info-label">Género</p>
+            </div>
             <p class="mozos-info-value" x-text="mozosDetalle?.genero || '—'"></p>
           </div>
           <div class="mozos-info-card">
-            <p class="mozos-info-label">Dirección</p>
+            <div class="mozos-info-label-row">
+              <i data-lucide="map-pin" class="w-3.5 h-3.5" aria-hidden="true"></i>
+              <p class="mozos-info-label">Dirección</p>
+            </div>
             <p class="mozos-info-value truncate" x-text="mozosDetalle?.direccion || '—'"></p>
           </div>
         </div>
@@ -1071,19 +1129,31 @@ tailwind.config = {
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div class="mozos-info-card">
-            <p class="mozos-info-label">Celular</p>
+            <div class="mozos-info-label-row">
+              <i data-lucide="smartphone" class="w-3.5 h-3.5" aria-hidden="true"></i>
+              <p class="mozos-info-label">Celular</p>
+            </div>
             <p class="mozos-info-value font-mono" x-text="celularTextoMozo(mozosDetalle)"></p>
           </div>
           <div class="mozos-info-card sm:col-span-2">
-            <p class="mozos-info-label">Correo</p>
+            <div class="mozos-info-label-row">
+              <i data-lucide="mail" class="w-3.5 h-3.5" aria-hidden="true"></i>
+              <p class="mozos-info-label">Correo</p>
+            </div>
             <p class="mozos-info-value truncate" x-text="mozosDetalle?.email || '—'"></p>
           </div>
           <div class="mozos-info-card">
-            <p class="mozos-info-label">Emergencia — Nombre</p>
+            <div class="mozos-info-label-row">
+              <i data-lucide="user-check" class="w-3.5 h-3.5" aria-hidden="true"></i>
+              <p class="mozos-info-label">Emergencia — Nombre</p>
+            </div>
             <p class="mozos-info-value" x-text="mozosDetalle?.contactoEmergenciaNombre || '—'"></p>
           </div>
           <div class="mozos-info-card">
-            <p class="mozos-info-label">Emergencia — Teléfono</p>
+            <div class="mozos-info-label-row">
+              <i data-lucide="phone-call" class="w-3.5 h-3.5" aria-hidden="true"></i>
+              <p class="mozos-info-label">Emergencia — Teléfono</p>
+            </div>
             <p class="mozos-info-value font-mono" x-text="mozosDetalle?.contactoEmergenciaTelefono || '—'"></p>
           </div>
         </div>
@@ -1097,11 +1167,17 @@ tailwind.config = {
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div class="mozos-info-card">
-            <p class="mozos-info-label">Rol</p>
+            <div class="mozos-info-label-row">
+              <i data-lucide="shield" class="w-3.5 h-3.5" aria-hidden="true"></i>
+              <p class="mozos-info-label">Rol</p>
+            </div>
             <p class="mozos-info-value text-gold font-semibold" x-text="etiquetaRolMozo(mozosDetalle)"></p>
           </div>
           <div class="mozos-info-card">
-            <p class="mozos-info-label">Estado</p>
+            <div class="mozos-info-label-row">
+              <i data-lucide="toggle-left" class="w-3.5 h-3.5" aria-hidden="true"></i>
+              <p class="mozos-info-label">Estado</p>
+            </div>
             <div class="flex gap-2 mt-1">
               <span class="mozos-status-badge" :class="mozosDetalle?.activo !== false ? 'mozos-status-active' : 'mozos-status-inactive'" x-text="mozosDetalle?.activo !== false ? 'Activo' : 'Inactivo'"></span>
               <span class="mozos-status-badge" :class="mozosDetalle?.enTurno ? 'mozos-status-turn' : 'mozos-status-off'" x-text="mozosDetalle?.enTurno ? 'En turno' : 'Fuera de turno'"></span>
