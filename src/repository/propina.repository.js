@@ -414,6 +414,8 @@ async function obtenerDatosDashboardMozos(fechaInicio, fechaFin) {
         }));
 
         // Ventas y mesas únicas por hora (Lima) + matriz mozo × hora (mesas distintas atendidas)
+        // CORRECCIÓN: Solo considerar bouchers con total > 0 para coherencia comercial
+        // Una mesa atendida debe representar una venta real, no un cierre en cero
         const ventasPorHoraArr = Array.from({ length: 24 }, (_, hora) => ({ hora, total: 0 }));
         const mesasPorHoraArr = Array.from({ length: 24 }, (_, hora) => ({ hora, mesas: 0 }));
         let productividadMozoHora = [];
@@ -424,6 +426,9 @@ async function obtenerDatosDashboardMozos(fechaInicio, fechaFin) {
                     $match: {
                         fechaPago: { $gte: inicio, $lte: fin },
                         isActive: true,
+                        // CRÍTICO: Solo bouchers con total > 0 para coherencia comercial
+                        // Esto garantiza que "mesas atendidas" = "mesas con venta real"
+                        total: { $gt: 0 },
                         mozo: { $exists: true, $ne: null },
                         mesa: { $exists: true, $ne: null }
                     }
@@ -509,6 +514,185 @@ async function obtenerDatosDashboardMozos(fechaInicio, fechaFin) {
             logger.warn('[PropinaRepo] Snapshot ocupación mesas omitido', { error: ocErr.message });
         }
 
+        // ============================================================
+        // NUEVAS AGREGACIONES: Tendencia Diaria y Comparación por Turno
+        // ============================================================
+        
+        /**
+         * DEFINICIÓN DE TURNOS (configurable según horario del negocio)
+         * Almuerzo: 11:00 - 16:59 (horas 11-16)
+         * Cena: 17:00 - 23:59 (horas 17-23)
+         * Nota: Las horas 0-10 se excluyen del análisis por turno (preparación/cierre)
+         */
+        const TURNOS_HORARIOS = {
+            almuerzo: { inicio: 11, fin: 16, label: 'Almuerzo' },
+            cena: { inicio: 17, fin: 23, label: 'Cena' }
+        };
+
+        // Ventas por día de la semana (para Tendencia Diaria)
+        const ventasPorDiaSemana = [
+            { dia: 'Lun', ventas: 0, tickets: 0 },
+            { dia: 'Mar', ventas: 0, tickets: 0 },
+            { dia: 'Mié', ventas: 0, tickets: 0 },
+            { dia: 'Jue', ventas: 0, tickets: 0 },
+            { dia: 'Vie', ventas: 0, tickets: 0 },
+            { dia: 'Sáb', ventas: 0, tickets: 0 },
+            { dia: 'Dom', ventas: 0, tickets: 0 }
+        ];
+
+        // Comparación por turno: Almuerzo vs Cena
+        const comparacionPorTurno = {
+            almuerzo: { ventas: 0, tickets: 0, ticketPromedio: 0, mesas: 0 },
+            cena: { ventas: 0, tickets: 0, ticketPromedio: 0, mesas: 0 }
+        };
+
+        try {
+            // Agregación combinada: por día de semana y por turno
+            const turnosAgg = await Boucher.aggregate([
+                {
+                    $match: {
+                        fechaPago: { $gte: inicio, $lte: fin },
+                        isActive: true,
+                        total: { $gt: 0 },  // Solo ventas reales
+                        mozo: { $exists: true, $ne: null }
+                    }
+                },
+                {
+                    $project: {
+                        total: 1,
+                        mesa: 1,
+                        fechaPago: 1,
+                        // Día de semana: 1=Dom, 2=Lun, ..., 7=Sab
+                        diaSemana: { $dayOfWeek: { date: '$fechaPago', timezone: 'America/Lima' } },
+                        // Hora para clasificar turno
+                        hora: { $hour: { date: '$fechaPago', timezone: 'America/Lima' } }
+                    }
+                },
+                {
+                    $facet: {
+                        // Agregación por día de semana
+                        porDiaSemana: [
+                            {
+                                $group: {
+                                    _id: '$diaSemana',
+                                    ventas: { $sum: '$total' },
+                                    tickets: { $sum: 1 }
+                                }
+                            },
+                            { $sort: { _id: 1 } }
+                        ],
+                        // Agregación por turno
+                        porTurno: [
+                            {
+                                $group: {
+                                    _id: null,
+                                    // Almuerzo: horas 11-16
+                                    almuerzoVentas: {
+                                        $sum: {
+                                            $cond: [
+                                                { $and: [{ $gte: ['$hora', 11] }, { $lte: ['$hora', 16] }] },
+                                                '$total',
+                                                0
+                                            ]
+                                        }
+                                    },
+                                    almuerzoTickets: {
+                                        $sum: {
+                                            $cond: [
+                                                { $and: [{ $gte: ['$hora', 11] }, { $lte: ['$hora', 16] }] },
+                                                1,
+                                                0
+                                            ]
+                                        }
+                                    },
+                                    almuerzoMesas: {
+                                        $addToSet: {
+                                            $cond: [
+                                                { $and: [{ $gte: ['$hora', 11] }, { $lte: ['$hora', 16] }] },
+                                                '$mesa',
+                                                null
+                                            ]
+                                        }
+                                    },
+                                    // Cena: horas 17-23
+                                    cenaVentas: {
+                                        $sum: {
+                                            $cond: [
+                                                { $and: [{ $gte: ['$hora', 17] }, { $lte: ['$hora', 23] }] },
+                                                '$total',
+                                                0
+                                            ]
+                                        }
+                                    },
+                                    cenaTickets: {
+                                        $sum: {
+                                            $cond: [
+                                                { $and: [{ $gte: ['$hora', 17] }, { $lte: ['$hora', 23] }] },
+                                                1,
+                                                0
+                                            ]
+                                        }
+                                    },
+                                    cenaMesas: {
+                                        $addToSet: {
+                                            $cond: [
+                                                { $and: [{ $gte: ['$hora', 17] }, { $lte: ['$hora', 23] }] },
+                                                '$mesa',
+                                                null
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]);
+
+            const facetResult = turnosAgg[0] || {};
+
+            // Procesar resultados por día de semana
+            // MongoDB $dayOfWeek: 1=Domingo, 2=Lunes, ..., 7=Sábado
+            // Nuestro array: 0=Lun, 1=Mar, 2=Mié, 3=Jue, 4=Vie, 5=Sáb, 6=Dom
+            const diaMapping = { 1: 6, 2: 0, 3: 1, 4: 2, 5: 3, 6: 4, 7: 5 }; // MongoDB -> nuestro índice
+            
+            (facetResult.porDiaSemana || []).forEach(d => {
+                const idx = diaMapping[d._id];
+                if (idx !== undefined && idx >= 0 && idx < 7) {
+                    ventasPorDiaSemana[idx].ventas = Math.round((d.ventas || 0) * 100) / 100;
+                    ventasPorDiaSemana[idx].tickets = d.tickets || 0;
+                }
+            });
+
+            // Procesar resultados por turno
+            const turnoData = (facetResult.porTurno || [])[0];
+            if (turnoData) {
+                // Almuerzo
+                const almuerzoMesasCount = (turnoData.almuerzoMesas || []).filter(m => m !== null).length;
+                comparacionPorTurno.almuerzo = {
+                    ventas: Math.round((turnoData.almuerzoVentas || 0) * 100) / 100,
+                    tickets: turnoData.almuerzoTickets || 0,
+                    ticketPromedio: turnoData.almuerzoTickets > 0 
+                        ? Math.round((turnoData.almuerzoVentas / turnoData.almuerzoTickets) * 100) / 100 
+                        : 0,
+                    mesas: almuerzoMesasCount
+                };
+
+                // Cena
+                const cenaMesasCount = (turnoData.cenaMesas || []).filter(m => m !== null).length;
+                comparacionPorTurno.cena = {
+                    ventas: Math.round((turnoData.cenaVentas || 0) * 100) / 100,
+                    tickets: turnoData.cenaTickets || 0,
+                    ticketPromedio: turnoData.cenaTickets > 0 
+                        ? Math.round((turnoData.cenaVentas / turnoData.cenaTickets) * 100) / 100 
+                        : 0,
+                    mesas: cenaMesasCount
+                };
+            }
+        } catch (turnoErr) {
+            logger.warn('[PropinaRepo] Agregación por turno/día semana omitida', { error: turnoErr.message });
+        }
+
         // Participación en propinas del período (pastel)
         const totalP = totales.totalPropinas || 1;
         const participacionPropinas = porPropinas
@@ -536,7 +720,10 @@ async function obtenerDatosDashboardMozos(fechaInicio, fechaFin) {
                 ventasPorHora: ventasPorHoraArr,
                 mesasPorHora: mesasPorHoraArr,
                 productividadMozoHora,
-                participacionPropinas
+                participacionPropinas,
+                // NUEVAS SERIES para gráficos de rendimiento
+                ventasPorDiaSemana,      // Tendencia Diaria de Ventas
+                comparacionPorTurno      // Comparación Almuerzo vs Cena
             },
             ocupacionSalon,
             mozos: porPropinas

@@ -61,7 +61,20 @@ tailwind.config = {
   .mozos-scrollbar::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.25); border-radius: 4px; }
   .mozos-gauge-track { fill: none; stroke: rgba(212,175,55,0.12); stroke-width: 10; stroke-linecap: round; }
   .mozos-gauge-fill { fill: none; stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset 0.6s ease, stroke 0.35s ease; }
-  .mozos-heat-cell { min-width: 1.5rem; height: 1.35rem; border-radius: 4px; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.92); border: 1px solid rgba(0,0,0,0.2); }
+  .mozos-heat-cell { 
+    width: 1.75rem; 
+    height: 1.75rem; 
+    border-radius: 4px; 
+    font-size: 10px; 
+    font-weight: 700; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    color: rgba(255,255,255,0.95); 
+    border: 1px solid rgba(0,0,0,0.2);
+    line-height: 1;
+    text-align: center;
+  }
   .mozos-foto-drop {
     border: 2px dashed rgba(212,175,55,0.35);
     border-radius: 1rem;
@@ -845,8 +858,11 @@ tailwind.config = {
           <div class="h-[260px]"><canvas id="chartMozosBar"></canvas></div>
         </div>
         <div class="mozos-kpi-card rounded-2xl p-4 min-h-[300px]">
-          <h3 class="text-xs font-bold uppercase text-txt-muted mb-2">Tendencia temporal</h3>
-          <div class="h-[260px]"><canvas id="chartMozosLinea"></canvas></div>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs font-bold uppercase text-txt-muted">Tendencia Diaria de Ventas</h3>
+            <span class="text-[10px] text-txt-muted">Días más fuertes del período</span>
+          </div>
+          <div class="h-[260px]"><canvas id="chartTendenciaDiaria"></canvas></div>
         </div>
       </div>
 
@@ -878,22 +894,32 @@ tailwind.config = {
         </div>
       </div>
 
-      <div class="mozos-kpi-card rounded-2xl p-4 min-h-[320px]">
-        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-          <div>
-            <h3 class="text-xs font-bold uppercase text-txt-muted">Ventas y mesas por hora</h3>
-            <p class="text-[10px] text-txt-muted">Línea azul: S/. ventas/hora · Línea verde: mesas únicas/hora (por pago)</p>
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div class="mozos-kpi-card rounded-2xl p-4 min-h-[320px]">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <div>
+              <h3 class="text-xs font-bold uppercase text-txt-muted">Ventas y mesas por hora</h3>
+              <p class="text-[10px] text-txt-muted">Línea azul: S/. ventas/hora · Línea verde: mesas únicas/hora (por pago)</p>
+            </div>
+            <div class="flex flex-wrap gap-1">
+              <button type="button" @click="setRendimientoHorario('full')" class="px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition"
+                :class="rendimientoHorarioVista === 'full' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">8–23h</button>
+              <button type="button" @click="setRendimientoHorario('medio')" class="px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition"
+                :class="rendimientoHorarioVista === 'medio' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">12–14h</button>
+              <button type="button" @click="setRendimientoHorario('noche')" class="px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition"
+                :class="rendimientoHorarioVista === 'noche' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">19–21h</button>
+            </div>
           </div>
-          <div class="flex flex-wrap gap-1">
-            <button type="button" @click="setRendimientoHorario('full')" class="px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition"
-              :class="rendimientoHorarioVista === 'full' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">8–23h</button>
-            <button type="button" @click="setRendimientoHorario('medio')" class="px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition"
-              :class="rendimientoHorarioVista === 'medio' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">12–14h</button>
-            <button type="button" @click="setRendimientoHorario('noche')" class="px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition"
-              :class="rendimientoHorarioVista === 'noche' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">19–21h</button>
-          </div>
+          <div class="h-[280px]"><canvas id="chartVentasMesasHora"></canvas></div>
         </div>
-        <div class="h-[280px]"><canvas id="chartVentasMesasHora"></canvas></div>
+
+        <div class="mozos-kpi-card rounded-2xl p-4 min-h-[320px]">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs font-bold uppercase text-txt-muted">Comparación por Turno (Almuerzo vs Cena)</h3>
+          </div>
+          <p class="text-[10px] text-txt-muted mb-3">Ventas totales y ticket promedio por turno. Almuerzo: 11-16h · Cena: 17-23h</p>
+          <div class="h-[280px]"><canvas id="chartComparacionTurno"></canvas></div>
+        </div>
       </div>
 
       <div class="mozos-kpi-card rounded-2xl p-4 overflow-x-auto">
@@ -903,14 +929,14 @@ tailwind.config = {
           <div class="flex text-[9px] uppercase text-txt-muted mb-1">
             <div class="w-[120px] shrink-0 pr-2">Mozo</div>
             <template x-for="h in rendimientoHeatmapHoras" :key="'hh-' + h">
-              <div class="w-8 shrink-0 text-center font-semibold" x-text="h"></div>
+              <div class="w-7 h-7 shrink-0 mx-0.5 text-center font-semibold flex items-center justify-center" x-text="h"></div>
             </template>
           </div>
           <template x-for="row in rendimientoHeatmapRows" :key="row.id">
             <div class="flex items-center mb-1">
               <div class="w-[120px] shrink-0 pr-2 text-[11px] font-medium text-white truncate" :title="row.nombre" x-text="row.nombre"></div>
               <template x-for="cell in row.cells" :key="row.id + '-' + cell.h">
-                <div class="mozos-heat-cell w-8 shrink-0 mx-px" :style="'background:' + cell.color" :title="cell.title" x-text="cell.v > 0 ? cell.v : ''"></div>
+                <div class="mozos-heat-cell w-7 h-7 shrink-0 mx-0.5" :style="'background:' + cell.color" :title="cell.title" x-text="cell.v > 0 ? cell.v : ''"></div>
               </template>
             </div>
           </template>
@@ -2517,6 +2543,8 @@ function mozosExecutiveApp() {
     _chartLinea: null,
     _chartMesasHBar: null,
     _chartVentasMesasHora: null,
+    _chartTendenciaDiaria: null,      // NUEVO: Tendencia Diaria de Ventas
+    _chartComparacionTurno: null,     // NUEVO: Comparación Almuerzo vs Cena
     rendimientoHorarioVista: 'full',
     barMozoIdsMesas: [],
     fotoDropActivo: false,
@@ -3341,38 +3369,12 @@ function mozosExecutiveApp() {
         }
 
         const ctxL = document.getElementById('chartMozosLinea');
+        // NOTA: El gráfico de 'Tendencia temporal' fue reemplazado por 'Tendencia Diaria de Ventas'
+        // en el canvas chartTendenciaDiaria. Este código se mantiene por compatibilidad pero
+        // el canvas chartMozosLinea ya no existe en el DOM.
         if (ctxL && ctxL.getContext('2d')) {
           this._chartLinea = safeDestroy(this._chartLinea);
-          const { inicio, fin } = this.rangoFechas;
-          let labels;
-          let dataLine;
-          if (inicio === fin && series?.propinasPorHora) {
-            labels = series.propinasPorHora.map(x => x.hora + 'h');
-            dataLine = series.propinasPorHora.map(x => x.total);
-          } else if (this.serieDiaria.length) {
-            labels = this.serieDiaria.map(x => x.label);
-            dataLine = this.serieDiaria.map(x => x.total);
-          } else {
-            labels = ['—'];
-            dataLine = [0];
-          }
-          this._chartLinea = new Chart(ctxL, {
-            type: 'line',
-            data: {
-              labels,
-              datasets: [{ label: 'S/. propinas', data: dataLine, borderColor: gold, backgroundColor: 'rgba(212,175,55,0.12)', fill: true, tension: 0.35 }]
-            },
-            options: {
-              animation: false,
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: { legend: { display: false } },
-              scales: {
-                x: { ticks: { color: text }, grid: { color: grid } },
-                y: { ticks: { color: text }, grid: { color: grid }, beginAtZero: true }
-              }
-            }
-          });
+          // No se crea nuevo gráfico - usar chartTendenciaDiaria en su lugar
         }
 
         const ctxMH = document.getElementById('chartMesasPorMozo');
@@ -3427,6 +3429,7 @@ function mozosExecutiveApp() {
         const ctxVM = document.getElementById('chartVentasMesasHora');
         if (ctxVM && ctxVM.getContext('2d')) {
           this._chartVentasMesasHora = safeDestroy(this._chartVentasMesasHora);
+          // Nota: Ahora el backend garantiza coherencia: solo bouchers con total > 0
           const ventasSeries = Array.isArray(d?.series?.ventasPorHora) ? d.series.ventasPorHora : [];
           const mesasSeries = Array.isArray(d?.series?.mesasPorHora) ? d.series.mesasPorHora : [];
           let hours = Array.from({ length: 16 }, (_, i) => i + 8);
@@ -3493,6 +3496,165 @@ function mozosExecutiveApp() {
                   grid: { drawOnChartArea: false },
                   beginAtZero: true,
                   title: { display: true, text: 'Mesas / hora', color: text, font: { size: 10 } }
+                }
+              }
+            }
+          });
+        }
+
+        // NUEVO GRÁFICO: Tendencia Diaria de Ventas (por día de semana)
+        const ctxTendencia = document.getElementById('chartTendenciaDiaria');
+        if (ctxTendencia && ctxTendencia.getContext('2d')) {
+          this._chartTendenciaDiaria = safeDestroy(this._chartTendenciaDiaria);
+          
+          // Datos del backend: ventasPorDiaSemana
+          const diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+          const ventasPorDia = d?.series?.ventasPorDiaSemana || 
+            diasSemana.map(d => ({ dia: d, ventas: 0, tickets: 0 }));
+          
+          const labelsTendencia = ventasPorDia.map(v => v.dia);
+          const dataTendencia = ventasPorDia.map(v => v.ventas || 0);
+          const ticketsTendencia = ventasPorDia.map(v => v.tickets || 0);
+          
+          // Calcular ticket promedio por día para mostrar en tooltip
+          const ticketPromedioPorDia = ventasPorDia.map(v => 
+            v.tickets > 0 ? Math.round((v.ventas / v.tickets) * 100) / 100 : 0
+          );
+          
+          this._chartTendenciaDiaria = new Chart(ctxTendencia, {
+            type: 'bar',
+            data: {
+              labels: labelsTendencia,
+              datasets: [{
+                label: 'Ventas S/.',
+                data: dataTendencia,
+                backgroundColor: dataTendencia.map((v, i) => {
+                  // Destacar el día con mayor venta
+                  const max = Math.max(...dataTendencia);
+                  return v === max && v > 0 ? 'rgba(212,175,55,0.9)' : 'rgba(52,152,219,0.7)';
+                }),
+                borderColor: dataTendencia.map((v, i) => {
+                  const max = Math.max(...dataTendencia);
+                  return v === max && v > 0 ? '#d4af37' : '#3498db';
+                }),
+                borderWidth: 1,
+                borderRadius: 4
+              }]
+            },
+            options: {
+              animation: false,
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    afterLabel: function(context) {
+                      const idx = context.dataIndex;
+                      const tickets = ticketsTendencia[idx];
+                      const tkProm = ticketPromedioPorDia[idx];
+                      return `Tickets: ${tickets} · Ticket promedio: S/. ${tkProm.toFixed(2)}`;
+                    }
+                  }
+                }
+              },
+              scales: {
+                x: { 
+                  ticks: { color: text }, 
+                  grid: { color: grid } 
+                },
+                y: { 
+                  ticks: { color: text, callback: v => 'S/. ' + v }, 
+                  grid: { color: grid }, 
+                  beginAtZero: true 
+                }
+              }
+            }
+          });
+        }
+
+        // NUEVO GRÁFICO: Comparación por Turno (Almuerzo vs Cena)
+        const ctxTurno = document.getElementById('chartComparacionTurno');
+        if (ctxTurno && ctxTurno.getContext('2d')) {
+          this._chartComparacionTurno = safeDestroy(this._chartComparacionTurno);
+          
+          // Datos del backend: comparacionPorTurno
+          const turnoData = d?.series?.comparacionPorTurno || {
+            almuerzo: { ventas: 0, tickets: 0, ticketPromedio: 0, mesas: 0 },
+            cena: { ventas: 0, tickets: 0, ticketPromedio: 0, mesas: 0 }
+          };
+          
+          const turnosLabels = ['Almuerzo\n(11-16h)', 'Cena\n(17-23h)'];
+          const ventasTurno = [turnoData.almuerzo?.ventas || 0, turnoData.cena?.ventas || 0];
+          const ticketPromedioTurno = [
+            turnoData.almuerzo?.ticketPromedio || 0, 
+            turnoData.cena?.ticketPromedio || 0
+          ];
+          
+          this._chartComparacionTurno = new Chart(ctxTurno, {
+            type: 'bar',
+            data: {
+              labels: turnosLabels,
+              datasets: [
+                {
+                  label: 'Ventas S/.',
+                  data: ventasTurno,
+                  backgroundColor: ['rgba(255,165,2,0.8)', 'rgba(83,82,237,0.8)'],
+                  borderColor: ['#ffa502', '#5352ed'],
+                  borderWidth: 1,
+                  borderRadius: 4,
+                  yAxisID: 'y'
+                },
+                {
+                  label: 'Ticket Promedio S/.',
+                  data: ticketPromedioTurno,
+                  backgroundColor: ['rgba(212,175,55,0.6)', 'rgba(0,212,170,0.6)'],
+                  borderColor: ['#d4af37', '#00d4aa'],
+                  borderWidth: 1,
+                  borderRadius: 4,
+                  yAxisID: 'y1'
+                }
+              ]
+            },
+            options: {
+              animation: false,
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { 
+                  labels: { color: text, boxWidth: 12, font: { size: 10 } } 
+                },
+                tooltip: {
+                  callbacks: {
+                    afterBody: function(context) {
+                      const idx = context[0].dataIndex;
+                      const turnoKey = idx === 0 ? 'almuerzo' : 'cena';
+                      const turno = turnoData[turnoKey];
+                      return `Tickets: ${turno?.tickets || 0} · Mesas: ${turno?.mesas || 0}`;
+                    }
+                  }
+                }
+              },
+              scales: {
+                x: { 
+                  ticks: { color: text, font: { size: 10 } }, 
+                  grid: { color: grid } 
+                },
+                y: {
+                  type: 'linear',
+                  position: 'left',
+                  ticks: { color: '#ffa502', callback: v => 'S/. ' + v },
+                  grid: { color: grid },
+                  beginAtZero: true,
+                  title: { display: true, text: 'Ventas S/.', color: text, font: { size: 10 } }
+                },
+                y1: {
+                  type: 'linear',
+                  position: 'right',
+                  ticks: { color: '#d4af37', callback: v => 'S/. ' + v },
+                  grid: { drawOnChartArea: false },
+                  beginAtZero: true,
+                  title: { display: true, text: 'Ticket Promedio', color: text, font: { size: 10 } }
                 }
               }
             }
