@@ -91,10 +91,15 @@ const PROYECCION_RESUMEN_MESA = {
     mesas: 1,
     mozos: 1,
     IsActive: 1,
+    cantidades: 1,  // 🔥 Necesario para mostrar cantidades correctas
     'platos._id': 1,  // 🔥 CRÍTICO: ID único del subdocumento
+    'platos.platoId': 1,  // 🔥 Necesario para identificación
     'platos.estado': 1,
     'platos.eliminado': 1,
-    'platos.anulado': 1
+    'platos.anulado': 1,
+    'platos.complementosSeleccionados': 1,  // 🔥 NUEVO: Complementos del plato
+    'platos.notaEspecial': 1,  // 🔥 NUEVO: Nota especial del plato
+    'platos.plato': 1  // 🔥 Necesario para populate de nombre y precio
 };
 
 // Proyección para pagos (campos necesarios para cálculo)

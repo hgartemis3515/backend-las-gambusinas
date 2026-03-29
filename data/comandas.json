@@ -1752,7 +1752,7 @@
       {
         "tiempos": {
           "en_espera": "2026-02-11T16:30:28.671Z",
-          "pedido": "2026-03-29T00:55:37.004Z"
+          "pedido": "2026-03-29T05:04:20.261Z"
         },
         "procesandoPor": {
           "cocineroId": null,
@@ -1791,7 +1791,7 @@
       {
         "tiempos": {
           "en_espera": "2026-02-11T16:30:28.671Z",
-          "pedido": "2026-03-29T00:55:37.004Z"
+          "pedido": "2026-03-29T05:04:20.261Z"
         },
         "procesandoPor": {
           "cocineroId": null,
@@ -1830,7 +1830,7 @@
       {
         "tiempos": {
           "en_espera": "2026-02-11T16:30:28.671Z",
-          "pedido": "2026-03-29T00:55:37.004Z"
+          "pedido": "2026-03-29T05:04:20.261Z"
         },
         "procesandoPor": {
           "cocineroId": null,
@@ -1869,7 +1869,7 @@
       {
         "tiempos": {
           "en_espera": "2026-02-11T16:30:28.671Z",
-          "pedido": "2026-03-29T00:55:37.004Z"
+          "pedido": "2026-03-29T05:04:20.261Z"
         },
         "procesandoPor": {
           "cocineroId": null,
@@ -1908,7 +1908,7 @@
       {
         "tiempos": {
           "en_espera": "2026-02-11T16:30:28.672Z",
-          "pedido": "2026-03-29T00:55:37.004Z"
+          "pedido": "2026-03-29T05:04:20.261Z"
         },
         "procesandoPor": {
           "cocineroId": null,
@@ -1947,7 +1947,7 @@
       {
         "tiempos": {
           "en_espera": "2026-02-11T16:30:28.672Z",
-          "pedido": "2026-03-29T00:55:37.004Z"
+          "pedido": "2026-03-29T05:04:20.262Z"
         },
         "procesandoPor": {
           "cocineroId": null,
@@ -2154,7 +2154,7 @@
       {
         "tiempos": {
           "en_espera": "2026-02-11T16:29:30.227Z",
-          "pedido": "2026-03-29T00:55:37.004Z"
+          "pedido": "2026-03-29T05:04:20.262Z"
         },
         "procesandoPor": {
           "cocineroId": null,
@@ -2193,7 +2193,7 @@
       {
         "tiempos": {
           "en_espera": "2026-02-11T16:29:30.227Z",
-          "pedido": "2026-03-29T00:55:37.004Z"
+          "pedido": "2026-03-29T05:04:20.262Z"
         },
         "procesandoPor": {
           "cocineroId": null,
@@ -2232,7 +2232,7 @@
       {
         "tiempos": {
           "en_espera": "2026-02-11T16:29:30.228Z",
-          "pedido": "2026-03-29T00:55:37.005Z"
+          "pedido": "2026-03-29T05:04:20.262Z"
         },
         "procesandoPor": {
           "cocineroId": null,
@@ -51200,7 +51200,7 @@
     ],
     "observaciones": "",
     "status": "en_espera",
-    "IsActive": true,
+    "IsActive": false,
     "tiempoEnEspera": "2026-03-26T20:27:07.069Z",
     "tiempoRecoger": "2026-03-26T20:26:03.884Z",
     "tiempoEntregado": null,
@@ -51398,12 +51398,12 @@
         "_id": "69c5969b6c4bbcb5be3821c0"
       }
     ],
-    "fechaEliminacion": null,
-    "motivoEliminacion": null,
+    "fechaEliminacion": "2026-03-29T01:57:25.743Z",
+    "motivoEliminacion": "fsdf",
     "eliminadaPor": null,
     "precioTotalOriginal": 53,
     "precioTotal": 53,
-    "version": 1,
+    "version": 2,
     "incluidoEnCierre": null,
     "prioridadOrden": 0,
     "descuento": 0,
@@ -51415,8 +51415,51 @@
     "montoDescuento": 0,
     "origenReserva": null,
     "createdAt": "2026-03-26T15:24:46.396Z",
-    "updatedAt": "2026-03-26T20:27:07.180Z",
-    "historialPlatos": [],
+    "updatedAt": "2026-03-29T01:57:25.746Z",
+    "historialPlatos": [
+      {
+        "platoId": 36,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-03-29T01:57:25.743Z",
+        "usuario": null,
+        "motivo": "comanda-fsdf",
+        "anuladoPor": null,
+        "anuladoSourceApp": null,
+        "tipoAnulacion": null,
+        "_id": "69c887056383a90e877a8c33"
+      },
+      {
+        "platoId": 37,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-03-29T01:57:25.744Z",
+        "usuario": null,
+        "motivo": "comanda-fsdf",
+        "anuladoPor": null,
+        "anuladoSourceApp": null,
+        "tipoAnulacion": null,
+        "_id": "69c887056383a90e877a8c34"
+      },
+      {
+        "platoId": 38,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-03-29T01:57:25.744Z",
+        "usuario": null,
+        "motivo": "comanda-fsdf",
+        "anuladoPor": null,
+        "anuladoSourceApp": null,
+        "tipoAnulacion": null,
+        "_id": "69c887056383a90e877a8c35"
+      }
+    ],
     "comandaNumber": 497
   },
   {
@@ -51528,7 +51571,7 @@
     ],
     "observaciones": "",
     "status": "en_espera",
-    "IsActive": true,
+    "IsActive": false,
     "tiempoEnEspera": "2026-03-26T20:27:05.243Z",
     "tiempoRecoger": "2026-03-26T20:26:12.351Z",
     "tiempoEntregado": null,
@@ -51682,12 +51725,12 @@
         "_id": "69c596996c4bbcb5be381f37"
       }
     ],
-    "fechaEliminacion": null,
-    "motivoEliminacion": null,
+    "fechaEliminacion": "2026-03-29T01:57:23.568Z",
+    "motivoEliminacion": "fsdf",
     "eliminadaPor": null,
     "precioTotalOriginal": 28,
     "precioTotal": 28,
-    "version": 1,
+    "version": 2,
     "incluidoEnCierre": null,
     "prioridadOrden": 0,
     "descuento": 0,
@@ -51699,8 +51742,37 @@
     "montoDescuento": 0,
     "origenReserva": null,
     "createdAt": "2026-03-26T15:25:11.698Z",
-    "updatedAt": "2026-03-26T20:27:05.320Z",
-    "historialPlatos": [],
+    "updatedAt": "2026-03-29T01:57:23.572Z",
+    "historialPlatos": [
+      {
+        "platoId": 36,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-03-29T01:57:23.569Z",
+        "usuario": null,
+        "motivo": "comanda-fsdf",
+        "anuladoPor": null,
+        "anuladoSourceApp": null,
+        "tipoAnulacion": null,
+        "_id": "69c887036383a90e877a8bf4"
+      },
+      {
+        "platoId": 37,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-03-29T01:57:23.570Z",
+        "usuario": null,
+        "motivo": "comanda-fsdf",
+        "anuladoPor": null,
+        "anuladoSourceApp": null,
+        "tipoAnulacion": null,
+        "_id": "69c887036383a90e877a8bf5"
+      }
+    ],
     "comandaNumber": 498
   },
   {
@@ -51854,7 +51926,7 @@
     ],
     "observaciones": "",
     "status": "en_espera",
-    "IsActive": true,
+    "IsActive": false,
     "tiempoEnEspera": "2026-03-29T00:55:36.796Z",
     "tiempoRecoger": null,
     "tiempoEntregado": null,
@@ -51876,12 +51948,12 @@
         "_id": "69c878886383a90e877a5271"
       }
     ],
-    "fechaEliminacion": null,
-    "motivoEliminacion": null,
+    "fechaEliminacion": "2026-03-29T05:03:42.181Z",
+    "motivoEliminacion": "dawdaw",
     "eliminadaPor": null,
     "precioTotalOriginal": 73,
     "precioTotal": 73,
-    "version": 1,
+    "version": 2,
     "incluidoEnCierre": null,
     "prioridadOrden": 0,
     "descuento": 0,
@@ -51893,8 +51965,691 @@
     "montoDescuento": 0,
     "origenReserva": null,
     "createdAt": "2026-03-29T00:55:36.799Z",
-    "updatedAt": "2026-03-29T00:55:36.982Z",
-    "historialPlatos": [],
+    "updatedAt": "2026-03-29T05:03:42.186Z",
+    "historialPlatos": [
+      {
+        "platoId": 64,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-03-29T05:03:42.182Z",
+        "usuario": null,
+        "motivo": "comanda-dawdaw",
+        "anuladoPor": null,
+        "anuladoSourceApp": null,
+        "tipoAnulacion": null,
+        "_id": "69c8b2aed640b4fb1fff4167"
+      },
+      {
+        "platoId": 38,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-03-29T05:03:42.184Z",
+        "usuario": null,
+        "motivo": "comanda-dawdaw",
+        "anuladoPor": null,
+        "anuladoSourceApp": null,
+        "tipoAnulacion": null,
+        "_id": "69c8b2aed640b4fb1fff4168"
+      },
+      {
+        "platoId": 37,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-03-29T05:03:42.184Z",
+        "usuario": null,
+        "motivo": "comanda-dawdaw",
+        "anuladoPor": null,
+        "anuladoSourceApp": null,
+        "tipoAnulacion": null,
+        "_id": "69c8b2aed640b4fb1fff4169"
+      }
+    ],
     "comandaNumber": 499
+  },
+  {
+    "procesandoPor": {
+      "cocineroId": null,
+      "nombre": null,
+      "alias": null,
+      "timestamp": null
+    },
+    "procesadoPor": {
+      "cocineroId": null,
+      "nombre": null,
+      "alias": null,
+      "timestamp": null
+    },
+    "_id": "69c891cebb1729a2ea55bc35",
+    "mozos": "69a51896782a5785d39b1232",
+    "mesas": "69c3d5ea76e3224b81e9749e",
+    "cliente": null,
+    "mozoNombre": "Juan",
+    "mesaNumero": 14,
+    "areaNombre": "VIP",
+    "clienteNombre": null,
+    "totalPlatos": 3,
+    "platosActivos": 3,
+    "pedido": "69c54fbe2a52656f731b319c",
+    "dividedFrom": null,
+    "platos": [
+      {
+        "tiempos": {
+          "pedido": "2026-03-29T02:43:26.304Z",
+          "en_espera": "2026-03-29T02:43:26.304Z"
+        },
+        "procesandoPor": {
+          "cocineroId": null,
+          "nombre": null,
+          "alias": null,
+          "timestamp": null
+        },
+        "procesadoPor": {
+          "cocineroId": null,
+          "nombre": null,
+          "alias": null,
+          "timestamp": null
+        },
+        "plato": "6992b9dad845b119c1d00c86",
+        "platoId": 36,
+        "estado": "en_espera",
+        "complementosSeleccionados": [],
+        "notaEspecial": "",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "estadoAlEliminar": null,
+        "generoDesperdicio": false,
+        "anulado": false,
+        "anuladoPor": null,
+        "anuladoAt": null,
+        "anuladoRazon": null,
+        "anuladoSourceApp": null,
+        "estadoAlAnular": null,
+        "tipoAnulacion": null,
+        "_id": "69c891cebb1729a2ea55bc36"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-03-29T02:43:26.304Z",
+          "en_espera": "2026-03-29T02:43:26.304Z"
+        },
+        "procesandoPor": {
+          "cocineroId": null,
+          "nombre": null,
+          "alias": null,
+          "timestamp": null
+        },
+        "procesadoPor": {
+          "cocineroId": null,
+          "nombre": null,
+          "alias": null,
+          "timestamp": null
+        },
+        "plato": "6992b9dad845b119c1d00ca2",
+        "platoId": 64,
+        "estado": "en_espera",
+        "complementosSeleccionados": [
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "1/4 res",
+            "_id": "69c891cebb1729a2ea55bc38"
+          }
+        ],
+        "notaEspecial": "",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "estadoAlEliminar": null,
+        "generoDesperdicio": false,
+        "anulado": false,
+        "anuladoPor": null,
+        "anuladoAt": null,
+        "anuladoRazon": null,
+        "anuladoSourceApp": null,
+        "estadoAlAnular": null,
+        "tipoAnulacion": null,
+        "_id": "69c891cebb1729a2ea55bc37"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-03-29T02:43:26.304Z",
+          "en_espera": "2026-03-29T02:43:26.304Z"
+        },
+        "procesandoPor": {
+          "cocineroId": null,
+          "nombre": null,
+          "alias": null,
+          "timestamp": null
+        },
+        "procesadoPor": {
+          "cocineroId": null,
+          "nombre": null,
+          "alias": null,
+          "timestamp": null
+        },
+        "plato": "6992b9dad845b119c1d00ca2",
+        "platoId": 64,
+        "estado": "en_espera",
+        "complementosSeleccionados": [
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "1/4 pollo",
+            "_id": "69c891cebb1729a2ea55bc3a"
+          }
+        ],
+        "notaEspecial": "",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "estadoAlEliminar": null,
+        "generoDesperdicio": false,
+        "anulado": false,
+        "anuladoPor": null,
+        "anuladoAt": null,
+        "anuladoRazon": null,
+        "anuladoSourceApp": null,
+        "estadoAlAnular": null,
+        "tipoAnulacion": null,
+        "_id": "69c891cebb1729a2ea55bc39"
+      }
+    ],
+    "cantidades": [
+      1,
+      1,
+      1
+    ],
+    "observaciones": "",
+    "status": "en_espera",
+    "IsActive": false,
+    "tiempoEnEspera": "2026-03-29T02:43:26.308Z",
+    "tiempoRecoger": null,
+    "tiempoEntregado": null,
+    "tiempoPagado": null,
+    "createdBy": "69a51896782a5785d39b1232",
+    "updatedBy": null,
+    "deviceId": null,
+    "sourceApp": "api",
+    "historialEstados": [
+      {
+        "status": "en_espera",
+        "statusAnterior": null,
+        "timestamp": "2026-03-29T02:43:26.308Z",
+        "usuario": "69a51896782a5785d39b1232",
+        "accion": "Comanda creada",
+        "deviceId": null,
+        "sourceApp": "api",
+        "motivo": null,
+        "_id": "69c891cebb1729a2ea55bc3b"
+      }
+    ],
+    "fechaEliminacion": "2026-03-29T05:03:44.124Z",
+    "motivoEliminacion": "dawdwa",
+    "eliminadaPor": null,
+    "precioTotalOriginal": 79,
+    "precioTotal": 79,
+    "version": 2,
+    "incluidoEnCierre": null,
+    "prioridadOrden": 0,
+    "descuento": 0,
+    "motivoDescuento": null,
+    "descuentoAplicadoPor": null,
+    "descuentoAplicadoAt": null,
+    "totalCalculado": 0,
+    "totalSinDescuento": 0,
+    "montoDescuento": 0,
+    "origenReserva": null,
+    "createdAt": "2026-03-29T02:43:26.311Z",
+    "updatedAt": "2026-03-29T05:03:44.127Z",
+    "historialPlatos": [
+      {
+        "platoId": 36,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-03-29T05:03:44.125Z",
+        "usuario": null,
+        "motivo": "comanda-dawdwa",
+        "anuladoPor": null,
+        "anuladoSourceApp": null,
+        "tipoAnulacion": null,
+        "_id": "69c8b2b0d640b4fb1fff4192"
+      },
+      {
+        "platoId": 64,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-03-29T05:03:44.126Z",
+        "usuario": null,
+        "motivo": "comanda-dawdwa",
+        "anuladoPor": null,
+        "anuladoSourceApp": null,
+        "tipoAnulacion": null,
+        "_id": "69c8b2b0d640b4fb1fff4193"
+      },
+      {
+        "platoId": 64,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-03-29T05:03:44.126Z",
+        "usuario": null,
+        "motivo": "comanda-dawdwa",
+        "anuladoPor": null,
+        "anuladoSourceApp": null,
+        "tipoAnulacion": null,
+        "_id": "69c8b2b0d640b4fb1fff4194"
+      }
+    ],
+    "comandaNumber": 500
+  },
+  {
+    "procesandoPor": {
+      "cocineroId": null,
+      "nombre": null,
+      "alias": null,
+      "timestamp": null
+    },
+    "procesadoPor": {
+      "cocineroId": null,
+      "nombre": null,
+      "alias": null,
+      "timestamp": null
+    },
+    "_id": "69c89226bb1729a2ea55e233",
+    "mozos": "6993350add56aff12441caca",
+    "mesas": "69860a415e59135b4d2c56c1",
+    "cliente": null,
+    "mozoNombre": "Humberto",
+    "mesaNumero": 1,
+    "areaNombre": "Patio",
+    "clienteNombre": null,
+    "totalPlatos": 2,
+    "platosActivos": 2,
+    "pedido": "69c048c0f77f6800f3f35b9f",
+    "dividedFrom": null,
+    "platos": [
+      {
+        "tiempos": {
+          "pedido": "2026-03-29T02:44:54.334Z",
+          "en_espera": "2026-03-29T02:44:54.334Z"
+        },
+        "procesandoPor": {
+          "cocineroId": null,
+          "nombre": null,
+          "alias": null,
+          "timestamp": null
+        },
+        "procesadoPor": {
+          "cocineroId": null,
+          "nombre": null,
+          "alias": null,
+          "timestamp": null
+        },
+        "plato": "6992b9dad845b119c1d00ca2",
+        "platoId": 64,
+        "estado": "en_espera",
+        "complementosSeleccionados": [
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "1/4 res",
+            "_id": "69c89226bb1729a2ea55e235"
+          }
+        ],
+        "notaEspecial": "",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "estadoAlEliminar": null,
+        "generoDesperdicio": false,
+        "anulado": false,
+        "anuladoPor": null,
+        "anuladoAt": null,
+        "anuladoRazon": null,
+        "anuladoSourceApp": null,
+        "estadoAlAnular": null,
+        "tipoAnulacion": null,
+        "_id": "69c89226bb1729a2ea55e234"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-03-29T02:44:54.334Z",
+          "en_espera": "2026-03-29T02:44:54.334Z"
+        },
+        "procesandoPor": {
+          "cocineroId": null,
+          "nombre": null,
+          "alias": null,
+          "timestamp": null
+        },
+        "procesadoPor": {
+          "cocineroId": null,
+          "nombre": null,
+          "alias": null,
+          "timestamp": null
+        },
+        "plato": "6992b9dad845b119c1d00ca2",
+        "platoId": 64,
+        "estado": "en_espera",
+        "complementosSeleccionados": [
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "1/4 pollo",
+            "_id": "69c89226bb1729a2ea55e237"
+          }
+        ],
+        "notaEspecial": "",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "estadoAlEliminar": null,
+        "generoDesperdicio": false,
+        "anulado": false,
+        "anuladoPor": null,
+        "anuladoAt": null,
+        "anuladoRazon": null,
+        "anuladoSourceApp": null,
+        "estadoAlAnular": null,
+        "tipoAnulacion": null,
+        "_id": "69c89226bb1729a2ea55e236"
+      }
+    ],
+    "cantidades": [
+      1,
+      1
+    ],
+    "observaciones": "",
+    "status": "en_espera",
+    "IsActive": false,
+    "tiempoEnEspera": "2026-03-29T02:44:54.338Z",
+    "tiempoRecoger": null,
+    "tiempoEntregado": null,
+    "tiempoPagado": null,
+    "createdBy": "6993350add56aff12441caca",
+    "updatedBy": null,
+    "deviceId": null,
+    "sourceApp": "api",
+    "historialEstados": [
+      {
+        "status": "en_espera",
+        "statusAnterior": null,
+        "timestamp": "2026-03-29T02:44:54.338Z",
+        "usuario": "6993350add56aff12441caca",
+        "accion": "Comanda creada",
+        "deviceId": null,
+        "sourceApp": "api",
+        "motivo": null,
+        "_id": "69c89226bb1729a2ea55e238"
+      }
+    ],
+    "fechaEliminacion": "2026-03-29T05:03:45.922Z",
+    "motivoEliminacion": "dwda",
+    "eliminadaPor": null,
+    "precioTotalOriginal": 66,
+    "precioTotal": 66,
+    "version": 2,
+    "incluidoEnCierre": null,
+    "prioridadOrden": 0,
+    "descuento": 0,
+    "motivoDescuento": null,
+    "descuentoAplicadoPor": null,
+    "descuentoAplicadoAt": null,
+    "totalCalculado": 0,
+    "totalSinDescuento": 0,
+    "montoDescuento": 0,
+    "origenReserva": null,
+    "createdAt": "2026-03-29T02:44:54.339Z",
+    "updatedAt": "2026-03-29T05:03:45.925Z",
+    "historialPlatos": [
+      {
+        "platoId": 64,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-03-29T05:03:45.922Z",
+        "usuario": null,
+        "motivo": "comanda-dwda",
+        "anuladoPor": null,
+        "anuladoSourceApp": null,
+        "tipoAnulacion": null,
+        "_id": "69c8b2b1d640b4fb1fff41bc"
+      },
+      {
+        "platoId": 64,
+        "nombreOriginal": "Plato desconocido",
+        "cantidadOriginal": 1,
+        "cantidadFinal": 0,
+        "estado": "eliminado-completo",
+        "timestamp": "2026-03-29T05:03:45.924Z",
+        "usuario": null,
+        "motivo": "comanda-dwda",
+        "anuladoPor": null,
+        "anuladoSourceApp": null,
+        "tipoAnulacion": null,
+        "_id": "69c8b2b1d640b4fb1fff41bd"
+      }
+    ],
+    "comandaNumber": 501
+  },
+  {
+    "procesandoPor": {
+      "cocineroId": null,
+      "nombre": null,
+      "alias": null,
+      "timestamp": null
+    },
+    "procesadoPor": {
+      "cocineroId": null,
+      "nombre": null,
+      "alias": null,
+      "timestamp": null
+    },
+    "_id": "69c8b2d4d640b4fb1fff474a",
+    "mozos": "69a51896782a5785d39b1232",
+    "mesas": "69c3d5ea76e3224b81e9749e",
+    "cliente": null,
+    "mozoNombre": "Juan",
+    "mesaNumero": 14,
+    "areaNombre": "VIP",
+    "clienteNombre": null,
+    "totalPlatos": 3,
+    "platosActivos": 3,
+    "pedido": "69c54fbe2a52656f731b319c",
+    "dividedFrom": null,
+    "platos": [
+      {
+        "tiempos": {
+          "pedido": "2026-03-29T05:04:20.225Z",
+          "en_espera": "2026-03-29T05:04:20.225Z"
+        },
+        "procesandoPor": {
+          "cocineroId": null,
+          "nombre": null,
+          "alias": null,
+          "timestamp": null
+        },
+        "procesadoPor": {
+          "cocineroId": null,
+          "nombre": null,
+          "alias": null,
+          "timestamp": null
+        },
+        "plato": "6992b9dad845b119c1d00ca2",
+        "platoId": 64,
+        "estado": "en_espera",
+        "complementosSeleccionados": [
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "1/4 pollo",
+            "_id": "69c8b2d4d640b4fb1fff474c"
+          }
+        ],
+        "notaEspecial": "",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "estadoAlEliminar": null,
+        "generoDesperdicio": false,
+        "anulado": false,
+        "anuladoPor": null,
+        "anuladoAt": null,
+        "anuladoRazon": null,
+        "anuladoSourceApp": null,
+        "estadoAlAnular": null,
+        "tipoAnulacion": null,
+        "_id": "69c8b2d4d640b4fb1fff474b"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-03-29T05:04:20.225Z",
+          "en_espera": "2026-03-29T05:04:20.225Z"
+        },
+        "procesandoPor": {
+          "cocineroId": null,
+          "nombre": null,
+          "alias": null,
+          "timestamp": null
+        },
+        "procesadoPor": {
+          "cocineroId": null,
+          "nombre": null,
+          "alias": null,
+          "timestamp": null
+        },
+        "plato": "6992b9dad845b119c1d00ca2",
+        "platoId": 64,
+        "estado": "en_espera",
+        "complementosSeleccionados": [
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "1/4 cerdo",
+            "_id": "69c8b2d4d640b4fb1fff474e"
+          }
+        ],
+        "notaEspecial": "",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "estadoAlEliminar": null,
+        "generoDesperdicio": false,
+        "anulado": false,
+        "anuladoPor": null,
+        "anuladoAt": null,
+        "anuladoRazon": null,
+        "anuladoSourceApp": null,
+        "estadoAlAnular": null,
+        "tipoAnulacion": null,
+        "_id": "69c8b2d4d640b4fb1fff474d"
+      },
+      {
+        "tiempos": {
+          "pedido": "2026-03-29T05:04:20.225Z",
+          "en_espera": "2026-03-29T05:04:20.225Z"
+        },
+        "procesandoPor": {
+          "cocineroId": null,
+          "nombre": null,
+          "alias": null,
+          "timestamp": null
+        },
+        "procesadoPor": {
+          "cocineroId": null,
+          "nombre": null,
+          "alias": null,
+          "timestamp": null
+        },
+        "plato": "6992b9dad845b119c1d00ca2",
+        "platoId": 64,
+        "estado": "en_espera",
+        "complementosSeleccionados": [
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "1/4 res",
+            "_id": "69c8b2d4d640b4fb1fff4750"
+          }
+        ],
+        "notaEspecial": "",
+        "eliminado": false,
+        "eliminadoPor": null,
+        "eliminadoAt": null,
+        "eliminadoRazon": null,
+        "estadoAlEliminar": null,
+        "generoDesperdicio": false,
+        "anulado": false,
+        "anuladoPor": null,
+        "anuladoAt": null,
+        "anuladoRazon": null,
+        "anuladoSourceApp": null,
+        "estadoAlAnular": null,
+        "tipoAnulacion": null,
+        "_id": "69c8b2d4d640b4fb1fff474f"
+      }
+    ],
+    "cantidades": [
+      1,
+      1,
+      1
+    ],
+    "observaciones": "",
+    "status": "en_espera",
+    "IsActive": true,
+    "tiempoEnEspera": "2026-03-29T05:04:20.228Z",
+    "tiempoRecoger": null,
+    "tiempoEntregado": null,
+    "tiempoPagado": null,
+    "createdBy": "69a51896782a5785d39b1232",
+    "updatedBy": null,
+    "deviceId": null,
+    "sourceApp": "api",
+    "historialEstados": [
+      {
+        "status": "en_espera",
+        "statusAnterior": null,
+        "timestamp": "2026-03-29T05:04:20.229Z",
+        "usuario": "69a51896782a5785d39b1232",
+        "accion": "Comanda creada",
+        "deviceId": null,
+        "sourceApp": "api",
+        "motivo": null,
+        "_id": "69c8b2d4d640b4fb1fff4751"
+      }
+    ],
+    "fechaEliminacion": null,
+    "motivoEliminacion": null,
+    "eliminadaPor": null,
+    "precioTotalOriginal": 99,
+    "precioTotal": 99,
+    "version": 1,
+    "incluidoEnCierre": null,
+    "prioridadOrden": 0,
+    "descuento": 0,
+    "motivoDescuento": null,
+    "descuentoAplicadoPor": null,
+    "descuentoAplicadoAt": null,
+    "totalCalculado": 0,
+    "totalSinDescuento": 0,
+    "montoDescuento": 0,
+    "origenReserva": null,
+    "createdAt": "2026-03-29T05:04:20.230Z",
+    "updatedAt": "2026-03-29T05:04:20.240Z",
+    "historialPlatos": [],
+    "comandaNumber": 502
   }
 ]
