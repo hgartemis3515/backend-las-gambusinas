@@ -40,6 +40,7 @@ Crear un ecosistema digital completo que permita:
 
 | Fecha        | Cambios                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Marzo 2026   | **Bug corregido - Proyecciones de MongoDB:** Los complementos de los platos (`complementosSeleccionados`, `notaEspecial`) no se enviaban al frontend en el endpoint `GET /api/comanda/fecha/:fecha`. Causa: la proyección `PROYECCION_RESUMEN_MESA` no incluía estos campos. Solución: agregados campos faltantes. Ver sección "🐛 Debugging de Datos - Metodología" para aprender a identificar problemas similares. |
 | Marzo 2026   | **Funcionalidad Juntar/Separar Mesas v2.8:** Nueva funcionalidad para combinar múltiples mesas en un grupo (usando la mesa de menor número como principal) y separarlas posteriormente. Modelo de datos actualizado con campos `esMesaPrincipal`, `mesaPrincipalId`, `mesasUnidas`, `fechaUnion`, `unidoPor`, `motivoUnion`, `nombreCombinado`. Nuevos endpoints `POST /api/mesas/juntar`, `POST /api/mesas/separar`, `GET /api/mesas/grupos`, `GET /api/mesas/:id/grupo`. Eventos Socket.io `mesas-juntadas` y `mesas-separadas`. Permiso `juntar-separar-mesas` para admin/supervisor. |
 | Marzo 2026   | **Sistema de Mozos v2.0 con Metas:** Ampliación completa del sistema de mozos con nueva sección de Metas. Tipos de metas soportadas: ventas, mesas atendidas, tickets generados, ticket promedio, propinas promedio. Estados de cumplimiento semaforizados: sin_iniciar, en_progreso, en_riesgo, encaminado, cumplido, superado. KPIs de gestión: metas activas, mozos cumpliendo, mozos en riesgo, cumplimiento promedio. Proyección inteligente con algoritmo de ritmo y brecha. Ranking de cumplimiento con medallas. Distribución del equipo con gráfico donut. Recomendaciones automáticas contextuales. Plantillas predefinidas para turnos mañana/noche. Modal de nueva meta y drawer de detalle. Documentación actualizada en `docs/Sistemademozos_md.md`. |
 | Marzo 2026   | **Sistema de Propinas para Mozos v1.0:** Nueva funcionalidad completa para gestión de propinas del personal de salón. Modelo `Propina` con campos para monto fijo y porcentaje, snapshots de datos históricos, y auditoría completa. Nuevos endpoints `/api/propinas/*` para CRUD y reportes. Página `public/mozos.html` en dashboard administrativo con KPIs de ventas y propinas, tabla de mozos con métricas en tiempo real, y gestión CRUD del personal. Integración con App Mozos para registro de propinas post-pago. |
@@ -2847,6 +2848,98 @@ Para información completa del sistema de mozos y metas, ver:
 
 ---
 
+## 🐛 Debugging de Datos - Metodología
+
+### Lección Aprendida: Caso de los Complementos Faltantes (Marzo 2026)
+
+#### El Problema
+
+Los complementos seleccionados de los platos (`complementosSeleccionados`, `notaEspecial`) no se enviaban al frontend en el endpoint `GET /api/comanda/fecha/:fecha`. El mozo no podía ver información crítica como término de carne, acompañamientos o salsas elegidas por el cliente.
+
+#### Causa Raíz
+
+La **proyección de MongoDB** `PROYECCION_RESUMEN_MESA` en `src/repository/comanda.repository.js` NO incluía los campos:
+- `platos.complementosSeleccionados`
+- `platos.notaEspecial`
+- `platos.plato`
+- `platos.platoId`
+
+Aunque el modelo tenía los campos y el frontend estaba preparado para mostrarlos, **los datos nunca salieron del backend**.
+
+#### Solución
+
+```javascript
+// ANTES - Proyección incompleta
+const PROYECCION_RESUMEN_MESA = {
+    'platos._id': 1,
+    'platos.estado': 1,
+    'platos.eliminado': 1,
+    'platos.anulado': 1
+};
+
+// DESPUÉS - Proyección corregida
+const PROYECCION_RESUMEN_MESA = {
+    cantidades: 1,
+    'platos._id': 1,
+    'platos.platoId': 1,
+    'platos.estado': 1,
+    'platos.eliminado': 1,
+    'platos.anulado': 1,
+    'platos.complementosSeleccionados': 1,
+    'platos.notaEspecial': 1,
+    'platos.plato': 1
+};
+```
+
+### Archivos Clave para Debugging
+
+| Archivo | Cuándo revisarlo |
+|---------|------------------|
+| `src/database/models/*.model.js` | Verificar que el campo existe en el schema |
+| `src/repository/*.repository.js` | Verificar PROYECCIONES si faltan datos en GET |
+| `src/controllers/*.controller.js` | Verificar lógica de endpoints |
+
+### Checklist de Debugging de Datos
+
+```
+□ 1. ¿El modelo tiene el campo? → models/*.model.js
+□ 2. ¿El POST guarda el campo? → Ver payload enviado
+□ 3. ¿El GET retorna el campo? → curl/Postman al endpoint
+□ 4. ¿Hay proyección? → repository.js (buscar .select())
+□ 5. ¿La proyección incluye el campo? → Agregar si falta
+```
+
+### Patrón Común: Proyecciones MongoDB
+
+MongoDB usa proyecciones para optimizar queries. Si un campo no está en la proyección, **nunca llegará al frontend**.
+
+```javascript
+// ❌ ERROR: Proyección muy restrictiva
+query.select({ 'platos.estado': 1 });
+
+// ✅ CORRECTO: Incluir campos necesarios
+query.select({
+    'platos.estado': 1,
+    'platos.complementosSeleccionados': 1,
+    'platos.notaEspecial': 1
+});
+```
+
+### Verificar Datos con curl
+
+```bash
+# Petición directa al endpoint
+curl http://localhost:3000/api/comanda/fecha/2026-03-29 | jq '.[0].platos[0]'
+
+# Si el campo no aparece, revisar proyección en repository
+```
+
+### Regla de Oro
+
+**Cuando un dato no aparece en el frontend, la causa más probable es que nunca salió del backend.** Verificar siempre las proyecciones en el repository antes de buscar errores en el frontend.
+
+---
+
 ## 📚 Referencias Cruzadas
 
 - **DIAGRAMA_FLUJO_DATOS_Y_FUNCIONES.md:** Arquitectura global, endpoints detallados, modelos, reglas de negocio, WebSockets, FASE 5/6/7.
@@ -2856,9 +2949,10 @@ Para información completa del sistema de mozos y metas, ver:
 
 ---
 
-*Documento generado para el proyecto Las Gambusinas — Backend Node.js/Express/MongoDB/Socket.io. Versión 2.10, marzo 2026.*
+*Documento generado para el proyecto Las Gambusinas — Backend Node.js/Express/MongoDB/Socket.io. Versión 2.12, marzo 2026.*
 
 **Incluye:**
+- **Bug corregido**: Proyecciones de MongoDB - campos faltantes en `PROYECCION_RESUMEN_MESA` causaban que complementos no llegaran al frontend
 - Sistema de Mozos v2.0 con Metas: tipos de metas (ventas, mesas, tickets, ticket promedio, propinas), estados de cumplimiento semaforizados, proyección inteligente, ranking, recomendaciones automáticas
 - Sistema de Propinas para Mozos v1.0: gestión completa de propinas con modelo Propina, endpoints API REST, página mozos.html en dashboard, integración con App Mozos
 - Corrección v7.4.1: Al finalizar comanda se emiten eventos plato-actualizado por cada plato (sincronización en tiempo real con App de Mozos)
