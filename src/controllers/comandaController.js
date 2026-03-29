@@ -358,13 +358,9 @@ router.put('/comanda/:id/eliminar', async (req, res) => {
         };
         await registrarAuditoria(req, snapshotAntes, comanda, motivo);
         
-        // Emitir evento Socket.io
-        const mesaId = comanda.mesas?._id || comanda.mesas;
-        if (mesaId && global.io) {
-            global.io.to(`mesa-${mesaId}`).emit('comanda-eliminada', comanda);
-        }
-        if (global.emitComandaActualizada) {
-            await global.emitComandaActualizada(id);
+        // Emitir evento Socket.io de comanda eliminada a todos los namespaces
+        if (global.emitComandaEliminada) {
+            await global.emitComandaEliminada(id);
         }
         
         res.json({ 
@@ -469,13 +465,7 @@ router.delete('/comanda/:id/ultima', async (req, res) => {
         
         await registrarAuditoria(req, snapshotAntes, comanda, motivo);
         
-        // Emitir evento Socket.io a mozos (room por mesa)
-        const mesaId = comanda.mesas?._id || comanda.mesas;
-        if (mesaId && global.io) {
-            global.io.to(`mesa-${mesaId}`).emit('comanda-eliminada', comanda);
-        }
-        
-        // ✅ Emitir evento a app de cocina (room por fecha) para que desaparezca la tarjeta en tiempo real
+        // Emitir evento Socket.io de comanda eliminada a todos los namespaces
         if (global.emitComandaEliminada) {
             await global.emitComandaEliminada(id);
         }
@@ -585,13 +575,7 @@ router.delete('/comanda/:id/individual', async (req, res) => {
         
         await registrarAuditoria(req, snapshotAntes, comanda, motivo);
         
-        // Emitir evento Socket.io a mozos (room por mesa)
-        const mesaId = comanda.mesas?._id || comanda.mesas;
-        if (mesaId && global.io) {
-            global.io.to(`mesa-${mesaId}`).emit('comanda-eliminada', comanda);
-        }
-        
-        // ✅ Emitir evento a app de cocina (room por fecha) para que desaparezca la tarjeta en tiempo real
+        // Emitir evento Socket.io de comanda eliminada a todos los namespaces
         if (global.emitComandaEliminada) {
             await global.emitComandaEliminada(id);
         }

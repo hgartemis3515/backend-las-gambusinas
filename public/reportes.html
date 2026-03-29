@@ -11,6 +11,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script>
@@ -45,7 +46,10 @@ tailwind.config = {
     <div class="flex items-center justify-between mb-4">
       <div class="flex items-center gap-3">
         <h1 class="text-xl font-bold">Reportes y Analítica</h1>
-        <span class="text-[10px] bg-st-pagado text-white px-2 py-0.5 rounded font-bold">LIVE</span>
+        <span id="live-indicator" class="text-[10px] bg-gray-500/20 text-gray-400 px-2 py-0.5 rounded font-bold transition-all duration-300">
+          <span class="inline-block w-2 h-2 rounded-full bg-gray-500 mr-1 animate-pulse"></span>
+          Desconectado
+        </span>
       </div>
       <div class="flex gap-2">
         <button 
@@ -753,6 +757,127 @@ function reportesApp() {
       
       // Establecer filtro inicial y cargar datos
       this.setFiltroRapido('7 días');
+      
+      // Inicializar Socket.io para actualizaciones en tiempo real
+      this.initSocket();
+    },
+    
+    // ==================== SOCKET.IO EN TIEMPO REAL ====================
+    
+    socket: null,
+    socketConnected: false,
+    pendingUpdates: 0,
+    updateDebounceTimer: null,
+    
+    initSocket() {
+      if (typeof io === 'undefined') {
+        console.warn('⚠️ Socket.io no disponible, actualización en tiempo real deshabilitada');
+        return;
+      }
+      
+      const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+      
+      try {
+        this.socket = io('/admin', {
+          auth: { token },
+          transports: ['websocket', 'polling']
+        });
+        
+        this.socket.on('connect', () => {
+          console.log('✅ Socket /admin conectado en reportes');
+          this.socketConnected = true;
+          this.updateLiveIndicator(true);
+        });
+        
+        this.socket.on('disconnect', () => {
+          console.log('⚠️ Socket /admin desconectado');
+          this.socketConnected = false;
+          this.updateLiveIndicator(false);
+        });
+        
+        this.socket.on('connect_error', (err) => {
+          console.warn('⚠️ Error conectando socket /admin:', err.message);
+          this.socketConnected = false;
+          this.updateLiveIndicator(false);
+        });
+        
+        // Evento: Nuevo boucher generado
+        this.socket.on('reportes:boucher-nuevo', (data) => {
+          console.log('📊 Evento reportes:boucher-nuevo recibido:', data);
+          this.scheduleDataRefresh('boucher-nuevo');
+          this.showToast(`Nuevo pago: S/. ${Number(data.monto || 0).toLocaleString('es-PE')} (Mesa ${data.numMesa || '—'})`, 'success');
+        });
+        
+        // Evento: Nueva comanda creada
+        this.socket.on('reportes:comanda-nueva', (data) => {
+          console.log('📊 Evento reportes:comanda-nueva recibido:', data);
+          this.scheduleDataRefresh('comanda-nueva');
+          this.showToast(`Nueva comanda #${data.comandaNumber || '—'} (Mesa ${data.numMesa || '—'})`, 'info');
+        });
+        
+        // Evento: Plato listo
+        this.socket.on('reportes:plato-listo', (data) => {
+          console.log('📊 Evento reportes:plato-listo recibido:', data);
+          this.scheduleDataRefresh('plato-listo');
+        });
+        
+        // Evento: Estado del socket
+        this.socket.on('socket-status', (data) => {
+          if (data.connected) {
+            this.socketConnected = true;
+            this.updateLiveIndicator(true);
+          }
+        });
+        
+      } catch (error) {
+        console.error('Error inicializando Socket.io:', error);
+      }
+    },
+    
+    // Debounce para evitar múltiples actualizaciones
+    scheduleDataRefresh(reason) {
+      this.pendingUpdates++;
+      
+      if (this.updateDebounceTimer) {
+        clearTimeout(this.updateDebounceTimer);
+      }
+      
+      // Esperar 500ms antes de actualizar para agrupar eventos
+      this.updateDebounceTimer = setTimeout(() => {
+        console.log(`🔄 Actualizando datos (${this.pendingUpdates} eventos pendientes, razón: ${reason})`);
+        this.pendingUpdates = 0;
+        this.refreshAllData();
+      }, 500);
+    },
+    
+    updateLiveIndicator(connected) {
+      const indicator = document.getElementById('live-indicator');
+      if (!indicator) return;
+      
+      if (connected) {
+        indicator.className = 'text-[10px] bg-st-preparado/20 text-st-preparado px-2 py-0.5 rounded font-bold transition-all duration-300';
+        indicator.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-st-preparado mr-1 animate-pulse"></span>En vivo';
+      } else {
+        indicator.className = 'text-[10px] bg-gray-500/20 text-gray-400 px-2 py-0.5 rounded font-bold transition-all duration-300';
+        indicator.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-gray-500 mr-1"></span>Desconectado';
+      }
+    },
+    
+    showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      
+      const toast = document.createElement('div');
+      const bgColor = type === 'success' ? 'bg-st-preparado' : type === 'error' ? 'bg-st-pagado' : 'bg-gold';
+      toast.className = `px-4 py-3 rounded-xl text-sm font-medium shadow-xl ${bgColor} text-white animate-[fadeIn_0.2s]`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
     },
     
     // ==================== GESTIÓN DE FILTROS ====================

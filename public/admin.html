@@ -4622,6 +4622,61 @@
                         loadPlatos();
                     }
                 });
+                
+                // ========== LISTENERS PARA COMANDAS EN TIEMPO REAL ==========
+                // Nueva comanda - actualizar tabla si estamos en el tab de comandas
+                socketAdmin.on('nueva-comanda', (data) => {
+                    try {
+                        console.log('📋 Evento nueva-comanda recibido:', data);
+                        const comandasContent = document.getElementById('comandas');
+                        if (comandasContent && comandasContent.classList.contains('active')) {
+                            // Hacer debounce para no recargar múltiples veces
+                            if (window._comandasUpdateTimer) clearTimeout(window._comandasUpdateTimer);
+                            window._comandasUpdateTimer = setTimeout(() => {
+                                console.log('🔄 Recargando tabla de comandas...');
+                                loadComandas();
+                            }, 500);
+                        }
+                    } catch (error) {
+                        console.error('❌ Error procesando evento nueva-comanda:', error);
+                    }
+                });
+                
+                // Comanda actualizada - actualizar tabla si estamos en el tab de comandas
+                socketAdmin.on('comanda-actualizada', (data) => {
+                    try {
+                        console.log('📋 Evento comanda-actualizada recibido:', data);
+                        const comandasContent = document.getElementById('comandas');
+                        if (comandasContent && comandasContent.classList.contains('active')) {
+                            // Hacer debounce para no recargar múltiples veces
+                            if (window._comandasUpdateTimer) clearTimeout(window._comandasUpdateTimer);
+                            window._comandasUpdateTimer = setTimeout(() => {
+                                console.log('🔄 Recargando tabla de comandas...');
+                                loadComandas();
+                            }, 500);
+                        }
+                    } catch (error) {
+                        console.error('❌ Error procesando evento comanda-actualizada:', error);
+                    }
+                });
+                
+                // Comanda eliminada
+                socketAdmin.on('comanda-eliminada', (data) => {
+                    try {
+                        console.log('📋 Evento comanda-eliminada recibido:', data);
+                        const comandasContent = document.getElementById('comandas');
+                        if (comandasContent && comandasContent.classList.contains('active')) {
+                            if (window._comandasUpdateTimer) clearTimeout(window._comandasUpdateTimer);
+                            window._comandasUpdateTimer = setTimeout(() => {
+                                console.log('🔄 Recargando tabla de comandas...');
+                                loadComandas();
+                            }, 300);
+                        }
+                    } catch (error) {
+                        console.error('❌ Error procesando evento comanda-eliminada:', error);
+                    }
+                });
+                
             } catch (error) {
                 console.warn('⚠️ Error inicializando socket /admin (no crítico):', error);
                 // NO lanzar error, solo loguear - no debe romper la app

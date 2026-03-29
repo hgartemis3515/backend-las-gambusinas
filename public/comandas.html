@@ -1585,20 +1585,39 @@ formatearNombreMesa(mesa, mesaObj = null) {
  this.socketConnected = false;
  });
 
- this.socket.on('comandaActualizada', (comanda) => {
- console.log('📡 Comanda actualizada via Socket:', comanda._id);
- this.handleComandaActualizada(comanda);
- });
+this.socket.on('comanda-actualizada', (data) => {
+console.log('📡 Comanda actualizada via Socket:', data.comanda?._id || data.comandaId);
+const comanda = data.comanda || data;
+this.handleComandaActualizada(comanda);
+});
 
- this.socket.on('nuevaComanda', (comanda) => {
- console.log('📡 Nueva comanda via Socket:', comanda.comandaNumber);
- this.handleNuevaComanda(comanda);
- });
+this.socket.on('nueva-comanda', (data) => {
+console.log('📡 Nueva comanda via Socket:', data);
+// El evento nueva-comanda del backend tiene la estructura { comanda, socketId, timestamp }
+const comanda = data.comanda || data;
+this.handleNuevaComanda(comanda);
+});
 
- this.socket.on('comandaEliminada', (data) => {
- console.log('📡 Comanda eliminada via Socket:', data._id);
- this.handleComandaEliminada(data);
- });
+this.socket.on('comanda-eliminada', (data) => {
+console.log('📡 Comanda eliminada via Socket:', data.comandaId || data._id);
+this.handleComandaEliminada(data);
+});
+
+// Evento de reportes - solo hacer re-fetch si la comanda no fue ya agregada por nueva-comanda
+this.socket.on('reportes:comanda-nueva', async (data) => {
+console.log('📊 Reporte: nueva comanda', data);
+const comandaId = data.comandaId || data._id;
+if (comandaId) {
+  const yaExiste = this.comandas.find(c => c._id === comandaId);
+  if (!yaExiste) {
+    await this.fetchAndAddComanda(comandaId);
+  }
+}
+});
+
+this.socket.on('reportes:boucher-nuevo', (data) => {
+console.log('📊 Reporte: nuevo boucher', data);
+});
 
  // ========== RESERVAS: Eventos Socket.io ==========
  this.socket.on('reserva-creada', (data) => {
@@ -1644,49 +1663,136 @@ formatearNombreMesa(mesa, mesaObj = null) {
  },
 
  handleComandaActualizada(comanda) {
- if (this.selectedComanda?._id === comanda._id) {
- this.selectedComanda = this.normalizarComanda(comanda);
- }
+  console.log('📋 handleComandaActualizada llamado con:', comanda);
+  
+  const normalizada = this.normalizarComanda(comanda);
+  if (!normalizada) {
+    console.warn('⚠️ No se pudo normalizar la comanda en handleComandaActualizada');
+    return;
+  }
+  
+  if (this.selectedComanda?._id === normalizada._id) {
+    this.selectedComanda = normalizada;
+  }
 
- if (this.editComanda._id === comanda._id && this.modal === 'editarComanda') {
- if (comanda.version > this.editComanda.version) {
- alert('Esta comanda fue modificada por otro usuario. Los datos se han actualizado.');
- this.editComanda = { ...this.normalizarComanda(comanda) };
- this.editPlatos = (this.normalizarComanda(comanda).items || []).map(item => ({
- ...item,
- estadoOriginal: item.estado
- }));
- }
- }
+  if (this.editComanda._id === normalizada._id && this.modal === 'editarComanda') {
+    if (comanda.version > this.editComanda.version) {
+      alert('Esta comanda fue modificada por otro usuario. Los datos se han actualizado.');
+      this.editComanda = { ...normalizada };
+      this.editPlatos = (normalizada.items || []).map(item => ({
+        ...item,
+        estadoOriginal: item.estado
+      }));
+    }
+  }
 
- const idx = this.comandas.findIndex(c => c._id === comanda._id);
- if (idx !== -1) {
- this.comandas[idx] = this.normalizarComanda(comanda);
- this.processGrouping();
- this.filterComandas();
- }
- },
+  const idx = this.comandas.findIndex(c => c._id === normalizada._id);
+  if (idx !== -1) {
+    // Forzar reactividad de Alpine
+    const newComandas = [...this.comandas];
+    newComandas[idx] = normalizada;
+    this.comandas = newComandas;
+    this.processGrouping();
+    this.filterComandas();
+    console.log('✅ Comanda actualizada en la lista via handleComandaActualizada');
+  }
+},
 
- handleNuevaComanda(comanda) {
- const normalizada = this.normalizarComanda(comanda);
- if (!this.comandas.find(c => c._id === comanda._id)) {
- this.comandas.unshift(normalizada);
- this.processGrouping();
- this.filterComandas();
- this.showToast(`Nueva comanda #${comanda.comandaNumber} 📋`);
- }
- },
+handleNuevaComanda(comanda) {
+  console.log('📋 handleNuevaComanda llamado con:', comanda);
+  
+  // Si la comanda no tiene los datos completos (platos populados, etc), no la procesamos directamente
+  if (!comanda.mesas && !comanda.mesa && !comanda.platos?.[0]?.plato && !comanda.items?.[0]?.plato) {
+    console.log('⚠️ Comanda incompleta, haciendo re-fetch...');
+    if (comanda._id || comanda.comandaId) {
+      this.fetchAndAddComanda(comanda._id || comanda.comandaId);
+      return;
+    }
+  }
+  
+  const normalizada = this.normalizarComanda(comanda);
+  if (!normalizada) {
+    console.warn('⚠️ No se pudo normalizar la comanda');
+    return;
+  }
+  
+  console.log('✅ Comanda normalizada:', normalizada);
+  
+  // Verificar que no exista ya
+  const exists = this.comandas.find(c => c._id === normalizada._id);
+  
+  if (!exists) {
+    // Forzar reactividad de Alpine creando un nuevo array
+    this.comandas = [normalizada, ...this.comandas];
+    this.extraerMozosUnicos();
+    this.processGrouping();
+    this.filterComandas();
+    this.showToast(`Nueva comanda #${comanda.comandaNumber} 📋`);
+    console.log('✅ Comanda agregada a la lista');
+  } else {
+    // Si ya existe, actualizarla
+    const idx = this.comandas.findIndex(c => c._id === normalizada._id);
+    if (idx !== -1) {
+      // Forzar reactividad de Alpine
+      const newComandas = [...this.comandas];
+      newComandas[idx] = normalizada;
+      this.comandas = newComandas;
+      this.processGrouping();
+      this.filterComandas();
+      console.log('✅ Comanda actualizada en la lista');
+    }
+  }
+},
 
- handleComandaEliminada(data) {
- const idx = this.comandas.findIndex(c => c._id === data._id);
- if (idx !== -1) {
- this.comandas.splice(idx, 1);
- this.processGrouping();
- this.filterComandas();
- }
- if (this.selectedComanda?._id === data._id || this.editComanda._id === data._id) {
- this.modal = null;
- }
+// Obtener comanda completa desde la API y agregarla a la lista
+async fetchAndAddComanda(comandaId) {
+  try {
+    console.log('🔄 Obteniendo comanda completa desde API:', comandaId);
+    const comanda = await apiGet(`/comanda/${comandaId}`);
+    
+    console.log('📦 Comanda recibida de API:', comanda);
+    
+    if (comanda && !comanda.error && comanda._id) {
+      // Verificar si ya existe
+      const exists = this.comandas.find(c => c._id === comanda._id);
+      
+      if (!exists) {
+        // Agregar nueva comanda
+        const normalizada = this.normalizarComanda(comanda);
+        console.log('✅ Normalizando comanda:', normalizada);
+        
+        if (normalizada) {
+          // Forzar reactividad de Alpine creando un nuevo array
+          this.comandas = [normalizada, ...this.comandas];
+          this.extraerMozosUnicos();
+          this.processGrouping();
+          this.filterComandas();
+          this.showToast(`Nueva comanda #${comanda.comandaNumber} 📋`);
+        }
+      } else {
+        console.log('ℹ️ Comanda ya existe en la lista');
+      }
+    } else {
+      console.warn('⚠️ Comanda no encontrada o con error:', comanda);
+    }
+  } catch (error) {
+    console.error('❌ Error obteniendo comanda:', error);
+    // Fallback: recargar todas las comandas
+    await this.loadComandas();
+  }
+},
+
+handleComandaEliminada(data) {
+const comandaId = data.comandaId || data._id;
+const idx = this.comandas.findIndex(c => c._id === comandaId);
+if (idx !== -1) {
+this.comandas.splice(idx, 1);
+this.processGrouping();
+this.filterComandas();
+}
+if (this.selectedComanda?._id === comandaId || this.editComanda._id === comandaId) {
+this.modal = null;
+}
  },
 
  async loadComandas() {

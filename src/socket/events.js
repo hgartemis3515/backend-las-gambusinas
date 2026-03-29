@@ -409,11 +409,21 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         });
       }
 
+      // Emitir a admin (panel de comandas) - Datos completos populados
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('nueva-comanda', {
+          comanda: comandaCompleta,
+          socketId: 'server',
+          timestamp: timestamp
+        });
+      }
+
       logger.info('Evento nueva-comanda emitido', {
         comandaNumber: comandaCompleta.comandaNumber,
         roomName,
         timestamp,
-        mozosConnected: mozosNamespace?.sockets?.size || 0
+        mozosConnected: mozosNamespace?.sockets?.size || 0,
+        adminsConnected: adminNamespace?.sockets?.size || 0
       });
     } catch (error) {
       logger.error('Error al emitir nueva-comanda', {
@@ -844,6 +854,16 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         });
       }
 
+      // Emitir a admin (panel de comandas)
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('comanda-eliminada', {
+          comandaId: comandaId,
+          comanda: comanda,
+          socketId: 'server',
+          timestamp: timestamp
+        });
+      }
+
       logger.info('Evento comanda-eliminada emitido', {
         comandaNumber: comanda.comandaNumber,
         comandaId: comandaId,
@@ -851,7 +871,8 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         mesaId: mesaId,
         timestamp,
         cocinaConnected: cocinaNamespace?.sockets?.size || 0,
-        mozosConnected: mozosNamespace?.sockets?.size || 0
+        mozosConnected: mozosNamespace?.sockets?.size || 0,
+        adminsConnected: adminNamespace?.sockets?.size || 0
       });
     } catch (error) {
       logger.error('Error al emitir comanda-eliminada', {

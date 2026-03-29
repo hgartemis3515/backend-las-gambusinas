@@ -634,6 +634,7 @@ function dashApp() {
     kpiTicketsHoy: '0',
     activity: [],
     socket: null,
+    socketConnected: false,
     // Widget layout
     dashboardLayout: [],
     _ventasLabelsCache: [],
@@ -875,40 +876,139 @@ function dashApp() {
       try {
         this.socket = io('/admin', { auth: { token }, transports: ['websocket', 'polling'] });
 
+        // Conexión
+        this.socket.on('connect', () => { 
+          console.log('Socket.io /admin conectado'); 
+          this.socketConnected = true;
+        });
+        
+        this.socket.on('disconnect', () => {
+          console.log('Socket.io /admin desconectado');
+          this.socketConnected = false;
+        });
+        
+        this.socket.on('connect_error', (err) => { 
+          console.warn('Socket.io no disponible:', err.message); 
+          this.socketConnected = false;
+        });
+
+        // Mesa actualizada (corregido de mesa:actualizada a mesa-actualizada)
+        this.socket.on('mesa-actualizada', (data) => {
+          const mesa = data.mesa || data;
+          const idx = this.mesas.findIndex(m => m._id === mesa._id || m._id === mesa.id);
+          if (idx >= 0) this.mesas[idx] = { ...this.mesas[idx], ...mesa };
+          this.recalculateMesasKPIs();
+          this.addActivity({ text: 'Mesa ' + (mesa.numMesa || mesa.nummesa || mesa.numero || '—') + ' — Estado: ' + this.estadoNormalizado(mesa.estado), dotClass: 'bg-st-libre' });
+        });
+        
+        // Listener legacy por si acaso
         this.socket.on('mesa:actualizada', (data) => {
           const idx = this.mesas.findIndex(m => m._id === data._id || m._id === data.id);
           if (idx >= 0) this.mesas[idx] = { ...this.mesas[idx], ...data };
-          // Recalculate KPIs
-          const ocupadas = this.mesas.filter(m => m.estado !== 'libre' && m.estado !== 'Libre').length;
-          this.kpiMesasOcupadas = ocupadas + '/' + this.mesas.length;
-          this.kpiOcupacionPct = this.mesas.length > 0 ? Math.round((ocupadas / this.mesas.length) * 100) + '%' : '0%';
-          const alertas = this.mesas.filter(m => (m.estado || '').toLowerCase() === 'pagado');
-          this.kpiAlertas = String(alertas.length);
-          this.kpiAlertasSub = alertas.length > 0 ? 'Mesa ' + (alertas[0].numMesa || alertas[0].nummesa || '?') + ' sin liberar' : 'Sin alertas';
+          this.recalculateMesasKPIs();
           this.addActivity({ text: 'Mesa ' + (data.numMesa || data.numero || '—') + ' — Estado: ' + this.estadoNormalizado(data.estado), dotClass: 'bg-st-libre' });
         });
 
+        // Nueva comanda - actualizar tabla de comandas activas y KPIs
+        this.socket.on('nueva-comanda', (data) => {
+          const comanda = data.comanda || data;
+          console.log('📡 Nueva comanda via Socket:', comanda.comandaNumber);
+          this.handleNuevaComanda(comanda);
+        });
+        
+        // Comanda actualizada
+        this.socket.on('comanda-actualizada', (data) => {
+          const comanda = data.comanda || data;
+          console.log('📡 Comanda actualizada via Socket:', comanda._id);
+          this.handleComandaActualizada(comanda);
+        });
+
+        // Reportes: nueva comanda
         this.socket.on('reportes:comanda-nueva', (data) => {
           const comanda = data.comanda || data;
-          this.addActivity({ text: 'Mesa ' + (comanda.mesa?.numMesa || data.mesaNum || '—') + ' — Nueva comanda #' + (comanda.comandaNumber || data.comandaNumber || '—'), dotClass: 'bg-gold' });
+          this.addActivity({ text: 'Mesa ' + (comanda.numMesa || data.numMesa || '—') + ' — Nueva comanda #' + (comanda.comandaNumber || data.comandaNumber || '—'), dotClass: 'bg-gold' });
+          // Incrementar contador de tickets
+          const currentTickets = parseInt(this.kpiTicketsHoy) || 0;
+          this.kpiTicketsHoy = String(currentTickets + 1);
         });
 
+        // Plato listo
         this.socket.on('reportes:plato-listo', (data) => {
-          this.addActivity({ text: 'Plato listo — Comanda #' + (data.comandaNumber || data.comandaId?.slice(-4) || '—') + (data.platoNombre ? ' (' + data.platoNombre + ')' : ''), dotClass: 'bg-st-preparado' });
+          this.addActivity({ text: 'Plato listo — Comanda #' + (data.comandaNumber || data.comandaId?.slice?.(-4) || '—') + (data.nombre ? ' (' + data.nombre + ')' : ''), dotClass: 'bg-st-preparado' });
         });
 
+        // Nuevo boucher/pago
         this.socket.on('reportes:boucher-nuevo', (data) => {
           const monto = data.monto || data.total || 0;
-          const mesaNum = data.mesaNum || data.mesa?.numMesa || '—';
+          const mesaNum = data.numMesa || data.mesa?.numMesa || '—';
           this.addActivity({ text: 'Pago procesado — S/. ' + monto.toLocaleString('es-PE') + ' (Mesa ' + mesaNum + ')', dotClass: 'bg-st-pagado' });
           this.refreshVentasChart();
         });
 
         this.socket.on('plato-menu-actualizado', () => {});
-        this.socket.on('socket-status', (data) => { console.log('Socket status:', data); });
-        this.socket.on('connect_error', (err) => { console.warn('Socket.io no disponible:', err.message); });
-        this.socket.on('connect', () => { console.log('Socket.io /admin conectado'); });
+        this.socket.on('socket-status', (data) => { 
+          console.log('Socket status:', data); 
+          if (data.connected) this.socketConnected = true;
+        });
+        
       } catch (e) { console.warn('Socket.io init error:', e); }
+    },
+    
+    // Recalcular KPIs de mesas
+    recalculateMesasKPIs() {
+      const ocupadas = this.mesas.filter(m => m.estado !== 'libre' && m.estado !== 'Libre').length;
+      this.kpiMesasOcupadas = ocupadas + '/' + this.mesas.length;
+      this.kpiOcupacionPct = this.mesas.length > 0 ? Math.round((ocupadas / this.mesas.length) * 100) + '%' : '0%';
+      const alertas = this.mesas.filter(m => (m.estado || '').toLowerCase() === 'pagado');
+      this.kpiAlertas = String(alertas.length);
+      this.kpiAlertasSub = alertas.length > 0 ? 'Mesa ' + (alertas[0].numMesa || alertas[0].nummesa || '?') + ' sin liberar' : 'Sin alertas';
+    },
+    
+    // Manejar nueva comanda desde Socket
+    handleNuevaComanda(comanda) {
+      // Agregar a comandas activas si aplica
+      const st = (comanda.status || comanda.estado || '').toLowerCase();
+      const isActive = !st.includes('entregado') && !st.includes('cancelado');
+      
+      if (isActive && this.dashboardLayout.includes('comandas-activas')) {
+        // Verificar que no exista ya
+        const exists = this.comandasActivas.some(c => c._id === comanda._id);
+        if (!exists) {
+          this.comandasActivas.unshift(comanda);
+          if (this.comandasActivas.length > 8) this.comandasActivas.pop();
+        }
+      }
+      
+      // Mostrar notificación
+      this.addActivity({ 
+        text: 'Mesa ' + (comanda.mesa?.numMesa || comanda.mesaNumero || '—') + ' — Nueva comanda #' + (comanda.comandaNumber || '—'), 
+        dotClass: 'bg-gold' 
+      });
+      
+      // Incrementar tickets
+      const currentTickets = parseInt(this.kpiTicketsHoy) || 0;
+      this.kpiTicketsHoy = String(currentTickets + 1);
+    },
+    
+    // Manejar comanda actualizada desde Socket
+    handleComandaActualizada(comanda) {
+      // Actualizar en comandas activas
+      const idx = this.comandasActivas.findIndex(c => c._id === comanda._id);
+      const st = (comanda.status || comanda.estado || '').toLowerCase();
+      const isActive = !st.includes('entregado') && !st.includes('cancelado');
+      
+      if (idx >= 0) {
+        if (isActive) {
+          this.comandasActivas[idx] = comanda;
+        } else {
+          // Ya no es activa, remover
+          this.comandasActivas.splice(idx, 1);
+        }
+      } else if (isActive && this.dashboardLayout.includes('comandas-activas')) {
+        // Es nueva en activas
+        this.comandasActivas.unshift(comanda);
+        if (this.comandasActivas.length > 8) this.comandasActivas.pop();
+      }
     },
 
     addActivity(item) {
