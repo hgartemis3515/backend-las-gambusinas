@@ -1162,9 +1162,11 @@ tailwind.config = {
                     <span class="metas-status-badge" :class="'metas-status-' + row.estado" x-text="getEstadoLabel(row.estado)"></span>
                   </td>
                   <td class="px-4 py-3 text-center">
-                    <div class="flex flex-col items-center gap-1">
-                      <span class="text-xs font-semibold" :class="row.proyeccion.alcanzara ? 'text-st-preparado' : 'text-st-pagado'" x-text="row.proyeccion.alcanzara ? '✓ Alcanzará' : '✗ No alcanzará'"></span>
-                      <span class="text-[10px] text-txt-muted" x-text="'Brecha: ' + formatMetaValor(Math.abs(row.proyeccion.brecha), row.tipoMeta)"></span>
+                    <div class="flex flex-col items-center gap-1 max-w-[140px] mx-auto"
+                      :title="row.proyeccion.periodoCerrado ? 'Período de meta ya cerrado' : ('Proyección lineal al cierre de vigencia: ' + formatMetaValor(row.proyeccion.valorProyectado || 0, row.tipoMeta))">
+                      <span class="text-xs font-semibold" :class="row.proyeccion.alcanzara ? 'text-st-preparado' : 'text-st-pagado'"
+                        x-text="row.proyeccion.periodoCerrado ? (row.proyeccion.alcanzara ? '✓ Cerró ok' : '✗ Cerró bajo') : (row.proyeccion.sinIniciar ? '— Pendiente' : (row.proyeccion.alcanzara ? '✓ Alcanzará' : '✗ No alcanzará'))"></span>
+                      <span class="text-[10px] text-txt-muted leading-tight text-center" x-text="row.proyeccion.periodoCerrado ? 'Meta finalizada' : ('Brecha est.: ' + formatMetaValor(Math.abs(row.proyeccion.brecha || 0), row.tipoMeta))"></span>
                     </div>
                   </td>
                   <td class="px-4 py-3 text-center">
@@ -2429,13 +2431,14 @@ tailwind.config = {
                       <span class="text-xs text-txt-secondary font-mono" x-text="formatFechaCorta(meta.vigenciaFin)"></span>
                     </td>
                     <td class="px-4 py-3 text-center">
-                      <span class="text-xs font-bold" :class="meta.cumplimientoPct >= 100 ? 'text-st-preparado' : meta.cumplimientoPct >= 80 ? 'text-gold' : 'text-st-esperando'"
-                        x-text="(meta.cumplimientoPct || 0) + '%'"></span>
+                      <span class="text-xs font-bold tabular-nums" :class="meta.cumplimientoPct == null ? 'text-txt-muted' : (meta.cumplimientoPct >= 100 ? 'text-st-preparado' : meta.cumplimientoPct >= 80 ? 'text-gold' : 'text-st-esperando')"
+                        x-text="meta.cumplimientoPct != null ? (meta.cumplimientoPct + '%') : '—'"></span>
                     </td>
                     <td class="px-4 py-3 text-center">
-                      <span x-show="meta.cumplimientoPct >= 100" class="text-xs px-2 py-1 rounded bg-st-preparado/20 text-st-preparado">✓ Cumplida</span>
-                      <span x-show="meta.cumplimientoPct >= 80 && meta.cumplimientoPct < 100" class="text-xs px-2 py-1 rounded bg-gold/20 text-gold">⚠ Parcial</span>
-                      <span x-show="meta.cumplimientoPct < 80" class="text-xs px-2 py-1 rounded bg-st-pagado/20 text-st-pagado">✗ No cumplida</span>
+                      <span x-show="meta.cumplimientoPct != null && meta.cumplimientoPct >= 100" class="text-xs px-2 py-1 rounded bg-st-preparado/20 text-st-preparado">✓ Cumplida</span>
+                      <span x-show="meta.cumplimientoPct != null && meta.cumplimientoPct >= 80 && meta.cumplimientoPct < 100" class="text-xs px-2 py-1 rounded bg-gold/20 text-gold">⚠ Parcial</span>
+                      <span x-show="meta.cumplimientoPct != null && meta.cumplimientoPct < 80" class="text-xs px-2 py-1 rounded bg-st-pagado/20 text-st-pagado">✗ No cumplida</span>
+                      <span x-show="meta.cumplimientoPct == null" class="text-xs px-2 py-1 rounded bg-bg-sidebar text-txt-muted">Sin métrica</span>
                     </td>
                     <td class="px-4 py-3 text-right">
                       <button type="button" @click="reactivarMeta(meta)" class="text-xs text-gold hover:underline">Reactivar</button>
@@ -2466,6 +2469,120 @@ tailwind.config = {
         <button x-show="tabGestor === 'nueva'" type="button" @click="guardarMetaGestor()" class="mozos-btn-icon mozos-btn-primary">
           <i data-lucide="check" class="w-4 h-4"></i>
           Guardar meta
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL HISTORIAL DE METAS POR MOZO -->
+<div x-show="showModalHistorialMeta" x-transition.opacity class="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm" @click.self="cerrarHistorialMeta()">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-3xl w-full max-w-3xl max-h-[85vh] shadow-2xl flex flex-col mozos-modal-container" @click.stop>
+    <!-- Header -->
+    <div class="px-6 py-4 border-b border-[rgba(212,175,55,0.12)] shrink-0">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gold/20 flex items-center justify-center">
+            <i data-lucide="history" class="w-5 h-5 text-gold"></i>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold text-white">Historial de Metas</h2>
+            <p class="text-xs text-txt-muted" x-text="mozoHistorialSeleccionado?.mozoNombre || 'Mozo'"></p>
+          </div>
+        </div>
+        <button type="button" @click="cerrarHistorialMeta()" class="mozos-close-btn">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </div>
+    
+    <!-- Content: solo metas ya cargadas en el gestor (metasConfiguradas), sin API ni datos simulados -->
+    <div class="flex-1 overflow-y-auto p-4 mozos-scrollbar">
+      <!-- Empty State -->
+      <div x-show="historialMozoData.length === 0" class="text-center py-12">
+        <div class="w-16 h-16 mx-auto rounded-full bg-bg-sidebar flex items-center justify-center mb-4">
+          <i data-lucide="inbox" class="w-8 h-8 text-txt-muted"></i>
+        </div>
+        <p class="text-txt-muted">No hay metas pasadas registradas para este mozo</p>
+        <p class="text-xs text-txt-muted mt-1">Solo se listan metas ya guardadas en el gestor (inactivas o con vigencia vencida) que apliquen a este mozo</p>
+      </div>
+      
+      <!-- History List -->
+      <div x-show="historialMozoData.length > 0" class="space-y-3">
+        <template x-for="(item, idx) in historialMozoData" :key="item._id || ('hist-' + idx)">
+          <div class="bg-bg-sidebar/60 rounded-xl p-4 border border-[rgba(212,175,55,0.08)] hover:border-gold/30 transition">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg flex items-center justify-center" 
+                     :class="{
+                       'bg-st-preparado/20': item.estadoFinal === 'Cumplida',
+                       'bg-st-esperando/20': item.estadoFinal === 'Parcial',
+                       'bg-st-pagado/20': item.estadoFinal === 'No cumplida',
+                       'bg-bg-sidebar': item.estadoFinal === 'Sin dato'
+                     }">
+                  <span x-text="getMetaTypeIcon(item.tipo)"></span>
+                </div>
+                <div>
+                  <p class="font-semibold text-white" x-text="getMetaTypeLabel(item.tipo)"></p>
+                  <p class="text-xs text-txt-muted">
+                    <span x-text="item.periodo"></span> · 
+                    <span x-text="item.fechaFin"></span>
+                    <span x-show="item.referenciaEquipo" class="block text-[10px] mt-0.5 opacity-80">Cumplimiento: promedio equipo (última métrica guardada)</span>
+                  </p>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="text-xs font-semibold px-2 py-1 rounded-full"
+                      :class="{
+                        'bg-st-preparado/20 text-st-preparado': item.estadoFinal === 'Cumplida',
+                        'bg-st-esperando/20 text-st-esperando': item.estadoFinal === 'Parcial',
+                        'bg-st-pagado/20 text-st-pagado': item.estadoFinal === 'No cumplida',
+                        'bg-bg-sidebar text-txt-muted': item.estadoFinal === 'Sin dato'
+                      }"
+                      x-text="item.estadoFinal"></span>
+              </div>
+            </div>
+            <div class="mt-3 grid grid-cols-3 gap-2 text-center">
+              <div class="bg-bg-card/50 rounded-lg py-2">
+                <p class="text-[10px] text-txt-muted uppercase">Objetivo</p>
+                <p class="font-bold text-white text-sm" x-text="formatMetaValor(item.valorObjetivo, item.tipo)"></p>
+              </div>
+              <div class="bg-bg-card/50 rounded-lg py-2">
+                <p class="text-[10px] text-txt-muted uppercase">Cumplimiento</p>
+                <p class="font-bold text-gold text-sm" x-text="item.porcentajeAlcanzado != null ? (item.porcentajeAlcanzado + '%') : '—'"></p>
+              </div>
+              <div class="bg-bg-card/50 rounded-lg py-2">
+                <p class="text-[10px] text-txt-muted uppercase">Período</p>
+                <p class="font-semibold text-txt-secondary text-sm capitalize" x-text="item.periodo"></p>
+              </div>
+            </div>
+            <!-- Progress Bar -->
+            <div class="mt-3" x-show="item.porcentajeAlcanzado != null">
+              <div class="h-2 bg-bg-card rounded-full overflow-hidden">
+                <div class="h-full rounded-full transition-all"
+                     :class="{
+                       'bg-st-preparado': item.porcentajeAlcanzado >= 100,
+                       'bg-gold': item.porcentajeAlcanzado >= 80,
+                       'bg-st-esperando': item.porcentajeAlcanzado >= 50,
+                       'bg-st-pagado': item.porcentajeAlcanzado < 50
+                     }"
+                     :style="'width: ' + Math.min(100, Math.max(0, item.porcentajeAlcanzado)) + '%'"></div>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+    
+    <!-- Footer -->
+    <div class="px-6 py-4 border-t border-[rgba(212,175,55,0.12)] shrink-0">
+      <div class="flex items-center justify-between">
+        <p class="text-xs text-txt-muted">
+          <span x-text="historialMozoData.length"></span> registros encontrados
+        </p>
+        <button type="button" @click="cerrarHistorialMeta()" class="mozos-btn-icon mozos-btn-secondary">
+          <i data-lucide="x" class="w-4 h-4"></i>
+          Cerrar
         </button>
       </div>
     </div>
@@ -2562,6 +2679,10 @@ function mozosExecutiveApp() {
     metaMozoSeleccionada: null,
     metasConfiguradas: [],
     historialMetas: [],
+    // Modal Historial de Metas por Mozo
+    showModalHistorialMeta: false,
+    mozoHistorialSeleccionado: null,
+    historialMozoData: [],
     // Gestor de Metas state
     modalGestorMetas: false,
     tabGestor: 'nueva',
@@ -4058,8 +4179,8 @@ function mozosExecutiveApp() {
                 valorActual: valorActual,
                 porcentajeAvance: pct,
                 estado: this.calcularEstadoMeta(pct, mozo.enTurno),
-                proyeccion: this.calcularProyeccion(valorActual, meta.valorObjetivo, mozo.enTurno),
-                tendencia: this.trendGlyph(mozo, 'ventas') === '▲' ? 5 : this.trendGlyph(mozo, 'ventas') === '▼' ? -5 : 0,
+                proyeccion: this.calcularProyeccion(valorActual, meta.valorObjetivo, mozo.enTurno, meta.periodo, meta.vigenciaInicio, meta.vigenciaFin),
+                tendencia: this.calcularTendenciaReal(mozo, meta.tipo || 'ventas'),
                 metaId: meta._id,
                 metaPeriodo: meta.periodo
               });
@@ -4091,8 +4212,8 @@ function mozosExecutiveApp() {
           valorActual: ventasActuales,
           porcentajeAvance: pct,
           estado: this.calcularEstadoMeta(pct, mozo.enTurno),
-          proyeccion: this.calcularProyeccion(ventasActuales, metaVentas, mozo.enTurno),
-          tendencia: this.trendGlyph(mozo, 'ventas') === '▲' ? 5 : this.trendGlyph(mozo, 'ventas') === '▼' ? -5 : 0
+          proyeccion: this.calcularProyeccion(ventasActuales, metaVentas, mozo.enTurno, 'diario'),
+          tendencia: this.calcularTendenciaReal(mozo, 'ventas')
         };
       }).filter(row => {
         if (this.busquedaMetas && !row.mozoNombre.toLowerCase().includes(this.busquedaMetas.toLowerCase())) return false;
@@ -4202,16 +4323,115 @@ function mozosExecutiveApp() {
       if (pct >= 50) return 'en_progreso';
       return 'en_riesgo';
     },
-    calcularProyeccion(actual, objetivo, enTurno) {
-      if (!enTurno) return { alcanzara: false, brecha: objetivo - actual };
-      // Simplificación: asumir 8 horas de turno, mitad del tiempo transcurrido
-      const ritmoActual = actual / 4; // Asumir 4 horas transcurridas
-      const proyeccion = ritmoActual * 8;
-      const alcanzara = proyeccion >= objetivo;
-      return {
+    
+    /**
+     * Proyección lineal por ventana de vigencia (inicio → fin de la meta).
+     * Extrapola: valorProyectado = actual / fracciónTranscurrida del período.
+     * Coherente con diario/semanal/mensual porque usa las fechas reales de la meta, no horarios fijos inventados.
+     */
+    calcularProyeccion(actual, objetivo, enTurno, periodo = 'diario', vigenciaInicio = null, vigenciaFin = null) {
+      const round2 = n => Math.round(Number(n) * 100) / 100;
+      if (!objetivo || objetivo <= 0) {
+        return { alcanzara: false, brecha: 0, valorProyectado: round2(actual), ritmoLineal: 0 };
+      }
+
+      const now = new Date();
+      const t0 = vigenciaInicio ? new Date(vigenciaInicio) : null;
+      const t1 = vigenciaFin ? new Date(vigenciaFin) : null;
+
+      if (!t0 || !t1 || isNaN(t0) || isNaN(t1) || t1 <= t0) {
+        const alcanzara = actual >= objetivo;
+        return {
+          alcanzara,
+          brecha: round2(objetivo - actual),
+          valorProyectado: round2(actual),
+          ritmoLineal: 0,
+          sinVigencia: true
+        };
+      }
+
+      if (now >= t1) {
+        return {
+          alcanzara: actual >= objetivo,
+          brecha: round2(objetivo - actual),
+          valorProyectado: round2(actual),
+          periodoCerrado: true
+        };
+      }
+
+      if (now < t0) {
+        return {
+          alcanzara: false,
+          brecha: round2(objetivo - actual),
+          valorProyectado: 0,
+          sinIniciar: true
+        };
+      }
+
+      const totalMs = t1 - t0;
+      const elapsedMs = Math.min(Math.max(now - t0, 0), totalMs);
+      const minFrac = 0.02;
+      const frac = Math.max(elapsedMs / Math.max(totalMs, 1), minFrac);
+      const valorProyectado = actual / frac;
+      const alcanzara = valorProyectado >= objetivo;
+      const brecha = objetivo - valorProyectado;
+
+      const base = {
         alcanzara,
-        brecha: objetivo - proyeccion
+        brecha: round2(brecha),
+        valorProyectado: round2(valorProyectado),
+        fraccionPeriodo: round2(elapsedMs / Math.max(totalMs, 1)),
+        ritmoLineal: round2(actual / Math.max(elapsedMs / (1000 * 60 * 60 * 24), 1e-6))
       };
+      if (!enTurno) base.sinTurno = true;
+      return base;
+    },
+    
+    /**
+     * Calcular tendencia real basada en datos históricos del mozo
+     * @param {Object} mozo - Objeto del mozo con datos actuales y anteriores
+     * @param {string} tipoMeta - Tipo de meta (ventas, mesas_atendidas, etc.)
+     * @returns {number} - Porcentaje de tendencia (positivo = mejora, negativo = bajada)
+     */
+    calcularTendenciaReal(mozo, tipoMeta = 'ventas') {
+      // Usar prevMap para comparar con período anterior
+      const prevData = this.prevMap().get((mozo._id || '').toString());
+      
+      if (!prevData) return 0;
+      
+      let valorActual = 0;
+      let valorAnterior = 0;
+      
+      switch (tipoMeta) {
+        case 'ventas':
+          valorActual = mozo.ventasHoy || 0;
+          valorAnterior = prevData.ventasHoy || 0;
+          break;
+        case 'mesas_atendidas':
+          valorActual = this.mesasAtendidasMozo(mozo) || 0;
+          valorAnterior = prevData.mesasAtendidas || 0;
+          break;
+        case 'tickets_generados':
+          valorActual = mozo.bouchersHoy || 0;
+          valorAnterior = prevData.bouchersHoy || 0;
+          break;
+        case 'propinas':
+          valorActual = mozo.propinasHoy || 0;
+          valorAnterior = prevData.propinasHoy || 0;
+          break;
+        default:
+          valorActual = mozo.ventasHoy || 0;
+          valorAnterior = prevData.ventasHoy || 0;
+      }
+      
+      // Calcular porcentaje de cambio
+      if (valorAnterior === 0) {
+        // Si no había ventas antes, la tendencia es 0 o positiva si hay ventas ahora
+        return valorActual > 0 ? 100 : 0;
+      }
+      
+      const cambio = ((valorActual - valorAnterior) / valorAnterior) * 100;
+      return Math.round(cambio);
     },
     getMetaTypeLabel(tipo) {
       const labels = {
@@ -4317,9 +4537,8 @@ function mozosExecutiveApp() {
           valorActual: valorActual,
           porcentajeAvance: pct,
           estado: this.calcularEstadoMeta(pct, mozo.enTurno),
-          proyeccion: this.calcularProyeccion(valorActual, meta.valorObjetivo, mozo.enTurno),
-          tendencia: this.trendGlyph(mozo, 'ventas') === '▲' ? Math.random() * 15 + 5 : 
-                     this.trendGlyph(mozo, 'ventas') === '▼' ? -(Math.random() * 15 + 5) : 0
+          proyeccion: this.calcularProyeccion(valorActual, meta.valorObjetivo, mozo.enTurno, meta.periodo),
+          tendencia: this.calcularTendenciaReal(mozo, meta.tipo || 'ventas')
         };
       });
     },
@@ -4377,8 +4596,74 @@ function mozosExecutiveApp() {
       this.modalGestorMetas = true;
       this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); });
     },
+    
+    /**
+     * Historial por mozo: misma fuente que la pestaña Historial del gestor (metasConfiguradas).
+     * Sin llamadas extra ni datos inventados.
+     */
     verHistorialMeta(row) {
-      this.showToast('Historial de metas para ' + row.mozoNombre, 'success');
+      this.mozoHistorialSeleccionado = row;
+      this.showModalHistorialMeta = true;
+      this.historialMozoData = this.historialMetasDesdeGestorParaMozo(row.mozoId);
+      this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); });
+    },
+
+    /** ¿La meta aplica a este mozo? (incluye aplicarATodos y lista de IDs) */
+    metaAplicaAMozo(meta, mozoIdStr) {
+      const id = String(mozoIdStr || '').trim();
+      if (!meta || !id) return false;
+      if (meta.aplicarATodos) return true;
+      const lista = meta.mozosAplican;
+      if (!Array.isArray(lista) || lista.length === 0) return false;
+      return lista.some(raw => {
+        if (raw == null) return false;
+        if (typeof raw === 'object' && raw._id != null) return String(raw._id) === id;
+        return String(raw) === id;
+      });
+    },
+
+    /** Metas pasadas/inactivas según misma regla que metasHistorialGestor */
+    esMetaPasadaOGestor(meta) {
+      if (!meta || meta.esPlantilla) return false;
+      const hoy = new Date();
+      const fin = meta.vigenciaFin ? new Date(meta.vigenciaFin) : null;
+      return meta.activo === false || (fin != null && !isNaN(fin) && fin < hoy);
+    },
+
+    /** Filas de historial para el modal (orden por fin de vigencia descendente) */
+    historialMetasDesdeGestorParaMozo(mozoIdStr) {
+      return this.metasConfiguradas
+        .filter(m => this.esMetaPasadaOGestor(m) && this.metaAplicaAMozo(m, mozoIdStr))
+        .sort((a, b) => {
+          const fa = a.vigenciaFin ? new Date(a.vigenciaFin).getTime() : 0;
+          const fb = b.vigenciaFin ? new Date(b.vigenciaFin).getTime() : 0;
+          return fb - fa;
+        })
+        .map(m => {
+          const hasPct = typeof m.cumplimientoPromedio === 'number' && !Number.isNaN(m.cumplimientoPromedio);
+          const porcentajeAlcanzado = hasPct ? Math.round(Math.min(Math.max(m.cumplimientoPromedio, 0), 999)) : null;
+          let estadoFinal = 'Sin dato';
+          if (porcentajeAlcanzado != null) {
+            estadoFinal = porcentajeAlcanzado >= 100 ? 'Cumplida' : porcentajeAlcanzado >= 80 ? 'Parcial' : 'No cumplida';
+          }
+          return {
+            _id: m._id,
+            tipo: m.tipo,
+            periodo: m.periodo,
+            valorObjetivo: m.valorObjetivo,
+            vigenciaFin: m.vigenciaFin,
+            fechaFin: m.vigenciaFin ? new Date(m.vigenciaFin).toLocaleDateString('es-PE') : '—',
+            porcentajeAlcanzado,
+            estadoFinal,
+            referenciaEquipo: !!m.aplicarATodos
+          };
+        });
+    },
+    
+    cerrarHistorialMeta() {
+      this.showModalHistorialMeta = false;
+      this.mozoHistorialSeleccionado = null;
+      this.historialMozoData = [];
     },
     descartarAlerta(idx) {
       this.alertasMetas.splice(idx, 1);
@@ -4411,13 +4696,14 @@ function mozosExecutiveApp() {
     get metasHistorialGestor() {
       const hoy = new Date();
       return this.metasConfiguradas.filter(m => {
-        if (!m) return false;
+        if (!m || m.esPlantilla) return false;
         const fin = m.vigenciaFin ? new Date(m.vigenciaFin) : null;
         return !m.activo || (fin && fin < hoy);
-      }).map(m => ({
-        ...m,
-        cumplimientoPct: Math.round(Math.random() * 40 + 60) // Mock para demo
-      }));
+      }).map(m => {
+        const hasPct = typeof m.cumplimientoPromedio === 'number' && !Number.isNaN(m.cumplimientoPromedio);
+        const cumplimientoPct = hasPct ? Math.round(Math.min(Math.max(m.cumplimientoPromedio, 0), 999)) : null;
+        return { ...m, cumplimientoPct };
+      });
     },
     get metasActivasFiltradas() {
       return this.metasActivasGestor.filter(m => {
