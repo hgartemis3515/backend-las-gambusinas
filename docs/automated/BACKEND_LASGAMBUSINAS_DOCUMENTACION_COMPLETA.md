@@ -53,6 +53,7 @@ Crear un ecosistema digital completo que permita:
 | Marzo 2026   | **Cosmos Search:** Nuevo sistema de búsqueda unificada estilo Command Palette (⌘K/Ctrl+K): archivo `public/assets/js/cosmos-search.js` con glassmorphism UI; búsqueda en platos, mesas, clientes, comandas y bouchers; navegación por teclado; integración en todas las páginas del dashboard; componente `cosmos-searchbar.html` y estilos en `cosmos-search.css`.                                                                                                                                                |
 | Marzo 2026   | **Autenticación JWT en Socket.io:** Nuevo middleware `src/middleware/socketAuth.js` con validación JWT en conexión de sockets; roles permitidos por namespace (`/cocina`: cocinero/admin/supervisor, `/mozos`: mozos/admin/supervisor, `/admin`: admin/supervisor); advertencia de token próximo a expirar; rate limiting configurable; helpers `emitToUser` y `emitToZona`.                                                                                                                                       |
 | Marzo 2026   | **Página cocineros.html y Zonas KDS:** Nueva sección documentando la página `public/cocineros.html`: interfaz completa para gestión de cocineros y zonas KDS con dos tabs; tabla de cocineros con paginación; ranking de métricas; modal de configuración KDS; gestión de zonas con filtros de platos/comandas; integración en tiempo real con Socket.io; modelo `Zona` para organizar estaciones de cocina.                                                                                                       |
+| Marzo 2026   | **Página bouchers.html v2.0:** Nueva sección documentando la página `public/bouchers.html`: sistema de tabs ("Tabla" y "Plantilla Voucher"); editor visual de plantilla de ticket térmico con preview en tiempo real; sidebar de personalización (datos del restaurante, encabezado, campos a mostrar, mensajes); generación de voucher tipo boleta electrónica siguiendo formato estándar de impresoras térmicas 80mm; integración con App Mozos para generación de PDF via `expo-print`; endpoints `/api/configuracion/voucher-plantilla` para persistir configuración.                                              |
 | Marzo 2026   | **Integración App Cocina - Cocineros:** Documentación completa de la relación entre la página de cocineros y la App de Cocina: flujo de datos, endpoints consumidos, eventos Socket.io (`config-cocinero-actualizada`), filtros KDS (`kdsFilters.js`), autenticación JWT específica para cocineros, sincronización de configuración en tiempo real. Pendientes identificados y sugerencias de mejora.                                                                                                              |
 | Marzo 2026   | **Sección Cocineros:** Nueva sección documentando el módulo de gestión de cocineros: modelo ConfigCocinero para configuración personalizada del tablero KDS; filtros de platos y comandas; métricas de rendimiento (tiempos de preparación, platos top, SLA); endpoints `/api/cocineros/`* con autenticación JWT y permisos; asignación y remoción de rol de cocinero.                                                                                                                                             |
 | Marzo 2026   | **Comandas y grupos de comandas:** Nueva sección detallando la implementación deseada: tabla unificada que ordene comandas y grupos de comandas según tipo de pedido (multi-comanda vs una sola comanda); modelo Pedido como grupo de comandas; relación con la App de Mozos; endpoints y flujo de datos.                                                                                                                                                                                                          |
@@ -1422,6 +1423,836 @@ const res = isEdit
 | **Autenticación** | JWT obligatorio | Sin JWT |
 | **Eventos Socket.io** | No escucha (solo carga inicial) | Escucha `plato-menu-actualizado` |
 
+
+---
+
+## 🧾 Página de Vouchers: `bouchers.html`
+
+**Ubicación:** `public/bouchers.html`
+
+**Versión:** 2.1 - Editor de Plantilla Avanzado con Preview en Tiempo Real (Marzo 2026)
+
+### Descripción General
+
+`bouchers.html` es una página dedicada a la **gestión de comprobantes (vouchers) y la configuración de la plantilla de impresión**. Implementa un sistema de tabs similar a `cocineros.html` con dos secciones principales:
+
+1. **Tab "Tabla"**: Listado de vouchers con filtros, tabla de registros y modal de detalle.
+2. **Tab "Plantilla Voucher"**: Editor visual para configurar el diseño del ticket térmico que se imprime desde el App de Mozos y el Dashboard.
+
+---
+
+### 🎯 Objetivo del Sistema
+
+El sistema de vouchers cumple tres objetivos fundamentales:
+
+#### 1. Gestión Centralizada de Comprobantes
+- Almacena histórico de todas las transacciones (pagos realizados)
+- Permite filtrar, buscar y reimprimir vouchers
+- Mantiene trazabilidad de mozos, mesas, montos y métodos de pago
+
+#### 2. Personalización Sin Código
+- Permite a administradores configurar la apariencia del ticket térmico
+- No requiere modificar código fuente ni reiniciar servicios
+- Los cambios se aplican inmediatamente a nuevas impresiones
+
+#### 3. Consistencia Multi-Plataforma
+- La plantilla se usa tanto en **App Mozos** (React Native + expo-print) como en **Dashboard Admin**
+- Garantiza que el cliente reciba el mismo formato de comprobante sin importar el origen
+
+### Casos de Uso
+
+| Actor | Acción | Resultado |
+|-------|--------|-----------|
+| Admin | Configura logo y datos del restaurante | Todos los tickets reflejan la identidad visual |
+| Admin | Oculta campos sensibles (RUC, teléfono) | El voucher muestra `XXXXX` en lugar del dato real |
+| Admin | Agrega productos de prueba | Visualiza cómo quedará el ticket antes de aplicarlo |
+| Mozo | Procesa pago en App | Se genera PDF con la plantilla configurada |
+| Cliente | Recibe ticket | Comprobante profesional con datos del negocio |
+
+---
+
+### 🏗️ Arquitectura del Sistema
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           BOUCHERS.HTML (Frontend)                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────────────┐ │
+│  │   TAB: TABLA    │    │ TAB: PLANTILLA  │    │      MODAL DETALLE      │ │
+│  │                 │    │    VOUCHER      │    │                         │ │
+│  │ • Filtros       │    │                 │    │ • Ver voucher completo  │ │
+│  │ • Tabla datos   │    │ • Sidebar       │    │ • Subtotales/IGV        │ │
+│  │ • Acciones      │    │ • Preview       │    │ • Acciones reimprimir   │ │
+│  └────────┬────────┘    └────────┬────────┘    └────────────┬────────────┘ │
+│           │                      │                          │              │
+│           │                      ▼                          │              │
+│           │           ┌─────────────────────┐               │              │
+│           │           │  Alpine.js State    │               │              │
+│           │           │  ─────────────────  │               │              │
+│           │           │  plantilla: {...}   │               │              │
+│           │           │  datosEjemplo: {...}│               │              │
+│           │           │  bouchers: [...]    │               │              │
+│           │           └─────────┬───────────┘               │              │
+│           │                     │                           │              │
+│           ▼                     ▼                           ▼              │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    FUNCIONES PRINCIPALES                            │   │
+│  │  ─────────────────────────────────────────────────────────────────  │   │
+│  │  • generarPreviewVoucher() → HTML del ticket                        │   │
+│  │  • imprimirVoucher(v) → Ventana de impresión                       │   │
+│  │  • cargarLogo(event) → Base64 del logo                              │   │
+│  │  • guardarPlantilla() → localStorage                               │   │
+│  │  • censurar(valor, visible) → 'XXXXX' si está oculto               │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+                    ┌─────────────────────────────────┐
+                    │         PERSISTENCIA            │
+                    │  ─────────────────────────────  │
+                    │  localStorage: voucherPlantilla │
+                    │  (JSON serializado)             │
+                    └─────────────────────────────────┘
+```
+
+---
+
+### 📊 Estado Reactivo Completo (Alpine.js)
+
+El estado de la aplicación se gestiona con Alpine.js y contiene toda la configuración de la plantilla:
+
+```javascript
+{
+  // ═══════════════════════════════════════════════════════════
+  // ESTADO DE INTERFAZ
+  // ═══════════════════════════════════════════════════════════
+  sidebarOpen: true,              // Estado del sidebar global
+  modal: null,                    // Modal activo (true = ver voucher)
+  loading: true,                  // Indicador de carga
+  activeTab: 'tabla',             // Tab activo: 'tabla' | 'voucher'
+  plantillaModificada: false,     // Detecta cambios sin guardar (muestra ● en tab)
+  previewZoom: 100,               // Zoom del preview (80%-150%)
+  
+  // ═══════════════════════════════════════════════════════════
+  // DATOS DE VOUCHERS (TAB: TABLA)
+  // ═══════════════════════════════════════════════════════════
+  bouchers: [],                   // Lista completa de vouchers
+  filteredBouchers: [],           // Lista filtrada
+  selectedBoucher: null,          // Voucher seleccionado para modal
+  mozosList: [],                  // Lista de mozos únicos para filtro
+  
+  // ═══════════════════════════════════════════════════════════
+  // FILTROS
+  // ═══════════════════════════════════════════════════════════
+  filterCodigo: '',               // Filtro por código
+  filterNumero: '',               // Filtro por número de voucher
+  filterMozo: '',                 // Filtro por mozo
+  filterFechaDesde: '',           // Filtro fecha desde
+  filterFechaHasta: '',           // Filtro fecha hasta
+  
+  // ═══════════════════════════════════════════════════════════
+  // PRODUCTOS DE PRUEBA
+  // ═══════════════════════════════════════════════════════════
+  nuevoProductoId: '',            // ID del producto a agregar
+  platosDisponibles: [],          // Catálogo de platos del menú
+  
+  // ═══════════════════════════════════════════════════════════
+  // CONFIGURACIÓN DE VISIBILIDAD (toggle por campo)
+  // ═══════════════════════════════════════════════════════════
+  camposVisibilidad: [
+    { key: 'pedido', label: 'Pedido' },
+    { key: 'fechaEmision', label: 'Fecha' },
+    { key: 'tipo', label: 'Tipo' },
+    { key: 'local', label: 'Local' },
+    { key: 'caja', label: 'Caja' },
+    { key: 'mesero', label: 'Mesero' },
+    { key: 'mesa', label: 'Mesa' },
+    { key: 'observacion', label: 'Obs.' },
+    { key: 'cliente', label: 'Cliente' },
+    { key: 'dniCliente', label: 'DNI' },
+    { key: 'totales', label: 'Totales' }
+  ],
+  
+  // ═══════════════════════════════════════════════════════════
+  // PLANTILLA DEL VOUCHER (CONFIGURACIÓN PRINCIPAL)
+  // ═══════════════════════════════════════════════════════════
+  plantilla: {
+    logo: '',                     // Base64 del logo (hasta 500KB)
+    
+    restaurante: {
+      nombre: 'LAS GAMBUSINAS',
+      eslogan: '* Comidas Típicas y Parrilla *',
+      ruc: '20123456789',
+      direccion: 'Calle Principal 123, Lima',
+      telefono: '01-1234567'
+    },
+    
+    encabezado: {
+      tipoComprobante: 'BOLETA DE VENTA ELECTRONICA',  // Boleta | Nota | Ticket
+      serie: 'B001',
+      correlativo: '00476803'
+    },
+    
+    campos: {
+      mostrarIGV: true,           // Mostrar desglose de IGV 18%
+      mostrarRC: true,            // Mostrar RC 4%
+      mostrarICBPER: true,        // Mostrar ICBPER
+      mostrarPropina: false,      // Mostrar propina
+      mostrarQR: true,            // Mostrar código QR
+      mostrarEncuesta: true       // Mostrar "CALIFICA Y GANA"
+    },
+    
+    visibilidad: {
+      nombre: true,               // Cada toggle controla si se muestra el dato
+      eslogan: true,              // o se censura con XXXXX
+      ruc: true,
+      direccion: true,
+      telefono: true,
+      pedido: true,
+      fechaEmision: true,
+      tipo: true,
+      local: true,
+      caja: true,
+      mesero: true,
+      mesa: true,
+      observacion: true,
+      cliente: true,
+      dniCliente: true,
+      totales: true
+    },
+    
+    espaciado: {
+      lineHeight: 16,             // Altura de línea (12-24px)
+      tamanoFuente: 11,           // Tamaño de fuente (9-14px)
+      espacioDivider: 6           // Espacio entre secciones (4-16px)
+    },
+    
+    mensajes: {
+      agradecimiento: 'Gracias por ser parte de Nuestra Familia',
+      encuesta: 'CALIFICA Y GANA',
+      textoQR: '[CODIGO QR]',
+      urlConsulta: 'https://www.lasgambusinas.com/consulta'
+    }
+  },
+  
+  // ═══════════════════════════════════════════════════════════
+  // DATOS DE EJEMPLO PARA PREVIEW
+  // ═══════════════════════════════════════════════════════════
+  datosEjemplo: {
+    pedido: '2600024364',
+    fechaEmision: '26/03/2026 12:31:00',
+    tipo: 'Para llevar',
+    local: 'LOCAL PRINCIPAL',
+    caja: '015 - MOZO1',
+    mesero: 'Juan Pérez',
+    moneda: 'Soles',
+    mesa: '05',
+    observacion: 'Cliente frecuente',
+    productos: [
+      { nombre: '1/4 pollo sem y', cantidad: 1, precio: 19.90, subtotal: 19.90 }
+    ],
+    subtotal: 16.31,
+    totalDescuento: 0.00,
+    igv: 2.94,
+    rc: 0.65,
+    icbper: 0.00,
+    total: 19.90,
+    totalLetras: 'DIECINUEVE Y 90/100 Soles',
+    metodoPago: 'Efectivo S/. 10.00',
+    vuelto: 8.00,
+    cliente: {
+      nombre: 'CLIENTE GENERAL',
+      dni: '00000000',
+      direccion: '-'
+    }
+  }
+}
+```
+
+---
+
+### 🔧 Funciones Principales: Lógica Detallada
+
+#### 1. `generarPreviewVoucher()` — Generación del Ticket HTML
+
+Esta es la función central que transforma la configuración en un ticket visual.
+
+```javascript
+generarPreviewVoucher() {
+  const p = this.plantilla;      // Configuración de plantilla
+  const d = this.datosEjemplo;   // Datos de prueba
+  const v = p.visibilidad;       // Flags de visibilidad
+  const e = p.espaciado;         // Parámetros de espaciado
+  let html = '';
+  
+  // ─────────────────────────────────────────────
+  // SECCIÓN 1: ENCABEZADO CON LOGO Y DATOS
+  // ─────────────────────────────────────────────
+  html += `<div class="text-center">`;
+  
+  // Logo (si existe)
+  if (p.logo) {
+    html += `<img src="${p.logo}" class="logo-img" alt="Logo">`;
+  }
+  
+  // Datos del restaurante (con censura si aplica)
+  html += `<div style="font-size:14px; font-weight:700;">${this.censurar(p.restaurante.nombre, v.nombre)}</div>`;
+  html += `<div style="font-size:10px; font-style:italic;">${this.censurar(p.restaurante.eslogan, v.eslogan)}</div>`;
+  html += `<div>R.U.C.: ${this.censurar(p.restaurante.ruc, v.ruc)}</div>`;
+  html += `<div style="font-size:10px;">${this.censurar(p.restaurante.direccion, v.direccion)}</div>`;
+  html += `<div style="font-size:10px;">Tel: ${this.censurar(p.restaurante.telefono, v.telefono)}</div>`;
+  html += `</div>`;
+  
+  // ─────────────────────────────────────────────
+  // SECCIÓN 2: TIPO DE COMPROBANTE
+  // ─────────────────────────────────────────────
+  html += `<div class="divider" style="margin:${e.espacioDivider}px 0;"></div>`;
+  html += `<div class="text-center" style="font-weight:700;">${p.encabezado.tipoComprobante}</div>`;
+  html += `<div class="text-center">${p.encabezado.serie}-${p.encabezado.correlativo}</div>`;
+  
+  // ... continúa con productos, totales, etc.
+  
+  return html;
+}
+```
+
+**Lógica clave:**
+- Cada campo pasa por `censurar()` que decide si mostrar el valor real o `XXXXX`
+- Los dividers usan el espaciado configurable
+- El HTML generado es compatible con impresoras térmicas 80mm (320px de ancho)
+
+---
+
+#### 2. `censurar(valor, visible)` — Sistema de Privacidad
+
+Permite ocultar información sensible en el voucher:
+
+```javascript
+censurar(valor, visible) {
+  if (visible) return valor;
+  return 'X'.repeat(Math.min(String(valor).length, 10));
+}
+
+// Ejemplos:
+// censurar('20123456789', true)  → '20123456789'
+// censurar('20123456789', false) → 'XXXXXXXXXX'
+// censurar('Juan Pérez', false)  → 'XXXXXXXXXX'
+```
+
+**Casos de uso:**
+- Ocultar RUC para vouchers genéricos
+- Ocultar teléfono para evitar llamadas no deseadas
+- Ocultar datos de cliente para pedidos "Cliente General"
+
+---
+
+#### 3. `cargarLogo(event)` — Carga de Logo Personalizado
+
+```javascript
+cargarLogo(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  // Validación: máximo 500KB
+  if (file.size > 500000) {
+    showNotification('El logo debe ser menor a 500KB', 'error');
+    return;
+  }
+  
+  // Convertir a Base64
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    this.plantilla.logo = e.target.result;  // data:image/png;base64,...
+    this.plantillaModificada = true;
+  };
+  reader.readAsDataURL(file);
+}
+```
+
+**Consideraciones:**
+- El logo se almacena como Base64, compatible con `expo-print`
+- Tamaño máximo recomendado: 200px de ancho, 60px de alto
+- Formatos soportados: PNG, JPG, WEBP
+
+---
+
+#### 4. `recalcularTotales()` — Cálculo Automático
+
+Cuando se agregan/eliminan productos de prueba, se recalculan los montos:
+
+```javascript
+recalcularTotales() {
+  // Sumar subtotales de productos
+  const subtotal = this.datosEjemplo.productos.reduce((sum, p) => sum + p.subtotal, 0);
+  
+  this.datosEjemplo.subtotal = subtotal;
+  this.datosEjemplo.igv = subtotal * 0.18;     // IGV 18%
+  this.datosEjemplo.rc = subtotal * 0.04;       // RC 4%
+  
+  // Total = subtotal + IGV + RC
+  this.datosEjemplo.total = subtotal + this.datosEjemplo.igv + this.datosEjemplo.rc;
+}
+```
+
+---
+
+#### 5. `imprimirVoucher(voucher)` — Impresión de Voucher Real
+
+```javascript
+imprimirVoucher(v) {
+  const p = this.plantilla;
+  const e = p.espaciado;
+  const items = v?.platos || [];
+  const fecha = v?.fechaPago ? new Date(v.fechaPago) : new Date();
+  
+  // Generar HTML completo para impresión
+  const html = `<!DOCTYPE html>...`;
+  
+  // Abrir ventana de impresión
+  const w = window.open('', '_blank', 'width=340,height=700');
+  if (w) {
+    w.document.write(html);
+    w.document.close();
+  }
+}
+```
+
+**Características:**
+- Usa los datos del voucher real (no de ejemplo)
+- Aplica la plantilla configurada
+- Abre ventana de impresión del navegador
+
+---
+
+### 🎨 Sistema de Visibilidad y Secciones
+
+#### Toggle de Visibilidad (por campo)
+
+| Campo | Efecto cuando OFF |
+|-------|-------------------|
+| `nombre` | Muestra `XXXXXXXXXX` en lugar del nombre del restaurante |
+| `ruc` | Oculta el RUC |
+| `direccion` | Oculta la dirección |
+| `telefono` | Oculta el teléfono |
+| `pedido` | Oculta número de pedido |
+| `mesero` | Oculta nombre del mesero |
+| `mesa` | Oculta número de mesa |
+| `cliente` | Oculta nombre del cliente |
+| `dniCliente` | Oculta DNI del cliente |
+| `totales` | Oculta desglose y muestra solo "TOTAL: S/. XXXXXXXX" |
+
+#### Toggle de Secciones (mostrar/ocultar completamente)
+
+| Sección | Efecto cuando OFF |
+|---------|-------------------|
+| `mostrarIGV` | No muestra línea de IGV 18% |
+| `mostrarRC` | No muestra línea de RC 4% |
+| `mostrarICBPER` | No muestra línea de ICBPER |
+| `mostrarPropina` | No muestra línea de propina |
+| `mostrarQR` | No muestra placeholder de QR |
+| `mostrarEncuesta` | No muestra "CALIFICA Y GANA" |
+
+---
+
+### 📐 Sistema de Espaciado
+
+El espaciado es configurable mediante sliders:
+
+| Parámetro | Rango | Default | Efecto |
+|-----------|-------|---------|--------|
+| `lineHeight` | 12-24px | 16px | Altura de cada línea de texto |
+| `tamanoFuente` | 9-14px | 11px | Tamaño de fuente general |
+| `espacioDivider` | 4-16px | 6px | Espacio arriba/abajo de cada divisor |
+
+**Recomendaciones:**
+- Para impresoras con papel angosto: reducir `tamanoFuente` a 9-10px
+- Para tickets con muchos productos: reducir `lineHeight` a 12-14px
+- Para tickets limpios: aumentar `espacioDivider` a 8-10px
+
+---
+
+### 💾 Persistencia de la Plantilla
+
+La plantilla se guarda en `localStorage`:
+
+```javascript
+// Guardar
+async guardarPlantilla() {
+  localStorage.setItem('voucherPlantilla', JSON.stringify(this.plantilla));
+  this.plantillaModificada = false;
+  this.plantillaOriginal = JSON.parse(JSON.stringify(this.plantilla));
+  showNotification('Plantilla guardada localmente', 'success');
+}
+
+// Cargar
+cargarPlantillaLocal() {
+  const saved = localStorage.getItem('voucherPlantilla');
+  if (saved) {
+    try {
+      const data = JSON.parse(saved);
+      this.plantilla = { ...this.plantilla, ...data };
+    } catch(e) { /* ignorar error de parseo */ }
+  }
+}
+
+// Restablecer valores por defecto
+restablecerPlantilla() {
+  this.plantilla = { /* valores default */ };
+  this.plantillaModificada = true;
+}
+```
+
+**Nota futura:** Se recomienda implementar el endpoint `/api/configuracion/voucher-plantilla` para persistir en MongoDB y compartir entre dispositivos.
+
+---
+
+### 🔄 Flujo de Datos Completo
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                          FLUJO DE DATOS - VOUCHERS                           │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+1. PROCESO DE PAGO (App Mozos)
+   ┌─────────────┐    POST /api/boucher    ┌─────────────┐
+   │  App Mozos  │ ───────────────────────►│   Backend   │
+   │ (expo-print)│                         │   MongoDB   │
+   └─────────────┘                         └─────────────┘
+         │
+         │ 1. Carga plantilla de localStorage
+         │ 2. Genera HTML del ticket
+         │ 3. expo-print → PDF
+         ▼
+   ┌─────────────┐
+   │  PDF/Ticket │
+   │  impreso    │
+   └─────────────┘
+
+2. CONSULTA DE VOUCHERS (Dashboard)
+   ┌─────────────┐    GET /api/boucher     ┌─────────────┐
+   │ bouchers.htm│ ◄───────────────────────│   Backend   │
+   │   (Tabla)   │                         │   MongoDB   │
+   └─────────────┘                         └─────────────┘
+
+3. CONFIGURACIÓN DE PLANTILLA (Dashboard)
+   ┌─────────────┐                         ┌─────────────┐
+   │ bouchers.htm│ ─── guardarPlantilla()─►│localStorage │
+   │  (Plantilla)│                         │             │
+   └─────────────┘                         └─────────────┘
+         │
+         │ generarPreviewVoucher()
+         ▼
+   ┌─────────────┐
+   │   Preview   │
+   │   en vivo   │
+   └─────────────┘
+
+4. REIMPRESIÓN (Dashboard)
+   ┌─────────────┐   imprimirVoucher(v)   ┌─────────────┐
+   │ bouchers.htm│ ──────────────────────►│ Window.print│
+   │   (Modal)   │                         │   (nuevo)   │
+   └─────────────┘                         └─────────────┘
+```
+
+---
+
+### 🔗 Integración con App Mozos (React Native)
+
+La App de Mozos usa `expo-print` para generar el PDF. Debe cargar la misma plantilla:
+
+```javascript
+// En App Mozos - PagosScreen.js o similar
+import * as Print from 'expo-print';
+
+const generarHTMLVoucher = (pago, plantilla) => {
+  // Usar plantilla.restaurante.nombre, etc.
+  return `<!DOCTYPE html>...`;  // Mismo formato que generarPreviewVoucher()
+};
+
+const imprimirVoucher = async (pago) => {
+  const plantilla = await cargarPlantilla();  // De AsyncStorage o API
+  const html = generarHTMLVoucher(pago, plantilla);
+  
+  const { uri } = await Print.printToFileAsync({ html });
+  // uri contiene el path al PDF generado
+};
+```
+
+**Sincronización recomendada:**
+1. Guardar plantilla en MongoDB via `/api/configuracion/voucher-plantilla`
+2. App Mozos carga la plantilla al iniciar
+3. Cachear en AsyncStorage para uso offline
+
+### Tecnologías Utilizadas
+
+| Recurso | Uso |
+|---------|-----|
+| **HTML5** | Estructura semántica |
+| **Tailwind CSS** | Diseño responsive, dark theme premium |
+| **Alpine.js** | Estado reactivo, tabs, preview en tiempo real |
+| **JetBrains Mono** | Tipografía monoespaciada para preview de ticket |
+| **Cosmos Search** | Búsqueda unificada (⌘K/Ctrl+K) |
+
+### Autenticación
+
+- **Requiere JWT:** Sí
+- **Token:** `localStorage.getItem('adminToken')` o `sessionStorage.getItem('adminToken')`
+- **Redirección:** Si no hay token, redirige a `/login.html`
+
+### Estructura de la Interfaz
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  HEADER: "Vouchers"                              [Actualizar] [Guardar Plantilla] │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│  TABS: [📋 Tabla] [🧾 Plantilla Voucher ●]                                       │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│  ═════════════════════════════ TAB: TABLA ══════════════════════════════════   │
+│                                                                                 │
+│  FILTROS: [Código] [# Voucher] [Mozo ▼] [Desde] [Hasta] [✕ Limpiar]             │
+│                                                                                 │
+│  TABLA DE VOUCHERS                                                              │
+│  Código | N° Voucher | Fecha | Mozo | Mesa | Total | Método | Acciones          │
+│  ───────────────────────────────────────────────────────────────────────────    │
+│  abc123  | #00123    | 26/03 | Juan | Mesa 5 | S/. 78.00 | Efectivo | 👁 🖨️    │
+│                                                                                 │
+│  ═════════════════════ TAB: PLANTILLA VOUCHER ══════════════════════════════   │
+│                                                                                 │
+│  ┌──────────────────────┐  ┌────────────────────────────────────────────────┐  │
+│  │ SIDEBAR (340px)      │  │ PREVIEW (ticket térmico 80mm)                   │  │
+│  │                      │  │                                                 │  │
+│  │ 🏪 Datos Restaurante │  │ ┌─────────────────────────┐                    │  │
+│  │ - Nombre Comercial   │  │ │ [LOGO DEL RESTAURANTE]  │                    │  │
+│  │ - Eslogan            │  │ │    LAS GAMBUSINAS       │                    │  │
+│  │ - RUC                │  │ │ * Comidas Típicas *     │                    │  │
+│  │ - Dirección          │  │ │ R.U.C.: 20123456789     │                    │  │
+│  │ - Teléfono           │  │ │ ─────────────────────── │                    │  │
+│  │                      │  │ │ BOLETA DE VENTA ELECTR. │                    │  │
+│  │ 📄 Encabezado        │  │ │ B001-00476803           │                    │  │
+│  │ - Tipo Comprobante   │  │ │ ─────────────────────── │                    │  │
+│  │ - Serie/Correlativo  │  │ │ Pedido: 2600024364      │                    │  │
+│  │                      │  │ │ Fecha: 26/03/2026       │                    │  │
+│  │ ⚙️ Campos a Mostrar  │  │ │ ...                     │                    │  │
+│  │ ☑ Pedido  ☑ Fecha    │  │ │ ─────────────────────── │                    │  │
+│  │ ☑ Tipo   ☑ Local     │  │ │ Producto  Cant P.Unit   │                    │  │
+│  │ ☑ Caja   ☑ Mesero    │  │ │ 1/4 pollo  1   19.90    │                    │  │
+│  │ ☑ Mesa   ☑ Moneda    │  │ │ ─────────────────────── │                    │  │
+│  │ ☑ IGV    ☑ RC        │  │ │ Total: S/. 19.90        │                    │  │
+│  │ ☑ Cliente ☑ QR       │  │ │                         │                    │  │
+│  │                      │  │ │ [CÓDIGO QR]             │                    │  │
+│  │ 💬 Mensajes          │  │ └─────────────────────────┘                    │  │
+│  │ - Agradecimiento     │  │                                                 │  │
+│  │ - URL Consulta       │  │ [🖨️ Imprimir Prueba]                           │  │
+│  │                      │  └────────────────────────────────────────────────┘  │
+│  │ [🔄 Restablecer] [💾 Guardar]                                                │
+│  └──────────────────────┘                                                      │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Estado Reactivo (Alpine.js)
+
+```javascript
+{
+  activeTab: 'tabla',           // 'tabla' o 'voucher'
+  plantillaModificada: false,   // Detecta cambios sin guardar
+  plantilla: {
+    restaurante: { nombre, eslogan, ruc, direccion, telefono },
+    encabezado: { tipoComprobante, serie, correlativo },
+    campos: { mostrarPedido, mostrarFechaEmision, mostrarTipo, ... },
+    mensajes: { agradecimiento, urlConsulta }
+  },
+  datosEjemplo: { ... },        // Datos mock para preview
+  bouchers: [],                 // Lista de vouchers
+  filteredBouchers: [],         // Vouchers filtrados
+  selectedBoucher: null         // Voucher seleccionado para modal
+}
+```
+
+### Endpoints API Consumidos
+
+| Endpoint | Método | Uso |
+|----------|--------|-----|
+| `/api/boucher` | GET | Listar todos los vouchers |
+| `/api/bouchers` | GET | Alternativo (fallback) |
+| `/api/configuracion/voucher-plantilla` | GET | Cargar plantilla guardada |
+| `/api/configuracion/voucher-plantilla` | POST | Guardar plantilla |
+
+### Funciones Principales
+
+| Función | Descripción |
+|---------|-------------|
+| `cambiarTab(tab)` | Alterna entre tabs "tabla" y "voucher" |
+| `generarPreviewVoucher()` | Genera HTML del ticket basado en la plantilla actual |
+| `cargarPlantilla()` | Carga la plantilla desde el backend |
+| `guardarPlantilla()` | Guarda la plantilla en el backend |
+| `restablecerPlantilla()` | Restaura valores por defecto |
+| `imprimirPreview()` | Abre ventana de impresión con el ticket de prueba |
+| `imprimirVoucher(voucher)` | Genera PDF/imprime un voucher real usando la plantilla |
+| `cargarVoucherEnPreview(boucher)` | Inyecta datos de voucher real en el preview |
+
+### Modelo de Plantilla (JSON)
+
+```javascript
+{
+  "restaurante": {
+    "nombre": "LAS GAMBUSINAS",
+    "eslogan": "* Comidas Típicas y Parrilla *",
+    "ruc": "20123456789",
+    "direccion": "Calle Principal 123, Lima",
+    "telefono": "01-1234567"
+  },
+  "encabezado": {
+    "tipoComprobante": "BOLETA DE VENTA ELECTRONICA",
+    "serie": "B001",
+    "correlativo": "00476803"
+  },
+  "campos": {
+    "mostrarPedido": true,
+    "mostrarFechaEmision": true,
+    "mostrarTipo": true,
+    "mostrarLocal": true,
+    "mostrarCaja": true,
+    "mostrarMesero": true,
+    "mostrarMoneda": true,
+    "mostrarMesa": true,
+    "mostrarObservacion": true,
+    "mostrarIGV": true,
+    "mostrarRC": true,
+    "mostrarICBPER": true,
+    "mostrarPropina": false,
+    "mostrarCliente": true,
+    "mostrarQR": true,
+    "mostrarEncuesta": true
+  },
+  "mensajes": {
+    "agradecimiento": "Gracias por ser parte de Nuestra Familia",
+    "urlConsulta": "https://www.lasgambusinas.com/consulta"
+  }
+}
+```
+
+### Formato del Voucher (Ticket Térmico)
+
+El voucher sigue el formato estándar de impresoras térmicas 80mm:
+
+```
+[LOGO DEL RESTAURANTE]
+            NOMBRE DEL RESTAURANT
+         * Eslogan / Subtítulo *
+            NOMBRE S.A.C.
+            R.U.C.: 20123456789
+         Dirección del local
+         Telefono: 01-1234567
+------------------------------------------------
+        BOLETA DE VENTA ELECTRONICA
+              B001-00476803
+------------------------------------------------
+Pedido        : 2600024364
+Fecha Emision : 26/03/2026 12:31:00 p. m.
+Tipo          : Para llevar
+Local         : LOCAL PRINCIPAL
+Caja          : 015 - MOZO1
+Mesero        : 
+Tipo Moneda   : Soles
+Mesa          : 
+Observacion   : Cliente frecuente
+------------------------------------------------
+Producto        Cant.  P.Unit    Total
+------------------------------------------------
+1/4 pollo sem y  1.00   19.90    19.90
+------------------------------------------------
+      Total a Pagar S/.:         19.90
+      Total Descuento S/.:        0.00
+            IGV 18.00% S/.:       2.94
+               RC 4.00% S/.:      0.65
+                 ICBPER S/.:      0.00
+          Importe Total S/.:     19.90
+
+Son: DIECINUEVE Y 90/100 Soles
+
+Tipo de Pago: Efectivo S/. 10.00
+Tipo de Pago: Varios S/. 17.90
+Vuelto      : S/. 8.00
+------------------------------------------------
+Cliente: CLIENTE GENERAL
+DNI    : 00000000
+Direcc.: -
+------------------------------------------------
+    Gracias por ser parte de Nuestra Familia
+
+Representacion impresa del documento
+electronico; consulte su documento
+electronico en 
+https://www.lasgambusinas.com/consulta
+
+              CALIFICA Y GANA
+                [CÓDIGO QR]
+```
+
+### Integración con Otras Aplicaciones
+
+| Aplicación | Uso del Voucher |
+|------------|-----------------|
+| **App Mozos** | Al procesar pago, genera PDF con `expo-print` usando la plantilla |
+| **App Cocina** | No consume vouchers directamente |
+| **Dashboard Admin** | Reimprime vouchers, visualiza histórico, configura plantilla |
+
+### Flujo de Datos
+
+```
+┌─────────────────┐     POST /api/boucher      ┌─────────────────┐
+│   App Mozos     │ ─────────────────────────► │    Backend      │
+│  (Procesar      │                            │   MongoDB       │
+│   Pago)         │ ◄───────────────────────── │                 │
+└─────────────────┘    Boucher guardado        └─────────────────┘
+        │                                              │
+        │ GET /api/configuracion/voucher-plantilla     │
+        │ (carga plantilla al iniciar)                 │
+        ▼                                              ▼
+┌─────────────────┐                            ┌─────────────────┐
+│ Plantilla en    │                            │  Colección:     │
+│ localStorage    │                            │  configuracion  │
+│ (opcional)      │                            │  (plantilla)    │
+└─────────────────┘                            └─────────────────┘
+        │
+        │ expo-print genera HTML
+        ▼
+┌─────────────────┐
+│   PDF/Voucher   │
+│   impreso       │
+└─────────────────┘
+```
+
+### Eventos Socket.io
+
+La página no escucha eventos activamente, pero puede integrarse en el futuro:
+
+| Evento | Uso sugerido |
+|--------|---------------|
+| `boucher-nuevo` | Actualizar tabla en tiempo real |
+| `boucher-anulado` | Refrescar estado de voucher |
+| `plantilla-actualizada` | Sincronizar plantilla entre pestañas |
+
+### Pendientes y Mejoras Futuras
+
+1. **Endpoint backend**: Crear `/api/configuracion/voucher-plantilla` para persistir la plantilla
+2. **Generación de QR**: Integrar librería QR para códigos reales
+3. **Integración tiempo real**: Conectar con eventos Socket.io
+4. **Vista previa con datos reales**: Permitir seleccionar voucher de la tabla y verlo en el preview
+5. **Múltiples plantillas**: Soportar diferentes formatos según tipo de comprobante
+
+### Archivos Relacionados
+
+| Archivo | Relación |
+|---------|----------|
+| `docs/Ejemplodevoucher.txt` | Modelo de diseño base del ticket térmico |
+| `public/assets/js/shared.js` | Funciones `apiGet`, `apiPost`, `showNotification` |
+| `public/assets/css/dashboard.css` | Estilos base del dashboard |
+| `Las-Gambusinas/Pages/navbar/screens/PagosScreen.js` | App Mozos - genera PDF con plantilla |
 
 ---
 

@@ -3,15 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vouchers — Las Gambusinas</title>
-  <!-- Animate.css - Animaciones CSS puras -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
-  <!-- AOS - Animate On Scroll -->
-  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<title>Vouchers — Las Gambusinas</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+<link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
 <script>
 tailwind.config = {
   theme: {
@@ -22,16 +17,71 @@ tailwind.config = {
         st: { libre: '#00d4aa', esperando: '#ffa502', pedido: '#3498db', preparado: '#2ecc71', pagado: '#ff4757', reservado: '#5352ed' },
         txt: { primary: '#ffffff', secondary: '#a0a0b8', muted: '#5a5a7a' }
       },
-      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] }
     }
   }
 }
 </script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/dashboard.css">
 <link rel="stylesheet" href="/assets/css/animations.css">
 <link rel="stylesheet" href="/assets/css/page-transitions.css">
-<!-- Cosmos Search Bar - Glassmorphism Style -->
 <link rel="stylesheet" href="/assets/css/cosmos-search.css">
+<style>
+  .voucher-ticket {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 11px;
+    line-height: 1.35;
+    background: #fff;
+    color: #000;
+    width: 320px;
+    padding: 12px 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  .voucher-ticket .divider { border-top: 1px dashed #333; margin: 6px 0; }
+  .voucher-ticket .text-center { text-align: center; }
+  .voucher-ticket .text-right { text-align: right; }
+  .voucher-ticket .font-bold { font-weight: 700; }
+  .voucher-ticket .qr-placeholder {
+    width: 70px; height: 70px;
+    background: #e5e5e5;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; color: #666;
+    margin: 8px auto;
+    border: 1px dashed #999;
+  }
+  .voucher-ticket .logo-img {
+    max-width: 200px;
+    max-height: 60px;
+    margin: 0 auto 4px;
+    display: block;
+  }
+  .preview-scale { transform-origin: top left; transition: transform 0.2s ease; }
+  @media print { .voucher-ticket { box-shadow: none; } }
+  .toggle-btn {
+    position: relative; width: 36px; height: 20px;
+    background: #2a2a3a; border-radius: 10px;
+    cursor: pointer; transition: background 0.2s;
+  }
+  .toggle-btn.active { background: #d4af37; }
+  .toggle-btn::after {
+    content: ''; position: absolute; width: 16px; height: 16px;
+    background: #fff; border-radius: 50%; top: 2px; left: 2px;
+    transition: transform 0.2s;
+  }
+  .toggle-btn.active::after { transform: translateX(16px); }
+  .logo-upload-area {
+    border: 2px dashed rgba(212,175,55,0.3);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .logo-upload-area:hover { border-color: #d4af37; background: rgba(212,175,55,0.05); }
+</style>
 </head>
 <body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="bouchersApp()" x-cloak>
 
@@ -42,282 +92,470 @@ tailwind.config = {
     
     <!-- HEADER -->
     <div class="flex items-center justify-between mb-5">
-      <h1 class="text-xl font-bold">Vouchers</h1>
-      <button @click="loadBouchers()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
+      <div>
+        <h1 class="text-xl font-bold">Vouchers</h1>
+        <p class="text-txt-muted text-sm mt-0.5">Gestión de comprobantes y plantilla de impresión</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button x-show="activeTab === 'tabla'" @click="loadBouchers()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
+        <button x-show="activeTab === 'voucher' && plantillaModificada" @click="guardarPlantilla()" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">💾 Guardar Plantilla</button>
+      </div>
     </div>
 
-    <!-- FILTROS -->
-    <div class="flex gap-2 mb-5 flex-wrap items-center">
-      <!-- Filtro Código -->
-      <input type="text" x-model="filterCodigo" @input="filterBouchers()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-32 placeholder-txt-muted" placeholder="Código">
-      
-      <!-- Filtro N° Voucher -->
-      <input type="text" x-model="filterNumero" @input="filterBouchers()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-32 placeholder-txt-muted" placeholder="# Voucher">
-      
-      <!-- Filtro Mozo -->
-      <select x-model="filterMozo" @change="filterBouchers()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary min-w-[140px]">
-        <option value="">Mozo: Todos</option>
-        <template x-for="mozo in mozosList" :key="mozo">
-          <option :value="mozo" x-text="mozo"></option>
-        </template>
-      </select>
-      
-      <!-- Filtro Fecha Desde -->
-      <div class="flex items-center gap-1">
-        <span class="text-xs text-txt-muted">Desde:</span>
-        <input type="date" x-model="filterFechaDesde" @change="filterBouchers()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-sm text-txt-secondary w-36">
-      </div>
-      
-      <!-- Filtro Fecha Hasta -->
-      <div class="flex items-center gap-1">
-        <span class="text-xs text-txt-muted">Hasta:</span>
-        <input type="date" x-model="filterFechaHasta" @change="filterBouchers()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-sm text-txt-secondary w-36">
-      </div>
-      
-      <!-- Botón limpiar filtros -->
-      <button @click="limpiarFiltros()" x-show="filterCodigo || filterNumero || filterMozo || filterFechaDesde || filterFechaHasta" 
-        class="px-3 py-2 text-xs text-txt-muted hover:text-gold transition border border-transparent hover:border-gold/30 rounded-lg">
-        ✕ Limpiar
+    <!-- TABS -->
+    <div class="flex gap-1 mb-5 bg-bg-card rounded-lg p-1 border border-[rgba(212,175,55,0.15)] w-fit">
+      <button @click="cambiarTab('tabla')" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="activeTab === 'tabla' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">📋 Tabla</button>
+      <button @click="cambiarTab('voucher')" class="px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1" :class="activeTab === 'voucher' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
+        🧾 Plantilla Voucher
+        <span x-show="plantillaModificada" class="w-2 h-2 bg-st-preparado rounded-full animate-pulse"></span>
       </button>
     </div>
 
-    <!-- LOADING STATE -->
-    <div x-show="loading && bouchers.length === 0" class="flex items-center justify-center h-32">
-      <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+    <!-- ==================== TAB: TABLA ==================== -->
+    <div x-show="activeTab === 'tabla'" x-cloak>
+      <div class="flex gap-2 mb-5 flex-wrap items-center">
+        <input type="text" x-model="filterCodigo" @input="filterBouchers()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-32 placeholder-txt-muted" placeholder="Código">
+        <input type="text" x-model="filterNumero" @input="filterBouchers()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-32 placeholder-txt-muted" placeholder="# Voucher">
+        <select x-model="filterMozo" @change="filterBouchers()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary min-w-[140px]">
+          <option value="">Mozo: Todos</option>
+          <template x-for="mozo in mozosList" :key="mozo"><option :value="mozo" x-text="mozo"></option></template>
+        </select>
+        <div class="flex items-center gap-1">
+          <span class="text-xs text-txt-muted">Desde:</span>
+          <input type="date" x-model="filterFechaDesde" @change="filterBouchers()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-sm text-txt-secondary w-36">
+        </div>
+        <div class="flex items-center gap-1">
+          <span class="text-xs text-txt-muted">Hasta:</span>
+          <input type="date" x-model="filterFechaHasta" @change="filterBouchers()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-sm text-txt-secondary w-36">
+        </div>
+        <button @click="limpiarFiltros()" x-show="filterCodigo || filterNumero || filterMozo || filterFechaDesde || filterFechaHasta" class="px-3 py-2 text-xs text-txt-muted hover:text-gold transition border border-transparent hover:border-gold/30 rounded-lg">✕ Limpiar</button>
+      </div>
+
+      <div x-show="loading && bouchers.length === 0" class="flex items-center justify-center h-32">
+        <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+      </div>
+
+      <div x-show="!loading || bouchers.length > 0" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+        <table class="w-full text-sm">
+          <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
+            <th class="text-left px-4 py-3 font-semibold">Código</th>
+            <th class="text-left px-4 py-3 font-semibold">N° Voucher</th>
+            <th class="text-left px-4 py-3 font-semibold">Fecha</th>
+            <th class="text-left px-4 py-3 font-semibold">Mozo</th>
+            <th class="text-left px-4 py-3 font-semibold">Mesa</th>
+            <th class="text-left px-4 py-3 font-semibold">Total</th>
+            <th class="text-left px-4 py-3 font-semibold">Método</th>
+            <th class="text-left px-4 py-3 font-semibold">Acciones</th>
+          </tr></thead>
+          <tbody>
+            <tr x-show="filteredBouchers.length === 0"><td colspan="8" class="px-4 py-8 text-center text-txt-muted">No hay vouchers registrados</td></tr>
+            <template x-for="b in filteredBouchers" :key="b._id || b.codigo">
+              <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
+                <td class="px-4 py-3 text-txt-muted font-mono text-xs" x-text="b.codigo || b._id?.slice(-12)"></td>
+                <td class="px-4 py-3 font-medium" x-text="'#' + (b.numero || b.boucherNumber || b.numBoucher || '—')"></td>
+                <td class="px-4 py-3 text-txt-secondary" x-text="b.fecha || (b.fechaPago ? new Date(b.fechaPago).toLocaleString('es-PE') : (b.createdAt ? new Date(b.createdAt).toLocaleString('es-PE') : '—'))"></td>
+                <td class="px-4 py-3 text-txt-secondary" x-text="b.mozo?.name || b.mozo?.nombre || b.nombreMozo || '—'"></td>
+                <td class="px-4 py-3" x-text="'Mesa ' + (b.mesa?.nummesa || b.mesa?.numMesa || b.numMesa || b.mesa || '—')"></td>
+                <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. ' + Number(b.montoDescuento > 0 ? (b.totalConDescuento != null ? b.totalConDescuento : b.total) : (b.total || 0)).toFixed(2)"></td>
+                <td class="px-4 py-3">
+                  <span class="text-xs px-2 py-0.5 rounded-full" :class="b.metodoPago === 'Efectivo' || b.metodo === 'Efectivo' ? 'bg-st-preparado/20 text-st-preparado' : b.metodoPago === 'Tarjeta' || b.metodo === 'Tarjeta' ? 'bg-st-pedido/20 text-st-pedido' : 'bg-st-reservado/20 text-st-reservado'" x-text="b.metodoPago || b.metodo || '—'"></span>
+                </td>
+                <td class="px-4 py-3 space-x-2 text-base whitespace-nowrap">
+                  <span class="cursor-pointer hover:text-[#d4af37] transition" @click="openDetailModal(b)" title="Ver voucher">👁</span>
+                  <span class="cursor-pointer hover:text-[#d4af37] transition" @click="imprimirVoucher(b)" title="Imprimir PDF">🖨️</span>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
     </div>
 
-    <!-- TABLA -->
-    <div x-show="!loading || bouchers.length > 0" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
-      <table class="w-full text-sm">
-        <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
-          <th class="text-left px-4 py-3 font-semibold">Código</th>
-          <th class="text-left px-4 py-3 font-semibold">N° Voucher</th>
-          <th class="text-left px-4 py-3 font-semibold">Fecha</th>
-          <th class="text-left px-4 py-3 font-semibold">Mozo</th>
-          <th class="text-left px-4 py-3 font-semibold">Mesa</th>
-          <th class="text-left px-4 py-3 font-semibold">Total</th>
-          <th class="text-left px-4 py-3 font-semibold">Método</th>
-          <th class="text-left px-4 py-3 font-semibold">Acciones</th>
-        </tr></thead>
-        <tbody>
-          <tr x-show="filteredBouchers.length === 0">
-            <td colspan="8" class="px-4 py-8 text-center text-txt-muted">No hay vouchers registrados</td>
-          </tr>
-          <template x-for="b in filteredBouchers" :key="b._id || b.codigo">
-            <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
-              <td class="px-4 py-3 text-txt-muted font-mono text-xs" x-text="b.codigo || b._id?.slice(-12)"></td>
-              <td class="px-4 py-3 font-medium" x-text="'#' + (b.numero || b.boucherNumber || b.numBoucher || '—')"></td>
-              <td class="px-4 py-3 text-txt-secondary" x-text="b.fecha || (b.fechaPago ? new Date(b.fechaPago).toLocaleString('es-PE') : (b.createdAt ? new Date(b.createdAt).toLocaleString('es-PE') : '—'))"></td>
-              <td class="px-4 py-3 text-txt-secondary" x-text="b.mozo?.name || b.mozo?.nombre || b.nombreMozo || '—'"></td>
-              <td class="px-4 py-3" x-text="'Mesa ' + (b.mesa?.nummesa || b.mesa?.numMesa || b.numMesa || b.mesa || '—')"></td>
-              <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. ' + Number(b.montoDescuento > 0 ? (b.totalConDescuento != null ? b.totalConDescuento : b.total) : (b.total || 0)).toFixed(2)"></td>
-              <td class="px-4 py-3">
-                <span class="text-xs px-2 py-0.5 rounded-full"
-                  :class="b.metodoPago === 'Efectivo' || b.metodo === 'Efectivo' ? 'bg-st-preparado/20 text-st-preparado' : b.metodoPago === 'Tarjeta' || b.metodo === 'Tarjeta' ? 'bg-st-pedido/20 text-st-pedido' : 'bg-st-reservado/20 text-st-reservado'"
-                  x-text="b.metodoPago || b.metodo || '—'"></span>
-              </td>
-              <td class="px-4 py-3 space-x-2 text-base whitespace-nowrap">
-                <span class="cursor-pointer hover:text-[#d4af37] transition" @click="openDetailModal(b)" title="Ver voucher">👁</span>
-                <span class="cursor-pointer hover:text-[#d4af37] transition" @click="imprimirVoucher(b)" title="Imprimir PDF">🖨️</span>
-              </td>
-            </tr>
-          </template>
-        </tbody>
-      </table>
+    <!-- ==================== TAB: PLANTILLA VOUCHER ==================== -->
+    <div x-show="activeTab === 'voucher'" x-cloak>
+      
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4 mb-5">
+        <div class="flex items-start gap-3">
+          <span class="text-2xl">🎨</span>
+          <div>
+            <h3 class="font-semibold text-white">Editor de Plantilla de Voucher</h3>
+            <p class="text-txt-muted text-sm mt-1">Configura logo, datos, espaciado y más. El toggle "Ver" muestra el dato real o lo censura con XXXXX.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-col xl:flex-row gap-5">
+        
+        <!-- SIDEBAR -->
+        <div class="xl:w-[400px] flex-shrink-0 space-y-4 overflow-y-auto max-h-[calc(100vh-220px)]">
+          
+          <!-- Logo -->
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+            <h4 class="text-sm font-semibold text-gold mb-3 flex items-center gap-2">🖼️ Logo del Restaurante</h4>
+            <div class="space-y-3">
+              <div class="logo-upload-area" @click="$refs.logoInput.click()">
+                <input type="file" x-ref="logoInput" accept="image/*" @change="cargarLogo($event)" class="hidden">
+                <template x-if="!plantilla.logo">
+                  <div>
+                    <span class="text-3xl">📤</span>
+                    <p class="text-xs text-txt-muted mt-2">Click para subir logo</p>
+                    <p class="text-[10px] text-txt-muted">PNG, JPG hasta 500KB</p>
+                  </div>
+                </template>
+                <template x-if="plantilla.logo">
+                  <div>
+                    <img :src="plantilla.logo" class="max-h-16 mx-auto rounded">
+                    <p class="text-[10px] text-txt-muted mt-2">Click para cambiar</p>
+                  </div>
+                </template>
+              </div>
+              <button x-show="plantilla.logo" @click="plantilla.logo = ''; plantillaModificada = true" class="text-xs text-txt-muted hover:text-gold transition">✕ Quitar logo</button>
+            </div>
+          </div>
+
+          <!-- Datos del Restaurante -->
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+            <h4 class="text-sm font-semibold text-gold mb-3 flex items-center gap-2">🏪 Datos del Restaurante</h4>
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <label class="text-xs text-txt-muted">Nombre Comercial</label>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] text-txt-muted">Ver</span>
+                  <div class="toggle-btn" :class="plantilla.visibilidad.nombre ? 'active' : ''" @click="plantilla.visibilidad.nombre = !plantilla.visibilidad.nombre; plantillaModificada = true"></div>
+                </div>
+              </div>
+              <input type="text" x-model="plantilla.restaurante.nombre" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm">
+              
+              <div class="flex items-center justify-between">
+                <label class="text-xs text-txt-muted">Eslogan</label>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] text-txt-muted">Ver</span>
+                  <div class="toggle-btn" :class="plantilla.visibilidad.eslogan ? 'active' : ''" @click="plantilla.visibilidad.eslogan = !plantilla.visibilidad.eslogan; plantillaModificada = true"></div>
+                </div>
+              </div>
+              <input type="text" x-model="plantilla.restaurante.eslogan" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm">
+              
+              <div class="flex items-center justify-between">
+                <label class="text-xs text-txt-muted">RUC</label>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] text-txt-muted">Ver</span>
+                  <div class="toggle-btn" :class="plantilla.visibilidad.ruc ? 'active' : ''" @click="plantilla.visibilidad.ruc = !plantilla.visibilidad.ruc; plantillaModificada = true"></div>
+                </div>
+              </div>
+              <input type="text" x-model="plantilla.restaurante.ruc" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm font-mono">
+              
+              <div class="flex items-center justify-between">
+                <label class="text-xs text-txt-muted">Dirección</label>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] text-txt-muted">Ver</span>
+                  <div class="toggle-btn" :class="plantilla.visibilidad.direccion ? 'active' : ''" @click="plantilla.visibilidad.direccion = !plantilla.visibilidad.direccion; plantillaModificada = true"></div>
+                </div>
+              </div>
+              <input type="text" x-model="plantilla.restaurante.direccion" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm">
+              
+              <div class="flex items-center justify-between">
+                <label class="text-xs text-txt-muted">Teléfono</label>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] text-txt-muted">Ver</span>
+                  <div class="toggle-btn" :class="plantilla.visibilidad.telefono ? 'active' : ''" @click="plantilla.visibilidad.telefono = !plantilla.visibilidad.telefono; plantillaModificada = true"></div>
+                </div>
+              </div>
+              <input type="text" x-model="plantilla.restaurante.telefono" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm font-mono">
+            </div>
+          </div>
+
+          <!-- Encabezado -->
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+            <h4 class="text-sm font-semibold text-gold mb-3 flex items-center gap-2">📄 Encabezado</h4>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs text-txt-muted block mb-1">Tipo de Comprobante</label>
+                <select x-model="plantilla.encabezado.tipoComprobante" @change="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm">
+                  <option value="BOLETA DE VENTA ELECTRONICA">Boleta de Venta Electrónica</option>
+                  <option value="NOTA DE VENTA">Nota de Venta</option>
+                  <option value="TICKET">Ticket</option>
+                </select>
+              </div>
+              <div class="flex gap-3">
+                <div class="flex-1">
+                  <label class="text-xs text-txt-muted block mb-1">Serie</label>
+                  <input type="text" x-model="plantilla.encabezado.serie" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm font-mono">
+                </div>
+                <div class="flex-1">
+                  <label class="text-xs text-txt-muted block mb-1">Correlativo</label>
+                  <input type="text" x-model="plantilla.encabezado.correlativo" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm font-mono">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Visibilidad -->
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+            <h4 class="text-sm font-semibold text-gold mb-3 flex items-center gap-2">👁 Visibilidad de Datos</h4>
+            <p class="text-[10px] text-txt-muted mb-3">OFF = muestra XXXXX en lugar del dato real.</p>
+            <div class="grid grid-cols-2 gap-2">
+              <template x-for="campo in camposVisibilidad" :key="campo.key">
+                <div class="flex items-center justify-between py-1">
+                  <span class="text-xs text-txt-secondary" x-text="campo.label"></span>
+                  <div class="toggle-btn" :class="plantilla.visibilidad[campo.key] ? 'active' : ''" @click="plantilla.visibilidad[campo.key] = !plantilla.visibilidad[campo.key]; plantillaModificada = true"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Secciones del Voucher -->
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+            <h4 class="text-sm font-semibold text-gold mb-3 flex items-center gap-2">⚙️ Secciones del Voucher</h4>
+            <p class="text-[10px] text-txt-muted mb-3">Desactiva para quitar completamente la sección del voucher.</p>
+
+            <!-- Bloques principales -->
+            <div class="mb-4">
+              <p class="text-[10px] text-txt-muted uppercase tracking-wider mb-2">Bloques principales</p>
+              <div class="grid grid-cols-2 gap-2">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" x-model="plantilla.bloques.mostrarEncabezado" @change="plantillaModificada = true" class="rounded border-txt-muted bg-bg-sidebar text-gold focus:ring-gold/50">
+                  <span class="text-xs text-txt-secondary">Encabezado</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" x-model="plantilla.bloques.mostrarDatosPedido" @change="plantillaModificada = true" class="rounded border-txt-muted bg-bg-sidebar text-gold focus:ring-gold/50">
+                  <span class="text-xs text-txt-secondary">Datos Pedido</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" x-model="plantilla.bloques.mostrarDetalleProductos" @change="plantillaModificada = true" class="rounded border-txt-muted bg-bg-sidebar text-gold focus:ring-gold/50">
+                  <span class="text-xs text-txt-secondary">Detalle</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" x-model="plantilla.bloques.mostrarTotales" @change="plantillaModificada = true" class="rounded border-txt-muted bg-bg-sidebar text-gold focus:ring-gold/50">
+                  <span class="text-xs text-txt-secondary">Totales</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" x-model="plantilla.bloques.mostrarDatosCliente" @change="plantillaModificada = true" class="rounded border-txt-muted bg-bg-sidebar text-gold focus:ring-gold/50">
+                  <span class="text-xs text-txt-secondary">Cliente</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" x-model="plantilla.bloques.mostrarAgradecimiento" @change="plantillaModificada = true" class="rounded border-txt-muted bg-bg-sidebar text-gold focus:ring-gold/50">
+                  <span class="text-xs text-txt-secondary">Agradecimiento</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Impuestos -->
+            <div class="mb-4">
+              <p class="text-[10px] text-txt-muted uppercase tracking-wider mb-2">Impuestos y cargos</p>
+              <div class="grid grid-cols-2 gap-2">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" x-model="plantilla.campos.mostrarIGV" @change="plantillaModificada = true" class="rounded border-txt-muted bg-bg-sidebar text-gold focus:ring-gold/50">
+                  <span class="text-xs text-txt-secondary">IGV</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" x-model="plantilla.campos.mostrarRC" @change="plantillaModificada = true" class="rounded border-txt-muted bg-bg-sidebar text-gold focus:ring-gold/50">
+                  <span class="text-xs text-txt-secondary">RC</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" x-model="plantilla.campos.mostrarICBPER" @change="plantillaModificada = true" class="rounded border-txt-muted bg-bg-sidebar text-gold focus:ring-gold/50">
+                  <span class="text-xs text-txt-secondary">ICBPER</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" x-model="plantilla.campos.mostrarPropina" @change="plantillaModificada = true" class="rounded border-txt-muted bg-bg-sidebar text-gold focus:ring-gold/50">
+                  <span class="text-xs text-txt-secondary">Propina</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Promoción y QR -->
+            <div class="pt-3 border-t border-[rgba(212,175,55,0.1)]">
+              <p class="text-[10px] text-txt-muted uppercase tracking-wider mb-2">Promoción y QR</p>
+              <div class="space-y-3">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" x-model="plantilla.campos.mostrarBloquePromo" @change="plantillaModificada = true" class="rounded border-txt-muted bg-bg-sidebar text-gold focus:ring-gold/50">
+                  <span class="text-xs text-txt-secondary">Mostrar bloque promoción</span>
+                </label>
+                <div x-show="plantilla.campos.mostrarBloquePromo" class="pl-5 space-y-2">
+                  <div>
+                    <label class="text-[10px] text-txt-muted block mb-1">Título del bloque</label>
+                    <input type="text" x-model="plantilla.promo.titulo" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs">
+                  </div>
+                  <div>
+                    <label class="text-[10px] text-txt-muted block mb-1">Mensaje promocional</label>
+                    <textarea x-model="plantilla.promo.mensaje" @input="plantillaModificada = true" rows="2" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs resize-none"></textarea>
+                  </div>
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" x-model="plantilla.campos.mostrarQR" @change="plantillaModificada = true" class="rounded border-txt-muted bg-bg-sidebar text-gold focus:ring-gold/50">
+                    <span class="text-xs text-txt-secondary">Mostrar código QR</span>
+                  </label>
+                  <div x-show="plantilla.campos.mostrarQR">
+                    <label class="text-[10px] text-txt-muted block mb-1">Tamaño QR (px)</label>
+                    <input type="number" x-model.number="plantilla.promo.qrTamano" @input="plantillaModificada = true" min="40" max="120" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Productos de prueba -->
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+            <h4 class="text-sm font-semibold text-gold mb-3 flex items-center gap-2">🍽️ Productos de Prueba</h4>
+            <p class="text-[10px] text-txt-muted mb-3">Agrega platos para emular el voucher.</p>
+
+            <!-- Selector compacto -->
+            <div class="flex gap-2 mb-3">
+              <select x-model="nuevoProductoId" class="flex-1 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs min-w-0">
+                <option value="">Seleccionar plato...</option>
+                <template x-for="p in platosDisponibles" :key="p._id || p.id">
+                  <option :value="p._id || p.id" x-text="p.nombre + ' - S/.' + p.precio"></option>
+                </template>
+              </select>
+              <button @click="agregarProducto()" class="px-3 py-1.5 bg-gold/20 text-gold rounded text-xs hover:bg-gold/30 transition whitespace-nowrap">+ Agregar</button>
+            </div>
+
+            <!-- Lista de productos con scroll -->
+            <div class="bg-bg-sidebar rounded-lg overflow-hidden">
+              <div class="max-h-48 overflow-y-auto" style="scrollbar-width: thin; scrollbar-color: #d4af37 #1a1a28;">
+                <template x-for="(prod, idx) in datosEjemplo.productos" :key="idx">
+                  <div class="flex items-center gap-2 p-2 border-b border-[rgba(212,175,55,0.08)] last:border-b-0">
+                    <span class="text-xs flex-1 truncate text-txt-secondary" x-text="prod.nombre"></span>
+                    <span class="text-xs text-txt-muted w-8 text-center" x-text="'x' + prod.cantidad"></span>
+                    <span class="text-xs text-white w-14 text-right font-mono" x-text="'S/.' + prod.precio.toFixed(2)"></span>
+                    <span class="text-xs text-gold w-14 text-right font-mono font-semibold" x-text="'S/.' + prod.subtotal.toFixed(2)"></span>
+                    <button @click="eliminarProducto(idx)" class="text-txt-muted hover:text-red-400 text-sm p-1">✕</button>
+                  </div>
+                </template>
+                <div x-show="datosEjemplo.productos.length === 0" class="p-4 text-center text-txt-muted text-xs">
+                  Sin productos de prueba
+                </div>
+              </div>
+            </div>
+
+            <!-- Totales rápidos -->
+            <div class="mt-2 pt-2 border-t border-[rgba(212,175,55,0.1)] flex justify-between text-xs">
+              <span class="text-txt-muted">Items: <span class="text-white" x-text="datosEjemplo.productos.length"></span></span>
+              <span class="text-txt-muted">Total: <span class="text-gold font-semibold" x-text="'S/.' + datosEjemplo.total.toFixed(2)"></span></span>
+            </div>
+          </div>
+
+          <!-- Espaciado -->
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+            <h4 class="text-sm font-semibold text-gold mb-3 flex items-center gap-2">📏 Espaciado</h4>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs text-txt-muted block mb-1">Altura línea: <span class="text-gold" x-text="plantilla.espaciado.lineHeight + 'px'"></span></label>
+                <input type="range" min="12" max="24" x-model="plantilla.espaciado.lineHeight" @input="plantillaModificada = true" class="w-full accent-gold">
+              </div>
+              <div>
+                <label class="text-xs text-txt-muted block mb-1">Fuente: <span class="text-gold" x-text="plantilla.espaciado.tamanoFuente + 'px'"></span></label>
+                <input type="range" min="9" max="14" x-model="plantilla.espaciado.tamanoFuente" @input="plantillaModificada = true" class="w-full accent-gold">
+              </div>
+              <div>
+                <label class="text-xs text-txt-muted block mb-1">Espacio divider: <span class="text-gold" x-text="plantilla.espaciado.espacioDivider + 'px'"></span></label>
+                <input type="range" min="4" max="16" x-model="plantilla.espaciado.espacioDivider" @input="plantillaModificada = true" class="w-full accent-gold">
+              </div>
+            </div>
+          </div>
+
+          <!-- Mensajes -->
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+            <h4 class="text-sm font-semibold text-gold mb-3 flex items-center gap-2">💬 Mensajes</h4>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs text-txt-muted block mb-1">Agradecimiento</label>
+                <input type="text" x-model="plantilla.mensajes.agradecimiento" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm">
+              </div>
+              <div>
+                <label class="text-xs text-txt-muted block mb-1">URL Consulta</label>
+                <input type="text" x-model="plantilla.mensajes.urlConsulta" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm font-mono">
+              </div>
+            </div>
+          </div>
+
+          <!-- Etiquetas personalizables -->
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+            <h4 class="text-sm font-semibold text-gold mb-3 flex items-center gap-2">🏷️ Etiquetas</h4>
+            <p class="text-[10px] text-txt-muted mb-3">Personaliza los nombres de los campos.</p>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-[10px] text-txt-muted block mb-1">Pedido</label>
+                <input type="text" x-model="plantilla.etiquetas.pedido" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded px-2 py-1 text-xs">
+              </div>
+              <div>
+                <label class="text-[10px] text-txt-muted block mb-1">Fecha</label>
+                <input type="text" x-model="plantilla.etiquetas.fecha" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded px-2 py-1 text-xs">
+              </div>
+              <div>
+                <label class="text-[10px] text-txt-muted block mb-1">Mesero</label>
+                <input type="text" x-model="plantilla.etiquetas.mesero" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded px-2 py-1 text-xs">
+              </div>
+              <div>
+                <label class="text-[10px] text-txt-muted block mb-1">Mesa</label>
+                <input type="text" x-model="plantilla.etiquetas.mesa" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded px-2 py-1 text-xs">
+              </div>
+              <div>
+                <label class="text-[10px] text-txt-muted block mb-1">Total</label>
+                <input type="text" x-model="plantilla.etiquetas.total" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded px-2 py-1 text-xs">
+              </div>
+              <div>
+                <label class="text-[10px] text-txt-muted block mb-1">Cliente</label>
+                <input type="text" x-model="plantilla.etiquetas.cliente" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded px-2 py-1 text-xs">
+              </div>
+            </div>
+          </div>
+
+          <!-- Acciones -->
+          <div class="flex gap-2">
+            <button @click="restablecerPlantilla()" class="flex-1 px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Restablecer</button>
+            <button @click="guardarPlantilla()" class="flex-1 px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">💾 Guardar</button>
+          </div>
+        </div>
+
+        <!-- PREVIEW -->
+        <div class="flex-1 min-w-0">
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-6 h-full flex flex-col">
+            <div class="flex items-center justify-between mb-4">
+              <p class="text-xs text-txt-muted">Vista Previa (80mm)</p>
+              <div class="flex items-center gap-3">
+                <label class="text-xs text-txt-muted">Zoom:</label>
+                <input type="range" min="80" max="150" x-model="previewZoom" class="w-20 accent-gold">
+                <span class="text-xs text-gold" x-text="previewZoom + '%'"></span>
+              </div>
+            </div>
+            
+            <div class="flex-1 overflow-auto bg-neutral-700/30 rounded-lg p-6 flex items-start justify-center">
+              <div class="preview-scale" :style="'transform: scale(' + (previewZoom / 100) + ')'">
+                <div class="voucher-ticket" :style="'line-height:' + plantilla.espaciado.lineHeight + 'px; font-size:' + plantilla.espaciado.tamanoFuente + 'px'" x-html="generarPreviewVoucher()"></div>
+              </div>
+            </div>
+            
+            <div class="flex gap-2 mt-4 justify-center">
+              <button @click="imprimirPreview()" class="px-4 py-2 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🖨️ Imprimir Prueba</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
   </main>
 </div>
 
-<!-- MODAL: VER VOUCHER — Diseño según pencil-new.pen frame Z1h1R -->
+<!-- MODAL VER VOUCHER -->
 <div x-show="modal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="modal=null">
   <div class="bg-[#1a1a28] border border-[rgba(212,175,55,0.25)] rounded-2xl w-[720px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
-    
-    <!-- HEADER -->
     <div class="bg-[#12121a] p-5 rounded-t-2xl sticky top-0 z-10 flex items-center justify-between">
       <div>
-        <h2 class="text-lg font-bold" x-text="'Voucher #' + (selectedBoucher?.boucherNumber || selectedBoucher?.numero || selectedBoucher?.numBoucher || '—')"></h2>
-        <p class="text-xs text-[#5a5a7a] mt-0.5">
-          <span x-text="'Mesa ' + (selectedBoucher?.mesa?.nummesa || selectedBoucher?.mesa?.numMesa || selectedBoucher?.numMesa || selectedBoucher?.mesa || '—')"></span>
-          <span> · </span>
-          <span x-text="selectedBoucher?.fechaPago ? new Date(selectedBoucher.fechaPago).toLocaleDateString('es-PE', {weekday:'short', day:'numeric', month:'short', year:'numeric'}) : (selectedBoucher?.fecha || '—')"></span>
-          <span x-show="selectedBoucher?.fechaPago"> · </span>
-          <span x-show="selectedBoucher?.fechaPago" x-text="selectedBoucher?.fechaPago ? new Date(selectedBoucher.fechaPago).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : ''"></span>
-        </p>
+        <h2 class="text-lg font-bold" x-text="'Voucher #' + (selectedBoucher?.boucherNumber || selectedBoucher?.numero || '—')"></h2>
       </div>
       <button @click="modal=null" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
     </div>
-
     <div class="p-5 space-y-4">
-      
-      <!-- TOTALES PROMINENTES -->
       <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.2)] rounded-xl p-5">
-        <div class="flex items-start justify-between gap-8">
-          <div class="space-y-2.5 text-sm flex-1">
-            <div class="flex justify-between">
-              <span class="text-[#a0a0b8]">Subtotal</span>
-              <span class="font-medium" x-text="'S/. ' + Number(selectedBoucher?.subtotal || 0).toFixed(2)"></span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-[#ffa502]">IGV (18%)</span>
-              <span class="text-[#ffa502] font-medium" x-text="'S/. ' + Number(selectedBoucher?.igv || 0).toFixed(2)"></span>
-            </div>
-            <div x-show="selectedBoucher?.propina > 0" class="flex justify-between">
-              <span class="text-[#2ecc71]">Propina</span>
-              <span class="text-[#2ecc71] font-medium" x-text="'S/. ' + Number(selectedBoucher?.propina || 0).toFixed(2)"></span>
-            </div>
-            <!-- Sección de descuentos -->
-            <template x-if="selectedBoucher?.montoDescuento > 0 || (selectedBoucher?.descuentos && selectedBoucher.descuentos.length > 0)">
-              <div class="py-2 border-t border-b border-[rgba(212,175,55,0.15)] my-1">
-                <p class="text-[#d4af37] text-xs font-semibold mb-1">🎁 Descuento Aplicado</p>
-                <template x-for="(desc, idx) in (selectedBoucher?.descuentos || [])" :key="idx">
-                  <div class="flex justify-between text-xs">
-                    <span class="text-[#d4af37]" x-text="desc.porcentaje + '%' + (desc.motivo ? ' - ' + desc.motivo : '')"></span>
-                    <span class="text-[#d4af37] font-medium" x-text="'- S/. ' + Number(desc.monto || 0).toFixed(2)"></span>
-                  </div>
-                </template>
-                <div x-show="selectedBoucher?.montoDescuento > 0" class="flex justify-between text-xs font-semibold mt-1">
-                  <span class="text-[#2ecc71]">Ahorro Total</span>
-                  <span class="text-[#2ecc71]" x-text="'- S/. ' + Number(selectedBoucher?.montoDescuento || 0).toFixed(2)"></span>
-                </div>
-              </div>
-            </template>
-            <div class="flex justify-between pt-2 border-t border-[rgba(212,175,55,0.2)]">
-              <span class="font-bold text-base" x-text="selectedBoucher?.montoDescuento > 0 ? 'TOTAL FINAL' : 'TOTAL'"></span>
-              <span class="text-[#d4af37] font-bold text-2xl" x-text="'S/. ' + Number(selectedBoucher?.montoDescuento > 0 ? (selectedBoucher.totalConDescuento != null ? selectedBoucher.totalConDescuento : selectedBoucher.total) : (selectedBoucher?.total || 0)).toFixed(2)"></span>
-            </div>
-          </div>
-          <div class="text-right space-y-3 text-xs text-[#5a5a7a] min-w-[120px]">
-            <div>
-              <p>Voucher ID</p>
-              <p class="text-[#d4af37] font-mono font-semibold text-[11px]" x-text="(selectedBoucher?.voucherId || selectedBoucher?._id?.slice(-8) || '—')"></p>
-            </div>
-            <div>
-              <p>Comprobante</p>
-              <p class="text-white font-medium">Boleta</p>
-            </div>
-          </div>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between"><span class="text-[#a0a0b8]">Subtotal</span><span x-text="'S/. ' + Number(selectedBoucher?.subtotal || 0).toFixed(2)"></span></div>
+          <div class="flex justify-between"><span class="text-[#ffa502]">IGV (18%)</span><span class="text-[#ffa502]" x-text="'S/. ' + Number(selectedBoucher?.igv || 0).toFixed(2)"></span></div>
+          <div class="flex justify-between pt-2 border-t border-[rgba(212,175,55,0.2)]"><span class="font-bold">TOTAL</span><span class="text-[#d4af37] font-bold text-xl" x-text="'S/. ' + Number(selectedBoucher?.total || 0).toFixed(2)"></span></div>
         </div>
       </div>
-
- <!-- TABLA DE ÍTEMS -->
- <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
- <table class="w-full text-sm">
- <thead>
- <tr class="bg-[#12121a] text-[#a0a0b8] text-[10px] uppercase">
- <th class="text-left px-4 py-2.5 font-semibold">Plato</th>
- <th class="text-center px-3 py-2.5 font-semibold">Cant.</th>
- <th class="text-right px-3 py-2.5 font-semibold">Precio</th>
- <th class="text-left px-3 py-2.5 font-semibold">Complementos</th>
- <th class="text-center px-3 py-2.5 font-semibold">Cocinero</th>
- <th class="text-center px-3 py-2.5 font-semibold">Tiempo</th>
- <th class="text-right px-3 py-2.5 font-semibold">Subtotal</th>
- </tr>
- </thead>
- <tbody>
- <template x-if="!selectedBoucher?.platos || selectedBoucher.platos.length === 0">
- <tr><td colspan="7" class="px-4 py-6 text-center text-[#5a5a7a] text-xs">Sin ítems registrados</td></tr>
- </template>
- <template x-for="(item, idx) in (selectedBoucher?.platos || [])" :key="idx">
- <tr class="border-b border-[rgba(212,175,55,0.08)]">
- <td class="px-4 py-3">
- <p class="font-medium" x-text="item.nombre || item.plato?.nombre || '—'"></p>
- <p class="text-[9px] text-[#5a5a7a]" x-show="item.comandaNumber" x-text="'Comanda #' + item.comandaNumber"></p>
- </td>
- <td class="px-3 py-3 text-center" x-text="item.cantidad || 1"></td>
- <td class="px-3 py-3 text-right text-[#a0a0b8]" x-text="'S/. ' + Number(item.precio || 0).toFixed(2)"></td>
- <td class="px-3 py-3">
- <template x-if="item.complementosSeleccionados && item.complementosSeleccionados.length > 0">
- <div class="flex flex-wrap gap-1">
- <template x-for="comp in item.complementosSeleccionados" :key="comp.grupo + comp.opcion">
-<span class="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" x-text="comp.grupo + ': ' + comp.opcion + ' x' + (comp.cantidad || 1)"></span>
-								</template>
-							</div>
-						</template>
-						<template x-if="!item.complementosSeleccionados || item.complementosSeleccionados.length === 0">
- <span class="text-[10px] text-[#5a5a7a]">—</span>
- </template>
- </td>
- <!-- 🔥 COLUMNA COCINERO -->
- <td class="px-3 py-3 text-center">
- <template x-if="item.cocinero || item.cocineroId?.name || item.cocineroId?.nombre">
- <span class="text-[10px] font-medium text-st-preparado" x-text="item.cocinero || item.cocineroId?.name || item.cocineroId?.nombre || '—'"></span>
- </template>
- <template x-if="!item.cocinero && (!item.cocineroId || (!item.cocineroId?.name && !item.cocineroId?.nombre))">
- <span class="text-[10px] text-[#5a5a7a]">—</span>
- </template>
- </td>
- <!-- 🔥 COLUMNA TIEMPO -->
- <td class="px-3 py-3 text-center">
- <template x-if="item.tiempoPreparacion">
- <span class="text-[10px] font-mono text-txt-secondary" x-text="item.tiempoPreparacion"></span>
- </template>
- <template x-if="!item.tiempoPreparacion">
- <span class="text-[10px] text-[#5a5a7a]">—</span>
- </template>
- </td>
- <td class="px-3 py-3 text-right text-[#d4af37] font-semibold" x-text="'S/. ' + Number(item.subtotal || (item.cantidad || 1) * (item.precio || 0)).toFixed(2)"></td>
- </tr>
- </template>
- </tbody>
- </table>
- </div>
- 
- <!-- 🔥 RESUMEN DE COCINEROS DEL VOUCHER -->
- <template x-if="selectedBoucher && getResumenCocinerosBoucher(selectedBoucher).cocineros.length > 0">
- <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
- <p class="text-[10px] text-gold uppercase mb-3 font-semibold tracking-wider flex items-center gap-1">
- <span>👨‍🍳</span> Resumen de Cocina
- </p>
- <div class="grid grid-cols-2 gap-4 text-sm">
- <div>
- <p class="text-[10px] text-[#5a5a7a]">Cocineros que intervinieron</p>
- <div class="flex flex-wrap gap-1 mt-1">
- <template x-for="cocinero in getResumenCocinerosBoucher(selectedBoucher).cocineros" :key="cocinero">
- <span class="text-[9px] px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-medium" x-text="cocinero"></span>
- </template>
- </div>
- </div>
- <div>
- <p class="text-[10px] text-[#5a5a7a]">Tiempo promedio de preparación</p>
- <p class="font-mono font-medium text-st-preparado" x-text="getResumenCocinerosBoucher(selectedBoucher).tiempoPromedio"></p>
- </div>
- </div>
- </div>
- </template>
-
-      <!-- INFO DE PAGO -->
-      <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
-        <p class="text-[10px] text-[#5a5a7a] uppercase mb-3 font-semibold tracking-wider">Información de Pago</p>
-        <div class="grid grid-cols-2 gap-x-6 gap-y-2.5 text-sm">
-          <div class="flex justify-between">
-            <span class="text-[#5a5a7a]">Método de pago</span>
-            <span class="font-medium text-[#2ecc71]" x-text="selectedBoucher?.metodoPago || selectedBoucher?.metodo || '—'"></span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-[#5a5a7a]">Mozo</span>
-            <span class="font-medium" x-text="selectedBoucher?.mozo?.name || selectedBoucher?.nombreMozo || selectedBoucher?.mozo?.nombre || '—'"></span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-[#5a5a7a]">Hora de pago</span>
-            <span class="font-medium" x-text="selectedBoucher?.fechaPago ? new Date(selectedBoucher.fechaPago).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : (selectedBoucher?.hora || '—')"></span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-[#5a5a7a]">Serie / ID</span>
-            <span class="font-mono text-xs font-medium" x-text="selectedBoucher?.voucherId || selectedBoucher?._id?.slice(-12) || '—'"></span>
-          </div>
-        </div>
-      </div>
-
     </div>
-
-    <!-- FOOTER -->
-    <div class="bg-[#12121a] p-4 rounded-b-2xl flex justify-between items-center border-t border-[rgba(212,175,55,0.1)]">
-      <button @click="anularVoucher()" class="px-4 py-2 border border-[#ff4757] text-[#ff4757] rounded-lg text-sm font-medium hover:bg-[#ff4757]/10 transition">Anular</button>
-      <div class="flex gap-2">
-        <button @click="modal=null" class="px-4 py-2 border border-[#5a5a7a]/40 rounded-lg text-sm text-[#a0a0b8] hover:border-[#d4af37] hover:text-[#d4af37] transition">Cerrar</button>
-        <button @click="imprimirVoucher(selectedBoucher)" class="px-4 py-2 bg-[#d4af37] text-[#0a0a0f] rounded-lg text-sm font-semibold hover:brightness-110 transition">🖨 Reimprimir</button>
-      </div>
+    <div class="bg-[#12121a] p-4 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.1)]">
+      <button @click="modal=null" class="px-4 py-2 border border-[#5a5a7a]/40 rounded-lg text-sm text-[#a0a0b8] hover:border-[#d4af37] hover:text-[#d4af37] transition">Cerrar</button>
+      <button @click="imprimirVoucher(selectedBoucher)" class="px-4 py-2 bg-[#d4af37] text-[#0a0a0f] rounded-lg text-sm font-semibold hover:brightness-110 transition">🖨 Reimprimir</button>
     </div>
   </div>
 </div>
@@ -327,317 +565,439 @@ tailwind.config = {
 <script>
 function bouchersApp() {
   return {
-    sidebarOpen: true,
-    modal: null,
-    loading: true,
-    bouchers: [],
-    filteredBouchers: [],
-    selectedBoucher: null,
-    activeNav: 'bouchers',
-    pageTitle: 'Vouchers',
+    sidebarOpen: true, modal: null, loading: true,
+    bouchers: [], filteredBouchers: [], selectedBoucher: null,
+    activeNav: 'bouchers', pageTitle: 'Vouchers', activeTab: 'tabla',
+    plantillaModificada: false, plantillaOriginal: null, previewZoom: 100,
+    nuevoProductoId: '',
+    platosDisponibles: [],
     
-    // Filtros
-    filterCodigo: '',
-    filterNumero: '',
-    filterMozo: '',
-    filterFechaDesde: '',
-    filterFechaHasta: '',
+    camposVisibilidad: [
+      { key: 'pedido', label: 'Pedido' },
+      { key: 'fechaEmision', label: 'Fecha' },
+      { key: 'tipo', label: 'Tipo' },
+      { key: 'local', label: 'Local' },
+      { key: 'caja', label: 'Caja' },
+      { key: 'mesero', label: 'Mesero' },
+      { key: 'mesa', label: 'Mesa' },
+      { key: 'observacion', label: 'Obs.' },
+      { key: 'cliente', label: 'Cliente' },
+      { key: 'dniCliente', label: 'DNI' },
+      { key: 'totales', label: 'Totales' }
+    ],
+    
+    plantilla: {
+      logo: '',
+      restaurante: { nombre: 'LAS GAMBUSINAS', eslogan: '* Comidas Típicas y Parrilla *', ruc: '20123456789', direccion: 'Calle Principal 123, Lima', telefono: '01-1234567' },
+      encabezado: { tipoComprobante: 'BOLETA DE VENTA ELECTRONICA', serie: 'B001', correlativo: '00476803' },
+      bloques: { mostrarEncabezado: true, mostrarDatosPedido: true, mostrarDetalleProductos: true, mostrarTotales: true, mostrarDatosCliente: true, mostrarAgradecimiento: true },
+      campos: { mostrarIGV: true, mostrarRC: true, mostrarICBPER: true, mostrarPropina: false, mostrarBloquePromo: true, mostrarQR: true },
+      promo: { titulo: 'CALIFICA Y GANA', mensaje: 'Escanéa el código QR y participa por grandes premios', qrTamano: 70 },
+      visibilidad: { nombre: true, eslogan: true, ruc: true, direccion: true, telefono: true, pedido: true, fechaEmision: true, tipo: true, local: true, caja: true, mesero: true, mesa: true, observacion: true, cliente: true, dniCliente: true, totales: true },
+      espaciado: { lineHeight: 16, tamanoFuente: 11, espacioDivider: 6 },
+      mensajes: { agradecimiento: 'Gracias por ser parte de Nuestra Familia', urlConsulta: 'https://www.lasgambusinas.com/consulta' },
+      etiquetas: { pedido: 'Pedido', fecha: 'Fecha', mesero: 'Mesero', mesa: 'Mesa', total: 'TOTAL', cliente: 'Cliente' }
+    },
+    
+    datosEjemplo: {
+      pedido: '2600024364', fechaEmision: '26/03/2026 12:31:00', tipo: 'Para llevar',
+      local: 'LOCAL PRINCIPAL', caja: '015 - MOZO1', mesero: 'Juan Pérez', moneda: 'Soles', mesa: '05', observacion: 'Cliente frecuente',
+      productos: [{ nombre: '1/4 pollo sem y', cantidad: 1, precio: 19.90, subtotal: 19.90 }],
+      subtotal: 16.31, totalDescuento: 0.00, igv: 2.94, rc: 0.65, icbper: 0.00, total: 19.90,
+      totalLetras: 'DIECINUEVE Y 90/100 Soles',
+      metodoPago: 'Efectivo S/. 10.00', vuelto: 8.00,
+      cliente: { nombre: 'CLIENTE GENERAL', dni: '00000000', direccion: '-' }
+    },
+    
+    filterCodigo: '', filterNumero: '', filterMozo: '', filterFechaDesde: '', filterFechaHasta: '',
     mozosList: [],
     
     async init() {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
-      if (!token) {
-        window.location.href = '/login.html';
-        return;
-      }
+      if (!token) { window.location.href = '/login.html'; return; }
       await this.loadBouchers();
+      await this.cargarPlatos();
+      this.cargarPlantillaLocal();
+      this.plantillaOriginal = JSON.parse(JSON.stringify(this.plantilla));
+    },
+    
+    async cargarPlatos() {
+      this.platosDisponibles = [
+        { _id: '1', nombre: 'Lomo Saltado', precio: 28.00 },
+        { _id: '2', nombre: 'Ceviche Clásico', precio: 25.00 },
+        { _id: '3', nombre: 'Ají de Gallina', precio: 22.00 },
+        { _id: '4', nombre: 'Arroz con Pollo', precio: 20.00 },
+        { _id: '5', nombre: 'Causa Limeña', precio: 15.00 },
+        { _id: '6', nombre: 'Papa a la Huancaína', precio: 12.00 }
+      ];
+      try {
+        const data = await apiGet('/platos');
+        if (data && Array.isArray(data)) this.platosDisponibles = data;
+        else if (data && data.platos) this.platosDisponibles = data.platos;
+      } catch(e) {}
+    },
+    
+    agregarProducto() {
+      if (!this.nuevoProductoId) return;
+      const plato = this.platosDisponibles.find(p => (p._id || p.id) === this.nuevoProductoId);
+      if (plato) {
+        this.datosEjemplo.productos.push({
+          nombre: plato.nombre,
+          cantidad: 1,
+          precio: plato.precio,
+          subtotal: plato.precio
+        });
+        this.recalcularTotales();
+        this.nuevoProductoId = '';
+      }
+    },
+
+    eliminarProducto(idx) {
+      this.datosEjemplo.productos.splice(idx, 1);
+      this.recalcularTotales();
+    },
+    
+    recalcularTotales() {
+      const subtotal = this.datosEjemplo.productos.reduce((sum, p) => sum + p.subtotal, 0);
+      this.datosEjemplo.subtotal = subtotal;
+      this.datosEjemplo.igv = subtotal * 0.18;
+      this.datosEjemplo.rc = subtotal * 0.04;
+      this.datosEjemplo.total = subtotal + this.datosEjemplo.igv + this.datosEjemplo.rc;
+      this.datosEjemplo.totalLetras = this.numeroALetras(this.datosEjemplo.total);
+    },
+
+    numeroALetras(num) {
+      const unidades = ['','UNO','DOS','TRES','CUATRO','CINCO','SEIS','SIETE','OCHO','NUEVE'];
+      const especiales = ['DIEZ','ONCE','DOCE','TRECE','CATORCE','QUINCE','DIECISEIS','DIECISIETE','DIECIOCHO','DIECINUEVE'];
+      const decenas = ['','','VEINTE','TREINTA','CUARENTA','CINCUENTA','SESENTA','SETENTA','OCHENTA','NOVENTA'];
+      const centenas = ['','CIENTO','DOSCIENTOS','TRESCIENTOS','CUATROCIENTOS','QUINIENTOS','SEISCIENTOS','SETECIENTOS','OCHOCIENTOS','NOVECIENTOS'];
+
+      if (num === 0) return 'CERO';
+
+      const entero = Math.floor(num);
+      const decimal = Math.round((num - entero) * 100);
+
+      const convertir = n => {
+        if (n < 10) return unidades[n];
+        if (n < 20) return especiales[n - 10];
+        if (n < 100) {
+          const d = Math.floor(n / 10);
+          const u = n % 10;
+          if (d === 2 && u > 0) return 'VEINTI' + unidades[u].toLowerCase();
+          return decenas[d] + (u > 0 ? ' Y ' + unidades[u] : '');
+        }
+        if (n < 1000) {
+          const c = Math.floor(n / 100);
+          const r = n % 100;
+          if (n === 100) return 'CIEN';
+          return centenas[c] + (r > 0 ? ' ' + convertir(r) : '');
+        }
+        if (n < 1000000) {
+          const m = Math.floor(n / 1000);
+          const r = n % 1000;
+          const miles = m === 1 ? 'MIL' : convertir(m) + ' MIL';
+          return miles + (r > 0 ? ' ' + convertir(r) : '');
+        }
+        return n.toString();
+      };
+
+      let resultado = convertir(entero) + (entero === 1 ? ' Y ' : ' Y ');
+      resultado += decimal.toString().padStart(2, '0') + '/100 Soles';
+      return resultado;
+    },
+    
+    cargarLogo(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      if (file.size > 500000) { showNotification('El logo debe ser menor a 500KB', 'error'); return; }
+      const reader = new FileReader();
+      reader.onload = (e) => { this.plantilla.logo = e.target.result; this.plantillaModificada = true; };
+      reader.readAsDataURL(file);
+    },
+    
+    cambiarTab(tab) { this.activeTab = tab; },
+    
+    cargarPlantillaLocal() {
+      const saved = localStorage.getItem('voucherPlantilla');
+      if (saved) { try { const data = JSON.parse(saved); this.plantilla = { ...this.plantilla, ...data }; } catch(e) {} }
+    },
+    
+    async guardarPlantilla() {
+      localStorage.setItem('voucherPlantilla', JSON.stringify(this.plantilla));
+      this.plantillaModificada = false;
+      this.plantillaOriginal = JSON.parse(JSON.stringify(this.plantilla));
+      showNotification('Plantilla guardada localmente', 'success');
+    },
+    
+    censurar(valor, visible) {
+      if (visible) return valor;
+      return 'X'.repeat(Math.min(String(valor).length, 10));
+    },
+    
+    restablecerPlantilla() {
+      this.plantilla = {
+        logo: '',
+        restaurante: { nombre: 'LAS GAMBUSINAS', eslogan: '* Comidas Típicas y Parrilla *', ruc: '20123456789', direccion: 'Calle Principal 123, Lima', telefono: '01-1234567' },
+        encabezado: { tipoComprobante: 'BOLETA DE VENTA ELECTRONICA', serie: 'B001', correlativo: '00476803' },
+        bloques: { mostrarEncabezado: true, mostrarDatosPedido: true, mostrarDetalleProductos: true, mostrarTotales: true, mostrarDatosCliente: true, mostrarAgradecimiento: true },
+        campos: { mostrarIGV: true, mostrarRC: true, mostrarICBPER: true, mostrarPropina: false, mostrarBloquePromo: true, mostrarQR: true },
+        promo: { titulo: 'CALIFICA Y GANA', mensaje: 'Escanéa el código QR y participa por grandes premios', qrTamano: 70 },
+        visibilidad: { nombre: true, eslogan: true, ruc: true, direccion: true, telefono: true, pedido: true, fechaEmision: true, tipo: true, local: true, caja: true, mesero: true, mesa: true, observacion: true, cliente: true, dniCliente: true, totales: true },
+        espaciado: { lineHeight: 16, tamanoFuente: 11, espacioDivider: 6 },
+        mensajes: { agradecimiento: 'Gracias por ser parte de Nuestra Familia', urlConsulta: 'https://www.lasgambusinas.com/consulta' },
+        etiquetas: { pedido: 'Pedido', fecha: 'Fecha', mesero: 'Mesero', mesa: 'Mesa', total: 'TOTAL', cliente: 'Cliente' }
+      };
+      this.datosEjemplo.productos = [{ nombre: '1/4 pollo sem y', cantidad: 1, precio: 19.90, subtotal: 19.90 }];
+      this.recalcularTotales();
+      this.plantillaModificada = true;
+      showNotification('Plantilla restablecida', 'info');
+    },
+    
+    generarPreviewVoucher() {
+      const p = this.plantilla;
+      const d = this.datosEjemplo;
+      const v = p.visibilidad;
+      const e = p.espaciado;
+      const b = p.bloques;
+      const et = p.etiquetas;
+      let html = '';
+
+      // BLOQUE ENCABEZADO
+      if (b.mostrarEncabezado) {
+        html += `<div class="text-center">`;
+        if (p.logo) {
+          html += `<img src="${p.logo}" class="logo-img" alt="Logo">`;
+        }
+        html += `<div style="font-size:14px; font-weight:700;">${this.censurar(p.restaurante.nombre, v.nombre)}</div>`;
+        html += `<div style="font-size:10px; font-style:italic;">${this.censurar(p.restaurante.eslogan, v.eslogan)}</div>`;
+        html += `<div>R.U.C.: ${this.censurar(p.restaurante.ruc, v.ruc)}</div>`;
+        html += `<div style="font-size:10px;">${this.censurar(p.restaurante.direccion, v.direccion)}</div>`;
+        html += `<div style="font-size:10px;">Tel: ${this.censurar(p.restaurante.telefono, v.telefono)}</div>`;
+        html += `</div>`;
+
+        html += `<div class="divider" style="margin:${e.espacioDivider}px 0;"></div>`;
+        html += `<div class="text-center" style="font-weight:700;">${p.encabezado.tipoComprobante}</div>`;
+        html += `<div class="text-center">${p.encabezado.serie}-${p.encabezado.correlativo}</div>`;
+        html += `<div class="divider" style="margin:${e.espacioDivider}px 0;"></div>`;
+      }
+
+      // BLOQUE DATOS PEDIDO
+      if (b.mostrarDatosPedido) {
+        const lbl = '14ch';
+        html += `<div><span style="display:inline-block;width:${lbl};">${et.pedido}:</span>${this.censurar(d.pedido, v.pedido)}</div>`;
+        html += `<div><span style="display:inline-block;width:${lbl};">${et.fecha}:</span>${this.censurar(d.fechaEmision, v.fechaEmision)}</div>`;
+        html += `<div><span style="display:inline-block;width:${lbl};">Tipo:</span>${this.censurar(d.tipo, v.tipo)}</div>`;
+        html += `<div><span style="display:inline-block;width:${lbl};">Local:</span>${this.censurar(d.local, v.local)}</div>`;
+        html += `<div><span style="display:inline-block;width:${lbl};">Caja:</span>${this.censurar(d.caja, v.caja)}</div>`;
+        html += `<div><span style="display:inline-block;width:${lbl};">${et.mesero}:</span>${this.censurar(d.mesero, v.mesero)}</div>`;
+        html += `<div><span style="display:inline-block;width:${lbl};">${et.mesa}:</span>${this.censurar(d.mesa, v.mesa)}</div>`;
+        html += `<div><span style="display:inline-block;width:${lbl};">Obs:</span>${this.censurar(d.observacion, v.observacion)}</div>`;
+        html += `<div class="divider" style="margin:${e.espacioDivider}px 0;"></div>`;
+      }
+
+      // BLOQUE DETALLE PRODUCTOS
+      if (b.mostrarDetalleProductos) {
+        html += `<div style="display:flex; justify-content:space-between; font-weight:700; font-size:10px; border-bottom:1px solid #333; padding-bottom:2px;">`;
+        html += `<span>Producto</span><span>Cant.</span><span style="width:45px;text-align:right;">P.Unit</span><span style="width:45px;text-align:right;">Total</span></div>`;
+
+        d.productos.forEach(prod => {
+          html += `<div style="display:flex; justify-content:space-between; font-size:10px; padding:1px 0;">`;
+          html += `<span style="flex:1;">${prod.nombre}</span>`;
+          html += `<span style="width:30px;text-align:center;">${prod.cantidad}</span>`;
+          html += `<span style="width:45px;text-align:right;">${prod.precio.toFixed(2)}</span>`;
+          html += `<span style="width:45px;text-align:right;">${prod.subtotal.toFixed(2)}</span></div>`;
+        });
+
+        html += `<div class="divider" style="margin:${e.espacioDivider}px 0;"></div>`;
+      }
+
+      // BLOQUE TOTALES
+      if (b.mostrarTotales && v.totales) {
+        html += `<div style="text-align:right;">`;
+        html += `<div>Subtotal: S/. ${d.subtotal.toFixed(2)}</div>`;
+        if (p.campos.mostrarIGV) html += `<div>IGV 18%: S/. ${d.igv.toFixed(2)}</div>`;
+        if (p.campos.mostrarRC) html += `<div>RC 4%: S/. ${d.rc.toFixed(2)}</div>`;
+        if (p.campos.mostrarICBPER && d.icbper > 0) html += `<div>ICBPER: S/. ${d.icbper.toFixed(2)}</div>`;
+        if (p.campos.mostrarPropina) html += `<div>Propina: S/. ${d.propina.toFixed(2)}</div>`;
+        html += `<div style="font-weight:700;">${et.total}: S/. ${d.total.toFixed(2)}</div></div>`;
+        html += `<div style="font-style:italic;">Son: ${d.totalLetras}</div>`;
+      } else if (b.mostrarTotales) {
+        html += `<div style="text-align:right;"><div style="font-weight:700;">${et.total}: S/. XXXXXXXX</div></div>`;
+        html += `<div style="font-style:italic;">Son: XXXXXXXXXXXXXXXX</div>`;
+      }
+
+      html += `<div style="margin-top:6px;">Pago: ${d.metodoPago}</div>`;
+
+      // BLOQUE DATOS CLIENTE
+      if (b.mostrarDatosCliente) {
+        html += `<div class="divider" style="margin:${e.espacioDivider}px 0;"></div>`;
+        html += `<div>${et.cliente}: ${this.censurar(d.cliente.nombre, v.cliente)}</div>`;
+        html += `<div>DNI: ${this.censurar(d.cliente.dni, v.dniCliente)}</div>`;
+      }
+
+      // BLOQUE AGRADECIMIENTO
+      if (b.mostrarAgradecimiento) {
+        html += `<div class="divider" style="margin:${e.espacioDivider}px 0;"></div>`;
+        html += `<div class="text-center">${p.mensajes.agradecimiento}</div>`;
+        html += `<div style="font-size:9px; text-align:center; margin-top:4px;">Consulte en: ${p.mensajes.urlConsulta}</div>`;
+      }
+
+      // BLOQUE PROMOCIÓN
+      if (p.campos.mostrarBloquePromo) {
+        html += `<div class="divider" style="margin:${e.espacioDivider}px 0;"></div>`;
+        html += `<div class="text-center" style="font-weight:700; margin-top:6px;">${p.promo.titulo}</div>`;
+        if (p.promo.mensaje) {
+          html += `<div style="font-size:9px; text-align:center; margin-top:2px;">${p.promo.mensaje}</div>`;
+        }
+        if (p.campos.mostrarQR) {
+          const qrSize = Math.max(40, Math.min(120, p.promo.qrTamano || 70));
+          html += `<div class="qr-placeholder" style="width:${qrSize}px;height:${qrSize}px;">[QR]</div>`;
+        }
+      }
+
+      return html;
+    },
+    
+    imprimirPreview() {
+      const p = this.plantilla;
+      const e = p.espaciado;
+      const b = p.bloques;
+      const promo = p.promo;
+
+      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Voucher</title>
+<style>*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Courier New',monospace;font-size:${e.tamanoFuente}px;padding:10px;max-width:320px;margin:0 auto;}
+.divider{border-top:1px dashed #333;margin:${e.espacioDivider}px 0;}
+.text-center{text-align:center;}
+.qr-placeholder{width:${promo.qrTamano || 70}px;height:${promo.qrTamano || 70}px;background:#e5e5e5;display:flex;align-items:center;justify-content:center;font-size:9px;color:#666;margin:6px auto;border:1px dashed #999;}
+.logo-img{max-width:200px;max-height:60px;margin:0 auto 4px;display:block;}
+</style></head><body><div style="font-family:'Courier New',monospace;font-size:${e.tamanoFuente}px;line-height:${e.lineHeight}px;">${this.generarPreviewVoucher()}</div>
+<script>window.onload=function(){window.print();}<\/script></body></html>`;
+
+      const w = window.open('', '_blank', 'width=340,height=700');
+      if (w) { w.document.write(html); w.document.close(); }
     },
     
     async loadBouchers() {
       this.loading = true;
-      // Endpoint real es /boucher (singular)
-      let data = await apiGet('/boucher');
-      if (!data) data = await apiGet('/bouchers');
-      
-      let raw = [];
-      if (data && Array.isArray(data)) raw = data;
-      else if (data && data.bouchers) raw = data.bouchers;
-      else if (data && data.data) raw = data.data;
-      
-      // Normalizar campos
-      this.bouchers = raw.map(b => {
-        // FIX: Limpiar totalConDescuento=0 heredado del default viejo en bouchers sin descuento real
-        const tieneDescuentoReal = (b.montoDescuento > 0) || (b.descuentos && b.descuentos.length > 0);
-        return {
-          ...b,
-          numero: b.boucherNumber || b.numero || b.numBoucher,
-          mesa: b.mesa || { numMesa: b.numMesa },
-          mozo: b.mozo || { nombre: b.nombreMozo },
-          fecha: b.fechaPago ? new Date(b.fechaPago).toLocaleString('es-PE') : b.fecha,
-          // Si no tiene descuento real, ignorar totalConDescuento (puede ser 0 por default viejo)
-          totalConDescuento: tieneDescuentoReal ? b.totalConDescuento : null,
-        };
-      });
-      
-      // Extraer mozos unicos
+      let data = await apiGet('/boucher') || await apiGet('/bouchers');
+      let raw = Array.isArray(data) ? data : (data?.bouchers || data?.data || []);
+      this.bouchers = raw.map(b => ({ ...b, numero: b.boucherNumber || b.numero || b.numBoucher, mesa: b.mesa || { numMesa: b.numMesa }, mozo: b.mozo || { nombre: b.nombreMozo }, fecha: b.fechaPago ? new Date(b.fechaPago).toLocaleString('es-PE') : b.fecha }));
       this.extraerMozosUnicos();
-      
       this.filterBouchers();
       this.loading = false;
     },
     
     extraerMozosUnicos() {
-      const mozosSet = new Set();
-      this.bouchers.forEach(b => {
-        const nombreMozo = b.mozo?.name || b.mozo?.nombre || b.nombreMozo;
-        if (nombreMozo && nombreMozo !== '—') {
-          mozosSet.add(nombreMozo);
-        }
-      });
-      this.mozosList = Array.from(mozosSet).sort();
+      const s = new Set();
+      this.bouchers.forEach(b => { const n = b.mozo?.name || b.mozo?.nombre || b.nombreMozo; if (n && n !== '—') s.add(n); });
+      this.mozosList = Array.from(s).sort();
     },
     
     filterBouchers() {
       this.filteredBouchers = this.bouchers.filter(b => {
-        // Filtro por codigo
         const codigo = b.codigo || b._id?.slice(-12) || '';
-        const matchCodigo = !this.filterCodigo || String(codigo).toLowerCase().includes(this.filterCodigo.toLowerCase());
-        
-        // Filtro por numero de voucher
-        const numero = b.numero || b.boucherNumber || b.numBoucher || '';
-        const matchNumero = !this.filterNumero || String(numero).toLowerCase().includes(this.filterNumero.toLowerCase());
-        
-        // Filtro por mozo
+        const matchCodigo = !this.filterCodigo || codigo.toLowerCase().includes(this.filterCodigo.toLowerCase());
+        const numero = b.numero || '';
+        const matchNumero = !this.filterNumero || numero.toLowerCase().includes(this.filterNumero.toLowerCase());
         const nombreMozo = b.mozo?.name || b.mozo?.nombre || b.nombreMozo || '';
         const matchMozo = !this.filterMozo || nombreMozo === this.filterMozo;
-        
-        // Filtro por fecha desde
-        let matchFechaDesde = true;
-        const fechaBase = b.fechaPago || b.createdAt;
-        if (this.filterFechaDesde && fechaBase) {
-          const fechaBoucher = new Date(fechaBase).toISOString().split('T')[0];
-          matchFechaDesde = fechaBoucher >= this.filterFechaDesde;
-        }
-        
-        // Filtro por fecha hasta
-        let matchFechaHasta = true;
-        if (this.filterFechaHasta && fechaBase) {
-          const fechaBoucher = new Date(fechaBase).toISOString().split('T')[0];
-          matchFechaHasta = fechaBoucher <= this.filterFechaHasta;
-        }
-        
-        return matchCodigo && matchNumero && matchMozo && matchFechaDesde && matchFechaHasta;
+        const fb = b.fechaPago || b.createdAt;
+        let mfd = true, mfh = true;
+        if (this.filterFechaDesde && fb) mfd = new Date(fb).toISOString().split('T')[0] >= this.filterFechaDesde;
+        if (this.filterFechaHasta && fb) mfh = new Date(fb).toISOString().split('T')[0] <= this.filterFechaHasta;
+        return matchCodigo && matchNumero && matchMozo && mfd && mfh;
       });
     },
     
-    limpiarFiltros() {
-      this.filterCodigo = '';
-      this.filterNumero = '';
-      this.filterMozo = '';
-      this.filterFechaDesde = '';
-      this.filterFechaHasta = '';
-      this.filterBouchers();
-    },
-    
-    openDetailModal(b) {
-      this.selectedBoucher = b;
-      this.modal = true;
-    },
+    limpiarFiltros() { this.filterCodigo = ''; this.filterNumero = ''; this.filterMozo = ''; this.filterFechaDesde = ''; this.filterFechaHasta = ''; this.filterBouchers(); },
+    openDetailModal(b) { this.selectedBoucher = b; this.modal = true; },
     
     imprimirVoucher(v) {
       if (!v) return;
-      
-      const voucher = v || this.selectedBoucher;
-      const items = voucher?.platos || [];
-      const fecha = voucher?.fechaPago ? new Date(voucher.fechaPago) : new Date();
-      
-      // Calcular totales
-      const totalSinDescuento = Number(voucher?.totalSinDescuento || voucher?.total || 0);
-      const montoDescuento = Number(voucher?.montoDescuento || 0);
-      // FIX: Usar totalConDescuento solo si hay descuento real (montoDescuento > 0)
-      const tieneDescuentoReal = Number(voucher?.montoDescuento || 0) > 0;
-      const total = Number(tieneDescuentoReal && voucher?.totalConDescuento != null ? voucher.totalConDescuento : (voucher?.total || 0));
-      const subtotal = Number(voucher?.subtotal || 0);
-      const igv = Number(voucher?.igv || 0);
-      
-      // Información de descuentos
-      const descuentos = voucher?.descuentos || [];
-      const tieneDescuento = montoDescuento > 0 || descuentos.length > 0;
-      
-      const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Voucher #${voucher?.boucherNumber || voucher?.numero || '—'}</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Courier New', monospace; font-size: 12px; padding: 20px; max-width: 300px; margin: 0 auto; }
-    .header { text-align: center; border-bottom: 1px dashed #333; padding-bottom: 10px; margin-bottom: 10px; }
-    .header h1 { font-size: 16px; margin-bottom: 5px; }
-    .header p { font-size: 10px; color: #666; }
-    .info { margin-bottom: 10px; font-size: 11px; }
-    .info p { margin: 3px 0; }
-    table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-    th, td { text-align: left; padding: 4px 0; font-size: 11px; }
-    th { border-bottom: 1px solid #ddd; }
-    .right { text-align: right; }
-    .total-row { font-weight: bold; font-size: 14px; border-top: 1px dashed #333; margin-top: 10px; padding-top: 10px; }
-    .footer { text-align: center; margin-top: 20px; font-size: 10px; color: #666; border-top: 1px dashed #333; padding-top: 10px; }
-    .logo { font-size: 18px; font-weight: bold; color: #d4af37; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <p class="logo">🍽️ LAS GAMBUSINAS</p>
-    <p>Restaurante de Comidas Típicas</p>
-    <p>Jr. Principal 123, Lima</p>
-    <p>RUC: 20123456789</p>
-  </div>
-  
-  <div class="info">
-    <p><strong>BOLETA DE VENTA</strong></p>
-    <p>Voucher #: ${voucher?.boucherNumber || voucher?.numero || '—'}</p>
-    <p>Fecha: ${fecha.toLocaleDateString('es-PE')}</p>
-    <p>Hora: ${fecha.toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'})}</p>
-    <p>Mesa: ${voucher?.mesa?.nombreCombinado || voucher?.mesa?.nummesa || voucher?.mesa?.numMesa || voucher?.numMesa || voucher?.mesa || '—'}</p>
-    <p>Mozo: ${voucher?.mozo?.name || voucher?.mozo?.nombre || voucher?.nombreMozo || '—'}</p>
-  </div>
-  
-  <table>
-    <thead>
-      <tr>
-        <th>Descripción</th>
-        <th class="right">Cant.</th>
-        <th class="right">P.Unit</th>
-        <th class="right">Subtot</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${items.map(item => `
-        <tr>
-          <td>${item.nombre || item.plato?.nombre || '—'}</td>
-          <td class="right">${item.cantidad || 1}</td>
-          <td class="right">${Number(item.precio || 0).toFixed(2)}</td>
-          <td class="right">${Number(item.subtotal || (item.cantidad || 1) * (item.precio || 0)).toFixed(2)}</td>
-        </tr>
-        ${item.complementosSeleccionados?.length ? item.complementosSeleccionados.map(c => `
-          <tr style="font-size:9px;color:#888;">
-            <td>  ↳ ${c.grupo}: ${c.opcion}</td>
-            <td></td><td></td><td></td>
-          </tr>
-        `).join('') : ''}
-        ${item.cocinero || item.cocineroId?.name || item.cocineroId?.nombre ? `
-          <tr style="font-size:9px;color:#2ecc71;">
-            <td>  Prep: ${item.cocinero || item.cocineroId?.name || item.cocineroId?.nombre}${item.tiempoPreparacion ? ' (' + item.tiempoPreparacion + ')' : ''}</td>
-            <td></td><td></td><td></td>
-          </tr>
-        ` : ''}
-      `).join('')}
-    </tbody>
-  </table>
-  
-  <div class="total-row">
-    <table>
-      <tr><td>Subtotal:</td><td class="right">S/. ${subtotal.toFixed(2)}</td></tr>
-      <tr><td>IGV (18%):</td><td class="right">S/. ${igv.toFixed(2)}</td></tr>
-      ${voucher?.propina ? `<tr><td>Propina:</td><td class="right">S/. ${Number(voucher.propina).toFixed(2)}</td></tr>` : ''}
-      ${tieneDescuento ? `
-        <tr style="color:#d4af37;"><td colspan="2" style="padding-top:5px;border-top:1px dashed #ddd;">─ Descuento aplicado ─</td></tr>
-        ${descuentos.map(d => `
-          <tr style="color:#d4af37;font-size:10px;">
-            <td>Desc. ${d.porcentaje}%${d.motivo ? ` (${d.motivo.substring(0,20)}${d.motivo.length > 20 ? '...' : ''})` : ''}:</td>
-            <td class="right">- S/. ${Number(d.monto || montoDescuento).toFixed(2)}</td>
-          </tr>
-        `).join('')}
-        <tr style="color:#d4af37;"><td>Ahorro total:</td><td class="right">- S/. ${montoDescuento.toFixed(2)}</td></tr>
-      ` : ''}
-      <tr style="font-size:16px;border-top:2px solid #333;padding-top:5px;"><td><strong>TOTAL${tieneDescuento ? ' FINAL' : ''}:</strong></td><td class="right"><strong>S/. ${total.toFixed(2)}</strong></td></tr>
-    </table>
-  </div>
-  
-  <div class="info" style="margin-top:10px;">
-    <p>Método de pago: ${voucher?.metodoPago || voucher?.metodo || '—'}</p>
-    <p>Serie: ${voucher?.voucherId || voucher?._id?.slice(-12) || '—'}</p>
-  </div>
-  
-  <div class="footer">
-    <p>¡Gracias por su visita!</p>
-    <p>Las Gambusinas © ${new Date().getFullYear()}</p>
-    <p style="margin-top:5px;font-size:9px;">Documento no válido como factura</p>
-  </div>
-  
-  <script>window.onload = function() { window.print(); }<\/script>
-</body>
-</html>`;
-      
-      const printWindow = window.open('', '_blank', 'width=320,height=600');
-      if (printWindow) {
-        printWindow.document.write(html);
-        printWindow.document.close();
+      const p = this.plantilla;
+      const e = p.espaciado;
+      const b = p.bloques;
+      const items = v?.platos || [];
+      const fecha = v?.fechaPago ? new Date(v.fechaPago) : new Date();
+      const total = Number(v?.total || 0);
+      const subtotal = Number(v?.subtotal || 0);
+      const igv = Number(v?.igv || 0);
+
+      let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Voucher</title>
+<style>*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Courier New',monospace;font-size:${e.tamanoFuente}px;padding:10px;max-width:320px;margin:0 auto;}
+.divider{border-top:1px dashed #333;margin:${e.espacioDivider}px 0;}
+.text-center{text-align:center;}
+.qr-placeholder{width:${p.promo.qrTamano || 70}px;height:${p.promo.qrTamano || 70}px;background:#e5e5e5;display:flex;align-items:center;justify-content:center;font-size:9px;color:#666;margin:6px auto;border:1px dashed #999;}
+.logo-img{max-width:200px;max-height:60px;margin:0 auto 4px;display:block;}
+</style></head><body>`;
+
+      // Encabezado
+      if (b.mostrarEncabezado) {
+        html += `<div class="text-center">`;
+        if (p.logo) html += `<img src="${p.logo}" class="logo-img" alt="Logo">`;
+        html += `<div style="font-size:14px;font-weight:700;">${p.restaurante.nombre}</div>`;
+        html += `<div style="font-size:10px;font-style:italic;">${p.restaurante.eslogan}</div>`;
+        html += `<div>R.U.C.: ${p.restaurante.ruc}</div>`;
+        html += `<div style="font-size:10px;">${p.restaurante.direccion}</div>`;
+        html += `<div style="font-size:10px;">Tel: ${p.restaurante.telefono}</div>`;
+        html += `</div><div class="divider"></div>`;
+        html += `<div class="text-center" style="font-weight:700;">${p.encabezado.tipoComprobante}</div>`;
+        html += `<div class="text-center">${p.encabezado.serie}-${String(v?.boucherNumber || '000000').padStart(6, '0')}</div><div class="divider"></div>`;
       }
+
+      // Datos pedido
+      if (b.mostrarDatosPedido) {
+        html += `<div>Fecha: ${fecha.toLocaleDateString('es-PE')} ${fecha.toLocaleTimeString('es-PE')}</div>`;
+        html += `<div>Mozo: ${v?.mozo?.name || v?.nombreMozo || '—'}</div>`;
+        html += `<div>Mesa: ${v?.mesa?.nummesa || v?.numMesa || '—'}</div><div class="divider"></div>`;
+      }
+
+      // Detalle productos
+      if (b.mostrarDetalleProductos && items.length > 0) {
+        html += `<table style="width:100%;font-size:10px;"><tbody>`;
+        items.forEach(i => {
+          html += `<tr><td>${i.nombre || i.plato?.nombre || '—'}</td>`;
+          html += `<td style="text-align:center;width:30px;">${i.cantidad || 1}</td>`;
+          html += `<td style="text-align:right;width:50px;">${Number(i.precio||0).toFixed(2)}</td>`;
+          html += `<td style="text-align:right;width:50px;">${Number(i.subtotal||0).toFixed(2)}</td></tr>`;
+        });
+        html += `</tbody></table><div class="divider"></div>`;
+      }
+
+      // Totales
+      if (b.mostrarTotales) {
+        html += `<div style="text-align:right;">`;
+        html += `<div>Subtotal: S/. ${subtotal.toFixed(2)}</div>`;
+        if (p.campos.mostrarIGV) html += `<div>IGV 18%: S/. ${igv.toFixed(2)}</div>`;
+        html += `<div style="font-weight:700;">${p.etiquetas.total}: S/. ${total.toFixed(2)}</div></div><div class="divider"></div>`;
+      }
+
+      // Agradecimiento
+      if (b.mostrarAgradecimiento) {
+        html += `<div class="text-center">${p.mensajes.agradecimiento}</div>`;
+      }
+
+      // Bloque promoción
+      if (p.campos.mostrarBloquePromo) {
+        html += `<div class="divider"></div>`;
+        html += `<div class="text-center" style="font-weight:700;margin-top:6px;">${p.promo.titulo}</div>`;
+        if (p.promo.mensaje) html += `<div style="font-size:9px;text-align:center;margin-top:2px;">${p.promo.mensaje}</div>`;
+        if (p.campos.mostrarQR) html += `<div class="qr-placeholder">[QR]</div>`;
+      }
+
+      html += `</body></html>`;
+
+      const w = window.open('', '_blank', 'width=340,height=700');
+      if (w) { w.document.write(html); w.document.close(); }
     },
     
-    async anularVoucher() {
-      if (!this.selectedBoucher) return;
-      if (!confirm('¿Está seguro de anular este voucher? Esta acción quedará registrada en auditoría.')) return;
-      
-      // Aquí iría la llamada a la API para anular
-      // const res = await apiDelete('/boucher/' + this.selectedBoucher._id);
-      alert('Función de anulación en desarrollo. Voucher: ' + (this.selectedBoucher?.boucherNumber || this.selectedBoucher?._id));
-    },
-    
- getResumenCocinerosBoucher(boucher) {
- if (!boucher || !boucher.platos || boucher.platos.length === 0) {
- return { cocineros: [], tiempoPromedio: '—' };
- }
- 
- const cocinerosSet = new Set();
- const tiempos = [];
- 
- boucher.platos.forEach(item => {
- // Recopilar cocineros - considerar tanto cocinero directo como cocineroId poblado
- const nombreCocinero = item.cocinero || item.cocineroId?.name || item.cocineroId?.nombre || null;
- if (nombreCocinero && nombreCocinero !== '—') {
- cocinerosSet.add(nombreCocinero);
- }
- 
- // Recopilar tiempos
- if (item.tiempoPreparacion) {
- const partes = item.tiempoPreparacion.split(':');
- if (partes.length === 2) {
- const minutos = parseInt(partes[0], 10);
- const segundos = parseInt(partes[1], 10);
- tiempos.push(minutos * 60 + segundos);
- }
- }
- });
- 
- // Calcular tiempo promedio
- let tiempoPromedio = '—';
- if (tiempos.length > 0) {
- const promedioSeg = tiempos.reduce((a, b) => a + b, 0) / tiempos.length;
- const min = Math.floor(promedioSeg / 60);
- const seg = Math.floor(promedioSeg % 60);
- tiempoPromedio = `${min.toString().padStart(2, '0')}:${seg.toString().padStart(2, '0')}`;
- }
- 
- return {
- cocineros: Array.from(cocinerosSet),
- tiempoPromedio
- };
- },
- 
- logout() {
- localStorage.removeItem('adminToken');
- window.location.href = '/login';
- }
- };
+    logout() { localStorage.removeItem('adminToken'); window.location.href = '/login'; }
+  };
 }
 </script>
-<!-- Page Transitions JS -->
 <script src="/assets/js/page-transitions.js"></script>
-<!-- Cosmos Search Bar - Command Palette -->
 <script src="/assets/js/cosmos-search.js"></script>
 </body>
 </html>
