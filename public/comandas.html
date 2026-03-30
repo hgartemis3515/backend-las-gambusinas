@@ -504,12 +504,12 @@ tailwind.config = {
  <td class="px-3 py-3">
  <template x-if="item.complementosSeleccionados && item.complementosSeleccionados.length > 0">
  <div class="flex flex-wrap gap-1">
- <template x-for="comp in item.complementosSeleccionados" :key="comp.grupo">
- <span class="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" x-text="comp.grupo + ': ' + comp.opcion"></span>
- </template>
- </div>
- </template>
- <template x-if="!item.complementosSeleccionados || item.complementosSeleccionados.length === 0">
+ <template x-for="comp in item.complementosSeleccionados" :key="comp.grupo + comp.opcion">
+<span class="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" x-text="comp.grupo + ': ' + comp.opcion + ' x' + (comp.cantidad || 1)"></span>
+								</template>
+							</div>
+						</template>
+						<template x-if="!item.complementosSeleccionados || item.complementosSeleccionados.length === 0">
  <span class="text-[10px] text-[#5a5a7a]">—</span>
  </template>
  </td>
@@ -906,12 +906,12 @@ tailwind.config = {
  <td class="px-3 py-3">
  <template x-if="plato.complementosSeleccionados && plato.complementosSeleccionados.length > 0">
  <div class="flex flex-wrap gap-1">
- <template x-for="comp in plato.complementosSeleccionados" :key="comp.grupo">
- <span class="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" x-text="comp.grupo + ': ' + comp.opcion"></span>
- </template>
- </div>
- </template>
- <template x-if="!plato.complementosSeleccionados || plato.complementosSeleccionados.length === 0">
+ <template x-for="comp in plato.complementosSeleccionados" :key="comp.grupo + comp.opcion">
+<span class="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" x-text="comp.grupo + ': ' + comp.opcion + ' x' + (comp.cantidad || 1)"></span>
+								</template>
+							</div>
+						</template>
+						<template x-if="!plato.complementosSeleccionados || plato.complementosSeleccionados.length === 0">
  <span class="text-[10px] text-[#5a5a7a]">—</span>
  </template>
  </td>
