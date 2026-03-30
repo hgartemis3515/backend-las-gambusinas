@@ -55,9 +55,11 @@ const comandaSchema = new mongoose.Schema({
             pagado: Date
         },
         // Complementos seleccionados por el mozo para este plato
+        // NUEVA ESTRUCTURA v2.0: Soporte para cantidades por opción
         complementosSeleccionados: [{
             grupo: { type: String },   // Ej: "Proteína"
-            opcion: { type: String }   // Ej: "Pollo"
+            opcion: { type: String },  // Ej: "Pollo"
+            cantidad: { type: Number, default: 1, min: 1 }  // Cantidad de esta opción (nuevo campo)
         }],
         // Nota especial para este plato (ej: "Sin sal, extra limón")
         notaEspecial: { type: String, default: '' },

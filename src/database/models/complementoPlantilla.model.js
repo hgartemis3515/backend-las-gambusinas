@@ -43,6 +43,22 @@ const complementoPlantillaSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    // ===== NUEVOS CAMPOS PARA CANTIDADES v2.0 =====
+    // Modo de selección: 'opciones' (solo marcar) o 'cantidades' (especificar cantidad)
+    modoSeleccion: { 
+        type: String, 
+        enum: ['opciones', 'cantidades'], 
+        default: 'opciones' 
+    },
+    // Máximo de unidades que se pueden elegir en total dentro del grupo
+    maxUnidadesGrupo: { type: Number, default: null },
+    // Mínimo de unidades que se deben elegir
+    minUnidadesGrupo: { type: Number, default: null },
+    // Máximo de unidades que puede tener una sola opción
+    maxUnidadesPorOpcion: { type: Number, default: null },
+    // Si se permite repetir la misma opción múltiples veces
+    permiteRepetirOpcion: { type: Boolean, default: true },
+    // ===== FIN NUEVOS CAMPOS =====
     categoria: {
         type: String,
         trim: true,

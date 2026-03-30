@@ -25,10 +25,30 @@ const platoSchema = new mongoose.Schema({
         default: true
     },
     // Complementos/variantes disponibles para este plato
+    // NUEVA ESTRUCTURA v2.0: Soporte para cantidades por opción
     complementos: [{
         grupo: { type: String, required: true },           // Ej: "Proteína", "Guarnición", "Término"
-        obligatorio: { type: Boolean, default: false },    // Si el mozo DEBE elegir una opción
-        seleccionMultiple: { type: Boolean, default: false }, // Si puede elegir varias opciones
+        obligatorio: { type: Boolean, default: false },    // Si el mozo DEBE elegir al menos una opción
+        seleccionMultiple: { type: Boolean, default: false }, // LEGACY: Si puede elegir varias opciones (equivale a maxUnidadesGrupo > 1)
+        // ===== NUEVOS CAMPOS PARA CANTIDADES =====
+        // Modo de selección: 'opciones' (solo marcar) o 'cantidades' (especificar cantidad)
+        modoSeleccion: { 
+            type: String, 
+            enum: ['opciones', 'cantidades'], 
+            default: 'opciones' 
+        },
+        // Máximo de unidades que se pueden elegir en total dentro del grupo
+        // Ej: Si es 2, el usuario puede elegir: Pollo x2, o Pollo x1 + Res x1
+        maxUnidadesGrupo: { type: Number, default: null },  // null = sin límite (o usar seleccionMultiple legacy)
+        // Mínimo de unidades que se deben elegir (para grupos obligatorios con cantidad exacta)
+        // Ej: Si es 2 y obligatorio=true, DEBE elegir exactamente 2 unidades en total
+        minUnidadesGrupo: { type: Number, default: null },  // null = 0 (opcional) o 1 si obligatorio
+        // Máximo de unidades que puede tener una sola opción
+        // Ej: Si es 2, el usuario puede elegir Pollo x2 como máximo, pero no Pollo x3
+        maxUnidadesPorOpcion: { type: Number, default: null }, // null = sin límite
+        // Si se permite repetir la misma opción múltiples veces
+        permiteRepetirOpcion: { type: Boolean, default: true },
+        // ===== FIN NUEVOS CAMPOS =====
         opciones: [{ type: String }]                       // Ej: ["Pollo", "Carne", "Mixto"]
     }]
 });

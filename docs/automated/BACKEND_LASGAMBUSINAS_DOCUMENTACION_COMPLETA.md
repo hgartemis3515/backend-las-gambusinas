@@ -44,6 +44,7 @@ Crear un ecosistema digital completo que permita:
 | Marzo 2026   | **Funcionalidad Juntar/Separar Mesas v2.8:** Nueva funcionalidad para combinar múltiples mesas en un grupo (usando la mesa de menor número como principal) y separarlas posteriormente. Modelo de datos actualizado con campos `esMesaPrincipal`, `mesaPrincipalId`, `mesasUnidas`, `fechaUnion`, `unidoPor`, `motivoUnion`, `nombreCombinado`. Nuevos endpoints `POST /api/mesas/juntar`, `POST /api/mesas/separar`, `GET /api/mesas/grupos`, `GET /api/mesas/:id/grupo`. Eventos Socket.io `mesas-juntadas` y `mesas-separadas`. Permiso `juntar-separar-mesas` para admin/supervisor. |
 | Marzo 2026   | **Sistema de Mozos v2.0 con Metas:** Ampliación completa del sistema de mozos con nueva sección de Metas. Tipos de metas soportadas: ventas, mesas atendidas, tickets generados, ticket promedio, propinas promedio. Estados de cumplimiento semaforizados: sin_iniciar, en_progreso, en_riesgo, encaminado, cumplido, superado. KPIs de gestión: metas activas, mozos cumpliendo, mozos en riesgo, cumplimiento promedio. Proyección inteligente con algoritmo de ritmo y brecha. Ranking de cumplimiento con medallas. Distribución del equipo con gráfico donut. Recomendaciones automáticas contextuales. Plantillas predefinidas para turnos mañana/noche. Modal de nueva meta y drawer de detalle. Documentación actualizada en `docs/Sistemademozos_md.md`. |
 | Marzo 2026   | **Documentación de platos.html:** Nueva sección completa documentando la página `public/platos.html`: descripción general, tecnologías (Tailwind, Alpine.js, Cosmos Search), estructura de interfaz, tabla de platos con badges semaforizados, sistema de filtros, panel lateral de resumen, modal de crear/editar con sistema de complementos, endpoints API consumidos, y relación detallada con las 3 aplicaciones (App Mozos, App Cocina, Dashboard Admin) incluyendo flujo de datos y eventos Socket.io. |
+| Marzo 2026   | **Biblioteca de Complementos en platos.html:** Nuevo sistema de gestión de complementos con plantillas reutilizables. Incluye: modal de gestión de biblioteca con tabs (Listado/Estadísticas), selector de complementos desde biblioteca al crear/editar platos, CRUD completo de plantillas de complementos (crear, editar, activar/desactivar, eliminar), filtros por categoría y estado, estadísticas de uso por complemento, prevención de eliminación de complementos en uso (sugiere desactivar), endpoints API `/api/complementos-plantilla` y derivados. |
 | Marzo 2026   | **Corrección de Finalización de Comanda v7.4.1:** Bug corregido donde al finalizar comanda completa no se actualizaba en tiempo real en App de Mozos. Ahora se emiten eventos `plato-actualizado` por cada plato (igual que finalizar plato individual), más `comanda-actualizada` y `comanda-finalizada`. Agregado listener `comanda-finalizada` en App de Mozos. |
 | Marzo 2026   | **Sistema de Finalización de Platos y Comandas v7.4:** Nueva sección completa documentando el flujo de finalización: diferencias entre finalizar plato individual vs comanda completa; endpoints `PUT /api/comanda/:id/plato/:platoId/finalizar` y `PUT /api/comanda/:id/finalizar`; eventos Socket.io emitidos (`plato-actualizado`, `comanda-finalizada`); impacto en App de Mozos (alertas, cambio de estado de mesa); funciones del repository y controller involucradas; identificación de funciones faltantes (`finalizarPlatosBatch()`, `reabrirPlato()`, `getTiemposPreparacion()`). |
 | Marzo 2026   | **Funcionalidad de Cocineros en Comandas v7.2.1:** Ampliación de la documentación del modelo Comanda con campos `procesandoPor` y `procesadoPor` a nivel de plato y comanda; endpoints de procesamiento (`PUT/DELETE /api/comanda/:id/plato/:platoId/procesando`, `PUT /api/comanda/:id/plato/:platoId/finalizar`); eventos Socket.io (`plato-procesando`, `plato-liberado`, `comanda-procesando`, `comanda-liberada`, `conflicto-procesamiento`); métricas de cocineros en cierre de caja; auditoría de platos dejados (`PLATO_DEJADO_COCINA`). |
@@ -838,7 +839,7 @@ Los platos pueden tener **grupos de complementos**: opciones que el mozo elige a
 
 **Ubicación:** `public/platos.html`
 
-**Versión:** 2.0 - Sistema de Complementos implementado
+**Versión:** 3.0 - Biblioteca de Complementos implementada (Marzo 2026)
 
 ### Descripción General
 
@@ -864,30 +865,107 @@ Los platos pueden tener **grupos de complementos**: opciones que el mozo elige a
 ### Estructura de la Interfaz
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│  HEADER: "Carta y Platos"                    [Actualizar] [Nuevo]   │
-├─────────────────────────────────────────────────────────────────────┤
-│  FILTROS: [Buscar...] [Categoría ▼] [Tipo: Carta/Desayuno ▼]        │
-├────────────────────────────────────────────────┬────────────────────┤
-│                                                │   PANEL LATERAL    │
-│            TABLA DE PLATOS                     │                    │
-│  # | Nombre | Precio | Stock | Cat | Tipo |    │  ┌──────────────┐  │
-│     | Complementos | Acciones                 │  │ Categorías   │  │
-│                                                │  │ - Ceviches 3 │  │
-│  ─────────────────────────────────────────     │  │ - Criollos 5 │  │
-│  1 | Ceviche Clásico | S/. 25.00 | 15 | ...   │  └──────────────┘  │
-│  2 | Lomo Saltado | S/. 32.00 | 8 | ...       │                    │
-│  ...                                          │  ┌──────────────┐  │
-│                                                │  │ Resumen      │  │
-│  ─────────────────────────────────────────     │  │ Total: 45    │  │
-│  Mostrando X de Y platos                       │  │ Sin stock: 3 │  │
-│                                                │  └──────────────┘  │
-│                                                │  ┌──────────────┐  │
-│                                                │  │ Complementos │  │
-│                                                │  │ Con comp: 12 │  │
-│                                                │  │ Grupos: 18   │  │
-│                                                │  └──────────────┘  │
-└────────────────────────────────────────────────┴────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  HEADER: "Carta y Platos"      [Actualizar] [📚 Gestionar Complementos] [Nuevo] │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│  FILTROS: [Buscar...] [Categoría ▼] [Tipo: Carta/Desayuno ▼]                    │
+├────────────────────────────────────────────────────────┬────────────────────────┤
+│                                                        │   PANEL LATERAL        │
+│            TABLA DE PLATOS                             │                        │
+│  # | Nombre | Precio | Stock | Cat | Tipo |            │  ┌──────────────────┐  │
+│     | Complementos | Acciones                         │  │ Categorías       │  │
+│                                                        │  │ - Ceviches 3     │  │
+│  ─────────────────────────────────────────────────     │  │ - Criollos 5     │  │
+│  1 | Ceviche Clásico | S/. 25.00 | 15 | ...           │  └──────────────────┘  │
+│  2 | Lomo Saltado | S/. 32.00 | 8 | ...               │                        │
+│  ...                                                  │  ┌──────────────────┐  │
+│                                                        │  │ Resumen          │  │
+│  ─────────────────────────────────────────────────     │  │ Total: 45        │  │
+│  Mostrando X de Y platos                               │  │ Sin stock: 3     │  │
+│                                                        │  └──────────────────┘  │
+│                                                        │  ┌──────────────────┐  │
+│                                                        │  │ Complementos     │  │
+│                                                        │  │ Con comp: 12     │  │
+│                                                        │  │ Grupos: 18       │  │
+│                                                        │  │ Opciones: 47     │  │
+│                                                        │  │ [📚 Gestionar]   │  │
+│                                                        │  └──────────────────┘  │
+└────────────────────────────────────────────────────────┴────────────────────────┘
+```
+
+**Modales disponibles:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ MODAL CREAR/EDITAR PLATO (z-index: 50)                         │
+│ ┌─────────────────────────────────────────────────────────────┐│
+│ │ Datos básicos: nombre, precio, stock, categoría, tipo...   ││
+│ ├─────────────────────────────────────────────────────────────┤│
+│ │ 🍽️ Complementos del Plato                                   ││
+│ │ [📚 Desde biblioteca] [+ Manual]                            ││
+│ │ ┌──────────────────┐ ┌──────────────────┐                  ││
+│ │ │ Grupo: Proteína  │ │ Grupo: Término   │                  ││
+│ │ │ ☐ Obligatorio    │ │ ☑ Obligatorio    │                  ││
+│ │ │ Opciones: [...]  │ │ 📚 Biblioteca    │                  ││
+│ │ └──────────────────┘ └──────────────────┘                  ││
+│ └─────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│ MODAL SELECTOR COMPLEMENTOS (z-index: 60)                      │
+│ ┌─────────────────────────────────────────────────────────────┐│
+│ │ Agregar desde Biblioteca                                    ││
+│ │ [🔍 Buscar complemento...]                                  ││
+│ │ ┌─────────────────────────────────────────────────────────┐││
+│ │ │ ☑ Término de cocción    General    4 opciones    5 usos │││
+│ │ │ ☐ Proteína              Carnes    3 opciones    3 usos  │││
+│ │ │ ☐ Guarnición            General    4 opciones    8 usos │││
+│ │ └─────────────────────────────────────────────────────────┘││
+│ │ 2 seleccionado(s)              [Cancelar] [Agregar]        ││
+│ └─────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│ MODAL GESTIÓN BIBLIOTECA (z-index: 55)                         │
+│ ┌─────────────────────────────────────────────────────────────┐│
+│ │ 📚 Biblioteca de Complementos                               ││
+│ │ [Buscar...] [Categoría ▼] [Estado ▼] [+ Nuevo Complemento]  ││
+│ │ [Listado] [Estadísticas]                                    ││
+│ ├─────────────────────────────────────────────────────────────┤│
+│ │ TAB LISTADO:                                                ││
+│ │ ┌──────────────────────┐ ┌──────────────────────┐          ││
+│ │ │ Término de cocción   │ │ Proteína             │          ││
+│ │ │ General              │ │ Carnes               │          ││
+│ │ │ ☑ Obligatorio        │ │ ☐ Obligatorio        │          ││
+│ │ │ [3/4 cocido][Bien...]│ │ [Pollo][Carne][Mixto]│          ││
+│ │ │ 4 opciones | 5 platos│ │ 3 opciones | 3 platos│          ││
+│ │ │ [✏️][⏸][🗑️]          │ │ [✏️][⏸][🗑️]          │          ││
+│ │ └──────────────────────┘ └──────────────────────┘          ││
+│ ├─────────────────────────────────────────────────────────────┤│
+│ │ TAB ESTADÍSTICAS:                                           ││
+│ │ ┌────────────────────────────────────────────────────┐      ││
+│ │ │ Total: 8    Activos: 6    Inactivos: 2             │      ││
+│ │ └────────────────────────────────────────────────────┘      ││
+│ │ Top complementos más usados:                                ││
+│ │ 1. Guarnición - 8 platos                                    ││
+│ │ 2. Término de cocción - 5 platos                            ││
+│ └─────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│ MODAL CREAR/EDITAR COMPLEMENTO (z-index: 65)                   │
+│ ┌─────────────────────────────────────────────────────────────┐│
+│ │ Nombre: [Término de cocción        ]                        ││
+│ │ Categoría: [General        ▼]                               ││
+│ │ Opciones:                                                   ││
+│ │   [Tres cuartos        ] [✕]                                ││
+│ │   [Bien cocido         ] [✕]                                ││
+│ │   [+ Agregar opción]                                         ││
+│ │ ☐ Obligatorio    ☐ Selección múltiple                       ││
+│ │ ☑ Activo                                                     ││
+│ │                              [Cancelar] [Crear/Actualizar]  ││
+│ └─────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ### Funcionalidades Principales
@@ -923,7 +1001,7 @@ filterTipo: '',      // Filtro por tipo: '' | 'plato-carta normal' | 'platos-des
 |---------|-----------------|
 | **Categorías** | Lista de categorías con contador de platos |
 | **Resumen** | Total platos, Platos sin stock |
-| **Complementos** | Platos con complementos, Grupos definidos, Opciones totales |
+| **Complementos** | Platos con complementos, Grupos definidos, Opciones totales, Botón "📚 Gestionar biblioteca" |
 
 ### Modal de Crear/Editar Plato
 
@@ -956,11 +1034,11 @@ Los complementos permiten configurar opciones personalizables para cada plato (e
 }
 ```
 
-**Funciones del editor de complementos:**
+**Funciones del editor de complementos en modal de plato:**
 
 | Función | Acción |
 |---------|--------|
-| `agregarGrupoComplemento()` | Agrega un nuevo grupo vacío |
+| `agregarGrupoComplemento()` | Agrega un nuevo grupo vacío (manual) |
 | `eliminarGrupoComplemento(index)` | Elimina un grupo completo |
 | `agregarOpcionComplemento(grupoIndex)` | Agrega opción vacía al grupo |
 | `eliminarOpcionComplemento(gi, oi)` | Elimina una opción específica |
@@ -979,7 +1057,118 @@ const complementosLimpios = formPlato.complementos
   }));
 ```
 
+#### Biblioteca de Complementos (Nuevo - Marzo 2026)
+
+Sistema de plantillas reutilizables que permite gestionar complementos predefinidos y aplicarlos a múltiples platos sin duplicar configuración.
+
+**Ventajas:**
+- Reutilización de configuraciones comunes (ej: "Término de cocción" en múltiples carnes)
+- Gestión centralizada con activación/desactivación
+- Estadísticas de uso por complemento
+- Consistencia en nombres y opciones
+
+**Estructura de una plantilla de complemento:**
+
+```javascript
+{
+  _id: ObjectId,
+  nombre: 'Término de cocción',      // Nombre del complemento
+  categoria: 'General',               // Categoría para agrupar
+  opciones: ['Tres cuartos', 'Bien cocido', 'Término medio'],
+  obligatorio: true,                  // Si es obligatorio seleccionar
+  seleccionMultiple: false,           // Si permite múltiples selecciones
+  activo: true                        // Si está disponible para usar
+}
+```
+
+**Modal de Gestión de Biblioteca (`modalGestionComplementos`):**
+
+| Sección | Funcionalidad |
+|---------|---------------|
+| **Barra de herramientas** | Búsqueda, filtro por categoría, filtro por estado (Activo/Inactivo), botón "Nuevo Complemento" |
+| **Tab: Listado** | Grid 2 columnas con tarjetas de cada complemento, badges de estado, opciones visibles, contador de platos que lo usan |
+| **Tab: Estadísticas** | Resumen: total, activos, inactivos. Top 10 complementos más usados |
+
+**Acciones por complemento:**
+- ✏️ Editar: Abre modal de edición
+- ⏸/▶ Activar/Desactivar: Cambia estado sin eliminar
+- 🗑️ Eliminar: Con validación de uso (sugiere desactivar si está en uso)
+
+**Selector desde Biblioteca (`modalSelectorComplementos`):**
+
+Al crear/editar un plato, el botón "📚 Desde biblioteca" abre un selector que permite:
+1. Ver complementos activos disponibles
+2. Buscar por nombre o categoría
+3. Seleccionar múltiples complementos
+4. Aplicar al plato actual
+
+Los complementos agregados desde biblioteca se marcan con `_fromLibrary: true` y badge visual "📚 Biblioteca".
+
+**Estado de gestión de complementos:**
+
+```javascript
+// Estado principal
+modalGestionComplementos: false,      // Modal de biblioteca
+modalFormComplemento: false,          // Modal crear/editar plantilla
+modalSelectorComplementos: false,     // Modal selector en plato
+loadingGestionComplementos: false,
+loadingComplementosLib: false,
+tabGestion: 'listado',                // 'listado' | 'estadisticas'
+
+// Datos
+complementosGestion: [],              // Lista completa de plantillas
+complementosGestionFiltrados: [],     // Lista filtrada
+complementosLib: [],                  // Para selector en plato
+complementosLibFiltrados: [],
+categoriasComplementos: [],           // Categorías únicas
+estadisticasUsoComplementos: [],      // Stats de uso
+
+// Filtros
+searchGestionComp: '',
+filterCatGestion: '',
+filterActivoGestion: '',
+searchComplementoLib: '',
+
+// Formulario de plantilla
+isEditingComplemento: false,
+formComplemento: {
+  _id: null,
+  nombre: '',
+  categoria: 'General',
+  opciones: [''],
+  obligatorio: false,
+  seleccionMultiple: false,
+  activo: true
+},
+selectedComplementosLib: [],          // Selección múltiple en selector
+```
+
+**Funciones CRUD de complementos plantilla:**
+
+| Función | Descripción |
+|---------|-------------|
+| `openModalComplementosGestion()` | Abre modal de gestión y carga datos |
+| `loadComplementosGestion()` | Carga plantillas, categorías y estadísticas |
+| `filtrarGestionComplementos()` | Aplica filtros de búsqueda, categoría y estado |
+| `openCrearComplementoModal()` | Abre modal para nueva plantilla |
+| `openEditarComplementoModal(comp)` | Abre modal para editar existente |
+| `guardarComplementoPlantilla()` | Crea o actualiza plantilla (POST/PUT) |
+| `toggleActivoComplemento(comp)` | Alterna estado activo/inactivo |
+| `confirmarEliminarComplemento(comp)` | Elimina con validación de uso |
+
+**Funciones del selector en plato:**
+
+| Función | Descripción |
+|---------|-------------|
+| `openSelectorComplementos()` | Abre selector y carga plantillas activas |
+| `filtrarComplementosLib()` | Filtra por búsqueda |
+| `isSelectedComplementoLib(comp)` | Verifica si está seleccionado |
+| `toggleComplementoLib(comp)` | Alterna selección |
+| `aplicarComplementosSeleccionados()` | Agrega complementos seleccionados al plato |
+
 ### Endpoints API Consumidos
+
+#### Endpoints de Platos
 
 | Método | Endpoint | Uso |
 |--------|----------|-----|
@@ -987,6 +1176,45 @@ const complementosLimpios = formPlato.complementos
 | POST | `/api/platos` | Crear nuevo plato |
 | PUT | `/api/platos/:id` | Actualizar plato existente |
 | DELETE | `/api/platos/:id` | Eliminar plato |
+
+#### Endpoints de Biblioteca de Complementos (Nuevo - Marzo 2026)
+
+| Método | Endpoint | Uso |
+|--------|----------|-----|
+| GET | `/api/complementos-plantilla` | Listar todas las plantillas de complementos |
+| GET | `/api/complementos-plantilla?activos=true` | Listar solo plantillas activas (para selector) |
+| GET | `/api/complementos-plantilla/categorias` | Obtener categorías únicas de complementos |
+| GET | `/api/complementos-plantilla/estadisticas` | Obtener estadísticas de uso por complemento |
+| POST | `/api/complementos-plantilla` | Crear nueva plantilla de complemento |
+| PUT | `/api/complementos-plantilla/:id` | Actualizar plantilla existente |
+| PATCH | `/api/complementos-plantilla/:id/desactivar` | Desactivar plantilla (soft delete) |
+| PATCH | `/api/complementos-plantilla/:id/reactivar` | Reactivar plantilla desactivada |
+| DELETE | `/api/complementos-plantilla/:id` | Eliminar plantilla (valida uso en platos) |
+
+**Respuesta de estadísticas (`/estadisticas`):**
+
+```javascript
+[
+  {
+    _id: "ObjectId",
+    nombre: "Término de cocción",
+    categoria: "General",
+    platosUsandolo: 5    // Cantidad de platos que usan este complemento
+  },
+  // ...
+]
+```
+
+**Respuesta de eliminación con conflicto:**
+
+```javascript
+// Si se intenta eliminar un complemento en uso
+{
+  error: "No se puede eliminar",
+  platosUsandolo: 3,
+  mensaje: "El complemento está siendo usado en 3 platos"
+}
+```
 
 ### Relación con las 3 Aplicaciones
 
@@ -3430,6 +3658,7 @@ curl http://localhost:3000/api/comanda/fecha/2026-03-29 | jq '.[0].platos[0]'
 - Autenticación JWT en Socket.io con rooms por zona
 - Cosmos Search (⌘K) para búsqueda unificada
 - Documentación completa del panel admin.html: complementos en platos, cierre de caja con estadísticas y export, reportes, auditoría, comandas editables
+- **Biblioteca de Complementos en platos.html (v3.0):** Sistema de plantillas reutilizables para complementos, con gestión centralizada (activar/desactivar), estadísticas de uso, selector desde biblioteca al crear/editar platos, CRUD completo de plantillas, endpoints `/api/complementos-plantilla`, prevención de eliminación de complementos en uso
 - Página cocineros.html: gestión de cocineros y zonas KDS con métricas de rendimiento
 - Integración completa con App de Cocina: filtros KDS, eventos Socket.io, autenticación JWT
 - Sistema de reservas con timeout automático
