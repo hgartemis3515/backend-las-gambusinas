@@ -52,8 +52,25 @@ function calcularMontoPropina(tipo, totalBoucher, montoFijo, porcentaje) {
 
 function idsCoinciden(a, b) {
     if (a == null || b == null) return false;
-    const sa = typeof a === 'object' && a.toString ? a.toString() : String(a);
-    const sb = typeof b === 'object' && b.toString ? b.toString() : String(b);
+    
+    // Extraer ID de forma robusta (maneja ObjectId, strings, y objetos poblados)
+    const extraerId = (val) => {
+        if (val == null) return null;
+        if (typeof val === 'string') return val;
+        if (typeof val === 'object') {
+            // Si es un ObjectId de Mongoose
+            if (val._id) return val._id.toString();
+            // Si tiene método toString que no devuelve [object Object]
+            const str = val.toString();
+            if (str !== '[object Object]') return str;
+            return null;
+        }
+        return String(val);
+    };
+    
+    const sa = extraerId(a);
+    const sb = extraerId(b);
+    
     return sa === sb;
 }
 

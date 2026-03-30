@@ -12,7 +12,16 @@ const listarMesas = async () => {
 }
 
 const obtenerMesaPorId = async (id) => {
-    const data = await mesas.findOne({ mesasId: id });
+    let data;
+    
+    // Si parece un ObjectId de MongoDB (24 caracteres hex)
+    if (typeof id === 'string' && id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id)) {
+        data = await mesas.findById(id);
+    } else {
+        // Buscar por mesasId (Number)
+        data = await mesas.findOne({ mesasId: id });
+    }
+    
     return data;
 }
 

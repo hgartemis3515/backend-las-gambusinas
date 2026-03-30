@@ -9681,5 +9681,536 @@
     "createdAt": "2026-03-30T05:57:49.092Z",
     "updatedAt": "2026-03-30T05:57:49.092Z",
     "boucherNumber": 145
+  },
+  {
+    "configuracionIGV": {
+      "igvPorcentaje": 18,
+      "preciosIncluyenIGV": true,
+      "nombreImpuesto": "IGV",
+      "moneda": "PEN",
+      "simboloMoneda": "S/."
+    },
+    "_id": "69ca857cfa09c5dca7517d64",
+    "voucherId": "13IPQ",
+    "mesa": "69860a415e59135b4d2c56c1",
+    "numMesa": 1,
+    "mozo": "69a51896782a5785d39b1232",
+    "nombreMozo": "Juan",
+    "cliente": "69ca857bfa09c5dca75179de",
+    "usadoEnComanda": null,
+    "fechaUso": null,
+    "comandas": [
+      "69ca828a33304398b8dd790f"
+    ],
+    "comandasNumbers": [
+      524
+    ],
+    "platos": [
+      {
+        "plato": "6992b9dad845b119c1d00c87",
+        "platoId": 37,
+        "nombre": "Ensalada especial (limon o vinagreta)",
+        "precio": 15,
+        "cantidad": 1,
+        "subtotal": 15,
+        "comandaNumber": 524,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "11:57",
+        "_id": "69ca857cfa09c5dca7517d65"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c86",
+        "platoId": 36,
+        "nombre": "Papa a la huancaína",
+        "precio": 13,
+        "cantidad": 1,
+        "subtotal": 13,
+        "comandaNumber": 524,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "11:57",
+        "_id": "69ca857cfa09c5dca7517d66"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c88",
+        "platoId": 38,
+        "nombre": "Patasca",
+        "precio": 25,
+        "cantidad": 1,
+        "subtotal": 25,
+        "comandaNumber": 524,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "11:57",
+        "_id": "69ca857cfa09c5dca7517d67"
+      }
+    ],
+    "subtotal": 44.92,
+    "igv": 8.08,
+    "total": 53,
+    "descuentos": [],
+    "totalSinDescuento": 53,
+    "montoDescuento": 0,
+    "totalConDescuento": 53,
+    "observaciones": "",
+    "fechaPago": "2026-03-30T14:15:24.491Z",
+    "fechaPagoString": "30/03/2026 09:15:24",
+    "isActive": true,
+    "createdAt": "2026-03-30T14:15:24.497Z",
+    "updatedAt": "2026-03-30T14:15:24.497Z",
+    "boucherNumber": 146
+  },
+  {
+    "configuracionIGV": {
+      "igvPorcentaje": 18,
+      "preciosIncluyenIGV": true,
+      "nombreImpuesto": "IGV",
+      "moneda": "PEN",
+      "simboloMoneda": "S/."
+    },
+    "_id": "69ca858ffa09c5dca7519bfe",
+    "voucherId": "O0KVY",
+    "mesa": "69860a4bbb20969ed3d22bcd",
+    "numMesa": 3,
+    "mozo": "69a51896782a5785d39b1232",
+    "nombreMozo": "Juan",
+    "cliente": "69ca858ffa09c5dca7519873",
+    "usadoEnComanda": null,
+    "fechaUso": null,
+    "comandas": [
+      "69ca82a833304398b8ddcd8a"
+    ],
+    "comandasNumbers": [
+      526
+    ],
+    "platos": [
+      {
+        "plato": "6992b9dad845b119c1d00c87",
+        "platoId": 37,
+        "nombre": "Ensalada especial (limon o vinagreta)",
+        "precio": 15,
+        "cantidad": 1,
+        "subtotal": 15,
+        "comandaNumber": 526,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "11:33",
+        "_id": "69ca858ffa09c5dca7519bff"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c88",
+        "platoId": 38,
+        "nombre": "Patasca",
+        "precio": 25,
+        "cantidad": 1,
+        "subtotal": 25,
+        "comandaNumber": 526,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "11:33",
+        "_id": "69ca858ffa09c5dca7519c00"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c8d",
+        "platoId": 43,
+        "nombre": "Chicharrón de pollo acevichada + arroz y yuca frita",
+        "precio": 42,
+        "cantidad": 1,
+        "subtotal": 42,
+        "comandaNumber": 526,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "11:33",
+        "_id": "69ca858ffa09c5dca7519c01"
+      }
+    ],
+    "subtotal": 69.49,
+    "igv": 12.51,
+    "total": 82,
+    "descuentos": [],
+    "totalSinDescuento": 82,
+    "montoDescuento": 0,
+    "totalConDescuento": 82,
+    "observaciones": "",
+    "fechaPago": "2026-03-30T14:15:43.772Z",
+    "fechaPagoString": "30/03/2026 09:15:43",
+    "isActive": true,
+    "createdAt": "2026-03-30T14:15:43.776Z",
+    "updatedAt": "2026-03-30T14:15:43.776Z",
+    "boucherNumber": 147
+  },
+  {
+    "configuracionIGV": {
+      "igvPorcentaje": 18,
+      "preciosIncluyenIGV": true,
+      "nombreImpuesto": "IGV",
+      "moneda": "PEN",
+      "simboloMoneda": "S/."
+    },
+    "_id": "69ca85a1fa09c5dca751bae1",
+    "voucherId": "5KQ4L",
+    "mesa": "69893445f42cb22ec21fd8a3",
+    "numMesa": 6,
+    "mozo": "69a51896782a5785d39b1232",
+    "nombreMozo": "Juan",
+    "cliente": "69ca85a0fa09c5dca751b750",
+    "usadoEnComanda": null,
+    "fechaUso": null,
+    "comandas": [
+      "69ca829e33304398b8dda33d"
+    ],
+    "comandasNumbers": [
+      525
+    ],
+    "platos": [
+      {
+        "plato": "6992b9dad845b119c1d00c86",
+        "platoId": 36,
+        "nombre": "Papa a la huancaína",
+        "precio": 13,
+        "cantidad": 1,
+        "subtotal": 13,
+        "comandaNumber": 525,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "11:41",
+        "_id": "69ca85a1fa09c5dca751bae2"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c87",
+        "platoId": 37,
+        "nombre": "Ensalada especial (limon o vinagreta)",
+        "precio": 15,
+        "cantidad": 1,
+        "subtotal": 15,
+        "comandaNumber": 525,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "11:41",
+        "_id": "69ca85a1fa09c5dca751bae3"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c88",
+        "platoId": 38,
+        "nombre": "Patasca",
+        "precio": 25,
+        "cantidad": 1,
+        "subtotal": 25,
+        "comandaNumber": 525,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "11:41",
+        "_id": "69ca85a1fa09c5dca751bae4"
+      }
+    ],
+    "subtotal": 44.92,
+    "igv": 8.08,
+    "total": 53,
+    "descuentos": [],
+    "totalSinDescuento": 53,
+    "montoDescuento": 0,
+    "totalConDescuento": 53,
+    "observaciones": "",
+    "fechaPago": "2026-03-30T14:16:01.522Z",
+    "fechaPagoString": "30/03/2026 09:16:01",
+    "isActive": true,
+    "createdAt": "2026-03-30T14:16:01.526Z",
+    "updatedAt": "2026-03-30T14:16:01.526Z",
+    "boucherNumber": 148
+  },
+  {
+    "configuracionIGV": {
+      "igvPorcentaje": 18,
+      "preciosIncluyenIGV": true,
+      "nombreImpuesto": "IGV",
+      "moneda": "PEN",
+      "simboloMoneda": "S/."
+    },
+    "_id": "69ca90d2fa09c5dca751e1ab",
+    "voucherId": "YGKBW",
+    "mesa": "69895e0d3f65baeb1dbdac98",
+    "numMesa": 13,
+    "mozo": "69a51896782a5785d39b1232",
+    "nombreMozo": "Juan",
+    "cliente": "69ca90d1fa09c5dca751de14",
+    "usadoEnComanda": null,
+    "fechaUso": null,
+    "comandas": [
+      "69ca82b333304398b8ddf7f7"
+    ],
+    "comandasNumbers": [
+      527
+    ],
+    "platos": [
+      {
+        "plato": "6992b9dad845b119c1d00c87",
+        "platoId": 37,
+        "nombre": "Ensalada especial (limon o vinagreta)",
+        "precio": 15,
+        "cantidad": 1,
+        "subtotal": 15,
+        "comandaNumber": 527,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "60:04",
+        "_id": "69ca90d2fa09c5dca751e1ac"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c86",
+        "platoId": 36,
+        "nombre": "Papa a la huancaína",
+        "precio": 13,
+        "cantidad": 1,
+        "subtotal": 13,
+        "comandaNumber": 527,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "60:04",
+        "_id": "69ca90d2fa09c5dca751e1ad"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c88",
+        "platoId": 38,
+        "nombre": "Patasca",
+        "precio": 25,
+        "cantidad": 1,
+        "subtotal": 25,
+        "comandaNumber": 527,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "60:04",
+        "_id": "69ca90d2fa09c5dca751e1ae"
+      }
+    ],
+    "subtotal": 44.92,
+    "igv": 8.08,
+    "total": 53,
+    "descuentos": [],
+    "totalSinDescuento": 53,
+    "montoDescuento": 0,
+    "totalConDescuento": 53,
+    "observaciones": "",
+    "fechaPago": "2026-03-30T15:03:46.530Z",
+    "fechaPagoString": "30/03/2026 10:03:46",
+    "isActive": true,
+    "createdAt": "2026-03-30T15:03:46.533Z",
+    "updatedAt": "2026-03-30T15:03:46.533Z",
+    "boucherNumber": 149
+  },
+  {
+    "configuracionIGV": {
+      "igvPorcentaje": 18,
+      "preciosIncluyenIGV": true,
+      "nombreImpuesto": "IGV",
+      "moneda": "PEN",
+      "simboloMoneda": "S/."
+    },
+    "_id": "69ca91ddfa09c5dca7523646",
+    "voucherId": "Q2Q2A",
+    "mesa": "69c3d5ea76e3224b81e9749e",
+    "numMesa": 14,
+    "mozo": "69a51896782a5785d39b1232",
+    "nombreMozo": "Juan",
+    "cliente": "69ca91ddfa09c5dca75232a0",
+    "usadoEnComanda": null,
+    "fechaUso": null,
+    "comandas": [
+      "69ca91cdfa09c5dca752031d"
+    ],
+    "comandasNumbers": [
+      528
+    ],
+    "platos": [
+      {
+        "plato": "6992b9dad845b119c1d00ca2",
+        "platoId": 64,
+        "nombre": "1 sabor (1/4 pollo o 1/4 cerdo o 1/4 res)",
+        "precio": 33,
+        "cantidad": 1,
+        "subtotal": 33,
+        "comandaNumber": 528,
+        "complementosSeleccionados": [
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "1/4 cerdo",
+            "_id": "69ca91cdfa09c5dca752031f"
+          }
+        ],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "00:06",
+        "_id": "69ca91ddfa09c5dca7523647"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00ca3",
+        "platoId": 65,
+        "nombre": "2 sabores (1/4 pollo 250 gr cerdo o 250 gr res)",
+        "precio": 55,
+        "cantidad": 1,
+        "subtotal": 55,
+        "comandaNumber": 528,
+        "complementosSeleccionados": [
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "250 gr cerdo",
+            "_id": "69ca91cdfa09c5dca7520321"
+          },
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "250 gr res",
+            "_id": "69ca91cdfa09c5dca7520322"
+          }
+        ],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "00:06",
+        "_id": "69ca91ddfa09c5dca7523649"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00ca4",
+        "platoId": 66,
+        "nombre": "3 sabores (1/4 pollo + 250 gr cerdo + 250 gr res)",
+        "precio": 75,
+        "cantidad": 1,
+        "subtotal": 75,
+        "comandaNumber": 528,
+        "complementosSeleccionados": [
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "250 gr cerdo",
+            "_id": "69ca91cdfa09c5dca7520324"
+          },
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "250 gr res",
+            "_id": "69ca91cdfa09c5dca7520325"
+          },
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "1/4 pollo",
+            "_id": "69ca91cdfa09c5dca7520326"
+          }
+        ],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "00:06",
+        "_id": "69ca91ddfa09c5dca752364c"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00ca5",
+        "platoId": 67,
+        "nombre": "4 sabores (1/4 pollo + 250 gr cordero + 250 gr carnero + 250 gr carnero)",
+        "precio": 95,
+        "cantidad": 1,
+        "subtotal": 95,
+        "comandaNumber": 528,
+        "complementosSeleccionados": [
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "250 gr carnero",
+            "_id": "69ca91cdfa09c5dca7520328"
+          }
+        ],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "00:06",
+        "_id": "69ca91ddfa09c5dca7523650"
+      }
+    ],
+    "subtotal": 218.64,
+    "igv": 39.36,
+    "total": 258,
+    "descuentos": [],
+    "totalSinDescuento": 258,
+    "montoDescuento": 0,
+    "totalConDescuento": 258,
+    "observaciones": "",
+    "fechaPago": "2026-03-30T15:08:13.766Z",
+    "fechaPagoString": "30/03/2026 10:08:13",
+    "isActive": true,
+    "createdAt": "2026-03-30T15:08:13.771Z",
+    "updatedAt": "2026-03-30T15:08:13.771Z",
+    "boucherNumber": 150
+  },
+  {
+    "configuracionIGV": {
+      "igvPorcentaje": 18,
+      "preciosIncluyenIGV": true,
+      "nombreImpuesto": "IGV",
+      "moneda": "PEN",
+      "simboloMoneda": "S/."
+    },
+    "_id": "69ca9570f6064819acf7b203",
+    "voucherId": "6SM9W",
+    "mesa": "69860a415e59135b4d2c56c1",
+    "numMesa": 1,
+    "mozo": "69a51896782a5785d39b1232",
+    "nombreMozo": "Juan",
+    "cliente": "69ca956ff6064819acf7ae62",
+    "usadoEnComanda": null,
+    "fechaUso": null,
+    "comandas": [
+      "69ca9550f6064819acf7813a"
+    ],
+    "comandasNumbers": [
+      529
+    ],
+    "platos": [
+      {
+        "plato": "6992b9dad845b119c1d00c86",
+        "platoId": 36,
+        "nombre": "Papa a la huancaína",
+        "precio": 13,
+        "cantidad": 1,
+        "subtotal": 13,
+        "comandaNumber": 529,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "00:24",
+        "_id": "69ca9570f6064819acf7b204"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c87",
+        "platoId": 37,
+        "nombre": "Ensalada especial (limon o vinagreta)",
+        "precio": 15,
+        "cantidad": 1,
+        "subtotal": 15,
+        "comandaNumber": 529,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "00:24",
+        "_id": "69ca9570f6064819acf7b205"
+      }
+    ],
+    "subtotal": 23.73,
+    "igv": 4.27,
+    "total": 28,
+    "descuentos": [],
+    "totalSinDescuento": 28,
+    "montoDescuento": 0,
+    "totalConDescuento": 28,
+    "observaciones": "",
+    "fechaPago": "2026-03-30T15:23:28.570Z",
+    "fechaPagoString": "30/03/2026 10:23:28",
+    "isActive": true,
+    "createdAt": "2026-03-30T15:23:28.574Z",
+    "updatedAt": "2026-03-30T15:23:28.574Z",
+    "boucherNumber": 151
   }
 ]

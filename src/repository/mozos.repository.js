@@ -25,7 +25,16 @@ const crearMozo = async (data) => {
 }
 
 const obtenerMozosPorId = async (id) => {
-    const mozo = await mozos.findOne({mozoId: id});
+    let mozo;
+    
+    // Si parece un ObjectId de MongoDB (24 caracteres hex)
+    if (typeof id === 'string' && id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id)) {
+        mozo = await mozos.findById(id);
+    } else {
+        // Buscar por mozoId (Number)
+        mozo = await mozos.findOne({ mozoId: id });
+    }
+    
     return mozo;
 }
 
