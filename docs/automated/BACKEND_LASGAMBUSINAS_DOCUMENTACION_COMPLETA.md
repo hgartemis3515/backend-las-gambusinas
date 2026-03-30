@@ -1,6 +1,6 @@
 # 🖥️ Documentación Completa - Backend Las Gambusinas
 
-**Versión:** 2.14  
+**Versión:** 2.15  
 **Última Actualización:** Marzo 2026  
 **Tecnología:** Node.js + Express + MongoDB + Socket.io + Redis
 
@@ -40,6 +40,7 @@ Crear un ecosistema digital completo que permita:
 
 | Fecha        | Cambios                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Marzo 2026   | **Bug corregido - Validación de IDs en Propinas:** El endpoint `POST /api/propinas` fallaba con error 400 debido a que la función `idsCoinciden()` no manejaba correctamente objetos poblados de MongoDB. Cuando `boucher.mesa` o `boucher.mozo` venían poblados (objetos completos), `.toString()` devolvía `[object Object]` en lugar del ObjectId. Solución: función `idsCoinciden()` reescrita en `src/utils/propinaCalculo.js` para extraer correctamente el `_id` de objetos poblados. |
 | Marzo 2026   | **Bug corregido - Proyecciones de MongoDB:** Los complementos de los platos (`complementosSeleccionados`, `notaEspecial`) no se enviaban al frontend en el endpoint `GET /api/comanda/fecha/:fecha`. Causa: la proyección `PROYECCION_RESUMEN_MESA` no incluía estos campos. Solución: agregados campos faltantes. Ver sección "🐛 Debugging de Datos - Metodología" para aprender a identificar problemas similares. |
 | Marzo 2026   | **Funcionalidad Juntar/Separar Mesas v2.8:** Nueva funcionalidad para combinar múltiples mesas en un grupo (usando la mesa de menor número como principal) y separarlas posteriormente. Modelo de datos actualizado con campos `esMesaPrincipal`, `mesaPrincipalId`, `mesasUnidas`, `fechaUnion`, `unidoPor`, `motivoUnion`, `nombreCombinado`. Nuevos endpoints `POST /api/mesas/juntar`, `POST /api/mesas/separar`, `GET /api/mesas/grupos`, `GET /api/mesas/:id/grupo`. Eventos Socket.io `mesas-juntadas` y `mesas-separadas`. Permiso `juntar-separar-mesas` para admin/supervisor. |
 | Marzo 2026   | **Sistema de Mozos v2.0 con Metas:** Ampliación completa del sistema de mozos con nueva sección de Metas. Tipos de metas soportadas: ventas, mesas atendidas, tickets generados, ticket promedio, propinas promedio. Estados de cumplimiento semaforizados: sin_iniciar, en_progreso, en_riesgo, encaminado, cumplido, superado. KPIs de gestión: metas activas, mozos cumpliendo, mozos en riesgo, cumplimiento promedio. Proyección inteligente con algoritmo de ritmo y brecha. Ranking de cumplimiento con medallas. Distribución del equipo con gráfico donut. Recomendaciones automáticas contextuales. Plantillas predefinidas para turnos mañana/noche. Modal de nueva meta y drawer de detalle. Documentación actualizada en `docs/Sistemademozos_md.md`. |
@@ -3399,6 +3400,52 @@ El Sistema de Propinas permite registrar y gestionar las propinas recibidas por 
 
 - ✅ Mesa debe estar en estado "pagado"
 - ✅ Mozo, mesa y boucher deben existir
+- ✅ Boucher debe estar activo
+- ✅ IDs deben coincidir (boucher.mesa == mesaId, boucher.mozo == mozoId)
+
+### Función `idsCoinciden()` - Comparación de IDs
+
+La función `idsCoinciden()` en `src/utils/propinaCalculo.js` es crítica para validar que los IDs enviados coincidan con los del boucher. 
+
+**Problema original:**
+```javascript
+// ❌ NO maneja objetos poblados
+function idsCoinciden(a, b) {
+    const sa = typeof a === 'object' && a.toString ? a.toString() : String(a);
+    // Si 'a' es un objeto poblado (ej: { _id: ObjectId, name: "Juan" }),
+    // .toString() devuelve "[object Object]" en lugar del ObjectId
+}
+```
+
+**Solución corregida (Marzo 2026):**
+```javascript
+// ✅ Maneja strings, ObjectIds y objetos poblados
+function idsCoinciden(a, b) {
+    if (a == null || b == null) return false;
+    
+    const extraerId = (val) => {
+        if (val == null) return null;
+        if (typeof val === 'string') return val;
+        if (typeof val === 'object') {
+            if (val._id) return val._id.toString();  // Objeto poblado
+            const str = val.toString();
+            if (str !== '[object Object]') return str;  // ObjectId de Mongoose
+            return null;
+        }
+        return String(val);
+    };
+    
+    return extraerId(a) === extraerId(b);
+}
+```
+
+**Casos manejados:**
+| Tipo de dato | Ejemplo | Resultado |
+|--------------|---------|-----------|
+| String | `"67abc123..."` | ✅ Devuelve el string |
+| ObjectId Mongoose | `ObjectId("67abc123...")` | ✅ Devuelve el string del ID |
+| Objeto poblado | `{ _id: ObjectId, name: "Juan" }` | ✅ Extrae `_id` y lo convierte a string |
+| null/undefined | `null` | ✅ Retorna null (no rompe) |
 - ✅ Porcentaje entre 0 y 100
 - ✅ Monto no negativo
 
