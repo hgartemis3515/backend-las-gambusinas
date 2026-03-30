@@ -1,6 +1,6 @@
 # 🖥️ Documentación Completa - Backend Las Gambusinas
 
-**Versión:** 2.11  
+**Versión:** 2.14  
 **Última Actualización:** Marzo 2026  
 **Tecnología:** Node.js + Express + MongoDB + Socket.io + Redis
 
@@ -43,7 +43,7 @@ Crear un ecosistema digital completo que permita:
 | Marzo 2026   | **Bug corregido - Proyecciones de MongoDB:** Los complementos de los platos (`complementosSeleccionados`, `notaEspecial`) no se enviaban al frontend en el endpoint `GET /api/comanda/fecha/:fecha`. Causa: la proyección `PROYECCION_RESUMEN_MESA` no incluía estos campos. Solución: agregados campos faltantes. Ver sección "🐛 Debugging de Datos - Metodología" para aprender a identificar problemas similares. |
 | Marzo 2026   | **Funcionalidad Juntar/Separar Mesas v2.8:** Nueva funcionalidad para combinar múltiples mesas en un grupo (usando la mesa de menor número como principal) y separarlas posteriormente. Modelo de datos actualizado con campos `esMesaPrincipal`, `mesaPrincipalId`, `mesasUnidas`, `fechaUnion`, `unidoPor`, `motivoUnion`, `nombreCombinado`. Nuevos endpoints `POST /api/mesas/juntar`, `POST /api/mesas/separar`, `GET /api/mesas/grupos`, `GET /api/mesas/:id/grupo`. Eventos Socket.io `mesas-juntadas` y `mesas-separadas`. Permiso `juntar-separar-mesas` para admin/supervisor. |
 | Marzo 2026   | **Sistema de Mozos v2.0 con Metas:** Ampliación completa del sistema de mozos con nueva sección de Metas. Tipos de metas soportadas: ventas, mesas atendidas, tickets generados, ticket promedio, propinas promedio. Estados de cumplimiento semaforizados: sin_iniciar, en_progreso, en_riesgo, encaminado, cumplido, superado. KPIs de gestión: metas activas, mozos cumpliendo, mozos en riesgo, cumplimiento promedio. Proyección inteligente con algoritmo de ritmo y brecha. Ranking de cumplimiento con medallas. Distribución del equipo con gráfico donut. Recomendaciones automáticas contextuales. Plantillas predefinidas para turnos mañana/noche. Modal de nueva meta y drawer de detalle. Documentación actualizada en `docs/Sistemademozos_md.md`. |
-| Marzo 2026   | **Sistema de Propinas para Mozos v1.0:** Nueva funcionalidad completa para gestión de propinas del personal de salón. Modelo `Propina` con campos para monto fijo y porcentaje, snapshots de datos históricos, y auditoría completa. Nuevos endpoints `/api/propinas/*` para CRUD y reportes. Página `public/mozos.html` en dashboard administrativo con KPIs de ventas y propinas, tabla de mozos con métricas en tiempo real, y gestión CRUD del personal. Integración con App Mozos para registro de propinas post-pago. |
+| Marzo 2026   | **Documentación de platos.html:** Nueva sección completa documentando la página `public/platos.html`: descripción general, tecnologías (Tailwind, Alpine.js, Cosmos Search), estructura de interfaz, tabla de platos con badges semaforizados, sistema de filtros, panel lateral de resumen, modal de crear/editar con sistema de complementos, endpoints API consumidos, y relación detallada con las 3 aplicaciones (App Mozos, App Cocina, Dashboard Admin) incluyendo flujo de datos y eventos Socket.io. |
 | Marzo 2026   | **Corrección de Finalización de Comanda v7.4.1:** Bug corregido donde al finalizar comanda completa no se actualizaba en tiempo real en App de Mozos. Ahora se emiten eventos `plato-actualizado` por cada plato (igual que finalizar plato individual), más `comanda-actualizada` y `comanda-finalizada`. Agregado listener `comanda-finalizada` en App de Mozos. |
 | Marzo 2026   | **Sistema de Finalización de Platos y Comandas v7.4:** Nueva sección completa documentando el flujo de finalización: diferencias entre finalizar plato individual vs comanda completa; endpoints `PUT /api/comanda/:id/plato/:platoId/finalizar` y `PUT /api/comanda/:id/finalizar`; eventos Socket.io emitidos (`plato-actualizado`, `comanda-finalizada`); impacto en App de Mozos (alertas, cambio de estado de mesa); funciones del repository y controller involucradas; identificación de funciones faltantes (`finalizarPlatosBatch()`, `reabrirPlato()`, `getTiemposPreparacion()`). |
 | Marzo 2026   | **Funcionalidad de Cocineros en Comandas v7.2.1:** Ampliación de la documentación del modelo Comanda con campos `procesandoPor` y `procesadoPor` a nivel de plato y comanda; endpoints de procesamiento (`PUT/DELETE /api/comanda/:id/plato/:platoId/procesando`, `PUT /api/comanda/:id/plato/:platoId/finalizar`); eventos Socket.io (`plato-procesando`, `plato-liberado`, `comanda-procesando`, `comanda-liberada`, `conflicto-procesamiento`); métricas de cocineros en cierre de caja; auditoría de platos dejados (`PLATO_DEJADO_COCINA`). |
@@ -481,6 +481,111 @@ Todas las rutas bajo `/api`. Los controladores exportan routers con rutas relati
 - `**/mozos`:** App Mozos. Rooms por mesa: `mesa-{mesaId}`. Eventos recibidos: `join-mesa`, `leave-mesa`, `heartbeat`, `error`, `disconnect`. Emitidos: `joined-mesa`, `heartbeat-ack`, mismos eventos de comanda/plato/mesa que cocina (con envío a room mesa o broadcast). **Autenticación JWT obligatoria** (roles: mozos, admin, supervisor).
 - `**/admin`:** Dashboard y admin.html. Eventos recibidos: `heartbeat`, `error`, `disconnect`. Emitidos por servidor: `plato-menu-actualizado`, `reportes:boucher-nuevo`, `reportes:comanda-nueva`, `reportes:plato-listo`, `socket-status`, `roles-actualizados`. **Autenticación JWT obligatoria** (roles: admin, supervisor). Ver [Dashboard Administrativo](#dashboard-administrativo) para detalle.
 
+### Archivo Principal de Eventos: `src/socket/events.js`
+
+**Este es el archivo central que hace posible la actualización en tiempo real de todas las aplicaciones conectadas.**
+
+El archivo `events.js` configura todos los namespaces Socket.io y define las funciones globales de emisión de eventos. Cuando un mozo crea una comanda, un cocinero cambia el estado de un plato, o un administrador actualiza la configuración, este archivo coordina la notificación a todas las aplicaciones relevantes.
+
+#### Arquitectura del Sistema de Tiempo Real
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          src/socket/events.js                               │
+│                    (Archivo Principal de Tiempo Real)                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
+│  │  Namespace      │  │  Namespace      │  │  Namespace      │             │
+│  │  /cocina        │  │  /mozos         │  │  /admin         │             │
+│  │  (App Cocina)   │  │  (App Mozos)    │  │  (Dashboard)    │             │
+│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘             │
+│           │                    │                    │                       │
+│           ▼                    ▼                    ▼                       │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    Funciones Globales emit*                         │   │
+│  │  - emitNuevaComanda()      - emitComandaActualizada()               │   │
+│  │  - emitPlatoActualizado()  - emitPlatoBatch()                       │   │
+│  │  - emitMesaActualizada()   - emitComandaRevertida()                 │   │
+│  │  - emitPlatoEntregado()    - emitPropinaRegistrada()                │   │
+│  │  - emitConfigCocineroActualizada()  - emitMesasJuntadas()           │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Flujo de Actualización en Tiempo Real
+
+Cuando ocurre un cambio en el sistema (ej: mozo crea comanda, cocinero marca plato listo):
+
+1. **Controller** recibe la petición HTTP
+2. **Repository** actualiza la base de datos MongoDB
+3. **events.js** emite evento Socket.io a los namespaces correspondientes
+4. **Aplicaciones conectadas** reciben el evento y actualizan su UI
+
+#### Rooms por Namespace
+
+| Namespace | Rooms Disponibles | Propósito |
+|-----------|-------------------|-----------|
+| `/cocina` | `fecha-{YYYY-MM-DD}` | Recibir solo comandas del día activo |
+| `/cocina` | `cocinero-{id}` | Actualizaciones personales de configuración KDS |
+| `/cocina` | `zona-{id}` | Comandas de una zona específica de cocina |
+| `/mozos` | `mesa-{mesaId}` | Actualizaciones de una mesa específica |
+| `/mozos` | `mozo-{mozoId}` | Notificaciones personales del mozo |
+| `/admin` | (broadcast) | Todos los administradores reciben eventos |
+
+---
+
+### Página Dashboard: `mozos.html` y Tiempo Real
+
+**Ubicación:** `public/mozos.html`
+
+**Esta página consume eventos Socket.io del namespace `/admin` para actualizarse en tiempo real.**
+
+#### Conexión Socket.io en mozos.html
+
+La página `mozos.html` se conecta al namespace `/admin` y escucha los siguientes eventos para actualizar métricas, propinas y metas automáticamente:
+
+```javascript
+// Conexión al namespace /admin con JWT
+this._socketAdmin = io('/admin', {
+  auth: { token },
+  transports: ['websocket', 'polling'],
+  reconnection: true
+});
+
+// Indicador visual de conexión
+this._socketAdmin.on('connect', () => { this.socketLive = true; });
+this._socketAdmin.on('disconnect', () => { this.socketLive = false; });
+```
+
+#### Eventos Escuchados por mozos.html
+
+| Evento | Acción en UI |
+|--------|--------------|
+| `propina-registrada` | Actualiza métricas del mozo, KPIs de propinas |
+| `propina-actualizada` | Refresca datos de propina específica |
+| `propina-eliminada` | Elimina propina de la vista |
+| `mozos-conectados` | Actualiza contador de mozos activos en turno |
+| `metas-actualizadas` | Refresca tabla de metas y KPIs de cumplimiento |
+| `mozo-rendimiento-update` | Actualiza métricas de ventas y propinas del mozo |
+
+#### Indicador Visual de Conexión
+
+La página muestra un indicador de estado de la conexión Socket.io:
+
+```html
+<div :class="socketLive ? 'border-st-preparado/50 text-st-preparado' : 'border-txt-muted/30 text-txt-muted'">
+  <span class="w-2 h-2 rounded-full" :class="socketLive ? 'bg-st-preparado animate-pulse' : 'bg-txt-muted'"></span>
+  <span x-text="socketLive ? 'Tiempo real' : 'Sin socket'"></span>
+</div>
+```
+
+- **Verde con pulso:** Conectado y recibiendo actualizaciones
+- **Gris estático:** Sin conexión Socket.io
+
+---
+
 ### Funciones globales (`src/socket/events.js`)
 
 - **emitNuevaComanda(comanda)** — Populate completo, emite `nueva-comanda` a cocina (room fecha) y broadcast a mozos.
@@ -725,6 +830,368 @@ Los platos pueden tener **grupos de complementos**: opciones que el mozo elige a
 | Autenticación     | Sin JWT (público en la red)                                                                                      | JWT obligatorio (POST /api/admin/auth, token en localStorage)                                                   |
 | Archivo principal | `public/admin.html`                                                                                              | `public/dashboard/lasgambusinas-dashboard.html` (SPA) o `public/index.html` (multi-página)                      |
 | Uso               | Gestión completa: mesas, áreas, mozos, platos, comandas, bouchers, clientes, reportes, auditoría, cierre de caja | Panel con login; index.html carga datos reales vía API; lasgambusinas-dashboard.html actualmente con datos mock |
+
+
+---
+
+## 🍽️ Página de Platos: `platos.html`
+
+**Ubicación:** `public/platos.html`
+
+**Versión:** 2.0 - Sistema de Complementos implementado
+
+### Descripción General
+
+`platos.html` es una página dedicada exclusivamente a la **gestión del menú del restaurante**. A diferencia del tab "Platos" en `admin.html`, esta página ofrece una interfaz moderna y enfocada con funcionalidades avanzadas para gestionar platos, categorías, tipos y complementos.
+
+### Tecnologías Utilizadas
+
+| Recurso | Uso |
+|---------|-----|
+| **HTML5** | Estructura semántica |
+| **Tailwind CSS** | Diseño responsive, dark theme premium |
+| **Alpine.js** | Estado reactivo, modales, filtros |
+| **Animate.css** | Animaciones de entrada |
+| **AOS** | Animate On Scroll |
+| **Cosmos Search** | Búsqueda unificada (⌘K/Ctrl+K) |
+
+### Autenticación
+
+- **Requiere JWT:** Sí
+- **Token:** `localStorage.getItem('adminToken')` o `sessionStorage.getItem('adminToken')`
+- **Redirección:** Si no hay token, redirige a `/login.html`
+
+### Estructura de la Interfaz
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  HEADER: "Carta y Platos"                    [Actualizar] [Nuevo]   │
+├─────────────────────────────────────────────────────────────────────┤
+│  FILTROS: [Buscar...] [Categoría ▼] [Tipo: Carta/Desayuno ▼]        │
+├────────────────────────────────────────────────┬────────────────────┤
+│                                                │   PANEL LATERAL    │
+│            TABLA DE PLATOS                     │                    │
+│  # | Nombre | Precio | Stock | Cat | Tipo |    │  ┌──────────────┐  │
+│     | Complementos | Acciones                 │  │ Categorías   │  │
+│                                                │  │ - Ceviches 3 │  │
+│  ─────────────────────────────────────────     │  │ - Criollos 5 │  │
+│  1 | Ceviche Clásico | S/. 25.00 | 15 | ...   │  └──────────────┘  │
+│  2 | Lomo Saltado | S/. 32.00 | 8 | ...       │                    │
+│  ...                                          │  ┌──────────────┐  │
+│                                                │  │ Resumen      │  │
+│  ─────────────────────────────────────────     │  │ Total: 45    │  │
+│  Mostrando X de Y platos                       │  │ Sin stock: 3 │  │
+│                                                │  └──────────────┘  │
+│                                                │  ┌──────────────┐  │
+│                                                │  │ Complementos │  │
+│                                                │  │ Con comp: 12 │  │
+│                                                │  │ Grupos: 18   │  │
+│                                                │  └──────────────┘  │
+└────────────────────────────────────────────────┴────────────────────┘
+```
+
+### Funcionalidades Principales
+
+#### 1. Tabla de Platos
+
+| Columna | Descripción |
+|---------|-------------|
+| **#** | Índice numérico |
+| **Nombre** | Nombre del plato + subtítulo con categoría y tipo |
+| **Precio** | Precio en S/. con formato dorado |
+| **Stock** | Badge semaforizado: Verde (>20), Naranja (1-20), Rojo (0) |
+| **Categoría** | Badge dorado con nombre de categoría |
+| **Tipo** | Badge: 🌅 Desayuno (naranja) o 🍽️ Carta (azul) |
+| **Complementos** | Resumen de grupos de complementos configurados |
+| **Acciones** | Editar (✏️), Eliminar (🗑️) |
+
+#### 2. Sistema de Filtros
+
+```javascript
+// Filtros disponibles
+searchTerm: '',      // Búsqueda por nombre
+filterCategoria: '', // Filtro por categoría
+filterTipo: '',      // Filtro por tipo: '' | 'plato-carta normal' | 'platos-desayuno'
+```
+
+- **Búsqueda en tiempo real:** Filtra mientras escribe
+- **Normalización de tipos:** Maneja ambos formatos (`platos-desayuno` / `Desayuno`)
+
+#### 3. Panel Lateral de Resumen
+
+| Sección | Datos Mostrados |
+|---------|-----------------|
+| **Categorías** | Lista de categorías con contador de platos |
+| **Resumen** | Total platos, Platos sin stock |
+| **Complementos** | Platos con complementos, Grupos definidos, Opciones totales |
+
+### Modal de Crear/Editar Plato
+
+El modal permite gestionar todos los aspectos de un plato:
+
+#### Datos Básicos
+
+| Campo | Tipo | Obligatorio |
+|-------|------|-------------|
+| **nombre** | Texto | ✅ |
+| **precio** | Number | No |
+| **stock** | Number | No |
+| **categoria** | Texto | No |
+| **tipo** | Select (`plato-carta normal` / `platos-desayuno`) | No |
+| **descripcion** | Textarea | No |
+| **disponible** | Checkbox | No |
+
+#### Sistema de Complementos
+
+Los complementos permiten configurar opciones personalizables para cada plato (ej: "Proteína", "Término", "Guarnición").
+
+**Estructura de un grupo de complemento:**
+
+```javascript
+{
+  grupo: 'Proteína',           // Nombre del grupo
+  obligatorio: true,           // Si debe seleccionarse obligatoriamente
+  seleccionMultiple: false,    // Si permite múltiples selecciones
+  opciones: ['Pollo', 'Carne', 'Mixto']  // Lista de opciones
+}
+```
+
+**Funciones del editor de complementos:**
+
+| Función | Acción |
+|---------|--------|
+| `agregarGrupoComplemento()` | Agrega un nuevo grupo vacío |
+| `eliminarGrupoComplemento(index)` | Elimina un grupo completo |
+| `agregarOpcionComplemento(grupoIndex)` | Agrega opción vacía al grupo |
+| `eliminarOpcionComplemento(gi, oi)` | Elimina una opción específica |
+
+**Limpieza antes de guardar:**
+
+```javascript
+// Se filtran grupos vacíos y opciones vacías
+const complementosLimpios = formPlato.complementos
+  .filter(g => g.grupo && g.grupo.trim() !== '')
+  .map(g => ({
+    grupo: g.grupo.trim(),
+    obligatorio: g.obligatorio || false,
+    seleccionMultiple: g.seleccionMultiple || false,
+    opciones: (g.opciones || []).filter(o => o && o.trim() !== '').map(o => o.trim())
+  }));
+```
+
+### Endpoints API Consumidos
+
+| Método | Endpoint | Uso |
+|--------|----------|-----|
+| GET | `/api/platos` | Listar todos los platos |
+| POST | `/api/platos` | Crear nuevo plato |
+| PUT | `/api/platos/:id` | Actualizar plato existente |
+| DELETE | `/api/platos/:id` | Eliminar plato |
+
+### Relación con las 3 Aplicaciones
+
+`platos.html` tiene impacto directo en las tres aplicaciones principales del sistema:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        platos.html (Dashboard Admin)                        │
+│                    Gestión del menú y complementos                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                    ┌───────────────┼───────────────┐
+                    │               │               │
+                    ▼               ▼               ▼
+        ┌───────────────┐ ┌───────────────┐ ┌───────────────┐
+        │  APP MOZOS    │ │  APP COCINA   │ │   DASHBOARD   │
+        │  (React Native)│ │  (React/Vite) │ │    (Admin)    │
+        └───────────────┘ └───────────────┘ └───────────────┘
+              │                   │                 │
+              ▼                   ▼                 ▼
+        ┌───────────────┐ ┌───────────────┐ ┌───────────────┐
+        │ • Lista de    │ │ • KDS muestra │ │ • Reportes de │
+        │   platos para │ │   platos con  │ │   top platos  │
+        │   tomar pedidos│ │   precios y   │ │ • Páginas de  │
+        │ • Complementos│ │   categorías  │ │   gestión     │
+        │   selecciona- │ │ • Filtros por │ │   usan los    │
+        │   bles al     │ │   tipo/categor│ │   mismos      │
+        │   crear comanda│ │   ía         │ │   endpoints   │
+        └───────────────┘ └───────────────┘ └───────────────┘
+```
+
+#### Detalle de la Relación con Cada App
+
+##### 1. App Mozos (React Native + Expo)
+
+**Datos que consume:**
+- `GET /api/platos/menu/:tipo` - Lista de platos por tipo (Desayuno/Carta)
+- `GET /api/platos/categorias` - Categorías disponibles
+- Campo `complementos` - Para mostrar opciones al tomar pedido
+
+**Impacto de cambios en platos.html:**
+
+| Cambio en platos.html | Efecto en App Mozos |
+|-----------------------|---------------------|
+| Crear nuevo plato | Aparece en lista de platos para tomar pedidos |
+| Cambiar tipo (Carta↔Desayuno) | Se mueve entre tabs de la app |
+| Modificar precio | Se actualiza el precio mostrado |
+| Agregar complementos | El mozo ve opciones al seleccionar el plato |
+| Cambiar stock | Indicador de disponibilidad |
+| Eliminar plato | Desaparece de la lista (soft delete) |
+
+**Flujo de complementos en App Mozos:**
+1. Mozo selecciona un plato con complementos
+2. Se abre modal con grupos de complementos
+3. Mozo selecciona opciones (validando obligatorios)
+4. `complementosSeleccionados` se guarda en la comanda
+
+##### 2. App Cocina (React + Vite - KDS)
+
+**Datos que consume:**
+- `GET /api/platos` - Todos los platos (para filtros KDS)
+- Campo `categoria` - Para filtros por categoría
+- Campo `tipo` - Para separar desayuno de carta
+
+**Impacto de cambios en platos.html:**
+
+| Cambio en platos.html | Efecto en App Cocina |
+|-----------------------|---------------------|
+| Crear/eliminar plato | Aparece/desaparece en filtros |
+| Cambiar categoría | Se agrupa diferente en KDS |
+| Modificar nombre | Se muestra el nuevo nombre en tarjetas de comanda |
+| Cambiar tipo | Afecta filtros de desayuno/carta |
+
+**Sincronización en tiempo real:**
+- Evento `plato-menu-actualizado` emitido por `events.js`
+- App Cocina escucha y actualiza lista de platos sin recargar
+
+##### 3. Dashboard Admin (HTML + Alpine.js)
+
+**Datos que consume:**
+- `GET /api/platos` - Para todas las páginas de gestión
+- `GET /api/reportes/platos-top` - Top platos vendidos
+
+**Páginas relacionadas:**
+
+| Página | Uso de datos de platos |
+|--------|------------------------|
+| `platos.html` | CRUD completo (esta página) |
+| `admin.html` tab Platos | CRUD alternativo (legacy) |
+| `comandas.html` | Muestra nombres de platos en comandas |
+| `reportes.html` | Top platos, ventas por categoría |
+| `cierre-caja.html` | Estadísticas de platos vendidos |
+
+### Eventos Socket.io Relacionados
+
+| Evento | Dirección | Descripción |
+|--------|-----------|-------------|
+| `plato-menu-actualizado` | Servidor → Apps | Notifica cambio en menú de platos |
+| - | Creado por | `emitPlatoMenuActualizado(plato)` en `events.js` |
+| - | Recibido por | App Mozos, App Cocina, Dashboard Admin |
+
+**Cuándo se emite:**
+- Crear nuevo plato (`POST /api/platos`)
+- Actualizar plato existente (`PUT /api/platos/:id`)
+- Cambiar tipo de plato (`PATCH /api/platos/:id/tipo`)
+- Eliminar plato (`DELETE /api/platos/:id`)
+
+### Flujo de Datos Completo
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         FLUJO DE DATOS - PLATOS                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+1. ADMIN CREA/EDITA PLATO (platos.html)
+   ┌──────────────┐     POST/PUT      ┌──────────────┐
+   │ platos.html  │ ────────────────► │  API /platos │
+   │  (Alpine.js) │                   │  (Express)   │
+   └──────────────┘                   └──────┬───────┘
+                                             │
+                                             ▼
+                                     ┌──────────────┐
+                                     │   MongoDB    │
+                                     │  platos model│
+                                     └──────┬───────┘
+                                             │
+                                             ▼
+                                     ┌──────────────┐
+                                     │  events.js   │
+                                     │ emitPlatoMenu│
+                                     │ Actualizado()│
+                                     └──────┬───────┘
+                                             │
+                    ┌────────────────────────┼────────────────────────┐
+                    │                        │                        │
+                    ▼                        ▼                        ▼
+           ┌──────────────┐         ┌──────────────┐         ┌──────────────┐
+           │  /mozos NS   │         │  /cocina NS  │         │  /admin NS   │
+           │ App Mozos    │         │ App Cocina   │         │ Dashboard    │
+           └──────────────┘         └──────────────┘         └──────────────┘
+                    │                        │                        │
+                    ▼                        ▼                        ▼
+           Actualiza lista          Refresca filtros        Refresca tablas
+           de platos                KDS                     de platos
+
+2. MOZO TOMA PEDIDO CON COMPLEMENTOS (App Mozos)
+   ┌──────────────┐                   ┌──────────────┐
+   │  App Mozos   │ ─── POST ────────►│ API /comanda │
+   │              │   comanda con     │              │
+   │ complementos │   complementos    │              │
+   │ seleccionados│   seleccionados   │              │
+   └──────────────┘                   └──────────────┘
+
+3. COCINA VE COMANDA CON COMPLEMENTOS (App Cocina)
+   ┌──────────────┐                   ┌──────────────┐
+   │  App Cocina  │ ◄── Socket.io ────│  events.js   │
+   │    (KDS)     │   nueva-comanda   │              │
+   │              │   con platos y    │              │
+   │ Muestra      │   complementos    │              │
+   │ complementos │   seleccionados   │              │
+   └──────────────┘                   └──────────────┘
+```
+
+### Validaciones Frontend
+
+| Campo | Validación |
+|-------|------------|
+| **nombre** | Obligatorio, no vacío |
+| **precio** | Numérico |
+| **stock** | Numérico |
+| **complementos** | Grupos con nombre, opciones no vacías |
+
+### Código de Referencia
+
+**Endpoint de creación/actualización:**
+
+```javascript
+// platos.html - guardarPlato()
+const payload = {
+  nombre: formPlato.nombre,
+  precio: formPlato.precio,
+  stock: formPlato.stock,
+  categoria: formPlato.categoria,
+  tipo: formPlato.tipo,
+  descripcion: formPlato.descripcion,
+  disponible: formPlato.disponible,
+  complementos: complementosLimpios  // Array de grupos
+};
+
+// POST o PUT según sea edición
+const res = isEdit 
+  ? await apiPut('/platos/' + formPlato._id, payload)
+  : await apiPost('/platos', payload);
+```
+
+### Diferencias con admin.html Tab Platos
+
+| Aspecto | platos.html | admin.html Tab Platos |
+|---------|-------------|----------------------|
+| **Interfaz** | Moderna, dark theme premium | Clásica, Bootstrap-like |
+| **Panel lateral** | Resumen de categorías y complementos | No tiene |
+| **Editor de complementos** | Visual, grid 2 columnas | Inline, funcional |
+| **Filtros** | Búsqueda + categoría + tipo | Tabs internos por tipo |
+| **Autenticación** | JWT obligatorio | Sin JWT |
+| **Eventos Socket.io** | No escucha (solo carga inicial) | Escucha `plato-menu-actualizado` |
 
 
 ---
@@ -2949,9 +3416,11 @@ curl http://localhost:3000/api/comanda/fecha/2026-03-29 | jq '.[0].platos[0]'
 
 ---
 
-*Documento generado para el proyecto Las Gambusinas — Backend Node.js/Express/MongoDB/Socket.io. Versión 2.12, marzo 2026.*
+*Documento generado para el proyecto Las Gambusinas — Backend Node.js/Express/MongoDB/Socket.io. Versión 2.14, marzo 2026.*
 
 **Incluye:**
+- **Documentación de platos.html**: página dedicada a gestión del menú con interfaz moderna (Tailwind, Alpine.js), sistema de complementos, relación con App Mozos/App Cocina/Dashboard, flujo de datos y eventos Socket.io
+- **Documentación del Sistema de Tiempo Real**: archivo `src/socket/events.js` como núcleo de comunicación Socket.io, arquitectura de namespaces y rooms, flujo de actualización en tiempo real, integración con `mozos.html`
 - **Bug corregido**: Proyecciones de MongoDB - campos faltantes en `PROYECCION_RESUMEN_MESA` causaban que complementos no llegaran al frontend
 - Sistema de Mozos v2.0 con Metas: tipos de metas (ventas, mesas, tickets, ticket promedio, propinas), estados de cumplimiento semaforizados, proyección inteligente, ranking, recomendaciones automáticas
 - Sistema de Propinas para Mozos v1.0: gestión completa de propinas con modelo Propina, endpoints API REST, página mozos.html en dashboard, integración con App Mozos
