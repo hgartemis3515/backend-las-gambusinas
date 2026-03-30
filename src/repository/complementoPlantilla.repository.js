@@ -119,6 +119,13 @@ const crearComplementoPlantilla = async (data) => {
         opciones: data.opciones || [],
         obligatorio: data.obligatorio || false,
         seleccionMultiple: data.seleccionMultiple || false,
+        // ===== NUEVOS CAMPOS v2.0 =====
+        modoSeleccion: data.modoSeleccion || (data.seleccionMultiple ? 'cantidades' : 'opciones'),
+        maxUnidadesGrupo: data.maxUnidadesGrupo ?? (data.seleccionMultiple ? null : 1),
+        minUnidadesGrupo: data.minUnidadesGrupo ?? (data.obligatorio ? 1 : 0),
+        maxUnidadesPorOpcion: data.maxUnidadesPorOpcion ?? null,
+        permiteRepetirOpcion: data.permiteRepetirOpcion ?? data.seleccionMultiple,
+        // ===== FIN NUEVOS CAMPOS =====
         categoria: data.categoria?.trim() || 'General',
         activo: data.activo !== false,
         creadoPor: data.creadoPor || 'admin'
@@ -166,7 +173,11 @@ const actualizarComplementoPlantilla = async (id, newData) => {
     const camposActualizables = [
         'nombre', 'descripcion', 'opciones', 
         'obligatorio', 'seleccionMultiple', 
-        'categoria', 'activo'
+        'categoria', 'activo',
+        // ===== NUEVOS CAMPOS v2.0 =====
+        'modoSeleccion', 'maxUnidadesGrupo', 'minUnidadesGrupo',
+        'maxUnidadesPorOpcion', 'permiteRepetirOpcion'
+        // ===== FIN NUEVOS CAMPOS =====
     ];
     
     for (const campo of camposActualizables) {
