@@ -2427,12 +2427,15 @@ const listarComandaPorFecha = async (fecha, usarProyeccion = true) => {
  */
 const recalcularEstadoMesa = async (mesaId, session = null) => {
   try {
+    // 🔥 FILTRO TRIPLE EXPLÍCITO: IsActive=true, eliminada!=true, status NO pagado
+    // Esto garantiza que comandas ya cobradas no interfieran en el cálculo
     const query = {
       mesas: mesaId,
-      IsActive: true,
-      status: { $nin: ['pagado', 'completado'] }
+      IsActive: true,                    // Solo comandas activas
+      eliminada: { $ne: true },           // Excluir comandas eliminadas (soft-delete)
+      status: { $nin: ['pagado', 'completado', 'cancelado'] }  // Excluir comandas pagadas/completadas/canceladas
     };
-    
+
     const comandasActivas = session
       ? await comandaModel.find(query).session(session)
       : await comandaModel.find(query);

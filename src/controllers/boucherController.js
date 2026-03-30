@@ -220,13 +220,16 @@ router.post('/boucher', async (req, res) => {
         // Crear boucher
         const boucherCreado = await crearBoucher(boucherData);
         
-        // Marcar comandas como pagadas
+        // Marcar comandas como pagadas - CORREGIDO: También establecer IsActive: false
+        // Esto garantiza que las comandas pagadas no interfieran en el cálculo de estado de mesa
         await Promise.all(comandasIds.map(async (comandaId) => {
             try {
                 await comandaModel.findByIdAndUpdate(comandaId, {
                     status: 'pagado',
+                    IsActive: false, // 🔥 CRÍTICO: Marcar como inactiva para evitar que cuente en recalcularEstadoMesa
                     cliente: clienteId || null
                 });
+                console.log(`✅ Comanda ${comandaId} marcada como pagada e inactiva`);
             } catch (error) {
                 console.error(`⚠️ Error marcando comanda ${comandaId} como pagada:`, error);
             }
