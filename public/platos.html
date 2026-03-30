@@ -45,6 +45,7 @@ tailwind.config = {
       <h1 class="text-xl font-bold">Carta y Platos</h1>
       <div class="flex gap-2">
         <button @click="loadPlatos()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
+        <button @click="openModalComplementosGestion()" class="px-4 py-2 border border-gold/50 rounded-lg text-sm text-gold hover:bg-gold-20 transition">📚 Gestionar Complementos</button>
         <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold" @click="openCreateModal()">+ Nuevo Plato</button>
       </div>
     </div>
@@ -149,6 +150,9 @@ tailwind.config = {
             <div><p class="text-[10px] text-txt-muted">Grupos definidos</p><p class="text-gold font-bold" x-text="platos.reduce((s,p) => s + (p.complementos?.length || 0), 0)"></p></div>
             <div><p class="text-[10px] text-txt-muted">Opciones totales</p><p class="text-gold font-bold" x-text="platos.reduce((s,p) => s + (p.complementos?.reduce((ss,g) => ss + (g.opciones?.length || 0), 0) || 0), 0)"></p></div>
           </div>
+          <button @click="openModalComplementosGestion()" class="mt-3 w-full px-3 py-2 bg-gold/10 border border-gold/30 rounded-lg text-xs text-gold hover:bg-gold/20 transition">
+            📚 Gestionar biblioteca
+          </button>
         </div>
       </div>
     </div>
@@ -158,7 +162,7 @@ tailwind.config = {
 
 <!-- MODAL: CREAR/EDITAR PLATO -->
 <div x-show="modal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=null">
-  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[720px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[820px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
     <div class="bg-bg-sidebar p-5 rounded-t-2xl sticky top-0 z-10">
       <div class="flex items-center justify-between">
         <div><h2 class="text-lg font-bold" x-text="isEditing ? 'Editar Plato' : 'Crear Nuevo Plato'"></h2><p class="text-xs text-txt-muted" x-text="isEditing ? 'Modifique los datos del plato y sus complementos' : 'Completa los datos del plato y agrega complementos si desea'"></p></div>
@@ -203,32 +207,39 @@ tailwind.config = {
             <p class="text-[11px] text-txt-secondary uppercase font-semibold">Complementos del Plato</p>
             <p class="text-[10px] text-txt-muted mt-0.5" x-show="formPlato.complementos.length > 0" x-text="complementosSummary"></p>
           </div>
-          <button type="button" @click="agregarGrupoComplemento()" class="border border-gold text-gold px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gold-20 transition">+ Agregar grupo</button>
+          <div class="flex gap-2">
+            <button type="button" @click="openSelectorComplementos()" class="bg-gold/10 border border-gold/30 text-gold px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gold/20 transition">📚 Desde biblioteca</button>
+            <button type="button" @click="agregarGrupoComplemento()" class="border border-gold text-gold px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gold-20 transition">+ Manual</button>
+          </div>
         </div>
 
         <!-- Estado vacío -->
         <div x-show="formPlato.complementos.length === 0" class="bg-bg-sidebar rounded-lg p-4 text-center">
           <p class="text-txt-muted text-sm">Sin complementos definidos</p>
-          <p class="text-[11px] text-txt-muted mt-1">Agrega grupos como "Proteína", "Guarnición", etc.</p>
+          <p class="text-[11px] text-txt-muted mt-1">Agrega desde la biblioteca o crea manualmente</p>
         </div>
 
         <!-- Lista de grupos -->
         <div x-show="formPlato.complementos.length > 0" class="grid grid-cols-2 gap-3">
           <template x-for="(grupo, gi) in formPlato.complementos" :key="gi">
-            <div class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+            <div class="bg-bg-sidebar border rounded-xl p-4" :class="grupo._fromLibrary ? 'border-st-libre/30' : 'border-[rgba(212,175,55,0.25)]'">
+              <!-- Badge si es de biblioteca -->
+              <div x-show="grupo._fromLibrary" class="flex items-center gap-1 mb-2">
+                <span class="text-[9px] px-1.5 py-0.5 rounded bg-st-libre/20 text-st-libre font-medium">📚 Biblioteca</span>
+              </div>
               <!-- Header del grupo -->
               <div class="flex items-center justify-between mb-2">
-                <input type="text" x-model="grupo.grupo" placeholder="Nombre del grupo" class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-md px-2 py-1.5 text-xs w-32 focus:border-gold focus:outline-none">
+                <input type="text" x-model="grupo.grupo" placeholder="Nombre del grupo" class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-md px-2 py-1.5 text-xs w-32 focus:border-gold focus:outline-none" :readonly="grupo._fromLibrary" :class="grupo._fromLibrary ? 'opacity-80 cursor-not-allowed' : ''">
                 <button type="button" @click="eliminarGrupoComplemento(gi)" class="w-6 h-6 flex items-center justify-center rounded bg-st-pagado/20 text-st-pagado text-[10px] hover:bg-st-pagado/30">✕</button>
               </div>
 
               <!-- Configuración del grupo -->
               <div class="flex gap-3 mb-3 text-[10px]">
                 <label class="flex items-center gap-1 cursor-pointer" :class="grupo.obligatorio ? 'text-gold' : 'text-txt-muted'">
-                  <input type="checkbox" x-model="grupo.obligatorio" class="accent-gold w-3 h-3"> Obligatorio
+                  <input type="checkbox" x-model="grupo.obligatorio" class="accent-gold w-3 h-3" :disabled="grupo._fromLibrary"> Obligatorio
                 </label>
                 <label class="flex items-center gap-1 cursor-pointer" :class="grupo.seleccionMultiple ? 'text-gold' : 'text-txt-muted'">
-                  <input type="checkbox" x-model="grupo.seleccionMultiple" class="accent-gold w-3 h-3"> Sel. múltiple
+                  <input type="checkbox" x-model="grupo.seleccionMultiple" class="accent-gold w-3 h-3" :disabled="grupo._fromLibrary"> Sel. múltiple
                 </label>
               </div>
 
@@ -237,12 +248,12 @@ tailwind.config = {
               <div class="space-y-1.5">
                 <template x-for="(op, oi) in grupo.opciones" :key="oi">
                   <div class="flex gap-1.5 items-center">
-                    <input type="text" x-model="grupo.opciones[oi]" placeholder="Ej: Pollo" class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[11px] focus:border-gold focus:outline-none">
-                    <button type="button" @click="eliminarOpcionComplemento(gi, oi)" class="text-st-pagado text-[10px] hover:text-white px-1">✕</button>
+                    <input type="text" x-model="grupo.opciones[oi]" placeholder="Ej: Pollo" class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[11px] focus:border-gold focus:outline-none" :readonly="grupo._fromLibrary" :class="grupo._fromLibrary ? 'opacity-80' : ''">
+                    <button type="button" @click="eliminarOpcionComplemento(gi, oi)" class="text-st-pagado text-[10px] hover:text-white px-1" x-show="!grupo._fromLibrary">✕</button>
                   </div>
                 </template>
               </div>
-              <button type="button" @click="agregarOpcionComplemento(gi)" class="mt-2 text-[10px] text-gold hover:underline">+ Agregar opción</button>
+              <button type="button" @click="agregarOpcionComplemento(gi)" class="mt-2 text-[10px] text-gold hover:underline" x-show="!grupo._fromLibrary">+ Agregar opción</button>
             </div>
           </template>
         </div>
@@ -254,6 +265,260 @@ tailwind.config = {
         <button @click="modal=null" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
         <button @click="guardarPlato()" class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition" x-text="isEditing ? 'Actualizar' : 'Crear Plato'"></button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: SELECTOR DE COMPLEMENTOS DESDE BIBLIOTECA -->
+<div x-show="modalSelectorComplementos" x-transition.opacity class="fixed inset-0 z-[60] flex items-center justify-center p-4 modal-overlay bg-black/80" @click.self="modalSelectorComplementos=false">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[600px] max-h-[80vh] overflow-hidden shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-4 border-b border-[rgba(212,175,55,0.15)]">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-base font-bold">Agregar desde Biblioteca</h3>
+          <p class="text-[11px] text-txt-muted">Selecciona complementos reutilizables para este plato</p>
+        </div>
+        <button @click="modalSelectorComplementos=false" class="w-6 h-6 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+      </div>
+      <!-- Búsqueda -->
+      <div class="mt-3">
+        <input type="text" x-model="searchComplementoLib" @input="filtrarComplementosLib()" placeholder="🔍 Buscar complemento..." class="w-full bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+      </div>
+    </div>
+    
+    <!-- Loading -->
+    <div x-show="loadingComplementosLib" class="p-8 flex justify-center">
+      <div class="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+    </div>
+    
+    <!-- Lista de complementos disponibles -->
+    <div x-show="!loadingComplementosLib" class="p-4 max-h-[400px] overflow-y-auto">
+      <div x-show="complementosLibFiltrados.length === 0" class="text-center py-8 text-txt-muted text-sm">
+        No hay complementos disponibles en la biblioteca
+      </div>
+      <div class="space-y-2">
+        <template x-for="comp in complementosLibFiltrados" :key="comp._id">
+          <div class="bg-bg-sidebar border rounded-lg p-3 cursor-pointer transition hover:border-gold/50"
+               :class="isSelectedComplementoLib(comp) ? 'border-gold bg-gold/10' : 'border-[rgba(212,175,55,0.15)]'"
+               @click="toggleComplementoLib(comp)">
+            <div class="flex items-start justify-between">
+              <div class="flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="font-medium text-sm" x-text="comp.nombre"></span>
+                  <span x-show="isSelectedComplementoLib(comp)" class="text-[9px] px-1.5 py-0.5 rounded bg-gold text-bg-primary font-semibold">Seleccionado</span>
+                </div>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="text-[10px] text-txt-muted" x-text="comp.categoria"></span>
+                  <span x-show="comp.obligatorio" class="text-[9px] px-1 py-0.5 rounded bg-st-pagado/20 text-st-pagado">Obligatorio</span>
+                  <span x-show="comp.seleccionMultiple" class="text-[9px] px-1 py-0.5 rounded bg-st-pedido/20 text-st-pedido">Múltiple</span>
+                </div>
+                <p class="text-[10px] text-txt-muted mt-1" x-text="comp.opciones?.slice(0, 4).join(' · ') + (comp.opciones?.length > 4 ? '...' : '')"></p>
+              </div>
+              <div class="text-right">
+                <span class="text-[10px] text-gold" x-text="comp.opciones?.length + ' opc.'"></span>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+    
+    <div class="bg-bg-sidebar p-4 border-t border-[rgba(212,175,55,0.15)] flex justify-between items-center">
+      <span class="text-[11px] text-txt-muted" x-text="selectedComplementosLib.length + ' seleccionado(s)'"></span>
+      <div class="flex gap-2">
+        <button @click="modalSelectorComplementos=false" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+        <button @click="aplicarComplementosSeleccionados()" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition" x-show="selectedComplementosLib.length > 0">Agregar seleccionados</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: GESTIÓN DE COMPLEMENTOS (BIBLIOTECA) -->
+<div x-show="modalGestionComplementos" x-transition.opacity class="fixed inset-0 z-[55] flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modalGestionComplementos=false">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[900px] max-h-[90vh] overflow-hidden shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold">📚 Biblioteca de Complementos</h2>
+          <p class="text-xs text-txt-muted">Gestiona plantillas reutilizables de complementos para tus platos</p>
+        </div>
+        <button @click="modalGestionComplementos=false" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+      </div>
+      <!-- Barra de herramientas -->
+      <div class="mt-4 flex gap-3 items-center flex-wrap">
+        <input type="text" x-model="searchGestionComp" @input="filtrarGestionComplementos()" placeholder="🔍 Buscar..." class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-48 focus:border-gold focus:outline-none">
+        <select x-model="filterCatGestion" @change="filtrarGestionComplementos()" class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary">
+          <option value="">Todas las categorías</option>
+          <template x-for="cat in categoriasComplementos" :key="cat"><option :value="cat" x-text="cat"></option></template>
+        </select>
+        <select x-model="filterActivoGestion" @change="filtrarGestionComplementos()" class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary">
+          <option value="">Todos</option>
+          <option value="true">Activos</option>
+          <option value="false">Inactivos</option>
+        </select>
+        <button @click="openCrearComplementoModal()" class="ml-auto bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">+ Nuevo Complemento</button>
+      </div>
+    </div>
+    
+    <!-- Contenido principal con tabs -->
+    <div class="p-5">
+      <!-- Tabs -->
+      <div class="flex gap-1 mb-4 bg-bg-sidebar rounded-lg p-1">
+        <button @click="tabGestion='listado'" :class="tabGestion==='listado' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white'" class="px-4 py-2 rounded-md text-sm font-medium transition">Listado</button>
+        <button @click="tabGestion='estadisticas'" :class="tabGestion==='estadisticas' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white'" class="px-4 py-2 rounded-md text-sm font-medium transition">Estadísticas</button>
+      </div>
+      
+      <!-- Loading -->
+      <div x-show="loadingGestionComplementos" class="flex justify-center py-12">
+        <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+      </div>
+      
+      <!-- TAB: LISTADO -->
+      <div x-show="!loadingGestionComplementos && tabGestion==='listado'" class="max-h-[450px] overflow-y-auto">
+        <div x-show="complementosGestionFiltrados.length === 0" class="text-center py-12 text-txt-muted">
+          <p class="text-sm">No hay complementos en la biblioteca</p>
+          <button @click="openCrearComplementoModal()" class="mt-3 text-gold text-sm hover:underline">Crear el primer complemento</button>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-3">
+          <template x-for="comp in complementosGestionFiltrados" :key="comp._id">
+            <div class="bg-bg-sidebar border rounded-xl p-4" :class="comp.activo ? 'border-[rgba(212,175,55,0.15)]' : 'border-st-pagado/30 opacity-70'">
+              <div class="flex items-start justify-between mb-2">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="font-semibold text-sm" x-text="comp.nombre"></span>
+                    <span x-show="!comp.activo" class="text-[9px] px-1.5 py-0.5 rounded bg-st-pagado/20 text-st-pagado">Inactivo</span>
+                  </div>
+                  <span class="text-[10px] text-txt-muted" x-text="comp.categoria"></span>
+                </div>
+                <div class="flex gap-1">
+                  <button @click="openEditarComplementoModal(comp)" class="w-6 h-6 flex items-center justify-center rounded bg-gold/20 text-gold text-[11px] hover:bg-gold/30" title="Editar">✏️</button>
+                  <button @click="toggleActivoComplemento(comp)" class="w-6 h-6 flex items-center justify-center rounded text-[11px]" :class="comp.activo ? 'bg-st-esperando/20 text-st-esperando' : 'bg-st-preparado/20 text-st-preparado'" :title="comp.activo ? 'Desactivar' : 'Reactivar'" x-text="comp.activo ? '⏸' : '▶'"></button>
+                  <button @click="confirmarEliminarComplemento(comp)" class="w-6 h-6 flex items-center justify-center rounded bg-st-pagado/20 text-st-pagado text-[11px] hover:bg-st-pagado/30" title="Eliminar">🗑️</button>
+                </div>
+              </div>
+              
+              <div class="flex gap-2 mb-2 text-[10px]">
+                <span x-show="comp.obligatorio" class="px-1.5 py-0.5 rounded bg-st-pagado/15 text-st-pagado">Obligatorio</span>
+                <span x-show="comp.seleccionMultiple" class="px-1.5 py-0.5 rounded bg-st-pedido/15 text-st-pedido">Sel. múltiple</span>
+              </div>
+              
+              <div class="flex flex-wrap gap-1 mb-2">
+                <template x-for="op in comp.opciones?.slice(0, 6)" :key="op">
+                  <span class="text-[9px] px-1.5 py-0.5 rounded bg-bg-card text-txt-secondary" x-text="op"></span>
+                </template>
+                <span x-show="comp.opciones?.length > 6" class="text-[9px] text-txt-muted" x-text="'+' + (comp.opciones.length - 6) + ' más'"></span>
+              </div>
+              
+              <div class="flex items-center justify-between text-[10px] text-txt-muted pt-2 border-t border-[rgba(212,175,55,0.1)]">
+                <span x-text="comp.opciones?.length + ' opciones'"></span>
+                <span class="text-gold" x-text="'Usado en ' + (comp._usoEnPlatos || 0) + ' plato(s)'"></span>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+      
+      <!-- TAB: ESTADÍSTICAS -->
+      <div x-show="!loadingGestionComplementos && tabGestion==='estadisticas'" class="max-h-[450px] overflow-y-auto">
+        <div class="bg-bg-sidebar rounded-xl p-4 mb-4">
+          <h4 class="font-semibold text-sm mb-3">Resumen de uso</h4>
+          <div class="grid grid-cols-3 gap-4">
+            <div class="text-center">
+              <p class="text-2xl font-bold text-gold" x-text="complementosGestion.length"></p>
+              <p class="text-[11px] text-txt-muted">Total complementos</p>
+            </div>
+            <div class="text-center">
+              <p class="text-2xl font-bold text-st-preparado" x-text="complementosGestion.filter(c => c.activo).length"></p>
+              <p class="text-[11px] text-txt-muted">Activos</p>
+            </div>
+            <div class="text-center">
+              <p class="text-2xl font-bold text-st-pagado" x-text="complementosGestion.filter(c => !c.activo).length"></p>
+              <p class="text-[11px] text-txt-muted">Inactivos</p>
+            </div>
+          </div>
+        </div>
+        
+        <h4 class="font-semibold text-sm mb-3">Top complementos más usados</h4>
+        <div class="space-y-2">
+          <template x-for="stat in estadisticasUsoComplementos.slice(0, 10)" :key="stat._id">
+            <div class="flex items-center justify-between bg-bg-sidebar rounded-lg px-3 py-2">
+              <div>
+                <span class="text-sm" x-text="stat.nombre"></span>
+                <span class="text-[10px] text-txt-muted ml-2" x-text="stat.categoria"></span>
+              </div>
+              <span class="text-sm font-semibold text-gold" x-text="stat.platosUsandolo + ' platos'"></span>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CREAR/EDITAR COMPLEMENTO PLANTILLA -->
+<div x-show="modalFormComplemento" x-transition.opacity class="fixed inset-0 z-[65] flex items-center justify-center p-4 modal-overlay bg-black/80" @click.self="modalFormComplemento=false">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[500px] max-h-[85vh] overflow-y-auto shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-4 rounded-t-2xl">
+      <h3 class="text-base font-bold" x-text="isEditingComplemento ? 'Editar Complemento' : 'Nuevo Complemento'"></h3>
+      <p class="text-[11px] text-txt-muted" x-text="isEditingComplemento ? 'Modifica la plantilla de complemento' : 'Crea una nueva plantilla reutilizable'"></p>
+    </div>
+    
+    <div class="p-5 space-y-4">
+      <!-- Nombre -->
+      <div>
+        <label class="text-xs text-txt-secondary mb-1 block">Nombre del complemento <span class="text-st-pagado">*</span></label>
+        <input type="text" x-model="formComplemento.nombre" placeholder="Ej: Término de cocción" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+      </div>
+      
+      <!-- Categoría -->
+      <div>
+        <label class="text-xs text-txt-secondary mb-1 block">Categoría</label>
+        <input type="text" x-model="formComplemento.categoria" placeholder="Ej: General, Proteína, Guarnición..." list="categoriasList" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+        <datalist id="categoriasList">
+          <template x-for="cat in categoriasComplementos" :key="cat"><option :value="cat"></option></template>
+        </datalist>
+      </div>
+      
+      <!-- Opciones -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <label class="text-xs text-txt-secondary">Opciones <span class="text-st-pagado">*</span></label>
+          <button @click="agregarOpcionFormComplemento()" class="text-[11px] text-gold hover:underline">+ Agregar opción</button>
+        </div>
+        <div class="space-y-2">
+          <template x-for="(op, i) in formComplemento.opciones" :key="i">
+            <div class="flex gap-2">
+              <input type="text" x-model="formComplemento.opciones[i]" placeholder="Ej: Tres cuartos" class="flex-1 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+              <button @click="eliminarOpcionFormComplemento(i)" class="w-8 h-8 flex items-center justify-center rounded bg-st-pagado/20 text-st-pagado text-sm hover:bg-st-pagado/30">✕</button>
+            </div>
+          </template>
+        </div>
+        <p x-show="formComplemento.opciones.length === 0" class="text-[11px] text-st-pagado mt-1">Debes agregar al menos una opción</p>
+      </div>
+      
+      <!-- Flags -->
+      <div class="flex gap-4">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" x-model="formComplemento.obligatorio" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+          <span class="text-sm text-txt-secondary">Obligatorio</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" x-model="formComplemento.seleccionMultiple" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+          <span class="text-sm text-txt-secondary">Selección múltiple</span>
+        </label>
+      </div>
+      
+      <!-- Activo -->
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" x-model="formComplemento.activo" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+        <span class="text-sm text-txt-secondary">Activo</span>
+      </label>
+    </div>
+    
+    <div class="bg-bg-sidebar p-4 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="modalFormComplemento=false" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+      <button @click="guardarComplementoPlantilla()" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition" x-text="isEditingComplemento ? 'Actualizar' : 'Crear'"></button>
     </div>
   </div>
 </div>
@@ -284,10 +549,43 @@ tailwind.config = {
       tipo: 'plato-carta normal',
       descripcion: '',
       disponible: true,
-      complementos: [] // Array de grupos de complementos
+      complementos: []
     },
     activeNav: 'platos',
     pageTitle: 'Platos',
+    
+    // ============ ESTADO PARA GESTIÓN DE COMPLEMENTOS ============
+    modalGestionComplementos: false,
+    modalFormComplemento: false,
+    modalSelectorComplementos: false,
+    loadingGestionComplementos: false,
+    loadingComplementosLib: false,
+    tabGestion: 'listado',
+    
+    complementosGestion: [],
+    complementosGestionFiltrados: [],
+    complementosLib: [],
+    complementosLibFiltrados: [],
+    categoriasComplementos: [],
+    estadisticasUsoComplementos: [],
+    
+    searchGestionComp: '',
+    filterCatGestion: '',
+    filterActivoGestion: '',
+    searchComplementoLib: '',
+    
+    isEditingComplemento: false,
+    formComplemento: {
+      _id: null,
+      nombre: '',
+      categoria: 'General',
+      opciones: [''],
+      obligatorio: false,
+      seleccionMultiple: false,
+      activo: true
+    },
+    
+    selectedComplementosLib: [],
 
     async init() {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
@@ -314,7 +612,6 @@ tailwind.config = {
       this.filteredPlatos = this.platos.filter(p => {
         const matchSearch = !this.searchTerm || p.nombre?.toLowerCase().includes(this.searchTerm.toLowerCase());
         const matchCat = !this.filterCategoria || p.categoria === this.filterCategoria || p.cat === this.filterCategoria;
-        // Normalizar comparación de tipo
         const pTipo = p.tipo || 'plato-carta normal';
         const matchTipo = !this.filterTipo || pTipo === this.filterTipo ||
           (this.filterTipo === 'Carta' && (pTipo === 'Carta' || pTipo === 'plato-carta normal')) ||
@@ -366,7 +663,6 @@ tailwind.config = {
 
     openEditModal(p) {
       this.isEditing = true;
-      // Normalizar tipo del modelo
       let tipoNormalizado = p.tipo || 'plato-carta normal';
       if (tipoNormalizado === 'Desayuno') tipoNormalizado = 'platos-desayuno';
       if (tipoNormalizado === 'Carta') tipoNormalizado = 'plato-carta normal';
@@ -380,19 +676,20 @@ tailwind.config = {
         tipo: tipoNormalizado,
         descripcion: p.descripcion || '',
         disponible: p.disponible !== false,
-        complementos: JSON.parse(JSON.stringify(p.complementos || [])) // Deep copy
+        complementos: JSON.parse(JSON.stringify(p.complementos || []))
       };
       this.modal = true;
     },
 
-    // ============ FUNCIONES DE COMPLEMENTOS ============
+    // ============ FUNCIONES DE COMPLEMENTOS EN PLATO ============
 
     agregarGrupoComplemento() {
       this.formPlato.complementos.push({
         grupo: '',
         obligatorio: false,
         seleccionMultiple: false,
-        opciones: ['']
+        opciones: [''],
+        _fromLibrary: false
       });
     },
 
@@ -425,7 +722,269 @@ tailwind.config = {
       return { grupos, opciones, nombres: comp.map(g => g.grupo).filter(Boolean).join(' · ') };
     },
 
-    // ============ GUARDAR Y ELIMINAR ============
+    // ============ SELECTOR DE COMPLEMENTOS DESDE BIBLIOTECA ============
+
+    async openSelectorComplementos() {
+      this.modalSelectorComplementos = true;
+      this.loadingComplementosLib = true;
+      this.selectedComplementosLib = [];
+      this.searchComplementoLib = '';
+      
+      try {
+        const data = await apiGet('/complementos-plantilla?activos=true');
+        this.complementosLib = data || [];
+        this.complementosLibFiltrados = [...this.complementosLib];
+        
+        // Cargar estadísticas de uso
+        const stats = await apiGet('/complementos-plantilla/estadisticas');
+        const statsMap = new Map((stats || []).map(s => [s._id, s.platosUsandolo]));
+        this.complementosLib.forEach(c => {
+          c._usoEnPlatos = statsMap.get(c._id) || 0;
+        });
+      } catch (e) {
+        console.error('Error cargando complementos:', e);
+        this.showToast('Error al cargar complementos', 'error');
+      }
+      
+      this.loadingComplementosLib = false;
+    },
+
+    filtrarComplementosLib() {
+      const term = this.searchComplementoLib.toLowerCase().trim();
+      this.complementosLibFiltrados = this.complementosLib.filter(c => {
+        if (!term) return true;
+        return c.nombre.toLowerCase().includes(term) || 
+               c.categoria?.toLowerCase().includes(term);
+      });
+    },
+
+    isSelectedComplementoLib(comp) {
+      return this.selectedComplementosLib.some(c => c._id === comp._id);
+    },
+
+    toggleComplementoLib(comp) {
+      const idx = this.selectedComplementosLib.findIndex(c => c._id === comp._id);
+      if (idx >= 0) {
+        this.selectedComplementosLib.splice(idx, 1);
+      } else {
+        this.selectedComplementosLib.push(comp);
+      }
+    },
+
+    aplicarComplementosSeleccionados() {
+      // Agregar cada complemento seleccionado al plato
+      this.selectedComplementosLib.forEach(comp => {
+        // Verificar que no exista ya un grupo con el mismo nombre
+        const yaExiste = this.formPlato.complementos.some(g => g.grupo === comp.nombre);
+        if (!yaExiste) {
+          this.formPlato.complementos.push({
+            grupo: comp.nombre,
+            obligatorio: comp.obligatorio || false,
+            seleccionMultiple: comp.seleccionMultiple || false,
+            opciones: [...(comp.opciones || [])],
+            _fromLibrary: true,
+            _libraryId: comp._id
+          });
+        }
+      });
+      
+      this.modalSelectorComplementos = false;
+      this.showToast(this.selectedComplementosLib.length + ' complemento(s) agregado(s)');
+      this.selectedComplementosLib = [];
+    },
+
+    // ============ MODAL GESTIÓN DE COMPLEMENTOS ============
+
+    async openModalComplementosGestion() {
+      this.modalGestionComplementos = true;
+      await this.loadComplementosGestion();
+    },
+
+    async loadComplementosGestion() {
+      this.loadingGestionComplementos = true;
+      
+      try {
+        // Cargar complementos
+        const data = await apiGet('/complementos-plantilla');
+        this.complementosGestion = data || [];
+        
+        // Cargar categorías
+        const cats = await apiGet('/complementos-plantilla/categorias');
+        this.categoriasComplementos = cats || ['General'];
+        
+        // Cargar estadísticas de uso
+        const stats = await apiGet('/complementos-plantilla/estadisticas');
+        this.estadisticasUsoComplementos = stats || [];
+        
+        // Agregar uso a cada complemento
+        const statsMap = new Map((stats || []).map(s => [s._id, s.platosUsandolo]));
+        this.complementosGestion.forEach(c => {
+          c._usoEnPlatos = statsMap.get(c._id) || 0;
+        });
+        
+        this.filtrarGestionComplementos();
+      } catch (e) {
+        console.error('Error cargando complementos:', e);
+        this.showToast('Error al cargar complementos', 'error');
+      }
+      
+      this.loadingGestionComplementos = false;
+    },
+
+    filtrarGestionComplementos() {
+      const term = this.searchGestionComp.toLowerCase().trim();
+      const cat = this.filterCatGestion;
+      const activo = this.filterActivoGestion;
+      
+      this.complementosGestionFiltrados = this.complementosGestion.filter(c => {
+        if (term && !c.nombre.toLowerCase().includes(term) && !c.categoria?.toLowerCase().includes(term)) return false;
+        if (cat && c.categoria !== cat) return false;
+        if (activo === 'true' && !c.activo) return false;
+        if (activo === 'false' && c.activo) return false;
+        return true;
+      });
+    },
+
+    // ============ CRUD COMPLEMENTOS PLANTILLA ============
+
+    openCrearComplementoModal() {
+      this.isEditingComplemento = false;
+      this.formComplemento = {
+        _id: null,
+        nombre: '',
+        categoria: 'General',
+        opciones: [''],
+        obligatorio: false,
+        seleccionMultiple: false,
+        activo: true
+      };
+      this.modalFormComplemento = true;
+    },
+
+    openEditarComplementoModal(comp) {
+      this.isEditingComplemento = true;
+      this.formComplemento = {
+        _id: comp._id,
+        id: comp.id,
+        nombre: comp.nombre,
+        categoria: comp.categoria || 'General',
+        opciones: [...(comp.opciones || [''])],
+        obligatorio: comp.obligatorio || false,
+        seleccionMultiple: comp.seleccionMultiple || false,
+        activo: comp.activo !== false
+      };
+      this.modalFormComplemento = true;
+    },
+
+    agregarOpcionFormComplemento() {
+      this.formComplemento.opciones.push('');
+    },
+
+    eliminarOpcionFormComplemento(index) {
+      if (this.formComplemento.opciones.length > 1) {
+        this.formComplemento.opciones.splice(index, 1);
+      }
+    },
+
+    async guardarComplementoPlantilla() {
+      // Validaciones
+      if (!this.formComplemento.nombre.trim()) {
+        this.showToast('El nombre es requerido', 'error');
+        return;
+      }
+      
+      const opcionesValidas = this.formComplemento.opciones.filter(o => o && o.trim());
+      if (opcionesValidas.length === 0) {
+        this.showToast('Debe agregar al menos una opción válida', 'error');
+        return;
+      }
+      
+      const payload = {
+        nombre: this.formComplemento.nombre.trim(),
+        categoria: this.formComplemento.categoria.trim() || 'General',
+        opciones: opcionesValidas,
+        obligatorio: this.formComplemento.obligatorio,
+        seleccionMultiple: this.formComplemento.seleccionMultiple,
+        activo: this.formComplemento.activo
+      };
+      
+      try {
+        let res;
+        if (this.isEditingComplemento) {
+          res = await apiPut('/complementos-plantilla/' + this.formComplemento._id, payload);
+        } else {
+          res = await apiPost('/complementos-plantilla', payload);
+        }
+        
+        if (res && !res.error) {
+          this.showToast(this.isEditingComplemento ? 'Complemento actualizado ✅' : 'Complemento creado ✅');
+          this.modalFormComplemento = false;
+          await this.loadComplementosGestion();
+        } else {
+          this.showToast('Error: ' + (res?.error || 'No se pudo guardar'), 'error');
+        }
+      } catch (e) {
+        console.error('Error guardando complemento:', e);
+        this.showToast('Error al guardar complemento', 'error');
+      }
+    },
+
+    async toggleActivoComplemento(comp) {
+      try {
+        let res;
+        if (comp.activo) {
+          res = await apiPatch('/complementos-plantilla/' + comp._id + '/desactivar');
+        } else {
+          res = await apiPatch('/complementos-plantilla/' + comp._id + '/reactivar');
+        }
+        
+        if (res && !res.error) {
+          this.showToast(comp.activo ? 'Complemento desactivado' : 'Complemento reactivado');
+          await this.loadComplementosGestion();
+        } else {
+          this.showToast('Error: ' + (res?.error || 'No se pudo actualizar'), 'error');
+        }
+      } catch (e) {
+        console.error('Error cambiando estado:', e);
+        this.showToast('Error al cambiar estado', 'error');
+      }
+    },
+
+    async confirmarEliminarComplemento(comp) {
+      // Verificar uso primero
+      if (comp._usoEnPlatos > 0) {
+        if (!confirm(`Este complemento está siendo usado en ${comp._usoEnPlatos} plato(s).\n\n¿Deseas desactivarlo en lugar de eliminarlo?\n\nCancelar = Desactivar | Aceptar = Intentar eliminar`)) {
+          // Desactivar en lugar de eliminar
+          await this.toggleActivoComplemento(comp);
+          return;
+        }
+      } else {
+        if (!confirm('¿Eliminar definitivamente el complemento "' + comp.nombre + '"?')) {
+          return;
+        }
+      }
+      
+      try {
+        const res = await apiDelete('/complementos-plantilla/' + comp._id);
+        
+        if (res && !res.error) {
+          this.showToast('Complemento eliminado');
+          await this.loadComplementosGestion();
+        } else {
+          // Si hay error por estar en uso, sugerir desactivar
+          if (res?.platosUsandolo > 0) {
+            this.showToast(`No se puede eliminar: usado en ${res.platosUsandolo} platos. Use desactivar.`, 'error');
+          } else {
+            this.showToast('Error: ' + (res?.error || 'No se pudo eliminar'), 'error');
+          }
+        }
+      } catch (e) {
+        console.error('Error eliminando:', e);
+        this.showToast('Error al eliminar', 'error');
+      }
+    },
+
+    // ============ GUARDAR Y ELIMINAR PLATO ============
 
     async guardarPlato() {
       if (!this.formPlato.nombre.trim()) {
@@ -447,6 +1006,10 @@ tailwind.config = {
         ...this.formPlato,
         complementos: complementosLimpios
       };
+      
+      // Remover propiedades internas
+      delete payload._fromLibrary;
+      delete payload._libraryId;
 
       const isEdit = !!this.formPlato._id;
       const res = isEdit

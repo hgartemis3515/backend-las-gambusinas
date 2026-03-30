@@ -416,6 +416,32 @@ async function apiDelete(endpoint, body) {
   }
 }
 
+async function apiPatch(endpoint, body) {
+  const token = getToken();
+  if (!token) {
+    clearAuthAndRedirect();
+    return null;
+  }
+  try {
+    const res = await fetch('/api' + endpoint, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body || {})
+    });
+    if (res.status === 401) {
+      clearAuthAndRedirect();
+      return null;
+    }
+    return await res.json();
+  } catch (e) {
+    console.error('API Error:', endpoint, e);
+    return null;
+  }
+}
+
 // ============================================
 // API HELPERS CON NOTIFICACIONES AUTOMÁTICAS
 // ============================================
@@ -780,6 +806,7 @@ window.apiGet = apiGet;
 window.apiPost = apiPost;
 window.apiPut = apiPut;
 window.apiDelete = apiDelete;
+window.apiPatch = apiPatch;
 
 // API con notificaciones
 window.apiGetWithNotify = apiGetWithNotify;
