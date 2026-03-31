@@ -192,24 +192,24 @@ tailwind.config = {
       <div class="flex flex-col xl:flex-row gap-5">
         
         <!-- SIDEBAR -->
-        <div class="xl:w-[400px] flex-shrink-0 space-y-4 overflow-y-auto max-h-[calc(100vh-220px)]">
+        <div class="xl:w-[400px] flex-shrink-0 space-y-4 overflow-y-auto" style="max-height: calc(100vh - 180px);">
           
           <!-- Logo -->
           <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
             <h4 class="text-sm font-semibold text-gold mb-3 flex items-center gap-2">🖼️ Logo del Restaurante</h4>
             <div class="space-y-3">
               <div class="logo-upload-area" @click="$refs.logoInput.click()">
-                <input type="file" x-ref="logoInput" accept="image/*" @change="cargarLogo($event)" class="hidden">
+                <input type="file" x-ref="logoInput" accept="image/*,.svg" @change="cargarLogo($event)" class="hidden">
                 <template x-if="!plantilla.logo">
                   <div>
                     <span class="text-3xl">📤</span>
                     <p class="text-xs text-txt-muted mt-2">Click para subir logo</p>
-                    <p class="text-[10px] text-txt-muted">PNG, JPG hasta 500KB</p>
+                    <p class="text-[10px] text-txt-muted">PNG, JPG, SVG hasta 500KB</p>
                   </div>
                 </template>
                 <template x-if="plantilla.logo">
                   <div>
-                    <img :src="plantilla.logo" class="max-h-16 mx-auto rounded">
+                    <img :src="plantilla.logo" class="max-h-16 mx-auto rounded" style="object-fit: contain;">
                     <p class="text-[10px] text-txt-muted mt-2">Click para cambiar</p>
                   </div>
                 </template>
@@ -220,7 +220,13 @@ tailwind.config = {
 
           <!-- Datos del Restaurante -->
           <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
-            <h4 class="text-sm font-semibold text-gold mb-3 flex items-center gap-2">🏪 Datos del Restaurante</h4>
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="text-sm font-semibold text-gold flex items-center gap-2">🏪 Datos del Restaurante</h4>
+              <a href="/configuracion.html" class="text-[10px] text-txt-muted hover:text-gold transition flex items-center gap-1">
+                <span>⚙️ Configurar en General</span>
+              </a>
+            </div>
+            <p class="text-[10px] text-txt-muted mb-3 bg-bg-sidebar p-2 rounded">💡 Nombre, RUC, Dirección y Teléfono se sincronizan desde <a href="/configuracion.html" class="text-gold hover:underline">Configuración General</a></p>
             <div class="space-y-3">
               <div class="flex items-center justify-between">
                 <label class="text-xs text-txt-muted">Nombre Comercial</label>
@@ -241,31 +247,31 @@ tailwind.config = {
               <input type="text" x-model="plantilla.restaurante.eslogan" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm">
               
               <div class="flex items-center justify-between">
-                <label class="text-xs text-txt-muted">RUC</label>
+                <label class="text-xs text-txt-muted">RUC <span class="text-gold">(sincronizado)</span></label>
                 <div class="flex items-center gap-2">
                   <span class="text-[10px] text-txt-muted">Ver</span>
                   <div class="toggle-btn" :class="plantilla.visibilidad.ruc ? 'active' : ''" @click="plantilla.visibilidad.ruc = !plantilla.visibilidad.ruc; plantillaModificada = true"></div>
                 </div>
               </div>
-              <input type="text" x-model="plantilla.restaurante.ruc" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm font-mono">
+              <input type="text" x-model="plantilla.restaurante.ruc" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm font-mono" readonly style="opacity: 0.7;">
               
               <div class="flex items-center justify-between">
-                <label class="text-xs text-txt-muted">Dirección</label>
+                <label class="text-xs text-txt-muted">Dirección <span class="text-gold">(sincronizado)</span></label>
                 <div class="flex items-center gap-2">
                   <span class="text-[10px] text-txt-muted">Ver</span>
                   <div class="toggle-btn" :class="plantilla.visibilidad.direccion ? 'active' : ''" @click="plantilla.visibilidad.direccion = !plantilla.visibilidad.direccion; plantillaModificada = true"></div>
                 </div>
               </div>
-              <input type="text" x-model="plantilla.restaurante.direccion" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm">
+              <input type="text" x-model="plantilla.restaurante.direccion" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm" readonly style="opacity: 0.7;">
               
               <div class="flex items-center justify-between">
-                <label class="text-xs text-txt-muted">Teléfono</label>
+                <label class="text-xs text-txt-muted">Teléfono <span class="text-gold">(sincronizado)</span></label>
                 <div class="flex items-center gap-2">
                   <span class="text-[10px] text-txt-muted">Ver</span>
                   <div class="toggle-btn" :class="plantilla.visibilidad.telefono ? 'active' : ''" @click="plantilla.visibilidad.telefono = !plantilla.visibilidad.telefono; plantillaModificada = true"></div>
                 </div>
               </div>
-              <input type="text" x-model="plantilla.restaurante.telefono" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm font-mono">
+              <input type="text" x-model="plantilla.restaurante.telefono" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm font-mono" readonly style="opacity: 0.7;">
             </div>
           </div>
 
@@ -533,7 +539,7 @@ tailwind.config = {
 
         <!-- PREVIEW -->
         <div class="flex-1 min-w-0">
-          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-6 h-full flex flex-col">
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-6 flex flex-col" style="max-height: calc(100vh - 180px);">
             <div class="flex items-center justify-between mb-4">
               <p class="text-xs text-txt-muted">Vista Previa (80mm)</p>
               <div class="flex items-center gap-3">

@@ -439,20 +439,21 @@ router.patch('/configuracion/seo', async (req, res) => {
 /**
  * GET /api/configuracion/voucher-plantilla
  * Obtiene la plantilla del voucher configurada
+ * Los datos fiscales se sincronizan automáticamente desde la configuración general
  */
 router.get('/configuracion/voucher-plantilla', async (req, res) => {
     try {
         const config = await configuracionRepository.obtenerConfiguracion();
         
-        // Plantilla por defecto
+        // Plantilla por defecto con datos fiscales de la configuración
         const PLANTILLA_DEFAULT = {
-            logo: '',
+            logo: config.datosFiscales?.logoUrl || '',
             restaurante: { 
-                nombre: 'LAS GAMBUSINAS', 
+                nombre: config.datosFiscales?.nombreComercial || 'LAS GAMBUSINAS', 
                 eslogan: '* Comidas Típicas y Parrilla *', 
-                ruc: config.datosFiscales?.ruc || '20123456789', 
-                direccion: config.datosFiscales?.direccionFiscal || 'Calle Principal 123, Lima', 
-                telefono: config.datosFiscales?.telefono || '01-1234567' 
+                ruc: config.datosFiscales?.ruc || '', 
+                direccion: config.datosFiscales?.direccionFiscal || '', 
+                telefono: config.datosFiscales?.telefono || '' 
             },
             encabezado: { 
                 tipoComprobante: 'BOLETA DE VENTA ELECTRONICA', 
@@ -504,12 +505,28 @@ router.get('/configuracion/voucher-plantilla', async (req, res) => {
             }
         };
         
-        // Usar plantilla guardada o la por defecto
-        const plantilla = config.voucherPlantilla || PLANTILLA_DEFAULT;
+        // Obtener plantilla guardada o usar por defecto
+        let plantilla = config.voucherPlantilla || PLANTILLA_DEFAULT;
         
-        // Si hay logoUrl en datos fiscales, usarlo
+        // 🔥 SINCRONIZAR DATOS FISCALES: Siempre sobrescribir con datos de configuración general
+        // Esto asegura que los cambios en configuración.html se reflejen en el voucher
+        plantilla.restaurante = {
+            nombre: config.datosFiscales?.nombreComercial || plantilla.restaurante?.nombre || 'LAS GAMBUSINAS',
+            eslogan: plantilla.restaurante?.eslogan || '* Comidas Típicas y Parrilla *',
+            ruc: config.datosFiscales?.ruc || '',
+            direccion: config.datosFiscales?.direccionFiscal || '',
+            telefono: config.datosFiscales?.telefono || ''
+        };
+        
+        // Sincronizar logo desde datos fiscales
         if (config.datosFiscales?.logoUrl) {
             plantilla.logo = config.datosFiscales.logoUrl;
+        }
+        
+        // Sincronizar serie de boleta
+        if (config.numeracion?.serieBoleta) {
+            plantilla.encabezado = plantilla.encabezado || {};
+            plantilla.encabezado.serie = config.numeracion.serieBoleta;
         }
         
         res.json({

@@ -184,7 +184,7 @@ app.use(helmet({
 // FASE 7: Correlation ID Middleware (Request Tracing)
 app.use(logger.correlationMiddleware);
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use('/api',routes);
 
 // Servir archivos estáticos desde la carpeta public
