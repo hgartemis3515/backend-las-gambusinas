@@ -973,6 +973,58 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
   };
 
   /**
+   * Emitir evento de mapa de mesas actualizado
+   * Se emite cuando el admin guarda cambios en el editor de mapa
+   * @param {String} areaId - ID del área cuyo mapa fue actualizado
+   */
+  global.emitMapaActualizado = async (areaId) => {
+    try {
+      if (!areaId) {
+        logger.warn('emitMapaActualizado: areaId no proporcionado');
+        return;
+      }
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      const eventData = {
+        areaId: areaId?.toString(),
+        timestamp: timestamp
+      };
+
+      // Emitir a namespace mozos para que recarguen el mapa
+      if (mozosNamespace && mozosNamespace.sockets) {
+        mozosNamespace.emit('mapa-actualizado', eventData);
+        logger.debug('Evento mapa-actualizado emitido a mozos', {
+          areaId,
+          mozosConnected: mozosNamespace.sockets.size
+        });
+      }
+
+      // Emitir a namespace admin para que el dashboard se actualice
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('mapa-actualizado', eventData);
+        logger.debug('Evento mapa-actualizado emitido a admin', {
+          areaId,
+          adminConnected: adminNamespace.sockets.size
+        });
+      }
+
+      logger.info('Evento mapa-actualizado emitido', {
+        areaId,
+        timestamp,
+        mozosConnected: mozosNamespace?.sockets?.size || 0,
+        adminConnected: adminNamespace?.sockets?.size || 0
+      });
+    } catch (error) {
+      logger.error('Error al emitir mapa-actualizado', {
+        error: error.message,
+        stack: error.stack,
+        areaId
+      });
+    }
+  };
+
+  /**
    * Emitir evento de comanda revertida a cocina y mozos
    * CRÍTICO: Este evento soluciona el problema de desincronización cuando cocina revierte una comanda
    * ESTÁNDAR INDUSTRIA: Usa Rooms por mesa para notificar solo a mozos relevantes

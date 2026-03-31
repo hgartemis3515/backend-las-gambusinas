@@ -25,6 +25,12 @@ const areaSchema = new mongoose.Schema({
     updatedAt: {
         type: Date,
         default: Date.now
+    },
+    // ========== CAMPO PARA MAPA DE MESAS ==========
+    // Si el mapa del área está publicado (visible para mozos)
+    mapaPublicado: {
+        type: Boolean,
+        default: false
     }
 });
 

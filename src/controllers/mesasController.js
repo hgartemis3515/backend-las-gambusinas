@@ -200,6 +200,127 @@ router.get("/mesas", async (req, res) => {
     }
 });
 
+// ==================== ENDPOINTS PARA MAPA DE MESAS ====================
+// IMPORTANTE: Estas rutas deben ir ANTES de /mesas/:id para evitar conflictos
+
+/**
+ * GET /api/mesas/mapa
+ * Obtiene las mesas de un área con su configuración de mapa
+ * Query params: area (ObjectId del área)
+ */
+router.get('/mesas/mapa', async (req, res) => {
+    try {
+        const { area } = req.query;
+        const mesasModel = require('../database/models/mesas.model');
+        // Importar modelo de área para que mongoose lo registre antes del populate
+        require('../database/models/area.model');
+        
+        const filtro = { isActive: true };
+        if (area) {
+            filtro.area = area;
+        }
+        
+        const mesasRaw = await mesasModel.find(filtro)
+            .select('nummesa estado area mesasId mapaConfig esMesaPrincipal mesaPrincipalId mesasUnidas nombreCombinado')
+            .populate('area', 'nombre mapaPublicado')
+            .lean();
+        
+        // Asegurar que todas las mesas tengan mapaConfig con valores por defecto
+        // y normalizar el campo numMesa para el frontend
+        const mesas = mesasRaw.map(m => ({
+            ...m,
+            numMesa: m.nummesa || m.mesasId,
+            mapaConfig: m.mapaConfig || { x: null, y: null, width: 80, height: 80, shape: 'rect', visible: true }
+        }));
+        
+        res.json({
+            success: true,
+            mesas,
+            areaId: area || null
+        });
+    } catch (error) {
+        logger.error('Error al obtener mapa de mesas', { error: error.message, stack: error.stack });
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener mapa de mesas',
+            message: error.message
+        });
+    }
+});
+
+/**
+ * PUT /api/mesas/mapa/bulk
+ * Actualiza la configuración de mapa de múltiples mesas en batch
+ * Requiere autenticación de admin
+ * 
+ * Body: { mesas: [{ mesaId, x, y, width, height, shape, visible }] }
+ */
+router.put('/mesas/mapa/bulk', adminAuth, async (req, res) => {
+    const mongoose = require('mongoose');
+    
+    try {
+        const { mesas } = req.body;
+        
+        if (!mesas || !Array.isArray(mesas) || mesas.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Debe proporcionar un array de configuraciones de mesa'
+            });
+        }
+        
+        const mesasModel = require('../database/models/mesas.model');
+        
+        // Preparar operaciones bulk
+        const bulkOps = mesas.map(mesaConfig => ({
+            updateOne: {
+                filter: { _id: new mongoose.Types.ObjectId(mesaConfig.mesaId) },
+                update: {
+                    $set: {
+                        'mapaConfig.x': mesaConfig.x,
+                        'mapaConfig.y': mesaConfig.y,
+                        'mapaConfig.width': mesaConfig.width || 80,
+                        'mapaConfig.height': mesaConfig.height || 80,
+                        'mapaConfig.shape': mesaConfig.shape || 'rect',
+                        'mapaConfig.visible': mesaConfig.visible !== false
+                    }
+                }
+            }
+        }));
+        
+        // Ejecutar bulkWrite
+        const resultado = await mesasModel.bulkWrite(bulkOps);
+        
+        logger.info('Mapa de mesas actualizado', {
+            mesasActualizadas: resultado.modifiedCount || mesas.length,
+            adminId: req.admin?.id || req.user?._id
+        });
+        
+        // Emitir evento Socket.io mapa-actualizado
+        // Obtener el área de la primera mesa para emitir el evento
+        const primeraMesa = await mesasModel.findById(mesas[0].mesaId).select('area');
+        const areaId = primeraMesa?.area?.toString();
+        
+        if (global.emitMapaActualizado && areaId) {
+            await global.emitMapaActualizado(areaId);
+        }
+        
+        res.json({
+            success: true,
+            message: `Mapa actualizado: ${resultado.modifiedCount || mesas.length} mesas`,
+            mesasActualizadas: resultado.modifiedCount || mesas.length
+        });
+        
+    } catch (error) {
+        logger.error('Error al actualizar mapa de mesas', { error: error.message });
+        res.status(500).json({
+            success: false,
+            error: 'Error al actualizar mapa de mesas'
+        });
+    }
+});
+
+// ==================== FIN ENDPOINTS MAPA DE MESAS ====================
+
 router.get("/mesas/:id", async (req, res) => {
     try {
         const idMesa = req.params.id;
@@ -470,5 +591,59 @@ router.get('/mesas/:id/grupo', async (req, res) => {
 });
 
 // ==================== FIN ENDPOINTS JUNTAR/SEPARAR ====================
+
+/**
+ * PUT /api/mesas/:id/mapa
+ * Actualiza la configuración de mapa de una sola mesa
+ */
+router.put('/mesas/:id/mapa', adminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { x, y, width, height, shape, visible } = req.body;
+        
+        const mesasModel = require('../database/models/mesas.model');
+        
+        const mesa = await mesasModel.findByIdAndUpdate(
+            id,
+            {
+                $set: {
+                    'mapaConfig.x': x,
+                    'mapaConfig.y': y,
+                    'mapaConfig.width': width || 80,
+                    'mapaConfig.height': height || 80,
+                    'mapaConfig.shape': shape || 'rect',
+                    'mapaConfig.visible': visible !== false
+                }
+            },
+            { new: true }
+        ).populate('area');
+        
+        if (!mesa) {
+            return res.status(404).json({
+                success: false,
+                error: 'Mesa no encontrada'
+            });
+        }
+        
+        // Emitir evento Socket.io mapa-actualizado
+        if (global.emitMapaActualizado && mesa.area?._id) {
+            await global.emitMapaActualizado(mesa.area._id.toString());
+        }
+        
+        res.json({
+            success: true,
+            mesa
+        });
+        
+    } catch (error) {
+        logger.error('Error al actualizar configuración de mapa de mesa', { error: error.message });
+        res.status(500).json({
+            success: false,
+            error: 'Error al actualizar configuración de mapa'
+        });
+    }
+});
+
+// ==================== FIN ENDPOINTS MAPA DE MESAS ====================
 
 module.exports = router;

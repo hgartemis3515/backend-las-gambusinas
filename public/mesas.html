@@ -47,6 +47,8 @@ tailwind.config = {
 <link rel="stylesheet" href="/assets/css/page-transitions.css">
 <!-- Cosmos Search Bar - Glassmorphism Style -->
 <link rel="stylesheet" href="/assets/css/cosmos-search.css">
+<!-- Interact.js for drag and drop -->
+<script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
 </head>
 <body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="mesasApp()" x-cloak>
 
@@ -72,6 +74,7 @@ tailwind.config = {
         <div class="flex border border-[rgba(212,175,55,0.25)] rounded-lg overflow-hidden">
           <button @click="view='cards'" :class="view==='cards' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:bg-gold-20'" class="px-3 py-1.5 text-sm font-medium transition">🃏 Tarjetas</button>
           <button @click="view='table'" :class="view==='table' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:bg-gold-20'" class="px-3 py-1.5 text-sm font-medium transition">📋 Tabla</button>
+          <button @click="view='mapa'" :class="view==='mapa' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:bg-gold-20'" class="px-3 py-1.5 text-sm font-medium transition">🗺️ Mapa</button>
         </div>
         <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition" @click="openCreateModal()">+ Nueva Mesa</button>
       </div>
@@ -242,6 +245,254 @@ tailwind.config = {
           <span>🔵 Pedido: <span x-text="mesas.filter(m=>estadoNormalizado(m.estado)==='Pedido').length"></span></span>
         </div>
         <span x-text="mesas.length + ' mesas'"></span>
+      </div>
+    </div>
+
+    <!-- VISTA MAPA DE MESAS -->
+    <div x-show="view==='mapa'" x-transition class="space-y-4">
+      <!-- Barra de herramientas del mapa -->
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
+        <div class="flex items-center gap-3">
+          <label class="text-sm text-txt-secondary">Área:</label>
+          <select x-model="mapaAreaSeleccionada" @change="cargarMapaArea()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none min-w-[180px]">
+            <option value="">Todas las áreas</option>
+            <template x-for="area in areasList" :key="area._id">
+              <option :value="area._id" x-text="area.nombre"></option>
+            </template>
+          </select>
+          <!-- Contador de progreso -->
+          <div x-show="mapaModoEdicion && mapaAreaSeleccionada" class="flex items-center gap-2 text-xs">
+            <span class="text-txt-muted" x-text="(mesasMapa.length + mesasSinPosicionar.length) + ' mesas en área'"></span>
+            <span class="px-2 py-1 rounded-full font-semibold"
+              :class="mesasSinPosicionar.length > 0 ? 'bg-st-esperando/20 text-st-esperando' : 'bg-st-libre/20 text-st-libre'"
+              x-text="mesasMapa.length + ' colocadas'"></span>
+            <span x-show="mesasSinPosicionar.length > 0" class="px-2 py-1 rounded-full bg-st-pagado/20 text-st-pagado"
+              x-text="mesasSinPosicionar.length + ' sin colocar'"></span>
+          </div>
+          <span x-show="mapaCargando" class="text-txt-muted text-sm">Cargando...</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <!-- Indicador de cambios sin guardar -->
+          <span x-show="mapaModoEdicion && mapaTieneCambios" class="flex items-center gap-1 text-xs text-st-esperando bg-st-esperando/20 px-2 py-1 rounded-full">
+            <span class="w-2 h-2 rounded-full bg-st-esperando animate-pulse"></span>
+            Sin guardar
+          </span>
+          <!-- Botones de acción de edición -->
+          <button x-show="mapaModoEdicion" @click="autoDistribuirMesas()" 
+            :disabled="mesasSinPosicionar.length === 0"
+            class="bg-bg-sidebar border border-gold/25 text-txt-secondary px-3 py-2 rounded-lg text-sm font-semibold hover:bg-gold/10 transition disabled:opacity-40 disabled:cursor-not-allowed">
+            ⚡ Auto-distribuir
+          </button>
+          <button x-show="mapaModoEdicion" @click="limpiarMapa()" 
+            :disabled="mesasMapa.length === 0"
+            class="bg-bg-sidebar border border-st-pagado/25 text-st-pagado px-3 py-2 rounded-lg text-sm font-semibold hover:bg-st-pagado/10 transition disabled:opacity-40 disabled:cursor-not-allowed">
+            🗑️ Limpiar
+          </button>
+          <button @click="toggleModoEdicionMapa()" 
+            :class="mapaModoEdicion ? 'bg-st-preparado text-white' : 'bg-bg-sidebar border border-gold/25 text-txt-secondary hover:bg-gold/20'"
+            class="px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2">
+            <span x-text="mapaModoEdicion ? '✕ Salir de Edición' : '✏️ Editar Mapa'"></span>
+          </button>
+          <button x-show="mapaModoEdicion" @click="guardarMapa()" 
+            :disabled="mapaGuardando"
+            class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+            <span x-show="!mapaGuardando">💾 Guardar Mapa</span>
+            <span x-show="mapaGuardando" class="animate-spin">⏳</span>
+          </button>
+          <button x-show="mapaModoEdicion" @click="publicarMapa()" 
+            class="bg-st-libre text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">
+            🚀 Publicar para Mozos
+          </button>
+        </div>
+      </div>
+      
+      <!-- Mensaje de estado del mapa -->
+      <div x-show="mapaMensaje" :class="mapaMensajeTipo === 'error' ? 'bg-st-pagado/20 border-st-pagado/30' : 'bg-st-preparado/20 border-st-preparado/30'" 
+        class="border rounded-xl p-3 text-sm" x-text="mapaMensaje"></div>
+      
+      <!-- Contenedor del lienzo -->
+      <div class="flex gap-4">
+        <!-- Panel lateral de inventario (solo en modo edición) -->
+        <div x-show="mapaModoEdicion" x-transition class="w-52 flex-shrink-0 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-3 flex flex-col">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="text-xs font-semibold text-txt-muted uppercase">Inventario</h4>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-gold/20 text-gold" x-text="mesasSinPosicionar.length"></span>
+          </div>
+          
+          <!-- Lista de mesas sin posicionar -->
+          <div class="flex-1 overflow-y-auto space-y-2 min-h-[100px]">
+            <template x-for="mesa in mesasSinPosicionar" :key="mesa._id">
+              <div class="mesa-inventario bg-bg-sidebar border border-gold/25 rounded-lg p-2.5 text-xs cursor-move hover:border-gold hover:bg-gold/5 transition group"
+                draggable="true" 
+                @dragstart="dragStart($event, mesa)"
+                @dragend="dragEnd($event)">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="w-5 h-5 flex items-center justify-center rounded text-[10px]"
+                      :class="mesa.mapaConfig?.shape === 'round' ? 'bg-gold/30 rounded-full' : 'bg-gold/20 rounded'"">
+                      <span x-text="mesa.numMesa || mesa.nummesa"></span>
+                    </span>
+                    <span class="font-semibold text-white" x-text="'M' + (mesa.numMesa || mesa.nummesa)"></span>
+                  </div>
+                  <span class="text-txt-muted group-hover:text-gold transition">↗️</span>
+                </div>
+                <p class="text-[10px] text-txt-muted mt-1">Arrastra al mapa</p>
+              </div>
+            </template>
+          </div>
+          
+          <!-- Estado vacío -->
+          <div x-show="mesasSinPosicionar.length === 0" class="flex-1 flex items-center justify-center py-6">
+            <div class="text-center">
+              <p class="text-2xl mb-1">✅</p>
+              <p class="text-xs text-txt-muted">Todas las mesas están en el mapa</p>
+            </div>
+          </div>
+          
+          <!-- Mensaje cuando no hay área seleccionada -->
+          <div x-show="!mapaAreaSeleccionada" class="flex-1 flex items-center justify-center py-6">
+            <div class="text-center">
+              <p class="text-2xl mb-1">📍</p>
+              <p class="text-xs text-txt-muted">Selecciona un área para ver sus mesas</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Lienzo del mapa -->
+        <div class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+          <div id="mapa-canvas" 
+            class="relative bg-bg-sidebar min-h-[500px] w-full"
+            style="background-image: linear-gradient(rgba(212,175,55,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(212,175,55,0.05) 1px, transparent 1px); background-size: 25px 25px;"
+            @dragover.prevent="dragOver($event)"
+            @drop="drop($event)">
+            
+            <!-- Grid de referencia (solo en modo edición) -->
+            <div x-show="mapaModoEdicion" class="absolute inset-0 pointer-events-none">
+              <div class="absolute top-2 left-2 text-[10px] text-txt-muted bg-bg-sidebar/80 px-2 py-1 rounded">
+                Grid: 25px
+              </div>
+            </div>
+            
+            <!-- Mesas en el mapa -->
+            <template x-for="mesa in mesasMapa" :key="mesa._id">
+              <div 
+                class="mesa-canvas absolute cursor-pointer transition-all duration-150 select-none"
+                :class="[
+                  mesa.mapaConfig?.shape === 'round' ? 'rounded-full' : 'rounded-xl',
+                  mapaModoEdicion ? 'border-2 border-dashed border-gold hover:border-white' : '',
+                  mesaSeleccionadaMapa?._id === mesa._id ? 'ring-2 ring-white ring-offset-2 ring-offset-bg-primary' : '',
+                  detectarColision(mesa) ? 'ring-2 ring-st-pagado ring-offset-1 ring-offset-bg-primary' : '',
+                  'border-2'
+                ]"
+                :style="getMesaMapaStyle(mesa)"
+                @click="mapaModoEdicion ? seleccionarMesaMapa(mesa) : openDetailModal(mesa)"
+                :draggable="mapaModoEdicion"
+                @dragstart="dragStartMesa($event, mesa)"
+                @dragend="dragEndMesa($event, mesa)">
+                
+                <!-- Contenido de la tarjeta de mesa -->
+                <div class="flex flex-col items-center justify-center h-full p-1">
+                  <span class="font-bold text-sm" x-text="mesa.nombreCombinado || ('M' + (mesa.numMesa || mesa.nummesa))"></span>
+                  <span x-show="!mapaModoEdicion" class="text-[9px] px-1.5 py-0.5 rounded-full mt-1 font-semibold"
+                    :class="mesaBadge(estadoNormalizado(mesa.estado))" x-text="estadoNormalizado(mesa.estado)"></span>
+                  <!-- Indicador de forma en modo edición -->
+                  <button x-show="mapaModoEdicion && mesaSeleccionadaMapa?._id === mesa._id" 
+                    @click.stop="toggleMesaShape(mesa)"
+                    class="text-[8px] bg-gold/20 text-gold px-1 py-0.5 rounded mt-1 hover:bg-gold/30">
+                    <span x-text="mesa.mapaConfig?.shape === 'round' ? '⬛ Rect' : '⚫ Redonda'"></span>
+                  </button>
+                </div>
+                
+                <!-- Resize handles (solo en modo edición) -->
+                <template x-if="mapaModoEdicion && mesaSeleccionadaMapa?._id === mesa._id">
+                  <div class="absolute -right-1 -bottom-1 w-3 h-3 bg-gold rounded-full cursor-se-resize"
+                    @mousedown.stop="startResize($event, mesa)"></div>
+                </template>
+              </div>
+            </template>
+            
+            <!-- Placeholder cuando no hay mesas -->
+            <div x-show="mesasMapa.length === 0 && !mapaCargando" class="absolute inset-0 flex items-center justify-center">
+              <div class="text-center text-txt-muted">
+                <p class="text-4xl mb-2">🗺️</p>
+                <p class="text-sm">No hay mesas configuradas para esta área</p>
+                <p x-show="mapaModoEdicion" class="text-xs mt-1">Arrastra mesas desde el panel lateral</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Panel de propiedades (solo en modo edición con mesa seleccionada) -->
+        <template x-if="mapaModoEdicion && mesaSeleccionadaMapa">
+          <div class="w-56 flex-shrink-0 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="text-xs font-semibold text-txt-muted uppercase">Propiedades</h4>
+              <button @click="mesaSeleccionadaMapa = null" class="text-txt-muted hover:text-gold text-xs">✕</button>
+            </div>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Mesa</label>
+                <p class="text-sm font-semibold text-gold" x-text="'Mesa ' + (mesaSeleccionadaMapa.numMesa || mesaSeleccionadaMapa.nummesa)"></p>
+              </div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Forma</label>
+                <div class="flex gap-2">
+                  <button @click="mesaSeleccionadaMapa.mapaConfig.shape = 'rect'" 
+                    :class="mesaSeleccionadaMapa.mapaConfig?.shape === 'rect' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary hover:bg-gold/10'"
+                    class="flex-1 py-1.5 rounded-lg text-xs font-medium transition">
+                    ⬛ Rectangular
+                  </button>
+                  <button @click="mesaSeleccionadaMapa.mapaConfig.shape = 'round'" 
+                    :class="mesaSeleccionadaMapa.mapaConfig?.shape === 'round' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary hover:bg-gold/10'"
+                    class="flex-1 py-1.5 rounded-lg text-xs font-medium transition">
+                    ⚫ Redonda
+                  </button>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-xs text-txt-secondary mb-1 block">X</label>
+                  <input type="number" x-model.number="mesaSeleccionadaMapa.mapaConfig.x" @change="marcarCambios()" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs text-white focus:border-gold focus:outline-none">
+                </div>
+                <div>
+                  <label class="text-xs text-txt-secondary mb-1 block">Y</label>
+                  <input type="number" x-model.number="mesaSeleccionadaMapa.mapaConfig.y" @change="marcarCambios()" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs text-white focus:border-gold focus:outline-none">
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-xs text-txt-secondary mb-1 block">Ancho</label>
+                  <input type="number" x-model.number="mesaSeleccionadaMapa.mapaConfig.width" min="40" max="200" @change="marcarCambios()" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs text-white focus:border-gold focus:outline-none">
+                </div>
+                <div>
+                  <label class="text-xs text-txt-secondary mb-1 block">Alto</label>
+                  <input type="number" x-model.number="mesaSeleccionadaMapa.mapaConfig.height" min="40" max="200" @change="marcarCambios()" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs text-white focus:border-gold focus:outline-none">
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="checkbox" x-model="mesaSeleccionadaMapa.mapaConfig.visible" @change="marcarCambios()" id="visibleMapa" class="w-3 h-3 rounded border-txt-muted bg-bg-sidebar text-gold">
+                <label for="visibleMapa" class="text-xs text-txt-secondary">Visible en mapa</label>
+              </div>
+              <button @click="centrarMesaMapa(mesaSeleccionadaMapa)" class="w-full bg-bg-sidebar border border-gold/25 text-txt-secondary text-xs py-1.5 rounded-lg hover:bg-gold/10 transition">
+                🎯 Centrar en canvas
+              </button>
+              <button @click="removerMesaDeMapa(mesaSeleccionadaMapa)" class="w-full bg-st-pagado/20 text-st-pagado text-xs py-1.5 rounded-lg hover:bg-st-pagado/30 transition">
+                ↩️ Quitar del mapa
+              </button>
+            </div>
+          </div>
+        </template>
+      </div>
+      
+      <!-- Leyenda de estados -->
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-3 flex items-center gap-4 flex-wrap text-xs">
+        <span class="text-txt-muted font-semibold">Estados:</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-st-libre"></span> Libre</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-st-esperando"></span> Ocupada</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-st-pedido"></span> Pedido</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-st-preparado"></span> Preparado</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-st-pagado"></span> Pagado</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-st-reservado"></span> Reservado</span>
       </div>
     </div>
 
@@ -422,6 +673,22 @@ tailwind.config = {
     tienePermisoJuntarSeparar: false,
     mensajeValidacionJuntar: '',
     
+    // ========== ESTADOS PARA MAPA DE MESAS ==========
+    mapaAreaSeleccionada: '',
+    mapaModoEdicion: false,
+    mapaCargando: false,
+    mapaGuardando: false,
+    mapaMensaje: '',
+    mapaMensajeTipo: 'success',
+    mesasMapa: [],
+    mesasSinPosicionar: [],
+    mesaSeleccionadaMapa: null,
+    mapaCanvasSize: { width: 800, height: 600 },
+    GRID_SIZE: 25,
+    mapaTieneCambios: false,
+    mapaUltimoGuardado: null, // Snapshot del último guardado
+    // ========== FIN ESTADOS MAPA ==========
+    
     async init() {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
       if (!token) {
@@ -433,6 +700,18 @@ tailwind.config = {
       await this.verificarPermisos();
       
       await Promise.all([this.loadMesas(), this.loadAreas()]);
+      
+      // Cargar mapa si la vista inicial es mapa
+      if (this.view === 'mapa') {
+        await this.cargarMapaArea();
+      }
+      
+      // Watcher para cambios de vista
+      this.$watch('view', (newVal) => {
+        if (newVal === 'mapa') {
+          this.cargarMapaArea();
+        }
+      });
       
       // Escuchar eventos Socket de mesas juntadas/separadas
       this.setupSocketListeners();
@@ -474,6 +753,27 @@ tailwind.config = {
           console.log('Mesas separadas recibido:', data);
           await this.loadMesas();
           this.showToast('Mesas separadas correctamente');
+        });
+        
+        // Actualización de estado de mesa en tiempo real para el mapa
+        window.socketAdmin.on('mesa-actualizada', (data) => {
+          if (this.view !== 'mapa') return;
+          
+          const mesaId = data.mesaId || data._id;
+          const nuevoEstado = data.estado;
+          
+          // Buscar y actualizar en mesasMapa
+          const mesaEnMapa = this.mesasMapa.find(m => m._id === mesaId);
+          if (mesaEnMapa) {
+            mesaEnMapa.estado = nuevoEstado;
+            // Alpine.js detectará el cambio y actualizará el UI
+          }
+          
+          // También actualizar en mesasSinPosicionar si existe
+          const mesaSinPos = this.mesasSinPosicionar.find(m => m._id === mesaId);
+          if (mesaSinPos) {
+            mesaSinPos.estado = nuevoEstado;
+          }
         });
       }
     },
@@ -809,6 +1109,407 @@ tailwind.config = {
         setTimeout(() => t.remove(), 300);
       }, 3000);
     },
+    
+    // ========== FUNCIONES PARA MAPA DE MESAS ==========
+    
+    async cargarMapaArea() {
+      this.mapaCargando = true;
+      this.mapaMensaje = '';
+      this.mapaTieneCambios = false;
+      
+      try {
+        let url = '/mesas/mapa';
+        if (this.mapaAreaSeleccionada) {
+          url += '?area=' + this.mapaAreaSeleccionada;
+        }
+        
+        const data = await apiGet(url);
+        
+        if (data && data.mesas) {
+          // Separar mesas con y sin posición
+          this.mesasMapa = data.mesas.filter(m => m.mapaConfig?.x != null && m.mapaConfig?.y != null);
+          this.mesasSinPosicionar = data.mesas.filter(m => m.mapaConfig?.x == null || m.mapaConfig?.y == null);
+          
+          // Inicializar mapaConfig si no existe
+          this.mesasMapa.forEach(m => {
+            if (!m.mapaConfig) {
+              m.mapaConfig = { x: 0, y: 0, width: 80, height: 80, shape: 'rect', visible: true };
+            }
+          });
+          
+          this.mesasSinPosicionar.forEach(m => {
+            if (!m.mapaConfig) {
+              m.mapaConfig = { x: null, y: null, width: 80, height: 80, shape: 'rect', visible: true };
+            }
+          });
+          
+          // Guardar snapshot del estado actual
+          this.mapaUltimoGuardado = JSON.stringify(this.getMesasMapaData());
+        }
+      } catch (error) {
+        console.error('Error al cargar mapa:', error);
+        this.mapaMensaje = 'Error al cargar el mapa';
+        this.mapaMensajeTipo = 'error';
+      } finally {
+        this.mapaCargando = false;
+      }
+    },
+    
+    getMesasMapaData() {
+      return this.mesasMapa.map(m => ({
+        mesaId: m._id,
+        x: m.mapaConfig?.x || 0,
+        y: m.mapaConfig?.y || 0,
+        width: m.mapaConfig?.width || 80,
+        height: m.mapaConfig?.height || 80,
+        shape: m.mapaConfig?.shape || 'rect',
+        visible: m.mapaConfig?.visible !== false
+      }));
+    },
+    
+    marcarCambios() {
+      const actual = JSON.stringify(this.getMesasMapaData());
+      this.mapaTieneCambios = actual !== this.mapaUltimoGuardado;
+    },
+    
+    toggleModoEdicionMapa() {
+      this.mapaModoEdicion = !this.mapaModoEdicion;
+      if (!this.mapaModoEdicion) {
+        this.mesaSeleccionadaMapa = null;
+        // Recargar para descartar cambios no guardados
+        if (this.mapaTieneCambios) {
+          this.cargarMapaArea();
+        }
+      }
+    },
+    
+    getMesaMapaStyle(mesa) {
+      const config = mesa.mapaConfig || {};
+      const estado = this.estadoNormalizado(mesa.estado);
+      const borderColors = {
+        'Libre': 'border-st-libre',
+        'Ocupada': 'border-st-esperando',
+        'Pedido': 'border-st-pedido',
+        'Preparado': 'border-st-preparado',
+        'Pagado': 'border-st-pagado',
+        'Reservado': 'border-st-reservado'
+      };
+      const bgColors = {
+        'Libre': 'bg-st-libre/20',
+        'Ocupada': 'bg-st-esperando/20',
+        'Pedido': 'bg-st-pedido/20',
+        'Preparado': 'bg-st-preparado/20',
+        'Pagado': 'bg-st-pagado/20',
+        'Reservado': 'bg-st-reservado/20'
+      };
+      
+      return {
+        left: (config.x || 0) + 'px',
+        top: (config.y || 0) + 'px',
+        width: (config.width || 80) + 'px',
+        height: (config.height || 80) + 'px',
+        backgroundColor: this.mapaModoEdicion ? 'rgba(212,175,55,0.15)' : undefined,
+      };
+    },
+    
+    seleccionarMesaMapa(mesa) {
+      if (!mesa.mapaConfig) {
+        mesa.mapaConfig = { x: 0, y: 0, width: 80, height: 80, shape: 'rect', visible: true };
+      }
+      this.mesaSeleccionadaMapa = mesa;
+    },
+    
+    toggleMesaShape(mesa) {
+      if (!mesa.mapaConfig) {
+        mesa.mapaConfig = { x: 0, y: 0, width: 80, height: 80, shape: 'rect', visible: true };
+      }
+      mesa.mapaConfig.shape = mesa.mapaConfig.shape === 'round' ? 'rect' : 'round';
+      this.marcarCambios();
+    },
+    
+    snapToGrid(value) {
+      return Math.round(value / this.GRID_SIZE) * this.GRID_SIZE;
+    },
+    
+    // Detectar colisiones entre mesas
+    detectarColision(mesa) {
+      if (!this.mapaModoEdicion || !mesa?.mapaConfig) return false;
+      
+      const m1 = {
+        x: mesa.mapaConfig.x || 0,
+        y: mesa.mapaConfig.y || 0,
+        w: mesa.mapaConfig.width || 80,
+        h: mesa.mapaConfig.height || 80
+      };
+      
+      return this.mesasMapa.some(other => {
+        if (other._id === mesa._id) return false;
+        if (!other.mapaConfig) return false;
+        
+        const m2 = {
+          x: other.mapaConfig.x || 0,
+          y: other.mapaConfig.y || 0,
+          w: other.mapaConfig.width || 80,
+          h: other.mapaConfig.height || 80
+        };
+        
+        // AABB collision detection
+        return !(m1.x + m1.w <= m2.x || m2.x + m2.w <= m1.x || 
+                 m1.y + m1.h <= m2.y || m2.y + m2.h <= m1.y);
+      });
+    },
+    
+    // Auto-distribuir mesas en grilla
+    autoDistribuirMesas() {
+      if (this.mesasSinPosicionar.length === 0) return;
+      
+      const spacing = 110;
+      const startX = 20;
+      const startY = 20;
+      const cols = 4;
+      
+      this.mesasSinPosicionar.forEach((mesa, index) => {
+        if (!mesa.mapaConfig) {
+          mesa.mapaConfig = { x: 0, y: 0, width: 80, height: 80, shape: 'rect', visible: true };
+        }
+        
+        const col = index % cols;
+        const row = Math.floor(index / cols);
+        
+        mesa.mapaConfig.x = this.snapToGrid(startX + col * spacing);
+        mesa.mapaConfig.y = this.snapToGrid(startY + row * spacing);
+        
+        this.mesasMapa.push(mesa);
+      });
+      
+      this.mesasSinPosicionar = [];
+      this.marcarCambios();
+      this.showToast('Mesas distribuidas automáticamente ✅');
+    },
+    
+    // Limpiar mapa (quitar todas las mesas)
+    limpiarMapa() {
+      if (this.mesasMapa.length === 0) return;
+      if (!confirm('¿Quitar todas las mesas del mapa?\n\nVolverán al panel de inventario.')) return;
+      
+      this.mesasMapa.forEach(mesa => {
+        if (!mesa.mapaConfig) {
+          mesa.mapaConfig = { x: null, y: null, width: 80, height: 80, shape: 'rect', visible: true };
+        } else {
+          mesa.mapaConfig.x = null;
+          mesa.mapaConfig.y = null;
+        }
+        this.mesasSinPosicionar.push(mesa);
+      });
+      
+      this.mesasMapa = [];
+      this.mesaSeleccionadaMapa = null;
+      this.marcarCambios();
+      this.showToast('Mapa limpiado');
+    },
+    
+    // Remover una mesa específica del mapa
+    removerMesaDeMapa(mesa) {
+      const index = this.mesasMapa.findIndex(m => m._id === mesa._id);
+      if (index >= 0) {
+        const removed = this.mesasMapa.splice(index, 1)[0];
+        if (!removed.mapaConfig) {
+          removed.mapaConfig = { x: null, y: null, width: 80, height: 80, shape: 'rect', visible: true };
+        } else {
+          removed.mapaConfig.x = null;
+          removed.mapaConfig.y = null;
+        }
+        this.mesasSinPosicionar.push(removed);
+        this.mesaSeleccionadaMapa = null;
+        this.marcarCambios();
+      }
+    },
+    
+    // Drag and drop desde panel lateral
+    dragStart(event, mesa) {
+      event.dataTransfer.setData('text/plain', JSON.stringify({ mesaId: mesa._id, fromPanel: true }));
+      event.target.style.opacity = '0.5';
+    },
+    
+    dragEnd(event) {
+      event.target.style.opacity = '1';
+    },
+    
+    dragOver(event) {
+      event.preventDefault();
+    },
+    
+    drop(event) {
+      event.preventDefault();
+      const data = event.dataTransfer.getData('text/plain');
+      if (!data) return;
+      
+      if (!data.startsWith('{')) {
+        console.log('Drop ignorado: data no es JSON', data.substring(0, 50));
+        return;
+      }
+      
+      try {
+        const parsed = JSON.parse(data);
+        const { mesaId, fromPanel } = parsed;
+        
+        if (!mesaId) {
+          console.log('Drop ignorado: falta mesaId');
+          return;
+        }
+        
+        const canvas = document.getElementById('mapa-canvas');
+        if (!canvas) return;
+        
+        const rect = canvas.getBoundingClientRect();
+        
+        let x = event.clientX - rect.left;
+        let y = event.clientY - rect.top;
+        
+        // Snap to grid
+        x = this.snapToGrid(Math.max(0, Math.min(x, rect.width - 80)));
+        y = this.snapToGrid(Math.max(0, Math.min(y, rect.height - 80)));
+        
+        if (fromPanel) {
+          // Mover mesa desde panel sin posicionar al mapa
+          const mesaIndex = this.mesasSinPosicionar.findIndex(m => m._id === mesaId);
+          if (mesaIndex >= 0) {
+            const mesa = this.mesasSinPosicionar.splice(mesaIndex, 1)[0];
+            if (!mesa.mapaConfig) {
+              mesa.mapaConfig = { x: 0, y: 0, width: 80, height: 80, shape: 'rect', visible: true };
+            }
+            mesa.mapaConfig.x = x;
+            mesa.mapaConfig.y = y;
+            this.mesasMapa.push(mesa);
+            this.mesaSeleccionadaMapa = mesa;
+            this.marcarCambios();
+          }
+        } else {
+          // Actualizar posición de mesa existente en el mapa
+          const mesa = this.mesasMapa.find(m => m._id === mesaId);
+          if (mesa) {
+            if (!mesa.mapaConfig) {
+              mesa.mapaConfig = { x: 0, y: 0, width: 80, height: 80, shape: 'rect', visible: true };
+            }
+            mesa.mapaConfig.x = x;
+            mesa.mapaConfig.y = y;
+            this.marcarCambios();
+          }
+        }
+      } catch (e) {
+        console.error('Error en drop:', e);
+      }
+    },
+    
+    // Drag para mesas ya en el mapa
+    dragStartMesa(event, mesa) {
+      if (!this.mapaModoEdicion) return;
+      event.dataTransfer.setData('text/plain', JSON.stringify({ mesaId: mesa._id, fromPanel: false }));
+      event.target.style.opacity = '0.7';
+    },
+    
+    dragEndMesa(event, mesa) {
+      event.target.style.opacity = '1';
+    },
+    
+    // Resize
+    startResize(event, mesa) {
+      event.preventDefault();
+      const startX = event.clientX;
+      const startY = event.clientY;
+      const startWidth = mesa.mapaConfig?.width || 80;
+      const startHeight = mesa.mapaConfig?.height || 80;
+      
+      const onMouseMove = (e) => {
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+        
+        if (!mesa.mapaConfig) mesa.mapaConfig = { x: 0, y: 0, width: 80, height: 80, shape: 'rect', visible: true };
+        
+        mesa.mapaConfig.width = Math.max(40, Math.min(200, startWidth + deltaX));
+        mesa.mapaConfig.height = Math.max(40, Math.min(200, startHeight + deltaY));
+        this.marcarCambios();
+      };
+      
+      const onMouseUp = () => {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+      
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    },
+    
+    centrarMesaMapa(mesa) {
+      if (!mesa || !mesa.mapaConfig) return;
+      const canvas = document.getElementById('mapa-canvas');
+      if (!canvas) return;
+      
+      const rect = canvas.getBoundingClientRect();
+      mesa.mapaConfig.x = Math.max(0, (rect.width / 2) - (mesa.mapaConfig.width / 2));
+      mesa.mapaConfig.y = Math.max(0, (rect.height / 2) - (mesa.mapaConfig.height / 2));
+      this.marcarCambios();
+    },
+    
+    async guardarMapa() {
+      if (this.mesasMapa.length === 0) {
+        this.showToast('No hay mesas para guardar', 'error');
+        return;
+      }
+      
+      this.mapaGuardando = true;
+      this.mapaMensaje = '';
+      
+      try {
+        const mesasData = this.getMesasMapaData();
+        
+        const res = await apiPut('/mesas/mapa/bulk', { mesas: mesasData });
+        
+        if (res && res.success) {
+          this.mapaMensaje = res.message || 'Mapa guardado correctamente ✅';
+          this.mapaMensajeTipo = 'success';
+          this.mapaTieneCambios = false;
+          this.mapaUltimoGuardado = JSON.stringify(mesasData);
+          this.showToast(this.mapaMensaje);
+        } else {
+          throw new Error(res?.error || 'Error al guardar');
+        }
+      } catch (error) {
+        console.error('Error al guardar mapa:', error);
+        this.mapaMensaje = 'Error al guardar el mapa';
+        this.mapaMensajeTipo = 'error';
+        this.showToast(this.mapaMensaje, 'error');
+      } finally {
+        this.mapaGuardando = false;
+      }
+    },
+    
+    async publicarMapa() {
+      if (!this.mapaAreaSeleccionada) {
+        this.showToast('Selecciona un área para publicar', 'error');
+        return;
+      }
+      
+      try {
+        // Primero guardar el mapa
+        await this.guardarMapa();
+        
+        // Luego marcar el área como publicada
+        const res = await apiPut('/areas/' + this.mapaAreaSeleccionada, { mapaPublicado: true });
+        
+        if (res && !res.error) {
+          this.showToast('Mapa publicado para los mozos ✅');
+          await this.loadAreas();
+        } else {
+          throw new Error(res?.error || 'Error al publicar');
+        }
+      } catch (error) {
+        console.error('Error al publicar mapa:', error);
+        this.showToast('Error al publicar el mapa', 'error');
+      }
+    },
+    
+    // ========== FIN FUNCIONES MAPA ==========
     
     logout() {
       localStorage.removeItem('adminToken');

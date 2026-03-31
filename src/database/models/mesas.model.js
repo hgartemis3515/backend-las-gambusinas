@@ -60,8 +60,20 @@ const mesasSchema = new mongoose.Schema({
     nombreCombinado: {
         type: String,
         default: null
-    }
+    },
     // ========== FIN CAMPOS GRUPOS DE MESAS ==========
+    
+    // ========== CAMPOS PARA MAPA DE MESAS ==========
+    // Configuración de posición y estilo en el editor de mapa
+    mapaConfig: {
+        x: { type: Number, default: null },
+        y: { type: Number, default: null },
+        width: { type: Number, default: 80 },
+        height: { type: Number, default: 80 },
+        shape: { type: String, enum: ['rect', 'round'], default: 'rect' },
+        visible: { type: Boolean, default: true }
+    }
+    // ========== FIN CAMPOS MAPA DE MESAS ==========
 });
 
 // ========== FASE A1: ÍNDICES OPTIMIZADOS ==========
