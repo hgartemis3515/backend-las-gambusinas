@@ -31,19 +31,24 @@ tailwind.config = {
 <link rel="stylesheet" href="/assets/css/cosmos-search.css">
 <style>
   .voucher-ticket {
-    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
     font-size: 11px;
-    line-height: 1.35;
+    line-height: 1.5;
     background: #fff;
     color: #000;
     width: 320px;
-    padding: 12px 10px;
+    padding: 14px 12px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.3);
   }
-  .voucher-ticket .divider { border-top: 1px dashed #333; margin: 6px 0; }
+  .voucher-ticket .divider { border-top: 1px dashed #333; margin: 8px 0; }
   .voucher-ticket .text-center { text-align: center; }
   .voucher-ticket .text-right { text-align: right; }
   .voucher-ticket .font-bold { font-weight: 700; }
+  .voucher-ticket .label { font-weight: 600; color: #222; }
+  .voucher-ticket .value { font-weight: 400; color: #000; }
+  .voucher-ticket .restaurant-name { font-size: 16px; font-weight: 800; letter-spacing: 0.5px; }
+  .voucher-ticket .restaurant-subtitle { font-size: 10px; font-weight: 500; color: #444; }
+  .voucher-ticket .total-row { font-size: 13px; font-weight: 700; border-top: 2px solid #000; padding-top: 4px; margin-top: 4px; }
   .voucher-ticket .qr-placeholder {
     width: 70px; height: 70px;
     background: #e5e5e5;
@@ -405,19 +410,27 @@ tailwind.config = {
                   <option :value="p._id || p.id" x-text="p.nombre + ' - S/.' + p.precio"></option>
                 </template>
               </select>
-              <button @click="agregarProducto()" class="px-3 py-1.5 bg-gold/20 text-gold rounded text-xs hover:bg-gold/30 transition whitespace-nowrap">+ Agregar</button>
+              <button @click="abrirSelectorComplementos()" class="px-3 py-1.5 bg-gold/20 text-gold rounded text-xs hover:bg-gold/30 transition whitespace-nowrap">+ Agregar</button>
             </div>
 
             <!-- Lista de productos con scroll -->
             <div class="bg-bg-sidebar rounded-lg overflow-hidden">
               <div class="max-h-48 overflow-y-auto" style="scrollbar-width: thin; scrollbar-color: #d4af37 #1a1a28;">
                 <template x-for="(prod, idx) in datosEjemplo.productos" :key="idx">
-                  <div class="flex items-center gap-2 p-2 border-b border-[rgba(212,175,55,0.08)] last:border-b-0">
-                    <span class="text-xs flex-1 truncate text-txt-secondary" x-text="prod.nombre"></span>
-                    <span class="text-xs text-txt-muted w-8 text-center" x-text="'x' + prod.cantidad"></span>
-                    <span class="text-xs text-white w-14 text-right font-mono" x-text="'S/.' + prod.precio.toFixed(2)"></span>
-                    <span class="text-xs text-gold w-14 text-right font-mono font-semibold" x-text="'S/.' + prod.subtotal.toFixed(2)"></span>
-                    <button @click="eliminarProducto(idx)" class="text-txt-muted hover:text-red-400 text-sm p-1">✕</button>
+                  <div class="p-2 border-b border-[rgba(212,175,55,0.08)] last:border-b-0">
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs flex-1 truncate text-txt-secondary" x-text="prod.nombre"></span>
+                      <span class="text-xs text-txt-muted w-8 text-center" x-text="'x' + prod.cantidad"></span>
+                      <span class="text-xs text-white w-14 text-right font-mono" x-text="'S/.' + prod.precio.toFixed(2)"></span>
+                      <span class="text-xs text-gold w-14 text-right font-mono font-semibold" x-text="'S/.' + prod.subtotal.toFixed(2)"></span>
+                      <button @click="eliminarProducto(idx)" class="text-txt-muted hover:text-red-400 text-sm p-1">✕</button>
+                    </div>
+                    <!-- Complementos del producto -->
+                    <div x-show="prod.complementosSeleccionados && prod.complementosSeleccionados.length > 0" class="mt-1 pl-2">
+                      <template x-for="comp in prod.complementosSeleccionados" :key="comp.nombre">
+                        <div class="text-[10px] text-txt-muted">+ <span x-text="comp.nombre"></span> <span x-show="comp.precio > 0" x-text="'(S/.' + comp.precio.toFixed(2) + ')'"></span></div>
+                      </template>
+                    </div>
                   </div>
                 </template>
                 <div x-show="datosEjemplo.productos.length === 0" class="p-4 text-center text-txt-muted text-xs">
@@ -473,12 +486,20 @@ tailwind.config = {
             <p class="text-[10px] text-txt-muted mb-3">Personaliza los nombres de los campos.</p>
             <div class="grid grid-cols-2 gap-2">
               <div>
-                <label class="text-[10px] text-txt-muted block mb-1">Pedido</label>
-                <input type="text" x-model="plantilla.etiquetas.pedido" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded px-2 py-1 text-xs">
+                <label class="text-[10px] text-txt-muted block mb-1">Voucher ID</label>
+                <input type="text" x-model="plantilla.etiquetas.voucherId" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded px-2 py-1 text-xs">
               </div>
               <div>
-                <label class="text-[10px] text-txt-muted block mb-1">Fecha</label>
-                <input type="text" x-model="plantilla.etiquetas.fecha" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded px-2 py-1 text-xs">
+                <label class="text-[10px] text-txt-muted block mb-1">Nro. Voucher</label>
+                <input type="text" x-model="plantilla.etiquetas.numeroVoucher" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded px-2 py-1 text-xs">
+              </div>
+              <div>
+                <label class="text-[10px] text-txt-muted block mb-1">Fecha Pedido</label>
+                <input type="text" x-model="plantilla.etiquetas.fechaPedido" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded px-2 py-1 text-xs">
+              </div>
+              <div>
+                <label class="text-[10px] text-txt-muted block mb-1">Fecha Pago</label>
+                <input type="text" x-model="plantilla.etiquetas.fechaPago" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded px-2 py-1 text-xs">
               </div>
               <div>
                 <label class="text-[10px] text-txt-muted block mb-1">Mesero</label>
@@ -495,6 +516,10 @@ tailwind.config = {
               <div>
                 <label class="text-[10px] text-txt-muted block mb-1">Cliente</label>
                 <input type="text" x-model="plantilla.etiquetas.cliente" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded px-2 py-1 text-xs">
+              </div>
+              <div class="col-span-2">
+                <label class="text-[10px] text-txt-muted block mb-1">Observaciones</label>
+                <input type="text" x-model="plantilla.etiquetas.observaciones" @input="plantillaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded px-2 py-1 text-xs">
               </div>
             </div>
           </div>
@@ -560,6 +585,70 @@ tailwind.config = {
   </div>
 </div>
 
+<!-- MODAL SELECTOR DE COMPLEMENTOS -->
+<div x-show="modalComplementos" x-transition.opacity class="fixed inset-0 z-[55] flex items-center justify-center p-4 bg-black/80" @click.self="modalComplementos=false">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[500px] max-h-[85vh] overflow-hidden shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-4 border-b border-[rgba(212,175,55,0.15)]">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-base font-bold" x-text="'Agregar: ' + (platoSeleccionado?.nombre || 'Plato')"></h3>
+          <p class="text-[11px] text-txt-muted">Selecciona complementos si el plato los tiene</p>
+        </div>
+        <button @click="modalComplementos=false" class="w-6 h-6 flex items-center justify-center rounded-full bg-gold/20 text-gold text-sm">✕</button>
+      </div>
+    </div>
+    
+    <div class="p-4 max-h-[400px] overflow-y-auto">
+      <!-- Sin complementos -->
+      <div x-show="!platoSeleccionado?.complementos || platoSeleccionado.complementos.length === 0" class="text-center py-8">
+        <p class="text-txt-muted text-sm">Este plato no tiene complementos configurados</p>
+        <p class="text-[11px] text-txt-muted mt-1">Se agregará sin adicionales</p>
+      </div>
+      
+      <!-- Grupos de complementos -->
+      <template x-if="platoSeleccionado?.complementos && platoSeleccionado.complementos.length > 0">
+        <div class="space-y-4">
+          <template x-for="(grupo, gi) in platoSeleccionado.complementos" :key="gi">
+            <div class="bg-bg-sidebar rounded-lg p-3">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-semibold text-gold" x-text="grupo.grupo || 'Grupo ' + (gi+1)"></span>
+                <span x-show="grupo.obligatorio" class="text-[9px] px-1.5 py-0.5 rounded bg-st-pagado/20 text-st-pagado">Obligatorio</span>
+              </div>
+              <div class="space-y-1.5">
+                <template x-for="(op, oi) in grupo.opciones" :key="oi">
+                  <label class="flex items-center gap-2 cursor-pointer p-1.5 rounded hover:bg-bg-card transition">
+                    <input type="checkbox" 
+                           :checked="complementosTempSeleccionados.some(c => c.grupoIdx === gi && c.opcionIdx === oi)"
+                           @change="toggleComplementoTemp(gi, oi, op, grupo.grupo, $event)"
+                           class="rounded border-txt-muted bg-bg-card text-gold focus:ring-gold/50 w-4 h-4">
+                    <span class="text-xs text-txt-secondary flex-1" x-text="op.nombre || op"></span>
+                    <span x-show="op.precio > 0" class="text-[10px] text-gold" x-text="'+S/.' + Number(op.precio || 0).toFixed(2)"></span>
+                  </label>
+                </template>
+              </div>
+            </div>
+          </template>
+        </div>
+      </template>
+    </div>
+    
+    <div class="bg-bg-sidebar p-4 border-t border-[rgba(212,175,55,0.15)]">
+      <div class="flex justify-between items-center mb-3">
+        <span class="text-xs text-txt-muted">Precio base: <span class="text-white" x-text="'S/.' + (platoSeleccionado?.precio || 0).toFixed(2)"></span></span>
+        <span class="text-xs text-txt-muted">Complementos: <span class="text-gold" x-text="'S/.' + calcularTotalComplementosTemp().toFixed(2)"></span></span>
+      </div>
+      <div class="flex justify-between items-center">
+        <span class="text-sm font-semibold">Total:</span>
+        <span class="text-gold font-bold" x-text="'S/.' + ((platoSeleccionado?.precio || 0) + calcularTotalComplementosTemp()).toFixed(2)"></span>
+      </div>
+      <div class="flex gap-2 mt-4">
+        <button @click="modalComplementos=false" class="flex-1 px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+        <button @click="confirmarProductoConComplementos()" class="flex-1 px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">Agregar al voucher</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="/assets/js/notifications.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script>
@@ -571,16 +660,45 @@ function bouchersApp() {
     plantillaModificada: false, plantillaOriginal: null, previewZoom: 100,
     nuevoProductoId: '',
     platosDisponibles: [],
+    modalComplementos: false,
+    platoSeleccionado: null,
+    complementosTempSeleccionados: [],
+    
+    // ETIQUETAS POR DEFECTO - FUENTE ÚNICA DE VERDAD
+    ETIQUETAS_DEFAULT: {
+      voucherId: 'Voucher ID',
+      numeroVoucher: 'Nro. Voucher',
+      fechaPedido: 'Fecha Pedido',
+      fechaPago: 'Fecha Pago',
+      mesero: 'Mesero',
+      mesa: 'Mesa',
+      total: 'TOTAL',
+      cliente: 'Cliente',
+      observaciones: 'Observaciones'
+    },
+    
+    // MAPEO DE KEYS ANTIGUAS A NUEVAS (NORMALIZACIÓN)
+    MAPEO_KEYS_ETIQUETAS: {
+      pedido: 'voucherId',
+      codigo: 'voucherId',
+      boucherNumero: 'numeroVoucher',
+      numeroBoucher: 'numeroVoucher',
+      fecha: 'fechaPedido',
+      fechaCreacion: 'fechaPedido',
+      clienteNombre: 'cliente'
+    },
     
     camposVisibilidad: [
-      { key: 'pedido', label: 'Pedido' },
-      { key: 'fechaEmision', label: 'Fecha' },
+      { key: 'voucherId', label: 'Voucher ID' },
+      { key: 'numeroVoucher', label: 'Nro. Voucher' },
+      { key: 'fechaPedido', label: 'Fecha Pedido' },
+      { key: 'fechaPago', label: 'Fecha Pago' },
       { key: 'tipo', label: 'Tipo' },
       { key: 'local', label: 'Local' },
       { key: 'caja', label: 'Caja' },
       { key: 'mesero', label: 'Mesero' },
       { key: 'mesa', label: 'Mesa' },
-      { key: 'observacion', label: 'Obs.' },
+      { key: 'observacion', label: 'Observaciones' },
       { key: 'cliente', label: 'Cliente' },
       { key: 'dniCliente', label: 'DNI' },
       { key: 'totales', label: 'Totales' }
@@ -593,15 +711,15 @@ function bouchersApp() {
       bloques: { mostrarEncabezado: true, mostrarDatosPedido: true, mostrarDetalleProductos: true, mostrarTotales: true, mostrarDatosCliente: true, mostrarAgradecimiento: true },
       campos: { mostrarIGV: true, mostrarRC: true, mostrarICBPER: true, mostrarPropina: false, mostrarBloquePromo: true, mostrarQR: true },
       promo: { titulo: 'CALIFICA Y GANA', mensaje: 'Escanéa el código QR y participa por grandes premios', qrTamano: 70 },
-      visibilidad: { nombre: true, eslogan: true, ruc: true, direccion: true, telefono: true, pedido: true, fechaEmision: true, tipo: true, local: true, caja: true, mesero: true, mesa: true, observacion: true, cliente: true, dniCliente: true, totales: true },
-      espaciado: { lineHeight: 16, tamanoFuente: 11, espacioDivider: 6 },
+      visibilidad: { nombre: true, eslogan: true, ruc: true, direccion: true, telefono: true, voucherId: true, numeroVoucher: true, fechaPedido: true, fechaPago: true, tipo: true, local: true, caja: true, mesero: true, mesa: true, observacion: true, cliente: true, dniCliente: true, totales: true },
+      espaciado: { lineHeight: 16, tamanoFuente: 11, espacioDivider: 8 },
       mensajes: { agradecimiento: 'Gracias por ser parte de Nuestra Familia', urlConsulta: 'https://www.lasgambusinas.com/consulta' },
-      etiquetas: { pedido: 'Pedido', fecha: 'Fecha', mesero: 'Mesero', mesa: 'Mesa', total: 'TOTAL', cliente: 'Cliente' }
+      etiquetas: { voucherId: 'Voucher ID', numeroVoucher: 'Nro. Voucher', fechaPedido: 'Fecha Pedido', fechaPago: 'Fecha Pago', mesero: 'Mesero', mesa: 'Mesa', total: 'TOTAL', cliente: 'Cliente', observaciones: 'Observaciones' }
     },
     
     datosEjemplo: {
-      pedido: '2600024364', fechaEmision: '26/03/2026 12:31:00', tipo: 'Para llevar',
-      local: 'LOCAL PRINCIPAL', caja: '015 - MOZO1', mesero: 'Juan Pérez', moneda: 'Soles', mesa: '05', observacion: 'Cliente frecuente',
+      voucherId: '4G8K1', numeroVoucher: '152', fechaPedido: '30/03/2026 18:26:25', fechaPago: '30/03/2026 18:26:25',
+      tipo: 'Para llevar', local: 'LOCAL PRINCIPAL', caja: '015 - MOZO1', mesero: 'Juan Pérez', moneda: 'Soles', mesa: '05', observacion: 'Cliente frecuente',
       productos: [{ nombre: '1/4 pollo sem y', cantidad: 1, precio: 19.90, subtotal: 19.90 }],
       subtotal: 16.31, totalDescuento: 0.00, igv: 2.94, rc: 0.65, icbper: 0.00, total: 19.90,
       totalLetras: 'DIECINUEVE Y 90/100 Soles',
@@ -618,6 +736,8 @@ function bouchersApp() {
       await this.loadBouchers();
       await this.cargarPlatos();
       this.cargarPlantillaLocal();
+      // Asegurar que todas las etiquetas tengan valor
+      this.plantilla.etiquetas = { ...this.ETIQUETAS_DEFAULT, ...this.plantilla.etiquetas };
       this.plantillaOriginal = JSON.parse(JSON.stringify(this.plantilla));
     },
     
@@ -641,15 +761,74 @@ function bouchersApp() {
       if (!this.nuevoProductoId) return;
       const plato = this.platosDisponibles.find(p => (p._id || p.id) === this.nuevoProductoId);
       if (plato) {
-        this.datosEjemplo.productos.push({
-          nombre: plato.nombre,
-          cantidad: 1,
-          precio: plato.precio,
-          subtotal: plato.precio
-        });
-        this.recalcularTotales();
-        this.nuevoProductoId = '';
+        // Si tiene complementos, abrir modal
+        if (plato.complementos && plato.complementos.length > 0) {
+          this.platoSeleccionado = plato;
+          this.complementosTempSeleccionados = [];
+          this.modalComplementos = true;
+        } else {
+          // Agregar sin complementos
+          this.datosEjemplo.productos.push({
+            nombre: plato.nombre,
+            cantidad: 1,
+            precio: plato.precio,
+            subtotal: plato.precio,
+            complementosSeleccionados: []
+          });
+          this.recalcularTotales();
+          this.nuevoProductoId = '';
+        }
       }
+    },
+
+    abrirSelectorComplementos() {
+      this.agregarProducto();
+    },
+
+    toggleComplementoTemp(grupoIdx, opcionIdx, opcion, grupoNombre, event) {
+      const existe = this.complementosTempSeleccionados.findIndex(
+        c => c.grupoIdx === grupoIdx && c.opcionIdx === opcionIdx
+      );
+      if (event.target.checked) {
+        if (existe === -1) {
+          this.complementosTempSeleccionados.push({
+            grupoIdx,
+            opcionIdx,
+            nombre: opcion.nombre || opcion,
+            precio: opcion.precio || 0,
+            grupoNombre
+          });
+        }
+      } else {
+        if (existe > -1) {
+          this.complementosTempSeleccionados.splice(existe, 1);
+        }
+      }
+    },
+
+    calcularTotalComplementosTemp() {
+      return this.complementosTempSeleccionados.reduce((sum, c) => sum + (c.precio || 0), 0);
+    },
+
+    confirmarProductoConComplementos() {
+      if (!this.platoSeleccionado) return;
+      
+      const precioComplementos = this.calcularTotalComplementosTemp();
+      const precioTotal = this.platoSeleccionado.precio + precioComplementos;
+      
+      this.datosEjemplo.productos.push({
+        nombre: this.platoSeleccionado.nombre,
+        cantidad: 1,
+        precio: precioTotal,
+        subtotal: precioTotal,
+        complementosSeleccionados: [...this.complementosTempSeleccionados]
+      });
+      
+      this.recalcularTotales();
+      this.modalComplementos = false;
+      this.platoSeleccionado = null;
+      this.complementosTempSeleccionados = [];
+      this.nuevoProductoId = '';
     },
 
     eliminarProducto(idx) {
@@ -709,7 +888,7 @@ function bouchersApp() {
     cargarLogo(event) {
       const file = event.target.files[0];
       if (!file) return;
-      if (file.size > 500000) { showNotification('El logo debe ser menor a 500KB', 'error'); return; }
+      if (file.size > 500000) { GambusinasNotifications.error('El logo debe ser menor a 500KB'); return; }
       const reader = new FileReader();
       reader.onload = (e) => { this.plantilla.logo = e.target.result; this.plantillaModificada = true; };
       reader.readAsDataURL(file);
@@ -717,16 +896,68 @@ function bouchersApp() {
     
     cambiarTab(tab) { this.activeTab = tab; },
     
+    // OBTENER ETIQUETA CON FALLBACK ROBUSTO - NUNCA DEVUELVE undefined
+    obtenerEtiqueta(key) {
+      const etiquetas = this.plantilla?.etiquetas || {};
+      const normalizada = this.MAPEO_KEYS_ETIQUETAS[key] || key;
+      const valor = etiquetas[normalizada];
+      if (valor && valor !== '' && valor !== undefined) return valor;
+      if (etiquetas[key] && etiquetas[key] !== '') return etiquetas[key];
+      return this.ETIQUETAS_DEFAULT[normalizada] || this.ETIQUETAS_DEFAULT[key] || key;
+    },
+    
+    // MERGE PROFUNDO SEGURO PARA OBJETOS ANIDADOS
+    deepMerge(target, source) {
+      const result = { ...target };
+      if (!source) return result;
+      for (const key in source) {
+        if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+          result[key] = this.deepMerge(result[key] || {}, source[key]);
+        } else if (source[key] !== undefined) {
+          result[key] = source[key];
+        }
+      }
+      return result;
+    },
+    
+    // NORMALIZAR ETIQUETAS DE PLANTILLAS ANTIGUAS
+    normalizarEtiquetas(etiquetas) {
+      if (!etiquetas || typeof etiquetas !== 'object') return {};
+      const normalizadas = {};
+      for (const [key, value] of Object.entries(etiquetas)) {
+        const keyNormalizada = this.MAPEO_KEYS_ETIQUETAS[key] || key;
+        if (value !== undefined && value !== '') {
+          normalizadas[keyNormalizada] = value;
+        }
+      }
+      return normalizadas;
+    },
+    
     cargarPlantillaLocal() {
       const saved = localStorage.getItem('voucherPlantilla');
-      if (saved) { try { const data = JSON.parse(saved); this.plantilla = { ...this.plantilla, ...data }; } catch(e) {} }
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          // Normalizar etiquetas antiguas antes del merge
+          if (data.etiquetas) {
+            data.etiquetas = {
+              ...this.ETIQUETAS_DEFAULT,
+              ...this.normalizarEtiquetas(data.etiquetas)
+            };
+          }
+          // Deep merge para preservar valores por defecto
+          this.plantilla = this.deepMerge(this.plantilla, data);
+        } catch(e) {
+          console.warn('Error cargando plantilla local:', e);
+        }
+      }
     },
     
     async guardarPlantilla() {
       localStorage.setItem('voucherPlantilla', JSON.stringify(this.plantilla));
       this.plantillaModificada = false;
       this.plantillaOriginal = JSON.parse(JSON.stringify(this.plantilla));
-      showNotification('Plantilla guardada localmente', 'success');
+      GambusinasNotifications.success('Plantilla guardada localmente');
     },
     
     censurar(valor, visible) {
@@ -742,15 +973,15 @@ function bouchersApp() {
         bloques: { mostrarEncabezado: true, mostrarDatosPedido: true, mostrarDetalleProductos: true, mostrarTotales: true, mostrarDatosCliente: true, mostrarAgradecimiento: true },
         campos: { mostrarIGV: true, mostrarRC: true, mostrarICBPER: true, mostrarPropina: false, mostrarBloquePromo: true, mostrarQR: true },
         promo: { titulo: 'CALIFICA Y GANA', mensaje: 'Escanéa el código QR y participa por grandes premios', qrTamano: 70 },
-        visibilidad: { nombre: true, eslogan: true, ruc: true, direccion: true, telefono: true, pedido: true, fechaEmision: true, tipo: true, local: true, caja: true, mesero: true, mesa: true, observacion: true, cliente: true, dniCliente: true, totales: true },
-        espaciado: { lineHeight: 16, tamanoFuente: 11, espacioDivider: 6 },
+        visibilidad: { nombre: true, eslogan: true, ruc: true, direccion: true, telefono: true, voucherId: true, numeroVoucher: true, fechaPedido: true, fechaPago: true, tipo: true, local: true, caja: true, mesero: true, mesa: true, observacion: true, cliente: true, dniCliente: true, totales: true },
+        espaciado: { lineHeight: 16, tamanoFuente: 11, espacioDivider: 8 },
         mensajes: { agradecimiento: 'Gracias por ser parte de Nuestra Familia', urlConsulta: 'https://www.lasgambusinas.com/consulta' },
-        etiquetas: { pedido: 'Pedido', fecha: 'Fecha', mesero: 'Mesero', mesa: 'Mesa', total: 'TOTAL', cliente: 'Cliente' }
+        etiquetas: { ...this.ETIQUETAS_DEFAULT }
       };
       this.datosEjemplo.productos = [{ nombre: '1/4 pollo sem y', cantidad: 1, precio: 19.90, subtotal: 19.90 }];
       this.recalcularTotales();
       this.plantillaModificada = true;
-      showNotification('Plantilla restablecida', 'info');
+      GambusinasNotifications.info('Plantilla restablecida');
     },
     
     generarPreviewVoucher() {
@@ -768,44 +999,57 @@ function bouchersApp() {
         if (p.logo) {
           html += `<img src="${p.logo}" class="logo-img" alt="Logo">`;
         }
-        html += `<div style="font-size:14px; font-weight:700;">${this.censurar(p.restaurante.nombre, v.nombre)}</div>`;
-        html += `<div style="font-size:10px; font-style:italic;">${this.censurar(p.restaurante.eslogan, v.eslogan)}</div>`;
-        html += `<div>R.U.C.: ${this.censurar(p.restaurante.ruc, v.ruc)}</div>`;
+        html += `<div class="restaurant-name">${this.censurar(p.restaurante.nombre, v.nombre)}</div>`;
+        html += `<div class="restaurant-subtitle">${this.censurar(p.restaurante.eslogan, v.eslogan)}</div>`;
+        html += `<div style="font-weight:600;">R.U.C.: ${this.censurar(p.restaurante.ruc, v.ruc)}</div>`;
         html += `<div style="font-size:10px;">${this.censurar(p.restaurante.direccion, v.direccion)}</div>`;
         html += `<div style="font-size:10px;">Tel: ${this.censurar(p.restaurante.telefono, v.telefono)}</div>`;
         html += `</div>`;
 
         html += `<div class="divider" style="margin:${e.espacioDivider}px 0;"></div>`;
-        html += `<div class="text-center" style="font-weight:700;">${p.encabezado.tipoComprobante}</div>`;
-        html += `<div class="text-center">${p.encabezado.serie}-${p.encabezado.correlativo}</div>`;
+        html += `<div class="text-center" style="font-weight:700;font-size:11px;">${p.encabezado.tipoComprobante}</div>`;
+        html += `<div class="text-center" style="font-weight:600;">${p.encabezado.serie}-${p.encabezado.correlativo}</div>`;
         html += `<div class="divider" style="margin:${e.espacioDivider}px 0;"></div>`;
       }
 
       // BLOQUE DATOS PEDIDO
       if (b.mostrarDatosPedido) {
-        const lbl = '14ch';
-        html += `<div><span style="display:inline-block;width:${lbl};">${et.pedido}:</span>${this.censurar(d.pedido, v.pedido)}</div>`;
-        html += `<div><span style="display:inline-block;width:${lbl};">${et.fecha}:</span>${this.censurar(d.fechaEmision, v.fechaEmision)}</div>`;
-        html += `<div><span style="display:inline-block;width:${lbl};">Tipo:</span>${this.censurar(d.tipo, v.tipo)}</div>`;
-        html += `<div><span style="display:inline-block;width:${lbl};">Local:</span>${this.censurar(d.local, v.local)}</div>`;
-        html += `<div><span style="display:inline-block;width:${lbl};">Caja:</span>${this.censurar(d.caja, v.caja)}</div>`;
-        html += `<div><span style="display:inline-block;width:${lbl};">${et.mesero}:</span>${this.censurar(d.mesero, v.mesero)}</div>`;
-        html += `<div><span style="display:inline-block;width:${lbl};">${et.mesa}:</span>${this.censurar(d.mesa, v.mesa)}</div>`;
-        html += `<div><span style="display:inline-block;width:${lbl};">Obs:</span>${this.censurar(d.observacion, v.observacion)}</div>`;
+        const lbl = '15ch';
+        html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('voucherId')}:</span><span class="value">${this.censurar(d.voucherId, v.voucherId)}</span></div>`;
+        html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('numeroVoucher')}:</span><span class="value">${this.censurar(d.numeroVoucher, v.numeroVoucher)}</span></div>`;
+        html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('fechaPedido')}:</span><span class="value">${this.censurar(d.fechaPedido, v.fechaPedido)}</span></div>`;
+        html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('fechaPago')}:</span><span class="value">${this.censurar(d.fechaPago, v.fechaPago)}</span></div>`;
+        html += `<div><span class="label" style="display:inline-block;width:${lbl};">Tipo:</span><span class="value">${this.censurar(d.tipo, v.tipo)}</span></div>`;
+        html += `<div><span class="label" style="display:inline-block;width:${lbl};">Local:</span><span class="value">${this.censurar(d.local, v.local)}</span></div>`;
+        html += `<div><span class="label" style="display:inline-block;width:${lbl};">Caja:</span><span class="value">${this.censurar(d.caja, v.caja)}</span></div>`;
+        html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('mesero')}:</span><span class="value">${this.censurar(d.mesero, v.mesero)}</span></div>`;
+        html += `<div><span class="label" style="display:inline-block;width:${lbl};">Moneda:</span><span class="value">${this.censurar(d.moneda, true)}</span></div>`;
+        html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('mesa')}:</span><span class="value">${this.censurar(d.mesa, v.mesa)}</span></div>`;
+        html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('observaciones')}:</span><span class="value">${this.censurar(d.observacion, v.observacion)}</span></div>`;
         html += `<div class="divider" style="margin:${e.espacioDivider}px 0;"></div>`;
       }
 
       // BLOQUE DETALLE PRODUCTOS
       if (b.mostrarDetalleProductos) {
-        html += `<div style="display:flex; justify-content:space-between; font-weight:700; font-size:10px; border-bottom:1px solid #333; padding-bottom:2px;">`;
+        html += `<div style="display:flex; justify-content:space-between; font-weight:700; font-size:10px; border-bottom:1px solid #333; padding-bottom:3px; margin-bottom:2px;">`;
         html += `<span>Producto</span><span>Cant.</span><span style="width:45px;text-align:right;">P.Unit</span><span style="width:45px;text-align:right;">Total</span></div>`;
 
         d.productos.forEach(prod => {
-          html += `<div style="display:flex; justify-content:space-between; font-size:10px; padding:1px 0;">`;
+          html += `<div style="display:flex; justify-content:space-between; font-size:10px; padding:2px 0;">`;
           html += `<span style="flex:1;">${prod.nombre}</span>`;
           html += `<span style="width:30px;text-align:center;">${prod.cantidad}</span>`;
           html += `<span style="width:45px;text-align:right;">${prod.precio.toFixed(2)}</span>`;
           html += `<span style="width:45px;text-align:right;">${prod.subtotal.toFixed(2)}</span></div>`;
+          // Mostrar complementos
+          if (prod.complementosSeleccionados && prod.complementosSeleccionados.length > 0) {
+            prod.complementosSeleccionados.forEach(comp => {
+              html += `<div style="display:flex; justify-content:space-between; font-size:9px; padding:0 0 0 8px; color:#666;">`;
+              html += `<span style="flex:1;">└ ${comp.nombre}</span>`;
+              html += `<span style="width:30px;"></span>`;
+              html += `<span style="width:45px;text-align:right;">${comp.precio > 0 ? '+' + comp.precio.toFixed(2) : ''}</span>`;
+              html += `<span style="width:45px;"></span></div>`;
+            });
+          }
         });
 
         html += `<div class="divider" style="margin:${e.espacioDivider}px 0;"></div>`;
@@ -814,31 +1058,31 @@ function bouchersApp() {
       // BLOQUE TOTALES
       if (b.mostrarTotales && v.totales) {
         html += `<div style="text-align:right;">`;
-        html += `<div>Subtotal: S/. ${d.subtotal.toFixed(2)}</div>`;
-        if (p.campos.mostrarIGV) html += `<div>IGV 18%: S/. ${d.igv.toFixed(2)}</div>`;
-        if (p.campos.mostrarRC) html += `<div>RC 4%: S/. ${d.rc.toFixed(2)}</div>`;
-        if (p.campos.mostrarICBPER && d.icbper > 0) html += `<div>ICBPER: S/. ${d.icbper.toFixed(2)}</div>`;
-        if (p.campos.mostrarPropina) html += `<div>Propina: S/. ${d.propina.toFixed(2)}</div>`;
-        html += `<div style="font-weight:700;">${et.total}: S/. ${d.total.toFixed(2)}</div></div>`;
-        html += `<div style="font-style:italic;">Son: ${d.totalLetras}</div>`;
+        html += `<div style="padding:1px 0;">Subtotal: <span style="font-weight:500;">S/. ${d.subtotal.toFixed(2)}</span></div>`;
+        if (p.campos.mostrarIGV) html += `<div style="padding:1px 0;">IGV 18%: <span style="font-weight:500;">S/. ${d.igv.toFixed(2)}</span></div>`;
+        if (p.campos.mostrarRC) html += `<div style="padding:1px 0;">RC 4%: <span style="font-weight:500;">S/. ${d.rc.toFixed(2)}</span></div>`;
+        if (p.campos.mostrarICBPER && d.icbper > 0) html += `<div style="padding:1px 0;">ICBPER: <span style="font-weight:500;">S/. ${d.icbper.toFixed(2)}</span></div>`;
+        if (p.campos.mostrarPropina) html += `<div style="padding:1px 0;">Propina: <span style="font-weight:500;">S/. ${d.propina.toFixed(2)}</span></div>`;
+        html += `<div class="total-row">${this.obtenerEtiqueta('total')}: S/. ${d.total.toFixed(2)}</div></div>`;
+        html += `<div style="font-style:italic;font-size:10px;margin-top:4px;">Son: ${d.totalLetras}</div>`;
       } else if (b.mostrarTotales) {
-        html += `<div style="text-align:right;"><div style="font-weight:700;">${et.total}: S/. XXXXXXXX</div></div>`;
-        html += `<div style="font-style:italic;">Son: XXXXXXXXXXXXXXXX</div>`;
+        html += `<div style="text-align:right;"><div class="total-row">${this.obtenerEtiqueta('total')}: S/. XXXXXXXX</div></div>`;
+        html += `<div style="font-style:italic;font-size:10px;">Son: XXXXXXXXXXXXXXXX</div>`;
       }
 
-      html += `<div style="margin-top:6px;">Pago: ${d.metodoPago}</div>`;
+      html += `<div style="margin-top:6px;font-size:10px;">Pago: ${d.metodoPago}</div>`;
 
       // BLOQUE DATOS CLIENTE
       if (b.mostrarDatosCliente) {
         html += `<div class="divider" style="margin:${e.espacioDivider}px 0;"></div>`;
-        html += `<div>${et.cliente}: ${this.censurar(d.cliente.nombre, v.cliente)}</div>`;
-        html += `<div>DNI: ${this.censurar(d.cliente.dni, v.dniCliente)}</div>`;
+        html += `<div><span class="label">${this.obtenerEtiqueta('cliente')}:</span> <span class="value">${this.censurar(d.cliente.nombre, v.cliente)}</span></div>`;
+        html += `<div><span class="label">DNI:</span> <span class="value">${this.censurar(d.cliente.dni, v.dniCliente)}</span></div>`;
       }
 
       // BLOQUE AGRADECIMIENTO
       if (b.mostrarAgradecimiento) {
         html += `<div class="divider" style="margin:${e.espacioDivider}px 0;"></div>`;
-        html += `<div class="text-center">${p.mensajes.agradecimiento}</div>`;
+        html += `<div class="text-center" style="font-weight:600;">${p.mensajes.agradecimiento}</div>`;
         html += `<div style="font-size:9px; text-align:center; margin-top:4px;">Consulte en: ${p.mensajes.urlConsulta}</div>`;
       }
 
@@ -866,12 +1110,17 @@ function bouchersApp() {
 
       const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Voucher</title>
 <style>*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Courier New',monospace;font-size:${e.tamanoFuente}px;padding:10px;max-width:320px;margin:0 auto;}
+body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoFuente}px;padding:10px;max-width:320px;margin:0 auto;}
 .divider{border-top:1px dashed #333;margin:${e.espacioDivider}px 0;}
 .text-center{text-align:center;}
+.label{font-weight:600;color:#222;}
+.value{font-weight:400;color:#000;}
+.restaurant-name{font-size:16px;font-weight:800;letter-spacing:0.5px;}
+.restaurant-subtitle{font-size:10px;font-weight:500;color:#444;}
+.total-row{font-size:13px;font-weight:700;border-top:2px solid #000;padding-top:4px;margin-top:4px;}
 .qr-placeholder{width:${promo.qrTamano || 70}px;height:${promo.qrTamano || 70}px;background:#e5e5e5;display:flex;align-items:center;justify-content:center;font-size:9px;color:#666;margin:6px auto;border:1px dashed #999;}
 .logo-img{max-width:200px;max-height:60px;margin:0 auto 4px;display:block;}
-</style></head><body><div style="font-family:'Courier New',monospace;font-size:${e.tamanoFuente}px;line-height:${e.lineHeight}px;">${this.generarPreviewVoucher()}</div>
+</style></head><body><div style="font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoFuente}px;line-height:${e.lineHeight}px;">${this.generarPreviewVoucher()}</div>
 <script>window.onload=function(){window.print();}<\/script></body></html>`;
 
       const w = window.open('', '_blank', 'width=340,height=700');
@@ -882,7 +1131,16 @@ body{font-family:'Courier New',monospace;font-size:${e.tamanoFuente}px;padding:1
       this.loading = true;
       let data = await apiGet('/boucher') || await apiGet('/bouchers');
       let raw = Array.isArray(data) ? data : (data?.bouchers || data?.data || []);
-      this.bouchers = raw.map(b => ({ ...b, numero: b.boucherNumber || b.numero || b.numBoucher, mesa: b.mesa || { numMesa: b.numMesa }, mozo: b.mozo || { nombre: b.nombreMozo }, fecha: b.fechaPago ? new Date(b.fechaPago).toLocaleString('es-PE') : b.fecha }));
+      this.bouchers = raw.map(b => ({
+        ...b,
+        codigo: b.voucherId || b.codigo || b._id?.slice(-8).toUpperCase(),
+        numero: b.boucherNumber || b.numero || b.numBoucher,
+        mesa: b.mesa || { numMesa: b.numMesa },
+        mozo: b.mozo || { nombre: b.nombreMozo },
+        cliente: b.cliente || { nombre: b.nombreCliente },
+        fecha: b.fechaPago ? new Date(b.fechaPago).toLocaleString('es-PE') : b.fecha,
+        fechaPedido: b.fechaPedido ? new Date(b.fechaPedido).toLocaleString('es-PE') : (b.createdAt ? new Date(b.createdAt).toLocaleString('es-PE') : '—')
+      }));
       this.extraerMozosUnicos();
       this.filterBouchers();
       this.loading = false;
@@ -919,16 +1177,51 @@ body{font-family:'Courier New',monospace;font-size:${e.tamanoFuente}px;padding:1
       const e = p.espaciado;
       const b = p.bloques;
       const items = v?.platos || [];
-      const fecha = v?.fechaPago ? new Date(v.fechaPago) : new Date();
+      
+      // Función auxiliar para parsear fechas de forma segura
+      const parsearFecha = (fecha) => {
+        if (!fecha) return null;
+        const d = new Date(fecha);
+        return isNaN(d.getTime()) ? null : d;
+      };
+      
+      // Fecha de pedido: priorizar fechaPedido, luego createdAt
+      const fechaPedido = parsearFecha(v?.fechaPedido) || parsearFecha(v?.createdAt) || new Date();
+      // Fecha de pago: fechaPago del voucher
+      const fechaPago = parsearFecha(v?.fechaPago) || new Date();
+      
       const total = Number(v?.total || 0);
       const subtotal = Number(v?.subtotal || 0);
       const igv = Number(v?.igv || 0);
 
+      // Mapear campos del backend a la plantilla
+      const voucherId = v?.voucherId || v?.codigo || v?._id?.slice(-8).toUpperCase() || 'N/A';
+      const numeroVoucher = v?.boucherNumber || v?.numero || v?.numBoucher || 'N/A';
+      const moneda = v?.moneda || 'Soles';
+      const nombreCliente = v?.cliente?.nombre || v?.nombreCliente || 'CLIENTE GENERAL';
+      const dniCliente = v?.cliente?.dni || v?.dniCliente || '00000000';
+      const nombreMozo = v?.mozo?.name || v?.mozo?.nombre || v?.nombreMozo || 'N/A';
+      const numMesa = v?.mesa?.nummesa || v?.mesa?.numMesa || v?.numMesa || 'N/A';
+      const observaciones = v?.observaciones || v?.observacion || '';
+      
+      // Total en letras
+      const totalLetras = this.numeroALetras(total);
+
+      // Función auxiliar para formatear fecha
+      const formatFecha = (fecha) => {
+        return fecha.toLocaleDateString('es-PE') + ' ' + fecha.toLocaleTimeString('es-PE');
+      };
+
       let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Voucher</title>
 <style>*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Courier New',monospace;font-size:${e.tamanoFuente}px;padding:10px;max-width:320px;margin:0 auto;}
+body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoFuente}px;padding:10px;max-width:320px;margin:0 auto;}
 .divider{border-top:1px dashed #333;margin:${e.espacioDivider}px 0;}
 .text-center{text-align:center;}
+.label{font-weight:600;color:#222;}
+.value{font-weight:400;color:#000;}
+.restaurant-name{font-size:16px;font-weight:800;letter-spacing:0.5px;}
+.restaurant-subtitle{font-size:10px;font-weight:500;color:#444;}
+.total-row{font-size:13px;font-weight:700;border-top:2px solid #000;padding-top:4px;margin-top:4px;}
 .qr-placeholder{width:${p.promo.qrTamano || 70}px;height:${p.promo.qrTamano || 70}px;background:#e5e5e5;display:flex;align-items:center;justify-content:center;font-size:9px;color:#666;margin:6px auto;border:1px dashed #999;}
 .logo-img{max-width:200px;max-height:60px;margin:0 auto 4px;display:block;}
 </style></head><body>`;
@@ -937,46 +1230,65 @@ body{font-family:'Courier New',monospace;font-size:${e.tamanoFuente}px;padding:1
       if (b.mostrarEncabezado) {
         html += `<div class="text-center">`;
         if (p.logo) html += `<img src="${p.logo}" class="logo-img" alt="Logo">`;
-        html += `<div style="font-size:14px;font-weight:700;">${p.restaurante.nombre}</div>`;
-        html += `<div style="font-size:10px;font-style:italic;">${p.restaurante.eslogan}</div>`;
-        html += `<div>R.U.C.: ${p.restaurante.ruc}</div>`;
+        html += `<div class="restaurant-name">${p.restaurante.nombre}</div>`;
+        html += `<div class="restaurant-subtitle">${p.restaurante.eslogan}</div>`;
+        html += `<div style="font-weight:600;">R.U.C.: ${p.restaurante.ruc}</div>`;
         html += `<div style="font-size:10px;">${p.restaurante.direccion}</div>`;
         html += `<div style="font-size:10px;">Tel: ${p.restaurante.telefono}</div>`;
         html += `</div><div class="divider"></div>`;
-        html += `<div class="text-center" style="font-weight:700;">${p.encabezado.tipoComprobante}</div>`;
-        html += `<div class="text-center">${p.encabezado.serie}-${String(v?.boucherNumber || '000000').padStart(6, '0')}</div><div class="divider"></div>`;
+        html += `<div class="text-center" style="font-weight:700;font-size:11px;">${p.encabezado.tipoComprobante}</div>`;
+        html += `<div class="text-center" style="font-weight:600;">${p.encabezado.serie}-${String(numeroVoucher).padStart(6, '0')}</div><div class="divider"></div>`;
       }
 
       // Datos pedido
       if (b.mostrarDatosPedido) {
-        html += `<div>Fecha: ${fecha.toLocaleDateString('es-PE')} ${fecha.toLocaleTimeString('es-PE')}</div>`;
-        html += `<div>Mozo: ${v?.mozo?.name || v?.nombreMozo || '—'}</div>`;
-        html += `<div>Mesa: ${v?.mesa?.nummesa || v?.numMesa || '—'}</div><div class="divider"></div>`;
+        const lbl = '15ch';
+        html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('voucherId')}:</span><span class="value">${voucherId}</span></div>`;
+        html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('numeroVoucher')}:</span><span class="value">#${numeroVoucher}</span></div>`;
+        html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('fechaPedido')}:</span><span class="value">${formatFecha(fechaPedido)}</span></div>`;
+        html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('fechaPago')}:</span><span class="value">${formatFecha(fechaPago)}</span></div>`;
+        html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('mesero')}:</span><span class="value">${nombreMozo}</span></div>`;
+        html += `<div><span class="label" style="display:inline-block;width:${lbl};">Moneda:</span><span class="value">${moneda}</span></div>`;
+        html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('mesa')}:</span><span class="value">${numMesa}</span></div>`;
+        if (observaciones) html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('observaciones')}:</span><span class="value">${observaciones}</span></div>`;
+        html += `<div class="divider"></div>`;
       }
 
       // Detalle productos
       if (b.mostrarDetalleProductos && items.length > 0) {
-        html += `<table style="width:100%;font-size:10px;"><tbody>`;
+        html += `<div style="display:flex; justify-content:space-between; font-weight:700; font-size:10px; border-bottom:1px solid #333; padding-bottom:3px; margin-bottom:2px;">`;
+        html += `<span>Producto</span><span>Cant.</span><span style="width:50px;text-align:right;">P.Unit</span><span style="width:50px;text-align:right;">Total</span></div>`;
         items.forEach(i => {
-          html += `<tr><td>${i.nombre || i.plato?.nombre || '—'}</td>`;
-          html += `<td style="text-align:center;width:30px;">${i.cantidad || 1}</td>`;
-          html += `<td style="text-align:right;width:50px;">${Number(i.precio||0).toFixed(2)}</td>`;
-          html += `<td style="text-align:right;width:50px;">${Number(i.subtotal||0).toFixed(2)}</td></tr>`;
+          html += `<div style="display:flex; justify-content:space-between; font-size:10px; padding:2px 0;">`;
+          html += `<span style="flex:1;">${i.nombre || i.plato?.nombre || '—'}</span>`;
+          html += `<span style="width:30px;text-align:center;">${i.cantidad || 1}</span>`;
+          html += `<span style="width:50px;text-align:right;">${Number(i.precio||0).toFixed(2)}</span>`;
+          html += `<span style="width:50px;text-align:right;">${Number(i.subtotal||0).toFixed(2)}</span></div>`;
         });
-        html += `</tbody></table><div class="divider"></div>`;
+        html += `<div class="divider"></div>`;
       }
 
       // Totales
       if (b.mostrarTotales) {
         html += `<div style="text-align:right;">`;
-        html += `<div>Subtotal: S/. ${subtotal.toFixed(2)}</div>`;
-        if (p.campos.mostrarIGV) html += `<div>IGV 18%: S/. ${igv.toFixed(2)}</div>`;
-        html += `<div style="font-weight:700;">${p.etiquetas.total}: S/. ${total.toFixed(2)}</div></div><div class="divider"></div>`;
+        html += `<div style="padding:1px 0;">Subtotal: <span style="font-weight:500;">S/. ${subtotal.toFixed(2)}</span></div>`;
+        if (p.campos.mostrarIGV) html += `<div style="padding:1px 0;">IGV 18%: <span style="font-weight:500;">S/. ${igv.toFixed(2)}</span></div>`;
+        html += `<div class="total-row">${this.obtenerEtiqueta('total')}: S/. ${total.toFixed(2)}</div></div>`;
+        html += `<div style="font-style:italic;font-size:10px;margin-top:4px;">Son: ${totalLetras}</div>`;
+        html += `<div class="divider"></div>`;
+      }
+
+      // Datos cliente (después de totales)
+      if (b.mostrarDatosCliente) {
+        html += `<div><span class="label">${this.obtenerEtiqueta('cliente')}:</span> <span class="value">${nombreCliente}</span></div>`;
+        html += `<div><span class="label">DNI:</span> <span class="value">${dniCliente}</span></div>`;
+        html += `<div class="divider"></div>`;
       }
 
       // Agradecimiento
       if (b.mostrarAgradecimiento) {
-        html += `<div class="text-center">${p.mensajes.agradecimiento}</div>`;
+        html += `<div class="text-center" style="font-weight:600;">${p.mensajes.agradecimiento}</div>`;
+        html += `<div style="font-size:9px; text-align:center; margin-top:4px;">Consulte en: ${p.mensajes.urlConsulta}</div>`;
       }
 
       // Bloque promoción

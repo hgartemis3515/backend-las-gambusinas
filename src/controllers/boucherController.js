@@ -187,6 +187,9 @@ router.post('/boucher', async (req, res) => {
         const mesa = primeraComanda.mesas;
         const mozo = primeraComanda.mozos;
         
+        // Obtener fecha del pedido (primera comanda)
+        const fechaPedido = primeraComanda?.createdAt || primeraComanda?.fecha || new Date();
+        
         // Preparar datos del boucher
         const boucherData = {
             mesa: mesaId,
@@ -205,6 +208,7 @@ router.post('/boucher', async (req, res) => {
             totalConDescuento: totalConDescuento,
             descuentos: descuentos,
             observaciones: observaciones || '',
+            fechaPedido: fechaPedido,
             fechaPago: new Date(),
             fechaPagoString: require('moment-timezone')().tz(configMoneda.zonaHoraria || "America/Lima").format("DD/MM/YYYY HH:mm:ss"),
             // Snapshot de configuración para auditoría

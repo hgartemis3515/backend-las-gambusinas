@@ -10212,5 +10212,174 @@
     "createdAt": "2026-03-30T15:23:28.574Z",
     "updatedAt": "2026-03-30T15:23:28.574Z",
     "boucherNumber": 151
+  },
+  {
+    "configuracionIGV": {
+      "igvPorcentaje": 18,
+      "preciosIncluyenIGV": true,
+      "nombreImpuesto": "IGV",
+      "moneda": "PEN",
+      "simboloMoneda": "S/."
+    },
+    "_id": "69cb06a106bad940ac4da8c5",
+    "voucherId": "4G8K1",
+    "mesa": "69860a415e59135b4d2c56c1",
+    "numMesa": 1,
+    "mozo": "69a51896782a5785d39b1232",
+    "nombreMozo": "Juan",
+    "cliente": "69cb06a106bad940ac4da50e",
+    "usadoEnComanda": null,
+    "fechaUso": null,
+    "comandas": [
+      "69cb068206bad940ac4d737a"
+    ],
+    "comandasNumbers": [
+      530
+    ],
+    "platos": [
+      {
+        "plato": "6992b9dad845b119c1d00c86",
+        "platoId": 36,
+        "nombre": "Papa a la huancaína",
+        "precio": 13,
+        "cantidad": 1,
+        "subtotal": 13,
+        "comandaNumber": 530,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "00:18",
+        "_id": "69cb06a106bad940ac4da8c6"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00ca2",
+        "platoId": 64,
+        "nombre": "1 sabor (1/4 pollo o 1/4 cerdo o 1/4 res)",
+        "precio": 33,
+        "cantidad": 1,
+        "subtotal": 33,
+        "comandaNumber": 530,
+        "complementosSeleccionados": [
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "1/4 res",
+            "_id": "69cb068206bad940ac4d737d"
+          }
+        ],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "00:18",
+        "_id": "69cb06a106bad940ac4da8c7"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00ca3",
+        "platoId": 65,
+        "nombre": "2 sabores (1/4 pollo 250 gr cerdo o 250 gr res)",
+        "precio": 55,
+        "cantidad": 1,
+        "subtotal": 55,
+        "comandaNumber": 530,
+        "complementosSeleccionados": [
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "250 gr res",
+            "_id": "69cb068206bad940ac4d737f"
+          },
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "250 gr cerdo",
+            "_id": "69cb068206bad940ac4d7380"
+          }
+        ],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "00:18",
+        "_id": "69cb06a106bad940ac4da8c9"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00ca4",
+        "platoId": 66,
+        "nombre": "3 sabores (1/4 pollo + 250 gr cerdo + 250 gr res)",
+        "precio": 75,
+        "cantidad": 1,
+        "subtotal": 75,
+        "comandaNumber": 530,
+        "complementosSeleccionados": [
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "250 gr cerdo",
+            "_id": "69cb068206bad940ac4d7382"
+          },
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "250 gr res",
+            "_id": "69cb068206bad940ac4d7383"
+          }
+        ],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "00:18",
+        "_id": "69cb06a106bad940ac4da8cc"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00ca4",
+        "platoId": 66,
+        "nombre": "3 sabores (1/4 pollo + 250 gr cerdo + 250 gr res)",
+        "precio": 75,
+        "cantidad": 1,
+        "subtotal": 75,
+        "comandaNumber": 530,
+        "complementosSeleccionados": [
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "250 gr cerdo",
+            "_id": "69cb068206bad940ac4d7385"
+          }
+        ],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "00:18",
+        "_id": "69cb06a106bad940ac4da8cf"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00ca5",
+        "platoId": 67,
+        "nombre": "4 sabores (1/4 pollo + 250 gr cordero + 250 gr carnero + 250 gr carnero)",
+        "precio": 95,
+        "cantidad": 1,
+        "subtotal": 95,
+        "comandaNumber": 530,
+        "complementosSeleccionados": [
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "250 gr res",
+            "_id": "69cb068206bad940ac4d7387"
+          },
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "250 gr cerdo",
+            "_id": "69cb068206bad940ac4d7388"
+          }
+        ],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "00:18",
+        "_id": "69cb06a106bad940ac4da8d1"
+      }
+    ],
+    "subtotal": 293.22,
+    "igv": 52.78,
+    "total": 346,
+    "descuentos": [],
+    "totalSinDescuento": 346,
+    "montoDescuento": 0,
+    "totalConDescuento": 346,
+    "observaciones": "Mayonesa",
+    "fechaPago": "2026-03-30T23:26:25.940Z",
+    "fechaPagoString": "30/03/2026 18:26:25",
+    "isActive": true,
+    "createdAt": "2026-03-30T23:26:25.946Z",
+    "updatedAt": "2026-03-30T23:26:25.946Z",
+    "boucherNumber": 152
   }
 ]

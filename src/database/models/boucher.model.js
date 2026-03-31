@@ -138,6 +138,10 @@ const boucherSchema = new mongoose.Schema({
         simboloMoneda: { type: String, default: 'S/.' }
     },
     observaciones: String,
+    fechaPedido: {
+        type: Date,
+        default: null // Fecha de la primera comanda/pedido
+    },
     fechaPago: {
         type: Date,
         default: () => {
