@@ -506,6 +506,84 @@ const configuracionSistemaSchema = new mongoose.Schema({
         }
     },
     
+    // Plantilla de voucher personalizable
+    voucherPlantilla: {
+        logo: { type: String, default: '' },
+        restaurante: {
+            nombre: { type: String, default: 'LAS GAMBUSINAS' },
+            eslogan: { type: String, default: '* Comidas Típicas y Parrilla *' },
+            ruc: { type: String, default: '' },
+            direccion: { type: String, default: '' },
+            telefono: { type: String, default: '' }
+        },
+        encabezado: {
+            tipoComprobante: { type: String, default: 'BOLETA DE VENTA ELECTRONICA' },
+            serie: { type: String, default: 'B001' },
+            correlativo: { type: String, default: '' }
+        },
+        bloques: {
+            mostrarEncabezado: { type: Boolean, default: true },
+            mostrarDatosPedido: { type: Boolean, default: true },
+            mostrarDetalleProductos: { type: Boolean, default: true },
+            mostrarTotales: { type: Boolean, default: true },
+            mostrarDatosCliente: { type: Boolean, default: true },
+            mostrarAgradecimiento: { type: Boolean, default: true }
+        },
+        campos: {
+            mostrarIGV: { type: Boolean, default: true },
+            mostrarRC: { type: Boolean, default: false },
+            mostrarICBPER: { type: Boolean, default: false },
+            mostrarPropina: { type: Boolean, default: false },
+            mostrarBloquePromo: { type: Boolean, default: false },
+            mostrarQR: { type: Boolean, default: false }
+        },
+        promo: {
+            titulo: { type: String, default: 'CALIFICA Y GANA' },
+            mensaje: { type: String, default: 'Escanéa el código QR y participa por grandes premios' },
+            qrTamano: { type: Number, default: 70 }
+        },
+        visibilidad: {
+            nombre: { type: Boolean, default: true },
+            eslogan: { type: Boolean, default: true },
+            ruc: { type: Boolean, default: true },
+            direccion: { type: Boolean, default: true },
+            telefono: { type: Boolean, default: true },
+            voucherId: { type: Boolean, default: true },
+            numeroVoucher: { type: Boolean, default: true },
+            fechaPedido: { type: Boolean, default: true },
+            fechaPago: { type: Boolean, default: true },
+            tipo: { type: Boolean, default: true },
+            local: { type: Boolean, default: true },
+            caja: { type: Boolean, default: true },
+            mesero: { type: Boolean, default: true },
+            mesa: { type: Boolean, default: true },
+            observacion: { type: Boolean, default: true },
+            cliente: { type: Boolean, default: true },
+            dniCliente: { type: Boolean, default: true },
+            totales: { type: Boolean, default: true }
+        },
+        espaciado: {
+            lineHeight: { type: Number, default: 16 },
+            tamanoFuente: { type: Number, default: 11 },
+            espacioDivider: { type: Number, default: 8 }
+        },
+        mensajes: {
+            agradecimiento: { type: String, default: 'Gracias por ser parte de Nuestra Familia' },
+            urlConsulta: { type: String, default: 'https://www.lasgambusinas.com/consulta' }
+        },
+        etiquetas: {
+            voucherId: { type: String, default: 'Voucher ID' },
+            numeroVoucher: { type: String, default: 'Nro. Voucher' },
+            fechaPedido: { type: String, default: 'Fecha Pedido' },
+            fechaPago: { type: String, default: 'Fecha Pago' },
+            mesero: { type: String, default: 'Mesero' },
+            mesa: { type: String, default: 'Mesa' },
+            total: { type: String, default: 'TOTAL' },
+            cliente: { type: String, default: 'Cliente' },
+            observaciones: { type: String, default: 'Observaciones' }
+        }
+    },
+    
     // Estado
     isActive: {
         type: Boolean,

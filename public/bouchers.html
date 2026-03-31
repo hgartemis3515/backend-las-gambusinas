@@ -735,7 +735,7 @@ function bouchersApp() {
       if (!token) { window.location.href = '/login.html'; return; }
       await this.loadBouchers();
       await this.cargarPlatos();
-      this.cargarPlantillaLocal();
+      await this.cargarPlantillaLocal();
       // Asegurar que todas las etiquetas tengan valor
       this.plantilla.etiquetas = { ...this.ETIQUETAS_DEFAULT, ...this.plantilla.etiquetas };
       this.plantillaOriginal = JSON.parse(JSON.stringify(this.plantilla));
@@ -933,7 +933,31 @@ function bouchersApp() {
       return normalizadas;
     },
     
-    cargarPlantillaLocal() {
+    async cargarPlantillaLocal() {
+      try {
+        // Intentar cargar desde el backend primero
+        const response = await fetch('/api/configuracion/voucher-plantilla');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.plantilla) {
+            // Normalizar etiquetas antes del merge
+            if (data.plantilla.etiquetas) {
+              data.plantilla.etiquetas = {
+                ...this.ETIQUETAS_DEFAULT,
+                ...this.normalizarEtiquetas(data.plantilla.etiquetas)
+              };
+            }
+            // Deep merge para preservar valores por defecto
+            this.plantilla = this.deepMerge(this.plantilla, data.plantilla);
+            console.log('✅ Plantilla cargada desde el backend');
+            return;
+          }
+        }
+      } catch (error) {
+        console.warn('Error cargando plantilla del backend:', error);
+      }
+      
+      // Fallback: cargar desde localStorage
       const saved = localStorage.getItem('voucherPlantilla');
       if (saved) {
         try {
@@ -947,6 +971,7 @@ function bouchersApp() {
           }
           // Deep merge para preservar valores por defecto
           this.plantilla = this.deepMerge(this.plantilla, data);
+          console.log('✅ Plantilla cargada desde localStorage');
         } catch(e) {
           console.warn('Error cargando plantilla local:', e);
         }
@@ -954,10 +979,39 @@ function bouchersApp() {
     },
     
     async guardarPlantilla() {
-      localStorage.setItem('voucherPlantilla', JSON.stringify(this.plantilla));
-      this.plantillaModificada = false;
-      this.plantillaOriginal = JSON.parse(JSON.stringify(this.plantilla));
-      GambusinasNotifications.success('Plantilla guardada localmente');
+      try {
+        // Guardar en localStorage como backup
+        localStorage.setItem('voucherPlantilla', JSON.stringify(this.plantilla));
+        
+        // Guardar en el backend
+        const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+        const response = await fetch('/api/configuracion/voucher-plantilla', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(this.plantilla)
+        });
+        
+        if (response.ok) {
+          this.plantillaModificada = false;
+          this.plantillaOriginal = JSON.parse(JSON.stringify(this.plantilla));
+          GambusinasNotifications.success('Plantilla guardada correctamente');
+        } else {
+          // Si falla el backend, al menos se guardó localmente
+          this.plantillaModificada = false;
+          this.plantillaOriginal = JSON.parse(JSON.stringify(this.plantilla));
+          GambusinasNotifications.success('Plantilla guardada localmente');
+        }
+      } catch (error) {
+        console.error('Error guardando plantilla:', error);
+        // Guardar localmente como fallback
+        localStorage.setItem('voucherPlantilla', JSON.stringify(this.plantilla));
+        this.plantillaModificada = false;
+        this.plantillaOriginal = JSON.parse(JSON.stringify(this.plantilla));
+        GambusinasNotifications.success('Plantilla guardada localmente');
+      }
     },
     
     censurar(valor, visible) {

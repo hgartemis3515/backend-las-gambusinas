@@ -437,6 +437,133 @@ router.patch('/configuracion/seo', async (req, res) => {
 });
 
 /**
+ * GET /api/configuracion/voucher-plantilla
+ * Obtiene la plantilla del voucher configurada
+ */
+router.get('/configuracion/voucher-plantilla', async (req, res) => {
+    try {
+        const config = await configuracionRepository.obtenerConfiguracion();
+        
+        // Plantilla por defecto
+        const PLANTILLA_DEFAULT = {
+            logo: '',
+            restaurante: { 
+                nombre: 'LAS GAMBUSINAS', 
+                eslogan: '* Comidas Típicas y Parrilla *', 
+                ruc: config.datosFiscales?.ruc || '20123456789', 
+                direccion: config.datosFiscales?.direccionFiscal || 'Calle Principal 123, Lima', 
+                telefono: config.datosFiscales?.telefono || '01-1234567' 
+            },
+            encabezado: { 
+                tipoComprobante: 'BOLETA DE VENTA ELECTRONICA', 
+                serie: config.numeracion?.serieBoleta || 'B001', 
+                correlativo: ''
+            },
+            bloques: { 
+                mostrarEncabezado: true, 
+                mostrarDatosPedido: true, 
+                mostrarDetalleProductos: true, 
+                mostrarTotales: true, 
+                mostrarDatosCliente: true, 
+                mostrarAgradecimiento: true 
+            },
+            campos: { 
+                mostrarIGV: config.tickets?.mostrarIGVDesglosado ?? true, 
+                mostrarRC: false, 
+                mostrarICBPER: false, 
+                mostrarPropina: false, 
+                mostrarBloquePromo: false, 
+                mostrarQR: false 
+            },
+            promo: { 
+                titulo: 'CALIFICA Y GANA', 
+                mensaje: 'Escanéa el código QR y participa por grandes premios', 
+                qrTamano: 70 
+            },
+            visibilidad: { 
+                nombre: true, eslogan: true, ruc: true, direccion: true, telefono: true, 
+                voucherId: true, numeroVoucher: true, fechaPedido: true, fechaPago: true, 
+                tipo: true, local: true, caja: true, mesero: true, mesa: true, 
+                observacion: true, cliente: true, dniCliente: true, totales: true 
+            },
+            espaciado: { lineHeight: 16, tamanoFuente: 11, espacioDivider: 8 },
+            mensajes: { 
+                agradecimiento: config.tickets?.mensajePie || 'Gracias por ser parte de Nuestra Familia', 
+                urlConsulta: 'https://www.lasgambusinas.com/consulta' 
+            },
+            etiquetas: { 
+                voucherId: 'Voucher ID', 
+                numeroVoucher: 'Nro. Voucher', 
+                fechaPedido: 'Fecha Pedido', 
+                fechaPago: 'Fecha Pago', 
+                mesero: 'Mesero', 
+                mesa: 'Mesa', 
+                total: 'TOTAL', 
+                cliente: 'Cliente', 
+                observaciones: 'Observaciones' 
+            }
+        };
+        
+        // Usar plantilla guardada o la por defecto
+        const plantilla = config.voucherPlantilla || PLANTILLA_DEFAULT;
+        
+        // Si hay logoUrl en datos fiscales, usarlo
+        if (config.datosFiscales?.logoUrl) {
+            plantilla.logo = config.datosFiscales.logoUrl;
+        }
+        
+        res.json({
+            success: true,
+            plantilla
+        });
+    } catch (error) {
+        logger.error('Error al obtener plantilla de voucher:', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener la plantilla del voucher'
+        });
+    }
+});
+
+/**
+ * PUT /api/configuracion/voucher-plantilla
+ * Guarda la plantilla del voucher
+ */
+router.put('/configuracion/voucher-plantilla', async (req, res) => {
+    try {
+        const nuevaPlantilla = req.body;
+        const modificadoPor = req.user?._id || req.headers['x-user-id'] || null;
+        
+        if (!nuevaPlantilla || Object.keys(nuevaPlantilla).length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'No se proporcionaron datos de plantilla'
+            });
+        }
+        
+        // Guardar la plantilla en la configuración
+        const configuracionActualizada = await configuracionRepository.actualizarConfiguracion(
+            { voucherPlantilla: nuevaPlantilla },
+            modificadoPor
+        );
+        
+        logger.info('Plantilla de voucher actualizada', { modificadoPor });
+        
+        res.json({
+            success: true,
+            message: 'Plantilla de voucher guardada exitosamente',
+            plantilla: configuracionActualizada.voucherPlantilla
+        });
+    } catch (error) {
+        logger.error('Error al guardar plantilla de voucher:', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: error.message || 'Error al guardar la plantilla del voucher'
+        });
+    }
+});
+
+/**
  * POST /api/configuracion/invalidar-cache
  * Fuerza la recarga de configuración desde la base de datos
  */
