@@ -1015,8 +1015,7 @@ function bouchersApp() {
       // BLOQUE DATOS PEDIDO
       if (b.mostrarDatosPedido) {
         const lbl = '15ch';
-        html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('voucherId')}:</span><span class="value">${this.censurar(d.voucherId, v.voucherId)}</span></div>`;
-        html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('numeroVoucher')}:</span><span class="value">${this.censurar(d.numeroVoucher, v.numeroVoucher)}</span></div>`;
+        html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('voucherId')}:</span><span class="value">${this.censurar(d.voucherId, v.voucherId)}-${this.censurar(d.numeroVoucher, v.numeroVoucher)}</span></div>`;
         html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('fechaPedido')}:</span><span class="value">${this.censurar(d.fechaPedido, v.fechaPedido)}</span></div>`;
         html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('fechaPago')}:</span><span class="value">${this.censurar(d.fechaPago, v.fechaPago)}</span></div>`;
         html += `<div><span class="label" style="display:inline-block;width:${lbl};">Tipo:</span><span class="value">${this.censurar(d.tipo, v.tipo)}</span></div>`;
@@ -1243,8 +1242,7 @@ body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoF
       // Datos pedido
       if (b.mostrarDatosPedido) {
         const lbl = '15ch';
-        html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('voucherId')}:</span><span class="value">${voucherId}</span></div>`;
-        html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('numeroVoucher')}:</span><span class="value">#${numeroVoucher}</span></div>`;
+        html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('voucherId')}:</span><span class="value">${voucherId}-${numeroVoucher}</span></div>`;
         html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('fechaPedido')}:</span><span class="value">${formatFecha(fechaPedido)}</span></div>`;
         html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('fechaPago')}:</span><span class="value">${formatFecha(fechaPago)}</span></div>`;
         html += `<div><span class="label" style="display:inline-block;width:${lbl};">${this.obtenerEtiqueta('mesero')}:</span><span class="value">${nombreMozo}</span></div>`;

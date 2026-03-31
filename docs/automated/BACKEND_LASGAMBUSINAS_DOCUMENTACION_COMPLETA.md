@@ -1,6 +1,6 @@
 # 🖥️ Documentación Completa - Backend Las Gambusinas
 
-**Versión:** 2.15  
+**Versión:** 2.16  
 **Última Actualización:** Marzo 2026  
 **Tecnología:** Node.js + Express + MongoDB + Socket.io + Redis
 
@@ -53,6 +53,7 @@ Crear un ecosistema digital completo que permita:
 | Marzo 2026   | **Cosmos Search:** Nuevo sistema de búsqueda unificada estilo Command Palette (⌘K/Ctrl+K): archivo `public/assets/js/cosmos-search.js` con glassmorphism UI; búsqueda en platos, mesas, clientes, comandas y bouchers; navegación por teclado; integración en todas las páginas del dashboard; componente `cosmos-searchbar.html` y estilos en `cosmos-search.css`.                                                                                                                                                |
 | Marzo 2026   | **Autenticación JWT en Socket.io:** Nuevo middleware `src/middleware/socketAuth.js` con validación JWT en conexión de sockets; roles permitidos por namespace (`/cocina`: cocinero/admin/supervisor, `/mozos`: mozos/admin/supervisor, `/admin`: admin/supervisor); advertencia de token próximo a expirar; rate limiting configurable; helpers `emitToUser` y `emitToZona`.                                                                                                                                       |
 | Marzo 2026   | **Página cocineros.html y Zonas KDS:** Nueva sección documentando la página `public/cocineros.html`: interfaz completa para gestión de cocineros y zonas KDS con dos tabs; tabla de cocineros con paginación; ranking de métricas; modal de configuración KDS; gestión de zonas con filtros de platos/comandas; integración en tiempo real con Socket.io; modelo `Zona` para organizar estaciones de cocina.                                                                                                       |
+| Marzo 2026   | **Página bouchers.html v3.0 - Bug Fixes y Mejoras:** Correcciones críticas en el editor de plantilla de voucher: (1) Bug de etiquetas `undefined:` solucionado con sistema de fallback robusto - nueva constante `ETIQUETAS_DEFAULT` como fuente única de verdad, función `obtenerEtiqueta()` con triple fallback, mapeo de keys antiguas/nuevas (`MAPEO_KEYS_ETIQUETAS`), y deep merge seguro (`deepMerge()`) en lugar de spread operator que causaba pérdida de valores anidados. (2) Notificaciones corregidas - cambio de `showNotification()` a `GambusinasNotifications.success/info/error()`. (3) Fechas "Invalid Date" corregidas con función `parsearFecha()` que valida antes de usar. (4) Voucher consolidado: `VoucherID` y `Nro. Voucher` ahora en una sola línea formato `4G8K1-152`. (5) Total en letras agregado: `Son: DIECINUEVE Y 90/100 Soles`. (6) Datos de cliente reubicados después de totales. (7) Campo Moneda agregado arriba de Mesa. (8) URL de consulta agregada en agradecimiento. |
 | Marzo 2026   | **Página bouchers.html v2.0:** Nueva sección documentando la página `public/bouchers.html`: sistema de tabs ("Tabla" y "Plantilla Voucher"); editor visual de plantilla de ticket térmico con preview en tiempo real; sidebar de personalización (datos del restaurante, encabezado, campos a mostrar, mensajes); generación de voucher tipo boleta electrónica siguiendo formato estándar de impresoras térmicas 80mm; integración con App Mozos para generación de PDF via `expo-print`; endpoints `/api/configuracion/voucher-plantilla` para persistir configuración.                                              |
 | Marzo 2026   | **Integración App Cocina - Cocineros:** Documentación completa de la relación entre la página de cocineros y la App de Cocina: flujo de datos, endpoints consumidos, eventos Socket.io (`config-cocinero-actualizada`), filtros KDS (`kdsFilters.js`), autenticación JWT específica para cocineros, sincronización de configuración en tiempo real. Pendientes identificados y sugerencias de mejora.                                                                                                              |
 | Marzo 2026   | **Sección Cocineros:** Nueva sección documentando el módulo de gestión de cocineros: modelo ConfigCocinero para configuración personalizada del tablero KDS; filtros de platos y comandas; métricas de rendimiento (tiempos de preparación, platos top, SLA); endpoints `/api/cocineros/`* con autenticación JWT y permisos; asignación y remoción de rol de cocinero.                                                                                                                                             |
@@ -1430,7 +1431,7 @@ const res = isEdit
 
 **Ubicación:** `public/bouchers.html`
 
-**Versión:** 2.1 - Editor de Plantilla Avanzado con Preview en Tiempo Real (Marzo 2026)
+**Versión:** 3.0 - Bug Fixes Críticos y Mejoras de UX (Marzo 2026)
 
 ### Descripción General
 
@@ -1722,6 +1723,120 @@ generarPreviewVoucher() {
 - Cada campo pasa por `censurar()` que decide si mostrar el valor real o `XXXXX`
 - Los dividers usan el espaciado configurable
 - El HTML generado es compatible con impresoras térmicas 80mm (320px de ancho)
+
+---
+
+### 🐛 Bug Fixes v3.0 (Marzo 2026)
+
+#### Problema: Etiquetas `undefined:` en Preview
+
+**Síntoma:** Al renderizar el preview del voucher, algunos campos mostraban `undefined:` como etiqueta en lugar del nombre correcto (ej: `Voucher ID`, `Nro. Voucher`, `Fecha Pedido`, etc.)
+
+**Causa raíz:** El merge de configuración usaba spread operator (`{...obj}`) que hace **shallow merge**. Cuando `localStorage` tenía un objeto `etiquetas` incompleto, sobrescribía completamente el objeto base, dejando campos nuevos como `undefined`.
+
+**Solución implementada:**
+
+```javascript
+// 1. Fuente única de verdad - ETIQUETAS_DEFAULT
+ETIQUETAS_DEFAULT: {
+  voucherId: 'Voucher ID',
+  numeroVoucher: 'Nro. Voucher',
+  fechaPedido: 'Fecha Pedido',
+  fechaPago: 'Fecha Pago',
+  mesero: 'Mesero',
+  mesa: 'Mesa',
+  total: 'TOTAL',
+  cliente: 'Cliente',
+  observaciones: 'Observaciones'
+},
+
+// 2. Mapeo de keys antiguas a nuevas (normalización)
+MAPEO_KEYS_ETIQUETAS: {
+  pedido: 'voucherId',
+  codigo: 'voucherId',
+  boucherNumero: 'numeroVoucher',
+  numeroBoucher: 'numeroVoucher',
+  fecha: 'fechaPedido',
+  fechaCreacion: 'fechaPedido',
+  clienteNombre: 'cliente'
+},
+
+// 3. Función obtenerEtiqueta() con triple fallback
+obtenerEtiqueta(key) {
+  const etiquetas = this.plantilla?.etiquetas || {};
+  const normalizada = this.MAPEO_KEYS_ETIQUETAS[key] || key;
+  const valor = etiquetas[normalizada];
+  if (valor && valor !== '' && valor !== undefined) return valor;
+  if (etiquetas[key] && etiquetas[key] !== '') return etiquetas[key];
+  return this.ETIQUETAS_DEFAULT[normalizada] || this.ETIQUETAS_DEFAULT[key] || key;
+},
+
+// 4. Deep merge seguro (reemplaza spread operator)
+deepMerge(target, source) {
+  const result = { ...target };
+  if (!source) return result;
+  for (const key in source) {
+    if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+      result[key] = this.deepMerge(result[key] || {}, source[key]);
+    } else if (source[key] !== undefined) {
+      result[key] = source[key];
+    }
+  }
+  return result;
+}
+```
+
+---
+
+#### Problema: Notificación `id="notification-undefined"`
+
+**Síntoma:** Al guardar la plantilla, aparecía una notificación con ID `notification-undefined` en lugar del mensaje correcto.
+
+**Causa:** `showNotification()` en `notifications.js` espera un objeto, pero se llamaba con strings: `showNotification('mensaje', 'success')`.
+
+**Solución:** Cambiar a la API correcta:
+```javascript
+// Antes (incorrecto):
+showNotification('Plantilla guardada', 'success');
+
+// Después (correcto):
+GambusinasNotifications.success('Plantilla guardada localmente');
+GambusinasNotifications.info('Plantilla restablecida');
+GambusinasNotifications.error('El logo debe ser menor a 500KB');
+```
+
+---
+
+#### Problema: "Invalid Date" en Fechas
+
+**Síntoma:** Al imprimir un voucher, las fechas mostraban `Invalid Date Invalid Date`.
+
+**Causa:** `new Date(fecha)` no validaba si la fecha era válida antes de formatear.
+
+**Solución:** Función `parsearFecha()` con validación:
+```javascript
+const parsearFecha = (fecha) => {
+  if (!fecha) return null;
+  const d = new Date(fecha);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+// Uso con fallback:
+const fechaPedido = parsearFecha(v?.fechaPedido) || parsearFecha(v?.createdAt) || new Date();
+```
+
+---
+
+#### Mejoras Adicionales v3.0
+
+| Cambio | Descripción |
+|--------|-------------|
+| **Voucher consolidado** | `VoucherID` y `Nro. Voucher` ahora en una sola línea: `4G8K1-152` |
+| **Total en letras** | Agregado: `Son: DIECINUEVE Y 90/100 Soles` |
+| **Cliente reubicado** | Datos de cliente ahora aparecen después de totales |
+| **Campo Moneda** | Nuevo campo `Moneda: Soles` arriba de Mesa |
+| **URL de consulta** | Agregado en agradecimiento: `Consulte en: https://...` |
+| **DNI del cliente** | Nueva línea mostrando DNI del cliente |
 
 ---
 
