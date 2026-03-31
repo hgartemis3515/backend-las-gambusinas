@@ -1,6 +1,6 @@
 # 🖥️ Documentación Completa - Backend Las Gambusinas
 
-**Versión:** 2.16  
+**Versión:** 2.17  
 **Última Actualización:** Marzo 2026  
 **Tecnología:** Node.js + Express + MongoDB + Socket.io + Redis
 
@@ -40,6 +40,7 @@ Crear un ecosistema digital completo que permita:
 
 | Fecha        | Cambios                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Marzo 2026   | **Voucher sincronizado con App de Mozos:** Sincronización bidireccional de plantillas de voucher entre backend y App Mozos. El app ahora genera PDFs usando la plantilla configurada en `bouchers.html`. Endpoint `/api/configuracion/voucher-plantilla` devuelve configuración para `expo-print`. |
 | Marzo 2026   | **Bug corregido - Validación de IDs en Propinas:** El endpoint `POST /api/propinas` fallaba con error 400 debido a que la función `idsCoinciden()` no manejaba correctamente objetos poblados de MongoDB. Cuando `boucher.mesa` o `boucher.mozo` venían poblados (objetos completos), `.toString()` devolvía `[object Object]` en lugar del ObjectId. Solución: función `idsCoinciden()` reescrita en `src/utils/propinaCalculo.js` para extraer correctamente el `_id` de objetos poblados. |
 | Marzo 2026   | **Bug corregido - Proyecciones de MongoDB:** Los complementos de los platos (`complementosSeleccionados`, `notaEspecial`) no se enviaban al frontend en el endpoint `GET /api/comanda/fecha/:fecha`. Causa: la proyección `PROYECCION_RESUMEN_MESA` no incluía estos campos. Solución: agregados campos faltantes. Ver sección "🐛 Debugging de Datos - Metodología" para aprender a identificar problemas similares. |
 | Marzo 2026   | **Funcionalidad Juntar/Separar Mesas v2.8:** Nueva funcionalidad para combinar múltiples mesas en un grupo (usando la mesa de menor número como principal) y separarlas posteriormente. Modelo de datos actualizado con campos `esMesaPrincipal`, `mesaPrincipalId`, `mesasUnidas`, `fechaUnion`, `unidoPor`, `motivoUnion`, `nombreCombinado`. Nuevos endpoints `POST /api/mesas/juntar`, `POST /api/mesas/separar`, `GET /api/mesas/grupos`, `GET /api/mesas/:id/grupo`. Eventos Socket.io `mesas-juntadas` y `mesas-separadas`. Permiso `juntar-separar-mesas` para admin/supervisor. |
@@ -4645,6 +4646,7 @@ curl http://localhost:3000/api/comanda/fecha/2026-03-29 | jq '.[0].platos[0]'
 - **Bug corregido**: Proyecciones de MongoDB - campos faltantes en `PROYECCION_RESUMEN_MESA` causaban que complementos no llegaran al frontend
 - Sistema de Mozos v2.0 con Metas: tipos de metas (ventas, mesas, tickets, ticket promedio, propinas), estados de cumplimiento semaforizados, proyección inteligente, ranking, recomendaciones automáticas
 - Sistema de Propinas para Mozos v1.0: gestión completa de propinas con modelo Propina, endpoints API REST, página mozos.html en dashboard, integración con App Mozos
+- **Voucher sincronizado con App Mozos v2.8**: plantilla de voucher sincronizada entre backend y App Mozos, generación de PDF usando configuración de bouchers.html, endpoint `/api/configuracion/voucher-plantilla`
 - Corrección v7.4.1: Al finalizar comanda se emiten eventos plato-actualizado por cada plato (sincronización en tiempo real con App de Mozos)
 - Sistema de Finalización de Platos y Comandas v7.4 (documentación completa de endpoints, eventos Socket.io, impacto entre aplicaciones)
 - Sistema Multi-Cocinero v7.2.1 (identificación de cocinero en procesamiento, auditoría de platos dejados)
