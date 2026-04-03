@@ -26,12 +26,42 @@ const areaSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     },
-    // ========== CAMPO PARA MAPA DE MESAS ==========
+    // ========== CAMPOS PARA MAPA DE MESAS ==========
     // Si el mapa del área está publicado (visible para mozos)
     mapaPublicado: {
         type: Boolean,
         default: false
+    },
+    
+    // Habilitación del modo layout para esta área
+    mapaHabilitado: {
+        type: Boolean,
+        default: false
+    },
+    
+    // Sección de layout vinculada
+    layoutSectionId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'LayoutSection',
+        default: null
+    },
+    
+    // Dimensiones del canvas (legado - para compatibilidad)
+    canvasWidth: {
+        type: Number,
+        default: 1600
+    },
+    canvasHeight: {
+        type: Number,
+        default: 1200
+    },
+    
+    // Color de fondo del área en el mapa
+    color: {
+        type: String,
+        default: '#1a1a28'
     }
+    // ========== FIN CAMPOS MAPA DE MESAS ==========
 });
 
 // Actualizar updatedAt antes de guardar

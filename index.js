@@ -46,6 +46,8 @@ const propinaRoutes = require('./src/controllers/propinaController')
 const metasMozosRoutes = require('./src/controllers/metaMozoController')
 // COMPLEMENTOS PLANTILLA: Controller para biblioteca de complementos reutilizables
 const complementosPlantillaRoutes = require('./src/controllers/complementoPlantillaController')
+// LAYOUT: Routes para gestión de layout de mesas (secciones e items)
+const layoutRoutes = require('./src/routes/layout.routes')
 const { adminAuth } = require('./src/middleware/adminAuth')
 
 const app = express();
@@ -117,7 +119,7 @@ app.use(cors({
 }));
 
 // propinaRoutes cerca del inicio: evita que otra ruta genérica intercepte /propinas/*
-const routes = [mesasRoutes, mozosRoutes, propinaRoutes, metasMozosRoutes, platoRoutes, comandaRoutes, pedidoRoutes, areaRoutes, boucherRoutes, clientesRoutes, auditoriaRoutes, cierreCajaRoutes, cierreCajaRestauranteRoutes, adminRoutes, notificacionesRoutes, mensajesRoutes, reportesRoutes, rolesRoutes, configuracionRoutes, cocinerosRoutes, zonaRoutes, procesamientoRoutes, reservaRoutes, complementosPlantillaRoutes];
+const routes = [mesasRoutes, mozosRoutes, propinaRoutes, metasMozosRoutes, platoRoutes, comandaRoutes, pedidoRoutes, areaRoutes, boucherRoutes, clientesRoutes, auditoriaRoutes, cierreCajaRoutes, cierreCajaRestauranteRoutes, adminRoutes, notificacionesRoutes, mensajesRoutes, reportesRoutes, rolesRoutes, configuracionRoutes, cocinerosRoutes, zonaRoutes, procesamientoRoutes, reservaRoutes, complementosPlantillaRoutes, layoutRoutes];
 
 // FASE 7: Security Headers (Helmet.js)
 const helmet = require('helmet');

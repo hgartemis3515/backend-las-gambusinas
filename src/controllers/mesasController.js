@@ -205,24 +205,30 @@ router.get("/mesas", async (req, res) => {
 
 /**
  * GET /api/mesas/mapa
- * Obtiene las mesas de un área con su configuración de mapa
- * Query params: area (ObjectId del área)
+ * Obtiene las mesas de un área o sección con su configuración de mapa
+ * Query params: area (ObjectId del área), sectionId (ObjectId de sección)
  */
 router.get('/mesas/mapa', async (req, res) => {
     try {
-        const { area } = req.query;
+        const { area, sectionId } = req.query;
         const mesasModel = require('../database/models/mesas.model');
         // Importar modelo de área para que mongoose lo registre antes del populate
         require('../database/models/area.model');
+        // Importar modelo LayoutSection para que la referencia en area.model funcione
+        require('../database/models/layoutSection.model');
         
         const filtro = { isActive: true };
-        if (area) {
+        
+        // Filtrar por sección si se proporciona
+        if (sectionId) {
+            filtro['mapaConfig.sectionId'] = sectionId;
+        } else if (area) {
             filtro.area = area;
         }
         
         const mesasRaw = await mesasModel.find(filtro)
             .select('nummesa estado area mesasId mapaConfig esMesaPrincipal mesaPrincipalId mesasUnidas nombreCombinado')
-            .populate('area', 'nombre mapaPublicado')
+            .populate('area', 'nombre mapaPublicado mapaHabilitado layoutSectionId canvasWidth canvasHeight color')
             .lean();
         
         // Asegurar que todas las mesas tengan mapaConfig con valores por defecto
@@ -230,13 +236,25 @@ router.get('/mesas/mapa', async (req, res) => {
         const mesas = mesasRaw.map(m => ({
             ...m,
             numMesa: m.nummesa || m.mesasId,
-            mapaConfig: m.mapaConfig || { x: null, y: null, width: 80, height: 80, shape: 'rect', visible: true }
+            mapaConfig: {
+                x: m.mapaConfig?.x ?? null,
+                y: m.mapaConfig?.y ?? null,
+                width: m.mapaConfig?.width ?? 80,
+                height: m.mapaConfig?.height ?? 80,
+                shape: m.mapaConfig?.shape ?? 'rect',
+                visible: m.mapaConfig?.visible ?? true,
+                sectionId: m.mapaConfig?.sectionId ?? null,
+                rotation: m.mapaConfig?.rotation ?? 0,
+                zIndex: m.mapaConfig?.zIndex ?? 10,
+                locked: m.mapaConfig?.locked ?? false
+            }
         }));
         
         res.json({
             success: true,
             mesas,
-            areaId: area || null
+            areaId: area || null,
+            sectionId: sectionId || null
         });
     } catch (error) {
         logger.error('Error al obtener mapa de mesas', { error: error.message, stack: error.stack });
@@ -253,7 +271,7 @@ router.get('/mesas/mapa', async (req, res) => {
  * Actualiza la configuración de mapa de múltiples mesas en batch
  * Requiere autenticación de admin
  * 
- * Body: { mesas: [{ mesaId, x, y, width, height, shape, visible }] }
+ * Body: { mesas: [{ mesaId, x, y, width, height, shape, visible, sectionId, rotation, zIndex, locked }] }
  */
 router.put('/mesas/mapa/bulk', adminAuth, async (req, res) => {
     const mongoose = require('mongoose');
@@ -271,21 +289,37 @@ router.put('/mesas/mapa/bulk', adminAuth, async (req, res) => {
         const mesasModel = require('../database/models/mesas.model');
         
         // Preparar operaciones bulk
-        const bulkOps = mesas.map(mesaConfig => ({
-            updateOne: {
-                filter: { _id: new mongoose.Types.ObjectId(mesaConfig.mesaId) },
-                update: {
-                    $set: {
-                        'mapaConfig.x': mesaConfig.x,
-                        'mapaConfig.y': mesaConfig.y,
-                        'mapaConfig.width': mesaConfig.width || 80,
-                        'mapaConfig.height': mesaConfig.height || 80,
-                        'mapaConfig.shape': mesaConfig.shape || 'rect',
-                        'mapaConfig.visible': mesaConfig.visible !== false
-                    }
-                }
+        const bulkOps = mesas.map(mesaConfig => {
+            const updateData = {
+                'mapaConfig.x': mesaConfig.x,
+                'mapaConfig.y': mesaConfig.y,
+                'mapaConfig.width': mesaConfig.width || 80,
+                'mapaConfig.height': mesaConfig.height || 80,
+                'mapaConfig.shape': mesaConfig.shape || 'rect',
+                'mapaConfig.visible': mesaConfig.visible !== false
+            };
+            
+            // Campos opcionales nuevos
+            if (mesaConfig.sectionId !== undefined) {
+                updateData['mapaConfig.sectionId'] = mesaConfig.sectionId;
             }
-        }));
+            if (mesaConfig.rotation !== undefined) {
+                updateData['mapaConfig.rotation'] = mesaConfig.rotation;
+            }
+            if (mesaConfig.zIndex !== undefined) {
+                updateData['mapaConfig.zIndex'] = mesaConfig.zIndex;
+            }
+            if (mesaConfig.locked !== undefined) {
+                updateData['mapaConfig.locked'] = mesaConfig.locked;
+            }
+            
+            return {
+                updateOne: {
+                    filter: { _id: new mongoose.Types.ObjectId(mesaConfig.mesaId) },
+                    update: { $set: updateData }
+                }
+            };
+        });
         
         // Ejecutar bulkWrite
         const resultado = await mesasModel.bulkWrite(bulkOps);
@@ -297,11 +331,17 @@ router.put('/mesas/mapa/bulk', adminAuth, async (req, res) => {
         
         // Emitir evento Socket.io mapa-actualizado
         // Obtener el área de la primera mesa para emitir el evento
-        const primeraMesa = await mesasModel.findById(mesas[0].mesaId).select('area');
+        const primeraMesa = await mesasModel.findById(mesas[0].mesaId).select('area mapaConfig.sectionId');
         const areaId = primeraMesa?.area?.toString();
+        const sectionId = primeraMesa?.mapaConfig?.sectionId?.toString();
         
         if (global.emitMapaActualizado && areaId) {
             await global.emitMapaActualizado(areaId);
+        }
+        
+        // Emitir evento de layout actualizado si hay sección
+        if (global.emitLayoutActualizado && sectionId) {
+            await global.emitLayoutActualizado(sectionId);
         }
         
         res.json({

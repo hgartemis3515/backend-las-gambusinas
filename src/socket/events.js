@@ -2480,5 +2480,152 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
     }
   };
 
+  // ========== FUNCIONES PARA EMITIR EVENTOS DE LAYOUT DE MESAS ==========
+
+  /**
+   * Emitir evento cuando se publica un layout de sección
+   * @param {String} sectionId - ID de la sección publicada
+   */
+  global.emitLayoutPublicado = async (sectionId) => {
+    try {
+      if (!sectionId) {
+        logger.warn('emitLayoutPublicado: sectionId no proporcionado');
+        return;
+      }
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+      const LayoutSection = require('../database/models/layoutSection.model');
+      
+      const section = await LayoutSection.findById(sectionId).populate('areaId', 'nombre');
+      
+      if (!section) {
+        logger.warn('Sección no encontrada para emitir evento');
+        return;
+      }
+
+      const eventData = {
+        sectionId: sectionId.toString(),
+        section: section,
+        areaId: section.areaId?._id?.toString(),
+        timestamp: timestamp
+      };
+
+      // Emitir a namespace mozos para que recarguen el layout
+      if (mozosNamespace && mozosNamespace.sockets) {
+        mozosNamespace.emit('layout-publicado', eventData);
+        logger.debug('Evento layout-publicado emitido a mozos', {
+          sectionId,
+          mozosConnected: mozosNamespace.sockets.size
+        });
+      }
+
+      // Emitir a namespace admin
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('layout-publicado', eventData);
+        logger.debug('Evento layout-publicado emitido a admin', {
+          sectionId,
+          adminConnected: adminNamespace.sockets.size
+        });
+      }
+
+      logger.info('Evento layout-publicado emitido', {
+        sectionId,
+        areaId: eventData.areaId,
+        timestamp,
+        mozosConnected: mozosNamespace?.sockets?.size || 0,
+        adminConnected: adminNamespace?.sockets?.size || 0
+      });
+    } catch (error) {
+      logger.error('Error al emitir layout-publicado', {
+        error: error.message,
+        stack: error.stack,
+        sectionId
+      });
+    }
+  };
+
+  /**
+   * Emitir evento cuando se actualiza un layout (sin publicar)
+   * @param {String} sectionId - ID de la sección actualizada
+   */
+  global.emitLayoutActualizado = async (sectionId) => {
+    try {
+      if (!sectionId) {
+        logger.warn('emitLayoutActualizado: sectionId no proporcionado');
+        return;
+      }
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      const eventData = {
+        sectionId: sectionId.toString(),
+        timestamp: timestamp
+      };
+
+      // Emitir solo a admin (no afecta a mozos hasta publicar)
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('layout-actualizado', eventData);
+        logger.debug('Evento layout-actualizado emitido a admin', {
+          sectionId,
+          adminConnected: adminNamespace.sockets.size
+        });
+      }
+
+      logger.info('Evento layout-actualizado emitido', {
+        sectionId,
+        timestamp,
+        adminConnected: adminNamespace?.sockets?.size || 0
+      });
+    } catch (error) {
+      logger.error('Error al emitir layout-actualizado', {
+        error: error.message,
+        stack: error.stack,
+        sectionId
+      });
+    }
+  };
+
+  /**
+   * Emitir evento cuando se crea una mesa desde el editor de layout
+   * @param {Object} mesa - Mesa creada
+   */
+  global.emitMesaCreada = async (mesa) => {
+    try {
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      const eventData = {
+        mesaId: mesa._id?.toString(),
+        mesa: mesa,
+        timestamp: timestamp
+      };
+
+      // Emitir a namespace mozos
+      if (mozosNamespace && mozosNamespace.sockets) {
+        mozosNamespace.emit('mesa-creada', eventData);
+      }
+
+      // Emitir a namespace admin
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('mesa-creada', eventData);
+      }
+
+      // Emitir a namespace cocina
+      if (cocinaNamespace && cocinaNamespace.sockets) {
+        cocinaNamespace.emit('mesa-creada', eventData);
+      }
+
+      logger.info('Evento mesa-creada emitido', {
+        mesaId: mesa._id?.toString(),
+        numMesa: mesa.nummesa,
+        timestamp
+      });
+    } catch (error) {
+      logger.error('Error al emitir mesa-creada', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  };
+
 };
 

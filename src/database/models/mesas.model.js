@@ -66,11 +66,45 @@ const mesasSchema = new mongoose.Schema({
     // ========== CAMPOS PARA MAPA DE MESAS ==========
     // Configuración de posición y estilo en el editor de mapa
     mapaConfig: {
+        // Posición en píxeles
         x: { type: Number, default: null },
         y: { type: Number, default: null },
+        
+        // Dimensiones
         width: { type: Number, default: 80 },
         height: { type: Number, default: 80 },
+        
+        // Forma visual
         shape: { type: String, enum: ['rect', 'round'], default: 'rect' },
+        
+        // Sección de layout a la que pertenece
+        sectionId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'LayoutSection',
+            default: null
+        },
+        
+        // Rotación en grados
+        rotation: {
+            type: Number,
+            default: 0,
+            min: 0,
+            max: 360
+        },
+        
+        // Profundidad (z-index)
+        zIndex: {
+            type: Number,
+            default: 10
+        },
+        
+        // Bloqueo de edición
+        locked: {
+            type: Boolean,
+            default: false
+        },
+        
+        // Visibilidad en el mapa
         visible: { type: Boolean, default: true }
     }
     // ========== FIN CAMPOS MAPA DE MESAS ==========

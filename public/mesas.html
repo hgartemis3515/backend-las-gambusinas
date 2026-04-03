@@ -248,280 +248,430 @@ tailwind.config = {
       </div>
     </div>
 
-    <!-- VISTA MAPA DE MESAS -->
-    <div x-show="view==='mapa'" x-transition class="space-y-4">
-      <!-- Barra de herramientas del mapa -->
-      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
-        <div class="flex items-center gap-3">
-          <label class="text-sm text-txt-secondary">Área:</label>
-          <select x-model="mapaAreaSeleccionada" @change="cargarMapaArea()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none min-w-[180px]">
-            <option value="">Todas las áreas</option>
-            <template x-for="area in areasList" :key="area._id">
-              <option :value="area._id" x-text="area.nombre"></option>
-            </template>
-          </select>
-          <!-- Contador de progreso -->
-          <div x-show="mapaModoEdicion && mapaAreaSeleccionada" class="flex items-center gap-2 text-xs">
-            <span class="text-txt-muted" x-text="(mesasMapa.length + mesasSinPosicionar.length) + ' mesas en área'"></span>
-            <span class="px-2 py-1 rounded-full font-semibold"
-              :class="mesasSinPosicionar.length > 0 ? 'bg-st-esperando/20 text-st-esperando' : 'bg-st-libre/20 text-st-libre'"
-              x-text="mesasMapa.length + ' colocadas'"></span>
-            <span x-show="mesasSinPosicionar.length > 0" class="px-2 py-1 rounded-full bg-st-pagado/20 text-st-pagado"
-              x-text="mesasSinPosicionar.length + ' sin colocar'"></span>
+    <!--
+  NUEVA SECCIÓN DEL MAPA - EDITOR PROFESIONAL ESTILO ORDERPIN
+  Reemplaza la sección "VISTA MAPA DE MESAS" en mesas.html (líneas 251-497)
+  
+  Cambios principales:
+  1. Usa layoutEditorComponent() de layoutEditor.js con Interact.js
+  2. Sistema de secciones (LayoutSection) en lugar de áreas simples
+  3. Drag & drop profesional con snap, resize, y límites de canvas
+  4. Panel lateral con tabs: Mesas, Estructura, Etiquetas
+  5. Panel de propiedades contextual
+  6. Publicación por sección con estado borrador/publicado
+-->
+
+<!-- VISTA MAPA DE MESAS - EDITOR PROFESIONAL -->
+<div x-show="view==='mapa'" x-transition class="space-y-4" x-data="layoutEditorComponent()">
+
+  <!-- BARRA DE HERRAMIENTAS -->
+  <div class="bg-bg-card border border-gold/15 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
+    <div class="flex items-center gap-3">
+      <!-- Selector de Sección -->
+      <select :value="state.seccionSeleccionada?._id || ''" @change="seleccionarSeccion($event.target.value)"
+        class="bg-bg-sidebar border border-gold/25 rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none min-w-[220px]">
+        <option value="">Seleccionar sección...</option>
+        <template x-for="sec in state.secciones" :key="sec._id">
+          <option :value="sec._id" x-text="sec.nombre + (sec.publicado ? ' ✓' : ' ○')"></option>
+        </template>
+      </select>
+      <button @click="mostrarModalNuevaSeccion = true"
+        class="bg-bg-sidebar border border-gold/25 text-gold px-3 py-2 rounded-lg text-sm font-semibold hover:bg-gold/20 transition">
+        + Nueva Sección
+      </button>
+
+      <!-- Contador de mesas -->
+      <div x-show="state.seccionSeleccionada" class="flex items-center gap-2 text-xs border-l border-gold/20 pl-3">
+        <span class="text-txt-muted" x-text="state.mesasMapa.length + ' en mapa'"></span>
+        <span x-show="state.mesasSinPosicionar.length > 0" class="px-2 py-1 rounded-full bg-st-esperando/20 text-st-esperando"
+          x-text="state.mesasSinPosicionar.length + ' sin colocar'"></span>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <!-- Indicador de cambios -->
+      <span x-show="state.tieneCambios" class="flex items-center gap-1 text-xs text-st-esperando bg-st-esperando/20 px-3 py-1.5 rounded-full">
+        <span class="w-2 h-2 rounded-full bg-st-esperando animate-pulse"></span>
+        Sin guardar
+      </span>
+
+      <!-- Controles de zoom -->
+      <div x-show="state.seccionSeleccionada" class="flex items-center gap-1 bg-bg-sidebar rounded-lg p-1">
+        <button @click="zoomOut()" class="w-7 h-7 flex items-center justify-center text-txt-secondary hover:text-gold transition">−</button>
+        <span class="text-xs text-txt-secondary w-12 text-center" x-text="Math.round(state.zoom * 100) + '%'"></span>
+        <button @click="zoomIn()" class="w-7 h-7 flex items-center justify-center text-txt-secondary hover:text-gold transition">+</button>
+      </div>
+
+      <!-- Botones de acción -->
+      <button @click="toggleModoEdicion()"
+        :class="state.modoEdicion ? 'bg-st-preparado text-white' : 'bg-bg-sidebar border border-gold/25 text-txt-secondary hover:bg-gold/20'"
+        class="px-4 py-2 rounded-lg text-sm font-semibold transition">
+        <span x-text="state.modoEdicion ? '✕ Salir' : '✏️ Editar'"></span>
+      </button>
+
+      <button x-show="state.modoEdicion" @click="guardarTodo()" :disabled="state.guardando"
+        class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50">
+        <span x-text="state.guardando ? 'Guardando...' : '💾 Guardar'"></span>
+      </button>
+
+      <button x-show="state.modoEdicion && state.seccionSeleccionada && !state.seccionSeleccionada.publicado" @click="publicarLayout()"
+        class="bg-st-libre text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">
+        🚀 Publicar
+      </button>
+    </div>
+  </div>
+
+  <!-- CONTENEDOR PRINCIPAL -->
+  <div class="flex gap-4" x-show="state.seccionSeleccionada">
+
+    <!-- PANEL LATERAL - Inventario (3 tabs) -->
+    <div x-show="state.modoEdicion" x-transition class="w-56 flex-shrink-0 bg-bg-card border border-gold/15 rounded-xl overflow-hidden flex flex-col">
+      <!-- Tabs -->
+      <div class="flex border-b border-gold/15">
+        <button @click="state.sidebarTab = 'mesas'" :class="state.sidebarTab === 'mesas' ? 'bg-gold/20 text-gold' : 'text-txt-secondary'"
+          class="flex-1 py-2 text-xs font-semibold transition">Mesas</button>
+        <button @click="state.sidebarTab = 'estructura'" :class="state.sidebarTab === 'estructura' ? 'bg-gold/20 text-gold' : 'text-txt-secondary'"
+          class="flex-1 py-2 text-xs font-semibold transition">Estructura</button>
+        <button @click="state.sidebarTab = 'etiquetas'" :class="state.sidebarTab === 'etiquetas' ? 'bg-gold/20 text-gold' : 'text-txt-secondary'"
+          class="flex-1 py-2 text-xs font-semibold transition">Etiquetas</button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-3">
+        <!-- MESAS -->
+        <div x-show="state.sidebarTab === 'mesas'" class="space-y-2">
+          <p class="text-[10px] text-txt-muted uppercase mb-2">Arrastra al canvas</p>
+          <div x-show="state.mesasSinPosicionar.length === 0" class="text-center py-6">
+            <p class="text-2xl mb-2">✅</p>
+            <p class="text-xs text-txt-muted">Todas las mesas ubicadas</p>
           </div>
-          <span x-show="mapaCargando" class="text-txt-muted text-sm">Cargando...</span>
+          <template x-for="mesa in state.mesasSinPosicionar" :key="mesa._id">
+            <div class="sidebar-item-draggable bg-bg-sidebar border border-gold/20 rounded-lg p-2.5 cursor-grab hover:border-gold hover:bg-gold/5 transition group"
+              :data-drag-data="JSON.stringify({tipo: 'mesa', mesaId: mesa._id})">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="w-6 h-6 flex items-center justify-center rounded text-xs font-bold bg-gold/20"
+                    x-text="mesa.numMesa || mesa.nummesa"></span>
+                  <span class="font-semibold text-sm text-white" x-text="'M' + (mesa.numMesa || mesa.nummesa)"></span>
+                </div>
+                <span class="text-txt-muted group-hover:text-gold transition text-xs">⋮⋮</span>
+              </div>
+            </div>
+          </template>
         </div>
-        <div class="flex items-center gap-2">
-          <!-- Indicador de cambios sin guardar -->
-          <span x-show="mapaModoEdicion && mapaTieneCambios" class="flex items-center gap-1 text-xs text-st-esperando bg-st-esperando/20 px-2 py-1 rounded-full">
-            <span class="w-2 h-2 rounded-full bg-st-esperando animate-pulse"></span>
-            Sin guardar
-          </span>
-          <!-- Botones de acción de edición -->
-          <button x-show="mapaModoEdicion" @click="autoDistribuirMesas()" 
-            :disabled="mesasSinPosicionar.length === 0"
-            class="bg-bg-sidebar border border-gold/25 text-txt-secondary px-3 py-2 rounded-lg text-sm font-semibold hover:bg-gold/10 transition disabled:opacity-40 disabled:cursor-not-allowed">
-            ⚡ Auto-distribuir
-          </button>
-          <button x-show="mapaModoEdicion" @click="limpiarMapa()" 
-            :disabled="mesasMapa.length === 0"
-            class="bg-bg-sidebar border border-st-pagado/25 text-st-pagado px-3 py-2 rounded-lg text-sm font-semibold hover:bg-st-pagado/10 transition disabled:opacity-40 disabled:cursor-not-allowed">
-            🗑️ Limpiar
-          </button>
-          <button @click="toggleModoEdicionMapa()" 
-            :class="mapaModoEdicion ? 'bg-st-preparado text-white' : 'bg-bg-sidebar border border-gold/25 text-txt-secondary hover:bg-gold/20'"
-            class="px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2">
-            <span x-text="mapaModoEdicion ? '✕ Salir de Edición' : '✏️ Editar Mapa'"></span>
-          </button>
-          <button x-show="mapaModoEdicion" @click="guardarMapa()" 
-            :disabled="mapaGuardando"
-            class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-            <span x-show="!mapaGuardando">💾 Guardar Mapa</span>
-            <span x-show="mapaGuardando" class="animate-spin">⏳</span>
-          </button>
-          <button x-show="mapaModoEdicion" @click="publicarMapa()" 
-            class="bg-st-libre text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">
-            🚀 Publicar para Mozos
-          </button>
+
+        <!-- ESTRUCTURA (barreras, paredes, puertas, zonas) -->
+        <div x-show="state.sidebarTab === 'estructura'" class="space-y-2">
+          <p class="text-[10px] text-txt-muted uppercase mb-2">Elementos del plano</p>
+          <template x-for="elem in elementosEstructura" :key="elem.tipo">
+            <div class="sidebar-item-draggable bg-bg-sidebar border border-gold/20 rounded-lg p-3 cursor-grab hover:border-gold hover:bg-gold/5 transition"
+              :data-drag-data="JSON.stringify({tipo: 'elemento', elemento: elem})">
+              <div class="flex items-center gap-2">
+                <span class="text-lg" x-text="elem.icono"></span>
+                <div>
+                  <p class="text-sm font-medium" x-text="elem.nombre"></p>
+                  <p class="text-[10px] text-txt-muted" x-text="elem.width + 'x' + elem.height + 'px'"></p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- ETIQUETAS -->
+        <div x-show="state.sidebarTab === 'etiquetas'" class="space-y-2">
+          <p class="text-[10px] text-txt-muted uppercase mb-2">Etiquetas de texto</p>
+          <template x-for="etiq in etiquetasPredefinidas" :key="etiq.texto">
+            <div class="sidebar-item-draggable bg-bg-sidebar border border-gold/20 rounded-lg p-2.5 cursor-grab hover:border-gold hover:bg-gold/5 transition"
+              :data-drag-data="JSON.stringify({tipo: 'elemento', elemento: {tipo: 'label', texto: etiq.texto, icono: etiq.icono, width: 100, height: 30, color: '#d4af37'}})">
+              <div class="flex items-center gap-2">
+                <span x-text="etiq.icono"></span>
+                <span class="text-sm" x-text="etiq.texto"></span>
+              </div>
+            </div>
+          </template>
+          <!-- Etiqueta personalizada -->
+          <div class="mt-3 pt-3 border-t border-gold/15">
+            <input type="text" x-model="nuevaEtiqueta" placeholder="Nueva etiqueta..."
+              class="w-full bg-bg-primary border border-gold/25 rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none mb-2">
+            <button @click="agregarEtiquetaPersonalizada()" :disabled="!nuevaEtiqueta.trim()"
+              class="w-full bg-gold/20 text-gold px-3 py-2 rounded-lg text-sm font-semibold hover:bg-gold/30 transition disabled:opacity-40">
+              + Agregar
+            </button>
+          </div>
         </div>
       </div>
-      
-      <!-- Mensaje de estado del mapa -->
-      <div x-show="mapaMensaje" :class="mapaMensajeTipo === 'error' ? 'bg-st-pagado/20 border-st-pagado/30' : 'bg-st-preparado/20 border-st-preparado/30'" 
-        class="border rounded-xl p-3 text-sm" x-text="mapaMensaje"></div>
-      
-      <!-- Contenedor del lienzo -->
-      <div class="flex gap-4">
-        <!-- Panel lateral de inventario (solo en modo edición) -->
-        <div x-show="mapaModoEdicion" x-transition class="w-52 flex-shrink-0 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-3 flex flex-col">
-          <div class="flex items-center justify-between mb-3">
-            <h4 class="text-xs font-semibold text-txt-muted uppercase">Inventario</h4>
-            <span class="text-[10px] px-2 py-0.5 rounded-full bg-gold/20 text-gold" x-text="mesasSinPosicionar.length"></span>
+    </div>
+
+    <!-- CANVAS CENTRAL -->
+    <div class="flex-1 flex flex-col">
+      <div id="layout-canvas-container" class="flex-1 bg-bg-card border border-gold/15 rounded-xl overflow-hidden relative">
+        <div id="layout-canvas"
+          class="relative w-full min-h-[550px]"
+          :style="{
+            backgroundColor: state.seccionSeleccionada?.color || '#1a1a28',
+            backgroundImage: state.modoEdicion ? 'linear-gradient(rgba(212,175,55,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(212,175,55,0.08) 1px, transparent 1px)' : 'none',
+            backgroundSize: '25px 25px',
+            transform: 'scale(' + state.zoom + ')',
+            transformOrigin: 'top left',
+            height: (state.seccionSeleccionada?.canvasHeight || 600) + 'px'
+          }">
+
+          <!-- Grid info -->
+          <div x-show="state.modoEdicion" class="absolute top-3 left-3 text-[10px] text-txt-muted bg-bg-sidebar/90 px-2 py-1 rounded pointer-events-none z-50">
+            Grid: 25px | Click para seleccionar | Arrastra para mover | Esquinas para redimensionar
           </div>
-          
-          <!-- Lista de mesas sin posicionar -->
-          <div class="flex-1 overflow-y-auto space-y-2 min-h-[100px]">
-            <template x-for="mesa in mesasSinPosicionar" :key="mesa._id">
-              <div class="mesa-inventario bg-bg-sidebar border border-gold/25 rounded-lg p-2.5 text-xs cursor-move hover:border-gold hover:bg-gold/5 transition group"
-                draggable="true" 
-                @dragstart="dragStart($event, mesa)"
-                @dragend="dragEnd($event)">
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-2">
-                    <span class="w-5 h-5 flex items-center justify-center rounded text-[10px]"
-                      :class="mesa.mapaConfig?.shape === 'round' ? 'bg-gold/30 rounded-full' : 'bg-gold/20 rounded'"">
-                      <span x-text="mesa.numMesa || mesa.nummesa"></span>
-                    </span>
-                    <span class="font-semibold text-white" x-text="'M' + (mesa.numMesa || mesa.nummesa)"></span>
-                  </div>
-                  <span class="text-txt-muted group-hover:text-gold transition">↗️</span>
-                </div>
-                <p class="text-[10px] text-txt-muted mt-1">Arrastra al mapa</p>
-              </div>
-            </template>
-          </div>
-          
-          <!-- Estado vacío -->
-          <div x-show="mesasSinPosicionar.length === 0" class="flex-1 flex items-center justify-center py-6">
-            <div class="text-center">
-              <p class="text-2xl mb-1">✅</p>
-              <p class="text-xs text-txt-muted">Todas las mesas están en el mapa</p>
+
+          <!-- LAYOUT ITEMS (barreras, zonas, etiquetas) -->
+          <template x-for="item in state.layoutItems" :key="item._id">
+            <div class="layout-item-element absolute flex items-center justify-center"
+              :class="{'ring-2 ring-gold': estaSeleccionado(item), 'cursor-move': state.modoEdicion && !item.locked}"
+              :data-item-id="item._id"
+              :style="getItemStyle(item)"
+              @click.stop="state.modoEdicion && seleccionarItem(item._id)">
+              <template x-if="item.tipo === 'label'">
+                <span class="font-medium px-2 text-center whitespace-nowrap" :style="{color: item.color}" x-text="item.texto"></span>
+              </template>
+              <template x-if="item.tipo === 'zone'">
+                <span class="text-xs text-white/60 font-medium" x-text="item.texto || 'Zona'"></span>
+              </template>
+              <template x-if="['barrier', 'wall', 'door'].includes(item.tipo)">
+                <div class="w-full h-full rounded" :style="{backgroundColor: item.color}"></div>
+              </template>
             </div>
-          </div>
-          
-          <!-- Mensaje cuando no hay área seleccionada -->
-          <div x-show="!mapaAreaSeleccionada" class="flex-1 flex items-center justify-center py-6">
+          </template>
+
+          <!-- MESAS EN EL CANVAS -->
+          <template x-for="mesa in state.mesasMapa" :key="mesa._id">
+            <div class="mesa-canvas-item absolute flex flex-col items-center justify-center select-none"
+              :class="{
+                'ring-2 ring-gold ring-offset-2 ring-offset-bg-primary': estaSeleccionado(mesa),
+                'cursor-move': state.modoEdicion && !mesa.mapaConfig?.locked,
+                'cursor-not-allowed': state.modoEdicion && mesa.mapaConfig?.locked,
+                'cursor-pointer': !state.modoEdicion,
+                'opacity-70': mesa.mapaConfig?.locked
+              }"
+              :data-mesa-id="mesa._id"
+              :data-x="mesa.mapaConfig?.x || 0"
+              :data-y="mesa.mapaConfig?.y || 0"
+              :style="getMesaStyle(mesa)"
+              @click.stop="state.modoEdicion ? seleccionarMesa(mesa) : openDetailModal(mesa)">
+              
+              <span class="font-bold text-base" x-text="mesa.nombreCombinado || ('M' + mesa.numMesa)"></span>
+              <span x-show="!state.modoEdicion" class="text-[10px] px-2 py-0.5 rounded-full mt-1 font-semibold"
+                :style="{backgroundColor: getEstadoBg(mesa.estado), color: getEstadoColor(mesa.estado)}"
+                x-text="estadoNormalizado(mesa.estado)"></span>
+              <span x-show="state.modoEdicion && mesa.mapaConfig?.locked" class="absolute -top-1 -right-1 text-xs">🔒</span>
+              
+              <!-- Resize handles en las 4 esquinas -->
+              <template x-if="state.modoEdicion && estaSeleccionado(mesa)">
+                <div class="absolute inset-0 pointer-events-none">
+                  <div class="absolute -top-1.5 -left-1.5 w-3 h-3 bg-gold rounded-full cursor-nw-resize pointer-events-auto"></div>
+                  <div class="absolute -top-1.5 -right-1.5 w-3 h-3 bg-gold rounded-full cursor-ne-resize pointer-events-auto"></div>
+                  <div class="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-gold rounded-full cursor-sw-resize pointer-events-auto"></div>
+                  <div class="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-gold rounded-full cursor-se-resize pointer-events-auto"></div>
+                </div>
+              </template>
+            </div>
+          </template>
+
+          <!-- Empty state -->
+          <div x-show="state.mesasMapa.length === 0 && state.layoutItems.length === 0" class="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div class="text-center">
-              <p class="text-2xl mb-1">📍</p>
-              <p class="text-xs text-txt-muted">Selecciona un área para ver sus mesas</p>
+              <p class="text-5xl mb-3 opacity-30">🗺️</p>
+              <p class="text-sm text-txt-muted">Canvas vacío</p>
+              <p x-show="state.modoEdicion" class="text-xs text-txt-muted mt-1">Arrastra elementos desde el panel lateral</p>
             </div>
           </div>
         </div>
-        
-        <!-- Lienzo del mapa -->
-        <div class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
-          <div id="mapa-canvas" 
-            class="relative bg-bg-sidebar min-h-[500px] w-full"
-            style="background-image: linear-gradient(rgba(212,175,55,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(212,175,55,0.05) 1px, transparent 1px); background-size: 25px 25px;"
-            @dragover.prevent="dragOver($event)"
-            @drop="drop($event)">
-            
-            <!-- Grid de referencia (solo en modo edición) -->
-            <div x-show="mapaModoEdicion" class="absolute inset-0 pointer-events-none">
-              <div class="absolute top-2 left-2 text-[10px] text-txt-muted bg-bg-sidebar/80 px-2 py-1 rounded">
-                Grid: 25px
+      </div>
+    </div>
+
+    <!-- PANEL DE PROPIEDADES -->
+    <div x-show="state.modoEdicion && state.elementoSeleccionado" x-transition class="w-60 flex-shrink-0 bg-bg-card border border-gold/15 rounded-xl overflow-hidden">
+      <div class="bg-bg-sidebar px-4 py-3 border-b border-gold/15 flex items-center justify-between">
+        <h4 class="text-xs font-semibold text-gold uppercase">Propiedades</h4>
+        <button @click="deseleccionarTodo()" class="text-txt-muted hover:text-gold text-sm">✕</button>
+      </div>
+      <div class="p-4 space-y-4">
+        <!-- PROPIEDADES DE MESA -->
+        <template x-if="state.tipoSeleccion === 'mesa'">
+          <div class="space-y-3">
+            <div class="pb-3 border-b border-gold/15">
+              <p class="text-lg font-bold text-gold" x-text="'Mesa ' + state.elementoSeleccionado.numMesa"></p>
+              <p class="text-xs text-txt-muted" x-text="state.elementoSeleccionado.area?.nombre || 'Sin área'"></p>
+            </div>
+            <div>
+              <label class="text-xs text-txt-muted block mb-2">Forma</label>
+              <div class="flex gap-2">
+                <button @click="state.elementoSeleccionado.mapaConfig.shape = 'rect'; marcarCambios()"
+                  :class="state.elementoSeleccionado.mapaConfig?.shape === 'rect' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary'"
+                  class="flex-1 py-2 rounded-lg text-xs font-semibold transition">⬛ Rect</button>
+                <button @click="state.elementoSeleccionado.mapaConfig.shape = 'round'; marcarCambios()"
+                  :class="state.elementoSeleccionado.mapaConfig?.shape === 'round' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary'"
+                  class="flex-1 py-2 rounded-lg text-xs font-semibold transition">⚫ Round</button>
               </div>
             </div>
-            
-            <!-- Mesas en el mapa -->
-            <template x-for="mesa in mesasMapa" :key="mesa._id">
-              <div 
-                class="mesa-canvas absolute cursor-pointer transition-all duration-150 select-none"
-                :class="[
-                  mesa.mapaConfig?.shape === 'round' ? 'rounded-full' : 'rounded-xl',
-                  mapaModoEdicion ? 'border-2 border-dashed border-gold hover:border-white' : '',
-                  mesaSeleccionadaMapa?._id === mesa._id ? 'ring-2 ring-white ring-offset-2 ring-offset-bg-primary' : '',
-                  detectarColision(mesa) ? 'ring-2 ring-st-pagado ring-offset-1 ring-offset-bg-primary' : '',
-                  'border-2'
-                ]"
-                :style="getMesaMapaStyle(mesa)"
-                @click="mapaModoEdicion ? seleccionarMesaMapa(mesa) : openDetailModal(mesa)"
-                :draggable="mapaModoEdicion"
-                @dragstart="dragStartMesa($event, mesa)"
-                @dragend="dragEndMesa($event, mesa)">
-                
-                <!-- Contenido de la tarjeta de mesa -->
-                <div class="flex flex-col items-center justify-center h-full p-1">
-                  <span class="font-bold text-sm" x-text="mesa.nombreCombinado || ('M' + (mesa.numMesa || mesa.nummesa))"></span>
-                  <span x-show="!mapaModoEdicion" class="text-[9px] px-1.5 py-0.5 rounded-full mt-1 font-semibold"
-                    :class="mesaBadge(estadoNormalizado(mesa.estado))" x-text="estadoNormalizado(mesa.estado)"></span>
-                  <!-- Indicador de forma en modo edición -->
-                  <button x-show="mapaModoEdicion && mesaSeleccionadaMapa?._id === mesa._id" 
-                    @click.stop="toggleMesaShape(mesa)"
-                    class="text-[8px] bg-gold/20 text-gold px-1 py-0.5 rounded mt-1 hover:bg-gold/30">
-                    <span x-text="mesa.mapaConfig?.shape === 'round' ? '⬛ Rect' : '⚫ Redonda'"></span>
-                  </button>
-                </div>
-                
-                <!-- Resize handles (solo en modo edición) -->
-                <template x-if="mapaModoEdicion && mesaSeleccionadaMapa?._id === mesa._id">
-                  <div class="absolute -right-1 -bottom-1 w-3 h-3 bg-gold rounded-full cursor-se-resize"
-                    @mousedown.stop="startResize($event, mesa)"></div>
-                </template>
-              </div>
-            </template>
-            
-            <!-- Placeholder cuando no hay mesas -->
-            <div x-show="mesasMapa.length === 0 && !mapaCargando" class="absolute inset-0 flex items-center justify-center">
-              <div class="text-center text-txt-muted">
-                <p class="text-4xl mb-2">🗺️</p>
-                <p class="text-sm">No hay mesas configuradas para esta área</p>
-                <p x-show="mapaModoEdicion" class="text-xs mt-1">Arrastra mesas desde el panel lateral</p>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Panel de propiedades (solo en modo edición con mesa seleccionada) -->
-        <template x-if="mapaModoEdicion && mesaSeleccionadaMapa">
-          <div class="w-56 flex-shrink-0 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
-            <div class="flex items-center justify-between mb-3">
-              <h4 class="text-xs font-semibold text-txt-muted uppercase">Propiedades</h4>
-              <button @click="mesaSeleccionadaMapa = null" class="text-txt-muted hover:text-gold text-xs">✕</button>
-            </div>
-            <div class="space-y-3">
+            <div class="grid grid-cols-2 gap-2">
               <div>
-                <label class="text-xs text-txt-secondary mb-1 block">Mesa</label>
-                <p class="text-sm font-semibold text-gold" x-text="'Mesa ' + (mesaSeleccionadaMapa.numMesa || mesaSeleccionadaMapa.nummesa)"></p>
+                <label class="text-xs text-txt-muted block mb-1">X</label>
+                <input type="number" x-model.number="state.elementoSeleccionado.mapaConfig.x" @change="marcarCambios()"
+                  class="w-full bg-bg-sidebar border border-gold/25 rounded-lg px-2 py-1.5 text-sm text-white focus:border-gold focus:outline-none">
               </div>
               <div>
-                <label class="text-xs text-txt-secondary mb-1 block">Forma</label>
-                <div class="flex gap-2">
-                  <button @click="mesaSeleccionadaMapa.mapaConfig.shape = 'rect'" 
-                    :class="mesaSeleccionadaMapa.mapaConfig?.shape === 'rect' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary hover:bg-gold/10'"
-                    class="flex-1 py-1.5 rounded-lg text-xs font-medium transition">
-                    ⬛ Rectangular
-                  </button>
-                  <button @click="mesaSeleccionadaMapa.mapaConfig.shape = 'round'" 
-                    :class="mesaSeleccionadaMapa.mapaConfig?.shape === 'round' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary hover:bg-gold/10'"
-                    class="flex-1 py-1.5 rounded-lg text-xs font-medium transition">
-                    ⚫ Redonda
-                  </button>
-                </div>
+                <label class="text-xs text-txt-muted block mb-1">Y</label>
+                <input type="number" x-model.number="state.elementoSeleccionado.mapaConfig.y" @change="marcarCambios()"
+                  class="w-full bg-bg-sidebar border border-gold/25 rounded-lg px-2 py-1.5 text-sm text-white focus:border-gold focus:outline-none">
               </div>
-              <div class="grid grid-cols-2 gap-2">
-                <div>
-                  <label class="text-xs text-txt-secondary mb-1 block">X</label>
-                  <input type="number" x-model.number="mesaSeleccionadaMapa.mapaConfig.x" @change="marcarCambios()" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs text-white focus:border-gold focus:outline-none">
-                </div>
-                <div>
-                  <label class="text-xs text-txt-secondary mb-1 block">Y</label>
-                  <input type="number" x-model.number="mesaSeleccionadaMapa.mapaConfig.y" @change="marcarCambios()" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs text-white focus:border-gold focus:outline-none">
-                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-xs text-txt-muted block mb-1">Ancho</label>
+                <input type="number" x-model.number="state.elementoSeleccionado.mapaConfig.width" min="50" max="200" @change="marcarCambios()"
+                  class="w-full bg-bg-sidebar border border-gold/25 rounded-lg px-2 py-1.5 text-sm text-white focus:border-gold focus:outline-none">
               </div>
-              <div class="grid grid-cols-2 gap-2">
-                <div>
-                  <label class="text-xs text-txt-secondary mb-1 block">Ancho</label>
-                  <input type="number" x-model.number="mesaSeleccionadaMapa.mapaConfig.width" min="40" max="200" @change="marcarCambios()" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs text-white focus:border-gold focus:outline-none">
-                </div>
-                <div>
-                  <label class="text-xs text-txt-secondary mb-1 block">Alto</label>
-                  <input type="number" x-model.number="mesaSeleccionadaMapa.mapaConfig.height" min="40" max="200" @change="marcarCambios()" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs text-white focus:border-gold focus:outline-none">
-                </div>
+              <div>
+                <label class="text-xs text-txt-muted block mb-1">Alto</label>
+                <input type="number" x-model.number="state.elementoSeleccionado.mapaConfig.height" min="50" max="200" @change="marcarCambios()"
+                  class="w-full bg-bg-sidebar border border-gold/25 rounded-lg px-2 py-1.5 text-sm text-white focus:border-gold focus:outline-none">
               </div>
-              <div class="flex items-center gap-2">
-                <input type="checkbox" x-model="mesaSeleccionadaMapa.mapaConfig.visible" @change="marcarCambios()" id="visibleMapa" class="w-3 h-3 rounded border-txt-muted bg-bg-sidebar text-gold">
-                <label for="visibleMapa" class="text-xs text-txt-secondary">Visible en mapa</label>
-              </div>
-              <button @click="centrarMesaMapa(mesaSeleccionadaMapa)" class="w-full bg-bg-sidebar border border-gold/25 text-txt-secondary text-xs py-1.5 rounded-lg hover:bg-gold/10 transition">
-                🎯 Centrar en canvas
+            </div>
+            <div class="flex items-center justify-between py-2">
+              <label class="text-xs text-txt-secondary">Bloquear posición</label>
+              <button @click="toggleMesaLock(state.elementoSeleccionado)"
+                :class="state.elementoSeleccionado.mapaConfig?.locked ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar border border-gold/25 text-txt-secondary'"
+                class="px-3 py-1 rounded text-xs font-semibold transition">
+                <span x-text="state.elementoSeleccionado.mapaConfig?.locked ? '🔒 Bloqueado' : '🔓 Desbloqueado'"></span>
               </button>
-              <button @click="removerMesaDeMapa(mesaSeleccionadaMapa)" class="w-full bg-st-pagado/20 text-st-pagado text-xs py-1.5 rounded-lg hover:bg-st-pagado/30 transition">
-                ↩️ Quitar del mapa
+            </div>
+            <div class="pt-3 border-t border-gold/15 space-y-2">
+              <button @click="removerMesaDelCanvas(state.elementoSeleccionado)"
+                class="w-full bg-st-pagado/20 text-st-pagado px-3 py-2 rounded-lg text-xs font-semibold hover:bg-st-pagado/30 transition">
+                ↩️ Quitar del canvas
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <!-- PROPIEDADES DE ITEM -->
+        <template x-if="state.tipoSeleccion === 'item'">
+          <div class="space-y-3">
+            <div class="pb-3 border-b border-gold/15">
+              <p class="text-sm font-bold text-gold" x-text="state.elementoSeleccionado.tipo?.toUpperCase()"></p>
+            </div>
+            <div x-show="state.elementoSeleccionado.tipo === 'label'">
+              <label class="text-xs text-txt-muted block mb-1">Texto</label>
+              <input type="text" x-model="state.elementoSeleccionado.texto" @change="marcarCambios()"
+                class="w-full bg-bg-sidebar border border-gold/25 rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
+            </div>
+            <div>
+              <label class="text-xs text-txt-muted block mb-1">Color</label>
+              <input type="color" x-model="state.elementoSeleccionado.color" @change="marcarCambios()"
+                class="w-full h-10 bg-bg-sidebar border border-gold/25 rounded-lg cursor-pointer">
+            </div>
+            <div>
+              <label class="text-xs text-txt-muted block mb-1">Opacidad: <span x-text="Math.round((state.elementoSeleccionado.opacity || 1) * 100) + '%'"></span></label>
+              <input type="range" x-model.number="state.elementoSeleccionado.opacity" min="0.1" max="1" step="0.1" @change="marcarCambios()" class="w-full">
+            </div>
+            <div class="pt-3 border-t border-gold/15">
+              <button @click="eliminarItem(state.elementoSeleccionado)"
+                class="w-full bg-st-pagado/20 text-st-pagado px-3 py-2 rounded-lg text-xs font-semibold hover:bg-st-pagado/30 transition">
+                🗑️ Eliminar
               </button>
             </div>
           </div>
         </template>
       </div>
-      
-      <!-- Leyenda de estados -->
-      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-3 flex items-center gap-4 flex-wrap text-xs">
-        <span class="text-txt-muted font-semibold">Estados:</span>
-        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-st-libre"></span> Libre</span>
-        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-st-esperando"></span> Ocupada</span>
-        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-st-pedido"></span> Pedido</span>
-        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-st-preparado"></span> Preparado</span>
-        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-st-pagado"></span> Pagado</span>
-        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-st-reservado"></span> Reservado</span>
+    </div>
+  </div>
+
+  <!-- EMPTY STATE -->
+  <div x-show="!state.seccionSeleccionada" class="bg-bg-card border border-gold/15 rounded-xl p-12 text-center">
+    <p class="text-5xl mb-4">🗺️</p>
+    <p class="text-lg text-txt-secondary mb-2">Selecciona o crea una sección</p>
+    <p class="text-sm text-txt-muted mb-6">Las secciones representan áreas físicas del restaurante</p>
+    <button @click="mostrarModalNuevaSeccion = true"
+      class="bg-gold text-bg-primary px-6 py-3 rounded-lg text-sm font-semibold hover:brightness-110 transition">
+      + Crear Nueva Sección
+    </button>
+  </div>
+
+  <!-- LEYENDA -->
+  <div class="bg-bg-card border border-gold/15 rounded-xl p-3 flex items-center gap-4 flex-wrap text-xs">
+    <span class="text-txt-muted font-semibold">Estados:</span>
+    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded" style="background:#00d4aa"></span> Libre</span>
+    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded" style="background:#ffa502"></span> Ocupada</span>
+    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded" style="background:#3498db"></span> Pedido</span>
+    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded" style="background:#2ecc71"></span> Preparado</span>
+    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded" style="background:#ff4757"></span> Pagado</span>
+    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded" style="background:#5352ed"></span> Reservado</span>
+  </div>
+
+  <!-- MODAL: NUEVA SECCIÓN -->
+  <div x-show="mostrarModalNuevaSeccion" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="mostrarModalNuevaSeccion = false">
+    <div class="bg-bg-card border border-gold/25 rounded-2xl w-[420px] shadow-2xl" @click.stop>
+      <div class="bg-bg-sidebar p-5 rounded-t-2xl">
+        <h2 class="text-lg font-bold">Crear Nueva Sección</h2>
+        <p class="text-xs text-txt-muted">Define el área del plano que editarás</p>
+      </div>
+      <div class="p-6 space-y-4">
+        <div>
+          <label class="text-xs text-txt-secondary mb-1 block">Nombre de la sección *</label>
+          <input type="text" x-model="nuevaSeccion.nombre" placeholder="Ej: Salón Principal"
+            class="w-full bg-bg-sidebar border border-gold/25 rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-txt-secondary mb-1 block">Ancho canvas</label>
+            <input type="number" x-model.number="nuevaSeccion.canvasWidth" placeholder="1600"
+              class="w-full bg-bg-sidebar border border-gold/25 rounded-lg px-4 py-2.5 text-sm text-white focus:border-gold focus:outline-none">
+          </div>
+          <div>
+            <label class="text-xs text-txt-secondary mb-1 block">Alto canvas</label>
+            <input type="number" x-model.number="nuevaSeccion.canvasHeight" placeholder="1200"
+              class="w-full bg-bg-sidebar border border-gold/25 rounded-lg px-4 py-2.5 text-sm text-white focus:border-gold focus:outline-none">
+          </div>
+        </div>
+        <div>
+          <label class="text-xs text-txt-secondary mb-1 block">Área vinculada (opcional)</label>
+          <select x-model="nuevaSeccion.areaId"
+            class="w-full bg-bg-sidebar border border-gold/25 rounded-lg px-4 py-2.5 text-sm text-white focus:border-gold focus:outline-none">
+            <option value="">Sin área vinculada</option>
+            <template x-for="area in areasDisponibles" :key="area._id">
+              <option :value="area._id" x-text="area.nombre"></option>
+            </template>
+          </select>
+        </div>
+      </div>
+      <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-gold/15">
+        <button @click="mostrarModalNuevaSeccion = false"
+          class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+        <button @click="crearNuevaSeccion()" :disabled="!nuevaSeccion.nombre.trim()"
+          class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50">Crear Sección</button>
       </div>
     </div>
-
-  </main>
+  </div>
 </div>
 
 <!-- MODAL: DETALLE MESA -->
 <div x-show="modal==='detalleMesa'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=null">
   <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[420px] shadow-2xl" @click.stop>
-    <div class="p-5 border-b border-[rgba(212,175,55,0.1)]">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="text-lg font-bold" x-text="selectedMesa ? (selectedMesa.nombreCombinado || 'Mesa ' + selectedMesa.numMesa) : ''"></h2>
-          <!-- Badge de grupo si aplica -->
-          <div x-show="selectedMesa && selectedMesa.esMesaPrincipal && selectedMesa.mesasUnidas && selectedMesa.mesasUnidas.length > 0" class="mt-1">
-            <span class="text-[10px] bg-gold/20 text-gold px-2 py-0.5 rounded-full">
-              Principal de <span x-text="selectedMesa?.mesasUnidas?.length || 0"></span> mesas unidas
-            </span>
-          </div>
-          <div x-show="selectedMesa && selectedMesa.esMesaPrincipal === false" class="mt-1">
-            <span class="text-[10px] bg-st-pedido/20 text-st-pedido px-2 py-0.5 rounded-full">
-              Unida a Mesa <span x-text="getNumMesaPrincipal(selectedMesa)"></span>
-            </span>
-          </div>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-bold" x-text="selectedMesa ? ('Mesa ' + (selectedMesa.nombreCombinado || selectedMesa.numMesa)) : ''"></h2>
+        <!-- Badge de grupo si aplica -->
+        <div x-show="selectedMesa && selectedMesa.esMesaPrincipal && selectedMesa.mesasUnidas && selectedMesa.mesasUnidas.length > 0" class="mt-1">
+          <span class="text-[10px] bg-gold/20 text-gold px-2 py-0.5 rounded-full">
+            Principal de <span x-text="selectedMesa?.mesasUnidas?.length || 0"></span> mesas unidas
+          </span>
         </div>
-        <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm hover:bg-gold/30">✕</button>
+        <div x-show="selectedMesa && selectedMesa.esMesaPrincipal === false" class="mt-1">
+          <span class="text-[10px] bg-st-pedido/20 text-st-pedido px-2 py-0.5 rounded-full">
+            Unida a Mesa <span x-text="getNumMesaPrincipal(selectedMesa)"></span>
+          </span>
+        </div>
       </div>
-      <p class="text-xs text-txt-muted mt-1" x-text="selectedMesa ? 'Área: ' + (selectedMesa.area?.nombre || selectedMesa.area || '—') : ''"></p>
+      <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm hover:bg-gold/30">✕</button>
     </div>
+    <p class="text-xs text-txt-muted px-5 pt-2" x-text="selectedMesa ? 'Área: ' + (selectedMesa.area?.nombre || selectedMesa.area || '—') : ''"></p>
     <div class="p-5">
       <div class="flex items-center justify-between mb-4">
         <span class="text-xs px-2.5 py-1 rounded-full font-semibold" :class="selectedMesa && mesaBadge(estadoNormalizado(selectedMesa.estado))" x-text="estadoNormalizado(selectedMesa?.estado)"></span>
@@ -1522,5 +1672,7 @@ tailwind.config = {
 <script src="/assets/js/page-transitions.js"></script>
 <!-- Cosmos Search Bar - Command Palette -->
 <script src="/assets/js/cosmos-search.js"></script>
+<!-- Layout Editor - OrderPin style -->
+<script src="/assets/js/layoutEditor.js"></script>
 </body>
 </html>
