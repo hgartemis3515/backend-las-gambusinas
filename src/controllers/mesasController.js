@@ -341,6 +341,9 @@ router.post('/mesas', async (req, res) => {
     try {
         const nuevaMesa = req.body;
         const mesaCreada = await crearMesa(nuevaMesa);
+        if (global.emitCatalogoMesasAreasActualizado) {
+            await global.emitCatalogoMesasAreasActualizado({ razon: 'mesa-creada' });
+        }
         res.json(mesaCreada);
         console.log("Se creó una nueva mesa:", mesaCreada);
     } catch (error) {
@@ -419,6 +422,9 @@ router.delete('/mesas/:id', async (req, res) => {
     try {
         const idMesa = req.params.id;
         const mesaEliminada = await borrarMesa(idMesa);
+        if (global.emitCatalogoMesasAreasActualizado) {
+            await global.emitCatalogoMesasAreasActualizado({ razon: 'mesa-eliminada' });
+        }
         res.json(mesaEliminada);
         console.log("Se eliminó la mesa:", mesaEliminada);
     } catch (error) {

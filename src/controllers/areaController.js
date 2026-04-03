@@ -38,6 +38,9 @@ router.post('/areas', async (req, res) => {
     try {
         const nuevaArea = req.body;
         const areasCreadas = await crearArea(nuevaArea);
+        if (global.emitCatalogoMesasAreasActualizado) {
+            await global.emitCatalogoMesasAreasActualizado({ razon: 'area-creada' });
+        }
         res.json(areasCreadas);
         console.log("Se creó una nueva área:", nuevaArea);
     } catch (error) {
@@ -52,6 +55,9 @@ router.put('/areas/:id', async (req, res) => {
         const idArea = req.params.id;
         const newData = req.body;
         const areasActualizadas = await actualizarArea(idArea, newData);
+        if (global.emitCatalogoMesasAreasActualizado) {
+            await global.emitCatalogoMesasAreasActualizado({ razon: 'area-actualizada' });
+        }
         res.json(areasActualizadas);
         console.log("Se actualizó el área:", idArea);
     } catch (error) {
@@ -65,6 +71,9 @@ router.delete('/areas/:id', async (req, res) => {
     try {
         const idArea = req.params.id;
         const areasActualizadas = await borrarArea(idArea);
+        if (global.emitCatalogoMesasAreasActualizado) {
+            await global.emitCatalogoMesasAreasActualizado({ razon: 'area-eliminada' });
+        }
         res.json(areasActualizadas);
         console.log("Se eliminó el área:", idArea);
     } catch (error) {

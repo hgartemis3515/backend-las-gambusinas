@@ -1025,6 +1025,39 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
   };
 
   /**
+   * Catálogo de mesas/áreas cambió (admin: areas.html, mesas.html).
+   * Los mozos deben refetch GET /mesas y GET /areas.
+   */
+  global.emitCatalogoMesasAreasActualizado = async (opts = {}) => {
+    try {
+      const timestamp = moment().tz('America/Lima').toISOString();
+      const eventData = {
+        timestamp,
+        razon: opts.razon || null
+      };
+
+      if (mozosNamespace && mozosNamespace.sockets) {
+        mozosNamespace.emit('catalogo-mesas-areas-actualizado', eventData);
+        logger.debug('Evento catalogo-mesas-areas-actualizado emitido a mozos', {
+          razon: eventData.razon,
+          mozosConnected: mozosNamespace.sockets.size
+        });
+      }
+
+      logger.info('Evento catalogo-mesas-areas-actualizado emitido', {
+        razon: eventData.razon,
+        timestamp,
+        mozosConnected: mozosNamespace?.sockets?.size || 0
+      });
+    } catch (error) {
+      logger.error('Error al emitir catalogo-mesas-areas-actualizado', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  };
+
+  /**
    * Emitir evento de comanda revertida a cocina y mozos
    * CRÍTICO: Este evento soluciona el problema de desincronización cuando cocina revierte una comanda
    * ESTÁNDAR INDUSTRIA: Usa Rooms por mesa para notificar solo a mozos relevantes
