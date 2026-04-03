@@ -35,7 +35,11 @@ const { handleError, createErrorResponse } = require('../utils/errorHandler');
 
 router.get('/comanda', async (req, res) => {
     try {
-        const data = await listarComanda();
+        const incluirPagadas =
+            req.query.incluirPagadas === 'true' ||
+            req.query.incluirPagadas === '1' ||
+            req.query.panelAdmin === 'true';
+        const data = await listarComanda(false, true, incluirPagadas);
         // Asegurar que siempre retornamos un array
         if (!Array.isArray(data)) {
             logger.warn('listarComanda no retornó un array', { type: typeof data, data });

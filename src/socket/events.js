@@ -434,13 +434,15 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
   };
 
   /**
-   * Emitir evento de comanda actualizada a cocina
+   * Emitir evento de comanda actualizada a cocina / mozos / admin (panel comandas.html)
    * @param {String} comandaId - ID de la comanda
    * @param {String} estadoAnterior - Estado anterior (opcional)
    * @param {String} estadoNuevo - Estado nuevo (opcional)
    * @param {Object} cuentasPlatos - Cuentas de platos por estado (opcional)
+   * @param {{ adminOnly?: boolean }} options - Si adminOnly: solo notifica /admin (evita duplicar a cocina/mozos tras plato-actualizado-batch)
    */
-  global.emitComandaActualizada = async (comandaId, estadoAnterior = null, estadoNuevo = null, cuentasPlatos = null) => {
+  global.emitComandaActualizada = async (comandaId, estadoAnterior = null, estadoNuevo = null, cuentasPlatos = null, options = {}) => {
+    const { adminOnly = false } = options;
     try {
       const comanda = await comandaModel
         .findById(comandaId)
@@ -497,56 +499,53 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         }
       }
 
-      // Emitir a cocina (room por fecha) - Incluir información de platos eliminados
-      cocinaNamespace.to(roomName).emit('comanda-actualizada', {
+      const mesaId = comanda.mesas?._id || comanda.mesas;
+      const eventData = {
         comandaId: comandaId,
         comanda: comanda,
         platosEliminados: platosEliminados,
         socketId: 'server',
         timestamp: timestamp
-      });
-
-      // Emitir a mozos - Si hay mesaId, usar room por mesa, sino a todos
-      const mesaId = comanda.mesas?._id || comanda.mesas;
-      const eventData = {
-          comandaId: comandaId,
-          comanda: comanda,
-          platosEliminados: platosEliminados,
-          socketId: 'server',
-          timestamp: timestamp
       };
-      
-      // Agregar información adicional si está disponible
+
       if (estadoAnterior !== null && estadoNuevo !== null) {
         eventData.estadoAnterior = estadoAnterior;
         eventData.estadoNuevo = estadoNuevo;
       }
-      
+
       if (cuentasPlatos) {
         eventData.platosEnPedido = cuentasPlatos.pedido || 0;
         eventData.platosEnRecoger = cuentasPlatos.recoger || 0;
         eventData.platosEntregados = cuentasPlatos.entregado || 0;
       }
-      
-      if (mesaId && mozosNamespace && mozosNamespace.sockets) {
-        // Emitir a room de la mesa específica
-        const roomNameMesa = `mesa-${mesaId}`;
-        mozosNamespace.to(roomNameMesa).emit('comanda-actualizada', eventData);
-        logger.debug('Evento comanda-actualizada emitido a room de mesa', {
-          comandaId,
-          mesaId,
-          roomNameMesa
-        });
-      } else if (mozosNamespace && mozosNamespace.sockets) {
-        // Fallback: emitir a todos los mozos
-        mozosNamespace.emit('comanda-actualizada', eventData);
+
+      if (!adminOnly) {
+        cocinaNamespace.to(roomName).emit('comanda-actualizada', eventData);
+
+        if (mesaId && mozosNamespace && mozosNamespace.sockets) {
+          const roomNameMesa = `mesa-${mesaId}`;
+          mozosNamespace.to(roomNameMesa).emit('comanda-actualizada', eventData);
+          logger.debug('Evento comanda-actualizada emitido a room de mesa', {
+            comandaId,
+            mesaId,
+            roomNameMesa
+          });
+        } else if (mozosNamespace && mozosNamespace.sockets) {
+          mozosNamespace.emit('comanda-actualizada', eventData);
+        }
+      }
+
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('comanda-actualizada', eventData);
       }
 
       logger.info('Evento comanda-actualizada emitido', {
         comandaNumber: comanda.comandaNumber || comandaId,
         roomName,
         timestamp,
+        adminOnly,
         mozosConnected: mozosNamespace?.sockets?.size || 0,
+        adminsConnected: adminNamespace?.sockets?.size || 0,
         estadoAnterior,
         estadoNuevo
       });
@@ -614,6 +613,18 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         });
       }
 
+      const platoPayload = {
+        comandaId: comandaId,
+        platoId: platoId,
+        nuevoEstado: nuevoEstado,
+        comanda: comanda,
+        socketId: 'server',
+        timestamp: timestamp
+      };
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('plato-actualizado', platoPayload);
+      }
+
       logger.info('Evento plato-actualizado emitido', {
         comandaNumber: comanda.comandaNumber,
         platoId,
@@ -675,6 +686,10 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
           mozosClients = mozosNamespace.sockets.size;
           mozosNamespace.emit('plato-actualizado-batch', eventData);
         }
+      }
+
+      if (global.emitComandaActualizada) {
+        await global.emitComandaActualizada(comandaId, null, null, null, { adminOnly: true });
       }
 
       const totalClients = cocinaClients + mozosClients;

@@ -246,18 +246,28 @@ const ensurePlatosPopulated = async (comandas) => {
   }
 };
 
-const listarComanda = async (incluirEliminadas = false, usarProyeccion = true) => {
+const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, incluirPagadas = false) => {
   try {
-    console.log('🔍 [FASE A1] Listando comandas...');
+    console.log('🔍 [FASE A1] Listando comandas...', { incluirPagadas });
     const startTime = Date.now();
     
-    // ESTANDARIZADO: Solo usar IsActive para soft-delete
-    const query = incluirEliminadas 
-      ? {} 
-      : { 
-          IsActive: { $ne: false, $exists: true },
-          eliminada: { $ne: true }
-        };
+    // ESTANDARIZADO: IsActive false en comandas pagadas (boucher) las ocultaba del listado.
+    // Panel admin: incluirPagadas=true → sigue excluyendo eliminadas, pero incluye status pagado aunque IsActive sea false.
+    const query = incluirEliminadas
+      ? {}
+      : incluirPagadas
+        ? {
+            eliminada: { $ne: true },
+            $or: [
+              { IsActive: { $ne: false, $exists: true } },
+              { status: 'pagado' },
+              { status: 'completado' }
+            ]
+          }
+        : {
+            IsActive: { $ne: false, $exists: true },
+            eliminada: { $ne: true }
+          };
     
     // ==================== FASE A1: QUERY OPTIMIZADA ====================
     // Construir query con lean() y proyecciones

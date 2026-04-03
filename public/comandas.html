@@ -1591,6 +1591,13 @@ const comanda = data.comanda || data;
 this.handleComandaActualizada(comanda);
 });
 
+this.socket.on('plato-actualizado', (data) => {
+if (data?.comanda) {
+  console.log('📡 Plato actualizado (admin): comanda', data.comandaId || data.comanda?._id, data.nuevoEstado);
+  this.handleComandaActualizada(data.comanda);
+}
+});
+
 this.socket.on('nueva-comanda', (data) => {
 console.log('📡 Nueva comanda via Socket:', data);
 // El evento nueva-comanda del backend tiene la estructura { comanda, socketId, timestamp }
@@ -1798,7 +1805,7 @@ this.modal = null;
  async loadComandas() {
  this.loading = true;
 
- let data = await apiGet('/comanda?IsActive=true');
+ let data = await apiGet('/comanda?incluirPagadas=true');
  if (!data) data = await apiGet('/comandas');
 
  let raw = [];
