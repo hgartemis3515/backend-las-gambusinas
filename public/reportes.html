@@ -1069,6 +1069,20 @@ function reportesApp() {
     },
     
     /**
+     * Categoría del ítem de boucher: igual que cierre de caja (populate platos.plato → categoria).
+     * En el subdocumento del boucher no siempre viene categoria plana; sí en p.plato al poblar.
+     */
+    resolvePlatoCategoria(p) {
+      const plato = p.plato;
+      if (plato && typeof plato === 'object' && !Array.isArray(plato)) {
+        const c = plato.categoria;
+        if (c != null && String(c).trim()) return String(c).trim();
+      }
+      if (p.categoria != null && String(p.categoria).trim()) return String(p.categoria).trim();
+      return 'Sin categoría';
+    },
+    
+    /**
      * Procesa datos para la pestaña Platos
      */
     processPlatos(bouchers) {
@@ -1080,8 +1094,14 @@ function reportesApp() {
         if (b.platos && Array.isArray(b.platos)) {
           b.platos.forEach(p => {
             const nombre = p.nombre || 'Desconocido';
+            const cat = this.resolvePlatoCategoria(p);
             if (!platosMap[nombre]) {
-              platosMap[nombre] = { nombre, cantidad: 0, ingreso: 0, precio: p.precio || 0, categoria: p.categoria || 'General' };
+              platosMap[nombre] = { nombre, cantidad: 0, ingreso: 0, precio: p.precio || 0, categoria: cat };
+            } else {
+              const prev = platosMap[nombre].categoria;
+              if ((prev === 'Sin categoría' || prev === 'General' || prev === 'Otros') && cat !== prev && cat !== 'Sin categoría') {
+                platosMap[nombre].categoria = cat;
+              }
             }
             platosMap[nombre].cantidad += p.cantidad || 0;
             platosMap[nombre].ingreso += p.subtotal || (p.cantidad * p.precio) || 0;
@@ -1516,7 +1536,7 @@ function reportesApp() {
     calculateCategories(platosArray) {
       const cats = {};
       platosArray.forEach(p => {
-        const cat = p.categoria || 'Otros';
+        const cat = p.categoria || 'Sin categoría';
         cats[cat] = (cats[cat] || 0) + p.cantidad;
       });
       return cats;
