@@ -109,4 +109,36 @@ mesasSchema.index(
 mesasSchema.plugin(AutoIncrement, { inc_field: 'mesasId' });
 const mesas = mongoose.model("mesas", mesasSchema);
 
+// Elimina índices legacy que bloquean nummesa globalmente y sincroniza índices actuales.
+async function ensureMesasIndexes() {
+    try {
+        if (mongoose.connection.readyState !== 1) return;
+
+        const collection = mongoose.connection.collection('mesas');
+        const indexes = await collection.indexes();
+
+        const legacyGlobalNumMesaIndex = indexes.find((idx) =>
+            idx?.unique === true &&
+            idx?.key &&
+            Object.keys(idx.key).length === 1 &&
+            idx.key.nummesa === 1
+        );
+
+        if (legacyGlobalNumMesaIndex) {
+            await collection.dropIndex(legacyGlobalNumMesaIndex.name);
+            console.log(`🧹 Índice legacy eliminado: ${legacyGlobalNumMesaIndex.name}`);
+        }
+
+        await mesas.syncIndexes();
+    } catch (error) {
+        console.error('Error al sincronizar índices de mesas:', error.message);
+    }
+}
+
+if (mongoose.connection.readyState === 1) {
+    ensureMesasIndexes();
+} else {
+    mongoose.connection.once('open', ensureMesasIndexes);
+}
+
 module.exports = mesas;

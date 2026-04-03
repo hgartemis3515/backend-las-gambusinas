@@ -549,6 +549,10 @@ tailwind.config = {
       </div>
     </div>
     <div class="flex gap-2 p-5 pt-0">
+      <button @click="openEditFromDetail()" class="flex-1 py-2.5 border border-gold text-gold rounded-lg text-sm font-medium hover:bg-gold/10">✏️ Editar</button>
+      <button @click="eliminarMesaDesdeDetalle()" class="flex-1 py-2.5 border border-st-pagado text-st-pagado rounded-lg text-sm font-medium hover:bg-st-pagado/10">🗑️ Eliminar</button>
+    </div>
+    <div class="flex gap-2 p-5 pt-0">
       <button @click="liberarMesa(selectedMesa?._id)" class="flex-1 py-2.5 border border-st-pagado text-st-pagado rounded-lg text-sm font-medium hover:bg-st-pagado/10">Liberar Mesa</button>
       <!-- Botón separar mesas si tiene mesas unidas -->
       <template x-if="tienePermisoJuntarSeparar && selectedMesa && selectedMesa.esMesaPrincipal && selectedMesa.mesasUnidas && selectedMesa.mesasUnidas.length > 0">
@@ -1010,16 +1014,50 @@ tailwind.config = {
       };
       this.modal = 'editarMesa';
     },
+
+    openEditFromDetail() {
+      if (!this.selectedMesa) return;
+      const mesa = this.selectedMesa;
+      this.modal = null;
+      this.openEditModal(mesa);
+    },
+
+    async eliminarMesaDesdeDetalle() {
+      if (!this.selectedMesa?._id) return;
+      const id = this.selectedMesa._id;
+      this.modal = null;
+      await this.eliminarMesa(id);
+    },
     
     async guardarMesa() {
       if (!this.formMesa.numMesa) {
         this.showToast('El número de mesa es requerido', 'error');
         return;
       }
+
+      const numMesa = parseInt(this.formMesa.numMesa, 10);
+      if (Number.isNaN(numMesa)) {
+        this.showToast('El número de mesa no es válido', 'error');
+        return;
+      }
       
       const isEdit = !!this.formMesa._id;
+      
+      // Número de mesa único en TODO el local (todas las áreas)
+      const numeroDuplicado = this.mesas.some(m => {
+        const numeroActual = parseInt(m.numMesa ?? m.nummesa, 10);
+        const mismoNumero = numeroActual === numMesa;
+        const otraMesa = isEdit ? (m._id?.toString() !== this.formMesa._id?.toString()) : true;
+        return mismoNumero && otraMesa;
+      });
+
+      if (numeroDuplicado) {
+        this.showToast(`Ya existe la mesa ${numMesa} en otra área`, 'error');
+        return;
+      }
+
       const body = {
-        nummesa: parseInt(this.formMesa.numMesa),
+        nummesa: numMesa,
         area: this.formMesa.idArea,
         estado: this.formMesa.estado,
         isActive: this.formMesa.activa,
