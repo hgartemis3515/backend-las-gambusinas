@@ -122,5 +122,129 @@
     "createdAt": "2026-04-03T07:19:00.670Z",
     "updatedAt": "2026-04-03T07:19:00.670Z",
     "boucherNumber": 158
+  },
+  {
+    "configuracionIGV": {
+      "igvPorcentaje": 18,
+      "preciosIncluyenIGV": true,
+      "nombreImpuesto": "IGV",
+      "moneda": "PEN",
+      "simboloMoneda": "S/."
+    },
+    "_id": "69cf6b689395248129e3c881",
+    "voucherId": "PQV09",
+    "mesa": "69860a415e59135b4d2c56c1",
+    "numMesa": 1,
+    "mozo": "69a51896782a5785d39b1232",
+    "nombreMozo": "Juan",
+    "cliente": "69cf6b679395248129e3c858",
+    "usadoEnComanda": null,
+    "fechaUso": null,
+    "comandas": [
+      "69cf6b569395248129e3c71c"
+    ],
+    "comandasNumbers": [
+      541
+    ],
+    "platos": [
+      {
+        "plato": "6992b9dad845b119c1d00c89",
+        "platoId": 39,
+        "nombre": "1/2 Chicharrón de chancho + camote frito + zarza criolla",
+        "precio": 45,
+        "cantidad": 1,
+        "subtotal": 45,
+        "comandaNumber": 541,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "00:07",
+        "_id": "69cf6b689395248129e3c882"
+      }
+    ],
+    "subtotal": 38.14,
+    "igv": 6.86,
+    "total": 45,
+    "descuentos": [],
+    "totalSinDescuento": 45,
+    "montoDescuento": 0,
+    "totalConDescuento": 45,
+    "observaciones": "",
+    "fechaPedido": "2026-04-03T07:25:10.610Z",
+    "fechaPago": "2026-04-03T07:25:28.830Z",
+    "fechaPagoString": "03/04/2026 02:25:28",
+    "isActive": true,
+    "createdAt": "2026-04-03T07:25:28.834Z",
+    "updatedAt": "2026-04-03T07:25:28.834Z",
+    "boucherNumber": 159
+  },
+  {
+    "configuracionIGV": {
+      "igvPorcentaje": 18,
+      "preciosIncluyenIGV": true,
+      "nombreImpuesto": "IGV",
+      "moneda": "PEN",
+      "simboloMoneda": "S/."
+    },
+    "_id": "69cf6f63ec71aa1a958ca7fc",
+    "voucherId": "FMMOV",
+    "mesa": "69860a415e59135b4d2c56c1",
+    "numMesa": 1,
+    "mozo": "69a51896782a5785d39b1232",
+    "nombreMozo": "Juan",
+    "cliente": "69cf6f62ec71aa1a958ca7cb",
+    "usadoEnComanda": null,
+    "fechaUso": null,
+    "comandas": [
+      "69cf6f48ec71aa1a958ca60b"
+    ],
+    "comandasNumbers": [
+      542
+    ],
+    "platos": [
+      {
+        "plato": "6992b9dad845b119c1d00c86",
+        "platoId": 36,
+        "nombre": "Papa a la huancaína",
+        "precio": 13,
+        "cantidad": 1,
+        "subtotal": 13,
+        "comandaNumber": 542,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "00:07",
+        "_id": "69cf6f63ec71aa1a958ca7fd"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c87",
+        "platoId": 37,
+        "nombre": "Ensalada especial (limon o vinagreta)",
+        "precio": 15,
+        "cantidad": 1,
+        "subtotal": 15,
+        "comandaNumber": 542,
+        "complementosSeleccionados": [],
+        "cocinero": "Jose",
+        "cocineroId": "69b878c98f0e084daebaf9a8",
+        "tiempoPreparacion": "00:07",
+        "_id": "69cf6f63ec71aa1a958ca7fe"
+      }
+    ],
+    "subtotal": 23.73,
+    "igv": 4.27,
+    "total": 28,
+    "descuentos": [],
+    "totalSinDescuento": 28,
+    "montoDescuento": 0,
+    "totalConDescuento": 28,
+    "observaciones": "",
+    "fechaPedido": "2026-04-03T07:42:00.012Z",
+    "fechaPago": "2026-04-03T07:42:27.738Z",
+    "fechaPagoString": "03/04/2026 02:42:27",
+    "isActive": true,
+    "createdAt": "2026-04-03T07:42:27.745Z",
+    "updatedAt": "2026-04-03T07:42:27.745Z",
+    "boucherNumber": 160
   }
 ]

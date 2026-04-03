@@ -226,19 +226,34 @@ router.post('/boucher', async (req, res) => {
         
         // Marcar comandas como pagadas - CORREGIDO: También establecer IsActive: false
         // Esto garantiza que las comandas pagadas no interfieran en el cálculo de estado de mesa
+        const ahoraPago = require('moment-timezone')().tz(configMoneda.zonaHoraria || 'America/Lima').toDate();
         await Promise.all(comandasIds.map(async (comandaId) => {
             try {
                 await comandaModel.findByIdAndUpdate(comandaId, {
                     status: 'pagado',
                     IsActive: false, // 🔥 CRÍTICO: Marcar como inactiva para evitar que cuente en recalcularEstadoMesa
-                    cliente: clienteId || null
+                    cliente: clienteId || null,
+                    tiempoPagado: ahoraPago
                 });
                 console.log(`✅ Comanda ${comandaId} marcada como pagada e inactiva`);
             } catch (error) {
                 console.error(`⚠️ Error marcando comanda ${comandaId} como pagada:`, error);
             }
         }));
-        
+
+        // Tiempo real: panel admin / mozos / cocina (misma señal que el resto de cambios de comanda)
+        if (global.emitComandaActualizada) {
+            await Promise.all(
+                comandasValidas.map((c) => {
+                    const cid = String(c._id);
+                    const estadoPrev = c.status || 'entregado';
+                    return global
+                        .emitComandaActualizada(cid, estadoPrev, 'pagado')
+                        .catch((err) => console.error(`⚠️ emitComandaActualizada(pagado) ${cid}:`, err.message));
+                })
+            );
+        }
+
         // Marcar Pedido asociado como pagado (si existe)
         try {
             const pedidoAbierto = await pedidoModel.findOne({

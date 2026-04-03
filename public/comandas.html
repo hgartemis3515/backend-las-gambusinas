@@ -1693,15 +1693,21 @@ console.log('📊 Reporte: nuevo boucher', data);
     }
   }
 
-  const idx = this.comandas.findIndex(c => c._id === normalizada._id);
+  const idN = String(normalizada._id || '');
+  const idx = this.comandas.findIndex(c => String(c._id) === idN);
   if (idx !== -1) {
-    // Forzar reactividad de Alpine
     const newComandas = [...this.comandas];
     newComandas[idx] = normalizada;
     this.comandas = newComandas;
     this.processGrouping();
     this.filterComandas();
     console.log('✅ Comanda actualizada en la lista via handleComandaActualizada');
+  } else if (idN && !this.comandas.some(c => String(c._id) === idN)) {
+    this.comandas = [normalizada, ...this.comandas];
+    this.extraerMozosUnicos();
+    this.processGrouping();
+    this.filterComandas();
+    console.log('✅ Comanda insertada en lista (socket; no estaba en memoria)');
   }
 },
 
