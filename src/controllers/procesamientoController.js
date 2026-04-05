@@ -675,10 +675,11 @@ router.delete('/comanda/:id/procesando', adminAuth, async (req, res) => {
     }
     
     // EXCEPCIÓN: Un supervisor/admin puede liberar comandas de otros
+    const esSupervisor = req.admin.rol === 'supervisor' || 
+                         req.admin.rol === 'admin' || 
+                         req.admin.permisos?.includes('editar-mozos');
+    
     if (comanda.procesandoPor.cocineroId.toString() !== cocineroId) {
-      const esSupervisor = req.admin.rol === 'supervisor' || 
-                           req.admin.rol === 'admin' || 
-                           req.admin.permisos?.includes('editar-mozos');
       if (!esSupervisor) {
         return res.status(403).json({
           success: false,
@@ -698,7 +699,7 @@ router.delete('/comanda/:id/procesando', adminAuth, async (req, res) => {
       comandaId,
       comandaNumber: comanda.comandaNumber,
       procesandoPor: comanda.procesandoPor,
-      platosTomados: comanda.platos?.filter(p => p.procesandoPor?.cocineroId?.toString() === cocineroId).length || 0
+      platosTomados: comanda.platos?.filter(p => p.procesandoPor?.cocineroId).length || 0
     };
     
     const timestampAhora = moment().tz('America/Lima').toDate();
@@ -719,14 +720,21 @@ router.delete('/comanda/:id/procesando', adminAuth, async (req, res) => {
       }
     );
     
-    // 2. Liberar TODOS los platos que estaban siendo procesados por este cocinero
+    // 2. Liberar TODOS los platos que estaban siendo procesados
+    // Si es supervisor, liberar TODOS los platos con procesandoPor
+    // Si es cocinero normal, solo liberar los que tienen SU cocineroId
     let platosLiberados = 0;
     if (comanda.platos && Array.isArray(comanda.platos)) {
       for (let i = 0; i < comanda.platos.length; i++) {
         const plato = comanda.platos[i];
         
-        // Solo liberar platos que estén siendo procesados por ESTE cocinero
-        if (plato.procesandoPor?.cocineroId?.toString() === cocineroId) {
+        // Supervisor: liberar TODOS los platos con procesandoPor
+        // Cocinero normal: solo liberar platos asignados a él
+        const debeLiberar = esSupervisor 
+          ? plato.procesandoPor?.cocineroId  // Supervisor: cualquier plato tomado
+          : plato.procesandoPor?.cocineroId?.toString() === cocineroId;  // Cocinero: solo los suyos
+        
+        if (debeLiberar) {
           await Comanda.updateOne(
             { _id: comandaId },
             {
