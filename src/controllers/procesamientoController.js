@@ -66,16 +66,18 @@ const findPlatoIndex = (platos, platoId) => {
 /**
  * PUT /api/comanda/:id/plato/:platoId/procesando
  * Un cocinero toma un plato para prepararlo
+ * @param {boolean} forzar - Si es true, permite reasignar aunque esté tomado por otro (solo supervisor/admin)
  */
 router.put('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, res) => {
   try {
     const { id: comandaId, platoId } = req.params;
-    const { cocineroId } = req.body;
+    const { cocineroId, forzar = false } = req.body;
     
     logger.info('[TomarPlato] Request recibido', { 
       comandaId, 
       platoId, 
       cocineroId,
+      forzar,
       adminId: req.admin?.id 
     });
     
@@ -88,7 +90,11 @@ router.put('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, res)
     }
     
     // Solo el propio cocinero o un admin puede tomar platos
-    if (req.admin.id !== cocineroId && !req.admin.permisos?.includes('editar-mozos')) {
+    // EXCEPCIÓN: Supervisores y admins pueden asignar a cualquier cocinero
+    const esSupervisor = req.admin.rol === 'supervisor' || 
+                         req.admin.rol === 'admin' || 
+                         req.admin.permisos?.includes('editar-mozos');
+    if (req.admin.id !== cocineroId && !esSupervisor) {
       return res.status(403).json({
         success: false,
         error: 'No tiene permisos para realizar esta acción'
@@ -121,12 +127,28 @@ router.put('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, res)
     const plato = comanda.platos[platoIndex];
     
     // Verificar si ya está siendo procesado por otro cocinero
-    if (plato.procesandoPor?.cocineroId && 
+    // EXCEPCIÓN: Si forzar=true y el usuario tiene permisos de supervisor, permitir reasignación
+    if (plato.procesandoPor?.cocineroId &&
         plato.procesandoPor.cocineroId.toString() !== cocineroId) {
-      return res.status(409).json({
-        success: false,
-        error: 'Este plato ya está siendo procesado por otro cocinero',
-        procesandoPor: plato.procesandoPor
+      
+      // Si no tiene permisos de supervisor o no está forzando, rechazar
+      const esSupervisor = req.admin.rol === 'supervisor' || 
+                           req.admin.rol === 'admin' || 
+                           req.admin.permisos?.includes('editar-mozos');
+      if (!forzar || !esSupervisor) {
+        return res.status(409).json({
+          success: false,
+          error: 'Este plato ya está siendo procesado por otro cocinero',
+          procesandoPor: plato.procesandoPor
+        });
+      }
+      
+      // Si es supervisor y está forzando, permitir la reasignación
+      logger.info('[TomarPlato] Reasignación forzada por supervisor', {
+        platoId,
+        cocineroAnterior: plato.procesandoPor,
+        cocineroNuevo: cocineroId,
+        supervisorId: req.admin.id
       });
     }
     
@@ -239,10 +261,24 @@ router.delete('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, r
     }
     
     // Verificar que es el mismo cocinero quien lo liberó
+    // EXCEPCIÓN: Un supervisor/admin puede liberar platos de otros
     if (plato.procesandoPor.cocineroId.toString() !== cocineroId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Solo el cocinero que tomó el plato puede liberarlo'
+      // Verificar si es supervisor (por rol o por permiso)
+      const esSupervisor = req.admin.rol === 'supervisor' || 
+                           req.admin.rol === 'admin' || 
+                           req.admin.permisos?.includes('editar-mozos');
+      if (!esSupervisor) {
+        return res.status(403).json({
+          success: false,
+          error: 'Solo el cocinero que tomó el plato puede liberarlo'
+        });
+      }
+      // Si es supervisor, permitir liberar y registrar en auditoría
+      logger.info('[LiberarPlato] Supervisor liberando plato de otro cocinero', {
+        platoId,
+        cocineroOriginal: plato.procesandoPor.cocineroId,
+        supervisorId: cocineroId,
+        rol: req.admin.rol
       });
     }
     
@@ -352,11 +388,25 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
     const plato = comanda.platos[platoIndex];
     
     // Si el plato estaba siendo procesado, verificar que es el mismo cocinero
-    if (plato.procesandoPor?.cocineroId && 
+    // EXCEPCIÓN: Un supervisor/admin puede finalizar platos de otros
+    if (plato.procesandoPor?.cocineroId &&
         plato.procesandoPor.cocineroId.toString() !== cocineroId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Solo el cocinero que tomó el plato puede finalizarlo'
+      // Verificar si es supervisor (por rol o por permiso)
+      const esSupervisor = req.admin.rol === 'supervisor' || 
+                           req.admin.rol === 'admin' || 
+                           req.admin.permisos?.includes('editar-mozos');
+      if (!esSupervisor) {
+        return res.status(403).json({
+          success: false,
+          error: 'Solo el cocinero que tomó el plato puede finalizarlo'
+        });
+      }
+      // Si es supervisor, permitir finalizar y registrar en auditoría
+      logger.info('[FinalizarPlato] Supervisor finalizando plato de otro cocinero', {
+        platoId,
+        cocineroOriginal: plato.procesandoPor.cocineroId,
+        supervisorId: cocineroId,
+        rol: req.admin.rol
       });
     }
     
@@ -453,13 +503,14 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
 /**
  * PUT /api/comanda/:id/procesando
  * Un cocinero toma toda la comanda
+ * @param {boolean} forzar - Si es true, permite reasignar aunque esté tomada por otro (solo supervisor/admin)
  */
 router.put('/comanda/:id/procesando', adminAuth, async (req, res) => {
   try {
     const { id: comandaId } = req.params;
-    const { cocineroId } = req.body;
+    const { cocineroId, forzar = false } = req.body;
     
-    logger.info('[TomarComanda] Request recibido', { comandaId, cocineroId });
+    logger.info('[TomarComanda] Request recibido', { comandaId, cocineroId, forzar });
     
     if (!cocineroId) {
       return res.status(400).json({
@@ -478,12 +529,28 @@ router.put('/comanda/:id/procesando', adminAuth, async (req, res) => {
     }
     
     // Verificar si ya está siendo procesada
+    // EXCEPCIÓN: Si forzar=true y el usuario tiene permisos de supervisor, permitir reasignación
     if (comanda.procesandoPor?.cocineroId && 
         comanda.procesandoPor.cocineroId.toString() !== cocineroId) {
-      return res.status(409).json({
-        success: false,
-        error: 'Esta comanda ya está siendo procesada por otro cocinero',
-        procesandoPor: comanda.procesandoPor
+      
+      // Si no tiene permisos de supervisor o no está forzando, rechazar
+      const esSupervisor = req.admin.rol === 'supervisor' || 
+                           req.admin.rol === 'admin' || 
+                           req.admin.permisos?.includes('editar-mozos');
+      if (!forzar || !esSupervisor) {
+        return res.status(409).json({
+          success: false,
+          error: 'Esta comanda ya está siendo procesada por otro cocinero',
+          procesandoPor: comanda.procesandoPor
+        });
+      }
+      
+      // Si es supervisor y está forzando, permitir la reasignación
+      logger.info('[TomarComanda] Reasignación forzada por supervisor', {
+        comandaId,
+        cocineroAnterior: comanda.procesandoPor,
+        cocineroNuevo: cocineroId,
+        supervisorId: req.admin.id
       });
     }
     
@@ -506,18 +573,22 @@ router.put('/comanda/:id/procesando', adminAuth, async (req, res) => {
     );
     
     // v7.4: Tomar TODOS los platos disponibles (igual que "Tomar Plato" pero en masa)
+    // Si forzar=true, tomar también los platos que están tomados por otros
     let platosTomados = 0;
     
     if (comanda.platos && Array.isArray(comanda.platos)) {
       for (let i = 0; i < comanda.platos.length; i++) {
         const plato = comanda.platos[i];
         
-        // Solo tomar platos que no estén eliminados, anulados ni ya tomados por otro
+        // Solo tomar platos que no estén eliminados ni anulados
         if (!plato.eliminado && !plato.anulado) {
           const tomadoPorOtro = plato.procesandoPor?.cocineroId && 
                                 plato.procesandoPor.cocineroId.toString() !== cocineroId;
           
-          if (!tomadoPorOtro && !plato.procesandoPor?.cocineroId) {
+          // Si no está tomado por nadie, o si está tomado por otro pero forzar=true
+          const debeTomar = !plato.procesandoPor?.cocineroId || (forzar && tomadoPorOtro);
+          
+          if (debeTomar) {
             // Usar updateOne para garantizar que se guarde
             await Comanda.updateOne(
               { _id: comandaId },
@@ -603,10 +674,22 @@ router.delete('/comanda/:id/procesando', adminAuth, async (req, res) => {
       });
     }
     
+    // EXCEPCIÓN: Un supervisor/admin puede liberar comandas de otros
     if (comanda.procesandoPor.cocineroId.toString() !== cocineroId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Solo el cocinero que tomó la comanda puede liberarla'
+      const esSupervisor = req.admin.rol === 'supervisor' || 
+                           req.admin.rol === 'admin' || 
+                           req.admin.permisos?.includes('editar-mozos');
+      if (!esSupervisor) {
+        return res.status(403).json({
+          success: false,
+          error: 'Solo el cocinero que tomó la comanda puede liberarla'
+        });
+      }
+      logger.info('[LiberarComanda] Supervisor liberando comanda de otro cocinero', {
+        comandaId,
+        cocineroOriginal: comanda.procesandoPor.cocineroId,
+        supervisorId: cocineroId,
+        rol: req.admin.rol
       });
     }
     
@@ -745,11 +828,23 @@ router.put('/comanda/:id/finalizar', adminAuth, async (req, res) => {
     }
     
     // Verificar que la comanda está siendo procesada por este cocinero
-    if (comanda.procesandoPor?.cocineroId && 
+    // EXCEPCIÓN: Un supervisor/admin puede finalizar comandas de otros
+    if (comanda.procesandoPor?.cocineroId &&
         comanda.procesandoPor.cocineroId.toString() !== cocineroId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Solo el cocinero que tomó la comanda puede finalizarla'
+      const esSupervisor = req.admin.rol === 'supervisor' || 
+                           req.admin.rol === 'admin' || 
+                           req.admin.permisos?.includes('editar-mozos');
+      if (!esSupervisor) {
+        return res.status(403).json({
+          success: false,
+          error: 'Solo el cocinero que tomó la comanda puede finalizarla'
+        });
+      }
+      logger.info('[FinalizarComanda] Supervisor finalizando comanda de otro cocinero', {
+        comandaId,
+        cocineroOriginal: comanda.procesandoPor.cocineroId,
+        supervisorId: cocineroId,
+        rol: req.admin.rol
       });
     }
     
