@@ -40,7 +40,8 @@ const PERMISOS_FUNDAMENTALES = {
     // App Cocina
     'ver-comandas-cocina': { nombre: 'Ver Comandas Cocina', grupo: 'App Cocina', descripcion: 'Ver comandas en App Cocina' },
     'cambiar-estados-platos': { nombre: 'Cambiar Estados Platos', grupo: 'App Cocina', descripcion: 'Marcar platos como preparando/listo/entregado' },
-    'revertir-comandas': { nombre: 'Revertir Comandas', grupo: 'App Cocina', descripcion: 'Deshacer comandas desde cocina' }
+    'revertir-comandas': { nombre: 'Revertir Comandas', grupo: 'App Cocina', descripcion: 'Deshacer comandas desde cocina' },
+    'ver-vista-supervisor-cocina': { nombre: 'Vista Supervisor Cocina', grupo: 'App Cocina', descripcion: 'Acceder a la vista de supervisor en App Cocina (asignar cocineros, tomar/dejar platos)' }
 };
 
 // Permisos por defecto para roles del sistema
@@ -50,7 +51,8 @@ const PERMISOS_POR_ROL_SISTEMA = {
         'ver-mesas', 'editar-mesas', 'juntar-separar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas',
         'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria', 'ver-reportes',
         'cierre-caja', 'ver-notificaciones', 'crear-comandas', 'editar-comandas',
-        'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina', 'aplicar-descuentos'
+        'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina', 'aplicar-descuentos',
+        'ver-vista-supervisor-cocina'
     ],
     cocinero: [
         'ver-platos', 'ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas'

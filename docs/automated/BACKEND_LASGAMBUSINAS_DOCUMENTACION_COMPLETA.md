@@ -1,7 +1,7 @@
 # 🖥️ Documentación Completa - Backend Las Gambusinas
 
-**Versión:** 2.17  
-**Última Actualización:** Marzo 2026  
+**Versión:** 2.18  
+**Última Actualización:** Abril 2026  
 **Tecnología:** Node.js + Express + MongoDB + Socket.io + Redis
 
 **Propósito del documento:** Análisis completo del backend de Las Gambusinas: arquitectura, flujo de datos, carga de datos, endpoints, modelos MongoDB, WebSockets, caché, logging, integración con App Mozos, App Cocina, Dashboard Administrativo y módulo de Cocineros con configuración KDS. Documento alineado con el codebase actual (marzo 2026).
@@ -40,6 +40,7 @@ Crear un ecosistema digital completo que permita:
 
 | Fecha        | Cambios                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Abril 2026   | **Documentación de Usuarios, Roles y Permisos:** Nueva sección completa documentando el modelo unificado de personal (`mozos.model.js`), roles disponibles (admin, supervisor, cocinero, mozos, capitanMozos, cajero), 24 permisos fundamentales agrupados por aplicación, autenticación JWT (HTTP y Socket.io), autorización por namespace, y acceso detallado para App Mozos, App Cocina y Dashboard. Referencia a documento dedicado `docs/USUARIOS_ROLES_PERMISOS.md`. |
 | Marzo 2026   | **Voucher sincronizado con App de Mozos:** Sincronización bidireccional de plantillas de voucher entre backend y App Mozos. El app ahora genera PDFs usando la plantilla configurada en `bouchers.html`. Endpoint `/api/configuracion/voucher-plantilla` devuelve configuración para `expo-print`. |
 | Marzo 2026   | **Bug corregido - Validación de IDs en Propinas:** El endpoint `POST /api/propinas` fallaba con error 400 debido a que la función `idsCoinciden()` no manejaba correctamente objetos poblados de MongoDB. Cuando `boucher.mesa` o `boucher.mozo` venían poblados (objetos completos), `.toString()` devolvía `[object Object]` en lugar del ObjectId. Solución: función `idsCoinciden()` reescrita en `src/utils/propinaCalculo.js` para extraer correctamente el `_id` de objetos poblados. |
 | Marzo 2026   | **Bug corregido - Proyecciones de MongoDB:** Los complementos de los platos (`complementosSeleccionados`, `notaEspecial`) no se enviaban al frontend en el endpoint `GET /api/comanda/fecha/:fecha`. Causa: la proyección `PROYECCION_RESUMEN_MESA` no incluía estos campos. Solución: agregados campos faltantes. Ver sección "🐛 Debugging de Datos - Metodología" para aprender a identificar problemas similares. |
@@ -98,6 +99,7 @@ Crear un ecosistema digital completo que permita:
 29. [Problemas Resueltos y Pendientes](#problemas-resueltos-y-pendientes)
 30. [Sugerencias y Mejoras Futuras](#sugerencias-y-mejoras-futuras)
 31. [Sistema de Propinas para Mozos](#sistema-de-propinas-para-mozos)
+32. [Usuarios, Roles y Permisos](#usuarios-roles-y-permisos)
 
 ---
 
@@ -437,6 +439,111 @@ Modelo para configuración personalizada del tablero KDS de cada cocinero. Ver [
 
 
 Métodos: `getConfiguracionPorDefecto()`, `debeMostrarPlato(plato)`, `debeMostrarComanda(comanda)`.
+
+### Mozos / Usuarios (`mozos.model.js`) — Modelo Unificado de Personal
+
+El sistema utiliza un modelo unificado donde **todo el personal del restaurante** se almacena en la colección `mozos`. El campo `rol` determina los permisos y accesos a cada aplicación.
+
+#### Roles Disponibles
+
+```javascript
+const ROLES = ['admin', 'supervisor', 'cocinero', 'mozos', 'cajero', 'capitanMozos'];
+```
+
+| Rol | Descripción | Aplicaciones con Acceso |
+|-----|-------------|------------------------|
+| **admin** | Administrador total del sistema | Dashboard, App Mozos, App Cocina, Panel Admin |
+| **supervisor** | Supervisor con acceso a gestión y reportes | Dashboard, App Mozos, App Cocina |
+| **cocinero** | Personal de cocina | App Cocina |
+| **mozos** | Personal de sala (meseros) | App Mozos |
+| **capitanMozos** | Capitán de mozos con permisos extendidos | App Mozos |
+| **cajero** | Personal de caja | App Mozos (solo pagos) |
+
+#### Schema del Usuario
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `mozoId` | Number | Auto | ID auto-incremental único |
+| `name` | String | Sí | Nombre completo (sincronizado con nombres + apellidos) |
+| `nombres` | String | No | Nombres del personal |
+| `apellidos` | String | No | Apellidos del personal |
+| `DNI` | Number | Sí | Documento de identidad (usado para login) |
+| `phoneNumber` | Number | Sí | Número de teléfono |
+| `fotoUrl` | String | No | URL de foto de perfil |
+| `email` | String | No | Correo electrónico |
+| `rol` | String | Sí | Rol del usuario (enum: ROLES) |
+| `permisos` | Array | No | Permisos personalizados (sobrescriben rol) |
+| `zonaIds` | Array[ObjectId] | No | Zonas asignadas (para cocineros) |
+| `activo` | Boolean | No | Estado activo/inactivo (default: true) |
+| `enTurno` | Boolean | No | Si está en turno actualmente |
+| `pinAcceso` | String | No | PIN numérico para POS (alternativa al DNI) |
+| `usuarioWeb` | String | No | Usuario para acceso web |
+| `passwordWeb` | String | No | Contraseña para acceso web |
+
+#### Sistema de Permisos
+
+El modelo define **24 permisos fundamentales** agrupados por aplicación:
+
+```javascript
+// Backend/Dashboard - Gestión general
+'ver-mesas', 'editar-mesas', 'juntar-separar-mesas', 'ver-platos', 'editar-platos',
+'ver-areas', 'editar-areas', 'ver-clientes', 'editar-clientes', 'ver-mozos',
+'editar-mozos', 'gestionar-roles', 'ver-auditoria', 'ver-reportes', 'cierre-caja',
+'ver-notificaciones',
+
+// App Mozos
+'crear-comandas', 'editar-comandas', 'eliminar-platos-comandas', 'procesar-pagos',
+'asociar-clientes',
+
+// App Cocina
+'ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas'
+```
+
+#### Permisos por Rol (Default)
+
+| Permiso | admin | supervisor | cocinero | mozos | capitanMozos | cajero |
+|---------|:-----:|:----------:|:--------:|:-----:|:------------:|:------:|
+| **Backend/Dashboard** |
+| ver-mesas | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| editar-mesas | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| juntar-separar-mesas | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| ver-platos | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| editar-platos | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| gestionar-roles | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| ver-reportes | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| cierre-caja | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ |
+| **App Mozos** |
+| crear-comandas | ✅ | ✅ | ❌ | ✅ | ✅ | ❌ |
+| editar-comandas | ✅ | ✅ | ❌ | ✅ | ✅ | ❌ |
+| eliminar-platos-comandas | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| procesar-pagos | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ |
+| **App Cocina** |
+| ver-comandas-cocina | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| cambiar-estados-platos | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| revertir-comandas | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
+
+#### Permisos Personalizados
+
+Los usuarios pueden tener permisos personalizados que sobrescriben los del rol:
+
+```javascript
+permisos: [
+    { permiso: 'ver-mesas', permitido: true },
+    { permiso: 'editar-mesas', permitido: false }
+]
+```
+
+El virtual `permisosEfectivos` combina permisos del rol + personalizados.
+
+#### Métodos Estáticos
+
+- `mozosSchema.statics.getRoles()` — Retorna array de roles disponibles
+- `mozosSchema.statics.getPermisosFundamentales()` — Retorna objeto con todos los permisos
+- `mozosSchema.statics.getPermisosPorRol(rol)` — Retorna permisos default de un rol
+
+#### Referencia Detallada
+
+Para documentación completa de usuarios, roles y permisos, ver `docs/USUARIOS_ROLES_PERMISOS.md`.
 
 ---
 
@@ -4629,16 +4736,127 @@ curl http://localhost:3000/api/comanda/fecha/2026-03-29 | jq '.[0].platos[0]'
 
 ---
 
+## 👥 Usuarios, Roles y Permisos
+
+**Versión:** 1.0  
+**Documento completo:** `docs/USUARIOS_ROLES_PERMISOS.md`
+
+### Descripción General
+
+El sistema utiliza un modelo unificado donde **todo el personal del restaurante** se almacena en la colección `mozos`. El campo `rol` determina los permisos y accesos a cada aplicación.
+
+### Roles del Sistema
+
+| Rol | Descripción | Aplicaciones con Acceso |
+|-----|-------------|------------------------|
+| **admin** | Administrador total del sistema | Dashboard, App Mozos, App Cocina, Panel Admin |
+| **supervisor** | Supervisor con acceso a gestión y reportes | Dashboard, App Mozos, App Cocina |
+| **cocinero** | Personal de cocina | App Cocina |
+| **mozos** | Personal de sala (meseros) | App Mozos |
+| **capitanMozos** | Capitán de mozos con permisos extendidos | App Mozos |
+| **cajero** | Personal de caja | App Mozos (solo pagos) |
+
+### Autenticación por Namespace Socket.io
+
+| Namespace | Roles Permitidos | Aplicación |
+|-----------|------------------|------------|
+| `/cocina` | cocinero, admin, supervisor | App Cocina |
+| `/mozos` | mozos, admin, supervisor, capitanMozos, cajero | App Mozos |
+| `/admin` | admin, supervisor | Dashboard Admin |
+
+### Endpoints de Autenticación
+
+| Endpoint | Método | Descripción |
+|----------|--------|-------------|
+| `/api/admin/auth` | POST | Login Dashboard (username + password/DNI) |
+| `/api/admin/verify` | GET | Verificar token JWT |
+| `/api/admin/perfil` | GET | Perfil del usuario autenticado |
+| `/api/mozos/auth` | POST | Login App Mozos |
+
+### Acceso por Aplicación
+
+#### App de Mozos (React Native + Expo)
+
+**Usuarios con Acceso:** mozos, capitanMozos, cajero, admin, supervisor
+
+**Permisos Principales:**
+- `crear-comandas`: Crear nuevas comandas
+- `editar-comandas`: Modificar comandas existentes
+- `eliminar-platos-comandas`: Eliminar platos o comandas (solo capitanMozos, admin)
+- `procesar-pagos`: Generar bouchers (capitanMozos, cajero, admin, supervisor)
+- `asociar-clientes`: Vincular clientes a comandas
+
+#### App de Cocina (React + Vite)
+
+**Usuarios con Acceso:** cocinero, admin, supervisor
+
+**Permisos Principales:**
+- `ver-comandas-cocina`: Ver tablero KDS
+- `cambiar-estados-platos`: Marcar platos como preparando/listo (cocinero, admin)
+- `revertir-comandas`: Deshacer cambios (cocinero, admin)
+
+#### Dashboard Admin (HTML + Tailwind + Alpine.js)
+
+**Usuarios con Acceso:** admin, supervisor
+
+| Funcionalidad | admin | supervisor |
+|---------------|:-----:|:----------:|
+| Gestión de mesas | ✅ | ✅ |
+| Gestión de platos | ✅ | ✅ |
+| Gestión de áreas | ✅ | ✅ |
+| Gestión de mozos | ✅ | Solo ver |
+| Gestión de roles | ✅ | ❌ |
+| Reportes | ✅ | ✅ |
+| Auditoría | ✅ | ✅ |
+| Cierre de caja | ✅ | ✅ |
+
+### Middleware de Autenticación
+
+#### `adminAuth.js` - Rutas HTTP
+
+Middleware JWT para endpoints protegidos del Dashboard:
+- Valida token en header `Authorization: Bearer <token>`
+- Adjunta `req.usuario` con datos del usuario
+- Verifica permisos específicos según endpoint
+
+#### `socketAuth.js` - WebSockets
+
+Middleware JWT para Socket.io:
+- Validación JWT en conexión de sockets
+- Verificación de roles por namespace
+- Advertencia de token próximo a expirar (<5 min)
+- Rate limiting configurable
+
+### Auditoría de Acciones
+
+Todas las acciones relevantes se registran con información del usuario:
+
+| Campo | Descripción |
+|-------|-------------|
+| `usuarioId` | ID del usuario que realizó la acción |
+| `usuarioNombre` | Nombre del usuario |
+| `accion` | Tipo de acción |
+| `fecha` | Timestamp |
+| `ip` | Dirección IP |
+
+### Documentación Detallada
+
+Para información completa de usuarios, roles y permisos, ver:
+- **`docs/USUARIOS_ROLES_PERMISOS.md`** - Documentación completa del sistema de autenticación y autorización
+
+---
+
 ## 📚 Referencias Cruzadas
 
 - **DIAGRAMA_FLUJO_DATOS_Y_FUNCIONES.md:** Arquitectura global, endpoints detallados, modelos, reglas de negocio, WebSockets, FASE 5/6/7.
 - **APP_MOZOS_DOCUMENTACION_COMPLETA.md:** Uso de la API y Socket desde la app de mozos.
 - **APP_COCINA_DOCUMENTACION_COMPLETA.md:** Uso de la API y Socket desde la app de cocina.
 - **Sistemademozos_md.md:** Documentación completa del sistema de mozos con metas v2.0.
+- **USUARIOS_ROLES_PERMISOS.md:** Sistema de usuarios, roles y permisos para las 3 aplicaciones.
 
 ---
 
-*Documento generado para el proyecto Las Gambusinas — Backend Node.js/Express/MongoDB/Socket.io. Versión 2.14, marzo 2026.*
+*Documento generado para el proyecto Las Gambusinas — Backend Node.js/Express/MongoDB/Socket.io. Versión 2.18, abril 2026.*
 
 **Incluye:**
 - **Documentación de platos.html**: página dedicada a gestión del menú con interfaz moderna (Tailwind, Alpine.js), sistema de complementos, relación con App Mozos/App Cocina/Dashboard, flujo de datos y eventos Socket.io
