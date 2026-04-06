@@ -200,7 +200,7 @@ function initPasswordToggle() {
 }
 
 function initRecordarmeCheckbox() {
-    const checkbox = document.getElementById('recordarme');
+    const checkbox = document.getElementById('rememberMe');
     const usernameInput = document.getElementById('username');
     
     // Restaurar último usuario si existe
@@ -291,7 +291,7 @@ async function handleLogin(event) {
     
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
-    const recordarme = document.getElementById('recordarme')?.checked || false;
+    const recordarme = document.getElementById('rememberMe')?.checked || false;
     const btnLogin = document.getElementById('btnLogin');
     const btnText = document.getElementById('btnText');
     const btnLoader = document.getElementById('btnLoader');

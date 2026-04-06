@@ -1,6 +1,6 @@
 # 🖥️ Documentación Completa - Backend Las Gambusinas
 
-**Versión:** 2.18  
+**Versión:** 2.19  
 **Última Actualización:** Abril 2026  
 **Tecnología:** Node.js + Express + MongoDB + Socket.io + Redis
 
@@ -40,6 +40,7 @@ Crear un ecosistema digital completo que permita:
 
 | Fecha        | Cambios                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Abril 2026   | **Sistema de Notificaciones del Dashboard:** Nueva sección completa documentando el sistema de notificaciones en tiempo real: modelo `Notificacion` con 6 tipos (sistema, comanda, mesa, pago, alerta, auditoria); controller con 6 endpoints REST y servicio interno `NotificacionService`; frontend con clase `NotificacionesDashboard` (WebSocket + polling fallback); integración con Socket.io namespace `/admin`; permiso `ver-notificaciones` para admin/supervisor; notificaciones automáticas para comandas, pagos, alertas de mesa y eventos de auditoría; UI con dropdown, badge contador, toasts y tiempo transcurrido. |
 | Abril 2026   | **Documentación de Usuarios, Roles y Permisos:** Nueva sección completa documentando el modelo unificado de personal (`mozos.model.js`), roles disponibles (admin, supervisor, cocinero, mozos, capitanMozos, cajero), 24 permisos fundamentales agrupados por aplicación, autenticación JWT (HTTP y Socket.io), autorización por namespace, y acceso detallado para App Mozos, App Cocina y Dashboard. Referencia a documento dedicado `docs/USUARIOS_ROLES_PERMISOS.md`. |
 | Marzo 2026   | **Voucher sincronizado con App de Mozos:** Sincronización bidireccional de plantillas de voucher entre backend y App Mozos. El app ahora genera PDFs usando la plantilla configurada en `bouchers.html`. Endpoint `/api/configuracion/voucher-plantilla` devuelve configuración para `expo-print`. |
 | Marzo 2026   | **Bug corregido - Validación de IDs en Propinas:** El endpoint `POST /api/propinas` fallaba con error 400 debido a que la función `idsCoinciden()` no manejaba correctamente objetos poblados de MongoDB. Cuando `boucher.mesa` o `boucher.mozo` venían poblados (objetos completos), `.toString()` devolvía `[object Object]` en lugar del ObjectId. Solución: función `idsCoinciden()` reescrita en `src/utils/propinaCalculo.js` para extraer correctamente el `_id` de objetos poblados. |
@@ -99,7 +100,8 @@ Crear un ecosistema digital completo que permita:
 29. [Problemas Resueltos y Pendientes](#problemas-resueltos-y-pendientes)
 30. [Sugerencias y Mejoras Futuras](#sugerencias-y-mejoras-futuras)
 31. [Sistema de Propinas para Mozos](#sistema-de-propinas-para-mozos)
-32. [Usuarios, Roles y Permisos](#usuarios-roles-y-permisos)
+32. [Sistema de Notificaciones del Dashboard](#sistema-de-notificaciones-del-dashboard)
+33. [Usuarios, Roles y Permisos](#usuarios-roles-y-permisos)
 
 ---
 
@@ -574,7 +576,7 @@ Todas las rutas bajo `/api`. Los controladores exportan routers con rutas relati
 | Cierre Caja (legacy)    | (router sin prefijo) | GET estado, GET /, GET :id, POST generar, POST :id/validar, GET :id/reporte-pdf                                                                                                                                                                                                                                                                                                                                                     |
 | Cierre Caja Restaurante | `/cierre-caja`       | POST, GET historial, GET :id, GET estado/actual, GET :id/exportar-pdf, GET :id/exportar-excel                                                                                                                                                                                                                                                                                                                                       |
 | Reportes                | (sin prefijo)        | GET ventas, GET platos-top, GET mozos-performance, GET mesas-ocupacion, GET kpis                                                                                                                                                                                                                                                                                                                                                    |
-| Notificaciones          | `/notificaciones`    | GET, PATCH :id/leida, PATCH leidas                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Notificaciones          | `/notificaciones`    | GET, GET count, PATCH :id/leida, PATCH leidas, DELETE :id, DELETE limpiar, POST test                                                                                                                                                                                                                                                                                                                                                |
 | Mensajes                | `/mensajes`          | GET mensajes-no-leidos                                                                                                                                                                                                                                                                                                                                                                                                              |
 | Cocineros               | `/cocineros`         | GET, GET :id, GET :id/config, PUT :id/config, POST :id/asignar-rol, POST :id/quitar-rol, GET :id/metricas, GET metricas/todos, POST :id/conexion                                                                                                                                                                                                                                                                                    |
 | Propinas                | `/propinas`          | POST, GET, GET :id, GET mesa/:mesaId, GET mozo/:mozoId, GET resumen/dia, GET mozos-dashboard, PUT :id, DELETE :id                                                                                                                                                                                                                                                                                                                   |
@@ -4736,6 +4738,390 @@ curl http://localhost:3000/api/comanda/fecha/2026-03-29 | jq '.[0].platos[0]'
 
 ---
 
+## 🔔 Sistema de Notificaciones del Dashboard
+
+**Versión:** 1.0
+**Archivos principales:**
+- `src/database/models/notificacion.model.js` — Modelo MongoDB
+- `src/controllers/notificacionesController.js` — Controller + NotificacionService
+- `src/repository/notificacion.repository.js` — Importación desde JSON
+- `public/assets/js/notificaciones-dashboard.js` — Frontend class
+
+### Descripción General
+
+El sistema de notificaciones permite a los administradores y supervisores recibir alertas en tiempo real sobre eventos importantes del restaurante: nuevas comandas, pagos procesados, alertas de mesas y eventos de auditoría. Las notificaciones se muestran en un panel desplegable en el topbar del dashboard, con badge contador, toasts emergentes y actualización en tiempo real vía Socket.io.
+
+### Arquitectura del Sistema
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    SISTEMA DE NOTIFICACIONES                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐          │
+│  │   Controller    │    │    Notificacion │    │    Frontend     │          │
+│  │   (API REST)    │───▶│     Service     │───▶│   Dashboard     │          │
+│  └────────┬────────┘    └────────┬────────┘    └────────┬────────┘          │
+│           │                      │                      │                    │
+│           ▼                      ▼                      ▼                    │
+│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐          │
+│  │   MongoDB       │    │   Socket.io     │    │   WebSocket     │          │
+│  │  (Colección)    │    │  (/admin)       │    │   + Polling     │          │
+│  └─────────────────┘    └─────────────────┘    └─────────────────┘          │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Modelo de Datos (`notificacion.model.js`)
+
+#### Schema Principal
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `tipo` | String | Sí | Tipo de notificación (enum) |
+| `titulo` | String | Sí | Título breve (max 100 chars) |
+| `mensaje` | String | No | Mensaje descriptivo (max 500 chars) |
+| `icono` | String | No | Emoji/icono (default: '🔔') |
+| `entidadId` | ObjectId | No | ID de la entidad relacionada |
+| `entidadTipo` | String | No | Tipo de entidad (comanda, mesa, plato, etc.) |
+| `destinatario` | ObjectId | No | Usuario específico (null = broadcast) |
+| `rolesDestinatarios` | Array[String] | No | Roles que pueden ver la notificación |
+| `leida` | Boolean | No | Si fue leída (default: false) |
+| `fechaLectura` | Date | No | Timestamp de lectura |
+| `accion` | Object | No | Acción al hacer clic |
+| `prioridad` | Number | No | Ordenamiento (0-10, mayor = más importante) |
+| `expiraEn` | Date | No | Auto-eliminación (null = no expira) |
+| `metadata` | Mixed | No | Datos adicionales |
+| `generadoPor` | ObjectId | No | Usuario que generó la notificación |
+
+#### Tipos de Notificación (enum `tipo`)
+
+| Tipo | Descripción | Ejemplo de uso |
+|------|-------------|----------------|
+| `sistema` | Alertas automáticas del sistema | Mantenimiento, errores |
+| `comanda` | Eventos de comandas | Nueva comanda creada |
+| `mesa` | Eventos de mesas | Mesa sin liberar |
+| `pago` | Eventos de pagos/bouchers | Pago procesado S/.150 |
+| `alerta` | Alertas importantes | Stock bajo, mesa con tiempo excedido |
+| `auditoria` | Eventos de auditoría | Comanda eliminada, plato anulado |
+
+#### Estructura del Campo `accion`
+
+```javascript
+accion: {
+  tipo: 'navegar' | 'modal' | 'api' | 'none',
+  url: '/comandas.html?id=123',  // URL de navegación
+  datos: { ... }                  // Datos adicionales
+}
+```
+
+#### Índices MongoDB
+
+```javascript
+// Índices compuestos optimizados
+{ destinatario: 1, leida: 1, createdAt: -1 }
+{ rolesDestinatarios: 1, leida: 1, createdAt: -1 }
+{ tipo: 1, createdAt: -1 }
+// TTL para auto-expiración
+{ expiraEn: 1 } // expireAfterSeconds: 0
+```
+
+### API REST (`notificacionesController.js`)
+
+#### Endpoints Disponibles
+
+| Método | Endpoint | Descripción | Parámetros |
+|--------|----------|-------------|------------|
+| GET | `/api/notificaciones` | Obtener notificaciones | `limit` (default: 20), `soloNoLeidas` |
+| GET | `/api/notificaciones/count` | Contar no leídas | — |
+| PATCH | `/api/notificaciones/:id/leida` | Marcar como leída | `:id` |
+| PATCH | `/api/notificaciones/leidas` | Marcar todas leídas | — |
+| DELETE | `/api/notificaciones/:id` | Eliminar una | `:id` |
+| DELETE | `/api/notificaciones/limpiar` | Limpiar antiguas | `dias` (default: 7) |
+| POST | `/api/notificaciones/test` | Crear prueba (solo admin) | — |
+
+#### Ejemplos de Uso
+
+```bash
+# Obtener últimas 20 notificaciones
+curl -H "Authorization: Bearer <token>" http://localhost:3000/api/notificaciones
+
+# Obtener solo no leídas
+curl -H "Authorization: Bearer <token>" \
+  "http://localhost:3000/api/notificaciones?soloNoLeidas=true"
+
+# Marcar todas como leídas
+curl -X PATCH -H "Authorization: Bearer <token>" \
+  http://localhost:3000/api/notificaciones/leidas
+
+# Limpiar notificaciones leídas de más de 14 días
+curl -X DELETE -H "Authorization: Bearer <token>" \
+  "http://localhost:3000/api/notificaciones/limpiar?dias=14"
+```
+
+### NotificacionService — Servicio Interno
+
+El controller exporta `NotificacionService` para que otros controllers creen notificaciones sin duplicar código:
+
+#### Métodos Disponibles
+
+```javascript
+// Notificación de nueva comanda
+await NotificacionService.notificarComandaCreada(comanda, mozo);
+
+// Notificación de pago procesado
+await NotificacionService.notificarPagoProcesado(boucher, mozo);
+
+// Notificación de alerta de mesa
+await NotificacionService.notificarAlertaMesa(mesa, 'sin_liberar');
+
+// Notificación de evento de auditoría
+await NotificacionService.notificarEventoAuditoria(auditoria);
+
+// Notificación personalizada
+await NotificacionService.crear({
+  tipo: 'sistema',
+  titulo: 'Mantenimiento programado',
+  mensaje: 'El sistema se reiniciará en 10 minutos',
+  icono: '⚠️',
+  rolesDestinatarios: ['admin'],
+  prioridad: 9
+});
+```
+
+### Métodos Estáticos del Modelo
+
+El modelo `Notificacion` tiene métodos estáticos para crear notificaciones tipadas:
+
+#### `Notificacion.comandaCreada(comanda, mozo)`
+
+Crea notificación cuando un mozo genera una nueva comanda.
+
+```javascript
+// Resultado:
+{
+  tipo: 'comanda',
+  titulo: 'Nueva comanda #152',
+  mensaje: 'Mesa 5 - 3 platos',
+  icono: '📋',
+  entidadId: comanda._id,
+  entidadTipo: 'comanda',
+  rolesDestinatarios: ['admin', 'supervisor'],
+  accion: { tipo: 'navegar', url: '/comandas.html?id=...' },
+  prioridad: 5
+}
+```
+
+#### `Notificacion.pagoProcesado(boucher, mozo)`
+
+Crea notificación cuando se procesa un pago.
+
+```javascript
+// Resultado:
+{
+  tipo: 'pago',
+  titulo: 'Pago procesado S/.150.00',
+  mensaje: 'Mesa 5 - Efectivo',
+  icono: '💳',
+  entidadId: boucher._id,
+  entidadTipo: 'boucher',
+  rolesDestinatarios: ['admin', 'supervisor'],
+  accion: { tipo: 'navegar', url: '/bouchers.html?id=...' },
+  prioridad: 4
+}
+```
+
+#### `Notificacion.mesaAlerta(mesa, tipoAlerta)`
+
+Crea notificación de alerta para mesas.
+
+| `tipoAlerta` | Título | Icono | Prioridad |
+|--------------|--------|-------|-----------|
+| `sin_liberar` | Mesa X sin liberar | 🔴 | 8 |
+| `stock_bajo` | Stock bajo en Mesa X | 🟡 | 6 |
+
+```javascript
+// Resultado:
+{
+  tipo: 'alerta',
+  titulo: 'Mesa 5 sin liberar',
+  mensaje: 'Tiempo excedido sin liberar',
+  icono: '🔴',
+  entidadId: mesa._id,
+  entidadTipo: 'mesa',
+  rolesDestinatarios: ['admin', 'supervisor'],
+  accion: { tipo: 'navegar', url: '/mesas.html?mesa=5' },
+  prioridad: 8
+}
+```
+
+#### `Notificacion.eventoAuditoria(auditoria)`
+
+Crea notificación cuando ocurre un evento de auditoría (eliminaciones, anulaciones).
+
+```javascript
+// Resultado para eliminación de comanda:
+{
+  tipo: 'auditoria',
+  titulo: 'ELIMINAR ULTIMA COMANDA',
+  mensaje: 'Mesa ocupada incorrectamente',
+  icono: '🗑️',
+  entidadId: auditoria._id,
+  entidadTipo: 'auditoriaAcciones',
+  rolesDestinatarios: ['admin'],
+  accion: { tipo: 'navegar', url: '/auditoria.html?id=...' },
+  prioridad: 7
+}
+```
+
+### Frontend — `NotificacionesDashboard`
+
+**Archivo:** `public/assets/js/notificaciones-dashboard.js`
+
+La clase `NotificacionesDashboard` gestiona el panel de notificaciones en el topbar del dashboard.
+
+#### Características Principales
+
+| Característica | Descripción |
+|----------------|-------------|
+| **WebSocket** | Conexión a namespace `/admin` para actualizaciones en tiempo real |
+| **Polling fallback** | Consulta cada 30 segundos si WebSocket falla |
+| **Badge contador** | Muestra no leídas (max 99+) |
+| **Dropdown** | Lista con secciones "Nuevas" y "Anteriores" |
+| **Toasts** | Notificación visual al recibir nueva alerta |
+| **Tiempo transcurrido** | "hace 5 min", "hace 2 h", fecha |
+
+#### Inicialización
+
+```javascript
+class NotificacionesDashboard {
+  constructor() {
+    this.notificaciones = [];
+    this.noLeidas = 0;
+    this.socket = null;
+    this.config = {
+      pollingTime: 30000,  // 30 segundos
+      maxVisibles: 10,
+      autoMarkRead: false
+    };
+  }
+
+  async init() {
+    await this.cargarNotificaciones();
+    this.conectarSocket();
+    this.iniciarPolling();
+    this.setupEventListeners();
+  }
+}
+```
+
+#### Eventos Socket.io Escuchados
+
+```javascript
+// Nueva notificación recibida
+socket.on('nueva-notificacion', (notificacion) => {
+  this.agregarNotificacion(notificacion);
+});
+
+// Notificación actualizada (ej: marcada leída)
+socket.on('notificacion-actualizada', (data) => {
+  this.actualizarNotificacion(data);
+});
+```
+
+#### Eventos Socket.io Emitidos
+
+| Evento | Dirección | Descripción |
+|--------|-----------|-------------|
+| `nueva-notificacion` | Server → Cliente | Nueva notificación creada |
+| `notificacion-actualizada` | Server → Cliente | Cambio en notificación existente |
+
+### Integración con Socket.io Namespace `/admin`
+
+El sistema de notificaciones se integra con el namespace `/admin` de Socket.io:
+
+```javascript
+// En notificacionesController.js
+if (global.io) {
+  const adminNamespace = global.io.of('/admin');
+  adminNamespace.emit('nueva-notificacion', notificacion);
+}
+```
+
+#### Autenticación
+
+El namespace `/admin` requiere autenticación JWT:
+
+```javascript
+// Conexión desde frontend
+this.socket = io('/admin', {
+  auth: { token },
+  transports: ['websocket', 'polling']
+});
+```
+
+### Permiso Requerido
+
+| Permiso | Roles | Descripción |
+|---------|-------|-------------|
+| `ver-notificaciones` | admin, supervisor | Ver panel de notificaciones en dashboard |
+
+### Archivos Relacionados
+
+| Archivo | Propósito |
+|---------|-----------|
+| `src/database/models/notificacion.model.js` | Modelo MongoDB con métodos estáticos |
+| `src/controllers/notificacionesController.js` | API REST + NotificacionService |
+| `src/repository/notificacion.repository.js` | Importación inicial desde JSON |
+| `public/assets/js/notificaciones-dashboard.js` | Frontend class |
+| `data/notificaciones.json` | Datos iniciales (opcional) |
+
+### Páginas que Incluyen el Panel
+
+El script `notificaciones-dashboard.js` se incluye en:
+
+- `public/cierre-caja.html`
+- `public/roles.html`
+- `public/usuarios.html`
+- (Y otras páginas del dashboard con topbar)
+
+### Flujo de Creación de Notificación
+
+```
+1. Usuario realiza acción (ej: mozo crea comanda)
+         ↓
+2. Controller correspondiente llama a NotificacionService
+         ↓
+3. NotificacionService crea documento en MongoDB
+         ↓
+4. NotificacionService emite evento por Socket.io (/admin)
+         ↓
+5. Dashboard recibe 'nueva-notificacion'
+         ↓
+6. NotificacionesDashboard actualiza UI:
+   - Agrega a lista
+   - Incrementa badge
+   - Muestra toast
+```
+
+### Ejemplo de Integración en Otro Controller
+
+```javascript
+// En comandaController.js
+const { NotificacionService } = require('./notificacionesController');
+
+async function crearComanda(req, res) {
+  const comanda = await Comanda.create(req.body);
+  
+  // Notificar a administradores
+  await NotificacionService.notificarComandaCreada(comanda, req.usuario);
+  
+  res.json(comanda);
+}
+```
+
+---
+
 ## 👥 Usuarios, Roles y Permisos
 
 **Versión:** 1.0  
@@ -4856,9 +5242,10 @@ Para información completa de usuarios, roles y permisos, ver:
 
 ---
 
-*Documento generado para el proyecto Las Gambusinas — Backend Node.js/Express/MongoDB/Socket.io. Versión 2.18, abril 2026.*
+*Documento generado para el proyecto Las Gambusinas — Backend Node.js/Express/MongoDB/Socket.io. Versión 2.19, abril 2026.*
 
 **Incluye:**
+- **Sistema de Notificaciones del Dashboard v1.0:** Modelo `Notificacion` con 6 tipos, controller con 6 endpoints REST y servicio interno `NotificacionService`, frontend con clase `NotificacionesDashboard` (WebSocket + polling), integración con namespace `/admin`, notificaciones automáticas para comandas, pagos, alertas de mesa y auditoría
 - **Documentación de platos.html**: página dedicada a gestión del menú con interfaz moderna (Tailwind, Alpine.js), sistema de complementos, relación con App Mozos/App Cocina/Dashboard, flujo de datos y eventos Socket.io
 - **Documentación del Sistema de Tiempo Real**: archivo `src/socket/events.js` como núcleo de comunicación Socket.io, arquitectura de namespaces y rooms, flujo de actualización en tiempo real, integración con `mozos.html`
 - **Bug corregido**: Proyecciones de MongoDB - campos faltantes en `PROYECCION_RESUMEN_MESA` causaban que complementos no llegaran al frontend

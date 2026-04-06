@@ -9,6 +9,7 @@ const { importarClientesDesdeJSON } = require('../repository/clientes.repository
 const { importarComandasDesdeJSON } = require('../repository/comanda.repository');
 const { importarBoucherDesdeJSON } = require('../repository/boucher.repository');
 const { importarAuditoriaDesdeJSON } = require('../repository/auditoria.repository');
+const { importarNotificacionesDesdeJSON, inicializarNotificaciones } = require('../repository/notificacion.repository');
 const { inicializarRolesSistema } = require('../repository/roles.repository');
 
 /** URI: prioridad DBLOCAL (proyecto) o MONGODB_URI (estándar / Atlas) */
@@ -94,6 +95,8 @@ db.once('open', async () => {
   await importarComandasDesdeJSON();
   await importarBoucherDesdeJSON();
   await importarAuditoriaDesdeJSON();
+  await inicializarNotificaciones();
+  await importarNotificacionesDesdeJSON();
   console.log('✅ Importación de datos finalizada.');
 });
 

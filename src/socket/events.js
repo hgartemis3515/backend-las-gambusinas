@@ -1582,6 +1582,38 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
     namespaces: ['/cocina', '/mozos', '/admin']
   });
 
+  // ========== FUNCIONES PARA EMITIR NOTIFICACIONES ==========
+
+  /**
+   * Emitir nueva notificación al namespace admin
+   * @param {Object} notificacion - Notificación creada
+   */
+  global.emitNotificacion = async (notificacion) => {
+    try {
+      if (!adminNamespace || !adminNamespace.sockets) {
+        return;
+      }
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      adminNamespace.emit('nueva-notificacion', {
+        ...notificacion,
+        timestamp
+      });
+
+      logger.debug('Evento nueva-notificacion emitido', {
+        notificacionId: notificacion._id?.toString(),
+        tipo: notificacion.tipo,
+        adminConnected: adminNamespace.sockets.size
+      });
+    } catch (error) {
+      logger.error('Error al emitir notificación', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  };
+
   /**
    * Emitir evento de roles actualizados al namespace admin
    * @param {String} mozoId - ID del mozo actualizado

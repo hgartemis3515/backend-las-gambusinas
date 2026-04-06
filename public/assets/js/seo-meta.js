@@ -47,12 +47,16 @@
             }
         }
         
-        // Obtener de la API
+        // Obtener de la API (solo si hay token)
         try {
             const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
-            const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
+            if (!token) {
+                return DEFAULT_SEO;
+            }
             
-            const response = await fetch('/api/configuracion', { headers });
+            const response = await fetch('/api/configuracion', {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
             if (response.ok) {
                 const data = await response.json();
                 if (data.success && data.configuracion && data.configuracion.seo) {

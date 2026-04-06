@@ -1,5 +1,5 @@
 <!-- TOPBAR (72px) - Componente compartido -->
-<!-- Incluir cosmos-search.css y cosmos-search.js en cada página -->
+<!-- Incluir cosmos-search.css, cosmos-search.js, notificaciones-dashboard.js -->
 <nav class="h-[72px] bg-bg-sidebar border-b border-[rgba(212,175,55,0.25)] flex items-center px-4 fixed top-0 left-0 right-0 z-40">
   <!-- Left Zone -->
   <div class="flex items-center gap-3 w-[280px]">
@@ -73,30 +73,32 @@
         </div>
       </div>
     </div>
-    <!-- Notifications -->
-    <div class="relative" x-data="{open:false}">
-      <button @click="open=!open" class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gold-20 text-lg relative">
-        🔔<span class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-st-pagado rounded-full text-[9px] font-bold flex items-center justify-center">5</span>
+    <!-- Notifications (Sistema Real) -->
+    <div class="relative" x-data="{open:false}" id="notificaciones-wrapper">
+      <button 
+        @click="open=!open" 
+        class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gold-20 text-lg relative"
+        data-notificaciones-trigger
+      >
+        🔔
+        <span 
+          id="notificaciones-badge" 
+          class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-st-pagado rounded-full text-[9px] font-bold flex items-center justify-center hidden"
+        >0</span>
       </button>
-      <div x-show="open" @click.outside="open=false" x-transition class="absolute right-0 top-12 w-80 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl shadow-2xl z-50">
-        <div class="flex items-center justify-between px-4 py-3 border-b border-[rgba(212,175,55,0.1)]">
-          <span class="font-semibold text-sm">Notificaciones</span>
-          <span class="text-xs text-gold cursor-pointer hover:underline">Marcar todas leídas</span>
-        </div>
-        <div class="max-h-72 overflow-y-auto">
-          <template x-for="(n,i) in sharedData.notifs" :key="i">
-            <div class="flex gap-3 px-4 py-3 hover:bg-gold-20 cursor-pointer border-b border-[rgba(212,175,55,0.05)]" :class="n.unread && 'bg-[rgba(212,175,55,0.04)]'">
-              <span x-text="n.icon" class="text-lg mt-0.5"></span>
-              <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium truncate" x-text="n.title"></p>
-                <p class="text-xs text-txt-muted" x-text="n.time"></p>
-              </div>
-              <span x-show="n.unread" class="w-2 h-2 rounded-full bg-gold mt-2 flex-shrink-0"></span>
-            </div>
-          </template>
-        </div>
-        <div class="px-4 py-2.5 text-center border-t border-[rgba(212,175,55,0.1)]">
-          <span class="text-xs text-gold cursor-pointer hover:underline">Ver todas las notificaciones</span>
+      <div 
+        x-show="open" 
+        @click.outside="open=false" 
+        x-transition 
+        id="notificaciones-dropdown"
+        class="absolute right-0 top-12 w-80 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl shadow-2xl z-50"
+      >
+        <div id="notificaciones-container">
+          <!-- Contenido dinámico por notificaciones-dashboard.js -->
+          <div class="px-4 py-8 text-center text-txt-muted text-sm">
+            <span class="text-2xl block mb-2 animate-pulse">🔔</span>
+            Cargando notificaciones...
+          </div>
         </div>
       </div>
     </div>
