@@ -69,7 +69,7 @@ tailwind.config = {
               'text-st-pagado': rol.color === 'st-pagado',
               'text-st-reservado': rol.color === 'st-reservado'
             }"
-            x-text="usuarios.filter(m=>m.rol===rol.nombre).length"></p>
+            x-text="usuarios.filter(m => m.roles?.includes(rol.nombre) || m.rol === rol.nombre).length"></p>
         </div>
       </template>
     </div>
@@ -128,16 +128,20 @@ tailwind.config = {
               <td class="px-4 py-3 text-txt-secondary" x-text="m.dni || '—'"></td>
               <td class="px-4 py-3 text-txt-secondary" x-text="m.telefono || '—'"></td>
               <td class="px-4 py-3">
-                <span class="text-xs px-2 py-0.5 rounded-full font-semibold"
-                  :class="{
-                    'bg-gold/20 text-gold': getRolColor(m.rol) === 'gold',
-                    'bg-st-preparado/20 text-st-preparado': getRolColor(m.rol) === 'st-preparado',
-                    'bg-st-pedido/20 text-st-pedido': getRolColor(m.rol) === 'st-pedido',
-                    'bg-st-libre/20 text-st-libre': getRolColor(m.rol) === 'st-libre' || !getRolColor(m.rol),
-                    'bg-st-esperando/20 text-st-esperando': getRolColor(m.rol) === 'st-esperando',
-                    'bg-st-pagado/20 text-st-pagado': getRolColor(m.rol) === 'st-pagado',
-                    'bg-st-reservado/20 text-st-reservado': getRolColor(m.rol) === 'st-reservado'
-                  }" x-text="getRolNombre(m.rol)"></span>
+                <div class="flex flex-wrap gap-1">
+                  <template x-for="rolItem in (Array.isArray(m.roles) ? m.roles : (m.rol ? [m.rol] : []))" :key="rolItem">
+                    <span class="text-xs px-2 py-0.5 rounded-full font-semibold"
+                      :class="{
+                        'bg-gold/20 text-gold': getRolColor(rolItem) === 'gold',
+                        'bg-st-preparado/20 text-st-preparado': getRolColor(rolItem) === 'st-preparado',
+                        'bg-st-pedido/20 text-st-pedido': getRolColor(rolItem) === 'st-pedido',
+                        'bg-st-libre/20 text-st-libre': getRolColor(rolItem) === 'st-libre' || !getRolColor(rolItem),
+                        'bg-st-esperando/20 text-st-esperando': getRolColor(rolItem) === 'st-esperando',
+                        'bg-st-pagado/20 text-st-pagado': getRolColor(rolItem) === 'st-pagado',
+                        'bg-st-reservado/20 text-st-reservado': getRolColor(rolItem) === 'st-reservado'
+                      }" x-text="getRolNombre(rolItem)"></span>
+                  </template>
+                </div>
               </td>
               <td class="px-4 py-3">
                 <span class="text-xs px-2 py-0.5 rounded-full font-semibold cursor-pointer" 
@@ -159,7 +163,7 @@ tailwind.config = {
 
 <!-- MODAL: CREAR/EDITAR USUARIO -->
 <div x-show="modal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=null">
-  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[520px] shadow-2xl" @click.stop>
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[600px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
     <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
       <div><h2 class="text-lg font-bold" x-text="isEditing ? 'Editar Usuario' : 'Crear Nuevo Usuario'"></h2><p class="text-xs text-txt-muted" x-text="isEditing ? 'Modifique los datos del usuario' : 'Registre un nuevo usuario en el sistema'"></p></div>
       <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
@@ -174,16 +178,69 @@ tailwind.config = {
         <div><label class="text-xs text-txt-secondary mb-1 block">Teléfono</label><input type="text" x-model="formUsuario.telefono" placeholder="987 654 321" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
       </div>
       <div>
-        <label class="text-xs text-txt-secondary mb-2 block">Rol del Usuario</label>
+        <label class="text-xs text-txt-secondary mb-2 block">Roles del Usuario <span class="text-txt-muted">(seleccione uno o más)</span></label>
         <div class="grid grid-cols-3 gap-2">
           <template x-for="rolItem in roles" :key="rolItem._id">
-            <button type="button" @click="formUsuario.rol = rolItem.nombre"
-              :class="formUsuario.rol === rolItem.nombre ? 'bg-gold text-bg-primary border-gold' : 'bg-bg-sidebar border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold'"
-              class="px-3 py-2 rounded-lg text-xs font-semibold border transition"
-              x-text="rolItem.nombreDisplay || rolItem.nombre"></button>
+            <button type="button" @click="toggleRol(rolItem.nombre)"
+              :class="formUsuario.roles?.includes(rolItem.nombre) ? 'bg-gold text-bg-primary border-gold' : 'bg-bg-sidebar border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold'"
+              class="px-3 py-2 rounded-lg text-xs font-semibold border transition flex items-center justify-center gap-1.5">
+              <span x-show="formUsuario.roles?.includes(rolItem.nombre)" class="text-[10px]">✓</span>
+              <span x-text="rolItem.nombreDisplay || rolItem.nombre"></span>
+            </button>
           </template>
         </div>
         <p x-show="roles.length === 0" class="text-xs text-txt-muted mt-2">Cargando roles...</p>
+        
+        <!-- Permisos combinados de los roles seleccionados -->
+        <div x-show="formUsuario.roles?.length > 0" class="mt-4 p-3 bg-bg-sidebar rounded-lg border border-[rgba(212,175,55,0.15)]">
+          <div class="flex items-center justify-between cursor-pointer" @click="mostrarPermisos = !mostrarPermisos">
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-txt-secondary">Permisos combinados</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-gold/20 text-gold" x-text="getPermisosRolesSeleccionados().length + ' permisos'"></span>
+              <span x-show="formUsuario.roles?.length > 1" class="text-[10px] px-1.5 py-0.5 rounded bg-st-libre/20 text-st-libre" x-text="formUsuario.roles?.length + ' roles'"></span>
+            </div>
+            <span class="text-xs text-txt-muted transition-transform" :class="mostrarPermisos ? 'rotate-180' : ''">▼</span>
+          </div>
+          
+          <!-- Roles seleccionados con sus permisos individuales -->
+          <div x-show="formUsuario.roles?.length > 1" class="mt-2 flex flex-wrap gap-1">
+            <template x-for="rolSel in formUsuario.roles" :key="rolSel">
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-gold/30 text-gold border border-gold/40"
+                x-text="getRolNombre(rolSel) + ' (' + getPermisosRol(rolSel).length + ')'"></span>
+            </template>
+          </div>
+          
+          <div x-show="mostrarPermisos" x-transition class="mt-3 space-y-2">
+            <template x-for="grupo in getPermisosAgrupadosRoles(formUsuario.roles)" :key="grupo.nombre">
+              <div class="border-b border-[rgba(212,175,55,0.08)] pb-2 last:border-0">
+                <div class="flex items-center gap-2 mb-1.5">
+                  <span x-text="grupo.icono" class="text-sm"></span>
+                  <p class="text-[10px] text-gold uppercase tracking-wide" x-text="grupo.nombre"></p>
+                </div>
+                <div class="flex flex-wrap gap-1.5">
+                  <template x-for="permiso in grupo.permisos" :key="permiso.id">
+                    <span class="text-[10px] px-2 py-0.5 rounded-full"
+                      :class="permiso.activo ? 'bg-st-preparado/20 text-st-preparado' : 'bg-txt-muted/10 text-txt-muted'"
+                      x-text="permiso.nombre"
+                      :title="permiso.rolesOrigen ? 'Desde: ' + permiso.rolesOrigen.join(', ') : ''"></span>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+          
+          <!-- Permisos personalizados del usuario -->
+          <div x-show="isEditing && formUsuario.permisosPersonalizados?.length > 0" class="mt-3 pt-3 border-t border-[rgba(212,175,55,0.15)]">
+            <p class="text-[10px] text-st-libre uppercase tracking-wide mb-1.5">Permisos personalizados</p>
+            <div class="flex flex-wrap gap-1.5">
+              <template x-for="permiso in formUsuario.permisosPersonalizados" :key="permiso.permiso">
+                <span class="text-[10px] px-2 py-0.5 rounded-full"
+                  :class="permiso.permitido ? 'bg-st-libre/20 text-st-libre' : 'bg-st-pagado/20 text-st-pagado'"
+                  x-text="permiso.permiso"></span>
+              </template>
+            </div>
+          </div>
+        </div>
       </div>
       <label class="flex items-center gap-2 text-sm cursor-pointer">
         <input type="checkbox" x-model="formUsuario.activo" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
@@ -219,8 +276,67 @@ function usuariosApp() {
       nombre: '',
       dni: '',
       telefono: '',
-      rol: 'mozos',
-      activo: true
+      roles: ['mozos'],
+      activo: true,
+      permisosPersonalizados: []
+    },
+    mostrarPermisos: false,
+    
+    // Definición de permisos por rol
+    PERMISOS_POR_ROL: {
+      admin: {
+        'Backend/Dashboard': ['ver-mesas', 'editar-mesas', 'juntar-separar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas', 'ver-clientes', 'editar-clientes', 'ver-mozos', 'editar-mozos', 'gestionar-roles', 'ver-auditoria', 'ver-reportes', 'cierre-caja', 'ver-notificaciones'],
+        'App Mozos': ['crear-comandas', 'editar-comandas', 'eliminar-platos-comandas', 'procesar-pagos', 'asociar-clientes'],
+        'App Cocina': ['ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas']
+      },
+      supervisor: {
+        'Backend/Dashboard': ['ver-mesas', 'editar-mesas', 'juntar-separar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas', 'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria', 'ver-reportes', 'cierre-caja', 'ver-notificaciones'],
+        'App Mozos': ['crear-comandas', 'editar-comandas', 'procesar-pagos', 'asociar-clientes'],
+        'App Cocina': ['ver-comandas-cocina']
+      },
+      cocinero: {
+        'Backend/Dashboard': ['ver-platos'],
+        'App Cocina': ['ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas']
+      },
+      mozos: {
+        'Backend/Dashboard': ['ver-platos', 'ver-clientes'],
+        'App Mozos': ['crear-comandas', 'editar-comandas', 'asociar-clientes']
+      },
+      capitanMozos: {
+        'Backend/Dashboard': ['ver-platos', 'ver-clientes'],
+        'App Mozos': ['crear-comandas', 'editar-comandas', 'eliminar-platos-comandas', 'procesar-pagos', 'asociar-clientes']
+      },
+      cajero: {
+        'Backend/Dashboard': ['ver-platos', 'ver-clientes', 'cierre-caja'],
+        'App Mozos': ['procesar-pagos', 'asociar-clientes']
+      }
+    },
+    
+    PERMISOS_NOMBRES: {
+      'ver-mesas': 'Ver Mesas',
+      'editar-mesas': 'Editar Mesas',
+      'juntar-separar-mesas': 'Juntar/Separar Mesas',
+      'ver-platos': 'Ver Platos',
+      'editar-platos': 'Editar Platos',
+      'ver-areas': 'Ver Áreas',
+      'editar-areas': 'Editar Áreas',
+      'ver-clientes': 'Ver Clientes',
+      'editar-clientes': 'Editar Clientes',
+      'ver-mozos': 'Ver Mozos',
+      'editar-mozos': 'Editar Mozos',
+      'gestionar-roles': 'Gestionar Roles',
+      'ver-auditoria': 'Ver Auditoría',
+      'ver-reportes': 'Ver Reportes',
+      'cierre-caja': 'Cierre de Caja',
+      'ver-notificaciones': 'Ver Notificaciones',
+      'crear-comandas': 'Crear Comandas',
+      'editar-comandas': 'Editar Comandas',
+      'eliminar-platos-comandas': 'Eliminar Platos/Comandas',
+      'procesar-pagos': 'Procesar Pagos',
+      'asociar-clientes': 'Asociar Clientes',
+      'ver-comandas-cocina': 'Ver Comandas Cocina',
+      'cambiar-estados-platos': 'Cambiar Estados',
+      'revertir-comandas': 'Revertir Comandas'
     },
     activeNav: 'usuarios',
     pageTitle: 'Usuarios',
@@ -260,7 +376,8 @@ function usuariosApp() {
         dni: m.DNI?.toString() || m.dni || '—',
         telefono: m.phoneNumber?.toString() || m.telefono || m.tel || '—',
         activo: m.activo ?? m.isActive ?? true,
-        rol: m.rol || 'mozos'
+        roles: m.roles || (m.rol ? [m.rol] : ['mozos']),
+        rol: m.rol || (m.roles?.[0] || 'mozos')
       }));
       this.loading = false;
     },
@@ -270,7 +387,9 @@ function usuariosApp() {
         const matchBusqueda = !this.busqueda || 
           u.nombre?.toLowerCase().includes(this.busqueda.toLowerCase()) ||
           u.dni?.toString().includes(this.busqueda);
-        const matchRol = !this.filtroRol || u.rol === this.filtroRol;
+        const matchRol = !this.filtroRol || 
+          (u.roles && u.roles.includes(this.filtroRol)) || 
+          u.rol === this.filtroRol;
         const matchEstado = !this.filtroEstado || 
           (this.filtroEstado === 'activo' && u.activo !== false) ||
           (this.filtroEstado === 'inactivo' && u.activo === false);
@@ -291,22 +410,114 @@ function usuariosApp() {
       return rolEncontrado?.color || 'st-libre';
     },
     
+    getPermisosRol(rol) {
+      const permisosRol = this.PERMISOS_POR_ROL[rol] || {};
+      const todos = [];
+      Object.values(permisosRol).forEach(lista => todos.push(...lista));
+      return todos;
+    },
+    
+    getPermisosAgrupados(rol) {
+      const permisosRol = this.PERMISOS_POR_ROL[rol] || {};
+      const grupos = [];
+      for (const [nombreGrupo, permisos] of Object.entries(permisosRol)) {
+        grupos.push({
+          nombre: nombreGrupo,
+          icono: nombreGrupo.includes('Dashboard') ? '📊' : nombreGrupo.includes('Mozos') ? '📱' : '🍳',
+          permisos: permisos.map(p => ({
+            id: p,
+            nombre: this.PERMISOS_NOMBRES[p] || p,
+            activo: true,
+            rolesOrigen: [rol]
+          }))
+        });
+      }
+      return grupos;
+    },
+    
+    getPermisosRolesSeleccionados() {
+      const roles = this.formUsuario.roles || [];
+      const todos = new Set();
+      roles.forEach(rol => {
+        this.getPermisosRol(rol).forEach(p => todos.add(p));
+      });
+      return Array.from(todos);
+    },
+    
+    getPermisosAgrupadosRoles(roles) {
+      if (!roles || roles.length === 0) return [];
+      
+      // Combinar permisos de todos los roles
+      const permisosCombinados = {};
+      
+      roles.forEach(rol => {
+        const permisosRol = this.PERMISOS_POR_ROL[rol] || {};
+        for (const [nombreGrupo, permisos] of Object.entries(permisosRol)) {
+          if (!permisosCombinados[nombreGrupo]) {
+            permisosCombinados[nombreGrupo] = {};
+          }
+          permisos.forEach(p => {
+            if (!permisosCombinados[nombreGrupo][p]) {
+              permisosCombinados[nombreGrupo][p] = {
+                id: p,
+                nombre: this.PERMISOS_NOMBRES[p] || p,
+                activo: true,
+                rolesOrigen: []
+              };
+            }
+            permisosCombinados[nombreGrupo][p].rolesOrigen.push(rol);
+          });
+        }
+      });
+      
+      // Convertir a array de grupos
+      const grupos = [];
+      for (const [nombreGrupo, permisos] of Object.entries(permisosCombinados)) {
+        grupos.push({
+          nombre: nombreGrupo,
+          icono: nombreGrupo.includes('Dashboard') ? '📊' : nombreGrupo.includes('Mozos') ? '📱' : '🍳',
+          permisos: Object.values(permisos)
+        });
+      }
+      return grupos;
+    },
+    
+    toggleRol(rolNombre) {
+      if (!this.formUsuario.roles) {
+        this.formUsuario.roles = [];
+      }
+      const index = this.formUsuario.roles.indexOf(rolNombre);
+      if (index > -1) {
+        // No permitir quitar el último rol
+        if (this.formUsuario.roles.length > 1) {
+          this.formUsuario.roles.splice(index, 1);
+        }
+      } else {
+        this.formUsuario.roles.push(rolNombre);
+      }
+    },
+    
     openCreateModal() {
       this.isEditing = false;
-      const rolDefecto = this.roles.length > 0 ? this.roles[0].nombre : 'mozos';
-      this.formUsuario = { _id: null, nombre: '', dni: '', telefono: '', rol: rolDefecto, activo: true };
+      this.mostrarPermisos = false;
+      const rolDefecto = this.roles.length > 0 ? [this.roles[0].nombre] : ['mozos'];
+      this.formUsuario = { _id: null, nombre: '', dni: '', telefono: '', roles: rolDefecto, activo: true, permisosPersonalizados: [] };
       this.modal = true;
     },
     
     openEditModal(m) {
       this.isEditing = true;
+      this.mostrarPermisos = false;
+      // Soportar tanto el campo 'roles' (array) como 'rol' (string único)
+      const rolesUsuario = m.roles || (m.rol ? [m.rol] : ['mozos']);
       this.formUsuario = {
         _id: m._id,
         nombre: m.nombre || m.name || '',
         dni: m.dni || m.DNI?.toString() || '',
         telefono: m.telefono || m.phoneNumber?.toString() || '',
-        rol: m.rol || 'mozos',
-        activo: m.activo !== false
+        roles: rolesUsuario,
+        activo: m.activo !== false,
+        permisosPersonalizados: m.permisos || []
       };
       this.modal = true;
     },
@@ -322,12 +533,18 @@ function usuariosApp() {
         return;
       }
       
+      if (!this.formUsuario.roles || this.formUsuario.roles.length === 0) {
+        this.showToast('Debe seleccionar al menos un rol', 'error');
+        return;
+      }
+      
       const isEdit = !!this.formUsuario._id;
       const body = {
         name: this.formUsuario.nombre,
         DNI: parseInt(this.formUsuario.dni) || 0,
         phoneNumber: parseInt(this.formUsuario.telefono) || 0,
-        rol: this.formUsuario.rol,
+        roles: this.formUsuario.roles,
+        rol: this.formUsuario.roles[0], // Rol principal (compatibilidad)
         activo: this.formUsuario.activo,
       };
       
