@@ -821,3 +821,70 @@ window.MesaAPI = MesaAPI;
 window.BoucherAPI = BoucherAPI;
 window.CierreCajaAPI = CierreCajaAPI;
 window.ConfiguracionAPI = ConfiguracionAPI;
+
+// ============================================
+// TOPBAR PROFILE COMPONENT
+// ============================================
+function topbarProfile() {
+  return {
+    open: false,
+    user: {
+      nombre: 'Admin Principal',
+      email: 'admin@lasgambusinas.com',
+      rol: 'Administrador',
+      foto: null,
+      iniciales: 'A'
+    },
+    sessionStart: Date.now(),
+    sessionTime: '0m',
+    
+    async init() {
+      await this.loadUserProfile();
+      this.updateSessionTime();
+      setInterval(() => this.updateSessionTime(), 60000);
+    },
+    
+    async loadUserProfile() {
+      try {
+        const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+        if (!token) return;
+        
+        const data = await apiGet('/admin/auth/me');
+        if (data && data.usuario) {
+          this.user.nombre = data.usuario.nombre + (data.usuario.apellido ? ' ' + data.usuario.apellido : '');
+          this.user.email = data.usuario.email || '';
+          this.user.rol = data.usuario.rol?.nombre || 'Usuario';
+          this.user.foto = data.usuario.foto || null;
+          this.user.iniciales = this.getInitials(data.usuario.nombre, data.usuario.apellido);
+        }
+      } catch (e) {
+        console.error('Error cargando perfil en topbar:', e);
+      }
+    },
+    
+    getInitials(nombre, apellido) {
+      if (!nombre) return 'A';
+      const n = nombre.charAt(0).toUpperCase();
+      const a = apellido ? apellido.charAt(0).toUpperCase() : '';
+      return (n + a) || n;
+    },
+    
+    updateSessionTime() {
+      const diff = Date.now() - this.sessionStart;
+      const mins = Math.floor(diff / 60000);
+      const hours = Math.floor(mins / 60);
+      if (hours > 0) {
+        this.sessionTime = `${hours}h ${mins % 60}m`;
+      } else {
+        this.sessionTime = `${mins}m`;
+      }
+    },
+    
+    logout() {
+      localStorage.removeItem('adminToken');
+      sessionStorage.removeItem('adminToken');
+      window.location.href = '/login.html';
+    }
+  };
+}
+window.topbarProfile = topbarProfile;

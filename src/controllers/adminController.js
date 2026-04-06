@@ -367,5 +367,156 @@ router.post('/admin/cocina/auth', async (req, res) => {
     }
 });
 
+/**
+ * GET /api/admin/auth/me
+ * Obtener información del usuario autenticado (para topbar y perfil)
+ */
+router.get('/admin/auth/me', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'Token no proporcionado' });
+        }
+        
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, JWT_SECRET);
+        
+        const mozoConRol = await rolesRepository.obtenerMozoConRol(decoded.id);
+        
+        if (!mozoConRol) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+        
+        // Separar nombre y apellido
+        const nombreCompleto = mozoConRol.name || '';
+        const partes = nombreCompleto.trim().split(/\s+/);
+        const nombre = partes[0] || '';
+        const apellido = partes.slice(1).join(' ') || '';
+        
+        res.json({
+            success: true,
+            usuario: {
+                id: decoded.id,
+                nombre: nombre,
+                apellido: apellido,
+                email: mozoConRol.email || '',
+                telefono: mozoConRol.telefono || '',
+                rol: {
+                    nombre: mozoConRol.rol || 'Usuario',
+                    permisos: mozoConRol.permisosEfectivos || []
+                },
+                foto: mozoConRol.foto || null,
+                area: mozoConRol.area?.nombre || 'General',
+                fechaIngreso: mozoConRol.createdAt || null,
+                activo: mozoConRol.activo !== false
+            }
+        });
+        
+    } catch (error) {
+        logger.error('Error al obtener usuario actual', { 
+            error: error.message 
+        });
+        res.status(401).json({ error: 'Token inválido o expirado' });
+    }
+});
+
+/**
+ * PUT /api/admin/auth/perfil
+ * Actualizar perfil del usuario autenticado
+ */
+router.put('/admin/auth/perfil', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'Token no proporcionado' });
+        }
+        
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, JWT_SECRET);
+        
+        const { nombre, apellido, email, telefono, dosFactores } = req.body;
+        
+        // Actualizar en la base de datos
+        const Mozo = require('../database/models/mozos.model');
+        const nombreCompleto = `${nombre || ''} ${apellido || ''}`.trim();
+        
+        const actualizado = await Mozo.findByIdAndUpdate(
+            decoded.id,
+            {
+                name: nombreCompleto || decoded.name,
+                email: email || '',
+                telefono: telefono || '',
+                dosFactores: dosFactores || false
+            },
+            { new: true }
+        );
+        
+        if (!actualizado) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+        
+        logger.info('Perfil actualizado', { mozoId: decoded.id });
+        
+        res.json({
+            success: true,
+            message: 'Perfil actualizado correctamente',
+            usuario: {
+                nombre: nombre,
+                apellido: apellido,
+                email: email,
+                telefono: telefono,
+                dosFactores: dosFactores
+            }
+        });
+        
+    } catch (error) {
+        logger.error('Error al actualizar perfil', { 
+            error: error.message 
+        });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+/**
+ * POST /api/admin/usuarios/perfil/foto
+ * Subir foto de perfil
+ */
+router.post('/admin/usuarios/perfil/foto', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'Token no proporcionado' });
+        }
+        
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, JWT_SECRET);
+        
+        // Aquí iría la lógica de subida de archivo
+        // Por ahora retornamos un placeholder
+        const fotoUrl = `/uploads/perfil/${decoded.id}.jpg`;
+        
+        // Actualizar en BD
+        const Mozo = require('../database/models/mozos.model');
+        await Mozo.findByIdAndUpdate(decoded.id, { foto: fotoUrl });
+        
+        logger.info('Foto de perfil actualizada', { mozoId: decoded.id });
+        
+        res.json({
+            success: true,
+            fotoUrl: fotoUrl,
+            message: 'Foto de perfil actualizada'
+        });
+        
+    } catch (error) {
+        logger.error('Error al subir foto de perfil', { 
+            error: error.message 
+        });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
 module.exports = router;
 

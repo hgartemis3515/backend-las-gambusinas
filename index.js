@@ -116,9 +116,6 @@ app.use(cors({
   credentials: true
 }));
 
-// propinaRoutes cerca del inicio: evita que otra ruta genérica intercepte /propinas/*
-const routes = [mesasRoutes, mozosRoutes, propinaRoutes, metasMozosRoutes, platoRoutes, comandaRoutes, pedidoRoutes, areaRoutes, boucherRoutes, clientesRoutes, auditoriaRoutes, cierreCajaRoutes, cierreCajaRestauranteRoutes, adminRoutes, notificacionesRoutes, mensajesRoutes, reportesRoutes, rolesRoutes, configuracionRoutes, cocinerosRoutes, zonaRoutes, procesamientoRoutes, reservaRoutes, complementosPlantillaRoutes];
-
 // FASE 7: Security Headers (Helmet.js)
 const helmet = require('helmet');
 app.use(helmet({
@@ -185,7 +182,32 @@ app.use(helmet({
 app.use(logger.correlationMiddleware);
 
 app.use(express.json({ limit: '10mb' }));
-app.use('/api',routes);
+
+// Montar rutas de API individualmente
+app.use('/api', mesasRoutes);
+app.use('/api', mozosRoutes);
+app.use('/api', propinaRoutes);
+app.use('/api', metasMozosRoutes);
+app.use('/api', platoRoutes);
+app.use('/api', comandaRoutes);
+app.use('/api', pedidoRoutes);
+app.use('/api', areaRoutes);
+app.use('/api', boucherRoutes);
+app.use('/api', clientesRoutes);
+app.use('/api', auditoriaRoutes);
+app.use('/api', cierreCajaRoutes);
+app.use('/api', cierreCajaRestauranteRoutes);
+app.use('/api', adminRoutes);
+app.use('/api', notificacionesRoutes);
+app.use('/api', mensajesRoutes);
+app.use('/api', reportesRoutes);
+app.use('/api', rolesRoutes);
+app.use('/api', configuracionRoutes);
+app.use('/api', cocinerosRoutes);
+app.use('/api', zonaRoutes);
+app.use('/api', procesamientoRoutes);
+app.use('/api', reservaRoutes);
+app.use('/api', complementosPlantillaRoutes);
 
 // Servir archivos estáticos desde la carpeta public
 app.use(express.static(path.join(__dirname, 'public')));
