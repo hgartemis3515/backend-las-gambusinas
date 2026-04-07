@@ -1,10 +1,10 @@
 # 🖥️ Documentación Completa - Backend Las Gambusinas
 
-**Versión:** 2.19  
+**Versión:** 2.20  
 **Última Actualización:** Abril 2026  
 **Tecnología:** Node.js + Express + MongoDB + Socket.io + Redis
 
-**Propósito del documento:** Análisis completo del backend de Las Gambusinas: arquitectura, flujo de datos, carga de datos, endpoints, modelos MongoDB, WebSockets, caché, logging, integración con App Mozos, App Cocina, Dashboard Administrativo y módulo de Cocineros con configuración KDS. Documento alineado con el codebase actual (marzo 2026).
+**Propósito del documento:** Análisis completo del backend de Las Gambusinas: arquitectura, flujo de datos, carga de datos, endpoints, modelos MongoDB, WebSockets, caché, logging, integración con App Mozos, App Cocina, Dashboard Administrativo y módulo de Cocineros con configuración KDS. Documento alineado con el codebase actual (abril 2026). Incluye sistema de notificaciones para App de Mozos y endpoint de push tokens.
 
 ---
 
@@ -40,6 +40,7 @@ Crear un ecosistema digital completo que permita:
 
 | Fecha        | Cambios                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Abril 2026   | **Sistema de Notificaciones para App de Mozos:** Nueva sección completa documentando eventos Socket.io hacia el namespace `/mozos`: eventos de platos (`plato-actualizado`, `plato-actualizado-batch`, `plato-anulado`), eventos de comandas (`nueva-comanda`, `comanda-actualizada`, `comanda-eliminada`, `comanda-revertida`, `comanda-finalizada`, `comanda-anulada`), eventos de mesas (`mesa-actualizada`, `mesas-juntadas`, `mesas-separadas`, `mapa-actualizado`), eventos de reservas y propinas. Diagrama de flujo de notificaciones. Endpoint `POST /api/mozos/push-token` para registrar tokens Expo Push. Campos agregados al modelo `mozos.model.js`: `pushToken`, `pushPlatform`, `pushDeviceId`, `pushTokenUpdatedAt`. Requisitos para implementar push con Firebase Cloud Messaging. |
 | Abril 2026   | **Sistema de Notificaciones del Dashboard:** Nueva sección completa documentando el sistema de notificaciones en tiempo real: modelo `Notificacion` con 6 tipos (sistema, comanda, mesa, pago, alerta, auditoria); controller con 6 endpoints REST y servicio interno `NotificacionService`; frontend con clase `NotificacionesDashboard` (WebSocket + polling fallback); integración con Socket.io namespace `/admin`; permiso `ver-notificaciones` para admin/supervisor; notificaciones automáticas para comandas, pagos, alertas de mesa y eventos de auditoría; UI con dropdown, badge contador, toasts y tiempo transcurrido. |
 | Abril 2026   | **Documentación de Usuarios, Roles y Permisos:** Nueva sección completa documentando el modelo unificado de personal (`mozos.model.js`), roles disponibles (admin, supervisor, cocinero, mozos, capitanMozos, cajero), 24 permisos fundamentales agrupados por aplicación, autenticación JWT (HTTP y Socket.io), autorización por namespace, y acceso detallado para App Mozos, App Cocina y Dashboard. Referencia a documento dedicado `docs/USUARIOS_ROLES_PERMISOS.md`. |
 | Marzo 2026   | **Voucher sincronizado con App de Mozos:** Sincronización bidireccional de plantillas de voucher entre backend y App Mozos. El app ahora genera PDFs usando la plantilla configurada en `bouchers.html`. Endpoint `/api/configuracion/voucher-plantilla` devuelve configuración para `expo-print`. |
@@ -5229,6 +5230,207 @@ Todas las acciones relevantes se registran con información del usuario:
 
 Para información completa de usuarios, roles y permisos, ver:
 - **`docs/USUARIOS_ROLES_PERMISOS.md`** - Documentación completa del sistema de autenticación y autorización
+
+---
+
+## 📱 Sistema de Notificaciones para App de Mozos
+
+### Descripción General
+
+El backend emite eventos Socket.io en tiempo real hacia el namespace `/mozos` para notificar al App de Mozos sobre cambios de estado, nuevas comandas, actualizaciones de platos desde cocina, y otros eventos relevantes para la operación en sala.
+
+### Namespace y Rooms
+
+| Concepto | Valor | Propósito |
+|----------|-------|-----------|
+| **Namespace** | `/mozos` | Todos los mozos conectados |
+| **Room por mesa** | `mesa-{mesaId}` | Mozos viendo una mesa específica |
+| **Room por mozo** | `mozo-{mozoId}` | Notificaciones personales |
+
+### Eventos Emitidos hacia App de Mozos
+
+#### 1. Eventos de Platos (desde App Cocina)
+
+| Evento | Cuándo se emite | Datos | Acción App Mozos |
+|--------|-----------------|-------|------------------|
+| `plato-actualizado` | Cocina cambia estado de plato | `{ comandaId, platoId, nuevoEstado, estadoAnterior, mesaId, timestamp }` | Actualizar UI, mostrar alerta si `nuevoEstado === 'recoger'` |
+| `plato-actualizado-batch` | Múltiples platos en lote | `{ comandaId, platos: [{ platoId, nuevoEstado }], mesaId }` | Actualizar todos los platos del batch |
+| `plato-anulado` | Cocina anula un plato | `{ comandaId, comanda, platoAnulado, auditoria, timestamp }` | Mostrar alerta al mozo |
+| `plato-entregado` | Mozo marca como entregado | `{ comandaId, platoId, platoNombre, timestamp }` | Actualizar estado local |
+
+#### 2. Eventos de Comandas
+
+| Evento | Cuándo se emite | Datos | Acción App Mozos |
+|--------|-----------------|-------|------------------|
+| `nueva-comanda` | Se crea comanda | `{ comanda, comandaId, timestamp }` | Agregar a lista, actualizar mesa |
+| `comanda-actualizada` | Cualquier cambio en comanda | `{ comandaId, comanda, estadoAnterior, estadoNuevo }` | Reemplazar comanda, recalcular totales |
+| `comanda-eliminada` | Se elimina comanda | `{ comandaId, mesaId, motivo }` | Remover de lista, navegar si vacío |
+| `comanda-revertida` | Cocina revierte comanda | `{ comanda, mesa }` | Actualizar comanda y mesa |
+| `comanda-finalizada` | Todos los platos entregados | `{ comandaId, comanda, cocinero }` | Habilitar botón de pago |
+| `comanda-anulada` | Cocina anula toda comanda | `{ comandaId, comanda, motivoGeneral, totalAnulado }` | Mostrar alerta con monto |
+
+#### 3. Eventos de Mesas
+
+| Evento | Cuándo se emite | Datos | Acción App Mozos |
+|--------|-----------------|-------|------------------|
+| `mesa-actualizada` | Cambio de estado de mesa | `{ mesaId, mesa, timestamp }` | Merge en lista local |
+| `mesas-juntadas` | Admin/Mozo junta mesas | `{ mesaPrincipal, mesasSecundarias, mozoId, totalMesas }` | Mostrar badge de grupo |
+| `mesas-separadas` | Admin/Mozo separa mesas | `{ mesaPrincipal, mesasSecundarias, totalMesasLiberadas }` | Remover badges |
+| `mapa-actualizado` | Admin guarda editor de mapa | `{ areaId, timestamp }` | Refetch mesas |
+| `catalogo-mesas-areas-actualizado` | Admin crea/edita mesas/áreas | `{ timestamp, razon }` | Refetch mesas y áreas |
+
+#### 4. Eventos de Reservas
+
+| Evento | Cuándo se emite | Datos | Acción App Mozos |
+|--------|-----------------|-------|------------------|
+| `reserva-creada` | Admin crea reserva | `{ reserva, mesaId, timestamp }` | Actualizar mesa a `reservado` |
+| `reserva-actualizada` | Admin modifica reserva | `{ reservaId, cambios }` | Actualizar datos locales |
+| `reserva-expirada` | Reserva expira por timeout | `{ reservaId, reserva }` | Liberar mesa |
+| `reserva-alerta-expiracion` | Reserva próxima a expirar | `{ reservaId, datos }` | Mostrar advertencia |
+| `reserva-cancelada` | Admin cancela reserva | `{ reservaId, motivo }` | Liberar mesa |
+
+#### 5. Eventos de Propinas
+
+| Evento | Cuándo se emite | Datos | Acción App Mozos |
+|--------|-----------------|-------|------------------|
+| `propina-registrada` | Mozo registra propina | `{ propinaId, mesaId, mozoId, montoPropina, tipo }` | Mostrar confirmación |
+| `propina-actualizada` | Admin modifica propina | `{ propinaId, montoPropina }` | Actualizar registro |
+| `propina-eliminada` | Admin elimina propina | `{ propinaId, mozoId }` | Remover de lista |
+
+#### 6. Eventos de Menú
+
+| Evento | Cuándo se emite | Datos | Acción App Mozos |
+|--------|-----------------|-------|------------------|
+| `plato-menu-actualizado` | Admin modifica plato | `{ platoId, plato, cambios }` | Refetch platos |
+
+### Endpoint para Push Tokens
+
+```
+POST /api/mozos/push-token
+```
+
+**Body:**
+```json
+{
+  "mozoId": "65abc123...",
+  "pushToken": "ExponentPushToken[xxxx]",
+  "platform": "android",
+  "deviceId": "abc123"
+}
+```
+
+**Respuesta:**
+```json
+{
+  "success": true,
+  "message": "Token registrado correctamente",
+  "mozoId": "65abc123..."
+}
+```
+
+**Campos del modelo `mozos.model.js` agregados:**
+- `pushToken` - Token Expo Push
+- `pushPlatform` - Plataforma (`android`, `ios`)
+- `pushDeviceId` - ID del dispositivo
+- `pushTokenUpdatedAt` - Timestamp de último registro
+
+### Diagrama de Flujo de Notificaciones
+
+```
+┌─────────────────┐                    ┌─────────────────┐
+│   App Cocina    │                    │    Backend      │
+│                 │                    │                 │
+│  Cambia estado  │─── PUT /plato/estado ───►│            │
+│  de plato a     │                    │  emitPlato-    │
+│  "recoger"      │                    │  Actualizado() │
+│                 │                    │        │        │
+└─────────────────┘                    │        ▼        │
+                                       │  ┌──────────┐   │
+                                       │  │/mozos    │   │
+                                       │  │room:     │   │
+                                       │  │mesa-{id} │   │
+                                       │  └──────────┘   │
+                                       └────────┬────────┘
+                                                │
+                                                ▼
+                                       ┌─────────────────┐
+                                       │   App Mozos     │
+                                       │                 │
+                                       │  socket.on      │
+                                       │  'plato-actuali-│
+                                       │  zado'          │
+                                       │                 │
+                                       │  → Actualizar   │
+                                       │    estado en UI │
+                                       │  → Mostrar      │
+                                       │    alerta       │
+                                       │  → Vibrar       │
+                                       └─────────────────┘
+```
+
+### Implementación en Backend
+
+El archivo `src/socket/events.js` contiene todas las funciones `emitXxx()`:
+
+```javascript
+// Ejemplo: Emitir cuando un plato cambia de estado
+global.emitPlatoActualizado = async (comandaId, platoId, nuevoEstado) => {
+  // Emitir a cocina
+  cocinaNamespace.to(roomName).emit('plato-actualizado', eventData);
+  
+  // Emitir a mozos (broadcast o room específica)
+  mozosNamespace.emit('plato-actualizado', eventData);
+  
+  // Emitir a admin
+  adminNamespace.emit('plato-actualizado', eventData);
+};
+```
+
+### Requisitos para Notificaciones Push
+
+Para implementar notificaciones push reales desde el backend:
+
+1. **Configurar Firebase Cloud Messaging (FCM)**
+   - Crear proyecto en Firebase Console
+   - Agregar `google-services.json` en Android
+   - Configurar credenciales en `.env`
+
+2. **Instalar firebase-admin**
+   ```bash
+   npm install firebase-admin
+   ```
+
+3. **Crear servicio de push**
+   ```javascript
+   // src/services/pushService.js
+   const admin = require('firebase-admin');
+   
+   async function enviarPushAMozo(mozoId, notification) {
+     const mozo = await Mozo.findById(mozoId);
+     if (!mozo?.pushToken) return;
+     
+     await admin.messaging().send({
+       token: mozo.pushToken,
+       notification: {
+         title: notification.title,
+         body: notification.body
+       },
+       data: notification.data
+     });
+   }
+   ```
+
+4. **Integrar en eventos Socket**
+   ```javascript
+   // En emitPlatoActualizado
+   if (nuevoEstado === 'recoger') {
+     await enviarPushAMozo(comanda.mozos[0], {
+       title: '🍽️ Plato Listo',
+       body: `${platoNombre} está listo para recoger`,
+       data: { comandaId, mesaId }
+     });
+   }
+   ```
 
 ---
 

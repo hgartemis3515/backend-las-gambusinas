@@ -99,7 +99,12 @@ const mozosSchema = new mongoose.Schema({
         ref: 'Zona'
     }],
     activo: { type: Boolean, default: true },
-    enTurno: { type: Boolean, default: false }
+    enTurno: { type: Boolean, default: false },
+    // Push notifications (App Mozos)
+    pushToken: { type: String, default: '' },
+    pushPlatform: { type: String, default: '' },
+    pushDeviceId: { type: String, default: '' },
+    pushTokenUpdatedAt: { type: Date, default: null }
 }, {
     timestamps: true,
     toJSON: { virtuals: true },

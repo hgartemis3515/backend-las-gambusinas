@@ -163,4 +163,58 @@ router.post('/mozos/auth', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/mozos/push-token
+ * Registrar token de notificaciones push del App de Mozos
+ * Body: { mozoId, pushToken, platform, deviceId }
+ */
+router.post('/mozos/push-token', async (req, res) => {
+  try {
+    const { mozoId, pushToken, platform, deviceId } = req.body;
+    
+    if (!mozoId || !pushToken) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'mozoId y pushToken son requeridos' 
+      });
+    }
+    
+    const mozosModel = require('../database/models/mozos.model');
+    
+    // Actualizar el mozo con el token de push
+    const mozo = await mozosModel.findByIdAndUpdate(
+      mozoId,
+      {
+        pushToken,
+        pushPlatform: platform || 'unknown',
+        deviceId: deviceId || null,
+        pushTokenUpdatedAt: new Date()
+      },
+      { new: true }
+    );
+    
+    if (!mozo) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Mozo no encontrado' 
+      });
+    }
+    
+    console.log(`✅ Push token registrado para mozo ${mozo.name}:`, pushToken.substring(0, 30) + '...');
+    
+    res.json({ 
+      success: true, 
+      message: 'Token registrado correctamente',
+      mozoId: mozo._id
+    });
+    
+  } catch (error) {
+    console.error('❌ Error al registrar push token:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error interno del servidor' 
+    });
+  }
+});
+
 module.exports = router;
