@@ -122,8 +122,8 @@ tailwind.config = {
               <td class="px-4 py-3">
                 <div class="flex items-center gap-3">
                   <div class="w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center text-gold text-xs font-bold overflow-hidden">
-                    <img x-show="m.foto" :src="m.foto" class="w-full h-full object-cover" alt="">
-                    <span x-show="!m.foto" x-text="m.nombre?.charAt(0)?.toUpperCase() || '?'"></span>
+                    <img x-show="m.fotoUrl || m.foto" :src="m.fotoUrl || m.foto" class="w-full h-full object-cover" alt="">
+                    <span x-show="!(m.fotoUrl || m.foto)" x-text="m.nombre?.charAt(0)?.toUpperCase() || '?'"></span>
                   </div>
                   <span class="font-medium" x-text="m.nombre"></span>
                 </div>
@@ -513,6 +513,8 @@ function usuariosApp() {
     },
     activeNav: 'usuarios',
     pageTitle: 'Usuarios',
+    /** Foto previa en servidor al abrir edición (para detectar borrado) */
+    initialUsuarioFotoUrl: null,
 
     async init() {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
@@ -551,7 +553,7 @@ function usuariosApp() {
         activo: m.activo ?? m.isActive ?? true,
         roles: m.roles || (m.rol ? [m.rol] : ['mozos']),
         rol: m.rol || (m.roles?.[0] || 'mozos'),
-        foto: m.foto || null
+        foto: m.fotoUrl || m.foto || null
       }));
       this.loading = false;
     },
@@ -676,6 +678,7 @@ function usuariosApp() {
       this.modalTab = 'datos';
       this.mostrarPermisos = false;
       this.dragoverFoto = false;
+      this.initialUsuarioFotoUrl = null;
       const rolDefecto = this.roles.length > 0 ? [this.roles[0].nombre] : ['mozos'];
       this.formUsuario = { 
         _id: null, 
@@ -710,6 +713,8 @@ function usuariosApp() {
       
       // Soportar tanto el campo 'roles' (array) como 'rol' (string único)
       const rolesUsuario = m.roles || (m.rol ? [m.rol] : ['mozos']);
+      const fotoServidor = m.fotoUrl || m.foto || null;
+      this.initialUsuarioFotoUrl = fotoServidor;
       this.formUsuario = {
         _id: m._id,
         nombre: nombre,
@@ -719,7 +724,7 @@ function usuariosApp() {
         email: m.email || '',
         roles: rolesUsuario,
         activo: m.activo !== false,
-        foto: m.foto || null,
+        foto: fotoServidor,
         fotoPreview: null,
         dosFactores: m.dosFactores || false,
         permisosPersonalizados: m.permisos || [],
@@ -793,13 +798,18 @@ function usuariosApp() {
       this.saving = true;
       const isEdit = !!this.formUsuario._id;
       
-      // Construir nombre completo
+      // Construir nombre completo (modelo mozos: nombres + apellidos + name)
       const nombreCompleto = `${this.formUsuario.nombre} ${this.formUsuario.apellido}`.trim();
+      const nombres = this.formUsuario.nombre.trim();
+      const apellidos = (this.formUsuario.apellido || '').trim();
+      const telDigits = String(this.formUsuario.telefono || '').replace(/\D/g, '');
       
       const body = {
+        nombres,
+        apellidos,
         name: nombreCompleto,
-        DNI: parseInt(this.formUsuario.dni) || 0,
-        phoneNumber: parseInt(this.formUsuario.telefono) || 0,
+        DNI: parseInt(this.formUsuario.dni, 10) || 0,
+        phoneNumber: parseInt(telDigits, 10) || 0,
         email: this.formUsuario.email || '',
         roles: this.formUsuario.roles,
         rol: this.formUsuario.roles[0], // Rol principal (compatibilidad)
@@ -807,25 +817,18 @@ function usuariosApp() {
         dosFactores: this.formUsuario.dosFactores || false
       };
       
-      // Si hay foto preview, se subirá después
       const fotoPreview = this.formUsuario.fotoPreview;
+      if (fotoPreview) {
+        body.fotoUrl = fotoPreview;
+      } else if (isEdit && !this.formUsuario.foto && this.initialUsuarioFotoUrl) {
+        body.fotoUrl = '';
+      }
       
       const res = isEdit
         ? await apiPut('/mozos/' + this.formUsuario._id, body)
         : await apiPost('/mozos', body);
       
       if (res && !res.error) {
-        // Si hay foto nueva, subirla
-        if (fotoPreview) {
-          try {
-            const usuarioId = isEdit ? this.formUsuario._id : res._id || res.id;
-            // Aquí iría la lógica de subir foto
-            // Por ahora solo guardamos el preview localmente
-          } catch (e) {
-            console.error('Error subiendo foto:', e);
-          }
-        }
-        
         await this.loadUsuarios();
         this.modal = null;
         this.showToast(isEdit ? 'Usuario actualizado ✅' : 'Usuario creado ✅');

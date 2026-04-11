@@ -186,19 +186,19 @@ router.get('/admin/perfil', async (req, res) => {
  */
 router.post('/admin/mozos/auth', async (req, res) => {
     try {
-        const { username, password } = req.body;
+        const username = String(req.body?.username ?? '').trim();
+        const password = String(req.body?.password ?? '').trim();
         
         if (!username || !password) {
-            return res.status(400).json({ error: 'Usuario y contraseña son requeridos' });
+            return res.status(400).json({ error: 'Usuario y DNI son requeridos' });
+        }
+
+        const dniDigits = password.replace(/\D/g, '');
+        if (dniDigits.length < 8) {
+            return res.status(400).json({ error: 'El DNI debe tener 8 dígitos' });
         }
         
-        const dniNumber = parseInt(password, 10);
-        
-        if (isNaN(dniNumber) || dniNumber <= 0) {
-            return res.status(400).json({ error: 'Contraseña inválida' });
-        }
-        
-        const mozo = await autenticarMozo(username, dniNumber);
+        const mozo = await autenticarMozo(username, password);
         
         if (!mozo) {
             return res.status(401).json({ error: 'Credenciales incorrectas' });

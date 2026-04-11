@@ -1,8 +1,34 @@
 const express = require("express");
+const jwt = require("jsonwebtoken");
+const { JWT_SECRET } = require("../middleware/adminAuth");
 
 const router = express.Router();
 
 const { listarMozos, crearMozo, obtenerMozosPorId, actualizarMozo, borrarMozo, autenticarMozo} = require("../repository/mozos.repository");
+
+/** Campos que la app mozos puede editar en su propio perfil (no rol, DNI, PIN, etc.) */
+const MOZO_SELF_PROFILE_KEYS = new Set([
+  "nombres",
+  "apellidos",
+  "name",
+  "phoneNumber",
+  "email",
+  "fechaNacimiento",
+  "genero",
+  "direccion",
+  "contactoEmergenciaNombre",
+  "contactoEmergenciaTelefono",
+  "fotoUrl",
+]);
+
+function filterMozoSelfUpdateBody(body) {
+  const out = {};
+  if (!body || typeof body !== "object") return out;
+  for (const key of MOZO_SELF_PROFILE_KEYS) {
+    if (body[key] !== undefined) out[key] = body[key];
+  }
+  return out;
+}
 
 router.get("/mozos", async (req, res) => {
   const data = await listarMozos();
@@ -74,8 +100,23 @@ router.post('/mozos', async (req, res) => {
 router.put('/mozos/:id', async (req, res) => {
     try{
         const id = req.params.id;
-        const newData = req.body;
-        
+        let newData = { ...req.body };
+
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith("Bearer ")) {
+            try {
+                const decoded = jwt.verify(authHeader.substring(7), JWT_SECRET);
+                if (decoded.app === "mozos") {
+                    if (String(decoded.id) !== String(id)) {
+                        return res.status(403).json({ error: "No puedes modificar el perfil de otro usuario" });
+                    }
+                    newData = filterMozoSelfUpdateBody(newData);
+                }
+            } catch (verifyErr) {
+                return res.status(401).json({ error: "Token inválido o expirado" });
+            }
+        }
+
         const data = await actualizarMozo(id, newData);
         res.json(data);
         console.log("Se actualizó el mozo:", id);

@@ -19,8 +19,11 @@ const listarMozos = async () => {
 const crearMozo = async (data) => {
     await mozos.create(data);
     const todoslosmozos = await listarMozos();
-    // Sincronizar con el archivo JSON
-    await syncJsonFile('mozos.json', todoslosmozos);
+    try {
+        await syncJsonFile('mozos.json', todoslosmozos);
+    } catch (syncErr) {
+        console.error('[mozos] syncJsonFile tras crear (BD ya guardada):', syncErr.message);
+    }
     return todoslosmozos;
 }
 
@@ -74,9 +77,14 @@ const actualizarMozo = async (id, newData) => {
         if (newData.permisos !== undefined) mozo.permisos = newData.permisos;
 
         await mozo.save();
-        const todoslosmozos = await listarMozos();
-        await syncJsonFile('mozos.json', todoslosmozos);
-        return todoslosmozos;
+        const leaf = mozo.toObject ? mozo.toObject() : mozo;
+        try {
+            const todoslosmozos = await listarMozos();
+            await syncJsonFile('mozos.json', todoslosmozos);
+        } catch (syncErr) {
+            console.error('[mozos] syncJsonFile tras actualizar (BD ya guardada):', syncErr.message);
+        }
+        return leaf;
     } catch (error) {
         console.error('Error al actualizar el mozo:', error);
         throw error;
@@ -101,74 +109,96 @@ const borrarMozo = async (id) => {
 };
 
 
-const autenticarMozo = async (name, DNI) => {
+/**
+ * Login mozo: identificador (nombre completo, primer nombre, nombres o usuarioWeb)
+ * + contraseña = DNI (8 dígitos; admite puntos/guiones al pegar).
+ * Si el mozo tiene pinAcceso no vacío en BD, también acepta ese PIN (p. ej. app cocina).
+ */
+const autenticarMozo = async (name, secretRaw) => {
     try {
-        const nameClean = name.trim();
-        const dniNumber = Number(DNI);
-        
-        console.log('🔍 Buscando mozo en BD:');
-        console.log('   - Nombre recibido:', name, '-> Limpiado:', nameClean);
-        console.log('   - DNI recibido:', DNI, 'tipo:', typeof DNI, '-> Convertido:', dniNumber, 'tipo:', typeof dniNumber);
-        
-        // Primero, listar todos los mozos para debug
+        const normalizeName = (s) => String(s || '').trim().replace(/\s+/g, ' ');
+        const nameClean = normalizeName(name);
+        const secretStr = String(secretRaw == null ? '' : secretRaw).trim();
+        if (!nameClean || !secretStr) {
+            return null;
+        }
+
+        const nameKey = (s) => normalizeName(s).toLowerCase();
+        const targetKey = nameKey(nameClean);
+
         const todosLosMozos = await mozos.find({});
-        console.log('📋 Total de mozos en BD:', todosLosMozos.length);
-        todosLosMozos.forEach(m => {
-            console.log(`   - ${m.name} (DNI: ${m.DNI}, tipo: ${typeof m.DNI})`);
-        });
-        
-        const secretStr = String(DNI).trim();
-        const dniParsed = parseInt(secretStr, 10);
-        const secretIsPureDigits = /^\d+$/.test(secretStr);
-        const dniMatches = secretIsPureDigits && !isNaN(dniParsed) && String(dniParsed) === secretStr;
 
-        let Mozo = await mozos.findOne({
-            name: nameClean,
-            DNI: dniNumber
-        });
-
-        if (!Mozo) {
-            console.log('⚠️ No se encontró con búsqueda exacta, intentando case-insensitive + PIN/DNI...');
-            const re = new RegExp('^' + escapeRegex(nameClean) + '$', 'i');
-            const candidatos = todosLosMozos.filter(m => re.test(String(m.name || '').trim()));
-            Mozo = candidatos.find(m => {
-                const pinOk = m.pinAcceso && String(m.pinAcceso).trim() === secretStr;
-                const dniOk = dniMatches && Number(m.DNI) === dniParsed;
-                return pinOk || dniOk;
-            }) || null;
-        } else {
-            const pinOk = Mozo.pinAcceso && String(Mozo.pinAcceso).trim() === secretStr;
-            const dniOk = dniMatches && Number(Mozo.DNI) === dniParsed;
-            if (!pinOk && !dniOk) {
-                Mozo = null;
+        const collectCandidatos = () => {
+            const byId = new Map();
+            const add = (m) => {
+                if (m && m._id) byId.set(String(m._id), m);
+            };
+            for (const m of todosLosMozos) {
+                const full = nameKey(m.name);
+                if (full === targetKey) {
+                    add(m);
+                    continue;
+                }
+                const nom = nameKey(m.nombres || '');
+                if (nom && nom === targetKey) {
+                    add(m);
+                    continue;
+                }
+                const uw = nameKey(m.usuarioWeb || '');
+                if (uw && uw === targetKey) {
+                    add(m);
+                    continue;
+                }
+                const parts = full.split(' ').filter(Boolean);
+                const first = parts[0];
+                if (first === targetKey && targetKey.length >= 2) {
+                    add(m);
+                }
             }
-        }
-        
-        if (Mozo) {
-            console.log('✅ Mozo encontrado:');
-            console.log('   - Nombre:', Mozo.name);
-            console.log('   - DNI guardado:', Mozo.DNI, 'tipo:', typeof Mozo.DNI);
-            console.log('   - ID:', Mozo._id);
-        } else {
-            console.log('❌ Mozo no encontrado con esos criterios');
-            // Buscar solo por nombre para debug
-            const mozoPorNombre = todosLosMozos.find(m => 
-                m.name.toLowerCase().trim() === nameClean.toLowerCase()
+            return Array.from(byId.values());
+        };
+
+        const candidatos = collectCandidatos();
+
+        const dniDigitsFromSecret = secretStr.replace(/\D/g, '');
+        const secretIsOnlyDigits = /^\d+$/.test(secretStr);
+        const dniParsedFromSecret =
+            dniDigitsFromSecret.length >= 8 && /^\d+$/.test(dniDigitsFromSecret)
+                ? parseInt(dniDigitsFromSecret, 10)
+                : secretIsOnlyDigits && secretStr.length >= 8
+                  ? parseInt(secretStr, 10)
+                  : NaN;
+
+        const dniMatchesDoc = (m) => {
+            if (m.DNI === undefined || m.DNI === null || m.DNI === '') return false;
+            const n = Number(m.DNI);
+            if (!Number.isNaN(n) && !Number.isNaN(dniParsedFromSecret) && n === dniParsedFromSecret) {
+                return true;
+            }
+            const docDigits = String(m.DNI).replace(/\D/g, '');
+            return (
+                docDigits.length > 0 &&
+                dniDigitsFromSecret.length > 0 &&
+                docDigits === dniDigitsFromSecret
             );
-            if (mozoPorNombre) {
-                console.log('⚠️ Se encontró un mozo con ese nombre pero DNI diferente:');
-                console.log('   - Nombre en BD:', mozoPorNombre.name);
-                console.log('   - DNI en BD:', mozoPorNombre.DNI, 'tipo:', typeof mozoPorNombre.DNI);
-                console.log('   - DNI buscado:', dniNumber, 'tipo:', typeof dniNumber);
-                console.log('   - ¿Son iguales?', mozoPorNombre.DNI === dniNumber);
-                console.log('   - ¿Son iguales (Number)?', Number(mozoPorNombre.DNI) === Number(dniNumber));
-            } else {
-                console.log('❌ No existe ningún mozo con ese nombre');
+        };
+
+        const secretMatchesMozo = (m) => {
+            const pin = m.pinAcceso != null ? String(m.pinAcceso).trim() : '';
+            if (pin && pin === secretStr) {
+                return true;
+            }
+            return !Number.isNaN(dniParsedFromSecret) && dniMatchesDoc(m);
+        };
+
+        for (const m of candidatos) {
+            if (secretMatchesMozo(m)) {
+                return m;
             }
         }
 
-        return Mozo;
-    }catch(error){
+        return null;
+    } catch (error) {
         console.error('❌ Error al autenticar usuario', error);
         throw error;
     }
