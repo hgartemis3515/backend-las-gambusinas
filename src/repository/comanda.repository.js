@@ -164,6 +164,65 @@ const sanitizarHistorialPlatos = (historialPlatos) => {
   }));
 };
 
+/**
+ * Comandas antiguas o sin populate pueden tener `mozos` como ObjectId o objeto sin `name`.
+ * Rellena `mozoNombre` y `mozos.name` en batch (mapa de mesas / cocina / sync).
+ */
+const enrichComandasMozoNombre = async (comandas) => {
+  if (!Array.isArray(comandas) || comandas.length === 0) return comandas;
+  const mozosModel = require('../database/models/mozos.model');
+
+  const tieneNombreEnComanda = (c) => {
+    const dn = c.mozoNombre && String(c.mozoNombre).trim();
+    if (dn) return true;
+    const m = c.mozos;
+    if (m && typeof m === 'object' && (m.name || m.nombre)) return true;
+    return false;
+  };
+
+  const idsNeeded = new Set();
+  for (const c of comandas) {
+    if (tieneNombreEnComanda(c)) continue;
+    const m = c.mozos;
+    if (m && mongoose.Types.ObjectId.isValid(String(m)) && String(m).length === 24) {
+      idsNeeded.add(String(m));
+    } else if (m && typeof m === 'object' && m._id && !(m.name || m.nombre)) {
+      const sid = String(m._id);
+      if (mongoose.Types.ObjectId.isValid(sid) && sid.length === 24) idsNeeded.add(sid);
+    }
+  }
+  if (idsNeeded.size === 0) return comandas;
+
+  const idArr = [...idsNeeded];
+  const docs = await mozosModel.find({ _id: { $in: idArr } }).select('name').lean();
+  const byId = {};
+  for (const doc of docs) {
+    byId[String(doc._id)] = doc.name || '';
+  }
+
+  for (const c of comandas) {
+    if (tieneNombreEnComanda(c)) continue;
+    let id = null;
+    const m = c.mozos;
+    if (m && mongoose.Types.ObjectId.isValid(String(m)) && String(m).length === 24) {
+      id = String(m);
+    } else if (m && typeof m === 'object' && m._id) {
+      const sid = String(m._id);
+      if (mongoose.Types.ObjectId.isValid(sid) && sid.length === 24) id = sid;
+    }
+    if (!id) continue;
+    const name = byId[id];
+    if (!name) continue;
+    if (!c.mozoNombre) c.mozoNombre = name;
+    if (!c.mozos || typeof c.mozos !== 'object') {
+      c.mozos = { _id: id, name };
+    } else if (!c.mozos.name) {
+      c.mozos.name = name;
+    }
+  }
+  return comandas;
+};
+
 // Función helper para asegurar que los platos estén populados
 const ensurePlatosPopulated = async (comandas) => {
   try {
@@ -2308,6 +2367,8 @@ const listarComandaPorFechaEntregado = async (fecha, usarProyeccion = true) => {
       }
       return comanda;
     });
+
+    await enrichComandasMozoNombre(dataProcesada);
     
     const elapsedMs = Date.now() - startTime;
     console.log(`✅ [FASE A1] Encontradas ${dataProcesada.length} comandas en ${elapsedMs}ms`);
@@ -2401,6 +2462,8 @@ const listarComandaPorFecha = async (fecha, usarProyeccion = true) => {
       }
       return comanda;
     });
+
+    await enrichComandasMozoNombre(dataProcesada);
     
     const elapsedMs = Date.now() - startTime;
     console.log(`✅ [FASE A1] Encontradas ${dataProcesada.length} comandas para la fecha ${fecha} en ${elapsedMs}ms`);
@@ -3764,6 +3827,7 @@ module.exports = {
   importarComandasDesdeJSON,
   buildPlatoIdToObjectIdMap,
   ensurePlatosPopulated,
+  enrichComandasMozoNombre,
   marcarPlatoComoEntregado,
   recalcularEstadoComandaPorPlatos,
   actualizarComandaSiTodosEntregados,

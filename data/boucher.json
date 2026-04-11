@@ -246,5 +246,229 @@
     "createdAt": "2026-04-03T07:42:27.745Z",
     "updatedAt": "2026-04-03T07:42:27.745Z",
     "boucherNumber": 160
+  },
+  {
+    "configuracionIGV": {
+      "igvPorcentaje": 18,
+      "preciosIncluyenIGV": true,
+      "nombreImpuesto": "IGV",
+      "moneda": "PEN",
+      "simboloMoneda": "S/."
+    },
+    "_id": "69d9b83401ceb6c962da1238",
+    "voucherId": "KUX92",
+    "mesa": "69860a415e59135b4d2c56c1",
+    "numMesa": 1,
+    "mozo": "69a51896782a5785d39b1232",
+    "nombreMozo": "Juan",
+    "cliente": "69d9b83301ceb6c962da11f3",
+    "usadoEnComanda": null,
+    "fechaUso": null,
+    "comandas": [
+      "69d0a9012b1a08cece0fda02"
+    ],
+    "comandasNumbers": [
+      543
+    ],
+    "platos": [
+      {
+        "plato": "6992b9dad845b119c1d00ca2",
+        "platoId": 64,
+        "nombre": "1 sabor (1/4 pollo o 1/4 cerdo o 1/4 res)",
+        "precio": 33,
+        "cantidad": 1,
+        "subtotal": 33,
+        "comandaNumber": 543,
+        "complementosSeleccionados": [
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "1/4 res",
+            "_id": "69d0a9012b1a08cece0fda04"
+          }
+        ],
+        "cocinero": "Josemanuel",
+        "cocineroId": "69d20581e6d4be3beaf2ca88",
+        "tiempoPreparacion": "8667:48",
+        "_id": "69d9b83401ceb6c962da1239"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00ca3",
+        "platoId": 65,
+        "nombre": "2 sabores (1/4 pollo 250 gr cerdo o 250 gr res)",
+        "precio": 55,
+        "cantidad": 1,
+        "subtotal": 55,
+        "comandaNumber": 543,
+        "complementosSeleccionados": [
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "250 gr cerdo",
+            "_id": "69d0a9012b1a08cece0fda06"
+          },
+          {
+            "grupo": "Sabores Pachamanca",
+            "opcion": "250 gr res",
+            "_id": "69d0a9012b1a08cece0fda07"
+          }
+        ],
+        "cocinero": "Josemanuel",
+        "cocineroId": "69d20581e6d4be3beaf2ca88",
+        "tiempoPreparacion": "8667:12",
+        "_id": "69d9b83401ceb6c962da123b"
+      }
+    ],
+    "subtotal": 74.58,
+    "igv": 13.42,
+    "total": 88,
+    "descuentos": [],
+    "totalSinDescuento": 88,
+    "montoDescuento": 0,
+    "totalConDescuento": 88,
+    "observaciones": "",
+    "fechaPedido": "2026-04-04T06:00:33.487Z",
+    "fechaPago": "2026-04-11T02:55:48.246Z",
+    "fechaPagoString": "10/04/2026 21:55:48",
+    "isActive": true,
+    "createdAt": "2026-04-11T02:55:48.252Z",
+    "updatedAt": "2026-04-11T02:55:48.252Z",
+    "boucherNumber": 161
+  },
+  {
+    "configuracionIGV": {
+      "igvPorcentaje": 18,
+      "preciosIncluyenIGV": true,
+      "nombreImpuesto": "IGV",
+      "moneda": "PEN",
+      "simboloMoneda": "S/."
+    },
+    "_id": "69d9b84601ceb6c962da15e4",
+    "voucherId": "OR80G",
+    "mesa": "69860a47e52589a753836126",
+    "numMesa": 2,
+    "mozo": "69a51896782a5785d39b1232",
+    "nombreMozo": "Juan",
+    "cliente": "69d9b84501ceb6c962da159c",
+    "usadoEnComanda": null,
+    "fechaUso": null,
+    "comandas": [
+      "69d0a99e2b1a08cece0fdb8b"
+    ],
+    "comandasNumbers": [
+      544
+    ],
+    "platos": [
+      {
+        "plato": "6992b9dad845b119c1d00c87",
+        "platoId": 37,
+        "nombre": "Ensalada especial (limon o vinagreta)",
+        "precio": 15,
+        "cantidad": 1,
+        "subtotal": 15,
+        "comandaNumber": 544,
+        "complementosSeleccionados": [],
+        "cocinero": "Josemanuel",
+        "cocineroId": "69d20581e6d4be3beaf2ca88",
+        "tiempoPreparacion": "8667:55",
+        "_id": "69d9b84601ceb6c962da15e5"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c88",
+        "platoId": 38,
+        "nombre": "Patasca",
+        "precio": 25,
+        "cantidad": 1,
+        "subtotal": 25,
+        "comandaNumber": 544,
+        "complementosSeleccionados": [],
+        "cocinero": "Josemanuel",
+        "cocineroId": "69d20581e6d4be3beaf2ca88",
+        "tiempoPreparacion": "8595:40",
+        "_id": "69d9b84601ceb6c962da15e6"
+      }
+    ],
+    "subtotal": 33.9,
+    "igv": 6.1,
+    "total": 40,
+    "descuentos": [],
+    "totalSinDescuento": 40,
+    "montoDescuento": 0,
+    "totalConDescuento": 40,
+    "observaciones": "",
+    "fechaPedido": "2026-04-04T06:03:10.990Z",
+    "fechaPago": "2026-04-11T02:56:06.913Z",
+    "fechaPagoString": "10/04/2026 21:56:06",
+    "isActive": true,
+    "createdAt": "2026-04-11T02:56:06.917Z",
+    "updatedAt": "2026-04-11T02:56:06.917Z",
+    "boucherNumber": 162
+  },
+  {
+    "configuracionIGV": {
+      "igvPorcentaje": 18,
+      "preciosIncluyenIGV": true,
+      "nombreImpuesto": "IGV",
+      "moneda": "PEN",
+      "simboloMoneda": "S/."
+    },
+    "_id": "69d9b8ca01ceb6c962da1d21",
+    "voucherId": "CX7PJ",
+    "mesa": "69893445f42cb22ec21fd8a3",
+    "numMesa": 6,
+    "mozo": "69860821b6273b9647faf872",
+    "nombreMozo": "admin",
+    "cliente": "69d9b8ca01ceb6c962da1cd3",
+    "usadoEnComanda": null,
+    "fechaUso": null,
+    "comandas": [
+      "69d9b89501ceb6c962da19ea"
+    ],
+    "comandasNumbers": [
+      548
+    ],
+    "platos": [
+      {
+        "plato": "6992b9dad845b119c1d00c87",
+        "platoId": 37,
+        "nombre": "Ensalada especial (limon o vinagreta)",
+        "precio": 15,
+        "cantidad": 1,
+        "subtotal": 15,
+        "comandaNumber": 548,
+        "complementosSeleccionados": [],
+        "cocinero": "Josemanuel",
+        "cocineroId": "69d20581e6d4be3beaf2ca88",
+        "tiempoPreparacion": "00:33",
+        "_id": "69d9b8ca01ceb6c962da1d22"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c88",
+        "platoId": 38,
+        "nombre": "Patasca",
+        "precio": 25,
+        "cantidad": 1,
+        "subtotal": 25,
+        "comandaNumber": 548,
+        "complementosSeleccionados": [],
+        "cocinero": "Josemanuel",
+        "cocineroId": "69d20581e6d4be3beaf2ca88",
+        "tiempoPreparacion": "00:33",
+        "_id": "69d9b8ca01ceb6c962da1d23"
+      }
+    ],
+    "subtotal": 33.9,
+    "igv": 6.1,
+    "total": 40,
+    "descuentos": [],
+    "totalSinDescuento": 40,
+    "montoDescuento": 0,
+    "totalConDescuento": 40,
+    "observaciones": "",
+    "fechaPedido": "2026-04-11T02:57:25.128Z",
+    "fechaPago": "2026-04-11T02:58:18.896Z",
+    "fechaPagoString": "10/04/2026 21:58:18",
+    "isActive": true,
+    "createdAt": "2026-04-11T02:58:18.900Z",
+    "updatedAt": "2026-04-11T02:58:18.900Z",
+    "boucherNumber": 163
   }
 ]

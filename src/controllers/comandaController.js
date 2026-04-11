@@ -24,7 +24,8 @@ const {
   marcarPlatoComoEntregado,
   anularPlato,
   anularComandaCompleta,
-  aplicarDescuento
+  aplicarDescuento,
+  enrichComandasMozoNombre
 } = require('../repository/comanda.repository');
 
 const { registrarAuditoria } = require('../middleware/auditoria');
@@ -2623,6 +2624,8 @@ router.get('/comanda/mesa/:mesaId/activas', async (req, res) => {
         .populate('cliente', 'nombre dni')
         .sort({ createdAt: -1 })
         .lean();
+
+        await enrichComandasMozoNombre(comandas);
         
         console.log(`✅ [GET /comanda/mesa/${mesaId}/activas] Encontradas ${comandas.length} comandas`);
         
