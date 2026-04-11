@@ -2601,4 +2601,44 @@ router.delete('/comanda/:id/descuento', async (req, res) => {
     }
 });
 
+/**
+ * ✅ NUEVO ENDPOINT: Obtener comandas activas de una mesa (sin filtro de fecha)
+ * GET /comanda/mesa/:mesaId/activas
+ * Usado para sincronización cuando hay desincronización entre mesa.estado y comandas locales
+ */
+router.get('/comanda/mesa/:mesaId/activas', async (req, res) => {
+    try {
+        const { mesaId } = req.params;
+        
+        console.log(`📥 [GET /comanda/mesa/${mesaId}/activas] Buscando comandas activas`);
+        
+        const comandas = await comandaModel.find({
+            mesas: mesaId,
+            IsActive: true,
+            status: { $nin: ['pagado', 'completado'] }
+        })
+        .populate('platos.plato')
+        .populate('mesas')
+        .populate('mozos', 'name _id')
+        .populate('cliente', 'nombre dni')
+        .sort({ createdAt: -1 })
+        .lean();
+        
+        console.log(`✅ [GET /comanda/mesa/${mesaId}/activas] Encontradas ${comandas.length} comandas`);
+        
+        res.json({
+            success: true,
+            mesaId,
+            comandas,
+            cantidad: comandas.length
+        });
+    } catch (error) {
+        logger.error('Error en GET /comanda/mesa/:mesaId/activas', {
+            mesaId: req.params.mesaId,
+            error: error.message
+        });
+        handleError(error, res, logger);
+    }
+});
+
 module.exports = router;
