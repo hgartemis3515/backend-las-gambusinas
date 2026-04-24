@@ -53,29 +53,44 @@ const server = http.createServer(app);
 const port = process.env.PORT || 3000;
 const path = require('path');
 
-// Configurar orígenes permitidos desde variables de entorno
+// CORS: en desarrollo (o con CORS_RELAX_LAN=true) se refleja el Origin del cliente
+// para que tablets/PC en la misma LAN puedan usar la API y Socket.io sin listar cada IP.
+const isProduction = process.env.NODE_ENV === 'production';
+const corsRelaxLan = process.env.CORS_RELAX_LAN === 'true';
+const corsPermissive = !isProduction || corsRelaxLan;
+
+// Orígenes explícitos (modo estricto) + derivados de IP del servidor en .env
 const getAllowedOrigins = () => {
+  let list;
   if (process.env.ALLOWED_ORIGINS) {
-    return process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
+    list = process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim()).filter(Boolean);
+  } else {
+    list = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3001'
+    ];
   }
-  // Fallback para desarrollo: orígenes comunes
-  return [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://192.168.18.11:3000',
-    'http://192.168.18.11:3001',
-    'http://192.168.18.127:3000',
-    'http://192.168.18.127:3001'
-  ];
+  const ip = process.env.IP?.trim();
+  if (ip) {
+    ['3000', '3001', '5173', '8080'].forEach((p) => {
+      list.push(`http://${ip}:${p}`);
+    });
+  }
+  return [...new Set(list)];
 };
 
 const allowedOrigins = getAllowedOrigins();
-logger.info('Orígenes CORS permitidos:', { origins: allowedOrigins });
+logger.info('CORS', {
+  mode: corsPermissive ? 'permissive (cualquier origen en LAN/dev)' : 'strict lista',
+  origins: corsPermissive ? 'request-reflect' : allowedOrigins
+});
 
-// Configurar Socket.io con CORS
+// Configurar Socket.io con CORS (misma política que Express)
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins, // Removido wildcard '*'
+    origin: corsPermissive ? true : allowedOrigins,
     methods: ['GET', 'POST'],
     credentials: true
   },
@@ -95,22 +110,20 @@ require('./src/socket/events')(io, cocinaNamespace, mozosNamespace, adminNamespa
 
 var cors = require('cors');
 
-// Configurar CORS para permitir conexiones desde la app móvil
 app.use(cors({
-  origin: (origin, callback) => {
-    // Permitir requests sin origin (mobile apps, Postman, etc.)
-    if (!origin) {
-      return callback(null, true);
-    }
-    
-    // Verificar si el origin está en la lista permitida
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      logger.warn('CORS bloqueado para origin:', { origin, allowedOrigins });
-      callback(new Error('No permitido por CORS'));
-    }
-  },
+  origin: corsPermissive
+    ? true
+    : (origin, callback) => {
+        if (!origin) {
+          return callback(null, true);
+        }
+        if (allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          logger.warn('CORS bloqueado para origin:', { origin, allowedOrigins });
+          callback(new Error('No permitido por CORS'));
+        }
+      },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-User-Id', 'X-Device-Id', 'X-Source-App'],
   credentials: true
@@ -540,7 +553,8 @@ server.listen(port, '0.0.0.0', async ()=> {
   logger.info('Servidor iniciado', {
     port,
     nodeEnv: process.env.NODE_ENV || 'development',
-    allowedOrigins
+    corsMode: corsPermissive ? 'permissive' : 'strict',
+    allowedOrigins: corsPermissive ? '(reflect request Origin)' : allowedOrigins
   });
   
   console.log('');
@@ -550,7 +564,9 @@ server.listen(port, '0.0.0.0', async ()=> {
   console.log('');
   console.log('📡 Accesible desde:');
   console.log('   • Local:      http://localhost:' + port);
-  console.log('   • Red local:  http://192.168.18.11:' + port);
+  if (process.env.IP?.trim()) {
+    console.log('   • Red (IP):   http://' + process.env.IP.trim() + ':' + port);
+  }
   console.log('');
   console.log('🔌 WebSockets activos:');
   console.log('   • /cocina  - App Cocina');
@@ -559,8 +575,13 @@ server.listen(port, '0.0.0.0', async ()=> {
   console.log('');
   console.log('📅 Sistema de Reservas: ACTIVO');
   console.log('');
-  console.log('🌐 Orígenes CORS permitidos:');
-  allowedOrigins.forEach(origin => console.log('   • ' + origin));
+  if (corsPermissive) {
+    console.log('🌐 CORS: permisivo (cualquier origen / reflejo del cliente)');
+    console.log('   Producción estricta: NODE_ENV=production y sin CORS_RELAX_LAN=true');
+  } else {
+    console.log('🌐 Orígenes CORS permitidos:');
+    allowedOrigins.forEach(origin => console.log('   • ' + origin));
+  }
   console.log('');
   console.log('═══════════════════════════════════════════════════════════════');
   console.log('');
