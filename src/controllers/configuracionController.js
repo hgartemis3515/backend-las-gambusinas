@@ -507,6 +507,8 @@ router.get('/configuracion/voucher-plantilla', async (req, res) => {
         
         // Obtener plantilla guardada o usar por defecto
         let plantilla = config.voucherPlantilla || PLANTILLA_DEFAULT;
+        // Logo definido en el editor de plantilla (bouchers): debe llegar al app de mozos intacto
+        const logoGuardadoEnPlantilla = plantilla.logo && String(plantilla.logo).trim();
         
         // 🔥 SINCRONIZAR DATOS FISCALES: Siempre sobrescribir con datos de configuración general
         // Esto asegura que los cambios en configuración.html se reflejen en el voucher
@@ -518,8 +520,10 @@ router.get('/configuracion/voucher-plantilla', async (req, res) => {
             telefono: config.datosFiscales?.telefono || ''
         };
         
-        // Sincronizar logo desde datos fiscales
-        if (config.datosFiscales?.logoUrl) {
+        // Logo: prioridad al guardado en plantilla (subida en bouchers); si no hay, usar datos fiscales
+        if (logoGuardadoEnPlantilla) {
+            plantilla.logo = logoGuardadoEnPlantilla;
+        } else if (config.datosFiscales?.logoUrl) {
             plantilla.logo = config.datosFiscales.logoUrl;
         }
         

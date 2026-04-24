@@ -4,12 +4,16 @@ package-lock.json
 pnpm-lock.yaml
 yarn.lock
 
-# Environment variables
+# Environment variables (solo se versionan archivos `*.example`)
 .env
 .env.local
-.env.development.local
-.env.production.local
+.env.development
+.env.production
 .env.test.local
+.env.*.local
+# Mantener en el repositorio únicamente plantillas:
+!.env.example
+!.env.production.example
 
 # Logs
 logs
@@ -29,5 +33,5 @@ Thumbs.db
 *.swo
 *~
 
-# Optional: Uncomment if you don't want to commit test data
-# data/*.json
+# Base de datos / estado local (no subir a git)
+data/*.json
