@@ -228,7 +228,7 @@ router.post('/mozos/push-token', async (req, res) => {
       {
         pushToken,
         pushPlatform: platform || 'unknown',
-        deviceId: deviceId || null,
+        pushDeviceId: deviceId || null,
         pushTokenUpdatedAt: new Date()
       },
       { new: true }

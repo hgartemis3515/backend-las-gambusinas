@@ -8,6 +8,7 @@ const {
   authenticateAdmin,
   emitToZona 
 } = require('../middleware/socketAuth');
+const { notifyPlatoListo, notifyComandaLista } = require('../services/pushNotifications');
 
 /**
  * Configuración de eventos Socket.io para namespaces /cocina, /mozos y /admin
@@ -539,6 +540,13 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         adminNamespace.emit('comanda-actualizada', eventData);
       }
 
+      // Push notification: notificar cuando comanda entera cambia a "recoger"
+      if (estadoNuevo === 'recoger' && !adminOnly) {
+        notifyComandaLista(comanda).catch(err =>
+          logger.warn('[push] Error notificación comanda lista', { error: err.message })
+        );
+      }
+
       logger.info('Evento comanda-actualizada emitido', {
         comandaNumber: comanda.comandaNumber || comandaId,
         roomName,
@@ -633,6 +641,17 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         timestamp,
         mozosConnected: mozosNamespace?.sockets?.size || 0
       });
+
+      // Push notification: notificar al mozo cuando un plato está listo para recoger
+      if (nuevoEstado === 'recoger') {
+        const nombrePlato = comanda.platos?.find(p => {
+          const pId = p.plato?._id?.toString ? p.plato._id.toString() : (p.plato?.toString ? p.plato.toString() : p.platoId?.toString ? p.platoId.toString() : p.plato);
+          return pId === (platoId?.toString ? platoId.toString() : platoId);
+        })?.plato?.nombre || null;
+        notifyPlatoListo(comanda, { platoId, nombre: nombrePlato, nuevoEstado }).catch(err =>
+          logger.warn('[push] Error notificación plato listo', { error: err.message })
+        );
+      }
     } catch (error) {
       logger.error('Error al emitir plato-actualizado', {
         error: error.message,
@@ -709,6 +728,29 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       });
 
       console.log(`FASE5: Batch ${platos.length} platos → ${totalClients} clientes (${payloadSize}B payload)`);
+
+      // Push notification: notificar cuando platos cambian a "recoger"
+      const platosRecoger = platos.filter(p => p.nuevoEstado === 'recoger');
+      if (platosRecoger.length > 0) {
+        try {
+          const comanda = await comandaModel.findById(comandaId)
+            .populate('mozos')
+            .populate({ path: 'mesas', populate: { path: 'area' } })
+            .populate({ path: 'platos.plato', model: 'platos' });
+
+          if (comanda) {
+            for (const platoEvt of platosRecoger) {
+              const nombrePlato = comanda.platos?.find(p => {
+                const pId = p.plato?._id?.toString ? p.plato._id.toString() : (p.plato?.toString ? p.plato.toString() : p.platoId?.toString ? p.platoId.toString() : p.plato);
+                return pId === (platoEvt.platoId?.toString ? platoEvt.platoId.toString() : platoEvt.platoId);
+              })?.plato?.nombre || null;
+              await notifyPlatoListo(comanda, { platoId: platoEvt.platoId, nombre: nombrePlato, nuevoEstado: 'recoger' });
+            }
+          }
+        } catch (pushErr) {
+          logger.warn('[push] Error notificación plato listo en batch', { error: pushErr.message });
+        }
+      }
     } catch (error) {
       logger.error('FASE5: Error al emitir batch de platos', {
         error: error.message,
