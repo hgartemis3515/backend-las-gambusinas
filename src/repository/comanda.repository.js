@@ -3221,7 +3221,7 @@ const actualizarComandaSiTodosEntregados = async (comandaId) => {
           recoger: 0,
           entregado: numActivos,
           pagado: 0
-        });
+        }, { skipPush: true });
       } catch (err) {
         logger.warn(`${logPrefix} Error al emitir comanda-actualizada (no crítico):`, err.message);
       }

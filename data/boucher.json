@@ -797,5 +797,116 @@
     "createdAt": "2026-04-11T03:14:57.824Z",
     "updatedAt": "2026-04-11T03:14:57.824Z",
     "boucherNumber": 167
+  },
+  {
+    "configuracionIGV": {
+      "igvPorcentaje": 18,
+      "preciosIncluyenIGV": true,
+      "nombreImpuesto": "IGV",
+      "moneda": "PEN",
+      "simboloMoneda": "S/."
+    },
+    "_id": "6a0f9c853c3452639ef19659",
+    "voucherId": "3AU1J",
+    "mesa": "69860a415e59135b4d2c56c1",
+    "numMesa": 1,
+    "mozo": "69a51896782a5785d39b1232",
+    "nombreMozo": "Juan Carlos",
+    "cliente": "6a0f9c853c3452639ef195e1",
+    "usadoEnComanda": null,
+    "fechaUso": null,
+    "comandas": [
+      "6a0f98c9b0be5a7fb7715ce1"
+    ],
+    "comandasNumbers": [
+      560
+    ],
+    "platos": [
+      {
+        "plato": "6992b9dad845b119c1d00c86",
+        "platoId": 36,
+        "nombre": "Papa a la huancaína",
+        "precio": 13,
+        "cantidad": 1,
+        "subtotal": 13,
+        "comandaNumber": 560,
+        "complementosSeleccionados": [],
+        "cocinero": null,
+        "cocineroId": null,
+        "tiempoPreparacion": "14:08",
+        "_id": "6a0f9c853c3452639ef1965a"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c87",
+        "platoId": 37,
+        "nombre": "Ensalada especial (limon o vinagreta)",
+        "precio": 15,
+        "cantidad": 1,
+        "subtotal": 15,
+        "comandaNumber": 560,
+        "complementosSeleccionados": [],
+        "cocinero": null,
+        "cocineroId": null,
+        "tiempoPreparacion": null,
+        "_id": "6a0f9c853c3452639ef1965b"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c8a",
+        "platoId": 40,
+        "nombre": "Fuente de Chicharrón de chancho",
+        "precio": 79,
+        "cantidad": 1,
+        "subtotal": 79,
+        "comandaNumber": 560,
+        "complementosSeleccionados": [],
+        "cocinero": null,
+        "cocineroId": null,
+        "tiempoPreparacion": "00:04",
+        "_id": "6a0f9c853c3452639ef1965c"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c8b",
+        "platoId": 41,
+        "nombre": "Chancho a la BBQ + arroz + papas",
+        "precio": 45,
+        "cantidad": 1,
+        "subtotal": 45,
+        "comandaNumber": 560,
+        "complementosSeleccionados": [],
+        "cocinero": null,
+        "cocineroId": null,
+        "tiempoPreparacion": "00:02",
+        "_id": "6a0f9c853c3452639ef1965d"
+      },
+      {
+        "plato": "6992b9dad845b119c1d00c8c",
+        "platoId": 42,
+        "nombre": "Chicharrón de pollo a la BBQ + arroz + papas fritas",
+        "precio": 40,
+        "cantidad": 1,
+        "subtotal": 40,
+        "comandaNumber": 560,
+        "complementosSeleccionados": [],
+        "cocinero": null,
+        "cocineroId": null,
+        "tiempoPreparacion": "00:02",
+        "_id": "6a0f9c853c3452639ef1965e"
+      }
+    ],
+    "subtotal": 162.71,
+    "igv": 29.29,
+    "total": 192,
+    "descuentos": [],
+    "totalSinDescuento": 192,
+    "montoDescuento": 0,
+    "totalConDescuento": 192,
+    "observaciones": "",
+    "fechaPedido": "2026-05-21T23:44:09.606Z",
+    "fechaPago": "2026-05-22T00:00:05.846Z",
+    "fechaPagoString": "21/05/2026 19:00:05",
+    "isActive": true,
+    "createdAt": "2026-05-22T00:00:05.858Z",
+    "updatedAt": "2026-05-22T00:00:05.858Z",
+    "boucherNumber": 168
   }
 ]

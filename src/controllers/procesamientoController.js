@@ -459,7 +459,8 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
       );
       
       if (global.emitComandaActualizada) {
-        global.emitComandaActualizada(comandaId);
+        const statusAnterior = comandaActualizada.status;
+        global.emitComandaActualizada(comandaId, statusAnterior, 'recoger');
       }
     }
     

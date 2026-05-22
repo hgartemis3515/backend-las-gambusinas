@@ -1547,12 +1547,15 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
         
         // Emitir evento Socket.io de plato actualizado
         if (global.emitPlatoActualizado) {
-            await global.emitPlatoActualizado(id, platoId, nuevoEstado);
+            // Push la envía emitPlatoBatch (granular); evitar duplicado con emitPlatoActualizado
+            await global.emitPlatoActualizado(id, platoId, nuevoEstado, { skipPush: true });
         }
         
         // También emitir comanda actualizada para refrescar toda la comanda
         if (global.emitComandaActualizada) {
-            await global.emitComandaActualizada(id);
+            const estadoAnteriorComanda = comandaAntes?.status || null;
+            const estadoNuevoComanda = updatedComanda?.status || null;
+            await global.emitComandaActualizada(id, estadoAnteriorComanda, estadoNuevoComanda);
         }
     } catch (error) {
         console.error('❌ [PUT /plato/:platoId/estado] Error:', error.message);

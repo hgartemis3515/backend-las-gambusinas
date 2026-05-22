@@ -15,6 +15,76 @@ const logger = require('../utils/logger');
 
 const expo = new Expo();
 
+/** Evita doble push (emitPlatoActualizado + emitPlatoBatch) */
+const recentPlatoListoPush = new Map();
+const DEDUPE_MS = 10000;
+
+function shouldSendPlatoListoPush(comandaId, platoId) {
+  const key = `${comandaId}-${platoId}`;
+  const now = Date.now();
+  const last = recentPlatoListoPush.get(key);
+  if (last && now - last < DEDUPE_MS) return false;
+  recentPlatoListoPush.set(key, now);
+  return true;
+}
+
+/** platoId puede ser _id del subdocumento o id del catálogo */
+function findNombrePlatoEnComanda(comanda, platoId) {
+  const target = platoId?.toString?.() || String(platoId);
+  for (const p of comanda.platos || []) {
+    const subId = p._id?.toString?.();
+    const catalogId = p.plato?._id?.toString?.() || (typeof p.plato === 'string' ? p.plato : p.plato?.toString?.());
+    const legacyId = p.platoId?.toString?.();
+    if (
+      (subId && subId === target) ||
+      (catalogId && catalogId === target) ||
+      (legacyId && legacyId === target)
+    ) {
+      return p.plato?.nombre || p.nombreOriginal || p.nombre || null;
+    }
+  }
+  return null;
+}
+
+function buildPlatoListoBody(nombrePlato, mesaNumero) {
+  const nombre = nombrePlato || 'Un plato';
+  const mesa = mesaNumero != null && mesaNumero !== '' ? mesaNumero : '?';
+  return `${nombre} listo para recoger. Mesa ${mesa}`;
+}
+
+/** comanda.mozos es ObjectId único en el schema, no array */
+function getMozoIdsFromComanda(comanda) {
+  const mozoIds = [];
+  if (!comanda?.mozos) return mozoIds;
+  if (Array.isArray(comanda.mozos)) {
+    for (const m of comanda.mozos) {
+      const id = m?._id || m;
+      if (id) mozoIds.push(id);
+    }
+  } else {
+    const id = comanda.mozos._id || comanda.mozos;
+    if (id) mozoIds.push(id);
+  }
+  return mozoIds;
+}
+
+function getPlatosActivos(comanda) {
+  return (comanda.platos || []).filter(p => p.eliminado !== true && p.anulado !== true);
+}
+
+/** Todos los platos activos en "recoger" = cocina terminó, mozo debe recoger en mesa */
+function isComandaListaParaRecogerEnCocina(comanda) {
+  const activos = getPlatosActivos(comanda);
+  if (activos.length === 0) return false;
+  return activos.every(p => (p.estado || '').toLowerCase() === 'recoger');
+}
+
+/** No notificar cuando status comanda→recoger por workaround "todos entregados" */
+function shouldNotifyComandaLista(comanda, estadoNuevo) {
+  if (estadoNuevo !== 'recoger') return false;
+  return isComandaListaParaRecogerEnCocina(comanda);
+}
+
 /**
  * Envía notificaciones push a uno o varios mozos.
  * @param {string[]} mozoIds - IDs de mozos (strings u ObjectIds)
@@ -114,25 +184,31 @@ async function sendPushToMozos(mozoIds, message) {
  * @param {object} platoData - { platoId, nombre, nuevoEstado }
  */
 async function notifyPlatoListo(comanda, platoData) {
-  if (!comanda || !platoData) return;
+  if (!comanda || !platoData || platoData.nuevoEstado !== 'recoger') return;
 
-  const mesaNumero = comanda.mesas?.nummesa || comanda.mesas?.numero || '?';
-  const nombrePlato = platoData.nombre || platoData.plato?.nombre || 'Un plato';
-  const mesaId = comanda.mesas?._id || (comanda.mesas?.toString ? comanda.mesas.toString() : null);
-
-  // Obtener IDs de mozos asignados a la comanda
-  const mozoIds = [];
-  if (Array.isArray(comanda.mozos)) {
-    for (const m of comanda.mozos) {
-      mozoIds.push(m._id || m);
-    }
+  const comandaId = comanda._id?.toString?.() || String(comanda._id);
+  const platoId = platoData.platoId?.toString?.() || String(platoData.platoId);
+  if (!shouldSendPlatoListoPush(comandaId, platoId)) {
+    logger.debug('[push] Plato listo deduplicado', { comandaId, platoId });
+    return;
   }
 
-  if (mozoIds.length === 0) return;
+  const mesaNumero = comanda.mesas?.nummesa ?? comanda.mesas?.numero ?? '?';
+  const nombrePlato =
+    platoData.nombre ||
+    findNombrePlatoEnComanda(comanda, platoId) ||
+    'Un plato';
+  const mesaId = comanda.mesas?._id || (comanda.mesas?.toString ? comanda.mesas.toString() : null);
+
+  const mozoIds = getMozoIdsFromComanda(comanda);
+  if (mozoIds.length === 0) {
+    logger.debug('[push] Comanda sin mozo asignado', { comandaId: comanda._id });
+    return;
+  }
 
   return sendPushToMozos(mozoIds, {
     title: '🍽️ Plato Listo',
-    body: `${nombrePlato} está listo para recoger. Mesa ${mesaNumero}`,
+    body: buildPlatoListoBody(nombrePlato, mesaNumero),
     channelId: 'plato-listo',
     data: {
       type: 'plato-listo',
@@ -150,20 +226,17 @@ async function notifyPlatoListo(comanda, platoData) {
  * @param {object} comanda - Comanda populada (con mozos y mesas)
  */
 async function notifyComandaLista(comanda) {
-  if (!comanda) return;
+  if (!comanda || !isComandaListaParaRecogerEnCocina(comanda)) return;
 
   const mesaNumero = comanda.mesas?.nummesa || comanda.mesas?.numero || '?';
   const mesaId = comanda.mesas?._id || (comanda.mesas?.toString ? comanda.mesas.toString() : null);
   const comandaNumber = comanda.comandaNumber || '?';
 
-  const mozoIds = [];
-  if (Array.isArray(comanda.mozos)) {
-    for (const m of comanda.mozos) {
-      mozoIds.push(m._id || m);
-    }
+  const mozoIds = getMozoIdsFromComanda(comanda);
+  if (mozoIds.length === 0) {
+    logger.debug('[push] Comanda sin mozo asignado (comanda lista)', { comandaId: comanda._id });
+    return;
   }
-
-  if (mozoIds.length === 0) return;
 
   return sendPushToMozos(mozoIds, {
     title: '✅ Comanda Lista',
@@ -183,4 +256,8 @@ module.exports = {
   sendPushToMozos,
   notifyPlatoListo,
   notifyComandaLista,
+  isComandaListaParaRecogerEnCocina,
+  shouldNotifyComandaLista,
+  findNombrePlatoEnComanda,
+  buildPlatoListoBody,
 };
