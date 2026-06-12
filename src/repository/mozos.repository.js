@@ -126,7 +126,25 @@ const autenticarMozo = async (name, secretRaw) => {
         const nameKey = (s) => normalizeName(s).toLowerCase();
         const targetKey = nameKey(nameClean);
 
-        const todosLosMozos = await mozos.find({});
+        // Evitar find({}) en cada login: con muchos mozos cargar todo supera timeouts del cliente.
+        // Búsqueda acotada por nombre/usuarioWeb/nombres + primer nombre; si no hay candidatos, fallback al escaneo completo.
+        let todosLosMozos;
+        const quickOr = [];
+        if (nameClean) {
+            const escapedFull = escapeRegex(nameClean);
+            quickOr.push({ name: new RegExp(`^${escapedFull.replace(/\s+/g, '\\s+')}$`, 'i') });
+            quickOr.push({ usuarioWeb: new RegExp(`^${escapedFull}$`, 'i') });
+            quickOr.push({ nombres: new RegExp(`^${escapedFull}$`, 'i') });
+        }
+        if (targetKey.length >= 2) {
+            quickOr.push({ name: new RegExp(`^${escapeRegex(targetKey)}(\\s|$)`, 'i') });
+        }
+        if (quickOr.length) {
+            todosLosMozos = await mozos.find({ $or: quickOr }).lean();
+        }
+        if (!todosLosMozos || todosLosMozos.length === 0) {
+            todosLosMozos = await mozos.find({}).lean();
+        }
 
         const collectCandidatos = () => {
             const byId = new Map();
