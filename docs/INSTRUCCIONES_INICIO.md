@@ -1,5 +1,7 @@
 # 🚀 Instrucciones para Iniciar el Sistema Las Gambusinas
 
+> **Entrega externa (Plexperity):** Resumen de cambios recientes del backend en [ENTREGA_PLEXPERITY_JUNIO_2026.md](./ENTREGA_PLEXPERITY_JUNIO_2026.md).
+
 Este documento contiene las instrucciones paso a paso para iniciar las 3 aplicaciones del sistema.
 
 ---
