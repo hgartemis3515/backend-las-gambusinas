@@ -18,6 +18,10 @@ const {
   cambiarEstadoPlato, 
   revertirStatusComanda,
   getComandasParaPagar,
+  getComandasPagadasPorMesa,
+  getComandasCicloParaPagos,
+  getComandasActivasPorMesa,
+  calcularTotalPendienteMesa,
   recalcularEstadoMesa,
   recalcularEstadoComandaPorPlatos,
   ensurePlatosPopulated,
@@ -27,6 +31,8 @@ const {
   aplicarDescuento,
   enrichComandasMozoNombre
 } = require('../repository/comanda.repository');
+const { listarBouchersActivosPorMesa } = require('../repository/boucher.repository');
+const { obtenerCicloServicioMesa } = require('../services/mesaCicloServicio.service');
 
 const { registrarAuditoria } = require('../middleware/auditoria');
 const HistorialComandas = require('../database/models/historialComandas.model');
@@ -127,6 +133,104 @@ router.get('/comanda/cocina/:fecha', async (req, res) => {
 });
 
 // ==================== FIN FASE A1 ====================
+
+/**
+ * Rutas /comanda/mesa/:mesaId/* ANTES de /comanda/:id (evita conflictos de matching).
+ */
+router.get('/comanda/mesa/:mesaId/activas', async (req, res) => {
+    try {
+        const { mesaId } = req.params;
+        console.log(`📥 [GET /comanda/mesa/${mesaId}/activas] Buscando comandas activas`);
+        const comandas = await getComandasActivasPorMesa(mesaId);
+        await enrichComandasMozoNombre(comandas);
+        console.log(`✅ [GET /comanda/mesa/${mesaId}/activas] Encontradas ${comandas.length} comandas`);
+        res.json({
+            success: true,
+            mesaId,
+            comandas,
+            cantidad: comandas.length,
+        });
+    } catch (error) {
+        logger.error('Error en GET /comanda/mesa/:mesaId/activas', {
+            mesaId: req.params.mesaId,
+            error: error.message,
+        });
+        handleError(error, res, logger);
+    }
+});
+
+router.get('/comanda/mesa/:mesaId/bouchers-parciales', async (req, res) => {
+    try {
+        const { mesaId } = req.params;
+        const comandaIds = req.query.comandaIds
+            ? String(req.query.comandaIds).split(',').map((s) => s.trim()).filter(Boolean)
+            : undefined;
+        console.log(`📥 [GET /comanda/mesa/${mesaId}/bouchers-parciales]`);
+        const ciclo = await obtenerCicloServicioMesa(mesaId);
+        const bouchers = await listarBouchersActivosPorMesa(mesaId, { comandaIds });
+        res.json({
+            success: true,
+            mesaId,
+            pedidoId: ciclo.pedidoId,
+            cicloTipo: ciclo.tipo,
+            cantidad: bouchers.length,
+            bouchers,
+        });
+    } catch (error) {
+        logger.error('Error en GET /comanda/mesa/:mesaId/bouchers-parciales', {
+            mesaId: req.params.mesaId,
+            error: error.message,
+        });
+        handleError(error, res, logger);
+    }
+});
+
+router.get('/comanda/mesa/:mesaId/pagadas', async (req, res) => {
+    try {
+        const { mesaId } = req.params;
+        console.log(`📥 [GET /comanda/mesa/${mesaId}/pagadas] Buscando comandas pagadas`);
+        const ciclo = await obtenerCicloServicioMesa(mesaId);
+        const comandas = await getComandasPagadasPorMesa(mesaId);
+        await enrichComandasMozoNombre(comandas);
+        res.json({
+            success: true,
+            mesaId,
+            pedidoId: ciclo.pedidoId,
+            cicloTipo: ciclo.tipo,
+            comandas,
+            cantidad: comandas.length,
+        });
+    } catch (error) {
+        logger.error('Error en GET /comanda/mesa/:mesaId/pagadas', {
+            mesaId: req.params.mesaId,
+            error: error.message,
+        });
+        handleError(error, res, logger);
+    }
+});
+
+router.get('/comanda/mesa/:mesaId/para-pagos', async (req, res) => {
+    try {
+        const { mesaId } = req.params;
+        const ciclo = await obtenerCicloServicioMesa(mesaId);
+        const comandas = await getComandasCicloParaPagos(mesaId);
+        await enrichComandasMozoNombre(comandas);
+        res.json({
+            success: true,
+            mesaId,
+            pedidoId: ciclo.pedidoId,
+            cicloTipo: ciclo.tipo,
+            comandas,
+            cantidad: comandas.length,
+        });
+    } catch (error) {
+        logger.error('Error en GET /comanda/mesa/:mesaId/para-pagos', {
+            mesaId: req.params.mesaId,
+            error: error.message,
+        });
+        handleError(error, res, logger);
+    }
+});
 
 // GET /api/comanda/:id - Obtener comanda por ID
 router.get('/comanda/:id', async (req, res) => {
@@ -1706,28 +1810,34 @@ router.get('/comanda/comandas-para-pagar/:mesaId', async (req, res) => {
     const comandaIds = comandaIdsParam
       ? comandaIdsParam.split(',').map(id => id.trim()).filter(Boolean)
       : null;
+    const incluirPagados =
+      req.query.incluirPagados === 'true' ||
+      req.query.incluirPagados === '1';
 
-    // Si el cliente pasa comandaIds (ej. desde detalle de una comanda), solo devolver esas comandas
-    // para evitar mostrar comandas de pedidos anteriores en mesas reutilizadas.
+    if (incluirPagados) {
+      const ciclo = await obtenerCicloServicioMesa(mesaId);
+      const comandas = await getComandasCicloParaPagos(mesaId);
+      await enrichComandasMozoNombre(comandas);
+      const totalPendiente = await calcularTotalPendienteMesa(mesaId);
+      const mesaInfo = comandas[0]?.mesas || null;
+      return res.json({
+        success: true,
+        mesaId,
+        pedidoId: ciclo.pedidoId,
+        cicloTipo: ciclo.tipo,
+        mesa: {
+          _id: mesaId,
+          nummesa: mesaInfo?.nummesa || null,
+        },
+        comandas,
+        totalPendiente,
+        cantidadComandas: comandas.length,
+      });
+    }
+
     const comandas = await getComandasParaPagar(mesaId, comandaIds);
     
-    // 🔥 CORREGIDO: Calcular total pendiente considerando descuentos
-    // Si la comanda tiene descuento, usar totalCalculado (ya tiene el descuento aplicado)
-    const totalPendiente = comandas.reduce((sum, c) => {
-      // Si la comanda tiene descuento aplicado, usar totalCalculado (puede ser 0 para 100%)
-      if (c.descuento > 0 && c.totalCalculado != null) {
-        return sum + c.totalCalculado;
-      }
-      // Si no tiene descuento, calcular normalmente
-      return sum + c.platos.reduce((s, p, i) => {
-        if (!p.eliminado) {
-          const cantidad = c.cantidades?.[i] || 1;
-          const precio = p.plato?.precio || p.precio || 0;
-          return s + (precio * cantidad);
-        }
-        return s;
-      }, 0);
-    }, 0);
+    const totalPendiente = await calcularTotalPendienteMesa(mesaId);
 
     // Obtener información de la mesa desde la primera comanda
     const mesaInfo = comandas[0]?.mesas || null;
@@ -2602,48 +2712,6 @@ router.delete('/comanda/:id/descuento', async (req, res) => {
             message: error.message,
             error: 'ERROR_ELIMINAR_DESCUENTO'
         });
-    }
-});
-
-/**
- * ✅ NUEVO ENDPOINT: Obtener comandas activas de una mesa (sin filtro de fecha)
- * GET /comanda/mesa/:mesaId/activas
- * Usado para sincronización cuando hay desincronización entre mesa.estado y comandas locales
- */
-router.get('/comanda/mesa/:mesaId/activas', async (req, res) => {
-    try {
-        const { mesaId } = req.params;
-        
-        console.log(`📥 [GET /comanda/mesa/${mesaId}/activas] Buscando comandas activas`);
-        
-        const comandas = await comandaModel.find({
-            mesas: mesaId,
-            IsActive: true,
-            status: { $nin: ['pagado', 'completado'] }
-        })
-        .populate('platos.plato')
-        .populate('mesas')
-        .populate('mozos', 'name _id')
-        .populate('cliente', 'nombre dni')
-        .sort({ createdAt: -1 })
-        .lean();
-
-        await enrichComandasMozoNombre(comandas);
-        
-        console.log(`✅ [GET /comanda/mesa/${mesaId}/activas] Encontradas ${comandas.length} comandas`);
-        
-        res.json({
-            success: true,
-            mesaId,
-            comandas,
-            cantidad: comandas.length
-        });
-    } catch (error) {
-        logger.error('Error en GET /comanda/mesa/:mesaId/activas', {
-            mesaId: req.params.mesaId,
-            error: error.message
-        });
-        handleError(error, res, logger);
     }
 });
 

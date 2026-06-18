@@ -29,7 +29,6 @@ const importarClientesDesdeJSON = async () => {
                 const doc = {
                     _id: item._id ? new mongoose.Types.ObjectId(item._id) : undefined,
                     clienteId: item.clienteId,
-                    dni: item.dni ?? null,
                     nombre: item.nombre ?? null,
                     telefono: item.telefono ?? null,
                     email: item.email ?? null,
@@ -40,6 +39,7 @@ const importarClientesDesdeJSON = async () => {
                     comandas: Array.isArray(item.comandas) ? item.comandas.map(id => new mongoose.Types.ObjectId(id)) : [],
                     bouchers: Array.isArray(item.bouchers) ? item.bouchers.map(id => new mongoose.Types.ObjectId(id)) : []
                 };
+                if (item.dni) doc.dni = item.dni;
                 if (item.createdAt) doc.createdAt = new Date(item.createdAt);
                 if (item.updatedAt) doc.updatedAt = new Date(item.updatedAt);
                 await clienteModel.create(doc);
@@ -79,14 +79,11 @@ const generarClienteInvitado = async () => {
 
         console.log(`🆕 Generando cliente Invitado-${siguienteNumero}`);
 
-        // Crear nuevo cliente invitado
+        // Crear nuevo cliente invitado (sin campo dni — varios invitados permitidos)
         const nuevoInvitado = await clienteModel.create({
             tipo: 'invitado',
             numeroInvitado: siguienteNumero,
-            nombre: `Invitado-${siguienteNumero}`, // Se genera automáticamente pero lo establecemos explícitamente
-            dni: null,
-            telefono: null,
-            email: null,
+            nombre: `Invitado-${siguienteNumero}`,
             totalConsumido: 0,
             visitas: 0
         });
@@ -103,6 +100,24 @@ const generarClienteInvitado = async () => {
 
         return nuevoInvitado;
     } catch (error) {
+        if (error.code === 11000 && String(error.message || '').includes('dni')) {
+            try {
+                const collection = clienteModel.collection;
+                await collection.updateMany(
+                    { $or: [{ dni: null }, { dni: '' }] },
+                    { $unset: { dni: '' } }
+                );
+                const indexes = await collection.indexes();
+                const dniIndex = indexes.find((idx) => idx?.key?.dni === 1);
+                if (dniIndex && !dniIndex.sparse) {
+                    await collection.dropIndex(dniIndex.name);
+                }
+                await clienteModel.syncIndexes();
+                return generarClienteInvitado();
+            } catch (retryErr) {
+                console.error('❌ Reintento tras fix índice dni falló:', retryErr.message);
+            }
+        }
         console.error("❌ Error al generar cliente invitado:", error);
         throw error;
     }
@@ -134,15 +149,17 @@ const crearCliente = async (data) => {
         }
 
         // Crear nuevo cliente registrado
-        const nuevoCliente = await clienteModel.create({
+        const payload = {
             tipo: data.tipo || 'registrado',
             nombre: data.nombre,
-            dni: data.dni || null,
             telefono: data.telefono || null,
             email: data.email || null,
             totalConsumido: 0,
             visitas: 0
-        });
+        };
+        if (data.dni) payload.dni = String(data.dni).trim();
+
+        const nuevoCliente = await clienteModel.create(payload);
 
         console.log(`✅ Cliente registrado creado: ${nuevoCliente.nombre} (ID: ${nuevoCliente._id})`);
 

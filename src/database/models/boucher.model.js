@@ -54,6 +54,13 @@ const boucherSchema = new mongoose.Schema({
     comandasNumbers: [{
         type: Number
     }],
+    /** Pedido (visita) al que pertenece este voucher — agrupa pagos parciales del mismo ciclo */
+    pedido: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Pedido',
+        default: null,
+        index: true,
+    },
  platos: [{
  plato: {
  type: mongoose.Schema.Types.ObjectId,
@@ -154,6 +161,11 @@ const boucherSchema = new mongoose.Schema({
     isActive: {
         type: Boolean,
         default: true
+    },
+    /** true cuando el boucher cubre solo un subconjunto de platos (pagos parciales) */
+    esPagoParcial: {
+        type: Boolean,
+        default: false
     }
 }, { 
     timestamps: true,

@@ -15,6 +15,7 @@ const mongoose = require('mongoose');
 const redisCache = require('../utils/redisCache');
 const calculosPrecios = require('../utils/calculosPrecios');
 const configuracionRepository = require('./configuracion.repository');
+const { obtenerCicloServicioMesa } = require('../services/mesaCicloServicio.service');
 
 // ========== RESERVAS: Importar repositorio de reservas ==========
 // Importacion diferida para evitar dependencia circular
@@ -2752,6 +2753,192 @@ const revertirStatusComanda = async (comandaId, nuevoStatus, usuarioId) => {
  * @param {string[]} [comandaIds] - Opcional. IDs de comandas a incluir; si se pasa, solo se devuelven esas comandas de la mesa
  * @returns {Promise<Array>} Array de comandas listas para pagar (todas con todos los platos entregados)
  */
+/** Platos elegibles para cobro: entregados al cliente y aún no pagados. */
+function obtenerPlatosPagables(comanda) {
+  const result = [];
+  (comanda.platos || []).forEach((p, index) => {
+    if (p.eliminado === true || p.anulado === true) return;
+    const estado = (p.estado || '').toLowerCase();
+    if (estado === 'entregado') {
+      result.push({ platoItem: p, index, cantidad: comanda.cantidades?.[index] || 1 });
+    }
+  });
+  return result;
+}
+
+/** Suma precio*cantidad de platos entregados pendientes de pago. */
+function calcularSubtotalPlatosPagables(comanda) {
+  return obtenerPlatosPagables(comanda).reduce((sum, { platoItem, cantidad }) => {
+    const precio = platoItem.plato?.precio || platoItem.precio || 0;
+    return sum + precio * cantidad;
+  }, 0);
+}
+
+/**
+ * Total pendiente de cobro en una mesa (solo platos en estado entregado).
+ */
+const calcularTotalPendienteMesa = async (mesaId) => {
+  const comandas = await getComandasParaPagar(mesaId);
+  return comandas.reduce((sum, c) => {
+    if (c.descuento > 0 && c.totalCalculado != null) {
+      const subPagable = calcularSubtotalPlatosPagables(c);
+      const subTotal = (c.platos || []).reduce((s, p, i) => {
+        if (!p.eliminado && !p.anulado) {
+          const precio = p.plato?.precio || p.precio || 0;
+          return s + precio * (c.cantidades?.[i] || 1);
+        }
+        return s;
+      }, 0);
+      if (subTotal > 0 && subPagable < subTotal) {
+        const ratio = subPagable / subTotal;
+        return sum + (c.totalCalculado || 0) * ratio;
+      }
+      return sum + (c.totalCalculado || 0);
+    }
+    return sum + calcularSubtotalPlatosPagables(c);
+  }, 0);
+};
+
+const getComandasPagadasPorMesa = async (mesaId) => {
+  try {
+    const ciclo = await obtenerCicloServicioMesa(mesaId);
+    if (!ciclo.pedidoId && !ciclo.comandaIds?.length) {
+      console.log(
+        `ℹ️ [getComandasPagadasPorMesa] Mesa ${mesaId}: sin comandas en ciclo (${ciclo.tipo})`
+      );
+      return [];
+    }
+
+    const query = { mesas: mesaId };
+    if (ciclo.pedidoId) {
+      query.pedido = ciclo.pedidoId;
+    } else {
+      query._id = { $in: ciclo.comandaIds };
+    }
+
+    const comandas = await comandaModel
+      .find({
+        ...query,
+        status: { $in: ['pagado', 'completado', 'entregado'] },
+      })
+      .populate('platos.plato', 'nombre precio')
+      .populate('mozos', 'name _id')
+      .populate('mesas', 'nummesa estado nombreCombinado')
+      .populate('cliente', 'nombre dni')
+      .populate('pedido', 'pedidoId estado')
+      .sort({ tiempoPagado: -1, createdAt: -1 });
+
+    const comandasConPlatos = await ensurePlatosPopulated(comandas);
+    const soloPagados = mapComandasSoloPlatosPagados(comandasConPlatos);
+    console.log(
+      `✅ [getComandasPagadasPorMesa] Mesa ${mesaId} ciclo=${ciclo.tipo} pedido=${ciclo.pedidoId || '—'}: ${soloPagados.length} comanda(s)`
+    );
+    return soloPagados;
+  } catch (error) {
+    console.error('❌ Error al obtener comandas pagadas por mesa:', error);
+    throw error;
+  }
+};
+
+/** Solo platos en estado pagado (alinea índices de cantidades). */
+const mapComandasSoloPlatosPagados = (comandas) => {
+  const result = [];
+  for (const comanda of comandas || []) {
+    const doc = comanda.toObject ? comanda.toObject({ virtuals: true }) : { ...comanda };
+    const platos = [];
+    const cantidades = [];
+    (doc.platos || []).forEach((p, i) => {
+      if (p.eliminado || p.anulado) return;
+      if ((p.estado || '').toLowerCase() !== 'pagado') return;
+      platos.push(p);
+      cantidades.push(doc.cantidades?.[i] ?? p.cantidad ?? 1);
+    });
+    if (platos.length === 0) continue;
+    doc.platos = platos;
+    doc.cantidades = cantidades;
+    result.push(doc);
+  }
+  return result;
+};
+
+/**
+ * Comandas del ciclo actual para PagosScreen (platos entregados + ya pagados en parciales).
+ */
+const getComandasCicloParaPagos = async (mesaId) => {
+  try {
+    const ciclo = await obtenerCicloServicioMesa(mesaId);
+    if (!ciclo.pedidoId && !ciclo.comandaIds?.length) {
+      return [];
+    }
+
+    const query = { mesas: mesaId, status: { $nin: ['cancelado', 'anulado'] } };
+    if (ciclo.pedidoId) {
+      query.pedido = ciclo.pedidoId;
+    } else {
+      query._id = { $in: ciclo.comandaIds };
+    }
+
+    const comandas = await comandaModel
+      .find(query)
+      .populate('platos.plato', 'nombre precio')
+      .populate('mozos', 'name')
+      .populate('mesas', 'nummesa estado nombreCombinado')
+      .populate('cliente', 'nombre dni')
+      .populate('pedido', 'pedidoId estado')
+      .sort({ createdAt: -1 });
+
+    const comandasConPlatos = await ensurePlatosPopulated(comandas);
+    const filtradas = comandasConPlatos.filter((comanda) =>
+      (comanda.platos || []).some((p) => {
+        if (p.eliminado || p.anulado) return false;
+        const e = (p.estado || '').toLowerCase();
+        return e === 'entregado' || e === 'pagado';
+      })
+    );
+
+    console.log(
+      `✅ [getComandasCicloParaPagos] Mesa ${mesaId} ciclo=${ciclo.tipo}: ${filtradas.length} comanda(s)`
+    );
+    return filtradas;
+  } catch (error) {
+    console.error('❌ Error getComandasCicloParaPagos:', error);
+    throw error;
+  }
+};
+
+/**
+ * Comandas activas de una mesa acotadas al ciclo de servicio actual.
+ */
+const getComandasActivasPorMesa = async (mesaId) => {
+  const ciclo = await obtenerCicloServicioMesa(mesaId);
+  if (!ciclo.pedidoId && !ciclo.comandaIds?.length) {
+    return [];
+  }
+
+  const query = {
+    mesas: mesaId,
+    IsActive: true,
+    status: { $nin: ['pagado', 'completado'] },
+  };
+  if (ciclo.pedidoId) {
+    query.pedido = ciclo.pedidoId;
+  } else {
+    query._id = { $in: ciclo.comandaIds };
+  }
+
+  const comandas = await comandaModel
+    .find(query)
+    .populate('platos.plato')
+    .populate('mesas')
+    .populate('mozos', 'name _id')
+    .populate('cliente', 'nombre dni')
+    .populate('pedido', 'pedidoId estado')
+    .sort({ createdAt: -1 })
+    .lean();
+
+  return comandas;
+};
+
 const getComandasParaPagar = async (mesaId, comandaIds = null) => {
   try {
     const query = {
@@ -2765,7 +2952,6 @@ const getComandasParaPagar = async (mesaId, comandaIds = null) => {
         query._id = { $in: ids };
       }
     }
-    // Enum comanda.status: en_espera, recoger, entregado, pagado (no existe 'preparado')
     const comandas = await comandaModel.find(query)
       .populate('platos.plato', 'nombre precio')
       .populate('mozos', 'name')
@@ -2775,30 +2961,28 @@ const getComandasParaPagar = async (mesaId, comandaIds = null) => {
     const comandasListasParaPagar = [];
     for (const comanda of comandas) {
       if (!comanda.platos || comanda.platos.length === 0) continue;
-      const platosActivos = comanda.platos.filter(p => p.eliminado !== true);
-      if (platosActivos.length === 0) continue;
+      const pagables = obtenerPlatosPagables(comanda);
+      if (pagables.length === 0) continue;
 
-      const todosEntregados = platosActivos.every(p => {
+      const platosActivos = comanda.platos.filter(p => p.eliminado !== true && p.anulado !== true);
+      const todosEntregadosOPagados = platosActivos.every(p => {
         const e = (p.estado || '').toLowerCase();
-        return e === 'entregado';
+        return e === 'entregado' || e === 'pagado';
       });
 
-      if (todosEntregados) {
-        if (comanda.status !== 'entregado') {
-          try {
-            await comandaModel.findByIdAndUpdate(comanda._id, { status: 'entregado' });
-            comanda.status = 'entregado';
-            logger.info('[getComandasParaPagar] Auto-corregido status a entregado', { comandaId: comanda._id, comandaNumber: comanda.comandaNumber });
-          } catch (e) {
-            logger.warn('[getComandasParaPagar] No se pudo auto-corregir status', { comandaId: comanda._id, error: e.message });
-          }
+      if (todosEntregadosOPagados && comanda.status !== 'entregado' && comanda.status !== 'pagado') {
+        try {
+          await comandaModel.findByIdAndUpdate(comanda._id, { status: 'entregado' });
+          comanda.status = 'entregado';
+        } catch (e) {
+          logger.warn('[getComandasParaPagar] No se pudo auto-corregir status', { comandaId: comanda._id, error: e.message });
         }
-        comandasListasParaPagar.push(comanda);
       }
+      comandasListasParaPagar.push(comanda);
     }
 
     const comandasConPlatos = await ensurePlatosPopulated(comandasListasParaPagar);
-    console.log(`✅ [getComandasParaPagar] Mesa ${mesaId}: ${comandasConPlatos.length} comandas listas para pagar (todos los platos entregados)`);
+    console.log(`✅ [getComandasParaPagar] Mesa ${mesaId}: ${comandasConPlatos.length} comanda(s) con platos pendientes de pago`);
     return comandasConPlatos;
   } catch (error) {
     console.error("❌ Error al obtener comandas para pagar:", error);
@@ -2812,6 +2996,176 @@ const getComandasParaPagar = async (mesaId, comandaIds = null) => {
  * @param {Array<string>} comandasIds - Array de IDs de comandas a validar
  * @returns {Promise<Array>} Array de comandas válidas
  */
+/**
+ * Valida selección de platos para pago parcial.
+ * platosSeleccionados: [{ comandaId, platoIndex?, platoSubdocId?, cantidad? }]
+ */
+const validarPlatosSeleccionadosParaPago = async (mesaId, platosSeleccionados) => {
+  if (!Array.isArray(platosSeleccionados) || platosSeleccionados.length === 0) {
+    const err = new Error('Debe seleccionar al menos un plato para el pago parcial');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const comandasIds = [...new Set(platosSeleccionados.map((s) => String(s.comandaId)))];
+  const comandas = await comandaModel
+    .find({
+      _id: { $in: comandasIds },
+      mesas: mesaId,
+      IsActive: true,
+      status: { $in: ['recoger', 'entregado'] },
+    })
+    .populate('platos.plato', 'nombre precio')
+    .populate('mozos')
+    .populate('mesas', 'nummesa nombreCombinado');
+
+  if (comandas.length !== comandasIds.length) {
+    const err = new Error('Algunas comandas no son válidas para pago parcial en esta mesa');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const comandaMap = new Map(comandas.map((c) => [c._id.toString(), c]));
+  const platosParaBoucher = [];
+  const selecciones = [];
+
+  for (const sel of platosSeleccionados) {
+    const comanda = comandaMap.get(String(sel.comandaId));
+    if (!comanda) {
+      const err = new Error(`Comanda ${sel.comandaId} no encontrada`);
+      err.statusCode = 400;
+      throw err;
+    }
+
+    let platoIndex = sel.platoIndex;
+    if (sel.platoSubdocId != null) {
+      const idx = (comanda.platos || []).findIndex(
+        (p) => p._id?.toString() === String(sel.platoSubdocId)
+      );
+      if (idx >= 0) platoIndex = idx;
+    }
+    if (platoIndex == null || platoIndex < 0) {
+      const err = new Error('Cada plato seleccionado debe incluir platoIndex o platoSubdocId');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const platoItem = comanda.platos?.[platoIndex];
+    if (!platoItem || platoItem.eliminado || platoItem.anulado) {
+      const err = new Error(`Plato índice ${platoIndex} no válido en comanda #${comanda.comandaNumber}`);
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const estado = (platoItem.estado || '').toLowerCase();
+    if (estado !== 'entregado') {
+      const err = new Error(
+        `Solo se pueden pagar platos en estado "entregado". Plato "${platoItem.plato?.nombre || 'N/A'}" está en "${estado}".`
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const cantidadMax = comanda.cantidades?.[platoIndex] || 1;
+    const cantidad = sel.cantidad != null ? Number(sel.cantidad) : cantidadMax;
+    if (!Number.isFinite(cantidad) || cantidad <= 0 || cantidad > cantidadMax) {
+      const err = new Error(`Cantidad inválida para plato índice ${platoIndex} (máx ${cantidadMax})`);
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const plato = platoItem.plato || platoItem;
+    const precio = plato.precio || platoItem.precio || 0;
+    platosParaBoucher.push({
+      plato: plato._id || plato,
+      platoId: platoItem.platoId || plato.id || null,
+      platoSubdocId: platoItem._id?.toString?.() || null,
+      nombre: plato.nombre || 'Plato',
+      precio,
+      cantidad,
+      subtotal: precio * cantidad,
+      comandaNumber: comanda.comandaNumber || null,
+      complementosSeleccionados: platoItem.complementosSeleccionados || [],
+      cocinero: platoItem.procesadoPor?.alias || platoItem.procesadoPor?.nombre || null,
+      cocineroId: platoItem.procesadoPor?.cocineroId || null,
+      tiempoPreparacion: null,
+    });
+
+    selecciones.push({
+      comandaId: comanda._id.toString(),
+      platoIndex,
+      cantidad,
+    });
+  }
+
+  const comandasConPlatos = await ensurePlatosPopulated(comandas);
+  return {
+    comandas: comandasConPlatos,
+    comandasIds,
+    platosParaBoucher,
+    selecciones,
+  };
+};
+
+/**
+ * Marca platos como pagados. Si cantidad < cantidades[index], reduce cantidad.
+ * Retorna IDs de comandas 100% pagadas.
+ */
+const marcarPlatosComoPagados = async (selecciones, { clienteId, ahoraPago } = {}) => {
+  const comandasCompletamentePagadas = new Set();
+  const porComanda = new Map();
+
+  for (const sel of selecciones) {
+    const key = String(sel.comandaId);
+    if (!porComanda.has(key)) porComanda.set(key, []);
+    porComanda.get(key).push(sel);
+  }
+
+  for (const [comandaId, sels] of porComanda.entries()) {
+    const comanda = await comandaModel.findById(comandaId);
+    if (!comanda) continue;
+
+    for (const sel of sels) {
+      const plato = comanda.platos[sel.platoIndex];
+      if (!plato) continue;
+      const cantidadMax = comanda.cantidades?.[sel.platoIndex] || 1;
+      const cantidadPagar = sel.cantidad || cantidadMax;
+
+      if (cantidadPagar >= cantidadMax) {
+        plato.estado = 'pagado';
+        if (!plato.tiempos) plato.tiempos = {};
+        plato.tiempos.pagado = ahoraPago || new Date();
+        if (!comanda.cantidades) comanda.cantidades = [];
+        comanda.cantidades[sel.platoIndex] = cantidadMax;
+      } else {
+        comanda.cantidades[sel.platoIndex] = cantidadMax - cantidadPagar;
+        // Plato sigue entregado con unidades restantes
+      }
+      comanda.markModified('platos');
+      comanda.markModified('cantidades');
+    }
+
+    if (clienteId) comanda.cliente = clienteId;
+
+    const activos = (comanda.platos || []).filter((p) => !p.eliminado && !p.anulado);
+    const todosPagados = activos.length > 0 && activos.every((p) => (p.estado || '').toLowerCase() === 'pagado');
+
+    if (todosPagados) {
+      comanda.status = 'pagado';
+      comanda.IsActive = false;
+      comanda.tiempoPagado = ahoraPago || new Date();
+      comandasCompletamentePagadas.add(comandaId);
+    } else {
+      comanda.status = 'entregado';
+      comanda.IsActive = true;
+    }
+
+    await comanda.save();
+  }
+
+  return [...comandasCompletamentePagadas];
+};
+
 const validarComandasParaPagar = async (mesaId, comandasIds) => {
   try {
     if (!Array.isArray(comandasIds) || comandasIds.length === 0) {
@@ -3823,6 +4177,13 @@ module.exports = {
   validarTransicionPlato, // FASE 1: Exportar para tests
   calcularEstadoGlobalInicial, // FASE 1: Exportar para tests
   getComandasParaPagar,
+  getComandasPagadasPorMesa,
+  getComandasCicloParaPagos,
+  getComandasActivasPorMesa,
+  calcularTotalPendienteMesa,
+  validarPlatosSeleccionadosParaPago,
+  marcarPlatosComoPagados,
+  obtenerPlatosPagables,
   validarComandasParaPagar,
   importarComandasDesdeJSON,
   buildPlatoIdToObjectIdMap,

@@ -133,6 +133,13 @@ tailwind.config = {
           <span class="text-xs text-txt-muted">Hasta:</span>
           <input type="date" x-model="filterFechaHasta" @change="filterBouchers()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-sm text-txt-secondary w-36">
         </div>
+        <button @click="toggleAgrupacion()"
+          :class="agruparPorPedido ? 'bg-gold/20 border-gold text-gold' : 'bg-bg-sidebar border-txt-muted/30 text-txt-secondary'"
+          class="px-3 py-2 border rounded-lg text-xs font-medium transition flex items-center gap-1"
+          title="Alternar vista agrupada por pedido / individual">
+          <span x-text="agruparPorPedido ? '👥' : '📋'"></span>
+          <span x-text="agruparPorPedido ? 'Agrupado' : 'Individual'"></span>
+        </button>
         <button @click="limpiarFiltros()" x-show="filterCodigo || filterNumero || filterMozo || filterFechaDesde || filterFechaHasta" class="px-3 py-2 text-xs text-txt-muted hover:text-gold transition border border-transparent hover:border-gold/30 rounded-lg">✕ Limpiar</button>
       </div>
 
@@ -143,36 +150,108 @@ tailwind.config = {
       <div x-show="!loading || bouchers.length > 0" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
         <table class="w-full text-sm">
           <thead><tr class="bg-bg-sidebar text-txt-secondary text-[11px] uppercase">
-            <th class="text-left px-4 py-3 font-semibold">Código</th>
-            <th class="text-left px-4 py-3 font-semibold">N° Voucher</th>
+            <th class="text-left px-4 py-3 font-semibold" x-text="agruparPorPedido ? 'Pedido / Voucher' : 'Código'"></th>
+            <th class="text-left px-4 py-3 font-semibold" x-text="agruparPorPedido ? 'N° Vouchers' : 'N° Voucher'"></th>
             <th class="text-left px-4 py-3 font-semibold">Fecha</th>
             <th class="text-left px-4 py-3 font-semibold">Mozo</th>
             <th class="text-left px-4 py-3 font-semibold">Mesa</th>
             <th class="text-left px-4 py-3 font-semibold">Total</th>
-            <th class="text-left px-4 py-3 font-semibold">Método</th>
+            <th class="text-left px-4 py-3 font-semibold" x-text="agruparPorPedido ? 'Estado' : 'Método'"></th>
             <th class="text-left px-4 py-3 font-semibold">Acciones</th>
           </tr></thead>
           <tbody>
-            <tr x-show="filteredBouchers.length === 0"><td colspan="8" class="px-4 py-8 text-center text-txt-muted">No hay vouchers registrados</td></tr>
-            <template x-for="b in filteredBouchers" :key="b._id || b.codigo">
-              <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
-                <td class="px-4 py-3 text-txt-muted font-mono text-xs" x-text="b.codigo || b._id?.slice(-12)"></td>
-                <td class="px-4 py-3 font-medium" x-text="'#' + (b.numero || b.boucherNumber || b.numBoucher || '—')"></td>
-                <td class="px-4 py-3 text-txt-secondary" x-text="b.fecha || (b.fechaPago ? new Date(b.fechaPago).toLocaleString('es-PE') : (b.createdAt ? new Date(b.createdAt).toLocaleString('es-PE') : '—'))"></td>
-                <td class="px-4 py-3 text-txt-secondary" x-text="b.mozo?.name || b.mozo?.nombre || b.nombreMozo || '—'"></td>
-                <td class="px-4 py-3" x-text="'Mesa ' + (b.mesa?.nummesa || b.mesa?.numMesa || b.numMesa || b.mesa || '—')"></td>
-                <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. ' + Number(b.montoDescuento > 0 ? (b.totalConDescuento != null ? b.totalConDescuento : b.total) : (b.total || 0)).toFixed(2)"></td>
-                <td class="px-4 py-3">
-                  <span class="text-xs px-2 py-0.5 rounded-full" :class="b.metodoPago === 'Efectivo' || b.metodo === 'Efectivo' ? 'bg-st-preparado/20 text-st-preparado' : b.metodoPago === 'Tarjeta' || b.metodo === 'Tarjeta' ? 'bg-st-pedido/20 text-st-pedido' : 'bg-st-reservado/20 text-st-reservado'" x-text="b.metodoPago || b.metodo || '—'"></span>
-                </td>
-                <td class="px-4 py-3 space-x-2 text-base whitespace-nowrap">
-                  <span class="cursor-pointer hover:text-[#d4af37] transition" @click="openDetailModal(b)" title="Ver voucher">👁</span>
-                  <span class="cursor-pointer hover:text-[#d4af37] transition" @click="imprimirVoucher(b)" title="Imprimir PDF">🖨️</span>
-                </td>
-              </tr>
+            <tr x-show="groupedRows.length === 0"><td colspan="8" class="px-4 py-8 text-center text-txt-muted">No hay vouchers registrados</td></tr>
+
+            <!-- Render por filas procesadas (grupo | individual) -->
+            <template x-for="row in groupedRows" :key="row.id">
+              <tbody class="contents">
+                <!-- FILA PADRE (grupo expandible) -->
+                <template x-if="row.tipo === 'grupo'">
+                  <tr class="border-b border-[rgba(212,175,55,0.15)] bg-gold/5 cursor-pointer hover:bg-gold/10 transition-colors"
+                      @click="toggleExpandGrupo(row.id)">
+                    <td class="px-4 py-3">
+                      <div class="flex items-center gap-2">
+                        <span class="text-gold font-bold" x-text="expandedGroups.includes(row.id) ? '▼' : '▶'"></span>
+                        <div>
+                          <span class="text-gold font-bold" x-text="row.esLegacy ? 'GRUPO (Legacy)' : 'GRUPO'"></span>
+                          <span class="block text-[10px] text-txt-muted" x-text="row.pedidoId ? ('Pedido ' + (row.pedidoId?.slice(-6) || '—')) : (row.comandaId ? 'Comanda ' + (String(row.comandaId).slice(-6)) : 'Sin referencia')"></span>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="px-4 py-3">
+                      <span class="font-medium" x-text="row.numVouchers + ' voucher(s)'"></span>
+                      <span class="block text-[10px] text-txt-muted" x-show="row.hayParcial">Con pagos parciales</span>
+                    </td>
+                    <td class="px-4 py-3 text-txt-secondary text-xs">
+                      <span x-text="row.fechaPrimera ? new Date(row.fechaPrimera).toLocaleString('es-PE') : '—'"></span>
+                      <span class="block text-[10px] text-txt-muted" x-show="row.fechaUltima && row.numVouchers > 1" x-text="'hasta ' + new Date(row.fechaUltima).toLocaleString('es-PE')"></span>
+                    </td>
+                    <td class="px-4 py-3 text-txt-secondary" x-text="row.mozoNombre"></td>
+                    <td class="px-4 py-3" x-text="formatearMesaGrupo(row)"></td>
+                    <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. ' + Number(row.totalAgrupado || 0).toFixed(2)"></td>
+                    <td class="px-4 py-3">
+                      <span class="text-xs px-2 py-0.5 rounded-full" :class="claseEstadoGrupo(row.estadoGrupo)" x-text="textoEstadoGrupo(row.estadoGrupo)"></span>
+                    </td>
+                    <td class="px-4 py-3 text-xs text-txt-muted" x-text="expandedGroups.includes(row.id) ? 'Ocultar' : 'Ver detalle'"></td>
+                  </tr>
+                </template>
+
+                <!-- SUB-FILAS de cada voucher del grupo (solo si expandido) -->
+                <template x-if="row.tipo === 'grupo' && expandedGroups.includes(row.id)">
+                  <template x-for="b in row.bouchers" :key="b._id || b.codigo">
+                    <tr class="border-b border-[rgba(212,175,55,0.05)] bg-bg-sidebar/30">
+                      <td class="px-4 py-2.5 text-txt-muted font-mono text-xs pl-10" x-text="b.codigo || b._id?.slice(-12)"></td>
+                      <td class="px-4 py-2.5 font-medium" x-text="'#' + (b.numero || b.boucherNumber || b.numBoucher || '—')"></td>
+                      <td class="px-4 py-2.5 text-txt-secondary text-xs" x-text="b.fecha || (b.fechaPago ? new Date(b.fechaPago).toLocaleString('es-PE') : (b.createdAt ? new Date(b.createdAt).toLocaleString('es-PE') : '—'))"></td>
+                      <td class="px-4 py-2.5 text-txt-secondary" x-text="b.mozo?.name || b.mozo?.nombre || b.nombreMozo || '—'"></td>
+                      <td class="px-4 py-2.5" x-text="'Mesa ' + (b.mesa?.nummesa || b.mesa?.numMesa || b.numMesa || b.mesa || '—')"></td>
+                      <td class="px-4 py-2.5 text-gold font-semibold" x-text="'S/. ' + Number(b.montoDescuento > 0 ? (b.totalConDescuento != null ? b.totalConDescuento : b.total) : (b.total || 0)).toFixed(2)"></td>
+                      <td class="px-4 py-2.5">
+                        <span class="text-xs px-2 py-0.5 rounded-full"
+                          :class="b.esPagoParcial ? 'bg-st-esperando/20 text-st-esperando' : 'bg-st-preparado/20 text-st-preparado'"
+                          x-text="b.esPagoParcial ? 'Parcial' : 'Final'"></span>
+                      </td>
+                      <td class="px-4 py-2.5 space-x-2 text-base whitespace-nowrap">
+                        <span class="cursor-pointer hover:text-[#d4af37] transition" @click.stop="openDetailModal(b)" title="Ver voucher">👁</span>
+                        <span class="cursor-pointer hover:text-[#d4af37] transition" @click.stop="imprimirVoucher(b)" title="Imprimir PDF">🖨️</span>
+                      </td>
+                    </tr>
+                  </template>
+                </template>
+
+                <!-- FILA INDIVIDUAL (voucher único sin grupo) -->
+                <template x-if="row.tipo === 'individual'">
+                  <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
+                    <td class="px-4 py-3 text-txt-muted font-mono text-xs" x-text="row.boucher.codigo || row.boucher._id?.slice(-12)"></td>
+                    <td class="px-4 py-3 font-medium" x-text="'#' + (row.boucher.numero || row.boucher.boucherNumber || row.boucher.numBoucher || '—')"></td>
+                    <td class="px-4 py-3 text-txt-secondary" x-text="row.boucher.fecha || (row.boucher.fechaPago ? new Date(row.boucher.fechaPago).toLocaleString('es-PE') : (row.boucher.createdAt ? new Date(row.boucher.createdAt).toLocaleString('es-PE') : '—'))"></td>
+                    <td class="px-4 py-3 text-txt-secondary" x-text="row.boucher.mozo?.name || row.boucher.mozo?.nombre || row.boucher.nombreMozo || '—'"></td>
+                    <td class="px-4 py-3" x-text="'Mesa ' + (row.boucher.mesa?.nummesa || row.boucher.mesa?.numMesa || row.boucher.numMesa || row.boucher.mesa || '—')"></td>
+                    <td class="px-4 py-3 text-gold font-semibold" x-text="'S/. ' + Number(row.boucher.montoDescuento > 0 ? (row.boucher.totalConDescuento != null ? row.boucher.totalConDescuento : row.boucher.total) : (row.boucher.total || 0)).toFixed(2)"></td>
+                    <td class="px-4 py-3" x-show="!agruparPorPedido">
+                      <span class="text-xs px-2 py-0.5 rounded-full" :class="row.boucher.metodoPago === 'Efectivo' || row.boucher.metodo === 'Efectivo' ? 'bg-st-preparado/20 text-st-preparado' : row.boucher.metodoPago === 'Tarjeta' || row.boucher.metodo === 'Tarjeta' ? 'bg-st-pedido/20 text-st-pedido' : 'bg-st-reservado/20 text-st-reservado'" x-text="row.boucher.metodoPago || row.boucher.metodo || '—'"></span>
+                    </td>
+                    <td class="px-4 py-3" x-show="agruparPorPedido">
+                      <span class="text-xs px-2 py-0.5 rounded-full"
+                        :class="row.boucher.esPagoParcial ? 'bg-st-esperando/20 text-st-esperando' : 'bg-st-preparado/20 text-st-preparado'"
+                        x-text="row.boucher.esPagoParcial ? 'Parcial' : 'Final'"></span>
+                    </td>
+                    <td class="px-4 py-3 space-x-2 text-base whitespace-nowrap">
+                      <span class="cursor-pointer hover:text-[#d4af37] transition" @click="openDetailModal(row.boucher)" title="Ver voucher">👁</span>
+                      <span class="cursor-pointer hover:text-[#d4af37] transition" @click="imprimirVoucher(row.boucher)" title="Imprimir PDF">🖨️</span>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
             </template>
           </tbody>
         </table>
+      </div>
+
+      <!-- Resumen total agrupado visible (solo en modo agrupado con grupos) -->
+      <div x-show="agruparPorPedido && groupedRows.some(r => r.tipo === 'grupo')" class="mt-4 p-4 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl flex items-center justify-between">
+        <span class="text-sm text-txt-secondary">Total agrupado visible</span>
+        <span class="text-lg font-bold text-gold" x-text="'S/. ' + totalAgrupadoVisible.toFixed(2)"></span>
       </div>
     </div>
 
@@ -735,6 +814,11 @@ function bouchersApp() {
     
     filterCodigo: '', filterNumero: '', filterMozo: '', filterFechaDesde: '', filterFechaHasta: '',
     mozosList: [],
+
+    // Agrupación de vouchers por pedido (paridad con comandas.html)
+    agruparPorPedido: true,       // true por defecto (vista Agrupada al abrir)
+    groupedRows: [],              // filas procesadas: { tipo: 'grupo'|'individual', ... }
+    expandedGroups: [],           // ids de grupos expandidos en la UI
     
     async init() {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
@@ -1212,6 +1296,7 @@ body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoF
     },
     
     filterBouchers() {
+      // 1) Filtrar la lista plana de vouchers (se aplica antes de agrupar)
       this.filteredBouchers = this.bouchers.filter(b => {
         const codigo = b.codigo || b._id?.slice(-12) || '';
         const matchCodigo = !this.filterCodigo || codigo.toLowerCase().includes(this.filterCodigo.toLowerCase());
@@ -1225,6 +1310,197 @@ body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoF
         if (this.filterFechaHasta && fb) mfh = new Date(fb).toISOString().split('T')[0] <= this.filterFechaHasta;
         return matchCodigo && matchNumero && matchMozo && mfd && mfh;
       });
+      // 2) Procesar agrupación sobre la lista ya filtrada
+      this.processGroupingBouchers();
+    },
+
+    /**
+     * Construye `groupedRows` a partir de `filteredBouchers`.
+     * Prioridad de agrupación:
+     *   1) b.pedido._id  → grupo por pedido (ciclo de visita)
+     *   2) b.comandas[0] → grupo por comanda (fallback histórico)
+     *   3) Individual    → sin grupo (voucher único sin pedido ni comanda)
+     * Un grupo con >1 voucher se renderiza como fila expandible; con 1 voucher queda como individual.
+     */
+    processGroupingBouchers() {
+      // En modo Individual: cada voucher es una fila individual
+      if (!this.agruparPorPedido) {
+        this.groupedRows = this.filteredBouchers.map(b => ({
+          tipo: 'individual',
+          id: b._id || b.codigo,
+          boucher: b,
+        }));
+        return;
+      }
+
+      const gruposPedido = new Map();    // pedidoId -> { bouchers: [] }
+      const gruposComanda = new Map();   // comandaId -> { bouchers: [] } (fallback)
+      const individuales = [];
+
+      this.filteredBouchers.forEach(b => {
+        const pedidoId = b.pedido?._id || (typeof b.pedido === 'string' ? b.pedido : null);
+        const mesaNum = b.mesa?.nummesa || b.mesa?.numMesa || b.numMesa || null;
+        const mozoNombre = b.mozo?.name || b.mozo?.nombre || b.nombreMozo || '—';
+
+        if (pedidoId) {
+          const key = `pedido_${pedidoId}`;
+          if (!gruposPedido.has(key)) {
+            gruposPedido.set(key, {
+              key, pedidoId, mesaNum, mozoNombre,
+              pedidoEstado: b.pedido?.estado || null,
+              esLegacy: false,
+              bouchers: [],
+            });
+          }
+          gruposPedido.get(key).bouchers.push(b);
+        } else {
+          // Fallback: agrupar por comanda si existe una sola
+          const comandaId = Array.isArray(b.comandas) && b.comandas.length === 1
+            ? (b.comandas[0]?._id || b.comandas[0])
+            : null;
+          if (comandaId) {
+            const key = `comanda_${comandaId}`;
+            if (!gruposComanda.has(key)) {
+              gruposComanda.set(key, {
+                key, comandaId, mesaNum, mozoNombre,
+                esLegacy: true,
+                bouchers: [],
+              });
+            }
+            gruposComanda.get(key).bouchers.push(b);
+          } else {
+            // Fallback final: agrupar por mesa + día (vouchers legacy sin pedido ni comanda)
+            const dia = b.fechaPago ? new Date(b.fechaPago).toISOString().split('T')[0] : 'sindia';
+            const key = `mesadia_${mesaNum || 'sm'}_${dia}`;
+            if (!gruposComanda.has(key)) {
+              gruposComanda.set(key, {
+                key, mesaNum, mozoNombre,
+                esLegacy: true,
+                bouchers: [],
+              });
+            }
+            gruposComanda.get(key).bouchers.push(b);
+          }
+        }
+      });
+
+      // Función para convertir un grupo en fila
+      const crearFilaGrupo = (grupo) => {
+        const bouchers = grupo.bouchers;
+        const totalAgrupado = bouchers.reduce((sum, b) => {
+          const t = Number(b.montoDescuento > 0
+            ? (b.totalConDescuento != null ? b.totalConDescuento : b.total)
+            : (b.total || 0));
+          return sum + (isNaN(t) ? 0 : t);
+        }, 0);
+        const hayParcial = bouchers.some(b => b.esPagoParcial === true);
+        const pedidoEstado = grupo.pedidoEstado || null;
+        let estadoGrupo = 'pagado';
+        if (grupo.esLegacy) estadoGrupo = 'legacy';
+        else if (pedidoEstado === 'abierto' || (hayParcial && pedidoEstado !== 'pagado')) estadoGrupo = 'pendiente';
+        else if (pedidoEstado === 'pagado') estadoGrupo = 'pagado';
+        else if (hayParcial) estadoGrupo = 'pendiente';
+
+        const fechas = bouchers
+          .map(b => b.fechaPago ? new Date(b.fechaPago).getTime() : 0)
+          .filter(Boolean);
+        const fechaPrimera = fechas.length ? new Date(Math.min(...fechas)) : null;
+        const fechaUltima = fechas.length ? new Date(Math.max(...fechas)) : null;
+
+        return {
+          tipo: 'grupo',
+          id: grupo.key,
+          pedidoId: grupo.pedidoId || null,
+          comandaId: grupo.comandaId || null,
+          mesaNum: grupo.mesaNum,
+          mozoNombre: grupo.mozoNombre,
+          numVouchers: bouchers.length,
+          totalAgrupado: Number(totalAgrupado.toFixed(2)),
+          estadoGrupo,
+          esLegacy: grupo.esLegacy,
+          hayParcial,
+          fechaPrimera,
+          fechaUltima,
+          bouchers: bouchers.slice().sort((a, b2) =>
+            new Date(a.fechaPago || 0) - new Date(b2.fechaPago || 0)),
+        };
+      };
+
+      const filas = [];
+      // Grupos por pedido
+      gruposPedido.forEach((grupo) => {
+        if (grupo.bouchers.length > 1) {
+          filas.push(crearFilaGrupo(grupo));
+        } else {
+          individuales.push(grupo.bouchers[0]);
+        }
+      });
+      // Grupos por comanda / mesa+día (fallback legacy)
+      gruposComanda.forEach((grupo) => {
+        if (grupo.bouchers.length > 1) {
+          filas.push(crearFilaGrupo(grupo));
+        } else {
+          individuales.push(grupo.bouchers[0]);
+        }
+      });
+      // Individuales
+      individuales.forEach(b => {
+        filas.push({ tipo: 'individual', id: b._id || b.codigo, boucher: b });
+      });
+
+      // Ordenar: grupos primero (por fecha más reciente del grupo), luego individuales
+      const fechaParaOrden = (row) => {
+        if (row.tipo === 'grupo') {
+          return row.fechaUltima ? row.fechaUltima.getTime() : 0;
+        }
+        const fb = row.boucher?.fechaPago || row.boucher?.createdAt;
+        return fb ? new Date(fb).getTime() : 0;
+      };
+      filas.sort((a, b) => fechaParaOrden(b) - fechaParaOrden(a));
+
+      this.groupedRows = filas;
+    },
+
+    /** Alterna entre vista Agrupada e Individual. */
+    toggleAgrupacion() {
+      this.agruparPorPedido = !this.agruparPorPedido;
+      this.processGroupingBouchers();
+    },
+
+    /** Expande o colapsa un grupo por id. */
+    toggleExpandGrupo(grupoId) {
+      const idx = this.expandedGroups.indexOf(grupoId);
+      if (idx === -1) this.expandedGroups.push(grupoId);
+      else this.expandedGroups.splice(idx, 1);
+    },
+
+    /** Total acumulado visible (solo filas grupo en modo agrupado). */
+    get totalAgrupadoVisible() {
+      return this.groupedRows
+        .filter(r => r.tipo === 'grupo')
+        .reduce((sum, r) => sum + (r.totalAgrupado || 0), 0);
+    },
+
+    /** Clase CSS para badge de estado del grupo. */
+    claseEstadoGrupo(estado) {
+      if (estado === 'pagado') return 'bg-st-preparado/20 text-st-preparado';
+      if (estado === 'pendiente') return 'bg-st-esperando/20 text-st-esperando';
+      if (estado === 'legacy') return 'bg-st-reservado/20 text-st-reservado';
+      return 'bg-bg-sidebar text-txt-muted';
+    },
+
+    /** Texto legible para el estado del grupo. */
+    textoEstadoGrupo(estado) {
+      if (estado === 'pagado') return 'Pagado';
+      if (estado === 'pendiente') return 'Pendiente';
+      if (estado === 'legacy') return 'Legacy';
+      return '—';
+    },
+
+    /** Formatea el número de mesa para mostrar en fila grupo. */
+    formatearMesaGrupo(row) {
+      if (row.mesaNum == null) return '—';
+      return 'Mesa ' + row.mesaNum;
     },
     
     limpiarFiltros() { this.filterCodigo = ''; this.filterNumero = ''; this.filterMozo = ''; this.filterFechaDesde = ''; this.filterFechaHasta = ''; this.filterBouchers(); },

@@ -1,4 +1,6 @@
 const mesas = require('../database/models/mesas.model');
+const pedidoModel = require('../database/models/pedido.model');
+const { desactivarBouchersHistoricosMesa } = require('./boucher.repository');
 const { syncJsonFile } = require('../utils/jsonSync');
 const fs = require('fs');
 const path = require('path');
@@ -172,6 +174,25 @@ const actualizarEstadoMesa = async (mesaId, nuevoEstado, esAdmin = false) => {
     // Actualizar el estado
     mesa.estado = estadoSolicitado;
     await mesa.save();
+
+    if (estadoSolicitado === 'libre') {
+        try {
+            await desactivarBouchersHistoricosMesa(mesa._id);
+            await pedidoModel.updateMany(
+                { mesa: mesa._id, estado: 'pagado', isActive: { $ne: false } },
+                { $set: { isActive: false } }
+            );
+            await pedidoModel.updateMany(
+                { mesa: mesa._id, estado: 'abierto', isActive: { $ne: false } },
+                { $set: { estado: 'cancelado', isActive: false } }
+            );
+        } catch (cleanupErr) {
+            console.error(
+                '⚠️ Error al limpiar bouchers/pedidos al liberar mesa (no crítico):',
+                cleanupErr.message
+            );
+        }
+    }
     
     console.log(`✅ Mesa ${mesa.nummesa} actualizada: ${estadoActual} → ${estadoSolicitado}`);
     

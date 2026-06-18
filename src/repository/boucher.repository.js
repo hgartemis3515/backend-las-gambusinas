@@ -1,4 +1,9 @@
 const boucherModel = require("../database/models/boucher.model");
+const {
+    obtenerCicloServicioMesa,
+    intersectarComandaIds,
+    filtrarBouchersPorCiclo,
+} = require('../services/mesaCicloServicio.service');
 const { syncJsonFile } = require('../utils/jsonSync');
 const { asociarBoucherACliente } = require('./clientes.repository');
 const configuracionRepository = require('./configuracion.repository');
@@ -49,6 +54,7 @@ const listarBouchers = async () => {
             .populate('comandas')
             .populate('platos.plato')
             .populate('platos.cocineroId') // Poblar información del cocinero
+            .populate('pedido', 'pedidoId estado numMesa fechaApertura fechaPago') // Poblar pedido para agrupación en dashboard
             .sort({ fechaPago: -1 }); // Más recientes primero
         return bouchers;
     } catch (error) {
@@ -76,6 +82,7 @@ const listarBouchersPorFecha = async (fecha) => {
             .populate('comandas')
             .populate('platos.plato')
             .populate('platos.cocineroId') // Poblar información del cocinero
+            .populate('pedido', 'pedidoId estado numMesa fechaApertura fechaPago') // Poblar pedido para agrupación en dashboard
             .sort({ fechaPago: -1 });
         
         return bouchers;
@@ -247,9 +254,160 @@ const eliminarBoucher = async (boucherId) => {
 };
 
 /**
- * Obtiene el último boucher activo de una mesa que esté en estado pagado
+ * Une varios bouchers (pagos parciales) en uno solo para impresión / vista en mozos.
+ * @param {Array} bouchers - Ordenados por fechaPago ascendente
+ * @returns {Object|null}
+ */
+const consolidarBouchersMesa = (bouchers) => {
+    if (!bouchers || bouchers.length === 0) return null;
+    if (bouchers.length === 1) {
+        const uno = bouchers[0].toObject ? bouchers[0].toObject() : bouchers[0];
+        return uno;
+    }
+
+    const ordenados = [...bouchers].sort(
+        (a, b) => new Date(a.fechaPago || 0) - new Date(b.fechaPago || 0)
+    );
+    const base = ordenados[ordenados.length - 1];
+    const baseObj = base.toObject ? base.toObject({ virtuals: true }) : { ...base };
+
+    const platos = [];
+    const comandasMap = new Map();
+    const comandasNumbers = new Set();
+    const descuentos = [];
+    let subtotal = 0;
+    let igv = 0;
+    let total = 0;
+    let totalSinDescuento = 0;
+    let montoDescuento = 0;
+    let totalConDescuento = 0;
+
+    for (const b of ordenados) {
+        const bObj = b.toObject ? b.toObject({ virtuals: true }) : b;
+        platos.push(...(bObj.platos || []));
+        (bObj.comandas || []).forEach((c) => {
+            const id = (c?._id || c)?.toString?.();
+            if (id && !comandasMap.has(id)) comandasMap.set(id, c);
+        });
+        (bObj.comandasNumbers || []).forEach((n) => {
+            if (n != null) comandasNumbers.add(n);
+        });
+        (bObj.descuentos || []).forEach((d) => descuentos.push(d));
+        subtotal += Number(bObj.subtotal) || 0;
+        igv += Number(bObj.igv) || 0;
+        total += Number(bObj.total) || 0;
+        totalSinDescuento += Number(bObj.totalSinDescuento) || Number(bObj.subtotal) || 0;
+        montoDescuento += Number(bObj.montoDescuento) || 0;
+        totalConDescuento += Number(bObj.totalConDescuento) || Number(bObj.total) || 0;
+    }
+
+    return {
+        ...baseObj,
+        platos,
+        comandas: [...comandasMap.values()],
+        comandasNumbers: [...comandasNumbers],
+        descuentos,
+        subtotal: Number(subtotal.toFixed(2)),
+        igv: Number(igv.toFixed(2)),
+        total: Number(total.toFixed(2)),
+        totalSinDescuento: Number(totalSinDescuento.toFixed(2)),
+        montoDescuento: Number(montoDescuento.toFixed(2)),
+        totalConDescuento: Number(totalConDescuento.toFixed(2)),
+        esPagoParcial: ordenados.some((b) => b.esPagoParcial === true) || ordenados.length > 1,
+        esConsolidado: true,
+        cantidadBouchersConsolidados: ordenados.length,
+        bouchersConsolidados: ordenados.map((b) => ({
+            _id: b._id,
+            boucherNumber: b.boucherNumber,
+            voucherId: b.voucherId,
+            total: b.total,
+            fechaPago: b.fechaPago,
+        })),
+        bouchersParciales: ordenados.map((b) =>
+            b.toObject ? b.toObject({ virtuals: true }) : { ...b }
+        ),
+    };
+};
+
+const toBoucherPlain = (doc) =>
+    doc?.toObject ? doc.toObject({ virtuals: true }) : { ...doc };
+
+/**
+ * Lista bouchers activos de una mesa (cada pago parcial), sin consolidar.
+ * @param {string} mesaId
+ * @param {{ comandaIds?: string[] }} [opts]
+ */
+const listarBouchersActivosPorMesa = async (mesaId, opts = {}) => {
+    const mongoose = require('mongoose');
+    let mesaObjectId;
+    try {
+        mesaObjectId = mongoose.Types.ObjectId.isValid(mesaId)
+            ? new mongoose.Types.ObjectId(mesaId)
+            : mesaId;
+    } catch {
+        return [];
+    }
+
+    const ciclo = await obtenerCicloServicioMesa(mesaId);
+    const comandaIdsEfectivos = intersectarComandaIds(ciclo, opts.comandaIds);
+
+    if (!ciclo.pedidoId && !comandaIdsEfectivos.length) {
+        console.log(
+            `ℹ️ [listarBouchersActivosPorMesa] Mesa ${mesaId}: sin pedido ni comandas en ciclo (${ciclo.tipo})`
+        );
+        return [];
+    }
+
+    const populateOpts = [
+        { path: 'mesa' },
+        { path: 'mozo' },
+        { path: 'cliente' },
+        { path: 'comandas' },
+        { path: 'platos.plato' },
+        { path: 'platos.cocineroId' },
+        { path: 'pedido', select: 'pedidoId estado fechaApertura' },
+    ];
+
+    if (ciclo.pedidoId && mongoose.Types.ObjectId.isValid(ciclo.pedidoId)) {
+        const pedidoOid = new mongoose.Types.ObjectId(ciclo.pedidoId);
+        const porPedido = await boucherModel
+            .find({ pedido: pedidoOid, isActive: true })
+            .populate(populateOpts)
+            .sort({ fechaPago: 1 });
+
+        if (porPedido.length > 0) {
+            console.log(
+                `📋 [listarBouchersActivosPorMesa] Mesa ${mesaId}: pedido=${ciclo.pedidoId}, ${porPedido.length} voucher(s)`
+            );
+            return porPedido.map(toBoucherPlain);
+        }
+    }
+
+    const todosBouchers = await boucherModel
+        .find({
+            $or: [{ mesa: mesaObjectId }, { mesa: mesaId }],
+            isActive: true,
+        })
+        .populate(populateOpts)
+        .sort({ fechaPago: 1 });
+
+    const filtrados = filtrarBouchersPorCiclo(
+        todosBouchers,
+        ciclo,
+        comandaIdsEfectivos
+    );
+
+    console.log(
+        `📋 [listarBouchersActivosPorMesa] Mesa ${mesaId}: ciclo=${ciclo.tipo}, legacy ${todosBouchers.length} activo(s), ${filtrados.length} del ciclo`
+    );
+
+    return filtrados.map(toBoucherPlain);
+};
+
+/**
+ * Obtiene el boucher consolidado de una mesa pagada (todos los pagos parciales).
  * @param {string} mesaId - ID de la mesa
- * @returns {Promise<Object|null>} El boucher encontrado o null si no existe
+ * @returns {Promise<Object|null>} El boucher consolidado o null si no existe
  */
 const obtenerBoucherPorMesa = async (mesaId) => {
     try {
@@ -280,43 +438,90 @@ const obtenerBoucherPorMesa = async (mesaId) => {
         const estadoMesa = mesa.estado?.toLowerCase();
         console.log(`📊 [obtenerBoucherPorMesa] Estado de la mesa: ${estadoMesa}`);
         
-        if (estadoMesa !== 'pagado') {
-            console.log(`⚠️ [obtenerBoucherPorMesa] Mesa no está en estado 'pagado', estado actual: ${estadoMesa}`);
+        const ciclo = await obtenerCicloServicioMesa(mesaId);
+        const comandaIdsCiclo = ciclo.comandaIds || [];
+
+        const populateOpts = [
+            { path: 'mesa' },
+            { path: 'mozo' },
+            { path: 'cliente' },
+            { path: 'comandas' },
+            { path: 'platos.plato' },
+            { path: 'platos.cocineroId' },
+            { path: 'pedido', select: 'pedidoId estado' },
+        ];
+
+        let bouchersFiltrados = [];
+
+        if (ciclo.pedidoId && mongoose.Types.ObjectId.isValid(ciclo.pedidoId)) {
+            const pedidoOid = new mongoose.Types.ObjectId(ciclo.pedidoId);
+            bouchersFiltrados = await boucherModel
+                .find({ pedido: pedidoOid, isActive: true })
+                .populate(populateOpts)
+                .sort({ fechaPago: 1 });
+        }
+
+        if (!bouchersFiltrados.length) {
+            if (!ciclo.pedidoId && !comandaIdsCiclo.length) {
+                console.log(
+                    `⚠️ [obtenerBoucherPorMesa] Sin pedido ni comandas en ciclo (${ciclo.tipo})`
+                );
+                return null;
+            }
+
+            const todosBouchers = await boucherModel
+                .find({
+                    $or: [{ mesa: mesaObjectId }, { mesa: mesaId }],
+                    isActive: true,
+                })
+                .populate(populateOpts)
+                .sort({ fechaPago: 1 });
+
+            const estadosPermitidos = ['pagado', 'pagando'];
+            if (!estadosPermitidos.includes(estadoMesa)) {
+                if (todosBouchers.length === 0) {
+                    console.log(
+                        `⚠️ [obtenerBoucherPorMesa] Mesa en '${estadoMesa}' sin bouchers del ciclo (${ciclo.tipo})`
+                    );
+                    return null;
+                }
+                console.log(
+                    `ℹ️ [obtenerBoucherPorMesa] Mesa en '${estadoMesa}' — ciclo ${ciclo.tipo}`
+                );
+            }
+
+            bouchersFiltrados = filtrarBouchersPorCiclo(
+                todosBouchers,
+                ciclo,
+                comandaIdsCiclo
+            );
+        }
+
+        if (!bouchersFiltrados.length) {
+            console.log(
+                `⚠️ [obtenerBoucherPorMesa] Ningún boucher coincide con el ciclo ${ciclo.tipo}`
+            );
             return null;
         }
-        
-        // Buscar el último boucher activo de esta mesa (más reciente primero)
-        // Buscar tanto con ObjectId como con string para mayor compatibilidad
-        const bouchers = await boucherModel.find({
-            $or: [
-                { mesa: mesaObjectId },
-                { mesa: mesaId }
-            ],
-            isActive: true
-        })
-        .populate('mesa')
-        .populate('mozo')
-        .populate('cliente')
-        .populate('comandas')
-        .populate('platos.plato')
-        .populate('platos.cocineroId') // Poblar información del cocinero
-        .sort({ fechaPago: -1 }) // Más reciente primero
-        .limit(1); // Solo el más reciente
-        
-        console.log(`📋 [obtenerBoucherPorMesa] Encontrados ${bouchers.length} boucher(s) activo(s)`);
-        
-        const boucher = bouchers.length > 0 ? bouchers[0] : null;
+
+        console.log(
+            `📋 [obtenerBoucherPorMesa] ciclo=${ciclo.tipo}, pedido=${ciclo.pedidoId || '—'}, ${bouchersFiltrados.length} del ciclo`
+        );
+
+        const boucher = consolidarBouchersMesa(bouchersFiltrados);
         
         if (!boucher) {
             console.log(`⚠️ [obtenerBoucherPorMesa] No se encontró boucher activo para la mesa ${mesaId}`);
             return null;
         }
-        
-        console.log(`✅ [obtenerBoucherPorMesa] Boucher encontrado: ${boucher._id}, voucherId: ${boucher.voucherId}, boucherNumber: ${boucher.boucherNumber}`);
+
+        const platosCount = boucher.platos?.length || 0;
+        console.log(
+            `✅ [obtenerBoucherPorMesa] Boucher listo: ${boucher._id}, platos: ${platosCount}, consolidado: ${!!boucher.esConsolidado}`
+        );
         console.log(`📦 [obtenerBoucherPorMesa] Comandas asociadas: ${boucher.comandas?.length || 0}`);
-        
+
         // Verificar que todas las comandas del boucher estén en estado "pagado"
-        // Si las comandas ya están populadas, usar esos datos directamente
         if (boucher.comandas && boucher.comandas.length > 0) {
             // Si las comandas están populadas (son objetos), verificar directamente
             const comandasPopuladas = boucher.comandas.filter(c => c && typeof c === 'object' && c.status);
@@ -382,6 +587,14 @@ const obtenerBoucherPorMesa = async (mesaId) => {
         }
         
         console.log(`✅ [obtenerBoucherPorMesa] Boucher válido encontrado y verificado`);
+
+        const bouchersParciales = bouchersFiltrados.map(toBoucherPlain);
+        if (boucher.esConsolidado) {
+            return { ...boucher, bouchersParciales };
+        }
+        if (bouchersParciales.length > 0) {
+            return { ...boucher, bouchersParciales };
+        }
         return boucher;
     } catch (error) {
         console.error("❌ [obtenerBoucherPorMesa] Error al obtener boucher por mesa:", error);
@@ -462,6 +675,22 @@ const importarBoucherDesdeJSON = async () => {
     }
 };
 
+/**
+ * Desactiva bouchers activos de una mesa al liberarla (evita mezclar con el próximo ciclo).
+ */
+const desactivarBouchersHistoricosMesa = async (mesaId) => {
+    const result = await boucherModel.updateMany(
+        { mesa: mesaId, isActive: true },
+        { $set: { isActive: false } }
+    );
+    if (result.modifiedCount > 0) {
+        console.log(
+            `✅ [desactivarBouchersHistoricosMesa] Mesa ${mesaId}: ${result.modifiedCount} boucher(s) desactivado(s)`
+        );
+    }
+    return result.modifiedCount;
+};
+
 module.exports = {
     listarBouchers,
     listarBouchersPorFecha,
@@ -469,6 +698,9 @@ module.exports = {
     crearBoucher,
     eliminarBoucher,
     obtenerBoucherPorMesa,
+    listarBouchersActivosPorMesa,
+    desactivarBouchersHistoricosMesa,
+    consolidarBouchersMesa,
     importarBoucherDesdeJSON
 };
 
