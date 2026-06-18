@@ -55,18 +55,41 @@ const path = require('path');
 
 // Configurar orígenes permitidos desde variables de entorno
 const getAllowedOrigins = () => {
+  const port = String(process.env.PORT || 3000);
+  const altPort = String(Number(port) + 1);
+  const origins = new Set();
+
   if (process.env.ALLOWED_ORIGINS) {
-    return process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
+    process.env.ALLOWED_ORIGINS.split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean)
+      .forEach((origin) => origins.add(origin));
   }
-  // Fallback para desarrollo: orígenes comunes
-  return [
-    'http://localhost:3000',
-    'http://localhost:3001',
+
+  origins.add(`http://localhost:${port}`);
+  origins.add(`http://127.0.0.1:${port}`);
+  if (altPort !== port) {
+    origins.add(`http://localhost:${altPort}`);
+    origins.add(`http://127.0.0.1:${altPort}`);
+  }
+
+  const serverIp = process.env.IP?.trim();
+  if (serverIp) {
+    origins.add(`http://${serverIp}:${port}`);
+    if (altPort !== port) {
+      origins.add(`http://${serverIp}:${altPort}`);
+    }
+  }
+
+  // Fallback para desarrollo en otras redes locales
+  [
     'http://192.168.18.11:3000',
     'http://192.168.18.11:3001',
     'http://192.168.18.127:3000',
     'http://192.168.18.127:3001'
-  ];
+  ].forEach((origin) => origins.add(origin));
+
+  return Array.from(origins);
 };
 
 const allowedOrigins = getAllowedOrigins();
@@ -108,7 +131,8 @@ app.use(cors({
       callback(null, true);
     } else {
       logger.warn('CORS bloqueado para origin:', { origin, allowedOrigins });
-      callback(new Error('No permitido por CORS'));
+      // No lanzar Error: Express devolvería HTML 500 en lugar de JSON
+      callback(null, false);
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -572,7 +596,8 @@ server.listen(port, '0.0.0.0', async ()=> {
   console.log('');
   console.log('📡 Accesible desde:');
   console.log('   • Local:      http://localhost:' + port);
-  console.log('   • Red local:  http://192.168.18.11:' + port);
+  const lanIp = process.env.IP || '192.168.18.11';
+  console.log('   • Red local:  http://' + lanIp + ':' + port);
   console.log('');
   console.log('🔌 WebSockets activos:');
   console.log('   • /cocina  - App Cocina');
