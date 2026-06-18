@@ -30,6 +30,12 @@ const getReservaRepository = () => {
 
 const DATA_DIR = path.join(__dirname, '../../data');
 
+// Valores válidos para el campo tipoServicio de cada plato en la comanda.
+// Cualquier valor fuera de esta lista se normaliza a 'mesa' (default).
+const TIPOS_SERVICIO_VALIDOS = ['mesa', 'para_llevar'];
+const normalizarTipoServicio = (valor) =>
+  TIPOS_SERVICIO_VALIDOS.includes(valor) ? valor : 'mesa';
+
 // ==================== FASE A1: PROYECCIONES OPTIMIZADAS ====================
 /**
  * Proyecciones para reducir el tamaño de los documentos retornados
@@ -64,6 +70,7 @@ const PROYECCION_COCINA = {
     'platos.anulado': 1,
     'platos.complementosSeleccionados': 1,
     'platos.notaEspecial': 1,
+    'platos.tipoServicio': 1,  // 🔥 NUEVO: Mesa vs Para llevar
     'platos.tiempos': 1,
     'platos.eliminadoPor': 1,
     'platos.eliminadoAt': 1,
@@ -100,6 +107,7 @@ const PROYECCION_RESUMEN_MESA = {
     'platos.anulado': 1,
     'platos.complementosSeleccionados': 1,  // 🔥 NUEVO: Complementos del plato
     'platos.notaEspecial': 1,  // 🔥 NUEVO: Nota especial del plato
+    'platos.tipoServicio': 1,  // 🔥 NUEVO: Mesa vs Para llevar
     'platos.plato': 1  // 🔥 Necesario para populate de nombre y precio
 };
 
@@ -126,6 +134,7 @@ const PROYECCION_PAGOS = {
     'platos.eliminado': 1,
     'platos.anulado': 1,
     'platos.complementosSeleccionados': 1,
+    'platos.tipoServicio': 1,  // 🔥 NUEVO: Mesa vs Para llevar
     'platos.plato': 1
 };
 
@@ -712,8 +721,11 @@ const agregarComanda = async (data) => {
     if (plato.estado === 'en_espera') {
       plato.tiempos.en_espera = ahora;
     }
-    
-    console.log(`✅ Plato ${index}: ${platoCompleto.nombre} (id=${platoCompleto.id})`);
+
+    // Normalizar tipoServicio: 'mesa' | 'para_llevar' (default 'mesa')
+    plato.tipoServicio = normalizarTipoServicio(plato.tipoServicio);
+
+    console.log(`✅ Plato ${index}: ${platoCompleto.nombre} (id=${platoCompleto.id}, tipoServicio=${plato.tipoServicio})`);
   }
   
   // ========== OBTENER DATOS DESNORMALIZADOS ==========
@@ -1356,8 +1368,9 @@ const editarConAuditoria = async (comandaId, platosNuevos, platosEliminados, usu
           // El plato ya existe, ACTUALIZAR sus propiedades
           console.log(`📝 Actualizando plato existente en índice ${platoExistenteIndex}`);
           comanda.platos[platoExistenteIndex].estado = nuevoPlato.estado || comanda.platos[platoExistenteIndex].estado;
+          comanda.platos[platoExistenteIndex].tipoServicio = normalizarTipoServicio(nuevoPlato.tipoServicio ?? comanda.platos[platoExistenteIndex].tipoServicio);
           comanda.cantidades[platoExistenteIndex] = nuevoPlato.cantidad || comanda.cantidades[platoExistenteIndex];
-          console.log(`✅ Plato actualizado: cantidad=${comanda.cantidades[platoExistenteIndex]}, estado=${comanda.platos[platoExistenteIndex].estado}`);
+          console.log(`✅ Plato actualizado: cantidad=${comanda.cantidades[platoExistenteIndex]}, estado=${comanda.platos[platoExistenteIndex].estado}, tipoServicio=${comanda.platos[platoExistenteIndex].tipoServicio}`);
         } else {
           // El plato NO existe, AGREGAR como nuevo
           console.log(`➕ Agregando nuevo plato...`);
@@ -1378,11 +1391,12 @@ const editarConAuditoria = async (comandaId, platosNuevos, platosEliminados, usu
             const platoAgregado = {
               plato: platoCompleto._id,
               platoId: platoCompleto.id,
-              estado: nuevoPlato.estado || 'en_espera'
+              estado: nuevoPlato.estado || 'en_espera',
+              tipoServicio: normalizarTipoServicio(nuevoPlato.tipoServicio)
             };
             comanda.platos.push(platoAgregado);
             comanda.cantidades.push(nuevoPlato.cantidad || 1);
-            console.log(`✅ Plato nuevo agregado: ${platoCompleto.nombre} (id numérico: ${platoCompleto.id}, cantidad: ${nuevoPlato.cantidad || 1})`);
+            console.log(`✅ Plato nuevo agregado: ${platoCompleto.nombre} (id numérico: ${platoCompleto.id}, cantidad: ${nuevoPlato.cantidad || 1}, tipoServicio: ${platoAgregado.tipoServicio})`);
           } else {
             const errorMsg = `❌ ERROR: No se pudo encontrar el plato con _id=${nuevoPlato.plato} o platoId=${nuevoPlato.platoId}`;
             console.error(errorMsg);
@@ -1565,13 +1579,18 @@ const actualizarComanda = async (comandaId, newData) => {
           const platoCompleto = await platoModel.findById(plato.plato);
           if (platoCompleto && platoCompleto.id) {
             plato.platoId = platoCompleto.id;
-            console.log(`  - Plato ${index}: _id=${plato.plato}, id=${platoCompleto.id}, nombre=${platoCompleto.nombre}, Estado=${plato.estado || 'en_espera'}`);
+            console.log(`  - Plato ${index}: _id=${plato.plato}, id=${platoCompleto.id}, nombre=${platoCompleto.nombre}, Estado=${plato.estado || 'en_espera'}, tipoServicio=${plato.tipoServicio || 'mesa'}`);
           } else {
             console.warn(`⚠️ No se encontró el id numérico para el plato ${plato.plato}`);
           }
         } catch (error) {
           console.error(`Error al buscar el plato ${plato.plato}:`, error);
         }
+
+        // Normalizar tipoServicio: 'mesa' | 'para_llevar' (default 'mesa').
+        // Si el PUT no envía el campo, lo fijamos explícitamente a 'mesa' para que
+        // mongoose no lo elimine al reemplazar el subdocumento.
+        plato.tipoServicio = normalizarTipoServicio(plato.tipoServicio);
       }
     }
     
@@ -4200,5 +4219,8 @@ module.exports = {
   obtenerDatosDesnormalizados,
   PROYECCION_COCINA,
   PROYECCION_RESUMEN_MESA,
-  PROYECCION_PAGOS
+  PROYECCION_PAGOS,
+  // NUEVO: Tipo de servicio de platos (Mesa vs Para llevar)
+  normalizarTipoServicio,
+  TIPOS_SERVICIO_VALIDOS
 };

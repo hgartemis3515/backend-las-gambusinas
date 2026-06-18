@@ -63,6 +63,14 @@ const comandaSchema = new mongoose.Schema({
         }],
         // Nota especial para este plato (ej: "Sin sal, extra limón")
         notaEspecial: { type: String, default: '' },
+        // Tipo de servicio del plato: 'mesa' (default) o 'para_llevar'
+        // Determina si el plato se sirve en la mesa o se entrega para llevar.
+        // Comandas antiguas sin este campo se interpretan como 'mesa'.
+        tipoServicio: {
+            type: String,
+            enum: ['mesa', 'para_llevar'],
+            default: 'mesa'
+        },
         // 🔥 AUDITORÍA: Campos para tracking de eliminación
         eliminado: { 
             type: Boolean, 
