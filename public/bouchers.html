@@ -22,6 +22,7 @@ tailwind.config = {
   }
 }
 </script>
+<script src="/socket.io/socket.io.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -102,6 +103,12 @@ tailwind.config = {
         <p class="text-txt-muted text-sm mt-0.5">Gestión de comprobantes y plantilla de impresión</p>
       </div>
       <div class="flex items-center gap-3">
+        <span x-show="socketConnected" class="flex items-center gap-1 text-xs text-st-libre" title="Conectado en tiempo real">
+          <span class="w-2 h-2 bg-st-libre rounded-full animate-pulse"></span> En vivo
+        </span>
+        <span x-show="!socketConnected" class="flex items-center gap-1 text-xs text-txt-muted" title="Sin conexión en tiempo real">
+          <span class="w-2 h-2 bg-txt-muted rounded-full"></span> Sin conexión
+        </span>
         <button x-show="activeTab === 'tabla'" @click="loadBouchers()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
         <button x-show="activeTab === 'voucher' && plantillaModificada" @click="guardarPlantilla()" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">💾 Guardar Plantilla</button>
       </div>
@@ -734,6 +741,9 @@ tailwind.config = {
   </div>
 </div>
 
+<!-- TOAST CONTAINER -->
+<div id="toast-container" class="fixed bottom-6 right-6 z-[9999] space-y-2"></div>
+
 <script src="/assets/js/notifications.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script>
@@ -748,6 +758,10 @@ function bouchersApp() {
     modalComplementos: false,
     platoSeleccionado: null,
     complementosTempSeleccionados: [],
+
+    // TIEMPO REAL: Socket.io para actualización en vivo
+    socketConnected: false,
+    socket: null,
     
     // ETIQUETAS POR DEFECTO - FUENTE ÚNICA DE VERDAD
     ETIQUETAS_DEFAULT: {
@@ -823,12 +837,118 @@ function bouchersApp() {
     async init() {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
       if (!token) { window.location.href = '/login.html'; return; }
+
+      // Cargar datos primero (prioridad: mostrar la tabla)
       await this.loadBouchers();
       await this.cargarPlatos();
       await this.cargarPlantillaLocal();
       // Asegurar que todas las etiquetas tengan valor
       this.plantilla.etiquetas = { ...this.ETIQUETAS_DEFAULT, ...this.plantilla.etiquetas };
       this.plantillaOriginal = JSON.parse(JSON.stringify(this.plantilla));
+
+      // Inicializar Socket.io para actualización en tiempo real (no bloqueante)
+      this.initSocket();
+    },
+
+    // ========== TIEMPO REAL: Socket.io ==========
+    initSocket() {
+      try {
+        if (typeof io === 'undefined') {
+          console.warn('Socket.io no disponible');
+          return;
+        }
+
+        const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+        this.socket = io('/admin', {
+          auth: { token },
+          transports: ['websocket', 'polling']
+        });
+
+        this.socket.on('connect', () => {
+          console.log('✅ Socket conectado (bouchers)');
+          this.socketConnected = true;
+        });
+
+        this.socket.on('disconnect', () => {
+          console.log('⚠️ Socket desconectado (bouchers)');
+          this.socketConnected = false;
+        });
+
+        // Evento principal: nuevo boucher creado
+        this.socket.on('reportes:boucher-nuevo', (data) => {
+          console.log('📊 Nuevo boucher via Socket:', data);
+          const boucherId = data?.boucherId || data?._id;
+          if (boucherId) {
+            const yaExiste = this.bouchers.find(b => String(b._id) === String(boucherId));
+            if (!yaExiste) {
+              this.fetchAndAddBoucher(boucherId);
+            }
+          }
+        });
+
+        // Evento de nueva comanda (un boucher puede generarse al pagar una comanda)
+        this.socket.on('nueva-comanda', () => {
+          // No afecta directamente a bouchers, pero mantiene sincronía
+        });
+
+      } catch (error) {
+        console.error('Error inicializando Socket (bouchers):', error);
+      }
+    },
+
+    // Obtener boucher completo desde la API y agregarlo a la lista
+    async fetchAndAddBoucher(boucherId) {
+      try {
+        console.log('🔄 Obteniendo boucher completa desde API:', boucherId);
+        const boucher = await apiGet(`/boucher/${boucherId}`);
+
+        if (boucher && !boucher.error && boucher._id) {
+          const yaExiste = this.bouchers.find(b => String(b._id) === String(boucher._id));
+          if (!yaExiste) {
+            // Normalizar igual que en loadBouchers
+            const normalizado = {
+              ...boucher,
+              codigo: boucher.voucherId || boucher.codigo || boucher._id?.slice(-8).toUpperCase(),
+              numero: boucher.boucherNumber || boucher.numero || boucher.numBoucher,
+              mesa: boucher.mesa || { numMesa: boucher.numMesa },
+              mozo: boucher.mozo || { nombre: boucher.nombreMozo },
+              cliente: boucher.cliente || { nombre: boucher.nombreCliente },
+              fecha: boucher.fechaPago ? new Date(boucher.fechaPago).toLocaleString('es-PE') : boucher.fecha,
+              fechaPedido: boucher.fechaPedido ? new Date(boucher.fechaPedido).toLocaleString('es-PE') : (boucher.createdAt ? new Date(boucher.createdAt).toLocaleString('es-PE') : '—')
+            };
+            // Forzar reactividad de Alpine creando un nuevo array
+            this.bouchers = [normalizado, ...this.bouchers];
+            this.extraerMozosUnicos();
+            this.filterBouchers();
+            this.showToast(`Nuevo voucher #${normalizado.numero || normalizado.codigo} 🧾`);
+            console.log('✅ Boucher agregado a la lista en tiempo real');
+          } else {
+            console.log('ℹ️ Boucher ya existe en la lista');
+          }
+        } else {
+          console.warn('⚠️ Boucher no encontrado o con error:', boucher);
+        }
+      } catch (error) {
+        console.error('❌ Error obteniendo boucher:', error);
+        // Fallback: recargar todos los bouchers
+        await this.loadBouchers();
+      }
+    },
+
+    showToast(msg, type = 'success') {
+      const container = document.getElementById('toast-container');
+      if (!container) { console.log('Toast:', msg); return; }
+      const t = document.createElement('div');
+      t.className = 'px-4 py-3 rounded-xl text-sm font-medium shadow-xl flex items-center gap-2 ' +
+        (type === 'error' ? 'bg-st-pagado text-white' : 'bg-st-preparado text-white');
+      t.innerHTML = `<span>${msg}</span>`;
+      container.appendChild(t);
+      setTimeout(() => {
+        t.style.opacity = '0';
+        t.style.transform = 'translateX(100%)';
+        t.style.transition = 'all 0.3s';
+        setTimeout(() => t.remove(), 300);
+      }, 3000);
     },
     
     async cargarPlatos() {
@@ -1645,7 +1765,6 @@ body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoF
 </script>
 <script src="/assets/js/page-transitions.js"></script>
 <script src="/assets/js/cosmos-search.js"></script>
-<script src="/socket.io/socket.io.js"></script>
 <script src="/assets/js/notificaciones-dashboard.js"></script>
 </body>
 </html>

@@ -47,7 +47,11 @@ const generarVoucherIdUnico = async (maxAttempts = 10) => {
 
 const listarBouchers = async () => {
     try {
-        const bouchers = await boucherModel.find({ isActive: true })
+        // El dashboard de vouchers debe mostrar todos los comprobantes (incluidos
+        // los de mesas ya liberadas, que se marcan isActive=false por
+        // desactivarBouchersHistoricosMesa). El soft-delete manual (eliminarBoucher)
+        // se seguirá respetando en otros flujos, pero aquí mostramos el historial completo.
+        const bouchers = await boucherModel.find({})
             .populate('mesa')
             .populate('mozo')
             .populate('cliente')
@@ -73,8 +77,7 @@ const listarBouchersPorFecha = async (fecha) => {
             fechaPago: {
                 $gte: fechaInicio,
                 $lte: fechaFin
-            },
-            isActive: true
+            }
         })
             .populate('mesa')
             .populate('mozo')
