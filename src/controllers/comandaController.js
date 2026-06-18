@@ -353,7 +353,8 @@ router.delete('/comanda/:id', async (req, res) => {
                         nombre: plato?.nombre || 'Plato desconocido',
                         cantidad: cantidad,
                         precio: precio,
-                        subtotal: subtotal
+                        subtotal: subtotal,
+                        tipoServicio: platoItem.tipoServicio || 'mesa'
                     });
                 }
             });
@@ -534,7 +535,8 @@ router.delete('/comanda/:id/ultima', async (req, res) => {
                         nombre: plato?.nombre || 'Plato desconocido',
                         cantidad: cantidad,
                         precio: precio,
-                        subtotal: subtotal
+                        subtotal: subtotal,
+                        tipoServicio: platoItem.tipoServicio || 'mesa'
                     });
                 }
             });
@@ -643,7 +645,8 @@ router.delete('/comanda/:id/individual', async (req, res) => {
                         nombre: plato?.nombre || 'Plato desconocido',
                         cantidad: cantidad,
                         precio: precio,
-                        subtotal: subtotal
+                        subtotal: subtotal,
+                        tipoServicio: platoItem.tipoServicio || 'mesa'
                     });
                 }
             });
@@ -771,7 +774,8 @@ router.delete('/comanda/mesa/:mesaId/todas', async (req, res) => {
                             nombre: plato?.nombre || 'Plato desconocido',
                             cantidad: cantidad,
                             precio: precio,
-                            subtotal: subtotal
+                            subtotal: subtotal,
+                            tipoServicio: platoItem.tipoServicio || 'mesa'
                         });
                     }
                 });
@@ -1205,7 +1209,8 @@ router.put('/comanda/:id/editar-platos', async (req, res) => {
                     nombre: nombrePlato,
                     precio: precioPlato,
                     cantidad: snapshotAntesRaw.cantidades?.[idx] || 1,
-                    estado: p.estado
+                    estado: p.estado,
+                    tipoServicio: p.tipoServicio || 'mesa'
                 };
             })),
             cantidades: [...(snapshotAntesRaw.cantidades || [])],
@@ -1262,7 +1267,8 @@ router.put('/comanda/:id/editar-platos', async (req, res) => {
                     nombre: nombrePlato,
                     precio: precioPlato,
                     cantidad: comandaConPlatosRaw.cantidades?.[idx] || 1,
-                    estado: p.estado
+                    estado: p.estado,
+                    tipoServicio: p.tipoServicio || 'mesa'
                 };
             })),
             cantidades: [...(comandaConPlatosRaw.cantidades || [])],

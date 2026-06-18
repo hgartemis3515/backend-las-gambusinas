@@ -374,6 +374,7 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
         'platos.anulado': 1,
         'platos.complementosSeleccionados': 1,
         'platos.notaEspecial': 1,
+        'platos.tipoServicio': 1, // NUEVO: Mesa vs Para llevar
         'platos.plato': 1
       });
     }
@@ -3105,6 +3106,8 @@ const validarPlatosSeleccionadosParaPago = async (mesaId, platosSeleccionados) =
       subtotal: precio * cantidad,
       comandaNumber: comanda.comandaNumber || null,
       complementosSeleccionados: platoItem.complementosSeleccionados || [],
+      // NUEVO: Tipo de servicio (Mesa vs Para llevar)
+      tipoServicio: platoItem.tipoServicio || 'mesa',
       cocinero: platoItem.procesadoPor?.alias || platoItem.procesadoPor?.nombre || null,
       cocineroId: platoItem.procesadoPor?.cocineroId || null,
       tiempoPreparacion: null,

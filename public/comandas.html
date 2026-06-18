@@ -496,6 +496,10 @@ tailwind.config = {
  <tr class="border-b border-[rgba(212,175,55,0.08)]" :class="item.eliminado ? 'opacity-50' : ''">
  <td class="px-4 py-3">
  <p class="font-medium" :class="item.eliminado ? 'line-through text-txt-muted' : ''" x-text="item.nombre || '—'"></p>
+ <!-- NUEVO: Badge Para llevar -->
+ <template x-if="item.tipoServicio === 'para_llevar'">
+ <span class="inline-flex items-center gap-1 mt-0.5 text-[9px] px-2 py-0.5 rounded-full font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">🥡 Para llevar</span>
+ </template>
  <p class="text-[10px] text-[#5a5a7a]" x-show="item.notaEspecial" x-text="'📝 ' + item.notaEspecial"></p>
  </td>
  <td class="px-3 py-3 text-center font-semibold" x-text="item.cantidad || 1"></td>
@@ -893,6 +897,10 @@ tailwind.config = {
  <tr class="border-b border-[rgba(212,175,55,0.08)]" :class="plato.eliminado ? 'opacity-40 bg-[#ff4757]/5' : ''">
  <td class="px-4 py-3">
  <p class="font-medium" :class="plato.eliminado ? 'line-through text-txt-muted' : ''" x-text="plato.nombre || '—'"></p>
+ <!-- NUEVO: Badge Para llevar -->
+ <template x-if="plato.tipoServicio === 'para_llevar'">
+ <span class="inline-flex items-center gap-1 mt-0.5 text-[9px] px-2 py-0.5 rounded-full font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">🥡 Para llevar</span>
+ </template>
  <p class="text-[10px] text-[#5a5a7a]" x-show="plato.notaEspecial" x-text="'📝 ' + plato.notaEspecial"></p>
  </td>
  <td class="px-3 py-3 text-center">
@@ -1866,6 +1874,8 @@ this.modal = null;
  eliminado: item.eliminado || false,
  notaEspecial: item.notaEspecial || '',
  complementosSeleccionados: item.complementosSeleccionados || [],
+ // NUEVO: Tipo de servicio (Mesa vs Para llevar)
+ tipoServicio: item.tipoServicio || 'mesa',
  // 🔥 TRAZABILIDAD DE COCINERO: Campos de procesamiento
  procesandoPor: item.procesandoPor || null,
  procesadoPor: item.procesadoPor || null,

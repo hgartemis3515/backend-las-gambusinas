@@ -1703,6 +1703,7 @@
                             cantidad: cantidad,
                             estado: platoItem.estado || 'en_espera',
                             eliminado: false,
+                            tipoServicio: platoItem.tipoServicio || 'mesa',
                             indexOriginal: indexOriginal // Mantener índice original para referencia
                         };
                     })
@@ -1744,6 +1745,7 @@
                             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                                 <div style="flex: 1; min-width: 200px;">
                                     <strong style="color: #333;">${plato.nombre}</strong>
+                                    ${plato.tipoServicio === 'para_llevar' ? '<span style="margin-left: 6px; display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px; background: rgba(139,92,246,0.15); color: #7c3aed; border: 1px solid rgba(139,92,246,0.4);">🥡 Para llevar</span>' : ''}
                                     <div style="color: #666; font-size: 14px; margin-top: 5px;">
                                         Cantidad: ${plato.cantidad} | Precio: S/. ${plato.precio.toFixed(2)} | Subtotal: S/. ${(plato.precio * plato.cantidad).toFixed(2)}
                                     </div>
@@ -2663,7 +2665,7 @@
                 
                 const platosHTML = boucher.platos?.map(plato => `
                     <tr>
-                        <td>${plato.nombre || 'Plato'}</td>
+                        <td>${plato.nombre || 'Plato'}${plato.tipoServicio === 'para_llevar' ? ' <span style="display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 9999px; background: rgba(139,92,246,0.15); color: #7c3aed; border: 1px solid rgba(139,92,246,0.4);">🥡</span>' : ''}</td>
                         <td>${plato.cantidad || 1}</td>
                         <td>S/. ${(plato.precio || 0).toFixed(2)}</td>
                         <td>S/. ${(plato.subtotal || 0).toFixed(2)}</td>
@@ -2722,7 +2724,7 @@
                 // Generar HTML para imprimir
                 const platosHTML = boucher.platos?.map(plato => `
                     <tr>
-                        <td>${plato.nombre || 'Plato'}</td>
+                        <td>${plato.nombre || 'Plato'}${plato.tipoServicio === 'para_llevar' ? ' (P.L.)' : ''}</td>
                         <td>${plato.cantidad || 1}</td>
                         <td>S/. ${(plato.precio || 0).toFixed(2)}</td>
                         <td>S/. ${(plato.subtotal || 0).toFixed(2)}</td>
@@ -3507,7 +3509,7 @@
                         total += subtotal;
                         html += `<tr style="background: #fee2e2;">
                             <td style="padding: 8px; border: 1px solid #ddd;">${cantidad}</td>
-                            <td style="padding: 8px; border: 1px solid #ddd; color: #dc2626; text-decoration: line-through;">${plato.nombre || 'Plato desconocido'}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd; color: #dc2626; text-decoration: line-through;">${plato.nombre || 'Plato desconocido'}${plato.tipoServicio === 'para_llevar' ? ' <span style="display: inline-flex; align-items: center; gap: 3px; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 9999px; background: rgba(139,92,246,0.15); color: #7c3aed; border: 1px solid rgba(139,92,246,0.4); text-decoration: none;">🥡 Para llevar</span>' : ''}</td>
                             <td style="padding: 8px; border: 1px solid #ddd;">S/. ${precioUnit.toFixed(2)}</td>
                             <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">S/. ${subtotal.toFixed(2)}</td>
                         </tr>`;

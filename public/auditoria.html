@@ -355,7 +355,12 @@ tailwind.config = {
               <template x-for="(plato, idx) in getPlatosEliminados(selectedRegistro)" :key="idx">
                 <tr class="border-b border-[rgba(255,71,87,0.1)] bg-[rgba(255,71,87,0.03)]">
                   <td class="px-4 py-2.5" x-text="plato.cantidad || 1"></td>
-                  <td class="px-4 py-2.5 text-[#ff4757] line-through" x-text="plato.nombre || 'Plato desconocido'"></td>
+                  <td class="px-4 py-2.5 text-[#ff4757] line-through">
+                    <span x-text="plato.nombre || 'Plato desconocido'"></span>
+                    <template x-if="plato.tipoServicio === 'para_llevar'">
+                      <span class="ml-1 inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">🥡 Para llevar</span>
+                    </template>
+                  </td>
                   <td class="px-4 py-2.5 text-xs font-mono" x-text="'S/. ' + (plato.precioUnit || plato.precio || 0).toFixed(2)"></td>
                   <td class="px-4 py-2.5 text-xs font-mono font-bold" x-text="'S/. ' + (plato.subtotal || ((plato.precioUnit || plato.precio || 0) * (plato.cantidad || 1))).toFixed(2)"></td>
                 </tr>
@@ -396,8 +401,12 @@ tailwind.config = {
                     :class="{
                       'text-[#ff4757] line-through': plato.estado === 'eliminado',
                       'text-[#2ecc71]': plato.estado === 'nuevo' || plato.estado === 'existente'
-                    }"
-                    x-text="plato.nombre"></td>
+                    }">
+                    <span x-text="plato.nombre"></span>
+                    <template x-if="plato.tipoServicio === 'para_llevar'">
+                      <span class="ml-1 inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">🥡 Para llevar</span>
+                    </template>
+                  </td>
                   <td class="px-4 py-2.5 text-xs font-mono" x-text="'S/. ' + plato.precio.toFixed(2)"></td>
                   <td class="px-4 py-2.5 text-xs">
                     <span x-show="plato.estado === 'eliminado'" class="text-[#ff4757]">🗑️ Eliminado</span>
@@ -866,7 +875,8 @@ function auditoriaApp() {
         nombre: p.nombre || 'Plato desconocido',
         cantidad: p.cantidad || 1,
         precioUnit: p.precioUnit || p.precio || 0,
-        subtotal: p.subtotal || ((p.precioUnit || p.precio || 0) * (p.cantidad || 1))
+        subtotal: p.subtotal || ((p.precioUnit || p.precio || 0) * (p.cantidad || 1)),
+        tipoServicio: p.tipoServicio || 'mesa'
       }));
     },
 
@@ -902,7 +912,8 @@ function auditoriaApp() {
           platosAntesMap.set(platoId.toString(), {
             nombre: nombre,
             precio: precio,
-            cantidad: cantidadesAntes?.[idx] || 1
+            cantidad: cantidadesAntes?.[idx] || 1,
+            tipoServicio: p.tipoServicio || 'mesa'
           });
         }
       });
@@ -918,7 +929,8 @@ function auditoriaApp() {
           platosDespuesMap.set(platoId.toString(), {
             nombre: nombre,
             precio: precio,
-            cantidad: cantidadesDespues?.[idx] || 1
+            cantidad: cantidadesDespues?.[idx] || 1,
+            tipoServicio: p.tipoServicio || 'mesa'
           });
         }
       });
@@ -936,21 +948,24 @@ function auditoriaApp() {
             nombre: antes.nombre,
             precio: antes.precio,
             cantidad: antes.cantidad,
-            estado: 'eliminado'
+            estado: 'eliminado',
+            tipoServicio: antes.tipoServicio || 'mesa'
           });
         } else if (!antes && despues) {
           resultado.push({
             nombre: despues.nombre,
             precio: despues.precio,
             cantidad: despues.cantidad,
-            estado: 'nuevo'
+            estado: 'nuevo',
+            tipoServicio: despues.tipoServicio || 'mesa'
           });
         } else if (antes && despues) {
           resultado.push({
             nombre: despues.nombre,
             precio: despues.precio,
             cantidad: despues.cantidad,
-            estado: 'existente'
+            estado: 'existente',
+            tipoServicio: despues.tipoServicio || 'mesa'
           });
         }
       });

@@ -84,7 +84,14 @@ const cierreCajaRestauranteSchema = new mongoose.Schema({
       ingreso: Number,
       costo: Number, // Si está disponible
       margen: Number
-    }]
+    }],
+    // NUEVO: Desglose por tipo de servicio (Mesa vs Para llevar)
+    servicio: {
+      mesa: { type: Number, default: 0 },          // Cantidad de platos servidos en mesa
+      paraLlevar: { type: Number, default: 0 },     // Cantidad de platos para llevar
+      montoMesa: { type: Number, default: 0 },      // Ingresos por platos en mesa
+      montoParaLlevar: { type: Number, default: 0 } // Ingresos por platos para llevar
+    }
   },
   
   // Bloque 4: Desempeño de mozos

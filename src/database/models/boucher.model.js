@@ -89,6 +89,12 @@ const boucherSchema = new mongoose.Schema({
  grupo: { type: String },
  opcion: { type: String }
  }],
+ // NUEVO: Tipo de servicio (Mesa vs Para llevar)
+ tipoServicio: {
+ type: String,
+ enum: ['mesa', 'para_llevar'],
+ default: 'mesa'
+ },
  // 🔥 TRAZABILIDAD: Información del cocinero que preparó el plato
  cocinero: { type: String, default: null },      // Nombre/alias del cocinero
  cocineroId: { 

@@ -376,6 +376,11 @@ function calcularResumenFinanciero(comandas, periodoInicio, periodoFin) {
 async function analizarProductos(comandas) {
   const productosMap = new Map();
   let totalProductosVendidos = 0;
+  // NUEVO: Desglose por tipo de servicio (Mesa vs Para llevar)
+  let servicioMesa = 0;
+  let servicioParaLlevar = 0;
+  let montoMesa = 0;
+  let montoParaLlevar = 0;
   
   comandas.forEach(comanda => {
     if (!comanda.platos || !Array.isArray(comanda.platos)) return;
@@ -391,6 +396,15 @@ async function analizarProductos(comandas) {
       const monto = cantidad * precio;
       
       totalProductosVendidos += cantidad;
+      
+      // NUEVO: Acumular por tipo de servicio (default 'mesa' para comandas antiguas)
+      if (itemPlato.tipoServicio === 'para_llevar') {
+        servicioParaLlevar += cantidad;
+        montoParaLlevar += monto;
+      } else {
+        servicioMesa += cantidad;
+        montoMesa += monto;
+      }
       
       if (!productosMap.has(plato._id.toString())) {
         productosMap.set(plato._id.toString(), {
@@ -433,7 +447,14 @@ async function analizarProductos(comandas) {
     topProductos,
     productosPorCategoria,
     productosMenosVendidos,
-    margenPorProducto: [] // Se puede calcular si hay costos
+    margenPorProducto: [], // Se puede calcular si hay costos
+    // NUEVO: Desglose por tipo de servicio
+    servicio: {
+      mesa: servicioMesa,
+      paraLlevar: servicioParaLlevar,
+      montoMesa,
+      montoParaLlevar
+    }
   };
 }
 

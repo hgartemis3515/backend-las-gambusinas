@@ -46,7 +46,7 @@ function buildPlatoBoucherLine(comanda, platoItem, index, cantidad) {
     }
   }
 
-  return {
+ return {
     plato: plato._id || plato,
     platoId: platoItem.platoId || plato.id || null,
     platoSubdocId: platoItem._id?.toString?.() || null,
@@ -56,6 +56,8 @@ function buildPlatoBoucherLine(comanda, platoItem, index, cantidad) {
     subtotal,
     comandaNumber: comanda.comandaNumber || null,
     complementosSeleccionados: platoItem.complementosSeleccionados || [],
+    // NUEVO: Tipo de servicio (Mesa vs Para llevar)
+    tipoServicio: platoItem.tipoServicio || 'mesa',
     cocinero: cocineroNombre,
     cocineroId,
     tiempoPreparacion,
