@@ -71,6 +71,7 @@ const PROYECCION_COCINA = {
     'platos.complementosSeleccionados': 1,
     'platos.notaEspecial': 1,
     'platos.tipoServicio': 1,  // 🔥 NUEVO: Mesa vs Para llevar
+    'platos.pagoAdelantado': 1,  // 🔥 PPA: ocultar en KDS platos para_llevar con ticket pendiente_aprobacion
     'platos.tiempos': 1,
     'platos.eliminadoPor': 1,
     'platos.eliminadoAt': 1,
@@ -108,6 +109,7 @@ const PROYECCION_RESUMEN_MESA = {
     'platos.complementosSeleccionados': 1,  // 🔥 NUEVO: Complementos del plato
     'platos.notaEspecial': 1,  // 🔥 NUEVO: Nota especial del plato
     'platos.tipoServicio': 1,  // 🔥 NUEVO: Mesa vs Para llevar
+    'platos.pagoAdelantado': 1,  // 🔥 PPA: estado del ticket para mostrar "PENDIENTE" (naranja)
     'platos.plato': 1  // 🔥 Necesario para populate de nombre y precio
 };
 
@@ -135,6 +137,7 @@ const PROYECCION_PAGOS = {
     'platos.anulado': 1,
     'platos.complementosSeleccionados': 1,
     'platos.tipoServicio': 1,  // 🔥 NUEVO: Mesa vs Para llevar
+    'platos.pagoAdelantado': 1,  // 🔥 PPA: estado del ticket para mostrar "PENDIENTE" (naranja)
     'platos.plato': 1
 };
 
@@ -3020,7 +3023,7 @@ const getComandasParaPagar = async (mesaId, comandaIds = null) => {
  * Valida selección de platos para pago parcial.
  * platosSeleccionados: [{ comandaId, platoIndex?, platoSubdocId?, cantidad? }]
  */
-const validarPlatosSeleccionadosParaPago = async (mesaId, platosSeleccionados) => {
+const validarPlatosSeleccionadosParaPago = async (mesaId, platosSeleccionados, esPagoAdelantado = false) => {
   if (!Array.isArray(platosSeleccionados) || platosSeleccionados.length === 0) {
     const err = new Error('Debe seleccionar al menos un plato para el pago parcial');
     err.statusCode = 400;
@@ -3028,12 +3031,16 @@ const validarPlatosSeleccionadosParaPago = async (mesaId, platosSeleccionados) =
   }
 
   const comandasIds = [...new Set(platosSeleccionados.map((s) => String(s.comandaId)))];
+  // Para pago adelantado, permitir comandas en estados más tempranos (pedido, en_espera, recoger, entregado)
+  const estadosValidos = esPagoAdelantado
+    ? ['pedido', 'en_espera', 'recoger', 'entregado']
+    : ['recoger', 'entregado'];
   const comandas = await comandaModel
     .find({
       _id: { $in: comandasIds },
       mesas: mesaId,
       IsActive: true,
-      status: { $in: ['recoger', 'entregado'] },
+      status: { $in: estadosValidos },
     })
     .populate('platos.plato', 'nombre precio')
     .populate('mozos')
@@ -3049,6 +3056,11 @@ const validarPlatosSeleccionadosParaPago = async (mesaId, platosSeleccionados) =
   const platosParaBoucher = [];
   const selecciones = [];
 
+  // Para pago adelantado, permitir platos en estado pedido/en_espera además de entregado
+  const estadosPlatoValidos = esPagoAdelantado
+    ? ['pedido', 'en_espera', 'recoger', 'entregado']
+    : ['entregado'];
+
   for (const sel of platosSeleccionados) {
     const comanda = comandaMap.get(String(sel.comandaId));
     if (!comanda) {
@@ -3061,6 +3073,11 @@ const validarPlatosSeleccionadosParaPago = async (mesaId, platosSeleccionados) =
     if (sel.platoSubdocId != null) {
       const idx = (comanda.platos || []).findIndex(
         (p) => p._id?.toString() === String(sel.platoSubdocId)
+      );
+      if (idx >= 0) platoIndex = idx;
+    } else if (sel.platoLineaId != null) {
+      const idx = (comanda.platos || []).findIndex(
+        (p) => p._id?.toString() === String(sel.platoLineaId)
       );
       if (idx >= 0) platoIndex = idx;
     }
@@ -3078,9 +3095,12 @@ const validarPlatosSeleccionadosParaPago = async (mesaId, platosSeleccionados) =
     }
 
     const estado = (platoItem.estado || '').toLowerCase();
-    if (estado !== 'entregado') {
+    if (!estadosPlatoValidos.includes(estado)) {
+      const estadosPermitidos = esPagoAdelantado
+        ? '"pedido", "en_espera", "recoger" o "entregado"'
+        : '"entregado"';
       const err = new Error(
-        `Solo se pueden pagar platos en estado "entregado". Plato "${platoItem.plato?.nombre || 'N/A'}" está en "${estado}".`
+        `Solo se pueden pagar platos en estado ${estadosPermitidos}. Plato "${platoItem.plato?.nombre || 'N/A'}" está en "${estado}".`
       );
       err.statusCode = 400;
       throw err;

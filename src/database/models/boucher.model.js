@@ -173,6 +173,17 @@ const boucherSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    /** true cuando el boucher es un pago adelantado (PPA) - cobro antes de preparación en cocina */
+    esPagoAdelantado: {
+        type: Boolean,
+        default: false
+    },
+    /** Referencia al Ticket de Pago Adelantado asociado (si esPagoAdelantado=true) */
+    ticketPagoAdelantado: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'TicketPagoAdelantado',
+        default: null
+    },
     // 🔥 MÉTODO DE PAGO (requerido en nuevos bouchers)
     metodoPago: {
         type: String,

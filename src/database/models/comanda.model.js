@@ -144,7 +144,27 @@ const comandaSchema = new mongoose.Schema({
             nombre: { type: String, default: null },
             alias: { type: String, default: null },
             timestamp: { type: Date, default: null }
-        }
+        },
+        // ========== PAGO ADELANTADO (PPA) ==========
+        pagoAdelantado: {
+            requerido: { type: Boolean, default: false },
+            cobrado: { type: Boolean, default: false },
+            ticketId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'TicketPagoAdelantado',
+                default: null,
+            },
+            estadoTicket: {
+                type: String,
+                enum: [null, 'pendiente_aprobacion', 'aprobado', 'rechazado'],
+                default: null,
+            },
+            boucherId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Boucher',
+                default: null,
+            },
+        },
     }],
     cantidades: {
         type: [Number],

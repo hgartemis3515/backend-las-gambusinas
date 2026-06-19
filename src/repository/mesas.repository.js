@@ -115,8 +115,9 @@ const actualizarEstadoMesa = async (mesaId, nuevoEstado, esAdmin = false) => {
     const transicionesPermitidas = {
         'libre': ['esperando', 'reservado'],
         'esperando': ['pedido'],
-        'pedido': ['preparado', 'pagado', 'libre'], // Permitir pagado directamente cuando platos están entregados
-        'preparado': ['pagado', 'libre'], // Permitir volver a libre si se elimina la comanda
+        'pedido': ['preparado', 'pagado', 'pendiente_pago', 'libre'], // pendiente_pago: PPA registrado
+        'preparado': ['pagado', 'pendiente_pago', 'libre'], // pendiente_pago: PPA registrado
+        'pendiente_pago': ['pedido', 'en_espera', 'libre'], // al aprobar/rechazar PPA
         'pagado': ['libre'],
         'reservado': ['libre'] // Solo admin puede liberar reservas
     };

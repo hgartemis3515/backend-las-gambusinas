@@ -39,6 +39,7 @@ const HistorialComandas = require('../database/models/historialComandas.model');
 const comandaModel = require('../database/models/comanda.model');
 const logger = require('../utils/logger');
 const { handleError, createErrorResponse } = require('../utils/errorHandler');
+const { getComandasParaPagoAdelantado } = require('../repository/ticketPagoAdelantado.repository');
 
 router.get('/comanda', async (req, res) => {
     try {
@@ -133,6 +134,70 @@ router.get('/comanda/cocina/:fecha', async (req, res) => {
 });
 
 // ==================== FIN FASE A1 ====================
+
+/**
+ * GET /comanda/comandas-para-pago-adelantado/:mesaId
+ * Obtener comandas y platos elegibles para Pago Adelantado (PPA) de una mesa.
+ * Ruta registrada ANTES de /comanda/:id para evitar conflictos de matching.
+ */
+router.get('/comanda/comandas-para-pago-adelantado/:mesaId', async (req, res) => {
+  try {
+    const { mesaId } = req.params;
+    let comandaIds = null;
+    const comandaIdsParam = req.query.comandaIds;
+    if (comandaIdsParam) {
+      const idsRaw = Array.isArray(comandaIdsParam) ? comandaIdsParam : comandaIdsParam.split(',');
+      comandaIds = idsRaw.map(id => id.trim()).filter(Boolean);
+    }
+
+    // Usar getComandasActivasPorMesa (ya funciona) y filtrar para PPA
+    const comandas = await getComandasActivasPorMesa(mesaId);
+    await enrichComandasMozoNombre(comandas);
+
+    // Filtrar solo comandas con platos elegibles para PPA
+    const comandasPPA = (comandas || []).filter(comanda => {
+      const platosElegibles = (comanda.platos || []).filter(plato => {
+        if (plato.eliminado || plato.anulado) return false;
+        const estado = (plato.estado || '').toLowerCase();
+        if (['recoger', 'entregado', 'pagado'].includes(estado)) return false;
+        if (plato.pagoAdelantado && (plato.pagoAdelantado.estadoTicket === 'pendiente_aprobacion' || plato.pagoAdelantado.estadoTicket === 'aprobado')) return false;
+        return true;
+      });
+      // Solo incluir comandas que tengan al menos un plato elegible
+      return platosElegibles.length > 0;
+    });
+
+    // Aguanta filtrado por comandaIds si se proporcionaron
+    const comandasFiltradas = comandaIds && comandaIds.length > 0
+      ? comandasPPA.filter(c => comandaIds.includes(c._id?.toString()))
+      : comandasPPA;
+
+    // Agregar platosElegiblesPPA a cada comanda
+    comandasFiltradas.forEach(comanda => {
+      comanda.platosElegiblesPPA = (comanda.platos || []).filter(plato => {
+        if (plato.eliminado || plato.anulado) return false;
+        const estado = (plato.estado || '').toLowerCase();
+        if (['recoger', 'entregado', 'pagado'].includes(estado)) return false;
+        if (plato.pagoAdelantado && (plato.pagoAdelantado.estadoTicket === 'pendiente_aprobacion' || plato.pagoAdelantado.estadoTicket === 'aprobado')) return false;
+        return true;
+      });
+    });
+
+    res.json({
+      success: true,
+      mesaId,
+      comandas: comandasFiltradas,
+      cantidad: comandasFiltradas.length,
+    });
+  } catch (error) {
+    logger.error('Error en GET /comanda/comandas-para-pago-adelantado/:mesaId', {
+      mesaId: req.params.mesaId,
+      error: error.message,
+      stack: error.stack,
+    });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 /**
  * Rutas /comanda/mesa/:mesaId/* ANTES de /comanda/:id (evita conflictos de matching).

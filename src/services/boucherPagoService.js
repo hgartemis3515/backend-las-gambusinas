@@ -193,6 +193,8 @@ async function construirResumenPago(mesaId) {
 
 /**
  * Procesa pago total o parcial.
+ * Soporta pagos adelantados (PPA): cuando esPagoAdelantado=true,
+ * no exige platos en estado 'entregado' y marca el boucher como PPA.
  * @param {object} params
  * @returns {Promise<{ boucher: object, resumen: object }>}
  */
@@ -209,6 +211,7 @@ async function procesarPagoBoucher(params) {
     vuelto: vueltoCliente,
     moneda = 'PEN',
     tipoCambioUsd = null,
+    esPagoAdelantado = false,
   } = params;
   const parcial = esPagoParcial(platosSeleccionados);
   const configMoneda = await configuracionRepository.obtenerConfiguracionMoneda();
@@ -250,7 +253,7 @@ async function procesarPagoBoucher(params) {
   let seleccionesParaMarcar;
 
   if (parcial) {
-    const validacion = await validarPlatosSeleccionadosParaPago(mesaId, platosSeleccionados);
+    const validacion = await validarPlatosSeleccionadosParaPago(mesaId, platosSeleccionados, esPagoAdelantado);
     comandasValidas = validacion.comandas;
     platosParaBoucher = validacion.platosParaBoucher;
     comandasIdsAfectadas = validacion.comandasIds;
@@ -368,6 +371,8 @@ async function procesarPagoBoucher(params) {
     fechaPago: ahoraPago,
     fechaPagoString: moment(ahoraPago).tz(zona).format('DD/MM/YYYY HH:mm:ss'),
     esPagoParcial: parcial,
+    // 🔥 PAGO ADELANTADO (PPA)
+    esPagoAdelantado: esPagoAdelantado || false,
     // 🔥 Datos de pago
     metodoPago,
     metodoPagoLabel: labelMetodoPago(metodoPago),
@@ -386,41 +391,46 @@ async function procesarPagoBoucher(params) {
 
   const boucherCreado = await crearBoucher(boucherData);
 
-  const comandasCompletamentePagadas = await marcarPlatosComoPagados(
-    seleccionesParaMarcar,
-    { clienteId, ahoraPago }
-  );
+  // 🔥 PAGO ADELANTADO (PPA): No marcar platos como pagados ni cambiar estados.
+  // Los platos quedan en su estado actual y se crea un TPA por separado.
+  // El TPA se encarga de la transición de estados (pedido → en_espera) al ser aprobado.
+  if (!esPagoAdelantado) {
+    const comandasCompletamentePagadas = await marcarPlatosComoPagados(
+      seleccionesParaMarcar,
+      { clienteId, ahoraPago }
+    );
 
-  // Pago total legacy: marcar comandas completas si no es parcial
-  if (!parcial) {
-    await Promise.all(
-      comandasIdsAfectadas.map(async (comandaId) => {
+    // Pago total legacy: marcar comandas completas si no es parcial
+    if (!parcial) {
+      await Promise.all(
+        comandasIdsAfectadas.map(async (comandaId) => {
+          await comandaModel.findByIdAndUpdate(comandaId, {
+            status: 'pagado',
+            IsActive: false,
+            cliente: clienteId || null,
+            tiempoPagado: ahoraPago,
+          });
+        })
+      );
+    } else {
+      for (const comandaId of comandasCompletamentePagadas) {
         await comandaModel.findByIdAndUpdate(comandaId, {
           status: 'pagado',
           IsActive: false,
           cliente: clienteId || null,
           tiempoPagado: ahoraPago,
         });
-      })
-    );
-  } else {
-    for (const comandaId of comandasCompletamentePagadas) {
-      await comandaModel.findByIdAndUpdate(comandaId, {
-        status: 'pagado',
-        IsActive: false,
-        cliente: clienteId || null,
-        tiempoPagado: ahoraPago,
-      });
-    }
-    // Comandas con pago parcial pendiente: mantener status entregado
-    for (const comanda of comandasValidas) {
-      const cid = comanda._id.toString();
-      if (!comandasCompletamentePagadas.includes(cid)) {
-        await comandaModel.findByIdAndUpdate(comanda._id, {
-          status: 'entregado',
-          IsActive: true,
-          cliente: clienteId || null,
-        });
+      }
+      // Comandas con pago parcial pendiente: mantener status entregado
+      for (const comanda of comandasValidas) {
+        const cid = comanda._id.toString();
+        if (!comandasCompletamentePagadas.includes(cid)) {
+          await comandaModel.findByIdAndUpdate(comanda._id, {
+            status: 'entregado',
+            IsActive: true,
+            cliente: clienteId || null,
+          });
+        }
       }
     }
   }

@@ -46,6 +46,8 @@ const propinaRoutes = require('./src/controllers/propinaController')
 const metasMozosRoutes = require('./src/controllers/metaMozoController')
 // COMPLEMENTOS PLANTILLA: Controller para biblioteca de complementos reutilizables
 const complementosPlantillaRoutes = require('./src/controllers/complementoPlantillaController')
+// PAGOS ADELANTADOS (PPA): Controller para tickets de pago adelantado
+const pagoAdelantadoRoutes = require('./src/controllers/pagoAdelantadoController')
 const { adminAuth } = require('./src/middleware/adminAuth')
 
 const app = express();
@@ -232,6 +234,7 @@ app.use('/api', zonaRoutes);
 app.use('/api', procesamientoRoutes);
 app.use('/api', reservaRoutes);
 app.use('/api', complementosPlantillaRoutes);
+app.use('/api', pagoAdelantadoRoutes);
 
 // Servir archivos estáticos desde la carpeta public
 app.use(express.static(path.join(__dirname, 'public')));

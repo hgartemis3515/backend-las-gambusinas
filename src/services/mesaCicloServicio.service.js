@@ -130,7 +130,8 @@ const obtenerCicloServicioMesa = async (mesaId) => {
     return fallbackPorComandasPagadas(mesaId);
   }
 
-  if (['preparado', 'pedido', 'esperando'].includes(estadoMesa)) {
+  // pendiente_pago: mesa con PPA registrado — sus comandas siguen activas (platos en pedido/en_espera)
+  if (['preparado', 'pedido', 'esperando', 'pendiente_pago'].includes(estadoMesa)) {
     const porActivas = await fallbackPorComandasActivas(mesaId);
     if (porActivas) {
       return porActivas;

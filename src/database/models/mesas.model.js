@@ -7,7 +7,7 @@ const mesasSchema = new mongoose.Schema({
     isActive: { type: Boolean, required: true},
     estado: {
         type: String,
-        enum: ['libre', 'esperando', 'pedido', 'preparado', 'pagado', 'reservado'],
+        enum: ['libre', 'esperando', 'pedido', 'preparado', 'pagado', 'reservado', 'pendiente_pago'],
         default: 'libre',
         required: true
     },
