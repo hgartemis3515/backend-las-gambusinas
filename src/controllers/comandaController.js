@@ -277,8 +277,12 @@ router.get('/comanda/mesa/:mesaId/pagadas', async (req, res) => {
 router.get('/comanda/mesa/:mesaId/para-pagos', async (req, res) => {
     try {
         const { mesaId } = req.params;
+        const comandaIdsParam = req.query.comandaIds;
+        const comandaIds = comandaIdsParam
+            ? String(comandaIdsParam).split(',').map((s) => s.trim()).filter(Boolean)
+            : null;
         const ciclo = await obtenerCicloServicioMesa(mesaId);
-        const comandas = await getComandasCicloParaPagos(mesaId);
+        const comandas = await getComandasCicloParaPagos(mesaId, comandaIds);
         await enrichComandasMozoNombre(comandas);
         res.json({
             success: true,
@@ -1620,7 +1624,7 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
     const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
 
     // Validar que nuevoEstado sea válido
-    const estadosValidos = ['recoger', 'entregado', 'en_espera', 'pedido'];
+    const estadosValidos = ['recoger', 'salio', 'entregado', 'en_espera', 'pedido'];
     if (!nuevoEstado || !estadosValidos.includes(nuevoEstado)) {
         return res.status(400).json({ 
             error: `Estado inválido. Debe ser uno de: ${estadosValidos.join(', ')}`,
@@ -1659,6 +1663,17 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
         }
         
         const estadoAnterior = platoAntes.estado || 'en_espera';
+
+        // SALIO: Bloquear transición directa recoger → entregado
+        // El flujo correcto es recoger → salio (cocina) → entregado (mozo)
+        if (estadoAnterior === 'recoger' && nuevoEstado === 'entregado') {
+            return res.status(400).json({
+                error: 'Transición bloqueada: no se puede pasar de "recoger" a "entregado" directamente. El plato debe pasar por "salio" primero (cocina confirma salida del pass).',
+                estadoActual: estadoAnterior,
+                nuevoEstado: nuevoEstado,
+                flujoCorrecto: 'recoger → salio (cocina) → entregado (mozo)'
+            });
+        }
 
         // v7.2: VALIDACION MULTI-COCINERO
         // Si el plato esta siendo procesado por un cocinero, validar que sea el mismo quien finaliza
@@ -1854,6 +1869,124 @@ router.put('/comanda/:comandaId/plato/:platoId/entregar', async (req, res) => {
     }
 });
 
+// SALIO: Endpoint dedicado para que cocina confirme salida del pass
+// PUT /api/comanda/:comandaId/plato/:platoId/salir-cocina
+// Body: { cocineroId }
+// Cambia estado del plato de recoger → salio
+router.put('/comanda/:comandaId/plato/:platoId/salir-cocina', async (req, res) => {
+    const { comandaId, platoId } = req.params;
+    const { cocineroId } = req.body;
+    const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+
+    try {
+        logger.info(`🔄 [PUT /salir-cocina] Comanda ${comandaId}, Plato ${platoId}, Cocinero: ${cocineroId || usuarioId}`);
+
+        // Obtener comanda para validar estado anterior
+        const comandaAntes = await comandaModel.findById(comandaId);
+        if (!comandaAntes) {
+            return res.status(404).json({ error: 'Comanda no encontrada', comandaId });
+        }
+
+        // Buscar plato para validar estado
+        const platoAntes = comandaAntes.platos?.find(p => {
+            return (p._id?.toString() === platoId.toString()) ||
+                   (p.platoId?.toString() === platoId.toString()) ||
+                   (p.plato?.toString() === platoId.toString());
+        });
+
+        if (!platoAntes) {
+            return res.status(404).json({
+                error: 'Plato no encontrado en la comanda',
+                platoId,
+                comandaId
+            });
+        }
+
+        const estadoAnterior = platoAntes.estado || 'pedido';
+
+        // Validar que el plato esté en estado recoger
+        if (estadoAnterior !== 'recoger') {
+            return res.status(400).json({
+                error: `El plato debe estar en estado "recoger" para salir de cocina. Estado actual: "${estadoAnterior}"`,
+                estadoActual: estadoAnterior,
+                estadoRequerido: 'recoger'
+            });
+        }
+
+        // Cambiar estado del plato: recoger → salio
+        const updatedComanda = await cambiarEstadoPlato(comandaId, platoId, 'salio');
+
+        logger.info(`✅ [PUT /salir-cocina] Plato ${platoId}: ${estadoAnterior} → salio`);
+
+        // Setear tiempos.salio en el plato
+        const platoIndex = comandaAntes.platos.findIndex(p => {
+            return (p._id?.toString() === platoId.toString()) ||
+                   (p.platoId?.toString() === platoId.toString()) ||
+                   (p.plato?.toString() === platoId.toString());
+        });
+        if (platoIndex !== -1) {
+            const ahora = new Date();
+            await comandaModel.updateOne(
+                { _id: comandaId },
+                { $set: { [`platos.${platoIndex}.tiempos.salio`]: ahora } }
+            );
+        }
+
+        // Emitir evento Socket.io
+        if (global.emitPlatoActualizado) {
+            await global.emitPlatoActualizado(comandaId, platoId, 'salio', { skipPush: false });
+        }
+
+        // También emitir comanda actualizada
+        if (global.emitComandaActualizada) {
+            await global.emitComandaActualizada(comandaId, estadoAnterior, 'salio');
+        }
+
+        // Notificación push: "Plato salió de cocina"
+        try {
+            const comandaPopulated = await comandaModel.findById(comandaId)
+                .populate('mozos')
+                .populate({ path: 'mesas', populate: { path: 'area' } })
+                .populate({ path: 'platos.plato', model: 'platos' });
+
+            if (comandaPopulated) {
+                const { notifyPlatoSalioCocina } = require('../services/pushNotifications');
+                const nombrePlato = platoAntes.plato?.nombre || platoAntes.nombreOriginal || 'Plato';
+                const mesaNumero = comandaPopulated.mesas?.nummesa ?? comandaPopulated.mesas?.numero ?? '?';
+                await notifyPlatoSalioCocina(comandaPopulated, {
+                    platoId,
+                    nombre: nombrePlato,
+                    nuevoEstado: 'salio'
+                });
+            }
+        } catch (pushErr) {
+            logger.warn('[push] Error notificación plato salió de cocina', { error: pushErr.message });
+        }
+
+        res.json({
+            success: true,
+            message: 'Plato salió de cocina exitosamente',
+            platoId,
+            estadoAnterior,
+            nuevoEstado: 'salio',
+            comandaStatus: updatedComanda.status,
+            comanda: updatedComanda
+        });
+
+    } catch (error) {
+        logger.error('❌ [PUT /salir-cocina] Error:', error.message);
+        let statusCode = 400;
+        if (error.message.includes('no encontrada') || error.message.includes('no encontrado')) {
+            statusCode = 404;
+        }
+        res.status(statusCode).json({
+            error: error.message,
+            platoId,
+            comandaId
+        });
+    }
+});
+
 router.put('/comanda/:id/revertir/:nuevoStatus', async (req, res) => {
     const { id, nuevoStatus } = req.params;
     // Obtener usuarioId del request (puede venir de req.user si hay autenticación)
@@ -1887,7 +2020,7 @@ router.get('/comanda/comandas-para-pagar/:mesaId', async (req, res) => {
 
     if (incluirPagados) {
       const ciclo = await obtenerCicloServicioMesa(mesaId);
-      const comandas = await getComandasCicloParaPagos(mesaId);
+      const comandas = await getComandasCicloParaPagos(mesaId, comandaIds);
       await enrichComandasMozoNombre(comandas);
       const totalPendiente = await calcularTotalPendienteMesa(mesaId);
       const mesaInfo = comandas[0]?.mesas || null;

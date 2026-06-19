@@ -379,10 +379,11 @@ const listarBouchersActivosPorMesa = async (mesaId, opts = {}) => {
             .sort({ fechaPago: 1 });
 
         if (porPedido.length > 0) {
+            const filtrados = filtrarBouchersPorCiclo(porPedido, ciclo, comandaIdsEfectivos);
             console.log(
-                `📋 [listarBouchersActivosPorMesa] Mesa ${mesaId}: pedido=${ciclo.pedidoId}, ${porPedido.length} voucher(s)`
+                `📋 [listarBouchersActivosPorMesa] Mesa ${mesaId}: pedido=${ciclo.pedidoId}, ${filtrados.length}/${porPedido.length} voucher(s) del ciclo`
             );
-            return porPedido.map(toBoucherPlain);
+            return filtrados.map(toBoucherPlain);
         }
     }
 
@@ -412,7 +413,7 @@ const listarBouchersActivosPorMesa = async (mesaId, opts = {}) => {
  * @param {string} mesaId - ID de la mesa
  * @returns {Promise<Object|null>} El boucher consolidado o null si no existe
  */
-const obtenerBoucherPorMesa = async (mesaId) => {
+const obtenerBoucherPorMesa = async (mesaId, opts = {}) => {
     try {
         const mongoose = require('mongoose');
         const comandaModel = require('../database/models/comanda.model');
@@ -442,7 +443,7 @@ const obtenerBoucherPorMesa = async (mesaId) => {
         console.log(`📊 [obtenerBoucherPorMesa] Estado de la mesa: ${estadoMesa}`);
         
         const ciclo = await obtenerCicloServicioMesa(mesaId);
-        const comandaIdsCiclo = ciclo.comandaIds || [];
+        const comandaIdsEfectivos = intersectarComandaIds(ciclo, opts.comandaIds);
 
         const populateOpts = [
             { path: 'mesa' },
@@ -458,14 +459,15 @@ const obtenerBoucherPorMesa = async (mesaId) => {
 
         if (ciclo.pedidoId && mongoose.Types.ObjectId.isValid(ciclo.pedidoId)) {
             const pedidoOid = new mongoose.Types.ObjectId(ciclo.pedidoId);
-            bouchersFiltrados = await boucherModel
+            const porPedido = await boucherModel
                 .find({ pedido: pedidoOid, isActive: true })
                 .populate(populateOpts)
                 .sort({ fechaPago: 1 });
+            bouchersFiltrados = filtrarBouchersPorCiclo(porPedido, ciclo, comandaIdsEfectivos);
         }
 
         if (!bouchersFiltrados.length) {
-            if (!ciclo.pedidoId && !comandaIdsCiclo.length) {
+            if (!ciclo.pedidoId && !comandaIdsEfectivos.length && !(ciclo.comandaIds || []).length) {
                 console.log(
                     `⚠️ [obtenerBoucherPorMesa] Sin pedido ni comandas en ciclo (${ciclo.tipo})`
                 );
@@ -496,7 +498,7 @@ const obtenerBoucherPorMesa = async (mesaId) => {
             bouchersFiltrados = filtrarBouchersPorCiclo(
                 todosBouchers,
                 ciclo,
-                comandaIdsCiclo
+                comandaIdsEfectivos
             );
         }
 

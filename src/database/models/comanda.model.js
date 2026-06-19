@@ -38,12 +38,12 @@ const comandaSchema = new mongoose.Schema({
         estado: { 
             type: String, 
             default: 'pedido',
-            enum: ['pedido', 'en_espera', 'recoger', 'entregado', 'pagado'],
+            enum: ['pedido', 'en_espera', 'recoger', 'salio', 'entregado', 'pagado'],
             validate: {
                 validator: function(v) {
-                    return ['pedido', 'en_espera', 'recoger', 'entregado', 'pagado'].includes(v);
+                    return ['pedido', 'en_espera', 'recoger', 'salio', 'entregado', 'pagado'].includes(v);
                 },
-                message: 'El estado del plato debe ser: pedido, en_espera, recoger, entregado o pagado'
+                message: 'El estado del plato debe ser: pedido, en_espera, recoger, salio, entregado o pagado'
             }
         },
         // NUEVO: Timestamps de transiciones de estado
@@ -51,6 +51,7 @@ const comandaSchema = new mongoose.Schema({
             pedido: { type: Date, default: () => moment.tz("America/Lima").toDate() },
             en_espera: Date,
             recoger: Date,
+            salio: Date,
             entregado: Date,
             pagado: Date
         },
@@ -176,12 +177,12 @@ const comandaSchema = new mongoose.Schema({
     status: {
         type: String,
         default: 'en_espera',
-        enum: ['en_espera', 'recoger', 'entregado', 'pagado', 'cancelado'],
+        enum: ['en_espera', 'recoger', 'salio', 'entregado', 'pagado', 'cancelado'],
         validate: {
             validator: function(v) {
-                return ['en_espera', 'recoger', 'entregado', 'pagado', 'cancelado'].includes(v);
+                return ['en_espera', 'recoger', 'salio', 'entregado', 'pagado', 'cancelado'].includes(v);
             },
-            message: 'El status de la comanda debe ser: en_espera, recoger, entregado, pagado o cancelado'
+            message: 'El status de la comanda debe ser: en_espera, recoger, salio, entregado, pagado o cancelado'
         }
     },
     IsActive: {
@@ -212,6 +213,10 @@ const comandaSchema = new mongoose.Schema({
         type: Date,
         default: null
     },
+    tiempoSalio: {
+        type: Date,
+        default: null
+    },
     tiempoEntregado: {
         type: Date,
         default: null
@@ -237,7 +242,7 @@ const comandaSchema = new mongoose.Schema({
     },
     sourceApp: {
         type: String,
-        enum: ['mozos', 'cocina', 'admin', 'api'],
+        enum: ['mozos', 'cocina', 'admin', 'api', 'sistema'],
         default: null
     },
     historialEstados: [{
@@ -252,7 +257,7 @@ const comandaSchema = new mongoose.Schema({
         },
         accion: { type: String },
         deviceId: { type: String, default: null },
-        sourceApp: { type: String, enum: ['mozos', 'cocina', 'admin', 'api'], default: null },
+        sourceApp: { type: String, enum: ['mozos', 'cocina', 'admin', 'api', 'sistema'], default: null },
         motivo: { type: String, default: null }
     }],
     // Campos de auditoría para soft-delete (ESTANDARIZADO: solo IsActive)

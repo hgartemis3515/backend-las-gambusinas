@@ -47,8 +47,20 @@ describe('FASE 1: Validación y Persistencia de Estados Individuales', () => {
       expect(validarTransicionPlato('en_espera', 'recoger')).toBe(true);
     });
 
-    test('debe permitir transición recoger → entregado', () => {
-      expect(validarTransicionPlato('recoger', 'entregado')).toBe(true);
+    test('debe BLOQUEAR transición recoger → entregado directo (debe pasar por salio)', () => {
+      expect(validarTransicionPlato('recoger', 'entregado')).toBe(false);
+    });
+
+    test('debe permitir transición recoger → salio', () => {
+      expect(validarTransicionPlato('recoger', 'salio')).toBe(true);
+    });
+
+    test('debe permitir transición salio → entregado', () => {
+      expect(validarTransicionPlato('salio', 'entregado')).toBe(true);
+    });
+
+    test('debe BLOQUEAR transición salio → recoger (no se puede revertir en el flujo)', () => {
+      expect(validarTransicionPlato('salio', 'recoger')).toBe(false);
     });
 
     test('debe permitir transición entregado → pagado', () => {

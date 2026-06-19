@@ -15,7 +15,7 @@ const mongoose = require('mongoose');
 const redisCache = require('../utils/redisCache');
 const calculosPrecios = require('../utils/calculosPrecios');
 const configuracionRepository = require('./configuracion.repository');
-const { obtenerCicloServicioMesa } = require('../services/mesaCicloServicio.service');
+const { obtenerCicloServicioMesa, intersectarComandaIds } = require('../services/mesaCicloServicio.service');
 
 // ========== RESERVAS: Importar repositorio de reservas ==========
 // Importacion diferida para evitar dependencia circular
@@ -1774,7 +1774,7 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
     
     // FASE 1: Validar transición de estado
     if (!validarTransicionPlato(estadoActual, nuevoEstado)) {
-      const errorMsg = `Transición inválida de estado: "${estadoActual}" → "${nuevoEstado}". Estados permitidos desde "${estadoActual}": pedido/en_espera → recoger, recoger → entregado`;
+      const errorMsg = `Transición inválida de estado: "${estadoActual}" → "${nuevoEstado}". Transiciones permitidas: pedido/en_espera → recoger/salio, recoger → salio, salio → entregado, entregado → pagado`;
       console.error(`❌ [cambiarEstadoPlato] ${errorMsg}`);
       const error = new Error(errorMsg);
       error.status = 400;
@@ -1972,9 +1972,9 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
 /**
  * FASE 1: Valida si una transición de estado de PLATO es válida
  * Transiciones permitidas:
- * - 'pedido' → ['recoger', 'entregado']
- * - 'en_espera' → ['recoger', 'entregado'] (equivalente a pedido)
- * - 'recoger' → ['entregado']
+ * - 'pedido' → ['recoger', 'salio', 'entregado']
+ * - 'en_espera' → ['recoger', 'salio', 'entregado'] (equivalente a pedido)
+ * - 'recoger' → ['salio']
  * - 'entregado' → ['pagado']
  * - Cualquier estado → 'pedido' o 'en_espera' (revertir - solo admin/cocina)
  * @param {string} estadoActual - Estado actual del plato
@@ -1991,12 +1991,17 @@ const validarTransicionPlato = (estadoActual, nuevoEstado) => {
     return true; // Revertir siempre permitido
   }
   
-  // Definir transiciones válidas según el plan
+  // Definir transiciones válidas según el plan SALIO
+  // Flujo: pedido/en_espera → recoger → salio → entregado → pagado
+  // Cocina: recoger → salio (confirmar salida del pass)
+  // Mozo: salio → entregado (confirmar entrega al comensal)
+  // Bloqueado: recoger → entregado directo (debe pasar por salio primero)
   const transicionesValidas = {
-    'pedido': ['recoger', 'entregado'], // Cocina puede marcar como listo o entregado directamente
-    'recoger': ['entregado'], // Solo mozo puede marcar como entregado
-    'entregado': ['pagado'], // Solo al procesar pago
-    'pagado': [] // Estado final, no se puede cambiar (excepto revertir)
+    'pedido': ['recoger', 'salio', 'entregado'], // Cocina puede finalizar directo o marcar salió
+    'recoger': ['salio'],       // Solo cocina puede confirmar salida del pass
+    'salio': ['entregado'],     // Solo mozo puede confirmar entrega al comensal
+    'entregado': ['pagado'],    // Solo al procesar pago
+    'pagado': []                // Estado final
   };
   
   const estadosPermitidos = transicionesValidas[estadoNormalizado] || [];
@@ -2007,7 +2012,7 @@ const validarTransicionPlato = (estadoActual, nuevoEstado) => {
  * Valida si una transición de estado es válida (para comanda global)
  * Transiciones permitidas:
  * - en_espera -> recoger
- * - recoger -> entregado
+ * - recoger -> salio
  * - entregado -> pagado
  * - Cualquier estado -> en_espera (revertir)
  * @param {string} estadoActual - Estado actual de la comanda
@@ -2030,10 +2035,11 @@ const validarTransicionEstado = (estadoActual, nuevoEstado) => {
     return true;
   }
   
-  // Definir transiciones válidas (flujo normal)
+  // Definir transiciones válidas (flujo normal con estado SALIO intermedio)
   const transicionesValidas = {
     'en_espera': ['recoger'],
-    'recoger': ['entregado'],
+    'recoger': ['salio'],
+    'salio': ['entregado'],
     'entregado': ['pagado'],
     'pagado': [] // No se puede cambiar desde pagado (excepto revertir o cancelar)
   };
@@ -2110,12 +2116,12 @@ const cambiarStatusComanda = async (comandaId, nuevoStatus, options = {}) => {
       // Reutilizar timestampActual ya declarado arriba
       let platosModificados = false;
       
-      // Si el nuevo status es "recoger", actualizar TODOS los platos que NO estén ya en "recoger" o "entregado"
+      // Si el nuevo status es "recoger", actualizar TODOS los platos que NO estén ya en "recoger", "salio" o "entregado"
       if (nuevoStatus === "recoger") {
         let cantidadActualizados = 0;
         comandaActual.platos.forEach((plato, index) => {
           // Solo actualizar platos que están en "en_espera" o "ingresante"
-          // Dejar intactos los que ya están en "recoger" o "entregado" (idempotente)
+          // Dejar intactos los que ya están en "recoger", "salio" o "entregado" (idempotente)
           if (plato.estado === "en_espera" || plato.estado === "ingresante") {
             comandaActual.platos[index].estado = "recoger";
             // Actualizar timestamp del plato
@@ -2182,7 +2188,7 @@ const cambiarStatusComanda = async (comandaId, nuevoStatus, options = {}) => {
       if (platosModificados) {
         const platosEnEstadoCorrecto = updatedComanda.platos.filter(p => {
           if (nuevoStatus === "recoger") {
-            return p.estado === "recoger" || p.estado === "entregado";
+            return p.estado === "recoger" || p.estado === "salio" || p.estado === "entregado";
           } else if (nuevoStatus === "entregado") {
             return p.estado === "entregado";
           }
@@ -2517,7 +2523,7 @@ const listarComandaPorFecha = async (fecha, usarProyeccion = true) => {
  */
 /**
  * Recalcula el estado de una mesa basado en las comandas activas
- * PRIORIDAD SIMPLIFICADA: en_espera > recoger > entregado > pagado
+ * PRIORIDAD: en_espera > recoger > salio > entregado > pagado
  * @param {string} mesaId - ID de la mesa
  * @param {object} session - Sesión de MongoDB (opcional)
  * @returns {Promise<string>} - Nuevo estado de la mesa
@@ -2543,9 +2549,10 @@ const recalcularEstadoMesa = async (mesaId, session = null) => {
       // Contar comandas por estado (simplificado)
       const comandasEnEspera = comandasActivas.filter(c => c.status === 'en_espera');
       const comandasRecoger = comandasActivas.filter(c => c.status === 'recoger');
+      const comandasSalio = comandasActivas.filter(c => c.status === 'salio');
       const comandasEntregadas = comandasActivas.filter(c => c.status === 'entregado');
       
-      // PRIORIDAD CLARA Y SIMPLE
+      // PRIORIDAD CLARA Y SIMPLE: en_espera > recoger > salio > entregado
       if (comandasEnEspera.length > 0) {
         nuevoEstadoMesa = 'pedido';
         logger.debug('Mesa con comandas en espera', {
@@ -2558,6 +2565,13 @@ const recalcularEstadoMesa = async (mesaId, session = null) => {
         logger.debug('Mesa con comandas listas para recoger', {
           mesaId,
           comandasRecoger: comandasRecoger.length,
+          nuevoEstado: nuevoEstadoMesa
+        });
+      } else if (comandasSalio.length > 0) {
+        nuevoEstadoMesa = 'preparado';
+        logger.debug('Mesa con comandas con platos que salieron de cocina', {
+          mesaId,
+          comandasSalio: comandasSalio.length,
           nuevoEstado: nuevoEstadoMesa
         });
       } else if (comandasEntregadas.length > 0) {
@@ -2686,8 +2700,8 @@ const revertirStatusComanda = async (comandaId, nuevoStatus, usuarioId) => {
     // 🔥 v7.3: También resetea información del cocinero y tiempos para métricas correctas
     if (comanda.platos && comanda.platos.length > 0) {
       comanda.platos.forEach(plato => {
-        // Solo revertir platos que están en "recoger" o "entregado"
-        if (plato.estado === 'recoger' || plato.estado === 'entregado') {
+        // Solo revertir platos que están en "recoger", "salio" o "entregado"
+        if (plato.estado === 'recoger' || plato.estado === 'salio' || plato.estado === 'entregado') {
           plato.estado = 'en_espera';
           
           // 🔥 RESET de información del cocinero para métricas correctas
@@ -2887,17 +2901,22 @@ const mapComandasSoloPlatosPagados = (comandas) => {
 /**
  * Comandas del ciclo actual para PagosScreen (platos entregados + ya pagados en parciales).
  */
-const getComandasCicloParaPagos = async (mesaId) => {
+const getComandasCicloParaPagos = async (mesaId, comandaIdsOpcional = null) => {
   try {
     const ciclo = await obtenerCicloServicioMesa(mesaId);
     if (!ciclo.pedidoId && !ciclo.comandaIds?.length) {
       return [];
     }
 
+    const idsEfectivos = intersectarComandaIds(ciclo, comandaIdsOpcional);
+
     const query = { mesas: mesaId, status: { $nin: ['cancelado', 'anulado'] } };
     if (ciclo.pedidoId) {
       query.pedido = ciclo.pedidoId;
-    } else {
+    }
+    if (idsEfectivos?.length) {
+      query._id = { $in: idsEfectivos };
+    } else if (!ciclo.pedidoId && ciclo.comandaIds?.length) {
       query._id = { $in: ciclo.comandaIds };
     }
 
@@ -2967,7 +2986,7 @@ const getComandasParaPagar = async (mesaId, comandaIds = null) => {
     const query = {
       mesas: mesaId,
       IsActive: true,
-      status: { $in: ['recoger', 'entregado'] }
+      status: { $in: ['recoger', 'salio', 'entregado'] }
     };
     if (comandaIds && Array.isArray(comandaIds) && comandaIds.length > 0) {
       const ids = comandaIds.map(id => (typeof id === 'string' ? id.trim() : id)).filter(Boolean);
@@ -3031,10 +3050,10 @@ const validarPlatosSeleccionadosParaPago = async (mesaId, platosSeleccionados, e
   }
 
   const comandasIds = [...new Set(platosSeleccionados.map((s) => String(s.comandaId)))];
-  // Para pago adelantado, permitir comandas en estados más tempranos (pedido, en_espera, recoger, entregado)
+  // Para pago adelantado, permitir comandas en estados más tempranos (pedido, en_espera, recoger, salio, entregado)
   const estadosValidos = esPagoAdelantado
-    ? ['pedido', 'en_espera', 'recoger', 'entregado']
-    : ['recoger', 'entregado'];
+    ? ['pedido', 'en_espera', 'recoger', 'salio', 'entregado']
+    : ['recoger', 'salio', 'entregado'];
   const comandas = await comandaModel
     .find({
       _id: { $in: comandasIds },
@@ -3058,7 +3077,7 @@ const validarPlatosSeleccionadosParaPago = async (mesaId, platosSeleccionados, e
 
   // Para pago adelantado, permitir platos en estado pedido/en_espera además de entregado
   const estadosPlatoValidos = esPagoAdelantado
-    ? ['pedido', 'en_espera', 'recoger', 'entregado']
+    ? ['pedido', 'en_espera', 'recoger', 'salio', 'entregado']
     : ['entregado'];
 
   for (const sel of platosSeleccionados) {
@@ -3097,7 +3116,7 @@ const validarPlatosSeleccionadosParaPago = async (mesaId, platosSeleccionados, e
     const estado = (platoItem.estado || '').toLowerCase();
     if (!estadosPlatoValidos.includes(estado)) {
       const estadosPermitidos = esPagoAdelantado
-        ? '"pedido", "en_espera", "recoger" o "entregado"'
+        ? '"pedido", "en_espera", "recoger", "salio" o "entregado"'
         : '"entregado"';
       const err = new Error(
         `Solo se pueden pagar platos en estado ${estadosPermitidos}. Plato "${platoItem.plato?.nombre || 'N/A'}" está en "${estado}".`
@@ -3202,7 +3221,19 @@ const marcarPlatosComoPagados = async (selecciones, { clienteId, ahoraPago } = {
       comanda.IsActive = true;
     }
 
-    await comanda.save();
+    // updateOne: solo persiste campos del pago sin revalidar historialEstados completo
+    // (evita fallos si entradas previas tienen sourceApp legacy vía updateOne sin validators)
+    const updateData = {
+      platos: comanda.platos,
+      cantidades: comanda.cantidades,
+      status: comanda.status,
+      IsActive: comanda.IsActive,
+      updatedAt: ahoraPago || new Date(),
+    };
+    if (clienteId) updateData.cliente = clienteId;
+    if (todosPagados) updateData.tiempoPagado = comanda.tiempoPagado;
+
+    await comandaModel.updateOne({ _id: comandaId }, { $set: updateData });
   }
 
   return [...comandasCompletamentePagadas];
@@ -3218,7 +3249,7 @@ const validarComandasParaPagar = async (mesaId, comandasIds) => {
       _id: { $in: comandasIds },
       mesas: mesaId,
       IsActive: true,
-      status: { $in: ['recoger', 'entregado'] }
+      status: { $in: ['recoger', 'salio', 'entregado'] }
     })
       .populate('platos.plato', 'nombre precio')
       .populate('mozos')
@@ -3506,8 +3537,9 @@ const calcularEstadoGlobalInicial = (platos) => {
     'pedido': 1, 
     'en_espera': 1, 
     'recoger': 2, 
-    'entregado': 3, 
-    'pagado': 4 
+    'salio': 3, 
+    'entregado': 4, 
+    'pagado': 5 
   };
   
   const estadoMasBajo = estados.reduce((min, e) => 
@@ -3567,7 +3599,7 @@ const actualizarComandaSiTodosEntregados = async (comandaId) => {
       };
     }
 
-    if (statusActual === 'recoger' || statusActual === 'entregado') {
+    if (statusActual === 'entregado' || statusActual === 'pagado') {
       logger.info(`${logPrefix} Status ya es "${statusActual}", no se actualiza`);
       return {
         updated: false,
@@ -3582,14 +3614,14 @@ const actualizarComandaSiTodosEntregados = async (comandaId) => {
     await comandaModel.updateOne(
       { _id: comandaId },
       {
-        $set: { status: 'recoger', updatedAt: ahora },
+        $set: { status: 'entregado', updatedAt: ahora },
         $push: {
           historialEstados: {
-            status: 'recoger',
+            status: 'entregado',
             statusAnterior: statusActual,
             timestamp: ahora,
             usuario: null,
-            accion: `Auto-actualización: todos los platos entregados → status "recoger" (antes: "${statusActual}")`,
+            accion: `Auto-actualización: todos los platos entregados → status "entregado" (antes: "${statusActual}")`,
             deviceId: null,
             sourceApp: 'sistema',
             motivo: 'actualizarComandaSiTodosEntregados'
@@ -3598,7 +3630,7 @@ const actualizarComandaSiTodosEntregados = async (comandaId) => {
       }
     );
 
-    logger.info(`${logPrefix} Comanda #${comanda.comandaNumber} actualizada: "${statusActual}" → "recoger" (todos los platos entregados)`);
+    logger.info(`${logPrefix} Comanda #${comanda.comandaNumber} actualizada: "${statusActual}" → "entregado" (todos los platos entregados)`);
 
     const mesaId = comanda.mesas?._id || comanda.mesas;
     if (mesaId) {
@@ -3611,10 +3643,11 @@ const actualizarComandaSiTodosEntregados = async (comandaId) => {
 
     if (global.emitComandaActualizada) {
       try {
-        await global.emitComandaActualizada(comandaId, statusActual, 'recoger', {
+        await global.emitComandaActualizada(comandaId, statusActual, 'entregado', {
           pedido: 0,
           en_espera: 0,
           recoger: 0,
+          salio: 0,
           entregado: numActivos,
           pagado: 0
         }, { skipPush: true });
@@ -3658,6 +3691,7 @@ const recalcularEstadoComandaPorPlatos = async (comandaId) => {
       pedido: 0,
       en_espera: 0,
       recoger: 0,
+      salio: 0,
       entregado: 0,
       pagado: 0
     };
@@ -3672,16 +3706,23 @@ const recalcularEstadoComandaPorPlatos = async (comandaId) => {
     let nuevoEstado = comanda.status || 'en_espera';
     const estadoAnterior = comanda.status || 'en_espera';
 
+    // Prioridad: pagado > entregado > salio > recoger > en_espera/pedido
     if (total === 0) {
       nuevoEstado = 'en_espera';
     } else if (cuentas.pagado === total) {
       nuevoEstado = 'pagado';
     } else if (cuentas.entregado === total) {
       nuevoEstado = 'entregado';
-    } else if (cuentas.recoger === total) {
-      nuevoEstado = 'recoger';
-    } else if (cuentas.recoger > 0 || cuentas.entregado > 0) {
-      nuevoEstado = 'en_espera';
+    } else if (cuentas.entregado > 0 || cuentas.salio > 0 || cuentas.recoger > 0) {
+      // Si hay algún plato en salio, recoger o entregado, el estado refleja progreso
+      if (cuentas.salio > 0 && cuentas.entregado === 0 && cuentas.recoger === 0) {
+        nuevoEstado = 'salio';
+      } else if (cuentas.recoger > 0 && cuentas.entregado === 0 && cuentas.salio === 0) {
+        nuevoEstado = 'recoger';
+      } else {
+        // Mixto: hay platos en diferentes estados avanzados
+        nuevoEstado = 'en_espera';
+      }
     } else if (cuentas.pedido === total) {
       nuevoEstado = 'en_espera';
     }
@@ -3703,6 +3744,7 @@ const recalcularEstadoComandaPorPlatos = async (comandaId) => {
       comanda.status = nuevoEstado;
       const ahora = moment.tz("America/Lima").toDate();
       if (nuevoEstado === 'recoger' && !comanda.tiempoRecoger) comanda.tiempoRecoger = ahora;
+      else if (nuevoEstado === 'salio' && !comanda.tiempoSalio) comanda.tiempoSalio = ahora;
       else if (nuevoEstado === 'entregado' && !comanda.tiempoEntregado) comanda.tiempoEntregado = ahora;
       else if (nuevoEstado === 'en_espera' && !comanda.tiempoEnEspera) comanda.tiempoEnEspera = ahora;
       else if (nuevoEstado === 'pagado' && !comanda.tiempoPagado) comanda.tiempoPagado = ahora;

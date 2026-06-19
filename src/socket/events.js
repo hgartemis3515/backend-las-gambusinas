@@ -537,6 +537,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       if (cuentasPlatos) {
         eventData.platosEnPedido = cuentasPlatos.pedido || 0;
         eventData.platosEnRecoger = cuentasPlatos.recoger || 0;
+        eventData.platosEnSalio = cuentasPlatos.salio || 0;
         eventData.platosEntregados = cuentasPlatos.entregado || 0;
       }
 
@@ -645,6 +646,13 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       };
       if (nuevoEstado === 'recoger') {
         emitToMozoAsignado(comanda, 'plato-actualizado', platoEventMozos);
+      } else if (nuevoEstado === 'salio') {
+        // SALIO: Notificar específicamente al mozo asignado que el plato salió de cocina
+        emitToMozoAsignado(comanda, 'plato-actualizado', platoEventMozos);
+        // También emitir a la room de la mesa para que otros mozos vean la actualización
+        if (mesaIdPop && mozosNamespace && mozosNamespace.sockets) {
+          mozosNamespace.to(`mesa-${mesaIdPop}`).emit('plato-actualizado', platoEventMozos);
+        }
       } else if (mozosNamespace && mozosNamespace.sockets) {
         if (mesaIdPop) {
           mozosNamespace.to(`mesa-${mesaIdPop}`).emit('plato-actualizado', platoEventMozos);
@@ -680,6 +688,15 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         const nombrePlato = findNombrePlatoEnComanda(comanda, platoId);
         notifyPlatoListo(comanda, { platoId, nombre: nombrePlato, nuevoEstado }).catch(err =>
           logger.warn('[push] Error notificación plato listo', { error: err.message })
+        );
+      }
+
+      // SALIO: Push notificación "plato salió de cocina" para mozos
+      if (nuevoEstado === 'salio' && !skipPush) {
+        const { findNombrePlatoEnComanda, notifyPlatoSalioCocina } = require('../services/pushNotifications');
+        const nombrePlato = findNombrePlatoEnComanda(comanda, platoId);
+        notifyPlatoSalioCocina(comanda, { platoId, nombre: nombrePlato, nuevoEstado: 'salio' }).catch(err =>
+          logger.warn('[push] Error notificación plato salió de cocina', { error: err.message })
         );
       }
     } catch (error) {
@@ -727,8 +744,9 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       cocinaNamespace.to(roomNameCocina).emit('plato-actualizado-batch', eventData);
 
       const platosRecoger = platos.filter(p => p.nuevoEstado === 'recoger');
+      const platosSalio = platos.filter(p => p.nuevoEstado === 'salio');
       let comanda = null;
-      if (platosRecoger.length > 0) {
+      if (platosRecoger.length > 0 || platosSalio.length > 0) {
         comanda = await comandaModel.findById(comandaId)
           .populate('mozos')
           .populate({ path: 'mesas', populate: { path: 'area' } })
@@ -738,10 +756,10 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         eventData.mesaNumero = comanda.mesas?.nummesa ?? comanda.mesas?.numero ?? null;
       }
 
-      // Emitir a mozos: solo al mozo asignado cuando hay platos listos para recoger
+      // Emitir a mozos: al mozo asignado cuando hay platos listos para recoger o que salieron de cocina
       let mozosClients = 0;
       if (mozosNamespace && mozosNamespace.sockets) {
-        if (platosRecoger.length > 0 && comanda) {
+        if ((platosRecoger.length > 0 || platosSalio.length > 0) && comanda) {
           const mozoId = comanda.mozos?._id || comanda.mozos;
           if (mozoId) {
             const roomMozo = `mozo-${mozoId}`;
@@ -793,6 +811,23 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
           }
         } catch (pushErr) {
           logger.warn('[push] Error notificación plato listo en batch', { error: pushErr.message });
+        }
+      }
+
+      // SALIO: Push notificación para cada plato que salió de cocina en batch
+      if (platosSalio.length > 0 && comanda) {
+        try {
+          const { findNombrePlatoEnComanda, notifyPlatoSalioCocina } = require('../services/pushNotifications');
+          for (const platoEvt of platosSalio) {
+            const nombrePlato = findNombrePlatoEnComanda(comanda, platoEvt.platoId);
+            await notifyPlatoSalioCocina(comanda, {
+              platoId: platoEvt.platoId,
+              nombre: nombrePlato,
+              nuevoEstado: 'salio',
+            });
+          }
+        } catch (pushErr) {
+          logger.warn('[push] Error notificación plato salió de cocina en batch', { error: pushErr.message });
         }
       }
     } catch (error) {

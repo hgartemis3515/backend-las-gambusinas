@@ -72,8 +72,11 @@ router.get('/boucher/mesa/:mesaId/parciales', async (req, res) => {
 router.get('/boucher/by-mesa/:mesaId', async (req, res) => {
     const { mesaId } = req.params;
     try {
+        const comandaIds = req.query.comandaIds
+            ? String(req.query.comandaIds).split(',').map((s) => s.trim()).filter(Boolean)
+            : undefined;
         console.log(`📥 [GET /boucher/by-mesa/:mesaId] Solicitud para mesa: ${mesaId}`);
-        const boucher = await obtenerBoucherPorMesa(mesaId);
+        const boucher = await obtenerBoucherPorMesa(mesaId, { comandaIds });
         
         if (!boucher) {
             console.log(`❌ [GET /boucher/by-mesa/:mesaId] No se encontró boucher para mesa ${mesaId}`);
@@ -101,8 +104,11 @@ router.get('/boucher/by-mesa/:mesaId', async (req, res) => {
 router.get('/boucher-ultimo/:mesaId', async (req, res) => {
     const { mesaId } = req.params;
     try {
+        const comandaIds = req.query.comandaIds
+            ? String(req.query.comandaIds).split(',').map((s) => s.trim()).filter(Boolean)
+            : undefined;
         console.log(`📥 [GET /boucher-ultimo/:mesaId] Solicitud para mesa: ${mesaId}`);
-        const boucher = await obtenerBoucherPorMesa(mesaId);
+        const boucher = await obtenerBoucherPorMesa(mesaId, { comandaIds });
         
         if (!boucher) {
             console.log(`❌ [GET /boucher-ultimo/:mesaId] No se encontró boucher para mesa ${mesaId}`);

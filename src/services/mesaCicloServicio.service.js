@@ -145,14 +145,34 @@ const intersectarComandaIds = (ciclo, comandaIdsOpcional) => {
   if (!Array.isArray(comandaIdsOpcional) || comandaIdsOpcional.length === 0) {
     return ciclo.comandaIds || [];
   }
+  const explicit = comandaIdsOpcional.map(String);
   const cicloSet = new Set((ciclo.comandaIds || []).map(String));
   if (cicloSet.size === 0) {
-    return comandaIdsOpcional.map(String);
+    return explicit;
   }
-  return comandaIdsOpcional.map(String).filter((id) => cicloSet.has(id));
+  const intersected = explicit.filter((id) => cicloSet.has(id));
+  // IDs explícitos del cliente (ComandaDetalle/Inicio) tienen prioridad si el pedido no los lista aún
+  return intersected.length > 0 ? intersected : explicit;
 };
 
 const boucherPerteneceAlCiclo = (boucher, ciclo, comandaIdsEfectivos) => {
+  const idsExplicitos = Array.isArray(comandaIdsEfectivos) && comandaIdsEfectivos.length > 0
+    ? comandaIdsEfectivos.map(String)
+    : null;
+
+  // Si el cliente envió comandaIds, el boucher debe referenciar al menos una de esas comandas
+  if (idsExplicitos) {
+    const set = new Set(idsExplicitos);
+    const refs = boucher.comandas || [];
+    const tieneComanda = refs.some((c) => {
+      const id = (c?._id || c)?.toString?.();
+      return id && set.has(id);
+    });
+    if (!tieneComanda) {
+      return false;
+    }
+  }
+
   if (ciclo.pedidoId) {
     const bp = boucher.pedido?._id || boucher.pedido;
     if (bp) {
@@ -160,14 +180,12 @@ const boucherPerteneceAlCiclo = (boucher, ciclo, comandaIdsEfectivos) => {
     }
   }
 
-  const ids = comandaIdsEfectivos?.length
-    ? comandaIdsEfectivos
-    : ciclo.comandaIds;
-  if (!ids?.length) {
+  const ids = idsExplicitos || (ciclo.comandaIds || []).map(String);
+  if (!ids.length) {
     return false;
   }
 
-  const set = new Set(ids.map(String));
+  const set = new Set(ids);
   const refs = boucher.comandas || [];
   const tieneComanda = refs.some((c) => {
     const id = (c?._id || c)?.toString?.();

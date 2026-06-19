@@ -252,9 +252,50 @@ async function notifyComandaLista(comanda) {
   });
 }
 
+/**
+ * Notifica al mozo que un plato salió de cocina (pasó de recoger → salio).
+ * Push diferenciado del "plato listo para recoger".
+ * @param {object} comanda - Comanda populada (con mozos y mesas)
+ * @param {object} platoData - { platoId, nombre, nuevoEstado }
+ */
+async function notifyPlatoSalioCocina(comanda, platoData) {
+  if (!comanda || !platoData || platoData.nuevoEstado !== 'salio') return;
+
+  const comandaId = comanda._id?.toString?.() || String(comanda._id);
+  const platoId = platoData.platoId?.toString?.() || String(platoData.platoId);
+
+  const mesaNumero = comanda.mesas?.nummesa ?? comanda.mesas?.numero ?? '?';
+  const nombrePlato =
+    platoData.nombre ||
+    findNombrePlatoEnComanda(comanda, platoId) ||
+    'Un plato';
+  const mesaId = comanda.mesas?._id || (comanda.mesas?.toString ? comanda.mesas.toString() : null);
+
+  const mozoIds = getMozoIdsFromComanda(comanda);
+  if (mozoIds.length === 0) {
+    logger.debug('[push] Comanda sin mozo asignado (plato salió de cocina)', { comandaId: comanda._id });
+    return;
+  }
+
+  return sendPushToMozos(mozoIds, {
+    title: '🚶 Plato Salió de Cocina',
+    body: `${nombrePlato} salió de cocina. Mesa ${mesaNumero}`,
+    channelId: 'plato-salio',
+    data: {
+      type: 'plato-salio',
+      mesaId: mesaId,
+      mesaNumero: mesaNumero,
+      comandaId: comanda._id?.toString(),
+      platoId: platoData.platoId,
+      platoNombre: nombrePlato,
+    },
+  });
+}
+
 module.exports = {
   sendPushToMozos,
   notifyPlatoListo,
+  notifyPlatoSalioCocina,
   notifyComandaLista,
   isComandaListaParaRecogerEnCocina,
   shouldNotifyComandaLista,
