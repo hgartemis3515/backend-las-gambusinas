@@ -1583,14 +1583,16 @@ function reportesApp() {
     
     /**
      * Calcula métodos de pago
+     * Valores normalizados del backend: 'efectivo' | 'digital' | 'tarjeta'
+     * Compatibilidad con valores antiguos tipo 'Efectivo', 'Yape', etc.
      */
     calculatePaymentMethods(bouchers) {
       const metodos = { efectivo: 0, tarjeta: 0, digital: 0 };
       bouchers.forEach(b => {
         const metodo = (b.metodoPago || 'efectivo').toLowerCase();
-        if (metodo.includes('tarjeta') || metodo.includes('visa') || metodo.includes('master')) {
+        if (metodo === 'tarjeta' || metodo.includes('tarjeta') || metodo.includes('visa') || metodo.includes('master') || metodo.includes('debito') || metodo.includes('credito')) {
           metodos.tarjeta++;
-        } else if (metodo.includes('yape') || metodo.includes('plin') || metodo.includes('transfer')) {
+        } else if (metodo === 'digital' || metodo.includes('yape') || metodo.includes('plin') || metodo.includes('transfer')) {
           metodos.digital++;
         } else {
           metodos.efectivo++;

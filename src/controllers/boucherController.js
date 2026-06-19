@@ -153,7 +153,19 @@ router.get('/boucher/:id', async (req, res) => {
  */
 router.post('/boucher', async (req, res) => {
     try {
-        const { mesaId, mozoId, clienteId, comandasIds, platosSeleccionados, observaciones } = req.body;
+        const {
+            mesaId,
+            mozoId,
+            clienteId,
+            comandasIds,
+            platosSeleccionados,
+            observaciones,
+            metodoPago,
+            montoRecibido,
+            vuelto,
+            moneda,
+            tipoCambioUsd,
+        } = req.body;
         const parcial = esPagoParcial(platosSeleccionados);
 
         if (!mesaId || !mozoId) {
@@ -175,6 +187,11 @@ router.post('/boucher', async (req, res) => {
             comandasIds,
             platosSeleccionados,
             observaciones,
+            metodoPago,
+            montoRecibido,
+            vuelto,
+            moneda,
+            tipoCambioUsd,
         });
 
         const { boucher, resumen } = resultado;

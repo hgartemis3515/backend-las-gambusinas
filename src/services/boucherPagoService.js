@@ -19,6 +19,19 @@ const {
   ensurePlatosPopulated,
 } = require('../repository/comanda.repository');
 
+const METODOS_PAGO_VALIDOS = ['efectivo', 'digital', 'tarjeta'];
+const MONEDAS_VALIDAS = ['PEN', 'USD'];
+
+const METODO_PAGO_LABELS = {
+  efectivo: 'Efectivo',
+  digital: 'YAPE/PLIN',
+  tarjeta: 'CRÉDITO/DÉBITO',
+};
+
+function labelMetodoPago(metodo) {
+  return METODO_PAGO_LABELS[metodo] || metodo || 'Efectivo';
+}
+
 function esPagoParcial(platosSeleccionados) {
   return Array.isArray(platosSeleccionados) && platosSeleccionados.length > 0;
 }
@@ -184,11 +197,52 @@ async function construirResumenPago(mesaId) {
  * @returns {Promise<{ boucher: object, resumen: object }>}
  */
 async function procesarPagoBoucher(params) {
-  const { mesaId, mozoId, clienteId, comandasIds, platosSeleccionados, observaciones } = params;
+  const {
+    mesaId,
+    mozoId,
+    clienteId,
+    comandasIds,
+    platosSeleccionados,
+    observaciones,
+    metodoPago,
+    montoRecibido,
+    vuelto: vueltoCliente,
+    moneda = 'PEN',
+    tipoCambioUsd = null,
+  } = params;
   const parcial = esPagoParcial(platosSeleccionados);
   const configMoneda = await configuracionRepository.obtenerConfiguracionMoneda();
   const zona = configMoneda.zonaHoraria || 'America/Lima';
   const ahoraPago = moment().tz(zona).toDate();
+
+  // 🔥 Validar método de pago (requerido)
+  if (!metodoPago || !METODOS_PAGO_VALIDOS.includes(metodoPago)) {
+    const err = new Error('Debe indicar un método de pago válido (efectivo, digital, tarjeta)');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // 🔥 Validar moneda
+  const monedaNormalizada = (moneda || 'PEN').toUpperCase();
+  if (!MONEDAS_VALIDAS.includes(monedaNormalizada)) {
+    const err = new Error('Moneda inválida. Debe ser PEN o USD');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // 🔥 Validar tipo de cambio si moneda es USD
+  let tipoCambioFinal = null;
+  if (monedaNormalizada === 'USD') {
+    tipoCambioFinal =
+      tipoCambioUsd != null ? Number(tipoCambioUsd) : configMoneda.tipoCambioUsd ?? null;
+    if (!tipoCambioFinal || tipoCambioFinal <= 0) {
+      const err = new Error(
+        'No se puede cobrar en USD porque el tipo de cambio no está configurado en el sistema'
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+  }
 
   let comandasValidas;
   let platosParaBoucher;
@@ -240,6 +294,45 @@ async function procesarPagoBoucher(params) {
     parcial
   );
 
+  // 🔥 Calcular total en la moneda seleccionada para validar efectivo y vuelto
+  // totales.total está en PEN (moneda base del sistema)
+  const totalBase = totales.total;
+  let totalEnMonedaCobro = totalBase;
+  if (monedaNormalizada === 'USD' && tipoCambioFinal) {
+    totalEnMonedaCobro = Math.round((totalBase / tipoCambioFinal) * 100) / 100;
+  }
+
+  // 🔥 Validar y calcular datos de pago en efectivo
+  let montoRecibidoFinal = null;
+  let vueltoFinal = null;
+  if (metodoPago === 'efectivo') {
+    const montoRecibidoNum = Number(montoRecibido);
+    if (montoRecibido == null || Number.isNaN(montoRecibidoNum)) {
+      const err = new Error('Para pago en efectivo debe indicar el monto recibido');
+      err.statusCode = 400;
+      throw err;
+    }
+    if (montoRecibidoNum < totalEnMonedaCobro) {
+      const err = new Error(
+        `El monto recibido (${montoRecibidoNum}) no puede ser menor al total a cobrar (${totalEnMonedaCobro})`
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+    montoRecibidoFinal = Math.round(montoRecibidoNum * 100) / 100;
+    // Backend recalcula el vuelto con el total real del boucher (autoritativo)
+    const calc = calculosPrecios.calcularVuelto(totalEnMonedaCobro, montoRecibidoFinal);
+    vueltoFinal = calc.vuelto;
+    if (vueltoCliente != null) {
+      const vueltoClienteNum = Number(vueltoCliente);
+      if (!Number.isNaN(vueltoClienteNum) && Math.abs(vueltoClienteNum - vueltoFinal) > 0.02) {
+        console.warn(
+          `⚠️ [PAGO] Vuelto del frontend (${vueltoClienteNum}) difiere del backend (${vueltoFinal}); se usa backend`
+        );
+      }
+    }
+  }
+
   const primeraComanda = comandasValidas[0];
   const mesa = primeraComanda.mesas;
   const mozo = primeraComanda.mozos;
@@ -275,6 +368,13 @@ async function procesarPagoBoucher(params) {
     fechaPago: ahoraPago,
     fechaPagoString: moment(ahoraPago).tz(zona).format('DD/MM/YYYY HH:mm:ss'),
     esPagoParcial: parcial,
+    // 🔥 Datos de pago
+    metodoPago,
+    metodoPagoLabel: labelMetodoPago(metodoPago),
+    montoRecibido: montoRecibidoFinal,
+    vuelto: vueltoFinal,
+    moneda: monedaNormalizada,
+    tipoCambioUsd: monedaNormalizada === 'USD' ? tipoCambioFinal : null,
     configuracionIGV: {
       igvPorcentaje: configMoneda.igvPorcentaje,
       preciosIncluyenIGV: configMoneda.preciosIncluyenIGV,
@@ -347,4 +447,7 @@ module.exports = {
   procesarPagoBoucher,
   esPagoParcial,
   construirResumenPago,
+  labelMetodoPago,
+  METODOS_PAGO_VALIDOS,
+  METODO_PAGO_LABELS,
 };

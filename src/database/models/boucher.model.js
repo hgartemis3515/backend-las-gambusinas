@@ -172,6 +172,40 @@ const boucherSchema = new mongoose.Schema({
     esPagoParcial: {
         type: Boolean,
         default: false
+    },
+    // 🔥 MÉTODO DE PAGO (requerido en nuevos bouchers)
+    metodoPago: {
+        type: String,
+        enum: ['efectivo', 'digital', 'tarjeta'],
+        required: true,
+        default: 'efectivo' // legacy: bouchers antiguos sin campo
+    },
+    // Etiqueta legible persistida (snapshot): "Efectivo", "YAPE/PLIN", "CRÉDITO/DÉBITO"
+    metodoPagoLabel: {
+        type: String,
+        default: null
+    },
+    // Monto recibido en efectivo (null si el método no es efectivo)
+    montoRecibido: {
+        type: Number,
+        default: null
+    },
+    // Vuelto calculado en backend (null si no es efectivo)
+    vuelto: {
+        type: Number,
+        default: null
+    },
+    // Moneda en la que se cobró este boucher
+    moneda: {
+        type: String,
+        enum: ['PEN', 'USD'],
+        default: 'PEN'
+    },
+    // Tipo de cambio USD usado (cuántos PEN = 1 USD). null si moneda es PEN.
+    tipoCambioUsd: {
+        type: Number,
+        default: null,
+        min: 0
     }
 }, { 
     timestamps: true,

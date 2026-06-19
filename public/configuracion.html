@@ -360,6 +360,48 @@ tailwind.config = {
               <input type="text" x-model="config.simboloMoneda" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none" placeholder="S/.">
             </div>
           </div>
+
+          <!-- Permitir USD + Tipo de cambio USD -->
+          <div class="bg-bg-sidebar border border-[rgba(212,175,55,0.15)] rounded-lg p-4">
+            <!-- Check Permitir USD -->
+            <div class="flex items-center justify-between mb-3 pb-3 border-b border-[rgba(212,175,55,0.12)]">
+              <label class="flex items-center gap-3 cursor-pointer select-none">
+                <span class="relative inline-flex items-center">
+                  <input type="checkbox" x-model="config.permitirUsd" class="sr-only peer">
+                  <span class="w-11 h-6 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-full peer-checked:bg-gold/40 peer-checked:border-gold transition-all"
+                        :class="config.permitirUsd ? 'bg-gold/40 border-gold' : ''"></span>
+                  <span class="absolute left-0.5 top-0.5 w-5 h-5 bg-txt-muted rounded-full transition-all"
+                        :class="config.permitirUsd ? 'translate-x-5 bg-gold' : ''"></span>
+                </span>
+                <span>
+                  <span class="text-xs text-txt-secondary font-semibold block">Permitir USD (dólares)</span>
+                  <span class="text-[10px] text-txt-muted leading-relaxed mt-0.5 block">Desbloquea la opción de cobrar en dólares en el modal "Información del pago" de la app de mozos.</span>
+                </span>
+              </label>
+              <span class="text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap"
+                :class="config.permitirUsd && config.tipoCambioUsd && Number(config.tipoCambioUsd) > 0 ? 'bg-st-libre/20 text-st-libre' : 'bg-st-reservado/20 text-st-reservado'"
+                x-text="config.permitirUsd && config.tipoCambioUsd && Number(config.tipoCambioUsd) > 0 ? 'USD habilitado en pagos' : 'USD bloqueado en pagos'"></span>
+            </div>
+
+            <!-- Tipo de cambio (solo editable si Permitir USD está activo) -->
+            <div class="flex items-center gap-3" :class="!config.permitirUsd ? 'opacity-40 pointer-events-none' : ''">
+              <span class="text-sm text-txt-muted whitespace-nowrap">1 USD =</span>
+              <span class="text-sm text-txt-secondary whitespace-nowrap">S/.</span>
+              <input type="number" step="0.01" min="0" inputmode="decimal"
+                x-model="config.tipoCambioUsd"
+                :disabled="!config.permitirUsd"
+                class="w-32 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none disabled:cursor-not-allowed"
+                placeholder="Ej: 3.75">
+              <span class="text-xs text-txt-muted">PEN por cada 1 USD</span>
+            </div>
+            <p class="text-[10px] text-txt-muted mt-2 leading-relaxed">
+              💡 Activa el check y define cuántos soles equivale 1 dólar. Mientras el check esté apagado o el tipo de cambio esté vacío/0, la opción USD quedará bloqueada en la app de mozos.
+            </p>
+            <p x-show="config.permitirUsd && (!config.tipoCambioUsd || Number(config.tipoCambioUsd) <= 0)" class="text-[10px] text-st-reservado mt-2">
+              ⚠️ Has permitido USD pero no definiste un tipo de cambio válido. La opción seguirá bloqueada hasta que ingreses un valor mayor a 0.
+            </p>
+          </div>
+
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="text-xs text-txt-secondary mb-1 block">Decimales</label>
@@ -1174,6 +1216,10 @@ function configApp() {
       simboloMoneda: 'S/.',
       decimales: 2,
       posicionSimbolo: 'antes',
+      // Permitir cobro en USD (llave maestra para el toggle de moneda en la app de mozos)
+      permitirUsd: false,
+      // Tipo de cambio: cuántos PEN equivale 1 USD. Vacío = no configurado.
+      tipoCambioUsd: '',
       igvPorcentaje: 18,
       preciosIncluyenIGV: false,
       nombreImpuestoPrincipal: 'IGV',
@@ -1434,6 +1480,8 @@ function configApp() {
           this.config.simboloMoneda = cfg.simboloMoneda || 'S/.';
           this.config.decimales = cfg.decimales ?? 2;
           this.config.posicionSimbolo = cfg.posicionSimbolo || 'antes';
+          this.config.permitirUsd = cfg.permitirUsd === true;
+          this.config.tipoCambioUsd = (cfg.tipoCambioUsd != null && cfg.tipoCambioUsd !== '') ? cfg.tipoCambioUsd : '';
           this.config.igvPorcentaje = cfg.igvPorcentaje ?? 18;
           this.config.preciosIncluyenIGV = cfg.preciosIncluyenIGV || false;
           this.config.nombreImpuestoPrincipal = cfg.nombreImpuestoPrincipal || 'IGV';
@@ -1555,6 +1603,12 @@ function configApp() {
           simboloMoneda: this.config.simboloMoneda,
           decimales: Number(this.config.decimales),
           posicionSimbolo: this.config.posicionSimbolo || 'antes',
+          // Permitir USD: llave maestra para habilitar cobro en dólares en la app de mozos
+          permitirUsd: this.config.permitirUsd === true,
+          // Tipo de cambio USD: null si está apagado, vacío o es 0 (deshabilita cobro en USD)
+          tipoCambioUsd: (this.config.permitirUsd && this.config.tipoCambioUsd !== '' && this.config.tipoCambioUsd != null && Number(this.config.tipoCambioUsd) > 0)
+            ? Number(this.config.tipoCambioUsd)
+            : null,
           igvPorcentaje: Number(this.config.igvPorcentaje),
           preciosIncluyenIGV: this.config.preciosIncluyenIGV,
           nombreImpuestoPrincipal: this.config.nombreImpuestoPrincipal || 'IGV',

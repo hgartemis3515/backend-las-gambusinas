@@ -18,6 +18,10 @@ const CONFIGURACION_DEFAULT = {
     simboloMoneda: 'S/.',
     decimales: 2,
     posicionSimbolo: 'antes', // 'antes' | 'despues'
+    // Permitir cobro en USD en la app de mozos (llave maestra del toggle de moneda)
+    permitirUsd: false,
+    // Tipo de cambio para conversión a USD (cuántos PEN equivale 1 USD)
+    tipoCambioUsd: null, // null = no configurado; ej: 3.75
     
     // IGV e impuestos
     igvPorcentaje: 18,
@@ -171,6 +175,17 @@ const configuracionSistemaSchema = new mongoose.Schema({
         type: String,
         enum: ['antes', 'despues'],
         default: CONFIGURACION_DEFAULT.posicionSimbolo
+    },
+    // Permitir cobro en USD en la app de mozos (llave maestra del toggle de moneda)
+    permitirUsd: {
+        type: Boolean,
+        default: false
+    },
+    // Tipo de cambio USD: cuántos PEN equivale 1 USD. null = no configurado.
+    tipoCambioUsd: {
+        type: Number,
+        default: null,
+        min: 0
     },
     
     // IGV e impuestos

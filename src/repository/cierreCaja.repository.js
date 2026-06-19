@@ -62,11 +62,20 @@ class CierreCajaRepository {
       bouchers.forEach(boucher => {
         const total = boucher.total || 0;
         totalSistema += total;
-        
-        // Por defecto, todos son efectivo hasta que se agregue metodoPago al modelo
-        // TODO: Agregar campo metodoPago al modelo Boucher
-        totalEfectivoSistema += total;
-        
+
+        // 🔥 Desglose real por método de pago (modelo ahora tiene metodoPago)
+        const metodo = (boucher.metodoPago || 'efectivo').toLowerCase();
+        // Los montos del boucher están en la moneda de cobro (boucher.moneda).
+        // Por ahora el cierre suma totales en la moneda base del boucher;
+        // la conversión a PEN para consolidar se Manejará en fase de reportes.
+        if (metodo === 'tarjeta' || metodo.includes('tarjeta') || metodo.includes('credito') || metodo.includes('debito')) {
+          totalTarjetaSistema += total;
+        } else if (metodo === 'digital' || metodo.includes('yape') || metodo.includes('plin') || metodo.includes('transfer')) {
+          totalYapeSistema += total; // YAPE/PLIN agrupado en digital
+        } else {
+          totalEfectivoSistema += total;
+        }
+
         // Si hay propinas o descuentos, agregarlos
         // TODO: Agregar campos propina y descuento al modelo Boucher si no existen
       });

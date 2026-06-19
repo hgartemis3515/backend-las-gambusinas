@@ -654,22 +654,142 @@ tailwind.config = {
 
 <!-- MODAL VER VOUCHER -->
 <div x-show="modal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="modal=null">
-  <div class="bg-[#1a1a28] border border-[rgba(212,175,55,0.25)] rounded-2xl w-[720px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
+  <div class="bg-[#1a1a28] border border-[rgba(212,175,55,0.25)] rounded-2xl w-[760px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
     <div class="bg-[#12121a] p-5 rounded-t-2xl sticky top-0 z-10 flex items-center justify-between">
       <div>
         <h2 class="text-lg font-bold" x-text="'Voucher #' + (selectedBoucher?.boucherNumber || selectedBoucher?.numero || '—')"></h2>
+        <p class="text-xs text-[#a0a0b8] mt-0.5" x-text="selectedBoucher?.codigo || selectedBoucher?.voucherId || ''"></p>
       </div>
       <button @click="modal=null" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
     </div>
-    <div class="p-5 space-y-4">
+
+    <!-- Loader -->
+    <div x-show="detailLoading" class="p-10 flex items-center justify-center">
+      <div class="text-[#a0a0b8] text-sm">Cargando detalle del voucher…</div>
+    </div>
+
+    <div x-show="!detailLoading" class="p-5 space-y-4">
+      <!-- Datos generales -->
       <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.2)] rounded-xl p-5">
-        <div class="space-y-2 text-sm">
-          <div class="flex justify-between"><span class="text-[#a0a0b8]">Subtotal</span><span x-text="'S/. ' + Number(selectedBoucher?.subtotal || 0).toFixed(2)"></span></div>
-          <div class="flex justify-between"><span class="text-[#ffa502]">IGV (18%)</span><span class="text-[#ffa502]" x-text="'S/. ' + Number(selectedBoucher?.igv || 0).toFixed(2)"></span></div>
-          <div class="flex justify-between pt-2 border-t border-[rgba(212,175,55,0.2)]"><span class="font-bold">TOTAL</span><span class="text-[#d4af37] font-bold text-xl" x-text="'S/. ' + Number(selectedBoucher?.total || 0).toFixed(2)"></span></div>
+        <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+          <div class="flex justify-between">
+            <span class="text-[#a0a0b8]">Fecha de pago</span>
+            <span x-text="formatoFecha(selectedBoucher?.fechaPago || selectedBoucher?.fecha)"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-[#a0a0b8]">Fecha de pedido</span>
+            <span x-text="formatoFecha(selectedBoucher?.fechaPedido || selectedBoucher?.createdAt)"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-[#a0a0b8]">Mesa</span>
+            <span x-text="'#' + (selectedBoucher?.mesa?.nummesa || selectedBoucher?.mesa?.numMesa || selectedBoucher?.numMesa || '—')"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-[#a0a0b8]">Mozo</span>
+            <span x-text="selectedBoucher?.mozo?.name || selectedBoucher?.mozo?.nombre || selectedBoucher?.nombreMozo || '—'"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-[#a0a0b8]">Cliente</span>
+            <span x-text="selectedBoucher?.cliente?.nombre || selectedBoucher?.cliente?.name || 'Invitado'"></span>
+          </div>
+          <div class="flex justify-between" x-show="selectedBoucher?.cliente?.dni">
+            <span class="text-[#a0a0b8]">DNI</span>
+            <span x-text="selectedBoucher?.cliente?.dni || '—'"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-[#a0a0b8]">Moneda</span>
+            <span x-text="selectedBoucher?.moneda || 'PEN'"></span>
+          </div>
+          <div class="flex justify-between" x-show="selectedBoucher?.esPagoParcial">
+            <span class="text-[#a0a0b8]">Tipo</span>
+            <span class="text-[#ffa502]">Pago parcial</span>
+          </div>
+          <div class="flex justify-between" x-show="selectedBoucher?.observaciones">
+            <span class="text-[#a0a0b8]">Observaciones</span>
+            <span class="text-right max-w-[220px]" x-text="selectedBoucher?.observaciones"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Platos -->
+      <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.2)] rounded-xl p-5">
+        <h3 class="text-sm font-semibold text-[#d4af37] mb-3">Platos consumidos</h3>
+        <template x-if="!selectedBoucher?.platos || selectedBoucher.platos.length === 0">
+          <div class="text-center py-4 text-[#a0a0b8] text-sm">Este voucher no tiene platos registrados.</div>
+        </template>
+        <div x-show="selectedBoucher?.platos && selectedBoucher.platos.length > 0" class="space-y-2">
+          <template x-for="(p, idx) in (selectedBoucher?.platos || [])" :key="idx">
+            <div class="border border-[rgba(212,175,55,0.12)] rounded-lg p-3">
+              <div class="flex justify-between items-start gap-3">
+                <div class="flex-1">
+                  <div class="flex items-center gap-2">
+                    <span class="text-[#a0a0b8] text-xs" x-text="'x' + (p.cantidad || 1)"></span>
+                    <span class="font-medium text-sm" x-text="p.nombre || p.plato?.nombre || 'Plato'"></span>
+                    <span x-show="p.tipoServicio === 'para_llevar'" class="text-[10px] px-1.5 py-0.5 rounded bg-[#ffa502]/20 text-[#ffa502]">Para llevar</span>
+                  </div>
+                  <template x-if="p.complementosSeleccionados && p.complementosSeleccionados.length > 0">
+                    <div class="mt-1 pl-5 space-y-0.5">
+                      <template x-for="comp in p.complementosSeleccionados" :key="comp.grupo + (comp.opcion || '')">
+                        <div class="text-[10px] text-[#a0a0b8]">
+                          + <span x-text="comp.opcion || comp.nombre"></span>
+                          <span x-show="comp.precio > 0" x-text="'(' + simboloMonedaBoucher(selectedBoucher) + ' ' + Number(comp.precio || 0).toFixed(2) + ')'"></span>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
+                  <div x-show="p.cocinero" class="mt-1 text-[10px] text-[#7a7a9a]">
+                    Preparado por: <span x-text="p.cocinero"></span>
+                    <span x-show="p.tiempoPreparacion" x-text="' · ' + p.tiempoPreparacion"></span>
+                  </div>
+                </div>
+                <div class="text-right whitespace-nowrap">
+                  <div class="text-xs text-[#a0a0b8]" x-text="simboloMonedaBoucher(selectedBoucher) + ' ' + Number(p.precio || 0).toFixed(2) + ' c/u'"></div>
+                  <div class="text-sm font-semibold text-[#d4af37]" x-text="simboloMonedaBoucher(selectedBoucher) + ' ' + Number(p.subtotal || (p.precio || 0) * (p.cantidad || 1)).toFixed(2)"></div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Totales y pago -->
+      <div class="grid grid-cols-2 gap-4">
+        <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.2)] rounded-xl p-5">
+          <h3 class="text-sm font-semibold text-[#d4af37] mb-3">Resumen de totales</h3>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-[#a0a0b8]">Subtotal</span><span x-text="simboloMonedaBoucher(selectedBoucher) + ' ' + Number(selectedBoucher?.subtotal || 0).toFixed(2)"></span></div>
+            <div class="flex justify-between"><span class="text-[#ffa502]">IGV (18%)</span><span class="text-[#ffa502]" x-text="simboloMonedaBoucher(selectedBoucher) + ' ' + Number(selectedBoucher?.igv || 0).toFixed(2)"></span></div>
+            <div class="flex justify-between" x-show="selectedBoucher?.montoDescuento > 0">
+              <span class="text-st-pagado">Descuento</span>
+              <span class="text-st-pagado" x-text="'-' + simboloMonedaBoucher(selectedBoucher) + ' ' + Number(selectedBoucher?.montoDescuento || 0).toFixed(2)"></span>
+            </div>
+            <div class="flex justify-between pt-2 border-t border-[rgba(212,175,55,0.2)]">
+              <span class="font-bold">TOTAL</span>
+              <span class="text-[#d4af37] font-bold text-xl" x-text="simboloMonedaBoucher(selectedBoucher) + ' ' + Number(selectedBoucher?.montoDescuento > 0 ? (selectedBoucher?.totalConDescuento != null ? selectedBoucher?.totalConDescuento : selectedBoucher?.total) : (selectedBoucher?.total || 0)).toFixed(2)"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.2)] rounded-xl p-5">
+          <h3 class="text-sm font-semibold text-[#d4af37] mb-3">Información de pago</h3>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-[#a0a0b8]">Método</span><span class="font-medium" x-text="labelMetodoPago(selectedBoucher?.metodoPago || selectedBoucher?.metodoPagoLabel)"></span></div>
+            <div class="flex justify-between"><span class="text-[#a0a0b8]">Moneda</span><span x-text="selectedBoucher?.moneda || 'PEN'"></span></div>
+            <template x-if="selectedBoucher?.metodoPago === 'efectivo' || (selectedBoucher?.metodoPago && String(selectedBoucher.metodoPago).toLowerCase().includes('efectivo'))">
+              <div class="space-y-2">
+                <div class="flex justify-between"><span class="text-[#a0a0b8]">Monto recibido</span><span x-text="(selectedBoucher?.montoRecibido != null ? (simboloMonedaBoucher(selectedBoucher) + ' ' + Number(selectedBoucher.montoRecibido).toFixed(2)) : '—')"></span></div>
+                <div class="flex justify-between pt-2 border-t border-[rgba(212,175,55,0.2)]"><span class="font-bold">Vuelto</span><span class="text-st-libre font-bold" x-text="simboloMonedaBoucher(selectedBoucher) + ' ' + Number(selectedBoucher?.vuelto || 0).toFixed(2)"></span></div>
+              </div>
+            </template>
+            <div x-show="selectedBoucher?.tipoCambioUsd" class="flex justify-between text-xs text-[#7a7a9a]">
+              <span>Tipo de cambio</span>
+              <span x-text="'1 USD = S/. ' + Number(selectedBoucher?.tipoCambioUsd || 0).toFixed(2)"></span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
+
     <div class="bg-[#12121a] p-4 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.1)]">
       <button @click="modal=null" class="px-4 py-2 border border-[#5a5a7a]/40 rounded-lg text-sm text-[#a0a0b8] hover:border-[#d4af37] hover:text-[#d4af37] transition">Cerrar</button>
       <button @click="imprimirVoucher(selectedBoucher)" class="px-4 py-2 bg-[#d4af37] text-[#0a0a0f] rounded-lg text-sm font-semibold hover:brightness-110 transition">🖨 Reimprimir</button>
@@ -749,7 +869,7 @@ tailwind.config = {
 <script>
 function bouchersApp() {
   return {
-    sidebarOpen: true, modal: null, loading: true,
+    sidebarOpen: true, modal: null, loading: true, detailLoading: false,
     bouchers: [], filteredBouchers: [], selectedBoucher: null,
     activeNav: 'bouchers', pageTitle: 'Vouchers', activeTab: 'tabla',
     plantillaModificada: false, plantillaOriginal: null, previewZoom: 100,
@@ -1624,7 +1744,68 @@ body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoF
     },
     
     limpiarFiltros() { this.filterCodigo = ''; this.filterNumero = ''; this.filterMozo = ''; this.filterFechaDesde = ''; this.filterFechaHasta = ''; this.filterBouchers(); },
-    openDetailModal(b) { this.selectedBoucher = b; this.modal = true; },
+
+    // Etiqueta legible de método de pago (acepta valores normalizados o legacy)
+    labelMetodoPago(metodo) {
+      const m = String(metodo || '').toLowerCase();
+      if (!m) return '—';
+      if (m === 'efectivo' || m.includes('efectivo')) return 'Efectivo';
+      if (m === 'digital' || m.includes('yape') || m.includes('plin')) return 'YAPE/PLIN';
+      if (m === 'tarjeta' || m.includes('tarjeta') || m.includes('credito') || m.includes('debito')) return 'CRÉDITO/DÉBITO';
+      return metodo;
+    },
+
+    // Símbolo de moneda según el boucher
+    simboloMonedaBoucher(b) {
+      const moneda = String(b?.moneda || 'PEN').toUpperCase();
+      return moneda === 'USD' ? '$' : 'S/.';
+    },
+
+    // Fecha formateada segura
+    formatoFecha(f) {
+      if (!f) return '—';
+      const d = new Date(f);
+      if (isNaN(d.getTime())) return '—';
+      return d.toLocaleString('es-PE');
+    },
+
+    // Abre el modal de detalle garantizando que el boucher tenga platos cargados.
+    // Si el objeto recibido no trae platos (lista resumida), hace fetch por ID.
+    async openDetailModal(b) {
+      if (!b || !b._id) {
+        this.selectedBoucher = b;
+        this.modal = true;
+        return;
+      }
+      // Si ya tiene platos populados, usarlo directamente
+      if (b.platos && b.platos.length > 0) {
+        this.selectedBoucher = b;
+        this.modal = true;
+        return;
+      }
+      // Sino, fetch por ID para obtener detalle completo
+      try {
+        this.detailLoading = true;
+        this.selectedBoucher = b; // mostrar lo que tenemos mientras carga
+        this.modal = true;
+        const completo = await apiGet(`/boucher/${b._id}`);
+        if (completo && completo._id) {
+          // Normalizar campos como hace loadBouchers
+          completo.codigo = completo.voucherId || completo.codigo || String(completo._id).slice(-8).toUpperCase();
+          completo.numero = completo.boucherNumber || completo.numero || completo.numBoucher;
+          completo.mesa = completo.mesa || { numMesa: completo.numMesa };
+          completo.mozo = completo.mozo || { nombre: completo.nombreMozo };
+          completo.cliente = completo.cliente || { nombre: completo.nombreCliente };
+          completo.fecha = completo.fechaPago ? new Date(completo.fechaPago).toLocaleString('es-PE') : completo.fecha;
+          this.selectedBoucher = completo;
+        }
+      } catch (e) {
+        console.error('Error al cargar detalle del boucher:', e);
+        this.showToast('No se pudo cargar el detalle del voucher', 'error');
+      } finally {
+        this.detailLoading = false;
+      }
+    },
     
     imprimirVoucher(v) {
       if (!v) return;

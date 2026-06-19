@@ -90,6 +90,28 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
             datosFiltrados.moneda = datosFiltrados.moneda.toUpperCase();
         }
 
+        // 🔥 Normalizar permitirUsd (booleano)
+        if (datosFiltrados.permitirUsd !== undefined) {
+            datosFiltrados.permitirUsd = datosFiltrados.permitirUsd === true || datosFiltrados.permitirUsd === 'true';
+        }
+
+        // 🔥 Validar tipo de cambio USD (opcional: null deshabilita cobro en USD)
+        if (datosFiltrados.tipoCambioUsd !== undefined && datosFiltrados.tipoCambioUsd !== null && datosFiltrados.tipoCambioUsd !== '') {
+            const tc = Number(datosFiltrados.tipoCambioUsd);
+            if (Number.isNaN(tc) || tc <= 0) {
+                throw new Error('El tipo de cambio USD debe ser un número mayor a 0 (o vacío para deshabilitar)');
+            }
+            datosFiltrados.tipoCambioUsd = tc;
+        } else {
+            // Normalizar vacío/undefined a null (deshabilita cobro en USD en la app)
+            datosFiltrados.tipoCambioUsd = null;
+        }
+
+        // 🔥 Si permitirUsd está apagado, forzar tipoCambioUsd a null (coherencia)
+        if (datosFiltrados.permitirUsd === false) {
+            datosFiltrados.tipoCambioUsd = null;
+        }
+
         // Actualizar la configuración
         const config = await ConfiguracionSistema.findByIdAndUpdate(
             'configuracion_unica',
@@ -150,6 +172,9 @@ const obtenerConfiguracionMoneda = async () => {
             simboloMoneda: config.simboloMoneda,
             decimales: config.decimales,
             posicionSimbolo: config.posicionSimbolo,
+            permitirUsd: config.permitirUsd === true,
+            tipoCambioUsd: config.tipoCambioUsd ?? null,
+            simboloUsd: '$',
             igvPorcentaje: config.igvPorcentaje,
             preciosIncluyenIGV: config.preciosIncluyenIGV,
             nombreImpuestoPrincipal: config.nombreImpuestoPrincipal,
