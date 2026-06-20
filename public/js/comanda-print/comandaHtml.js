@@ -6,7 +6,7 @@
  *
  * Incluye: Encabezado (logo + nombre + eslogan), título COMANDA,
  * datos del pedido (número, fecha, mesa, mozo, área, tipo de pago),
- * tabla de productos (Producto | Cant. | P.Unit | Total) con complementos y notas,
+ * tabla de productos (Prod | Cant. | P.Unit | Total) con complementos y notas,
  * subtotal, IGV, total, tipo de moneda, datos del cliente, observaciones.
  *
  * Excluye intencionalmente: RUC, dirección fiscal, serie/correlativo,
@@ -15,8 +15,16 @@
 
 // ─── Constants ────────────────────────────────────────────────────────
 
-const PUNTOS_ANCHO = 226;
-const BOUCHER_PAPER_MM = 80;
+/** Epson TM-m30II Receipt — rollo 80mm; área útil 226px @ 72ppi (driver Windows). */
+export const EPSON_TM_M30II_RECEIPT = {
+  paperWidthMm: 80,
+  contentWidthPx: 226,
+  /** Altura mínima de @page para evitar que Chrome use A4/Letter por defecto. */
+  minPageHeightMm: 45,
+};
+
+const PUNTOS_ANCHO = EPSON_TM_M30II_RECEIPT.contentWidthPx;
+const BOUCHER_PAPER_MM = EPSON_TM_M30II_RECEIPT.paperWidthMm;
 const pxToMm = (px) => (px * 25.4) / 72;
 
 const ALTURA_BASE_PX = 280;
@@ -24,6 +32,27 @@ const ALTURA_POR_FILA_PX = 38;
 const ALTURA_POR_COMPLEMENTO_PX = 18;
 const ALTURA_POR_NOTA_PX = 16;
 const PADDING_INFERIOR_PX = 20;
+
+/** Script embebido: espera layout + imágenes antes de abrir el diálogo de impresión. */
+const THERMAL_PRINT_SCRIPT = `<script>
+(function(){
+  function printTicket(){try{window.focus();window.print();}catch(e){}}
+  function schedulePrint(){
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){setTimeout(printTicket,100);});
+    });
+  }
+  var imgs=document.images,n=imgs?imgs.length:0;
+  if(!n){schedulePrint();return;}
+  var left=n;
+  function done(){if(--left<=0)schedulePrint();}
+  for(var i=0;i<n;i++){
+    if(imgs[i].complete)done();
+    else{imgs[i].onload=done;imgs[i].onerror=done;}
+  }
+  setTimeout(schedulePrint,1500);
+})();
+<\/script>`;
 
 // ─── Inlined: resolveLogoUrl ──────────────────────────────────────────
 
@@ -45,37 +74,59 @@ export function resolveLogoUrl(logo, serverOrigin) {
 
 /**
  * Wraps inner HTML into a full 80mm thermal-ticket page with print styles.
+ *
+ * Optimizado para Epson TM-m30II Receipt (Windows): @page con alto explícito en mm
+ * (nunca "auto"), ancho 226px y script de impresión tras el layout.
  */
 export function envolverHtmlBoucherTicket(html, { fontSizeBase, lineHeightBase, pageHeightPx }) {
   const w = PUNTOS_ANCHO;
-  const h = pageHeightPx ? Math.ceil(pageHeightPx) : null;
-  const pageSize = h
-    ? `${BOUCHER_PAPER_MM}mm ${pxToMm(h).toFixed(2)}mm`
-    : `${BOUCHER_PAPER_MM}mm auto`;
-  const bodyHeight = h ? `${h}px` : 'auto';
+  const h = Math.ceil(pageHeightPx || ALTURA_BASE_PX);
+  const heightMm = Math.max(
+    EPSON_TM_M30II_RECEIPT.minPageHeightMm,
+    parseFloat(pxToMm(h).toFixed(2)),
+  );
+  const pageSize = `${BOUCHER_PAPER_MM}mm ${heightMm}mm`;
+  const bodyHeight = `${h}px`;
 
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=${w}, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><title>Comanda</title>
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=${w}, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><title>COMANDA</title>
 <style>
 @page{size:${pageSize};margin:0;}
+*{box-sizing:border-box;}
+html{width:${w}px;max-width:${w}px;margin:0 auto;padding:0;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+body{margin:0;padding:4px;width:100%;box-sizing:border-box;height:${bodyHeight};max-width:100%;overflow:hidden;font-family:Arial,Helvetica,sans-serif;font-size:${fontSizeBase}px;line-height:${lineHeightBase}px;background:#fff;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.ticket{width:100%;margin:0 auto;}
+table{width:100%;}
+#ticket-root{width:100%;}
+.ticket-block{width:100%;}
+.prod-item{page-break-inside:avoid;break-inside:avoid;}
+.header-block{page-break-inside:avoid;break-inside:avoid;}
+.no-print{display:none;}
 @media print{
   @page{size:${pageSize};margin:0;}
-  html,body{width:${w}px !important;max-width:${w}px !important;margin:0 !important;overflow:hidden !important;}
-  body{height:${bodyHeight} !important;padding:4px !important;}
+  html,body{
+    width:${w}px !important;
+    max-width:${w}px !important;
+    min-width:${w}px !important;
+    margin:0 auto !important;
+    padding:0 !important;
+    overflow:hidden !important;
+  }
+  body{
+    height:${bodyHeight} !important;
+    padding:4px !important;
+  }
+  .ticket{width:100% !important;max-width:100% !important;}
+  .no-print{display:none !important;}
+  .prod-item{page-break-inside:avoid;break-inside:avoid;}
 }
-*{box-sizing:border-box;}
-html{width:${w}px;max-width:${w}px;margin:0;padding:0;overflow:hidden;}
-body{margin:0;padding:4px;width:100%;box-sizing:border-box;height:${bodyHeight};max-width:100%;overflow:hidden;font-family:Arial,Helvetica,sans-serif;font-size:${fontSizeBase}px;line-height:${lineHeightBase}px;background:#fff;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-#ticket-root{width:100%;}
-table{width:100%;}
-.ticket-block{width:100%;}
-</style></head><body><div id="ticket-root" class="ticket-block">${html}</div></body></html>`;
+</style></head><body><div id="ticket-root" class="ticket-block"><div class="ticket">${html}</div></div>${THERMAL_PRINT_SCRIPT}</body></html>`;
 }
 
 // ─── Labels ───────────────────────────────────────────────────────────
 
 const ETIQUETAS_DEFAULT_COMANDA = {
   comandaNumero: 'Comanda',
-  fechaPedido: 'Fecha',
+  fechaPedido: 'Fecha pedido',
   mesa: 'Mesa',
   mozo: 'Mozo',
   area: 'Área',
@@ -138,6 +189,17 @@ function getLabelMetodoPago(metodoPago) {
   if (m === 'tarjeta') return 'CRÉDITO/DÉBITO';
   if (m === 'pago_adelantado' || m === 'adelantado') return 'Pago Adelantado';
   return metodoPago;
+}
+
+function isTipoPagoEfectivo(tipoPago) {
+  return String(tipoPago || '').toLowerCase() === 'efectivo';
+}
+
+function getLabelMoneda(moneda) {
+  const m = String(moneda || '').toUpperCase();
+  if (m === 'USD') return 'Dólares';
+  if (m === 'PEN' || m === 'SOLES') return 'Soles';
+  return moneda || 'Soles';
 }
 
 /**
@@ -219,7 +281,7 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
 
   const mostrarPrecios = bloques.mostrarPrecios !== false;
   const mostrarTotal = bloques.mostrarTotal !== false;
-  const mostrarIGV = bloques.mostrarIGV !== false && datos.igv > 0;
+  const mostrarIGV = false; // Comanda de cocina: sin IGV (no es comprobante fiscal)
   const simbolo = getSimboloMoneda(datos.moneda);
 
   // Logo
@@ -232,7 +294,7 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
 
   // === ENCABEZADO ===
   if (bloques.mostrarEncabezado !== false) {
-    html += '<div style="text-align:center;width:100%;">';
+    html += '<div class="header-block" style="text-align:center;width:100%;">';
     if (mostrarLogo) {
       html += `<img src="${escapeHtml(logoUrl)}" style="max-width:100%;max-height:64px;object-fit:contain;margin:0 auto 4px;display:block;" alt="Logo">`;
     }
@@ -277,8 +339,8 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
     if (vis.tipoPago !== false && datos.tipoPago) {
       html += filaMeta(`${etiquetas.tipoPago}:`, escapeHtml(getLabelMetodoPago(datos.tipoPago)));
     }
-    if (datos.voucherId) {
-      html += filaMeta('Voucher:', escapeHtml(String(datos.voucherId)));
+    if (isTipoPagoEfectivo(datos.tipoPago) && datos.moneda) {
+      html += filaMeta(`${etiquetas.moneda}:`, escapeHtml(getLabelMoneda(datos.moneda)));
     }
     html += '</table>';
     html += divider(dividerGap);
@@ -289,13 +351,13 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
     const tblStyle = 'width:100%;font-size:12px;border-collapse:collapse;table-layout:fixed;';
     html += `<table style="${tblStyle}">`;
     html += '<thead><tr style="font-weight:700;border-bottom:1px solid #000;">';
-    html += '<th style="text-align:left;width:48%;font-size:12px;">Producto</th>';
-    html += '<th style="text-align:center;width:12%;font-size:12px;">Cant.</th>';
+    html += '<th style="text-align:left;width:46%;font-size:12px;">Prod</th>';
+    html += '<th style="text-align:center;width:11%;font-size:12px;">Cant.</th>';
     if (mostrarPrecios) {
-      html += '<th style="text-align:right;width:20%;font-size:12px;">P.Unit</th>';
-      html += '<th style="text-align:right;width:20%;font-size:12px;">Total</th>';
+      html += '<th style="text-align:right;width:21%;font-size:12px;">P.Unit</th>';
+      html += '<th style="text-align:right;width:22%;font-size:12px;">Total</th>';
     }
-    html += '</tr></thead><tbody>';
+    html += '</tr></thead>';
 
     for (const prod of datos.productos) {
       const nombre = escapeHtml(prod.nombre || 'Plato');
@@ -304,11 +366,14 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
       const precio = prod.precio || 0;
       const subtotalProd = prod.subtotal || (precio * cantidad);
 
+      // Wrap product item + complementos + nota in a group that avoids page breaks
+      html += '<tbody class="prod-item">';
+
       html += '<tr>';
       html += `<td style="vertical-align:top;font-size:12px;overflow-wrap:break-word;padding:2px 4px 2px 0;">${nombre}${marcadorPL}</td>`;
       html += `<td style="text-align:center;vertical-align:top;font-size:12px;padding:2px 0;">${cantidad}</td>`;
       if (mostrarPrecios) {
-        html += `<td style="text-align:right;vertical-align:top;font-size:12px;padding:2px 0;white-space:nowrap;">${precio.toFixed(2)}</td>`;
+        html += `<td style="text-align:right;vertical-align:top;font-size:12px;padding:2px 1px 2px 0;white-space:nowrap;">${precio.toFixed(2)}</td>`;
         html += `<td style="text-align:right;vertical-align:top;font-size:12px;padding:2px 0;white-space:nowrap;">${subtotalProd.toFixed(2)}</td>`;
       }
       html += '</tr>';
@@ -332,8 +397,10 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
         html += `<td colspan="${mostrarPrecios ? 4 : 2}" style="padding:0 0 2px 8px;">📌 ${escapeHtml(prod.notaEspecial)}</td>`;
         html += '</tr>';
       }
+
+      html += '</tbody>';
     }
-    html += '</tbody></table>';
+    html += '</table>';
     html += divider(dividerGap);
   }
 
@@ -375,7 +442,7 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
   // === OBSERVACIONES ===
   if (bloques.mostrarObservaciones !== false && datos.observaciones) {
     html += `<div style="margin-top:4px;font-size:11px;color:#555;width:100%;">`;
-    html += `<strong>${etiquetas.observaciones}:</strong> ${escapeHtml(datos.observaciones)}`;
+    html += `📌 <strong>${etiquetas.observaciones}:</strong> ${escapeHtml(datos.observaciones)}`;
     html += '</div>';
   }
 

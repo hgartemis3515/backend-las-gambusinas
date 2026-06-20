@@ -13,6 +13,8 @@ import {
   generarHtmlComanda,
   aplicarComandaNumeroDisplay,
   formatComandasNumbersLabel,
+  mapComandaATicket,
+  EPSON_TM_M30II_RECEIPT,
 } from './comandaHtml.js';
 
 /**
@@ -81,8 +83,9 @@ export async function imprimirComandaWeb(opts = {}) {
     // 5. Generate full HTML
     const { html, heightPx } = generarHtmlComanda({ datos, plantilla, serverOrigin });
 
-    // 6. Open print window (80mm thermal receipt optimized)
-    const printWin = window.open('', '_blank', 'width=320,height=600');
+    // 6. Open print window (Epson TM-m30II Receipt — 80mm / 226px)
+    const popupW = EPSON_TM_M30II_RECEIPT.contentWidthPx + 48;
+    const printWin = window.open('', '_blank', `width=${popupW},height=700,scrollbars=yes`);
     if (!printWin) {
       console.error('[comandaPrintWeb] Could not open print window (popup blocked?)');
       alert('No se pudo abrir la ventana de impresión. Permite ventanas emergentes para este sitio.');
@@ -92,27 +95,7 @@ export async function imprimirComandaWeb(opts = {}) {
     printWin.document.write(html);
     printWin.document.close();
 
-    // Wait for images to load, then print
-    const images = printWin.document.querySelectorAll('img');
-    const imagePromises = Array.from(images).map(img => {
-      if (img.complete) return Promise.resolve();
-      return new Promise(resolve => {
-        img.onload = resolve;
-        img.onerror = resolve;
-      });
-    });
-
-    Promise.all(imagePromises).then(() => {
-      setTimeout(() => {
-        try { printWin.print(); } catch {}
-      }, 150);
-    });
-
-    // Fallback: print after delay
-    setTimeout(() => {
-      try { printWin.print(); } catch {}
-    }, 800);
-
+    // La impresión la dispara el script embebido en el HTML (tras layout + imágenes).
     return true;
   } catch (err) {
     console.error('[comandaPrintWeb] Error printing comanda:', err);
@@ -224,4 +207,13 @@ export async function imprimirComandaDesdeTicket(ticket, opts = {}) {
       comandasNumbersOverride: ticket.comandasNumbers || opts.comandasNumbersOverride || null,
     });
   }
+}
+
+// Exponer en window para comandas.html (Alpine.js) y otros scripts no-module
+if (typeof window !== 'undefined') {
+  window.imprimirComandaWeb = imprimirComandaWeb;
+  window.imprimirComandaDesdeTicket = imprimirComandaDesdeTicket;
+  window.generarHtmlComanda = generarHtmlComanda;
+  window.mapComandaATicket = mapComandaATicket;
+  window.aplicarComandaNumeroDisplay = aplicarComandaNumeroDisplay;
 }

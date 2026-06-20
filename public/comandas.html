@@ -51,13 +51,13 @@ tailwind.config = {
 <link rel="stylesheet" href="/assets/css/cosmos-search.css">
 <style>
   .comanda-ticket {
-    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 11px;
-    line-height: 1.5;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    line-height: 1.33;
     background: #fff;
     color: #000;
-    width: 320px;
-    padding: 14px 12px;
+    width: 226px;
+    padding: 4px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.3);
   }
   .comanda-ticket .divider { border-top: 1px dashed #333; margin: 8px 0; }
@@ -1726,7 +1726,7 @@ function comandasApp() {
  previewZoomComanda: 100,
  ETIQUETAS_DEFAULT_COMANDA: {
    comandaNumero: 'Comanda',
-   fechaPedido: 'Fecha',
+   fechaPedido: 'Fecha pedido',
    mesa: 'Mesa',
    mozo: 'Mozo',
    area: 'Área',
@@ -1779,7 +1779,7 @@ function comandasApp() {
    mensajes: { pie: 'Entregar en cocina' },
    etiquetas: {
      comandaNumero: 'Comanda',
-     fechaPedido: 'Fecha',
+     fechaPedido: 'Fecha pedido',
      mesa: 'Mesa',
      mozo: 'Mozo',
      area: 'Área',
@@ -2035,413 +2035,76 @@ formatearNombreMesa(mesa, mesaObj = null) {
  },
 
  generarPreviewComanda() {
-   const p = this.plantillaComanda;
-   const d = this.datosEjemploComanda;
-   const v = p.visibilidad;
-   const b = p.bloques;
-   const e = p.espaciado;
-   const et = { ...this.ETIQUETAS_DEFAULT_COMANDA, ...(p.etiquetas || {}) };
-   const mostrarPrecios = b.mostrarPrecios !== false;
-   let html = '';
-
-   // === ENCABEZADO ===
-   if (b.mostrarEncabezado !== false) {
-     if (p.logo) {
-       html += `<div style="text-align:center;margin-bottom:6px;"><img src="${p.logo}" style="max-width:100%;max-height:60px;object-fit:contain;"></div>`;
-     }
-     if (v.nombre !== false) {
-       html += `<div style="text-align:center;font-weight:bold;font-size:${e.tamanoFuente + 4}px;">${this.escapeHtmlComanda(p.restaurante?.nombre || 'LAS GAMBUSINAS')}</div>`;
-     }
-     if (v.eslogan && p.restaurante?.eslogan) {
-       html += `<div style="text-align:center;font-size:${e.tamanoFuente - 1}px;color:#666;">${this.escapeHtmlComanda(p.restaurante.eslogan)}</div>`;
-     }
-     html += `<div style="text-align:center;font-weight:bold;font-size:${e.tamanoFuente + 2}px;margin:4px 0;letter-spacing:2px;">${this.escapeHtmlComanda(p.encabezado?.titulo || 'COMANDA')}</div>`;
-     html += `<div style="border-top:1px dashed #999;margin:${e.espacioDivider}px 0;"></div>`;
+   if (typeof window.generarHtmlComanda !== 'function') {
+     return '<div style="padding:8px;color:#999;">Cargando vista previa…</div>';
    }
-
-   // === DATOS COMANDA ===
-   if (b.mostrarDatosComanda !== false) {
-     html += '<div style="margin-bottom:4px;">';
-     if (v.comandaNumero !== false) {
-       const numeroEtiqueta = d.comandaNumeroDisplay
-         || (d.comandasNumbers?.length > 1
-           ? d.comandasNumbers.filter((n) => n != null).sort((a, b) => a - b).map((n) => `#${n}`).join('+')
-           : (d.comandaNumero != null ? `#${d.comandaNumero}` : ''));
-       if (numeroEtiqueta) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.comandaNumero}:</span><span>${numeroEtiqueta}</span></div>`;
-     }
-     if (v.fechaPedido !== false && d.fechaPedido) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.fechaPedido}:</span><span>${d.fechaPedido}</span></div>`;
-     if (v.mesa !== false && d.mesa) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.mesa}:</span><span>${d.mesa}</span></div>`;
-     if (v.mozo !== false && d.mozo) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.mozo}:</span><span>${this.escapeHtmlComanda(d.mozo)}</span></div>`;
-     if (v.area && d.area) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.area}:</span><span>${this.escapeHtmlComanda(d.area)}</span></div>`;
-     if (v.moneda !== false && d.moneda) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.moneda}:</span><span>${d.moneda}</span></div>`;
-     if (v.tipoPago !== false && d.tipoPago) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.tipoPago}:</span><span>${d.tipoPago}</span></div>`;
-     html += '</div>';
-     html += `<div style="border-top:1px dashed #999;margin:${e.espacioDivider}px 0;"></div>`;
-   }
-
-   // === DETALLE PRODUCTOS ===
-   if (b.mostrarDetalleProductos !== false && d.productos?.length) {
-     html += '<table style="width:100%;border-collapse:collapse;font-size:' + e.tamanoFuente + 'px;">';
-     html += '<thead><tr style="border-bottom:1px solid #000;font-weight:bold;">';
-     html += '<th style="text-align:left;padding:2px 0;">Producto</th>';
-     html += '<th style="text-align:center;padding:2px 4px;width:30px;">Cant.</th>';
-     if (mostrarPrecios) html += '<th style="text-align:right;padding:2px 4px;width:50px;">Total</th>';
-     html += '</tr></thead><tbody>';
-     for (const prod of d.productos) {
-       html += '<tr>';
-       const nombre = this.escapeHtmlComanda(prod.nombre || 'Plato');
-       const marcadorPL = prod.paraLlevar || prod.tipoServicio === 'para_llevar' ? ' (P.L.)' : '';
-       html += `<td style="padding:2px 0;vertical-align:top;">${nombre}${marcadorPL}</td>`;
-       html += `<td style="text-align:center;vertical-align:top;">${prod.cantidad || 1}</td>`;
-       if (mostrarPrecios) html += `<td style="text-align:right;vertical-align:top;">${(prod.subtotal || 0).toFixed(2)}</td>`;
-       html += '</tr>';
-       if (prod.complementos?.length) {
-         for (const c of prod.complementos) {
-           html += '<tr style="color:#666;font-size:' + (e.tamanoFuente - 1) + 'px;">';
-           html += `<td style="padding:0 0 0 10px;">└ ${this.escapeHtmlComanda(c.grupo || '')}: ${this.escapeHtmlComanda(c.opcion || '')}</td>`;
-           html += '<td></td>';
-           if (mostrarPrecios) html += '<td></td>';
-           html += '</tr>';
-         }
-       }
-       if (prod.notaEspecial) {
-         html += '<tr style="color:#999;font-size:' + (e.tamanoFuente - 2) + 'px;font-style:italic;">';
-         html += `<td colspan="${mostrarPrecios ? 3 : 2}" style="padding:0 0 0 10px;">Nota: ${this.escapeHtmlComanda(prod.notaEspecial)}</td>`;
-         html += '</tr>';
-       }
-     }
-     html += '</tbody></table>';
-     html += `<div style="border-top:1px dashed #999;margin:${e.espacioDivider}px 0;"></div>`;
-   }
-
-   // === TOTAL ===
-   if (b.mostrarTotal !== false) {
-     html += `<div style="font-weight:bold;font-size:${e.tamanoFuente + 2}px;text-align:right;margin:4px 0;">`;
-     html += `${et.total}: ${d.moneda === 'USD' ? '$' : 'S/.'}${(d.total || 0).toFixed(2)}`;
-     html += '</div>';
-     html += `<div style="border-top:1px dashed #999;margin:${e.espacioDivider}px 0;"></div>`;
-   }
-
-   // === DATOS CLIENTE ===
-   if (b.mostrarDatosCliente !== false) {
-     const clienteName = d.cliente?.nombre || '';
-     const clienteDni = d.cliente?.dni || '';
-     if (clienteName || clienteDni) {
-       html += '<div style="margin-bottom:4px;">';
-       if (v.cliente !== false && clienteName) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.cliente}:</span><span>${this.escapeHtmlComanda(clienteName)}</span></div>`;
-       if (v.dniCliente !== false && clienteDni) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.dni}:</span><span>${clienteDni}</span></div>`;
-       html += '</div>';
-     }
-   }
-
-   // === OBSERVACIONES ===
-   if (b.mostrarObservaciones !== false && d.observaciones) {
-     html += `<div style="margin-bottom:4px;font-size:${e.tamanoFuente - 1}px;color:#555;"><strong>${et.observaciones}:</strong> ${this.escapeHtmlComanda(d.observaciones)}</div>`;
-   }
-
-   // === PIE ===
-   if (p.mensajes?.pie) {
-     html += `<div style="text-align:center;font-size:${e.tamanoFuente - 2}px;color:#999;margin-top:6px;">${this.escapeHtmlComanda(p.mensajes.pie)}</div>`;
-   }
-
-   return html;
+   const datos = window.aplicarComandaNumeroDisplay(this.getDatosEjemploComandaPreview());
+   return window.generarHtmlComanda({
+     datos,
+     plantilla: this.plantillaComanda,
+     serverOrigin: window.location.origin,
+   }).htmlInner;
  },
 
- escapeHtmlComanda(str) {
-   if (!str) return '';
-   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+ getDatosEjemploComandaPreview() {
+   const raw = this.datosEjemploComanda;
+   const comandaNumero = Number(raw.comandaNumero) || 152;
+   return {
+     ...raw,
+     comandaNumero,
+     comandasNumbers: [comandaNumero],
+     moneda: raw.moneda === 'USD' ? 'USD' : 'PEN',
+     igv: raw.igv ?? 0,
+   };
  },
 
- imprimirPreviewComanda() {
-   const p = this.plantillaComanda;
-   const e = p.espaciado;
-   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Comanda</title>
-<style>*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoFuente}px;padding:10px;max-width:320px;margin:0 auto;}
-.divider{border-top:1px dashed #333;margin:${e.espacioDivider}px 0;}
-.text-center{text-align:center;}
-.label{font-weight:600;color:#222;}
-.value{font-weight:400;color:#000;}
-.restaurant-name{font-size:16px;font-weight:800;letter-spacing:0.5px;}
-.restaurant-subtitle{font-size:10px;font-weight:500;color:#444;}
-.total-row{font-size:13px;font-weight:700;border-top:2px solid #000;padding-top:4px;margin-top:4px;}
-.logo-img{max-width:200px;max-height:60px;margin:0 auto 4px;display:block;}
-</style></head><body><div style="font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoFuente}px;line-height:${e.lineHeight}px;">${this.generarPreviewComanda()}</div>
-<script>window.onload=function(){window.print();}<\/script></body></html>`;
+ fetchJsonComandaPrint(url) {
+   const endpoint = String(url).replace(/^\/api/, '');
+   return apiGet(endpoint);
+ },
 
-   const w = window.open('', '_blank', 'width=340,height=700');
-   if (w) { w.document.write(html); w.document.close(); }
+ async imprimirPreviewComanda() {
+   if (typeof window.imprimirComandaWeb !== 'function') {
+     this.showToast('Módulo de impresión no disponible', 'error');
+     return;
+   }
+   const datos = window.aplicarComandaNumeroDisplay(this.getDatosEjemploComandaPreview());
+   const ok = await window.imprimirComandaWeb({
+     comandaId: null,
+     datos,
+     plantilla: this.plantillaComanda,
+     serverOrigin: window.location.origin,
+     fetchJson: (url) => this.fetchJsonComandaPrint(url),
+   });
+   if (!ok) this.showToast('Error al imprimir vista previa', 'error');
  },
 
  async imprimirComanda(comanda, contextoGrupo) {
    if (!comanda) return;
+   if (typeof window.imprimirComandaWeb !== 'function') {
+     this.showToast('Módulo de impresión no disponible', 'error');
+     return;
+   }
    try {
-     const comandaId = comanda._id;
-     let datos = this.mapComandaATicket(comanda);
      const comandasNumbersGrupo = contextoGrupo?.comandas
        ?.map(c => c.numComanda || c.comandaNumber).filter(n => n != null)
        || (comanda.comandaNumber ? [comanda.comandaNumber] : []);
-     if (comandaId) {
-       try {
-         const res = await apiGet(`/comanda/${comandaId}/ticket-imprimible`);
-         if (res && res.success && res.datos) {
-           const d = res.datos;
-           datos = {
-             comandaNumero: d.comandaNumero || datos.comandaNumero,
-             comandasNumbers: d.comandasNumbers?.length ? d.comandasNumbers : comandasNumbersGrupo,
-             comandaNumeroDisplay: d.comandaNumeroDisplay || '',
-             cantidadComandas: d.cantidadComandas || comandasNumbersGrupo.length || 1,
-             fechaPedido: d.fechaPedido ? new Date(d.fechaPedido).toLocaleString('es-PE') : datos.fechaPedido,
-             mesa: d.mesa || datos.mesa,
-             mozo: d.mozo || datos.mozo,
-             area: d.area || datos.area,
-             moneda: d.moneda === 'USD' ? 'USD' : (d.moneda === 'PEN' || d.moneda === 'Soles' ? 'Soles' : d.moneda) || datos.moneda,
-             tipoPago: d.tipoPago || datos.tipoPago,
-             observaciones: d.observaciones || datos.observaciones,
-             productos: (d.productos || []).map(p => ({
-               nombre: p.nombre || 'Plato',
-               cantidad: p.cantidad || 1,
-               precio: p.precio || 0,
-               subtotal: p.subtotal || (p.precio || 0) * (p.cantidad || 1),
-               tipoServicio: p.tipoServicio || 'mesa',
-               complementos: (p.complementos || []).map(c => ({ grupo: c.grupo, opcion: c.opcion })),
-               notaEspecial: p.notaEspecial || '',
-               paraLlevar: p.tipoServicio === 'para_llevar'
-             })),
-             subtotal: d.subtotal || datos.subtotal,
-             total: d.total || datos.total,
-             cliente: {
-               nombre: d.cliente?.nombre || datos.cliente?.nombre || 'Invitado',
-               dni: d.cliente?.dni || datos.cliente?.dni || ''
-             }
-           };
-         }
-       } catch (err) {
-         console.warn('Error obteniendo ticket-imprimible, usando datos locales:', err);
-       }
+
+     const ok = await window.imprimirComandaWeb({
+       comandaId: comanda._id || null,
+       datos: comanda._id ? null : window.mapComandaATicket(comanda),
+       plantilla: this.plantillaComanda,
+       serverOrigin: window.location.origin,
+       fetchJson: (url) => this.fetchJsonComandaPrint(url),
+       comandasNumbersOverride: comandasNumbersGrupo.length ? comandasNumbersGrupo : null,
+     });
+     if (!ok) {
+       this.showToast('Error al generar la comanda para impresión', 'error');
      }
-     // Calcular comandaNumeroDisplay si no viene del backend
-     if (!datos.comandaNumeroDisplay) {
-       const nums = (datos.comandasNumbers || comandasNumbersGrupo).filter((n) => n != null);
-       datos.comandaNumeroDisplay = nums.length > 1
-         ? nums.sort((a, b) => a - b).map((n) => `#${n}`).join('+')
-         : datos.comandaNumero != null ? `#${datos.comandaNumero}` : '';
-     }
-     const p = this.plantillaComanda;
-     const e = p.espaciado;
-     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Comanda #${datos.comandaNumero || '?'}</title>
-<style>*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoFuente}px;padding:10px;max-width:320px;margin:0 auto;}
-.divider{border-top:1px dashed #333;margin:${e.espacioDivider}px 0;}
-.text-center{text-align:center;}
-.label{font-weight:600;color:#222;}
-.value{font-weight:400;color:#000;}
-.restaurant-name{font-size:16px;font-weight:800;letter-spacing:0.5px;}
-.total-row{font-size:13px;font-weight:700;border-top:2px solid #000;padding-top:4px;margin-top:4px;}
-.logo-img{max-width:200px;max-height:60px;margin:0 auto 4px;display:block;}
-</style></head><body><div style="font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoFuente}px;line-height:${e.lineHeight}px;">${this.generarHtmlComandaDesdeDatos(datos)}</div>
-<script>window.onload=function(){window.print();}<\/script></body></html>`;
-     const w = window.open('', '_blank', 'width=340,height=700');
-     if (w) { w.document.write(html); w.document.close(); }
    } catch (error) {
      console.error('Error al imprimir comanda:', error);
      this.showToast('Error al generar la comanda para impresión', 'error');
    }
- },
-
- mapComandaATicket(comanda) {
-   return {
-     comandaNumero: comanda.comandaNumber || '?',
-     comandasNumbers: comanda.comandaNumber ? [comanda.comandaNumber] : [],
-     fechaPedido: comanda.createdAt ? new Date(comanda.createdAt).toLocaleString('es-PE') : '',
-     mesa: comanda.mesas?.nummesa || comanda.mesaNumero || '—',
-     mozo: comanda.mozos?.name || comanda.mozoNombre || '—',
-     area: comanda.mesas?.area?.nombre || '',
-     moneda: comanda.moneda === 'USD' ? 'USD' : 'PEN',
-     tipoPago: comanda.metodoPago || 'Pendiente',
-     observaciones: comanda.observaciones || '',
-     productos: (comanda.platos || []).filter(p => !p.eliminado && !p.anulado).map(p => ({
-       nombre: p.plato?.nombre || p.nombre || 'Plato',
-       cantidad: p.cantidad || 1,
-       precio: p.plato?.precio || p.precio || 0,
-       subtotal: (p.plato?.precio || p.precio || 0) * (p.cantidad || 1),
-       tipoServicio: p.tipoServicio || 'mesa',
-       complementos: (p.complementosSeleccionados || []).map(c => ({ grupo: c.grupo, opcion: c.opcion, precio: c.precio || 0 })),
-       notaEspecial: p.notaEspecial || '',
-       paraLlevar: p.tipoServicio === 'para_llevar'
-     })),
-     subtotal: comanda.subtotal || 0,
-     igv: comanda.igv || 0,
-     total: comanda.precioTotal || comanda.total || 0,
-     cliente: {
-       nombre: comanda.cliente?.nombre || comanda.clienteNombre || 'Invitado',
-       dni: comanda.cliente?.dni || ''
-     }
-   };
- },
-
- generarHtmlComandaDesdeDatos(datos) {
-   const p = this.plantillaComanda;
-   const v = p.visibilidad;
-   const b = p.bloques;
-   const e = p.espaciado;
-   const et = { ...this.ETIQUETAS_DEFAULT_COMANDA, ...(p.etiquetas || {}) };
-   const mostrarPrecios = b.mostrarPrecios !== false;
-   const mostrarIGV = b.mostrarIGV !== false && (datos.igv || 0) > 0;
-   const simbolo = datos.moneda === 'USD' ? '$' : 'S/.';
-   const dg = e.espacioDivider || 6;
-   const fs = e.tamanoFuente || 12;
-   let html = '';
-
-   // Helper: fila de metadatos (label | valor)
-   const filaMeta = (etiqueta, valor) =>
-     `<tr><td style="width:35%;vertical-align:top;font-weight:600;color:#222;padding:1px 4px 1px 0;font-size:12px;">${etiqueta}</td>` +
-     `<td style="vertical-align:top;padding:1px 0;font-size:12px;word-break:break-word;">${valor}</td></tr>`;
-
-   // Helper: divisor
-   const divider = () => `<div style="border-top:1px dashed #333;margin:${dg}px 0;width:100%;"></div>`;
-
-   // Helper: label de método de pago
-   const labelMetodoPago = (mp) => {
-     if (!mp) return 'Pendiente';
-     const m = String(mp).toLowerCase();
-     if (m === 'efectivo') return 'Efectivo';
-     if (m === 'digital') return 'YAPE/PLIN';
-     if (m === 'tarjeta') return 'CRÉDITO/DÉBITO';
-     if (m === 'pago_adelantado' || m === 'adelantado') return 'Pago Adelantado';
-     return mp;
-   };
-
-   // === ENCABEZADO ===
-   if (b.mostrarEncabezado !== false) {
-     html += '<div style="text-align:center;width:100%;">';
-     if (p.logo) {
-       html += `<img src="${this.escapeHtmlComanda(p.logo)}" style="max-width:100%;max-height:64px;object-fit:contain;margin:0 auto 4px;display:block;" alt="Logo">`;
-     }
-     if (v.nombre !== false) {
-       html += `<div style="font-size:16px;font-weight:800;line-height:1.2;">${this.escapeHtmlComanda(p.restaurante?.nombre || 'LAS GAMBUSINAS')}</div>`;
-     }
-     if (v.eslogan !== false && p.restaurante?.eslogan) {
-       html += `<div style="font-size:10px;font-weight:500;color:#444;line-height:1.3;">${this.escapeHtmlComanda(p.restaurante.eslogan)}</div>`;
-     }
-     html += '</div>';
-     html += divider();
-     html += `<div style="text-align:center;font-weight:700;font-size:14px;line-height:1.2;width:100%;letter-spacing:2px;">${this.escapeHtmlComanda(p.encabezado?.titulo || 'COMANDA')}</div>`;
-     html += divider();
-   }
-
-   // === DATOS COMANDA ===
-   if (b.mostrarDatosComanda !== false) {
-     html += '<table style="width:100%;font-size:12px;border-collapse:collapse;table-layout:fixed;">';
-     if (v.comandaNumero !== false) {
-       const numeroEtiqueta = datos.comandaNumeroDisplay
-         || (datos.comandasNumbers?.length > 1
-           ? datos.comandasNumbers.filter((n) => n != null).sort((a, b) => a - b).map((n) => `#${n}`).join('+')
-           : (datos.comandaNumero != null ? `#${datos.comandaNumero}` : ''));
-       if (numeroEtiqueta) html += filaMeta(`${et.comandaNumero}:`, `<strong>${this.escapeHtmlComanda(numeroEtiqueta)}</strong>`);
-     }
-     if (v.fechaPedido !== false && datos.fechaPedido) html += filaMeta(`${et.fechaPedido}:`, this.escapeHtmlComanda(datos.fechaPedido));
-     if (v.mesa !== false && datos.mesa) html += filaMeta(`${et.mesa}:`, `<strong>${this.escapeHtmlComanda(String(datos.mesa))}</strong>`);
-     if (v.mozo !== false && datos.mozo) html += filaMeta(`${et.mozo}:`, this.escapeHtmlComanda(datos.mozo));
-     if (v.area !== false && datos.area) html += filaMeta(`${et.area}:`, this.escapeHtmlComanda(datos.area));
-     if (v.tipoPago !== false && datos.tipoPago) html += filaMeta(`${et.tipoPago}:`, this.escapeHtmlComanda(labelMetodoPago(datos.tipoPago)));
-     if (datos.voucherId) html += filaMeta('Voucher:', this.escapeHtmlComanda(String(datos.voucherId)));
-     html += '</table>';
-     html += divider();
-   }
-
-   // === DETALLE PRODUCTOS ===
-   if (b.mostrarDetalleProductos !== false && datos.productos?.length) {
-     const tbl = 'width:100%;font-size:12px;border-collapse:collapse;table-layout:fixed;';
-     html += `<table style="${tbl}">`;
-     html += '<thead><tr style="font-weight:700;border-bottom:1px solid #000;">';
-     html += '<th style="text-align:left;width:48%;font-size:12px;">Producto</th>';
-     html += '<th style="text-align:center;width:12%;font-size:12px;">Cant.</th>';
-     if (mostrarPrecios) {
-       html += '<th style="text-align:right;width:20%;font-size:12px;">P.Unit</th>';
-       html += '<th style="text-align:right;width:20%;font-size:12px;">Total</th>';
-     }
-     html += '</tr></thead><tbody>';
-
-     for (const prod of datos.productos) {
-       const nombre = this.escapeHtmlComanda(prod.nombre || 'Plato');
-       const marcadorPL = prod.paraLlevar ? ` <span style="font-weight:700;">[${this.escapeHtmlComanda(et.paraLlevar || 'PARA LLEVAR')}]</span>` : '';
-       const cantidad = prod.cantidad || 1;
-       const precio = prod.precio || 0;
-       const subtotalProd = prod.subtotal || (precio * cantidad);
-
-       html += '<tr>';
-       html += `<td style="vertical-align:top;font-size:12px;overflow-wrap:break-word;padding:2px 4px 2px 0;">${nombre}${marcadorPL}</td>`;
-       html += `<td style="text-align:center;vertical-align:top;font-size:12px;padding:2px 0;">${cantidad}</td>`;
-       if (mostrarPrecios) {
-         html += `<td style="text-align:right;vertical-align:top;font-size:12px;padding:2px 0;white-space:nowrap;">${precio.toFixed(2)}</td>`;
-         html += `<td style="text-align:right;vertical-align:top;font-size:12px;padding:2px 0;white-space:nowrap;">${subtotalProd.toFixed(2)}</td>`;
-       }
-       html += '</tr>';
-
-       if (prod.complementos?.length) {
-         for (const c of prod.complementos) {
-           html += `<tr style="font-size:11px;color:#555;">`;
-           html += `<td colspan="${mostrarPrecios ? 4 : 2}" style="padding:0 0 2px 8px;">`;
-           html += `└ ${this.escapeHtmlComanda(c.grupo || '')}: ${this.escapeHtmlComanda(c.opcion || '')}`;
-           if (c.precio > 0) html += ` (+${simbolo}${c.precio.toFixed(2)})`;
-           html += '</td></tr>';
-         }
-       }
-
-       if (prod.notaEspecial) {
-         html += `<tr style="font-size:10px;font-style:italic;color:#666;">`;
-         html += `<td colspan="${mostrarPrecios ? 4 : 2}" style="padding:0 0 2px 8px;">📌 ${this.escapeHtmlComanda(prod.notaEspecial)}</td>`;
-         html += '</tr>';
-       }
-     }
-     html += '</tbody></table>';
-     html += divider();
-   }
-
-   // === TOTALES ===
-   if (b.mostrarTotal !== false) {
-     html += '<div style="text-align:right;width:100%;font-size:12px;">';
-     const subtotalFinal = datos.subtotal || 0;
-     const igvFinal = datos.igv || 0;
-     const totalFinal = datos.total || 0;
-
-     if (mostrarPrecios && subtotalFinal > 0) {
-       html += `<div style="padding:1px 0;">Subtotal: <span style="font-weight:500;">${simbolo}${subtotalFinal.toFixed(2)}</span></div>`;
-     }
-     if (mostrarIGV) {
-       html += `<div style="padding:1px 0;">IGV (18%): <span style="font-weight:500;">${simbolo}${igvFinal.toFixed(2)}</span></div>`;
-     }
-     html += `<div style="font-size:14px;font-weight:700;border-top:2px solid #000;padding-top:4px;margin-top:4px;">${this.escapeHtmlComanda(et.total)}: ${simbolo}${totalFinal.toFixed(2)}</div>`;
-     html += '</div>';
-     html += divider();
-   }
-
-   // === DATOS CLIENTE ===
-   if (b.mostrarDatosCliente !== false) {
-     const cn = datos.cliente?.nombre || '';
-     const cd = datos.cliente?.dni || '';
-     if (cn || cd) {
-       html += '<table style="width:100%;font-size:12px;border-collapse:collapse;table-layout:fixed;">';
-       if (v.cliente !== false && cn) html += filaMeta(`${et.cliente}:`, this.escapeHtmlComanda(cn));
-       if (v.dniCliente !== false && cd) html += filaMeta(`${et.dni}:`, this.escapeHtmlComanda(cd));
-       html += '</table>';
-     }
-   }
-
-   // === OBSERVACIONES ===
-   if (b.mostrarObservaciones !== false && datos.observaciones) {
-     html += `<div style="margin-top:4px;font-size:11px;color:#555;width:100%;">`;
-     html += `<strong>${et.observaciones}:</strong> ${this.escapeHtmlComanda(datos.observaciones)}`;
-     html += '</div>';
-   }
-
-   // === PIE ===
-   if (p.mensajes?.pie) {
-     html += `<div style="text-align:center;font-size:10px;color:#999;margin-top:8px;">${this.escapeHtmlComanda(p.mensajes.pie)}</div>`;
-   }
-
-   return html;
  },
 
  parseJwtRol(token) {

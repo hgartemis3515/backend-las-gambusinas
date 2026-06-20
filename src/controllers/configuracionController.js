@@ -614,7 +614,7 @@ router.get('/configuracion/comanda-plantilla', async (req, res) => {
             espaciado: { lineHeight: 16, tamanoFuente: 11, espacioDivider: 8 },
             mensajes: { pie: '' },
             etiquetas: {
-                comandaNumero: 'Comanda', fechaPedido: 'Fecha', mesa: 'Mesa', mozo: 'Mozo',
+                comandaNumero: 'Comanda', fechaPedido: 'Fecha pedido', mesa: 'Mesa', mozo: 'Mozo',
                 area: 'Área', moneda: 'Moneda', tipoPago: 'Pago', total: 'TOTAL',
                 cliente: 'Cliente', dni: 'DNI', observaciones: 'Obs'
             }
