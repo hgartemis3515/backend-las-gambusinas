@@ -1,27 +1,34 @@
 /**
- * comandaHtml.js — Generador de HTML 80mm para Comanda (NO comprobante fiscal)
+ * comandaHtml.js — Generador de HTML 80mm para Ticket de Comanda (NO comprobante fiscal)
  *
- * Web version: pure ES module with NO React Native dependencies.
- * Used by App Cocina, comandas.html dashboard, and App Mozos web branch.
+ * Formato profesional de ticket térmico 80mm (Epson TM-m30II).
+ * Basado en el diseño de boucherHtml.js del app de mozos, adaptado para comandas.
  *
- * Excluye intencionalmente: RUC, dirección, IGV, serie/correlativo fiscal,
- * bloque promoción/QR, URL consulta SUNAT, "Nro. Voucher", "Fecha Pago".
+ * Incluye: Encabezado (logo + nombre + eslogan), título COMANDA,
+ * datos del pedido (número, fecha, mesa, mozo, área, tipo de pago),
+ * tabla de productos (Producto | Cant. | P.Unit | Total) con complementos y notas,
+ * subtotal, IGV, total, tipo de moneda, datos del cliente, observaciones.
  *
- * Incluye: Logo, nombre comercial, eslogan, título "COMANDA", número de comanda,
- * fecha/hora, mesa, mozo, área, detalle de platos (con complementos y notas),
- * total simple, moneda, tipo de pago, cliente, DNI, observaciones.
+ * Excluye intencionalmente: RUC, dirección fiscal, serie/correlativo,
+ * número de voucher, fecha de pago, URL SUNAT, bloque promo/QR.
  */
 
-// ─── Constants from boucherPrint ──────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────
 
 const PUNTOS_ANCHO = 226;
+const BOUCHER_PAPER_MM = 80;
 const pxToMm = (px) => (px * 25.4) / 72;
 
-// ─── Inlined: resolveLogoUrl ─────────────────────────────────────────
+const ALTURA_BASE_PX = 280;
+const ALTURA_POR_FILA_PX = 38;
+const ALTURA_POR_COMPLEMENTO_PX = 18;
+const ALTURA_POR_NOTA_PX = 16;
+const PADDING_INFERIOR_PX = 20;
+
+// ─── Inlined: resolveLogoUrl ──────────────────────────────────────────
 
 /**
  * Resolves a logo URL to an absolute URL.
- * Handles data URLs, absolute URLs, and relative paths.
  */
 export function resolveLogoUrl(logo, serverOrigin) {
   if (!logo) return '';
@@ -43,8 +50,8 @@ export function envolverHtmlBoucherTicket(html, { fontSizeBase, lineHeightBase, 
   const w = PUNTOS_ANCHO;
   const h = pageHeightPx ? Math.ceil(pageHeightPx) : null;
   const pageSize = h
-    ? `80mm ${pxToMm(h).toFixed(2)}mm`
-    : '80mm auto';
+    ? `${BOUCHER_PAPER_MM}mm ${pxToMm(h).toFixed(2)}mm`
+    : `${BOUCHER_PAPER_MM}mm auto`;
   const bodyHeight = h ? `${h}px` : 'auto';
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=${w}, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><title>Comanda</title>
@@ -74,21 +81,96 @@ const ETIQUETAS_DEFAULT_COMANDA = {
   area: 'Área',
   moneda: 'Moneda',
   tipoPago: 'Pago',
+  subtotal: 'Subtotal',
+  igv: 'IGV',
   total: 'TOTAL',
   cliente: 'Cliente',
   dni: 'DNI',
   observaciones: 'Obs',
+  paraLlevar: 'PARA LLEVAR',
 };
+
+// ─── Helpers ──────────────────────────────────────────────────────────
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function divider(gap = 6) {
+  return `<div style="border-top:1px dashed #333;margin:${gap}px 0;width:100%;"></div>`;
+}
+
+function filaMeta(etiqueta, valor) {
+  return `<tr><td style="width:35%;vertical-align:top;font-weight:600;color:#222;padding:1px 4px 1px 0;font-size:12px;">${etiqueta}</td>` +
+    `<td style="vertical-align:top;padding:1px 0;font-size:12px;word-break:break-word;">${valor}</td></tr>`;
+}
+
+function formatFecha(date) {
+  try {
+    const d = new Date(date);
+    const dia = String(d.getDate()).padStart(2, '0');
+    const mes = String(d.getMonth() + 1).padStart(2, '0');
+    const anio = d.getFullYear();
+    const hora = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    const seg = String(d.getSeconds()).padStart(2, '0');
+    return `${dia}/${mes}/${anio} ${hora}:${min}:${seg}`;
+  } catch {
+    return String(date || '');
+  }
+}
+
+function getSimboloMoneda(moneda) {
+  if (moneda === 'USD') return '$';
+  return 'S/.';
+}
+
+function getLabelMetodoPago(metodoPago) {
+  if (!metodoPago) return 'Pendiente';
+  const m = String(metodoPago).toLowerCase();
+  if (m === 'efectivo') return 'Efectivo';
+  if (m === 'digital') return 'YAPE/PLIN';
+  if (m === 'tarjeta') return 'CRÉDITO/DÉBITO';
+  if (m === 'pago_adelantado' || m === 'adelantado') return 'Pago Adelantado';
+  return metodoPago;
+}
+
+/**
+ * Estima la altura en px del ticket para calcular el tamaño de página.
+ */
+function estimarAltura(datos, bloques) {
+  let h = ALTURA_BASE_PX;
+  const productos = datos.productos || [];
+  for (const prod of productos) {
+    h += ALTURA_POR_FILA_PX;
+    if (prod.complementos?.length) {
+      h += prod.complementos.length * ALTURA_POR_COMPLEMENTO_PX;
+    }
+    if (prod.notaEspecial) {
+      h += ALTURA_POR_NOTA_PX;
+    }
+  }
+  if (bloques.mostrarTotales !== false && datos.igv) {
+    h += 40;
+  }
+  if (datos.cliente?.nombre || datos.cliente?.dni) {
+    h += 30;
+  }
+  if (datos.observaciones) {
+    h += 24;
+  }
+  return Math.max(ALTURA_BASE_PX, Math.ceil(h) + PADDING_INFERIOR_PX);
+}
 
 // ─── Public functions ─────────────────────────────────────────────────
 
 /**
  * Formatea números de comanda para el campo visible del ticket.
- * Una comanda  → "#81"
- * Varias       → "#81+#82"   (orden ascendente, sin duplicados)
- *
- * @param {Array<number|string|null|undefined>} comandasNumbers
- * @returns {string} ej. "#81+#82" o "" si no hay números válidos
  */
 export function formatComandasNumbersLabel(comandasNumbers) {
   const nums = [...new Set(
@@ -103,10 +185,6 @@ export function formatComandasNumbersLabel(comandasNumbers) {
 
 /**
  * Aplica display agrupado sobre payload ticket-imprimible o mapComandaATicket.
- * Calcula comandaNumeroDisplay a partir de comandasNumbers si existen.
- *
- * @param {Object} datos - Datos mapeados de comanda
- * @returns {Object} datos con campo adicional comandaNumeroDisplay
  */
 export function aplicarComandaNumeroDisplay(datos) {
   const label = formatComandasNumbersLabel(datos.comandasNumbers);
@@ -119,10 +197,10 @@ export function aplicarComandaNumeroDisplay(datos) {
 
 /**
  * Genera el HTML completo de una comanda térmica 80mm.
- * Incluye el wrapper <html>/<style> listo para imprimir.
+ * Formato profesional al estilo boucher, adaptado para comanda.
  *
  * @param {Object} params
- * @param {Object} params.datos   - Datos mapeados de la comanda (ver mapComandaATicket o ticket-imprimible)
+ * @param {Object} params.datos   - Datos mapeados de la comanda
  * @param {Object} params.plantilla - Plantilla de comanda desde GET /comanda-plantilla
  * @param {string} params.serverOrigin - URL base del servidor (para resolver logo)
  * @returns {{ htmlInner: string, heightPx: number, wrapOpts: object, html: string }}
@@ -136,11 +214,13 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
   const mensajes = p.mensajes || {};
 
   const lineHeight = esp.lineHeight || 16;
-  const fontSize = esp.tamanoFuente || 11;
-  const dividerGap = esp.espacioDivider || 8;
+  const fontSize = esp.tamanoFuente || 12;
+  const dividerGap = esp.espacioDivider || 6;
 
   const mostrarPrecios = bloques.mostrarPrecios !== false;
   const mostrarTotal = bloques.mostrarTotal !== false;
+  const mostrarIGV = bloques.mostrarIGV !== false && datos.igv > 0;
+  const simbolo = getSimboloMoneda(datos.moneda);
 
   // Logo
   const logoUrl = resolveLogoUrl(p.logo || '', serverOrigin);
@@ -152,104 +232,127 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
 
   // === ENCABEZADO ===
   if (bloques.mostrarEncabezado !== false) {
+    html += '<div style="text-align:center;width:100%;">';
     if (mostrarLogo) {
-      html += `<div style="text-align:center;margin-bottom:6px;">
-        <img src="${logoUrl}" style="max-width:100%;max-height:80px;object-fit:contain;" />
-      </div>`;
+      html += `<img src="${escapeHtml(logoUrl)}" style="max-width:100%;max-height:64px;object-fit:contain;margin:0 auto 4px;display:block;" alt="Logo">`;
     }
     if (mostrarNombre) {
-      html += `<div class="restaurant-name" style="text-align:center;font-weight:bold;font-size:${fontSize + 4}px;">${escapeHtml(p.restaurante?.nombre || 'LAS GAMBUSINAS')}</div>`;
+      html += `<div style="font-size:16px;font-weight:800;line-height:1.2;">${escapeHtml(p.restaurante?.nombre || 'LAS GAMBUSINAS')}</div>`;
     }
     if (mostrarEslogan && p.restaurante?.eslogan) {
-      html += `<div style="text-align:center;font-size:${fontSize - 1}px;color:#666;">${escapeHtml(p.restaurante.eslogan)}</div>`;
+      html += `<div style="font-size:10px;font-weight:500;color:#444;line-height:1.3;">${escapeHtml(p.restaurante.eslogan)}</div>`;
     }
+    html += '</div>';
+    html += divider(dividerGap);
+
     // Título COMANDA
-    html += `<div style="text-align:center;font-weight:bold;font-size:${fontSize + 2}px;margin:4px 0;letter-spacing:2px;">${escapeHtml(p.encabezado?.titulo || 'COMANDA')}</div>`;
-    html += divider();
+    html += `<div style="text-align:center;font-weight:700;font-size:14px;line-height:1.2;width:100%;letter-spacing:2px;">${escapeHtml(p.encabezado?.titulo || 'COMANDA')}</div>`;
+    html += divider(dividerGap);
   }
 
   // === DATOS COMANDA ===
   if (bloques.mostrarDatosComanda !== false) {
-    html += '<div style="margin-bottom:4px;">';
+    html += '<table style="width:100%;font-size:12px;border-collapse:collapse;table-layout:fixed;">';
+
     if (vis.comandaNumero !== false) {
       const numeroEtiqueta = datos.comandaNumeroDisplay
         || formatComandasNumbersLabel(datos.comandasNumbers)
         || (datos.comandaNumero != null ? `#${datos.comandaNumero}` : '');
       if (numeroEtiqueta) {
-        html += fila(etiquetas.comandaNumero, numeroEtiqueta);
+        html += filaMeta(`${etiquetas.comandaNumero}:`, `<strong>${escapeHtml(numeroEtiqueta)}</strong>`);
       }
     }
     if (vis.fechaPedido !== false && datos.fechaPedido) {
-      html += fila(etiquetas.fechaPedido, formatFecha(datos.fechaPedido));
+      html += filaMeta(`${etiquetas.fechaPedido}:`, escapeHtml(formatFecha(datos.fechaPedido)));
     }
     if (vis.mesa !== false && datos.mesa) {
-      html += fila(etiquetas.mesa, String(datos.mesa));
+      html += filaMeta(`${etiquetas.mesa}:`, `<strong>${escapeHtml(String(datos.mesa))}</strong>`);
     }
     if (vis.mozo !== false && datos.mozo) {
-      html += fila(etiquetas.mozo, datos.mozo);
+      html += filaMeta(`${etiquetas.mozo}:`, escapeHtml(datos.mozo));
     }
     if (vis.area !== false && datos.area) {
-      html += fila(etiquetas.area, datos.area);
-    }
-    if (vis.moneda !== false && datos.moneda) {
-      html += fila(etiquetas.moneda, datos.moneda);
+      html += filaMeta(`${etiquetas.area}:`, escapeHtml(datos.area));
     }
     if (vis.tipoPago !== false && datos.tipoPago) {
-      html += fila(etiquetas.tipoPago, datos.tipoPago);
+      html += filaMeta(`${etiquetas.tipoPago}:`, escapeHtml(getLabelMetodoPago(datos.tipoPago)));
     }
-    html += '</div>';
-    html += divider();
+    if (datos.voucherId) {
+      html += filaMeta('Voucher:', escapeHtml(String(datos.voucherId)));
+    }
+    html += '</table>';
+    html += divider(dividerGap);
   }
 
   // === DETALLE PRODUCTOS ===
   if (bloques.mostrarDetalleProductos !== false && datos.productos?.length) {
-    html += '<table style="width:100%;border-collapse:collapse;font-size:' + fontSize + 'px;">';
-    html += '<thead><tr style="border-bottom:1px solid #000;font-weight:bold;">';
-    html += '<th style="text-align:left;padding:2px 0;">Producto</th>';
-    html += '<th style="text-align:center;padding:2px 4px;width:30px;">Cant.</th>';
+    const tblStyle = 'width:100%;font-size:12px;border-collapse:collapse;table-layout:fixed;';
+    html += `<table style="${tblStyle}">`;
+    html += '<thead><tr style="font-weight:700;border-bottom:1px solid #000;">';
+    html += '<th style="text-align:left;width:48%;font-size:12px;">Producto</th>';
+    html += '<th style="text-align:center;width:12%;font-size:12px;">Cant.</th>';
     if (mostrarPrecios) {
-      html += '<th style="text-align:right;padding:2px 4px;width:50px;">Total</th>';
+      html += '<th style="text-align:right;width:20%;font-size:12px;">P.Unit</th>';
+      html += '<th style="text-align:right;width:20%;font-size:12px;">Total</th>';
     }
     html += '</tr></thead><tbody>';
 
     for (const prod of datos.productos) {
-      html += '<tr>';
       const nombre = escapeHtml(prod.nombre || 'Plato');
-      const marcadorPL = prod.paraLlevar ? ' (P.L.)' : '';
-      html += `<td style="padding:2px 0;vertical-align:top;">${nombre}${marcadorPL}</td>`;
-      html += `<td style="text-align:center;vertical-align:top;">${prod.cantidad || 1}</td>`;
+      const marcadorPL = prod.paraLlevar ? ` <span style="font-weight:700;">[${escapeHtml(etiquetas.paraLlevar)}]</span>` : '';
+      const cantidad = prod.cantidad || 1;
+      const precio = prod.precio || 0;
+      const subtotalProd = prod.subtotal || (precio * cantidad);
+
+      html += '<tr>';
+      html += `<td style="vertical-align:top;font-size:12px;overflow-wrap:break-word;padding:2px 4px 2px 0;">${nombre}${marcadorPL}</td>`;
+      html += `<td style="text-align:center;vertical-align:top;font-size:12px;padding:2px 0;">${cantidad}</td>`;
       if (mostrarPrecios) {
-        html += `<td style="text-align:right;vertical-align:top;">${(prod.subtotal || 0).toFixed(2)}</td>`;
+        html += `<td style="text-align:right;vertical-align:top;font-size:12px;padding:2px 0;white-space:nowrap;">${precio.toFixed(2)}</td>`;
+        html += `<td style="text-align:right;vertical-align:top;font-size:12px;padding:2px 0;white-space:nowrap;">${subtotalProd.toFixed(2)}</td>`;
       }
       html += '</tr>';
 
       // Complementos
       if (prod.complementos?.length) {
         for (const c of prod.complementos) {
-          html += '<tr style="color:#666;font-size:' + (fontSize - 1) + 'px;">';
-          html += `<td style="padding:0 0 0 10px;">└ ${escapeHtml(c.grupo || '')}: ${escapeHtml(c.opcion || '')}</td>`;
-          html += '<td></td>';
-          if (mostrarPrecios) html += '<td></td>';
-          html += '</tr>';
+          html += '<tr style="font-size:11px;color:#555;">';
+          html += `<td colspan="${mostrarPrecios ? 4 : 2}" style="padding:0 0 2px 8px;">`;
+          html += `└ ${escapeHtml(c.grupo || '')}: ${escapeHtml(c.opcion || '')}`;
+          if (c.precio > 0) {
+            html += ` (+${simbolo}${c.precio.toFixed(2)})`;
+          }
+          html += '</td></tr>';
         }
       }
+
       // Nota especial
       if (prod.notaEspecial) {
-        html += '<tr style="color:#999;font-size:' + (fontSize - 2) + 'px;font-style:italic;">';
-        html += `<td colspan="${mostrarPrecios ? 3 : 2}" style="padding:0 0 0 10px;">Nota: ${escapeHtml(prod.notaEspecial)}</td>`;
+        html += `<tr style="font-size:10px;font-style:italic;color:#666;">`;
+        html += `<td colspan="${mostrarPrecios ? 4 : 2}" style="padding:0 0 2px 8px;">📌 ${escapeHtml(prod.notaEspecial)}</td>`;
         html += '</tr>';
       }
     }
     html += '</tbody></table>';
-    html += divider();
+    html += divider(dividerGap);
   }
 
-  // === TOTAL ===
-  if (mostrarTotal && bloques.mostrarTotal !== false) {
-    html += '<div style="font-weight:bold;font-size:' + (fontSize + 2) + 'px;text-align:right;margin:4px 0;">';
-    html += `${etiquetas.total}: ${datos.moneda === 'USD' ? '$' : 'S/.'}${(datos.total || 0).toFixed(2)}`;
+  // === TOTALES ===
+  if (mostrarTotal && bloques.mostrarTotales !== false) {
+    html += '<div style="text-align:right;width:100%;font-size:12px;">';
+    const subtotalFinal = datos.subtotal || 0;
+    const igvFinal = datos.igv || 0;
+    const totalFinal = datos.total || 0;
+
+    if (mostrarPrecios && subtotalFinal > 0) {
+      html += `<div style="padding:1px 0;">Subtotal: <span style="font-weight:500;">${simbolo}${subtotalFinal.toFixed(2)}</span></div>`;
+    }
+    if (mostrarIGV && igvFinal > 0) {
+      html += `<div style="padding:1px 0;">IGV (18%): <span style="font-weight:500;">${simbolo}${igvFinal.toFixed(2)}</span></div>`;
+    }
+    html += `<div style="font-size:14px;font-weight:700;border-top:2px solid #000;padding-top:4px;margin-top:4px;">${escapeHtml(etiquetas.total)}: ${simbolo}${totalFinal.toFixed(2)}</div>`;
     html += '</div>';
-    html += divider();
+    html += divider(dividerGap);
   }
 
   // === DATOS CLIENTE ===
@@ -257,31 +360,32 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
     const clienteName = datos.cliente?.nombre || '';
     const clienteDni = datos.cliente?.dni || '';
     if (clienteName || clienteDni) {
-      html += '<div style="margin-bottom:4px;">';
+      html += `<div style="border-top:1px dashed #333;margin:${dividerGap}px 0;width:100%;"></div>`;
+      html += '<table style="width:100%;font-size:12px;border-collapse:collapse;table-layout:fixed;">';
       if (vis.cliente !== false && clienteName) {
-        html += fila(etiquetas.cliente, clienteName);
+        html += filaMeta(`${etiquetas.cliente}:`, escapeHtml(clienteName));
       }
       if (vis.dniCliente !== false && clienteDni) {
-        html += fila(etiquetas.dni, clienteDni);
+        html += filaMeta(`${etiquetas.dni}:`, escapeHtml(clienteDni));
       }
-      html += '</div>';
+      html += '</table>';
     }
   }
 
   // === OBSERVACIONES ===
   if (bloques.mostrarObservaciones !== false && datos.observaciones) {
-    html += `<div style="margin-bottom:4px;font-size:${fontSize - 1}px;color:#555;">
-      <strong>${etiquetas.observaciones}:</strong> ${escapeHtml(datos.observaciones)}
-    </div>`;
+    html += `<div style="margin-top:4px;font-size:11px;color:#555;width:100%;">`;
+    html += `<strong>${etiquetas.observaciones}:</strong> ${escapeHtml(datos.observaciones)}`;
+    html += '</div>';
   }
 
   // === PIE ===
   if (mensajes.pie) {
-    html += `<div style="text-align:center;font-size:${fontSize - 2}px;color:#999;margin-top:6px;">${escapeHtml(mensajes.pie)}</div>`;
+    html += `<div style="text-align:center;font-size:10px;color:#999;margin-top:8px;">${escapeHtml(mensajes.pie)}</div>`;
   }
 
-  const heightPx = Math.max(200, html.length / 2.5);
-  const wrapOpts = { fontSizeBase: fontSize, lineHeightBase: lineHeight, pageHeightPx: Math.ceil(heightPx + 40) };
+  const heightPx = estimarAltura(datos, bloques);
+  const wrapOpts = { fontSizeBase: fontSize, lineHeightBase: lineHeight, pageHeightPx: heightPx };
 
   return {
     htmlInner: html,
@@ -289,34 +393,6 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
     wrapOpts,
     html: envolverHtmlBoucherTicket(html, wrapOpts),
   };
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────
-
-function escapeHtml(str) {
-  if (!str) return '';
-  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function divider() {
-  return '<div style="border-top:1px dashed #999;margin:6px 0;"></div>';
-}
-
-function fila(label, value) {
-  return `<div style="display:flex;justify-content:space-between;padding:1px 0;">
-    <span style="font-weight:500;">${label}:</span>
-    <span>${value}</span>
-  </div>`;
-}
-
-function formatFecha(date) {
-  try {
-    const d = new Date(date);
-    return d.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' })
-      + ' ' + d.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
-  } catch {
-    return String(date);
-  }
 }
 
 /**
@@ -347,6 +423,7 @@ export function mapComandaATicket(comanda, boucherOpcional, config = {}) {
         complementos: (p.complementosSeleccionados || []).map(c => ({
           grupo: c.grupo,
           opcion: c.opcion,
+          precio: c.precio || 0,
         })),
         notaEspecial: p.notaEspecial || '',
         paraLlevar: p.tipoServicio === 'para_llevar',
