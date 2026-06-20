@@ -5,8 +5,11 @@
  * NO cubre PPA (eso sigue en pagoAdelantadoService).
  * Los sockets se emiten a través de los helpers globales en events.js.
  */
+const mongoose = require('mongoose');
 const ticketAprobacionRepository = require('../repository/ticketAprobacion.repository');
 const ticketPagoAdelantadoRepository = require('../repository/ticketPagoAdelantado.repository');
+const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
+const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
 const mesasModel = require('../database/models/mesas.model');
 const logger = require('../utils/logger');
 
@@ -46,21 +49,68 @@ async function obtenerTicketsUnificadosPendientes(fecha) {
 }
 
 /**
+ * Detecta el tipo real de un ticket buscando en ambas colecciones.
+ * Primero intenta en la colección del tipo indicado; si no lo encuentra,
+ * prueba en la otra colección.
+ * @returns {Promise<{tipo: 'COMANDA'|'ADELANTADO'}>}
+ */
+async function detectarTipoReal(ticketId, tipoHint) {
+  if (!mongoose.Types.ObjectId.isValid(ticketId)) {
+    const err = new Error('ID de ticket inválido');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Intentar primero en la colección del tipo indicado
+  if (tipoHint === 'ADELANTADO') {
+    const ppa = await ticketPagoAdelantadoModel.findById(ticketId).select('_id').lean();
+    if (ppa) return { tipo: 'ADELANTADO' };
+    // Si no está en PPA, buscar en comandas
+    const comanda = await ticketAprobacionModel.findById(ticketId).select('_id').lean();
+    if (comanda) {
+      logger.warn(`Ticket ${ticketId} indicado como ADELANTADO pero encontrado en TicketAprobacion. Corrigiendo tipo a COMANDA.`);
+      return { tipo: 'COMANDA' };
+    }
+  } else {
+    const comanda = await ticketAprobacionModel.findById(ticketId).select('_id').lean();
+    if (comanda) return { tipo: 'COMANDA' };
+    // Si no está en comandas, buscar en PPA
+    const ppa = await ticketPagoAdelantadoModel.findById(ticketId).select('_id').lean();
+    if (ppa) {
+      logger.warn(`Ticket ${ticketId} indicado como COMANDA pero encontrado en TicketPagoAdelantado. Corrigiendo tipo a ADELANTADO.`);
+      return { tipo: 'ADELANTADO' };
+    }
+  }
+
+  const err = new Error('Ticket no encontrado en ninguna colección');
+  err.statusCode = 404;
+  throw err;
+}
+
+/**
  * Aprobar un ticket — delega al repositorio correspondiente según el tipo.
+ * Si el tipo indicado no coincide con la colección donde está el ticket,
+ * lo detecta automáticamente y corrige.
  * Devuelve el resultado del repositorio + datos para sockets.
  */
 async function aprobarTicketUnificado(ticketId, tipo, usuarioId, usuarioNombre) {
-  if (tipo === 'COMANDA') {
+  // Normalizar tipo
+  const tipoNormalizado = String(tipo || '').toUpperCase() === 'ADELANTADO' ? 'ADELANTADO' : 'COMANDA';
+
+  // Detectar tipo real del ticket en la base de datos
+  const { tipo: tipoReal } = await detectarTipoReal(ticketId, tipoNormalizado);
+
+  if (tipoReal === 'COMANDA') {
     const result = await ticketAprobacionRepository.aprobarTicket(ticketId, usuarioId, usuarioNombre);
     return { ...result, tipo: 'COMANDA' };
   }
 
-  if (tipo === 'ADELANTADO') {
+  if (tipoReal === 'ADELANTADO') {
     const result = await ticketPagoAdelantadoRepository.aprobarTicket(ticketId, usuarioId, usuarioNombre);
     return { ...result, tipo: 'ADELANTADO' };
   }
 
-  const err = new Error(`Tipo de ticket no reconocido: ${tipo}`);
+  const err = new Error(`Tipo de ticket no reconocido: ${tipoReal}`);
   err.statusCode = 400;
   throw err;
 }

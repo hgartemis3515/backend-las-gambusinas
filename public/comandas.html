@@ -23,6 +23,7 @@
  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
  <script src="https://cdn.tailwindcss.com"></script>
 <script src="/socket.io/socket.io.js"></script>
+<script type="module" src="/js/comanda-print/comandaPrintWeb.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -419,7 +420,7 @@ tailwind.config = {
  <div class="flex gap-1 justify-center">
  <button @click.stop="openDetailModal(comanda)" class="p-1 rounded hover:bg-gold/20 transition text-xs" title="Ver detalle">👁</button>
  <button @click.stop="openEditModal(comanda)" class="p-1 rounded hover:bg-gold/20 transition text-xs" title="Editar">✏️</button>
- <button @click.stop="imprimirComanda(comanda)" class="p-1 rounded hover:bg-gold/20 transition text-xs" title="Imprimir comanda">🖨️</button>
+ <button @click.stop="imprimirComanda(comanda, row)" class="p-1 rounded hover:bg-gold/20 transition text-xs" title="Imprimir comanda">🖨️</button>
  </div>
  </td>
  </tr>
@@ -2044,7 +2045,13 @@ formatearNombreMesa(mesa, mesaObj = null) {
    // === DATOS COMANDA ===
    if (b.mostrarDatosComanda !== false) {
      html += '<div style="margin-bottom:4px;">';
-     if (v.comandaNumero !== false && d.comandaNumero) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.comandaNumero}:</span><span>${d.comandaNumero}</span></div>`;
+     if (v.comandaNumero !== false) {
+       const numeroEtiqueta = d.comandaNumeroDisplay
+         || (d.comandasNumbers?.length > 1
+           ? d.comandasNumbers.filter((n) => n != null).sort((a, b) => a - b).map((n) => `#${n}`).join('+')
+           : (d.comandaNumero != null ? `#${d.comandaNumero}` : ''));
+       if (numeroEtiqueta) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.comandaNumero}:</span><span>${numeroEtiqueta}</span></div>`;
+     }
      if (v.fechaPedido !== false && d.fechaPedido) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.fechaPedido}:</span><span>${d.fechaPedido}</span></div>`;
      if (v.mesa !== false && d.mesa) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.mesa}:</span><span>${d.mesa}</span></div>`;
      if (v.mozo !== false && d.mozo) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.mozo}:</span><span>${this.escapeHtmlComanda(d.mozo)}</span></div>`;
@@ -2149,12 +2156,14 @@ body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoF
    if (w) { w.document.write(html); w.document.close(); }
  },
 
- async imprimirComanda(comanda) {
+ async imprimirComanda(comanda, contextoGrupo) {
    if (!comanda) return;
    try {
-     // Fetch enriched data including boucher info (moneda, tipoPago, cliente)
      const comandaId = comanda._id;
      let datos = this.mapComandaATicket(comanda);
+     const comandasNumbersGrupo = contextoGrupo?.comandas
+       ?.map(c => c.numComanda || c.comandaNumber).filter(n => n != null)
+       || (comanda.comandaNumber ? [comanda.comandaNumber] : []);
      if (comandaId) {
        try {
          const res = await apiGet(`/comanda/${comandaId}/ticket-imprimible`);
@@ -2162,6 +2171,9 @@ body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoF
            const d = res.datos;
            datos = {
              comandaNumero: d.comandaNumero || datos.comandaNumero,
+             comandasNumbers: d.comandasNumbers?.length ? d.comandasNumbers : comandasNumbersGrupo,
+             comandaNumeroDisplay: d.comandaNumeroDisplay || '',
+             cantidadComandas: d.cantidadComandas || comandasNumbersGrupo.length || 1,
              fechaPedido: d.fechaPedido ? new Date(d.fechaPedido).toLocaleString('es-PE') : datos.fechaPedido,
              mesa: d.mesa || datos.mesa,
              mozo: d.mozo || datos.mozo,
@@ -2191,6 +2203,13 @@ body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoF
          console.warn('Error obteniendo ticket-imprimible, usando datos locales:', err);
        }
      }
+     // Calcular comandaNumeroDisplay si no viene del backend
+     if (!datos.comandaNumeroDisplay) {
+       const nums = (datos.comandasNumbers || comandasNumbersGrupo).filter((n) => n != null);
+       datos.comandaNumeroDisplay = nums.length > 1
+         ? nums.sort((a, b) => a - b).map((n) => `#${n}`).join('+')
+         : datos.comandaNumero != null ? `#${datos.comandaNumero}` : '';
+     }
      const p = this.plantillaComanda;
      const e = p.espaciado;
      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Comanda #${datos.comandaNumero || '?'}</title>
@@ -2216,6 +2235,7 @@ body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoF
  mapComandaATicket(comanda) {
    return {
      comandaNumero: comanda.comandaNumber || '?',
+     comandasNumbers: comanda.comandaNumber ? [comanda.comandaNumber] : [],
      fechaPedido: comanda.createdAt ? new Date(comanda.createdAt).toLocaleString('es-PE') : '',
      mesa: comanda.mesas?.nummesa || comanda.mesaNumero || '—',
      mozo: comanda.mozos?.name || comanda.mozoNombre || '—',
@@ -2261,7 +2281,13 @@ body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoF
 
    if (b.mostrarDatosComanda !== false) {
      html += '<div style="margin-bottom:4px;">';
-     if (v.comandaNumero !== false && datos.comandaNumero) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.comandaNumero}:</span><span>${datos.comandaNumero}</span></div>`;
+     if (v.comandaNumero !== false) {
+       const numeroEtiqueta = datos.comandaNumeroDisplay
+         || (datos.comandasNumbers?.length > 1
+           ? datos.comandasNumbers.filter((n) => n != null).sort((a, b) => a - b).map((n) => `#${n}`).join('+')
+           : (datos.comandaNumero != null ? `#${datos.comandaNumero}` : ''));
+       if (numeroEtiqueta) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.comandaNumero}:</span><span>${this.escapeHtmlComanda(numeroEtiqueta)}</span></div>`;
+     }
      if (v.fechaPedido !== false && datos.fechaPedido) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.fechaPedido}:</span><span>${datos.fechaPedido}</span></div>`;
      if (v.mesa !== false && datos.mesa) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.mesa}:</span><span>${datos.mesa}</span></div>`;
      if (v.mozo !== false && datos.mozo) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.mozo}:</span><span>${this.escapeHtmlComanda(datos.mozo)}</span></div>`;

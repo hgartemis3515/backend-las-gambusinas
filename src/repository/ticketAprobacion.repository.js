@@ -401,6 +401,10 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
     tipo: ticket.tipo,
     comandaNumero: ticket.comandasNumbers?.[0] ?? null,
     comandasNumbers: ticket.comandasNumbers || [],
+    comandaNumeroDisplay: (ticket.comandasNumbers || []).filter((n) => n != null).length > 1
+      ? (ticket.comandasNumbers || []).filter((n) => n != null).sort((a, b) => a - b).map((n) => `#${n}`).join('+')
+      : ticket.comandasNumbers?.[0] != null ? `#${ticket.comandasNumbers[0]}` : '',
+    cantidadComandas: (ticket.comandasNumbers || []).filter((n) => n != null).length,
     fechaPedido: ticket.createdAt,
     mesa: ticket.mesa?.nummesa ?? ticket.numMesa,
     mozo: ticket.mozo?.name || ticket.nombreMozo || ticket.mozoNombre,

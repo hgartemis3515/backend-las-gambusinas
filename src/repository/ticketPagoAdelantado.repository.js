@@ -112,10 +112,14 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
 
   const ticket = await ticketPagoAdelantadoModel.findById(ticketId);
   if (!ticket) {
-    throw new Error('Ticket no encontrado');
+    const err = new Error('Ticket de pago adelantado no encontrado');
+    err.statusCode = 404;
+    throw err;
   }
   if (ticket.estado !== 'pendiente_aprobacion') {
-    throw new Error(`El ticket ya fue ${ticket.estado}. No se puede aprobar.`);
+    const err = new Error(`El ticket ya fue ${ticket.estado}. No se puede aprobar.`);
+    err.statusCode = 400;
+    throw err;
   }
 
   ticket.estado = 'aprobado';

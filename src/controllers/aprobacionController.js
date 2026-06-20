@@ -79,23 +79,26 @@ router.get('/aprobacion/fecha/:fecha', async (req, res) => {
 /**
  * PUT /api/aprobacion/:id/aprobar
  * Aprueba un ticket (comanda completa o PPA).
- * Body: { tipo: 'COMANDA'|'ADELANTADO', usuarioId, usuarioNombre }
+ * Body: { tipo?: 'COMANDA'|'ADELANTADO', usuarioId, usuarioNombre }
+ * El tipo es opcional: si no se indica o no coincide con la colección,
+ * se detecta automáticamente buscando en ambas colecciones.
  */
 router.put('/aprobacion/:id/aprobar', async (req, res) => {
   try {
     const { id } = req.params;
     const { tipo, usuarioId, usuarioNombre } = req.body;
 
-    if (!tipo) {
-      return res.status(400).json({ success: false, message: 'Debe indicar el tipo de ticket: COMANDA o ADELANTADO' });
-    }
+    // Normalizar tipo (puede estar vacío — el servicio lo detecta automáticamente)
+    const tipoHint = tipo
+      ? (String(tipo).toUpperCase() === 'ADELANTADO' ? 'ADELANTADO' : 'COMANDA')
+      : 'COMANDA';
 
-    const tipoNormalizado = String(tipo).toUpperCase() === 'ADELANTADO' ? 'ADELANTADO' : 'COMANDA';
+    const result = await aprobacionService.aprobarTicketUnificado(id, tipoHint, usuarioId, usuarioNombre);
 
-    const result = await aprobacionService.aprobarTicketUnificado(id, tipoNormalizado, usuarioId, usuarioNombre);
+    // Emitir sockets según tipo real del resultado
+    const tipoReal = result.tipo;
 
-    // Emitir sockets según tipo
-    if (tipoNormalizado === 'COMANDA' && result.ticket) {
+    if (tipoReal === 'COMANDA' && result.ticket) {
       // Cocina: comanda aprobada — platos ahora en KDS
       if (global.emitComandaAprobada) {
         try {
@@ -107,18 +110,115 @@ router.put('/aprobacion/:id/aprobar', async (req, res) => {
       // Mozos: mesa pasó de pendiente_aprobar → pagado
       if (global.emitMesaActualizada) {
         try {
-          await global.emitMesaActualizada(result.ticket.mesa.toString(), 'pagado');
+          await global.emitMesaActualizada(result.ticket.mesa?.toString(), 'pagado');
         } catch (e) {
           logger.warn('Error emitiendo mesa-actualizada tras aprobación', { error: e.message });
         }
       }
+
+      // Socket cocina: actualizar bandeja de aprobación
+      const io = global.io;
+      if (io) {
+        const fechaHoy = new Date().toISOString().split('T')[0];
+        io.of('/cocina').to(`fecha-${fechaHoy}`).emit('comanda-aprobada', {
+          ticketId: result.ticket._id,
+          ticketNumber: result.ticket.ticketNumber,
+          tipo: 'COMANDA',
+          aprobadoPorNombre: usuarioNombre,
+          fechaAprobacion: result.ticket.fechaAprobacion || new Date().toISOString(),
+        });
+        io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-ppa-actualizado', {
+          ticketId: result.ticket._id,
+          estado: 'aprobado',
+        });
+      }
     }
 
-    // PPA: los sockets del flujo PPA existente se emiten desde pagoAdelantadoController
+    if (tipoReal === 'ADELANTADO' && result.ticket) {
+      // PPA aprobado: emitir sockets de PPA (los mismos que en pagoAdelantadoController)
+      const io = global.io;
+      if (io) {
+        const fechaHoy = new Date().toISOString().split('T')[0];
+        const ticket = result.ticket;
+
+        // Notificar a cocina
+        io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-ppa-aprobado', {
+          ticketId: ticket._id,
+          ticketNumber: ticket.ticketNumber,
+          comandas: ticket.comandas,
+          platosLiberados: result.platosLiberados || [],
+          message: `Ticket PPA #${ticket.ticketNumber} aprobado`,
+        });
+
+        // Notificar al mozo
+        io.of('/mozos').to(`mozo-${ticket.mozo}`).emit('ticket-ppa-aprobado', {
+          ticketId: ticket._id,
+          ticketNumber: ticket.ticketNumber,
+          mesa: ticket.mesa,
+          message: `Pago adelantado aprobado por cocina para mesa ${ticket.numMesa}`,
+        });
+
+        // Notificar a la mesa
+        io.of('/mozos').to(`mesa-${ticket.mesa}`).emit('ticket-ppa-aprobado', {
+          ticketId: ticket._id,
+          comandas: ticket.comandas,
+          message: 'Pago adelantado aprobado',
+        });
+
+        // Emitir comandas actualizadas
+        for (const comandaId of (ticket.comandas || [])) {
+          try {
+            const comandaActualizada = await mongoose.model('Comanda').findById(comandaId)
+              .populate('platos.plato', 'nombre precio id')
+              .populate('mozos', 'name')
+              .populate('mesas', 'nummesa estado nombreCombinado')
+              .lean();
+
+            if (comandaActualizada) {
+              io.of('/cocina').to(`fecha-${fechaHoy}`).emit('comanda-actualizada', {
+                comandaId,
+                comanda: comandaActualizada,
+                status: comandaActualizada.status,
+              });
+              io.of('/mozos').to(`mesa-${ticket.mesa}`).emit('comanda-actualizada', {
+                comandaId,
+                comanda: comandaActualizada,
+                status: comandaActualizada.status,
+              });
+            }
+          } catch (emitErr) {
+            logger.warn('Error emitiendo comanda-actualizada tras aprobación PPA', { error: emitErr.message });
+          }
+        }
+
+        // Actualizar bandeja PPA en cocina
+        io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-ppa-actualizado', {
+          ticketId: ticket._id,
+          estado: 'aprobado',
+          ticket,
+        });
+        io.of('/admin').emit('ticket-ppa-actualizado', {
+          ticketId: ticket._id,
+          estado: 'aprobado',
+        });
+
+        // Mesa: pendiente_pago → pedido
+        io.of('/mozos').emit('mesa-actualizada', {
+          mesaId: ticket.mesa,
+          estado: 'pedido',
+          nummesa: ticket.numMesa,
+        });
+        io.of('/admin').emit('mesa-actualizada', {
+          mesaId: ticket.mesa,
+          estado: 'pedido',
+          nummesa: ticket.numMesa,
+        });
+      }
+    }
 
     res.json({
       success: true,
-      message: `Ticket ${tipoNormalizado} aprobado exitosamente`,
+      message: `Ticket ${tipoReal} aprobado exitosamente`,
       resultado: result,
     });
   } catch (error) {
@@ -217,6 +317,7 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
     }).sort({ createdAt: -1 }).lean();
 
     if (ticketPPA) {
+      const ppaComandasNumbers = ticketPPA.comandasNumbers || [];
       return res.json({
         success: true,
         datos: {
@@ -224,7 +325,11 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
           ticketNumber: ticketPPA.ticketNumber,
           tipo: 'ADELANTADO',
           comandaNumero: ticketPPA.comandasNumbers?.[0] ?? null,
-          comandasNumbers: ticketPPA.comandasNumbers || [],
+          comandasNumbers: ppaComandasNumbers,
+          comandaNumeroDisplay: ppaComandasNumbers.filter((n) => n != null).length > 1
+            ? ppaComandasNumbers.filter((n) => n != null).sort((a, b) => a - b).map((n) => `#${n}`).join('+')
+            : ticketPPA.comandasNumbers?.[0] != null ? `#${ticketPPA.comandasNumbers[0]}` : '',
+          cantidadComandas: ppaComandasNumbers.filter((n) => n != null).length,
           fechaPedido: ticketPPA.createdAt,
           mesa: ticketPPA.mesa?.nummesa ?? ticketPPA.numMesa,
           mozo: ticketPPA.mozo?.name || ticketPPA.nombreMozo || ticketPPA.mozoNombre,
@@ -266,11 +371,27 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Comanda no encontrada' });
     }
 
-    // Buscar boucher asociado
+    // Buscar boucher asociado (fuente de comandasNumbers post-pago)
     const boucher = await boucherModel.findOne({
       comandas: comanda._id,
       isActive: { $ne: false },
     }).sort({ createdAt: -1 }).lean();
+
+    // Resolver comandasNumbers: boucher > pedido > sola
+    let comandasNumbers = boucher?.comandasNumbers?.length
+      ? boucher.comandasNumbers
+      : [comanda.comandaNumber];
+
+    if (!boucher?.comandasNumbers?.length && comanda.pedido) {
+      try {
+        const pedido = await mongoose.model('Pedido').findById(comanda.pedido).lean();
+        if (pedido?.comandasNumbers?.length) {
+          comandasNumbers = pedido.comandasNumbers;
+        }
+      } catch (e) {
+        // Pedido no encontrado: usar comandaNumber individual
+      }
+    }
 
     const config = await configuracionRepository.obtenerConfiguracion();
 
@@ -295,7 +416,11 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
       ticketNumber: comanda.comandaNumber,
       tipo: 'COMANDA',
       comandaNumero: comanda.comandaNumber,
-      comandasNumbers: [comanda.comandaNumber],
+      comandasNumbers,
+      comandaNumeroDisplay: comandasNumbers.length > 1
+        ? comandasNumbers.filter((n) => n != null).sort((a, b) => a - b).map((n) => `#${n}`).join('+')
+        : comanda.comandaNumber != null ? `#${comanda.comandaNumber}` : '',
+      cantidadComandas: comandasNumbers.length,
       fechaPedido: comanda.createdAt,
       mesa: comanda.mesas?.nummesa ?? comanda.mesaNumero ?? null,
       mozo: comanda.mozos?.name || comanda.mozoNombre || 'N/A',
