@@ -22,15 +22,35 @@ const fallbackPorComandasPagadas = async (mesaId) => {
   // PLAN_PLANTILLA_COMANDAS: tras pago normal las comandas quedan en status 'pendiente_aprobar'
   // (con tiempoPagado) mientras esperan aprobación de cocina. Incluirlas en el ciclo
   // para que Ver pedido / reimprimir comanda funcionen en mesa pagado/pendiente_aprobar.
-  const pagadas = await comandaModel
+  // Priorizar comandas IsActive=true (del ciclo actual); si no hay, buscar también IsActive=false
+  // (comandas cerradas del mismo día).
+  const horizonteHoras = 12;
+  const haceHoras = moment().tz(ZONA).subtract(horizonteHoras, 'hours').toDate();
+
+  // Intento 1: comandas IsActive=true del ciclo actual (pendiente_aprobar / pagado recientes)
+  let pagadas = await comandaModel
     .find({
       mesas: mesaId,
-      status: { $in: ['pagado', 'completado', 'entregado', 'pendiente_aprobar'] },
-      tiempoPagado: { $exists: true, $ne: null },
+      IsActive: true,
+      status: { $in: ['pendiente_aprobar', 'pagado', 'entregado'] },
+      tiempoPagado: { $exists: true, $ne: null, $gte: haceHoras },
     })
     .select('_id tiempoPagado pedido')
     .sort({ tiempoPagado: -1 })
     .lean();
+
+  // Intento 2: si no hay, buscar comandas IsActive=false pero del mismo día (ciclo ya cerrado)
+  if (!pagadas.length) {
+    pagadas = await comandaModel
+      .find({
+        mesas: mesaId,
+        status: { $in: ['pagado', 'completado', 'entregado', 'pendiente_aprobar'] },
+        tiempoPagado: { $exists: true, $ne: null },
+      })
+      .select('_id tiempoPagado pedido')
+      .sort({ tiempoPagado: -1 })
+      .lean();
+  }
 
   if (!pagadas.length) {
     return { tipo: 'ninguno', pedidoId: null, comandaIds: [], desde: null, hasta: null };

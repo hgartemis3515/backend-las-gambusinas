@@ -108,7 +108,15 @@ const CONFIGURACION_DEFAULT = {
         horaCierre: '23:00',
         diasOperacion: ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
     },
-    
+
+    // Mozos (App de Mozos)
+    // botonImprimirComanda: habilita/deshabilita TODO lo relacionado con imprimir comanda
+    // en la app de mozos (botón en PagosScreen, opción en alert de mesa pagada, etc.).
+    // Por defecto desmarcado (false) — los mozos no imprimen comanda hasta que se habilite.
+    mozos: {
+        botonImprimirComanda: false
+    },
+
     // Seguridad
     seguridad: {
         timeoutInactividadMin: 30,
@@ -416,7 +424,18 @@ const configuracionSistemaSchema = new mongoose.Schema({
             enum: ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
         }]
     },
-    
+
+    // Mozos (App de Mozos) — control de visibilidad de botones en la app
+    mozos: {
+        // Habilita/deshabilita TODO lo relacionado con imprimir comanda en la app de mozos:
+        // botón en PagosScreen, opción en alert de mesa pagada/pendiente_aprobar, reimpresión, etc.
+        // Por defecto false (deshabilitado) — los mozos no imprimen comanda hasta activarse.
+        botonImprimirComanda: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.mozos.botonImprimirComanda
+        }
+    },
+
     // Seguridad
     seguridad: {
         timeoutInactividadMin: {

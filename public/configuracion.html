@@ -534,6 +534,21 @@ tailwind.config = {
           </label>
         </div>
 
+        <!-- MOZOS -->
+        <div x-show="cfgTab==='mozos'" class="p-6 space-y-6">
+          <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Mozos</h3>
+          <div class="space-y-3">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.mozosBotonImprimirComanda" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Botón de impresión de comandas</span>
+            </label>
+            <p class="text-xs text-txt-muted ml-7">
+              Si está desmarcado, los mozos no verán el botón de imprimir comanda en la pantalla de pagos
+              ni en las opciones de mesa. Toda acción relacionada con imprimir comanda quedará oculta en la App de Mozos.
+            </p>
+          </div>
+        </div>
+
         <!-- COCINA -->
         <div x-show="cfgTab==='cocina'" class="p-6 space-y-6">
           <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Cocina</h3>
@@ -1178,6 +1193,7 @@ function configApp() {
       { id: 'general', label: 'General', icon: '⚙️' },
       { id: 'moneda', label: 'Moneda y Precios', icon: '💰' },
       { id: 'mesas', label: 'Mesas y Áreas', icon: '🪑' },
+      { id: 'mozos', label: 'Mozos', icon: '🧑‍🍳' },
       { id: 'cocina', label: 'Cocina', icon: '🍳' },
       { id: 'pagos', label: 'Pagos', icon: '💳' },
       { id: 'notificaciones', label: 'Notificaciones', icon: '🔔' },
@@ -1267,6 +1283,9 @@ function configApp() {
         horaApertura: '08:00',
         horaCierre: '23:00'
       },
+      // Mozos (App de Mozos): por defecto botón imprimir comanda deshabilitado.
+      // Flag plano para binding directo del checkbox en la UI.
+      mozosBotonImprimirComanda: false,
       // Seguridad
       seguridad: {
         timeoutInactividadMin: 30,
@@ -1538,7 +1557,15 @@ function configApp() {
             this.config.horaApertura = cfg.horarios.horaApertura || '08:00';
             this.config.horaCierre = cfg.horarios.horaCierre || '23:00';
           }
-          
+
+          // Mapear Mozos
+          // PLAN: por defecto false (deshabilitado). Si el backend no lo envía, mantener false.
+          if (cfg.mozos) {
+            this.config.mozosBotonImprimirComanda = cfg.mozos.botonImprimirComanda === true;
+          } else {
+            this.config.mozosBotonImprimirComanda = false;
+          }
+
           // Mapear zona horaria y otros
           this.config.zonaHoraria = cfg.zonaHoraria || 'America/Lima';
           this.config.idiomaPrincipal = cfg.idiomaPrincipal || 'es-PE';
@@ -1669,6 +1696,11 @@ function configApp() {
           horarios: {
             horaApertura: this.config.horaApertura || '08:00',
             horaCierre: this.config.horaCierre || '23:00'
+          },
+
+          // Mozos (App de Mozos)
+          mozos: {
+            botonImprimirComanda: this.config.mozosBotonImprimirComanda === true
           },
           
           // Seguridad
