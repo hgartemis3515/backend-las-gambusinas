@@ -198,7 +198,7 @@ ticketPagoAdelantadoSchema.index({ estado: 1, createdAt: -1 });
 ticketPagoAdelantadoSchema.index({ mesa: 1, estado: 1 });
 ticketPagoAdelantadoSchema.index({ mozo: 1, createdAt: -1 });
 
-ticketPagoAdelantadoSchema.plugin(AutoIncrement, { inc_field: 'ticketNumber' });
+ticketPagoAdelantadoSchema.plugin(AutoIncrement, { id: 'ticketPagoAdelantado_counter', inc_field: 'ticketNumber' });
 
 const ticketPagoAdelantadoModel = mongoose.model('TicketPagoAdelantado', ticketPagoAdelantadoSchema, 'ticketsPagoAdelantado');
 

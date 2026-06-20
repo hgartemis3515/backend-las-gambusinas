@@ -598,7 +598,66 @@ const configuracionSistemaSchema = new mongoose.Schema({
             observaciones: { type: String, default: 'Observaciones' }
         }
     },
-    
+
+    // Plantilla de COMANDA (ticket térmico 80mm, NO comprobante fiscal)
+    // Logo NO se persiste aquí: se referencia desde voucherPlantilla.logo (GET lo inyecta).
+    comandaPlantilla: {
+        restaurante: {
+            nombre: { type: String, default: 'LAS GAMBUSINAS' },
+            eslogan: { type: String, default: '* Comidas Típicas y Parrilla *' }
+        },
+        encabezado: {
+            titulo: { type: String, default: 'COMANDA' }
+        },
+        bloques: {
+            mostrarEncabezado: { type: Boolean, default: true },
+            mostrarDatosComanda: { type: Boolean, default: true },
+            mostrarDetalleProductos: { type: Boolean, default: true },
+            mostrarTotal: { type: Boolean, default: true },
+            mostrarDatosCliente: { type: Boolean, default: true },
+            mostrarObservaciones: { type: Boolean, default: true },
+            // Toggle de precios: si false, la comanda omite precios y total (modo cocina pura)
+            mostrarPrecios: { type: Boolean, default: true }
+        },
+        visibilidad: {
+            nombre: { type: Boolean, default: true },
+            eslogan: { type: Boolean, default: true },
+            comandaNumero: { type: Boolean, default: true },
+            fechaPedido: { type: Boolean, default: true },
+            mesa: { type: Boolean, default: true },
+            mozo: { type: Boolean, default: true },
+            area: { type: Boolean, default: true },
+            moneda: { type: Boolean, default: true },
+            tipoPago: { type: Boolean, default: true },
+            cliente: { type: Boolean, default: true },
+            dniCliente: { type: Boolean, default: true },
+            observaciones: { type: Boolean, default: true },
+            total: { type: Boolean, default: true },
+            precios: { type: Boolean, default: true }
+        },
+        espaciado: {
+            lineHeight: { type: Number, default: 16 },
+            tamanoFuente: { type: Number, default: 11 },
+            espacioDivider: { type: Number, default: 8 }
+        },
+        mensajes: {
+            pie: { type: String, default: '' }
+        },
+        etiquetas: {
+            comandaNumero: { type: String, default: 'Comanda' },
+            fechaPedido: { type: String, default: 'Fecha' },
+            mesa: { type: String, default: 'Mesa' },
+            mozo: { type: String, default: 'Mozo' },
+            area: { type: String, default: 'Área' },
+            moneda: { type: String, default: 'Moneda' },
+            tipoPago: { type: String, default: 'Pago' },
+            total: { type: String, default: 'TOTAL' },
+            cliente: { type: String, default: 'Cliente' },
+            dni: { type: String, default: 'DNI' },
+            observaciones: { type: String, default: 'Obs' }
+        }
+    },
+
     // Estado
     isActive: {
         type: Boolean,

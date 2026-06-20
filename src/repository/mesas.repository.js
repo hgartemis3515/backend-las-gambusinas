@@ -1,5 +1,6 @@
 const mesas = require('../database/models/mesas.model');
 const pedidoModel = require('../database/models/pedido.model');
+const comandaModel = require('../database/models/comanda.model');
 const { desactivarBouchersHistoricosMesa } = require('./boucher.repository');
 const { syncJsonFile } = require('../utils/jsonSync');
 const fs = require('fs');
@@ -115,10 +116,12 @@ const actualizarEstadoMesa = async (mesaId, nuevoEstado, esAdmin = false) => {
     const transicionesPermitidas = {
         'libre': ['esperando', 'reservado'],
         'esperando': ['pedido'],
-        'pedido': ['preparado', 'pagado', 'pendiente_pago', 'libre'], // pendiente_pago: PPA registrado
-        'preparado': ['pagado', 'pendiente_pago', 'libre'], // pendiente_pago: PPA registrado
+        'pedido': ['preparado', 'pagado', 'pendiente_pago', 'pendiente_aprobar', 'libre'], // pendiente_pago: PPA registrado, pendiente_aprobar: pago normal + imprimir comanda
+        'preparado': ['pagado', 'pendiente_pago', 'pendiente_aprobar', 'libre'], // pendiente_pago: PPA registrado, pendiente_aprobar: pago normal
         'pendiente_pago': ['pedido', 'en_espera', 'libre'], // al aprobar/rechazar PPA
+        'pendiente_aprobar': ['pagado', 'libre'], // al aprobar cocina o liberar mesa
         'pagado': ['libre'],
+        'reportado': ['libre'], // resolución manual
         'reservado': ['libre'] // Solo admin puede liberar reservas
     };
 
@@ -187,9 +190,42 @@ const actualizarEstadoMesa = async (mesaId, nuevoEstado, esAdmin = false) => {
                 { mesa: mesa._id, estado: 'abierto', isActive: { $ne: false } },
                 { $set: { estado: 'cancelado', isActive: false } }
             );
+
+            // Al liberar mesa desde pagado/pendiente_aprobar/preparado: cerrar el ciclo de servicio.
+            // PLAN_PLANTILLA_COMANDAS: tras liberar, las comandas del ciclo ya no están activas
+            // (IsActive=false, status 'completado') y los platos residuales terminan en 'entregado'
+            // para no aparecer en el mapa de mesas ni en KDS.
+            const mesaIdStr = mesa._id.toString();
+            const ESTADOS_CIERRE = ['en_espera', 'recoger', 'salio', 'pedido', 'pendiente', 'entregado'];
+            const comandasMesa = await comandaModel.find({
+                mesas: mesa._id,
+                status: { $in: ESTADOS_CIERRE },
+                IsActive: { $ne: false }
+            });
+            for (const comanda of comandasMesa) {
+                if (comanda.platos && comanda.platos.length > 0) {
+                    for (const plato of comanda.platos) {
+                        if (!plato.eliminado && !plato.anulado) {
+                            const estadoPlato = (plato.estado || '').toLowerCase();
+                            if (['pedido', 'en_espera', 'pendiente', 'recoger', 'salio'].includes(estadoPlato)) {
+                                plato.estado = 'entregado';
+                                if (!plato.tiempos) plato.tiempos = {};
+                                if (!plato.tiempos.entregado) plato.tiempos.entregado = new Date();
+                            }
+                        }
+                    }
+                    comanda.markModified('platos');
+                }
+                comanda.status = 'completado';
+                comanda.IsActive = false;
+                await comanda.save();
+            }
+            if (comandasMesa.length > 0) {
+                console.log(`✅ ${comandasMesa.length} comanda(s) de mesa ${mesa.nummesa} cerradas (IsActive=false, status=completado) al liberar`);
+            }
         } catch (cleanupErr) {
             console.error(
-                '⚠️ Error al limpiar bouchers/pedidos al liberar mesa (no crítico):',
+                '⚠️ Error al limpiar bouchers/pedidos/comandas al liberar mesa (no crítico):',
                 cleanupErr.message
             );
         }

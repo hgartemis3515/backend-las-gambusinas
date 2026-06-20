@@ -581,6 +581,126 @@ router.put('/configuracion/voucher-plantilla', async (req, res) => {
 });
 
 /**
+ * GET /api/configuracion/comanda-plantilla
+ * Devuelve la plantilla de comanda configurada (ticket térmico 80mm, NO comprobante fiscal).
+ * El logo NO se persiste en comandaPlantilla: se inyecta desde voucherPlantilla.logo.
+ * El nombre comercial se sincroniza desde datosFiscales (igual que voucher).
+ */
+router.get('/configuracion/comanda-plantilla', async (req, res) => {
+    try {
+        const config = await configuracionRepository.obtenerConfiguracion();
+
+        const PLANTILLA_DEFAULT = {
+            restaurante: {
+                nombre: config.datosFiscales?.nombreComercial || 'LAS GAMBUSINAS',
+                eslogan: '* Comidas Típicas y Parrilla *'
+            },
+            encabezado: { titulo: 'COMANDA' },
+            bloques: {
+                mostrarEncabezado: true,
+                mostrarDatosComanda: true,
+                mostrarDetalleProductos: true,
+                mostrarTotal: true,
+                mostrarDatosCliente: true,
+                mostrarObservaciones: true,
+                mostrarPrecios: true
+            },
+            visibilidad: {
+                nombre: true, eslogan: true,
+                comandaNumero: true, fechaPedido: true, mesa: true, mozo: true, area: true,
+                moneda: true, tipoPago: true, cliente: true, dniCliente: true,
+                observaciones: true, total: true, precios: true
+            },
+            espaciado: { lineHeight: 16, tamanoFuente: 11, espacioDivider: 8 },
+            mensajes: { pie: '' },
+            etiquetas: {
+                comandaNumero: 'Comanda', fechaPedido: 'Fecha', mesa: 'Mesa', mozo: 'Mozo',
+                area: 'Área', moneda: 'Moneda', tipoPago: 'Pago', total: 'TOTAL',
+                cliente: 'Cliente', dni: 'DNI', observaciones: 'Obs'
+            }
+        };
+
+        let plantilla = config.comandaPlantilla || PLANTILLA_DEFAULT;
+
+        // Logo compartido desde voucherPlantilla (o datosFiscales como fallback)
+        plantilla.logo = config.voucherPlantilla?.logo
+            || config.datosFiscales?.logoUrl
+            || '';
+
+        // Sincronizar nombre comercial desde datosFiscales (no se persiste en comandaPlantilla)
+        plantilla.restaurante = {
+            nombre: config.datosFiscales?.nombreComercial
+                || plantilla.restaurante?.nombre
+                || 'LAS GAMBUSINAS',
+            eslogan: plantilla.restaurante?.eslogan || '* Comidas Típicas y Parrilla *'
+        };
+
+        // Marcar origen del logo para que el dashboard muestre "Editar logo en Vouchers"
+        plantilla.logoEditableEn = 'bouchers.html';
+
+        res.json({ success: true, plantilla });
+    } catch (error) {
+        logger.error('Error al obtener plantilla de comanda:', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener la plantilla de comanda'
+        });
+    }
+});
+
+/**
+ * PUT /api/configuracion/comanda-plantilla
+ * Guarda la plantilla de comanda. NO persiste `logo` (se referencia desde voucherPlantilla).
+ * Si el body trae `logo`, se ignora silenciosamente.
+ */
+router.put('/configuracion/comanda-plantilla', async (req, res) => {
+    try {
+        const nuevaPlantilla = req.body || {};
+        const modificadoPor = req.user?._id || req.headers['x-user-id'] || null;
+
+        if (Object.keys(nuevaPlantilla).length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'No se proporcionaron datos de plantilla'
+            });
+        }
+
+        // Ignorar logo — el logo vive en voucherPlantilla
+        const payload = { ...nuevaPlantilla };
+        delete payload.logo;
+        delete payload.logoEditableEn;
+
+        const configuracionActualizada = await configuracionRepository.actualizarConfiguracion(
+            { comandaPlantilla: payload },
+            modificadoPor
+        );
+
+        logger.info('Plantilla de comanda actualizada', { modificadoPor });
+
+        // Devolver con logo sincronizado para que el frontend lo muestre
+        const plantillaResp = configuracionActualizada.comandaPlantilla.toObject
+            ? configuracionActualizada.comandaPlantilla.toObject()
+            : { ...configuracionActualizada.comandaPlantilla };
+        plantillaResp.logo = configuracionActualizada.voucherPlantilla?.logo
+            || configuracionActualizada.datosFiscales?.logoUrl
+            || '';
+        plantillaResp.logoEditableEn = 'bouchers.html';
+
+        res.json({
+            success: true,
+            message: 'Plantilla de comanda guardada exitosamente',
+            plantilla: plantillaResp
+        });
+    } catch (error) {
+        logger.error('Error al guardar plantilla de comanda:', { error: error.message });
+        res.status(500).json({
+            success: false,
+            message: error.message || 'Error al guardar la plantilla de comanda'
+        });
+    }
+});
+
+/**
  * POST /api/configuracion/invalidar-cache
  * Fuerza la recarga de configuración desde la base de datos
  */

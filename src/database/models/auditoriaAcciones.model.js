@@ -32,7 +32,12 @@ const auditoriaSchema = new mongoose.Schema({
       'pago_procesado',
       'reversion_comanda',
       'reversion_plato',
-      'PLATO_DEJADO_COCINA'
+      'PLATO_DEJADO_COCINA',
+      'COMANDA_ENVIADA_APROBACION',
+      'COMANDA_APROBADA_COCINA',
+      'COMANDA_REPORTADA_COCINA',
+      'PPA_REPORTADO_COCINA',
+      'MESA_ESTADO_REPORTADO'
     ],
     index: true
   },

@@ -200,7 +200,7 @@ router.post('/boucher', async (req, res) => {
             tipoCambioUsd,
         });
 
-        const { boucher, resumen } = resultado;
+        const { boucher, resumen, ticketAprobacion } = resultado;
 
         if (global.emitComandaActualizada && resumen.comandas) {
             const idsPagados = new Set(
@@ -208,7 +208,7 @@ router.post('/boucher', async (req, res) => {
             );
             for (const comandaId of idsPagados) {
                 const estadoNuevo = resumen.mesaPagadaCompletamente
-                    ? 'pagado'
+                    ? 'entregado' // PLAN_PLANTILLA_COMANDAS: ya no 'pagado' directo; queda entregado/pendiente hasta aprobación
                     : resumen.comandas.find((c) => c._id.toString() === comandaId)
                     ? resumen.comandas.find((c) => c._id.toString() === comandaId).status
                     : 'entregado';
@@ -224,14 +224,30 @@ router.post('/boucher', async (req, res) => {
                 .catch((err) => console.error('⚠️ emitMesaActualizada:', err.message));
         }
 
+        // PLAN_PLANTILLA_COMANDAS: si se creó un ticket de aprobación (pago normal completo),
+        // notificar a cocina (bandeja unificada) y a mozos (refresco de mesa en pendiente_aprobar).
+        if (ticketAprobacion && global.emitTicketAprobacionNuevo) {
+            try {
+                await global.emitTicketAprobacionNuevo(ticketAprobacion);
+            } catch (emitErr) {
+                console.error('⚠️ emitTicketAprobacionNuevo:', emitErr.message);
+            }
+        }
+
         res.json({
             ...boucher.toObject ? boucher.toObject() : boucher,
             boucher,
             resumen,
+            // Incluido para que PagosScreen sepa que debe imprimir comanda (no voucher)
+            // y que la mesa está en pendiente_aprobar.
+            ticketAprobacion: ticketAprobacion
+                ? (ticketAprobacion.toObject ? ticketAprobacion.toObject() : ticketAprobacion)
+                : null,
+            mesaEstado: resumen.mesa?.estado || null,
         });
 
         console.log(
-            `✅ Boucher ${parcial ? 'parcial' : 'total'} creado — pendiente mesa: S/. ${resumen.totalPendiente}`
+            `✅ Boucher ${parcial ? 'parcial' : 'total'} creado — pendiente mesa: S/. ${resumen.totalPendiente}${ticketAprobacion ? ` — TicketAprobacion #${ticketAprobacion.ticketNumber}` : ''}`
         );
     } catch (error) {
         console.error(error.message);

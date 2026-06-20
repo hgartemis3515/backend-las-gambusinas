@@ -2588,12 +2588,28 @@ const recalcularEstadoMesa = async (mesaId, session = null) => {
     }
     
     // Actualizar el estado de la mesa
+    // PLAN_PLANTILLA_COMANDAS: No sobrescribir estados de aprobación — estos los controla el flujo de aprobación
+    const ESTADOS_PROTEGIDOS = ['pendiente_aprobar', 'reportado', 'pagado'];
+
     const mesa = session
       ? await mesasModel.findById(mesaId).session(session)
       : await mesasModel.findById(mesaId);
     
     if (mesa) {
       const estadoAnterior = mesa.estado;
+
+      // Si la mesa está en un estado protegido del flujo de aprobación, no recalcular
+      if (ESTADOS_PROTEGIDOS.includes(estadoAnterior)) {
+        logger.info('Mesa en estado protegido, no se recalcula', {
+          mesaId: mesa._id,
+          numMesa: mesa.nummesa,
+          estadoActual: estadoAnterior,
+          estadoCalculado: nuevoEstadoMesa,
+          razon: 'pendiente_aprobar/reportado/pagado solo se cambian via aprobación o liberación'
+        });
+        return estadoAnterior;
+      }
+
       if (mesa.estado !== nuevoEstadoMesa) {
         mesa.estado = nuevoEstadoMesa;
         if (session) {
@@ -2856,7 +2872,7 @@ const getComandasPagadasPorMesa = async (mesaId) => {
     const comandas = await comandaModel
       .find({
         ...query,
-        status: { $in: ['pagado', 'completado', 'entregado'] },
+        status: { $in: ['pagado', 'completado', 'entregado', 'en_espera', 'recoger', 'salio', 'pendiente', 'pendiente_aprobar'] },
       })
       .populate('platos.plato', 'nombre precio')
       .populate('mozos', 'name _id')
@@ -2877,7 +2893,7 @@ const getComandasPagadasPorMesa = async (mesaId) => {
   }
 };
 
-/** Solo platos en estado pagado (alinea índices de cantidades). */
+/** Solo platos en estado pagado/pedido/pendiente (alinea índices de cantidades). */
 const mapComandasSoloPlatosPagados = (comandas) => {
   const result = [];
   for (const comanda of comandas || []) {
@@ -2886,7 +2902,9 @@ const mapComandasSoloPlatosPagados = (comandas) => {
     const cantidades = [];
     (doc.platos || []).forEach((p, i) => {
       if (p.eliminado || p.anulado) return;
-      if ((p.estado || '').toLowerCase() !== 'pagado') return;
+      // Incluir platos pagados, en pedido, en pendiente (esperando aprobación) y en espera
+      const estadoLower = (p.estado || '').toLowerCase();
+      if (!['pagado', 'pedido', 'pendiente', 'en_espera', 'recoger', 'salio', 'entregado'].includes(estadoLower)) return;
       platos.push(p);
       cantidades.push(doc.cantidades?.[i] ?? p.cantidad ?? 1);
     });
@@ -3171,8 +3189,17 @@ const validarPlatosSeleccionadosParaPago = async (mesaId, platosSeleccionados, e
 /**
  * Marca platos como pagados. Si cantidad < cantidades[index], reduce cantidad.
  * Retorna IDs de comandas 100% pagadas.
+ *
+ * PLAN_PLANTILLA_COMANDAS: el parámetro opcional `estadoPlato` permite
+ * marcar platos como 'pendiente' (en vez de 'pagado') cuando el pago normal
+ * requiere aprobación posterior de cocina. En ese caso, el campo de tiempo
+ * usado es `tiempos[estadoPlato]` (ej. tiempos.pendiente).
+ *
+ * Compatibilidad: sin opciones o `estadoPlato: 'pagado'`, comportamiento
+ * idéntico al anterior.
  */
-const marcarPlatosComoPagados = async (selecciones, { clienteId, ahoraPago } = {}) => {
+const marcarPlatosComoPagados = async (selecciones, { clienteId, ahoraPago } = {}, opciones = {}) => {
+  const estadoPlato = opciones.estadoPlato || 'pagado';
   const comandasCompletamentePagadas = new Set();
   const porComanda = new Map();
 
@@ -3193,9 +3220,14 @@ const marcarPlatosComoPagados = async (selecciones, { clienteId, ahoraPago } = {
       const cantidadPagar = sel.cantidad || cantidadMax;
 
       if (cantidadPagar >= cantidadMax) {
-        plato.estado = 'pagado';
+        plato.estado = estadoPlato;
         if (!plato.tiempos) plato.tiempos = {};
+        // Siempre registrar tiempos.pagado para trazabilidad contable
         plato.tiempos.pagado = ahoraPago || new Date();
+        // Si el estado no es 'pagado' (ej. 'pendiente'), registrar también su propio timestamp
+        if (estadoPlato !== 'pagado') {
+          plato.tiempos[estadoPlato] = ahoraPago || new Date();
+        }
         if (!comanda.cantidades) comanda.cantidades = [];
         comanda.cantidades[sel.platoIndex] = cantidadMax;
       } else {
@@ -3209,15 +3241,34 @@ const marcarPlatosComoPagados = async (selecciones, { clienteId, ahoraPago } = {
     if (clienteId) comanda.cliente = clienteId;
 
     const activos = (comanda.platos || []).filter((p) => !p.eliminado && !p.anulado);
-    const todosPagados = activos.length > 0 && activos.every((p) => (p.estado || '').toLowerCase() === 'pagado');
+    // Considera "completamente pagada" cuando todos los platos están en el estado final esperado.
+    // En modo pendiente_aprobar: todos en 'pendiente'; en modo clásico: todos en 'pagado'.
+    const todosEnEstadoFinal = activos.length > 0
+      && activos.every((p) => (p.estado || '').toLowerCase() === estadoPlato);
 
-    if (todosPagados) {
-      comanda.status = 'pagado';
-      comanda.IsActive = false;
-      comanda.tiempoPagado = ahoraPago || new Date();
+    if (todosEnEstadoFinal) {
+      // PLAN_PLANTILLA_COMANDAS:
+      // - Modo clásico (estadoPlato='pagado'): comanda pasa a 'pagado' IsActive=false.
+      // - Modo pendiente_aprobar (estadoPlato='pendiente'): comanda en 'pendiente_aprobar'
+      //   (espera aprobación de cocina), IsActive=true.
+      if (estadoPlato === 'pagado') {
+        comanda.status = 'pagado';
+        comanda.IsActive = false;
+        comanda.tiempoPagado = ahoraPago || new Date();
+      } else {
+        comanda.status = 'pendiente_aprobar';
+        comanda.IsActive = true;
+      }
       comandasCompletamentePagadas.add(comandaId);
     } else {
-      comanda.status = 'entregado';
+      // Comanda con pago parcial: mientras tenga platos pendientes de pagar,
+      // marcarla como pendiente_aprobar si al menos tiene algunos platos en 'pendiente'.
+      const hayAlgunoEnPendiente = activos.some(
+        (p) => (p.estado || '').toLowerCase() === estadoPlato
+      );
+      comanda.status = hayAlgunoEnPendiente && estadoPlato !== 'pagado'
+        ? 'pendiente_aprobar'
+        : 'entregado';
       comanda.IsActive = true;
     }
 
@@ -3231,7 +3282,9 @@ const marcarPlatosComoPagados = async (selecciones, { clienteId, ahoraPago } = {
       updatedAt: ahoraPago || new Date(),
     };
     if (clienteId) updateData.cliente = clienteId;
-    if (todosPagados) updateData.tiempoPagado = comanda.tiempoPagado;
+    if (todosEnEstadoFinal && estadoPlato === 'pagado') {
+      updateData.tiempoPagado = comanda.tiempoPagado;
+    }
 
     await comandaModel.updateOne({ _id: comandaId }, { $set: updateData });
   }

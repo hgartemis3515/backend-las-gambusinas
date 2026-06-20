@@ -38,12 +38,12 @@ const comandaSchema = new mongoose.Schema({
         estado: { 
             type: String, 
             default: 'pedido',
-            enum: ['pedido', 'en_espera', 'recoger', 'salio', 'entregado', 'pagado'],
+            enum: ['pendiente', 'pedido', 'en_espera', 'recoger', 'salio', 'entregado', 'pagado'],
             validate: {
                 validator: function(v) {
-                    return ['pedido', 'en_espera', 'recoger', 'salio', 'entregado', 'pagado'].includes(v);
+                    return ['pendiente', 'pedido', 'en_espera', 'recoger', 'salio', 'entregado', 'pagado'].includes(v);
                 },
-                message: 'El estado del plato debe ser: pedido, en_espera, recoger, salio, entregado o pagado'
+                message: 'El estado del plato debe ser: pendiente, pedido, en_espera, recoger, salio, entregado o pagado'
             }
         },
         // NUEVO: Timestamps de transiciones de estado
@@ -177,12 +177,12 @@ const comandaSchema = new mongoose.Schema({
     status: {
         type: String,
         default: 'en_espera',
-        enum: ['en_espera', 'recoger', 'salio', 'entregado', 'pagado', 'cancelado'],
+        enum: ['en_espera', 'recoger', 'salio', 'entregado', 'pagado', 'cancelado', 'pendiente_aprobar', 'completado'],
         validate: {
             validator: function(v) {
-                return ['en_espera', 'recoger', 'salio', 'entregado', 'pagado', 'cancelado'].includes(v);
+                return ['en_espera', 'recoger', 'salio', 'entregado', 'pagado', 'cancelado', 'pendiente_aprobar', 'completado'].includes(v);
             },
-            message: 'El status de la comanda debe ser: en_espera, recoger, salio, entregado, pagado o cancelado'
+            message: 'El status de la comanda debe ser: en_espera, recoger, salio, entregado, pagado, cancelado, pendiente_aprobar o completado'
         }
     },
     IsActive: {

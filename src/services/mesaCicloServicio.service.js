@@ -19,10 +19,13 @@ const buildFromPedido = (pedido, tipo) => ({
 });
 
 const fallbackPorComandasPagadas = async (mesaId) => {
+  // PLAN_PLANTILLA_COMANDAS: tras pago normal las comandas quedan en status 'pendiente_aprobar'
+  // (con tiempoPagado) mientras esperan aprobación de cocina. Incluirlas en el ciclo
+  // para que Ver pedido / reimprimir comanda funcionen en mesa pagado/pendiente_aprobar.
   const pagadas = await comandaModel
     .find({
       mesas: mesaId,
-      status: { $in: ['pagado', 'completado'] },
+      status: { $in: ['pagado', 'completado', 'entregado', 'pendiente_aprobar'] },
       tiempoPagado: { $exists: true, $ne: null },
     })
     .select('_id tiempoPagado pedido')
@@ -100,6 +103,12 @@ const obtenerCicloServicioMesa = async (mesaId) => {
   const mesa = await mesasModel.findById(mesaId).select('estado').lean();
   const estadoMesa = (mesa?.estado || '').toLowerCase();
 
+  // PLAN_PLANTILLA_COMANDAS: mesa libre → ciclo cerrado, sin comandas activas.
+  // Las comandas del ciclo anterior quedaron IsActive=false al liberar; no deben regresar.
+  if (estadoMesa === 'libre') {
+    return { tipo: 'ninguno', pedidoId: null, comandaIds: [], desde: null, hasta: null };
+  }
+
   const pedidoAbierto = await pedidoModel
     .findOne({
       mesa: mesaId,
@@ -113,7 +122,9 @@ const obtenerCicloServicioMesa = async (mesaId) => {
     return buildFromPedido(pedidoAbierto, 'abierto');
   }
 
-  if (['pagado', 'pagando'].includes(estadoMesa)) {
+  // pagado / pagando / pendiente_aprobar: ciclo del último pedido pagado o en aprobación.
+  // pendiente_aprobar comparte la semántica de "pago registrado, esperando liberación".
+  if (['pagado', 'pagando', 'pendiente_aprobar'].includes(estadoMesa)) {
     const pedidoPagado = await pedidoModel
       .findOne({
         mesa: mesaId,
@@ -127,11 +138,13 @@ const obtenerCicloServicioMesa = async (mesaId) => {
       return buildFromPedido(pedidoPagado, 'pagado');
     }
 
+    // Si no hay pedido pagado activo (caso pendiente_aprobar sin pedido formal),
+    // recuperar el ciclo desde las comandas pagadas/entregadas más recientes.
     return fallbackPorComandasPagadas(mesaId);
   }
 
   // pendiente_pago: mesa con PPA registrado — sus comandas siguen activas (platos en pedido/en_espera)
-  if (['preparado', 'pedido', 'esperando', 'pendiente_pago'].includes(estadoMesa)) {
+  if (['preparado', 'pedido', 'esperando', 'pendiente_pago', 'reportado'].includes(estadoMesa)) {
     const porActivas = await fallbackPorComandasActivas(mesaId);
     if (porActivas) {
       return porActivas;

@@ -35,7 +35,7 @@ tailwind.config = {
  colors: {
  bg: { primary: '#0a0a0f', card: '#1a1a28', sidebar: '#12121a' },
  gold: { DEFAULT: '#d4af37', '20': 'rgba(212,175,55,0.125)', '40': 'rgba(212,175,55,0.25)' },
- st: { libre: '#00d4aa', esperando: '#ffa502', pedido: '#3498db', preparado: '#2ecc71', pagado: '#ff4757', reservado: '#7e22ce' },
+ st: { libre: '#00d4aa', esperando: '#ffa502', pedido: '#3498db', preparado: '#2ecc71', pagado: '#ff4757', reservado: '#7e22ce', pendiente_aprobar: '#ff9800', completado: '#9e9e9e' },
  txt: { primary: '#ffffff', secondary: '#a0a0b8', muted: '#5a5a7a' }
  },
  fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
@@ -48,6 +48,56 @@ tailwind.config = {
 <link rel="stylesheet" href="/assets/css/page-transitions.css">
 <!-- Cosmos Search Bar - Glassmorphism Style -->
 <link rel="stylesheet" href="/assets/css/cosmos-search.css">
+<style>
+  .comanda-ticket {
+    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11px;
+    line-height: 1.5;
+    background: #fff;
+    color: #000;
+    width: 320px;
+    padding: 14px 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  .comanda-ticket .divider { border-top: 1px dashed #333; margin: 8px 0; }
+  .comanda-ticket .text-center { text-align: center; }
+  .comanda-ticket .text-right { text-align: right; }
+  .comanda-ticket .font-bold { font-weight: 700; }
+  .comanda-ticket .label { font-weight: 600; color: #222; }
+  .comanda-ticket .value { font-weight: 400; color: #000; }
+  .comanda-ticket .restaurant-name { font-size: 16px; font-weight: 800; letter-spacing: 0.5px; }
+  .comanda-ticket .restaurant-subtitle { font-size: 10px; font-weight: 500; color: #444; }
+  .comanda-ticket .total-row { font-size: 13px; font-weight: 700; border-top: 2px solid #000; padding-top: 4px; margin-top: 4px; }
+  .comanda-ticket .logo-img {
+    max-width: 200px;
+    max-height: 60px;
+    margin: 0 auto 4px;
+    display: block;
+  }
+  .preview-scale { transform-origin: top left; transition: transform 0.2s ease; }
+  @media print { .comanda-ticket { box-shadow: none; } }
+  .toggle-btn {
+    position: relative; width: 36px; height: 20px;
+    background: #2a2a3a; border-radius: 10px;
+    cursor: pointer; transition: background 0.2s;
+  }
+  .toggle-btn.active { background: #d4af37; }
+  .toggle-btn::after {
+    content: ''; position: absolute; width: 16px; height: 16px;
+    background: #fff; border-radius: 50%; top: 2px; left: 2px;
+    transition: transform 0.2s;
+  }
+  .toggle-btn.active::after { transform: translateX(16px); }
+  .logo-upload-area-comanda {
+    border: 2px dashed rgba(212,175,55,0.3);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .logo-upload-area-comanda:hover { border-color: #d4af37; background: rgba(212,175,55,0.05); }
+</style>
 </head>
 <body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="comandasApp()" x-cloak>
 
@@ -58,14 +108,29 @@ tailwind.config = {
 
  <!-- HEADER -->
  <div class="flex items-center justify-between mb-5">
+ <div class="flex items-center gap-3">
  <h1 class="text-xl font-bold">Comandas</h1>
- <div class="flex gap-2">
+ </div>
+ <div class="flex items-center gap-3">
  <span x-show="socketConnected" class="flex items-center gap-1 text-xs text-st-libre">
  <span class="w-2 h-2 rounded-full bg-st-libre animate-pulse"></span> Conectado
  </span>
- <button @click="loadComandas()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
+ <button x-show="activeTab === 'tabla'" @click="loadComandas()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
+ <button x-show="activeTab === 'plantilla' && plantillaModificada" @click="guardarPlantillaComanda()" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">💾 Guardar Plantilla</button>
  </div>
  </div>
+
+ <!-- TABS -->
+ <div class="flex gap-1 mb-5 bg-bg-card rounded-lg p-1 border border-[rgba(212,175,55,0.15)] w-fit">
+ <button @click="cambiarTabComanda('tabla')" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="activeTab === 'tabla' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">📋 Tabla</button>
+ <button @click="cambiarTabComanda('plantilla')" class="px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1" :class="activeTab === 'plantilla' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
+ 🍽️ Plantilla Comandas
+ <span x-show="plantillaModificada" class="w-2 h-2 bg-st-preparado rounded-full animate-pulse"></span>
+ </button>
+ </div>
+
+ <!-- ==================== TAB: TABLA ==================== -->
+<div x-show="activeTab === 'tabla'" x-cloak>
 
  <!-- FILTROS -->
  <div class="flex gap-2 mb-5 flex-wrap items-center">
@@ -75,7 +140,9 @@ tailwind.config = {
  <option value="en_espera">En espera</option>
  <option value="recoger">Listo para recoger</option>
  <option value="entregado">Entregado</option>
+ <option value="pendiente_aprobar">Pendiente de aprobación</option>
  <option value="pagado">Pagado</option>
+ <option value="completado">Completado</option>
  <option value="cancelado">Cancelado</option>
  </select>
 
@@ -247,20 +314,24 @@ tailwind.config = {
  <template x-if="row.tipo === 'grupo'">
  <span class="text-[10px] px-2 py-1 rounded-full font-semibold inline-block"
  :class="{
+ 'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar': row.estadoGrupo === 'pendiente_aprobar',
  'bg-st-preparado/20 text-st-preparado': row.estadoGrupo === 'recoger',
  'bg-st-esperando/20 text-st-esperando': row.estadoGrupo === 'en_espera',
  'bg-st-pedido/20 text-st-pedido': row.estadoGrupo === 'entregado',
- 'bg-st-libre/20 text-st-libre': row.estadoGrupo === 'pagado'
+ 'bg-st-libre/20 text-st-libre': row.estadoGrupo === 'pagado',
+ 'bg-st-completado/20 text-st-completado': row.estadoGrupo === 'completado'
  }"
  x-text="estadoLabel(row.estadoGrupo)"></span>
  </template>
  <template x-if="row.tipo === 'individual'">
  <span class="text-[10px] px-2 py-1 rounded-full font-semibold inline-block cursor-pointer"
  :class="{
+ 'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar': row.comanda.estado === 'pendiente_aprobar',
  'bg-st-preparado/20 text-st-preparado': row.comanda.estado === 'recoger',
  'bg-st-esperando/20 text-st-esperando': row.comanda.estado === 'en_espera',
  'bg-st-pedido/20 text-st-pedido': row.comanda.estado === 'entregado',
- 'bg-st-libre/20 text-st-libre': row.comanda.estado === 'pagado'
+ 'bg-st-libre/20 text-st-libre': row.comanda.estado === 'pagado',
+ 'bg-st-completado/20 text-st-completado': row.comanda.estado === 'completado'
  }"
  @click.stop="cambiarEstado(row.comanda)"
  x-text="estadoLabel(row.comanda.estado)"></span>
@@ -330,10 +401,12 @@ tailwind.config = {
  <td class="px-3 py-2 text-center">
  <span class="text-[9px] px-2 py-0.5 rounded-full font-semibold inline-block"
  :class="{
+ 'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar': comanda.estado === 'pendiente_aprobar',
  'bg-st-preparado/20 text-st-preparado': comanda.estado === 'recoger',
  'bg-st-esperando/20 text-st-esperando': comanda.estado === 'en_espera',
  'bg-st-pedido/20 text-st-pedido': comanda.estado === 'entregado',
- 'bg-st-libre/20 text-st-libre': comanda.estado === 'pagado'
+ 'bg-st-libre/20 text-st-libre': comanda.estado === 'pagado',
+ 'bg-st-completado/20 text-st-completado': comanda.estado === 'completado'
  }"
  x-text="estadoLabel(comanda.estado)"></span>
  </td>
@@ -344,8 +417,9 @@ tailwind.config = {
  <!-- Acciones -->
  <td class="px-3 py-2 text-center">
  <div class="flex gap-1 justify-center">
- <button @click.stop="openDetailModal(comanda)" class="p-1 rounded hover:bg-gold/20 transition text-xs">👁</button>
- <button @click.stop="openEditModal(comanda)" class="p-1 rounded hover:bg-gold/20 transition text-xs">✏️</button>
+ <button @click.stop="openDetailModal(comanda)" class="p-1 rounded hover:bg-gold/20 transition text-xs" title="Ver detalle">👁</button>
+ <button @click.stop="openEditModal(comanda)" class="p-1 rounded hover:bg-gold/20 transition text-xs" title="Editar">✏️</button>
+ <button @click.stop="imprimirComanda(comanda)" class="p-1 rounded hover:bg-gold/20 transition text-xs" title="Imprimir comanda">🖨️</button>
  </div>
  </td>
  </tr>
@@ -371,6 +445,153 @@ tailwind.config = {
  </div>
  </div>
 
+</div><!-- FIN TAB: TABLA -->
+
+<!-- ==================== TAB: PLANTILLA COMANDAS ==================== -->
+<div x-show="activeTab === 'plantilla'" x-cloak>
+  <div class="flex flex-col lg:flex-row gap-6">
+    <!-- SIDEBAR: Editor de plantilla -->
+    <div class="w-full lg:w-80 flex-shrink-0 space-y-4">
+      <!-- Logo (solo preview, se edita en Vouchers) -->
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-sm font-semibold text-txt-secondary">Logo</span>
+          <a href="/bouchers.html" target="_blank" class="text-xs text-gold hover:underline">Editar en Vouchers →</a>
+        </div>
+        <div class="logo-upload-area-comanda flex flex-col items-center justify-center py-4" x-show="!plantillaComanda.logo" @click="$refs.logoInputComanda.click()">
+          <span class="text-2xl mb-1">🖼️</span>
+          <span class="text-xs text-txt-muted">Vista previa del logo</span>
+          <span class="text-[10px] text-txt-muted mt-1">Se sube en Plantilla Voucher</span>
+        </div>
+        <div x-show="plantillaComanda.logo" class="flex justify-center">
+          <img :src="plantillaComanda.logo" alt="Logo" class="max-h-16 object-contain">
+        </div>
+        <input type="file" x-ref="logoInputComanda" class="hidden" accept="image/*">
+      </div>
+
+      <!-- Restaurante -->
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <span class="text-sm font-semibold text-txt-secondary block mb-2">Restaurante</span>
+        <label class="text-xs text-txt-muted block mb-1">Nombre</label>
+        <input type="text" x-model="plantillaComanda.restaurante.nombre" @input="plantillaComandaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white">
+        <label class="text-xs text-txt-muted block mb-1 mt-2">Eslogan</label>
+        <input type="text" x-model="plantillaComanda.restaurante.eslogan" @input="plantillaComandaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white">
+      </div>
+
+      <!-- Encabezado -->
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <span class="text-sm font-semibold text-txt-secondary block mb-2">Encabezado</span>
+        <label class="text-xs text-txt-muted block mb-1">Título</label>
+        <input type="text" x-model="plantillaComanda.encabezado.titulo" @input="plantillaComandaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white">
+      </div>
+
+      <!-- Secciones (bloques) -->
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <span class="text-sm font-semibold text-txt-secondary block mb-2">Secciones</span>
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-txt-secondary">Encabezado</span>
+            <div class="toggle-btn" :class="{ active: plantillaComanda.bloques.mostrarEncabezado }" @click="plantillaComanda.bloques.mostrarEncabezado = !plantillaComanda.bloques.mostrarEncabezado; plantillaComandaModificada = true"></div>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-txt-secondary">Datos de comanda</span>
+            <div class="toggle-btn" :class="{ active: plantillaComanda.bloques.mostrarDatosComanda }" @click="plantillaComanda.bloques.mostrarDatosComanda = !plantillaComanda.bloques.mostrarDatosComanda; plantillaComandaModificada = true"></div>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-txt-secondary">Detalle productos</span>
+            <div class="toggle-btn" :class="{ active: plantillaComanda.bloques.mostrarDetalleProductos }" @click="plantillaComanda.bloques.mostrarDetalleProductos = !plantillaComanda.bloques.mostrarDetalleProductos; plantillaComandaModificada = true"></div>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-txt-secondary">Mostrar precios</span>
+            <div class="toggle-btn" :class="{ active: plantillaComanda.bloques.mostrarPrecios }" @click="plantillaComanda.bloques.mostrarPrecios = !plantillaComanda.bloques.mostrarPrecios; plantillaComandaModificada = true"></div>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-txt-secondary">Total</span>
+            <div class="toggle-btn" :class="{ active: plantillaComanda.bloques.mostrarTotal }" @click="plantillaComanda.bloques.mostrarTotal = !plantillaComanda.bloques.mostrarTotal; plantillaComandaModificada = true"></div>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-txt-secondary">Datos cliente</span>
+            <div class="toggle-btn" :class="{ active: plantillaComanda.bloques.mostrarDatosCliente }" @click="plantillaComanda.bloques.mostrarDatosCliente = !plantillaComanda.bloques.mostrarDatosCliente; plantillaComandaModificada = true"></div>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-txt-secondary">Observaciones</span>
+            <div class="toggle-btn" :class="{ active: plantillaComanda.bloques.mostrarObservaciones }" @click="plantillaComanda.bloques.mostrarObservaciones = !plantillaComanda.bloques.mostrarObservaciones; plantillaComandaModificada = true"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Visibilidad -->
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <span class="text-sm font-semibold text-txt-secondary block mb-2">Visibilidad de campos</span>
+        <div class="space-y-2">
+          <template x-for="campo in camposVisibilidadComanda" :key="campo.key">
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-txt-secondary" x-text="campo.label"></span>
+              <div class="toggle-btn" :class="{ active: plantillaComanda.visibilidad[campo.key] }" @click="plantillaComanda.visibilidad[campo.key] = !plantillaComanda.visibilidad[campo.key]; plantillaComandaModificada = true"></div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Espaciado -->
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <span class="text-sm font-semibold text-txt-secondary block mb-2">Espaciado</span>
+        <label class="text-xs text-txt-muted block mb-1">Tamaño fuente: <span x-text="plantillaComanda.espaciado.tamanoFuente + 'px'"></span></label>
+        <input type="range" x-model.number="plantillaComanda.espaciado.tamanoFuente" min="8" max="16" step="1" @input="plantillaComandaModificada = true" class="w-full">
+        <label class="text-xs text-txt-muted block mb-1 mt-2">Altura línea: <span x-text="plantillaComanda.espaciado.lineHeight + 'px'"></span></label>
+        <input type="range" x-model.number="plantillaComanda.espaciado.lineHeight" min="12" max="24" step="1" @input="plantillaComandaModificada = true" class="w-full">
+        <label class="text-xs text-txt-muted block mb-1 mt-2">Espacio divisores: <span x-text="plantillaComanda.espaciado.espacioDivider + 'px'"></span></label>
+        <input type="range" x-model.number="plantillaComanda.espaciado.espacioDivider" min="2" max="16" step="1" @input="plantillaComandaModificada = true" class="w-full">
+      </div>
+
+      <!-- Etiquetas -->
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <span class="text-sm font-semibold text-txt-secondary block mb-2">Etiquetas</span>
+        <div class="space-y-2">
+          <template x-for="(label, key) in ETIQUETAS_DEFAULT_COMANDA" :key="key">
+            <div>
+              <label class="text-xs text-txt-muted" x-text="label"></label>
+              <input type="text" x-model="plantillaComanda.etiquetas[key]" @input="plantillaComandaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1 text-sm text-white">
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Mensajes -->
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <span class="text-sm font-semibold text-txt-secondary block mb-2">Mensaje de pie</span>
+        <input type="text" x-model="plantillaComanda.mensajes.pie" @input="plantillaComandaModificada = true" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white" placeholder="Ej: Entregar en cocina">
+      </div>
+
+      <!-- Acciones -->
+      <div class="flex gap-2">
+        <button @click="restablecerPlantillaComanda()" class="flex-1 px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Restablecer</button>
+        <button @click="guardarPlantillaComanda()" :disabled="!plantillaComandaModificada" class="flex-1 px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed">💾 Guardar</button>
+      </div>
+    </div>
+
+    <!-- PREVIEW -->
+    <div class="flex-1 min-w-0">
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-sm font-semibold text-txt-secondary">Vista previa 80mm</span>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-txt-muted">Zoom:</span>
+            <input type="range" x-model.number="previewZoomComanda" min="50" max="150" step="10" class="w-24">
+            <span class="text-xs text-txt-muted" x-text="previewZoomComanda + '%'"></span>
+          </div>
+        </div>
+        <div class="overflow-auto max-h-[70vh] border border-[rgba(212,175,55,0.1)] rounded-lg p-4 bg-white" :style="'transform: scale(' + (previewZoomComanda / 100) + '); transform-origin: top left;'">
+          <div class="comanda-ticket" :style="'line-height:' + plantillaComanda.espaciado.lineHeight + 'px; font-size:' + plantillaComanda.espaciado.tamanoFuente + 'px'" x-html="generarPreviewComanda()"></div>
+        </div>
+        <div class="mt-3 flex gap-2">
+          <button @click="imprimirPreviewComanda()" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition flex items-center gap-1">🖨️ Imprimir Preview</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><!-- FIN TAB: PLANTILLA COMANDAS -->
+
  </main>
 </div>
 
@@ -390,6 +611,8 @@ tailwind.config = {
  'bg-[#ffa502]/20 text-[#ffa502]': selectedComanda?.estado === 'en_espera' || selectedComanda?.estado === 'en cocina',
  'bg-[#3498db]/20 text-[#3498db]': selectedComanda?.estado === 'entregado',
  'bg-[#00d4aa]/20 text-[#00d4aa]': selectedComanda?.estado === 'pagado',
+ 'bg-[#ff9800]/20 text-[#ff9800]': selectedComanda?.estado === 'pendiente_aprobar',
+ 'bg-[#9e9e9e]/20 text-[#9e9e9e]': selectedComanda?.estado === 'completado',
  'bg-[#ff4757]/20 text-[#ff4757]': selectedComanda?.estado === 'cancelado'
  }"
  x-text="estadoLabel(selectedComanda?.estado)"></span>
@@ -543,6 +766,7 @@ tailwind.config = {
  <td class="px-3 py-3 text-center">
  <span class="text-[9px] px-2 py-0.5 rounded-full font-semibold"
  :class="{
+ 'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar': item.estado === 'pendiente_aprobar',
  'bg-st-esperando/20 text-st-esperando': item.estado === 'en_espera' || item.estado === 'pedido',
  'bg-st-preparado/20 text-st-preparado': item.estado === 'recoger',
  'bg-st-pedido/20 text-st-pedido': item.estado === 'entregado',
@@ -673,10 +897,12 @@ tailwind.config = {
  <p class="text-[10px] text-[#5a5a7a]">Estado</p>
  <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
  :class="{
+ 'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar': selectedGrupo?.estadoGrupo === 'pendiente_aprobar',
  'bg-st-preparado/20 text-st-preparado': selectedGrupo?.estadoGrupo === 'recoger',
  'bg-st-esperando/20 text-st-esperando': selectedGrupo?.estadoGrupo === 'en_espera',
  'bg-st-pedido/20 text-st-pedido': selectedGrupo?.estadoGrupo === 'entregado',
- 'bg-st-libre/20 text-st-libre': selectedGrupo?.estadoGrupo === 'pagado'
+ 'bg-st-libre/20 text-st-libre': selectedGrupo?.estadoGrupo === 'pagado',
+ 'bg-st-completado/20 text-st-completado': selectedGrupo?.estadoGrupo === 'completado'
  }"
  x-text="estadoLabel(selectedGrupo?.estadoGrupo)"></span>
  </div>
@@ -696,10 +922,12 @@ tailwind.config = {
  <span class="font-bold text-white" x-text="'#' + (comanda.numComanda || comanda._id?.slice(-4))"></span>
  <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold ml-2"
  :class="{
+ 'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar': comanda.estado === 'pendiente_aprobar',
  'bg-st-preparado/20 text-st-preparado': comanda.estado === 'recoger',
  'bg-st-esperando/20 text-st-esperando': comanda.estado === 'en_espera',
  'bg-st-pedido/20 text-st-pedido': comanda.estado === 'entregado',
- 'bg-st-libre/20 text-st-libre': comanda.estado === 'pagado'
+ 'bg-st-libre/20 text-st-libre': comanda.estado === 'pagado',
+ 'bg-st-completado/20 text-st-completado': comanda.estado === 'completado'
  }"
  x-text="estadoLabel(comanda.estado)"></span>
  </div>
@@ -739,6 +967,7 @@ tailwind.config = {
  <td class="px-3 py-2 text-center">
  <span class="text-[9px] px-2 py-0.5 rounded-full font-semibold"
  :class="{
+ 'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar': item.estado === 'pendiente_aprobar',
  'bg-st-esperando/20 text-st-esperando': item.estado === 'en_espera',
  'bg-st-preparado/20 text-st-preparado': item.estado === 'recoger',
  'bg-st-pedido/20 text-st-pedido': item.estado === 'entregado',
@@ -806,6 +1035,8 @@ tailwind.config = {
  'bg-[#ffa502]/20 text-[#ffa502]': editComanda?.estado === 'en_espera' || editComanda?.estado === 'en cocina',
  'bg-[#3498db]/20 text-[#3498db]': editComanda?.estado === 'entregado',
  'bg-[#00d4aa]/20 text-[#00d4aa]': editComanda?.estado === 'pagado',
+ 'bg-[#ff9800]/20 text-[#ff9800]': editComanda?.estado === 'pendiente_aprobar',
+ 'bg-[#9e9e9e]/20 text-[#9e9e9e]': editComanda?.estado === 'completado',
  'bg-[#ff4757]/20 text-[#ff4757]': editComanda?.estado === 'cancelado'
  }"
  x-text="estadoLabel(editComanda?.estado)"></span>
@@ -863,12 +1094,16 @@ tailwind.config = {
  'text-[#ffa502]': editComanda?.estado === 'en_espera' || editComanda?.estado === 'en cocina',
  'text-[#3498db]': editComanda?.estado === 'entregado',
  'text-[#00d4aa]': editComanda?.estado === 'pagado',
+ 'text-[#ff9800]': editComanda?.estado === 'pendiente_aprobar',
+ 'text-[#9e9e9e]': editComanda?.estado === 'completado',
  'text-[#ff4757]': editComanda?.estado === 'cancelado'
  }">
  <option value="en_espera">⏳ En espera</option>
  <option value="recoger">✅ Listo</option>
  <option value="entregado">🚀 Entregado</option>
+ <option value="pendiente_aprobar">🟠 Pend. aprobación</option>
  <option value="pagado">💰 Pagado</option>
+ <option value="completado">✔️ Completado</option>
  <option value="cancelado">❌ Cancelado</option>
  </select>
  </div>
@@ -927,15 +1162,19 @@ tailwind.config = {
  <select x-model="plato.estado" class="bg-bg-sidebar border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[9px] text-white focus:border-[#d4af37] focus:outline-none w-full"
  :disabled="plato.eliminado"
  :class="{
+ 'text-st-pendiente_aprobar': plato.estado === 'pendiente_aprobar',
  'text-st-esperando': plato.estado === 'en_espera' || plato.estado === 'pedido',
  'text-st-preparado': plato.estado === 'recoger',
  'text-st-pedido': plato.estado === 'entregado',
- 'text-st-libre': plato.estado === 'pagado'
+ 'text-st-libre': plato.estado === 'pagado',
+ 'text-st-completado': plato.estado === 'completado'
  }">
  <option value="en_espera">En espera</option>
  <option value="recoger">Listo</option>
  <option value="entregado">Entregado</option>
+ <option value="pendiente_aprobar">Pend. aprobación</option>
  <option value="pagado">Pagado</option>
+ <option value="completado">Completado</option>
  </select>
  </td>
  <td class="px-2 py-3 text-center">
@@ -1207,10 +1446,12 @@ tailwind.config = {
  <p class="text-[10px] text-[#5a5a7a]">Estado del grupo</p>
  <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
  :class="{
+ 'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar': editGrupo?.estadoGrupo === 'pendiente_aprobar',
  'bg-st-preparado/20 text-st-preparado': editGrupo?.estadoGrupo === 'recoger',
  'bg-st-esperando/20 text-st-esperando': editGrupo?.estadoGrupo === 'en_espera',
  'bg-st-pedido/20 text-st-pedido': editGrupo?.estadoGrupo === 'entregado',
- 'bg-st-libre/20 text-st-libre': editGrupo?.estadoGrupo === 'pagado'
+ 'bg-st-libre/20 text-st-libre': editGrupo?.estadoGrupo === 'pagado',
+ 'bg-st-completado/20 text-st-completado': editGrupo?.estadoGrupo === 'completado'
  }"
  x-text="estadoLabel(editGrupo?.estadoGrupo)"></span>
  </div>
@@ -1240,10 +1481,12 @@ tailwind.config = {
  <span class="font-bold text-white" x-text="'#' + (comanda.numComanda || comanda._id?.slice(-4))"></span>
  <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold ml-2"
  :class="{
+ 'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar': comanda.estado === 'pendiente_aprobar',
  'bg-st-preparado/20 text-st-preparado': comanda.estado === 'recoger',
  'bg-st-esperando/20 text-st-esperando': comanda.estado === 'en_espera',
  'bg-st-pedido/20 text-st-pedido': comanda.estado === 'entregado',
- 'bg-st-libre/20 text-st-libre': comanda.estado === 'pagado'
+ 'bg-st-libre/20 text-st-libre': comanda.estado === 'pagado',
+ 'bg-st-completado/20 text-st-completado': comanda.estado === 'completado'
  }"
  x-text="estadoLabel(comanda.estado)"></span>
  </div>
@@ -1464,6 +1707,90 @@ function comandasApp() {
  mozosList: [],
  activeNav: 'comandas',
  pageTitle: 'Comandas',
+ activeTab: 'tabla',
+ plantillaComandaModificada: false,
+ plantillaComandaOriginal: null,
+ previewZoomComanda: 100,
+ ETIQUETAS_DEFAULT_COMANDA: {
+   comandaNumero: 'Comanda',
+   fechaPedido: 'Fecha',
+   mesa: 'Mesa',
+   mozo: 'Mozo',
+   area: 'Área',
+   moneda: 'Moneda',
+   tipoPago: 'Pago',
+   total: 'TOTAL',
+   cliente: 'Cliente',
+   dni: 'DNI',
+   observaciones: 'Obs'
+ },
+ camposVisibilidadComanda: [
+   { key: 'comandaNumero', label: 'Nº Comanda' },
+   { key: 'fechaPedido', label: 'Fecha/Hora' },
+   { key: 'mesa', label: 'Mesa' },
+   { key: 'mozo', label: 'Mozo' },
+   { key: 'area', label: 'Área' },
+   { key: 'moneda', label: 'Moneda' },
+   { key: 'tipoPago', label: 'Tipo de pago' },
+   { key: 'total', label: 'Total' },
+   { key: 'cliente', label: 'Cliente' },
+   { key: 'dniCliente', label: 'DNI' },
+   { key: 'observaciones', label: 'Observaciones' }
+ ],
+ plantillaComanda: {
+   logo: '',
+   restaurante: { nombre: 'LAS GAMBUSINAS', eslogan: '* Comidas Típicas y Parrilla *' },
+   encabezado: { titulo: 'COMANDA' },
+   bloques: {
+     mostrarEncabezado: true,
+     mostrarDatosComanda: true,
+     mostrarDetalleProductos: true,
+     mostrarPrecios: true,
+     mostrarTotal: true,
+     mostrarDatosCliente: true,
+     mostrarObservaciones: true
+   },
+   visibilidad: {
+     nombre: true, eslogan: true,
+     comandaNumero: true, fechaPedido: true, mesa: true, mozo: true, area: true,
+     moneda: true, tipoPago: true,
+     cliente: true, dniCliente: true,
+     observaciones: true, total: true
+   },
+   espaciado: { lineHeight: 16, tamanoFuente: 11, espacioDivider: 8 },
+   mensajes: { pie: 'Entregar en cocina' },
+   etiquetas: {
+     comandaNumero: 'Comanda',
+     fechaPedido: 'Fecha',
+     mesa: 'Mesa',
+     mozo: 'Mozo',
+     area: 'Área',
+     moneda: 'Moneda',
+     tipoPago: 'Pago',
+     total: 'TOTAL',
+     cliente: 'Cliente',
+     dni: 'DNI',
+     observaciones: 'Obs'
+   }
+ },
+ datosEjemploComanda: {
+   comandaNumero: '152',
+   fechaPedido: '19/06/2026 14:30',
+   mesa: 'M05',
+   mozo: 'Juan Pérez',
+   area: 'Terraza',
+   moneda: 'Soles',
+   tipoPago: 'Efectivo',
+   observaciones: 'Sin cebolla en lomo',
+   productos: [
+     { nombre: '1/4 pollo', cantidad: 1, precio: 19.90, subtotal: 19.90, tipoServicio: 'mesa', complementos: [], notaEspecial: '', paraLlevar: false },
+     { nombre: 'Lomo saltado', cantidad: 2, precio: 22.50, subtotal: 45.00, tipoServicio: 'mesa', complementos: [{ grupo: 'Salsas', opcion: 'Criolla' }], notaEspecial: '', paraLlevar: false },
+     { nombre: 'Ceviche clásico', cantidad: 1, precio: 25.00, subtotal: 25.00, tipoServicio: 'para_llevar', complementos: [], notaEspecial: 'Sin picante', paraLlevar: true }
+   ],
+   subtotal: 90.00,
+   total: 90.00,
+   cliente: { nombre: 'María García', dni: '12345678' }
+ },
  userRole: null,
  puedeAplicarDescuento: false,
  guardandoGrupo: false,
@@ -1554,6 +1881,441 @@ formatearNombreMesa(mesa, mesaObj = null) {
  }, 1000);
 
  await this.loadComandas();
+ await this.cargarPlantillaComandaLocal();
+ },
+
+ // ==================== PLANTILLA COMANDA ====================
+
+ cambiarTabComanda(tab) { this.activeTab = tab; },
+
+ async cargarPlantillaComandaLocal() {
+   try {
+     // Cargar desde el backend (GET /api/configuracion/comanda-plantilla)
+     const response = await fetch('/api/configuracion/comanda-plantilla');
+     if (response.ok) {
+       const data = await response.json();
+       if (data.success && data.plantilla) {
+         // Sincronizar logo desde voucherPlantilla
+         if (!data.plantilla.logo) {
+           try {
+             const voucherRes = await fetch('/api/configuracion/voucher-plantilla');
+             if (voucherRes.ok) {
+               const voucherData = await voucherRes.json();
+               if (voucherData.success && voucherData.plantilla?.logo) {
+                 data.plantilla.logo = voucherData.plantilla.logo;
+               }
+             }
+           } catch(e) { /* Logo voucher no disponible */ }
+         }
+         // Sincronizar nombre comercial desde datosFiscales
+         if (!data.plantilla.restaurante?.nombre) {
+           try {
+             const configRes = await fetch('/api/configuracion');
+             if (configRes.ok) {
+               const configData = await configRes.json();
+               if (configData.datosFiscales?.nombreComercial) {
+                 data.plantilla.restaurante = data.plantilla.restaurante || {};
+                 data.plantilla.restaurante.nombre = configData.datosFiscales.nombreComercial;
+               }
+             }
+           } catch(e) { /* datosFiscales no disponible */ }
+         }
+         // Deep merge con defaults
+         this.plantillaComanda = this.deepMergeComanda(this.plantillaComanda, data.plantilla);
+         this.plantillaComanda.etiquetas = { ...this.ETIQUETAS_DEFAULT_COMANDA, ...(data.plantilla.etiquetas || {}) };
+         this.plantillaComandaOriginal = JSON.parse(JSON.stringify(this.plantillaComanda));
+         console.log('✅ Plantilla comanda cargada desde el backend');
+         return;
+       }
+     }
+   } catch (error) {
+     console.warn('Error cargando plantilla comanda del backend:', error);
+   }
+
+   // Fallback: localStorage
+   const saved = localStorage.getItem('comandaPlantilla');
+   if (saved) {
+     try {
+       const data = JSON.parse(saved);
+       if (data.etiquetas) {
+         data.etiquetas = { ...this.ETIQUETAS_DEFAULT_COMANDA, ...data.etiquetas };
+       }
+       this.plantillaComanda = this.deepMergeComanda(this.plantillaComanda, data);
+       this.plantillaComandaOriginal = JSON.parse(JSON.stringify(this.plantillaComanda));
+       console.log('✅ Plantilla comanda cargada desde localStorage');
+     } catch(e) {
+       console.warn('Error cargando plantilla comanda local:', e);
+     }
+   }
+ },
+
+ deepMergeComanda(target, source) {
+   const result = { ...target };
+   if (!source) return result;
+   for (const key in source) {
+     if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+       result[key] = this.deepMergeComanda(result[key] || {}, source[key]);
+     } else if (source[key] !== undefined) {
+       result[key] = source[key];
+     }
+   }
+   return result;
+ },
+
+ async guardarPlantillaComanda() {
+   try {
+     // Guardar en localStorage como backup
+     localStorage.setItem('comandaPlantilla', JSON.stringify(this.plantillaComanda));
+
+     // Guardar en el backend (PUT /api/configuracion/comanda-plantilla)
+     const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+     const response = await fetch('/api/configuracion/comanda-plantilla', {
+       method: 'PUT',
+       headers: {
+         'Content-Type': 'application/json',
+         'Authorization': `Bearer ${token}`
+       },
+       body: JSON.stringify(this.plantillaComanda)
+     });
+
+     if (response.ok) {
+       this.plantillaComandaModificada = false;
+       this.plantillaComandaOriginal = JSON.parse(JSON.stringify(this.plantillaComanda));
+       GambusinasNotifications.success('Plantilla de comanda guardada correctamente');
+     } else {
+       this.plantillaComandaModificada = false;
+       this.plantillaComandaOriginal = JSON.parse(JSON.stringify(this.plantillaComanda));
+       GambusinasNotifications.success('Plantilla de comanda guardada localmente');
+     }
+   } catch (error) {
+     console.error('Error guardando plantilla comanda:', error);
+     localStorage.setItem('comandaPlantilla', JSON.stringify(this.plantillaComanda));
+     this.plantillaComandaModificada = false;
+     this.plantillaComandaOriginal = JSON.parse(JSON.stringify(this.plantillaComanda));
+     GambusinasNotifications.success('Plantilla de comanda guardada localmente');
+   }
+ },
+
+ restablecerPlantillaComanda() {
+   this.plantillaComanda = {
+     logo: '',
+     restaurante: { nombre: 'LAS GAMBUSINAS', eslogan: '* Comidas Típicas y Parrilla *' },
+     encabezado: { titulo: 'COMANDA' },
+     bloques: { mostrarEncabezado: true, mostrarDatosComanda: true, mostrarDetalleProductos: true, mostrarPrecios: true, mostrarTotal: true, mostrarDatosCliente: true, mostrarObservaciones: true },
+     visibilidad: { nombre: true, eslogan: true, comandaNumero: true, fechaPedido: true, mesa: true, mozo: true, area: true, moneda: true, tipoPago: true, cliente: true, dniCliente: true, observaciones: true, total: true },
+     espaciado: { lineHeight: 16, tamanoFuente: 11, espacioDivider: 8 },
+     mensajes: { pie: 'Entregar en cocina' },
+     etiquetas: { ...this.ETIQUETAS_DEFAULT_COMANDA }
+   };
+   this.datosEjemploComanda.productos = [
+     { nombre: '1/4 pollo', cantidad: 1, precio: 19.90, subtotal: 19.90, tipoServicio: 'mesa', complementos: [], notaEspecial: '', paraLlevar: false },
+     { nombre: 'Lomo saltado', cantidad: 2, precio: 22.50, subtotal: 45.00, tipoServicio: 'mesa', complementos: [{ grupo: 'Salsas', opcion: 'Criolla' }], notaEspecial: '', paraLlevar: false },
+     { nombre: 'Ceviche clásico', cantidad: 1, precio: 25.00, subtotal: 25.00, tipoServicio: 'para_llevar', complementos: [], notaEspecial: 'Sin picante', paraLlevar: true }
+   ];
+   this.plantillaComandaModificada = true;
+   GambusinasNotifications.info('Plantilla de comanda restablecida');
+ },
+
+ generarPreviewComanda() {
+   const p = this.plantillaComanda;
+   const d = this.datosEjemploComanda;
+   const v = p.visibilidad;
+   const b = p.bloques;
+   const e = p.espaciado;
+   const et = { ...this.ETIQUETAS_DEFAULT_COMANDA, ...(p.etiquetas || {}) };
+   const mostrarPrecios = b.mostrarPrecios !== false;
+   let html = '';
+
+   // === ENCABEZADO ===
+   if (b.mostrarEncabezado !== false) {
+     if (p.logo) {
+       html += `<div style="text-align:center;margin-bottom:6px;"><img src="${p.logo}" style="max-width:100%;max-height:60px;object-fit:contain;"></div>`;
+     }
+     if (v.nombre !== false) {
+       html += `<div style="text-align:center;font-weight:bold;font-size:${e.tamanoFuente + 4}px;">${this.escapeHtmlComanda(p.restaurante?.nombre || 'LAS GAMBUSINAS')}</div>`;
+     }
+     if (v.eslogan && p.restaurante?.eslogan) {
+       html += `<div style="text-align:center;font-size:${e.tamanoFuente - 1}px;color:#666;">${this.escapeHtmlComanda(p.restaurante.eslogan)}</div>`;
+     }
+     html += `<div style="text-align:center;font-weight:bold;font-size:${e.tamanoFuente + 2}px;margin:4px 0;letter-spacing:2px;">${this.escapeHtmlComanda(p.encabezado?.titulo || 'COMANDA')}</div>`;
+     html += `<div style="border-top:1px dashed #999;margin:${e.espacioDivider}px 0;"></div>`;
+   }
+
+   // === DATOS COMANDA ===
+   if (b.mostrarDatosComanda !== false) {
+     html += '<div style="margin-bottom:4px;">';
+     if (v.comandaNumero !== false && d.comandaNumero) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.comandaNumero}:</span><span>${d.comandaNumero}</span></div>`;
+     if (v.fechaPedido !== false && d.fechaPedido) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.fechaPedido}:</span><span>${d.fechaPedido}</span></div>`;
+     if (v.mesa !== false && d.mesa) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.mesa}:</span><span>${d.mesa}</span></div>`;
+     if (v.mozo !== false && d.mozo) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.mozo}:</span><span>${this.escapeHtmlComanda(d.mozo)}</span></div>`;
+     if (v.area && d.area) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.area}:</span><span>${this.escapeHtmlComanda(d.area)}</span></div>`;
+     if (v.moneda !== false && d.moneda) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.moneda}:</span><span>${d.moneda}</span></div>`;
+     if (v.tipoPago !== false && d.tipoPago) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.tipoPago}:</span><span>${d.tipoPago}</span></div>`;
+     html += '</div>';
+     html += `<div style="border-top:1px dashed #999;margin:${e.espacioDivider}px 0;"></div>`;
+   }
+
+   // === DETALLE PRODUCTOS ===
+   if (b.mostrarDetalleProductos !== false && d.productos?.length) {
+     html += '<table style="width:100%;border-collapse:collapse;font-size:' + e.tamanoFuente + 'px;">';
+     html += '<thead><tr style="border-bottom:1px solid #000;font-weight:bold;">';
+     html += '<th style="text-align:left;padding:2px 0;">Producto</th>';
+     html += '<th style="text-align:center;padding:2px 4px;width:30px;">Cant.</th>';
+     if (mostrarPrecios) html += '<th style="text-align:right;padding:2px 4px;width:50px;">Total</th>';
+     html += '</tr></thead><tbody>';
+     for (const prod of d.productos) {
+       html += '<tr>';
+       const nombre = this.escapeHtmlComanda(prod.nombre || 'Plato');
+       const marcadorPL = prod.paraLlevar || prod.tipoServicio === 'para_llevar' ? ' (P.L.)' : '';
+       html += `<td style="padding:2px 0;vertical-align:top;">${nombre}${marcadorPL}</td>`;
+       html += `<td style="text-align:center;vertical-align:top;">${prod.cantidad || 1}</td>`;
+       if (mostrarPrecios) html += `<td style="text-align:right;vertical-align:top;">${(prod.subtotal || 0).toFixed(2)}</td>`;
+       html += '</tr>';
+       if (prod.complementos?.length) {
+         for (const c of prod.complementos) {
+           html += '<tr style="color:#666;font-size:' + (e.tamanoFuente - 1) + 'px;">';
+           html += `<td style="padding:0 0 0 10px;">└ ${this.escapeHtmlComanda(c.grupo || '')}: ${this.escapeHtmlComanda(c.opcion || '')}</td>`;
+           html += '<td></td>';
+           if (mostrarPrecios) html += '<td></td>';
+           html += '</tr>';
+         }
+       }
+       if (prod.notaEspecial) {
+         html += '<tr style="color:#999;font-size:' + (e.tamanoFuente - 2) + 'px;font-style:italic;">';
+         html += `<td colspan="${mostrarPrecios ? 3 : 2}" style="padding:0 0 0 10px;">Nota: ${this.escapeHtmlComanda(prod.notaEspecial)}</td>`;
+         html += '</tr>';
+       }
+     }
+     html += '</tbody></table>';
+     html += `<div style="border-top:1px dashed #999;margin:${e.espacioDivider}px 0;"></div>`;
+   }
+
+   // === TOTAL ===
+   if (b.mostrarTotal !== false) {
+     html += `<div style="font-weight:bold;font-size:${e.tamanoFuente + 2}px;text-align:right;margin:4px 0;">`;
+     html += `${et.total}: ${d.moneda === 'USD' ? '$' : 'S/.'}${(d.total || 0).toFixed(2)}`;
+     html += '</div>';
+     html += `<div style="border-top:1px dashed #999;margin:${e.espacioDivider}px 0;"></div>`;
+   }
+
+   // === DATOS CLIENTE ===
+   if (b.mostrarDatosCliente !== false) {
+     const clienteName = d.cliente?.nombre || '';
+     const clienteDni = d.cliente?.dni || '';
+     if (clienteName || clienteDni) {
+       html += '<div style="margin-bottom:4px;">';
+       if (v.cliente !== false && clienteName) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.cliente}:</span><span>${this.escapeHtmlComanda(clienteName)}</span></div>`;
+       if (v.dniCliente !== false && clienteDni) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.dni}:</span><span>${clienteDni}</span></div>`;
+       html += '</div>';
+     }
+   }
+
+   // === OBSERVACIONES ===
+   if (b.mostrarObservaciones !== false && d.observaciones) {
+     html += `<div style="margin-bottom:4px;font-size:${e.tamanoFuente - 1}px;color:#555;"><strong>${et.observaciones}:</strong> ${this.escapeHtmlComanda(d.observaciones)}</div>`;
+   }
+
+   // === PIE ===
+   if (p.mensajes?.pie) {
+     html += `<div style="text-align:center;font-size:${e.tamanoFuente - 2}px;color:#999;margin-top:6px;">${this.escapeHtmlComanda(p.mensajes.pie)}</div>`;
+   }
+
+   return html;
+ },
+
+ escapeHtmlComanda(str) {
+   if (!str) return '';
+   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+ },
+
+ imprimirPreviewComanda() {
+   const p = this.plantillaComanda;
+   const e = p.espaciado;
+   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Comanda</title>
+<style>*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoFuente}px;padding:10px;max-width:320px;margin:0 auto;}
+.divider{border-top:1px dashed #333;margin:${e.espacioDivider}px 0;}
+.text-center{text-align:center;}
+.label{font-weight:600;color:#222;}
+.value{font-weight:400;color:#000;}
+.restaurant-name{font-size:16px;font-weight:800;letter-spacing:0.5px;}
+.restaurant-subtitle{font-size:10px;font-weight:500;color:#444;}
+.total-row{font-size:13px;font-weight:700;border-top:2px solid #000;padding-top:4px;margin-top:4px;}
+.logo-img{max-width:200px;max-height:60px;margin:0 auto 4px;display:block;}
+</style></head><body><div style="font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoFuente}px;line-height:${e.lineHeight}px;">${this.generarPreviewComanda()}</div>
+<script>window.onload=function(){window.print();}<\/script></body></html>`;
+
+   const w = window.open('', '_blank', 'width=340,height=700');
+   if (w) { w.document.write(html); w.document.close(); }
+ },
+
+ async imprimirComanda(comanda) {
+   if (!comanda) return;
+   try {
+     // Fetch enriched data including boucher info (moneda, tipoPago, cliente)
+     const comandaId = comanda._id;
+     let datos = this.mapComandaATicket(comanda);
+     if (comandaId) {
+       try {
+         const res = await apiGet(`/comanda/${comandaId}/ticket-imprimible`);
+         if (res && res.success && res.datos) {
+           const d = res.datos;
+           datos = {
+             comandaNumero: d.comandaNumero || datos.comandaNumero,
+             fechaPedido: d.fechaPedido ? new Date(d.fechaPedido).toLocaleString('es-PE') : datos.fechaPedido,
+             mesa: d.mesa || datos.mesa,
+             mozo: d.mozo || datos.mozo,
+             area: d.area || datos.area,
+             moneda: d.moneda === 'USD' ? 'USD' : (d.moneda === 'PEN' || d.moneda === 'Soles' ? 'Soles' : d.moneda) || datos.moneda,
+             tipoPago: d.tipoPago || datos.tipoPago,
+             observaciones: d.observaciones || datos.observaciones,
+             productos: (d.productos || []).map(p => ({
+               nombre: p.nombre || 'Plato',
+               cantidad: p.cantidad || 1,
+               precio: p.precio || 0,
+               subtotal: p.subtotal || (p.precio || 0) * (p.cantidad || 1),
+               tipoServicio: p.tipoServicio || 'mesa',
+               complementos: (p.complementos || []).map(c => ({ grupo: c.grupo, opcion: c.opcion })),
+               notaEspecial: p.notaEspecial || '',
+               paraLlevar: p.tipoServicio === 'para_llevar'
+             })),
+             subtotal: d.subtotal || datos.subtotal,
+             total: d.total || datos.total,
+             cliente: {
+               nombre: d.cliente?.nombre || datos.cliente?.nombre || 'Invitado',
+               dni: d.cliente?.dni || datos.cliente?.dni || ''
+             }
+           };
+         }
+       } catch (err) {
+         console.warn('Error obteniendo ticket-imprimible, usando datos locales:', err);
+       }
+     }
+     const p = this.plantillaComanda;
+     const e = p.espaciado;
+     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Comanda #${datos.comandaNumero || '?'}</title>
+<style>*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoFuente}px;padding:10px;max-width:320px;margin:0 auto;}
+.divider{border-top:1px dashed #333;margin:${e.espacioDivider}px 0;}
+.text-center{text-align:center;}
+.label{font-weight:600;color:#222;}
+.value{font-weight:400;color:#000;}
+.restaurant-name{font-size:16px;font-weight:800;letter-spacing:0.5px;}
+.total-row{font-size:13px;font-weight:700;border-top:2px solid #000;padding-top:4px;margin-top:4px;}
+.logo-img{max-width:200px;max-height:60px;margin:0 auto 4px;display:block;}
+</style></head><body><div style="font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoFuente}px;line-height:${e.lineHeight}px;">${this.generarHtmlComandaDesdeDatos(datos)}</div>
+<script>window.onload=function(){window.print();}<\/script></body></html>`;
+     const w = window.open('', '_blank', 'width=340,height=700');
+     if (w) { w.document.write(html); w.document.close(); }
+   } catch (error) {
+     console.error('Error al imprimir comanda:', error);
+     this.showToast('Error al generar la comanda para impresión', 'error');
+   }
+ },
+
+ mapComandaATicket(comanda) {
+   return {
+     comandaNumero: comanda.comandaNumber || '?',
+     fechaPedido: comanda.createdAt ? new Date(comanda.createdAt).toLocaleString('es-PE') : '',
+     mesa: comanda.mesas?.nummesa || comanda.mesaNumero || '—',
+     mozo: comanda.mozos?.name || comanda.mozoNombre || '—',
+     area: comanda.mesas?.area?.nombre || '',
+     moneda: 'Soles',
+     tipoPago: comanda.metodoPago || '—',
+     observaciones: comanda.observaciones || '',
+     productos: (comanda.platos || []).filter(p => !p.eliminado && !p.anulado).map(p => ({
+       nombre: p.plato?.nombre || p.nombre || 'Plato',
+       cantidad: p.cantidad || 1,
+       precio: p.plato?.precio || p.precio || 0,
+       subtotal: (p.plato?.precio || p.precio || 0) * (p.cantidad || 1),
+       tipoServicio: p.tipoServicio || 'mesa',
+       complementos: (p.complementosSeleccionados || []).map(c => ({ grupo: c.grupo, opcion: c.opcion })),
+       notaEspecial: p.notaEspecial || '',
+       paraLlevar: p.tipoServicio === 'para_llevar'
+     })),
+     subtotal: comanda.subtotal || 0,
+     total: comanda.precioTotal || comanda.total || 0,
+     cliente: {
+       nombre: comanda.cliente?.nombre || comanda.clienteNombre || 'Invitado',
+       dni: comanda.cliente?.dni || ''
+     }
+   };
+ },
+
+ generarHtmlComandaDesdeDatos(datos) {
+   const p = this.plantillaComanda;
+   const v = p.visibilidad;
+   const b = p.bloques;
+   const e = p.espaciado;
+   const et = { ...this.ETIQUETAS_DEFAULT_COMANDA, ...(p.etiquetas || {}) };
+   const mostrarPrecios = b.mostrarPrecios !== false;
+   let html = '';
+
+   if (b.mostrarEncabezado !== false) {
+     if (p.logo) html += `<div style="text-align:center;margin-bottom:6px;"><img src="${p.logo}" style="max-width:100%;max-height:60px;object-fit:contain;"></div>`;
+     if (v.nombre !== false) html += `<div style="text-align:center;font-weight:bold;font-size:${e.tamanoFuente + 4}px;">${this.escapeHtmlComanda(p.restaurante?.nombre || 'LAS GAMBUSINAS')}</div>`;
+     if (v.eslogan && p.restaurante?.eslogan) html += `<div style="text-align:center;font-size:${e.tamanoFuente - 1}px;color:#666;">${this.escapeHtmlComanda(p.restaurante.eslogan)}</div>`;
+     html += `<div style="text-align:center;font-weight:bold;font-size:${e.tamanoFuente + 2}px;margin:4px 0;letter-spacing:2px;">${this.escapeHtmlComanda(p.encabezado?.titulo || 'COMANDA')}</div>`;
+     html += `<div style="border-top:1px dashed #999;margin:${e.espacioDivider}px 0;"></div>`;
+   }
+
+   if (b.mostrarDatosComanda !== false) {
+     html += '<div style="margin-bottom:4px;">';
+     if (v.comandaNumero !== false && datos.comandaNumero) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.comandaNumero}:</span><span>${datos.comandaNumero}</span></div>`;
+     if (v.fechaPedido !== false && datos.fechaPedido) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.fechaPedido}:</span><span>${datos.fechaPedido}</span></div>`;
+     if (v.mesa !== false && datos.mesa) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.mesa}:</span><span>${datos.mesa}</span></div>`;
+     if (v.mozo !== false && datos.mozo) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.mozo}:</span><span>${this.escapeHtmlComanda(datos.mozo)}</span></div>`;
+     if (v.area && datos.area) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.area}:</span><span>${this.escapeHtmlComanda(datos.area)}</span></div>`;
+     if (v.moneda !== false && datos.moneda) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.moneda}:</span><span>${datos.moneda}</span></div>`;
+     if (v.tipoPago !== false && datos.tipoPago) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.tipoPago}:</span><span>${datos.tipoPago}</span></div>`;
+     html += '</div>';
+     html += `<div style="border-top:1px dashed #999;margin:${e.espacioDivider}px 0;"></div>`;
+   }
+
+   if (b.mostrarDetalleProductos !== false && datos.productos?.length) {
+     html += '<table style="width:100%;border-collapse:collapse;font-size:' + e.tamanoFuente + 'px;">';
+     html += '<thead><tr style="border-bottom:1px solid #000;font-weight:bold;">';
+     html += '<th style="text-align:left;padding:2px 0;">Producto</th><th style="text-align:center;padding:2px 4px;width:30px;">Cant.</th>';
+     if (mostrarPrecios) html += '<th style="text-align:right;padding:2px 4px;width:50px;">Total</th>';
+     html += '</tr></thead><tbody>';
+     for (const prod of datos.productos) {
+       html += '<tr>';
+       html += `<td style="padding:2px 0;vertical-align:top;">${this.escapeHtmlComanda(prod.nombre || 'Plato')}${prod.paraLlevar ? ' (P.L.)' : ''}</td>`;
+       html += `<td style="text-align:center;vertical-align:top;">${prod.cantidad || 1}</td>`;
+       if (mostrarPrecios) html += `<td style="text-align:right;vertical-align:top;">${(prod.subtotal || 0).toFixed(2)}</td>`;
+       html += '</tr>';
+       if (prod.complementos?.length) { for (const c of prod.complementos) { html += `<tr style="color:#666;font-size:${e.tamanoFuente - 1}px;"><td style="padding:0 0 0 10px;">└ ${this.escapeHtmlComanda(c.grupo || '')}: ${this.escapeHtmlComanda(c.opcion || '')}</td><td></td>${mostrarPrecios ? '<td></td>' : ''}</tr>`; } }
+       if (prod.notaEspecial) html += `<tr style="color:#999;font-size:${e.tamanoFuente - 2}px;font-style:italic;"><td colspan="${mostrarPrecios ? 3 : 2}" style="padding:0 0 0 10px;">Nota: ${this.escapeHtmlComanda(prod.notaEspecial)}</td></tr>`;
+     }
+     html += '</tbody></table>';
+     html += `<div style="border-top:1px dashed #999;margin:${e.espacioDivider}px 0;"></div>`;
+   }
+
+   if (b.mostrarTotal !== false) {
+     html += `<div style="font-weight:bold;font-size:${e.tamanoFuente + 2}px;text-align:right;margin:4px 0;">${et.total}: ${datos.moneda === 'USD' ? '$' : 'S/.'}${(datos.total || 0).toFixed(2)}</div>`;
+     html += `<div style="border-top:1px dashed #999;margin:${e.espacioDivider}px 0;"></div>`;
+   }
+
+   if (b.mostrarDatosCliente !== false) {
+     const cn = datos.cliente?.nombre || '';
+     const cd = datos.cliente?.dni || '';
+     if (cn || cd) {
+       html += '<div style="margin-bottom:4px;">';
+       if (v.cliente !== false && cn) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.cliente}:</span><span>${this.escapeHtmlComanda(cn)}</span></div>`;
+       if (v.dniCliente !== false && cd) html += `<div style="display:flex;justify-content:space-between;padding:1px 0;"><span style="font-weight:600;">${et.dni}:</span><span>${cd}</span></div>`;
+       html += '</div>';
+     }
+   }
+
+   if (b.mostrarObservaciones !== false && datos.observaciones) {
+     html += `<div style="margin-bottom:4px;font-size:${e.tamanoFuente - 1}px;color:#555;"><strong>${et.observaciones}:</strong> ${this.escapeHtmlComanda(datos.observaciones)}</div>`;
+   }
+
+   if (p.mensajes?.pie) {
+     html += `<div style="text-align:center;font-size:${e.tamanoFuente - 2}px;color:#999;margin-top:6px;">${this.escapeHtmlComanda(p.mensajes.pie)}</div>`;
+   }
+
+   return html;
  },
 
  parseJwtRol(token) {
@@ -2303,17 +3065,21 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  /**
   * Calcula el estado más crítico de un grupo de comandas
-  * Prioridad: en_espera > recoger > entregado > pagado
+  * Prioridad (mayor = más crítico):
+  *   pendiente_aprobar > en_espera > recoger / en cocina > entregado > pagado > completado > cancelado
+  * PLAN_PLANTILLA_COMANDAS: pendiente_aprobar = pago registrado, esperando aprobación cocina.
   */
  calcularEstadoGrupo(comandas) {
  if (!comandas || comandas.length === 0) return 'en_espera';
 
  const prioridad = {
- 'en_espera': 4,
- 'en cocina': 3,
- 'recoger': 3,
- 'entregado': 2,
- 'pagado': 1,
+ 'pendiente_aprobar': 6,
+ 'en_espera': 5,
+ 'en cocina': 4,
+ 'recoger': 4,
+ 'entregado': 3,
+ 'pagado': 2,
+ 'completado': 1,
  'cancelado': 0
  };
 
@@ -2455,6 +3221,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  'en cocina': 'En cocina',
  'preparado': 'Preparado',
  'pendiente': 'Pendiente',
+ 'pendiente_aprobar': 'Pendiente de aprobación',
+ 'completado': 'Completado',
  'pedido': 'Pedido'
  };
  return map[estado] || estado || 'pendiente';

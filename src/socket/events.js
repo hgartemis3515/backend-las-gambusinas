@@ -2681,5 +2681,226 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
     }
   };
 
+  /**
+   * =========================================================
+   * PLAN_PLANTILLA_COMANDAS — Eventos de aprobación y reporte
+   * =========================================================
+   */
+
+  /**
+   * Emitir evento cuando se crea un nuevo ticket de aprobación (comanda completa).
+   * Cocina lo recibe en la bandeja unificada; mozos lo reciben para actualizar
+   * el estado de la mesa a pendiente_aprobar (verde claro).
+   * @param {Object} ticket - TicketAprobacion recién creado
+   */
+  global.emitTicketAprobacionNuevo = async (ticket) => {
+    try {
+      const ticketData = ticket && ticket.toObject ? ticket.toObject() : ticket;
+      if (!ticketData) return;
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+      const fecha = moment().tz('America/Lima').format('YYYY-MM-DD');
+
+      const eventData = {
+        ticket: ticketData,
+        mesaId: ticketData.mesa?.toString() || ticketData.mesa?.toString(),
+        numMesa: ticketData.numMesa,
+        mozoId: ticketData.mozo?.toString() || ticketData.mozo?.toString(),
+        tipo: ticketData.tipo || 'comanda_completa',
+        timestamp,
+      };
+
+      // Cocina: bandeja unificada
+      if (cocinaNamespace && cocinaNamespace.sockets) {
+        cocinaNamespace.to(`fecha-${fecha}`).emit('ticket-aprobacion-nuevo', eventData);
+      }
+
+      // Mozos: actualizar estado de mesa
+      if (mozosNamespace && mozosNamespace.sockets && ticketData.mesa) {
+        const mesaRoom = `mesa-${ticketData.mesa}`;
+        mozosNamespace.to(mesaRoom).emit('ticket-aprobacion-nuevo', eventData);
+      }
+
+      // Admin
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('ticket-aprobacion-nuevo', eventData);
+      }
+
+      logger.info('Evento ticket-aprobacion-nuevo emitido', {
+        ticketId: ticketData._id,
+        ticketNumber: ticketData.ticketNumber,
+        numMesa: ticketData.numMesa,
+      });
+    } catch (error) {
+      logger.error('Error al emitir ticket-aprobacion-nuevo', { error: error.message });
+    }
+  };
+
+  /**
+   * Emitir evento cuando cocina aprueba una comanda.
+   * Mozos ven la mesa pasar de pendiente_aprobar → pagado (verde oscuro).
+   * Cocina ve los platos entrar al KDS normal.
+   * @param {Object} ticket - TicketAprobacion aprobado
+   * @param {Array} platosLiberados - Platos que pasaron de pendiente → pedido
+   */
+  global.emitComandaAprobada = async (ticket, platosLiberados = []) => {
+    try {
+      const ticketData = ticket && ticket.toObject ? ticket.toObject() : ticket;
+      if (!ticketData) return;
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+      const fecha = moment().tz('America/Lima').format('YYYY-MM-DD');
+
+      const eventData = {
+        ticketId: ticketData._id,
+        ticketNumber: ticketData.ticketNumber,
+        mesaId: ticketData.mesa?.toString(),
+        numMesa: ticketData.numMesa,
+        tipo: ticketData.tipo || 'comanda_completa',
+        platosLiberados: platosLiberados.map((p) => ({
+          comandaId: p.comandaId?.toString(),
+          comandaNumber: p.comandaNumber,
+          platoId: p.platoId,
+          estadoNuevo: p.estadoNuevo,
+        })),
+        timestamp,
+      };
+
+      // Cocina: actualizar bandeja y KDS
+      if (cocinaNamespace && cocinaNamespace.sockets) {
+        cocinaNamespace.to(`fecha-${fecha}`).emit('comanda-aprobada', eventData);
+      }
+
+      // Mozos: mesa → pagado
+      if (mozosNamespace && mozosNamespace.sockets && ticketData.mesa) {
+        const mesaRoom = `mesa-${ticketData.mesa}`;
+        mozosNamespace.to(mesaRoom).emit('comanda-aprobada', eventData);
+      }
+
+      // Admin
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('comanda-aprobada', eventData);
+      }
+
+      // Emitir comanda-actualizada por cada comanda afectada
+      for (const comandaId of (ticketData.comandas || [])) {
+        try {
+          if (global.emitComandaActualizada) {
+            await global.emitComandaActualizada(comandaId.toString(), 'pendiente', 'pedido');
+          }
+        } catch (e) {
+          logger.warn('Error emitiendo comanda-actualizada tras aprobación', { error: e.message });
+        }
+      }
+
+      logger.info('Evento comanda-aprobada emitido', {
+        ticketId: ticketData._id,
+        ticketNumber: ticketData.ticketNumber,
+        numMesa: ticketData.numMesa,
+        platosLiberados: platosLiberados.length,
+      });
+    } catch (error) {
+      logger.error('Error al emitir comanda-aprobada', { error: error.message });
+    }
+  };
+
+  /**
+   * Emitir evento cuando cocina reporta una comanda (mesa → reportado, rojo).
+   * Mozos ven la mesa en rojo con el motivo.
+   * @param {String} mesaId - ID de la mesa reportada
+   * @param {String} nuevoEstado - 'reportado'
+   * @param {String} motivo - Motivo del reporte
+   */
+  global.emitMesaReportada = async (mesaId, nuevoEstado = 'reportado', motivo = '') => {
+    try {
+      const timestamp = moment().tz('America/Lima').toISOString();
+
+      const mesa = await mesasModel.findById(mesaId).populate('area');
+      if (!mesa) {
+        logger.warn('emitMesaReportada: mesa no encontrada', { mesaId });
+        return;
+      }
+
+      const mesaData = mesa.toObject ? mesa.toObject() : mesa;
+
+      const eventData = {
+        mesa: mesaData,
+        mesaId: mesaId.toString(),
+        numMesa: mesaData.nummesa,
+        estado: nuevoEstado,
+        motivo: motivo,
+        timestamp,
+      };
+
+      // Mozos: actualizar mapa (mesa roja)
+      if (mozosNamespace && mozosNamespace.sockets) {
+        mozosNamespace.to(`mesa-${mesaId}`).emit('mesa-reportada', eventData);
+        mozosNamespace.emit('mesa-actualizada', eventData);
+      }
+
+      // Cocina: actualizar bandeja
+      const fecha = moment().tz('America/Lima').format('YYYY-MM-DD');
+      if (cocinaNamespace && cocinaNamespace.sockets) {
+        cocinaNamespace.to(`fecha-${fecha}`).emit('mesa-reportada', eventData);
+      }
+
+      // Admin
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('mesa-reportada', eventData);
+      }
+
+      logger.info('Evento mesa-reportada emitido', {
+        mesaId: mesaId.toString(),
+        numMesa: mesaData.nummesa,
+        estado: nuevoEstado,
+        motivo,
+      });
+    } catch (error) {
+      logger.error('Error al emitir mesa-reportada', { error: error.message });
+    }
+  };
+
+  /**
+   * Emitir evento cuando un ticket de aprobación es reportado.
+   * Cocina actualiza la bandeja (ticket desaparece de pendientes).
+   * @param {Object} ticket - TicketAprobacion reportado
+   */
+  global.emitTicketReportado = async (ticket) => {
+    try {
+      const ticketData = ticket && ticket.toObject ? ticket.toObject() : ticket;
+      if (!ticketData) return;
+
+      const timestamp = moment().tz('America/Lima').toISOString();
+      const fecha = moment().tz('America/Lima').format('YYYY-MM-DD');
+
+      const eventData = {
+        ticketId: ticketData._id,
+        ticketNumber: ticketData.ticketNumber,
+        mesaId: ticketData.mesa?.toString(),
+        numMesa: ticketData.numMesa,
+        estado: 'reportado',
+        motivo: ticketData.motivoReporte || '',
+        tipo: ticketData.tipo || 'comanda_completa',
+        timestamp,
+      };
+
+      if (cocinaNamespace && cocinaNamespace.sockets) {
+        cocinaNamespace.to(`fecha-${fecha}`).emit('ticket-reportado', eventData);
+      }
+
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('ticket-reportado', eventData);
+      }
+
+      logger.info('Evento ticket-reportado emitido', {
+        ticketId: ticketData._id,
+        ticketNumber: ticketData.ticketNumber,
+        numMesa: ticketData.numMesa,
+      });
+    } catch (error) {
+      logger.error('Error al emitir ticket-reportado', { error: error.message });
+    }
+  };
+
 };
 
