@@ -248,7 +248,7 @@ tailwind.config = {
  <template x-if="row.tipo === 'grupo'">
  <button @click.stop="toggleExpandGrupo(row.id)" class="flex items-center gap-2 w-full">
  <span class="text-gold font-bold text-sm" x-text="expandedGroups.includes(row.id) ? '▼' : '▶'"></span>
- <span class="text-gold font-bold text-sm" x-text="'GRUPO ' + (row.clienteNombre || formatearNombreMesa(row.mesaNum, row.mesaObj))"></span>
+ <span class="text-gold font-bold text-sm" x-text="'GRUPO ' + (formatGrupoComandasLabel(row.comandas) || row.clienteNombre || formatearNombreMesa(row.mesaNum, row.mesaObj))"></span>
  </button>
  </template>
  <template x-if="row.tipo === 'individual'">
@@ -509,12 +509,16 @@ tailwind.config = {
             <div class="toggle-btn" :class="{ active: plantillaComanda.bloques.mostrarPrecios }" @click="plantillaComanda.bloques.mostrarPrecios = !plantillaComanda.bloques.mostrarPrecios; plantillaComandaModificada = true"></div>
           </div>
           <div class="flex items-center justify-between">
-            <span class="text-xs text-txt-secondary">Total</span>
-            <div class="toggle-btn" :class="{ active: plantillaComanda.bloques.mostrarTotal }" @click="plantillaComanda.bloques.mostrarTotal = !plantillaComanda.bloques.mostrarTotal; plantillaComandaModificada = true"></div>
+            <span class="text-xs text-txt-secondary">Subtotal</span>
+            <div class="toggle-btn" :class="{ active: plantillaComanda.bloques.mostrarTotales }" @click="plantillaComanda.bloques.mostrarTotales = !plantillaComanda.bloques.mostrarTotales; plantillaComandaModificada = true"></div>
           </div>
           <div class="flex items-center justify-between">
             <span class="text-xs text-txt-secondary">IGV</span>
             <div class="toggle-btn" :class="{ active: plantillaComanda.bloques.mostrarIGV }" @click="plantillaComanda.bloques.mostrarIGV = !plantillaComanda.bloques.mostrarIGV; plantillaComandaModificada = true"></div>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-txt-secondary">Total</span>
+            <div class="toggle-btn" :class="{ active: plantillaComanda.bloques.mostrarTotal }" @click="plantillaComanda.bloques.mostrarTotal = !plantillaComanda.bloques.mostrarTotal; plantillaComandaModificada = true"></div>
           </div>
           <div class="flex items-center justify-between">
             <span class="text-xs text-txt-secondary">Datos cliente</span>
@@ -1762,8 +1766,8 @@ function comandasApp() {
      mostrarDatosComanda: true,
      mostrarDetalleProductos: true,
      mostrarPrecios: true,
-     mostrarTotales: true,
-     mostrarIGV: true,
+     mostrarTotales: false,
+     mostrarIGV: false,
      mostrarTotal: true,
      mostrarDatosCliente: true,
      mostrarObservaciones: true
@@ -1852,6 +1856,34 @@ getMinDateTime() {
   return localDate.toISOString().slice(0, 16);
 },
 // ========== FIN RESERVAS ==========
+
+// ========== FUNCIÓN HELPER: Normalizar ObjectId a string ==========
+normalizeObjectId(val) {
+  if (val == null || val === '') return null;
+  if (typeof val === 'object') {
+    if (val.$oid) return String(val.$oid);
+    if (val._id != null) return this.normalizeObjectId(val._id);
+    if (typeof val.toString === 'function') {
+      const s = val.toString();
+      if (/^[a-f0-9]{24}$/i.test(s)) return s;
+    }
+  }
+  const s = String(val).trim();
+  return /^[a-f0-9]{24}$/i.test(s) ? s : (s || null);
+},
+
+/** Etiqueta agrupada de comandas: #81+#82 */
+formatGrupoComandasLabel(comandas) {
+  const nums = [...new Set(
+    (comandas || [])
+      .map((c) => c.numComanda ?? c.comandaNumber)
+      .filter((n) => n != null && n !== '')
+      .map((n) => Number(n))
+      .filter((n) => !Number.isNaN(n))
+  )].sort((a, b) => a - b);
+  if (nums.length === 0) return '';
+  return nums.map((n) => `#${n}`).join('+');
+},
 
 // ========== FUNCIÓN HELPER: Obtener nombre de mesa con soporte para mesas juntadas ==========
 // Si la mesa tiene nombreCombinado (ej: "M5,6,7"), lo usa.
@@ -2025,7 +2057,7 @@ formatearNombreMesa(mesa, mesaObj = null) {
      logo: '',
      restaurante: { nombre: 'LAS GAMBUSINAS', eslogan: '* Comidas Típicas y Parrilla *' },
      encabezado: { titulo: 'COMANDA' },
-     bloques: { mostrarEncabezado: true, mostrarDatosComanda: true, mostrarDetalleProductos: true, mostrarPrecios: true, mostrarTotales: true, mostrarIGV: true, mostrarTotal: true, mostrarDatosCliente: true, mostrarObservaciones: true },
+     bloques: { mostrarEncabezado: true, mostrarDatosComanda: true, mostrarDetalleProductos: true, mostrarPrecios: true, mostrarTotales: false, mostrarIGV: false, mostrarTotal: true, mostrarDatosCliente: true, mostrarObservaciones: true },
      visibilidad: { nombre: true, eslogan: true, comandaNumero: true, fechaPedido: true, mesa: true, mozo: true, area: true, moneda: true, tipoPago: true, cliente: true, dniCliente: true, observaciones: true, total: true },
      espaciado: { lineHeight: 16, tamanoFuente: 11, espacioDivider: 8 },
      mensajes: { pie: 'Entregar en cocina' },
@@ -2450,15 +2482,18 @@ this.modal = null;
  ? { nummesa: mesa.nummesa || mesa.numMesa, area: mesa.area?.nombre || mesa.area || '', nombreCombinado: mesa.nombreCombinado || null }
  : { nummesa: mesa, area: '', nombreCombinado: null };
 
- // Extraer pedidoId: puede venir como ObjectId string o como objeto populated
- const pedidoRef = raw.pedido;
- const pedidoId = pedidoRef?._id || pedidoRef || null;
+ // Extraer pedidoId y mesaId: puede venir como ObjectId string o como objeto populated
+ const pedidoRef = raw.pedido ?? raw.pedidoId;
+ const pedidoId = this.normalizeObjectId(pedidoRef?._id ?? pedidoRef);
+ const mesaId = this.normalizeObjectId(mesa?._id ?? raw.mesas ?? raw.mesaId);
 
  return {
  _id: raw._id,
  numComanda: raw.comandaNumber || raw.numComanda,
  mesa: mesaNorm,
- mozo: raw.mozos?.name || raw.mozo || 'Sin asignar',
+ mesaId: mesaId,
+ mesaNumero: mesaNorm.nummesa ?? raw.mesaNumero ?? null,
+ mozo: raw.mozos?.name || raw.mozoNombre || raw.mozo || 'Sin asignar',
  cliente: raw.cliente,
  clienteNombre: raw.clienteNombre || raw.cliente?.nombre || raw.cliente?.dni || null,
  pedidoId: pedidoId,
@@ -2759,14 +2794,16 @@ this.modal = null;
 
  const gruposPedido = new Map();   // pedidoId -> { comandas: [] }
  const gruposCliente = new Map();  // clienteId_mesaNum -> { comandas: [] } (fallback histórico)
+ const gruposMesa = new Map();     // mesaId_fecha -> { comandas: [] } (sin pedido ni cliente)
  const individuales = [];
 
 this.comandas.forEach(c => {
-const pedidoId = c.pedidoId || null;
-const clienteId = c.cliente?._id || c.cliente || null;
+const pedidoId = this.normalizeObjectId(c.pedidoId);
+const clienteId = this.normalizeObjectId(c.cliente?._id ?? c.cliente);
 // Guardar objeto mesa completo para obtener nombreCombinado
 const mesaObj = c.mesa || null;
-const mesaNum = mesaObj?.nummesa || c.mesaNum || c.mesa;
+const mesaNum = mesaObj?.nummesa || c.mesaNumero || c.mesaNum || (typeof c.mesa === 'number' ? c.mesa : null);
+const mesaId = this.normalizeObjectId(c.mesaId ?? mesaObj?._id);
 
 if (pedidoId) {
   // PRIMARIO: agrupar por pedidoId (comandas nuevas con Pedido asociado)
@@ -2777,7 +2814,8 @@ if (pedidoId) {
       clienteId: clienteId,
       clienteNombre: c.clienteNombre || c.cliente?.nombre || null,
       mesaNum: mesaNum,
-      mesaObj: mesaObj, // Objeto mesa completo para nombreCombinado
+      mesaObj: mesaObj,
+      mesaId: mesaId,
       mozo: c.mozo,
       comandas: []
     });
@@ -2791,13 +2829,30 @@ if (pedidoId) {
       clienteId: clienteId,
       clienteNombre: c.clienteNombre || c.cliente?.nombre || 'Cliente',
       mesaNum: mesaNum,
-      mesaObj: mesaObj, // Objeto mesa completo para nombreCombinado
+      mesaObj: mesaObj,
+      mesaId: mesaId,
       comandas: []
     });
   }
   gruposCliente.get(key).comandas.push(c);
+} else if (mesaId || mesaNum != null) {
+  // FALLBACK: misma mesa y mismo día (comandas sin pedido ni cliente asignado)
+  const fechaOp = c.createdAt
+    ? new Date(c.createdAt).toISOString().slice(0, 10)
+    : 'sin-fecha';
+  const key = `mesa_${mesaId || mesaNum}_${fechaOp}`;
+  if (!gruposMesa.has(key)) {
+    gruposMesa.set(key, {
+      mesaId: mesaId,
+      mesaNum: mesaNum,
+      mesaObj: mesaObj,
+      clienteNombre: c.clienteNombre || null,
+      comandas: []
+    });
+  }
+  gruposMesa.get(key).comandas.push(c);
 } else {
-  // Sin pedido ni cliente: individual
+  // Sin pedido, cliente ni mesa identificable: individual
   individuales.push(c);
 }
 });
@@ -2835,6 +2890,15 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  // Procesar grupos por clienteId (fallback histórico)
  gruposCliente.forEach((grupo, key) => {
+ if (grupo.comandas.length > 1) {
+   filasGrupos.push(crearFilaGrupo(grupo, key));
+ } else {
+   individuales.push(grupo.comandas[0]);
+ }
+ });
+
+ // Procesar grupos por mesa + fecha (sin pedido ni cliente)
+ gruposMesa.forEach((grupo, key) => {
  if (grupo.comandas.length > 1) {
    filasGrupos.push(crearFilaGrupo(grupo, key));
  } else {

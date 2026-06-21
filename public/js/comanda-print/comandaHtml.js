@@ -217,7 +217,7 @@ function estimarAltura(datos, bloques) {
       h += ALTURA_POR_NOTA_PX;
     }
   }
-  if (bloques.mostrarTotales !== false && datos.igv) {
+  if ((bloques.mostrarTotales === true && datos.subtotal) || (bloques.mostrarIGV === true && datos.igv)) {
     h += 40;
   }
   if (datos.cliente?.nombre || datos.cliente?.dni) {
@@ -284,7 +284,8 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
 
   const mostrarPrecios = bloques.mostrarPrecios !== false;
   const mostrarTotal = bloques.mostrarTotal !== false;
-  const mostrarIGV = false; // Comanda de cocina: sin IGV (no es comprobante fiscal)
+  const mostrarSubtotal = bloques.mostrarTotales === true;
+  const mostrarIGV = bloques.mostrarIGV === true;
   const simbolo = getSimboloMoneda(datos.moneda);
 
   // Logo
@@ -408,13 +409,13 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
   }
 
   // === TOTALES ===
-  if (mostrarTotal && bloques.mostrarTotales !== false) {
+  if (mostrarTotal) {
     html += '<div style="text-align:right;width:100%;font-size:12px;">';
     const subtotalFinal = datos.subtotal || 0;
     const igvFinal = datos.igv || 0;
     const totalFinal = datos.total || 0;
 
-    if (mostrarPrecios && subtotalFinal > 0) {
+    if (mostrarSubtotal && mostrarPrecios && subtotalFinal > 0) {
       html += `<div style="padding:1px 0;">Subtotal: <span style="font-weight:500;">${simbolo}${subtotalFinal.toFixed(2)}</span></div>`;
     }
     if (mostrarIGV && igvFinal > 0) {

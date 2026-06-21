@@ -108,7 +108,21 @@ export async function imprimirComandaWeb(opts = {}) {
  * Handles flat structure from backend and nested objects from populate.
  */
 function mapearTicketADatos(ticket) {
-  const comandasNumbers = ticket.comandasNumbers || [];
+  const comandasNumbers = (() => {
+    const nums = new Set();
+    (ticket.comandasNumbers || []).forEach((n) => {
+      if (n == null || n === '') return;
+      const num = Number(n);
+      if (!Number.isNaN(num)) nums.add(num);
+    });
+    (ticket.platos || []).forEach((p) => {
+      if (p?.comandaNumber == null || p.comandaNumber === '') return;
+      const num = Number(p.comandaNumber);
+      if (!Number.isNaN(num)) nums.add(num);
+    });
+    return [...nums].sort((a, b) => a - b);
+  })();
+
   const comandaNumeroDisplay = formatComandasNumbersLabel(comandasNumbers)
     || (ticket.ticketNumber ? `#${ticket.ticketNumber}` : '');
 

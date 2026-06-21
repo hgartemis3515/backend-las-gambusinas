@@ -600,6 +600,8 @@ router.get('/configuracion/comanda-plantilla', async (req, res) => {
                 mostrarEncabezado: true,
                 mostrarDatosComanda: true,
                 mostrarDetalleProductos: true,
+                mostrarTotales: false,
+                mostrarIGV: false,
                 mostrarTotal: true,
                 mostrarDatosCliente: true,
                 mostrarObservaciones: true,
@@ -622,6 +624,10 @@ router.get('/configuracion/comanda-plantilla', async (req, res) => {
 
         let plantilla = config.comandaPlantilla || PLANTILLA_DEFAULT;
 
+        plantilla.bloques = {
+            ...PLANTILLA_DEFAULT.bloques,
+            ...(plantilla.bloques || {}),
+        };
         plantilla.etiquetas = {
             ...PLANTILLA_DEFAULT.etiquetas,
             ...(plantilla.etiquetas || {}),

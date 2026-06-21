@@ -12,6 +12,10 @@ const mesasModel = require('../database/models/mesas.model');
 const AuditoriaAcciones = require('../database/models/auditoriaAcciones.model');
 const logger = require('../utils/logger');
 const { NOMBRE_CLIENTE_FALLBACK } = require('../constants/clienteDefaults');
+const {
+  resolverComandasNumbers,
+  formatComandasNumbersLabel,
+} = require('../utils/comandasNumbers');
 
 const ZONA = 'America/Lima';
 
@@ -529,16 +533,21 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
     paraLlevar: p.tipoServicio === 'para_llevar',
   }));
 
+  const comandasNumbers = resolverComandasNumbers({
+    comandasNumbers: ticket.comandasNumbers,
+    platos: ticket.platos,
+  });
+  const comandaNumeroDisplay = formatComandasNumbersLabel(comandasNumbers)
+    || (ticket.comandasNumbers?.[0] != null ? `#${ticket.comandasNumbers[0]}` : '');
+
   return {
     ticketId: ticket._id,
     ticketNumber: ticket.ticketNumber,
     tipo: ticket.tipo,
-    comandaNumero: ticket.comandasNumbers?.[0] ?? null,
-    comandasNumbers: ticket.comandasNumbers || [],
-    comandaNumeroDisplay: (ticket.comandasNumbers || []).filter((n) => n != null).length > 1
-      ? (ticket.comandasNumbers || []).filter((n) => n != null).sort((a, b) => a - b).map((n) => `#${n}`).join('+')
-      : ticket.comandasNumbers?.[0] != null ? `#${ticket.comandasNumbers[0]}` : '',
-    cantidadComandas: (ticket.comandasNumbers || []).filter((n) => n != null).length,
+    comandaNumero: comandasNumbers[0] ?? ticket.comandasNumbers?.[0] ?? null,
+    comandasNumbers,
+    comandaNumeroDisplay,
+    cantidadComandas: comandasNumbers.length || 1,
     fechaPedido: ticket.createdAt,
     mesa: ticket.mesa?.nummesa ?? ticket.numMesa,
     mozo: ticket.mozo?.name || ticket.nombreMozo || ticket.mozoNombre,

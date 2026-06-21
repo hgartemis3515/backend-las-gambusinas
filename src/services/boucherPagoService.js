@@ -12,6 +12,7 @@ const configuracionRepository = require('../repository/configuracion.repository'
 const calculosPrecios = require('../utils/calculosPrecios');
 const { crearBoucher } = require('../repository/boucher.repository');
 const ticketAprobacionRepository = require('../repository/ticketAprobacion.repository');
+const { resolverComandasNumbers } = require('../utils/comandasNumbers');
 const {
   validarComandasParaPagar,
   validarPlatosSeleccionadosParaPago,
@@ -546,9 +547,14 @@ async function procesarPagoBoucher(params) {
         ? await mongoose.model('Cliente').findById(clienteId).select('nombre dni').lean()
         : null;
 
+      const comandasNumbersTicket = resolverComandasNumbers({
+        comandasNumbers: boucherData.comandasNumbers,
+        platos: platosSnapshot,
+      });
+
       ticketAprobacionCreado = await ticketAprobacionRepository.crearTicketAprobacion({
         comandas: comandasIdsAfectadas,
-        comandasNumbers: boucherData.comandasNumbers,
+        comandasNumbers: comandasNumbersTicket,
         mesa: mesaId,
         numMesa: boucherData.numMesa,
         mozo: mozoId,

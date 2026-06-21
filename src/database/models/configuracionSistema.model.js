@@ -632,6 +632,8 @@ const configuracionSistemaSchema = new mongoose.Schema({
             mostrarEncabezado: { type: Boolean, default: true },
             mostrarDatosComanda: { type: Boolean, default: true },
             mostrarDetalleProductos: { type: Boolean, default: true },
+            mostrarTotales: { type: Boolean, default: false },
+            mostrarIGV: { type: Boolean, default: false },
             mostrarTotal: { type: Boolean, default: true },
             mostrarDatosCliente: { type: Boolean, default: true },
             mostrarObservaciones: { type: Boolean, default: true },

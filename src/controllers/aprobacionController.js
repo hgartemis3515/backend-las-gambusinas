@@ -21,6 +21,10 @@ const configuracionRepository = require('../repository/configuracion.repository'
 const { NOMBRE_CLIENTE_FALLBACK } = require('../constants/clienteDefaults');
 const labelMetodoPago = require('../services/boucherPagoService').labelMetodoPago;
 const logger = require('../utils/logger');
+const {
+  resolverComandasNumbers,
+  formatComandasNumbersLabel,
+} = require('../utils/comandasNumbers');
 
 /**
  * GET /api/aprobacion/pendientes
@@ -329,19 +333,22 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
     }).sort({ createdAt: -1 }).lean();
 
     if (ticketPPA) {
-      const ppaComandasNumbers = ticketPPA.comandasNumbers || [];
+      const ppaComandasNumbers = resolverComandasNumbers({
+        comandasNumbers: ticketPPA.comandasNumbers,
+        platos: ticketPPA.platos,
+      });
+      const ppaDisplay = formatComandasNumbersLabel(ppaComandasNumbers)
+        || (ppaComandasNumbers[0] != null ? `#${ppaComandasNumbers[0]}` : '');
       return res.json({
         success: true,
         datos: {
           ticketId: ticketPPA._id,
           ticketNumber: ticketPPA.ticketNumber,
           tipo: 'ADELANTADO',
-          comandaNumero: ticketPPA.comandasNumbers?.[0] ?? null,
+          comandaNumero: ppaComandasNumbers[0] ?? null,
           comandasNumbers: ppaComandasNumbers,
-          comandaNumeroDisplay: ppaComandasNumbers.filter((n) => n != null).length > 1
-            ? ppaComandasNumbers.filter((n) => n != null).sort((a, b) => a - b).map((n) => `#${n}`).join('+')
-            : ticketPPA.comandasNumbers?.[0] != null ? `#${ticketPPA.comandasNumbers[0]}` : '',
-          cantidadComandas: ppaComandasNumbers.filter((n) => n != null).length,
+          comandaNumeroDisplay: ppaDisplay,
+          cantidadComandas: ppaComandasNumbers.length || 1,
           fechaPedido: ticketPPA.createdAt,
           mesa: ticketPPA.mesa?.nummesa ?? ticketPPA.numMesa,
           mozo: ticketPPA.mozo?.name || ticketPPA.nombreMozo || ticketPPA.mozoNombre,
@@ -391,21 +398,24 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
       isActive: { $ne: false },
     }).sort({ createdAt: -1 }).lean();
 
-    // Resolver comandasNumbers: boucher > pedido > sola
+    // Resolver comandasNumbers: boucher > pedido > platos snapshot > sola
     let comandasNumbers = boucher?.comandasNumbers?.length
-      ? boucher.comandasNumbers
+      ? resolverComandasNumbers({ comandasNumbers: boucher.comandasNumbers })
       : [comanda.comandaNumber];
 
     if (!boucher?.comandasNumbers?.length && comanda.pedido) {
       try {
         const pedido = await mongoose.model('Pedido').findById(comanda.pedido).lean();
         if (pedido?.comandasNumbers?.length) {
-          comandasNumbers = pedido.comandasNumbers;
+          comandasNumbers = resolverComandasNumbers({ comandasNumbers: pedido.comandasNumbers });
         }
       } catch (e) {
         // Pedido no encontrado: usar comandaNumber individual
       }
     }
+
+    const comandaNumeroDisplay = formatComandasNumbersLabel(comandasNumbers)
+      || (comanda.comandaNumber != null ? `#${comanda.comandaNumber}` : '');
 
     const config = await configuracionRepository.obtenerConfiguracion();
 
@@ -429,12 +439,10 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
       ticketId: null,
       ticketNumber: comanda.comandaNumber,
       tipo: 'COMANDA',
-      comandaNumero: comanda.comandaNumber,
+      comandaNumero: comandasNumbers[0] ?? comanda.comandaNumber,
       comandasNumbers,
-      comandaNumeroDisplay: comandasNumbers.length > 1
-        ? comandasNumbers.filter((n) => n != null).sort((a, b) => a - b).map((n) => `#${n}`).join('+')
-        : comanda.comandaNumber != null ? `#${comanda.comandaNumber}` : '',
-      cantidadComandas: comandasNumbers.length,
+      comandaNumeroDisplay,
+      cantidadComandas: comandasNumbers.length || 1,
       fechaPedido: comanda.createdAt,
       mesa: comanda.mesas?.nummesa ?? comanda.mesaNumero ?? null,
       mozo: comanda.mozos?.name || comanda.mozoNombre || 'N/A',
