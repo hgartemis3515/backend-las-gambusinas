@@ -502,7 +502,7 @@ export function mapComandaATicket(comanda, boucherOpcional, config = {}) {
     igv: boucherOpcional?.igv ?? comanda.igv ?? 0,
     total: boucherOpcional?.total ?? comanda.total ?? comanda.precioTotal ?? 0,
     cliente: {
-      nombre: comanda.clienteNombre || comanda.cliente?.nombre || (typeof boucherOpcional?.cliente === 'object' ? boucherOpcional.cliente?.nombre : null) || 'Invitado',
+      nombre: comanda.clienteNombre || comanda.cliente?.nombre || (typeof boucherOpcional?.cliente === 'object' ? boucherOpcional.cliente?.nombre : null) || 'Cliente',
       dni: comanda.cliente?.dni || (typeof boucherOpcional?.cliente === 'object' ? boucherOpcional.cliente?.dni : null) || '',
     },
     voucherId: boucherOpcional?.voucherId || boucherOpcional?.boucherNumber || null,

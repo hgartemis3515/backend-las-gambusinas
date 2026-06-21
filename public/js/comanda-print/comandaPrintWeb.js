@@ -150,7 +150,7 @@ function mapearTicketADatos(ticket) {
     igv: ticket.igv || 0,
     total: ticket.total || 0,
     cliente: {
-      nombre: ticket.cliente?.nombre || ticket.nombreCliente || ticket.clienteNombre || 'Invitado',
+      nombre: ticket.cliente?.nombre || ticket.nombreCliente || ticket.clienteNombre || 'Cliente',
       dni: ticket.cliente?.dni || ticket.dniCliente || ticket.clienteDni || '',
     },
     voucherId: ticket.voucherId || ticket.boucher?.voucherId || null,

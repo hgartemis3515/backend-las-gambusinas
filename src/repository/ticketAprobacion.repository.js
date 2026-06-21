@@ -11,6 +11,7 @@ const comandaModel = require('../database/models/comanda.model');
 const mesasModel = require('../database/models/mesas.model');
 const AuditoriaAcciones = require('../database/models/auditoriaAcciones.model');
 const logger = require('../utils/logger');
+const { NOMBRE_CLIENTE_FALLBACK } = require('../constants/clienteDefaults');
 
 const ZONA = 'America/Lima';
 
@@ -419,7 +420,7 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
     igv: ticket.igv,
     total: ticket.total,
     cliente: {
-      nombre: ticket.clienteNombre || boucherData?.clienteNombre || 'Invitado',
+      nombre: ticket.clienteNombre || boucherData?.clienteNombre || NOMBRE_CLIENTE_FALLBACK,
       dni: ticket.clienteDni || boucherData?.clienteDni || '',
     },
     voucherId: ticket.voucherId || boucherData?.voucherId || boucherData?.boucherNumber || null,

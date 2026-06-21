@@ -1191,7 +1191,7 @@ async function verDetalleCliente(clienteId) {
         const modalBodyEl = document.getElementById('modal-body');
         
         if (modal && modalTitle && modalBodyEl) {
-            modalTitle.textContent = `Detalle Cliente: ${cliente.nombre || 'Invitado'}`;
+            modalTitle.textContent = `Detalle Cliente: ${cliente.nombre || 'Cliente'}`;
             modalBodyEl.innerHTML = modalBody;
             modal.classList.add('active');
         }

@@ -1,4 +1,5 @@
 const clienteModel = require("../database/models/cliente.model");
+const { nombreClienteAnonimo } = require('../constants/clienteDefaults');
 const { syncJsonFile } = require('../utils/jsonSync');
 const fs = require('fs');
 const path = require('path');
@@ -60,7 +61,7 @@ const importarClientesDesdeJSON = async () => {
 };
 
 /**
- * Genera un nuevo cliente tipo "Invitado-#" con número secuencial único
+ * Genera un nuevo cliente tipo "Cliente-#" con número secuencial único
  * @returns {Promise<Object>} Cliente invitado creado
  */
 const generarClienteInvitado = async () => {
@@ -77,18 +78,18 @@ const generarClienteInvitado = async () => {
             siguienteNumero = ultimoInvitado.numeroInvitado + 1;
         }
 
-        console.log(`🆕 Generando cliente Invitado-${siguienteNumero}`);
+        console.log(`🆕 Generando cliente ${nombreClienteAnonimo(siguienteNumero)}`);
 
         // Crear nuevo cliente invitado (sin campo dni — varios invitados permitidos)
         const nuevoInvitado = await clienteModel.create({
             tipo: 'invitado',
             numeroInvitado: siguienteNumero,
-            nombre: `Invitado-${siguienteNumero}`,
+            nombre: nombreClienteAnonimo(siguienteNumero),
             totalConsumido: 0,
             visitas: 0
         });
 
-        console.log(`✅ Cliente Invitado-${siguienteNumero} creado con ID: ${nuevoInvitado._id}`);
+        console.log(`✅ Cliente ${nombreClienteAnonimo(siguienteNumero)} creado con ID: ${nuevoInvitado._id}`);
 
         // Sincronizar con archivo JSON
         try {

@@ -18,6 +18,7 @@ const ticketPagoAdelantadoRepository = require('../repository/ticketPagoAdelanta
 const comandaModel = require('../database/models/comanda.model');
 const boucherModel = require('../database/models/boucher.model');
 const configuracionRepository = require('../repository/configuracion.repository');
+const { NOMBRE_CLIENTE_FALLBACK } = require('../constants/clienteDefaults');
 const labelMetodoPago = require('../services/boucherPagoService').labelMetodoPago;
 const logger = require('../utils/logger');
 
@@ -356,7 +357,7 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
           subtotal: ticketPPA.subtotal,
           igv: ticketPPA.igv,
           total: ticketPPA.total,
-          cliente: { nombre: 'Invitado', dni: '' },
+          cliente: { nombre: NOMBRE_CLIENTE_FALLBACK, dni: '' },
           voucherId: ticketPPA.voucherId || null,
         },
       });
@@ -436,7 +437,7 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
       igv: boucher?.igv ?? 0,
       total: boucher?.total ?? comanda.precioTotal ?? 0,
       cliente: {
-        nombre: boucher?.clienteNombre || comanda.clienteNombre || comanda.cliente?.nombre || 'Invitado',
+        nombre: boucher?.clienteNombre || comanda.clienteNombre || comanda.cliente?.nombre || NOMBRE_CLIENTE_FALLBACK,
         dni: boucher?.clienteDni || comanda.cliente?.dni || '',
       },
       voucherId: boucher?.voucherId || boucher?.boucherNumber || null,

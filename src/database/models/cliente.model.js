@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const AutoIncrement = require('mongoose-sequence')(mongoose);
+const { nombreClienteAnonimo } = require('../../constants/clienteDefaults');
 
 const clienteSchema = new mongoose.Schema({
     clienteId: { 
@@ -66,7 +67,7 @@ clienteSchema.pre('validate', function(next) {
         if (!this.numeroInvitado) {
             return next(new Error('numeroInvitado es requerido para clientes invitados'));
         }
-        this.nombre = `Invitado-${this.numeroInvitado}`;
+        this.nombre = nombreClienteAnonimo(this.numeroInvitado);
     }
     next();
 });
@@ -74,7 +75,7 @@ clienteSchema.pre('validate', function(next) {
 // Pre-save hook para generar nombre automático para invitados
 clienteSchema.pre('save', function(next) {
     if (this.tipo === 'invitado' && this.numeroInvitado) {
-        this.nombre = `Invitado-${this.numeroInvitado}`;
+        this.nombre = nombreClienteAnonimo(this.numeroInvitado);
     }
     next();
 });

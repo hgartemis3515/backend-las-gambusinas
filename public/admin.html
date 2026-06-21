@@ -3066,7 +3066,7 @@
                     </div>
                 `;
 
-                ModalManager.abrir(`Detalle Cliente: ${cliente.nombre || 'Invitado'}`, modalBody);
+                ModalManager.abrir(`Detalle Cliente: ${cliente.nombre || 'Cliente'}`, modalBody);
             } catch (error) {
                 alert('Error al cargar detalle del cliente: ' + error.message);
             }
