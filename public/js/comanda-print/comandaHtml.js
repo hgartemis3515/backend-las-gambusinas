@@ -273,6 +273,9 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
   const bloques = p.bloques || {};
   const esp = p.espaciado || {};
   const etiquetas = { ...ETIQUETAS_DEFAULT_COMANDA, ...(p.etiquetas || {}) };
+  if (etiquetas.fechaPedido === 'Fecha') {
+    etiquetas.fechaPedido = 'Fecha pedido';
+  }
   const mensajes = p.mensajes || {};
 
   const lineHeight = esp.lineHeight || 16;

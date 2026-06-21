@@ -664,7 +664,7 @@ const configuracionSistemaSchema = new mongoose.Schema({
         },
         etiquetas: {
             comandaNumero: { type: String, default: 'Comanda' },
-            fechaPedido: { type: String, default: 'Fecha' },
+            fechaPedido: { type: String, default: 'Fecha pedido' },
             mesa: { type: String, default: 'Mesa' },
             mozo: { type: String, default: 'Mozo' },
             area: { type: String, default: 'Área' },

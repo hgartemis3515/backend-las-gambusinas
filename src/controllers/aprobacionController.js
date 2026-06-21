@@ -10,6 +10,7 @@
 const express = require('express');
 const router = express.Router();
 
+const moment = require('moment-timezone');
 const mongoose = require('mongoose');
 const aprobacionService = require('../services/aprobacionComanda.service');
 const ticketAprobacionRepository = require('../repository/ticketAprobacion.repository');
@@ -119,7 +120,7 @@ router.put('/aprobacion/:id/aprobar', async (req, res) => {
       // Socket cocina: actualizar bandeja de aprobación
       const io = global.io;
       if (io) {
-        const fechaHoy = new Date().toISOString().split('T')[0];
+        const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
         io.of('/cocina').to(`fecha-${fechaHoy}`).emit('comanda-aprobada', {
           ticketId: result.ticket._id,
           ticketNumber: result.ticket.ticketNumber,
@@ -138,7 +139,7 @@ router.put('/aprobacion/:id/aprobar', async (req, res) => {
       // PPA aprobado: emitir sockets de PPA (los mismos que en pagoAdelantadoController)
       const io = global.io;
       if (io) {
-        const fechaHoy = new Date().toISOString().split('T')[0];
+        const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
         const ticket = result.ticket;
 
         // Notificar a cocina

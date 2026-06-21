@@ -622,6 +622,14 @@ router.get('/configuracion/comanda-plantilla', async (req, res) => {
 
         let plantilla = config.comandaPlantilla || PLANTILLA_DEFAULT;
 
+        plantilla.etiquetas = {
+            ...PLANTILLA_DEFAULT.etiquetas,
+            ...(plantilla.etiquetas || {}),
+        };
+        if (plantilla.etiquetas.fechaPedido === 'Fecha') {
+            plantilla.etiquetas.fechaPedido = 'Fecha pedido';
+        }
+
         // Logo compartido desde voucherPlantilla (o datosFiscales como fallback)
         plantilla.logo = config.voucherPlantilla?.logo
             || config.datosFiscales?.logoUrl

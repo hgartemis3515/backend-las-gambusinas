@@ -1742,7 +1742,7 @@ function comandasApp() {
  },
  camposVisibilidadComanda: [
    { key: 'comandaNumero', label: 'Nº Comanda' },
-   { key: 'fechaPedido', label: 'Fecha/Hora' },
+   { key: 'fechaPedido', label: 'Fecha pedido' },
    { key: 'mesa', label: 'Mesa' },
    { key: 'mozo', label: 'Mozo' },
    { key: 'area', label: 'Área' },
@@ -1941,6 +1941,9 @@ formatearNombreMesa(mesa, mesaObj = null) {
          // Deep merge con defaults
          this.plantillaComanda = this.deepMergeComanda(this.plantillaComanda, data.plantilla);
          this.plantillaComanda.etiquetas = { ...this.ETIQUETAS_DEFAULT_COMANDA, ...(data.plantilla.etiquetas || {}) };
+         if (this.plantillaComanda.etiquetas.fechaPedido === 'Fecha') {
+           this.plantillaComanda.etiquetas.fechaPedido = 'Fecha pedido';
+         }
          this.plantillaComandaOriginal = JSON.parse(JSON.stringify(this.plantillaComanda));
          console.log('✅ Plantilla comanda cargada desde el backend');
          return;
@@ -1957,6 +1960,9 @@ formatearNombreMesa(mesa, mesaObj = null) {
        const data = JSON.parse(saved);
        if (data.etiquetas) {
          data.etiquetas = { ...this.ETIQUETAS_DEFAULT_COMANDA, ...data.etiquetas };
+         if (data.etiquetas.fechaPedido === 'Fecha') {
+           data.etiquetas.fechaPedido = 'Fecha pedido';
+         }
        }
        this.plantillaComanda = this.deepMergeComanda(this.plantillaComanda, data);
        this.plantillaComandaOriginal = JSON.parse(JSON.stringify(this.plantillaComanda));
