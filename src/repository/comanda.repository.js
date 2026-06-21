@@ -2904,11 +2904,19 @@ const getComandasCicloParaPagos = async (mesaId, comandaIdsOpcional = null) => {
     // BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 4): incluir también comandas con platos
     // 'pendiente' (cobrados en un parcial, esperando aprobación de cocina) para que el
     // mozo los vea en la lista con check y pueda continuar cobrando el resto.
+    // ADAPTACIÓN PPA EN PARTES: incluir comandas con platos que tengan pagoAdelantado
+    // (pendiente_aprobacion o aprobado) aunque su estado sea 'pedido'/'en_espera',
+    // para que el mozo vea con check los platos ya cobrados vía PPA en partes.
     const filtradas = comandasConPlatos.filter((comanda) =>
       (comanda.platos || []).some((p) => {
         if (p.eliminado || p.anulado) return false;
         const e = (p.estado || '').toLowerCase();
-        return e === 'entregado' || e === 'pagado' || e === 'pendiente';
+        if (e === 'entregado' || e === 'pagado' || e === 'pendiente') return true;
+        // Platos con PPA (para_llevar cobrado en partes): mostrar para que el mozo
+        // vea el check de "ya pagado vía PPA" y no intente cobrarlos de nuevo.
+        const estadoTicketPPA = p.pagoAdelantado?.estadoTicket;
+        if (estadoTicketPPA === 'pendiente_aprobacion' || estadoTicketPPA === 'aprobado') return true;
+        return false;
       })
     );
 
@@ -3101,6 +3109,18 @@ const validarPlatosSeleccionadosParaPago = async (mesaId, platosSeleccionados, e
         : '"entregado"';
       const err = new Error(
         `Solo se pueden pagar platos en estado ${estadosPermitidos}. Plato "${platoItem.plato?.nombre || 'N/A'}" está en "${estado}".`
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+
+    // ADAPTACIÓN PPA EN PARTES: impedir cobrar de nuevo un plato que ya tiene
+    // pagoAdelantado (pendiente_aprobacion o aprobado). Estos platos ya fueron
+    // cobrados en partes vía PPA y deben mostrarse con check, no volver a pagarse.
+    const estadoTicketPPA = platoItem.pagoAdelantado?.estadoTicket;
+    if (estadoTicketPPA === 'pendiente_aprobacion' || estadoTicketPPA === 'aprobado') {
+      const err = new Error(
+        `El plato "${platoItem.plato?.nombre || 'N/A'}" ya fue cobrado vía pago adelantado (estado: ${estadoTicketPPA}). No se puede cobrar de nuevo.`
       );
       err.statusCode = 400;
       throw err;
