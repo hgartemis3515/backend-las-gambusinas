@@ -1101,13 +1101,13 @@ const eliminarComanda = async (comandaId, usuarioId = null, motivo = 'Eliminaci�
     
     if (comandasRestantes.length > 0) {
       // Prioridad 1: Verificar si hay comandas en estado "entregado" (no pagadas)
-      // Estas comandas deben mantener la mesa en "preparado" hasta que se paguen
+      // Estas comandas deben dejar la mesa en "entregado" (lista para cobrar) hasta que se paguen
       const hayComandasEntregadas = comandasRestantes.some(c => c.status?.toLowerCase() === 'entregado');
       
       if (hayComandasEntregadas) {
-        // Si hay comandas entregadas pero no pagadas, la mesa debe estar en "preparado"
-        nuevoEstadoMesa = 'preparado';
-        console.log(`✅ Mesa tiene ${comandasRestantes.length} comanda(s) restante(s), incluyendo ${comandasRestantes.filter(c => c.status?.toLowerCase() === 'entregado').length} en estado "entregado" (no pagadas) - Mesa a "preparado"`);
+        // Si hay comandas entregadas pero no pagadas, la mesa debe estar en "entregado"
+        nuevoEstadoMesa = 'entregado';
+        console.log(`✅ Mesa tiene ${comandasRestantes.length} comanda(s) restante(s), incluyendo ${comandasRestantes.filter(c => c.status?.toLowerCase() === 'entregado').length} en estado "entregado" (no pagadas) - Mesa a "entregado"`);
       } else {
         // Prioridad 2: Verificar si hay comandas en estado "recoger" (preparado)
         const hayComandasPreparadas = comandasRestantes.some(c => c.status?.toLowerCase() === 'recoger');
@@ -1865,63 +1865,14 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
       throw new Error('Mesa no encontrada');
     }
 
-    // IMPORTANTE: Verificar el estado de TODAS las comandas de la mesa para determinar el estado correcto
-    // Esto es necesario porque si se revierte un plato de "recoger" a "en_espera", la mesa debe volver a "pedido"
-    const comandasMesa = await comandaModel.find({
-      mesas: mesa._id,
-      IsActive: true,
-      status: { $nin: ['pagado', 'completado'] }
-    });
-
-    // Determinar el estado correcto de la mesa basado en todas las comandas
-    let nuevoEstadoMesa = 'libre';
-    
-    if (comandasMesa.length > 0) {
-      // Verificar si hay comandas en estado "recoger" (preparado)
-      const hayComandasPreparadas = comandasMesa.some(c => {
-        // Una comanda está "preparada" si todos sus platos están en "recoger"
-        return c.platos && c.platos.length > 0 && c.platos.every(p => p.estado === "recoger");
-      });
-      
-      if (hayComandasPreparadas) {
-        nuevoEstadoMesa = 'preparado';
-        console.log(`✅ Mesa ${mesa.nummesa} tiene comanda(s) preparada(s) - Estado: "preparado"`);
-      } else {
-        // Si no hay comandas preparadas, verificar si hay comandas en "en_espera" o "recoger" (parcial)
-        const hayComandasActivas = comandasMesa.some(c => {
-          const status = (c.status || '').toLowerCase();
-          return status === 'en_espera' || status === 'recoger';
-        });
-        
-        if (hayComandasActivas) {
-          nuevoEstadoMesa = 'pedido';
-          console.log(`✅ Mesa ${mesa.nummesa} tiene comanda(s) activa(s) - Estado: "pedido"`);
-        } else {
-          nuevoEstadoMesa = 'libre';
-          console.log(`✅ Mesa ${mesa.nummesa} no tiene comandas activas - Estado: "libre"`);
-        }
-      }
-    } else {
-      nuevoEstadoMesa = 'libre';
-      console.log(`✅ Mesa ${mesa.nummesa} no tiene comandas activas - Estado: "libre"`);
-    }
-
-    // Actualizar el estado de la mesa solo si cambió
-    if (mesa.estado !== nuevoEstadoMesa) {
-      const estadoAnterior = mesa.estado;
-      await mesasModel.updateOne(
-        { _id: mesaId },
-        { $set: { estado: nuevoEstadoMesa } }
-      );
-      console.log(`✅ Mesa ${mesa.nummesa} actualizada de "${estadoAnterior}" a "${nuevoEstadoMesa}" después de cambiar estado de plato`);
-      
-      // Emitir evento Socket.io de mesa actualizada
-      if (global.emitMesaActualizada) {
-        await global.emitMesaActualizada(mesaId);
-      }
-    } else {
-      console.log(`ℹ️ Mesa ${mesa.nummesa} ya está en estado "${nuevoEstadoMesa}" - No se requiere actualización`);
-    }
+    // FIX BUG (Mesa Libre tras entregar todos los platos):
+    // Antes existía un bloque legacy que recalculaba el estado de la mesa aquí mismo
+    // sin contemplar comandas en 'entregado' ni 'salio', lo que dejaba la mesa en 'libre'
+    // aunque la comanda estuviera activa con todos los platos entregados.
+    // Ahora delegamos en `recalcularEstadoMesa`, fuente única que ya cubre:
+    //   en_espera → pedido · recoger/salio → preparado · entregado → entregado · (sin comandas) → libre
+    // y emite el evento `mesa-actualizada` por Socket.io.
+    await recalcularEstadoMesa(mesaId);
 
     // Obtener la comanda actualizada con populate completo (opcional para tests)
     let comandaCompleta = await comandaModel.findById(comandaId);
@@ -2575,7 +2526,9 @@ const recalcularEstadoMesa = async (mesaId, session = null) => {
           nuevoEstado: nuevoEstadoMesa
         });
       } else if (comandasEntregadas.length > 0) {
-        nuevoEstadoMesa = 'preparado';
+        // Mesa con comandas en 'entregado' (todos los platos entregados, pendiente de cobro)
+        // → mesa en 'entregado' para distinguir de 'preparado' (platos en salio/recoger).
+        nuevoEstadoMesa = 'entregado';
         logger.debug('Mesa con comandas entregadas esperando pago', {
           mesaId,
           comandasEntregadas: comandasEntregadas.length,

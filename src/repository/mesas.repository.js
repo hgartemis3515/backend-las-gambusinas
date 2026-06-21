@@ -112,12 +112,14 @@ const actualizarEstadoMesa = async (mesaId, nuevoEstado, esAdmin = false) => {
     const estadoSolicitado = nuevoEstado.toLowerCase();
 
     // Definir transiciones permitidas
-    // ACTUALIZADO: Permitir pagado desde pedido o preparado (cuando todos los platos están entregados)
+    // ACTUALIZADO: Agregar 'entregado' como estado de mesa (todos los platos entregados, pendiente de cobro).
+    // Flujo: ... → preparado (salio/recoger) → entregado → pagado → libre
     const transicionesPermitidas = {
         'libre': ['esperando', 'reservado'],
         'esperando': ['pedido'],
-        'pedido': ['preparado', 'pagado', 'pendiente_pago', 'pendiente_aprobar', 'libre'], // pendiente_pago: PPA registrado, pendiente_aprobar: pago normal + imprimir comanda
-        'preparado': ['pagado', 'pendiente_pago', 'pendiente_aprobar', 'libre'], // pendiente_pago: PPA registrado, pendiente_aprobar: pago normal
+        'pedido': ['preparado', 'entregado', 'pagado', 'pendiente_pago', 'pendiente_aprobar', 'libre'], // pendiente_pago: PPA registrado, pendiente_aprobar: pago normal + imprimir comanda
+        'preparado': ['entregado', 'pagado', 'pendiente_pago', 'pendiente_aprobar', 'libre'], // entregado: todos los platos entregados
+        'entregado': ['pagado', 'preparado', 'pendiente_pago', 'pendiente_aprobar', 'libre'], // si un plato vuelve atrás → preparado
         'pendiente_pago': ['pedido', 'en_espera', 'libre'], // al aprobar/rechazar PPA
         'pendiente_aprobar': ['pagado', 'libre'], // al aprobar cocina o liberar mesa
         'pagado': ['libre'],
