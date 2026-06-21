@@ -109,10 +109,13 @@ router.put('/aprobacion/:id/aprobar', async (req, res) => {
           logger.warn('Error emitiendo comanda-aprobada', { error: e.message });
         }
       }
-      // Mozos: mesa pasó de pendiente_aprobar → pagado
+      // BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 3):
+      // La mesa puede quedar en 'pendiente_aprobar' (faltan más tickets del ciclo)
+      // o pasar a 'pagado' (último ticket aprobado). El estado viene en result.mesaEstado.
+      const estadoMesaFinal = result.mesaEstado || 'pendiente_aprobar';
       if (global.emitMesaActualizada) {
         try {
-          await global.emitMesaActualizada(result.ticket.mesa?.toString(), 'pagado');
+          await global.emitMesaActualizada(result.ticket.mesa?.toString(), estadoMesaFinal);
         } catch (e) {
           logger.warn('Error emitiendo mesa-actualizada tras aprobación', { error: e.message });
         }
@@ -128,10 +131,17 @@ router.put('/aprobacion/:id/aprobar', async (req, res) => {
           tipo: 'COMANDA',
           aprobadoPorNombre: usuarioNombre,
           fechaAprobacion: result.ticket.fechaAprobacion || new Date().toISOString(),
+          mesaEstado: estadoMesaFinal,
         });
         io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-ppa-actualizado', {
           ticketId: result.ticket._id,
           estado: 'aprobado',
+        });
+        // Mozos: comunicar el estado real de la mesa (pagado solo si es liberable)
+        io.of('/mozos').to(`mesa-${result.ticket.mesa}`).emit('mesa-actualizada', {
+          mesaId: result.ticket.mesa?.toString(),
+          estado: estadoMesaFinal,
+          listaParaLiberar: estadoMesaFinal === 'pagado',
         });
       }
     }

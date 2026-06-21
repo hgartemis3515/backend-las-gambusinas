@@ -39,7 +39,10 @@ function toObjectId(id) {
  */
 async function crearTicketAprobacion(data) {
   const ticket = new ticketAprobacionModel({
-    tipo: 'comanda_completa',
+    // BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 2): tipo puede ser
+    // 'comanda_completa' (cobro único que cubre toda la mesa) o
+    // 'pago_parcial' (cobro de un subconjunto de platos).
+    tipo: data.tipo === 'pago_parcial' ? 'pago_parcial' : 'comanda_completa',
     estado: 'pendiente_aprobacion',
     comandas: data.comandas || [],
     comandasNumbers: data.comandasNumbers || [],
@@ -131,11 +134,18 @@ async function obtenerTicketsPorFecha(fecha) {
 }
 
 /**
- * Aprobar ticket de comanda completa:
+ * Aprobar ticket de comanda completa o pago parcial:
  *  1. ticket.estado → 'aprobado'
- *  2. platos asociados: 'pendiente' → 'pedido' (entran al KDS)
- *  3. mesa: 'pendiente_aprobar' → 'pagado'
- *  4. auditoría COMANDA_APROBADA_COCINA
+ *  2. platos del SNAPSHOT del ticket: 'pendiente' → 'pagado' (solo esos, no toda la comanda)
+ *  3. comanda: solo se cierra si TODOS sus platos activos quedan en 'pagado'
+ *  4. mesa: solo pasa a 'pagado' si no quedan platos 'entregado'/'pendiente'
+ *     en el ciclo Y no hay otros tickets pendientes del mismo pedido
+ *  5. auditoría COMANDA_APROBADA_COCINA
+ *
+ * BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 3):
+ * Antes, aprobar cualquier ticket cerraba la comanda entera y ponía la mesa en
+ * 'pagado'. Ahora se aprueban SOLO los platos del snapshot del ticket y la mesa
+ * solo se libera cuando todo el ciclo está cobrado y aprobado.
  *
  * No toca boucher (registro contable intacto).
  * No aplica a pagos adelantados (esos tienen su propia aprobación en ticketPagoAdelantado.repository).
@@ -170,11 +180,16 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
   ticket.fechaAprobacion = ts;
   await ticket.save();
 
-  // Liberar platos: 'pendiente' → 'pagado' en cada comanda asociada
-  // PLAN_PLANTILLA_COMANDAS v2: cocina aprueba → platos 'pagado' (cobrados),
-  // la comanda pasa a status 'pagado' (IsActive=false) y la mesa a 'pagado'.
-  // El KDS debe mostrar las comandas con platos en 'pagado' como pendientes de preparar
-  // (filtro ajustado en ComandastylePerso.jsx / comandastyle.jsx para no ocultarlas).
+  // BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 3):
+  // Liberar SOLO los platos que están en el snapshot de este ticket (por platoLineaId).
+  // Antes se cambiaban TODOS los 'pendiente' de la comanda, lo que rompía el ciclo
+  // cuando había varios tickets parciales sobre la misma comanda.
+  const platosSnapshotIds = new Set(
+    (ticket.platos || [])
+      .map((p) => (p.platoLineaId ? String(p.platoLineaId) : null))
+      .filter(Boolean)
+  );
+
   const platosLiberados = [];
   for (const comandaId of ticket.comandas) {
     const comanda = await comandaModel.findById(comandaId);
@@ -182,6 +197,10 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
 
     let modificado = false;
     for (const plato of comanda.platos) {
+      const platoLineaIdStr = plato._id ? String(plato._id) : null;
+      // Solo tocar platos que están en el snapshot del ticket
+      if (!platoLineaIdStr || !platosSnapshotIds.has(platoLineaIdStr)) continue;
+
       const estadoLower = (plato.estado || '').toLowerCase();
       if (estadoLower === 'pendiente') {
         plato.estado = 'pagado';
@@ -197,22 +216,75 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
         });
       }
     }
+
     if (modificado) {
       comanda.markModified('platos');
       comanda.updatedAt = ts;
-      // PLAN_PLANTILLA_COMANDAS: al aprobar, la comanda pasa a 'pagado' (cerrada contablemente).
-      comanda.status = 'pagado';
-      comanda.IsActive = false;
-      if (!comanda.tiempoPagado) comanda.tiempoPagado = ts;
+
+      // Solo cerrar la comanda si TODOS sus platos activos quedaron en 'pagado'.
+      // Si quedan 'entregado' (por cobrar) o 'pendiente' (esperando otro ticket),
+      // mantener la comanda activa.
+      const platosActivos = (comanda.platos || []).filter(
+        (p) => !p.eliminado && !p.anulado
+      );
+      const todosPagados = platosActivos.length > 0
+        && platosActivos.every((p) => (p.estado || '').toLowerCase() === 'pagado');
+
+      if (todosPagados) {
+        comanda.status = 'pagado';
+        comanda.IsActive = false;
+        if (!comanda.tiempoPagado) comanda.tiempoPagado = ts;
+      } else {
+        // Aún hay platos pendientes de cobro o de aprobación → comanda sigue activa
+        comanda.status = 'pendiente_aprobar';
+        comanda.IsActive = true;
+      }
       await comanda.save();
     }
   }
 
-  // Mesa: 'pendiente_aprobar' → 'pagado'
+  // BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 3):
+  // Mesa → 'pagado' SOLO si todo el ciclo está cobrado y aprobado.
+  // Criterios:
+  //   1. No quedan comandas activas con platos 'entregado' (sin cobrar).
+  //   2. No quedan comandas activas con platos 'pendiente' (cobrados, sin aprobar).
+  //   3. No hay otros tickets 'pendiente_aprobacion' del mismo pedido/mesa hoy.
+  let mesaEstadoFinal = null;
   const mesaDoc = await mesasModel.findById(ticket.mesa);
-  if (mesaDoc && mesaDoc.estado === 'pendiente_aprobar') {
-    mesaDoc.estado = 'pagado';
-    await mesaDoc.save();
+  if (mesaDoc) {
+    const evaluacion = await evaluarMesaListaParaLiberar(ticket.mesa, ticket.pedido);
+    if (evaluacion.lista && mesaDoc.estado !== 'reportado') {
+      mesaDoc.estado = 'pagado';
+      await mesaDoc.save();
+      mesaEstadoFinal = 'pagado';
+
+      // Cerrar pedido del ciclo al liberar mesa
+      try {
+        const pedidoModel = mongoose.model('Pedido');
+        const pedidoId = ticket.pedido;
+        if (pedidoId) {
+          const pedido = await pedidoModel.findById(pedidoId);
+          if (pedido && pedido.estado === 'abierto') {
+            pedido.estado = 'pagado';
+            pedido.fechaPago = ts;
+            pedido.boucher = ticket.boucher;
+            await pedido.save();
+          }
+        }
+      } catch (pedidoErr) {
+        logger.warn('No se pudo cerrar el pedido al liberar mesa', {
+          error: pedidoErr.message,
+          mesaId: ticket.mesa,
+        });
+      }
+    } else if (mesaDoc.estado !== 'reportado' && mesaDoc.estado !== 'pagado') {
+      // Mantener mesa en pendiente_aprobar mientras falten platos o tickets
+      mesaDoc.estado = 'pendiente_aprobar';
+      await mesaDoc.save();
+      mesaEstadoFinal = 'pendiente_aprobar';
+    } else {
+      mesaEstadoFinal = mesaDoc.estado;
+    }
   }
 
   // Auditoría
@@ -223,7 +295,7 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
       entidadTipo: 'comanda',
       usuario: usuarioObjId,
       datosAntes,
-      datosDespues: { ticketEstado: 'aprobado', mesaEstado: 'pagado' },
+      datosDespues: { ticketEstado: 'aprobado', mesaEstado: mesaEstadoFinal },
       metadata: {
         ticketId: ticket._id,
         ticketNumber: ticket.ticketNumber,
@@ -235,6 +307,7 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
         platosLiberados: platosLiberados.length,
         aprobadoPor: usuarioNombre,
         boucherId: ticket.boucher,
+        mesaListaParaLiberar: mesaEstadoFinal === 'pagado',
       },
     });
   } catch (auditErr) {
@@ -244,10 +317,70 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
   }
 
   logger.info(
-    `TicketAprobacion #${ticket.ticketNumber} aprobado por ${usuarioNombre}. Platos liberados: ${platosLiberados.length}`
+    `TicketAprobacion #${ticket.ticketNumber} aprobado por ${usuarioNombre}. Platos liberados: ${platosLiberados.length}. Mesa → ${mesaEstadoFinal}`
   );
 
-  return { ticket, platosLiberados, mesaEstado: 'pagado' };
+  return { ticket, platosLiberados, mesaEstado: mesaEstadoFinal };
+}
+
+/**
+ * BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 3):
+ * Evalúa si una mesa está lista para liberar (pasar a 'pagado').
+ * Criterios:
+ *   1. No hay comandas activas con platos 'entregado' (sin cobrar).
+ *   2. No hay comandas activas con platos 'pendiente' (cobrados, esperando otro ticket).
+ *   3. No hay tickets 'pendiente_aprobacion' hoy para la mesa/pedido.
+ *
+ * @param {string|ObjectId} mesaId
+ * @param {string|ObjectId|null} [pedidoId]
+ * @returns {Promise<{ lista: boolean, razones: string[] }>}
+ */
+async function evaluarMesaListaParaLiberar(mesaId, pedidoId = null) {
+  const razones = [];
+
+  // 1 y 2: revisar comandas activas de la mesa
+  const comandasActivas = await comandaModel
+    .find({
+      mesas: mesaId,
+      IsActive: true,
+      eliminada: { $ne: true },
+      status: { $nin: ['cancelado', 'anulado', 'completado'] },
+    })
+    .select('platos status pedido')
+    .lean();
+
+  let hayEntregadosSinCobrar = false;
+  let hayPendientesSinAprobar = false;
+  for (const c of comandasActivas) {
+    for (const p of c.platos || []) {
+      if (p.eliminado || p.anulado) continue;
+      const e = (p.estado || '').toLowerCase();
+      if (e === 'entregado') hayEntregadosSinCobrar = true;
+      if (e === 'pendiente') hayPendientesSinAprobar = true;
+    }
+  }
+  if (hayEntregadosSinCobrar) razones.push('quedan platos en entregado sin cobrar');
+  if (hayPendientesSinAprobar) razones.push('quedan platos en pendiente esperando aprobación');
+
+  // 3: tickets pendientes de aprobación para la mesa hoy
+  const inicioDia = moment().tz(ZONA).startOf('day').toDate();
+  const finDia = moment().tz(ZONA).endOf('day').toDate();
+  const ticketQuery = {
+    mesa: mesaId,
+    estado: 'pendiente_aprobacion',
+    createdAt: { $gte: inicioDia, $lte: finDia },
+    isActive: true,
+  };
+  if (pedidoId) {
+    // Si conocemos el pedido, acotamos a ese ciclo
+    ticketQuery.pedido = pedidoId;
+  }
+  const ticketsPendientes = await ticketAprobacionModel.countDocuments(ticketQuery);
+  if (ticketsPendientes > 0) {
+    razones.push(`hay ${ticketsPendientes} ticket(s) pendiente(s) de aprobación`);
+  }
+
+  return { lista: razones.length === 0, razones };
 }
 
 /**
@@ -435,4 +568,5 @@ module.exports = {
   aprobarTicket,
   reportarTicket,
   obtenerTicketImprimible,
+  evaluarMesaListaParaLiberar,
 };

@@ -2901,11 +2901,14 @@ const getComandasCicloParaPagos = async (mesaId, comandaIdsOpcional = null) => {
       .sort({ createdAt: -1 });
 
     const comandasConPlatos = await ensurePlatosPopulated(comandas);
+    // BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 4): incluir también comandas con platos
+    // 'pendiente' (cobrados en un parcial, esperando aprobación de cocina) para que el
+    // mozo los vea en la lista con check y pueda continuar cobrando el resto.
     const filtradas = comandasConPlatos.filter((comanda) =>
       (comanda.platos || []).some((p) => {
         if (p.eliminado || p.anulado) return false;
         const e = (p.estado || '').toLowerCase();
-        return e === 'entregado' || e === 'pagado';
+        return e === 'entregado' || e === 'pagado' || e === 'pendiente';
       })
     );
 
@@ -2954,10 +2957,14 @@ const getComandasActivasPorMesa = async (mesaId) => {
 
 const getComandasParaPagar = async (mesaId, comandaIds = null) => {
   try {
+    // BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 1):
+    // Incluir 'pendiente_aprobar' para que una comanda con pago parcial registrado
+    // siga apareciendo aquí (sus platos restantes 'entregado' aún son cobrables).
+    // obtenerPlatosPagables sigue devolviendo solo platos en 'entregado'.
     const query = {
       mesas: mesaId,
       IsActive: true,
-      status: { $in: ['recoger', 'salio', 'entregado'] }
+      status: { $in: ['recoger', 'salio', 'entregado', 'pendiente_aprobar'] }
     };
     if (comandaIds && Array.isArray(comandaIds) && comandaIds.length > 0) {
       const ids = comandaIds.map(id => (typeof id === 'string' ? id.trim() : id)).filter(Boolean);
@@ -2983,7 +2990,7 @@ const getComandasParaPagar = async (mesaId, comandaIds = null) => {
         return e === 'entregado' || e === 'pagado';
       });
 
-      if (todosEntregadosOPagados && comanda.status !== 'entregado' && comanda.status !== 'pagado') {
+      if (todosEntregadosOPagados && comanda.status !== 'entregado' && comanda.status !== 'pagado' && comanda.status !== 'pendiente_aprobar') {
         try {
           await comandaModel.findByIdAndUpdate(comanda._id, { status: 'entregado' });
           comanda.status = 'entregado';
@@ -3022,9 +3029,12 @@ const validarPlatosSeleccionadosParaPago = async (mesaId, platosSeleccionados, e
 
   const comandasIds = [...new Set(platosSeleccionados.map((s) => String(s.comandaId)))];
   // Para pago adelantado, permitir comandas en estados más tempranos (pedido, en_espera, recoger, salio, entregado)
+  // BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 4): incluir 'pendiente_aprobar' en el flujo
+  // normal para permitir cobros parciales sucesivos sobre la misma comanda. Los platos
+  // cobrables siguen siendo solo 'entregado' (validación por plato más abajo).
   const estadosValidos = esPagoAdelantado
-    ? ['pedido', 'en_espera', 'recoger', 'salio', 'entregado']
-    : ['recoger', 'salio', 'entregado'];
+    ? ['pedido', 'en_espera', 'recoger', 'salio', 'entregado', 'pendiente_aprobar']
+    : ['recoger', 'salio', 'entregado', 'pendiente_aprobar'];
   const comandas = await comandaModel
     .find({
       _id: { $in: comandasIds },

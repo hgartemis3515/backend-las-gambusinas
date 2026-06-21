@@ -207,13 +207,15 @@ router.post('/boucher', async (req, res) => {
                 (boucher.comandas || []).map((id) => id.toString())
             );
             for (const comandaId of idsPagados) {
-                const estadoNuevo = resumen.mesaPagadaCompletamente
-                    ? 'entregado' // PLAN_PLANTILLA_COMANDAS: ya no 'pagado' directo; queda entregado/pendiente hasta aprobación
-                    : resumen.comandas.find((c) => c._id.toString() === comandaId)
-                    ? resumen.comandas.find((c) => c._id.toString() === comandaId).status
-                    : 'entregado';
+                // BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 2/3):
+                // Tras un pago (parcial o total), la comanda queda en 'pendiente_aprobar'
+                // (platos cobrados en 'pendiente' esperando aprobación de cocina).
+                // Emitir el status real del resumen; antes se forzaba 'entregado' cuando
+                // mesaPagadaCompletamente, lo que ocultaba el estado pendiente_aprobar.
+                const comandaResumen = resumen.comandas.find((c) => c._id.toString() === comandaId);
+                const estadoNuevo = comandaResumen?.status || 'pendiente_aprobar';
                 await global
-                    .emitComandaActualizada(comandaId, 'entregado', estadoNuevo)
+                    .emitComandaActualizada(comandaId, 'pendiente_aprobar', estadoNuevo)
                     .catch((err) => console.error(`⚠️ emitComandaActualizada ${comandaId}:`, err.message));
             }
         }

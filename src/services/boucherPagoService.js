@@ -7,6 +7,7 @@ const moment = require('moment-timezone');
 const comandaModel = require('../database/models/comanda.model');
 const pedidoModel = require('../database/models/pedido.model');
 const mesasModel = require('../database/models/mesas.model');
+const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
 const configuracionRepository = require('../repository/configuracion.repository');
 const calculosPrecios = require('../utils/calculosPrecios');
 const { crearBoucher } = require('../repository/boucher.repository');
@@ -158,8 +159,13 @@ function calcularTotalesConDescuentos(comandasValidas, platosParaBoucher, config
   };
 }
 
-async function cerrarPedidoSiMesaCompleta(mesaId, boucherId, clienteId, mesaPagadaCompletamente) {
-  if (!mesaPagadaCompletamente) return;
+async function cerrarPedidoSiMesaCompleta(mesaId, boucherId, clienteId, mesaListaParaLiberar) {
+  // BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 1):
+  // Solo cerrar el pedido cuando la mesa está LISTA PARA LIBERAR
+  // (cobro completo + todos los tickets aprobados). Antes se cerraba con solo
+  // 'mesaPagadaCompletamente' (cobro completo), lo que rompía el ciclo si
+  // faltaba aprobación de cocina de un pago parcial.
+  if (!mesaListaParaLiberar) return;
   try {
     const pedidoAbierto = await pedidoModel.findOne({
       mesa: mesaId,
@@ -182,8 +188,58 @@ async function construirResumenPago(mesaId) {
   const comandas = await getComandasParaPagar(mesaId);
   const totalPendiente = await calcularTotalPendienteMesa(mesaId);
   const mesa = await mesasModel.findById(mesaId).select('nummesa estado nombreCombinado').lean();
+
+  // BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 1):
+  // Distinguir dos conceptos antes fusionados:
+  //   - cobroCompleto: NO quedan platos 'entregado' en el ciclo → ya se cobró todo.
+  //   - mesaListaParaLiberar: cobro completo Y no quedan tickets 'pendiente_aprobacion'
+  //     en el ciclo actual Y no quedan platos 'pendiente' (esperando aprobación).
+  // El frontend usa `cobroCompleto` para saber si quedan platos por cobrar,
+  // y `mesaListaParaLiberar` para saber si la mesa puede pasar a 'pagado'.
+  const platosEntregadosPendientes = (comandas || []).some((c) =>
+    (c.platos || []).some((p) => {
+      if (p.eliminado || p.anulado) return false;
+      return (p.estado || '').toLowerCase() === 'entregado';
+    })
+  );
+  const cobroCompleto = !platosEntregadosPendientes && totalPendiente <= 0;
+
+  let mesaListaParaLiberar = false;
+  if (cobroCompleto) {
+    // Verificar que no queden platos en 'pendiente' (cobrados, esperando cocina)
+    const platosPendientesAprobacion = (comandas || []).some((c) =>
+      (c.platos || []).some((p) => {
+        if (p.eliminado || p.anulado) return false;
+        return (p.estado || '').toLowerCase() === 'pendiente';
+      })
+    );
+
+    let ticketsPendientes = false;
+    if (!platosPendientesAprobacion) {
+      // Buscar tickets del ciclo (por mesa) aún pendientes de aprobación
+      try {
+        const inicioDia = moment().tz('America/Lima').startOf('day').toDate();
+        const finDia = moment().tz('America/Lima').endOf('day').toDate();
+        const count = await ticketAprobacionModel.countDocuments({
+          mesa: mesaId,
+          estado: 'pendiente_aprobacion',
+          createdAt: { $gte: inicioDia, $lte: finDia },
+          isActive: true,
+        });
+        ticketsPendientes = count > 0;
+      } catch (e) {
+        // Si la consulta falla, ser conservador: no liberar
+        ticketsPendientes = true;
+      }
+    }
+    mesaListaParaLiberar = !platosPendientesAprobacion && !ticketsPendientes;
+  }
+
   return {
-    mesaPagadaCompletamente: comandas.length === 0,
+    // Alias legacy: mesaPagadaCompletamente = ya se cobró todo (no implica liberable)
+    mesaPagadaCompletamente: cobroCompleto,
+    cobroCompleto,
+    mesaListaParaLiberar,
     totalPendiente,
     cantidadComandasPendientes: comandas.length,
     comandas,
@@ -451,104 +507,116 @@ async function procesarPagoBoucher(params) {
   await recalcularEstadoMesa(mesaId);
 
   const resumen = await construirResumenPago(mesaId);
+
+  // BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 2):
+  // Crear un TicketAprobacion por CADA cobro normal (parcial o total), con snapshot
+  // de SOLO los platos de este boucher. La mesa pasa a 'pendiente_aprobar' tras el
+  // primer cobro del ciclo y solo va a 'pagado' cuando cocina aprueba el último
+  // ticket pendiente del pedido (ver ticketAprobacion.repository.aprobarTicket).
+  if (!esPagoAdelantado && platosParaBoucher.length > 0) {
+    // Mesa siempre a pendiente_aprobar mientras haya tickets sin aprobar
+    const mesaDoc = await mesasModel.findById(mesaId);
+    if (mesaDoc && mesaDoc.estado !== 'reportado' && mesaDoc.estado !== 'pagado') {
+      mesaDoc.estado = 'pendiente_aprobar';
+      await mesaDoc.save();
+      resumen.mesa.estado = 'pendiente_aprobar';
+    }
+
+    // Snapshot de platos para el ticket (solo los platos de este cobro)
+    const platosSnapshot = platosParaBoucher.map((p) => ({
+      comandaId: comandasIdsAfectadas.find((cid) =>
+        comandasValidas.find((c) => c._id.toString() === cid.toString() && c.comandaNumber === p.comandaNumber)
+      ) || null,
+      comandaNumber: p.comandaNumber || null,
+      platoLineaId: p.platoSubdocId ? (mongoose.Types.ObjectId.isValid(p.platoSubdocId) ? p.platoSubdocId : null) : null,
+      plato: p.plato,
+      platoId: p.platoId,
+      nombre: p.nombre,
+      precio: p.precio,
+      cantidad: p.cantidad,
+      subtotal: p.subtotal,
+      tipoServicio: p.tipoServicio || 'mesa',
+      complementosSeleccionados: p.complementosSeleccionados || [],
+      notaEspecial: '',
+    }));
+
+    try {
+      const clienteDoc = clienteId
+        ? await mongoose.model('Cliente').findById(clienteId).select('nombre dni').lean()
+        : null;
+
+      ticketAprobacionCreado = await ticketAprobacionRepository.crearTicketAprobacion({
+        comandas: comandasIdsAfectadas,
+        comandasNumbers: boucherData.comandasNumbers,
+        mesa: mesaId,
+        numMesa: boucherData.numMesa,
+        mozo: mozoId,
+        nombreMozo: boucherData.nombreMozo,
+        mozoNombre: boucherData.nombreMozo,
+        pedido: pedidoId,
+        // tipo: 'pago_parcial' si no cubre toda la mesa, 'comanda_completa' si sí
+        tipo: resumen.cobroCompleto ? 'comanda_completa' : 'pago_parcial',
+        platos: platosSnapshot,
+        subtotal: totales.subtotal,
+        igv: totales.igv,
+        total: totales.total,
+        boucher: boucherCreado._id,
+        voucherId: boucherCreado.voucherId || boucherCreado.boucherNumber || null,
+        moneda: monedaNormalizada,
+        metodoPago,
+        cliente: clienteId || null,
+        clienteNombre: clienteDoc?.nombre || null,
+        clienteDni: clienteDoc?.dni || null,
+        observaciones: observaciones || '',
+        sourceApp: 'mozos',
+      });
+
+      // Auditoría: comanda enviada a aprobación
+      try {
+        const AuditoriaAcciones = require('../database/models/auditoriaAcciones.model');
+        await AuditoriaAcciones.create({
+          accion: 'COMANDA_ENVIADA_APROBACION',
+          entidadId: ticketAprobacionCreado._id,
+          entidadTipo: 'comanda',
+          usuario: null,
+          datosAntes: null,
+          datosDespues: {
+            ticketId: ticketAprobacionCreado._id,
+            ticketNumber: ticketAprobacionCreado.ticketNumber,
+            mesaEstado: 'pendiente_aprobar',
+            tipo: ticketAprobacionCreado.tipo,
+          },
+          metadata: {
+            mesaId,
+            numMesa: boucherData.numMesa,
+            mozoId,
+            mozoNombre: boucherData.nombreMozo,
+            comandasNumbers: boucherData.comandasNumbers,
+            boucherId: boucherCreado._id,
+            total: totales.total,
+            tipo: ticketAprobacionCreado.tipo,
+            esPagoParcial: parcial,
+          },
+        });
+      } catch (auditErr) {
+        console.warn('⚠️ No se pudo registrar auditoría COMANDA_ENVIADA_APROBACION:', auditErr.message);
+      }
+    } catch (ticketErr) {
+      // No bloquear el pago si falla la creación del ticket; se notifica y sigue.
+      console.error('❌ Error creando TicketAprobacion (no crítico):', ticketErr.message);
+    }
+  }
+
+  // Cerrar pedido solo cuando la mesa esté lista para liberar (cobro completo
+  // + todos los tickets aprobados). En un flujo normal, esto será false aquí
+  // porque acabamos de crear un ticket pendiente; el cierre real ocurre al
+  // aprobar el último ticket (ver ticketAprobacion.repository.aprobarTicket).
   await cerrarPedidoSiMesaCompleta(
     mesaId,
     boucherCreado._id,
     clienteId,
-    resumen.mesaPagadaCompletamente
+    resumen.mesaListaParaLiberar
   );
-
-  if (resumen.mesaPagadaCompletamente) {
-    if (!esPagoAdelantado) {
-      // PLAN_PLANTILLA_COMANDAS: pago normal completo → mesa en 'pendiente_aprobar'
-      // (NO 'pagado'). Cocina debe aprobar la comanda para que los platos
-      // pasen a 'pedido' y la mesa a 'pagado'. Se crea el TicketAprobacion.
-      await mesasModel.findByIdAndUpdate(mesaId, { estado: 'pendiente_aprobar' });
-      resumen.mesa.estado = 'pendiente_aprobar';
-
-      // Snapshot de platos para el ticket (mismo formato que el boucher)
-      const platosSnapshot = platosParaBoucher.map((p) => ({
-        comandaId: comandasIdsAfectadas.find((cid) =>
-          comandasValidas.find((c) => c._id.toString() === cid.toString() && c.comandaNumber === p.comandaNumber)
-        ) || null,
-        comandaNumber: p.comandaNumber || null,
-        platoLineaId: p.platoSubdocId ? (mongoose.Types.ObjectId.isValid(p.platoSubdocId) ? p.platoSubdocId : null) : null,
-        plato: p.plato,
-        platoId: p.platoId,
-        nombre: p.nombre,
-        precio: p.precio,
-        cantidad: p.cantidad,
-        subtotal: p.subtotal,
-        tipoServicio: p.tipoServicio || 'mesa',
-        complementosSeleccionados: p.complementosSeleccionados || [],
-        notaEspecial: '',
-      }));
-
-      try {
-        const clienteDoc = clienteId
-          ? await mongoose.model('Cliente').findById(clienteId).select('nombre dni').lean()
-          : null;
-
-        ticketAprobacionCreado = await ticketAprobacionRepository.crearTicketAprobacion({
-          comandas: comandasIdsAfectadas,
-          comandasNumbers: boucherData.comandasNumbers,
-          mesa: mesaId,
-          numMesa: boucherData.numMesa,
-          mozo: mozoId,
-          nombreMozo: boucherData.nombreMozo,
-          mozoNombre: boucherData.nombreMozo,
-          pedido: pedidoId,
-          platos: platosSnapshot,
-          subtotal: totales.subtotal,
-          igv: totales.igv,
-          total: totales.total,
-          boucher: boucherCreado._id,
-          voucherId: boucherCreado.voucherId || boucherCreado.boucherNumber || null,
-          moneda: monedaNormalizada,
-          metodoPago,
-          cliente: clienteId || null,
-          clienteNombre: clienteDoc?.nombre || null,
-          clienteDni: clienteDoc?.dni || null,
-          observaciones: observaciones || '',
-          sourceApp: 'mozos',
-        });
-
-        // Auditoría: comanda enviada a aprobación
-        try {
-          const AuditoriaAcciones = require('../database/models/auditoriaAcciones.model');
-          await AuditoriaAcciones.create({
-            accion: 'COMANDA_ENVIADA_APROBACION',
-            entidadId: ticketAprobacionCreado._id,
-            entidadTipo: 'comanda',
-            usuario: clienteId ? null : null,
-            datosAntes: null,
-            datosDespues: {
-              ticketId: ticketAprobacionCreado._id,
-              ticketNumber: ticketAprobacionCreado.ticketNumber,
-              mesaEstado: 'pendiente_aprobar',
-            },
-            metadata: {
-              mesaId,
-              numMesa: boucherData.numMesa,
-              mozoId,
-              mozoNombre: boucherData.nombreMozo,
-              comandasNumbers: boucherData.comandasNumbers,
-              boucherId: boucherCreado._id,
-              total: totales.total,
-            },
-          });
-        } catch (auditErr) {
-          console.warn('⚠️ No se pudo registrar auditoría COMANDA_ENVIADA_APROBACION:', auditErr.message);
-        }
-      } catch (ticketErr) {
-        // No bloquear el pago si falla la creación del ticket; se notifica y sigue.
-        console.error('❌ Error creando TicketAprobacion (no crítico):', ticketErr.message);
-      }
-    } else {
-      // PPA completo: el TPA se crea en el controller (lógica existente, sin cambio).
-      // Aquí solo se mantiene el estado actual de la mesa (pendiente_pago por PPA).
-    }
-  }
 
   return { boucher: boucherCreado, resumen, ticketAprobacion: ticketAprobacionCreado };
 }

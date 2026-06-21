@@ -25,7 +25,7 @@ const ticketAprobacionSchema = new mongoose.Schema({
   },
   tipo: {
     type: String,
-    enum: ['comanda_completa'],
+    enum: ['comanda_completa', 'pago_parcial'],
     default: 'comanda_completa',
   },
   estado: {
