@@ -72,6 +72,7 @@ function buildPlatoBoucherLine(comanda, platoItem, index, cantidad) {
     subtotal,
     comandaNumber: comanda.comandaNumber || null,
     complementosSeleccionados: platoItem.complementosSeleccionados || [],
+    notaEspecial: platoItem.notaEspecial || '',
     // NUEVO: Tipo de servicio (Mesa vs Para llevar)
     tipoServicio: platoItem.tipoServicio || 'mesa',
     cocinero: cocineroNombre,
@@ -537,7 +538,7 @@ async function procesarPagoBoucher(params) {
       subtotal: p.subtotal,
       tipoServicio: p.tipoServicio || 'mesa',
       complementosSeleccionados: p.complementosSeleccionados || [],
-      notaEspecial: '',
+      notaEspecial: p.notaEspecial || '',
     }));
 
     try {
