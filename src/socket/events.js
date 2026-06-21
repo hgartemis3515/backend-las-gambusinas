@@ -1943,6 +1943,19 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
 
   // ========== TEMA 4: EVENTOS DE PROCESAMIENTO CON IDENTIFICACIÓN DE COCINERO ==========
 
+  const emitProcesamientoToMesaMozos = async (eventName, comandaId, eventData) => {
+    try {
+      if (!mozosNamespace?.sockets || !comandaId) return;
+      const comanda = await comandaModel.findById(comandaId).select('mesas').lean();
+      const mesaId = comanda?.mesas?._id || comanda?.mesas;
+      if (mesaId) {
+        mozosNamespace.to(`mesa-${mesaId}`).emit(eventName, eventData);
+      }
+    } catch (error) {
+      logger.error(`Error al emitir ${eventName} a mozos`, { error: error.message, comandaId });
+    }
+  };
+
   /**
    * Emitir evento cuando un cocinero toma un plato
    * @param {String} comandaId - ID de la comanda
@@ -1959,10 +1972,12 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         comandaId: comandaId?.toString(),
         platoId: platoId?.toString(),
         cocinero,
+        procesandoPor: cocinero,
         timestamp
       };
 
       cocinaNamespace.to(roomName).emit('plato-procesando', eventData);
+      await emitProcesamientoToMesaMozos('plato-procesando', comandaId, eventData);
 
       logger.info('Evento plato-procesando emitido', {
         comandaId,
@@ -1996,6 +2011,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       };
 
       cocinaNamespace.to(roomName).emit('plato-liberado', eventData);
+      await emitProcesamientoToMesaMozos('plato-liberado', comandaId, eventData);
 
       logger.info('Evento plato-liberado emitido', { comandaId, platoId, cocineroId });
     } catch (error) {
@@ -2026,6 +2042,10 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       };
 
       cocinaNamespace.to(roomName).emit('comanda-procesando', eventData);
+      await emitProcesamientoToMesaMozos('comanda-procesando', comandaId, {
+        ...eventData,
+        procesandoPor: cocinero
+      });
 
       logger.info('Evento comanda-procesando emitido', {
         comandaId,
@@ -2061,6 +2081,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       };
 
       cocinaNamespace.to(roomName).emit('comanda-liberada', eventData);
+      await emitProcesamientoToMesaMozos('comanda-liberada', comandaId, eventData);
 
       logger.info('Evento comanda-liberada emitido', { comandaId, cocineroId, roomName });
     } catch (error) {

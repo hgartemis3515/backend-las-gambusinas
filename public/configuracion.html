@@ -547,6 +547,22 @@ tailwind.config = {
               ni en las opciones de mesa. Toda acción relacionada con imprimir comanda quedará oculta en la App de Mozos.
             </p>
           </div>
+          <div class="space-y-3 border-t border-[rgba(212,175,55,0.15)] pt-4">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.mozosPermitirEditarEliminarTomadasPorCocina" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Permitir editar/eliminar comandas o platos tomados por cocina</span>
+            </label>
+            <p class="text-xs text-txt-muted ml-7">
+              Si está <strong class="text-txt-secondary font-medium">desmarcado</strong> (recomendado), los mozos no podrán modificar ni eliminar comandas o platos
+              que un cocinero ya tomó en la app de cocina (Vista General, Vista Personalizada o Vista Supervisor).
+              Marque esta opción solo si el local permite que los mozos corrijan pedidos aunque cocina ya los esté preparando.
+            </p>
+            <p class="text-xs ml-7"
+              :class="config.mozosPermitirEditarEliminarTomadasPorCocina ? 'text-st-esperando' : 'text-st-libre'"
+              x-text="config.mozosPermitirEditarEliminarTomadasPorCocina
+                ? 'Mozos pueden editar/eliminar comandas tomadas por cocina'
+                : 'Protección activa: mozos bloqueados si cocina tomó la comanda o platos'"></p>
+          </div>
         </div>
 
         <!-- COCINA -->
@@ -1286,6 +1302,8 @@ function configApp() {
       // Mozos (App de Mozos): por defecto botón imprimir comanda deshabilitado.
       // Flag plano para binding directo del checkbox en la UI.
       mozosBotonImprimirComanda: false,
+      // Por defecto false: mozos no editan/eliminan comandas o platos tomados por cocina.
+      mozosPermitirEditarEliminarTomadasPorCocina: false,
       // Seguridad
       seguridad: {
         timeoutInactividadMin: 30,
@@ -1562,8 +1580,10 @@ function configApp() {
           // PLAN: por defecto false (deshabilitado). Si el backend no lo envía, mantener false.
           if (cfg.mozos) {
             this.config.mozosBotonImprimirComanda = cfg.mozos.botonImprimirComanda === true;
+            this.config.mozosPermitirEditarEliminarTomadasPorCocina = cfg.mozos.permitirEditarEliminarTomadasPorCocina === true;
           } else {
             this.config.mozosBotonImprimirComanda = false;
+            this.config.mozosPermitirEditarEliminarTomadasPorCocina = false;
           }
 
           // Mapear zona horaria y otros
@@ -1700,7 +1720,8 @@ function configApp() {
 
           // Mozos (App de Mozos)
           mozos: {
-            botonImprimirComanda: this.config.mozosBotonImprimirComanda === true
+            botonImprimirComanda: this.config.mozosBotonImprimirComanda === true,
+            permitirEditarEliminarTomadasPorCocina: this.config.mozosPermitirEditarEliminarTomadasPorCocina === true
           },
           
           // Seguridad

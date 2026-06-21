@@ -39,6 +39,12 @@ const HistorialComandas = require('../database/models/historialComandas.model');
 const comandaModel = require('../database/models/comanda.model');
 const logger = require('../utils/logger');
 const { handleError, createErrorResponse } = require('../utils/errorHandler');
+const {
+    validarEdicionMozoPermitida,
+    validarActualizacionComandaMozo,
+    resolverIndicesPlatosEliminados,
+    responderBloqueoCocina
+} = require('../utils/reglasComandaTomadaCocina');
 const { getComandasParaPagoAdelantado } = require('../repository/ticketPagoAdelantado.repository');
 
 router.get('/comanda', async (req, res) => {
@@ -398,6 +404,14 @@ router.delete('/comanda/:id', async (req, res) => {
         if (!snapshotAntes) {
             return res.status(404).json({ message: 'Comanda no encontrada' });
         }
+
+        const validacionTomada = await validarEdicionMozoPermitida(snapshotAntes, {
+            forzarAdmin: req.body?.forzarAdmin === true,
+            verificarComandaCompleta: true
+        });
+        if (!validacionTomada.permitido) {
+            return responderBloqueoCocina(res, validacionTomada);
+        }
         
         // Si no hay usuarioId en el request, obtenerlo de la comanda (mozo que creó la comanda)
         if (!usuarioId && snapshotAntes.mozos) {
@@ -522,6 +536,14 @@ router.put('/comanda/:id/eliminar', async (req, res) => {
             .lean();
         if (!snapshotAntes) {
             return res.status(404).json({ message: 'Comanda no encontrada' });
+        }
+
+        const validacionTomada = await validarEdicionMozoPermitida(snapshotAntes, {
+            forzarAdmin: req.body?.forzarAdmin === true,
+            verificarComandaCompleta: true
+        });
+        if (!validacionTomada.permitido) {
+            return responderBloqueoCocina(res, validacionTomada);
         }
         
         const comanda = await eliminarLogicamente(id, usuarioId, motivo);
@@ -973,6 +995,15 @@ router.put('/comanda/:id/eliminar-plato/:platoIndex', async (req, res) => {
         if (!comanda) {
             return res.status(404).json({ message: 'Comanda no encontrada' });
         }
+
+        const validacionTomada = await validarEdicionMozoPermitida(comanda, {
+            forzarAdmin: req.body?.forzarAdmin === true,
+            indicesPlatos: [parseInt(platoIndex, 10)],
+            verificarComandaCompleta: true
+        });
+        if (!validacionTomada.permitido) {
+            return responderBloqueoCocina(res, validacionTomada);
+        }
         
         // Validar que la comanda esté en estado editable (en_espera = pedido)
         if (comanda.status !== 'en_espera') {
@@ -1241,6 +1272,23 @@ router.put('/comanda/:id/editar-platos', async (req, res) => {
         if (!snapshotAntesRaw) {
             return res.status(404).json({ message: 'Comanda no encontrada' });
         }
+
+        const forzarAdmin = req.body?.forzarAdmin === true;
+        const validacionComanda = await validarEdicionMozoPermitida(snapshotAntesRaw, { forzarAdmin });
+        if (!validacionComanda.permitido) {
+            return responderBloqueoCocina(res, validacionComanda);
+        }
+
+        const indicesEliminados = resolverIndicesPlatosEliminados(snapshotAntesRaw, platosEliminados);
+        if (indicesEliminados.length > 0) {
+            const validacionPlatos = await validarEdicionMozoPermitida(snapshotAntesRaw, {
+                forzarAdmin,
+                indicesPlatos: indicesEliminados
+            });
+            if (!validacionPlatos.permitido) {
+                return responderBloqueoCocina(res, validacionPlatos);
+            }
+        }
         
         // Crear snapshot manual con nombres explícitos para auditoría
         const platoModel = require('../database/models/plato.model');
@@ -1488,6 +1536,20 @@ router.put("/comanda/:id", async (req, res) => {
     const { id } = req.params;
     const newData = req.body;
     try {
+      const comandaAntes = await comandaModel.findById(id);
+      if (!comandaAntes) {
+        return res.status(404).json({ message: 'Comanda no encontrada' });
+      }
+
+      const validacionTomada = await validarActualizacionComandaMozo(
+        comandaAntes,
+        newData,
+        newData?.forzarAdmin === true
+      );
+      if (!validacionTomada.permitido) {
+        return responderBloqueoCocina(res, validacionTomada);
+      }
+
       const updatedComanda = await actualizarComanda(id, newData);
       res.json(updatedComanda);
       console.log("Comanda actualizada exitosamente");
@@ -2094,6 +2156,19 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
         
         if (!comandaCheck) {
             return res.status(404).json({ message: 'Comanda no encontrada' });
+        }
+
+        const indicesValidosPre = platosAEliminar
+            .map((idx) => parseInt(idx, 10))
+            .filter((index) => !Number.isNaN(index) && index >= 0 && index < comandaCheck.platos.length);
+
+        const validacionTomada = await validarEdicionMozoPermitida(comandaCheck, {
+            forzarAdmin: forzarAdmin === true,
+            indicesPlatos: indicesValidosPre,
+            verificarComandaCompleta: true
+        });
+        if (!validacionTomada.permitido) {
+            return responderBloqueoCocina(res, validacionTomada);
         }
         
         // 2. Validar que los índices sean válidos

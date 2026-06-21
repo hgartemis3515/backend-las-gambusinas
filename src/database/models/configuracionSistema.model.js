@@ -113,8 +113,11 @@ const CONFIGURACION_DEFAULT = {
     // botonImprimirComanda: habilita/deshabilita TODO lo relacionado con imprimir comanda
     // en la app de mozos (botón en PagosScreen, opción en alert de mesa pagada, etc.).
     // Por defecto desmarcado (false) — los mozos no imprimen comanda hasta que se habilite.
+    // permitirEditarEliminarTomadasPorCocina: si false (default), mozos no editan/eliminan
+    // comandas o platos con procesandoPor asignado por cocina (cualquier tablero KDS).
     mozos: {
-        botonImprimirComanda: false
+        botonImprimirComanda: false,
+        permitirEditarEliminarTomadasPorCocina: false
     },
 
     // Seguridad
@@ -433,6 +436,10 @@ const configuracionSistemaSchema = new mongoose.Schema({
         botonImprimirComanda: {
             type: Boolean,
             default: CONFIGURACION_DEFAULT.mozos.botonImprimirComanda
+        },
+        permitirEditarEliminarTomadasPorCocina: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.mozos.permitirEditarEliminarTomadasPorCocina
         }
     },
 
