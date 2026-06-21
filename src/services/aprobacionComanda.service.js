@@ -28,7 +28,7 @@ async function obtenerTicketsUnificadosPendientes(fecha) {
   const ticketsComanda = await ticketAprobacionRepository.obtenerTicketsPendientes(fechaQuery);
   const comandaItems = ticketsComanda.map((t) => ({
     ...t,
-    tipo: 'COMANDA',
+    tipo: t.tipo === 'pago_parcial' ? 'PAGO_PARCIAL' : 'COMANDA',
   }));
 
   // Tickets PPA pendientes

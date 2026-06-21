@@ -47,7 +47,10 @@ router.get('/aprobacion/pendientes', async (req, res) => {
       const tickets = await ticketAprobacionRepository.obtenerTicketsPendientes(fecha || null);
       return res.json({
         success: true,
-        tickets: tickets.map((t) => ({ ...t, tipo: 'COMANDA' })),
+        tickets: tickets.map((t) => ({
+          ...t,
+          tipo: t.tipo === 'pago_parcial' ? 'PAGO_PARCIAL' : 'COMANDA',
+        })),
       });
     }
 
@@ -71,7 +74,10 @@ router.get('/aprobacion/fecha/:fecha', async (req, res) => {
     const ticketsPPA = await ticketPagoAdelantadoRepository.obtenerTicketsPorFecha(fecha);
 
     const tickets = [
-      ...ticketsComanda.map((t) => ({ ...t, tipo: 'COMANDA' })),
+      ...ticketsComanda.map((t) => ({
+        ...t,
+        tipo: t.tipo === 'pago_parcial' ? 'PAGO_PARCIAL' : 'COMANDA',
+      })),
       ...ticketsPPA.map((t) => ({ ...t, tipo: 'ADELANTADO' })),
     ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
@@ -301,6 +307,87 @@ router.put('/aprobacion/:id/reportar', async (req, res) => {
 });
 
 /**
+ * GET /api/aprobacion/:id/ticket-imprimible
+ * Datos de impresión para un TicketAprobacion o TicketPagoAdelantado específico.
+ */
+router.get('/aprobacion/:id/ticket-imprimible', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'ID de ticket inválido' });
+    }
+
+    const ticketAprobacion = await mongoose.model('TicketAprobacion').findOne({
+      _id: id,
+      isActive: true,
+    }).lean();
+
+    if (ticketAprobacion) {
+      const imprimible = await ticketAprobacionRepository.obtenerTicketImprimible(ticketAprobacion._id);
+      return res.json({ success: true, datos: imprimible });
+    }
+
+    const ticketPPA = await mongoose.model('TicketPagoAdelantado').findOne({
+      _id: id,
+      isActive: true,
+    }).lean();
+
+    if (ticketPPA) {
+      const ppaComandasNumbers = resolverComandasNumbers({
+        comandasNumbers: ticketPPA.comandasNumbers,
+        platos: ticketPPA.platos,
+      });
+      const ppaDisplay = formatComandasNumbersLabel(ppaComandasNumbers)
+        || (ppaComandasNumbers[0] != null ? `#${ppaComandasNumbers[0]}` : '');
+      return res.json({
+        success: true,
+        datos: {
+          ticketId: ticketPPA._id,
+          ticketNumber: ticketPPA.ticketNumber,
+          tipo: 'ADELANTADO',
+          comandaNumero: ppaComandasNumbers[0] ?? null,
+          comandasNumbers: ppaComandasNumbers,
+          comandaNumeroDisplay: ppaDisplay,
+          cantidadComandas: ppaComandasNumbers.length || 1,
+          fechaPedido: ticketPPA.createdAt,
+          mesa: ticketPPA.numMesa,
+          mozo: ticketPPA.nombreMozo || ticketPPA.mozoNombre,
+          area: null,
+          moneda: 'PEN',
+          tipoPago: ticketPPA.estado === 'pendiente_aprobacion'
+            ? 'Pendiente'
+            : (ticketPPA.metodoPago || 'efectivo'),
+          observaciones: ticketPPA.observaciones || '',
+          productos: (ticketPPA.platos || []).map((p) => ({
+            nombre: p.nombre,
+            cantidad: p.cantidad,
+            precio: p.precio,
+            subtotal: p.subtotal,
+            tipoServicio: p.tipoServicio,
+            complementos: (p.complementosSeleccionados || []).map((c) => ({
+              grupo: c.grupo,
+              opcion: c.opcion,
+            })),
+            notaEspecial: p.notaEspecial || '',
+            paraLlevar: p.tipoServicio === 'para_llevar',
+          })),
+          subtotal: ticketPPA.subtotal,
+          igv: ticketPPA.igv,
+          total: ticketPPA.total,
+          cliente: { nombre: NOMBRE_CLIENTE_FALLBACK, dni: '' },
+          voucherId: ticketPPA.voucherId || null,
+        },
+      });
+    }
+
+    return res.status(404).json({ success: false, message: 'Ticket no encontrado' });
+  } catch (error) {
+    logger.error('Error al obtener ticket imprimible por id', { error: error.message });
+    res.status(500).json({ success: false, message: 'Error al obtener datos de impresión' });
+  }
+});
+
+/**
  * GET /api/comanda/:id/ticket-imprimible
  * Devuelve los datos mapeados de una comanda para la plantilla de impresión de comanda.
  * Busca primero por comandaId; si no existe ticket de aprobación, construye
@@ -309,6 +396,21 @@ router.put('/aprobacion/:id/reportar', async (req, res) => {
 router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
   try {
     const { id } = req.params;
+    const { ticketId } = req.query;
+
+    // Si se indica ticketId, devolver ese ticket concreto (pagos parciales)
+    if (ticketId && mongoose.Types.ObjectId.isValid(ticketId)) {
+      const ticketEspecifico = await mongoose.model('TicketAprobacion').findOne({
+        _id: ticketId,
+        comandas: id,
+        isActive: true,
+      }).lean();
+
+      if (ticketEspecifico) {
+        const imprimible = await ticketAprobacionRepository.obtenerTicketImprimible(ticketEspecifico._id);
+        return res.json({ success: true, datos: imprimible });
+      }
+    }
 
     // 1. Buscar TicketAprobacion que contenga esta comanda
     const ticketComanda = await ticketAprobacionRepository.obtenerTicketPorId

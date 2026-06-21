@@ -71,19 +71,24 @@ export async function imprimirComandaWeb(opts = {}) {
       }
     }
 
-    // 3. Apply comandaNumeroDisplay
+    // 3. Forzar "Pago: Pendiente" si se imprime sin aprobar desde la tabla
+    if (opts.ticketEstado === 'pendiente_aprobacion') {
+      datos = { ...datos, tipoPago: 'Pendiente' };
+    }
+
+    // 4. Apply comandaNumeroDisplay
     datos = aplicarComandaNumeroDisplay(datos);
 
-    // 4. Merge comandasNumbersOverride if provided
+    // 5. Merge comandasNumbersOverride if provided
     if (opts.comandasNumbersOverride) {
       datos = { ...datos, comandasNumbers: opts.comandasNumbersOverride };
       datos = aplicarComandaNumeroDisplay(datos);
     }
 
-    // 5. Generate full HTML
+    // 6. Generate full HTML
     const { html, heightPx } = generarHtmlComanda({ datos, plantilla, serverOrigin });
 
-    // 6. Open print window (Epson TM-m30II Receipt — 80mm / 226px)
+    // 7. Open print window (Epson TM-m30II Receipt — 80mm / 226px)
     const popupW = EPSON_TM_M30II_RECEIPT.contentWidthPx + 48;
     const printWin = window.open('', '_blank', `width=${popupW},height=700,scrollbars=yes`);
     if (!printWin) {
@@ -101,6 +106,14 @@ export async function imprimirComandaWeb(opts = {}) {
     console.error('[comandaPrintWeb] Error printing comanda:', err);
     return null;
   }
+}
+
+/** Si el ticket no fue aprobado en cocina, el ticket impreso debe decir "Pago: Pendiente". */
+function resolverTipoPagoImpresion(ticket, tipoPagoFallback = 'Pendiente') {
+  if (ticket?.estado === 'pendiente_aprobacion') {
+    return 'Pendiente';
+  }
+  return ticket?.metodoPago || ticket?.tipoPago || tipoPagoFallback || 'Pendiente';
 }
 
 /**
@@ -126,8 +139,13 @@ function mapearTicketADatos(ticket) {
   const comandaNumeroDisplay = formatComandasNumbersLabel(comandasNumbers)
     || (ticket.ticketNumber ? `#${ticket.ticketNumber}` : '');
 
+  const tipoLower = String(ticket.tipo || '').toLowerCase();
+
   return {
-    comandaNumero: ticket.ticketNumber || ticket.comandaNumero || null,
+    ticketId: ticket._id || ticket.ticketId || null,
+    ticketNumber: ticket.ticketNumber || null,
+    tipo: tipoLower || null,
+    comandaNumero: comandasNumbers[0] ?? ticket.comandaNumero ?? null,
     comandasNumbers,
     comandaNumeroDisplay,
     cantidadComandas: comandasNumbers.filter((n) => n != null).length || 1,
@@ -140,7 +158,7 @@ function mapearTicketADatos(ticket) {
       || '—',
     area: ticket.area || ticket.mesa?.area?.nombre || '',
     moneda: ticket.moneda === 'USD' ? 'USD' : 'PEN',
-    tipoPago: ticket.metodoPago || ticket.tipoPago || 'Pendiente',
+    tipoPago: resolverTipoPagoImpresion(ticket),
     observaciones: ticket.observaciones || '',
     productos: (ticket.platos || []).map(p => {
       const precio = p.precio || p.plato?.precio || 0;
@@ -181,7 +199,37 @@ function mapearTicketADatos(ticket) {
  * @returns {Promise<true|null>}
  */
 export async function imprimirComandaDesdeTicket(ticket, opts = {}) {
-  // Try to resolve comandaId from multiple possible fields
+  const datosFromTicket = mapearTicketADatos(ticket);
+  const ticketId = ticket._id || ticket.ticketId || null;
+  const tieneSnapshot = Array.isArray(ticket.platos) && ticket.platos.length > 0;
+
+  const printOpts = {
+    ...opts,
+    ticketEstado: ticket.estado,
+    comandasNumbersOverride: ticket.comandasNumbers || opts.comandasNumbersOverride || null,
+  };
+
+  if (ticketId && tieneSnapshot) {
+    const fetchJson = opts.fetchJson || defaultFetchJson;
+    try {
+      const res = await fetchJson(`/api/aprobacion/${ticketId}/ticket-imprimible`);
+      if (res?.success && res.datos) {
+        return imprimirComandaWeb({
+          ...printOpts,
+          comandaId: null,
+          datos: res.datos,
+        });
+      }
+    } catch {
+      // Usar snapshot local
+    }
+    return imprimirComandaWeb({
+      ...printOpts,
+      comandaId: null,
+      datos: datosFromTicket,
+    });
+  }
+
   const comandaId = ticket.comandasIds?.[0]
     || ticket.comandaId
     || (Array.isArray(ticket.comandas) && ticket.comandas.length > 0
@@ -190,37 +238,36 @@ export async function imprimirComandaDesdeTicket(ticket, opts = {}) {
     || (ticket.comanda?._id)
     || null;
 
-  // Map ticket data to print format
-  const datosFromTicket = mapearTicketADatos(ticket);
-
   if (!comandaId) {
-    // No comandaId — print directly with ticket data (no API fetch needed)
     return imprimirComandaWeb({
-      ...opts,
+      ...printOpts,
       comandaId: null,
       datos: datosFromTicket,
-      comandasNumbersOverride: ticket.comandasNumbers || opts.comandasNumbersOverride || null,
     });
   }
 
-  // Try fetching from API for richer data (boucher, populated fields)
   try {
-    return await imprimirComandaWeb({
-      ...opts,
-      comandaId,
-      datos: null, // Let imprimirComandaWeb fetch
-      comandasNumbersOverride: ticket.comandasNumbers || opts.comandasNumbersOverride || null,
-    });
+    const fetchJson = opts.fetchJson || defaultFetchJson;
+    const url = ticketId
+      ? `/api/comanda/${comandaId}/ticket-imprimible?ticketId=${ticketId}`
+      : `/api/comanda/${comandaId}/ticket-imprimible`;
+    const res = await fetchJson(url);
+    if (res?.success && res.datos) {
+      return imprimirComandaWeb({
+        ...printOpts,
+        comandaId: null,
+        datos: res.datos,
+      });
+    }
   } catch (err) {
-    // Fallback: print with ticket data directly
     console.warn('[comandaPrintWeb] Failed to fetch ticket-imprimible, using ticket data:', err);
-    return imprimirComandaWeb({
-      ...opts,
-      comandaId: null,
-      datos: datosFromTicket,
-      comandasNumbersOverride: ticket.comandasNumbers || opts.comandasNumbersOverride || null,
-    });
   }
+
+  return imprimirComandaWeb({
+    ...printOpts,
+    comandaId: null,
+    datos: datosFromTicket,
+  });
 }
 
 // Exponer en window para comandas.html (Alpine.js) y otros scripts no-module
