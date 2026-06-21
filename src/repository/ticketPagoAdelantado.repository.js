@@ -437,11 +437,49 @@ function clasificarComandaPorTipoServicio(platosActivos) {
   return 'solo_mesa';
 }
 
+/**
+ * Tickets PPA asociados a una comanda (cualquier estado).
+ */
+async function obtenerTicketsPorComanda(comandaId) {
+  if (!mongoose.Types.ObjectId.isValid(comandaId)) return [];
+  return ticketPagoAdelantadoModel
+    .find({ comandas: comandaId, isActive: true })
+    .populate('mozo', 'name')
+    .populate('boucher', 'boucherNumber voucherId metodoPago')
+    .sort({ createdAt: -1 })
+    .lean();
+}
+
+/**
+ * Editar observaciones de un TPA pendiente (admin).
+ */
+async function actualizarTicketAdmin(ticketId, { observaciones, metodoPago }) {
+  const ticket = await ticketPagoAdelantadoModel.findById(ticketId);
+  if (!ticket || !ticket.isActive) {
+    const err = new Error('Ticket de pago adelantado no encontrado');
+    err.statusCode = 404;
+    throw err;
+  }
+  if (ticket.estado !== 'pendiente_aprobacion') {
+    const err = new Error('Solo se pueden editar tickets pendientes de aprobación');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (observaciones !== undefined) ticket.observaciones = String(observaciones || '');
+  if (metodoPago && ['efectivo', 'digital', 'tarjeta'].includes(metodoPago)) {
+    ticket.metodoPago = metodoPago;
+  }
+  await ticket.save();
+  return ticket.toObject();
+}
+
 module.exports = {
   crearTicketPagoAdelantado,
   obtenerTicketPorId,
   obtenerTicketsPendientes,
   obtenerTicketsPorFecha,
+  obtenerTicketsPorComanda,
+  actualizarTicketAdmin,
   aprobarTicket,
   rechazarTicket,
   getComandasParaPagoAdelantado,

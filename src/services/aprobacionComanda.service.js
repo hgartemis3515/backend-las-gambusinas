@@ -125,8 +125,82 @@ async function reportarTicketComanda(ticketId, motivo, usuarioId, usuarioNombre)
   return { ...result, tipo: 'COMANDA' };
 }
 
+/**
+ * Tickets (comanda + PPA) asociados a una comanda, cualquier estado.
+ */
+async function obtenerTicketsPorComanda(comandaId) {
+  if (!mongoose.Types.ObjectId.isValid(comandaId)) {
+    const err = new Error('ID de comanda inválido');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const [ticketsComanda, ticketsPPA] = await Promise.all([
+    ticketAprobacionRepository.obtenerTicketsPorComanda(comandaId),
+    ticketPagoAdelantadoRepository.obtenerTicketsPorComanda(comandaId),
+  ]);
+
+  const items = [
+    ...ticketsComanda.map((t) => ({
+      ...t,
+      tipo: t.tipo === 'pago_parcial' ? 'PAGO_PARCIAL' : 'COMANDA',
+      mozoNombre: t.mozoNombre || t.nombreMozo || t.mozo?.name || 'N/A',
+      cantidadPlatos: (t.platos || []).length,
+    })),
+    ...ticketsPPA.map((t) => ({
+      ...t,
+      tipo: 'ADELANTADO',
+      mozoNombre: t.mozoNombre || t.nombreMozo || t.mozo?.name || 'N/A',
+      cantidadPlatos: (t.platos || []).length,
+    })),
+  ].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+  return items;
+}
+
+/**
+ * Editar ticket pendiente (admin). Detecta colección automáticamente.
+ */
+async function actualizarTicketUnificado(ticketId, tipoHint, data) {
+  const tipoNormalizado = String(tipoHint || '').toUpperCase() === 'ADELANTADO' ? 'ADELANTADO' : 'COMANDA';
+  const { tipo: tipoReal } = await detectarTipoReal(ticketId, tipoNormalizado);
+
+  if (tipoReal === 'COMANDA') {
+    const ticket = await ticketAprobacionRepository.actualizarTicketAdmin(ticketId, data);
+    return { ticket, tipo: 'COMANDA' };
+  }
+
+  const ticket = await ticketPagoAdelantadoRepository.actualizarTicketAdmin(ticketId, data);
+  return { ticket, tipo: 'ADELANTADO' };
+}
+
+/**
+ * Eliminar/anular ticket pendiente (admin).
+ * COMANDA → anula y revierte platos; ADELANTADO → rechaza con motivo.
+ */
+async function eliminarTicketUnificado(ticketId, tipoHint, motivo, usuarioId, usuarioNombre) {
+  const tipoNormalizado = String(tipoHint || '').toUpperCase() === 'ADELANTADO' ? 'ADELANTADO' : 'COMANDA';
+  const { tipo: tipoReal } = await detectarTipoReal(ticketId, tipoNormalizado);
+
+  if (tipoReal === 'COMANDA') {
+    const result = await ticketAprobacionRepository.eliminarTicketAdmin(
+      ticketId, motivo, usuarioId, usuarioNombre
+    );
+    return { ...result, tipo: 'COMANDA' };
+  }
+
+  const result = await ticketPagoAdelantadoRepository.rechazarTicket(
+    ticketId, motivo, usuarioId, usuarioNombre
+  );
+  return { ...result, tipo: 'ADELANTADO' };
+}
+
 module.exports = {
   obtenerTicketsUnificadosPendientes,
+  obtenerTicketsPorComanda,
   aprobarTicketUnificado,
+  actualizarTicketUnificado,
+  eliminarTicketUnificado,
   reportarTicketComanda,
+  detectarTipoReal,
 };

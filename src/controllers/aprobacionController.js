@@ -307,6 +307,122 @@ router.put('/aprobacion/:id/reportar', async (req, res) => {
 });
 
 /**
+ * GET /api/comanda/:id/tickets
+ * Lista todos los tickets (comanda, parcial, adelantado) asociados a una comanda.
+ */
+router.get('/comanda/:id/tickets', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tickets = await aprobacionService.obtenerTicketsPorComanda(id);
+    res.json({ success: true, tickets });
+  } catch (error) {
+    logger.error('Error al obtener tickets de comanda', { error: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * PUT /api/aprobacion/:id/editar
+ * Edita observaciones/método de pago de un ticket pendiente (admin).
+ * Body: { tipo?: 'COMANDA'|'ADELANTADO', observaciones?, metodoPago? }
+ */
+router.put('/aprobacion/:id/editar', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tipo, observaciones, metodoPago } = req.body;
+
+    const result = await aprobacionService.actualizarTicketUnificado(id, tipo, {
+      observaciones,
+      metodoPago,
+    });
+
+    const io = global.io;
+    if (io) {
+      const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
+      const payload = {
+        ticketId: result.ticket._id,
+        ticket: result.ticket,
+        tipo: result.tipo,
+        comandas: result.ticket.comandas,
+      };
+      io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-actualizado', payload);
+      io.of('/admin').emit('ticket-actualizado', payload);
+    }
+
+    res.json({ success: true, ticket: result.ticket, tipo: result.tipo });
+  } catch (error) {
+    logger.error('Error al editar ticket', { error: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * PUT /api/aprobacion/:id/eliminar
+ * Anula un ticket pendiente desde admin (motivo obligatorio).
+ * Body: { tipo?: 'COMANDA'|'ADELANTADO', motivo, usuarioId?, usuarioNombre? }
+ */
+router.put('/aprobacion/:id/eliminar', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tipo, motivo, usuarioId, usuarioNombre } = req.body;
+
+    const result = await aprobacionService.eliminarTicketUnificado(
+      id,
+      tipo,
+      motivo,
+      usuarioId || 'admin',
+      usuarioNombre || 'Admin'
+    );
+
+    const io = global.io;
+    if (io) {
+      const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
+      const ticket = result.ticket;
+      const payload = {
+        ticketId: ticket._id,
+        estado: result.tipo === 'ADELANTADO' ? 'rechazado' : 'anulado',
+        tipo: result.tipo,
+        comandas: ticket.comandas,
+        comandasAfectadas: result.comandasAfectadas || [],
+      };
+      io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-eliminado', payload);
+      io.of('/admin').emit('ticket-eliminado', payload);
+
+      for (const comandaId of (result.comandasAfectadas || ticket.comandas || [])) {
+        try {
+          const comandaActualizada = await comandaModel.findById(comandaId)
+            .populate('platos.plato', 'nombre precio id')
+            .populate('mozos', 'name')
+            .populate('mesas', 'nummesa estado nombreCombinado')
+            .lean();
+          if (comandaActualizada) {
+            io.of('/admin').emit('comanda-actualizada', {
+              comandaId,
+              comanda: comandaActualizada,
+              status: comandaActualizada.status,
+            });
+          }
+        } catch (emitErr) {
+          logger.warn('Error emitiendo comanda tras eliminar ticket', { error: emitErr.message });
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Ticket eliminado correctamente',
+      resultado: result,
+    });
+  } catch (error) {
+    logger.error('Error al eliminar ticket', { error: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
+  }
+});
+
+/**
  * GET /api/aprobacion/:id/ticket-imprimible
  * Datos de impresión para un TicketAprobacion o TicketPagoAdelantado específico.
  */

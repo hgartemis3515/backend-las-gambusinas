@@ -569,11 +569,159 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
   };
 }
 
+/**
+ * Tickets de aprobación asociados a una comanda (cualquier estado).
+ */
+async function obtenerTicketsPorComanda(comandaId) {
+  if (!mongoose.Types.ObjectId.isValid(comandaId)) return [];
+  return ticketAprobacionModel
+    .find({ comandas: comandaId, isActive: true })
+    .populate('mozo', 'name')
+    .populate('boucher', 'boucherNumber voucherId metodoPago')
+    .sort({ createdAt: -1 })
+    .lean();
+}
+
+/**
+ * Editar campos permitidos de un ticket pendiente (admin).
+ */
+async function actualizarTicketAdmin(ticketId, { observaciones, metodoPago }) {
+  const ticket = await ticketAprobacionModel.findById(ticketId);
+  if (!ticket || !ticket.isActive) {
+    const err = new Error('Ticket de aprobación no encontrado');
+    err.statusCode = 404;
+    throw err;
+  }
+  if (ticket.estado !== 'pendiente_aprobacion') {
+    const err = new Error('Solo se pueden editar tickets pendientes de aprobación');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (observaciones !== undefined) ticket.observaciones = String(observaciones || '');
+  if (metodoPago && ['efectivo', 'digital', 'tarjeta'].includes(metodoPago)) {
+    ticket.metodoPago = metodoPago;
+  }
+  await ticket.save();
+  return ticket.toObject();
+}
+
+/**
+ * Anular un ticket pendiente desde admin: revierte platos 'pendiente' → 'entregado'.
+ * El boucher contable permanece intacto.
+ */
+async function eliminarTicketAdmin(ticketId, motivo, usuarioId, usuarioNombre) {
+  const motivoLimpio = String(motivo || '').trim();
+  if (motivoLimpio.length < 3) {
+    const err = new Error('El motivo de eliminación es obligatorio (mínimo 3 caracteres)');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const ts = ahora();
+  const usuarioObjId = toObjectId(usuarioId);
+  const ticket = await ticketAprobacionModel.findById(ticketId);
+
+  if (!ticket || !ticket.isActive) {
+    const err = new Error('Ticket de aprobación no encontrado');
+    err.statusCode = 404;
+    throw err;
+  }
+  if (ticket.estado !== 'pendiente_aprobacion') {
+    const err = new Error(`No se puede eliminar un ticket en estado "${ticket.estado}"`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const platosSnapshotIds = new Set(
+    (ticket.platos || [])
+      .map((p) => (p.platoLineaId ? String(p.platoLineaId) : null))
+      .filter(Boolean)
+  );
+
+  const comandasAfectadas = [];
+  for (const comandaId of ticket.comandas) {
+    const comanda = await comandaModel.findById(comandaId);
+    if (!comanda) continue;
+
+    let modificado = false;
+    for (const plato of comanda.platos) {
+      const platoLineaIdStr = plato._id ? String(plato._id) : null;
+      if (!platoLineaIdStr || !platosSnapshotIds.has(platoLineaIdStr)) continue;
+      if ((plato.estado || '').toLowerCase() === 'pendiente') {
+        plato.estado = 'entregado';
+        modificado = true;
+      }
+    }
+
+    if (modificado) {
+      const platosActivos = (comanda.platos || []).filter((p) => !p.eliminado && !p.anulado);
+      const hayPendientes = platosActivos.some((p) => (p.estado || '').toLowerCase() === 'pendiente');
+      const hayEntregados = platosActivos.some((p) => (p.estado || '').toLowerCase() === 'entregado');
+      const todosPagados = platosActivos.length > 0
+        && platosActivos.every((p) => (p.estado || '').toLowerCase() === 'pagado');
+
+      if (todosPagados) {
+        comanda.status = 'pagado';
+      } else if (hayPendientes) {
+        comanda.status = 'pendiente_aprobar';
+      } else if (hayEntregados) {
+        comanda.status = 'entregado';
+        comanda.IsActive = true;
+      }
+
+      comanda.markModified('platos');
+      comanda.updatedAt = ts;
+      await comanda.save();
+      comandasAfectadas.push(comanda._id);
+    }
+  }
+
+  ticket.isActive = false;
+  ticket.observaciones = ticket.observaciones
+    ? `${ticket.observaciones}\n[Anulado admin: ${motivoLimpio}]`
+    : `[Anulado admin: ${motivoLimpio}]`;
+  await ticket.save();
+
+  try {
+    const { recalcularEstadoMesa } = require('./comanda.repository');
+    await recalcularEstadoMesa(ticket.mesa);
+  } catch (mesaErr) {
+    logger.warn('No se pudo recalcular mesa tras anular ticket', { error: mesaErr.message });
+  }
+
+  try {
+    await AuditoriaAcciones.create({
+      accion: 'TICKET_APROBACION_ANULADO_ADMIN',
+      entidadId: ticket._id,
+      entidadTipo: 'ticket',
+      usuario: usuarioObjId,
+      motivo: motivoLimpio,
+      metadata: {
+        ticketNumber: ticket.ticketNumber,
+        tipo: ticket.tipo,
+        numMesa: ticket.numMesa,
+        anuladoPor: usuarioNombre,
+        comandasAfectadas,
+        boucherId: ticket.boucher,
+        boucherIntacto: true,
+      },
+    });
+  } catch (auditErr) {
+    logger.error('Error auditoría anulación ticket', { error: auditErr.message });
+  }
+
+  logger.info(`TicketAprobacion #${ticket.ticketNumber} anulado por admin (${usuarioNombre})`);
+  return { ticket: ticket.toObject(), comandasAfectadas };
+}
+
 module.exports = {
   crearTicketAprobacion,
   obtenerTicketPorId,
   obtenerTicketsPendientes,
   obtenerTicketsPorFecha,
+  obtenerTicketsPorComanda,
+  actualizarTicketAdmin,
+  eliminarTicketAdmin,
   aprobarTicket,
   reportarTicket,
   obtenerTicketImprimible,
