@@ -336,7 +336,9 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
           mozo: ticketPPA.mozo?.name || ticketPPA.nombreMozo || ticketPPA.mozoNombre,
           area: null,
           moneda: 'PEN',
-          tipoPago: ticketPPA.metodoPago || 'efectivo',
+          tipoPago: ticketPPA.estado === 'pendiente_aprobacion'
+            ? 'Pendiente'
+            : (ticketPPA.metodoPago || 'efectivo'),
           observaciones: ticketPPA.observaciones || '',
           productos: (ticketPPA.platos || []).map((p) => ({
             nombre: p.nombre,

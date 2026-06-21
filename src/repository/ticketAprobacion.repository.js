@@ -410,7 +410,9 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
     mozo: ticket.mozo?.name || ticket.nombreMozo || ticket.mozoNombre,
     area: null, // se completa en controller si se requiere
     moneda: boucherData?.moneda || ticket.moneda || 'PEN',
-    tipoPago: boucherData?.metodoPagoLabel || ticket.metodoPago || 'Pendiente',
+    tipoPago: ticket.estado === 'pendiente_aprobacion'
+      ? 'Pendiente'
+      : (boucherData?.metodoPagoLabel || ticket.metodoPago || 'Pendiente'),
     observaciones: ticket.observaciones || '',
     productos,
     subtotal: ticket.subtotal,
