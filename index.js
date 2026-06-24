@@ -46,6 +46,8 @@ const propinaRoutes = require('./src/controllers/propinaController')
 const metasMozosRoutes = require('./src/controllers/metaMozoController')
 // COMPLEMENTOS PLANTILLA: Controller para biblioteca de complementos reutilizables
 const complementosPlantillaRoutes = require('./src/controllers/complementoPlantillaController')
+// TIPOS DE PLATO: Controller para catálogo maestro de tipos de menú (configurable)
+const tiposPlatoRoutes = require('./src/controllers/tipoPlatoController')
 // PAGOS ADELANTADOS (PPA): Controller para tickets de pago adelantado
 const pagoAdelantadoRoutes = require('./src/controllers/pagoAdelantadoController')
 // APROBACIÓN DE COMANDAS: Controller para bandeja de aprobación (comandas + PPA)
@@ -236,6 +238,7 @@ app.use('/api', zonaRoutes);
 app.use('/api', procesamientoRoutes);
 app.use('/api', reservaRoutes);
 app.use('/api', complementosPlantillaRoutes);
+app.use('/api', tiposPlatoRoutes);
 app.use('/api', pagoAdelantadoRoutes);
 app.use('/api', aprobacionRoutes);
 
@@ -267,7 +270,8 @@ app.get('/dashboard/login.html', (req, res) => {
 const dashboardPages = [
   'index', 'mesas', 'usuarios', 'platos', 'comandas',
   'bouchers', 'clientes', 'auditoria', 'cierre-caja',
-  'reportes', 'configuracion', 'areas', 'roles', 'mozos'
+  'reportes', 'configuracion', 'areas', 'roles', 'mozos',
+  'tipos-de-platos', 'cocineros'
 ];
 
 // Rutas sin extensión (ej: /mesas)
@@ -594,6 +598,15 @@ server.listen(port, '0.0.0.0', async ()=> {
     nodeEnv: process.env.NODE_ENV || 'development',
     allowedOrigins
   });
+
+  // ========== SEED TIPOS DE PLATO ==========
+  try {
+    const { seedTiposPlato } = require('./src/utils/seedTiposPlato');
+    await seedTiposPlato();
+  } catch (e) {
+    logger.warn('Seed tipos de plato omitido', { error: e.message });
+  }
+  // ========== FIN SEED TIPOS DE PLATO ==========
   
   console.log('');
   console.log('═══════════════════════════════════════════════════════════════');

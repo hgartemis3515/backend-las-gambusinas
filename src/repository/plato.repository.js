@@ -15,22 +15,36 @@ const queryActivos = () => ({ stock: { $gte: 0 }, $or: [{ isActive: true }, { is
 
 /**
  * Normaliza query param tipo a valor canónico para BD.
- * Acepta: 'todos'|''|null → null; 'desayuno'|'platos-desayuno' → 'platos-desayuno'; 'carta'|'plato-carta normal' → 'plato-carta normal'.
+ * Legacy: desayuno/carta.
+ * Nuevo (dinámico): busca el slug (o alias) en tipos_plato.
  */
-function normalizarTipoParam(tipo) {
+async function normalizarTipoParam(tipo) {
     if (tipo == null || typeof tipo !== 'string') return null;
     const t = String(tipo).trim().toLowerCase();
     if (t === 'todos' || t === '') return null;
     if (t === 'desayuno' || t === 'platos-desayuno') return 'platos-desayuno';
     if (t === 'carta' || t === 'plato-carta normal') return 'plato-carta normal';
-    return null;
+
+    // Búsqueda dinámica en catálogo tipos_plato
+    try {
+        const TipoPlato = require('../database/models/tipoPlato.model');
+        const doc = await TipoPlato.findOne({
+            $or: [
+                { slug: t },
+                { alias: t }
+            ]
+        }).lean();
+        if (doc) return doc.slug;
+    } catch (_) {}
+    // Si no se encuentra, devolver el string tal cual (para allow-listing legacy en BD)
+    return t;
 }
 
 /**
  * Filtro Mongo para tipo permitiendo espacios/case en BD.
  */
 function buildTipoFilter(canonicalTipo) {
-    const escaped = canonicalTipo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+    const escaped = String(canonicalTipo).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
     return { tipo: { $regex: new RegExp('^\\s*' + escaped + '\\s*$', 'i') } };
 }
 
@@ -45,7 +59,7 @@ const listarPlatos = async () => {
  * @param {object} opts - { isActive: boolean }
  */
 const listarPlatosPorTipo = async (tipo, opts = {}) => {
-    const canonical = normalizarTipoParam(tipo);
+    const canonical = await normalizarTipoParam(tipo);
     const filter = { ...queryActivos() };
     if (opts.isActive === true) {
         filter.$or = [{ isActive: true }, { isActive: { $exists: false } }];
@@ -336,9 +350,9 @@ function invalidatePlatoMenuCache(tipo) {
  * Cache Redis 5 min.
  */
 const getMenuPorTipo = async (tipo, page = 1, limit = 500) => {
-    const canonical = normalizarTipoParam(tipo) || (TIPOS_MENU.includes(tipo) ? tipo : null);
+    const canonical = (await normalizarTipoParam(tipo)) || (TIPOS_MENU.includes(tipo) ? tipo : null);
     if (!canonical) {
-        const err = new Error('tipo debe ser "platos-desayuno", "plato-carta normal", "desayuno" o "carta"');
+        const err = new Error('tipo debe ser un slug válido de tipos-plato (ej. platos-desayuno, plato-carta normal) o un alias');
         err.statusCode = 400;
         throw err;
     }
@@ -404,9 +418,9 @@ const getCategorias = async () => {
  * GET /api/platos/menu/:tipo/categoria/:categoria — Platos por tipo y categoría (lazy)
  */
 const getMenuPorTipoYCategoria = async (tipo, categoria, page = 1, limit = 100) => {
-    const canonical = normalizarTipoParam(tipo) || (TIPOS_MENU.includes(tipo) ? tipo : null);
+    const canonical = (await normalizarTipoParam(tipo)) || (TIPOS_MENU.includes(tipo) ? tipo : null);
     if (!canonical) {
-        const err = new Error('tipo debe ser "platos-desayuno", "plato-carta normal", "desayuno" o "carta"');
+        const err = new Error('tipo debe ser un slug válido de tipos-plato (ej. platos-desayuno, plato-carta normal) o un alias');
         err.statusCode = 400;
         throw err;
     }
@@ -432,11 +446,13 @@ const getMenuPorTipoYCategoria = async (tipo, categoria, page = 1, limit = 100) 
  * PATCH /api/platos/:id/tipo — Cambiar tipo de un plato. Invalida cache y emite WebSocket.
  */
 const actualizarTipoPlato = async (id, nuevoTipo) => {
-    if (!TIPOS_MENU.includes(nuevoTipo)) {
-        const err = new Error('tipo debe ser "platos-desayuno" o "plato-carta normal"');
+    const canonical = await normalizarTipoParam(nuevoTipo);
+    if (!canonical) {
+        const err = new Error('tipo debe ser un slug válido de tipos-plato o un alias existente');
         err.statusCode = 400;
         throw err;
     }
+    nuevoTipo = canonical;
     const mongoose = require('mongoose');
     const doc = mongoose.Types.ObjectId.isValid(id) && String(id).length === 24
         ? await plato.findById(id)

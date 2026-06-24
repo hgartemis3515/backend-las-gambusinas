@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tipos de Plato — Las Gambusinas</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        bg: { primary: '#0a0a0f', card: '#1a1a28', sidebar: '#12121a' },
+        gold: { DEFAULT: '#d4af37', '20': 'rgba(212,175,55,0.125)', '40': 'rgba(212,175,55,0.25)' },
+        st: { libre: '#00d4aa', esperando: '#ffa502', pedido: '#3498db', preparado: '#2ecc71', pagado: '#ff4757', reservado: '#5352ed' },
+        txt: { primary: '#ffffff', secondary: '#a0a0b8', muted: '#5a5a7a' }
+      },
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+    }
+  }
+}
+</script>
+<link rel="stylesheet" href="/assets/css/dashboard.css">
+<link rel="stylesheet" href="/assets/css/animations.css">
+<link rel="stylesheet" href="/assets/css/page-transitions.css">
+<link rel="stylesheet" href="/assets/css/cosmos-search.css">
+</head>
+<body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="tiposPlatoApp()" x-cloak>
+
+<div id="topbar-container"></div>
+<div class="flex pt-[72px] min-h-screen">
+  <div id="sidebar-container"></div>
+  <main :class="sidebarOpen ? 'ml-[270px]' : 'ml-[68px]'" class="flex-1 transition-all duration-300 min-h-[calc(100vh-72px)] p-6">
+
+    <!-- HEADER -->
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h1 class="text-xl font-bold">Tipos de Plato</h1>
+        <p class="text-xs text-txt-muted mt-1">Catálogo maestro de tipos de menú (Desayuno, Carta, Cena, ...)</p>
+      </div>
+      <div class="flex gap-2">
+        <button @click="loadTipos()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
+        <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold" @click="openCreateModal()">+ Nuevo Tipo</button>
+      </div>
+    </div>
+
+    <!-- LOADING -->
+    <div x-show="loading && tipos.length === 0" class="flex items-center justify-center h-32">
+      <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+    </div>
+
+    <div class="flex gap-4">
+      <!-- TABLA -->
+      <div class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-bg-sidebar text-txt-secondary text-[10px] uppercase">
+              <th class="text-left px-3 py-2.5 font-semibold">Orden</th>
+              <th class="text-left px-3 py-2.5 font-semibold">Icono</th>
+              <th class="text-left px-3 py-2.5 font-semibold">Nombre</th>
+              <th class="text-left px-3 py-2.5 font-semibold">Slug</th>
+              <th class="text-left px-3 py-2.5 font-semibold">Color</th>
+              <th class="text-left px-3 py-2.5 font-semibold">Platos</th>
+              <th class="text-left px-3 py-2.5 font-semibold">Estado</th>
+              <th class="text-left px-3 py-2.5 font-semibold">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr x-show="filteredTipos.length === 0">
+              <td colspan="8" class="px-4 py-8 text-center text-txt-muted">No hay tipos registrados. Crea el primero con “+ Nuevo Tipo”.</td>
+            </tr>
+            <template x-for="(t, i) in filteredTipos" :key="t._id || t.slug">
+              <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
+                <td class="px-3 py-2.5 text-txt-muted" x-text="t.orden"></td>
+                <td class="px-3 py-2.5 text-xl" x-text="t.icono"></td>
+                <td class="px-3 py-2.5">
+                  <p class="font-medium text-sm" x-text="t.nombre"></p>
+                  <p class="text-[10px] text-txt-muted" x-text="t.nombreCorto"></p>
+                </td>
+                <td class="px-3 py-2.5">
+                  <code class="text-[11px] text-gold bg-gold/10 px-1.5 py-0.5 rounded" x-text="t.slug"></code>
+                  <div x-show="t.alias && t.alias.length" class="text-[9px] text-txt-muted mt-0.5" x-text="'alias: ' + (t.alias || []).join(', ')"></div>
+                </td>
+                <td class="px-3 py-2.5">
+                  <span class="inline-block w-4 h-4 rounded-full border border-white/20" :style="'background:' + (t.color || '#d4af37')"></span>
+                </td>
+                <td class="px-3 py-2.5">
+                  <span class="text-[10px] px-2 py-0.5 rounded-full bg-gold/10 text-gold font-semibold" x-text="(t._usoEnPlatos ?? 0) + ' plato(s)'"></span>
+                </td>
+                <td class="px-3 py-2.5">
+                  <span class="text-[10px] px-2 py-0.5 rounded-full"
+                    :class="t.activo ? 'bg-st-preparado/15 text-st-preparado' : 'bg-st-pagado/15 text-st-pagado'"
+                    x-text="t.activo ? 'Activo' : 'Inactivo'"></span>
+                  <span x-show="t.esSistema" class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-st-pedido/15 text-st-pedido">Sistema</span>
+                </td>
+                <td class="px-3 py-2.5 space-x-1 text-sm">
+                  <span class="cursor-pointer hover:text-gold" @click="openEditModal(t)">✏️</span>
+                  <span x-show="t.activo" class="cursor-pointer hover:text-st-esperando" @click="desactivarTipo(t)" title="Desactivar">⏸</span>
+                  <span x-show="!t.activo" class="cursor-pointer hover:text-st-preparado" @click="reactivarTipo(t)" title="Reactivar">▶</span>
+                  <span class="cursor-pointer hover:text-st-pagado" @click="confirmarEliminarTipo(t)" title="Eliminar">🗑️</span>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+        <div class="flex items-center justify-between px-3 py-2.5 text-[11px] text-txt-muted border-t border-[rgba(212,175,55,0.08)]">
+          <span x-text="'Mostrando ' + filteredTipos.length + ' de ' + tipos.length + ' tipos'"></span>
+        </div>
+      </div>
+
+      <!-- PANEL LATERAL -->
+      <div class="w-60 space-y-4 flex-shrink-0">
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+          <h4 class="font-semibold text-sm mb-3">Resumen</h4>
+          <div class="bg-bg-sidebar rounded-lg p-3 space-y-2">
+            <div><p class="text-[10px] text-txt-muted">Total tipos</p><p class="text-gold font-bold" x-text="tipos.length"></p></div>
+            <div><p class="text-[10px] text-txt-muted">Activos</p><p class="text-st-preparado font-bold" x-text="tipos.filter(t=>t.activo).length"></p></div>
+            <div><p class="text-[10px] text-txt-muted">Inactivos</p><p class="text-st-pagado font-bold" x-text="tipos.filter(t=>!t.activo).length"></p></div>
+            <div><p class="text-[10px] text-txt-muted">Platos totales</p><p class="text-gold font-bold" x-text="tipos.reduce((s,t)=> s + (t._usoEnPlatos||0), 0)"></p></div>
+          </div>
+        </div>
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+          <h4 class="font-semibold text-sm mb-3">Distribución por tipo</h4>
+          <div class="space-y-2">
+            <template x-for="t in tipos.filter(t => (t._usoEnPlatos||0) > 0)" :key="t.slug">
+              <div>
+                <div class="flex justify-between text-xs mb-0.5">
+                  <span x-text="t.icono + ' ' + t.nombre"></span>
+                  <span class="text-txt-muted" x-text="t._usoEnPlatos"></span>
+                </div>
+                <div class="h-1.5 bg-bg-sidebar rounded-full overflow-hidden">
+                  <div class="h-full rounded-full" :style="'width:' + (tipos.length ? (t._usoEnPlatos / Math.max(...tipos.map(x=>x._usoEnPlatos||0)) * 100) : 0) + '%; background:' + (t.color || '#d4af37')"></div>
+                </div>
+              </div>
+            </template>
+            <p x-show="tipos.every(t => !t._usoEnPlatos)" class="text-xs text-txt-muted">Aún no hay platos asignados.</p>
+          </div>
+        </div>
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+          <h4 class="font-semibold text-sm mb-2">¿Cómo funciona?</h4>
+          <p class="text-[11px] text-txt-muted leading-relaxed">
+            Los tipos de plato filtran el menú en la app de mozos, el dashboard y las zonas KDS.
+            Solo los tipos <span class="text-st-preparado">activos</span> aparecen al crear platos y tomar pedidos.
+            Los tipos de <span class="text-st-pedido">sistema</span> (Desayuno, Carta) no se pueden eliminar, solo desactivar.
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODAL CREAR/EDITAR -->
+<div x-show="modal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modal=null">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[560px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl sticky top-0 z-10">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold" x-text="isEditing ? 'Editar Tipo de Plato' : 'Crear Tipo de Plato'"></h2>
+          <p class="text-xs text-txt-muted" x-text="isEditing ? 'Modifica los datos del tipo' : 'Define un nuevo tipo de menú'"></p>
+        </div>
+        <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+      </div>
+    </div>
+    <div class="p-6 space-y-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs text-txt-secondary mb-1 block">Nombre <span class="text-st-pagado">*</span></label>
+          <input type="text" x-model="form.nombre" @input="autoSlug()" placeholder="Ej: Cena" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+        </div>
+        <div>
+          <label class="text-xs text-txt-secondary mb-1 block">Nombre corto (botones)</label>
+          <input type="text" x-model="form.nombreCorto" placeholder="CENA" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+        </div>
+      </div>
+      <div>
+        <label class="text-xs text-txt-secondary mb-1 block">Slug <span class="text-st-pagado">*</span></label>
+        <input type="text" x-model="form.slug" :readonly="isEditing && form.esSistema" placeholder="platos-cena" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none font-mono" :class="(isEditing && form.esSistema) ? 'opacity-60 cursor-not-allowed' : ''">
+        <p class="text-[10px] text-txt-muted mt-1">Identificador único en BD y API. Solo minúsculas, números y guiones.</p>
+      </div>
+      <div class="grid grid-cols-4 gap-3">
+        <div>
+          <label class="text-xs text-txt-secondary mb-1 block">Icono</label>
+          <input type="text" x-model="form.icono" placeholder="🌙" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none text-center text-lg">
+        </div>
+        <div>
+          <label class="text-xs text-txt-secondary mb-1 block">Color</label>
+          <input type="color" x-model="form.color" class="w-full h-[38px] bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg cursor-pointer">
+        </div>
+        <div>
+          <label class="text-xs text-txt-secondary mb-1 block">Orden</label>
+          <input type="number" x-model.number="form.orden" min="1" placeholder="99" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+        </div>
+        <div>
+          <label class="text-xs text-txt-secondary mb-1 block">Activo</label>
+          <label class="flex items-center gap-2 h-[38px] cursor-pointer">
+            <input type="checkbox" x-model="form.activo" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+            <span class="text-sm text-txt-secondary" x-text="form.activo ? 'Sí' : 'No'"></span>
+          </label>
+        </div>
+      </div>
+      <div>
+        <label class="text-xs text-txt-secondary mb-1 block">Alias (separados por coma)</label>
+        <input type="text" x-model="form.aliasStr" placeholder="cena, noche" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+        <p class="text-[10px] text-txt-muted mt-1">Palabras aceptadas al filtrar por API o UI como alias del slug.</p>
+      </div>
+    </div>
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex items-center justify-between border-t border-[rgba(212,175,55,0.15)]">
+      <span class="text-[10px] text-txt-muted">ℹ️ <span x-text="isEditing ? 'PUT /api/tipos-plato/:id' : 'POST /api/tipos-plato'"></span></span>
+      <div class="flex gap-2">
+        <button @click="modal=null" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+        <button @click="guardarTipo()" class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition" x-text="isEditing ? 'Actualizar' : 'Crear Tipo'"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL REASIGNAR AL ELIMINAR -->
+<div x-show="modalReasignar" x-transition.opacity class="fixed inset-0 z-[55] flex items-center justify-center p-4 modal-overlay bg-black/80" @click.self="modalReasignar=false">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[480px] shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl">
+      <h2 class="text-lg font-bold">Reasignar platos</h2>
+      <p class="text-xs text-txt-muted">El tipo <span class="text-gold" x-text="tipoParaEliminar?.slug"></span> tiene <span class="text-gold" x-text="tipoParaEliminar?._usoEnPlatos || 0"></span> plato(s).</p>
+    </div>
+    <div class="p-6 space-y-4">
+      <p class="text-sm text-txt-secondary">Selecciona el tipo destino:</p>
+      <select x-model="reasignarDestino" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+        <option value="">— Selecciona —</option>
+        <template x-for="t in tipos.filter(x => x.slug !== tipoParaEliminar?.slug && x.activo)" :key="t.slug">
+          <option :value="t.slug" x-text="t.icono + ' ' + t.nombre + ' (' + (t._usoEnPlatos||0) + ' platos)'"></option>
+        </template>
+      </select>
+    </div>
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="modalReasignar=false" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+      <button @click="reasignarYEliminar()" class="px-4 py-2 bg-st-pagado text-white rounded-lg text-sm font-semibold hover:brightness-110 transition" :disabled="!reasignarDestino">Reasignar y eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast-container" class="fixed bottom-6 right-6 z-[9999] space-y-2"></div>
+
+<script src="/assets/js/notifications.js"></script>
+<script src="/assets/js/shared.js"></script>
+<script>
+function tiposPlatoApp() {
+  return {
+    sidebarOpen: true,
+    loading: true,
+    tipos: [],
+    filteredTipos: [],
+    modal: null,
+    isEditing: false,
+    modalReasignar: false,
+    tipoParaEliminar: null,
+    reasignarDestino: '',
+    activeNav: 'tiposPlato',
+    pageTitle: 'Tipos de Plato',
+    form: {
+      _id: null,
+      nombre: '',
+      nombreCorto: '',
+      slug: '',
+      icono: '🍽️',
+      color: '#d4af37',
+      orden: 99,
+      activo: true,
+      esSistema: false,
+      aliasStr: ''
+    },
+
+    async init() {
+      const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+      if (!token) { window.location.href = '/login.html'; return; }
+      await this.loadTipos();
+    },
+
+    get filteredTipos() { return this.tipos.slice().sort((a, b) => (a.orden || 99) - (b.orden || 99)); },
+
+    async loadTipos() {
+      this.loading = true;
+      try {
+        const data = await apiGet('/tipos-plato?conUso=true');
+        this.tipos = Array.isArray(data) ? data : (data?.tipos || []);
+      } catch (e) {
+        console.error('Error cargando tipos:', e);
+        this.showToast('Error al cargar tipos', 'error');
+      }
+      this.loading = false;
+    },
+
+    autoSlug() {
+      if (this.isEditing && this.form.esSistema) return;
+      if (!this.form.nombre) return;
+      const base = 'platos-' + String(this.form.nombre)
+        .toLowerCase().trim()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-').replace(/-+/g, '-');
+      this.form.slug = base;
+    },
+
+    openCreateModal() {
+      this.isEditing = false;
+      const nextOrden = (this.tipos.reduce((max, t) => Math.max(max, t.orden || 0), 0) || 0) + 1;
+      this.form = {
+        _id: null, nombre: '', nombreCorto: '', slug: '',
+        icono: '🍽️', color: '#d4af37', orden: nextOrden,
+        activo: true, esSistema: false, aliasStr: ''
+      };
+      this.modal = true;
+    },
+
+    openEditModal(t) {
+      this.isEditing = true;
+      this.form = {
+        _id: t._id,
+        nombre: t.nombre || '',
+        nombreCorto: t.nombreCorto || '',
+        slug: t.slug || '',
+        icono: t.icono || '🍽️',
+        color: t.color || '#d4af37',
+        orden: t.orden || 99,
+        activo: t.activo !== false,
+        esSistema: !!t.esSistema,
+        aliasStr: (t.alias || []).join(', ')
+      };
+      this.modal = true;
+    },
+
+    async guardarTipo() {
+      if (!this.form.nombre.trim()) { this.showToast('El nombre es requerido', 'error'); return; }
+      if (!this.form.slug.trim()) { this.showToast('El slug es requerido', 'error'); return; }
+
+      const alias = this.form.aliasStr.split(',').map(a => a.trim().toLowerCase()).filter(Boolean);
+      const payload = {
+        nombre: this.form.nombre.trim(),
+        nombreCorto: this.form.nombreCorto.trim(),
+        slug: this.form.slug.trim().toLowerCase(),
+        icono: this.form.icono.trim(),
+        color: this.form.color.trim(),
+        orden: Number(this.form.orden) || 99,
+        activo: this.form.activo,
+        alias
+      };
+
+      try {
+        let res;
+        if (this.isEditing) {
+          res = await apiPut('/tipos-plato/' + this.form._id, payload);
+        } else {
+          res = await apiPost('/tipos-plato', payload);
+        }
+        if (res && !res.error) {
+          this.showToast(this.isEditing ? 'Tipo actualizado ✅' : 'Tipo creado ✅');
+          this.modal = null;
+          await this.loadTipos();
+        } else {
+          this.showToast('Error: ' + (res?.error || 'No se pudo guardar'), 'error');
+        }
+      } catch (e) {
+        console.error('Error guardando tipo:', e);
+        this.showToast('Error: ' + (e.message || 'fallo'), 'error');
+      }
+    },
+
+    async desactivarTipo(t) {
+      try {
+        const res = await apiPatch('/tipos-plato/' + (t._id || t.id) + '/desactivar');
+        if (res && !res.error) { this.showToast('Tipo desactivado'); await this.loadTipos(); }
+        else { this.showToast('Error: ' + (res?.error || 'no se pudo'), 'error'); }
+      } catch (e) { this.showToast('Error al desactivar', 'error'); }
+    },
+
+    async reactivarTipo(t) {
+      try {
+        const res = await apiPatch('/tipos-plato/' + (t._id || t.id) + '/reactivar');
+        if (res && !res.error) { this.showToast('Tipo reactivado'); await this.loadTipos(); }
+        else { this.showToast('Error: ' + (res?.error || 'no se pudo'), 'error'); }
+      } catch (e) { this.showToast('Error al reactivar', 'error'); }
+    },
+
+    async confirmarEliminarTipo(t) {
+      if (t.esSistema) { this.showToast('Los tipos de sistema no se pueden eliminar. Solo desactívalos.', 'error'); return; }
+      const uso = t._usoEnPlatos || 0;
+      if (uso > 0) {
+        this.tipoParaEliminar = t;
+        this.reasignarDestino = '';
+        this.modalReasignar = true;
+        return;
+      }
+      if (!confirm('¿Eliminar el tipo "' + t.nombre + '"? Esta acción no se puede deshacer.')) return;
+      await this._eliminarTipo(t);
+    },
+
+    async reasignarYEliminar() {
+      if (!this.reasignarDestino) { this.showToast('Selecciona un tipo destino', 'error'); return; }
+      const t = this.tipoParaEliminar;
+      try {
+        const res = await apiPost('/tipos-plato/' + t.slug + '/reasignar', { slugDestino: this.reasignarDestino });
+        if (res && res.error) { this.showToast('Error al reasignar: ' + res.error, 'error'); return; }
+        await this._eliminarTipo(t);
+        this.modalReasignar = false;
+      } catch (e) { this.showToast('Error al reasignar', 'error'); }
+    },
+
+    async _eliminarTipo(t) {
+      try {
+        const res = await apiDelete('/tipos-plato/' + (t._id || t.id));
+        if (res && !res.error) { this.showToast('Tipo eliminado'); await this.loadTipos(); }
+        else { this.showToast('Error: ' + (res?.error || 'no se pudo eliminar'), 'error'); }
+      } catch (e) { this.showToast('Error al eliminar', 'error'); }
+    },
+
+    showToast(msg, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const el = document.createElement('div');
+      el.className = 'px-4 py-3 rounded-xl text-sm font-medium shadow-xl ' +
+        (type === 'error' ? 'bg-st-pagado text-white' : 'bg-st-preparado text-white');
+      el.textContent = msg;
+      container.appendChild(el);
+      setTimeout(() => el.remove(), 3000);
+    },
+
+    logout() { localStorage.removeItem('adminToken'); window.location.href = '/login'; }
+  };
+}
+</script>
+<script src="/assets/js/page-transitions.js"></script>
+<script src="/assets/js/cosmos-search.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/assets/js/notificaciones-dashboard.js"></script>
+</body>
+</html>

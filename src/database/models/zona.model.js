@@ -51,10 +51,9 @@ const zonaSchema = new mongoose.Schema({
         categoriasPermitidas: [{
             type: String
         }],
-        // Tipos de plato permitidos
+        // Tipos de plato permitidos (slugs de tipos_plato)
         tiposPermitidos: [{
-            type: String,
-            enum: ['platos-desayuno', 'plato-carta normal']
+            type: String
         }]
     },
     

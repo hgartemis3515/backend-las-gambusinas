@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 const AutoIncrement = require('mongoose-sequence')(mongoose);
 
+// TIPOS_MENU legacy: se mantiene por compatibilidad; los tipos reales ahora
+// viven en la colección tipos_plato (ver tipoPlato.model.js / seedTiposPlato.js).
+// Se sigue exportando para no romper imports existentes (plato.repository, etc.).
 const TIPOS_MENU = ['platos-desayuno', 'plato-carta normal'];
 
 const platoSchema = new mongoose.Schema({
@@ -17,8 +20,9 @@ const platoSchema = new mongoose.Schema({
     tipo: {
         type: String,
         required: true,
-        enum: TIPOS_MENU,
+        trim: true,
         default: 'plato-carta normal'
+        // Sin enum: los tipos ahora se validan dinámicamente contra tipos_plato
     },
     isActive: {
         type: Boolean,
@@ -72,24 +76,61 @@ platoSchema.index(
 );
 // ========== FIN ÍNDICES FASE A1 ==========
 
-platoSchema.pre('save', function (next) {
-    if (this.nombre != null) {
-        this.nombre = String(this.nombre).trim();
-        this.nombreLower = this.nombre.toLowerCase();
-        if (!this.nombre) {
-            return next(new Error('nombre no puede estar vacío'));
+// Cache en memoria de slugs válidos (tipos_plato activos).
+let _slugsValidosCache = null;
+let _slugsValidosTs = 0;
+const SLUGS_CACHE_TTL_MS = 60_000;
+
+async function _getSlugsValidos() {
+    const ahora = Date.now();
+    if (_slugsValidosCache && (ahora - _slugsValidosTs) < SLUGS_CACHE_TTL_MS) {
+        return _slugsValidosCache;
+    }
+    try {
+        const TipoPlato = require('./tipoPlato.model');
+        const docs = await TipoPlato.getSlugsActivos();
+        const set = new Set();
+        docs.forEach(d => {
+            if (d.slug) set.add(d.slug);
+            (d.alias || []).forEach(a => set.add(a));
+        });
+        // siempre incluir los legacy por seguridad
+        TIPOS_MENU.forEach(t => set.add(t));
+        _slugsValidosCache = set;
+        _slugsValidosTs = ahora;
+        return set;
+    } catch (_) {
+        // Si tipos_plato no existe aún (pre-migración), usar legacy
+        return new Set(TIPOS_MENU);
+    }
+}
+
+platoSchema.pre('save', async function (next) {
+    try {
+        if (this.nombre != null) {
+            this.nombre = String(this.nombre).trim();
+            this.nombreLower = this.nombre.toLowerCase();
+            if (!this.nombre) {
+                return next(new Error('nombre no puede estar vacío'));
+            }
         }
-    }
-    if (this.categoria != null) {
-        this.categoria = String(this.categoria).trim();
-        if (!this.categoria) {
-            return next(new Error('categoria no puede estar vacía'));
+        if (this.categoria != null) {
+            this.categoria = String(this.categoria).trim();
+            if (!this.categoria) {
+                return next(new Error('categoria no puede estar vacía'));
+            }
         }
+        if (this.tipo != null) {
+            this.tipo = String(this.tipo).trim().toLowerCase();
+            const validos = await _getSlugsValidos();
+            if (!validos.has(this.tipo)) {
+                return next(new Error(`tipo "${this.tipo}" no es válido. Crea el tipo en Tipos de Plato antes de asignarlo.`));
+            }
+        }
+        next();
+    } catch (err) {
+        next(err);
     }
-    if (this.tipo != null && !TIPOS_MENU.includes(this.tipo)) {
-        return next(new Error('tipo debe ser "platos-desayuno" o "plato-carta normal"'));
-    }
-    next();
 });
 
 platoSchema.plugin(AutoIncrement, { inc_field: 'id' });

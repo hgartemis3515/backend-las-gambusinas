@@ -153,6 +153,7 @@ const sharedData = {
     mozos: { label: 'Mozos', icon: '👥', href: '/mozos.html' },
     cocineros: { label: 'Cocineros', icon: '👨‍🍳', href: '/cocineros.html' },
     roles: { label: 'Roles', icon: '🔐', href: '/roles.html' },
+    tiposPlato: { label: 'Tipos de Plato', icon: '🏷️', href: '/tipos-de-platos.html' },
     platos: { label: 'Platos', icon: '🍲', href: '/platos.html' },
     comandas: { label: 'Comandas', icon: '📋', href: '/comandas.html' },
     bouchers: { label: 'Vouchers', icon: '🧾', href: '/bouchers.html' },
@@ -230,11 +231,18 @@ function initClock() {
 // NAVEGACIÓN ACTIVA EN SIDEBAR
 // ============================================
 function setActiveNav() {
-  const path = window.location.pathname;
+  const path = window.location.pathname.replace(/\.html$/, '').replace(/\/$/, '');
   const navLinks = document.querySelectorAll('[data-nav]');
   navLinks.forEach(link => {
     const nav = link.getAttribute('data-nav');
-    const isActive = (nav === 'dashboard' && (path === '/' || path.includes('index'))) || path.includes(nav);
+    let isActive = false;
+    if (nav === 'dashboard' && (path === '' || path === '/' || path === '/index')) {
+      isActive = true;
+    } else {
+      const href = sharedData.pages?.[nav]?.href || '';
+      const hrefPath = href.replace(/\.html$/, '');
+      isActive = path === hrefPath;
+    }
     link.classList.toggle('active', isActive);
   });
 }

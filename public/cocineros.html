@@ -1919,6 +1919,7 @@ function cocinerosApp() {
     // Selectores de datos reales
     categoriasReales: [],
     tiposMenuReales: ['platos-desayuno', 'plato-carta normal'],
+    tiposPlatoCatalogo: [],
     todasLasAreas: [],
     todasLasMesas: [],
     todosLosPlatos: [],
@@ -2018,7 +2019,8 @@ function cocinerosApp() {
 
       await this.cargarDatos();
       await this.cargarDatosSelectores();
-      await this.cargarZonas(); // Cargar zonas al inicio para el modal de configuración
+      await this.cargarZonas();
+      await this.cargarTiposPlatoCatalogo();
 
       // Watchers para ajustar paginación cuando cambian los filtros
       this.$watch('busqueda', () => { this.currentPageCocineros = 1; });
@@ -3384,7 +3386,18 @@ function cocinerosApp() {
     getTipoLabel(tipo) {
       if (tipo === 'platos-desayuno') return 'Desayuno';
       if (tipo === 'plato-carta normal') return 'Carta Normal';
-      return tipo;
+      const t = (this.tiposPlatoCatalogo || []).find(x => x.slug === tipo);
+      return t ? (t.nombre || tipo) : tipo;
+    },
+
+    async cargarTiposPlatoCatalogo() {
+      try {
+        const data = await apiGet('/tipos-plato/menu?activos=false');
+        this.tiposPlatoCatalogo = Array.isArray(data) ? data : [];
+        this.tiposMenuReales = this.tiposPlatoCatalogo.map(t => t.slug);
+      } catch (e) {
+        console.warn('tipos-plato menu no disponible, usando legacy', e);
+      }
     },
 
     async eliminarZona(zona) {

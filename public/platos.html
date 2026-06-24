@@ -59,8 +59,9 @@ tailwind.config = {
       </select>
       <select x-model="filterTipo" @change="filterPlatos()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary">
         <option value="">Tipo: Todos</option>
-        <option value="plato-carta normal">🍽️ Carta</option>
-        <option value="platos-desayuno">🌅 Desayuno</option>
+        <template x-for="t in tiposPlato" :key="t.slug">
+          <option :value="t.slug" x-text="(t.icono||'🍽️') + ' ' + t.nombre"></option>
+        </template>
       </select>
     </div>
 
@@ -103,7 +104,7 @@ tailwind.config = {
                 <td class="px-3 py-2.5"><span class="text-[10px] px-2 py-0.5 rounded-full bg-gold/10 text-gold" x-text="p.categoria || p.cat || '—'"></span></td>
                 <td class="px-3 py-2.5">
                   <span class="text-[10px] px-2 py-0.5 rounded-full"
-                    :class="(p.tipo === 'platos-desayuno' || p.tipo === 'Desayuno') ? 'bg-st-esperando/10 text-st-esperando' : 'bg-st-pedido/10 text-st-pedido'"
+                    :style="tipoBadgeStyle(p.tipo)"
                     x-text="tipoLabel(p.tipo)"></span>
                 </td>
                 <td class="px-3 py-2.5">
@@ -181,8 +182,9 @@ tailwind.config = {
             <div><label class="text-xs text-txt-secondary mb-1 block">Categoría</label><input type="text" x-model="formPlato.categoria" placeholder="Ej: Ceviches" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
             <div><label class="text-xs text-txt-secondary mb-1 block">Tipo</label>
               <select x-model="formPlato.tipo" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
-                <option value="plato-carta normal">🍽️ Carta</option>
-                <option value="platos-desayuno">🌅 Desayuno</option>
+                <template x-for="t in tiposPlato.filter(x => x.activo !== false)" :key="t.slug">
+                  <option :value="t.slug" x-text="(t.icono||'🍽️') + ' ' + t.nombre"></option>
+                </template>
               </select>
             </div>
           </div>
@@ -603,6 +605,7 @@ tailwind.config = {
     searchTerm: '',
     filterCategoria: '',
     filterTipo: '',
+    tiposPlato: [],
     formPlato: {
       _id: null,
       nombre: '',
@@ -663,7 +666,20 @@ tailwind.config = {
         window.location.href = '/login.html';
         return;
       }
-      await this.loadPlatos();
+      await Promise.all([this.loadPlatos(), this.loadTiposPlato()]);
+    },
+
+    async loadTiposPlato() {
+      try {
+        const data = await apiGet('/tipos-plato/menu?activos=false');
+        this.tiposPlato = Array.isArray(data) ? data : [];
+        if (this.tiposPlato.length && !this.formPlato.tipo) {
+          const defaultTipo = this.tiposPlato.find(t => t.activo !== false);
+          if (defaultTipo) this.formPlato.tipo = defaultTipo.slug;
+        }
+      } catch (e) {
+        console.error('Error cargando tipos de plato:', e);
+      }
     },
 
     async loadPlatos() {
@@ -691,13 +707,36 @@ tailwind.config = {
     },
 
     tipoLabel(tipo) {
+      if (!tipo) return '🍽️ Carta';
+      const t = this.tiposPlato.find(x => x.slug === tipo);
+      if (t) return (t.icono || '🍽️') + ' ' + t.nombre;
       const map = {
         'platos-desayuno': '🌅 Desayuno',
         'plato-carta normal': '🍽️ Carta',
         'Desayuno': '🌅 Desayuno',
         'Carta': '🍽️ Carta',
       };
-      return map[tipo] || tipo || '🍽️ Carta';
+      return map[tipo] || tipo;
+    },
+
+    tipoBadgeStyle(tipo) {
+      const t = this.tiposPlato.find(x => x.slug === tipo);
+      if (t && t.color) {
+        return `background: ${this.hexToRgba(t.color, 0.15)}; color: ${t.color};`;
+      }
+      if (tipo === 'platos-desayuno' || tipo === 'Desayuno') {
+        return 'background: rgba(255,165,2,0.10); color: #ffa502;';
+      }
+      return 'background: rgba(52,152,219,0.10); color: #3498db;';
+    },
+
+    hexToRgba(hex, alpha = 1) {
+      const h = String(hex || '').replace('#', '');
+      const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+      const r = parseInt(full.slice(0, 2), 16) || 0;
+      const g = parseInt(full.slice(2, 4), 16) || 0;
+      const b = parseInt(full.slice(4, 6), 16) || 0;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     },
 
     get categorias() {
@@ -717,13 +756,14 @@ tailwind.config = {
 
     openCreateModal() {
       this.isEditing = false;
+      const defaultTipo = (this.tiposPlato.find(t => t.activo !== false) || {}).slug || 'plato-carta normal';
       this.formPlato = {
         _id: null,
         nombre: '',
         precio: '',
         stock: 0,
         categoria: '',
-        tipo: 'plato-carta normal',
+        tipo: defaultTipo,
         descripcion: '',
         disponible: true,
         complementos: []
