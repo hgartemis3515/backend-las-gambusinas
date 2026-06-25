@@ -43,10 +43,14 @@ router.post('/admin/auth', async (req, res) => {
         // Determinar el rol (usar el de BD o default)
         const rol = mozoConRol?.rol || mozo.rol || 'mozos';
         const permisos = mozoConRol?.permisosEfectivos || rolesRepository.PERMISOS_POR_ROL_SISTEMA[rol] || [];
-        
-        // Verificar si tiene acceso al dashboard (admin o supervisor)
-        const tieneAccesoDashboard = rol === 'admin' || rol === 'supervisor';
-        
+
+        // Verificar si tiene acceso al dashboard (admin, supervisor o rol con gestión)
+        const tieneAccesoDashboard = rol === 'admin'
+            || rol === 'supervisor'
+            || permisos.includes('gestionar-roles')
+            || permisos.includes('ver-reportes')
+            || permisos.includes('ver-auditoria');
+
         if (!tieneAccesoDashboard) {
             logger.warn('Intento de acceso al dashboard sin permisos', {
                 username,
@@ -312,24 +316,29 @@ router.post('/admin/cocina/auth', async (req, res) => {
         
         // Obtener información del rol
         const mozoConRol = await rolesRepository.obtenerMozoConRol(mozo._id);
-        
+
         // Determinar el rol (usar el de BD o verificar si es admin por nombre)
         const rolUsuario = mozoConRol?.rol || (username?.toLowerCase() === 'admin' ? 'admin' : null);
-        
-        // Verificar que tenga rol de cocinero, supervisor o admin
-        if (rolUsuario !== 'cocinero' && rolUsuario !== 'admin' && rolUsuario !== 'supervisor') {
-            return res.status(403).json({ 
+
+        if (mozoConRol?.activo === false) {
+            return res.status(403).json({ error: 'Usuario inactivo' });
+        }
+
+        // Permiso de acceso al app de cocina
+        const permisos = mozoConRol?.permisosEfectivos || rolesRepository.PERMISOS_POR_ROL_SISTEMA[rolUsuario] || [];
+        const reglas = mozoConRol?.reglasEfectivas || rolesRepository.REGLAS_POR_ROL_SISTEMA[rolUsuario] || [];
+        const tienePermisoCocina = rolUsuario === 'admin'
+            || rolUsuario === 'supervisor'
+            || rolUsuario === 'cocinero'
+            || permisos.includes('ver-comandas-cocina');
+
+        if (!tienePermisoCocina) {
+            return res.status(403).json({
                 error: 'No tiene permisos para acceder a la App Cocina',
                 rol: rolUsuario || 'sin rol'
             });
         }
-        
-        if (mozoConRol?.activo === false) {
-            return res.status(403).json({ error: 'Usuario inactivo' });
-        }
-        
-        const permisos = rolesRepository.PERMISOS_POR_ROL_SISTEMA[rolUsuario] || [];
-        
+
         const token = jwt.sign(
             {
                 id: mozo._id,
@@ -337,25 +346,27 @@ router.post('/admin/cocina/auth', async (req, res) => {
                 DNI: mozo.DNI,
                 rol: rolUsuario,
                 permisos: permisos,
+                reglas: reglas,
                 app: 'cocina'
             },
             JWT_SECRET,
             { expiresIn: '8h' }
         );
-        
+
         logger.info('Usuario autenticado en App Cocina', {
             mozoId: mozo._id,
             name: mozo.name,
             rol: rolUsuario
         });
-        
+
         res.json({
             token,
             usuario: {
                 id: mozo._id,
                 name: mozo.name,
                 rol: rolUsuario,
-                permisos: permisos
+                permisos: permisos,
+                reglas: reglas
             }
         });
         

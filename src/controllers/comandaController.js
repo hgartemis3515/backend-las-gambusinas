@@ -47,6 +47,27 @@ const {
 } = require('../utils/reglasComandaTomadaCocina');
 const { getComandasParaPagoAdelantado } = require('../repository/ticketPagoAdelantado.repository');
 
+// Autenticación JWT para endpoints legacy que aún no usan adminAuth
+const jwtLib = require('jsonwebtoken');
+const JWT_SECRET_LEGACY = process.env.JWT_SECRET || 'las-gambusinas-admin-secret-key-2024';
+
+// Determina si el solicitante (según token JWT del header Authorization) tiene
+// privilegios de supervisor en cocina (rol supervisor/admin o permisos
+// 'utilidad-supervisor'/'editar-mozos'). Devuelve false si no hay token válido.
+const esSupervisorCocinaDesdeToken = (req) => {
+    try {
+        const authHeader = req.headers?.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
+        const decoded = jwtLib.verify(authHeader.substring(7), JWT_SECRET_LEGACY);
+        if (!decoded) return false;
+        if (decoded.rol === 'supervisor' || decoded.rol === 'admin') return true;
+        const permisos = decoded.permisos || [];
+        return permisos.includes('utilidad-supervisor') || permisos.includes('editar-mozos');
+    } catch (e) {
+        return false;
+    }
+};
+
 router.get('/comanda', async (req, res) => {
     try {
         const incluirPagadas =
@@ -1739,21 +1760,26 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
 
         // v7.2: VALIDACION MULTI-COCINERO
         // Si el plato esta siendo procesado por un cocinero, validar que sea el mismo quien finaliza
+        // EXCEPCIÓN: Un supervisor/admin (o con permiso utilidad-supervisor/editar-mozos) puede
+        // finalizar platos tomados por otros cocineros.
         if (nuevoEstado === 'recoger' && platoAntes.procesandoPor?.cocineroId) {
             const cocineroQueTomo = platoAntes.procesandoPor.cocineroId.toString();
             const cocineroQueFinaliza = (cocineroId || usuarioId)?.toString();
             
             if (cocineroQueFinaliza && cocineroQueTomo !== cocineroQueFinaliza) {
-                console.warn(`⚠️ [PUT /plato/:platoId/estado] Conflicto: Plato tomado por ${cocineroQueTomo}, intenta finalizar ${cocineroQueFinaliza}`);
-                return res.status(403).json({
-                    success: false,
-                    error: 'Solo el cocinero que tomó el plato puede finalizarlo',
-                    tomadoPor: {
-                        cocineroId: cocineroQueTomo,
-                        nombre: platoAntes.procesandoPor.nombre,
-                        alias: platoAntes.procesandoPor.alias
-                    }
-                });
+                if (!esSupervisorCocinaDesdeToken(req)) {
+                    console.warn(`⚠️ [PUT /plato/:platoId/estado] Conflicto: Plato tomado por ${cocineroQueTomo}, intenta finalizar ${cocineroQueFinaliza}`);
+                    return res.status(403).json({
+                        success: false,
+                        error: 'Solo el cocinero que tomó el plato puede finalizarlo',
+                        tomadoPor: {
+                            cocineroId: cocineroQueTomo,
+                            nombre: platoAntes.procesandoPor.nombre,
+                            alias: platoAntes.procesandoPor.alias
+                        }
+                    });
+                }
+                console.info(`👨‍🍳 [PUT /plato/:platoId/estado] Supervisor finalizando plato de otro cocinero. Tomado por ${cocineroQueTomo}, finaliza ${cocineroQueFinaliza}`);
             }
         }
 

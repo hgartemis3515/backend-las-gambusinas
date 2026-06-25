@@ -4094,6 +4094,30 @@ const anularComandaCompleta = async (comandaId, motivo, observaciones, usuarioId
 
     await comanda.save();
 
+    // 🔥 FIX AGRUPACIÓN: Si el Pedido asociado quedó solo con comandas canceladas,
+    // cerrarlo para que la próxima comanda de la misma mesa genere un Pedido NUEVO.
+    // Evita que comandas canceladas se agrupen con comandas nuevas en el dashboard.
+    if (comanda.pedido) {
+      try {
+        const pedido = await pedidoModel.findById(comanda.pedido);
+        if (pedido && pedido.estado === 'abierto') {
+          const comandasActivasPedido = await comandaModel.countDocuments({
+            _id: { $in: pedido.comandas || [] },
+            IsActive: true,
+            status: { $ne: 'cancelado' }
+          });
+          if (comandasActivasPedido === 0) {
+            pedido.estado = 'cerrado';
+            pedido.fechaCierre = ahora;
+            await pedido.save();
+            logger.info(`${logPrefix} Pedido #${pedido.pedidoId} cerrado (sin comandas activas tras anulación)`);
+          }
+        }
+      } catch (pedidoError) {
+        logger.warn(`${logPrefix} No se pudo verificar/cerrar el pedido asociado: ${pedidoError.message}`);
+      }
+    }
+
     // Recalcular estado de la mesa
     const mesaId = comanda.mesas?._id || comanda.mesas;
     if (mesaId) {

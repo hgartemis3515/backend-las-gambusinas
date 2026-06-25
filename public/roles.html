@@ -135,6 +135,9 @@ tailwind.config = {
                     <span class="text-[10px] px-1.5 py-0.5 rounded bg-bg-sidebar text-txt-secondary" x-text="p"></span>
                   </template>
                   <span x-show="rol.permisos?.length > 4" class="text-[10px] px-1.5 py-0.5 rounded bg-gold/20 text-gold" x-text="'+' + (rol.permisos?.length - 4) + ' más'"></span>
+                  <template x-for="(r, i) in getTopReglas(rol.reglas, 2)" :key="'r-'+i">
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-st-reservado/20 text-st-reservado" x-text="'⚙ ' + r"></span>
+                  </template>
                 </div>
               </td>
               <td class="px-4 py-3">
@@ -189,6 +192,12 @@ tailwind.config = {
           class="px-4 py-2 text-sm font-medium rounded-lg transition"
           :class="tabActiva === 'permisos' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white'">
           📋 Permisos
+        </button>
+        <button 
+          @click="tabActiva = 'reglas'" 
+          class="px-4 py-2 text-sm font-medium rounded-lg transition"
+          :class="tabActiva === 'reglas' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white'">
+          ⚙️ Reglas
         </button>
         <button 
           @click="tabActiva = 'usuarios'" 
@@ -266,6 +275,56 @@ tailwind.config = {
           </div>
         </template>
       </div>
+      </div>
+
+      <!-- Tab Reglas -->
+      <div x-show="tabActiva === 'reglas'" x-transition>
+        <div class="mb-4 p-3 rounded-lg bg-bg-sidebar border border-[rgba(212,175,55,0.15)]">
+          <p class="text-xs text-txt-secondary">
+            Las <strong class="text-gold">reglas</strong> son restricciones de comportamiento que acompañan a los permisos.
+            Cuando un rol tiene una regla activa, los usuarios con ese rol verán su comportamiento modificado según la regla,
+            incluso si poseen el permiso correspondiente.
+          </p>
+        </div>
+
+        <template x-if="Object.keys(reglasAgrupadas).length === 0">
+          <p class="text-sm text-txt-muted text-center py-6">No hay reglas disponibles</p>
+        </template>
+
+        <template x-for="(reglasGrupo, grupo) in reglasAgrupadas" :key="grupo">
+          <div class="mb-4">
+            <p class="text-[11px] text-txt-muted uppercase mb-2 font-semibold" x-text="grupo"></p>
+            <div class="grid grid-cols-1 gap-2">
+              <template x-for="regla in reglasGrupo" :key="regla.id">
+                <label class="relative flex items-center gap-2 p-3 rounded-lg bg-bg-sidebar border-2 cursor-pointer transition-all duration-200"
+                  :class="{
+                    'border-st-reservado hover:border-st-reservado/80': formRol.reglas.includes(regla.id),
+                    'border-st-pagado/50 hover:border-st-pagado': !formRol.reglas.includes(regla.id),
+                    'opacity-60 cursor-not-allowed pointer-events-none': formRol.esSistema
+                  }">
+                  <!-- Ícono de estado -->
+                  <div class="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
+                    :class="formRol.reglas.includes(regla.id) ? 'bg-st-reservado text-white' : 'bg-st-pagado/20 text-st-pagado'">
+                    <span x-text="formRol.reglas.includes(regla.id) ? '✓' : '✕'"></span>
+                  </div>
+                  <input type="checkbox"
+                    :checked="formRol.reglas.includes(regla.id)"
+                    @change="toggleRegla(regla.id)"
+                    :disabled="formRol.esSistema"
+                    class="sr-only">
+                  <div class="flex-1 min-w-0">
+                    <p class="text-xs font-medium truncate" x-text="regla.nombre"></p>
+                    <p class="text-[10px] text-txt-muted" x-text="regla.descripcion"></p>
+                  </div>
+                </label>
+              </template>
+            </div>
+          </div>
+        </template>
+
+        <div x-show="!formRol.esSistema" class="flex justify-end mt-2">
+          <span class="text-[11px] text-gold cursor-pointer hover:underline" @click="seleccionarTodasReglas()">Activar todas las reglas</span>
+        </div>
       </div>
 
       <!-- Tab Usuarios -->
@@ -350,6 +409,17 @@ tailwind.config = {
             <span class="text-sm" x-text="getNombrePermiso(permiso)"></span>
           </div>
         </template>
+      </div>
+      <div x-show="rolDetalle?.reglas && rolDetalle.reglas.length > 0" class="mt-4 pt-3 border-t border-[rgba(212,175,55,0.15)]">
+        <p class="text-[11px] text-txt-muted uppercase mb-2 font-semibold">Reglas asignadas</p>
+        <div class="space-y-1">
+          <template x-for="regla in rolDetalle?.reglas" :key="regla">
+            <div class="flex items-center gap-2 p-2 rounded-lg bg-bg-sidebar">
+              <span class="text-st-reservado text-xs">⚙</span>
+              <span class="text-sm" x-text="getNombreRegla(regla)"></span>
+            </div>
+          </template>
+        </div>
       </div>
     </div>
 
@@ -451,6 +521,8 @@ function rolesApp() {
     roles: [],
     permisosFundamentales: [],
     permisosAgrupados: {},
+    reglasFundamentales: [],
+    reglasAgrupadas: {},
     busqueda: '',
     filtroTipo: '',
     modalEditar: false,
@@ -464,6 +536,7 @@ function rolesApp() {
       nombreDisplay: '',
       descripcion: '',
       permisos: [],
+      reglas: [],
       color: 'st-libre',
       esSistema: false
     },
@@ -514,13 +587,15 @@ function rolesApp() {
       this.loading = true;
       
       try {
-        // Cargar permisos
+// Cargar permisos
         const permisosRes = await apiGet('/roles/permisos');
         if (permisosRes && permisosRes.success) {
-          this.permisosFundamentales = permisosRes.data.permisos;
-          this.permisosAgrupados = permisosRes.data.permisosAgrupados;
+            this.permisosFundamentales = permisosRes.data.permisos;
+            this.permisosAgrupados = permisosRes.data.permisosAgrupados;
+            this.reglasFundamentales = permisosRes.data.reglas || [];
+            this.reglasAgrupadas = permisosRes.data.reglasAgrupadas || {};
         } else {
-          console.error('Error al cargar permisos:', permisosRes);
+            console.error('Error al cargar permisos:', permisosRes);
         }
         
         // Cargar roles
@@ -591,6 +666,7 @@ function rolesApp() {
         nombreDisplay: '',
         descripcion: '',
         permisos: [],
+        reglas: [],
         color: 'st-libre',
         esSistema: false
       };
@@ -607,6 +683,7 @@ function rolesApp() {
         nombreDisplay: rol.nombreDisplay || rol.nombre,
         descripcion: rol.descripcion || '',
         permisos: [...(rol.permisos || [])],
+        reglas: [...(rol.reglas || [])],
         color: rol.color || 'st-libre',
         esSistema: rol.esSistema
       };
@@ -724,6 +801,32 @@ function rolesApp() {
       }
     },
     
+    toggleRegla(reglaId) {
+      const idx = this.formRol.reglas.indexOf(reglaId);
+      if (idx >= 0) {
+        this.formRol.reglas.splice(idx, 1);
+      } else {
+        this.formRol.reglas.push(reglaId);
+      }
+    },
+    
+    getNombreRegla(reglaId) {
+      const regla = this.reglasFundamentales.find(r => r.id === reglaId);
+      return regla ? regla.nombre : reglaId;
+    },
+    
+    getTopReglas(reglas, count) {
+      if (!reglas || reglas.length === 0) return [];
+      return reglas.slice(0, count).map(r => {
+        const regla = this.reglasFundamentales.find(rf => rf.id === r);
+        return regla ? regla.nombre : r;
+      });
+    },
+    
+    seleccionarTodasReglas() {
+      this.formRol.reglas = this.reglasFundamentales.map(r => r.id);
+    },
+    
     seleccionarTodosPermisos() {
       this.formRol.permisos = this.permisosFundamentales.map(p => p.id);
     },
@@ -739,6 +842,7 @@ function rolesApp() {
         nombreDisplay: this.formRol.nombreDisplay,
         descripcion: this.formRol.descripcion,
         permisos: this.formRol.permisos,
+        reglas: this.formRol.reglas,
         color: this.formRol.color
       };
       

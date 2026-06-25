@@ -41,7 +41,16 @@ const PERMISOS_FUNDAMENTALES = {
     'ver-comandas-cocina': { nombre: 'Ver Comandas Cocina', grupo: 'App Cocina', descripcion: 'Ver comandas en App Cocina' },
     'cambiar-estados-platos': { nombre: 'Cambiar Estados Platos', grupo: 'App Cocina', descripcion: 'Marcar platos como preparando/listo/entregado' },
     'revertir-comandas': { nombre: 'Revertir Comandas', grupo: 'App Cocina', descripcion: 'Deshacer comandas desde cocina' },
-    'ver-vista-supervisor-cocina': { nombre: 'Vista Supervisor Cocina', grupo: 'App Cocina', descripcion: 'Acceder a la vista de supervisor en App Cocina (asignar cocineros, tomar/dejar platos)' }
+    'ver-vista-supervisor-cocina': { nombre: 'Vista Supervisor Cocina', grupo: 'App Cocina', descripcion: 'Acceder a la vista de supervisor en App Cocina (asignar cocineros, tomar/dejar platos)' },
+    'ver-boton-prioridad-kds': { nombre: 'Ver Botón de Prioridad', grupo: 'App Cocina', descripcion: 'Visualizar el botón de prioridad en los 3 tableros KDS del app de cocina' },
+    'utilidad-supervisor': { nombre: 'Utilidad de Supervisor', grupo: 'App Cocina', descripcion: 'Permite actuar como supervisor en App Cocina: finalizar, entregar, tomar o liberar platos/comandas tomadas por otros cocineros' }
+};
+
+// Reglas fundamentales disponibles
+// Las reglas actúan como restricciones de comportamiento acompañando a los permisos
+const REGLAS_FUNDAMENTALES = {
+    // App Cocina
+    'solo-ultima-comanda-buscador': { nombre: 'Solo verá la última comanda del buscador de platos', grupo: 'App Cocina', descripcion: 'En el app de cocina, al buscar un plato, en lugar de mostrar todas las comandas que lo contienen, solo se mostrará la comanda más antigua con ese plato' }
 };
 
 // Permisos por defecto para roles del sistema
@@ -52,7 +61,7 @@ const PERMISOS_POR_ROL_SISTEMA = {
         'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria', 'ver-reportes',
         'cierre-caja', 'ver-notificaciones', 'crear-comandas', 'editar-comandas',
         'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina', 'aplicar-descuentos',
-        'ver-vista-supervisor-cocina'
+        'ver-vista-supervisor-cocina', 'ver-boton-prioridad-kds', 'utilidad-supervisor'
     ],
     cocinero: [
         'ver-platos', 'ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas'
@@ -64,6 +73,15 @@ const PERMISOS_POR_ROL_SISTEMA = {
     cajero: [
         'ver-mesas', 'ver-platos', 'ver-clientes', 'procesar-pagos', 'cierre-caja'
     ]
+};
+
+// Reglas por defecto para roles del sistema
+const REGLAS_POR_ROL_SISTEMA = {
+    admin: [],
+    supervisor: [],
+    cocinero: [],
+    mozos: [],
+    cajero: []
 };
 
 const rolesSchema = new mongoose.Schema({
@@ -86,6 +104,11 @@ const rolesSchema = new mongoose.Schema({
     permisos: [{ 
         type: String, 
         enum: Object.keys(PERMISOS_FUNDAMENTALES) 
+    }],
+    reglas: [{
+        type: String,
+        enum: Object.keys(REGLAS_FUNDAMENTALES),
+        default: []
     }],
     esSistema: { 
         type: Boolean, 
@@ -119,3 +142,5 @@ module.exports = roles;
 module.exports.ROLES_SISTEMA = ROLES_SISTEMA;
 module.exports.PERMISOS_FUNDAMENTALES = PERMISOS_FUNDAMENTALES;
 module.exports.PERMISOS_POR_ROL_SISTEMA = PERMISOS_POR_ROL_SISTEMA;
+module.exports.REGLAS_FUNDAMENTALES = REGLAS_FUNDAMENTALES;
+module.exports.REGLAS_POR_ROL_SISTEMA = REGLAS_POR_ROL_SISTEMA;

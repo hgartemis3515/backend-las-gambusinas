@@ -25,12 +25,16 @@ router.get('/roles/permisos', adminAuth, (req, res) => {
     try {
         const permisos = rolesRepository.obtenerPermisosFundamentales();
         const permisosAgrupados = rolesRepository.obtenerPermisosAgrupados();
+        const reglas = rolesRepository.obtenerReglasFundamentales();
+        const reglasAgrupadas = rolesRepository.obtenerReglasAgrupadas();
 
         res.json({
             success: true,
             data: {
                 permisos,
-                permisosAgrupados
+                permisosAgrupados,
+                reglas,
+                reglasAgrupadas
             }
         });
     } catch (error) {
@@ -141,7 +145,7 @@ router.post('/roles', adminAuth, async (req, res) => {
             });
         }
 
-        const { nombre, nombreDisplay, descripcion, permisos, color } = req.body;
+        const { nombre, nombreDisplay, descripcion, permisos, reglas, color } = req.body;
 
         if (!nombre || !nombre.trim()) {
             return res.status(400).json({ 
@@ -155,6 +159,7 @@ router.post('/roles', adminAuth, async (req, res) => {
             nombreDisplay,
             descripcion,
             permisos,
+            reglas,
             color
         }, req.admin?.id);
 
@@ -228,12 +233,13 @@ router.put('/roles/:id', adminAuth, async (req, res) => {
         }
 
         const { id } = req.params;
-        const { nombreDisplay, descripcion, permisos, color, activo } = req.body;
+        const { nombreDisplay, descripcion, permisos, reglas, color, activo } = req.body;
 
         const rolActualizado = await rolesRepository.actualizarRol(id, {
             nombreDisplay,
             descripcion,
             permisos,
+            reglas,
             color,
             activo
         });

@@ -94,17 +94,18 @@ const authenticateCocina = (socket, next) => {
       return next(new Error('Token inválido o expirado.'));
     }
     
-    // Verificar que el usuario tenga rol permitido
+    // Verificar que el usuario tenga rol permitido o el permiso de acceso a cocina
     const rol = payload.rol || payload.role;
+    const permisos = payload.permisos || [];
     const rolesPermitidos = ['cocinero', 'admin', 'supervisor'];
-    
-    if (!rolesPermitidos.includes(rol)) {
+
+    if (!rolesPermitidos.includes(rol) && !permisos.includes('ver-comandas-cocina')) {
       logger.warn('Intento de conexión a /cocina con rol no autorizado', {
         socketId: socket.id,
         userId: payload.id || payload._id,
         rol: rol
       });
-      
+
       return next(new Error('No tiene permisos para acceder a la cocina.'));
     }
     
@@ -183,11 +184,12 @@ const authenticateMozos = (socket, next) => {
       return next(new Error('Token inválido o expirado.'));
     }
     
-    // Roles permitidos para app de mozos
+    // Roles permitidos para app de mozos (o roles personalizados con permiso de crear comandas)
     const rol = payload.rol || payload.role;
+    const permisos = payload.permisos || [];
     const rolesPermitidos = ['mozos', 'admin', 'supervisor'];
-    
-    if (!rolesPermitidos.includes(rol)) {
+
+    if (!rolesPermitidos.includes(rol) && !permisos.includes('crear-comandas')) {
       return next(new Error('No tiene permisos para acceder.'));
     }
     
@@ -244,9 +246,13 @@ const authenticateAdmin = (socket, next) => {
     }
     
     const rol = payload.rol || payload.role;
+    const permisos = payload.permisos || [];
     const rolesPermitidos = ['admin', 'supervisor'];
-    
-    if (!rolesPermitidos.includes(rol)) {
+
+    if (!rolesPermitidos.includes(rol)
+        && !permisos.includes('gestionar-roles')
+        && !permisos.includes('ver-reportes')
+        && !permisos.includes('ver-auditoria')) {
       logger.warn('Intento de conexión a /admin con rol no autorizado', {
         socketId: socket.id,
         rol: rol

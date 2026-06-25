@@ -89,8 +89,7 @@ const mozosSchema = new mongoose.Schema({
     rol: {
         type: String,
         default: 'mozos',
-        required: true,
-        enum: ROLES
+        required: true
     },
     permisos: [permisoSchema],
     // Zonas asignadas (para cocineros)

@@ -3033,6 +3033,15 @@ const mesaObj = c.mesa || null;
 const mesaNum = mesaObj?.nummesa || c.mesaNumero || c.mesaNum || (typeof c.mesa === 'number' ? c.mesa : null);
 const mesaId = this.normalizeObjectId(c.mesaId ?? mesaObj?._id);
 
+// REGLA: Las comandas canceladas/anuladas NUNCA se agrupan con otras comandas.
+// Aunque compartan pedidoId/cliente/mesa con comandas nuevas, deben quedar como
+// filas individuales para preservar la trazabilidad de la anulación.
+const estadoComanda = (c.estado || c.status || '').toString().toLowerCase();
+if (estadoComanda === 'cancelado') {
+  individuales.push(c);
+  return;
+}
+
 if (pedidoId) {
   // PRIMARIO: agrupar por pedidoId (comandas nuevas con Pedido asociado)
   const key = `pedido_${pedidoId}`;

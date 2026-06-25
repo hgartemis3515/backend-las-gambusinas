@@ -5,7 +5,7 @@
 
 const rolesModel = require('../database/models/roles.model');
 const mozosModel = require('../database/models/mozos.model');
-const { ROLES_SISTEMA, PERMISOS_FUNDAMENTALES, PERMISOS_POR_ROL_SISTEMA } = require('../database/models/roles.model');
+const { ROLES_SISTEMA, PERMISOS_FUNDAMENTALES, PERMISOS_POR_ROL_SISTEMA, REGLAS_FUNDAMENTALES, REGLAS_POR_ROL_SISTEMA } = require('../database/models/roles.model');
 const { syncJsonFile } = require('../utils/jsonSync');
 const logger = require('../utils/logger');
 const redisCache = require('../utils/redisCache');
@@ -42,6 +42,7 @@ const inicializarRolesSistema = async () => {
                     nombreDisplay: rolNombre.charAt(0).toUpperCase() + rolNombre.slice(1),
                     descripcion: descripciones[rolNombre] || '',
                     permisos: PERMISOS_POR_ROL_SISTEMA[rolNombre] || [],
+                    reglas: REGLAS_POR_ROL_SISTEMA[rolNombre] || [],
                     esSistema: true,
                     activo: true,
                     color: colores[rolNombre] || 'st-libre'
@@ -50,6 +51,7 @@ const inicializarRolesSistema = async () => {
             } else {
                 // Actualizar permisos si cambiaron
                 existe.permisos = PERMISOS_POR_ROL_SISTEMA[rolNombre] || [];
+                existe.reglas = REGLAS_POR_ROL_SISTEMA[rolNombre] || [];
                 existe.descripcion = descripciones[rolNombre] || '';
                 existe.color = colores[rolNombre] || 'st-libre';
                 await existe.save();
@@ -111,7 +113,7 @@ const obtenerRolPorId = async (rolId) => {
  */
 const crearRol = async (data, creadoPor = null) => {
     try {
-        const { nombre, nombreDisplay, descripcion, permisos, color } = data;
+        const { nombre, nombreDisplay, descripcion, permisos, reglas, color } = data;
 
         // Validar que no sea un nombre de sistema
         if (ROLES_SISTEMA.includes(nombre.toLowerCase())) {
@@ -126,12 +128,15 @@ const crearRol = async (data, creadoPor = null) => {
 
         // Validar permisos
         const permisosValidos = (permisos || []).filter(p => PERMISOS_FUNDAMENTALES[p]);
+        // Validar reglas
+        const reglasValidas = (reglas || []).filter(r => REGLAS_FUNDAMENTALES[r]);
 
         const nuevoRol = await rolesModel.create({
             nombre: nombre.toLowerCase(),
             nombreDisplay: nombreDisplay || nombre,
             descripcion: descripcion || '',
             permisos: permisosValidos,
+            reglas: reglasValidas,
             esSistema: false,
             activo: true,
             color: color || 'st-libre',
@@ -186,6 +191,9 @@ const actualizarRol = async (rolId, data) => {
         if (data.descripcion !== undefined) rol.descripcion = data.descripcion;
         if (data.permisos) {
             rol.permisos = data.permisos.filter(p => PERMISOS_FUNDAMENTALES[p]);
+        }
+        if (data.reglas) {
+            rol.reglas = data.reglas.filter(r => REGLAS_FUNDAMENTALES[r]);
         }
         if (data.color) rol.color = data.color;
         if (data.activo !== undefined) rol.activo = data.activo;
@@ -274,6 +282,34 @@ const obtenerPermisosAgrupados = () => {
 };
 
 /**
+ * Obtener reglas fundamentales disponibles
+ */
+const obtenerReglasFundamentales = () => {
+    return Object.entries(REGLAS_FUNDAMENTALES).map(([key, value]) => ({
+        id: key,
+        nombre: value.nombre,
+        grupo: value.grupo,
+        descripcion: value.descripcion
+    }));
+};
+
+/**
+ * Obtener reglas agrupadas
+ */
+const obtenerReglasAgrupadas = () => {
+    const grupos = {};
+    Object.entries(REGLAS_FUNDAMENTALES).forEach(([key, value]) => {
+        if (!grupos[value.grupo]) grupos[value.grupo] = [];
+        grupos[value.grupo].push({
+            id: key,
+            nombre: value.nombre,
+            descripcion: value.descripcion
+        });
+    });
+    return grupos;
+};
+
+/**
  * Obtener un mozo con su rol y permisos efectivos
  */
 const obtenerMozoConRol = async (mozoId) => {
@@ -282,15 +318,30 @@ const obtenerMozoConRol = async (mozoId) => {
         if (!mozo) {
             mozo = await mozosModel.findOne({ mozoId: parseInt(mozoId) }).lean();
         }
-        
+
         if (!mozo) return null;
-        
-        // Obtener permisos efectivos según el rol
-        const permisosRol = PERMISOS_POR_ROL_SISTEMA[mozo.rol] || [];
-        
+
+        // Permiso y reglas según el rol: si es del sistema usar el mapa estático,
+        // si es personalizado cargarlo desde la colección roles
+        let permisosRol;
+        let reglasRol;
+
+        if (ROLES_SISTEMA.includes(mozo.rol)) {
+            permisosRol = PERMISOS_POR_ROL_SISTEMA[mozo.rol] || [];
+            reglasRol = REGLAS_POR_ROL_SISTEMA[mozo.rol] || [];
+        } else if (mozo.rol) {
+            const rolDoc = await rolesModel.findOne({ nombre: mozo.rol, activo: true }).lean();
+            permisosRol = rolDoc?.permisos || [];
+            reglasRol = rolDoc?.reglas || [];
+        } else {
+            permisosRol = [];
+            reglasRol = [];
+        }
+
         return {
             ...mozo,
-            permisosEfectivos: permisosRol
+            permisosEfectivos: permisosRol,
+            reglasEfectivas: reglasRol
         };
     } catch (error) {
         logger.error('Error al obtener mozo con rol', { error: error.message, mozoId });
@@ -377,6 +428,26 @@ const tienePermiso = async (usuarioId, permiso) => {
 };
 
 /**
+ * Verificar si un usuario tiene una regla específica asignada a su rol
+ * Las reglas son restricciones de comportamiento activas solo si están presentes
+ */
+const tieneRegla = async (usuarioId, regla) => {
+    try {
+        const usuario = await mozosModel.findById(usuarioId).lean();
+        if (!usuario) return false;
+
+        // Admin no está sujeto a reglas restrictivas
+        if (usuario.rol === 'admin') return false;
+
+        const reglasRol = REGLAS_POR_ROL_SISTEMA[usuario.rol] || [];
+        return reglasRol.includes(regla);
+    } catch (error) {
+        logger.error('Error al verificar regla', { error: error.message, usuarioId, regla });
+        return false;
+    }
+};
+
+/**
  * Verificar si un usuario tiene un rol específico
  */
 const tieneRol = async (usuarioId, rolesPermitidos) => {
@@ -401,13 +472,18 @@ module.exports = {
     eliminarRol,
     obtenerPermisosFundamentales,
     obtenerPermisosAgrupados,
+    obtenerReglasFundamentales,
+    obtenerReglasAgrupadas,
     obtenerMozoConRol,
     asignarRolAUsuario,
     obtenerUsuariosPorRol,
     tienePermiso,
+    tieneRegla,
     tieneRol,
     ROLES_SISTEMA,
     PERMISOS_FUNDAMENTALES,
     PERMISOS_POR_ROL_SISTEMA,
-    PERMISOS_POR_ROL: PERMISOS_POR_ROL_SISTEMA
+    PERMISOS_POR_ROL: PERMISOS_POR_ROL_SISTEMA,
+    REGLAS_FUNDAMENTALES,
+    REGLAS_POR_ROL_SISTEMA
 };
