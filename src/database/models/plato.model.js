@@ -6,8 +6,25 @@ const AutoIncrement = require('mongoose-sequence')(mongoose);
 // Se sigue exportando para no romper imports existentes (plato.repository, etc.).
 const TIPOS_MENU = ['platos-desayuno', 'plato-carta normal'];
 
+const { validarCodigoPlato } = require('../../utils/validarCodigoPlato');
+
 const platoSchema = new mongoose.Schema({
     id: { type: Number, unique: true },
+    // Código de serie corto para el buscador del KDS de cocina.
+    // Formato: 1 letra mayúscula + 1-3 dígitos (ej. L923). Único.
+    codigo: {
+        type: String,
+        required: true,
+        trim: true,
+        uppercase: true,
+        validate: {
+            validator: function (v) {
+                const r = validarCodigoPlato(v);
+                return r.valido;
+            },
+            message: 'El código debe tener el formato: 1 letra mayúscula + 1-3 números (ej. L1, M23, D345)'
+        }
+    },
     nombre: { type: String, required: true },
     nombreLower: { type: String, required: false, unique: true },
     precio: { type: Number, required: true, min: 0 },
@@ -72,6 +89,9 @@ const platoSchema = new mongoose.Schema({
         opciones: [{ type: String }]                       // Ej: ["Pollo", "Carne", "Mixto"]
     }]
 });
+
+// Índice único para el código de serie del plato (buscador KDS).
+platoSchema.index({ codigo: 1 }, { unique: true, name: 'idx_plato_codigo_unique' });
 
 // ========== FASE A1: ÍNDICES OPTIMIZADOS ==========
 // Índices existentes para queries por tipo y categoría

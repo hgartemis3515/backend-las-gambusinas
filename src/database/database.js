@@ -2,7 +2,7 @@ require('dotenv/config');
 
 const mongoose = require('mongoose');
 const { inicializarUsuarioAdmin, importarMozosDesdeJSON } = require('../repository/mozos.repository');
-const { importarPlatosDesdeJSON } = require('../repository/plato.repository');
+const { importarPlatosDesdeJSON, asegurarCodigosPlato } = require('../repository/plato.repository');
 const { importarAreasDesdeJSON } = require('../repository/area.repository');
 const { importarMesasDesdeJSON } = require('../repository/mesas.repository');
 const { importarClientesDesdeJSON } = require('../repository/clientes.repository');
@@ -85,6 +85,12 @@ db.once('open', async () => {
   if (platosImport && (platosImport.imported > 0 || platosImport.skipped > 0)) {
     const seq = platosImport.sequenceNext != null ? `, sequence next=${platosImport.sequenceNext}` : '';
     console.log(`   Platos: ${platosImport.imported} agregados, ${platosImport.skipped} existentes saltados${seq}`);
+  }
+
+  // Asegurar que todo plato tenga código de serie válido (auto-genera aleatorios)
+  const codigosRes = await asegurarCodigosPlato();
+  if (codigosRes && codigosRes.asignados > 0) {
+    console.log(`   Platos: ${codigosRes.asignados} código(s) auto-generados (${codigosRes.revisados} revisados)`);
   }
   await importarAreasDesdeJSON();
   await importarMesasDesdeJSON();

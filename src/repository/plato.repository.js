@@ -149,15 +149,29 @@ const upsertPlatoByName = async (data) => {
     }
 
     try {
+        // Código temporal: primera letra de la categoría + id autoincremental no es
+        // conocido hasta save(); usamos un código basado en hash del nombre truncado.
+        // El admin debe corregirlo después en platos.html.
+        const letra = (() => {
+            const base = (categoria || nombreTrim || 'P').trim().charAt(0).toUpperCase();
+            return /[A-Z]/.test(base) ? base : 'P';
+        })();
+        const seedNum = Math.abs(Array.from(nombreTrim).reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) | 0, 7));
+        const digitos = String(seedNum % 1000).padStart(3, '0');
+        const { validarCodigoPlato } = require('../utils/validarCodigoPlato');
+        const rCodigo = validarCodigoPlato(letra + digitos);
+        const codigo = rCodigo.valido ? rCodigo.codigo : 'P001';
+
         const nuevo = await plato.create({
             nombre: nombreTrim,
+            codigo,
             precio,
             stock,
             categoria,
             tipo,
             tipos: [tipo]
         });
-        logger.debug('Plato creado', { nombre: nombreTrim, id: nuevo.id });
+        logger.debug('Plato creado', { nombre: nombreTrim, id: nuevo.id, codigo });
         return { action: 'created', doc: nuevo };
     } catch (err) {
         if (err.code === 11000) {
@@ -180,8 +194,31 @@ function buildPlatoDocFromJson(p) {
     const tipo = (p.tipo && TIPOS_MENU.includes(p.tipo)) ? p.tipo : inferirTipoDesdeNombre(p.nombre);
     const id = typeof p.id === 'number' && Number.isInteger(p.id) && p.id > 0 ? p.id : null;
     if (id == null) return null;
+    // Código: usar el del JSON si viene y es válido; si no, generar uno temporal
+    // con la primera letra de la categoría + id (ej. "P5"). La migración manual
+    // posterior en platos.html deja los códigos finales.
+    const { validarCodigoPlato } = require('../utils/validarCodigoPlato');
+    let codigoRaw = p.codigo != null ? String(p.codigo).trim() : '';
+    if (codigoRaw) {
+        const r = validarCodigoPlato(codigoRaw);
+        if (r.valido) codigoRaw = r.codigo;
+        else codigoRaw = '';
+    }
+    if (!codigoRaw) {
+        const letra = (() => {
+            const base = (categoria || nombreTrim || 'P').trim().charAt(0).toUpperCase();
+            return /[A-Z]/.test(base) ? base : 'P';
+        })();
+        const digitos = String(id).slice(0, 3);
+        codigoRaw = letra + digitos;
+        // Validar que el generado cumpla el formato (id de 1-3 dígitos)
+        const r = validarCodigoPlato(codigoRaw);
+        if (!r.valido) return null;
+        codigoRaw = r.codigo;
+    }
     return {
         id,
+        codigo: codigoRaw,
         nombre: nombreTrim,
         nombreLower,
         precio: Number.isNaN(precio) ? 0 : Math.max(0, precio),
@@ -291,8 +328,113 @@ const findByCategoria = async (categoria) => {
     return data;
 }
 
+/**
+ * Asegura que todos los platos en BD tengan un `codigo` válido y único.
+ * Se ejecuta al arrancar el backend. Para cada plato sin código (o con código
+ * inválido) genera uno aleatorio con formato ^[A-Z][0-9]{1,3}$ que no colisione
+ * con los existentes.
+ *
+ * @returns {Promise<{ asignados: number, revisados: number }>}
+ */
+const asegurarCodigosPlato = async () => {
+    const { validarCodigoPlato, REGEX_CODIGO_PLATO } = require('../utils/validarCodigoPlato');
+
+    const docs = await plato.find({});
+    const usados = new Set();
+    const sinCodigo = [];
+
+    for (const d of docs) {
+        const c = d.codigo != null ? String(d.codigo).trim().toUpperCase() : '';
+        if (c && REGEX_CODIGO_PLATO.test(c)) {
+            usados.add(c);
+        } else {
+            sinCodigo.push(d);
+        }
+    }
+
+    if (sinCodigo.length === 0) {
+        return { asignados: 0, revisados: docs.length };
+    }
+
+    const LETRAS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+    const generarUnico = () => {
+        for (let i = 0; i < 500; i++) {
+            const letra = LETRAS[Math.floor(Math.random() * LETRAS.length)];
+            const num = Math.floor(Math.random() * 900) + 100;
+            const cand = letra + num;
+            if (!usados.has(cand)) {
+                usados.add(cand);
+                return cand;
+            }
+        }
+        for (let i = 0; i < 500; i++) {
+            const letra = LETRAS[Math.floor(Math.random() * LETRAS.length)];
+            const num = Math.floor(Math.random() * 90) + 10;
+            const cand = letra + num;
+            if (!usados.has(cand)) {
+                usados.add(cand);
+                return cand;
+            }
+        }
+        return null;
+    };
+
+    let asignados = 0;
+    for (const d of sinCodigo) {
+        let codigo = generarUnico();
+        if (!codigo) {
+            logger.warn('No se pudo generar código único para plato', { id: d.id, nombre: d.nombre });
+            continue;
+        }
+        const r = validarCodigoPlato(codigo);
+        if (!r.valido) continue;
+        try {
+            d.codigo = r.codigo;
+            await d.save();
+            asignados += 1;
+        } catch (err) {
+            if (err && err.code === 11000) {
+                const otro = generarUnico();
+                if (otro) {
+                    try {
+                        d.codigo = otro;
+                        await d.save();
+                        asignados += 1;
+                        continue;
+                    } catch (_) {}
+                }
+                logger.warn('Conflicto de código duplicado al auto-asignar', { id: d.id, nombre: d.nombre });
+            } else {
+                logger.warn('Error al asignar código automático', { id: d.id, error: err.message });
+            }
+        }
+    }
+
+    if (asignados > 0) {
+        const todosLosPlatos = await listarPlatos();
+        await syncJsonFile('platos.json', todosLosPlatos);
+        logger.info('Códigos de plato auto-asignados al arranque', { asignados, revisados: docs.length });
+    }
+
+    return { asignados, revisados: docs.length };
+};
+
 const crearPlato = async (data) => {
-    const nuevo = await plato.create(data);
+    let nuevo;
+    try {
+        nuevo = await plato.create(data);
+    } catch (err) {
+        if (err && err.code === 11000) {
+            const dup = err.keyValue && err.keyValue.codigo
+                ? `El código "${err.keyValue.codigo}" ya está en uso por otro plato`
+                : 'Ya existe un plato con ese código o nombre';
+            const e = new Error(dup);
+            e.statusCode = 409;
+            throw e;
+        }
+        throw err;
+    }
     (nuevo.tipos && nuevo.tipos.length ? nuevo.tipos : [nuevo.tipo]).forEach(t => invalidatePlatoMenuCache(t));
     if (global.emitPlatoMenuActualizado) await global.emitPlatoMenuActualizado(nuevo).catch(() => {});
     const todosLosPlatos = await listarPlatos();
@@ -319,7 +461,19 @@ const actualizarPlato = async (id, newData) => {
         throw err;
     }
     
-    await plato.findOneAndUpdate(filter, newData, { new: true });
+    try {
+        await plato.findOneAndUpdate(filter, newData, { new: true, runValidators: true });
+    } catch (err) {
+        if (err && err.code === 11000) {
+            const dup = err.keyValue && err.keyValue.codigo
+                ? `El código "${err.keyValue.codigo}" ya está en uso por otro plato`
+                : 'Ya existe un plato con ese código o nombre';
+            const e = new Error(dup);
+            e.statusCode = 409;
+            throw e;
+        }
+        throw err;
+    }
     
     if (anterior?.tipos && Array.isArray(anterior.tipos)) {
         anterior.tipos.forEach(t => invalidatePlatoMenuCache(t));
@@ -515,5 +669,6 @@ module.exports = {
     getMenuPorTipoYCategoria,
     actualizarTipoPlato,
     invalidatePlatoMenuCache,
+    asegurarCodigosPlato,
     TIPOS_MENU
 };

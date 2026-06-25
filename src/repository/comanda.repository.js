@@ -410,7 +410,7 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
     });
     dbQuery = dbQuery.populate({
       path: "platos.plato",
-      select: "nombre precio categoria",
+      select: "nombre precio categoria codigo",
       options: { lean: true }
     });
     
@@ -2285,7 +2285,7 @@ const listarComandaPorFechaEntregado = async (fecha, usarProyeccion = true) => {
     // Solo nombre y precio del plato (no todo el documento)
     query = query.populate({
       path: "platos.plato",
-      select: "nombre precio categoria",
+      select: "nombre precio categoria codigo",
       options: { lean: true }
     });
     
@@ -2325,7 +2325,7 @@ const listarComandaPorFechaEntregado = async (fecha, usarProyeccion = true) => {
         })
         .populate({
           path: "platos.plato",
-          select: "nombre precio categoria",
+          select: "nombre precio categoria codigo",
           options: { lean: true }
         });
       
@@ -2424,7 +2424,7 @@ const listarComandaPorFecha = async (fecha, usarProyeccion = true) => {
     });
     query = query.populate({
       path: "platos.plato",
-      select: "nombre precio",
+      select: "nombre precio codigo",
       options: { lean: true }
     });
     
@@ -2827,7 +2827,7 @@ const getComandasPagadasPorMesa = async (mesaId) => {
         ...query,
         status: { $in: ['pagado', 'completado', 'entregado', 'en_espera', 'recoger', 'salio', 'pendiente', 'pendiente_aprobar'] },
       })
-      .populate('platos.plato', 'nombre precio')
+      .populate('platos.plato', 'nombre precio codigo')
       .populate('mozos', 'name _id')
       .populate('mesas', 'nummesa estado nombreCombinado')
       .populate('cliente', 'nombre dni')
@@ -2893,7 +2893,7 @@ const getComandasCicloParaPagos = async (mesaId, comandaIdsOpcional = null) => {
 
     const comandas = await comandaModel
       .find(query)
-      .populate('platos.plato', 'nombre precio')
+      .populate('platos.plato', 'nombre precio codigo')
       .populate('mozos', 'name')
       .populate('mesas', 'nummesa estado nombreCombinado')
       .populate('cliente', 'nombre dni')
@@ -2981,7 +2981,7 @@ const getComandasParaPagar = async (mesaId, comandaIds = null) => {
       }
     }
     const comandas = await comandaModel.find(query)
-      .populate('platos.plato', 'nombre precio')
+      .populate('platos.plato', 'nombre precio codigo')
       .populate('mozos', 'name')
       .populate('mesas', 'nummesa estado nombreCombinado')
       .sort({ createdAt: -1 });
@@ -3050,7 +3050,7 @@ const validarPlatosSeleccionadosParaPago = async (mesaId, platosSeleccionados, e
       IsActive: true,
       status: { $in: estadosValidos },
     })
-    .populate('platos.plato', 'nombre precio')
+    .populate('platos.plato', 'nombre precio codigo')
     .populate('mozos')
     .populate('mesas', 'nummesa nombreCombinado');
 
@@ -3287,7 +3287,7 @@ const validarComandasParaPagar = async (mesaId, comandasIds) => {
       IsActive: true,
       status: { $in: ['recoger', 'salio', 'entregado'] }
     })
-      .populate('platos.plato', 'nombre precio')
+      .populate('platos.plato', 'nombre precio codigo')
       .populate('mozos')
       .populate('mesas', 'nummesa nombreCombinado');
 
