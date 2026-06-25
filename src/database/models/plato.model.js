@@ -19,10 +19,26 @@ const platoSchema = new mongoose.Schema({
     },
     tipo: {
         type: String,
-        required: true,
+        required: false,
         trim: true,
         default: 'plato-carta normal'
-        // Sin enum: los tipos ahora se validan dinámicamente contra tipos_plato
+        // LEGACY: valor único. Se conserva por compatibilidad. El campo
+        // canónico ahora es `tipos` (array) que permite que un plato
+        // pertenezca a 1 o más tipos de menú simultáneamente.
+    },
+    // Nuevo: lista de tipos de menú a los que pertenece el plato (1 o más).
+    // Cada elemento debe ser un slug válido de tipos_plato.
+    tipos: {
+        type: [String],
+        default: undefined,
+        validate: {
+            validator: function (arr) {
+                // Se permite vacío temporalmente durante la migración; se
+                // normaliza en pre('save') copiando `tipo` si corresponde.
+                return Array.isArray(arr);
+            },
+            message: 'tipos debe ser un array de slugs'
+        }
     },
     isActive: {
         type: Boolean,
@@ -61,6 +77,8 @@ const platoSchema = new mongoose.Schema({
 // Índices existentes para queries por tipo y categoría
 platoSchema.index({ categoria: 1 });
 platoSchema.index({ tipo: 1, categoria: 1 });
+// Índice para el nuevo campo `tipos` (búsquedas $in por menú)
+platoSchema.index({ tipos: 1, categoria: 1 });
 
 // ÍNDICE 1: Platos activos por tipo y categoría (menú - endpoint frecuente)
 // Query: platos para menú filtrados por isActive y tipo
@@ -120,11 +138,40 @@ platoSchema.pre('save', async function (next) {
                 return next(new Error('categoria no puede estar vacía'));
             }
         }
-        if (this.tipo != null) {
-            this.tipo = String(this.tipo).trim().toLowerCase();
-            const validos = await _getSlugsValidos();
-            if (!validos.has(this.tipo)) {
-                return next(new Error(`tipo "${this.tipo}" no es válido. Crea el tipo en Tipos de Plato antes de asignarlo.`));
+        let slugsValidos = null;
+        if (this.tipo != null || (Array.isArray(this.tipos) && this.tipos.length)) {
+            slugsValidos = await _getSlugsValidos();
+
+            // Normalizar y validar `tipo` (legacy) si vino seteado
+            if (this.tipo != null) {
+                this.tipo = String(this.tipo).trim().toLowerCase();
+                if (this.tipo && !slugsValidos.has(this.tipo)) {
+                    return next(new Error(`tipo "${this.tipo}" no es válido. Crea el tipo en Tipos de Plato antes de asignarlo.`));
+                }
+            }
+
+            // Normalizar array `tipos`: lower, trim, único, filtrar vacíos
+            if (Array.isArray(this.tipos)) {
+                const seen = new Set();
+                const limpios = [];
+                for (const t of this.tipos) {
+                    if (t == null) continue;
+                    const slug = String(t).trim().toLowerCase();
+                    if (!slug) continue;
+                    if (!slugsValidos.has(slug)) {
+                        return next(new Error(`tipo "${slug}" no es válido. Crea el tipo en Tipos de Plato antes de asignarlo.`));
+                    }
+                    if (!seen.has(slug)) { seen.add(slug); limpios.push(slug); }
+                }
+                this.tipos = limpios;
+            }
+
+            // Sincronizar `tipo` legacy con el primer elemento de `tipos`
+            if (Array.isArray(this.tipos) && this.tipos.length) {
+                this.tipo = this.tipos[0];
+            } else if (this.tipo) {
+                // Si solo vino `tipo` (legacy), reflejarlo en `tipos`
+                this.tipos = [this.tipo];
             }
         }
         next();

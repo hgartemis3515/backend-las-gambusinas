@@ -42,10 +42,18 @@ async function normalizarTipoParam(tipo) {
 
 /**
  * Filtro Mongo para tipo permitiendo espacios/case en BD.
+ * Busca en el campo legacy `tipo` (regex) Y en el array `tipos` ($in).
+ * Soporta que un plato pertenezca a múltiples tipos de menú simultáneamente.
  */
 function buildTipoFilter(canonicalTipo) {
     const escaped = String(canonicalTipo).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
-    return { tipo: { $regex: new RegExp('^\\s*' + escaped + '\\s*$', 'i') } };
+    const regex = new RegExp('^\\s*' + escaped + '\\s*$', 'i');
+    return {
+        $or: [
+            { tipo: { $regex: regex } },
+            { tipos: canonicalTipo }
+        ]
+    };
 }
 
 const listarPlatos = async () => {
@@ -146,7 +154,8 @@ const upsertPlatoByName = async (data) => {
             precio,
             stock,
             categoria,
-            tipo
+            tipo,
+            tipos: [tipo]
         });
         logger.debug('Plato creado', { nombre: nombreTrim, id: nuevo.id });
         return { action: 'created', doc: nuevo };
@@ -179,6 +188,7 @@ function buildPlatoDocFromJson(p) {
         stock: Number.isNaN(stock) ? 0 : Math.max(0, stock),
         categoria,
         tipo,
+        tipos: [tipo],
         isActive: p.isActive !== false
     };
 }
@@ -283,7 +293,7 @@ const findByCategoria = async (categoria) => {
 
 const crearPlato = async (data) => {
     const nuevo = await plato.create(data);
-    invalidatePlatoMenuCache(nuevo.tipo);
+    (nuevo.tipos && nuevo.tipos.length ? nuevo.tipos : [nuevo.tipo]).forEach(t => invalidatePlatoMenuCache(t));
     if (global.emitPlatoMenuActualizado) await global.emitPlatoMenuActualizado(nuevo).catch(() => {});
     const todosLosPlatos = await listarPlatos();
     await syncJsonFile('platos.json', todosLosPlatos);
@@ -311,8 +321,16 @@ const actualizarPlato = async (id, newData) => {
     
     await plato.findOneAndUpdate(filter, newData, { new: true });
     
-    if (anterior?.tipo) invalidatePlatoMenuCache(anterior.tipo);
-    if (newData.tipo) invalidatePlatoMenuCache(newData.tipo);
+    if (anterior?.tipos && Array.isArray(anterior.tipos)) {
+        anterior.tipos.forEach(t => invalidatePlatoMenuCache(t));
+    } else if (anterior?.tipo) {
+        invalidatePlatoMenuCache(anterior.tipo);
+    }
+    if (Array.isArray(newData.tipos)) {
+        newData.tipos.forEach(t => invalidatePlatoMenuCache(t));
+    } else if (newData.tipo) {
+        invalidatePlatoMenuCache(newData.tipo);
+    }
     
     const actualizado = await plato.findOne(filter);
     if (actualizado && global.emitPlatoMenuActualizado) await global.emitPlatoMenuActualizado(actualizado).catch(() => {});
@@ -327,7 +345,7 @@ const borrarPlato = async (id) => {
         ? await plato.findById(id)
         : await plato.findOne({ id: Number(id) });
     if (doc) {
-        invalidatePlatoMenuCache(doc.tipo);
+        (doc.tipos && doc.tipos.length ? doc.tipos : [doc.tipo]).forEach(t => invalidatePlatoMenuCache(t));
         await plato.findByIdAndDelete(doc._id);
     } else {
         await plato.findByIdAndDelete(id);
@@ -400,7 +418,11 @@ const getCategorias = async () => {
     const match = { stock: { $gt: 0 }, $or: [{ isActive: true }, { isActive: { $exists: false } }] };
     const agg = await plato.aggregate([
         { $match: match },
-        { $group: { _id: { categoria: '$categoria', tipo: '$tipo' }, count: { $sum: 1 } } },
+        // Desplegar cada tipo del array `tipos` (o usar `tipo` legacy si no hay)
+        { $addFields: { tiposExp: { $ifNull: ['$tipos', []] } } },
+        { $addFields: { tiposExp: { $cond: [{ $gt: [{ $size: '$tiposExp' }, 0] }, '$tiposExp', ['$tipo']] } } },
+        { $unwind: '$tiposExp' },
+        { $group: { _id: { categoria: '$categoria', tipo: '$tiposExp' }, count: { $sum: 1 } } },
         { $sort: { '_id.categoria': 1 } }
     ]);
     const desayuno = [];
@@ -464,6 +486,7 @@ const actualizarTipoPlato = async (id, nuevoTipo) => {
     }
     const tipoAnterior = doc.tipo;
     doc.tipo = nuevoTipo;
+    doc.tipos = [nuevoTipo];
     await doc.save();
     invalidatePlatoMenuCache(tipoAnterior);
     invalidatePlatoMenuCache(nuevoTipo);

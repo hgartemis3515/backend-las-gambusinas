@@ -18,6 +18,21 @@ function slugify(text) {
 }
 
 /**
+ * Filtro Mongo para encontrar platos que pertenezcan a un tipo dado,
+ * considerando tanto el campo legacy `tipo` (string) como el array `tipos`.
+ * @param {string} slug
+ */
+function platosDeTipoFilter(slug) {
+    const s = String(slug || '').toLowerCase().trim();
+    return {
+        $or: [
+            { tipos: s },
+            { tipo: s }
+        ]
+    };
+}
+
+/**
  * Listar tipos con uso (conteo de platos).
  * @param {Object} opts - { soloActivos: boolean, conUso: boolean }
  */
@@ -29,7 +44,10 @@ const listarTiposPlato = async (opts = {}) => {
 
     if (opts.conUso !== false) {
         const aggs = await platoModel.aggregate([
-            { $group: { _id: '$tipo', count: { $sum: 1 } } }
+            { $addFields: { tiposExp: { $ifNull: ['$tipos', []] } } },
+            { $addFields: { tiposExp: { $cond: [{ $gt: [{ $size: '$tiposExp' }, 0] }, '$tiposExp', ['$tipo']] } } },
+            { $unwind: '$tiposExp' },
+            { $group: { _id: '$tiposExp', count: { $sum: 1 } } }
         ]);
         const usoMap = {};
         aggs.forEach(a => { usoMap[a._id] = a.count; });
@@ -177,7 +195,7 @@ const eliminarTipoPlato = async (id) => {
         err.statusCode = 400;
         throw err;
     }
-    const uso = await platoModel.countDocuments({ tipo: tipo.slug });
+    const uso = await platoModel.countDocuments(platosDeTipoFilter(tipo.slug));
     if (uso > 0) {
         const err = new Error(`No se puede eliminar: hay ${uso} plato(s) usando "${tipo.slug}". Reasigna primero.`);
         err.statusCode = 409;
@@ -191,7 +209,7 @@ const eliminarTipoPlato = async (id) => {
 
 const obtenerPlatosQueUsanTipo = async (slug) => {
     const s = String(slug).toLowerCase().trim();
-    const docs = await platoModel.find({ tipo: s }).select('id nombre categoria tipo -_id').lean();
+    const docs = await platoModel.find(platosDeTipoFilter(s)).select('id nombre categoria tipo tipos -_id').lean();
     return { slug: s, count: docs.length, platos: docs };
 };
 
@@ -210,11 +228,28 @@ const reasignarTipoPlato = async (slugOrigen, slugDestino, platoIds = null) => {
         throw err;
     }
 
-    const filter = { tipo: origen };
+    const filter = platosDeTipoFilter(origen);
     if (platoIds && Array.isArray(platoIds) && platoIds.length) {
         filter.id = { $in: platoIds.map(Number).filter(Number.isFinite) };
     }
-    const result = await platoModel.updateMany(filter, { $set: { tipo: destino } });
+    // Para cada coincidencia: quitar `origen` del array `tipos` y (si no tenía
+    // otros tipos) asignar `destino`. También sincronizar `tipo` legacy.
+    const docs = await platoModel.find(filter).lean();
+    let modifiedCount = 0;
+    for (const d of docs) {
+        const tiposActuales = Array.isArray(d.tipos) && d.tipos.length
+            ? [...d.tipos]
+            : (d.tipo ? [d.tipo] : []);
+        let nuevosTipos = tiposActuales.filter(t => t !== origen);
+        if (!nuevosTipos.includes(destino)) nuevosTipos.push(destino);
+        if (nuevosTipos.length === 0) nuevosTipos = [destino];
+        const nuevoTipoLegacy = nuevosTipos[0] || destino;
+        if (d.tipo !== nuevoTipoLegacy || JSON.stringify(d.tipos || []) !== JSON.stringify(nuevosTipos)) {
+            await platoModel.updateOne({ _id: d._id }, { $set: { tipo: nuevoTipoLegacy, tipos: nuevosTipos } });
+            modifiedCount++;
+        }
+    }
+    const result = { modifiedCount };
     invalidatePlatoMenuCache();
     return { modifiedCount: result.modifiedCount || 0, origen, destino };
 };
@@ -224,7 +259,10 @@ const reasignarTipoPlato = async (slugOrigen, slugDestino, platoIds = null) => {
  */
 const contarUsoPorSlug = async () => {
     const aggs = await platoModel.aggregate([
-        { $group: { _id: '$tipo', count: { $sum: 1 } } }
+        { $addFields: { tiposExp: { $ifNull: ['$tipos', []] } } },
+        { $addFields: { tiposExp: { $cond: [{ $gt: [{ $size: '$tiposExp' }, 0] }, '$tiposExp', ['$tipo']] } } },
+        { $unwind: '$tiposExp' },
+        { $group: { _id: '$tiposExp', count: { $sum: 1 } } }
     ]);
     const map = {};
     aggs.forEach(a => { map[a._id] = a.count; });

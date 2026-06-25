@@ -93,7 +93,7 @@ tailwind.config = {
                 <td class="px-3 py-2.5 text-txt-muted" x-text="i+1"></td>
                 <td class="px-3 py-2.5">
                   <p class="font-medium text-sm" x-text="p.nombre"></p>
-                  <p class="text-[10px] text-txt-muted" x-text="(p.categoria || p.cat) + ' · ' + tipoLabel(p.tipo)"></p>
+                  <p class="text-[10px] text-txt-muted" x-text="(p.categoria || p.cat) + ' · ' + tiposLabel(p)"></p>
                 </td>
                 <td class="px-3 py-2.5 text-gold font-semibold" x-text="'S/. ' + (p.precio || '0.00')"></td>
                 <td class="px-3 py-2.5">
@@ -103,9 +103,14 @@ tailwind.config = {
                 </td>
                 <td class="px-3 py-2.5"><span class="text-[10px] px-2 py-0.5 rounded-full bg-gold/10 text-gold" x-text="p.categoria || p.cat || '—'"></span></td>
                 <td class="px-3 py-2.5">
-                  <span class="text-[10px] px-2 py-0.5 rounded-full"
-                    :style="tipoBadgeStyle(p.tipo)"
-                    x-text="tipoLabel(p.tipo)"></span>
+                  <div class="flex flex-wrap gap-1">
+                    <template x-for="t in tiposDe(p)" :key="t">
+                      <span class="text-[10px] px-2 py-0.5 rounded-full"
+                        :style="tipoBadgeStyle(t)"
+                        x-text="tipoLabel(t)"></span>
+                    </template>
+                    <span x-show="tiposDe(p).length === 0" class="text-[10px] text-txt-muted">—</span>
+                  </div>
                 </td>
                 <td class="px-3 py-2.5">
                   <template x-if="getPlatoComplementosSummary(p)">
@@ -176,17 +181,28 @@ tailwind.config = {
         <p class="text-[11px] text-txt-secondary uppercase font-semibold mb-3">Datos Básicos</p>
         <div class="space-y-3">
           <div><label class="text-xs text-txt-secondary mb-1 block">Nombre del plato <span class="text-st-pagado">*</span></label><input type="text" x-model="formPlato.nombre" placeholder="Ej: Ceviche Clásico" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
-          <div class="grid grid-cols-4 gap-3">
+          <div class="grid grid-cols-3 gap-3">
             <div><label class="text-xs text-txt-secondary mb-1 block">Precio (S/.)</label><input type="number" x-model="formPlato.precio" placeholder="0.00" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
             <div><label class="text-xs text-txt-secondary mb-1 block">Stock</label><input type="number" x-model="formPlato.stock" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
             <div><label class="text-xs text-txt-secondary mb-1 block">Categoría</label><input type="text" x-model="formPlato.categoria" placeholder="Ej: Ceviches" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
-            <div><label class="text-xs text-txt-secondary mb-1 block">Tipo</label>
-              <select x-model="formPlato.tipo" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
-                <template x-for="t in tiposPlato.filter(x => x.activo !== false)" :key="t.slug">
-                  <option :value="t.slug" x-text="(t.icono||'🍽️') + ' ' + t.nombre"></option>
-                </template>
-              </select>
+          </div>
+
+          <!-- TIPOS DE MENÚ (selección múltiple) -->
+          <div class="mt-3">
+            <label class="text-xs text-txt-secondary mb-1 block">Tipos de menú <span class="text-st-pagado">*</span> <span class="text-[10px] text-txt-muted">(puede seleccionar 1 o varios)</span></label>
+            <div class="flex flex-wrap gap-2 p-3 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg">
+              <template x-for="t in tiposPlato.filter(x => x.activo !== false)" :key="t.slug">
+                <button type="button" @click="toggleTipoEnForm(t.slug)"
+                  class="px-2.5 py-1.5 rounded-lg text-xs font-medium border transition flex items-center gap-1"
+                  :class="formPlato.tipos.includes(t.slug) ? 'bg-gold text-bg-primary border-gold' : 'border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold'">
+                  <span x-text="t.icono||'🍽️'"></span>
+                  <span x-text="t.nombre"></span>
+                  <span x-show="formPlato.tipos.includes(t.slug)" class="text-[10px]">✓</span>
+                </button>
+              </template>
+              <span x-show="tiposPlato.filter(x => x.activo !== false).length === 0" class="text-[11px] text-txt-muted">No hay tipos configurados</span>
             </div>
+            <p x-show="formPlato.tipos.length === 0" class="text-[10px] text-st-pagado mt-1">Selecciona al menos un tipo de menú</p>
           </div>
         </div>
       </div>
@@ -613,6 +629,7 @@ tailwind.config = {
       stock: 0,
       categoria: '',
       tipo: 'plato-carta normal',
+      tipos: [],
       descripcion: '',
       disponible: true,
       complementos: []
@@ -675,7 +692,12 @@ tailwind.config = {
         this.tiposPlato = Array.isArray(data) ? data : [];
         if (this.tiposPlato.length && !this.formPlato.tipo) {
           const defaultTipo = this.tiposPlato.find(t => t.activo !== false);
-          if (defaultTipo) this.formPlato.tipo = defaultTipo.slug;
+          if (defaultTipo) {
+            this.formPlato.tipo = defaultTipo.slug;
+            if (!Array.isArray(this.formPlato.tipos) || this.formPlato.tipos.length === 0) {
+              this.formPlato.tipos = [defaultTipo.slug];
+            }
+          }
         }
       } catch (e) {
         console.error('Error cargando tipos de plato:', e);
@@ -698,10 +720,10 @@ tailwind.config = {
       this.filteredPlatos = this.platos.filter(p => {
         const matchSearch = !this.searchTerm || p.nombre?.toLowerCase().includes(this.searchTerm.toLowerCase());
         const matchCat = !this.filterCategoria || p.categoria === this.filterCategoria || p.cat === this.filterCategoria;
-        const pTipo = p.tipo || 'plato-carta normal';
-        const matchTipo = !this.filterTipo || pTipo === this.filterTipo ||
-          (this.filterTipo === 'Carta' && (pTipo === 'Carta' || pTipo === 'plato-carta normal')) ||
-          (this.filterTipo === 'Desayuno' && (pTipo === 'Desayuno' || pTipo === 'platos-desayuno'));
+        const tipos = this.tiposDe(p);
+        const matchTipo = !this.filterTipo || tipos.includes(this.filterTipo) ||
+          (this.filterTipo === 'Carta' && tipos.some(t => t === 'Carta' || t === 'plato-carta normal')) ||
+          (this.filterTipo === 'Desayuno' && tipos.some(t => t === 'Desayuno' || t === 'platos-desayuno'));
         return matchSearch && matchCat && matchTipo;
       });
     },
@@ -728,6 +750,40 @@ tailwind.config = {
         return 'background: rgba(255,165,2,0.10); color: #ffa502;';
       }
       return 'background: rgba(52,152,219,0.10); color: #3498db;';
+    },
+
+    // Devuelve el array de tipos (slugs) a los que pertenece un plato,
+    //considerando el nuevo campo `tipos` y el legacy `tipo`.
+    tiposDe(p) {
+      let arr = Array.isArray(p.tipos) && p.tipos.length ? [...p.tipos] : [];
+      const legacy = p.tipo || 'plato-carta normal';
+      if (!arr.length) arr = [legacy];
+      else if (!arr.includes(legacy) && p.tipo) arr = [legacy, ...arr];
+      return arr.map(t => {
+        if (t === 'Desayuno') return 'platos-desayuno';
+        if (t === 'Carta') return 'plato-carta normal';
+        return t;
+      });
+    },
+
+    // Etiqueta legible (复合o) de los tipos de un plato.
+    tiposLabel(p) {
+      const arr = this.tiposDe(p);
+      if (!arr.length) return '🍽️ Carta';
+      return arr.map(t => this.tipoLabel(t)).join(' · ');
+    },
+
+    // Alterna la selección de un tipo en el formulario (selección múltiple).
+    toggleTipoEnForm(slug) {
+      if (!Array.isArray(this.formPlato.tipos)) this.formPlato.tipos = [];
+      const idx = this.formPlato.tipos.indexOf(slug);
+      if (idx >= 0) {
+        this.formPlato.tipos.splice(idx, 1);
+      } else {
+        this.formPlato.tipos.push(slug);
+      }
+      // Sincronizar `tipo` legacy con el primer tipo seleccionado.
+      this.formPlato.tipo = this.formPlato.tipos[0] || 'plato-carta normal';
     },
 
     hexToRgba(hex, alpha = 1) {
@@ -764,6 +820,7 @@ tailwind.config = {
         stock: 0,
         categoria: '',
         tipo: defaultTipo,
+        tipos: [defaultTipo],
         descripcion: '',
         disponible: true,
         complementos: []
@@ -773,9 +830,15 @@ tailwind.config = {
 
     openEditModal(p) {
       this.isEditing = true;
-      let tipoNormalizado = p.tipo || 'plato-carta normal';
-      if (tipoNormalizado === 'Desayuno') tipoNormalizado = 'platos-desayuno';
-      if (tipoNormalizado === 'Carta') tipoNormalizado = 'plato-carta normal';
+      let tipos = Array.isArray(p.tipos) && p.tipos.length
+        ? [...p.tipos]
+        : [p.tipo || 'plato-carta normal'];
+      tipos = tipos.map(t => {
+        if (t === 'Desayuno') return 'platos-desayuno';
+        if (t === 'Carta') return 'plato-carta normal';
+        return t;
+      });
+      const tipoNormalizado = tipos[0] || 'plato-carta normal';
 
       this.formPlato = {
         _id: p._id,
@@ -784,6 +847,7 @@ tailwind.config = {
         stock: p.stock || 0,
         categoria: p.categoria || p.cat || '',
         tipo: tipoNormalizado,
+        tipos: [...tipos],
         descripcion: p.descripcion || '',
         disponible: p.disponible !== false,
         complementos: JSON.parse(JSON.stringify(p.complementos || []))
@@ -1173,6 +1237,15 @@ tailwind.config = {
         return;
       }
 
+      // Validar que el plato tenga al menos un tipo de menú
+      if (!Array.isArray(this.formPlato.tipos) || this.formPlato.tipos.length === 0) {
+        this.showToast('Debes seleccionar al menos un tipo de menú', 'error');
+        return;
+      }
+
+      // Normalizar tipos y sincronizar `tipo` legacy
+      const tiposLimpios = [...new Set(this.formPlato.tipos.map(t => String(t).trim().toLowerCase()).filter(Boolean))];
+
       // Limpiar complementos vacíos antes de enviar
       const complementosLimpios = this.formPlato.complementos
         .filter(g => g.grupo && g.grupo.trim() !== '')
@@ -1192,6 +1265,8 @@ tailwind.config = {
 
       const payload = {
         ...this.formPlato,
+        tipos: tiposLimpios,
+        tipo: tiposLimpios[0], // sincronizar legacy
         complementos: complementosLimpios
       };
       
