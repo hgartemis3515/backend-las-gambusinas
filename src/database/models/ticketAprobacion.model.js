@@ -113,6 +113,9 @@ const ticketAprobacionSchema = new mongoose.Schema({
     enum: ['efectivo', 'digital', 'tarjeta'],
     default: 'efectivo',
   },
+  // Snapshot de efectivo (propagado desde el boucher al crear el ticket)
+  montoRecibido: { type: Number, default: null },
+  vuelto: { type: Number, default: null },
   // Cliente
   cliente: {
     type: mongoose.Schema.Types.ObjectId,

@@ -64,6 +64,8 @@ async function crearTicketAprobacion(data) {
     voucherId: data.voucherId || null,
     moneda: data.moneda || 'PEN',
     metodoPago: data.metodoPago || 'efectivo',
+    montoRecibido: data.montoRecibido ?? null,
+    vuelto: data.vuelto ?? null,
     cliente: data.cliente || null,
     clienteNombre: data.clienteNombre || null,
     clienteDni: data.clienteDni || null,
@@ -566,6 +568,8 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
       dni: ticket.clienteDni || boucherData?.clienteDni || '',
     },
     voucherId: ticket.voucherId || boucherData?.voucherId || boucherData?.boucherNumber || null,
+    montoRecibido: ticket.montoRecibido ?? boucherData?.montoRecibido ?? null,
+    vuelto: ticket.vuelto ?? boucherData?.vuelto ?? null,
   };
 }
 

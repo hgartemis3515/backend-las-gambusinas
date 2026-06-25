@@ -179,6 +179,16 @@ router.post('/pago-adelantado', async (req, res) => {
 
     const boucher = boucherResult.boucher;
 
+    // Snapshot de datos del cliente para el ticket PPA (DNI/nombre)
+    let clienteDoc = null;
+    if (clienteId) {
+      try {
+        clienteDoc = await mongoose.model('Cliente').findById(clienteId).select('nombre dni').lean();
+      } catch (e) {
+        logger.warn(`No se pudo obtener cliente ${clienteId} para snapshot PPA: ${e.message}`);
+      }
+    }
+
     // Ahora crear el TPA
     const pedidoId = primeraComanda.pedido || null;
     const ticket = await crearTicketPagoAdelantado({
@@ -197,7 +207,12 @@ router.post('/pago-adelantado', async (req, res) => {
       boucher: boucher._id,
       voucherId: boucher.voucherId || null,
       metodoPago: metodoPago || 'efectivo',
+      moneda: boucher.moneda || moneda || 'PEN',
+      montoRecibido: boucher.montoRecibido ?? null,
+      vuelto: boucher.vuelto ?? null,
       cliente: clienteId || null,
+      clienteNombre: clienteDoc?.nombre || null,
+      clienteDni: clienteDoc?.dni || null,
       observaciones: observaciones || '',
       sourceApp: 'mozos',
     });

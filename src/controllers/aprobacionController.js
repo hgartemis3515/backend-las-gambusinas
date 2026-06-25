@@ -446,9 +446,12 @@ router.get('/aprobacion/:id/ticket-imprimible', async (req, res) => {
     const ticketPPA = await mongoose.model('TicketPagoAdelantado').findOne({
       _id: id,
       isActive: true,
-    }).lean();
+    })
+      .populate('boucher', 'moneda montoRecibido vuelto metodoPago voucherId')
+      .lean();
 
     if (ticketPPA) {
+      const boucherPPA = ticketPPA.boucher || null;
       const ppaComandasNumbers = resolverComandasNumbers({
         comandasNumbers: ticketPPA.comandasNumbers,
         platos: ticketPPA.platos,
@@ -469,10 +472,10 @@ router.get('/aprobacion/:id/ticket-imprimible', async (req, res) => {
           mesa: ticketPPA.numMesa,
           mozo: ticketPPA.nombreMozo || ticketPPA.mozoNombre,
           area: null,
-          moneda: 'PEN',
+          moneda: ticketPPA.moneda || boucherPPA?.moneda || 'PEN',
           tipoPago: ticketPPA.estado === 'pendiente_aprobacion'
             ? 'Pendiente'
-            : (ticketPPA.metodoPago || 'efectivo'),
+            : (ticketPPA.metodoPago || boucherPPA?.metodoPago || 'efectivo'),
           observaciones: ticketPPA.observaciones || '',
           productos: (ticketPPA.platos || []).map((p) => ({
             nombre: p.nombre,
@@ -490,8 +493,13 @@ router.get('/aprobacion/:id/ticket-imprimible', async (req, res) => {
           subtotal: ticketPPA.subtotal,
           igv: ticketPPA.igv,
           total: ticketPPA.total,
-          cliente: { nombre: NOMBRE_CLIENTE_FALLBACK, dni: '' },
-          voucherId: ticketPPA.voucherId || null,
+          cliente: {
+            nombre: ticketPPA.clienteNombre || NOMBRE_CLIENTE_FALLBACK,
+            dni: ticketPPA.clienteDni || '',
+          },
+          montoRecibido: ticketPPA.montoRecibido ?? boucherPPA?.montoRecibido ?? null,
+          vuelto: ticketPPA.vuelto ?? boucherPPA?.vuelto ?? null,
+          voucherId: ticketPPA.voucherId || boucherPPA?.voucherId || null,
         },
       });
     }

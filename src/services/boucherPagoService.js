@@ -571,6 +571,8 @@ async function procesarPagoBoucher(params) {
         voucherId: boucherCreado.voucherId || boucherCreado.boucherNumber || null,
         moneda: monedaNormalizada,
         metodoPago,
+        montoRecibido: boucherCreado.montoRecibido ?? null,
+        vuelto: boucherCreado.vuelto ?? null,
         cliente: clienteId || null,
         clienteNombre: clienteDoc?.nombre || null,
         clienteDni: clienteDoc?.dni || null,

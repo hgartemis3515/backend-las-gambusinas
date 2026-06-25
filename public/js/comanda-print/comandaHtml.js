@@ -220,6 +220,9 @@ function estimarAltura(datos, bloques) {
   if ((bloques.mostrarTotales === true && datos.subtotal) || (bloques.mostrarIGV === true && datos.igv)) {
     h += 40;
   }
+  if (isTipoPagoEfectivo(datos.tipoPago) && (datos.montoRecibido != null || datos.vuelto != null)) {
+    h += 24;
+  }
   if (datos.cliente?.nombre || datos.cliente?.dni) {
     h += 30;
   }
@@ -422,6 +425,13 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
       html += `<div style="padding:1px 0;">IGV (18%): <span style="font-weight:500;">${simbolo}${igvFinal.toFixed(2)}</span></div>`;
     }
     html += `<div style="font-size:14px;font-weight:700;border-top:2px solid #000;padding-top:4px;margin-top:4px;">${escapeHtml(etiquetas.total)}: ${simbolo}${totalFinal.toFixed(2)}</div>`;
+
+    // Bloque efectivo: monto recibido + vuelto (solo si método de pago es efectivo)
+    if (isTipoPagoEfectivo(datos.tipoPago) && (datos.montoRecibido != null || datos.vuelto != null)) {
+      html += `<div style="padding:2px 0 1px;font-size:12px;">Recibido: <span style="font-weight:500;">${simbolo}${(datos.montoRecibido || 0).toFixed(2)}</span></div>`;
+      html += `<div style="padding:1px 0;font-size:13px;font-weight:700;">Vuelto: ${simbolo}${(datos.vuelto || 0).toFixed(2)}</div>`;
+    }
+
     html += '</div>';
     html += divider(dividerGap);
   }
@@ -507,5 +517,7 @@ export function mapComandaATicket(comanda, boucherOpcional, config = {}) {
       dni: comanda.cliente?.dni || (typeof boucherOpcional?.cliente === 'object' ? boucherOpcional.cliente?.dni : null) || '',
     },
     voucherId: boucherOpcional?.voucherId || boucherOpcional?.boucherNumber || null,
+    montoRecibido: boucherOpcional?.montoRecibido ?? null,
+    vuelto: boucherOpcional?.vuelto ?? null,
   };
 }

@@ -186,6 +186,8 @@ function mapearTicketADatos(ticket) {
       dni: ticket.cliente?.dni || ticket.dniCliente || ticket.clienteDni || '',
     },
     voucherId: ticket.voucherId || ticket.boucher?.voucherId || null,
+    montoRecibido: ticket.montoRecibido ?? ticket.boucher?.montoRecibido ?? null,
+    vuelto: ticket.vuelto ?? ticket.boucher?.vuelto ?? null,
   };
 }
 

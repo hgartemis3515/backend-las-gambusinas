@@ -799,6 +799,13 @@ tailwind.config = {
  <td class="px-3 py-3 text-right text-[#d4af37] font-bold text-lg" x-text="'S/. ' + Number(selectedComanda?.total || 0).toFixed(2)"></td>
  <td colspan="4"></td>
  </tr>
+ <tr x-show="selectedComanda?.metodoPago === 'efectivo' && (selectedComanda?.montoRecibido != null || selectedComanda?.vuelto != null)">
+ <td class="px-4 py-2 text-right text-[10px] text-txt-secondary uppercase" colspan="3">
+ <span x-show="selectedComanda?.montoRecibido != null" x-text="'Recibido: S/. ' + Number(selectedComanda?.montoRecibido || 0).toFixed(2)"></span>
+ <span x-show="selectedComanda?.vuelto != null" class="ml-3 text-st-libre font-bold" x-text="'Vuelto: S/. ' + Number(selectedComanda?.vuelto || 0).toFixed(2)"></span>
+ </td>
+ <td colspan="4"></td>
+ </tr>
  </tfoot>
  </table>
  </div>
@@ -833,6 +840,14 @@ tailwind.config = {
  <span x-text="'Platos: ' + (ticket.cantidadPlatos || ticket.platos?.length || 0)"></span>
  <span x-text="'Pago: ' + ticketMetodoPagoLabel(ticket.metodoPago)"></span>
  <span x-text="ticket.createdAt ? new Date(ticket.createdAt).toLocaleString('es-PE', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : ''"></span>
+ </div>
+ <div x-show="ticket.metodoPago === 'efectivo' && (ticket.montoRecibido != null || ticket.vuelto != null)" class="flex flex-wrap gap-x-4 gap-y-0.5 mt-0.5 text-[10px]">
+ <span class="text-txt-secondary" x-show="ticket.montoRecibido != null" x-text="'Recibido: S/. ' + Number(ticket.montoRecibido || 0).toFixed(2)"></span>
+ <span class="text-st-libre font-bold" x-show="ticket.vuelto != null" x-text="'Vuelto: S/. ' + Number(ticket.vuelto || 0).toFixed(2)"></span>
+ </div>
+ <div x-show="ticket.clienteNombre || ticket.cliente?.nombre || ticket.nombreCliente || ticket.clienteDni || ticket.cliente?.dni || ticket.dniCliente" class="flex flex-wrap gap-x-4 gap-y-0.5 mt-0.5 text-[10px] text-txt-muted">
+ <span x-show="ticket.clienteNombre || ticket.cliente?.nombre || ticket.nombreCliente" x-text="'Cliente: ' + (ticket.clienteNombre || ticket.cliente?.nombre || ticket.nombreCliente || '—')"></span>
+ <span x-show="ticket.clienteDni || ticket.cliente?.dni || ticket.dniCliente" x-text="'DNI: ' + (ticket.clienteDni || ticket.cliente?.dni || ticket.dniCliente)"></span>
  </div>
  <p x-show="ticket.observaciones" class="text-[10px] text-txt-muted mt-1 truncate" x-text="'📝 ' + ticket.observaciones"></p>
  <p x-show="ticket.estado === 'aprobado' && ticket.aprobadoPorNombre" class="text-[10px] text-st-preparado mt-0.5" x-text="'✓ Aprobado por ' + ticket.aprobadoPorNombre"></p>
@@ -1288,6 +1303,14 @@ tailwind.config = {
  <span x-text="'Platos: ' + (ticket.cantidadPlatos || ticket.platos?.length || 0)"></span>
  <span x-text="'Pago: ' + ticketMetodoPagoLabel(ticket.metodoPago)"></span>
  <span x-text="ticket.createdAt ? new Date(ticket.createdAt).toLocaleString('es-PE', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : ''"></span>
+ </div>
+ <div x-show="ticket.metodoPago === 'efectivo' && (ticket.montoRecibido != null || ticket.vuelto != null)" class="flex flex-wrap gap-x-4 gap-y-0.5 mt-0.5 text-[10px]">
+ <span class="text-txt-secondary" x-show="ticket.montoRecibido != null" x-text="'Recibido: S/. ' + Number(ticket.montoRecibido || 0).toFixed(2)"></span>
+ <span class="text-st-libre font-bold" x-show="ticket.vuelto != null" x-text="'Vuelto: S/. ' + Number(ticket.vuelto || 0).toFixed(2)"></span>
+ </div>
+ <div x-show="ticket.clienteNombre || ticket.cliente?.nombre || ticket.nombreCliente || ticket.clienteDni || ticket.cliente?.dni || ticket.dniCliente" class="flex flex-wrap gap-x-4 gap-y-0.5 mt-0.5 text-[10px] text-txt-muted">
+ <span x-show="ticket.clienteNombre || ticket.cliente?.nombre || ticket.nombreCliente" x-text="'Cliente: ' + (ticket.clienteNombre || ticket.cliente?.nombre || ticket.nombreCliente || '—')"></span>
+ <span x-show="ticket.clienteDni || ticket.cliente?.dni || ticket.dniCliente" x-text="'DNI: ' + (ticket.clienteDni || ticket.cliente?.dni || ticket.dniCliente)"></span>
  </div>
  <p x-show="ticket.observaciones" class="text-[10px] text-txt-muted mt-1 truncate" x-text="'📝 ' + ticket.observaciones"></p>
  </div>

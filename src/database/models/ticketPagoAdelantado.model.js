@@ -134,12 +134,19 @@ const ticketPagoAdelantadoSchema = new mongoose.Schema({
     enum: ['efectivo', 'digital', 'tarjeta'],
     default: 'efectivo',
   },
+  // Moneda del cobro (snapshot desde el boucher)
+  moneda: { type: String, default: 'PEN' },
+  // Snapshot de efectivo (propagado desde el boucher al crear el ticket)
+  montoRecibido: { type: Number, default: null },
+  vuelto: { type: Number, default: null },
   // Cliente (opcional)
   cliente: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Cliente',
     default: null,
   },
+  clienteNombre: { type: String, default: null },
+  clienteDni: { type: String, default: null },
   // Aprobación
   aprobadoPor: {
     type: mongoose.Schema.Types.ObjectId,
