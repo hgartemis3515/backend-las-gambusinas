@@ -52,6 +52,8 @@ const tiposPlatoRoutes = require('./src/controllers/tipoPlatoController')
 const pagoAdelantadoRoutes = require('./src/controllers/pagoAdelantadoController')
 // APROBACIÓN DE COMANDAS: Controller para bandeja de aprobación (comandas + PPA)
 const aprobacionRoutes = require('./src/controllers/aprobacionController')
+// VISTA COCINA: Controller para Vistas de Cocina y Pantallas de cocina (monitores pasivos TV)
+const vistaCocinaRoutes = require('./src/controllers/vistaCocinaController')
 const { adminAuth } = require('./src/middleware/adminAuth')
 
 const app = express();
@@ -241,6 +243,7 @@ app.use('/api', complementosPlantillaRoutes);
 app.use('/api', tiposPlatoRoutes);
 app.use('/api', pagoAdelantadoRoutes);
 app.use('/api', aprobacionRoutes);
+app.use('/api', vistaCocinaRoutes);
 
 // Servir archivos estáticos desde la carpeta public
 app.use(express.static(path.join(__dirname, 'public')));

@@ -43,7 +43,11 @@ const PERMISOS_FUNDAMENTALES = {
     'revertir-comandas': { nombre: 'Revertir Comandas', grupo: 'App Cocina', descripcion: 'Deshacer comandas desde cocina' },
     'ver-vista-supervisor-cocina': { nombre: 'Vista Supervisor Cocina', grupo: 'App Cocina', descripcion: 'Acceder a la vista de supervisor en App Cocina (asignar cocineros, tomar/dejar platos)' },
     'ver-boton-prioridad-kds': { nombre: 'Ver Botón de Prioridad', grupo: 'App Cocina', descripcion: 'Visualizar el botón de prioridad en los 3 tableros KDS del app de cocina' },
-    'utilidad-supervisor': { nombre: 'Utilidad de Supervisor', grupo: 'App Cocina', descripcion: 'Permite actuar como supervisor en App Cocina: finalizar, entregar, tomar o liberar platos/comandas tomadas por otros cocineros' }
+    'utilidad-supervisor': { nombre: 'Utilidad de Supervisor', grupo: 'App Cocina', descripcion: 'Permite actuar como supervisor en App Cocina: finalizar, entregar, tomar o liberar platos/comandas tomadas por otros cocineros' },
+    'ver-cocina-completo': { nombre: 'Ver Cocina Completo', grupo: 'App Cocina', descripcion: 'Acceder al monitor de cocina completo (solo lectura, todas las estaciones)' },
+    'ver-cocina-personalizado': { nombre: 'Ver Cocina Personalizado', grupo: 'App Cocina', descripcion: 'Acceder a monitores de cocina filtrados por vista personalizada (TVs por estacion)' },
+    'desplegar-monitores-cocina': { nombre: 'Desplegar Monitores Cocina', grupo: 'App Cocina', descripcion: 'Abrir y gestionar ventanas de monitores en multiples televisores de cocina' },
+    'administrar-vistas-cocina': { nombre: 'Administrar Vistas de Cocina', grupo: 'App Cocina', descripcion: 'Crear, editar y eliminar Vistas de Cocina y asignarlas a pantallas desde el dashboard' }
 };
 
 // Reglas fundamentales disponibles
@@ -61,10 +65,12 @@ const PERMISOS_POR_ROL_SISTEMA = {
         'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria', 'ver-reportes',
         'cierre-caja', 'ver-notificaciones', 'crear-comandas', 'editar-comandas',
         'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina', 'aplicar-descuentos',
-        'ver-vista-supervisor-cocina', 'ver-boton-prioridad-kds', 'utilidad-supervisor'
+        'ver-vista-supervisor-cocina', 'ver-boton-prioridad-kds', 'utilidad-supervisor',
+        'ver-cocina-completo', 'ver-cocina-personalizado', 'desplegar-monitores-cocina', 'administrar-vistas-cocina'
     ],
     cocinero: [
-        'ver-platos', 'ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas'
+        'ver-platos', 'ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas',
+        'ver-cocina-completo', 'ver-cocina-personalizado'
     ],
     mozos: [
         'ver-mesas', 'ver-platos', 'ver-clientes', 'crear-comandas', 'editar-comandas',

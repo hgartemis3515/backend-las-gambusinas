@@ -70,6 +70,9 @@ tailwind.config = {
         <button x-show="activeTab === 'zonas'" @click="openCrearZonaModal()" class="bg-st-preparado text-white px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">
           + Nueva Zona
         </button>
+        <button x-show="activeTab === 'vistas'" @click="openCrearVistaCocinaModal()" class="bg-st-pedido text-white px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">
+          + Nueva Vista
+        </button>
       </div>
     </div>
 
@@ -84,6 +87,11 @@ tailwind.config = {
         class="px-4 py-2 rounded-lg text-sm font-medium transition"
         :class="activeTab === 'zonas' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
         📍 Zonas
+      </button>
+      <button @click="cambiarTab('vistas')"
+        class="px-4 py-2 rounded-lg text-sm font-medium transition"
+        :class="activeTab === 'vistas' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
+        📺 Personalizar vista
       </button>
     </div>
 
@@ -677,7 +685,249 @@ tailwind.config = {
     </div>
     <!-- FIN TAB: ZONAS -->
 
+    <!-- ==================== TAB: PERSONALIZAR VISTA (Ver Cocina) ==================== -->
+    <div x-show="activeTab === 'vistas'" x-cloak>
+
+      <!-- KPIs VISTAS -->
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+          <p class="text-txt-muted text-xs uppercase tracking-wider">Vistas activas</p>
+          <p class="text-2xl font-bold mt-1" x-text="vistasCocina.length"></p>
+        </div>
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+          <p class="text-txt-muted text-xs uppercase tracking-wider">Pantallas (TVs)</p>
+          <p class="text-2xl font-bold mt-1" x-text="pantallasCocina.length"></p>
+        </div>
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+          <p class="text-txt-muted text-xs uppercase tracking-wider">Vistas sin asignar</p>
+          <p class="text-2xl font-bold mt-1" x-text="vistasCocina.filter(v => !pantallasCocina.some(p => (p.vistaCocinaId?._id || p.vistaCocinaId) === v._id)).length"></p>
+        </div>
+      </div>
+
+      <!-- INFO -->
+      <div class="mb-4 p-3 bg-gold-20 border border-gold/30 rounded-lg">
+        <p class="text-gold text-sm">
+          💡 Las <b>Vistas de Cocina</b> alimentan el monitor "Ver Cocina" (solo lectura) en las TVs.
+          Cree una vista por estación (ej. "Criolla") y asígnesela a una pantalla (TV 1–8).
+        </p>
+      </div>
+
+      <!-- SUB-SECCIÓN: VISTAS DE COCINA -->
+      <h3 class="text-sm font-semibold text-txt-secondary uppercase tracking-wider mb-3">Vistas de Cocina</h3>
+
+      <div x-show="loadingVistas" class="flex items-center justify-center h-24">
+        <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+      </div>
+
+      <div x-show="!loadingVistas && vistasCocina.length === 0" class="text-center py-10 text-txt-muted">
+        <p class="text-4xl mb-2">📺</p>
+        <p>No hay vistas de cocina. Cree una con "+ Nueva Vista".</p>
+      </div>
+
+      <div x-show="!loadingVistas && vistasCocina.length > 0" class="overflow-x-auto mb-8">
+        <table class="w-full">
+          <thead>
+            <tr class="text-left text-txt-muted text-xs uppercase tracking-wider border-b border-[rgba(212,175,55,0.15)]">
+              <th class="py-3 px-4">Vista</th>
+              <th class="py-3 px-4">Platos</th>
+              <th class="py-3 px-4">Cronómetro</th>
+              <th class="py-3 px-4">Estado</th>
+              <th class="py-3 px-4 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="vista in vistasCocina" :key="vista._id">
+              <tr class="border-b border-[rgba(212,175,55,0.08)] hover:bg-bg-sidebar/50 transition">
+                <td class="py-3 px-4">
+                  <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full" :style="`background:${vista.color || '#d4af37'}`"></span>
+                    <span class="font-medium" x-text="vista.nombre"></span>
+                  </div>
+                  <p class="text-xs text-txt-muted mt-1" x-text="vista.descripcion || ''"></p>
+                </td>
+                <td class="py-3 px-4">
+                  <span class="text-sm" x-text="(vista.filtrosPlatos?.platosPermitidos?.length || 0) + ' platos'"></span>
+                  <span class="text-xs text-txt-muted ml-2" x-text="vista.filtrosPlatos?.modoInclusion ? '(inclusivo)' : '(exclusivo)'"></span>
+                </td>
+                <td class="py-3 px-4 text-sm">
+                  <span x-text="`Amarillo: ${vista.configCronometro?.tiempoAmarillo || 15}m · Rojo: ${vista.configCronometro?.tiempoRojo || 20}m`"></span>
+                </td>
+                <td class="py-3 px-4">
+                  <span class="text-xs px-2 py-1 rounded"
+                    :class="vista.activo ? 'bg-st-libre/20 text-st-libre' : 'bg-st-pagado/20 text-st-pagado'"
+                    x-text="vista.activo ? 'Activa' : 'Inactiva'"></span>
+                </td>
+                <td class="py-3 px-4 text-right">
+                  <button @click="editarVistaCocina(vista)" class="text-gold hover:brightness-125 text-sm px-2">✏️</button>
+                  <button @click="toggleVistaCocina(vista)" class="text-txt-secondary hover:text-white text-sm px-2"
+                    x-text="vista.activo ? '🚫' : '✅'"></button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- SUB-SECCIÓN: PANTALLAS DE COCINA (TVs) -->
+      <h3 class="text-sm font-semibold text-txt-secondary uppercase tracking-wider mb-3">Pantallas de Cocina (TVs)</h3>
+
+      <div class="flex items-center gap-3 mb-3">
+        <button @click="openCrearPantallaModal()" class="bg-gold text-bg-primary px-3 py-1.5 rounded-lg text-sm font-semibold hover:brightness-110">
+          + Nueva Pantalla
+        </button>
+      </div>
+
+      <div x-show="!loadingPantallas && pantallasCocina.length === 0" class="text-center py-8 text-txt-muted">
+        <p class="text-3xl mb-2">📺</p>
+        <p>No hay pantallas configuradas. Cree las TVs 1–8 y asígneles vistas.</p>
+      </div>
+
+      <div x-show="!loadingPantallas && pantallasCocina.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <template x-for="pantalla in pantallasCocina" :key="pantalla._id">
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-2">
+                <span class="text-2xl">📺</span>
+                <div>
+                  <h4 class="font-bold" x-text="`TV ${pantalla.numeroPantalla}`"></h4>
+                  <p class="text-xs text-txt-muted" x-text="pantalla.nombre"></p>
+                </div>
+              </div>
+              <span class="text-xs px-2 py-1 rounded"
+                :class="pantalla.activo ? 'bg-st-libre/20 text-st-libre' : 'bg-st-pagado/20 text-st-pagado'"
+                x-text="pantalla.activo ? 'Activa' : 'Inactiva'"></span>
+            </div>
+            <div class="text-sm text-txt-secondary mb-3">
+              Vista: <span :style="`color:${pantalla.vistaCocinaId?.color || '#d4af37'}`" x-text="pantalla.vistaCocinaId?.nombre || '(Sin asignar)'"></span>
+            </div>
+            <div class="flex gap-2">
+              <button @click="editarPantallaCocina(pantalla)" class="flex-1 text-xs px-2 py-1.5 bg-bg-sidebar hover:bg-gray-700 rounded text-txt-secondary">✏️ Editar</button>
+              <button @click="abrirVistaPreview(pantalla)" class="flex-1 text-xs px-2 py-1.5 bg-gold/20 hover:bg-gold/30 text-gold rounded">👁️ Probar</button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+    <!-- FIN TAB: PERSONALIZAR VISTA -->
+
   </main>
+</div>
+
+<!-- MODAL: CREAR/EDITAR VISTA DE COCINA -->
+<div x-show="modalVistaCocina" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="modalVistaCocina=false">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[640px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
+    <div class="flex items-center justify-between p-5 border-b border-[rgba(212,175,55,0.15)]">
+      <h3 class="text-lg font-bold" x-text="editandoVistaCocina ? 'Editar Vista de Cocina' : 'Nueva Vista de Cocina'"></h3>
+      <button @click="modalVistaCocina=false" class="text-txt-muted hover:text-white text-xl">✕</button>
+    </div>
+    <div class="p-5 space-y-4">
+      <div>
+        <label class="block text-sm text-txt-secondary mb-1">Nombre *</label>
+        <input type="text" x-model="formVistaCocina.nombre" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-white" placeholder="Ej: Criolla, Parrilla...">
+      </div>
+      <div>
+        <label class="block text-sm text-txt-secondary mb-1">Descripción</label>
+        <input type="text" x-model="formVistaCocina.descripcion" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-white" placeholder="Estación criolla">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm text-txt-secondary mb-1">Color</label>
+          <input type="color" x-model="formVistaCocina.color" class="w-full h-10 bg-transparent rounded-lg">
+        </div>
+        <div>
+          <label class="block text-sm text-txt-secondary mb-1">Icono</label>
+          <select x-model="formVistaCocina.icono" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-white">
+            <option value="tools-kitchen">🍳 Cocina</option>
+            <option value="flame">🔥 Fuego</option>
+            <option value="chef-hat">👨‍🍳 Chef</option>
+            <option value="pot">🍲 Olla</option>
+            <option value="grill">🍖 Parrilla</option>
+            <option value="meat">🥩 Carne</option>
+            <option value="ice-cream">🍦 Fríos</option>
+            <option value="cake">🍰 Postres</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm text-txt-secondary mb-1">Alerta amarilla (min)</label>
+          <input type="number" x-model.number="formVistaCocina.configCronometro.tiempoAmarillo" min="1" max="120" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="block text-sm text-txt-secondary mb-1">Alerta roja (min)</label>
+          <input type="number" x-model.number="formVistaCocina.configCronometro.tiempoRojo" min="1" max="180" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-white">
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <input type="checkbox" x-model="formVistaCocina.filtrosPlatos.modoInclusion" id="modoInclusion" class="rounded">
+        <label for="modoInclusion" class="text-sm text-txt-secondary">Modo inclusivo (solo mostrar platos seleccionados; si está apagado, mostrar todos excepto los seleccionados)</label>
+      </div>
+      <div class="p-3 bg-bg-sidebar rounded-lg text-xs text-txt-muted">
+        💡 La selección detallada de platos y apariencia visual (fuentes, colores) se configuran en una edición avanzada posterior. Esta versión permite crear la vista con su cronómetro.
+      </div>
+    </div>
+    <div class="flex justify-end gap-2 p-5 border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="modalVistaCocina=false" class="px-4 py-2 text-txt-secondary hover:text-white">Cancelar</button>
+      <button @click="guardarVistaCocina()" class="px-4 py-2 bg-gold text-bg-primary rounded-lg font-semibold hover:brightness-110">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CREAR/EDITAR PANTALLA DE COCINA -->
+<div x-show="modalPantallaCocina" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="modalPantallaCocina=false">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[560px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
+    <div class="flex items-center justify-between p-5 border-b border-[rgba(212,175,55,0.15)]">
+      <h3 class="text-lg font-bold" x-text="editandoPantallaCocina ? 'Editar Pantalla' : 'Nueva Pantalla'"></h3>
+      <button @click="modalPantallaCocina=false" class="text-txt-muted hover:text-white text-xl">✕</button>
+    </div>
+    <div class="p-5 space-y-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm text-txt-secondary mb-1">Nº de pantalla (TV)</label>
+          <input type="number" x-model.number="formPantallaCocina.numeroPantalla" min="1" max="16" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="block text-sm text-txt-secondary mb-1">Nombre</label>
+          <input type="text" x-model="formPantallaCocina.nombre" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-white" placeholder="TV Pared norte">
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm text-txt-secondary mb-1">Vista asignada</label>
+        <select x-model="formPantallaCocina.vistaCocinaId" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-white">
+          <option value="">(Sin asignar)</option>
+          <template x-for="vista in vistasCocina" :key="vista._id">
+            <option :value="vista._id" x-text="vista.nombre"></option>
+          </template>
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm text-txt-secondary mb-1">Ancho ventana (px)</label>
+          <input type="number" x-model.number="formPantallaCocina.configDespliegue.anchoVentana" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="block text-sm text-txt-secondary mb-1">Alto ventana (px)</label>
+          <input type="number" x-model.number="formPantallaCocina.configDespliegue.altoVentana" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="block text-sm text-txt-secondary mb-1">Posición X</label>
+          <input type="number" x-model.number="formPantallaCocina.configDespliegue.posicionX" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="block text-sm text-txt-secondary mb-1">Posición Y</label>
+          <input type="number" x-model.number="formPantallaCocina.configDespliegue.posicionY" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-white">
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <input type="checkbox" x-model="formPantallaCocina.configDespliegue.pantallaCompleta" id="pantallaCompleta" class="rounded">
+        <label for="pantallaCompleta" class="text-sm text-txt-secondary">Pantalla completa al abrir</label>
+      </div>
+    </div>
+    <div class="flex justify-end gap-2 p-5 border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="modalPantallaCocina=false" class="px-4 py-2 text-txt-secondary hover:text-white">Cancelar</button>
+      <button @click="guardarPantallaCocina()" class="px-4 py-2 bg-gold text-bg-primary rounded-lg font-semibold hover:brightness-110">Guardar</button>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL: CONFIGURACIÓN KDS -->
@@ -1831,6 +2081,25 @@ function cocinerosApp() {
 
     // Sistema de tabs
     activeTab: 'cocineros', // 'cocineros' o 'zonas'
+
+    // Vistas de Cocina (Ver Cocina)
+    vistasCocina: [],
+    pantallasCocina: [],
+    loadingVistas: false,
+    loadingPantallas: false,
+    modalVistaCocina: false,
+    modalPantallaCocina: false,
+    editandoVistaCocina: null,
+    editandoPantallaCocina: null,
+    formVistaCocina: {
+      nombre: '', descripcion: '', color: '#d4af37', icono: 'tools-kitchen', activo: true,
+      filtrosPlatos: { modoInclusion: true, platosPermitidos: [], categoriasPermitidas: [], tiposPermitidos: [] },
+      configCronometro: { tiempoAmarillo: 15, tiempoRojo: 20 }
+    },
+    formPantallaCocina: {
+      numeroPantalla: 1, nombre: '', vistaCocinaId: '', activo: true,
+      configDespliegue: { anchoVentana: 1920, altoVentana: 1080, posicionX: 0, posicionY: 0, pantallaCompleta: true }
+    },
 
     // Zonas
     zonas: [],
@@ -3470,6 +3739,160 @@ function cocinerosApp() {
       if (tab === 'zonas' && this.zonas.length === 0) {
         this.cargarZonas();
       }
+      if (tab === 'vistas') {
+        this.cargarVistasCocina();
+        this.cargarPantallasCocina();
+      }
+    },
+
+    // ==================== VISTAS DE COCINA ====================
+    async cargarVistasCocina() {
+      this.loadingVistas = true;
+      try {
+        const res = await fetch('/api/vistas-cocina/activas', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+        });
+        const data = await res.json();
+        if (data.success) this.vistasCocina = data.data || [];
+      } catch (err) {
+        console.error('Error cargando vistas de cocina:', err);
+        this.showToast('Error al cargar vistas de cocina', 'error');
+      } finally {
+        this.loadingVistas = false;
+      }
+    },
+
+    async cargarPantallasCocina() {
+      this.loadingPantallas = true;
+      try {
+        const res = await fetch('/api/pantallas-cocina/activas', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+        });
+        const data = await res.json();
+        if (data.success) this.pantallasCocina = data.data || [];
+      } catch (err) {
+        console.error('Error cargando pantallas:', err);
+      } finally {
+        this.loadingPantallas = false;
+      }
+    },
+
+    openCrearVistaCocinaModal() {
+      this.editandoVistaCocina = null;
+      this.formVistaCocina = {
+        nombre: '', descripcion: '', color: '#d4af37', icono: 'tools-kitchen', activo: true,
+        filtrosPlatos: { modoInclusion: true, platosPermitidos: [], categoriasPermitidas: [], tiposPermitidos: [] },
+        configCronometro: { tiempoAmarillo: 15, tiempoRojo: 20 }
+      };
+      this.modalVistaCocina = true;
+    },
+
+    editarVistaCocina(vista) {
+      this.editandoVistaCocina = vista._id;
+      this.formVistaCocina = JSON.parse(JSON.stringify(vista));
+      if (!this.formVistaCocina.configCronometro) this.formVistaCocina.configCronometro = { tiempoAmarillo: 15, tiempoRojo: 20 };
+      if (!this.formVistaCocina.filtrosPlatos) this.formVistaCocina.filtrosPlatos = { modoInclusion: true, platosPermitidos: [], categoriasPermitidas: [], tiposPermitidos: [] };
+      this.modalVistaCocina = true;
+    },
+
+    async guardarVistaCocina() {
+      try {
+        const url = this.editandoVistaCocina ? `/api/vistas-cocina/${this.editandoVistaCocina}` : '/api/vistas-cocina';
+        const method = this.editandoVistaCocina ? 'PUT' : 'POST';
+        const res = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+          },
+          body: JSON.stringify(this.formVistaCocina)
+        });
+        const data = await res.json();
+        if (data.success) {
+          this.modalVistaCocina = false;
+          this.cargarVistasCocina();
+          this.showToast(this.editandoVistaCocina ? 'Vista actualizada' : 'Vista creada', 'success');
+        } else {
+          this.showToast(data.error || 'Error al guardar vista', 'error');
+        }
+      } catch (err) {
+        console.error('Error guardando vista:', err);
+        this.showToast('Error al guardar vista', 'error');
+      }
+    },
+
+    async toggleVistaCocina(vista) {
+      try {
+        const url = vista.activo ? `/api/vistas-cocina/${vista._id}` : `/api/vistas-cocina/${vista._id}/reactivar`;
+        const method = vista.activo ? 'DELETE' : 'PATCH';
+        const res = await fetch(url, {
+          method,
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          this.cargarVistasCocina();
+          this.showToast(vista.activo ? 'Vista desactivada' : 'Vista reactivada', 'success');
+        }
+      } catch (err) {
+        this.showToast('Error al cambiar estado', 'error');
+      }
+    },
+
+    // ==================== PANTALLAS DE COCINA ====================
+    openCrearPantallaModal() {
+      this.editandoPantallaCocina = null;
+      this.formPantallaCocina = {
+        numeroPantalla: (this.pantallasCocina.length || 0) + 1,
+        nombre: '',
+        vistaCocinaId: this.vistasCocina[0]?._id || '',
+        activo: true,
+        configDespliegue: { anchoVentana: 1920, altoVentana: 1080, posicionX: 0, posicionY: 0, pantallaCompleta: true }
+      };
+      this.modalPantallaCocina = true;
+    },
+
+    editarPantallaCocina(pantalla) {
+      this.editandoPantallaCocina = pantalla._id;
+      this.formPantallaCocina = JSON.parse(JSON.stringify(pantalla));
+      if (typeof this.formPantallaCocina.vistaCocinaId === 'object') {
+        this.formPantallaCocina.vistaCocinaId = this.formPantallaCocina.vistaCocinaId?._id || '';
+      }
+      if (!this.formPantallaCocina.configDespliegue) {
+        this.formPantallaCocina.configDespliegue = { anchoVentana: 1920, altoVentana: 1080, posicionX: 0, posicionY: 0, pantallaCompleta: true };
+      }
+      this.modalPantallaCocina = true;
+    },
+
+    async guardarPantallaCocina() {
+      try {
+        const url = this.editandoPantallaCocina ? `/api/pantallas-cocina/${this.editandoPantallaCocina}` : '/api/pantallas-cocina';
+        const method = this.editandoPantallaCocina ? 'PUT' : 'POST';
+        const res = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+          },
+          body: JSON.stringify(this.formPantallaCocina)
+        });
+        const data = await res.json();
+        if (data.success) {
+          this.modalPantallaCocina = false;
+          this.cargarPantallasCocina();
+          this.showToast(this.editandoPantallaCocina ? 'Pantalla actualizada' : 'Pantalla creada', 'success');
+        } else {
+          this.showToast(data.error || 'Error al guardar pantalla', 'error');
+        }
+      } catch (err) {
+        this.showToast('Error al guardar pantalla', 'error');
+      }
+    },
+
+    abrirVistaPreview(pantalla) {
+      const vistaId = typeof pantalla.vistaCocinaId === 'object' ? pantalla.vistaCocinaId?._id : pantalla.vistaCocinaId;
+      const url = `${window.location.origin}/?monitor=${pantalla.numeroPantalla}&vistaId=${vistaId || ''}&modo=fijo`;
+      window.open(url, `cocina-monitor-${pantalla.numeroPantalla}`, 'width=1280,height=720');
     },
 
     // Obtener SVG de icono por nombre

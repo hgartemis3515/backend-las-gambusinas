@@ -347,10 +347,11 @@ router.post('/admin/cocina/auth', async (req, res) => {
                 rol: rolUsuario,
                 permisos: permisos,
                 reglas: reglas,
-                app: 'cocina'
+                app: 'cocina',
+                sesionPersistente: true
             },
             JWT_SECRET,
-            { expiresIn: '8h' }
+            { expiresIn: process.env.COCINA_JWT_EXPIRY || '30d' }
         );
 
         logger.info('Usuario autenticado en App Cocina', {
@@ -526,6 +527,88 @@ router.post('/admin/usuarios/perfil/foto', async (req, res) => {
             error: error.message 
         });
         res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+/**
+ * POST /api/admin/cocina/auth/refresh
+ * Renueva el token JWT de la App Cocina (sesion persistente)
+ * Acepta el token actual (aunque este proximo a expirar) y emite uno nuevo.
+ */
+router.post('/admin/cocina/auth/refresh', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'Token no proporcionado' });
+        }
+
+        const token = authHeader.substring(7);
+
+        // Verificar el token permitiendo decodificar aun si ya expiro (ventana de gracia)
+        let decoded;
+        try {
+            decoded = jwt.verify(token, JWT_SECRET);
+        } catch (err) {
+            if (err.name === 'TokenExpiredError') {
+                decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true });
+            } else {
+                throw err;
+            }
+        }
+
+        if (!decoded || decoded.app !== 'cocina') {
+            return res.status(401).json({ error: 'Token no pertenece a la App Cocina' });
+        }
+
+        const mozoConRol = await rolesRepository.obtenerMozoConRol(decoded.id);
+
+        if (!mozoConRol) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        if (mozoConRol.activo === false) {
+            return res.status(403).json({ error: 'Usuario inactivo' });
+        }
+
+        const rolUsuario = mozoConRol.rol || decoded.rol;
+        const permisos = mozoConRol.permisosEfectivos || decoded.permisos || [];
+        const reglas = mozoConRol.reglasEfectivas || decoded.reglas || [];
+
+        const nuevoToken = jwt.sign(
+            {
+                id: decoded.id,
+                name: mozoConRol.name || decoded.name,
+                DNI: mozoConRol.DNI || decoded.DNI,
+                rol: rolUsuario,
+                permisos: permisos,
+                reglas: reglas,
+                app: 'cocina',
+                sesionPersistente: true
+            },
+            JWT_SECRET,
+            { expiresIn: process.env.COCINA_JWT_EXPIRY || '30d' }
+        );
+
+        logger.info('Token renovado para App Cocina', {
+            mozoId: decoded.id,
+            name: mozoConRol.name,
+            rol: rolUsuario
+        });
+
+        res.json({
+            token: nuevoToken,
+            usuario: {
+                id: decoded.id,
+                name: mozoConRol.name || decoded.name,
+                rol: rolUsuario,
+                permisos: permisos,
+                reglas: reglas
+            }
+        });
+    } catch (error) {
+        logger.error('Error al renovar token de App Cocina', { error: error.message });
+        res.status(401).json({ error: 'No se pudo renovar la sesion' });
     }
 });
 
