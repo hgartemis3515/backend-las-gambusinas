@@ -3742,25 +3742,32 @@ const recalcularEstadoComandaPorPlatos = async (comandaId) => {
     let nuevoEstado = comanda.status || 'en_espera';
     const estadoAnterior = comanda.status || 'en_espera';
 
-    // Prioridad: pagado > entregado > salio > recoger > en_espera/pedido
+    // Prioridad de estados (de mayor a menor avance):
+    //   pagado > entregado > salio > recoger > en_espera/pedido
+    // El status de la comanda refleja el estado MÁS AVANZADO presente entre sus platos.
+    // Esto corrige el bug anterior donde una comanda con platos en {salio, recoger}
+    // volvía a 'en_espera' en lugar de quedarse en 'salio'.
     if (total === 0) {
       nuevoEstado = 'en_espera';
     } else if (cuentas.pagado === total) {
       nuevoEstado = 'pagado';
     } else if (cuentas.entregado === total) {
       nuevoEstado = 'entregado';
-    } else if (cuentas.entregado > 0 || cuentas.salio > 0 || cuentas.recoger > 0) {
-      // Si hay algún plato en salio, recoger o entregado, el estado refleja progreso
-      if (cuentas.salio > 0 && cuentas.entregado === 0 && cuentas.recoger === 0) {
-        nuevoEstado = 'salio';
-      } else if (cuentas.recoger > 0 && cuentas.entregado === 0 && cuentas.salio === 0) {
-        nuevoEstado = 'recoger';
-      } else {
-        // Mixto: hay platos en diferentes estados avanzados
-        nuevoEstado = 'en_espera';
-      }
-    } else if (cuentas.pedido === total) {
+    } else if (cuentas.salio === total) {
+      // Todos los platos salieron del pass → comanda totalmente lista en cocina
+      nuevoEstado = 'salio';
+    } else if (cuentas.salio > 0) {
+      // Hay al menos un plato en salio (y otros en estados previos) → todavía en pass
+      nuevoEstado = 'salio';
+    } else if (cuentas.recoger > 0) {
+      // Hay al menos un plato listo para recoger (sin ninguno salio/entregado)
+      nuevoEstado = 'recoger';
+    } else if (cuentas.pedido === total || cuentas.en_espera === total ||
+               (cuentas.pedido + cuentas.en_espera) === total) {
       nuevoEstado = 'en_espera';
+    } else {
+      // Fallback seguro: mantener estado actual si no encaja en ningún patrón claro
+      nuevoEstado = comanda.status || 'en_espera';
     }
 
     const changed = comanda.status !== nuevoEstado;
