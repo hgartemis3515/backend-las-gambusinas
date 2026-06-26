@@ -16,6 +16,7 @@ const {
 } = require('../repository/complementoPlantilla.repository');
 const logger = require('../utils/logger');
 const { handleError } = require('../utils/errorHandler');
+const { normalizarOpciones } = require('../utils/precioComplementos');
 
 // ============ ENDPOINTS CRUD ============
 
@@ -149,10 +150,8 @@ router.post('/complementos-plantilla', async (req, res) => {
             return res.status(400).json({ error: 'Debe incluir al menos una opción' });
         }
         
-        // Filtrar opciones vacías
-        data.opciones = data.opciones
-            .map(op => typeof op === 'string' ? op.trim() : '')
-            .filter(op => op.length > 0);
+        // v3.0: normalizar opciones (acepta strings legacy y objetos { nombre, precio })
+        data.opciones = normalizarOpciones(data.opciones);
         
         if (data.opciones.length === 0) {
             return res.status(400).json({ error: 'Debe incluir al menos una opción válida' });
@@ -181,11 +180,9 @@ router.put('/complementos-plantilla/:id', async (req, res) => {
         const { id } = req.params;
         const data = req.body;
         
-        // Filtrar opciones vacías si se proporcionan
+        // v3.0: normalizar opciones si se proporcionan (acepta strings y objetos)
         if (data.opciones && Array.isArray(data.opciones)) {
-            data.opciones = data.opciones
-                .map(op => typeof op === 'string' ? op.trim() : '')
-                .filter(op => op.length > 0);
+            data.opciones = normalizarOpciones(data.opciones);
         }
         
         const actualizado = await actualizarComplementoPlantilla(id, data);

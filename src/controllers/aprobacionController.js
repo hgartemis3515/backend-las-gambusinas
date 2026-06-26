@@ -486,9 +486,16 @@ router.get('/aprobacion/:id/ticket-imprimible', async (req, res) => {
             complementos: (p.complementosSeleccionados || []).map((c) => ({
               grupo: c.grupo,
               opcion: c.opcion,
+              cantidad: c.cantidad || 1,
+              precio: c.precio || 0,
             })),
             notaEspecial: p.notaEspecial || '',
             paraLlevar: p.tipoServicio === 'para_llevar',
+            mostrarResumenComplementos: !!p.mostrarResumenComplementos,
+            resumenComplementosImpresion: {
+              mostrarCantidad: p.resumenComplementosImpresion?.mostrarCantidad !== false,
+              mostrarMontoExtra: p.resumenComplementosImpresion?.mostrarMontoExtra !== false,
+            },
           })),
           subtotal: ticketPPA.subtotal,
           igv: ticketPPA.igv,
@@ -593,9 +600,16 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
             complementos: (p.complementosSeleccionados || []).map((c) => ({
               grupo: c.grupo,
               opcion: c.opcion,
+              cantidad: c.cantidad || 1,
+              precio: c.precio || 0,
             })),
             notaEspecial: p.notaEspecial || '',
             paraLlevar: p.tipoServicio === 'para_llevar',
+            mostrarResumenComplementos: !!p.mostrarResumenComplementos,
+            resumenComplementosImpresion: {
+              mostrarCantidad: p.resumenComplementosImpresion?.mostrarCantidad !== false,
+              mostrarMontoExtra: p.resumenComplementosImpresion?.mostrarMontoExtra !== false,
+            },
           })),
           subtotal: ticketPPA.subtotal,
           igv: ticketPPA.igv,
@@ -650,15 +664,22 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
       .map((p) => ({
         nombre: p.plato?.nombre || 'Plato',
         cantidad: comanda.cantidades?.[comanda.platos.indexOf(p)] || 1,
-        precio: p.plato?.precio || p.precio || 0,
-        subtotal: (p.plato?.precio || p.precio || 0) * (comanda.cantidades?.[comanda.platos.indexOf(p)] || 1),
+        precio: (p.precioUnitario != null ? p.precioUnitario : (p.plato?.precio || p.precio || 0)),
+        subtotal: (p.precioUnitario != null ? p.precioUnitario : (p.plato?.precio || p.precio || 0)) * (comanda.cantidades?.[comanda.platos.indexOf(p)] || 1),
         tipoServicio: p.tipoServicio || 'mesa',
         complementos: (p.complementosSeleccionados || []).map((c) => ({
           grupo: c.grupo,
           opcion: c.opcion,
+          cantidad: c.cantidad || 1,
+          precio: c.precio || 0,
         })),
         notaEspecial: p.notaEspecial || '',
         paraLlevar: p.tipoServicio === 'para_llevar',
+        mostrarResumenComplementos: !!p.mostrarResumenComplementos,
+        resumenComplementosImpresion: {
+          mostrarCantidad: p.resumenComplementosImpresion?.mostrarCantidad !== false,
+          mostrarMontoExtra: p.resumenComplementosImpresion?.mostrarMontoExtra !== false,
+        },
       }));
 
     const imprimible = {

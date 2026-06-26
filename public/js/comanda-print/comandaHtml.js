@@ -212,6 +212,8 @@ function estimarAltura(datos, bloques) {
     h += ALTURA_POR_FILA_PX;
     if (prod.complementos?.length) {
       h += prod.complementos.length * ALTURA_POR_COMPLEMENTO_PX;
+      // v3.0: fila adicional de resumen si el plato lo activa
+      if (prod.mostrarResumenComplementos) h += ALTURA_POR_COMPLEMENTO_PX;
     }
     if (prod.notaEspecial) {
       h += ALTURA_POR_NOTA_PX;
@@ -395,6 +397,35 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
             html += ` (+${simbolo}${c.precio.toFixed(2)})`;
           }
           html += '</td></tr>';
+        }
+
+        // v3.0: fila de resumen agregado de complementos si el plato lo activa
+        if (prod.mostrarResumenComplementos) {
+          const flags = prod.resumenComplementosImpresion || {};
+          const mostrarCantidad = flags.mostrarCantidad !== false;
+          const mostrarMontoExtra = flags.mostrarMontoExtra !== false;
+          let totalUnidades = 0;
+          let extra = 0;
+          for (const c of prod.complementos) {
+            const cant = Math.max(1, Number(c.cantidad) || 1);
+            totalUnidades += cant;
+            extra += (Number(c.precio) || 0) * cant;
+          }
+          if (totalUnidades > 0) {
+            const partes = [];
+            if (mostrarCantidad) {
+              partes.push(`${totalUnidades} ${totalUnidades === 1 ? 'ud.' : 'uds.'}`);
+            }
+            if (mostrarMontoExtra && extra > 0) {
+              partes.push(`(+${simbolo}${extra.toFixed(2)})`);
+            }
+            const textoResumen = partes.join(' ').trim();
+            if (textoResumen) {
+              html += '<tr style="font-size:10px;font-weight:600;color:#333;">';
+              html += `<td colspan="${mostrarPrecios ? 4 : 2}" style="padding:1px 0 2px 8px;border-top:1px dotted #999;">Σ Complementos: ${escapeHtml(textoResumen)}</td>`;
+              html += '</tr>';
+            }
+          }
         }
       }
 

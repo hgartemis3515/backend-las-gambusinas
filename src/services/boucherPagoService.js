@@ -42,7 +42,11 @@ function esPagoParcial(platosSeleccionados) {
 
 function buildPlatoBoucherLine(comanda, platoItem, index, cantidad) {
   const plato = platoItem.plato || platoItem;
-  const precio = plato.precio || platoItem.precio || 0;
+  // v3.0: usar precioUnitario snapshot (base + extras) si está disponible en la comanda.
+  // Fallback a precio del plato para comandas legacy.
+  const precio = platoItem.precioUnitario != null
+    ? Number(platoItem.precioUnitario)
+    : (plato.precio || platoItem.precio || 0);
   const qty = cantidad || comanda.cantidades?.[index] || 1;
   const subtotal = precio * qty;
 
@@ -76,6 +80,16 @@ function buildPlatoBoucherLine(comanda, platoItem, index, cantidad) {
     notaEspecial: platoItem.notaEspecial || '',
     // NUEVO: Tipo de servicio (Mesa vs Para llevar)
     tipoServicio: platoItem.tipoServicio || 'mesa',
+    // v3.0: Snapshot para resumen de impresión y reportes
+    precioBase: platoItem.precioBase != null ? Number(platoItem.precioBase) : null,
+    extraComplementos: platoItem.extraComplementos != null ? Number(platoItem.extraComplementos) : 0,
+    precioUnitario: platoItem.precioUnitario != null ? Number(platoItem.precioUnitario) : null,
+    totalUnidadesComplementos: platoItem.totalUnidadesComplementos != null ? Number(platoItem.totalUnidadesComplementos) : 0,
+    mostrarResumenComplementos: !!platoItem.mostrarResumenComplementos,
+    resumenComplementosImpresion: {
+      mostrarCantidad: platoItem.resumenComplementosImpresion?.mostrarCantidad !== false,
+      mostrarMontoExtra: platoItem.resumenComplementosImpresion?.mostrarMontoExtra !== false,
+    },
     cocinero: cocineroNombre,
     cocineroId,
     tiempoPreparacion,
@@ -113,7 +127,8 @@ function calcularTotalesConDescuentos(comandasValidas, platosParaBoucher, config
           sum +
           (c.platos || []).reduce((s, p, i) => {
             if (!p.eliminado && (p.estado || '').toLowerCase() !== 'pagado') {
-              const precio = p.plato?.precio || p.precio || 0;
+              // v3.0: usar precioUnitario snapshot (incluye extras) si está disponible
+              const precio = p.precioUnitario != null ? Number(p.precioUnitario) : (p.plato?.precio || p.precio || 0);
               const cant = c.cantidades?.[i] || 1;
               return s + precio * cant;
             }
@@ -132,7 +147,8 @@ function calcularTotalesConDescuentos(comandasValidas, platosParaBoucher, config
       if (!(comanda.descuento > 0 && comanda.montoDescuento > 0)) continue;
       const subComandaTotal = (comanda.platos || []).reduce((s, p, i) => {
         if (!p.eliminado && !p.anulado) {
-          const precio = p.plato?.precio || p.precio || 0;
+          // v3.0: usar precioUnitario snapshot si está disponible
+          const precio = p.precioUnitario != null ? Number(p.precioUnitario) : (p.plato?.precio || p.precio || 0);
           return s + precio * (comanda.cantidades?.[i] || 1);
         }
         return s;
@@ -540,6 +556,16 @@ async function procesarPagoBoucher(params) {
       tipoServicio: p.tipoServicio || 'mesa',
       complementosSeleccionados: p.complementosSeleccionados || [],
       notaEspecial: p.notaEspecial || '',
+      // v3.0: snapshot para resumen de complementos
+      precioBase: p.precioBase != null ? p.precioBase : null,
+      extraComplementos: p.extraComplementos != null ? p.extraComplementos : 0,
+      precioUnitario: p.precioUnitario != null ? p.precioUnitario : null,
+      totalUnidadesComplementos: p.totalUnidadesComplementos != null ? p.totalUnidadesComplementos : 0,
+      mostrarResumenComplementos: !!p.mostrarResumenComplementos,
+      resumenComplementosImpresion: {
+        mostrarCantidad: p.resumenComplementosImpresion?.mostrarCantidad !== false,
+        mostrarMontoExtra: p.resumenComplementosImpresion?.mostrarMontoExtra !== false,
+      },
     }));
 
     try {

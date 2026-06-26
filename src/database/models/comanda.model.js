@@ -57,11 +57,28 @@ const comandaSchema = new mongoose.Schema({
         },
         // Complementos seleccionados por el mozo para este plato
         // NUEVA ESTRUCTURA v2.0: Soporte para cantidades por opción
+        // NUEVA ESTRUCTURA v3.0: Snapshot de precio unitario del extra al momento del pedido
         complementosSeleccionados: [{
             grupo: { type: String },   // Ej: "Proteína"
             opcion: { type: String },  // Ej: "Pollo"
-            cantidad: { type: Number, default: 1, min: 1 }  // Cantidad de esta opción (nuevo campo)
+            cantidad: { type: Number, default: 1, min: 1 },  // Cantidad de esta opción (nuevo campo v2.0)
+            // v3.0: precio unitario del extra al momento del pedido (snapshot).
+            // 0 o ausente en comandas legacy → no suma.
+            precio: { type: Number, default: 0, min: 0 }
         }],
+        // v3.0: Campos desnormalizados para cálculo rápido de totales y resumen de impresión.
+        // Se rellenan al crear/editar comanda desde la configuración del plato.
+        // Si ausentes (comandas legacy) → fallback a plato.precio * cantidad.
+        precioBase: { type: Number, default: null },             // plato.precio al crear
+        extraComplementos: { type: Number, default: 0 },          // Σ (precio × cantidad) por plato
+        precioUnitario: { type: Number, default: null },          // base + extra
+        totalUnidadesComplementos: { type: Number, default: 0 },  // Σ cantidad de complementos
+        // v3.0: snapshot de flags del plato al momento de la comanda (para impresión consistente)
+        mostrarResumenComplementos: { type: Boolean, default: false },
+        resumenComplementosImpresion: {
+            mostrarCantidad: { type: Boolean, default: true },
+            mostrarMontoExtra: { type: Boolean, default: true }
+        },
         // Nota especial para este plato (ej: "Sin sal, extra limón")
         notaEspecial: { type: String, default: '' },
         // Tipo de servicio del plato: 'mesa' (default) o 'para_llevar'

@@ -14,6 +14,11 @@ const mongoose = require('mongoose');
 // FASE 5: Redis Cache para comandas activas
 const redisCache = require('../utils/redisCache');
 const calculosPrecios = require('../utils/calculosPrecios');
+const {
+  enriquecerComplementosConPrecio,
+  calcularPrecioUnitarioConComplementos,
+  calcularResumenComplementos
+} = require('../utils/precioComplementos');
 const configuracionRepository = require('./configuracion.repository');
 const { obtenerCicloServicioMesa, intersectarComandaIds } = require('../services/mesaCicloServicio.service');
 
@@ -72,6 +77,13 @@ const PROYECCION_COCINA = {
     'platos.notaEspecial': 1,
     'platos.tipoServicio': 1,  // 🔥 NUEVO: Mesa vs Para llevar
     'platos.pagoAdelantado': 1,  // 🔥 PPA: ocultar en KDS platos para_llevar con ticket pendiente_aprobacion
+    // v3.0: campos para precio con extras y resumen de complementos en impresión
+    'platos.precioBase': 1,
+    'platos.extraComplementos': 1,
+    'platos.precioUnitario': 1,
+    'platos.totalUnidadesComplementos': 1,
+    'platos.mostrarResumenComplementos': 1,
+    'platos.resumenComplementosImpresion': 1,
     'platos.tiempos': 1,
     'platos.eliminadoPor': 1,
     'platos.eliminadoAt': 1,
@@ -110,6 +122,13 @@ const PROYECCION_RESUMEN_MESA = {
     'platos.notaEspecial': 1,  // 🔥 NUEVO: Nota especial del plato
     'platos.tipoServicio': 1,  // 🔥 NUEVO: Mesa vs Para llevar
     'platos.pagoAdelantado': 1,  // 🔥 PPA: estado del ticket para mostrar "PENDIENTE" (naranja)
+    // v3.0: campos para precio con extras y resumen en impresión
+    'platos.precioBase': 1,
+    'platos.extraComplementos': 1,
+    'platos.precioUnitario': 1,
+    'platos.totalUnidadesComplementos': 1,
+    'platos.mostrarResumenComplementos': 1,
+    'platos.resumenComplementosImpresion': 1,
     'platos.plato': 1  // 🔥 Necesario para populate de nombre y precio
 };
 
@@ -138,6 +157,13 @@ const PROYECCION_PAGOS = {
     'platos.complementosSeleccionados': 1,
     'platos.tipoServicio': 1,  // 🔥 NUEVO: Mesa vs Para llevar
     'platos.pagoAdelantado': 1,  // 🔥 PPA: estado del ticket para mostrar "PENDIENTE" (naranja)
+    // v3.0: campos para precio con extras y resumen en impresión
+    'platos.precioBase': 1,
+    'platos.extraComplementos': 1,
+    'platos.precioUnitario': 1,
+    'platos.totalUnidadesComplementos': 1,
+    'platos.mostrarResumenComplementos': 1,
+    'platos.resumenComplementosImpresion': 1,
     'platos.plato': 1
 };
 
@@ -378,6 +404,13 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
         'platos.complementosSeleccionados': 1,
         'platos.notaEspecial': 1,
         'platos.tipoServicio': 1, // NUEVO: Mesa vs Para llevar
+        // v3.0: campos para precio con extras y resumen en impresión
+        'platos.precioBase': 1,
+        'platos.extraComplementos': 1,
+        'platos.precioUnitario': 1,
+        'platos.totalUnidadesComplementos': 1,
+        'platos.mostrarResumenComplementos': 1,
+        'platos.resumenComplementosImpresion': 1,
         'platos.plato': 1
       });
     }
@@ -729,7 +762,40 @@ const agregarComanda = async (data) => {
     // Normalizar tipoServicio: 'mesa' | 'para_llevar' (default 'mesa')
     plato.tipoServicio = normalizarTipoServicio(plato.tipoServicio);
 
-    console.log(`✅ Plato ${index}: ${platoCompleto.nombre} (id=${platoCompleto.id}, tipoServicio=${plato.tipoServicio})`);
+    // ===== v3.0: ENRIQUECER COMPLEMENTOS CON PRECIO SNAPSHOT =====
+    // El backend es la fuente de verdad: toma el precio del menú, no del cliente.
+    if (Array.isArray(plato.complementosSeleccionados) && plato.complementosSeleccionados.length > 0) {
+      const afectanPrecio = platoCompleto.complementosAfectanPrecio !== false;
+      plato.complementosSeleccionados = enriquecerComplementosConPrecio(
+        platoCompleto.complementos || [],
+        plato.complementosSeleccionados,
+        { afectanPrecio }
+      );
+    }
+
+    // Calcular precio unitario y resumen usando la config del plato (snapshot)
+    const calc = calcularPrecioUnitarioConComplementos(
+      platoCompleto.precio || 0,
+      plato.complementosSeleccionados || [],
+      { afectanPrecio: platoCompleto.complementosAfectanPrecio !== false }
+    );
+    const resumen = calcularResumenComplementos(
+      plato.complementosSeleccionados || [],
+      { afectanPrecio: platoCompleto.complementosAfectanPrecio !== false }
+    );
+
+    plato.precioBase = platoCompleto.precio || 0;
+    plato.extraComplementos = calc.extraComplementos;
+    plato.precioUnitario = calc.precioUnitario;
+    plato.totalUnidadesComplementos = resumen.totalUnidades;
+    plato.mostrarResumenComplementos = !!platoCompleto.mostrarTotalComplementosImpresion;
+    plato.resumenComplementosImpresion = {
+      mostrarCantidad: platoCompleto.resumenComplementosImpresion?.mostrarCantidad !== false,
+      mostrarMontoExtra: platoCompleto.resumenComplementosImpresion?.mostrarMontoExtra !== false
+    };
+    // ===== FIN v3.0 =====
+
+    console.log(`✅ Plato ${index}: ${platoCompleto.nombre} (id=${platoCompleto.id}, tipoServicio=${plato.tipoServicio}, precioUnitario=${plato.precioUnitario})`);
   }
   
   // ========== OBTENER DATOS DESNORMALIZADOS ==========
@@ -953,12 +1019,17 @@ const eliminarLogicamente = async (comandaId, usuarioId, motivo, requerirMotivo 
     }
     
     // Calcular precio total original si no existe
+    // v3.0: usar precioUnitario snapshot (incluye extras) si está disponible
     if (!comanda.precioTotalOriginal && comanda.platos && comanda.platos.length > 0) {
       let precioTotal = 0;
       for (const platoItem of comanda.platos) {
+        const cantidad = comanda.cantidades[comanda.platos.indexOf(platoItem)] || 1;
+        if (platoItem.precioUnitario != null) {
+          precioTotal += Number(platoItem.precioUnitario) * cantidad;
+          continue;
+        }
         const plato = await platoModel.findById(platoItem.plato);
         if (plato && plato.precio) {
-          const cantidad = comanda.cantidades[comanda.platos.indexOf(platoItem)] || 1;
           precioTotal += plato.precio * cantidad;
         }
       }
@@ -1014,7 +1085,8 @@ const eliminarLogicamente = async (comandaId, usuarioId, motivo, requerirMotivo 
           estado: p.estado,
           cantidad: comanda.cantidades[idx] || 1,
           nombre: p.plato?.nombre || 'Plato desconocido',
-          precio: p.plato?.precio || 0
+          // v3.0: usar precioUnitario snapshot si está disponible
+          precio: p.precioUnitario != null ? Number(p.precioUnitario) : (p.plato?.precio || 0)
         })),
         cantidades: comanda.cantidades,
         observaciones: comanda.observaciones,
@@ -1198,7 +1270,8 @@ const editarConAuditoria = async (comandaId, platosNuevos, platosEliminados, usu
           platoId: p.platoId,
           plato: p.plato?._id || p.plato,
           nombre: nombrePlato,
-          precio: p.plato?.precio || 0,
+          // v3.0: usar precioUnitario snapshot si está disponible
+          precio: p.precioUnitario != null ? Number(p.precioUnitario) : (p.plato?.precio || 0),
           cantidad: comanda.cantidades[idx] || 1,
           estado: p.estado
         };
@@ -2775,7 +2848,10 @@ function obtenerPlatosPagables(comanda) {
 /** Suma precio*cantidad de platos entregados pendientes de pago. */
 function calcularSubtotalPlatosPagables(comanda) {
   return obtenerPlatosPagables(comanda).reduce((sum, { platoItem, cantidad }) => {
-    const precio = platoItem.plato?.precio || platoItem.precio || 0;
+    // v3.0: usar precioUnitario snapshot (incluye extras) si está disponible
+    const precio = platoItem.precioUnitario != null
+      ? Number(platoItem.precioUnitario)
+      : (platoItem.plato?.precio || platoItem.precio || 0);
     return sum + precio * cantidad;
   }, 0);
 }
@@ -2790,7 +2866,8 @@ const calcularTotalPendienteMesa = async (mesaId) => {
       const subPagable = calcularSubtotalPlatosPagables(c);
       const subTotal = (c.platos || []).reduce((s, p, i) => {
         if (!p.eliminado && !p.anulado) {
-          const precio = p.plato?.precio || p.precio || 0;
+          // v3.0: usar precioUnitario snapshot si está disponible
+          const precio = p.precioUnitario != null ? Number(p.precioUnitario) : (p.plato?.precio || p.precio || 0);
           return s + precio * (c.cantidades?.[i] || 1);
         }
         return s;
@@ -3135,7 +3212,11 @@ const validarPlatosSeleccionadosParaPago = async (mesaId, platosSeleccionados, e
     }
 
     const plato = platoItem.plato || platoItem;
-    const precio = plato.precio || platoItem.precio || 0;
+    // v3.0: usar precioUnitario snapshot (base + extras) si está disponible
+    const precioSnapshot = platoItem.precioUnitario != null
+      ? Number(platoItem.precioUnitario)
+      : (plato.precio || platoItem.precio || 0);
+    const precio = precioSnapshot;
     platosParaBoucher.push({
       plato: plato._id || plato,
       platoId: platoItem.platoId || plato.id || null,
@@ -3948,7 +4029,8 @@ const anularPlato = async (comandaId, platoIndex, motivo, observaciones, usuario
       .populate('platos.plato');
 
     const cantidadAnulada = comanda.cantidades[index] || 1;
-    const precioUnitario = plato.plato?.precio || 0;
+    // v3.0: usar precioUnitario snapshot (incluye extras) si está disponible
+    const precioUnitario = plato.precioUnitario != null ? Number(plato.precioUnitario) : (plato.plato?.precio || 0);
 
     logger.info(`${logPrefix} Plato anulado/eliminado exitosamente`, {
       comandaNumber: comanda.comandaNumber,
@@ -4025,7 +4107,8 @@ const anularComandaCompleta = async (comandaId, motivo, observaciones, usuarioId
       const estadoAlAnular = plato.estado;
       const nombrePlato = plato.plato?.nombre || 'Plato desconocido';
       const cantidad = comanda.cantidades[index] || 1;
-      const precioUnitario = plato.plato?.precio || 0;
+      // v3.0: usar precioUnitario snapshot si está disponible
+      const precioUnitario = plato.precioUnitario != null ? Number(plato.precioUnitario) : (plato.plato?.precio || 0);
 
       // 🔥 IMPORTANTE: Marcar como ELIMINADO (igual que eliminación desde app mozos)
       // Esto asegura que el sistema de pagos lo excluya correctamente
@@ -4228,7 +4311,10 @@ const aplicarDescuento = async (comandaId, descuento, motivo, usuarioId, usuario
       if (platoItem.eliminado || platoItem.anulado) continue;
 
       const cantidad = comanda.cantidades?.[i] || 1;
-      const precio = platoItem.plato?.precio || platoItem.precio || 0;
+      // v3.0: usar precioUnitario snapshot si está disponible
+      const precio = platoItem.precioUnitario != null
+        ? Number(platoItem.precioUnitario)
+        : (platoItem.plato?.precio || platoItem.precio || 0);
       subtotalActual += precio * cantidad;
     }
 

@@ -68,6 +68,23 @@ const esSupervisorCocinaDesdeToken = (req) => {
     }
 };
 
+// Verifica si el solicitante (según token JWT del header Authorization) tiene un
+// permiso específico. admin tiene todos los permisos. Devuelve false si no hay
+// token válido o si el permiso no está presente.
+const tienePermisoDesdeToken = (req, permiso) => {
+    try {
+        const authHeader = req.headers?.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
+        const decoded = jwtLib.verify(authHeader.substring(7), JWT_SECRET_LEGACY);
+        if (!decoded) return false;
+        if (decoded.rol === 'admin') return true;
+        const permisos = decoded.permisos || [];
+        return permisos.includes(permiso);
+    } catch (e) {
+        return false;
+    }
+};
+
 router.get('/comanda', async (req, res) => {
     try {
         const incluirPagadas =
@@ -1669,6 +1686,12 @@ router.put('/comanda/:id/prioridad', async (req, res) => {
     const { prioridadOrden } = req.body;
 
     try {
+        // Verificar permiso ver-boton-prioridad-kds
+        if (!tienePermisoDesdeToken(req, 'ver-boton-prioridad-kds')) {
+            logger.warn('Permiso denegado para cambiar prioridad', { id });
+            return res.status(403).json({ message: 'No tiene permiso para cambiar la prioridad de la comanda' });
+        }
+
         const mongoose = require('mongoose');
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ message: 'ID de comanda inválido' });
@@ -2922,7 +2945,10 @@ router.delete('/comanda/:id/descuento', async (req, res) => {
             const platoItem = comanda.platos[i];
             if (platoItem.eliminado || platoItem.anulado) continue;
             const cantidad = comanda.cantidades?.[i] || 1;
-            const precio = platoItem.plato?.precio || platoItem.precio || 0;
+            // v3.0: usar precioUnitario snapshot (incluye extras) si está disponible
+            const precio = platoItem.precioUnitario != null
+              ? Number(platoItem.precioUnitario)
+              : (platoItem.plato?.precio || platoItem.precio || 0);
             subtotalActual += precio * cantidad;
         }
 

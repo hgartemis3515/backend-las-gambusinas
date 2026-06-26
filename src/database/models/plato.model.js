@@ -61,8 +61,28 @@ const platoSchema = new mongoose.Schema({
         type: Boolean,
         default: true
     },
+    // ===== COMPLEMENTOS v3.0: PRECIOS OPCIONALES Y RESUMEN EN IMPRESIÓN =====
+    // Si false: complementos con precio > 0 NO se cobran (solo informativos en cocina).
+    // Default true: cuando el admin configura precios, estos afectan el precio unitario.
+    complementosAfectanPrecio: {
+        type: Boolean,
+        default: true
+    },
+    // Si true: en comanda/boucher/KDS se muestra un resumen agregado de complementos
+    // bajo el plato (ej. "Σ Complementos: 4 uds. (+S/. 12.00)").
+    mostrarTotalComplementosImpresion: {
+        type: Boolean,
+        default: false
+    },
+    // Sub-opciones del resumen (solo relevantes si mostrarTotalComplementosImpresion === true)
+    resumenComplementosImpresion: {
+        mostrarCantidad: { type: Boolean, default: true },   // "4 uds."
+        mostrarMontoExtra: { type: Boolean, default: true }  // "(+S/. 12.00)"
+    },
+    // ===== FIN COMPLEMENTOS v3.0 =====
     // Complementos/variantes disponibles para este plato
     // NUEVA ESTRUCTURA v2.0: Soporte para cantidades por opción
+    // NUEVA ESTRUCTURA v3.0: Opciones como objeto { nombre, precio } (compatible con string legacy)
     complementos: [{
         grupo: { type: String, required: true },           // Ej: "Proteína", "Guarnición", "Término"
         obligatorio: { type: Boolean, default: false },    // Si el mozo DEBE elegir al menos una opción
@@ -86,7 +106,12 @@ const platoSchema = new mongoose.Schema({
         // Si se permite repetir la misma opción múltiples veces
         permiteRepetirOpcion: { type: Boolean, default: true },
         // ===== FIN NUEVOS CAMPOS =====
-        opciones: [{ type: String }]                       // Ej: ["Pollo", "Carne", "Mixto"]
+        // v3.0: opciones puede ser array de strings (legacy) o de objetos { nombre, precio }
+        // La normalización a objetos se hace en pre('save').
+        opciones: [{
+            nombre: { type: String, required: true, trim: true },
+            precio: { type: Number, default: 0, min: 0 }
+        }]
     }]
 });
 
@@ -143,6 +168,32 @@ async function _getSlugsValidos() {
     }
 }
 
+// ===== v3.0: PRE-VALIDATE HOOK =====
+// Se ejecuta antes de la validación del schema. Convierte strings legacy ("Pollo")
+// a objetos { nombre, precio: 0 } para cumplir con el subesquema opciones.
+// Sin esto, Mongoose rechazaría strings enviados por clientes antiguos.
+platoSchema.pre('validate', function (next) {
+    if (Array.isArray(this.complementos)) {
+        this.complementos.forEach((grupo) => {
+            if (!grupo || !Array.isArray(grupo.opciones)) return;
+            grupo.opciones = grupo.opciones.map((op) => {
+                if (op == null) return { nombre: '', precio: 0 };
+                if (typeof op === 'string') return { nombre: op.trim(), precio: 0 };
+                if (typeof op === 'object') {
+                    const nombre = String(op.nombre ?? '').trim();
+                    const precio = Number(op.precio);
+                    return {
+                        nombre,
+                        precio: Number.isFinite(precio) && precio > 0 ? precio : 0
+                    };
+                }
+                return { nombre: String(op).trim(), precio: 0 };
+            });
+        });
+    }
+    next();
+});
+
 platoSchema.pre('save', async function (next) {
     try {
         if (this.nombre != null) {
@@ -158,6 +209,42 @@ platoSchema.pre('save', async function (next) {
                 return next(new Error('categoria no puede estar vacía'));
             }
         }
+
+        // ===== v3.0: Normalizar opciones de complementos a formato objeto =====
+        // Convierte strings legacy ("Pollo") a { nombre: "Pollo", precio: 0 }.
+        // También sanea precios (default 0) y elimina opciones sin nombre.
+        if (Array.isArray(this.complementos)) {
+            this.complementos.forEach((grupo) => {
+                if (!grupo || !Array.isArray(grupo.opciones)) return;
+                const vistos = new Set();
+                const limpias = [];
+                for (const op of grupo.opciones) {
+                    let normalizada;
+                    if (op == null) continue;
+                    if (typeof op === 'string') {
+                        const nombre = op.trim();
+                        if (!nombre) continue;
+                        normalizada = { nombre, precio: 0 };
+                    } else if (typeof op === 'object') {
+                        const nombre = String(op.nombre || '').trim();
+                        if (!nombre) continue;
+                        const precio = Number(op.precio);
+                        normalizada = {
+                            nombre,
+                            precio: Number.isFinite(precio) && precio > 0 ? precio : 0
+                        };
+                    } else {
+                        continue;
+                    }
+                    if (vistos.has(normalizada.nombre.toLowerCase())) continue;
+                    vistos.add(normalizada.nombre.toLowerCase());
+                    limpias.push({ nombre: normalizada.nombre, precio: normalizada.precio });
+                }
+                grupo.opciones = limpias;
+            });
+        }
+        // ===== FIN v3.0 =====
+
         let slugsValidos = null;
         if (this.tipo != null || (Array.isArray(this.tipos) && this.tipos.length)) {
             slugsValidos = await _getSlugsValidos();

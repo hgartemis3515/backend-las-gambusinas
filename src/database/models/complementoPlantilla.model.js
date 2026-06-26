@@ -31,9 +31,18 @@ const complementoPlantillaSchema = new mongoose.Schema({
         default: ''
     },
     opciones: [{
-        type: String,
-        trim: true,
-        maxlength: [100, 'Cada opción no puede exceder 100 caracteres']
+        nombre: {
+            type: String,
+            required: true,
+            trim: true,
+            maxlength: [100, 'Cada opción no puede exceder 100 caracteres']
+        },
+        // v3.0: precio adicional opcional para esta opción (S/.). Default 0.
+        precio: {
+            type: Number,
+            default: 0,
+            min: [0, 'El precio no puede ser negativo']
+        }
     }],
     obligatorio: {
         type: Boolean,
@@ -97,6 +106,27 @@ complementoPlantillaSchema.index(
 );
 
 // ============ HOOKS ============
+// v3.0: pre-validate convierte strings legacy a { nombre, precio: 0 } antes de
+// la validación del subesquema opciones. Sin esto, Mongoose rechazaría strings.
+complementoPlantillaSchema.pre('validate', function (next) {
+    if (Array.isArray(this.opciones)) {
+        this.opciones = this.opciones.map((op) => {
+            if (op == null) return { nombre: '', precio: 0 };
+            if (typeof op === 'string') return { nombre: op.trim(), precio: 0 };
+            if (typeof op === 'object') {
+                const nombre = String(op.nombre ?? '').trim();
+                const precio = Number(op.precio);
+                return {
+                    nombre,
+                    precio: Number.isFinite(precio) && precio > 0 ? precio : 0
+                };
+            }
+            return { nombre: String(op).trim(), precio: 0 };
+        });
+    }
+    next();
+});
+
 complementoPlantillaSchema.pre('save', function(next) {
     // Normalizar nombre
     if (this.nombre) {
@@ -114,14 +144,37 @@ complementoPlantillaSchema.pre('save', function(next) {
     }
     
     // Limpiar opciones vacías y duplicados
+    // v3.0: normalizar strings legacy a objetos { nombre, precio }
     if (this.opciones && Array.isArray(this.opciones)) {
-        const opcionesLimpias = this.opciones
-            .map(op => typeof op === 'string' ? op.trim() : '')
-            .filter(op => op.length > 0);
-        
-        // Remover duplicados preservando orden
-        const opcionesUnicas = [...new Set(opcionesLimpias)];
-        this.opciones = opcionesUnicas;
+        const vistos = new Set();
+        const opcionesLimpias = [];
+
+        for (const op of this.opciones) {
+            let normalizada;
+            if (op == null) continue;
+            if (typeof op === 'string') {
+                const nombre = op.trim();
+                if (!nombre) continue;
+                normalizada = { nombre, precio: 0 };
+            } else if (typeof op === 'object') {
+                const nombre = String(op.nombre || '').trim();
+                if (!nombre) continue;
+                const precio = Number(op.precio);
+                normalizada = {
+                    nombre,
+                    precio: Number.isFinite(precio) && precio > 0 ? precio : 0
+                };
+            } else {
+                continue;
+            }
+            const key = normalizada.nombre.toLowerCase();
+            if (vistos.has(key)) continue;
+            vistos.add(key);
+            opcionesLimpias.push(normalizada);
+        }
+
+        // Remover duplicados preservando orden (legacy set sobre strings; ahora sobre keys)
+        this.opciones = opcionesLimpias;
     }
     
     next();

@@ -119,6 +119,8 @@ tailwind.config = {
                   <template x-if="getPlatoComplementosSummary(p)">
                     <div>
                       <span class="text-[10px] px-2 py-0.5 rounded-full bg-gold/15 text-gold font-semibold" x-text="'● ' + getPlatoComplementosSummary(p).grupos + ' grupo' + (getPlatoComplementosSummary(p).grupos > 1 ? 's' : '')"></span>
+                      <span x-show="getPlatoComplementosSummary(p).tienePrecios" class="text-[9px] px-1.5 py-0.5 rounded-full bg-st-libre/20 text-st-libre font-medium ml-1" title="Tiene complementos con precio">💰 extras</span>
+                      <span x-show="getPlatoComplementosSummary(p).mostrarResumen" class="text-[9px] px-1.5 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-medium ml-1" title="Muestra resumen de complementos en impresión">🖨️ resumen</span>
                       <p class="text-[9px] text-txt-muted mt-0.5" x-text="getPlatoComplementosSummary(p).nombres"></p>
                     </div>
                   </template>
@@ -296,11 +298,12 @@ tailwind.config = {
               <!-- FIN CONFIGURACIÓN DE CANTIDADES -->
 
               <!-- Opciones -->
-              <p class="text-[10px] text-txt-muted mb-1">Opciones:</p>
+              <p class="text-[10px] text-txt-muted mb-1">Opciones <span class="text-[9px] opacity-70">(precio extra opcional)</span>:</p>
               <div class="space-y-1.5">
                 <template x-for="(op, oi) in grupo.opciones" :key="oi">
                   <div class="flex gap-1.5 items-center">
-                    <input type="text" x-model="grupo.opciones[oi]" placeholder="Ej: Pollo" class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[11px] focus:border-gold focus:outline-none" :readonly="grupo._fromLibrary" :class="grupo._fromLibrary ? 'opacity-80' : ''">
+                    <input type="text" x-model="grupo.opciones[oi].nombre" placeholder="Ej: Pollo" class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[11px] focus:border-gold focus:outline-none" :readonly="grupo._fromLibrary" :class="grupo._fromLibrary ? 'opacity-80' : ''">
+                    <input type="number" x-model.number="grupo.opciones[oi].precio" min="0" step="0.01" placeholder="0.00" title="Precio adicional opcional (S/.)" class="w-16 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[11px] focus:border-gold focus:outline-none" :readonly="grupo._fromLibrary" :class="grupo._fromLibrary ? 'opacity-80' : ''">
                     <button type="button" @click="eliminarOpcionComplemento(gi, oi)" class="text-st-pagado text-[10px] hover:text-white px-1" x-show="!grupo._fromLibrary">✕</button>
                   </div>
                 </template>
@@ -308,6 +311,29 @@ tailwind.config = {
               <button type="button" @click="agregarOpcionComplemento(gi)" class="mt-2 text-[10px] text-gold hover:underline" x-show="!grupo._fromLibrary">+ Agregar opción</button>
             </div>
           </template>
+        </div>
+
+        <!-- v3.0: Panel de configuración de precios y resumen en impresión -->
+        <div x-show="formPlato.complementos.length > 0" class="mt-3 p-3 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-lg space-y-2">
+          <p class="text-[10px] text-txt-muted font-semibold">💰 Comportamiento de complementos</p>
+          <label class="flex items-center gap-2 cursor-pointer text-[11px]" :class="formPlato.complementosAfectanPrecio ? 'text-gold' : 'text-txt-muted'">
+            <input type="checkbox" x-model="formPlato.complementosAfectanPrecio" class="accent-gold w-3.5 h-3.5">
+            <span>Los complementos con precio aumentan el costo del plato en comandas</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer text-[11px]" :class="formPlato.mostrarTotalComplementosImpresion ? 'text-gold' : 'text-txt-muted'">
+            <input type="checkbox" x-model="formPlato.mostrarTotalComplementosImpresion" class="accent-gold w-3.5 h-3.5">
+            <span>Mostrar total de complementos en comanda, boucher y cocina</span>
+          </label>
+          <div x-show="formPlato.mostrarTotalComplementosImpresion" class="ml-5 flex flex-col gap-1">
+            <label class="flex items-center gap-2 cursor-pointer text-[10px] text-txt-secondary">
+              <input type="checkbox" x-model="formPlato.resumenComplementosImpresion.mostrarCantidad" class="accent-gold w-3 h-3">
+              <span>Mostrar cantidad de unidades (ej. "4 uds.")</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer text-[10px] text-txt-secondary">
+              <input type="checkbox" x-model="formPlato.resumenComplementosImpresion.mostrarMontoExtra" class="accent-gold w-3 h-3" :disabled="!formPlato.complementosAfectanPrecio">
+              <span :class="!formPlato.complementosAfectanPrecio ? 'opacity-50' : ''">Mostrar monto extra (ej. "+S/. 12.00")</span>
+            </label>
+          </div>
         </div>
       </div>
     </div>
@@ -544,7 +570,8 @@ tailwind.config = {
         <div class="space-y-2">
           <template x-for="(op, i) in formComplemento.opciones" :key="i">
             <div class="flex gap-2">
-              <input type="text" x-model="formComplemento.opciones[i]" placeholder="Ej: Tres cuartos" class="flex-1 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+              <input type="text" x-model="formComplemento.opciones[i].nombre" placeholder="Ej: Tres cuartos" class="flex-1 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+              <input type="number" x-model.number="formComplemento.opciones[i].precio" min="0" step="0.01" placeholder="0.00" title="Precio adicional opcional (S/.)" class="w-24 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
               <button @click="eliminarOpcionFormComplemento(i)" class="w-8 h-8 flex items-center justify-center rounded bg-st-pagado/20 text-st-pagado text-sm hover:bg-st-pagado/30">✕</button>
             </div>
           </template>
@@ -832,6 +859,10 @@ tailwind.config = {
         tipos: [defaultTipo],
         descripcion: '',
         disponible: true,
+        // v3.0: flags de complementos (defaults: cobrar extras activo, no mostrar resumen)
+        complementosAfectanPrecio: true,
+        mostrarTotalComplementosImpresion: false,
+        resumenComplementosImpresion: { mostrarCantidad: true, mostrarMontoExtra: true },
         complementos: []
       };
       this.modal = true;
@@ -860,7 +891,18 @@ tailwind.config = {
         tipos: [...tipos],
         descripcion: p.descripcion || '',
         disponible: p.disponible !== false,
-        complementos: JSON.parse(JSON.stringify(p.complementos || []))
+        // v3.0: flags de complementos con defaults seguros
+        complementosAfectanPrecio: p.complementosAfectanPrecio !== false,
+        mostrarTotalComplementosImpresion: !!p.mostrarTotalComplementosImpresion,
+        resumenComplementosImpresion: {
+          mostrarCantidad: p.resumenComplementosImpresion?.mostrarCantidad !== false,
+          mostrarMontoExtra: p.resumenComplementosImpresion?.mostrarMontoExtra !== false
+        },
+        // v3.0: normalizar opciones legacy (string) → objeto { nombre, precio }
+        complementos: JSON.parse(JSON.stringify(p.complementos || [])).map(g => ({
+          ...g,
+          opciones: this.normalizarOpcionesGrupo(g.opciones)
+        }))
       };
       this.modal = true;
     },
@@ -872,7 +914,8 @@ tailwind.config = {
         grupo: '',
         obligatorio: false,
         seleccionMultiple: false,
-        opciones: [''],
+        // v3.0: opción = { nombre, precio }
+        opciones: [{ nombre: '', precio: 0 }],
         // ===== NUEVOS CAMPOS v2.0 =====
         modoSeleccion: 'opciones',
         maxUnidadesGrupo: null,
@@ -910,7 +953,39 @@ tailwind.config = {
       if (!this.formPlato.complementos[grupoIndex].opciones) {
         this.formPlato.complementos[grupoIndex].opciones = [];
       }
-      this.formPlato.complementos[grupoIndex].opciones.push('');
+      // v3.0: opción es ahora { nombre, precio }
+      this.formPlato.complementos[grupoIndex].opciones.push({ nombre: '', precio: 0 });
+    },
+
+    // v3.0: normaliza una opción (string u objeto) a { nombre, precio }
+    normalizarOpcionComplemento(op) {
+      if (op == null) return { nombre: '', precio: 0 };
+      if (typeof op === 'string') return { nombre: op.trim(), precio: 0 };
+      if (typeof op === 'object') {
+        const nombre = String(op.nombre ?? '').trim();
+        const precioRaw = Number(op.precio);
+        return {
+          nombre,
+          precio: Number.isFinite(precioRaw) && precioRaw > 0 ? precioRaw : 0
+        };
+      }
+      return { nombre: String(op).trim(), precio: 0 };
+    },
+
+    // v3.0: normaliza un array de opciones (filtra vacíos y duplicados por nombre)
+    normalizarOpcionesGrupo(opciones) {
+      if (!Array.isArray(opciones)) return [];
+      const vistos = new Set();
+      const limpias = [];
+      for (const op of opciones) {
+        const n = this.normalizarOpcionComplemento(op);
+        if (!n.nombre) continue;
+        const key = n.nombre.toLowerCase();
+        if (vistos.has(key)) continue;
+        vistos.add(key);
+        limpias.push(n);
+      }
+      return limpias;
     },
 
     eliminarOpcionComplemento(grupoIndex, opcionIndex) {
@@ -919,7 +994,10 @@ tailwind.config = {
 
     get complementosSummary() {
       const total = this.formPlato.complementos.length;
-      const opciones = this.formPlato.complementos.reduce((s, g) => s + (g.opciones?.filter(o => o?.trim())?.length || 0), 0);
+      const opciones = this.formPlato.complementos.reduce((s, g) => {
+        const limpias = this.normalizarOpcionesGrupo(g.opciones);
+        return s + limpias.length;
+      }, 0);
       return total + ' grupo' + (total !== 1 ? 's' : '') + ', ' + opciones + ' opcion' + (opciones !== 1 ? 'es' : '');
     },
 
@@ -928,7 +1006,15 @@ tailwind.config = {
       if (comp.length === 0) return null;
       const grupos = comp.length;
       const opciones = comp.reduce((s, g) => s + (g.opciones?.length || 0), 0);
-      return { grupos, opciones, nombres: comp.map(g => g.grupo).filter(Boolean).join(' · ') };
+      // v3.0: detectar si alguna opción tiene precio > 0
+      const tienePrecios = comp.some(g => (g.opciones || []).some(o => (typeof o === 'object' ? (o.precio > 0) : false)));
+      return {
+        grupos,
+        opciones,
+        nombres: comp.map(g => g.grupo).filter(Boolean).join(' · '),
+        tienePrecios,
+        mostrarResumen: !!p.mostrarTotalComplementosImpresion
+      };
     },
 
     // ============ SELECTOR DE COMPLEMENTOS DESDE BIBLIOTECA ============
@@ -990,7 +1076,8 @@ tailwind.config = {
             grupo: comp.nombre,
             obligatorio: comp.obligatorio || false,
             seleccionMultiple: comp.seleccionMultiple || false,
-            opciones: [...(comp.opciones || [])],
+            // v3.0: copiar opciones con precio (normaliza strings legacy a objetos)
+            opciones: this.normalizarOpcionesGrupo(comp.opciones || []),
             // ===== NUEVOS CAMPOS v2.0 =====
             modoSeleccion: comp.modoSeleccion || (comp.seleccionMultiple ? 'cantidades' : 'opciones'),
             maxUnidadesGrupo: comp.maxUnidadesGrupo ?? (comp.seleccionMultiple ? null : 1),
@@ -1069,7 +1156,8 @@ tailwind.config = {
         _id: null,
         nombre: '',
         categoria: 'General',
-        opciones: [''],
+        // v3.0: opción = { nombre, precio }
+        opciones: [{ nombre: '', precio: 0 }],
         obligatorio: false,
         seleccionMultiple: false,
         // ===== NUEVOS CAMPOS v2.0 =====
@@ -1091,7 +1179,8 @@ tailwind.config = {
         id: comp.id,
         nombre: comp.nombre,
         categoria: comp.categoria || 'General',
-        opciones: [...(comp.opciones || [''])],
+        // v3.0: normalizar opciones a { nombre, precio }
+        opciones: this.normalizarOpcionesGrupo(comp.opciones || [{ nombre: '', precio: 0 }]),
         obligatorio: comp.obligatorio || false,
         seleccionMultiple: comp.seleccionMultiple || false,
         // ===== NUEVOS CAMPOS v2.0 =====
@@ -1107,7 +1196,8 @@ tailwind.config = {
     },
 
     agregarOpcionFormComplemento() {
-      this.formComplemento.opciones.push('');
+      // v3.0: ahora opción es objeto { nombre, precio }
+      this.formComplemento.opciones.push({ nombre: '', precio: 0 });
     },
 
     eliminarOpcionFormComplemento(index) {
@@ -1141,8 +1231,9 @@ tailwind.config = {
         return;
       }
       
-      const opcionesValidas = this.formComplemento.opciones.filter(o => o && o.trim());
-      if (opcionesValidas.length === 0) {
+      // v3.0: normalizar y validar opciones (acepta strings legacy y objetos)
+      const opcionesLimpias = this.normalizarOpcionesGrupo(this.formComplemento.opciones);
+      if (opcionesLimpias.length === 0) {
         this.showToast('Debe agregar al menos una opción válida', 'error');
         return;
       }
@@ -1150,7 +1241,7 @@ tailwind.config = {
       const payload = {
         nombre: this.formComplemento.nombre.trim(),
         categoria: this.formComplemento.categoria.trim() || 'General',
-        opciones: opcionesValidas,
+        opciones: opcionesLimpias,
         obligatorio: this.formComplemento.obligatorio,
         seleccionMultiple: this.formComplemento.seleccionMultiple,
         // ===== NUEVOS CAMPOS v2.0 =====
@@ -1269,13 +1360,14 @@ tailwind.config = {
       const tiposLimpios = [...new Set(this.formPlato.tipos.map(t => String(t).trim().toLowerCase()).filter(Boolean))];
 
       // Limpiar complementos vacíos antes de enviar
+      // v3.0: opciones ahora son objetos { nombre, precio }, normalizadas vía normalizarOpcionesGrupo
       const complementosLimpios = this.formPlato.complementos
         .filter(g => g.grupo && g.grupo.trim() !== '')
         .map(g => ({
           grupo: g.grupo.trim(),
           obligatorio: g.obligatorio || false,
           seleccionMultiple: g.seleccionMultiple || false,
-          opciones: (g.opciones || []).filter(o => o && o.trim() !== '').map(o => o.trim()),
+          opciones: this.normalizarOpcionesGrupo(g.opciones),
           // ===== NUEVOS CAMPOS v2.0 =====
           modoSeleccion: g.modoSeleccion || (g.seleccionMultiple ? 'cantidades' : 'opciones'),
           maxUnidadesGrupo: g.maxUnidadesGrupo ?? (g.seleccionMultiple ? null : 1),
@@ -1289,7 +1381,14 @@ tailwind.config = {
         ...this.formPlato,
         tipos: tiposLimpios,
         tipo: tiposLimpios[0], // sincronizar legacy
-        complementos: complementosLimpios
+        complementos: complementosLimpios,
+        // v3.0: flags de complementos del plato
+        complementosAfectanPrecio: this.formPlato.complementosAfectanPrecio !== false,
+        mostrarTotalComplementosImpresion: !!this.formPlato.mostrarTotalComplementosImpresion,
+        resumenComplementosImpresion: {
+          mostrarCantidad: this.formPlato.resumenComplementosImpresion?.mostrarCantidad !== false,
+          mostrarMontoExtra: this.formPlato.resumenComplementosImpresion?.mostrarMontoExtra !== false
+        }
       };
       
       // Remover propiedades internas

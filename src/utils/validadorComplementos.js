@@ -13,6 +13,7 @@
  */
 
 const logger = require('./logger');
+const { getNombreOpcion } = require('./precioComplementos');
 
 /**
  * Normaliza un grupo de complementos legacy al formato nuevo
@@ -123,9 +124,12 @@ function validarComplementos(complementosPlato, complementosSeleccionados) {
         const seleccionGrupo = seleccionPorGrupo[nombreGrupo] || [];
 
         // 1. Validar que las opciones existan en el grupo
-        const opcionesValidas = grupo.opciones || [];
+        // v3.0: opciones puede ser array de strings (legacy) o de objetos { nombre, precio }
+        const opcionesValidas = (grupo.opciones || []).map(getNombreOpcion).filter((n) => n);
+        const opcionesLower = opcionesValidas.map((o) => o.toLowerCase());
         for (const comp of seleccionGrupo) {
-            if (!opcionesValidas.includes(comp.opcion)) {
+            const opcionSel = String(comp.opcion || '').trim();
+            if (!opcionesLower.includes(opcionSel.toLowerCase())) {
                 errores.push(`La opción "${comp.opcion}" no existe en el grupo "${nombreGrupo}". Opciones válidas: ${opcionesValidas.join(', ')}`);
             }
         }
