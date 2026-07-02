@@ -11,6 +11,29 @@ const logger = require('../utils/logger');
 const moment = require('moment-timezone');
 
 /**
+ * GET /api/cocina/cocineros
+ * Listar cocineros activos para el selector de Ver Cocina Completo (app cocina).
+ * Requiere permiso: ver-cocina-completo (roles cocinero/admin/supervisor).
+ * Respuesta mínima sin datos sensibles: _id, name, alias.
+ */
+router.get('/cocina/cocineros', adminAuth, checkPermission('ver-cocina-completo'), async (req, res) => {
+    try {
+        const cocineros = await cocinerosRepository.obtenerCocineros({ activo: true });
+        // Proyección mínima: _id, name, alias, fotoUrl
+        const data = cocineros.map(c => ({
+            _id: c._id,
+            name: c.name,
+            alias: c.configKDS?.aliasCocinero || c.name,
+            fotoUrl: c.fotoUrl || ''
+        }));
+        res.json({ success: true, data, total: data.length });
+    } catch (error) {
+        logger.error('Error al listar cocineros para app cocina', { error: error.message });
+        res.status(500).json({ success: false, error: 'Error al obtener lista de cocineros' });
+    }
+});
+
+/**
  * GET /api/cocineros
  * Listar todos los cocineros con su configuración
  * Requiere permiso: ver-mozos

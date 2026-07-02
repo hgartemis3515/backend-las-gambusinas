@@ -20,7 +20,7 @@ async function obtenerCocineros(filtros = {}) {
         }
         
         const cocineros = await Mozos.find(query)
-            .select('name DNI phoneNumber rol activo zonaIds createdAt')
+            .select('name DNI phoneNumber rol activo zonaIds fotoUrl createdAt')
             .sort({ name: 1 })
             .lean();
         
