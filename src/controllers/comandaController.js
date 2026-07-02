@@ -1807,6 +1807,52 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
         }
 
         const updatedComanda = await cambiarEstadoPlato(id, platoId, nuevoEstado);
+
+        // v7.3: Atribución de procesadoPor al cocinero que TOMÓ el plato (no al supervisor que finaliza)
+        if (nuevoEstado === 'recoger' && platoAntes.procesandoPor?.cocineroId) {
+            const cocineroQueTomo = platoAntes.procesandoPor.cocineroId;
+            const cocineroQueFinaliza = (cocineroId || usuarioId)?.toString();
+            const supervisorOverride = cocineroQueFinaliza && cocineroQueTomo.toString() !== cocineroQueFinaliza;
+
+            const momento = new Date();
+            const proy = await comandaModel.findById(id).select('platos').lean();
+            const idx = proy.platos.findIndex(p => {
+                return (p._id?.toString() === platoId.toString()) ||
+                       (p.platoId?.toString() === platoId.toString()) ||
+                       (p.plato?.toString() === platoId.toString());
+            });
+            if (idx !== -1) {
+                const setFields = {
+                    [`platos.${idx}.procesadoPor`]: {
+                        cocineroId: cocineroQueTomo,
+                        nombre: platoAntes.procesandoPor.nombre,
+                        alias: platoAntes.procesandoPor.alias,
+                        timestamp: momento
+                    },
+                    [`platos.${idx}.procesandoPor`]: {
+                        cocineroId: null,
+                        nombre: null,
+                        alias: null,
+                        timestamp: null
+                    }
+                };
+                if (supervisorOverride) {
+                    setFields[`platos.${idx}.finalizadoPor`] = {
+                        usuarioId: cocineroQueFinaliza,
+                        nombre: platoAntes?.procesandoPor?.nombre || 'Supervisor',
+                        rol: 'supervisor',
+                        timestamp: momento
+                    };
+                }
+                await comandaModel.updateOne({ _id: id }, { $set: setFields });
+
+                // Incrementar contador acumulado al cocinero ATRIBUIDO
+                try {
+                    const cocinerosRepository = require('../repository/cocineros.repository');
+                    cocinerosRepository.incrementarPlatosPreparados(cocineroQueTomo, 1);
+                } catch (e) { /* no bloquea */ }
+            }
+        }
         
         console.log(`✅ [PUT /plato/:platoId/estado] Estado actualizado: ${estadoAnterior} → ${nuevoEstado}`);
         res.json({ 
@@ -1857,6 +1903,15 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
             const estadoAnteriorComanda = comandaAntes?.status || null;
             const estadoNuevoComanda = updatedComanda?.status || null;
             await global.emitComandaActualizada(id, estadoAnteriorComanda, estadoNuevoComanda);
+        }
+
+        // Emitir a dashboard de rendimiento cocineros
+        if (global.emitRendimientoCocineroActualizado) {
+            global.emitRendimientoCocineroActualizado({
+                tipo: nuevoEstado === 'recoger' ? 'plato_finalizado' : 'plato_actualizado',
+                comandaId: id,
+                platoId
+            });
         }
     } catch (error) {
         console.error('❌ [PUT /plato/:platoId/estado] Error:', error.message);

@@ -390,6 +390,75 @@ router.get('/cocineros/metricas/todos', adminAuth, checkPermission('ver-reportes
 });
 
 /**
+ * GET /api/cocineros/rendimiento/en-vivo
+ * Snapshot de platos en curso por cocinero (rendimiento en tiempo real).
+ * Requiere permiso: ver-reportes o ver-cocina-completo
+ */
+router.get('/cocineros/rendimiento/en-vivo', adminAuth, async (req, res) => {
+    try {
+        const tieneReportes = req.admin?.permisos?.includes('ver-reportes') || req.admin?.rol === 'admin' || req.admin?.rol === 'supervisor';
+        const tieneCocina = req.admin?.permisos?.includes('ver-cocina-completo');
+        if (!tieneReportes && !tieneCocina) {
+            return res.status(403).json({ success: false, error: 'No tiene permisos para ver el rendimiento en vivo' });
+        }
+
+        // Si es cocinero (no reportes), limitar a su propio id
+        let usuarioId = null;
+        if (!tieneReportes && req.admin?.id) {
+            usuarioId = req.admin.id;
+        }
+        // Query opcional ?cocineroId= para filtrar (solo si tiene reportes)
+        if (req.query.cocineroId && tieneReportes) {
+            usuarioId = req.query.cocineroId;
+        }
+
+        const cocineros = await cocinerosRepository.obtenerRendimientoEnVivo(usuarioId);
+
+        res.json({
+            success: true,
+            actualizadoEn: new Date().toISOString(),
+            data: { cocineros }
+        });
+    } catch (error) {
+        logger.error('Error al obtener rendimiento en vivo', { error: error.message });
+        res.status(500).json({ success: false, error: 'Error al obtener rendimiento en vivo' });
+    }
+});
+
+/**
+ * GET /api/cocineros/rendimiento/resumen-turno
+ * KPIs agregados del turno (hoy por defecto).
+ * Requiere permiso: ver-reportes o ver-cocina-completo
+ */
+router.get('/cocineros/rendimiento/resumen-turno', adminAuth, async (req, res) => {
+    try {
+        const tieneReportes = req.admin?.permisos?.includes('ver-reportes') || req.admin?.rol === 'admin' || req.admin?.rol === 'supervisor';
+        const tieneCocina = req.admin?.permisos?.includes('ver-cocina-completo');
+        if (!tieneReportes && !tieneCocina) {
+            return res.status(403).json({ success: false, error: 'No tiene permisos para ver el resumen del turno' });
+        }
+
+        const { desde, hasta } = req.query;
+        const fechaInicio = desde
+            ? moment(desde).startOf('day').toDate()
+            : moment().startOf('day').toDate();
+        const fechaFin = hasta
+            ? moment(hasta).endOf('day').toDate()
+            : moment().endOf('day').toDate();
+
+        const resumen = await cocinerosRepository.obtenerResumenTurno(fechaInicio, fechaFin);
+
+        res.json({
+            success: true,
+            data: resumen
+        });
+    } catch (error) {
+        logger.error('Error al obtener resumen del turno', { error: error.message });
+        res.status(500).json({ success: false, error: 'Error al obtener resumen del turno' });
+    }
+});
+
+/**
  * POST /api/cocineros/:id/conexion
  * Registrar conexión de un cocinero (uso interno)
  */

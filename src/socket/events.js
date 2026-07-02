@@ -366,6 +366,18 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       socket.emit('heartbeat-ack');
     });
 
+    // Unirse al room del dashboard de cocineros (vista de rendimiento en vivo)
+    socket.on('join-dashboard-cocineros', () => {
+      const roomName = 'dashboard-cocineros';
+      socket.join(roomName);
+      logger.debug('Socket admin se unió a room dashboard-cocineros', { socketId: socket.id, roomName });
+      socket.emit('joined-dashboard-cocineros', { roomName });
+    });
+
+    socket.on('leave-dashboard-cocineros', () => {
+      socket.leave('dashboard-cocineros');
+    });
+
     // Manejo de errores de conexión
     socket.on('error', (error) => {
       logger.error('Error en socket admin', { socketId: socket.id, error: error.message });
@@ -2920,6 +2932,35 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       });
     } catch (error) {
       logger.error('Error al emitir ticket-reportado', { error: error.message });
+    }
+  };
+
+  /**
+   * Emitir evento de actualización de rendimiento de cocineros al dashboard en vivo.
+   * Los controllers (procesamientoController, comandaController) ya invocan esta
+   * función al tomar/liberar/finalizar platos; el frontend escucha
+   * 'rendimiento-cocinero-actualizado' para refrescar el snapshot con debounce.
+   * @param {Object} payload - { tipo, comandaId?, platoId?, cocineroId?, ... }
+   */
+  global.emitRendimientoCocineroActualizado = (payload = {}) => {
+    try {
+      if (!adminNamespace || !adminNamespace.sockets || adminNamespace.sockets.size === 0) return;
+
+      const eventData = {
+        ...payload,
+        timestamp: new Date().toISOString(),
+      };
+
+      adminNamespace.to('dashboard-cocineros').emit('rendimiento-cocinero-actualizado', eventData);
+
+      logger.debug('Evento rendimiento-cocinero-actualizado emitido', {
+        tipo: payload.tipo,
+        cocineroId: payload.cocineroId,
+        room: 'dashboard-cocineros',
+        adminsInRoom: adminNamespace.adapter?.rooms?.get?.('dashboard-cocineros')?.size || 0,
+      });
+    } catch (error) {
+      logger.error('Error al emitir rendimiento-cocinero-actualizado', { error: error.message });
     }
   };
 

@@ -195,6 +195,13 @@ router.put('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, res)
     if (global.emitPlatoProcesando) {
       global.emitPlatoProcesando(comandaId, platoId, cocineroInfo);
     }
+
+    if (global.emitRendimientoCocineroActualizado) {
+      global.emitRendimientoCocineroActualizado({
+        tipo: 'plato_tomado',
+        cocineroId: cocineroId?.toString()
+      });
+    }
     
     logger.info('Plato tomado para procesamiento', {
       comandaId,
@@ -340,6 +347,13 @@ router.delete('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, r
     if (global.emitPlatoLiberado) {
       global.emitPlatoLiberado(comandaId, platoId, cocineroId);
     }
+
+    if (global.emitRendimientoCocineroActualizado) {
+      global.emitRendimientoCocineroActualizado({
+        tipo: 'plato_liberado',
+        cocineroId: cocineroId?.toString()
+      });
+    }
     
     logger.info('Plato liberado', { comandaId, platoId, cocineroId, motivo: motivoAuditoria });
     
@@ -395,6 +409,9 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
     
     // Si el plato estaba siendo procesado, verificar que es el mismo cocinero
     // EXCEPCIÓN: Un supervisor/admin puede finalizar platos de otros
+    let cocineroAtribuidoId = cocineroId;
+    let cocineroAtribuidoInfo = null;
+    let supervisorOverride = false;
     if (plato.procesandoPor?.cocineroId &&
         plato.procesandoPor.cocineroId.toString() !== cocineroId) {
       // Verificar si es supervisor (por rol o por permiso)
@@ -405,7 +422,9 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
           error: 'Solo el cocinero que tomó el plato puede finalizarlo'
         });
       }
-      // Si es supervisor, permitir finalizar y registrar en auditoría
+      // Si es supervisor, atribuir al cocinero que TOMÓ el plato (no al supervisor)
+      supervisorOverride = true;
+      cocineroAtribuidoId = plato.procesandoPor.cocineroId;
       logger.info('[FinalizarPlato] Supervisor finalizando plato de otro cocinero', {
         platoId,
         cocineroOriginal: plato.procesandoPor.cocineroId,
@@ -414,35 +433,52 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
       });
     }
     
-    // Obtener info del cocinero
-    const cocineroInfo = await getCocineroInfo(cocineroId);
+    // Obtener info del cocinero atribuido (el que tomó el plato)
+    cocineroAtribuidoInfo = await getCocineroInfo(cocineroAtribuidoId);
     
-    // Actualizar el plato usando updateOne
+    const updateSet = {
+      [`platos.${platoIndex}.estado`]: 'recoger',
+      [`platos.${platoIndex}.tiempos.recoger`]: moment().tz('America/Lima').toDate(),
+      [`platos.${platoIndex}.procesadoPor`]: {
+        ...cocineroAtribuidoInfo,
+        timestamp: moment().tz('America/Lima').toDate()
+      },
+      [`platos.${platoIndex}.procesandoPor`]: {
+        cocineroId: null,
+        nombre: null,
+        alias: null,
+        timestamp: null
+      },
+      updatedAt: moment().tz('America/Lima').toDate(),
+      updatedBy: cocineroId
+    };
+
+    if (supervisorOverride) {
+      updateSet[`platos.${platoIndex}.finalizadoPor`] = {
+        usuarioId: cocineroId,
+        nombre: req.admin?.name || req.admin?.nombre || 'Supervisor',
+        rol: req.admin?.rol || 'supervisor',
+        timestamp: moment().tz('America/Lima').toDate()
+      };
+    }
+
     await Comanda.updateOne(
       { _id: comandaId },
-      {
-        $set: {
-          [`platos.${platoIndex}.estado`]: 'recoger',
-          [`platos.${platoIndex}.tiempos.recoger`]: moment().tz('America/Lima').toDate(),
-          [`platos.${platoIndex}.procesadoPor`]: {
-            ...cocineroInfo,
-            timestamp: moment().tz('America/Lima').toDate()
-          },
-          [`platos.${platoIndex}.procesandoPor`]: {
-            cocineroId: null,
-            nombre: null,
-            alias: null,
-            timestamp: null
-          },
-          updatedAt: moment().tz('America/Lima').toDate(),
-          updatedBy: cocineroId
-        }
-      }
+      { $set: updateSet }
     );
     
     // Emitir evento Socket
     if (global.emitPlatoActualizado) {
       global.emitPlatoActualizado(comandaId, platoId, 'recoger');
+    }
+
+    // Emitir a dashboard de rendimiento cocineros
+    if (global.emitRendimientoCocineroActualizado) {
+      global.emitRendimientoCocineroActualizado({
+        tipo: 'plato_finalizado',
+        cocineroId: cocineroAtribuidoId?.toString(),
+        supervisorOverride
+      });
     }
     
     // Verificar si toda la comanda está lista
@@ -471,12 +507,13 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
     logger.info('Plato finalizado', {
       comandaId,
       platoId,
-      cocineroId,
+      cocineroId: cocineroAtribuidoId,
+      supervisorOverride,
       estado: 'recoger'
     });
     
-    // Incrementar contador de platos preparados del cocinero (async, no bloquea)
-    cocinerosRepository.incrementarPlatosPreparados(cocineroId, 1).catch(err => {
+    // Incrementar contador de platos preparados del cocinero ATRIBUIDO (async, no bloquea)
+    cocinerosRepository.incrementarPlatosPreparados(cocineroAtribuidoId, 1).catch(err => {
       logger.warn('No se pudo incrementar platos preparados', { error: err.message });
     });
     
@@ -487,7 +524,8 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
         comandaId,
         platoId,
         estado: 'recoger',
-        procesadoPor: cocineroInfo,
+        procesadoPor: cocineroAtribuidoInfo,
+        supervisorOverride,
         comandaLista: todosListos
       }
     });

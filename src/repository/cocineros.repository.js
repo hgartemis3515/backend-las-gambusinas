@@ -3,6 +3,7 @@
  * Acceso a datos para gestión de cocineros y su configuración KDS
  */
 
+const mongoose = require('mongoose');
 const ConfigCocinero = require('../database/models/configCocinero.model');
 const Mozos = require('../database/models/mozos.model');
 const Comanda = require('../database/models/comanda.model');
@@ -268,41 +269,65 @@ async function incrementarPlatosPreparados(usuarioId, cantidad = 1) {
 
 /**
  * Calcular métricas de rendimiento de un cocinero
+ * Filtra por platos donde procesadoPor.cocineroId coincide con usuarioId
+ * (atribuir al cocinero que tomó el plato, no al supervisor que finaliza)
  */
 async function calcularMetricasRendimiento(usuarioId, fechaInicio, fechaFin) {
     try {
-        const matchStage = {
-            IsActive: true,
-            createdAt: {
-                $gte: new Date(fechaInicio),
-                $lte: new Date(fechaFin)
-            }
-        };
-        
-        // Pipeline de agregación para obtener métricas
+        if (!usuarioId) {
+            return {
+                totalPlatos: 0,
+                tiempoPromedioPreparacion: 0,
+                tiempoMinPreparacion: 0,
+                tiempoMaxPreparacion: 0,
+                porcentajeDentroSLA: 0,
+                tiempoPromedioCola: 0,
+                platosEnCurso: 0
+            };
+        }
+
+        const cocineroObjectId = new mongoose.Types.ObjectId(usuarioId);
+
+        // Métricas históricas (período) - filtrar por procesadoPor.cocineroId
         const metricas = await Comanda.aggregate([
-            { $match: matchStage },
+            {
+                $match: {
+                    IsActive: true,
+                    'platos.procesadoPor.cocineroId': cocineroObjectId,
+                    'platos.tiempos.recoger': {
+                        $gte: new Date(fechaInicio),
+                        $lte: new Date(fechaFin)
+                    }
+                }
+            },
             { $unwind: '$platos' },
             {
                 $match: {
                     'platos.eliminado': { $ne: true },
                     'platos.anulado': { $ne: true },
-                    'platos.tiempos.en_espera': { $exists: true },
-                    'platos.tiempos.recoger': { $exists: true }
+                    'platos.procesadoPor.cocineroId': cocineroObjectId,
+                    'platos.tiempos.recoger': { $exists: true, $ne: null }
                 }
             },
             {
                 $project: {
-                    platoId: '$platos.platoId',
                     tiempoPreparacion: {
                         $divide: [
-                            { $subtract: ['$platos.tiempos.recoger', '$platos.tiempos.en_espera'] },
-                            60000 // Convertir a minutos
+                            { $subtract: ['$platos.tiempos.recoger', '$platos.procesadoPor.timestamp'] },
+                            60000
                         ]
                     },
-                    categoria: '$platos.plato.categoria',
-                    comandaId: '$_id',
-                    createdAt: '$createdAt'
+                    tiempoCola: {
+                        $divide: [
+                            {
+                                $subtract: [
+                                    '$platos.procesadoPor.timestamp',
+                                    { $ifNull: ['$platos.tiempos.en_espera', '$platos.procesadoPor.timestamp'] }
+                                ]
+                            },
+                            60000
+                        ]
+                    }
                 }
             },
             {
@@ -312,30 +337,56 @@ async function calcularMetricasRendimiento(usuarioId, fechaInicio, fechaFin) {
                     tiempoPromedioPreparacion: { $avg: '$tiempoPreparacion' },
                     tiempoMinPreparacion: { $min: '$tiempoPreparacion' },
                     tiempoMaxPreparacion: { $max: '$tiempoPreparacion' },
+                    tiempoPromedioCola: { $avg: '$tiempoCola' },
                     platosDentroSLA: {
                         $sum: { $cond: [{ $lte: ['$tiempoPreparacion', 15] }, 1, 0] }
                     }
                 }
             }
         ]);
-        
+
+        // Platos en curso (sin importar fecha, estado activo)
+        const platosEnCurso = await Comanda.aggregate([
+            {
+                $match: {
+                    IsActive: true,
+                    'platos.procesandoPor.cocineroId': cocineroObjectId,
+                    'platos.estado': { $in: ['pedido', 'en_espera'] }
+                }
+            },
+            { $unwind: '$platos' },
+            {
+                $match: {
+                    'platos.procesandoPor.cocineroId': cocineroObjectId,
+                    'platos.estado': { $in: ['pedido', 'en_espera'] }
+                }
+            },
+            { $count: 'total' }
+        ]);
+
+        const totalEnCurso = platosEnCurso.length > 0 ? platosEnCurso[0].total : 0;
+
         if (metricas.length === 0) {
             return {
                 totalPlatos: 0,
                 tiempoPromedioPreparacion: 0,
                 tiempoMinPreparacion: 0,
                 tiempoMaxPreparacion: 0,
-                porcentajeDentroSLA: 0
+                porcentajeDentroSLA: 0,
+                tiempoPromedioCola: 0,
+                platosEnCurso: totalEnCurso
             };
         }
-        
+
         const m = metricas[0];
         return {
             totalPlatos: m.totalPlatos,
             tiempoPromedioPreparacion: Math.round(m.tiempoPromedioPreparacion * 10) / 10,
             tiempoMinPreparacion: Math.round(m.tiempoMinPreparacion * 10) / 10,
             tiempoMaxPreparacion: Math.round(m.tiempoMaxPreparacion * 10) / 10,
-            porcentajeDentroSLA: Math.round((m.platosDentroSLA / m.totalPlatos) * 100)
+            porcentajeDentroSLA: Math.round((m.platosDentroSLA / m.totalPlatos) * 100),
+            tiempoPromedioCola: Math.round((m.tiempoPromedioCola || 0) * 10) / 10,
+            platosEnCurso: totalEnCurso
         };
     } catch (error) {
         logger.error('Error al calcular métricas de rendimiento', { error: error.message });
@@ -344,15 +395,16 @@ async function calcularMetricasRendimiento(usuarioId, fechaInicio, fechaFin) {
 }
 
 /**
- * Obtener métricas de todos los cocineros
+ * Obtener métricas de todos los cocineros (ranking)
+ * Respuesta aplanada para UI: { usuarioId, nombre, alias, fotoUrl, totalPlatos, tiempoPromedio, ... }
  */
 async function obtenerMetricasTodosCocineros(fechaInicio, fechaFin) {
     try {
         const cocineros = await Mozos.find({ rol: 'cocinero', activo: true })
-            .select('_id name')
+            .select('_id name fotoUrl zonaIds')
             .lean();
-        
-        const metricas = await Promise.all(
+
+        const cocinerosList = await Promise.all(
             cocineros.map(async (cocinero) => {
                 const config = await ConfigCocinero.findOne({ usuarioId: cocinero._id }).lean();
                 const metricasRendimiento = await calcularMetricasRendimiento(
@@ -360,19 +412,30 @@ async function obtenerMetricasTodosCocineros(fechaInicio, fechaFin) {
                     fechaInicio,
                     fechaFin
                 );
-                
+
                 return {
-                    ...cocinero,
+                    usuarioId: cocinero._id,
+                    nombre: cocinero.name,
                     alias: config?.aliasCocinero || cocinero.name,
-                    estadisticas: config?.estadisticas || {},
+                    fotoUrl: cocinero.fotoUrl || null,
+                    aliasCocinero: config?.aliasCocinero || null,
+                    totalPlatos: metricasRendimiento.totalPlatos,
+                    tiempoPromedio: metricasRendimiento.tiempoPromedioPreparacion,
+                    tiempoMin: metricasRendimiento.tiempoMinPreparacion,
+                    tiempoMax: metricasRendimiento.tiempoMaxPreparacion,
+                    tiempoPromedioCola: metricasRendimiento.tiempoPromedioCola,
+                    porcentajeDentroSLA: metricasRendimiento.porcentajeDentroSLA,
+                    platosEnCurso: metricasRendimiento.platosEnCurso,
+                    totalSesiones: config?.estadisticas?.totalSesiones || 0,
+                    platosPreparadosAcumulado: config?.estadisticas?.platosPreparados || 0,
+                    ultimaConexion: config?.estadisticas?.ultimaConexion || null,
                     metricas: metricasRendimiento
                 };
             })
         );
-        
-        // Ordenar por tiempo promedio (menor es mejor)
-        return metricas.sort((a, b) => 
-            a.metricas.tiempoPromedioPreparacion - b.metricas.tiempoPromedioPreparacion
+
+        return cocinerosList.sort((a, b) =>
+            a.tiempoPromedio - b.tiempoPromedio
         );
     } catch (error) {
         logger.error('Error al obtener métricas de todos los cocineros', { error: error.message });
@@ -382,24 +445,32 @@ async function obtenerMetricasTodosCocineros(fechaInicio, fechaFin) {
 
 /**
  * Obtener platos más preparados por un cocinero
+ * Filtra por procesadoPor.cocineroId = usuarioId
  */
 async function obtenerPlatosTopPorCocinero(usuarioId, fechaInicio, fechaFin, limite = 10) {
     try {
-        const matchStage = {
-            IsActive: true,
-            createdAt: {
-                $gte: new Date(fechaInicio),
-                $lte: new Date(fechaFin)
-            }
-        };
-        
+        if (!usuarioId) return [];
+
+        const cocineroObjectId = new mongoose.Types.ObjectId(usuarioId);
+
         const platosTop = await Comanda.aggregate([
-            { $match: matchStage },
+            {
+                $match: {
+                    IsActive: true,
+                    'platos.procesadoPor.cocineroId': cocineroObjectId,
+                    'platos.tiempos.recoger': {
+                        $gte: new Date(fechaInicio),
+                        $lte: new Date(fechaFin)
+                    }
+                }
+            },
             { $unwind: '$platos' },
             {
                 $match: {
                     'platos.eliminado': { $ne: true },
-                    'platos.anulado': { $ne: true }
+                    'platos.anulado': { $ne: true },
+                    'platos.procesadoPor.cocineroId': cocineroObjectId,
+                    'platos.tiempos.recoger': { $exists: true, $ne: null }
                 }
             },
             {
@@ -420,7 +491,7 @@ async function obtenerPlatosTopPorCocinero(usuarioId, fechaInicio, fechaFin, lim
                     tiempoPromedio: {
                         $avg: {
                             $divide: [
-                                { $subtract: ['$platos.tiempos.recoger', '$platos.tiempos.en_espera'] },
+                                { $subtract: ['$platos.tiempos.recoger', '$platos.procesadoPor.timestamp'] },
                                 60000
                             ]
                         }
@@ -430,7 +501,7 @@ async function obtenerPlatosTopPorCocinero(usuarioId, fechaInicio, fechaFin, lim
             { $sort: { cantidad: -1 } },
             { $limit: limite }
         ]);
-        
+
         return platosTop.map(p => ({
             platoId: p._id,
             nombre: p.nombre,
@@ -440,6 +511,305 @@ async function obtenerPlatosTopPorCocinero(usuarioId, fechaInicio, fechaFin, lim
         }));
     } catch (error) {
         logger.error('Error al obtener platos top por cocinero', { error: error.message });
+        throw error;
+    }
+}
+
+/**
+ * Snapshot de platos en curso por cocinero (rendimiento en vivo)
+ * Misma lógica que Ver Cocina Completo: platos con procesandoPor + estado activo
+ * Respuesta enriquecida con grupos[] (mismo plato agrupado), timers[], mesas consolidadas
+ * y métricas del turno (finalizadosHoy, tiempoPromedioHoy) por cocinero.
+ */
+async function obtenerRendimientoEnVivo(usuarioId = null) {
+    try {
+        const matchStage = {
+            IsActive: true,
+            'platos.procesandoPor.cocineroId': { $ne: null, $exists: true },
+            'platos.estado': { $in: ['pedido', 'en_espera'] }
+        };
+
+        if (usuarioId) {
+            matchStage['platos.procesandoPor.cocineroId'] = new mongoose.Types.ObjectId(usuarioId);
+        }
+
+        const comandas = await Comanda.aggregate([
+            { $match: matchStage },
+            { $unwind: '$platos' },
+            {
+                $match: {
+                    'platos.procesandoPor.cocineroId': { $ne: null, $exists: true },
+                    'platos.estado': { $in: ['pedido', 'en_espera'] },
+                    'platos.eliminado': { $ne: true },
+                    'platos.anulado': { $ne: true }
+                }
+            },
+            {
+                $project: {
+                    comandaId: '$_id',
+                    comandaNumber: '$comandaNumber',
+                    platoId: '$platos.platoId',
+                    platoNombre: '$platos.nombre',
+                    cantidad: '$platos.cantidad',
+                    estado: '$platos.estado',
+                    observaciones: '$platos.observaciones',
+                    complementos: '$platos.complementos',
+                    prioritario: '$platos.prioritario',
+                    cocineroId: '$platos.procesandoPor.cocineroId',
+                    cocineroNombre: '$platos.procesandoPor.nombre',
+                    cocineroAlias: '$platos.procesandoPor.alias',
+                    procesandoDesde: '$platos.procesandoPor.timestamp',
+                    mesaNum: '$mesas.nummesa',
+                    mesaIds: { $ifNull: ['$mesaIds', []] }
+                }
+            }
+        ]);
+
+        // Agrupar por cocineroId
+        const porCocinero = new Map();
+        for (const p of comandas) {
+            const key = p.cocineroId.toString();
+            if (!porCocinero.has(key)) {
+                porCocinero.set(key, {
+                    cocineroId: key,
+                    cocineroNombre: p.cocineroNombre || 'Cocinero',
+                    cocineroAlias: p.cocineroAlias || p.cocineroNombre || 'Cocinero',
+                    bloques: []
+                });
+            }
+            const cocinero = porCocinero.get(key);
+            delete p.cocineroId;
+            delete p.cocineroNombre;
+            delete p.cocineroAlias;
+            cocinero.bloques.push(p);
+        }
+
+        // Agregar info extendida (fotoUrl, alias, config KDS, métricas del día)
+        const cocinerosIds = Array.from(porCocinero.keys());
+        const cocinerosInfo = await Mozos.find({
+            _id: { $in: cocinerosIds.map(id => new mongoose.Types.ObjectId(id)) }
+        })
+            .select('_id name fotoUrl')
+            .lean();
+        const configsInfo = await ConfigCocinero.find({
+            usuarioId: { $in: cocinerosIds.map(id => new mongoose.Types.ObjectId(id)) }
+        })
+            .select('usuarioId aliasCocinero estadisticas configTableroKDS.tiempoAmarillo configTableroKDS.tiempoRojo')
+            .lean();
+
+        // Incluir cocineros activos sin platos en curso (como selector Ver Cocina)
+        const cocinerosActivos = await Mozos.find({ rol: 'cocinero', activo: true })
+            .select('_id name fotoUrl')
+            .lean();
+        const configsActivos = await ConfigCocinero.find({
+            usuarioId: { $in: cocinerosActivos.map(c => c._id) }
+        })
+            .select('usuarioId aliasCocinero estadisticas configTableroKDS.tiempoAmarillo configTableroKDS.tiempoRojo')
+            .lean();
+
+        for (const cocinero of cocinerosActivos) {
+            const id = cocinero._id.toString();
+            if (!porCocinero.has(id)) {
+                porCocinero.set(id, {
+                    cocineroId: id,
+                    cocineroNombre: cocinero.name,
+                    cocineroAlias: cocinero.name,
+                    fotoUrl: cocinero.fotoUrl || null,
+                    bloques: []
+                });
+            }
+        }
+
+        // Métricas del día por cocinero (paralelo para todos los cocineros activos)
+        const inicioHoy = new Date();
+        inicioHoy.setHours(0, 0, 0, 0);
+        const finHoy = new Date();
+        finHoy.setHours(23, 59, 59, 999);
+
+        const todosIds = Array.from(porCocinero.keys());
+        const metricasHoyPorCocinero = await Promise.all(
+            todosIds.map(id => calcularMetricasRendimiento(id, inicioHoy, finHoy).catch(() => null))
+        );
+        const metricasMap = new Map();
+        todosIds.forEach((id, i) => metricasMap.set(id, metricasHoyPorCocinero[i]));
+
+        const result = Array.from(porCocinero.values()).map(item => {
+            const info = cocinerosInfo.find(c => c._id.toString() === item.cocineroId);
+            const config = configsInfo.find(c => c.usuarioId?.toString() === item.cocineroId);
+            const configActivo = configsActivos.find(c => c.usuarioId?.toString() === item.cocineroId);
+            const metricasHoy = metricasMap.get(item.cocineroId) || {};
+
+            // Construir grupos[] a partir de bloques[]
+            const grupos = construirGruposDesdeBloques(item.bloques || []);
+
+            return {
+                cocineroId: item.cocineroId,
+                cocineroNombre: info?.name || item.cocineroNombre,
+                cocineroAlias: config?.aliasCocinero || configActivo?.aliasCocinero || info?.name || item.cocineroAlias,
+                fotoUrl: info?.fotoUrl || item.fotoUrl || null,
+                slaMinutos: config?.configTableroKDS?.tiempoAmarillo
+                    || configActivo?.configTableroKDS?.tiempoAmarillo || 15,
+                slaRojoMinutos: config?.configTableroKDS?.tiempoRojo
+                    || configActivo?.configTableroKDS?.tiempoRojo || 20,
+                platosEnCurso: (item.bloques || []).length,
+                finalizadosHoy: metricasHoy.totalPlatos || 0,
+                tiempoPromedioHoy: metricasHoy.tiempoPromedioPreparacion || 0,
+                grupos,
+                bloques: item.bloques || []
+            };
+        });
+
+        // Ordenar: primero los que tienen platos en curso, luego por nombre
+        result.sort((a, b) => {
+            if (b.platosEnCurso !== a.platosEnCurso) return b.platosEnCurso - a.platosEnCurso;
+            return (a.cocineroNombre || '').localeCompare(b.cocineroNombre || '');
+        });
+
+        return result;
+    } catch (error) {
+        logger.error('Error al obtener rendimiento en vivo', { error: error.message });
+        throw error;
+    }
+}
+
+/**
+ * Helper: agrupar bloques de platos por clave (platoId + complementos + observaciones)
+ * Devuelve grupos con timers[] numerados (antiguo → nuevo) y mesas consolidadas.
+ */
+function construirGruposDesdeBloques(bloques) {
+    const gruposMap = new Map();
+
+    for (const bloque of bloques) {
+        const platoIdStr = bloque.platoId != null ? String(bloque.platoId) : (bloque.platoNombre || 'sin-id');
+        const comps = Array.isArray(bloque.complementos)
+            ? bloque.complementos.map(c => (typeof c === 'string' ? c : (c?.nombre || c?._id || ''))).sort().join('|')
+            : '';
+        const obs = (bloque.observaciones || '').trim().toLowerCase();
+        const clave = platoIdStr + '::' + comps + '::' + obs;
+
+        if (!gruposMap.has(clave)) {
+            gruposMap.set(clave, {
+                plato: bloque.platoNombre || 'Plato',
+                platoId: bloque.platoId,
+                complementos: bloque.complementos || [],
+                observaciones: bloque.observaciones || '',
+                prioritario: !!bloque.prioritario,
+                cantidad: 0,
+                timers: [],
+                mesas: []
+            });
+        }
+
+        const grupo = gruposMap.get(clave);
+        grupo.cantidad += 1;
+        if (bloque.prioritario) grupo.prioritario = true;
+
+        grupo.timers.push({
+            desde: bloque.procesandoDesde,
+            comandaId: bloque.comandaId
+        });
+
+        if (bloque.mesaNum != null) {
+            grupo.mesas.push({ nummesa: bloque.mesaNum, comandaId: bloque.comandaId });
+        }
+    }
+
+    // Numerar timers (1-indexed, antiguos primero) y deduplicar mesas
+    const grupos = Array.from(gruposMap.values());
+    for (const grupo of grupos) {
+        grupo.timers.sort((a, b) => new Date(a.desde) - new Date(b.desde));
+        grupo.timers = grupo.timers.map((t, i) => ({ indice: i + 1, desde: t.desde }));
+
+        const mesasUnicas = new Map();
+        for (const m of grupo.mesas) {
+            if (!mesasUnicas.has(m.nummesa)) mesasUnicas.set(m.nummesa, m);
+        }
+        grupo.mesas = Array.from(mesasUnicas.values());
+    }
+
+    return grupos;
+}
+
+/**
+ * Resumen del turno actual (hoy)
+ * KPIs agregados para el header del dashboard
+ */
+async function obtenerResumenTurno(fechaInicio, fechaFin) {
+    try {
+        const [resumen] = await Comanda.aggregate([
+            {
+                $match: {
+                    IsActive: true,
+                    'platos.procesadoPor.cocineroId': { $ne: null, $exists: true },
+                    'platos.tiempos.recoger': {
+                        $gte: new Date(fechaInicio),
+                        $lte: new Date(fechaFin)
+                    }
+                }
+            },
+            { $unwind: '$platos' },
+            {
+                $match: {
+                    'platos.procesadoPor.cocineroId': { $ne: null, $exists: true },
+                    'platos.tiempos.recoger': { $exists: true, $ne: null },
+                    'platos.eliminado': { $ne: true },
+                    'platos.anulado': { $ne: true }
+                }
+            },
+            {
+                $project: {
+                    tiempoPreparacion: {
+                        $divide: [
+                            { $subtract: ['$platos.tiempos.recoger', '$platos.procesadoPor.timestamp'] },
+                            60000
+                        ]
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    finalizadosHoy: { $sum: 1 },
+                    tiempoPromedioEquipo: { $avg: '$tiempoPreparacion' },
+                    platosDentroSLA: {
+                        $sum: { $cond: [{ $lte: ['$tiempoPreparacion', 15] }, 1, 0] }
+                    }
+                }
+            }
+        ]);
+
+        // Platos en curso (ahora)
+        const enCurso = await Comanda.aggregate([
+            {
+                $match: {
+                    IsActive: true,
+                    'platos.procesandoPor.cocineroId': { $ne: null, $exists: true },
+                    'platos.estado': { $in: ['pedido', 'en_espera'] }
+                }
+            },
+            { $unwind: '$platos' },
+            {
+                $match: {
+                    'platos.procesandoPor.cocineroId': { $ne: null, $exists: true },
+                    'platos.estado': { $in: ['pedido', 'en_espera'] }
+                }
+            },
+            { $count: 'total' }
+        ]);
+
+        const activos = await Mozos.countDocuments({ rol: 'cocinero', activo: true });
+
+        return {
+            platosEnCurso: enCurso.length > 0 ? enCurso[0].total : 0,
+            finalizadosHoy: resumen?.finalizadosHoy || 0,
+            tiempoPromedioEquipo: Math.round((resumen?.tiempoPromedioEquipo || 0) * 10) / 10,
+            porcentajeDentroSLA: resumen
+                ? Math.round((resumen.platosDentroSLA / resumen.finalizadosHoy) * 100)
+                : 0,
+            cocinerosActivos: activos
+        };
+    } catch (error) {
+        logger.error('Error al obtener resumen del turno', { error: error.message });
         throw error;
     }
 }
@@ -455,5 +825,7 @@ module.exports = {
     incrementarPlatosPreparados,
     calcularMetricasRendimiento,
     obtenerMetricasTodosCocineros,
-    obtenerPlatosTopPorCocinero
+    obtenerPlatosTopPorCocinero,
+    obtenerRendimientoEnVivo,
+    obtenerResumenTurno
 };

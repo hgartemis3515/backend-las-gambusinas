@@ -163,6 +163,17 @@ const comandaSchema = new mongoose.Schema({
             alias: { type: String, default: null },
             timestamp: { type: Date, default: null }
         },
+        // Quién realmente marcó "listo" el plato (supervisor override). Vacío si lo hace el cocinero titular.
+        finalizadoPor: {
+            usuarioId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'mozos',
+                default: null
+            },
+            nombre: { type: String, default: null },
+            rol: { type: String, default: null, enum: ['admin', 'supervisor', 'cocinero', null] },
+            timestamp: { type: Date, default: null }
+        },
         // ========== PAGO ADELANTADO (PPA) ==========
         pagoAdelantado: {
             requerido: { type: Boolean, default: false },
@@ -456,6 +467,18 @@ comandaSchema.index(
 comandaSchema.index(
     { IsActive: 1, status: 1, prioridadOrden: -1, createdAt: -1 },
     { name: 'idx_comanda_prioridad_cocina' }
+);
+
+// ÍNDICE 6: Métricas de rendimiento por cocinero (procesadoPor + recoger)
+comandaSchema.index(
+    { 'platos.procesadoPor.cocineroId': 1, 'platos.tiempos.recoger': -1 },
+    { name: 'idx_platos_rendimiento_cocinero' }
+);
+
+// ÍNDICE 7: Platos en curso por cocinero (procesandoPor + estado activo)
+comandaSchema.index(
+    { 'platos.procesandoPor.cocineroId': 1, 'platos.estado': 1 },
+    { name: 'idx_platos_en_curso_cocinero' }
 );
 
 // ========== FIN ÍNDICES FASE A1 ==========
