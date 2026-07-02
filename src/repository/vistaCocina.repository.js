@@ -3,9 +3,49 @@
  * Acceso a datos para gestion de Vistas de Cocina y Pantallas de Cocina
  */
 
+const crypto = require('crypto');
 const VistaCocina = require('../database/models/vistaCocina.model');
 const PantallaCocina = require('../database/models/pantallaCocina.model');
 const logger = require('../utils/logger');
+
+// Longitud del token de dispositivo en bytes (se devuelve en hex)
+const DEVICE_TOKEN_BYTES = 32;
+
+/**
+ * Hashea un token de dispositivo usando scrypt (Node stdlib, sin dependencias).
+ * @param {string} token - Token plano
+ * @returns {string} Hash listo para almacenar
+ */
+function hashDeviceToken(token) {
+    const salt = crypto.randomBytes(16).toString('hex');
+    const hash = crypto.scryptSync(token, salt, 32).toString('hex');
+    return `scrypt$${salt}$${hash}`;
+}
+
+/**
+ * Verifica un token plano contra el hash almacenado.
+ * @param {string} token - Token plano
+ * @param {string} stored - Hash almacenado
+ * @returns {boolean}
+ */
+function verifyDeviceToken(token, stored) {
+    if (!stored || typeof stored !== 'string') return false;
+    const parts = stored.split('$');
+    if (parts.length !== 3 || parts[0] !== 'scrypt') return false;
+    const salt = parts[1];
+    const expected = parts[2];
+    const computed = crypto.scryptSync(token, salt, 32).toString('hex');
+    // Comparacion de tiempo constante
+    return crypto.timingSafeEqual(Buffer.from(computed, 'hex'), Buffer.from(expected, 'hex'));
+}
+
+/**
+ * Genera un token de dispositivo aleatorio (hex).
+ * @returns {string}
+ */
+function generateDeviceToken() {
+    return crypto.randomBytes(DEVICE_TOKEN_BYTES).toString('hex');
+}
 
 /* ====================== VISTAS DE COCINA ====================== */
 
@@ -123,7 +163,11 @@ async function reactivarVistaCocina(id, actualizadoPor = null) {
 
 async function obtenerPantallasCocina() {
     try {
-        return await PantallaCocina.find().sort({ numeroPantalla: 1 }).populate('vistaCocinaId', 'nombre color icono').lean();
+        return await PantallaCocina.find()
+            .sort({ numeroPantalla: 1 })
+            .populate('vistaCocinaId', 'nombre color icono')
+            .populate('cocineroId', 'nombre alias')
+            .lean();
     } catch (error) {
         logger.error('Error al obtener pantallas de cocina', { error: error.message });
         throw error;
@@ -135,6 +179,7 @@ async function obtenerPantallasActivas() {
         return await PantallaCocina.find({ activo: true })
             .sort({ numeroPantalla: 1 })
             .populate('vistaCocinaId', 'nombre descripcion color icono filtrosPlatos configVisual ordenamiento configCronometro')
+            .populate('cocineroId', 'nombre alias')
             .lean();
     } catch (error) {
         logger.error('Error al obtener pantallas activas', { error: error.message });
@@ -189,6 +234,95 @@ async function eliminarPantallaCocina(id) {
     }
 }
 
+/* ====================== KIOSKO / DEVICE TOKEN ====================== */
+
+/**
+ * Obtiene una pantalla por su numero (1-8) sin auth, para bootstrap del TV.
+ * No devuelve el hash del token.
+ */
+async function obtenerPantallaPorNumero(numeroPantalla) {
+    try {
+        return await PantallaCocina.findOne({ numeroPantalla: Number(numeroPantalla) })
+            .populate('cocineroId', 'nombre alias')
+            .select('-deviceTokenHash')
+            .lean();
+    } catch (error) {
+        logger.error('Error al obtener pantalla por numero', { error: error.message });
+        throw error;
+    }
+}
+
+/**
+ * Verifica el device token de una pantalla y retorna la pantalla si es valida.
+ * @param {number} numeroPantalla
+ * @param {string} deviceToken - Token plano
+ * @returns {Promise<Object|null>}
+ */
+async function verificarDeviceToken(numeroPantalla, deviceToken) {
+    try {
+        const pantalla = await PantallaCocina.findOne({ numeroPantalla: Number(numeroPantalla) });
+        if (!pantalla || !pantalla.activo) return null;
+        if (!pantalla.deviceTokenHash || !deviceToken) return null;
+        const ok = verifyDeviceToken(deviceToken, pantalla.deviceTokenHash);
+        if (!ok) return null;
+        // Actualizar heartbeat
+        pantalla.ultimaConexion = new Date();
+        await pantalla.save();
+        return pantalla.toObject();
+    } catch (error) {
+        logger.error('Error al verificar device token', { error: error.message });
+        throw error;
+    }
+}
+
+/**
+ * Genera (o regenera) un device token para una pantalla.
+ * Devuelve el token plano (solo una vez) y almacena el hash.
+ * @param {string} pantallaId
+ * @returns {Promise<{pantalla: Object, deviceToken: string}>}
+ */
+async function generarDeviceToken(pantallaId) {
+    try {
+        const pantalla = await PantallaCocina.findById(pantallaId);
+        if (!pantalla) throw new Error('Pantalla de cocina no encontrada');
+
+        const plainToken = generateDeviceToken();
+        pantalla.deviceTokenHash = hashDeviceToken(plainToken);
+        pantalla.deviceTokenCreatedAt = new Date();
+        await pantalla.save();
+
+        logger.info('Device token generado para pantalla', {
+            pantallaId: pantalla._id,
+            numero: pantalla.numeroPantalla
+        });
+
+        return { pantalla: pantalla.toObject(), deviceToken: plainToken };
+    } catch (error) {
+        logger.error('Error al generar device token', { error: error.message });
+        throw error;
+    }
+}
+
+/**
+ * Revoca el device token de una pantalla (la desvincula del TV).
+ * @param {string} pantallaId
+ */
+async function revocarDeviceToken(pantallaId) {
+    try {
+        const pantalla = await PantallaCocina.findByIdAndUpdate(
+            pantallaId,
+            { $unset: { deviceTokenHash: 1, deviceTokenCreatedAt: 1 }, ultimaConexion: null },
+            { new: true }
+        );
+        if (!pantalla) throw new Error('Pantalla de cocina no encontrada');
+        logger.info('Device token revocado', { pantallaId });
+        return pantalla;
+    } catch (error) {
+        logger.error('Error al revocar device token', { error: error.message });
+        throw error;
+    }
+}
+
 module.exports = {
     obtenerVistasCocina,
     obtenerVistasCocinaActivas,
@@ -201,5 +335,9 @@ module.exports = {
     obtenerPantallasActivas,
     crearPantallaCocina,
     actualizarPantallaCocina,
-    eliminarPantallaCocina
+    eliminarPantallaCocina,
+    obtenerPantallaPorNumero,
+    verificarDeviceToken,
+    generarDeviceToken,
+    revocarDeviceToken
 };

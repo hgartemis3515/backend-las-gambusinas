@@ -6,9 +6,13 @@
 
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 const repo = require('../repository/vistaCocina.repository');
-const { adminAuth, checkPermission, requireAnyPermission } = require('../middleware/adminAuth');
+const { adminAuth, checkPermission, requireAnyPermission, JWT_SECRET } = require('../middleware/adminAuth');
 const logger = require('../utils/logger');
+
+// Expiracion del JWT de monitor (TVs kiosko). Defaults largos.
+const MONITOR_JWT_EXPIRY = process.env.COCINA_MONITOR_JWT_EXPIRY || '90d';
 
 /* ====================== VISTAS DE COCINA ====================== */
 
@@ -192,7 +196,22 @@ router.post('/pantallas-cocina', adminAuth, requireAnyPermission(['desplegar-mon
         if (!datos.numeroPantalla || !datos.nombre) {
             return res.status(400).json({ success: false, error: 'numeroPantalla y nombre son requeridos' });
         }
-        const pantalla = await repo.crearPantallaCocina(datos, req.admin.id);
+        // En modo "completo" el cocinero es obligatorio (la TV no puede ver General)
+        const modoVista = datos.modoVista || 'completo';
+        if (modoVista === 'completo' && !datos.cocineroId) {
+            return res.status(400).json({ success: false, error: 'En modo Completo debe asignar un cocinero a la TV' });
+        }
+        const sanitizados = {
+            numeroPantalla: Number(datos.numeroPantalla),
+            nombre: datos.nombre,
+            vistaCocinaId: datos.vistaCocinaId || null,
+            cocineroId: datos.cocineroId || null,
+            modoVista,
+            activo: datos.activo !== false,
+            orden: datos.orden || 0,
+            configDespliegue: datos.configDespliegue || undefined
+        };
+        const pantalla = await repo.crearPantallaCocina(sanitizados, req.admin.id);
         res.status(201).json({ success: true, message: 'Pantalla creada correctamente', data: pantalla });
     } catch (error) {
         logger.error('Error al crear pantalla', { error: error.message });
@@ -202,10 +221,31 @@ router.post('/pantallas-cocina', adminAuth, requireAnyPermission(['desplegar-mon
 
 /**
  * PUT /api/pantallas-cocina/:id
+ * Acepta: nombre, vistaCocinaId, cocineroId, modoVista, activo, orden, configDespliegue
  */
 router.put('/pantallas-cocina/:id', adminAuth, requireAnyPermission(['desplegar-monitores-cocina', 'administrar-vistas-cocina', 'editar-mozos']), async (req, res) => {
     try {
-        const pantalla = await repo.actualizarPantallaCocina(req.params.id, req.body, req.admin.id);
+        const body = req.body;
+        // Validar modo completo sin cocinero (mergeando con el estado actual)
+        const modoVista = body.modoVista;
+        const cocineroId = body.cocineroId;
+        if (modoVista === 'completo' && (cocineroId === undefined || cocineroId === '' || cocineroId === null)) {
+            // Podria ser que no cambio cocineroId y ya tenia uno; validar contra BD
+            const existente = await repo.obtenerPantallaPorNumero?.(body.numeroPantalla);
+            // fallback: si no podemos validar, rechazar cuando llega explicitamente vacio
+            if (cocineroId !== undefined && (cocineroId === '' || cocineroId === null)) {
+                return res.status(400).json({ success: false, error: 'En modo Completo debe asignar un cocinero a la TV' });
+            }
+        }
+        const datos = {};
+        if (body.nombre !== undefined) datos.nombre = body.nombre;
+        if (body.vistaCocinaId !== undefined) datos.vistaCocinaId = body.vistaCocinaId || null;
+        if (body.cocineroId !== undefined) datos.cocineroId = body.cocineroId || null;
+        if (body.modoVista !== undefined) datos.modoVista = body.modoVista;
+        if (body.activo !== undefined) datos.activo = body.activo;
+        if (body.orden !== undefined) datos.orden = body.orden;
+        if (body.configDespliegue !== undefined) datos.configDespliegue = body.configDespliegue;
+        const pantalla = await repo.actualizarPantallaCocina(req.params.id, datos, req.admin.id);
         res.json({ success: true, message: 'Pantalla actualizada correctamente', data: pantalla });
     } catch (error) {
         logger.error('Error al actualizar pantalla', { error: error.message });
@@ -225,5 +265,138 @@ router.delete('/pantallas-cocina/:id', adminAuth, requireAnyPermission(['despleg
         res.status(400).json({ success: false, error: error.message || 'Error al eliminar pantalla' });
     }
 });
+
+/* ====================== KIOSKO / BOOTSTRAP TV ====================== */
+
+/**
+ * GET /api/pantallas-cocina/:numeroPantalla/kiosk-info
+ * Endpoint publico (sin adminAuth) que devuelve metadata minima para que el TV
+ * sepa si debe emparejar o ya tiene token guardado.
+ */
+router.get('/pantallas-cocina/:numeroPantalla/kiosk-info', async (req, res) => {
+    try {
+        const numero = Number(req.params.numeroPantalla);
+        const pantalla = await repo.obtenerPantallaPorNumero(numero);
+        if (!pantalla) {
+            return res.status(404).json({ success: false, error: 'Pantalla no configurada' });
+        }
+        res.json({
+            success: true,
+            data: {
+                numeroPantalla: pantalla.numeroPantalla,
+                nombre: pantalla.nombre,
+                modoVista: pantalla.modoVista,
+                cocinero: pantalla.cocineroId ? {
+                    nombre: pantalla.cocineroId.nombre,
+                    alias: pantalla.cocineroId.alias
+                } : null,
+                tieneDeviceToken: !pantalla.deviceTokenHash === false,
+                activo: pantalla.activo
+            }
+        });
+    } catch (error) {
+        logger.error('Error kiosk-info', { error: error.message });
+        res.status(500).json({ success: false, error: 'Error al obtener info de pantalla' });
+    }
+});
+
+/**
+ * POST /api/pantallas-cocina/:numeroPantalla/bootstrap
+ * Autenticacion automatica del TV. Sin usuario/contraseña.
+ * Body: { deviceToken: string }
+ * Devuelve JWT monitor (solo lectura) + cocinero asignado.
+ */
+router.post('/pantallas-cocina/:numeroPantalla/bootstrap', async (req, res) => {
+    try {
+        const numero = Number(req.params.numeroPantalla);
+        const { deviceToken } = req.body || {};
+
+        if (!deviceToken || typeof deviceToken !== 'string') {
+            return res.status(400).json({ success: false, error: 'deviceToken es requerido' });
+        }
+
+        const pantalla = await repo.verificarDeviceToken(numero, deviceToken);
+        if (!pantalla) {
+            logger.warn('Bootstrap fallido', { numeroPantalla: numero });
+            return res.status(401).json({ success: false, error: 'Token de dispositivo inválido o pantalla inactiva' });
+        }
+
+        // Emisor del JWT monitor: solo lectura
+        const cocinero = pantalla.cocineroId;
+        const token = jwt.sign(
+            {
+                app: 'cocina',
+                modo: 'monitor',
+                pantallaId: pantalla._id,
+                numeroPantalla: pantalla.numeroPantalla,
+                cocineroId: cocinero ? String(cocinero) : null,
+                permisos: ['ver-cocina-completo'],
+                soloLectura: true
+            },
+            JWT_SECRET,
+            { expiresIn: MONITOR_JWT_EXPIRY }
+        );
+
+        res.json({
+            success: true,
+            data: {
+                token,
+                numeroPantalla: pantalla.numeroPantalla,
+                nombre: pantalla.nombre,
+                modoVista: pantalla.modoVista,
+                cocineroId: cocinero ? String(cocinero) : null,
+                expiresAt: new Date(Date.now() + parseExpiry(MONITOR_JWT_EXPIRY)).toISOString()
+            }
+        });
+    } catch (error) {
+        logger.error('Error bootstrap TV', { error: error.message });
+        res.status(500).json({ success: false, error: 'Error en bootstrap' });
+    }
+});
+
+/**
+ * POST /api/pantallas-cocina/:id/regenerar-token
+ * Admin: genera nuevo device token para una pantalla (revoca el anterior).
+ */
+router.post('/pantallas-cocina/:id/regenerar-token', adminAuth, requireAnyPermission(['desplegar-monitores-cocina', 'administrar-vistas-cocina', 'editar-mozos']), async (req, res) => {
+    try {
+        const { deviceToken } = await repo.generarDeviceToken(req.params.id);
+        res.json({
+            success: true,
+            message: 'Token de dispositivo generado. Guárdalo ahora, no se mostrará de nuevo.',
+            data: { deviceToken }
+        });
+    } catch (error) {
+        logger.error('Error regenerar-token', { error: error.message });
+        res.status(400).json({ success: false, error: error.message || 'Error al generar token' });
+    }
+});
+
+/**
+ * DELETE /api/pantallas-cocina/:id/revocar-token
+ * Admin: revoca el device token (desvincula el TV).
+ */
+router.delete('/pantallas-cocina/:id/revocar-token', adminAuth, requireAnyPermission(['desplegar-monitores-cocina', 'administrar-vistas-cocina', 'editar-mozos']), async (req, res) => {
+    try {
+        await repo.revocarDeviceToken(req.params.id);
+        res.json({ success: true, message: 'Token revocado correctamente' });
+    } catch (error) {
+        logger.error('Error revocar-token', { error: error.message });
+        res.status(400).json({ success: false, error: error.message || 'Error al revocar token' });
+    }
+});
+
+/**
+ * Convierte "90d" / "12h" / "3600" a milisegundos.
+ */
+function parseExpiry(expiry) {
+    if (typeof expiry !== 'string') return 90 * 24 * 60 * 60 * 1000;
+    const match = expiry.match(/^(\d+)([smhdwMy]?)$/);
+    if (!match) return 90 * 24 * 60 * 60 * 1000;
+    const value = parseInt(match[1], 10);
+    const unit = match[2] || 's';
+    const multipliers = { s: 1000, m: 60000, h: 3600000, d: 86400000, w: 604800000, M: 2592000000, y: 31536000000 };
+    return value * (multipliers[unit] || 1000);
+}
 
 module.exports = router;

@@ -99,7 +99,15 @@ const authenticateCocina = (socket, next) => {
     const permisos = payload.permisos || [];
     const rolesPermitidos = ['cocinero', 'admin', 'supervisor'];
 
-    if (!rolesPermitidos.includes(rol) && !permisos.includes('ver-comandas-cocina')) {
+    // Tokens de monitor (TVs kiosko): permite conectar con permiso ver-cocina-completo
+    const esMonitor = payload.modo === 'monitor' && payload.soloLectura === true;
+
+    if (esMonitor) {
+      if (!permisos.includes('ver-cocina-completo')) {
+        logger.warn('Monitor sin permiso ver-cocina-completo', { socketId: socket.id });
+        return next(new Error('No tiene permisos para acceder a la cocina.'));
+      }
+    } else if (!rolesPermitidos.includes(rol) && !permisos.includes('ver-comandas-cocina')) {
       logger.warn('Intento de conexión a /cocina con rol no autorizado', {
         socketId: socket.id,
         userId: payload.id || payload._id,
@@ -128,7 +136,13 @@ const authenticateCocina = (socket, next) => {
       name: payload.name || payload.nombre || 'Usuario',
       rol: rol,
       permisos: payload.permisos || [],
-      aliasCocinero: payload.aliasCocinero || payload.name
+      aliasCocinero: payload.aliasCocinero || payload.name,
+      // Campos de monitor (TVs kiosko)
+      esMonitor: esMonitor,
+      pantallaId: payload.pantallaId || null,
+      numeroPantalla: payload.numeroPantalla || null,
+      cocineroId: payload.cocineroId || null,
+      soloLectura: esMonitor
     };
     
     // También guardar el token para posible renovación

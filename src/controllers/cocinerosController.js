@@ -459,6 +459,63 @@ router.get('/cocineros/rendimiento/resumen-turno', adminAuth, async (req, res) =
 });
 
 /**
+ * GET /api/cocineros/rendimiento/historial
+ * Registro histórico de platos cocinados (finalizados) por cocinero o por todo el equipo.
+ * Query params:
+ *   - cocineroId: filtrar por un cocinero específico (requiere ver-reportes si no es el propio)
+ *   - desde, hasta: rango de fechas (default: hoy)
+ *   - limite: máximo de registros individuales (default 200, máx 1000)
+ * Requiere permiso: ver-reportes o ver-cocina-completo
+ */
+router.get('/cocineros/rendimiento/historial', adminAuth, async (req, res) => {
+    try {
+        const tieneReportes = req.admin?.permisos?.includes('ver-reportes') || req.admin?.rol === 'admin' || req.admin?.rol === 'supervisor';
+        const tieneCocina = req.admin?.permisos?.includes('ver-cocina-completo');
+        if (!tieneReportes && !tieneCocina) {
+            return res.status(403).json({ success: false, error: 'No tiene permisos para ver el historial de platos cocinados' });
+        }
+
+        const { desde, hasta } = req.query;
+        const fechaInicio = desde
+            ? moment(desde).startOf('day').toDate()
+            : moment().startOf('day').toDate();
+        const fechaFin = hasta
+            ? moment(hasta).endOf('day').toDate()
+            : moment().endOf('day').toDate();
+
+        let usuarioId = null;
+        // Si no es admin/supervisor con reportes, limitar a sus propios platos
+        if (!tieneReportes && req.admin?.id) {
+            usuarioId = req.admin.id;
+        }
+        // Query opcional ?cocineroId= para filtrar (solo si tiene reportes)
+        if (req.query.cocineroId && tieneReportes) {
+            usuarioId = req.query.cocineroId;
+        }
+
+        const limite = Math.min(Math.max(parseInt(req.query.limite, 10) || 200, 1), 1000);
+
+        const resultado = await cocinerosRepository.obtenerHistorialPlatosCocinados({
+            usuarioId,
+            fechaInicio,
+            fechaFin,
+            limite
+        });
+
+        res.json({
+            success: true,
+            data: {
+                periodo: { desde: fechaInicio, hasta: fechaFin },
+                ...resultado
+            }
+        });
+    } catch (error) {
+        logger.error('Error al obtener historial de platos cocinados', { error: error.message });
+        res.status(500).json({ success: false, error: 'Error al obtener historial de platos cocinados' });
+    }
+});
+
+/**
  * POST /api/cocineros/:id/conexion
  * Registrar conexión de un cocinero (uso interno)
  */

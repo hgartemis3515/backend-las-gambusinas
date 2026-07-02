@@ -313,7 +313,12 @@ async function calcularMetricasRendimiento(usuarioId, fechaInicio, fechaFin) {
                 $project: {
                     tiempoPreparacion: {
                         $divide: [
-                            { $subtract: ['$platos.tiempos.recoger', '$platos.procesadoPor.timestamp'] },
+                            {
+                                $subtract: [
+                                    '$platos.tiempos.recoger',
+                                    { $ifNull: ['$platos.procesadoPor.tomadoEn', '$platos.procesadoPor.timestamp'] }
+                                ]
+                            },
                             60000
                         ]
                     },
@@ -321,7 +326,7 @@ async function calcularMetricasRendimiento(usuarioId, fechaInicio, fechaFin) {
                         $divide: [
                             {
                                 $subtract: [
-                                    '$platos.procesadoPor.timestamp',
+                                    { $ifNull: ['$platos.procesadoPor.tomadoEn', '$platos.procesadoPor.timestamp'] },
                                     { $ifNull: ['$platos.tiempos.en_espera', '$platos.procesadoPor.timestamp'] }
                                 ]
                             },
@@ -491,7 +496,12 @@ async function obtenerPlatosTopPorCocinero(usuarioId, fechaInicio, fechaFin, lim
                     tiempoPromedio: {
                         $avg: {
                             $divide: [
-                                { $subtract: ['$platos.tiempos.recoger', '$platos.procesadoPor.timestamp'] },
+                                {
+                                    $subtract: [
+                                        '$platos.tiempos.recoger',
+                                        { $ifNull: ['$platos.procesadoPor.tomadoEn', '$platos.procesadoPor.timestamp'] }
+                                    ]
+                                },
                                 60000
                             ]
                         }
@@ -544,22 +554,57 @@ async function obtenerRendimientoEnVivo(usuarioId = null) {
                     'platos.anulado': { $ne: true }
                 }
             },
+            // Lookup del Plato referenciado para resolver el nombre
+            {
+                $lookup: {
+                    from: 'platos',
+                    let: { platoRef: '$platos.plato' },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$_id', '$$platoRef'] } } },
+                        { $project: { nombre: 1, categoria: 1 } }
+                    ],
+                    as: 'platoInfo'
+                }
+            },
+            // Lookup de la Mesa referenciada para resolver nummesa
+            {
+                $lookup: {
+                    from: 'mesas',
+                    let: { mesaRef: '$mesas' },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$_id', '$$mesaRef'] } } },
+                        { $project: { nummesa: 1, area: 1 } }
+                    ],
+                    as: 'mesaInfo'
+                }
+            },
             {
                 $project: {
                     comandaId: '$_id',
                     comandaNumber: '$comandaNumber',
                     platoId: '$platos.platoId',
-                    platoNombre: '$platos.nombre',
+                    platoNombre: {
+                        $ifNull: [
+                            { $arrayElemAt: ['$platoInfo.nombre', 0] },
+                            '$platos.nombre'
+                        ]
+                    },
+                    platoCategoria: { $arrayElemAt: ['$platoInfo.categoria', 0] },
                     cantidad: '$platos.cantidad',
                     estado: '$platos.estado',
-                    observaciones: '$platos.observaciones',
-                    complementos: '$platos.complementos',
+                    observaciones: {
+                        $ifNull: ['$platos.observaciones', '$platos.notaEspecial']
+                    },
+                    complementos: {
+                        $ifNull: ['$platos.complementos', '$platos.complementosSeleccionados']
+                    },
                     prioritario: '$platos.prioritario',
                     cocineroId: '$platos.procesandoPor.cocineroId',
                     cocineroNombre: '$platos.procesandoPor.nombre',
                     cocineroAlias: '$platos.procesandoPor.alias',
                     procesandoDesde: '$platos.procesandoPor.timestamp',
-                    mesaNum: '$mesas.nummesa',
+                    mesaNum: { $arrayElemAt: ['$mesaInfo.nummesa', 0] },
+                    mesaArea: { $arrayElemAt: ['$mesaInfo.area', 0] },
                     mesaIds: { $ifNull: ['$mesaIds', []] }
                 }
             }
@@ -760,7 +805,12 @@ async function obtenerResumenTurno(fechaInicio, fechaFin) {
                 $project: {
                     tiempoPreparacion: {
                         $divide: [
-                            { $subtract: ['$platos.tiempos.recoger', '$platos.procesadoPor.timestamp'] },
+                            {
+                                $subtract: [
+                                    '$platos.tiempos.recoger',
+                                    { $ifNull: ['$platos.procesadoPor.tomadoEn', '$platos.procesadoPor.timestamp'] }
+                                ]
+                            },
                             60000
                         ]
                     }
@@ -814,6 +864,253 @@ async function obtenerResumenTurno(fechaInicio, fechaFin) {
     }
 }
 
+/**
+ * Registro histórico de platos cocinados por un cocinero o por todo el equipo.
+ * Incluye:
+ *  - Platos FINALIZADOS (estado 'recoger' o posterior): con tomadoEn, entregadoEn y tiempo total.
+ *  - Platos EN CURSO (estado 'pedido'/'en_espera' con procesandoPor.cocineroId): con tomadoEn y null entregadoEn.
+ *
+ * Devuelve también un resumen agregado por plato y por cocinero (solo finalizados).
+ *
+ * @param {Object} opts
+ * @param {String|null} opts.usuarioId  - Si se pasa, filtra solo a ese cocinero.
+ * @param {Date}        opts.fechaInicio
+ * @param {Date}        opts.fechaFin
+ * @param {Number}      opts.limite     - Máximo de registros individuales (default 200).
+ */
+async function obtenerHistorialPlatosCocinados({ usuarioId = null, fechaInicio, fechaFin, limite = 200 } = {}) {
+    try {
+        const objectId = usuarioId ? new mongoose.Types.ObjectId(usuarioId) : null;
+
+        const matchComandaFinalizados = {
+            IsActive: true,
+            'platos.procesadoPor.cocineroId': objectId || { $ne: null, $exists: true },
+            'platos.tiempos.recoger': objectId ? { $exists: true, $ne: null } : { $exists: true, $ne: null }
+        };
+        if (fechaInicio || fechaFin) {
+            matchComandaFinalizados['platos.tiempos.recoger'] = {
+                ...(fechaInicio ? { $gte: new Date(fechaInicio) } : {}),
+                ...(fechaFin ? { $lte: new Date(fechaFin) } : {})
+            };
+        }
+
+        const matchComandaEnCurso = {
+            IsActive: true,
+            'platos.procesandoPor.cocineroId': objectId || { $ne: null, $exists: true },
+            'platos.estado': { $in: ['pedido', 'en_espera'] }
+        };
+
+        // Pipeline base para FINALIZADOS
+        const buildPipeline = (matchComanda, isEnCurso) => [
+            { $match: matchComanda },
+            { $unwind: '$platos' },
+            {
+                $match: {
+                    'platos.eliminado': { $ne: true },
+                    'platos.anulado': { $ne: true },
+                    ...(isEnCurso
+                        ? {
+                            'platos.procesandoPor.cocineroId': objectId || { $ne: null, $exists: true },
+                            'platos.estado': { $in: ['pedido', 'en_espera'] }
+                        }
+                        : {
+                            'platos.procesadoPor.cocineroId': objectId || { $ne: null, $exists: true },
+                            'platos.tiempos.recoger': { $exists: true, $ne: null },
+                            ...(fechaInicio || fechaFin
+                                ? {
+                                    'platos.tiempos.recoger': {
+                                        ...(fechaInicio ? { $gte: new Date(fechaInicio) } : {}),
+                                        ...(fechaFin ? { $lte: new Date(fechaFin) } : {})
+                                    }
+                                }
+                                : {})
+                        })
+                }
+            },
+            // Lookup del Plato referenciado para resolver el nombre
+            {
+                $lookup: {
+                    from: 'platos',
+                    let: { platoRef: '$platos.plato' },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$_id', '$$platoRef'] } } },
+                        { $project: { nombre: 1, categoria: 1 } }
+                    ],
+                    as: 'platoInfo'
+                }
+            },
+            // Lookup de la Mesa referenciada para resolver nummesa
+            {
+                $lookup: {
+                    from: 'mesas',
+                    let: { mesaRef: '$mesas' },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$_id', '$$mesaRef'] } } },
+                        { $project: { nummesa: 1 } }
+                    ],
+                    as: 'mesaInfo'
+                }
+            },
+            {
+                $project: {
+                    comandaId: '$_id',
+                    comandaNumber: '$comandaNumber',
+                    platoId: '$platos.platoId',
+                    platoSubdocId: '$platos._id',
+                    platoNombre: {
+                        $ifNull: [
+                            { $arrayElemAt: ['$platoInfo.nombre', 0] },
+                            '$platos.nombre'
+                        ]
+                    },
+                    platoCategoria: { $arrayElemAt: ['$platoInfo.categoria', 0] },
+                    cantidad: '$platos.cantidad',
+                    estadoPlato: '$platos.estado',
+                    mesaNum: { $arrayElemAt: ['$mesaInfo.nummesa', 0] },
+                    ...(isEnCurso
+                        ? {
+                            estadoRegistro: { $literal: 'en_curso' },
+                            cocineroId: '$platos.procesandoPor.cocineroId',
+                            cocineroNombre: '$platos.procesandoPor.nombre',
+                            cocineroAlias: '$platos.procesandoPor.alias',
+                            tomadoEn: '$platos.procesandoPor.timestamp',
+                            entregadoEn: null,
+                            tiempoSegundos: {
+                                $divide: [
+                                    { $subtract: [new Date(), { $ifNull: ['$platos.procesandoPor.timestamp', new Date()] }] },
+                                    1000
+                                ]
+                            }
+                        }
+                        : {
+                            estadoRegistro: { $literal: 'finalizado' },
+                            cocineroId: '$platos.procesadoPor.cocineroId',
+                            cocineroNombre: '$platos.procesadoPor.nombre',
+                            cocineroAlias: '$platos.procesadoPor.alias',
+                            // tomadoEn: usar procesadoPor.tomadoEn (campo nuevo) con fallback a
+                            // procesadoPor.timestamp (datos legacy anteriores al fix).
+                            tomadoEn: {
+                                $ifNull: [
+                                    '$platos.procesadoPor.tomadoEn',
+                                    '$platos.procesadoPor.timestamp'
+                                ]
+                            },
+                            // entregadoEn: tiempos.recoger es el momento real de "listo para recoger".
+                            entregadoEn: '$platos.tiempos.recoger',
+                            tiempoSegundos: {
+                                $divide: [
+                                    {
+                                        $subtract: [
+                                            '$platos.tiempos.recoger',
+                                            { $ifNull: ['$platos.procesadoPor.tomadoEn', '$platos.procesadoPor.timestamp'] }
+                                        ]
+                                    },
+                                    1000
+                                ]
+                            }
+                        })
+                }
+            },
+            { $sort: { tomadoEn: -1 } },
+            { $limit: limite }
+        ];
+
+        // Ejecutar ambas agregaciones en paralelo
+        const [finalizados, enCurso] = await Promise.all([
+            Comanda.aggregate(buildPipeline(matchComandaFinalizados, false)),
+            Comanda.aggregate(buildPipeline(matchComandaEnCurso, true))
+        ]);
+
+        // Normalizar: enCurso puede tener tiempoSegundos calculado al momento del snapshot.
+        const registros = [
+            ...enCurso.map(r => ({ ...r, tiempoSegundos: Math.max(0, Math.round(r.tiempoSegundos || 0)) })),
+            ...finalizados.map(r => ({ ...r, tiempoSegundos: Math.max(0, Math.round(r.tiempoSegundos || 0)) }))
+        ];
+
+        // Resumen solo sobre FINALIZADOS (los en_curso no tienen tiempo total todavía)
+        const porPlatoMap = new Map();
+        const porCocineroMap = new Map();
+
+        let total = 0;
+        let sumaTiempos = 0;
+        let dentroSLA = 0;
+
+        for (const r of finalizados) {
+            total++;
+            const seg = Math.max(0, Math.round(r.tiempoSegundos || 0));
+            sumaTiempos += seg;
+            if (seg <= 15 * 60) dentroSLA++;
+
+            // Por plato
+            const platoKey = String(r.platoId ?? r.platoNombre ?? 'sin-id');
+            if (!porPlatoMap.has(platoKey)) {
+                porPlatoMap.set(platoKey, {
+                    platoId: r.platoId,
+                    platoNombre: r.platoNombre || 'Plato',
+                    categoria: r.platoCategoria || null,
+                    cantidad: 0,
+                    tiempoTotalSegundos: 0,
+                    tiempos: []
+                });
+            }
+            const p = porPlatoMap.get(platoKey);
+            p.cantidad++;
+            p.tiempoTotalSegundos += seg;
+            p.tiempos.push(seg);
+
+            // Por cocinero
+            const cocKey = r.cocineroId?.toString() || 'desconocido';
+            if (!porCocineroMap.has(cocKey)) {
+                porCocineroMap.set(cocKey, {
+                    cocineroId: cocKey,
+                    cocineroNombre: r.cocineroNombre || 'Cocinero',
+                    cocineroAlias: r.cocineroAlias || r.cocineroNombre || 'Cocinero',
+                    totalPlatos: 0,
+                    tiempoTotalSegundos: 0,
+                    dentroSLA: 0
+                });
+            }
+            const c = porCocineroMap.get(cocKey);
+            c.totalPlatos++;
+            c.tiempoTotalSegundos += seg;
+            if (seg <= 15 * 60) c.dentroSLA++;
+        }
+
+        const porPlato = Array.from(porPlatoMap.values()).map(p => {
+            const arr = p.tiempos;
+            delete p.tiempos;
+            return {
+                ...p,
+                tiempoPromedioSegundos: p.cantidad > 0 ? Math.round(p.tiempoTotalSegundos / p.cantidad) : 0,
+                tiempoMinSegundos: arr.length ? Math.min(...arr) : 0,
+                tiempoMaxSegundos: arr.length ? Math.max(...arr) : 0
+            };
+        }).sort((a, b) => b.cantidad - a.cantidad);
+
+        const porCocinero = Array.from(porCocineroMap.values()).map(c => ({
+            ...c,
+            tiempoPromedioSegundos: c.totalPlatos > 0 ? Math.round(c.tiempoTotalSegundos / c.totalPlatos) : 0,
+            porcentajeDentroSLA: c.totalPlatos > 0 ? Math.round((c.dentroSLA / c.totalPlatos) * 100) : 0
+        })).sort((a, b) => b.totalPlatos - a.totalPlatos);
+
+        return {
+            registros,
+            enCursoCount: enCurso.length,
+            resumen: {
+                totalFinalizados: total,
+                totalEnCurso: enCurso.length,
+                tiempoPromedioSegundos: total > 0 ? Math.round(sumaTiempos / total) : 0,
+                porcentajeDentroSLA: total > 0 ? Math.round((dentroSLA / total) * 100) : 0,
+                porPlato,
+                porCocinero
+            }
+        };
+    } catch (error) {
+        logger.error('Error al obtener historial de platos cocinados', { error: error.message });
+        throw error;
+    }
+}
+
 module.exports = {
     obtenerCocineros,
     obtenerCocineroPorId,
@@ -827,5 +1124,6 @@ module.exports = {
     obtenerMetricasTodosCocineros,
     obtenerPlatosTopPorCocinero,
     obtenerRendimientoEnVivo,
-    obtenerResumenTurno
+    obtenerResumenTurno,
+    obtenerHistorialPlatosCocinados
 };

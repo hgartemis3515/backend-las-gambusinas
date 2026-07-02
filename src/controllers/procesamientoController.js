@@ -435,13 +435,21 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
     
     // Obtener info del cocinero atribuido (el que tomó el plato)
     cocineroAtribuidoInfo = await getCocineroInfo(cocineroAtribuidoId);
-    
+
+    // PRESERVAR el timestamp en que el cocinero TOMÓ el plato (procesandoPor.timestamp)
+    // antes de limpiarlo. Lo guardamos en procesadoPor.tomadoEn para no perderlo.
+    const tomadoEnTimestamp = plato.procesandoPor?.timestamp || null;
+    const ahora = moment().tz('America/Lima').toDate();
+
     const updateSet = {
       [`platos.${platoIndex}.estado`]: 'recoger',
-      [`platos.${platoIndex}.tiempos.recoger`]: moment().tz('America/Lima').toDate(),
+      [`platos.${platoIndex}.tiempos.recoger`]: ahora,
       [`platos.${platoIndex}.procesadoPor`]: {
         ...cocineroAtribuidoInfo,
-        timestamp: moment().tz('America/Lima').toDate()
+        // timestamp = momento de FINALIZACIÓN (cuando el cocinero marcó listo).
+        timestamp: ahora,
+        // tomadoEn = momento en que el cocinero TOMÓ el plato (para calcular tiempo total real).
+        tomadoEn: tomadoEnTimestamp || ahora
       },
       [`platos.${platoIndex}.procesandoPor`]: {
         cocineroId: null,
@@ -449,7 +457,7 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
         alias: null,
         timestamp: null
       },
-      updatedAt: moment().tz('America/Lima').toDate(),
+      updatedAt: ahora,
       updatedBy: cocineroId
     };
 
@@ -458,7 +466,7 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
         usuarioId: cocineroId,
         nombre: req.admin?.name || req.admin?.nombre || 'Supervisor',
         rol: req.admin?.rol || 'supervisor',
-        timestamp: moment().tz('America/Lima').toDate()
+        timestamp: ahora
       };
     }
 
@@ -911,6 +919,8 @@ router.put('/comanda/:id/finalizar', adminAuth, async (req, res) => {
         
         // Solo finalizar platos que no estén ya en 'recoger' o 'entregado'
         if (estado !== 'recoger' && estado !== 'entregado') {
+          // Preservar timestamp de TOMA antes de limpiar procesandoPor
+          const tomadoEnPlato = plato.procesandoPor?.timestamp || timestampAhora;
           await Comanda.updateOne(
             { _id: comandaId },
             {
@@ -919,7 +929,10 @@ router.put('/comanda/:id/finalizar', adminAuth, async (req, res) => {
                 [`platos.${i}.tiempos.recoger`]: timestampAhora,
                 [`platos.${i}.procesadoPor`]: {
                   ...cocineroInfo,
-                  timestamp: timestampAhora
+                  // timestamp = momento de FINALIZACIÓN.
+                  timestamp: timestampAhora,
+                  // tomadoEn = momento en que el cocinero TOMÓ el plato.
+                  tomadoEn: tomadoEnPlato
                 },
                 [`platos.${i}.procesandoPor`]: {
                   cocineroId: null,

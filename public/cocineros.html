@@ -70,8 +70,8 @@ tailwind.config = {
         <button x-show="activeTab === 'zonas'" @click="openCrearZonaModal()" class="bg-st-preparado text-white px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">
           + Nueva Zona
         </button>
-        <button x-show="activeTab === 'vistas'" @click="openCrearVistaCocinaModal()" class="bg-st-pedido text-white px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">
-          + Nueva Vista
+        <button x-show="activeTab === 'vistas'" @click="openCrearPantallaModal()" class="bg-st-pedido text-white px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">
+          + Nueva Pantalla
         </button>
         <button x-show="activeTab === 'rendimiento'" @click="cargarRendimientoEnVivo()" class="bg-gold/20 text-gold px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gold/30 transition">
           🔄 Actualizar
@@ -845,6 +845,23 @@ tailwind.config = {
     <!-- ==================== TAB: RENDIMIENTO EN VIVO ==================== -->
     <div x-show="activeTab === 'rendimiento'" x-cloak>
 
+      <!-- Sub-tabs: En vivo / Historial -->
+      <div class="flex gap-1 mb-4 bg-bg-card rounded-lg p-1 border border-[rgba(212,175,55,0.15)] w-fit">
+        <button @click="cambiarSubtabRendimiento('enVivo')"
+          class="px-3 py-1.5 rounded-md text-xs font-medium transition"
+          :class="subtabRendimiento === 'enVivo' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
+          ⚡ En vivo
+        </button>
+        <button @click="cambiarSubtabRendimiento('historial')"
+          class="px-3 py-1.5 rounded-md text-xs font-medium transition"
+          :class="subtabRendimiento === 'historial' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
+          📋 Registro de platos
+        </button>
+      </div>
+
+      <!-- ====== SUB-TAB: EN VIVO ====== -->
+      <div x-show="subtabRendimiento === 'enVivo'">
+
       <!-- KPIs resumen del turno -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
@@ -948,7 +965,6 @@ tailwind.config = {
                       <p class="text-sm font-mono font-bold"
                         :class="getAlertaTimer(timer.desde, cocinero.slaMinutos) === 'rojo' ? 'text-st-pagado animate-pulse' : (getAlertaTimer(timer.desde, cocinero.slaMinutos) === 'amarillo' ? 'text-st-esperando' : 'text-st-preparado')"
                         x-text="timer.indice + '- ' + formatTimer(getSegundosTranscurridos(timer.desde))">
-                        <span x-text="rendimientoTick"></span>
                       </p>
                     </template>
                   </div>
@@ -974,7 +990,6 @@ tailwind.config = {
                   <p class="text-sm font-mono font-bold"
                     :class="getAlertaTimer(bloque.procesandoDesde, cocinero.slaMinutos) === 'rojo' ? 'text-st-pagado animate-pulse' : (getAlertaTimer(bloque.procesandoDesde, cocinero.slaMinutos) === 'amarillo' ? 'text-st-esperando' : 'text-st-preparado')"
                     x-text="formatTimer(getSegundosTranscurridos(bloque.procesandoDesde))">
-                    <span x-text="rendimientoTick"></span>
                   </p>
                 </div>
               </template>
@@ -1011,6 +1026,253 @@ tailwind.config = {
           </div>
         </div>
       </div>
+
+      </div>
+      <!-- FIN SUB-TAB: EN VIVO -->
+
+      <!-- ====== SUB-TAB: HISTORIAL (REGISTRO DE PLATOS COCINADOS) ====== -->
+      <div x-show="subtabRendimiento === 'historial'" x-cloak>
+
+        <!-- KPIs resumen -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+            <p class="text-[11px] text-txt-muted uppercase">En curso</p>
+            <p class="text-2xl font-bold text-st-pedido mt-1 animate-pulse" x-show="(historialCocinados.enCursoCount || 0) > 0" x-text="historialCocinados.enCursoCount || 0"></p>
+            <p class="text-2xl font-bold text-txt-muted mt-1" x-show="(historialCocinados.enCursoCount || 0) === 0" x-text="'0'"></p>
+          </div>
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+            <p class="text-[11px] text-txt-muted uppercase">Finalizados</p>
+            <p class="text-2xl font-bold text-gold mt-1" x-text="(historialCocinados.resumen?.totalFinalizados) || 0"></p>
+          </div>
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+            <p class="text-[11px] text-txt-muted uppercase">T. promedio</p>
+            <p class="text-2xl font-bold mt-1" :class="colorTiempoPromedioSegundos(historialCocinados.resumen?.tiempoPromedioSegundos)"
+              x-text="formatSegundosAMinutos(historialCocinados.resumen?.tiempoPromedioSegundos)"></p>
+          </div>
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+            <p class="text-[11px] text-txt-muted uppercase">% SLA (≤15m)</p>
+            <p class="text-2xl font-bold mt-1" :class="colorSLA(historialCocinados.resumen?.porcentajeDentroSLA)"
+              x-text="(historialCocinados.resumen?.porcentajeDentroSLA || 0) + '%'"></p>
+          </div>
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+            <p class="text-[11px] text-txt-muted uppercase">Platos distintos</p>
+            <p class="text-2xl font-bold text-st-pedido mt-1" x-text="(historialCocinados.resumen?.porPlato?.length) || 0"></p>
+          </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4 mb-6">
+          <div class="flex flex-wrap items-center gap-3">
+            <select x-model="historialFiltroCocinero" @change="cargarHistorialCocinados()"
+              class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+              <option value="">Todos los cocineros</option>
+              <template x-for="c in cocineros" :key="'hist-c-' + c._id">
+                <option :value="c._id" x-text="c.nombre || c.name"></option>
+              </template>
+            </select>
+            <select x-model="historialFiltroFecha" @change="cargarHistorialCocinados()"
+              class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+              <option value="hoy">Hoy</option>
+              <option value="ayer">Ayer</option>
+              <option value="7dias">Últimos 7 días</option>
+              <option value="30dias">Últimos 30 días</option>
+              <option value="personalizado">Personalizado</option>
+            </select>
+            <template x-if="historialFiltroFecha === 'personalizado'">
+              <div class="flex items-center gap-2">
+                <input type="date" x-model="historialFechaDesde" @change="cargarHistorialCocinados()"
+                  class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                <span class="text-txt-muted text-xs">→</span>
+                <input type="date" x-model="historialFechaHasta" @change="cargarHistorialCocinados()"
+                  class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+              </div>
+            </template>
+            <div class="flex-1"></div>
+            <!-- Toggle vista detalle/resumen -->
+            <div class="flex gap-1 bg-bg-sidebar rounded-lg p-1">
+              <button @click="historialVista = 'detalle'"
+                class="px-3 py-1 rounded-md text-xs font-medium transition"
+                :class="historialVista === 'detalle' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white'">
+                Detalle
+              </button>
+              <button @click="historialVista = 'resumen'"
+                class="px-3 py-1 rounded-md text-xs font-medium transition"
+                :class="historialVista === 'resumen' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white'">
+                Resumen
+              </button>
+            </div>
+            <button @click="cargarHistorialCocinados()" class="bg-gold/20 text-gold px-4 py-2 rounded-lg text-sm font-medium hover:bg-gold/30 transition">
+              🔄 Actualizar
+            </button>
+          </div>
+        </div>
+
+        <!-- Loading -->
+        <div x-show="historialLoading" class="flex items-center justify-center h-32 bg-bg-card rounded-xl border border-[rgba(212,175,55,0.15)] mb-6">
+          <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+        </div>
+
+        <!-- ===== VISTA: RESUMEN ===== -->
+        <div x-show="!historialLoading && historialVista === 'resumen'" class="space-y-6">
+          <!-- Resumen por cocinero -->
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
+            <h3 class="text-sm font-bold mb-4 flex items-center gap-2">
+              👨‍🍳 Por cocinero
+              <span class="text-[10px] text-txt-muted font-normal" x-text="'(' + (historialCocinados.resumen?.porCocinero?.length || 0) + ')'"></span>
+            </h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="text-[11px] uppercase text-txt-muted border-b border-[rgba(212,175,55,0.15)]">
+                    <th class="text-left py-2 px-2 font-medium">Cocinero</th>
+                    <th class="text-right py-2 px-2 font-medium">Platos</th>
+                    <th class="text-right py-2 px-2 font-medium">T. promedio</th>
+                    <th class="text-right py-2 px-2 font-medium">% SLA</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="(c, i) in (historialCocinados.resumen?.porCocinero || [])" :key="'hist-chef-' + (c.cocineroId || i)">
+                    <tr class="border-b border-[rgba(212,175,55,0.08)] hover:bg-bg-sidebar/50">
+                      <td class="py-2 px-2">
+                        <p class="font-medium text-white" x-text="c.cocineroNombre || c.cocineroAlias || 'Cocinero'"></p>
+                        <p class="text-[10px] text-txt-muted" x-text="c.cocineroAlias || ''"></p>
+                      </td>
+                      <td class="text-right py-2 px-2 font-bold text-gold" x-text="c.totalPlatos || 0"></td>
+                      <td class="text-right py-2 px-2" :class="colorTiempoPromedioSegundos(c.tiempoPromedioSegundos)"
+                        x-text="formatSegundosAMinutos(c.tiempoPromedioSegundos)"></td>
+                      <td class="text-right py-2 px-2 font-bold" :class="colorSLA(c.porcentajeDentroSLA)"
+                        x-text="(c.porcentajeDentroSLA || 0) + '%'"></td>
+                    </tr>
+                  </template>
+                  <tr x-show="(historialCocinados.resumen?.porCocinero?.length || 0) === 0">
+                    <td colspan="4" class="text-center text-txt-muted py-6 text-sm">Sin datos para el período seleccionado.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Resumen por plato -->
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
+            <h3 class="text-sm font-bold mb-4 flex items-center gap-2">
+              🍽️ Por plato
+              <span class="text-[10px] text-txt-muted font-normal" x-text="'(' + (historialCocinados.resumen?.porPlato?.length || 0) + ')'"></span>
+            </h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="text-[11px] uppercase text-txt-muted border-b border-[rgba(212,175,55,0.15)]">
+                    <th class="text-left py-2 px-2 font-medium">Plato</th>
+                    <th class="text-left py-2 px-2 font-medium">Categoría</th>
+                    <th class="text-right py-2 px-2 font-medium">Veces</th>
+                    <th class="text-right py-2 px-2 font-medium">T. promedio</th>
+                    <th class="text-right py-2 px-2 font-medium">Mín</th>
+                    <th class="text-right py-2 px-2 font-medium">Máx</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="(p, i) in (historialCocinados.resumen?.porPlato || [])" :key="'hist-plato-' + (p.platoId || i)">
+                    <tr class="border-b border-[rgba(212,175,55,0.08)] hover:bg-bg-sidebar/50">
+                      <td class="py-2 px-2 font-medium text-white" x-text="p.platoNombre || 'Plato'"></td>
+                      <td class="py-2 px-2 text-txt-secondary text-xs" x-text="p.categoria || '—'"></td>
+                      <td class="text-right py-2 px-2 font-bold text-gold" x-text="p.cantidad || 0"></td>
+                      <td class="text-right py-2 px-2" :class="colorTiempoPromedioSegundos(p.tiempoPromedioSegundos)"
+                        x-text="formatSegundosAMinutos(p.tiempoPromedioSegundos)"></td>
+                      <td class="text-right py-2 px-2 text-st-preparado" x-text="formatSegundosAMinutos(p.tiempoMinSegundos)"></td>
+                      <td class="text-right py-2 px-2 text-st-esperando" x-text="formatSegundosAMinutos(p.tiempoMaxSegundos)"></td>
+                    </tr>
+                  </template>
+                  <tr x-show="(historialCocinados.resumen?.porPlato?.length || 0) === 0">
+                    <td colspan="6" class="text-center text-txt-muted py-6 text-sm">Sin datos para el período seleccionado.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== VISTA: DETALLE ===== -->
+        <div x-show="!historialLoading && historialVista === 'detalle'" class="space-y-4">
+          <!-- Buscador por nombre de plato -->
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+            <input type="text" x-model="historialFiltroPlato" placeholder="🔎 Filtrar por nombre de plato..."
+              class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2 text-sm focus:border-gold focus:outline-none">
+          </div>
+
+          <!-- Empty state -->
+          <div x-show="getHistorialRegistrosFiltrados().length === 0" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-8 text-center">
+            <div class="text-5xl mb-4">📋</div>
+            <h3 class="text-lg font-semibold mb-2">Sin registros</h3>
+            <p class="text-txt-muted text-sm">No hay platos asignados ni finalizados para los filtros seleccionados.</p>
+          </div>
+
+          <!-- Tabla de registros -->
+          <div x-show="getHistorialRegistrosFiltrados().length > 0" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-bg-sidebar">
+                  <tr class="text-[11px] uppercase text-txt-muted">
+                    <th class="text-left py-3 px-3 font-medium">Estado</th>
+                    <th class="text-left py-3 px-3 font-medium">Cocinero</th>
+                    <th class="text-left py-3 px-3 font-medium">Plato</th>
+                    <th class="text-left py-3 px-3 font-medium">Comanda</th>
+                    <th class="text-left py-3 px-3 font-medium">Mesa</th>
+                    <th class="text-right py-3 px-3 font-medium">Tomado</th>
+                    <th class="text-right py-3 px-3 font-medium">Entregado</th>
+                    <th class="text-right py-3 px-3 font-medium">Tiempo total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="(r, i) in getHistorialRegistrosFiltrados()" :key="'hist-det-' + (r.estadoRegistro || 'f') + '-' + i + '-' + (r.comandaId || '') + '-' + (r.platoSubdocId || r.platoId || '')">
+                    <tr class="border-t border-[rgba(212,175,55,0.08)] hover:bg-bg-sidebar/40"
+                      :class="r.estadoRegistro === 'en_curso' ? 'bg-st-pedido/5' : ''">
+                      <td class="py-2.5 px-3">
+                        <span x-show="r.estadoRegistro === 'en_curso'" class="inline-flex items-center gap-1 bg-st-pedido/20 text-st-pedido text-[10px] px-2 py-0.5 rounded font-bold">
+                          <span class="w-1.5 h-1.5 rounded-full bg-st-pedido animate-pulse"></span>
+                          EN CURSO
+                        </span>
+                        <span x-show="r.estadoRegistro !== 'en_curso'" class="inline-flex items-center gap-1 bg-st-preparado/20 text-st-preparado text-[10px] px-2 py-0.5 rounded font-bold">
+                          <span class="w-1.5 h-1.5 rounded-full bg-st-preparado"></span>
+                          LISTO
+                        </span>
+                      </td>
+                      <td class="py-2.5 px-3">
+                        <p class="font-medium text-white" x-text="r.cocineroNombre || 'Cocinero'"></p>
+                        <p class="text-[10px] text-txt-muted" x-text="r.cocineroAlias || ''"></p>
+                      </td>
+                      <td class="py-2.5 px-3">
+                        <p class="font-medium text-white" x-text="r.platoNombre || 'Plato'"></p>
+                        <p class="text-[10px] text-txt-muted" x-show="r.platoCategoria" x-text="r.platoCategoria"></p>
+                      </td>
+                      <td class="py-2.5 px-3 text-txt-secondary" x-text="'#' + (r.comandaNumber || '—')"></td>
+                      <td class="py-2.5 px-3">
+                        <span x-show="r.mesaNum" class="bg-st-libre/20 text-st-libre text-xs px-2 py-0.5 rounded" x-text="'M' + r.mesaNum"></span>
+                        <span x-show="!r.mesaNum" class="text-txt-muted text-xs">—</span>
+                      </td>
+                      <td class="py-2.5 px-3 text-right text-txt-secondary font-mono text-xs" x-text="formatFechaCorta(r.tomadoEn)"></td>
+                      <td class="py-2.5 px-3 text-right text-txt-secondary font-mono text-xs">
+                        <span x-show="r.entregadoEn" x-text="formatFechaCorta(r.entregadoEn)"></span>
+                        <span x-show="!r.entregadoEn" class="text-txt-muted">—</span>
+                      </td>
+                      <td class="py-2.5 px-3 text-right font-mono font-bold"
+                        :class="getTiempoColor(r)"
+                        x-text="formatTiempoRelativo(r)"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            <div class="px-4 py-3 bg-bg-sidebar/40 text-[11px] text-txt-muted border-t border-[rgba(212,175,55,0.08)]">
+              Mostrando <span class="text-white font-medium" x-text="getHistorialRegistrosFiltrados().length"></span> registro(s) ·
+              <span class="text-st-pedido font-medium" x-text="(historialCocinados.enCursoCount || 0)"></span> en curso ·
+              <span class="text-gold font-medium" x-text="(historialCocinados.resumen?.totalFinalizados) || 0"></span> finalizados en el período
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <!-- FIN SUB-TAB: HISTORIAL -->
+
     </div>
     <!-- FIN TAB: RENDIMIENTO EN VIVO -->
 
@@ -1018,65 +1280,6 @@ tailwind.config = {
 </div>
 
 <!-- MODAL: CREAR/EDITAR VISTA DE COCINA -->
-<div x-show="modalVistaCocina" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="modalVistaCocina=false">
-  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[640px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
-    <div class="flex items-center justify-between p-5 border-b border-[rgba(212,175,55,0.15)]">
-      <h3 class="text-lg font-bold" x-text="editandoVistaCocina ? 'Editar Vista de Cocina' : 'Nueva Vista de Cocina'"></h3>
-      <button @click="modalVistaCocina=false" class="text-txt-muted hover:text-white text-xl">✕</button>
-    </div>
-    <div class="p-5 space-y-4">
-      <div>
-        <label class="block text-sm text-txt-secondary mb-1">Nombre *</label>
-        <input type="text" x-model="formVistaCocina.nombre" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-white" placeholder="Ej: Criolla, Parrilla...">
-      </div>
-      <div>
-        <label class="block text-sm text-txt-secondary mb-1">Descripción</label>
-        <input type="text" x-model="formVistaCocina.descripcion" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-white" placeholder="Estación criolla">
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-sm text-txt-secondary mb-1">Color</label>
-          <input type="color" x-model="formVistaCocina.color" class="w-full h-10 bg-transparent rounded-lg">
-        </div>
-        <div>
-          <label class="block text-sm text-txt-secondary mb-1">Icono</label>
-          <select x-model="formVistaCocina.icono" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-white">
-            <option value="tools-kitchen">🍳 Cocina</option>
-            <option value="flame">🔥 Fuego</option>
-            <option value="chef-hat">👨‍🍳 Chef</option>
-            <option value="pot">🍲 Olla</option>
-            <option value="grill">🍖 Parrilla</option>
-            <option value="meat">🥩 Carne</option>
-            <option value="ice-cream">🍦 Fríos</option>
-            <option value="cake">🍰 Postres</option>
-          </select>
-        </div>
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-sm text-txt-secondary mb-1">Alerta amarilla (min)</label>
-          <input type="number" x-model.number="formVistaCocina.configCronometro.tiempoAmarillo" min="1" max="120" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-white">
-        </div>
-        <div>
-          <label class="block text-sm text-txt-secondary mb-1">Alerta roja (min)</label>
-          <input type="number" x-model.number="formVistaCocina.configCronometro.tiempoRojo" min="1" max="180" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-white">
-        </div>
-      </div>
-      <div class="flex items-center gap-2">
-        <input type="checkbox" x-model="formVistaCocina.filtrosPlatos.modoInclusion" id="modoInclusion" class="rounded">
-        <label for="modoInclusion" class="text-sm text-txt-secondary">Modo inclusivo (solo mostrar platos seleccionados; si está apagado, mostrar todos excepto los seleccionados)</label>
-      </div>
-      <div class="p-3 bg-bg-sidebar rounded-lg text-xs text-txt-muted">
-        💡 La selección detallada de platos y apariencia visual (fuentes, colores) se configuran en una edición avanzada posterior. Esta versión permite crear la vista con su cronómetro.
-      </div>
-    </div>
-    <div class="flex justify-end gap-2 p-5 border-t border-[rgba(212,175,55,0.15)]">
-      <button @click="modalVistaCocina=false" class="px-4 py-2 text-txt-secondary hover:text-white">Cancelar</button>
-      <button @click="guardarVistaCocina()" class="px-4 py-2 bg-gold text-bg-primary rounded-lg font-semibold hover:brightness-110">Guardar</button>
-    </div>
-  </div>
-</div>
-
 <!-- MODAL: CREAR/EDITAR PANTALLA DE COCINA -->
 <div x-show="modalPantallaCocina" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="modalPantallaCocina=false">
   <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[560px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
@@ -1096,13 +1299,34 @@ tailwind.config = {
         </div>
       </div>
       <div>
-        <label class="block text-sm text-txt-secondary mb-1">Vista asignada</label>
-        <select x-model="formPantallaCocina.vistaCocinaId" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-white">
+        <label class="block text-sm text-txt-secondary mb-1">Cocinero asignado</label>
+        <select x-model="formPantallaCocina.cocineroId" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-white">
           <option value="">(Sin asignar)</option>
-          <template x-for="vista in vistasCocina" :key="vista._id">
-            <option :value="vista._id" x-text="vista.nombre"></option>
+          <template x-for="c in cocineros" :key="c._id">
+            <option :value="c._id" x-text="c.alias || c.name || c.nombre"></option>
           </template>
         </select>
+        <p class="text-[11px] text-txt-muted mt-1">
+          El TV mostrará solo los platos de este cocinero en "Ver Cocina Completo".
+        </p>
+      </div>
+
+      <!-- Token de dispositivo (solo editando) -->
+      <div x-show="editandoPantallaCocina" class="p-3 rounded-lg bg-bg-sidebar/50 border border-[rgba(212,175,55,0.15)]">
+        <p class="text-sm text-txt-secondary mb-2 font-semibold">Token de dispositivo (TV kiosko)</p>
+        <div class="flex flex-wrap gap-2 items-center">
+          <button @click="generarDeviceToken(pantalla._id)" class="px-3 py-1.5 bg-st-pedido text-white rounded-lg text-xs font-semibold hover:brightness-110">
+            Generar / regenerar token
+          </button>
+          <button @click="revocarDeviceToken(pantalla._id)" class="px-3 py-1.5 bg-st-pagado text-white rounded-lg text-xs font-semibold hover:brightness-110">
+            Revocar
+          </button>
+          <span x-show="pantallaUltimoToken" class="text-[11px] text-gold break-all" x-text="pantallaUltimoToken"></span>
+        </div>
+        <p class="text-[11px] text-txt-muted mt-2">
+          URL para configurar en el Samsung:
+          <span class="text-gold break-all" x-text="kioskUrl(pantalla, pantallaUltimoToken)"></span>
+        </p>
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div>
@@ -2297,6 +2521,17 @@ function cocinerosApp() {
     rendimientoTimerInterval: null,
     rendimientoDebounceTimer: null,
     rendimientoSocketConnected: false,
+    // Sub-tabs de rendimiento: 'enVivo' | 'historial'
+    subtabRendimiento: 'enVivo',
+    // Historial de platos cocinados (finalizados)
+    historialCocinados: { registros: [], enCursoCount: 0, resumen: { totalFinalizados: 0, totalEnCurso: 0, tiempoPromedioSegundos: 0, porcentajeDentroSLA: 0, porPlato: [], porCocinero: [] } },
+    historialLoading: false,
+    historialFiltroCocinero: '',
+    historialFiltroPlato: '',
+    historialFiltroFecha: 'hoy',
+    historialFechaDesde: '',
+    historialFechaHasta: '',
+    historialVista: 'detalle', // 'detalle' | 'resumen'
 
     // Vistas de Cocina (Ver Cocina)
     vistasCocina: [],
@@ -2313,9 +2548,11 @@ function cocinerosApp() {
       configCronometro: { tiempoAmarillo: 15, tiempoRojo: 20 }
     },
     formPantallaCocina: {
-      numeroPantalla: 1, nombre: '', vistaCocinaId: '', activo: true,
+      numeroPantalla: 1, nombre: '', vistaCocinaId: '', cocineroId: '', modoVista: 'completo',
+      activo: true,
       configDespliegue: { anchoVentana: 1920, altoVentana: 1080, posicionX: 0, posicionY: 0, pantallaCompleta: true }
     },
+    pantallaUltimoToken: '',
 
     // Zonas
     zonas: [],
@@ -4045,8 +4282,14 @@ function cocinerosApp() {
           // Debounce 500ms para evitar refrescos seguidos si autoRefresh está ON
           if (this.rendimientoDebounceTimer) clearTimeout(this.rendimientoDebounceTimer);
           this.rendimientoDebounceTimer = setTimeout(() => {
-            if (this.autoRefreshRendimiento && this.activeTab === 'rendimiento') {
+            if (this.activeTab !== 'rendimiento') return;
+            // Sub-tab en vivo
+            if (this.subtabRendimiento === 'enVivo' && this.autoRefreshRendimiento) {
               this.cargarRendimientoEnVivo();
+            }
+            // Sub-tab historial: refrescar si auto-refresh está activo
+            if (this.subtabRendimiento === 'historial' && this.autoRefreshRendimiento) {
+              this.cargarHistorialCocinados();
             }
           }, 500);
         });
@@ -4084,6 +4327,10 @@ function cocinerosApp() {
 
     getSegundosTranscurridos(desde) {
       if (!desde) return 0;
+      // Acceder a rendimientoTick para que Alpine recalcule esta expresión cada
+      // vez que el contador cambia. Sin esto, el x-text no se re-renderizaría.
+      // eslint-disable-next-line no-unused-expressions
+      this.rendimientoTick;
       const ms = Date.now() - new Date(desde).getTime();
       return Math.max(0, Math.floor(ms / 1000));
     },
@@ -4096,6 +4343,8 @@ function cocinerosApp() {
     },
 
     getAlertaTimer(desde, slaMinutos) {
+      // eslint-disable-next-line no-unused-expressions
+      this.rendimientoTick;
       const sla = slaMinutos || 15;
       const minutos = this.getSegundosTranscurridos(desde) / 60;
       if (minutos > sla * 1.33) return 'rojo';     // > 20 min si sla=15
@@ -4114,6 +4363,130 @@ function cocinerosApp() {
         const bN = (b.bloques?.length || b.grupos?.length || 0);
         return bN - aN;
       });
+    },
+
+    // ==================== HISTORIAL DE PLATOS COCINADOS ====================
+
+    async cargarHistorialCocinados() {
+      this.historialLoading = true;
+      try {
+        const params = new URLSearchParams();
+        if (this.historialFiltroCocinero) {
+          params.set('cocineroId', this.historialFiltroCocinero);
+        }
+        // Resolver fechas según el atajo
+        const hoy = new Date();
+        const fmt = (d) => d.toISOString().slice(0, 10);
+        let desde = this.historialFechaDesde;
+        let hasta = this.historialFechaHasta;
+        if (this.historialFiltroFecha === 'hoy') {
+          desde = fmt(hoy);
+          hasta = fmt(hoy);
+        } else if (this.historialFiltroFecha === 'ayer') {
+          const ayer = new Date(hoy.getTime() - 86400000);
+          desde = fmt(ayer);
+          hasta = fmt(ayer);
+        } else if (this.historialFiltroFecha === '7dias') {
+          const inicio = new Date(hoy.getTime() - 6 * 86400000);
+          desde = fmt(inicio);
+          hasta = fmt(hoy);
+        } else if (this.historialFiltroFecha === '30dias') {
+          const inicio = new Date(hoy.getTime() - 29 * 86400000);
+          desde = fmt(inicio);
+          hasta = fmt(hoy);
+        }
+        if (desde) params.set('desde', desde);
+        if (hasta) params.set('hasta', hasta);
+        params.set('limite', '500');
+
+        const res = await apiGet('/cocineros/rendimiento/historial?' + params.toString());
+        if (res && res.success !== false) {
+          const data = res.data || {};
+          this.historialCocinados = {
+            registros: Array.isArray(data.registros) ? data.registros : [],
+            enCursoCount: data.enCursoCount || 0,
+            resumen: data.resumen || { totalFinalizados: 0, totalEnCurso: 0, tiempoPromedioSegundos: 0, porcentajeDentroSLA: 0, porPlato: [], porCocinero: [] }
+          };
+        } else {
+          this.historialCocinados = { registros: [], enCursoCount: 0, resumen: { totalFinalizados: 0, totalEnCurso: 0, tiempoPromedioSegundos: 0, porcentajeDentroSLA: 0, porPlato: [], porCocinero: [] } };
+        }
+      } catch (error) {
+        console.error('Error al cargar historial de platos cocinados:', error);
+        this.historialCocinados = { registros: [], enCursoCount: 0, resumen: { totalFinalizados: 0, totalEnCurso: 0, tiempoPromedioSegundos: 0, porcentajeDentroSLA: 0, porPlato: [], porCocinero: [] } };
+      }
+      this.historialLoading = false;
+    },
+
+    cambiarSubtabRendimiento(sub) {
+      this.subtabRendimiento = sub;
+      if (sub === 'historial' && this.historialCocinados.registros.length === 0) {
+        this.cargarHistorialCocinados();
+      }
+    },
+
+    getHistorialRegistrosFiltrados() {
+      let lista = this.historialCocinados.registros || [];
+      if (this.historialFiltroPlato) {
+        const q = this.historialFiltroPlato.trim().toLowerCase();
+        lista = lista.filter(r => (r.platoNombre || '').toLowerCase().includes(q));
+      }
+      return lista;
+    },
+
+    formatSegundosAMinutos(segundos) {
+      const s = Math.max(0, Math.floor(segundos || 0));
+      const m = Math.floor(s / 60);
+      const rest = s % 60;
+      if (m === 0) return s + 's';
+      return m + 'm ' + (rest < 10 ? '0' : '') + rest + 's';
+    },
+
+    formatFechaCorta(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return '—';
+      const pad = (n) => (n < 10 ? '0' : '') + n;
+      return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    },
+
+    colorSLA(porcentaje) {
+      const p = porcentaje || 0;
+      if (p >= 80) return 'text-st-preparado';
+      if (p >= 60) return 'text-st-esperando';
+      return 'text-st-pagado';
+    },
+
+    colorTiempoPromedioSegundos(segundos) {
+      const m = (segundos || 0) / 60;
+      if (m <= 15) return 'text-st-preparado';
+      if (m <= 20) return 'text-st-esperando';
+      return 'text-st-pagado';
+    },
+
+    // Devuelve el tiempo en segundos para un registro (finalizado o en curso, este último recalculado en vivo)
+    getTiempoRegistroSegundos(r) {
+      // Forzar reactividad con el tick para que el timer en curso se actualice cada segundo.
+      // eslint-disable-next-line no-unused-expressions
+      this.rendimientoTick;
+      if (!r) return 0;
+      if (r.estadoRegistro === 'en_curso') {
+        if (!r.tomadoEn) return 0;
+        return Math.max(0, Math.floor((Date.now() - new Date(r.tomadoEn).getTime()) / 1000));
+      }
+      // finalizado: usar el tiempo calculado por backend
+      return Math.max(0, Math.round(r.tiempoSegundos || 0));
+    },
+
+    formatTiempoRelativo(r) {
+      const s = this.getTiempoRegistroSegundos(r);
+      return this.formatSegundosAMinutos(s);
+    },
+
+    getTiempoColor(r) {
+      const s = this.getTiempoRegistroSegundos(r);
+      if (s <= 900) return 'text-st-preparado';
+      if (s <= 1200) return 'text-st-esperando';
+      return 'text-st-pagado';
     },
 
     // ==================== VISTAS DE COCINA ====================
@@ -4229,10 +4602,60 @@ function cocinerosApp() {
       if (typeof this.formPantallaCocina.vistaCocinaId === 'object') {
         this.formPantallaCocina.vistaCocinaId = this.formPantallaCocina.vistaCocinaId?._id || '';
       }
+      if (typeof this.formPantallaCocina.cocineroId === 'object') {
+        this.formPantallaCocina.cocineroId = this.formPantallaCocina.cocineroId?._id || '';
+      }
+      if (!this.formPantallaCocina.modoVista) this.formPantallaCocina.modoVista = 'completo';
       if (!this.formPantallaCocina.configDespliegue) {
         this.formPantallaCocina.configDespliegue = { anchoVentana: 1920, altoVentana: 1080, posicionX: 0, posicionY: 0, pantallaCompleta: true };
       }
+      this.pantallaUltimoToken = '';
       this.modalPantallaCocina = true;
+    },
+
+    async generarDeviceToken(pantallaId) {
+      try {
+        const res = await fetch(`/api/pantallas-cocina/${pantallaId}/regenerar-token`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Error al generar token');
+        this.pantallaUltimoToken = data.data.deviceToken;
+        this.showToast('Token generado. Úsa la URL abajo para emparejar la TV.', 'success');
+      } catch (err) {
+        console.error('generarDeviceToken', err);
+        this.showToast('Error al generar token', 'error');
+      }
+    },
+
+    async revocarDeviceToken(pantallaId) {
+      if (!confirm('¿Revocar el token de este TV? La TV deberá ser reemparejada.')) return;
+      try {
+        const res = await fetch(`/api/pantallas-cocina/${pantallaId}/revocar-token`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Error al revocar');
+        this.pantallaUltimoToken = '';
+        this.showToast('Token revocado', 'success');
+        this.cargarPantallasCocina();
+      } catch (err) {
+        console.error('revocarDeviceToken', err);
+        this.showToast('Error al revocar token', 'error');
+      }
+    },
+
+    kioskUrl(pantalla, token) {
+      const origin = window.location.origin.replace(/:\d+$/, '');
+      const appCocinaPort = '3001';
+      const base = `${origin}:${appCocinaPort}`;
+      const num = pantalla?.numeroPantalla || this.formPantallaCocina.numeroPantalla;
+      if (!token) {
+        return `${base}/?modo=kiosk&pantalla=${num}  (URL de operación diaria)`;
+      }
+      return `${base}/?modo=kiosk&pantalla=${num}&setup=${token}  (URL de emparejamiento, una sola vez)`;
     },
 
     async guardarPantallaCocina() {
