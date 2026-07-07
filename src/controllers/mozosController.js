@@ -1,10 +1,13 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
-const { JWT_SECRET } = require("../middleware/adminAuth");
+const moment = require("moment-timezone");
+const { JWT_SECRET, adminAuth } = require("../middleware/adminAuth");
+const logger = require("../utils/logger");
 
 const router = express.Router();
 
 const { listarMozos, crearMozo, obtenerMozosPorId, actualizarMozo, borrarMozo, autenticarMozo} = require("../repository/mozos.repository");
+const mozosRendimiento = require("../repository/mozosRendimiento.repository");
 
 /** Campos que la app mozos puede editar en su propio perfil (no rol, DNI, PIN, etc.) */
 const MOZO_SELF_PROFILE_KEYS = new Set([
@@ -255,6 +258,78 @@ router.post('/mozos/push-token', async (req, res) => {
       success: false, 
       message: 'Error interno del servidor' 
     });
+  }
+});
+
+// ==================== RENDIMIENTO DE MOZOS ====================
+// GET /api/mozos/rendimiento/en-vivo — snapshot de comandas activas en salón
+router.get('/mozos/rendimiento/en-vivo', adminAuth, async (req, res) => {
+  try {
+    const tieneReportes = req.admin?.permisos?.includes('ver-reportes') || req.admin?.rol === 'admin' || req.admin?.rol === 'supervisor' || req.admin?.permisos?.includes('ver-mozos');
+    if (!tieneReportes) {
+      return res.status(403).json({ success: false, error: 'No tiene permisos para ver el rendimiento en vivo de mozos' });
+    }
+    const mozoId = req.query.mozoId || null;
+    const data = await mozosRendimiento.obtenerRendimientoEnVivo({ mozoId });
+    res.json({ success: true, data, actualizadoEn: new Date().toISOString() });
+  } catch (error) {
+    logger.error('Error al obtener rendimiento en vivo de mozos', { error: error.message });
+    res.status(500).json({ success: false, error: 'Error al obtener rendimiento en vivo' });
+  }
+});
+
+// GET /api/mozos/rendimiento/resumen-turno — KPIs agregados del día
+router.get('/mozos/rendimiento/resumen-turno', adminAuth, async (req, res) => {
+  try {
+    const tieneReportes = req.admin?.permisos?.includes('ver-reportes') || req.admin?.rol === 'admin' || req.admin?.rol === 'supervisor' || req.admin?.permisos?.includes('ver-mozos');
+    if (!tieneReportes) {
+      return res.status(403).json({ success: false, error: 'No tiene permisos para ver el resumen de turno de mozos' });
+    }
+    const fechaInicio = req.query.desde ? moment(req.query.desde).startOf('day').toDate() : moment().startOf('day').toDate();
+    const fechaFin = req.query.hasta ? moment(req.query.hasta).endOf('day').toDate() : moment().endOf('day').toDate();
+    const resumen = await mozosRendimiento.obtenerResumenTurnoMozos({ fechaInicio, fechaFin });
+    res.json({ success: true, data: resumen });
+  } catch (error) {
+    logger.error('Error al obtener resumen de turno de mozos', { error: error.message });
+    res.status(500).json({ success: false, error: 'Error al obtener resumen de turno' });
+  }
+});
+
+// GET /api/mozos/rendimiento/historial — registro de comandas atendidas (una fila por comanda)
+router.get('/mozos/rendimiento/historial', adminAuth, async (req, res) => {
+  try {
+    const tieneReportes = req.admin?.permisos?.includes('ver-reportes') || req.admin?.rol === 'admin' || req.admin?.rol === 'supervisor' || req.admin?.permisos?.includes('ver-mozos');
+    if (!tieneReportes) {
+      return res.status(403).json({ success: false, error: 'No tiene permisos para ver el historial de comandas de mozos' });
+    }
+
+    const { desde, hasta } = req.query;
+    const fechaInicio = desde ? moment(desde).startOf('day').toDate() : moment().startOf('day').toDate();
+    const fechaFin = hasta ? moment(hasta).endOf('day').toDate() : moment().endOf('day').toDate();
+
+    let mozoId = null;
+    // Si no es admin/supervisor con reportes, limitar a sus propias comandas
+    const tieneFull = req.admin?.permisos?.includes('ver-reportes') || req.admin?.rol === 'admin' || req.admin?.rol === 'supervisor';
+    if (!tieneFull && req.admin?.id) {
+      mozoId = req.admin.id;
+    }
+    if (req.query.mozoId && tieneFull) {
+      mozoId = req.query.mozoId;
+    }
+
+    const limite = Math.min(Math.max(parseInt(req.query.limite, 10) || 500, 1), 1000);
+    const resultado = await mozosRendimiento.obtenerHistorialComandasMozos({ mozoId, fechaInicio, fechaFin, limite });
+
+    res.json({
+      success: true,
+      data: {
+        periodo: { desde: fechaInicio, hasta: fechaFin },
+        ...resultado
+      }
+    });
+  } catch (error) {
+    logger.error('Error al obtener historial de comandas de mozos', { error: error.message });
+    res.status(500).json({ success: false, error: 'Error al obtener historial de comandas' });
   }
 });
 

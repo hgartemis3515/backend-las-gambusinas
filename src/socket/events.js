@@ -378,6 +378,17 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       socket.leave('dashboard-cocineros');
     });
 
+    socket.on('join-dashboard-mozos', () => {
+      const roomName = 'dashboard-mozos';
+      socket.join(roomName);
+      logger.debug('Socket admin se unió a room dashboard-mozos', { socketId: socket.id, roomName });
+      socket.emit('joined-dashboard-mozos', { roomName });
+    });
+
+    socket.on('leave-dashboard-mozos', () => {
+      socket.leave('dashboard-mozos');
+    });
+
     // Manejo de errores de conexión
     socket.on('error', (error) => {
       logger.error('Error en socket admin', { socketId: socket.id, error: error.message });
@@ -2961,6 +2972,32 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       });
     } catch (error) {
       logger.error('Error al emitir rendimiento-cocinero-actualizado', { error: error.message });
+    }
+  };
+
+  /**
+   * Emitir actualización de rendimiento de mozos (panel en vivo + registro de platos).
+   * Room: dashboard-mozos en el namespace /admin.
+   */
+  global.emitRendimientoMozoActualizado = (payload = {}) => {
+    try {
+      if (!adminNamespace || !adminNamespace.sockets || adminNamespace.sockets.size === 0) return;
+
+      const eventData = {
+        ...payload,
+        timestamp: new Date().toISOString(),
+      };
+
+      adminNamespace.to('dashboard-mozos').emit('rendimiento-mozo-actualizado', eventData);
+
+      logger.debug('Evento rendimiento-mozo-actualizado emitido', {
+        tipo: payload.tipo,
+        mozoId: payload.mozoId,
+        room: 'dashboard-mozos',
+        adminsInRoom: adminNamespace.adapter?.rooms?.get?.('dashboard-mozos')?.size || 0,
+      });
+    } catch (error) {
+      logger.error('Error al emitir rendimiento-mozo-actualizado', { error: error.message });
     }
   };
 

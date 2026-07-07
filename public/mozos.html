@@ -831,6 +831,28 @@ tailwind.config = {
     <!-- Sección Rendimiento -->
     <section x-show="activeSection === 'rendimiento'" class="space-y-4 mb-10" aria-label="Rendimiento">
       <h2 class="text-sm font-bold uppercase tracking-wider text-txt-muted">Rendimiento del equipo</h2>
+
+      <!-- Sub-tabs de rendimiento (Comercial / En vivo / Registro) -->
+      <div class="flex gap-1 bg-bg-card rounded-lg p-1 border border-[rgba(212,175,55,0.15)] w-fit text-xs">
+        <button type="button" @click="cambiarSubtabRendimientoMozos('comercial')"
+          class="px-3 py-1.5 rounded-md font-medium transition"
+          :class="subtabRendimientoMozos === 'comercial' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
+          📈 Comercial
+        </button>
+        <button type="button" @click="cambiarSubtabRendimientoMozos('enVivo')"
+          class="px-3 py-1.5 rounded-md font-medium transition"
+          :class="subtabRendimientoMozos === 'enVivo' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
+          ⚡ En vivo
+        </button>
+        <button type="button" @click="cambiarSubtabRendimientoMozos('historial')"
+          class="px-3 py-1.5 rounded-md font-medium transition"
+          :class="subtabRendimientoMozos === 'historial' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
+          📋 Registro de platos
+        </button>
+      </div>
+
+      <!-- ===== Sub-tab COMERCIAL (contenido actual) ===== -->
+      <div x-show="subtabRendimientoMozos === 'comercial' || subtabRendimientoMozos === ''" class="space-y-4">
       <p class="text-xs text-txt-muted -mt-2">Indicadores operativos de ventas y evolución temporal. Clic en gráficos de barras resalta al mozo en Principal. Las series por hora usan pagos de bouchers (Lima); el heatmap muestra mesas distintas atendidas por mozo y hora.</p>
 
       <!-- KPI Cards Rendimiento -->
@@ -1012,7 +1034,208 @@ tailwind.config = {
           </div>
         </div>
       </div>
+
+    </div>
+      <!-- ===== FIN Sub-tab COMERCIAL ===== -->
+
+      <!-- ===== Sub-tab EN VIVO ===== -->
+      <div x-show="subtabRendimientoMozos === 'enVivo'" class="space-y-4" x-cloak>
+        <!-- KPIs turno -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="mozos-kpi-card rounded-2xl p-4">
+            <p class="text-[10px] uppercase text-txt-muted">Pendientes (salió)</p>
+            <p class="text-2xl font-bold text-st-preparado mt-1" x-text="rendimientoMozosEnVivo.pendientesSalio || 0"></p>
+          </div>
+          <div class="mozos-kpi-card rounded-2xl p-4">
+            <p class="text-[10px] uppercase text-txt-muted">Aviso recoger</p>
+            <p class="text-2xl font-bold text-st-esperando mt-1" x-text="rendimientoMozosEnVivo.pendientesRecoger || 0"></p>
+          </div>
+          <div class="mozos-kpi-card rounded-2xl p-4">
+            <p class="text-[10px] uppercase text-txt-muted">Entregados hoy</p>
+            <p class="text-2xl font-bold text-st-libre mt-1" x-text="resumenTurnoMozos.platosEntregados || 0"></p>
+          </div>
+          <div class="mozos-kpi-card rounded-2xl p-4">
+            <p class="text-[10px] uppercase text-txt-muted">Mozos activos</p>
+            <p class="text-2xl font-bold text-gold mt-1" x-text="resumenTurnoMozos.mozosActivos || 0"></p>
+          </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="mozos-kpi-card rounded-2xl p-3 flex flex-wrap items-center gap-3">
+          <select x-model="filtroMozoRendimiento" @change="cargarRendimientoMozosEnVivo()"
+            class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+            <option value="">Todos los mozos</option>
+            <template x-for="m in mozos" :key="m._id">
+              <option :value="m._id" x-text="m.name || m.nombres"></option>
+            </template>
+          </select>
+          <button type="button" @click="autoRefreshRendimientoMozo = !autoRefreshRendimientoMozo"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition"
+            :class="autoRefreshRendimientoMozo ? 'bg-st-preparado/20 text-st-preparado' : 'bg-bg-sidebar text-txt-muted'">
+            <span class="w-2 h-2 rounded-full" :class="autoRefreshRendimientoMozo ? 'bg-st-preparado animate-pulse' : 'bg-txt-muted'"></span>
+            Auto-actualizar
+          </button>
+          <button type="button" @click="cargarRendimientoMozosEnVivo()" class="px-3 py-2 bg-gold/20 text-gold rounded-lg text-xs font-medium hover:bg-gold/30 transition">🔄 Actualizar</button>
+          <span class="text-[10px] text-txt-muted" x-show="rendimientoMozoSocketConnected">● En vivo</span>
+        </div>
+
+        <!-- Loading -->
+        <div x-show="rendimientoMozoLoading" class="flex items-center justify-center h-32 mozos-kpi-card rounded-2xl">
+          <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+        </div>
+
+        <!-- Lista de mozos con comandas activas -->
+        <div x-show="!rendimientoMozoLoading" class="space-y-3">
+          <div x-show="getMozosRendimientoFiltrados().length === 0" class="mozos-kpi-card rounded-2xl p-8 text-center">
+            <div class="text-4xl mb-2">⚡</div>
+            <p class="text-txt-muted text-sm">Sin comandas activas en salón.</p>
+          </div>
+          <template x-for="mzo in getMozosRendimientoFiltrados()" :key="mzo.mozoId">
+            <div class="mozos-kpi-card rounded-2xl p-4 space-y-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-gold font-semibold" x-text="mzo.mozoNombre || 'Mozo'"></p>
+                  <p class="text-[10px] text-txt-muted" x-text="(mzo.comandas?.length || 0) + ' comanda(s) activa(s)'"></p>
+                </div>
+              </div>
+              <template x-for="c in (mzo.comandas || [])" :key="c.comandaId">
+                <div class="bg-bg-sidebar rounded-lg p-3">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                      <span class="font-bold text-white text-sm" x-text="'#' + (c.comandaNumber || '—')"></span>
+                      <span class="bg-st-libre/20 text-st-libre text-xs px-2 py-0.5 rounded" x-text="'M' + (c.mesaNum || '?')"></span>
+                      <span class="text-[10px] text-txt-muted" x-text="(c.platosEntregados || 0) + '/' + (c.platosTotal || 0) + ' entregados'"></span>
+                    </div>
+                    <button type="button" @click="openComandaMozoModal(c.comandaId)" class="text-xs px-2 py-1 bg-gold/20 text-gold rounded hover:bg-gold/30 transition">Ver completo</button>
+                  </div>
+                  <div class="flex flex-wrap gap-1">
+                    <template x-for="p in (c.platos || []).slice(0, 6)" :key="p.platoSubdocId">
+                      <span class="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                        :class="estadoPlatoBadgeClase(p.estado)"
+                        x-text="(p.platoNombre || 'Plato').slice(0, 18) + ' [' + estadoPlatoLabel(p.estado) + ']'"></span>
+                    </template>
+                    <span x-show="(c.platos || []).length > 6" class="text-[10px] text-txt-muted self-center" x-text="'+' + ((c.platos || []).length - 6) + ' más'"></span>
+                  </div>
+                  <div class="flex items-center gap-3 mt-2 text-[10px] text-txt-muted">
+                    <span>T. cocina: <span class="font-mono text-white" x-text="formatDuracionSegundos(c.tiempoCocinaSegundos)"></span></span>
+                    <span>T. mozo: <span class="font-mono text-white" x-text="formatDuracionSegundos(c.tiempoMozoSegundos)"></span></span>
+                    <span>Δ: <span class="font-mono" :class="colorDiferencia(c.diferenciaSegundos)" x-text="formatDuracionConSigno(c.diferenciaSegundos)"></span></span>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </div>
+      <!-- ===== FIN Sub-tab EN VIVO ===== -->
+
+      <!-- ===== Sub-tab REGISTRO DE PLATOS (tabla por comanda) ===== -->
+      <div x-show="subtabRendimientoMozos === 'historial'" class="space-y-4" x-cloak>
+        <!-- KPIs -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div class="mozos-kpi-card rounded-2xl p-4">
+            <p class="text-[10px] uppercase text-txt-muted">Pendientes</p>
+            <p class="text-2xl font-bold text-st-esperando mt-1" x-text="historialMozos.pendientesCount || 0"></p>
+          </div>
+          <div class="mozos-kpi-card rounded-2xl p-4">
+            <p class="text-[10px] uppercase text-txt-muted">Comandas</p>
+            <p class="text-2xl font-bold text-gold mt-1" x-text="historialMozos.resumen?.totalComandas || 0"></p>
+          </div>
+          <div class="mozos-kpi-card rounded-2xl p-4">
+            <p class="text-[10px] uppercase text-txt-muted">Platos entregados</p>
+            <p class="text-2xl font-bold text-st-libre mt-1" x-text="historialMozos.resumen?.totalPlatosEntregados || 0"></p>
+          </div>
+          <div class="mozos-kpi-card rounded-2xl p-4">
+            <p class="text-[10px] uppercase text-txt-muted">T. mozo prom.</p>
+            <p class="text-2xl font-bold mt-1" :class="colorTiempoMozo(historialMozos.resumen?.tiempoPromedioMozoSegundos)" x-text="formatDuracionSegundos(historialMozos.resumen?.tiempoPromedioMozoSegundos)"></p>
+          </div>
+          <div class="mozos-kpi-card rounded-2xl p-4">
+            <p class="text-[10px] uppercase text-txt-muted">% SLA (≤5m)</p>
+            <p class="text-2xl font-bold mt-1" :class="(historialMozos.resumen?.porcentajeDentroSLA || 0) >= 80 ? 'text-st-preparado' : 'text-st-esperando'" x-text="(historialMozos.resumen?.porcentajeDentroSLA || 0) + '%'"></p>
+          </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="mozos-kpi-card rounded-2xl p-3 flex flex-wrap items-center gap-3">
+          <select x-model="historialMozoFiltroMozo" @change="cargarHistorialMozos()"
+            class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+            <option value="">Todos los mozos</option>
+            <template x-for="m in mozos" :key="m._id">
+              <option :value="m._id" x-text="m.name || m.nombres"></option>
+            </template>
+          </select>
+          <select x-model="historialMozoFiltroFecha" @change="cargarHistorialMozos()"
+            class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+            <option value="hoy">Hoy</option>
+            <option value="ayer">Ayer</option>
+            <option value="7dias">Últimos 7 días</option>
+            <option value="30dias">Últimos 30 días</option>
+            <option value="personalizado">Personalizado</option>
+          </select>
+          <input type="text" x-model="historialMozoFiltroPlato" placeholder="🔎 Filtrar por plato..."
+            class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none flex-1 min-w-[160px]">
+          <button type="button" @click="cargarHistorialMozos()" class="px-3 py-2 bg-gold/20 text-gold rounded-lg text-xs font-medium hover:bg-gold/30 transition">🔄 Actualizar</button>
+        </div>
+
+        <!-- Loading -->
+        <div x-show="historialMozoLoading" class="flex items-center justify-center h-32 mozos-kpi-card rounded-2xl">
+          <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+        </div>
+
+        <!-- Tabla por comanda -->
+        <div x-show="!historialMozoLoading" class="mozos-kpi-card rounded-2xl overflow-x-auto">
+          <div x-show="getHistorialComandasFiltradas().length === 0" class="p-8 text-center text-txt-muted text-sm">Sin comandas para los filtros seleccionados.</div>
+          <table x-show="getHistorialComandasFiltradas().length > 0" class="w-full text-sm">
+            <thead class="bg-bg-sidebar text-[10px] uppercase text-txt-muted">
+              <tr>
+                <th class="text-left py-3 px-3 font-medium">Estado</th>
+                <th class="text-left py-3 px-3 font-medium">Mozo</th>
+                <th class="text-left py-3 px-3 font-medium">Comanda</th>
+                <th class="text-left py-3 px-3 font-medium">Mesa</th>
+                <th class="text-left py-3 px-3 font-medium">Platos (todos)</th>
+                <th class="text-right py-3 px-3 font-medium">T. cocina</th>
+                <th class="text-right py-3 px-3 font-medium">T. mozo</th>
+                <th class="text-right py-3 px-3 font-medium">Δ vs cocina</th>
+                <th class="text-center py-3 px-3 font-medium">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="c in getHistorialComandasFiltradas()" :key="c.comandaId">
+                <tr class="border-t border-[rgba(212,175,55,0.08)] hover:bg-bg-sidebar/40">
+                  <td class="py-2.5 px-3">
+                    <span class="text-[10px] px-2 py-0.5 rounded font-bold" :class="estadoComandaBadge(c).clase" x-text="estadoComandaBadge(c).texto"></span>
+                  </td>
+                  <td class="py-2.5 px-3 font-medium text-white" x-text="c.mozoNombre || '—'"></td>
+                  <td class="py-2.5 px-3 text-txt-secondary" x-text="'#' + (c.comandaNumber || '—')"></td>
+                  <td class="py-2.5 px-3">
+                    <span x-show="c.mesaNum" class="bg-st-libre/20 text-st-libre text-xs px-2 py-0.5 rounded" x-text="'M' + c.mesaNum"></span>
+                    <span x-show="!c.mesaNum" class="text-txt-muted text-xs">—</span>
+                  </td>
+                  <td class="py-2.5 px-3">
+                    <div class="flex flex-wrap gap-1 max-w-[320px]">
+                      <template x-for="p in (c.platos || []).slice(0, 4)" :key="p.platoSubdocId">
+                        <span class="text-[10px] px-1.5 py-0.5 rounded font-medium" :class="estadoPlatoBadgeClase(p.estado)" x-text="(p.platoNombre || 'Plato').slice(0, 16) + ' [' + estadoPlatoLabel(p.estado) + ']'"></span>
+                      </template>
+                      <span x-show="(c.platos || []).length > 4" class="text-[10px] text-txt-muted self-center" x-text="'+' + ((c.platos || []).length - 4)"></span>
+                    </div>
+                    <p class="text-[9px] text-txt-muted mt-0.5" x-text="(c.platosEntregados || 0) + '/' + (c.platosTotal || 0) + ' entregados'"></p>
+                  </td>
+                  <td class="py-2.5 px-3 text-right font-mono text-xs" x-text="formatDuracionSegundos(c.tiempoCocinaSegundos)"></td>
+                  <td class="py-2.5 px-3 text-right font-mono text-xs" :class="colorTiempoMozo(c.tiempoMozoSegundos)" x-text="formatDuracionSegundos(c.tiempoMozoSegundos)"></td>
+                  <td class="py-2.5 px-3 text-right font-mono text-xs font-bold" :class="colorDiferencia(c.diferenciaSegundos)" x-text="formatDuracionConSigno(c.diferenciaSegundos)"></td>
+                  <td class="py-2.5 px-3 text-center">
+                    <button type="button" @click="openComandaMozoModal(c.comandaId)" class="text-xs px-2 py-1 bg-gold/20 text-gold rounded hover:bg-gold/30 transition">Ver completo</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <!-- ===== FIN Sub-tab REGISTRO DE PLATOS ===== -->
+
     </section>
+    <!-- FIN Sección Rendimiento -->
 
     <!-- Sección Metas de Mozos -->
     <section x-show="activeSection === 'propinas'" class="space-y-5 mb-10" aria-label="Metas de Mozos">
@@ -2813,6 +3036,34 @@ function mozosExecutiveApp() {
     metaMozoSeleccionada: null,
     metasConfiguradas: [],
     historialMetas: [],
+    // ==================== RENDIMIENTO OPERATIVO MOZOS ====================
+    subtabRendimientoMozos: 'comercial', // 'comercial' | 'enVivo' | 'historial'
+    // En vivo
+    rendimientoMozosEnVivo: { mozos: [], pendientesSalio: 0, pendientesRecoger: 0, cocinerosActivos: 0 },
+    resumenTurnoMozos: {},
+    rendimientoMozoLoading: false,
+    filtroMozoRendimiento: '',
+    autoRefreshRendimientoMozo: true,
+    rendimientoMozoTick: 0,
+    rendimientoMozoTimerInterval: null,
+    rendimientoMozoSocketConnected: false,
+    // Historial / registro (por comanda)
+    historialMozos: {
+      comandas: [],
+      pendientesCount: 0,
+      resumen: { totalComandas: 0, totalPlatosEntregados: 0, tiempoPromedioMozoSegundos: 0, tiempoPromedioDiferenciaSegundos: 0, porcentajeDentroSLA: 0, porMozo: [] }
+    },
+    historialMozoFiltroPlato: '',
+    historialMozoFiltroFecha: 'hoy',
+    historialMozoFechaDesde: '',
+    historialMozoFechaHasta: '',
+    historialMozoFiltroMozo: '',
+    historialMozoVista: 'detalle',
+    historialMozoLoading: false,
+    // Modal Ver completo
+    modalComandaMozo: null,
+    selectedComandaMozo: null,
+    loadingComandaMozo: false,
     // Modal Historial de Metas por Mozo
     showModalHistorialMeta: false,
     mozoHistorialSeleccionado: null,
@@ -3267,6 +3518,10 @@ function mozosExecutiveApp() {
       if (this.activeSection === 'propinas') {
         queueMicrotask(() => { this.updateMetasChart(); if (window.lucide) window.lucide.createIcons(); });
       }
+      if (this.activeSection === 'rendimiento') {
+        if (this.subtabRendimientoMozos === 'enVivo') this.cargarRendimientoMozosEnVivo();
+        else if (this.subtabRendimientoMozos === 'historial') this.cargarHistorialMozos();
+      }
     },
     seleccionarMozo(m) {
       const id = this.idMozoStr(m);
@@ -3301,6 +3556,289 @@ function mozosExecutiveApp() {
     setRendimientoHorario(vista) {
       this.rendimientoHorarioVista = vista === 'medio' || vista === 'noche' ? vista : 'full';
       queueMicrotask(() => this.updateCharts());
+    },
+
+    // ==================== RENDIMIENTO OPERATIVO MOZOS ====================
+    cambiarSubtabRendimientoMozos(sub) {
+      this.subtabRendimientoMozos = sub;
+      if (sub === 'enVivo') {
+        this.cargarRendimientoMozosEnVivo();
+        this.startRendimientoMozoTick();
+      } else {
+        this.stopRendimientoMozoTick();
+        if (sub === 'historial' && this.historialMozos.comandas.length === 0) {
+          this.cargarHistorialMozos();
+        }
+      }
+    },
+
+    async cargarRendimientoMozosEnVivo() {
+      this.rendimientoMozoLoading = true;
+      try {
+        const q = this.filtroMozoRendimiento ? ('?mozoId=' + encodeURIComponent(this.filtroMozoRendimiento)) : '';
+        const res = await apiGet('/mozos/rendimiento/en-vivo' + q);
+        if (res && res.success) {
+          this.rendimientoMozosEnVivo = res.data || { mozos: [], pendientesSalio: 0, pendientesRecoger: 0, cocinerosActivos: 0 };
+        }
+        const resumen = await apiGet('/mozos/rendimiento/resumen-turno');
+        if (resumen && resumen.success) this.resumenTurnoMozos = resumen.data || {};
+        this.initSocketRendimientoMozo();
+      } catch (e) {
+        console.error('Error cargarRendimientoMozosEnVivo', e);
+        this.rendimientoMozosEnVivo = { mozos: [], pendientesSalio: 0, pendientesRecoger: 0, cocinerosActivos: 0 };
+      }
+      this.rendimientoMozoLoading = false;
+    },
+
+    getMozosRendimientoFiltrados() {
+      const lista = this.rendimientoMozosEnVivo?.mozos || [];
+      if (!this.filtroMozoRendimiento) return lista;
+      return lista.filter(m => String(m.mozoId) === String(this.filtroMozoRendimiento));
+    },
+
+    startRendimientoMozoTick() {
+      if (this.rendimientoMozoTimerInterval) return;
+      this.rendimientoMozoTimerInterval = setInterval(() => this.rendimientoMozoTick++, 1000);
+    },
+    stopRendimientoMozoTick() {
+      if (this.rendimientoMozoTimerInterval) { clearInterval(this.rendimientoMozoTimerInterval); this.rendimientoMozoTimerInterval = null; }
+    },
+
+    initSocketRendimientoMozo() {
+      try {
+        const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+        if (!token || typeof io === 'undefined') return;
+        // Reutilizar el socket admin existente si está disponible
+        if (this._socketAdmin && this.rendimientoMozoSocketConnected) return;
+        const socket = this._socketAdmin || io('/admin', { auth: { token } });
+        this._socketAdmin = socket;
+        socket.on('connect', () => {
+          this.rendimientoMozoSocketConnected = true;
+          socket.emit('join-dashboard-mozos');
+        });
+        if (socket.connected) { this.rendimientoMozoSocketConnected = true; socket.emit('join-dashboard-mozos'); }
+        let debounceRz = null;
+        socket.on('rendimiento-mozo-actualizado', () => {
+          if (!this.autoRefreshRendimientoMozo) return;
+          if (debounceRz) clearTimeout(debounceRz);
+          debounceRz = setTimeout(() => {
+            if (this.subtabRendimientoMozos === 'enVivo') this.cargarRendimientoMozosEnVivo();
+            if (this.subtabRendimientoMozos === 'historial') this.cargarHistorialMozos();
+            // Si el modal está abierto, refrescar detalle también
+            if (this.modalComandaMozo === 'verComanda' && this.selectedComandaMozo?._id) {
+              this.loadComandaDetalleMozo(this.selectedComandaMozo._id);
+            }
+          }, 500);
+        });
+      } catch (e) { console.warn('initSocketRendimientoMozo', e); }
+    },
+
+    async cargarHistorialMozos() {
+      this.historialMozoLoading = true;
+      try {
+        const params = new URLSearchParams();
+        if (this.historialMozoFiltroMozo) params.set('mozoId', this.historialMozoFiltroMozo);
+        const hoy = new Date();
+        const fmt = (d) => d.toISOString().slice(0, 10);
+        let desde = this.historialMozoFechaDesde;
+        let hasta = this.historialMozoFechaHasta;
+        if (this.historialMozoFiltroFecha === 'hoy') { desde = fmt(hoy); hasta = fmt(hoy); }
+        else if (this.historialMozoFiltroFecha === 'ayer') { const ayer = new Date(hoy.getTime() - 86400000); desde = fmt(ayer); hasta = fmt(ayer); }
+        else if (this.historialMozoFiltroFecha === '7dias') { const inicio = new Date(hoy.getTime() - 6 * 86400000); desde = fmt(inicio); hasta = fmt(hoy); }
+        else if (this.historialMozoFiltroFecha === '30dias') { const inicio = new Date(hoy.getTime() - 29 * 86400000); desde = fmt(inicio); hasta = fmt(hoy); }
+        if (desde) params.set('desde', desde);
+        if (hasta) params.set('hasta', hasta);
+        params.set('limite', '500');
+        const res = await apiGet('/mozos/rendimiento/historial?' + params.toString());
+        if (res && res.success) {
+          const data = res.data || {};
+          this.historialMozos = {
+            comandas: Array.isArray(data.comandas) ? data.comandas : [],
+            pendientesCount: data.pendientesCount || 0,
+            resumen: data.resumen || { totalComandas: 0, totalPlatosEntregados: 0, tiempoPromedioMozoSegundos: 0, tiempoPromedioDiferenciaSegundos: 0, porcentajeDentroSLA: 0, porMozo: [] }
+          };
+        } else {
+          this.historialMozos = { comandas: [], pendientesCount: 0, resumen: { totalComandas: 0, totalPlatosEntregados: 0, tiempoPromedioMozoSegundos: 0, tiempoPromedioDiferenciaSegundos: 0, porcentajeDentroSLA: 0, porMozo: [] } };
+        }
+      } catch (e) {
+        console.error('Error cargarHistorialMozos', e);
+        this.historialMozos = { comandas: [], pendientesCount: 0, resumen: { totalComandas: 0, totalPlatosEntregados: 0, tiempoPromedioMozoSegundos: 0, tiempoPromedioDiferenciaSegundos: 0, porcentajeDentroSLA: 0, porMozo: [] } };
+      }
+      this.historialMozoLoading = false;
+    },
+
+    getHistorialComandasFiltradas() {
+      let lista = this.historialMozos.comandas || [];
+      if (this.historialMozoFiltroPlato) {
+        const q = this.historialMozoFiltroPlato.trim().toLowerCase();
+        lista = lista.filter(c => (c.platos || []).some(p => (p.platoNombre || '').toLowerCase().includes(q)));
+      }
+      return lista;
+    },
+
+    // ===== Helpers de formato y métricas =====
+    formatDuracionSegundos(seg) {
+      if (seg == null) return '—';
+      const s = Math.max(0, Math.floor(seg));
+      const m = Math.floor(s / 60);
+      const rest = s % 60;
+      if (m <= 0) return rest + 's';
+      return m + 'm ' + String(rest).padStart(2, '0') + 's';
+    },
+    formatDuracionConSigno(seg) {
+      if (seg == null) return '—';
+      const signo = seg > 0 ? '+' : '';
+      return signo + this.formatDuracionSegundos(Math.abs(seg));
+    },
+    colorTiempoMozo(seg) {
+      if (seg == null) return 'text-txt-muted';
+      if (seg <= 5 * 60) return 'text-st-preparado';
+      if (seg <= 8 * 60) return 'text-st-esperando';
+      return 'text-st-pagado';
+    },
+    colorDiferencia(seg) {
+      if (seg == null) return 'text-txt-muted';
+      if (seg <= 0) return 'text-st-preparado';
+      if (seg <= 2 * 60) return 'text-st-esperando';
+      return 'text-st-pagado';
+    },
+    estadoComandaBadge(c) {
+      if (!c) return { texto: '—', clase: 'bg-txt-muted/20 text-txt-muted' };
+      const r = c.resumenEstados || {};
+      const total = c.platosTotal || 0;
+      const entregados = c.platosEntregados || 0;
+      if (entregados >= total && total > 0) return { texto: 'COMPLETADA', clase: 'bg-st-preparado/20 text-st-preparado' };
+      if (r.salio > 0 || entregados > 0) return { texto: 'ENTREGANDO', clase: 'bg-st-pedido/20 text-st-pedido' };
+      if (r.recoger > 0) return { texto: 'EN PASS', clase: 'bg-st-esperando/20 text-st-esperando' };
+      return { texto: 'EN CURSO', clase: 'bg-gold/20 text-gold' };
+    },
+    estadoPlatoBadgeClase(estado) {
+      const map = {
+        pendiente: 'bg-txt-muted/20 text-txt-muted',
+        pedido: 'bg-st-pedido/20 text-st-pedido',
+        en_espera: 'bg-st-esperando/20 text-st-esperando',
+        recoger: 'bg-st-esperando/20 text-st-esperando',
+        salio: 'bg-st-preparado/20 text-st-preparado',
+        entregado: 'bg-st-libre/20 text-st-libre',
+        pagado: 'bg-[#00d4aa]/20 text-[#00d4aa]'
+      };
+      return map[estado] || 'bg-txt-muted/20 text-txt-muted';
+    },
+    estadoPlatoLabel(estado) {
+      const map = { pendiente: 'Pendiente', pedido: 'Pedido', en_espera: 'En espera', recoger: 'Recoger', salio: 'Salió', entregado: 'Entregado', pagado: 'Pagado' };
+      return map[estado] || estado || '—';
+    },
+    platosChipsComanda(c) {
+      // Devuelve hasta 4 chips resumen de platos; el resto como "+N"
+      const platos = (c.platos || []).slice(0, 4);
+      const extra = (c.platos || []).length - 4;
+      return { platos, extra };
+    },
+
+    // ===== Modal Ver completo =====
+    async openComandaMozoModal(comandaId) {
+      if (!comandaId) { this.showToast('ID de comanda no válido', 'error'); return; }
+      this.modalComandaMozo = 'verComanda';
+      this.loadingComandaMozo = true;
+      this.selectedComandaMozo = null;
+      await this.loadComandaDetalleMozo(comandaId);
+      this.loadingComandaMozo = false;
+      if (!this.selectedComandaMozo) this.modalComandaMozo = null;
+    },
+    async loadComandaDetalleMozo(comandaId) {
+      try {
+        const data = await apiGet('/comanda/' + comandaId);
+        if (!data) throw new Error('No se recibieron datos');
+        if (data.error) throw new Error(data.error);
+        this.selectedComandaMozo = this.normalizarComandaMozo(data);
+        this.recalcularMetricasComandaMozo();
+      } catch (error) {
+        console.error('Error cargando detalle de comanda (mozo):', error);
+        this.showToast('Error al cargar comanda: ' + error.message, 'error');
+        this.selectedComandaMozo = null;
+      }
+    },
+    normalizarComandaMozo(c) {
+      if (!c) return null;
+      const platos = (c.platos || []).map(p => ({
+        ...p,
+        nombre: p.nombre || p.plato?.nombre || p.platoNombre || 'Plato',
+        estado: p.estado || 'pedido',
+        tiempos: p.tiempos || {},
+        procesadoPor: p.procesadoPor || null,
+        procesandoPor: p.procesandoPor || null,
+        entregadoPor: p.entregadoPor || null
+      }));
+      return {
+        ...c,
+        _id: c._id || c.id,
+        numComanda: c.numComanda || c.comandaNumber || c._id?.slice(-4),
+        estado: c.status || c.estado || c.statusComanda || '—',
+        mesa: c.mesa || c.mesaInfo || c.mesas || null,
+        mozo: c.mozo || c.mozoNombre || (c.mozos?.name) || '—',
+        items: platos,
+        createdAt: c.createdAt,
+        tiempoEnEspera: c.tiempoEnEspera || (platos.find(p => p.tiempos?.en_espera)?.tiempos?.en_espera) || null,
+        tiempoRecoger: c.tiempoRecoger || (platos.find(p => p.tiempos?.recoger)?.tiempos?.recoger) || null,
+        tiempoSalio: c.tiempoSalio || (platos.find(p => p.tiempos?.salio)?.tiempos?.salio) || null,
+        tiempoEntregado: c.tiempoEntregado || (platos.find(p => p.tiempos?.entregado)?.tiempos?.entregado) || null,
+        tiempoPagado: c.tiempoPagado || (platos.find(p => p.tiempos?.pagado)?.tiempos?.pagado) || null,
+        observaciones: c.observaciones || ''
+      };
+    },
+    recalcularMetricasComandaMozo() {
+      const c = this.selectedComandaMozo;
+      if (!c) { this.metricasComandaMozo = {}; return; }
+      const platos = (c.items || []).filter(p => !p.eliminado && !p.anulado);
+      const ahora = new Date();
+      let inicioCocina = null, finCocina = null, inicioMozo = null, finMozo = null, entregados = 0;
+      const resumen = { pendiente: 0, pedido: 0, en_espera: 0, recoger: 0, salio: 0, entregado: 0, pagado: 0 };
+      for (const p of platos) {
+        const t = p.tiempos || {};
+        const ini = t.en_espera || t.pedido;
+        if (ini) { if (!inicioCocina || new Date(ini) < new Date(inicioCocina)) inicioCocina = ini; }
+        if (t.recoger) { if (!finCocina || new Date(t.recoger) > new Date(finCocina)) finCocina = t.recoger; }
+        if (t.salio) { if (!inicioMozo || new Date(t.salio) < new Date(inicioMozo)) inicioMozo = t.salio; }
+        if (t.entregado) { if (!finMozo || new Date(t.entregado) > new Date(finMozo)) finMozo = t.entregado; entregados++; }
+        else if (t.salio) { if (!finMozo || ahora > new Date(finMozo)) finMozo = ahora; }
+        const e = p.estado || 'pedido';
+        if (resumen[e] != null) resumen[e]++; else resumen[e] = 1;
+      }
+      const diff = (a, b) => a && b ? Math.max(0, Math.round((new Date(b) - new Date(a)) / 1000)) : null;
+      const tiempoCocina = diff(inicioCocina, finCocina);
+      const tiempoMozo = diff(inicioMozo, finMozo);
+      const diferencia = (tiempoCocina != null && tiempoMozo != null) ? (tiempoMozo - tiempoCocina) : null;
+      this.metricasComandaMozo = {
+        tiempoCocinaSegundos: tiempoCocina,
+        tiempoMozoSegundos: tiempoMozo,
+        diferenciaSegundos: diferencia,
+        resumenEstados: resumen,
+        platosEntregados: entregados,
+        platosTotal: platos.length
+      };
+    },
+    getTiempoCocinaPlato(item) {
+      const t = item?.tiempos || {};
+      if (!t.recoger) return '—';
+      const ini = t.en_espera || t.pedido;
+      if (!ini) return '—';
+      return this.formatDuracionSegundos(Math.round((new Date(t.recoger) - new Date(ini)) / 1000));
+    },
+    getTiempoMozoPlato(item) {
+      const t = item?.tiempos || {};
+      if (!t.salio) return '—';
+      const fin = t.entregado || new Date().toISOString();
+      return this.formatDuracionSegundos(Math.round((new Date(fin) - new Date(t.salio)) / 1000));
+    },
+    getCocineroPlatoMozo(item) {
+      const e = item?.procesadoPor || item?.procesandoPor || null;
+      if (!e) return '—';
+      return e.nombre || e.alias || '—';
+    },
+    cerrarModalComandaMozo() {
+      this.modalComandaMozo = null;
+      this.selectedComandaMozo = null;
+      this.metricasComandaMozo = {};
     },
 
     computePrevRange(inicio, fin) {
@@ -5611,6 +6149,181 @@ function mozosExecutiveApp() {
 <script src="/assets/js/page-transitions.js"></script>
 <script src="/assets/js/cosmos-search.js"></script>
 <script src="/assets/js/notificaciones-dashboard.js"></script>
+
+<!-- ==================== MODAL: VER COMANDA COMPLETO (MOZOS) ==================== -->
+<div x-show="modalComandaMozo === 'verComanda'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="cerrarModalComandaMozo()" x-cloak>
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[860px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
+    <!-- HEADER -->
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl sticky top-0 z-10">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="flex items-center gap-3">
+            <h2 class="text-lg font-bold" x-text="'Comanda #' + (selectedComandaMozo?.numComanda || '—')"></h2>
+            <span class="text-[10px] px-2.5 py-1 rounded-full font-bold"
+              :class="estadoComandaBadge({ resumenEstados: metricasComandaMozo.resumenEstados, platosEntregados: metricasComandaMozo.platosEntregados, platosTotal: metricasComandaMozo.platosTotal }).clase"
+              x-text="estadoComandaBadge({ resumenEstados: metricasComandaMozo.resumenEstados, platosEntregados: metricasComandaMozo.platosEntregados, platosTotal: metricasComandaMozo.platosTotal }).texto"></span>
+            <span x-show="rendimientoMozoSocketConnected" class="text-[9px] px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-bold flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-st-preparado animate-pulse"></span>En vivo
+            </span>
+          </div>
+          <p class="text-xs text-txt-muted mt-0.5">
+            <span x-text="selectedComandaMozo?.mozo ? ('Mozo: ' + selectedComandaMozo.mozo) : ''"></span>
+          </p>
+        </div>
+        <button @click="cerrarModalComandaMozo()" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-gold hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
+      </div>
+    </div>
+
+    <!-- LOADING -->
+    <div x-show="loadingComandaMozo" class="p-10 flex items-center justify-center">
+      <div class="text-center">
+        <div class="w-10 h-10 border-2 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+        <p class="text-txt-muted text-sm">Cargando detalle...</p>
+      </div>
+    </div>
+
+    <div x-show="!loadingComandaMozo && selectedComandaMozo" class="p-5 space-y-4">
+      <!-- INFO GENERAL -->
+      <div class="bg-bg-primary border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <p class="text-[10px] text-txt-muted uppercase mb-3 font-semibold tracking-wider">Información general</p>
+        <div class="grid grid-cols-3 gap-3 text-sm">
+          <div>
+            <p class="text-[10px] text-txt-muted">Creada</p>
+            <p class="font-medium" x-text="selectedComandaMozo?.createdAt ? new Date(selectedComandaMozo.createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-txt-muted">Enviada a cocina</p>
+            <p class="font-medium" x-text="selectedComandaMozo?.tiempoEnEspera ? new Date(selectedComandaMozo.tiempoEnEspera).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-txt-muted">Último listo</p>
+            <p class="font-medium text-st-preparado" x-text="selectedComandaMozo?.tiempoRecoger ? new Date(selectedComandaMozo.tiempoRecoger).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-3 text-sm border-t border-[rgba(212,175,55,0.1)] pt-3 mt-2">
+          <div>
+            <p class="text-[10px] text-txt-muted">Mozo</p>
+            <p class="font-medium" x-text="selectedComandaMozo?.mozo || '—'"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-txt-muted">Salió (pass)</p>
+            <p class="font-medium text-st-preparado" x-text="selectedComandaMozo?.tiempoSalio ? new Date(selectedComandaMozo.tiempoSalio).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-txt-muted">Entregada</p>
+            <p class="font-medium text-gold" x-text="selectedComandaMozo?.tiempoEntregado ? new Date(selectedComandaMozo.tiempoEntregado).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TRAZABILIDAD DE SALÓN (nuevo) -->
+      <div class="bg-bg-primary border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <p class="text-[10px] text-gold uppercase mb-3 font-semibold tracking-wider">🍽️ Trazabilidad de Salón</p>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+          <div>
+            <p class="text-[10px] text-txt-muted">Platos entregados</p>
+            <p class="font-bold text-st-libre" x-text="(metricasComandaMozo.platosEntregados || 0) + ' / ' + (metricasComandaMozo.platosTotal || 0)"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-txt-muted">T. cocina</p>
+            <p class="font-mono font-medium text-st-preparado" x-text="formatDuracionSegundos(metricasComandaMozo.tiempoCocinaSegundos)"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-txt-muted">T. mozo</p>
+            <p class="font-mono font-medium text-gold" x-text="formatDuracionSegundos(metricasComandaMozo.tiempoMozoSegundos)"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-txt-muted">Diferencia (mozo − cocina)</p>
+            <p class="font-mono font-bold" :class="colorDiferencia(metricasComandaMozo.diferenciaSegundos)" x-text="formatDuracionConSigno(metricasComandaMozo.diferenciaSegundos)"></p>
+          </div>
+        </div>
+        <!-- Resumen estados -->
+        <div class="flex flex-wrap gap-1 mt-3 pt-3 border-t border-[rgba(212,175,55,0.08)]">
+          <template x-for="(cnt, est) in (metricasComandaMozo.resumenEstados || {})" :key="est">
+            <span x-show="cnt > 0" class="text-[10px] px-2 py-0.5 rounded font-medium" :class="estadoPlatoBadgeClase(est)" x-text="estadoPlatoLabel(est) + ': ' + cnt"></span>
+          </template>
+        </div>
+      </div>
+
+      <!-- TABLA DE PLATOS -->
+      <div class="bg-bg-primary border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-bg-sidebar text-txt-muted text-[10px] uppercase">
+              <th class="text-left px-4 py-2.5 font-semibold">Plato</th>
+              <th class="text-center px-3 py-2.5 font-semibold">Cant.</th>
+              <th class="text-left px-3 py-2.5 font-semibold">Cocinero</th>
+              <th class="text-center px-3 py-2.5 font-semibold">T. cocina</th>
+              <th class="text-center px-3 py-2.5 font-semibold">T. mozo</th>
+              <th class="text-center px-3 py-2.5 font-semibold">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-if="!selectedComandaMozo?.items || selectedComandaMozo.items.length === 0">
+              <tr><td colspan="6" class="px-4 py-6 text-center text-txt-muted text-xs">Sin platos registrados</td></tr>
+            </template>
+            <template x-for="(item, idx) in (selectedComandaMozo?.items || [])" :key="idx">
+              <tr class="border-b border-[rgba(212,175,55,0.08)]" :class="item.eliminado ? 'opacity-50' : ''">
+                <td class="px-4 py-3">
+                  <p class="font-medium" :class="item.eliminado ? 'line-through text-txt-muted' : ''" x-text="item.nombre || '—'"></p>
+                  <p class="text-[10px] text-txt-muted" x-show="item.notaEspecial" x-text="'📝 ' + item.notaEspecial"></p>
+                </td>
+                <td class="px-3 py-3 text-center font-semibold" x-text="item.cantidad || 1"></td>
+                <td class="px-3 py-3 text-center">
+                  <span class="text-[10px] font-medium text-st-preparado" x-text="getCocineroPlatoMozo(item)"></span>
+                </td>
+                <td class="px-3 py-3 text-center text-[10px] font-mono text-txt-secondary" x-text="getTiempoCocinaPlato(item)"></td>
+                <td class="px-3 py-3 text-center text-[10px] font-mono" :class="colorTiempoMozo(getTiempoMozoPlato(item) === '—' ? null : 1)" x-text="getTiempoMozoPlato(item)"></td>
+                <td class="px-3 py-3 text-center">
+                  <span class="text-[9px] px-2 py-0.5 rounded-full font-semibold" :class="estadoPlatoBadgeClase(item.estado)" x-text="estadoPlatoLabel(item.estado)"></span>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- TIMELINE -->
+      <div class="bg-bg-primary border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+        <p class="text-[10px] text-txt-muted uppercase mb-4 font-semibold tracking-wider">Historial de estados</p>
+        <div class="relative flex items-start justify-between">
+          <div class="absolute top-1.5 left-0 right-0 h-0.5 bg-[rgba(212,175,55,0.15)]" style="margin: 0 4%"></div>
+          <div class="flex flex-col items-center flex-1 relative z-10">
+            <div class="w-3 h-3 rounded-full" :class="selectedComandaMozo?.createdAt ? 'bg-st-pedido' : 'bg-txt-muted/30'"></div>
+            <p class="text-[10px] font-semibold" :class="selectedComandaMozo?.createdAt ? 'text-st-pedido' : 'text-txt-muted'">Creada</p>
+            <p class="text-[9px] text-txt-muted" x-text="selectedComandaMozo?.createdAt ? new Date(selectedComandaMozo.createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+          <div class="flex flex-col items-center flex-1 relative z-10">
+            <div class="w-3 h-3 rounded-full" :class="selectedComandaMozo?.tiempoRecoger ? 'bg-st-preparado' : 'bg-txt-muted/30'"></div>
+            <p class="text-[10px] font-semibold" :class="selectedComandaMozo?.tiempoRecoger ? 'text-st-preparado' : 'text-txt-muted'">Listo</p>
+            <p class="text-[9px] text-txt-muted" x-text="selectedComandaMozo?.tiempoRecoger ? new Date(selectedComandaMozo.tiempoRecoger).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+          <div class="flex flex-col items-center flex-1 relative z-10">
+            <div class="w-3 h-3 rounded-full" :class="selectedComandaMozo?.tiempoSalio ? 'bg-gold' : 'bg-txt-muted/30'"></div>
+            <p class="text-[10px] font-semibold" :class="selectedComandaMozo?.tiempoSalio ? 'text-gold' : 'text-txt-muted'">Salió</p>
+            <p class="text-[9px] text-txt-muted" x-text="selectedComandaMozo?.tiempoSalio ? new Date(selectedComandaMozo.tiempoSalio).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+          <div class="flex flex-col items-center flex-1 relative z-10">
+            <div class="w-3 h-3 rounded-full" :class="selectedComandaMozo?.tiempoEntregado ? 'bg-st-libre' : 'bg-txt-muted/30'"></div>
+            <p class="text-[10px] font-semibold" :class="selectedComandaMozo?.tiempoEntregado ? 'text-st-libre' : 'text-txt-muted'">Entregado</p>
+            <p class="text-[9px] text-txt-muted" x-text="selectedComandaMozo?.tiempoEntregado ? new Date(selectedComandaMozo.tiempoEntregado).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+          <div class="flex flex-col items-center flex-1 relative z-10">
+            <div class="w-3 h-3 rounded-full" :class="selectedComandaMozo?.tiempoPagado ? 'bg-[#00d4aa]' : 'bg-txt-muted/30'"></div>
+            <p class="text-[10px] font-semibold" :class="selectedComandaMozo?.tiempoPagado ? 'text-[#00d4aa]' : 'text-txt-muted'">Pagado</p>
+            <p class="text-[9px] text-txt-muted" x-text="selectedComandaMozo?.tiempoPagado ? new Date(selectedComandaMozo.tiempoPagado).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="bg-bg-sidebar p-4 rounded-b-2xl flex justify-end items-center border-t border-[rgba(212,175,55,0.1)]">
+      <button @click="cerrarModalComandaMozo()" class="px-4 py-2 border border-txt-muted/40 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cerrar</button>
+    </div>
+  </div>
+</div>
+<!-- ==================== FIN MODAL VER COMANDA MOZOS ==================== -->
 <script>
   // Initialize Lucide icons when DOM is ready and on modal open
   document.addEventListener('DOMContentLoaded', () => {

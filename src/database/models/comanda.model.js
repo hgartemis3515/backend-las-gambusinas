@@ -174,6 +174,19 @@ const comandaSchema = new mongoose.Schema({
             rol: { type: String, default: null, enum: ['admin', 'supervisor', 'cocinero', null] },
             timestamp: { type: Date, default: null }
         },
+        // ========== TEMA 5: ATRIBUCIÓN DE ENTREGA POR MOZO ==========
+        // Quién confirmó la entrega del plato al comensal (estado 'entregado').
+        // Fallback para datos legacy: usar comanda.mozos + comanda.mozoNombre.
+        entregadoPor: {
+            mozoId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'mozos',
+                default: null
+            },
+            nombre: { type: String, default: null },
+            rol: { type: String, default: null, enum: ['admin', 'supervisor', 'mozos', null] },
+            timestamp: { type: Date, default: null }
+        },
         // ========== PAGO ADELANTADO (PPA) ==========
         pagoAdelantado: {
             requerido: { type: Boolean, default: false },

@@ -1860,6 +1860,38 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
             }
         }
         
+        // v7.5: Persistir entregadoPor cuando el mozo confirma la entrega del plato al comensal.
+        // Fallback para resolver el nombre del mozo desde la BD en caso de que el token solo traiga el id.
+        if (nuevoEstado === 'entregado' && usuarioId) {
+            try {
+                const momentoEntrega = new Date();
+                const mozosRepository = require('../repository/mozos.repository');
+                const mozoInfo = await mozosRepository.obtenerMozosPorId(usuarioId);
+                const nombreMozo = mozoInfo?.name || mozoInfo?.nombres || comandaAntes?.mozoNombre || 'Mozo';
+
+                const proy = await comandaModel.findById(id).select('platos').lean();
+                const idxE = proy?.platos?.findIndex(p => {
+                    return (p._id?.toString() === platoId.toString()) ||
+                           (p.platoId?.toString() === platoId.toString()) ||
+                           (p.plato?.toString() === platoId.toString());
+                }) ?? -1;
+                if (idxE !== -1) {
+                    await comandaModel.updateOne({ _id: id }, {
+                        $set: {
+                            [`platos.${idxE}.entregadoPor`]: {
+                                mozoId: usuarioId,
+                                nombre: nombreMozo,
+                                rol: (mozoInfo?.rol) || 'mozos',
+                                timestamp: momentoEntrega
+                            }
+                        }
+                    });
+                }
+            } catch (e) {
+                console.warn(`⚠️ [PUT /plato/:platoId/estado] No se pudo persistir entregadoPor: ${e.message}`);
+            }
+        }
+
         console.log(`✅ [PUT /plato/:platoId/estado] Estado actualizado: ${estadoAnterior} → ${nuevoEstado}`);
         res.json({ 
             success: true, 
@@ -1917,6 +1949,19 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
                 tipo: nuevoEstado === 'recoger' ? 'plato_finalizado' : 'plato_actualizado',
                 comandaId: id,
                 platoId
+            });
+        }
+
+        // Emitir a dashboard de rendimiento mozos (en vivo + registro)
+        if (global.emitRendimientoMozoActualizado) {
+            global.emitRendimientoMozoActualizado({
+                tipo: nuevoEstado === 'entregado' ? 'plato_entregado'
+                    : nuevoEstado === 'salio' ? 'plato_salio'
+                    : 'plato_actualizado',
+                mozoId: usuarioId,
+                comandaId: id,
+                platoId,
+                nuevoEstado
             });
         }
     } catch (error) {
@@ -2112,6 +2157,18 @@ router.put('/comanda/:comandaId/plato/:platoId/salir-cocina', async (req, res) =
         // También emitir comanda actualizada
         if (global.emitComandaActualizada) {
             await global.emitComandaActualizada(comandaId, estadoAnterior, 'salio');
+        }
+
+        // Emitir a dashboard de rendimiento mozos (plato salió del pass)
+        if (global.emitRendimientoMozoActualizado) {
+            const mozoTitularId = comandaAntes?.mozos?._id || comandaAntes?.mozos;
+            global.emitRendimientoMozoActualizado({
+                tipo: 'plato_salio',
+                mozoId: mozoTitularId,
+                comandaId,
+                platoId,
+                nuevoEstado: 'salio'
+            });
         }
 
         // Notificación push: "Plato salió de cocina"
