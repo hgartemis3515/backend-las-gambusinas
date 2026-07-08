@@ -26,7 +26,13 @@ const PERMISOS_FUNDAMENTALES = {
     'gestionar-roles': { nombre: 'Gestionar Roles', grupo: 'Backend/Dashboard', descripcion: 'Crear y asignar roles y permisos' },
     'ver-auditoria': { nombre: 'Ver Auditoría', grupo: 'Backend/Dashboard', descripcion: 'Acceder al registro de acciones del sistema' },
     'ver-reportes': { nombre: 'Ver Reportes', grupo: 'Backend/Dashboard', descripcion: 'Acceder a reportes y estadísticas' },
-    'cierre-caja': { nombre: 'Cierre de Caja', grupo: 'Backend/Dashboard', descripcion: 'Realizar cierre de caja diario' },
+    // Cierre de caja: división granular para control de acceso
+    // - ver-cierre-caja: ver el módulo, historial, KPIs y la tabla de verificación de tickets
+    // - ejecutar-cierre-caja: confirmar el cierre irreversible del período
+    // 'cierre-caja' se mantiene como alias legacy por compatibilidad (no usar en código nuevo)
+    'ver-cierre-caja': { nombre: 'Ver Cierre de Caja', grupo: 'Backend/Dashboard', descripcion: 'Ver cierre de caja, historial, KPIs y verificar tickets antes del cierre' },
+    'ejecutar-cierre-caja': { nombre: 'Ejecutar Cierre de Caja', grupo: 'Backend/Dashboard', descripcion: 'Confirmar el cierre de caja definitivo del período' },
+    'cierre-caja': { nombre: 'Cierre de Caja (legacy)', grupo: 'Backend/Dashboard', descripcion: 'Alias legacy. Preferir ver-cierre-caja y ejecutar-cierre-caja' },
     'ver-notificaciones': { nombre: 'Ver Notificaciones', grupo: 'Backend/Dashboard', descripcion: 'Acceder al centro de notificaciones' },
     'aplicar-descuentos': { nombre: 'Aplicar Descuentos', grupo: 'Backend/Dashboard', descripcion: 'Aplicar descuentos a comandas (admin/supervisor)' },
     
@@ -63,7 +69,7 @@ const PERMISOS_POR_ROL_SISTEMA = {
     supervisor: [
         'ver-mesas', 'editar-mesas', 'juntar-separar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas',
         'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria', 'ver-reportes',
-        'cierre-caja', 'ver-notificaciones', 'crear-comandas', 'editar-comandas',
+        'ver-notificaciones', 'crear-comandas', 'editar-comandas',
         'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina', 'aplicar-descuentos',
         'ver-vista-supervisor-cocina', 'ver-boton-prioridad-kds', 'utilidad-supervisor',
         'ver-cocina-completo', 'ver-cocina-personalizado', 'desplegar-monitores-cocina', 'administrar-vistas-cocina'
@@ -77,7 +83,8 @@ const PERMISOS_POR_ROL_SISTEMA = {
         'asociar-clientes'
     ],
     cajero: [
-        'ver-mesas', 'ver-platos', 'ver-clientes', 'procesar-pagos', 'cierre-caja'
+        'ver-mesas', 'ver-platos', 'ver-clientes', 'procesar-pagos',
+        'ver-cierre-caja', 'ejecutar-cierre-caja'
     ]
 };
 

@@ -37,19 +37,23 @@ const auditoriaSchema = new mongoose.Schema({
       'COMANDA_APROBADA_COCINA',
       'COMANDA_REPORTADA_COCINA',
       'PPA_REPORTADO_COCINA',
-      'MESA_ESTADO_REPORTADO'
+      'MESA_ESTADO_REPORTADO',
+      // Cierre de caja — verificación de tickets
+      'TICKET_VERIFICADO_CIERRE',
+      'TICKETS_VERIFICADOS_CIERRE_MASIVO',
+      'CIERRE_CAJA_EJECUTADO'
     ],
     index: true
   },
   entidadId: {
     type: mongoose.Schema.Types.ObjectId,
-    required: true,
+    required: false,
     index: true
   },
   entidadTipo: {
     type: String,
     required: true,
-    enum: ['comanda', 'plato', 'mesa', 'mozo', 'cliente', 'pago'],
+    enum: ['comanda', 'plato', 'mesa', 'mozo', 'cliente', 'pago', 'cierre_caja', 'ticket_verificacion'],
     index: true
   },
   usuario: {
@@ -57,6 +61,11 @@ const auditoriaSchema = new mongoose.Schema({
     ref: 'mozos',
     required: false,
     index: true
+  },
+  // Nombre legible del usuario (snapshot para no depender del populate)
+  usuarioNombre: {
+    type: String,
+    default: null
   },
   datosAntes: {
     type: mongoose.Schema.Types.Mixed,

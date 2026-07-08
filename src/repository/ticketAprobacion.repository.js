@@ -28,6 +28,79 @@ function toObjectId(id) {
   return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : null;
 }
 
+const MAX_COMANDA_SAVE_RETRIES = 3;
+
+/**
+ * Reclama un ticket pendiente de forma atómica para evitar doble aprobación concurrente.
+ * Si ya está aprobado, devuelve el ticket existente (idempotente).
+ */
+async function claimTicketForApproval(ticketId, usuarioObjId, usuarioNombre, ts) {
+  const claimed = await ticketAprobacionModel.findOneAndUpdate(
+    { _id: ticketId, estado: 'pendiente_aprobacion' },
+    {
+      $set: {
+        estado: 'aprobado',
+        aprobadoPor: usuarioObjId,
+        aprobadoPorNombre: usuarioNombre,
+        fechaAprobacion: ts,
+      },
+    },
+    { new: true }
+  );
+
+  if (claimed) return { ticket: claimed, alreadyApproved: false };
+
+  const existing = await ticketAprobacionModel.findById(ticketId);
+  if (!existing) {
+    const err = new Error('Ticket de aprobación no encontrado');
+    err.statusCode = 404;
+    throw err;
+  }
+  if (existing.estado === 'aprobado') {
+    return { ticket: existing, alreadyApproved: true };
+  }
+
+  const err = new Error(`El ticket ya fue ${existing.estado}. No se puede aprobar.`);
+  err.statusCode = 400;
+  throw err;
+}
+
+/**
+ * Guarda una comanda reintentando ante conflictos de versión (aprobaciones paralelas).
+ */
+async function saveComandaConReintento(comandaId, applyChanges) {
+  for (let intento = 0; intento < MAX_COMANDA_SAVE_RETRIES; intento++) {
+    const comanda = await comandaModel.findById(comandaId);
+    if (!comanda) return { modificado: false, platosLiberados: [] };
+
+    const { modificado, platosLiberados, statusUpdate } = applyChanges(comanda);
+    if (!modificado) return { modificado: false, platosLiberados };
+
+    comanda.markModified('platos');
+    comanda.updatedAt = ahora();
+    if (statusUpdate) {
+      Object.assign(comanda, statusUpdate);
+    }
+
+    try {
+      await comanda.save();
+      return { modificado: true, platosLiberados };
+    } catch (err) {
+      if (err.name === 'VersionError' && intento < MAX_COMANDA_SAVE_RETRIES - 1) {
+        logger.warn('Conflicto al aprobar comanda, reintentando', {
+          comandaId,
+          intento: intento + 1,
+          error: err.message,
+        });
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  return { modificado: false, platosLiberados: [] };
+}
+
 /**
  * Crea un TicketAprobacion a partir de un pago completo (no PPA).
  * Snapshot de platos tomado de las comandas afectadas para que la bandeja
@@ -160,94 +233,88 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
   const ts = ahora();
   const usuarioObjId = toObjectId(usuarioId);
 
-  const ticket = await ticketAprobacionModel.findById(ticketId);
-  if (!ticket) {
-    const err = new Error('Ticket de aprobación no encontrado');
-    err.statusCode = 404;
-    throw err;
-  }
-  if (ticket.estado !== 'pendiente_aprobacion') {
-    const err = new Error(`El ticket ya fue ${ticket.estado}. No se puede aprobar.`);
-    err.statusCode = 400;
-    throw err;
-  }
+  const { ticket, alreadyApproved } = await claimTicketForApproval(
+    ticketId,
+    usuarioObjId,
+    usuarioNombre,
+    ts
+  );
 
   // Snapshot para auditoría
   const datosAntes = {
-    ticketEstado: ticket.estado,
+    ticketEstado: alreadyApproved ? 'aprobado' : 'pendiente_aprobacion',
     mesaEstado: (await mesasModel.findById(ticket.mesa).select('estado').lean())?.estado,
     comandas: ticket.comandas.map((c) => c.toString()),
     boucherId: ticket.boucher,
   };
 
-  ticket.estado = 'aprobado';
-  ticket.aprobadoPor = usuarioObjId;
-  ticket.aprobadoPorNombre = usuarioNombre;
-  ticket.fechaAprobacion = ts;
-  await ticket.save();
-
-  // BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 3):
-  // Liberar SOLO los platos que están en el snapshot de este ticket (por platoLineaId).
-  // Antes se cambiaban TODOS los 'pendiente' de la comanda, lo que rompía el ciclo
-  // cuando había varios tickets parciales sobre la misma comanda.
-  const platosSnapshotIds = new Set(
-    (ticket.platos || [])
-      .map((p) => (p.platoLineaId ? String(p.platoLineaId) : null))
-      .filter(Boolean)
-  );
-
-  const platosLiberados = [];
-  for (const comandaId of ticket.comandas) {
-    const comanda = await comandaModel.findById(comandaId);
-    if (!comanda) continue;
-
-    let modificado = false;
-    for (const plato of comanda.platos) {
-      const platoLineaIdStr = plato._id ? String(plato._id) : null;
-      // Solo tocar platos que están en el snapshot del ticket
-      if (!platoLineaIdStr || !platosSnapshotIds.has(platoLineaIdStr)) continue;
-
-      const estadoLower = (plato.estado || '').toLowerCase();
-      if (estadoLower === 'pendiente') {
-        plato.estado = 'pagado';
-        if (!plato.tiempos) plato.tiempos = {};
-        if (!plato.tiempos.pagado) plato.tiempos.pagado = ts;
-        modificado = true;
-        platosLiberados.push({
-          comandaId: comanda._id,
-          comandaNumber: comanda.comandaNumber,
-          platoLineaId: plato._id,
-          platoId: plato.plato,
-          estadoNuevo: 'pagado',
-        });
-      }
-    }
-
-    if (modificado) {
-      comanda.markModified('platos');
-      comanda.updatedAt = ts;
-
-      // Solo cerrar la comanda si TODOS sus platos activos quedaron en 'pagado'.
-      // Si quedan 'entregado' (por cobrar) o 'pendiente' (esperando otro ticket),
-      // mantener la comanda activa.
-      const platosActivos = (comanda.platos || []).filter(
-        (p) => !p.eliminado && !p.anulado
-      );
-      const todosPagados = platosActivos.length > 0
-        && platosActivos.every((p) => (p.estado || '').toLowerCase() === 'pagado');
-
-      if (todosPagados) {
-        comanda.status = 'pagado';
-        comanda.IsActive = false;
-        if (!comanda.tiempoPagado) comanda.tiempoPagado = ts;
-      } else {
-        // Aún hay platos pendientes de cobro o de aprobación → comanda sigue activa
-        comanda.status = 'pendiente_aprobar';
-        comanda.IsActive = true;
-      }
-      await comanda.save();
-    }
+  if (alreadyApproved) {
+    return {
+      ticket,
+      platosLiberados: [],
+      mesaEstado: datosAntes.mesaEstado,
+      alreadyApproved: true,
+    };
   }
+
+  let platosLiberados = [];
+    // BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 3):
+    // Liberar SOLO los platos que están en el snapshot de este ticket (por platoLineaId).
+    const platosSnapshotIds = new Set(
+      (ticket.platos || [])
+        .map((p) => (p.platoLineaId ? String(p.platoLineaId) : null))
+        .filter(Boolean)
+    );
+
+    for (const comandaId of ticket.comandas) {
+      const { modificado, platosLiberados: liberados } = await saveComandaConReintento(
+        comandaId,
+        (comanda) => {
+          const liberadosLocal = [];
+          let modificadoLocal = false;
+
+          for (const plato of comanda.platos) {
+            const platoLineaIdStr = plato._id ? String(plato._id) : null;
+            if (!platoLineaIdStr || !platosSnapshotIds.has(platoLineaIdStr)) continue;
+
+            const estadoLower = (plato.estado || '').toLowerCase();
+            if (estadoLower === 'pendiente') {
+              plato.estado = 'pagado';
+              if (!plato.tiempos) plato.tiempos = {};
+              if (!plato.tiempos.pagado) plato.tiempos.pagado = ts;
+              modificadoLocal = true;
+              liberadosLocal.push({
+                comandaId: comanda._id,
+                comandaNumber: comanda.comandaNumber,
+                platoLineaId: plato._id,
+                platoId: plato.plato,
+                estadoNuevo: 'pagado',
+              });
+            }
+          }
+
+          if (!modificadoLocal) {
+            return { modificado: false, platosLiberados: liberadosLocal };
+          }
+
+          const platosActivos = (comanda.platos || []).filter(
+            (p) => !p.eliminado && !p.anulado
+          );
+          const todosPagados = platosActivos.length > 0
+            && platosActivos.every((p) => (p.estado || '').toLowerCase() === 'pagado');
+
+          const statusUpdate = todosPagados
+            ? { status: 'pagado', IsActive: false, tiempoPagado: comanda.tiempoPagado || ts }
+            : { status: 'pendiente_aprobar', IsActive: true };
+
+          return { modificado: true, platosLiberados: liberadosLocal, statusUpdate };
+        }
+      );
+
+      if (modificado) {
+        platosLiberados = platosLiberados.concat(liberados);
+      }
+    }
 
   // BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 3):
   // Mesa → 'pagado' SOLO si todo el ciclo está cobrado y aprobado.
@@ -256,12 +323,11 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
   //   2. No quedan comandas activas con platos 'pendiente' (cobrados, sin aprobar).
   //   3. No hay otros tickets 'pendiente_aprobacion' del mismo pedido/mesa hoy.
   let mesaEstadoFinal = null;
-  const mesaDoc = await mesasModel.findById(ticket.mesa);
+  const mesaDoc = await mesasModel.findById(ticket.mesa).select('estado').lean();
   if (mesaDoc) {
     const evaluacion = await evaluarMesaListaParaLiberar(ticket.mesa, ticket.pedido);
     if (evaluacion.lista && mesaDoc.estado !== 'reportado') {
-      mesaDoc.estado = 'pagado';
-      await mesaDoc.save();
+      await mesasModel.findByIdAndUpdate(ticket.mesa, { estado: 'pagado' });
       mesaEstadoFinal = 'pagado';
 
       // Cerrar pedido del ciclo al liberar mesa
@@ -285,8 +351,7 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
       }
     } else if (mesaDoc.estado !== 'reportado' && mesaDoc.estado !== 'pagado') {
       // Mantener mesa en pendiente_aprobar mientras falten platos o tickets
-      mesaDoc.estado = 'pendiente_aprobar';
-      await mesaDoc.save();
+      await mesasModel.findByIdAndUpdate(ticket.mesa, { estado: 'pendiente_aprobar' });
       mesaEstadoFinal = 'pendiente_aprobar';
     } else {
       mesaEstadoFinal = mesaDoc.estado;

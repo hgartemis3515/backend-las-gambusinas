@@ -9,6 +9,77 @@ const comandaModel = require('../database/models/comanda.model');
 const AuditoriaAcciones = require('../database/models/auditoriaAcciones.model');
 const logger = require('../utils/logger');
 
+const MAX_COMANDA_SAVE_RETRIES = 3;
+
+function toObjectId(id) {
+  if (!id) return null;
+  return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : null;
+}
+
+async function claimPpaTicketForApproval(ticketId, usuarioObjId, usuarioNombre, ts) {
+  const claimed = await ticketPagoAdelantadoModel.findOneAndUpdate(
+    { _id: ticketId, estado: 'pendiente_aprobacion' },
+    {
+      $set: {
+        estado: 'aprobado',
+        aprobadoPor: usuarioObjId,
+        aprobadoPorNombre: usuarioNombre,
+        fechaAprobacion: ts,
+      },
+    },
+    { new: true }
+  );
+
+  if (claimed) return { ticket: claimed, alreadyApproved: false };
+
+  const existing = await ticketPagoAdelantadoModel.findById(ticketId);
+  if (!existing) {
+    const err = new Error('Ticket de pago adelantado no encontrado');
+    err.statusCode = 404;
+    throw err;
+  }
+  if (existing.estado === 'aprobado') {
+    return { ticket: existing, alreadyApproved: true };
+  }
+
+  const err = new Error(`El ticket ya fue ${existing.estado}. No se puede aprobar.`);
+  err.statusCode = 400;
+  throw err;
+}
+
+async function saveComandaConReintento(comandaId, applyChanges) {
+  for (let intento = 0; intento < MAX_COMANDA_SAVE_RETRIES; intento++) {
+    const comanda = await comandaModel.findById(comandaId);
+    if (!comanda) return { modificado: false, platosLiberados: [] };
+
+    const { modificado, platosLiberados, statusUpdate } = applyChanges(comanda);
+    if (!modificado) return { modificado: false, platosLiberados };
+
+    comanda.markModified('platos');
+    comanda.updatedAt = moment().tz('America/Lima').toDate();
+    if (statusUpdate) {
+      Object.assign(comanda, statusUpdate);
+    }
+
+    try {
+      await comanda.save();
+      return { modificado: true, platosLiberados };
+    } catch (err) {
+      if (err.name === 'VersionError' && intento < MAX_COMANDA_SAVE_RETRIES - 1) {
+        logger.warn('Conflicto al aprobar TPA en comanda, reintentando', {
+          comandaId,
+          intento: intento + 1,
+          error: err.message,
+        });
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  return { modificado: false, platosLiberados: [] };
+}
+
 /**
  * Crear un nuevo TPA a partir de los datos del boucher y platos seleccionados.
  */
@@ -113,79 +184,76 @@ async function obtenerTicketsPorFecha(fecha) {
  */
 async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
   const zona = 'America/Lima';
-  const ahora = moment().tz(zona).toDate();
+  const ahoraTs = moment().tz(zona).toDate();
+  const usuarioObjId = toObjectId(usuarioId);
 
-  const ticket = await ticketPagoAdelantadoModel.findById(ticketId);
-  if (!ticket) {
-    const err = new Error('Ticket de pago adelantado no encontrado');
-    err.statusCode = 404;
-    throw err;
+  const { ticket, alreadyApproved } = await claimPpaTicketForApproval(
+    ticketId,
+    usuarioObjId,
+    usuarioNombre,
+    ahoraTs
+  );
+
+  if (alreadyApproved) {
+    return { ticket, platosLiberados: [], alreadyApproved: true };
   }
-  if (ticket.estado !== 'pendiente_aprobacion') {
-    const err = new Error(`El ticket ya fue ${ticket.estado}. No se puede aprobar.`);
-    err.statusCode = 400;
-    throw err;
-  }
 
-  ticket.estado = 'aprobado';
-  ticket.aprobadoPor = usuarioId;
-  ticket.aprobadoPorNombre = usuarioNombre;
-  ticket.fechaAprobacion = ahora;
-  await ticket.save();
-
-  // Liberar platos retenidos en las comandas asociadas
   const platosLiberados = [];
   for (const comandaId of ticket.comandas) {
-    const comanda = await comandaModel.findById(comandaId);
-    if (!comanda) continue;
+    const { modificado, platosLiberados: liberados } = await saveComandaConReintento(
+      comandaId,
+      (comanda) => {
+        const liberadosLocal = [];
+        let modificadoLocal = false;
 
-    let modificado = false;
-    for (const plato of comanda.platos) {
-      const platoLineaId = plato._id?.toString();
-      const estaEnTicket = ticket.platos.some(
-        tp => tp.platoLineaId?.toString() === platoLineaId
-      );
+        for (const plato of comanda.platos) {
+          const platoLineaId = plato._id?.toString();
+          const estaEnTicket = ticket.platos.some(
+            (tp) => tp.platoLineaId?.toString() === platoLineaId
+          );
 
-      if (estaEnTicket && plato.pagoAdelantado?.estadoTicket === 'pendiente_aprobacion') {
-        // Marcar el ticket del plato como aprobado (independiente del estado actual)
-        plato.pagoAdelantado.estadoTicket = 'aprobado';
-        // Liberar plato retenido: si estaba en 'pedido' (retenido en cocina), pasarlo a 'en_espera'
-        if (plato.estado === 'pedido') {
-          plato.estado = 'en_espera';
-          if (!plato.tiempos) plato.tiempos = {};
-          plato.tiempos.en_espera = ahora;
+          if (estaEnTicket && plato.pagoAdelantado?.estadoTicket === 'pendiente_aprobacion') {
+            plato.pagoAdelantado.estadoTicket = 'aprobado';
+            if (plato.estado === 'pedido') {
+              plato.estado = 'en_espera';
+              if (!plato.tiempos) plato.tiempos = {};
+              plato.tiempos.en_espera = ahoraTs;
+            }
+            modificadoLocal = true;
+            liberadosLocal.push({
+              comandaId: comanda._id,
+              comandaNumber: comanda.comandaNumber,
+              platoId: plato.plato,
+              platoLineaId: plato._id,
+              nombre: plato.plato?.nombre || plato.platoId,
+              estadoNuevo: plato.estado,
+            });
+          }
         }
-        modificado = true;
-        platosLiberados.push({
-          comandaId: comanda._id,
-          comandaNumber: comanda.comandaNumber,
-          platoId: plato.plato,
-          platoLineaId: plato._id,
-          nombre: plato.plato?.nombre || plato.platoId,
-          estadoNuevo: plato.estado,
-        });
+
+        if (!modificadoLocal) {
+          return { modificado: false, platosLiberados: liberadosLocal };
+        }
+
+        const todosPlatosRetenidos = comanda.platos
+          .filter((p) => !p.eliminado && !p.anulado)
+          .every((p) => p.estado === 'pedido' || p.estado === 'en_espera');
+
+        let statusUpdate = null;
+        if (todosPlatosRetenidos && comanda.status === 'pedido') {
+          const platosActivos = comanda.platos.filter((p) => !p.eliminado && !p.anulado);
+          const algunoEnEspera = platosActivos.some((p) => p.estado === 'en_espera');
+          if (algunoEnEspera) {
+            statusUpdate = { status: 'en_espera', tiempoEnEspera: ahoraTs };
+          }
+        }
+
+        return { modificado: true, platosLiberados: liberadosLocal, statusUpdate };
       }
-    }
+    );
 
     if (modificado) {
-      // Si la comanda estaba en 'pedido' por ser solo para_llevar, mover a 'en_espera'
-      const todosPlatosRetenidos = comanda.platos
-        .filter(p => !p.eliminado && !p.anulado)
-        .every(p => p.estado === 'pedido' || p.estado === 'en_espera');
-      
-      if (todosPlatosRetenidos && comanda.status === 'pedido') {
-        // Algunos platos pueden seguir retenidos; verificar si todos están liberados
-        const platosActivos = comanda.platos.filter(p => !p.eliminado && !p.anulado);
-        const algunoEnEspera = platosActivos.some(p => p.estado === 'en_espera');
-        if (algunoEnEspera) {
-          comanda.status = 'en_espera';
-          comanda.tiempoEnEspera = ahora;
-        }
-      }
-
-      comanda.markModified('platos');
-      comanda.updatedAt = ahora;
-      await comanda.save();
+      platosLiberados.push(...liberados);
     }
   }
 

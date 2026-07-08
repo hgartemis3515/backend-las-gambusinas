@@ -21,7 +21,11 @@ const PERMISOS_FUNDAMENTALES = {
     'gestionar-roles': { nombre: 'Gestionar Roles', grupo: 'Backend/Dashboard', descripcion: 'Asignar y modificar roles y permisos' },
     'ver-auditoria': { nombre: 'Ver Auditoría', grupo: 'Backend/Dashboard', descripcion: 'Acceder al registro de acciones del sistema' },
     'ver-reportes': { nombre: 'Ver Reportes', grupo: 'Backend/Dashboard', descripcion: 'Acceder a reportes y estadísticas' },
-    'cierre-caja': { nombre: 'Cierre de Caja', grupo: 'Backend/Dashboard', descripcion: 'Realizar cierre de caja diario' },
+    // Cierre de caja: división granular (ver-cierre-caja, ejecutar-cierre-caja).
+    // 'cierre-caja' se mantiene como alias legacy por compatibilidad.
+    'ver-cierre-caja': { nombre: 'Ver Cierre de Caja', grupo: 'Backend/Dashboard', descripcion: 'Ver cierre de caja, historial, KPIs y verificar tickets antes del cierre' },
+    'ejecutar-cierre-caja': { nombre: 'Ejecutar Cierre de Caja', grupo: 'Backend/Dashboard', descripcion: 'Confirmar el cierre de caja definitivo del período' },
+    'cierre-caja': { nombre: 'Cierre de Caja (legacy)', grupo: 'Backend/Dashboard', descripcion: 'Alias legacy. Preferir ver-cierre-caja y ejecutar-cierre-caja' },
     'ver-notificaciones': { nombre: 'Ver Notificaciones', grupo: 'Backend/Dashboard', descripcion: 'Acceder al centro de notificaciones' },
     
     // App Mozos
@@ -43,7 +47,7 @@ const PERMISOS_POR_ROL = {
     supervisor: [
         'ver-mesas', 'editar-mesas', 'juntar-separar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas',
         'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria', 'ver-reportes',
-        'cierre-caja', 'ver-notificaciones', 'crear-comandas', 'editar-comandas',
+        'ver-notificaciones', 'crear-comandas', 'editar-comandas',
         'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina'
     ],
     cocinero: [
@@ -58,7 +62,8 @@ const PERMISOS_POR_ROL = {
         'eliminar-platos-comandas', 'procesar-pagos', 'asociar-clientes'
     ],
     cajero: [
-        'ver-mesas', 'ver-platos', 'ver-clientes', 'procesar-pagos', 'cierre-caja'
+        'ver-mesas', 'ver-platos', 'ver-clientes', 'procesar-pagos',
+        'ver-cierre-caja', 'ejecutar-cierre-caja'
     ]
 };
 

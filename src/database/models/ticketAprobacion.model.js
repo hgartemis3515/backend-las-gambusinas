@@ -155,6 +155,24 @@ const ticketAprobacionSchema = new mongoose.Schema({
     enum: ['mozos', 'cocina', 'admin', 'api'],
     default: 'mozos',
   },
+  // Verificación de cajero antes del cierre de caja
+  // - confirmado: la cajera revisó y dio conformidad (reversible hasta ejecutar el cierre)
+  // - incluidoEnCierre: ticket ya formó parte de un cierre ejecutado; no vuelve a listarse
+  verificacionCierre: {
+    confirmado: { type: Boolean, default: false },
+    confirmadoPor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'mozos',
+      default: null,
+    },
+    confirmadoPorNombre: { type: String, default: null },
+    confirmadoAt: { type: Date, default: null },
+    incluidoEnCierre: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CierreCajaRestaurante',
+      default: null,
+    },
+  },
 }, {
   timestamps: true,
   setDefaultsOnInsert: true,
@@ -164,6 +182,8 @@ const ticketAprobacionSchema = new mongoose.Schema({
 ticketAprobacionSchema.index({ estado: 1, createdAt: -1 });
 ticketAprobacionSchema.index({ mesa: 1, estado: 1 });
 ticketAprobacionSchema.index({ mozo: 1, createdAt: -1 });
+ticketAprobacionSchema.index({ 'verificacionCierre.incluidoEnCierre': 1, createdAt: -1 });
+ticketAprobacionSchema.index({ 'verificacionCierre.confirmado': 1, createdAt: -1 });
 
 ticketAprobacionSchema.plugin(AutoIncrement, { id: 'ticketAprobacion_counter', inc_field: 'ticketNumber' });
 

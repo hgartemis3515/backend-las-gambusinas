@@ -204,6 +204,35 @@ const sanitizarHistorialPlatos = (historialPlatos) => {
 };
 
 /**
+ * Anula tickets de aprobación/PPA pendientes vinculados a una comanda que se elimina.
+ */
+const anularTicketsPendientesComanda = async (comandaId, motivo) => {
+  const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
+  const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
+  const motivoNota = `[Comanda eliminada: ${motivo}]`;
+
+  await ticketAprobacionModel.updateMany(
+    { comandas: comandaId, estado: 'pendiente_aprobacion', isActive: true },
+    { $set: { isActive: false, observaciones: motivoNota } },
+    { runValidators: false }
+  );
+
+  await ticketPagoAdelantadoModel.updateMany(
+    { comandas: comandaId, estado: 'pendiente_aprobacion', isActive: true },
+    { $set: { isActive: false, observaciones: motivoNota } },
+    { runValidators: false }
+  );
+};
+
+const normalizarStatusHistorial = (status) => {
+  const permitidos = new Set([
+    'en_espera', 'recoger', 'salio', 'entregado', 'pagado', 'cancelado',
+    'pendiente_aprobar', 'completado', 'pendiente',
+  ]);
+  return permitidos.has(status) ? status : 'cancelado';
+};
+
+/**
  * Comandas antiguas o sin populate pueden tener `mozos` como ObjectId o objeto sin `name`.
  * Rellena `mozoNombre` y `mozos.name` en batch (mapa de mesas / cocina / sync).
  */
@@ -990,130 +1019,131 @@ const agregarComanda = async (data) => {
  */
 const eliminarLogicamente = async (comandaId, usuarioId, motivo, requerirMotivo = false) => {
   try {
-    const mongoose = require('mongoose');
     if (!mongoose.Types.ObjectId.isValid(comandaId)) {
       const error = new Error('ID de comanda inválido');
       error.statusCode = 400;
       throw error;
     }
     
-    // El motivo es obligatorio solo si se requiere explícitamente (nuevos endpoints con modal)
-    // Para endpoints legacy, usar motivo por defecto
     if (requerirMotivo && (!motivo || motivo.trim() === '')) {
       const error = new Error('El motivo de eliminación es obligatorio');
       error.statusCode = 400;
       throw error;
     }
     
-    // Si no se proporciona motivo y no se requiere, usar uno por defecto
     if (!motivo || motivo.trim() === '') {
       motivo = 'Eliminación sin motivo especificado (legacy)';
     }
     
-    // Obtener la comanda antes de eliminarla
-    const comanda = await comandaModel.findById(comandaId);
+    const comandaSnapshot = await comandaModel.findById(comandaId).lean();
+    if (!comandaSnapshot) {
+      const error = new Error('Comanda no encontrada');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const eraPendienteAprobacion = comandaSnapshot.status === 'pendiente_aprobar';
+    const usuarioObjId = validarUsuarioId(usuarioId);
+    const ts = moment.tz('America/Lima').toDate();
+
+    // Anular tickets de cocina pendientes vinculados (evita tickets huérfanos)
+    await anularTicketsPendientesComanda(comandaId, motivo);
+
+    let precioTotalOriginal = comandaSnapshot.precioTotalOriginal;
+    if (!precioTotalOriginal && comandaSnapshot.platos?.length > 0) {
+      precioTotalOriginal = 0;
+      for (let i = 0; i < comandaSnapshot.platos.length; i++) {
+        const platoItem = comandaSnapshot.platos[i];
+        const cantidad = comandaSnapshot.cantidades?.[i] || 1;
+        if (platoItem.precioUnitario != null) {
+          precioTotalOriginal += Number(platoItem.precioUnitario) * cantidad;
+          continue;
+        }
+        const plato = await platoModel.findById(platoItem.plato).select('precio').lean();
+        if (plato?.precio) {
+          precioTotalOriginal += plato.precio * cantidad;
+        }
+      }
+    }
+
+    const historialEntries = (comandaSnapshot.platos || []).map((platoItem, index) => ({
+      platoId: platoItem.platoId,
+      nombreOriginal: platoItem.plato?.nombre || 'Plato desconocido',
+      cantidadOriginal: comandaSnapshot.cantidades?.[index] || 1,
+      cantidadFinal: 0,
+      estado: 'eliminado-completo',
+      timestamp: ts,
+      usuario: usuarioObjId,
+      motivo: `comanda-${motivo}`,
+    }));
+
+    const nuevaVersion = (comandaSnapshot.version || 1) + 1;
+
+    // Soft-delete atómico: evita re-validar subdocumentos legacy corruptos (ej. finalizadoPor.rol)
+    const comanda = await comandaModel.findByIdAndUpdate(
+      comandaId,
+      {
+        $set: {
+          fechaEliminacion: ts,
+          motivoEliminacion: motivo,
+          eliminadaPor: usuarioObjId,
+          IsActive: false,
+          eliminada: true,
+          version: nuevaVersion,
+          ...(precioTotalOriginal ? { precioTotalOriginal } : {}),
+        },
+        ...(historialEntries.length > 0
+          ? { $push: { historialPlatos: { $each: historialEntries } } }
+          : {}),
+      },
+      { new: true, runValidators: false }
+    );
+
     if (!comanda) {
       const error = new Error('Comanda no encontrada');
       error.statusCode = 404;
       throw error;
     }
-    
-    // Calcular precio total original si no existe
-    // v3.0: usar precioUnitario snapshot (incluye extras) si está disponible
-    if (!comanda.precioTotalOriginal && comanda.platos && comanda.platos.length > 0) {
-      let precioTotal = 0;
-      for (const platoItem of comanda.platos) {
-        const cantidad = comanda.cantidades[comanda.platos.indexOf(platoItem)] || 1;
-        if (platoItem.precioUnitario != null) {
-          precioTotal += Number(platoItem.precioUnitario) * cantidad;
-          continue;
-        }
-        const plato = await platoModel.findById(platoItem.plato);
-        if (plato && plato.precio) {
-          precioTotal += plato.precio * cantidad;
-        }
-      }
-      comanda.precioTotalOriginal = precioTotal;
-    }
-    
-    // ESTANDARIZADO: Soft-delete solo con IsActive
-    // ✅ MARCAR COMANDA COMO ELIMINADA (para que no aparezca en app de cocina)
-    comanda.fechaEliminacion = moment.tz("America/Lima").toDate();
-    comanda.motivoEliminacion = motivo;
-    comanda.eliminadaPor = validarUsuarioId(usuarioId);
-    comanda.IsActive = false; // Soft-delete estándar - CRÍTICO para filtrar en app de cocina
-    comanda.eliminada = true; // Campo adicional para compatibilidad
-    comanda.version++;
-    
-    // Registrar historial de platos eliminados
-    if (!comanda.historialPlatos) {
-      comanda.historialPlatos = [];
-    }
-    
-    comanda.platos.forEach((platoItem, index) => {
-      const cantidad = comanda.cantidades[index] || 1;
-      comanda.historialPlatos.push({
-        platoId: platoItem.platoId,
-        nombreOriginal: platoItem.plato?.nombre || 'Plato desconocido',
-        cantidadOriginal: cantidad,
-        cantidadFinal: 0,
-        estado: 'eliminado-completo',
-        timestamp: new Date(),
-        usuario: validarUsuarioId(usuarioId),
-        motivo: `comanda-${motivo}`
-      });
-    });
-    
-    // 🔥 SANITIZAR historialPlatos para limpiar usuarios inválidos existentes
-    if (comanda.historialPlatos && comanda.historialPlatos.length > 0) {
-      const historialLimpio = sanitizarHistorialPlatos(comanda.historialPlatos);
-      console.log(`🧹 HistorialPlatos sanitizado en eliminarLogicamente - ${historialLimpio.length} items`);
-    }
-    
-    await comanda.save();
+
     console.log('🗑️ Comanda eliminada lógicamente (soft-delete):', comandaId);
     
-    // Guardar en historial de comandas
     try {
       await HistorialComandas.create({
         comandaId: comanda._id,
-        version: comanda.version,
-        status: comanda.status,
-        platos: comanda.platos.map((p, idx) => ({
+        version: nuevaVersion,
+        status: normalizarStatusHistorial(comandaSnapshot.status),
+        platos: (comandaSnapshot.platos || []).map((p, idx) => ({
           plato: p.plato,
           platoId: p.platoId,
           estado: p.estado,
-          cantidad: comanda.cantidades[idx] || 1,
+          cantidad: comandaSnapshot.cantidades?.[idx] || 1,
           nombre: p.plato?.nombre || 'Plato desconocido',
-          // v3.0: usar precioUnitario snapshot si está disponible
-          precio: p.precioUnitario != null ? Number(p.precioUnitario) : (p.plato?.precio || 0)
+          precio: p.precioUnitario != null ? Number(p.precioUnitario) : (p.plato?.precio || 0),
         })),
-        cantidades: comanda.cantidades,
-        observaciones: comanda.observaciones,
-        usuario: validarUsuarioId(usuarioId),
+        cantidades: comandaSnapshot.cantidades || [],
+        observaciones: comandaSnapshot.observaciones,
+        usuario: usuarioObjId,
         accion: 'eliminada',
-        motivo: motivo,
-        precioTotal: comanda.precioTotalOriginal || 0
+        motivo,
+        precioTotal: precioTotalOriginal || comandaSnapshot.precioTotal || 0,
       });
     } catch (historialError) {
       console.error('⚠️ Error al guardar historial de comanda:', historialError.message);
     }
     
-    // ✅ RECALCULAR ESTADO DE LA MESA después de eliminar comanda
-    const mesaId = comanda.mesas;
+    const mesaId = comandaSnapshot.mesas;
     if (mesaId) {
       try {
-        await recalcularEstadoMesa(mesaId);
+        await recalcularEstadoMesa(mesaId, null, { forzar: eraPendienteAprobacion });
         console.log(`✅ Estado de mesa ${mesaId} recalculado después de eliminar comanda`);
       } catch (error) {
         console.error(`⚠️ Error al recalcular estado de mesa después de eliminar comanda:`, error.message);
       }
     }
 
-    // Recalcular totales del Pedido asociado
-    if (comanda.pedido) {
+    if (comandaSnapshot.pedido) {
       try {
-        const pedido = await pedidoModel.findById(comanda.pedido);
+        const pedido = await pedidoModel.findById(comandaSnapshot.pedido);
         if (pedido && pedido.estado === 'abierto') {
           await pedido.calcularTotales();
           await pedido.save();
@@ -2552,7 +2582,8 @@ const listarComandaPorFecha = async (fecha, usarProyeccion = true) => {
  * @param {object} session - Sesión de MongoDB (opcional)
  * @returns {Promise<string>} - Nuevo estado de la mesa
  */
-const recalcularEstadoMesa = async (mesaId, session = null) => {
+const recalcularEstadoMesa = async (mesaId, session = null, options = {}) => {
+  const { forzar = false } = options;
   try {
     // 🔥 FILTRO TRIPLE EXPLÍCITO: IsActive=true, eliminada!=true, status NO pagado
     // Esto garantiza que comandas ya cobradas no interfieran en el cálculo
@@ -2625,7 +2656,7 @@ const recalcularEstadoMesa = async (mesaId, session = null) => {
       const estadoAnterior = mesa.estado;
 
       // Si la mesa está en un estado protegido del flujo de aprobación, no recalcular
-      if (ESTADOS_PROTEGIDOS.includes(estadoAnterior)) {
+      if (!forzar && ESTADOS_PROTEGIDOS.includes(estadoAnterior)) {
         logger.info('Mesa en estado protegido, no se recalcula', {
           mesaId: mesa._id,
           numMesa: mesa.nummesa,

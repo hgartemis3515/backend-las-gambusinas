@@ -3738,7 +3738,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  usuarioId: 'admin',
  usuarioRol: this.userRole
  });
- if (res && !res.error) {
+ if (res?.ok && !res.error) {
  comanda.descuento = porcentaje;
  comanda.motivoDescuento = motivo;
  comanda.montoDescuento = res.descuentoAplicado?.montoDescuento != null ? res.descuentoAplicado.montoDescuento : (comanda.total || 0) * porcentaje / 100;
@@ -3763,7 +3763,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  for (const comanda of this.editGrupo.comandas) {
  if (comanda.descuento && comanda.descuento > 0) {
  const res = await apiDelete('/comanda/' + comanda._id + '/descuento', { usuarioId: 'admin', usuarioRol: this.userRole, motivoEliminacion: 'Descuento quitado desde grupo' });
- if (res && !res.error) { comanda.descuento = 0; comanda.montoDescuento = 0; comanda.motivoDescuento = null; }
+ if (res?.ok && !res.error) { comanda.descuento = 0; comanda.montoDescuento = 0; comanda.motivoDescuento = null; }
  }
  }
  this.showToast('Descuento quitado del grupo');
@@ -3829,7 +3829,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  nuevoStatus: nuevoEstado,
  motivo: 'Cambio masivo desde edición de grupo'
  });
- if (res && !res.error) {
+ if (res?.ok && !res.error) {
  exitosos++;
  } else {
  fallidos++;
@@ -3963,7 +3963,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  console.log('📥 Respuesta descuento:', res);
 
- if (res && !res.error) {
+ if (res?.ok && !res.error) {
  this.editComanda.descuento = descuento;
  this.editComanda.motivoDescuento = motivo;
  this.editComanda.totalCalculado = res.descuentoAplicado?.totalCalculado != null ? res.descuentoAplicado.totalCalculado : this.calcularTotalEdit() * (1 - descuento / 100);
@@ -4031,7 +4031,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  console.log('📥 Respuesta eliminar descuento:', res);
 
- if (res && !res.error) {
+ if (res?.ok && !res.error) {
  this.editComanda.descuento = 0;
  this.editComanda.motivoDescuento = null;
  this.editComanda.montoDescuento = 0;
@@ -4179,7 +4179,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  console.log('📥 Respuesta status:', res);
  }
 
- if (res && !res.error) {
+ if (res?.ok && !res.error) {
  console.log('✅ Comanda actualizada');
 
  if (this.socket && this.socket.connected) {
@@ -4225,7 +4225,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  console.log('📥 Respuesta eliminacion:', res);
 
- if (res && !res.error) {
+ if (res?.ok && !res.error) {
  const comandaNum = res.comanda?.comandaNumber || this.comandaEliminar.numComanda || this.comandaEliminar._id.slice(-6);
 
  if (this.socket && this.socket.connected) {
@@ -4264,7 +4264,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  motivo: 'Cambio de estado desde panel admin'
  });
 
- if (res && !res.error) {
+ if (res?.ok && !res.error) {
  c.estado = nuevoEstado;
 
  if (this.socket && this.socket.connected) {

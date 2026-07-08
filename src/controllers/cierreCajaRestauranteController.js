@@ -12,16 +12,33 @@ const ConfigCocinero = require('../database/models/configCocinero.model');
 const reportesRepository = require('../repository/reportes.repository');
 const moment = require('moment-timezone');
 const logger = require('../utils/logger');
+const { adminAuth, checkPermission } = require('../middleware/adminAuth');
 
 /**
  * POST /api/cierre-caja
  * Generar cierre de caja completo del restaurante
  */
-router.post('/cierre-caja', async (req, res) => {
+router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), async (req, res) => {
   try {
     // Paso 1: Verificar autenticación y permisos
     const usuarioAdmin = req.body.usuarioAdmin || req.headers['x-user-id'] || 'admin';
-    
+
+    // Paso 1b: Validar verificación de tickets antes de cerrar.
+    // Si quedan tickets del período sin confirmar, el cierre se rechaza con 400.
+    let resumenVerificacion = null;
+    try {
+      resumenVerificacion = await verificacionService.validarListoParaCerrar();
+    } catch (verifErr) {
+      if (verifErr.code === 'VERIFICACION_INCOMPLETA') {
+        return res.status(400).json({
+          error: 'VERIFICACION_INCOMPLETA',
+          message: verifErr.message,
+          verificacion: verifErr.resumen || null,
+        });
+      }
+      throw verifErr;
+    }
+
     // Paso 2: Obtener fecha del último cierre
     const ultimoCierre = await CierreCajaRestaurante.findOne()
       .sort({ fechaCierre: -1 })
@@ -126,6 +143,38 @@ router.post('/cierre-caja', async (req, res) => {
       { _id: { $in: comandaIds } },
       { $set: { incluidoEnCierre: cierre._id } }
     );
+
+    // Paso 13b: Marcar tickets verificados como incluidos en este cierre
+    // (impide que reaparezcan en el siguiente cierre)
+    try {
+      await verificacionService.marcarTicketsComoIncluidosEnCierre(cierre._id, periodoInicio, periodoFin);
+    } catch (ticketsErr) {
+      logger.warn('No se pudieron marcar los tickets en el cierre (no bloquea el cierre)', {
+        error: ticketsErr.message,
+        cierreId: cierre._id,
+      });
+    }
+
+    // Auditoría del cierre ejecutado
+    try {
+      await AuditoriaAcciones.create({
+        accion: 'CIERRE_CAJA_EJECUTADO',
+        entidadId: cierre._id,
+        entidadTipo: 'cierre_caja',
+        usuario: req.admin && (req.admin.id || req.admin.usuarioId),
+        usuarioNombre: usuarioAdmin,
+        metadata: {
+          cierreId: cierre._id,
+          totalComandas: resumenFinanciero.totalComandas,
+          montoTotal: resumenFinanciero.montoTotalVendido,
+          ticketsVerificados: resumenVerificacion?.total || 0,
+          periodoInicio,
+          periodoFin,
+        },
+      });
+    } catch (auditErr) {
+      logger.warn('No se registró auditoría CIERRE_CAJA_EJECUTADO', { error: auditErr.message });
+    }
     
     logger.info('Cierre de caja completado exitosamente', {
       cierreId: cierre._id,
@@ -168,7 +217,7 @@ router.post('/cierre-caja', async (req, res) => {
  * GET /api/cierre-caja/historial
  * Listar cierres históricos con paginación y filtros
  */
-router.get('/cierre-caja/historial', async (req, res) => {
+router.get('/cierre-caja/historial', adminAuth, checkPermission('ver-cierre-caja'), async (req, res) => {
   try {
     const { fechaDesde, fechaHasta, page = 1, limit = 20 } = req.query;
     
@@ -219,7 +268,7 @@ router.get('/cierre-caja/historial', async (req, res) => {
  * GET /api/cierre-caja/:id
  * Obtener un cierre específico con todos sus detalles
  */
-router.get('/cierre-caja/:id', async (req, res) => {
+router.get('/cierre-caja/:id', adminAuth, checkPermission('ver-cierre-caja'), async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -244,7 +293,7 @@ router.get('/cierre-caja/:id', async (req, res) => {
  * GET /api/cierre-caja/estado/actual
  * Obtener estado actual sin cerrar (para mostrar en panel)
  */
-router.get('/cierre-caja/estado/actual', async (req, res) => {
+router.get('/cierre-caja/estado/actual', adminAuth, checkPermission('ver-cierre-caja'), async (req, res) => {
   try {
     const ultimoCierre = await CierreCajaRestaurante.findOne()
       .sort({ fechaCierre: -1 })
@@ -284,14 +333,29 @@ router.get('/cierre-caja/estado/actual', async (req, res) => {
     const diasTranscurridos = ultimoCierre 
       ? Math.floor((periodoFin - ultimoCierre.fechaCierre) / (1000 * 60 * 60 * 24))
       : Math.floor((periodoFin - periodoInicio) / (1000 * 60 * 60 * 24));
-    
+
+    // Contadores de verificación de tickets del período
+    let verificacion = { total: 0, confirmados: 0, pendientes: 0, puedeCerrar: true };
+    try {
+      const resumenVerif = await verificacionService.obtenerResumenVerificacion();
+      verificacion = {
+        total: resumenVerif.total,
+        confirmados: resumenVerif.confirmados,
+        pendientes: resumenVerif.pendientes,
+        puedeCerrar: resumenVerif.puedeCerrar,
+      };
+    } catch (verifErr) {
+      logger.warn('No se pudo obtener resumen de verificación para estado/actual', { error: verifErr.message });
+    }
+
     res.json({
       ultimoCierre: ultimoCierre?.fechaCierre || null,
       periodoInicio,
       periodoFin,
       diasTranscurridos,
       comandasPendientes,
-      montoPendiente: montoPendiente[0]?.total || 0
+      montoPendiente: montoPendiente[0]?.total || 0,
+      verificacion
     });
     
   } catch (error) {
@@ -300,6 +364,101 @@ router.get('/cierre-caja/estado/actual', async (req, res) => {
       error: 'Error al obtener estado actual',
       message: error.message
     });
+  }
+});
+
+// ============================================
+// VERIFICACIÓN DE TICKETS ANTES DEL CIERRE
+// ============================================
+const verificacionService = require('../services/cierreCajaVerificacion.service');
+
+/**
+ * GET /api/cierre-caja/verificacion/tickets
+ * Lista unificada de tickets (adelantados + comandas) del período pendiente.
+ */
+router.get('/cierre-caja/verificacion/tickets', adminAuth, checkPermission('ver-cierre-caja'), async (req, res) => {
+  try {
+    const resultado = await verificacionService.listarTicketsParaVerificacion();
+    res.json({ success: true, ...resultado });
+  } catch (error) {
+    logger.error('Error al listar tickets para verificación', { error: error.message });
+    res.status(500).json({ success: false, error: 'Error al listar tickets', message: error.message });
+  }
+});
+
+/**
+ * GET /api/cierre-caja/verificacion/estado
+ * Resumen de verificación (KPIs y puedeCerrar).
+ */
+router.get('/cierre-caja/verificacion/estado', adminAuth, checkPermission('ver-cierre-caja'), async (req, res) => {
+  try {
+    const resumen = await verificacionService.obtenerResumenVerificacion();
+    res.json({ success: true, ...resumen });
+  } catch (error) {
+    logger.error('Error al obtener resumen de verificación', { error: error.message });
+    res.status(500).json({ success: false, error: 'Error al obtener resumen', message: error.message });
+  }
+});
+
+/**
+ * GET /api/cierre-caja/verificacion/tickets/:id
+ * Detalle completo de un ticket (comandas, mozo, cocinero, boucher).
+ * Query: tipo=COMANDA|ADELANTADO (opcional, autodetecta si no se indica).
+ */
+router.get('/cierre-caja/verificacion/tickets/:id', adminAuth, checkPermission('ver-cierre-caja'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tipo = req.query.tipo ? String(req.query.tipo).toUpperCase() : null;
+    const detalle = await verificacionService.obtenerDetalleTicket(id, tipo);
+    res.json({ success: true, ticket: detalle });
+  } catch (error) {
+    logger.error('Error al obtener detalle de ticket', { error: error.message });
+    const status = error.statusCode || 500;
+    res.status(status).json({ success: false, error: 'Error al obtener detalle', message: error.message });
+  }
+});
+
+/**
+ * PUT /api/cierre-caja/verificacion/tickets/:id/confirmar
+ * Confirma (verifica) un ticket del período.
+ * Body: { tipo?: 'COMANDA'|'ADELANTADO', usuarioId, usuarioNombre }
+ */
+router.put('/cierre-caja/verificacion/tickets/:id/confirmar', adminAuth, checkPermission('ver-cierre-caja'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tipo, usuarioId, usuarioNombre } = req.body;
+    // Tomar usuario del token si no viene explícito
+    const uId = usuarioId || (req.admin && (req.admin.id || req.admin.usuarioId));
+    const uNombre = usuarioNombre || (req.admin && (req.admin.nombre || req.admin.name)) || 'cajero';
+    const resultado = await verificacionService.confirmarTicket(
+      id,
+      tipo ? String(tipo).toUpperCase() : null,
+      uId,
+      uNombre
+    );
+    res.json({ success: true, ticket: resultado.ticket });
+  } catch (error) {
+    logger.error('Error al confirmar ticket', { error: error.message });
+    const status = error.statusCode || 500;
+    res.status(status).json({ success: false, error: 'Error al confirmar ticket', message: error.message });
+  }
+});
+
+/**
+ * PUT /api/cierre-caja/verificacion/tickets/confirmar-todos
+ * Confirma todos los tickets pendientes del período.
+ * Body: { usuarioId, usuarioNombre }
+ */
+router.put('/cierre-caja/verificacion/tickets/confirmar-todos', adminAuth, checkPermission('ver-cierre-caja'), async (req, res) => {
+  try {
+    const { usuarioId, usuarioNombre } = req.body;
+    const uId = usuarioId || (req.admin && (req.admin.id || req.admin.usuarioId));
+    const uNombre = usuarioNombre || (req.admin && (req.admin.nombre || req.admin.name)) || 'cajero';
+    const resultado = await verificacionService.confirmarTodos(uId, uNombre);
+    res.json({ success: true, ...resultado });
+  } catch (error) {
+    logger.error('Error al confirmar todos los tickets', { error: error.message });
+    res.status(500).json({ success: false, error: 'Error al confirmar todos', message: error.message });
   }
 });
 
@@ -885,7 +1044,7 @@ function generarDatosGraficos(resumenFinanciero, productos, mozos, mesas, cocine
  * GET /api/cierre-caja/:id/exportar-pdf
  * Exportar cierre de caja a PDF
  */
-router.get('/cierre-caja/:id/exportar-pdf', async (req, res) => {
+router.get('/cierre-caja/:id/exportar-pdf', adminAuth, checkPermission('ver-cierre-caja'), async (req, res) => {
   try {
     const { id } = req.params;
     const cierre = await CierreCajaRestaurante.findById(id).lean();
@@ -1024,7 +1183,7 @@ router.get('/cierre-caja/:id/exportar-pdf', async (req, res) => {
  * GET /api/cierre-caja/:id/exportar-excel
  * Exportar cierre de caja a Excel
  */
-router.get('/cierre-caja/:id/exportar-excel', async (req, res) => {
+router.get('/cierre-caja/:id/exportar-excel', adminAuth, checkPermission('ver-cierre-caja'), async (req, res) => {
   try {
     const { id } = req.params;
     const cierre = await CierreCajaRestaurante.findById(id).lean();

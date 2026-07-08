@@ -165,6 +165,55 @@ const sharedData = {
   }
 };
 
+// Permisos requeridos por cada página del sidebar.
+// Solo se listan las páginas que requieren permiso específico; el resto queda libre.
+const PAGES_PERMISOS = {
+  cierre: 'ver-cierre-caja',
+  roles: 'gestionar-roles',
+  auditoria: 'ver-auditoria',
+  reportes: 'ver-reportes'
+};
+
+/**
+ * Lee el JWT actual y devuelve el payload decodificado (o null si no hay token).
+ */
+function sharedGetJwtPayload() {
+  const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+  if (!token) return null;
+  try {
+    return JSON.parse(atob(token.split('.')[1]));
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Verifica si el usuario actual tiene un permiso.
+ * Admin tiene acceso total.
+ */
+function sharedTienePermiso(permiso) {
+  if (!permiso) return true;
+  const payload = sharedGetJwtPayload();
+  if (!payload) return false;
+  if (payload.rol === 'admin') return true;
+  const permisos = payload.permisos || [];
+  return permisos.includes(permiso);
+}
+
+/**
+ * Devuelve el objeto pages filtrado según los permisos del usuario actual.
+ */
+function getVisiblePages() {
+  const result = {};
+  for (const [key, value] of Object.entries(sharedData.pages)) {
+    const requerido = PAGES_PERMISOS[key];
+    if (!requerido || sharedTienePermiso(requerido)) {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 // ============================================
 // FUNCIONES HELPER
 // ============================================
@@ -386,7 +435,8 @@ async function apiPut(endpoint, body) {
       clearAuthAndRedirect();
       return null;
     }
-    return await res.json();
+    const data = await res.json().catch(() => ({}));
+    return { ...data, ok: res.ok, status: res.status };
   } catch (e) {
     console.error('API Error:', endpoint, e);
     return null;

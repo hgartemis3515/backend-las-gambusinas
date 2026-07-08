@@ -27,7 +27,7 @@ const historialComandaSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['en_espera', 'recoger', 'entregado', 'pagado', 'cancelado'],
+    enum: ['en_espera', 'recoger', 'salio', 'entregado', 'pagado', 'cancelado', 'pendiente_aprobar', 'completado', 'pendiente'],
     required: false
   },
   platos: {
