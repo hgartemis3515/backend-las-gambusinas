@@ -2786,8 +2786,12 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
    * Cocina ve los platos entrar al KDS normal.
    * @param {Object} ticket - TicketAprobacion aprobado
    * @param {Array} platosLiberados - Platos que pasaron de pendiente → pedido
+   * @param {String} [mesaEstado] - Estado final de la mesa ('pagado' | 'pendiente_aprobar' | ...)
+   *        PLAN_BUG_CONEXION_APROBACION_TICKETS_COCINA: propagar el estado real para que
+   *        el evento comanda-actualizada refleje la transición correcta (platos → pagado),
+   *        no una transición inventada pendiente → pedido.
    */
-  global.emitComandaAprobada = async (ticket, platosLiberados = []) => {
+  global.emitComandaAprobada = async (ticket, platosLiberados = [], mesaEstado = null) => {
     try {
       const ticketData = ticket && ticket.toObject ? ticket.toObject() : ticket;
       if (!ticketData) return;
@@ -2795,12 +2799,20 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       const timestamp = moment().tz('America/Lima').toISOString();
       const fecha = moment().tz('America/Lima').format('YYYY-MM-DD');
 
+      // PLAN_BUG_CONEXION_APROBACION_TICKETS_COCINA:
+      // Si los platos pasaron a 'pagado' (flujo post-cobro), el estado nuevo de la
+      // comanda NO es 'pedido' — es el estado real (pagado o pendiente_aprobar).
+      const comandaEstadoNuevo = mesaEstado === 'pagado' ? 'pagado' : 'pendiente_aprobar';
+
       const eventData = {
         ticketId: ticketData._id,
         ticketNumber: ticketData.ticketNumber,
         mesaId: ticketData.mesa?.toString(),
         numMesa: ticketData.numMesa,
         tipo: ticketData.tipo || 'comanda_completa',
+        mesaEstado,
+        aprobadoPorNombre: ticketData.aprobadoPorNombre || null,
+        fechaAprobacion: ticketData.fechaAprobacion || timestamp,
         platosLiberados: platosLiberados.map((p) => ({
           comandaId: p.comandaId?.toString(),
           comandaNumber: p.comandaNumber,
@@ -2826,11 +2838,17 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         adminNamespace.emit('comanda-aprobada', eventData);
       }
 
-      // Emitir comanda-actualizada por cada comanda afectada
+      // Emitir comanda-actualizada por cada comanda afectada con la transición REAL.
+      // Antes se pasaba 'pendiente' → 'pedido', que era incorrecto: los platos
+      // aprobados pasan a 'pagado', no entran al KDS como 'pedido'.
       for (const comandaId of (ticketData.comandas || [])) {
         try {
           if (global.emitComandaActualizada) {
-            await global.emitComandaActualizada(comandaId.toString(), 'pendiente', 'pedido');
+            await global.emitComandaActualizada(
+              comandaId.toString(),
+              'pendiente',
+              comandaEstadoNuevo
+            );
           }
         } catch (e) {
           logger.warn('Error emitiendo comanda-actualizada tras aprobación', { error: e.message });
@@ -2842,6 +2860,8 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         ticketNumber: ticketData.ticketNumber,
         numMesa: ticketData.numMesa,
         platosLiberados: platosLiberados.length,
+        mesaEstado,
+        comandaEstadoNuevo,
       });
     } catch (error) {
       logger.error('Error al emitir comanda-aprobada', { error: error.message });

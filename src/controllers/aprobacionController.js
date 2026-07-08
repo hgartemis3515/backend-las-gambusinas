@@ -110,59 +110,57 @@ router.put('/aprobacion/:id/aprobar', async (req, res) => {
     // Emitir sockets según tipo real del resultado
     const tipoReal = result.tipo;
 
+    const io = global.io;
+
     if (tipoReal === 'COMANDA' && result.ticket) {
-      // Cocina: comanda aprobada — platos ahora en KDS
+      // PLAN_BUG_CONEXION_APROBACION_TICKETS_COCINA:
+      // emitComandaAprobada ya emite 'comanda-aprobada' (a cocina, mozos y admin)
+      // + 'comanda-actualizada' por cada comanda. NO duplicar aquí.
+      // También propagamos el estado real de la mesa.
+      const estadoMesaFinal = result.mesaEstado || 'pendiente_aprobar';
+
       if (global.emitComandaAprobada) {
         try {
-          await global.emitComandaAprobada(result.ticket, result.platosLiberados);
+          await global.emitComandaAprobada(result.ticket, result.platosLiberados, estadoMesaFinal);
         } catch (e) {
           logger.warn('Error emitiendo comanda-aprobada', { error: e.message });
         }
       }
-      // BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 3):
-      // La mesa puede quedar en 'pendiente_aprobar' (faltan más tickets del ciclo)
-      // o pasar a 'pagado' (último ticket aprobado). El estado viene en result.mesaEstado.
-      const estadoMesaFinal = result.mesaEstado || 'pendiente_aprobar';
+
+      // mesa-actualizada: un único canal vía emitMesaActualizada (lee estado de DB).
       if (global.emitMesaActualizada) {
         try {
-          await global.emitMesaActualizada(result.ticket.mesa?.toString(), estadoMesaFinal);
+          await global.emitMesaActualizada(result.ticket.mesa?.toString());
         } catch (e) {
           logger.warn('Error emitiendo mesa-actualizada tras aprobación', { error: e.message });
         }
       }
 
-      // Socket cocina: actualizar bandeja de aprobación
-      const io = global.io;
-      if (io) {
-        const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
-        io.of('/cocina').to(`fecha-${fechaHoy}`).emit('comanda-aprobada', {
-          ticketId: result.ticket._id,
-          ticketNumber: result.ticket.ticketNumber,
-          tipo: 'COMANDA',
-          aprobadoPorNombre: usuarioNombre,
-          fechaAprobacion: result.ticket.fechaAprobacion || new Date().toISOString(),
-          mesaEstado: estadoMesaFinal,
-        });
-        io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-ppa-actualizado', {
-          ticketId: result.ticket._id,
-          estado: 'aprobado',
-        });
-        // Mozos: comunicar el estado real de la mesa (pagado solo si es liberable)
-        io.of('/mozos').to(`mesa-${result.ticket.mesa}`).emit('mesa-actualizada', {
-          mesaId: result.ticket.mesa?.toString(),
-          estado: estadoMesaFinal,
-          listaParaLiberar: estadoMesaFinal === 'pagado',
-        });
-      }
+      // Nota: NO emitimos 'comanda-aprobada' ni 'ticket-ppa-actualizado' aquí;
+      // emitComandaAprobada() ya los emitió a cocina/mozos/admin.
+      // Antes existía una emisión duplicada que disparaba múltiples fetchItems()
+      // en el frontend (tormenta HTTP que se percibía como pérdida de conexión).
     }
 
     if (tipoReal === 'ADELANTADO' && result.ticket) {
-      // PPA aprobado: emitir sockets de PPA (los mismos que en pagoAdelantadoController)
-      const io = global.io;
-      if (io) {
-        const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
-        const ticket = result.ticket;
+      const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
+      const ticket = result.ticket;
 
+      // PLAN_BUG_CONEXION_APROBACION_TICKETS_COCINA:
+      // PPA: el estado real de la mesa se lee de DB (no hardcodear 'pedido').
+      // ticketPagoAdelantado.repository solo la mueve de pendiente_pago → pedido
+      // si estaba en pendiente_pago; aquí leemos el valor final desde DB.
+      let estadoMesaPPA = null;
+      try {
+        const mesaDoc = await mongoose.model('Mesa').findById(ticket.mesa).select('estado nummesa').lean();
+        if (mesaDoc) {
+          estadoMesaPPA = mesaDoc.estado;
+        }
+      } catch (e) {
+        logger.warn('No se pudo leer estado de mesa tras aprobar PPA', { error: e.message });
+      }
+
+      if (io) {
         // Notificar a cocina
         io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-ppa-aprobado', {
           ticketId: ticket._id,
@@ -224,17 +222,19 @@ router.put('/aprobacion/:id/aprobar', async (req, res) => {
           estado: 'aprobado',
         });
 
-        // Mesa: pendiente_pago → pedido
-        io.of('/mozos').emit('mesa-actualizada', {
-          mesaId: ticket.mesa,
-          estado: 'pedido',
-          nummesa: ticket.numMesa,
-        });
-        io.of('/admin').emit('mesa-actualizada', {
-          mesaId: ticket.mesa,
-          estado: 'pedido',
-          nummesa: ticket.numMesa,
-        });
+        // Mesa: emitir el estado LEÍDO de DB (no asumir siempre 'pedido').
+        if (estadoMesaPPA) {
+          io.of('/mozos').emit('mesa-actualizada', {
+            mesaId: ticket.mesa,
+            estado: estadoMesaPPA,
+            nummesa: ticket.numMesa,
+          });
+          io.of('/admin').emit('mesa-actualizada', {
+            mesaId: ticket.mesa,
+            estado: estadoMesaPPA,
+            nummesa: ticket.numMesa,
+          });
+        }
       }
     }
 

@@ -7,6 +7,7 @@
 const mongoose = require('mongoose');
 const moment = require('moment-timezone');
 const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
+const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
 const comandaModel = require('../database/models/comanda.model');
 const mesasModel = require('../database/models/mesas.model');
 const AuditoriaAcciones = require('../database/models/auditoriaAcciones.model');
@@ -449,6 +450,21 @@ async function evaluarMesaListaParaLiberar(mesaId, pedidoId = null) {
   const ticketsPendientes = await ticketAprobacionModel.countDocuments(ticketQuery);
   if (ticketsPendientes > 0) {
     razones.push(`hay ${ticketsPendientes} ticket(s) pendiente(s) de aprobación`);
+  }
+
+  // PLAN_BUG_CONEXION_APROBACION_TICKETS_COCINA (Fase 4):
+  // Considerar también los PPA (pagos adelantados) pendientes de aprobación
+  // para esta mesa hoy. Antes, aprobar un TicketAprobación podía liberar la
+  // mesa a 'pagado' aunque existiera un PPA pendiente de aprobación.
+  const ppaPendientesQuery = {
+    mesa: mesaId,
+    estado: 'pendiente_aprobacion',
+    createdAt: { $gte: inicioDia, $lte: finDia },
+    isActive: true,
+  };
+  const ppaPendientes = await ticketPagoAdelantadoModel.countDocuments(ppaPendientesQuery);
+  if (ppaPendientes > 0) {
+    razones.push(`hay ${ppaPendientes} pago(s) adelantado(s) pendiente(s) de aprobación`);
   }
 
   return { lista: razones.length === 0, razones };
