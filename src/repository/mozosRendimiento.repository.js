@@ -23,8 +23,24 @@ function formatDuracion(seg) {
     return m + 'm ' + String(rest).padStart(2, '0') + 's';
 }
 
-// Calcula tiempo cocina (en_espera/pedido → último recoger), tiempo mozo (primer salio → último entregado)
-// y diferencia (mozo − cocina) a nivel comanda a partir del array de platos.
+// Cocina: primer en_espera/pedido → último recoger (congela al finalizar cocina).
+// Mozo: primer recoger (o salio) → último entregado (incluye espera en pass).
+// Diferencia = mozo − cocina a nivel comanda.
+function platoListoCocina(p) {
+    if (!p) return false;
+    if (p.tiempos?.recoger) return true;
+    const est = String(p.estado || '').toLowerCase();
+    return ['recoger', 'salio', 'entregado', 'pagado'].includes(est);
+}
+
+function platoPendienteMozo(p) {
+    if (!p) return false;
+    const t = p.tiempos || {};
+    const est = String(p.estado || '').toLowerCase();
+    if (t.entregado || t.pagado || est === 'entregado' || est === 'pagado') return false;
+    return !!(t.recoger || t.salio || est === 'recoger' || est === 'salio');
+}
+
 function calcularMetricasComanda(platos) {
     const ahora = new Date();
     const tiemposValidos = (platos || []).filter(p => !p.eliminado && !p.anulado);
@@ -41,43 +57,63 @@ function calcularMetricasComanda(platos) {
         };
     }
 
-    // Tiempo cocina: desde primer en_espera/pedido hasta último recoger
     let inicioCocina = null, finCocina = null;
     let inicioMozo = null, finMozo = null;
     let inicioGlobal = null, finGlobal = null;
     let platosEntregados = 0;
+    let algunEnCocina = false;
+    let algunPendienteMozo = false;
 
     for (const p of tiemposValidos) {
         const t = p.tiempos || {};
+        const est = String(p.estado || '').toLowerCase();
         const inicio = t.en_espera || t.pedido;
         if (inicio) {
             if (!inicioCocina || new Date(inicio) < new Date(inicioCocina)) inicioCocina = inicio;
             if (!inicioGlobal || new Date(inicio) < new Date(inicioGlobal)) inicioGlobal = inicio;
         }
-        if (t.recoger) {
-            if (!finCocina || new Date(t.recoger) > new Date(finCocina)) finCocina = t.recoger;
+
+        const listoCocina = platoListoCocina(p);
+        if (!listoCocina) algunEnCocina = true;
+        const finCocinaPlato = t.recoger || (listoCocina ? (t.salio || t.entregado || t.pagado) : null);
+        if (finCocinaPlato) {
+            if (!finCocina || new Date(finCocinaPlato) > new Date(finCocina)) finCocina = finCocinaPlato;
         }
-        if (t.salio) {
-            if (!inicioMozo || new Date(t.salio) < new Date(inicioMozo)) inicioMozo = t.salio;
+
+        const iniMozo = t.recoger || t.salio;
+        if (iniMozo) {
+            if (!inicioMozo || new Date(iniMozo) < new Date(inicioMozo)) inicioMozo = iniMozo;
         }
+
         if (t.entregado) {
             if (!finMozo || new Date(t.entregado) > new Date(finMozo)) finMozo = t.entregado;
             if (!finGlobal || new Date(t.entregado) > new Date(finGlobal)) finGlobal = t.entregado;
             platosEntregados++;
-        } else if (t.salio) {
-            // Plato aún en salón: usar ahora como fin provisional para tiempo mozo en curso
+        } else if (t.pagado || est === 'pagado') {
+            const finPago = t.pagado || ahora;
+            if (!finMozo || new Date(finPago) > new Date(finMozo)) finMozo = finPago;
+            if (!finGlobal || new Date(finPago) > new Date(finGlobal)) finGlobal = finPago;
+            platosEntregados++;
+        } else if (platoPendienteMozo(p)) {
+            algunPendienteMozo = true;
             if (!finMozo || ahora > new Date(finMozo)) finMozo = ahora;
         }
+
         if (t.pagado) {
             if (!finGlobal || new Date(t.pagado) > new Date(finGlobal)) finGlobal = t.pagado;
         }
+    }
+
+    // Cocina en curso: aún hay platos sin finalizar → fin provisional = ahora
+    if (algunEnCocina) {
+        if (!finCocina || ahora > new Date(finCocina)) finCocina = ahora;
     }
 
     const diff = (a, b) => a && b ? Math.max(0, Math.round((new Date(b) - new Date(a)) / 1000)) : null;
     const tiempoCocina = diff(inicioCocina, finCocina);
     const tiempoMozo = diff(inicioMozo, finMozo);
     const diferencia = (tiempoCocina != null && tiempoMozo != null) ? (tiempoMozo - tiempoCocina) : null;
-    const tiempoExperiencia = diff(inicioGlobal, finGlobal);
+    const tiempoExperiencia = diff(inicioGlobal, finGlobal || (algunPendienteMozo ? ahora : null));
 
     const resumenEstados = {};
     for (const e of ESTADOS_PLATO) resumenEstados[e] = 0;
@@ -100,35 +136,55 @@ function calcularMetricasComanda(platos) {
 
 /**
  * Historial de comandas atendidas por mozo en un rango de fechas.
+ * Incluye ciclo abierto Y pedidos terminados (pagado/completado aunque IsActive=false).
  * Una fila por comanda, con todos los platos embebidos y métricas cocina/mozo/Δ.
  */
 async function obtenerHistorialComandasMozos({ mozoId = null, fechaInicio, fechaFin, limite = 500 } = {}) {
     try {
+        // NO exigir IsActive:true — al pagar/liberar la comanda queda IsActive=false
+        // y debe seguir visible en el registro de platos.
         const matchBase = {
-            IsActive: true,
-            mozos: { $ne: null }
+            mozos: { $ne: null },
+            eliminada: { $ne: true }
         };
         if (mozoId) {
             const oid = toObjectId(mozoId);
             if (oid) matchBase.mozos = oid;
         }
 
-        // Comandas que tienen al menos un plato entregado en el período
-        // o en curso (recoger/salio/entregado) si es del día.
+        const desde = new Date(fechaInicio);
+        const hasta = new Date(fechaFin);
+        const diaDesde = new Date(moment(fechaInicio).startOf('day').toDate());
+        const diaHasta = new Date(moment(fechaFin).endOf('day').toDate());
+
+        // 1) Entregadas / cobradas en el período (activas o ya cerradas)
         const matchEntregadas = {
             ...matchBase,
-            'platos.tiempos.entregado': {
-                $gte: new Date(fechaInicio),
-                $lte: new Date(fechaFin)
-            }
+            $or: [
+                { 'platos.tiempos.entregado': { $gte: desde, $lte: hasta } },
+                { 'platos.tiempos.pagado': { $gte: desde, $lte: hasta } },
+                { tiempoPagado: { $gte: desde, $lte: hasta } }
+            ]
         };
+
+        // 2) Cerradas en el período (pagado/completado) aunque no tengan tiempos.entregado
+        const matchCerradas = {
+            ...matchBase,
+            status: { $in: ['pagado', 'completado'] },
+            $or: [
+                { tiempoPagado: { $gte: desde, $lte: hasta } },
+                { updatedAt: { $gte: desde, $lte: hasta } },
+                { createdAt: { $gte: diaDesde, $lte: diaHasta } }
+            ]
+        };
+
+        // 3) En curso del día (aún activas)
         const matchEnCurso = {
             ...matchBase,
-            createdAt: {
-                $gte: new Date(moment(fechaInicio).startOf('day').toDate()),
-                $lte: new Date(moment(fechaFin).endOf('day').toDate())
-            },
-            'platos.estado': { $in: ['recoger', 'salio', 'entregado'] },
+            IsActive: true,
+            status: { $nin: ['pagado', 'completado', 'cancelado'] },
+            createdAt: { $gte: diaDesde, $lte: diaHasta },
+            'platos.estado': { $in: ['pendiente', 'pedido', 'en_espera', 'recoger', 'salio', 'entregado'] },
             'platos.eliminado': { $ne: true },
             'platos.anulado': { $ne: true }
         };
@@ -150,7 +206,10 @@ async function obtenerHistorialComandasMozos({ mozoId = null, fechaInicio, fecha
                 mozoNombre: { $ifNull: [{ $arrayElemAt: ['$mozoInfo.name', 0] }, '$mozoNombre'] },
                 mesaNum: { $ifNull: [{ $arrayElemAt: ['$mesaInfo.nummesa', 0] }, '$mesaNumero'] },
                 statusComanda: '$status',
+                IsActive: 1,
+                tiempoPagado: 1,
                 createdAt: 1,
+                updatedAt: 1,
                 platos: {
                     $map: {
                         input: '$platos',
@@ -196,14 +255,15 @@ async function obtenerHistorialComandasMozos({ mozoId = null, fechaInicio, fecha
             { $limit: limite }
         ];
 
-        const [entregadas, enCurso] = await Promise.all([
+        const [entregadas, cerradas, enCurso] = await Promise.all([
             Comanda.aggregate(pipeline(matchEntregadas)),
+            Comanda.aggregate(pipeline(matchCerradas)),
             Comanda.aggregate(pipeline(matchEnCurso))
         ]);
 
-        // Deduplicar por comandaId (puede estar en ambos conjuntos)
+        // Deduplicar por comandaId
         const mapa = new Map();
-        for (const c of [...entregadas, ...enCurso]) {
+        for (const c of [...entregadas, ...cerradas, ...enCurso]) {
             const key = String(c._id);
             if (!mapa.has(key)) mapa.set(key, c);
         }
@@ -212,9 +272,14 @@ async function obtenerHistorialComandasMozos({ mozoId = null, fechaInicio, fecha
         const comandas = Array.from(mapa.values()).map(c => {
             const metricas = calcularMetricasComanda(c.platos);
             const platosActivos = (c.platos || []).filter(p => !p.eliminado && !p.anulado);
-            const estadoRegistro = metricas.platosEntregados >= metricas.platosTotal && metricas.platosTotal > 0
-                ? 'completada'
-                : 'en_curso';
+            const statusLower = String(c.statusComanda || '').toLowerCase();
+            const cerrada = statusLower === 'pagado' || statusLower === 'completado' || c.IsActive === false;
+            const todosTerminados = metricas.platosEntregados >= metricas.platosTotal && metricas.platosTotal > 0;
+            let estadoRegistro = 'en_curso';
+            if (statusLower === 'pagado') estadoRegistro = 'pagada';
+            else if (statusLower === 'completado' || (cerrada && todosTerminados)) estadoRegistro = 'completada';
+            else if (todosTerminados) estadoRegistro = 'completada';
+
             return {
                 comandaId: c._id,
                 comandaNumber: c.comandaNumber,
@@ -222,7 +287,10 @@ async function obtenerHistorialComandasMozos({ mozoId = null, fechaInicio, fecha
                 mozoNombre: c.mozoNombre,
                 mesaNum: c.mesaNum,
                 statusComanda: c.statusComanda,
+                IsActive: c.IsActive !== false,
+                tiempoPagado: c.tiempoPagado || null,
                 createdAt: c.createdAt,
+                updatedAt: c.updatedAt,
                 platos: platosActivos,
                 resumenEstados: metricas.resumenEstados,
                 platosEntregados: metricas.platosEntregados,
@@ -236,12 +304,16 @@ async function obtenerHistorialComandasMozos({ mozoId = null, fechaInicio, fecha
             };
         });
 
-        // Ordenar por createdAt desc
-        comandas.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        // Ordenar por fecha: más nuevo → más antiguo
+        comandas.sort((a, b) => {
+            const fechaA = new Date(a.tiempoPagado || a.updatedAt || a.createdAt).getTime();
+            const fechaB = new Date(b.tiempoPagado || b.updatedAt || b.createdAt).getTime();
+            return fechaB - fechaA;
+        });
 
         // Resumen agregado
         const porMozo = {};
-        let totalComandas = 0, totalPlatosEntregados = 0;
+        let totalComandas = 0, totalPlatosEntregados = 0, totalCerradas = 0;
         let sumaTiemposMozo = 0, cuentaMozo = 0;
         let sumaDiferencia = 0, cuentaDiff = 0;
         let dentroSLA = 0;
@@ -249,6 +321,7 @@ async function obtenerHistorialComandasMozos({ mozoId = null, fechaInicio, fecha
         for (const c of comandas) {
             totalComandas++;
             totalPlatosEntregados += c.platosEntregados;
+            if (c.estadoRegistro === 'pagada' || c.estadoRegistro === 'completada') totalCerradas++;
             if (c.tiempoMozoSegundos != null) { sumaTiemposMozo += c.tiempoMozoSegundos; cuentaMozo++; if (c.tiempoMozoSegundos <= SLA_SALON_MINUTOS * 60) dentroSLA++; }
             if (c.diferenciaSegundos != null) { sumaDiferencia += c.diferenciaSegundos; cuentaDiff++; }
             const key = String(c.mozoId || 'desconocido');
@@ -267,9 +340,11 @@ async function obtenerHistorialComandasMozos({ mozoId = null, fechaInicio, fecha
         return {
             comandas,
             pendientesCount: enCurso.length,
+            cerradasCount: totalCerradas,
             resumen: {
                 totalComandas,
                 totalPlatosEntregados,
+                totalCerradas,
                 tiempoPromedioMozoSegundos: cuentaMozo > 0 ? Math.round(sumaTiemposMozo / cuentaMozo) : 0,
                 tiempoPromedioDiferenciaSegundos: cuentaDiff > 0 ? Math.round(sumaDiferencia / cuentaDiff) : 0,
                 porcentajeDentroSLA: cuentaMozo > 0 ? Math.round((dentroSLA / cuentaMozo) * 100) : 0,

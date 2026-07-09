@@ -729,6 +729,18 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         mozosConnected: mozosNamespace?.sockets?.size || 0
       });
 
+      // Dashboard rendimiento mozos: congelar T. cocina / arrancar T. mozo al pasar a recoger/salio/entregado
+      if (global.emitRendimientoMozoActualizado && ['recoger', 'salio', 'entregado', 'pagado'].includes(String(nuevoEstado || '').toLowerCase())) {
+        const mozoIdRz = comanda.mozos?._id || comanda.mozos;
+        global.emitRendimientoMozoActualizado({
+          tipo: nuevoEstado === 'recoger' ? 'plato_finalizado_cocina' : 'plato_actualizado',
+          mozoId: mozoIdRz,
+          comandaId,
+          platoId,
+          nuevoEstado
+        });
+      }
+
       // Push remota (ruta /finalizar sin batch). PUT /estado usa skipPush + emitPlatoBatch
       if (nuevoEstado === 'recoger' && !skipPush) {
         const { findNombrePlatoEnComanda } = require('../services/pushNotifications');
@@ -2239,6 +2251,26 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
           tipo: 'comanda-finalizada',
           socketId: 'server',
           timestamp
+        });
+      }
+
+      // Admin dashboard: refrescar En vivo (T. cocina congela, T. mozo arranca en pass)
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('comanda-actualizada', {
+          comandaId: comandaId?.toString(),
+          comanda,
+          tipo: 'comanda-finalizada',
+          socketId: 'server',
+          timestamp
+        });
+      }
+      if (global.emitRendimientoMozoActualizado) {
+        const mozoId = comanda.mozos?._id || comanda.mozos;
+        global.emitRendimientoMozoActualizado({
+          tipo: 'comanda_finalizada_cocina',
+          mozoId,
+          comandaId,
+          estadoNuevo: 'recoger'
         });
       }
 
