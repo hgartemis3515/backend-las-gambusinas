@@ -73,7 +73,7 @@ tailwind.config = {
         <button x-show="activeTab === 'vistas'" @click="openCrearPantallaModal()" class="bg-st-pedido text-white px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">
           + Nueva Pantalla
         </button>
-        <button x-show="activeTab === 'rendimiento'" @click="cargarRendimientoEnVivo()" class="bg-gold/20 text-gold px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gold/30 transition">
+        <button x-show="activeTab === 'rendimiento'" @click="cargarDatosRendimientoActivo()" class="bg-gold/20 text-gold px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gold/30 transition">
           🔄 Actualizar
         </button>
       </div>
@@ -882,7 +882,7 @@ tailwind.config = {
         </div>
       </div>
 
-      <!-- Filtros + toggle auto-refresh -->
+      <!-- Filtros + toggle auto-refresh + personalizar -->
       <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4 mb-6">
         <div class="flex flex-wrap items-center gap-4">
           <div class="flex-1 min-w-[200px]">
@@ -893,6 +893,11 @@ tailwind.config = {
               </template>
             </select>
           </div>
+          <button type="button" @click="panelVistaRendimiento = !panelVistaRendimiento"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition border"
+            :class="panelVistaRendimiento ? 'bg-gold/20 text-gold border-gold/40' : 'bg-bg-sidebar text-txt-secondary border-[rgba(212,175,55,0.25)] hover:text-gold hover:border-gold/40'">
+            ⚙️ Personalizar
+          </button>
           <button @click="autoRefreshRendimiento = !autoRefreshRendimiento"
             class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition"
             :class="autoRefreshRendimiento ? 'bg-st-preparado/20 text-st-preparado' : 'bg-bg-sidebar text-txt-muted'">
@@ -902,6 +907,108 @@ tailwind.config = {
           <button @click="cargarRendimientoEnVivo()" class="bg-gold/20 text-gold px-4 py-2 rounded-lg text-sm font-medium hover:bg-gold/30 transition">
             🔄 Actualizar
           </button>
+          <span class="text-[10px] text-st-preparado" x-show="rendimientoSocketConnected">● En vivo</span>
+          <span class="text-[10px] text-txt-muted" x-show="!rendimientoSocketConnected && autoRefreshRendimiento">○ Reconectando…</span>
+        </div>
+
+        <!-- Panel personalizar vista de tarjetas -->
+        <div x-show="panelVistaRendimiento" x-cloak x-transition class="mt-4 pt-4 border-t border-[rgba(212,175,55,0.12)] space-y-4">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p class="text-sm font-semibold text-white">Vista de tarjetas</p>
+              <p class="text-[11px] text-txt-muted mt-0.5">Cómo se muestran los cocineros en En vivo. Se guarda en este navegador.</p>
+            </div>
+            <button type="button" @click="restaurarVistaRendimiento()"
+              class="text-[11px] text-txt-muted hover:text-gold transition px-2 py-1 rounded border border-transparent hover:border-gold/30">
+              Restaurar defaults
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <!-- Disposición -->
+            <div>
+              <p class="text-[10px] uppercase tracking-wide text-txt-muted mb-2">Disposición</p>
+              <div class="flex rounded-lg overflow-hidden border border-[rgba(212,175,55,0.25)]">
+                <button type="button" @click="vistaRendimiento.layout = 'lista'"
+                  class="flex-1 px-2 py-2 text-[11px] font-medium transition"
+                  :class="vistaRendimiento.layout === 'lista' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary hover:text-white'">Lista</button>
+                <button type="button" @click="vistaRendimiento.layout = 'grid2'"
+                  class="flex-1 px-2 py-2 text-[11px] font-medium transition border-l border-[rgba(212,175,55,0.25)]"
+                  :class="vistaRendimiento.layout === 'grid2' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary hover:text-white'">2 cols</button>
+                <button type="button" @click="vistaRendimiento.layout = 'grid3'"
+                  class="flex-1 px-2 py-2 text-[11px] font-medium transition border-l border-[rgba(212,175,55,0.25)]"
+                  :class="vistaRendimiento.layout === 'grid3' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary hover:text-white'">3 cols</button>
+              </div>
+            </div>
+
+            <!-- Densidad -->
+            <div>
+              <p class="text-[10px] uppercase tracking-wide text-txt-muted mb-2">Densidad</p>
+              <div class="flex rounded-lg overflow-hidden border border-[rgba(212,175,55,0.25)]">
+                <button type="button" @click="vistaRendimiento.densidad = 'compacta'"
+                  class="flex-1 px-2 py-2 text-[11px] font-medium transition"
+                  :class="vistaRendimiento.densidad === 'compacta' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary hover:text-white'">Compacta</button>
+                <button type="button" @click="vistaRendimiento.densidad = 'normal'"
+                  class="flex-1 px-2 py-2 text-[11px] font-medium transition border-l border-[rgba(212,175,55,0.25)]"
+                  :class="vistaRendimiento.densidad === 'normal' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary hover:text-white'">Normal</button>
+                <button type="button" @click="vistaRendimiento.densidad = 'amplia'"
+                  class="flex-1 px-2 py-2 text-[11px] font-medium transition border-l border-[rgba(212,175,55,0.25)]"
+                  :class="vistaRendimiento.densidad === 'amplia' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary hover:text-white'">Amplia</button>
+              </div>
+            </div>
+
+            <!-- Tamaño timer -->
+            <div>
+              <p class="text-[10px] uppercase tracking-wide text-txt-muted mb-2">Tamaño timers</p>
+              <div class="flex rounded-lg overflow-hidden border border-[rgba(212,175,55,0.25)]">
+                <button type="button" @click="vistaRendimiento.tamanoTimer = 'pequeno'"
+                  class="flex-1 px-2 py-2 text-[11px] font-medium transition"
+                  :class="vistaRendimiento.tamanoTimer === 'pequeno' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary hover:text-white'">S</button>
+                <button type="button" @click="vistaRendimiento.tamanoTimer = 'mediano'"
+                  class="flex-1 px-2 py-2 text-[11px] font-medium transition border-l border-[rgba(212,175,55,0.25)]"
+                  :class="vistaRendimiento.tamanoTimer === 'mediano' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary hover:text-white'">M</button>
+                <button type="button" @click="vistaRendimiento.tamanoTimer = 'grande'"
+                  class="flex-1 px-2 py-2 text-[11px] font-medium transition border-l border-[rgba(212,175,55,0.25)]"
+                  :class="vistaRendimiento.tamanoTimer === 'grande' ? 'bg-gold text-bg-primary' : 'bg-bg-sidebar text-txt-secondary hover:text-white'">L</button>
+              </div>
+            </div>
+
+            <!-- Filtro rápido -->
+            <div>
+              <p class="text-[10px] uppercase tracking-wide text-txt-muted mb-2">Filtro rápido</p>
+              <label class="flex items-center gap-2 px-3 py-2 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg cursor-pointer hover:border-gold/40 transition">
+                <input type="checkbox" x-model="vistaRendimiento.soloConPlatos" class="rounded border-gold/40 text-gold focus:ring-gold/30">
+                <span class="text-[11px] text-txt-secondary">Solo con platos en curso</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Campos visibles -->
+          <div>
+            <p class="text-[10px] uppercase tracking-wide text-txt-muted mb-2">Campos visibles</p>
+            <div class="flex flex-wrap gap-2">
+              <label class="flex items-center gap-2 px-3 py-1.5 bg-bg-sidebar border border-[rgba(212,175,55,0.2)] rounded-lg cursor-pointer hover:border-gold/40 transition text-[11px]">
+                <input type="checkbox" x-model="vistaRendimiento.mostrarFoto" class="rounded border-gold/40 text-gold focus:ring-gold/30">
+                <span class="text-txt-secondary">Foto</span>
+              </label>
+              <label class="flex items-center gap-2 px-3 py-1.5 bg-bg-sidebar border border-[rgba(212,175,55,0.2)] rounded-lg cursor-pointer hover:border-gold/40 transition text-[11px]">
+                <input type="checkbox" x-model="vistaRendimiento.mostrarSla" class="rounded border-gold/40 text-gold focus:ring-gold/30">
+                <span class="text-txt-secondary">SLA</span>
+              </label>
+              <label class="flex items-center gap-2 px-3 py-1.5 bg-bg-sidebar border border-[rgba(212,175,55,0.2)] rounded-lg cursor-pointer hover:border-gold/40 transition text-[11px]">
+                <input type="checkbox" x-model="vistaRendimiento.mostrarStats" class="rounded border-gold/40 text-gold focus:ring-gold/30">
+                <span class="text-txt-secondary">Stats (en curso / hoy / avg)</span>
+              </label>
+              <label class="flex items-center gap-2 px-3 py-1.5 bg-bg-sidebar border border-[rgba(212,175,55,0.2)] rounded-lg cursor-pointer hover:border-gold/40 transition text-[11px]">
+                <input type="checkbox" x-model="vistaRendimiento.mostrarMesas" class="rounded border-gold/40 text-gold focus:ring-gold/30">
+                <span class="text-txt-secondary">Mesas</span>
+              </label>
+              <label class="flex items-center gap-2 px-3 py-1.5 bg-bg-sidebar border border-[rgba(212,175,55,0.2)] rounded-lg cursor-pointer hover:border-gold/40 transition text-[11px]">
+                <input type="checkbox" x-model="vistaRendimiento.mostrarRanking" class="rounded border-gold/40 text-gold focus:ring-gold/30">
+                <span class="text-txt-secondary">Ranking del turno</span>
+              </label>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -911,7 +1018,7 @@ tailwind.config = {
       </div>
 
       <!-- Lista de cocineros en vivo -->
-      <div x-show="!rendimientoLoading" class="space-y-4">
+      <div x-show="!rendimientoLoading">
         <!-- Empty state global -->
         <div x-show="getCocinerosRendimientoFiltrados().length === 0" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-8 text-center">
           <div class="text-5xl mb-4">📊</div>
@@ -919,41 +1026,52 @@ tailwind.config = {
           <p class="text-txt-muted text-sm">Cuando un cocinero tome un plato en el KDS aparecerá aquí en tiempo real.</p>
         </div>
 
+        <div :class="getClaseGridRendimiento()">
         <template x-for="cocinero in getCocinerosRendimientoFiltrados()" :key="cocinero.cocineroId">
-          <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-5">
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl"
+            :class="getClasePaddingTarjetaRendimiento()">
             <!-- Header cocinero -->
-            <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center justify-between"
+              :class="vistaRendimiento.densidad === 'compacta' ? 'mb-2' : (vistaRendimiento.densidad === 'amplia' ? 'mb-5' : 'mb-4')">
               <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full overflow-hidden bg-st-pedido/20 flex items-center justify-center text-st-pedido text-sm font-bold flex-shrink-0">
+                <div x-show="vistaRendimiento.mostrarFoto"
+                  class="rounded-full overflow-hidden bg-st-pedido/20 flex items-center justify-center text-st-pedido font-bold flex-shrink-0"
+                  :class="vistaRendimiento.densidad === 'compacta' ? 'w-8 h-8 text-xs' : (vistaRendimiento.densidad === 'amplia' ? 'w-12 h-12 text-base' : 'w-10 h-10 text-sm')">
                   <img x-show="cocinero.fotoUrl" :src="cocinero.fotoUrl" :alt="cocinero.cocineroNombre" class="w-full h-full object-cover">
                   <span x-show="!cocinero.fotoUrl" x-text="(cocinero.cocineroNombre || '?').charAt(0).toUpperCase()"></span>
                 </div>
                 <div>
-                  <p class="text-gold font-semibold" x-text="cocinero.cocineroNombre || 'Cocinero'"></p>
-                  <p class="text-[11px] text-txt-muted">
+                  <p class="text-gold font-semibold"
+                    :class="vistaRendimiento.densidad === 'compacta' ? 'text-sm' : (vistaRendimiento.densidad === 'amplia' ? 'text-lg' : '')"
+                    x-text="cocinero.cocineroNombre || 'Cocinero'"></p>
+                  <p x-show="vistaRendimiento.mostrarStats" class="text-[11px] text-txt-muted">
                     <span x-text="cocinero.bloques ? cocinero.bloques.length : 0"></span> en curso
                     · <span x-text="cocinero.finalizadosHoy ?? 0"></span> hoy
                     · <span x-text="(cocinero.tiempoPromedioHoy ?? 0).toFixed(1)"></span> min
                   </p>
                 </div>
               </div>
-              <div x-show="cocinero.slaMinutos" class="text-right">
+              <div x-show="vistaRendimiento.mostrarSla && cocinero.slaMinutos" class="text-right">
                 <p class="text-[10px] text-txt-muted uppercase">SLA</p>
                 <p class="text-xs font-semibold text-gold" x-text="cocinero.slaMinutos + ' min'"></p>
               </div>
             </div>
 
             <!-- Grupos de platos del cocinero -->
-            <div x-show="cocinero.grupos && cocinero.grupos.length > 0" class="space-y-2">
+            <div x-show="cocinero.grupos && cocinero.grupos.length > 0" class="space-y-2"
+              :class="vistaRendimiento.densidad === 'compacta' ? 'space-y-1' : (vistaRendimiento.densidad === 'amplia' ? 'space-y-3' : 'space-y-2')">
               <template x-for="(grupo, gIdx) in (cocinero.grupos || [])" :key="cocinero.cocineroId + '-' + gIdx">
-                <div class="bg-bg-sidebar rounded-lg p-3 flex items-center gap-3 flex-wrap">
-                  <div class="flex-1 min-w-[180px]">
+                <div class="bg-bg-sidebar rounded-lg flex items-center gap-3 flex-wrap"
+                  :class="vistaRendimiento.densidad === 'compacta' ? 'p-2' : (vistaRendimiento.densidad === 'amplia' ? 'p-4' : 'p-3')">
+                  <div class="flex-1 min-w-[140px]">
                     <div class="flex items-center gap-2 flex-wrap">
-                      <p class="text-white font-bold text-lg" x-text="grupo.plato || 'Plato'"></p>
+                      <p class="text-white font-bold"
+                        :class="vistaRendimiento.densidad === 'compacta' ? 'text-base' : (vistaRendimiento.densidad === 'amplia' ? 'text-xl' : 'text-lg')"
+                        x-text="grupo.plato || 'Plato'"></p>
                       <span x-show="grupo.cantidad > 1" class="bg-gold/20 text-gold text-xs px-2 py-0.5 rounded font-bold" x-text="'×' + grupo.cantidad"></span>
                       <span x-show="grupo.prioritario" class="bg-st-pagado text-white text-[10px] px-2 py-0.5 rounded font-bold">URGENTE</span>
                     </div>
-                    <div x-show="grupo.mesas && grupo.mesas.length > 0" class="flex gap-1 flex-wrap mt-1">
+                    <div x-show="vistaRendimiento.mostrarMesas && grupo.mesas && grupo.mesas.length > 0" class="flex gap-1 flex-wrap mt-1">
                       <template x-for="m in grupo.mesas" :key="gIdx + '-m-' + (m.nummesa || m)">
                         <span class="bg-st-libre/20 text-st-libre text-xs px-2 py-0.5 rounded" x-text="'M' + (m.nummesa || m)"></span>
                       </template>
@@ -962,8 +1080,11 @@ tailwind.config = {
                   <!-- Timers numerados -->
                   <div class="flex flex-col items-end gap-0.5">
                     <template x-for="timer in grupo.timers" :key="gIdx + '-t-' + timer.indice">
-                      <p class="text-sm font-mono font-bold"
-                        :class="getAlertaTimer(timer.desde, cocinero.slaMinutos) === 'rojo' ? 'text-st-pagado animate-pulse' : (getAlertaTimer(timer.desde, cocinero.slaMinutos) === 'amarillo' ? 'text-st-esperando' : 'text-st-preparado')"
+                      <p class="font-mono font-bold"
+                        :class="[
+                          getClaseTamanoTimerRendimiento(),
+                          getAlertaTimer(timer.desde, cocinero.slaMinutos) === 'rojo' ? 'text-st-pagado animate-pulse' : (getAlertaTimer(timer.desde, cocinero.slaMinutos) === 'amarillo' ? 'text-st-esperando' : 'text-st-preparado')
+                        ]"
                         x-text="timer.indice + '- ' + formatTimer(getSegundosTranscurridos(timer.desde))">
                       </p>
                     </template>
@@ -973,22 +1094,29 @@ tailwind.config = {
             </div>
 
             <!-- Fallback: bloques planos (sin agrupar) si no hay grupos -->
-            <div x-show="(!cocinero.grupos || cocinero.grupos.length === 0) && cocinero.bloques && cocinero.bloques.length > 0" class="space-y-2">
+            <div x-show="(!cocinero.grupos || cocinero.grupos.length === 0) && cocinero.bloques && cocinero.bloques.length > 0" class="space-y-2"
+              :class="vistaRendimiento.densidad === 'compacta' ? 'space-y-1' : (vistaRendimiento.densidad === 'amplia' ? 'space-y-3' : 'space-y-2')">
               <template x-for="(bloque, bIdx) in cocinero.bloques" :key="cocinero.cocineroId + '-b-' + bIdx">
-                <div class="bg-bg-sidebar rounded-lg p-3 flex items-center gap-3 flex-wrap">
-                  <div class="flex-1 min-w-[180px]">
+                <div class="bg-bg-sidebar rounded-lg flex items-center gap-3 flex-wrap"
+                  :class="vistaRendimiento.densidad === 'compacta' ? 'p-2' : (vistaRendimiento.densidad === 'amplia' ? 'p-4' : 'p-3')">
+                  <div class="flex-1 min-w-[140px]">
                     <div class="flex items-center gap-2 flex-wrap">
-                      <p class="text-white font-bold text-lg" x-text="bloque.platoNombre || 'Plato'"></p>
+                      <p class="text-white font-bold"
+                        :class="vistaRendimiento.densidad === 'compacta' ? 'text-base' : (vistaRendimiento.densidad === 'amplia' ? 'text-xl' : 'text-lg')"
+                        x-text="bloque.platoNombre || 'Plato'"></p>
                       <span x-show="bloque.cantidad > 1" class="bg-gold/20 text-gold text-xs px-2 py-0.5 rounded font-bold" x-text="'×' + bloque.cantidad"></span>
                       <span x-show="bloque.prioritario" class="bg-st-pagado text-white text-[10px] px-2 py-0.5 rounded font-bold">URGENTE</span>
                     </div>
                     <p class="text-[10px] text-txt-muted mt-0.5" x-show="bloque.observaciones" x-text="bloque.observaciones"></p>
-                    <div class="flex gap-1 flex-wrap mt-1">
+                    <div x-show="vistaRendimiento.mostrarMesas" class="flex gap-1 flex-wrap mt-1">
                       <span x-show="bloque.mesaNum" class="bg-st-libre/20 text-st-libre text-xs px-2 py-0.5 rounded" x-text="'M' + bloque.mesaNum"></span>
                     </div>
                   </div>
-                  <p class="text-sm font-mono font-bold"
-                    :class="getAlertaTimer(bloque.procesandoDesde, cocinero.slaMinutos) === 'rojo' ? 'text-st-pagado animate-pulse' : (getAlertaTimer(bloque.procesandoDesde, cocinero.slaMinutos) === 'amarillo' ? 'text-st-esperando' : 'text-st-preparado')"
+                  <p class="font-mono font-bold"
+                    :class="[
+                      getClaseTamanoTimerRendimiento(),
+                      getAlertaTimer(bloque.procesandoDesde, cocinero.slaMinutos) === 'rojo' ? 'text-st-pagado animate-pulse' : (getAlertaTimer(bloque.procesandoDesde, cocinero.slaMinutos) === 'amarillo' ? 'text-st-esperando' : 'text-st-preparado')
+                    ]"
                     x-text="formatTimer(getSegundosTranscurridos(bloque.procesandoDesde))">
                   </p>
                 </div>
@@ -1001,9 +1129,10 @@ tailwind.config = {
             </div>
           </div>
         </template>
+        </div>
 
         <!-- Mini ranking del turno -->
-        <div x-show="rankingMetricas.length > 0" class="mt-6 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
+        <div x-show="vistaRendimiento.mostrarRanking && rankingMetricas.length > 0" class="mt-6 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
           <h3 class="text-sm font-bold mb-4 flex items-center gap-2">
             🏆 Ranking del turno
             <span class="text-[10px] text-txt-muted font-normal">Top 5 hoy</span>
@@ -1101,9 +1230,16 @@ tailwind.config = {
                 Resumen
               </button>
             </div>
+            <button type="button" @click="autoRefreshRendimiento = !autoRefreshRendimiento"
+              class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition"
+              :class="autoRefreshRendimiento ? 'bg-st-preparado/20 text-st-preparado' : 'bg-bg-sidebar text-txt-muted'">
+              <span class="w-2 h-2 rounded-full" :class="autoRefreshRendimiento ? 'bg-st-preparado animate-pulse' : 'bg-txt-muted'"></span>
+              Auto-actualizar
+            </button>
             <button @click="cargarHistorialCocinados()" class="bg-gold/20 text-gold px-4 py-2 rounded-lg text-sm font-medium hover:bg-gold/30 transition">
               🔄 Actualizar
             </button>
+            <span class="text-[10px] text-st-preparado" x-show="rendimientoSocketConnected">● En vivo</span>
           </div>
         </div>
 
@@ -1193,10 +1329,16 @@ tailwind.config = {
 
         <!-- ===== VISTA: DETALLE ===== -->
         <div x-show="!historialLoading && historialVista === 'detalle'" class="space-y-4">
-          <!-- Buscador por nombre de plato -->
+          <!-- Buscadores: plato / comanda / mesa -->
           <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
-            <input type="text" x-model="historialFiltroPlato" placeholder="🔎 Filtrar por nombre de plato..."
-              class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2 text-sm focus:border-gold focus:outline-none">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <input type="text" x-model="historialFiltroPlato" placeholder="🔎 Plato..."
+                class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2 text-sm focus:border-gold focus:outline-none">
+              <input type="text" x-model="historialFiltroComanda" placeholder="🧾 Comanda (#123)..."
+                class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2 text-sm focus:border-gold focus:outline-none">
+              <input type="text" x-model="historialFiltroMesa" placeholder="🪑 Mesa (ej. 5 o M5)..."
+                class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2 text-sm focus:border-gold focus:outline-none">
+            </div>
           </div>
 
           <!-- Empty state -->
@@ -2521,13 +2663,29 @@ function cocinerosApp() {
     rendimientoTimerInterval: null,
     rendimientoDebounceTimer: null,
     rendimientoSocketConnected: false,
+    rendimientoPollInterval: null,
     // Sub-tabs de rendimiento: 'enVivo' | 'historial'
     subtabRendimiento: 'enVivo',
+    // Personalización de tarjetas (En vivo) — persistido en localStorage
+    panelVistaRendimiento: false,
+    vistaRendimiento: {
+      layout: 'lista',       // 'lista' | 'grid2' | 'grid3'
+      densidad: 'normal',    // 'compacta' | 'normal' | 'amplia'
+      mostrarFoto: true,
+      mostrarSla: true,
+      mostrarStats: true,
+      mostrarMesas: true,
+      mostrarRanking: true,
+      soloConPlatos: false,
+      tamanoTimer: 'mediano' // 'pequeno' | 'mediano' | 'grande'
+    },
     // Historial de platos cocinados (finalizados)
     historialCocinados: { registros: [], enCursoCount: 0, resumen: { totalFinalizados: 0, totalEnCurso: 0, tiempoPromedioSegundos: 0, porcentajeDentroSLA: 0, porPlato: [], porCocinero: [] } },
     historialLoading: false,
     historialFiltroCocinero: '',
     historialFiltroPlato: '',
+    historialFiltroComanda: '',
+    historialFiltroMesa: '',
     historialFiltroFecha: 'hoy',
     historialFechaDesde: '',
     historialFechaHasta: '',
@@ -2743,16 +2901,19 @@ function cocinerosApp() {
       await this.cargarDatosSelectores();
       await this.cargarZonas();
       await this.cargarTiposPlatoCatalogo();
+      this.cargarVistaRendimiento();
 
       // Watchers para ajustar paginación cuando cambian los filtros
       this.$watch('busqueda', () => { this.currentPageCocineros = 1; });
       this.$watch('filtroEstado', () => { this.currentPageCocineros = 1; });
       this.$watch('busquedaZonas', () => { this.currentPageZonas = 1; });
       this.$watch('filtroEstadoZonas', () => { this.currentPageZonas = 1; });
+      this.$watch('vistaRendimiento', () => { this.guardarVistaRendimiento(); }, { deep: true });
 
       // Limpieza de socket/intervalo de rendimiento al cerrar la página
       window.addEventListener('beforeunload', () => {
         this.stopRendimientoTick();
+        this.stopRendimientoPoll();
         this.disconnectSocketRendimiento();
       });
 
@@ -4212,20 +4373,30 @@ function cocinerosApp() {
         this.cargarPantallasCocina();
       }
       if (tab === 'rendimiento') {
-        this.cargarRendimientoEnVivo();
+        this.cargarDatosRendimientoActivo();
         this.initSocketRendimiento();
         this.startRendimientoTick();
+        this.startRendimientoPoll();
       } else if (tabAnterior === 'rendimiento') {
-        // Al salir del tab rendimiento: detener tick y socket
+        // Al salir del tab rendimiento: detener tick, poll y socket
         this.stopRendimientoTick();
+        this.stopRendimientoPoll();
         this.disconnectSocketRendimiento();
       }
     },
 
     // ==================== RENDIMIENTO EN VIVO ====================
 
-    async cargarRendimientoEnVivo() {
-      this.rendimientoLoading = true;
+    cargarDatosRendimientoActivo({ silent = false } = {}) {
+      if (this.subtabRendimiento === 'historial') {
+        this.cargarHistorialCocinados({ silent });
+      } else {
+        this.cargarRendimientoEnVivo({ silent });
+      }
+    },
+
+    async cargarRendimientoEnVivo({ silent = false } = {}) {
+      if (!silent) this.rendimientoLoading = true;
       try {
         const [envivoRes, resumenRes] = await Promise.all([
           apiGet('/cocineros/rendimiento/en-vivo'),
@@ -4245,16 +4416,21 @@ function cocinerosApp() {
         }
       } catch (error) {
         console.error('Error al cargar rendimiento en vivo:', error);
-        this.rendimientoCocineros = [];
-        this.resumenTurno = {};
+        if (!silent) {
+          this.rendimientoCocineros = [];
+          this.resumenTurno = {};
+        }
       }
-      this.rendimientoLoading = false;
+      if (!silent) this.rendimientoLoading = false;
     },
 
     initSocketRendimiento() {
       if (this.socketRendimiento) {
         // Ya inicializado, solo re-join
         if (this.rendimientoSocketConnected) {
+          this.socketRendimiento.emit('join-dashboard-cocineros');
+        } else if (this.socketRendimiento.connected) {
+          this.rendimientoSocketConnected = true;
           this.socketRendimiento.emit('join-dashboard-cocineros');
         }
         return;
@@ -4269,30 +4445,37 @@ function cocinerosApp() {
           transports: ['websocket', 'polling']
         });
 
-        socket.on('connect', () => {
+        const joinRoom = () => {
           this.rendimientoSocketConnected = true;
           socket.emit('join-dashboard-cocineros');
-        });
+        };
+
+        socket.on('connect', joinRoom);
+        if (socket.connected) joinRoom();
 
         socket.on('disconnect', () => {
           this.rendimientoSocketConnected = false;
         });
 
-        socket.on('rendimiento-cocinero-actualizado', () => {
-          // Debounce 500ms para evitar refrescos seguidos si autoRefresh está ON
+        const scheduleRefresh = () => {
           if (this.rendimientoDebounceTimer) clearTimeout(this.rendimientoDebounceTimer);
           this.rendimientoDebounceTimer = setTimeout(() => {
             if (this.activeTab !== 'rendimiento') return;
-            // Sub-tab en vivo
-            if (this.subtabRendimiento === 'enVivo' && this.autoRefreshRendimiento) {
-              this.cargarRendimientoEnVivo();
-            }
-            // Sub-tab historial: refrescar si auto-refresh está activo
-            if (this.subtabRendimiento === 'historial' && this.autoRefreshRendimiento) {
-              this.cargarHistorialCocinados();
-            }
-          }, 500);
-        });
+            if (!this.autoRefreshRendimiento) return;
+            this.cargarDatosRendimientoActivo({ silent: true });
+          }, 400);
+        };
+
+        // Evento dedicado del dashboard de cocineros
+        socket.on('rendimiento-cocinero-actualizado', scheduleRefresh);
+        // Eventos operativos (tomar / liberar / finalizar plato o comanda)
+        socket.on('plato-procesando', scheduleRefresh);
+        socket.on('plato-liberado', scheduleRefresh);
+        socket.on('plato-actualizado', scheduleRefresh);
+        socket.on('comanda-procesando', scheduleRefresh);
+        socket.on('comanda-liberada', scheduleRefresh);
+        socket.on('comanda-finalizada', scheduleRefresh);
+        socket.on('comanda-actualizada', scheduleRefresh);
 
         this.socketRendimiento = socket;
       } catch (error) {
@@ -4322,6 +4505,23 @@ function cocinerosApp() {
       if (this.rendimientoTimerInterval) {
         clearInterval(this.rendimientoTimerInterval);
         this.rendimientoTimerInterval = null;
+      }
+    },
+
+    startRendimientoPoll() {
+      this.stopRendimientoPoll();
+      // Respaldo si el socket falla o se pierde un evento (cada 12s)
+      this.rendimientoPollInterval = setInterval(() => {
+        if (this.activeTab !== 'rendimiento') return;
+        if (!this.autoRefreshRendimiento) return;
+        this.cargarDatosRendimientoActivo({ silent: true });
+      }, 12000);
+    },
+
+    stopRendimientoPoll() {
+      if (this.rendimientoPollInterval) {
+        clearInterval(this.rendimientoPollInterval);
+        this.rendimientoPollInterval = null;
       }
     },
 
@@ -4357,6 +4557,13 @@ function cocinerosApp() {
       if (this.filtroCocineroRendimiento) {
         lista = lista.filter(c => c.cocineroId === this.filtroCocineroRendimiento);
       }
+      if (this.vistaRendimiento?.soloConPlatos) {
+        lista = lista.filter(c => {
+          const nBloques = c.bloques?.length || 0;
+          const nGrupos = c.grupos?.length || 0;
+          return nBloques > 0 || nGrupos > 0;
+        });
+      }
       // Ordenar: con más platos en curso primero
       return lista.slice().sort((a, b) => {
         const aN = (a.bloques?.length || a.grupos?.length || 0);
@@ -4365,10 +4572,89 @@ function cocinerosApp() {
       });
     },
 
+    getDefaultVistaRendimiento() {
+      return {
+        layout: 'lista',
+        densidad: 'normal',
+        mostrarFoto: true,
+        mostrarSla: true,
+        mostrarStats: true,
+        mostrarMesas: true,
+        mostrarRanking: true,
+        soloConPlatos: false,
+        tamanoTimer: 'mediano'
+      };
+    },
+
+    cargarVistaRendimiento() {
+      try {
+        const raw = localStorage.getItem('cocinerosRendimientoVista');
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        if (!saved || typeof saved !== 'object') return;
+        const defaults = this.getDefaultVistaRendimiento();
+        const layouts = ['lista', 'grid2', 'grid3'];
+        const densidades = ['compacta', 'normal', 'amplia'];
+        const timers = ['pequeno', 'mediano', 'grande'];
+        this.vistaRendimiento = {
+          ...defaults,
+          ...saved,
+          layout: layouts.includes(saved.layout) ? saved.layout : defaults.layout,
+          densidad: densidades.includes(saved.densidad) ? saved.densidad : defaults.densidad,
+          tamanoTimer: timers.includes(saved.tamanoTimer) ? saved.tamanoTimer : defaults.tamanoTimer,
+          mostrarFoto: saved.mostrarFoto !== false,
+          mostrarSla: saved.mostrarSla !== false,
+          mostrarStats: saved.mostrarStats !== false,
+          mostrarMesas: saved.mostrarMesas !== false,
+          mostrarRanking: saved.mostrarRanking !== false,
+          soloConPlatos: !!saved.soloConPlatos
+        };
+      } catch (e) {
+        console.warn('No se pudo cargar preferencia de vista rendimiento:', e);
+      }
+    },
+
+    guardarVistaRendimiento() {
+      try {
+        localStorage.setItem('cocinerosRendimientoVista', JSON.stringify(this.vistaRendimiento));
+      } catch (e) {
+        console.warn('No se pudo guardar preferencia de vista rendimiento:', e);
+      }
+    },
+
+    restaurarVistaRendimiento() {
+      this.vistaRendimiento = this.getDefaultVistaRendimiento();
+      this.guardarVistaRendimiento();
+      if (window.GambusinasNotifications) {
+        window.GambusinasNotifications.success('Vista restaurada', 'Se aplicaron los valores por defecto');
+      }
+    },
+
+    getClaseGridRendimiento() {
+      const layout = this.vistaRendimiento?.layout || 'lista';
+      if (layout === 'grid3') return 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4';
+      if (layout === 'grid2') return 'grid grid-cols-1 md:grid-cols-2 gap-4';
+      return 'space-y-4';
+    },
+
+    getClasePaddingTarjetaRendimiento() {
+      const d = this.vistaRendimiento?.densidad || 'normal';
+      if (d === 'compacta') return 'p-3';
+      if (d === 'amplia') return 'p-6';
+      return 'p-5';
+    },
+
+    getClaseTamanoTimerRendimiento() {
+      const t = this.vistaRendimiento?.tamanoTimer || 'mediano';
+      if (t === 'pequeno') return 'text-xs';
+      if (t === 'grande') return 'text-lg';
+      return 'text-sm';
+    },
+
     // ==================== HISTORIAL DE PLATOS COCINADOS ====================
 
-    async cargarHistorialCocinados() {
-      this.historialLoading = true;
+    async cargarHistorialCocinados({ silent = false } = {}) {
+      if (!silent) this.historialLoading = true;
       try {
         const params = new URLSearchParams();
         if (this.historialFiltroCocinero) {
@@ -4407,20 +4693,24 @@ function cocinerosApp() {
             enCursoCount: data.enCursoCount || 0,
             resumen: data.resumen || { totalFinalizados: 0, totalEnCurso: 0, tiempoPromedioSegundos: 0, porcentajeDentroSLA: 0, porPlato: [], porCocinero: [] }
           };
-        } else {
+        } else if (!silent) {
           this.historialCocinados = { registros: [], enCursoCount: 0, resumen: { totalFinalizados: 0, totalEnCurso: 0, tiempoPromedioSegundos: 0, porcentajeDentroSLA: 0, porPlato: [], porCocinero: [] } };
         }
       } catch (error) {
         console.error('Error al cargar historial de platos cocinados:', error);
-        this.historialCocinados = { registros: [], enCursoCount: 0, resumen: { totalFinalizados: 0, totalEnCurso: 0, tiempoPromedioSegundos: 0, porcentajeDentroSLA: 0, porPlato: [], porCocinero: [] } };
+        if (!silent) {
+          this.historialCocinados = { registros: [], enCursoCount: 0, resumen: { totalFinalizados: 0, totalEnCurso: 0, tiempoPromedioSegundos: 0, porcentajeDentroSLA: 0, porPlato: [], porCocinero: [] } };
+        }
       }
-      this.historialLoading = false;
+      if (!silent) this.historialLoading = false;
     },
 
     cambiarSubtabRendimiento(sub) {
       this.subtabRendimiento = sub;
-      if (sub === 'historial' && this.historialCocinados.registros.length === 0) {
+      if (sub === 'historial') {
         this.cargarHistorialCocinados();
+      } else if (sub === 'enVivo') {
+        this.cargarRendimientoEnVivo();
       }
     },
 
@@ -4429,6 +4719,21 @@ function cocinerosApp() {
       if (this.historialFiltroPlato) {
         const q = this.historialFiltroPlato.trim().toLowerCase();
         lista = lista.filter(r => (r.platoNombre || '').toLowerCase().includes(q));
+      }
+      if (this.historialFiltroComanda) {
+        const q = this.historialFiltroComanda.trim().toLowerCase().replace(/^#/, '');
+        lista = lista.filter(r => {
+          const num = String(r.comandaNumber ?? '').toLowerCase();
+          const id = String(r.comandaId ?? '').toLowerCase();
+          return num.includes(q) || id.includes(q);
+        });
+      }
+      if (this.historialFiltroMesa) {
+        const q = this.historialFiltroMesa.trim().toLowerCase().replace(/^m\s*/i, '');
+        lista = lista.filter(r => {
+          const mesa = String(r.mesaNum ?? '').toLowerCase();
+          return mesa.includes(q);
+        });
       }
       return lista;
     },

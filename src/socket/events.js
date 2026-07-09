@@ -2191,6 +2191,11 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       cocinaNamespace.to(roomName).emit('comanda-liberada', eventData);
       await emitProcesamientoToMesaMozos('comanda-liberada', comandaId, eventData);
 
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('comanda-liberada', eventData);
+        adminNamespace.to('dashboard-cocineros').emit('comanda-liberada', eventData);
+      }
+
       logger.info('Evento comanda-liberada emitido', { comandaId, cocineroId, roomName });
     } catch (error) {
       logger.error('Error al emitir comanda-liberada', { error: error.message });
@@ -2263,6 +2268,8 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
           socketId: 'server',
           timestamp
         });
+        adminNamespace.emit('comanda-finalizada', eventData);
+        adminNamespace.to('dashboard-cocineros').emit('comanda-finalizada', eventData);
       }
       if (global.emitRendimientoMozoActualizado) {
         const mozoId = comanda.mozos?._id || comanda.mozos;

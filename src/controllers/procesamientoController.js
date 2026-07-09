@@ -673,6 +673,14 @@ router.put('/comanda/:id/procesando', adminAuth, async (req, res) => {
     if (global.emitComandaProcesando) {
       global.emitComandaProcesando(comandaId, cocineroInfo, comandaActualizada);
     }
+
+    if (global.emitRendimientoCocineroActualizado) {
+      global.emitRendimientoCocineroActualizado({
+        tipo: 'comanda_tomada',
+        comandaId,
+        cocineroId: cocineroId?.toString()
+      });
+    }
     
     res.json({
       success: true,
@@ -833,6 +841,14 @@ router.delete('/comanda/:id/procesando', adminAuth, async (req, res) => {
     
     if (global.emitComandaLiberada) {
       global.emitComandaLiberada(comandaId, cocineroId, comandaActualizada);
+    }
+
+    if (global.emitRendimientoCocineroActualizado) {
+      global.emitRendimientoCocineroActualizado({
+        tipo: 'comanda_liberada',
+        comandaId,
+        cocineroId: cocineroId?.toString()
+      });
     }
     
     res.json({
@@ -1044,6 +1060,15 @@ router.put('/comanda/:id/finalizar', adminAuth, async (req, res) => {
     // Emitir evento Socket — cocinero atribuido (titular), no el supervisor
     if (global.emitComandaFinalizada) {
       global.emitComandaFinalizada(comandaId, cocineroAtribuidoComandaInfo, comandaFinalizada);
+    }
+
+    if (global.emitRendimientoCocineroActualizado) {
+      global.emitRendimientoCocineroActualizado({
+        tipo: 'comanda_finalizada',
+        comandaId,
+        cocineroId: cocineroAtribuidoComandaId?.toString(),
+        supervisorOverride
+      });
     }
     
     // Incrementar contador del cocinero que preparó (no del supervisor)
