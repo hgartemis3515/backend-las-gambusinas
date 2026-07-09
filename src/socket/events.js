@@ -469,6 +469,16 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         mozosConnected: mozosNamespace?.sockets?.size || 0,
         adminsConnected: adminNamespace?.sockets?.size || 0
       });
+
+      // Dashboard rendimiento mozos: aparece al crear el pedido
+      if (global.emitRendimientoMozoActualizado) {
+        const mozoId = comandaCompleta.mozos?._id || comandaCompleta.mozos;
+        global.emitRendimientoMozoActualizado({
+          tipo: 'comanda_creada',
+          mozoId,
+          comandaId: comandaCompleta._id
+        });
+      }
     } catch (error) {
       logger.error('Error al emitir nueva-comanda', {
         error: error.message,
@@ -595,6 +605,20 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         estadoAnterior,
         estadoNuevo
       });
+
+      // Dashboard rendimiento mozos: alta de platos, pago, cierre, etc.
+      if (global.emitRendimientoMozoActualizado) {
+        const mozoId = comanda.mozos?._id || comanda.mozos;
+        const cerrado = ['pagado', 'completado', 'cancelado'].includes(
+          String(estadoNuevo || comanda.status || '').toLowerCase()
+        ) || comanda.IsActive === false;
+        global.emitRendimientoMozoActualizado({
+          tipo: cerrado ? 'comanda_cerrada' : 'comanda_actualizada',
+          mozoId,
+          comandaId,
+          estadoNuevo: estadoNuevo || comanda.status
+        });
+      }
     } catch (error) {
       logger.error('Error al emitir comanda-actualizada', {
         error: error.message,
@@ -1123,6 +1147,16 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         mozosConnected: mozosNamespace?.sockets?.size || 0,
         cocinaConnected: cocinaNamespace?.sockets?.size || 0
       });
+
+      // Al liberar / pasar a pagado: refrescar rendimiento en vivo (comandas salen del ciclo)
+      const estadoMesa = String(mesa.estado || '').toLowerCase();
+      if (global.emitRendimientoMozoActualizado && (estadoMesa === 'libre' || estadoMesa === 'pagado')) {
+        global.emitRendimientoMozoActualizado({
+          tipo: 'mesa_liberada',
+          mesaId: mesa._id,
+          estadoMesa
+        });
+      }
     } catch (error) {
       logger.error('Error al emitir mesa-actualizada', {
         error: error.message,
@@ -2002,6 +2036,20 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       cocinaNamespace.to(roomName).emit('plato-procesando', eventData);
       await emitProcesamientoToMesaMozos('plato-procesando', comandaId, eventData);
 
+      // Panel admin (mozos.html modal Ver completo): cocinero asignado en tiempo real
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('plato-procesando', eventData);
+        adminNamespace.to('dashboard-mozos').emit('plato-procesando', eventData);
+      }
+      if (global.emitRendimientoMozoActualizado) {
+        global.emitRendimientoMozoActualizado({
+          tipo: 'plato_tomado',
+          comandaId,
+          platoId,
+          cocineroId: cocinero?.cocineroId
+        });
+      }
+
       logger.info('Evento plato-procesando emitido', {
         comandaId,
         platoId,
@@ -2036,6 +2084,19 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       cocinaNamespace.to(roomName).emit('plato-liberado', eventData);
       await emitProcesamientoToMesaMozos('plato-liberado', comandaId, eventData);
 
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('plato-liberado', eventData);
+        adminNamespace.to('dashboard-mozos').emit('plato-liberado', eventData);
+      }
+      if (global.emitRendimientoMozoActualizado) {
+        global.emitRendimientoMozoActualizado({
+          tipo: 'plato_liberado',
+          comandaId,
+          platoId,
+          cocineroId
+        });
+      }
+
       logger.info('Evento plato-liberado emitido', { comandaId, platoId, cocineroId });
     } catch (error) {
       logger.error('Error al emitir plato-liberado', { error: error.message });
@@ -2069,6 +2130,18 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         ...eventData,
         procesandoPor: cocinero
       });
+
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('comanda-procesando', eventData);
+        adminNamespace.to('dashboard-mozos').emit('comanda-procesando', eventData);
+      }
+      if (global.emitRendimientoMozoActualizado) {
+        global.emitRendimientoMozoActualizado({
+          tipo: 'comanda_tomada',
+          comandaId,
+          cocineroId: cocinero?.cocineroId
+        });
+      }
 
       logger.info('Evento comanda-procesando emitido', {
         comandaId,

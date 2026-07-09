@@ -858,6 +858,10 @@ router.delete('/comanda/:id/procesando', adminAuth, async (req, res) => {
  * PUT /api/comanda/:id/finalizar
  * Finaliza una comanda completa (marca todos los platos como 'recoger')
  * v7.4: Sistema de 3 estados para Finalizar Comanda
+ *
+ * Atribución (paridad con PUT .../plato/:platoId/finalizar):
+ * - procesadoPor = cocinero que TOMÓ el plato/comanda (no el supervisor/admin que pulsa Finalizar)
+ * - finalizadoPor = quien ejecutó la acción si es override de supervisor
  */
 router.put('/comanda/:id/finalizar', adminAuth, async (req, res) => {
   try {
@@ -884,8 +888,10 @@ router.put('/comanda/:id/finalizar', adminAuth, async (req, res) => {
     
     // Verificar que la comanda está siendo procesada por este cocinero
     // EXCEPCIÓN: Un supervisor/admin puede finalizar comandas de otros
-    if (comanda.procesandoPor?.cocineroId &&
-        comanda.procesandoPor.cocineroId.toString() !== cocineroId) {
+    let supervisorOverride = false;
+    const cocineroTitularComandaId = comanda.procesandoPor?.cocineroId || null;
+    if (cocineroTitularComandaId &&
+        cocineroTitularComandaId.toString() !== cocineroId.toString()) {
       const esSupervisor = esSupervisorCocina(req.admin);
       if (!esSupervisor) {
         return res.status(403).json({
@@ -893,15 +899,25 @@ router.put('/comanda/:id/finalizar', adminAuth, async (req, res) => {
           error: 'Solo el cocinero que tomó la comanda puede finalizarla'
         });
       }
+      supervisorOverride = true;
       logger.info('[FinalizarComanda] Supervisor finalizando comanda de otro cocinero', {
         comandaId,
-        cocineroOriginal: comanda.procesandoPor.cocineroId,
+        cocineroOriginal: cocineroTitularComandaId,
         supervisorId: cocineroId,
         rol: req.admin.rol
       });
     }
-    
-    const cocineroInfo = await getCocineroInfo(cocineroId);
+
+    // Fallback de atribución a nivel comanda (si un plato no tiene procesandoPor propio)
+    const cocineroAtribuidoComandaId = cocineroTitularComandaId || cocineroId;
+    const cocineroAtribuidoComandaInfo = await getCocineroInfo(cocineroAtribuidoComandaId);
+    const supervisorInfo = supervisorOverride
+      ? {
+          usuarioId: cocineroId,
+          nombre: req.admin?.name || req.admin?.nombre || 'Supervisor',
+          rol: req.admin?.rol || 'supervisor'
+        }
+      : null;
     const timestampAhora = moment().tz('America/Lima').toDate();
     
     // Finalizar TODOS los platos que no estén ya finalizados
@@ -918,30 +934,45 @@ router.put('/comanda/:id/finalizar', adminAuth, async (req, res) => {
         const estado = plato.estado || 'en_espera';
         
         // Solo finalizar platos que no estén ya en 'recoger' o 'entregado'
-        if (estado !== 'recoger' && estado !== 'entregado') {
-          // Preservar timestamp de TOMA antes de limpiar procesandoPor
-          const tomadoEnPlato = plato.procesandoPor?.timestamp || timestampAhora;
+        if (estado !== 'recoger' && estado !== 'entregado' && estado !== 'salio' && estado !== 'pagado') {
+          // Atribuir al cocinero que TOMÓ el plato; si no hay, al de la comanda
+          const cocineroPlatoId = plato.procesandoPor?.cocineroId || cocineroAtribuidoComandaId;
+          const cocineroPlatoInfo = (cocineroPlatoId?.toString() === cocineroAtribuidoComandaId?.toString())
+            ? cocineroAtribuidoComandaInfo
+            : await getCocineroInfo(cocineroPlatoId);
+          const tomadoEnPlato = plato.procesandoPor?.timestamp
+            || comanda.procesandoPor?.timestamp
+            || timestampAhora;
+
+          const updateSet = {
+            [`platos.${i}.estado`]: 'recoger',
+            [`platos.${i}.tiempos.recoger`]: timestampAhora,
+            [`platos.${i}.procesadoPor`]: {
+              ...cocineroPlatoInfo,
+              // timestamp = momento de FINALIZACIÓN.
+              timestamp: timestampAhora,
+              // tomadoEn = momento en que el cocinero TOMÓ el plato.
+              tomadoEn: tomadoEnPlato
+            },
+            [`platos.${i}.procesandoPor`]: {
+              cocineroId: null,
+              nombre: null,
+              alias: null,
+              timestamp: null
+            }
+          };
+
+          // Quién pulsó Finalizar (supervisor/admin), sin pisar procesadoPor del cocinero
+          if (supervisorOverride && supervisorInfo) {
+            updateSet[`platos.${i}.finalizadoPor`] = {
+              ...supervisorInfo,
+              timestamp: timestampAhora
+            };
+          }
+
           await Comanda.updateOne(
             { _id: comandaId },
-            {
-              $set: {
-                [`platos.${i}.estado`]: 'recoger',
-                [`platos.${i}.tiempos.recoger`]: timestampAhora,
-                [`platos.${i}.procesadoPor`]: {
-                  ...cocineroInfo,
-                  // timestamp = momento de FINALIZACIÓN.
-                  timestamp: timestampAhora,
-                  // tomadoEn = momento en que el cocinero TOMÓ el plato.
-                  tomadoEn: tomadoEnPlato
-                },
-                [`platos.${i}.procesandoPor`]: {
-                  cocineroId: null,
-                  nombre: null,
-                  alias: null,
-                  timestamp: null
-                }
-              }
-            }
+            { $set: updateSet }
           );
           platosFinalizados++;
         } else if (estado === 'recoger') {
@@ -1010,14 +1041,14 @@ router.put('/comanda/:id/finalizar', adminAuth, async (req, res) => {
       .populate({ path: "mesas", populate: { path: "area" } })
       .lean();
     
-    // Emitir evento Socket
+    // Emitir evento Socket — cocinero atribuido (titular), no el supervisor
     if (global.emitComandaFinalizada) {
-      global.emitComandaFinalizada(comandaId, cocineroInfo, comandaFinalizada);
+      global.emitComandaFinalizada(comandaId, cocineroAtribuidoComandaInfo, comandaFinalizada);
     }
     
-    // Incrementar contador de platos preparados del cocinero
+    // Incrementar contador del cocinero que preparó (no del supervisor)
     if (platosFinalizados > 0) {
-      cocinerosRepository.incrementarPlatosPreparados(cocineroId, platosFinalizados).catch(err => {
+      cocinerosRepository.incrementarPlatosPreparados(cocineroAtribuidoComandaId, platosFinalizados).catch(err => {
         logger.warn('No se pudo incrementar platos preparados', { error: err.message });
       });
     }
@@ -1025,6 +1056,8 @@ router.put('/comanda/:id/finalizar', adminAuth, async (req, res) => {
     logger.info('[FinalizarComanda] Comanda finalizada', {
       comandaId,
       cocineroId,
+      cocineroAtribuidoId: cocineroAtribuidoComandaId,
+      supervisorOverride,
       platosFinalizados,
       platosYaListos,
       todosListos
@@ -1038,6 +1071,9 @@ router.put('/comanda/:id/finalizar', adminAuth, async (req, res) => {
         platosFinalizados,
         platosYaListos,
         comandaLista: todosListos,
+        procesadoPor: cocineroAtribuidoComandaInfo,
+        supervisorOverride,
+        finalizadoPor: supervisorInfo,
         comanda: comandaFinalizada
       }
     });

@@ -1041,7 +1041,15 @@ tailwind.config = {
       <!-- ===== Sub-tab EN VIVO ===== -->
       <div x-show="subtabRendimientoMozos === 'enVivo'" class="space-y-4" x-cloak>
         <!-- KPIs turno -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div class="mozos-kpi-card rounded-2xl p-4">
+            <p class="text-[10px] uppercase text-txt-muted">Comandas en curso</p>
+            <p class="text-2xl font-bold text-gold mt-1" x-text="rendimientoMozosEnVivo.comandasEnCurso || 0"></p>
+          </div>
+          <div class="mozos-kpi-card rounded-2xl p-4">
+            <p class="text-[10px] uppercase text-txt-muted">En cocina</p>
+            <p class="text-2xl font-bold text-white mt-1" x-text="rendimientoMozosEnVivo.platosEnCocina || 0"></p>
+          </div>
           <div class="mozos-kpi-card rounded-2xl p-4">
             <p class="text-[10px] uppercase text-txt-muted">Pendientes (salió)</p>
             <p class="text-2xl font-bold text-st-preparado mt-1" x-text="rendimientoMozosEnVivo.pendientesSalio || 0"></p>
@@ -1053,10 +1061,6 @@ tailwind.config = {
           <div class="mozos-kpi-card rounded-2xl p-4">
             <p class="text-[10px] uppercase text-txt-muted">Entregados hoy</p>
             <p class="text-2xl font-bold text-st-libre mt-1" x-text="resumenTurnoMozos.platosEntregados || 0"></p>
-          </div>
-          <div class="mozos-kpi-card rounded-2xl p-4">
-            <p class="text-[10px] uppercase text-txt-muted">Mozos activos</p>
-            <p class="text-2xl font-bold text-gold mt-1" x-text="resumenTurnoMozos.mozosActivos || 0"></p>
           </div>
         </div>
 
@@ -1088,7 +1092,7 @@ tailwind.config = {
         <div x-show="!rendimientoMozoLoading" class="space-y-3">
           <div x-show="getMozosRendimientoFiltrados().length === 0" class="mozos-kpi-card rounded-2xl p-8 text-center">
             <div class="text-4xl mb-2">⚡</div>
-            <p class="text-txt-muted text-sm">Sin comandas activas en salón.</p>
+            <p class="text-txt-muted text-sm">Sin comandas activas del equipo.</p>
           </div>
           <template x-for="mzo in getMozosRendimientoFiltrados()" :key="mzo.mozoId">
             <div class="mozos-kpi-card rounded-2xl p-4 space-y-3">
@@ -3039,7 +3043,7 @@ function mozosExecutiveApp() {
     // ==================== RENDIMIENTO OPERATIVO MOZOS ====================
     subtabRendimientoMozos: 'comercial', // 'comercial' | 'enVivo' | 'historial'
     // En vivo
-    rendimientoMozosEnVivo: { mozos: [], pendientesSalio: 0, pendientesRecoger: 0, cocinerosActivos: 0 },
+    rendimientoMozosEnVivo: { mozos: [], pendientesSalio: 0, pendientesRecoger: 0, platosEnCocina: 0, comandasEnCurso: 0, cocinerosActivos: 0 },
     resumenTurnoMozos: {},
     rendimientoMozoLoading: false,
     filtroMozoRendimiento: '',
@@ -3589,7 +3593,7 @@ function mozosExecutiveApp() {
         this.initSocketRendimientoMozo();
       } catch (e) {
         console.error('Error cargarRendimientoMozosEnVivo', e);
-        this.rendimientoMozosEnVivo = { mozos: [], pendientesSalio: 0, pendientesRecoger: 0, cocinerosActivos: 0 };
+        this.rendimientoMozosEnVivo = { mozos: [], pendientesSalio: 0, pendientesRecoger: 0, platosEnCocina: 0, comandasEnCurso: 0, cocinerosActivos: 0 };
       }
       this.rendimientoMozoLoading = false;
     },
@@ -3687,28 +3691,45 @@ function mozosExecutiveApp() {
       try {
         const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
         if (!token || typeof io === 'undefined') return;
-        // Reutilizar el socket admin existente si está disponible
-        if (this._socketAdmin && this.rendimientoMozoSocketConnected) return;
         const socket = this._socketAdmin || io('/admin', { auth: { token } });
         this._socketAdmin = socket;
-        socket.on('connect', () => {
+
+        const joinRoom = () => {
           this.rendimientoMozoSocketConnected = true;
           socket.emit('join-dashboard-mozos');
-        });
-        if (socket.connected) { this.rendimientoMozoSocketConnected = true; socket.emit('join-dashboard-mozos'); }
+        };
+        socket.off('connect', this._onConnectRendimientoMozo);
+        this._onConnectRendimientoMozo = joinRoom;
+        socket.on('connect', this._onConnectRendimientoMozo);
+        if (socket.connected) joinRoom();
+
+        if (this._rendimientoMozoSocketBound) return;
+        this._rendimientoMozoSocketBound = true;
+
         let debounceRz = null;
-        socket.on('rendimiento-mozo-actualizado', () => {
-          if (!this.autoRefreshRendimientoMozo) return;
+        const scheduleRefresh = (comandaIdHint) => {
           if (debounceRz) clearTimeout(debounceRz);
           debounceRz = setTimeout(() => {
-            if (this.subtabRendimientoMozos === 'enVivo') this.cargarRendimientoMozosEnVivo();
-            if (this.subtabRendimientoMozos === 'historial') this.cargarHistorialMozos();
-            // Si el modal está abierto, refrescar detalle también
-            if (this.modalComandaMozo === 'verComanda' && this.selectedComandaMozo?._id) {
-              this.loadComandaDetalleMozo(this.selectedComandaMozo._id);
+            if (this.autoRefreshRendimientoMozo) {
+              if (this.subtabRendimientoMozos === 'enVivo') this.cargarRendimientoMozosEnVivo();
+              if (this.subtabRendimientoMozos === 'historial') this.cargarHistorialMozos();
             }
-          }, 500);
-        });
+            // Modal Ver completo: siempre refrescar si está abierto (muestra cocinero asignado, etc.)
+            if (this.modalComandaMozo === 'verComanda' && this.selectedComandaMozo?._id) {
+              const abierta = String(this.selectedComandaMozo._id);
+              if (!comandaIdHint || String(comandaIdHint) === abierta) {
+                this.loadComandaDetalleMozo(abierta);
+              }
+            }
+          }, 400);
+        };
+
+        socket.on('rendimiento-mozo-actualizado', (payload) => scheduleRefresh(payload?.comandaId));
+        socket.on('plato-procesando', (data) => scheduleRefresh(data?.comandaId));
+        socket.on('plato-liberado', (data) => scheduleRefresh(data?.comandaId));
+        socket.on('comanda-procesando', (data) => scheduleRefresh(data?.comandaId));
+        socket.on('comanda-actualizada', (data) => scheduleRefresh(data?.comandaId || data?.comanda?._id));
+        socket.on('plato-actualizado', (data) => scheduleRefresh(data?.comandaId));
       } catch (e) { console.warn('initSocketRendimientoMozo', e); }
     },
 
@@ -3840,13 +3861,15 @@ function mozosExecutiveApp() {
     },
     normalizarComandaMozo(c) {
       if (!c) return null;
+      const tieneNombre = (obj) => !!(obj && (obj.alias || obj.nombre));
       const platos = (c.platos || []).map(p => ({
         ...p,
         nombre: p.nombre || p.plato?.nombre || p.platoNombre || 'Plato',
         estado: p.estado || 'pedido',
         tiempos: p.tiempos || {},
-        procesadoPor: p.procesadoPor || null,
-        procesandoPor: p.procesandoPor || null,
+        // Limpiar objetos vacíos de Mongoose (cocineroId/nombre null) para que el UI no los trate como asignados
+        procesadoPor: tieneNombre(p.procesadoPor) ? p.procesadoPor : null,
+        procesandoPor: tieneNombre(p.procesandoPor) ? p.procesandoPor : null,
         entregadoPor: p.entregadoPor || null
       }));
       return {
@@ -3908,9 +3931,15 @@ function mozosExecutiveApp() {
       return seg == null ? '—' : this.formatDuracionSegundos(seg);
     },
     getCocineroPlatoMozo(item) {
-      const e = item?.procesadoPor || item?.procesandoPor || null;
-      if (!e) return '—';
-      return e.nombre || e.alias || '—';
+      // Igual que comandas.html: no usar procesadoPor vacío (defaults Mongoose son truthy).
+      if (!item) return '—';
+      if (item.procesadoPor && (item.procesadoPor.alias || item.procesadoPor.nombre)) {
+        return item.procesadoPor.alias || item.procesadoPor.nombre;
+      }
+      if (item.procesandoPor && (item.procesandoPor.alias || item.procesandoPor.nombre)) {
+        return item.procesandoPor.alias || item.procesandoPor.nombre;
+      }
+      return '—';
     },
     cerrarModalComandaMozo() {
       this.modalComandaMozo = null;

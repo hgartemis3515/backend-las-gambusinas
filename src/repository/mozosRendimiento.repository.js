@@ -283,13 +283,17 @@ async function obtenerHistorialComandasMozos({ mozoId = null, fechaInicio, fecha
 }
 
 /**
- * Snapshot en vivo: comandas activas con platos en salón (recoger/salio/entregado).
+ * Snapshot en vivo: comandas activas del mozo en ciclo abierto
+ * (desde crear pedido hasta pago/liberación).
+ * Excluye pagado/completado/cancelado e IsActive=false.
  */
 async function obtenerRendimientoEnVivo({ mozoId = null } = {}) {
     try {
+        const ESTADOS_CICLO_ABIERTO = ['pendiente', 'pedido', 'en_espera', 'recoger', 'salio', 'entregado'];
         const match = {
             IsActive: true,
-            'platos.estado': { $in: ['recoger', 'salio', 'entregado'] },
+            status: { $nin: ['pagado', 'completado', 'cancelado'] },
+            'platos.estado': { $in: ESTADOS_CICLO_ABIERTO },
             'platos.eliminado': { $ne: true },
             'platos.anulado': { $ne: true }
         };
@@ -324,6 +328,8 @@ async function obtenerRendimientoEnVivo({ mozoId = null } = {}) {
                             platoId: '$$p.platoId',
                             estado: '$$p.estado',
                             cantidad: '$$p.cantidad',
+                            eliminado: '$$p.eliminado',
+                            anulado: '$$p.anulado',
                             tiempos: '$$p.tiempos',
                             entregadoPor: '$$p.entregadoPor',
                             platoNombre: { $ifNull: [{ $arrayElemAt: [{ $map: { input: { $filter: { input: '$platosInfo', as: 'pi', cond: { $eq: ['$$pi._id', '$$p.plato'] } } }, as: 'pi', in: '$$pi.nombre' } }, 0] }, '$$p.nombre'] }
@@ -334,22 +340,25 @@ async function obtenerRendimientoEnVivo({ mozoId = null } = {}) {
             { $limit: 200 }
         ]);
 
-        // Agrupar por mozo
+        // Agrupar por mozo — todos los platos activos del ciclo (no solo salón)
         const porMozo = {};
-        let pendientesSalio = 0, pendientesRecoger = 0;
+        let pendientesSalio = 0, pendientesRecoger = 0, platosEnCocina = 0;
 
         for (const c of comandas) {
-            const platosActivos = (c.platos || []).filter(p => !p.eliminado && !p.anulado && ['recoger', 'salio', 'entregado'].includes(p.estado));
+            const platosActivos = (c.platos || []).filter(p =>
+                !p.eliminado && !p.anulado && ESTADOS_CICLO_ABIERTO.includes(p.estado)
+            );
             if (!platosActivos.length) continue;
 
             const idMozo = String(c.mozoId || 'desconocido');
             const nombre = c.mozoNombre || 'Mozo';
             if (!porMozo[idMozo]) porMozo[idMozo] = { mozoId: c.mozoId, mozoNombre: nombre, comandas: [] };
 
-            const metricas = calcularMetricasComanda(c.platos);
+            const metricas = calcularMetricasComanda(platosActivos);
             for (const p of platosActivos) {
                 if (p.estado === 'salio') pendientesSalio++;
                 else if (p.estado === 'recoger') pendientesRecoger++;
+                else if (p.estado === 'pedido' || p.estado === 'en_espera' || p.estado === 'pendiente') platosEnCocina++;
             }
 
             porMozo[idMozo].comandas.push({
@@ -371,6 +380,8 @@ async function obtenerRendimientoEnVivo({ mozoId = null } = {}) {
             mozos: Object.values(porMozo),
             pendientesSalio,
             pendientesRecoger,
+            platosEnCocina,
+            comandasEnCurso: Object.values(porMozo).reduce((n, m) => n + (m.comandas?.length || 0), 0),
             cocinerosActivos: Object.keys(porMozo).length
         };
     } catch (error) {
