@@ -54,6 +54,8 @@ const pagoAdelantadoRoutes = require('./src/controllers/pagoAdelantadoController
 const aprobacionRoutes = require('./src/controllers/aprobacionController')
 // VISTA COCINA: Controller para Vistas de Cocina y Pantallas de cocina (monitores pasivos TV)
 const vistaCocinaRoutes = require('./src/controllers/vistaCocinaController')
+// ASIGNACIÓN AUTOMÁTICA DE PLATOS: Controller para config global + reglas
+const asignacionAutomaticaRoutes = require('./src/controllers/asignacionAutomaticaController')
 const { adminAuth } = require('./src/middleware/adminAuth')
 
 const app = express();
@@ -244,6 +246,7 @@ app.use('/api', tiposPlatoRoutes);
 app.use('/api', pagoAdelantadoRoutes);
 app.use('/api', aprobacionRoutes);
 app.use('/api', vistaCocinaRoutes);
+app.use('/api', asignacionAutomaticaRoutes);
 
 // Servir archivos estáticos desde la carpeta public
 app.use(express.static(path.join(__dirname, 'public')));

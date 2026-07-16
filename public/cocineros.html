@@ -76,6 +76,22 @@ tailwind.config = {
         <button x-show="activeTab === 'rendimiento'" @click="cargarDatosRendimientoActivo()" class="bg-gold/20 text-gold px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gold/30 transition">
           🔄 Actualizar
         </button>
+        <button x-show="activeTab === 'asignacion'" @click="abrirConfigGlobalAsignacion()" class="bg-bg-sidebar text-txt-secondary px-4 py-2 rounded-lg text-sm font-semibold hover:text-gold transition border border-[rgba(212,175,55,0.25)]">
+          ⚙️ Config global
+        </button>
+        <button x-show="activeTab === 'asignacion'" @click="abrirVistaPorCocinero()" class="bg-bg-sidebar text-txt-secondary px-4 py-2 rounded-lg text-sm font-semibold hover:text-gold transition border border-[rgba(212,175,55,0.25)]">
+          👨‍🍳 Vista por cocinero
+        </button>
+        <button x-show="activeTab === 'asignacion'" @click="abrirSimuladorAsignacion()" class="bg-bg-sidebar text-txt-secondary px-4 py-2 rounded-lg text-sm font-semibold hover:text-gold transition border border-[rgba(212,175,55,0.25)]">
+          🧪 Simular
+        </button>
+        <button x-show="activeTab === 'asignacion'" @click="toggleAsignacionAutomatica()" class="px-4 py-2 rounded-lg text-sm font-semibold transition"
+          :class="asignacionConfig?.habilitada ? 'bg-st-pagado text-white hover:brightness-110' : 'bg-st-libre text-bg-primary hover:brightness-110'">
+          <span x-text="asignacionConfig?.habilitada ? '⏸️ Pausar auto-asignación' : '▶️ Activar auto-asignación'"></span>
+        </button>
+        <button x-show="activeTab === 'asignacion'" @click="guardarAsignacionCompleta()" class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">
+          💾 Guardar cambios
+        </button>
       </div>
     </div>
 
@@ -85,6 +101,14 @@ tailwind.config = {
         class="px-4 py-2 rounded-lg text-sm font-medium transition"
         :class="activeTab === 'cocineros' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
         👨‍🍳 Cocineros
+      </button>
+      <button @click="cambiarTab('asignacion')"
+        class="px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1"
+        :class="activeTab === 'asignacion' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
+        ⚡ Asignación Automática
+        <span x-show="asignacionConfig?.habilitada"
+          class="w-2 h-2 rounded-full bg-st-libre animate-pulse"
+          title="Activa"></span>
       </button>
       <button @click="cambiarTab('zonas')"
         class="px-4 py-2 rounded-lg text-sm font-medium transition"
@@ -560,6 +584,267 @@ tailwind.config = {
 
     </div>
     <!-- FIN TAB: COCINEROS -->
+
+    <!-- ==================== TAB: ASIGNACIÓN AUTOMÁTICA ==================== -->
+    <div x-show="activeTab === 'asignacion'" x-cloak>
+
+      <!-- KPIs Asignación -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-[11px] text-txt-muted uppercase">Estado</p>
+              <p class="text-lg font-bold" :class="asignacionConfig?.habilitada ? 'text-st-libre' : 'text-txt-muted'"
+                x-text="asignacionConfig?.habilitada ? '● Activa' : '○ En pausa'"></p>
+            </div>
+            <span class="text-2xl" x-text="asignacionConfig?.habilitada ? '⚡' : '⏸️'"></span>
+          </div>
+        </div>
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+          <p class="text-[11px] text-txt-muted uppercase">Reglas por plato</p>
+          <p class="text-lg font-bold text-white" x-text="asignacionConfig?.reglasPorPlato?.length || 0"></p>
+        </div>
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+          <p class="text-[11px] text-txt-muted uppercase">Reglas por categoría</p>
+          <p class="text-lg font-bold text-white" x-text="asignacionConfig?.reglasPorCategoria?.length || 0"></p>
+        </div>
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+          <p class="text-[11px] text-txt-muted uppercase">Máx. mismo plato (default)</p>
+          <p class="text-lg font-bold text-gold" x-text="asignacionConfig?.defaults?.maxMismoPlatoPorCocinero ?? 5"></p>
+        </div>
+      </div>
+
+      <!-- Recordatorio visual Zonas vs Auto -->
+      <div class="bg-bg-sidebar/50 border border-[rgba(212,175,55,0.15)] rounded-xl p-3 mb-4 flex items-center gap-3">
+        <span class="text-lg">💡</span>
+        <p class="text-xs text-txt-secondary">
+          <b class="text-gold">Zonas</b> = qué ve cada cocinero en su tablero ·
+          <b class="text-gold">Asignación Automática</b> = a quién se le asigna el plato automáticamente.
+          Mantén <code class="text-gold">respetarZonas</code> activo para coherencia.
+        </p>
+      </div>
+
+      <!-- Layout dos paneles -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+        <!-- Panel izquierdo: catálogo de platos -->
+        <div class="lg:col-span-5 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+          <h3 class="text-sm font-bold mb-3 flex items-center gap-2">
+            <span>🍽️</span> Catálogo de platos
+            <span class="text-[10px] text-txt-muted font-normal" x-text="`(${platosAsignacionFiltrados.length})`"></span>
+          </h3>
+
+          <!-- Controles -->
+          <div class="space-y-2 mb-3">
+            <input type="text" x-model="busquedaPlatosAsignacion"
+              @input.debounce.300ms="currentPageAsignacion = 1"
+              placeholder="Buscar plato por nombre..."
+              class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+            <div class="flex gap-2">
+              <select x-model="filtroCategoriaAsignacion" @change="currentPageAsignacion = 1"
+                class="flex-1 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                <option value="">Todas las categorías</option>
+                <template x-for="cat in categoriasPlatosAsignacion" :key="cat">
+                  <option :value="cat" x-text="cat"></option>
+                </template>
+              </select>
+              <label class="flex items-center gap-1 text-xs text-txt-secondary bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 cursor-pointer">
+                <input type="checkbox" x-model="soloSinConfigurar" @change="currentPageAsignacion = 1" class="w-3 h-3 accent-gold">
+                Sin regla
+              </label>
+            </div>
+          </div>
+
+          <!-- Loading -->
+          <div x-show="loadingPlatosAsignacion" class="text-center py-8 text-txt-muted text-sm">
+            Cargando platos...
+          </div>
+
+          <!-- Lista -->
+          <div x-show="!loadingPlatosAsignacion" class="space-y-1 max-h-[500px] overflow-y-auto pr-1">
+            <template x-for="p in platosAsignacionPaginados" :key="p.id">
+              <div @click="seleccionarPlatoAsignacion(p)"
+                class="p-3 rounded-lg cursor-pointer transition border"
+                :class="platoSeleccionadoAsignacion?.id === p.id
+                  ? 'bg-gold/15 border-gold/50'
+                  : 'bg-bg-sidebar border-transparent hover:bg-gold/5 hover:border-gold/20'">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-white truncate" x-text="p.nombre"></p>
+                    <p class="text-[10px] text-txt-muted" x-text="p.categoria + ' · #' + p.id"></p>
+                  </div>
+                  <div class="flex flex-col items-end gap-1">
+                    <span x-show="!tieneReglaPlato(p.id)" class="text-[9px] px-1.5 py-0.5 rounded bg-bg-card text-txt-muted border border-txt-muted/30">
+                      Sin regla
+                    </span>
+                    <span x-show="tieneReglaPlato(p.id) && getReglaPlato(p.id).cocineroPrimarioId"
+                      class="text-[9px] px-1.5 py-0.5 rounded bg-gold/20 text-gold">
+                      Primario
+                    </span>
+                    <span x-show="tieneReglaPlato(p.id) && getReglaPlato(p.id).backups?.length > 0"
+                      class="text-[9px] px-1.5 py-0.5 rounded bg-st-pedido/20 text-st-pedido">
+                      Overflow
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </template>
+            <div x-show="platosAsignacionFiltrados.length === 0" class="text-center py-6 text-txt-muted text-sm">
+              No se encontraron platos
+            </div>
+          </div>
+
+          <!-- Paginación -->
+          <div x-show="platosAsignacionFiltrados.length > pageSizeAsignacion" class="flex items-center justify-between mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]">
+            <span class="text-xs text-txt-muted">
+              <span x-text="paginaInicioAsignacion"></span>–<span x-text="paginaFinAsignacion"></span> de <span x-text="platosAsignacionFiltrados.length"></span>
+            </span>
+            <div class="flex gap-1">
+              <button @click="paginaAnteriorAsignacion()" :disabled="currentPageAsignacion === 1"
+                class="px-2 py-1 text-xs rounded border border-[rgba(212,175,55,0.25)] disabled:opacity-30 hover:border-gold hover:text-gold">‹</button>
+              <span class="px-2 py-1 text-xs text-txt-secondary" x-text="currentPageAsignacion + '/' + totalPaginasAsignacion"></span>
+              <button @click="paginaSiguienteAsignacion()" :disabled="currentPageAsignacion === totalPaginasAsignacion"
+                class="px-2 py-1 text-xs rounded border border-[rgba(212,175,55,0.25)] disabled:opacity-30 hover:border-gold hover:text-gold">›</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel derecho: reglas del plato seleccionado -->
+        <div class="lg:col-span-7 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+          <div x-show="!platoSeleccionadoAsignacion" class="text-center py-16 text-txt-muted">
+            <span class="text-4xl block mb-3">←</span>
+            <p class="text-sm">Selecciona un plato del catálogo para configurar su asignación</p>
+          </div>
+
+          <div x-show="platoSeleccionadoAsignacion" x-cloak>
+            <div class="flex items-start justify-between mb-4 pb-3 border-b border-[rgba(212,175,55,0.1)]">
+              <div>
+                <h3 class="text-sm font-bold text-white" x-text="platoSeleccionadoAsignacion?.nombre"></h3>
+                <p class="text-[11px] text-txt-muted" x-text="(platoSeleccionadoAsignacion?.categoria || 'Sin categoría') + ' · Plato #' + platoSeleccionadoAsignacion?.id"></p>
+              </div>
+              <label class="flex items-center gap-2 text-xs text-txt-secondary cursor-pointer">
+                <input type="checkbox" x-model="formReglaAsignacion.activo" class="w-4 h-4 accent-gold">
+                <span x-text="formReglaAsignacion.activo ? 'Regla activa' : 'Regla inactiva'"></span>
+              </label>
+            </div>
+
+            <div class="space-y-4">
+              <!-- Cocinero primario -->
+              <div>
+                <label class="text-xs font-semibold text-txt-secondary uppercase">Cocinero primario</label>
+                <p class="text-[10px] text-txt-muted mb-1">Recibe el plato por defecto mientras esté bajo el límite.</p>
+                <select x-model="formReglaAsignacion.cocineroPrimarioId"
+                  class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                  <option value="">— Sin primario —</option>
+                  <template x-for="c in cocinerosAsignacion" :key="c._id">
+                    <option :value="c._id" x-text="c.nombre + (c.alias ? ' (' + c.alias + ')' : '')"></option>
+                  </template>
+                </select>
+              </div>
+
+              <!-- Backups -->
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <div>
+                    <label class="text-xs font-semibold text-txt-secondary uppercase">Backups (overflow)</label>
+                    <p class="text-[10px] text-txt-muted">Cuando el primario supera el máx. del mismo plato, el siguiente va al primer backup válido.</p>
+                  </div>
+                  <button @click="agregarBackupAsignacion()" class="text-xs text-gold hover:underline">+ Añadir</button>
+                </div>
+                <div class="space-y-2">
+                  <template x-for="(b, idx) in formReglaAsignacion.backups" :key="idx">
+                    <div class="flex items-center gap-2 bg-bg-sidebar rounded-lg p-2">
+                      <span class="text-xs text-txt-muted w-5 text-center" x-text="(idx + 1) + 'º'"></span>
+                      <select x-model="b.cocineroId"
+                        class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded px-2 py-1.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                        <option value="">— Selecciona —</option>
+                        <template x-for="c in cocinerosAsignacion" :key="c._id">
+                          <option :value="c._id" x-text="c.nombre + (c.alias ? ' (' + c.alias + ')' : '')"></option>
+                        </template>
+                      </select>
+                      <button @click="subirBackupAsignacion(idx)" :disabled="idx === 0"
+                        class="w-6 h-6 rounded text-txt-secondary hover:text-gold disabled:opacity-20">▲</button>
+                      <button @click="bajarBackupAsignacion(idx)" :disabled="idx === formReglaAsignacion.backups.length - 1"
+                        class="w-6 h-6 rounded text-txt-secondary hover:text-gold disabled:opacity-20">▼</button>
+                      <button @click="quitarBackupAsignacion(idx)"
+                        class="w-6 h-6 rounded text-st-pagado hover:brightness-125">✕</button>
+                    </div>
+                  </template>
+                  <div x-show="formReglaAsignacion.backups.length === 0" class="text-xs text-txt-muted italic px-2">
+                    Sin backups. El 6º plato quedará sin dueño según modoSinCandidato.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Máx. mismo plato + estrategia -->
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="text-xs font-semibold text-txt-secondary uppercase">Máx. mismo plato</label>
+                  <p class="text-[10px] text-txt-muted mb-1">Default global: <span class="text-gold" x-text="asignacionConfig?.defaults?.maxMismoPlatoPorCocinero ?? 5"></span></p>
+                  <input type="number" min="1" max="50" x-model.number="formReglaAsignacion.maxMismoPlato"
+                    placeholder="Usar default"
+                    class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                </div>
+                <div>
+                  <label class="text-xs font-semibold text-txt-secondary uppercase">Estrategia</label>
+                  <p class="text-[10px] text-txt-muted mb-1">Default global: <span class="text-gold" x-text="asignacionConfig?.defaults?.estrategiaDefault ?? 'hibrido'"></span></p>
+                  <select x-model="formReglaAsignacion.estrategia"
+                    class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                    <option value="">Usar default</option>
+                    <option value="fijo_por_plato">Fijo por plato</option>
+                    <option value="cadena_overflow">Cadena overflow</option>
+                    <option value="menor_carga">Menor carga</option>
+                    <option value="round_robin">Round robin</option>
+                    <option value="hibrido">Híbrido (recomendado)</option>
+                    <option value="respetar_zona">Respetar zona</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Atajo aplicar a categoría -->
+              <div class="bg-bg-sidebar/50 border border-[rgba(212,175,55,0.15)] rounded-lg p-3">
+                <p class="text-[11px] text-txt-secondary mb-2">
+                  Aplicar esta misma regla a todos los platos de la categoría
+                  <b class="text-gold" x-text="platoSeleccionadoAsignacion?.categoria || '—'"></b>
+                </p>
+                <button @click="aplicarReglaACategoria()"
+                  class="text-xs bg-gold/20 text-gold px-3 py-1.5 rounded hover:bg-gold/30 transition"
+                  :disabled="!platoSeleccionadoAsignacion?.categoria || !formReglaAsignacion.cocineroPrimarioId">
+                  📋 Aplicar a toda la categoría
+                </button>
+              </div>
+
+              <!-- Notas -->
+              <div>
+                <label class="text-xs font-semibold text-txt-secondary uppercase">Notas internas</label>
+                <textarea x-model="formReglaAsignacion.notas" rows="2"
+                  placeholder="Ej: solo parrilla, solo turno noche..."
+                  class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none resize-none"></textarea>
+              </div>
+
+              <!-- Validación -->
+              <div x-show="errorValidacionAsignacion" class="bg-st-pagado/10 border border-st-pagado/30 rounded-lg p-2 text-xs text-st-pagado"
+                x-text="errorValidacionAsignacion"></div>
+
+              <!-- Acciones plato -->
+              <div class="flex justify-between items-center pt-3 border-t border-[rgba(212,175,55,0.1)]">
+                <button x-show="tieneReglaPlato(platoSeleccionadoAsignacion?.id)"
+                  @click="eliminarReglaPlato(platoSeleccionadoAsignacion?.id)"
+                  class="text-xs text-st-pagado hover:underline">
+                  🗑️ Eliminar regla
+                </button>
+                <div class="flex gap-2 ml-auto">
+                  <button @click="aplicarReglaPlato()" class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110">
+                    ✓ Aplicar a este plato
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- FIN TAB: ASIGNACIÓN AUTOMÁTICA -->
 
     <!-- ==================== TAB: ZONAS ==================== -->
     <div x-show="activeTab === 'zonas'" x-cloak>
@@ -2578,6 +2863,163 @@ tailwind.config = {
   </div>
 </div>
 
+<!-- ==================== MODAL: CONFIG GLOBAL ASIGNACIÓN ==================== -->
+<div x-show="modalConfigGlobalAsignacion" x-transition.opacity
+  class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70"
+  @click.self="modalConfigGlobalAsignacion=false">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-full max-w-[600px] shadow-2xl max-h-[90vh] overflow-y-auto" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between sticky top-0 z-10">
+      <div>
+        <h2 class="text-lg font-bold">⚙️ Configuración global</h2>
+        <p class="text-xs text-txt-muted">Defaults aplicables cuando una regla no los sobreescribe</p>
+      </div>
+      <button @click="modalConfigGlobalAsignacion=false" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-semibold text-txt-secondary uppercase">Máx. mismo plato/cocinero</label>
+          <p class="text-[10px] text-txt-muted mb-1">Default 5. Overflow 5+1.</p>
+          <input type="number" min="1" max="50" x-model.number="formDefaultsAsignacion.maxMismoPlatoPorCocinero"
+            class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-txt-secondary uppercase">Máx. platos totales en curso</label>
+          <p class="text-[10px] text-txt-muted mb-1">Carga total por cocinero.</p>
+          <input type="number" min="1" max="100" x-model.number="formDefaultsAsignacion.maxPlatosTotalesEnCurso"
+            class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-txt-secondary uppercase">Estrategia por defecto</label>
+        <select x-model="formDefaultsAsignacion.estrategiaDefault"
+          class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+          <option value="fijo_por_plato">Fijo por plato</option>
+          <option value="fijo_por_categoria">Fijo por categoría</option>
+          <option value="cadena_overflow">Cadena overflow</option>
+          <option value="menor_carga">Menor carga</option>
+          <option value="round_robin">Round robin</option>
+          <option value="hibrido">Híbrido (recomendado)</option>
+          <option value="respetar_zona">Respetar zona</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-txt-secondary uppercase">Modo sin candidato</label>
+        <p class="text-[10px] text-txt-muted mb-1">Qué hacer cuando ningún cocinero es válido.</p>
+        <select x-model="formDefaultsAsignacion.modoSinCandidato"
+          class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+          <option value="dejar_sin_asignar">Dejar sin asignar (Tomar manual)</option>
+          <option value="pool_supervisor">Enviar al supervisor</option>
+          <option value="round_robin_zona">Round-robin entre zona</option>
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <label class="flex items-center gap-2 bg-bg-sidebar rounded-lg p-3 cursor-pointer">
+          <input type="checkbox" x-model="formDefaultsAsignacion.soloCocinerosConectados" class="w-4 h-4 accent-gold">
+          <span class="text-xs text-txt-secondary">Solo cocineros conectados</span>
+        </label>
+        <label class="flex items-center gap-2 bg-bg-sidebar rounded-lg p-3 cursor-pointer">
+          <input type="checkbox" x-model="formDefaultsAsignacion.respetarZonas" class="w-4 h-4 accent-gold">
+          <span class="text-xs text-txt-secondary">Respetar zonas</span>
+        </label>
+      </div>
+    </div>
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)] sticky bottom-0">
+      <button @click="modalConfigGlobalAsignacion=false" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+      <button @click="guardarDefaultsAsignacion()" class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: VISTA POR COCINERO ==================== -->
+<div x-show="modalVistaPorCocinero" x-transition.opacity
+  class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70"
+  @click.self="modalVistaPorCocinero=false">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-full max-w-[700px] shadow-2xl max-h-[90vh] overflow-y-auto" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between sticky top-0 z-10">
+      <div>
+        <h2 class="text-lg font-bold">👨‍🍳 Vista por cocinero</h2>
+        <p class="text-xs text-txt-muted">Mismas reglas, organizadas por cocinero</p>
+      </div>
+      <button @click="modalVistaPorCocinero=false" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <select x-model="cocineroVistaId" @change="construirVistaCocinero()"
+        class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+        <option value="">— Selecciona un cocinero —</option>
+        <template x-for="c in cocinerosAsignacion" :key="c._id">
+          <option :value="c._id" x-text="c.nombre + (c.alias ? ' (' + c.alias + ')' : '')"></option>
+        </template>
+      </select>
+      <div x-show="cocineroVistaId" class="space-y-2">
+        <div class="text-xs text-txt-muted uppercase font-semibold">Primario en:</div>
+        <template x-for="pid in vistaCocineroPrimarios" :key="'p'+pid">
+          <div class="bg-bg-sidebar rounded-lg p-2 text-sm flex items-center gap-2">
+            <span class="text-gold">★</span>
+            <span class="text-white" x-text="getNombrePlato(pid)"></span>
+            <span class="text-[10px] text-txt-muted" x-text="'#' + pid"></span>
+          </div>
+        </template>
+        <div x-show="vistaCocineroPrimarios.length === 0" class="text-xs text-txt-muted italic">No es primario de ningún plato</div>
+        <div class="text-xs text-txt-muted uppercase font-semibold pt-2">Backup en:</div>
+        <template x-for="pid in vistaCocineroBackups" :key="'b'+pid">
+          <div class="bg-bg-sidebar rounded-lg p-2 text-sm flex items-center gap-2">
+            <span class="text-st-pedido">↻</span>
+            <span class="text-white" x-text="getNombrePlato(pid)"></span>
+            <span class="text-[10px] text-txt-muted" x-text="'#' + pid"></span>
+          </div>
+        </template>
+        <div x-show="vistaCocineroBackups.length === 0" class="text-xs text-txt-muted italic">No es backup de ningún plato</div>
+      </div>
+    </div>
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end border-t border-[rgba(212,175,55,0.15)] sticky bottom-0">
+      <button @click="modalVistaPorCocinero=false" class="px-5 py-2.5 bg-bg-card border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: SIMULADOR ==================== -->
+<div x-show="modalSimulador" x-transition.opacity
+  class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70"
+  @click.self="modalSimulador=false">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-full max-w-[500px] shadow-2xl" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-bold">🧪 Simular asignación</h2>
+        <p class="text-xs text-txt-muted">Dry-run: a quién iría este plato</p>
+      </div>
+      <button @click="modalSimulador=false" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+    </div>
+    <div class="p-6 space-y-3">
+      <select x-model="simuladorPlatoId"
+        class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+        <option value="">— Selecciona un plato —</option>
+        <template x-for="p in todosLosPlatosAsignacion" :key="p.id">
+          <option :value="p.id" x-text="p.nombre + ' (' + (p.categoria || 's/cat') + ')'"></option>
+        </template>
+      </select>
+      <button @click="ejecutarSimulacion()" :disabled="!simuladorPlatoId || loadingSimulador"
+        class="w-full bg-gold text-bg-primary py-2 rounded-lg text-sm font-semibold hover:brightness-110 disabled:opacity-50">
+        <span x-show="!loadingSimulador">▶️ Simular</span>
+        <span x-show="loadingSimulador">Simulando...</span>
+      </button>
+      <div x-show="resultadoSimulador" class="bg-bg-sidebar rounded-lg p-4 space-y-1">
+        <div class="flex items-center gap-2">
+          <span x-show="resultadoSimulador?.cocineroId" class="text-2xl" x-text="resultadoSimulador?.origen === 'overflow' ? '↻' : '⚡'"></span>
+          <div>
+            <p class="text-sm font-bold text-white" x-text="resultadoSimulador?.nombre || resultadoSimulador?.mensaje"></p>
+            <p class="text-[11px] text-txt-muted" x-show="resultadoSimulador?.cocineroId"
+              x-text="'Origen: ' + resultadoSimulador?.origen + ' · Regla: ' + resultadoSimulador?.regla + ' · Estrategia: ' + resultadoSimulador?.estrategia"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end border-t border-[rgba(212,175,55,0.15)]">
+      <button @click="modalSimulador=false" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: CONFIRMAR ELIMINAR ZONA -->
 <div x-show="modalConfirmarEliminarZona" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modalConfirmarEliminarZona=false">
   <div class="bg-bg-card border border-st-pagado/40 rounded-2xl w-full max-w-[420px] shadow-2xl" @click.stop>
@@ -2650,7 +3092,48 @@ function cocinerosApp() {
     pageSizeOptions: [5, 10, 20],
 
     // Sistema de tabs
-    activeTab: 'cocineros', // 'cocineros', 'zonas', 'vistas', 'rendimiento'
+    activeTab: 'cocineros', // 'cocineros', 'asignacion', 'zonas', 'vistas', 'rendimiento'
+
+    // ==================== ASIGNACIÓN AUTOMÁTICA (estado) ====================
+    asignacionConfig: null,             // config global + reglas (cargo desde API)
+    asignacionCargada: false,
+    loadingPlatosAsignacion: false,
+    todosLosPlatosAsignacion: [],       // catálogo
+    categoriasPlatosAsignacion: [],
+    cocinerosAsignacion: [],            // lista de cocineros para selects
+    busquedaPlatosAsignacion: '',
+    filtroCategoriaAsignacion: '',
+    soloSinConfigurar: false,
+    currentPageAsignacion: 1,
+    pageSizeAsignacion: 15,
+    platoSeleccionadoAsignacion: null,
+    formReglaAsignacion: {
+      platoId: null,
+      activo: true,
+      cocineroPrimarioId: '',
+      backups: [],
+      maxMismoPlato: null,
+      estrategia: '',
+      notas: ''
+    },
+    formDefaultsAsignacion: {
+      maxMismoPlatoPorCocinero: 5,
+      maxPlatosTotalesEnCurso: 10,
+      modoSinCandidato: 'dejar_sin_asignar',
+      soloCocinerosConectados: true,
+      respetarZonas: true,
+      estrategiaDefault: 'hibrido'
+    },
+    errorValidacionAsignacion: '',
+    modalConfigGlobalAsignacion: false,
+    modalVistaPorCocinero: false,
+    modalSimulador: false,
+    cocineroVistaId: '',
+    vistaCocineroPrimarios: [],
+    vistaCocineroBackups: [],
+    simuladorPlatoId: '',
+    loadingSimulador: false,
+    resultadoSimulador: null,
 
     // Rendimiento en vivo
     rendimientoCocineros: [],
@@ -4365,6 +4848,9 @@ function cocinerosApp() {
     cambiarTab(tab) {
       const tabAnterior = this.activeTab;
       this.activeTab = tab;
+      if (tab === 'asignacion' && !this.asignacionCargada) {
+        this.cargarAsignacion();
+      }
       if (tab === 'zonas' && this.zonas.length === 0) {
         this.cargarZonas();
       }
@@ -4383,6 +4869,365 @@ function cocinerosApp() {
         this.stopRendimientoPoll();
         this.disconnectSocketRendimiento();
       }
+    },
+
+    // ==================== ASIGNACIÓN AUTOMÁTICA ====================
+
+    async cargarAsignacion() {
+      this.loadingPlatosAsignacion = true;
+      try {
+        await Promise.all([
+          this.cargarConfigAsignacion(),
+          this.cargarPlatosAsignacion(),
+          this.cargarCocinerosAsignacion()
+        ]);
+        this.asignacionCargada = true;
+      } catch (error) {
+        console.error('Error al cargar asignación:', error);
+        if (window.GambusinasNotifications) window.GambusinasNotifications.networkError(error);
+      }
+      this.loadingPlatosAsignacion = false;
+    },
+
+    async cargarConfigAsignacion() {
+      const data = await apiGet('/asignacion-automatica');
+      if (data && data.success !== false && data.data) {
+        this.asignacionConfig = data.data;
+        // Sincroniza defaults al form
+        const d = this.asignacionConfig.defaults || {};
+        this.formDefaultsAsignacion = {
+          maxMismoPlatoPorCocinero: d.maxMismoPlatoPorCocinero ?? 5,
+          maxPlatosTotalesEnCurso: d.maxPlatosTotalesEnCurso ?? 10,
+          modoSinCandidato: d.modoSinCandidato ?? 'dejar_sin_asignar',
+          soloCocinerosConectados: d.soloCocinerosConectados ?? true,
+          respetarZonas: d.respetarZonas ?? true,
+          estrategiaDefault: d.estrategiaDefault ?? 'hibrido'
+        };
+      }
+    },
+
+    async cargarPlatosAsignacion() {
+      try {
+        const data = await apiGet('/platos');
+        const platos = data?.data || data?.platos || (Array.isArray(data) ? data : []);
+        this.todosLosPlatosAsignacion = platos.filter(p => p.isActive !== false).map(p => ({
+          id: p.id || p._id,
+          nombre: p.nombre,
+          categoria: p.categoria,
+          tipo: p.tipo
+        }));
+        // Categorias únicas
+        const cats = [...new Set(this.todosLosPlatosAsignacion.map(p => p.categoria).filter(Boolean))].sort();
+        this.categoriasPlatosAsignacion = cats;
+      } catch (e) {
+        console.error('Error al cargar platos:', e);
+        this.todosLosPlatosAsignacion = [];
+      }
+    },
+
+    async cargarCocinerosAsignacion() {
+      try {
+        const data = await apiGet('/cocineros');
+        const list = data?.data || data?.cocineros || (Array.isArray(data) ? data : []);
+        this.cocinerosAsignacion = list.map(c => ({
+          _id: c._id,
+          nombre: c.nombre || c.name,
+          alias: c.alias || c.aliasCocinero
+        }));
+      } catch (e) {
+        console.error('Error al cargar cocineros:', e);
+        this.cocinerosAsignacion = [];
+      }
+    },
+
+    // === Helpers de reglas existentes ===
+    get reglasPlatoMap() {
+      const m = {};
+      (this.asignacionConfig?.reglasPorPlato || []).forEach(r => { m[r.platoId] = r; });
+      return m;
+    },
+    get reglasCategoriaMap() {
+      const m = {};
+      (this.asignacionConfig?.reglasPorCategoria || []).forEach(r => { m[r.categoria] = r; });
+      return m;
+    },
+    tieneReglaPlato(platoId) {
+      return !!this.reglasPlatoMap[platoId];
+    },
+    getReglaPlato(platoId) {
+      return this.reglasPlatoMap[platoId] || {};
+    },
+    getNombrePlato(platoId) {
+      const p = this.todosLosPlatosAsignacion.find(x => x.id === platoId);
+      return p ? p.nombre : `Plato #${platoId}`;
+    },
+
+    // === Lista filtrada y paginada ===
+    get platosAsignacionFiltrados() {
+      let list = this.todosLosPlatosAsignacion;
+      if (this.busquedaPlatosAsignacion) {
+        const q = this.busquedaPlatosAsignacion.toLowerCase();
+        list = list.filter(p => p.nombre?.toLowerCase().includes(q) || String(p.id).includes(q));
+      }
+      if (this.filtroCategoriaAsignacion) {
+        list = list.filter(p => p.categoria === this.filtroCategoriaAsignacion);
+      }
+      if (this.soloSinConfigurar) {
+        list = list.filter(p => !this.tieneReglaPlato(p.id));
+      }
+      return list;
+    },
+    get totalPaginasAsignacion() {
+      return Math.max(1, Math.ceil(this.platosAsignacionFiltrados.length / this.pageSizeAsignacion));
+    },
+    get platosAsignacionPaginados() {
+      const start = (this.currentPageAsignacion - 1) * this.pageSizeAsignacion;
+      return this.platosAsignacionFiltrados.slice(start, start + this.pageSizeAsignacion);
+    },
+    get paginaInicioAsignacion() {
+      return this.platosAsignacionFiltrados.length === 0 ? 0 : (this.currentPageAsignacion - 1) * this.pageSizeAsignacion + 1;
+    },
+    get paginaFinAsignacion() {
+      return Math.min(this.currentPageAsignacion * this.pageSizeAsignacion, this.platosAsignacionFiltrados.length);
+    },
+    paginaAnteriorAsignacion() {
+      if (this.currentPageAsignacion > 1) this.currentPageAsignacion--;
+    },
+    paginaSiguienteAsignacion() {
+      if (this.currentPageAsignacion < this.totalPaginasAsignacion) this.currentPageAsignacion++;
+    },
+
+    // === Selección y edición de regla ===
+    seleccionarPlatoAsignacion(p) {
+      this.platoSeleccionadoAsignacion = p;
+      this.errorValidacionAsignacion = '';
+      const regla = this.getReglaPlato(p.id);
+      this.formReglaAsignacion = {
+        platoId: p.id,
+        activo: regla.activo !== false,
+        cocineroPrimarioId: regla.cocineroPrimarioId || '',
+        backups: (regla.backups || []).map(b => ({ cocineroId: b.cocineroId, orden: b.orden })),
+        maxMismoPlato: regla.maxMismoPlato ?? null,
+        estrategia: regla.estrategia || '',
+        notas: regla.notas || ''
+      };
+    },
+
+    agregarBackupAsignacion() {
+      this.formReglaAsignacion.backups.push({ cocineroId: '', orden: this.formReglaAsignacion.backups.length + 1 });
+    },
+    quitarBackupAsignacion(idx) {
+      this.formReglaAsignacion.backups.splice(idx, 1);
+      this._renumerarBackups();
+    },
+    subirBackupAsignacion(idx) {
+      if (idx === 0) return;
+      const arr = this.formReglaAsignacion.backups;
+      [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
+      this._renumerarBackups();
+    },
+    bajarBackupAsignacion(idx) {
+      const arr = this.formReglaAsignacion.backups;
+      if (idx === arr.length - 1) return;
+      [arr[idx + 1], arr[idx]] = [arr[idx], arr[idx + 1]];
+      this._renumerarBackups();
+    },
+    _renumerarBackups() {
+      this.formReglaAsignacion.backups.forEach((b, i) => { b.orden = i + 1; });
+    },
+
+    validarReglaAsignacion() {
+      this.errorValidacionAsignacion = '';
+      const f = this.formReglaAsignacion;
+      if (!f.platoId) {
+        this.errorValidacionAsignacion = 'Selecciona un plato.';
+        return false;
+      }
+      if (!f.cocineroPrimarioId && f.backups.filter(b => b.cocineroId).length === 0) {
+        this.errorValidacionAsignacion = 'Define al menos un cocinero primario o un backup.';
+        return false;
+      }
+      // Sin duplicados entre primario y backups
+      const idsBackups = f.backups.filter(b => b.cocineroId).map(b => b.cocineroId);
+      if (f.cocineroPrimarioId && idsBackups.includes(f.cocineroPrimarioId)) {
+        this.errorValidacionAsignacion = 'Un cocinero no puede ser primario y backup a la vez.';
+        return false;
+      }
+      const unique = new Set(idsBackups);
+      if (unique.size !== idsBackups.length) {
+        this.errorValidacionAsignacion = 'Hay backups duplicados.';
+        return false;
+      }
+      if (f.maxMismoPlato !== null && f.maxMismoPlato !== '' && (!Number.isFinite(f.maxMismoPlato) || f.maxMismoPlato < 1)) {
+        this.errorValidacionAsignacion = 'El máx. mismo plato debe ser un número ≥ 1.';
+        return false;
+      }
+      return true;
+    },
+
+    // Construye el payload completo de reglas a partir de la config actual + form
+    _construirPayloadReglas() {
+      if (!this.asignacionConfig) return { reglasPorPlato: [], reglasPorCategoria: [] };
+      return {
+        reglasPorPlato: (this.asignacionConfig.reglasPorPlato || []).map(r => ({
+          platoId: r.platoId,
+          activo: r.activo !== false,
+          cocineroPrimarioId: r.cocineroPrimarioId,
+          backups: (r.backups || []).map(b => ({ cocineroId: b.cocineroId, orden: b.orden })),
+          maxMismoPlato: r.maxMismoPlato ?? null,
+          estrategia: r.estrategia || null,
+          notas: r.notas || ''
+        })),
+        reglasPorCategoria: (this.asignacionConfig.reglasPorCategoria || []).map(r => ({
+          categoria: r.categoria,
+          activo: r.activo !== false,
+          cocineroPrimarioId: r.cocineroPrimarioId,
+          backups: (r.backups || []).map(b => ({ cocineroId: b.cocineroId, orden: b.orden })),
+          maxMismoPlato: r.maxMismoPlato ?? null,
+          estrategia: r.estrategia || null,
+          notas: r.notas || ''
+        }))
+      };
+    },
+
+    // Aplica el form actual al plato seleccionado (en memoria, no guarda en backend)
+    aplicarReglaPlato() {
+      if (!this.validarReglaAsignacion()) return;
+      const f = this.formReglaAsignacion;
+      const nueva = {
+        platoId: f.platoId,
+        activo: f.activo,
+        cocineroPrimarioId: f.cocineroPrimarioId || null,
+        backups: f.backups.filter(b => b.cocineroId).map((b, i) => ({ cocineroId: b.cocineroId, orden: i + 1 })),
+        maxMismoPlato: (f.maxMismoPlato === '' || f.maxMismoPlato === null) ? null : Number(f.maxMismoPlato),
+        estrategia: f.estrategia || null,
+        notas: f.notas || ''
+      };
+      if (!this.asignacionConfig) this.asignacionConfig = { reglasPorPlato: [], reglasPorCategoria: [] };
+      if (!Array.isArray(this.asignacionConfig.reglasPorPlato)) this.asignacionConfig.reglasPorPlato = [];
+      const idx = this.asignacionConfig.reglasPorPlato.findIndex(r => r.platoId === nueva.platoId);
+      if (idx >= 0) this.asignacionConfig.reglasPorPlato[idx] = nueva;
+      else this.asignacionConfig.reglasPorPlato.push(nueva);
+      if (window.GambusinasNotifications) window.GambusinasNotifications.success('Regla aplicada', 'Recuerda "Guardar cambios" para persistir.');
+    },
+
+    eliminarReglaPlato(platoId) {
+      if (!this.asignacionConfig) return;
+      this.asignacionConfig.reglasPorPlato = (this.asignacionConfig.reglasPorPlato || []).filter(r => r.platoId !== platoId);
+      if (this.platoSeleccionadoAsignacion?.id === platoId) {
+        this.seleccionarPlatoAsignacion(this.platoSeleccionadoAsignacion);
+      }
+    },
+
+    aplicarReglaACategoria() {
+      if (!this.platoSeleccionadoAsignacion?.categoria) return;
+      if (!this.validarReglaAsignacion()) return;
+      const f = this.formReglaAsignacion;
+      const nueva = {
+        categoria: this.platoSeleccionadoAsignacion.categoria,
+        activo: f.activo,
+        cocineroPrimarioId: f.cocineroPrimarioId || null,
+        backups: f.backups.filter(b => b.cocineroId).map((b, i) => ({ cocineroId: b.cocineroId, orden: i + 1 })),
+        maxMismoPlato: (f.maxMismoPlato === '' || f.maxMismoPlato === null) ? null : Number(f.maxMismoPlato),
+        estrategia: f.estrategia || null,
+        notas: f.notas || ''
+      };
+      if (!Array.isArray(this.asignacionConfig.reglasPorCategoria)) this.asignacionConfig.reglasPorCategoria = [];
+      const idx = this.asignacionConfig.reglasPorCategoria.findIndex(r => r.categoria === nueva.categoria);
+      if (idx >= 0) this.asignacionConfig.reglasPorCategoria[idx] = nueva;
+      else this.asignacionConfig.reglasPorCategoria.push(nueva);
+      if (window.GambusinasNotifications) window.GambusinasNotifications.success('Regla de categoría', `Aplicada a "${nueva.categoria}"`);
+    },
+
+    // === Guardado completo en backend ===
+    async guardarAsignacionCompleta() {
+      const payload = {
+        ...this._construirPayloadReglas(),
+        defaults: { ...this.formDefaultsAsignacion }
+      };
+      const res = await apiPut('/asignacion-automatica', payload);
+      if (res && res.success !== false) {
+        if (res.data) this.asignacionConfig = res.data;
+        if (window.GambusinasNotifications) window.GambusinasNotifications.success('Guardado', 'Asignación automática actualizada');
+      } else {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', res?.error || 'No se pudo guardar');
+      }
+    },
+
+    async toggleAsignacionAutomatica() {
+      const nuevoValor = !this.asignacionConfig?.habilitada;
+      const res = await apiPost('/asignacion-automatica/toggle', { habilitada: nuevoValor });
+      if (res && res.success !== false && res.data) {
+        this.asignacionConfig = res.data;
+        if (window.GambusinasNotifications) {
+          window.GambusinasNotifications.success(
+            nuevoValor ? 'Activada' : 'Pausada',
+            nuevoValor ? 'La auto-asignación está activa' : 'La auto-asignación está en pausa'
+          );
+        }
+      } else {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', res?.error || 'No se pudo cambiar');
+      }
+    },
+
+    // === Config global ===
+    abrirConfigGlobalAsignacion() {
+      this.modalConfigGlobalAsignacion = true;
+    },
+    async guardarDefaultsAsignacion() {
+      const res = await apiPut('/asignacion-automatica', { defaults: { ...this.formDefaultsAsignacion } });
+      if (res && res.success !== false && res.data) {
+        this.asignacionConfig = res.data;
+        this.modalConfigGlobalAsignacion = false;
+        if (window.GambusinasNotifications) window.GambusinasNotifications.success('Guardado', 'Defaults actualizados');
+      } else {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', res?.error || 'No se pudo guardar');
+      }
+    },
+
+    // === Vista por cocinero ===
+    abrirVistaPorCocinero() {
+      this.cocineroVistaId = '';
+      this.vistaCocineroPrimarios = [];
+      this.vistaCocineroBackups = [];
+      this.modalVistaPorCocinero = true;
+    },
+    construirVistaCocinero() {
+      const id = this.cocineroVistaId;
+      this.vistaCocineroPrimarios = [];
+      this.vistaCocineroBackups = [];
+      (this.asignacionConfig?.reglasPorPlato || []).forEach(r => {
+        if (r.cocineroPrimarioId && r.cocineroPrimarioId === id) this.vistaCocineroPrimarios.push(r.platoId);
+        if ((r.backups || []).some(b => b.cocineroId === id)) this.vistaCocineroBackups.push(r.platoId);
+      });
+    },
+
+    // === Simulador ===
+    abrirSimuladorAsignacion() {
+      this.simuladorPlatoId = '';
+      this.resultadoSimulador = null;
+      this.modalSimulador = true;
+    },
+    async ejecutarSimulacion() {
+      if (!this.simuladorPlatoId) return;
+      this.loadingSimulador = true;
+      this.resultadoSimulador = null;
+      try {
+        const plato = this.todosLosPlatosAsignacion.find(p => p.id === this.simuladorPlatoId);
+        const res = await apiPost('/asignacion-automatica/simular', {
+          platoId: this.simuladorPlatoId,
+          categoria: plato?.categoria,
+          tipo: plato?.tipo
+        });
+        if (res && res.success !== false && res.data) {
+          this.resultadoSimulador = res.data;
+        } else {
+          this.resultadoSimulador = { mensaje: res?.error || 'Sin resultado' };
+        }
+      } catch (e) {
+        this.resultadoSimulador = { mensaje: 'Error: ' + e.message };
+      }
+      this.loadingSimulador = false;
     },
 
     // ==================== RENDIMIENTO EN VIVO ====================
@@ -4405,9 +5250,16 @@ function cocinerosApp() {
 
         if (envivoRes && envivoRes.success !== false) {
           const envivoData = envivoRes.data || envivoRes;
-          this.rendimientoCocineros = Array.isArray(envivoData.cocineros)
+          const cocineros = Array.isArray(envivoData.cocineros)
             ? envivoData.cocineros
             : (Array.isArray(envivoData) ? envivoData : []);
+          this.rendimientoCocineros = cocineros;
+          // Log de debug útil para diagnosticar
+          const conPlatos = cocineros.filter(c => (c.bloques?.length || c.grupos?.length || 0) > 0);
+          if (conPlatos.length > 0) {
+            console.log('[Rendimiento en vivo]', conPlatos.length, 'cocinero(s) con platos:',
+              conPlatos.map(c => `${c.cocineroNombre || c.cocineroAlias}=${c.platosEnCurso}`).join(', '));
+          }
         }
 
         if (resumenRes && resumenRes.success !== false) {
@@ -4457,25 +5309,26 @@ function cocinerosApp() {
           this.rendimientoSocketConnected = false;
         });
 
-        const scheduleRefresh = () => {
+        const scheduleRefresh = (eventName) => (data) => {
           if (this.rendimientoDebounceTimer) clearTimeout(this.rendimientoDebounceTimer);
           this.rendimientoDebounceTimer = setTimeout(() => {
             if (this.activeTab !== 'rendimiento') return;
             if (!this.autoRefreshRendimiento) return;
+            console.log('[Rendimiento] refrescando por socket:', eventName);
             this.cargarDatosRendimientoActivo({ silent: true });
-          }, 400);
+          }, 300);
         };
 
         // Evento dedicado del dashboard de cocineros
-        socket.on('rendimiento-cocinero-actualizado', scheduleRefresh);
+        socket.on('rendimiento-cocinero-actualizado', scheduleRefresh('rendimiento-cocinero-actualizado'));
         // Eventos operativos (tomar / liberar / finalizar plato o comanda)
-        socket.on('plato-procesando', scheduleRefresh);
-        socket.on('plato-liberado', scheduleRefresh);
-        socket.on('plato-actualizado', scheduleRefresh);
-        socket.on('comanda-procesando', scheduleRefresh);
-        socket.on('comanda-liberada', scheduleRefresh);
-        socket.on('comanda-finalizada', scheduleRefresh);
-        socket.on('comanda-actualizada', scheduleRefresh);
+        socket.on('plato-procesando', scheduleRefresh('plato-procesando'));
+        socket.on('plato-liberado', scheduleRefresh('plato-liberado'));
+        socket.on('plato-actualizado', scheduleRefresh('plato-actualizado'));
+        socket.on('comanda-procesando', scheduleRefresh('comanda-procesando'));
+        socket.on('comanda-liberada', scheduleRefresh('comanda-liberada'));
+        socket.on('comanda-finalizada', scheduleRefresh('comanda-finalizada'));
+        socket.on('comanda-actualizada', scheduleRefresh('comanda-actualizada'));
 
         this.socketRendimiento = socket;
       } catch (error) {
@@ -4510,12 +5363,13 @@ function cocinerosApp() {
 
     startRendimientoPoll() {
       this.stopRendimientoPoll();
-      // Respaldo si el socket falla o se pierde un evento (cada 12s)
+      // Respaldo si el socket falla o se pierde un evento.
+      // Poll adaptativo: 5s si hay platos en curso (feedback rápido), 12s si no.
       this.rendimientoPollInterval = setInterval(() => {
         if (this.activeTab !== 'rendimiento') return;
         if (!this.autoRefreshRendimiento) return;
         this.cargarDatosRendimientoActivo({ silent: true });
-      }, 12000);
+      }, 5000);
     },
 
     stopRendimientoPoll() {

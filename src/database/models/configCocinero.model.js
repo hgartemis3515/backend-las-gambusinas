@@ -150,12 +150,22 @@ const configCocineroSchema = new mongoose.Schema({
         }
     },
     
+    // ========== ASIGNACIÓN AUTOMÁTICA (opt-out por cocinero) ==========
+    autoAsignacion: {
+        // Si false, el cocinero no recibe platos por auto-asignación (break/tarea especial)
+        acepta: { type: Boolean, default: true },
+        // Override personal del límite total en curso (null = usar default global)
+        maxPlatosTotales: { type: Number, default: null, min: 1, max: 100 },
+        // Pausa temporal hasta esta fecha (null = sin pausa)
+        pausadoHasta: { type: Date, default: null }
+    },
+
     // Estado activo/inactivo
     activo: {
         type: Boolean,
         default: true
     },
-    
+
     // Auditoría
     creadoPor: {
         type: mongoose.Schema.Types.ObjectId,
@@ -212,6 +222,11 @@ configCocineroSchema.statics.getConfiguracionPorDefecto = function() {
             ultimaConexion: null,
             totalSesiones: 0,
             platosPreparados: 0
+        },
+        autoAsignacion: {
+            acepta: true,
+            maxPlatosTotales: null,
+            pausadoHasta: null
         }
     };
 };

@@ -174,6 +174,21 @@ const comandaSchema = new mongoose.Schema({
             rol: { type: String, default: null, enum: ['admin', 'supervisor', 'cocinero', null] },
             timestamp: { type: Date, default: null }
         },
+        // ========== ASIGNACIÓN AUTOMÁTICA DE PLATOS ==========
+        // Metadata de cómo fue asignado el plato a un cocinero (auto/manual/overflow)
+        asignacionMeta: {
+            origen: {
+                type: String,
+                default: null,
+                enum: ['auto', 'manual', 'supervisor', 'overflow', null]
+            },
+            regla: {
+                type: String,
+                default: null,
+                enum: ['plato', 'categoria', 'zona', null]
+            },
+            timestamp: { type: Date, default: null }
+        },
         // ========== TEMA 5: ATRIBUCIÓN DE ENTREGA POR MOZO ==========
         // Quién confirmó la entrega del plato al comensal (estado 'entregado').
         // Fallback para datos legacy: usar comanda.mozos + comanda.mozoNombre.

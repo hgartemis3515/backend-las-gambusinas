@@ -411,6 +411,45 @@ router.post('/comanda', async (req, res) => {
         if (global.emitNuevaComanda && data.comanda) {
             await global.emitNuevaComanda(data.comanda);
         }
+
+        // ASIGNACIÓN AUTOMÁTICA DE PLATOS: disparar el motor server-side.
+        // Se ejecuta después de emitir nueva comanda para no demorar el response.
+        // No bloqueante: si falla, la comanda queda creada (Tomar manual sigue disponible).
+        if (data.comanda && data.comanda.platos && data.comanda.platos.length > 0) {
+            const asignacionAutomaticaService = require('../services/asignacionAutomaticaService');
+            const comandaCreadaId = data.comanda._id;
+            const comandaCreadaNum = data.comanda.comandaNumber;
+            setImmediate(async () => {
+                try {
+                    const Comanda = mongoose.model('Comanda');
+                    const comandaPop = await Comanda.findById(comandaCreadaId)
+                        .populate('platos.plato', 'id categoria tipo tipos nombre codigo')
+                        .lean();
+                    if (!comandaPop) {
+                        logger.warn('Auto-asignación: comanda no encontrada al recargar', { comandaId: comandaCreadaId });
+                        return;
+                    }
+                    const resultado = await asignacionAutomaticaService.asignarPlatosNuevos(comandaPop);
+                    logger.info('Auto-asignación post-create', {
+                        comandaId: comandaCreadaId?.toString(),
+                        comandaNumber: comandaCreadaNum,
+                        platosTotales: comandaPop.platos?.length || 0,
+                        asignados: resultado.asignados,
+                        noAsignados: resultado.noAsignados,
+                        motivo: resultado.motivo || null
+                    });
+                    if (resultado.asignados > 0 && global.emitRendimientoCocineroActualizado) {
+                        global.emitRendimientoCocineroActualizado({ tipo: 'comanda_creada', comandaId: comandaCreadaId?.toString() });
+                    }
+                } catch (e) {
+                    logger.warn('Auto-asignación post-create falló (no crítico)', {
+                        comandaId: comandaCreadaId,
+                        error: e.message,
+                        stack: e.stack
+                    });
+                }
+            });
+        }
     } catch (error) {
         logger.error('Error al crear comanda', {
             error: error.message,
