@@ -460,11 +460,12 @@ router.get('/cocineros/rendimiento/resumen-turno', adminAuth, async (req, res) =
 
 /**
  * GET /api/cocineros/rendimiento/historial
- * Registro histórico de platos cocinados (finalizados) por cocinero o por todo el equipo.
+ * Registro de platos cocinados agrupado por comanda (misma lógica que mozos).
+ * Solo platos tomados por cocineros; incluye comandas cerradas (persistente).
  * Query params:
  *   - cocineroId: filtrar por un cocinero específico (requiere ver-reportes si no es el propio)
  *   - desde, hasta: rango de fechas (default: hoy)
- *   - limite: máximo de registros individuales (default 200, máx 1000)
+ *   - limite: máximo de comandas (default 200, máx 1000)
  * Requiere permiso: ver-reportes o ver-cocina-completo
  */
 router.get('/cocineros/rendimiento/historial', adminAuth, async (req, res) => {
