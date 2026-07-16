@@ -38,11 +38,11 @@ function sanitizarConfigEntrada(body) {
 
     if (Array.isArray(body.reglasPorPlato)) {
         out.reglasPorPlato = body.reglasPorPlato
-            .filter(r => r && r.platoId != null && r.cocineroPrimarioId)
+            .filter(r => r && r.platoId != null && (r.cocineroPrimarioId || (Array.isArray(r.backups) && r.backups.some(b => b && b.cocineroId))))
             .map(r => ({
                 platoId: Number(r.platoId),
                 activo: r.activo !== false,
-                cocineroPrimarioId: r.cocineroPrimarioId,
+                cocineroPrimarioId: r.cocineroPrimarioId || null,
                 backups: Array.isArray(r.backups)
                     ? r.backups
                         .filter(b => b && b.cocineroId)
@@ -60,7 +60,7 @@ function sanitizarConfigEntrada(body) {
 
     if (Array.isArray(body.reglasPorCategoria)) {
         out.reglasPorCategoria = body.reglasPorCategoria
-            .filter(r => r && r.categoria && r.cocineroPrimarioId)
+            .filter(r => r && r.categoria && (r.cocineroPrimarioId || (Array.isArray(r.backups) && r.backups.some(b => b && b.cocineroId))))
             .map(r => ({
                 categoria: String(r.categoria).trim(),
                 activo: r.activo !== false,
@@ -99,10 +99,27 @@ router.get('/asignacion-automatica', adminAuth, async (req, res) => {
  */
 router.put('/asignacion-automatica', adminAuth, checkPermission('editar-mozos'), async (req, res) => {
     try {
+        const recibidasPlato = Array.isArray(req.body?.reglasPorPlato) ? req.body.reglasPorPlato.length : 0;
+        const recibidasCat = Array.isArray(req.body?.reglasPorCategoria) ? req.body.reglasPorCategoria.length : 0;
         const sanitizado = sanitizarConfigEntrada(req.body);
         const config = await asignacionRepository.actualizarConfiguracion(sanitizado, req.admin.id);
-        logger.info('Configuración de asignación automática actualizada', { actualizadoPor: req.admin.id, habilitada: config.habilitada, reglasPlato: config.reglasPorPlato?.length, reglasCategoria: config.reglasPorCategoria?.length });
-        res.json({ success: true, message: 'Configuración guardada correctamente', data: config });
+        const guardadasPlato = (config.reglasPorPlato || []).length;
+        const guardadasCat = (config.reglasPorCategoria || []).length;
+        logger.info('Configuración de asignación automática actualizada', {
+            actualizadoPor: req.admin.id,
+            habilitada: config.habilitada,
+            reglasPlato: `${guardadasPlato}/${recibidasPlato}`,
+            reglasCategoria: `${guardadasCat}/${recibidasCat}`
+        });
+        res.json({
+            success: true,
+            message: 'Configuración guardada correctamente',
+            data: config,
+            persistencia: {
+                reglasPorPlato: { recibidas: recibidasPlato, guardadas: guardadasPlato },
+                reglasPorCategoria: { recibidas: recibidasCat, guardadas: guardadasCat }
+            }
+        });
     } catch (error) {
         logger.error('Error al guardar asignación automática', { error: error.message });
         res.status(500).json({ success: false, error: error.message || 'Error al guardar configuración' });

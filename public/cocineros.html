@@ -634,6 +634,34 @@ tailwind.config = {
             <span class="text-[10px] text-txt-muted font-normal" x-text="`(${platosAsignacionFiltrados.length})`"></span>
           </h3>
 
+          <!-- Barra de acciones por conjunto (selección múltiple) -->
+          <div class="bg-bg-sidebar/60 border border-[rgba(212,175,55,0.2)] rounded-lg p-2 mb-3 space-y-2">
+            <div class="flex items-center gap-2 flex-wrap">
+              <button @click="seleccionarTodosPlatosVisibles()"
+                class="text-[11px] text-gold hover:underline">☑ Seleccionar todos</button>
+              <button @click="invertirSeleccionPlatos()"
+                class="text-[11px] text-txt-secondary hover:text-gold">Invertir</button>
+              <button @click="limpiarSeleccionPlatos()"
+                class="text-[11px] text-txt-secondary hover:text-st-pagado">Limpiar</button>
+              <span class="ml-auto text-[11px] text-txt-muted" x-show="totalSeleccionadosAsignacion > 0">
+                <b class="text-gold" x-text="totalSeleccionadosAsignacion"></b> seleccionado(s)
+              </span>
+            </div>
+            <div class="flex gap-2 flex-wrap">
+              <button @click="abrirAsignacionMasiva()"
+                :disabled="totalSeleccionadosAsignacion === 0"
+                class="flex-1 text-xs bg-gold text-bg-primary px-3 py-1.5 rounded-lg font-semibold hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed">
+                ⚡ Asignar <span x-text="totalSeleccionadosAsignacion"></span> plato(s) a un cocinero
+              </button>
+              <button @click="abrirAsignacionMasivaCategoria()"
+                :disabled="!filtroCategoriaAsignacion"
+                class="text-xs bg-bg-card border border-[rgba(212,175,55,0.3)] text-gold px-3 py-1.5 rounded-lg hover:bg-gold/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                :title="filtroCategoriaAsignacion ? 'Asignar toda la categoría filtrada' : 'Filtra por una categoría primero'">
+                📋 Toda la categoría
+              </button>
+            </div>
+          </div>
+
           <!-- Controles -->
           <div class="space-y-2 mb-3">
             <input type="text" x-model="busquedaPlatosAsignacion"
@@ -663,28 +691,33 @@ tailwind.config = {
           <!-- Lista -->
           <div x-show="!loadingPlatosAsignacion" class="space-y-1 max-h-[500px] overflow-y-auto pr-1">
             <template x-for="p in platosAsignacionPaginados" :key="p.id">
-              <div @click="seleccionarPlatoAsignacion(p)"
-                class="p-3 rounded-lg cursor-pointer transition border"
+              <div class="p-3 rounded-lg transition border flex items-start gap-2"
                 :class="platoSeleccionadoAsignacion?.id === p.id
                   ? 'bg-gold/15 border-gold/50'
                   : 'bg-bg-sidebar border-transparent hover:bg-gold/5 hover:border-gold/20'">
-                <div class="flex items-start justify-between gap-2">
-                  <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-white truncate" x-text="p.nombre"></p>
-                    <p class="text-[10px] text-txt-muted" x-text="p.categoria + ' · #' + p.id"></p>
-                  </div>
-                  <div class="flex flex-col items-end gap-1">
-                    <span x-show="!tieneReglaPlato(p.id)" class="text-[9px] px-1.5 py-0.5 rounded bg-bg-card text-txt-muted border border-txt-muted/30">
-                      Sin regla
-                    </span>
-                    <span x-show="tieneReglaPlato(p.id) && getReglaPlato(p.id).cocineroPrimarioId"
-                      class="text-[9px] px-1.5 py-0.5 rounded bg-gold/20 text-gold">
-                      Primario
-                    </span>
-                    <span x-show="tieneReglaPlato(p.id) && getReglaPlato(p.id).backups?.length > 0"
-                      class="text-[9px] px-1.5 py-0.5 rounded bg-st-pedido/20 text-st-pedido">
-                      Overflow
-                    </span>
+                <input type="checkbox" :value="p.id" x-model="seleccionPlatosAsignacion[p.id]"
+                  @click.stop
+                  class="mt-1 w-4 h-4 accent-gold flex-shrink-0 cursor-pointer"
+                  :title="seleccionPlatosAsignacion[p.id] ? 'Quitar de la selección' : 'Añadir a la selección'">
+                <div @click="seleccionarPlatoAsignacion(p)" class="flex-1 min-w-0 cursor-pointer">
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="flex-1 min-w-0">
+                      <p class="text-sm font-medium text-white truncate" x-text="p.nombre"></p>
+                      <p class="text-[10px] text-txt-muted" x-text="p.categoria + ' · #' + p.id"></p>
+                    </div>
+                    <div class="flex flex-col items-end gap-1">
+                      <span x-show="!tieneReglaPlato(p.id)" class="text-[9px] px-1.5 py-0.5 rounded bg-bg-card text-txt-muted border border-txt-muted/30">
+                        Sin regla
+                      </span>
+                      <span x-show="tieneReglaPlato(p.id) && getReglaPlato(p.id).cocineroPrimarioId"
+                        class="text-[9px] px-1.5 py-0.5 rounded bg-gold/20 text-gold">
+                        Primario
+                      </span>
+                      <span x-show="tieneReglaPlato(p.id) && getReglaPlato(p.id).backups?.length > 0"
+                        class="text-[9px] px-1.5 py-0.5 rounded bg-st-pedido/20 text-st-pedido">
+                        Overflow
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -3020,6 +3053,120 @@ tailwind.config = {
   </div>
 </div>
 
+<!-- ==================== MODAL: ASIGNACIÓN MASIVA (conjunto de platos) ==================== -->
+<div x-show="modalAsignacionMasiva" x-transition.opacity
+  class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70"
+  @click.self="modalAsignacionMasiva=false">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-full max-w-[620px] shadow-2xl max-h-[92vh] overflow-y-auto" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between sticky top-0 z-10">
+      <div>
+        <h2 class="text-lg font-bold">⚡ Asignación por conjunto</h2>
+        <p class="text-xs text-txt-muted">
+          Aplicar la misma regla a
+          <b class="text-gold" x-text="formAsignacionMasivaContexto?.cantidad"></b>
+          plato(s)
+          <span x-show="formAsignacionMasivaContexto?.categoria" x-text="'de la categoría ' + formAsignacionMasivaContexto?.categoria"></span>
+        </p>
+      </div>
+      <button @click="modalAsignacionMasiva=false" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <!-- Cocinero primario -->
+      <div>
+        <label class="text-xs font-semibold text-txt-secondary uppercase">Cocinero primario</label>
+        <p class="text-[10px] text-txt-muted mb-1">Se asignarán todos los platos del conjunto a este cocinero.</p>
+        <select x-model="formAsignacionMasiva.cocineroPrimarioId"
+          class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+          <option value="">— Sin primario —</option>
+          <template x-for="c in cocinerosAsignacion" :key="c._id">
+            <option :value="c._id" x-text="c.nombre + (c.alias ? ' (' + c.alias + ')' : '')"></option>
+          </template>
+        </select>
+      </div>
+
+      <!-- Backups -->
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <div>
+            <label class="text-xs font-semibold text-txt-secondary uppercase">Backups (overflow)</label>
+            <p class="text-[10px] text-txt-muted">Cadena común para todos los platos del conjunto.</p>
+          </div>
+          <button @click="agregarBackupMasivo()" class="text-xs text-gold hover:underline">+ Añadir</button>
+        </div>
+        <div class="space-y-2">
+          <template x-for="(b, idx) in formAsignacionMasiva.backups" :key="idx">
+            <div class="flex items-center gap-2 bg-bg-sidebar rounded-lg p-2">
+              <span class="text-xs text-txt-muted w-5 text-center" x-text="(idx + 1) + 'º'"></span>
+              <select x-model="b.cocineroId"
+                class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded px-2 py-1.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                <option value="">— Selecciona —</option>
+                <template x-for="c in cocinerosAsignacion" :key="c._id">
+                  <option :value="c._id" x-text="c.nombre + (c.alias ? ' (' + c.alias + ')' : '')"></option>
+                </template>
+              </select>
+              <button @click="subirBackupMasivo(idx)" :disabled="idx === 0"
+                class="w-6 h-6 rounded text-txt-secondary hover:text-gold disabled:opacity-20">▲</button>
+              <button @click="bajarBackupMasivo(idx)" :disabled="idx === formAsignacionMasiva.backups.length - 1"
+                class="w-6 h-6 rounded text-txt-secondary hover:text-gold disabled:opacity-20">▼</button>
+              <button @click="quitarBackupMasivo(idx)"
+                class="w-6 h-6 rounded text-st-pagado hover:brightness-125">✕</button>
+            </div>
+          </template>
+          <div x-show="formAsignacionMasiva.backups.length === 0" class="text-xs text-txt-muted italic px-2">
+            Sin backups. El 6º plato quedará sin dueño según modoSinCandidato.
+          </div>
+        </div>
+      </div>
+
+      <!-- Máx. mismo plato + estrategia -->
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-semibold text-txt-secondary uppercase">Máx. mismo plato</label>
+          <p class="text-[10px] text-txt-muted mb-1">Default global: <span class="text-gold" x-text="asignacionConfig?.defaults?.maxMismoPlatoPorCocinero ?? 5"></span></p>
+          <input type="number" min="1" max="50" x-model.number="formAsignacionMasiva.maxMismoPlato"
+            placeholder="Usar default"
+            class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-txt-secondary uppercase">Estrategia</label>
+          <p class="text-[10px] text-txt-muted mb-1">Default global: <span class="text-gold" x-text="asignacionConfig?.defaults?.estrategiaDefault ?? 'hibrido'"></span></p>
+          <select x-model="formAsignacionMasiva.estrategia"
+            class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+            <option value="">Usar default</option>
+            <option value="fijo_por_plato">Fijo por plato</option>
+            <option value="cadena_overflow">Cadena overflow</option>
+            <option value="menor_carga">Menor carga</option>
+            <option value="round_robin">Round robin</option>
+            <option value="hibrido">Híbrido (recomendado)</option>
+            <option value="respetar_zona">Respetar zona</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Validación -->
+      <div x-show="errorValidacionMasiva" class="bg-st-pagado/10 border border-st-pagado/30 rounded-lg p-2 text-xs text-st-pagado"
+        x-text="errorValidacionMasiva"></div>
+
+      <!-- Resumen de platos afectados -->
+      <div class="bg-bg-sidebar/50 border border-[rgba(212,175,55,0.15)] rounded-lg p-3 max-h-[120px] overflow-y-auto">
+        <p class="text-[10px] text-txt-muted uppercase mb-1">Platos que se actualizarán:</p>
+        <div class="flex flex-wrap gap-1">
+          <template x-for="pid in formAsignacionMasivaContexto?.platoIds || []" :key="pid">
+            <span class="text-[10px] bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-1.5 py-0.5 text-txt-secondary"
+              x-text="getNombrePlato(pid)"></span>
+          </template>
+        </div>
+      </div>
+    </div>
+    <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)] sticky bottom-0">
+      <button @click="modalAsignacionMasiva=false" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+      <button @click="aplicarAsignacionMasiva()" class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">
+        ✓ Aplicar a <span x-text="formAsignacionMasivaContexto?.cantidad"></span> plato(s)
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: CONFIRMAR ELIMINAR ZONA -->
 <div x-show="modalConfirmarEliminarZona" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modalConfirmarEliminarZona=false">
   <div class="bg-bg-card border border-st-pagado/40 rounded-2xl w-full max-w-[420px] shadow-2xl" @click.stop>
@@ -3134,6 +3281,22 @@ function cocinerosApp() {
     simuladorPlatoId: '',
     loadingSimulador: false,
     resultadoSimulador: null,
+
+    // ==================== ASIGNACIÓN POR CONJUNTO (multi-selección) ====================
+    seleccionPlatosAsignacion: {},   // { [platoId]: true }
+    modalAsignacionMasiva: false,
+    formAsignacionMasiva: {
+      cocineroPrimarioId: '',
+      backups: [],            // [{ cocineroId, orden }]
+      maxMismoPlato: null,
+      estrategia: '',
+      activo: true
+    },
+    formAsignacionMasivaContexto: { cantidad: 0, categoria: '', platoIds: [] },
+    errorValidacionMasiva: '',
+    get totalSeleccionadosAsignacion() {
+      return Object.values(this.seleccionPlatosAsignacion || {}).filter(v => v).length;
+    },
 
     // Rendimiento en vivo
     rendimientoCocineros: [],
@@ -5090,8 +5253,8 @@ function cocinerosApp() {
       };
     },
 
-    // Aplica el form actual al plato seleccionado (en memoria, no guarda en backend)
-    aplicarReglaPlato() {
+    // Aplica el form actual al plato seleccionado y PERSISTE en backend.
+    async aplicarReglaPlato() {
       if (!this.validarReglaAsignacion()) return;
       const f = this.formReglaAsignacion;
       const nueva = {
@@ -5108,18 +5271,25 @@ function cocinerosApp() {
       const idx = this.asignacionConfig.reglasPorPlato.findIndex(r => r.platoId === nueva.platoId);
       if (idx >= 0) this.asignacionConfig.reglasPorPlato[idx] = nueva;
       else this.asignacionConfig.reglasPorPlato.push(nueva);
-      if (window.GambusinasNotifications) window.GambusinasNotifications.success('Regla aplicada', 'Recuerda "Guardar cambios" para persistir.');
+      // Persistir automáticamente (fix: antes solo quedaba en memoria).
+      const ok = await this.guardarAsignacionCompleta();
+      if (ok && window.GambusinasNotifications) {
+        window.GambusinasNotifications.success('Regla guardada', `Plato "${this.getNombrePlato(nueva.platoId)}" actualizado.`);
+      }
     },
 
-    eliminarReglaPlato(platoId) {
+    async eliminarReglaPlato(platoId) {
       if (!this.asignacionConfig) return;
       this.asignacionConfig.reglasPorPlato = (this.asignacionConfig.reglasPorPlato || []).filter(r => r.platoId !== platoId);
       if (this.platoSeleccionadoAsignacion?.id === platoId) {
         this.seleccionarPlatoAsignacion(this.platoSeleccionadoAsignacion);
       }
+      // Persistir el borrado automáticamente.
+      await this.guardarAsignacionCompleta();
+      if (window.GambusinasNotifications) window.GambusinasNotifications.success('Regla eliminada', `Plato "${this.getNombrePlato(platoId)}" sin regla.`);
     },
 
-    aplicarReglaACategoria() {
+    async aplicarReglaACategoria() {
       if (!this.platoSeleccionadoAsignacion?.categoria) return;
       if (!this.validarReglaAsignacion()) return;
       const f = this.formReglaAsignacion;
@@ -5136,7 +5306,11 @@ function cocinerosApp() {
       const idx = this.asignacionConfig.reglasPorCategoria.findIndex(r => r.categoria === nueva.categoria);
       if (idx >= 0) this.asignacionConfig.reglasPorCategoria[idx] = nueva;
       else this.asignacionConfig.reglasPorCategoria.push(nueva);
-      if (window.GambusinasNotifications) window.GambusinasNotifications.success('Regla de categoría', `Aplicada a "${nueva.categoria}"`);
+      // Persistir automáticamente.
+      const ok = await this.guardarAsignacionCompleta();
+      if (ok && window.GambusinasNotifications) {
+        window.GambusinasNotifications.success('Regla de categoría guardada', `Aplicada y persistida a "${nueva.categoria}"`);
+      }
     },
 
     // === Guardado completo en backend ===
@@ -5148,9 +5322,28 @@ function cocinerosApp() {
       const res = await apiPut('/asignacion-automatica', payload);
       if (res && res.success !== false) {
         if (res.data) this.asignacionConfig = res.data;
-        if (window.GambusinasNotifications) window.GambusinasNotifications.success('Guardado', 'Asignación automática actualizada');
+        // Detectar si el backend descartó reglas (persistencia transparente)
+        const p = res.persistencia;
+        if (p) {
+          const droppedPlato = (p.reglasPorPlato?.recibidas || 0) - (p.reglasPorPlato?.guardadas || 0);
+          const droppedCat = (p.reglasPorCategoria?.recibidas || 0) - (p.reglasPorCategoria?.guardadas || 0);
+          if (droppedPlato > 0 || droppedCat > 0) {
+            if (window.GambusinasNotifications) {
+              window.GambusinasNotifications.error(
+                'Algunas reglas no se guardaron',
+                `Se descartaron ${droppedPlato} regla(s) de plato y ${droppedCat} de categoría (sin cocinero primario ni backups).`
+              );
+            }
+          }
+        }
+        return true;
       } else {
         if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', res?.error || 'No se pudo guardar');
+        // Fix anti-pérdida: si el guardado falla, recargamos la config real desde BD
+        // para que la memoria refleje exactamente lo persistido y no quede un estado
+        // divergente que el usuario crea guardado pero no lo esté.
+        try { await this.cargarConfigAsignacion(); } catch (e) { /* notificar ya hecho */ }
+        return false;
       }
     },
 
@@ -5228,6 +5421,172 @@ function cocinerosApp() {
         this.resultadoSimulador = { mensaje: 'Error: ' + e.message };
       }
       this.loadingSimulador = false;
+    },
+
+    // ==================== ASIGNACIÓN POR CONJUNTO (multi-selección) ====================
+
+    seleccionarTodosPlatosVisibles() {
+      this.platosAsignacionFiltrados.forEach(p => {
+        this.seleccionPlatosAsignacion[p.id] = true;
+      });
+    },
+    invertirSeleccionPlatos() {
+      this.platosAsignacionFiltrados.forEach(p => {
+        this.seleccionPlatosAsignacion[p.id] = !this.seleccionPlatosAsignacion[p.id];
+      });
+    },
+    limpiarSeleccionPlatos() {
+      this.seleccionPlatosAsignacion = {};
+    },
+
+    // Devuelve los platoIds seleccionados (de los visibles actualmente)
+    get platoIdsSeleccionados() {
+      return this.platosAsignacionFiltrados
+        .filter(p => this.seleccionPlatosAsignacion[p.id])
+        .map(p => p.id);
+    },
+
+    // Abre el modal de asignación masiva con la selección actual (checkboxes)
+    abrirAsignacionMasiva() {
+      const ids = this.platoIdsSeleccionados;
+      if (ids.length === 0) return;
+      this._resetFormMasivo();
+      this.formAsignacionMasivaContexto = {
+        cantidad: ids.length,
+        categoria: '',
+        platoIds: ids
+      };
+      this.errorValidacionMasiva = '';
+      this.modalAsignacionMasiva = true;
+    },
+
+    // Abre el modal con TODOS los platos de la categoría filtrada (sin necesidad de marcar)
+    abrirAsignacionMasivaCategoria() {
+      if (!this.filtroCategoriaAsignacion) return;
+      const ids = this.todosLosPlatosAsignacion
+        .filter(p => p.categoria === this.filtroCategoriaAsignacion)
+        .map(p => p.id);
+      if (ids.length === 0) return;
+      this._resetFormMasivo();
+      this.formAsignacionMasivaContexto = {
+        cantidad: ids.length,
+        categoria: this.filtroCategoriaAsignacion,
+        platoIds: ids
+      };
+      this.errorValidacionMasiva = '';
+      this.modalAsignacionMasiva = true;
+    },
+
+    _resetFormMasivo() {
+      this.formAsignacionMasiva = {
+        cocineroPrimarioId: '',
+        backups: [],
+        maxMismoPlato: null,
+        estrategia: '',
+        activo: true
+      };
+    },
+
+    agregarBackupMasivo() {
+      this.formAsignacionMasiva.backups.push({ cocineroId: '', orden: this.formAsignacionMasiva.backups.length + 1 });
+    },
+    quitarBackupMasivo(idx) {
+      this.formAsignacionMasiva.backups.splice(idx, 1);
+      this._renumerarBackupsMasivo();
+    },
+    subirBackupMasivo(idx) {
+      if (idx === 0) return;
+      const arr = this.formAsignacionMasiva.backups;
+      [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
+      this._renumerarBackupsMasivo();
+    },
+    bajarBackupMasivo(idx) {
+      const arr = this.formAsignacionMasiva.backups;
+      if (idx === arr.length - 1) return;
+      [arr[idx + 1], arr[idx]] = [arr[idx], arr[idx + 1]];
+      this._renumerarBackupsMasivo();
+    },
+    _renumerarBackupsMasivo() {
+      this.formAsignacionMasiva.backups.forEach((b, i) => { b.orden = i + 1; });
+    },
+
+    validarAsignacionMasiva() {
+      this.errorValidacionMasiva = '';
+      const f = this.formAsignacionMasiva;
+      const idsBackups = f.backups.filter(b => b.cocineroId).map(b => b.cocineroId);
+      if (!f.cocineroPrimarioId && idsBackups.length === 0) {
+        this.errorValidacionMasiva = 'Define al menos un cocinero primario o un backup.';
+        return false;
+      }
+      if (f.cocineroPrimarioId && idsBackups.includes(f.cocineroPrimarioId)) {
+        this.errorValidacionMasiva = 'Un cocinero no puede ser primario y backup a la vez.';
+        return false;
+      }
+      const unique = new Set(idsBackups);
+      if (unique.size !== idsBackups.length) {
+        this.errorValidacionMasiva = 'Hay backups duplicados.';
+        return false;
+      }
+      if (f.maxMismoPlato !== null && f.maxMismoPlato !== '' && (!Number.isFinite(f.maxMismoPlato) || f.maxMismoPlato < 1)) {
+        this.errorValidacionMasiva = 'El máx. mismo plato debe ser un número ≥ 1.';
+        return false;
+      }
+      return true;
+    },
+
+    // Aplica la regla del form a TODOS los platoIds del contexto y PERSISTE en backend.
+    async aplicarAsignacionMasiva() {
+      if (!this.validarAsignacionMasiva()) return;
+      const f = this.formAsignacionMasiva;
+      const ids = this.formAsignacionMasivaContexto.platoIds || [];
+      if (ids.length === 0) return;
+
+      if (!this.asignacionConfig) this.asignacionConfig = { reglasPorPlato: [], reglasPorCategoria: [] };
+      if (!Array.isArray(this.asignacionConfig.reglasPorPlato)) this.asignacionConfig.reglasPorPlato = [];
+
+      const backups = f.backups.filter(b => b.cocineroId).map((b, i) => ({ cocineroId: b.cocineroId, orden: i + 1 }));
+      const maxMismo = (f.maxMismoPlato === '' || f.maxMismoPlato === null) ? null : Number(f.maxMismoPlato);
+
+      let actualizadas = 0;
+      for (const pid of ids) {
+        const nueva = {
+          platoId: pid,
+          activo: f.activo,
+          cocineroPrimarioId: f.cocineroPrimarioId || null,
+          backups,
+          maxMismoPlato: maxMismo,
+          estrategia: f.estrategia || null,
+          notas: ''
+        };
+        const idx = this.asignacionConfig.reglasPorPlato.findIndex(r => r.platoId === pid);
+        if (idx >= 0) this.asignacionConfig.reglasPorPlato[idx] = nueva;
+        else this.asignacionConfig.reglasPorPlato.push(nueva);
+        actualizadas++;
+      }
+
+      // PERSISTIR en backend automáticamente (fix: antes solo quedaba en memoria
+      // y al recargar se perdía). Ahora guardamos toda la config de una vez.
+      const res = await this.guardarAsignacionCompleta();
+      if (res) {
+        this.modalAsignacionMasiva = false;
+        // Limpia selección de los platos que se acaban de asignar (solo tras éxito)
+        ids.forEach(pid => { delete this.seleccionPlatosAsignacion[pid]; });
+        if (window.GambusinasNotifications) {
+          window.GambusinasNotifications.success(
+            'Asignación por conjunto guardada',
+            `${actualizadas} plato(s) actualizados y persistidos en base de datos.`
+          );
+        }
+      } else {
+        // El guardado falló: guardarAsignacionCompleta ya resincronizó desde BD.
+        // Mantenemos modal abierto y selección intacta para que el usuario reintente.
+        if (window.GambusinasNotifications) {
+          window.GambusinasNotifications.error(
+            'No se guardó',
+            'Revisa la conexión e inténtalo de nuevo. Las reglas previas siguen en base de datos.'
+          );
+        }
+      }
     },
 
     // ==================== RENDIMIENTO EN VIVO ====================
