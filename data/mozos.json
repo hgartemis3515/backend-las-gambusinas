@@ -43,6 +43,8 @@
       "gestionar-roles",
       "ver-auditoria",
       "ver-reportes",
+      "ver-cierre-caja",
+      "ejecutar-cierre-caja",
       "cierre-caja",
       "ver-notificaciones",
       "crear-comandas",
@@ -52,7 +54,14 @@
       "asociar-clientes",
       "ver-comandas-cocina",
       "cambiar-estados-platos",
-      "revertir-comandas"
+      "revertir-comandas",
+      "ver-mensajes",
+      "enviar-mensajes",
+      "enviar-mensajes-voz",
+      "enviar-anuncios",
+      "gestionar-canales-mensajes",
+      "forzar-prioridad-mensajes",
+      "ver-mensajes-todos"
     ],
     "id": "69860821b6273b9647faf872"
   },
@@ -91,7 +100,10 @@
       "ver-clientes",
       "crear-comandas",
       "editar-comandas",
-      "asociar-clientes"
+      "asociar-clientes",
+      "ver-mensajes",
+      "enviar-mensajes",
+      "enviar-mensajes-voz"
     ],
     "id": "69b1d13a3d1b7987ef5b493d"
   },
@@ -130,7 +142,10 @@
       "ver-clientes",
       "crear-comandas",
       "editar-comandas",
-      "asociar-clientes"
+      "asociar-clientes",
+      "ver-mensajes",
+      "enviar-mensajes",
+      "enviar-mensajes-voz"
     ],
     "id": "6a340bcd1dca8b06b7bf578f"
   },
@@ -176,13 +191,18 @@
       "ver-mozos",
       "ver-auditoria",
       "ver-reportes",
-      "cierre-caja",
       "ver-notificaciones",
       "crear-comandas",
       "editar-comandas",
       "procesar-pagos",
       "asociar-clientes",
-      "ver-comandas-cocina"
+      "ver-comandas-cocina",
+      "ver-mensajes",
+      "enviar-mensajes",
+      "enviar-mensajes-voz",
+      "enviar-anuncios",
+      "gestionar-canales-mensajes",
+      "ver-mensajes-todos"
     ],
     "id": "6a340bda1dca8b06b7bf57a7"
   },
@@ -230,6 +250,8 @@
       "gestionar-roles",
       "ver-auditoria",
       "ver-reportes",
+      "ver-cierre-caja",
+      "ejecutar-cierre-caja",
       "cierre-caja",
       "ver-notificaciones",
       "crear-comandas",
@@ -239,7 +261,14 @@
       "asociar-clientes",
       "ver-comandas-cocina",
       "cambiar-estados-platos",
-      "revertir-comandas"
+      "revertir-comandas",
+      "ver-mensajes",
+      "enviar-mensajes",
+      "enviar-mensajes-voz",
+      "enviar-anuncios",
+      "gestionar-canales-mensajes",
+      "forzar-prioridad-mensajes",
+      "ver-mensajes-todos"
     ],
     "id": "6a340bef1dca8b06b7bf57e4"
   },
@@ -287,6 +316,8 @@
       "gestionar-roles",
       "ver-auditoria",
       "ver-reportes",
+      "ver-cierre-caja",
+      "ejecutar-cierre-caja",
       "cierre-caja",
       "ver-notificaciones",
       "crear-comandas",
@@ -296,7 +327,14 @@
       "asociar-clientes",
       "ver-comandas-cocina",
       "cambiar-estados-platos",
-      "revertir-comandas"
+      "revertir-comandas",
+      "ver-mensajes",
+      "enviar-mensajes",
+      "enviar-mensajes-voz",
+      "enviar-anuncios",
+      "gestionar-canales-mensajes",
+      "forzar-prioridad-mensajes",
+      "ver-mensajes-todos"
     ],
     "id": "6a340bfa1dca8b06b7bf5806"
   },
@@ -333,7 +371,10 @@
       "ver-platos",
       "ver-comandas-cocina",
       "cambiar-estados-platos",
-      "revertir-comandas"
+      "revertir-comandas",
+      "ver-mensajes",
+      "enviar-mensajes",
+      "enviar-mensajes-voz"
     ],
     "id": "6a340e271dca8b06b7bf59ff"
   },
@@ -370,8 +411,43 @@
       "ver-platos",
       "ver-comandas-cocina",
       "cambiar-estados-platos",
-      "revertir-comandas"
+      "revertir-comandas",
+      "ver-mensajes",
+      "enviar-mensajes",
+      "enviar-mensajes-voz"
     ],
     "id": "6a340e341dca8b06b7bf5a2b"
+  },
+  {
+    "_id": "6a3d9ce6932b073abac40e07",
+    "name": "Martha",
+    "nombres": "Martha",
+    "apellidos": "",
+    "DNI": 12345678,
+    "phoneNumber": 0,
+    "fotoUrl": "",
+    "email": "",
+    "fechaNacimiento": null,
+    "genero": "",
+    "direccion": "",
+    "contactoEmergenciaNombre": "",
+    "contactoEmergenciaTelefono": "",
+    "pinAcceso": "",
+    "usuarioWeb": "",
+    "passwordWeb": "",
+    "rol": "martha",
+    "zonaIds": [],
+    "activo": true,
+    "enTurno": false,
+    "pushToken": "",
+    "pushPlatform": "",
+    "pushDeviceId": "",
+    "pushTokenUpdatedAt": null,
+    "permisos": [],
+    "createdAt": "2026-06-25T21:25:58.913Z",
+    "updatedAt": "2026-06-25T21:31:51.433Z",
+    "mozoId": 9,
+    "permisosEfectivos": [],
+    "id": "6a3d9ce6932b073abac40e07"
   }
 ]

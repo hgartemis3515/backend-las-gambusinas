@@ -53,7 +53,16 @@ const PERMISOS_FUNDAMENTALES = {
     'ver-cocina-completo': { nombre: 'Ver Cocina Completo', grupo: 'App Cocina', descripcion: 'Acceder al monitor de cocina completo (solo lectura, todas las estaciones)' },
     'ver-cocina-personalizado': { nombre: 'Ver Cocina Personalizado', grupo: 'App Cocina', descripcion: 'Acceder a monitores de cocina filtrados por vista personalizada (TVs por estacion)' },
     'desplegar-monitores-cocina': { nombre: 'Desplegar Monitores Cocina', grupo: 'App Cocina', descripcion: 'Abrir y gestionar ventanas de monitores en multiples televisores de cocina' },
-    'administrar-vistas-cocina': { nombre: 'Administrar Vistas de Cocina', grupo: 'App Cocina', descripcion: 'Crear, editar y eliminar Vistas de Cocina y asignarlas a pantallas desde el dashboard' }
+    'administrar-vistas-cocina': { nombre: 'Administrar Vistas de Cocina', grupo: 'App Cocina', descripcion: 'Crear, editar y eliminar Vistas de Cocina y asignarlas a pantallas desde el dashboard' },
+
+    // Mensajería interna + voz
+    'ver-mensajes': { nombre: 'Ver Mensajes', grupo: 'Mensajería', descripcion: 'Abrir inbox y canales de mensajería' },
+    'enviar-mensajes': { nombre: 'Enviar Mensajes', grupo: 'Mensajería', descripcion: 'Enviar mensajes de texto en DM y canales permitidos' },
+    'enviar-mensajes-voz': { nombre: 'Enviar Mensajes de Voz', grupo: 'Mensajería', descripcion: 'Grabar y enviar notas de voz' },
+    'enviar-anuncios': { nombre: 'Enviar Anuncios', grupo: 'Mensajería', descripcion: 'Enviar broadcasts/anuncios a roles o todos' },
+    'gestionar-canales-mensajes': { nombre: 'Gestionar Canales de Mensajes', grupo: 'Mensajería', descripcion: 'Crear, editar y archivar canales; asignar miembros' },
+    'forzar-prioridad-mensajes': { nombre: 'Forzar Prioridad de Mensajes', grupo: 'Mensajería', descripcion: 'Asignar prioridad urgente o critica a mensajes' },
+    'ver-mensajes-todos': { nombre: 'Ver Todos los Mensajes', grupo: 'Mensajería', descripcion: 'Supervisión: ver hilos de todo el personal (compliance)' }
 };
 
 // Reglas fundamentales disponibles
@@ -72,19 +81,28 @@ const PERMISOS_POR_ROL_SISTEMA = {
         'ver-notificaciones', 'crear-comandas', 'editar-comandas',
         'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina', 'aplicar-descuentos',
         'ver-vista-supervisor-cocina', 'ver-boton-prioridad-kds', 'utilidad-supervisor',
-        'ver-cocina-completo', 'ver-cocina-personalizado', 'desplegar-monitores-cocina', 'administrar-vistas-cocina'
+        'ver-cocina-completo', 'ver-cocina-personalizado', 'desplegar-monitores-cocina', 'administrar-vistas-cocina',
+        // Mensajería: supervisor cubre texto, voz, anuncios, canales y supervisión; sin forzar prioridad critica
+        'ver-mensajes', 'enviar-mensajes', 'enviar-mensajes-voz', 'enviar-anuncios',
+        'gestionar-canales-mensajes', 'ver-mensajes-todos'
     ],
     cocinero: [
         'ver-platos', 'ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas',
-        'ver-cocina-completo', 'ver-cocina-personalizado'
+        'ver-cocina-completo', 'ver-cocina-personalizado',
+        // Mensajería: cocinero puede leer, escribir y enviar voz (prioridad normal)
+        'ver-mensajes', 'enviar-mensajes', 'enviar-mensajes-voz'
     ],
     mozos: [
         'ver-mesas', 'ver-platos', 'ver-clientes', 'crear-comandas', 'editar-comandas',
-        'asociar-clientes'
+        'asociar-clientes',
+        // Mensajería: mozo puede leer, escribir y enviar voz (prioridad normal)
+        'ver-mensajes', 'enviar-mensajes', 'enviar-mensajes-voz'
     ],
     cajero: [
         'ver-mesas', 'ver-platos', 'ver-clientes', 'procesar-pagos',
-        'ver-cierre-caja', 'ejecutar-cierre-caja'
+        'ver-cierre-caja', 'ejecutar-cierre-caja',
+        // Mensajería: cajero puede leer y escribir texto (voz según operación)
+        'ver-mensajes', 'enviar-mensajes'
     ]
 };
 

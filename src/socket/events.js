@@ -75,6 +75,21 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       return;
     }
 
+    // Auto-join room personal para mensajería (mensaje:nuevo → cocinero-{id})
+    if (socket.user?.id) {
+      const personalRoom = `cocinero-${socket.user.id}`;
+      socket.join(personalRoom);
+      logger.debug('Socket cocina auto-unido a room personal', { socketId: socket.id, room: personalRoom });
+    }
+
+    // Room de conversación (chat abierto)
+    socket.on('join-conversacion', (conversacionId) => {
+      if (!conversacionId) return;
+      const roomName = `conv-${conversacionId}`;
+      socket.join(roomName);
+      socket.emit('joined-conversacion', { conversacionId, roomName });
+    });
+
     // Unirse a room por fecha para recibir solo comandas del día activo
     socket.on('join-fecha', async (fecha) => {
       if (!fecha) {
@@ -288,6 +303,20 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       return;
     }
 
+    // Auto-join room personal para mensajería (mensaje:nuevo → mozo-{id})
+    if (socket.user?.id) {
+      const personalRoom = `mozo-${socket.user.id}`;
+      socket.join(personalRoom);
+      logger.debug('Socket mozos auto-unido a room personal', { socketId: socket.id, room: personalRoom });
+    }
+
+    socket.on('join-conversacion', (conversacionId) => {
+      if (!conversacionId) return;
+      const roomName = `conv-${conversacionId}`;
+      socket.join(roomName);
+      socket.emit('joined-conversacion', { conversacionId, roomName });
+    });
+
     // 🔥 ROOMS POR MESA - Estándar industria (Odoo POS, restaurant Vue.js)
     socket.on('join-mesa', (mesaId) => {
       if (!mesaId) {
@@ -361,6 +390,13 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       return;
     }
 
+    // Auto-join room personal para mensajería (mensaje:nuevo → user-{id})
+    if (socket.user?.id) {
+      const personalRoom = `user-${socket.user.id}`;
+      socket.join(personalRoom);
+      logger.debug('Socket admin auto-unido a room personal', { socketId: socket.id, room: personalRoom });
+    }
+
     // Heartbeat para detectar desconexión
     socket.on('heartbeat', () => {
       socket.emit('heartbeat-ack');
@@ -387,6 +423,14 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
 
     socket.on('leave-dashboard-mozos', () => {
       socket.leave('dashboard-mozos');
+    });
+
+    // Room de conversación (opcional; los DMs también llegan por user-{id})
+    socket.on('join-conversacion', (conversacionId) => {
+      if (!conversacionId) return;
+      const roomName = `conv-${conversacionId}`;
+      socket.join(roomName);
+      socket.emit('joined-conversacion', { conversacionId, roomName });
     });
 
     // Manejo de errores de conexión

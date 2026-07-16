@@ -15,7 +15,7 @@ const notificacionSchema = new mongoose.Schema({
   tipo: {
     type: String,
     required: true,
-    enum: ['sistema', 'comanda', 'mesa', 'pago', 'alerta', 'auditoria'],
+    enum: ['sistema', 'comanda', 'mesa', 'pago', 'alerta', 'auditoria', 'mensaje'],
     default: 'sistema',
     index: true
   },
@@ -41,7 +41,7 @@ const notificacionSchema = new mongoose.Schema({
   },
   entidadTipo: {
     type: String,
-    enum: ['comanda', 'mesa', 'plato', 'cliente', 'boucher', 'mozo', 'cierre_caja', null],
+    enum: ['comanda', 'mesa', 'plato', 'cliente', 'boucher', 'mozo', 'cierre_caja', 'mensaje', null],
     default: null
   },
   // Usuario destinatario (null = broadcast a todos los admins)
@@ -54,7 +54,7 @@ const notificacionSchema = new mongoose.Schema({
   // Roles que pueden ver esta notificación
   rolesDestinatarios: [{
     type: String,
-    enum: ['admin', 'supervisor', 'mozos', 'cocinero']
+    enum: ['admin', 'supervisor', 'mozos', 'cocinero', 'capitanMozos', 'cajero']
   }],
   leida: {
     type: Boolean,

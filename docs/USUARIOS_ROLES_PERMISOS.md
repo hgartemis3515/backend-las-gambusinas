@@ -1,8 +1,9 @@
 # Usuarios, Roles y Permisos - Backend Las Gambusinas
 
-**Versión:** 1.0  
-**Última Actualización:** Abril 2026  
-**Modelo Principal:** `mozos.model.js`
+**Versión:** 1.1  
+**Última Actualización:** Julio 2026  
+**Modelo Principal:** `mozos.model.js`  
+**Relacionado:** `docs/PLAN_MENSAJERIA_VOZ_TRES_APPS.md` (mensajería + voz)
 
 ---
 
@@ -99,7 +100,16 @@ const PERMISOS_FUNDAMENTALES = {
     // App Cocina
     'ver-comandas-cocina': { nombre: 'Ver Comandas Cocina', grupo: 'App Cocina' },
     'cambiar-estados-platos': { nombre: 'Cambiar Estados Platos', grupo: 'App Cocina' },
-    'revertir-comandas': { nombre: 'Revertir Comandas', grupo: 'App Cocina' }
+    'revertir-comandas': { nombre: 'Revertir Comandas', grupo: 'App Cocina' },
+
+    // Mensajería interna + voz (v1 — ver docs/PLAN_MENSAJERIA_VOZ_TRES_APPS.md)
+    'ver-mensajes': { nombre: 'Ver Mensajes', grupo: 'Mensajería' },
+    'enviar-mensajes': { nombre: 'Enviar Mensajes', grupo: 'Mensajería' },
+    'enviar-mensajes-voz': { nombre: 'Enviar Mensajes de Voz', grupo: 'Mensajería' },
+    'enviar-anuncios': { nombre: 'Enviar Anuncios', grupo: 'Mensajería' },
+    'gestionar-canales-mensajes': { nombre: 'Gestionar Canales de Mensajes', grupo: 'Mensajería' },
+    'forzar-prioridad-mensajes': { nombre: 'Forzar Prioridad de Mensajes', grupo: 'Mensajería' },
+    'ver-mensajes-todos': { nombre: 'Ver Todos los Mensajes', grupo: 'Mensajería' }
 };
 ```
 
@@ -134,6 +144,16 @@ const PERMISOS_FUNDAMENTALES = {
 | ver-comandas-cocina | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | cambiar-estados-platos | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
 | revertir-comandas | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| **Mensajería** |
+| ver-mensajes | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| enviar-mensajes | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| enviar-mensajes-voz | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| enviar-anuncios | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| gestionar-canales-mensajes | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| forzar-prioridad-mensajes | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| ver-mensajes-todos | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+
+> **Nota mensajería:** Prioridad máxima por rol — admin: `critica`; supervisor: `alta` (urgente/critica requiere `forzar-prioridad-mensajes`); resto: `normal`. Documentación completa: `docs/PLAN_MENSAJERIA_VOZ_TRES_APPS.md`.
 
 ---
 

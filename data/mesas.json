@@ -12,7 +12,7 @@
     "mesasId": 1,
     "nummesa": 1,
     "isActive": true,
-    "estado": "libre",
+    "estado": "entregado",
     "area": {
       "_id": "69860a2f536044c2446a7d8c",
       "areaId": 1,
@@ -44,7 +44,7 @@
     "mesasId": 2,
     "nummesa": 2,
     "isActive": true,
-    "estado": "pedido",
+    "estado": "entregado",
     "area": {
       "_id": "69860a2f536044c2446a7d8c",
       "areaId": 1,
@@ -108,7 +108,7 @@
     "mesasId": 4,
     "nummesa": 4,
     "isActive": true,
-    "estado": "libre",
+    "estado": "entregado",
     "area": {
       "_id": "69860a3aed5eabc74c183dc5",
       "areaId": 2,
@@ -318,5 +318,37 @@
     "unidoPor": null,
     "motivoUnion": null,
     "nombreCombinado": null
+  },
+  {
+    "mapaConfig": {
+      "x": null,
+      "y": null,
+      "width": 80,
+      "height": 80,
+      "shape": "rect",
+      "visible": true
+    },
+    "_id": "6a3c69517cae610b16e81be1",
+    "nummesa": 666,
+    "isActive": true,
+    "estado": "libre",
+    "area": {
+      "_id": "69860a3aed5eabc74c183dc5",
+      "areaId": 2,
+      "nombre": "VIP",
+      "descripcion": "",
+      "isActive": true,
+      "createdAt": "2026-02-06T15:35:22.119Z",
+      "updatedAt": "2026-06-17T16:40:55.599Z",
+      "mapaPublicado": false
+    },
+    "esMesaPrincipal": true,
+    "mesaPrincipalId": null,
+    "mesasUnidas": [],
+    "fechaUnion": null,
+    "unidoPor": null,
+    "motivoUnion": null,
+    "nombreCombinado": null,
+    "mesasId": 12
   }
 ]

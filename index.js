@@ -107,7 +107,7 @@ logger.info('Orígenes CORS permitidos:', { origins: allowedOrigins });
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins, // Removido wildcard '*'
-    methods: ['GET', 'POST'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     credentials: true
   },
   transports: ['websocket', 'polling']
@@ -143,7 +143,7 @@ app.use(cors({
       callback(null, false);
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-User-Id', 'X-Device-Id', 'X-Source-App'],
   credentials: true
 }));
@@ -247,6 +247,9 @@ app.use('/api', vistaCocinaRoutes);
 
 // Servir archivos estáticos desde la carpeta public
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Mensajería: servir audios de notas de voz subidos
+app.use('/uploads/mensajes', express.static(path.join(__dirname, 'uploads', 'mensajes')));
 
 // Ruta raíz: mostrar el dashboard multi-página (mismo que index.html)
 app.get('/', (req, res) => {

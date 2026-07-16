@@ -73,6 +73,10 @@
         </div>
       </div>
     </div>
+    <!-- Chat interno (FAB inferior derecha gestionado por chat-dashboard.js) -->
+    <div id="chat-fab-wrapper" class="relative" x-data="{open:false}" style="display:none;">
+      <!-- El FAB real se inyecta vía JS para que sea global a todas las páginas -->
+    </div>
     <!-- Notifications (Sistema Real) -->
     <div class="relative" x-data="{open:false}" id="notificaciones-wrapper">
       <button 

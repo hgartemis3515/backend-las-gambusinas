@@ -1,5 +1,11 @@
 [
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b5d",
     "id": 5,
     "nombre": "Pan solo",
@@ -9,9 +15,45 @@
     "categoria": "SÁNDWICHES (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [
+      {
+        "grupo": "1121",
+        "obligatorio": true,
+        "seleccionMultiple": false,
+        "modoSeleccion": "opciones",
+        "maxUnidadesGrupo": 1,
+        "minUnidadesGrupo": 1,
+        "maxUnidadesPorOpcion": 1,
+        "permiteRepetirOpcion": true,
+        "opciones": [
+          {
+            "0": "1",
+            "precio": 0,
+            "_id": "6a58409c89286bd4cc51291d"
+          },
+          {
+            "0": "2",
+            "precio": 0,
+            "_id": "6a58409c89286bd4cc51291e"
+          }
+        ],
+        "_id": "6a3d82040412ce06b5756e93"
+      }
+    ],
+    "tipos": [
+      "platos-desayuno",
+      "plato-carta normal",
+      "platos-cena"
+    ],
+    "codigo": "D1"
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b5e",
     "id": 6,
     "nombre": "Pan con queso",
@@ -21,9 +63,19 @@
     "categoria": "SÁNDWICHES (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "M426",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b5f",
     "id": 7,
     "nombre": "Pan con palta",
@@ -33,9 +85,19 @@
     "categoria": "SÁNDWICHES (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "O256",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b60",
     "id": 8,
     "nombre": "Pan con huevo",
@@ -45,9 +107,19 @@
     "categoria": "SÁNDWICHES (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "G593",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b61",
     "id": 9,
     "nombre": "Pan con aceituna",
@@ -57,9 +129,19 @@
     "categoria": "SÁNDWICHES (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "P607",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b62",
     "id": 10,
     "nombre": "Pan con Pollo",
@@ -69,9 +151,19 @@
     "categoria": "SÁNDWICHES (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "S211",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b63",
     "id": 11,
     "nombre": "Jamón del pais Nino + mostaza + zarza criolla",
@@ -81,9 +173,19 @@
     "categoria": "SÁNDWICHES (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "E375",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b64",
     "id": 12,
     "nombre": "Tamal con 2 panes",
@@ -93,9 +195,19 @@
     "categoria": "SÁNDWICHES (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "L214",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b65",
     "id": 13,
     "nombre": "Huevo revuelto + 2 panes",
@@ -105,9 +217,19 @@
     "categoria": "SÁNDWICHES (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "Q137",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b66",
     "id": 15,
     "nombre": "Chifle el jugo + 4 panes",
@@ -117,9 +239,19 @@
     "categoria": "CARNES (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "M577",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b67",
     "id": 16,
     "nombre": "1/2 Chichoron de chancho + 4 panes",
@@ -129,9 +261,19 @@
     "categoria": "DESAYUNO COMPLETO (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "H311",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b68",
     "id": 17,
     "nombre": "Fuente Chichorón de chancho + 4 panes",
@@ -141,9 +283,19 @@
     "categoria": "DESAYUNO COMPLETO (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "T337",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b69",
     "id": 18,
     "nombre": "Patasca (1/4 carne)",
@@ -153,9 +305,19 @@
     "categoria": "Patasca (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "T386",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b6a",
     "id": 19,
     "nombre": "Vaso de jugo de Papaya",
@@ -165,9 +327,19 @@
     "categoria": "JUGOS (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "E482",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b6b",
     "id": 20,
     "nombre": "Vaso de jugo de Naranja",
@@ -177,9 +349,19 @@
     "categoria": "JUGOS (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "R726",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b6c",
     "id": 21,
     "nombre": "Jarra de jugo de Papaya",
@@ -189,9 +371,19 @@
     "categoria": "JUGOS (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "Q334",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b6d",
     "id": 22,
     "nombre": "Jarra de jugo de Naranja",
@@ -201,9 +393,19 @@
     "categoria": "JUGOS (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "B767",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b6e",
     "id": 23,
     "nombre": "Jarra de jugo de Papaya c/leche",
@@ -213,9 +415,19 @@
     "categoria": "JUGOS (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "E496",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b6f",
     "id": 24,
     "nombre": "Jarra de jugo de Platano c/leche",
@@ -225,9 +437,19 @@
     "categoria": "JUGOS (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "J955",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b70",
     "id": 25,
     "nombre": "Café, te, anis o manzanilla",
@@ -237,9 +459,19 @@
     "categoria": "BEBIDAS CALIENTES (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "U945",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b71",
     "id": 26,
     "nombre": "Taza de leche",
@@ -249,9 +481,19 @@
     "categoria": "BEBIDAS CALIENTES (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "A456",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b72",
     "id": 27,
     "nombre": "Taza de leche con Milo o café",
@@ -261,9 +503,19 @@
     "categoria": "BEBIDAS CALIENTES (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "B985",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b73",
     "id": 28,
     "nombre": "Taza de leche con café",
@@ -273,9 +525,19 @@
     "categoria": "BEBIDAS CALIENTES (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "T454",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b74",
     "id": 29,
     "nombre": "Agua mineral 1/2",
@@ -285,9 +547,19 @@
     "categoria": "BEBIDAS Y REFRESCOS (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "C241",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b75",
     "id": 30,
     "nombre": "Gaseosa 1/2 litro (Cola o Inca)",
@@ -297,9 +569,19 @@
     "categoria": "BEBIDAS Y REFRESCOS (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "E374",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b76",
     "id": 31,
     "nombre": "Agua mineral 2.5L",
@@ -309,9 +591,19 @@
     "categoria": "BEBIDAS Y REFRESCOS (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "H643",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b77",
     "id": 32,
     "nombre": "Frugos 1.5Lt",
@@ -321,9 +613,19 @@
     "categoria": "BEBIDAS Y REFRESCOS (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "M954",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b78",
     "id": 33,
     "nombre": "Gaseosa 1.5L Inca o Coca",
@@ -333,9 +635,19 @@
     "categoria": "BEBIDAS Y REFRESCOS (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "I118",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b79",
     "id": 34,
     "nombre": "Gaseos 3L Inca o Coca",
@@ -345,9 +657,19 @@
     "categoria": "BEBIDAS Y REFRESCOS (Desayuno)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "J695",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b7a",
     "id": 35,
     "nombre": "Tamal + zarza criolla",
@@ -357,9 +679,19 @@
     "categoria": "ENTRADAS Y CALDOS (Carta normal)",
     "tipo": "platos-desayuno",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "A313",
+    "tipos": [
+      "platos-desayuno"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b7b",
     "id": 36,
     "nombre": "Papa a la huancaína",
@@ -369,9 +701,19 @@
     "categoria": "ENTRADAS Y CALDOS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "R676",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b7c",
     "id": 37,
     "nombre": "Ensalada especial (limon o vinagreta)",
@@ -381,9 +723,19 @@
     "categoria": "ENTRADAS Y CALDOS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "O385",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b7d",
     "id": 38,
     "nombre": "Patasca",
@@ -393,9 +745,19 @@
     "categoria": "ENTRADAS Y CALDOS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "N720",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b7e",
     "id": 39,
     "nombre": "1/2 Chicharrón de chancho + camote frito + zarza criolla",
@@ -405,9 +767,19 @@
     "categoria": "CHICHARRONES (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "S247",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b7f",
     "id": 40,
     "nombre": "Fuente de Chicharrón de chancho",
@@ -417,9 +789,19 @@
     "categoria": "CHICHARRONES (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "V810",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b80",
     "id": 41,
     "nombre": "Chancho a la BBQ + arroz + papas",
@@ -429,9 +811,19 @@
     "categoria": "CHICHARRONES (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "I199",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b81",
     "id": 42,
     "nombre": "Chicharrón de pollo a la BBQ + arroz + papas fritas",
@@ -441,9 +833,19 @@
     "categoria": "CHICHARRONES (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "B788",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b82",
     "id": 43,
     "nombre": "Chicharrón de pollo acevichada + arroz y yuca frita",
@@ -453,9 +855,19 @@
     "categoria": "CHICHARRONES (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "U360",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b83",
     "id": 44,
     "nombre": "Chicharrón de pollo chico + yuca frita + zarza criolla",
@@ -465,9 +877,19 @@
     "categoria": "CHICHARRONES (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "V495",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b84",
     "id": 45,
     "nombre": "Fuente de Chicharrón pollo",
@@ -477,9 +899,19 @@
     "categoria": "CHICHARRONES (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "J779",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b85",
     "id": 46,
     "nombre": "Duo Marino Ceviche + Chicharrón de pescado",
@@ -489,9 +921,19 @@
     "categoria": "PESCADO, TRUCHA, POTA (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "V821",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b86",
     "id": 47,
     "nombre": "Duo truchero ceviche + chicharrón de trucha",
@@ -501,9 +943,19 @@
     "categoria": "PESCADO, TRUCHA, POTA (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "K381",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b87",
     "id": 48,
     "nombre": "Ceviche de pescado + Huancaína",
@@ -513,9 +965,19 @@
     "categoria": "PESCADO, TRUCHA, POTA (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "W861",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b88",
     "id": 49,
     "nombre": "Ceviche c/Chicharrón de pota",
@@ -525,9 +987,19 @@
     "categoria": "PESCADO, TRUCHA, POTA (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "D325",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b89",
     "id": 50,
     "nombre": "Ceviche de Pescado",
@@ -537,9 +1009,19 @@
     "categoria": "PESCADO, TRUCHA, POTA (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "X584",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b8a",
     "id": 51,
     "nombre": "Chicharrón de Pescado + yuca frita + zarza",
@@ -549,9 +1031,19 @@
     "categoria": "PESCADO, TRUCHA, POTA (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "X738",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b8b",
     "id": 52,
     "nombre": "Jalea de Pescado + yuca frita c/zarza",
@@ -561,9 +1053,19 @@
     "categoria": "PESCADO, TRUCHA, POTA (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "V173",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b8c",
     "id": 53,
     "nombre": "Pescado Frito + arroz + papa frita",
@@ -573,9 +1075,19 @@
     "categoria": "PESCADO, TRUCHA, POTA (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "R709",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b8d",
     "id": 54,
     "nombre": "Chicharrón de Pota + yuca + zarza",
@@ -585,9 +1097,19 @@
     "categoria": "PESCADO, TRUCHA, POTA (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "M918",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b8e",
     "id": 55,
     "nombre": "1/4 pollo + papas fritas + ensalada",
@@ -597,9 +1119,19 @@
     "categoria": "POLLO A LA LEÑA (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "F333",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b8f",
     "id": 56,
     "nombre": "Filete de pollo + papas fritas + arroz + ensalada",
@@ -609,9 +1141,19 @@
     "categoria": "POLLO - CARNES (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "K533",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b90",
     "id": 57,
     "nombre": "Milanesa con arroz + papas fritas + ensalada",
@@ -621,9 +1163,19 @@
     "categoria": "POLLO - CARNES (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "Q237",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b91",
     "id": 58,
     "nombre": "Bistek con arroz + papa frita + ensalada",
@@ -633,9 +1185,19 @@
     "categoria": "POLLO - CARNES (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "K807",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b92",
     "id": 59,
     "nombre": "Lomo saltado de bistec",
@@ -645,9 +1207,19 @@
     "categoria": "SALTADOS - CHAUFAS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "A250",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b93",
     "id": 60,
     "nombre": "Lomo saltado de pollo",
@@ -657,9 +1229,19 @@
     "categoria": "SALTADOS - CHAUFAS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "N456",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b94",
     "id": 61,
     "nombre": "Lomo saltado de lomo fino",
@@ -669,9 +1251,19 @@
     "categoria": "SALTADOS - CHAUFAS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "N298",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b95",
     "id": 62,
     "nombre": "Arroz chaufa de bisteck",
@@ -681,9 +1273,19 @@
     "categoria": "SALTADOS - CHAUFAS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "R869",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b96",
     "id": 63,
     "nombre": "Arroz chaufa de pollo",
@@ -693,9 +1295,19 @@
     "categoria": "SALTADOS - CHAUFAS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "B991",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b97",
     "id": 64,
     "nombre": "1 sabor (1/4 pollo o 1/4 cerdo o 1/4 res)",
@@ -705,9 +1317,19 @@
     "categoria": "PACHAMANCAS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "D201",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b98",
     "id": 65,
     "nombre": "2 sabores (1/4 pollo 250 gr cerdo o 250 gr res)",
@@ -717,9 +1339,19 @@
     "categoria": "PACHAMANCAS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "G905",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b99",
     "id": 66,
     "nombre": "3 sabores (1/4 pollo + 250 gr cerdo + 250 gr res)",
@@ -729,9 +1361,19 @@
     "categoria": "PACHAMANCAS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "F332",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b9a",
     "id": 67,
     "nombre": "4 sabores (1/4 pollo + 250 gr cordero + 250 gr carnero + 250 gr carnero)",
@@ -741,9 +1383,19 @@
     "categoria": "PACHAMANCAS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "C265",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b9b",
     "id": 68,
     "nombre": "Trucha frita + arroz + papa + zarza criolla",
@@ -753,9 +1405,19 @@
     "categoria": "TRUCHA, CUY, CARNERO O PATO (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "Y128",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b9c",
     "id": 69,
     "nombre": "Chicharrón de trucha",
@@ -765,9 +1427,19 @@
     "categoria": "TRUCHA, CUY, CARNERO O PATO (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "K332",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b9d",
     "id": 70,
     "nombre": "Ceviche de trucha",
@@ -777,9 +1449,19 @@
     "categoria": "TRUCHA, CUY, CARNERO O PATO (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "I663",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b9e",
     "id": 71,
     "nombre": "1/2 cuy frito + arroz + papas doradas + zarza criolla",
@@ -789,9 +1471,19 @@
     "categoria": "TRUCHA, CUY, CARNERO O PATO (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "M920",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79b9f",
     "id": 72,
     "nombre": "Cuy entero frito + arroz + papas doradas + zarza criolla",
@@ -801,9 +1493,19 @@
     "categoria": "TRUCHA, CUY, CARNERO O PATO (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "Y566",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79ba0",
     "id": 73,
     "nombre": "Seco de carnero chico (250 gr + arroz + frijol + zarza criolla)",
@@ -813,9 +1515,19 @@
     "categoria": "SECOS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "Y398",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79ba1",
     "id": 74,
     "nombre": "Seco de carnero grande",
@@ -825,9 +1537,19 @@
     "categoria": "SECOS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "H389",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79ba2",
     "id": 75,
     "nombre": "Arroz con pato (1/4)",
@@ -837,9 +1559,19 @@
     "categoria": "SECOS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "V689",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79ba3",
     "id": 76,
     "nombre": "Vino de la casa en copa",
@@ -849,9 +1581,19 @@
     "categoria": "VINO Y SANGRÍA (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "G567",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79ba4",
     "id": 77,
     "nombre": "Vino Tacama",
@@ -861,9 +1603,19 @@
     "categoria": "VINO Y SANGRÍA (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "Y908",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79ba5",
     "id": 78,
     "nombre": "Talbernero Rosé o Borgoña",
@@ -873,9 +1625,19 @@
     "categoria": "VINO Y SANGRÍA (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "J894",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79ba6",
     "id": 79,
     "nombre": "Sangría (1 litro)",
@@ -885,9 +1647,19 @@
     "categoria": "VINO Y SANGRÍA (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "L426",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79ba7",
     "id": 80,
     "nombre": "Anis majar",
@@ -897,9 +1669,19 @@
     "categoria": "VINO Y SANGRÍA (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "J397",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79ba8",
     "id": 81,
     "nombre": "Agua mineral San Mateo",
@@ -909,9 +1691,19 @@
     "categoria": "BEBIDAS FRÍAS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "E532",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79ba9",
     "id": 82,
     "nombre": "Gaseosa 1/2 Coca o Inka",
@@ -921,9 +1713,19 @@
     "categoria": "BEBIDAS FRÍAS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "A917",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79baa",
     "id": 83,
     "nombre": "Gaseosa 1 1/2 Coca o Inka",
@@ -933,9 +1735,19 @@
     "categoria": "BEBIDAS FRÍAS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "P427",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79bab",
     "id": 84,
     "nombre": "Gaseosa de 3 litros Coca o Inka",
@@ -945,9 +1757,19 @@
     "categoria": "BEBIDAS FRÍAS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "G214",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79bac",
     "id": 85,
     "nombre": "Cerveza Blanca Pilsen de 620 ml",
@@ -957,9 +1779,19 @@
     "categoria": "BEBIDAS FRÍAS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "V109",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79bad",
     "id": 86,
     "nombre": "Cerveza Cuzqueña Negra 620 ml",
@@ -969,9 +1801,19 @@
     "categoria": "BEBIDAS FRÍAS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "A772",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79bae",
     "id": 87,
     "nombre": "Cerveza Cuzqueña Trigo 620 ml",
@@ -981,9 +1823,19 @@
     "categoria": "BEBIDAS FRÍAS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "G433",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79baf",
     "id": 88,
     "nombre": "Chicha morada litro",
@@ -993,9 +1845,19 @@
     "categoria": "BEBIDAS FRÍAS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "M815",
+    "tipos": [
+      "plato-carta normal"
+    ]
   },
   {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
     "_id": "6a32cc501a6d8fec7eb79bb0",
     "id": 89,
     "nombre": "Chicha jora litro",
@@ -1005,6 +1867,85 @@
     "categoria": "BEBIDAS FRÍAS (Carta normal)",
     "tipo": "plato-carta normal",
     "isActive": true,
-    "complementos": []
+    "complementos": [],
+    "codigo": "A794",
+    "tipos": [
+      "plato-carta normal"
+    ]
+  },
+  {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": false,
+    "_id": "6a3c63957cae610b16e8105c",
+    "nombre": "Caramelo",
+    "precio": 1,
+    "stock": 111,
+    "categoria": "Cena",
+    "tipo": "platos-cena",
+    "isActive": true,
+    "complementos": [],
+    "nombreLower": "caramelo",
+    "id": 91,
+    "codigo": "T741",
+    "tipos": [
+      "platos-cena"
+    ]
+  },
+  {
+    "resumenComplementosImpresion": {
+      "mostrarCantidad": true,
+      "mostrarMontoExtra": true
+    },
+    "_id": "6a3ea2502dd48c5e9fd3aee3",
+    "codigo": "L2",
+    "nombre": "Helado",
+    "precio": 10,
+    "stock": 99,
+    "categoria": "Postre",
+    "tipo": "platos-desayuno",
+    "tipos": [
+      "platos-desayuno",
+      "platos-cena",
+      "plato-carta normal"
+    ],
+    "isActive": true,
+    "complementosAfectanPrecio": true,
+    "mostrarTotalComplementosImpresion": true,
+    "complementos": [
+      {
+        "grupo": "Sabores",
+        "obligatorio": true,
+        "seleccionMultiple": false,
+        "modoSeleccion": "cantidades",
+        "maxUnidadesGrupo": 99,
+        "minUnidadesGrupo": 1,
+        "maxUnidadesPorOpcion": null,
+        "permiteRepetirOpcion": true,
+        "opciones": [
+          {
+            "nombre": "Cho",
+            "precio": 5,
+            "_id": "6a3ea2502dd48c5e9fd3aedc"
+          },
+          {
+            "nombre": "Vainilla",
+            "precio": 5,
+            "_id": "6a3ea2502dd48c5e9fd3aedd"
+          },
+          {
+            "nombre": "Azul",
+            "precio": 5,
+            "_id": "6a3ea2502dd48c5e9fd3aede"
+          }
+        ],
+        "_id": "6a3ea2502dd48c5e9fd3aed5"
+      }
+    ],
+    "nombreLower": "helado",
+    "id": 93
   }
 ]
