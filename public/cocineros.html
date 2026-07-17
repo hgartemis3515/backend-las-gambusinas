@@ -89,9 +89,6 @@ tailwind.config = {
           :class="asignacionConfig?.habilitada ? 'bg-st-pagado text-white hover:brightness-110' : 'bg-st-libre text-bg-primary hover:brightness-110'">
           <span x-text="asignacionConfig?.habilitada ? '⏸️ Pausar auto-asignación' : '▶️ Activar auto-asignación'"></span>
         </button>
-        <button x-show="activeTab === 'asignacion'" @click="guardarAsignacionCompleta()" class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 transition">
-          💾 Guardar cambios
-        </button>
       </div>
     </div>
 
@@ -585,10 +582,20 @@ tailwind.config = {
     </div>
     <!-- FIN TAB: COCINEROS -->
 
-    <!-- ==================== TAB: ASIGNACIÓN AUTOMÁTICA ==================== -->
+    <!-- ==================== TAB: ASIGNACIÓN AUTOMÁTICA (v2: Perfiles + Calendario) ====================
+         NOTA DE DISEÑO UI:
+         - El calendario SIEMPRE muestra la semana actual (America/Lima). No hay
+           navegación a semanas pasadas ni futuras (ver PLAN_PERFILES_CALENDARIO...).
+         - La "repetición" de una franja se modela con `diasSemana` (plantilla
+           semanal): [1] = todos los lunes; [1..5] = Lun–Vie; [0..6] = toda la semana.
+         - Sub-tabs: [⚡ Perfiles] [📅 Semana actual] [⚙️ Globales].
+           · Perfiles: CRUD de perfiles + editor de platos scoped al perfil activo.
+           · Semana: grilla Lun–Dom con franjas horaInicio/horaFin ligadas a un perfil.
+           · Globales: toggle + defaults + simulador.
+    -->
     <div x-show="activeTab === 'asignacion'" x-cloak>
 
-      <!-- KPIs Asignación -->
+      <!-- KPIs Asignación (v2) -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
           <div class="flex items-center justify-between">
@@ -601,16 +608,16 @@ tailwind.config = {
           </div>
         </div>
         <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
-          <p class="text-[11px] text-txt-muted uppercase">Reglas por plato</p>
-          <p class="text-lg font-bold text-white" x-text="asignacionConfig?.reglasPorPlato?.length || 0"></p>
+          <p class="text-[11px] text-txt-muted uppercase">Perfil activo ahora</p>
+          <p class="text-sm font-bold text-gold truncate" x-text="perfilActivoAhoraDisplay"></p>
         </div>
         <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
-          <p class="text-[11px] text-txt-muted uppercase">Reglas por categoría</p>
-          <p class="text-lg font-bold text-white" x-text="asignacionConfig?.reglasPorCategoria?.length || 0"></p>
+          <p class="text-[11px] text-txt-muted uppercase">Perfiles</p>
+          <p class="text-lg font-bold text-white" x-text="asignacionConfig?.perfiles?.length || 0"></p>
         </div>
         <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
-          <p class="text-[11px] text-txt-muted uppercase">Máx. mismo plato (default)</p>
-          <p class="text-lg font-bold text-gold" x-text="asignacionConfig?.defaults?.maxMismoPlatoPorCocinero ?? 5"></p>
+          <p class="text-[11px] text-txt-muted uppercase">Franjas en plantilla</p>
+          <p class="text-lg font-bold text-white" x-text="asignacionConfig?.calendario?.bloques?.length || 0"></p>
         </div>
       </div>
 
@@ -624,260 +631,632 @@ tailwind.config = {
         </p>
       </div>
 
-      <!-- Layout dos paneles -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <!-- SUB-TABS de Asignación Automática -->
+      <div class="flex gap-1 mb-4 bg-bg-card rounded-lg p-1 border border-[rgba(212,175,55,0.15)] w-fit">
+        <button @click="subtabAsignacion = 'perfiles'"
+          class="px-4 py-2 rounded-lg text-sm font-medium transition"
+          :class="subtabAsignacion === 'perfiles' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
+          ⚡ Perfiles
+        </button>
+        <button @click="subtabAsignacion = 'semana'"
+          class="px-4 py-2 rounded-lg text-sm font-medium transition"
+          :class="subtabAsignacion === 'semana' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
+          📅 Semana actual
+        </button>
+        <button @click="subtabAsignacion = 'globales'"
+          class="px-4 py-2 rounded-lg text-sm font-medium transition"
+          :class="subtabAsignacion === 'globales' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
+          ⚙️ Globales
+        </button>
+      </div>
 
-        <!-- Panel izquierdo: catálogo de platos -->
-        <div class="lg:col-span-5 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
-          <h3 class="text-sm font-bold mb-3 flex items-center gap-2">
-            <span>🍽️</span> Catálogo de platos
-            <span class="text-[10px] text-txt-muted font-normal" x-text="`(${platosAsignacionFiltrados.length})`"></span>
-          </h3>
+      <!-- ====== SUB-TAB: PERFILES ======
+           Lista de perfiles + editor de platos scoped al perfil seleccionado.
+           Reutiliza el layout catálogo + reglas, pero lee/escribe contra
+           perfil.reglasPorPlato del perfil activo.
+      -->
+      <div x-show="subtabAsignacion === 'perfiles'" x-cloak class="space-y-4">
 
-          <!-- Barra de acciones por conjunto (selección múltiple) -->
-          <div class="bg-bg-sidebar/60 border border-[rgba(212,175,55,0.2)] rounded-lg p-2 mb-3 space-y-2">
-            <div class="flex items-center gap-2 flex-wrap">
-              <button @click="seleccionarTodosPlatosVisibles()"
-                class="text-[11px] text-gold hover:underline">☑ Seleccionar todos</button>
-              <button @click="invertirSeleccionPlatos()"
-                class="text-[11px] text-txt-secondary hover:text-gold">Invertir</button>
-              <button @click="limpiarSeleccionPlatos()"
-                class="text-[11px] text-txt-secondary hover:text-st-pagado">Limpiar</button>
-              <span class="ml-auto text-[11px] text-txt-muted" x-show="totalSeleccionadosAsignacion > 0">
-                <b class="text-gold" x-text="totalSeleccionadosAsignacion"></b> seleccionado(s)
-              </span>
-            </div>
-            <div class="flex gap-2 flex-wrap">
-              <button @click="abrirAsignacionMasiva()"
-                :disabled="totalSeleccionadosAsignacion === 0"
-                class="flex-1 text-xs bg-gold text-bg-primary px-3 py-1.5 rounded-lg font-semibold hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed">
-                ⚡ Asignar <span x-text="totalSeleccionadosAsignacion"></span> plato(s) a un cocinero
+        <!-- Barra de perfiles (chips) -->
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-3">
+          <div class="flex items-center gap-2 flex-wrap">
+            <template x-for="p in (asignacionConfig?.perfiles || [])" :key="p.id">
+              <button @click="seleccionarPerfilAsignacion(p.id)"
+                class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition flex items-center gap-2"
+                :class="perfilSeleccionadoId === p.id
+                  ? 'bg-gold text-bg-primary border-gold'
+                  : 'bg-bg-sidebar text-txt-secondary border-[rgba(212,175,55,0.25)] hover:border-gold hover:text-gold'">
+                <span class="w-2 h-2 rounded-full"
+                  :style="`background:${p.color || '#D4AF37'}`"
+                  :class="p.activo ? '' : 'opacity-30'"></span>
+                <span x-text="p.nombre"></span>
+                <span x-show="!p.activo" class="text-[9px] opacity-60">(inactivo)</span>
               </button>
-              <button @click="abrirAsignacionMasivaCategoria()"
-                :disabled="!filtroCategoriaAsignacion"
-                class="text-xs bg-bg-card border border-[rgba(212,175,55,0.3)] text-gold px-3 py-1.5 rounded-lg hover:bg-gold/10 disabled:opacity-40 disabled:cursor-not-allowed"
-                :title="filtroCategoriaAsignacion ? 'Asignar toda la categoría filtrada' : 'Filtra por una categoría primero'">
-                📋 Toda la categoría
-              </button>
-            </div>
-          </div>
-
-          <!-- Controles -->
-          <div class="space-y-2 mb-3">
-            <input type="text" x-model="busquedaPlatosAsignacion"
-              @input.debounce.300ms="currentPageAsignacion = 1"
-              placeholder="Buscar plato por nombre..."
-              class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
-            <div class="flex gap-2">
-              <select x-model="filtroCategoriaAsignacion" @change="currentPageAsignacion = 1"
-                class="flex-1 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
-                <option value="">Todas las categorías</option>
-                <template x-for="cat in categoriasPlatosAsignacion" :key="cat">
-                  <option :value="cat" x-text="cat"></option>
-                </template>
-              </select>
-              <label class="flex items-center gap-1 text-xs text-txt-secondary bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 cursor-pointer">
-                <input type="checkbox" x-model="soloSinConfigurar" @change="currentPageAsignacion = 1" class="w-3 h-3 accent-gold">
-                Sin regla
-              </label>
-            </div>
-          </div>
-
-          <!-- Loading -->
-          <div x-show="loadingPlatosAsignacion" class="text-center py-8 text-txt-muted text-sm">
-            Cargando platos...
-          </div>
-
-          <!-- Lista -->
-          <div x-show="!loadingPlatosAsignacion" class="space-y-1 max-h-[500px] overflow-y-auto pr-1">
-            <template x-for="p in platosAsignacionPaginados" :key="p.id">
-              <div class="p-3 rounded-lg transition border flex items-start gap-2"
-                :class="platoSeleccionadoAsignacion?.id === p.id
-                  ? 'bg-gold/15 border-gold/50'
-                  : 'bg-bg-sidebar border-transparent hover:bg-gold/5 hover:border-gold/20'">
-                <input type="checkbox" :value="p.id" x-model="seleccionPlatosAsignacion[p.id]"
-                  @click.stop
-                  class="mt-1 w-4 h-4 accent-gold flex-shrink-0 cursor-pointer"
-                  :title="seleccionPlatosAsignacion[p.id] ? 'Quitar de la selección' : 'Añadir a la selección'">
-                <div @click="seleccionarPlatoAsignacion(p)" class="flex-1 min-w-0 cursor-pointer">
-                  <div class="flex items-start justify-between gap-2">
-                    <div class="flex-1 min-w-0">
-                      <p class="text-sm font-medium text-white truncate" x-text="p.nombre"></p>
-                      <p class="text-[10px] text-txt-muted" x-text="p.categoria + ' · #' + p.id"></p>
-                    </div>
-                    <div class="flex flex-col items-end gap-1">
-                      <span x-show="!tieneReglaPlato(p.id)" class="text-[9px] px-1.5 py-0.5 rounded bg-bg-card text-txt-muted border border-txt-muted/30">
-                        Sin regla
-                      </span>
-                      <span x-show="tieneReglaPlato(p.id) && getReglaPlato(p.id).cocineroPrimarioId"
-                        class="text-[9px] px-1.5 py-0.5 rounded bg-gold/20 text-gold">
-                        Primario
-                      </span>
-                      <span x-show="tieneReglaPlato(p.id) && getReglaPlato(p.id).backups?.length > 0"
-                        class="text-[9px] px-1.5 py-0.5 rounded bg-st-pedido/20 text-st-pedido">
-                        Overflow
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </template>
-            <div x-show="platosAsignacionFiltrados.length === 0" class="text-center py-6 text-txt-muted text-sm">
-              No se encontraron platos
+            <button @click="abrirModalNuevoPerfil()"
+              class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-bg-sidebar text-gold border border-dashed border-[rgba(212,175,55,0.4)] hover:bg-gold/10">
+              + Nuevo perfil
+            </button>
+          </div>
+
+          <!-- Acciones del perfil seleccionado -->
+          <div x-show="perfilSeleccionadoActual" class="mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)] flex items-center gap-2 flex-wrap text-xs">
+            <span class="text-txt-muted">Editando:</span>
+            <b class="text-gold" x-text="perfilSeleccionadoActual?.nombre"></b>
+            <span class="text-txt-muted" x-text="`· ${ (perfilSeleccionadoActual?.reglasPorPlato || []).length } reglas de plato`"></span>
+            <div class="ml-auto flex gap-2">
+              <button @click="abrirModalRenombrarPerfil()" class="text-gold hover:underline">Renombrar</button>
+              <button @click="duplicarPerfilActual()" class="text-txt-secondary hover:text-gold">Duplicar</button>
+              <button @click="toggleActivoPerfilActual()"
+                class="text-txt-secondary hover:text-gold"
+                x-text="perfilSeleccionadoActual?.activo ? 'Desactivar' : 'Activar'"></button>
+              <button @click="eliminarPerfilActual()" class="text-st-pagado hover:underline">Eliminar</button>
             </div>
           </div>
 
-          <!-- Paginación -->
-          <div x-show="platosAsignacionFiltrados.length > pageSizeAsignacion" class="flex items-center justify-between mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]">
-            <span class="text-xs text-txt-muted">
-              <span x-text="paginaInicioAsignacion"></span>–<span x-text="paginaFinAsignacion"></span> de <span x-text="platosAsignacionFiltrados.length"></span>
-            </span>
-            <div class="flex gap-1">
-              <button @click="paginaAnteriorAsignacion()" :disabled="currentPageAsignacion === 1"
-                class="px-2 py-1 text-xs rounded border border-[rgba(212,175,55,0.25)] disabled:opacity-30 hover:border-gold hover:text-gold">‹</button>
-              <span class="px-2 py-1 text-xs text-txt-secondary" x-text="currentPageAsignacion + '/' + totalPaginasAsignacion"></span>
-              <button @click="paginaSiguienteAsignacion()" :disabled="currentPageAsignacion === totalPaginasAsignacion"
-                class="px-2 py-1 text-xs rounded border border-[rgba(212,175,55,0.25)] disabled:opacity-30 hover:border-gold hover:text-gold">›</button>
-            </div>
+          <!-- Aviso si no hay perfil seleccionado -->
+          <div x-show="!perfilSeleccionadoActual" class="mt-3 text-sm text-txt-muted">
+            Selecciona o crea un perfil para editar sus reglas de platos.
           </div>
         </div>
 
-        <!-- Panel derecho: reglas del plato seleccionado -->
-        <div class="lg:col-span-7 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
-          <div x-show="!platoSeleccionadoAsignacion" class="text-center py-16 text-txt-muted">
-            <span class="text-4xl block mb-3">←</span>
-            <p class="text-sm">Selecciona un plato del catálogo para configurar su asignación</p>
-          </div>
+        <!-- Layout dos paneles (catálogo + reglas) scoped al perfil seleccionado -->
+        <div x-show="perfilSeleccionadoActual" class="grid grid-cols-1 lg:grid-cols-12 gap-4">
 
-          <div x-show="platoSeleccionadoAsignacion" x-cloak>
-            <div class="flex items-start justify-between mb-4 pb-3 border-b border-[rgba(212,175,55,0.1)]">
-              <div>
-                <h3 class="text-sm font-bold text-white" x-text="platoSeleccionadoAsignacion?.nombre"></h3>
-                <p class="text-[11px] text-txt-muted" x-text="(platoSeleccionadoAsignacion?.categoria || 'Sin categoría') + ' · Plato #' + platoSeleccionadoAsignacion?.id"></p>
+          <!-- Panel izquierdo: catálogo de platos -->
+          <div class="lg:col-span-5 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+            <h3 class="text-sm font-bold mb-3 flex items-center gap-2">
+              <span>🍽️</span> Catálogo de platos
+              <span class="text-[10px] text-txt-muted font-normal" x-text="`(${platosAsignacionFiltrados.length})`"></span>
+            </h3>
+
+            <!-- Barra de acciones por conjunto (selección múltiple) -->
+            <div class="bg-bg-sidebar/60 border border-[rgba(212,175,55,0.2)] rounded-lg p-2 mb-3 space-y-2">
+              <div class="flex items-center gap-2 flex-wrap">
+                <button @click="seleccionarTodosPlatosVisibles()"
+                  class="text-[11px] text-gold hover:underline">☑ Seleccionar todos</button>
+                <button @click="invertirSeleccionPlatos()"
+                  class="text-[11px] text-txt-secondary hover:text-gold">Invertir</button>
+                <button @click="limpiarSeleccionPlatos()"
+                  class="text-[11px] text-txt-secondary hover:text-st-pagado">Limpiar</button>
+                <span class="ml-auto text-[11px] text-txt-muted" x-show="totalSeleccionadosAsignacion > 0">
+                  <b class="text-gold" x-text="totalSeleccionadosAsignacion"></b> seleccionado(s)
+                </span>
               </div>
-              <label class="flex items-center gap-2 text-xs text-txt-secondary cursor-pointer">
-                <input type="checkbox" x-model="formReglaAsignacion.activo" class="w-4 h-4 accent-gold">
-                <span x-text="formReglaAsignacion.activo ? 'Regla activa' : 'Regla inactiva'"></span>
-              </label>
+              <div class="flex gap-2 flex-wrap">
+                <button @click="abrirAsignacionMasiva()"
+                  :disabled="totalSeleccionadosAsignacion === 0"
+                  class="flex-1 text-xs bg-gold text-bg-primary px-3 py-1.5 rounded-lg font-semibold hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed">
+                  ⚡ Asignar <span x-text="totalSeleccionadosAsignacion"></span> plato(s) a un cocinero
+                </button>
+                <button @click="abrirAsignacionMasivaCategoria()"
+                  :disabled="!filtroCategoriaAsignacion"
+                  class="text-xs bg-bg-card border border-[rgba(212,175,55,0.3)] text-gold px-3 py-1.5 rounded-lg hover:bg-gold/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                  :title="filtroCategoriaAsignacion ? 'Asignar toda la categoría filtrada' : 'Filtra por una categoría primero'">
+                  📋 Toda la categoría
+                </button>
+              </div>
             </div>
 
-            <div class="space-y-4">
-              <!-- Cocinero primario -->
-              <div>
-                <label class="text-xs font-semibold text-txt-secondary uppercase">Cocinero primario</label>
-                <p class="text-[10px] text-txt-muted mb-1">Recibe el plato por defecto mientras esté bajo el límite.</p>
-                <select x-model="formReglaAsignacion.cocineroPrimarioId"
-                  class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
-                  <option value="">— Sin primario —</option>
-                  <template x-for="c in cocinerosAsignacion" :key="c._id">
-                    <option :value="c._id" x-text="c.nombre + (c.alias ? ' (' + c.alias + ')' : '')"></option>
+            <!-- Controles -->
+            <div class="space-y-2 mb-3">
+              <input type="text" x-model="busquedaPlatosAsignacion" x-ref="buscadorPlatosAsignacion"
+                @input.debounce.300ms="currentPageAsignacion = 1"
+                placeholder="Buscar plato por nombre..."
+                class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+              <div class="flex gap-2">
+                <select x-model="filtroCategoriaAsignacion" @change="currentPageAsignacion = 1"
+                  class="flex-1 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                  <option value="">Todas las categorías</option>
+                  <template x-for="cat in categoriasPlatosAsignacion" :key="cat">
+                    <option :value="cat" x-text="cat"></option>
                   </template>
                 </select>
+                <label class="flex items-center gap-1 text-xs text-txt-secondary bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 cursor-pointer">
+                  <input type="checkbox" x-model="soloSinConfigurar" @change="currentPageAsignacion = 1" class="w-3 h-3 accent-gold">
+                  Sin regla
+                </label>
               </div>
+            </div>
 
-              <!-- Backups -->
-              <div>
-                <div class="flex items-center justify-between mb-1">
-                  <div>
-                    <label class="text-xs font-semibold text-txt-secondary uppercase">Backups (overflow)</label>
-                    <p class="text-[10px] text-txt-muted">Cuando el primario supera el máx. del mismo plato, el siguiente va al primer backup válido.</p>
-                  </div>
-                  <button @click="agregarBackupAsignacion()" class="text-xs text-gold hover:underline">+ Añadir</button>
-                </div>
-                <div class="space-y-2">
-                  <template x-for="(b, idx) in formReglaAsignacion.backups" :key="idx">
-                    <div class="flex items-center gap-2 bg-bg-sidebar rounded-lg p-2">
-                      <span class="text-xs text-txt-muted w-5 text-center" x-text="(idx + 1) + 'º'"></span>
-                      <select x-model="b.cocineroId"
-                        class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded px-2 py-1.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
-                        <option value="">— Selecciona —</option>
-                        <template x-for="c in cocinerosAsignacion" :key="c._id">
-                          <option :value="c._id" x-text="c.nombre + (c.alias ? ' (' + c.alias + ')' : '')"></option>
-                        </template>
-                      </select>
-                      <button @click="subirBackupAsignacion(idx)" :disabled="idx === 0"
-                        class="w-6 h-6 rounded text-txt-secondary hover:text-gold disabled:opacity-20">▲</button>
-                      <button @click="bajarBackupAsignacion(idx)" :disabled="idx === formReglaAsignacion.backups.length - 1"
-                        class="w-6 h-6 rounded text-txt-secondary hover:text-gold disabled:opacity-20">▼</button>
-                      <button @click="quitarBackupAsignacion(idx)"
-                        class="w-6 h-6 rounded text-st-pagado hover:brightness-125">✕</button>
+            <!-- Loading -->
+            <div x-show="loadingPlatosAsignacion" class="text-center py-8 text-txt-muted text-sm">
+              Cargando platos...
+            </div>
+
+            <!-- Lista -->
+            <div x-show="!loadingPlatosAsignacion" class="space-y-1 max-h-[500px] overflow-y-auto pr-1">
+              <template x-for="p in platosAsignacionPaginados" :key="p.id">
+                <div class="p-3 rounded-lg transition border flex items-start gap-2"
+                  :class="platoSeleccionadoAsignacion?.id === p.id
+                    ? 'bg-gold/15 border-gold/50'
+                    : 'bg-bg-sidebar border-transparent hover:bg-gold/5 hover:border-gold/20'">
+                  <input type="checkbox" :value="p.id" x-model="seleccionPlatosAsignacion[p.id]"
+                    @click.stop
+                    class="mt-1 w-4 h-4 accent-gold flex-shrink-0 cursor-pointer"
+                    :title="seleccionPlatosAsignacion[p.id] ? 'Quitar de la selección' : 'Añadir a la selección'">
+                  <div @click="seleccionarPlatoAsignacion(p)" class="flex-1 min-w-0 cursor-pointer">
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-white truncate" x-text="p.nombre"></p>
+                        <p class="text-[10px] text-txt-muted" x-text="p.categoria + ' · #' + p.id"></p>
+                      </div>
+                      <div class="flex flex-col items-end gap-1">
+                        <span x-show="!tieneReglaPlato(p.id)" class="text-[9px] px-1.5 py-0.5 rounded bg-bg-card text-txt-muted border border-txt-muted/30">
+                          Sin regla
+                        </span>
+                        <span x-show="tieneReglaPlato(p.id) && getReglaPlato(p.id).cocineroPrimarioId"
+                          class="text-[9px] px-1.5 py-0.5 rounded bg-gold/20 text-gold">
+                          Primario
+                        </span>
+                        <span x-show="tieneReglaPlato(p.id) && getReglaPlato(p.id).backups?.length > 0"
+                          class="text-[9px] px-1.5 py-0.5 rounded bg-st-pedido/20 text-st-pedido">
+                          Overflow
+                        </span>
+                      </div>
                     </div>
-                  </template>
-                  <div x-show="formReglaAsignacion.backups.length === 0" class="text-xs text-txt-muted italic px-2">
-                    Sin backups. El 6º plato quedará sin dueño según modoSinCandidato.
                   </div>
                 </div>
+              </template>
+              <div x-show="platosAsignacionFiltrados.length === 0" class="text-center py-6 text-txt-muted text-sm">
+                No se encontraron platos
+              </div>
+            </div>
+
+            <!-- Paginación -->
+            <div x-show="platosAsignacionFiltrados.length > pageSizeAsignacion" class="flex items-center justify-between mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]">
+              <span class="text-xs text-txt-muted">
+                <span x-text="paginaInicioAsignacion"></span>–<span x-text="paginaFinAsignacion"></span> de <span x-text="platosAsignacionFiltrados.length"></span>
+              </span>
+              <div class="flex gap-1">
+                <button @click="paginaAnteriorAsignacion()" :disabled="currentPageAsignacion === 1"
+                  class="px-2 py-1 text-xs rounded border border-[rgba(212,175,55,0.25)] disabled:opacity-30 hover:border-gold hover:text-gold">‹</button>
+                <span class="px-2 py-1 text-xs text-txt-secondary" x-text="currentPageAsignacion + '/' + totalPaginasAsignacion"></span>
+                <button @click="paginaSiguienteAsignacion()" :disabled="currentPageAsignacion === totalPaginasAsignacion"
+                  class="px-2 py-1 text-xs rounded border border-[rgba(212,175,55,0.25)] disabled:opacity-30 hover:border-gold hover:text-gold">›</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Panel derecho: reglas del plato seleccionado -->
+          <div class="lg:col-span-7 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+            <div x-show="!platoSeleccionadoAsignacion" class="text-center py-16 text-txt-muted">
+              <span class="text-4xl block mb-3">←</span>
+              <p class="text-sm">Selecciona un plato del catálogo para configurar su asignación</p>
+            </div>
+
+            <div x-show="platoSeleccionadoAsignacion" x-cloak>
+              <div class="flex items-start justify-between mb-4 pb-3 border-b border-[rgba(212,175,55,0.1)]">
+                <div>
+                  <h3 class="text-sm font-bold text-white" x-text="platoSeleccionadoAsignacion?.nombre"></h3>
+                  <p class="text-[11px] text-txt-muted" x-text="(platoSeleccionadoAsignacion?.categoria || 'Sin categoría') + ' · Plato #' + platoSeleccionadoAsignacion?.id"></p>
+                </div>
+                <label class="flex items-center gap-2 text-xs text-txt-secondary cursor-pointer">
+                  <input type="checkbox" x-model="formReglaAsignacion.activo" class="w-4 h-4 accent-gold">
+                  <span x-text="formReglaAsignacion.activo ? 'Regla activa' : 'Regla inactiva'"></span>
+                </label>
               </div>
 
-              <!-- Máx. mismo plato + estrategia -->
-              <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-4">
+                <!-- Cocinero primario -->
                 <div>
-                  <label class="text-xs font-semibold text-txt-secondary uppercase">Máx. mismo plato</label>
-                  <p class="text-[10px] text-txt-muted mb-1">Default global: <span class="text-gold" x-text="asignacionConfig?.defaults?.maxMismoPlatoPorCocinero ?? 5"></span></p>
-                  <input type="number" min="1" max="50" x-model.number="formReglaAsignacion.maxMismoPlato"
-                    placeholder="Usar default"
+                  <label class="text-xs font-semibold text-txt-secondary uppercase">Cocinero primario</label>
+                  <p class="text-[10px] text-txt-muted mb-1">Recibe el plato por defecto mientras esté bajo el límite.</p>
+                  <select x-model="formReglaAsignacion.cocineroPrimarioId"
                     class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
-                </div>
-                <div>
-                  <label class="text-xs font-semibold text-txt-secondary uppercase">Estrategia</label>
-                  <p class="text-[10px] text-txt-muted mb-1">Default global: <span class="text-gold" x-text="asignacionConfig?.defaults?.estrategiaDefault ?? 'hibrido'"></span></p>
-                  <select x-model="formReglaAsignacion.estrategia"
-                    class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
-                    <option value="">Usar default</option>
-                    <option value="fijo_por_plato">Fijo por plato</option>
-                    <option value="cadena_overflow">Cadena overflow</option>
-                    <option value="menor_carga">Menor carga</option>
-                    <option value="round_robin">Round robin</option>
-                    <option value="hibrido">Híbrido (recomendado)</option>
-                    <option value="respetar_zona">Respetar zona</option>
+                    <option value="">— Sin primario —</option>
+                    <template x-for="c in cocinerosAsignacion" :key="c._id">
+                      <option :value="c._id" x-text="c.nombre + (c.alias ? ' (' + c.alias + ')' : '')"></option>
+                    </template>
                   </select>
                 </div>
-              </div>
 
-              <!-- Atajo aplicar a categoría -->
-              <div class="bg-bg-sidebar/50 border border-[rgba(212,175,55,0.15)] rounded-lg p-3">
-                <p class="text-[11px] text-txt-secondary mb-2">
-                  Aplicar esta misma regla a todos los platos de la categoría
-                  <b class="text-gold" x-text="platoSeleccionadoAsignacion?.categoria || '—'"></b>
-                </p>
-                <button @click="aplicarReglaACategoria()"
-                  class="text-xs bg-gold/20 text-gold px-3 py-1.5 rounded hover:bg-gold/30 transition"
-                  :disabled="!platoSeleccionadoAsignacion?.categoria || !formReglaAsignacion.cocineroPrimarioId">
-                  📋 Aplicar a toda la categoría
-                </button>
-              </div>
+                <!-- Backups -->
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <div>
+                      <label class="text-xs font-semibold text-txt-secondary uppercase">Backups (overflow)</label>
+                      <p class="text-[10px] text-txt-muted">Cuando el primario supera el máx. del mismo plato, el siguiente va al primer backup válido.</p>
+                    </div>
+                    <button @click="agregarBackupAsignacion()" class="text-xs text-gold hover:underline">+ Añadir</button>
+                  </div>
+                  <div class="space-y-2">
+                    <template x-for="(b, idx) in formReglaAsignacion.backups" :key="idx">
+                      <div class="flex items-center gap-2 bg-bg-sidebar rounded-lg p-2">
+                        <span class="text-xs text-txt-muted w-5 text-center" x-text="(idx + 1) + 'º'"></span>
+                        <select x-model="b.cocineroId"
+                          class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded px-2 py-1.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                          <option value="">— Selecciona —</option>
+                          <template x-for="c in cocinerosAsignacion" :key="c._id">
+                            <option :value="c._id" x-text="c.nombre + (c.alias ? ' (' + c.alias + ')' : '')"></option>
+                          </template>
+                        </select>
+                        <button @click="subirBackupAsignacion(idx)" :disabled="idx === 0"
+                          class="w-6 h-6 rounded text-txt-secondary hover:text-gold disabled:opacity-20">▲</button>
+                        <button @click="bajarBackupAsignacion(idx)" :disabled="idx === formReglaAsignacion.backups.length - 1"
+                          class="w-6 h-6 rounded text-txt-secondary hover:text-gold disabled:opacity-20">▼</button>
+                        <button @click="quitarBackupAsignacion(idx)"
+                          class="w-6 h-6 rounded text-st-pagado hover:brightness-125">✕</button>
+                      </div>
+                    </template>
+                    <div x-show="formReglaAsignacion.backups.length === 0" class="text-xs text-txt-muted italic px-2">
+                      Sin backups. El 6º plato quedará sin dueño según modoSinCandidato.
+                    </div>
+                  </div>
+                </div>
 
-              <!-- Notas -->
-              <div>
-                <label class="text-xs font-semibold text-txt-secondary uppercase">Notas internas</label>
-                <textarea x-model="formReglaAsignacion.notas" rows="2"
-                  placeholder="Ej: solo parrilla, solo turno noche..."
-                  class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none resize-none"></textarea>
-              </div>
+                <!-- Máx. mismo plato + estrategia -->
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="text-xs font-semibold text-txt-secondary uppercase">Máx. mismo plato</label>
+                    <p class="text-[10px] text-txt-muted mb-1">Default global: <span class="text-gold" x-text="asignacionConfig?.defaults?.maxMismoPlatoPorCocinero ?? 5"></span></p>
+                    <input type="number" min="1" max="50" x-model.number="formReglaAsignacion.maxMismoPlato"
+                      placeholder="Usar default"
+                      class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                  </div>
+                  <div>
+                    <label class="text-xs font-semibold text-txt-secondary uppercase">Estrategia</label>
+                    <p class="text-[10px] text-txt-muted mb-1">Default global: <span class="text-gold" x-text="asignacionConfig?.defaults?.estrategiaDefault ?? 'hibrido'"></span></p>
+                    <select x-model="formReglaAsignacion.estrategia"
+                      class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                      <option value="">Usar default</option>
+                      <option value="fijo_por_plato">Fijo por plato</option>
+                      <option value="cadena_overflow">Cadena overflow</option>
+                      <option value="menor_carga">Menor carga</option>
+                      <option value="round_robin">Round robin</option>
+                      <option value="hibrido">Híbrido (recomendado)</option>
+                      <option value="respetar_zona">Respetar zona</option>
+                    </select>
+                  </div>
+                </div>
 
-              <!-- Validación -->
-              <div x-show="errorValidacionAsignacion" class="bg-st-pagado/10 border border-st-pagado/30 rounded-lg p-2 text-xs text-st-pagado"
-                x-text="errorValidacionAsignacion"></div>
-
-              <!-- Acciones plato -->
-              <div class="flex justify-between items-center pt-3 border-t border-[rgba(212,175,55,0.1)]">
-                <button x-show="tieneReglaPlato(platoSeleccionadoAsignacion?.id)"
-                  @click="eliminarReglaPlato(platoSeleccionadoAsignacion?.id)"
-                  class="text-xs text-st-pagado hover:underline">
-                  🗑️ Eliminar regla
-                </button>
-                <div class="flex gap-2 ml-auto">
-                  <button @click="aplicarReglaPlato()" class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110">
-                    ✓ Aplicar a este plato
+                <!-- Atajo aplicar a categoría -->
+                <div class="bg-bg-sidebar/50 border border-[rgba(212,175,55,0.15)] rounded-lg p-3">
+                  <p class="text-[11px] text-txt-secondary mb-2">
+                    Aplicar esta misma regla a todos los platos de la categoría
+                    <b class="text-gold" x-text="platoSeleccionadoAsignacion?.categoria || '—'"></b>
+                  </p>
+                  <button @click="aplicarReglaACategoria()"
+                    class="text-xs bg-gold/20 text-gold px-3 py-1.5 rounded hover:bg-gold/30 transition"
+                    :disabled="!platoSeleccionadoAsignacion?.categoria || !formReglaAsignacion.cocineroPrimarioId">
+                    📋 Aplicar a toda la categoría
                   </button>
+                </div>
+
+                <!-- Notas -->
+                <div>
+                  <label class="text-xs font-semibold text-txt-secondary uppercase">Notas internas</label>
+                  <textarea x-model="formReglaAsignacion.notas" rows="2"
+                    placeholder="Ej: solo parrilla, solo turno noche..."
+                    class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none resize-none"></textarea>
+                </div>
+
+                <!-- Validación -->
+                <div x-show="errorValidacionAsignacion" class="bg-st-pagado/10 border border-st-pagado/30 rounded-lg p-2 text-xs text-st-pagado"
+                  x-text="errorValidacionAsignacion"></div>
+
+                <!-- Acciones plato -->
+                <div class="flex justify-between items-center pt-3 border-t border-[rgba(212,175,55,0.1)]">
+                  <button x-show="tieneReglaPlato(platoSeleccionadoAsignacion?.id)"
+                    @click="eliminarReglaPlato(platoSeleccionadoAsignacion?.id)"
+                    class="text-xs text-st-pagado hover:underline">
+                    🗑️ Eliminar regla
+                  </button>
+                  <div class="flex gap-2 ml-auto">
+                    <button @click="aplicarReglaPlato()" class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110">
+                      ✓ Aplicar a este plato
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+      <!-- FIN SUB-TAB PERFILES -->
+
+      <!-- ====== SUB-TAB: SEMANA ACTUAL ======
+           Calendario semanal FIJO anclado a la semana actual (America/Lima).
+           Sin flechas a otras semanas. Click en un hueco → nueva franja.
+           Click en un bloque → editar/eliminar.
+      -->
+      <div x-show="subtabAsignacion === 'semana'" x-cloak class="space-y-4">
+
+        <!-- Cabecera del calendario -->
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h3 class="text-sm font-bold text-white">Semana actual</h3>
+              <p class="text-[11px] text-txt-muted" x-text="rangoSemanaActualTexto"></p>
+            </div>
+            <div class="text-right">
+              <p class="text-[11px] text-txt-muted uppercase">Hoy</p>
+              <p class="text-sm font-bold text-gold" x-text="hoySemanaTexto"></p>
+              <p class="text-[11px] text-txt-secondary" x-text="perfilActivoAhoraDisplay"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grilla semanal: una columna por día (Lun..Dom), filas por bloques encontrados -->
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4 overflow-x-auto">
+          <div class="grid grid-cols-7 gap-2 min-w-[700px]">
+            <template x-for="dia in diasSemanaCalendario" :key="dia.num">
+              <div class="bg-bg-sidebar/40 rounded-lg p-2 min-h-[160px] flex flex-col gap-1">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold text-white" x-text="dia.nombre"></span>
+                  <span x-show="dia.esHoy" class="text-[9px] px-1.5 py-0.5 rounded bg-gold text-bg-primary font-bold">HOY</span>
+                </div>
+                <template x-for="b in bloquesPorDia(dia.num)" :key="b.id">
+                  <button @click="abrirEditarBloqueCalendario(b)"
+                    class="text-left rounded-md p-2 border text-[11px] hover:brightness-110 transition"
+                    :style="`background:${colorPerfilPorId(b.perfilId)}22; border-color:${colorPerfilPorId(b.perfilId)}66`">
+                    <div class="font-bold" :style="`color:${colorPerfilPorId(b.perfilId)}`" x-text="nombrePerfilPorId(b.perfilId)"></div>
+                    <div class="text-txt-secondary" x-text="b.horaInicio + '–' + b.horaFin"></div>
+                    <div x-show="b.etiqueta" class="text-txt-muted truncate" x-text="b.etiqueta"></div>
+                    <div x-show="!b.activo" class="text-st-pagado text-[9px]">(inactiva)</div>
+                  </button>
+                </template>
+                <button @click="abrirNuevaFranjaCalendario(dia.num)"
+                  class="mt-auto text-[11px] text-gold hover:underline">+ añadir franja</button>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+      <!-- FIN SUB-TAB SEMANA -->
+
+      <!-- ====== SUB-TAB: GLOBALES ======
+           Toggle master + defaults + simulador.
+      -->
+      <div x-show="subtabAsignacion === 'globales'" x-cloak class="space-y-4">
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Estado + toggle -->
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+            <h3 class="text-sm font-bold mb-3">Estado global</h3>
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-xs text-txt-muted">Interruptor maestro de la auto-asignación</p>
+                <p class="text-sm font-bold" :class="asignacionConfig?.habilitada ? 'text-st-libre' : 'text-txt-muted'"
+                  x-text="asignacionConfig?.habilitada ? '● Activa' : '○ En pausa'"></p>
+              </div>
+              <button @click="toggleAsignacionAutomatica()" class="px-4 py-2 rounded-lg text-sm font-semibold transition"
+                :class="asignacionConfig?.habilitada ? 'bg-st-pagado text-white hover:brightness-110' : 'bg-st-libre text-bg-primary hover:brightness-110'">
+                <span x-text="asignacionConfig?.habilitada ? '⏸️ Pausar' : '▶️ Activar'"></span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Simulador -->
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+            <h3 class="text-sm font-bold mb-3">Simulador</h3>
+            <div class="space-y-2">
+              <select x-model="simuladorPlatoId" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                <option value="">Selecciona un plato…</option>
+                <template x-for="p in todosLosPlatosAsignacion" :key="p.id">
+                  <option :value="p.id" x-text="p.nombre + ' (#' + p.id + ')'"></option>
+                </template>
+              </select>
+              <div class="flex gap-2">
+                <button @click="ejecutarSimulacion()" :disabled="!simuladorPlatoId || loadingSimulador"
+                  class="flex-1 bg-gold text-bg-primary px-3 py-2 rounded-lg text-sm font-semibold hover:brightness-110 disabled:opacity-40">
+                  <span x-text="loadingSimulador ? 'Simulando…' : 'Simular (ahora)'"></span>
+                </button>
+              </div>
+              <div x-show="resultadoSimulador" class="text-xs rounded-lg p-2 bg-bg-sidebar border border-[rgba(212,175,55,0.15)]">
+                <template x-if="resultadoSimulador">
+                  <div class="space-y-1">
+                    <p x-show="resultadoSimulador.cocineroId" class="text-gold font-bold">
+                      → <span x-text="resultadoSimulador.nombre || resultadoSimulador.cocineroId"></span>
+                    </p>
+                    <p x-show="resultadoSimulador.perfilNombre" class="text-txt-secondary">
+                      Perfil: <b x-text="resultadoSimulador.perfilNombre"></b>
+                    </p>
+                    <p class="text-txt-muted" x-text="resultadoSimulador.mensaje"></p>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Defaults -->
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+          <h3 class="text-sm font-bold mb-3">Configuración global (defaults)</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-semibold text-txt-secondary uppercase">Máx. mismo plato por cocinero</label>
+              <input type="number" min="1" max="50" x-model.number="formDefaultsAsignacion.maxMismoPlatoPorCocinero"
+                class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-txt-secondary uppercase">Máx. platos totales en curso</label>
+              <input type="number" min="1" max="100" x-model.number="formDefaultsAsignacion.maxPlatosTotalesEnCurso"
+                class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-txt-secondary uppercase">Modo sin candidato</label>
+              <select x-model="formDefaultsAsignacion.modoSinCandidato"
+                class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                <option value="dejar_sin_asignar">Dejar sin asignar</option>
+                <option value="pool_supervisor">Pool del supervisor</option>
+                <option value="round_robin_zona">Round robin por zona</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-txt-secondary uppercase">Estrategia default</label>
+              <select x-model="formDefaultsAsignacion.estrategiaDefault"
+                class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                <option value="fijo_por_plato">Fijo por plato</option>
+                <option value="cadena_overflow">Cadena overflow</option>
+                <option value="menor_carga">Menor carga</option>
+                <option value="round_robin">Round robin</option>
+                <option value="hibrido">Híbrido (recomendado)</option>
+                <option value="respetar_zona">Respetar zona</option>
+              </select>
+            </div>
+            <label class="flex items-center gap-2 text-xs text-txt-secondary">
+              <input type="checkbox" x-model="formDefaultsAsignacion.soloCocinerosConectados" class="w-4 h-4 accent-gold">
+              Solo asignar a cocineros conectados
+            </label>
+            <label class="flex items-center gap-2 text-xs text-txt-secondary">
+              <input type="checkbox" x-model="formDefaultsAsignacion.respetarZonas" class="w-4 h-4 accent-gold">
+              Respetar zonas
+            </label>
+          </div>
+          <button @click="guardarDefaultsAsignacion()" class="mt-4 bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110">
+            💾 Guardar defaults
+          </button>
+        </div>
+      </div>
+      <!-- FIN SUB-TAB GLOBALES -->
+
     </div>
     <!-- FIN TAB: ASIGNACIÓN AUTOMÁTICA -->
+
+    <!-- MODAL: NUEVO / EDITAR PERFIL -->
+    <div x-show="modalPerfilAsignacion" x-transition.opacity x-cloak
+      class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+      @click.self="modalPerfilAsignacion=false" @keydown.escape.window="modalPerfilAsignacion=false">
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl shadow-2xl w-full max-w-md p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-bold" x-text="modalPerfilModo === 'nuevo' ? 'Nuevo perfil' : 'Editar perfil'"></h2>
+          <button @click="modalPerfilAsignacion=false" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold/20 text-gold text-sm">✕</button>
+        </div>
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs font-semibold text-txt-secondary uppercase">Nombre *</label>
+            <input type="text" x-model="modalPerfilForm.nombre" x-ref="inputNombrePerfil"
+              class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none"
+              placeholder="Ej: Almuerzo, Cena, Fin de semana…">
+            <p x-show="modalPerfilError" class="text-xs text-st-pagado mt-1" x-text="modalPerfilError"></p>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-txt-secondary uppercase">Descripción (opcional)</label>
+            <textarea x-model="modalPerfilForm.descripcion" rows="2"
+              class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none resize-none"></textarea>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-txt-secondary uppercase">Color del chip (opcional)</label>
+            <input type="color" x-model="modalPerfilForm.color"
+              class="w-12 h-8 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded cursor-pointer">
+            <span class="ml-2 text-xs text-txt-muted" x-text="modalPerfilForm.color"></span>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 mt-5">
+          <button @click="modalPerfilAsignacion=false" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+          <button @click="guardarModalPerfil()" class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110">
+            <span x-text="modalPerfilModo === 'nuevo' ? 'Crear' : 'Guardar'"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: NUEVA / EDITAR FRANJA DE CALENDARIO -->
+    <div x-show="modalFranjaCalendario" x-transition.opacity x-cloak
+      class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+      @click.self="modalFranjaCalendario=false" @keydown.escape.window="modalFranjaCalendario=false">
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl shadow-2xl w-full max-w-lg p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-bold" x-text="modalFranjaModo === 'nueva' ? 'Nueva franja' : 'Editar franja'"></h2>
+          <button @click="modalFranjaCalendario=false" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold/20 text-gold text-sm">✕</button>
+        </div>
+
+        <div class="space-y-3">
+          <!-- Perfil -->
+          <div>
+            <label class="text-xs font-semibold text-txt-secondary uppercase">Perfil *</label>
+            <select x-model="modalFranjaForm.perfilId"
+              class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+              <option value="">— Selecciona —</option>
+              <template x-for="p in (asignacionConfig?.perfiles || []).filter(p => p.activo)" :key="p.id">
+                <option :value="p.id" x-text="p.nombre"></option>
+              </template>
+            </select>
+          </div>
+
+          <!-- Repetición -->
+          <div>
+            <label class="text-xs font-semibold text-txt-secondary uppercase block mb-1">Repetir</label>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <label class="flex items-center gap-1 bg-bg-sidebar rounded px-2 py-1.5 cursor-pointer border border-[rgba(212,175,55,0.15)]">
+                <input type="radio" value="un_dia" x-model="modalFranjaRepeticion" class="accent-gold">
+                Solo este día
+              </label>
+              <label class="flex items-center gap-1 bg-bg-sidebar rounded px-2 py-1.5 cursor-pointer border border-[rgba(212,175,55,0.15)]">
+                <input type="radio" value="dia_cada_semana" x-model="modalFranjaRepeticion" class="accent-gold">
+                Este día cada semana
+              </label>
+              <label class="flex items-center gap-1 bg-bg-sidebar rounded px-2 py-1.5 cursor-pointer border border-[rgba(212,175,55,0.15)]">
+                <input type="radio" value="dias_elegidos" x-model="modalFranjaRepeticion" class="accent-gold">
+                Días que yo elija
+              </label>
+              <label class="flex items-center gap-1 bg-bg-sidebar rounded px-2 py-1.5 cursor-pointer border border-[rgba(212,175,55,0.15)]">
+                <input type="radio" value="toda_semana" x-model="modalFranjaRepeticion" class="accent-gold">
+                Toda la semana
+              </label>
+            </div>
+          </div>
+
+          <!-- Días (checkboxes) -->
+          <div x-show="modalFranjaRepeticion === 'dias_elegidos' || modalFranjaRepeticion === 'un_dia' || modalFranjaRepeticion === 'dia_cada_semana'">
+            <label class="text-xs font-semibold text-txt-secondary uppercase block mb-1">Día(s)</label>
+            <div class="flex gap-1 flex-wrap">
+              <template x-for="dia in diasSemanaCalendario" :key="dia.num">
+                <label class="flex flex-col items-center text-[10px] cursor-pointer"
+                  :class="modalFranjaDiasSeleccionados.includes(dia.num) ? 'text-gold' : 'text-txt-muted'">
+                  <input type="checkbox" :value="dia.num" x-model="modalFranjaDiasSeleccionados"
+                    class="w-4 h-4 accent-gold"
+                    :disabled="modalFranjaRepeticion === 'un_dia' || modalFranjaRepeticion === 'dia_cada_semana'">
+                  <span x-text="dia.nombre"></span>
+                </label>
+              </template>
+            </div>
+          </div>
+
+          <!-- Horas -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-semibold text-txt-secondary uppercase">Hora inicio</label>
+              <input type="time" x-model="modalFranjaForm.horaInicio" step="900"
+                class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-txt-secondary uppercase">Hora fin</label>
+              <input type="time" x-model="modalFranjaForm.horaFin" step="900"
+                class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+            </div>
+          </div>
+
+          <!-- Etiqueta -->
+          <div>
+            <label class="text-xs font-semibold text-txt-secondary uppercase">Etiqueta (opcional)</label>
+            <input type="text" x-model="modalFranjaForm.etiqueta"
+              class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none"
+              placeholder="Ej: Turno mañana">
+          </div>
+
+          <!-- Aviso solape -->
+          <div x-show="modalFranjaAvisoSolape" class="bg-st-pedido/10 border border-st-pedido/30 rounded-lg p-2 text-xs text-st-pedido">
+            Hay otra franja en este rango. Se aplicará la regla de prioridad documentada (más específica → horaInicio más tarde → más reciente).
+          </div>
+
+          <!-- Validación -->
+          <p x-show="modalFranjaError" class="text-xs text-st-pagado" x-text="modalFranjaError"></p>
+        </div>
+
+        <div class="flex justify-between items-center mt-5">
+          <button x-show="modalFranjaModo === 'editar'" @click="eliminarFranjaActual()"
+            class="text-xs text-st-pagado hover:underline">🗑️ Eliminar franja</button>
+          <div class="flex gap-2 ml-auto">
+            <button @click="modalFranjaCalendario=false" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+            <button @click="guardarModalFranja()" class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110">
+              <span x-text="modalFranjaModo === 'nueva' ? 'Crear' : 'Guardar'"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- ==================== TAB: ZONAS ==================== -->
     <div x-show="activeTab === 'zonas'" x-cloak>
@@ -3219,7 +3598,10 @@ function cocinerosApp() {
     activeTab: 'cocineros', // 'cocineros', 'asignacion', 'zonas', 'vistas', 'rendimiento'
 
     // ==================== ASIGNACIÓN AUTOMÁTICA (estado) ====================
-    asignacionConfig: null,             // config global + reglas (cargo desde API)
+    // v2: perfiles + calendario semanal. Sub-tabs dentro del tab 'asignacion'.
+    subtabAsignacion: 'perfiles',   // 'perfiles' | 'semana' | 'globales'
+    asignacionConfig: null,             // config global + perfiles + calendario (cargo desde API)
+    perfilActivoAhora: null,            // { perfilId, nombre, bloqueId, horaInicio, horaFin, motivo } (derivado de GET)
     asignacionCargada: false,
     loadingPlatosAsignacion: false,
     todosLosPlatosAsignacion: [],       // catálogo
@@ -3274,6 +3656,25 @@ function cocinerosApp() {
     get totalSeleccionadosAsignacion() {
       return Object.values(this.seleccionPlatosAsignacion || {}).filter(v => v).length;
     },
+
+    // ==================== PERFILES (v2) ====================
+    perfilSeleccionadoId: '',       // id del perfil que se edita en sub-tab Perfiles
+    modalPerfilAsignacion: false,   // modal crear/editar perfil
+    modalPerfilModo: 'nuevo',       // 'nuevo' | 'editar'
+    modalPerfilError: '',
+    modalPerfilForm: { nombre: '', descripcion: '', color: '#D4AF37' },
+
+    // ==================== CALENDARIO / FRANJAS (v2) ====================
+    // El calendario SIEMPRE muestra la semana actual (America/Lima); no hay
+    // navegación a otras semanas. La repetición se modela con diasSemana.
+    modalFranjaCalendario: false,    // modal nueva/editar franja
+    modalFranjaModo: 'nueva',        // 'nueva' | 'editar'
+    modalFranjaError: '',
+    modalFranjaAvisoSolape: false,
+    modalFranjaBloqueId: '',         // id del bloque cuando se edita
+    modalFranjaForm: { perfilId: '', horaInicio: '08:00', horaFin: '12:00', etiqueta: '', activo: true },
+    modalFranjaRepeticion: 'un_dia', // 'un_dia' | 'dia_cada_semana' | 'dias_elegidos' | 'toda_semana'
+    modalFranjaDiasSeleccionados: [], // [0..6] cuando el usuario elige días
 
     // Rendimiento en vivo
     rendimientoCocineros: [],
@@ -5044,6 +5445,7 @@ function cocinerosApp() {
       const data = await apiGet('/asignacion-automatica');
       if (data && data.success !== false && data.data) {
         this.asignacionConfig = data.data;
+        this.perfilActivoAhora = data.perfilActivoAhora || null;
         // Sincroniza defaults al form
         const d = this.asignacionConfig.defaults || {};
         this.formDefaultsAsignacion = {
@@ -5054,6 +5456,11 @@ function cocinerosApp() {
           respetarZonas: d.respetarZonas ?? true,
           estrategiaDefault: d.estrategiaDefault ?? 'hibrido'
         };
+        // v2: asegurar perfil seleccionado (por defecto el primero activo).
+        if (!this.perfilSeleccionadoId || !this.perfilesList.includes(this.perfilSeleccionadoId)) {
+          const primer = (this.asignacionConfig.perfiles || []).find(p => p.activo) || (this.asignacionConfig.perfiles || [])[0];
+          this.perfilSeleccionadoId = primer?.id || '';
+        }
       }
     },
 
@@ -5092,14 +5499,28 @@ function cocinerosApp() {
     },
 
     // === Helpers de reglas existentes ===
+    // v2: getters operan sobre el perfil seleccionado (no sobre reglas legacy raíz).
+    // `perfilSeleccionadoActual` prioriza el perfil activo de la UI; si no hay,
+    // cae al documento raíz (legacy) para no romper nada.
+    get perfilesList() {
+      return (this.asignacionConfig?.perfiles || []).map(p => p.id);
+    },
+    get perfilSeleccionadoActual() {
+      const perfiles = this.asignacionConfig?.perfiles || [];
+      return perfiles.find(p => p.id === this.perfilSeleccionadoId) || null;
+    },
+    // Fuente de reglas viva: el perfil seleccionado, o fallback a la raíz legacy.
+    get _fuenteReglasAsignacion() {
+      return this.perfilSeleccionadoActual || this.asignacionConfig || { reglasPorPlato: [], reglasPorCategoria: [] };
+    },
     get reglasPlatoMap() {
       const m = {};
-      (this.asignacionConfig?.reglasPorPlato || []).forEach(r => { m[r.platoId] = r; });
+      (this._fuenteReglasAsignacion.reglasPorPlato || []).forEach(r => { m[r.platoId] = r; });
       return m;
     },
     get reglasCategoriaMap() {
       const m = {};
-      (this.asignacionConfig?.reglasPorCategoria || []).forEach(r => { m[r.categoria] = r; });
+      (this._fuenteReglasAsignacion.reglasPorCategoria || []).forEach(r => { m[r.categoria] = r; });
       return m;
     },
     tieneReglaPlato(platoId) {
@@ -5216,11 +5637,12 @@ function cocinerosApp() {
       return true;
     },
 
-    // Construye el payload completo de reglas a partir de la config actual + form
+    // v2: construir payload de reglas a partir del perfil seleccionado (o raíz legacy).
+    // Se usa para enviar las reglas en el PUT /perfiles/:id.
     _construirPayloadReglas() {
-      if (!this.asignacionConfig) return { reglasPorPlato: [], reglasPorCategoria: [] };
+      const fuente = this._fuenteReglasAsignacion;
       return {
-        reglasPorPlato: (this.asignacionConfig.reglasPorPlato || []).map(r => ({
+        reglasPorPlato: (fuente.reglasPorPlato || []).map(r => ({
           platoId: r.platoId,
           activo: r.activo !== false,
           cocineroPrimarioId: r.cocineroPrimarioId,
@@ -5229,7 +5651,7 @@ function cocinerosApp() {
           estrategia: r.estrategia || null,
           notas: r.notas || ''
         })),
-        reglasPorCategoria: (this.asignacionConfig.reglasPorCategoria || []).map(r => ({
+        reglasPorCategoria: (fuente.reglasPorCategoria || []).map(r => ({
           categoria: r.categoria,
           activo: r.activo !== false,
           cocineroPrimarioId: r.cocineroPrimarioId,
@@ -5241,7 +5663,26 @@ function cocinerosApp() {
       };
     },
 
-    // Aplica el form actual al plato seleccionado y PERSISTE en backend.
+    // Persiste las reglas del perfil seleccionado vía PUT /perfiles/:id.
+    async _guardarReglasPerfilSeleccionado() {
+      const perfil = this.perfilSeleccionadoActual;
+      if (!perfil) {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Perfil', 'Selecciona o crea un perfil antes de editar reglas.');
+        return false;
+      }
+      const payload = this._construirPayloadReglas();
+      const res = await apiPut(`/asignacion-automatica/perfiles/${perfil.id}`, payload);
+      if (res && res.success !== false && res.data) {
+        this.asignacionConfig = res.data;
+        this.perfilActivoAhora = this._recalcularPerfilActivoAhora();
+        return true;
+      }
+      if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', res?.error || 'No se pudo guardar el perfil');
+      try { await this.cargarConfigAsignacion(); } catch (e) {}
+      return false;
+    },
+
+    // Aplica el form actual al plato seleccionado y PERSISTE en el perfil.
     async aplicarReglaPlato() {
       if (!this.validarReglaAsignacion()) return;
       const f = this.formReglaAsignacion;
@@ -5254,27 +5695,27 @@ function cocinerosApp() {
         estrategia: f.estrategia || null,
         notas: f.notas || ''
       };
-      if (!this.asignacionConfig) this.asignacionConfig = { reglasPorPlato: [], reglasPorCategoria: [] };
-      if (!Array.isArray(this.asignacionConfig.reglasPorPlato)) this.asignacionConfig.reglasPorPlato = [];
-      const idx = this.asignacionConfig.reglasPorPlato.findIndex(r => r.platoId === nueva.platoId);
-      if (idx >= 0) this.asignacionConfig.reglasPorPlato[idx] = nueva;
-      else this.asignacionConfig.reglasPorPlato.push(nueva);
-      // Persistir automáticamente (fix: antes solo quedaba en memoria).
-      const ok = await this.guardarAsignacionCompleta();
+      const perfil = this.perfilSeleccionadoActual;
+      if (!perfil) return;
+      if (!Array.isArray(perfil.reglasPorPlato)) perfil.reglasPorPlato = [];
+      const idx = perfil.reglasPorPlato.findIndex(r => r.platoId === nueva.platoId);
+      if (idx >= 0) perfil.reglasPorPlato[idx] = nueva;
+      else perfil.reglasPorPlato.push(nueva);
+      const ok = await this._guardarReglasPerfilSeleccionado();
       if (ok && window.GambusinasNotifications) {
-        window.GambusinasNotifications.success('Regla guardada', `Plato "${this.getNombrePlato(nueva.platoId)}" actualizado.`);
+        window.GambusinasNotifications.success('Regla guardada', `Plato "${this.getNombrePlato(nueva.platoId)}" actualizado en el perfil "${perfil.nombre}".`);
       }
     },
 
     async eliminarReglaPlato(platoId) {
-      if (!this.asignacionConfig) return;
-      this.asignacionConfig.reglasPorPlato = (this.asignacionConfig.reglasPorPlato || []).filter(r => r.platoId !== platoId);
+      const perfil = this.perfilSeleccionadoActual;
+      if (!perfil) return;
+      perfil.reglasPorPlato = (perfil.reglasPorPlato || []).filter(r => r.platoId !== platoId);
       if (this.platoSeleccionadoAsignacion?.id === platoId) {
         this.seleccionarPlatoAsignacion(this.platoSeleccionadoAsignacion);
       }
-      // Persistir el borrado automáticamente.
-      await this.guardarAsignacionCompleta();
-      if (window.GambusinasNotifications) window.GambusinasNotifications.success('Regla eliminada', `Plato "${this.getNombrePlato(platoId)}" sin regla.`);
+      await this._guardarReglasPerfilSeleccionado();
+      if (window.GambusinasNotifications) window.GambusinasNotifications.success('Regla eliminada', `Plato "${this.getNombrePlato(platoId)}" sin regla en el perfil "${perfil.nombre}".`);
     },
 
     async aplicarReglaACategoria() {
@@ -5290,49 +5731,31 @@ function cocinerosApp() {
         estrategia: f.estrategia || null,
         notas: f.notas || ''
       };
-      if (!Array.isArray(this.asignacionConfig.reglasPorCategoria)) this.asignacionConfig.reglasPorCategoria = [];
-      const idx = this.asignacionConfig.reglasPorCategoria.findIndex(r => r.categoria === nueva.categoria);
-      if (idx >= 0) this.asignacionConfig.reglasPorCategoria[idx] = nueva;
-      else this.asignacionConfig.reglasPorCategoria.push(nueva);
-      // Persistir automáticamente.
-      const ok = await this.guardarAsignacionCompleta();
+      const perfil = this.perfilSeleccionadoActual;
+      if (!perfil) return;
+      if (!Array.isArray(perfil.reglasPorCategoria)) perfil.reglasPorCategoria = [];
+      const idx = perfil.reglasPorCategoria.findIndex(r => r.categoria === nueva.categoria);
+      if (idx >= 0) perfil.reglasPorCategoria[idx] = nueva;
+      else perfil.reglasPorCategoria.push(nueva);
+      const ok = await this._guardarReglasPerfilSeleccionado();
       if (ok && window.GambusinasNotifications) {
-        window.GambusinasNotifications.success('Regla de categoría guardada', `Aplicada y persistida a "${nueva.categoria}"`);
+        window.GambusinasNotifications.success('Regla de categoría guardada', `Aplicada y persistida a "${nueva.categoria}" en el perfil "${perfil.nombre}".`);
       }
     },
 
-    // === Guardado completo en backend ===
+    // === Guardado completo en backend (legacy: defaults + habilitada) ===
     async guardarAsignacionCompleta() {
-      const payload = {
-        ...this._construirPayloadReglas(),
-        defaults: { ...this.formDefaultsAsignacion }
-      };
-      const res = await apiPut('/asignacion-automatica', payload);
-      if (res && res.success !== false) {
-        if (res.data) this.asignacionConfig = res.data;
-        // Detectar si el backend descartó reglas (persistencia transparente)
-        const p = res.persistencia;
-        if (p) {
-          const droppedPlato = (p.reglasPorPlato?.recibidas || 0) - (p.reglasPorPlato?.guardadas || 0);
-          const droppedCat = (p.reglasPorCategoria?.recibidas || 0) - (p.reglasPorCategoria?.guardadas || 0);
-          if (droppedPlato > 0 || droppedCat > 0) {
-            if (window.GambusinasNotifications) {
-              window.GambusinasNotifications.error(
-                'Algunas reglas no se guardaron',
-                `Se descartaron ${droppedPlato} regla(s) de plato y ${droppedCat} de categoría (sin cocinero primario ni backups).`
-              );
-            }
-          }
-        }
+      // En v2 las reglas viven en el perfil; este método se mantiene para
+      // guardar defaults globales (uso desde sub-tab Globales).
+      const res = await apiPut('/asignacion-automatica', { defaults: { ...this.formDefaultsAsignacion } });
+      if (res && res.success !== false && res.data) {
+        this.asignacionConfig = res.data;
+        this.perfilActivoAhora = this._recalcularPerfilActivoAhora();
         return true;
-      } else {
-        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', res?.error || 'No se pudo guardar');
-        // Fix anti-pérdida: si el guardado falla, recargamos la config real desde BD
-        // para que la memoria refleje exactamente lo persistido y no quede un estado
-        // divergente que el usuario crea guardado pero no lo esté.
-        try { await this.cargarConfigAsignacion(); } catch (e) { /* notificar ya hecho */ }
-        return false;
       }
+      if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', res?.error || 'No se pudo guardar');
+      try { await this.cargarConfigAsignacion(); } catch (e) {}
+      return false;
     },
 
     async toggleAsignacionAutomatica() {
@@ -5340,6 +5763,7 @@ function cocinerosApp() {
       const res = await apiPost('/asignacion-automatica/toggle', { habilitada: nuevoValor });
       if (res && res.success !== false && res.data) {
         this.asignacionConfig = res.data;
+        this.perfilActivoAhora = this._recalcularPerfilActivoAhora();
         if (window.GambusinasNotifications) {
           window.GambusinasNotifications.success(
             nuevoValor ? 'Activada' : 'Pausada',
@@ -5359,6 +5783,7 @@ function cocinerosApp() {
       const res = await apiPut('/asignacion-automatica', { defaults: { ...this.formDefaultsAsignacion } });
       if (res && res.success !== false && res.data) {
         this.asignacionConfig = res.data;
+        this.perfilActivoAhora = this._recalcularPerfilActivoAhora();
         this.modalConfigGlobalAsignacion = false;
         if (window.GambusinasNotifications) window.GambusinasNotifications.success('Guardado', 'Defaults actualizados');
       } else {
@@ -5377,7 +5802,8 @@ function cocinerosApp() {
       const id = this.cocineroVistaId;
       this.vistaCocineroPrimarios = [];
       this.vistaCocineroBackups = [];
-      (this.asignacionConfig?.reglasPorPlato || []).forEach(r => {
+      // v2: la vista por cocinero se basa en las reglas del perfil seleccionado.
+      (this._fuenteReglasAsignacion.reglasPorPlato || []).forEach(r => {
         if (r.cocineroPrimarioId && r.cocineroPrimarioId === id) this.vistaCocineroPrimarios.push(r.platoId);
         if ((r.backups || []).some(b => b.cocineroId === id)) this.vistaCocineroBackups.push(r.platoId);
       });
@@ -5522,15 +5948,19 @@ function cocinerosApp() {
       return true;
     },
 
-    // Aplica la regla del form a TODOS los platoIds del contexto y PERSISTE en backend.
+    // Aplica la regla del form a TODOS los platoIds del contexto y PERSISTE en el perfil seleccionado.
     async aplicarAsignacionMasiva() {
       if (!this.validarAsignacionMasiva()) return;
       const f = this.formAsignacionMasiva;
       const ids = this.formAsignacionMasivaContexto.platoIds || [];
       if (ids.length === 0) return;
 
-      if (!this.asignacionConfig) this.asignacionConfig = { reglasPorPlato: [], reglasPorCategoria: [] };
-      if (!Array.isArray(this.asignacionConfig.reglasPorPlato)) this.asignacionConfig.reglasPorPlato = [];
+      const perfil = this.perfilSeleccionadoActual;
+      if (!perfil) {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Perfil', 'Selecciona o crea un perfil antes de asignar platos.');
+        return;
+      }
+      if (!Array.isArray(perfil.reglasPorPlato)) perfil.reglasPorPlato = [];
 
       const backups = f.backups.filter(b => b.cocineroId).map((b, i) => ({ cocineroId: b.cocineroId, orden: i + 1 }));
       const maxMismo = (f.maxMismoPlato === '' || f.maxMismoPlato === null) ? null : Number(f.maxMismoPlato);
@@ -5546,27 +5976,34 @@ function cocinerosApp() {
           estrategia: f.estrategia || null,
           notas: ''
         };
-        const idx = this.asignacionConfig.reglasPorPlato.findIndex(r => r.platoId === pid);
-        if (idx >= 0) this.asignacionConfig.reglasPorPlato[idx] = nueva;
-        else this.asignacionConfig.reglasPorPlato.push(nueva);
+        const idx = perfil.reglasPorPlato.findIndex(r => r.platoId === pid);
+        if (idx >= 0) perfil.reglasPorPlato[idx] = nueva;
+        else perfil.reglasPorPlato.push(nueva);
         actualizadas++;
       }
 
-      // PERSISTIR en backend automáticamente (fix: antes solo quedaba en memoria
-      // y al recargar se perdía). Ahora guardamos toda la config de una vez.
-      const res = await this.guardarAsignacionCompleta();
-      if (res) {
+      // Persistir las reglas del perfil en backend.
+      const ok = await this._guardarReglasPerfilSeleccionado();
+      if (ok) {
         this.modalAsignacionMasiva = false;
-        // Limpia selección de los platos que se acaban de asignar (solo tras éxito)
-        ids.forEach(pid => { delete this.seleccionPlatosAsignacion[pid]; });
+        // UX v2: limpiar TODOS los checks de golpe reasignando un objeto nuevo
+        // (fuerza reactividad de Alpine) en vez de borrar id por id. Mantiene
+        // filtros/búsqueda/página para encadenar lotes rápidamente.
+        this.seleccionPlatosAsignacion = {};
         if (window.GambusinasNotifications) {
           window.GambusinasNotifications.success(
             'Asignación por conjunto guardada',
-            `${actualizadas} plato(s) actualizados y persistidos en base de datos.`
+            `${actualizadas} plato(s) guardados en el perfil "${perfil.nombre}" · selección limpiada.`
           );
         }
+        // Foco en el buscador para el siguiente lote (si existe el ref).
+        this.$nextTick(() => {
+          if (this.$refs.buscadorPlatosAsignacion) {
+            try { this.$refs.buscadorPlatosAsignacion.focus(); } catch (e) {}
+          }
+        });
       } else {
-        // El guardado falló: guardarAsignacionCompleta ya resincronizó desde BD.
+        // El guardado falló: _guardarReglasPerfilSeleccionado ya resincronizó desde BD.
         // Mantenemos modal abierto y selección intacta para que el usuario reintente.
         if (window.GambusinasNotifications) {
           window.GambusinasNotifications.error(
@@ -5574,6 +6011,340 @@ function cocinerosApp() {
             'Revisa la conexión e inténtalo de nuevo. Las reglas previas siguen en base de datos.'
           );
         }
+      }
+    },
+
+    // ==================== PERFILES (v2) ====================
+    /**
+     * Extrae el documento de config de una respuesta API, tolerando ambas shapes:
+     *   - Nueva: { data: config, perfilId?/bloqueId? }
+     *   - Legacy: { data: { config, perfilId } } / { data: { config, bloqueId } }
+     * Esto evita el bug visual donde, al crear una franja, se hacía
+     * `asignacionConfig = { bloqueId, config }` y el calendario "desaparecía"
+     * hasta recargar (porque no había .calendario.bloques en la raíz).
+     */
+    _extraerConfigDeRespuesta(res) {
+      if (!res || !res.data) return null;
+      const d = res.data;
+      // Shape nested legacy: { config: {...}, bloqueId|perfilId }
+      if (d.config && (d.config.perfiles || d.config.calendario || d.config.defaults)) return d.config;
+      // Shape plana: el propio data ES el documento
+      if (d.perfiles || d.calendario || d.defaults || typeof d.habilitada === 'boolean') return d;
+      return null;
+    },
+    _aplicarConfigRespuesta(res) {
+      const config = this._extraerConfigDeRespuesta(res);
+      if (!config) return false;
+      this.asignacionConfig = config;
+      this.perfilActivoAhora = this._recalcularPerfilActivoAhora();
+      return true;
+    },
+
+    // Selecciona el perfil a editar en el sub-tab Perfiles.
+    seleccionarPerfilAsignacion(perfilId) {
+      this.perfilSeleccionadoId = perfilId;
+      // Resetea selección de plato al cambiar de perfil para no mezclar reglas.
+      this.platoSeleccionadoAsignacion = null;
+      this.errorValidacionAsignacion = '';
+    },
+
+    // Recalcula el "perfil activo ahora" localmente (fallback si el GET no lo trae).
+    _recalcularPerfilActivoAhora() {
+      if (!this.asignacionConfig) return null;
+      const bloques = this.asignacionConfig.calendario?.bloques || [];
+      if (!bloques.length) return null;
+      const ahora = new Date();
+      // Lima está en UTC-5 todo el año (sin DST). Ajuste simple para día y HH:mm.
+      const limaOffsetMs = -5 * 60 * 60 * 1000;
+      const limaTime = new Date(ahora.getTime() + limaOffsetMs + ahora.getTimezoneOffset() * 60000);
+      // getUTCDay: 0=Dom..6=Sáb (consistente con moment.day() en Lima).
+      const dia = limaTime.getUTCDay();
+      const hhmm = limaTime.toISOString().slice(11, 16);
+      const candidatos = bloques.filter(b =>
+        b.activo !== false &&
+        (b.diasSemana || []).includes(dia) &&
+        b.horaInicio <= hhmm && hhmm < b.horaFin
+      );
+      if (!candidatos.length) return null;
+      candidatos.sort((a, b) => (a.diasSemana.length - b.diasSemana.length) ||
+        (b.horaInicio < a.horaInicio ? -1 : 1) ||
+        (new Date(b.createdAt || 0) - new Date(a.createdAt || 0)));
+      const blk = candidatos[0];
+      const perfil = (this.asignacionConfig.perfiles || []).find(p => p.id === blk.perfilId && p.activo !== false);
+      if (!perfil) return null;
+      return { perfilId: perfil.id, nombre: perfil.nombre, bloqueId: blk.id, horaInicio: blk.horaInicio, horaFin: blk.horaFin };
+    },
+
+    // Display compacto del perfil activo ahora para KPIs.
+    get perfilActivoAhoraDisplay() {
+      const p = this.perfilActivoAhora || this._recalcularPerfilActivoAhora();
+      if (!p || !p.perfilId) return '— sin franja activa —';
+      return `${p.nombre} (${p.horaInicio}–${p.horaFin})`;
+    },
+
+    // Abrir modal "Nuevo perfil".
+    abrirModalNuevoPerfil() {
+      this.modalPerfilModo = 'nuevo';
+      this.modalPerfilError = '';
+      this.modalPerfilForm = { nombre: '', descripcion: '', color: '#D4AF37' };
+      this.modalPerfilAsignacion = true;
+      this.$nextTick(() => { if (this.$refs.inputNombrePerfil) this.$refs.inputNombrePerfil.focus(); });
+    },
+
+    // Abrir modal "Editar perfil" (renombrar/descripción/color).
+    abrirModalRenombrarPerfil() {
+      const p = this.perfilSeleccionadoActual;
+      if (!p) return;
+      this.modalPerfilModo = 'editar';
+      this.modalPerfilError = '';
+      this.modalPerfilForm = { nombre: p.nombre, descripcion: p.descripcion || '', color: p.color || '#D4AF37' };
+      this.modalPerfilAsignacion = true;
+    },
+
+    // Guardar (crear o editar) perfil desde el modal.
+    async guardarModalPerfil() {
+      const nombre = (this.modalPerfilForm.nombre || '').trim();
+      if (!nombre) { this.modalPerfilError = 'El nombre es obligatorio'; return; }
+      try {
+        if (this.modalPerfilModo === 'nuevo') {
+          const res = await apiPost('/asignacion-automatica/perfiles', {
+            nombre, descripcion: this.modalPerfilForm.descripcion, color: this.modalPerfilForm.color
+          });
+          if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
+            this.perfilSeleccionadoId = res.perfilId || res.data?.perfilId || this.perfilSeleccionadoId;
+            // Si no vino perfilId, tomar el último creado por nombre.
+            if (!this.perfilSeleccionadoId) {
+              const creado = (this.asignacionConfig.perfiles || []).find(p => p.nombre === nombre);
+              if (creado) this.perfilSeleccionadoId = creado.id;
+            }
+            this.modalPerfilAsignacion = false;
+            if (window.GambusinasNotifications) window.GambusinasNotifications.success('Perfil creado', `"${nombre}" creado.`);
+          } else {
+            this.modalPerfilError = res?.error || 'No se pudo crear';
+          }
+        } else {
+          const perfil = this.perfilSeleccionadoActual;
+          const res = await apiPut(`/asignacion-automatica/perfiles/${perfil.id}`, {
+            nombre, descripcion: this.modalPerfilForm.descripcion, color: this.modalPerfilForm.color
+          });
+          if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
+            this.modalPerfilAsignacion = false;
+            if (window.GambusinasNotifications) window.GambusinasNotifications.success('Perfil actualizado', `Renombrado a "${nombre}".`);
+          } else {
+            this.modalPerfilError = res?.error || 'No se pudo guardar';
+          }
+        }
+      } catch (e) {
+        this.modalPerfilError = e.message || 'Error inesperado';
+      }
+    },
+
+    // Duplicar el perfil actualmente seleccionado.
+    async duplicarPerfilActual() {
+      const p = this.perfilSeleccionadoActual;
+      if (!p) return;
+      const res = await apiPost(`/asignacion-automatica/perfiles/${p.id}/duplicar`);
+      if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
+        this.perfilSeleccionadoId = res.perfilId || res.data?.perfilId || this.perfilSeleccionadoId;
+        if (window.GambusinasNotifications) window.GambusinasNotifications.success('Perfil duplicado', `Copia de "${p.nombre}" creada.`);
+      } else {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', res?.error || 'No se pudo duplicar');
+      }
+    },
+
+    // Activar/desactivar perfil (soft-disable).
+    async toggleActivoPerfilActual() {
+      const p = this.perfilSeleccionadoActual;
+      if (!p) return;
+      const res = await apiPut(`/asignacion-automatica/perfiles/${p.id}`, { activo: !p.activo });
+      if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.success('Perfil actualizado', p.activo ? 'Perfil desactivado' : 'Perfil activado');
+      } else {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', res?.error || 'No se pudo cambiar');
+      }
+    },
+
+    // Eliminar perfil (con validación de referencias en backend).
+    async eliminarPerfilActual() {
+      const p = this.perfilSeleccionadoActual;
+      if (!p) return;
+      if (!confirm(`¿Eliminar el perfil "${p.nombre}"?`)) return;
+      const res = await apiDelete(`/asignacion-automatica/perfiles/${p.id}`);
+      if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
+        // Si era el seleccionado, saltar al siguiente.
+        if (this.perfilSeleccionadoId === p.id) this.perfilSeleccionadoId = (this.asignacionConfig.perfiles || [])[0]?.id || '';
+        if (window.GambusinasNotifications) window.GambusinasNotifications.success('Perfil eliminado', `"${p.nombre}" eliminado.`);
+      } else {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('No se pudo eliminar', res?.error || 'Puede tener franjas que lo referencian.');
+      }
+    },
+
+    // ==================== CALENDARIO / FRANJAS (v2) ====================
+    // Días de la semana para la grilla (Lun..Dom) con flag esHoy.
+    // Convención: 0=Dom,1=Lun,...,6=Sáb (moment.day() en Lima).
+    get diasSemanaCalendario() {
+      const nombres = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+      // Orden Lun..Dom para mostrar: 1,2,3,4,5,6,0
+      const orden = [1, 2, 3, 4, 5, 6, 0];
+      const lima = new Date();
+      // Día actual en Lima (mismo cálculo simple que _recalcularPerfilActivoAhora).
+      const limaOffsetMs = -5 * 60 * 60 * 1000;
+      const limaTime = new Date(lima.getTime() + limaOffsetMs + lima.getTimezoneOffset() * 60000);
+      const hoy = limaTime.getUTCDay();
+      return orden.map(num => ({ num, nombre: nombres[num], esHoy: num === hoy }));
+    },
+
+    // Texto del rango de la semana actual (Lun..Dom) en Lima.
+    get rangoSemanaActualTexto() {
+      const lima = new Date();
+      const limaOffsetMs = -5 * 60 * 60 * 1000;
+      const limaTime = new Date(lima.getTime() + limaOffsetMs + lima.getTimezoneOffset() * 60000);
+      // Lunes de esta semana (ISO weekday: 1=Lun).
+      const day = limaTime.getUTCDay(); // 0..6
+      const diffToMon = (day === 0 ? -6 : 1 - day);
+      const lunes = new Date(Date.UTC(limaTime.getUTCFullYear(), limaTime.getUTCMonth(), limaTime.getUTCDate() + diffToMon));
+      const domingo = new Date(Date.UTC(lunes.getUTCFullYear(), lunes.getUTCMonth(), lunes.getUTCDate() + 6));
+      const fmt = (d) => `${d.getUTCDate()} ${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][d.getUTCMonth()]}`;
+      return `Semana del ${fmt(lunes)} – ${fmt(domingo)} (semana actual, sin navegación)`;
+    },
+
+    get hoySemanaTexto() {
+      const nombres = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+      const lima = new Date();
+      const limaOffsetMs = -5 * 60 * 60 * 1000;
+      const limaTime = new Date(lima.getTime() + limaOffsetMs + lima.getTimezoneOffset() * 60000);
+      return nombres[limaTime.getUTCDay()];
+    },
+
+    // Bloques del calendario que aplican a un día concreto (para pintar la grilla).
+    // Compara con Number() porque Alpine/Mongo a veces dejan días como string.
+    bloquesPorDia(diaNum) {
+      const dia = Number(diaNum);
+      return (this.asignacionConfig?.calendario?.bloques || [])
+        .filter(b => (b.diasSemana || []).some(d => Number(d) === dia))
+        .sort((a, b) => (a.horaInicio < b.horaInicio ? -1 : 1));
+    },
+
+    nombrePerfilPorId(id) {
+      const p = (this.asignacionConfig?.perfiles || []).find(x => x.id === id);
+      return p ? p.nombre : '—';
+    },
+    colorPerfilPorId(id) {
+      const p = (this.asignacionConfig?.perfiles || []).find(x => x.id === id);
+      return (p && p.color) || '#D4AF37';
+    },
+
+    // Abrir "Nueva franja" desde un día concreto.
+    abrirNuevaFranjaCalendario(diaNum) {
+      this.modalFranjaModo = 'nueva';
+      this.modalFranjaBloqueId = '';
+      this.modalFranjaError = '';
+      this.modalFranjaAvisoSolape = false;
+      this.modalFranjaForm = { perfilId: (this.asignacionConfig?.perfiles || []).find(p => p.activo)?.id || '', horaInicio: '08:00', horaFin: '12:00', etiqueta: '', activo: true };
+      this.modalFranjaRepeticion = 'un_dia';
+      this.modalFranjaDiasSeleccionados = [diaNum];
+      this.modalFranjaCalendario = true;
+    },
+
+    // Abrir "Editar franja" desde un bloque existente.
+    abrirEditarBloqueCalendario(bloque) {
+      this.modalFranjaModo = 'editar';
+      this.modalFranjaBloqueId = bloque.id;
+      this.modalFranjaError = '';
+      this.modalFranjaAvisoSolape = false;
+      this.modalFranjaForm = { perfilId: bloque.perfilId, horaInicio: bloque.horaInicio, horaFin: bloque.horaFin, etiqueta: bloque.etiqueta || '', activo: bloque.activo !== false };
+      // Determinar tipo de repetición a partir de diasSemana.
+      const ds = bloque.diasSemana || [];
+      if (ds.length === 7) { this.modalFranjaRepeticion = 'toda_semana'; this.modalFranjaDiasSeleccionados = [0,1,2,3,4,5,6]; }
+      else if (ds.length === 1) { this.modalFranjaRepeticion = 'dia_cada_semana'; this.modalFranjaDiasSeleccionados = [...ds]; }
+      else { this.modalFranjaRepeticion = 'dias_elegidos'; this.modalFranjaDiasSeleccionados = [...ds]; }
+      this.modalFranjaCalendario = true;
+    },
+
+    // Devuelve diasSemana final a partir del modo de repetición + selección.
+    // Siempre enteros 0..6 (Alpine checkboxes a veces dejan strings).
+    _diasSemanaSegunRepeticion() {
+      const asInts = (arr) => [...new Set((arr || []).map(d => Number(d)).filter(d => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b);
+      switch (this.modalFranjaRepeticion) {
+        case 'toda_semana': return [0, 1, 2, 3, 4, 5, 6];
+        case 'un_dia':
+        case 'dia_cada_semana':
+          // Un único día: el primero seleccionado (o el clickeado).
+          return asInts(this.modalFranjaDiasSeleccionados).slice(0, 1);
+        case 'dias_elegidos':
+        default:
+          return asInts(this.modalFranjaDiasSeleccionados);
+      }
+    },
+
+    // Comprueba solape con otros bloques para avisar (no bloquea).
+    _detectarSolape(diasSemana, hi, hf, excluirId = null) {
+      const bloques = this.asignacionConfig?.calendario?.bloques || [];
+      const diasSet = new Set((diasSemana || []).map(d => Number(d)));
+      for (const b of bloques) {
+        if (b.id === excluirId) continue;
+        if (b.activo === false) continue;
+        const diasCompartidos = (b.diasSemana || []).some(d => diasSet.has(Number(d)));
+        if (!diasCompartidos) continue;
+        if (hi < b.horaFin && b.horaInicio < hf) return true;
+      }
+      return false;
+    },
+
+    // Guardar (crear o editar) franja desde el modal.
+    async guardarModalFranja() {
+      this.modalFranjaError = '';
+      const f = this.modalFranjaForm;
+      if (!f.perfilId) { this.modalFranjaError = 'Selecciona un perfil'; return; }
+      if (!/^\d{2}:\d{2}$/.test(f.horaInicio) || !/^\d{2}:\d{2}$/.test(f.horaFin)) { this.modalFranjaError = 'Horas inválidas (HH:mm)'; return; }
+      if (f.horaFin <= f.horaInicio) { this.modalFranjaError = 'La hora fin debe ser mayor que la hora inicio (sin cruce de medianoche en v1)'; return; }
+      const dias = this._diasSemanaSegunRepeticion();
+      if (!dias.length) { this.modalFranjaError = 'Selecciona al menos un día'; return; }
+
+      // Aviso de solape (no bloquea).
+      this.modalFranjaAvisoSolape = this._detectarSolape(dias, f.horaInicio, f.horaFin, this.modalFranjaBloqueId || null);
+
+      try {
+        const body = {
+          perfilId: f.perfilId,
+          diasSemana: dias,
+          horaInicio: f.horaInicio,
+          horaFin: f.horaFin,
+          etiqueta: f.etiqueta,
+          activo: f.activo
+        };
+        let res;
+        if (this.modalFranjaModo === 'nueva') {
+          res = await apiPost('/asignacion-automatica/calendario/bloques', body);
+        } else {
+          res = await apiPut(`/asignacion-automatica/calendario/bloques/${this.modalFranjaBloqueId}`, body);
+        }
+        if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
+          this.modalFranjaCalendario = false;
+          if (window.GambusinasNotifications) {
+            window.GambusinasNotifications.success(
+              this.modalFranjaModo === 'nueva' ? 'Franja creada' : 'Franja actualizada',
+              this.modalFranjaAvisoSolape ? 'Guardada. Hay solape con otra franja: se aplicará la regla de prioridad.' : 'Guardada.'
+            );
+          }
+        } else {
+          this.modalFranjaError = res?.error || 'No se pudo guardar';
+        }
+      } catch (e) {
+        this.modalFranjaError = e.message || 'Error inesperado';
+      }
+    },
+
+    // Eliminar la franja que se está editando.
+    async eliminarFranjaActual() {
+      if (!this.modalFranjaBloqueId) return;
+      if (!confirm('¿Eliminar esta franja?')) return;
+      const res = await apiDelete(`/asignacion-automatica/calendario/bloques/${this.modalFranjaBloqueId}`);
+      if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
+        this.modalFranjaCalendario = false;
+        if (window.GambusinasNotifications) window.GambusinasNotifications.success('Franja eliminada', 'La franja fue eliminada del calendario.');
+      } else {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', res?.error || 'No se pudo eliminar');
       }
     },
 

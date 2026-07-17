@@ -144,7 +144,9 @@ router.get('/mensajes/conversaciones', async (req, res) => {
 
       // DM sin título fijo: mostrar el nombre del otro participante
       let titulo = c.titulo;
-      if (c.tipo === 'directo' && !titulo) {
+      if (c.tipo === 'grupo') {
+        titulo = c.nombreGrupo || c.titulo || 'Grupo';
+      } else if (c.tipo === 'directo' && !titulo) {
         const otro = (c.participantes || []).find(p => {
           const pid = p.usuario?._id || p.usuario;
           return pid?.toString?.() !== userId?.toString?.();
@@ -156,6 +158,8 @@ router.get('/mensajes/conversaciones', async (req, res) => {
         _id: c._id,
         tipo: c.tipo,
         titulo,
+        nombreGrupo: c.nombreGrupo || '',
+        descripcionGrupo: c.descripcionGrupo || '',
         ultimoMensajePreview: c.ultimoMensajePreview,
         ultimoMensajeAt: c.ultimoMensajeAt,
         ultimoMensajeRemitente: c.ultimoMensajeRemitente,
@@ -225,7 +229,25 @@ router.post('/mensajes/conversaciones', async (req, res) => {
       return res.json({ success: true, data: conv });
     }
 
-    return res.status(400).json({ error: 'tipo inválido (directo|canal)' });
+    if (tipo === 'grupo') {
+      // Cualquier usuario con ver-mensajes + enviar-mensajes puede crear un grupo.
+      if (!(await tienePermiso(user, 'enviar-mensajes'))) {
+        return res.status(403).json({ error: 'Sin permiso: enviar-mensajes' });
+      }
+      const { nombreGrupo, descripcionGrupo, participanteIds } = req.body;
+      if (!nombreGrupo || !nombreGrupo.trim()) {
+        return res.status(400).json({ error: 'nombreGrupo requerido' });
+      }
+      const conv = await mensajeriaService.crearGrupo({
+        creadorId: user.id,
+        nombreGrupo,
+        descripcionGrupo,
+        participanteIds: Array.isArray(participanteIds) ? participanteIds : []
+      });
+      return res.json({ success: true, data: conv });
+    }
+
+    return res.status(400).json({ error: 'tipo inválido (directo|canal|grupo)' });
   } catch (error) {
     logger.error('[mensajería] POST conversacion', { error: error.message });
     res.status(500).json({ error: 'Error interno' });
@@ -725,6 +747,103 @@ router.get('/mensajes/conversaciones/:id/anclados', async (req, res) => {
       : [];
     res.json({ success: true, data: mensajes, anclados: conv.anclados });
   } catch (e) {
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// =====================================
+// Endpoints — Grupos (chat grupal ad-hoc)
+// =====================================
+
+/**
+ * Helper: ¿el usuario puede gestionar miembros de un grupo?
+ * - El creador del grupo
+ * - Admin
+ * - Quien tenga gestionar-canales-mensajes
+ */
+async function puedeGestionarGrupo(user, conv) {
+  if (user.rol === 'admin') return true;
+  if (String(conv.creadoPor) === String(user.id)) return true;
+  if (await tienePermiso(user, 'gestionar-canales-mensajes')) return true;
+  return false;
+}
+
+/**
+ * PATCH /api/mensajes/conversaciones/:id
+ * Renombra / actualiza / archiva un grupo.
+ * Body: { nombreGrupo?, descripcionGrupo?, activo? }
+ */
+router.patch('/mensajes/conversaciones/:id', async (req, res) => {
+  try {
+    const user = userInfo(req);
+    const conv = await Conversacion.findById(req.params.id);
+    if (!conv) return res.status(404).json({ error: 'No encontrada' });
+    if (conv.tipo !== 'grupo') return res.status(400).json({ error: 'Solo aplica a grupos' });
+
+    const permisoEditar =
+      (req.body.activo !== undefined) ||
+      req.body.nombreGrupo !== undefined ||
+      req.body.descripcionGrupo !== undefined;
+
+    if (permisoEditar && !(await puedeGestionarGrupo(user, conv))) {
+      return res.status(403).json({ error: 'Sin permiso para editar este grupo' });
+    }
+
+    const r = await mensajeriaService.actualizarGrupo(req.params.id, req.body);
+    res.json({ success: true, data: r });
+  } catch (e) {
+    logger.error('[mensajería] PATCH conversacion (grupo)', { error: e.message });
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+/**
+ * POST /api/mensajes/conversaciones/:id/miembros
+ * Añade participantes a un grupo.
+ * Body: { miembroIds: string[] }
+ */
+router.post('/mensajes/conversaciones/:id/miembros', async (req, res) => {
+  try {
+    const user = userInfo(req);
+    const conv = await Conversacion.findById(req.params.id).lean();
+    if (!conv) return res.status(404).json({ error: 'No encontrada' });
+    if (conv.tipo !== 'grupo') return res.status(400).json({ error: 'Solo aplica a grupos' });
+    if (!(await puedeGestionarGrupo(user, conv))) {
+      return res.status(403).json({ error: 'Sin permiso para gestionar miembros' });
+    }
+    const { miembroIds } = req.body;
+    if (!Array.isArray(miembroIds) || !miembroIds.length) {
+      return res.status(400).json({ error: 'miembroIds[] requerido' });
+    }
+    const r = await mensajeriaService.agregarMiembrosGrupo(req.params.id, miembroIds, user.id);
+    res.json({ success: true, data: r });
+  } catch (e) {
+    logger.error('[mensajería] POST miembros', { error: e.message });
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+/**
+ * DELETE /api/mensajes/conversaciones/:id/miembros/:usuarioId
+ * Quita un participante del grupo.
+ */
+router.delete('/mensajes/conversaciones/:id/miembros/:usuarioId', async (req, res) => {
+  try {
+    const user = userInfo(req);
+    const conv = await Conversacion.findById(req.params.id).lean();
+    if (!conv) return res.status(404).json({ error: 'No encontrada' });
+    if (conv.tipo !== 'grupo') return res.status(400).json({ error: 'Solo aplica a grupos' });
+
+    // Quitarse a uno mismo siempre está permitido
+    const esAutoSalida = String(req.params.usuarioId) === String(user.id);
+    if (!esAutoSalida && !(await puedeGestionarGrupo(user, conv))) {
+      return res.status(403).json({ error: 'Sin permiso para gestionar miembros' });
+    }
+
+    const r = await mensajeriaService.quitarMiembroGrupo(req.params.id, req.params.usuarioId);
+    res.json({ success: true, data: r });
+  } catch (e) {
+    logger.error('[mensajería] DELETE miembro', { error: e.message });
     res.status(500).json({ error: 'Error interno' });
   }
 });

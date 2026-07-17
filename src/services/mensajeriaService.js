@@ -576,6 +576,140 @@ async function seedCanales(creadoPor = null) {
   return resultados;
 }
 
+/**
+ * Crea un grupo (chat grupal ad-hoc) con miembros explícitos.
+ * @param {object} params
+ * @param {string} params.creadorId
+ * @param {string} params.nombreGrupo
+ * @param {string} [params.descripcionGrupo]
+ * @param {string[]} params.participanteIds  (sin incluir al creador; se añade)
+ */
+async function crearGrupo({ creadorId, nombreGrupo, descripcionGrupo = '', participanteIds = [] }) {
+  const ids = new Set();
+  if (creadorId) ids.add(String(creadorId));
+  for (const id of participanteIds) {
+    if (id) ids.add(String(id));
+  }
+  if (ids.size < 2) {
+    const err = new Error('Un grupo requiere al menos 2 miembros (incluyendo el creador)');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const participantes = Array.from(ids).map(id => ({ usuario: id, unidoEn: new Date() }));
+
+  // Snapshot de rol por participante para auditoría del grupo
+  try {
+    const Mozos = mongoose.models.Mozo || require('../database/models/mozos.model');
+    const snaps = await Mozos.find({ _id: { $in: Array.from(ids) } }).select('_id rol').lean();
+    const rolPorId = new Map(snaps.map(s => [String(s._id), s.rol || '']));
+    for (const p of participantes) {
+      p.rolSnapshot = rolPorId.get(String(p.usuario)) || '';
+    }
+  } catch (_) { /* snapshot no crítico */ }
+
+  const conv = await Conversacion.create({
+    tipo: 'grupo',
+    nombreGrupo: (nombreGrupo || '').trim().slice(0, 80) || 'Grupo',
+    descripcionGrupo: (descripcionGrupo || '').trim().slice(0, 240),
+    titulo: (nombreGrupo || '').trim().slice(0, 80) || 'Grupo',
+    participantes,
+    creadoPor: creadorId,
+    activo: true,
+    ultimoMensajeAt: new Date()
+  });
+
+  // Avisar a los miembros vía socket para que refresquen inbox
+  try {
+    const io = global.io;
+    if (io) {
+      const payload = { conversacionId: conv._id, tipo: 'grupo', titulo: conv.titulo };
+      for (const id of Array.from(ids)) {
+        if (io.of('/mozos')) io.of('/mozos').to(`mozo-${id}`).emit('conversacion:actualizada', payload);
+        if (io.of('/cocina')) io.of('/cocina').to(`cocinero-${id}`).emit('conversacion:actualizada', payload);
+        if (io.of('/admin')) io.of('/admin').to(`user-${id}`).emit('conversacion:actualizada', payload);
+      }
+    }
+  } catch (_) { /* no crítico */ }
+
+  return conv;
+}
+
+/**
+ * Añade participantes a un grupo existente.
+ */
+async function agregarMiembrosGrupo(conversacionId, miembroIds, porUsuarioId) {
+  if (!miembroIds?.length) return { modificados: 0 };
+  const ids = Array.from(new Set(miembroIds.filter(Boolean).map(String)));
+
+  // Snapshot de rol para nuevos miembros
+  let rolPorId = new Map();
+  try {
+    const Mozos = mongoose.models.Mozo || require('../database/models/mozos.model');
+    const snaps = await Mozos.find({ _id: { $in: ids } }).select('_id rol').lean();
+    rolPorId = new Map(snaps.map(s => [String(s._id), s.rol || '']));
+  } catch (_) { /* noop */ }
+
+  const conv = await Conversacion.findById(conversacionId);
+  if (!conv) throw new Error('Conversación no encontrada');
+  if (conv.tipo !== 'grupo') throw new Error('Solo se pueden agregar miembros a un grupo');
+
+  const existentes = new Set((conv.participantes || []).map(p => String(p.usuario)));
+  let modificados = 0;
+  for (const id of ids) {
+    if (existentes.has(id)) continue;
+    conv.participantes.push({
+      usuario: id,
+      rolSnapshot: rolPorId.get(id) || '',
+      unidoEn: new Date()
+    });
+    modificados++;
+  }
+  await conv.save();
+
+  // Avisar a los nuevos miembros para que aparezca el grupo en su inbox
+  try {
+    const io = global.io;
+    if (io && modificados) {
+      const payload = { conversacionId: conv._id, tipo: 'grupo', titulo: conv.titulo };
+      for (const id of ids) {
+        if (io.of('/mozos')) io.of('/mozos').to(`mozo-${id}`).emit('conversacion:actualizada', payload);
+        if (io.of('/cocina')) io.of('/cocina').to(`cocinero-${id}`).emit('conversacion:actualizada', payload);
+        if (io.of('/admin')) io.of('/admin').to(`user-${id}`).emit('conversacion:actualizada', payload);
+      }
+    }
+  } catch (_) { /* noop */ }
+
+  return { modificados };
+}
+
+/**
+ * Quita un participante de un grupo.
+ */
+async function quitarMiembroGrupo(conversacionId, usuarioId) {
+  const res = await Conversacion.updateOne(
+    { _id: conversacionId, tipo: 'grupo' },
+    { $pull: { participantes: { usuario: usuarioId } } }
+  );
+  return res;
+}
+
+/**
+ * Renombra / actualiza un grupo.
+ */
+async function actualizarGrupo(conversacionId, { nombreGrupo, descripcionGrupo, activo } = {}) {
+  const set = {};
+  if (typeof nombreGrupo === 'string' && nombreGrupo.trim()) {
+    const v = nombreGrupo.trim().slice(0, 80);
+    set.nombreGrupo = v;
+    set.titulo = v; // mantener titulo sincronizado para queries de inbox
+  }
+  if (typeof descripcionGrupo === 'string') set.descripcionGrupo = descripcionGrupo.trim().slice(0, 240);
+  if (typeof activo === 'boolean') set.activo = activo;
+  if (!Object.keys(set).length) return { modificados: 0 };
+  return await Conversacion.updateOne({ _id: conversacionId, tipo: 'grupo' }, { $set: set });
+}
+
 module.exports = {
   PRIORIDADES,
   PRIORIDAD_A_CODIGO,
@@ -597,5 +731,9 @@ module.exports = {
   setCanalActivo,
   actualizarRolesCanal,
   obtenerOCrearDM,
-  seedCanales
+  seedCanales,
+  crearGrupo,
+  agregarMiembrosGrupo,
+  quitarMiembroGrupo,
+  actualizarGrupo
 };

@@ -82,6 +82,39 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       logger.debug('Socket cocina auto-unido a room personal', { socketId: socket.id, room: personalRoom });
     }
 
+    // === ALERTAS: auto-join a rooms de pantalla y cocinera asignada ===
+    // - Monitores (TVs/kiosk): se unen a pantalla-{N} para recibir alertas aunque
+    //   el FAB de chat esté oculto. Si traen cocineroId (bootstrap) también se unen
+    //   a cocinero-{id} para que la alerta dirigida a esa cocinera llegue al TV.
+    // - Sesiones humanas de cocineros: el cocineroId lo emite el cliente vía
+    //   join-cocinero (ver abajo); aquí solo cubrimos lo que ya viene en el JWT.
+    if (socket.user?.esMonitor) {
+      if (socket.user?.numeroPantalla) {
+        const tvRoom = `pantalla-${socket.user.numeroPantalla}`;
+        socket.join(tvRoom);
+        logger.debug('Monitor TV auto-unido a room', { socketId: socket.id, room: tvRoom });
+      }
+      if (socket.user?.cocineroId) {
+        const cRoom = `cocinero-${socket.user.cocineroId}`;
+        socket.join(cRoom);
+        logger.debug('Monitor TV auto-unido a room cocinera', { socketId: socket.id, room: cRoom, cocineroId: socket.user.cocineroId });
+      }
+    }
+
+    // ACK de alertas desde este socket (cliente → server)
+    socket.on('alerta:ack', async (payload) => {
+      try {
+        if (!payload?.alertaId) return;
+        const alertaService = require('../services/alertaService');
+        await alertaService.ackAlerta(payload.alertaId, {
+          usuarioId: socket.user?.id,
+          numeroPantalla: socket.user?.numeroPantalla || payload.numeroPantalla || null
+        });
+      } catch (e) {
+        logger.warn('[alertas] ack fallido', { error: e.message });
+      }
+    });
+
     // Room de conversación (chat abierto)
     socket.on('join-conversacion', (conversacionId) => {
       if (!conversacionId) return;
@@ -310,6 +343,20 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       logger.debug('Socket mozos auto-unido a room personal', { socketId: socket.id, room: personalRoom });
     }
 
+    // ACK de alertas (App Mozos)
+    socket.on('alerta:ack', async (payload) => {
+      try {
+        if (!payload?.alertaId) return;
+        const alertaService = require('../services/alertaService');
+        await alertaService.ackAlerta(payload.alertaId, {
+          usuarioId: socket.user?.id,
+          numeroPantalla: payload.numeroPantalla || null
+        });
+      } catch (e) {
+        logger.warn('[alertas] ack mozos fallido', { error: e.message });
+      }
+    });
+
     socket.on('join-conversacion', (conversacionId) => {
       if (!conversacionId) return;
       const roomName = `conv-${conversacionId}`;
@@ -396,6 +443,20 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       socket.join(personalRoom);
       logger.debug('Socket admin auto-unido a room personal', { socketId: socket.id, room: personalRoom });
     }
+
+    // ACK de alertas (Dashboard admin)
+    socket.on('alerta:ack', async (payload) => {
+      try {
+        if (!payload?.alertaId) return;
+        const alertaService = require('../services/alertaService');
+        await alertaService.ackAlerta(payload.alertaId, {
+          usuarioId: socket.user?.id,
+          numeroPantalla: payload.numeroPantalla || null
+        });
+      } catch (e) {
+        logger.warn('[alertas] ack admin fallido', { error: e.message });
+      }
+    });
 
     // Heartbeat para detectar desconexión
     socket.on('heartbeat', () => {

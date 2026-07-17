@@ -5,17 +5,18 @@ const mongoose = require('mongoose');
  *
  * Tipos:
  *  - directo: DM 1:1 entre dos usuarios
- *  - canal:   grupo/equipo (p.ej. #cocina, #sala, #caja, #general)
+ *  - canal:   grupo/equipo abierto por rol (p.ej. #cocina, #sala, #caja, #general)
  *  - anuncio: broadcast con prioridad mínima, emitido por admin/supervisor
+ *  - grupo:   grupo ad-hoc con miembros explícitos (no por rol)
  *
- * Participantes pueden ser explícitos (DM/anuncios dirigidos) o implícitos
+ * Participantes pueden ser explícitos (DM/grupo/anuncios dirigidos) o implícitos
  * vía rolesPermitidos (canales abiertos por rol).
  */
 const conversacionSchema = new mongoose.Schema({
   tipo: {
     type: String,
     required: true,
-    enum: ['directo', 'canal', 'anuncio'],
+    enum: ['directo', 'canal', 'anuncio', 'grupo'],
     default: 'directo',
     index: true
   },
@@ -23,6 +24,20 @@ const conversacionSchema = new mongoose.Schema({
     type: String,
     default: '',
     trim: true
+  },
+  // Solo para tipo 'grupo': título visible elegido por el creador.
+  nombreGrupo: {
+    type: String,
+    default: '',
+    trim: true,
+    maxlength: 80
+  },
+  // Solo para tipo 'grupo': descripción opcional.
+  descripcionGrupo: {
+    type: String,
+    default: '',
+    trim: true,
+    maxlength: 240
   },
   participantes: [{
     usuario: { type: mongoose.Schema.Types.ObjectId, ref: 'mozos', required: true },

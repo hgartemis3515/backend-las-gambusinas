@@ -28,6 +28,7 @@ const cierreCajaRestauranteRoutes = require('./src/controllers/cierreCajaRestaur
 const adminRoutes = require('./src/controllers/adminController')
 const notificacionesRoutes = require('./src/controllers/notificacionesController')
 const mensajesRoutes = require('./src/controllers/mensajesController')
+const alertasRoutes = require('./src/controllers/alertasController')
 const reportesRoutes = require('./src/controllers/reportesController')
 const rolesRoutes = require('./src/controllers/rolesController')
 const configuracionRoutes = require('./src/controllers/configuracionController')
@@ -234,6 +235,7 @@ app.use('/api', cierreCajaRestauranteRoutes);
 app.use('/api', adminRoutes);
 app.use('/api', notificacionesRoutes);
 app.use('/api', mensajesRoutes);
+app.use('/api', alertasRoutes);
 app.use('/api', reportesRoutes);
 app.use('/api', rolesRoutes);
 app.use('/api', configuracionRoutes);
@@ -250,6 +252,8 @@ app.use('/api', asignacionAutomaticaRoutes);
 
 // Servir archivos estáticos desde la carpeta public
 app.use(express.static(path.join(__dirname, 'public')));
+// Audios de alertas: /sounds/alertas/*.mp3 servidos estáticamente
+app.use('/sounds/alertas', express.static(path.join(__dirname, 'public', 'sounds', 'alertas')));
 
 // Mensajería: servir audios de notas de voz subidos
 app.use('/uploads/mensajes', express.static(path.join(__dirname, 'uploads', 'mensajes')));

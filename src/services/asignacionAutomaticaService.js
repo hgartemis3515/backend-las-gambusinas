@@ -1,18 +1,28 @@
 /**
- * ASIGNACION AUTOMATICA DE PLATOS - SERVICE
+ * ASIGNACION AUTOMATICA DE PLATOS - SERVICE (v2: Perfiles + Calendario)
  *
  * Motor de selección de cocinero para platos nuevos que llegan al KDS.
  * Reutiliza el campo `procesandoPor` de comanda.platos (mismo registro que "Tomar").
  *
- * Reglas (orden):
+ * MODELO MENTAL (resumen):
+ * - La config ahora tiene perfiles con nombre + un calendario semanal (plantilla
+ *   Lun–Dom con franjas horaInicio/horaFin en America/Lima).
+ * - En runtime, resolverPerfilActivo(config, momento) determina QUÉ perfil
+ *   está activo AHORA (según día + hora de Lima). Si no hay franja activa →
+ *   no se asigna (v1: motivo "sin_franja_activa").
+ * - Una vez resuelto el perfil, se usan sus reglasPorPlato/reglasPorCategoria
+ *   (en vez de las legacy raíz) con el mismo algoritmo de selección de antes.
+ *
+ * Reglas de selección (orden, dentro del perfil activo):
  *   1. Si la config no está habilitada → no asigna (deja para Tomar manual).
- *   2. Busca regla por platoId; si no, regla por categoría.
- *   3. Construye lista de candidatos: primario + backups ordenados.
- *   4. Filtra: activo, conectado (si soloCocinerosConectados), respeta zona (si respetarZonas),
+ *   2. resolverPerfilActivo → si null, no asigna (sin_franja_activa).
+ *   3. Busca regla por platoId; si no, regla por categoría.
+ *   4. Construye lista de candidatos: primario + backups ordenados.
+ *   5. Filtra: activo, conectado (si soloCocinerosConectados), respeta zona (si respetarZonas),
  *      no pausado (autoAsignacion.acepta && pausadoHasta < ahora), bajo límites.
- *   5. Overflow 5+1: si el primario ya tiene >= maxMismoPlato del mismo platoId en curso,
+ *   6. Overflow 5+1: si el primario ya tiene >= maxMismoPlato del mismo platoId en curso,
  *      el siguiente pasa al primer backup válido. Igual para totalEnCurso.
- *   6. Si no hay candidato → modoSinCandidato (default: dejar_sin_asignar).
+ *   7. Si no hay candidato → modoSinCandidato (default: dejar_sin_asignar).
  *
  * Contadores en tiempo real: agregación sobre el index idx_platos_en_curso_cocinero.
  * Concurrencia: reintento sobre selección si el write condicional falla por capacidad.
@@ -31,6 +41,91 @@ const Mozos = mongoose.model('mozos') || require('../database/models/mozos.model
 
 const ESTADOS_EN_CURSO = ['pedido', 'en_espera'];
 const MAX_REINTENTOS = 3;
+
+// Timezone del backend (consistente con el resto del sistema).
+const TZ = 'America/Lima';
+
+/**
+ * Devuelve el momento actual en Lima como objeto moment.
+ */
+function nowLima() {
+    return moment().tz(TZ);
+}
+
+/**
+ * Compara "HH:mm" como strings lexicográficos (válido para 24h sin cruzar medianoche).
+ * Devuelve -1, 0, 1.
+ */
+function compararHHmm(a, b) {
+    return a < b ? -1 : (a > b ? 1 : 0);
+}
+
+/**
+ * ¿hhmm está dentro de [horaInicio, horaFin)?  (horaFin exclusiva; v1 sin cruce de medianoche)
+ */
+function horaEnRango(hhmm, horaInicio, horaFin) {
+    return compararHHmm(hhmm, horaInicio) >= 0 && compararHHmm(hhmm, horaFin) < 0;
+}
+
+/**
+ * RESOLVER PERFIL ACTIVO (pura, sin IO).
+ *
+ * Dada la config (documento de asignación) y un momento (moment tz Lima), determina
+ * qué perfil está activo AHORA según el calendario semanal. Devuelve:
+ *   { perfil, bloque, motivo } | { perfil: null, bloque: null, motivo }
+ *
+ * Reglas (prioridad entre bloques solapados):
+ *   1. Solo bloques activos cuyo diasSemana incluye el día actual y la hora cae en rango.
+ *   2. Si 0 bloques → null, motivo 'sin_franja_activa' (o 'deshabilitada' si !habilitada).
+ *   3. Si >1 → gana el MÁS ESPECÍFICO (menos días en diasSemana).
+ *      Si empatan → el de horaInicio más tarde (más acotado al momento actual).
+ *      Si empatan → el de createdAt más reciente (último en crearse).
+ *   4. Busca el perfil por bloque.perfilId; si no existe o está inactivo → null,
+ *      motivo 'perfil_inactivo_o_inexistente'.
+ *
+ * Día: usamos moment.day() => 0=Dom, 1=Lun, ..., 6=Sáb (consistente con diasSemana).
+ */
+function resolverPerfilActivo(config, momento) {
+    if (!config || !config.habilitada) {
+        return { perfil: null, bloque: null, motivo: 'deshabilitada' };
+    }
+    const bloques = (config.calendario && Array.isArray(config.calendario.bloques)) ? config.calendario.bloques : [];
+    if (bloques.length === 0) {
+        return { perfil: null, bloque: null, motivo: 'sin_franja_activa' };
+    }
+    const m = momento || nowLima();
+    const dia = m.day();
+    const hhmm = m.format('HH:mm');
+
+    const candidatos = bloques.filter(b =>
+        b.activo !== false &&
+        Array.isArray(b.diasSemana) &&
+        b.diasSemana.includes(dia) &&
+        horaEnRango(hhmm, b.horaInicio, b.horaFin)
+    );
+
+    if (candidatos.length === 0) {
+        return { perfil: null, bloque: null, motivo: 'sin_franja_activa', dia, hhmm };
+    }
+
+    // Orden de prioridad: menos días (más específico) → horaInicio más tarde → createdAt más reciente.
+    candidatos.sort((a, b) => {
+        const porDias = (a.diasSemana.length) - (b.diasSemana.length);
+        if (porDias !== 0) return porDias;
+        const porInicio = compararHHmm(b.horaInicio, a.horaInicio); // invertido: mayor horaInicio primero
+        if (porInicio !== 0) return porInicio;
+        const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return tb - ta; // más reciente primero
+    });
+
+    const bloqueSeleccionado = candidatos[0];
+    const perfil = (config.perfiles || []).find(p => p.id === bloqueSeleccionado.perfilId && p.activo !== false);
+    if (!perfil) {
+        return { perfil: null, bloque: bloqueSeleccionado, motivo: 'perfil_inactivo_o_inexistente', dia, hhmm };
+    }
+    return { perfil, bloque: bloqueSeleccionado, motivo: 'ok', dia, hhmm };
+}
 
 /**
  * Cuenta platos en curso para un cocinero, total y por platoId.
@@ -132,15 +227,23 @@ async function cocineroConectado(cocineroId) {
 /**
  * Encuentra la regla aplicable para un plato.
  * Prioridad: reglaPorPlato > reglaPorCategoria.
+ *
+ * En v2, `configOrPerfil` puede ser:
+ *   - un PERFIL (tiene sus propias reglasPorPlato/reglasPorCategoria) → usa esas.
+ *   - el documento raíz legacy (sin perfiles) → usa reglasPorPlato/reglasPorCategoria raíz
+ *     (compatibilidad para rollback / tests viejos).
  */
-function encontrarRegla(config, plato) {
+function encontrarRegla(configOrPerfil, plato) {
     const platoId = Number(plato.platoId || plato.id);
-    const reglaPlato = (config.reglasPorPlato || []).find(r => r.platoId === platoId && r.activo !== false);
+    const reglasPlato = configOrPerfil.reglasPorPlato || [];
+    const reglasCat = configOrPerfil.reglasPorCategoria || [];
+
+    const reglaPlato = reglasPlato.find(r => r.platoId === platoId && r.activo !== false);
     if (reglaPlato && reglaPlato.cocineroPrimarioId) return { tipo: 'plato', regla: reglaPlato };
 
     const categoria = plato.categoria || plato.plato?.categoria;
     if (categoria) {
-        const reglaCat = (config.reglasPorCategoria || []).find(r => r.categoria === categoria && r.activo !== false);
+        const reglaCat = reglasCat.find(r => r.categoria === categoria && r.activo !== false);
         if (reglaCat && reglaCat.cocineroPrimarioId) return { tipo: 'categoria', regla: reglaCat };
     }
     return null;
@@ -210,10 +313,17 @@ async function filtrarCandidato(cand, config, plato, platoId, cacheConectado, ca
 
 /**
  * Selecciona el cocinero destino para un plato dado.
- * Retorna { cocineroId, origen, regla, estrategia } o null si no hay candidato.
+ * Retorna { cocineroId, origen, regla, estrategia, perfilId } o null si no hay candidato.
+ *
+ * En v2:
+ *   - `perfil` (opcional): perfil activo resuelto por resolverPerfilActivo. Si se pasa,
+ *     se usan sus reglasPorPlato/reglasPorCategoria. Si NO se pasa, se usa `config`
+ *     (compatibilidad con el flujo legacy y con tests viejos).
+ *   - `config.defaults` sigue siendo la fuente de defaults globales (max, estrategiaDefault, etc.).
  */
-async function seleccionarCocinero(config, plato) {
-    const match = encontrarRegla(config, plato);
+async function seleccionarCocinero(config, plato, perfil = null) {
+    const fuenteReglas = perfil || config;
+    const match = encontrarRegla(fuenteReglas, plato);
     if (!match) {
         // Sin regla: modoSinCandidato decide (en este punto no asignamos)
         return null;
@@ -251,7 +361,8 @@ async function seleccionarCocinero(config, plato) {
         cocineroId: elegido.cocineroId,
         origen: esOverflow ? 'overflow' : 'auto',
         regla: tipo,
-        estrategia
+        estrategia,
+        perfilId: perfil ? perfil.id : null
     };
 }
 
@@ -359,7 +470,9 @@ async function asignarPlatoInterno(comandaId, plato, cocineroId, metaOrigen, met
 /**
  * Asigna automáticamente los platos nuevos de una comanda recién creada.
  * Punto de disparo: comanda.repository.agregarComanda o comandaController tras crear.
- * No lanza (no bloquea creación de comanda). Reintenta por concuror并发idad.
+ * No lanza (no bloquea creación de comanda). Reintenta por concurrencia.
+ *
+ * v2: resuelve el perfil activo una vez por comanda (y por reintento) y usa sus reglas.
  *
  * @param {Object} comanda - documento comanda populated (con platos[])
  */
@@ -370,6 +483,7 @@ async function asignarPlatosNuevos(comanda) {
         const config = await AsignacionAutomatica.obtenerConfiguracion();
         if (!config.habilitada) return { asignados: 0, noAsignados: 0, motivo: 'deshabilitada' };
 
+        // Resolver perfil activo AHORA. Se recalcula por intento si hace falta.
         const platosAsignables = comanda.platos.filter(p =>
             ['pedido', 'en_espera'].includes(p.estado) &&
             !(p.procesandoPor && p.procesandoPor.cocineroId) &&
@@ -378,7 +492,6 @@ async function asignarPlatosNuevos(comanda) {
         if (platosAsignables.length === 0) return { asignados: 0, noAsignados: 0 };
 
         // Necesitamos info de categoría de cada plato (plato ref poblada o lookup por platoId)
-        // Si el documento ya tiene .plato poblado, usar ese; si no, buscar catálogo.
         const PlatoModel = mongoose.model('platos') || require('../database/models/plato.model');
         const platosCatalogo = {};
         const platoIds = platosAsignables.map(p => p.platoId).filter(Boolean);
@@ -401,21 +514,44 @@ async function asignarPlatosNuevos(comanda) {
 
             let elegido = null;
             for (let intento = 0; intento < MAX_REINTENTOS && !elegido; intento++) {
-                // Recarga config por si cambió entre platos (ej. overflow actualiza contadores)
+                // Recarga config por si cambió entre platos (ej. overflow actualiza contadores).
                 const configViva = await AsignacionAutomatica.obtenerConfiguracion();
                 if (!configViva.habilitada) break;
-                elegido = await seleccionarCocinero(configViva, enriched);
+
+                const { perfil, bloque, motivo } = resolverPerfilActivo(configViva, nowLima());
+                if (!perfil) {
+                    // Sin franja activa: registrar motivo y salir (no reintentar, es estructural).
+                    logger.info('Auto-asignación sin perfil activo', {
+                        comandaId: comanda._id.toString(), platoId, motivo
+                    });
+                    break;
+                }
+
+                elegido = await seleccionarCocinero(configViva, enriched, perfil);
+                if (!elegido && intento === MAX_REINTENTOS - 1) {
+                    logger.info('Auto-asignación: plato sin candidato', {
+                        comandaId: comanda._id.toString(), platoId,
+                        perfilId: perfil.id, bloqueId: bloque?.id,
+                        modoSinCandidato: configViva.defaults.modoSinCandidato
+                    });
+                }
             }
 
             if (!elegido) {
                 noAsignados++;
-                logger.info('Auto-asignación: plato sin candidato', { comandaId: comanda._id.toString(), platoId, modoSinCandidato: config.defaults.modoSinCandidato });
                 continue;
             }
 
             const ok = await asignarPlatoInterno(comanda._id, plato, elegido.cocineroId, elegido.origen, elegido.regla);
             if (ok) {
                 asignados++;
+                logger.info('Auto-asignación OK', {
+                    comandaId: comanda._id.toString(), platoId,
+                    cocineroId: elegido.cocineroId,
+                    perfilId: elegido.perfilId,
+                    origen: elegido.origen,
+                    regla: elegido.regla
+                });
             } else {
                 noAsignados++;
             }
@@ -432,25 +568,61 @@ async function asignarPlatosNuevos(comanda) {
 /**
  * Dry-run: simula a quién iría un plato SIN escribir.
  * Útil para la UI (botón Simular).
+ *
+ * v2: acepta opciones:
+ *   - perfilId?: si se indica, simula usando ese perfil (ignora el calendario).
+ *   - enMomento?: ISO string o Date; si se indica, resuelve el perfil activo en ese momento.
+ *     Si no, usa "ahora Lima".
  */
-async function simularAsignacion(platoId, categoria = null, tipo = null) {
+async function simularAsignacion(platoId, categoria = null, tipo = null, opciones = {}) {
     const config = await AsignacionAutomatica.obtenerConfiguracion();
     if (!config.habilitada) {
         return { habilitada: false, cocineroId: null, mensaje: 'Asignación automática deshabilitada' };
     }
+
+    // Resolver perfil a usar: explícito por perfilId, o por calendario en el momento dado.
+    let perfilUsado = null;
+    let bloqueUsado = null;
+    let motivoPerfil = null;
+    if (opciones.perfilId) {
+        perfilUsado = (config.perfiles || []).find(p => p.id === opciones.perfilId && p.activo !== false) || null;
+        if (!perfilUsado) {
+            return { habilitada: true, cocineroId: null, mensaje: 'Perfil no encontrado o inactivo', perfilId: opciones.perfilId };
+        }
+    } else {
+        const momento = opciones.enMomento ? moment(opciones.enMomento).tz(TZ) : nowLima();
+        const r = resolverPerfilActivo(config, momento);
+        perfilUsado = r.perfil;
+        bloqueUsado = r.bloque;
+        motivoPerfil = r.motivo;
+        if (!perfilUsado) {
+            return {
+                habilitada: true,
+                cocineroId: null,
+                mensaje: `Sin perfil activo en este momento (${motivoPerfil})`,
+                motivo: motivoPerfil,
+                dia: r.dia,
+                hhmm: r.hhmm
+            };
+        }
+    }
+
     const plato = {
         platoId: Number(platoId),
         categoria,
         tipo,
         plato: { categoria, tipo }
     };
-    const elegido = await seleccionarCocinero(config, plato);
+    const elegido = await seleccionarCocinero(config, plato, perfilUsado);
     if (!elegido) {
         return {
             habilitada: true,
             cocineroId: null,
             mensaje: 'Sin candidato válido para este plato',
-            modoSinCandidato: config.defaults.modoSinCandidato
+            modoSinCandidato: config.defaults.modoSinCandidato,
+            perfilId: perfilUsado.id,
+            perfilNombre: perfilUsado.nombre,
+            bloqueId: bloqueUsado?.id || null
         };
     }
     const mo = await Mozos.findById(elegido.cocineroId).select('name aliasCocinero');
@@ -461,6 +633,9 @@ async function simularAsignacion(platoId, categoria = null, tipo = null) {
         origen: elegido.origen,
         regla: elegido.regla,
         estrategia: elegido.estrategia,
+        perfilId: perfilUsado.id,
+        perfilNombre: perfilUsado.nombre,
+        bloqueId: bloqueUsado?.id || null,
         mensaje: elegido.origen === 'overflow' ? 'Overflow: asignado a backup' : 'Asignado a primario'
     };
 }
@@ -471,6 +646,11 @@ module.exports = {
     seleccionarCocinero,
     contarPlatosEnCurso,
     mapaPlatosEnCursoPorCocinero,
+    resolverPerfilActivo,
+    nowLima,
+    horaEnRango,
+    compararHHmm,
     ESTADOS_EN_CURSO,
-    MAX_REINTENTOS
+    MAX_REINTENTOS,
+    TZ
 };

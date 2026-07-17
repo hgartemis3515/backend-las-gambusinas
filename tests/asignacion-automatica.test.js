@@ -94,11 +94,25 @@ function buildConfig(over = {}) {
             respetarZonas: false,
             estrategiaDefault: 'hibrido'
         },
+        perfiles: [],
+        calendario: { bloques: [] },
         reglasPorPlato: [],
         reglasPorCategoria: [],
         ...over
     };
 }
+
+// Helper para construir un perfil simple
+function buildPerfil(id, nombre, reglasPlato = [], over = {}) {
+    return { id, nombre, descripcion: '', color: '#D4AF37', activo: true, reglasPorPlato: reglasPlato, reglasPorCategoria: [], ...over };
+}
+
+// Helper para construir un bloque de calendario
+function buildBloque(perfilId, dias, hi, hf, over = {}) {
+    return { id: 'blk-' + Math.random().toString(36).slice(2, 8), perfilId, diasSemana: dias, horaInicio: hi, horaFin: hf, etiqueta: '', activo: true, createdAt: new Date('2026-01-01'), ...over };
+}
+
+const moment = require('moment-timezone');
 
 function buildReglaPlato(platoId, primarioId, backups = [], over = {}) {
     return { platoId, activo: true, cocineroPrimarioId: primarioId, backups, maxMismoPlato: null, estrategia: null, notas: '', ...over };
@@ -262,6 +276,151 @@ describe('asignacionAutomaticaService', () => {
             const r = await service.simularAsignacion(42);
             expect(r.habilitada).toBe(false);
             expect(r.cocineroId).toBeNull();
+        });
+    });
+
+    // ============================================================
+    // NUEVOS v2: resolverPerfilActivo + simular con perfil/momento
+    // ============================================================
+    describe('resolverPerfilActivo', () => {
+        const TZ = 'America/Lima';
+
+        it('devuelve null si !habilitada', () => {
+            const config = buildConfig({ habilitada: false });
+            const r = service.resolverPerfilActivo(config, moment.tz('2026-07-13T09:00', TZ)); // lunes 09:00
+            expect(r.perfil).toBeNull();
+            expect(r.motivo).toBe('deshabilitada');
+        });
+
+        it('devuelve null si no hay bloques', () => {
+            const config = buildConfig();
+            const r = service.resolverPerfilActivo(config, moment.tz('2026-07-13T09:00', TZ));
+            expect(r.perfil).toBeNull();
+            expect(r.motivo).toBe('sin_franja_activa');
+        });
+
+        it('devuelve null si la hora actual cae fuera de toda franja', () => {
+            const perfil = buildPerfil('p1', 'Almuerzo');
+            const config = buildConfig({
+                perfiles: [perfil],
+                calendario: { bloques: [buildBloque('p1', [1], '08:00', '12:00')] }
+            });
+            // Lunes 13:00 → fuera
+            const r = service.resolverPerfilActivo(config, moment.tz('2026-07-13T13:00', TZ));
+            expect(r.perfil).toBeNull();
+            expect(r.motivo).toBe('sin_franja_activa');
+        });
+
+        it('devuelve null si el día no coincide con diasSemana', () => {
+            const perfil = buildPerfil('p1', 'Almuerzo');
+            const config = buildConfig({
+                perfiles: [perfil],
+                calendario: { bloques: [buildBloque('p1', [2], '08:00', '12:00')] } // solo martes
+            });
+            // Lunes 09:00 → no aplica
+            const r = service.resolverPerfilActivo(config, moment.tz('2026-07-13T09:00', TZ));
+            expect(r.perfil).toBeNull();
+            expect(r.motivo).toBe('sin_franja_activa');
+        });
+
+        it('resuelve el perfil cuando día + hora coinciden', () => {
+            const perfil = buildPerfil('p1', 'Almuerzo');
+            const config = buildConfig({
+                perfiles: [perfil],
+                calendario: { bloques: [buildBloque('p1', [1], '08:00', '12:00')] }
+            });
+            const r = service.resolverPerfilActivo(config, moment.tz('2026-07-13T10:30', TZ)); // Lunes 10:30
+            expect(r.perfil).not.toBeNull();
+            expect(r.perfil.id).toBe('p1');
+            expect(r.bloque.horaInicio).toBe('08:00');
+            expect(r.motivo).toBe('ok');
+        });
+
+        it('elije el bloque más específico (menos días) cuando hay solape', () => {
+            const perfilGeneral = buildPerfil('p-gen', 'General');
+            const perfilLunes = buildPerfil('p-lun', 'Solo Lunes');
+            const config = buildConfig({
+                perfiles: [perfilGeneral, perfilLunes],
+                calendario: {
+                    bloques: [
+                        buildBloque('p-gen', [0, 1, 2, 3, 4, 5, 6], '00:00', '23:59'), // toda la semana
+                        buildBloque('p-lun', [1], '08:00', '12:00') // solo lunes más específico
+                    ]
+                }
+            });
+            const r = service.resolverPerfilActivo(config, moment.tz('2026-07-13T10:30', TZ)); // Lunes 10:30
+            expect(r.perfil.id).toBe('p-lun');
+            expect(r.bloque.diasSemana).toEqual([1]);
+        });
+
+        it('elije el de horaInicio más tarde si empatan en días', () => {
+            const perfilA = buildPerfil('pA', 'A');
+            const perfilB = buildPerfil('pB', 'B');
+            const t1 = new Date('2026-01-01');
+            const t2 = new Date('2026-01-02');
+            const config = buildConfig({
+                perfiles: [perfilA, perfilB],
+                calendario: {
+                    bloques: [
+                        { id: 'b1', perfilId: 'pA', diasSemana: [1], horaInicio: '08:00', horaFin: '12:00', etiqueta: '', activo: true, createdAt: t1 },
+                        { id: 'b2', perfilId: 'pB', diasSemana: [1], horaInicio: '09:00', horaFin: '12:00', etiqueta: '', activo: true, createdAt: t2 }
+                    ]
+                }
+            });
+            const r = service.resolverPerfilActivo(config, moment.tz('2026-07-13T10:30', TZ)); // Lunes 10:30
+            // Ambos cubren las 10:30; mismo número de días; gana el de horaInicio más tarde (09:00)
+            expect(r.bloque.id).toBe('b2');
+            expect(r.perfil.id).toBe('pB');
+        });
+
+        it('devuelve null si el perfil referenciado no existe o está inactivo', () => {
+            const config = buildConfig({
+                perfiles: [buildPerfil('p1', 'A', [], { activo: false })],
+                calendario: { bloques: [buildBloque('p1', [1], '08:00', '12:00')] }
+            });
+            const r = service.resolverPerfilActivo(config, moment.tz('2026-07-13T10:30', TZ));
+            expect(r.perfil).toBeNull();
+            expect(r.motivo).toBe('perfil_inactivo_o_inexistente');
+        });
+    });
+
+    describe('simularAsignacion (v2: con perfilId / enMomento)', () => {
+        it('simula usando un perfilId explícito (ignora calendario)', async () => {
+            const perfil = buildPerfil('p1', 'Almuerzo', [buildReglaPlato(42, C1)]);
+            const config = buildConfig({ perfiles: [perfil], calendario: { bloques: [] } });
+            AsignacionAutomatica.obtenerConfiguracion.mockResolvedValue(config);
+            ComandaMock.aggregate.mockResolvedValue([{ _id: null, total: 0 }]);
+            const r = await service.simularAsignacion(42, null, null, { perfilId: 'p1' });
+            expect(r.cocineroId).toBe(C1);
+            expect(r.perfilId).toBe('p1');
+            expect(r.perfilNombre).toBe('Almuerzo');
+        });
+
+        it('simula usando enMomento para resolver perfil activo', async () => {
+            const perfil = buildPerfil('p1', 'Almuerzo', [buildReglaPlato(42, C1)]);
+            const config = buildConfig({
+                perfiles: [perfil],
+                calendario: { bloques: [buildBloque('p1', [1], '08:00', '12:00')] }
+            });
+            AsignacionAutomatica.obtenerConfiguracion.mockResolvedValue(config);
+            ComandaMock.aggregate.mockResolvedValue([{ _id: null, total: 0 }]);
+            // Lunes 10:30 Lima → franja activa
+            const r = await service.simularAsignacion(42, null, null, { enMomento: '2026-07-13T10:30:00-05:00' });
+            expect(r.cocineroId).toBe(C1);
+            expect(r.perfilId).toBe('p1');
+        });
+
+        it('devuelve "sin perfil activo" cuando enMomento cae fuera de franja', async () => {
+            const perfil = buildPerfil('p1', 'Almuerzo', [buildReglaPlato(42, C1)]);
+            const config = buildConfig({
+                perfiles: [perfil],
+                calendario: { bloques: [buildBloque('p1', [1], '08:00', '12:00')] }
+            });
+            AsignacionAutomatica.obtenerConfiguracion.mockResolvedValue(config);
+            // Lunes 13:00 Lima → fuera de franja
+            const r = await service.simularAsignacion(42, null, null, { enMomento: '2026-07-13T13:00:00-05:00' });
+            expect(r.cocineroId).toBeNull();
+            expect(r.motivo).toBe('sin_franja_activa');
         });
     });
 });

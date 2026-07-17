@@ -123,6 +123,7 @@ class ChatDashboard {
               <button id="chat-tab-conversaciones" class="chat-tab active">Recientes</button>
               <button id="chat-tab-usuarios" class="chat-tab">Personas</button>
               <button id="chat-tab-anuncios" class="chat-tab">📢</button>
+              <button id="chat-btn-nuevo-grupo" title="Nuevo grupo" class="chat-tab">👥</button>
               <button id="chat-btn-cerrar" title="Cerrar" class="chat-btn-icon">✕</button>
             </div>
           </div>
@@ -315,6 +316,13 @@ class ChatDashboard {
           width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center;
           justify-content: center; font-weight: 700; flex-shrink: 0; font-size: 16px;
         }
+        .chat-grupo-chip {
+          display: inline-flex; align-items: center; gap: 6px;
+          background: #1f1f29; border: 1px solid #2f2f3a; border-radius: 16px;
+          padding: 4px 10px; font-size: 12px; cursor: pointer; user-select: none; color: #f4f4f5;
+        }
+        .chat-grupo-chip input { margin: 0; }
+        .chat-grupo-chip small { color: #a1a1aa; }
         .chat-bubble-mia {
           align-self: flex-end; background: #0084ff; color: white;
           border-radius: 18px 18px 4px 18px; padding: 8px 14px; max-width: min(70%, 420px); font-size: 13px;
@@ -370,6 +378,7 @@ class ChatDashboard {
     document.getElementById('chat-tab-conversaciones')?.addEventListener('click', () => this.cambiarVista('conversaciones'));
     document.getElementById('chat-tab-usuarios')?.addEventListener('click', () => this.cambiarVista('usuarios'));
     document.getElementById('chat-tab-anuncios')?.addEventListener('click', () => this.cambiarVista('anuncios'));
+    document.getElementById('chat-btn-nuevo-grupo')?.addEventListener('click', () => this.abrirModalNuevoGrupo());
 
     document.getElementById('chat-buscador')?.addEventListener('input', (e) => {
       this.busqueda = e.target.value;
@@ -566,7 +575,7 @@ class ChatDashboard {
       ? `<span style="background:${prioColor || '#ff4757'};color:white;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:bold;">${c.noLeidos}</span>`
       : '';
     const inicial = (c.titulo || '?').replace('#', '').charAt(0).toUpperCase();
-    const icono = c.tipo === 'anuncio' ? '📢' : (c.tipo === 'canal' ? '#' : '●');
+    const icono = c.tipo === 'anuncio' ? '📢' : (c.tipo === 'canal' ? '#' : (c.tipo === 'grupo' ? '👥' : '●'));
     const pinIcon = c.pineado ? '📌' : '';
     const muteIcon = c.silenciado ? '🔕' : '';
     const active = this.convActiva?._id === c._id ? ' active' : '';
@@ -613,12 +622,84 @@ class ChatDashboard {
     }
   }
 
+  // ==================== Grupos ====================
+
+  abrirModalNuevoGrupo() {
+    // Modal simple para crear grupo: nombre + multi-select de personas
+    const existente = document.getElementById('chat-modal-grupo');
+    if (existente) existente.remove();
+
+    const opciones = this.usuarios.map(u =>
+      `<label class="chat-grupo-chip">
+         <input type="checkbox" value="${u._id}" data-nombre="${this._escAttr(u.name)}">
+         <span>${this._esc(u.name)} <small>(${u.rol || ''})</small></span>
+       </label>`).join('');
+
+    const modal = document.createElement('div');
+    modal.id = 'chat-modal-grupo';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:10009;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6)';
+    modal.innerHTML = `
+      <div style="background:#14141a;color:#f4f4f5;border-radius:12px;width:min(440px,92vw);max-height:86vh;display:flex;flex-direction:column;font-family:system-ui,sans-serif">
+        <div style="padding:14px 18px;border-bottom:1px solid #2a2a3a;display:flex;justify-content:space-between;align-items:center">
+          <strong style="font-size:15px">👥 Nuevo grupo</strong>
+          <button id="chat-grupo-cancel-x" style="background:transparent;border:0;color:#a1a1aa;font-size:22px;cursor:pointer">×</button>
+        </div>
+        <div style="padding:14px 18px;overflow-y:auto;flex:1">
+          <label style="font-size:11px;color:#a1a1aa;text-transform:uppercase;letter-spacing:0.5px">Nombre del grupo</label>
+          <input id="chat-grupo-nombre" type="text" maxlength="80" placeholder="Ej: Turno noche"
+            style="width:100%;background:#1f1f29;color:#f4f4f5;border:1px solid #2f2f3a;border-radius:8px;padding:8px 10px;margin-top:4px;box-sizing:border-box">
+          <label style="display:block;font-size:11px;color:#a1a1aa;text-transform:uppercase;letter-spacing:0.5px;margin-top:14px">Miembros</label>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${opciones}</div>
+        </div>
+        <div style="padding:12px 18px;border-top:1px solid #2a2a3a;display:flex;gap:8px;justify-content:flex-end">
+          <button id="chat-grupo-cancel" style="padding:8px 14px;background:transparent;border:1px solid #2f2f3a;color:#a1a1aa;border-radius:8px;cursor:pointer">Cancelar</button>
+          <button id="chat-grupo-crear" style="padding:8px 18px;background:linear-gradient(135deg,#d4af37,#b8860b);color:#0a0a0f;border:0;border-radius:8px;font-weight:700;cursor:pointer">Crear grupo</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const cerrar = () => modal.remove();
+    modal.querySelector('#chat-grupo-cancel-x').addEventListener('click', cerrar);
+    modal.querySelector('#chat-grupo-cancel').addEventListener('click', cerrar);
+    modal.addEventListener('click', (e) => { if (e.target === modal) cerrar(); });
+
+    modal.querySelector('#chat-grupo-crear').addEventListener('click', async () => {
+      const nombre = modal.querySelector('#chat-grupo-nombre').value.trim();
+      const seleccionados = Array.from(modal.querySelectorAll('input[type=checkbox]:checked'))
+        .map(c => c.value);
+      if (!nombre) { alert('Ponle un nombre al grupo'); return; }
+      if (!seleccionados.length) { alert('Elige al menos a un miembro'); return; }
+      try {
+        const resp = await apiPost(`${this.config.apiBase}/conversaciones`, {
+          tipo: 'grupo', nombreGrupo: nombre, participanteIds: seleccionados
+        });
+        if (resp?.success) {
+          cerrar();
+          await this.cargarConversaciones();
+          this.abrirConversacion(resp.data._id);
+        } else {
+          alert(resp?.error || 'No se pudo crear el grupo');
+        }
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+    });
+  }
+
+  _escAttr(s) { return String(s || '').replace(/"/g, '&quot;'); }
+  _esc(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
   // ==================== Hilo ====================
 
   async abrirConversacion(id) {
     this.convActiva = this.conversaciones.find(c => c._id === id) || { _id: id };
     document.getElementById('chat-hilo-titulo').textContent =
-      `${this.convActiva.tipo === 'anuncio' ? '📢 ' : (this.convActiva.tipo === 'canal' ? '# ' : '')}${this.convActiva.titulo || 'Conversación'}`;
+      `${this.convActiva.tipo === 'anuncio' ? '📢 ' : (this.convActiva.tipo === 'canal' ? '# ' : (this.convActiva.tipo === 'grupo' ? '👥 ' : ''))}${this.convActiva.titulo || 'Conversación'}`;
     this.renderSidebar(); // para marcar active
     this.mostrarHiloMovil();
     await this.cargarMensajes(id);
