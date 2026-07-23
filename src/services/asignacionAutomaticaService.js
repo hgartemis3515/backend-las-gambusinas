@@ -640,6 +640,117 @@ async function simularAsignacion(platoId, categoria = null, tipo = null, opcione
     };
 }
 
+// ============================ Vista de platos asignados (Excel + modal) ============================
+
+/**
+ * Definición CANÓNICA de "regla asignada a un cocinero".
+ * Una regla cuenta como asignada si:
+ *   - está activa (activo !== false), Y
+ *   - tiene cocineroPrimarioId, O al menos un backup con cocineroId.
+ *
+ * Fuente única de verdad: la usan el Excel de exportación y la vista de
+ * "Platos asignados del perfil" en el modal de franja del calendario.
+ * No realiza IO; acepta la regla tal cual viene del documento (toObject).
+ *
+ * @param {object} regla - reglaPorPlato o reglaPorCategoria.
+ * @returns {boolean}
+ */
+function isReglaAsignada(regla) {
+    if (!regla) return false;
+    if (regla.activo === false) return false;
+    const tienePrimario = !!regla.cocineroPrimarioId;
+    const backupsValidos = Array.isArray(regla.backups) && regla.backups.some(b => b && b.cocineroId);
+    return tienePrimario || backupsValidos;
+}
+
+/**
+ * Construye el DTO de platos asignados para un perfil, enriquecido con
+ * nombres de plato y de cocineros (primario + backups).
+ *
+ * @param {object} perfil - subdocumento perfil (con reglasPorPlato[]).
+ * @param {Map<string, object>} platosMap - platoId(num/string) → { nombre, categoria }.
+ * @param {Map<string, object>} cocinerosMap - _id(string) → { nombre, alias }.
+ * @returns {Array<object>} DTO ordenado por categoría, luego nombre de plato.
+ *   {
+ *     platoId, nombrePlato, categoria,
+ *     perfilId, perfilNombre, perfilActivo,
+ *     cocineroPrimarioId, cocineroPrimarioNombre,
+ *     backups: [{ cocineroId, nombre, orden }],
+ *     backupsNombres: string,   // "Martha; Ana"
+ *     estrategia, maxMismoPlato, notas, activo
+ *   }
+ */
+function construirPlatosAsignadosDTO(perfil, platosMap, cocinerosMap) {
+    if (!perfil) return [];
+    const reglas = Array.isArray(perfil.reglasPorPlato) ? perfil.reglasPorPlato : [];
+    const nombreCocinero = (id) => {
+        if (!id) return null;
+        const c = cocinerosMap.get(String(id));
+        if (!c) return `Cocinero eliminado (${String(id).slice(-6)})`;
+        return c.alias || c.nombre || `Cocinero ${String(id).slice(-4)}`;
+    };
+
+    const filas = reglas
+        .filter(isReglaAsignada)
+        .map(r => {
+            const platoInfo = platosMap.get(String(r.platoId)) || platosMap.get(Number(r.platoId)) || {};
+            const backups = (r.backups || [])
+                .filter(b => b && b.cocineroId)
+                .map(b => ({
+                    cocineroId: String(b.cocineroId),
+                    nombre: nombreCocinero(b.cocineroId),
+                    orden: Number.isFinite(b.orden) ? Number(b.orden) : 0
+                }))
+                .sort((a, b) => a.orden - b.orden);
+
+            return {
+                platoId: r.platoId,
+                nombrePlato: platoInfo.nombre || `Plato #${r.platoId}`,
+                categoria: platoInfo.categoria || '',
+                perfilId: perfil.id,
+                perfilNombre: perfil.nombre,
+                perfilActivo: perfil.activo !== false,
+                cocineroPrimarioId: r.cocineroPrimarioId ? String(r.cocineroPrimarioId) : null,
+                cocineroPrimarioNombre: r.cocineroPrimarioId ? nombreCocinero(r.cocineroPrimarioId) : null,
+                backups,
+                backupsNombres: backups.map(b => b.nombre).join('; '),
+                estrategia: r.estrategia || null,
+                maxMismoPlato: Number.isFinite(r.maxMismoPlato) ? Number(r.maxMismoPlato) : null,
+                notas: r.notas || '',
+                activo: r.activo !== false
+            };
+        });
+
+    filas.sort((a, b) => {
+        const ca = (a.categoria || '').toLowerCase();
+        const cb = (b.categoria || '').toLowerCase();
+        if (ca !== cb) return ca < cb ? -1 : 1;
+        const na = (a.nombrePlato || '').toLowerCase();
+        const nb = (b.nombrePlato || '').toLowerCase();
+        return na < nb ? -1 : (na > nb ? 1 : 0);
+    });
+
+    return filas;
+}
+
+/**
+ * Filtra los perfiles relevantes según el alcance del export.
+ *  - 'calendario' (default): solo perfiles referenciados por bloques activos del calendario.
+ *    Si el calendario no tiene bloques, cae a 'todos' (auditoría global).
+ *  - 'todos': todos los perfiles.
+ *
+ * @returns {Array<object>} perfiles (referencias al array original).
+ */
+function filtrarPerfilesPorAlcance(config, alcance) {
+    const perfiles = Array.isArray(config.perfiles) ? config.perfiles : [];
+    if (alcance === 'todos') return perfiles;
+
+    const bloques = (config.calendario && Array.isArray(config.calendario.bloques)) ? config.calendario.bloques : [];
+    const idsEnCalendario = new Set(bloques.filter(b => b.activo !== false).map(b => b.perfilId));
+    if (idsEnCalendario.size === 0) return perfiles; // fallback a todos
+    return perfiles.filter(p => idsEnCalendario.has(p.id));
+}
+
 module.exports = {
     asignarPlatosNuevos,
     simularAsignacion,
@@ -652,5 +763,9 @@ module.exports = {
     compararHHmm,
     ESTADOS_EN_CURSO,
     MAX_REINTENTOS,
-    TZ
+    TZ,
+    // Vista de platos asignados (Excel + modal)
+    isReglaAsignada,
+    construirPlatosAsignadosDTO,
+    filtrarPerfilesPorAlcance
 };

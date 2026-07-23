@@ -8,6 +8,7 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
+const moment = require('moment-timezone');
 const { adminAuth, checkPermission } = require('../middleware/adminAuth');
 const logger = require('../utils/logger');
 
@@ -15,6 +16,7 @@ const asignacionRepository = require('../repository/asignacionAutomatica.reposit
 const asignacionService = require('../services/asignacionAutomaticaService');
 
 const Mozos = mongoose.model('mozos') || require('../database/models/mozos.model');
+const Plato = require('../database/models/plato.model');
 
 const ESTRATEGIAS_VALIDAS = ['fijo_por_plato', 'fijo_por_categoria', 'cadena_overflow', 'menor_carga', 'round_robin', 'hibrido', 'respetar_zona'];
 const MODOS_SIN_CANDIDATO_VALIDOS = ['dejar_sin_asignar', 'pool_supervisor', 'round_robin_zona'];
@@ -113,6 +115,47 @@ function calcularPerfilActivoAhora(config) {
         horaInicio: r.bloque?.horaInicio || null,
         horaFin: r.bloque?.horaFin || null
     };
+}
+
+/**
+ * Carga mapas en memoria para enriquecer el DTO de platos asignados:
+ *  - platosMap:    platoId (String)      → { nombre, categoria }
+ *  - cocinerosMap: _id (String)          → { nombre, alias }
+ *
+ * Se reutiliza en el endpoint de exportación Excel y en el de platos-asignados
+ * por perfil, para que la vista del modal y el Excel sean consistentes.
+ */
+async function cargarMapasEnriquecimiento(perfiles) {
+    // IDs de platos referenciados en reglas
+    const platoIds = new Set();
+    perfiles.forEach(p => {
+        (p.reglasPorPlato || []).forEach(r => {
+            if (r.platoId != null) platoIds.add(Number(r.platoId));
+        });
+    });
+    // IDs de cocineros (primario + backups)
+    const cocineroIds = new Set();
+    const recolectar = (arr) => {
+        (arr || []).forEach(r => {
+            if (r.cocineroPrimarioId) cocineroIds.add(String(r.cocineroPrimarioId));
+            (r.backups || []).forEach(b => { if (b && b.cocineroId) cocineroIds.add(String(b.cocineroId)); });
+        });
+    };
+    perfiles.forEach(p => { recolectar(p.reglasPorPlato); recolectar(p.reglasPorCategoria); });
+
+    const platosMap = new Map();
+    if (platoIds.size > 0) {
+        const docs = await Plato.find({ id: { $in: Array.from(platoIds) } }).select('id nombre categoria');
+        docs.forEach(d => platosMap.set(String(d.id), { nombre: d.nombre, categoria: d.categoria }));
+    }
+
+    const cocinerosMap = new Map();
+    if (cocineroIds.size > 0) {
+        const docs = await Mozos.find({ _id: { $in: Array.from(cocineroIds) } }).select('name aliasCocinero');
+        docs.forEach(c => cocinerosMap.set(String(c._id), { nombre: c.name, alias: c.aliasCocinero }));
+    }
+
+    return { platosMap, cocinerosMap };
 }
 
 // ============================ Endpoints ============================
@@ -372,6 +415,199 @@ router.post('/asignacion-automatica/simular', adminAuth, async (req, res) => {
     } catch (error) {
         logger.error('Error al simular asignación', { error: error.message });
         res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ============================ Exportación Excel + vista por perfil ============================
+
+/**
+ * GET /api/asignacion-automatica/perfiles/:id/platos-asignados
+ * Devuelve el DTO de platos asignados (con cocinero) de un perfil concreto.
+ * Fuente de la vista "Platos asignados de este perfil" en el modal de franja.
+ * Misma definición de "asignado" que el Excel.
+ */
+router.get('/asignacion-automatica/perfiles/:id/platos-asignados', adminAuth, async (req, res) => {
+    try {
+        const config = await asignacionRepository.obtenerConfiguracion();
+        const perfil = (config.perfiles || []).find(p => p.id === req.params.id);
+        if (!perfil) {
+            return res.status(404).json({ success: false, error: 'Perfil no encontrado' });
+        }
+        const { platosMap, cocinerosMap } = await cargarMapasEnriquecimiento([perfil]);
+        const filas = asignacionService.construirPlatosAsignadosDTO(perfil, platosMap, cocinerosMap);
+        res.json({
+            success: true,
+            data: {
+                perfilId: perfil.id,
+                perfilNombre: perfil.nombre,
+                perfilActivo: perfil.activo !== false,
+                total: filas.length,
+                platos: filas
+            }
+        });
+    } catch (error) {
+        logger.error('Error al obtener platos asignados del perfil', { perfilId: req.params.id, error: error.message });
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * GET /api/asignacion-automatica/exportar-excel
+ * Descarga un .xlsx con todos los platos efectivamente asignados a cocineros
+ * (primario y/o backups). No incluye platos sin regla ni reglas vacías.
+ *
+ * Query params:
+ *  - alcance: 'calendario' (default) | 'todos'
+ *      calendario = solo perfiles referenciados por bloques activos del calendario.
+ *      Si el calendario no tiene bloques, cae a 'todos' (auditoría global).
+ *  - incluirCategorias: '1' para añadir una segunda hoja con reglas por categoría.
+ *
+ * Respuesta:
+ *  - 200 + .xlsx si hay filas.
+ *  - 400 si no hay ninguna fila asignada (FE muestra toast; no descarga vacío).
+ */
+router.get('/asignacion-automatica/exportar-excel', adminAuth, async (req, res) => {
+    const alcance = req.query.alcance === 'todos' ? 'todos' : 'calendario';
+    const incluirCategorias = req.query.incluirCategorias === '1';
+    const startedAt = Date.now();
+
+    let XLSX;
+    try {
+        XLSX = require('xlsx');
+    } catch (e) {
+        logger.error('Librería xlsx no disponible al exportar asignación', { error: e.message });
+        return res.status(500).json({
+            success: false,
+            error: 'Librería xlsx no instalada',
+            message: 'Instale xlsx con: npm install xlsx'
+        });
+    }
+
+    try {
+        const config = await asignacionRepository.obtenerConfiguracion();
+        const perfiles = asignacionService.filtrarPerfilesPorAlcance(config, alcance);
+        const { platosMap, cocinerosMap } = await cargarMapasEnriquecimiento(perfiles);
+
+        // Hoja 1: Platos asignados (una fila por plato × perfil).
+        const platosData = [
+            ['Perfil', 'Perfil activo', 'Plato ID', 'Nombre del plato', 'Categoría',
+             'Cocinero primario', 'Backups', 'Estrategia', 'Máx. mismo plato', 'Notas']
+        ];
+        let totalFilas = 0;
+        perfiles.forEach(p => {
+            const filas = asignacionService.construirPlatosAsignadosDTO(p, platosMap, cocinerosMap);
+            filas.forEach(f => {
+                platosData.push([
+                    f.perfilNombre,
+                    f.perfilActivo ? 'Sí' : 'No',
+                    f.platoId,
+                    f.nombrePlato,
+                    f.categoria,
+                    f.cocineroPrimarioNombre || '—',
+                    f.backupsNombres || '—',
+                    f.estrategia || '',
+                    f.maxMismoPlato != null ? f.maxMismoPlato : '',
+                    f.notas
+                ]);
+                totalFilas++;
+            });
+        });
+
+        if (totalFilas === 0) {
+            logger.info('Export Excel asignación: sin filas asignadas', { alcance, incluirCategorias });
+            return res.status(400).json({
+                success: false,
+                error: 'No hay platos asignados para exportar',
+                message: 'No existe ningún plato con cocinero (primario o backup) en la configuración actual.'
+            });
+        }
+
+        const workbook = XLSX.utils.book_new();
+        const platosSheet = XLSX.utils.aoa_to_sheet(platosData);
+        // Anchos de columna razonables.
+        platosSheet['!cols'] = [
+            { wch: 18 }, { wch: 12 }, { wch: 9 }, { wch: 32 }, { wch: 18 },
+            { wch: 22 }, { wch: 30 }, { wch: 16 }, { wch: 14 }, { wch: 30 }
+        ];
+        XLSX.utils.book_append_sheet(workbook, platosSheet, 'Platos asignados');
+
+        // Hoja 2 (opcional): Reglas por categoría asignadas.
+        if (incluirCategorias) {
+            const catData = [
+                ['Perfil', 'Perfil activo', 'Categoría', 'Cocinero primario', 'Backups', 'Estrategia', 'Notas']
+            ];
+            perfiles.forEach(p => {
+                const reglas = (p.reglasPorCategoria || []).filter(asignacionService.isReglaAsignada);
+                reglas.forEach(r => {
+                    const primario = r.cocineroPrimarioId
+                        ? (cocinerosMap.get(String(r.cocineroPrimarioId)) || {})
+                        : {};
+                    const backupsNombres = (r.backups || [])
+                        .filter(b => b && b.cocineroId)
+                        .map(b => {
+                            const c = cocinerosMap.get(String(b.cocineroId)) || {};
+                            return c.alias || c.nombre || `Cocinero ${String(b.cocineroId).slice(-4)}`;
+                        })
+                        .join('; ');
+                    catData.push([
+                        p.nombre,
+                        p.activo !== false ? 'Sí' : 'No',
+                        r.categoria,
+                        primario.alias || primario.nombre || '—',
+                        backupsNombres || '—',
+                        r.estrategia || '',
+                        r.notas || ''
+                    ]);
+                });
+            });
+            const catSheet = XLSX.utils.aoa_to_sheet(catData);
+            catSheet['!cols'] = [
+                { wch: 18 }, { wch: 12 }, { wch: 22 }, { wch: 22 }, { wch: 30 }, { wch: 16 }, { wch: 30 }
+            ];
+            XLSX.utils.book_append_sheet(workbook, catSheet, 'Categorías');
+        }
+
+        // Hoja 3: Resumen + contexto de generación.
+        const hoyLima = moment().tz(asignacionService.TZ).format('DD/MM/YYYY HH:mm');
+        const resumenData = [
+            ['REPORTE DE ASIGNACIÓN AUTOMÁTICA — Platos asignados'],
+            ['Generado', hoyLima],
+            ['Alcance', alcance],
+            ['Incluir categorías', incluirCategorias ? 'Sí' : 'No'],
+            ['Total perfiles', perfiles.length],
+            ['Total filas (platos asignados)', totalFilas],
+            [],
+            ['Resumen por perfil'],
+            ['Perfil', 'Activo', 'Platos asignados']
+        ];
+        perfiles.forEach(p => {
+            const n = asignacionService.construirPlatosAsignadosDTO(p, platosMap, cocinerosMap).length;
+            resumenData.push([p.nombre, p.activo !== false ? 'Sí' : 'No', n]);
+        });
+        const resumenSheet = XLSX.utils.aoa_to_sheet(resumenData);
+        resumenSheet['!cols'] = [{ wch: 28 }, { wch: 12 }, { wch: 22 }];
+        XLSX.utils.book_append_sheet(workbook, resumenSheet, 'Resumen');
+
+        const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+        const filename = `asignacion-automatica-platos-${moment().tz(asignacionService.TZ).format('YYYY-MM-DD')}.xlsx`;
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.send(excelBuffer);
+
+        logger.info('Export Excel asignación OK', {
+            alcance, incluirCategorias, totalFilas,
+            perfiles: perfiles.length, elapsedMs: Date.now() - startedAt
+        });
+    } catch (error) {
+        logger.error('Error al exportar Excel de asignación automática', {
+            alcance, error: error.message, elapsedMs: Date.now() - startedAt
+        });
+        res.status(500).json({
+            success: false,
+            error: 'Error al exportar Excel',
+            message: error.message
+        });
     }
 });
 
