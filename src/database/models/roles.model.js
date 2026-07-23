@@ -55,6 +55,10 @@ const PERMISOS_FUNDAMENTALES = {
     'desplegar-monitores-cocina': { nombre: 'Desplegar Monitores Cocina', grupo: 'App Cocina', descripcion: 'Abrir y gestionar ventanas de monitores en multiples televisores de cocina' },
     'administrar-vistas-cocina': { nombre: 'Administrar Vistas de Cocina', grupo: 'App Cocina', descripcion: 'Crear, editar y eliminar Vistas de Cocina y asignarlas a pantallas desde el dashboard' },
 
+    // App Mozos — Panel de Gestión
+    // PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR: pantalla de peticiones/solicitudes (p. ej. Solicitar Orden desde cocina)
+    'ver-panel-gestion-mozos': { nombre: 'Ver Panel de Gestión', grupo: 'App Mozos', descripcion: 'Acceder al Panel de Gestión en App Mozos (peticiones/solicitudes de otros usuarios, p. ej. Solicitar Orden desde cocina)' },
+
     // Mensajería interna + voz
     'ver-mensajes': { nombre: 'Ver Mensajes', grupo: 'Mensajería', descripcion: 'Abrir inbox y canales de mensajería' },
     'enviar-mensajes': { nombre: 'Enviar Mensajes', grupo: 'Mensajería', descripcion: 'Enviar mensajes de texto en DM y canales permitidos' },

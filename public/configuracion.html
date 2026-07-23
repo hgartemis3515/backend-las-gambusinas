@@ -601,6 +601,21 @@ tailwind.config = {
               <input type="checkbox" x-model="config.mostrarComplementos" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
               <span class="text-sm text-txt-secondary">Mostrar complementos en tickets</span>
             </label>
+
+            <!-- PLAN OBLIGAR ORDEN ASIGNACION KDS SUPERVISOR -->
+            <div class="border-t border-[rgba(212,175,55,0.15)] pt-4 mt-4 space-y-3">
+              <p class="text-xs text-gold font-semibold uppercase tracking-wide">Orden de asignación de platos</p>
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" x-model="config.cocinaObligarOrdenAsignacion" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+                <span class="text-sm text-txt-secondary">Obligar orden para cocineros y el supervisor</span>
+              </label>
+              <p class="text-[10px] text-txt-muted pl-7">Si está marcado (recomendado), en el KDS solo se puede marcar y finalizar directo el plato #1 de cada cocinero. Los administradores pueden omitir esta regla.</p>
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" x-model="config.cocinaSolicitudOrdenFueraDeCola" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+                <span class="text-sm text-txt-secondary">Solicitar orden al admin (platos fuera de secuencia)</span>
+              </label>
+              <p class="text-[10px] text-txt-muted pl-7">Si está marcado (recomendado), cuando el supervisor intente cerrar un plato #2 o posterior, en lugar de finalizar aparecerá "Solicitar Orden". La petición llegará al Panel de Gestión del admin en la App Mozos y se notificará igualmente al admin en el Dashboard. Si se desmarca, el supervisor podrá finalizar #2/#3 sin pedir autorización.</p>
+            </div>
           </div>
         </div>
 
@@ -1586,6 +1601,16 @@ function configApp() {
             this.config.mozosPermitirEditarEliminarTomadasPorCocina = false;
           }
 
+          // Mapear Cocina (Obligar orden + Solicitar Orden)
+          // PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR: defaults en true (!== false)
+          if (cfg.cocina) {
+            this.config.cocinaObligarOrdenAsignacion = cfg.cocina.obligarOrdenAsignacion !== false;
+            this.config.cocinaSolicitudOrdenFueraDeCola = cfg.cocina.solicitudOrdenFueraDeCola !== false;
+          } else {
+            this.config.cocinaObligarOrdenAsignacion = true;
+            this.config.cocinaSolicitudOrdenFueraDeCola = true;
+          }
+
           // Mapear zona horaria y otros
           this.config.zonaHoraria = cfg.zonaHoraria || 'America/Lima';
           this.config.idiomaPrincipal = cfg.idiomaPrincipal || 'es-PE';
@@ -1722,6 +1747,12 @@ function configApp() {
           mozos: {
             botonImprimirComanda: this.config.mozosBotonImprimirComanda === true,
             permitirEditarEliminarTomadasPorCocina: this.config.mozosPermitirEditarEliminarTomadasPorCocina === true
+          },
+
+          // Cocina (Obligar orden + Solicitar Orden) — PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR
+          cocina: {
+            obligarOrdenAsignacion: this.config.cocinaObligarOrdenAsignacion !== false,
+            solicitudOrdenFueraDeCola: this.config.cocinaSolicitudOrdenFueraDeCola !== false
           },
           
           // Seguridad

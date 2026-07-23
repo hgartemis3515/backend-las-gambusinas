@@ -189,6 +189,13 @@ const comandaSchema = new mongoose.Schema({
             },
             timestamp: { type: Date, default: null }
         },
+        // PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR
+        // Override one-shot: si true, el siguiente finalizar puede saltar la regla de orden #1
+        // (generado al aprobar una "Solicitar Orden"). Se consume al finalizar.
+        overrideOrdenCola: {
+            type: Boolean,
+            default: false
+        },
         // ========== TEMA 5: ATRIBUCIÓN DE ENTREGA POR MOZO ==========
         // Quién confirmó la entrega del plato al comensal (estado 'entregado').
         // Fallback para datos legacy: usar comanda.mozos + comanda.mozoNombre.

@@ -120,6 +120,17 @@ const CONFIGURACION_DEFAULT = {
         permitirEditarEliminarTomadasPorCocina: false
     },
 
+    // Cocina (App de Cocina + Dashboard)
+    // obligarOrdenAsignacion: si true (default), cocineros y supervisor solo pueden finalizar
+    // el plato #1 de la cola de cada cocinero (FIFO por procesandoPor.timestamp). Admin siempre puede omitir.
+    // solicitudOrdenFueraDeCola: si true (default), al intentar finalizar un #2+ aparece "Solicitar Orden"
+    // y se envía petición al Panel de Gestión (App Mozos) y notificación al admin en el Dashboard.
+    // Si false, el supervisor puede finalizar #2/#3 sin solicitud (aunque obligarOrdenAsignacion siga en true).
+    cocina: {
+        obligarOrdenAsignacion: true,
+        solicitudOrdenFueraDeCola: true
+    },
+
     // Seguridad
     seguridad: {
         timeoutInactividadMin: 30,
@@ -440,6 +451,18 @@ const configuracionSistemaSchema = new mongoose.Schema({
         permitirEditarEliminarTomadasPorCocina: {
             type: Boolean,
             default: CONFIGURACION_DEFAULT.mozos.permitirEditarEliminarTomadasPorCocina
+        }
+    },
+
+    // Cocina (App de Cocina + Dashboard) — Obligar orden de asignación y Solicitar Orden
+    cocina: {
+        obligarOrdenAsignacion: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.cocina.obligarOrdenAsignacion
+        },
+        solicitudOrdenFueraDeCola: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.cocina.solicitudOrdenFueraDeCola
         }
     },
 

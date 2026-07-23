@@ -34,6 +34,8 @@ const PERMISOS_FUNDAMENTALES = {
     'eliminar-platos-comandas': { nombre: 'Eliminar Platos/Comandas', grupo: 'App Mozos', descripcion: 'Eliminar platos o comandas completas' },
     'procesar-pagos': { nombre: 'Procesar Pagos/Bouchers', grupo: 'App Mozos', descripcion: 'Generar bouchers y procesar pagos' },
     'asociar-clientes': { nombre: 'Asociar Clientes', grupo: 'App Mozos', descripcion: 'Vincular clientes a comandas' },
+    // PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR: Panel de Gestión en App Mozos (peticiones/solicitudes)
+    'ver-panel-gestion-mozos': { nombre: 'Ver Panel de Gestión', grupo: 'App Mozos', descripcion: 'Acceder al Panel de Gestión en App Mozos (peticiones/solicitudes de otros usuarios, p. ej. Solicitar Orden desde cocina)' },
     
     // App Cocina
     'ver-comandas-cocina': { nombre: 'Ver Comandas Cocina', grupo: 'App Cocina', descripcion: 'Ver comandas en App Cocina' },

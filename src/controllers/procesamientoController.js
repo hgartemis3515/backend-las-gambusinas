@@ -24,6 +24,9 @@ const Comanda = mongoose.model('Comanda') || require('../database/models/comanda
 const Mozos = mongoose.model('mozos') || require('../database/models/mozos.model');
 const cocinerosRepository = require('../repository/cocineros.repository');
 
+// PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR: config de cocina + override one-shot
+const ConfiguracionSistema = mongoose.model('ConfiguracionSistema') || require('../database/models/configuracionSistema.model');
+
 // ============================================================
 // HELPER: Verificar si el usuario tiene privilegios de supervisor en cocina
 // Aplica para finalizar/liberar/tomar platos o comandas tomados por otros
@@ -35,6 +38,110 @@ const esSupervisorCocina = (admin) => {
   const permisos = admin.permisos || [];
   return permisos.includes('utilidad-supervisor') || permisos.includes('editar-mozos');
 };
+
+// ============================================================
+// PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR
+// Helper: leer flags de cocina (defaults true)
+// ============================================================
+async function leerConfigCocina() {
+  try {
+    const cfg = await ConfiguracionSistema.findById('configuracion_unica').lean();
+    const cocina = cfg?.cocina || {};
+    return {
+      obligarOrdenAsignacion: cocina.obligarOrdenAsignacion !== false,
+      solicitudOrdenFueraDeCola: cocina.solicitudOrdenFueraDeCola !== false
+    };
+  } catch (e) {
+    return { obligarOrdenAsignacion: true, solicitudOrdenFueraDeCola: true };
+  }
+}
+
+// ============================================================
+// PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR
+// Helper: ¿este plato es el #1 de su cocinero (FIFO por procesandoPor.timestamp)?
+// Alineado con el KDS: solo comandas activas del día (America/Lima) y
+// platos aún finalizables (pendiente/pedido/en_espera).
+// ============================================================
+async function esPrimeroEnColaDelCocinero(comandaId, platoIndex, cocineroId) {
+  const ESTADOS_EN_PROCESO = ['pendiente', 'pedido', 'en_espera'];
+  const inicioDia = moment().tz('America/Lima').startOf('day').toDate();
+  const finDia = moment().tz('America/Lima').endOf('day').toDate();
+
+  const cocineroIdStr = String(cocineroId);
+
+  // Solo comandas del día activo (misma ventana que GET /cocina/:fecha)
+  const comandas = await Comanda.find({
+    IsActive: true,
+    status: { $nin: ['entregado', 'pagado'] },
+    createdAt: { $gte: inicioDia, $lte: finDia },
+    'platos.procesandoPor.cocineroId': cocineroId
+  }).select('platos.procesandoPor platos.estado platos.eliminado platos.anulado');
+
+  const candidatos = [];
+  for (const c of comandas) {
+    c.platos.forEach((p, idx) => {
+      if (!p || p.eliminado || p.anulado) return;
+      if (!p.procesandoPor || !p.procesandoPor.cocineroId) return;
+      if (String(p.procesandoPor.cocineroId) !== cocineroIdStr) return;
+      if (!ESTADOS_EN_PROCESO.includes(p.estado)) return;
+      candidatos.push({
+        comandaId: String(c._id),
+        platoIndex: idx,
+        timestamp: p.procesandoPor.timestamp ? new Date(p.procesandoPor.timestamp).getTime() : 0
+      });
+    });
+  }
+
+  candidatos.sort((a, b) => {
+    if (a.timestamp !== b.timestamp) return a.timestamp - b.timestamp;
+    const ca = String(a.comandaId);
+    const cb = String(b.comandaId);
+    if (ca !== cb) return ca.localeCompare(cb);
+    return a.platoIndex - b.platoIndex;
+  });
+
+  if (candidatos.length === 0) return true; // sin cola, se permite
+
+  const primero = candidatos[0];
+  const esPrimero =
+    String(primero.comandaId) === String(comandaId) &&
+    Number(primero.platoIndex) === Number(platoIndex);
+
+  if (!esPrimero) {
+    logger.info('[OrdenCola] Plato NO es #1', {
+      comandaId: String(comandaId),
+      platoIndex,
+      cocineroId: cocineroIdStr,
+      primero,
+      colaSize: candidatos.length
+    });
+  }
+
+  return esPrimero;
+}
+
+/**
+ * ¿Hay override one-shot vigente para este plato?
+ * 1) Campo plato.overrideOrdenCola
+ * 2) SolicitudGestion aprobada (fallback si el campo no se persistió / KDS sin refresh)
+ */
+async function tieneOverrideOrdenVigente(plato, comandaId, platoId) {
+  if (plato?.overrideOrdenCola === true) return true;
+  try {
+    const SolicitudGestionModel = mongoose.models.SolicitudGestion;
+    if (!SolicitudGestionModel) return false;
+    const aprobada = await SolicitudGestionModel.findOne({
+      comandaId,
+      platoId,
+      estado: 'aprobada',
+      overrideUsado: { $ne: true },
+      tipo: 'finalizar_fuera_de_orden'
+    }).select('_id').lean();
+    return !!aprobada;
+  } catch (_) {
+    return false;
+  }
+}
 
 // ============================================================
 // HELPER: Obtener información del cocinero
@@ -432,6 +539,48 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
         rol: req.admin.rol
       });
     }
+
+    // PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR
+    // Validar orden de cola: si obligarOrdenAsignacion ON y el actor NO es admin,
+    // el plato debe ser el #1 de su cocinero. Excepciones:
+    //   - admin => bypass
+    //   - supervisor + solicitudOrdenFueraDeCola OFF => bypass
+    //   - override one-shot aprobado (campo en plato o SolicitudGestion) => bypass y consumir
+    let consumirOverride = false;
+    try {
+      const cfgCocina = await leerConfigCocina();
+      if (cfgCocina.obligarOrdenAsignacion && req.admin?.rol !== 'admin') {
+        const esSup = esSupervisorCocina(req.admin);
+        const supervisorBypass = esSup && !cfgCocina.solicitudOrdenFueraDeCola;
+        const overrideAprobado = await tieneOverrideOrdenVigente(
+          plato, comandaId, plato._id || platoId
+        );
+
+        if (!supervisorBypass && !overrideAprobado) {
+          // Solo validar cola si el plato está atribuido a un cocinero
+          if (cocineroAtribuidoId) {
+            const primero = await esPrimeroEnColaDelCocinero(
+              comandaId, platoIndex, cocineroAtribuidoId
+            );
+            if (!primero) {
+              return res.status(409).json({
+                success: false,
+                error: 'ORDEN_COLA_REQUERIDO',
+                message: 'Debe finalizar primero el #1 del cocinero o enviar Solicitar Orden.'
+              });
+            }
+          }
+        }
+
+        if (overrideAprobado) {
+          consumirOverride = true;
+          logger.info('[FinalizarPlato] Override one-shot autorizado', { comandaId, platoId });
+        }
+      }
+    } catch (errOrden) {
+      logger.error('[FinalizarPlato] Error validando orden de cola', { error: errOrden.message });
+      // Ante fallo de validación, no bloquear el flujo crítico (fail-open documentado)
+    }
     
     // Obtener info del cocinero atribuido (el que tomó el plato)
     cocineroAtribuidoInfo = await getCocineroInfo(cocineroAtribuidoId);
@@ -457,6 +606,8 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
         alias: null,
         timestamp: null
       },
+      // Consumir override one-shot al finalizar
+      [`platos.${platoIndex}.overrideOrdenCola`]: false,
       updatedAt: ahora,
       updatedBy: cocineroId
     };
@@ -474,6 +625,26 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
       { _id: comandaId },
       { $set: updateSet }
     );
+
+    // Marcar solicitud(es) aprobadas de este plato como override ya usado
+    if (consumirOverride) {
+      try {
+        const SolicitudGestionModel = mongoose.models.SolicitudGestion;
+        if (SolicitudGestionModel) {
+          await SolicitudGestionModel.updateMany(
+            {
+              comandaId,
+              platoId: plato._id || platoId,
+              estado: 'aprobada',
+              overrideUsado: { $ne: true }
+            },
+            { $set: { overrideUsado: true } }
+          );
+        }
+      } catch (eCons) {
+        logger.warn('[FinalizarPlato] No se pudo marcar overrideUsado', { error: eCons.message });
+      }
+    }
     
     // Emitir evento Socket
     if (global.emitPlatoActualizado) {
@@ -1109,6 +1280,238 @@ router.put('/comanda/:id/finalizar', adminAuth, async (req, res) => {
       success: false,
       error: error.message
     });
+  }
+});
+
+// ============================================================
+// PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR
+// API de Solicitudes de Gestión (Solicitar Orden desde KDS)
+// ============================================================
+const Notificacion = mongoose.model('Notificacion') || require('../database/models/notificacion.model');
+
+// Modelo en línea (sin archivo propio) para Solicitudes de Gestión
+const solicitudGestionSchema = new mongoose.Schema({
+  tipo: { type: String, default: 'finalizar_fuera_de_orden', enum: ['finalizar_fuera_de_orden'] },
+  comandaId: { type: mongoose.Schema.Types.ObjectId, ref: 'Comanda', required: true, index: true },
+  platoId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  platoIndex: { type: Number, required: true },
+  platoNombre: { type: String, default: '' },
+  cantidad: { type: Number, default: 1 },
+  cocineroId: { type: mongoose.Schema.Types.ObjectId, ref: 'mozos', default: null },
+  cocineroAlias: { type: String, default: '' },
+  numeroColaActual: { type: Number, default: null },
+  solicitadoPor: {
+    usuarioId: { type: mongoose.Schema.Types.ObjectId, ref: 'mozos', required: true },
+    nombre: { type: String, default: '' },
+    rol: { type: String, default: '' }
+  },
+  motivo: { type: String, default: null },
+  estado: { type: String, default: 'pendiente', enum: ['pendiente', 'aprobada', 'rechazada', 'cancelada'], index: true },
+  // true cuando el override one-shot ya se usó al finalizar el plato
+  overrideUsado: { type: Boolean, default: false },
+  resueltoPor: { type: mongoose.Schema.Types.ObjectId, ref: 'mozos', default: null },
+  resueltoEn: { type: Date, default: null },
+  createdAt: { type: Date, default: Date.now }
+}, { collection: 'solicitudes_gestion' });
+
+const SolicitudGestion = mongoose.models.SolicitudGestion
+  || mongoose.model('SolicitudGestion', solicitudGestionSchema);
+
+/** Emite eventos de solicitudes a App Mozos, Dashboard y Cocina (KDS). */
+function emitirSolicitudGestion(evento, solicitudDoc) {
+  try {
+    const io = global.io;
+    if (!io || !io.of) {
+      logger.warn('[SolicitudesGestion] global.io no disponible; no se emitió ' + evento);
+      return;
+    }
+    const raw = typeof solicitudDoc?.toObject === 'function'
+      ? solicitudDoc.toObject()
+      : solicitudDoc;
+    // Payload plano (evita problemas de serialización mongoose)
+    const payload = JSON.parse(JSON.stringify({ solicitud: raw }));
+    io.of('/mozos').emit(evento, payload);
+    io.of('/admin').emit(evento, payload);
+    // Cocina también escucha aprobaciones para activar Finalizar
+    io.of('/cocina').emit(evento, payload);
+    logger.info('[SolicitudesGestion] Socket emitido', {
+      evento,
+      solicitudId: payload.solicitud?._id,
+      namespaces: ['mozos', 'admin', 'cocina']
+    });
+  } catch (e) {
+    logger.warn('[SolicitudesGestion] Error emitiendo socket', { evento, error: e.message });
+  }
+}
+
+// POST /api/solicitudes-gestion — Crear Solicitar Orden (desde KDS supervisor)
+router.post('/solicitudes-gestion', adminAuth, async (req, res) => {
+  try {
+    const {
+      comandaId, platoId, platoIndex, platoNombre, cantidad,
+      cocineroId, cocineroAlias, numeroColaActual, motivo
+    } = req.body;
+    if (!comandaId || !platoId || platoIndex == null) {
+      return res.status(400).json({ success: false, error: 'comandaId, platoId, platoIndex son requeridos' });
+    }
+    const cfg = await leerConfigCocina();
+    if (!cfg.obligarOrdenAsignacion) {
+      return res.status(409).json({ success: false, error: 'OBLIGAR_ORDEN_DESACTIVADO', message: 'No se requiere solicitud: el orden no está obligado.' });
+    }
+    if (cfg.solicitudOrdenFueraDeCola === false) {
+      return res.status(409).json({ success: false, error: 'SOLICITUD_DESACTIVADA', message: 'Solicitud desactivada: el supervisor puede finalizar directamente.' });
+    }
+
+    const solicitud = await SolicitudGestion.create({
+      tipo: 'finalizar_fuera_de_orden',
+      comandaId, platoId, platoIndex,
+      platoNombre: platoNombre || '',
+      cantidad: cantidad || 1,
+      cocineroId: cocineroId || null,
+      cocineroAlias: cocineroAlias || '',
+      numeroColaActual: numeroColaActual ?? null,
+      solicitadoPor: {
+        usuarioId: req.admin?._id || req.admin?.id,
+        nombre: req.admin?.nombre || req.admin?.name || '',
+        rol: req.admin?.rol || ''
+      },
+      motivo: motivo || null,
+      estado: 'pendiente'
+    });
+
+    // Notificar al admin en el Dashboard (centro de notificaciones)
+    try {
+      await Notificacion.create({
+        tipo: 'sistema',
+        titulo: 'Solicitar Orden — finalizar fuera de secuencia',
+        mensaje: `${solicitud.solicitadoPor.nombre || 'Supervisor'} pide finalizar "${solicitud.platoNombre}" (#${solicitud.numeroColaActual} de ${solicitud.cocineroAlias || 'cocinero'})`,
+        icono: '🧾',
+        entidadId: solicitud._id,
+        entidadTipo: 'comanda',
+        rolesDestinatarios: ['admin'],
+        leida: false,
+        accion: { tipo: 'navegar', url: `/solicitudes-gestion/${solicitud._id}`, datos: { solicitudId: solicitud._id } },
+        prioridad: 8,
+        metadata: { solicitudGestionId: String(solicitud._id), tipo: 'solicitar_orden' }
+      });
+    } catch (eNotif) {
+      logger.warn('[SolicitudesGestion] No se pudo crear notificación de dashboard', { error: eNotif.message });
+    }
+
+    // Emitir socket a App Mozos (/mozos) + Dashboard (/admin) en tiempo real
+    emitirSolicitudGestion('solicitud-gestion-nueva', solicitud);
+
+    logger.info('[SolicitudesGestion] Solicitud creada', { solicitudId: solicitud._id });
+    res.status(201).json({ success: true, solicitud });
+  } catch (error) {
+    logger.error('[SolicitudesGestion] Error al crear', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/solicitudes-gestion — Listar (para Panel de Gestión / Dashboard)
+router.get('/solicitudes-gestion', adminAuth, async (req, res) => {
+  try {
+    const estado = req.query.estado || 'pendiente';
+    const filtro = estado === 'todas' ? {} : { estado };
+    const solicitudes = await SolicitudGestion.find(filtro).sort({ createdAt: -1 }).limit(100).lean();
+    res.json({ success: true, solicitudes });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// PUT /api/solicitudes-gestion/:id/aprobar — Aprobar => genera override one-shot en el plato
+router.put('/solicitudes-gestion/:id/aprobar', adminAuth, async (req, res) => {
+  try {
+    const solicitud = await SolicitudGestion.findById(req.params.id);
+    if (!solicitud) return res.status(404).json({ success: false, error: 'Solicitud no encontrada' });
+    if (solicitud.estado !== 'pendiente') {
+      return res.status(409).json({ success: false, error: 'Solicitud ya resuelta', estado: solicitud.estado });
+    }
+
+    // Marcar override one-shot en el plato (por índice + verificación de _id)
+    const comanda = await Comanda.findById(solicitud.comandaId);
+    if (!comanda) return res.status(404).json({ success: false, error: 'Comanda no encontrada' });
+
+    let platoIndex = solicitud.platoIndex;
+    let plato = comanda.platos?.[platoIndex];
+    // Si el índice no coincide (platos reordenados), buscar por platoId
+    if (!plato || String(plato._id) !== String(solicitud.platoId)) {
+      platoIndex = comanda.platos.findIndex(p => String(p._id) === String(solicitud.platoId));
+      plato = platoIndex >= 0 ? comanda.platos[platoIndex] : null;
+    }
+    if (!plato || platoIndex < 0) {
+      return res.status(404).json({ success: false, error: 'Plato no encontrado en la comanda' });
+    }
+
+    // Persistencia fiable del override (updateOne $set)
+    await Comanda.updateOne(
+      { _id: solicitud.comandaId },
+      { $set: { [`platos.${platoIndex}.overrideOrdenCola`]: true } }
+    );
+    solicitud.platoIndex = platoIndex; // corregir índice si cambió
+
+    solicitud.estado = 'aprobada';
+    solicitud.resueltoPor = req.admin?._id || req.admin?.id;
+    solicitud.resueltoEn = new Date();
+    await solicitud.save();
+
+    // Notificar en tiempo real (App Mozos + Dashboard)
+    emitirSolicitudGestion('solicitud-gestion-actualizada', solicitud);
+
+    // Refrescar KDS: emitir actualización de plato/comanda para que el front vea overrideOrdenCola
+    try {
+      if (global.emitPlatoActualizado) {
+        global.emitPlatoActualizado(String(solicitud.comandaId), String(solicitud.platoId), plato.estado);
+      }
+      if (global.io?.of) {
+        const payload = {
+          comandaId: String(solicitud.comandaId),
+          platoId: String(solicitud.platoId),
+          platoIndex,
+          overrideOrdenCola: true,
+          motivo: 'solicitud_orden_aprobada'
+        };
+        global.io.of('/cocina').emit('plato-override-orden', payload);
+        global.io.of('/cocina').emit('comanda-actualizada', { _id: solicitud.comandaId });
+      }
+    } catch (eEmit) {
+      logger.warn('[SolicitudesGestion] No se pudo emitir refresh a cocina', { error: eEmit.message });
+    }
+
+    logger.info('[SolicitudesGestion] Aprobada (override one-shot)', {
+      solicitudId: solicitud._id,
+      comandaId: solicitud.comandaId,
+      platoIndex
+    });
+    res.json({ success: true, solicitud, mensaje: 'Override one-shot activado en el plato.' });
+  } catch (error) {
+    logger.error('[SolicitudesGestion] Error al aprobar', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// PUT /api/solicitudes-gestion/:id/rechazar — Rechazar
+router.put('/solicitudes-gestion/:id/rechazar', adminAuth, async (req, res) => {
+  try {
+    const solicitud = await SolicitudGestion.findById(req.params.id);
+    if (!solicitud) return res.status(404).json({ success: false, error: 'Solicitud no encontrada' });
+    if (solicitud.estado !== 'pendiente') {
+      return res.status(409).json({ success: false, error: 'Solicitud ya resuelta', estado: solicitud.estado });
+    }
+    solicitud.estado = 'rechazada';
+    solicitud.resueltoPor = req.admin?._id || req.admin?.id;
+    solicitud.resueltoEn = new Date();
+    await solicitud.save();
+
+    emitirSolicitudGestion('solicitud-gestion-actualizada', solicitud);
+
+    logger.info('[SolicitudesGestion] Rechazada', { solicitudId: solicitud._id });
+    res.json({ success: true, solicitud });
+  } catch (error) {
+    logger.error('[SolicitudesGestion] Error al rechazar', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
