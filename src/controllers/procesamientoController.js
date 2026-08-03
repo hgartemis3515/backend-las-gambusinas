@@ -1306,6 +1306,8 @@ const solicitudGestionSchema = new mongoose.Schema({
     rol: { type: String, default: '' }
   },
   motivo: { type: String, default: null },
+  // Nota opcional del admin al resolver (sobre todo al rechazar)
+  notaResolucion: { type: String, default: null, maxlength: 500 },
   estado: { type: String, default: 'pendiente', enum: ['pendiente', 'aprobada', 'rechazada', 'cancelada'], index: true },
   // true cuando el override one-shot ya se usó al finalizar el plato
   overrideUsado: { type: Boolean, default: false },
@@ -1328,19 +1330,146 @@ function emitirSolicitudGestion(evento, solicitudDoc) {
     const raw = typeof solicitudDoc?.toObject === 'function'
       ? solicitudDoc.toObject()
       : solicitudDoc;
-    // Payload plano (evita problemas de serialización mongoose)
-    const payload = JSON.parse(JSON.stringify({ solicitud: raw }));
+    // Payload plano + notaResolucion en raíz (KDS la usa en el toast de rechazo)
+    const payload = JSON.parse(JSON.stringify({
+      solicitud: raw,
+      notaResolucion: raw?.notaResolucion ?? null,
+      nota: raw?.notaResolucion ?? null,
+      estado: raw?.estado ?? null,
+      platoNombre: raw?.platoNombre ?? null
+    }));
     io.of('/mozos').emit(evento, payload);
     io.of('/admin').emit(evento, payload);
-    // Cocina también escucha aprobaciones para activar Finalizar
+    // Cocina también escucha aprobaciones/rechazos para toast + override
     io.of('/cocina').emit(evento, payload);
     logger.info('[SolicitudesGestion] Socket emitido', {
       evento,
       solicitudId: payload.solicitud?._id,
+      estado: payload.estado,
+      conNota: !!payload.notaResolucion,
       namespaces: ['mozos', 'admin', 'cocina']
     });
   } catch (e) {
     logger.warn('[SolicitudesGestion] Error emitiendo socket', { evento, error: e.message });
+  }
+}
+
+/**
+ * Notifica al solicitante (supervisor/cocinero) el resultado de su Solicitar Orden.
+ * Misma vía Notificacion + socket que usa el dashboard; el KDS además escucha
+ * `solicitud-gestion-actualizada` para el toast.
+ */
+async function notificarResolucionAlSolicitante(solicitud, { aprobada, nota }) {
+  const destinatarioId = solicitud?.solicitadoPor?.usuarioId;
+  if (!destinatarioId) {
+    logger.warn('[SolicitudesGestion] Sin solicitadoPor.usuarioId; no se notifica resolución');
+    return;
+  }
+
+  const plato = solicitud.platoNombre || 'plato';
+  const cola = solicitud.numeroColaActual != null ? `#${solicitud.numeroColaActual}` : '';
+  const notaTxt = (nota && String(nota).trim()) ? String(nota).trim() : null;
+
+  const titulo = aprobada
+    ? 'Orden autorizada'
+    : 'Orden rechazada';
+  const mensajeBase = aprobada
+    ? `El admin autorizó finalizar "${plato}" ${cola}. Ya puede finalizar el plato.`
+    : `El admin rechazó finalizar "${plato}" ${cola}.`;
+  const mensaje = notaTxt
+    ? `${mensajeBase} Nota: ${notaTxt}`
+    : mensajeBase;
+
+  try {
+    const notificacion = await Notificacion.create({
+      tipo: 'sistema',
+      titulo,
+      mensaje,
+      icono: aprobada ? '✅' : '❌',
+      entidadId: solicitud._id,
+      entidadTipo: 'comanda',
+      destinatario: destinatarioId,
+      rolesDestinatarios: ['supervisor', 'cocinero', 'admin'],
+      leida: false,
+      accion: {
+        tipo: 'none',
+        datos: {
+          solicitudId: String(solicitud._id),
+          estado: aprobada ? 'aprobada' : 'rechazada',
+          notaResolucion: notaTxt
+        }
+      },
+      prioridad: aprobada ? 7 : 8,
+      metadata: {
+        solicitudGestionId: String(solicitud._id),
+        tipo: aprobada ? 'solicitud_orden_aprobada' : 'solicitud_orden_rechazada',
+        comandaId: String(solicitud.comandaId),
+        platoId: String(solicitud.platoId),
+        notaResolucion: notaTxt
+      }
+    });
+
+    if (typeof global.emitNotificacion === 'function') {
+      await global.emitNotificacion(notificacion);
+    } else if (global.io?.of) {
+      const payload = typeof notificacion.toObject === 'function'
+        ? notificacion.toObject()
+        : notificacion;
+      global.io.of('/admin').emit('nueva-notificacion', payload);
+      global.io.of('/cocina').emit('nueva-notificacion', payload);
+      global.io.of('/mozos').emit('nueva-notificacion', payload);
+    }
+  } catch (eNotif) {
+    logger.warn('[SolicitudesGestion] No se pudo notificar al solicitante', { error: eNotif.message });
+  }
+}
+
+/** Registra aprobar/rechazar Solicitar Orden en auditoria_acciones (auditoria.html). */
+async function auditarResolucionSolicitud(req, solicitud, { aprobada, nota }) {
+  try {
+    const AuditoriaAcciones = require('../database/models/auditoriaAcciones.model');
+    const usuarioId = req.admin?._id || req.admin?.id || null;
+    const usuarioNombre = req.admin?.nombre || req.admin?.name || req.admin?.usuario || null;
+    const notaTxt = (nota && String(nota).trim()) ? String(nota).trim() : null;
+
+    await AuditoriaAcciones.create({
+      accion: aprobada ? 'SOLICITUD_ORDEN_APROBADA' : 'SOLICITUD_ORDEN_RECHAZADA',
+      entidadId: solicitud.comandaId || solicitud._id,
+      entidadTipo: 'comanda',
+      usuario: usuarioId,
+      usuarioNombre,
+      motivo: notaTxt || (aprobada
+        ? 'Admin aprobó Solicitar Orden (override one-shot)'
+        : 'Admin rechazó Solicitar Orden'),
+      datosAntes: {
+        solicitudId: solicitud._id,
+        estado: 'pendiente',
+        platoNombre: solicitud.platoNombre,
+        numeroColaActual: solicitud.numeroColaActual
+      },
+      datosDespues: {
+        solicitudId: solicitud._id,
+        estado: aprobada ? 'aprobada' : 'rechazada',
+        platoNombre: solicitud.platoNombre,
+        platoId: solicitud.platoId,
+        platoIndex: solicitud.platoIndex,
+        comandaId: solicitud.comandaId,
+        notaResolucion: notaTxt,
+        solicitadoPor: solicitud.solicitadoPor
+      },
+      metadata: {
+        solicitudGestionId: String(solicitud._id),
+        tipo: 'solicitar_orden',
+        cocineroAlias: solicitud.cocineroAlias || null,
+        numeroColaActual: solicitud.numeroColaActual,
+        notaResolucion: notaTxt,
+        ip: req.ip || req.connection?.remoteAddress || null
+      },
+      ip: req.ip || req.connection?.remoteAddress || null,
+      deviceId: req.headers['device-id'] || req.headers['x-device-id'] || null
+    });
+  } catch (auditErr) {
+    logger.warn('[SolicitudesGestion] No se pudo registrar auditoría', { error: auditErr.message });
   }
 }
 
@@ -1455,10 +1584,25 @@ router.put('/solicitudes-gestion/:id/aprobar', adminAuth, async (req, res) => {
     solicitud.estado = 'aprobada';
     solicitud.resueltoPor = req.admin?._id || req.admin?.id;
     solicitud.resueltoEn = new Date();
+    if (req.body?.nota || req.body?.mensaje || req.body?.notaResolucion) {
+      solicitud.notaResolucion = String(
+        req.body.nota || req.body.mensaje || req.body.notaResolucion
+      ).trim().slice(0, 500) || null;
+    }
     await solicitud.save();
 
-    // Notificar en tiempo real (App Mozos + Dashboard)
+    // Notificar en tiempo real (App Mozos + Dashboard + Cocina)
     emitirSolicitudGestion('solicitud-gestion-actualizada', solicitud);
+
+    // Misma notificación al solicitante (toast KDS + Notificacion)
+    await notificarResolucionAlSolicitante(solicitud, {
+      aprobada: true,
+      nota: solicitud.notaResolucion
+    });
+    await auditarResolucionSolicitud(req, solicitud, {
+      aprobada: true,
+      nota: solicitud.notaResolucion
+    });
 
     // Refrescar KDS: emitir actualización de plato/comanda para que el front vea overrideOrdenCola
     try {
@@ -1471,7 +1615,8 @@ router.put('/solicitudes-gestion/:id/aprobar', adminAuth, async (req, res) => {
           platoId: String(solicitud.platoId),
           platoIndex,
           overrideOrdenCola: true,
-          motivo: 'solicitud_orden_aprobada'
+          motivo: 'solicitud_orden_aprobada',
+          notaResolucion: solicitud.notaResolucion || null
         };
         global.io.of('/cocina').emit('plato-override-orden', payload);
         global.io.of('/cocina').emit('comanda-actualizada', { _id: solicitud.comandaId });
@@ -1492,7 +1637,7 @@ router.put('/solicitudes-gestion/:id/aprobar', adminAuth, async (req, res) => {
   }
 });
 
-// PUT /api/solicitudes-gestion/:id/rechazar — Rechazar
+// PUT /api/solicitudes-gestion/:id/rechazar — Rechazar (nota opcional + notifica solicitante)
 router.put('/solicitudes-gestion/:id/rechazar', adminAuth, async (req, res) => {
   try {
     const solicitud = await SolicitudGestion.findById(req.params.id);
@@ -1500,15 +1645,33 @@ router.put('/solicitudes-gestion/:id/rechazar', adminAuth, async (req, res) => {
     if (solicitud.estado !== 'pendiente') {
       return res.status(409).json({ success: false, error: 'Solicitud ya resuelta', estado: solicitud.estado });
     }
+
+    const notaRaw = req.body?.nota ?? req.body?.mensaje ?? req.body?.notaResolucion ?? null;
+    const nota = notaRaw != null && String(notaRaw).trim()
+      ? String(notaRaw).trim().slice(0, 500)
+      : null;
+
     solicitud.estado = 'rechazada';
     solicitud.resueltoPor = req.admin?._id || req.admin?.id;
     solicitud.resueltoEn = new Date();
+    solicitud.notaResolucion = nota;
+    solicitud.markModified('notaResolucion');
     await solicitud.save();
 
-    emitirSolicitudGestion('solicitud-gestion-actualizada', solicitud);
+    // Releer para emitir payload con notaResolucion garantizada en el toast KDS
+    const solicitudEmit = await SolicitudGestion.findById(solicitud._id);
+    emitirSolicitudGestion('solicitud-gestion-actualizada', solicitudEmit || solicitud);
 
-    logger.info('[SolicitudesGestion] Rechazada', { solicitudId: solicitud._id });
-    res.json({ success: true, solicitud });
+    // Obligatorio: notificar al que solicitó (misma vía que al aprobar)
+    await notificarResolucionAlSolicitante(solicitudEmit || solicitud, { aprobada: false, nota });
+    await auditarResolucionSolicitud(req, solicitudEmit || solicitud, { aprobada: false, nota });
+
+    logger.info('[SolicitudesGestion] Rechazada', {
+      solicitudId: solicitud._id,
+      conNota: !!nota,
+      notaPreview: nota ? nota.slice(0, 80) : null
+    });
+    res.json({ success: true, solicitud: solicitudEmit || solicitud });
   } catch (error) {
     logger.error('[SolicitudesGestion] Error al rechazar', { error: error.message });
     res.status(500).json({ success: false, error: error.message });
