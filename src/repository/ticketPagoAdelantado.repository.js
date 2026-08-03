@@ -62,7 +62,7 @@ async function saveComandaConReintento(comandaId, applyChanges) {
     }
 
     try {
-      await comanda.save();
+      await comanda.save({ validateModifiedOnly: true });
       return { modificado: true, platosLiberados };
     } catch (err) {
       if (err.name === 'VersionError' && intento < MAX_COMANDA_SAVE_RETRIES - 1) {
@@ -399,7 +399,7 @@ async function rechazarTicket(ticketId, motivo, usuarioId, usuarioNombre) {
 
       comanda.markModified('platos');
       comanda.updatedAt = ahora;
-      await comanda.save();
+      await comanda.save({ validateModifiedOnly: true });
 
       // Registrar en Auditoría
       try {

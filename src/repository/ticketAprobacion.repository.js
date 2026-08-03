@@ -84,7 +84,8 @@ async function saveComandaConReintento(comandaId, applyChanges) {
     }
 
     try {
-      await comanda.save();
+      // validateModifiedOnly: no re-validar subdocs legacy (roles custom en finalizadoPor, etc.)
+      await comanda.save({ validateModifiedOnly: true });
       return { modificado: true, platosLiberados };
     } catch (err) {
       if (err.name === 'VersionError' && intento < MAX_COMANDA_SAVE_RETRIES - 1) {
@@ -249,15 +250,8 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
     boucherId: ticket.boucher,
   };
 
-  if (alreadyApproved) {
-    return {
-      ticket,
-      platosLiberados: [],
-      mesaEstado: datosAntes.mesaEstado,
-      alreadyApproved: true,
-    };
-  }
-
+  // Si el ticket ya estaba aprobado pero un save previo falló (p.ej. ValidationError
+  // por rol custom), seguimos liberando platos/mesa para sanar el estado inconsistente.
   let platosLiberados = [];
     // BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 3):
     // Liberar SOLO los platos que están en el snapshot de este ticket (por platoLineaId).
@@ -316,6 +310,16 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
         platosLiberados = platosLiberados.concat(liberados);
       }
     }
+
+  if (alreadyApproved && platosLiberados.length === 0) {
+    // Nada pendiente por liberar: devolver estado actual de mesa.
+    return {
+      ticket,
+      platosLiberados: [],
+      mesaEstado: datosAntes.mesaEstado,
+      alreadyApproved: true,
+    };
+  }
 
   // BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 3):
   // Mesa → 'pagado' SOLO si todo el ciclo está cobrado y aprobado.

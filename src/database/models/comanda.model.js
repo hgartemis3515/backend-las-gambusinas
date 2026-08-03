@@ -164,6 +164,8 @@ const comandaSchema = new mongoose.Schema({
             timestamp: { type: Date, default: null }
         },
         // Quién realmente marcó "listo" el plato (supervisor override). Vacío si lo hace el cocinero titular.
+        // rol: String libre — en producción hay roles custom (ej. "martha") además de admin/supervisor/cocinero.
+        // Un enum estricto hacía fallar comanda.save() en aprobación de pagos (500) tras reclamar el ticket.
         finalizadoPor: {
             usuarioId: {
                 type: mongoose.Schema.Types.ObjectId,
@@ -171,7 +173,7 @@ const comandaSchema = new mongoose.Schema({
                 default: null
             },
             nombre: { type: String, default: null },
-            rol: { type: String, default: null, enum: ['admin', 'supervisor', 'cocinero', null] },
+            rol: { type: String, default: null },
             timestamp: { type: Date, default: null }
         },
         // ========== ASIGNACIÓN AUTOMÁTICA DE PLATOS ==========
@@ -206,7 +208,8 @@ const comandaSchema = new mongoose.Schema({
                 default: null
             },
             nombre: { type: String, default: null },
-            rol: { type: String, default: null, enum: ['admin', 'supervisor', 'mozos', null] },
+            // String libre: roles del sistema incluyen cajero/capitanMozos y roles custom.
+            rol: { type: String, default: null },
             timestamp: { type: Date, default: null }
         },
         // ========== PAGO ADELANTADO (PPA) ==========

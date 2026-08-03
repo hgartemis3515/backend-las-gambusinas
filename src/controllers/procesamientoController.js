@@ -58,18 +58,16 @@ async function leerConfigCocina() {
 
 // ============================================================
 // PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR
-// Helper: ¿este plato es el #1 de su cocinero (FIFO por procesandoPor.timestamp)?
-// Alineado con el KDS: solo comandas activas del día (America/Lima) y
-// platos aún finalizables (pendiente/pedido/en_espera).
+// Cola por cocinero (FIFO por procesandoPor.timestamp).
+// Se permite finalizar el prefijo contiguo #1..#N del lote
+// (ej. #1+#2). Saltar el orden (solo #2, o #4 sin #3) → 409.
 // ============================================================
-async function esPrimeroEnColaDelCocinero(comandaId, platoIndex, cocineroId) {
+async function obtenerColaDelCocinero(cocineroId) {
   const ESTADOS_EN_PROCESO = ['pendiente', 'pedido', 'en_espera'];
   const inicioDia = moment().tz('America/Lima').startOf('day').toDate();
   const finDia = moment().tz('America/Lima').endOf('day').toDate();
-
   const cocineroIdStr = String(cocineroId);
 
-  // Solo comandas del día activo (misma ventana que GET /cocina/:fecha)
   const comandas = await Comanda.find({
     IsActive: true,
     status: { $nin: ['entregado', 'pagado'] },
@@ -87,6 +85,7 @@ async function esPrimeroEnColaDelCocinero(comandaId, platoIndex, cocineroId) {
       candidatos.push({
         comandaId: String(c._id),
         platoIndex: idx,
+        key: `${c._id}-${idx}`,
         timestamp: p.procesandoPor.timestamp ? new Date(p.procesandoPor.timestamp).getTime() : 0
       });
     });
@@ -100,24 +99,63 @@ async function esPrimeroEnColaDelCocinero(comandaId, platoIndex, cocineroId) {
     return a.platoIndex - b.platoIndex;
   });
 
-  if (candidatos.length === 0) return true; // sin cola, se permite
+  return candidatos;
+}
 
-  const primero = candidatos[0];
-  const esPrimero =
-    String(primero.comandaId) === String(comandaId) &&
-    Number(primero.platoIndex) === Number(platoIndex);
+/**
+ * ¿Se puede finalizar este plato según orden de cola?
+ * - Sin lote: solo el #1.
+ * - Con loteCola (keys "comandaId-platoIndex"): prefijo contiguo desde #1
+ *   dentro de la selección de ESE cocinero (permite #1+#2 en paralelo).
+ */
+async function puedeFinalizarSegunOrdenCola(comandaId, platoIndex, cocineroId, loteColaKeys = []) {
+  const candidatos = await obtenerColaDelCocinero(cocineroId);
+  if (candidatos.length === 0) return { ok: true, numero: null };
 
-  if (!esPrimero) {
-    logger.info('[OrdenCola] Plato NO es #1', {
-      comandaId: String(comandaId),
-      platoIndex,
-      cocineroId: cocineroIdStr,
-      primero,
-      colaSize: candidatos.length
-    });
+  const idx = candidatos.findIndex(
+    (c) =>
+      String(c.comandaId) === String(comandaId) &&
+      Number(c.platoIndex) === Number(platoIndex)
+  );
+  if (idx < 0) return { ok: true, numero: null }; // ya no está en cola
+
+  const numero = idx + 1;
+  const keysLote = new Set(
+    (Array.isArray(loteColaKeys) ? loteColaKeys : [])
+      .map((k) => String(k))
+      .filter(Boolean)
+  );
+  // Incluir siempre el plato actual en el set lógico del lote
+  keysLote.add(`${comandaId}-${platoIndex}`);
+
+  // Números de cola de este cocinero presentes en el lote
+  const numerosEnLote = new Set();
+  candidatos.forEach((c, i) => {
+    if (keysLote.has(c.key) || keysLote.has(`${c.comandaId}-${c.platoIndex}`)) {
+      numerosEnLote.add(i + 1);
+    }
+  });
+
+  for (let n = 1; n <= numero; n++) {
+    if (!numerosEnLote.has(n)) {
+      logger.info('[OrdenCola] Plato fuera de prefijo contiguo', {
+        comandaId: String(comandaId),
+        platoIndex,
+        cocineroId: String(cocineroId),
+        numero,
+        numerosEnLote: [...numerosEnLote],
+        colaSize: candidatos.length
+      });
+      return { ok: false, numero };
+    }
   }
 
-  return esPrimero;
+  return { ok: true, numero };
+}
+
+async function esPrimeroEnColaDelCocinero(comandaId, platoIndex, cocineroId) {
+  const r = await puedeFinalizarSegunOrdenCola(comandaId, platoIndex, cocineroId, []);
+  return r.ok && (r.numero == null || r.numero === 1);
 }
 
 /**
@@ -485,7 +523,7 @@ router.delete('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, r
 router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) => {
   try {
     const { id: comandaId, platoId } = req.params;
-    const { cocineroId } = req.body;
+    const { cocineroId, loteCola } = req.body;
     
     if (!cocineroId) {
       return res.status(400).json({
@@ -559,14 +597,14 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
         if (!supervisorBypass && !overrideAprobado) {
           // Solo validar cola si el plato está atribuido a un cocinero
           if (cocineroAtribuidoId) {
-            const primero = await esPrimeroEnColaDelCocinero(
-              comandaId, platoIndex, cocineroAtribuidoId
+            const { ok } = await puedeFinalizarSegunOrdenCola(
+              comandaId, platoIndex, cocineroAtribuidoId, loteCola
             );
-            if (!primero) {
+            if (!ok) {
               return res.status(409).json({
                 success: false,
                 error: 'ORDEN_COLA_REQUERIDO',
-                message: 'Debe finalizar primero el #1 del cocinero o enviar Solicitar Orden.'
+                message: 'Debe finalizar en orden desde el #1 (prefijo contiguo) o enviar Solicitar Orden.'
               });
             }
           }

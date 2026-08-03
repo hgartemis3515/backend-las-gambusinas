@@ -345,6 +345,144 @@ router.get('/comanda/mesa/:mesaId/para-pagos', async (req, res) => {
     }
 });
 
+// ==================== F3: HISTORIAL DE COCINA ====================
+/**
+ * GET /api/comanda/historial-cocina?fecha=YYYY-MM-DD&fechaHasta=&mozoId=&cocineroId=&progreso=&mesa=&q=
+ * Devuelve comandas del rango con ≥ 1 plato en `salio` | `entregado` | `pagado`
+ * (incluye parciales y comandas ya cerradas/pagadas).
+ * NO exige IsActive=true (las pagadas suelen quedar inactivas).
+ */
+router.get('/comanda/historial-cocina', async (req, res) => {
+    const startTime = Date.now();
+    try {
+        const moment = require('moment-timezone');
+        const fecha = req.query.fecha || moment.tz("America/Lima").format("YYYY-MM-DD");
+        const fechaHasta = req.query.fechaHasta || fecha;
+        const { mozoId, cocineroId, progreso, mesa, q } = req.query;
+
+        const fechaInicio = moment.tz(fecha, "YYYY-MM-DD", "America/Lima").startOf('day').toDate();
+        const fechaFin = moment.tz(fechaHasta, "YYYY-MM-DD", "America/Lima").endOf('day').toDate();
+
+        const estadosPlatoHistorial = ['salio', 'entregado', 'pagado'];
+        const statusComandaHistorial = ['salio', 'entregado', 'pagado', 'completado'];
+
+        // Incluye activas e inactivas (pagadas); excluye eliminadas/canceladas
+        const filtro = {
+            createdAt: { $gte: fechaInicio, $lte: fechaFin },
+            eliminada: { $ne: true },
+            status: { $nin: ['cancelado'] },
+            $or: [
+                { 'platos.estado': { $in: estadosPlatoHistorial } },
+                { status: { $in: statusComandaHistorial } },
+            ],
+        };
+        if (mozoId) filtro['mozos'] = mozoId;
+        if (mesa) {
+            // mesa puede ser ObjectId o número de mesa
+            const mesaNum = Number(mesa);
+            if (!Number.isNaN(mesaNum) && String(mesa).trim() !== '') {
+                filtro.$and = (filtro.$and || []).concat([{
+                    $or: [
+                        { mesaNumero: mesaNum },
+                        { mesaNumero: String(mesaNum) },
+                    ]
+                }]);
+            } else {
+                filtro['mesas'] = mesa;
+            }
+        }
+
+        let data = await comandaModel
+            .find(filtro)
+            .select({
+                _id: 1,
+                comandaNumber: 1,
+                status: 1,
+                createdAt: 1,
+                updatedAt: 1,
+                observaciones: 1,
+                cantidades: 1,
+                IsActive: 1,
+                mozoNombre: 1,
+                mesaNumero: 1,
+                mozos: 1,
+                mesas: 1,
+                platos: 1,
+            })
+            .populate({ path: 'mozos', select: 'name DNI', options: { lean: true } })
+            .populate({ path: 'mesas', select: 'nummesa estado area nombreCombinado', options: { lean: true } })
+            .populate({ path: 'platos.plato', select: 'nombre precio codigo', options: { lean: true } })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Filtro cocinero (en memoria)
+        if (cocineroId) {
+            data = data.filter(c => (c.platos || []).some(p =>
+                !p.eliminado && !p.anulado &&
+                String(p.procesadoPor?.cocineroId || p.procesandoPor?.cocineroId || '') === String(cocineroId)
+            ));
+        }
+
+        // Clasificar progreso; excluir full-pendientes (sin platos salio/entregado/pagado
+        // y sin status de comanda cerrado)
+        data = data.map(c => {
+            const platosActivos = (c.platos || []).filter(p => !p.eliminado && !p.anulado);
+            const entregados = platosActivos.filter(p =>
+                estadosPlatoHistorial.includes(String(p.estado || '').toLowerCase())
+            );
+            const pendientes = platosActivos.filter(p =>
+                !estadosPlatoHistorial.includes(String(p.estado || '').toLowerCase())
+            );
+            const status = String(c.status || '').toLowerCase();
+            const elegiblePorStatus = statusComandaHistorial.includes(status);
+            return {
+                ...c,
+                orden: c.comandaNumber,
+                numeroOrden: c.comandaNumber,
+                _entregadosCount: entregados.length,
+                _pendientesCount: pendientes.length,
+                _totalActivos: platosActivos.length,
+                _elegible: entregados.length > 0 || elegiblePorStatus,
+            };
+        }).filter(c => c._elegible);
+
+        if (progreso === 'parcial') {
+            data = data.filter(c => c._entregadosCount > 0 && c._pendientesCount > 0);
+        } else if (progreso === 'finalizada') {
+            data = data.filter(c =>
+                (c._entregadosCount > 0 && c._pendientesCount === 0) ||
+                statusComandaHistorial.includes(String(c.status || '').toLowerCase())
+            );
+        }
+
+        if (q) {
+            const ql = String(q).toLowerCase();
+            data = data.filter(c => {
+                const orden = String(c.comandaNumber || c.orden || '').toLowerCase();
+                const mesaStr = String(c.mesaNumero || c.mesas?.nummesa || '').toLowerCase();
+                const mozo = String(c.mozoNombre || c.mozos?.name || '').toLowerCase();
+                const matchPlato = (c.platos || []).some(p => {
+                    const np = String(p.plato?.nombre || p.nombre || '').toLowerCase();
+                    return np.includes(ql);
+                });
+                return orden.includes(ql) || mesaStr.includes(ql) || mozo.includes(ql) || matchPlato;
+            });
+        }
+
+        const elapsedMs = Date.now() - startTime;
+        logger.info('[F3] /historial-cocina', {
+            fecha, fechaHasta, progreso, resultados: data.length, tiempoRespuestaMs: elapsedMs
+        });
+        res.set('X-Response-Time', `${elapsedMs}ms`);
+        res.json(data);
+    } catch (error) {
+        logger.error('Error en /historial-cocina', {
+            error: error.message, stack: error.stack
+        });
+        handleError(error, res, logger);
+    }
+});
+
 // GET /api/comanda/:id - Obtener comanda por ID
 router.get('/comanda/:id', async (req, res) => {
     const { id } = req.params;
