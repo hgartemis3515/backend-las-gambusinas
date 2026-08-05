@@ -23,16 +23,73 @@
         if (typeof op === 'string') return { nombre: op, precio: 0 };
         return { nombre: op?.nombre ?? '', precio: Number(op?.precio ?? 0) || 0 };
       });
+
+    // Alineado a App Mozos ModalComplementos: legacy seleccionMultiple → modos/límites
+    let modo = grupo.modoSeleccion;
+    let maxGrupo = grupo.maxUnidadesGrupo;
+    let minGrupo = grupo.minUnidadesGrupo;
+    let maxOp = grupo.maxUnidadesPorOpcion;
+    if (!modo) {
+      modo = grupo.seleccionMultiple ? 'cantidades' : 'opciones';
+      if (maxGrupo == null) maxGrupo = grupo.seleccionMultiple ? null : 1;
+      if (minGrupo == null) minGrupo = grupo.obligatorio ? 1 : 0;
+      if (maxOp == null) maxOp = grupo.seleccionMultiple ? null : 1;
+    }
+
     return {
       grupo: String(grupo.grupo ?? grupo.nombre ?? ''),
       obligatorio: !!grupo.obligatorio,
-      modoSeleccion: grupo.modoSeleccion === 'cantidades' ? 'cantidades' : 'opciones',
-      maxUnidadesGrupo: grupo.maxUnidadesGrupo != null ? Number(grupo.maxUnidadesGrupo) : null,
-      minUnidadesGrupo: grupo.minUnidadesGrupo != null ? Number(grupo.minUnidadesGrupo) : null,
-      maxUnidadesPorOpcion: grupo.maxUnidadesPorOpcion != null ? Number(grupo.maxUnidadesPorOpcion) : null,
+      modoSeleccion: modo === 'cantidades' ? 'cantidades' : 'opciones',
+      maxUnidadesGrupo: maxGrupo != null && maxGrupo !== '' ? Number(maxGrupo) : null,
+      minUnidadesGrupo: minGrupo != null && minGrupo !== '' ? Number(minGrupo) : null,
+      maxUnidadesPorOpcion: maxOp != null && maxOp !== '' ? Number(maxOp) : null,
       seleccionMultiple: !!grupo.seleccionMultiple,
       opciones
     };
+  }
+
+  /**
+   * Estado de un grupo (mensajes como en App Mozos).
+   */
+  function estadoGrupo(grupoRaw, seleccion) {
+    const g = normalizarGrupo(grupoRaw);
+    if (!g) return { esValido: true, mensaje: '', totalUnidades: 0, modoSeleccion: 'opciones', obligatorio: false };
+    const totalUnidades = totalSeleccionadoEnGrupo(seleccion, g.grupo);
+    const minUnidades = g.minUnidadesGrupo != null ? g.minUnidadesGrupo : (g.obligatorio ? 1 : 0);
+    const maxUnidades = g.maxUnidadesGrupo;
+    let esValido = true;
+    let mensaje = '';
+    if (totalUnidades < minUnidades) {
+      esValido = false;
+      mensaje = `Faltan ${minUnidades - totalUnidades} unidad(es)`;
+    } else if (maxUnidades != null && totalUnidades > maxUnidades) {
+      esValido = false;
+      mensaje = `Excedido (máx: ${maxUnidades})`;
+    } else if (maxUnidades != null && totalUnidades === maxUnidades) {
+      mensaje = '✓ Máximo alcanzado';
+    } else if (totalUnidades >= minUnidades && minUnidades > 0) {
+      mensaje = '✓ Completo';
+    } else if (totalUnidades > 0) {
+      mensaje = `${totalUnidades} seleccionada(s)`;
+    }
+    return {
+      esValido,
+      mensaje,
+      totalUnidades,
+      minUnidades,
+      maxUnidades,
+      modoSeleccion: g.modoSeleccion,
+      obligatorio: g.obligatorio,
+      grupo: g.grupo,
+      opciones: g.opciones
+    };
+  }
+
+  /** Normaliza todos los grupos de un plato (para el panel UI). */
+  function normalizarComplementosPlato(plato) {
+    return (Array.isArray(plato?.complementos) ? plato.complementos : [])
+      .map(normalizarGrupo)
+      .filter(g => g && g.grupo && g.opciones.length > 0);
   }
 
   /**
@@ -167,7 +224,8 @@
     }));
     const extra = calcularExtraComplementos(plato, complementosSeleccionados);
     return {
-      platoId: plato.id || null,
+      _id: plato._id || null,                 // ObjectId (comanda)
+      platoId: plato.id || plato._id || null, // num id o ObjectId según contexto
       nombre: plato.nombre,
       estado: 'en_espera',
       tipoServicio: opts.tipoServicio === 'para_llevar' ? 'para_llevar' : 'mesa',
@@ -225,6 +283,8 @@
   // ============ Export ============
   global.DashboardCartHelpers = {
     normalizarGrupo,
+    normalizarComplementosPlato,
+    estadoGrupo,
     validarComplementos,
     calcularExtraComplementos,
     calcularPrecioUnitario,

@@ -2113,6 +2113,7 @@ complementosPanel: {
   abierto: false,
   contexto: '',          // 'comanda' | 'reserva'
   plato: null,           // plato del menú (con .complementos)
+  grupos: [],            // grupos normalizados (App Mozos)
   itemIdx: null,         // índice del item en el carrito (edit) o null (alta nueva)
   tipoServicio: 'mesa',
   seleccion: [],         // [{ grupo, opcion, cantidad, precio }]
@@ -2135,7 +2136,7 @@ tienePermisoComanda(permiso) {
 },
 
 getJwtPayload() {
-  const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+  const token = getToken();
   if (!token) return null;
   try {
     return JSON.parse(atob(token.split('.')[1]));
@@ -2173,10 +2174,12 @@ abrirPanelComplementos(plato, contexto, itemIdx) {
       tipoServicioPrev = item.tipoServicio || 'mesa';
     }
   }
+  const grupos = H.normalizarComplementosPlato(plato);
   this.complementosPanel = {
     abierto: true,
     contexto,
     plato,
+    grupos, // grupos ya normalizados (como App Mozos)
     itemIdx,
     tipoServicio: tipoServicioPrev,
     seleccion: seleccionPrev,
@@ -2184,65 +2187,109 @@ abrirPanelComplementos(plato, contexto, itemIdx) {
     errores: [],
     _cargando: false
   };
-  // MEJORA: Blendy morph del botón/origen al panel (si disponible)
-  this.$nextTick(() => {
-    const panel = document.getElementById('panel-complementos');
-    if (panel && window.BlendyWrapper?.isAvailable?.()) {
-      // Origen: el botón que disparó la apertura (lo buscamos por data-blendy-from si existe)
-      const fromEl = document.querySelector('[data-blendy-complementos-origen]');
-      if (fromEl) window.BlendyWrapper.morph(fromEl, panel, { animation: 'dynamic' });
-    }
-  });
+  this._validarPanelComplementos();
 },
 
 cerrarPanelComplementos() {
   this.complementosPanel.abierto = false;
   this.complementosPanel.plato = null;
+  this.complementosPanel.grupos = [];
   this.complementosPanel.seleccion = [];
   this.complementosPanel.errores = [];
 },
 
-// Toggle de una opción en un grupo (modo 'opciones')
-toggleOpcionComplemento(grupo, opcion) {
+_precioOpcionGrupo(grupoNorm, opcionNombre) {
+  const op = (grupoNorm?.opciones || []).find(o => o.nombre === opcionNombre);
+  return op ? (Number(op.precio) || 0) : 0;
+},
+
+_grupoNormPorNombre(grupoNombre) {
   const H = window.DashboardCartHelpers;
+  const fromPanel = (this.complementosPanel.grupos || []).find(g => g.grupo === grupoNombre);
+  if (fromPanel) return fromPanel;
+  const raw = (this.complementosPanel.plato?.complementos || []).find(x => (x.grupo || x.nombre) === grupoNombre);
+  return H?.normalizarGrupo(raw);
+},
+
+// Toggle modo 'opciones' — misma lógica que ModalComplementos.js (radio si max=1)
+toggleOpcionComplemento(grupo, opcion) {
+  const g = this._grupoNormPorNombre(grupo);
   const sel = this.complementosPanel.seleccion;
   const idx = sel.findIndex(s => s.grupo === grupo && s.opcion === opcion);
+  const precio = this._precioOpcionGrupo(g, opcion);
+
   if (idx >= 0) {
     sel.splice(idx, 1);
   } else {
-    const g = (this.complementosPanel.plato?.complementos || []).find(x => x.grupo === grupo || x.nombre === grupo);
-    const opObj = (g?.opciones || []).find(o => (typeof o === 'string' ? o : o?.nombre) === opcion);
-    const precio = opObj ? (typeof opObj === 'string' ? 0 : (opObj.precio || 0)) : 0;
-    sel.push({ grupo, opcion, cantidad: 1, precio });
+    const total = window.DashboardCartHelpers?.totalSeleccionadoEnGrupo(sel, grupo) || 0;
+    const maxGrupo = g?.maxUnidadesGrupo;
+    // Si max=1 y ya hay otra, reemplazar (radio)
+    if (maxGrupo === 1 && total >= 1) {
+      for (let i = sel.length - 1; i >= 0; i--) {
+        if (sel[i].grupo === grupo) sel.splice(i, 1);
+      }
+      sel.push({ grupo, opcion, cantidad: 1, precio });
+    } else if (maxGrupo != null && total >= maxGrupo) {
+      // límite alcanzado: no agregar
+    } else {
+      sel.push({ grupo, opcion, cantidad: 1, precio });
+    }
   }
   this._validarPanelComplementos();
 },
 
-// Stepper de cantidad en una opción (modo 'cantidades' o para incrementar en 'opciones')
+// Stepper modo 'cantidades' — respeta maxUnidadesGrupo y maxUnidadesPorOpcion
 setCantidadOpcionComplemento(grupo, opcion, delta) {
+  const g = this._grupoNormPorNombre(grupo);
   const sel = this.complementosPanel.seleccion;
   let entry = sel.find(s => s.grupo === grupo && s.opcion === opcion);
-  if (!entry) {
-    if (delta <= 0) return;
-    const g = (this.complementosPanel.plato?.complementos || []).find(x => x.grupo === grupo || x.nombre === grupo);
-    const opObj = (g?.opciones || []).find(o => (typeof o === 'string' ? o : o?.nombre) === opcion);
-    const precio = opObj ? (typeof opObj === 'string' ? 0 : (opObj.precio || 0)) : 0;
-    entry = { grupo, opcion, cantidad: 0, precio };
-    sel.push(entry);
-  }
-  entry.cantidad = Math.max(0, (entry.cantidad || 0) + delta);
-  if (entry.cantidad === 0) {
-    const idx = sel.indexOf(entry);
-    if (idx >= 0) sel.splice(idx, 1);
+  const cantActual = entry ? (Number(entry.cantidad) || 0) : 0;
+  const total = window.DashboardCartHelpers?.totalSeleccionadoEnGrupo(sel, grupo) || 0;
+
+  if (delta > 0) {
+    if (g?.maxUnidadesGrupo != null && total >= g.maxUnidadesGrupo) return;
+    if (g?.maxUnidadesPorOpcion != null && cantActual >= g.maxUnidadesPorOpcion) return;
+    if (!entry) {
+      entry = { grupo, opcion, cantidad: 0, precio: this._precioOpcionGrupo(g, opcion) };
+      sel.push(entry);
+    }
+    entry.cantidad = cantActual + 1;
+  } else {
+    if (!entry || cantActual <= 0) return;
+    entry.cantidad = cantActual - 1;
+    if (entry.cantidad <= 0) {
+      const i = sel.indexOf(entry);
+      if (i >= 0) sel.splice(i, 1);
+    }
   }
   this._validarPanelComplementos();
+},
+
+puedeIncrementarOpcion(grupo, opcion) {
+  const g = this._grupoNormPorNombre(grupo);
+  const cant = this.cantidadOpcionSeleccionada(grupo, opcion);
+  const total = this.totalGrupoSeleccionado(grupo);
+  if (g?.maxUnidadesGrupo != null && total >= g.maxUnidadesGrupo) return false;
+  if (g?.maxUnidadesPorOpcion != null && cant >= g.maxUnidadesPorOpcion) return false;
+  return true;
+},
+
+estadoGrupoComplemento(grupoNorm) {
+  return window.DashboardCartHelpers?.estadoGrupo(grupoNorm, this.complementosPanel.seleccion) || { esValido: true, mensaje: '' };
 },
 
 // Validar el panel y actualizar errores
 _validarPanelComplementos() {
   const H = window.DashboardCartHelpers;
   if (!H) { this.complementosPanel.errores = []; return; }
-  this.complementosPanel.errores = H.validarComplementos(this.complementosPanel.plato, this.complementosPanel.seleccion);
+  // Validar contra grupos normalizados (legacy + v3)
+  const platoVirt = {
+    ...this.complementosPanel.plato,
+    complementos: this.complementosPanel.grupos?.length
+      ? this.complementosPanel.grupos
+      : (this.complementosPanel.plato?.complementos || [])
+  };
+  this.complementosPanel.errores = H.validarComplementos(platoVirt, this.complementosPanel.seleccion);
 },
 
 // Getter: total seleccionado en un grupo (para mostrar en UI)
@@ -2289,9 +2336,15 @@ confirmarPanelComplementos() {
     complementosSeleccionados: seleccion,
     notaEspecial
   });
+  // Mantener _id para comanda (referencia ObjectId)
+  if (contexto === 'comanda') {
+    item._id = plato._id;
+    item.platoId = plato.id || item.platoId;
+  } else {
+    item.platoId = plato._id || plato.id || item.platoId;
+  }
   if (contexto === 'comanda') {
     if (itemIdx != null) {
-      // Edición: reemplazar el item
       this.comandaForm.platosSeleccionados[itemIdx] = item;
     } else {
       this._agregarItemCarritoComanda(item);
@@ -2309,6 +2362,14 @@ confirmarPanelComplementos() {
 // Resumen de complementos de un item (para mostrar en el carrito)
 resumenComplementosItem(item) {
   return window.DashboardCartHelpers?.resumenComplementosTexto(item?.complementosSeleccionados) || '';
+},
+
+// ¿El plato del menú tiene grupos de complementos? (para mostrar botón ✎)
+menuPlatoTieneComplementos(item, listaMenu) {
+  const id = item?._id || item?.platoId;
+  const plato = (listaMenu || []).find(p => p._id === id || p.id === item?.platoId);
+  if (!plato) return (item?.complementosSeleccionados || []).length > 0;
+  return Array.isArray(plato.complementos) && plato.complementos.some(g => g && (g.opciones?.length || 0) > 0);
 },
 
 // ========== FIN PANEL COMPLEMENTOS ==========
@@ -2394,7 +2455,7 @@ formatearNombreMesa(mesa, mesaObj = null) {
 },
 
  async init() {
- const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+ const token = getToken();
  if (!token) {
  window.location.href = '/login.html';
  return;
@@ -2507,7 +2568,7 @@ formatearNombreMesa(mesa, mesaObj = null) {
      localStorage.setItem('comandaPlantilla', JSON.stringify(this.plantillaComanda));
 
      // Guardar en el backend (PUT /api/configuracion/comanda-plantilla)
-     const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+     const token = getToken();
      const response = await fetch('/api/configuracion/comanda-plantilla', {
        method: 'PUT',
        headers: {
@@ -2651,7 +2712,7 @@ formatearNombreMesa(mesa, mesaObj = null) {
  }
 
  this.socket = io('/admin', {
- auth: { token: localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken') },
+ auth: { token: getToken() },
  transports: ['websocket', 'polling']
  });
 
@@ -4609,7 +4670,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
    this.reservasLoading = true;
    try {
      const res = await fetch('/api/reservas', {
-       headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+       headers: { 'Authorization': `Bearer ${getToken()}` }
      });
      if (!res.ok) throw new Error('Error al cargar reservas');
      this.reservas = await res.json();
@@ -4701,7 +4762,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  async loadAreasParaReserva() {
    try {
      const res = await fetch('/api/areas', {
-       headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+       headers: { 'Authorization': `Bearer ${getToken()}` }
      });
      if (res.ok) {
        const data = await res.json();
@@ -4715,7 +4776,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  async loadTiposPlatoReserva() {
    try {
      const res = await fetch('/api/tipos-plato/menu', {
-       headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+       headers: { 'Authorization': `Bearer ${getToken()}` }
      });
      if (res.ok) {
        this.tiposPlatoReserva = await res.json();
@@ -4862,7 +4923,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  async loadAreasParaComanda() {
    try {
      const res = await fetch('/api/areas', {
-       headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+       headers: { 'Authorization': `Bearer ${getToken()}` }
      });
      if (res.ok) {
        const data = await res.json();
@@ -4876,7 +4937,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  async loadMozosParaComanda() {
    try {
      const res = await fetch('/api/mozos', {
-       headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+       headers: { 'Authorization': `Bearer ${getToken()}` }
      });
      if (res.ok) {
        const data = await res.json();
@@ -4897,7 +4958,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  async loadTiposPlatoComanda() {
    try {
      const res = await fetch('/api/tipos-plato/menu', {
-       headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+       headers: { 'Authorization': `Bearer ${getToken()}` }
      });
      if (res.ok) {
        this.tiposPlatoComanda = await res.json();
@@ -4910,7 +4971,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  async loadPlatosParaComanda() {
    try {
      const res = await fetch('/api/platos', {
-       headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+       headers: { 'Authorization': `Bearer ${getToken()}` }
      });
      if (res.ok) {
        const data = await res.json();
@@ -5013,7 +5074,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  async loadMesasParaComandaByArea() {
    try {
      const res = await fetch('/api/mesas', {
-       headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+       headers: { 'Authorization': `Bearer ${getToken()}` }
      });
      if (res.ok) {
        const data = await res.json();
@@ -5112,6 +5173,12 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
    this.guardandoComanda = true;
    this._setOrbState('comanda', 'working');
    try {
+     const token = getToken();
+     if (!token) {
+       clearAuthAndRedirect();
+       return;
+     }
+
      // MEJORA: payload incluye complementosSeleccionados + notaEspecial por plato
      const platos = this.comandaForm.platosSeleccionados.map(p => ({
        plato: p._id,
@@ -5140,10 +5207,15 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
        method: 'POST',
        headers: {
          'Content-Type': 'application/json',
-         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+         'Authorization': `Bearer ${token}`
        },
        body: JSON.stringify(payload)
      });
+
+     if (res.status === 401) {
+       clearAuthAndRedirect();
+       return;
+     }
 
      if (!res.ok) {
        const err = await res.json();
@@ -5167,7 +5239,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  async loadMesasDisponibles() {
    try {
      const res = await fetch('/api/reservas/mesas-disponibles', {
-       headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+       headers: { 'Authorization': `Bearer ${getToken()}` }
      });
      if (res.ok) {
        this.mesasDisponibles = await res.json();
@@ -5180,7 +5252,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  async loadMozosParaReserva() {
    try {
      const res = await fetch('/api/mozos', {
-       headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+       headers: { 'Authorization': `Bearer ${getToken()}` }
      });
      if (res.ok) {
        const data = await res.json();
@@ -5200,7 +5272,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 async loadPlatosParaReserva() {
   try {
     const res = await fetch('/api/platos', {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+      headers: { 'Authorization': `Bearer ${getToken()}` }
     });
     if (res.ok) {
       this.platosParaReserva = await res.json();
@@ -5307,7 +5379,7 @@ async guardarReserva() {
        method,
        headers: {
          'Content-Type': 'application/json',
-         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+         'Authorization': `Bearer ${getToken()}`
        },
        body: JSON.stringify(payload)
      });
@@ -5397,7 +5469,7 @@ async guardarReserva() {
        method: 'DELETE',
        headers: {
          'Content-Type': 'application/json',
-         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+         'Authorization': `Bearer ${getToken()}`
        },
        body: JSON.stringify({ motivo: 'Cancelada desde dashboard' })
      });
@@ -5676,16 +5748,16 @@ PRÓXIMOS PASOS SUGERIDOS (BACKEND)
                <span x-show="plato.extraComplementos > 0" class="text-[9px] text-gold/70 ml-1" x-text="'(+S/.' + plato.extraComplementos + ' comps)'"></span>
              </div>
              <div class="flex items-center gap-2">
-               <div class="flex items-center gap-1">
-                 <button type="button" @click="plato.cantidad = Math.max(1, (plato.cantidad || 1) - 1)" class="w-6 h-6 flex items-center justify-center bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded text-xs hover:bg-gold/10 transition">−</button>
-                 <input type="number" x-model.number="plato.cantidad" min="1" max="20" class="w-12 bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded px-1 py-1 text-xs text-center">
-                 <button type="button" @click="plato.cantidad = (plato.cantidad || 1) + 1" class="w-6 h-6 flex items-center justify-center bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded text-xs hover:bg-gold/10 transition">+</button>
+               <div class="inline-flex items-center rounded-lg border border-[rgba(212,175,55,0.35)] overflow-hidden bg-bg-primary">
+                 <button type="button" @click="plato.cantidad = Math.max(1, (plato.cantidad || 1) - 1)" class="w-8 h-8 flex items-center justify-center text-sm text-white hover:bg-gold/15 transition" aria-label="Menos">−</button>
+                 <span class="w-9 h-8 flex items-center justify-center text-sm font-bold text-white tabular-nums border-x border-[rgba(212,175,55,0.25)]" x-text="plato.cantidad || 1"></span>
+                 <button type="button" @click="plato.cantidad = (plato.cantidad || 1) + 1" class="w-8 h-8 flex items-center justify-center text-sm text-white hover:bg-gold/15 transition" aria-label="Más">+</button>
                </div>
                <select x-model="plato.tipoServicio" class="bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded px-2 py-1 text-xs">
                  <option value="mesa">Mesa</option>
                  <option value="para_llevar">Llevar</option>
                </select>
-               <button type="button" @click="editarComplementosReserva(idx)" x-show="plato.complementosSeleccionados && plato.complementosSeleccionados.length > 0" class="text-[10px] px-1.5 py-1 rounded bg-gold/10 text-gold border border-gold/20 hover:bg-gold/20 transition" title="Editar complementos">✎</button>
+               <button type="button" @click="editarComplementosReserva(idx)" x-show="menuPlatoTieneComplementos(plato, platosParaReserva)" class="text-[10px] px-1.5 py-1 rounded bg-gold/10 text-gold border border-gold/20 hover:bg-gold/20 transition" title="Editar complementos">✎</button>
                <button @click="reservaForm.platos.splice(idx, 1)" class="text-st-pagado hover:text-white px-1">✕</button>
              </div>
            </div>
@@ -5953,17 +6025,17 @@ PRÓXIMOS PASOS SUGERIDOS (BACKEND)
                  <span class="text-xs text-txt-muted ml-1" x-text="'S/.' + (plato.precioUnitario != null ? plato.precioUnitario : (plato.precioBase || plato.precio || 0))"></span>
                  <span x-show="plato.extraComplementos > 0" class="text-[9px] text-gold/70 ml-1" x-text="'(+S/.' + plato.extraComplementos + ' comps)'"></span>
                </div>
-               <div class="flex items-center gap-1">
-                 <button type="button" @click="plato.cantidad = Math.max(1, (plato.cantidad || 1) - 1)" class="w-6 h-6 flex items-center justify-center bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded text-xs hover:bg-gold/10 transition">−</button>
-                 <input type="number" x-model.number="plato.cantidad" min="1" max="50" class="w-12 bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded px-1 py-1 text-xs text-center">
-                 <button type="button" @click="plato.cantidad = (plato.cantidad || 1) + 1" class="w-6 h-6 flex items-center justify-center bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded text-xs hover:bg-gold/10 transition">+</button>
+               <div class="inline-flex items-center rounded-lg border border-[rgba(212,175,55,0.35)] overflow-hidden bg-bg-primary">
+                 <button type="button" @click="plato.cantidad = Math.max(1, (plato.cantidad || 1) - 1)" class="w-8 h-8 flex items-center justify-center text-sm text-white hover:bg-gold/15 transition" aria-label="Menos">−</button>
+                 <span class="w-9 h-8 flex items-center justify-center text-sm font-bold text-white tabular-nums border-x border-[rgba(212,175,55,0.25)]" x-text="plato.cantidad || 1"></span>
+                 <button type="button" @click="plato.cantidad = (plato.cantidad || 1) + 1" class="w-8 h-8 flex items-center justify-center text-sm text-white hover:bg-gold/15 transition" aria-label="Más">+</button>
                </div>
                <select x-model="plato.tipoServicio" class="bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded px-2 py-1 text-xs">
                  <option value="mesa">Mesa</option>
                  <option value="para_llevar">Llevar</option>
                </select>
                <!-- MEJORA: botón editar complementos -->
-               <button type="button" @click="editarComplementosComanda(idx)" x-show="plato.complementosSeleccionados && plato.complementosSeleccionados.length > 0" class="text-[10px] px-1.5 py-1 rounded bg-gold/10 text-gold border border-gold/20 hover:bg-gold/20 transition" title="Editar complementos">✎</button>
+               <button type="button" @click="editarComplementosComanda(idx)" x-show="menuPlatoTieneComplementos(plato, platosParaComanda)" class="text-[10px] px-1.5 py-1 rounded bg-gold/10 text-gold border border-gold/20 hover:bg-gold/20 transition" title="Editar complementos">✎</button>
                <button @click="removePlatoComanda(idx)" class="text-st-pagado hover:text-white px-1">✕</button>
              </div>
              <!-- Resumen de complementos + nota -->
@@ -6021,75 +6093,90 @@ PRÓXIMOS PASOS SUGERIDOS (BACKEND)
 </div>
 <!-- ========== FIN MODAL CREAR COMANDA ========== -->
 
-<!-- ========== PANEL DE COMPLEMENTOS (submodal compartido comanda + reserva) ========== -->
+<!-- ========== PANEL DE COMPLEMENTOS (submodal compartido — UX alineada a App Mozos) ========== -->
 <div x-show="complementosPanel.abierto" x-transition.opacity x-cloak
      class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80"
      @click.self="cerrarPanelComplementos()">
-  <div id="panel-complementos" class="bg-bg-card border border-gold/30 rounded-2xl w-[560px] max-h-[88vh] overflow-y-auto shadow-2xl" @click.stop>
-    <!-- HEADER del panel -->
-    <div class="bg-bg-sidebar p-4 rounded-t-2xl sticky top-0 z-10 flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <span class="text-lg">🥗</span>
-        <h3 class="text-sm font-bold" x-text="'Complementos: ' + (complementosPanel.plato?.nombre || '')"></h3>
+  <div id="panel-complementos" class="bg-bg-card border border-gold/30 rounded-2xl w-[560px] max-h-[88vh] flex flex-col shadow-2xl" @click.stop>
+    <!-- HEADER -->
+    <div class="bg-bg-sidebar p-4 rounded-t-2xl flex items-center justify-between shrink-0 border-b border-[rgba(212,175,55,0.15)]">
+      <div class="min-w-0">
+        <h3 class="text-sm font-bold truncate" x-text="complementosPanel.plato?.nombre || 'Complementos'"></h3>
+        <p class="text-[10px] text-txt-muted mt-0.5">Selecciona complementos como en App Mozos</p>
       </div>
-      <button @click="cerrarPanelComplementos()" class="w-7 h-7 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] hover:bg-[rgba(212,175,55,0.2)] transition text-xs font-bold">✕</button>
+      <button @click="cerrarPanelComplementos()" class="w-7 h-7 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] hover:bg-[rgba(212,175,55,0.2)] transition text-xs font-bold shrink-0">✕</button>
     </div>
 
-    <div class="p-4 space-y-4" x-show="complementosPanel.plato">
-      <!-- Precio base + extra preview -->
-      <div class="flex items-center justify-between text-xs">
-        <span class="text-txt-muted">Precio base: <b class="text-white" x-text="'S/.' + (complementosPanel.plato?.precio || 0)"></b></span>
-        <span x-show="panelComplementosExtra > 0" class="text-gold" x-text="'+ S/.' + panelComplementosExtra.toFixed(2) + ' en complementos'"></span>
-        <span class="font-bold text-gold" x-text="'Total: S/.' + panelComplementosPrecioUnitario.toFixed(2)"></span>
+    <div class="p-4 space-y-3 overflow-y-auto flex-1" x-show="complementosPanel.plato">
+      <!-- Precio resumen -->
+      <div class="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-bg-sidebar border border-[rgba(212,175,55,0.15)]">
+        <span class="text-txt-muted">Base <b class="text-white" x-text="'S/.' + (complementosPanel.plato?.precio || 0)"></b></span>
+        <span x-show="panelComplementosExtra > 0" class="text-gold" x-text="'+S/.' + panelComplementosExtra.toFixed(2)"></span>
+        <span class="font-bold text-gold" x-text="'Total S/.' + panelComplementosPrecioUnitario.toFixed(2)"></span>
       </div>
 
-      <!-- Tipo de servicio -->
-      <div>
-        <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Tipo de servicio</label>
-        <select x-model="complementosPanel.tipoServicio" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
-          <option value="mesa">Mesa</option>
-          <option value="para_llevar">Para llevar</option>
-        </select>
+      <!-- Tipo de servicio (chips) -->
+      <div class="flex gap-2">
+        <button type="button" @click="complementosPanel.tipoServicio = 'mesa'"
+          :class="complementosPanel.tipoServicio === 'mesa' ? 'bg-gold/20 border-gold text-gold' : 'bg-bg-sidebar border-txt-muted/30 text-txt-secondary'"
+          class="flex-1 py-2 border rounded-lg text-xs font-semibold transition">Mesa</button>
+        <button type="button" @click="complementosPanel.tipoServicio = 'para_llevar'"
+          :class="complementosPanel.tipoServicio === 'para_llevar' ? 'bg-gold/20 border-gold text-gold' : 'bg-bg-sidebar border-txt-muted/30 text-txt-secondary'"
+          class="flex-1 py-2 border rounded-lg text-xs font-semibold transition">Para llevar</button>
       </div>
 
-      <!-- Grupos de complementos -->
-      <template x-for="grupo in (complementosPanel.plato?.complementos || [])" :key="grupo.grupo || grupo.nombre">
-        <div class="border border-[rgba(212,175,55,0.15)] rounded-lg p-3" x-show="grupo.opciones && grupo.opciones.length > 0">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-bold" x-text="grupo.grupo || grupo.nombre"></span>
-            <span class="text-[9px] text-txt-muted flex items-center gap-1">
-              <span x-show="grupo.obligatorio" class="text-st-pagado">OBLIGATORIO</span>
-              <span x-show="grupo.modoSeleccion === 'cantidades'">cantidades</span>
-              <span x-show="grupo.maxUnidadesGrupo != null" x-text="'máx ' + grupo.maxUnidadesGrupo + 'uds'"></span>
-              <span x-show="totalGrupoSeleccionado(grupo.grupo || grupo.nombre) > 0 && grupo.maxUnidadesGrupo != null" x-text="'(' + totalGrupoSeleccionado(grupo.grupo || grupo.nombre) + '/' + grupo.maxUnidadesGrupo + ')'"></span>
-            </span>
+      <!-- Grupos normalizados -->
+      <template x-for="grupo in (complementosPanel.grupos || [])" :key="grupo.grupo">
+        <div class="rounded-xl border border-[rgba(212,175,55,0.2)] overflow-hidden">
+          <div class="px-3 py-2 bg-bg-sidebar flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="text-xs font-bold truncate" x-text="grupo.grupo"></span>
+              <span x-show="grupo.obligatorio" class="text-[8px] px-1.5 py-0.5 rounded bg-st-pagado/20 text-st-pagado font-bold shrink-0">OBLIGATORIO</span>
+            </div>
+            <span class="text-[9px] shrink-0"
+              :class="estadoGrupoComplemento(grupo).esValido ? 'text-st-preparado' : 'text-st-pagado'"
+              x-text="estadoGrupoComplemento(grupo).mensaje || (grupo.maxUnidadesGrupo != null ? ('máx ' + grupo.maxUnidadesGrupo) : '')"></span>
           </div>
-          <!-- Modo 'opciones' (check/radio) -->
-          <div x-show="grupo.modoSeleccion !== 'cantidades'" class="space-y-1">
-            <template x-for="op in grupo.opciones" :key="typeof op === 'string' ? op : op.nombre">
-              <label class="flex items-center gap-2 py-1 cursor-pointer text-sm">
-                <input type="checkbox"
-                       :checked="cantidadOpcionSeleccionada(grupo.grupo || grupo.nombre, typeof op === 'string' ? op : op.nombre) > 0"
-                       @change="toggleOpcionComplemento(grupo.grupo || grupo.nombre, typeof op === 'string' ? op : op.nombre)">
-                <span x-text="typeof op === 'string' ? op : op.nombre"></span>
-                <span x-show="typeof op !== 'string' && op.precio > 0" class="text-[10px] text-gold/70" x-text="'+ S/.' + op.precio"></span>
-              </label>
+
+          <!-- Modo opciones: filas seleccionables (radio si max=1) -->
+          <div x-show="grupo.modoSeleccion !== 'cantidades'" class="divide-y divide-[rgba(212,175,55,0.08)]">
+            <template x-for="op in grupo.opciones" :key="op.nombre">
+              <button type="button"
+                @click="toggleOpcionComplemento(grupo.grupo, op.nombre)"
+                class="w-full flex items-center justify-between px-3 py-2.5 text-left transition hover:bg-gold/5"
+                :class="cantidadOpcionSeleccionada(grupo.grupo, op.nombre) > 0 ? 'bg-gold/10' : ''">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="w-4 h-4 rounded-full border flex items-center justify-center shrink-0 text-[9px]"
+                    :class="cantidadOpcionSeleccionada(grupo.grupo, op.nombre) > 0 ? 'border-gold bg-gold text-bg-primary' : 'border-txt-muted/40'">
+                    <span x-show="cantidadOpcionSeleccionada(grupo.grupo, op.nombre) > 0">✓</span>
+                  </span>
+                  <span class="text-sm truncate" x-text="op.nombre"></span>
+                </div>
+                <span x-show="op.precio > 0" class="text-[10px] text-gold shrink-0 ml-2" x-text="'+ S/.' + op.precio"></span>
+              </button>
             </template>
           </div>
-          <!-- Modo 'cantidades' (steppers) -->
-          <div x-show="grupo.modoSeleccion === 'cantidades'" class="space-y-1">
-            <template x-for="op in grupo.opciones" :key="typeof op === 'string' ? op : op.nombre">
-              <div class="flex items-center justify-between py-1 text-sm">
-                <div class="flex items-center gap-2">
-                  <span x-text="typeof op === 'string' ? op : op.nombre"></span>
-                  <span x-show="typeof op !== 'string' && op.precio > 0" class="text-[10px] text-gold/70" x-text="'+ S/.' + op.precio"></span>
+
+          <!-- Modo cantidades: steppers − N + -->
+          <div x-show="grupo.modoSeleccion === 'cantidades'" class="divide-y divide-[rgba(212,175,55,0.08)]">
+            <template x-for="op in grupo.opciones" :key="op.nombre">
+              <div class="flex items-center justify-between px-3 py-2.5"
+                :class="cantidadOpcionSeleccionada(grupo.grupo, op.nombre) > 0 ? 'bg-gold/5' : ''">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="text-sm truncate" x-text="op.nombre"></span>
+                  <span x-show="op.precio > 0" class="text-[10px] text-gold/70 shrink-0" x-text="'+S/.' + op.precio"></span>
                 </div>
-                <div class="flex items-center gap-1">
-                  <button type="button" @click="setCantidadOpcionComplemento(grupo.grupo || grupo.nombre, typeof op === 'string' ? op : op.nombre, -1)"
-                          class="w-6 h-6 flex items-center justify-center bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded text-xs hover:bg-gold/10 transition">−</button>
-                  <span class="w-8 text-center text-xs" x-text="cantidadOpcionSeleccionada(grupo.grupo || grupo.nombre, typeof op === 'string' ? op : op.nombre)"></span>
-                  <button type="button" @click="setCantidadOpcionComplemento(grupo.grupo || grupo.nombre, typeof op === 'string' ? op : op.nombre, 1)"
-                          class="w-6 h-6 flex items-center justify-center bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded text-xs hover:bg-gold/10 transition">+</button>
+                <div class="inline-flex items-center rounded-lg border border-[rgba(212,175,55,0.35)] overflow-hidden bg-bg-primary shrink-0">
+                  <button type="button"
+                    @click="setCantidadOpcionComplemento(grupo.grupo, op.nombre, -1)"
+                    :disabled="cantidadOpcionSeleccionada(grupo.grupo, op.nombre) <= 0"
+                    class="w-8 h-8 flex items-center justify-center text-sm text-white hover:bg-gold/15 transition disabled:opacity-30">−</button>
+                  <span class="w-9 h-8 flex items-center justify-center text-sm font-bold text-white tabular-nums border-x border-[rgba(212,175,55,0.25)]"
+                    x-text="cantidadOpcionSeleccionada(grupo.grupo, op.nombre)"></span>
+                  <button type="button"
+                    @click="setCantidadOpcionComplemento(grupo.grupo, op.nombre, 1)"
+                    :disabled="!puedeIncrementarOpcion(grupo.grupo, op.nombre)"
+                    class="w-8 h-8 flex items-center justify-center text-sm text-white hover:bg-gold/15 transition disabled:opacity-30">+</button>
                 </div>
               </div>
             </template>
@@ -6097,14 +6184,19 @@ PRÓXIMOS PASOS SUGERIDOS (BACKEND)
         </div>
       </template>
 
-      <!-- Nota especial del plato -->
+      <template x-if="!(complementosPanel.grupos || []).length">
+        <p class="text-xs text-txt-muted text-center py-3">Este plato no tiene grupos de complementos. Puedes agregar una nota.</p>
+      </template>
+
+      <!-- Nota especial -->
       <div>
-        <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Nota especial del plato</label>
-        <textarea x-model="complementosPanel.notaEspecial" rows="2" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none resize-none" placeholder="Ej: Sin cebolla, término 3/4, aparte..."></textarea>
+        <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Nota especial</label>
+        <textarea x-model="complementosPanel.notaEspecial" rows="2"
+          class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none resize-none"
+          placeholder="Ej: Sin cebolla, término 3/4, aparte..."></textarea>
       </div>
 
-      <!-- Errores de validación -->
-      <div x-show="complementosPanel.errores.length > 0" class="border border-st-pagado/30 rounded-lg p-2 bg-st-pagado/5">
+      <div x-show="complementosPanel.errores.length > 0" class="border border-st-pagado/30 rounded-lg p-2 bg-st-pagado/5 space-y-0.5">
         <template x-for="err in complementosPanel.errores" :key="err">
           <p class="text-[10px] text-st-pagado" x-text="'⚠️ ' + err"></p>
         </template>
@@ -6112,11 +6204,11 @@ PRÓXIMOS PASOS SUGERIDOS (BACKEND)
     </div>
 
     <!-- FOOTER -->
-    <div class="bg-bg-sidebar p-4 rounded-b-2xl flex justify-between items-center border-t border-[rgba(212,175,55,0.1)]">
+    <div class="bg-bg-sidebar p-4 rounded-b-2xl flex justify-between items-center border-t border-[rgba(212,175,55,0.1)] shrink-0">
       <button @click="cerrarPanelComplementos()" class="px-4 py-2 border border-txt-muted/40 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
       <button @click="confirmarPanelComplementos()" :disabled="!panelComplementosValido"
-              class="px-5 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-        ✓ Confirmar
+              class="px-5 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed">
+        ✓ Agregar al carrito
       </button>
     </div>
   </div>
