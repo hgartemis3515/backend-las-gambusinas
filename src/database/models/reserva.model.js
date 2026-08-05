@@ -60,6 +60,7 @@ const reservaSchema = new mongoose.Schema({
     },
     
     // Platos pre-seleccionados (opcional)
+    // MEJORA: soporte de complementosSeleccionados (v3.0) alineado al modelo de comanda/App Mozos.
     platos: [{
         plato: {
             type: mongoose.Schema.Types.ObjectId,
@@ -70,6 +71,17 @@ const reservaSchema = new mongoose.Schema({
             default: 1,
             min: 1
         },
+        tipoServicio: {
+            type: String,
+            enum: ['mesa', 'para_llevar'],
+            default: 'mesa'
+        },
+        complementosSeleccionados: [{
+            grupo: { type: String, default: '' },
+            opcion: { type: String, default: '' },
+            cantidad: { type: Number, default: 1, min: 1 },
+            precio: { type: Number, default: 0 }   // snapshot; backend revalida
+        }],
         notaEspecial: {
             type: String,
             default: ''

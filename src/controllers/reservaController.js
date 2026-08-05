@@ -191,11 +191,22 @@ router.post('/reservas', async (req, res) => {
         const creadoPorValue = req.body.creadoPor || req.headers['x-user-id'] || null;
         
         // Validar y filtrar platos con ObjectId válidos
+        // MEJORA: propagar complementosSeleccionados, notaEspecial y tipoServicio (v3.0)
         const platosValidados = (platos || [])
             .filter(p => p.plato && mongoose.Types.ObjectId.isValid(p.plato))
             .map(p => ({
                 plato: new mongoose.Types.ObjectId(p.plato),
-                cantidad: parseInt(p.cantidad) || 1
+                cantidad: parseInt(p.cantidad) || 1,
+                tipoServicio: p.tipoServicio === 'para_llevar' ? 'para_llevar' : 'mesa',
+                complementosSeleccionados: Array.isArray(p.complementosSeleccionados)
+                    ? p.complementosSeleccionados.map(c => ({
+                        grupo: String(c.grupo || ''),
+                        opcion: String(c.opcion || ''),
+                        cantidad: parseInt(c.cantidad) || 1,
+                        precio: Number(c.precio) || 0
+                    }))
+                    : [],
+                notaEspecial: typeof p.notaEspecial === 'string' ? p.notaEspecial : ''
             }));
         
         const dataReserva = {

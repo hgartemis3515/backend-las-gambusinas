@@ -184,8 +184,17 @@ tailwind.config = {
  <span x-text="agruparPorCliente ? 'Agrupado' : 'Individual'"></span>
  </button>
 
+ <!-- Botón Crear Comanda (Dashboard) -->
+ <button @click="openComandaModal()" x-show="tienePermisoComanda('crear-comandas-dashboard')"
+ data-blendy-from="btn-crear-comanda"
+ class="px-3 py-2 border rounded-lg text-xs font-medium transition flex items-center gap-1 bg-st-preparado/20 border-st-preparado text-st-preparado hover:bg-st-preparado/30">
+ <span>🍽️</span>
+ <span>Crear Comanda</span>
+ </button>
+
  <!-- Botón Crear Reserva -->
- <button @click="openReservaModal()" 
+ <button @click="openReservaModal()"
+ data-blendy-from="btn-crear-reserva"
  class="px-3 py-2 border rounded-lg text-xs font-medium transition flex items-center gap-1 bg-st-reservado/20 border-st-reservado text-st-reservado hover:bg-st-reservado/30">
  <span>📅</span>
  <span>Crear Reserva</span>
@@ -251,12 +260,13 @@ tailwind.config = {
  <span class="text-gold font-bold text-sm" x-text="'GRUPO ' + (formatGrupoComandasLabel(row.comandas) || row.clienteNombre || formatearNombreMesa(row.mesaNum, row.mesaObj))"></span>
  </button>
  </template>
- <template x-if="row.tipo === 'individual'">
- <div class="flex items-center gap-2">
-   <span class="font-medium text-sm" x-text="'#' + (row.comanda.numComanda || row.comanda._id?.slice(-4) || '—')"></span>
-   <span x-show="row.comanda?.origenReserva" class="text-[9px] px-1.5 py-0.5 rounded bg-st-reservado/20 text-st-reservado" title="Desde reserva">📅</span>
- </div>
- </template>
+<template x-if="row.tipo === 'individual'">
+<div class="flex items-center gap-2">
+  <span class="font-medium text-sm" x-text="'#' + (row.comanda.numComanda || row.comanda._id?.slice(-4) || '—')"></span>
+  <span x-show="row.comanda?.origenReserva" class="text-[9px] px-1.5 py-0.5 rounded bg-st-reservado/20 text-st-reservado" title="Desde reserva">📅</span>
+  <span x-show="row.comanda?.omitirPago" class="text-[9px] px-1.5 py-0.5 rounded bg-st-pagado/20 text-st-pagado font-semibold" :title="row.comanda?.pagoOmitido?.motivo ? ('Pago omitido: ' + row.comanda.pagoOmitido.motivo) : 'Pago omitido'">💸</span>
+</div>
+</template>
  </td>
  
  <!-- Mesa -->
@@ -627,6 +637,11 @@ tailwind.config = {
  'bg-[#ff4757]/20 text-[#ff4757]': selectedComanda?.estado === 'cancelado'
  }"
  x-text="estadoLabel(selectedComanda?.estado)"></span>
+ <span x-show="selectedComanda?.omitirPago"
+   class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-st-pagado/20 text-st-pagado"
+   :title="(selectedComanda?.pagoOmitido?.motivo || 'Pago omitido') + (selectedComanda?.pagoOmitido?.aplicado ? ' · Auto-pagada al entregar' : ' · Pendiente de entrega')">
+   💸 <span x-text="selectedComanda?.pagoOmitido?.aplicado ? 'Pago omitido (auto-pagada)' : 'Omitir pago'"></span>
+ </span>
  </div>
  <p class="text-xs text-txt-muted mt-0.5">
  <span x-text="formatearNombreMesa(selectedComanda?.mesa)"></span>
@@ -682,6 +697,25 @@ tailwind.config = {
  </div>
  </div>
  
+ <!-- PAGO OMITIDO (dashboard) -->
+ <div x-show="selectedComanda?.omitirPago" class="mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]">
+   <p class="text-[10px] text-st-pagado uppercase mb-2 font-semibold tracking-wider">💸 Pago omitido</p>
+   <div class="grid grid-cols-3 gap-3 text-sm">
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Estado</p>
+       <p class="font-medium text-st-pagado" x-text="selectedComanda?.pagoOmitido?.aplicado ? 'Auto-pagada al entregar' : 'Activo (pendiente entrega)'"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Motivo</p>
+       <p class="font-medium text-xs text-[#a0a0b8]" x-text="selectedComanda?.pagoOmitido?.motivo || '—'"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Referencia</p>
+       <p class="font-medium text-xs text-[#a0a0b8]" x-text="selectedComanda?.pagoOmitido?.referenciaExterna || '—'"></p>
+     </div>
+   </div>
+ </div>
+
  <!-- 🔥 RESUMEN DE COCINEROS Y TIEMPOS -->
  <template x-if="selectedComanda && getResumenCocineros(selectedComanda).cocineros.length > 0">
  <div class="mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]">
@@ -2011,6 +2045,7 @@ function comandasApp() {
  reservasLoading: false,
  reservaModal: null,
  reservaForm: {
+   areaId: '',
    mesa: '',
    mozo: '',
    clienteNombre: '',
@@ -2018,25 +2053,292 @@ function comandasApp() {
    numPersonas: 1,
    fechaReserva: '',
    tiempoEspera: 10,
-   platos: [],
+   // MEJORA: carrito unificado con complementos + notaEspecial (mismo modelo que comanda)
+   platos: [],   // [{ platoId, nombre, cantidad, tipoServicio, complementosSeleccionados[], notaEspecial, precioBase, extraComplementos, precioUnitario }]
    metodoPago: '',
    notas: ''
  },
  mesasDisponibles: [],
 mozosParaReserva: [],
 platosParaReserva: [],
+areasParaReserva: [],
+tiposPlatoReserva: [],
+tipoPlatoFiltroReserva: '',
+categoriaFiltroReserva: '',
+busquedaPlatoReserva: '',
 editingReservaId: null,
 reservaCountdownInterval: null,
 
-// Función para obtener fecha mínima (ahora) en formato datetime-local
+// Función para obtener fecha mínima (ahora) en formato datetime-local en TZ Lima
 getMinDateTime() {
+  // MEJORA: generar min en hora local del navegador (datetime-local trabaja con hora local).
+  // El backend valida con moment.tz America/Lima; el offset lo aporta el navegador del usuario.
   const now = new Date();
-  // Ajustar a zona horaria local y formatear
-  const offset = now.getTimezoneOffset();
-  const localDate = new Date(now.getTime() - offset * 60 * 1000);
-  return localDate.toISOString().slice(0, 16);
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60 * 1000);
+  return local.toISOString().slice(0, 16);
 },
 // ========== FIN RESERVAS ==========
+
+// ========== CREAR COMANDA DESDE DASHBOARD ==========
+comandaModal: null,                 // null | 'crear'
+comandaForm: {
+  areaId: '',
+  mesas: '',
+  mozos: '',
+  observaciones: '',
+  omitirPago: false,
+  motivoOmitirPago: '',
+  referenciaExterna: '',
+  // MEJORA: carrito con complementos + notaEspecial (alineado a App Mozos)
+  platosSeleccionados: []  // [{ platoId, _id, nombre, estado, tipoServicio, cantidad, complementosSeleccionados[], notaEspecial, precioBase, extraComplementos, precioUnitario }]
+},
+areasParaComanda: [],
+mesasParaComanda: [],
+mozosParaComanda: [],
+tiposPlatoComanda: [],
+platosParaComanda: [],
+tipoPlatoFiltroComanda: '',         // slug seleccionado
+categoriaFiltroComanda: '',         // categoría de plato
+busquedaPlatoComanda: '',
+_cargandoComandaModal: false,       // loader al abrir modal
+_limitePlatosVisibles: 30,          // paginacion simple de resultados
+_mostrarTodosPlatos: false,
+guardandoComanda: false,
+puedeCrearComandaDashboard: false,
+puedeOmitirPagoDashboard: false,
+
+// ========== PANEL COMPLEMENTOS (compartido comanda + reserva) ==========
+// Estado del submodal de complementos: plato en edición + selección temporal
+complementosPanel: {
+  abierto: false,
+  contexto: '',          // 'comanda' | 'reserva'
+  plato: null,           // plato del menú (con .complementos)
+  itemIdx: null,         // índice del item en el carrito (edit) o null (alta nueva)
+  tipoServicio: 'mesa',
+  seleccion: [],         // [{ grupo, opcion, cantidad, precio }]
+  notaEspecial: '',
+  errores: [],
+  // Snapshot de orbes de carga si el plato no está cacheado
+  _cargando: false
+},
+// Instancia de ThinkingOrbCanvas para el loader del modal (inicializada on-demand)
+_orbComanda: null,
+_orbReserva: null,
+
+// Helper de permisos reutilizable (compat con sharedTienePermiso)
+tienePermisoComanda(permiso) {
+  const payload = this.getJwtPayload();
+  if (!payload) return false;
+  if (payload.rol === 'admin') return true;
+  const permisos = payload.permisos || [];
+  return permisos.includes(permiso);
+},
+
+getJwtPayload() {
+  const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+  if (!token) return null;
+  try {
+    return JSON.parse(atob(token.split('.')[1]));
+  } catch (e) {
+    return null;
+  }
+},
+// ========== FIN CREAR COMANDA DESDE DASHBOARD ==========
+
+// ========== PANEL COMPLEMENTOS: métodos compartidos (comanda + reserva) ==========
+
+// Abrir el panel de complementos para un plato dado
+// plato: objeto plato del menú (con .complementos)
+// contexto: 'comanda' | 'reserva'
+// itemIdx: índice del item en el carrito (edición) o null (alta nueva)
+abrirPanelComplementos(plato, contexto, itemIdx) {
+  const H = window.DashboardCartHelpers;
+  if (!H || !plato) return;
+  // Pre-cargar selección si es edición
+  let seleccionPrev = [];
+  let notaPrev = '';
+  let tipoServicioPrev = 'mesa';
+  if (contexto === 'comanda' && itemIdx != null) {
+    const item = this.comandaForm.platosSeleccionados[itemIdx];
+    if (item) {
+      seleccionPrev = (item.complementosSeleccionados || []).map(c => ({ ...c }));
+      notaPrev = item.notaEspecial || '';
+      tipoServicioPrev = item.tipoServicio || 'mesa';
+    }
+  } else if (contexto === 'reserva' && itemIdx != null) {
+    const item = this.reservaForm.platos[itemIdx];
+    if (item) {
+      seleccionPrev = (item.complementosSeleccionados || []).map(c => ({ ...c }));
+      notaPrev = item.notaEspecial || '';
+      tipoServicioPrev = item.tipoServicio || 'mesa';
+    }
+  }
+  this.complementosPanel = {
+    abierto: true,
+    contexto,
+    plato,
+    itemIdx,
+    tipoServicio: tipoServicioPrev,
+    seleccion: seleccionPrev,
+    notaEspecial: notaPrev,
+    errores: [],
+    _cargando: false
+  };
+  // MEJORA: Blendy morph del botón/origen al panel (si disponible)
+  this.$nextTick(() => {
+    const panel = document.getElementById('panel-complementos');
+    if (panel && window.BlendyWrapper?.isAvailable?.()) {
+      // Origen: el botón que disparó la apertura (lo buscamos por data-blendy-from si existe)
+      const fromEl = document.querySelector('[data-blendy-complementos-origen]');
+      if (fromEl) window.BlendyWrapper.morph(fromEl, panel, { animation: 'dynamic' });
+    }
+  });
+},
+
+cerrarPanelComplementos() {
+  this.complementosPanel.abierto = false;
+  this.complementosPanel.plato = null;
+  this.complementosPanel.seleccion = [];
+  this.complementosPanel.errores = [];
+},
+
+// Toggle de una opción en un grupo (modo 'opciones')
+toggleOpcionComplemento(grupo, opcion) {
+  const H = window.DashboardCartHelpers;
+  const sel = this.complementosPanel.seleccion;
+  const idx = sel.findIndex(s => s.grupo === grupo && s.opcion === opcion);
+  if (idx >= 0) {
+    sel.splice(idx, 1);
+  } else {
+    const g = (this.complementosPanel.plato?.complementos || []).find(x => x.grupo === grupo || x.nombre === grupo);
+    const opObj = (g?.opciones || []).find(o => (typeof o === 'string' ? o : o?.nombre) === opcion);
+    const precio = opObj ? (typeof opObj === 'string' ? 0 : (opObj.precio || 0)) : 0;
+    sel.push({ grupo, opcion, cantidad: 1, precio });
+  }
+  this._validarPanelComplementos();
+},
+
+// Stepper de cantidad en una opción (modo 'cantidades' o para incrementar en 'opciones')
+setCantidadOpcionComplemento(grupo, opcion, delta) {
+  const sel = this.complementosPanel.seleccion;
+  let entry = sel.find(s => s.grupo === grupo && s.opcion === opcion);
+  if (!entry) {
+    if (delta <= 0) return;
+    const g = (this.complementosPanel.plato?.complementos || []).find(x => x.grupo === grupo || x.nombre === grupo);
+    const opObj = (g?.opciones || []).find(o => (typeof o === 'string' ? o : o?.nombre) === opcion);
+    const precio = opObj ? (typeof opObj === 'string' ? 0 : (opObj.precio || 0)) : 0;
+    entry = { grupo, opcion, cantidad: 0, precio };
+    sel.push(entry);
+  }
+  entry.cantidad = Math.max(0, (entry.cantidad || 0) + delta);
+  if (entry.cantidad === 0) {
+    const idx = sel.indexOf(entry);
+    if (idx >= 0) sel.splice(idx, 1);
+  }
+  this._validarPanelComplementos();
+},
+
+// Validar el panel y actualizar errores
+_validarPanelComplementos() {
+  const H = window.DashboardCartHelpers;
+  if (!H) { this.complementosPanel.errores = []; return; }
+  this.complementosPanel.errores = H.validarComplementos(this.complementosPanel.plato, this.complementosPanel.seleccion);
+},
+
+// Getter: total seleccionado en un grupo (para mostrar en UI)
+totalGrupoSeleccionado(grupo) {
+  return window.DashboardCartHelpers?.totalSeleccionadoEnGrupo(this.complementosPanel.seleccion, grupo) || 0;
+},
+
+// Getter: cantidad de una opción específica
+cantidadOpcionSeleccionada(grupo, opcion) {
+  return window.DashboardCartHelpers?.cantidadOpcion(this.complementosPanel.seleccion, grupo, opcion) || 0;
+},
+
+// Getter: el panel es válido (sin errores)
+get panelComplementosValido() {
+  return this.complementosPanel.errores.length === 0;
+},
+
+// Extra total del plato en el panel (para preview de precio)
+get panelComplementosExtra() {
+  const H = window.DashboardCartHelpers;
+  if (!H) return 0;
+  return H.calcularExtraComplementos(this.complementosPanel.plato, this.complementosPanel.seleccion);
+},
+
+// Precio unitario preview del plato en el panel
+get panelComplementosPrecioUnitario() {
+  const H = window.DashboardCartHelpers;
+  if (!H) return 0;
+  return H.calcularPrecioUnitario(this.complementosPanel.plato, this.complementosPanel.seleccion);
+},
+
+// Confirmar el panel: empuja el item al carrito correspondiente
+confirmarPanelComplementos() {
+  const H = window.DashboardCartHelpers;
+  if (!H) return;
+  this._validarPanelComplementos();
+  if (this.complementosPanel.errores.length > 0) {
+    this.showToast(this.complementosPanel.errores[0], 'error');
+    return;
+  }
+  const { plato, seleccion, notaEspecial, tipoServicio, contexto, itemIdx } = this.complementosPanel;
+  const item = H.construirItemCarrito(plato, {
+    tipoServicio,
+    complementosSeleccionados: seleccion,
+    notaEspecial
+  });
+  if (contexto === 'comanda') {
+    if (itemIdx != null) {
+      // Edición: reemplazar el item
+      this.comandaForm.platosSeleccionados[itemIdx] = item;
+    } else {
+      this._agregarItemCarritoComanda(item);
+    }
+  } else if (contexto === 'reserva') {
+    if (itemIdx != null) {
+      this.reservaForm.platos[itemIdx] = item;
+    } else {
+      this._agregarItemCarritoReserva(item);
+    }
+  }
+  this.cerrarPanelComplementos();
+},
+
+// Resumen de complementos de un item (para mostrar en el carrito)
+resumenComplementosItem(item) {
+  return window.DashboardCartHelpers?.resumenComplementosTexto(item?.complementosSeleccionados) || '';
+},
+
+// ========== FIN PANEL COMPLEMENTOS ==========
+
+// ========== THINKING ORBS: helpers de integración ==========
+// Crea/actualiza/oculta el orb dentro de un contenedor del modal
+_setOrbState(contexto, state) {
+  // estado null => ocultar
+  const orbKey = contexto === 'comanda' ? '_orbComanda' : '_orbReserva';
+  const containerId = contexto === 'comanda' ? 'orb-loader-comanda' : 'orb-loader-reserva';
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  if (!state) {
+    if (this[orbKey]) { this[orbKey].setPaused(true); container.style.display = 'none'; }
+    return;
+  }
+  container.style.display = '';
+  if (!this[orbKey] && window.ThinkingOrbsVanilla) {
+    this[orbKey] = window.ThinkingOrbsVanilla.createThinkingOrb(container, { state, size: 20, theme: 'dark' });
+  } else if (this[orbKey]) {
+    this[orbKey].setState(state);
+    this[orbKey].setPaused(false);
+  }
+},
+
+// Orb de carga inicial del modal (searching mientras carga mozos/mesas/platos)
+_setOrbLoading(contexto, isLoading) {
+  this._setOrbState(contexto, isLoading ? 'searching' : null);
+},
+// ========== FIN THINKING ORBS ==========
 
 // ========== FUNCIÓN HELPER: Normalizar ObjectId a string ==========
 normalizeObjectId(val) {
@@ -2742,7 +3044,11 @@ this.modal = null;
  motivoDescuento: raw.motivoDescuento || null,
  descuentoAplicadoPor: raw.descuentoAplicadoPor || null,
  descuentoAplicadoAt: raw.descuentoAplicadoAt || null,
- montoDescuento: raw.montoDescuento || 0
+ montoDescuento: raw.montoDescuento || 0,
+ origenCreacion: raw.origenCreacion || 'mozos',
+ omitirPago: !!raw.omitirPago,
+ pagoOmitido: raw.pagoOmitido || null,
+ origenReserva: raw.origenReserva || null
  };
  },
 
@@ -4356,8 +4662,10 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  },
 
  async openReservaModal() {
+   window.BlendyWrapper?.restoreSource?.('btn-crear-reserva');
    this.editingReservaId = null;
    this.reservaForm = {
+     areaId: '',
      mesa: '',
      mozo: '',
      clienteNombre: '',
@@ -4369,15 +4677,115 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
      metodoPago: '',
      notas: ''
    };
+   this.tipoPlatoFiltroReserva = '';
+   this.categoriaFiltroReserva = '';
+   this.busquedaPlatoReserva = '';
+   this._setOrbLoading('reserva', true);
    
    // Cargar datos necesarios
-   await Promise.all([
-     this.loadMesasDisponibles(),
-     this.loadMozosParaReserva(),
-     this.loadPlatosParaReserva()
-   ]);
-   
+   try {
+     await Promise.all([
+       this.loadAreasParaReserva(),
+       this.loadMesasDisponibles(),
+       this.loadMozosParaReserva(),
+       this.loadPlatosParaReserva(),
+       this.loadTiposPlatoReserva()
+     ]);
+   } finally {
+     this._setOrbLoading('reserva', false);
+   }
    this.reservaModal = 'crear';
+   // Nota: sin Blendy morph botón→modal (conflicto con Alpine x-show).
+ },
+
+ async loadAreasParaReserva() {
+   try {
+     const res = await fetch('/api/areas', {
+       headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+     });
+     if (res.ok) {
+       const data = await res.json();
+       this.areasParaReserva = Array.isArray(data) ? data : (data.areas || []);
+     }
+   } catch (e) {
+     console.error('Error cargando áreas para reserva:', e);
+   }
+ },
+
+ async loadTiposPlatoReserva() {
+   try {
+     const res = await fetch('/api/tipos-plato/menu', {
+       headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+     });
+     if (res.ok) {
+       this.tiposPlatoReserva = await res.json();
+     }
+   } catch (e) {
+     console.error('Error cargando tipos de plato para reserva:', e);
+   }
+ },
+
+ get mesasFiltradasReserva() {
+   if (!this.reservaForm.areaId) return this.mesasDisponibles;
+   return this.mesasDisponibles.filter(m => {
+     const areaId = m.area?._id ? String(m.area._id) : (m.area ? String(m.area) : null);
+     return areaId === String(this.reservaForm.areaId);
+   });
+ },
+
+ onAreaReservaChange() {
+   this.reservaForm.mesa = '';
+ },
+
+ get platosFiltradosReserva() {
+   let lista = (this.platosParaReserva || []).filter(p => p.isActive !== false);
+
+   if (this.categoriaFiltroReserva) {
+     lista = lista.filter(p => String(p.categoria || '').trim() === String(this.categoriaFiltroReserva));
+   }
+
+   const q = (this.busquedaPlatoReserva || '').trim().toLowerCase();
+   if (q) {
+     lista = lista.filter(p => {
+       const nombre = (p.nombre || '').toLowerCase();
+       const codigo = String(p.codigo || p.id || '').toLowerCase();
+       const cat = String(p.categoria || '').toLowerCase();
+       return nombre.includes(q) || codigo.includes(q) || cat.includes(q);
+     });
+   }
+
+   return lista.slice().sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
+ },
+
+ // Categorías únicas derivadas del menú cargado (comanda)
+ get categoriasPlatoComanda() {
+   const set = new Set();
+   (this.platosParaComanda || []).forEach(p => {
+     if (p.isActive === false) return;
+     const c = String(p.categoria || '').trim();
+     if (c) set.add(c);
+   });
+   return Array.from(set).sort((a, b) => a.localeCompare(b, 'es'));
+ },
+
+ // Categorías únicas derivadas del menú cargado (reserva)
+ get categoriasPlatoReserva() {
+   const set = new Set();
+   (this.platosParaReserva || []).forEach(p => {
+     if (p.isActive === false) return;
+     const c = String(p.categoria || '').trim();
+     if (c) set.add(c);
+   });
+   return Array.from(set).sort((a, b) => a.localeCompare(b, 'es'));
+ },
+
+ // MEJORA: resumen del carrito de reserva (mismo patrón que comanda)
+ get resumenPlatosReserva() {
+   const H = window.DashboardCartHelpers;
+   const carrito = this.reservaForm.platos;
+   const n = H ? H.totalUnidadesCarrito(carrito) : carrito.length;
+   const total = H ? H.totalCarrito(carrito) : carrito.reduce((sum, p) => sum + (p.precioBase || p.precio || 0) * (p.cantidad || 1), 0);
+   return { n, total: (Math.round(total * 100) / 100).toFixed(2) };
  },
 
  async openReservasListModal() {
@@ -4386,9 +4794,375 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  },
 
  closeReservaModal() {
+   // MEJORA: restaurar botón origen que Blendy deja en opacity:0
+   window.BlendyWrapper?.restoreSource?.('btn-crear-reserva');
    this.reservaModal = null;
    this.editingReservaId = null;
+   this._setOrbState('reserva', null);
  },
+
+ // ========== CREAR COMANDA DESDE DASHBOARD ==========
+ async openComandaModal() {
+   // Por si un morph previo dejó el botón invisible
+   window.BlendyWrapper?.restoreSource?.('btn-crear-comanda');
+   this.comandaForm = {
+     areaId: '',
+     mesas: '',
+     mozos: '',
+     observaciones: '',
+     omitirPago: false,
+     motivoOmitirPago: '',
+     referenciaExterna: '',
+     platosSeleccionados: []
+   };
+   this.tipoPlatoFiltroComanda = '';
+   this.categoriaFiltroComanda = '';
+   this.busquedaPlatoComanda = '';
+   this.mesasParaComanda = [];
+   this._mostrarTodosPlatos = false;
+   this._cargandoComandaModal = true;
+   this.comandaModal = 'crear';
+   this._setOrbLoading('comanda', true);
+
+   this.puedeCrearComandaDashboard = this.tienePermisoComanda('crear-comandas-dashboard');
+   this.puedeOmitirPagoDashboard = this.tienePermisoComanda('omitir-pago-comandas-dashboard');
+
+   if (!this.puedeCrearComandaDashboard) {
+     this._cargandoComandaModal = false;
+     this._setOrbLoading('comanda', false);
+     this.comandaModal = null;
+     this.showToast('No tiene permiso para crear comandas desde el dashboard', 'error');
+     return;
+   }
+
+   // Nota: no usar Blendy morph botón→modal con Alpine x-show (deja el botón en opacity:0).
+   // La transición del modal usa x-transition.opacity nativo.
+
+   try {
+     await Promise.all([
+       this.loadAreasParaComanda(),
+       this.loadMozosParaComanda(),
+       this.loadTiposPlatoComanda(),
+       this.loadPlatosParaComanda()
+     ]);
+   } finally {
+     this._cargandoComandaModal = false;
+     this._setOrbLoading('comanda', false);
+   }
+ },
+
+ closeComandaModal() {
+   // MEJORA: restaurar botón origen que Blendy deja en opacity:0 tras el morph
+   window.BlendyWrapper?.restoreSource?.('btn-crear-comanda');
+   this.comandaModal = null;
+   this.cerrarPanelComplementos?.();
+   this._setOrbState('comanda', null);
+ },
+
+ async loadAreasParaComanda() {
+   try {
+     const res = await fetch('/api/areas', {
+       headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+     });
+     if (res.ok) {
+       const data = await res.json();
+       this.areasParaComanda = Array.isArray(data) ? data : (data.areas || []);
+     }
+   } catch (e) {
+     console.error('Error cargando áreas:', e);
+   }
+ },
+
+ async loadMozosParaComanda() {
+   try {
+     const res = await fetch('/api/mozos', {
+       headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+     });
+     if (res.ok) {
+       const data = await res.json();
+       const todos = Array.isArray(data) ? data : (data.mozos || []);
+       // Filtrar: solo activos y preferiblemente rol mozo / supervisor (no admin/cocinero/cajero)
+       this.mozosParaComanda = todos.filter(m => {
+         if (m.isActive === false) return false;
+         const rol = (m.rol || '').toLowerCase();
+         // Incluir mozos, supervisores y roles custom de salón; excluir admin/cocinero/cajero
+         return rol === 'mozos' || rol === 'supervisor' || (rol && !['admin', 'cocinero', 'cajero'].includes(rol));
+       });
+     }
+   } catch (e) {
+     console.error('Error cargando mozos:', e);
+   }
+ },
+
+ async loadTiposPlatoComanda() {
+   try {
+     const res = await fetch('/api/tipos-plato/menu', {
+       headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+     });
+     if (res.ok) {
+       this.tiposPlatoComanda = await res.json();
+     }
+   } catch (e) {
+     console.error('Error cargando tipos de plato:', e);
+   }
+ },
+
+ async loadPlatosParaComanda() {
+   try {
+     const res = await fetch('/api/platos', {
+       headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+     });
+     if (res.ok) {
+       const data = await res.json();
+       this.platosParaComanda = Array.isArray(data) ? data : (data.platos || []);
+     }
+   } catch (e) {
+     console.error('Error cargando platos:', e);
+   }
+ },
+
+ get mesasFiltradasComanda() {
+   if (!this.comandaForm.areaId) return this.mesasParaComanda;
+   return this.mesasParaComanda.filter(m => {
+     const areaId = m.area?._id ? String(m.area._id) : (m.area ? String(m.area) : null);
+     return areaId === String(this.comandaForm.areaId);
+   });
+ },
+
+ get platosFiltradosComanda() {
+   let lista = this.platosParaComanda;
+
+   // Filtrar solo platos activos
+   lista = lista.filter(p => p.isActive !== false);
+
+   // Filtrar por categoría
+   if (this.categoriaFiltroComanda) {
+     lista = lista.filter(p => String(p.categoria || '').trim() === String(this.categoriaFiltroComanda));
+   }
+
+   // Buscar por nombre + codigo + categoría
+   const q = (this.busquedaPlatoComanda || '').trim().toLowerCase();
+   if (q) {
+     lista = lista.filter(p => {
+       const nombre = (p.nombre || '').toLowerCase();
+       const codigo = String(p.codigo || p.id || '').toLowerCase();
+       const cat = String(p.categoria || '').toLowerCase();
+       return nombre.includes(q) || codigo.includes(q) || cat.includes(q);
+     });
+     // Ordenar: match exacto de código primero, luego alfabético
+     lista.sort((a, b) => {
+       const ca = String(a.codigo || a.id || '').toLowerCase();
+       const cb = String(b.codigo || b.id || '').toLowerCase();
+       const aExact = ca === q ? 0 : 1;
+       const bExact = cb === q ? 0 : 1;
+       if (aExact !== bExact) return aExact - bExact;
+       return (a.nombre || '').localeCompare(b.nombre || '', 'es');
+     });
+   } else {
+     lista = lista.slice().sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
+   }
+
+   if (!this._mostrarTodosPlatos && lista.length > this._limitePlatosVisibles) {
+     return lista.slice(0, this._limitePlatosVisibles);
+   }
+   return lista;
+ },
+
+ get platosFiltradosTotal() {
+   let lista = this.platosParaComanda.filter(p => p.isActive !== false);
+   if (this.categoriaFiltroComanda) {
+     lista = lista.filter(p => String(p.categoria || '').trim() === String(this.categoriaFiltroComanda));
+   }
+   const q = (this.busquedaPlatoComanda || '').trim().toLowerCase();
+   if (q) {
+     lista = lista.filter(p => {
+       const nombre = (p.nombre || '').toLowerCase();
+       const codigo = String(p.codigo || p.id || '').toLowerCase();
+       const cat = String(p.categoria || '').toLowerCase();
+       return nombre.includes(q) || codigo.includes(q) || cat.includes(q);
+     });
+   }
+   return lista.length;
+ },
+
+ get resumenPlatosComanda() {
+   const H = window.DashboardCartHelpers;
+   const carrito = this.comandaForm.platosSeleccionados;
+   const n = H ? H.totalUnidadesCarrito(carrito) : carrito.length;
+   const total = H ? H.totalCarrito(carrito) : carrito.reduce((sum, p) => sum + (p.precio || 0) * (p.cantidad || 1), 0);
+   return { n, total: (Math.round(total * 100) / 100).toFixed(2) };
+ },
+
+ get formComandaValido() {
+   return !!(this.comandaForm.areaId && this.comandaForm.mesas && this.comandaForm.mozos && this.comandaForm.platosSeleccionados.length > 0);
+ },
+
+ yaEnCarritoComanda(platoId) {
+   return !!this.comandaForm.platosSeleccionados.find(p => p._id === platoId || p.platoId === platoId);
+ },
+
+ onAreaComandaChange() {
+   // Al cambiar área, resetear mesa y recargar mesas de esa área
+   this.comandaForm.mesas = '';
+   this.mesasParaComanda = [];
+   if (!this.comandaForm.areaId) return;
+   // Cargar todas las mesas y filtrar por área en cliente
+   this.loadMesasParaComandaByArea();
+ },
+
+ async loadMesasParaComandaByArea() {
+   try {
+     const res = await fetch('/api/mesas', {
+       headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+     });
+     if (res.ok) {
+       const data = await res.json();
+       const todas = Array.isArray(data) ? data : (data.mesas || []);
+       this.mesasParaComanda = todas.filter(m => {
+         const areaId = m.area?._id ? String(m.area._id) : (m.area ? String(m.area) : null);
+         return areaId === String(this.comandaForm.areaId);
+       });
+     }
+   } catch (e) {
+     console.error('Error cargando mesas por área:', e);
+   }
+ },
+
+ addPlatoToComanda(plato) {
+   // MEJORA: si el plato tiene complementos, abrir el panel de complementos en modo alta.
+   const H = window.DashboardCartHelpers;
+   const tieneComps = Array.isArray(plato.complementos) && plato.complementos.some(g => g && (g.opciones?.length || 0) > 0);
+   if (tieneComps && H) {
+     this.abrirPanelComplementos(plato, 'comanda', null);
+     return;
+   }
+   // Sin complementos: alta directa al carrito (agrupando si mismo item)
+   const newItem = H.construirItemCarrito(plato, { tipoServicio: 'mesa' });
+   this._agregarItemCarritoComanda(newItem);
+ },
+
+ // MEJORA: agregar o agrupar item en carrito de comanda (respeta complementos/nota)
+ _agregarItemCarritoComanda(item) {
+   const H = window.DashboardCartHelpers;
+   const existente = this.comandaForm.platosSeleccionados.find(p => H.mismoItemCarrito(p, item));
+   if (existente) {
+     existente.cantidad = (existente.cantidad || 1) + (item.cantidad || 1);
+   } else {
+     this.comandaForm.platosSeleccionados.push(item);
+   }
+ },
+
+ // MEJORA: editar complementos de un item existente en carrito comanda
+ editarComplementosComanda(idx) {
+   const item = this.comandaForm.platosSeleccionados[idx];
+   if (!item) return;
+   const plato = this.platosParaComanda.find(p => p._id === item._id || p.id === item.platoId);
+   if (!plato) return;
+   this.abrirPanelComplementos(plato, 'comanda', idx);
+ },
+
+ removePlatoComanda(idx) {
+   this.comandaForm.platosSeleccionados.splice(idx, 1);
+ },
+
+ validarComandaForm() {
+   if (!this.comandaForm.areaId) return 'Debe seleccionar un área';
+   if (!this.comandaForm.mesas) return 'Debe seleccionar una mesa';
+   if (!this.comandaForm.mozos) return 'Debe seleccionar un mozo para retirar el plato';
+   if (this.comandaForm.platosSeleccionados.length === 0) return 'Debe agregar al menos un plato';
+   const sinCantidad = this.comandaForm.platosSeleccionados.find(p => !p.cantidad || p.cantidad < 1);
+   if (sinCantidad) return `El plato "${sinCantidad.nombre}" debe tener cantidad mayor a 0`;
+   // MEJORA: validar complementos obligatorios por plato usando helper compartido
+   const H = window.DashboardCartHelpers;
+   if (H) {
+     for (const item of this.comandaForm.platosSeleccionados) {
+       const plato = this.platosParaComanda.find(p => p._id === item._id || p.id === item.platoId);
+       if (plato && Array.isArray(plato.complementos) && plato.complementos.length) {
+         const errs = H.validarComplementos(plato, item.complementosSeleccionados || []);
+         if (errs.length) return `"${item.nombre}": ${errs[0]}`;
+       }
+     }
+   }
+   if (this.comandaForm.omitirPago && !this.puedeOmitirPagoDashboard) {
+     return 'No tiene permiso para omitir pago en comandas';
+   }
+   if (this.comandaForm.omitirPago && !this.comandaForm.motivoOmitirPago.trim()) {
+     return 'Debe ingresar un motivo al activar Omitir pago';
+   }
+   return null;
+ },
+
+ async guardarComanda() {
+   const error = this.validarComandaForm();
+   if (error) {
+     this.showToast(error, 'error');
+     return;
+   }
+
+   // Confirmación si omitirPago está activo
+   if (this.comandaForm.omitirPago) {
+     const confirmado = confirm(
+       '⚠️ Omitir pago activado.\n\nAl activar esta opción, cuando el mozo entregue todos los platos, ' +
+       'la comanda se cerrará automáticamente como PAGADA sin pasar por caja ni generar boucher.\n\n' +
+       '¿Está seguro de continuar?'
+     );
+     if (!confirmado) return;
+   }
+
+   this.guardandoComanda = true;
+   this._setOrbState('comanda', 'working');
+   try {
+     // MEJORA: payload incluye complementosSeleccionados + notaEspecial por plato
+     const platos = this.comandaForm.platosSeleccionados.map(p => ({
+       plato: p._id,
+       platoId: p.platoId,
+       tipoServicio: p.tipoServicio,
+       complementosSeleccionados: p.complementosSeleccionados || [],
+       notaEspecial: p.notaEspecial || ''
+     }));
+     const cantidades = this.comandaForm.platosSeleccionados.map(p => p.cantidad);
+     const tipoServicioPorPlato = this.comandaForm.platosSeleccionados.map(p => p.tipoServicio);
+
+     const payload = {
+       areaId: this.comandaForm.areaId,
+       mesas: this.comandaForm.mesas,
+       mozos: this.comandaForm.mozos,
+       platos,
+       cantidades,
+       tipoServicioPorPlato,
+       observaciones: this.comandaForm.observaciones,
+       omitirPago: this.comandaForm.omitirPago,
+       motivoOmitirPago: this.comandaForm.omitirPago ? this.comandaForm.motivoOmitirPago : null,
+       referenciaExterna: this.comandaForm.omitirPago ? this.comandaForm.referenciaExterna : null
+     };
+
+     const res = await fetch('/api/comanda/desde-dashboard', {
+       method: 'POST',
+       headers: {
+         'Content-Type': 'application/json',
+         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+       },
+       body: JSON.stringify(payload)
+     });
+
+     if (!res.ok) {
+       const err = await res.json();
+       throw new Error(err.error || 'Error al crear comanda');
+     }
+
+     const data = await res.json();
+     this.showToast(`Comanda #${data.comanda?.comandaNumber || ''} creada exitosamente${this.comandaForm.omitirPago ? ' (pago omitido)' : ''}`, 'success');
+     this.closeComandaModal();
+     await this.loadComandas();
+   } catch (e) {
+     console.error('Error guardando comanda:', e);
+     this.showToast(e.message || 'Error al crear comanda', 'error');
+   } finally {
+     this.guardandoComanda = false;
+     this._setOrbState('comanda', null);
+   }
+ },
+ // ========== FIN CREAR COMANDA DESDE DASHBOARD ==========
 
  async loadMesasDisponibles() {
    try {
@@ -4409,7 +5183,14 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
      });
      if (res.ok) {
-       this.mozosParaReserva = await res.json();
+       const data = await res.json();
+       const todos = Array.isArray(data) ? data : (data.mozos || []);
+       // MEJORA: filtrar solo usuarios de salón activos (mozos/supervisor), no admin/cocinero/cajero
+       this.mozosParaReserva = todos.filter(m => {
+         if (m.isActive === false) return false;
+         const rol = (m.rol || '').toLowerCase();
+         return rol === 'mozos' || rol === 'supervisor' || (rol && !['admin', 'cocinero', 'cajero'].includes(rol));
+       });
      }
    } catch (error) {
      console.error('Error cargando mozos:', error);
@@ -4432,19 +5213,35 @@ async loadPlatosParaReserva() {
  addPlatoToReserva(platoId) {
    if (!platoId) return;
    const plato = this.platosParaReserva.find(p => p._id === platoId);
-   if (plato) {
-     const existente = this.reservaForm.platos.find(p => p.platoId === platoId);
-     if (existente) {
-       existente.cantidad++;
-     } else {
-       this.reservaForm.platos.push({
-         platoId: plato._id,
-         nombre: plato.nombre,
-         precio: plato.precio,
-         cantidad: 1
-       });
-     }
+   if (!plato) return;
+   // MEJORA: si el plato tiene complementos, abrir el panel en modo alta
+   const H = window.DashboardCartHelpers;
+   const tieneComps = Array.isArray(plato.complementos) && plato.complementos.some(g => g && (g.opciones?.length || 0) > 0);
+   if (tieneComps && H) {
+     this.abrirPanelComplementos(plato, 'reserva', null);
+     return;
    }
+   const newItem = H.construirItemCarrito(plato, { tipoServicio: 'mesa' });
+   this._agregarItemCarritoReserva(newItem);
+ },
+
+ // MEJORA: agregar o agrupar item en carrito de reserva (mismo modelo que comanda)
+ _agregarItemCarritoReserva(item) {
+   const H = window.DashboardCartHelpers;
+   const existente = this.reservaForm.platos.find(p => H.mismoItemCarrito(p, item));
+   if (existente) {
+     existente.cantidad = (existente.cantidad || 1) + (item.cantidad || 1);
+   } else {
+     this.reservaForm.platos.push(item);
+   }
+ },
+
+ editarComplementosReserva(idx) {
+   const item = this.reservaForm.platos[idx];
+   if (!item) return;
+   const plato = this.platosParaReserva.find(p => p._id === item.platoId || p.id === item.platoId);
+   if (!plato) return;
+   this.abrirPanelComplementos(plato, 'reserva', idx);
  },
 
 async guardarReserva() {
@@ -4464,9 +5261,22 @@ async guardarReserva() {
     this.showToast('La fecha y hora debe ser futura', 'error');
     return;
   }
+  // MEJORA: validar complementos obligatorios por plato
+  const H = window.DashboardCartHelpers;
+  if (H) {
+    for (const item of this.reservaForm.platos) {
+      const plato = this.platosParaReserva.find(p => p._id === item.platoId || p.id === item.platoId);
+      if (plato && Array.isArray(plato.complementos) && plato.complementos.length) {
+        const errs = H.validarComplementos(plato, item.complementosSeleccionados || []);
+        if (errs.length) { this.showToast(`"${item.nombre}": ${errs[0]}`, 'error'); return; }
+      }
+    }
+  }
   
   this.guardando = true;
+   this._setOrbState('reserva', 'working');
    try {
+    // MEJORA: payload incluye complementosSeleccionados + notaEspecial + tipoServicio
     const payload = {
       mesa: this.reservaForm.mesa,
       mozo: this.reservaForm.mozo || null,
@@ -4479,7 +5289,10 @@ async guardarReserva() {
         .filter(p => p.platoId) // Solo platos con ID válido
         .map(p => ({
           plato: p.platoId,
-          cantidad: p.cantidad
+          cantidad: p.cantidad,
+          tipoServicio: p.tipoServicio || 'mesa',
+          complementosSeleccionados: p.complementosSeleccionados || [],
+          notaEspecial: p.notaEspecial || ''
         })),
       metodoPago: this.reservaForm.metodoPago || null,
       notas: this.reservaForm.notas
@@ -4513,6 +5326,7 @@ async guardarReserva() {
      this.showToast(error.message, 'error');
    } finally {
      this.guardando = false;
+     this._setOrbState('reserva', null);
    }
  },
 
@@ -4521,19 +5335,26 @@ async guardarReserva() {
    
    // Cargar datos necesarios
    await Promise.all([
+     this.loadAreasParaReserva(),
      this.loadMesasDisponibles(),
      this.loadMozosParaReserva(),
-     this.loadPlatosParaReserva()
+     this.loadPlatosParaReserva(),
+     this.loadTiposPlatoReserva()
    ]);
-   
-   // Formatear fecha para el input datetime-local
+
+   // MEJORA: formatear fecha a hora local para datetime-local (evita desface TZ)
    let fechaFormateada = '';
    if (reserva.fechaReserva) {
      const fecha = new Date(reserva.fechaReserva);
-     fechaFormateada = fecha.toISOString().slice(0, 16);
+     fechaFormateada = new Date(fecha.getTime() - fecha.getTimezoneOffset() * 60 * 1000).toISOString().slice(0, 16);
    }
+
+   // Determinar área de la mesa de la reserva
+   const mesaReserva = this.mesasDisponibles.find(m => m._id === (reserva.mesa?._id || reserva.mesa));
+   const areaReservaId = mesaReserva?.area?._id ? String(mesaReserva.area._id) : (mesaReserva?.area ? String(mesaReserva.area) : (reserva.mesa?.area?._id ? String(reserva.mesa.area._id) : ''));
    
    this.reservaForm = {
+     areaId: areaReservaId,
      mesa: reserva.mesa?._id || reserva.mesa,
      mozo: reserva.mozo?._id || reserva.mozo || '',
      clienteNombre: reserva.clienteNombre || '',
@@ -4541,12 +5362,24 @@ async guardarReserva() {
      numPersonas: reserva.numPersonas || 1,
      fechaReserva: fechaFormateada,
      tiempoEspera: reserva.tiempoEspera || 10,
-     platos: (reserva.platos || []).map(p => ({
-       platoId: p.plato?._id || p.plato,
-       nombre: p.plato?.nombre || 'Plato',
-       precio: p.plato?.precio || 0,
-       cantidad: p.cantidad || 1
-     })),
+    platos: (reserva.platos || []).map(p => {
+      const platoRef = p.plato?._id || p.plato;
+      const platoMenu = this.platosParaReserva.find(pm => pm._id === platoRef);
+      const complementos = Array.isArray(p.complementosSeleccionados) ? p.complementosSeleccionados : [];
+      const precioBase = p.plato?.precio || platoMenu?.precio || 0;
+      const extra = platoMenu ? (window.DashboardCartHelpers?.calcularExtraComplementos(platoMenu, complementos) || 0) : 0;
+      return {
+        platoId: platoRef,
+        nombre: p.plato?.nombre || platoMenu?.nombre || 'Plato',
+        cantidad: p.cantidad || 1,
+        tipoServicio: p.tipoServicio || 'mesa',
+        complementosSeleccionados: complementos,
+        notaEspecial: p.notaEspecial || '',
+        precioBase,
+        extraComplementos: extra,
+        precioUnitario: Math.round((precioBase + extra) * 100) / 100
+      };
+    }),
      metodoPago: reserva.metodoPago || '',
      notas: reserva.notas || ''
    };
@@ -4707,65 +5540,72 @@ PRÓXIMOS PASOS SUGERIDOS (BACKEND)
 
 <!-- ========== MODAL: CREAR/EDITAR RESERVA ========== -->
 <div x-show="reservaModal === 'crear'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="reservaModal = null">
- <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[700px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
+ <div data-blendy-to="btn-crear-reserva" class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[740px] max-h-[92vh] overflow-y-auto shadow-2xl" @click.stop>
  
- <!-- HEADER -->
+ <!-- HEADER sticky con resumen + Thinking Orbs -->
  <div class="bg-bg-sidebar p-5 rounded-t-2xl sticky top-0 z-10">
    <div class="flex items-center justify-between">
      <div class="flex items-center gap-3">
        <span class="text-2xl">📅</span>
        <h2 class="text-lg font-bold" x-text="editingReservaId ? 'Editar Reserva' : 'Crear Reserva'"></h2>
+       <!-- Resumen carrito -->
+       <span x-show="resumenPlatosReserva.n > 0" class="text-[10px] px-2 py-1 rounded-full bg-gold/20 text-gold font-semibold" x-text="resumenPlatosReserva.n + ' plato(s) · S/.' + resumenPlatosReserva.total"></span>
+       <!-- Thinking Orbs inline -->
+       <span id="orb-loader-reserva" style="display:none;" class="inline-flex items-center"></span>
      </div>
      <button @click="closeReservaModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
    </div>
  </div>
 
  <div class="p-5 space-y-4">
-   <!-- MESA -->
-   <div>
-     <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Mesa *</label>
-     <select x-model="reservaForm.mesa" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
-       <option value="">Seleccionar mesa...</option>
-       <template x-for="mesa in mesasDisponibles" :key="mesa._id">
-         <option :value="mesa._id" x-text="'Mesa ' + mesa.nummesa + (mesa.area?.nombre ? ' (' + mesa.area.nombre + ')' : '')"></option>
-       </template>
-     </select>
+   <!-- 1. ÁREA + MESA -->
+   <div class="grid grid-cols-2 gap-4">
+     <div>
+       <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Área</label>
+       <select x-model="reservaForm.areaId" @change="onAreaReservaChange()" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
+         <option value="">Todas las áreas</option>
+         <template x-for="area in areasParaReserva" :key="area._id">
+           <option :value="area._id" x-text="area.nombre"></option>
+         </template>
+       </select>
+     </div>
+     <div>
+       <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Mesa *</label>
+       <select x-model="reservaForm.mesa" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
+         <option value="">Seleccionar mesa...</option>
+         <template x-for="mesa in mesasFiltradasReserva" :key="mesa._id">
+           <option :value="mesa._id" x-text="'Mesa ' + mesa.nummesa + (mesa.area?.nombre ? ' (' + mesa.area.nombre + ')' : '')"></option>
+         </template>
+       </select>
+     </div>
    </div>
 
-   <!-- CLIENTE -->
+   <!-- 2. FECHA + PERSONAS -->
+   <div class="grid grid-cols-2 gap-4">
+    <div>
+      <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Fecha y hora *</label>
+      <input type="datetime-local" x-model="reservaForm.fechaReserva" :min="getMinDateTime()" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
+    </div>
+     <div>
+       <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Personas *</label>
+       <input type="number" x-model.number="reservaForm.numPersonas" min="1" max="50" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
+     </div>
+   </div>
+
+   <!-- 3. DATOS CLIENTE -->
    <div class="grid grid-cols-2 gap-4">
      <div>
        <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Nombre cliente</label>
        <input type="text" x-model="reservaForm.clienteNombre" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none" placeholder="Nombre">
      </div>
      <div>
-       <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Telefono</label>
+       <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Teléfono</label>
        <input type="text" x-model="reservaForm.clienteTelefono" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none" placeholder="999 999 999">
      </div>
    </div>
 
-   <!-- NUM PERSONAS Y FECHA -->
+   <!-- 4. MOZO + TIEMPO DE ESPERA -->
    <div class="grid grid-cols-2 gap-4">
-     <div>
-       <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Personas *</label>
-       <input type="number" x-model.number="reservaForm.numPersonas" min="1" max="50" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
-     </div>
-    <div>
-      <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Fecha y hora *</label>
-      <input type="datetime-local" x-model="reservaForm.fechaReserva" :min="getMinDateTime()" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
-    </div>
-   </div>
-
-   <!-- TIEMPO ESPERA Y MOZO -->
-   <div class="grid grid-cols-2 gap-4">
-     <div>
-       <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Tiempo de espera</label>
-       <select x-model.number="reservaForm.tiempoEspera" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
-         <option :value="5">5 minutos</option>
-         <option :value="10">10 minutos</option>
-         <option :value="20">20 minutos</option>
-       </select>
-     </div>
      <div>
        <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Mozo asignado (opcional)</label>
        <select x-model="reservaForm.mozo" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
@@ -4775,51 +5615,105 @@ PRÓXIMOS PASOS SUGERIDOS (BACKEND)
          </template>
        </select>
      </div>
+     <div>
+       <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Tiempo de espera</label>
+       <select x-model.number="reservaForm.tiempoEspera" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
+         <option :value="5">5 minutos</option>
+         <option :value="10">10 minutos</option>
+         <option :value="20">20 minutos</option>
+       </select>
+     </div>
    </div>
 
-   <!-- METODO PAGO -->
-   <div>
-     <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Metodo de pago (opcional)</label>
-     <select x-model="reservaForm.metodoPago" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
-       <option value="">Sin especificar</option>
-       <option value="efectivo">Efectivo</option>
-       <option value="tarjeta">Tarjeta</option>
-       <option value="yape">Yape</option>
-       <option value="plin">Plin</option>
-       <option value="transferencia">Transferencia</option>
-     </select>
-   </div>
+   <hr class="border-[rgba(212,175,55,0.1)]">
 
-   <!-- NOTAS -->
+   <!-- 5. PLATOS PRE-SELECCIONADOS (mismo carrito con complementos) -->
    <div>
-     <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Notas adicionales</label>
-     <textarea x-model="reservaForm.notas" rows="2" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none resize-none" placeholder="Instrucciones especiales, alergias, preferencias..."></textarea>
-   </div>
-
-   <!-- PLATOS PRE-SELECCIONADOS -->
-   <div>
-     <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Platos pre-seleccionados (opcional)</label>
-     <div class="bg-bg-sidebar border border-[rgba(212,175,55,0.15)] rounded-lg p-3 max-h-40 overflow-y-auto">
+     <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">
+       Platos pre-seleccionados (opcional)
+       <span x-show="resumenPlatosReserva.n > 0" class="text-gold ml-1" x-text="'(' + resumenPlatosReserva.n + ' · S/.' + resumenPlatosReserva.total + ')'"></span>
+     </label>
+     <!-- Buscador + categoría (select compacto) -->
+     <div class="grid grid-cols-[1fr_auto] gap-2 mb-2">
+       <input type="text" x-model="busquedaPlatoReserva" placeholder="Buscar plato..."
+         class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
+       <select x-model="categoriaFiltroReserva"
+         class="min-w-[140px] bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-xs text-white focus:border-gold focus:outline-none">
+         <option value="">Todas las categorías</option>
+         <template x-for="cat in categoriasPlatoReserva" :key="cat">
+           <option :value="cat" x-text="cat"></option>
+         </template>
+       </select>
+     </div>
+     <!-- Resultados (click para agregar) -->
+     <div class="bg-bg-sidebar border border-[rgba(212,175,55,0.15)] rounded-lg p-2 max-h-40 overflow-y-auto mb-2">
+       <template x-if="platosFiltradosReserva.length === 0">
+         <p class="text-xs text-txt-muted text-center py-2">No se encontraron platos</p>
+       </template>
+       <template x-for="plato in platosFiltradosReserva" :key="plato._id">
+         <div class="flex items-center justify-between py-1.5 px-2 hover:bg-gold/10 rounded transition cursor-pointer" @click="addPlatoToReserva(plato._id)">
+           <div class="flex items-center gap-2 min-w-0">
+             <span class="text-sm truncate" x-text="plato.nombre"></span>
+             <span x-show="plato.categoria" class="text-[8px] px-1 py-0.5 rounded bg-white/5 text-txt-muted border border-white/10 shrink-0" x-text="plato.categoria"></span>
+             <span class="text-xs text-txt-muted shrink-0" x-text="'S/.' + (plato.precio || 0)"></span>
+             <span x-show="plato.complementos && plato.complementos.length > 0" class="text-[8px] px-1 py-0.5 rounded bg-gold/15 text-gold border border-gold/20 shrink-0">comps</span>
+           </div>
+           <span class="text-gold text-xs shrink-0 ml-2">+ Agregar</span>
+         </div>
+       </template>
+     </div>
+     <!-- Carrito -->
+     <div class="bg-bg-sidebar border border-[rgba(212,175,55,0.15)] rounded-lg p-3 max-h-48 overflow-y-auto">
        <template x-if="reservaForm.platos.length === 0">
          <p class="text-xs text-txt-muted text-center py-2">No hay platos agregados</p>
        </template>
        <template x-for="(plato, idx) in reservaForm.platos" :key="idx">
-         <div class="flex items-center justify-between py-1 border-b border-[rgba(212,175,55,0.1)]">
-           <span class="text-sm" x-text="plato.nombre"></span>
-           <div class="flex items-center gap-2">
-             <input type="number" x-model.number="plato.cantidad" min="1" max="20" class="w-14 bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded px-2 py-1 text-xs text-center">
-             <button @click="reservaForm.platos.splice(idx, 1)" class="text-st-pagado hover:text-white">✕</button>
+         <div class="py-2 border-b border-[rgba(212,175,55,0.1)] last:border-0">
+           <div class="flex items-center justify-between">
+             <div class="flex-1">
+               <span class="text-sm font-medium" x-text="plato.nombre"></span>
+               <span class="text-xs text-txt-muted ml-1" x-text="'S/.' + (plato.precioUnitario != null ? plato.precioUnitario : (plato.precioBase || plato.precio || 0))"></span>
+               <span x-show="plato.extraComplementos > 0" class="text-[9px] text-gold/70 ml-1" x-text="'(+S/.' + plato.extraComplementos + ' comps)'"></span>
+             </div>
+             <div class="flex items-center gap-2">
+               <div class="flex items-center gap-1">
+                 <button type="button" @click="plato.cantidad = Math.max(1, (plato.cantidad || 1) - 1)" class="w-6 h-6 flex items-center justify-center bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded text-xs hover:bg-gold/10 transition">−</button>
+                 <input type="number" x-model.number="plato.cantidad" min="1" max="20" class="w-12 bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded px-1 py-1 text-xs text-center">
+                 <button type="button" @click="plato.cantidad = (plato.cantidad || 1) + 1" class="w-6 h-6 flex items-center justify-center bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded text-xs hover:bg-gold/10 transition">+</button>
+               </div>
+               <select x-model="plato.tipoServicio" class="bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded px-2 py-1 text-xs">
+                 <option value="mesa">Mesa</option>
+                 <option value="para_llevar">Llevar</option>
+               </select>
+               <button type="button" @click="editarComplementosReserva(idx)" x-show="plato.complementosSeleccionados && plato.complementosSeleccionados.length > 0" class="text-[10px] px-1.5 py-1 rounded bg-gold/10 text-gold border border-gold/20 hover:bg-gold/20 transition" title="Editar complementos">✎</button>
+               <button @click="reservaForm.platos.splice(idx, 1)" class="text-st-pagado hover:text-white px-1">✕</button>
+             </div>
+           </div>
+           <div x-show="plato.complementosSeleccionados && plato.complementosSeleccionados.length > 0" class="mt-1 ml-1 text-[10px] text-txt-muted">
+             <span x-text="resumenComplementosItem(plato)"></span>
+             <span x-show="plato.notaEspecial" class="block italic text-gold/60" x-text="'📝 ' + plato.notaEspecial"></span>
            </div>
          </div>
        </template>
-       <div class="mt-2 pt-2 border-t border-[rgba(212,175,55,0.15)]">
-         <select @change="addPlatoToReserva($event.target.value); $event.target.value = '';" class="w-full bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-xs text-white focus:border-gold focus:outline-none">
-           <option value="">+ Agregar plato...</option>
-           <template x-for="plato in platosParaReserva" :key="plato._id">
-             <option :value="plato._id" x-text="plato.nombre + ' - S/.' + plato.precio"></option>
-           </template>
-         </select>
-       </div>
+     </div>
+   </div>
+
+   <!-- 6. MÉTODO DE PAGO + NOTAS -->
+   <div class="grid grid-cols-2 gap-4">
+     <div>
+       <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Método de pago (opcional)</label>
+       <select x-model="reservaForm.metodoPago" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
+         <option value="">Sin especificar</option>
+         <option value="efectivo">Efectivo</option>
+         <option value="tarjeta">Tarjeta</option>
+         <option value="yape">Yape</option>
+         <option value="plin">Plin</option>
+         <option value="transferencia">Transferencia</option>
+       </select>
+     </div>
+     <div>
+       <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Notas adicionales</label>
+       <input type="text" x-model="reservaForm.notas" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none" placeholder="Alergias, preferencias...">
      </div>
    </div>
  </div>
@@ -4937,7 +5831,303 @@ PRÓXIMOS PASOS SUGERIDOS (BACKEND)
 </div>
 <!-- ========== FIN MODALES RESERVAS ========== -->
 
+<!-- ========== MODAL: CREAR COMANDA DESDE DASHBOARD ========== -->
+<div x-show="comandaModal === 'crear'" x-transition.opacity x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="closeComandaModal()">
+ <div data-blendy-to="btn-crear-comanda" class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[820px] max-h-[92vh] overflow-y-auto shadow-2xl" @click.stop>
+
+   <!-- HEADER sticky con resumen + Thinking Orbs -->
+   <div class="bg-bg-sidebar p-5 rounded-t-2xl sticky top-0 z-10">
+     <div class="flex items-center justify-between">
+       <div class="flex items-center gap-3">
+         <span class="text-2xl">🍽️</span>
+         <h2 class="text-lg font-bold">Crear Comanda</h2>
+         <span x-show="resumenPlatosComanda.n > 0" class="text-[10px] px-2 py-1 rounded-full bg-gold/20 text-gold font-semibold" x-text="resumenPlatosComanda.n + ' plato(s) · S/.' + resumenPlatosComanda.total"></span>
+         <!-- Thinking Orbs: contenedor inline en header (size 20) -->
+         <span id="orb-loader-comanda" style="display:none;" class="inline-flex items-center"></span>
+       </div>
+       <button @click="closeComandaModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
+     </div>
+   </div>
+
+   <!-- LOADER inicial -->
+   <div x-show="_cargandoComandaModal" class="p-10 flex items-center justify-center">
+     <div class="text-center">
+       <div class="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+       <p class="text-txt-muted text-sm">Cargando datos...</p>
+     </div>
+   </div>
+
+   <div x-show="!_cargandoComandaModal" class="p-5 space-y-4">
+
+     <!-- 1. ÁREA + MESA -->
+     <div class="grid grid-cols-2 gap-4">
+       <div>
+         <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Área *</label>
+         <select x-model="comandaForm.areaId" @change="onAreaComandaChange()" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
+           <option value="">Seleccionar área...</option>
+           <template x-for="area in areasParaComanda" :key="area._id">
+             <option :value="area._id" x-text="area.nombre"></option>
+           </template>
+         </select>
+       </div>
+       <div>
+         <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Mesa *</label>
+         <select x-model="comandaForm.mesas" :disabled="!comandaForm.areaId" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none disabled:opacity-50">
+           <option value="">Seleccionar mesa...</option>
+           <template x-for="mesa in mesasFiltradasComanda" :key="mesa._id">
+             <option :value="mesa._id" x-text="'Mesa ' + mesa.nummesa + (mesa.estado ? ' (' + mesa.estado + ')' : '')"></option>
+           </template>
+         </select>
+       </div>
+     </div>
+
+     <!-- 2. MOZO -->
+     <div>
+       <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Mozo (retiro de plato) *</label>
+       <select x-model="comandaForm.mozos" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
+         <option value="">Seleccionar mozo...</option>
+         <template x-for="mozo in mozosParaComanda" :key="mozo._id">
+           <option :value="mozo._id" x-text="mozo.name + (mozo.rol ? ' (' + mozo.rol + ')' : '')"></option>
+         </template>
+       </select>
+     </div>
+
+     <hr class="border-[rgba(212,175,55,0.1)]">
+
+     <!-- 3. BUSCAR PLATO -->
+     <div>
+       <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Buscar plato</label>
+       <div class="grid grid-cols-[1fr_auto] gap-2 mb-2">
+         <input type="text" x-model="busquedaPlatoComanda" @input.debounce.250ms="_mostrarTodosPlatos = false" placeholder="Nombre o código..." class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
+         <select x-model="categoriaFiltroComanda" @change="_mostrarTodosPlatos = false"
+           class="min-w-[140px] bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-xs text-white focus:border-gold focus:outline-none">
+           <option value="">Todas las categorías</option>
+           <template x-for="cat in categoriasPlatoComanda" :key="cat">
+             <option :value="cat" x-text="cat"></option>
+           </template>
+         </select>
+       </div>
+
+       <!-- RESULTADOS -->
+       <div class="bg-bg-sidebar border border-[rgba(212,175,55,0.15)] rounded-lg p-2 max-h-48 overflow-y-auto">
+         <template x-if="platosFiltradosComanda.length === 0">
+           <p class="text-xs text-txt-muted text-center py-2">No se encontraron platos</p>
+         </template>
+         <template x-for="plato in platosFiltradosComanda" :key="plato._id">
+           <div class="flex items-center justify-between py-1.5 px-2 hover:bg-gold/10 rounded transition cursor-pointer" @click="addPlatoToComanda(plato)">
+             <div class="flex items-center gap-2 min-w-0">
+               <span x-show="yaEnCarritoComanda(plato._id)" class="text-[9px] text-st-preparado">✓</span>
+               <span class="text-sm truncate" x-text="plato.nombre"></span>
+               <span x-show="plato.codigo" class="text-[9px] text-txt-muted font-mono shrink-0" x-text="plato.codigo"></span>
+               <span x-show="plato.categoria" class="text-[8px] px-1 py-0.5 rounded bg-white/5 text-txt-muted border border-white/10 shrink-0" x-text="plato.categoria"></span>
+               <span class="text-xs text-txt-muted ml-1 shrink-0" x-text="'S/.' + (plato.precio || 0)"></span>
+               <span x-show="plato.complementos && plato.complementos.length > 0" class="text-[8px] px-1 py-0.5 rounded bg-gold/15 text-gold border border-gold/20 shrink-0">complementos</span>
+             </div>
+             <span class="text-gold text-xs shrink-0 ml-2">+ Agregar</span>
+           </div>
+         </template>
+       </div>
+       <div x-show="platosFiltradosTotal > _limitePlatosVisibles && !_mostrarTodosPlatos" class="text-center mt-1">
+         <button type="button" @click="_mostrarTodosPlatos = true" class="text-[10px] text-gold hover:text-gold/80 transition" x-text="'Ver todos (' + platosFiltradosTotal + ')'"></button>
+       </div>
+       <div x-show="_mostrarTodosPlatos && platosFiltradosTotal > _limitePlatosVisibles" class="text-center mt-1">
+         <button type="button" @click="_mostrarTodosPlatos = false" class="text-[10px] text-txt-muted hover:text-white transition">Mostrar menos</button>
+       </div>
+     </div>
+
+     <!-- 6. PLATOS SELECCIONADOS (carrito con complementos) -->
+     <div>
+       <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">
+         Platos de la comanda *
+         <span x-show="resumenPlatosComanda.n > 0" class="text-gold ml-1" x-text="'(' + resumenPlatosComanda.n + ' · S/.' + resumenPlatosComanda.total + ')'"></span>
+       </label>
+       <div class="bg-bg-sidebar border border-[rgba(212,175,55,0.15)] rounded-lg p-3 max-h-52 overflow-y-auto">
+         <template x-if="comandaForm.platosSeleccionados.length === 0">
+           <p class="text-xs text-txt-muted text-center py-2">No hay platos agregados</p>
+         </template>
+         <template x-for="(plato, idx) in comandaForm.platosSeleccionados" :key="idx">
+           <div class="py-2 border-b border-[rgba(212,175,55,0.1)] last:border-0">
+             <div class="flex items-center gap-2">
+               <div class="flex-1">
+                 <span class="text-sm font-medium" x-text="plato.nombre"></span>
+                 <span class="text-xs text-txt-muted ml-1" x-text="'S/.' + (plato.precioUnitario != null ? plato.precioUnitario : (plato.precioBase || plato.precio || 0))"></span>
+                 <span x-show="plato.extraComplementos > 0" class="text-[9px] text-gold/70 ml-1" x-text="'(+S/.' + plato.extraComplementos + ' comps)'"></span>
+               </div>
+               <div class="flex items-center gap-1">
+                 <button type="button" @click="plato.cantidad = Math.max(1, (plato.cantidad || 1) - 1)" class="w-6 h-6 flex items-center justify-center bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded text-xs hover:bg-gold/10 transition">−</button>
+                 <input type="number" x-model.number="plato.cantidad" min="1" max="50" class="w-12 bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded px-1 py-1 text-xs text-center">
+                 <button type="button" @click="plato.cantidad = (plato.cantidad || 1) + 1" class="w-6 h-6 flex items-center justify-center bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded text-xs hover:bg-gold/10 transition">+</button>
+               </div>
+               <select x-model="plato.tipoServicio" class="bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded px-2 py-1 text-xs">
+                 <option value="mesa">Mesa</option>
+                 <option value="para_llevar">Llevar</option>
+               </select>
+               <!-- MEJORA: botón editar complementos -->
+               <button type="button" @click="editarComplementosComanda(idx)" x-show="plato.complementosSeleccionados && plato.complementosSeleccionados.length > 0" class="text-[10px] px-1.5 py-1 rounded bg-gold/10 text-gold border border-gold/20 hover:bg-gold/20 transition" title="Editar complementos">✎</button>
+               <button @click="removePlatoComanda(idx)" class="text-st-pagado hover:text-white px-1">✕</button>
+             </div>
+             <!-- Resumen de complementos + nota -->
+             <div x-show="plato.complementosSeleccionados && plato.complementosSeleccionados.length > 0" class="mt-1 ml-1 text-[10px] text-txt-muted">
+               <span x-text="resumenComplementosItem(plato)"></span>
+               <span x-show="plato.notaEspecial" class="block italic text-gold/60" x-text="'📝 ' + plato.notaEspecial"></span>
+             </div>
+           </div>
+         </template>
+       </div>
+     </div>
+
+     <!-- 7. OBSERVACIONES -->
+     <div>
+       <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Observaciones</label>
+       <textarea x-model="comandaForm.observaciones" rows="2" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none resize-none" placeholder="Notas para cocina..."></textarea>
+     </div>
+
+     <hr class="border-[rgba(212,175,55,0.1)]">
+
+     <!-- 8. OMITIR PAGO -->
+     <div class="border border-[rgba(212,175,55,0.2)] rounded-lg p-3 bg-st-pagado/5" x-show="puedeOmitirPagoDashboard || comandaForm.omitirPago">
+       <label class="flex items-center gap-2 cursor-pointer">
+         <input type="checkbox" x-model="comandaForm.omitirPago" class="w-4 h-4 accent-gold">
+         <span class="text-sm font-semibold text-st-pagado">Omitir pago</span>
+       </label>
+       <p class="text-[10px] text-txt-muted mt-1" x-show="comandaForm.omitirPago">
+         ⚠️ Al entregar todos los platos, la comanda se cerrará automáticamente como <b>pagada</b> sin pasar por caja ni generar boucher.
+       </p>
+       <div x-show="comandaForm.omitirPago" class="mt-2 space-y-2">
+         <div>
+           <label class="text-[10px] text-st-pagado uppercase font-semibold tracking-wider block mb-1">Motivo *</label>
+           <input type="text" x-model="comandaForm.motivoOmitirPago" placeholder="Ej: Consumo interno, Restaurante X, Cortesía..." class="w-full bg-bg-sidebar border border-st-pagado/30 rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
+         </div>
+         <div>
+           <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Referencia externa (opcional)</label>
+           <input type="text" x-model="comandaForm.referenciaExterna" placeholder="Nombre del otro restaurante, código de convenio..." class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
+         </div>
+       </div>
+     </div>
+   </div>
+
+   <!-- FOOTER -->
+   <div class="bg-bg-sidebar p-4 rounded-b-2xl flex justify-between items-center border-t border-[rgba(212,175,55,0.1)]" x-show="!_cargandoComandaModal">
+     <button @click="closeComandaModal()" class="px-4 py-2 border border-txt-muted/40 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+     <button @click="guardarComanda()" :disabled="guardandoComanda || !formComandaValido" class="px-6 py-2 bg-st-preparado text-white rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+       <span x-show="!guardandoComanda">✓ Crear Comanda</span>
+       <span x-show="guardandoComanda" class="flex items-center gap-2">
+         <span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+         Guardando...
+       </span>
+     </button>
+   </div>
+ </div>
+</div>
+<!-- ========== FIN MODAL CREAR COMANDA ========== -->
+
+<!-- ========== PANEL DE COMPLEMENTOS (submodal compartido comanda + reserva) ========== -->
+<div x-show="complementosPanel.abierto" x-transition.opacity x-cloak
+     class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80"
+     @click.self="cerrarPanelComplementos()">
+  <div id="panel-complementos" class="bg-bg-card border border-gold/30 rounded-2xl w-[560px] max-h-[88vh] overflow-y-auto shadow-2xl" @click.stop>
+    <!-- HEADER del panel -->
+    <div class="bg-bg-sidebar p-4 rounded-t-2xl sticky top-0 z-10 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="text-lg">🥗</span>
+        <h3 class="text-sm font-bold" x-text="'Complementos: ' + (complementosPanel.plato?.nombre || '')"></h3>
+      </div>
+      <button @click="cerrarPanelComplementos()" class="w-7 h-7 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] hover:bg-[rgba(212,175,55,0.2)] transition text-xs font-bold">✕</button>
+    </div>
+
+    <div class="p-4 space-y-4" x-show="complementosPanel.plato">
+      <!-- Precio base + extra preview -->
+      <div class="flex items-center justify-between text-xs">
+        <span class="text-txt-muted">Precio base: <b class="text-white" x-text="'S/.' + (complementosPanel.plato?.precio || 0)"></b></span>
+        <span x-show="panelComplementosExtra > 0" class="text-gold" x-text="'+ S/.' + panelComplementosExtra.toFixed(2) + ' en complementos'"></span>
+        <span class="font-bold text-gold" x-text="'Total: S/.' + panelComplementosPrecioUnitario.toFixed(2)"></span>
+      </div>
+
+      <!-- Tipo de servicio -->
+      <div>
+        <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Tipo de servicio</label>
+        <select x-model="complementosPanel.tipoServicio" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
+          <option value="mesa">Mesa</option>
+          <option value="para_llevar">Para llevar</option>
+        </select>
+      </div>
+
+      <!-- Grupos de complementos -->
+      <template x-for="grupo in (complementosPanel.plato?.complementos || [])" :key="grupo.grupo || grupo.nombre">
+        <div class="border border-[rgba(212,175,55,0.15)] rounded-lg p-3" x-show="grupo.opciones && grupo.opciones.length > 0">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold" x-text="grupo.grupo || grupo.nombre"></span>
+            <span class="text-[9px] text-txt-muted flex items-center gap-1">
+              <span x-show="grupo.obligatorio" class="text-st-pagado">OBLIGATORIO</span>
+              <span x-show="grupo.modoSeleccion === 'cantidades'">cantidades</span>
+              <span x-show="grupo.maxUnidadesGrupo != null" x-text="'máx ' + grupo.maxUnidadesGrupo + 'uds'"></span>
+              <span x-show="totalGrupoSeleccionado(grupo.grupo || grupo.nombre) > 0 && grupo.maxUnidadesGrupo != null" x-text="'(' + totalGrupoSeleccionado(grupo.grupo || grupo.nombre) + '/' + grupo.maxUnidadesGrupo + ')'"></span>
+            </span>
+          </div>
+          <!-- Modo 'opciones' (check/radio) -->
+          <div x-show="grupo.modoSeleccion !== 'cantidades'" class="space-y-1">
+            <template x-for="op in grupo.opciones" :key="typeof op === 'string' ? op : op.nombre">
+              <label class="flex items-center gap-2 py-1 cursor-pointer text-sm">
+                <input type="checkbox"
+                       :checked="cantidadOpcionSeleccionada(grupo.grupo || grupo.nombre, typeof op === 'string' ? op : op.nombre) > 0"
+                       @change="toggleOpcionComplemento(grupo.grupo || grupo.nombre, typeof op === 'string' ? op : op.nombre)">
+                <span x-text="typeof op === 'string' ? op : op.nombre"></span>
+                <span x-show="typeof op !== 'string' && op.precio > 0" class="text-[10px] text-gold/70" x-text="'+ S/.' + op.precio"></span>
+              </label>
+            </template>
+          </div>
+          <!-- Modo 'cantidades' (steppers) -->
+          <div x-show="grupo.modoSeleccion === 'cantidades'" class="space-y-1">
+            <template x-for="op in grupo.opciones" :key="typeof op === 'string' ? op : op.nombre">
+              <div class="flex items-center justify-between py-1 text-sm">
+                <div class="flex items-center gap-2">
+                  <span x-text="typeof op === 'string' ? op : op.nombre"></span>
+                  <span x-show="typeof op !== 'string' && op.precio > 0" class="text-[10px] text-gold/70" x-text="'+ S/.' + op.precio"></span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <button type="button" @click="setCantidadOpcionComplemento(grupo.grupo || grupo.nombre, typeof op === 'string' ? op : op.nombre, -1)"
+                          class="w-6 h-6 flex items-center justify-center bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded text-xs hover:bg-gold/10 transition">−</button>
+                  <span class="w-8 text-center text-xs" x-text="cantidadOpcionSeleccionada(grupo.grupo || grupo.nombre, typeof op === 'string' ? op : op.nombre)"></span>
+                  <button type="button" @click="setCantidadOpcionComplemento(grupo.grupo || grupo.nombre, typeof op === 'string' ? op : op.nombre, 1)"
+                          class="w-6 h-6 flex items-center justify-center bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded text-xs hover:bg-gold/10 transition">+</button>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+
+      <!-- Nota especial del plato -->
+      <div>
+        <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Nota especial del plato</label>
+        <textarea x-model="complementosPanel.notaEspecial" rows="2" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none resize-none" placeholder="Ej: Sin cebolla, término 3/4, aparte..."></textarea>
+      </div>
+
+      <!-- Errores de validación -->
+      <div x-show="complementosPanel.errores.length > 0" class="border border-st-pagado/30 rounded-lg p-2 bg-st-pagado/5">
+        <template x-for="err in complementosPanel.errores" :key="err">
+          <p class="text-[10px] text-st-pagado" x-text="'⚠️ ' + err"></p>
+        </template>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="bg-bg-sidebar p-4 rounded-b-2xl flex justify-between items-center border-t border-[rgba(212,175,55,0.1)]">
+      <button @click="cerrarPanelComplementos()" class="px-4 py-2 border border-txt-muted/40 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+      <button @click="confirmarPanelComplementos()" :disabled="!panelComplementosValido"
+              class="px-5 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+        ✓ Confirmar
+      </button>
+    </div>
+  </div>
+</div>
+<!-- ========== FIN PANEL COMPLEMENTOS ========== -->
+
 <!-- Sistema de Notificaciones del Dashboard -->
+<script src="/assets/vendor/blendy.min.js"></script>
+<script src="/assets/js/blendy-wrapper.js"></script>
+<script src="/assets/js/thinking-orbs-vanilla.js"></script>
+<script src="/assets/js/dashboard-cart-helpers.js"></script>
 <script src="/assets/js/notificaciones-dashboard.js"></script>
 <script src="/assets/js/chat-dashboard.js"></script>
 </body>

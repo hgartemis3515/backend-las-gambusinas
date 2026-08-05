@@ -595,6 +595,14 @@ app.get('/metrics', async (req, res) => {
 // No abrir HTTP hasta que MongoDB responda (evita API “media viva” sin BD)
 whenConnected.then(() => {
 // Escuchar en todas las interfaces de red (0.0.0.0) para permitir conexiones desde otros dispositivos
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n❌ Puerto ${port} en uso. Cierra el otro proceso o cambia PORT en .env.\n`);
+  } else {
+    console.error('\n❌ Error al iniciar el servidor HTTP:', err.message || err, '\n');
+  }
+  process.exit(1);
+});
 server.listen(port, '0.0.0.0', async ()=> {
   // ========== RESERVAS: Rehidratar timeouts al iniciar ==========
   try {

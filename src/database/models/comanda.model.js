@@ -308,7 +308,7 @@ const comandaSchema = new mongoose.Schema({
     },
     sourceApp: {
         type: String,
-        enum: ['mozos', 'cocina', 'admin', 'api', 'sistema'],
+        enum: ['mozos', 'cocina', 'admin', 'api', 'sistema', 'dashboard'],
         default: null
     },
     historialEstados: [{
@@ -323,7 +323,7 @@ const comandaSchema = new mongoose.Schema({
         },
         accion: { type: String },
         deviceId: { type: String, default: null },
-        sourceApp: { type: String, enum: ['mozos', 'cocina', 'admin', 'api', 'sistema'], default: null },
+        sourceApp: { type: String, enum: ['mozos', 'cocina', 'admin', 'api', 'sistema', 'dashboard'], default: null },
         motivo: { type: String, default: null }
     }],
     // Campos de auditoría para soft-delete (ESTANDARIZADO: solo IsActive)
@@ -466,8 +466,47 @@ const comandaSchema = new mongoose.Schema({
         ref: 'Reserva',
         default: null,
         index: true
-    }
+    },
     // ========== FIN RESERVAS ==========
+    // ========== CREAR COMANDA DESDE DASHBOARD ==========
+    // Origen de creación de la comanda (auditoría y reportes)
+    origenCreacion: {
+        type: String,
+        enum: ['mozos', 'dashboard', 'reserva', 'sistema'],
+        default: 'mozos'
+    },
+    // Usuario del dashboard que creó la comanda (auditoría). mozos sigue siendo el mozo asignado a retirar.
+    createdByDashboard: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'mozos',
+        default: null
+    },
+    // Omitir pago: al entregar todos los platos, la comanda se cierra automáticamente como 'pagado'
+    // sin pasar por boucher/caja. Idempotente: si pagoOmitido.aplicado === true, no se vuelve a aplicar.
+    omitirPago: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
+    // Metadata del pago omitido (visible en detalle de comanda + auditoría)
+    pagoOmitido: {
+        motivo: { type: String, default: null },                 // texto libre: "Consumo interno", "Restaurante X"
+        referenciaExterna: { type: String, default: null },       // opcional: nombre del otro restaurante, convenio
+        usuarioId: {                                               // quién activó omitirPago al crear
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'mozos',
+            default: null
+        },
+        fechaActivacion: { type: Date, default: null },            // momento en que se activó la opción al crear
+        aplicado: { type: Boolean, default: false },               // true cuando el auto-pago se ejecutó
+        aplicadoEn: { type: Date, default: null },                 // momento del auto-pago al entregar
+        entregadoPorMozo: {                                        // mozo que disparó la última entrega (si disponible)
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'mozos',
+            default: null
+        }
+    }
+    // ========== FIN CREAR COMANDA DESDE DASHBOARD ==========
 }, { setDefaultsOnInsert: true });
 
 // ========== FASE A1: ÍNDICES COMPUESTOS OPTIMIZADOS (Patrón ESR: Equality-Sort-Range) ==========

@@ -113,7 +113,8 @@ const notificacionSchema = new mongoose.Schema({
 notificacionSchema.index({ destinatario: 1, leida: 1, createdAt: -1 });
 notificacionSchema.index({ rolesDestinatarios: 1, leida: 1, createdAt: -1 });
 notificacionSchema.index({ tipo: 1, createdAt: -1 });
-notificacionSchema.index({ expiraEn: 1 }, { expireAfterSeconds: 0, partialFilterExpression: { expiraEn: { $ne: null } } });
+// TTL: solo docs con fecha real. `$ne: null` no es válido en partialFilterExpression (Mongo lo reescribe a $not/$eq).
+notificacionSchema.index({ expiraEn: 1 }, { expireAfterSeconds: 0, partialFilterExpression: { expiraEn: { $type: 'date' } } });
 
 // Método estático para crear notificación de comanda
 notificacionSchema.statics.comandaCreada = function(comanda, mozo) {

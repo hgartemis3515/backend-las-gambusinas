@@ -458,12 +458,12 @@ function usuariosApp() {
     // Definición de permisos por rol
     PERMISOS_POR_ROL: {
       admin: {
-        'Backend/Dashboard': ['ver-mesas', 'editar-mesas', 'juntar-separar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas', 'ver-clientes', 'editar-clientes', 'ver-mozos', 'editar-mozos', 'gestionar-roles', 'ver-auditoria', 'ver-reportes', 'cierre-caja', 'ver-notificaciones'],
+        'Backend/Dashboard': ['ver-mesas', 'editar-mesas', 'juntar-separar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas', 'ver-clientes', 'editar-clientes', 'ver-mozos', 'editar-mozos', 'gestionar-roles', 'ver-auditoria', 'ver-reportes', 'cierre-caja', 'ver-notificaciones', 'crear-comandas-dashboard', 'omitir-pago-comandas-dashboard'],
         'App Mozos': ['crear-comandas', 'editar-comandas', 'eliminar-platos-comandas', 'procesar-pagos', 'asociar-clientes'],
         'App Cocina': ['ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas']
       },
       supervisor: {
-        'Backend/Dashboard': ['ver-mesas', 'editar-mesas', 'juntar-separar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas', 'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria', 'ver-reportes', 'cierre-caja', 'ver-notificaciones'],
+        'Backend/Dashboard': ['ver-mesas', 'editar-mesas', 'juntar-separar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas', 'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria', 'ver-reportes', 'cierre-caja', 'ver-notificaciones', 'crear-comandas-dashboard'],
         'App Mozos': ['crear-comandas', 'editar-comandas', 'procesar-pagos', 'asociar-clientes'],
         'App Cocina': ['ver-comandas-cocina']
       },
@@ -502,6 +502,8 @@ function usuariosApp() {
       'ver-reportes': 'Ver Reportes',
       'cierre-caja': 'Cierre de Caja',
       'ver-notificaciones': 'Ver Notificaciones',
+      'crear-comandas-dashboard': 'Crear Comandas (Dashboard)',
+      'omitir-pago-comandas-dashboard': 'Omitir Pago Comandas (Dashboard)',
       'crear-comandas': 'Crear Comandas',
       'editar-comandas': 'Editar Comandas',
       'eliminar-platos-comandas': 'Eliminar Platos/Comandas',

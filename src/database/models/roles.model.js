@@ -35,6 +35,8 @@ const PERMISOS_FUNDAMENTALES = {
     'cierre-caja': { nombre: 'Cierre de Caja (legacy)', grupo: 'Backend/Dashboard', descripcion: 'Alias legacy. Preferir ver-cierre-caja y ejecutar-cierre-caja' },
     'ver-notificaciones': { nombre: 'Ver Notificaciones', grupo: 'Backend/Dashboard', descripcion: 'Acceder al centro de notificaciones' },
     'aplicar-descuentos': { nombre: 'Aplicar Descuentos', grupo: 'Backend/Dashboard', descripcion: 'Aplicar descuentos a comandas (admin/supervisor)' },
+    'crear-comandas-dashboard': { nombre: 'Crear Comandas (Dashboard)', grupo: 'Backend/Dashboard', descripcion: 'Crear comandas desde comandas.html; incluye opción Omitir pago (auto-pagado al entregar)' },
+    'omitir-pago-comandas-dashboard': { nombre: 'Omitir Pago en Comandas (Dashboard)', grupo: 'Backend/Dashboard', descripcion: 'Permitir activar "Omitir pago" al crear comanda desde dashboard (auto-pagado al entregar)' },
     
     // App Mozos
     'crear-comandas': { nombre: 'Crear Comandas', grupo: 'App Mozos', descripcion: 'Crear nuevas comandas en App Mozos' },
@@ -84,6 +86,7 @@ const PERMISOS_POR_ROL_SISTEMA = {
         'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria', 'ver-reportes',
         'ver-notificaciones', 'crear-comandas', 'editar-comandas',
         'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina', 'aplicar-descuentos',
+        'crear-comandas-dashboard',
         'ver-vista-supervisor-cocina', 'ver-boton-prioridad-kds', 'utilidad-supervisor',
         'ver-cocina-completo', 'ver-cocina-personalizado', 'desplegar-monitores-cocina', 'administrar-vistas-cocina',
         // Mensajería: supervisor cubre texto, voz, anuncios, canales y supervisión; sin forzar prioridad critica
@@ -168,8 +171,8 @@ const rolesSchema = new mongoose.Schema({
 rolesSchema.plugin(AutoIncrement, { inc_field: 'rolId' });
 
 // Índices
-rolesSchema.index({ nombre: 1 });
 rolesSchema.index({ esSistema: 1 });
+// nombre ya tiene unique:true en el campo (índice implícito)
 
 const roles = mongoose.model('roles', rolesSchema);
 

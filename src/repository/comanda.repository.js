@@ -3707,14 +3707,14 @@ const calcularEstadoGlobalInicial = (platos) => {
  * @param {string} comandaId - ID de la comanda
  * @returns {Promise<{updated: boolean, estadoAnterior?: string, nuevoEstado?: string, totalPlatos?: number, platosEntregados?: number, reason?: string}>}
  */
-const actualizarComandaSiTodosEntregados = async (comandaId) => {
+const actualizarComandaSiTodosEntregados = async (comandaId, options = {}) => {
   const logPrefix = `[actualizarComandaSiTodosEntregados] ${comandaId}`;
   try {
     logger.info(`${logPrefix} Iniciando verificación (todos los platos entregados → status recoger)`);
 
     const comanda = await comandaModel
       .findById(comandaId)
-      .select('platos status comandaNumber mesas tiempoRecoger tiempoEntregado tiempoEnEspera tiempoPagado historialEstados')
+      .select('platos status comandaNumber mesas mozos tiempoRecoger tiempoEntregado tiempoEnEspera tiempoPagado historialEstados omitirPago pagoOmitido')
       .lean();
 
     if (!comanda) {
@@ -3723,11 +3723,11 @@ const actualizarComandaSiTodosEntregados = async (comandaId) => {
     }
 
     const totalPlatos = comanda.platos?.length ?? 0;
-    const platosActivos = (comanda.platos || []).filter(p => p.eliminado !== true);
+    const platosActivos = (comanda.platos || []).filter(p => p.eliminado !== true && p.anulado !== true);
     const numActivos = platosActivos.length;
     const statusActual = comanda.status || 'en_espera';
 
-    logger.info(`${logPrefix} Comanda #${comanda.comandaNumber} | Total platos: ${totalPlatos} | Eliminados: ${totalPlatos - numActivos} | Activos: ${numActivos} | Status actual: ${statusActual}`);
+    logger.info(`${logPrefix} Comanda #${comanda.comandaNumber} | Total platos: ${totalPlatos} | Eliminados: ${totalPlatos - numActivos} | Activos: ${numActivos} | Status actual: ${statusActual} | omitirPago: ${!!comanda.omitirPago}`);
 
     if (numActivos === 0) {
       logger.warn(`${logPrefix} Sin platos activos, no se actualiza`);
@@ -3746,6 +3746,140 @@ const actualizarComandaSiTodosEntregados = async (comandaId) => {
         platosEntregados
       };
     }
+
+    // ========== RAMA OMITIR PAGO: cerrar como 'pagado' automáticamente ==========
+    if (comanda.omitirPago === true && comanda.pagoOmitido?.aplicado !== true) {
+      const mozoEntregaId = comanda.mozos?._id ? String(comanda.mozos._id) : (comanda.mozos ? String(comanda.mozos) : null);
+      logger.info(`${logPrefix} omitirPago=true → cerrando comanda como 'pagado' automáticamente (sin boucher/caja)`);
+
+      if (statusActual === 'pagado') {
+        // MEJORA: idempotencia — si ya está pagada por otro camino, solo marcar aplicado
+        logger.info(`${logPrefix} Status ya 'pagado', solo marcando pagoOmitido.aplicado`);
+        await comandaModel.updateOne(
+          { _id: comandaId },
+          {
+            $set: {
+              'pagoOmitido.aplicado': true,
+              'pagoOmitido.aplicadoEn': moment.tz("America/Lima").toDate(),
+              'pagoOmitido.entregadoPorMozo': mozoEntregaId
+            }
+          }
+        );
+        return { updated: false, reason: 'status_ya_pagado', estadoAnterior: statusActual, totalPlatos: numActivos, platosEntregados };
+      }
+
+      const ahora = moment.tz("America/Lima").toDate();
+      const estadoAnterior = statusActual;
+
+      // 1) Marcar platos activos como 'pagado' + tiempos.pagado
+      const platoOps = [];
+      comanda.platos.forEach((p, idx) => {
+        if (p.eliminado === true || p.anulado === true) return;
+        if ((p.estado || '').toLowerCase() === 'pagado') return; // ya pagado, no tocar
+        platoOps.push({
+          updateOne: {
+            filter: { _id: comandaId },
+            update: {
+              $set: {
+                [`platos.${idx}.estado`]: 'pagado',
+                [`platos.${idx}.tiempos.pagado`]: ahora
+              }
+            }
+          }
+        });
+      });
+      if (platoOps.length > 0) {
+        await comandaModel.bulkWrite(platoOps);
+        logger.info(`${logPrefix} ${platoOps.length} plato(s) marcados como 'pagado' (omitirPago)`);
+      }
+
+      // 2) Cerrar comanda: status 'pagado', IsActive false, tiempoPagado, pagoOmitido.aplicado
+      await comandaModel.updateOne(
+        { _id: comandaId },
+        {
+          $set: {
+            status: 'pagado',
+            IsActive: false,
+            tiempoPagado: ahora,
+            updatedAt: ahora,
+            'pagoOmitido.aplicado': true,
+            'pagoOmitido.aplicadoEn': ahora,
+            'pagoOmitido.entregadoPorMozo': mozoEntregaId
+          },
+          $push: {
+            historialEstados: {
+              status: 'pagado',
+              statusAnterior: estadoAnterior,
+              timestamp: ahora,
+              usuario: mozoEntregaId,
+              accion: 'Auto-pago por omitirPago al entregar (dashboard)',
+              deviceId: null,
+              sourceApp: 'sistema',
+              motivo: 'omitir_pago_al_entregar'
+            }
+          }
+        }
+      );
+
+      logger.info(`${logPrefix} Comanda #${comanda.comandaNumber} cerrada como 'pagado' (omitirPago) — estado anterior: "${estadoAnterior}"`);
+
+      // 3) Auditoría
+      try {
+        const AuditoriaAcciones = mongoose.model('AuditoriaAcciones');
+        await AuditoriaAcciones.create({
+          accion: 'COMANDA_OMITIR_PAGO_AUTO_PAGADO',
+          entidadId: comanda._id,
+          entidadTipo: 'comanda',
+          usuario: comanda.pagoOmitido?.usuarioId || null,
+          motivo: comanda.pagoOmitido?.motivo || 'Omitir pago al entregar (auto-pagado)',
+          datosAntes: { status: estadoAnterior, IsActive: true },
+          datosDespues: { status: 'pagado', IsActive: false, pagoOmitido: { aplicado: true, aplicadoEn: ahora } },
+          metadata: {
+            comandaNumber: comanda.comandaNumber,
+            mesaId: comanda.mesas?._id || comanda.mesas,
+            omitirPago: true,
+            referenciaExterna: comanda.pagoOmitido?.referenciaExterna || null,
+            entregadoPorMozo: mozoEntregaId,
+            sourceApp: 'sistema'
+          }
+        });
+        logger.info(`${logPrefix} Auditoría COMANDA_OMITIR_PAGO_AUTO_PAGADO registrada`);
+      } catch (auditErr) {
+        logger.warn(`${logPrefix} No se pudo registrar auditoría de omitirPago (no crítico):`, auditErr.message);
+      }
+
+      // 4) Recalcular estado de mesa
+      const mesaId = comanda.mesas?._id || comanda.mesas;
+      if (mesaId) {
+        try {
+          await recalcularEstadoMesa(mesaId);
+        } catch (err) {
+          logger.warn(`${logPrefix} Error al recalcular estado de mesa (no crítico):`, err.message);
+        }
+      }
+
+      // 5) Emitir comanda-actualizada
+      if (global.emitComandaActualizada) {
+        try {
+          await global.emitComandaActualizada(comandaId, estadoAnterior, 'pagado', {
+            omitirPago: true,
+            autoPagoAlEntregar: true
+          }, { skipPush: true });
+        } catch (err) {
+          logger.warn(`${logPrefix} Error al emitir comanda-actualizada (no crítico):`, err.message);
+        }
+      }
+
+      return {
+        updated: true,
+        estadoAnterior,
+        nuevoEstado: 'pagado',
+        motivo: 'omitir_pago_al_entregar',
+        totalPlatos: numActivos,
+        platosEntregados
+      };
+    }
+    // ========== FIN RAMA OMITIR PAGO ==========
 
     if (statusActual === 'entregado' || statusActual === 'pagado') {
       logger.info(`${logPrefix} Status ya es "${statusActual}", no se actualiza`);

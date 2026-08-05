@@ -732,7 +732,8 @@ const configuracionSistemaSchema = new mongoose.Schema({
 });
 
 // Índice para garantizar que solo exista un documento
-configuracionSistemaSchema.index({ _id: 1 }, { unique: true });
+// Singleton: Mongo ya indexa `_id` por defecto; no redefinir.
+// configuracionSistemaSchema.index({ _id: 1 }, { unique: true });
 
 // Método estático para obtener la configuración (crea una si no existe)
 configuracionSistemaSchema.statics.obtenerConfiguracion = async function() {

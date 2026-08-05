@@ -46,6 +46,7 @@ const {
     responderBloqueoCocina
 } = require('../utils/reglasComandaTomadaCocina');
 const { getComandasParaPagoAdelantado } = require('../repository/ticketPagoAdelantado.repository');
+const { adminAuth, checkPermission } = require('../middleware/adminAuth');
 
 // Autenticación JWT para endpoints legacy que aún no usan adminAuth
 const jwtLib = require('jsonwebtoken');
@@ -590,6 +591,225 @@ router.post('/comanda', async (req, res) => {
         }
     } catch (error) {
         logger.error('Error al crear comanda', {
+            error: error.message,
+            stack: error.stack,
+            body: req.body
+        });
+        handleError(error, res, logger);
+    }
+});
+
+/**
+ * POST /api/comanda/desde-dashboard
+ * Crear comanda desde el dashboard (comandas.html) con opción de omitir pago.
+ * Requiere permiso 'crear-comandas-dashboard'. Para activar omitirPago:true requiere
+ * además 'omitir-pago-comandas-dashboard' (admin bypass en checkPermission).
+ * Reutiliza agregarComanda (mismo pipeline de cocina/sockets que App Mozos).
+ */
+router.post('/comanda/desde-dashboard', adminAuth, checkPermission('crear-comandas-dashboard'), async (req, res) => {
+    try {
+        const {
+            areaId,
+            mesas,
+            mozos,
+            platos,
+            cantidades,
+            observaciones,
+            omitirPago = false,
+            motivoOmitirPago,
+            referenciaExterna,
+            tipoServicioPorPlato
+        } = req.body;
+
+        const usuarioDashboardId = req.admin?.id || null;
+
+        // ===== Validaciones =====
+        if (!areaId) {
+            return res.status(400).json({ error: 'Debe seleccionar un área' });
+        }
+        if (!mesas) {
+            return res.status(400).json({ error: 'Debe seleccionar una mesa' });
+        }
+        if (!mozos) {
+            return res.status(400).json({ error: 'Debe seleccionar un mozo para retirar el plato' });
+        }
+        if (!platos || !Array.isArray(platos) || platos.length === 0) {
+            return res.status(400).json({ error: 'Debe agregar al menos un plato' });
+        }
+        if (!cantidades || !Array.isArray(cantidades) || cantidades.length !== platos.length) {
+            return res.status(400).json({ error: 'Las cantidades deben coincidir con los platos' });
+        }
+
+        // Validar área de la mesa
+        const mesasModel = mongoose.model('mesas');
+        const mesaDoc = await mesasModel.findById(mesas).select('nummesa area').lean();
+        if (!mesaDoc) {
+            return res.status(404).json({ error: 'Mesa no encontrada' });
+        }
+        const mesaAreaId = mesaDoc.area?._id ? String(mesaDoc.area._id) : (mesaDoc.area ? String(mesaDoc.area) : null);
+        if (!mesaAreaId || mesaAreaId !== String(areaId)) {
+            return res.status(400).json({ error: 'La mesa no pertenece al área seleccionada' });
+        }
+
+        // Validar mozo activo
+        const mozosModel = mongoose.model('mozos');
+        const mozoDoc = await mozosModel.findById(mozos).select('name isActive rol').lean();
+        if (!mozoDoc) {
+            return res.status(404).json({ error: 'Mozo no encontrado' });
+        }
+        if (mozoDoc.isActive === false) {
+            return res.status(400).json({ error: 'El mozo seleccionado no está activo' });
+        }
+
+        // Permiso extra para omitir pago
+        let omitirPagoFinal = false;
+        if (omitirPago === true) {
+            const permisosCaller = req.admin?.permisos || [];
+            const esAdmin = req.admin?.rol === 'admin';
+            if (!esAdmin && !permisosCaller.includes('omitir-pago-comandas-dashboard')) {
+                return res.status(403).json({ error: 'No tiene permiso para omitir pago en comandas' });
+            }
+            omitirPagoFinal = true;
+        }
+
+        // Normalizar platos al formato que espera agregarComanda
+        // MEJORA: propagar complementosSeleccionados y notaEspecial (v3.0), alineado a App Mozos.
+        // El backend (agregarComanda) revalida/enriquece precios de complementos; aquí solo pasamos el snapshot.
+        const platosNormalizados = platos.map((p, i) => {
+            const platoRef = p.plato || p.platoId || p._id;
+            const ts = Array.isArray(tipoServicioPorPlato) ? tipoServicioPorPlato[i] : (p.tipoServicio || 'mesa');
+            return {
+                plato: platoRef,
+                platoId: p.platoId || null,
+                estado: 'en_espera',
+                tipoServicio: ts === 'para_llevar' ? 'para_llevar' : 'mesa',
+                complementosSeleccionados: Array.isArray(p.complementosSeleccionados) ? p.complementosSeleccionados : [],
+                notaEspecial: typeof p.notaEspecial === 'string' ? p.notaEspecial : ''
+            };
+        });
+
+        const momentTz = require('moment-timezone');
+        const ahora = momentTz.tz("America/Lima").toDate();
+
+        // ===== Construir payload para agregarComanda =====
+        const payload = {
+            mozos,
+            mesas,
+            platos: platosNormalizados,
+            cantidades,
+            observaciones: observaciones || '',
+            status: 'en_espera',
+            IsActive: true,
+            // Campos nuevos
+            origenCreacion: 'dashboard',
+            createdByDashboard: usuarioDashboardId,
+            sourceApp: 'dashboard',
+            deviceId: req.headers['x-device-id'] || null
+        };
+
+        if (omitirPagoFinal) {
+            payload.omitirPago = true;
+            payload.pagoOmitido = {
+                motivo: motivoOmitirPago || 'Omitir pago (creado desde dashboard)',
+                referenciaExterna: referenciaExterna || null,
+                usuarioId: usuarioDashboardId,
+                fechaActivacion: ahora,
+                aplicado: false
+            };
+        }
+
+        // ===== Delegar al repositorio (mismo pipeline que App Mozos) =====
+        const data = await agregarComanda(payload);
+
+        // ===== Auditoría: creación desde dashboard =====
+        try {
+            const AuditoriaAcciones = mongoose.model('AuditoriaAcciones');
+            await AuditoriaAcciones.create({
+                accion: 'comanda_creada',
+                entidadId: data.comanda?._id,
+                entidadTipo: 'comanda',
+                usuario: usuarioDashboardId,
+                motivo: omitirPagoFinal ? 'Comanda creada desde dashboard con omitir pago' : 'Comanda creada desde dashboard',
+                datosDespues: {
+                    comandaNumber: data.comanda?.comandaNumber,
+                    mesa: mesas,
+                    mozo: mozos,
+                    origenCreacion: 'dashboard',
+                    omitirPago: omitirPagoFinal
+                },
+                metadata: {
+                    sourceApp: 'dashboard',
+                    areaId,
+                    omitirPago: omitirPagoFinal,
+                    referenciaExterna: referenciaExterna || null
+                }
+            });
+
+            if (omitirPagoFinal) {
+                await AuditoriaAcciones.create({
+                    accion: 'COMANDA_OMITIR_PAGO_ACTIVADO',
+                    entidadId: data.comanda?._id,
+                    entidadTipo: 'comanda',
+                    usuario: usuarioDashboardId,
+                    motivo: motivoOmitirPago || 'Omitir pago activado al crear desde dashboard',
+                    datosDespues: { omitirPago: true, pagoOmitido: payload.pagoOmitido },
+                    metadata: {
+                        comandaNumber: data.comanda?.comandaNumber,
+                        referenciaExterna: referenciaExterna || null,
+                        sourceApp: 'dashboard'
+                    }
+                });
+            }
+        } catch (auditErr) {
+            logger.warn('Auditoría de creación dashboard falló (no crítico)', { error: auditErr.message });
+        }
+
+        // ===== Socket.io + auto-asignación (mismo flujo que POST /comanda) =====
+        if (global.emitNuevaComanda && data.comanda) {
+            try {
+                await global.emitNuevaComanda(data.comanda);
+            } catch (e) {
+                logger.warn('emitNuevaComanda falló (no crítico)', { error: e.message });
+            }
+        }
+
+        if (data.comanda && data.comanda.platos && data.comanda.platos.length > 0) {
+            const asignacionAutomaticaService = require('../services/asignacionAutomaticaService');
+            const comandaCreadaId = data.comanda._id;
+            const comandaCreadaNum = data.comanda.comandaNumber;
+            setImmediate(async () => {
+                try {
+                    const Comanda = mongoose.model('Comanda');
+                    const comandaPop = await Comanda.findById(comandaCreadaId)
+                        .populate('platos.plato', 'id categoria tipo tipos nombre codigo')
+                        .lean();
+                    if (!comandaPop) return;
+                    const resultado = await asignacionAutomaticaService.asignarPlatosNuevos(comandaPop);
+                    logger.info('Auto-asignación post-create (dashboard)', {
+                        comandaId: comandaCreadaId?.toString(),
+                        comandaNumber: comandaCreadaNum,
+                        asignados: resultado.asignados,
+                        noAsignados: resultado.noAsignados
+                    });
+                    if (resultado.asignados > 0 && global.emitRendimientoCocineroActualizado) {
+                        global.emitRendimientoCocineroActualizado({ tipo: 'comanda_creada', comandaId: comandaCreadaId?.toString() });
+                    }
+                } catch (e) {
+                    logger.warn('Auto-asignación post-create (dashboard) falló (no crítico)', { error: e.message });
+                }
+            });
+        }
+
+        logger.info('Comanda creada desde dashboard', {
+            comandaId: data.comanda?._id,
+            comandaNumber: data.comanda?.comandaNumber,
+            omitirPago: omitirPagoFinal,
+            usuarioDashboard: usuarioDashboardId
+        });
+
+        res.status(201).json(data);
+    } catch (error) {
+        logger.error('Error al crear comanda desde dashboard', {
             error: error.message,
             stack: error.stack,
             body: req.body

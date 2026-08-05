@@ -12,8 +12,7 @@ const configCocineroSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'mozos',
         required: true,
-        unique: true,
-        index: true
+        unique: true
     },
     
     // Alias o nombre a mostrar en cocina (opcional, si es diferente al nombre real)
@@ -184,8 +183,8 @@ const configCocineroSchema = new mongoose.Schema({
 });
 
 // Índices
-configCocineroSchema.index({ usuarioId: 1 });
 configCocineroSchema.index({ activo: 1 });
+// usuarioId ya tiene unique:true (índice implícito)
 
 // Virtual para obtener el nombre a mostrar
 configCocineroSchema.virtual('nombreDisplay').get(function() {

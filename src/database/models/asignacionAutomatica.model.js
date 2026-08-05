@@ -165,7 +165,7 @@ const asignacionAutomaticaSchema = new mongoose.Schema({
     strict: true
 });
 
-asignacionAutomaticaSchema.index({ _id: 1 }, { unique: true });
+// Singleton con `_id` string: Mongo indexa `_id` por defecto; no redefinir.
 
 const CONFIGURACION_DEFAULT = {
     habilitada: false,

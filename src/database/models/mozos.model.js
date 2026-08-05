@@ -27,6 +27,8 @@ const PERMISOS_FUNDAMENTALES = {
     'ejecutar-cierre-caja': { nombre: 'Ejecutar Cierre de Caja', grupo: 'Backend/Dashboard', descripcion: 'Confirmar el cierre de caja definitivo del período' },
     'cierre-caja': { nombre: 'Cierre de Caja (legacy)', grupo: 'Backend/Dashboard', descripcion: 'Alias legacy. Preferir ver-cierre-caja y ejecutar-cierre-caja' },
     'ver-notificaciones': { nombre: 'Ver Notificaciones', grupo: 'Backend/Dashboard', descripcion: 'Acceder al centro de notificaciones' },
+    'crear-comandas-dashboard': { nombre: 'Crear Comandas (Dashboard)', grupo: 'Backend/Dashboard', descripcion: 'Crear comandas desde comandas.html; incluye opción Omitir pago (auto-pagado al entregar)' },
+    'omitir-pago-comandas-dashboard': { nombre: 'Omitir Pago en Comandas (Dashboard)', grupo: 'Backend/Dashboard', descripcion: 'Permitir activar "Omitir pago" al crear comanda desde dashboard (auto-pagado al entregar)' },
     
     // App Mozos
     'crear-comandas': { nombre: 'Crear Comandas', grupo: 'App Mozos', descripcion: 'Crear nuevas comandas en App Mozos' },

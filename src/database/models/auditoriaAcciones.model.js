@@ -44,7 +44,10 @@ const auditoriaSchema = new mongoose.Schema({
       'CIERRE_CAJA_EJECUTADO',
       // Solicitar Orden (Panel Gestión / KDS supervisor)
       'SOLICITUD_ORDEN_APROBADA',
-      'SOLICITUD_ORDEN_RECHAZADA'
+      'SOLICITUD_ORDEN_RECHAZADA',
+      // Crear comanda desde dashboard — omitir pago (auto-pagado al entregar)
+      'COMANDA_OMITIR_PAGO_AUTO_PAGADO',
+      'COMANDA_OMITIR_PAGO_ACTIVADO'
     ],
     index: true
   },
