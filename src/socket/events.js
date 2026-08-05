@@ -511,7 +511,8 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
    */
   global.emitNuevaComanda = async (comanda) => {
     try {
-      // Obtener comanda con populate completo
+      // Obtener comanda con populate completo (lean: objeto plano, evita
+      // documentos Mongoose que al serializar confunden el merge en cocina)
       const comandaCompleta = await comandaModel
         .findById(comanda._id || comanda)
         .populate({
@@ -529,11 +530,20 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         .populate({
           path: "platos.plato",
           model: "platos"
-        });
+        })
+        .lean();
 
       if (!comandaCompleta) {
         logger.warn('Comanda no encontrada para emitir evento');
         return;
+      }
+
+      // IDs como string para comparaciones estables en clientes KDS
+      if (comandaCompleta._id) {
+        comandaCompleta._id = String(comandaCompleta._id);
+      }
+      if (!comandaCompleta.areaNombre && comandaCompleta.mesas?.area?.nombre) {
+        comandaCompleta.areaNombre = comandaCompleta.mesas.area.nombre;
       }
 
       // Obtener fecha de la comanda
@@ -2139,8 +2149,17 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
   global.emitPlatoProcesando = async (comandaId, platoId, cocinero) => {
     try {
       const timestamp = moment().tz('America/Lima').toISOString();
-      const fecha = moment().tz('America/Lima').format('YYYY-MM-DD');
-      const roomName = `fecha-${fecha}`;
+      const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
+      const rooms = new Set([`fecha-${fechaHoy}`]);
+
+      // También emitir a la room del día de creación (comandas atrasadas)
+      try {
+        const meta = await comandaModel.findById(comandaId).select('createdAt').lean();
+        if (meta?.createdAt) {
+          const fechaComanda = moment(meta.createdAt).tz('America/Lima').format('YYYY-MM-DD');
+          rooms.add(`fecha-${fechaComanda}`);
+        }
+      } catch (_) { /* no bloquear emit */ }
 
       const eventData = {
         comandaId: comandaId?.toString(),
@@ -2150,7 +2169,9 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         timestamp
       };
 
-      cocinaNamespace.to(roomName).emit('plato-procesando', eventData);
+      for (const roomName of rooms) {
+        cocinaNamespace.to(roomName).emit('plato-procesando', eventData);
+      }
       await emitProcesamientoToMesaMozos('plato-procesando', comandaId, eventData);
 
       // Panel admin (mozos.html modal Ver completo): cocinero asignado en tiempo real
@@ -2171,7 +2192,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         comandaId,
         platoId,
         cocineroId: cocinero?.cocineroId,
-        roomName
+        rooms: [...rooms]
       });
     } catch (error) {
       logger.error('Error al emitir plato-procesando', {

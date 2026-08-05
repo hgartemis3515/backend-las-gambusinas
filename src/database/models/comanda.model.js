@@ -488,6 +488,13 @@ const comandaSchema = new mongoose.Schema({
         default: false,
         index: true
     },
+    // Omitir orden de entrega (KDS): permite finalizar platos sin respetar cola #1..#N
+    // ni pedir "Solicitar Orden". Pensado para comandas creadas desde dashboard.
+    omitirOrdenEntrega: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
     // Metadata del pago omitido (visible en detalle de comanda + auditoría)
     pagoOmitido: {
         motivo: { type: String, default: null },                 // texto libre: "Consumo interno", "Restaurante X"

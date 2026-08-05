@@ -618,7 +618,13 @@ router.post('/comanda/desde-dashboard', adminAuth, checkPermission('crear-comand
             omitirPago = false,
             motivoOmitirPago,
             referenciaExterna,
-            tipoServicioPorPlato
+            tipoServicioPorPlato,
+            maximaPrioridad = false,
+            prioridadOrden,
+            omitirOrdenEntrega = false,
+            clienteNombre,
+            clienteDni,
+            clienteTelefono
         } = req.body;
 
         const usuarioDashboardId = req.admin?.id || null;
@@ -691,6 +697,47 @@ router.post('/comanda/desde-dashboard', adminAuth, checkPermission('crear-comand
         const momentTz = require('moment-timezone');
         const ahora = momentTz.tz("America/Lima").toDate();
 
+        // Prioridad KDS: mismo criterio que App Cocina (prioridadOrden = Date.now())
+        let prioridadFinal = 0;
+        if (maximaPrioridad === true || prioridadOrden) {
+            const n = Number(prioridadOrden);
+            prioridadFinal = Number.isFinite(n) && n > 0 ? n : Date.now();
+        }
+
+        // Cliente opcional (nombre / dni / teléfono)
+        let clienteId = null;
+        let clienteNombreFinal = null;
+        const nombreTrim = typeof clienteNombre === 'string' ? clienteNombre.trim() : '';
+        const dniTrim = typeof clienteDni === 'string' ? clienteDni.trim() : '';
+        const telTrim = typeof clienteTelefono === 'string' ? clienteTelefono.trim() : '';
+        if (nombreTrim || dniTrim || telTrim) {
+            try {
+                const Cliente = mongoose.model('Cliente');
+                let clienteDoc = null;
+                if (dniTrim) {
+                    clienteDoc = await Cliente.findOne({ dni: dniTrim });
+                }
+                if (clienteDoc) {
+                    if (nombreTrim) clienteDoc.nombre = nombreTrim;
+                    if (telTrim) clienteDoc.telefono = telTrim;
+                    await clienteDoc.save();
+                } else {
+                    const createData = {
+                        tipo: 'registrado',
+                        nombre: nombreTrim || (dniTrim ? `Cliente ${dniTrim}` : 'Cliente dashboard'),
+                        telefono: telTrim || null
+                    };
+                    if (dniTrim) createData.dni = dniTrim;
+                    clienteDoc = await Cliente.create(createData);
+                }
+                clienteId = clienteDoc._id;
+                clienteNombreFinal = clienteDoc.nombre || nombreTrim || null;
+            } catch (cliErr) {
+                logger.warn('No se pudo resolver cliente en desde-dashboard (no crítico)', { error: cliErr.message });
+                clienteNombreFinal = nombreTrim || null;
+            }
+        }
+
         // ===== Construir payload para agregarComanda =====
         const payload = {
             mozos,
@@ -700,12 +747,21 @@ router.post('/comanda/desde-dashboard', adminAuth, checkPermission('crear-comand
             observaciones: observaciones || '',
             status: 'en_espera',
             IsActive: true,
+            prioridadOrden: prioridadFinal,
             // Campos nuevos
             origenCreacion: 'dashboard',
             createdByDashboard: usuarioDashboardId,
             sourceApp: 'dashboard',
-            deviceId: req.headers['x-device-id'] || null
+            deviceId: req.headers['x-device-id'] || null,
+            omitirOrdenEntrega: omitirOrdenEntrega === true
         };
+
+        if (clienteId) {
+            payload.cliente = clienteId;
+        }
+        if (clienteNombreFinal) {
+            payload.clienteNombre = clienteNombreFinal;
+        }
 
         if (omitirPagoFinal) {
             payload.omitirPago = true;
@@ -735,12 +791,14 @@ router.post('/comanda/desde-dashboard', adminAuth, checkPermission('crear-comand
                     mesa: mesas,
                     mozo: mozos,
                     origenCreacion: 'dashboard',
-                    omitirPago: omitirPagoFinal
+                    omitirPago: omitirPagoFinal,
+                    omitirOrdenEntrega: omitirOrdenEntrega === true
                 },
                 metadata: {
                     sourceApp: 'dashboard',
                     areaId,
                     omitirPago: omitirPagoFinal,
+                    omitirOrdenEntrega: omitirOrdenEntrega === true,
                     referenciaExterna: referenciaExterna || null
                 }
             });

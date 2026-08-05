@@ -588,31 +588,40 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
     try {
       const cfgCocina = await leerConfigCocina();
       if (cfgCocina.obligarOrdenAsignacion && req.admin?.rol !== 'admin') {
-        const esSup = esSupervisorCocina(req.admin);
-        const supervisorBypass = esSup && !cfgCocina.solicitudOrdenFueraDeCola;
-        const overrideAprobado = await tieneOverrideOrdenVigente(
-          plato, comandaId, plato._id || platoId
-        );
+        // Comanda creada desde dashboard con "Omitir orden de entrega"
+        if (comanda.omitirOrdenEntrega === true) {
+          logger.info('[FinalizarPlato] omitirOrdenEntrega=true — se salta validación de cola', {
+            comandaId,
+            platoId,
+            comandaNumber: comanda.comandaNumber
+          });
+        } else {
+          const esSup = esSupervisorCocina(req.admin);
+          const supervisorBypass = esSup && !cfgCocina.solicitudOrdenFueraDeCola;
+          const overrideAprobado = await tieneOverrideOrdenVigente(
+            plato, comandaId, plato._id || platoId
+          );
 
-        if (!supervisorBypass && !overrideAprobado) {
-          // Solo validar cola si el plato está atribuido a un cocinero
-          if (cocineroAtribuidoId) {
-            const { ok } = await puedeFinalizarSegunOrdenCola(
-              comandaId, platoIndex, cocineroAtribuidoId, loteCola
-            );
-            if (!ok) {
-              return res.status(409).json({
-                success: false,
-                error: 'ORDEN_COLA_REQUERIDO',
-                message: 'Debe finalizar en orden desde el #1 (prefijo contiguo) o enviar Solicitar Orden.'
-              });
+          if (!supervisorBypass && !overrideAprobado) {
+            // Solo validar cola si el plato está atribuido a un cocinero
+            if (cocineroAtribuidoId) {
+              const { ok } = await puedeFinalizarSegunOrdenCola(
+                comandaId, platoIndex, cocineroAtribuidoId, loteCola
+              );
+              if (!ok) {
+                return res.status(409).json({
+                  success: false,
+                  error: 'ORDEN_COLA_REQUERIDO',
+                  message: 'Debe finalizar en orden desde el #1 (prefijo contiguo) o enviar Solicitar Orden.'
+                });
+              }
             }
           }
-        }
 
-        if (overrideAprobado) {
-          consumirOverride = true;
-          logger.info('[FinalizarPlato] Override one-shot autorizado', { comandaId, platoId });
+          if (overrideAprobado) {
+            consumirOverride = true;
+            logger.info('[FinalizarPlato] Override one-shot autorizado', { comandaId, platoId });
+          }
         }
       }
     } catch (errOrden) {

@@ -2086,6 +2086,11 @@ comandaForm: {
   mesas: '',
   mozos: '',
   observaciones: '',
+  maximaPrioridad: false,
+  omitirOrdenEntrega: false,
+  clienteNombre: '',
+  clienteDni: '',
+  clienteTelefono: '',
   omitirPago: false,
   motivoOmitirPago: '',
   referenciaExterna: '',
@@ -3106,8 +3111,10 @@ this.modal = null;
  descuentoAplicadoPor: raw.descuentoAplicadoPor || null,
  descuentoAplicadoAt: raw.descuentoAplicadoAt || null,
  montoDescuento: raw.montoDescuento || 0,
- origenCreacion: raw.origenCreacion || 'mozos',
+ origenCreacion: raw.origenCreacion || (raw.createdByDashboard ? 'dashboard' : 'mozos'),
+ createdByDashboard: raw.createdByDashboard || null,
  omitirPago: !!raw.omitirPago,
+ omitirOrdenEntrega: !!raw.omitirOrdenEntrega,
  pagoOmitido: raw.pagoOmitido || null,
  origenReserva: raw.origenReserva || null
  };
@@ -3389,7 +3396,6 @@ this.modal = null;
 
  const gruposPedido = new Map();   // pedidoId -> { comandas: [] }
  const gruposCliente = new Map();  // clienteId_mesaNum -> { comandas: [] } (fallback histórico)
- const gruposMesa = new Map();     // mesaId_fecha -> { comandas: [] } (sin pedido ni cliente)
  const individuales = [];
 
 this.comandas.forEach(c => {
@@ -3399,12 +3405,20 @@ const clienteId = this.normalizeObjectId(c.cliente?._id ?? c.cliente);
 const mesaObj = c.mesa || null;
 const mesaNum = mesaObj?.nummesa || c.mesaNumero || c.mesaNum || (typeof c.mesa === 'number' ? c.mesa : null);
 const mesaId = this.normalizeObjectId(c.mesaId ?? mesaObj?._id);
+const origenDashboard = (c.origenCreacion || '') === 'dashboard' || !!c.createdByDashboard;
 
 // REGLA: Las comandas canceladas/anuladas NUNCA se agrupan con otras comandas.
 // Aunque compartan pedidoId/cliente/mesa con comandas nuevas, deben quedar como
 // filas individuales para preservar la trazabilidad de la anulación.
 const estadoComanda = (c.estado || c.status || '').toString().toLowerCase();
 if (estadoComanda === 'cancelado') {
+  individuales.push(c);
+  return;
+}
+
+// Dashboard: siempre individual (mozo asignado entrega esa comanda sola).
+// Agrupar es solo para App Mozos (mismo pedido abierto de mesa).
+if (origenDashboard) {
   individuales.push(c);
   return;
 }
@@ -3439,24 +3453,9 @@ if (pedidoId) {
     });
   }
   gruposCliente.get(key).comandas.push(c);
-} else if (mesaId || mesaNum != null) {
-  // FALLBACK: misma mesa y mismo día (comandas sin pedido ni cliente asignado)
-  const fechaOp = c.createdAt
-    ? new Date(c.createdAt).toISOString().slice(0, 10)
-    : 'sin-fecha';
-  const key = `mesa_${mesaId || mesaNum}_${fechaOp}`;
-  if (!gruposMesa.has(key)) {
-    gruposMesa.set(key, {
-      mesaId: mesaId,
-      mesaNum: mesaNum,
-      mesaObj: mesaObj,
-      clienteNombre: c.clienteNombre || null,
-      comandas: []
-    });
-  }
-  gruposMesa.get(key).comandas.push(c);
 } else {
-  // Sin pedido, cliente ni mesa identificable: individual
+  // Sin pedido ni cliente: individual (NO agrupar solo por mesa/día —
+  // eso juntaba comandas dashboard / distintos mozos en la misma mesa).
   individuales.push(c);
 }
 });
@@ -3494,15 +3493,6 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  // Procesar grupos por clienteId (fallback histórico)
  gruposCliente.forEach((grupo, key) => {
- if (grupo.comandas.length > 1) {
-   filasGrupos.push(crearFilaGrupo(grupo, key));
- } else {
-   individuales.push(grupo.comandas[0]);
- }
- });
-
- // Procesar grupos por mesa + fecha (sin pedido ni cliente)
- gruposMesa.forEach((grupo, key) => {
  if (grupo.comandas.length > 1) {
    filasGrupos.push(crearFilaGrupo(grupo, key));
  } else {
@@ -4871,6 +4861,11 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
      mesas: '',
      mozos: '',
      observaciones: '',
+     maximaPrioridad: false,
+     omitirOrdenEntrega: false,
+     clienteNombre: '',
+     clienteDni: '',
+     clienteTelefono: '',
      omitirPago: false,
      motivoOmitirPago: '',
      referenciaExterna: '',
@@ -5198,6 +5193,11 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
        cantidades,
        tipoServicioPorPlato,
        observaciones: this.comandaForm.observaciones,
+       maximaPrioridad: !!this.comandaForm.maximaPrioridad,
+       omitirOrdenEntrega: !!this.comandaForm.omitirOrdenEntrega,
+       clienteNombre: (this.comandaForm.clienteNombre || '').trim() || null,
+       clienteDni: (this.comandaForm.clienteDni || '').trim() || null,
+       clienteTelefono: (this.comandaForm.clienteTelefono || '').trim() || null,
        omitirPago: this.comandaForm.omitirPago,
        motivoOmitirPago: this.comandaForm.omitirPago ? this.comandaForm.motivoOmitirPago : null,
        referenciaExterna: this.comandaForm.omitirPago ? this.comandaForm.referenciaExterna : null
@@ -5223,7 +5223,9 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
      }
 
      const data = await res.json();
-     this.showToast(`Comanda #${data.comanda?.comandaNumber || ''} creada exitosamente${this.comandaForm.omitirPago ? ' (pago omitido)' : ''}`, 'success');
+     const prioMsg = this.comandaForm.maximaPrioridad ? ' · prioridad máxima' : '';
+     const ordenMsg = this.comandaForm.omitirOrdenEntrega ? ' · sin orden de cola' : '';
+     this.showToast(`Comanda #${data.comanda?.comandaNumber || ''} creada exitosamente${this.comandaForm.omitirPago ? ' (pago omitido)' : ''}${prioMsg}${ordenMsg}`, 'success');
      this.closeComandaModal();
      await this.loadComandas();
    } catch (e) {
@@ -5964,6 +5966,26 @@ PRÓXIMOS PASOS SUGERIDOS (BACKEND)
        </select>
      </div>
 
+     <!-- 2b. CLIENTE (opcional) -->
+     <div class="border border-[rgba(212,175,55,0.15)] rounded-lg p-3 bg-bg-sidebar/40">
+       <p class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider mb-2">Cliente (opcional)</p>
+       <div class="grid grid-cols-3 gap-3">
+         <div class="col-span-3 sm:col-span-1">
+           <label class="text-[10px] text-txt-muted block mb-1">Nombre</label>
+           <input type="text" x-model="comandaForm.clienteNombre" placeholder="Nombre del cliente" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
+         </div>
+         <div>
+           <label class="text-[10px] text-txt-muted block mb-1">DNI</label>
+           <input type="text" x-model="comandaForm.clienteDni" placeholder="Opcional" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
+         </div>
+         <div>
+           <label class="text-[10px] text-txt-muted block mb-1">Teléfono</label>
+           <input type="text" x-model="comandaForm.clienteTelefono" placeholder="Opcional" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
+         </div>
+       </div>
+       <p class="text-[10px] text-txt-muted mt-1.5">Si se indica, la comanda no se agrupa con otras sin el mismo cliente.</p>
+     </div>
+
      <hr class="border-[rgba(212,175,55,0.1)]">
 
      <!-- 3. BUSCAR PLATO -->
@@ -6051,7 +6073,29 @@ PRÓXIMOS PASOS SUGERIDOS (BACKEND)
      <!-- 7. OBSERVACIONES -->
      <div>
        <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Observaciones</label>
-       <textarea x-model="comandaForm.observaciones" rows="2" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none resize-none" placeholder="Notas para cocina..."></textarea>
+       <textarea x-model="comandaForm.observaciones" rows="3" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none resize-none" placeholder="Notas o comentarios para cocina (se muestran en el KDS)..."></textarea>
+     </div>
+
+     <!-- 7b. MÁXIMA PRIORIDAD (mismo criterio que App Cocina) -->
+     <div class="border border-red-500/30 rounded-lg p-3 bg-red-500/5">
+       <label class="flex items-center gap-2 cursor-pointer">
+         <input type="checkbox" x-model="comandaForm.maximaPrioridad" class="w-4 h-4 accent-red-500">
+         <span class="text-sm font-semibold text-red-400">🚀 Alternar máxima prioridad</span>
+       </label>
+       <p class="text-[10px] text-txt-muted mt-1">
+         Si está activo, la comanda aparece arriba en cocina con prioridad (igual que el botón Prioridad del KDS).
+       </p>
+     </div>
+
+     <!-- 7c. OMITIR ORDEN DE ENTREGA (bypass cola #1..#N en KDS) -->
+     <div class="border border-amber-500/30 rounded-lg p-3 bg-amber-500/5">
+       <label class="flex items-center gap-2 cursor-pointer">
+         <input type="checkbox" x-model="comandaForm.omitirOrdenEntrega" class="w-4 h-4 accent-amber-500">
+         <span class="text-sm font-semibold text-amber-400">Omitir orden de entrega</span>
+       </label>
+       <p class="text-[10px] text-txt-muted mt-1">
+         En cocina se puede finalizar esta comanda sin respetar el orden de cola (#1 primero) ni pedir “Solicitar Orden”.
+       </p>
      </div>
 
      <hr class="border-[rgba(212,175,55,0.1)]">

@@ -64,6 +64,11 @@ const PROYECCION_COCINA = {
     mozoNombre: 1,
     mesaNumero: 1,
     areaNombre: 1,
+    // Origen dashboard (badge/borde verde en KDS)
+    origenCreacion: 1,
+    createdByDashboard: 1,
+    omitirPago: 1,
+    omitirOrdenEntrega: 1,
     // Referencias mínimas (solo para fallback si no hay desnormalizados)
     mozos: 1,
     mesas: 1,
@@ -92,6 +97,7 @@ const PROYECCION_COCINA = {
     'platos.anuladoRazon': 1,
     'platos.procesandoPor': 1,  // 🔥 v7.2: Info del cocinero que está preparando el plato
     'platos.procesadoPor': 1,   // 🔥 v7.2: Info del cocinero que terminó el plato
+    'platos.overrideOrdenCola': 1,
     'platos.plato': 1,  // Se popula solo con nombre y precio
     // Auditoría mínima
     historialPlatos: 1
@@ -418,8 +424,14 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
         mozoNombre: 1,
         mesaNumero: 1,
         areaNombre: 1,
+        clienteNombre: 1,
         totalPlatos: 1,
         platosActivos: 1,
+        // Origen / dashboard (agrupación y badges)
+        origenCreacion: 1,
+        createdByDashboard: 1,
+        omitirPago: 1,
+        omitirOrdenEntrega: 1,
         // Referencias mínimas
         mozos: 1,
         mesas: 1,
@@ -890,30 +902,46 @@ const agregarComanda = async (data) => {
     mozoId: nuevaComanda.mozos
   });
 
-  // ========== ASOCIAR COMANDA AL PEDIDO ABIERTO DE LA MESA ==========
+  // ========== ASOCIAR COMANDA AL PEDIDO ==========
+  // Mozos: reutiliza pedido abierto de la mesa (agrupa comandas del mismo servicio).
+  // Dashboard: pedido dedicado por comanda (no agrupar con mozos ni entre sí).
   try {
-    const pedido = await pedidoModel.obtenerOcrearPedidoAbierto(
-      nuevaComanda.mesas,
-      nuevaComanda.mozos,
-      {
+    let pedido;
+    if (data.origenCreacion === 'dashboard') {
+      pedido = await pedidoModel.create({
+        mesa: nuevaComanda.mesas,
         numMesa: datosDesnormalizados.mesaNumero,
         areaNombre: datosDesnormalizados.areaNombre,
-        nombreMozo: datosDesnormalizados.mozoNombre || 'Sin asignar'
-      }
-    );
+        mozo: nuevaComanda.mozos,
+        nombreMozo: datosDesnormalizados.mozoNombre || 'Sin asignar',
+        estado: 'abierto',
+        cliente: nuevaComanda.cliente || null,
+        clienteNombre: nuevaComanda.clienteNombre || null,
+        comandas: [nuevaComanda._id],
+        comandasNumbers: [nuevaComanda.comandaNumber]
+      });
+      console.log(`✅ Comanda dashboard #${nuevaComanda.comandaNumber} → Pedido dedicado #${pedido.pedidoId}`);
+    } else {
+      pedido = await pedidoModel.obtenerOcrearPedidoAbierto(
+        nuevaComanda.mesas,
+        nuevaComanda.mozos,
+        {
+          numMesa: datosDesnormalizados.mesaNumero,
+          areaNombre: datosDesnormalizados.areaNombre,
+          nombreMozo: datosDesnormalizados.mozoNombre || 'Sin asignar'
+        }
+      );
 
-    // Agregar comanda al pedido si no existe ya
-    if (!pedido.comandas.some(c => c.toString() === nuevaComanda._id.toString())) {
-      pedido.comandas.push(nuevaComanda._id);
-      pedido.comandasNumbers.push(nuevaComanda.comandaNumber);
-      await pedido.save(); // pre-save hook recalcula totales
+      if (!pedido.comandas.some(c => c.toString() === nuevaComanda._id.toString())) {
+        pedido.comandas.push(nuevaComanda._id);
+        pedido.comandasNumbers.push(nuevaComanda.comandaNumber);
+        await pedido.save();
+      }
+      console.log(`✅ Comanda #${nuevaComanda.comandaNumber} asociada al Pedido #${pedido.pedidoId} (mesa ${datosDesnormalizados.mesaNumero})`);
     }
 
-    // Guardar referencia del pedido en la comanda
     nuevaComanda.pedido = pedido._id;
     await nuevaComanda.save();
-
-    console.log(`✅ Comanda #${nuevaComanda.comandaNumber} asociada al Pedido #${pedido.pedidoId} (mesa ${datosDesnormalizados.mesaNumero})`);
   } catch (pedidoError) {
     // No bloquear la creación de comanda si falla la asociación con pedido
     console.error('⚠️ Error al asociar comanda con pedido (no crítico):', pedidoError.message);
@@ -989,13 +1017,16 @@ const agregarComanda = async (data) => {
     primerPlato: comandaCreada.platos?.[0]?.plato?.nombre || 'N/A'
   });
   
-  // Sincronizar con archivo JSON (obtener sin populate para guardar IDs)
-  try {
-    const todasLasComandasSinPopulate = await comandaModel.find({});
-    await syncJsonFile('comandas.json', todasLasComandasSinPopulate);
-  } catch (error) {
-    console.error('⚠️ Error al sincronizar comandas.json:', error);
-  }
+  // Sincronizar JSON en background (find({}) completo bloqueaba el event loop
+  // y provocaba races en cocina: refetch timeout + socket → lista inconsistente)
+  setImmediate(async () => {
+    try {
+      const todasLasComandasSinPopulate = await comandaModel.find({}).lean();
+      await syncJsonFile('comandas.json', todasLasComandasSinPopulate);
+    } catch (error) {
+      console.error('⚠️ Error al sincronizar comandas.json:', error);
+    }
+  });
   
   // FASE 9: Emitir evento para actualización de reportes en tiempo real
   if (global.emitReporteComandaNueva) {
@@ -2350,12 +2381,16 @@ const listarComandaPorFechaEntregado = async (fecha, usarProyeccion = true) => {
     });
     
     // ==================== FASE A1: QUERY OPTIMIZADA ====================
-    // Usar índice idx_comanda_cocina_fecha
-    // Filtrar comandas activas que NO estén entregadas ni pagadas
-    let query = comandaModel.find({ 
-      createdAt: { $gte: fechaInicio, $lte: fechaFin },
+    // KDS: día pedido + pendientes atrasadas (días anteriores aún no entregadas/pagadas).
+    // Antes: solo hoy; si hoy vacío → fallback 50 sin fecha. Al tomar plato y refrescar
+    // (ya con comandas de hoy) el fallback no corría y las atrasadas desaparecían.
+    let query = comandaModel.find({
+      IsActive: true,
       status: { $nin: ["entregado", "pagado"] },
-      IsActive: true
+      $or: [
+        { createdAt: { $gte: fechaInicio, $lte: fechaFin } },
+        { createdAt: { $lt: fechaInicio } }
+      ]
     });
     
     // Aplicar proyección si está habilitada (reducir tamaño del documento)
@@ -2393,48 +2428,6 @@ const listarComandaPorFechaEntregado = async (fecha, usarProyeccion = true) => {
     });
     
     let data = await query.exec();
-    
-    // Si no se encuentran comandas, intentar búsqueda más amplia (sin filtro de fecha)
-    if (data.length === 0) {
-      console.log('⚠️ No se encontraron comandas con el filtro de fecha. Buscando últimas comandas activas...');
-      
-      let fallbackQuery = comandaModel.find({ 
-        status: { $nin: ["entregado", "pagado"] },
-        IsActive: true
-      });
-      
-      if (usarProyeccion) {
-        fallbackQuery = fallbackQuery.select(PROYECCION_COCINA);
-      }
-      
-      fallbackQuery = fallbackQuery
-        .sort({ prioridadOrden: -1, createdAt: -1 })
-        .limit(50)
-        .lean()
-        .populate({
-          path: "mozos",
-          select: "name DNI",
-          options: { lean: true }
-        })
-        .populate({
-          path: "mesas",
-          select: "nummesa estado area nombreCombinado",
-          options: { lean: true },
-          populate: {
-            path: "area",
-            select: "nombre",
-            options: { lean: true }
-          }
-        })
-        .populate({
-          path: "platos.plato",
-          select: "nombre precio categoria codigo",
-          options: { lean: true }
-        });
-      
-      data = await fallbackQuery.exec();
-      console.log(`📊 Encontradas ${data.length} comandas activas (sin filtro de fecha)`);
-    }
     // ==================== FIN QUERY OPTIMIZADA ====================
     
     // Procesar comandas para usar campos desnormalizados o fallback a populate
