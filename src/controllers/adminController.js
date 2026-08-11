@@ -74,7 +74,7 @@ router.post('/admin/auth', async (req, res) => {
             },
             JWT_SECRET,
             {
-                expiresIn: '24h' // Token válido por 24 horas
+                expiresIn: process.env.ADMIN_JWT_EXPIRY || '7d' // Token admin válido 7 días (refrescable via /admin/auth/refresh)
             }
         );
         
@@ -101,6 +101,77 @@ router.post('/admin/auth', async (req, res) => {
             stack: error.stack 
         });
         res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+/**
+ * POST /api/admin/auth/refresh
+ * Renueva el token JWT del panel admin (dashboard) antes o despues de expirar.
+ * Ventana de gracia: acepta el token expirado y emite uno nuevo si el usuario sigue activo.
+ * Esto evita que cocineros.html / admin.html pierdan acceso cada 24h sin re-login manual.
+ */
+router.post('/admin/auth/refresh', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'Token no proporcionado' });
+        }
+        const token = authHeader.substring(7);
+
+        // Verificar permitiendo decodificar aun si ya expiro (ventana de gracia)
+        let decoded;
+        try {
+            decoded = jwt.verify(token, JWT_SECRET);
+        } catch (err) {
+            if (err.name === 'TokenExpiredError') {
+                decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true });
+            } else {
+                throw err;
+            }
+        }
+
+        if (!decoded || !decoded.id) {
+            return res.status(401).json({ error: 'Token inválido' });
+        }
+
+        const mozoConRol = await rolesRepository.obtenerMozoConRol(decoded.id);
+        if (!mozoConRol) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+        if (mozoConRol.activo === false) {
+            return res.status(403).json({ error: 'Usuario inactivo' });
+        }
+
+        const rol = mozoConRol.rol || decoded.rol || 'mozos';
+        const permisos = mozoConRol.permisosEfectivos || decoded.permisos || [];
+
+        const nuevoToken = jwt.sign(
+            {
+                id: decoded.id,
+                name: mozoConRol.name || decoded.name,
+                DNI: mozoConRol.DNI || decoded.DNI,
+                rol,
+                permisos
+            },
+            JWT_SECRET,
+            { expiresIn: process.env.ADMIN_JWT_EXPIRY || '7d' }
+        );
+
+        logger.info('Token admin renovado', { mozoId: decoded.id, name: mozoConRol.name, rol });
+
+        res.json({
+            token: nuevoToken,
+            usuario: {
+                id: decoded.id,
+                name: mozoConRol.name || decoded.name,
+                DNI: mozoConRol.DNI || decoded.DNI,
+                rol,
+                permisos
+            }
+        });
+    } catch (error) {
+        logger.error('Error al renovar token admin', { error: error.message });
+        res.status(401).json({ error: 'No se pudo renovar la sesión' });
     }
 });
 

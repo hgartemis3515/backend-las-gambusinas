@@ -1532,6 +1532,7 @@ tailwind.config = {
             <div class="flex gap-2">
               <button @click="editarPantallaCocina(pantalla)" class="flex-1 text-xs px-2 py-1.5 bg-bg-sidebar hover:bg-gray-700 rounded text-txt-secondary">✏️ Editar</button>
               <button @click="abrirVistaPreview(pantalla)" class="flex-1 text-xs px-2 py-1.5 bg-gold/20 hover:bg-gold/30 text-gold rounded">👁️ Probar</button>
+              <button @click="eliminarPantallaCocina(pantalla)" class="text-xs px-2 py-1.5 bg-red-900/40 hover:bg-red-800 text-red-300 rounded" title="Borrar configuración">🗑️</button>
             </div>
           </div>
         </template>
@@ -2106,8 +2107,9 @@ tailwind.config = {
     <div class="p-5 space-y-4">
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-sm text-txt-secondary mb-1">Nº de pantalla (TV)</label>
-          <input type="number" x-model.number="formPantallaCocina.numeroPantalla" min="1" max="16" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-white">
+          <label class="block text-sm text-txt-secondary mb-1">Nº de monitor (2–8)</label>
+          <input type="number" x-model.number="formPantallaCocina.numeroPantalla" min="2" max="8" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-white">
+          <p class="text-[11px] text-txt-muted mt-1">El monitor 1 es el principal (esta PC). Asigne 2–8 a los monitores pasivos.</p>
         </div>
         <div>
           <label class="block text-sm text-txt-secondary mb-1">Nombre</label>
@@ -2131,17 +2133,17 @@ tailwind.config = {
       <div x-show="editandoPantallaCocina" class="p-3 rounded-lg bg-bg-sidebar/50 border border-[rgba(212,175,55,0.15)]">
         <p class="text-sm text-txt-secondary mb-2 font-semibold">Token de dispositivo (TV kiosko)</p>
         <div class="flex flex-wrap gap-2 items-center">
-          <button @click="generarDeviceToken(pantalla._id)" class="px-3 py-1.5 bg-st-pedido text-white rounded-lg text-xs font-semibold hover:brightness-110">
+          <button @click="generarDeviceToken(editandoPantallaCocina)" class="px-3 py-1.5 bg-st-pedido text-white rounded-lg text-xs font-semibold hover:brightness-110">
             Generar / regenerar token
           </button>
-          <button @click="revocarDeviceToken(pantalla._id)" class="px-3 py-1.5 bg-st-pagado text-white rounded-lg text-xs font-semibold hover:brightness-110">
+          <button @click="revocarDeviceToken(editandoPantallaCocina)" class="px-3 py-1.5 bg-st-pagado text-white rounded-lg text-xs font-semibold hover:brightness-110">
             Revocar
           </button>
           <span x-show="pantallaUltimoToken" class="text-[11px] text-gold break-all" x-text="pantallaUltimoToken"></span>
         </div>
         <p class="text-[11px] text-txt-muted mt-2">
           URL para configurar en el Samsung:
-          <span class="text-gold break-all" x-text="kioskUrl(pantalla, pantallaUltimoToken)"></span>
+          <span class="text-gold break-all" x-text="kioskUrl(formPantallaCocina, pantallaUltimoToken)"></span>
         </p>
       </div>
       <div class="grid grid-cols-2 gap-3">
@@ -3563,6 +3565,79 @@ tailwind.config = {
 <script src="/assets/js/notifications.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script>
+// ============================================================
+// Interceptor global de fetch para refrescar el adminToken
+// cuando expira (evita 401 en cocineros.html cada 24h).
+// Solo intercepta llamadas a /api/* con Authorization Bearer adminToken.
+// ============================================================
+(function () {
+  console.log('[cocineros.html] Interceptor de fetch + refresh cargado');
+  let refreshingPromise = null;
+
+  function getAdminToken() {
+    return localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+  }
+  function setAdminToken(token) {
+    if (localStorage.getItem('adminToken')) localStorage.setItem('adminToken', token);
+    else sessionStorage.setItem('adminToken', token);
+  }
+  function clearAdminToken() {
+    localStorage.removeItem('adminToken');
+    sessionStorage.removeItem('adminToken');
+  }
+
+  function refreshToken() {
+    if (refreshingPromise) return refreshingPromise;
+    const current = getAdminToken();
+    if (!current) return Promise.reject(new Error('no token'));
+    refreshingPromise = fetch('/api/admin/auth/refresh', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${current}`, 'Content-Type': 'application/json' }
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('refresh failed');
+        const data = await res.json();
+        if (!data.token) throw new Error('no token in refresh response');
+        setAdminToken(data.token);
+        return data.token;
+      })
+      .finally(() => { refreshingPromise = null; });
+    return refreshingPromise;
+  }
+
+  const originalFetch = window.fetch;
+  window.fetch = async function (input, init) {
+    const url = typeof input === 'string' ? input : (input && input.url) || '';
+    const headers = init && init.headers;
+    const isAuthedApiCall = url.includes('/api/') && headers
+      && (typeof headers === 'object')
+      && (headers.Authorization || headers.authorization);
+
+    if (!isAuthedApiCall) {
+      return originalFetch.apply(this, arguments);
+    }
+
+    const response = await originalFetch.apply(this, arguments);
+
+    if (response.status !== 401) return response;
+
+    // 401: intentar refresh una vez y reintentar
+    try {
+      const newToken = await refreshToken();
+      const newInit = { ...(init || {}) };
+      const newHeaders = newInit.headers ? { ...newInit.headers } : {};
+      newHeaders.Authorization = `Bearer ${newToken}`;
+      newInit.headers = newHeaders;
+      return await originalFetch.call(this, input, newInit);
+    } catch (err) {
+      console.warn('[cocineros.html] refresh falló, redirigiendo a login:', err.message);
+      clearAdminToken();
+      window.location.href = '/login.html';
+      return response;
+    }
+  };
+})();
+
 function cocinerosApp() {
   return {
     sidebarOpen: true,
@@ -7033,10 +7108,16 @@ function cocinerosApp() {
     // ==================== PANTALLAS DE COCINA ====================
     openCrearPantallaModal() {
       this.editandoPantallaCocina = null;
+      // Siguiente numero de monitor libre entre 2 y 8 (el 1 es el principal)
+      const usados = new Set(this.pantallasCocina.map(p => p.numeroPantalla));
+      let siguiente = 2;
+      while (siguiente <= 8 && usados.has(siguiente)) siguiente++;
       this.formPantallaCocina = {
-        numeroPantalla: (this.pantallasCocina.length || 0) + 1,
+        numeroPantalla: siguiente,
         nombre: '',
         vistaCocinaId: this.vistasCocina[0]?._id || '',
+        cocineroId: '',
+        modoVista: 'completo',
         activo: true,
         configDespliegue: { anchoVentana: 1920, altoVentana: 1080, posicionX: 0, posicionY: 0, pantallaCompleta: true }
       };
@@ -7058,6 +7139,23 @@ function cocinerosApp() {
       }
       this.pantallaUltimoToken = '';
       this.modalPantallaCocina = true;
+    },
+
+    async eliminarPantallaCocina(pantalla) {
+      if (!confirm(`¿Borrar la configuración del Monitor ${pantalla.numeroPantalla} (${pantalla.nombre})?\nEsta acción no se puede deshacer.`)) return;
+      try {
+        const res = await fetch(`/api/pantallas-cocina/${pantalla._id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Error al borrar');
+        this.showToast(`Monitor ${pantalla.numeroPantalla} borrado`, 'success');
+        await this.cargarPantallasCocina();
+      } catch (err) {
+        console.error('eliminarPantallaCocina', err);
+        this.showToast('Error al borrar: ' + err.message, 'error');
+      }
     },
 
     async generarDeviceToken(pantallaId) {

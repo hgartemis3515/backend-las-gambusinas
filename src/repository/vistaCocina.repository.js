@@ -182,8 +182,18 @@ async function obtenerPantallasActivas() {
             .populate('cocineroId', 'nombre alias')
             .lean();
     } catch (error) {
-        logger.error('Error al obtener pantallas activas', { error: error.message });
-        throw error;
+        // Fallback: si un doc tiene cocineroId/vistaCocinaId invalido (string vacio,
+        // no-ObjectId), el populate lanza CastError. Reintentamos sin populate para
+        // que el frontend no reciba 500 y pueda mostrar las pantallas.
+        logger.warn('obtenerPantallasActivas: populate falló, reintentando sin populate', { error: error.message });
+        try {
+            return await PantallaCocina.find({ activo: true })
+                .sort({ numeroPantalla: 1 })
+                .lean();
+        } catch (err2) {
+            logger.error('Error al obtener pantallas activas (fallback)', { error: err2.message });
+            throw err2;
+        }
     }
 }
 
@@ -216,6 +226,50 @@ async function actualizarPantallaCocina(id, datos, actualizadoPor = null) {
         return pantalla;
     } catch (error) {
         logger.error('Error al actualizar pantalla de cocina', { error: error.message });
+        throw error;
+    }
+}
+
+/**
+ * Actualiza en lote la distribucion de pantallas para el flujo
+ * "Distribuir Cocina en monitores" (PC multi-monitor).
+ * Cada item: { id, cocineroId, modoVista }.
+ * - cocineroId null  => "Sin asignar" (no se abrira ventana para esa pantalla).
+ * - modoVista        => 'completo' (recomendado) o 'personalizado'.
+ * No toca deviceTokenHash ni configDespliegue.
+ * @param {Array<{id: string, cocineroId: string|null, modoVista: string}>} items
+ * @param {string|null} actualizadoPor
+ * @returns {Promise<Array<Object>>} pantallas actualizadas (lean)
+ */
+async function actualizarDistribucionPantallas(items, actualizadoPor = null) {
+    try {
+        if (!Array.isArray(items) || items.length === 0) return [];
+        const ops = items.map((item) => {
+            const set = {
+                modoVista: item.modoVista || 'completo',
+                actualizadoPor,
+                updatedAt: new Date(),
+            };
+            // cocineroId: null desasigna; string lo asigna
+            if (item.cocineroId === null || item.cocineroId === '' || item.cocineroId === undefined) {
+                set.cocineroId = null;
+            } else {
+                set.cocineroId = item.cocineroId;
+            }
+            return {
+                updateOne: {
+                    filter: { _id: item.id },
+                    update: { $set: set },
+                },
+            };
+        });
+        await PantallaCocina.bulkWrite(ops);
+        const ids = items.map((i) => i.id);
+        return await PantallaCocina.find({ _id: { $in: ids } })
+            .populate('cocineroId', 'nombre alias')
+            .lean();
+    } catch (error) {
+        logger.error('Error al actualizar distribucion de pantallas', { error: error.message });
         throw error;
     }
 }
@@ -339,5 +393,6 @@ module.exports = {
     obtenerPantallaPorNumero,
     verificarDeviceToken,
     generarDeviceToken,
-    revocarDeviceToken
+    revocarDeviceToken,
+    actualizarDistribucionPantallas
 };

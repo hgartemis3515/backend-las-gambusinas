@@ -182,8 +182,19 @@ router.get('/pantallas-cocina/activas', adminAuth, async (req, res) => {
         const pantallas = await repo.obtenerPantallasActivas();
         res.json({ success: true, data: pantallas });
     } catch (error) {
-        logger.error('Error al listar pantallas activas', { error: error.message });
-        res.status(500).json({ success: false, error: 'Error al obtener pantallas activas' });
+        // Log detallado para diagnosticar 500: incluye stack y nombre del error
+        logger.error('Error al listar pantallas activas', {
+            errorName: error.name,
+            message: error.message,
+            stack: error.stack,
+        });
+        console.error('=== ERROR /api/pantallas-cocina/activas ===');
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener pantallas activas',
+            detalle: process.env.NODE_ENV !== 'production' ? { name: error.name, message: error.message } : undefined,
+        });
     }
 });
 
@@ -250,6 +261,36 @@ router.put('/pantallas-cocina/:id', adminAuth, requireAnyPermission(['desplegar-
     } catch (error) {
         logger.error('Error al actualizar pantalla', { error: error.message });
         res.status(400).json({ success: false, error: error.message || 'Error al actualizar pantalla' });
+    }
+});
+
+/**
+ * PUT /api/pantallas-cocina/distribucion
+ * Flujo "Distribuir Cocina en monitores" (PC multi-monitor).
+ * Body: { items: [{ id, cocineroId, modoVista }] }
+ * Actualiza en lote la asignacion de cocineros a las pantallas 2..8.
+ * Permite cocineroId null ("Sin asignar").
+ */
+router.put('/pantallas-cocina/distribucion', adminAuth, requireAnyPermission(['desplegar-monitores-cocina', 'administrar-vistas-cocina', 'editar-mozos']), async (req, res) => {
+    try {
+        const items = req.body?.items;
+        if (!Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ success: false, error: 'items es requerido y debe ser un arreglo no vacío' });
+        }
+        // Validacion minimal por item
+        for (const item of items) {
+            if (!item.id) {
+                return res.status(400).json({ success: false, error: 'Cada item debe incluir id' });
+            }
+            if (item.modoVista && !['completo', 'personalizado'].includes(item.modoVista)) {
+                return res.status(400).json({ success: false, error: `modoVista inválido: ${item.modoVista}` });
+            }
+        }
+        const actualizadas = await repo.actualizarDistribucionPantallas(items, req.admin.id);
+        res.json({ success: true, message: 'Distribución actualizada correctamente', data: actualizadas });
+    } catch (error) {
+        logger.error('Error al actualizar distribucion', { error: error.message });
+        res.status(400).json({ success: false, error: error.message || 'Error al actualizar distribución' });
     }
 });
 
