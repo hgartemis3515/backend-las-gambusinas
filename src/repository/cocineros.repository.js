@@ -297,6 +297,51 @@ async function actualizarConfigKDS(usuarioId, datosConfig, actualizadoPor = null
 }
 
 /**
+ * Obtener perfil de personalización de Ver Cocina de un cocinero
+ * (Flujo "Distribuir Cocina en monitores" - perfil=auto)
+ */
+async function obtenerPerfilVerCocina(usuarioId) {
+    try {
+        const config = await ConfigCocinero.findOne({ usuarioId })
+            .select('perfilVerCocina')
+            .lean();
+        return (config && config.perfilVerCocina) ? config.perfilVerCocina : {};
+    } catch (error) {
+        logger.error('Error al obtener perfilVerCocina', { error: error.message, usuarioId });
+        throw error;
+    }
+}
+
+/**
+ * Guardar perfil de personalización de Ver Cocina de un cocinero.
+ * `config` debe venir sanitizado por el controller (whitelist de claves).
+ */
+async function guardarPerfilVerCocina(usuarioId, config, actualizadoPor = null) {
+    try {
+        const usuario = await Mozos.findById(usuarioId);
+        if (!usuario) {
+            throw new Error('Usuario no encontrado');
+        }
+        const actualizado = await ConfigCocinero.findOneAndUpdate(
+            { usuarioId },
+            {
+                $set: {
+                    perfilVerCocina: config,
+                    actualizadoPor,
+                    updatedAt: new Date(),
+                },
+            },
+            { new: true, upsert: true, setDefaultsOnInsert: true }
+        ).select('perfilVerCocina updatedAt').lean();
+        logger.info('perfilVerCocina guardado', { usuarioId, actualizadoPor });
+        return actualizado && actualizado.perfilVerCocina ? actualizado.perfilVerCocina : config;
+    } catch (error) {
+        logger.error('Error al guardar perfilVerCocina', { error: error.message, usuarioId });
+        throw error;
+    }
+}
+
+/**
  * Asignar rol de cocinero a un usuario existente
  */
 async function asignarRolCocinero(usuarioId, asignadoPor = null) {
@@ -1392,6 +1437,8 @@ module.exports = {
     obtenerCocineroPorId,
     obtenerConfigKDS,
     actualizarConfigKDS,
+    obtenerPerfilVerCocina,
+    guardarPerfilVerCocina,
     asignarRolCocinero,
     quitarRolCocinero,
     registrarConexion,

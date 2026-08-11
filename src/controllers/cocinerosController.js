@@ -229,6 +229,70 @@ router.put('/cocineros/:id/config', adminAuth, async (req, res) => {
 });
 
 /**
+ * GET /api/cocineros/:id/perfil-ver-cocina
+ * Obtener el perfil de personalización de Ver Cocina de un cocinero.
+ * Flujo "Distribuir Cocina en monitores" (perfil=auto).
+ */
+router.get('/cocineros/:id/perfil-ver-cocina', adminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const esPropio = req.admin.id === id;
+        const tienePermisoGestion = req.admin.permisos?.includes('ver-mozos');
+        if (!esPropio && !tienePermisoGestion) {
+            return res.status(403).json({ success: false, error: 'No tiene permisos para ver este perfil' });
+        }
+        const perfil = await cocinerosRepository.obtenerPerfilVerCocina(id);
+        res.json({ success: true, data: perfil || {} });
+    } catch (error) {
+        logger.error('Error al obtener perfil-ver-cocina', { error: error.message });
+        res.status(500).json({ success: false, error: 'Error al obtener perfil de personalización' });
+    }
+});
+
+/**
+ * PUT /api/cocineros/:id/perfil-ver-cocina
+ * Guardar el perfil de personalización de Ver Cocina de un cocinero.
+ * Body: { config: { ...localDesign } }
+ */
+const PERFIL_VER_COCINA_KEYS = new Set([
+    'tamanioFuentePlato', 'tamanioFuenteDetalle', 'tamanioFuenteCronometro', 'tamanioFuenteCocinero',
+    'tiempoAmarillo', 'tiempoRojo', 'modoNocturno', 'modoAgrupacion', 'mostrarMesas', 'modoTimers',
+    'maxTimersVisibles', 'mostrarCabeceraCocinero', 'colorPorCocinero', 'mostrarCocineroTomado',
+    'umbralCargaAlta', 'umbralSobrecarga', 'estiloTemporizador', 'intensidadAlerta',
+    'mostrarEtiquetaPlato', 'mostrarIconoCocinero', 'fuenteFamilia', 'colorFondo',
+    'colorTextoPrincipal', 'colorTextoSecundario', 'colorAcento', 'colorAlertaAmarilla',
+    'colorAlertaRoja', 'colorFilaPlato', 'espaciadoFilas', 'pesoFuentePlato', 'layoutColumnas',
+    'icono', 'mostrarNotificacionEntrada', 'duracionNotificacionEntrada', 'mostrarComplementos',
+    'numeroSecForma', 'numeroSecColor', 'numeroSecContorno', 'numeroSecFondo', 'numeroSecPeso',
+    'numeroSecGlow', 'numeroSecTamanio', 'numeroSecPrefijo',
+]);
+
+router.put('/cocineros/:id/perfil-ver-cocina', adminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const esPropio = req.admin.id === id;
+        const tienePermisoGestion = req.admin.permisos?.includes('editar-mozos');
+        if (!esPropio && !tienePermisoGestion) {
+            return res.status(403).json({ success: false, error: 'No tiene permisos para modificar este perfil' });
+        }
+        const configEntrada = req.body && typeof req.body.config === 'object' ? req.body.config : req.body;
+        if (!configEntrada || typeof configEntrada !== 'object') {
+            return res.status(400).json({ success: false, error: 'config es requerido (objeto)' });
+        }
+        // Whitelist: solo claves visuales permitidas
+        const sanitizado = {};
+        for (const [k, v] of Object.entries(configEntrada)) {
+            if (PERFIL_VER_COCINA_KEYS.has(k)) sanitizado[k] = v;
+        }
+        const guardado = await cocinerosRepository.guardarPerfilVerCocina(id, sanitizado, req.admin.id);
+        res.json({ success: true, message: 'Perfil guardado correctamente', data: guardado });
+    } catch (error) {
+        logger.error('Error al guardar perfil-ver-cocina', { error: error.message });
+        res.status(400).json({ success: false, error: error.message || 'Error al guardar perfil' });
+    }
+});
+
+/**
  * POST /api/cocineros/:id/asignar-rol
  * Asignar rol de cocinero a un usuario existente
  * Requiere permiso: gestionar-roles

@@ -132,7 +132,16 @@ const configCocineroSchema = new mongoose.Schema({
             max: 24
         }
     },
-    
+
+    // ========== PERFIL DE PERSONALIZACIÓN DE VER COCINA ==========
+    // Flujo "Distribuir Cocina en monitores": guarda TODO el localDesign
+    // del panel "Personalizar" de Ver Cocina para aplicarlo automáticamente
+    // a las ventanas hijas (modo=completo-fijo&perfil=auto).
+    perfilVerCocina: {
+        type: mongoose.Schema.Types.Mixed,
+        default: null,
+    },
+
     // ========== ESTADÍSTICAS DE SESIÓN ==========
     estadisticas: {
         ultimaConexion: {
