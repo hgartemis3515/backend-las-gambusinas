@@ -123,6 +123,11 @@ global.io = io;
 const cocinaNamespace = io.of('/cocina');
 const mozosNamespace = io.of('/mozos');
 const adminNamespace = io.of('/admin');
+// Namespace para el Gambusinas Monitor Hub (Electron en la PC de monitores).
+// El Hub se conecta aqui (salida, sin firewall inbound) y recibe los layouts
+// que la App Cocina envia via /api/hub/import.
+const hubNamespace = io.of('/hub');
+global.hubNamespace = hubNamespace;
 
 // Configurar eventos Socket.io
 require('./src/socket/events')(io, cocinaNamespace, mozosNamespace, adminNamespace);
@@ -250,43 +255,26 @@ app.use('/api', aprobacionRoutes);
 app.use('/api', vistaCocinaRoutes);
 app.use('/api', asignacionAutomaticaRoutes);
 
-// Proxy al Gambusinas Monitor Hub (Electron) corriendo en esta misma PC.
-// La App Cocina (frontend) POSTea a /api/hub/import en el backend (CORS ya
-// configurado mas arriba) y el backend reenvia por loopback a 127.0.0.1:7331
-// donde escucha el Hub. Asi evitamos firewall/CORS de puerto 7331 en la LAN.
-app.post('/api/hub/import', (req, res) => {
-  const payload = JSON.stringify(req.body || {});
-  const proxyReq = http.request(
-    {
-      hostname: '127.0.0.1',
-      port: 7331,
-      path: '/import',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload),
-      },
-    },
-    (proxyRes) => {
-      let body = '';
-      proxyRes.setEncoding('utf8');
-      proxyRes.on('data', (c) => (body += c));
-      proxyRes.on('end', () => {
-        res.status(proxyRes.statusCode || 502).json(
-          body ? (() => { try { return JSON.parse(body); } catch { return { raw: body }; } })() : { ok: false }
-        );
-      });
-    },
-  );
-  proxyReq.on('error', (err) => {
-    logger.error(`[hub-proxy] ${err.message}`);
-    res.status(502).json({
-      error: 'No se pudo conectar al Monitor Hub en 127.0.0.1:7331. ¿Está corriendo el Hub en esta PC?',
-      detail: err.message,
-    });
+// Proxy al Gambusinas Monitor Hub (Electron en la PC de monitores, PC independiente).
+// La App Cocina POSTea a /api/hub/import (con auth) y el backend emite el layout
+// por socket al Hub, que se conecto al namespace /hub (conexion saliente, sin
+// firewall inbound en la PC de monitores).
+app.post('/api/hub/import', require('./src/middleware/adminAuth').adminAuth, async (req, res) => {
+  const payload = {
+    source: 'appcocina',
+    profileName: req.body?.profileName || `Cocina ${new Date().toLocaleString()}`,
+    slots: req.body?.slots || [],
+  };
+  const sent = hubNamespace.emit('hub:layout', payload);
+  logger.info(`[hub-proxy] layout emitido a ${hubNamespace.sockets.size} cliente(s) del Hub (emit=${sent})`, {
+    slots: payload.slots.length,
   });
-  proxyReq.write(payload);
-  proxyReq.end();
+  if (!sent) {
+    return res.status(502).json({
+      error: 'El Monitor Hub no está conectado a este backend. Abre el Hub en la PC de los monitores, pulsa "Configurar servidor…" y pon la URL de este backend, luego "Verificar" hasta que el punto quede verde.',
+    });
+  }
+  res.json({ ok: true, slots: payload.slots.length, clients: hubNamespace.sockets.size });
 });
 
 // Servir archivos estáticos desde la carpeta public
