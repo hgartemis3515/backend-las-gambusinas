@@ -250,6 +250,45 @@ app.use('/api', aprobacionRoutes);
 app.use('/api', vistaCocinaRoutes);
 app.use('/api', asignacionAutomaticaRoutes);
 
+// Proxy al Gambusinas Monitor Hub (Electron) corriendo en esta misma PC.
+// La App Cocina (frontend) POSTea a /api/hub/import en el backend (CORS ya
+// configurado mas arriba) y el backend reenvia por loopback a 127.0.0.1:7331
+// donde escucha el Hub. Asi evitamos firewall/CORS de puerto 7331 en la LAN.
+app.post('/api/hub/import', (req, res) => {
+  const payload = JSON.stringify(req.body || {});
+  const proxyReq = http.request(
+    {
+      hostname: '127.0.0.1',
+      port: 7331,
+      path: '/import',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload),
+      },
+    },
+    (proxyRes) => {
+      let body = '';
+      proxyRes.setEncoding('utf8');
+      proxyRes.on('data', (c) => (body += c));
+      proxyRes.on('end', () => {
+        res.status(proxyRes.statusCode || 502).json(
+          body ? (() => { try { return JSON.parse(body); } catch { return { raw: body }; } })() : { ok: false }
+        );
+      });
+    },
+  );
+  proxyReq.on('error', (err) => {
+    logger.error(`[hub-proxy] ${err.message}`);
+    res.status(502).json({
+      error: 'No se pudo conectar al Monitor Hub en 127.0.0.1:7331. ¿Está corriendo el Hub en esta PC?',
+      detail: err.message,
+    });
+  });
+  proxyReq.write(payload);
+  proxyReq.end();
+});
+
 // Servir archivos estáticos desde la carpeta public
 app.use(express.static(path.join(__dirname, 'public')));
 // Audios de alertas: /sounds/alertas/*.mp3 servidos estáticamente
