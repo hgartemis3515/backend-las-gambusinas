@@ -150,7 +150,30 @@ const CONFIGURACION_DEFAULT = {
         cierreAutomatico: false,
         horaCierreAutomatico: '23:59'
     },
-    
+
+    // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: configuración de reservas desde App Mozos.
+    // permitirReservas: llave maestra (si false, no hay flujo de reservas en ningún cliente).
+    // permitirCrearDesdeMozos: habilita el botón Reservar de la barra de Inicio.
+    // minutosAntesCocina: offset automático horaCocina = horaAtencion - N (default 20).
+    // minutosAlertaPreviaCocina: alerta T-N a cocina antes de activar.
+    // bloquearMesaAlCrear: si false (recomendado), la mesa solo pasa a 'reservado'
+    //   minutosBloqueoMesaAntes antes de la atención (no todo el día).
+    // horizonteReservaDias: máxima antelación permitida.
+    // ventanaConflictoMinutos: ventana de colisión por mesa (default 120).
+    // reservasDesdeMozosV2: feature flag para rollout (default true).
+    reservas: {
+        permitirReservas: true,
+        permitirCrearDesdeMozos: true,
+        minutosAntesCocina: 20,
+        minutosAlertaPreviaCocina: 10,
+        tiempoEsperaDefaultMin: 10,
+        bloquearMesaAlCrear: false,
+        minutosBloqueoMesaAntes: 45,
+        horizonteReservaDias: 14,
+        ventanaConflictoMinutos: 120,
+        reservasDesdeMozosV2: true
+    },
+
     // SEO y Metadatos
     seo: {
         metaTitle: 'Las Gambusinas - Sistema POS',
@@ -515,7 +538,62 @@ const configuracionSistemaSchema = new mongoose.Schema({
             default: CONFIGURACION_DEFAULT.cierreCaja.horaCierreAutomatico
         }
     },
-    
+
+    // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: configuración de reservas desde App Mozos
+    reservas: {
+        permitirReservas: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.reservas.permitirReservas
+        },
+        permitirCrearDesdeMozos: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.reservas.permitirCrearDesdeMozos
+        },
+        minutosAntesCocina: {
+            type: Number,
+            default: CONFIGURACION_DEFAULT.reservas.minutosAntesCocina,
+            min: 0,
+            max: 180
+        },
+        minutosAlertaPreviaCocina: {
+            type: Number,
+            default: CONFIGURACION_DEFAULT.reservas.minutosAlertaPreviaCocina,
+            min: 0,
+            max: 120
+        },
+        tiempoEsperaDefaultMin: {
+            type: Number,
+            enum: [5, 10, 20],
+            default: CONFIGURACION_DEFAULT.reservas.tiempoEsperaDefaultMin
+        },
+        bloquearMesaAlCrear: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.reservas.bloquearMesaAlCrear
+        },
+        minutosBloqueoMesaAntes: {
+            type: Number,
+            default: CONFIGURACION_DEFAULT.reservas.minutosBloqueoMesaAntes,
+            min: 0,
+            max: 1440
+        },
+        horizonteReservaDias: {
+            type: Number,
+            default: CONFIGURACION_DEFAULT.reservas.horizonteReservaDias,
+            min: 1,
+            max: 365
+        },
+        ventanaConflictoMinutos: {
+            type: Number,
+            default: CONFIGURACION_DEFAULT.reservas.ventanaConflictoMinutos,
+            min: 15,
+            max: 720
+        },
+        reservasDesdeMozosV2: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.reservas.reservasDesdeMozosV2
+        }
+    },
+
     // SEO y Metadatos
     seo: {
         metaTitle: {

@@ -4,6 +4,62 @@ const moment = require('moment-timezone');
 const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 
+// PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: modelos diferidos para crear comanda programada
+let ComandaModel = null;
+let PlatoModel = null;
+let TicketPagoAdelantadoModel = null;
+let configuracionSistemaModel = null;
+
+const getComandaModel = () => {
+    if (!ComandaModel) ComandaModel = require('../database/models/comanda.model');
+    return ComandaModel;
+};
+const getPlatoModel = () => {
+    if (!PlatoModel) PlatoModel = require('../database/models/plato.model');
+    return PlatoModel;
+};
+const getTicketPagoAdelantadoModel = () => {
+    if (!TicketPagoAdelantadoModel) TicketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
+    return TicketPagoAdelantadoModel;
+};
+const getConfiguracionSistemaModel = () => {
+    if (!configuracionSistemaModel) configuracionSistemaModel = require('../database/models/configuracionSistema.model');
+    return configuracionSistemaModel;
+};
+
+// Helper: leer config de reservas (con defaults seguros si no hay singleton)
+const leerConfigReservas = async () => {
+    try {
+        const cfg = await getConfiguracionSistemaModel().findById('configuracion_unica').lean();
+        return cfg?.reservas || {
+            permitirReservas: true,
+            permitirCrearDesdeMozos: true,
+            minutosAntesCocina: 20,
+            minutosAlertaPreviaCocina: 10,
+            tiempoEsperaDefaultMin: 10,
+            bloquearMesaAlCrear: false,
+            minutosBloqueoMesaAntes: 45,
+            horizonteReservaDias: 14,
+            ventanaConflictoMinutos: 120,
+            reservasDesdeMozosV2: true
+        };
+    } catch (e) {
+        logger.warn('No se pudo leer config de reservas; usando defaults', { error: e.message });
+        return {
+            permitirReservas: true,
+            permitirCrearDesdeMozos: true,
+            minutosAntesCocina: 20,
+            minutosAlertaPreviaCocina: 10,
+            tiempoEsperaDefaultMin: 10,
+            bloquearMesaAlCrear: false,
+            minutosBloqueoMesaAntes: 45,
+            horizonteReservaDias: 14,
+            ventanaConflictoMinutos: 120,
+            reservasDesdeMozosV2: true
+        };
+    }
+};
+
 // ========== FUNCIONES CRUD BASICAS ==========
 
 /**
@@ -457,6 +513,277 @@ const obtenerMesasDisponibles = async () => {
     }
 };
 
+// ==========================================================================
+// PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 — Reservas desde App Mozos
+// ==========================================================================
+
+const calcularTotalesPlato = (platoDoc, item) => {
+    const precioBase = Number(platoDoc.precio) || 0;
+    let extraComplementos = 0;
+    let totalUnidadesComplementos = 0;
+    const complementosSeleccionados = Array.isArray(item.complementosSeleccionados)
+        ? item.complementosSeleccionados.map((c) => {
+            const cantidad = parseInt(c.cantidad) || 1;
+            const precio = Number(c.precio) || 0;
+            extraComplementos += precio * cantidad;
+            totalUnidadesComplementos += cantidad;
+            return { grupo: String(c.grupo || ''), opcion: String(c.opcion || ''), cantidad, precio };
+        })
+        : [];
+    const precioUnitario = precioBase + extraComplementos;
+    const cantidad = parseInt(item.cantidad) || 1;
+    return {
+        precioBase, extraComplementos, precioUnitario, totalUnidadesComplementos,
+        complementosSeleccionados, cantidad, total: precioUnitario * cantidad
+    };
+};
+
+/**
+ * PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 — helpers puras (testeables sin DB).
+ * Calcula la fecha de cocina (atención − minutosAntes). Si esa fecha ya pasó
+ * (reserva muy cercana), retorna la fecha actual → activación inmediata.
+ * @param {Date|moment|string} fechaReserva
+ * @param {Number} minutosAntes  offset en minutos (default 20)
+ * @param {Date|moment} ahora  referencia de "ahora" (inyectable para tests)
+ * @returns {{ fechaCocina: moment, activacionInmediata: boolean }}
+ */
+const calcularFechaCocina = (fechaReserva, minutosAntes = 20, ahora = null) => {
+    const offset = Number(minutosAntes) || 20;
+    const ref = ahora ? moment(ahora) : moment().tz('America/Lima');
+    const atencion = moment(fechaReserva);
+    const base = atencion.clone().subtract(offset, 'minutes');
+    const activacionInmediata = base.isSameOrBefore(ref);
+    const fechaCocina = activacionInmediata ? ref.clone() : base;
+    return { fechaCocina, activacionInmediata };
+};
+
+/**
+ * Determina si una reserva es "inmediata": la atención ocurre antes de que
+ * pudiera cumplirse el offset de cocina (atención − ahora <= minutosAntes).
+ */
+const esReservaInmediata = (fechaReserva, minutosAntes = 20, ahora = null) => {
+    const offset = Number(minutosAntes) || 20;
+    const ref = ahora ? moment(ahora) : moment().tz('America/Lima');
+    const atencion = moment(fechaReserva);
+    return atencion.diff(ref, 'minutes', true) <= offset;
+};
+
+const validarColisionReserva = async (mesaId, fechaReserva, ventanaMinutos = 120) => {
+    const inicio = moment(fechaReserva).subtract(ventanaMinutos, 'minutes').toDate();
+    const fin = moment(fechaReserva).add(ventanaMinutos, 'minutes').toDate();
+    const existente = await Reserva.findOne({
+        mesa: mesaId,
+        estado: { $in: ['pendiente', 'activa'] },
+        fechaReserva: { $gte: inicio, $lte: fin }
+    }).lean();
+    if (existente) throw new Error('Ya existe una reserva activa para esta mesa en un horario cercano');
+};
+
+const obtenerMesasDisponiblesParaReserva = async (fechaReserva, ventanaMinutos = 120) => {
+    try {
+        const inicio = moment(fechaReserva).subtract(ventanaMinutos, 'minutes');
+        const fin = moment(fechaReserva).add(ventanaMinutos, 'minutes');
+        const mesasLibres = await mesasModel.find({ estado: 'libre', isActive: true })
+            .populate('area', 'nombre')
+            .sort({ nummesa: 1 })
+            .lean();
+        const mesasReservadasIds = await Reserva.find({
+            estado: { $in: ['pendiente', 'activa'] },
+            fechaReserva: { $gte: inicio.toDate(), $lte: fin.toDate() }
+        }).distinct('mesa');
+        const reservadasSet = new Set(mesasReservadasIds.map((id) => id.toString()));
+        return mesasLibres.filter((m) => !reservadasSet.has(m._id.toString()));
+    } catch (error) {
+        logger.error('Error al obtener mesas disponibles para reserva', { error: error.message });
+        throw error;
+    }
+};
+
+const obtenerReservasProgramadasCocina = async (opts = {}) => {
+    try {
+        const query = { estado: 'pendiente', comandaGenerada: { $ne: null } };
+        if (opts.cocineroId && mongoose.Types.ObjectId.isValid(opts.cocineroId)) {
+            query.cocineroEncargado = new mongoose.Types.ObjectId(opts.cocineroId);
+        }
+        const reservas = await Reserva.find(query)
+            .populate({ path: 'mesa', select: 'nummesa estado area', populate: { path: 'area', select: 'nombre' } })
+            .populate('mozo', 'name')
+            .populate('cocineroEncargado', 'name alias')
+            .populate('platos.plato', 'nombre precio')
+            .populate('comandaGenerada', 'comandaNumber status programadaPorReserva fechaCocinaProgramada prioridadOrden')
+            .sort({ fechaCocina: 1 })
+            .lean();
+        return reservas;
+    } catch (error) {
+        logger.error('Error al obtener reservas programadas para cocina', { error: error.message });
+        throw error;
+    }
+};
+
+const crearReservaDesdeMozos = async (data) => {
+    const session = await mongoose.startSession();
+    let result;
+    try {
+        result = await session.withTransaction(async () => {
+            const config = await leerConfigReservas();
+            if (!config.permitirReservas) throw new Error('Las reservas están deshabilitadas');
+            if (!config.permitirCrearDesdeMozos) throw new Error('Crear reservas desde App Mozos está deshabilitado');
+            if (!config.reservasDesdeMozosV2) throw new Error('El flujo de reservas v2 está deshabilitado (feature flag)');
+
+            if (!data.mesa || !mongoose.Types.ObjectId.isValid(data.mesa)) throw new Error('Mesa inválida');
+            if (!data.mozo || !mongoose.Types.ObjectId.isValid(data.mozo)) throw new Error('Mozo inválido');
+            const clienteNombre = (data.clienteNombre || '').trim();
+            if (clienteNombre.length < 2) throw new Error('El nombre del cliente es obligatorio (mínimo 2 caracteres)');
+            if (!data.fechaReserva) throw new Error('La hora de atención es obligatoria');
+
+            const fechaAtencion = moment.tz(data.fechaReserva, 'America/Lima');
+            const ahora = moment().tz('America/Lima');
+            if (!fechaAtencion.isValid()) throw new Error('Hora de atención inválida');
+            if (fechaAtencion.isBefore(ahora)) throw new Error('La hora de atención debe ser futura');
+            const horizonte = Number(config.horizonteReservaDias) || 14;
+            if (fechaAtencion.isAfter(ahora.clone().add(horizonte, 'days'))) {
+                throw new Error(`La reserva excede el horizonte máximo de ${horizonte} días`);
+            }
+            if (!Array.isArray(data.platos) || data.platos.length === 0) throw new Error('Debe incluir al menos un plato');
+
+            const mesa = await mesasModel.findById(data.mesa).populate('area', 'nombre').session(session).lean();
+            if (!mesa) throw new Error('Mesa no encontrada');
+            if (mesa.estado !== 'libre' && mesa.estado !== 'reservado') {
+                throw new Error(`La mesa no está disponible (estado: ${mesa.estado})`);
+            }
+            await validarColisionReserva(data.mesa, fechaAtencion.toDate(), Number(config.ventanaConflictoMinutos) || 120);
+
+            const offsetMin = Number(config.minutosAntesCocina) || 20;
+            const { fechaCocina: fechaCocinaCalc, activacionInmediata } = calcularFechaCocina(fechaAtencion, offsetMin, ahora);
+            let fechaCocina = fechaCocinaCalc;
+
+            const platoIds = data.platos.map((p) => p.plato).filter((id) => id && mongoose.Types.ObjectId.isValid(id));
+            if (platoIds.length !== data.platos.length) throw new Error('Uno o más platos no son válidos');
+            const platosCatalogo = await getPlatoModel().find({ _id: { $in: platoIds } }).session(session).lean();
+            const platoMap = new Map(platosCatalogo.map((p) => [p._id.toString(), p]));
+
+            let totalPlatos = 0;
+            const platosReserva = [];
+            const platosComanda = [];
+
+            data.platos.forEach((item) => {
+                const platoDoc = platoMap.get(item.plato.toString());
+                if (!platoDoc) throw new Error(`Plato no encontrado: ${item.plato}`);
+                const calc = calcularTotalesPlato(platoDoc, item);
+                totalPlatos += calc.total;
+                const tipoServicio = item.tipoServicio === 'para_llevar' ? 'para_llevar' : 'mesa';
+                const notaEspecial = typeof item.notaEspecial === 'string' ? item.notaEspecial : '';
+                platosReserva.push({
+                    plato: platoDoc._id, cantidad: calc.cantidad, tipoServicio,
+                    complementosSeleccionados: calc.complementosSeleccionados, notaEspecial
+                });
+                platosComanda.push({
+                    plato: platoDoc._id, platoId: platoDoc.id || null, estado: 'pendiente', tiempos: {},
+                    complementosSeleccionados: calc.complementosSeleccionados,
+                    precioBase: calc.precioBase, extraComplementos: calc.extraComplementos,
+                    precioUnitario: calc.precioUnitario, totalUnidadesComplementos: calc.totalUnidadesComplementos,
+                    mostrarResumenComplementos: !!platoDoc.mostrarResumenComplementos,
+                    resumenComplementosImpresion: platoDoc.resumenComplementosImpresion || undefined,
+                    notaEspecial, tipoServicio, cantidad: calc.cantidad
+                });
+            });
+
+            const tiempoEspera = Number(data.tiempoEspera) || config.tiempoEsperaDefaultMin || 10;
+            const nuevaReservaArr = await Reserva.create([{
+                mesa: mesa._id, mozo: data.mozo, clienteNombre,
+                clienteTelefono: data.clienteTelefono || null,
+                numPersonas: parseInt(data.numPersonas) || 2,
+                fechaReserva: fechaAtencion.toDate(), fechaCocina: fechaCocina.toDate(),
+                tiempoEspera: [5, 10, 20].includes(tiempoEspera) ? tiempoEspera : 10,
+                platos: platosReserva, metodoPago: data.metodoPago || null, notas: data.notas || null,
+                creadoPor: data.mozo,
+                cocineroEncargado: data.cocineroEncargado && mongoose.Types.ObjectId.isValid(data.cocineroEncargado)
+                    ? new mongoose.Types.ObjectId(data.cocineroEncargado) : null,
+                estado: 'pendiente'
+            }], { session });
+            const reserva = nuevaReservaArr[0];
+
+            // Bloqueo de mesa
+            if (config.bloquearMesaAlCrear === true) {
+                await mesasModel.updateOne({ _id: mesa._id }, { estado: 'reservado' }, { session });
+            } else {
+                const minutosBloqueo = Number(config.minutosBloqueoMesaAntes) || 45;
+                const fechaBloqueo = fechaAtencion.clone().subtract(minutosBloqueo, 'minutes');
+                if (fechaBloqueo.isSameOrBefore(ahora)) {
+                    await mesasModel.updateOne({ _id: mesa._id }, { estado: 'reservado' }, { session });
+                }
+            }
+
+            // Comanda programada
+            const mozoDoc = await require('../database/models/mozos.model').findById(data.mozo).select('name rol').session(session).lean();
+            const comandaPayload = {
+                mozos: data.mozo, mesas: mesa._id,
+                mozoNombre: mozoDoc?.name || null, mesaNumero: mesa.nummesa,
+                areaNombre: mesa.area?.nombre || null, clienteNombre,
+                platos: platosComanda, cantidades: platosComanda.map((p) => p.cantidad),
+                observaciones: data.notas || '', status: 'en_espera', IsActive: true,
+                origenCreacion: 'reserva', origenReserva: reserva._id,
+                programadaPorReserva: true, fechaCocinaProgramada: fechaCocina.toDate(), prioridadOrden: 0
+            };
+            if (data.cocineroEncargado && mongoose.Types.ObjectId.isValid(data.cocineroEncargado)) {
+                comandaPayload.procesandoPor = { cocineroId: new mongoose.Types.ObjectId(data.cocineroEncargado), timestamp: null };
+            }
+            const comandaCreadaArr = await getComandaModel().create([comandaPayload], { session });
+            const comanda = comandaCreadaArr[0];
+
+            reserva.comandaGenerada = comanda._id;
+            await reserva.save({ session });
+
+            // PPA opcional
+            let ticketPPA = null;
+            if (data.pagoAdelantado && data.pagoAdelantado.activo) {
+                const montoPagado = Number(data.pagoAdelantado.montoPagado) || 0;
+                if (montoPagado <= 0) throw new Error('El monto del pago adelantado debe ser mayor a 0');
+                if (montoPagado > totalPlatos) throw new Error('El monto adelantado no puede superar el total de platos');
+                const metodo = data.pagoAdelantado.metodoPago || 'efectivo';
+                const platosSnapshot = platosComanda.map((p, i) => ({
+                    comandaId: comanda._id, comandaNumber: comanda.comandaNumber, platoLineaId: p._id,
+                    plato: p.plato, platoId: p.platoId, nombre: platosCatalogo[i]?.nombre || 'N/A',
+                    precio: p.precioUnitario, cantidad: p.cantidad, subtotal: p.precioUnitario * p.cantidad,
+                    tipoServicio: p.tipoServicio, complementosSeleccionados: p.complementosSeleccionados,
+                    notaEspecial: p.notaEspecial, estadoAlPagoAdelantado: 'pendiente'
+                }));
+                const ticketArr = await getTicketPagoAdelantadoModel().create([{
+                    estado: 'pendiente_aprobacion', comandas: [comanda._id], comandasNumbers: [comanda.comandaNumber],
+                    mesa: mesa._id, numMesa: mesa.nummesa, mozo: data.mozo, nombreMozo: mozoDoc?.name || 'N/A',
+                    platos: platosSnapshot, subtotal: montoPagado, igv: 0, total: montoPagado,
+                    metodoPago: ['efectivo', 'digital', 'tarjeta'].includes(metodo) ? metodo : 'efectivo',
+                    clienteNombre, origen: 'reserva', reserva: reserva._id, createdBy: data.mozo,
+                    sourceApp: 'mozos', observaciones: 'Pago adelantado de reserva (seña)'
+                }], { session });
+                ticketPPA = ticketArr[0];
+                comanda.platos.forEach((p) => {
+                    p.pagoAdelantado = { requerido: true, ticketId: ticketPPA._id, estadoTicket: 'pendiente_aprobacion', cobrado: false, boucherId: null };
+                });
+                await comanda.save({ session });
+                reserva.pagoAdelantado = {
+                    activo: true, ticketId: ticketPPA._id, estadoTicket: 'pendiente_aprobacion',
+                    totalPlatos, montoPagado, montoPendiente: totalPlatos - montoPagado
+                };
+                await reserva.save({ session });
+            }
+
+            logger.info('Reserva desde mozos creada', {
+                reservaId: reserva._id, comandaId: comanda._id, mesaId: mesa._id,
+                fechaReserva: reserva.fechaReserva, fechaCocina: reserva.fechaCocina,
+                activacionInmediata, ppa: !!ticketPPA
+            });
+            return { reserva, comanda, ticketPPA, config, activacionInmediata };
+        });
+        return result;
+    } catch (error) {
+        logger.error('Error en crearReservaDesdeMozos', { error: error.message, stack: error.stack });
+        throw error;
+    } finally {
+        session.endSession();
+    }
+};
+
 module.exports = {
     // CRUD basico
     crearReserva,
@@ -464,7 +791,7 @@ module.exports = {
     obtenerReservaPorId,
     actualizarReserva,
     cancelarReserva,
-    
+
     // Funciones especificas
     obtenerReservaActivaPorMesa,
     marcarReservaComoActiva,
@@ -472,5 +799,14 @@ module.exports = {
     marcarReservaComoRechazada,
     obtenerReservasPendientesExpiracion,
     obtenerReservasProximasAExpirar,
-    obtenerMesasDisponibles
+    obtenerMesasDisponibles,
+
+    // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1
+    crearReservaDesdeMozos,
+    obtenerReservasProgramadasCocina,
+    obtenerMesasDisponiblesParaReserva,
+    // Helpers puras (testeables sin DB)
+    calcularTotalesPlato,
+    calcularFechaCocina,
+    esReservaInmediata
 };

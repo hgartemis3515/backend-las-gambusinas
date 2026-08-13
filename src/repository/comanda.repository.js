@@ -69,6 +69,9 @@ const PROYECCION_COCINA = {
     createdByDashboard: 1,
     omitirPago: 1,
     omitirOrdenEntrega: 1,
+    // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: flag de comanda programada por reserva
+    programadaPorReserva: 1,
+    fechaCocinaProgramada: 1,
     // Referencias mínimas (solo para fallback si no hay desnormalizados)
     mozos: 1,
     mesas: 1,
@@ -2384,9 +2387,13 @@ const listarComandaPorFechaEntregado = async (fecha, usarProyeccion = true) => {
     // KDS: día pedido + pendientes atrasadas (días anteriores aún no entregadas/pagadas).
     // Antes: solo hoy; si hoy vacío → fallback 50 sin fecha. Al tomar plato y refrescar
     // (ya con comandas de hoy) el fallback no corría y las atrasadas desaparecían.
+    // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: excluir comandas programadas por reserva
+    // (van al tab "Reservadas"; entran a esta cola solo al activarse, cuando el job
+    // pone programadaPorReserva=false y prioridadOrden=Date.now()).
     let query = comandaModel.find({
       IsActive: true,
       status: { $nin: ["entregado", "pagado"] },
+      programadaPorReserva: { $ne: true },
       $or: [
         { createdAt: { $gte: fechaInicio, $lte: fechaFin } },
         { createdAt: { $lt: fechaInicio } }

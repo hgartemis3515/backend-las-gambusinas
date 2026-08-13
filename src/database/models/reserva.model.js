@@ -27,6 +27,9 @@ const reservaSchema = new mongoose.Schema({
     },
     
     // Datos del cliente (no requiere cliente registrado)
+    // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: nombre obligatorio cuando la reserva
+    // se crea desde App Mozos. El alta desde dashboard sigue permitiendo null
+    // por compatibilidad con reservas legacy/sin cliente.
     clienteNombre: {
         type: String,
         default: null,
@@ -45,10 +48,20 @@ const reservaSchema = new mongoose.Schema({
         min: 1
     },
     
-    // Fecha y hora programada de la reserva
+    // Fecha y hora programada de la reserva (hora de ATENCIÓN al cliente)
     fechaReserva: {
         type: Date,
         required: true,
+        index: true
+    },
+
+    // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: fecha en que la cocina debe empezar a
+    // preparar la comanda. Se calcula como fechaReserva - minutosAntesCocina
+    // (default 20 min). El mozo NO la edita; la persistimos para que el job
+    // (timeoutService) la use sin recalcular (la config puede cambiar).
+    fechaCocina: {
+        type: Date,
+        default: null,
         index: true
     },
     
@@ -132,7 +145,38 @@ const reservaSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'mozos',
         default: null
+    },
+
+    // ========== PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 ==========
+    // Cocinero encargado de la comanda reservada (vista KDS Reservadas "Mías").
+    // Opcional: si no se asigna, la comanda sigue la asignación automática.
+    cocineroEncargado: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'mozos',
+        default: null
+    },
+
+    // Bloque de pago adelantado (PPA) opcional ligado a la reserva.
+    // Si activo=true se crea un TicketPagoAdelantado con origen='reserva' que
+    // cocina aprueba en la bandeja PPA existente. La aprobación NO activa
+    // la cocina (solo valida el cobro); la cocina se activa por el job a fechaCocina.
+    pagoAdelantado: {
+        activo: { type: Boolean, default: false },
+        ticketId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'TicketPagoAdelantado',
+            default: null
+        },
+        estadoTicket: {
+            type: String,
+            enum: [null, 'pendiente_aprobacion', 'aprobado', 'rechazado'],
+            default: null
+        },
+        totalPlatos: { type: Number, default: 0 },
+        montoPagado: { type: Number, default: 0 },
+        montoPendiente: { type: Number, default: 0 }
     }
+    // ========== FIN PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 ==========
 });
 
 // ========== INDICES OPTIMIZADOS ==========
@@ -159,6 +203,18 @@ reservaSchema.index(
 reservaSchema.index(
     { mozo: 1, estado: 1 },
     { name: 'idx_reserva_mozo_estado' }
+);
+
+// PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: indice para el job de activacion por fechaCocina
+reservaSchema.index(
+    { estado: 1, fechaCocina: 1 },
+    { name: 'idx_reserva_estado_fechaCocina' }
+);
+
+// PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: indice para vista KDS Reservadas por encargado
+reservaSchema.index(
+    { cocineroEncargado: 1, estado: 1 },
+    { name: 'idx_reserva_encargado_estado' }
 );
 
 // ========== METODOS DEL SCHEMA ==========

@@ -195,6 +195,23 @@ const ticketPagoAdelantadoSchema = new mongoose.Schema({
     enum: ['mozos', 'cocina', 'admin', 'api'],
     default: 'mozos',
   },
+  // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: origen del ticket.
+  // 'comanda' = flujo PPA clásico (para_llevar / pago adelantado de comanda en curso).
+  // 'reserva' = adelanto de una reserva programada. La bandeja PPA es la misma;
+  // el badge RESERVA se muestra cuando origen='reserva'. La aprobación NO activa
+  // la cocina (la activación la hace el job a reserva.fechaCocina).
+  origen: {
+    type: String,
+    enum: ['comanda', 'reserva'],
+    default: 'comanda',
+    index: true,
+  },
+  reserva: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Reserva',
+    default: null,
+    index: true,
+  },
   // Verificación de cajero antes del cierre de caja
   // - confirmado: la cajera revisó y dio conformidad (reversible hasta ejecutar el cierre)
   // - incluidoEnCierre: ticket ya formó parte de un cierre ejecutado; no vuelve a listarse

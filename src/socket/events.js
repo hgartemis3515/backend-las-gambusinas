@@ -2722,6 +2722,111 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
     }
   };
 
+  // ========== PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: evento de reserva programada ==========
+
+  /**
+   * Emitir evento de reserva programada (comanda creada para cocina).
+   * Notifica a /cocina (room del encargado y zona) y /mozos (room del mozo),
+   * además de /admin. La cocina usa este evento para pintar el tab "Reservadas".
+   * @param {Object} reserva - Reserva creada (con mesa/mozo poblados)
+   * @param {Object} comanda - Comanda programada creada
+   */
+  global.emitReservaProgramada = async (reserva, comanda) => {
+    try {
+      const timestamp = moment().tz('America/Lima').toISOString();
+      const mesaId = reserva.mesa?._id?.toString() || reserva.mesa?.toString();
+      const mozoId = reserva.mozo?._id?.toString() || reserva.mozo?.toString();
+      const encargadoId = reserva.cocineroEncargado?._id?.toString() || reserva.cocineroEncargado?.toString();
+
+      const eventData = {
+        reservaId: reserva._id?.toString(),
+        comandaId: comanda?._id?.toString(),
+        comandaNumber: comanda?.comandaNumber,
+        mesaId,
+        numMesa: reserva.mesa?.nummesa,
+        mozoId,
+        clienteNombre: reserva.clienteNombre,
+        fechaReserva: reserva.fechaReserva,
+        fechaCocina: reserva.fechaCocina,
+        cocineroEncargadoId: encargadoId || null,
+        tienePPA: !!(reserva.pagoAdelantado && reserva.pagoAdelantado.activo),
+        timestamp
+      };
+
+      // /admin
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('reserva-programada', eventData);
+      }
+      // /cocina: al room del encargado si existe, y a toda la cocina como broadcast ligero
+      if (cocinaNamespace && cocinaNamespace.sockets) {
+        if (encargadoId) {
+          cocinaNamespace.to(`cocinero-${encargadoId}`).emit('reserva-programada', eventData);
+        }
+        cocinaNamespace.emit('reserva-programada', eventData);
+      }
+      // /mozos: al room del mozo
+      if (mozosNamespace && mozosNamespace.sockets && mozoId) {
+        mozosNamespace.to(`mozo-${mozoId}`).emit('reserva-programada', eventData);
+      }
+
+      logger.info('Evento reserva-programada emitido', {
+        reservaId: eventData.reservaId,
+        comandaId: eventData.comandaId,
+        mesaId,
+        encargadoId,
+        cocinaConnected: cocinaNamespace?.sockets?.size || 0
+      });
+    } catch (error) {
+      logger.error('Error al emitir reserva-programada', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  };
+
+  // ========== FIN PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 ==========
+
+  /**
+   * Emitir evento cuando se reasigna el cocinero encargado de una reserva programada.
+   * PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 — notifica a cocina (nuevo encargado + general)
+   * y a admin para que el tab Reservadas y la vista de cocina se actualicen.
+   * @param {Object} reserva - Reserva actualizada con cocineroEncargado poblado
+   */
+  global.emitReservaReasignadaEncargado = async (reserva) => {
+    try {
+      if (!reserva) return;
+      const timestamp = moment().tz('America/Lima').toISOString();
+      const encargadoId = reserva.cocineroEncargado?._id?.toString() || reserva.cocineroEncargado?.toString();
+      const eventData = {
+        reservaId: reserva._id?.toString(),
+        cocineroEncargadoId: encargadoId || null,
+        timestamp
+      };
+
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('reserva-actualizada', eventData);
+      }
+      if (cocinaNamespace && cocinaNamespace.sockets) {
+        if (encargadoId) {
+          cocinaNamespace.to(`cocinero-${encargadoId}`).emit('reserva-actualizada', eventData);
+        }
+        cocinaNamespace.emit('reserva-actualizada', eventData);
+      }
+      logger.info('Evento reserva-actualizada (reasignación encargado) emitido', {
+        reservaId: eventData.reservaId,
+        encargadoId,
+        cocinaConnected: cocinaNamespace?.sockets?.size || 0
+      });
+    } catch (error) {
+      logger.error('Error al emitir reserva-actualizada (reasignación)', {
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  };
+
+  // ========== FIN PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 (reasignación) ==========
+
   // ========== FUNCIONES PARA EMITIR EVENTOS DE PROPINAS ==========
 
   /**

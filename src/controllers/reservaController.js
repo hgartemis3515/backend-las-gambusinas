@@ -82,6 +82,28 @@ router.get('/reservas/proximas-a-expirar', async (req, res) => {
 });
 
 /**
+ * GET /api/reservas/mesas-disponibles-para
+ * Query: fechaReserva (ISO), ventanaMinutos?
+ * Devuelve mesas libres que no tienen reserva en la franja indicada.
+ * IMPORTANTE: debe definirse ANTES que /reservas/:id para que Express no
+ * capture "mesas-disponibles-para" como :id (bug de orden de rutas).
+ */
+router.get('/reservas/mesas-disponibles-para', async (req, res) => {
+    try {
+        const { fechaReserva } = req.query;
+        if (!fechaReserva) {
+            return res.status(400).json({ error: 'fechaReserva es obligatorio' });
+        }
+        const ventana = parseInt(req.query.ventanaMinutos) || 120;
+        const mesas = await reservaRepository.obtenerMesasDisponiblesParaReserva(fechaReserva, ventana);
+        res.json(mesas);
+    } catch (error) {
+        logger.error('Error al obtener mesas disponibles para reserva', { error: error.message });
+        handleError(error, res, logger);
+    }
+});
+
+/**
  * GET /api/reservas/:id
  * Obtener reserva por ID
  */
@@ -446,6 +468,192 @@ router.post('/reservas/:id/completar', async (req, res) => {
     } catch (error) {
         logger.error('Error al completar reserva', { error: error.message, id: req.params.id });
         handleError(error, res, logger);
+    }
+});
+
+// ==========================================================================
+// PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 — Reservas desde App Mozos
+// ==========================================================================
+
+/**
+ * GET /api/vista-cocina/reservadas
+ * Query: cocineroId (opcional)
+ * Devuelve reservas programadas pendientes para el tab KDS "Reservadas".
+ */
+router.get('/vista-cocina/reservadas', async (req, res) => {
+    try {
+        const opts = {};
+        if (req.query.cocineroId) opts.cocineroId = req.query.cocineroId;
+        const reservas = await reservaRepository.obtenerReservasProgramadasCocina(opts);
+        res.json(reservas);
+    } catch (error) {
+        logger.error('Error al obtener reservas programadas para cocina', { error: error.message });
+        handleError(error, res, logger);
+    }
+});
+
+/**
+ * POST /api/reservas/desde-mozos
+ * Crea una reserva desde App Mozos + comanda programada + (opcional) ticket PPA.
+ * Programa el job de activación (fechaCocina) y el timeout de no-show (expiración).
+ */
+router.post('/reservas/desde-mozos', async (req, res) => {
+    try {
+        const data = req.body || {};
+        // mozo implícito desde la sesión/header
+        const mozoId = data.mozo || req.headers['x-user-id'] || null;
+        if (!mozoId || !mongoose.Types.ObjectId.isValid(mozoId)) {
+            return res.status(400).json({ error: 'Mozo no identificado (requiere sesión o x-user-id)' });
+        }
+        data.mozo = new mongoose.Types.ObjectId(mozoId);
+
+        const resultado = await reservaRepository.crearReservaDesdeMozos(data);
+
+        // Programar job de activación de cocina (fechaCocina) + alerta previa
+        try {
+            const minutosAlerta = resultado.config?.minutosAlertaPreviaCocina ?? 10;
+            timeoutService.programarActivacion(
+                resultado.reserva._id,
+                resultado.reserva.fechaCocina,
+                minutosAlerta
+            );
+        } catch (e) {
+            logger.error('Error al programar activación de cocina', { error: e.message, reservaId: resultado.reserva._id });
+        }
+
+        // Programar timeout de expiración (no-show)
+        try {
+            timeoutService.programarExpiracion(
+                resultado.reserva._id,
+                resultado.reserva.fechaReserva,
+                resultado.reserva.tiempoEspera
+            );
+        } catch (e) {
+            logger.error('Error al programar expiración de reserva', { error: e.message, reservaId: resultado.reserva._id });
+        }
+
+        // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: bloqueo diferido de mesa (si no se bloqueó al crear)
+        try {
+            const bloquearMesaAlCrear = resultado.config?.bloquearMesaAlCrear ?? false;
+            const minutosBloqueoMesa = resultado.config?.minutosBloqueoMesaAntes ?? 45;
+            if (!bloquearMesaAlCrear && resultado.reserva.fechaReserva) {
+                timeoutService.programarBloqueoMesa(
+                    resultado.reserva._id,
+                    resultado.reserva.fechaReserva,
+                    minutosBloqueoMesa
+                );
+            }
+        } catch (e) {
+            logger.error('Error al programar bloqueo diferido de mesa', { error: e.message, reservaId: resultado.reserva._id });
+        }
+
+        // Emitir eventos Socket.io
+        try {
+            if (global.emitMesaActualizada) {
+                await global.emitMesaActualizada(resultado.reserva.mesa._id || resultado.reserva.mesa);
+            }
+        } catch (e) {
+            logger.error('Error al emitir mesa-actualizada', { error: e.message });
+        }
+        try {
+            if (global.emitReservaCreada) {
+                await global.emitReservaCreada(resultado.reserva);
+            }
+        } catch (e) {
+            logger.error('Error al emitir reserva-creada', { error: e.message });
+        }
+        try {
+            if (global.emitReservaProgramada) {
+                await global.emitReservaProgramada(resultado.reserva, resultado.comanda);
+            }
+        } catch (e) {
+            logger.error('Error al emitir reserva-programada', { error: e.message });
+        }
+        // Si hubo PPA, notificar a la bandeja PPA de cocina
+        if (resultado.ticketPPA && global.emitTicketPagoAdelantadoNuevo) {
+            try {
+                await global.emitTicketPagoAdelantadoNuevo(resultado.ticketPPA);
+            } catch (e) {
+                logger.error('Error al emitir ticket PPA nuevo', { error: e.message });
+            }
+        }
+
+        // Si la fechaCocina ya pasó (activación inmediata), el job la activa en setImmediate.
+        // El frontend puede mostrar el aviso correspondiente.
+
+        res.status(201).json({
+            reserva: resultado.reserva,
+            comanda: resultado.comanda,
+            ticketPPA: resultado.ticketPPA || null,
+            activacionInmediata: resultado.activacionInmediata,
+            fechaCocina: resultado.reserva.fechaCocina
+        });
+    } catch (error) {
+        logger.error('Error en POST /reservas/desde-mozos', { error: error.message, stack: error.stack, body: req.body });
+        const msg = error.message || 'Error interno al crear la reserva';
+        const status = /obligatorio|inválido|inválida|no es|no está|excede|deshabilitad|Ya existe|debe ser|no puede|no encontrad/i.test(msg)
+            ? 400 : 500;
+        res.status(status).json({ error: msg });
+    }
+});
+
+/**
+ * PUT /api/reservas/:id/reasignar-encargado
+ * PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1
+ * Reasigna el cocinero encargado de una reserva programada (y de su comanda programada).
+ * Solo permitido mientras la reserva esté pendiente (antes de la activación de cocina).
+ * Requiere permiso 'asignar-encargado-reserva' (validación de permisos en middleware superior).
+ */
+router.put('/reservas/:id/reasignar-encargado', async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'ID de reserva inválido' });
+        }
+        const { cocineroId } = req.body || {};
+        if (!cocineroId || !mongoose.Types.ObjectId.isValid(cocineroId)) {
+            return res.status(400).json({ error: 'cocineroId es obligatorio y debe ser válido' });
+        }
+
+        const reserva = await reservaRepository.obtenerReservaPorId(id);
+        if (!reserva) {
+            return res.status(404).json({ error: 'Reserva no encontrada' });
+        }
+        if (reserva.estado !== 'pendiente') {
+            return res.status(409).json({ error: `No se puede reasignar: la reserva está ${reserva.estado}` });
+        }
+
+        const mozosaModel = require('../database/models/mozos.model');
+        const comandaModel = require('../database/models/comanda.model');
+        const cocinero = await mozosaModel.findById(cocineroId).lean();
+        if (!cocinero) {
+            return res.status(404).json({ error: 'Cocinero no encontrado' });
+        }
+        await comandaModel.updateOne(
+            { origenReserva: reserva._id, programadaPorReserva: true },
+            { $set: { cocineroEncargado: new mongoose.Types.ObjectId(cocineroId) } }
+        ).exec();
+
+        reserva.cocineroEncargado = new mongoose.Types.ObjectId(cocineroId);
+        await reserva.save();
+
+        try {
+            if (global.emitReservaReasignadaEncargado) {
+                await global.emitReservaReasignadaEncargado(reserva);
+            } else if (global.emitReservaActualizada) {
+                await global.emitReservaActualizada(reserva._id, { cocineroEncargado: cocineroId });
+            }
+        } catch (e) {
+            logger.error('Error al emitir reserva-actualizada (reasignación)', { error: e.message, reservaId: id });
+        }
+
+        res.json({
+            reserva,
+            cocinero: { _id: cocinero._id, name: cocinero.name, alias: cocinero.alias }
+        });
+    } catch (error) {
+        logger.error('Error en PUT /reservas/:id/reasignar-encargado', { error: error.message, stack: error.stack });
+        res.status(500).json({ error: error.message || 'Error interno al reasignar encargado' });
     }
 });
 

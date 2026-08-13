@@ -532,6 +532,62 @@ tailwind.config = {
             <input type="checkbox" x-model="config.permitirReservas" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
             <span class="text-sm text-txt-secondary">Permitir reservas</span>
           </label>
+
+          <!-- PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: bloque de reservas desde App Mozos -->
+          <div x-show="config.permitirReservas" class="mt-4 p-4 rounded-xl border border-st-reservado/30 bg-st-reservado/5 space-y-4">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">📅</span>
+              <h4 class="text-sm font-semibold text-st-reservado">Reservas desde App Mozos (v1.1)</h4>
+            </div>
+            <p class="text-[11px] text-txt-muted leading-relaxed">
+              Configura el flujo de reservas creadas desde el botón Reservar de la barra de Inicio.
+              La hora de cocina se calcula automáticamente (atención − offset) y la activación es automática.
+            </p>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.reservas.permitirCrearDesdeMozos" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Permitir crear reservas desde App Mozos</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.reservas.reservasDesdeMozosV2" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Feature flag <code class="text-gold">reservasDesdeMozosV2</code> (rollout progresivo)</span>
+            </label>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Offset cocina (min antes de atención)</label>
+                <input type="number" x-model.number="config.reservas.minutosAntesCocina" min="0" max="180" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+              </div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Alerta pre-activación cocina (min)</label>
+                <input type="number" x-model.number="config.reservas.minutosAlertaPreviaCocina" min="0" max="60" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Tiempo espera default (min)</label>
+                <input type="number" x-model.number="config.reservas.tiempoEsperaDefaultMin" min="0" max="120" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+              </div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Horizonte de reserva (días)</label>
+                <input type="number" x-model.number="config.reservas.horizonteReservaDias" min="1" max="90" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Bloqueo mesa antes de (min)</label>
+                <input type="number" x-model.number="config.reservas.minutosBloqueoMesaAntes" min="0" max="240" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+                <p class="text-[10px] text-txt-muted mt-1">La mesa pasa a 'reservado' este tiempo antes de la atención (si no se bloquea al crear).</p>
+              </div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Ventana conflicto (min)</label>
+                <input type="number" x-model.number="config.reservas.ventanaConflictoMinutos" min="0" max="240" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+                <p class="text-[10px] text-txt-muted mt-1">Margen para detectar colisión de reservas en la misma mesa.</p>
+              </div>
+            </div>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.reservas.bloquearMesaAlCrear" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Bloquear la mesa al crear la reserva (si no, se bloquea después según el campo anterior)</span>
+            </label>
+          </div>
         </div>
 
         <!-- MOZOS -->
@@ -562,6 +618,25 @@ tailwind.config = {
               x-text="config.mozosPermitirEditarEliminarTomadasPorCocina
                 ? 'Mozos pueden editar/eliminar comandas tomadas por cocina'
                 : 'Protección activa: mozos bloqueados si cocina tomó la comanda o platos'"></p>
+          </div>
+
+          <!-- PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: toggle del botón Reservar en App Mozos -->
+          <div class="space-y-3 border-t border-[rgba(212,175,55,0.15)] pt-4">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.reservas.permitirCrearDesdeMozos" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Mostrar botón "Reservar" a los mozos</span>
+            </label>
+            <p class="text-xs text-txt-muted ml-7">
+              Si está <strong class="text-txt-secondary font-medium">marcado</strong>, los mozos verán el botón "Reservar" en la barra derecha de Inicio
+              y podrán crear reservas con el wizard (mesa, cliente, hora de atención, platos y pago adelantado opcional).
+              Si está <strong class="text-txt-secondary font-medium">desmarcado</strong>, el botón se oculta en la App de Mozos y las reservas
+              solo podrán crearse desde el dashboard. Requiere además que el mozo tenga el permiso <code class="text-gold">crear-reservas-mozos</code>.
+            </p>
+            <p class="text-xs ml-7"
+              :class="config.reservas.permitirCrearDesdeMozos ? 'text-st-reservado' : 'text-txt-muted'"
+              x-text="config.reservas.permitirCrearDesdeMozos
+                ? 'Botón Reservar visible en App Mozos'
+                : 'Botón Reservar oculto en App Mozos (reservas solo desde dashboard)'"></p>
           </div>
         </div>
 
@@ -1343,6 +1418,19 @@ function configApp() {
         cierreAutomatico: false,
         horaCierreAutomatico: '23:59'
       },
+      // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: reservas desde App Mozos
+      reservas: {
+        permitirReservas: true,
+        permitirCrearDesdeMozos: true,
+        minutosAntesCocina: 20,
+        minutosAlertaPreviaCocina: 10,
+        tiempoEsperaDefaultMin: 15,
+        bloquearMesaAlCrear: false,
+        minutosBloqueoMesaAntes: 45,
+        horizonteReservaDias: 30,
+        ventanaConflictoMinutos: 120,
+        reservasDesdeMozosV2: true
+      },
       // Legacy (para compatibilidad con UI)
       metodoEfectivo: true,
       metodoTarjeta: true,
@@ -1644,6 +1732,16 @@ function configApp() {
             this.config.horaCierreAuto = cfg.cierreCaja.horaCierreAutomatico || '23:59';
             this.config.validacionAdmin = cfg.cierreCaja.requerirEfectivoInicial ?? true;
           }
+
+          // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: bloque reservas (merge sobre defaults)
+          if (cfg.reservas) {
+            this.config.reservas = {
+              ...this.config.reservas,
+              ...cfg.reservas
+            };
+          }
+          // permitirReservas plano (legacy) se sigue exponiendo en la UI existente
+          this.config.permitirReservas = cfg.reservas?.permitirReservas ?? cfg.permitirReservas ?? true;
           
           // Version
           this.config.versionSistema = cfg.version || '2.0.0';
@@ -1783,6 +1881,20 @@ function configApp() {
             requerirEfectivoInicial: this.config.validacionAdmin ?? true,
             cierreAutomatico: this.config.cierreAutomatico || false,
             horaCierreAutomatico: this.config.horaCierreAuto || '23:59'
+          },
+
+          // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: bloque reservas
+          reservas: {
+            permitirReservas: this.config.permitirReservas !== false,
+            permitirCrearDesdeMozos: this.config.reservas?.permitirCrearDesdeMozos !== false,
+            minutosAntesCocina: Number(this.config.reservas?.minutosAntesCocina) || 20,
+            minutosAlertaPreviaCocina: Number(this.config.reservas?.minutosAlertaPreviaCocina) || 10,
+            tiempoEsperaDefaultMin: Number(this.config.reservas?.tiempoEsperaDefaultMin) || 15,
+            bloquearMesaAlCrear: this.config.reservas?.bloquearMesaAlCrear === true,
+            minutosBloqueoMesaAntes: Number(this.config.reservas?.minutosBloqueoMesaAntes) || 45,
+            horizonteReservaDias: Number(this.config.reservas?.horizonteReservaDias) || 30,
+            ventanaConflictoMinutos: Number(this.config.reservas?.ventanaConflictoMinutos) || 120,
+            reservasDesdeMozosV2: this.config.reservas?.reservasDesdeMozosV2 !== false
           },
           
           // SEO y Metadatos

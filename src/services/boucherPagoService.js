@@ -288,6 +288,9 @@ async function procesarPagoBoucher(params) {
     moneda = 'PEN',
     tipoCambioUsd = null,
     esPagoAdelantado = false,
+    // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: abono de reserva (seña) a descontar
+    abonoReserva = 0,
+    reservaOrigenId = null,
   } = params;
   const parcial = esPagoParcial(platosSeleccionados);
   const configMoneda = await configuracionRepository.obtenerConfiguracionMoneda();
@@ -372,6 +375,28 @@ async function procesarPagoBoucher(params) {
     configMoneda,
     parcial
   );
+
+  // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: descontar abono de reserva (seña) del total a cobrar.
+  // El abono se valida contra el PPA aprobado de la reserva (autoritativo en backend).
+  let abonoAplicado = 0;
+  if (Number(abonoReserva) > 0 && reservaOrigenId) {
+    try {
+      const reservaModel = require('../database/models/reserva.model');
+      const reserva = await reservaModel.findById(reservaOrigenId).lean();
+      if (reserva && reserva.pagoAdelantado && reserva.pagoAdelantado.activo
+          && reserva.pagoAdelantado.estadoTicket === 'aprobado') {
+        abonoAplicado = Math.min(Number(abonoReserva), reserva.pagoAdelantado.montoPagado || 0, totales.total);
+        totales.total = Math.max(0, Number((totales.total - abonoAplicado).toFixed(2)));
+        totales.totalConDescuento = totales.total;
+        console.log(`💳 [PAGO] Abono reserva descontado: ${abonoAplicado} (reserva ${reservaOrigenId})`);
+      } else {
+        console.warn(`⚠️ [PAGO] Abono de reserva ignorado: reserva ${reservaOrigenId} sin PPA aprobado`);
+      }
+    } catch (e) {
+      console.warn('⚠️ [PAGO] No se pudo validar abono de reserva:', e.message);
+    }
+  }
+  totales.abonoReserva = abonoAplicado;
 
   // 🔥 Calcular total en la moneda seleccionada para validar efectivo y vuelto
   // totales.total está en PEN (moneda base del sistema)

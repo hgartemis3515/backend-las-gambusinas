@@ -4712,6 +4712,21 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
    });
  },
 
+ // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: hora de cocina = atención − minutosAntesCocina (default 20)
+ formatFechaCocina(fechaReserva) {
+   if (!fechaReserva) return '—';
+   const minutos = Number(this.config?.reservas?.minutosAntesCocina) || 20;
+   const d = new Date(fechaReserva);
+   d.setMinutes(d.getMinutes() - minutos);
+   return d.toLocaleString('es-PE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+ },
+ esReservaInmediata(fechaReserva) {
+   if (!fechaReserva) return false;
+   const minutos = Number(this.config?.reservas?.minutosAntesCocina) || 20;
+   const diffMs = new Date(fechaReserva).getTime() - Date.now();
+   return diffMs <= minutos * 60000;
+ },
+
  async openReservaModal() {
    window.BlendyWrapper?.restoreSource?.('btn-crear-reserva');
    this.editingReservaId = null;
@@ -5327,6 +5342,11 @@ async guardarReserva() {
     this.showToast('Debe especificar fecha y hora', 'error');
     return;
   }
+  // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: cliente obligatorio
+  if (!this.reservaForm.clienteNombre || this.reservaForm.clienteNombre.trim().length < 2) {
+    this.showToast('El nombre del cliente es obligatorio (mínimo 2 caracteres)', 'error');
+    return;
+  }
   
   // Validar que la fecha sea futura
   const fechaSeleccionada = new Date(this.reservaForm.fechaReserva);
@@ -5354,7 +5374,7 @@ async guardarReserva() {
     const payload = {
       mesa: this.reservaForm.mesa,
       mozo: this.reservaForm.mozo || null,
-      clienteNombre: this.reservaForm.clienteNombre,
+      clienteNombre: this.reservaForm.clienteNombre.trim(),
       clienteTelefono: this.reservaForm.clienteTelefono,
       numPersonas: this.reservaForm.numPersonas,
       fechaReserva: this.reservaForm.fechaReserva,
@@ -5372,10 +5392,22 @@ async guardarReserva() {
       notas: this.reservaForm.notas
     };
      
-     const url = this.editingReservaId 
-       ? `/api/reservas/${this.editingReservaId}`
-       : '/api/reservas';
-     const method = this.editingReservaId ? 'PUT' : 'POST';
+     // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: alineado con App Mozos.
+     // Creación -> POST /api/reservas/desde-mozos (T−20, comanda programada, auto-activación).
+     // Edición -> PUT /api/reservas/:id (flujo existente).
+     let url, method;
+     if (this.editingReservaId) {
+       url = `/api/reservas/${this.editingReservaId}`;
+       method = 'PUT';
+     } else {
+       url = '/api/reservas/desde-mozos';
+       method = 'POST';
+       // desde-mozos requiere mozo; si no vino del form, usar el usuario del dashboard.
+       if (!payload.mozo) {
+         const uid = this.getUserId?.() || window.currentUserId || null;
+         if (uid) payload.mozo = uid;
+       }
+     }
      
      const res = await fetch(url, {
        method,
@@ -5391,7 +5423,7 @@ async guardarReserva() {
        throw new Error(error.error || 'Error al guardar reserva');
      }
      
-     this.showToast(this.editingReservaId ? 'Reserva actualizada' : 'Reserva creada exitosamente');
+     this.showToast(this.editingReservaId ? 'Reserva actualizada' : 'Reserva creada (cocina T−20)');
      this.closeReservaModal();
      await this.loadReservas();
      
@@ -5657,8 +5689,13 @@ PRÓXIMOS PASOS SUGERIDOS (BACKEND)
    <!-- 2. FECHA + PERSONAS -->
    <div class="grid grid-cols-2 gap-4">
     <div>
-      <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Fecha y hora *</label>
+      <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Fecha y hora (atención) *</label>
       <input type="datetime-local" x-model="reservaForm.fechaReserva" :min="getMinDateTime()" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none">
+      <!-- PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: hora de cocina auto T−20 -->
+      <p class="text-[10px] text-st-reservado mt-1" x-show="reservaForm.fechaReserva">
+        🚀 Cocina se activa: <strong x-text="formatFechaCocina(reservaForm.fechaReserva)"></strong>
+        <span x-show="esReservaInmediata(reservaForm.fechaReserva)" class="text-amber-400">(activación inmediata)</span>
+      </p>
     </div>
      <div>
        <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Personas *</label>
@@ -5669,8 +5706,8 @@ PRÓXIMOS PASOS SUGERIDOS (BACKEND)
    <!-- 3. DATOS CLIENTE -->
    <div class="grid grid-cols-2 gap-4">
      <div>
-       <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Nombre cliente</label>
-       <input type="text" x-model="reservaForm.clienteNombre" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none" placeholder="Nombre">
+       <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Nombre cliente *</label>
+       <input type="text" x-model="reservaForm.clienteNombre" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none" placeholder="Nombre (obligatorio)">
      </div>
      <div>
        <label class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider block mb-1">Teléfono</label>

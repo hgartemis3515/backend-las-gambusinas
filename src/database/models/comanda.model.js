@@ -468,6 +468,23 @@ const comandaSchema = new mongoose.Schema({
         index: true
     },
     // ========== FIN RESERVAS ==========
+    // ========== PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: comanda programada por reserva ==========
+    // Mientras true, la comanda NO aparece en la cola operativa del KDS (solo en
+    // el tab "Reservadas"). El job de activacion (fechaCocina) la pone en false,
+    // pasa los platos a 'pedido' y setea prioridadOrden=Date.now() para que entre
+    // arriba en la cola (criterio KDS v5.5). No cambia el enum de status de comanda.
+    programadaPorReserva: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
+    // Fecha en la que el job debe activar la comanda (snapshot de reserva.fechaCocina).
+    fechaCocinaProgramada: {
+        type: Date,
+        default: null,
+        index: true
+    },
+    // ========== FIN PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 ==========
     // ========== CREAR COMANDA DESDE DASHBOARD ==========
     // Origen de creación de la comanda (auditoría y reportes)
     origenCreacion: {

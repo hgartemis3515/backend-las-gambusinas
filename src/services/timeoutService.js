@@ -17,6 +17,7 @@ const logger = require('../utils/logger');
 // Importar repositorios de forma diferida para evitar dependencias circulares
 let reservaRepository = null;
 let mesasRepository = null;
+let reservaActivacionService = null;
 
 const getReservaRepository = () => {
     if (!reservaRepository) {
@@ -25,7 +26,14 @@ const getReservaRepository = () => {
     return reservaRepository;
 };
 
-// Mapa de timeouts activos: reservaId -> { timeoutExpiracion, timeoutAlerta }
+const getReservaActivacionService = () => {
+    if (!reservaActivacionService) {
+        reservaActivacionService = require('./reservaActivacionService');
+    }
+    return reservaActivacionService;
+};
+
+// Mapa de timeouts activos: reservaId -> { timeoutExpiracion, timeoutAlerta, timeoutActivacion, timeoutAlertaActivacion }
 const reservaTimeouts = new Map();
 
 // Intervalo para alertas de expiracion proxima (en minutos)
@@ -121,9 +129,9 @@ const manejarExpiracion = async (reservaId) => {
 const manejarAlertaProxima = async (reservaId) => {
     try {
         logger.info('Enviando alerta de expiracion proxima', { reservaId });
-        
+
         const reserva = await getReservaRepository().obtenerReservaPorId(reservaId);
-        
+
         if (reserva && reserva.estado === 'pendiente') {
             emitirEvento('reserva-alerta-expiracion', {
                 reservaId,
@@ -132,14 +140,174 @@ const manejarAlertaProxima = async (reservaId) => {
                 minutosRestantes: MINUTOS_ALERTA_EXPIRACION
             });
         }
-        
+
     } catch (error) {
-        logger.error('Error al manejar alerta de expiracion proxima', { 
-            error: error.message, 
-            reservaId 
+        logger.error('Error al manejar alerta de expiracion proxima', {
+            error: error.message,
+            reservaId
         });
     }
 };
+
+// ========== PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: activación por fechaCocina (T−20) ==========
+
+/**
+ * Manejar el bloqueo diferido de la mesa: a T−minutosBloqueoMesaAntes de la atención,
+ * la mesa pasa a 'reservado' (si no lo estaba ya). Solo aplica si la reserva se creó
+ * con bloquearMesaAlCrear=false. El job de activación de cocina no toca el estado de
+ * la mesa (lo gestiona este timeout por separado).
+ */
+const manejarBloqueoMesa = async (reservaId) => {
+    try {
+        const reserva = await getReservaRepository().obtenerReservaPorId(reservaId);
+        if (!reserva) return;
+        if (reserva.estado !== 'pendiente') return; // ya activa/cancelada/rechazada: no bloquear
+        const mesasModel = require('../database/models/mesas.model');
+        const mesa = await mesasModel.findById(reserva.mesa?._id || reserva.mesa);
+        if (mesa && mesa.estado === 'libre') {
+            mesa.estado = 'reservado';
+            await mesa.save();
+            logger.info('Bloqueo diferido de mesa aplicado', { reservaId, mesaId: mesa._id });
+            if (global.emitMesaActualizada) {
+                await global.emitMesaActualizada(mesa._id);
+            }
+        }
+    } catch (error) {
+        logger.error('Error en manejarBloqueoMesa', { error: error.message, reservaId });
+    }
+};
+
+/**
+ * Programar el bloqueo diferido de la mesa a (fechaReserva - minutosBloqueoMesaAntes).
+ * @param {String} reservaId
+ * @param {Date} fechaReserva
+ * @param {Number} minutosBloqueoMesaAntes
+ */
+const programarBloqueoMesa = (reservaId, fechaReserva, minutosBloqueoMesaAntes = 45) => {
+    try {
+        if (!fechaReserva || !minutosBloqueoMesaAntes) return { programado: false };
+        const fechaBloqueo = moment(fechaReserva).subtract(minutosBloqueoMesaAntes, 'minutes').toDate();
+        const delay = calcularDelay(fechaBloqueo);
+        const entry = reservaTimeouts.get(reservaId.toString()) || {};
+        if (delay > 0) {
+            entry.timeoutBloqueoMesa = setTimeout(() => {
+                manejarBloqueoMesa(reservaId);
+            }, delay);
+            logger.debug('Bloqueo diferido de mesa programado', {
+                reservaId, fechaBloqueo: fechaBloqueo.toISOString(), delayMs: delay
+            });
+        } else {
+            // Ya pasó el momento de bloqueo: bloquear ya si la atención aún es futura
+            const ahora = moment().tz('America/Lima');
+            const atencion = moment.tz(fechaReserva, 'America/Lima');
+            if (atencion.isAfter(ahora)) {
+                setImmediate(() => manejarBloqueoMesa(reservaId));
+            }
+        }
+        reservaTimeouts.set(reservaId.toString(), entry);
+        return { programado: true, fechaBloqueo, delayMs: delay };
+    } catch (error) {
+        logger.error('Error al programar bloqueo de mesa', { error: error.message, reservaId });
+        return { programado: false, error: error.message };
+    }
+};
+
+/**
+ * Manejar la activación automática de una reserva programada.
+ * Delega la transición de estados a reservaActivacionService.
+ */
+const manejarActivacion = async (reservaId) => {
+    try {
+        logger.info('Disparo de activación de reserva programada', { reservaId });
+        await getReservaActivacionService().activarReservaProgramada(reservaId, { origen: 'job' });
+        // La expiración de no-show se programa aparte (programarExpiracion) y
+        // no se cancela aquí: el cliente puede llegar después de la activación.
+    } catch (error) {
+        logger.error('Error en manejarActivacion', { error: error.message, reservaId });
+    }
+};
+
+/**
+ * Manejar alerta previa a la activación de cocina (T−minutosAlertaPreviaCocina).
+ */
+const manejarAlertaActivacion = async (reservaId) => {
+    try {
+        const reserva = await getReservaRepository().obtenerReservaPorId(reservaId);
+        if (reserva && reserva.estado === 'pendiente') {
+            emitirEvento('reserva-alerta-activacion', {
+                reservaId,
+                mesa: reserva.mesa?.nummesa,
+                cliente: reserva.clienteNombre,
+                fechaCocina: reserva.fechaCocina,
+                fechaReserva: reserva.fechaReserva
+            });
+            logger.info('Alerta pre-activación cocina enviada', { reservaId });
+        }
+    } catch (error) {
+        logger.error('Error en manejarAlertaActivacion', { error: error.message, reservaId });
+    }
+};
+
+/**
+ * Programar la activación automática de una reserva a fechaCocina.
+ * @param {String} reservaId
+ * @param {Date} fechaCocina - fecha en que la cocina debe empezar a preparar
+ * @param {Number} minutosAlertaPrevia - minutos antes para alertar (0 = sin alerta)
+ */
+const programarActivacion = (reservaId, fechaCocina, minutosAlertaPrevia = 0) => {
+    try {
+        if (!fechaCocina) {
+            logger.warn('programarActivacion: fechaCocina nula, se omite', { reservaId });
+            return { programado: false, motivo: 'sin_fechaCocina' };
+        }
+
+        // No cancelar timeouts existentes (expiración sigue corriendo).
+        // Solo agregamos al mapa los nuevos timeouts de activación.
+        const entry = reservaTimeouts.get(reservaId.toString()) || {};
+
+        const delayActivacion = calcularDelay(fechaCocina);
+
+        if (delayActivacion > 0) {
+            entry.timeoutActivacion = setTimeout(() => {
+                manejarActivacion(reservaId);
+            }, delayActivacion);
+            logger.info('Activación de cocina programada', {
+                reservaId,
+                fechaCocina: new Date(fechaCocina).toISOString(),
+                delayMs: delayActivacion,
+                delayMinutos: Math.round(delayActivacion / 60000)
+            });
+        } else {
+            // fechaCocina ya pasó: activar de inmediato (no perder la reserva)
+            logger.warn('fechaCocina ya pasó, activando inmediatamente', { reservaId });
+            setImmediate(() => manejarActivacion(reservaId));
+        }
+
+        // Alerta previa (T−N)
+        if (minutosAlertaPrevia > 0) {
+            const fechaAlerta = moment(fechaCocina).subtract(minutosAlertaPrevia, 'minutes').toDate();
+            const delayAlerta = calcularDelay(fechaAlerta);
+            if (delayAlerta > 0 && delayAlerta < delayActivacion) {
+                entry.timeoutAlertaActivacion = setTimeout(() => {
+                    manejarAlertaActivacion(reservaId);
+                }, delayAlerta);
+                logger.debug('Alerta pre-activación programada', {
+                    reservaId,
+                    fechaAlerta: fechaAlerta.toISOString(),
+                    delayMs: delayAlerta
+                });
+            }
+        }
+
+        reservaTimeouts.set(reservaId.toString(), entry);
+        return { programado: true, fechaCocina, delayMs: delayActivacion };
+    } catch (error) {
+        logger.error('Error al programar activación', { error: error.message, reservaId, fechaCocina });
+        return { programado: false, error: error.message };
+    }
+};
+
+// ========== FIN PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 ==========
 
 /**
  * Programar timeout para expiracion de reserva
@@ -220,13 +388,23 @@ const programarExpiracion = (reservaId, fechaReserva, tiempoEspera) => {
 const cancelarTimeout = (reservaId) => {
     const id = reservaId.toString();
     const timeouts = reservaTimeouts.get(id);
-    
+
     if (timeouts) {
         if (timeouts.timeoutExpiracion) {
             clearTimeout(timeouts.timeoutExpiracion);
         }
         if (timeouts.timeoutAlerta) {
             clearTimeout(timeouts.timeoutAlerta);
+        }
+        // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1
+        if (timeouts.timeoutActivacion) {
+            clearTimeout(timeouts.timeoutActivacion);
+        }
+        if (timeouts.timeoutAlertaActivacion) {
+            clearTimeout(timeouts.timeoutAlertaActivacion);
+        }
+        if (timeouts.timeoutBloqueoMesa) {
+            clearTimeout(timeouts.timeoutBloqueoMesa);
         }
         reservaTimeouts.delete(id);
         logger.debug('Timeouts cancelados', { reservaId: id });
@@ -240,49 +418,87 @@ const cancelarTimeout = (reservaId) => {
  */
 const rehidratarTimeouts = async () => {
     logger.info('Iniciando rehidratacion de timeouts de reservas...');
-    
+
     const resultado = {
         procesadas: 0,
         expiradas: 0,
         reprogramadas: 0,
+        activadasInmediato: 0,
         errores: 0
     };
-    
+
     try {
+        // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: leer minutos de alerta previa de cocina + bloqueo mesa
+        let minutosAlertaPrevia = 0;
+        let minutosBloqueoMesa = 45;
+        let bloquearMesaAlCrear = false;
+        try {
+            const configuracionSistemaModel = require('../database/models/configuracionSistema.model');
+            const cfg = await configuracionSistemaModel.findById('configuracion_unica').lean();
+            minutosAlertaPrevia = cfg?.reservas?.minutosAlertaPreviaCocina ?? 10;
+            minutosBloqueoMesa = cfg?.reservas?.minutosBloqueoMesaAntes ?? 45;
+            bloquearMesaAlCrear = cfg?.reservas?.bloquearMesaAlCrear ?? false;
+        } catch (e) {
+            logger.warn('No se pudo leer config de reservas; usando defaults', { error: e.message });
+        }
+
         const reservas = await getReservaRepository().obtenerReservasPendientesExpiracion();
-        
+
         logger.info(`Encontradas ${reservas.length} reservas pendientes para rehidratar`);
-        
+
         for (const reserva of reservas) {
             resultado.procesadas++;
-            
+
             try {
                 if (reserva.yaExpiro) {
                     // La reserva ya expiro, marcarla como rechazada
                     await manejarExpiracion(reserva._id);
                     resultado.expiradas++;
                 } else {
-                    // Reprogramar el timeout
+                    // Reprogramar el timeout de expiración (no-show)
                     programarExpiracion(
                         reserva._id,
                         reserva.fechaReserva,
                         reserva.tiempoEspera
                     );
+
+                    // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: reprogramar activación de cocina
+                    if (reserva.fechaCocina) {
+                        const fechaCocina = new Date(reserva.fechaCocina);
+                        const ahora = Date.now();
+                        if (fechaCocina.getTime() <= ahora) {
+                            // fechaCocina ya pasó y la reserva sigue pendiente: activar ya
+                            logger.warn('fechaCocina en el pasado al rehidratar; activando inmediatamente', {
+                                reservaId: reserva._id,
+                                fechaCocina: fechaCocina.toISOString()
+                            });
+                            setImmediate(() => manejarActivacion(reserva._id));
+                            resultado.activadasInmediato++;
+                        } else {
+                            programarActivacion(reserva._id, fechaCocina, minutosAlertaPrevia);
+                        }
+                    }
+
+                    // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: reprogramar bloqueo diferido de mesa
+                    if (reserva.fechaReserva && !bloquearMesaAlCrear) {
+                        programarBloqueoMesa(reserva._id, reserva.fechaReserva, minutosBloqueoMesa);
+                    }
+
                     resultado.reprogramadas++;
                 }
             } catch (error) {
                 resultado.errores++;
-                logger.error('Error al rehidratar reserva', { 
-                    error: error.message, 
-                    reservaId: reserva._id 
+                logger.error('Error al rehidratar reserva', {
+                    error: error.message,
+                    reservaId: reserva._id
                 });
             }
         }
-        
+
         logger.info('Rehidratacion de timeouts completada', resultado);
-        
+
         return resultado;
-        
+
     } catch (error) {
         logger.error('Error en rehidratacion de timeouts', { error: error.message });
         resultado.error = error.message;
@@ -306,7 +522,7 @@ const obtenerEstadisticas = () => {
  */
 const limpiarTodos = () => {
     logger.info('Limpiando todos los timeouts de reservas...');
-    
+
     for (const [reservaId, timeouts] of reservaTimeouts) {
         if (timeouts.timeoutExpiracion) {
             clearTimeout(timeouts.timeoutExpiracion);
@@ -314,8 +530,17 @@ const limpiarTodos = () => {
         if (timeouts.timeoutAlerta) {
             clearTimeout(timeouts.timeoutAlerta);
         }
+        if (timeouts.timeoutActivacion) {
+            clearTimeout(timeouts.timeoutActivacion);
+        }
+        if (timeouts.timeoutAlertaActivacion) {
+            clearTimeout(timeouts.timeoutAlertaActivacion);
+        }
+        if (timeouts.timeoutBloqueoMesa) {
+            clearTimeout(timeouts.timeoutBloqueoMesa);
+        }
     }
-    
+
     reservaTimeouts.clear();
     logger.info('Todos los timeouts limpiados');
 };
@@ -324,6 +549,8 @@ module.exports = {
     configurarSocketNamespace,
     calcularFechaExpiracion,
     programarExpiracion,
+    programarActivacion,
+    programarBloqueoMesa,
     cancelarTimeout,
     rehidratarTimeouts,
     obtenerEstadisticas,

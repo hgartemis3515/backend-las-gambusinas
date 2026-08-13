@@ -44,6 +44,9 @@ const PERMISOS_FUNDAMENTALES = {
     'eliminar-platos-comandas': { nombre: 'Eliminar Platos/Comandas', grupo: 'App Mozos', descripcion: 'Eliminar platos o comandas completas' },
     'procesar-pagos': { nombre: 'Procesar Pagos/Bouchers', grupo: 'App Mozos', descripcion: 'Generar bouchers y procesar pagos' },
     'asociar-clientes': { nombre: 'Asociar Clientes', grupo: 'App Mozos', descripcion: 'Vincular clientes a comandas' },
+    // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: reservas desde la barra de Inicio
+    'crear-reservas-mozos': { nombre: 'Crear Reservas (App Mozos)', grupo: 'App Mozos', descripcion: 'Crear reservas desde el botón Reservar de la barra de Inicio' },
+    'asignar-encargado-reserva': { nombre: 'Asignar Encargado de Reserva', grupo: 'App Mozos', descripcion: 'Elegir el cocinero encargado de una comanda reservada' },
     
     // App Cocina
     'ver-comandas-cocina': { nombre: 'Ver Comandas Cocina', grupo: 'App Cocina', descripcion: 'Ver comandas en App Cocina' },
@@ -56,6 +59,8 @@ const PERMISOS_FUNDAMENTALES = {
     'ver-cocina-personalizado': { nombre: 'Ver Cocina Personalizado', grupo: 'App Cocina', descripcion: 'Acceder a monitores de cocina filtrados por vista personalizada (TVs por estacion)' },
     'desplegar-monitores-cocina': { nombre: 'Desplegar Monitores Cocina', grupo: 'App Cocina', descripcion: 'Abrir y gestionar ventanas de monitores en multiples televisores de cocina' },
     'administrar-vistas-cocina': { nombre: 'Administrar Vistas de Cocina', grupo: 'App Cocina', descripcion: 'Crear, editar y eliminar Vistas de Cocina y asignarlas a pantallas desde el dashboard' },
+    // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: tab KDS Reservadas
+    'ver-reservas-kds': { nombre: 'Ver Reservas en KDS', grupo: 'App Cocina', descripcion: 'Ver el tab de comandas reservadas programadas en el KDS' },
 
     // App Mozos — Panel de Gestión
     // PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR: pantalla de peticiones/solicitudes (p. ej. Solicitar Orden desde cocina)
@@ -89,6 +94,8 @@ const PERMISOS_POR_ROL_SISTEMA = {
         'crear-comandas-dashboard',
         'ver-vista-supervisor-cocina', 'ver-boton-prioridad-kds', 'utilidad-supervisor',
         'ver-cocina-completo', 'ver-cocina-personalizado', 'desplegar-monitores-cocina', 'administrar-vistas-cocina',
+        // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: reservas desde App Mozos + KDS
+        'crear-reservas-mozos', 'asignar-encargado-reserva', 'ver-reservas-kds',
         // Mensajería: supervisor cubre texto, voz, anuncios, canales y supervisión; sin forzar prioridad critica
         'ver-mensajes', 'enviar-mensajes', 'enviar-mensajes-voz', 'enviar-anuncios',
         'gestionar-canales-mensajes', 'ver-mensajes-todos'
@@ -96,12 +103,16 @@ const PERMISOS_POR_ROL_SISTEMA = {
     cocinero: [
         'ver-platos', 'ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas',
         'ver-cocina-completo', 'ver-cocina-personalizado',
+        // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: ver tab Reservadas
+        'ver-reservas-kds',
         // Mensajería: cocinero puede leer, escribir y enviar voz (prioridad normal)
         'ver-mensajes', 'enviar-mensajes', 'enviar-mensajes-voz'
     ],
     mozos: [
         'ver-mesas', 'ver-platos', 'ver-clientes', 'crear-comandas', 'editar-comandas',
         'asociar-clientes',
+        // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: reservas desde la barra de Inicio
+        'crear-reservas-mozos', 'asignar-encargado-reserva',
         // Mensajería: mozo puede leer, escribir y enviar voz (prioridad normal)
         'ver-mensajes', 'enviar-mensajes', 'enviar-mensajes-voz'
     ],
