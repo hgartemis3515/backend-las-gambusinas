@@ -8,6 +8,10 @@ const TIPOS_MENU = ['platos-desayuno', 'plato-carta normal'];
 
 const { validarCodigoPlato } = require('../../utils/validarCodigoPlato');
 
+// Longitud máxima del alias corto para cocina. Se exporta para que el admin
+// (platos.html) y cualquier validador cliente usen el mismo límite (DRY).
+const MAX_LENGTH_NOMBRE_COCINA = 40;
+
 const platoSchema = new mongoose.Schema({
     id: { type: Number, unique: true },
     // Código de serie corto para el buscador del KDS de cocina.
@@ -27,6 +31,17 @@ const platoSchema = new mongoose.Schema({
     },
     nombre: { type: String, required: true },
     nombreLower: { type: String, required: false, unique: true },
+    // Alias corto opcional para pantallas de cocina (Ver Cocina siempre;
+    // tabla KDS según configuracion.cocina.usarNombreCocinaEnTablaKds).
+    // No se desnormaliza en comanda.platos[]: vive en el catálogo y llega por
+    // populate('platos.plato'). Vacío = sin alias -> se muestra `nombre`.
+    nombreCocina: {
+        type: String,
+        required: false,
+        default: '',
+        trim: true,
+        maxlength: MAX_LENGTH_NOMBRE_COCINA
+    },
     precio: { type: Number, required: true, min: 0 },
     stock: { type: Number, required: true, min: 0 },
     categoria: {
@@ -203,6 +218,16 @@ platoSchema.pre('save', async function (next) {
                 return next(new Error('nombre no puede estar vacío'));
             }
         }
+        // Normalizar nombreCocina: trim, eliminar caracteres de control y
+        // forzar string vacío si solo tenía espacios (no guardamos null).
+        if (this.nombreCocina != null) {
+            const limpio = String(this.nombreCocina)
+                .replace(/[\u0000-\u001F\u007F]/g, '') // strip control chars
+                .trim();
+            this.nombreCocina = limpio;
+        } else {
+            this.nombreCocina = '';
+        }
         if (this.categoria != null) {
             this.categoria = String(this.categoria).trim();
             if (!this.categoria) {
@@ -293,3 +318,4 @@ const plato = mongoose.model("platos", platoSchema);
 
 module.exports = plato;
 module.exports.TIPOS_MENU = TIPOS_MENU;
+module.exports.MAX_LENGTH_NOMBRE_COCINA = MAX_LENGTH_NOMBRE_COCINA;

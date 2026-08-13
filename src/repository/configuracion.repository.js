@@ -136,6 +136,15 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
             modificadoPor
         });
 
+        // Debug auditable: cambios al flag de alias en tabla KDS (escape hatch)
+        if (datosFiltrados.cocina && typeof datosFiltrados.cocina === 'object'
+            && datosFiltrados.cocina.usarNombreCocinaEnTablaKds !== undefined) {
+            logger.debug('Flag cocina.usarNombreCocinaEnTablaKds actualizado', {
+                valor: datosFiltrados.cocina.usarNombreCocinaEnTablaKds,
+                modificadoPor
+            });
+        }
+
         return config.toObject();
     } catch (error) {
         logger.error('Error al actualizar configuración:', { error: error.message });

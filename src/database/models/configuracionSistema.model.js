@@ -128,7 +128,11 @@ const CONFIGURACION_DEFAULT = {
     // Si false, el supervisor puede finalizar #2/#3 sin solicitud (aunque obligarOrdenAsignacion siga en true).
     cocina: {
         obligarOrdenAsignacion: true,
-        solicitudOrdenFueraDeCola: true
+        solicitudOrdenFueraDeCola: true,
+        // Escape hatch: si false, la tabla KDS ignora el alias corto del plato
+        // y muestra el nombre comercial, sin borrar los alias del catálogo.
+        // Ver Cocina siempre usa el alias si existe, sin importar este flag.
+        usarNombreCocinaEnTablaKds: true
     },
 
     // Seguridad
@@ -463,6 +467,12 @@ const configuracionSistemaSchema = new mongoose.Schema({
         solicitudOrdenFueraDeCola: {
             type: Boolean,
             default: CONFIGURACION_DEFAULT.cocina.solicitudOrdenFueraDeCola
+        },
+        // Escape hatch: si false, la tabla KDS ignora el alias corto del plato
+        // y muestra el nombre comercial. Ver Cocina siempre usa el alias si existe.
+        usarNombreCocinaEnTablaKds: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.cocina.usarNombreCocinaEnTablaKds
         }
     },
 

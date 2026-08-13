@@ -484,7 +484,7 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
     });
     dbQuery = dbQuery.populate({
       path: "platos.plato",
-      select: "nombre precio categoria codigo",
+      select: "nombre precio categoria codigo nombreCocina",
       options: { lean: true }
     });
     
@@ -2423,7 +2423,7 @@ const listarComandaPorFechaEntregado = async (fecha, usarProyeccion = true) => {
     // Solo nombre y precio del plato (no todo el documento)
     query = query.populate({
       path: "platos.plato",
-      select: "nombre precio categoria codigo",
+      select: "nombre precio categoria codigo nombreCocina",
       options: { lean: true }
     });
     
@@ -2520,10 +2520,10 @@ const listarComandaPorFecha = async (fecha, usarProyeccion = true) => {
     });
     query = query.populate({
       path: "platos.plato",
-      select: "nombre precio codigo",
+      select: "nombre precio codigo nombreCocina",
       options: { lean: true }
     });
-    
+
     const data = await query.exec();
     
     // Procesar comandas para usar campos desnormalizados

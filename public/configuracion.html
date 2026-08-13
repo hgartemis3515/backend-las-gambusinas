@@ -616,6 +616,16 @@ tailwind.config = {
               </label>
               <p class="text-[10px] text-txt-muted pl-7">Si está marcado (recomendado), cuando el supervisor intente cerrar un plato #2 o posterior, en lugar de finalizar aparecerá "Solicitar Orden". La petición llegará al Panel de Gestión del admin en la App Mozos y se notificará igualmente al admin en el Dashboard. Si se desmarca, el supervisor podrá finalizar #2/#3 sin pedir autorización.</p>
             </div>
+
+            <!-- PLAN NOMBRE_PLATO_COCINA: alias corto en tabla KDS -->
+            <div class="border-t border-[rgba(212,175,55,0.15)] pt-4 mt-4 space-y-3">
+              <p class="text-xs text-gold font-semibold uppercase tracking-wide">Nombres en cocina</p>
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" x-model="config.cocinaUsarNombreCocinaEnTablaKds" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+                <span class="text-sm text-txt-secondary">Usar nombre de plato en cocina en la tabla KDS</span>
+              </label>
+              <p class="text-[10px] text-txt-muted pl-7">Si está marcado, la tabla KDS (Vista General / Personalizada / Supervisor) muestra el alias corto cuando el plato lo tiene. Ver Cocina siempre usa el alias, aunque esta opción esté desmarcada. Platos sin alias siguen mostrando el nombre comercial. Recargue la app de cocina para aplicar el cambio.</p>
+            </div>
           </div>
         </div>
 
@@ -1606,9 +1616,11 @@ function configApp() {
           if (cfg.cocina) {
             this.config.cocinaObligarOrdenAsignacion = cfg.cocina.obligarOrdenAsignacion !== false;
             this.config.cocinaSolicitudOrdenFueraDeCola = cfg.cocina.solicitudOrdenFueraDeCola !== false;
+            this.config.cocinaUsarNombreCocinaEnTablaKds = cfg.cocina.usarNombreCocinaEnTablaKds !== false;
           } else {
             this.config.cocinaObligarOrdenAsignacion = true;
             this.config.cocinaSolicitudOrdenFueraDeCola = true;
+            this.config.cocinaUsarNombreCocinaEnTablaKds = true;
           }
 
           // Mapear zona horaria y otros
@@ -1750,9 +1762,11 @@ function configApp() {
           },
 
           // Cocina (Obligar orden + Solicitar Orden) — PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR
+          // + PLAN NOMBRE_PLATO_COCINA: flag de alias en tabla KDS
           cocina: {
             obligarOrdenAsignacion: this.config.cocinaObligarOrdenAsignacion !== false,
-            solicitudOrdenFueraDeCola: this.config.cocinaSolicitudOrdenFueraDeCola !== false
+            solicitudOrdenFueraDeCola: this.config.cocinaSolicitudOrdenFueraDeCola !== false,
+            usarNombreCocinaEnTablaKds: this.config.cocinaUsarNombreCocinaEnTablaKds !== false
           },
           
           // Seguridad

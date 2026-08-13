@@ -412,7 +412,7 @@ router.get('/comanda/historial-cocina', async (req, res) => {
             })
             .populate({ path: 'mozos', select: 'name DNI', options: { lean: true } })
             .populate({ path: 'mesas', select: 'nummesa estado area nombreCombinado', options: { lean: true } })
-            .populate({ path: 'platos.plato', select: 'nombre precio codigo', options: { lean: true } })
+            .populate({ path: 'platos.plato', select: 'nombre precio codigo nombreCocina', options: { lean: true } })
             .sort({ createdAt: -1 })
             .lean();
 
