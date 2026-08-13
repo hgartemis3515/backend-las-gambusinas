@@ -265,6 +265,7 @@ const PERFIL_VER_COCINA_KEYS = new Set([
     'icono', 'mostrarNotificacionEntrada', 'duracionNotificacionEntrada', 'mostrarComplementos',
     'numeroSecForma', 'numeroSecColor', 'numeroSecContorno', 'numeroSecFondo', 'numeroSecPeso',
     'numeroSecGlow', 'numeroSecTamanio', 'numeroSecPrefijo',
+    'tamanioCronometroCabecera',
 ]);
 
 router.put('/cocineros/:id/perfil-ver-cocina', adminAuth, async (req, res) => {
@@ -289,6 +290,128 @@ router.put('/cocineros/:id/perfil-ver-cocina', adminAuth, async (req, res) => {
     } catch (error) {
         logger.error('Error al guardar perfil-ver-cocina', { error: error.message });
         res.status(400).json({ success: false, error: error.message || 'Error al guardar perfil' });
+    }
+});
+
+// ============================================================
+// PERFILES DE PERSONALIZACIÓN "VER COCINA" CON NOMBRE
+// Flujo "Distribuir Cocina en monitores" - perfilId=<id>
+// ============================================================
+
+/**
+ * GET /api/perfiles-ver-cocina
+ * Listar perfiles de personalización con nombre (activos).
+ */
+router.get('/perfiles-ver-cocina', adminAuth, async (req, res) => {
+    try {
+        const soloActivos = req.query.incluirInactivos !== '1';
+        const perfiles = await cocinerosRepository.listarPerfilesVerCocina({ soloActivos });
+        const data = perfiles.map(p => ({
+            _id: p._id,
+            nombre: p.nombre,
+            config: p.config,
+            createdAt: p.createdAt,
+            updatedAt: p.updatedAt,
+        }));
+        res.json({ success: true, data, total: data.length });
+    } catch (error) {
+        logger.error('Error al listar perfiles-ver-cocina', { error: error.message });
+        res.status(500).json({ success: false, error: 'Error al listar perfiles' });
+    }
+});
+
+/**
+ * GET /api/perfiles-ver-cocina/:id
+ * Obtener un perfil concreto (lo usan las ventanas hijas con ?perfilId=<id>).
+ */
+router.get('/perfiles-ver-cocina/:id', adminAuth, async (req, res) => {
+    try {
+        const perfil = await cocinerosRepository.obtenerPerfilVerCocinaPorId(req.params.id);
+        if (!perfil) {
+            return res.status(404).json({ success: false, error: 'Perfil no encontrado' });
+        }
+        res.json({ success: true, data: perfil });
+    } catch (error) {
+        logger.error('Error al obtener perfil-ver-cocina por id', { error: error.message });
+        res.status(500).json({ success: false, error: 'Error al obtener perfil' });
+    }
+});
+
+/**
+ * POST /api/perfiles-ver-cocina
+ * Crear un perfil con nombre.
+ * Body: { nombre: string, config: { ...localDesign } }
+ */
+router.post('/perfiles-ver-cocina', adminAuth, async (req, res) => {
+    try {
+        const nombre = (req.body?.nombre || '').toString().trim();
+        if (!nombre) {
+            return res.status(400).json({ success: false, error: 'nombre es requerido' });
+        }
+        const configEntrada = req.body?.config && typeof req.body.config === 'object'
+            ? req.body.config
+            : (req.body && typeof req.body === 'object' ? req.body : {});
+        const sanitizado = {};
+        for (const [k, v] of Object.entries(configEntrada)) {
+            if (PERFIL_VER_COCINA_KEYS.has(k)) sanitizado[k] = v;
+        }
+        const creado = await cocinerosRepository.crearPerfilVerCocina({
+            nombre,
+            config: sanitizado,
+            creadoPor: req.admin.id,
+        });
+        res.status(201).json({ success: true, data: creado, message: 'Perfil creado correctamente' });
+    } catch (error) {
+        const status = error.code === 'DUPLICADO' ? 409 : 400;
+        res.status(status).json({ success: false, error: error.message || 'Error al crear perfil' });
+    }
+});
+
+/**
+ * PUT /api/perfiles-ver-cocina/:id
+ * Actualizar nombre y/o config de un perfil existente.
+ * Body: { nombre?, config? }
+ */
+router.put('/perfiles-ver-cocina/:id', adminAuth, async (req, res) => {
+    try {
+        const update = {};
+        if (req.body?.nombre !== undefined) {
+            update.nombre = (req.body.nombre).toString().trim();
+            if (!update.nombre) {
+                return res.status(400).json({ success: false, error: 'nombre no puede ser vacío' });
+            }
+        }
+        if (req.body?.config !== undefined && typeof req.body.config === 'object') {
+            const sanitizado = {};
+            for (const [k, v] of Object.entries(req.body.config)) {
+                if (PERFIL_VER_COCINA_KEYS.has(k)) sanitizado[k] = v;
+            }
+            update.config = sanitizado;
+        }
+        const actualizado = await cocinerosRepository.actualizarPerfilVerCocina(
+            req.params.id,
+            { ...update, actualizadoPor: req.admin.id }
+        );
+        res.json({ success: true, data: actualizado, message: 'Perfil actualizado correctamente' });
+    } catch (error) {
+        const status = error.code === 'NO_ENCONTRADO' ? 404
+            : error.code === 'DUPLICADO' ? 409
+            : 400;
+        res.status(status).json({ success: false, error: error.message || 'Error al actualizar perfil' });
+    }
+});
+
+/**
+ * DELETE /api/perfiles-ver-cocina/:id
+ * Borrado lógico (activo=false).
+ */
+router.delete('/perfiles-ver-cocina/:id', adminAuth, async (req, res) => {
+    try {
+        await cocinerosRepository.eliminarPerfilVerCocina(req.params.id);
+        res.json({ success: true, message: 'Perfil eliminado correctamente' });
+    } catch (error) {
+        const status = error.code === 'NO_ENCONTRADO' ? 404 : 400;
+        res.status(status).json({ success: false, error: error.message || 'Error al eliminar perfil' });
     }
 });
 

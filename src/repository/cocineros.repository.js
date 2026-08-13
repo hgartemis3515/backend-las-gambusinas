@@ -6,6 +6,7 @@
 const mongoose = require('mongoose');
 const moment = require('moment-timezone');
 const ConfigCocinero = require('../database/models/configCocinero.model');
+const PerfilVerCocina = require('../database/models/perfilVerCocina.model');
 const Mozos = require('../database/models/mozos.model');
 const Comanda = require('../database/models/comanda.model');
 const logger = require('../utils/logger');
@@ -337,6 +338,116 @@ async function guardarPerfilVerCocina(usuarioId, config, actualizadoPor = null) 
         return actualizado && actualizado.perfilVerCocina ? actualizado.perfilVerCocina : config;
     } catch (error) {
         logger.error('Error al guardar perfilVerCocina', { error: error.message, usuarioId });
+        throw error;
+    }
+}
+
+// ============================================================
+// PERFILES DE PERSONALIZACIÓN "VER COCINA" CON NOMBRE
+// Flujo "Distribuir Cocina en monitores" - perfilId=<id>
+// ============================================================
+
+async function listarPerfilesVerCocina({ soloActivos = true } = {}) {
+    try {
+        const filtro = soloActivos ? { activo: true } : {};
+        return await PerfilVerCocina.find(filtro)
+            .sort({ updatedAt: -1 })
+            .lean();
+    } catch (error) {
+        logger.error('Error al listar perfilesVerCocina', { error: error.message });
+        throw error;
+    }
+}
+
+async function obtenerPerfilVerCocinaPorId(perfilId) {
+    try {
+        if (!perfilId) return null;
+        return await PerfilVerCocina.findById(perfilId).lean();
+    } catch (error) {
+        logger.error('Error al obtener perfilVerCocina por id', { error: error.message, perfilId });
+        return null;
+    }
+}
+
+async function crearPerfilVerCocina({ nombre, config, creadoPor = null }) {
+    try {
+        const existente = await PerfilVerCocina.findOne({ nombre: { $eq: nombre.trim() }, activo: true });
+        if (existente) {
+            const err = new Error('Ya existe un perfil con ese nombre');
+            err.code = 'DUPLICADO';
+            throw err;
+        }
+        const doc = await PerfilVerCocina.create({
+            nombre: nombre.trim(),
+            config: config || {},
+            creadoPor,
+            actualizadoPor: creadoPor,
+        });
+        logger.info('perfilVerCocina (con nombre) creado', { perfilId: doc._id, nombre: doc.nombre, creadoPor });
+        return doc.toObject();
+    } catch (error) {
+        logger.error('Error al crear perfilVerCocina', { error: error.message, nombre });
+        throw error;
+    }
+}
+
+async function actualizarPerfilVerCocina(perfilId, { nombre, config, actualizadoPor = null }) {
+    try {
+        const set = {};
+        if (nombre !== undefined) set.nombre = nombre.trim();
+        if (config !== undefined) set.config = config;
+        if (Object.keys(set).length === 0) {
+            const err = new Error('Nada que actualizar');
+            err.code = 'VACIO';
+            throw err;
+        }
+        set.actualizadoPor = actualizadoPor;
+        if (nombre !== undefined) {
+            const existente = await PerfilVerCocina.findOne({
+                _id: { $ne: perfilId },
+                nombre: { $eq: nombre.trim() },
+                activo: true,
+            });
+            if (existente) {
+                const err = new Error('Ya existe un perfil con ese nombre');
+                err.code = 'DUPLICADO';
+                throw err;
+            }
+        }
+        const actualizado = await PerfilVerCocina.findByIdAndUpdate(
+            perfilId,
+            { $set: set },
+            { new: true }
+        ).lean();
+        if (!actualizado) {
+            const err = new Error('Perfil no encontrado');
+            err.code = 'NO_ENCONTRADO';
+            throw err;
+        }
+        logger.info('perfilVerCocina (con nombre) actualizado', { perfilId, actualizadoPor });
+        return actualizado;
+    } catch (error) {
+        logger.error('Error al actualizar perfilVerCocina', { error: error.message, perfilId });
+        throw error;
+    }
+}
+
+async function eliminarPerfilVerCocina(perfilId) {
+    try {
+        const res = await PerfilVerCocina.findByIdAndUpdate(
+            perfilId,
+            { $set: { activo: false } },
+            { new: true }
+        ).lean();
+        if (!res) {
+            const err = new Error('Perfil no encontrado');
+            err.code = 'NO_ENCONTRADO';
+            throw err;
+        }
+        logger.info('perfilVerCocina (con nombre) eliminado', { perfilId });
+        return res;
+    } catch (error) {
+        logger.error('Error al eliminar perfilVerCocina', { error: error.message, perfilId });
         throw error;
     }
 }
@@ -1439,6 +1550,11 @@ module.exports = {
     actualizarConfigKDS,
     obtenerPerfilVerCocina,
     guardarPerfilVerCocina,
+    listarPerfilesVerCocina,
+    obtenerPerfilVerCocinaPorId,
+    crearPerfilVerCocina,
+    actualizarPerfilVerCocina,
+    eliminarPerfilVerCocina,
     asignarRolCocinero,
     quitarRolCocinero,
     registrarConexion,
