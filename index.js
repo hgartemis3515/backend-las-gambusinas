@@ -655,6 +655,22 @@ server.listen(port, '0.0.0.0', async ()=> {
     logger.warn('Seed tipos de plato omitido', { error: e.message });
   }
   // ========== FIN SEED TIPOS DE PLATO ==========
+
+  // ========== SYNC platos.json desde MongoDB al arrancar ==========
+  // Asegura que backend/data/platos.json exista y refleje el catálogo actual
+  // (incluye nombre y nombreCocina). El archivo también se reescribe tras cada
+  // crear/actualizar/borrar (ver plato.repository.js), pero este sync lo
+  // regenera si se borró o quedó desactualizado.
+  try {
+    const { listarPlatos } = require('./src/repository/plato.repository');
+    const { syncJsonFile } = require('./src/utils/jsonSync');
+    const todos = await listarPlatos();
+    await syncJsonFile('platos.json', todos);
+    logger.info('platos.json sincronizado al arranque', { total: todos.length });
+  } catch (e) {
+    logger.warn('Sync platos.json al arranque omitido', { error: e.message });
+  }
+  // ========== FIN SYNC platos.json ==========
   
   console.log('');
   console.log('═══════════════════════════════════════════════════════════════');
