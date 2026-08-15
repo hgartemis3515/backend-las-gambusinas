@@ -180,9 +180,10 @@ async function obtenerPantallasActivas() {
             .sort({ numeroPantalla: 1 })
             .populate('vistaCocinaId', 'nombre descripcion color icono filtrosPlatos configVisual ordenamiento configCronometro')
             .populate('cocineroId', 'nombre alias')
+            .populate('perfilVerCocinaId', 'nombre')
             .lean();
     } catch (error) {
-        // Fallback: si un doc tiene cocineroId/vistaCocinaId invalido (string vacio,
+        // Fallback: si un doc tiene cocineroId/vistaCocinaId/perfilVerCocinaId invalido (string vacio,
         // no-ObjectId), el populate lanza CastError. Reintentamos sin populate para
         // que el frontend no reciba 500 y pueda mostrar las pantallas.
         logger.warn('obtenerPantallasActivas: populate falló, reintentando sin populate', { error: error.message });
@@ -233,11 +234,12 @@ async function actualizarPantallaCocina(id, datos, actualizadoPor = null) {
 /**
  * Actualiza en lote la distribucion de pantallas para el flujo
  * "Distribuir Cocina en monitores" (PC multi-monitor).
- * Cada item: { id, cocineroId, modoVista }.
+ * Cada item: { id, cocineroId, modoVista, perfilAplicar }.
  * - cocineroId null  => "Sin asignar" (no se abrira ventana para esa pantalla).
  * - modoVista        => 'completo' (recomendado) o 'personalizado'.
+ * - perfilAplicar    => 'none' | 'auto' | '<PerfilVerCocinaId>' (perfil por monitor).
  * No toca deviceTokenHash ni configDespliegue.
- * @param {Array<{id: string, cocineroId: string|null, modoVista: string}>} items
+ * @param {Array<{id: string, cocineroId: string|null, modoVista: string, perfilAplicar?: string}>} items
  * @param {string|null} actualizadoPor
  * @returns {Promise<Array<Object>>} pantallas actualizadas (lean)
  */
@@ -256,6 +258,19 @@ async function actualizarDistribucionPantallas(items, actualizadoPor = null) {
             } else {
                 set.cocineroId = item.cocineroId;
             }
+            // Perfil de personalización por monitor (flujo Distribuir Cocina).
+            const perfil = item.perfilAplicar;
+            if (perfil === 'auto') {
+                set.perfilAuto = true;
+                set.perfilVerCocinaId = null;
+            } else if (perfil && perfil !== 'none') {
+                set.perfilAuto = false;
+                set.perfilVerCocinaId = perfil;
+            } else {
+                // 'none' o ausente
+                set.perfilAuto = false;
+                set.perfilVerCocinaId = null;
+            }
             return {
                 updateOne: {
                     filter: { _id: item.id },
@@ -267,6 +282,7 @@ async function actualizarDistribucionPantallas(items, actualizadoPor = null) {
         const ids = items.map((i) => i.id);
         return await PantallaCocina.find({ _id: { $in: ids } })
             .populate('cocineroId', 'nombre alias')
+            .populate('perfilVerCocinaId', 'nombre')
             .lean();
     } catch (error) {
         logger.error('Error al actualizar distribucion de pantallas', { error: error.message });

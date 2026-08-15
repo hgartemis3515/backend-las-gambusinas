@@ -12,6 +12,13 @@ const DATA_DIR = path.join(__dirname, '../../data');
 const syncJsonFile = async (fileName, data) => {
     try {
         const filePath = path.join(DATA_DIR, fileName);
+        // Asegurar que el directorio data/ exista antes de escribir.
+        try {
+            fs.mkdirSync(DATA_DIR, { recursive: true });
+        } catch (mkdirErr) {
+            // Si ya existe o falla por permisos, lo reportamos pero continuamos
+            console.warn(`⚠️ No se pudo crear/verificar ${DATA_DIR}:`, mkdirErr.message);
+        }
         
         // Función recursiva para convertir ObjectIds a strings
         const convertObjectIds = (obj) => {

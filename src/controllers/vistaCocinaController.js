@@ -285,6 +285,14 @@ router.put('/pantallas-cocina/distribucion', adminAuth, requireAnyPermission(['d
             if (item.modoVista && !['completo', 'personalizado'].includes(item.modoVista)) {
                 return res.status(400).json({ success: false, error: `modoVista inválido: ${item.modoVista}` });
             }
+            // perfilAplicar: 'none' | 'auto' | '<PerfilVerCocinaId>'. Cualquier otra
+            // cosa se normaliza a 'none' para evitar CastError en bulkWrite.
+            const perfil = item.perfilAplicar;
+            if (perfil !== undefined && perfil !== null && perfil !== 'none' && perfil !== 'auto') {
+                if (typeof perfil !== 'string' || !/^[a-fA-F0-9]{24}$/.test(perfil)) {
+                    item.perfilAplicar = 'none';
+                }
+            }
         }
         const actualizadas = await repo.actualizarDistribucionPantallas(items, req.admin.id);
         res.json({ success: true, message: 'Distribución actualizada correctamente', data: actualizadas });

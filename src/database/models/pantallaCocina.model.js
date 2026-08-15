@@ -46,6 +46,21 @@ const pantallaCocinaSchema = new mongoose.Schema({
         default: 'completo'
     },
 
+    // Perfil de personalización "Ver Cocina" aplicado a este monitor (flujo
+    // "Distribuir Cocina en monitores"). Tres estados:
+    //  - perfilAuto=true               → perfil personal del cocinero (?perfil=auto)
+    //  - perfilVerCocinaId != null      → perfil con nombre guardado (?perfilId=<id>)
+    //  - ambos falsos/null             → sin perfil (apariencia default)
+    perfilAuto: {
+        type: Boolean,
+        default: false
+    },
+    perfilVerCocinaId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'PerfilVerCocina',
+        default: null
+    },
+
     activo: {
         type: Boolean,
         default: true
