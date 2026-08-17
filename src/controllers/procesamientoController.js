@@ -49,10 +49,16 @@ async function leerConfigCocina() {
     const cocina = cfg?.cocina || {};
     return {
       obligarOrdenAsignacion: cocina.obligarOrdenAsignacion !== false,
-      solicitudOrdenFueraDeCola: cocina.solicitudOrdenFueraDeCola !== false
+      solicitudOrdenFueraDeCola: cocina.solicitudOrdenFueraDeCola !== false,
+      // PLAN GUARNICIONES_SEPARADAS v1.1.1
+      permitirGuarnicionesSeparadas: cocina.permitirGuarnicionesSeparadas !== false
     };
   } catch (e) {
-    return { obligarOrdenAsignacion: true, solicitudOrdenFueraDeCola: true };
+    return {
+      obligarOrdenAsignacion: true,
+      solicitudOrdenFueraDeCola: true,
+      permitirGuarnicionesSeparadas: true
+    };
   }
 }
 
@@ -627,6 +633,56 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
     } catch (errOrden) {
       logger.error('[FinalizarPlato] Error validando orden de cola', { error: errOrden.message });
       // Ante fallo de validación, no bloquear el flujo crítico (fail-open documentado)
+    }
+
+    // PLAN GUARNICIONES_SEPARADAS v1.1.1 §9.3.2: con flag ON, el principal no
+    // puede pasar a recoger mientras tenga guarniciones pendientes. El
+    // supervisor puede forzar (auto-cierra las guarniciones pendientes).
+    try {
+      const cfgCocinaGuarniciones = await leerConfigCocina();
+      if (cfgCocinaGuarniciones.permitirGuarnicionesSeparadas !== false) {
+        const comps = plato.complementosSeleccionados || [];
+        const pendientes = comps
+          .filter(c => c && !c.eliminado && c.estadoCocina !== 'recoger')
+          .map(c => ({
+            complementoId: c._id ? String(c._id) : null,
+            grupo: c.grupo,
+            opcion: Array.isArray(c.opcion) ? c.opcion.join(', ') : c.opcion,
+            estadoCocina: c.estadoCocina || 'pedido'
+          }));
+        if (pendientes.length > 0) {
+          const forzar = req.body.forzar === true;
+          const esSup = esSupervisorCocina(req.admin);
+          if (!forzar || !esSup) {
+            return res.status(409).json({
+              success: false,
+              error: 'FALTAN_GUARNICIONES',
+              message: `Falta(n) ${pendientes.length} guarnicion(es) por finalizar antes de cerrar el plato principal.`,
+              pendientes
+            });
+          }
+          // Supervisor forzó: auto-cerrar guarniciones pendientes (no quedan colgadas).
+          logger.info('[FinalizarPlato] Supervisor forzando cierre con guarniciones pendientes', {
+            comandaId, platoId, pendientes: pendientes.length
+          });
+          const autoAhora = moment().tz('America/Lima').toDate();
+          const autoSet = {};
+          comps.forEach((c, ci) => {
+            if (c && !c.eliminado && c.estadoCocina !== 'recoger') {
+              autoSet[`platos.${platoIndex}.complementosSeleccionados.${ci}.estadoCocina`] = 'recoger';
+              autoSet[`platos.${platoIndex}.complementosSeleccionados.${ci}.procesadoPor`] = {
+                ...(c.procesandoPor || {}),
+                timestamp: autoAhora
+              };
+            }
+          });
+          if (Object.keys(autoSet).length > 0) {
+            await Comanda.updateOne({ _id: comandaId }, { $set: autoSet });
+          }
+        }
+      }
+    } catch (errG) {
+      logger.warn('[FinalizarPlato] Validación de guarniciones falló (no crítico)', { error: errG.message });
     }
     
     // Obtener info del cocinero atribuido (el que tomó el plato)
@@ -1723,6 +1779,206 @@ router.put('/solicitudes-gestion/:id/rechazar', adminAuth, async (req, res) => {
     logger.error('[SolicitudesGestion] Error al rechazar', { error: error.message });
     res.status(500).json({ success: false, error: error.message });
   }
+});
+
+// ============================================================
+// PLAN GUARNICIONES_SEPARADAS v1.1 — Endpoints de guarniciones
+// ============================================================
+// Una guarnición es un subdoc complementosSeleccionados[] de un plato.
+// Estos endpoints aceptan `complementoId` (el _id del subdoc) y operan sobre
+// procesandoPor/estadoCocina del subdoc, NO del plato padre.
+// Reutilizan las mismas reglas de permisos (supervisor/admin puede forzar).
+
+/**
+ * Helper: localiza { comanda, platoIndex, compIndex, comp } por comandaId + platoId + complementoId.
+ */
+async function localizarGuarnicion(comandaId, platoId, complementoId) {
+    const comanda = await Comanda.findById(comandaId);
+    if (!comanda) return { error: 'Comanda no encontrada', status: 404 };
+    const platoIndex = findPlatoIndex(comanda.platos, platoId);
+    if (platoIndex === -1) return { error: 'Plato no encontrado', status: 404 };
+    const comps = comanda.platos[platoIndex].complementosSeleccionados || [];
+    const compIndex = comps.findIndex(c => c._id && c._id.toString() === String(complementoId));
+    if (compIndex === -1) return { error: 'Guarnición (complemento) no encontrada', status: 404 };
+    return { comanda, platoIndex, compIndex, comp: comps[compIndex] };
+}
+
+/**
+ * PUT /api/comanda/:id/plato/:platoId/guarnicion/:complementoId/procesando
+ * Un cocinero toma una guarnición para prepararla.
+ * Body: { cocineroId, forzar? }
+ */
+router.put('/comanda/:id/plato/:platoId/guarnicion/:complementoId/procesando', adminAuth, async (req, res) => {
+    try {
+        const { id: comandaId, platoId, complementoId } = req.params;
+        const { cocineroId, forzar = false } = req.body;
+        if (!cocineroId) return res.status(400).json({ success: false, error: 'cocineroId es requerido' });
+
+        const esSupervisor = esSupervisorCocina(req.admin);
+        if (req.admin.id !== cocineroId && !esSupervisor) {
+            return res.status(403).json({ success: false, error: 'No tiene permisos para realizar esta acción' });
+        }
+
+        const loc = await localizarGuarnicion(comandaId, platoId, complementoId);
+        if (loc.error) return res.status(loc.status).json({ success: false, error: loc.error });
+        const { comanda, platoIndex, compIndex, comp } = loc;
+
+        // §1 plan: la guarnición NO puede ir al cocinero del plato principal (auto).
+        // Pero el supervisor puede forzar override (operación manda).
+        const cocineroPadreId = comanda.platos[platoIndex].procesandoPor?.cocineroId;
+        if (cocineroPadreId && cocineroPadreId.toString() === cocineroId && !forzar) {
+            return res.status(409).json({
+                success: false,
+                error: 'La guarnición no puede ir al mismo cocinero del plato principal (use forzar con supervisor si es necesario)'
+            });
+        }
+
+        if (comp.procesandoPor?.cocineroId && comp.procesandoPor.cocineroId.toString() !== cocineroId) {
+            if (!forzar || !esSupervisor) {
+                return res.status(409).json({
+                    success: false,
+                    error: 'Esta guarnición ya está siendo procesada por otro cocinero',
+                    procesandoPor: comp.procesandoPor
+                });
+            }
+            logger.info('[TomarGuarnicion] Reasignación forzada por supervisor', {
+                comandaId, platoId, complementoId,
+                cocineroAnterior: comp.procesandoPor,
+                cocineroNuevo: cocineroId
+            });
+        }
+
+        const cocineroInfo = await getCocineroInfo(cocineroId);
+        await Comanda.updateOne(
+            { _id: comandaId },
+            {
+                $set: {
+                    [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.procesandoPor`]: {
+                        ...cocineroInfo,
+                        timestamp: moment().tz('America/Lima').toDate()
+                    },
+                    [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.asignacionMeta`]: {
+                        origen: esSupervisor && forzar ? 'supervisor' : 'manual',
+                        regla: 'guarnicion',
+                        batchId: comp.asignacionMeta?.batchId || null,
+                        timestamp: moment().tz('America/Lima').toDate()
+                    },
+                    [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.estadoCocina`]: 'en_espera',
+                    updatedAt: moment().tz('America/Lima').toDate(),
+                    updatedBy: cocineroId
+                }
+            }
+        );
+
+        // Socket: reutilizamos plato-procesando con complementoId para que el cliente parchee el subdoc.
+        if (global.emitPlatoProcesando) {
+            global.emitPlatoProcesando(comandaId, platoId, cocineroInfo, { complementoId, tipo: 'guarnicion' });
+        }
+        if (global.emitRendimientoCocineroActualizado) {
+            global.emitRendimientoCocineroActualizado({ tipo: 'guarnicion_tomada', cocineroId: cocineroId?.toString() });
+        }
+
+        logger.info('Guarnición tomada para procesamiento', { comandaId, platoId, complementoId, cocineroId });
+        res.json({
+            success: true,
+            message: 'Guarnición tomada para preparación',
+            data: { comandaId, platoId, complementoId, procesandoPor: cocineroInfo }
+        });
+    } catch (error) {
+        logger.error('Error al tomar guarnición', { error: error.message });
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * DELETE /api/comanda/:id/plato/:platoId/guarnicion/:complementoId/procesando
+ * Libera una guarnición tomada (sin finalizar).
+ */
+router.delete('/comanda/:id/plato/:platoId/guarnicion/:complementoId/procesando', adminAuth, async (req, res) => {
+    try {
+        const { id: comandaId, platoId, complementoId } = req.params;
+        const { cocineroId, motivo } = req.body;
+        if (!cocineroId) return res.status(400).json({ success: false, error: 'cocineroId es requerido' });
+
+        const loc = await localizarGuarnicion(comandaId, platoId, complementoId);
+        if (loc.error) return res.status(loc.status).json({ success: false, error: loc.error });
+        const { comanda, platoIndex, compIndex, comp } = loc;
+
+        const esSupervisor = esSupervisorCocina(req.admin);
+        if (comp.procesandoPor?.cocineroId && comp.procesandoPor.cocineroId.toString() !== cocineroId && !esSupervisor) {
+            return res.status(403).json({ success: false, error: 'Solo el cocinero titular o un supervisor puede liberar esta guarnición' });
+        }
+
+        await Comanda.updateOne(
+            { _id: comandaId },
+            {
+                $set: {
+                    [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.procesandoPor`]: {
+                        cocineroId: null, nombre: null, alias: null, timestamp: null
+                    },
+                    [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.estadoCocina`]: 'pedido',
+                    updatedAt: moment().tz('America/Lima').toDate()
+                }
+            }
+        );
+
+        if (global.emitPlatoLiberado) {
+            global.emitPlatoLiberado(comandaId, platoId, cocineroId, { complementoId, tipo: 'guarnicion' });
+        }
+        logger.info('Guarnición liberada', { comandaId, platoId, complementoId, cocineroId, motivo });
+        res.json({ success: true, message: 'Guarnición liberada' });
+    } catch (error) {
+        logger.error('Error al liberar guarnición', { error: error.message });
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * PUT /api/comanda/:id/plato/:platoId/guarnicion/:complementoId/finalizar
+ * Marca la guarnición como lista (estadoCocina: recoger) + procesadoPor.
+ * No mueve platos[].estado ni el flujo mozo.
+ */
+router.put('/comanda/:id/plato/:platoId/guarnicion/:complementoId/finalizar', adminAuth, async (req, res) => {
+    try {
+        const { id: comandaId, platoId, complementoId } = req.params;
+        const { cocineroId } = req.body;
+        if (!cocineroId) return res.status(400).json({ success: false, error: 'cocineroId es requerido' });
+
+        const loc = await localizarGuarnicion(comandaId, platoId, complementoId);
+        if (loc.error) return res.status(loc.status).json({ success: false, error: loc.error });
+        const { comanda, platoIndex, compIndex, comp } = loc;
+
+        const esSupervisor = esSupervisorCocina(req.admin);
+        if (comp.procesandoPor?.cocineroId && comp.procesandoPor.cocineroId.toString() !== cocineroId && !esSupervisor) {
+            return res.status(403).json({ success: false, error: 'Solo el cocinero titular o un supervisor puede finalizar esta guarnición' });
+        }
+
+        const cocineroInfo = await getCocineroInfo(cocineroId);
+        await Comanda.updateOne(
+            { _id: comandaId },
+            {
+                $set: {
+                    [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.estadoCocina`]: 'recoger',
+                    [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.procesadoPor`]: {
+                        ...cocineroInfo,
+                        timestamp: moment().tz('America/Lima').toDate()
+                    },
+                    updatedAt: moment().tz('America/Lima').toDate()
+                }
+            }
+        );
+
+        if (global.emitPlatoProcesando) {
+            global.emitPlatoProcesando(comandaId, platoId, cocineroInfo, {
+                complementoId, tipo: 'guarnicion', estadoCocina: 'recoger'
+            });
+        }
+        logger.info('Guarnición finalizada', { comandaId, platoId, complementoId, cocineroId });
+        res.json({ success: true, message: 'Guarnición lista (recoger)' });
+    } catch (error) {
+        logger.error('Error al finalizar guarnición', { error: error.message });
+        res.status(500).json({ success: false, error: error.message });
+    }
 });
 
 module.exports = router;

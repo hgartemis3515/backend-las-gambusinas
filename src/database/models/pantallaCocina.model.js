@@ -61,6 +61,14 @@ const pantallaCocinaSchema = new mongoose.Schema({
         default: null
     },
 
+    // PLAN GUARNICIONES_SEPARADAS v1.1 §11: si true, la ventana hija abre con
+    // ?listaGuarniciones=1 → Ver Cocina nace ya partida 50/50 (kiosk no tiene botón).
+    // Default false: el encargado elige en qué monitores activar el split.
+    listaGuarniciones: {
+        type: Boolean,
+        default: false
+    },
+
     activo: {
         type: Boolean,
         default: true

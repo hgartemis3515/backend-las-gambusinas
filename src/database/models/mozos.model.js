@@ -126,6 +126,14 @@ const mozosSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Zona'
     }],
+    // PLAN GUARNICIONES_SEPARADAS v1.1 §2: estaciones de cocina del cocinero.
+    // El motor de guarniciones prefiere asignar a un cocinero cuya estación
+    // coincida con la estación recomendada de la guarnición (fritura, plancha...).
+    estaciones: {
+        type: [String],
+        default: [],
+        // Valores sugeridos: 'fritura' | 'plancha' | 'parrilla' | 'frios' | 'postres' | 'guarniciones' | 'general'
+    },
     activo: { type: Boolean, default: true },
     enTurno: { type: Boolean, default: false },
     // Push notifications (App Mozos)

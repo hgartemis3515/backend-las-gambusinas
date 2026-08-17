@@ -271,6 +271,11 @@ async function actualizarDistribucionPantallas(items, actualizadoPor = null) {
                 set.perfilAuto = false;
                 set.perfilVerCocinaId = null;
             }
+            // PLAN GUARNICIONES_SEPARADAS v1.1 §11: flag por monitor para que la
+            // ventana hija abra con ?listaGuarniciones=1 (split 50/50 en kiosk).
+            if (typeof item.listaGuarniciones === 'boolean') {
+                set.listaGuarniciones = item.listaGuarniciones === true;
+            }
             return {
                 updateOne: {
                     filter: { _id: item.id },

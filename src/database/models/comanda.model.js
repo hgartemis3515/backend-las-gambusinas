@@ -64,7 +64,45 @@ const comandaSchema = new mongoose.Schema({
             cantidad: { type: Number, default: 1, min: 1 },  // Cantidad de esta opción (nuevo campo v2.0)
             // v3.0: precio unitario del extra al momento del pedido (snapshot).
             // 0 o ausente en comandas legacy → no suma.
-            precio: { type: Number, default: 0, min: 0 }
+            precio: { type: Number, default: 0, min: 0 },
+            // PLAN GUARNICIONES_SEPARADAS v1.1: la guarnición (complemento) es una
+            // unidad de trabajo de cocina independiente del plato padre. Estos campos
+            // viven en el subdoc; el plato padre sigue siendo fuente de verdad para
+            // mozos/caja (salio/entregado/pagado no cambian por esto).
+            // Cocinero que está preparando esta guarnición (no el del plato padre).
+            procesandoPor: {
+                cocineroId: { type: mongoose.Schema.Types.ObjectId, ref: 'mozos', default: null },
+                nombre: { type: String, default: null },
+                alias: { type: String, default: null },
+                timestamp: { type: Date, default: null }
+            },
+            // Cocinero que terminó la guarnición (para reportes/atribución).
+            procesadoPor: {
+                cocineroId: { type: mongoose.Schema.Types.ObjectId, ref: 'mozos', default: null },
+                nombre: { type: String, default: null },
+                alias: { type: String, default: null },
+                timestamp: { type: Date, default: null }
+            },
+            // Cómo se asignó la guarnición (auto/manual/supervisor/overflow/batch).
+            asignacionMeta: {
+                origen: { type: String, default: null, enum: ['auto', 'manual', 'supervisor', 'overflow', 'batch', null] },
+                regla: { type: String, default: null, enum: ['guarnicion', 'grupo', 'estacion', 'batch', null] },
+                // Si se asignó como parte de un lote, id estable del batch (para agrupar en KDS).
+                batchId: { type: String, default: null },
+                timestamp: { type: Date, default: null }
+            },
+            // Estado de cocina de la guarnición. NO mueve platos[].estado ni el flujo mozo.
+            // v1: solo pedido → en_espera → recoger. P2: cancelado / en_emplatado (no usados en v1).
+            estadoCocina: {
+                type: String,
+                default: 'pedido',
+                enum: ['pedido', 'en_espera', 'recoger']
+            },
+            // Snapshot de metadata de la regla de guarnición al momento del pedido
+            // (para que la tarjeta se pinte igual aunque luego se edite la regla).
+            criticaEmplatado: { type: Boolean, default: false },     // ¿debe llegar al pase con el principal?
+            estacionRecomendada: { type: String, default: null, trim: true }, // 'fritura' | 'plancha' | ...
+            tiempoMedioPreparacion: { type: Number, default: null, min: 0 }   // segundos
         }],
         // v3.0: Campos desnormalizados para cálculo rápido de totales y resumen de impresión.
         // Se rellenan al crear/editar comanda desde la configuración del plato.
@@ -240,6 +278,16 @@ const comandaSchema = new mongoose.Schema({
         }
     },
     observaciones: String,
+    // PLAN GUARNICIONES_SEPARADAS v1.1 §5: etiquetas operativas de prioridad.
+    // Aplican a la comanda entera; el motor de guarniciones y el de platos las leen
+    // para poner la unidad de trabajo al frente de la cola. No cambian estados.
+    etiquetasPrioridad: {
+        vip: { type: Boolean, default: false },           // mesa/comanda VIP
+        refire: { type: Boolean, default: false },        // reposición por plato mal hecho
+        tiempoLimitado: { type: Boolean, default: false }, // promo/cupón con tiempo
+        // Texto libre para mostrar en KDS (ej: "VIP - Mesa 5", "Re-fire Juan").
+        etiquetaTexto: { type: String, default: '', trim: true }
+    },
     status: {
         type: String,
         default: 'en_espera',

@@ -2129,6 +2129,10 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
 
   const emitProcesamientoToMesaMozos = async (eventName, comandaId, eventData) => {
     try {
+      // PLAN GUARNICIONES_SEPARADAS v1.1.1 §9.3.1: el mozo solo se entera del
+      // plato principal. Los eventos de guarnición (tipo='guarnicion') no se
+      // emiten al namespace /mozos ni a la room mesa-{id}.
+      if (eventData && eventData.tipo === 'guarnicion') return;
       if (!mozosNamespace?.sockets || !comandaId) return;
       const comanda = await comandaModel.findById(comandaId).select('mesas').lean();
       const mesaId = comanda?.mesas?._id || comanda?.mesas;
@@ -2146,7 +2150,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
    * @param {String} platoId - ID del plato
    * @param {Object} cocinero - Info del cocinero { cocineroId, nombre, alias }
    */
-  global.emitPlatoProcesando = async (comandaId, platoId, cocinero) => {
+  global.emitPlatoProcesando = async (comandaId, platoId, cocinero, opts = {}) => {
     try {
       const timestamp = moment().tz('America/Lima').toISOString();
       const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
@@ -2168,6 +2172,15 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         procesandoPor: cocinero,
         timestamp
       };
+
+      // PLAN GUARNICIONES_SEPARADAS v1.1: si el trabajo es una guarnición,
+      // incluir complementoId y tipo para que el cliente parchee el subdoc,
+      // no el procesandoPor del plato padre.
+      if (opts && opts.complementoId) {
+        eventData.complementoId = String(opts.complementoId);
+        eventData.tipo = opts.tipo || 'guarnicion';
+        if (opts.estadoCocina) eventData.estadoCocina = opts.estadoCocina;
+      }
 
       for (const roomName of rooms) {
         cocinaNamespace.to(roomName).emit('plato-procesando', eventData);
@@ -2206,7 +2219,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
   /**
    * Emitir evento cuando un cocinero libera un plato
    */
-  global.emitPlatoLiberado = async (comandaId, platoId, cocineroId) => {
+  global.emitPlatoLiberado = async (comandaId, platoId, cocineroId, opts = {}) => {
     try {
       const timestamp = moment().tz('America/Lima').toISOString();
       const fecha = moment().tz('America/Lima').format('YYYY-MM-DD');
@@ -2218,6 +2231,11 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         cocineroId: cocineroId?.toString(),
         timestamp
       };
+      // PLAN GUARNICIONES_SEPARADAS v1.1: liberación de guarnición.
+      if (opts && opts.complementoId) {
+        eventData.complementoId = String(opts.complementoId);
+        eventData.tipo = opts.tipo || 'guarnicion';
+      }
 
       cocinaNamespace.to(roomName).emit('plato-liberado', eventData);
       await emitProcesamientoToMesaMozos('plato-liberado', comandaId, eventData);

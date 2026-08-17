@@ -701,6 +701,50 @@ tailwind.config = {
               </label>
               <p class="text-[10px] text-txt-muted pl-7">Si está marcado, la tabla KDS (Vista General / Personalizada / Supervisor) muestra el alias corto cuando el plato lo tiene. Ver Cocina siempre usa el alias, aunque esta opción esté desmarcada. Platos sin alias siguen mostrando el nombre comercial. Recargue la app de cocina para aplicar el cambio.</p>
             </div>
+
+            <!-- PLAN GUARNICIONES_SEPARADAS v1.1: separar principal y guarniciones -->
+            <div class="border-t border-[rgba(212,175,55,0.15)] pt-4 mt-4 space-y-3">
+              <p class="text-xs text-gold font-semibold uppercase tracking-wide">Guarniciones</p>
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" x-model="config.cocinaPermitirGuarnicionesSeparadas" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+                <span class="text-sm text-txt-secondary">Permitir Guarniciones separados para cocineros</span>
+              </label>
+              <p class="text-[10px] text-txt-muted pl-7">
+                Si está marcado (recomendado), en el KDS el plato principal y cada complemento pedido se muestran en tarjetas distintas
+                para que otro cocinero prepare las guarniciones. Ver Cocina puede partir la pantalla en principales / guarniciones.
+                Si se desmarca, los extras vuelven a verse dentro del plato y no se auto-asignan guarniciones. Recargue la app de cocina.
+              </p>
+
+              <!-- Umbrales de tiempos por local (no hard-codeados) -->
+              <div x-show="config.cocinaPermitirGuarnicionesSeparadas" class="mt-3 p-3 rounded-lg border border-[rgba(212,175,55,0.15)] bg-bg-sidebar/40 space-y-3">
+                <p class="text-[11px] text-txt-secondary font-semibold">Umbrales de alertas de tiempo</p>
+                <div class="grid grid-cols-3 gap-3">
+                  <div>
+                    <label class="text-[10px] text-txt-muted block">Alerta (× tiempo medio)</label>
+                    <input type="number" step="0.1" min="1" x-model.number="config.cocinaTiemposGuarnicionUmbralAlerta" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+                  </div>
+                  <div>
+                    <label class="text-[10px] text-txt-muted block">Crítica (× tiempo medio)</label>
+                    <input type="number" step="0.1" min="1" x-model.number="config.cocinaTiemposGuarnicionUmbralCritica" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+                  </div>
+                  <div class="col-span-3 grid grid-cols-3 gap-2">
+                    <div>
+                      <label class="text-[10px] text-txt-muted block">Rápido (seg)</label>
+                      <input type="number" min="0" x-model.number="config.cocinaTiemposGuarnicionRapido" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+                    </div>
+                    <div>
+                      <label class="text-[10px] text-txt-muted block">Medio (seg)</label>
+                      <input type="number" min="0" x-model.number="config.cocinaTiemposGuarnicionMedio" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+                    </div>
+                    <div>
+                      <label class="text-[10px] text-txt-muted block">Lento (seg)</label>
+                      <input type="number" min="0" x-model.number="config.cocinaTiemposGuarnicionLento" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+                    </div>
+                  </div>
+                </div>
+                <p class="text-[10px] text-txt-muted">Si una guarnición supera el umbral × su tiempo medio configurado, la tarjeta se resalta y el motor la prioriza si hay cocineros libres.</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1705,10 +1749,25 @@ function configApp() {
             this.config.cocinaObligarOrdenAsignacion = cfg.cocina.obligarOrdenAsignacion !== false;
             this.config.cocinaSolicitudOrdenFueraDeCola = cfg.cocina.solicitudOrdenFueraDeCola !== false;
             this.config.cocinaUsarNombreCocinaEnTablaKds = cfg.cocina.usarNombreCocinaEnTablaKds !== false;
+            // PLAN GUARNICIONES_SEPARADAS v1.1: flag global + umbrales de tiempos.
+            this.config.cocinaPermitirGuarnicionesSeparadas = cfg.cocina.permitirGuarnicionesSeparadas !== false;
+            const tg = cfg.cocina.tiemposGuarnicion || {};
+            this.config.cocinaTiemposGuarnicionUmbralAlerta = Number(tg.umbralAlertaMultiplo) || 1.5;
+            this.config.cocinaTiemposGuarnicionUmbralCritica = Number(tg.umbralCriticaMultiplo) || 2;
+            const td = tg.tiemposDefault || {};
+            this.config.cocinaTiemposGuarnicionRapido = Number(td.rapido) || 180;
+            this.config.cocinaTiemposGuarnicionMedio = Number(td.medio) || 420;
+            this.config.cocinaTiemposGuarnicionLento = Number(td.lento) || 900;
           } else {
             this.config.cocinaObligarOrdenAsignacion = true;
             this.config.cocinaSolicitudOrdenFueraDeCola = true;
             this.config.cocinaUsarNombreCocinaEnTablaKds = true;
+            this.config.cocinaPermitirGuarnicionesSeparadas = true;
+            this.config.cocinaTiemposGuarnicionUmbralAlerta = 1.5;
+            this.config.cocinaTiemposGuarnicionUmbralCritica = 2;
+            this.config.cocinaTiemposGuarnicionRapido = 180;
+            this.config.cocinaTiemposGuarnicionMedio = 420;
+            this.config.cocinaTiemposGuarnicionLento = 900;
           }
 
           // Mapear zona horaria y otros
@@ -1864,7 +1923,18 @@ function configApp() {
           cocina: {
             obligarOrdenAsignacion: this.config.cocinaObligarOrdenAsignacion !== false,
             solicitudOrdenFueraDeCola: this.config.cocinaSolicitudOrdenFueraDeCola !== false,
-            usarNombreCocinaEnTablaKds: this.config.cocinaUsarNombreCocinaEnTablaKds !== false
+            usarNombreCocinaEnTablaKds: this.config.cocinaUsarNombreCocinaEnTablaKds !== false,
+            // PLAN GUARNICIONES_SEPARADAS v1.1
+            permitirGuarnicionesSeparadas: this.config.cocinaPermitirGuarnicionesSeparadas !== false,
+            tiemposGuarnicion: {
+              umbralAlertaMultiplo: Number(this.config.cocinaTiemposGuarnicionUmbralAlerta) || 1.5,
+              umbralCriticaMultiplo: Number(this.config.cocinaTiemposGuarnicionUmbralCritica) || 2,
+              tiemposDefault: {
+                rapido: Number(this.config.cocinaTiemposGuarnicionRapido) || 180,
+                medio: Number(this.config.cocinaTiemposGuarnicionMedio) || 420,
+                lento: Number(this.config.cocinaTiemposGuarnicionLento) || 900
+              }
+            }
           },
           
           // Seguridad

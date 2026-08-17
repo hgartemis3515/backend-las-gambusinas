@@ -107,6 +107,14 @@ tailwind.config = {
           class="w-2 h-2 rounded-full bg-st-libre animate-pulse"
           title="Activa"></span>
       </button>
+      <button @click="cambiarTab('asignacionGuarniciones')"
+        class="px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1"
+        :class="activeTab === 'asignacionGuarniciones' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
+        🥗 Asignación de guarniciones
+        <span x-show="asignacionGuarnicionesConfig?.habilitada"
+          class="w-2 h-2 rounded-full bg-st-libre animate-pulse"
+          title="Activa"></span>
+      </button>
       <button @click="cambiarTab('zonas')"
         class="px-4 py-2 rounded-lg text-sm font-medium transition"
         :class="activeTab === 'zonas' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
@@ -1255,6 +1263,93 @@ tailwind.config = {
             </button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- ==================== TAB: ASIGNACIÓN DE GUARNICIONES ==================== -->
+    <!-- PLAN GUARNICIONES_SEPARADAS v1.1 §5: pestaña clon de Asignación Automática.
+         Catálogo = complementos (platos.complementos + biblioteca ComplementoPlantilla).
+         Misma lógica de perfiles/calendario, pero con reglasPorGuarnicion. -->
+    <div x-show="activeTab === 'asignacionGuarniciones'" x-cloak class="space-y-4">
+
+      <!-- KPIs -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-[11px] text-txt-muted uppercase">Estado</p>
+              <p class="text-lg font-bold" :class="asignacionGuarnicionesConfig?.habilitada ? 'text-st-libre' : 'text-txt-muted'"
+                x-text="asignacionGuarnicionesConfig?.habilitada ? '● Activa' : '○ En pausa'"></p>
+            </div>
+            <span class="text-2xl" x-text="asignacionGuarnicionesConfig?.habilitada ? '🥗' : '⏸️'"></span>
+          </div>
+        </div>
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+          <p class="text-[11px] text-txt-muted uppercase">Perfiles</p>
+          <p class="text-lg font-bold text-white" x-text="asignacionGuarnicionesConfig?.perfiles?.length || 0"></p>
+        </div>
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+          <p class="text-[11px] text-txt-muted uppercase">Reglas de guarnición</p>
+          <p class="text-lg font-bold text-white" x-text="(asignacionGuarnicionesConfig?.perfiles || []).reduce((s,p) => s + (p.reglasPorGuarnicion?.length || 0), 0)"></p>
+        </div>
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+          <p class="text-[11px] text-txt-muted uppercase">Franjas en plantilla</p>
+          <p class="text-lg font-bold text-white" x-text="asignacionGuarnicionesConfig?.calendario?.bloques?.length || 0"></p>
+        </div>
+      </div>
+
+      <!-- Recordatorio -->
+      <div class="bg-bg-sidebar/50 border border-[rgba(212,175,55,0.15)] rounded-xl p-3 mb-4 flex items-center gap-3">
+        <span class="text-lg">💡</span>
+        <p class="text-xs text-txt-secondary">
+          <b class="text-gold">Asignación de guarniciones</b> = a qué cocinero se le asigna cada complemento (siempre un cocinero <b>distinto</b> al del plato principal).
+          Requiere que el flag global <code class="text-gold">permitirGuarnicionesSeparadas</code> esté activo en Configuración → Cocina.
+        </p>
+      </div>
+
+      <!-- Acciones -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <button @click="toggleAsignacionGuarniciones()"
+          class="px-4 py-2 rounded-lg text-sm font-semibold transition"
+          :class="asignacionGuarnicionesConfig?.habilitada ? 'bg-st-pagado text-white hover:brightness-110' : 'bg-st-libre text-bg-primary hover:brightness-110'">
+          <span x-text="asignacionGuarnicionesConfig?.habilitada ? '⏸️ Pausar' : '▶️ Activar'"></span>
+        </button>
+        <button @click="cargarAsignacionGuarniciones()" class="px-4 py-2 rounded-lg text-sm font-semibold bg-bg-sidebar text-txt-secondary hover:text-gold transition border border-[rgba(212,175,55,0.25)]">
+          ↻ Recargar
+        </button>
+        <a href="docs/PLAN_GUARNICIONES_SEPARADAS_COCINEROS.md" target="_blank" class="px-4 py-2 rounded-lg text-sm font-semibold text-gold hover:underline">
+          📖 Ver plan
+        </a>
+      </div>
+
+      <!-- Aviso si flag global OFF -->
+      <div x-show="!flagGuarnicionesGlobal" class="bg-st-pagado/10 border border-st-pagado/30 rounded-xl p-4 text-center">
+        <p class="text-st-pagado text-sm">
+          ⚠️ El flag global <b>Permitir Guarniciones separados para cocineros</b> está desactivado en Configuración → Cocina.
+          Aunque esta pestaña esté activa, el motor no asignará guarniciones hasta que se active ese flag.
+        </p>
+      </div>
+
+      <!-- Lista de perfiles (chips) -->
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-3">
+        <div class="flex items-center gap-2 flex-wrap">
+          <template x-for="p in (asignacionGuarnicionesConfig?.perfiles || [])" :key="p.id">
+            <div class="px-3 py-1.5 rounded-lg text-xs font-semibold border flex items-center gap-2"
+              :class="perfilGuarnicionesSeleccionadoId === p.id
+                ? 'bg-gold text-bg-primary border-gold'
+                : 'bg-bg-sidebar text-txt-secondary border-[rgba(212,175,55,0.25)]'">
+              <span class="w-2 h-2 rounded-full" :style="`background:${p.color || '#7CB342'}`" :class="p.activo ? '' : 'opacity-30'"></span>
+              <span x-text="p.nombre"></span>
+              <span x-show="!p.activo" class="text-[9px] opacity-60">(inactivo)</span>
+            </div>
+          </template>
+          <span x-show="(asignacionGuarnicionesConfig?.perfiles || []).length === 0" class="text-xs text-txt-muted">Sin perfiles todavía. Usa la API para crear el primero.</span>
+        </div>
+        <p class="text-[10px] text-txt-muted mt-2">
+          v1: la edición completa de reglas por guarnición se gestiona vía API <code>/api/asignacion-automatica-guarniciones</code>.
+          La UI completa (catálogo visual, drag-and-drop de cocineros, simulador) se entrega en P2.
+          Aquí se expone el estado y el toggle para que operación pueda activar/pausar sin tocar backend.
+        </p>
       </div>
     </div>
 
@@ -3670,7 +3765,14 @@ function cocinerosApp() {
     pageSizeOptions: [5, 10, 20],
 
     // Sistema de tabs
-    activeTab: 'cocineros', // 'cocineros', 'asignacion', 'zonas', 'vistas', 'rendimiento'
+    activeTab: 'cocineros', // 'cocineros', 'asignacion', 'asignacionGuarniciones', 'zonas', 'vistas', 'rendimiento'
+
+    // ==================== ASIGNACIÓN DE GUARNICIONES (estado) ====================
+    // PLAN GUARNICIONES_SEPARADAS v1.1 §5
+    asignacionGuarnicionesConfig: null,
+    asignacionGuarnicionesCargada: false,
+    perfilGuarnicionesSeleccionadoId: null,
+    flagGuarnicionesGlobal: true,  // mirror de configuracion.cocina.permitirGuarnicionesSeparadas
 
     // ==================== ASIGNACIÓN AUTOMÁTICA (estado) ====================
     // v2: perfiles + calendario semanal. Sub-tabs dentro del tab 'asignacion'.
@@ -5478,6 +5580,9 @@ function cocinerosApp() {
       if (tab === 'asignacion' && !this.asignacionCargada) {
         this.cargarAsignacion();
       }
+      if (tab === 'asignacionGuarniciones' && !this.asignacionGuarnicionesCargada) {
+        this.cargarAsignacionGuarniciones();
+      }
       if (tab === 'zonas' && this.zonas.length === 0) {
         this.cargarZonas();
       }
@@ -5514,6 +5619,48 @@ function cocinerosApp() {
         if (window.GambusinasNotifications) window.GambusinasNotifications.networkError(error);
       }
       this.loadingPlatosAsignacion = false;
+    },
+
+    // ==================== ASIGNACIÓN DE GUARNICIONES ====================
+    // PLAN GUARNICIONES_SEPARADAS v1.1 §5
+    async cargarAsignacionGuarniciones() {
+      try {
+        const [cfgG, cfgSistema] = await Promise.all([
+          apiGet('/asignacion-automatica-guarniciones'),
+          apiGet('/configuracion')
+        ]);
+        if (cfgG && cfgG.success !== false) {
+          this.asignacionGuarnicionesConfig = cfgG.data || cfgG;
+        }
+        // Mirror del flag global
+        const cocina = cfgSistema?.configuracion?.cocina || {};
+        this.flagGuarnicionesGlobal = cocina.permitirGuarnicionesSeparadas !== false;
+        // Seleccionar primer perfil activo por defecto
+        if (!this.perfilGuarnicionesSeleccionadoId && this.asignacionGuarnicionesConfig?.perfiles?.length) {
+          const activo = this.asignacionGuarnicionesConfig.perfiles.find(p => p.activo);
+          this.perfilGuarnicionesSeleccionadoId = (activo || this.asignacionGuarnicionesConfig.perfiles[0]).id;
+        }
+        this.asignacionGuarnicionesCargada = true;
+      } catch (e) {
+        console.error('Error al cargar asignación de guarniciones:', e);
+        if (window.GambusinasNotifications) window.GambusinasNotifications.networkError(e);
+      }
+    },
+
+    async toggleAsignacionGuarniciones() {
+      const nuevoValor = !this.asignacionGuarnicionesConfig?.habilitada;
+      try {
+        const res = await apiPost('/asignacion-automatica-guarniciones/toggle', { habilitada: nuevoValor });
+        if (res && res.success !== false) {
+          this.asignacionGuarnicionesConfig = res.data || this.asignacionGuarnicionesConfig;
+          if (window.GambusinasNotifications) {
+            window.GambusinasNotifications.toast(nuevoValor ? 'Asignación de guarniciones activada' : 'Asignación de guarniciones pausada', 'success');
+          }
+        }
+      } catch (e) {
+        console.error('Error al toggle asignación de guarniciones:', e);
+        if (window.GambusinasNotifications) window.GambusinasNotifications.networkError(e);
+      }
     },
 
     async cargarConfigAsignacion() {

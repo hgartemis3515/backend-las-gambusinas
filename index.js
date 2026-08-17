@@ -57,6 +57,7 @@ const aprobacionRoutes = require('./src/controllers/aprobacionController')
 const vistaCocinaRoutes = require('./src/controllers/vistaCocinaController')
 // ASIGNACIÓN AUTOMÁTICA DE PLATOS: Controller para config global + reglas
 const asignacionAutomaticaRoutes = require('./src/controllers/asignacionAutomaticaController')
+const asignacionAutomaticaGuarnicionesRoutes = require('./src/controllers/asignacionAutomaticaGuarnicionesController')
 const { adminAuth } = require('./src/middleware/adminAuth')
 
 const app = express();
@@ -254,6 +255,7 @@ app.use('/api', pagoAdelantadoRoutes);
 app.use('/api', aprobacionRoutes);
 app.use('/api', vistaCocinaRoutes);
 app.use('/api', asignacionAutomaticaRoutes);
+app.use('/api', asignacionAutomaticaGuarnicionesRoutes);
 
 // Proxy al Gambusinas Monitor Hub (Electron en la PC de monitores, PC independiente).
 // La App Cocina POSTea a /api/hub/import (con auth) y el backend emite el layout

@@ -580,6 +580,33 @@ router.post('/comanda', async (req, res) => {
                     if (resultado.asignados > 0 && global.emitRendimientoCocineroActualizado) {
                         global.emitRendimientoCocineroActualizado({ tipo: 'comanda_creada', comandaId: comandaCreadaId?.toString() });
                     }
+
+                    // PLAN GUARNICIONES_SEPARADAS v1.1: tras asignar platos principales,
+                    // asignar guarniciones (complementos) a otros cocineros. No bloqueante.
+                    try {
+                        const asignacionGuarnicionesService = require('../services/asignacionAutomaticaGuarnicionesService');
+                        // Recargar la comanda para ver los procesandoPor recién escritos por el motor de platos.
+                        const comandaPostPlatos = await Comanda.findById(comandaCreadaId)
+                            .populate('platos.plato', 'id categoria tipo tipos nombre codigo')
+                            .lean();
+                        if (comandaPostPlatos) {
+                            const resG = await asignacionGuarnicionesService.asignarGuarnicionesNuevas(comandaPostPlatos);
+                            logger.info('Auto-asignación guarniciones post-create', {
+                                comandaId: comandaCreadaId?.toString(),
+                                comandaNumber: comandaCreadaNum,
+                                asignados: resG.asignados,
+                                noAsignados: resG.noAsignados,
+                                motivo: resG.motivo || null
+                            });
+                            if (resG.asignados > 0 && global.emitRendimientoCocineroActualizado) {
+                                global.emitRendimientoCocineroActualizado({ tipo: 'guarniciones_asignadas', comandaId: comandaCreadaId?.toString() });
+                            }
+                        }
+                    } catch (eG) {
+                        logger.warn('Auto-asignación de guarniciones post-create falló (no crítico)', {
+                            comandaId: comandaCreadaId, error: eG.message
+                        });
+                    }
                 } catch (e) {
                     logger.warn('Auto-asignación post-create falló (no crítico)', {
                         comandaId: comandaCreadaId,
@@ -851,6 +878,23 @@ router.post('/comanda/desde-dashboard', adminAuth, checkPermission('crear-comand
                     });
                     if (resultado.asignados > 0 && global.emitRendimientoCocineroActualizado) {
                         global.emitRendimientoCocineroActualizado({ tipo: 'comanda_creada', comandaId: comandaCreadaId?.toString() });
+                    }
+
+                    // PLAN GUARNICIONES_SEPARADAS v1.1: motor de guarniciones (dashboard path).
+                    try {
+                        const asignacionGuarnicionesService = require('../services/asignacionAutomaticaGuarnicionesService');
+                        const comandaPostPlatos = await Comanda.findById(comandaCreadaId)
+                            .populate('platos.plato', 'id categoria tipo tipos nombre codigo')
+                            .lean();
+                        if (comandaPostPlatos) {
+                            const resG = await asignacionGuarnicionesService.asignarGuarnicionesNuevas(comandaPostPlatos);
+                            logger.info('Auto-asignación guarniciones post-create (dashboard)', {
+                                comandaId: comandaCreadaId?.toString(),
+                                asignados: resG.asignados, noAsignados: resG.noAsignados
+                            });
+                        }
+                    } catch (eG) {
+                        logger.warn('Auto-asignación guarniciones (dashboard) falló (no crítico)', { error: eG.message });
                     }
                 } catch (e) {
                     logger.warn('Auto-asignación post-create (dashboard) falló (no crítico)', { error: e.message });
@@ -2258,6 +2302,64 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
                     });
                 }
                 console.info(`👨‍🍳 [PUT /plato/:platoId/estado] Supervisor finalizando plato de otro cocinero. Tomado por ${cocineroQueTomo}, finaliza ${cocineroQueFinaliza}`);
+            }
+        }
+
+        // PLAN GUARNICIONES_SEPARADAS v1.1.1 §9.3.2: con flag ON, el principal
+        // no pasa a recoger mientras tenga guarniciones pendientes. Supervisor
+        // puede forzar (auto-cierra las guarniciones pendientes).
+        if (nuevoEstado === 'recoger') {
+            try {
+                const Comanda = mongoose.model('Comanda');
+                const ConfiguracionSistema = mongoose.model('ConfiguracionSistema') || require('../database/models/configuracionSistema.model');
+                const cfg = await ConfiguracionSistema.findById('configuracion_unica').lean();
+                const permitirGuarniciones = cfg?.cocina?.permitirGuarnicionesSeparadas !== false;
+                if (permitirGuarniciones) {
+                    const comps = platoAntes.complementosSeleccionados || [];
+                    const pendientes = comps
+                        .filter(c => c && !c.eliminado && c.estadoCocina !== 'recoger')
+                        .map(c => ({
+                            complementoId: c._id ? String(c._id) : null,
+                            grupo: c.grupo,
+                            opcion: Array.isArray(c.opcion) ? c.opcion.join(', ') : c.opcion,
+                            estadoCocina: c.estadoCocina || 'pedido'
+                        }));
+                    if (pendientes.length > 0) {
+                        const forzar = req.body.forzar === true;
+                        const esSup = esSupervisorCocinaDesdeToken(req);
+                        if (!forzar || !esSup) {
+                            return res.status(409).json({
+                                success: false,
+                                error: 'FALTAN_GUARNICIONES',
+                                message: `Falta(n) ${pendientes.length} guarnicion(es) por finalizar antes de cerrar el plato principal.`,
+                                pendientes
+                            });
+                        }
+                        // Supervisor forzó: auto-cerrar guarniciones pendientes.
+                        const autoAhora = new Date();
+                        const platoIdx = comandaAntes.platos.findIndex(p => {
+                            const pId = p._id?.toString() || p.plato?._id?.toString();
+                            return pId === platoId;
+                        });
+                        if (platoIdx >= 0) {
+                            const autoSet = {};
+                            comps.forEach((c, ci) => {
+                                if (c && !c.eliminado && c.estadoCocina !== 'recoger') {
+                                    autoSet[`platos.${platoIdx}.complementosSeleccionados.${ci}.estadoCocina`] = 'recoger';
+                                    autoSet[`platos.${platoIdx}.complementosSeleccionados.${ci}.procesadoPor`] = {
+                                        ...(c.procesandoPor || {}),
+                                        timestamp: autoAhora
+                                    };
+                                }
+                            });
+                            if (Object.keys(autoSet).length > 0) {
+                                await Comanda.updateOne({ _id: id }, { $set: autoSet });
+                            }
+                        }
+                    }
+                }
+            } catch (errG) {
+                console.warn('[PUT /plato/:platoId/estado] Validación de guarniciones falló (no crítico)', errG.message);
             }
         }
 

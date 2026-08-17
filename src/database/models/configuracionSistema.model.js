@@ -132,7 +132,14 @@ const CONFIGURACION_DEFAULT = {
         // Escape hatch: si false, la tabla KDS ignora el alias corto del plato
         // y muestra el nombre comercial, sin borrar los alias del catálogo.
         // Ver Cocina siempre usa el alias si existe, sin importar este flag.
-        usarNombreCocinaEnTablaKds: true
+        usarNombreCocinaEnTablaKds: true,
+        // PLAN GUARNICIONES_SEPARADAS v1.1: separar principal y guarniciones en cocina.
+        permitirGuarnicionesSeparadas: true,
+        tiemposGuarnicion: {
+            umbralAlertaMultiplo: 1.5,
+            umbralCriticaMultiplo: 2,
+            tiemposDefault: { rapido: 180, medio: 420, lento: 900 }
+        }
     },
 
     // Seguridad
@@ -496,6 +503,24 @@ const configuracionSistemaSchema = new mongoose.Schema({
         usarNombreCocinaEnTablaKds: {
             type: Boolean,
             default: CONFIGURACION_DEFAULT.cocina.usarNombreCocinaEnTablaKds
+        },
+        // PLAN GUARNICIONES_SEPARADAS v1.1: separar principal y guarniciones en cocina.
+        // Default ON (lectura !== false). Si OFF, no hay split, no hay motor de guarniciones.
+        permitirGuarnicionesSeparadas: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.cocina.permitirGuarnicionesSeparadas
+        },
+        // Umbrales de tiempos por local (no hard-codeados). Si una guarnición supera
+        // umbralAlertaSeg × tiempoMedioPreparacion → alerta visual en KDS.
+        tiemposGuarnicion: {
+            umbralAlertaMultiplo: { type: Number, default: 1.5, min: 1 },   // 1.5× el tiempo medio
+            umbralCriticaMultiplo: { type: Number, default: 2, min: 1 },   // 2× → borde rojo + prioridad
+            // Tiempos default por categoría de guarnición (segundos). Override por guarnicionKey.
+            tiemposDefault: {
+                rapido: { type: Number, default: 180 },    // papas, ensalada simple
+                medio: { type: Number, default: 420 },    // arroz, vegetales salteados
+                lento: { type: Number, default: 900 }      // puré, postres elaborados
+            }
         }
     },
 
