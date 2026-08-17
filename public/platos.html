@@ -45,6 +45,7 @@ tailwind.config = {
       <h1 class="text-xl font-bold">Carta y Platos</h1>
       <div class="flex gap-2">
         <button @click="loadPlatos()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
+        <button @click="imprimirPlatosPDF()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition" title="Imprimir lista de platos en una sola hoja A4">🖨️ Imprimir PDF</button>
         <button @click="openModalComplementosGestion()" class="px-4 py-2 border border-gold/50 rounded-lg text-sm text-gold hover:bg-gold-20 transition">📚 Gestionar Complementos</button>
         <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold" @click="openCreateModal()">+ Nuevo Plato</button>
       </div>
@@ -668,7 +669,10 @@ tailwind.config = {
       tipos: [],
       descripcion: '',
       disponible: true,
-      complementos: []
+      complementos: [],
+      complementosAfectanPrecio: true,
+      mostrarTotalComplementosImpresion: false,
+      resumenComplementosImpresion: { mostrarCantidad: true, mostrarMontoExtra: true }
     },
     activeNav: 'platos',
     pageTitle: 'Platos',
@@ -1423,6 +1427,151 @@ tailwind.config = {
       } else {
         this.showToast('Error al eliminar', 'error');
       }
+    },
+
+    // ============ IMPRESIÓN PDF (una sola hoja A4) ============
+
+    imprimirPlatosPDF() {
+      const platos = this.filteredPlatos && this.filteredPlatos.length ? this.filteredPlatos : this.platos;
+      if (!platos.length) {
+        this.showToast('No hay platos para imprimir', 'error');
+        return;
+      }
+
+      const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+
+      const fmtPrecio = (p) => {
+        const n = Number(p);
+        return Number.isFinite(n) ? 'S/. ' + n.toFixed(2) : 'S/. 0.00';
+      };
+
+      const fmtStock = (s) => {
+        const n = Number(s || 0);
+        return n > 0 ? String(n) : '0';
+      };
+
+      const renderComplementos = (p) => {
+        const comp = p.complementos || [];
+        if (!comp.length) return '<span class="none">—</span>';
+        return comp.map(g => {
+          const nombre = escapeHtml(g.grupo || 'Grupo');
+          const opciones = (g.opciones || []).map(o => {
+            const nombre = typeof o === 'object' ? (o.nombre || '') : String(o);
+            const precio = typeof o === 'object' ? Number(o.precio || 0) : 0;
+            let label = escapeHtml(nombre);
+            if (precio > 0) label += ` (+S/. ${precio.toFixed(2)})`;
+            return `<span class="opt">${label}</span>`;
+          }).join('');
+          return `<div class="comp"><span class="comp-name">${nombre}</span>${opciones}</div>`;
+        }).join('');
+      };
+
+      const filas = platos.map((p, i) => {
+        const nombreCocina = p.nombreCocina ? `<div class="ncocina">Cocina: ${escapeHtml(p.nombreCocina)}</div>` : '';
+        const descripcion = p.descripcion ? `<div class="desc">${escapeHtml(p.descripcion)}</div>` : '';
+        return `<tr>
+          <td class="num">${i + 1}</td>
+          <td class="nombre">
+            <div class="pname">${escapeHtml(p.nombre)}</div>
+            ${nombreCocina}
+            ${descripcion}
+          </td>
+          <td class="codigo">${escapeHtml(p.codigo || '—')}</td>
+          <td class="precio">${fmtPrecio(p.precio)}</td>
+          <td class="stock">${fmtStock(p.stock)}</td>
+          <td class="comp-cell">${renderComplementos(p)}</td>
+        </tr>`;
+      }).join('');
+
+      const fecha = new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' });
+      const total = platos.length;
+
+      const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Lista de Platos — Las Gambusinas</title>
+<style>
+  @page { size: A4 portrait; margin: 6mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: 'Inter', 'Segoe UI', Arial, sans-serif; color: #111; font-size: 8.5px; line-height: 1.15; }
+  .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #d4af37; padding-bottom: 4px; margin-bottom: 5px; }
+  .header h1 { font-size: 14px; margin: 0; color: #d4af37; letter-spacing: 0.5px; }
+  .header .meta { font-size: 8px; color: #555; text-align: right; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  thead th { background: #1a1a28; color: #fff; font-size: 8px; text-transform: uppercase; padding: 4px 5px; text-align: left; border: 1px solid #1a1a28; }
+  tbody td { padding: 3px 5px; border: 1px solid #ddd; vertical-align: top; word-wrap: break-word; }
+  tbody tr:nth-child(even) { background: #faf8f0; }
+  .num { width: 22px; text-align: center; color: #666; font-size: 8px; }
+  .nombre { width: 32%; }
+  .codigo { width: 38px; text-align: center; font-family: 'Consolas', monospace; font-weight: 700; color: #b8860b; font-size: 9px; }
+  .precio { width: 52px; text-align: right; font-weight: 600; color: #b8860b; white-space: nowrap; }
+  .stock { width: 32px; text-align: center; font-weight: 600; }
+  .comp-cell { width: 30%; }
+  .pname { font-weight: 600; font-size: 9px; }
+  .ncocina { font-size: 7.5px; color: #b8860b; font-style: italic; margin-top: 1px; }
+  .desc { font-size: 7.5px; color: #444; margin-top: 1px; }
+  .comp { margin-bottom: 2px; }
+  .comp-name { font-weight: 600; font-size: 7.5px; color: #333; }
+  .opt { display: inline-block; font-size: 7px; color: #555; background: #f0f0f0; padding: 0 4px; margin: 1px 2px 1px 0; border-radius: 2px; border: 1px solid #ddd; }
+  .none { color: #aaa; font-size: 8px; }
+  .footer { margin-top: 5px; padding-top: 3px; border-top: 1px solid #ccc; font-size: 7.5px; color: #666; display: flex; justify-content: space-between; }
+  @media print {
+    .no-print { display: none; }
+    body { font-size: 8.5px; }
+  }
+  .toolbar { margin-bottom: 6px; text-align: right; }
+  .toolbar button { font-size: 10px; padding: 4px 10px; background: #d4af37; color: #0a0a0f; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; }
+  .toolbar button:hover { filter: brightness(1.1); }
+</style>
+</head>
+<body>
+  <div class="toolbar no-print">
+    <button onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+  </div>
+  <div class="header">
+    <h1>🍽️ Las Gambusinas — Carta de Platos</h1>
+    <div class="meta">
+      Generado: ${escapeHtml(fecha)}<br>
+      Total: ${total} plato(s)
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Nombre / Cocina / Descripción</th>
+        <th>Código</th>
+        <th>Precio</th>
+        <th>Stock</th>
+        <th>Complementos</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${filas}
+    </tbody>
+  </table>
+  <div class="footer">
+    <span>Las Gambusinas · Carta y Platos</span>
+    <span>Página 1 de 1</span>
+  </div>
+  <script>
+    window.onload = function() { setTimeout(function() { window.print(); }, 250); };
+  <\/script>
+</body>
+</html>`;
+
+      const w = window.open('', '_blank', 'width=900,height=700');
+      if (!w) {
+        this.showToast('Bloqueado: permite pop-ups para imprimir', 'error');
+        return;
+      }
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
     },
 
     showToast(msg, type = 'success') {
