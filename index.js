@@ -107,10 +107,37 @@ const getAllowedOrigins = () => {
 const allowedOrigins = getAllowedOrigins();
 logger.info('Orígenes CORS permitidos:', { origins: allowedOrigins });
 
-// Configurar Socket.io con CORS
+const isPrivateLanHost = (hostname) => {
+  if (!hostname) return false;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+  if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
+  if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
+  if (/^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
+  return false;
+};
+
+/** Express y Socket.io: sin Origin (app nativa) + lista + Expo Metro / LAN. */
+const isCorsOriginAllowed = (origin) => {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  try {
+    const { hostname } = new URL(origin);
+    return isPrivateLanHost(hostname);
+  } catch {
+    return false;
+  }
+};
+
+// Configurar Socket.io con CORS (misma política que Express: apps nativas / Expo Go)
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins, // Removido wildcard '*'
+    origin: (origin, callback) => {
+      if (isCorsOriginAllowed(origin)) {
+        return callback(null, true);
+      }
+      logger.warn('Socket CORS bloqueado para origin:', { origin });
+      return callback(null, false);
+    },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     credentials: true
   },
@@ -142,13 +169,11 @@ app.use(cors({
     if (!origin) {
       return callback(null, true);
     }
-    
-    // Verificar si el origin está en la lista permitida
-    if (allowedOrigins.includes(origin)) {
+
+    if (isCorsOriginAllowed(origin)) {
       callback(null, true);
     } else {
       logger.warn('CORS bloqueado para origin:', { origin, allowedOrigins });
-      // No lanzar Error: Express devolvería HTML 500 en lugar de JSON
       callback(null, false);
     }
   },
