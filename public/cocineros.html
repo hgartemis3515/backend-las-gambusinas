@@ -7066,12 +7066,41 @@ function cocinerosApp() {
             cocineroNombre: p.procesandoPor?.nombre || p.procesadoPor?.nombre || '—',
             cocineroAlias: p.procesandoPor?.alias || p.procesadoPor?.alias || null
           }));
+        // PLAN GUARNICIONES_SEPARADAS: las guarniciones (complementos) son
+        // unidades de trabajo independientes con su propio cronómetro
+        // (procesandoPor.timestamp → procesadoPor.timestamp). Las exponemos
+        // como filas propias para que el cronometrado se registre por cocinero.
+        const guarniciones = [];
+        for (const p of (data.platos || [])) {
+          if (!p || p.eliminado || p.anulado) continue;
+          const comps = p.complementosSeleccionados || [];
+          for (const comp of comps) {
+            if (!comp || comp.eliminado) continue;
+            const pp = comp.procesandoPor || {};
+            const pd = comp.procesadoPor || {};
+            if (!pp.cocineroId && !pd.cocineroId) continue;
+            const opcionTxt = Array.isArray(comp.opcion) ? comp.opcion.join(', ') : (comp.opcion || '');
+            const nombreG = (comp.grupo ? comp.grupo + ': ' : '') + (opcionTxt || 'Guarnición');
+            const esLista = comp.estadoCocina === 'recoger';
+            guarniciones.push({
+              esGuarnicion: true,
+              nombre: '🥗 ' + nombreG,
+              notaEspecial: null,
+              cantidad: comp.cantidad || 1,
+              estado: comp.estadoCocina || 'pedido',
+              cocineroNombre: pp.nombre || pd.nombre || '—',
+              cocineroAlias: pp.alias || pd.alias || null,
+              tomadoEn: pp.timestamp || null,
+              listoEn: esLista ? (pd.timestamp || null) : null
+            });
+          }
+        }
         this.selectedComandaCocina = {
           ...data,
           _id: data._id || data.id,
           numComanda: data.numComanda || data.comandaNumber || String(data._id || '').slice(-4),
           mesaNum: data.mesa?.nummesa || data.mesaNumero || data.mesas?.nummesa || null,
-          items: platos
+          items: [...platos, ...guarniciones]
         };
       } catch (e) {
         console.error('Error cargando comanda cocina:', e);

@@ -257,7 +257,7 @@ async function filtrarCandidatoGuarnicion(
  * Escribe procesandoPor + asignacionMeta en el subdoc del complemento.
  * Condicional: solo si NO tiene ya procesandoPor (evita pisar toma manual).
  */
-async function asignarGuarnicionInterna(comandaId, platoIndex, compIndex, cocineroId, metaOrigen, metaRegla, batchId) {
+async function asignarGuarnicionInterna(comandaId, platoIndex, compIndex, cocineroId, metaOrigen, metaRegla, batchId, ids = {}) {
     const mo = await Mozos.findById(cocineroId).select('name aliasCocinero');
     if (!mo) return false;
     const cocineroInfo = {
@@ -284,7 +284,22 @@ async function asignarGuarnicionInterna(comandaId, platoIndex, compIndex, cocine
         },
         { $set: set }
     );
-    return (res.modifiedCount || res.nModified || 0) > 0;
+    const ok = (res.modifiedCount || res.nModified || 0) > 0;
+    if (ok && global.emitPlatoProcesando && ids.platoId && ids.complementoId) {
+        try {
+            await global.emitPlatoProcesando(
+                String(comandaId),
+                String(ids.platoId),
+                cocineroInfo,
+                { complementoId: String(ids.complementoId), tipo: 'guarnicion', estadoCocina: 'en_espera' }
+            );
+        } catch (e) {
+            logger.warn('Socket emit falló en auto-asignación guarnición', {
+                comandaId: String(comandaId), error: e.message
+            });
+        }
+    }
+    return ok;
 }
 
 // ---------------------------- API pública ----------------------------
@@ -386,7 +401,8 @@ async function asignarGuarnicionesNuevas(comandaPop) {
 
                 const ok = await asignarGuarnicionInterna(
                     comandaPop._id, pi, ci, elegido.cocineroId,
-                    'auto', encontrada.tipo, batchId
+                    'auto', encontrada.tipo, batchId,
+                    { platoId: plato._id, complementoId: comp._id }
                 );
                 if (ok) {
                     asignados++;

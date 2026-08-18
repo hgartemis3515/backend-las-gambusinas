@@ -1798,7 +1798,12 @@ async function localizarGuarnicion(comandaId, platoId, complementoId) {
     const platoIndex = findPlatoIndex(comanda.platos, platoId);
     if (platoIndex === -1) return { error: 'Plato no encontrado', status: 404 };
     const comps = comanda.platos[platoIndex].complementosSeleccionados || [];
-    const compIndex = comps.findIndex(c => c._id && c._id.toString() === String(complementoId));
+    let compIndex = comps.findIndex(c => c._id && c._id.toString() === String(complementoId));
+    // Fallback: idx:N generado en el KDS cuando el subdoc no trae _id.
+    if (compIndex === -1 && typeof complementoId === 'string' && complementoId.startsWith('idx:')) {
+        const n = parseInt(complementoId.slice(4), 10);
+        if (!Number.isNaN(n) && n >= 0 && n < comps.length) compIndex = n;
+    }
     if (compIndex === -1) return { error: 'Guarnición (complemento) no encontrada', status: 404 };
     return { comanda, platoIndex, compIndex, comp: comps[compIndex] };
 }
@@ -1954,6 +1959,8 @@ router.put('/comanda/:id/plato/:platoId/guarnicion/:complementoId/finalizar', ad
         }
 
         const cocineroInfo = await getCocineroInfo(cocineroId);
+        const ahora = moment().tz('America/Lima').toDate();
+        const tomadoEn = comp.procesandoPor?.timestamp || ahora;
         await Comanda.updateOne(
             { _id: comandaId },
             {
@@ -1961,9 +1968,16 @@ router.put('/comanda/:id/plato/:platoId/guarnicion/:complementoId/finalizar', ad
                     [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.estadoCocina`]: 'recoger',
                     [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.procesadoPor`]: {
                         ...cocineroInfo,
-                        timestamp: moment().tz('America/Lima').toDate()
+                        timestamp: ahora,
+                        tomadoEn
                     },
-                    updatedAt: moment().tz('America/Lima').toDate()
+                    [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.procesandoPor`]: {
+                        cocineroId: null,
+                        nombre: null,
+                        alias: null,
+                        timestamp: null
+                    },
+                    updatedAt: ahora
                 }
             }
         );
@@ -1972,6 +1986,9 @@ router.put('/comanda/:id/plato/:platoId/guarnicion/:complementoId/finalizar', ad
             global.emitPlatoProcesando(comandaId, platoId, cocineroInfo, {
                 complementoId, tipo: 'guarnicion', estadoCocina: 'recoger'
             });
+        }
+        if (global.emitRendimientoCocineroActualizado) {
+            global.emitRendimientoCocineroActualizado({ tipo: 'guarnicion_finalizada', cocineroId: cocineroId?.toString() });
         }
         logger.info('Guarnición finalizada', { comandaId, platoId, complementoId, cocineroId });
         res.json({ success: true, message: 'Guarnición lista (recoger)' });

@@ -73,6 +73,32 @@ function listoEnPlato(p) {
     return p.tiempos?.salio || p.tiempos?.entregado || p.tiempos?.pagado || p.procesadoPor?.timestamp || null;
 }
 
+function flattenGuarnicionesComoUnidades(platos) {
+    const rows = [];
+    for (const p of platos || []) {
+        if (!p || p.eliminado || p.anulado) continue;
+        const comps = p.complementosSeleccionados || [];
+        for (const c of comps) {
+            if (!c || c.eliminado) continue;
+            if (!c.procesandoPor?.cocineroId && !c.procesadoPor?.cocineroId) continue;
+            const opcion = Array.isArray(c.opcion) ? c.opcion.join(', ') : (c.opcion || 'Guarnición');
+            const nombrePadre = p.platoNombre || p.nombre || p.plato?.nombre || 'Plato';
+            const listo = c.estadoCocina === 'recoger' || !!c.procesadoPor?.timestamp;
+            rows.push({
+                esGuarnicion: true,
+                nombre: `🥗 ${opcion} (${nombrePadre})`,
+                platoNombre: `🥗 ${opcion} (${nombrePadre})`,
+                estado: c.estadoCocina || 'pedido',
+                cantidad: c.cantidad || 1,
+                procesandoPor: c.procesandoPor,
+                procesadoPor: c.procesadoPor,
+                tiempos: { recoger: listo ? (c.procesadoPor?.timestamp || null) : null }
+            });
+        }
+    }
+    return rows;
+}
+
 /**
  * Cronómetro de preparación del plato: tomado (asignación) → listo (recoger).
  * Si aún está en cocina, fin = ahora (vivo). Si ya está listo, se congela en recoger.
@@ -665,30 +691,122 @@ async function calcularMetricasRendimiento(usuarioId, fechaInicio, fechaFin) {
             { $count: 'total' }
         ]);
 
-        const totalEnCurso = platosEnCurso.length > 0 ? platosEnCurso[0].total : 0;
+        const garnishMatchFecha = {
+            IsActive: true,
+            'platos.complementosSeleccionados.procesadoPor.cocineroId': cocineroObjectId,
+            'platos.complementosSeleccionados.procesadoPor.timestamp': {
+                $gte: new Date(fechaInicio),
+                $lte: new Date(fechaFin)
+            }
+        };
+        const metricasGuarnicionPromise = Comanda.aggregate([
+            { $match: garnishMatchFecha },
+            { $unwind: '$platos' },
+            { $unwind: '$platos.complementosSeleccionados' },
+            {
+                $match: {
+                    'platos.eliminado': { $ne: true },
+                    'platos.anulado': { $ne: true },
+                    'platos.complementosSeleccionados.eliminado': { $ne: true },
+                    'platos.complementosSeleccionados.procesadoPor.cocineroId': cocineroObjectId,
+                    'platos.complementosSeleccionados.estadoCocina': 'recoger'
+                }
+            },
+            {
+                $project: {
+                    tiempoPreparacion: {
+                        $divide: [
+                            {
+                                $subtract: [
+                                    '$platos.complementosSeleccionados.procesadoPor.timestamp',
+                                    { $ifNull: [
+                                        '$platos.complementosSeleccionados.procesadoPor.tomadoEn',
+                                        '$platos.complementosSeleccionados.procesandoPor.timestamp'
+                                    ] }
+                                ]
+                            },
+                            60000
+                        ]
+                    }
+                }
+            },
+            {
+                $match: { tiempoPreparacion: { $gte: 0, $lt: 180 } }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalPlatos: { $sum: 1 },
+                    tiempoPromedioPreparacion: { $avg: '$tiempoPreparacion' },
+                    tiempoMinPreparacion: { $min: '$tiempoPreparacion' },
+                    tiempoMaxPreparacion: { $max: '$tiempoPreparacion' },
+                    platosDentroSLA: {
+                        $sum: { $cond: [{ $lte: ['$tiempoPreparacion', 15] }, 1, 0] }
+                    }
+                }
+            }
+        ]);
 
-        if (metricas.length === 0) {
+        const guarnicionesEnCursoPromise = Comanda.aggregate([
+            {
+                $match: {
+                    IsActive: true,
+                    'platos.complementosSeleccionados.procesandoPor.cocineroId': cocineroObjectId,
+                    'platos.complementosSeleccionados.estadoCocina': { $in: ['pedido', 'en_espera'] }
+                }
+            },
+            { $unwind: '$platos' },
+            { $unwind: '$platos.complementosSeleccionados' },
+            {
+                $match: {
+                    'platos.complementosSeleccionados.procesandoPor.cocineroId': cocineroObjectId,
+                    'platos.complementosSeleccionados.estadoCocina': { $in: ['pedido', 'en_espera'] }
+                }
+            },
+            { $count: 'total' }
+        ]);
+
+        const [metricasG, guarnicionesEnCurso] = await Promise.all([
+            metricasGuarnicionPromise,
+            guarnicionesEnCursoPromise
+        ]);
+
+        const totalEnCurso = (platosEnCurso.length > 0 ? platosEnCurso[0].total : 0)
+            + (guarnicionesEnCurso.length > 0 ? guarnicionesEnCurso[0].total : 0);
+
+        const mergeMetricas = (a, b) => {
+            const rows = [a, b].filter(Boolean);
+            if (!rows.length) {
+                return {
+                    totalPlatos: 0,
+                    tiempoPromedioPreparacion: 0,
+                    tiempoMinPreparacion: 0,
+                    tiempoMaxPreparacion: 0,
+                    porcentajeDentroSLA: 0,
+                    tiempoPromedioCola: 0,
+                    platosEnCurso: totalEnCurso
+                };
+            }
+            const total = rows.reduce((s, r) => s + (r.totalPlatos || 0), 0);
+            const sla = rows.reduce((s, r) => s + (r.platosDentroSLA || 0), 0);
+            const avg = total > 0
+                ? rows.reduce((s, r) => s + (r.tiempoPromedioPreparacion || 0) * (r.totalPlatos || 0), 0) / total
+                : 0;
+            const mins = rows.map(r => r.tiempoMinPreparacion).filter(n => n != null);
+            const maxs = rows.map(r => r.tiempoMaxPreparacion).filter(n => n != null);
+            const cola = a?.tiempoPromedioCola || 0;
             return {
-                totalPlatos: 0,
-                tiempoPromedioPreparacion: 0,
-                tiempoMinPreparacion: 0,
-                tiempoMaxPreparacion: 0,
-                porcentajeDentroSLA: 0,
-                tiempoPromedioCola: 0,
+                totalPlatos: total,
+                tiempoPromedioPreparacion: Math.round(avg * 10) / 10,
+                tiempoMinPreparacion: mins.length ? Math.round(Math.min(...mins) * 10) / 10 : 0,
+                tiempoMaxPreparacion: maxs.length ? Math.round(Math.max(...maxs) * 10) / 10 : 0,
+                porcentajeDentroSLA: total > 0 ? Math.round((sla / total) * 100) : 0,
+                tiempoPromedioCola: Math.round((cola || 0) * 10) / 10,
                 platosEnCurso: totalEnCurso
             };
-        }
-
-        const m = metricas[0];
-        return {
-            totalPlatos: m.totalPlatos,
-            tiempoPromedioPreparacion: Math.round(m.tiempoPromedioPreparacion * 10) / 10,
-            tiempoMinPreparacion: Math.round(m.tiempoMinPreparacion * 10) / 10,
-            tiempoMaxPreparacion: Math.round(m.tiempoMaxPreparacion * 10) / 10,
-            porcentajeDentroSLA: Math.round((m.platosDentroSLA / m.totalPlatos) * 100),
-            tiempoPromedioCola: Math.round((m.tiempoPromedioCola || 0) * 10) / 10,
-            platosEnCurso: totalEnCurso
         };
+
+        return mergeMetricas(metricas[0], metricasG[0]);
     } catch (error) {
         logger.error('Error al calcular métricas de rendimiento', { error: error.message });
         throw error;
@@ -1178,13 +1296,17 @@ async function obtenerHistorialPlatosCocinados({ usuarioId = null, fechaInicio, 
             ? {
                 $or: [
                     { 'platos.procesandoPor.cocineroId': objectId },
-                    { 'platos.procesadoPor.cocineroId': objectId }
+                    { 'platos.procesadoPor.cocineroId': objectId },
+                    { 'platos.complementosSeleccionados.procesandoPor.cocineroId': objectId },
+                    { 'platos.complementosSeleccionados.procesadoPor.cocineroId': objectId }
                 ]
             }
             : {
                 $or: [
                     { 'platos.procesandoPor.cocineroId': { $ne: null, $exists: true } },
-                    { 'platos.procesadoPor.cocineroId': { $ne: null, $exists: true } }
+                    { 'platos.procesadoPor.cocineroId': { $ne: null, $exists: true } },
+                    { 'platos.complementosSeleccionados.procesandoPor.cocineroId': { $ne: null, $exists: true } },
+                    { 'platos.complementosSeleccionados.procesadoPor.cocineroId': { $ne: null, $exists: true } }
                 ]
             };
 
@@ -1285,6 +1407,7 @@ async function obtenerHistorialPlatosCocinados({ usuarioId = null, fechaInicio, 
                                 tiempos: '$$p.tiempos',
                                 procesadoPor: '$$p.procesadoPor',
                                 procesandoPor: '$$p.procesandoPor',
+                                complementosSeleccionados: '$$p.complementosSeleccionados',
                                 platoNombre: {
                                     $ifNull: [
                                         {
@@ -1353,9 +1476,12 @@ async function obtenerHistorialPlatosCocinados({ usuarioId = null, fechaInicio, 
 
         for (const c of mapa.values()) {
             const platosTomados = (c.platos || []).filter(p => platoTomadoPorCocinero(p, objectId));
-            if (!platosTomados.length) continue;
+            const guarnicionesTomadas = flattenGuarnicionesComoUnidades(c.platos || [])
+                .filter(g => platoTomadoPorCocinero(g, objectId));
+            const unidadesTomadas = [...platosTomados, ...guarnicionesTomadas];
+            if (!unidadesTomadas.length) continue;
 
-            const metricas = calcularMetricasComandaCocina(platosTomados);
+            const metricas = calcularMetricasComandaCocina(unidadesTomadas);
             const statusLower = String(c.statusComanda || '').toLowerCase();
             const cerrada = statusLower === 'pagado' || statusLower === 'completado' || c.IsActive === false;
             const todosListos = metricas.platosListos >= metricas.platosTotal && metricas.platosTotal > 0;
@@ -1373,11 +1499,17 @@ async function obtenerHistorialPlatosCocinados({ usuarioId = null, fechaInicio, 
                 const key = String(info.cocineroId);
                 if (!cocinerosMap.has(key)) cocinerosMap.set(key, info);
             }
+            for (const g of guarnicionesTomadas) {
+                const info = cocineroDePlato(g);
+                if (!info) continue;
+                const key = String(info.cocineroId);
+                if (!cocinerosMap.has(key)) cocinerosMap.set(key, info);
+            }
             const cocineros = Array.from(cocinerosMap.values());
             const principal = cocineros[0] || { cocineroId: null, cocineroNombre: '—', cocineroAlias: '—' };
 
             // Enriquecer platos: cronómetro asignación → listo (recoger)
-            const platosUI = platosTomados.map(p => {
+            const platosUI = unidadesTomadas.map(p => {
                 const info = cocineroDePlato(p);
                 const listo = platoListoCocinaHist(p);
                 const tomadoEn = tomadoEnPlato(p);
