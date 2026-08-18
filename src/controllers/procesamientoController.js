@@ -51,13 +51,15 @@ async function leerConfigCocina() {
       obligarOrdenAsignacion: cocina.obligarOrdenAsignacion !== false,
       solicitudOrdenFueraDeCola: cocina.solicitudOrdenFueraDeCola !== false,
       // PLAN GUARNICIONES_SEPARADAS v1.1.1
-      permitirGuarnicionesSeparadas: cocina.permitirGuarnicionesSeparadas !== false
+      permitirGuarnicionesSeparadas: cocina.permitirGuarnicionesSeparadas !== false,
+      deshabilitarOrdenSecuencialGuarniciones: cocina.deshabilitarOrdenSecuencialGuarniciones !== false
     };
   } catch (e) {
     return {
       obligarOrdenAsignacion: true,
       solicitudOrdenFueraDeCola: true,
-      permitirGuarnicionesSeparadas: true
+      permitirGuarnicionesSeparadas: true,
+      deshabilitarOrdenSecuencialGuarniciones: true
     };
   }
 }
@@ -1854,14 +1856,13 @@ router.put('/comanda/:id/plato/:platoId/guarnicion/:complementoId/procesando', a
         }
 
         const cocineroInfo = await getCocineroInfo(cocineroId);
+        const tomadoEn = moment().tz('America/Lima').toDate();
+        const cocineroConTiempo = { ...cocineroInfo, timestamp: tomadoEn };
         await Comanda.updateOne(
             { _id: comandaId },
             {
                 $set: {
-                    [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.procesandoPor`]: {
-                        ...cocineroInfo,
-                        timestamp: moment().tz('America/Lima').toDate()
-                    },
+                    [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.procesandoPor`]: cocineroConTiempo,
                     [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.asignacionMeta`]: {
                         origen: esSupervisor && forzar ? 'supervisor' : 'manual',
                         regla: 'guarnicion',
@@ -1877,7 +1878,7 @@ router.put('/comanda/:id/plato/:platoId/guarnicion/:complementoId/procesando', a
 
         // Socket: reutilizamos plato-procesando con complementoId para que el cliente parchee el subdoc.
         if (global.emitPlatoProcesando) {
-            global.emitPlatoProcesando(comandaId, platoId, cocineroInfo, { complementoId, tipo: 'guarnicion' });
+            global.emitPlatoProcesando(comandaId, platoId, cocineroConTiempo, { complementoId, tipo: 'guarnicion' });
         }
         if (global.emitRendimientoCocineroActualizado) {
             global.emitRendimientoCocineroActualizado({ tipo: 'guarnicion_tomada', cocineroId: cocineroId?.toString() });
@@ -1887,7 +1888,7 @@ router.put('/comanda/:id/plato/:platoId/guarnicion/:complementoId/procesando', a
         res.json({
             success: true,
             message: 'Guarnición tomada para preparación',
-            data: { comandaId, platoId, complementoId, procesandoPor: cocineroInfo }
+            data: { comandaId, platoId, complementoId, procesandoPor: cocineroConTiempo }
         });
     } catch (error) {
         logger.error('Error al tomar guarnición', { error: error.message });

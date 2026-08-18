@@ -135,6 +135,9 @@ const CONFIGURACION_DEFAULT = {
         usarNombreCocinaEnTablaKds: true,
         // PLAN GUARNICIONES_SEPARADAS v1.1: separar principal y guarniciones en cocina.
         permitirGuarnicionesSeparadas: true,
+        // Si true (default), las guarniciones no entran en la cola #1/#2/#3:
+        // se finalizan sin orden de llegada; Ver Cocina no muestra el número.
+        deshabilitarOrdenSecuencialGuarniciones: true,
         tiemposGuarnicion: {
             umbralAlertaMultiplo: 1.5,
             umbralCriticaMultiplo: 2,
@@ -509,6 +512,10 @@ const configuracionSistemaSchema = new mongoose.Schema({
         permitirGuarnicionesSeparadas: {
             type: Boolean,
             default: CONFIGURACION_DEFAULT.cocina.permitirGuarnicionesSeparadas
+        },
+        deshabilitarOrdenSecuencialGuarniciones: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.cocina.deshabilitarOrdenSecuencialGuarniciones
         },
         // Umbrales de tiempos por local (no hard-codeados). Si una guarnición supera
         // umbralAlertaSeg × tiempoMedioPreparacion → alerta visual en KDS.

@@ -1941,14 +1941,25 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
     };
     
     // Usar updateOne con índice explícito para mayor precisión
+    const setFields = {
+      [`platos.${platoIndex}.estado`]: nuevoEstado,
+      [`platos.${platoIndex}.tiempos.${nuevoEstado}`]: ahora,
+      updatedAt: ahora
+    };
+    // Mismo write que el estado: si procesandoPor queda con cocineroId, Ver Cocina
+    // sigue mostrando el plato aunque Mongo ya tenga recoger (hasta recargar).
+    if (nuevoEstado === 'recoger' || nuevoEstado === 'salio' || nuevoEstado === 'entregado' || nuevoEstado === 'pagado') {
+      setFields[`platos.${platoIndex}.procesandoPor`] = {
+        cocineroId: null,
+        nombre: null,
+        alias: null,
+        timestamp: null
+      };
+    }
     await comandaModel.updateOne(
       { _id: comandaId },
-      { 
-        $set: { 
-          [`platos.${platoIndex}.estado`]: nuevoEstado,
-          [`platos.${platoIndex}.tiempos.${nuevoEstado}`]: ahora,
-          updatedAt: ahora
-        },
+      {
+        $set: setFields,
         $push: { historialEstados: historialEntry }
       }
     );

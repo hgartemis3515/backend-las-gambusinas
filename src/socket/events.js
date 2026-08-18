@@ -637,6 +637,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         return;
       }
 
+      const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
       const fecha = moment(comanda.createdAt).tz("America/Lima").format('YYYY-MM-DD');
       const roomName = `fecha-${fecha}`;
       const timestamp = moment().tz('America/Lima').toISOString();
@@ -669,9 +670,10 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       }
 
       const mesaId = comanda.mesas?._id || comanda.mesas;
+      const comandaPlain = typeof comanda.toObject === 'function' ? comanda.toObject() : comanda;
       const eventData = {
-        comandaId: comandaId,
-        comanda: comanda,
+        comandaId: comandaId?.toString?.() || String(comandaId),
+        comanda: comandaPlain,
         platosEliminados: platosEliminados,
         socketId: 'server',
         timestamp: timestamp
@@ -690,7 +692,10 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       }
 
       if (!adminOnly) {
-        cocinaNamespace.to(roomName).emit('comanda-actualizada', eventData);
+        const roomsCocina = new Set([`fecha-${fechaHoy}`, `fecha-${fecha}`]);
+        for (const roomCocina of roomsCocina) {
+          cocinaNamespace.to(roomCocina).emit('comanda-actualizada', eventData);
+        }
 
         if (mesaId && mozosNamespace && mozosNamespace.sockets) {
           const roomNameMesa = `mesa-${mesaId}`;
@@ -772,19 +777,30 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         return;
       }
 
-      const fecha = moment(comanda.createdAt).tz("America/Lima").format('YYYY-MM-DD');
-      const roomName = `fecha-${fecha}`;
+      const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
+      const fechaComanda = moment(comanda.createdAt).tz("America/Lima").format('YYYY-MM-DD');
+      const roomsCocina = new Set([`fecha-${fechaHoy}`, `fecha-${fechaComanda}`]);
       const timestamp = moment().tz('America/Lima').toISOString();
-
-      // Emitir a cocina (room por fecha)
-      cocinaNamespace.to(roomName).emit('plato-actualizado', {
-        comandaId: comandaId,
-        platoId: platoId,
+      const comandaPlain = typeof comanda.toObject === 'function' ? comanda.toObject() : comanda;
+      const eventDataCocina = {
+        comandaId: comandaId?.toString?.() || String(comandaId),
+        platoId: platoId?.toString?.() || (platoId != null ? String(platoId) : undefined),
         nuevoEstado: nuevoEstado,
-        comanda: comanda,
+        comanda: comandaPlain,
         socketId: 'server',
         timestamp: timestamp
-      });
+      };
+
+      const esListo = ['recoger', 'salio', 'entregado', 'pagado'].includes(String(nuevoEstado || '').toLowerCase());
+      if (esListo) {
+        // Ver Cocina Completo solo está en fecha-hoy; atrasadas y desfaces de room
+        // no deben dejar el plato en pantalla. El parche en cliente es idempotente.
+        cocinaNamespace.emit('plato-actualizado', eventDataCocina);
+      } else {
+        for (const roomCocina of roomsCocina) {
+          cocinaNamespace.to(roomCocina).emit('plato-actualizado', eventDataCocina);
+        }
+      }
 
       // Emitir a mozos (todos los mozos conectados) - Datos completos populados
       // Validar que el namespace existe antes de emitir
@@ -839,7 +855,8 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         comandaNumber: comanda.comandaNumber,
         platoId,
         nuevoEstado,
-        roomName,
+        rooms: [...roomsCocina],
+        namespaceBroadcast: esListo,
         timestamp,
         mozosConnected: mozosNamespace?.sockets?.size || 0
       });
@@ -895,7 +912,9 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       }
 
       const timestamp = moment().tz('America/Lima').toISOString();
-      const fechaComanda = fecha || moment().tz("America/Lima").format('YYYY-MM-DD');
+      const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
+      const fechaComanda = fecha || fechaHoy;
+      const roomsCocina = new Set([`fecha-${fechaHoy}`, `fecha-${fechaComanda}`]);
       const roomNameCocina = `fecha-${fechaComanda}`;
       const roomNameMesa = mesaId ? `mesa-${mesaId}` : null;
 
@@ -913,9 +932,12 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         batchSize: platos.length
       };
 
-      // Emitir a cocina (room por fecha)
-      const cocinaClients = cocinaNamespace.adapter.rooms.get(roomNameCocina)?.size || 0;
-      cocinaNamespace.to(roomNameCocina).emit('plato-actualizado-batch', eventData);
+      // Emitir a cocina (hoy + día de la comanda; atrasadas)
+      let cocinaClients = 0;
+      for (const roomCocina of roomsCocina) {
+        cocinaClients += cocinaNamespace.adapter.rooms.get(roomCocina)?.size || 0;
+        cocinaNamespace.to(roomCocina).emit('plato-actualizado-batch', eventData);
+      }
 
       const platosRecoger = platos.filter(p => p.nuevoEstado === 'recoger');
       const platosSalio = platos.filter(p => p.nuevoEstado === 'salio');
@@ -2165,11 +2187,14 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         }
       } catch (_) { /* no bloquear emit */ }
 
+      const cocineroConTiempo = cocinero
+        ? { ...cocinero, timestamp: cocinero.timestamp || timestamp }
+        : cocinero;
       const eventData = {
         comandaId: comandaId?.toString(),
         platoId: platoId?.toString(),
-        cocinero,
-        procesandoPor: cocinero,
+        cocinero: cocineroConTiempo,
+        procesandoPor: cocineroConTiempo,
         timestamp
       };
 
