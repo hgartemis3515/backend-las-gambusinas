@@ -201,6 +201,30 @@ const getCocineroInfo = async (cocineroId) => {
   };
 };
 
+function nombreGuarnicionComp(comp) {
+  const opcion = Array.isArray(comp?.opcion) ? comp.opcion.join(', ') : (comp?.opcion || '');
+  return String(opcion || '').trim() || 'Guarnición';
+}
+
+/** Cronómetro acumulado desde que el cocinero tomó la unidad (plato o guarnición). */
+function cronometroDesdeToma(timestampToma, ahora = new Date()) {
+  if (!timestampToma) {
+    return { tomadoEn: null, segundosAcumulados: 0, cronometro: '00:00' };
+  }
+  const ini = new Date(timestampToma).getTime();
+  if (Number.isNaN(ini)) {
+    return { tomadoEn: timestampToma, segundosAcumulados: 0, cronometro: '00:00' };
+  }
+  const segundos = Math.max(0, Math.floor((ahora.getTime() - ini) / 1000));
+  const m = Math.floor(segundos / 60);
+  const s = segundos % 60;
+  return {
+    tomadoEn: timestampToma,
+    segundosAcumulados: segundos,
+    cronometro: `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  };
+}
+
 // ============================================================
 // HELPER: Buscar índice de plato (con fallback por índice numérico)
 // ============================================================
@@ -449,12 +473,17 @@ router.delete('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, r
     }
     
     // Snapshot antes para auditoría
+    const ahoraLiberar = moment().tz('America/Lima').toDate();
+    const crono = cronometroDesdeToma(plato.procesandoPor?.timestamp, ahoraLiberar);
     const snapshotAntes = {
       comandaId,
       comandaNumber: comanda.comandaNumber,
       platoId,
       platoNombre: plato.plato?.nombre || plato.nombre || 'Plato',
-      procesandoPor: plato.procesandoPor
+      procesandoPor: plato.procesandoPor,
+      tomadoEn: crono.tomadoEn,
+      tiempoAcumuladoSegundos: crono.segundosAcumulados,
+      cronometro: crono.cronometro
     };
     
     // Limpiar procesandoPor y resetear tiempo en_espera usando updateOne
@@ -487,14 +516,24 @@ router.delete('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, r
         comandaNumber: comanda.comandaNumber,
         platoId,
         platoNombre: plato.plato?.nombre || plato.nombre || 'Plato',
-        mesaNum: comanda.mesas?.nummesa || 'N/A'
+        mesaNum: comanda.mesas?.nummesa || 'N/A',
+        tipoUnidad: 'principal',
+        tomadoEn: crono.tomadoEn,
+        tiempoAcumuladoSegundos: crono.segundosAcumulados,
+        cronometro: crono.cronometro,
+        cocineroAlias: plato.procesandoPor?.alias || plato.procesandoPor?.nombre || null
       },
       comandaNumber: comanda.comandaNumber
     };
     
     // Registrar auditoría
     const motivoAuditoria = motivo || 'Cocinero liberó el plato';
-    await registrarAuditoria(req, snapshotAntes, { liberado: true }, motivoAuditoria);
+    await registrarAuditoria(req, snapshotAntes, {
+      liberado: true,
+      tipoUnidad: 'principal',
+      tiempoAcumuladoSegundos: crono.segundosAcumulados,
+      cronometro: crono.cronometro
+    }, motivoAuditoria);
     
     // Emitir evento Socket
     if (global.emitPlatoLiberado) {
@@ -1899,6 +1938,8 @@ router.put('/comanda/:id/plato/:platoId/guarnicion/:complementoId/procesando', a
 /**
  * DELETE /api/comanda/:id/plato/:platoId/guarnicion/:complementoId/procesando
  * Libera una guarnición tomada (sin finalizar).
+ * Misma auditoría que Dejar plato: motivo + cronómetro acumulado.
+ * No toca platos[].estado (el mozo sigue gobernando el plato padre).
  */
 router.delete('/comanda/:id/plato/:platoId/guarnicion/:complementoId/procesando', adminAuth, async (req, res) => {
     try {
@@ -1915,6 +1956,24 @@ router.delete('/comanda/:id/plato/:platoId/guarnicion/:complementoId/procesando'
             return res.status(403).json({ success: false, error: 'Solo el cocinero titular o un supervisor puede liberar esta guarnición' });
         }
 
+        const ahoraLiberar = moment().tz('America/Lima').toDate();
+        const crono = cronometroDesdeToma(comp.procesandoPor?.timestamp, ahoraLiberar);
+        const platoPadre = comanda.platos[platoIndex];
+        const nombreG = nombreGuarnicionComp(comp);
+        const nombrePadre = platoPadre?.plato?.nombre || platoPadre?.nombre || 'Plato';
+        const snapshotAntes = {
+            comandaId,
+            comandaNumber: comanda.comandaNumber,
+            platoId,
+            complementoId,
+            platoNombre: `🥗 ${nombreG} (${nombrePadre})`,
+            procesandoPor: comp.procesandoPor,
+            tomadoEn: crono.tomadoEn,
+            tiempoAcumuladoSegundos: crono.segundosAcumulados,
+            cronometro: crono.cronometro,
+            tipoUnidad: 'guarnicion'
+        };
+
         await Comanda.updateOne(
             { _id: comandaId },
             {
@@ -1923,15 +1982,50 @@ router.delete('/comanda/:id/plato/:platoId/guarnicion/:complementoId/procesando'
                         cocineroId: null, nombre: null, alias: null, timestamp: null
                     },
                     [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.estadoCocina`]: 'pedido',
-                    updatedAt: moment().tz('America/Lima').toDate()
+                    updatedAt: ahoraLiberar
                 }
             }
         );
 
+        req.auditoria = {
+            accion: 'PLATO_DEJADO_COCINA',
+            entidadTipo: 'comanda',
+            entidadId: comandaId,
+            usuario: cocineroId,
+            ip: req.ip || req.connection?.remoteAddress || null,
+            deviceId: req.headers['device-id'] || req.headers['x-device-id'] || null,
+            metadata: {
+                comandaNumber: comanda.comandaNumber,
+                platoId,
+                complementoId,
+                platoNombre: snapshotAntes.platoNombre,
+                mesaNum: comanda.mesas?.nummesa || 'N/A',
+                tipoUnidad: 'guarnicion',
+                tomadoEn: crono.tomadoEn,
+                tiempoAcumuladoSegundos: crono.segundosAcumulados,
+                cronometro: crono.cronometro,
+                cocineroAlias: comp.procesandoPor?.alias || comp.procesandoPor?.nombre || null
+            },
+            comandaNumber: comanda.comandaNumber
+        };
+        const motivoAuditoria = motivo || 'Cocinero liberó la guarnición';
+        await registrarAuditoria(req, snapshotAntes, {
+            liberado: true,
+            tipoUnidad: 'guarnicion',
+            tiempoAcumuladoSegundos: crono.segundosAcumulados,
+            cronometro: crono.cronometro
+        }, motivoAuditoria);
+
         if (global.emitPlatoLiberado) {
             global.emitPlatoLiberado(comandaId, platoId, cocineroId, { complementoId, tipo: 'guarnicion' });
         }
-        logger.info('Guarnición liberada', { comandaId, platoId, complementoId, cocineroId, motivo });
+        if (global.emitRendimientoCocineroActualizado) {
+            global.emitRendimientoCocineroActualizado({
+                tipo: 'guarnicion_liberada',
+                cocineroId: (comp.procesandoPor?.cocineroId || cocineroId)?.toString()
+            });
+        }
+        logger.info('Guarnición liberada', { comandaId, platoId, complementoId, cocineroId, motivo: motivoAuditoria, cronometro: crono.cronometro });
         res.json({ success: true, message: 'Guarnición liberada' });
     } catch (error) {
         logger.error('Error al liberar guarnición', { error: error.message });
@@ -1959,39 +2053,47 @@ router.put('/comanda/:id/plato/:platoId/guarnicion/:complementoId/finalizar', ad
             return res.status(403).json({ success: false, error: 'Solo el cocinero titular o un supervisor puede finalizar esta guarnición' });
         }
 
-        const cocineroInfo = await getCocineroInfo(cocineroId);
+        const cocineroAtribuidoId = comp.procesandoPor?.cocineroId || cocineroId;
+        const supervisorOverride = cocineroAtribuidoId.toString() !== String(cocineroId);
+        const cocineroAtribuidoInfo = await getCocineroInfo(cocineroAtribuidoId);
         const ahora = moment().tz('America/Lima').toDate();
         const tomadoEn = comp.procesandoPor?.timestamp || ahora;
-        await Comanda.updateOne(
-            { _id: comandaId },
-            {
-                $set: {
-                    [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.estadoCocina`]: 'recoger',
-                    [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.procesadoPor`]: {
-                        ...cocineroInfo,
-                        timestamp: ahora,
-                        tomadoEn
-                    },
-                    [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.procesandoPor`]: {
-                        cocineroId: null,
-                        nombre: null,
-                        alias: null,
-                        timestamp: null
-                    },
-                    updatedAt: ahora
-                }
-            }
-        );
+        const setFields = {
+            [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.estadoCocina`]: 'recoger',
+            [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.procesadoPor`]: {
+                ...cocineroAtribuidoInfo,
+                timestamp: ahora,
+                tomadoEn
+            },
+            [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.procesandoPor`]: {
+                cocineroId: null,
+                nombre: null,
+                alias: null,
+                timestamp: null
+            },
+            updatedAt: ahora
+        };
+        await Comanda.updateOne({ _id: comandaId }, { $set: setFields });
+
+        try {
+            cocinerosRepository.incrementarPlatosPreparados(cocineroAtribuidoId, 1).catch(() => {});
+        } catch (e) { /* no bloquea */ }
 
         if (global.emitPlatoProcesando) {
-            global.emitPlatoProcesando(comandaId, platoId, cocineroInfo, {
+            global.emitPlatoProcesando(comandaId, platoId, cocineroAtribuidoInfo, {
                 complementoId, tipo: 'guarnicion', estadoCocina: 'recoger'
             });
         }
         if (global.emitRendimientoCocineroActualizado) {
-            global.emitRendimientoCocineroActualizado({ tipo: 'guarnicion_finalizada', cocineroId: cocineroId?.toString() });
+            global.emitRendimientoCocineroActualizado({
+                tipo: 'guarnicion_finalizada',
+                cocineroId: cocineroAtribuidoId?.toString()
+            });
         }
-        logger.info('Guarnición finalizada', { comandaId, platoId, complementoId, cocineroId });
+        logger.info('Guarnición finalizada', {
+            comandaId, platoId, complementoId, cocineroId,
+            atribuidoA: cocineroAtribuidoId, supervisorOverride
+        });
         res.json({ success: true, message: 'Guarnición lista (recoger)' });
     } catch (error) {
         logger.error('Error al finalizar guarnición', { error: error.message });

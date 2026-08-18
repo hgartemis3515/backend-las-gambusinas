@@ -75,7 +75,7 @@ tailwind.config = {
           <option value="reversion_plato">Revertir Plato</option>
         </optgroup>
         <optgroup label="🚪 Liberación">
-          <option value="PLATO_DEJADO_COCINA">Plato Dejado</option>
+          <option value="PLATO_DEJADO_COCINA">Plato / Guarnición Dejado</option>
           <option value="SOLICITUD_ORDEN_APROBADA">Solicitud Orden Aprobada</option>
           <option value="SOLICITUD_ORDEN_RECHAZADA">Solicitud Orden Rechazada</option>
         </optgroup>
@@ -142,12 +142,13 @@ tailwind.config = {
               <td class="px-4 py-3">
                 <span class="text-xs font-medium px-2 py-0.5 rounded-full"
                   :class="getAccionBadgeClass(a.accion)"
-                  x-text="getAccionLabel(a.accion)"></span>
+                  x-text="getAccionLabel(a.accion, a.metadata)"></span>
               </td>
               <td class="px-4 py-3 text-xs">
                 <span x-show="a.metadata?.comandaNumber" class="text-gold" x-text="'#' + a.metadata.comandaNumber"></span>
                 <span x-show="a.metadata?.platoNombre" class="text-txt-secondary" x-text="a.metadata.platoNombre"></span>
                 <span x-show="a.motivo" class="text-txt-muted block text-[10px]" x-text="a.motivo?.substring(0, 30) + (a.motivo?.length > 30 ? '...' : '')"></span>
+                <span x-show="a.metadata?.cronometro" class="text-[#9c88ff] block text-[10px] font-mono" x-text="'⏱ ' + a.metadata.cronometro"></span>
               </td>
               <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full bg-bg-sidebar" x-text="a.modulo"></span></td>
               <td class="px-4 py-3 text-txt-muted text-xs" x-text="a.ip"></td>
@@ -202,7 +203,7 @@ tailwind.config = {
             <p class="text-[10px] text-[#5a5a7a] mb-0.5">Acción</p>
             <p class="font-semibold px-2 py-1 rounded inline-block text-xs"
               :class="getAccionBadgeClass(selectedRegistro?.accion)"
-              x-text="getAccionLabel(selectedRegistro?.accion)"></p>
+              x-text="getAccionLabel(selectedRegistro?.accion, selectedRegistro?.metadata)"></p>
           </div>
           <div>
             <p class="text-[10px] text-[#5a5a7a] mb-0.5">Fecha</p>
@@ -331,6 +332,42 @@ tailwind.config = {
                 <p class="font-medium text-[#00d4aa]" x-text="selectedRegistro?.datosDespues?.nombre || selectedRegistro?.datosAntes?.nombre || 'N/A'"></p>
               </div>
             </template>
+          </div>
+        </div>
+      </template>
+
+      <!-- INFO ESPECÍFICA PARA LIBERACIÓN (dejar plato / guarnición) -->
+      <template x-if="esAccionLiberacion(selectedRegistro?.accion)">
+        <div class="bg-[rgba(156,136,255,0.1)] border border-[rgba(156,136,255,0.3)] rounded-xl p-4">
+          <h3 class="text-[#9c88ff] font-bold mb-3 flex items-center gap-2">
+            <span>🚪</span>
+            <span x-text="(selectedRegistro?.metadata?.tipoUnidad === 'guarnicion' ? 'Guarnición dejada' : 'Plato dejado')"></span>
+          </h3>
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div class="col-span-2">
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Unidad</p>
+              <p class="font-medium" x-text="selectedRegistro?.metadata?.platoNombre || selectedRegistro?.datosAntes?.platoNombre || 'N/A'"></p>
+            </div>
+            <div>
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Comanda #</p>
+              <p class="font-medium text-gold" x-text="selectedRegistro?.metadata?.comandaNumber || 'N/A'"></p>
+            </div>
+            <div>
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Mesa</p>
+              <p class="font-medium" x-text="selectedRegistro?.metadata?.mesaNum || 'N/A'"></p>
+            </div>
+            <div>
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Cronómetro acumulado</p>
+              <p class="font-mono font-bold text-[#9c88ff]" x-text="selectedRegistro?.metadata?.cronometro || selectedRegistro?.datosAntes?.cronometro || '00:00'"></p>
+            </div>
+            <div>
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Cocinero</p>
+              <p class="font-medium" x-text="selectedRegistro?.metadata?.cocineroAlias || selectedRegistro?.datosAntes?.procesandoPor?.alias || selectedRegistro?.datosAntes?.procesandoPor?.nombre || '—'"></p>
+            </div>
+            <div class="col-span-2">
+              <p class="text-[10px] text-[#5a5a7a] mb-0.5">Motivo</p>
+              <p class="font-medium" x-text="selectedRegistro?.motivo || 'N/A'"></p>
+            </div>
           </div>
         </div>
       </template>
@@ -726,8 +763,11 @@ function auditoriaApp() {
       return 'Detalle de Auditoría';
     },
 
-    getAccionLabel(accion) {
+    getAccionLabel(accion, metadata) {
       if (!accion) return '—';
+      if (accion === 'PLATO_DEJADO_COCINA' && metadata?.tipoUnidad === 'guarnicion') {
+        return '🚪 Guarnición Dejada';
+      }
       const labels = {
         'comanda_creada': '📝 Comanda Creada',
         'comanda_eliminada': '🗑️ Comanda Eliminada',
@@ -745,6 +785,7 @@ function auditoriaApp() {
         'reversion_comanda': '↩️ Revertir Comanda',
         'reversion_plato': '↩️ Revertir Plato',
         'PLATO_DEJADO_COCINA': '🚪 Plato Dejado',
+        'GUARNICION_DEJADA_COCINA': '🚪 Guarnición Dejada',
         'SOLICITUD_ORDEN_APROBADA': '✅ Solicitud Orden Aprobada',
         'SOLICITUD_ORDEN_RECHAZADA': '❌ Solicitud Orden Rechazada',
         'plato_agregado': '➕ Plato Agregado',

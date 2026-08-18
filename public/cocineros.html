@@ -7090,7 +7090,7 @@ function cocinerosApp() {
               estado: comp.estadoCocina || 'pedido',
               cocineroNombre: pp.nombre || pd.nombre || '—',
               cocineroAlias: pp.alias || pd.alias || null,
-              tomadoEn: pp.timestamp || null,
+              tomadoEn: pp.timestamp || pd.tomadoEn || pd.timestamp || null,
               listoEn: esLista ? (pd.timestamp || null) : null
             });
           }

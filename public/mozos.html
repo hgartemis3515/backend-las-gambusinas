@@ -3795,12 +3795,16 @@ function mozosExecutiveApp() {
     getTiempoCocinaPlatoVivo(item) {
       void this.rendimientoMozoTick; // dependencia reactiva
       const t = item?.tiempos || {};
-      const ini = t.en_espera || t.pedido;
+      // Igual que cocineros: desde que se ASIGNA el cocinero hasta recoger.
+      const ini = item?.procesandoPor?.timestamp
+        || item?.procesadoPor?.tomadoEn
+        || item?.tomadoEn
+        || t.en_espera
+        || t.pedido;
       if (!ini) return null;
       const listo = this.platoListoCocina(item);
-      // Congela en recoger; si falta timestamp pero ya salió de cocina, usa salio/entregado
       const fin = t.recoger
-        || (listo ? (t.salio || t.entregado || t.pagado) : null)
+        || (listo ? (t.salio || t.entregado || t.pagado || item?.procesadoPor?.timestamp) : null)
         || (!listo ? new Date().toISOString() : null);
       if (!fin) return null;
       return Math.max(0, Math.round((new Date(fin) - new Date(ini)) / 1000));

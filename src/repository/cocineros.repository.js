@@ -92,6 +92,8 @@ function flattenGuarnicionesComoUnidades(platos) {
                 cantidad: c.cantidad || 1,
                 procesandoPor: c.procesandoPor,
                 procesadoPor: c.procesadoPor,
+                tomadoEn: c.procesandoPor?.timestamp || c.procesadoPor?.tomadoEn || null,
+                listoEn: listo ? (c.procesadoPor?.timestamp || null) : null,
                 tiempos: { recoger: listo ? (c.procesadoPor?.timestamp || null) : null }
             });
         }
