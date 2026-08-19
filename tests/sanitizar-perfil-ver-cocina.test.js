@@ -1,6 +1,7 @@
 const {
     sanitizarConfigPerfilVerCocina,
     fusionarConfigPerfilVerCocina,
+    sanitizarConfigPerfilTablasKds,
 } = require('../src/utils/sanitizarPerfilVerCocina');
 
 describe('sanitizarConfigPerfilVerCocina', () => {
@@ -73,5 +74,20 @@ describe('sanitizarConfigPerfilVerCocina', () => {
         );
         expect(merged.ocultarBuscadorPlatos).toBe(true);
         expect(merged.colorAcento).toBe('#d4af37');
+    });
+
+    test('tablas KDS solo conserva claves de vista/alertas', () => {
+        const out = sanitizarConfigPerfilTablasKds({
+            tamanoFuente: 18,
+            mostrarBadgeGuarnicion: false,
+            usarNombreCocinaEnTablaKds: false,
+            colorFondo: '#000',
+            token: 'x',
+        });
+        expect(out.tamanoFuente).toBe(18);
+        expect(out.mostrarBadgeGuarnicion).toBe(false);
+        expect(out.usarNombreCocinaEnTablaKds).toBe(false);
+        expect(out.colorFondo).toBeUndefined();
+        expect(out.token).toBeUndefined();
     });
 });

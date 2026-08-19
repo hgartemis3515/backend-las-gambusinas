@@ -107,8 +107,47 @@ function fusionarConfigPerfilVerCocina(actual, incomingSanitizado) {
     return { ...base, ...next };
 }
 
+/** Snapshot de Vista y alertas de las tablas KDS (no mezclar con Ver Cocina). */
+const PERFIL_TABLAS_KDS_KEYS = new Set([
+    'tamanoFuente',
+    'tamanoFuentePlatos',
+    'tamanoTarjeta',
+    'columnasGrid',
+    'filasGrid',
+    'ordenamientoDefault',
+    'modoVista',
+    'mostrarBadgeGuarnicion',
+    'usarNombreCocinaEnTablaKds',
+    'alertYellowMinutes',
+    'alertRedMinutes',
+    'alertCriticalMinutes',
+]);
+
+function sanitizarConfigPerfilTablasKds(config) {
+    const sanitizado = {};
+    if (!config || typeof config !== 'object' || Array.isArray(config)) return sanitizado;
+    for (const [k, v] of Object.entries(config)) {
+        if (!PERFIL_TABLAS_KDS_KEYS.has(k)) continue;
+        const safe = valorPerfilSeguro(v);
+        if (safe === undefined) continue;
+        sanitizado[k] = safe;
+    }
+    return sanitizado;
+}
+
+function fusionarConfigPerfilTablasKds(actual, incomingSanitizado) {
+    const base = sanitizarConfigPerfilTablasKds(actual);
+    const next = (incomingSanitizado && typeof incomingSanitizado === 'object')
+        ? incomingSanitizado
+        : {};
+    return { ...base, ...sanitizarConfigPerfilTablasKds(next) };
+}
+
 module.exports = {
     PERFIL_VER_COCINA_KEYS,
+    PERFIL_TABLAS_KDS_KEYS,
     sanitizarConfigPerfilVerCocina,
     fusionarConfigPerfilVerCocina,
+    sanitizarConfigPerfilTablasKds,
+    fusionarConfigPerfilTablasKds,
 };

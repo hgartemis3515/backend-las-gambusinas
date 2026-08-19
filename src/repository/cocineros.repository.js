@@ -13,6 +13,31 @@ const logger = require('../utils/logger');
 
 const SLA_COCINA_MINUTOS = 15;
 const ESTADOS_PLATO_COCINA = ['pendiente', 'pedido', 'en_espera', 'recoger', 'salio', 'entregado', 'pagado'];
+
+function filtroTipoPerfil(tipo) {
+    if (tipo === 'tablas_kds') return { tipo: 'tablas_kds' };
+    return {
+        $or: [
+            { tipo: 'ver_cocina' },
+            { tipo: { $exists: false } },
+            { tipo: null },
+            { tipo: '' },
+        ],
+    };
+}
+
+let indiceTipoPerfilAjustado = false;
+async function asegurarIndiceTipoPerfil() {
+    if (indiceTipoPerfilAjustado) return;
+    indiceTipoPerfilAjustado = true;
+    try {
+        const indexes = await PerfilVerCocina.collection.indexes();
+        const viejo = indexes.find((i) => i.name === 'nombre_1' && i.unique);
+        if (viejo) await PerfilVerCocina.collection.dropIndex('nombre_1');
+    } catch (e) {
+        logger.warn('No se pudo ajustar índice nombre_1 de perfilVerCocina', { error: e.message });
+    }
+}
 /** Plato aún en cocina (asignado / tomándose). Incluye pendiente por aprobación o toma temprana. */
 const ESTADOS_PLATO_EN_CURSO = ['pendiente', 'pedido', 'en_espera'];
 const ESTADOS_GUARNICION_EN_CURSO = ['pedido', 'en_espera'];
@@ -469,14 +494,18 @@ async function guardarPerfilVerCocina(usuarioId, config, actualizadoPor = null) 
 // Flujo "Distribuir Cocina en monitores" - perfilId=<id>
 // ============================================================
 
-async function listarPerfilesVerCocina({ soloActivos = true } = {}) {
+async function listarPerfilesVerCocina({ soloActivos = true, tipo = 'ver_cocina' } = {}) {
     try {
-        const filtro = soloActivos ? { activo: true } : {};
+        await asegurarIndiceTipoPerfil();
+        const filtro = {
+            ...(soloActivos ? { activo: true } : {}),
+            ...filtroTipoPerfil(tipo),
+        };
         return await PerfilVerCocina.find(filtro)
             .sort({ updatedAt: -1 })
             .lean();
     } catch (error) {
-        logger.error('Error al listar perfilesVerCocina', { error: error.message });
+        logger.error('Error al listar perfilesVerCocina', { error: error.message, tipo });
         throw error;
     }
 }
@@ -491,9 +520,15 @@ async function obtenerPerfilVerCocinaPorId(perfilId) {
     }
 }
 
-async function crearPerfilVerCocina({ nombre, config, creadoPor = null }) {
+async function crearPerfilVerCocina({ nombre, config, creadoPor = null, tipo = 'ver_cocina' }) {
     try {
-        const existente = await PerfilVerCocina.findOne({ nombre: { $eq: nombre.trim() }, activo: true });
+        await asegurarIndiceTipoPerfil();
+        const tipoNorm = tipo === 'tablas_kds' ? 'tablas_kds' : 'ver_cocina';
+        const existente = await PerfilVerCocina.findOne({
+            nombre: { $eq: nombre.trim() },
+            activo: true,
+            ...filtroTipoPerfil(tipoNorm),
+        });
         if (existente) {
             const err = new Error('Ya existe un perfil con ese nombre');
             err.code = 'DUPLICADO';
@@ -502,13 +537,16 @@ async function crearPerfilVerCocina({ nombre, config, creadoPor = null }) {
         const doc = await PerfilVerCocina.create({
             nombre: nombre.trim(),
             config: config || {},
+            tipo: tipoNorm,
             creadoPor,
             actualizadoPor: creadoPor,
         });
-        logger.info('perfilVerCocina (con nombre) creado', { perfilId: doc._id, nombre: doc.nombre, creadoPor });
+        logger.info('perfilVerCocina (con nombre) creado', {
+            perfilId: doc._id, nombre: doc.nombre, tipo: tipoNorm, creadoPor,
+        });
         return doc.toObject();
     } catch (error) {
-        logger.error('Error al crear perfilVerCocina', { error: error.message, nombre });
+        logger.error('Error al crear perfilVerCocina', { error: error.message, nombre, tipo });
         throw error;
     }
 }
@@ -525,10 +563,13 @@ async function actualizarPerfilVerCocina(perfilId, { nombre, config, actualizado
         }
         set.actualizadoPor = actualizadoPor;
         if (nombre !== undefined) {
+            const actual = await PerfilVerCocina.findById(perfilId).select('tipo').lean();
+            const tipoNorm = actual && actual.tipo === 'tablas_kds' ? 'tablas_kds' : 'ver_cocina';
             const existente = await PerfilVerCocina.findOne({
                 _id: { $ne: perfilId },
                 nombre: { $eq: nombre.trim() },
                 activo: true,
+                ...filtroTipoPerfil(tipoNorm),
             });
             if (existente) {
                 const err = new Error('Ya existe un perfil con ese nombre');

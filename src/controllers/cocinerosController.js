@@ -11,8 +11,50 @@ const logger = require('../utils/logger');
 const {
     sanitizarConfigPerfilVerCocina,
     fusionarConfigPerfilVerCocina,
+    sanitizarConfigPerfilTablasKds,
+    fusionarConfigPerfilTablasKds,
 } = require('../utils/sanitizarPerfilVerCocina');
 const moment = require('moment-timezone');
+
+function tipoDePerfilDoc(p) {
+    return p && p.tipo === 'tablas_kds' ? 'tablas_kds' : 'ver_cocina';
+}
+
+async function responderListaPerfiles(req, res, tipo) {
+    const soloActivos = req.query.incluirInactivos !== '1';
+    const perfiles = await cocinerosRepository.listarPerfilesVerCocina({ soloActivos, tipo });
+    const data = perfiles.map(resumenPerfilApi);
+    res.json({ success: true, data, total: data.length });
+}
+
+async function obtenerPerfilDeTipo(id, tipoEsperado) {
+    const perfil = await cocinerosRepository.obtenerPerfilVerCocinaPorId(id);
+    if (!perfil || tipoDePerfilDoc(perfil) !== tipoEsperado) return null;
+    return perfil;
+}
+
+function sanitizarConfigSegunTipo(tipo, config) {
+    return tipo === 'tablas_kds'
+        ? sanitizarConfigPerfilTablasKds(config)
+        : sanitizarConfigPerfilVerCocina(config);
+}
+
+function fusionarConfigSegunTipo(tipo, actual, incoming) {
+    return tipo === 'tablas_kds'
+        ? fusionarConfigPerfilTablasKds(actual, incoming)
+        : fusionarConfigPerfilVerCocina(actual, incoming);
+}
+
+function resumenPerfilApi(p) {
+    return {
+        _id: p._id,
+        nombre: p.nombre,
+        tipo: p.tipo === 'tablas_kds' ? 'tablas_kds' : 'ver_cocina',
+        config: p.config,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+    };
+}
 
 /**
  * GET /api/cocina/cocineros
@@ -296,20 +338,11 @@ router.put('/cocineros/:id/perfil-ver-cocina', adminAuth, async (req, res) => {
 
 /**
  * GET /api/perfiles-ver-cocina
- * Listar perfiles de personalización con nombre (activos).
+ * Solo perfiles de Ver Cocina Completo (nunca tablas KDS).
  */
 router.get('/perfiles-ver-cocina', adminAuth, async (req, res) => {
     try {
-        const soloActivos = req.query.incluirInactivos !== '1';
-        const perfiles = await cocinerosRepository.listarPerfilesVerCocina({ soloActivos });
-        const data = perfiles.map(p => ({
-            _id: p._id,
-            nombre: p.nombre,
-            config: p.config,
-            createdAt: p.createdAt,
-            updatedAt: p.updatedAt,
-        }));
-        res.json({ success: true, data, total: data.length });
+        await responderListaPerfiles(req, res, 'ver_cocina');
     } catch (error) {
         logger.error('Error al listar perfiles-ver-cocina', { error: error.message });
         res.status(500).json({ success: false, error: 'Error al listar perfiles' });
@@ -317,26 +350,51 @@ router.get('/perfiles-ver-cocina', adminAuth, async (req, res) => {
 });
 
 /**
+ * GET /api/perfiles-tablas-kds
+ * Solo perfiles de Vista y alertas de las tablas KDS.
+ */
+router.get('/perfiles-tablas-kds', adminAuth, async (req, res) => {
+    try {
+        await responderListaPerfiles(req, res, 'tablas_kds');
+    } catch (error) {
+        logger.error('Error al listar perfiles-tablas-kds', { error: error.message });
+        res.status(500).json({ success: false, error: 'Error al listar perfiles' });
+    }
+});
+
+/**
  * GET /api/perfiles-ver-cocina/:id
- * Obtener un perfil concreto (lo usan las ventanas hijas con ?perfilId=<id>).
+ * Ventanas hijas / Personalizar. Rechaza perfiles de tablas KDS.
  */
 router.get('/perfiles-ver-cocina/:id', adminAuth, async (req, res) => {
     try {
-        const perfil = await cocinerosRepository.obtenerPerfilVerCocinaPorId(req.params.id);
+        const perfil = await obtenerPerfilDeTipo(req.params.id, 'ver_cocina');
         if (!perfil) {
             return res.status(404).json({ success: false, error: 'Perfil no encontrado' });
         }
-        res.json({ success: true, data: perfil });
+        res.json({ success: true, data: resumenPerfilApi(perfil) });
     } catch (error) {
         logger.error('Error al obtener perfil-ver-cocina por id', { error: error.message });
         res.status(500).json({ success: false, error: 'Error al obtener perfil' });
     }
 });
 
+router.get('/perfiles-tablas-kds/:id', adminAuth, async (req, res) => {
+    try {
+        const perfil = await obtenerPerfilDeTipo(req.params.id, 'tablas_kds');
+        if (!perfil) {
+            return res.status(404).json({ success: false, error: 'Perfil no encontrado' });
+        }
+        res.json({ success: true, data: resumenPerfilApi(perfil) });
+    } catch (error) {
+        logger.error('Error al obtener perfil-tablas-kds por id', { error: error.message });
+        res.status(500).json({ success: false, error: 'Error al obtener perfil' });
+    }
+});
+
 /**
  * POST /api/perfiles-ver-cocina
- * Crear un perfil con nombre.
- * Body: { nombre: string, config: { ...localDesign } }
+ * Crear perfil de Ver Cocina Completo.
  */
 router.post('/perfiles-ver-cocina', adminAuth, async (req, res) => {
     try {
@@ -344,16 +402,42 @@ router.post('/perfiles-ver-cocina', adminAuth, async (req, res) => {
         if (!nombre) {
             return res.status(400).json({ success: false, error: 'nombre es requerido' });
         }
+        const tipo = 'ver_cocina';
         const configEntrada = req.body?.config && typeof req.body.config === 'object'
             ? req.body.config
             : (req.body && typeof req.body === 'object' ? req.body : {});
-        const sanitizado = sanitizarConfigPerfilVerCocina(configEntrada);
+        const sanitizado = sanitizarConfigSegunTipo(tipo, configEntrada);
         const creado = await cocinerosRepository.crearPerfilVerCocina({
             nombre,
             config: sanitizado,
+            tipo,
             creadoPor: req.admin.id,
         });
-        res.status(201).json({ success: true, data: creado, message: 'Perfil creado correctamente' });
+        res.status(201).json({ success: true, data: resumenPerfilApi(creado), message: 'Perfil creado correctamente' });
+    } catch (error) {
+        const status = error.code === 'DUPLICADO' ? 409 : 400;
+        res.status(status).json({ success: false, error: error.message || 'Error al crear perfil' });
+    }
+});
+
+router.post('/perfiles-tablas-kds', adminAuth, async (req, res) => {
+    try {
+        const nombre = (req.body?.nombre || '').toString().trim();
+        if (!nombre) {
+            return res.status(400).json({ success: false, error: 'nombre es requerido' });
+        }
+        const tipo = 'tablas_kds';
+        const configEntrada = req.body?.config && typeof req.body.config === 'object'
+            ? req.body.config
+            : {};
+        const sanitizado = sanitizarConfigSegunTipo(tipo, configEntrada);
+        const creado = await cocinerosRepository.crearPerfilVerCocina({
+            nombre,
+            config: sanitizado,
+            tipo,
+            creadoPor: req.admin.id,
+        });
+        res.status(201).json({ success: true, data: resumenPerfilApi(creado), message: 'Perfil creado correctamente' });
     } catch (error) {
         const status = error.code === 'DUPLICADO' ? 409 : 400;
         res.status(status).json({ success: false, error: error.message || 'Error al crear perfil' });
@@ -362,11 +446,13 @@ router.post('/perfiles-ver-cocina', adminAuth, async (req, res) => {
 
 /**
  * PUT /api/perfiles-ver-cocina/:id
- * Actualizar nombre y/o config de un perfil existente.
- * Body: { nombre?, config? }
  */
 router.put('/perfiles-ver-cocina/:id', adminAuth, async (req, res) => {
     try {
+        const actual = await obtenerPerfilDeTipo(req.params.id, 'ver_cocina');
+        if (!actual) {
+            return res.status(404).json({ success: false, error: 'Perfil no encontrado' });
+        }
         const update = {};
         if (req.body?.nombre !== undefined) {
             update.nombre = (req.body.nombre).toString().trim();
@@ -375,15 +461,14 @@ router.put('/perfiles-ver-cocina/:id', adminAuth, async (req, res) => {
             }
         }
         if (req.body?.config !== undefined && typeof req.body.config === 'object') {
-            const sanitizado = sanitizarConfigPerfilVerCocina(req.body.config);
-            const actual = await cocinerosRepository.obtenerPerfilVerCocinaPorId(req.params.id);
-            update.config = fusionarConfigPerfilVerCocina(actual?.config, sanitizado);
+            const sanitizado = sanitizarConfigSegunTipo('ver_cocina', req.body.config);
+            update.config = fusionarConfigSegunTipo('ver_cocina', actual.config, sanitizado);
         }
         const actualizado = await cocinerosRepository.actualizarPerfilVerCocina(
             req.params.id,
             { ...update, actualizadoPor: req.admin.id }
         );
-        res.json({ success: true, data: actualizado, message: 'Perfil actualizado correctamente' });
+        res.json({ success: true, data: resumenPerfilApi(actualizado), message: 'Perfil actualizado correctamente' });
     } catch (error) {
         const status = error.code === 'NO_ENCONTRADO' ? 404
             : error.code === 'DUPLICADO' ? 409
@@ -392,12 +477,56 @@ router.put('/perfiles-ver-cocina/:id', adminAuth, async (req, res) => {
     }
 });
 
-/**
- * DELETE /api/perfiles-ver-cocina/:id
- * Borrado lógico (activo=false).
- */
+router.put('/perfiles-tablas-kds/:id', adminAuth, async (req, res) => {
+    try {
+        const actual = await obtenerPerfilDeTipo(req.params.id, 'tablas_kds');
+        if (!actual) {
+            return res.status(404).json({ success: false, error: 'Perfil no encontrado' });
+        }
+        const update = {};
+        if (req.body?.nombre !== undefined) {
+            update.nombre = (req.body.nombre).toString().trim();
+            if (!update.nombre) {
+                return res.status(400).json({ success: false, error: 'nombre no puede ser vacío' });
+            }
+        }
+        if (req.body?.config !== undefined && typeof req.body.config === 'object') {
+            const sanitizado = sanitizarConfigSegunTipo('tablas_kds', req.body.config);
+            update.config = fusionarConfigSegunTipo('tablas_kds', actual.config, sanitizado);
+        }
+        const actualizado = await cocinerosRepository.actualizarPerfilVerCocina(
+            req.params.id,
+            { ...update, actualizadoPor: req.admin.id }
+        );
+        res.json({ success: true, data: resumenPerfilApi(actualizado), message: 'Perfil actualizado correctamente' });
+    } catch (error) {
+        const status = error.code === 'NO_ENCONTRADO' ? 404
+            : error.code === 'DUPLICADO' ? 409
+            : 400;
+        res.status(status).json({ success: false, error: error.message || 'Error al actualizar perfil' });
+    }
+});
+
 router.delete('/perfiles-ver-cocina/:id', adminAuth, async (req, res) => {
     try {
+        const actual = await obtenerPerfilDeTipo(req.params.id, 'ver_cocina');
+        if (!actual) {
+            return res.status(404).json({ success: false, error: 'Perfil no encontrado' });
+        }
+        await cocinerosRepository.eliminarPerfilVerCocina(req.params.id);
+        res.json({ success: true, message: 'Perfil eliminado correctamente' });
+    } catch (error) {
+        const status = error.code === 'NO_ENCONTRADO' ? 404 : 400;
+        res.status(status).json({ success: false, error: error.message || 'Error al eliminar perfil' });
+    }
+});
+
+router.delete('/perfiles-tablas-kds/:id', adminAuth, async (req, res) => {
+    try {
+        const actual = await obtenerPerfilDeTipo(req.params.id, 'tablas_kds');
+        if (!actual) {
+            return res.status(404).json({ success: false, error: 'Perfil no encontrado' });
+        }
         await cocinerosRepository.eliminarPerfilVerCocina(req.params.id);
         res.json({ success: true, message: 'Perfil eliminado correctamente' });
     } catch (error) {
