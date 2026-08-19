@@ -254,10 +254,16 @@ tailwind.config = {
               <div x-show="grupo._fromLibrary" class="flex items-center gap-1 mb-2">
                 <span class="text-[9px] px-1.5 py-0.5 rounded bg-st-libre/20 text-st-libre font-medium">📚 Biblioteca</span>
               </div>
+              <div x-show="grupo._copiaPlato" class="flex items-center gap-1 mb-2">
+                <span class="text-[9px] px-1.5 py-0.5 rounded bg-gold/20 text-gold font-medium">✏️ Copia del plato</span>
+              </div>
               <!-- Header del grupo -->
               <div class="flex items-center justify-between mb-2">
                 <input type="text" x-model="grupo.grupo" placeholder="Nombre del grupo" class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-md px-2 py-1.5 text-xs w-32 focus:border-gold focus:outline-none" :readonly="grupo._fromLibrary" :class="grupo._fromLibrary ? 'opacity-80 cursor-not-allowed' : ''">
-                <button type="button" @click="eliminarGrupoComplemento(gi)" class="w-6 h-6 flex items-center justify-center rounded bg-st-pagado/20 text-st-pagado text-[10px] hover:bg-st-pagado/30">✕</button>
+                <div class="flex items-center gap-1">
+                  <button type="button" x-show="grupo._fromLibrary" @click="editarComplementoEnPlato(gi)" title="Editar copia en este plato (no cambia la biblioteca)" class="h-6 px-1.5 rounded bg-gold/20 text-gold text-[10px] hover:bg-gold/30">✏️ Editar</button>
+                  <button type="button" @click="eliminarGrupoComplemento(gi)" class="w-6 h-6 flex items-center justify-center rounded bg-st-pagado/20 text-st-pagado text-[10px] hover:bg-st-pagado/30">✕</button>
+                </div>
               </div>
 
               <!-- Configuración del grupo -->
@@ -301,11 +307,12 @@ tailwind.config = {
               <!-- FIN CONFIGURACIÓN DE CANTIDADES -->
 
               <!-- Opciones -->
-              <p class="text-[10px] text-txt-muted mb-1">Opciones <span class="text-[9px] opacity-70">(precio extra opcional)</span>:</p>
+              <p class="text-[10px] text-txt-muted mb-1">Opciones <span class="text-[9px] opacity-70">(pronombre = nombre corto en cocina)</span>:</p>
               <div class="space-y-1.5">
                 <template x-for="(op, oi) in grupo.opciones" :key="oi">
                   <div class="flex gap-1.5 items-center">
                     <input type="text" x-model="grupo.opciones[oi].nombre" placeholder="Ej: Pollo" class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[11px] focus:border-gold focus:outline-none" :readonly="grupo._fromLibrary" :class="grupo._fromLibrary ? 'opacity-80' : ''">
+                    <input type="text" x-model="grupo.opciones[oi].pronombre" placeholder="Pronombre" title="Nombre corto en cocina. Si está vacío se usa el nombre completo." maxlength="40" class="w-20 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[11px] focus:border-gold focus:outline-none" :readonly="grupo._fromLibrary" :class="grupo._fromLibrary ? 'opacity-80' : ''">
                     <input type="number" x-model.number="grupo.opciones[oi].precio" min="0" step="0.01" placeholder="0.00" title="Precio adicional opcional (S/.)" class="w-16 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[11px] focus:border-gold focus:outline-none" :readonly="grupo._fromLibrary" :class="grupo._fromLibrary ? 'opacity-80' : ''">
                     <button type="button" @click="eliminarOpcionComplemento(gi, oi)" class="text-st-pagado text-[10px] hover:text-white px-1" x-show="!grupo._fromLibrary">✕</button>
                   </div>
@@ -574,6 +581,7 @@ tailwind.config = {
           <template x-for="(op, i) in formComplemento.opciones" :key="i">
             <div class="flex gap-2">
               <input type="text" x-model="formComplemento.opciones[i].nombre" placeholder="Ej: Tres cuartos" class="flex-1 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+              <input type="text" x-model="formComplemento.opciones[i].pronombre" placeholder="Pronombre" title="Nombre corto en cocina" maxlength="40" class="w-24 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
               <input type="number" x-model.number="formComplemento.opciones[i].precio" min="0" step="0.01" placeholder="0.00" title="Precio adicional opcional (S/.)" class="w-24 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
               <button @click="eliminarOpcionFormComplemento(i)" class="w-8 h-8 flex items-center justify-center rounded bg-st-pagado/20 text-st-pagado text-sm hover:bg-st-pagado/30">✕</button>
             </div>
@@ -924,7 +932,7 @@ tailwind.config = {
         obligatorio: false,
         seleccionMultiple: false,
         // v3.0: opción = { nombre, precio }
-        opciones: [{ nombre: '', precio: 0 }],
+        opciones: [{ nombre: '', precio: 0, pronombre: '' }],
         // ===== NUEVOS CAMPOS v2.0 =====
         modoSeleccion: 'opciones',
         maxUnidadesGrupo: null,
@@ -958,27 +966,35 @@ tailwind.config = {
       this.formPlato.complementos.splice(index, 1);
     },
 
+    editarComplementoEnPlato(index) {
+      const g = this.formPlato.complementos[index];
+      if (!g) return;
+      g._fromLibrary = false;
+      g._copiaPlato = true;
+    },
+
     agregarOpcionComplemento(grupoIndex) {
       if (!this.formPlato.complementos[grupoIndex].opciones) {
         this.formPlato.complementos[grupoIndex].opciones = [];
       }
       // v3.0: opción es ahora { nombre, precio }
-      this.formPlato.complementos[grupoIndex].opciones.push({ nombre: '', precio: 0 });
+      this.formPlato.complementos[grupoIndex].opciones.push({ nombre: '', precio: 0, pronombre: '' });
     },
 
     // v3.0: normaliza una opción (string u objeto) a { nombre, precio }
     normalizarOpcionComplemento(op) {
-      if (op == null) return { nombre: '', precio: 0 };
-      if (typeof op === 'string') return { nombre: op.trim(), precio: 0 };
+      if (op == null) return { nombre: '', precio: 0, pronombre: '' };
+      if (typeof op === 'string') return { nombre: op.trim(), precio: 0, pronombre: '' };
       if (typeof op === 'object') {
         const nombre = String(op.nombre ?? '').trim();
         const precioRaw = Number(op.precio);
         return {
           nombre,
-          precio: Number.isFinite(precioRaw) && precioRaw > 0 ? precioRaw : 0
+          precio: Number.isFinite(precioRaw) && precioRaw > 0 ? precioRaw : 0,
+          pronombre: String(op.pronombre || '').trim().slice(0, 40)
         };
       }
-      return { nombre: String(op).trim(), precio: 0 };
+      return { nombre: String(op).trim(), precio: 0, pronombre: '' };
     },
 
     // v3.0: normaliza un array de opciones (filtra vacíos y duplicados por nombre)
@@ -1166,7 +1182,7 @@ tailwind.config = {
         nombre: '',
         categoria: 'General',
         // v3.0: opción = { nombre, precio }
-        opciones: [{ nombre: '', precio: 0 }],
+        opciones: [{ nombre: '', precio: 0, pronombre: '' }],
         obligatorio: false,
         seleccionMultiple: false,
         // ===== NUEVOS CAMPOS v2.0 =====
@@ -1206,7 +1222,7 @@ tailwind.config = {
 
     agregarOpcionFormComplemento() {
       // v3.0: ahora opción es objeto { nombre, precio }
-      this.formComplemento.opciones.push({ nombre: '', precio: 0 });
+      this.formComplemento.opciones.push({ nombre: '', precio: 0, pronombre: '' });
     },
 
     eliminarOpcionFormComplemento(index) {

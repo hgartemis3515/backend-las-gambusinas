@@ -722,6 +722,13 @@ tailwind.config = {
                 Si está marcado (recomendado), las guarniciones no usan cola #1/#2/#3: conservan el cronómetro y cualquier cocinero o supervisor puede finalizarlas sin respetar el orden de llegada.
                 En Ver Cocina se ocultan los números de las guarniciones. Recargue la app de cocina.
               </p>
+              <label class="flex items-center gap-3 cursor-pointer" x-show="config.cocinaPermitirGuarnicionesSeparadas">
+                <input type="checkbox" x-model="config.cocinaDeshabilitarAgrupacionGuarniciones" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+                <span class="text-sm text-txt-secondary">Deshabilitar agrupación de guarniciones</span>
+              </label>
+              <p class="text-[10px] text-txt-muted pl-7" x-show="config.cocinaPermitirGuarnicionesSeparadas">
+                Si está desmarcado (recomendado), las guarniciones de un mismo plato se muestran y se asignan juntas: una tarjeta, un cronómetro, un cocinero. El título usa el pronombre de cada extra (ej. P FRITA + ENSAL + arroz). Márquela para volver a una tarjeta por guarnición. Recargue la app de cocina.
+              </p>
 
               <!-- Umbrales de tiempos por local (no hard-codeados) -->
               <div x-show="config.cocinaPermitirGuarnicionesSeparadas" class="mt-3 p-3 rounded-lg border border-[rgba(212,175,55,0.15)] bg-bg-sidebar/40 space-y-3">
@@ -1503,6 +1510,7 @@ function configApp() {
       emailReportes: '',
       desgloseComplementos: true,
       cocinaDeshabilitarOrdenSecuencialGuarniciones: true,
+      cocinaDeshabilitarAgrupacionGuarniciones: false,
       sesionesSimultaneas: 3,
       timeoutInactividadMin: 30,
       requiere2fa: false,
@@ -1761,6 +1769,7 @@ function configApp() {
             // PLAN GUARNICIONES_SEPARADAS v1.1: flag global + umbrales de tiempos.
             this.config.cocinaPermitirGuarnicionesSeparadas = cfg.cocina.permitirGuarnicionesSeparadas !== false;
             this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones = cfg.cocina.deshabilitarOrdenSecuencialGuarniciones !== false;
+            this.config.cocinaDeshabilitarAgrupacionGuarniciones = cfg.cocina.deshabilitarAgrupacionGuarniciones === true;
             const tg = cfg.cocina.tiemposGuarnicion || {};
             this.config.cocinaTiemposGuarnicionUmbralAlerta = Number(tg.umbralAlertaMultiplo) || 1.5;
             this.config.cocinaTiemposGuarnicionUmbralCritica = Number(tg.umbralCriticaMultiplo) || 2;
@@ -1774,6 +1783,7 @@ function configApp() {
             this.config.cocinaUsarNombreCocinaEnTablaKds = true;
             this.config.cocinaPermitirGuarnicionesSeparadas = true;
             this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones = true;
+            this.config.cocinaDeshabilitarAgrupacionGuarniciones = false;
             this.config.cocinaTiemposGuarnicionUmbralAlerta = 1.5;
             this.config.cocinaTiemposGuarnicionUmbralCritica = 2;
             this.config.cocinaTiemposGuarnicionRapido = 180;
@@ -1938,6 +1948,7 @@ function configApp() {
             // PLAN GUARNICIONES_SEPARADAS v1.1
             permitirGuarnicionesSeparadas: this.config.cocinaPermitirGuarnicionesSeparadas !== false,
             deshabilitarOrdenSecuencialGuarniciones: this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones !== false,
+            deshabilitarAgrupacionGuarniciones: this.config.cocinaDeshabilitarAgrupacionGuarniciones === true,
             tiemposGuarnicion: {
               umbralAlertaMultiplo: Number(this.config.cocinaTiemposGuarnicionUmbralAlerta) || 1.5,
               umbralCriticaMultiplo: Number(this.config.cocinaTiemposGuarnicionUmbralCritica) || 2,

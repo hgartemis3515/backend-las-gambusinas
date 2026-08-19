@@ -2201,8 +2201,12 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       // PLAN GUARNICIONES_SEPARADAS v1.1: si el trabajo es una guarnición,
       // incluir complementoId y tipo para que el cliente parchee el subdoc,
       // no el procesandoPor del plato padre.
-      if (opts && opts.complementoId) {
-        eventData.complementoId = String(opts.complementoId);
+      if (opts && (opts.complementoId || (Array.isArray(opts.complementoIds) && opts.complementoIds.length))) {
+        const ids = Array.isArray(opts.complementoIds)
+          ? opts.complementoIds.filter(Boolean).map(String)
+          : [];
+        eventData.complementoId = String(opts.complementoId || ids[0] || '');
+        if (ids.length) eventData.complementoIds = ids;
         eventData.tipo = opts.tipo || 'guarnicion';
         if (opts.estadoCocina) eventData.estadoCocina = opts.estadoCocina;
       }
@@ -2257,8 +2261,12 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         timestamp
       };
       // PLAN GUARNICIONES_SEPARADAS v1.1: liberación de guarnición.
-      if (opts && opts.complementoId) {
-        eventData.complementoId = String(opts.complementoId);
+      if (opts && (opts.complementoId || (Array.isArray(opts.complementoIds) && opts.complementoIds.length))) {
+        const ids = Array.isArray(opts.complementoIds)
+          ? opts.complementoIds.filter(Boolean).map(String)
+          : [];
+        eventData.complementoId = String(opts.complementoId || ids[0] || '');
+        if (ids.length) eventData.complementoIds = ids;
         eventData.tipo = opts.tipo || 'guarnicion';
       }
 

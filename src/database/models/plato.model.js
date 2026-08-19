@@ -125,7 +125,8 @@ const platoSchema = new mongoose.Schema({
         // La normalización a objetos se hace en pre('save').
         opciones: [{
             nombre: { type: String, required: true, trim: true },
-            precio: { type: Number, default: 0, min: 0 }
+            precio: { type: Number, default: 0, min: 0 },
+            pronombre: { type: String, default: '', trim: true, maxlength: 40 }
         }]
     }]
 });
@@ -192,17 +193,18 @@ platoSchema.pre('validate', function (next) {
         this.complementos.forEach((grupo) => {
             if (!grupo || !Array.isArray(grupo.opciones)) return;
             grupo.opciones = grupo.opciones.map((op) => {
-                if (op == null) return { nombre: '', precio: 0 };
-                if (typeof op === 'string') return { nombre: op.trim(), precio: 0 };
+                if (op == null) return { nombre: '', precio: 0, pronombre: '' };
+                if (typeof op === 'string') return { nombre: op.trim(), precio: 0, pronombre: '' };
                 if (typeof op === 'object') {
                     const nombre = String(op.nombre ?? '').trim();
                     const precio = Number(op.precio);
                     return {
                         nombre,
-                        precio: Number.isFinite(precio) && precio > 0 ? precio : 0
+                        precio: Number.isFinite(precio) && precio > 0 ? precio : 0,
+                        pronombre: String(op.pronombre || '').trim().slice(0, 40)
                     };
                 }
-                return { nombre: String(op).trim(), precio: 0 };
+                return { nombre: String(op).trim(), precio: 0, pronombre: '' };
             });
         });
     }
@@ -249,21 +251,26 @@ platoSchema.pre('save', async function (next) {
                     if (typeof op === 'string') {
                         const nombre = op.trim();
                         if (!nombre) continue;
-                        normalizada = { nombre, precio: 0 };
+                        normalizada = { nombre, precio: 0, pronombre: '' };
                     } else if (typeof op === 'object') {
                         const nombre = String(op.nombre || '').trim();
                         if (!nombre) continue;
                         const precio = Number(op.precio);
                         normalizada = {
                             nombre,
-                            precio: Number.isFinite(precio) && precio > 0 ? precio : 0
+                            precio: Number.isFinite(precio) && precio > 0 ? precio : 0,
+                            pronombre: String(op.pronombre || '').trim().slice(0, 40)
                         };
                     } else {
                         continue;
                     }
                     if (vistos.has(normalizada.nombre.toLowerCase())) continue;
                     vistos.add(normalizada.nombre.toLowerCase());
-                    limpias.push({ nombre: normalizada.nombre, precio: normalizada.precio });
+                    limpias.push({
+                        nombre: normalizada.nombre,
+                        precio: normalizada.precio,
+                        pronombre: normalizada.pronombre || ''
+                    });
                 }
                 grupo.opciones = limpias;
             });

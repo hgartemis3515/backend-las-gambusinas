@@ -87,7 +87,8 @@ const boucherSchema = new mongoose.Schema({
  comandaNumber: Number, // Número de comanda a la que pertenece
  complementosSeleccionados: [{
  grupo: { type: String },
- opcion: { type: String }
+ opcion: { type: String },
+ pronombre: { type: String, default: '' }
  }],
  // NUEVO: Tipo de servicio (Mesa vs Para llevar)
  tipoServicio: {

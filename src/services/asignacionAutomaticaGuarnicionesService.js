@@ -15,6 +15,7 @@ const logger = require('../utils/logger');
 const AsignacionAutomaticaGuarniciones = require('../database/models/asignacionAutomaticaGuarniciones.model');
 const ConfigCocinero = require('../database/models/configCocinero.model');
 const ConfigSistema = require('../database/models/configuracionSistema.model');
+const { agrupacionGuarnicionesOn } = require('../utils/autocerrarGuarniciones');
 const Zona = require('../database/models/zona.model');
 
 const Comanda = mongoose.model('Comanda') || require('../database/models/comanda.model');
@@ -69,6 +70,16 @@ async function contarGuarnicionesEnCurso(cocineroId, guarnicionKey = null) {
         { $match: { 'platos.complementosSeleccionados.procesandoPor.cocineroId': oid, 'platos.complementosSeleccionados.estadoCocina': { $in: ESTADOS_EN_CURSO } } }
     ];
     if (guarnicionKey) pipeline.push({ $match: { 'platos.complementosSeleccionados.guarnicionKey': guarnicionKey } });
+    pipeline.push({
+        $group: {
+            _id: {
+                $ifNull: [
+                    '$platos.complementosSeleccionados.asignacionMeta.grupoId',
+                    '$platos.complementosSeleccionados._id'
+                ]
+            }
+        }
+    });
     pipeline.push({ $group: { _id: null, total: { $sum: 1 } } });
     const res = await Comanda.aggregate(pipeline);
     return res.length > 0 ? res[0].total : 0;
@@ -82,7 +93,16 @@ async function mapaGuarnicionesEnCursoPorCocinero(cocineroIds) {
         { $unwind: '$platos' },
         { $unwind: '$platos.complementosSeleccionados' },
         { $match: { 'platos.complementosSeleccionados.procesandoPor.cocineroId': { $in: oids }, 'platos.complementosSeleccionados.estadoCocina': { $in: ESTADOS_EN_CURSO } } },
-        { $group: { _id: '$platos.complementosSeleccionados.procesandoPor.cocineroId', total: { $sum: 1 } } }
+        { $group: {
+            _id: {
+                cocinero: '$platos.complementosSeleccionados.procesandoPor.cocineroId',
+                unidad: { $ifNull: [
+                    '$platos.complementosSeleccionados.asignacionMeta.grupoId',
+                    '$platos.complementosSeleccionados._id'
+                ] }
+            }
+        } },
+        { $group: { _id: '$_id.cocinero', total: { $sum: 1 } } }
     ]);
     const map = {};
     res.forEach(r => { map[r._id.toString()] = r.total; });
@@ -257,7 +277,7 @@ async function filtrarCandidatoGuarnicion(
  * Escribe procesandoPor + asignacionMeta en el subdoc del complemento.
  * Condicional: solo si NO tiene ya procesandoPor (evita pisar toma manual).
  */
-async function asignarGuarnicionInterna(comandaId, platoIndex, compIndex, cocineroId, metaOrigen, metaRegla, batchId, ids = {}) {
+async function asignarGuarnicionInterna(comandaId, platoIndex, compIndex, cocineroId, metaOrigen, metaRegla, batchId, ids = {}, grupoId = null) {
     const mo = await Mozos.findById(cocineroId).select('name aliasCocinero');
     if (!mo) return false;
     const cocineroInfo = {
@@ -272,6 +292,7 @@ async function asignarGuarnicionInterna(comandaId, platoIndex, compIndex, cocine
             origen: metaOrigen,
             regla: metaRegla,
             batchId: batchId || null,
+            grupoId: grupoId || null,
             timestamp: moment().tz(TZ).toDate()
         },
         [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.estadoCocina`]: 'en_espera',
@@ -323,6 +344,7 @@ async function asignarGuarnicionesNuevas(comandaPop) {
         if (!flagGuarniciones) {
             return { asignados: 0, noAsignados: 0, motivo: 'flag_global_off' };
         }
+        const agrupacionOn = agrupacionGuarnicionesOn(cfgSistema?.cocina);
 
         const config = await AsignacionAutomaticaGuarniciones.obtenerConfiguracion();
         if (!config.habilitada) {
@@ -352,6 +374,75 @@ async function asignarGuarnicionesNuevas(comandaPop) {
             const cocineroPadreId = plato.procesandoPor && plato.procesandoPor.cocineroId
                 ? plato.procesandoPor.cocineroId.toString() : null;
             const platoRef = plato.plato || plato;
+
+            if (agrupacionOn) {
+                const pendientes = [];
+                for (let ci = 0; ci < comps.length; ci++) {
+                    const comp = comps[ci];
+                    if (!comp || comp.eliminado) continue;
+                    if (comp.procesandoPor && comp.procesandoPor.cocineroId) continue;
+                    if (comp.estadoCocina === 'recoger') continue;
+                    pendientes.push({ ci, comp });
+                }
+                if (!pendientes.length) continue;
+
+                let encontrada = null;
+                let guarnicionKeyElegida = '';
+                for (const p of pendientes) {
+                    const key = normalizarGuarnicionKey(p.comp.grupo, p.comp.opcion);
+                    const reg = encontrarReglaGuarnicion(perfil, p.comp.grupo, p.comp.opcion, key);
+                    if (reg) {
+                        encontrada = reg;
+                        guarnicionKeyElegida = key;
+                        break;
+                    }
+                }
+                if (!encontrada) {
+                    noAsignados += pendientes.length;
+                    continue;
+                }
+
+                const candidatos = construirCandidatos(encontrada.regla);
+                const evaluados = [];
+                for (const cand of candidatos) {
+                    const ev = await filtrarCandidatoGuarnicion(
+                        cand, config, platoRef, guarnicionKeyElegida, cocineroPadreId,
+                        encontrada.regla.estacionRecomendada,
+                        cacheConectado, cacheCargaTot, cacheCocinero, null
+                    );
+                    if (ev) evaluados.push(ev);
+                }
+                if (evaluados.length === 0) {
+                    noAsignados += pendientes.length;
+                    continue;
+                }
+                if (prioridadComanda > 0) {
+                    evaluados.forEach(e => { e.score += prioridadComanda * 10; });
+                }
+                evaluados.sort((a, b) => b.score - a.score);
+                const elegido = evaluados[0];
+                const grupoId = String(plato._id || '');
+                let okGrupo = 0;
+                for (const p of pendientes) {
+                    const ok = await asignarGuarnicionInterna(
+                        comandaPop._id, pi, p.ci, elegido.cocineroId,
+                        'auto', 'grupo', null,
+                        { platoId: plato._id, complementoId: p.comp._id },
+                        grupoId
+                    );
+                    if (ok) okGrupo++;
+                }
+                if (okGrupo > 0) {
+                    asignados += 1;
+                    logger.info('Auto-asignación grupo guarniciones OK', {
+                        comandaId: comandaPop._id?.toString(),
+                        platoId: grupoId, cocineroId: elegido.cocineroId, extras: okGrupo
+                    });
+                } else {
+                    noAsignados += pendientes.length;
+                }
+                continue;
+            }
 
             for (let ci = 0; ci < comps.length; ci++) {
                 const comp = comps[ci];

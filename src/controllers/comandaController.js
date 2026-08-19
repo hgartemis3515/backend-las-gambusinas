@@ -45,6 +45,7 @@ const {
     resolverIndicesPlatosEliminados,
     responderBloqueoCocina
 } = require('../utils/reglasComandaTomadaCocina');
+const { buildAutocierreGuarnicionesSet } = require('../utils/autocerrarGuarniciones');
 const { getComandasParaPagoAdelantado } = require('../repository/ticketPagoAdelantado.repository');
 const { adminAuth, checkPermission } = require('../middleware/adminAuth');
 
@@ -2305,9 +2306,8 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
             }
         }
 
-        // PLAN GUARNICIONES_SEPARADAS v1.1.1 §9.3.2: con flag ON, el principal
-        // no pasa a recoger mientras tenga guarniciones pendientes. Supervisor
-        // puede forzar (auto-cierra las guarniciones pendientes).
+        // PLAN AGRUPACION_GUARNICIONES_AUTOCIERRE §3.1: al pasar a recoger,
+        // auto-cerrar TODAS las guarniciones de ese plato (asignadas o no).
         if (nuevoEstado === 'recoger') {
             try {
                 const Comanda = mongoose.model('Comanda');
@@ -2315,51 +2315,20 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
                 const cfg = await ConfiguracionSistema.findById('configuracion_unica').lean();
                 const permitirGuarniciones = cfg?.cocina?.permitirGuarnicionesSeparadas !== false;
                 if (permitirGuarniciones) {
-                    const comps = platoAntes.complementosSeleccionados || [];
-                    const pendientes = comps
-                        .filter(c => c && !c.eliminado && c.estadoCocina !== 'recoger')
-                        .map(c => ({
-                            complementoId: c._id ? String(c._id) : null,
-                            grupo: c.grupo,
-                            opcion: Array.isArray(c.opcion) ? c.opcion.join(', ') : c.opcion,
-                            estadoCocina: c.estadoCocina || 'pedido'
-                        }));
-                    if (pendientes.length > 0) {
-                        const forzar = req.body.forzar === true;
-                        const esSup = esSupervisorCocinaDesdeToken(req);
-                        if (!forzar || !esSup) {
-                            return res.status(409).json({
-                                success: false,
-                                error: 'FALTAN_GUARNICIONES',
-                                message: `Falta(n) ${pendientes.length} guarnicion(es) por finalizar antes de cerrar el plato principal.`,
-                                pendientes
-                            });
-                        }
-                        // Supervisor forzó: auto-cerrar guarniciones pendientes.
+                    const platoIdx = comandaAntes.platos.findIndex(p => {
+                        const pId = p._id?.toString() || p.plato?._id?.toString();
+                        return pId === platoId;
+                    });
+                    if (platoIdx >= 0) {
                         const autoAhora = new Date();
-                        const platoIdx = comandaAntes.platos.findIndex(p => {
-                            const pId = p._id?.toString() || p.plato?._id?.toString();
-                            return pId === platoId;
-                        });
-                        if (platoIdx >= 0) {
-                            const autoSet = {};
-                            comps.forEach((c, ci) => {
-                                if (c && !c.eliminado && c.estadoCocina !== 'recoger') {
-                                    autoSet[`platos.${platoIdx}.complementosSeleccionados.${ci}.estadoCocina`] = 'recoger';
-                                    autoSet[`platos.${platoIdx}.complementosSeleccionados.${ci}.procesadoPor`] = {
-                                        ...(c.procesandoPor || {}),
-                                        timestamp: autoAhora
-                                    };
-                                }
-                            });
-                            if (Object.keys(autoSet).length > 0) {
-                                await Comanda.updateOne({ _id: id }, { $set: autoSet });
-                            }
+                        const autoSet = buildAutocierreGuarnicionesSet(platoAntes, platoIdx, autoAhora);
+                        if (Object.keys(autoSet).length > 0) {
+                            await Comanda.updateOne({ _id: id }, { $set: autoSet });
                         }
                     }
                 }
             } catch (errG) {
-                console.warn('[PUT /plato/:platoId/estado] Validación de guarniciones falló (no crítico)', errG.message);
+                console.warn('[PUT /plato/:platoId/estado] Auto-cierre de guarniciones falló (no crítico)', errG.message);
             }
         }
 

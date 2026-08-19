@@ -30,7 +30,8 @@ function normalizarOpcion(op) {
     const precio = Number(op.precio);
     return {
       nombre,
-      precio: Number.isFinite(precio) && precio > 0 ? precio : 0
+      precio: Number.isFinite(precio) && precio > 0 ? precio : 0,
+      pronombre: String(op.pronombre || '').trim().slice(0, 40)
     };
   }
   return { nombre: String(op).trim(), precio: 0 };
@@ -66,6 +67,23 @@ function getPrecioOpcion(grupo, nombreOpcion) {
   const opciones = normalizarOpciones(grupo.opciones);
   const encontrada = opciones.find((o) => o.nombre.toLowerCase() === target);
   return encontrada ? encontrada.precio : 0;
+}
+
+/**
+ * Pronombre (nombre corto de cocina) de una opción. Vacío si no está definido.
+ */
+function getPronombreOpcion(grupo, nombreOpcion) {
+  if (!grupo || !nombreOpcion) return '';
+  const target = String(nombreOpcion).trim().toLowerCase();
+  const opciones = Array.isArray(grupo.opciones) ? grupo.opciones : [];
+  for (const op of opciones) {
+    if (op == null || typeof op === 'string') continue;
+    const nombre = String(op.nombre ?? op.opcion ?? '').trim();
+    if (nombre.toLowerCase() === target) {
+      return String(op.pronombre || '').trim().slice(0, 40);
+    }
+  }
+  return '';
 }
 
 /**
@@ -154,11 +172,16 @@ function enriquecerComplementosConPrecio(complementosPlato, complementosSeleccio
       precioSnapshot = getPrecioOpcion(grupoConfig, getNombreOpcion(sel.opcion));
     }
 
+    const nombreOp = getNombreOpcion(sel.opcion);
+    const pronombreSnap = String(sel.pronombre || '').trim()
+      || (grupoConfig ? getPronombreOpcion(grupoConfig, nombreOp) : '');
+
     return {
       grupo: sel.grupo || '',
-      opcion: getNombreOpcion(sel.opcion),
+      opcion: nombreOp,
       cantidad: Math.max(1, Number(sel.cantidad) || 1),
-      precio: precioSnapshot
+      precio: precioSnapshot,
+      pronombre: pronombreSnap
     };
   });
 }
@@ -193,6 +216,7 @@ module.exports = {
   getNombreOpcion,
   normalizarOpciones,
   getPrecioOpcion,
+  getPronombreOpcion,
   calcularPrecioUnitarioConComplementos,
   calcularResumenComplementos,
   enriquecerComplementosConPrecio,

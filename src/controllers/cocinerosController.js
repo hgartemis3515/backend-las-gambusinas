@@ -8,6 +8,10 @@ const router = express.Router();
 const cocinerosRepository = require('../repository/cocineros.repository');
 const { adminAuth, checkPermission, checkRole } = require('../middleware/adminAuth');
 const logger = require('../utils/logger');
+const {
+    sanitizarConfigPerfilVerCocina,
+    fusionarConfigPerfilVerCocina,
+} = require('../utils/sanitizarPerfilVerCocina');
 const moment = require('moment-timezone');
 
 /**
@@ -252,38 +256,9 @@ router.get('/cocineros/:id/perfil-ver-cocina', adminAuth, async (req, res) => {
 /**
  * PUT /api/cocineros/:id/perfil-ver-cocina
  * Guardar el perfil de personalización de Ver Cocina de un cocinero.
- * Body: { config: { ...localDesign } }
+ * Body: { config: { ...snapshot Personalizar } }
+ * Fusiona con lo ya guardado para no perder opciones al añadir claves nuevas.
  */
-const PERFIL_VER_COCINA_KEYS = new Set([
-    'tamanioFuentePlato', 'tamanioFuenteDetalle', 'tamanioFuenteCronometro', 'tamanioFuenteCocinero',
-    'tiempoAmarillo', 'tiempoRojo', 'modoNocturno', 'modoAgrupacion', 'mostrarMesas', 'modoTimers',
-    'maxTimersVisibles', 'mostrarCabeceraCocinero', 'colorPorCocinero', 'mostrarCocineroTomado',
-    'umbralCargaAlta', 'umbralSobrecarga', 'estiloTemporizador', 'intensidadAlerta',
-    'mostrarEtiquetaPlato', 'mostrarIconoCocinero', 'fuenteFamilia', 'fuenteFamiliaCustom',
-    'colorFondo', 'colorTextoPrincipal', 'colorTextoSecundario', 'colorAcento', 'colorAlertaAmarilla',
-    'colorAlertaRoja', 'colorFilaPlato', 'espaciadoFilas', 'pesoFuentePlato', 'layoutColumnas',
-    'disposicionTarjeta', 'animacionesTarjetas',
-    'icono', 'mostrarNotificacionEntrada', 'textoNotificacionEntrada', 'duracionNotificacionEntrada',
-    'mostrarComplementos',
-    'layoutColumnasGuarniciones', 'diferenciarDisenoGuarniciones',
-    'numeroSecForma', 'numeroSecColor', 'numeroSecContorno', 'numeroSecFondo', 'numeroSecPeso',
-    'numeroSecGlow', 'numeroSecTamanio', 'numeroSecPrefijo',
-    'cantidadColor', 'cantidadContorno', 'cantidadFondo', 'cantidadTamanio',
-    'cantidadGrosorContorno', 'cantidadRadio',
-    'cronometroColor', 'cronometroContorno', 'cronometroFondo',
-    'cronometroContornoLetra', 'cronometroFondoTexto',
-    'cronometroForma', 'cronometroAncho', 'cronometroAlto', 'cronometroRadio',
-    'numeroSecAncho', 'numeroSecAlto',
-    'tarjetaRadio', 'tarjetaPadding', 'tarjetaGap',
-    'colorDegradadoTarjeta', 'degradadoTarjeta', 'colorFondoTarjeta',
-    'quitarNombreCocineroTarjeta', 'ocultarAtencionUrgente', 'animacionesAlerta',
-    'animacionAtencion', 'animacionUrgente', 'colorAnimacionAtencion', 'colorAnimacionUrgente',
-    'emojisAnimacionAtencion', 'tamanioEmojiAtencion', 'cantidadEmojiAtencion',
-    'emojisAnimacionUrgente', 'tamanioEmojiUrgente', 'cantidadEmojiUrgente',
-    'autoAgrandamiento', 'autoAcomodamiento', 'aprovecharEspacio',
-    'tamanioCronometroCabecera',
-]);
-
 router.put('/cocineros/:id/perfil-ver-cocina', adminAuth, async (req, res) => {
     try {
         const { id } = req.params;
@@ -296,12 +271,10 @@ router.put('/cocineros/:id/perfil-ver-cocina', adminAuth, async (req, res) => {
         if (!configEntrada || typeof configEntrada !== 'object') {
             return res.status(400).json({ success: false, error: 'config es requerido (objeto)' });
         }
-        // Whitelist: solo claves visuales permitidas
-        const sanitizado = {};
-        for (const [k, v] of Object.entries(configEntrada)) {
-            if (PERFIL_VER_COCINA_KEYS.has(k)) sanitizado[k] = v;
-        }
-        const guardado = await cocinerosRepository.guardarPerfilVerCocina(id, sanitizado, req.admin.id);
+        const sanitizado = sanitizarConfigPerfilVerCocina(configEntrada);
+        const actual = await cocinerosRepository.obtenerPerfilVerCocina(id);
+        const merged = fusionarConfigPerfilVerCocina(actual, sanitizado);
+        const guardado = await cocinerosRepository.guardarPerfilVerCocina(id, merged, req.admin.id);
         res.json({ success: true, message: 'Perfil guardado correctamente', data: guardado });
     } catch (error) {
         logger.error('Error al guardar perfil-ver-cocina', { error: error.message });
@@ -367,10 +340,7 @@ router.post('/perfiles-ver-cocina', adminAuth, async (req, res) => {
         const configEntrada = req.body?.config && typeof req.body.config === 'object'
             ? req.body.config
             : (req.body && typeof req.body === 'object' ? req.body : {});
-        const sanitizado = {};
-        for (const [k, v] of Object.entries(configEntrada)) {
-            if (PERFIL_VER_COCINA_KEYS.has(k)) sanitizado[k] = v;
-        }
+        const sanitizado = sanitizarConfigPerfilVerCocina(configEntrada);
         const creado = await cocinerosRepository.crearPerfilVerCocina({
             nombre,
             config: sanitizado,
@@ -398,11 +368,9 @@ router.put('/perfiles-ver-cocina/:id', adminAuth, async (req, res) => {
             }
         }
         if (req.body?.config !== undefined && typeof req.body.config === 'object') {
-            const sanitizado = {};
-            for (const [k, v] of Object.entries(req.body.config)) {
-                if (PERFIL_VER_COCINA_KEYS.has(k)) sanitizado[k] = v;
-            }
-            update.config = sanitizado;
+            const sanitizado = sanitizarConfigPerfilVerCocina(req.body.config);
+            const actual = await cocinerosRepository.obtenerPerfilVerCocinaPorId(req.params.id);
+            update.config = fusionarConfigPerfilVerCocina(actual?.config, sanitizado);
         }
         const actualizado = await cocinerosRepository.actualizarPerfilVerCocina(
             req.params.id,

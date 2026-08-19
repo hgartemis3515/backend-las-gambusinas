@@ -220,7 +220,8 @@
       grupo: String(c.grupo || ''),
       opcion: String(c.opcion || ''),
       cantidad: Number(c.cantidad) || 1,
-      precio: Number(c.precio) || 0
+      precio: Number(c.precio) || 0,
+      pronombre: String(c.pronombre || '').trim()
     }));
     const extra = calcularExtraComplementos(plato, complementosSeleccionados);
     return {

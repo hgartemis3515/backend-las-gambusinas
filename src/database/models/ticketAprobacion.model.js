@@ -92,6 +92,7 @@ const ticketAprobacionSchema = new mongoose.Schema({
       grupo: { type: String },
       opcion: { type: String },
       cantidad: { type: Number, default: 1 },
+      pronombre: { type: String, default: '', trim: true },
     }],
     notaEspecial: { type: String, default: '' },
   }],

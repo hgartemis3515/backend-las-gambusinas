@@ -527,7 +527,7 @@ const calcularTotalesPlato = (platoDoc, item) => {
             const precio = Number(c.precio) || 0;
             extraComplementos += precio * cantidad;
             totalUnidadesComplementos += cantidad;
-            return { grupo: String(c.grupo || ''), opcion: String(c.opcion || ''), cantidad, precio };
+            return { grupo: String(c.grupo || ''), opcion: String(c.opcion || ''), cantidad, precio, pronombre: String(c.pronombre || '').trim() };
         })
         : [];
     const precioUnitario = precioBase + extraComplementos;

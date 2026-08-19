@@ -18,8 +18,8 @@ const perfilVerCocinaSchema = new mongoose.Schema({
         maxlength: 60,
     },
 
-    // Configuración visual completa (localDesign del panel Personalizar).
-    // Se sanitiza en el controller contra PERFIL_VER_COCINA_KEYS.
+    // Configuración visual completa (snapshot del panel Personalizar).
+    // Se sanitiza en el controller (claves camelCase visuales; se fusiona al actualizar).
     config: {
         type: mongoose.Schema.Types.Mixed,
         default: {},

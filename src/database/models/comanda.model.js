@@ -65,6 +65,8 @@ const comandaSchema = new mongoose.Schema({
             // v3.0: precio unitario del extra al momento del pedido (snapshot).
             // 0 o ausente en comandas legacy → no suma.
             precio: { type: Number, default: 0, min: 0 },
+            // Nombre corto para cocina (snapshot del catálogo).
+            pronombre: { type: String, default: '', trim: true },
             // PLAN GUARNICIONES_SEPARADAS v1.1: la guarnición (complemento) es una
             // unidad de trabajo de cocina independiente del plato padre. Estos campos
             // viven en el subdoc; el plato padre sigue siendo fuente de verdad para
@@ -89,6 +91,7 @@ const comandaSchema = new mongoose.Schema({
                 regla: { type: String, default: null, enum: ['guarnicion', 'grupo', 'estacion', 'batch', null] },
                 // Si se asignó como parte de un lote, id estable del batch (para agrupar en KDS).
                 batchId: { type: String, default: null },
+                grupoId: { type: String, default: null },
                 timestamp: { type: Date, default: null }
             },
             // Estado de cocina de la guarnición. NO mueve platos[].estado ni el flujo mozo.

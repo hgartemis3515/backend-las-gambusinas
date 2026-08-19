@@ -138,6 +138,9 @@ const CONFIGURACION_DEFAULT = {
         // Si true (default), las guarniciones no entran en la cola #1/#2/#3:
         // se finalizan sin orden de llegada; Ver Cocina no muestra el número.
         deshabilitarOrdenSecuencialGuarniciones: true,
+        // PLAN AGRUPACION_GUARNICIONES: si true, una tarjeta por extra (modelo v1.1).
+        // Default false = agrupación ON (una tarjeta / un cronómetro por plato).
+        deshabilitarAgrupacionGuarniciones: false,
         tiemposGuarnicion: {
             umbralAlertaMultiplo: 1.5,
             umbralCriticaMultiplo: 2,
@@ -516,6 +519,10 @@ const configuracionSistemaSchema = new mongoose.Schema({
         deshabilitarOrdenSecuencialGuarniciones: {
             type: Boolean,
             default: CONFIGURACION_DEFAULT.cocina.deshabilitarOrdenSecuencialGuarniciones
+        },
+        deshabilitarAgrupacionGuarniciones: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.cocina.deshabilitarAgrupacionGuarniciones
         },
         // Umbrales de tiempos por local (no hard-codeados). Si una guarnición supera
         // umbralAlertaSeg × tiempoMedioPreparacion → alerta visual en KDS.

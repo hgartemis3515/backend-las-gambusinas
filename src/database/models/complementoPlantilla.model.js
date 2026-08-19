@@ -42,6 +42,12 @@ const complementoPlantillaSchema = new mongoose.Schema({
             type: Number,
             default: 0,
             min: [0, 'El precio no puede ser negativo']
+        },
+        pronombre: {
+            type: String,
+            default: '',
+            trim: true,
+            maxlength: [40, 'El pronombre no puede exceder 40 caracteres']
         }
     }],
     obligatorio: {
@@ -111,17 +117,18 @@ complementoPlantillaSchema.index(
 complementoPlantillaSchema.pre('validate', function (next) {
     if (Array.isArray(this.opciones)) {
         this.opciones = this.opciones.map((op) => {
-            if (op == null) return { nombre: '', precio: 0 };
-            if (typeof op === 'string') return { nombre: op.trim(), precio: 0 };
+            if (op == null) return { nombre: '', precio: 0, pronombre: '' };
+            if (typeof op === 'string') return { nombre: op.trim(), precio: 0, pronombre: '' };
             if (typeof op === 'object') {
                 const nombre = String(op.nombre ?? '').trim();
                 const precio = Number(op.precio);
                 return {
                     nombre,
-                    precio: Number.isFinite(precio) && precio > 0 ? precio : 0
+                    precio: Number.isFinite(precio) && precio > 0 ? precio : 0,
+                    pronombre: String(op.pronombre || '').trim().slice(0, 40)
                 };
             }
-            return { nombre: String(op).trim(), precio: 0 };
+            return { nombre: String(op).trim(), precio: 0, pronombre: '' };
         });
     }
     next();
@@ -155,14 +162,15 @@ complementoPlantillaSchema.pre('save', function(next) {
             if (typeof op === 'string') {
                 const nombre = op.trim();
                 if (!nombre) continue;
-                normalizada = { nombre, precio: 0 };
+                normalizada = { nombre, precio: 0, pronombre: '' };
             } else if (typeof op === 'object') {
                 const nombre = String(op.nombre || '').trim();
                 if (!nombre) continue;
                 const precio = Number(op.precio);
                 normalizada = {
                     nombre,
-                    precio: Number.isFinite(precio) && precio > 0 ? precio : 0
+                    precio: Number.isFinite(precio) && precio > 0 ? precio : 0,
+                    pronombre: String(op.pronombre || '').trim().slice(0, 40)
                 };
             } else {
                 continue;

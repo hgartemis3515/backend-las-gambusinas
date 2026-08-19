@@ -93,7 +93,8 @@ const reservaSchema = new mongoose.Schema({
             grupo: { type: String, default: '' },
             opcion: { type: String, default: '' },
             cantidad: { type: Number, default: 1, min: 1 },
-            precio: { type: Number, default: 0 }   // snapshot; backend revalida
+            precio: { type: Number, default: 0 },   // snapshot; backend revalida
+            pronombre: { type: String, default: '', trim: true }
         }],
         notaEspecial: {
             type: String,

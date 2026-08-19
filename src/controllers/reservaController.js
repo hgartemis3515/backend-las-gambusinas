@@ -225,7 +225,8 @@ router.post('/reservas', async (req, res) => {
                         grupo: String(c.grupo || ''),
                         opcion: String(c.opcion || ''),
                         cantidad: parseInt(c.cantidad) || 1,
-                        precio: Number(c.precio) || 0
+                        precio: Number(c.precio) || 0,
+                        pronombre: String(c.pronombre || '').trim()
                     }))
                     : [],
                 notaEspecial: typeof p.notaEspecial === 'string' ? p.notaEspecial : ''

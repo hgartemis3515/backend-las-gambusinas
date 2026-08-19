@@ -1,0 +1,108 @@
+/**
+ * Sanitiza el config visual de Personalizar (Ver Cocina Completo).
+ *
+ * Contrato: toda opción del panel debe sobrevivir a Guardar / Cargar perfil.
+ * - Claves de la whitelist (conocidas) siempre pasan.
+ * - Claves camelCase nuevas del panel también pasan (para no perder opciones
+ *   futuras si el frontend se despliega antes que este archivo).
+ * - Valores: null | boolean | number finito | string acotado. Sin objetos.
+ */
+
+const CLAVE_RE = /^[a-zA-Z][a-zA-Z0-9]{0,80}$/;
+const BLOQUEADAS = new Set([
+    '__proto__',
+    'constructor',
+    'prototype',
+    'toString',
+    'valueOf',
+    'deshabilitarOrdenSecuencialGuarniciones',
+    'password',
+    'token',
+    'secret',
+    'jwt',
+    'nombre',
+    '_id',
+    'id',
+    'createdAt',
+    'updatedAt',
+    'creadoPor',
+    'actualizadoPor',
+    'activo',
+]);
+
+/** Claves conocidas del panel Personalizar. Documentación + fast-path; no es excluyente. */
+const PERFIL_VER_COCINA_KEYS = new Set([
+    'tamanioFuentePlato', 'tamanioFuenteDetalle', 'tamanioFuenteCronometro', 'tamanioFuenteCocinero',
+    'tiempoAmarillo', 'tiempoRojo', 'modoNocturno', 'modoAgrupacion', 'mostrarMesas', 'modoTimers',
+    'maxTimersVisibles', 'mostrarCabeceraCocinero', 'colorPorCocinero', 'mostrarCocineroTomado',
+    'umbralCargaAlta', 'umbralSobrecarga', 'estiloTemporizador', 'intensidadAlerta',
+    'mostrarEtiquetaPlato', 'mostrarIconoCocinero', 'fuenteFamilia', 'fuenteFamiliaCustom',
+    'colorFondo', 'colorTextoPrincipal', 'colorTextoSecundario', 'colorAcento', 'colorAlertaAmarilla',
+    'colorAlertaRoja', 'colorFilaPlato', 'espaciadoFilas', 'pesoFuentePlato', 'layoutColumnas',
+    'disposicionTarjeta', 'animacionesTarjetas',
+    'icono', 'mostrarNotificacionEntrada', 'textoNotificacionEntrada', 'duracionNotificacionEntrada',
+    'mostrarComplementos',
+    'layoutColumnasGuarniciones', 'diferenciarDisenoGuarniciones',
+    'ocultarCronometroGuarniciones', 'ocultarCuadroGuarniciones',
+    'ocultarBuscadorPlatos', 'mostrarTitulosListasSplit',
+    'tituloListaPlatos', 'tituloListaGuarniciones', 'referenciaPadreGuarnicion',
+    'fuenteFamiliaGuarnicion', 'tamanioFuenteGuarnicion', 'pesoFuenteGuarnicion',
+    'colorTextoGuarnicion', 'colorTextoPadreGuarnicion', 'tamanioFuentePadreGuarnicion',
+    'colorFondoGuarnicion', 'colorAcentoGuarnicion', 'espaciadoFilasGuarnicion',
+    'numeroSecForma', 'numeroSecColor', 'numeroSecContorno', 'numeroSecFondo', 'numeroSecPeso',
+    'numeroSecGlow', 'numeroSecTamanio', 'numeroSecPrefijo',
+    'cantidadColor', 'cantidadContorno', 'cantidadFondo', 'cantidadTamanio',
+    'cantidadGrosorContorno', 'cantidadRadio', 'cantidadPeso', 'cantidadSeguirAlerta',
+    'cronometroColor', 'cronometroContorno', 'cronometroFondo',
+    'cronometroContornoLetra', 'cronometroFondoTexto',
+    'cronometroForma', 'cronometroAncho', 'cronometroAlto', 'cronometroRadio',
+    'numeroSecAncho', 'numeroSecAlto',
+    'tarjetaRadio', 'tarjetaPadding', 'tarjetaGap',
+    'colorDegradadoTarjeta', 'degradadoTarjeta', 'colorFondoTarjeta',
+    'quitarNombreCocineroTarjeta', 'ocultarAtencionUrgente', 'animacionesAlerta',
+    'animacionAtencion', 'animacionUrgente', 'colorAnimacionAtencion', 'colorAnimacionUrgente',
+    'emojisAnimacionAtencion', 'tamanioEmojiAtencion', 'cantidadEmojiAtencion',
+    'emojisAnimacionUrgente', 'tamanioEmojiUrgente', 'cantidadEmojiUrgente',
+    'autoAgrandamiento', 'autoAcomodamiento', 'aprovecharEspacio',
+    'tamanioCronometroCabecera',
+]);
+
+function esClavePerfilVerCocina(k) {
+    if (typeof k !== 'string' || BLOQUEADAS.has(k)) return false;
+    return CLAVE_RE.test(k);
+}
+
+function valorPerfilSeguro(v) {
+    if (v === null) return null;
+    const t = typeof v;
+    if (t === 'boolean') return v;
+    if (t === 'number') return Number.isFinite(v) ? v : undefined;
+    if (t === 'string') return v.length > 2000 ? v.slice(0, 2000) : v;
+    return undefined;
+}
+
+function sanitizarConfigPerfilVerCocina(config) {
+    const sanitizado = {};
+    if (!config || typeof config !== 'object' || Array.isArray(config)) return sanitizado;
+    for (const [k, v] of Object.entries(config)) {
+        if (!esClavePerfilVerCocina(k)) continue;
+        const safe = valorPerfilSeguro(v);
+        if (safe === undefined) continue;
+        sanitizado[k] = safe;
+    }
+    return sanitizado;
+}
+
+function fusionarConfigPerfilVerCocina(actual, incomingSanitizado) {
+    const base = sanitizarConfigPerfilVerCocina(actual);
+    const next = (incomingSanitizado && typeof incomingSanitizado === 'object')
+        ? incomingSanitizado
+        : {};
+    return { ...base, ...next };
+}
+
+module.exports = {
+    PERFIL_VER_COCINA_KEYS,
+    sanitizarConfigPerfilVerCocina,
+    fusionarConfigPerfilVerCocina,
+};

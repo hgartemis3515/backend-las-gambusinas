@@ -26,6 +26,11 @@ const cocinerosRepository = require('../repository/cocineros.repository');
 
 // PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR: config de cocina + override one-shot
 const ConfiguracionSistema = mongoose.model('ConfiguracionSistema') || require('../database/models/configuracionSistema.model');
+const {
+  indicesPendientesGuarnicion,
+  buildAutocierreGuarnicionesSet,
+  agrupacionGuarnicionesOn
+} = require('../utils/autocerrarGuarniciones');
 
 // ============================================================
 // HELPER: Verificar si el usuario tiene privilegios de supervisor en cocina
@@ -52,16 +57,32 @@ async function leerConfigCocina() {
       solicitudOrdenFueraDeCola: cocina.solicitudOrdenFueraDeCola !== false,
       // PLAN GUARNICIONES_SEPARADAS v1.1.1
       permitirGuarnicionesSeparadas: cocina.permitirGuarnicionesSeparadas !== false,
-      deshabilitarOrdenSecuencialGuarniciones: cocina.deshabilitarOrdenSecuencialGuarniciones !== false
+      deshabilitarOrdenSecuencialGuarniciones: cocina.deshabilitarOrdenSecuencialGuarniciones !== false,
+      deshabilitarAgrupacionGuarniciones: cocina.deshabilitarAgrupacionGuarniciones === true
     };
   } catch (e) {
     return {
       obligarOrdenAsignacion: true,
       solicitudOrdenFueraDeCola: true,
       permitirGuarnicionesSeparadas: true,
-      deshabilitarOrdenSecuencialGuarniciones: true
+      deshabilitarOrdenSecuencialGuarniciones: true,
+      deshabilitarAgrupacionGuarniciones: false
     };
   }
+}
+
+async function indicesObjetivoGuarnicion(plato, compIndex) {
+  const cfg = await leerConfigCocina();
+  if (agrupacionGuarnicionesOn(cfg)) {
+    const idxs = indicesPendientesGuarnicion(plato);
+    return idxs.length ? idxs : [compIndex];
+  }
+  return [compIndex];
+}
+
+function complementoIdsDeIndices(plato, indices) {
+  const comps = plato?.complementosSeleccionados || [];
+  return indices.map((i) => (comps[i]?._id ? String(comps[i]._id) : `idx:${i}`));
 }
 
 // ============================================================
@@ -676,56 +697,9 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
       // Ante fallo de validación, no bloquear el flujo crítico (fail-open documentado)
     }
 
-    // PLAN GUARNICIONES_SEPARADAS v1.1.1 §9.3.2: con flag ON, el principal no
-    // puede pasar a recoger mientras tenga guarniciones pendientes. El
-    // supervisor puede forzar (auto-cierra las guarniciones pendientes).
-    try {
-      const cfgCocinaGuarniciones = await leerConfigCocina();
-      if (cfgCocinaGuarniciones.permitirGuarnicionesSeparadas !== false) {
-        const comps = plato.complementosSeleccionados || [];
-        const pendientes = comps
-          .filter(c => c && !c.eliminado && c.estadoCocina !== 'recoger')
-          .map(c => ({
-            complementoId: c._id ? String(c._id) : null,
-            grupo: c.grupo,
-            opcion: Array.isArray(c.opcion) ? c.opcion.join(', ') : c.opcion,
-            estadoCocina: c.estadoCocina || 'pedido'
-          }));
-        if (pendientes.length > 0) {
-          const forzar = req.body.forzar === true;
-          const esSup = esSupervisorCocina(req.admin);
-          if (!forzar || !esSup) {
-            return res.status(409).json({
-              success: false,
-              error: 'FALTAN_GUARNICIONES',
-              message: `Falta(n) ${pendientes.length} guarnicion(es) por finalizar antes de cerrar el plato principal.`,
-              pendientes
-            });
-          }
-          // Supervisor forzó: auto-cerrar guarniciones pendientes (no quedan colgadas).
-          logger.info('[FinalizarPlato] Supervisor forzando cierre con guarniciones pendientes', {
-            comandaId, platoId, pendientes: pendientes.length
-          });
-          const autoAhora = moment().tz('America/Lima').toDate();
-          const autoSet = {};
-          comps.forEach((c, ci) => {
-            if (c && !c.eliminado && c.estadoCocina !== 'recoger') {
-              autoSet[`platos.${platoIndex}.complementosSeleccionados.${ci}.estadoCocina`] = 'recoger';
-              autoSet[`platos.${platoIndex}.complementosSeleccionados.${ci}.procesadoPor`] = {
-                ...(c.procesandoPor || {}),
-                timestamp: autoAhora
-              };
-            }
-          });
-          if (Object.keys(autoSet).length > 0) {
-            await Comanda.updateOne({ _id: comandaId }, { $set: autoSet });
-          }
-        }
-      }
-    } catch (errG) {
-      logger.warn('[FinalizarPlato] Validación de guarniciones falló (no crítico)', { error: errG.message });
-    }
-    
+    // PLAN AGRUPACION_GUARNICIONES_AUTOCIERRE §3.1: se aplica más abajo
+    // al armar updateSet (todas las guarniciones de ESE plato).
+
     // Obtener info del cocinero atribuido (el que tomó el plato)
     cocineroAtribuidoInfo = await getCocineroInfo(cocineroAtribuidoId);
 
@@ -755,6 +729,15 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
       updatedAt: ahora,
       updatedBy: cocineroId
     };
+
+    try {
+      const cfgCocinaGuarniciones = await leerConfigCocina();
+      if (cfgCocinaGuarniciones.permitirGuarnicionesSeparadas !== false) {
+        Object.assign(updateSet, buildAutocierreGuarnicionesSet(plato, platoIndex, ahora));
+      }
+    } catch (errG) {
+      logger.warn('[FinalizarPlato] Auto-cierre de guarniciones falló (no crítico)', { error: errG.message });
+    }
 
     if (supervisorOverride) {
       updateSet[`platos.${platoIndex}.finalizadoPor`] = {
@@ -1897,37 +1880,45 @@ router.put('/comanda/:id/plato/:platoId/guarnicion/:complementoId/procesando', a
         const cocineroInfo = await getCocineroInfo(cocineroId);
         const tomadoEn = moment().tz('America/Lima').toDate();
         const cocineroConTiempo = { ...cocineroInfo, timestamp: tomadoEn };
-        await Comanda.updateOne(
-            { _id: comandaId },
-            {
-                $set: {
-                    [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.procesandoPor`]: cocineroConTiempo,
-                    [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.asignacionMeta`]: {
-                        origen: esSupervisor && forzar ? 'supervisor' : 'manual',
-                        regla: 'guarnicion',
-                        batchId: comp.asignacionMeta?.batchId || null,
-                        timestamp: moment().tz('America/Lima').toDate()
-                    },
-                    [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.estadoCocina`]: 'en_espera',
-                    updatedAt: moment().tz('America/Lima').toDate(),
-                    updatedBy: cocineroId
-                }
-            }
-        );
+        const platoPadre = comanda.platos[platoIndex];
+        const indices = await indicesObjetivoGuarnicion(platoPadre, compIndex);
+        const grupoId = indices.length > 1 ? String(platoPadre._id || platoId) : null;
+        const setFields = {
+            updatedAt: tomadoEn,
+            updatedBy: cocineroId
+        };
+        for (const i of indices) {
+            setFields[`platos.${platoIndex}.complementosSeleccionados.${i}.procesandoPor`] = cocineroConTiempo;
+            setFields[`platos.${platoIndex}.complementosSeleccionados.${i}.asignacionMeta`] = {
+                origen: esSupervisor && forzar ? 'supervisor' : 'manual',
+                regla: grupoId ? 'grupo' : 'guarnicion',
+                batchId: (platoPadre.complementosSeleccionados?.[i]?.asignacionMeta?.batchId) || null,
+                grupoId,
+                timestamp: tomadoEn
+            };
+            setFields[`platos.${platoIndex}.complementosSeleccionados.${i}.estadoCocina`] = 'en_espera';
+        }
+        await Comanda.updateOne({ _id: comandaId }, { $set: setFields });
 
-        // Socket: reutilizamos plato-procesando con complementoId para que el cliente parchee el subdoc.
+        const complementoIds = complementoIdsDeIndices(platoPadre, indices);
+        const tipoEmit = grupoId ? 'grupo_guarniciones' : 'guarnicion';
         if (global.emitPlatoProcesando) {
-            global.emitPlatoProcesando(comandaId, platoId, cocineroConTiempo, { complementoId, tipo: 'guarnicion' });
+            global.emitPlatoProcesando(comandaId, platoId, cocineroConTiempo, {
+                complementoId, complementoIds, tipo: tipoEmit
+            });
+        }
+        if (grupoId && global.emitComandaActualizada) {
+            global.emitComandaActualizada(comandaId).catch(() => {});
         }
         if (global.emitRendimientoCocineroActualizado) {
             global.emitRendimientoCocineroActualizado({ tipo: 'guarnicion_tomada', cocineroId: cocineroId?.toString() });
         }
 
-        logger.info('Guarnición tomada para procesamiento', { comandaId, platoId, complementoId, cocineroId });
+        logger.info('Guarnición tomada para procesamiento', { comandaId, platoId, complementoId, cocineroId, indices });
         res.json({
             success: true,
             message: 'Guarnición tomada para preparación',
-            data: { comandaId, platoId, complementoId, procesandoPor: cocineroConTiempo }
+            data: { comandaId, platoId, complementoId, complementoIds, procesandoPor: cocineroConTiempo }
         });
     } catch (error) {
         logger.error('Error al tomar guarnición', { error: error.message });
@@ -1959,6 +1950,7 @@ router.delete('/comanda/:id/plato/:platoId/guarnicion/:complementoId/procesando'
         const ahoraLiberar = moment().tz('America/Lima').toDate();
         const crono = cronometroDesdeToma(comp.procesandoPor?.timestamp, ahoraLiberar);
         const platoPadre = comanda.platos[platoIndex];
+        const indices = await indicesObjetivoGuarnicion(platoPadre, compIndex);
         const nombreG = nombreGuarnicionComp(comp);
         const nombrePadre = platoPadre?.plato?.nombre || platoPadre?.nombre || 'Plato';
         const snapshotAntes = {
@@ -1974,18 +1966,15 @@ router.delete('/comanda/:id/plato/:platoId/guarnicion/:complementoId/procesando'
             tipoUnidad: 'guarnicion'
         };
 
-        await Comanda.updateOne(
-            { _id: comandaId },
-            {
-                $set: {
-                    [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.procesandoPor`]: {
-                        cocineroId: null, nombre: null, alias: null, timestamp: null
-                    },
-                    [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.estadoCocina`]: 'pedido',
-                    updatedAt: ahoraLiberar
-                }
-            }
-        );
+        const fields = { updatedAt: ahoraLiberar };
+        for (const i of indices) {
+            fields[`platos.${platoIndex}.complementosSeleccionados.${i}.procesandoPor`] = {
+                cocineroId: null, nombre: null, alias: null, timestamp: null
+            };
+            fields[`platos.${platoIndex}.complementosSeleccionados.${i}.estadoCocina`] = 'pedido';
+        }
+        await Comanda.updateOne({ _id: comandaId }, { $set: fields });
+        const complementoIds = complementoIdsDeIndices(platoPadre, indices);
 
         req.auditoria = {
             accion: 'PLATO_DEJADO_COCINA',
@@ -2017,7 +2006,14 @@ router.delete('/comanda/:id/plato/:platoId/guarnicion/:complementoId/procesando'
         }, motivoAuditoria);
 
         if (global.emitPlatoLiberado) {
-            global.emitPlatoLiberado(comandaId, platoId, cocineroId, { complementoId, tipo: 'guarnicion' });
+            global.emitPlatoLiberado(comandaId, platoId, cocineroId, {
+                complementoId,
+                complementoIds,
+                tipo: complementoIds.length > 1 ? 'grupo_guarniciones' : 'guarnicion'
+            });
+        }
+        if (global.emitComandaActualizada) {
+            global.emitComandaActualizada(comandaId).catch(() => {});
         }
         if (global.emitRendimientoCocineroActualizado) {
             global.emitRendimientoCocineroActualizado({
@@ -2025,8 +2021,8 @@ router.delete('/comanda/:id/plato/:platoId/guarnicion/:complementoId/procesando'
                 cocineroId: (comp.procesandoPor?.cocineroId || cocineroId)?.toString()
             });
         }
-        logger.info('Guarnición liberada', { comandaId, platoId, complementoId, cocineroId, motivo: motivoAuditoria, cronometro: crono.cronometro });
-        res.json({ success: true, message: 'Guarnición liberada' });
+        logger.info('Guarnición liberada', { comandaId, platoId, complementoId, complementoIds, cocineroId, motivo: motivoAuditoria, cronometro: crono.cronometro });
+        res.json({ success: true, message: 'Guarnición liberada', data: { complementoIds } });
     } catch (error) {
         logger.error('Error al liberar guarnición', { error: error.message });
         res.status(500).json({ success: false, error: error.message });
@@ -2058,30 +2054,40 @@ router.put('/comanda/:id/plato/:platoId/guarnicion/:complementoId/finalizar', ad
         const cocineroAtribuidoInfo = await getCocineroInfo(cocineroAtribuidoId);
         const ahora = moment().tz('America/Lima').toDate();
         const tomadoEn = comp.procesandoPor?.timestamp || ahora;
+        const platoPadreFin = comanda.platos[platoIndex];
+        const indices = await indicesObjetivoGuarnicion(platoPadreFin, compIndex);
         const setFields = {
-            [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.estadoCocina`]: 'recoger',
-            [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.procesadoPor`]: {
+            updatedAt: ahora
+        };
+        for (const i of indices) {
+            const c = platoPadreFin.complementosSeleccionados?.[i] || {};
+            const tomadoI = c.procesandoPor?.timestamp || tomadoEn;
+            setFields[`platos.${platoIndex}.complementosSeleccionados.${i}.estadoCocina`] = 'recoger';
+            setFields[`platos.${platoIndex}.complementosSeleccionados.${i}.procesadoPor`] = {
                 ...cocineroAtribuidoInfo,
                 timestamp: ahora,
-                tomadoEn
-            },
-            [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.procesandoPor`]: {
+                tomadoEn: tomadoI
+            };
+            setFields[`platos.${platoIndex}.complementosSeleccionados.${i}.procesandoPor`] = {
                 cocineroId: null,
                 nombre: null,
                 alias: null,
                 timestamp: null
-            },
-            updatedAt: ahora
-        };
+            };
+        }
         await Comanda.updateOne({ _id: comandaId }, { $set: setFields });
 
         try {
             cocinerosRepository.incrementarPlatosPreparados(cocineroAtribuidoId, 1).catch(() => {});
         } catch (e) { /* no bloquea */ }
 
+        const complementoIds = complementoIdsDeIndices(platoPadreFin, indices);
         if (global.emitPlatoProcesando) {
             global.emitPlatoProcesando(comandaId, platoId, cocineroAtribuidoInfo, {
-                complementoId, tipo: 'guarnicion', estadoCocina: 'recoger'
+                complementoId,
+                complementoIds,
+                tipo: complementoIds.length > 1 ? 'grupo_guarniciones' : 'guarnicion',
+                estadoCocina: 'recoger'
             });
         }
         if (global.emitRendimientoCocineroActualizado) {
