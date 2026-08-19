@@ -74,15 +74,17 @@ const comandaSchema = new mongoose.Schema({
             // Cocinero que está preparando esta guarnición (no el del plato padre).
             procesandoPor: {
                 cocineroId: { type: mongoose.Schema.Types.ObjectId, ref: 'mozos', default: null },
-                nombre: { type: String, default: null },
-                alias: { type: String, default: null },
-                timestamp: { type: Date, default: null }
+            nombre: { type: String, default: null },
+            alias: { type: String, default: null },
+            pronombre: { type: String, default: '', trim: true },
+            timestamp: { type: Date, default: null }
             },
             // Cocinero que terminó la guarnición (para reportes/atribución).
             procesadoPor: {
                 cocineroId: { type: mongoose.Schema.Types.ObjectId, ref: 'mozos', default: null },
                 nombre: { type: String, default: null },
                 alias: { type: String, default: null },
+                pronombre: { type: String, default: '', trim: true },
                 timestamp: { type: Date, default: null }
             },
             // Cómo se asignó la guarnición (auto/manual/supervisor/overflow/batch).
@@ -191,6 +193,7 @@ const comandaSchema = new mongoose.Schema({
             },
             nombre: { type: String, default: null },      // Nombre completo
             alias: { type: String, default: null },       // Alias del cocinero
+            pronombre: { type: String, default: '', trim: true },
             timestamp: { type: Date, default: null }      // Cuándo tomó el plato
         },
         // Indica qué cocinero terminó de preparar este plato
@@ -202,6 +205,7 @@ const comandaSchema = new mongoose.Schema({
             },
             nombre: { type: String, default: null },
             alias: { type: String, default: null },
+            pronombre: { type: String, default: '', trim: true },
             timestamp: { type: Date, default: null }
         },
         // Quién realmente marcó "listo" el plato (supervisor override). Vacío si lo hace el cocinero titular.
@@ -458,6 +462,7 @@ const comandaSchema = new mongoose.Schema({
         },
         nombre: { type: String, default: null },
         alias: { type: String, default: null },
+        pronombre: { type: String, default: '', trim: true },
         timestamp: { type: Date, default: null }
     },
     // Indica qué cocinero completó TODA la comanda
@@ -469,6 +474,7 @@ const comandaSchema = new mongoose.Schema({
         },
         nombre: { type: String, default: null },
         alias: { type: String, default: null },
+        pronombre: { type: String, default: '', trim: true },
         timestamp: { type: Date, default: null }
     },
     // ========== DESCUENTOS: Campos para gestión de descuentos (solo admin/supervisor) ==========

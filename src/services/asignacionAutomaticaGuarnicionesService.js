@@ -20,6 +20,7 @@ const Zona = require('../database/models/zona.model');
 
 const Comanda = mongoose.model('Comanda') || require('../database/models/comanda.model');
 const Mozos = mongoose.model('mozos') || require('../database/models/mozos.model');
+const { getCocineroInfo } = require('../utils/cocineroInfo');
 
 const ESTADOS_EN_CURSO = ['pedido', 'en_espera'];
 const TZ = 'America/Lima';
@@ -278,12 +279,10 @@ async function filtrarCandidatoGuarnicion(
  * Condicional: solo si NO tiene ya procesandoPor (evita pisar toma manual).
  */
 async function asignarGuarnicionInterna(comandaId, platoIndex, compIndex, cocineroId, metaOrigen, metaRegla, batchId, ids = {}, grupoId = null) {
-    const mo = await Mozos.findById(cocineroId).select('name aliasCocinero');
-    if (!mo) return false;
+    const info = await getCocineroInfo(cocineroId);
+    if (!info.cocineroId) return false;
     const cocineroInfo = {
-        cocineroId: mo._id,
-        nombre: mo.name,
-        alias: mo.aliasCocinero || null,
+        ...info,
         timestamp: moment().tz(TZ).toDate()
     };
     const set = {

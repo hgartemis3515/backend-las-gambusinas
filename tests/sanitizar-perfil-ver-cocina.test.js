@@ -34,6 +34,21 @@ describe('sanitizarConfigPerfilVerCocina', () => {
         expect(out.fuenteFamiliaCustom).toBe('Comic Sans MS, cursive');
     });
 
+    test('conserva split, títulos, notas y pronombre de cocinero', () => {
+        const out = sanitizarConfigPerfilVerCocina({
+            grosorSeparadorSplit: 6,
+            alinearTituloListaSplit: 'centro',
+            mostrarTablaNotas: true,
+            tituloTablaNotas: 'Notas:',
+            mostrarPronombreCocineroGuarnicion: false,
+        });
+        expect(out.grosorSeparadorSplit).toBe(6);
+        expect(out.alinearTituloListaSplit).toBe('centro');
+        expect(out.mostrarTablaNotas).toBe(true);
+        expect(out.tituloTablaNotas).toBe('Notas:');
+        expect(out.mostrarPronombreCocineroGuarnicion).toBe(false);
+    });
+
     test('acepta una clave visual nueva (no pierde opciones futuras del panel)', () => {
         const out = sanitizarConfigPerfilVerCocina({ nuevaOpcionPersonalizar: false });
         expect(out.nuevaOpcionPersonalizar).toBe(false);

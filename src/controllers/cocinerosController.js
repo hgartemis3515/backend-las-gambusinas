@@ -28,6 +28,7 @@ router.get('/cocina/cocineros', adminAuth, checkPermission('ver-cocina-completo'
             _id: c._id,
             name: c.name,
             alias: c.configKDS?.aliasCocinero || c.name,
+            pronombre: String(c.configKDS?.pronombre || '').trim(),
             fotoUrl: c.fotoUrl || ''
         }));
         res.json({ success: true, data, total: data.length });
@@ -167,6 +168,12 @@ router.put('/cocineros/:id/config', adminAuth, async (req, res) => {
         
         if (datosConfig.aliasCocinero !== undefined) {
             datosSanitizados.aliasCocinero = datosConfig.aliasCocinero?.trim() || null;
+        }
+        if (datosConfig.pronombre !== undefined) {
+            datosSanitizados.pronombre = String(datosConfig.pronombre || '').trim().slice(0, 12);
+        }
+        if (datosConfig.activo !== undefined) {
+            datosSanitizados.activo = datosConfig.activo !== false;
         }
         
         if (datosConfig.filtrosPlatos) {

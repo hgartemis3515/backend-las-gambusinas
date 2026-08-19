@@ -21,7 +21,7 @@ const { adminAuth } = require('../middleware/adminAuth');
 const { registrarAuditoria } = require('../middleware/auditoria');
 
 const Comanda = mongoose.model('Comanda') || require('../database/models/comanda.model');
-const Mozos = mongoose.model('mozos') || require('../database/models/mozos.model');
+const { getCocineroInfo } = require('../utils/cocineroInfo');
 const cocinerosRepository = require('../repository/cocineros.repository');
 
 // PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR: config de cocina + override one-shot
@@ -209,18 +209,6 @@ async function tieneOverrideOrdenVigente(plato, comandaId, platoId) {
     return false;
   }
 }
-
-// ============================================================
-// HELPER: Obtener información del cocinero
-// ============================================================
-const getCocineroInfo = async (cocineroId) => {
-  const cocinero = await Mozos.findById(cocineroId).select('name aliasCocinero').lean();
-  return {
-    cocineroId: cocineroId,
-    nombre: cocinero?.name || 'Cocinero',
-    alias: cocinero?.aliasCocinero || cocinero?.name || 'Cocinero'
-  };
-};
 
 function nombreGuarnicionComp(comp) {
   const opcion = Array.isArray(comp?.opcion) ? comp.opcion.join(', ') : (comp?.opcion || '');

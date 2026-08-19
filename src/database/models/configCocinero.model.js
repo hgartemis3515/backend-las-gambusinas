@@ -22,6 +22,13 @@ const configCocineroSchema = new mongoose.Schema({
         trim: true,
         maxlength: 50
     },
+    // Código corto en cocina (ej. C1). Independiente del alias.
+    pronombre: {
+        type: String,
+        default: '',
+        trim: true,
+        maxlength: 12
+    },
     
     // ========== FILTROS DE PLATOS ==========
     filtrosPlatos: {
@@ -203,6 +210,7 @@ configCocineroSchema.virtual('nombreDisplay').get(function() {
 // Método estático para obtener configuración por defecto
 configCocineroSchema.statics.getConfiguracionPorDefecto = function() {
     return {
+        pronombre: '',
         filtrosPlatos: {
             modoInclusion: true,
             platosPermitidos: [],

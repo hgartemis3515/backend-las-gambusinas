@@ -38,6 +38,7 @@ const Zona = require('../database/models/zona.model');
 
 const Comanda = mongoose.model('Comanda') || require('../database/models/comanda.model');
 const Mozos = mongoose.model('mozos') || require('../database/models/mozos.model');
+const { getCocineroInfo } = require('../utils/cocineroInfo');
 
 const ESTADOS_EN_CURSO = ['pedido', 'en_espera'];
 const MAX_REINTENTOS = 3;
@@ -391,12 +392,10 @@ async function asignarPlatoInterno(comandaId, plato, cocineroId, metaOrigen, met
     if (!['pedido', 'en_espera'].includes(platoActual.estado)) return false;
 
     // Info cocinero (mismo helper que procesamientoController.getCocineroInfo)
-    const mo = await Mozos.findById(cocineroId).select('name aliasCocinero');
-    if (!mo) return false;
+    const info = await getCocineroInfo(cocineroId);
+    if (!info.cocineroId) return false;
     const cocineroInfo = {
-        cocineroId: mo._id,
-        nombre: mo.name || null,
-        alias: mo.aliasCocinero || null,
+        ...info,
         timestamp: moment().tz('America/Lima').toDate()
     };
 

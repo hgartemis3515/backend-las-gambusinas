@@ -315,6 +315,7 @@ tailwind.config = {
                     <td class="px-4 py-3 hidden sm:table-cell">
                       <span x-show="c.configKDS?.aliasCocinero" class="text-gold text-xs" x-text="c.configKDS?.aliasCocinero"></span>
                       <span x-show="!c.configKDS?.aliasCocinero" class="text-txt-muted text-xs">—</span>
+                      <span x-show="c.configKDS?.pronombre" class="block text-[10px] text-txt-muted mt-0.5" x-text="c.configKDS?.pronombre"></span>
                     </td>
                     <td class="px-4 py-3">
                       <span class="text-xs px-2 py-0.5 rounded-full font-semibold"
@@ -431,7 +432,7 @@ tailwind.config = {
           <div class="bg-bg-sidebar p-4 flex items-center justify-between">
             <div>
               <h3 class="font-bold" x-text="selectedCocinero?.nombre || 'Selecciona un cocinero'"></h3>
-              <p class="text-[11px] text-txt-muted" x-text="selectedCocinero?.configKDS?.aliasCocinero || 'Sin alias'"></p>
+              <p class="text-[11px] text-txt-muted" x-text="(selectedCocinero?.configKDS?.aliasCocinero || 'Sin alias') + (selectedCocinero?.configKDS?.pronombre ? ' · ' + selectedCocinero.configKDS.pronombre : '')"></p>
             </div>
             <button @click="selectedCocinero = null" class="text-txt-muted hover:text-white text-sm transition">✕</button>
           </div>
@@ -2698,6 +2699,12 @@ tailwind.config = {
               class="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2.5 text-sm focus:border-gold focus:ring-1 focus:ring-gold/30 focus:outline-none transition">
             <p class="text-[10px] text-txt-muted mt-1">Nombre que aparecerá en el KDS</p>
           </div>
+          <div>
+            <label class="text-[11px] text-txt-secondary mb-1.5 block font-medium">Pronombre cocina</label>
+            <input type="text" x-model.trim="formConfig.pronombre" placeholder="Ej: C1" maxlength="12"
+              class="w-full bg-bg-card border border-white/10 rounded-lg px-3 py-2.5 text-sm focus:border-gold focus:ring-1 focus:ring-gold/30 focus:outline-none transition">
+            <p class="text-[10px] text-txt-muted mt-1">Código corto en Ver Cocina (notas y lista de guarniciones)</p>
+          </div>
           
           <div class="flex items-end">
             <label class="flex items-center gap-3 px-3 py-2.5 bg-bg-card border border-white/10 rounded-lg cursor-pointer hover:border-gold/30 transition w-full">
@@ -4488,6 +4495,7 @@ function cocinerosApp() {
       usuarioId: null,
       nombreCocinero: '',
       aliasCocinero: '',
+      pronombre: '',
       activo: true,
       zonaIdsSeleccionadas: [],
       filtrosPlatos: {
@@ -5037,6 +5045,7 @@ function cocinerosApp() {
         usuarioId: c._id,
         nombreCocinero: c.nombre,
         aliasCocinero: config.aliasCocinero || '',
+        pronombre: config.pronombre || '',
         activo: config.activo !== false,
         zonaIdsSeleccionadas: c.zonaIds || [],
         filtrosPlatos: {
@@ -5182,6 +5191,7 @@ function cocinerosApp() {
       
       const body = {
         aliasCocinero: this.formConfig.aliasCocinero,
+        pronombre: this.formConfig.pronombre,
         activo: this.formConfig.activo,
         zonaIds: this.formConfig.zonaIdsSeleccionadas || [],
         filtrosPlatos: {
@@ -5226,6 +5236,12 @@ function cocinerosApp() {
           // Actualizar cocinero seleccionado si aplica
           if (this.selectedCocinero?._id === this.formConfig.usuarioId) {
             this.selectedCocinero = this.cocineros.find(c => c._id === this.formConfig.usuarioId);
+          }
+          const guardado = this.cocineros.find(c => c._id === this.formConfig.usuarioId);
+          if (guardado) {
+            guardado.configKDS = guardado.configKDS || {};
+            guardado.configKDS.pronombre = (this.formConfig.pronombre || '').trim();
+            guardado.configKDS.aliasCocinero = this.formConfig.aliasCocinero || guardado.configKDS.aliasCocinero;
           }
         } else {
           if (window.GambusinasNotifications) {

@@ -389,16 +389,25 @@ async function actualizarConfigKDS(usuarioId, datosConfig, actualizadoPor = null
             logger.info('Rol actualizado a cocinero', { usuarioId });
         }
         
+        const setPayload = {
+            ...datosConfig,
+            actualizadoPor,
+            updatedAt: new Date()
+        };
+        if (Object.prototype.hasOwnProperty.call(datosConfig, 'pronombre')) {
+            setPayload.pronombre = String(datosConfig.pronombre || '').trim().slice(0, 12);
+        }
+
         const config = await ConfigCocinero.findOneAndUpdate(
             { usuarioId },
+            { $set: setPayload },
             {
-                $set: {
-                    ...datosConfig,
-                    actualizadoPor,
-                    updatedAt: new Date()
-                }
-            },
-            { new: true, upsert: true, setDefaultsOnInsert: true }
+                new: true,
+                upsert: true,
+                setDefaultsOnInsert: true,
+                // Evita que un schema cacheado sin `pronombre` lo descarte del $set.
+                strict: false
+            }
         );
         
         logger.info('Configuración KDS actualizada', { usuarioId, actualizadoPor });
