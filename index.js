@@ -291,6 +291,9 @@ app.post('/api/hub/import', require('./src/middleware/adminAuth').adminAuth, asy
     source: 'appcocina',
     profileName: req.body?.profileName || `Cocina ${new Date().toLocaleString()}`,
     slots: req.body?.slots || [],
+    ...(typeof req.body?.authBundle === 'string' && req.body.authBundle
+      ? { authBundle: req.body.authBundle }
+      : {}),
   };
   const sent = hubNamespace.emit('hub:layout', payload);
   logger.info(`[hub-proxy] layout emitido a ${hubNamespace.sockets.size} cliente(s) del Hub (emit=${sent})`, {

@@ -32,11 +32,16 @@ const pantallaCocinaSchema = new mongoose.Schema({
         default: null
     },
 
-    // Modo Kiosko: cocinero fijo cuyo filtro se aplica a "Ver Cocina Completo"
+    // Modo Kiosko: cocinero(s) cuyo filtro se aplica a "Ver Cocina Completo".
+    // cocineroId = primero de la lista (compat). cocineroIds = todos los de este monitor.
     cocineroId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Mozo',
         default: null
+    },
+    cocineroIds: {
+        type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Mozo' }],
+        default: []
     },
 
     // 'completo' (Ver Cocina Completo filtrado por cocinero) | 'personalizado' (VistaCocina)

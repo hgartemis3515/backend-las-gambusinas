@@ -167,6 +167,7 @@ async function obtenerPantallasCocina() {
             .sort({ numeroPantalla: 1 })
             .populate('vistaCocinaId', 'nombre color icono')
             .populate('cocineroId', 'nombre alias')
+            .populate('cocineroIds', 'nombre alias')
             .lean();
     } catch (error) {
         logger.error('Error al obtener pantallas de cocina', { error: error.message });
@@ -180,6 +181,7 @@ async function obtenerPantallasActivas() {
             .sort({ numeroPantalla: 1 })
             .populate('vistaCocinaId', 'nombre descripcion color icono filtrosPlatos configVisual ordenamiento configCronometro')
             .populate('cocineroId', 'nombre alias')
+            .populate('cocineroIds', 'nombre alias')
             .populate('perfilVerCocinaId', 'nombre')
             .lean();
     } catch (error) {
@@ -252,12 +254,21 @@ async function actualizarDistribucionPantallas(items, actualizadoPor = null) {
                 actualizadoPor,
                 updatedAt: new Date(),
             };
-            // cocineroId: null desasigna; string lo asigna
-            if (item.cocineroId === null || item.cocineroId === '' || item.cocineroId === undefined) {
-                set.cocineroId = null;
-            } else {
-                set.cocineroId = item.cocineroId;
+            // Varios cocineros en el mismo monitor: cocineroIds[] + cocineroId (primero, compat).
+            let ids = [];
+            if (Array.isArray(item.cocineroIds)) {
+                ids = item.cocineroIds.filter(Boolean).map(String);
+            } else if (item.cocineroId) {
+                ids = [String(item.cocineroId)];
             }
+            const seen = new Set();
+            ids = ids.filter((id) => {
+                if (seen.has(id)) return false;
+                seen.add(id);
+                return true;
+            });
+            set.cocineroIds = ids;
+            set.cocineroId = ids[0] || null;
             // Perfil de personalización por monitor (flujo Distribuir Cocina).
             const perfil = item.perfilAplicar;
             if (perfil === 'auto') {
@@ -287,6 +298,7 @@ async function actualizarDistribucionPantallas(items, actualizadoPor = null) {
         const ids = items.map((i) => i.id);
         return await PantallaCocina.find({ _id: { $in: ids } })
             .populate('cocineroId', 'nombre alias')
+            .populate('cocineroIds', 'nombre alias')
             .populate('perfilVerCocinaId', 'nombre')
             .lean();
     } catch (error) {
@@ -319,6 +331,7 @@ async function obtenerPantallaPorNumero(numeroPantalla) {
     try {
         return await PantallaCocina.findOne({ numeroPantalla: Number(numeroPantalla) })
             .populate('cocineroId', 'nombre alias')
+            .populate('cocineroIds', 'nombre alias')
             .select('-deviceTokenHash')
             .lean();
     } catch (error) {

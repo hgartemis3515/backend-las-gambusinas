@@ -89,6 +89,19 @@ tailwind.config = {
           :class="asignacionConfig?.habilitada ? 'bg-st-pagado text-white hover:brightness-110' : 'bg-st-libre text-bg-primary hover:brightness-110'">
           <span x-text="asignacionConfig?.habilitada ? '⏸️ Pausar auto-asignación' : '▶️ Activar auto-asignación'"></span>
         </button>
+        <button x-show="activeTab === 'asignacionGuarniciones'" @click="abrirConfigGlobalAsignacion()" class="bg-bg-sidebar text-txt-secondary px-4 py-2 rounded-lg text-sm font-semibold hover:text-gold transition border border-[rgba(212,175,55,0.25)]">
+          ⚙️ Config global
+        </button>
+        <button x-show="activeTab === 'asignacionGuarniciones'" @click="abrirVistaPorCocinero()" class="bg-bg-sidebar text-txt-secondary px-4 py-2 rounded-lg text-sm font-semibold hover:text-gold transition border border-[rgba(212,175,55,0.25)]">
+          👨‍🍳 Vista por cocinero
+        </button>
+        <button x-show="activeTab === 'asignacionGuarniciones'" @click="abrirSimuladorAsignacion()" class="bg-bg-sidebar text-txt-secondary px-4 py-2 rounded-lg text-sm font-semibold hover:text-gold transition border border-[rgba(212,175,55,0.25)]">
+          🧪 Simular
+        </button>
+        <button x-show="activeTab === 'asignacionGuarniciones'" @click="toggleAsignacionGuarniciones()" class="px-4 py-2 rounded-lg text-sm font-semibold transition"
+          :class="asignacionGuarnicionesConfig?.habilitada ? 'bg-st-pagado text-white hover:brightness-110' : 'bg-st-libre text-bg-primary hover:brightness-110'">
+          <span x-text="asignacionGuarnicionesConfig?.habilitada ? '⏸️ Pausar auto-guarniciones' : '▶️ Activar auto-guarniciones'"></span>
+        </button>
       </div>
     </div>
 
@@ -1177,7 +1190,7 @@ tailwind.config = {
             <select x-model="modalFranjaForm.perfilId"
               class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
               <option value="">— Selecciona —</option>
-              <template x-for="p in (asignacionConfig?.perfiles || []).filter(p => p.activo)" :key="p.id">
+              <template x-for="p in (_configAsignacion?.perfiles || []).filter(p => p.activo)" :key="p.id">
                 <option :value="p.id" x-text="p.nombre"></option>
               </template>
             </select>
@@ -1267,13 +1280,9 @@ tailwind.config = {
     </div>
 
     <!-- ==================== TAB: ASIGNACIÓN DE GUARNICIONES ==================== -->
-    <!-- PLAN GUARNICIONES_SEPARADAS v1.1 §5: pestaña clon de Asignación Automática.
-         Catálogo = complementos (platos.complementos + biblioteca ComplementoPlantilla).
-         Misma lógica de perfiles/calendario, pero con reglasPorGuarnicion. -->
-    <div x-show="activeTab === 'asignacionGuarniciones'" x-cloak class="space-y-4">
+    <div x-show="activeTab === 'asignacionGuarniciones'" x-cloak>
 
-      <!-- KPIs -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
           <div class="flex items-center justify-between">
             <div>
@@ -1285,12 +1294,12 @@ tailwind.config = {
           </div>
         </div>
         <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
-          <p class="text-[11px] text-txt-muted uppercase">Perfiles</p>
-          <p class="text-lg font-bold text-white" x-text="asignacionGuarnicionesConfig?.perfiles?.length || 0"></p>
+          <p class="text-[11px] text-txt-muted uppercase">Perfil activo ahora</p>
+          <p class="text-sm font-bold text-gold truncate" x-text="perfilActivoAhoraDisplay"></p>
         </div>
         <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
-          <p class="text-[11px] text-txt-muted uppercase">Reglas de guarnición</p>
-          <p class="text-lg font-bold text-white" x-text="(asignacionGuarnicionesConfig?.perfiles || []).reduce((s,p) => s + (p.reglasPorGuarnicion?.length || 0), 0)"></p>
+          <p class="text-[11px] text-txt-muted uppercase">Perfiles</p>
+          <p class="text-lg font-bold text-white" x-text="asignacionGuarnicionesConfig?.perfiles?.length || 0"></p>
         </div>
         <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
           <p class="text-[11px] text-txt-muted uppercase">Franjas en plantilla</p>
@@ -1298,58 +1307,426 @@ tailwind.config = {
         </div>
       </div>
 
-      <!-- Recordatorio -->
       <div class="bg-bg-sidebar/50 border border-[rgba(212,175,55,0.15)] rounded-xl p-3 mb-4 flex items-center gap-3">
         <span class="text-lg">💡</span>
         <p class="text-xs text-txt-secondary">
-          <b class="text-gold">Asignación de guarniciones</b> = a qué cocinero se le asigna cada complemento (siempre un cocinero <b>distinto</b> al del plato principal).
-          Requiere que el flag global <code class="text-gold">permitirGuarnicionesSeparadas</code> esté activo en Configuración → Cocina.
+          <b class="text-gold">Zonas</b> = qué ve cada cocinero ·
+          <b class="text-gold">Asignación automática de platos</b> = quién cocina el principal ·
+          <b class="text-gold">Asignación de guarniciones</b> = quién cocina cada extra, siempre un cocinero <b>distinto</b> al del principal.
         </p>
       </div>
 
-      <!-- Acciones -->
-      <div class="flex items-center gap-2 flex-wrap">
-        <button @click="toggleAsignacionGuarniciones()"
-          class="px-4 py-2 rounded-lg text-sm font-semibold transition"
-          :class="asignacionGuarnicionesConfig?.habilitada ? 'bg-st-pagado text-white hover:brightness-110' : 'bg-st-libre text-bg-primary hover:brightness-110'">
-          <span x-text="asignacionGuarnicionesConfig?.habilitada ? '⏸️ Pausar' : '▶️ Activar'"></span>
-        </button>
-        <button @click="cargarAsignacionGuarniciones()" class="px-4 py-2 rounded-lg text-sm font-semibold bg-bg-sidebar text-txt-secondary hover:text-gold transition border border-[rgba(212,175,55,0.25)]">
-          ↻ Recargar
-        </button>
-        <a href="docs/PLAN_GUARNICIONES_SEPARADAS_COCINEROS.md" target="_blank" class="px-4 py-2 rounded-lg text-sm font-semibold text-gold hover:underline">
-          📖 Ver plan
-        </a>
-      </div>
-
-      <!-- Aviso si flag global OFF -->
-      <div x-show="!flagGuarnicionesGlobal" class="bg-st-pagado/10 border border-st-pagado/30 rounded-xl p-4 text-center">
+      <div x-show="!flagGuarnicionesGlobal" class="bg-st-pagado/10 border border-st-pagado/30 rounded-xl p-4 mb-4 text-center">
         <p class="text-st-pagado text-sm">
           ⚠️ El flag global <b>Permitir Guarniciones separados para cocineros</b> está desactivado en Configuración → Cocina.
           Aunque esta pestaña esté activa, el motor no asignará guarniciones hasta que se active ese flag.
         </p>
       </div>
 
-      <!-- Lista de perfiles (chips) -->
-      <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-3">
-        <div class="flex items-center gap-2 flex-wrap">
-          <template x-for="p in (asignacionGuarnicionesConfig?.perfiles || [])" :key="p.id">
-            <div class="px-3 py-1.5 rounded-lg text-xs font-semibold border flex items-center gap-2"
-              :class="perfilGuarnicionesSeleccionadoId === p.id
-                ? 'bg-gold text-bg-primary border-gold'
-                : 'bg-bg-sidebar text-txt-secondary border-[rgba(212,175,55,0.25)]'">
-              <span class="w-2 h-2 rounded-full" :style="`background:${p.color || '#7CB342'}`" :class="p.activo ? '' : 'opacity-30'"></span>
-              <span x-text="p.nombre"></span>
-              <span x-show="!p.activo" class="text-[9px] opacity-60">(inactivo)</span>
+      <div class="flex gap-1 mb-4 bg-bg-card rounded-lg p-1 border border-[rgba(212,175,55,0.15)] w-fit">
+        <button @click="subtabAsignacionGuarniciones = 'perfiles'"
+          class="px-4 py-2 rounded-lg text-sm font-medium transition"
+          :class="subtabAsignacionGuarniciones === 'perfiles' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
+          🥗 Perfiles
+        </button>
+        <button @click="subtabAsignacionGuarniciones = 'semana'"
+          class="px-4 py-2 rounded-lg text-sm font-medium transition"
+          :class="subtabAsignacionGuarniciones === 'semana' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
+          📅 Semana actual
+        </button>
+        <button @click="subtabAsignacionGuarniciones = 'globales'"
+          class="px-4 py-2 rounded-lg text-sm font-medium transition"
+          :class="subtabAsignacionGuarniciones === 'globales' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
+          ⚙️ Globales
+        </button>
+      </div>
+
+      <div x-show="subtabAsignacionGuarniciones === 'perfiles'" x-cloak class="space-y-4">
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-3">
+          <div class="flex items-center gap-2 flex-wrap">
+            <template x-for="p in (asignacionGuarnicionesConfig?.perfiles || [])" :key="p.id">
+              <button @click="seleccionarPerfilAsignacion(p.id)"
+                class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition flex items-center gap-2"
+                :class="perfilGuarnicionesSeleccionadoId === p.id
+                  ? 'bg-gold text-bg-primary border-gold'
+                  : 'bg-bg-sidebar text-txt-secondary border-[rgba(212,175,55,0.25)] hover:border-gold hover:text-gold'">
+                <span class="w-2 h-2 rounded-full" :style="`background:${p.color || '#7CB342'}`" :class="p.activo ? '' : 'opacity-30'"></span>
+                <span x-text="p.nombre"></span>
+                <span x-show="!p.activo" class="text-[9px] opacity-60">(inactivo)</span>
+              </button>
+            </template>
+            <button @click="abrirModalNuevoPerfil()"
+              class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-bg-sidebar text-gold border border-dashed border-[rgba(212,175,55,0.4)] hover:bg-gold/10">
+              + Nuevo perfil
+            </button>
+          </div>
+          <div x-show="perfilSeleccionadoActual" class="mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)] flex items-center gap-2 flex-wrap text-xs">
+            <span class="text-txt-muted">Editando:</span>
+            <b class="text-gold" x-text="perfilSeleccionadoActual?.nombre"></b>
+            <span class="text-txt-muted" x-text="`· ${ (perfilSeleccionadoActual?.reglasPorGuarnicion || []).length } reglas de guarnición`"></span>
+            <div class="ml-auto flex gap-2">
+              <button @click="abrirModalRenombrarPerfil()" class="text-gold hover:underline">Renombrar</button>
+              <button @click="duplicarPerfilActual()" class="text-txt-secondary hover:text-gold">Duplicar</button>
+              <button @click="toggleActivoPerfilActual()" class="text-txt-secondary hover:text-gold"
+                x-text="perfilSeleccionadoActual?.activo ? 'Desactivar' : 'Activar'"></button>
+              <button @click="eliminarPerfilActual()" class="text-st-pagado hover:underline">Eliminar</button>
             </div>
-          </template>
-          <span x-show="(asignacionGuarnicionesConfig?.perfiles || []).length === 0" class="text-xs text-txt-muted">Sin perfiles todavía. Usa la API para crear el primero.</span>
+          </div>
+          <div x-show="!perfilSeleccionadoActual" class="mt-3 text-sm text-txt-muted">
+            Selecciona o crea un perfil para editar sus reglas de guarniciones.
+          </div>
         </div>
-        <p class="text-[10px] text-txt-muted mt-2">
-          v1: la edición completa de reglas por guarnición se gestiona vía API <code>/api/asignacion-automatica-guarniciones</code>.
-          La UI completa (catálogo visual, drag-and-drop de cocineros, simulador) se entrega en P2.
-          Aquí se expone el estado y el toggle para que operación pueda activar/pausar sin tocar backend.
-        </p>
+
+        <div x-show="perfilSeleccionadoActual" class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <div class="lg:col-span-5 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+            <h3 class="text-sm font-bold mb-3 flex items-center gap-2">
+              <span>🥗</span> Catálogo de guarniciones
+              <span class="text-[10px] text-txt-muted font-normal" x-text="`(${guarnicionesAsignacionFiltradas.length})`"></span>
+            </h3>
+            <div class="bg-bg-sidebar/60 border border-[rgba(212,175,55,0.2)] rounded-lg p-2 mb-3 space-y-2">
+              <div class="flex items-center gap-2 flex-wrap">
+                <button @click="seleccionarTodasGuarnicionesVisibles()" class="text-[11px] text-gold hover:underline">☑ Seleccionar todos</button>
+                <button @click="invertirSeleccionGuarniciones()" class="text-[11px] text-txt-secondary hover:text-gold">Invertir</button>
+                <button @click="limpiarSeleccionGuarniciones()" class="text-[11px] text-txt-secondary hover:text-st-pagado">Limpiar</button>
+                <span class="ml-auto text-[11px] text-txt-muted" x-show="totalSeleccionadosGuarniciones > 0">
+                  <b class="text-gold" x-text="totalSeleccionadosGuarniciones"></b> seleccionado(s)
+                </span>
+              </div>
+              <div class="flex gap-2 flex-wrap">
+                <button @click="abrirAsignacionMasivaGuarniciones()"
+                  :disabled="totalSeleccionadosGuarniciones === 0"
+                  class="flex-1 text-xs bg-gold text-bg-primary px-3 py-1.5 rounded-lg font-semibold hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed">
+                  ⚡ Asignar <span x-text="totalSeleccionadosGuarniciones"></span> guarnición(es) a un cocinero
+                </button>
+                <button @click="abrirAsignacionMasivaGrupoGuarniciones()"
+                  :disabled="!filtroGrupoGuarniciones"
+                  class="text-xs bg-bg-card border border-[rgba(212,175,55,0.3)] text-gold px-3 py-1.5 rounded-lg hover:bg-gold/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                  :title="filtroGrupoGuarniciones ? 'Asignar todo el grupo filtrado' : 'Filtra por un grupo primero'">
+                  📋 Todo el grupo
+                </button>
+              </div>
+            </div>
+            <div class="space-y-2 mb-3">
+              <input type="text" x-model="busquedaGuarnicionesAsignacion" x-ref="buscadorGuarnicionesAsignacion"
+                @input.debounce.300ms="currentPageGuarniciones = 1"
+                placeholder="Buscar guarnición (grupo u opción)..."
+                class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+              <div class="flex gap-2">
+                <select x-model="filtroGrupoGuarniciones" @change="currentPageGuarniciones = 1"
+                  class="flex-1 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                  <option value="">Todos los grupos</option>
+                  <template x-for="g in gruposGuarnicionesAsignacion" :key="g">
+                    <option :value="g" x-text="g"></option>
+                  </template>
+                </select>
+                <label class="flex items-center gap-1 text-xs text-txt-secondary bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 cursor-pointer">
+                  <input type="checkbox" x-model="soloSinConfigurarGuarniciones" @change="currentPageGuarniciones = 1" class="w-3 h-3 accent-gold">
+                  Sin regla
+                </label>
+              </div>
+            </div>
+            <div x-show="loadingGuarnicionesCatalogo" class="text-center py-8 text-txt-muted text-sm">Cargando guarniciones...</div>
+            <div x-show="!loadingGuarnicionesCatalogo" class="space-y-1 max-h-[500px] overflow-y-auto pr-1">
+              <template x-for="g in guarnicionesAsignacionPaginadas" :key="g.key">
+                <div class="p-3 rounded-lg transition border flex items-start gap-2"
+                  :class="guarnicionSeleccionada?.key === g.key ? 'bg-gold/15 border-gold/50' : 'bg-bg-sidebar border-transparent hover:bg-gold/5 hover:border-gold/20'">
+                  <input type="checkbox" :value="g.key" x-model="seleccionGuarniciones[g.key]" @click.stop
+                    class="mt-1 w-4 h-4 accent-gold flex-shrink-0 cursor-pointer">
+                  <div @click="seleccionarGuarnicionAsignacion(g)" class="flex-1 min-w-0 cursor-pointer">
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-white truncate" x-text="g.opcion"></p>
+                        <p class="text-[10px] text-txt-muted" x-text="g.grupo"></p>
+                      </div>
+                      <div class="flex flex-col items-end gap-1">
+                        <span x-show="!tieneReglaGuarnicion(g.key)" class="text-[9px] px-1.5 py-0.5 rounded bg-bg-card text-txt-muted border border-txt-muted/30">Sin regla</span>
+                        <span x-show="tieneReglaGuarnicion(g.key) && getReglaGuarnicion(g.key).cocineroPrimarioId" class="text-[9px] px-1.5 py-0.5 rounded bg-gold/20 text-gold">Primario</span>
+                        <span x-show="tieneReglaGuarnicion(g.key) && getReglaGuarnicion(g.key).backups?.length > 0" class="text-[9px] px-1.5 py-0.5 rounded bg-st-pedido/20 text-st-pedido">Overflow</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+              <div x-show="guarnicionesAsignacionFiltradas.length === 0" class="text-center py-6 text-txt-muted text-sm">No se encontraron guarniciones</div>
+            </div>
+            <div x-show="guarnicionesAsignacionFiltradas.length > pageSizeGuarniciones" class="flex items-center justify-between mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]">
+              <span class="text-xs text-txt-muted"><span x-text="paginaInicioGuarniciones"></span>–<span x-text="paginaFinGuarniciones"></span> de <span x-text="guarnicionesAsignacionFiltradas.length"></span></span>
+              <div class="flex gap-1">
+                <button @click="paginaAnteriorGuarniciones()" :disabled="currentPageGuarniciones === 1" class="px-2 py-1 text-xs rounded border border-[rgba(212,175,55,0.25)] disabled:opacity-30 hover:border-gold hover:text-gold">‹</button>
+                <span class="px-2 py-1 text-xs text-txt-secondary" x-text="currentPageGuarniciones + '/' + totalPaginasGuarniciones"></span>
+                <button @click="paginaSiguienteGuarniciones()" :disabled="currentPageGuarniciones === totalPaginasGuarniciones" class="px-2 py-1 text-xs rounded border border-[rgba(212,175,55,0.25)] disabled:opacity-30 hover:border-gold hover:text-gold">›</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="lg:col-span-7 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+            <div x-show="!guarnicionSeleccionada" class="text-center py-16 text-txt-muted">
+              <span class="text-4xl block mb-3">←</span>
+              <p class="text-sm">Selecciona una guarnición del catálogo para configurar su asignación</p>
+            </div>
+            <div x-show="guarnicionSeleccionada" x-cloak>
+              <div class="flex items-start justify-between mb-4 pb-3 border-b border-[rgba(212,175,55,0.1)]">
+                <div>
+                  <h3 class="text-sm font-bold text-white" x-text="guarnicionSeleccionada?.opcion"></h3>
+                  <p class="text-[11px] text-txt-muted" x-text="guarnicionSeleccionada?.grupo"></p>
+                </div>
+                <label class="flex items-center gap-2 text-xs text-txt-secondary cursor-pointer">
+                  <input type="checkbox" x-model="formReglaGuarnicion.activo" class="w-4 h-4 accent-gold">
+                  <span x-text="formReglaGuarnicion.activo ? 'Regla activa' : 'Regla inactiva'"></span>
+                </label>
+              </div>
+              <div class="space-y-4">
+                <div>
+                  <label class="text-xs font-semibold text-txt-secondary uppercase">Cocinero primario</label>
+                  <p class="text-[10px] text-txt-muted mb-1">No puede ser el mismo del plato principal (el motor lo excluye).</p>
+                  <select x-model="formReglaGuarnicion.cocineroPrimarioId"
+                    class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                    <option value="">— Sin primario —</option>
+                    <template x-for="c in cocinerosAsignacion" :key="c._id">
+                      <option :value="c._id" x-text="c.nombre + (c.alias ? ' (' + c.alias + ')' : '')"></option>
+                    </template>
+                  </select>
+                </div>
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <div>
+                      <label class="text-xs font-semibold text-txt-secondary uppercase">Backups (overflow)</label>
+                      <p class="text-[10px] text-txt-muted">Si el primario supera el máx., pasa al siguiente backup válido.</p>
+                    </div>
+                    <button @click="agregarBackupGuarnicion()" class="text-xs text-gold hover:underline">+ Añadir</button>
+                  </div>
+                  <div class="space-y-2">
+                    <template x-for="(b, idx) in formReglaGuarnicion.backups" :key="idx">
+                      <div class="flex items-center gap-2 bg-bg-sidebar rounded-lg p-2">
+                        <span class="text-xs text-txt-muted w-5 text-center" x-text="(idx + 1) + 'º'"></span>
+                        <select x-model="b.cocineroId" class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded px-2 py-1.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                          <option value="">— Selecciona —</option>
+                          <template x-for="c in cocinerosAsignacion" :key="c._id">
+                            <option :value="c._id" x-text="c.nombre + (c.alias ? ' (' + c.alias + ')' : '')"></option>
+                          </template>
+                        </select>
+                        <button @click="subirBackupGuarnicion(idx)" :disabled="idx === 0" class="w-6 h-6 rounded text-txt-secondary hover:text-gold disabled:opacity-20">▲</button>
+                        <button @click="bajarBackupGuarnicion(idx)" :disabled="idx === formReglaGuarnicion.backups.length - 1" class="w-6 h-6 rounded text-txt-secondary hover:text-gold disabled:opacity-20">▼</button>
+                        <button @click="quitarBackupGuarnicion(idx)" class="w-6 h-6 rounded text-st-pagado hover:brightness-125">✕</button>
+                      </div>
+                    </template>
+                    <div x-show="formReglaGuarnicion.backups.length === 0" class="text-xs text-txt-muted italic px-2">Sin backups.</div>
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="text-xs font-semibold text-txt-secondary uppercase">Máx. misma guarnición</label>
+                    <p class="text-[10px] text-txt-muted mb-1">Default: <span class="text-gold" x-text="asignacionGuarnicionesConfig?.defaults?.maxMismoGuarnicionPorCocinero ?? 6"></span></p>
+                    <input type="number" min="1" max="50" x-model.number="formReglaGuarnicion.maxMismoGuarnicion" placeholder="Usar default"
+                      class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                  </div>
+                  <div>
+                    <label class="text-xs font-semibold text-txt-secondary uppercase">Estrategia</label>
+                    <select x-model="formReglaGuarnicion.estrategia"
+                      class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                      <option value="">Usar default</option>
+                      <option value="fijo_por_guarnicion">Fijo por guarnición</option>
+                      <option value="fijo_por_grupo">Fijo por grupo</option>
+                      <option value="cadena_overflow">Cadena overflow</option>
+                      <option value="menor_carga">Menor carga</option>
+                      <option value="round_robin">Round robin</option>
+                      <option value="hibrido">Híbrido</option>
+                      <option value="respetar_estacion">Respetar estación</option>
+                      <option value="batch_mismo_cocinero">Batch mismo cocinero</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="text-xs font-semibold text-txt-secondary uppercase">Estación recomendada</label>
+                    <select x-model="formReglaGuarnicion.estacionRecomendada"
+                      class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                      <option value="">—</option>
+                      <template x-for="est in estacionesGuarnicionSugeridas" :key="est">
+                        <option :value="est" x-text="est"></option>
+                      </template>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="text-xs font-semibold text-txt-secondary uppercase">Categoría de tiempo</label>
+                    <select x-model="formReglaGuarnicion.categoriaTiempo"
+                      class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                      <option value="">—</option>
+                      <option value="rapido">Rápido</option>
+                      <option value="medio">Medio</option>
+                      <option value="lento">Lento</option>
+                    </select>
+                  </div>
+                </div>
+                <label class="flex items-center gap-2 text-xs text-txt-secondary">
+                  <input type="checkbox" x-model="formReglaGuarnicion.criticaEmplatado" class="w-4 h-4 accent-gold">
+                  Crítica de emplatado (debe llegar al pase con el principal)
+                </label>
+                <div class="bg-bg-sidebar/50 border border-[rgba(212,175,55,0.15)] rounded-lg p-3">
+                  <p class="text-[11px] text-txt-secondary mb-2">Aplicar esta misma regla a todas las guarniciones del grupo <b class="text-gold" x-text="guarnicionSeleccionada?.grupo || '—'"></b></p>
+                  <button @click="aplicarReglaAGrupoGuarnicion()" class="text-xs bg-gold/20 text-gold px-3 py-1.5 rounded hover:bg-gold/30 transition"
+                    :disabled="!guarnicionSeleccionada?.grupo || !formReglaGuarnicion.cocineroPrimarioId">📋 Aplicar a todo el grupo</button>
+                </div>
+                <div>
+                  <label class="text-xs font-semibold text-txt-secondary uppercase">Notas internas</label>
+                  <textarea x-model="formReglaGuarnicion.notas" rows="2" placeholder="Ej: solo fritura, no el mismo del principal..."
+                    class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none resize-none"></textarea>
+                </div>
+                <div x-show="errorValidacionGuarniciones" class="bg-st-pagado/10 border border-st-pagado/30 rounded-lg p-2 text-xs text-st-pagado" x-text="errorValidacionGuarniciones"></div>
+                <div class="flex justify-between items-center pt-3 border-t border-[rgba(212,175,55,0.1)]">
+                  <button x-show="tieneReglaGuarnicion(guarnicionSeleccionada?.key)" @click="eliminarReglaGuarnicion(guarnicionSeleccionada?.key)" class="text-xs text-st-pagado hover:underline">🗑️ Eliminar regla</button>
+                  <div class="flex gap-2 ml-auto">
+                    <button @click="aplicarReglaGuarnicion()" class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110">✓ Aplicar a esta guarnición</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div x-show="subtabAsignacionGuarniciones === 'semana'" x-cloak class="space-y-4">
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h3 class="text-sm font-bold text-white">Semana actual</h3>
+              <p class="text-[11px] text-txt-muted" x-text="rangoSemanaActualTexto"></p>
+            </div>
+            <div class="text-right">
+              <p class="text-[11px] text-txt-muted uppercase">Hoy</p>
+              <p class="text-sm font-bold text-gold" x-text="hoySemanaTexto"></p>
+              <p class="text-[11px] text-txt-secondary" x-text="perfilActivoAhoraDisplay"></p>
+            </div>
+          </div>
+        </div>
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4 overflow-x-auto">
+          <div class="grid grid-cols-7 gap-2 min-w-[700px]">
+            <template x-for="dia in diasSemanaCalendario" :key="'g'+dia.num">
+              <div class="bg-bg-sidebar/40 rounded-lg p-2 min-h-[160px] flex flex-col gap-1">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold text-white" x-text="dia.nombre"></span>
+                  <span x-show="dia.esHoy" class="text-[9px] px-1.5 py-0.5 rounded bg-gold text-bg-primary font-bold">HOY</span>
+                </div>
+                <template x-for="b in bloquesPorDia(dia.num)" :key="b.id">
+                  <button @click="abrirEditarBloqueCalendario(b)"
+                    class="text-left rounded-md p-2 border text-[11px] hover:brightness-110 transition"
+                    :style="`background:${colorPerfilPorId(b.perfilId)}22; border-color:${colorPerfilPorId(b.perfilId)}66`">
+                    <div class="font-bold" :style="`color:${colorPerfilPorId(b.perfilId)}`" x-text="nombrePerfilPorId(b.perfilId)"></div>
+                    <div class="text-txt-secondary" x-text="b.horaInicio + '–' + b.horaFin"></div>
+                    <div x-show="b.etiqueta" class="text-txt-muted truncate" x-text="b.etiqueta"></div>
+                    <div x-show="!b.activo" class="text-st-pagado text-[9px]">(inactiva)</div>
+                  </button>
+                </template>
+                <button @click="abrirNuevaFranjaCalendario(dia.num)" class="mt-auto text-[11px] text-gold hover:underline">+ añadir franja</button>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <div x-show="subtabAsignacionGuarniciones === 'globales'" x-cloak class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+            <h3 class="text-sm font-bold mb-3">Estado global</h3>
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-xs text-txt-muted">Interruptor maestro de auto-asignación de guarniciones</p>
+                <p class="text-sm font-bold" :class="asignacionGuarnicionesConfig?.habilitada ? 'text-st-libre' : 'text-txt-muted'"
+                  x-text="asignacionGuarnicionesConfig?.habilitada ? '● Activa' : '○ En pausa'"></p>
+              </div>
+              <button @click="toggleAsignacionGuarniciones()" class="px-4 py-2 rounded-lg text-sm font-semibold transition"
+                :class="asignacionGuarnicionesConfig?.habilitada ? 'bg-st-pagado text-white hover:brightness-110' : 'bg-st-libre text-bg-primary hover:brightness-110'">
+                <span x-text="asignacionGuarnicionesConfig?.habilitada ? '⏸️ Pausar' : '▶️ Activar'"></span>
+              </button>
+            </div>
+          </div>
+          <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+            <h3 class="text-sm font-bold mb-3">Simulador</h3>
+            <div class="space-y-2">
+              <select x-model="simuladorGuarnicionKey" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                <option value="">Selecciona una guarnición…</option>
+                <template x-for="g in todasLasGuarnicionesAsignacion" :key="'sim'+g.key">
+                  <option :value="g.key" x-text="g.etiqueta"></option>
+                </template>
+              </select>
+              <select x-model="simuladorCocineroPadreId" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                <option value="">Cocinero del principal (opcional)</option>
+                <template x-for="c in cocinerosAsignacion" :key="'pad'+c._id">
+                  <option :value="c._id" x-text="c.nombre + (c.alias ? ' (' + c.alias + ')' : '')"></option>
+                </template>
+              </select>
+              <button @click="ejecutarSimulacionGuarnicion()" :disabled="!simuladorGuarnicionKey || loadingSimulador"
+                class="w-full bg-gold text-bg-primary px-3 py-2 rounded-lg text-sm font-semibold hover:brightness-110 disabled:opacity-40">
+                <span x-text="loadingSimulador ? 'Simulando…' : 'Simular (ahora)'"></span>
+              </button>
+              <div x-show="resultadoSimuladorGuarnicion" class="text-xs rounded-lg p-2 bg-bg-sidebar border border-[rgba(212,175,55,0.15)]">
+                <template x-if="resultadoSimuladorGuarnicion">
+                  <div class="space-y-1">
+                    <p x-show="resultadoSimuladorGuarnicion.cocineroId" class="text-gold font-bold">→ <span x-text="nombreCocineroAsignacion(resultadoSimuladorGuarnicion.cocineroId)"></span></p>
+                    <p class="text-txt-muted" x-text="resultadoSimuladorGuarnicion.mensaje || resultadoSimuladorGuarnicion.regla || ''"></p>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+          <h3 class="text-sm font-bold mb-3">Configuración global (defaults)</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-semibold text-txt-secondary uppercase">Máx. misma guarnición por cocinero</label>
+              <input type="number" min="1" max="50" x-model.number="formDefaultsGuarniciones.maxMismoGuarnicionPorCocinero"
+                class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-txt-secondary uppercase">Máx. unidades totales en curso</label>
+              <input type="number" min="1" max="100" x-model.number="formDefaultsGuarniciones.maxUnidadesTotalesEnCurso"
+                class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-txt-secondary uppercase">Modo sin candidato</label>
+              <select x-model="formDefaultsGuarniciones.modoSinCandidato"
+                class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                <option value="dejar_sin_asignar">Dejar sin asignar</option>
+                <option value="pool_supervisor">Pool del supervisor</option>
+                <option value="round_robin_estacion">Round robin por estación</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-txt-secondary uppercase">Estrategia default</label>
+              <select x-model="formDefaultsGuarniciones.estrategiaDefault"
+                class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                <option value="fijo_por_guarnicion">Fijo por guarnición</option>
+                <option value="fijo_por_grupo">Fijo por grupo</option>
+                <option value="cadena_overflow">Cadena overflow</option>
+                <option value="menor_carga">Menor carga</option>
+                <option value="round_robin">Round robin</option>
+                <option value="hibrido">Híbrido</option>
+                <option value="respetar_estacion">Respetar estación</option>
+                <option value="batch_mismo_cocinero">Batch mismo cocinero</option>
+              </select>
+            </div>
+            <label class="flex items-center gap-2 text-xs text-txt-secondary">
+              <input type="checkbox" x-model="formDefaultsGuarniciones.soloCocinerosConectados" class="w-4 h-4 accent-gold">
+              Solo asignar a cocineros conectados
+            </label>
+            <label class="flex items-center gap-2 text-xs text-txt-secondary">
+              <input type="checkbox" x-model="formDefaultsGuarniciones.respetarZonas" class="w-4 h-4 accent-gold">
+              Respetar zonas
+            </label>
+            <label class="flex items-center gap-2 text-xs text-txt-secondary">
+              <input type="checkbox" x-model="formDefaultsGuarniciones.priorizarEstacion" class="w-4 h-4 accent-gold">
+              Priorizar estación recomendada
+            </label>
+            <label class="flex items-center gap-2 text-xs text-txt-secondary">
+              <input type="checkbox" x-model="formDefaultsGuarniciones.agruparBatchs" class="w-4 h-4 accent-gold">
+              Agrupar batchs de la misma guarnición
+            </label>
+          </div>
+          <button @click="guardarDefaultsGuarniciones()" class="mt-4 bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110">
+            💾 Guardar defaults
+          </button>
+        </div>
       </div>
     </div>
 
@@ -3424,8 +3801,8 @@ tailwind.config = {
   <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-full max-w-[700px] shadow-2xl max-h-[90vh] overflow-y-auto" @click.stop>
     <div class="bg-bg-sidebar p-5 rounded-t-2xl flex items-center justify-between sticky top-0 z-10">
       <div>
-        <h2 class="text-lg font-bold">👨‍🍳 Vista por cocinero</h2>
-        <p class="text-xs text-txt-muted">Mismas reglas, organizadas por cocinero</p>
+        <h2 class="text-lg font-bold" x-text="scopeAsignacion === 'guarniciones' ? '👨‍🍳 Vista por cocinero (guarniciones)' : '👨‍🍳 Vista por cocinero'"></h2>
+        <p class="text-xs text-txt-muted" x-text="scopeAsignacion === 'guarniciones' ? 'Reglas de guarnición del perfil seleccionado, agrupadas por cocinero' : 'Mismas reglas, organizadas por cocinero'"></p>
       </div>
       <button @click="modalVistaPorCocinero=false" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
     </div>
@@ -3442,20 +3819,20 @@ tailwind.config = {
         <template x-for="pid in vistaCocineroPrimarios" :key="'p'+pid">
           <div class="bg-bg-sidebar rounded-lg p-2 text-sm flex items-center gap-2">
             <span class="text-gold">★</span>
-            <span class="text-white" x-text="getNombrePlato(pid)"></span>
-            <span class="text-[10px] text-txt-muted" x-text="'#' + pid"></span>
+            <span class="text-white" x-text="getNombreItemVista(pid)"></span>
+            <span class="text-[10px] text-txt-muted" x-text="pid"></span>
           </div>
         </template>
-        <div x-show="vistaCocineroPrimarios.length === 0" class="text-xs text-txt-muted italic">No es primario de ningún plato</div>
+        <div x-show="vistaCocineroPrimarios.length === 0" class="text-xs text-txt-muted italic" x-text="scopeAsignacion === 'guarniciones' ? 'No es primario de ninguna guarnición' : 'No es primario de ningún plato'"></div>
         <div class="text-xs text-txt-muted uppercase font-semibold pt-2">Backup en:</div>
         <template x-for="pid in vistaCocineroBackups" :key="'b'+pid">
           <div class="bg-bg-sidebar rounded-lg p-2 text-sm flex items-center gap-2">
             <span class="text-st-pedido">↻</span>
-            <span class="text-white" x-text="getNombrePlato(pid)"></span>
-            <span class="text-[10px] text-txt-muted" x-text="'#' + pid"></span>
+            <span class="text-white" x-text="getNombreItemVista(pid)"></span>
+            <span class="text-[10px] text-txt-muted" x-text="pid"></span>
           </div>
         </template>
-        <div x-show="vistaCocineroBackups.length === 0" class="text-xs text-txt-muted italic">No es backup de ningún plato</div>
+        <div x-show="vistaCocineroBackups.length === 0" class="text-xs text-txt-muted italic" x-text="scopeAsignacion === 'guarniciones' ? 'No es backup de ninguna guarnición' : 'No es backup de ningún plato'"></div>
       </div>
     </div>
     <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end border-t border-[rgba(212,175,55,0.15)] sticky bottom-0">
@@ -3517,8 +3894,9 @@ tailwind.config = {
         <p class="text-xs text-txt-muted">
           Aplicar la misma regla a
           <b class="text-gold" x-text="formAsignacionMasivaContexto?.cantidad"></b>
-          plato(s)
+          <span x-text="scopeAsignacion === 'guarniciones' ? 'guarnición(es)' : 'plato(s)'"></span>
           <span x-show="formAsignacionMasivaContexto?.categoria" x-text="'de la categoría ' + formAsignacionMasivaContexto?.categoria"></span>
+          <span x-show="formAsignacionMasivaContexto?.grupo" x-text="'del grupo ' + formAsignacionMasivaContexto?.grupo"></span>
         </p>
       </div>
       <button @click="modalAsignacionMasiva=false" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
@@ -3527,7 +3905,7 @@ tailwind.config = {
       <!-- Cocinero primario -->
       <div>
         <label class="text-xs font-semibold text-txt-secondary uppercase">Cocinero primario</label>
-        <p class="text-[10px] text-txt-muted mb-1">Se asignarán todos los platos del conjunto a este cocinero.</p>
+        <p class="text-[10px] text-txt-muted mb-1" x-text="scopeAsignacion === 'guarniciones' ? 'Se asignarán todas las guarniciones del conjunto a este cocinero (nunca el del principal).' : 'Se asignarán todos los platos del conjunto a este cocinero.'"></p>
         <select x-model="formAsignacionMasiva.cocineroPrimarioId"
           class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
           <option value="">— Sin primario —</option>
@@ -3574,16 +3952,16 @@ tailwind.config = {
       <!-- Máx. mismo plato + estrategia -->
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="text-xs font-semibold text-txt-secondary uppercase">Máx. mismo plato</label>
-          <p class="text-[10px] text-txt-muted mb-1">Default global: <span class="text-gold" x-text="asignacionConfig?.defaults?.maxMismoPlatoPorCocinero ?? 5"></span></p>
+          <label class="text-xs font-semibold text-txt-secondary uppercase" x-text="scopeAsignacion === 'guarniciones' ? 'Máx. misma guarnición' : 'Máx. mismo plato'"></label>
+          <p class="text-[10px] text-txt-muted mb-1">Default global: <span class="text-gold" x-text="scopeAsignacion === 'guarniciones' ? (asignacionGuarnicionesConfig?.defaults?.maxMismoGuarnicionPorCocinero ?? 6) : (asignacionConfig?.defaults?.maxMismoPlatoPorCocinero ?? 5)"></span></p>
           <input type="number" min="1" max="50" x-model.number="formAsignacionMasiva.maxMismoPlato"
             placeholder="Usar default"
             class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
         </div>
         <div>
           <label class="text-xs font-semibold text-txt-secondary uppercase">Estrategia</label>
-          <p class="text-[10px] text-txt-muted mb-1">Default global: <span class="text-gold" x-text="asignacionConfig?.defaults?.estrategiaDefault ?? 'hibrido'"></span></p>
-          <select x-model="formAsignacionMasiva.estrategia"
+          <p class="text-[10px] text-txt-muted mb-1">Default global: <span class="text-gold" x-text="scopeAsignacion === 'guarniciones' ? (asignacionGuarnicionesConfig?.defaults?.estrategiaDefault ?? 'respetar_estacion') : (asignacionConfig?.defaults?.estrategiaDefault ?? 'hibrido')"></span></p>
+          <select x-show="scopeAsignacion !== 'guarniciones'" x-model="formAsignacionMasiva.estrategia"
             class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
             <option value="">Usar default</option>
             <option value="fijo_por_plato">Fijo por plato</option>
@@ -3592,6 +3970,18 @@ tailwind.config = {
             <option value="round_robin">Round robin</option>
             <option value="hibrido">Híbrido (recomendado)</option>
             <option value="respetar_zona">Respetar zona</option>
+          </select>
+          <select x-show="scopeAsignacion === 'guarniciones'" x-model="formAsignacionMasiva.estrategia"
+            class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+            <option value="">Usar default</option>
+            <option value="fijo_por_guarnicion">Fijo por guarnición</option>
+            <option value="fijo_por_grupo">Fijo por grupo</option>
+            <option value="cadena_overflow">Cadena overflow</option>
+            <option value="menor_carga">Menor carga</option>
+            <option value="round_robin">Round robin</option>
+            <option value="hibrido">Híbrido</option>
+            <option value="respetar_estacion">Respetar estación</option>
+            <option value="batch_mismo_cocinero">Batch mismo cocinero</option>
           </select>
         </div>
       </div>
@@ -3602,11 +3992,15 @@ tailwind.config = {
 
       <!-- Resumen de platos afectados -->
       <div class="bg-bg-sidebar/50 border border-[rgba(212,175,55,0.15)] rounded-lg p-3 max-h-[120px] overflow-y-auto">
-        <p class="text-[10px] text-txt-muted uppercase mb-1">Platos que se actualizarán:</p>
+        <p class="text-[10px] text-txt-muted uppercase mb-1" x-text="scopeAsignacion === 'guarniciones' ? 'Guarniciones que se actualizarán:' : 'Platos que se actualizarán:'"></p>
         <div class="flex flex-wrap gap-1">
-          <template x-for="pid in formAsignacionMasivaContexto?.platoIds || []" :key="pid">
+          <template x-for="pid in formAsignacionMasivaContexto?.platoIds || []" :key="'p'+pid">
             <span class="text-[10px] bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-1.5 py-0.5 text-txt-secondary"
               x-text="getNombrePlato(pid)"></span>
+          </template>
+          <template x-for="gk in formAsignacionMasivaContexto?.guarnicionKeys || []" :key="'g'+gk">
+            <span class="text-[10px] bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-1.5 py-0.5 text-txt-secondary"
+              x-text="getNombreGuarnicion(gk)"></span>
           </template>
         </div>
       </div>
@@ -3614,7 +4008,8 @@ tailwind.config = {
     <div class="bg-bg-sidebar p-5 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.15)] sticky bottom-0">
       <button @click="modalAsignacionMasiva=false" class="px-5 py-2.5 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
       <button @click="aplicarAsignacionMasiva()" class="px-5 py-2.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">
-        ✓ Aplicar a <span x-text="formAsignacionMasivaContexto?.cantidad"></span> plato(s)
+        ✓ Aplicar a <span x-text="formAsignacionMasivaContexto?.cantidad"></span>
+        <span x-text="scopeAsignacion === 'guarniciones' ? 'guarnición(es)' : 'plato(s)'"></span>
       </button>
     </div>
   </div>
@@ -3768,11 +4163,52 @@ function cocinerosApp() {
     activeTab: 'cocineros', // 'cocineros', 'asignacion', 'asignacionGuarniciones', 'zonas', 'vistas', 'rendimiento'
 
     // ==================== ASIGNACIÓN DE GUARNICIONES (estado) ====================
-    // PLAN GUARNICIONES_SEPARADAS v1.1 §5
+    // PLAN GUARNICIONES_SEPARADAS v1.1 §5 — espejo de asignación de platos
+    scopeAsignacion: 'platos', // 'platos' | 'guarniciones'
+    subtabAsignacionGuarniciones: 'perfiles',
     asignacionGuarnicionesConfig: null,
     asignacionGuarnicionesCargada: false,
     perfilGuarnicionesSeleccionadoId: null,
+    perfilGuarnicionesActivoAhora: null,
     flagGuarnicionesGlobal: true,  // mirror de configuracion.cocina.permitirGuarnicionesSeparadas
+    loadingGuarnicionesCatalogo: false,
+    todasLasGuarnicionesAsignacion: [],
+    gruposGuarnicionesAsignacion: [],
+    busquedaGuarnicionesAsignacion: '',
+    filtroGrupoGuarniciones: '',
+    soloSinConfigurarGuarniciones: false,
+    currentPageGuarniciones: 1,
+    pageSizeGuarniciones: 15,
+    guarnicionSeleccionada: null,
+    seleccionGuarniciones: {},
+    formReglaGuarnicion: {
+      guarnicionKey: '',
+      etiqueta: '',
+      activo: true,
+      cocineroPrimarioId: '',
+      backups: [],
+      maxMismoGuarnicion: null,
+      estrategia: '',
+      estacionRecomendada: '',
+      criticaEmplatado: false,
+      categoriaTiempo: '',
+      notas: ''
+    },
+    formDefaultsGuarniciones: {
+      maxMismoGuarnicionPorCocinero: 6,
+      maxUnidadesTotalesEnCurso: 12,
+      modoSinCandidato: 'dejar_sin_asignar',
+      soloCocinerosConectados: true,
+      respetarZonas: true,
+      priorizarEstacion: true,
+      agruparBatchs: true,
+      estrategiaDefault: 'respetar_estacion'
+    },
+    errorValidacionGuarniciones: '',
+    simuladorGuarnicionKey: '',
+    simuladorCocineroPadreId: '',
+    resultadoSimuladorGuarnicion: null,
+    estacionesGuarnicionSugeridas: ['fritura', 'plancha', 'parrilla', 'frios', 'postres', 'guarniciones', 'general'],
 
     // ==================== ASIGNACIÓN AUTOMÁTICA (estado) ====================
     // v2: perfiles + calendario semanal. Sub-tabs dentro del tab 'asignacion'.
@@ -3828,7 +4264,7 @@ function cocinerosApp() {
       estrategia: '',
       activo: true
     },
-    formAsignacionMasivaContexto: { cantidad: 0, categoria: '', platoIds: [] },
+    formAsignacionMasivaContexto: { cantidad: 0, categoria: '', platoIds: [], guarnicionKeys: [], grupo: '' },
     errorValidacionMasiva: '',
     get totalSeleccionadosAsignacion() {
       return Object.values(this.seleccionPlatosAsignacion || {}).filter(v => v).length;
@@ -5577,6 +6013,8 @@ function cocinerosApp() {
     cambiarTab(tab) {
       const tabAnterior = this.activeTab;
       this.activeTab = tab;
+      if (tab === 'asignacion') this.scopeAsignacion = 'platos';
+      if (tab === 'asignacionGuarniciones') this.scopeAsignacion = 'guarniciones';
       if (tab === 'asignacion' && !this.asignacionCargada) {
         this.cargarAsignacion();
       }
@@ -5624,18 +6062,21 @@ function cocinerosApp() {
     // ==================== ASIGNACIÓN DE GUARNICIONES ====================
     // PLAN GUARNICIONES_SEPARADAS v1.1 §5
     async cargarAsignacionGuarniciones() {
+      this.loadingGuarnicionesCatalogo = true;
       try {
         const [cfgG, cfgSistema] = await Promise.all([
           apiGet('/asignacion-automatica-guarniciones'),
-          apiGet('/configuracion')
+          apiGet('/configuracion'),
+          this.cargarCatalogoGuarniciones(),
+          this.cargarCocinerosAsignacion()
         ]);
         if (cfgG && cfgG.success !== false) {
           this.asignacionGuarnicionesConfig = cfgG.data || cfgG;
+          this.perfilGuarnicionesActivoAhora = cfgG.perfilActivoAhora || this._recalcularPerfilActivoAhora();
+          this._syncFormDefaultsGuarniciones();
         }
-        // Mirror del flag global
-        const cocina = cfgSistema?.configuracion?.cocina || {};
+        const cocina = cfgSistema?.configuracion?.cocina || cfgSistema?.data?.configuracion?.cocina || {};
         this.flagGuarnicionesGlobal = cocina.permitirGuarnicionesSeparadas !== false;
-        // Seleccionar primer perfil activo por defecto
         if (!this.perfilGuarnicionesSeleccionadoId && this.asignacionGuarnicionesConfig?.perfiles?.length) {
           const activo = this.asignacionGuarnicionesConfig.perfiles.find(p => p.activo);
           this.perfilGuarnicionesSeleccionadoId = (activo || this.asignacionGuarnicionesConfig.perfiles[0]).id;
@@ -5645,6 +6086,34 @@ function cocinerosApp() {
         console.error('Error al cargar asignación de guarniciones:', e);
         if (window.GambusinasNotifications) window.GambusinasNotifications.networkError(e);
       }
+      this.loadingGuarnicionesCatalogo = false;
+    },
+
+    _syncFormDefaultsGuarniciones() {
+      const d = this.asignacionGuarnicionesConfig?.defaults || {};
+      this.formDefaultsGuarniciones = {
+        maxMismoGuarnicionPorCocinero: d.maxMismoGuarnicionPorCocinero ?? 6,
+        maxUnidadesTotalesEnCurso: d.maxUnidadesTotalesEnCurso ?? 12,
+        modoSinCandidato: d.modoSinCandidato ?? 'dejar_sin_asignar',
+        soloCocinerosConectados: d.soloCocinerosConectados ?? true,
+        respetarZonas: d.respetarZonas ?? true,
+        priorizarEstacion: d.priorizarEstacion ?? true,
+        agruparBatchs: d.agruparBatchs ?? true,
+        estrategiaDefault: d.estrategiaDefault ?? 'respetar_estacion'
+      };
+    },
+
+    async cargarCatalogoGuarniciones() {
+      try {
+        const data = await apiGet('/asignacion-automatica-guarniciones/catalogo');
+        const payload = data?.data || data || {};
+        this.todasLasGuarnicionesAsignacion = Array.isArray(payload.items) ? payload.items : [];
+        this.gruposGuarnicionesAsignacion = Array.isArray(payload.grupos) ? payload.grupos : [...new Set(this.todasLasGuarnicionesAsignacion.map(g => g.grupo).filter(Boolean))].sort();
+      } catch (e) {
+        console.error('Error al cargar catálogo de guarniciones:', e);
+        this.todasLasGuarnicionesAsignacion = [];
+        this.gruposGuarnicionesAsignacion = [];
+      }
     },
 
     async toggleAsignacionGuarniciones() {
@@ -5652,7 +6121,7 @@ function cocinerosApp() {
       try {
         const res = await apiPost('/asignacion-automatica-guarniciones/toggle', { habilitada: nuevoValor });
         if (res && res.success !== false) {
-          this.asignacionGuarnicionesConfig = res.data || this.asignacionGuarnicionesConfig;
+          this._aplicarConfigRespuesta(res);
           if (window.GambusinasNotifications) {
             window.GambusinasNotifications.toast(nuevoValor ? 'Asignación de guarniciones activada' : 'Asignación de guarniciones pausada', 'success');
           }
@@ -5661,6 +6130,311 @@ function cocinerosApp() {
         console.error('Error al toggle asignación de guarniciones:', e);
         if (window.GambusinasNotifications) window.GambusinasNotifications.networkError(e);
       }
+    },
+
+    get _esScopeGuarniciones() {
+      return this.scopeAsignacion === 'guarniciones';
+    },
+    get _configAsignacion() {
+      return this._esScopeGuarniciones ? this.asignacionGuarnicionesConfig : this.asignacionConfig;
+    },
+    get _apiAsignacionBase() {
+      return this._esScopeGuarniciones ? '/asignacion-automatica-guarniciones' : '/asignacion-automatica';
+    },
+
+    get totalSeleccionadosGuarniciones() {
+      return Object.values(this.seleccionGuarniciones || {}).filter(v => v).length;
+    },
+    get reglasGuarnicionMap() {
+      const m = {};
+      (this.perfilSeleccionadoActual?.reglasPorGuarnicion || []).forEach(r => { m[r.guarnicionKey] = r; });
+      return m;
+    },
+    tieneReglaGuarnicion(key) {
+      return !!(key && this.reglasGuarnicionMap[key]);
+    },
+    getReglaGuarnicion(key) {
+      return this.reglasGuarnicionMap[key] || {};
+    },
+    getNombreGuarnicion(key) {
+      const g = this.todasLasGuarnicionesAsignacion.find(x => x.key === key);
+      return g ? (g.etiqueta || `${g.grupo} :: ${g.opcion}`) : (key || '—');
+    },
+    getNombreItemVista(id) {
+      return this._esScopeGuarniciones ? this.getNombreGuarnicion(id) : this.getNombrePlato(id);
+    },
+    nombreCocineroAsignacion(id) {
+      if (!id) return '—';
+      const c = this.cocinerosAsignacion.find(x => String(x._id) === String(id));
+      if (!c) return String(id);
+      return c.alias ? `${c.nombre} (${c.alias})` : c.nombre;
+    },
+
+    get guarnicionesAsignacionFiltradas() {
+      let list = this.todasLasGuarnicionesAsignacion;
+      if (this.busquedaGuarnicionesAsignacion) {
+        const q = this.busquedaGuarnicionesAsignacion.toLowerCase();
+        list = list.filter(g =>
+          (g.opcion || '').toLowerCase().includes(q) ||
+          (g.grupo || '').toLowerCase().includes(q) ||
+          (g.etiqueta || '').toLowerCase().includes(q) ||
+          (g.key || '').includes(q)
+        );
+      }
+      if (this.filtroGrupoGuarniciones) {
+        list = list.filter(g => g.grupo === this.filtroGrupoGuarniciones);
+      }
+      if (this.soloSinConfigurarGuarniciones) {
+        list = list.filter(g => !this.tieneReglaGuarnicion(g.key));
+      }
+      return list;
+    },
+    get totalPaginasGuarniciones() {
+      return Math.max(1, Math.ceil(this.guarnicionesAsignacionFiltradas.length / this.pageSizeGuarniciones));
+    },
+    get guarnicionesAsignacionPaginadas() {
+      const start = (this.currentPageGuarniciones - 1) * this.pageSizeGuarniciones;
+      return this.guarnicionesAsignacionFiltradas.slice(start, start + this.pageSizeGuarniciones);
+    },
+    get paginaInicioGuarniciones() {
+      return this.guarnicionesAsignacionFiltradas.length === 0 ? 0 : (this.currentPageGuarniciones - 1) * this.pageSizeGuarniciones + 1;
+    },
+    get paginaFinGuarniciones() {
+      return Math.min(this.currentPageGuarniciones * this.pageSizeGuarniciones, this.guarnicionesAsignacionFiltradas.length);
+    },
+    paginaAnteriorGuarniciones() {
+      if (this.currentPageGuarniciones > 1) this.currentPageGuarniciones--;
+    },
+    paginaSiguienteGuarniciones() {
+      if (this.currentPageGuarniciones < this.totalPaginasGuarniciones) this.currentPageGuarniciones++;
+    },
+
+    seleccionarGuarnicionAsignacion(g) {
+      this.guarnicionSeleccionada = g;
+      this.errorValidacionGuarniciones = '';
+      const regla = this.getReglaGuarnicion(g.key);
+      this.formReglaGuarnicion = {
+        guarnicionKey: g.key,
+        etiqueta: regla.etiqueta || g.etiqueta || `${g.grupo} :: ${g.opcion}`,
+        activo: regla.activo !== false,
+        cocineroPrimarioId: regla.cocineroPrimarioId ? String(regla.cocineroPrimarioId) : '',
+        backups: (regla.backups || []).map(b => ({ cocineroId: b.cocineroId ? String(b.cocineroId) : '', orden: b.orden })),
+        maxMismoGuarnicion: regla.maxMismoGuarnicion ?? null,
+        estrategia: regla.estrategia || '',
+        estacionRecomendada: regla.estacionRecomendada || '',
+        criticaEmplatado: !!regla.criticaEmplatado,
+        categoriaTiempo: regla.categoriaTiempo || '',
+        notas: regla.notas || ''
+      };
+    },
+
+    agregarBackupGuarnicion() {
+      this.formReglaGuarnicion.backups.push({ cocineroId: '', orden: this.formReglaGuarnicion.backups.length + 1 });
+    },
+    quitarBackupGuarnicion(idx) {
+      this.formReglaGuarnicion.backups.splice(idx, 1);
+      this._renumerarBackupsGuarnicion();
+    },
+    subirBackupGuarnicion(idx) {
+      if (idx === 0) return;
+      const arr = this.formReglaGuarnicion.backups;
+      [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
+      this._renumerarBackupsGuarnicion();
+    },
+    bajarBackupGuarnicion(idx) {
+      const arr = this.formReglaGuarnicion.backups;
+      if (idx === arr.length - 1) return;
+      [arr[idx + 1], arr[idx]] = [arr[idx], arr[idx + 1]];
+      this._renumerarBackupsGuarnicion();
+    },
+    _renumerarBackupsGuarnicion() {
+      this.formReglaGuarnicion.backups.forEach((b, i) => { b.orden = i + 1; });
+    },
+
+    validarReglaGuarnicion() {
+      this.errorValidacionGuarniciones = '';
+      const f = this.formReglaGuarnicion;
+      if (!f.guarnicionKey) {
+        this.errorValidacionGuarniciones = 'Selecciona una guarnición.';
+        return false;
+      }
+      if (!f.cocineroPrimarioId && f.backups.filter(b => b.cocineroId).length === 0) {
+        this.errorValidacionGuarniciones = 'Define al menos un cocinero primario o un backup.';
+        return false;
+      }
+      const idsBackups = f.backups.filter(b => b.cocineroId).map(b => b.cocineroId);
+      if (f.cocineroPrimarioId && idsBackups.includes(f.cocineroPrimarioId)) {
+        this.errorValidacionGuarniciones = 'Un cocinero no puede ser primario y backup a la vez.';
+        return false;
+      }
+      const unique = new Set(idsBackups);
+      if (unique.size !== idsBackups.length) {
+        this.errorValidacionGuarniciones = 'Hay backups duplicados.';
+        return false;
+      }
+      if (f.maxMismoGuarnicion !== null && f.maxMismoGuarnicion !== '' && (!Number.isFinite(f.maxMismoGuarnicion) || f.maxMismoGuarnicion < 1)) {
+        this.errorValidacionGuarniciones = 'El máx. misma guarnición debe ser un número ≥ 1.';
+        return false;
+      }
+      return true;
+    },
+
+    _reglaGuarnicionDesdeForm(g) {
+      const f = this.formReglaGuarnicion;
+      return {
+        guarnicionKey: g.key,
+        etiqueta: g.etiqueta || `${g.grupo} :: ${g.opcion}`,
+        activo: f.activo,
+        cocineroPrimarioId: f.cocineroPrimarioId || null,
+        backups: f.backups.filter(b => b.cocineroId).map((b, i) => ({ cocineroId: b.cocineroId, orden: i + 1 })),
+        maxMismoGuarnicion: (f.maxMismoGuarnicion === '' || f.maxMismoGuarnicion === null) ? null : Number(f.maxMismoGuarnicion),
+        estrategia: f.estrategia || null,
+        estacionRecomendada: f.estacionRecomendada || null,
+        criticaEmplatado: !!f.criticaEmplatado,
+        categoriaTiempo: f.categoriaTiempo || null,
+        notas: f.notas || ''
+      };
+    },
+
+    async aplicarReglaGuarnicion() {
+      if (!this.validarReglaGuarnicion()) return;
+      const g = this.guarnicionSeleccionada;
+      if (!g) return;
+      const perfil = this.perfilSeleccionadoActual;
+      if (!perfil) return;
+      if (!Array.isArray(perfil.reglasPorGuarnicion)) perfil.reglasPorGuarnicion = [];
+      const nueva = this._reglaGuarnicionDesdeForm(g);
+      const idx = perfil.reglasPorGuarnicion.findIndex(r => r.guarnicionKey === nueva.guarnicionKey);
+      if (idx >= 0) perfil.reglasPorGuarnicion[idx] = nueva;
+      else perfil.reglasPorGuarnicion.push(nueva);
+      const ok = await this._guardarReglasPerfilSeleccionado();
+      if (ok && window.GambusinasNotifications) {
+        window.GambusinasNotifications.success('Regla guardada', `Guarnición "${nueva.etiqueta}" actualizada en el perfil "${perfil.nombre}".`);
+      }
+    },
+
+    async eliminarReglaGuarnicion(key) {
+      const perfil = this.perfilSeleccionadoActual;
+      if (!perfil || !key) return;
+      perfil.reglasPorGuarnicion = (perfil.reglasPorGuarnicion || []).filter(r => r.guarnicionKey !== key);
+      if (this.guarnicionSeleccionada?.key === key) {
+        this.seleccionarGuarnicionAsignacion(this.guarnicionSeleccionada);
+      }
+      await this._guardarReglasPerfilSeleccionado();
+      if (window.GambusinasNotifications) {
+        window.GambusinasNotifications.success('Regla eliminada', `Guarnición "${this.getNombreGuarnicion(key)}" sin regla en el perfil "${perfil.nombre}".`);
+      }
+    },
+
+    async aplicarReglaAGrupoGuarnicion() {
+      if (!this.guarnicionSeleccionada?.grupo) return;
+      if (!this.validarReglaGuarnicion()) return;
+      const f = this.formReglaGuarnicion;
+      const perfil = this.perfilSeleccionadoActual;
+      if (!perfil) return;
+      if (!Array.isArray(perfil.reglasPorGrupo)) perfil.reglasPorGrupo = [];
+      const nueva = {
+        grupo: this.guarnicionSeleccionada.grupo,
+        activo: f.activo,
+        cocineroPrimarioId: f.cocineroPrimarioId || null,
+        backups: f.backups.filter(b => b.cocineroId).map((b, i) => ({ cocineroId: b.cocineroId, orden: i + 1 })),
+        maxMismoGuarnicion: (f.maxMismoGuarnicion === '' || f.maxMismoGuarnicion === null) ? null : Number(f.maxMismoGuarnicion),
+        estrategia: f.estrategia || null,
+        estacionRecomendada: f.estacionRecomendada || null,
+        notas: f.notas || ''
+      };
+      const idx = perfil.reglasPorGrupo.findIndex(r => r.grupo === nueva.grupo);
+      if (idx >= 0) perfil.reglasPorGrupo[idx] = nueva;
+      else perfil.reglasPorGrupo.push(nueva);
+      const ok = await this._guardarReglasPerfilSeleccionado();
+      if (ok && window.GambusinasNotifications) {
+        window.GambusinasNotifications.success('Regla de grupo guardada', `Aplicada a "${nueva.grupo}" en el perfil "${perfil.nombre}".`);
+      }
+    },
+
+    seleccionarTodasGuarnicionesVisibles() {
+      this.guarnicionesAsignacionFiltradas.forEach(g => {
+        this.seleccionGuarniciones[g.key] = true;
+      });
+    },
+    invertirSeleccionGuarniciones() {
+      this.guarnicionesAsignacionFiltradas.forEach(g => {
+        this.seleccionGuarniciones[g.key] = !this.seleccionGuarniciones[g.key];
+      });
+    },
+    limpiarSeleccionGuarniciones() {
+      this.seleccionGuarniciones = {};
+    },
+    get guarnicionKeysSeleccionadas() {
+      return this.guarnicionesAsignacionFiltradas
+        .filter(g => this.seleccionGuarniciones[g.key])
+        .map(g => g.key);
+    },
+
+    abrirAsignacionMasivaGuarniciones() {
+      const keys = this.guarnicionKeysSeleccionadas;
+      if (keys.length === 0) return;
+      this._resetFormMasivo();
+      this.formAsignacionMasivaContexto = {
+        cantidad: keys.length,
+        categoria: '',
+        grupo: this.filtroGrupoGuarniciones || '',
+        platoIds: [],
+        guarnicionKeys: keys
+      };
+      this.errorValidacionMasiva = '';
+      this.modalAsignacionMasiva = true;
+    },
+
+    abrirAsignacionMasivaGrupoGuarniciones() {
+      if (!this.filtroGrupoGuarniciones) return;
+      const keys = this.todasLasGuarnicionesAsignacion
+        .filter(g => g.grupo === this.filtroGrupoGuarniciones)
+        .map(g => g.key);
+      if (keys.length === 0) return;
+      this._resetFormMasivo();
+      this.formAsignacionMasivaContexto = {
+        cantidad: keys.length,
+        categoria: '',
+        grupo: this.filtroGrupoGuarniciones,
+        platoIds: [],
+        guarnicionKeys: keys
+      };
+      this.errorValidacionMasiva = '';
+      this.modalAsignacionMasiva = true;
+    },
+
+    async guardarDefaultsGuarniciones() {
+      const res = await apiPut('/asignacion-automatica-guarniciones', { defaults: { ...this.formDefaultsGuarniciones } });
+      if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
+        this._syncFormDefaultsGuarniciones();
+        if (window.GambusinasNotifications) window.GambusinasNotifications.success('Guardado', 'Defaults de guarniciones actualizados');
+      } else {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', res?.error || 'No se pudo guardar');
+      }
+    },
+
+    async ejecutarSimulacionGuarnicion() {
+      if (!this.simuladorGuarnicionKey) return;
+      this.loadingSimulador = true;
+      this.resultadoSimuladorGuarnicion = null;
+      try {
+        const g = this.todasLasGuarnicionesAsignacion.find(x => x.key === this.simuladorGuarnicionKey);
+        const res = await apiPost('/asignacion-automatica-guarniciones/simular', {
+          grupo: g?.grupo,
+          opcion: g?.opcion,
+          cocineroPadreId: this.simuladorCocineroPadreId || null,
+          perfilId: this.perfilGuarnicionesSeleccionadoId || undefined
+        });
+        if (res && res.success !== false && res.data) {
+          this.resultadoSimuladorGuarnicion = res.data;
+        } else {
+          this.resultadoSimuladorGuarnicion = { mensaje: res?.error || 'Sin resultado' };
+        }
+      } catch (e) {
+        this.resultadoSimuladorGuarnicion = { mensaje: 'Error: ' + e.message };
+      }
+      this.loadingSimulador = false;
     },
 
     async cargarConfigAsignacion() {
@@ -5679,7 +6453,7 @@ function cocinerosApp() {
           estrategiaDefault: d.estrategiaDefault ?? 'hibrido'
         };
         // v2: asegurar perfil seleccionado (por defecto el primero activo).
-        if (!this.perfilSeleccionadoId || !this.perfilesList.includes(this.perfilSeleccionadoId)) {
+        if (!this.perfilSeleccionadoId || !(this.asignacionConfig.perfiles || []).some(p => p.id === this.perfilSeleccionadoId)) {
           const primer = (this.asignacionConfig.perfiles || []).find(p => p.activo) || (this.asignacionConfig.perfiles || [])[0];
           this.perfilSeleccionadoId = primer?.id || '';
         }
@@ -5725,11 +6499,12 @@ function cocinerosApp() {
     // `perfilSeleccionadoActual` prioriza el perfil activo de la UI; si no hay,
     // cae al documento raíz (legacy) para no romper nada.
     get perfilesList() {
-      return (this.asignacionConfig?.perfiles || []).map(p => p.id);
+      return (this._configAsignacion?.perfiles || []).map(p => p.id);
     },
     get perfilSeleccionadoActual() {
-      const perfiles = this.asignacionConfig?.perfiles || [];
-      return perfiles.find(p => p.id === this.perfilSeleccionadoId) || null;
+      const perfiles = this._configAsignacion?.perfiles || [];
+      const id = this._esScopeGuarniciones ? this.perfilGuarnicionesSeleccionadoId : this.perfilSeleccionadoId;
+      return perfiles.find(p => p.id === id) || null;
     },
     // Fuente de reglas viva: el perfil seleccionado, o fallback a la raíz legacy.
     get _fuenteReglasAsignacion() {
@@ -5862,6 +6637,34 @@ function cocinerosApp() {
     // v2: construir payload de reglas a partir del perfil seleccionado (o raíz legacy).
     // Se usa para enviar las reglas en el PUT /perfiles/:id.
     _construirPayloadReglas() {
+      if (this._esScopeGuarniciones) {
+        const fuente = this.perfilSeleccionadoActual || { reglasPorGuarnicion: [], reglasPorGrupo: [] };
+        return {
+          reglasPorGuarnicion: (fuente.reglasPorGuarnicion || []).map(r => ({
+            guarnicionKey: r.guarnicionKey,
+            etiqueta: r.etiqueta || '',
+            activo: r.activo !== false,
+            cocineroPrimarioId: r.cocineroPrimarioId,
+            backups: (r.backups || []).map(b => ({ cocineroId: b.cocineroId, orden: b.orden })),
+            maxMismoGuarnicion: r.maxMismoGuarnicion ?? null,
+            estrategia: r.estrategia || null,
+            estacionRecomendada: r.estacionRecomendada || null,
+            criticaEmplatado: !!r.criticaEmplatado,
+            categoriaTiempo: r.categoriaTiempo || null,
+            notas: r.notas || ''
+          })),
+          reglasPorGrupo: (fuente.reglasPorGrupo || []).map(r => ({
+            grupo: r.grupo,
+            activo: r.activo !== false,
+            cocineroPrimarioId: r.cocineroPrimarioId,
+            backups: (r.backups || []).map(b => ({ cocineroId: b.cocineroId, orden: b.orden })),
+            maxMismoGuarnicion: r.maxMismoGuarnicion ?? null,
+            estrategia: r.estrategia || null,
+            estacionRecomendada: r.estacionRecomendada || null,
+            notas: r.notas || ''
+          }))
+        };
+      }
       const fuente = this._fuenteReglasAsignacion;
       return {
         reglasPorPlato: (fuente.reglasPorPlato || []).map(r => ({
@@ -5893,14 +6696,15 @@ function cocinerosApp() {
         return false;
       }
       const payload = this._construirPayloadReglas();
-      const res = await apiPut(`/asignacion-automatica/perfiles/${perfil.id}`, payload);
-      if (res && res.success !== false && res.data) {
-        this.asignacionConfig = res.data;
-        this.perfilActivoAhora = this._recalcularPerfilActivoAhora();
+      const res = await apiPut(`${this._apiAsignacionBase}/perfiles/${perfil.id}`, payload);
+      if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
         return true;
       }
       if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', res?.error || 'No se pudo guardar el perfil');
-      try { await this.cargarConfigAsignacion(); } catch (e) {}
+      try {
+        if (this._esScopeGuarniciones) await this.cargarAsignacionGuarniciones();
+        else await this.cargarConfigAsignacion();
+      } catch (e) {}
       return false;
     },
 
@@ -5999,6 +6803,10 @@ function cocinerosApp() {
 
     // === Config global ===
     abrirConfigGlobalAsignacion() {
+      if (this._esScopeGuarniciones) {
+        this.subtabAsignacionGuarniciones = 'globales';
+        return;
+      }
       this.modalConfigGlobalAsignacion = true;
     },
     async guardarDefaultsAsignacion() {
@@ -6024,7 +6832,13 @@ function cocinerosApp() {
       const id = this.cocineroVistaId;
       this.vistaCocineroPrimarios = [];
       this.vistaCocineroBackups = [];
-      // v2: la vista por cocinero se basa en las reglas del perfil seleccionado.
+      if (this._esScopeGuarniciones) {
+        (this.perfilSeleccionadoActual?.reglasPorGuarnicion || []).forEach(r => {
+          if (r.cocineroPrimarioId && String(r.cocineroPrimarioId) === String(id)) this.vistaCocineroPrimarios.push(r.guarnicionKey);
+          if ((r.backups || []).some(b => String(b.cocineroId) === String(id))) this.vistaCocineroBackups.push(r.guarnicionKey);
+        });
+        return;
+      }
       (this._fuenteReglasAsignacion.reglasPorPlato || []).forEach(r => {
         if (r.cocineroPrimarioId && r.cocineroPrimarioId === id) this.vistaCocineroPrimarios.push(r.platoId);
         if ((r.backups || []).some(b => b.cocineroId === id)) this.vistaCocineroBackups.push(r.platoId);
@@ -6033,6 +6847,10 @@ function cocinerosApp() {
 
     // === Simulador ===
     abrirSimuladorAsignacion() {
+      if (this._esScopeGuarniciones) {
+        this.subtabAsignacionGuarniciones = 'globales';
+        return;
+      }
       this.simuladorPlatoId = '';
       this.resultadoSimulador = null;
       this.modalSimulador = true;
@@ -6090,7 +6908,9 @@ function cocinerosApp() {
       this.formAsignacionMasivaContexto = {
         cantidad: ids.length,
         categoria: '',
-        platoIds: ids
+        grupo: '',
+        platoIds: ids,
+        guarnicionKeys: []
       };
       this.errorValidacionMasiva = '';
       this.modalAsignacionMasiva = true;
@@ -6107,7 +6927,9 @@ function cocinerosApp() {
       this.formAsignacionMasivaContexto = {
         cantidad: ids.length,
         categoria: this.filtroCategoriaAsignacion,
-        platoIds: ids
+        grupo: '',
+        platoIds: ids,
+        guarnicionKeys: []
       };
       this.errorValidacionMasiva = '';
       this.modalAsignacionMasiva = true;
@@ -6174,6 +6996,59 @@ function cocinerosApp() {
     async aplicarAsignacionMasiva() {
       if (!this.validarAsignacionMasiva()) return;
       const f = this.formAsignacionMasiva;
+      const keys = this.formAsignacionMasivaContexto.guarnicionKeys || [];
+      if (this._esScopeGuarniciones || keys.length) {
+        if (keys.length === 0) return;
+        const perfil = this.perfilSeleccionadoActual;
+        if (!perfil) {
+          if (window.GambusinasNotifications) window.GambusinasNotifications.error('Perfil', 'Selecciona o crea un perfil antes de asignar guarniciones.');
+          return;
+        }
+        if (!Array.isArray(perfil.reglasPorGuarnicion)) perfil.reglasPorGuarnicion = [];
+        const backups = f.backups.filter(b => b.cocineroId).map((b, i) => ({ cocineroId: b.cocineroId, orden: i + 1 }));
+        const maxMismo = (f.maxMismoPlato === '' || f.maxMismoPlato === null) ? null : Number(f.maxMismoPlato);
+        let actualizadas = 0;
+        for (const gk of keys) {
+          const item = this.todasLasGuarnicionesAsignacion.find(x => x.key === gk);
+          const nueva = {
+            guarnicionKey: gk,
+            etiqueta: item?.etiqueta || gk,
+            activo: f.activo,
+            cocineroPrimarioId: f.cocineroPrimarioId || null,
+            backups,
+            maxMismoGuarnicion: maxMismo,
+            estrategia: f.estrategia || null,
+            estacionRecomendada: null,
+            criticaEmplatado: false,
+            categoriaTiempo: null,
+            notas: ''
+          };
+          const idx = perfil.reglasPorGuarnicion.findIndex(r => r.guarnicionKey === gk);
+          if (idx >= 0) perfil.reglasPorGuarnicion[idx] = nueva;
+          else perfil.reglasPorGuarnicion.push(nueva);
+          actualizadas++;
+        }
+        const ok = await this._guardarReglasPerfilSeleccionado();
+        if (ok) {
+          this.modalAsignacionMasiva = false;
+          this.seleccionGuarniciones = {};
+          if (window.GambusinasNotifications) {
+            window.GambusinasNotifications.success(
+              'Asignación por conjunto guardada',
+              `${actualizadas} guarnición(es) guardadas en el perfil "${perfil.nombre}" · selección limpiada.`
+            );
+          }
+          this.$nextTick(() => {
+            if (this.$refs.buscadorGuarnicionesAsignacion) {
+              try { this.$refs.buscadorGuarnicionesAsignacion.focus(); } catch (e) {}
+            }
+          });
+        } else if (window.GambusinasNotifications) {
+          window.GambusinasNotifications.error('No se guardó', 'Revisa la conexión e inténtalo de nuevo. Las reglas previas siguen en base de datos.');
+        }
+        return;
+      }
+
       const ids = this.formAsignacionMasivaContexto.platoIds || [];
       if (ids.length === 0) return;
 
@@ -6204,13 +7079,9 @@ function cocinerosApp() {
         actualizadas++;
       }
 
-      // Persistir las reglas del perfil en backend.
       const ok = await this._guardarReglasPerfilSeleccionado();
       if (ok) {
         this.modalAsignacionMasiva = false;
-        // UX v2: limpiar TODOS los checks de golpe reasignando un objeto nuevo
-        // (fuerza reactividad de Alpine) en vez de borrar id por id. Mantiene
-        // filtros/búsqueda/página para encadenar lotes rápidamente.
         this.seleccionPlatosAsignacion = {};
         if (window.GambusinasNotifications) {
           window.GambusinasNotifications.success(
@@ -6218,15 +7089,12 @@ function cocinerosApp() {
             `${actualizadas} plato(s) guardados en el perfil "${perfil.nombre}" · selección limpiada.`
           );
         }
-        // Foco en el buscador para el siguiente lote (si existe el ref).
         this.$nextTick(() => {
           if (this.$refs.buscadorPlatosAsignacion) {
             try { this.$refs.buscadorPlatosAsignacion.focus(); } catch (e) {}
           }
         });
       } else {
-        // El guardado falló: _guardarReglasPerfilSeleccionado ya resincronizó desde BD.
-        // Mantenemos modal abierto y selección intacta para que el usuario reintente.
         if (window.GambusinasNotifications) {
           window.GambusinasNotifications.error(
             'No se guardó',
@@ -6257,34 +7125,43 @@ function cocinerosApp() {
     _aplicarConfigRespuesta(res) {
       const config = this._extraerConfigDeRespuesta(res);
       if (!config) return false;
-      this.asignacionConfig = config;
-      this.perfilActivoAhora = this._recalcularPerfilActivoAhora();
+      if (this._esScopeGuarniciones) {
+        this.asignacionGuarnicionesConfig = config;
+        this.perfilGuarnicionesActivoAhora = this._recalcularPerfilActivoAhora();
+      } else {
+        this.asignacionConfig = config;
+        this.perfilActivoAhora = this._recalcularPerfilActivoAhora();
+      }
       return true;
     },
 
     // Selecciona el perfil a editar en el sub-tab Perfiles.
     seleccionarPerfilAsignacion(perfilId) {
+      if (this._esScopeGuarniciones) {
+        this.perfilGuarnicionesSeleccionadoId = perfilId;
+        this.guarnicionSeleccionada = null;
+        this.errorValidacionGuarniciones = '';
+        return;
+      }
       this.perfilSeleccionadoId = perfilId;
-      // Resetea selección de plato al cambiar de perfil para no mezclar reglas.
       this.platoSeleccionadoAsignacion = null;
       this.errorValidacionAsignacion = '';
     },
 
     // Recalcula el "perfil activo ahora" localmente (fallback si el GET no lo trae).
     _recalcularPerfilActivoAhora() {
-      if (!this.asignacionConfig) return null;
-      const bloques = this.asignacionConfig.calendario?.bloques || [];
+      const config = this._configAsignacion;
+      if (!config) return null;
+      const bloques = config.calendario?.bloques || [];
       if (!bloques.length) return null;
       const ahora = new Date();
-      // Lima está en UTC-5 todo el año (sin DST). Ajuste simple para día y HH:mm.
       const limaOffsetMs = -5 * 60 * 60 * 1000;
       const limaTime = new Date(ahora.getTime() + limaOffsetMs + ahora.getTimezoneOffset() * 60000);
-      // getUTCDay: 0=Dom..6=Sáb (consistente con moment.day() en Lima).
       const dia = limaTime.getUTCDay();
       const hhmm = limaTime.toISOString().slice(11, 16);
       const candidatos = bloques.filter(b =>
         b.activo !== false &&
-        (b.diasSemana || []).includes(dia) &&
+        (b.diasSemana || []).some(d => Number(d) === dia) &&
         b.horaInicio <= hhmm && hhmm < b.horaFin
       );
       if (!candidatos.length) return null;
@@ -6292,14 +7169,16 @@ function cocinerosApp() {
         (b.horaInicio < a.horaInicio ? -1 : 1) ||
         (new Date(b.createdAt || 0) - new Date(a.createdAt || 0)));
       const blk = candidatos[0];
-      const perfil = (this.asignacionConfig.perfiles || []).find(p => p.id === blk.perfilId && p.activo !== false);
+      const perfil = (config.perfiles || []).find(p => p.id === blk.perfilId && p.activo !== false);
       if (!perfil) return null;
       return { perfilId: perfil.id, nombre: perfil.nombre, bloqueId: blk.id, horaInicio: blk.horaInicio, horaFin: blk.horaFin };
     },
 
     // Display compacto del perfil activo ahora para KPIs.
     get perfilActivoAhoraDisplay() {
-      const p = this.perfilActivoAhora || this._recalcularPerfilActivoAhora();
+      const p = this._esScopeGuarniciones
+        ? (this.perfilGuarnicionesActivoAhora || this._recalcularPerfilActivoAhora())
+        : (this.perfilActivoAhora || this._recalcularPerfilActivoAhora());
       if (!p || !p.perfilId) return '— sin franja activa —';
       return `${p.nombre} (${p.horaInicio}–${p.horaFin})`;
     },
@@ -6308,7 +7187,7 @@ function cocinerosApp() {
     abrirModalNuevoPerfil() {
       this.modalPerfilModo = 'nuevo';
       this.modalPerfilError = '';
-      this.modalPerfilForm = { nombre: '', descripcion: '', color: '#D4AF37' };
+      this.modalPerfilForm = { nombre: '', descripcion: '', color: this._esScopeGuarniciones ? '#7CB342' : '#D4AF37' };
       this.modalPerfilAsignacion = true;
       this.$nextTick(() => { if (this.$refs.inputNombrePerfil) this.$refs.inputNombrePerfil.focus(); });
     },
@@ -6319,7 +7198,7 @@ function cocinerosApp() {
       if (!p) return;
       this.modalPerfilModo = 'editar';
       this.modalPerfilError = '';
-      this.modalPerfilForm = { nombre: p.nombre, descripcion: p.descripcion || '', color: p.color || '#D4AF37' };
+      this.modalPerfilForm = { nombre: p.nombre, descripcion: p.descripcion || '', color: p.color || (this._esScopeGuarniciones ? '#7CB342' : '#D4AF37') };
       this.modalPerfilAsignacion = true;
     },
 
@@ -6327,17 +7206,26 @@ function cocinerosApp() {
     async guardarModalPerfil() {
       const nombre = (this.modalPerfilForm.nombre || '').trim();
       if (!nombre) { this.modalPerfilError = 'El nombre es obligatorio'; return; }
+      const base = this._apiAsignacionBase;
       try {
         if (this.modalPerfilModo === 'nuevo') {
-          const res = await apiPost('/asignacion-automatica/perfiles', {
+          const res = await apiPost(`${base}/perfiles`, {
             nombre, descripcion: this.modalPerfilForm.descripcion, color: this.modalPerfilForm.color
           });
           if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
-            this.perfilSeleccionadoId = res.perfilId || res.data?.perfilId || this.perfilSeleccionadoId;
-            // Si no vino perfilId, tomar el último creado por nombre.
-            if (!this.perfilSeleccionadoId) {
-              const creado = (this.asignacionConfig.perfiles || []).find(p => p.nombre === nombre);
-              if (creado) this.perfilSeleccionadoId = creado.id;
+            const nuevoId = res.perfilId || res.data?.perfilId || '';
+            if (this._esScopeGuarniciones) {
+              this.perfilGuarnicionesSeleccionadoId = nuevoId || this.perfilGuarnicionesSeleccionadoId;
+              if (!this.perfilGuarnicionesSeleccionadoId) {
+                const creado = (this.asignacionGuarnicionesConfig.perfiles || []).find(p => p.nombre === nombre);
+                if (creado) this.perfilGuarnicionesSeleccionadoId = creado.id;
+              }
+            } else {
+              this.perfilSeleccionadoId = nuevoId || this.perfilSeleccionadoId;
+              if (!this.perfilSeleccionadoId) {
+                const creado = (this.asignacionConfig.perfiles || []).find(p => p.nombre === nombre);
+                if (creado) this.perfilSeleccionadoId = creado.id;
+              }
             }
             this.modalPerfilAsignacion = false;
             if (window.GambusinasNotifications) window.GambusinasNotifications.success('Perfil creado', `"${nombre}" creado.`);
@@ -6346,7 +7234,7 @@ function cocinerosApp() {
           }
         } else {
           const perfil = this.perfilSeleccionadoActual;
-          const res = await apiPut(`/asignacion-automatica/perfiles/${perfil.id}`, {
+          const res = await apiPut(`${base}/perfiles/${perfil.id}`, {
             nombre, descripcion: this.modalPerfilForm.descripcion, color: this.modalPerfilForm.color
           });
           if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
@@ -6365,9 +7253,14 @@ function cocinerosApp() {
     async duplicarPerfilActual() {
       const p = this.perfilSeleccionadoActual;
       if (!p) return;
-      const res = await apiPost(`/asignacion-automatica/perfiles/${p.id}/duplicar`);
+      const res = await apiPost(`${this._apiAsignacionBase}/perfiles/${p.id}/duplicar`);
       if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
-        this.perfilSeleccionadoId = res.perfilId || res.data?.perfilId || this.perfilSeleccionadoId;
+        const nuevoId = res.perfilId || res.data?.perfilId;
+        if (this._esScopeGuarniciones) {
+          this.perfilGuarnicionesSeleccionadoId = nuevoId || this.perfilGuarnicionesSeleccionadoId;
+        } else {
+          this.perfilSeleccionadoId = nuevoId || this.perfilSeleccionadoId;
+        }
         if (window.GambusinasNotifications) window.GambusinasNotifications.success('Perfil duplicado', `Copia de "${p.nombre}" creada.`);
       } else {
         if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', res?.error || 'No se pudo duplicar');
@@ -6378,7 +7271,7 @@ function cocinerosApp() {
     async toggleActivoPerfilActual() {
       const p = this.perfilSeleccionadoActual;
       if (!p) return;
-      const res = await apiPut(`/asignacion-automatica/perfiles/${p.id}`, { activo: !p.activo });
+      const res = await apiPut(`${this._apiAsignacionBase}/perfiles/${p.id}`, { activo: !p.activo });
       if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
         if (window.GambusinasNotifications) window.GambusinasNotifications.success('Perfil actualizado', p.activo ? 'Perfil desactivado' : 'Perfil activado');
       } else {
@@ -6391,10 +7284,15 @@ function cocinerosApp() {
       const p = this.perfilSeleccionadoActual;
       if (!p) return;
       if (!confirm(`¿Eliminar el perfil "${p.nombre}"?`)) return;
-      const res = await apiDelete(`/asignacion-automatica/perfiles/${p.id}`);
+      const res = await apiDelete(`${this._apiAsignacionBase}/perfiles/${p.id}`);
       if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
-        // Si era el seleccionado, saltar al siguiente.
-        if (this.perfilSeleccionadoId === p.id) this.perfilSeleccionadoId = (this.asignacionConfig.perfiles || [])[0]?.id || '';
+        if (this._esScopeGuarniciones) {
+          if (this.perfilGuarnicionesSeleccionadoId === p.id) {
+            this.perfilGuarnicionesSeleccionadoId = (this.asignacionGuarnicionesConfig.perfiles || [])[0]?.id || '';
+          }
+        } else if (this.perfilSeleccionadoId === p.id) {
+          this.perfilSeleccionadoId = (this.asignacionConfig.perfiles || [])[0]?.id || '';
+        }
         if (window.GambusinasNotifications) window.GambusinasNotifications.success('Perfil eliminado', `"${p.nombre}" eliminado.`);
       } else {
         if (window.GambusinasNotifications) window.GambusinasNotifications.error('No se pudo eliminar', res?.error || 'Puede tener franjas que lo referencian.');
@@ -6442,18 +7340,18 @@ function cocinerosApp() {
     // Compara con Number() porque Alpine/Mongo a veces dejan días como string.
     bloquesPorDia(diaNum) {
       const dia = Number(diaNum);
-      return (this.asignacionConfig?.calendario?.bloques || [])
+      return (this._configAsignacion?.calendario?.bloques || [])
         .filter(b => (b.diasSemana || []).some(d => Number(d) === dia))
         .sort((a, b) => (a.horaInicio < b.horaInicio ? -1 : 1));
     },
 
     nombrePerfilPorId(id) {
-      const p = (this.asignacionConfig?.perfiles || []).find(x => x.id === id);
+      const p = (this._configAsignacion?.perfiles || []).find(x => x.id === id);
       return p ? p.nombre : '—';
     },
     colorPerfilPorId(id) {
-      const p = (this.asignacionConfig?.perfiles || []).find(x => x.id === id);
-      return (p && p.color) || '#D4AF37';
+      const p = (this._configAsignacion?.perfiles || []).find(x => x.id === id);
+      return (p && p.color) || (this._esScopeGuarniciones ? '#7CB342' : '#D4AF37');
     },
 
     // Abrir "Nueva franja" desde un día concreto.
@@ -6462,7 +7360,7 @@ function cocinerosApp() {
       this.modalFranjaBloqueId = '';
       this.modalFranjaError = '';
       this.modalFranjaAvisoSolape = false;
-      this.modalFranjaForm = { perfilId: (this.asignacionConfig?.perfiles || []).find(p => p.activo)?.id || '', horaInicio: '08:00', horaFin: '12:00', etiqueta: '', activo: true };
+      this.modalFranjaForm = { perfilId: (this._configAsignacion?.perfiles || []).find(p => p.activo)?.id || '', horaInicio: '08:00', horaFin: '12:00', etiqueta: '', activo: true };
       this.modalFranjaRepeticion = 'un_dia';
       this.modalFranjaDiasSeleccionados = [diaNum];
       this.modalFranjaCalendario = true;
@@ -6501,7 +7399,7 @@ function cocinerosApp() {
 
     // Comprueba solape con otros bloques para avisar (no bloquea).
     _detectarSolape(diasSemana, hi, hf, excluirId = null) {
-      const bloques = this.asignacionConfig?.calendario?.bloques || [];
+      const bloques = this._configAsignacion?.calendario?.bloques || [];
       const diasSet = new Set((diasSemana || []).map(d => Number(d)));
       for (const b of bloques) {
         if (b.id === excluirId) continue;
@@ -6537,9 +7435,9 @@ function cocinerosApp() {
         };
         let res;
         if (this.modalFranjaModo === 'nueva') {
-          res = await apiPost('/asignacion-automatica/calendario/bloques', body);
+          res = await apiPost(`${this._apiAsignacionBase}/calendario/bloques`, body);
         } else {
-          res = await apiPut(`/asignacion-automatica/calendario/bloques/${this.modalFranjaBloqueId}`, body);
+          res = await apiPut(`${this._apiAsignacionBase}/calendario/bloques/${this.modalFranjaBloqueId}`, body);
         }
         if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
           this.modalFranjaCalendario = false;
@@ -6561,7 +7459,7 @@ function cocinerosApp() {
     async eliminarFranjaActual() {
       if (!this.modalFranjaBloqueId) return;
       if (!confirm('¿Eliminar esta franja?')) return;
-      const res = await apiDelete(`/asignacion-automatica/calendario/bloques/${this.modalFranjaBloqueId}`);
+      const res = await apiDelete(`${this._apiAsignacionBase}/calendario/bloques/${this.modalFranjaBloqueId}`);
       if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
         this.modalFranjaCalendario = false;
         if (window.GambusinasNotifications) window.GambusinasNotifications.success('Franja eliminada', 'La franja fue eliminada del calendario.');
