@@ -17,8 +17,11 @@ const calculosPrecios = require('../utils/calculosPrecios');
 const {
   enriquecerComplementosConPrecio,
   calcularPrecioUnitarioConComplementos,
-  calcularResumenComplementos
+  calcularResumenComplementos,
+  overlayPronombresEnComandas
 } = require('../utils/precioComplementos');
+
+const SELECT_PLATO_COCINA = 'nombre precio categoria codigo nombreCocina complementos';
 const configuracionRepository = require('./configuracion.repository');
 const { obtenerCicloServicioMesa, intersectarComandaIds } = require('../services/mesaCicloServicio.service');
 
@@ -2441,7 +2444,7 @@ const listarComandaPorFechaEntregado = async (fecha, usarProyeccion = true) => {
     // Solo nombre y precio del plato (no todo el documento)
     query = query.populate({
       path: "platos.plato",
-      select: "nombre precio categoria codigo nombreCocina",
+      select: SELECT_PLATO_COCINA,
       options: { lean: true }
     });
     
@@ -2464,6 +2467,7 @@ const listarComandaPorFechaEntregado = async (fecha, usarProyeccion = true) => {
     });
 
     await enrichComandasMozoNombre(dataProcesada);
+    overlayPronombresEnComandas(dataProcesada);
     
     const elapsedMs = Date.now() - startTime;
     console.log(`✅ [FASE A1] Encontradas ${dataProcesada.length} comandas en ${elapsedMs}ms`);

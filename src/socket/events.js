@@ -13,6 +13,7 @@ const {
   notifyComandaLista,
   shouldNotifyComandaLista,
 } = require('../services/pushNotifications');
+const { overlayPronombresEnComandas } = require('../utils/precioComplementos');
 
 /** Emite solo al mozo asignado a la comanda (room mozo-{id}) */
 function emitToMozoAsignado(comanda, eventName, eventData) {
@@ -671,6 +672,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
 
       const mesaId = comanda.mesas?._id || comanda.mesas;
       const comandaPlain = typeof comanda.toObject === 'function' ? comanda.toObject() : comanda;
+      overlayPronombresEnComandas([comandaPlain]);
       const eventData = {
         comandaId: comandaId?.toString?.() || String(comandaId),
         comanda: comandaPlain,

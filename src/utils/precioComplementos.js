@@ -87,6 +87,55 @@ function getPronombreOpcion(grupo, nombreOpcion) {
 }
 
 /**
+ * Pronombre de cocina desde el catálogo del plato (grupo + opción).
+ * Si el grupo no coincide, busca la opción en cualquier grupo.
+ */
+function resolverPronombreCatalogo(complementosPlato, sel) {
+  if (!sel) return '';
+  const nombreOp = getNombreOpcion(sel.opcion);
+  if (!nombreOp) return '';
+  const grupos = Array.isArray(complementosPlato) ? complementosPlato : [];
+  const grupoKey = String(sel.grupo || '').trim().toLowerCase();
+  const grupoExact = grupos.find((g) => g && String(g.grupo || '').trim().toLowerCase() === grupoKey);
+  if (grupoExact) {
+    const p = getPronombreOpcion(grupoExact, nombreOp);
+    if (p) return p;
+  }
+  for (const g of grupos) {
+    const p = getPronombreOpcion(g, nombreOp);
+    if (p) return p;
+  }
+  return '';
+}
+
+/**
+ * Pinta el pronombre vigente del menú sobre el snapshot de la línea.
+ * No escribe en BD: solo el payload de cocina / KDS.
+ */
+function overlayPronombresEnPlatoLinea(platoLinea) {
+  if (!platoLinea) return;
+  const catalog = (platoLinea.plato && typeof platoLinea.plato === 'object')
+    ? platoLinea.plato.complementos
+    : null;
+  const sels = platoLinea.complementosSeleccionados;
+  if (!Array.isArray(sels) || !Array.isArray(catalog) || catalog.length === 0) return;
+  for (const sel of sels) {
+    if (!sel) continue;
+    const fromCat = resolverPronombreCatalogo(catalog, sel);
+    if (fromCat) sel.pronombre = fromCat;
+  }
+}
+
+function overlayPronombresEnComandas(comandas) {
+  if (!Array.isArray(comandas)) return;
+  for (const comanda of comandas) {
+    const platos = comanda && comanda.platos;
+    if (!Array.isArray(platos)) continue;
+    for (const plato of platos) overlayPronombresEnPlatoLinea(plato);
+  }
+}
+
+/**
  * Calcula el precio unitario de una línea de plato con complementos.
  *
  * @param {number} precioBase - plato.precio
@@ -174,7 +223,7 @@ function enriquecerComplementosConPrecio(complementosPlato, complementosSeleccio
 
     const nombreOp = getNombreOpcion(sel.opcion);
     const pronombreSnap = String(sel.pronombre || '').trim()
-      || (grupoConfig ? getPronombreOpcion(grupoConfig, nombreOp) : '');
+      || resolverPronombreCatalogo(gruposPlato, sel);
 
     return {
       grupo: sel.grupo || '',
@@ -217,6 +266,9 @@ module.exports = {
   normalizarOpciones,
   getPrecioOpcion,
   getPronombreOpcion,
+  resolverPronombreCatalogo,
+  overlayPronombresEnPlatoLinea,
+  overlayPronombresEnComandas,
   calcularPrecioUnitarioConComplementos,
   calcularResumenComplementos,
   enriquecerComplementosConPrecio,
