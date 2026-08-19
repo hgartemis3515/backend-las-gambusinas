@@ -280,7 +280,7 @@ const PERFIL_VER_COCINA_KEYS = new Set([
     'animacionAtencion', 'animacionUrgente', 'colorAnimacionAtencion', 'colorAnimacionUrgente',
     'emojisAnimacionAtencion', 'tamanioEmojiAtencion', 'cantidadEmojiAtencion',
     'emojisAnimacionUrgente', 'tamanioEmojiUrgente', 'cantidadEmojiUrgente',
-    'autoAgrandamiento', 'autoAcomodamiento',
+    'autoAgrandamiento', 'autoAcomodamiento', 'aprovecharEspacio',
     'tamanioCronometroCabecera',
 ]);
 
