@@ -2193,7 +2193,7 @@ tailwind.config = {
         <div x-show="getCocinerosRendimientoFiltrados().length === 0" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-8 text-center">
           <div class="text-5xl mb-4">📊</div>
           <h3 class="text-lg font-semibold mb-2">Sin platos en curso</h3>
-          <p class="text-txt-muted text-sm">Cuando un cocinero tome un plato en el KDS aparecerá aquí en tiempo real.</p>
+          <p class="text-txt-muted text-sm">Cuando un cocinero tome o se le asigne un plato o guarnición, el cronómetro aparece aquí en tiempo real.</p>
         </div>
 
         <div :class="getClaseGridRendimiento()">
@@ -4313,7 +4313,7 @@ function cocinerosApp() {
       mostrarStats: true,
       mostrarMesas: true,
       mostrarRanking: true,
-      soloConPlatos: false,
+      soloConPlatos: true,
       tamanoTimer: 'mediano' // 'pequeno' | 'mediano' | 'grande'
     },
     // Historial / registro de platos (por comanda, como mozos)
@@ -7647,7 +7647,8 @@ function cocinerosApp() {
     getCocinerosRendimientoFiltrados() {
       let lista = this.rendimientoCocineros || [];
       if (this.filtroCocineroRendimiento) {
-        lista = lista.filter(c => c.cocineroId === this.filtroCocineroRendimiento);
+        const fid = String(this.filtroCocineroRendimiento);
+        lista = lista.filter(c => String(c.cocineroId) === fid);
       }
       if (this.vistaRendimiento?.soloConPlatos) {
         lista = lista.filter(c => {
@@ -7673,7 +7674,7 @@ function cocinerosApp() {
         mostrarStats: true,
         mostrarMesas: true,
         mostrarRanking: true,
-        soloConPlatos: false,
+        soloConPlatos: true,
         tamanoTimer: 'mediano'
       };
     },
@@ -7699,7 +7700,7 @@ function cocinerosApp() {
           mostrarStats: saved.mostrarStats !== false,
           mostrarMesas: saved.mostrarMesas !== false,
           mostrarRanking: saved.mostrarRanking !== false,
-          soloConPlatos: !!saved.soloConPlatos
+          soloConPlatos: saved.soloConPlatos !== false
         };
       } catch (e) {
         console.warn('No se pudo cargar preferencia de vista rendimiento:', e);
@@ -7860,6 +7861,7 @@ function cocinerosApp() {
       if (!p) return null;
       return p.tomadoEn
         || p.procesandoPor?.timestamp
+        || p.asignacionMeta?.timestamp
         || p.procesadoPor?.tomadoEn
         || p.procesadoPor?.timestamp
         || null;

@@ -156,6 +156,8 @@ async function obtenerHistorialComandasMozos({ mozoId = null, fechaInicio, fecha
         const hasta = new Date(fechaFin);
         const diaDesde = new Date(moment(fechaInicio).startOf('day').toDate());
         const diaHasta = new Date(moment(fechaFin).endOf('day').toDate());
+        const ahoraLima = moment.tz('America/Lima').toDate();
+        const rangoIncluyeAhora = desde <= ahoraLima && hasta >= ahoraLima;
 
         // 1) Entregadas / cobradas en el período (activas o ya cerradas)
         const matchEntregadas = {
@@ -178,12 +180,12 @@ async function obtenerHistorialComandasMozos({ mozoId = null, fechaInicio, fecha
             ]
         };
 
-        // 3) En curso del día (aún activas)
+        // 3) En curso (aún activas). Si el filtro incluye hoy, no exigir createdAt
+        // del día: comandas de ayer con platos todavía en cocina deben verse.
         const matchEnCurso = {
             ...matchBase,
             IsActive: true,
             status: { $nin: ['pagado', 'completado', 'cancelado'] },
-            createdAt: { $gte: diaDesde, $lte: diaHasta },
             'platos.estado': { $in: ['pendiente', 'pedido', 'en_espera', 'recoger', 'salio', 'entregado'] },
             'platos.eliminado': { $ne: true },
             'platos.anulado': { $ne: true }
@@ -226,6 +228,7 @@ async function obtenerHistorialComandasMozos({ mozoId = null, fechaInicio, fecha
                             tiempos: '$$p.tiempos',
                             procesadoPor: '$$p.procesadoPor',
                             procesandoPor: '$$p.procesandoPor',
+                            asignacionMeta: '$$p.asignacionMeta',
                             entregadoPor: '$$p.entregadoPor',
                             platoNombre: {
                                 $ifNull: [
@@ -258,7 +261,7 @@ async function obtenerHistorialComandasMozos({ mozoId = null, fechaInicio, fecha
         const [entregadas, cerradas, enCurso] = await Promise.all([
             Comanda.aggregate(pipeline(matchEntregadas)),
             Comanda.aggregate(pipeline(matchCerradas)),
-            Comanda.aggregate(pipeline(matchEnCurso))
+            rangoIncluyeAhora ? Comanda.aggregate(pipeline(matchEnCurso)) : Promise.resolve([])
         ]);
 
         // Deduplicar por comandaId

@@ -435,12 +435,17 @@ async function asignarPlatoInterno(comandaId, plato, cocineroId, metaOrigen, met
         setUpdate['platos.$[elem].tiempos.en_espera'] = ahora;
     }
     const result = await Comanda.updateOne(
-        { _id: comandaId },
+        {
+            _id: comandaId,
+            $or: [
+                { [`platos.${platoIndex}.procesandoPor.cocineroId`]: null },
+                { [`platos.${platoIndex}.procesandoPor.cocineroId`]: { $exists: false } }
+            ]
+        },
         { $set: setUpdate },
         {
             arrayFilters: [{
                 'elem._id': platoSubdocId,
-                'elem.procesandoPor.cocineroId': { $eq: null },
                 'elem.estado': { $in: ['pedido', 'en_espera'] }
             }]
         }

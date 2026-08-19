@@ -3797,6 +3797,7 @@ function mozosExecutiveApp() {
       const t = item?.tiempos || {};
       // Igual que cocineros: desde que se ASIGNA el cocinero hasta recoger.
       const ini = item?.procesandoPor?.timestamp
+        || item?.asignacionMeta?.timestamp
         || item?.procesadoPor?.tomadoEn
         || item?.tomadoEn
         || t.en_espera
@@ -4020,15 +4021,14 @@ function mozosExecutiveApp() {
     },
     normalizarComandaMozo(c) {
       if (!c) return null;
-      const tieneNombre = (obj) => !!(obj && (obj.alias || obj.nombre));
+      const tieneCocinero = (obj) => !!(obj && (obj.cocineroId || obj.alias || obj.nombre));
       const platos = (c.platos || []).map(p => ({
         ...p,
         nombre: p.nombre || p.plato?.nombre || p.platoNombre || 'Plato',
         estado: p.estado || 'pedido',
         tiempos: p.tiempos || {},
-        // Limpiar objetos vacíos de Mongoose (cocineroId/nombre null) para que el UI no los trate como asignados
-        procesadoPor: tieneNombre(p.procesadoPor) ? p.procesadoPor : null,
-        procesandoPor: tieneNombre(p.procesandoPor) ? p.procesandoPor : null,
+        procesadoPor: tieneCocinero(p.procesadoPor) ? p.procesadoPor : null,
+        procesandoPor: tieneCocinero(p.procesandoPor) ? p.procesandoPor : null,
         entregadoPor: p.entregadoPor || null
       }));
       return {

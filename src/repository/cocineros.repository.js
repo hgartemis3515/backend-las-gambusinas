@@ -13,6 +13,88 @@ const logger = require('../utils/logger');
 
 const SLA_COCINA_MINUTOS = 15;
 const ESTADOS_PLATO_COCINA = ['pendiente', 'pedido', 'en_espera', 'recoger', 'salio', 'entregado', 'pagado'];
+/** Plato aún en cocina (asignado / tomándose). Incluye pendiente por aprobación o toma temprana. */
+const ESTADOS_PLATO_EN_CURSO = ['pendiente', 'pedido', 'en_espera'];
+const ESTADOS_GUARNICION_EN_CURSO = ['pedido', 'en_espera'];
+const STATUS_COMANDA_CERRADA = ['pagado', 'completado', 'cancelado'];
+
+function clauseIdCocinero(usuarioId) {
+    if (!usuarioId) return { $ne: null, $exists: true };
+    const oid = toObjectIdSafe(usuarioId);
+    if (!oid) return usuarioId;
+    return { $in: [oid, String(usuarioId)] };
+}
+
+function elemPlatoEnCurso(usuarioId) {
+    return {
+        eliminado: { $ne: true },
+        anulado: { $ne: true },
+        estado: { $in: ESTADOS_PLATO_EN_CURSO },
+        'procesandoPor.cocineroId': clauseIdCocinero(usuarioId)
+    };
+}
+
+function elemGuarnicionEnCurso(usuarioId) {
+    return {
+        eliminado: { $ne: true },
+        estadoCocina: { $nin: ['recoger'] },
+        'procesandoPor.cocineroId': clauseIdCocinero(usuarioId)
+    };
+}
+
+/** Comanda con ≥1 plato asignado en cocina (no falla si otros platos están libres). */
+function matchComandaConPlatoEnCurso(usuarioId) {
+    return {
+        ...matchComandaAbierta(),
+        platos: { $elemMatch: elemPlatoEnCurso(usuarioId) }
+    };
+}
+
+function matchComandaConGuarnicionEnCurso(usuarioId) {
+    return {
+        ...matchComandaAbierta(),
+        platos: {
+            $elemMatch: {
+                eliminado: { $ne: true },
+                anulado: { $ne: true },
+                complementosSeleccionados: { $elemMatch: elemGuarnicionEnCurso(usuarioId) }
+            }
+        }
+    };
+}
+
+function matchCocineroTrasUnwind(path, usuarioId) {
+    return { [path]: clauseIdCocinero(usuarioId) };
+}
+
+function matchComandaAbierta() {
+    return {
+        eliminada: { $ne: true },
+        status: { $nin: STATUS_COMANDA_CERRADA }
+    };
+}
+
+function agregarBloqueACocinero(porCocinero, row) {
+    if (!row?.cocineroId) return;
+    const key = String(row.cocineroId);
+    if (!porCocinero.has(key)) {
+        porCocinero.set(key, {
+            cocineroId: key,
+            cocineroNombre: row.cocineroNombre || 'Cocinero',
+            cocineroAlias: row.cocineroAlias || row.cocineroNombre || 'Cocinero',
+            bloques: []
+        });
+    }
+    const { cocineroId: _id, cocineroNombre: _n, cocineroAlias: _a, ...bloque } = row;
+    porCocinero.get(key).bloques.push(bloque);
+}
+
+function nombreGuarnicionEnCurso(row) {
+    const op = row.opcion;
+    const opcionTxt = Array.isArray(op) ? op.filter(Boolean).join(', ') : (op || row.grupo || 'Guarnición');
+    const padre = row.platoNombrePadre || 'Plato';
+    return `🥗 ${opcionTxt} (${padre})`;
+}
 
 function toObjectIdSafe(id) {
     try { return new mongoose.Types.ObjectId(String(id)); }
@@ -59,6 +141,8 @@ function cocineroDePlato(p) {
  */
 function tomadoEnPlato(p) {
     if (p?.procesandoPor?.timestamp) return p.procesandoPor.timestamp;
+    if (p?.asignacionMeta?.timestamp) return p.asignacionMeta.timestamp;
+    if (p?.tomadoEn) return p.tomadoEn;
     if (p?.procesadoPor?.tomadoEn) return p.procesadoPor.tomadoEn;
     // Legacy pre-v7.3: procesadoPor.timestamp era el de toma
     if (p?.procesadoPor?.timestamp) return p.procesadoPor.timestamp;
@@ -92,7 +176,8 @@ function flattenGuarnicionesComoUnidades(platos) {
                 cantidad: c.cantidad || 1,
                 procesandoPor: c.procesandoPor,
                 procesadoPor: c.procesadoPor,
-                tomadoEn: c.procesandoPor?.timestamp || c.procesadoPor?.tomadoEn || null,
+                asignacionMeta: c.asignacionMeta,
+                tomadoEn: c.procesandoPor?.timestamp || c.asignacionMeta?.timestamp || c.procesadoPor?.tomadoEn || null,
                 listoEn: listo ? (c.procesadoPor?.timestamp || null) : null,
                 tiempos: { recoger: listo ? (c.procesadoPor?.timestamp || null) : null }
             });
@@ -949,28 +1034,7 @@ async function obtenerPlatosTopPorCocinero(usuarioId, fechaInicio, fechaFin, lim
  */
 async function obtenerRendimientoEnVivo(usuarioId = null) {
     try {
-        const matchStage = {
-            IsActive: true,
-            'platos.procesandoPor.cocineroId': { $ne: null, $exists: true },
-            'platos.estado': { $in: ['pedido', 'en_espera'] }
-        };
-
-        if (usuarioId) {
-            matchStage['platos.procesandoPor.cocineroId'] = new mongoose.Types.ObjectId(usuarioId);
-        }
-
-        const comandas = await Comanda.aggregate([
-            { $match: matchStage },
-            { $unwind: '$platos' },
-            {
-                $match: {
-                    'platos.procesandoPor.cocineroId': { $ne: null, $exists: true },
-                    'platos.estado': { $in: ['pedido', 'en_espera'] },
-                    'platos.eliminado': { $ne: true },
-                    'platos.anulado': { $ne: true }
-                }
-            },
-            // Lookup del Plato referenciado para resolver el nombre
+        const lookupPlatoYMesa = [
             {
                 $lookup: {
                     from: 'platos',
@@ -982,18 +1046,23 @@ async function obtenerRendimientoEnVivo(usuarioId = null) {
                     as: 'platoInfo'
                 }
             },
-            // Lookup de la Mesa referenciada para resolver nummesa
+            { $lookup: { from: 'mesas', localField: 'mesas', foreignField: '_id', as: 'mesaInfo' } }
+        ];
+
+        const matchPlatos = matchComandaConPlatoEnCurso(usuarioId);
+
+        const platosEnCurso = await Comanda.aggregate([
+            { $match: matchPlatos },
+            { $unwind: '$platos' },
             {
-                $lookup: {
-                    from: 'mesas',
-                    let: { mesaRef: '$mesas' },
-                    pipeline: [
-                        { $match: { $expr: { $eq: ['$_id', '$$mesaRef'] } } },
-                        { $project: { nummesa: 1, area: 1 } }
-                    ],
-                    as: 'mesaInfo'
+                $match: {
+                    ...matchCocineroTrasUnwind('platos.procesandoPor.cocineroId', usuarioId),
+                    'platos.estado': { $in: ESTADOS_PLATO_EN_CURSO },
+                    'platos.eliminado': { $ne: true },
+                    'platos.anulado': { $ne: true }
                 }
             },
+            ...lookupPlatoYMesa,
             {
                 $project: {
                     comandaId: '$_id',
@@ -1018,42 +1087,92 @@ async function obtenerRendimientoEnVivo(usuarioId = null) {
                     cocineroId: '$platos.procesandoPor.cocineroId',
                     cocineroNombre: '$platos.procesandoPor.nombre',
                     cocineroAlias: '$platos.procesandoPor.alias',
-                    procesandoDesde: '$platos.procesandoPor.timestamp',
-                    mesaNum: { $arrayElemAt: ['$mesaInfo.nummesa', 0] },
+                    procesandoDesde: {
+                        $ifNull: [
+                            '$platos.procesandoPor.timestamp',
+                            { $ifNull: ['$platos.asignacionMeta.timestamp', '$platos.tiempos.en_espera'] }
+                        ]
+                    },
+                    mesaNum: { $ifNull: [{ $arrayElemAt: ['$mesaInfo.nummesa', 0] }, '$mesaNumero'] },
                     mesaArea: { $arrayElemAt: ['$mesaInfo.area', 0] },
                     mesaIds: { $ifNull: ['$mesaIds', []] }
                 }
             }
         ]);
 
-        // Agrupar por cocineroId
-        const porCocinero = new Map();
-        for (const p of comandas) {
-            const key = p.cocineroId.toString();
-            if (!porCocinero.has(key)) {
-                porCocinero.set(key, {
-                    cocineroId: key,
-                    cocineroNombre: p.cocineroNombre || 'Cocinero',
-                    cocineroAlias: p.cocineroAlias || p.cocineroNombre || 'Cocinero',
-                    bloques: []
-                });
+        const matchGuarniciones = matchComandaConGuarnicionEnCurso(usuarioId);
+
+        const guarnicionesEnCurso = await Comanda.aggregate([
+            { $match: matchGuarniciones },
+            { $unwind: '$platos' },
+            { $unwind: { path: '$platos.complementosSeleccionados', preserveNullAndEmptyArrays: false } },
+            {
+                $match: {
+                    ...matchCocineroTrasUnwind('platos.complementosSeleccionados.procesandoPor.cocineroId', usuarioId),
+                    'platos.eliminado': { $ne: true },
+                    'platos.anulado': { $ne: true },
+                    'platos.complementosSeleccionados.eliminado': { $ne: true },
+                    'platos.complementosSeleccionados.estadoCocina': { $nin: ['recoger'] }
+                }
+            },
+            ...lookupPlatoYMesa,
+            {
+                $project: {
+                    comandaId: '$_id',
+                    comandaNumber: '$comandaNumber',
+                    platoId: '$platos.complementosSeleccionados._id',
+                    platoNombrePadre: {
+                        $ifNull: [
+                            { $arrayElemAt: ['$platoInfo.nombre', 0] },
+                            '$platos.nombre'
+                        ]
+                    },
+                    grupo: '$platos.complementosSeleccionados.grupo',
+                    opcion: '$platos.complementosSeleccionados.opcion',
+                    platoCategoria: { $arrayElemAt: ['$platoInfo.categoria', 0] },
+                    cantidad: { $ifNull: ['$platos.complementosSeleccionados.cantidad', 1] },
+                    estado: { $ifNull: ['$platos.complementosSeleccionados.estadoCocina', 'en_espera'] },
+                    observaciones: '',
+                    complementos: [],
+                    esGuarnicion: { $literal: true },
+                    prioritario: '$platos.prioritario',
+                    cocineroId: '$platos.complementosSeleccionados.procesandoPor.cocineroId',
+                    cocineroNombre: '$platos.complementosSeleccionados.procesandoPor.nombre',
+                    cocineroAlias: '$platos.complementosSeleccionados.procesandoPor.alias',
+                    procesandoDesde: {
+                        $ifNull: [
+                            '$platos.complementosSeleccionados.procesandoPor.timestamp',
+                            '$platos.complementosSeleccionados.asignacionMeta.timestamp'
+                        ]
+                    },
+                    mesaNum: { $ifNull: [{ $arrayElemAt: ['$mesaInfo.nummesa', 0] }, '$mesaNumero'] },
+                    mesaArea: { $arrayElemAt: ['$mesaInfo.area', 0] },
+                    mesaIds: { $ifNull: ['$mesaIds', []] }
+                }
             }
-            const cocinero = porCocinero.get(key);
-            delete p.cocineroId;
-            delete p.cocineroNombre;
-            delete p.cocineroAlias;
-            cocinero.bloques.push(p);
+        ]);
+
+        const porCocinero = new Map();
+        for (const p of platosEnCurso) agregarBloqueACocinero(porCocinero, p);
+        for (const g of guarnicionesEnCurso) {
+            agregarBloqueACocinero(porCocinero, {
+                ...g,
+                platoNombre: nombreGuarnicionEnCurso(g)
+            });
         }
+
+        const idsValidos = (ids) => ids.map(id => toObjectIdSafe(id)).filter(Boolean);
 
         // Agregar info extendida (fotoUrl, alias, config KDS, métricas del día)
         const cocinerosIds = Array.from(porCocinero.keys());
+        const cocinerosOids = idsValidos(cocinerosIds);
         const cocinerosInfo = await Mozos.find({
-            _id: { $in: cocinerosIds.map(id => new mongoose.Types.ObjectId(id)) }
+            _id: { $in: cocinerosOids }
         })
             .select('_id name fotoUrl')
             .lean();
         const configsInfo = await ConfigCocinero.find({
-            usuarioId: { $in: cocinerosIds.map(id => new mongoose.Types.ObjectId(id)) }
+            usuarioId: { $in: cocinerosOids }
         })
             .select('usuarioId aliasCocinero estadisticas configTableroKDS.tiempoAmarillo configTableroKDS.tiempoRojo')
             .lean();
@@ -1244,20 +1363,29 @@ async function obtenerResumenTurno(fechaInicio, fechaFin) {
             }
         ]);
 
-        // Platos en curso (ahora)
-        const enCurso = await Comanda.aggregate([
-            {
-                $match: {
-                    IsActive: true,
-                    'platos.procesandoPor.cocineroId': { $ne: null, $exists: true },
-                    'platos.estado': { $in: ['pedido', 'en_espera'] }
-                }
-            },
+        // Platos / guarniciones en curso (ahora): asignados, aún en cocina
+        const enCursoPlatos = await Comanda.aggregate([
+            { $match: matchComandaConPlatoEnCurso(null) },
             { $unwind: '$platos' },
             {
                 $match: {
-                    'platos.procesandoPor.cocineroId': { $ne: null, $exists: true },
-                    'platos.estado': { $in: ['pedido', 'en_espera'] }
+                    ...matchCocineroTrasUnwind('platos.procesandoPor.cocineroId', null),
+                    'platos.estado': { $in: ESTADOS_PLATO_EN_CURSO },
+                    'platos.eliminado': { $ne: true },
+                    'platos.anulado': { $ne: true }
+                }
+            },
+            { $count: 'total' }
+        ]);
+        const enCursoGuarniciones = await Comanda.aggregate([
+            { $match: matchComandaConGuarnicionEnCurso(null) },
+            { $unwind: '$platos' },
+            { $unwind: { path: '$platos.complementosSeleccionados', preserveNullAndEmptyArrays: false } },
+            {
+                $match: {
+                    ...matchCocineroTrasUnwind('platos.complementosSeleccionados.procesandoPor.cocineroId', null),
+                    'platos.complementosSeleccionados.eliminado': { $ne: true },
+                    'platos.complementosSeleccionados.estadoCocina': { $nin: ['recoger'] }
                 }
             },
             { $count: 'total' }
@@ -1266,7 +1394,7 @@ async function obtenerResumenTurno(fechaInicio, fechaFin) {
         const activos = await Mozos.countDocuments({ rol: 'cocinero', activo: true });
 
         return {
-            platosEnCurso: enCurso.length > 0 ? enCurso[0].total : 0,
+            platosEnCurso: (enCursoPlatos[0]?.total || 0) + (enCursoGuarniciones[0]?.total || 0),
             finalizadosHoy: resumen?.finalizadosHoy || 0,
             tiempoPromedioEquipo: Math.round((resumen?.tiempoPromedioEquipo || 0) * 10) / 10,
             porcentajeDentroSLA: resumen
@@ -1342,16 +1470,16 @@ async function obtenerHistorialPlatosCocinados({ usuarioId = null, fechaInicio, 
             ]
         };
 
-        // 3) En curso del día (cocinero todavía preparando)
+        // 3) En curso ahora (asignados, todavía preparando). Si el rango incluye
+        // "ahora" (p.ej. hoy), no exigir createdAt del día: una comanda de ayer
+        // con plato tomado hoy debe verse.
+        const ahoraLima = moment.tz('America/Lima').toDate();
+        const rangoIncluyeAhora = desde <= ahoraLima && hasta >= ahoraLima;
         const matchEnCurso = {
-            eliminada: { $ne: true },
-            IsActive: true,
-            status: { $nin: ['pagado', 'completado', 'cancelado'] },
-            createdAt: { $gte: diaDesde, $lte: diaHasta },
-            'platos.procesandoPor.cocineroId': objectId || { $ne: null, $exists: true },
-            'platos.estado': { $in: ['pedido', 'en_espera'] },
-            'platos.eliminado': { $ne: true },
-            'platos.anulado': { $ne: true }
+            $or: [
+                matchComandaConPlatoEnCurso(usuarioId),
+                matchComandaConGuarnicionEnCurso(usuarioId)
+            ]
         };
 
         // 4) Activas del día donde ya hay platos procesados (siguen visibles tras finalizar plato)
@@ -1409,6 +1537,7 @@ async function obtenerHistorialPlatosCocinados({ usuarioId = null, fechaInicio, 
                                 tiempos: '$$p.tiempos',
                                 procesadoPor: '$$p.procesadoPor',
                                 procesandoPor: '$$p.procesandoPor',
+                                asignacionMeta: '$$p.asignacionMeta',
                                 complementosSeleccionados: '$$p.complementosSeleccionados',
                                 platoNombre: {
                                     $ifNull: [
@@ -1462,7 +1591,7 @@ async function obtenerHistorialPlatosCocinados({ usuarioId = null, fechaInicio, 
         const [listos, cerradas, enCurso, activasProc] = await Promise.all([
             Comanda.aggregate(pipeline(matchListos)),
             Comanda.aggregate(pipeline(matchCerradas)),
-            Comanda.aggregate(pipeline(matchEnCurso)),
+            rangoIncluyeAhora ? Comanda.aggregate(pipeline(matchEnCurso)) : Promise.resolve([]),
             Comanda.aggregate(pipeline(matchActivasProcesadas))
         ]);
 
