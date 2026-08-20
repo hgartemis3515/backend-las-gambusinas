@@ -1270,20 +1270,191 @@ tailwind.config = {
       });
     },
 
+    claveNombreOpcion(nombre) {
+      const raw = String(nombre || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+      if (!raw) return '';
+      return raw
+        .replace(/[^a-z0-9ñ\s]/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .split(' ')
+        .filter(Boolean)
+        .map((w) => (w.length > 3 && w.endsWith('s') ? w.slice(0, -1) : w))
+        .join(' ');
+    },
+
+    sugerirNombreCanonicoOpcion(items) {
+      const map = new Map();
+      for (const it of items || []) {
+        const key = String(it.nombre || '').trim();
+        if (!key) continue;
+        map.set(key, (map.get(key) || 0) + (Number(it.total) || 1));
+      }
+      let best = '';
+      let bestN = -1;
+      for (const [nombre, n] of map.entries()) {
+        if (n > bestN || (n === bestN && nombre.length < best.length)) {
+          best = nombre;
+          bestN = n;
+        }
+      }
+      return best;
+    },
+
+    construirCatalogoOpcionesLocal() {
+      const clusters = new Map();
+      const ensure = (clave) => {
+        let c = clusters.get(clave);
+        if (!c) {
+          c = { clave, variantes: new Map(), pronombres: new Map() };
+          clusters.set(clave, c);
+        }
+        return c;
+      };
+      const touch = (bag, key, origen, id) => {
+        let v = bag.get(key);
+        if (!v) v = { key, platos: new Set(), plantillas: new Set() };
+        bag.set(key, v);
+        if (origen === 'plato' && id) v.platos.add(String(id));
+        if (origen === 'plantilla' && id) v.plantillas.add(String(id));
+      };
+      const recoger = (grupos, origen, id) => {
+        for (const g of grupos || []) {
+          for (const op of g.opciones || []) {
+            const n = this.normalizarOpcionComplemento(op);
+            const clave = this.claveNombreOpcion(n.nombre);
+            if (!clave) continue;
+            const c = ensure(clave);
+            touch(c.variantes, n.nombre, origen, id);
+            touch(c.pronombres, n.pronombre || '', origen, id);
+          }
+        }
+      };
+      for (const p of this.platos || []) recoger(p.complementos, 'plato', p._id);
+      for (const t of this.complementosGestion || []) recoger([{ opciones: t.opciones }], 'plantilla', t._id);
+
+      const serializar = (bag, campo) => [...bag.values()].map((v) => ({
+        [campo]: v.key,
+        platos: v.platos.size,
+        plantillas: v.plantillas.size,
+        total: v.platos.size + v.plantillas.size,
+      }));
+
+      const opciones = [...clusters.values()].map((c) => {
+        const platosUnicos = new Set();
+        const plantillasUnicas = new Set();
+        for (const v of c.variantes.values()) {
+          v.platos.forEach((id) => platosUnicos.add(id));
+          v.plantillas.forEach((id) => plantillasUnicas.add(id));
+        }
+        const variantes = serializar(c.variantes, 'nombre')
+          .sort((a, b) => b.total - a.total || a.nombre.localeCompare(b.nombre, 'es'));
+        const pronombres = serializar(c.pronombres, 'pronombre')
+          .sort((a, b) => b.total - a.total || String(a.pronombre).localeCompare(String(b.pronombre), 'es'));
+        return {
+          clave: c.clave,
+          nombre: this.sugerirNombreCanonicoOpcion(variantes),
+          pronombre: this.sugerirNombreCanonicoOpcion(
+            pronombres.filter((p) => p.pronombre).map((p) => ({ nombre: p.pronombre, total: p.total }))
+          ),
+          platos: platosUnicos.size,
+          plantillas: plantillasUnicas.size,
+          variantes,
+          pronombres,
+          tieneVariantes: variantes.length > 1,
+          tienePronombresDistintos: pronombres.filter((p) => p.pronombre).length > 1
+            || (pronombres.some((p) => p.pronombre) && pronombres.some((p) => !p.pronombre)),
+        };
+      });
+      opciones.sort((a, b) => b.platos - a.platos || a.nombre.localeCompare(b.nombre, 'es'));
+      return { opciones, total: opciones.length };
+    },
+
+    reescribirOpcionesLista(opciones, clave, nombreCanonico, pronombre) {
+      const pron = String(pronombre || '').trim().slice(0, 40);
+      const out = [];
+      const seen = new Set();
+      let changed = false;
+      for (const op of opciones || []) {
+        const n = this.normalizarOpcionComplemento(op);
+        const k = this.claveNombreOpcion(n.nombre);
+        if (k !== clave) {
+          out.push(op);
+          continue;
+        }
+        if (seen.has(k)) {
+          changed = true;
+          continue;
+        }
+        seen.add(k);
+        if (n.nombre === nombreCanonico && (n.pronombre || '') === pron) {
+          out.push(op);
+          continue;
+        }
+        changed = true;
+        if (typeof op === 'string') out.push({ nombre: nombreCanonico, precio: 0, pronombre: pron });
+        else out.push({ ...op, nombre: nombreCanonico, pronombre: pron });
+      }
+      return { opciones: out, changed };
+    },
+
+    async aplicarOpcionEnTodosLosPlatos(clave, nombreCanonico, pronombre) {
+      let platosActualizados = 0;
+      let plantillasActualizadas = 0;
+      for (const p of this.platos || []) {
+        if (!Array.isArray(p.complementos) || !p.complementos.length) continue;
+        let changed = false;
+        const complementos = p.complementos.map((g) => {
+          const r = this.reescribirOpcionesLista(g.opciones, clave, nombreCanonico, pronombre);
+          if (r.changed) changed = true;
+          return r.changed ? { ...g, opciones: r.opciones } : g;
+        });
+        if (!changed) continue;
+        const res = await apiPut('/platos/' + p._id, { complementos });
+        if (res && !res.error) {
+          platosActualizados += 1;
+          p.complementos = complementos;
+        }
+      }
+      for (const t of this.complementosGestion || []) {
+        const r = this.reescribirOpcionesLista(t.opciones, clave, nombreCanonico, pronombre);
+        if (!r.changed) continue;
+        const res = await apiPut('/complementos-plantilla/' + t._id, { opciones: r.opciones });
+        if (res && !res.error) {
+          plantillasActualizadas += 1;
+          t.opciones = r.opciones;
+        }
+      }
+      return { platosActualizados, plantillasActualizadas };
+    },
+
     async cargarCatalogoOpcionesComplemento() {
       this.loadingOpcionesCatalogo = true;
       try {
-        const data = await apiGet('/complementos-plantilla/opciones-catalogo');
-        this.catalogoOpcionesComplemento = (data && data.opciones) || [];
+        if (!this.platos.length) await this.loadPlatos();
+        if (!this.complementosGestion.length) await this.loadComplementosGestion();
+        const cat = this.construirCatalogoOpcionesLocal();
+        this.catalogoOpcionesComplemento = cat.opciones;
+        this.correctorNombresPreview = {
+          grupos: cat.opciones
+            .filter((g) => g.tieneVariantes || g.tienePronombresDistintos)
+            .map((g) => ({
+              clave: g.clave,
+              nombreSugerido: g.nombre,
+              pronombreSugerido: g.pronombre || '',
+              variantes: g.variantes,
+              pronombres: g.pronombres,
+              platosAfectados: g.platos,
+            })),
+        };
       } catch (e) {
         console.error('Error catálogo opciones', e);
         this.showToast('Error al cargar opciones de complemento', 'error');
         this.catalogoOpcionesComplemento = [];
-      }
-      try {
-        this.correctorNombresPreview = await apiGet('/complementos-plantilla/corrector-nombres') || { grupos: [] };
-      } catch (e) {
-        console.error('Error corrector nombres', e);
         this.correctorNombresPreview = { grupos: [] };
       }
       this.loadingOpcionesCatalogo = false;
@@ -1296,17 +1467,9 @@ tailwind.config = {
         return;
       }
       try {
-        const res = await apiPatch('/complementos-plantilla/opciones-catalogo', {
-          clave: op.clave,
-          nombreCanonico: nombre,
-          pronombre: (op.pronombre || '').trim(),
-        });
-        if (res && res.error == null) {
-          this.showToast('Aplicado en ' + (res.platosActualizados || 0) + ' plato(s) y ' + (res.plantillasActualizadas || 0) + ' plantilla(s)');
-          await this.cargarCatalogoOpcionesComplemento();
-        } else {
-          this.showToast('Error: ' + (res?.error || 'No se pudo guardar'), 'error');
-        }
+        const res = await this.aplicarOpcionEnTodosLosPlatos(op.clave, nombre, (op.pronombre || '').trim());
+        this.showToast('Aplicado en ' + (res.platosActualizados || 0) + ' plato(s) y ' + (res.plantillasActualizadas || 0) + ' plantilla(s)');
+        await this.cargarCatalogoOpcionesComplemento();
       } catch (e) {
         console.error('Error guardando nombre opción', e);
         this.showToast('Error al guardar el nombre', 'error');
@@ -1314,15 +1477,7 @@ tailwind.config = {
     },
 
     async cargarCorrectorNombres() {
-      this.loadingCorrectorNombres = true;
-      try {
-        this.correctorNombresPreview = await apiGet('/complementos-plantilla/corrector-nombres');
-      } catch (e) {
-        console.error('Error corrector nombres', e);
-        this.showToast('Error al analizar nombres de complementos', 'error');
-        this.correctorNombresPreview = { grupos: [] };
-      }
-      this.loadingCorrectorNombres = false;
+      await this.cargarCatalogoOpcionesComplemento();
     },
 
     async aplicarCorrectorNombres() {
@@ -1331,20 +1486,21 @@ tailwind.config = {
       if (!confirm('¿Unificar nombre y pronombre de estas variantes en todos los platos y en la biblioteca? Lo que ya coincide no se toca; Arroz, Papa frita y Ensalada siguen aparte.')) return;
       this.aplicandoCorrectorNombres = true;
       try {
-        const res = await apiPost('/complementos-plantilla/corrector-nombres', {
-          grupos: grupos.map(g => {
-            const row = { clave: g.clave, nombreCanonico: g.nombreSugerido };
-            if (g.pronombreSugerido) row.pronombre = g.pronombreSugerido;
-            return row;
-          }),
-        });
-        if (res && res.error == null && res.platosActualizados != null) {
-          this.showToast('Listo: ' + (res.platosActualizados || 0) + ' plato(s) y ' + (res.plantillasActualizadas || 0) + ' plantilla(s)');
-          await this.cargarCatalogoOpcionesComplemento();
-          await this.loadComplementosGestion();
-        } else {
-          this.showToast('Error: ' + (res?.error || 'No se pudo sincronizar'), 'error');
+        let platosActualizados = 0;
+        let plantillasActualizadas = 0;
+        for (const g of grupos) {
+          const res = await this.aplicarOpcionEnTodosLosPlatos(
+            g.clave,
+            g.nombreSugerido,
+            g.pronombreSugerido || ''
+          );
+          platosActualizados += res.platosActualizados || 0;
+          plantillasActualizadas += res.plantillasActualizadas || 0;
         }
+        this.showToast('Listo: ' + platosActualizados + ' cambio(s) en platos y ' + plantillasActualizadas + ' en plantillas');
+        await this.loadPlatos();
+        await this.loadComplementosGestion();
+        await this.cargarCatalogoOpcionesComplemento();
       } catch (e) {
         console.error('Error aplicando corrector', e);
         this.showToast('Error al sincronizar complementos', 'error');

@@ -170,7 +170,7 @@ router.post('/complementos-plantilla/corrector-nombres', async (req, res) => {
  * GET /api/complementos-plantilla/:id
  * Obtiene un complemento por ID
  */
-router.get('/complementos-plantilla/:id', async (req, res) => {
+router.get('/complementos-plantilla/:id([0-9a-fA-F]{24})', async (req, res) => {
     try {
         const { id } = req.params;
         const complemento = await obtenerComplementoPlantillaPorId(id);
@@ -190,7 +190,7 @@ router.get('/complementos-plantilla/:id', async (req, res) => {
  * GET /api/complementos-plantilla/:id/uso
  * Obtiene información de uso de un complemento específico
  */
-router.get('/complementos-plantilla/:id/uso', async (req, res) => {
+router.get('/complementos-plantilla/:id([0-9a-fA-F]{24})/uso', async (req, res) => {
     try {
         const { id } = req.params;
         const limit = parseInt(req.query.limit) || 50;
@@ -247,7 +247,7 @@ router.post('/complementos-plantilla', async (req, res) => {
  * PUT /api/complementos-plantilla/:id
  * Actualiza un complemento plantilla existente
  */
-router.put('/complementos-plantilla/:id', async (req, res) => {
+router.put('/complementos-plantilla/:id([0-9a-fA-F]{24})', async (req, res) => {
     try {
         const { id } = req.params;
         const data = req.body;
@@ -279,7 +279,7 @@ router.put('/complementos-plantilla/:id', async (req, res) => {
  * PATCH /api/complementos-plantilla/:id/desactivar
  * Desactiva un complemento plantilla (borrado lógico)
  */
-router.patch('/complementos-plantilla/:id/desactivar', async (req, res) => {
+router.patch('/complementos-plantilla/:id([0-9a-fA-F]{24})/desactivar', async (req, res) => {
     try {
         const { id } = req.params;
         const validarUso = req.query.validarUso !== 'false';
@@ -305,7 +305,7 @@ router.patch('/complementos-plantilla/:id/desactivar', async (req, res) => {
  * PATCH /api/complementos-plantilla/:id/reactivar
  * Reactiva un complemento plantilla desactivado
  */
-router.patch('/complementos-plantilla/:id/reactivar', async (req, res) => {
+router.patch('/complementos-plantilla/:id([0-9a-fA-F]{24})/reactivar', async (req, res) => {
     try {
         const { id } = req.params;
         
@@ -330,7 +330,7 @@ router.patch('/complementos-plantilla/:id/reactivar', async (req, res) => {
  * DELETE /api/complementos-plantilla/:id
  * Elimina físicamente un complemento plantilla (solo si no está en uso)
  */
-router.delete('/complementos-plantilla/:id', async (req, res) => {
+router.delete('/complementos-plantilla/:id([0-9a-fA-F]{24})', async (req, res) => {
     try {
         const { id } = req.params;
         
