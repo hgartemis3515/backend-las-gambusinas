@@ -8,7 +8,9 @@ const {
   resumirHorariosComandas,
   rangoLima,
   montoComandaNum,
-  precioPlatoNum
+  precioPlatoNum,
+  etiquetasComplemento,
+  minutosServicioComanda
 } = require('../src/utils/estadisticasComandas');
 
 describe('estadisticasComandas', () => {
@@ -82,6 +84,32 @@ describe('estadisticasComandas', () => {
     expect(fila.platos[0].cantidad).toBe(2);
     expect(fila.platos[0].subtotal).toBe(50);
     expect(fila._fuente).toBe('comanda');
+  });
+
+  test('mapearFila incluye complementos y minutos de servicio', () => {
+    expect(etiquetasComplemento({
+      complementosSeleccionados: [
+        { grupo: 'Proteína', opcion: 'Pollo', cantidad: 1 },
+        { grupo: 'Salsa', opcion: 'Huancaína' }
+      ]
+    })).toEqual(['Proteína: Pollo', 'Salsa: Huancaína']);
+    const ini = new Date('2026-08-20T12:00:00.000Z');
+    const fin = new Date('2026-08-20T12:18:00.000Z');
+    expect(minutosServicioComanda({ tiempoEnEspera: ini, tiempoPagado: fin })).toBe(18);
+    const fila = mapearFilaReporte({
+      totalCalculado: 20,
+      createdAt: ini,
+      tiempoPagado: fin,
+      platos: [{
+        nombre: 'Ceviche',
+        cantidad: 1,
+        precioUnitario: 20,
+        complementosSeleccionados: [{ grupo: 'Ají', opcion: 'Limón' }]
+      }]
+    });
+    expect(fila.platos[0].complementos).toEqual(['Ají: Limón']);
+    expect(fila.minutosServicio).toBe(18);
+    expect(fila.metodoPago).toBeNull();
   });
 
   test('resumirHorariosComandas agrupa ventas, mesas y turnos', () => {

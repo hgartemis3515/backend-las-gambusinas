@@ -262,6 +262,76 @@ async function agregarHorariosComandas(inicio, fin) {
     return rows;
 }
 
+function etiquetasComplemento(p) {
+    const raw = p?.complementosSeleccionados || p?.complementos || [];
+    if (!Array.isArray(raw)) return [];
+    const out = [];
+    for (const c of raw) {
+        if (!c || c.eliminado) continue;
+        if (typeof c === 'string') {
+            if (c.trim()) out.push(c.trim());
+            continue;
+        }
+        const label = [c.grupo, c.opcion].filter(Boolean).join(': ');
+        if (label) out.push(label);
+    }
+    return out;
+}
+
+function minutosServicioComanda(c) {
+    const ini = c?.tiempoEnEspera || c?.createdAt;
+    const fin = c?.tiempoPagado || c?.tiempoEntregado;
+    if (!ini || !fin) return null;
+    const m = (new Date(fin) - new Date(ini)) / 60000;
+    if (!Number.isFinite(m) || m <= 0 || m > 24 * 60) return null;
+    return Math.round(m * 10) / 10;
+}
+
+function getBoucherModel() {
+    const mongoose = require('mongoose');
+    try {
+        return mongoose.model('Boucher');
+    } catch (e) {
+        return require('../database/models/boucher.model');
+    }
+}
+
+async function adjuntarMetodosPagoDesdeBouchers(filas) {
+    const pendientes = (filas || []).filter(f => !f.metodoPago || f.metodoPago === 'efectivo');
+    const ids = pendientes.map(f => f._id).filter(Boolean);
+    if (!ids.length) return filas;
+    try {
+        const Boucher = getBoucherModel();
+        const bouchers = await Boucher.find({
+            $or: [
+                { usadoEnComanda: { $in: ids } },
+                { comandas: { $in: ids } }
+            ]
+        })
+            .select('metodoPago metodoPagoLabel usadoEnComanda comandas')
+            .lean();
+        const map = new Map();
+        for (const b of bouchers) {
+            const metodo = b.metodoPago || null;
+            if (!metodo) continue;
+            const targets = [];
+            if (b.usadoEnComanda) targets.push(String(b.usadoEnComanda));
+            (b.comandas || []).forEach(id => targets.push(String(id)));
+            for (const id of targets) {
+                const prev = map.get(id);
+                if (!prev || prev === 'efectivo') map.set(id, metodo);
+            }
+        }
+        return filas.map(f => {
+            if (f.metodoPago && f.metodoPago !== 'efectivo') return f;
+            const metodo = map.get(String(f._id));
+            return metodo ? { ...f, metodoPago: metodo } : { ...f, metodoPago: f.metodoPago || 'efectivo' };
+        });
+    } catch (e) {
+        return filas.map(f => ({ ...f, metodoPago: f.metodoPago || 'efectivo' }));
+    }
+}
+
 function mapearFilaReporte(c) {
     const total = Math.round(montoComandaNum(c) * 100) / 100;
     const mozoDoc = c.mozos && typeof c.mozos === 'object' ? c.mozos : null;
@@ -278,7 +348,8 @@ function mapearFilaReporte(c) {
                 subtotal: Math.round(cantidad * precio * 100) / 100,
                 plato: p.plato,
                 categoria: p.plato?.categoria || p.platoCategoria || null,
-                tipoServicio: p.tipoServicio || 'mesa'
+                tipoServicio: p.tipoServicio || 'mesa',
+                complementos: etiquetasComplemento(p)
             };
         })
         .filter(Boolean);
@@ -297,7 +368,13 @@ function mapearFilaReporte(c) {
             ? { ...mesaDoc, numero: mesaDoc.nummesa || mesaDoc.numero, nummesa: mesaDoc.nummesa }
             : null,
         platos,
-        metodoPago: c.pagoOmitido?.aplicado ? 'omitido' : (c.metodoPago || 'efectivo'),
+        metodoPago: c.pagoOmitido?.aplicado ? 'omitido' : (c.metodoPago || null),
+        metodoPagoLabel: c.metodoPagoLabel || null,
+        minutosServicio: minutosServicioComanda(c),
+        tiempoEnEspera: c.tiempoEnEspera,
+        tiempoPagado: c.tiempoPagado,
+        tiempoEntregado: c.tiempoEntregado,
+        createdAt: c.createdAt,
         _fuente: 'comanda',
         comandaNumber: c.comandaNumber,
         status: c.status
@@ -307,13 +384,14 @@ function mapearFilaReporte(c) {
 async function listarFilasEstadisticas(inicio, fin) {
     const Comanda = getComandaModel();
     const docs = await Comanda.find(matchComandasEstadisticas(inicio, fin))
-        .select('platos cantidades totalCalculado precioTotal precioTotalOriginal tiempoPagado tiempoEntregado createdAt mozos mesas mozoNombre mesaNumero comandaNumber status pagoOmitido metodoPago')
+        .select('platos cantidades totalCalculado precioTotal precioTotalOriginal tiempoPagado tiempoEntregado tiempoEnEspera createdAt mozos mesas mozoNombre mesaNumero comandaNumber status pagoOmitido metodoPago metodoPagoLabel')
         .populate('mozos', 'name nombres apellidos DNI')
         .populate('mesas', 'nummesa')
         .populate('platos.plato', 'nombre precio categoria')
         .sort({ tiempoPagado: -1, createdAt: -1 })
         .lean();
-    return docs.map(mapearFilaReporte);
+    const filas = docs.map(mapearFilaReporte);
+    return adjuntarMetodosPagoDesdeBouchers(filas);
 }
 
 function _diaSemanaVacio() {
@@ -412,5 +490,7 @@ module.exports = {
     montoComandaNum,
     precioPlatoNum,
     cantidadPlatoNum,
-    exprPrecioPlatoUnwind
+    exprPrecioPlatoUnwind,
+    etiquetasComplemento,
+    minutosServicioComanda
 };

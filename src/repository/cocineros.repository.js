@@ -743,7 +743,7 @@ async function calcularMetricasRendimiento(usuarioId, fechaInicio, fechaFin) {
         const metricas = await Comanda.aggregate([
             {
                 $match: {
-                    IsActive: true,
+                    status: { $nin: ['cancelado'] },
                     'platos.procesadoPor.cocineroId': cocineroObjectId,
                     'platos.tiempos.recoger': {
                         $gte: new Date(fechaInicio),
@@ -821,7 +821,7 @@ async function calcularMetricasRendimiento(usuarioId, fechaInicio, fechaFin) {
         ]);
 
         const garnishMatchFecha = {
-            IsActive: true,
+            status: { $nin: ['cancelado'] },
             'platos.complementosSeleccionados.procesadoPor.cocineroId': cocineroObjectId,
             'platos.complementosSeleccionados.procesadoPor.timestamp': {
                 $gte: new Date(fechaInicio),
@@ -1007,7 +1007,7 @@ async function obtenerPlatosTopPorCocinero(usuarioId, fechaInicio, fechaFin, lim
         const platosTop = await Comanda.aggregate([
             {
                 $match: {
-                    IsActive: true,
+                    status: { $nin: ['cancelado'] },
                     'platos.procesadoPor.cocineroId': cocineroObjectId,
                     'platos.tiempos.recoger': {
                         $gte: new Date(fechaInicio),
@@ -1246,10 +1246,8 @@ async function obtenerRendimientoEnVivo(usuarioId = null) {
         }
 
         // Métricas del día por cocinero (paralelo para todos los cocineros activos)
-        const inicioHoy = new Date();
-        inicioHoy.setHours(0, 0, 0, 0);
-        const finHoy = new Date();
-        finHoy.setHours(23, 59, 59, 999);
+        const inicioHoy = moment.tz('America/Lima').startOf('day').toDate();
+        const finHoy = moment.tz('America/Lima').endOf('day').toDate();
 
         const todosIds = Array.from(porCocinero.keys());
         const metricasHoyPorCocinero = await Promise.all(
@@ -1364,7 +1362,7 @@ async function obtenerResumenTurno(fechaInicio, fechaFin) {
         const [resumen] = await Comanda.aggregate([
             {
                 $match: {
-                    IsActive: true,
+                    status: { $nin: ['cancelado'] },
                     'platos.procesadoPor.cocineroId': { $ne: null, $exists: true },
                     'platos.tiempos.recoger': {
                         $gte: new Date(fechaInicio),

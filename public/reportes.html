@@ -261,7 +261,7 @@ tailwind.config = {
                 <td class="px-3 py-2.5 text-right text-[#d4af37] font-semibold" x-text="'S/. ' + Number(p.subtotal || (p.cantidad || 0) * (p.precioUnitario || 0)).toFixed(2)"></td>
                 <td class="px-3 py-2.5 text-right text-txt-muted" x-text="(p.porcentaje || 0) + '%'"></td>
                 <td class="px-3 py-2.5">
-                  <span x-show="p.complementos && p.complementos.length > 0" class="text-[10px] px-2 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" x-text="p.complementos?.length + ' grupos'"></span>
+                  <span x-show="p.complementos && p.complementos.length > 0" class="text-[10px] px-2 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" :title="(p.complementos || []).join(', ')" x-text="(p.complementos || []).slice(0, 3).join(', ') + (p.complementos.length > 3 ? ' +' + (p.complementos.length - 3) : '')"></span>
                   <span x-show="!p.complementos || p.complementos.length === 0" class="text-[10px] text-txt-muted">—</span>
                 </td>
               </tr>
@@ -362,7 +362,7 @@ tailwind.config = {
                 <td class="px-3 py-2.5 text-right font-semibold" x-text="m.tickets || 0"></td>
                 <td class="px-3 py-2.5 text-right text-txt-secondary" x-text="'S/. ' + Number(m.ticketPromedio || ((m.ventas || 0) / (m.tickets || 1))).toFixed(2)"></td>
                 <td class="px-3 py-2.5 text-right text-[#2ecc71] font-semibold" x-text="'S/. ' + Number(m.propinas || 0).toFixed(2)"></td>
-                <td class="px-3 py-2.5 text-right text-txt-muted" x-text="(m.tiempoPromedio || '—') + (m.tiempoPromedio ? ' min' : '')"></td>
+                <td class="px-3 py-2.5 text-right text-txt-muted" x-text="m.tiempoPromedio != null ? (m.tiempoPromedio + ' min') : '—'"></td>
                 <td class="px-3 py-2.5 text-center">
                   <span class="text-xs px-2 py-0.5 rounded-full font-semibold"
                     :class="{
@@ -1135,7 +1135,7 @@ function reportesApp() {
             const nombre = p.nombre || 'Desconocido';
             const cat = this.resolvePlatoCategoria(p);
             if (!platosMap[nombre]) {
-              platosMap[nombre] = { nombre, cantidad: 0, ingreso: 0, precio: p.precio || 0, categoria: cat };
+              platosMap[nombre] = { nombre, cantidad: 0, ingreso: 0, precio: p.precio || 0, categoria: cat, compSet: new Set() };
             } else {
               const prev = platosMap[nombre].categoria;
               if ((prev === 'Sin categoría' || prev === 'General' || prev === 'Otros') && cat !== prev && cat !== 'Sin categoría') {
@@ -1149,6 +1149,11 @@ function reportesApp() {
             platosMap[nombre].ingreso += ingresoLinea;
             totalVendidos += cant;
             totalIngreso += ingresoLinea;
+            const comps = Array.isArray(p.complementos) ? p.complementos : [];
+            comps.forEach(c => {
+              const label = typeof c === 'string' ? c : [c.grupo, c.opcion].filter(Boolean).join(': ');
+              if (label) platosMap[nombre].compSet.add(label);
+            });
 
             // NUEVO: Acumular por tipo de servicio (default 'mesa' para vouchers antiguos)
             if (p.tipoServicio === 'para_llevar') {
@@ -1182,7 +1187,8 @@ function reportesApp() {
         cantidad: p.cantidad,
         precioUnitario: p.precio,
         subtotal: p.ingreso,
-        porcentaje: Math.round((p.cantidad / (totalVendidos || 1)) * 100)
+        porcentaje: Math.round((p.cantidad / (totalVendidos || 1)) * 100),
+        complementos: p.compSet ? Array.from(p.compSet) : []
       }));
       
       this.chartData1 = { type: 'bar', labels, vals, colors };
@@ -1218,13 +1224,16 @@ function reportesApp() {
             ventas: 0, 
             tickets: 0, 
             propinas: 0,
-            dni: b.mozo?.dni || '—'
+            dni: b.mozo?.dni || b.mozo?.DNI || '—',
+            minutos: []
           };
         }
         mozosMap[mozoId].ventas += Number(b.total) > 0
           ? Number(b.total)
           : (b.platos || []).reduce((s, p) => s + (Number(p.subtotal) || (Number(p.cantidad) * Number(p.precio)) || 0), 0);
         mozosMap[mozoId].tickets++;
+        const mins = Number(b.minutosServicio);
+        if (Number.isFinite(mins) && mins > 0) mozosMap[mozoId].minutos.push(mins);
       });
       
       const mozosArray = Object.values(mozosMap).sort((a, b) => b.ventas - a.ventas);
@@ -1247,7 +1256,9 @@ function reportesApp() {
       this.tablaData.mozos = topMozos.map((m, i) => ({
         ...m,
         ticketPromedio: m.tickets > 0 ? (m.ventas / m.tickets).toFixed(2) : 0,
-        tiempoPromedio: '—',
+        tiempoPromedio: m.minutos && m.minutos.length
+          ? Math.round(m.minutos.reduce((a, t) => a + t, 0) / m.minutos.length)
+          : null,
         satisfaccion: 90 + Math.floor(Math.random() * 10)
       }));
       
@@ -1587,8 +1598,12 @@ function reportesApp() {
     calculatePaymentMethods(bouchers) {
       const metodos = { efectivo: 0, tarjeta: 0, digital: 0 };
       bouchers.forEach(b => {
-        const metodo = (b.metodoPago || 'efectivo').toLowerCase();
-        if (metodo === 'tarjeta' || metodo.includes('tarjeta') || metodo.includes('visa') || metodo.includes('master') || metodo.includes('debito') || metodo.includes('credito')) {
+        const metodo = String(b.metodoPago || b.metodoPagoLabel || '').toLowerCase();
+        if (!metodo || metodo === 'omitido') {
+          metodos.efectivo++;
+          return;
+        }
+        if (metodo === 'tarjeta' || metodo.includes('tarjeta') || metodo.includes('visa') || metodo.includes('master') || metodo.includes('debito') || metodo.includes('crédito') || metodo.includes('credito')) {
           metodos.tarjeta++;
         } else if (metodo === 'digital' || metodo.includes('yape') || metodo.includes('plin') || metodo.includes('transfer')) {
           metodos.digital++;

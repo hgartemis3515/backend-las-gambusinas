@@ -405,6 +405,12 @@ async function obtenerDatosDashboardMozos(fechaInicio, fechaFin) {
                     : 0,
                 promedioPropinaPorTicket: bouchers > 0
                     ? Math.round((totalProp / bouchers) * 100) / 100
+                    : 0,
+                promedioVentaPorMesa: mesasAt > 0
+                    ? Math.round((totalVentas / mesasAt) * 100) / 100
+                    : 0,
+                promedioVentaPorTicket: bouchers > 0
+                    ? Math.round((totalVentas / bouchers) * 100) / 100
                     : 0
             };
         });

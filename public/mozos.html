@@ -3510,19 +3510,28 @@ function mozosExecutiveApp() {
     },
     mesasAtendidasMozo(m) {
       if (!m) return 0;
-      if (m.mesasAtendidasDash != null) return m.mesasAtendidasDash;
-      return m.mesasAsignadas || 0;
+      const dash = Number(m.mesasAtendidasDash);
+      if (Number.isFinite(dash) && dash > 0) return dash;
+      const hist = Number(m.mesasAtendidas);
+      if (Number.isFinite(hist) && hist > 0) return hist;
+      return Number(m.mesasAsignadas) || 0;
     },
     promPropinaMesa(m) {
       if (!m) return 0;
+      if (Number(m.promedioVentaPorMesa) > 0) return Number(m.promedioVentaPorMesa);
       const mesas = this.mesasAtendidasMozo(m);
       if (!mesas) return 0;
-      return Math.round(((m.propinasHoy || 0) / mesas) * 100) / 100;
+      const ventas = Number(m.ventasHoy) || 0;
+      if (ventas > 0) return Math.round((ventas / mesas) * 100) / 100;
+      return Math.round(((Number(m.propinasHoy) || 0) / mesas) * 100) / 100;
     },
     promPropinaBoucher(m) {
       if (m == null || typeof m !== 'object') return 0;
+      if (Number(m.promedioVentaPorTicket) > 0) return Number(m.promedioVentaPorTicket);
       const b = Number(m.bouchersHoy) || 0;
       if (!b) return 0;
+      const ventas = Number(m.ventasHoy) || 0;
+      if (ventas > 0) return Math.round((ventas / b) * 100) / 100;
       return Math.round(((Number(m.propinasHoy) || 0) / b) * 100) / 100;
     },
     prevMap() {
@@ -4234,7 +4243,9 @@ function mozosExecutiveApp() {
               mesasAtendidasDash: d.mesasAtendidas,
               promedioPropina: d.promedioPropina,
               promedioPropinaPorMesa: d.promedioPropinaPorMesa,
-              promedioPropinaPorTicket: d.promedioPropinaPorTicket
+              promedioPropinaPorTicket: d.promedioPropinaPorTicket,
+              promedioVentaPorMesa: d.promedioVentaPorMesa,
+              promedioVentaPorTicket: d.promedioVentaPorTicket
             };
           });
         } else this.dashboardData = null;
@@ -4287,7 +4298,9 @@ function mozosExecutiveApp() {
           propinasHoy: d.propinasHoy != null ? d.propinasHoy : 0,
           cantidadPropinas: d.cantidadPropinas,
           bouchersHoy: d.bouchersHoy,
-          mesasAtendidasDash: d.mesasAtendidas
+          mesasAtendidasDash: d.mesasAtendidas,
+          promedioVentaPorMesa: d.promedioVentaPorMesa,
+          promedioVentaPorTicket: d.promedioVentaPorTicket
         };
       });
       this.dashboardData = dash;

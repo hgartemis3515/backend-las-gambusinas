@@ -16,6 +16,16 @@ const {
 } = require('../utils/sanitizarPerfilVerCocina');
 const moment = require('moment-timezone');
 
+function rangoDiaLima(desde, hasta) {
+    const fechaInicio = desde
+        ? moment.tz(String(desde).slice(0, 10), 'YYYY-MM-DD', 'America/Lima').startOf('day').toDate()
+        : moment.tz('America/Lima').startOf('day').toDate();
+    const fechaFin = hasta
+        ? moment.tz(String(hasta).slice(0, 10), 'YYYY-MM-DD', 'America/Lima').endOf('day').toDate()
+        : moment.tz('America/Lima').endOf('day').toDate();
+    return { fechaInicio, fechaFin };
+}
+
 function tipoDePerfilDoc(p) {
     return p && p.tipo === 'tablas_kds' ? 'tablas_kds' : 'ver_cocina';
 }
@@ -746,12 +756,7 @@ router.get('/cocineros/rendimiento/resumen-turno', adminAuth, async (req, res) =
         }
 
         const { desde, hasta } = req.query;
-        const fechaInicio = desde
-            ? moment(desde).startOf('day').toDate()
-            : moment().startOf('day').toDate();
-        const fechaFin = hasta
-            ? moment(hasta).endOf('day').toDate()
-            : moment().endOf('day').toDate();
+        const { fechaInicio, fechaFin } = rangoDiaLima(desde, hasta);
 
         const resumen = await cocinerosRepository.obtenerResumenTurno(fechaInicio, fechaFin);
 
@@ -784,12 +789,7 @@ router.get('/cocineros/rendimiento/historial', adminAuth, async (req, res) => {
         }
 
         const { desde, hasta } = req.query;
-        const fechaInicio = desde
-            ? moment(desde).startOf('day').toDate()
-            : moment().startOf('day').toDate();
-        const fechaFin = hasta
-            ? moment(hasta).endOf('day').toDate()
-            : moment().endOf('day').toDate();
+        const { fechaInicio, fechaFin } = rangoDiaLima(desde, hasta);
 
         let usuarioId = null;
         // Si no es admin/supervisor con reportes, limitar a sus propios platos
