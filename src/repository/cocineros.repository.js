@@ -10,9 +10,35 @@ const PerfilVerCocina = require('../database/models/perfilVerCocina.model');
 const Mozos = require('../database/models/mozos.model');
 const Comanda = require('../database/models/comanda.model');
 const logger = require('../utils/logger');
+const {
+    platoListoCocinaHist,
+    tomadoEnPlato,
+    listoEnPlato,
+    tiempoPrepPlatoSegundos
+} = require('../utils/tiemposPrepPlato');
 
 const SLA_COCINA_MINUTOS = 15;
 const ESTADOS_PLATO_COCINA = ['pendiente', 'pedido', 'en_espera', 'recoger', 'salio', 'entregado', 'pagado'];
+
+/** Inicio de prep en aggregations: tomadoEn, nunca procesadoPor.timestamp (eso es listo). */
+function exprInicioPrepMongo(prefix) {
+    return {
+        $ifNull: [
+            `${prefix}.procesadoPor.tomadoEn`,
+            {
+                $ifNull: [
+                    `${prefix}.procesandoPor.timestamp`,
+                    {
+                        $ifNull: [
+                            `${prefix}.asignacionMeta.timestamp`,
+                            `${prefix}.tiempos.en_espera`
+                        ]
+                    }
+                ]
+            }
+        ]
+    };
+}
 
 function filtroTipoPerfil(tipo) {
     if (tipo === 'tablas_kds') return { tipo: 'tablas_kds' };
@@ -126,13 +152,6 @@ function toObjectIdSafe(id) {
     catch { return null; }
 }
 
-function platoListoCocinaHist(p) {
-    if (!p) return false;
-    if (p.tiempos?.recoger) return true;
-    const est = String(p.estado || '').toLowerCase();
-    return ['recoger', 'salio', 'entregado', 'pagado'].includes(est);
-}
-
 /** Plato realmente tomado por un cocinero (procesando o ya procesado). */
 function platoTomadoPorCocinero(p, cocineroId = null) {
     if (!p || p.eliminado || p.anulado) return false;
@@ -160,68 +179,41 @@ function cocineroDePlato(p) {
     return null;
 }
 
-/**
- * Momento en que el cocinero TOMÓ / se le asignó el plato.
- * No usa pedido/en_espera (eso es entrada a cocina, no asignación).
- */
-function tomadoEnPlato(p) {
-    if (p?.procesandoPor?.timestamp) return p.procesandoPor.timestamp;
-    if (p?.asignacionMeta?.timestamp) return p.asignacionMeta.timestamp;
-    if (p?.tomadoEn) return p.tomadoEn;
-    if (p?.procesadoPor?.tomadoEn) return p.procesadoPor.tomadoEn;
-    // Legacy pre-v7.3: procesadoPor.timestamp era el de toma
-    if (p?.procesadoPor?.timestamp) return p.procesadoPor.timestamp;
-    return null;
-}
-
-/** Momento en que el plato quedó listo (preparado / recoger). Congela el cronómetro. */
-function listoEnPlato(p) {
-    if (!p) return null;
-    if (p.tiempos?.recoger) return p.tiempos.recoger;
-    if (!platoListoCocinaHist(p)) return null;
-    return p.tiempos?.salio || p.tiempos?.entregado || p.tiempos?.pagado || p.procesadoPor?.timestamp || null;
-}
-
 function flattenGuarnicionesComoUnidades(platos) {
     const rows = [];
-    for (const p of platos || []) {
-        if (!p || p.eliminado || p.anulado) continue;
+    (platos || []).forEach((p, pi) => {
+        if (!p || p.eliminado || p.anulado) return;
         const comps = p.complementosSeleccionados || [];
-        for (const c of comps) {
-            if (!c || c.eliminado) continue;
-            if (!c.procesandoPor?.cocineroId && !c.procesadoPor?.cocineroId) continue;
+        comps.forEach((c, ci) => {
+            if (!c || c.eliminado) return;
+            if (!c.procesandoPor?.cocineroId && !c.procesadoPor?.cocineroId) return;
             const opcion = Array.isArray(c.opcion) ? c.opcion.join(', ') : (c.opcion || 'Guarnición');
             const nombrePadre = p.platoNombre || p.nombre || p.plato?.nombre || 'Plato';
-            const listo = c.estadoCocina === 'recoger' || !!c.procesadoPor?.timestamp;
-            rows.push({
+            const fila = {
                 esGuarnicion: true,
-                nombre: `🥗 ${opcion} (${nombrePadre})`,
-                platoNombre: `🥗 ${opcion} (${nombrePadre})`,
                 estado: c.estadoCocina || 'pedido',
-                cantidad: c.cantidad || 1,
                 procesandoPor: c.procesandoPor,
                 procesadoPor: c.procesadoPor,
                 asignacionMeta: c.asignacionMeta,
-                tomadoEn: c.procesandoPor?.timestamp || c.asignacionMeta?.timestamp || c.procesadoPor?.tomadoEn || null,
-                listoEn: listo ? (c.procesadoPor?.timestamp || null) : null,
-                tiempos: { recoger: listo ? (c.procesadoPor?.timestamp || null) : null }
+                tomadoEn: c.tomadoEn,
+                listoEn: null,
+                tiempos: {}
+            };
+            const tomadoEn = tomadoEnPlato(fila);
+            const listoEn = listoEnPlato({ ...fila, listoEn: c.listoEn });
+            rows.push({
+                ...fila,
+                platoSubdocId: `g-${p._id || p.platoSubdocId || pi}-${c._id || ci}`,
+                nombre: `🥗 ${opcion} (${nombrePadre})`,
+                platoNombre: `🥗 ${opcion} (${nombrePadre})`,
+                cantidad: c.cantidad || 1,
+                tomadoEn,
+                listoEn,
+                tiempos: { recoger: listoEn }
             });
-        }
-    }
+        });
+    });
     return rows;
-}
-
-/**
- * Cronómetro de preparación del plato: tomado (asignación) → listo (recoger).
- * Si aún está en cocina, fin = ahora (vivo). Si ya está listo, se congela en recoger.
- */
-function tiempoPrepPlatoSegundos(p, ahora = new Date()) {
-    const ini = tomadoEnPlato(p);
-    if (!ini) return null;
-    const finFijo = listoEnPlato(p);
-    const fin = finFijo || (!platoListoCocinaHist(p) ? ahora : null);
-    if (!fin) return null;
-    return Math.max(0, Math.round((new Date(fin) - new Date(ini)) / 1000));
 }
 
 /**
@@ -775,7 +767,7 @@ async function calcularMetricasRendimiento(usuarioId, fechaInicio, fechaFin) {
                             {
                                 $subtract: [
                                     '$platos.tiempos.recoger',
-                                    { $ifNull: ['$platos.procesadoPor.tomadoEn', '$platos.procesadoPor.timestamp'] }
+                                    exprInicioPrepMongo('$platos')
                                 ]
                             },
                             60000
@@ -785,8 +777,8 @@ async function calcularMetricasRendimiento(usuarioId, fechaInicio, fechaFin) {
                         $divide: [
                             {
                                 $subtract: [
-                                    { $ifNull: ['$platos.procesadoPor.tomadoEn', '$platos.procesadoPor.timestamp'] },
-                                    { $ifNull: ['$platos.tiempos.en_espera', '$platos.procesadoPor.timestamp'] }
+                                    exprInicioPrepMongo('$platos'),
+                                    { $ifNull: ['$platos.tiempos.en_espera', '$platos.asignacionMeta.timestamp'] }
                                 ]
                             },
                             60000
@@ -858,7 +850,10 @@ async function calcularMetricasRendimiento(usuarioId, fechaInicio, fechaFin) {
                                     '$platos.complementosSeleccionados.procesadoPor.timestamp',
                                     { $ifNull: [
                                         '$platos.complementosSeleccionados.procesadoPor.tomadoEn',
-                                        '$platos.complementosSeleccionados.procesandoPor.timestamp'
+                                        { $ifNull: [
+                                            '$platos.complementosSeleccionados.procesandoPor.timestamp',
+                                            '$platos.complementosSeleccionados.asignacionMeta.timestamp'
+                                        ] }
                                     ] }
                                 ]
                             },
@@ -1050,7 +1045,7 @@ async function obtenerPlatosTopPorCocinero(usuarioId, fechaInicio, fechaFin, lim
                                 {
                                     $subtract: [
                                         '$platos.tiempos.recoger',
-                                        { $ifNull: ['$platos.procesadoPor.tomadoEn', '$platos.procesadoPor.timestamp'] }
+                                        exprInicioPrepMongo('$platos')
                                     ]
                                 },
                                 60000
@@ -1393,7 +1388,7 @@ async function obtenerResumenTurno(fechaInicio, fechaFin) {
                             {
                                 $subtract: [
                                     '$platos.tiempos.recoger',
-                                    { $ifNull: ['$platos.procesadoPor.tomadoEn', '$platos.procesadoPor.timestamp'] }
+                                    exprInicioPrepMongo('$platos')
                                 ]
                             },
                             60000
@@ -1690,7 +1685,7 @@ async function obtenerHistorialPlatosCocinados({ usuarioId = null, fechaInicio, 
             const principal = cocineros[0] || { cocineroId: null, cocineroNombre: '—', cocineroAlias: '—' };
 
             // Enriquecer platos: cronómetro asignación → listo (recoger)
-            const platosUI = unidadesTomadas.map(p => {
+            const platosUI = unidadesTomadas.map((p, idx) => {
                 const info = cocineroDePlato(p);
                 const listo = platoListoCocinaHist(p);
                 const tomadoEn = tomadoEnPlato(p);
@@ -1698,6 +1693,7 @@ async function obtenerHistorialPlatosCocinados({ usuarioId = null, fechaInicio, 
                 const tiempoSegundos = tiempoPrepPlatoSegundos(p, ahora);
                 return {
                     ...p,
+                    platoSubdocId: p.platoSubdocId || p._id || `${c._id || c.comandaId}-u-${idx}`,
                     cocineroId: info?.cocineroId || null,
                     cocineroNombre: info?.cocineroNombre || null,
                     cocineroAlias: info?.cocineroAlias || null,
@@ -1727,7 +1723,7 @@ async function obtenerHistorialPlatosCocinados({ usuarioId = null, fechaInicio, 
                     tomadoEn: p.tomadoEn,
                     listoEn: p.listoEn,
                     entregadoEn: p.listoEn,
-                    tiempoSegundos: p.tiempoSegundos || 0
+                    tiempoSegundos: p.tiempoSegundos
                 });
             }
 
@@ -1768,6 +1764,7 @@ async function obtenerHistorialPlatosCocinados({ usuarioId = null, fechaInicio, 
         let totalFinalizados = 0;
         let sumaTiempos = 0;
         let dentroSLA = 0;
+        let cuentaConTiempo = 0;
         let totalEnCursoPlatos = 0;
 
         for (const r of registros) {
@@ -1776,7 +1773,9 @@ async function obtenerHistorialPlatosCocinados({ usuarioId = null, fechaInicio, 
                 continue;
             }
             totalFinalizados++;
-            const seg = Math.max(0, Math.round(r.tiempoSegundos || 0));
+            if (r.tiempoSegundos == null) continue;
+            const seg = Math.max(0, Math.round(r.tiempoSegundos));
+            cuentaConTiempo++;
             sumaTiempos += seg;
             if (seg <= SLA_COCINA_MINUTOS * 60) dentroSLA++;
 
@@ -1844,8 +1843,8 @@ async function obtenerHistorialPlatosCocinados({ usuarioId = null, fechaInicio, 
                 totalFinalizados,
                 totalEnCurso: totalEnCursoPlatos,
                 totalCerradas: cerradasCount,
-                tiempoPromedioSegundos: totalFinalizados > 0 ? Math.round(sumaTiempos / totalFinalizados) : 0,
-                porcentajeDentroSLA: totalFinalizados > 0 ? Math.round((dentroSLA / totalFinalizados) * 100) : 0,
+                tiempoPromedioSegundos: cuentaConTiempo > 0 ? Math.round(sumaTiempos / cuentaConTiempo) : 0,
+                porcentajeDentroSLA: cuentaConTiempo > 0 ? Math.round((dentroSLA / cuentaConTiempo) * 100) : 0,
                 porPlato,
                 porCocinero
             }

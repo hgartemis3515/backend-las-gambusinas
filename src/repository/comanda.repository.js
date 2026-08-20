@@ -23,6 +23,7 @@ const {
 
 const SELECT_PLATO_COCINA = 'nombre precio categoria codigo nombreCocina complementos';
 const configuracionRepository = require('./configuracion.repository');
+const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
 const { obtenerCicloServicioMesa, intersectarComandaIds } = require('../services/mesaCicloServicio.service');
 
 // ========== RESERVAS: Importar repositorio de reservas ==========
@@ -1952,12 +1953,24 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
     // Mismo write que el estado: si procesandoPor queda con cocineroId, Ver Cocina
     // sigue mostrando el plato aunque Mongo ya tenga recoger (hasta recargar).
     if (nuevoEstado === 'recoger' || nuevoEstado === 'salio' || nuevoEstado === 'entregado' || nuevoEstado === 'pagado') {
+      const tomadoEnTimestamp = resolverTomadoEnAlFinalizar(plato);
       setFields[`platos.${platoIndex}.procesandoPor`] = {
         cocineroId: null,
         nombre: null,
         alias: null,
         timestamp: null
       };
+      if (nuevoEstado === 'recoger') {
+        const cocineroToma = plato.procesandoPor?.cocineroId || plato.procesadoPor?.cocineroId || null;
+        setFields[`platos.${platoIndex}.procesadoPor`] = {
+          cocineroId: cocineroToma,
+          nombre: plato.procesandoPor?.nombre || plato.procesadoPor?.nombre || null,
+          alias: plato.procesandoPor?.alias || plato.procesadoPor?.alias || null,
+          pronombre: plato.procesandoPor?.pronombre || plato.procesadoPor?.pronombre || '',
+          timestamp: ahora,
+          tomadoEn: tomadoEnTimestamp
+        };
+      }
     }
     await comandaModel.updateOne(
       { _id: comandaId },

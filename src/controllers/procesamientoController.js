@@ -22,6 +22,7 @@ const { registrarAuditoria } = require('../middleware/auditoria');
 
 const Comanda = mongoose.model('Comanda') || require('../database/models/comanda.model');
 const { getCocineroInfo } = require('../utils/cocineroInfo');
+const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
 const cocinerosRepository = require('../repository/cocineros.repository');
 
 // PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR: config de cocina + override one-shot
@@ -693,7 +694,7 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
 
     // PRESERVAR el timestamp en que el cocinero TOMÓ el plato (procesandoPor.timestamp)
     // antes de limpiarlo. Lo guardamos en procesadoPor.tomadoEn para no perderlo.
-    const tomadoEnTimestamp = plato.procesandoPor?.timestamp || null;
+    const tomadoEnTimestamp = resolverTomadoEnAlFinalizar(plato);
     const ahora = moment().tz('America/Lima').toDate();
 
     const updateSet = {
@@ -703,8 +704,7 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
         ...cocineroAtribuidoInfo,
         // timestamp = momento de FINALIZACIÓN (cuando el cocinero marcó listo).
         timestamp: ahora,
-        // tomadoEn = momento en que el cocinero TOMÓ el plato (para calcular tiempo total real).
-        tomadoEn: tomadoEnTimestamp || ahora
+        tomadoEn: tomadoEnTimestamp
       },
       [`platos.${platoIndex}.procesandoPor`]: {
         cocineroId: null,
@@ -1242,9 +1242,9 @@ router.put('/comanda/:id/finalizar', adminAuth, async (req, res) => {
           const cocineroPlatoInfo = (cocineroPlatoId?.toString() === cocineroAtribuidoComandaId?.toString())
             ? cocineroAtribuidoComandaInfo
             : await getCocineroInfo(cocineroPlatoId);
-          const tomadoEnPlato = plato.procesandoPor?.timestamp
+          const tomadoEnPlatoTs = resolverTomadoEnAlFinalizar(plato)
             || comanda.procesandoPor?.timestamp
-            || timestampAhora;
+            || null;
 
           const updateSet = {
             [`platos.${i}.estado`]: 'recoger',
@@ -1254,7 +1254,7 @@ router.put('/comanda/:id/finalizar', adminAuth, async (req, res) => {
               // timestamp = momento de FINALIZACIÓN.
               timestamp: timestampAhora,
               // tomadoEn = momento en que el cocinero TOMÓ el plato.
-              tomadoEn: tomadoEnPlato
+              tomadoEn: tomadoEnPlatoTs
             },
             [`platos.${i}.procesandoPor`]: {
               cocineroId: null,
@@ -2041,7 +2041,7 @@ router.put('/comanda/:id/plato/:platoId/guarnicion/:complementoId/finalizar', ad
         const supervisorOverride = cocineroAtribuidoId.toString() !== String(cocineroId);
         const cocineroAtribuidoInfo = await getCocineroInfo(cocineroAtribuidoId);
         const ahora = moment().tz('America/Lima').toDate();
-        const tomadoEn = comp.procesandoPor?.timestamp || ahora;
+        const tomadoEn = resolverTomadoEnAlFinalizar(comp);
         const platoPadreFin = comanda.platos[platoIndex];
         const indices = await indicesObjetivoGuarnicion(platoPadreFin, compIndex);
         const setFields = {
@@ -2049,7 +2049,7 @@ router.put('/comanda/:id/plato/:platoId/guarnicion/:complementoId/finalizar', ad
         };
         for (const i of indices) {
             const c = platoPadreFin.complementosSeleccionados?.[i] || {};
-            const tomadoI = c.procesandoPor?.timestamp || tomadoEn;
+            const tomadoI = resolverTomadoEnAlFinalizar(c) || tomadoEn;
             setFields[`platos.${platoIndex}.complementosSeleccionados.${i}.estadoCocina`] = 'recoger';
             setFields[`platos.${platoIndex}.complementosSeleccionados.${i}.procesadoPor`] = {
                 ...cocineroAtribuidoInfo,

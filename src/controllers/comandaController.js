@@ -46,6 +46,7 @@ const {
     responderBloqueoCocina
 } = require('../utils/reglasComandaTomadaCocina');
 const { buildAutocierreGuarnicionesSet } = require('../utils/autocerrarGuarniciones');
+const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
 const { getComandasParaPagoAdelantado } = require('../repository/ticketPagoAdelantado.repository');
 const { adminAuth, checkPermission } = require('../middleware/adminAuth');
 
@@ -2342,7 +2343,7 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
 
             // PRESERVAR el timestamp en que el cocinero TOMÓ el plato (procesandoPor.timestamp)
             // antes de limpiarlo. Lo guardamos en procesadoPor.tomadoEn para no perderlo.
-            const tomadoEnTimestamp = platoAntes.procesandoPor?.timestamp || null;
+            const tomadoEnTimestamp = resolverTomadoEnAlFinalizar(platoAntes);
             const momento = new Date();
             const proy = await comandaModel.findById(id).select('platos').lean();
             const idx = proy.platos.findIndex(p => {
@@ -2356,10 +2357,10 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
                         cocineroId: cocineroQueTomo,
                         nombre: platoAntes.procesandoPor.nombre,
                         alias: platoAntes.procesandoPor.alias,
+                        pronombre: platoAntes.procesandoPor.pronombre || '',
                         // timestamp = momento de FINALIZACIÓN (cuando se marcó listo).
                         timestamp: momento,
-                        // tomadoEn = momento en que el cocinero TOMÓ el plato.
-                        tomadoEn: tomadoEnTimestamp || momento
+                        tomadoEn: tomadoEnTimestamp
                     },
                     [`platos.${idx}.procesandoPor`]: {
                         cocineroId: null,

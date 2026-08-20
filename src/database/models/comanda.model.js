@@ -85,7 +85,8 @@ const comandaSchema = new mongoose.Schema({
                 nombre: { type: String, default: null },
                 alias: { type: String, default: null },
                 pronombre: { type: String, default: '', trim: true },
-                timestamp: { type: Date, default: null }
+                timestamp: { type: Date, default: null },
+                tomadoEn: { type: Date, default: null }
             },
             // Cómo se asignó la guarnición (auto/manual/supervisor/overflow/batch).
             asignacionMeta: {
@@ -206,7 +207,9 @@ const comandaSchema = new mongoose.Schema({
             nombre: { type: String, default: null },
             alias: { type: String, default: null },
             pronombre: { type: String, default: '', trim: true },
-            timestamp: { type: Date, default: null }
+            timestamp: { type: Date, default: null },
+            // Momento en que el cocinero TOMÓ el plato (se copia al finalizar; timestamp = listo).
+            tomadoEn: { type: Date, default: null }
         },
         // Quién realmente marcó "listo" el plato (supervisor override). Vacío si lo hace el cocinero titular.
         // rol: String libre — en producción hay roles custom (ej. "martha") además de admin/supervisor/cocinero.

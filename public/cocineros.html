@@ -2535,7 +2535,7 @@ tailwind.config = {
                   </td>
                   <td class="py-2.5 px-3">
                     <div class="flex flex-wrap gap-1 max-w-[360px]">
-                      <template x-for="p in (c.platos || []).slice(0, 4)" :key="p.platoSubdocId">
+                      <template x-for="(p, i) in platosHistPreview(c)" :key="keyPlatoHist(p, c, i)">
                         <span class="text-[10px] px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-1"
                           :class="estadoPlatoCocinaBadgeClase(p.estado)">
                           <span x-text="(p.platoNombre || 'Plato').slice(0, 14)"></span>
@@ -7872,14 +7872,25 @@ function cocinerosApp() {
       return ['recoger', 'salio', 'entregado', 'pagado'].includes(est);
     },
 
+    platosHistPreview(c) {
+      if (!c || !Array.isArray(c.platos)) return [];
+      return c.platos.filter(Boolean).slice(0, 4);
+    },
+
+    keyPlatoHist(p, c, i) {
+      const id = (p && (p.platoSubdocId || p._id || p.platoId)) || 'p';
+      const cmd = (c && (c.comandaId || c._id)) || 'c';
+      return String(id) + '-' + String(cmd) + '-' + i;
+    },
+
     /** Momento de asignación al cocinero (inicio del cronómetro). */
     getTomadoEnPlato(p) {
       if (!p) return null;
-      return p.tomadoEn
-        || p.procesandoPor?.timestamp
-        || p.asignacionMeta?.timestamp
+      return p.procesandoPor?.timestamp
+        || p.tomadoEn
         || p.procesadoPor?.tomadoEn
-        || p.procesadoPor?.timestamp
+        || p.asignacionMeta?.timestamp
+        || p.tiempos?.en_espera
         || null;
     },
 
@@ -7976,41 +7987,52 @@ function cocinerosApp() {
         // Solo platos que cocineros tomaron
         const platos = (data.platos || [])
           .filter(p => !p.eliminado && !p.anulado && (p.procesandoPor?.cocineroId || p.procesadoPor?.cocineroId))
-          .map(p => ({
-            ...p,
-            nombre: p.nombre || p.plato?.nombre || p.platoNombre || 'Plato',
-            cocineroNombre: p.procesandoPor?.nombre || p.procesadoPor?.nombre || '—',
-            cocineroAlias: p.procesandoPor?.alias || p.procesadoPor?.alias || null
-          }));
+          .map((p, idx) => {
+            const listo = this.platoListoCocinaUI(p);
+            return {
+              ...p,
+              platoSubdocId: p._id || p.platoSubdocId || ('p-' + idx),
+              nombre: p.nombre || p.plato?.nombre || p.platoNombre || 'Plato',
+              cocineroNombre: p.procesandoPor?.nombre || p.procesadoPor?.nombre || '—',
+              cocineroAlias: p.procesandoPor?.alias || p.procesadoPor?.alias || null,
+              tomadoEn: this.getTomadoEnPlato(p),
+              listoEn: listo ? this.getListoEnPlato(p) : null
+            };
+          });
         // PLAN GUARNICIONES_SEPARADAS: las guarniciones (complementos) son
         // unidades de trabajo independientes con su propio cronómetro
         // (procesandoPor.timestamp → procesadoPor.timestamp). Las exponemos
         // como filas propias para que el cronometrado se registre por cocinero.
         const guarniciones = [];
-        for (const p of (data.platos || [])) {
-          if (!p || p.eliminado || p.anulado) continue;
+        (data.platos || []).forEach((p, pi) => {
+          if (!p || p.eliminado || p.anulado) return;
           const comps = p.complementosSeleccionados || [];
-          for (const comp of comps) {
-            if (!comp || comp.eliminado) continue;
+          comps.forEach((comp, ci) => {
+            if (!comp || comp.eliminado) return;
             const pp = comp.procesandoPor || {};
             const pd = comp.procesadoPor || {};
-            if (!pp.cocineroId && !pd.cocineroId) continue;
+            if (!pp.cocineroId && !pd.cocineroId) return;
             const opcionTxt = Array.isArray(comp.opcion) ? comp.opcion.join(', ') : (comp.opcion || '');
             const nombreG = (comp.grupo ? comp.grupo + ': ' : '') + (opcionTxt || 'Guarnición');
-            const esLista = comp.estadoCocina === 'recoger';
+            const esLista = comp.estadoCocina === 'recoger' || !!pd.timestamp;
             guarniciones.push({
               esGuarnicion: true,
+              platoSubdocId: 'g-' + (p._id || pi) + '-' + (comp._id || ci),
               nombre: '🥗 ' + nombreG,
               notaEspecial: null,
               cantidad: comp.cantidad || 1,
               estado: comp.estadoCocina || 'pedido',
               cocineroNombre: pp.nombre || pd.nombre || '—',
               cocineroAlias: pp.alias || pd.alias || null,
-              tomadoEn: pp.timestamp || pd.tomadoEn || pd.timestamp || null,
-              listoEn: esLista ? (pd.timestamp || null) : null
+              procesandoPor: pp,
+              procesadoPor: pd,
+              asignacionMeta: comp.asignacionMeta || null,
+              tomadoEn: pp.timestamp || (comp.asignacionMeta && comp.asignacionMeta.timestamp) || pd.tomadoEn || null,
+              listoEn: esLista ? (pd.timestamp || null) : null,
+              tiempos: esLista ? { recoger: pd.timestamp || null } : {}
             });
-          }
-        }
+          });
+        });
         this.selectedComandaCocina = {
           ...data,
           _id: data._id || data.id,
@@ -8467,7 +8489,7 @@ function cocinerosApp() {
             <template x-if="!selectedComandaCocina?.items || selectedComandaCocina.items.length === 0">
               <tr><td colspan="7" class="px-4 py-6 text-center text-txt-muted text-xs">Sin platos tomados por cocineros</td></tr>
             </template>
-            <template x-for="(item, idx) in (selectedComandaCocina?.items || [])" :key="idx">
+            <template x-for="(item, idx) in (selectedComandaCocina?.items || [])" :key="item.platoSubdocId || item._id || ('item-' + idx)">
               <tr class="border-b border-[rgba(212,175,55,0.08)]">
                 <td class="px-4 py-3">
                   <p class="font-medium" x-text="item.nombre || '—'"></p>

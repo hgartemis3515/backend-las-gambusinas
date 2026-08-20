@@ -31,7 +31,7 @@ function buildAutocierreGuarnicionesSet(plato, platoIndex, ahora) {
                 nombre: c.procesandoPor.nombre || null,
                 alias: c.procesandoPor.alias || null,
                 timestamp: ahora,
-                tomadoEn: c.procesandoPor.timestamp || null
+                tomadoEn: c.procesandoPor.timestamp || c.asignacionMeta?.timestamp || null
             };
         } else {
             autoSet[`${prefix}.procesadoPor`] = {
