@@ -81,6 +81,57 @@ router.get('/reportes/ventas', adminAuth, async (req, res) => {
 });
 
 // ============================================================
+// FILAS OPERACIÓN (comandas → mismo shape que bouchers para reportes.html)
+// ============================================================
+
+/**
+ * GET /api/reportes/filas
+ * Filas de operación desde comandas (no exige boucher ni IsActive).
+ */
+router.get('/reportes/filas', adminAuth, async (req, res) => {
+    try {
+        const { fechaInicio, fechaFin } = req.query;
+
+        if (!fechaInicio || !fechaFin) {
+            return res.status(400).json({
+                success: false,
+                error: 'fechaInicio y fechaFin son requeridos'
+            });
+        }
+
+        const fechaRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!fechaRegex.test(fechaInicio) || !fechaRegex.test(fechaFin)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Formato de fecha inválido. Use YYYY-MM-DD'
+            });
+        }
+
+        const datos = await reportesRepository.getFilasOperacion(fechaInicio, fechaFin);
+
+        res.json({
+            success: true,
+            datos,
+            meta: {
+                fechaInicio,
+                fechaFin,
+                fuente: datos[0]?._fuente || (datos.length ? 'boucher' : 'vacio'),
+                generadoEn: moment().tz('America/Lima').toISOString()
+            }
+        });
+    } catch (error) {
+        logger.error('[ReportesController] Error en GET /filas', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Error al obtener filas de reportes'
+        });
+    }
+});
+
+// ============================================================
 // PLATOS TOP
 // ============================================================
 

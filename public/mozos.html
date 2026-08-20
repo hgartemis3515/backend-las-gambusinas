@@ -1121,7 +1121,7 @@ tailwind.config = {
                     <button type="button" @click="openComandaMozoModal(c.comandaId)" class="text-xs px-2 py-1 bg-gold/20 text-gold rounded hover:bg-gold/30 transition">Ver completo</button>
                   </div>
                   <div class="flex flex-wrap gap-1">
-                    <template x-for="p in (c.platos || []).slice(0, 6)" :key="p.platoSubdocId">
+                    <template x-for="(p, i) in platosPreviewMozo(c, 6)" :key="keyPlatoMozo(p, c, i)">
                       <span class="text-[10px] px-1.5 py-0.5 rounded font-medium"
                         :class="estadoPlatoBadgeClase(p.estado)"
                         x-text="(p.platoNombre || 'Plato').slice(0, 18) + ' [' + estadoPlatoLabel(p.estado) + ']'"></span>
@@ -1170,7 +1170,7 @@ tailwind.config = {
                   </td>
                   <td class="py-2.5 px-3">
                     <div class="flex flex-wrap gap-1 max-w-[320px]">
-                      <template x-for="p in (c.platos || []).slice(0, 4)" :key="p.platoSubdocId">
+                      <template x-for="(p, i) in platosPreviewMozo(c, 4)" :key="keyPlatoMozo(p, c, i)">
                         <span class="text-[10px] px-1.5 py-0.5 rounded font-medium" :class="estadoPlatoBadgeClase(p.estado)" x-text="(p.platoNombre || 'Plato').slice(0, 16) + ' [' + estadoPlatoLabel(p.estado) + ']'"></span>
                       </template>
                       <span x-show="(c.platos || []).length > 4" class="text-[10px] text-txt-muted self-center" x-text="'+' + ((c.platos || []).length - 4)"></span>
@@ -1289,7 +1289,7 @@ tailwind.config = {
                   </td>
                   <td class="py-2.5 px-3">
                     <div class="flex flex-wrap gap-1 max-w-[320px]">
-                      <template x-for="p in (c.platos || []).slice(0, 4)" :key="p.platoSubdocId">
+                      <template x-for="(p, i) in platosPreviewMozo(c, 4)" :key="keyPlatoMozo(p, c, i)">
                         <span class="text-[10px] px-1.5 py-0.5 rounded font-medium" :class="estadoPlatoBadgeClase(p.estado)" x-text="(p.platoNombre || 'Plato').slice(0, 16) + ' [' + estadoPlatoLabel(p.estado) + ']'"></span>
                       </template>
                       <span x-show="(c.platos || []).length > 4" class="text-[10px] text-txt-muted self-center" x-text="'+' + ((c.platos || []).length - 4)"></span>
@@ -3143,6 +3143,7 @@ function mozosExecutiveApp() {
     modalComandaMozo: null,
     selectedComandaMozo: null,
     loadingComandaMozo: false,
+    metricasComandaMozo: {},
     // Modal Historial de Metas por Mozo
     showModalHistorialMeta: false,
     mozoHistorialSeleccionado: null,
@@ -3231,7 +3232,7 @@ function mozosExecutiveApp() {
       this.customDesde = hoy;
       this.customHasta = hoy;
       await this.refreshAll();
-      queueMicrotask(() => this.updateCharts());
+      this.$nextTick(() => this.updateCharts());
       this.connectSocket();
       // Initialize Lucide icons
       if (window.lucide) window.lucide.createIcons();
@@ -3592,10 +3593,10 @@ function mozosExecutiveApp() {
       else this.activeSection = 'principal';
       if (this.activeSection !== 'principal') this.vistaPrincipal = 'tabla';
       if (this.activeSection === 'propinas' || this.activeSection === 'rendimiento') {
-        queueMicrotask(() => this.updateCharts());
+        this.$nextTick(() => this.updateCharts());
       }
       if (this.activeSection === 'propinas') {
-        queueMicrotask(() => { this.updateMetasChart(); if (window.lucide) window.lucide.createIcons(); });
+        this.$nextTick(() => { this.updateMetasChart(); if (window.lucide) window.lucide.createIcons(); });
       }
       if (this.activeSection === 'rendimiento') {
         if (this.subtabRendimientoMozos === 'enVivo') this.cargarRendimientoMozosEnVivo();
@@ -3638,7 +3639,7 @@ function mozosExecutiveApp() {
 
     setRendimientoHorario(vista) {
       this.rendimientoHorarioVista = vista === 'medio' || vista === 'noche' ? vista : 'full';
-      queueMicrotask(() => this.updateCharts());
+      this.$nextTick(() => this.updateCharts());
     },
 
     // ==================== RENDIMIENTO OPERATIVO MOZOS ====================
@@ -3655,6 +3656,7 @@ function mozosExecutiveApp() {
       } else {
         // Comercial: no necesita tick a menos que el modal esté abierto
         if (this.modalComandaMozo !== 'verComanda') this.stopRendimientoMozoTick();
+        if (this.activeSection === 'rendimiento') this.$nextTick(() => this.updateCharts());
       }
     },
 
@@ -3876,7 +3878,7 @@ function mozosExecutiveApp() {
         const params = new URLSearchParams();
         if (this.historialMozoFiltroMozo) params.set('mozoId', this.historialMozoFiltroMozo);
         const hoy = new Date();
-        const fmt = (d) => d.toISOString().slice(0, 10);
+        const fmt = (d) => limaYMD(d);
         let desde = this.historialMozoFechaDesde;
         let hasta = this.historialMozoFechaHasta;
         if (this.historialMozoFiltroFecha === 'hoy') { desde = fmt(hoy); hasta = fmt(hoy); }
@@ -3988,11 +3990,22 @@ function mozosExecutiveApp() {
       const map = { pendiente: 'Pendiente', pedido: 'Pedido', en_espera: 'En espera', recoger: 'Recoger', salio: 'Salió', entregado: 'Entregado', pagado: 'Pagado' };
       return map[estado] || estado || '—';
     },
-    platosChipsComanda(c) {
-      // Devuelve hasta 4 chips resumen de platos; el resto como "+N"
-      const platos = (c.platos || []).slice(0, 4);
-      const extra = (c.platos || []).length - 4;
-      return { platos, extra };
+    platosPreviewMozo(c, n) {
+      if (!c || !Array.isArray(c.platos)) return [];
+      return c.platos.filter(Boolean).slice(0, n || 4);
+    },
+    keyPlatoMozo(p, c, i) {
+      const id = (p && (p.platoSubdocId || p._id || p.platoId)) || 'p';
+      const cmd = (c && (c.comandaId || c._id)) || 'c';
+      return String(id) + '-' + String(cmd) + '-' + i;
+    },
+    badgeMetricasComandaMozo() {
+      const m = this.metricasComandaMozo || {};
+      return this.estadoComandaBadge({
+        resumenEstados: m.resumenEstados || {},
+        platosEntregados: m.platosEntregados || 0,
+        platosTotal: m.platosTotal || 0
+      });
     },
 
     // ===== Modal Ver completo =====
@@ -4237,7 +4250,7 @@ function mozosExecutiveApp() {
         this.checkLiderYMeta();
       } finally {
         this.loading = false;
-        queueMicrotask(() => this.updateCharts());
+        this.$nextTick(() => this.updateCharts());
       }
     },
 
@@ -4298,7 +4311,7 @@ function mozosExecutiveApp() {
           }
         }
         this.pulseKpi('propinas');
-        queueMicrotask(() => this.updateCharts());
+        this.$nextTick(() => this.updateCharts());
       }, 400);
     },
 
@@ -4987,7 +5000,7 @@ function mozosExecutiveApp() {
         this.showToast(m.activo ? 'Activado' : 'Desactivado');
         const dash = await this.fetchDashboard(this.rangoFechas.inicio, this.rangoFechas.fin);
         if (dash) this.mergeDashboardIntoMozos(dash);
-        queueMicrotask(() => this.updateCharts());
+        this.$nextTick(() => this.updateCharts());
       }
     },
 
@@ -6424,7 +6437,8 @@ function mozosExecutiveApp() {
 <script src="/assets/js/chat-dashboard.js"></script>
 
 <!-- ==================== MODAL: VER COMANDA COMPLETO (MOZOS) ==================== -->
-<div x-show="modalComandaMozo === 'verComanda'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="cerrarModalComandaMozo()" x-cloak>
+<template x-if="modalComandaMozo === 'verComanda'">
+<div x-show="true" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="cerrarModalComandaMozo()" x-cloak>
   <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[860px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
     <!-- HEADER -->
     <div class="bg-bg-sidebar p-5 rounded-t-2xl sticky top-0 z-10">
@@ -6433,8 +6447,8 @@ function mozosExecutiveApp() {
           <div class="flex items-center gap-3">
             <h2 class="text-lg font-bold" x-text="'Comanda #' + (selectedComandaMozo?.numComanda || '—')"></h2>
             <span class="text-[10px] px-2.5 py-1 rounded-full font-bold"
-              :class="estadoComandaBadge({ resumenEstados: metricasComandaMozo.resumenEstados, platosEntregados: metricasComandaMozo.platosEntregados, platosTotal: metricasComandaMozo.platosTotal }).clase"
-              x-text="estadoComandaBadge({ resumenEstados: metricasComandaMozo.resumenEstados, platosEntregados: metricasComandaMozo.platosEntregados, platosTotal: metricasComandaMozo.platosTotal }).texto"></span>
+              :class="badgeMetricasComandaMozo().clase"
+              x-text="badgeMetricasComandaMozo().texto"></span>
             <span x-show="rendimientoMozoSocketConnected" class="text-[9px] px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-bold flex items-center gap-1">
               <span class="w-1.5 h-1.5 rounded-full bg-st-preparado animate-pulse"></span>En vivo
             </span>
@@ -6495,24 +6509,24 @@ function mozosExecutiveApp() {
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
           <div>
             <p class="text-[10px] text-txt-muted">Platos entregados</p>
-            <p class="font-bold text-st-libre" x-text="(metricasComandaMozo.platosEntregados || 0) + ' / ' + (metricasComandaMozo.platosTotal || 0)"></p>
+            <p class="font-bold text-st-libre" x-text="(metricasComandaMozo?.platosEntregados || 0) + ' / ' + (metricasComandaMozo?.platosTotal || 0)"></p>
           </div>
           <div>
             <p class="text-[10px] text-txt-muted">T. cocina</p>
-            <p class="font-mono font-medium text-st-preparado" x-text="formatDuracionSegundos(metricasComandaMozo.tiempoCocinaSegundos)"></p>
+            <p class="font-mono font-medium text-st-preparado" x-text="formatDuracionSegundos(metricasComandaMozo?.tiempoCocinaSegundos)"></p>
           </div>
           <div>
             <p class="text-[10px] text-txt-muted">T. mozo</p>
-            <p class="font-mono font-medium text-gold" x-text="formatDuracionSegundos(metricasComandaMozo.tiempoMozoSegundos)"></p>
+            <p class="font-mono font-medium text-gold" x-text="formatDuracionSegundos(metricasComandaMozo?.tiempoMozoSegundos)"></p>
           </div>
           <div>
             <p class="text-[10px] text-txt-muted">Diferencia (mozo − cocina)</p>
-            <p class="font-mono font-bold" :class="colorDiferencia(metricasComandaMozo.diferenciaSegundos)" x-text="formatDuracionConSigno(metricasComandaMozo.diferenciaSegundos)"></p>
+            <p class="font-mono font-bold" :class="colorDiferencia(metricasComandaMozo?.diferenciaSegundos)" x-text="formatDuracionConSigno(metricasComandaMozo?.diferenciaSegundos)"></p>
           </div>
         </div>
         <!-- Resumen estados -->
         <div class="flex flex-wrap gap-1 mt-3 pt-3 border-t border-[rgba(212,175,55,0.08)]">
-          <template x-for="(cnt, est) in (metricasComandaMozo.resumenEstados || {})" :key="est">
+          <template x-for="(cnt, est) in (metricasComandaMozo?.resumenEstados || {})" :key="est">
             <span x-show="cnt > 0" class="text-[10px] px-2 py-0.5 rounded font-medium" :class="estadoPlatoBadgeClase(est)" x-text="estadoPlatoLabel(est) + ': ' + cnt"></span>
           </template>
         </div>
@@ -6596,6 +6610,7 @@ function mozosExecutiveApp() {
     </div>
   </div>
 </div>
+</template>
 <!-- ==================== FIN MODAL VER COMANDA MOZOS ==================== -->
 <script>
   // Initialize Lucide icons when DOM is ready and on modal open

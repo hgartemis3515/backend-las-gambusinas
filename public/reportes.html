@@ -663,61 +663,50 @@ function createChart(canvasId, config) {
  * Simplificado para funcionar como admin.html
  */
 const DateUtils = {
-  /**
-   * Obtiene la fecha actual en formato YYYY-MM-DD
-   * Mismo método que usa admin.html
-   */
+  limaYMD(d = new Date()) {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Lima',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(d);
+  },
+
+  addDaysYmd(ymd, delta) {
+    const [y, m, d] = String(ymd).split('-').map(Number);
+    const utc = Date.UTC(y, m - 1, d, 12, 0, 0);
+    return this.limaYMD(new Date(utc + delta * 86400000));
+  },
+
   getTodayStr() {
-    return new Date().toISOString().split('T')[0];
+    return this.limaYMD();
   },
   
-  /**
-   * Obtiene una fecha en el pasado
-   * @param {number} days - Días hacia atrás desde hoy
-   */
   getPastDateStr(days) {
-    const date = new Date();
-    date.setDate(date.getDate() - days);
-    return date.toISOString().split('T')[0];
+    return this.addDaysYmd(this.getTodayStr(), -days);
   },
   
-  /**
-   * Obtiene el rango de fechas para un filtro rápido
-   * Usa el mismo enfoque que admin.html (setRangoFecha)
-   */
   getRangeForFilter(filtro) {
-    const hoy = new Date();
-    const hoyStr = hoy.toISOString().split('T')[0];
+    const hoyStr = this.getTodayStr();
     
     switch(filtro) {
       case 'Hoy':
         return { fechaInicio: hoyStr, fechaFin: hoyStr };
         
-      case 'Ayer': {
-        const ayer = new Date(hoy.getTime() - 24 * 60 * 60 * 1000);
-        const ayerStr = ayer.toISOString().split('T')[0];
-        return { fechaInicio: ayerStr, fechaFin: ayerStr };
-      }
+      case 'Ayer':
+        return { fechaInicio: this.addDaysYmd(hoyStr, -1), fechaFin: this.addDaysYmd(hoyStr, -1) };
         
-      case '7 días': {
-        const hace7 = new Date(hoy.getTime() - 7 * 24 * 60 * 60 * 1000);
-        return { fechaInicio: hace7.toISOString().split('T')[0], fechaFin: hoyStr };
-      }
+      case '7 días':
+        return { fechaInicio: this.addDaysYmd(hoyStr, -6), fechaFin: hoyStr };
         
-      case '30 días': {
-        const hace30 = new Date(hoy.getTime() - 30 * 24 * 60 * 60 * 1000);
-        return { fechaInicio: hace30.toISOString().split('T')[0], fechaFin: hoyStr };
-      }
+      case '30 días':
+        return { fechaInicio: this.addDaysYmd(hoyStr, -29), fechaFin: hoyStr };
         
-      case 'Este mes': {
-        const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-        return { fechaInicio: primerDiaMes.toISOString().split('T')[0], fechaFin: hoyStr };
-      }
+      case 'Este mes':
+        return { fechaInicio: hoyStr.slice(0, 7) + '-01', fechaFin: hoyStr };
         
-      case '1 año': {
-        const haceUnAño = new Date(hoy.getTime() - 365 * 24 * 60 * 60 * 1000);
-        return { fechaInicio: haceUnAño.toISOString().split('T')[0], fechaFin: hoyStr };
-      }
+      case '1 año':
+        return { fechaInicio: this.addDaysYmd(hoyStr, -364), fechaFin: hoyStr };
         
       default:
         return { fechaInicio: hoyStr, fechaFin: hoyStr };
@@ -1065,7 +1054,7 @@ function reportesApp() {
       let totalTickets = bouchers.length;
       
       bouchers.forEach(b => {
-        const fecha = b.fechaPago ? new Date(b.fechaPago).toISOString().split('T')[0] : 'Sin fecha';
+        const fecha = b.fechaPago ? DateUtils.limaYMD(new Date(b.fechaPago)) : 'Sin fecha';
         if (!porFecha[fecha]) {
           porFecha[fecha] = { 
             fecha, 
@@ -1076,12 +1065,15 @@ function reportesApp() {
             cantidadItems: 0
           };
         }
-        porFecha[fecha].total += b.total || 0;
-        porFecha[fecha].subtotal += b.subtotal || (b.total || 0) / 1.18;
-        porFecha[fecha].igv += b.igv || (b.total || 0) * 0.18;
+        const totalFila = Number(b.total) > 0
+          ? Number(b.total)
+          : (b.platos || []).reduce((s, p) => s + (Number(p.subtotal) || (Number(p.cantidad) * Number(p.precio)) || 0), 0);
+        porFecha[fecha].total += totalFila;
+        porFecha[fecha].subtotal += b.subtotal || totalFila / 1.18;
+        porFecha[fecha].igv += b.igv || totalFila - totalFila / 1.18;
         porFecha[fecha].tickets++;
         porFecha[fecha].cantidadItems += (b.platos?.length || 0);
-        totalVentas += b.total || 0;
+        totalVentas += totalFila;
       });
       
       const labels = Object.keys(porFecha).sort();
@@ -1150,19 +1142,21 @@ function reportesApp() {
                 platosMap[nombre].categoria = cat;
               }
             }
-            platosMap[nombre].cantidad += p.cantidad || 0;
-            platosMap[nombre].ingreso += p.subtotal || (p.cantidad * p.precio) || 0;
-            totalVendidos += p.cantidad || 0;
-            totalIngreso += p.subtotal || (p.cantidad * p.precio) || 0;
+            const cant = Number(p.cantidad) || 0;
+            const precio = Number(p.precio) || 0;
+            const ingresoLinea = Number(p.subtotal) > 0 ? Number(p.subtotal) : cant * precio;
+            platosMap[nombre].cantidad += cant;
+            platosMap[nombre].ingreso += ingresoLinea;
+            totalVendidos += cant;
+            totalIngreso += ingresoLinea;
 
             // NUEVO: Acumular por tipo de servicio (default 'mesa' para vouchers antiguos)
-            const subtotal = p.subtotal || (p.cantidad * p.precio) || 0;
             if (p.tipoServicio === 'para_llevar') {
-              servParaLlevar += p.cantidad || 0;
-              montoParaLlevar += subtotal;
+              servParaLlevar += cant;
+              montoParaLlevar += ingresoLinea;
             } else {
-              servMesa += p.cantidad || 0;
-              montoMesa += subtotal;
+              servMesa += cant;
+              montoMesa += ingresoLinea;
             }
           });
         }
@@ -1227,7 +1221,9 @@ function reportesApp() {
             dni: b.mozo?.dni || '—'
           };
         }
-        mozosMap[mozoId].ventas += b.total || 0;
+        mozosMap[mozoId].ventas += Number(b.total) > 0
+          ? Number(b.total)
+          : (b.platos || []).reduce((s, p) => s + (Number(p.subtotal) || (Number(p.cantidad) * Number(p.precio)) || 0), 0);
         mozosMap[mozoId].tickets++;
       });
       
@@ -1273,7 +1269,9 @@ function reportesApp() {
           mesasMap[mesaId] = { nummesa: numMesa, comandas: 0, ventas: 0, area: 'Salón' };
         }
         mesasMap[mesaId].comandas++;
-        mesasMap[mesaId].ventas += b.total || 0;
+        mesasMap[mesaId].ventas += Number(b.total) > 0
+          ? Number(b.total)
+          : (b.platos || []).reduce((s, p) => s + (Number(p.subtotal) || (Number(p.cantidad) * Number(p.precio)) || 0), 0);
       });
       
       const mesasArray = Object.values(mesasMap).sort((a, b) => b.comandas - a.comandas);
@@ -1966,20 +1964,33 @@ function reportesApp() {
 // FUNCIÓN CENTRAL: Cargar bouchers por rango (mismo método que admin.html)
 // ============================================
 async function cargarBouchersPorRango(fechaInicio, fechaFin) {
+  const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+  const headers = { 'Authorization': 'Bearer ' + token };
+
+  console.log('📅 Cargando operación desde', fechaInicio, 'hasta', fechaFin);
+
+  try {
+    const response = await fetch(
+      `${API_BASE}/reportes/filas?fechaInicio=${encodeURIComponent(fechaInicio)}&fechaFin=${encodeURIComponent(fechaFin)}`,
+      { headers }
+    );
+    if (response.ok) {
+      const payload = await response.json();
+      const filas = payload.datos || payload.data || (Array.isArray(payload) ? payload : []);
+      if (Array.isArray(filas) && filas.length) {
+        console.log('✅ Filas de comandas:', filas.length);
+        return filas;
+      }
+    }
+  } catch (error) {
+    console.warn('⚠️ /reportes/filas no disponible, se usa bouchers:', error);
+  }
+
   const bouchers = [];
-  const fechaInicioDate = new Date(fechaInicio);
-  const fechaFinDate = new Date(fechaFin);
-  
-  console.log('📅 Cargando bouchers desde', fechaInicio, 'hasta', fechaFin);
-  
-  // Iterar por cada día en el rango
-  for (let fecha = new Date(fechaInicioDate); fecha <= fechaFinDate; fecha.setDate(fecha.getDate() + 1)) {
-    const fechaStr = fecha.toISOString().split('T')[0];
+  let ymd = fechaInicio;
+  while (ymd <= fechaFin) {
     try {
-      const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
-      const response = await fetch(`${API_BASE}/boucher/fecha/${fechaStr}`, {
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
+      const response = await fetch(`${API_BASE}/boucher/fecha/${ymd}`, { headers });
       if (response.ok) {
         const bouchersDia = await response.json();
         if (Array.isArray(bouchersDia)) {
@@ -1987,10 +1998,11 @@ async function cargarBouchersPorRango(fechaInicio, fechaFin) {
         }
       }
     } catch (error) {
-      console.warn(`⚠️ Error cargando bouchers del ${fechaStr}:`, error);
+      console.warn(`⚠️ Error cargando bouchers del ${ymd}:`, error);
     }
+    ymd = DateUtils.addDaysYmd(ymd, 1);
   }
-  
+
   console.log('✅ Total bouchers cargados:', bouchers.length);
   return bouchers;
 }

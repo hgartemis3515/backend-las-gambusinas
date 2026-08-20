@@ -7,6 +7,14 @@
 const mongoose = require('mongoose');
 const moment = require('moment-timezone');
 const logger = require('../utils/logger');
+const {
+    rangoLima,
+    matchComandasEstadisticas,
+    exprMontoComanda,
+    exprFechaComanda,
+    exprPrecioPlatoUnwind,
+    listarFilasEstadisticas
+} = require('../utils/estadisticasComandas');
 
 // Modelos
 const Comanda = mongoose.model('Comanda') || require('../database/models/comanda.model');
@@ -38,7 +46,7 @@ async function getMetricasCocineros(fechaInicio, fechaFin) {
             // Filtro de fechas y comandas activas
             {
                 $match: {
-                    IsActive: true,
+                    status: { $nin: ['cancelado'] },
                     createdAt: { $gte: fechaInicioDate, $lte: fechaFinDate }
                 }
             },
@@ -329,7 +337,7 @@ async function getSerieTemporalCocineros(fechaInicio, fechaFin, agruparPor = 'di
         const pipeline = [
             {
                 $match: {
-                    IsActive: true,
+                    status: { $nin: ['cancelado'] },
                     createdAt: { $gte: fechaInicioDate, $lte: fechaFinDate }
                 }
             },
@@ -422,7 +430,7 @@ async function getHeatmapHorario(fechaInicio, fechaFin) {
         const pipeline = [
             {
                 $match: {
-                    IsActive: true,
+                    status: { $nin: ['cancelado'] },
                     createdAt: { $gte: fechaInicioDate, $lte: fechaFinDate }
                 }
             },
@@ -497,7 +505,7 @@ async function getDistribucionCategorias(fechaInicio, fechaFin) {
         const pipeline = [
             {
                 $match: {
-                    IsActive: true,
+                    status: { $nin: ['cancelado'] },
                     createdAt: { $gte: fechaInicioDate, $lte: fechaFinDate }
                 }
             },
@@ -558,7 +566,7 @@ async function getDistribucionCategorias(fechaInicio, fechaFin) {
         const pipelineGeneral = [
             {
                 $match: {
-                    IsActive: true,
+                    status: { $nin: ['cancelado'] },
                     createdAt: { $gte: fechaInicioDate, $lte: fechaFinDate }
                 }
             },
@@ -629,7 +637,7 @@ async function getDetalleCocinero(cocineroId, fechaInicio, fechaFin) {
         const pipelinePlatos = [
             {
                 $match: {
-                    IsActive: true,
+                    status: { $nin: ['cancelado'] },
                     createdAt: { $gte: fechaInicioDate, $lte: fechaFinDate },
                     'platos.procesadoPor.cocineroId': mongoose.Types.ObjectId.isValid(cocineroId)
                         ? new mongoose.Types.ObjectId(cocineroId)
@@ -710,8 +718,7 @@ async function getDetalleCocinero(cocineroId, fechaInicio, fechaFin) {
 async function getVentas(fechaInicio, fechaFin, agruparPor = 'dia') {
     try {
         const Boucher = mongoose.model('Boucher') || require('../database/models/boucher.model');
-        const fechaInicioDate = moment.tz(fechaInicio, 'America/Lima').startOf('day').toDate();
-        const fechaFinDate = moment.tz(fechaFin, 'America/Lima').endOf('day').toDate();
+        const { inicio: fechaInicioDate, fin: fechaFinDate } = rangoLima(fechaInicio, fechaFin);
 
         logger.info('[ReportesRepo] Obteniendo ventas', {
             fechaInicio: fechaInicioDate,
@@ -729,6 +736,58 @@ async function getVentas(fechaInicio, fechaFin, agruparPor = 'dia') {
                 break;
             default:
                 formatoFecha = '%Y-%m-%d';
+        }
+
+        const formatDatos = (resultados) => {
+            const datos = resultados.map(r => ({
+                _id: r._id,
+                hora: agruparPor === 'hora' ? r._id : undefined,
+                fecha: agruparPor !== 'hora' ? r._id : undefined,
+                total: Math.round((r.total || 0) * 100) / 100,
+                subtotal: Math.round((r.subtotal != null ? r.subtotal : (r.total || 0) / 1.18) * 100) / 100,
+                igv: Math.round((r.igv != null ? r.igv : (r.total || 0) - (r.total || 0) / 1.18) * 100) / 100,
+                cantidadBouchers: r.cantidadBouchers
+            }));
+            const totalVentas = datos.reduce((sum, d) => sum + d.total, 0);
+            const totalBouchers = datos.reduce((sum, d) => sum + d.cantidadBouchers, 0);
+            return {
+                datos,
+                resumen: {
+                    totalVentas: Math.round(totalVentas * 100) / 100,
+                    totalBouchers,
+                    promedioPorBoucher: totalBouchers > 0
+                        ? Math.round((totalVentas / totalBouchers) * 100) / 100
+                        : 0
+                }
+            };
+        };
+
+        const resultadosComanda = await Comanda.aggregate([
+            { $match: matchComandasEstadisticas(fechaInicioDate, fechaFinDate) },
+            {
+                $addFields: {
+                    _fechaStat: exprFechaComanda(),
+                    _montoStat: exprMontoComanda()
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        $dateToString: {
+                            format: formatoFecha,
+                            date: '$_fechaStat',
+                            timezone: 'America/Lima'
+                        }
+                    },
+                    total: { $sum: '$_montoStat' },
+                    cantidadBouchers: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        if (resultadosComanda.length) {
+            return formatDatos(resultadosComanda);
         }
 
         const pipeline = [
@@ -757,34 +816,7 @@ async function getVentas(fechaInicio, fechaFin, agruparPor = 'dia') {
         ];
 
         const resultados = await Boucher.aggregate(pipeline);
-
-        // Formatear respuesta
-        const datos = resultados.map(r => ({
-            _id: r._id,
-            hora: agruparPor === 'hora' ? r._id : undefined,
-            fecha: agruparPor !== 'hora' ? r._id : undefined,
-            total: Math.round(r.total * 100) / 100,
-            subtotal: Math.round(r.subtotal * 100) / 100,
-            igv: Math.round(r.igv * 100) / 100,
-            cantidadBouchers: r.cantidadBouchers
-        }));
-
-        const resumen = {
-            totalVentas: datos.reduce((sum, d) => sum + d.total, 0),
-            totalBouchers: datos.reduce((sum, d) => sum + d.cantidadBouchers, 0),
-            promedioPorBoucher: datos.length > 0 
-                ? datos.reduce((sum, d) => sum + d.total, 0) / datos.reduce((sum, d) => sum + d.cantidadBouchers, 0)
-                : 0
-        };
-
-        return {
-            datos,
-            resumen: {
-                totalVentas: Math.round(resumen.totalVentas * 100) / 100,
-                totalBouchers: resumen.totalBouchers,
-                promedioPorBoucher: Math.round(resumen.promedioPorBoucher * 100) / 100
-            }
-        };
+        return formatDatos(resultados);
 
     } catch (error) {
         logger.error('[ReportesRepo] Error en getVentas', { error: error.message });
@@ -805,13 +837,92 @@ async function getVentas(fechaInicio, fechaFin, agruparPor = 'dia') {
 async function getPlatosTop(fechaInicio, fechaFin) {
     try {
         const Boucher = mongoose.model('Boucher') || require('../database/models/boucher.model');
-        const fechaInicioDate = moment.tz(fechaInicio, 'America/Lima').startOf('day').toDate();
-        const fechaFinDate = moment.tz(fechaFin, 'America/Lima').endOf('day').toDate();
+        const { inicio: fechaInicioDate, fin: fechaFinDate } = rangoLima(fechaInicio, fechaFin);
 
         logger.info('[ReportesRepo] Obteniendo platos top', {
             fechaInicio: fechaInicioDate,
             fechaFin: fechaFinDate
         });
+
+        const formatPlatos = (resultados) => {
+            const datos = resultados.map((r, index) => ({
+                posicion: index + 1,
+                _id: r._id,
+                nombre: r.nombre || 'Desconocido',
+                vendidos: r.vendidos,
+                ingresos: Math.round((r.ingresos || 0) * 100) / 100,
+                promedioPrecio: r.veces > 0 ? Math.round((r.ingresos / r.veces) * 100) / 100 : 0
+            }));
+            const resumen = {
+                totalPlatosVendidos: datos.reduce((sum, d) => sum + d.vendidos, 0),
+                totalIngresos: datos.reduce((sum, d) => sum + d.ingresos, 0),
+                platosUnicos: datos.length
+            };
+            return {
+                datos,
+                resumen: {
+                    totalPlatosVendidos: resumen.totalPlatosVendidos,
+                    totalIngresos: Math.round(resumen.totalIngresos * 100) / 100,
+                    platosUnicos: resumen.platosUnicos
+                }
+            };
+        };
+
+        const resultadosComanda = await Comanda.aggregate([
+            { $match: matchComandasEstadisticas(fechaInicioDate, fechaFinDate) },
+            { $unwind: { path: '$platos', includeArrayIndex: 'idx' } },
+            {
+                $match: {
+                    'platos.eliminado': { $ne: true },
+                    'platos.anulado': { $ne: true }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'platos',
+                    localField: 'platos.plato',
+                    foreignField: '_id',
+                    as: '_catArr'
+                }
+            },
+            {
+                $addFields: {
+                    _catDoc: { $arrayElemAt: ['$_catArr', 0] }
+                }
+            },
+            {
+                $addFields: {
+                    _cant: {
+                        $ifNull: [
+                            '$platos.cantidad',
+                            { $ifNull: [{ $arrayElemAt: ['$cantidades', '$idx'] }, 1] }
+                        ]
+                    },
+                    _precio: exprPrecioPlatoUnwind(),
+                    _nombre: {
+                        $ifNull: [
+                            '$platos.nombre',
+                            { $ifNull: ['$_catDoc.nombre', { $ifNull: ['$platos.platoNombre', 'Plato'] }] }
+                        ]
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: { $ifNull: ['$platos.plato', '$_nombre'] },
+                    nombre: { $first: '$_nombre' },
+                    vendidos: { $sum: '$_cant' },
+                    ingresos: { $sum: { $multiply: ['$_cant', '$_precio'] } },
+                    veces: { $sum: 1 }
+                }
+            },
+            { $sort: { vendidos: -1 } },
+            { $limit: 20 }
+        ]);
+
+        if (resultadosComanda.length) {
+            return formatPlatos(resultadosComanda);
+        }
 
         const pipeline = [
             {
@@ -836,36 +947,29 @@ async function getPlatosTop(fechaInicio, fechaFin) {
         ];
 
         const resultados = await Boucher.aggregate(pipeline);
-
-        // Formatear respuesta
-        const datos = resultados.map((r, index) => ({
-            posicion: index + 1,
-            _id: r._id,
-            nombre: r.nombre || 'Desconocido',
-            vendidos: r.vendidos,
-            ingresos: Math.round(r.ingresos * 100) / 100,
-            promedioPrecio: r.veces > 0 ? Math.round((r.ingresos / r.veces) * 100) / 100 : 0
-        }));
-
-        const resumen = {
-            totalPlatosVendidos: datos.reduce((sum, d) => sum + d.vendidos, 0),
-            totalIngresos: datos.reduce((sum, d) => sum + d.ingresos, 0),
-            platosUnicos: datos.length
-        };
-
-        return {
-            datos,
-            resumen: {
-                totalPlatosVendidos: resumen.totalPlatosVendidos,
-                totalIngresos: Math.round(resumen.totalIngresos * 100) / 100,
-                platosUnicos: resumen.platosUnicos
-            }
-        };
+        return formatPlatos(resultados);
 
     } catch (error) {
         logger.error('[ReportesRepo] Error en getPlatosTop', { error: error.message });
         throw error;
     }
+}
+
+async function getFilasOperacion(fechaInicio, fechaFin) {
+    const { inicio, fin } = rangoLima(fechaInicio, fechaFin);
+    const filas = await listarFilasEstadisticas(inicio, fin);
+    if (filas.length) return filas;
+
+    const Boucher = mongoose.model('Boucher') || require('../database/models/boucher.model');
+    return Boucher.find({
+        isActive: true,
+        fechaPago: { $gte: inicio, $lte: fin }
+    })
+        .populate('mozo', 'name nombres DNI')
+        .populate('mesa', 'nummesa numero')
+        .populate('platos.plato', 'nombre precio categoria')
+        .sort({ fechaPago: -1 })
+        .lean();
 }
 
 // ============================================================
@@ -879,5 +983,6 @@ module.exports = {
     getDistribucionCategorias,
     getDetalleCocinero,
     getVentas,
-    getPlatosTop
+    getPlatosTop,
+    getFilasOperacion
 };

@@ -704,7 +704,7 @@ function dashApp() {
 
     async loadDashboard() {
       this.loading = true;
-      const hoy = new Date().toISOString().split('T')[0];
+      const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
       const needs = (id) => this.dashboardLayout.includes(id);
 
       try {
@@ -1019,7 +1019,7 @@ function dashApp() {
     },
 
     async refreshVentasChart() {
-      const hoy = new Date().toISOString().split('T')[0];
+      const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
       try {
         const reporteHoy = await apiGet('/reportes/ventas?fechaInicio=' + hoy + '&fechaFin=' + hoy + '&agruparPor=hora');
         if (reporteHoy && reporteHoy.datos && reporteHoy.datos.length > 0) {

@@ -15,6 +15,11 @@ try {
 const Boucher = mongoose.model('Boucher') || require('../database/models/boucher.model');
 const Mozos = mongoose.model('mozos') || require('../database/models/mozos.model');
 const Mesa = mongoose.model('mesas') || require('../database/models/mesas.model');
+const {
+    agregarVentasComandasPorMozo,
+    agregarHorariosComandas,
+    resumirHorariosComandas
+} = require('../utils/estadisticasComandas');
 
 // ============================================================
 // CREATE - CREAR PROPINA
@@ -328,6 +333,20 @@ async function obtenerDatosDashboardMozos(fechaInicio, fechaFin) {
         const ventasPorMozo = await Boucher.aggregate(pipelineVentas);
         const ventasMap = new Map(ventasPorMozo.map(v => [v._id?.toString(), v]));
 
+        let ventasComanda = [];
+        try {
+            ventasComanda = await agregarVentasComandasPorMozo(inicio, fin);
+        } catch (errC) {
+            logger.warn('[PropinaRepo] Ventas desde comandas omitidas', { error: errC.message });
+        }
+        const comandaMap = new Map(
+            ventasComanda
+                .filter(v => v._id != null)
+                .map(v => [v._id.toString(), v])
+        );
+        const totalVentasComandas = ventasComanda.reduce((s, v) => s + (Number(v.totalVentas) || 0), 0);
+        const hayVentasComanda = ventasComanda.some(v => (Number(v.cantidad) || 0) > 0);
+
         // Pipeline de agregación para propinas
         const pipelinePropinas = [
             {
@@ -351,10 +370,20 @@ async function obtenerDatosDashboardMozos(fechaInicio, fechaFin) {
         // Combinar datos
         const mozosConMetricas = mozos.map(mozo => {
             const mozoIdStr = mozo._id.toString();
-            const ventas = ventasMap.get(mozoIdStr) || { totalVentas: 0, cantidadBouchers: 0, mesasAtendidas: [] };
+            const ventasB = ventasMap.get(mozoIdStr) || { totalVentas: 0, cantidadBouchers: 0, mesasAtendidas: [] };
+            const ventasC = comandaMap.get(mozoIdStr);
+            const usarComanda = hayVentasComanda;
+            const totalVentas = usarComanda
+                ? Number(ventasC?.totalVentas || 0)
+                : (ventasB.totalVentas || 0);
+            const bouchers = usarComanda
+                ? (ventasC?.cantidad || 0)
+                : (ventasB.cantidadBouchers || 0);
+            const mesasSet = usarComanda
+                ? (ventasC?.mesasAtendidas || [])
+                : (ventasB.mesasAtendidas || []);
             const propinas = propinasMap.get(mozoIdStr) || { totalPropinas: 0, cantidadPropinas: 0 };
-            const mesasAt = ventas.mesasAtendidas?.length || 0;
-            const bouchers = ventas.cantidadBouchers || 0;
+            const mesasAt = mesasSet?.length || 0;
             const totalProp = Math.round(propinas.totalPropinas * 100) / 100;
 
             return {
@@ -363,7 +392,7 @@ async function obtenerDatosDashboardMozos(fechaInicio, fechaFin) {
                 nombre: mozo.name,
                 DNI: mozo.DNI,
                 rol: mozo.rol,
-                ventasHoy: Math.round(ventas.totalVentas * 100) / 100,
+                ventasHoy: Math.round(totalVentas * 100) / 100,
                 bouchersHoy: bouchers,
                 mesasAtendidas: mesasAt,
                 propinasHoy: totalProp,
@@ -382,7 +411,9 @@ async function obtenerDatosDashboardMozos(fechaInicio, fechaFin) {
 
         // Calcular totales
         const totales = {
-            totalVentas: mozosConMetricas.reduce((sum, m) => sum + m.ventasHoy, 0),
+            totalVentas: hayVentasComanda
+                ? Math.round(totalVentasComandas * 100) / 100
+                : mozosConMetricas.reduce((sum, m) => sum + m.ventasHoy, 0),
             totalPropinas: mozosConMetricas.reduce((sum, m) => sum + m.propinasHoy, 0),
             totalMozos: mozos.length
         };
@@ -691,6 +722,21 @@ async function obtenerDatosDashboardMozos(fechaInicio, fechaFin) {
             }
         } catch (turnoErr) {
             logger.warn('[PropinaRepo] Agregación por turno/día semana omitida', { error: turnoErr.message });
+        }
+
+        try {
+            const rowsH = await agregarHorariosComandas(inicio, fin);
+            if (rowsH.length) {
+                const h = resumirHorariosComandas(rowsH);
+                h.ventasPorHora.forEach((b, i) => { ventasPorHoraArr[i] = b; });
+                h.mesasPorHora.forEach((b, i) => { mesasPorHoraArr[i] = b; });
+                productividadMozoHora = h.productividadMozoHora;
+                h.ventasPorDiaSemana.forEach((d, i) => { ventasPorDiaSemana[i] = d; });
+                comparacionPorTurno.almuerzo = h.comparacionPorTurno.almuerzo;
+                comparacionPorTurno.cena = h.comparacionPorTurno.cena;
+            }
+        } catch (errH) {
+            logger.warn('[PropinaRepo] Horarios desde comandas omitidos', { error: errH.message });
         }
 
         // Participación en propinas del período (pastel)

@@ -13,6 +13,7 @@ const reportesRepository = require('../repository/reportes.repository');
 const moment = require('moment-timezone');
 const logger = require('../utils/logger');
 const { adminAuth, checkPermission } = require('../middleware/adminAuth');
+const { montoComandaNum, precioPlatoNum, cantidadPlatoNum, exprMontoComanda } = require('../utils/estadisticasComandas');
 
 /**
  * POST /api/cierre-caja
@@ -315,7 +316,7 @@ router.get('/cierre-caja/estado/actual', adminAuth, checkPermission('ver-cierre-
       {
         $match: {
           createdAt: { $gte: periodoInicio, $lte: periodoFin },
-          status: { $in: ['completadas', 'pagado'] },
+          status: { $in: ['pagado', 'entregado', 'completado'] },
           $or: [
             { incluidoEnCierre: null },
             { incluidoEnCierre: { $exists: false } }
@@ -325,7 +326,7 @@ router.get('/cierre-caja/estado/actual', adminAuth, checkPermission('ver-cierre-
       {
         $group: {
           _id: null,
-          total: { $sum: '$precioTotal' }
+          total: { $sum: exprMontoComanda() }
         }
       }
     ]);
@@ -470,7 +471,7 @@ function calcularResumenFinanciero(comandas, periodoInicio, periodoFin) {
     c.status === 'pagado' || c.status === 'entregado'
   );
   
-  const montoTotalVendido = comandasCompletadas.reduce((sum, c) => sum + (c.precioTotal || 0), 0);
+  const montoTotalVendido = comandasCompletadas.reduce((sum, c) => sum + montoComandaNum(c), 0);
   const ticketPromedio = comandasCompletadas.length > 0 
     ? montoTotalVendido / comandasCompletadas.length 
     : 0;
@@ -490,7 +491,7 @@ function calcularResumenFinanciero(comandas, periodoInicio, periodoFin) {
       ventasPorDiaMap.set(fecha, { fecha: new Date(fecha), monto: 0, cantidadComandas: 0 });
     }
     const dia = ventasPorDiaMap.get(fecha);
-    dia.monto += c.precioTotal || 0;
+    dia.monto += montoComandaNum(c);
     dia.cantidadComandas += 1;
   });
   const ventasPorDia = Array.from(ventasPorDiaMap.values());
@@ -503,7 +504,7 @@ function calcularResumenFinanciero(comandas, periodoInicio, periodoFin) {
       ventasPorHoraMap.set(hora, { hora, monto: 0, cantidadComandas: 0 });
     }
     const horaData = ventasPorHoraMap.get(hora);
-    horaData.monto += c.precioTotal || 0;
+    horaData.monto += montoComandaNum(c);
     horaData.cantidadComandas += 1;
   });
   const ventasPorHora = Array.from(ventasPorHoraMap.values()).sort((a, b) => a.hora - b.hora);
@@ -545,14 +546,15 @@ async function analizarProductos(comandas) {
     if (!comanda.platos || !Array.isArray(comanda.platos)) return;
     
     comanda.platos.forEach((itemPlato, index) => {
-      if (itemPlato.eliminado) return;
+      if (itemPlato.eliminado || itemPlato.anulado) return;
       
       const plato = itemPlato.plato;
-      if (!plato || !plato._id) return;
-      
-      const cantidad = comanda.cantidades?.[index] || 1;
-      const precio = plato.precio || 0;
+      const cantidad = cantidadPlatoNum(itemPlato, index, comanda.cantidades);
+      const precio = precioPlatoNum(itemPlato);
       const monto = cantidad * precio;
+      const key = (plato && plato._id)
+        ? plato._id.toString()
+        : (itemPlato.nombre || itemPlato.platoNombre || `plato-${index}`);
       
       totalProductosVendidos += cantidad;
       
@@ -565,17 +567,17 @@ async function analizarProductos(comandas) {
         montoMesa += monto;
       }
       
-      if (!productosMap.has(plato._id.toString())) {
-        productosMap.set(plato._id.toString(), {
-          platoId: plato._id,
-          nombre: plato.nombre || 'Sin nombre',
+      if (!productosMap.has(key)) {
+        productosMap.set(key, {
+          platoId: plato?._id || null,
+          nombre: plato?.nombre || itemPlato.nombre || itemPlato.platoNombre || 'Sin nombre',
           cantidad: 0,
           monto: 0,
-          categoria: plato.categoria || 'Sin categoría'
+          categoria: plato?.categoria || itemPlato.plato?.categoria || 'Sin categoría'
         });
       }
       
-      const producto = productosMap.get(plato._id.toString());
+      const producto = productosMap.get(key);
       producto.cantidad += cantidad;
       producto.monto += monto;
     });
@@ -642,7 +644,7 @@ async function analizarMozos(comandas) {
     
     // Sumar monto para todas las comandas (no solo las completadas)
     // Esto es más preciso porque incluye comandas en proceso
-    mozo.montoTotalVendido += comanda.precioTotal || 0;
+    mozo.montoTotalVendido += montoComandaNum(comanda);
     
     // Contar comandas completadas por separado
     if (comanda.status === 'pagado' || comanda.status === 'entregado') {
@@ -849,7 +851,7 @@ async function calcularHorasPicoCocina(periodoInicio, periodoFin) {
     const pipeline = [
       {
         $match: {
-          IsActive: true,
+          status: { $nin: ['cancelado'] },
           createdAt: { $gte: periodoInicio, $lte: periodoFin }
         }
       },
@@ -907,8 +909,8 @@ function analizarClientes(comandas) {
       
       const cliente = clientesMap.get(clienteId);
       cliente.cantidadVisitas += 1;
-      cliente.montoTotal += comanda.precioTotal || 0;
-      montoTotalClientes += comanda.precioTotal || 0;
+      cliente.montoTotal += montoComandaNum(comanda);
+      montoTotalClientes += montoComandaNum(comanda);
     }
   });
   
@@ -942,7 +944,7 @@ async function recopilarAuditoria(periodoInicio, periodoFin, comandas) {
       comandaNumber: c.comandaNumber,
       fecha: c.fechaEliminacion || c.createdAt,
       mozo: c.mozos?.name || 'Desconocido',
-      monto: c.precioTotal || 0,
+      monto: montoComandaNum(c),
       motivo: c.motivoEliminacion || 'Sin motivo registrado'
     }));
   
