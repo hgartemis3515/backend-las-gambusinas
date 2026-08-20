@@ -12,11 +12,15 @@ const {
     eliminarComplementoPlantilla,
     contarUsoEnPlatos,
     obtenerPlatosQueUsanComplemento,
-    obtenerEstadisticasUso
+    obtenerEstadisticasUso,
+    previsualizarCorrectorNombres,
+    listarCatalogoOpcionesComplemento,
+    aplicarCorrectorNombres,
 } = require('../repository/complementoPlantilla.repository');
 const logger = require('../utils/logger');
 const { handleError } = require('../utils/errorHandler');
 const { normalizarOpciones } = require('../utils/precioComplementos');
+const { claveNombreComplemento } = require('../utils/nombreComplementoCanonico');
 
 // ============ ENDPOINTS CRUD ============
 
@@ -90,6 +94,74 @@ router.get('/complementos-plantilla/estadisticas', async (req, res) => {
         res.json(estadisticas);
     } catch (error) {
         logger.error('Error al obtener estadísticas de complementos', { error: error.message });
+        handleError(error, res, logger);
+    }
+});
+
+/**
+ * GET /api/complementos-plantilla/corrector-nombres
+ * Preview: opciones de platos/plantilla que son el mismo complemento (nombre o S de más).
+ */
+router.get('/complementos-plantilla/corrector-nombres', async (req, res) => {
+    try {
+        const data = await previsualizarCorrectorNombres();
+        res.json(data);
+    } catch (error) {
+        logger.error('Error al previsualizar corrector de complementos', { error: error.message });
+        handleError(error, res, logger);
+    }
+});
+
+/**
+ * GET /api/complementos-plantilla/opciones-catalogo
+ * Opciones únicas (Arroz, Papa frita…) agrupadas, con cantidad de platos.
+ */
+router.get('/complementos-plantilla/opciones-catalogo', async (req, res) => {
+    try {
+        const data = await listarCatalogoOpcionesComplemento();
+        res.json(data);
+    } catch (error) {
+        logger.error('Error al listar catálogo de opciones de complemento', { error: error.message });
+        handleError(error, res, logger);
+    }
+});
+
+/**
+ * PATCH /api/complementos-plantilla/opciones-catalogo
+ * Renombra una opción canónica en todos los platos y plantillas.
+ * Body: { clave, nombreCanonico, pronombre }
+ */
+router.patch('/complementos-plantilla/opciones-catalogo', async (req, res) => {
+    try {
+        const clave = claveNombreComplemento(req.body?.clave || '');
+        const nombreCanonico = (req.body?.nombreCanonico || req.body?.nombre || '').toString().trim();
+        if (!clave || !nombreCanonico) {
+            return res.status(400).json({ error: 'clave y nombreCanonico son requeridos' });
+        }
+        const payload = { clave, nombreCanonico };
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'pronombre')) {
+            payload.pronombre = String(req.body.pronombre || '').trim().slice(0, 40);
+        }
+        const data = await aplicarCorrectorNombres([payload], { soloOverrides: true });
+        res.json(data);
+    } catch (error) {
+        logger.error('Error al renombrar opción de complemento', { error: error.message });
+        handleError(error, res, logger);
+    }
+});
+
+/**
+ * POST /api/complementos-plantilla/corrector-nombres
+ * Unifica nombres canónicos en todos los platos y en la biblioteca.
+ * Body: { grupos: [{ clave, nombreCanonico }] }
+ */
+router.post('/complementos-plantilla/corrector-nombres', async (req, res) => {
+    try {
+        const grupos = Array.isArray(req.body?.grupos) ? req.body.grupos : [];
+        const data = await aplicarCorrectorNombres(grupos);
+        res.json(data);
+    } catch (error) {
+        logger.error('Error al aplicar corrector de complementos', { error: error.message });
         handleError(error, res, logger);
     }
 });

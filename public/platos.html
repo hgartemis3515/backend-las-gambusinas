@@ -65,6 +65,10 @@ tailwind.config = {
           <option :value="t.slug" x-text="(t.icono||'🍽️') + ' ' + t.nombre"></option>
         </template>
       </select>
+      <label class="flex items-center gap-2 text-sm text-txt-secondary cursor-pointer bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2">
+        <input type="checkbox" x-model="filterSoloConComplementos" @change="filterPlatos()" class="accent-gold">
+        Solo con complementos
+      </label>
     </div>
 
     <!-- LOADING STATE -->
@@ -89,7 +93,7 @@ tailwind.config = {
           </tr></thead>
           <tbody>
             <tr x-show="filteredPlatos.length === 0">
-              <td colspan="9" class="px-4 py-8 text-center text-txt-muted">No hay platos registrados</td>
+              <td colspan="9" class="px-4 py-8 text-center text-txt-muted" x-text="filterSoloConComplementos ? 'No hay platos con complementos' : 'No hay platos registrados'"></td>
             </tr>
             <template x-for="(p, i) in filteredPlatos" :key="p._id || p.nombre">
               <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
@@ -451,6 +455,7 @@ tailwind.config = {
       <div class="flex gap-1 mb-4 bg-bg-sidebar rounded-lg p-1">
         <button @click="tabGestion='listado'" :class="tabGestion==='listado' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white'" class="px-4 py-2 rounded-md text-sm font-medium transition">Listado</button>
         <button @click="tabGestion='estadisticas'" :class="tabGestion==='estadisticas' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white'" class="px-4 py-2 rounded-md text-sm font-medium transition">Estadísticas</button>
+        <button @click="tabGestion='opciones'; cargarCatalogoOpcionesComplemento()" :class="tabGestion==='opciones' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white'" class="px-4 py-2 rounded-md text-sm font-medium transition">Opciones / contador</button>
       </div>
       
       <!-- Loading -->
@@ -539,6 +544,78 @@ tailwind.config = {
             </div>
           </template>
         </div>
+      </div>
+
+      <!-- TAB: OPCIONES / CONTADOR -->
+      <div x-show="!loadingGestionComplementos && tabGestion==='opciones'" class="max-h-[450px] overflow-y-auto">
+        <p class="text-[11px] text-txt-muted mb-3">
+          Recorre las opciones de todos los platos (Arroz, Papa frita, Ensalada…). Las que solo cambian una S se agrupan; las distintas quedan aparte.
+          El número es en cuántos platos aparece. Guardar escribe el mismo nombre y pronombre en esos platos y en la biblioteca.
+        </p>
+        <div class="flex gap-2 mb-3 flex-wrap">
+          <input type="text" x-model="searchOpcionesCatalogo" placeholder="Buscar opción o pronombre…" class="flex-1 min-w-[160px] bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+          <button type="button" @click="cargarCatalogoOpcionesComplemento()" class="px-3 py-2 rounded-lg text-sm border border-[rgba(212,175,55,0.25)] hover:border-gold">↻</button>
+          <button
+            type="button"
+            @click="aplicarCorrectorNombres()"
+            :disabled="aplicandoCorrectorNombres || !(correctorNombresPreview && correctorNombresPreview.grupos && correctorNombresPreview.grupos.length)"
+            class="px-3 py-2 rounded-lg text-sm bg-gold text-bg-primary font-semibold disabled:opacity-40"
+            x-text="aplicandoCorrectorNombres ? 'Unificando…' : 'Unificar variantes (S / pronombre)'"
+          ></button>
+        </div>
+        <div x-show="loadingOpcionesCatalogo" class="flex justify-center py-10">
+          <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        <div x-show="!loadingOpcionesCatalogo && opcionesCatalogoFiltradas.length === 0" class="text-center py-10 text-txt-muted text-sm">
+          No hay opciones de complemento en los platos.
+        </div>
+        <table x-show="!loadingOpcionesCatalogo && opcionesCatalogoFiltradas.length > 0" class="w-full text-sm">
+          <thead>
+            <tr class="text-[10px] uppercase text-txt-muted text-left">
+              <th class="py-2 pr-2">Nombre</th>
+              <th class="py-2 pr-2">Pronombre</th>
+              <th class="py-2 pr-2">Platos</th>
+              <th class="py-2 pr-2">Variantes</th>
+              <th class="py-2">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="op in opcionesCatalogoFiltradas" :key="op.clave">
+              <tr class="border-t border-[rgba(212,175,55,0.12)]">
+                <td class="py-2 pr-2">
+                  <input
+                    type="text"
+                    x-model="op.nombre"
+                    class="w-full min-w-[120px] bg-bg-card border border-[rgba(212,175,55,0.25)] rounded px-2 py-1 text-sm focus:border-gold focus:outline-none"
+                  >
+                </td>
+                <td class="py-2 pr-2">
+                  <input
+                    type="text"
+                    x-model="op.pronombre"
+                    maxlength="40"
+                    placeholder="Ej. PFrita"
+                    class="w-full min-w-[90px] bg-bg-card border border-[rgba(212,175,55,0.25)] rounded px-2 py-1 text-sm focus:border-gold focus:outline-none"
+                  >
+                </td>
+                <td class="py-2 pr-2 font-semibold text-gold whitespace-nowrap" x-text="op.platos"></td>
+                <td class="py-2 pr-2">
+                  <div class="flex flex-wrap gap-1">
+                    <template x-for="v in (op.variantes || [])" :key="'n-'+v.nombre">
+                      <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-gold/15 text-gold" x-text="v.nombre"></span>
+                    </template>
+                    <template x-for="v in (op.pronombres || [])" :key="'p-' + (v.pronombre || '_')">
+                      <span x-show="v.pronombre" class="text-[10px] px-1.5 py-0.5 rounded-full bg-st-pedido/15 text-st-pedido" x-text="v.pronombre"></span>
+                    </template>
+                  </div>
+                </td>
+                <td class="py-2 whitespace-nowrap">
+                  <button type="button" @click="guardarNombreOpcionCatalogo(op)" class="text-[11px] text-gold hover:underline">Aplicar a platos</button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -661,6 +738,7 @@ tailwind.config = {
     searchCodigo: '',
     filterCategoria: '',
     filterTipo: '',
+    filterSoloConComplementos: false,
     tiposPlato: [],
     formPlato: {
       _id: null,
@@ -689,6 +767,12 @@ tailwind.config = {
     loadingGestionComplementos: false,
     loadingComplementosLib: false,
     tabGestion: 'listado',
+    correctorNombresPreview: null,
+    loadingCorrectorNombres: false,
+    aplicandoCorrectorNombres: false,
+    catalogoOpcionesComplemento: [],
+    searchOpcionesCatalogo: '',
+    loadingOpcionesCatalogo: false,
     
     complementosGestion: [],
     complementosGestionFiltrados: [],
@@ -771,7 +855,8 @@ tailwind.config = {
         const matchTipo = !this.filterTipo || tipos.includes(this.filterTipo) ||
           (this.filterTipo === 'Carta' && tipos.some(t => t === 'Carta' || t === 'plato-carta normal')) ||
           (this.filterTipo === 'Desayuno' && tipos.some(t => t === 'Desayuno' || t === 'platos-desayuno'));
-        return matchSearch && matchCodigo && matchCat && matchTipo;
+        const matchComp = !this.filterSoloConComplementos || (Array.isArray(p.complementos) && p.complementos.length > 0);
+        return matchSearch && matchCodigo && matchCat && matchTipo && matchComp;
       });
     },
 
@@ -1172,6 +1257,99 @@ tailwind.config = {
         if (activo === 'false' && c.activo) return false;
         return true;
       });
+    },
+
+    get opcionesCatalogoFiltradas() {
+      const q = (this.searchOpcionesCatalogo || '').toLowerCase().trim();
+      return (this.catalogoOpcionesComplemento || []).filter((o) => {
+        if (!q) return true;
+        if ((o.nombre || '').toLowerCase().includes(q) || (o.clave || '').includes(q)) return true;
+        if ((o.pronombre || '').toLowerCase().includes(q)) return true;
+        if ((o.variantes || []).some((v) => (v.nombre || '').toLowerCase().includes(q))) return true;
+        return (o.pronombres || []).some((v) => (v.pronombre || '').toLowerCase().includes(q));
+      });
+    },
+
+    async cargarCatalogoOpcionesComplemento() {
+      this.loadingOpcionesCatalogo = true;
+      try {
+        const data = await apiGet('/complementos-plantilla/opciones-catalogo');
+        this.catalogoOpcionesComplemento = (data && data.opciones) || [];
+      } catch (e) {
+        console.error('Error catálogo opciones', e);
+        this.showToast('Error al cargar opciones de complemento', 'error');
+        this.catalogoOpcionesComplemento = [];
+      }
+      try {
+        this.correctorNombresPreview = await apiGet('/complementos-plantilla/corrector-nombres') || { grupos: [] };
+      } catch (e) {
+        console.error('Error corrector nombres', e);
+        this.correctorNombresPreview = { grupos: [] };
+      }
+      this.loadingOpcionesCatalogo = false;
+    },
+
+    async guardarNombreOpcionCatalogo(op) {
+      const nombre = (op && op.nombre || '').trim();
+      if (!op || !op.clave || !nombre) {
+        this.showToast('El nombre no puede estar vacío', 'error');
+        return;
+      }
+      try {
+        const res = await apiPatch('/complementos-plantilla/opciones-catalogo', {
+          clave: op.clave,
+          nombreCanonico: nombre,
+          pronombre: (op.pronombre || '').trim(),
+        });
+        if (res && res.error == null) {
+          this.showToast('Aplicado en ' + (res.platosActualizados || 0) + ' plato(s) y ' + (res.plantillasActualizadas || 0) + ' plantilla(s)');
+          await this.cargarCatalogoOpcionesComplemento();
+        } else {
+          this.showToast('Error: ' + (res?.error || 'No se pudo guardar'), 'error');
+        }
+      } catch (e) {
+        console.error('Error guardando nombre opción', e);
+        this.showToast('Error al guardar el nombre', 'error');
+      }
+    },
+
+    async cargarCorrectorNombres() {
+      this.loadingCorrectorNombres = true;
+      try {
+        this.correctorNombresPreview = await apiGet('/complementos-plantilla/corrector-nombres');
+      } catch (e) {
+        console.error('Error corrector nombres', e);
+        this.showToast('Error al analizar nombres de complementos', 'error');
+        this.correctorNombresPreview = { grupos: [] };
+      }
+      this.loadingCorrectorNombres = false;
+    },
+
+    async aplicarCorrectorNombres() {
+      const grupos = (this.correctorNombresPreview && this.correctorNombresPreview.grupos) || [];
+      if (!grupos.length) return;
+      if (!confirm('¿Unificar nombre y pronombre de estas variantes en todos los platos y en la biblioteca? Lo que ya coincide no se toca; Arroz, Papa frita y Ensalada siguen aparte.')) return;
+      this.aplicandoCorrectorNombres = true;
+      try {
+        const res = await apiPost('/complementos-plantilla/corrector-nombres', {
+          grupos: grupos.map(g => {
+            const row = { clave: g.clave, nombreCanonico: g.nombreSugerido };
+            if (g.pronombreSugerido) row.pronombre = g.pronombreSugerido;
+            return row;
+          }),
+        });
+        if (res && res.error == null && res.platosActualizados != null) {
+          this.showToast('Listo: ' + (res.platosActualizados || 0) + ' plato(s) y ' + (res.plantillasActualizadas || 0) + ' plantilla(s)');
+          await this.cargarCatalogoOpcionesComplemento();
+          await this.loadComplementosGestion();
+        } else {
+          this.showToast('Error: ' + (res?.error || 'No se pudo sincronizar'), 'error');
+        }
+      } catch (e) {
+        console.error('Error aplicando corrector', e);
+        this.showToast('Error al sincronizar complementos', 'error');
+      }
+      this.aplicandoCorrectorNombres = false;
     },
 
     // ============ CRUD COMPLEMENTOS PLANTILLA ============

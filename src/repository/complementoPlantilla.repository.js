@@ -374,6 +374,89 @@ const obtenerEstadisticasUso = async () => {
     return estadisticas;
 };
 
+const {
+    construirPreviewCorrector,
+    construirCatalogoOpciones,
+    aplicarCorrectorEnMemoria,
+    mapaNombresDesdePreview,
+    mapaPronombresDesdePreview,
+    mapasDesdeOverrides,
+} = require('../utils/correctorNombresComplementos');
+
+async function cargarPlatosYPlantillasLean() {
+    const [platos, plantillas] = await Promise.all([
+        platoModel.find({ 'complementos.0': { $exists: true } }).select('_id nombre complementos').lean(),
+        ComplementoPlantilla.find({}).select('_id nombre opciones').lean(),
+    ]);
+    return { platos, plantillas };
+}
+
+async function previsualizarCorrectorNombres() {
+    const { platos, plantillas } = await cargarPlatosYPlantillasLean();
+    return construirPreviewCorrector(platos, plantillas);
+}
+
+async function listarCatalogoOpcionesComplemento() {
+    const { platos, plantillas } = await cargarPlatosYPlantillasLean();
+    return construirCatalogoOpciones(platos, plantillas);
+}
+
+async function aplicarCorrectorNombres(overrides = [], opts = {}) {
+    const [platos, plantillas] = await Promise.all([
+        platoModel.find({ 'complementos.0': { $exists: true } }),
+        ComplementoPlantilla.find({}),
+    ]);
+    const platosLean = platos.map((p) => p.toObject());
+    const plantillasLean = plantillas.map((t) => t.toObject());
+    const preview = construirPreviewCorrector(platosLean, plantillasLean);
+    let nombrePorClave;
+    let pronombrePorClave;
+    if (opts.soloOverrides === true) {
+        const mapas = mapasDesdeOverrides(overrides);
+        nombrePorClave = mapas.nombrePorClave;
+        pronombrePorClave = mapas.pronombrePorClave;
+    } else {
+        nombrePorClave = mapaNombresDesdePreview(preview, overrides);
+        pronombrePorClave = mapaPronombresDesdePreview(preview, overrides);
+    }
+    if (nombrePorClave.size === 0 && pronombrePorClave.size === 0) {
+        return { platosActualizados: 0, plantillasActualizadas: 0, grupos: preview.grupos };
+    }
+    const aplicado = aplicarCorrectorEnMemoria(platosLean, plantillasLean, nombrePorClave, pronombrePorClave);
+
+    const opsPlato = aplicado.platos
+        .filter((p) => p._correctorChanged)
+        .map((p) => ({
+            updateOne: {
+                filter: { _id: p._id },
+                update: { $set: { complementos: p.complementos } },
+            },
+        }));
+    const opsPlantilla = aplicado.plantillas
+        .filter((t) => t._correctorChanged)
+        .map((t) => ({
+            updateOne: {
+                filter: { _id: t._id },
+                update: { $set: { opciones: t.opciones } },
+            },
+        }));
+
+    if (opsPlato.length) await platoModel.bulkWrite(opsPlato, { ordered: false });
+    if (opsPlantilla.length) await ComplementoPlantilla.bulkWrite(opsPlantilla, { ordered: false });
+
+    logger.info('Corrector de nombres de complementos', {
+        platosActualizados: aplicado.platosActualizados,
+        plantillasActualizadas: aplicado.plantillasActualizadas,
+        grupos: nombrePorClave.size,
+    });
+
+    return {
+        platosActualizados: aplicado.platosActualizados,
+        plantillasActualizadas: aplicado.plantillasActualizadas,
+        grupos: preview.grupos,
+    };
+}
+
 module.exports = {
     listarComplementosPlantilla,
     buscarComplementosPlantilla,
@@ -386,5 +469,8 @@ module.exports = {
     eliminarComplementoPlantilla,
     contarUsoEnPlatos,
     obtenerPlatosQueUsanComplemento,
-    obtenerEstadisticasUso
+    obtenerEstadisticasUso,
+    previsualizarCorrectorNombres,
+    listarCatalogoOpcionesComplemento,
+    aplicarCorrectorNombres,
 };
