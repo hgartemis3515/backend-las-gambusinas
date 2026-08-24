@@ -11,6 +11,7 @@ const logger = require('../utils/logger');
 
 const asignacionRepo = require('../repository/asignacionAutomaticaGuarniciones.repository');
 const asignacionService = require('../services/asignacionAutomaticaGuarnicionesService');
+const { construirCatalogoGuarniciones } = require('../utils/catalogoGuarniciones');
 
 const ESTRATEGIAS_VALIDAS = ['fijo_por_guarnicion', 'fijo_por_grupo', 'cadena_overflow', 'menor_carga', 'round_robin', 'hibrido', 'respetar_estacion', 'batch_mismo_cocinero'];
 const MODOS_SIN_CANDIDATO_VALIDOS = ['dejar_sin_asignar', 'pool_supervisor', 'round_robin_estacion'];
@@ -91,12 +92,6 @@ function calcularPerfilActivoAhora(config) {
     };
 }
 
-function nombreOpcionComplemento(op) {
-    if (op == null) return '';
-    if (typeof op === 'string') return op;
-    return op.nombre || '';
-}
-
 router.get('/asignacion-automatica-guarniciones', adminAuth, async (req, res) => {
     try {
         const config = await asignacionRepo.obtenerConfiguracion();
@@ -111,34 +106,15 @@ router.get('/asignacion-automatica-guarniciones', adminAuth, async (req, res) =>
 router.get('/asignacion-automatica-guarniciones/catalogo', adminAuth, async (req, res) => {
     try {
         const ComplementoPlantilla = require('../database/models/complementoPlantilla.model');
-        const Plato = require('../database/models/plato.model');
-        const map = new Map();
-        const add = (grupo, opcion) => {
-            const g = (grupo || '').toString().trim();
-            const o = (opcion || '').toString().trim();
-            if (!g || !o) return;
-            const key = asignacionService.normalizarGuarnicionKey(g, o);
-            if (!map.has(key)) {
-                map.set(key, {
-                    key,
-                    grupo: g,
-                    opcion: o,
-                    etiqueta: asignacionService.etiquetaGuarnicion(g, o)
-                });
-            }
-        };
-        const plantillas = await ComplementoPlantilla.find({ activo: { $ne: false } }).lean();
-        for (const plantilla of plantillas) {
-            for (const op of (plantilla.opciones || [])) add(plantilla.nombre, nombreOpcionComplemento(op));
-        }
-        const platos = await Plato.find({ isActive: { $ne: false } }).select('complementos').lean();
-        for (const plato of platos) {
-            for (const grupo of (plato.complementos || [])) {
-                for (const op of (grupo.opciones || [])) add(grupo.grupo, nombreOpcionComplemento(op));
-            }
-        }
-        const items = [...map.values()].sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, 'es'));
-        const grupos = [...new Set(items.map((i) => i.grupo))].sort((a, b) => a.localeCompare(b, 'es'));
+        const { listarPlatos } = require('../repository/plato.repository');
+        const [plantillas, docs] = await Promise.all([
+            ComplementoPlantilla.find({ activo: { $ne: false } }).lean(),
+            listarPlatos()
+        ]);
+        const platos = (docs || [])
+            .map((d) => (d && typeof d.toObject === 'function' ? d.toObject() : d))
+            .filter((p) => p && p.isActive !== false);
+        const { items, grupos } = construirCatalogoGuarniciones(plantillas, platos);
         res.json({ success: true, data: { items, grupos } });
     } catch (error) {
         logger.error('Error al obtener catálogo de guarniciones', { error: error.message });

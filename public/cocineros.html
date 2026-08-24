@@ -1410,7 +1410,7 @@ tailwind.config = {
             <div class="space-y-2 mb-3">
               <input type="text" x-model="busquedaGuarnicionesAsignacion" x-ref="buscadorGuarnicionesAsignacion"
                 @input.debounce.300ms="currentPageGuarniciones = 1"
-                placeholder="Buscar guarnición (grupo u opción)..."
+                placeholder="Buscar guarnición o plato relacionado..."
                 class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
               <div class="flex gap-2">
                 <select x-model="filtroGrupoGuarniciones" @change="currentPageGuarniciones = 1"
@@ -1438,6 +1438,7 @@ tailwind.config = {
                       <div class="flex-1 min-w-0">
                         <p class="text-sm font-medium text-white truncate" x-text="g.opcion"></p>
                         <p class="text-[10px] text-txt-muted" x-text="g.grupo"></p>
+                        <p class="text-[10px] text-txt-secondary/80 truncate mt-0.5" x-text="textoPlatosRelacionados(g)"></p>
                       </div>
                       <div class="flex flex-col items-end gap-1">
                         <span x-show="!tieneReglaGuarnicion(g.key)" class="text-[9px] px-1.5 py-0.5 rounded bg-bg-card text-txt-muted border border-txt-muted/30">Sin regla</span>
@@ -1475,6 +1476,24 @@ tailwind.config = {
                   <input type="checkbox" x-model="formReglaGuarnicion.activo" class="w-4 h-4 accent-gold">
                   <span x-text="formReglaGuarnicion.activo ? 'Regla activa' : 'Regla inactiva'"></span>
                 </label>
+              </div>
+              <div class="mb-4 bg-bg-sidebar/50 border border-[rgba(212,175,55,0.15)] rounded-lg p-3">
+                <p class="text-[10px] font-semibold text-txt-secondary uppercase tracking-wide mb-2">
+                  Platos relacionados
+                  <span class="text-gold font-normal normal-case" x-text="'(' + platosDeGuarnicion(guarnicionSeleccionada).length + ')'"></span>
+                </p>
+                <p x-show="!platosDeGuarnicion(guarnicionSeleccionada).length" class="text-[11px] text-txt-muted italic">
+                  Ningún plato del menú usa esta guarnición.
+                </p>
+                <div x-show="platosDeGuarnicion(guarnicionSeleccionada).length" class="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+                  <template x-for="p in platosDeGuarnicion(guarnicionSeleccionada)" :key="(p.id || p.codigo || p.nombre)">
+                    <span class="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-gold/10 text-gold border border-gold/25"
+                      :title="p.codigo ? (p.codigo + ' · ' + p.nombre) : p.nombre">
+                      <span x-show="p.codigo" class="text-txt-muted font-mono text-[9px]" x-text="p.codigo"></span>
+                      <span x-text="p.nombre"></span>
+                    </span>
+                  </template>
+                </div>
               </div>
               <div class="space-y-4">
                 <div>
@@ -6121,15 +6140,76 @@ function cocinerosApp() {
 
     async cargarCatalogoGuarniciones() {
       try {
-        const data = await apiGet('/asignacion-automatica-guarniciones/catalogo');
+        const [data, platosRaw] = await Promise.all([
+          apiGet('/asignacion-automatica-guarniciones/catalogo'),
+          apiGet('/platos')
+        ]);
         const payload = data?.data || data || {};
-        this.todasLasGuarnicionesAsignacion = Array.isArray(payload.items) ? payload.items : [];
-        this.gruposGuarnicionesAsignacion = Array.isArray(payload.grupos) ? payload.grupos : [...new Set(this.todasLasGuarnicionesAsignacion.map(g => g.grupo).filter(Boolean))].sort();
+        const items = Array.isArray(payload.items) ? payload.items : [];
+        const platos = Array.isArray(platosRaw) ? platosRaw : (platosRaw?.data || platosRaw?.platos || []);
+        this.todasLasGuarnicionesAsignacion = this.vincularPlatosAGuarniciones(items, platos);
+        this.gruposGuarnicionesAsignacion = Array.isArray(payload.grupos) && payload.grupos.length
+          ? payload.grupos
+          : [...new Set(this.todasLasGuarnicionesAsignacion.map(g => g.grupo).filter(Boolean))].sort();
       } catch (e) {
         console.error('Error al cargar catálogo de guarniciones:', e);
         this.todasLasGuarnicionesAsignacion = [];
         this.gruposGuarnicionesAsignacion = [];
       }
+    },
+
+    _nombreOpcionGuarnicion(op) {
+      if (op == null) return '';
+      if (typeof op === 'string') return op.trim();
+      return String(op.nombre || op.opcion || '').trim();
+    },
+    _keyGuarnicion(grupo, opcion) {
+      return `${String(grupo || '').trim().toLowerCase()}::${String(opcion || '').trim().toLowerCase()}`;
+    },
+    vincularPlatosAGuarniciones(items, platos) {
+      const list = (items || []).map(g => ({
+        ...g,
+        platos: Array.isArray(g.platosRelacionados) ? [...g.platosRelacionados] : (Array.isArray(g.platos) ? [...g.platos] : [])
+      }));
+      const byKey = {};
+      const byGrupo = {};
+      list.forEach(g => {
+        g._ids = {};
+        (g.platos || []).forEach(p => { g._ids[String(p.id || p.nombre)] = true; });
+        byKey[g.key] = g;
+        const gn = String(g.grupo || '').trim().toLowerCase();
+        if (!byGrupo[gn]) byGrupo[gn] = [];
+        byGrupo[gn].push(g);
+      });
+      const add = (item, info) => {
+        if (!item || !info || !info.nombre) return;
+        const pid = String(info.id || info.nombre);
+        if (item._ids[pid]) return;
+        item._ids[pid] = true;
+        item.platos.push({ id: info.id, nombre: info.nombre, codigo: info.codigo || '' });
+      };
+      const activos = (platos || []).filter(p => p && p.isActive !== false);
+      activos.forEach(p => {
+        const info = { id: p.id != null ? p.id : p._id, nombre: String(p.nombre || '').trim(), codigo: String(p.codigo || '').trim() };
+        (p.complementos || []).forEach(grupo => {
+          (grupo.opciones || []).forEach(op => {
+            add(byKey[this._keyGuarnicion(grupo.grupo, this._nombreOpcionGuarnicion(op))], info);
+          });
+        });
+      });
+      list.forEach(g => {
+        if (g.platos.length) return;
+        const gn = String(g.grupo || '').trim().toLowerCase();
+        activos.forEach(p => {
+          const usaGrupo = (p.complementos || []).some(gr => String(gr.grupo || '').trim().toLowerCase() === gn);
+          if (!usaGrupo) return;
+          add(g, { id: p.id != null ? p.id : p._id, nombre: String(p.nombre || '').trim(), codigo: String(p.codigo || '').trim() });
+        });
+      });
+      return list.map(g => {
+        const platosOut = [...g.platos].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+        return { key: g.key, grupo: g.grupo, opcion: g.opcion, etiqueta: g.etiqueta, platos: platosOut, platosRelacionados: platosOut };
+      });
     },
 
     async toggleAsignacionGuarniciones() {
@@ -6176,6 +6256,18 @@ function cocinerosApp() {
       const g = this.todasLasGuarnicionesAsignacion.find(x => x.key === key);
       return g ? (g.etiqueta || `${g.grupo} :: ${g.opcion}`) : (key || '—');
     },
+    textoPlatosRelacionados(g) {
+      const platos = this.platosDeGuarnicion(g);
+      if (!platos.length) return 'Sin platos relacionados';
+      const nombres = platos.map(p => p.nombre).filter(Boolean);
+      if (nombres.length <= 2) return nombres.join(' · ');
+      return `${nombres.slice(0, 2).join(' · ')} +${nombres.length - 2}`;
+    },
+    platosDeGuarnicion(g) {
+      if (!g) return [];
+      if (Array.isArray(g.platosRelacionados) && g.platosRelacionados.length) return g.platosRelacionados;
+      return Array.isArray(g.platos) ? g.platos : [];
+    },
     getNombreItemVista(id) {
       return this._esScopeGuarniciones ? this.getNombreGuarnicion(id) : this.getNombrePlato(id);
     },
@@ -6194,7 +6286,11 @@ function cocinerosApp() {
           (g.opcion || '').toLowerCase().includes(q) ||
           (g.grupo || '').toLowerCase().includes(q) ||
           (g.etiqueta || '').toLowerCase().includes(q) ||
-          (g.key || '').includes(q)
+          (g.key || '').includes(q) ||
+          (this.platosDeGuarnicion(g)).some(p =>
+            (p.nombre || '').toLowerCase().includes(q) ||
+            (p.codigo || '').toLowerCase().includes(q)
+          )
         );
       }
       if (this.filtroGrupoGuarniciones) {

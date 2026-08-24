@@ -16,6 +16,7 @@ const AsignacionAutomaticaGuarniciones = require('../database/models/asignacionA
 const ConfigCocinero = require('../database/models/configCocinero.model');
 const ConfigSistema = require('../database/models/configuracionSistema.model');
 const { agrupacionGuarnicionesOn } = require('../utils/autocerrarGuarniciones');
+const { construirCatalogoGuarniciones, nombreOpcionComplemento } = require('../utils/catalogoGuarniciones');
 const Zona = require('../database/models/zona.model');
 
 const Comanda = mongoose.model('Comanda') || require('../database/models/comanda.model');
@@ -568,6 +569,8 @@ async function simularAsignacionGuarnicion(grupo, opcion, cocineroPadreId = null
 module.exports = {
     normalizarGuarnicionKey,
     etiquetaGuarnicion,
+    nombreOpcionComplemento,
+    construirCatalogoGuarniciones,
     resolverPerfilActivo,
     contarGuarnicionesEnCurso,
     mapaGuarnicionesEnCursoPorCocinero,
