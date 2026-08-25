@@ -1782,7 +1782,7 @@ tailwind.config = {
 
     // ============ IMPRESIÓN PDF (una sola hoja A4) ============
 
-    imprimirPlatosPDF() {
+    async imprimirPlatosPDF() {
       const platos = this.filteredPlatos && this.filteredPlatos.length ? this.filteredPlatos : this.platos;
       if (!platos.length) {
         this.showToast('No hay platos para imprimir', 'error');
@@ -1801,6 +1801,104 @@ tailwind.config = {
       const fmtStock = (s) => {
         const n = Number(s || 0);
         return n > 0 ? String(n) : '0';
+      };
+
+      const reglaTieneCocinero = (r) => {
+        if (!r || r.activo === false) return false;
+        if (r.cocineroPrimarioId) return true;
+        return Array.isArray(r.backups) && r.backups.some(b => b && b.cocineroId);
+      };
+
+      const idsDeRegla = (r) => {
+        if (!reglaTieneCocinero(r)) return [];
+        const ids = [];
+        if (r.cocineroPrimarioId) ids.push(String(r.cocineroPrimarioId));
+        (r.backups || [])
+          .filter(b => b && b.cocineroId)
+          .slice()
+          .sort((a, b) => (a.orden || 0) - (b.orden || 0))
+          .forEach(b => {
+            const id = String(b.cocineroId);
+            if (!ids.includes(id)) ids.push(id);
+          });
+        return ids;
+      };
+
+      let pronombreDe = () => '';
+      let perfilesPlato = [];
+      let perfilesGuar = [];
+      try {
+        const [asigRes, guarRes, cocRes] = await Promise.all([
+          apiGet('/asignacion-automatica'),
+          apiGet('/asignacion-automatica-guarniciones'),
+          apiGet('/cocineros')
+        ]);
+        const cocineros = cocRes?.data || cocRes?.cocineros || (Array.isArray(cocRes) ? cocRes : []);
+        const mapaCocinero = new Map();
+        (cocineros || []).forEach(c => {
+          if (!c || !c._id) return;
+          const pronombre = String(c.configKDS?.pronombre || '').trim();
+          const nombre = String(c.nombre || c.name || '').trim();
+          mapaCocinero.set(String(c._id), pronombre || nombre);
+        });
+        pronombreDe = (id) => (id ? (mapaCocinero.get(String(id)) || '') : '');
+        perfilesPlato = (asigRes?.data?.perfiles || []).filter(p => p && p.activo !== false);
+        perfilesGuar = (guarRes?.data?.perfiles || []).filter(p => p && p.activo !== false);
+      } catch (e) {
+        console.warn('No se pudo cargar asignación automática para el PDF', e);
+      }
+
+      const chipsDeIds = (ids) => {
+        const labels = [...new Set(ids.map(pronombreDe).filter(Boolean))];
+        if (!labels.length) return '';
+        return labels.map(l => `<span class="chip">${escapeHtml(l)}</span>`).join('');
+      };
+
+      const asignacionPlatoPorPerfil = (p) => {
+        const platoId = Number(p.id);
+        const cat = String(p.categoria || p.cat || '').trim();
+        const filas = [];
+        perfilesPlato.forEach(perfil => {
+          const rPlato = Number.isFinite(platoId)
+            ? (perfil.reglasPorPlato || []).find(r => Number(r.platoId) === platoId && reglaTieneCocinero(r))
+            : null;
+          const rCat = !rPlato && cat
+            ? (perfil.reglasPorCategoria || []).find(r => String(r.categoria || '').trim() === cat && reglaTieneCocinero(r))
+            : null;
+          const labels = chipsDeIds(idsDeRegla(rPlato || rCat));
+          if (labels) filas.push({ nombre: perfil.nombre || 'Perfil', html: labels });
+        });
+        return filas;
+      };
+
+      const asignacionGuarnicionPorPerfil = (grupo, opcion) => {
+        const key = `${String(grupo || '').trim().toLowerCase()}::${String(opcion || '').trim().toLowerCase()}`;
+        const grupoNorm = String(grupo || '').trim().toLowerCase();
+        const filas = [];
+        perfilesGuar.forEach(perfil => {
+          const rG = (perfil.reglasPorGuarnicion || []).find(r => r.guarnicionKey === key && reglaTieneCocinero(r));
+          const rGr = !rG && grupoNorm
+            ? (perfil.reglasPorGrupo || []).find(r => String(r.grupo || '').trim().toLowerCase() === grupoNorm && reglaTieneCocinero(r))
+            : null;
+          const labels = chipsDeIds(idsDeRegla(rG || rGr));
+          if (labels) filas.push({ nombre: perfil.nombre || 'Perfil', html: labels });
+        });
+        return filas;
+      };
+
+      const renderBloquePerfiles = (filas, clase) => {
+        if (!filas.length) return '';
+        const todasIguales = filas.every(f => f.html === filas[0].html);
+        if (filas.length === 1 || todasIguales) {
+          return `<div class="${clase}">${filas[0].html}</div>`;
+        }
+        return filas.map(f =>
+          `<div class="${clase}"><span class="asig-pn">${escapeHtml(f.nombre)}:</span> ${f.html}</div>`
+        ).join('');
+      };
+
+      const renderAsignacion = (filasPerfil) => {
+        return renderBloquePerfiles(filasPerfil, 'asig-main') || '<span class="none">—</span>';
       };
 
       const renderComplementos = (p) => {
@@ -1833,8 +1931,87 @@ tailwind.config = {
           <td class="precio">${fmtPrecio(p.precio)}</td>
           <td class="stock">${fmtStock(p.stock)}</td>
           <td class="comp-cell">${renderComplementos(p)}</td>
+          <td class="asig-cell">${renderAsignacion(asignacionPlatoPorPerfil(p))}</td>
         </tr>`;
       }).join('');
+
+      const guarMap = new Map();
+      platos.forEach(p => {
+        (p.complementos || []).forEach(g => {
+          const grupo = String(g.grupo || '').trim();
+          (g.opciones || []).forEach(o => {
+            const opcion = typeof o === 'object' ? String(o.nombre || '').trim() : String(o || '').trim();
+            if (!grupo || !opcion) return;
+            const key = `${grupo.toLowerCase()}::${opcion.toLowerCase()}`;
+            let item = guarMap.get(key);
+            if (!item) {
+              item = {
+                grupo,
+                opcion,
+                pronombreOp: typeof o === 'object' ? String(o.pronombre || '').trim() : '',
+                precio: typeof o === 'object' ? Number(o.precio || 0) : 0,
+                platos: [],
+                _pids: new Set()
+              };
+              guarMap.set(key, item);
+            }
+            const pid = String(p._id || p.id || p.nombre);
+            if (!item._pids.has(pid)) {
+              item._pids.add(pid);
+              item.platos.push({ nombre: p.nombre || '', codigo: p.codigo || '' });
+            }
+          });
+        });
+      });
+      const listaGuarniciones = [...guarMap.values()].sort((a, b) => {
+        const byGrupo = a.grupo.localeCompare(b.grupo, 'es');
+        return byGrupo !== 0 ? byGrupo : a.opcion.localeCompare(b.opcion, 'es');
+      });
+      listaGuarniciones.forEach(g => {
+        g.platos.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
+      });
+
+      const filasGuarniciones = listaGuarniciones.map((g, i) => {
+        const refPlatos = g.platos.map(pp => {
+          const cod = pp.codigo ? ` <span class="gcod">${escapeHtml(pp.codigo)}</span>` : '';
+          return `<span class="opt">${escapeHtml(pp.nombre)}${cod}</span>`;
+        }).join('');
+        const sub = g.pronombreOp
+          ? `<div class="ncocina">${escapeHtml(g.grupo)} · ${escapeHtml(g.pronombreOp)}</div>`
+          : `<div class="ncocina">${escapeHtml(g.grupo)}</div>`;
+        const extra = Number.isFinite(g.precio) && g.precio > 0
+          ? `<div class="desc">+ ${fmtPrecio(g.precio)}</div>`
+          : '';
+        return `<tr>
+          <td class="num">${i + 1}</td>
+          <td class="nombre">
+            <div class="pname">${escapeHtml(g.opcion)}</div>
+            ${sub}
+            ${extra}
+          </td>
+          <td class="comp-cell">${refPlatos || '<span class="none">—</span>'}</td>
+          <td class="asig-cell">${renderAsignacion(asignacionGuarnicionPorPerfil(g.grupo, g.opcion))}</td>
+        </tr>`;
+      }).join('');
+
+      const seccionGuarniciones = listaGuarniciones.length ? `
+  <div class="section">
+    <h2>🥗 Guarniciones</h2>
+    <div class="meta-inline">${listaGuarniciones.length} guarnición(es) · plato principal de referencia</div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Guarnición / Grupo</th>
+          <th>Plato principal</th>
+          <th>Asignación automática</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filasGuarniciones}
+      </tbody>
+    </table>
+  </div>` : '';
 
       const fecha = new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' });
       const total = platos.length;
@@ -1857,11 +2034,19 @@ tailwind.config = {
   tbody td { padding: 3px 5px; border: 1px solid #ddd; vertical-align: top; word-wrap: break-word; }
   tbody tr:nth-child(even) { background: #faf8f0; }
   .num { width: 22px; text-align: center; color: #666; font-size: 8px; }
-  .nombre { width: 32%; }
+  .nombre { width: 26%; }
   .codigo { width: 38px; text-align: center; font-family: 'Consolas', monospace; font-weight: 700; color: #b8860b; font-size: 9px; }
   .precio { width: 52px; text-align: right; font-weight: 600; color: #b8860b; white-space: nowrap; }
   .stock { width: 32px; text-align: center; font-weight: 600; }
-  .comp-cell { width: 30%; }
+  .comp-cell { width: 24%; }
+  .asig-cell { width: 18%; }
+  .chip { display: inline-block; font-size: 7.5px; font-weight: 700; color: #d4af37; background: #1a1a28; padding: 0 4px; margin: 0 2px 1px 0; border-radius: 2px; letter-spacing: 0.3px; }
+  .asig-main { margin-bottom: 1px; }
+  .asig-pn { color: #777; font-weight: 600; font-size: 7px; }
+  .section { margin-top: 12px; page-break-before: auto; }
+  .section h2, .section-h { font-size: 12px; margin: 0 0 4px; color: #d4af37; }
+  .meta-inline { font-size: 8px; color: #555; margin-bottom: 4px; }
+  .gcod { font-family: 'Consolas', monospace; color: #b8860b; font-weight: 700; }
   .pname { font-weight: 600; font-size: 9px; }
   .ncocina { font-size: 7.5px; color: #b8860b; font-style: italic; margin-top: 1px; }
   .desc { font-size: 7.5px; color: #444; margin-top: 1px; }
@@ -1887,9 +2072,10 @@ tailwind.config = {
     <h1>🍽️ Las Gambusinas — Carta de Platos</h1>
     <div class="meta">
       Generado: ${escapeHtml(fecha)}<br>
-      Total: ${total} plato(s)
+      ${total} plato(s) · ${listaGuarniciones.length} guarnición(es)
     </div>
   </div>
+  <h2 class="section-h">Platos</h2>
   <table>
     <thead>
       <tr>
@@ -1899,15 +2085,17 @@ tailwind.config = {
         <th>Precio</th>
         <th>Stock</th>
         <th>Complementos</th>
+        <th>Asignación automática</th>
       </tr>
     </thead>
     <tbody>
       ${filas}
     </tbody>
   </table>
+  ${seccionGuarniciones}
   <div class="footer">
-    <span>Las Gambusinas · Carta y Platos</span>
-    <span>Página 1 de 1</span>
+    <span>Las Gambusinas · Carta, platos y guarniciones</span>
+    <span></span>
   </div>
   <script>
     window.onload = function() { setTimeout(function() { window.print(); }, 250); };
