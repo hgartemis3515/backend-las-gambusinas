@@ -10,9 +10,42 @@ const jwt = require('jsonwebtoken');
 const repo = require('../repository/vistaCocina.repository');
 const { adminAuth, checkPermission, requireAnyPermission, JWT_SECRET } = require('../middleware/adminAuth');
 const logger = require('../utils/logger');
+const { sanitizarConfigPerfilVerCocina, fusionarConfigPerfilVerCocina } = require('../utils/sanitizarPerfilVerCocina');
 
 // Expiracion del JWT de monitor (TVs kiosko). Defaults largos.
 const MONITOR_JWT_EXPIRY = process.env.COCINA_MONITOR_JWT_EXPIRY || '90d';
+
+const PERM_PANTALLAS = ['desplegar-monitores-cocina', 'administrar-vistas-cocina', 'editar-mozos'];
+
+async function actualizarDistribucionHandler(req, res) {
+    try {
+        const items = req.body?.items;
+        if (!Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ success: false, error: 'items es requerido y debe ser un arreglo no vacío' });
+        }
+        for (const item of items) {
+            if (!item.id) {
+                return res.status(400).json({ success: false, error: 'Cada item debe incluir id' });
+            }
+            if (item.modoVista && !['completo', 'personalizado'].includes(item.modoVista)) {
+                return res.status(400).json({ success: false, error: `modoVista inválido: ${item.modoVista}` });
+            }
+            const perfil = item.perfilAplicar;
+            if (perfil !== undefined && perfil !== null && perfil !== 'none' && perfil !== 'auto') {
+                if (typeof perfil !== 'string' || !/^[a-fA-F0-9]{24}$/.test(perfil)) {
+                    item.perfilAplicar = 'none';
+                }
+            }
+        }
+        const actualizadas = await repo.actualizarDistribucionPantallas(items, req.admin.id);
+        res.json({ success: true, message: 'Distribución actualizada correctamente', data: actualizadas });
+    } catch (error) {
+        logger.error('Error al actualizar distribucion', { error: error.message });
+        res.status(400).json({ success: false, error: error.message || 'Error al actualizar distribución' });
+    }
+}
+
+router.put('/distribucion-monitores-cocina', adminAuth, requireAnyPermission(PERM_PANTALLAS), actualizarDistribucionHandler);
 
 /* ====================== VISTAS DE COCINA ====================== */
 
@@ -231,11 +264,22 @@ router.post('/pantallas-cocina', adminAuth, requireAnyPermission(['desplegar-mon
 });
 
 /**
+ * PUT /api/pantallas-cocina/distribucion
+ * Flujo "Distribuir Cocina en monitores" (PC multi-monitor).
+ * Body: { items: [{ id, cocineroId, modoVista }] }
+ * Debe ir ANTES de PUT /:id o Express trata "distribucion" como id.
+ */
+router.put('/pantallas-cocina/distribucion', adminAuth, requireAnyPermission(PERM_PANTALLAS), actualizarDistribucionHandler);
+
+/**
  * PUT /api/pantallas-cocina/:id
  * Acepta: nombre, vistaCocinaId, cocineroId, modoVista, activo, orden, configDespliegue
  */
 router.put('/pantallas-cocina/:id', adminAuth, requireAnyPermission(['desplegar-monitores-cocina', 'administrar-vistas-cocina', 'editar-mozos']), async (req, res) => {
     try {
+        if (!/^[a-fA-F0-9]{24}$/.test(String(req.params.id || ''))) {
+            return res.status(400).json({ success: false, error: 'id de pantalla inválido' });
+        }
         const body = req.body;
         // Validar modo completo sin cocinero (mergeando con el estado actual)
         const modoVista = body.modoVista;
@@ -261,44 +305,6 @@ router.put('/pantallas-cocina/:id', adminAuth, requireAnyPermission(['desplegar-
     } catch (error) {
         logger.error('Error al actualizar pantalla', { error: error.message });
         res.status(400).json({ success: false, error: error.message || 'Error al actualizar pantalla' });
-    }
-});
-
-/**
- * PUT /api/pantallas-cocina/distribucion
- * Flujo "Distribuir Cocina en monitores" (PC multi-monitor).
- * Body: { items: [{ id, cocineroId, modoVista }] }
- * Actualiza en lote la asignacion de cocineros a las pantallas 2..8.
- * Permite cocineroId null ("Sin asignar").
- */
-router.put('/pantallas-cocina/distribucion', adminAuth, requireAnyPermission(['desplegar-monitores-cocina', 'administrar-vistas-cocina', 'editar-mozos']), async (req, res) => {
-    try {
-        const items = req.body?.items;
-        if (!Array.isArray(items) || items.length === 0) {
-            return res.status(400).json({ success: false, error: 'items es requerido y debe ser un arreglo no vacío' });
-        }
-        // Validacion minimal por item
-        for (const item of items) {
-            if (!item.id) {
-                return res.status(400).json({ success: false, error: 'Cada item debe incluir id' });
-            }
-            if (item.modoVista && !['completo', 'personalizado'].includes(item.modoVista)) {
-                return res.status(400).json({ success: false, error: `modoVista inválido: ${item.modoVista}` });
-            }
-            // perfilAplicar: 'none' | 'auto' | '<PerfilVerCocinaId>'. Cualquier otra
-            // cosa se normaliza a 'none' para evitar CastError en bulkWrite.
-            const perfil = item.perfilAplicar;
-            if (perfil !== undefined && perfil !== null && perfil !== 'none' && perfil !== 'auto') {
-                if (typeof perfil !== 'string' || !/^[a-fA-F0-9]{24}$/.test(perfil)) {
-                    item.perfilAplicar = 'none';
-                }
-            }
-        }
-        const actualizadas = await repo.actualizarDistribucionPantallas(items, req.admin.id);
-        res.json({ success: true, message: 'Distribución actualizada correctamente', data: actualizadas });
-    } catch (error) {
-        logger.error('Error al actualizar distribucion', { error: error.message });
-        res.status(400).json({ success: false, error: error.message || 'Error al actualizar distribución' });
     }
 });
 
@@ -402,6 +408,95 @@ router.post('/pantallas-cocina/:numeroPantalla/bootstrap', async (req, res) => {
         res.status(500).json({ success: false, error: 'Error en bootstrap' });
     }
 });
+
+function numeroPantallaValido(raw) {
+    const n = Number(raw);
+    return Number.isInteger(n) && n >= 1 && n <= 16 ? n : null;
+}
+
+/**
+ * GET /api/pantallas-cocina/:numeroPantalla/config-visual
+ * Override de Personalizar Ver Cocina de un monitor despegado.
+ */
+router.get('/pantallas-cocina/:numeroPantalla/config-visual', adminAuth, async (req, res) => {
+    try {
+        const numero = numeroPantallaValido(req.params.numeroPantalla);
+        if (!numero) {
+            return res.status(400).json({ success: false, error: 'Número de monitor inválido' });
+        }
+        const pantalla = await repo.obtenerConfigVisualPantalla(numero);
+        if (!pantalla) {
+            return res.status(404).json({ success: false, error: 'Pantalla no configurada' });
+        }
+        const config = sanitizarConfigPerfilVerCocina(pantalla.configVisual);
+        res.json({
+            success: true,
+            data: {
+                numeroPantalla: numero,
+                config,
+                tieneOverride: Object.keys(config).length > 0,
+                updatedAt: pantalla.configVisualUpdatedAt || pantalla.updatedAt,
+            }
+        });
+    } catch (error) {
+        logger.error('Error al obtener config-visual', { error: error.message, stack: error.stack });
+        res.status(500).json({ success: false, error: 'Error al obtener personalización del monitor' });
+    }
+});
+
+/**
+ * PUT /api/pantallas-cocina/:numeroPantalla/config-visual
+ * Body: { config } | { config: null } para restaurar perfil asignado.
+ */
+router.put(
+    '/pantallas-cocina/:numeroPantalla/config-visual',
+    adminAuth,
+    requireAnyPermission(['desplegar-monitores-cocina', 'administrar-vistas-cocina', 'editar-mozos']),
+    async (req, res) => {
+        try {
+            const numero = numeroPantallaValido(req.params.numeroPantalla);
+            if (!numero) {
+                return res.status(400).json({ success: false, error: 'Número de monitor inválido' });
+            }
+            const incoming = req.body && Object.prototype.hasOwnProperty.call(req.body, 'config')
+                ? req.body.config
+                : req.body;
+            let guardado;
+            if (incoming === null) {
+                guardado = await repo.guardarConfigVisualPantalla(numero, null, req.admin.id);
+            } else {
+                const pantalla = await repo.obtenerConfigVisualPantalla(numero);
+                if (!pantalla) {
+                    return res.status(404).json({ success: false, error: 'Pantalla no configurada' });
+                }
+                const fusion = fusionarConfigPerfilVerCocina(
+                    pantalla.configVisual,
+                    sanitizarConfigPerfilVerCocina(incoming)
+                );
+                guardado = await repo.guardarConfigVisualPantalla(numero, fusion, req.admin.id);
+            }
+            const configOut = incoming === null
+                ? {}
+                : (guardado.configVisual && typeof guardado.configVisual === 'object' ? guardado.configVisual : {});
+            if (typeof global.emitMonitorConfigVisual === 'function') {
+                global.emitMonitorConfigVisual(numero, incoming === null ? null : configOut);
+            }
+            res.json({
+                success: true,
+                data: {
+                    numeroPantalla: numero,
+                    config: configOut,
+                    tieneOverride: incoming !== null && Object.keys(configOut).length > 0,
+                    updatedAt: guardado.configVisualUpdatedAt || guardado.updatedAt,
+                }
+            });
+        } catch (error) {
+            logger.error('Error al guardar config-visual', { error: error.message });
+            const status = /no encontrada/i.test(error.message || '') ? 404 : 500;
+            res.status(status).json({ success: false, error: error.message || 'Error al guardar personalización del monitor' });
+        }
+    }
+);
 
 /**
  * POST /api/pantallas-cocina/:id/regenerar-token

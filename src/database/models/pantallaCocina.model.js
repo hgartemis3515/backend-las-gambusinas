@@ -36,11 +36,11 @@ const pantallaCocinaSchema = new mongoose.Schema({
     // cocineroId = primero de la lista (compat). cocineroIds = todos los de este monitor.
     cocineroId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Mozo',
+        ref: 'mozos',
         default: null
     },
     cocineroIds: {
-        type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Mozo' }],
+        type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'mozos' }],
         default: []
     },
 
@@ -72,6 +72,17 @@ const pantallaCocinaSchema = new mongoose.Schema({
     listaGuarniciones: {
         type: Boolean,
         default: false
+    },
+
+    // Personalización Ver Cocina Completo de este monitor (desde el monitor 1).
+    // Gana sobre perfil=auto / perfilId en las ventanas despegadas.
+    configVisual: {
+        type: mongoose.Schema.Types.Mixed,
+        default: null
+    },
+    configVisualUpdatedAt: {
+        type: Date,
+        default: null
     },
 
     activo: {

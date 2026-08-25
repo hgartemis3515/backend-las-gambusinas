@@ -2149,6 +2149,28 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
     }
   };
 
+  /**
+   * Personalización Ver Cocina de un monitor despegado (2–9).
+   * Broadcast a /cocina: las TVs del Hub y las ventanas kiosk aplican el diseño.
+   */
+  global.emitMonitorConfigVisual = (numeroPantalla, config) => {
+    try {
+      const eventData = {
+        numeroPantalla: Number(numeroPantalla),
+        config: config || null,
+        timestamp: moment().tz('America/Lima').toISOString(),
+      };
+      if (cocinaNamespace && cocinaNamespace.sockets) {
+        cocinaNamespace.emit('monitor-config-visual', eventData);
+      }
+    } catch (error) {
+      logger.error('Error al emitir monitor-config-visual', {
+        error: error.message,
+        numeroPantalla,
+      });
+    }
+  };
+
   // ========== TEMA 4: EVENTOS DE PROCESAMIENTO CON IDENTIFICACIÓN DE COCINERO ==========
 
   const emitProcesamientoToMesaMozos = async (eventName, comandaId, eventData) => {

@@ -6,6 +6,8 @@
 const crypto = require('crypto');
 const VistaCocina = require('../database/models/vistaCocina.model');
 const PantallaCocina = require('../database/models/pantallaCocina.model');
+require('../database/models/mozos.model');
+require('../database/models/perfilVerCocina.model');
 const logger = require('../utils/logger');
 
 // Longitud del token de dispositivo en bytes (se devuelve en hex)
@@ -251,41 +253,39 @@ async function actualizarDistribucionPantallas(items, actualizadoPor = null) {
         const ops = items.map((item) => {
             const set = {
                 modoVista: item.modoVista || 'completo',
-                actualizadoPor,
                 updatedAt: new Date(),
             };
-            // Varios cocineros en el mismo monitor: cocineroIds[] + cocineroId (primero, compat).
             let ids = [];
             if (Array.isArray(item.cocineroIds)) {
                 ids = item.cocineroIds.filter(Boolean).map(String);
             } else if (item.cocineroId) {
                 ids = [String(item.cocineroId)];
             }
+            const oid = /^[a-fA-F0-9]{24}$/;
             const seen = new Set();
             ids = ids.filter((id) => {
-                if (seen.has(id)) return false;
+                if (!oid.test(id) || seen.has(id)) return false;
                 seen.add(id);
                 return true;
             });
             set.cocineroIds = ids;
             set.cocineroId = ids[0] || null;
-            // Perfil de personalización por monitor (flujo Distribuir Cocina).
             const perfil = item.perfilAplicar;
             if (perfil === 'auto') {
                 set.perfilAuto = true;
                 set.perfilVerCocinaId = null;
-            } else if (perfil && perfil !== 'none') {
+            } else if (perfil && perfil !== 'none' && oid.test(String(perfil))) {
                 set.perfilAuto = false;
                 set.perfilVerCocinaId = perfil;
             } else {
-                // 'none' o ausente
                 set.perfilAuto = false;
                 set.perfilVerCocinaId = null;
             }
-            // PLAN GUARNICIONES_SEPARADAS v1.1 §11: flag por monitor para que la
-            // ventana hija abra con ?listaGuarniciones=1 (split 50/50 en kiosk).
             if (typeof item.listaGuarniciones === 'boolean') {
                 set.listaGuarniciones = item.listaGuarniciones === true;
+            }
+            if (!oid.test(String(item.id))) {
+                throw new Error(`id de pantalla inválido: ${item.id}`);
             }
             return {
                 updateOne: {
@@ -296,11 +296,18 @@ async function actualizarDistribucionPantallas(items, actualizadoPor = null) {
         });
         await PantallaCocina.bulkWrite(ops);
         const ids = items.map((i) => i.id);
-        return await PantallaCocina.find({ _id: { $in: ids } })
-            .populate('cocineroId', 'nombre alias')
-            .populate('cocineroIds', 'nombre alias')
-            .populate('perfilVerCocinaId', 'nombre')
-            .lean();
+        try {
+            return await PantallaCocina.find({ _id: { $in: ids } })
+                .populate('cocineroId', 'nombre alias')
+                .populate('cocineroIds', 'nombre alias')
+                .populate('perfilVerCocinaId', 'nombre')
+                .lean();
+        } catch (popErr) {
+            logger.warn('actualizarDistribucionPantallas: populate falló', { error: popErr.message });
+            return await PantallaCocina.find({ _id: { $in: ids } })
+                .select('-deviceTokenHash')
+                .lean();
+        }
     } catch (error) {
         logger.error('Error al actualizar distribucion de pantallas', { error: error.message });
         throw error;
@@ -321,10 +328,41 @@ async function eliminarPantallaCocina(id) {
     }
 }
 
+/**
+ * Guarda o borra el override de Personalizar Ver Cocina de un monitor.
+ * config === null → quita el override (la ventana vuelve al perfil asignado).
+ */
+async function guardarConfigVisualPantalla(numeroPantalla, config, actualizadoPor = null) {
+    try {
+        const numero = Number(numeroPantalla);
+        const now = new Date();
+        const setFields = { configVisualUpdatedAt: now, updatedAt: now };
+        const update = config === null
+            ? { $unset: { configVisual: 1 }, $set: setFields }
+            : { $set: { ...setFields, configVisual: config } };
+        const pantalla = await PantallaCocina.findOneAndUpdate(
+            { numeroPantalla: numero },
+            update,
+            { new: true }
+        ).select('-deviceTokenHash').lean();
+        if (!pantalla) throw new Error(`Pantalla ${numero} no encontrada`);
+        logger.info('configVisual de pantalla actualizado', {
+            numeroPantalla: numero,
+            actualizadoPor,
+            claves: config && typeof config === 'object' ? Object.keys(config).length : 0,
+            reset: config === null,
+        });
+        return pantalla;
+    } catch (error) {
+        logger.error('Error al guardar configVisual de pantalla', { error: error.message, numeroPantalla });
+        throw error;
+    }
+}
+
 /* ====================== KIOSKO / DEVICE TOKEN ====================== */
 
 /**
- * Obtiene una pantalla por su numero (1-8) sin auth, para bootstrap del TV.
+ * Obtiene una pantalla por su numero sin auth, para bootstrap del TV.
  * No devuelve el hash del token.
  */
 async function obtenerPantallaPorNumero(numeroPantalla) {
@@ -335,7 +373,26 @@ async function obtenerPantallaPorNumero(numeroPantalla) {
             .select('-deviceTokenHash')
             .lean();
     } catch (error) {
-        logger.error('Error al obtener pantalla por numero', { error: error.message });
+        logger.warn('obtenerPantallaPorNumero: populate falló, reintentando sin populate', { error: error.message });
+        try {
+            return await PantallaCocina.findOne({ numeroPantalla: Number(numeroPantalla) })
+                .select('-deviceTokenHash')
+                .lean();
+        } catch (err2) {
+            logger.error('Error al obtener pantalla por numero', { error: err2.message });
+            throw err2;
+        }
+    }
+}
+
+/** Solo personalización del monitor (sin populate → no CastError). */
+async function obtenerConfigVisualPantalla(numeroPantalla) {
+    try {
+        return await PantallaCocina.findOne({ numeroPantalla: Number(numeroPantalla) })
+            .select('numeroPantalla configVisual configVisualUpdatedAt updatedAt')
+            .lean();
+    } catch (error) {
+        logger.error('Error al obtener configVisual de pantalla', { error: error.message, numeroPantalla });
         throw error;
     }
 }
@@ -428,5 +485,7 @@ module.exports = {
     verificarDeviceToken,
     generarDeviceToken,
     revocarDeviceToken,
-    actualizarDistribucionPantallas
+    actualizarDistribucionPantallas,
+    guardarConfigVisualPantalla,
+    obtenerConfigVisualPantalla
 };
