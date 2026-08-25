@@ -165,6 +165,8 @@ const PERFIL_TABLAS_KDS_KEYS = new Set([
     'alertYellowMinutes',
     'alertRedMinutes',
     'alertCriticalMinutes',
+    'timbreClave',
+    'timbreVolumen',
 ]);
 
 function sanitizarConfigPerfilTablasKds(config) {

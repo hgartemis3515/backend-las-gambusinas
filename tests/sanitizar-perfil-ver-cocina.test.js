@@ -147,12 +147,16 @@ describe('sanitizarConfigPerfilVerCocina', () => {
             tamanoFuente: 18,
             mostrarBadgeGuarnicion: false,
             usarNombreCocinaEnTablaKds: false,
+            timbreClave: 'ding_dong',
+            timbreVolumen: 40,
             colorFondo: '#000',
             token: 'x',
         });
         expect(out.tamanoFuente).toBe(18);
         expect(out.mostrarBadgeGuarnicion).toBe(false);
         expect(out.usarNombreCocinaEnTablaKds).toBe(false);
+        expect(out.timbreClave).toBe('ding_dong');
+        expect(out.timbreVolumen).toBe(40);
         expect(out.colorFondo).toBeUndefined();
         expect(out.token).toBeUndefined();
     });
