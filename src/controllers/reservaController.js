@@ -7,6 +7,7 @@ const { handleError } = require('../utils/errorHandler');
 
 const reservaRepository = require('../repository/reserva.repository');
 const timeoutService = require('../services/timeoutService');
+const { registrarAuditoria } = require('../middleware/auditoria');
 
 // ==================== ENDPOINTS CRUD ====================
 
@@ -420,6 +421,70 @@ router.delete('/reservas/:id', async (req, res) => {
 });
 
 /**
+ * POST /api/reservas/:id/activar-anticipada
+ * Cocina atiende ya: entra la comanda al KDS antes de fechaCocina. Motivo obligatorio (auditoría).
+ */
+router.post('/reservas/:id/activar-anticipada', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const motivo = String(req.body?.motivo || '').trim();
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'ID de reserva inválido' });
+        }
+        if (motivo.length < 3) {
+            return res.status(400).json({ error: 'El motivo es obligatorio (mínimo 3 caracteres) para auditoría.' });
+        }
+
+        timeoutService.cancelarActivacion(id);
+
+        const { activarReservaProgramada } = require('../services/reservaActivacionService');
+        const resultado = await activarReservaProgramada(id, {
+            origen: 'manual_anticipada',
+            motivo
+        });
+
+        if (!resultado.activada) {
+            const msg = resultado.motivo === 'estado_no_pendiente'
+                ? 'La reserva no está pendiente de activación (¿ya se activó o aún no fue aprobada?)'
+                : 'No se pudo activar la reserva';
+            return res.status(409).json({ error: msg, motivo: resultado.motivo });
+        }
+
+        const comandaId = resultado.comanda?._id || resultado.reserva?.comandaGenerada;
+        const usuarioRaw = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+        req.auditoria = {
+            accion: 'RESERVA_ACTIVADA_ANTICIPADA',
+            entidadTipo: 'comanda',
+            entidadId: comandaId || undefined,
+            usuario: (usuarioRaw && mongoose.Types.ObjectId.isValid(usuarioRaw)) ? usuarioRaw : null,
+            ip: req.ip,
+            deviceId: req.headers['device-id'] || req.headers['x-device-id']
+        };
+        await registrarAuditoria(req, {
+            reservaId: id,
+            fechaCocina: resultado.reserva?.fechaCocina,
+            programada: true
+        }, {
+            estado: 'activa',
+            origen: 'manual_anticipada',
+            comandaId
+        }, motivo);
+
+        logger.info('Reserva activada anticipadamente', { reservaId: id, motivo });
+        res.json({
+            success: true,
+            reserva: resultado.reserva,
+            comanda: resultado.comanda,
+            message: 'Reserva activada anticipadamente. La comanda entra a la cola KDS.'
+        });
+    } catch (error) {
+        logger.error('Error al activar reserva anticipada', { error: error.message, id: req.params.id });
+        handleError(error, res, logger);
+    }
+});
+
+/**
  * POST /api/reservas/:id/activar
  * Marcar reserva como activa (cuando el mozo autorizado inicia atencion)
  */
@@ -510,45 +575,6 @@ router.post('/reservas/desde-mozos', async (req, res) => {
 
         const resultado = await reservaRepository.crearReservaDesdeMozos(data);
 
-        // Programar job de activación de cocina (fechaCocina) + alerta previa
-        try {
-            const minutosAlerta = resultado.config?.minutosAlertaPreviaCocina ?? 10;
-            timeoutService.programarActivacion(
-                resultado.reserva._id,
-                resultado.reserva.fechaCocina,
-                minutosAlerta
-            );
-        } catch (e) {
-            logger.error('Error al programar activación de cocina', { error: e.message, reservaId: resultado.reserva._id });
-        }
-
-        // Programar timeout de expiración (no-show)
-        try {
-            timeoutService.programarExpiracion(
-                resultado.reserva._id,
-                resultado.reserva.fechaReserva,
-                resultado.reserva.tiempoEspera
-            );
-        } catch (e) {
-            logger.error('Error al programar expiración de reserva', { error: e.message, reservaId: resultado.reserva._id });
-        }
-
-        // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: bloqueo diferido de mesa (si no se bloqueó al crear)
-        try {
-            const bloquearMesaAlCrear = resultado.config?.bloquearMesaAlCrear ?? false;
-            const minutosBloqueoMesa = resultado.config?.minutosBloqueoMesaAntes ?? 45;
-            if (!bloquearMesaAlCrear && resultado.reserva.fechaReserva) {
-                timeoutService.programarBloqueoMesa(
-                    resultado.reserva._id,
-                    resultado.reserva.fechaReserva,
-                    minutosBloqueoMesa
-                );
-            }
-        } catch (e) {
-            logger.error('Error al programar bloqueo diferido de mesa', { error: e.message, reservaId: resultado.reserva._id });
-        }
-
-        // Emitir eventos Socket.io
         try {
             if (global.emitMesaActualizada) {
                 await global.emitMesaActualizada(resultado.reserva.mesa._id || resultado.reserva.mesa);
@@ -563,30 +589,36 @@ router.post('/reservas/desde-mozos', async (req, res) => {
         } catch (e) {
             logger.error('Error al emitir reserva-creada', { error: e.message });
         }
-        try {
-            if (global.emitReservaProgramada) {
-                await global.emitReservaProgramada(resultado.reserva, resultado.comanda);
-            }
-        } catch (e) {
-            logger.error('Error al emitir reserva-programada', { error: e.message });
-        }
-        // Si hubo PPA, notificar a la bandeja PPA de cocina
-        if (resultado.ticketPPA && global.emitTicketPagoAdelantadoNuevo) {
-            try {
-                await global.emitTicketPagoAdelantadoNuevo(resultado.ticketPPA);
-            } catch (e) {
-                logger.error('Error al emitir ticket PPA nuevo', { error: e.message });
-            }
-        }
 
-        // Si la fechaCocina ya pasó (activación inmediata), el job la activa en setImmediate.
-        // El frontend puede mostrar el aviso correspondiente.
+        const io = global.io;
+        if (io && resultado.ticketPPA) {
+            try {
+                const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
+                const ticketPayload = {
+                    ticket: resultado.ticketPPA,
+                    message: 'Nueva reserva pendiente de aprobación',
+                    origen: 'reserva',
+                };
+                io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-ppa-nuevo', ticketPayload);
+                io.of('/admin').emit('ticket-ppa-nuevo', ticketPayload);
+                const ticketMozos = {
+                    ticket: resultado.ticketPPA,
+                    mesaId: resultado.reserva.mesa,
+                    origen: 'reserva',
+                    message: 'Reserva enviada. Esperando aprobación de cocina.',
+                };
+                io.of('/mozos').emit('ticket-ppa-creado', ticketMozos);
+            } catch (e) {
+                logger.error('Error al emitir ticket PPA de reserva', { error: e.message });
+            }
+        }
 
         res.status(201).json({
             reserva: resultado.reserva,
             comanda: resultado.comanda,
             ticketPPA: resultado.ticketPPA || null,
-            activacionInmediata: resultado.activacionInmediata,
+            activacionInmediata: false,
+            esperandoAprobacion: true,
             fechaCocina: resultado.reserva.fechaCocina
         });
     } catch (error) {

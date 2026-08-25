@@ -87,7 +87,7 @@ const crearReserva = async (data) => {
         // 2. Verificar que no haya otra reserva activa para la misma mesa en el mismo horario
         const reservaExistente = await Reserva.findOne({
             mesa: data.mesa,
-            estado: { $in: ['pendiente', 'activa'] },
+            estado: { $in: ['pendiente_aprobar', 'pendiente', 'activa'] },
             fechaReserva: {
                 $gte: moment(data.fechaReserva).subtract(2, 'hours').toDate(),
                 $lte: moment(data.fechaReserva).add(2, 'hours').toDate()
@@ -132,9 +132,9 @@ const listarReservas = async (filtros = {}) => {
     try {
         const query = {};
         
-        // Filtro por estado
         if (filtros.estado) {
-            query.estado = filtros.estado;
+            const estados = String(filtros.estado).split(',').map((s) => s.trim()).filter(Boolean);
+            query.estado = estados.length > 1 ? { $in: estados } : estados[0];
         }
         
         // Filtro por mesa
@@ -169,8 +169,8 @@ const listarReservas = async (filtros = {}) => {
             .populate('creadoPor', 'name')
             .sort({ fechaReserva: 1 })
             .lean();
-        
-        return reservas;
+
+        return cancelarReservasSinComandaViva(reservas);
         
     } catch (error) {
         logger.error('Error al listar reservas', { error: error.message, filtros });
@@ -298,6 +298,46 @@ const cancelarReserva = async (id, motivo = null) => {
     }
 };
 
+/**
+ * Al eliminar la comanda de una reserva (dashboard o mozos), cancelar el
+ * documento Reserva. Si no, la mesa queda "libre" pero mesas-disponibles-para
+ * sigue ocultándola por colisión ±2h.
+ */
+const cancelarReservaPorComandaEliminada = async (comanda, motivo = null) => {
+    if (!comanda) return null;
+    const comandaId = comanda._id;
+    let reserva = null;
+    if (comanda.origenReserva && mongoose.Types.ObjectId.isValid(comanda.origenReserva)) {
+        reserva = await Reserva.findById(comanda.origenReserva);
+    }
+    if (!reserva && comandaId) {
+        reserva = await Reserva.findOne({
+            comandaGenerada: comandaId,
+            estado: { $in: ['pendiente_aprobar', 'pendiente', 'activa'] }
+        });
+    }
+    if (!reserva) return null;
+    if (['completada', 'cancelada', 'rechazada'].includes(reserva.estado)) return null;
+
+    reserva.estado = 'cancelada';
+    const nota = String(motivo || '').trim();
+    reserva.notas = `${reserva.notas || ''} [CANCELADA: comanda eliminada${nota ? ` — ${nota}` : ''}]`.trim();
+    await reserva.save();
+
+    try {
+        require('../services/timeoutService').cancelarTimeout(reserva._id);
+    } catch (e) {
+        logger.warn('No se pudieron cancelar jobs de reserva', { reservaId: reserva._id, error: e.message });
+    }
+
+    logger.info('Reserva cancelada al eliminar comanda', {
+        reservaId: reserva._id,
+        comandaId,
+        mesaId: reserva.mesa
+    });
+    return reserva;
+};
+
 // ========== FUNCIONES ESPECIFICAS ==========
 
 /**
@@ -307,14 +347,18 @@ const cancelarReserva = async (id, motivo = null) => {
  */
 const obtenerReservaActivaPorMesa = async (mesaId) => {
     try {
-        const reserva = await Reserva.findOne({
+        let reserva = await Reserva.findOne({
             mesa: mesaId,
-            estado: { $in: ['pendiente', 'activa'] }
+            estado: { $in: ['pendiente_aprobar', 'pendiente', 'activa'] }
         })
         .populate('mozo', 'name _id')
         .lean();
-        
-        // Log para debug
+
+        if (reserva) {
+            const vigentes = await cancelarReservasSinComandaViva([reserva]);
+            reserva = vigentes[0] || null;
+        }
+
         if (reserva) {
             logger.info('Reserva activa encontrada', {
                 reservaId: reserva._id,
@@ -521,15 +565,24 @@ const calcularTotalesPlato = (platoDoc, item) => {
     const precioBase = Number(platoDoc.precio) || 0;
     let extraComplementos = 0;
     let totalUnidadesComplementos = 0;
-    const complementosSeleccionados = Array.isArray(item.complementosSeleccionados)
-        ? item.complementosSeleccionados.map((c) => {
-            const cantidad = parseInt(c.cantidad) || 1;
-            const precio = Number(c.precio) || 0;
-            extraComplementos += precio * cantidad;
-            totalUnidadesComplementos += cantidad;
-            return { grupo: String(c.grupo || ''), opcion: String(c.opcion || ''), cantidad, precio, pronombre: String(c.pronombre || '').trim() };
-        })
-        : [];
+    const raw = Array.isArray(item.complementosSeleccionados)
+        ? item.complementosSeleccionados
+        : Array.isArray(item.complementosElegidos)
+            ? item.complementosElegidos
+            : [];
+    const complementosSeleccionados = raw.map((c) => {
+        const cantidad = parseInt(c.cantidad) || 1;
+        const precio = Number(c.precio) || 0;
+        extraComplementos += precio * cantidad;
+        totalUnidadesComplementos += cantidad;
+        return {
+            grupo: String(c.grupo || ''),
+            opcion: String(c.opcion || c.nombre || ''),
+            cantidad,
+            precio,
+            pronombre: String(c.pronombre || '').trim()
+        };
+    });
     const precioUnitario = precioBase + extraComplementos;
     const cantidad = parseInt(item.cantidad) || 1;
     return {
@@ -568,15 +621,59 @@ const esReservaInmediata = (fechaReserva, minutosAntes = 20, ahora = null) => {
     return atencion.diff(ref, 'minutes', true) <= offset;
 };
 
+const ESTADOS_RESERVA_VIGENTE = ['pendiente_aprobar', 'pendiente', 'activa'];
+
+const cancelarReservasSinComandaViva = async (reservas) => {
+    if (!Array.isArray(reservas) || reservas.length === 0) return [];
+    const conComanda = reservas.filter((r) => r.comandaGenerada);
+    if (conComanda.length === 0) return reservas;
+    const ids = conComanda.map((r) => r.comandaGenerada);
+    const vivas = await getComandaModel().find({
+        _id: { $in: ids },
+        IsActive: { $ne: false },
+        eliminada: { $ne: true },
+        status: { $nin: ['cancelado'] }
+    }).select('_id').lean();
+    const vivaSet = new Set(vivas.map((c) => c._id.toString()));
+    const vigentes = [];
+    const huerfanas = [];
+    for (const r of reservas) {
+        if (!r.comandaGenerada || vivaSet.has(r.comandaGenerada.toString())) {
+            vigentes.push(r);
+        } else {
+            huerfanas.push(r);
+        }
+    }
+    if (huerfanas.length > 0) {
+        const idsH = huerfanas.map((r) => r._id);
+        await Reserva.updateMany(
+            { _id: { $in: idsH }, estado: { $in: ESTADOS_RESERVA_VIGENTE } },
+            { $set: { estado: 'cancelada', notas: '[CANCELADA: comanda de reserva ya no está activa]' } }
+        );
+        try {
+            const timeoutService = require('../services/timeoutService');
+            idsH.forEach((id) => timeoutService.cancelarTimeout(id));
+        } catch (e) {
+            logger.warn('No se pudieron cancelar jobs de reservas huérfanas', { error: e.message });
+        }
+        logger.info('Reservas huérfanas canceladas (comanda eliminada)', {
+            cantidad: huerfanas.length,
+            ids: idsH.map((id) => id.toString())
+        });
+    }
+    return vigentes;
+};
+
 const validarColisionReserva = async (mesaId, fechaReserva, ventanaMinutos = 120) => {
     const inicio = moment(fechaReserva).subtract(ventanaMinutos, 'minutes').toDate();
     const fin = moment(fechaReserva).add(ventanaMinutos, 'minutes').toDate();
-    const existente = await Reserva.findOne({
+    const candidatas = await Reserva.find({
         mesa: mesaId,
-        estado: { $in: ['pendiente', 'activa'] },
+        estado: { $in: ESTADOS_RESERVA_VIGENTE },
         fechaReserva: { $gte: inicio, $lte: fin }
-    }).lean();
-    if (existente) throw new Error('Ya existe una reserva activa para esta mesa en un horario cercano');
+    }).select('_id mesa comandaGenerada').lean();
+    const vigentes = await cancelarReservasSinComandaViva(candidatas);
+    if (vigentes.length > 0) throw new Error('Ya existe una reserva activa para esta mesa en un horario cercano');
 };
 
 const obtenerMesasDisponiblesParaReserva = async (fechaReserva, ventanaMinutos = 120) => {
@@ -587,11 +684,12 @@ const obtenerMesasDisponiblesParaReserva = async (fechaReserva, ventanaMinutos =
             .populate('area', 'nombre')
             .sort({ nummesa: 1 })
             .lean();
-        const mesasReservadasIds = await Reserva.find({
-            estado: { $in: ['pendiente', 'activa'] },
+        const candidatas = await Reserva.find({
+            estado: { $in: ESTADOS_RESERVA_VIGENTE },
             fechaReserva: { $gte: inicio.toDate(), $lte: fin.toDate() }
-        }).distinct('mesa');
-        const reservadasSet = new Set(mesasReservadasIds.map((id) => id.toString()));
+        }).select('_id mesa comandaGenerada').lean();
+        const vigentes = await cancelarReservasSinComandaViva(candidatas);
+        const reservadasSet = new Set(vigentes.map((r) => r.mesa.toString()));
         return mesasLibres.filter((m) => !reservadasSet.has(m._id.toString()));
     } catch (error) {
         logger.error('Error al obtener mesas disponibles para reserva', { error: error.message });
@@ -621,167 +719,266 @@ const obtenerReservasProgramadasCocina = async (opts = {}) => {
 };
 
 const crearReservaDesdeMozos = async (data) => {
-    const session = await mongoose.startSession();
-    let result;
+    // Sin transacción: Mongo local es standalone (no replica set) y mongoose-sequence
+    // (comandaNumber / ticketNumber) no participa en la sesión. Compensamos a mano.
+    let reservaCreada = null;
+    let comandaCreada = null;
+    let ticketCreado = null;
+    let mesaIdBloqueada = null;
     try {
-        result = await session.withTransaction(async () => {
-            const config = await leerConfigReservas();
-            if (!config.permitirReservas) throw new Error('Las reservas están deshabilitadas');
-            if (!config.permitirCrearDesdeMozos) throw new Error('Crear reservas desde App Mozos está deshabilitado');
-            if (!config.reservasDesdeMozosV2) throw new Error('El flujo de reservas v2 está deshabilitado (feature flag)');
+        const config = await leerConfigReservas();
+        if (!config.permitirReservas) throw new Error('Las reservas están deshabilitadas');
+        if (!config.permitirCrearDesdeMozos) throw new Error('Crear reservas desde App Mozos está deshabilitado');
+        if (!config.reservasDesdeMozosV2) throw new Error('El flujo de reservas v2 está deshabilitado (feature flag)');
 
-            if (!data.mesa || !mongoose.Types.ObjectId.isValid(data.mesa)) throw new Error('Mesa inválida');
-            if (!data.mozo || !mongoose.Types.ObjectId.isValid(data.mozo)) throw new Error('Mozo inválido');
-            const clienteNombre = (data.clienteNombre || '').trim();
-            if (clienteNombre.length < 2) throw new Error('El nombre del cliente es obligatorio (mínimo 2 caracteres)');
-            if (!data.fechaReserva) throw new Error('La hora de atención es obligatoria');
+        if (!data.mesa || !mongoose.Types.ObjectId.isValid(data.mesa)) throw new Error('Mesa inválida');
+        if (!data.mozo || !mongoose.Types.ObjectId.isValid(data.mozo)) throw new Error('Mozo inválido');
+        const clienteNombre = (data.clienteNombre || '').trim();
+        if (clienteNombre.length < 2) throw new Error('El nombre del cliente es obligatorio (mínimo 2 caracteres)');
+        if (!data.fechaReserva) throw new Error('La hora de atención es obligatoria');
 
-            const fechaAtencion = moment.tz(data.fechaReserva, 'America/Lima');
-            const ahora = moment().tz('America/Lima');
-            if (!fechaAtencion.isValid()) throw new Error('Hora de atención inválida');
-            if (fechaAtencion.isBefore(ahora)) throw new Error('La hora de atención debe ser futura');
-            const horizonte = Number(config.horizonteReservaDias) || 14;
-            if (fechaAtencion.isAfter(ahora.clone().add(horizonte, 'days'))) {
-                throw new Error(`La reserva excede el horizonte máximo de ${horizonte} días`);
-            }
-            if (!Array.isArray(data.platos) || data.platos.length === 0) throw new Error('Debe incluir al menos un plato');
+        const fechaAtencion = moment.tz(data.fechaReserva, 'America/Lima');
+        const ahora = moment().tz('America/Lima');
+        if (!fechaAtencion.isValid()) throw new Error('Hora de atención inválida');
+        if (!fechaAtencion.isAfter(ahora)) throw new Error('La hora de atención debe ser futura');
+        const horizonte = Number(config.horizonteReservaDias) || 14;
+        if (fechaAtencion.isAfter(ahora.clone().add(horizonte, 'days'))) {
+            throw new Error(`La reserva excede el horizonte máximo de ${horizonte} días`);
+        }
+        if (!Array.isArray(data.platos) || data.platos.length === 0) throw new Error('Debe incluir al menos un plato');
 
-            const mesa = await mesasModel.findById(data.mesa).populate('area', 'nombre').session(session).lean();
-            if (!mesa) throw new Error('Mesa no encontrada');
-            if (mesa.estado !== 'libre' && mesa.estado !== 'reservado') {
-                throw new Error(`La mesa no está disponible (estado: ${mesa.estado})`);
-            }
-            await validarColisionReserva(data.mesa, fechaAtencion.toDate(), Number(config.ventanaConflictoMinutos) || 120);
+        const mesa = await mesasModel.findById(data.mesa).populate('area', 'nombre').lean();
+        if (!mesa) throw new Error('Mesa no encontrada');
+        if (mesa.estado !== 'libre' && mesa.estado !== 'reservado') {
+            throw new Error(`La mesa no está disponible (estado: ${mesa.estado})`);
+        }
+        await validarColisionReserva(data.mesa, fechaAtencion.toDate(), Number(config.ventanaConflictoMinutos) || 120);
 
-            const offsetMin = Number(config.minutosAntesCocina) || 20;
-            const { fechaCocina: fechaCocinaCalc, activacionInmediata } = calcularFechaCocina(fechaAtencion, offsetMin, ahora);
-            let fechaCocina = fechaCocinaCalc;
+        const offsetMin = Number(config.minutosAntesCocina) || 20;
+        const { fechaCocina: fechaCocinaCalc, activacionInmediata } = calcularFechaCocina(fechaAtencion, offsetMin, ahora);
+        const fechaCocina = fechaCocinaCalc;
 
-            const platoIds = data.platos.map((p) => p.plato).filter((id) => id && mongoose.Types.ObjectId.isValid(id));
-            if (platoIds.length !== data.platos.length) throw new Error('Uno o más platos no son válidos');
-            const platosCatalogo = await getPlatoModel().find({ _id: { $in: platoIds } }).session(session).lean();
-            const platoMap = new Map(platosCatalogo.map((p) => [p._id.toString(), p]));
+        const platoIds = data.platos.map((p) => p.plato).filter((id) => id && mongoose.Types.ObjectId.isValid(id));
+        if (platoIds.length !== data.platos.length) throw new Error('Uno o más platos no son válidos');
+        const platosCatalogo = await getPlatoModel().find({ _id: { $in: platoIds } }).lean();
+        const platoMap = new Map(platosCatalogo.map((p) => [p._id.toString(), p]));
 
-            let totalPlatos = 0;
-            const platosReserva = [];
-            const platosComanda = [];
+        let totalPlatos = 0;
+        const platosReserva = [];
+        const platosComanda = [];
 
-            data.platos.forEach((item) => {
-                const platoDoc = platoMap.get(item.plato.toString());
-                if (!platoDoc) throw new Error(`Plato no encontrado: ${item.plato}`);
-                const calc = calcularTotalesPlato(platoDoc, item);
-                totalPlatos += calc.total;
-                const tipoServicio = item.tipoServicio === 'para_llevar' ? 'para_llevar' : 'mesa';
-                const notaEspecial = typeof item.notaEspecial === 'string' ? item.notaEspecial : '';
-                platosReserva.push({
-                    plato: platoDoc._id, cantidad: calc.cantidad, tipoServicio,
-                    complementosSeleccionados: calc.complementosSeleccionados, notaEspecial
-                });
-                platosComanda.push({
-                    plato: platoDoc._id, platoId: platoDoc.id || null, estado: 'pendiente', tiempos: {},
-                    complementosSeleccionados: calc.complementosSeleccionados,
-                    precioBase: calc.precioBase, extraComplementos: calc.extraComplementos,
-                    precioUnitario: calc.precioUnitario, totalUnidadesComplementos: calc.totalUnidadesComplementos,
-                    mostrarResumenComplementos: !!platoDoc.mostrarResumenComplementos,
-                    resumenComplementosImpresion: platoDoc.resumenComplementosImpresion || undefined,
-                    notaEspecial, tipoServicio, cantidad: calc.cantidad
-                });
+        data.platos.forEach((item) => {
+            const platoDoc = platoMap.get(item.plato.toString());
+            if (!platoDoc) throw new Error(`Plato no encontrado: ${item.plato}`);
+            const calc = calcularTotalesPlato(platoDoc, item);
+            totalPlatos += calc.total;
+            const tipoServicio = item.tipoServicio === 'para_llevar' ? 'para_llevar' : 'mesa';
+            const notaEspecial = typeof item.notaEspecial === 'string' ? item.notaEspecial : '';
+            platosReserva.push({
+                plato: platoDoc._id, cantidad: calc.cantidad, tipoServicio,
+                complementosSeleccionados: calc.complementosSeleccionados, notaEspecial
             });
-
-            const tiempoEspera = Number(data.tiempoEspera) || config.tiempoEsperaDefaultMin || 10;
-            const nuevaReservaArr = await Reserva.create([{
-                mesa: mesa._id, mozo: data.mozo, clienteNombre,
-                clienteTelefono: data.clienteTelefono || null,
-                numPersonas: parseInt(data.numPersonas) || 2,
-                fechaReserva: fechaAtencion.toDate(), fechaCocina: fechaCocina.toDate(),
-                tiempoEspera: [5, 10, 20].includes(tiempoEspera) ? tiempoEspera : 10,
-                platos: platosReserva, metodoPago: data.metodoPago || null, notas: data.notas || null,
-                creadoPor: data.mozo,
-                cocineroEncargado: data.cocineroEncargado && mongoose.Types.ObjectId.isValid(data.cocineroEncargado)
-                    ? new mongoose.Types.ObjectId(data.cocineroEncargado) : null,
-                estado: 'pendiente'
-            }], { session });
-            const reserva = nuevaReservaArr[0];
-
-            // Bloqueo de mesa
-            if (config.bloquearMesaAlCrear === true) {
-                await mesasModel.updateOne({ _id: mesa._id }, { estado: 'reservado' }, { session });
-            } else {
-                const minutosBloqueo = Number(config.minutosBloqueoMesaAntes) || 45;
-                const fechaBloqueo = fechaAtencion.clone().subtract(minutosBloqueo, 'minutes');
-                if (fechaBloqueo.isSameOrBefore(ahora)) {
-                    await mesasModel.updateOne({ _id: mesa._id }, { estado: 'reservado' }, { session });
-                }
-            }
-
-            // Comanda programada
-            const mozoDoc = await require('../database/models/mozos.model').findById(data.mozo).select('name rol').session(session).lean();
-            const comandaPayload = {
-                mozos: data.mozo, mesas: mesa._id,
-                mozoNombre: mozoDoc?.name || null, mesaNumero: mesa.nummesa,
-                areaNombre: mesa.area?.nombre || null, clienteNombre,
-                platos: platosComanda, cantidades: platosComanda.map((p) => p.cantidad),
-                observaciones: data.notas || '', status: 'en_espera', IsActive: true,
-                origenCreacion: 'reserva', origenReserva: reserva._id,
-                programadaPorReserva: true, fechaCocinaProgramada: fechaCocina.toDate(), prioridadOrden: 0
-            };
-            if (data.cocineroEncargado && mongoose.Types.ObjectId.isValid(data.cocineroEncargado)) {
-                comandaPayload.procesandoPor = { cocineroId: new mongoose.Types.ObjectId(data.cocineroEncargado), timestamp: null };
-            }
-            const comandaCreadaArr = await getComandaModel().create([comandaPayload], { session });
-            const comanda = comandaCreadaArr[0];
-
-            reserva.comandaGenerada = comanda._id;
-            await reserva.save({ session });
-
-            // PPA opcional
-            let ticketPPA = null;
-            if (data.pagoAdelantado && data.pagoAdelantado.activo) {
-                const montoPagado = Number(data.pagoAdelantado.montoPagado) || 0;
-                if (montoPagado <= 0) throw new Error('El monto del pago adelantado debe ser mayor a 0');
-                if (montoPagado > totalPlatos) throw new Error('El monto adelantado no puede superar el total de platos');
-                const metodo = data.pagoAdelantado.metodoPago || 'efectivo';
-                const platosSnapshot = platosComanda.map((p, i) => ({
-                    comandaId: comanda._id, comandaNumber: comanda.comandaNumber, platoLineaId: p._id,
-                    plato: p.plato, platoId: p.platoId, nombre: platosCatalogo[i]?.nombre || 'N/A',
-                    precio: p.precioUnitario, cantidad: p.cantidad, subtotal: p.precioUnitario * p.cantidad,
-                    tipoServicio: p.tipoServicio, complementosSeleccionados: p.complementosSeleccionados,
-                    notaEspecial: p.notaEspecial, estadoAlPagoAdelantado: 'pendiente'
-                }));
-                const ticketArr = await getTicketPagoAdelantadoModel().create([{
-                    estado: 'pendiente_aprobacion', comandas: [comanda._id], comandasNumbers: [comanda.comandaNumber],
-                    mesa: mesa._id, numMesa: mesa.nummesa, mozo: data.mozo, nombreMozo: mozoDoc?.name || 'N/A',
-                    platos: platosSnapshot, subtotal: montoPagado, igv: 0, total: montoPagado,
-                    metodoPago: ['efectivo', 'digital', 'tarjeta'].includes(metodo) ? metodo : 'efectivo',
-                    clienteNombre, origen: 'reserva', reserva: reserva._id, createdBy: data.mozo,
-                    sourceApp: 'mozos', observaciones: 'Pago adelantado de reserva (seña)'
-                }], { session });
-                ticketPPA = ticketArr[0];
-                comanda.platos.forEach((p) => {
-                    p.pagoAdelantado = { requerido: true, ticketId: ticketPPA._id, estadoTicket: 'pendiente_aprobacion', cobrado: false, boucherId: null };
-                });
-                await comanda.save({ session });
-                reserva.pagoAdelantado = {
-                    activo: true, ticketId: ticketPPA._id, estadoTicket: 'pendiente_aprobacion',
-                    totalPlatos, montoPagado, montoPendiente: totalPlatos - montoPagado
-                };
-                await reserva.save({ session });
-            }
-
-            logger.info('Reserva desde mozos creada', {
-                reservaId: reserva._id, comandaId: comanda._id, mesaId: mesa._id,
-                fechaReserva: reserva.fechaReserva, fechaCocina: reserva.fechaCocina,
-                activacionInmediata, ppa: !!ticketPPA
+            platosComanda.push({
+                plato: platoDoc._id, platoId: platoDoc.id || null, estado: 'pendiente', tiempos: {},
+                complementosSeleccionados: calc.complementosSeleccionados,
+                precioBase: calc.precioBase, extraComplementos: calc.extraComplementos,
+                precioUnitario: calc.precioUnitario, totalUnidadesComplementos: calc.totalUnidadesComplementos,
+                mostrarResumenComplementos: !!platoDoc.mostrarResumenComplementos,
+                resumenComplementosImpresion: platoDoc.resumenComplementosImpresion || undefined,
+                notaEspecial, tipoServicio, cantidad: calc.cantidad
             });
-            return { reserva, comanda, ticketPPA, config, activacionInmediata };
         });
-        return result;
+
+        const tiempoEspera = Number(data.tiempoEspera) || config.tiempoEsperaDefaultMin || 10;
+        const reserva = await Reserva.create({
+            mesa: mesa._id, mozo: data.mozo, clienteNombre,
+            clienteTelefono: data.clienteTelefono || null,
+            numPersonas: parseInt(data.numPersonas) || 2,
+            fechaReserva: fechaAtencion.toDate(), fechaCocina: fechaCocina.toDate(),
+            tiempoEspera: [5, 10, 20].includes(tiempoEspera) ? tiempoEspera : 10,
+            platos: platosReserva, metodoPago: data.metodoPago || null, notas: data.notas || null,
+            creadoPor: data.mozo,
+            cocineroEncargado: data.cocineroEncargado && mongoose.Types.ObjectId.isValid(data.cocineroEncargado)
+                ? new mongoose.Types.ObjectId(data.cocineroEncargado) : null,
+            estado: 'pendiente_aprobar'
+        });
+        reservaCreada = reserva;
+
+        await mesasModel.updateOne({ _id: mesa._id }, { estado: 'pendiente_aprobar' });
+        mesaIdBloqueada = mesa.estado === 'libre' ? mesa._id : null;
+
+        const mozoDoc = await require('../database/models/mozos.model').findById(data.mozo).select('name rol').lean();
+        const comandaPayload = {
+            mozos: data.mozo, mesas: mesa._id,
+            mozoNombre: mozoDoc?.name || null, mesaNumero: mesa.nummesa,
+            areaNombre: mesa.area?.nombre || null, clienteNombre,
+            platos: platosComanda, cantidades: platosComanda.map((p) => p.cantidad),
+            observaciones: data.notas || '', status: 'en_espera', IsActive: true,
+            origenCreacion: 'reserva', origenReserva: reserva._id,
+            programadaPorReserva: true, fechaCocinaProgramada: fechaCocina.toDate(), prioridadOrden: 0
+        };
+        const comanda = await getComandaModel().create(comandaPayload);
+        comandaCreada = comanda;
+
+        reserva.comandaGenerada = comanda._id;
+        await reserva.save();
+
+        const ppa = data.pagoAdelantado || {};
+        let montoPagado = Number(ppa.montoPagado) || 0;
+        if (montoPagado < 0) montoPagado = 0;
+        if (montoPagado > totalPlatos) throw new Error('El monto adelantado no puede superar el total de platos');
+        const metodo = ppa.metodoPago || 'efectivo';
+        const platosSnapshot = comanda.platos.map((p, i) => {
+            const src = platosComanda[i] || {};
+            const cat = platoMap.get((p.plato || src.plato).toString());
+            const cantidad = Number(comanda.cantidades?.[i] || src.cantidad) || 1;
+            const precio = Number(p.precioUnitario != null ? p.precioUnitario : src.precioUnitario) || 0;
+            return {
+                comandaId: comanda._id, comandaNumber: comanda.comandaNumber, platoLineaId: p._id,
+                plato: p.plato, platoId: p.platoId, nombre: cat?.nombre || 'N/A',
+                precio, cantidad, subtotal: precio * cantidad,
+                tipoServicio: p.tipoServicio || src.tipoServicio || 'mesa',
+                complementosSeleccionados: p.complementosSeleccionados || src.complementosSeleccionados || [],
+                notaEspecial: p.notaEspecial || src.notaEspecial || '',
+                estadoAlPagoAdelantado: 'pendiente'
+            };
+        });
+        const ticketPPA = await getTicketPagoAdelantadoModel().create({
+            estado: 'pendiente_aprobacion', comandas: [comanda._id], comandasNumbers: [comanda.comandaNumber],
+            mesa: mesa._id, numMesa: mesa.nummesa, mozo: data.mozo, nombreMozo: mozoDoc?.name || 'N/A',
+            platos: platosSnapshot, subtotal: montoPagado, igv: 0, total: montoPagado,
+            metodoPago: ['efectivo', 'digital', 'tarjeta'].includes(metodo) ? metodo : 'efectivo',
+            clienteNombre, origen: 'reserva', reserva: reserva._id, createdBy: data.mozo,
+            sourceApp: 'mozos',
+            observaciones: montoPagado > 0 ? 'Pago adelantado de reserva (seña)' : 'Confirmación de reserva (sin adelanto)'
+        });
+        ticketCreado = ticketPPA;
+        comanda.platos.forEach((p) => {
+            p.pagoAdelantado = { requerido: true, ticketId: ticketPPA._id, estadoTicket: 'pendiente_aprobacion', cobrado: false, boucherId: null };
+        });
+        await comanda.save();
+        reserva.pagoAdelantado = {
+            activo: true, ticketId: ticketPPA._id, estadoTicket: 'pendiente_aprobacion',
+            totalPlatos, montoPagado, montoPendiente: totalPlatos - montoPagado
+        };
+        await reserva.save();
+
+        logger.info('Reserva desde mozos enviada a aprobación', {
+            reservaId: reserva._id, comandaId: comanda._id, mesaId: mesa._id,
+            fechaReserva: reserva.fechaReserva, montoPagado, ticketId: ticketPPA._id
+        });
+        return { reserva, comanda, ticketPPA, config, activacionInmediata, esperandoAprobacion: true };
     } catch (error) {
         logger.error('Error en crearReservaDesdeMozos', { error: error.message, stack: error.stack });
+        try {
+            if (ticketCreado?._id) await getTicketPagoAdelantadoModel().deleteOne({ _id: ticketCreado._id });
+            if (comandaCreada?._id) await getComandaModel().deleteOne({ _id: comandaCreada._id });
+            if (reservaCreada?._id) await Reserva.deleteOne({ _id: reservaCreada._id });
+            if (mesaIdBloqueada) await mesasModel.updateOne({ _id: mesaIdBloqueada }, { estado: 'libre' });
+        } catch (cleanupErr) {
+            logger.error('Error al compensar reserva fallida', { error: cleanupErr.message });
+        }
         throw error;
-    } finally {
-        session.endSession();
     }
+};
+
+const aplicarBloqueoMesaReserva = async (reserva, config) => {
+    const ahora = moment().tz('America/Lima');
+    const fechaAtencion = moment(reserva.fechaReserva);
+    if (config.bloquearMesaAlCrear === true) {
+        await mesasModel.updateOne({ _id: reserva.mesa }, { estado: 'reservado' });
+        return 'reservado';
+    }
+    const minutosBloqueo = Number(config.minutosBloqueoMesaAntes) || 45;
+    const fechaBloqueo = fechaAtencion.clone().subtract(minutosBloqueo, 'minutes');
+    if (fechaBloqueo.isSameOrBefore(ahora)) {
+        await mesasModel.updateOne({ _id: reserva.mesa }, { estado: 'reservado' });
+        return 'reservado';
+    }
+    await mesasModel.updateOne({ _id: reserva.mesa }, { estado: 'libre' });
+    return 'libre';
+};
+
+const programarJobsReservaConfirmada = (reserva, config) => {
+    const timeoutService = require('../services/timeoutService');
+    try {
+        timeoutService.programarActivacion(
+            reserva._id,
+            reserva.fechaCocina,
+            config.minutosAlertaPreviaCocina ?? 10
+        );
+    } catch (e) {
+        logger.error('Error al programar activación de cocina', { error: e.message, reservaId: reserva._id });
+    }
+    try {
+        timeoutService.programarExpiracion(reserva._id, reserva.fechaReserva, reserva.tiempoEspera);
+    } catch (e) {
+        logger.error('Error al programar expiración de reserva', { error: e.message, reservaId: reserva._id });
+    }
+    try {
+        if (!(config.bloquearMesaAlCrear ?? false) && reserva.fechaReserva) {
+            timeoutService.programarBloqueoMesa(
+                reserva._id,
+                reserva.fechaReserva,
+                config.minutosBloqueoMesaAntes ?? 45
+            );
+        }
+    } catch (e) {
+        logger.error('Error al programar bloqueo diferido de mesa', { error: e.message, reservaId: reserva._id });
+    }
+};
+
+const confirmarReservaTrasAprobacionPPA = async (reservaId) => {
+    const reserva = await Reserva.findById(reservaId);
+    if (!reserva) throw new Error('Reserva no encontrada');
+    const config = await leerConfigReservas();
+    if (reserva.estado !== 'pendiente_aprobar') {
+        return { reserva, config, alreadyConfirmed: true, mesaEstado: null };
+    }
+    reserva.estado = 'pendiente';
+    if (reserva.pagoAdelantado) {
+        reserva.pagoAdelantado.estadoTicket = 'aprobado';
+        reserva.markModified('pagoAdelantado');
+    }
+    await reserva.save();
+    const mesaEstado = await aplicarBloqueoMesaReserva(reserva, config);
+    programarJobsReservaConfirmada(reserva, config);
+    if (reserva.comandaGenerada) {
+        const comanda = await getComandaModel().findById(reserva.comandaGenerada);
+        if (comanda) {
+            comanda.platos.forEach((p) => {
+                if (p.pagoAdelantado) p.pagoAdelantado.estadoTicket = 'aprobado';
+            });
+            comanda.markModified('platos');
+            await comanda.save();
+        }
+    }
+    logger.info('Reserva confirmada tras aprobación PPA', { reservaId: reserva._id, mesaEstado });
+    return { reserva, config, alreadyConfirmed: false, mesaEstado };
+};
+
+const rechazarReservaTrasPPA = async (reservaId, motivo) => {
+    const reserva = await Reserva.findById(reservaId);
+    if (!reserva) return { mesaId: null, comandaId: null };
+    if (reserva.estado === 'rechazada' || reserva.estado === 'cancelada') {
+        return { mesaId: reserva.mesa, comandaId: reserva.comandaGenerada };
+    }
+    reserva.estado = 'rechazada';
+    reserva.notas = `${reserva.notas || ''} [RECHAZADA PPA: ${motivo || ''}]`.trim();
+    if (reserva.pagoAdelantado) {
+        reserva.pagoAdelantado.estadoTicket = 'rechazado';
+        reserva.markModified('pagoAdelantado');
+    }
+    await reserva.save();
+    await mesasModel.updateOne({ _id: reserva.mesa }, { estado: 'libre' });
+    if (reserva.comandaGenerada) {
+        await getComandaModel().updateOne(
+            { _id: reserva.comandaGenerada },
+            { $set: { status: 'cancelado', IsActive: false, programadaPorReserva: false } }
+        );
+    }
+    logger.info('Reserva rechazada por PPA', { reservaId: reserva._id, motivo });
+    return { mesaId: reserva.mesa, comandaId: reserva.comandaGenerada };
 };
 
 module.exports = {
@@ -791,6 +988,7 @@ module.exports = {
     obtenerReservaPorId,
     actualizarReserva,
     cancelarReserva,
+    cancelarReservaPorComandaEliminada,
 
     // Funciones especificas
     obtenerReservaActivaPorMesa,
@@ -803,6 +1001,8 @@ module.exports = {
 
     // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1
     crearReservaDesdeMozos,
+    confirmarReservaTrasAprobacionPPA,
+    rechazarReservaTrasPPA,
     obtenerReservasProgramadasCocina,
     obtenerMesasDisponiblesParaReserva,
     // Helpers puras (testeables sin DB)

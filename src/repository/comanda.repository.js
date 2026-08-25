@@ -68,8 +68,10 @@ const PROYECCION_COCINA = {
     mozoNombre: 1,
     mesaNumero: 1,
     areaNombre: 1,
-    // Origen dashboard (badge/borde verde en KDS)
+    clienteNombre: 1,
+    // Origen dashboard (badge/borde verde en KDS) / reserva (header morado)
     origenCreacion: 1,
+    origenReserva: 1,
     createdByDashboard: 1,
     omitirPago: 1,
     omitirOrdenEntrega: 1,
@@ -434,8 +436,9 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
         clienteNombre: 1,
         totalPlatos: 1,
         platosActivos: 1,
-        // Origen / dashboard (agrupación y badges)
+        // Origen / dashboard (agrupación y badges) / reserva (header morado)
         origenCreacion: 1,
+        origenReserva: 1,
         createdByDashboard: 1,
         omitirPago: 1,
         omitirOrdenEntrega: 1,
@@ -963,7 +966,7 @@ const agregarComanda = async (data) => {
   // Si la mesa estaba en "preparado", cambiar a "pedido" para la nueva comanda
   // Si la mesa estaba en "libre", cambiar a "pedido"
   // Si la mesa estaba en "reservado", cambiar a "pedido" (el mozo autorizado está atendiendo)
-  if (estadoMesa === 'preparado' || estadoMesa === 'libre' || estadoMesa === 'reservado') {
+  if (estadoMesa === 'preparado' || estadoMesa === 'libre' || estadoMesa === 'reservado' || estadoMesa === 'entregado' || estadoMesa === 'pagado') {
     await mesasModel.updateOne(
       { _id: data.mesas },
       { $set: { estado: 'pedido' } }
@@ -1170,12 +1173,37 @@ const eliminarLogicamente = async (comandaId, usuarioId, motivo, requerirMotivo 
     }
     
     const mesaId = comandaSnapshot.mesas;
+    let reservaCancelada = null;
+    const esComandaReserva = comandaSnapshot.origenCreacion === 'reserva'
+      || !!comandaSnapshot.origenReserva
+      || comandaSnapshot.programadaPorReserva === true;
+    if (esComandaReserva) {
+      try {
+        reservaCancelada = await getReservaRepository().cancelarReservaPorComandaEliminada(
+          comandaSnapshot,
+          motivo
+        );
+      } catch (reservaErr) {
+        console.error('⚠️ Error al cancelar reserva vinculada:', reservaErr.message);
+      }
+    }
+
     if (mesaId) {
       try {
-        await recalcularEstadoMesa(mesaId, null, { forzar: eraPendienteAprobacion });
+        await recalcularEstadoMesa(mesaId, null, {
+          forzar: eraPendienteAprobacion || !!reservaCancelada
+        });
         console.log(`✅ Estado de mesa ${mesaId} recalculado después de eliminar comanda`);
       } catch (error) {
         console.error(`⚠️ Error al recalcular estado de mesa después de eliminar comanda:`, error.message);
+      }
+    }
+
+    if (reservaCancelada && global.emitReservaCancelada) {
+      try {
+        await global.emitReservaCancelada(reservaCancelada._id, motivo);
+      } catch (e) {
+        console.error('⚠️ Error al emitir reserva-cancelada:', e.message);
       }
     }
 

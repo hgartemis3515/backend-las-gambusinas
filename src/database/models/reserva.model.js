@@ -117,9 +117,9 @@ const reservaSchema = new mongoose.Schema({
     },
     
     // Estado de la reserva
-    estado: {
+        estado: {
         type: String,
-        enum: ['pendiente', 'activa', 'rechazada', 'completada', 'cancelada'],
+        enum: ['pendiente_aprobar', 'pendiente', 'activa', 'rechazada', 'completada', 'cancelada'],
         default: 'pendiente',
         index: true
     },
@@ -277,7 +277,7 @@ reservaSchema.pre('save', function(next) {
  * Obtener estados validos
  */
 reservaSchema.statics.getEstados = function() {
-    return ['pendiente', 'activa', 'rechazada', 'completada', 'cancelada'];
+    return ['pendiente_aprobar', 'pendiente', 'activa', 'rechazada', 'completada', 'cancelada'];
 };
 
 /**

@@ -344,6 +344,15 @@ function getToken() {
   return localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
 }
 
+function dashboardAuthHeaders(includeJson) {
+  const headers = {
+    'Authorization': 'Bearer ' + getToken(),
+    'x-source-app': 'dashboard'
+  };
+  if (includeJson) headers['Content-Type'] = 'application/json';
+  return headers;
+}
+
 function clearAuthAndRedirect() {
   localStorage.removeItem('adminToken');
   localStorage.removeItem('gambusinas_auth');
@@ -365,7 +374,7 @@ async function apiGet(endpoint) {
   }
   try {
     const res = await fetch('/api' + endpoint, {
-      headers: { 'Authorization': 'Bearer ' + token }
+      headers: dashboardAuthHeaders(false)
     });
     if (res.status === 401) {
       clearAuthAndRedirect();
@@ -399,10 +408,7 @@ async function apiPost(endpoint, body) {
   try {
     const res = await fetch('/api' + endpoint, {
       method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + token,
-        'Content-Type': 'application/json'
-      },
+      headers: dashboardAuthHeaders(true),
       body: JSON.stringify(body)
     });
     if (res.status === 401) {
@@ -425,10 +431,7 @@ async function apiPut(endpoint, body) {
   try {
     const res = await fetch('/api' + endpoint, {
       method: 'PUT',
-      headers: {
-        'Authorization': 'Bearer ' + token,
-        'Content-Type': 'application/json'
-      },
+      headers: dashboardAuthHeaders(true),
       body: JSON.stringify(body)
     });
     if (res.status === 401) {
@@ -452,7 +455,7 @@ async function apiDelete(endpoint, body) {
   try {
     const options = {
       method: 'DELETE',
-      headers: { 'Authorization': 'Bearer ' + token }
+      headers: { 'Authorization': 'Bearer ' + token, 'x-source-app': 'dashboard' }
     };
     if (body) {
       options.headers['Content-Type'] = 'application/json';
@@ -483,10 +486,7 @@ async function apiPatch(endpoint, body) {
   try {
     const res = await fetch('/api' + endpoint, {
       method: 'PATCH',
-      headers: {
-        'Authorization': 'Bearer ' + token,
-        'Content-Type': 'application/json'
-      },
+      headers: dashboardAuthHeaders(true),
       body: JSON.stringify(body || {})
     });
     if (res.status === 401) {

@@ -29,29 +29,84 @@ const mesasModel = require('../database/models/mesas.model');
  * @param {Object} opts { origen: 'job' | 'manual' }
  * @returns {Object} { activada: boolean, reserva, comanda }
  */
+/**
+ * Misma secuencia que POST /comanda: platos y luego guarniciones, si los motores están habilitados.
+ * No bloquea la activación si falla (Tomar manual sigue disponible).
+ */
+const aplicarAsignacionAutomaticaReserva = async (comandaId) => {
+    try {
+        const asignacionAutomaticaService = require('./asignacionAutomaticaService');
+        const comandaPop = await Comanda.findById(comandaId)
+            .populate('platos.plato', 'id categoria tipo tipos nombre codigo')
+            .lean();
+        if (!comandaPop || !comandaPop.platos?.length) return;
+        const resultado = await asignacionAutomaticaService.asignarPlatosNuevos(comandaPop);
+        logger.info('Auto-asignación post-activación reserva', {
+            comandaId: comandaId?.toString(),
+            comandaNumber: comandaPop.comandaNumber,
+            asignados: resultado.asignados,
+            noAsignados: resultado.noAsignados,
+            motivo: resultado.motivo || null
+        });
+        try {
+            const asignacionGuarnicionesService = require('./asignacionAutomaticaGuarnicionesService');
+            const comandaPostPlatos = await Comanda.findById(comandaId)
+                .populate('platos.plato', 'id categoria tipo tipos nombre codigo')
+                .lean();
+            if (comandaPostPlatos) {
+                const resG = await asignacionGuarnicionesService.asignarGuarnicionesNuevas(comandaPostPlatos);
+                logger.info('Auto-asignación guarniciones post-activación reserva', {
+                    comandaId: comandaId?.toString(),
+                    comandaNumber: comandaPop.comandaNumber,
+                    asignados: resG.asignados,
+                    noAsignados: resG.noAsignados,
+                    motivo: resG.motivo || null
+                });
+            }
+        } catch (eG) {
+            logger.warn('Auto-asignación de guarniciones post-activación reserva falló (no crítico)', {
+                comandaId, error: eG.message
+            });
+        }
+        if ((resultado.asignados > 0) && global.emitRendimientoCocineroActualizado) {
+            global.emitRendimientoCocineroActualizado({ tipo: 'reserva_activada', comandaId: comandaId?.toString() });
+        }
+    } catch (e) {
+        logger.warn('Auto-asignación post-activación reserva falló (no crítico)', {
+            comandaId, error: e.message
+        });
+    }
+};
+
 const activarReservaProgramada = async (reservaId, opts = {}) => {
     const origen = opts.origen || 'job';
     try {
-        // Idempotencia: atomic update pendiente -> activa
-        const reserva = await Reserva.findByIdAndUpdate(
-            reservaId,
-            { estado: 'activa', actualizadoEn: moment.tz('America/Lima').toDate() },
+        const ahora = moment.tz('America/Lima').toDate();
+        const reserva = await Reserva.findOneAndUpdate(
+            { _id: reservaId, estado: 'pendiente' },
+            { estado: 'activa', actualizadoEn: ahora },
             { new: true }
         ).populate('mesa', 'nummesa estado area');
 
         if (!reserva) {
-            logger.warn('activarReservaProgramada: reserva no encontrada', { reservaId });
-            return { activada: false, motivo: 'no_encontrada' };
+            const actual = await Reserva.findById(reservaId).select('estado').lean();
+            if (!actual) {
+                logger.warn('activarReservaProgramada: reserva no encontrada', { reservaId });
+                return { activada: false, motivo: 'no_encontrada' };
+            }
+            logger.warn('activarReservaProgramada: estado no pendiente', {
+                reservaId, estado: actual.estado, origen
+            });
+            return { activada: false, motivo: 'estado_no_pendiente', reserva: actual };
         }
 
-        // Si ya estaba activa (o en otro estado terminal), no reprocesar la comanda
-        // Nota: el findByIdAndUpdate arriba ya la dejó en 'activa', pero si vino
-        // de un segundo disparo del job tras un restart, evitamos tocar la comanda.
-        const yaActivadaPreviamente = reserva.comandaGenerada && origen === 'job';
+        if (opts.motivo) {
+            reserva.notas = `${reserva.notas || ''} [ACTIVACIÓN ANTICIPADA (${origen}): ${String(opts.motivo).trim()}]`.trim();
+            await reserva.save();
+        }
 
         logger.info('Activando reserva programada', {
             reservaId,
-            estadoPrevioEsperado: 'pendiente',
             origen,
             mesa: reserva.mesa?._id,
             fechaReserva: reserva.fechaReserva,
@@ -61,9 +116,6 @@ const activarReservaProgramada = async (reservaId, opts = {}) => {
         // Activar la comanda programada si existe
         let comandaActualizada = null;
         if (reserva.comandaGenerada) {
-            // Solo actualizamos si aún está marcada como programada (idempotencia a nivel comanda)
-            const setPrioridad = { $set: { programadaPorReserva: false }, $current: {} };
-            // Construimos el update manualmente porque $current no aplica para prioridadOrden
             const comanda = await Comanda.findById(reserva.comandaGenerada);
             if (comanda && comanda.programadaPorReserva) {
                 // Platos pendiente -> pedido (entran a la cola)
@@ -89,6 +141,7 @@ const activarReservaProgramada = async (reservaId, opts = {}) => {
                     platosModificados,
                     prioridadOrden: comanda.prioridadOrden
                 });
+                await aplicarAsignacionAutomaticaReserva(comanda._id);
             } else if (comanda) {
                 logger.debug('Comanda ya no estaba programada, se omite update', {
                     comandaId: comanda._id,
@@ -117,7 +170,10 @@ const activarReservaProgramada = async (reservaId, opts = {}) => {
         }
         try {
             if (global.emitReservaActualizada) {
-                await global.emitReservaActualizada(reservaId, { estado: 'activa', origen: 'activacion_programada' });
+                await global.emitReservaActualizada(reservaId, {
+                    estado: 'activa',
+                    origen: origen === 'manual_anticipada' ? 'activacion_anticipada' : 'activacion_programada'
+                });
             }
         } catch (e) {
             logger.error('Error al emitir reserva-actualizada en activación', { error: e.message, reservaId });

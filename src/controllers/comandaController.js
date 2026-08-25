@@ -88,6 +88,21 @@ const tienePermisoDesdeToken = (req, permiso) => {
     }
 };
 
+/** Dashboard / admin: pueden editar o eliminar aunque cocina ya tomó la comanda. Mozos no. */
+const resolverForzarAdmin = (req) => {
+    if (req.body?.forzarAdmin === true) return true;
+    const source = String(req.body?.sourceApp || req.headers['x-source-app'] || '').toLowerCase();
+    if (source === 'dashboard' || source === 'admin') return true;
+    try {
+        const authHeader = req.headers?.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
+        const decoded = jwtLib.verify(authHeader.substring(7), JWT_SECRET_LEGACY);
+        return decoded?.rol === 'admin';
+    } catch (e) {
+        return false;
+    }
+};
+
 router.get('/comanda', async (req, res) => {
     try {
         const incluirPagadas =
@@ -945,7 +960,7 @@ router.delete('/comanda/:id', async (req, res) => {
         }
 
         const validacionTomada = await validarEdicionMozoPermitida(snapshotAntes, {
-            forzarAdmin: req.body?.forzarAdmin === true,
+            forzarAdmin: resolverForzarAdmin(req),
             verificarComandaCompleta: true
         });
         if (!validacionTomada.permitido) {
@@ -1078,7 +1093,7 @@ router.put('/comanda/:id/eliminar', async (req, res) => {
         }
 
         const validacionTomada = await validarEdicionMozoPermitida(snapshotAntes, {
-            forzarAdmin: req.body?.forzarAdmin === true,
+            forzarAdmin: resolverForzarAdmin(req),
             verificarComandaCompleta: true
         });
         if (!validacionTomada.permitido) {
@@ -1536,7 +1551,7 @@ router.put('/comanda/:id/eliminar-plato/:platoIndex', async (req, res) => {
         }
 
         const validacionTomada = await validarEdicionMozoPermitida(comanda, {
-            forzarAdmin: req.body?.forzarAdmin === true,
+            forzarAdmin: resolverForzarAdmin(req),
             indicesPlatos: [parseInt(platoIndex, 10)],
             verificarComandaCompleta: true
         });
@@ -1812,7 +1827,7 @@ router.put('/comanda/:id/editar-platos', async (req, res) => {
             return res.status(404).json({ message: 'Comanda no encontrada' });
         }
 
-        const forzarAdmin = req.body?.forzarAdmin === true;
+        const forzarAdmin = resolverForzarAdmin(req);
         const validacionComanda = await validarEdicionMozoPermitida(snapshotAntesRaw, { forzarAdmin });
         if (!validacionComanda.permitido) {
             return responderBloqueoCocina(res, validacionComanda);
@@ -2083,7 +2098,7 @@ router.put("/comanda/:id", async (req, res) => {
       const validacionTomada = await validarActualizacionComandaMozo(
         comandaAntes,
         newData,
-        newData?.forzarAdmin === true
+        resolverForzarAdmin(req)
       );
       if (!validacionTomada.permitido) {
         return responderBloqueoCocina(res, validacionTomada);
@@ -2857,7 +2872,7 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             .filter((index) => !Number.isNaN(index) && index >= 0 && index < comandaCheck.platos.length);
 
         const validacionTomada = await validarEdicionMozoPermitida(comandaCheck, {
-            forzarAdmin: forzarAdmin === true,
+            forzarAdmin: forzarAdmin === true || resolverForzarAdmin(req),
             indicesPlatos: indicesValidosPre,
             verificarComandaCompleta: true
         });

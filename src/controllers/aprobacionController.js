@@ -145,12 +145,9 @@ router.put('/aprobacion/:id/aprobar', async (req, res) => {
     if (tipoReal === 'ADELANTADO' && result.ticket) {
       const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
       const ticket = result.ticket;
+      const esReserva = ticket.origen === 'reserva' || result.reservaConfirmada === true;
 
-      // PLAN_BUG_CONEXION_APROBACION_TICKETS_COCINA:
-      // PPA: el estado real de la mesa se lee de DB (no hardcodear 'pedido').
-      // ticketPagoAdelantado.repository solo la mueve de pendiente_pago → pedido
-      // si estaba en pendiente_pago; aquí leemos el valor final desde DB.
-      let estadoMesaPPA = null;
+      let estadoMesaPPA = result.mesaEstado || null;
       try {
         const mesaDoc = await mongoose.model('Mesa').findById(ticket.mesa).select('estado nummesa').lean();
         if (mesaDoc) {
@@ -161,57 +158,53 @@ router.put('/aprobacion/:id/aprobar', async (req, res) => {
       }
 
       if (io) {
-        // Notificar a cocina
-        io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-ppa-aprobado', {
+        const payloadAprobado = {
           ticketId: ticket._id,
           ticketNumber: ticket.ticketNumber,
           comandas: ticket.comandas,
           platosLiberados: result.platosLiberados || [],
-          message: `Ticket PPA #${ticket.ticketNumber} aprobado`,
-        });
-
-        // Notificar al mozo
-        io.of('/mozos').to(`mozo-${ticket.mozo}`).emit('ticket-ppa-aprobado', {
-          ticketId: ticket._id,
-          ticketNumber: ticket.ticketNumber,
           mesa: ticket.mesa,
-          message: `Pago adelantado aprobado por cocina para mesa ${ticket.numMesa}`,
-        });
+          nummesa: ticket.numMesa,
+          origen: ticket.origen || 'comanda',
+          reservaId: ticket.reserva || null,
+          estadoMesa: esReserva ? (estadoMesaPPA || result.mesaEstado || null) : (estadoMesaPPA || 'pedido'),
+          message: esReserva
+            ? `Reserva aprobada para mesa ${ticket.numMesa}`
+            : `Ticket PPA #${ticket.ticketNumber} aprobado`,
+        };
 
-        // Notificar a la mesa
-        io.of('/mozos').to(`mesa-${ticket.mesa}`).emit('ticket-ppa-aprobado', {
-          ticketId: ticket._id,
-          comandas: ticket.comandas,
-          message: 'Pago adelantado aprobado',
-        });
+        io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-ppa-aprobado', payloadAprobado);
+        io.of('/mozos').emit('ticket-ppa-aprobado', payloadAprobado);
+        io.of('/admin').emit('ticket-ppa-aprobado', payloadAprobado);
 
-        // Emitir comandas actualizadas
-        for (const comandaId of (ticket.comandas || [])) {
-          try {
-            const comandaActualizada = await mongoose.model('Comanda').findById(comandaId)
-              .populate('platos.plato', 'nombre precio id')
-              .populate('mozos', 'name')
-              .populate('mesas', 'nummesa estado nombreCombinado')
-              .lean();
+        // Comanda de reserva sigue programada (bandeja Reserva); no empujarla al KDS vivo
+        if (!esReserva) {
+          for (const comandaId of (ticket.comandas || [])) {
+            try {
+              const comandaActualizada = await mongoose.model('Comanda').findById(comandaId)
+                .populate('platos.plato', 'nombre precio id')
+                .populate('mozos', 'name')
+                .populate('mesas', 'nummesa estado nombreCombinado')
+                .lean();
 
-            if (comandaActualizada) {
-              io.of('/cocina').to(`fecha-${fechaHoy}`).emit('comanda-actualizada', {
-                comandaId,
-                comanda: comandaActualizada,
-                status: comandaActualizada.status,
-              });
-              io.of('/mozos').to(`mesa-${ticket.mesa}`).emit('comanda-actualizada', {
-                comandaId,
-                comanda: comandaActualizada,
-                status: comandaActualizada.status,
-              });
+              if (comandaActualizada) {
+                io.of('/cocina').to(`fecha-${fechaHoy}`).emit('comanda-actualizada', {
+                  comandaId,
+                  comanda: comandaActualizada,
+                  status: comandaActualizada.status,
+                });
+                io.of('/mozos').to(`mesa-${ticket.mesa}`).emit('comanda-actualizada', {
+                  comandaId,
+                  comanda: comandaActualizada,
+                  status: comandaActualizada.status,
+                });
+              }
+            } catch (emitErr) {
+              logger.warn('Error emitiendo comanda-actualizada tras aprobación PPA', { error: emitErr.message });
             }
-          } catch (emitErr) {
-            logger.warn('Error emitiendo comanda-actualizada tras aprobación PPA', { error: emitErr.message });
           }
         }
 
-        // Actualizar bandeja PPA en cocina
         io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-ppa-actualizado', {
           ticketId: ticket._id,
           estado: 'aprobado',
@@ -222,18 +215,31 @@ router.put('/aprobacion/:id/aprobar', async (req, res) => {
           estado: 'aprobado',
         });
 
-        // Mesa: emitir el estado LEÍDO de DB (no asumir siempre 'pedido').
-        if (estadoMesaPPA) {
-          io.of('/mozos').emit('mesa-actualizada', {
-            mesaId: ticket.mesa,
-            estado: estadoMesaPPA,
-            nummesa: ticket.numMesa,
-          });
-          io.of('/admin').emit('mesa-actualizada', {
-            mesaId: ticket.mesa,
-            estado: estadoMesaPPA,
-            nummesa: ticket.numMesa,
-          });
+        if (ticket.mesa && global.emitMesaActualizada) {
+          try {
+            await global.emitMesaActualizada(ticket.mesa);
+          } catch (e) {
+            logger.warn('Error emitiendo mesa-actualizada tras aprobación PPA', { error: e.message });
+          }
+        }
+
+        if (esReserva && ticket.reserva) {
+          try {
+            const Reserva = require('../database/models/reserva.model');
+            const reservaDoc = await Reserva.findById(ticket.reserva)
+              .populate('mesa', 'nummesa estado')
+              .populate('mozo', 'name')
+              .populate('cocineroEncargado', 'name alias');
+            if (reservaDoc) {
+              if (global.emitReservaCreada) await global.emitReservaCreada(reservaDoc);
+              const comandaDoc = reservaDoc.comandaGenerada
+                ? await mongoose.model('Comanda').findById(reservaDoc.comandaGenerada)
+                : null;
+              if (global.emitReservaProgramada) await global.emitReservaProgramada(reservaDoc, comandaDoc);
+            }
+          } catch (e) {
+            logger.error('Error al emitir reserva confirmada (aprobación unificada)', { error: e.message });
+          }
         }
       }
     }

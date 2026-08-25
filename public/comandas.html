@@ -4243,7 +4243,9 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const res = await apiPut('/comanda/' + comanda._id + '/eliminar', {
  motivo: this.motivoEliminacionGrupo.trim() + ' (Grupo)',
  usuarioId: 'admin',
- mozoId: null
+ mozoId: null,
+ forzarAdmin: true,
+ sourceApp: 'dashboard'
  });
  resultados.push({ id: comanda._id, success: !res?.error });
  } catch (err) {
@@ -4577,7 +4579,9 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const res = await apiPut('/comanda/' + this.comandaEliminar._id + '/eliminar', {
  motivo: this.motivoEliminacion.trim(),
  usuarioId: 'admin',
- mozoId: null
+ mozoId: null,
+ forzarAdmin: true,
+ sourceApp: 'dashboard'
  });
 
  console.log('📥 Respuesta eliminacion:', res);

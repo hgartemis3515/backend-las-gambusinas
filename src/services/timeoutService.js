@@ -411,6 +411,23 @@ const cancelarTimeout = (reservaId) => {
     }
 };
 
+/** Cancela solo el job de activación KDS (no-show y bloqueo de mesa siguen). */
+const cancelarActivacion = (reservaId) => {
+    const id = reservaId.toString();
+    const timeouts = reservaTimeouts.get(id);
+    if (!timeouts) return;
+    if (timeouts.timeoutActivacion) {
+        clearTimeout(timeouts.timeoutActivacion);
+        timeouts.timeoutActivacion = null;
+    }
+    if (timeouts.timeoutAlertaActivacion) {
+        clearTimeout(timeouts.timeoutAlertaActivacion);
+        timeouts.timeoutAlertaActivacion = null;
+    }
+    reservaTimeouts.set(id, timeouts);
+    logger.debug('Activación de cocina cancelada', { reservaId: id });
+};
+
 /**
  * Rehidratar timeouts de todas las reservas pendientes
  * Debe llamarse al iniciar el servidor
@@ -552,6 +569,7 @@ module.exports = {
     programarActivacion,
     programarBloqueoMesa,
     cancelarTimeout,
+    cancelarActivacion,
     rehidratarTimeouts,
     obtenerEstadisticas,
     limpiarTodos

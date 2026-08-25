@@ -198,6 +198,20 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
     return { ticket, platosLiberados: [], alreadyApproved: true };
   }
 
+  if (ticket.origen === 'reserva' && ticket.reserva) {
+    const reservaRepository = require('./reserva.repository');
+    const conf = await reservaRepository.confirmarReservaTrasAprobacionPPA(ticket.reserva);
+    logger.info(`TPA reserva #${ticket.ticketNumber} aprobado. Reserva confirmada.`);
+    return {
+      ticket,
+      platosLiberados: [],
+      alreadyApproved: false,
+      reservaConfirmada: true,
+      mesaEstado: conf.mesaEstado,
+      reserva: conf.reserva,
+    };
+  }
+
   const platosLiberados = [];
   for (const comandaId of ticket.comandas) {
     const { modificado, platosLiberados: liberados } = await saveComandaConReintento(
@@ -302,6 +316,13 @@ async function rechazarTicket(ticketId, motivo, usuarioId, usuarioNombre) {
   ticket.motivoRechazo = motivoLimpio;
   ticket.fechaRechazo = ahora;
   await ticket.save();
+
+  if (ticket.origen === 'reserva' && ticket.reserva) {
+    const reservaRepository = require('./reserva.repository');
+    const r = await reservaRepository.rechazarReservaTrasPPA(ticket.reserva, motivoLimpio);
+    logger.info(`TPA reserva #${ticket.ticketNumber} rechazado. Reserva cancelada.`);
+    return { ticket, comandasAfectadas: r.comandaId ? [r.comandaId] : [], reservaRechazada: true };
+  }
 
   const usuarioObjId = usuarioId && mongoose.Types.ObjectId.isValid(usuarioId)
     ? new mongoose.Types.ObjectId(usuarioId)

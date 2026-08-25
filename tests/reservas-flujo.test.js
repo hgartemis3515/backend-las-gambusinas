@@ -141,6 +141,16 @@ describe('PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 — Flujo de reservas', () => {
       expect(r.cantidad).toBe(1);
       expect(r.total).toBe(5);
     });
+
+    test('acepta complementosElegidos (alias del wizard) y mapea nombre → opcion', () => {
+      const r = calcularTotalesPlato(
+        { precio: 20 },
+        { cantidad: 1, complementosElegidos: [{ grupo: 'Tamaño', nombre: 'Doble', cantidad: 1, precio: 5 }] }
+      );
+      expect(r.extraComplementos).toBe(5);
+      expect(r.precioUnitario).toBe(25);
+      expect(r.complementosSeleccionados[0].opcion).toBe('Doble');
+    });
   });
 
   describe('Casos E2E del plan (cobertura de lógica pura)', () => {

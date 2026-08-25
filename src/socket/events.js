@@ -1349,7 +1349,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         adminNamespace.emit('mapa-actualizado', eventData);
         logger.debug('Evento mapa-actualizado emitido a admin', {
           areaId,
-          adminConnected: adminNamespace.sockets.size
+          adminConnected: adminNamespace?.sockets?.size || 0
         });
       }
 
@@ -1643,7 +1643,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       logger.info('Evento reportes:boucher-nuevo emitido', {
         boucherNumber: boucher.boucherNumber,
         monto: eventData.monto,
-        adminConnected: adminNamespace.sockets.size
+        adminConnected: adminNamespace?.sockets?.size || 0
       });
     } catch (error) {
       logger.error('Error al emitir reportes:boucher-nuevo', {
@@ -1689,7 +1689,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       logger.info('Evento reportes:comanda-nueva emitido', {
         comandaNumber: comanda.comandaNumber,
         cantidadPlatos: eventData.cantidadPlatos,
-        adminConnected: adminNamespace.sockets.size
+        adminConnected: adminNamespace?.sockets?.size || 0
       });
     } catch (error) {
       logger.error('Error al emitir reportes:comanda-nueva', {
@@ -1729,7 +1729,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         comandaId: eventData.comandaId,
         platoId: eventData.platoId,
         nombre: eventData.nombre,
-        adminConnected: adminNamespace.sockets.size
+        adminConnected: adminNamespace?.sockets?.size || 0
       });
     } catch (error) {
       logger.error('Error al emitir reportes:plato-listo', {
@@ -1933,7 +1933,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       logger.debug('Evento nueva-notificacion emitido', {
         notificacionId: notificacion._id?.toString(),
         tipo: notificacion.tipo,
-        adminConnected: adminNamespace.sockets.size
+        adminConnected: adminNamespace?.sockets?.size || 0
       });
     } catch (error) {
       logger.error('Error al emitir notificación', {
@@ -1967,7 +1967,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       logger.info('Evento roles-actualizados emitido', {
         mozoId,
         tipo,
-        adminConnected: adminNamespace.sockets.size
+        adminConnected: adminNamespace?.sockets?.size || 0
       });
     } catch (error) {
       logger.error('Error al emitir roles-actualizados', {
@@ -2013,7 +2013,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         adminNamespace.emit('mesas-juntadas', eventData);
         logger.debug('Evento mesas-juntadas emitido a admin', {
           mesaPrincipal: mesaPrincipal?.nummesa,
-          adminConnected: adminNamespace.sockets.size
+          adminConnected: adminNamespace?.sockets?.size || 0
         });
       }
 
@@ -2070,7 +2070,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         adminNamespace.emit('mesas-separadas', eventData);
         logger.debug('Evento mesas-separadas emitido a admin', {
           mesaPrincipal: mesaPrincipal?.nummesa,
-          adminConnected: adminNamespace.sockets.size
+          adminConnected: adminNamespace?.sockets?.size || 0
         });
       }
 
@@ -2120,7 +2120,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         adminNamespace.emit('config-cocinero-actualizada', eventData);
         logger.debug('Evento config-cocinero-actualizada emitido a admin', {
           cocineroId,
-          adminConnected: adminNamespace.sockets.size
+          adminConnected: adminNamespace?.sockets?.size || 0
         });
       }
 
@@ -2605,10 +2605,6 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
    */
   global.emitReservaCreada = async (reserva) => {
     try {
-      if (!adminNamespace || !adminNamespace.sockets) {
-        return;
-      }
-
       const timestamp = moment().tz('America/Lima').toISOString();
 
       const eventData = {
@@ -2616,12 +2612,20 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         timestamp: timestamp
       };
 
-      adminNamespace.emit('reserva-creada', eventData);
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('reserva-creada', eventData);
+      }
+      if (mozosNamespace && mozosNamespace.sockets) {
+        mozosNamespace.emit('reserva-creada', eventData);
+      }
+      if (cocinaNamespace && cocinaNamespace.sockets) {
+        cocinaNamespace.emit('reserva-creada', eventData);
+      }
 
       logger.info('Evento reserva-creada emitido', {
         reservaId: reserva._id?.toString(),
         mesaId: reserva.mesa?._id?.toString() || reserva.mesa?.toString(),
-        adminConnected: adminNamespace.sockets.size
+        adminConnected: adminNamespace?.sockets?.size || 0
       });
     } catch (error) {
       logger.error('Error al emitir reserva-creada', {
@@ -2638,10 +2642,6 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
    */
   global.emitReservaActualizada = async (reservaId, cambios = {}) => {
     try {
-      if (!adminNamespace || !adminNamespace.sockets) {
-        return;
-      }
-
       const timestamp = moment().tz('America/Lima').toISOString();
 
       const eventData = {
@@ -2650,11 +2650,19 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         timestamp: timestamp
       };
 
-      adminNamespace.emit('reserva-actualizada', eventData);
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('reserva-actualizada', eventData);
+      }
+      if (mozosNamespace && mozosNamespace.sockets) {
+        mozosNamespace.emit('reserva-actualizada', eventData);
+      }
+      if (cocinaNamespace && cocinaNamespace.sockets) {
+        cocinaNamespace.emit('reserva-actualizada', eventData);
+      }
 
       logger.info('Evento reserva-actualizada emitido', {
         reservaId: reservaId?.toString(),
-        adminConnected: adminNamespace.sockets.size
+        adminConnected: adminNamespace?.sockets?.size || 0
       });
     } catch (error) {
       logger.error('Error al emitir reserva-actualizada', {
@@ -2731,7 +2739,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         reservaId: reservaId?.toString(),
         mesa: datos.mesa,
         minutosRestantes: datos.minutosRestantes,
-        adminConnected: adminNamespace.sockets.size
+        adminConnected: adminNamespace?.sockets?.size || 0
       });
     } catch (error) {
       logger.error('Error al emitir reserva-alerta-expiracion', {
@@ -2748,10 +2756,6 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
    */
   global.emitReservaCancelada = async (reservaId, motivo = null) => {
     try {
-      if (!adminNamespace || !adminNamespace.sockets) {
-        return;
-      }
-
       const timestamp = moment().tz('America/Lima').toISOString();
 
       const eventData = {
@@ -2760,12 +2764,20 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         timestamp: timestamp
       };
 
-      adminNamespace.emit('reserva-cancelada', eventData);
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('reserva-cancelada', eventData);
+      }
+      if (mozosNamespace && mozosNamespace.sockets) {
+        mozosNamespace.emit('reserva-cancelada', eventData);
+      }
+      if (cocinaNamespace && cocinaNamespace.sockets) {
+        cocinaNamespace.emit('reserva-cancelada', eventData);
+      }
 
       logger.info('Evento reserva-cancelada emitido', {
         reservaId: reservaId?.toString(),
         motivo,
-        adminConnected: adminNamespace.sockets.size
+        adminConnected: adminNamespace?.sockets?.size || 0
       });
     } catch (error) {
       logger.error('Error al emitir reserva-cancelada', {
@@ -2817,9 +2829,8 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         }
         cocinaNamespace.emit('reserva-programada', eventData);
       }
-      // /mozos: al room del mozo
-      if (mozosNamespace && mozosNamespace.sockets && mozoId) {
-        mozosNamespace.to(`mozo-${mozoId}`).emit('reserva-programada', eventData);
+      if (mozosNamespace && mozosNamespace.sockets) {
+        mozosNamespace.emit('reserva-programada', eventData);
       }
 
       logger.info('Evento reserva-programada emitido', {
@@ -2911,7 +2922,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         logger.debug('Evento propina-registrada emitido a admin', {
           propinaId: eventData.propinaId,
           monto: eventData.montoPropina,
-          adminConnected: adminNamespace.sockets.size
+          adminConnected: adminNamespace?.sockets?.size || 0
         });
       }
 
@@ -2967,7 +2978,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       logger.info('Evento propina-actualizada emitido', {
         propinaId: eventData.propinaId,
         monto: eventData.montoPropina,
-        adminConnected: adminNamespace.sockets.size
+        adminConnected: adminNamespace?.sockets?.size || 0
       });
     } catch (error) {
       logger.error('Error al emitir propina-actualizada', {
@@ -2997,7 +3008,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       adminNamespace.emit('propina-eliminada', eventData);
       logger.info('Evento propina-eliminada emitido', {
         propinaId: eventData.propinaId,
-        adminConnected: adminNamespace.sockets.size
+        adminConnected: adminNamespace?.sockets?.size || 0
       });
     } catch (error) {
       logger.error('Error al emitir propina-eliminada', {
@@ -3073,7 +3084,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       logger.info('Evento mozos-conectados emitido', {
         conectados: eventData.conectados,
         total: eventData.total,
-        adminConnected: adminNamespace.sockets.size
+        adminConnected: adminNamespace?.sockets?.size || 0
       });
     } catch (error) {
       logger.error('Error al emitir mozos-conectados', {
@@ -3111,7 +3122,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         mozoId: eventData.mozoId,
         monto: eventData.monto,
         porcentajeDelPromedio: eventData.porcentajeDelPromedio,
-        adminConnected: adminNamespace.sockets.size
+        adminConnected: adminNamespace?.sockets?.size || 0
       });
     } catch (error) {
       logger.error('Error al emitir alerta-propina-alta', {
