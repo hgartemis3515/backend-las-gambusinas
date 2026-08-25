@@ -425,7 +425,7 @@ tailwind.config = {
               </select>
             </div>
           </div>
-          <p class="text-[10px] text-txt-muted">Misma clave grupo :: opción que en Cocineros. Si otra carta comparte la opción, el cambio aplica a todas.</p>
+          <p class="text-[10px] text-txt-muted">Asignación independiente por plato (misma guarnición en otro plato no se ve afectada).</p>
           <div class="space-y-2">
             <template x-for="(grupo, gi) in formPlato.complementos" :key="'asig-g-'+gi">
               <template x-for="(op, oi) in (grupo.opciones || [])" :key="'asig-o-'+gi+'-'+oi">
@@ -434,7 +434,8 @@ tailwind.config = {
                     <p class="text-[11px] font-medium"><span class="text-txt-muted" x-text="grupo.grupo || 'Grupo'"></span> · <span x-text="op.nombre"></span></p>
                     <span class="text-[10px] text-gold" x-text="etiquetaAsignacionActual(op._asig)"></span>
                   </div>
-                  <p x-show="op._asig?.origen === 'grupo'" class="text-[10px] text-txt-muted">Heredado del grupo. Si cambias el cocinero se crea una regla de esta guarnición.</p>
+                  <p x-show="op._asig?.origen === 'grupo'" class="text-[10px] text-txt-muted">Heredado del grupo. Si cambias el cocinero se crea una regla solo para este plato.</p>
+                  <p x-show="op._asig?.origen === 'guarnicion-global'" class="text-[10px] text-txt-muted">Heredado de una regla global. Si cambias el cocinero se crea una regla solo para este plato.</p>
                   <div class="grid grid-cols-2 gap-2">
                     <select x-model="op._asig.cocineroPrimarioId"
                       class="w-full bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[11px] text-txt-secondary focus:border-gold focus:outline-none">
@@ -1991,6 +1992,21 @@ tailwind.config = {
       return `${String(grupo || '').trim().toLowerCase()}::${String(opcion || '').trim().toLowerCase()}`;
     },
 
+    _baseGuarnicionKey(key, platoId) {
+      const k = String(key || '').trim().toLowerCase();
+      const pid = this._platoIdNumerico(platoId);
+      if (pid != null && k.startsWith(pid + '::')) return k.slice(String(pid).length + 2);
+      return k;
+    },
+
+    _matchReglaGuarnicion(r, key, platoId) {
+      if (!r) return false;
+      const pid = this._platoIdNumerico(platoId);
+      const rPid = this._platoIdNumerico(r.platoId);
+      if (rPid !== pid) return false;
+      return this._baseGuarnicionKey(r.guarnicionKey, r.platoId) === this._baseGuarnicionKey(key, platoId);
+    },
+
     _platoIdNumerico(id) {
       const n = Number(id);
       return Number.isFinite(n) && n > 0 ? n : null;
@@ -2087,6 +2103,19 @@ tailwind.config = {
       this.hidratarAsignacionGuarniciones(true);
     },
 
+    _buscarReglaGuarnicionPerfil(perfil, key, platoId) {
+      if (!perfil) return { regla: null, origen: null };
+      const pid = this._platoIdNumerico(platoId);
+      if (pid == null) return { regla: null, origen: null };
+      const reglas = perfil.reglasPorGuarnicion || [];
+      const conCocinero = (r) => this._reglaTieneCocinero(r);
+      const rPlato = reglas.find(r =>
+        conCocinero(r) && this._matchReglaGuarnicion(r, key, pid)
+      );
+      if (rPlato) return { regla: rPlato, origen: 'guarnicion' };
+      return { regla: null, origen: null };
+    },
+
     hidratarOpcionGuarnicion(grupo, op) {
       if (!op || typeof op !== 'object') return;
       if (!op._asig) op._asig = this._asigVacia();
@@ -2096,41 +2125,17 @@ tailwind.config = {
       const opcion = String(op.nombre || '').trim();
       if (!perfil || !grupoNom || !opcion) return;
       const key = this._claveGuarnicion(grupoNom, opcion);
-      const rG = (perfil.reglasPorGuarnicion || []).find(r => r.guarnicionKey === key && this._reglaTieneCocinero(r));
-      const grupoNorm = grupoNom.toLowerCase();
-      const rGr = !rG
-        ? (perfil.reglasPorGrupo || []).find(r => String(r.grupo || '').trim().toLowerCase() === grupoNorm && this._reglaTieneCocinero(r))
-        : null;
-      if (rG) op._asig = this._asigDesdeRegla(rG, 'guarnicion');
-      else if (rGr) op._asig = this._asigDesdeRegla(rGr, 'grupo');
-    },
-
-    hidratarAsignacionPlato() {
-      const perfil = this.perfilesAsignacionPlato.find(p => p.id === this.perfilAsignacionPlatoId);
-      const platoId = this._platoIdNumerico(this.formPlato.id);
-      const cat = String(this.formPlato.categoria || '').trim();
-      let rPlato = null;
-      let rCat = null;
-      if (perfil) {
-        if (platoId) {
-          rPlato = (perfil.reglasPorPlato || []).find(r => Number(r.platoId) === platoId && this._reglaTieneCocinero(r));
-        }
-        if (!rPlato && cat) {
-          rCat = (perfil.reglasPorCategoria || []).find(r => String(r.categoria || '').trim() === cat && this._reglaTieneCocinero(r));
-        }
+      const found = this._buscarReglaGuarnicionPerfil(perfil, key, this.formPlato.id);
+      if (found.regla) {
+        op._asig = this._asigDesdeRegla(found.regla, found.origen);
+        return;
       }
-      if (rPlato) {
-        this.formAsignacionPlato = { ...this._asigDesdeRegla(rPlato, 'plato'), categoriaHeredada: '' };
-      } else if (rCat) {
-        this.formAsignacionPlato = { ...this._asigDesdeRegla(rCat, 'categoria'), categoriaHeredada: cat };
-      } else {
-        this.resetFormAsignacionPlato();
-        this.formAsignacionPlato._snapshot = this._asigSnapshot(this.formAsignacionPlato);
-      }
+      op._asig = this._asigVacia();
     },
 
     hidratarAsignacionGuarniciones(forzar = false) {
       const perfil = this.perfilesAsignacionGuar.find(p => p.id === this.perfilAsignacionGuarId);
+      const platoId = this._platoIdNumerico(this.formPlato.id);
       (this.formPlato.complementos || []).forEach(g => {
         const grupo = String(g.grupo || '').trim();
         (g.opciones || []).forEach(op => {
@@ -2143,16 +2148,29 @@ tailwind.config = {
             return;
           }
           const key = this._claveGuarnicion(grupo, opcion);
-          const rG = (perfil.reglasPorGuarnicion || []).find(r => r.guarnicionKey === key && this._reglaTieneCocinero(r));
-          const grupoNorm = grupo.toLowerCase();
-          const rGr = !rG
-            ? (perfil.reglasPorGrupo || []).find(r => String(r.grupo || '').trim().toLowerCase() === grupoNorm && this._reglaTieneCocinero(r))
-            : null;
-          if (rG) op._asig = this._asigDesdeRegla(rG, 'guarnicion');
-          else if (rGr) op._asig = this._asigDesdeRegla(rGr, 'grupo');
-          else op._asig = this._asigVacia();
+          const found = this._buscarReglaGuarnicionPerfil(perfil, key, platoId);
+          if (found.regla) {
+            op._asig = this._asigDesdeRegla(found.regla, found.origen);
+            return;
+          }
+          op._asig = this._asigVacia();
         });
       });
+    },
+
+    hidratarAsignacionPlato() {
+      const perfil = this.perfilesAsignacionPlato.find(p => p.id === this.perfilAsignacionPlatoId);
+      const platoId = this._platoIdNumerico(this.formPlato.id);
+      let rPlato = null;
+      if (perfil && platoId) {
+        rPlato = (perfil.reglasPorPlato || []).find(r => Number(r.platoId) === platoId && this._reglaTieneCocinero(r));
+      }
+      if (rPlato) {
+        this.formAsignacionPlato = { ...this._asigDesdeRegla(rPlato, 'plato'), categoriaHeredada: '' };
+      } else {
+        this.resetFormAsignacionPlato();
+        this.formAsignacionPlato._snapshot = this._asigSnapshot(this.formAsignacionPlato);
+      }
     },
 
     _mapReglaPlatoApi(r) {
@@ -2172,7 +2190,8 @@ tailwind.config = {
 
     _mapReglaGuarnicionApi(r) {
       return {
-        guarnicionKey: String(r.guarnicionKey).trim().toLowerCase(),
+        guarnicionKey: this._baseGuarnicionKey(r.guarnicionKey, r.platoId),
+        platoId: this._platoIdNumerico(r.platoId),
         etiqueta: r.etiqueta || '',
         activo: r.activo !== false,
         cocineroPrimarioId: r.cocineroPrimarioId || null,
@@ -2239,9 +2258,11 @@ tailwind.config = {
       return put.ok ? { ok: true, changed: true } : put;
     },
 
-    async guardarReglasGuarnicionEnPerfil() {
+    async guardarReglasGuarnicionEnPerfil(platoIdOverride = null) {
       const perfilId = this.perfilAsignacionGuarId;
       if (!perfilId) return { ok: true, skipped: true };
+      const platoId = this._platoIdNumerico(platoIdOverride ?? this.formPlato.id);
+      if (!platoId) return { ok: true, skipped: true };
 
       const filas = [];
       (this.formPlato.complementos || []).forEach(g => {
@@ -2252,12 +2273,7 @@ tailwind.config = {
           filas.push({ grupo, opcion, key: this._claveGuarnicion(grupo, opcion), asig: op._asig });
         });
       });
-      const hayCambio = filas.some(f => {
-        const cambiado = this._asigSnapshot(f.asig) !== (f.asig._snapshot || '');
-        if (!cambiado) return false;
-        if (f.asig.origen === 'grupo' && this._asigSnapshot(f.asig) === (f.asig._snapshot || '')) return false;
-        return true;
-      });
+      const hayCambio = filas.some(f => this._asigSnapshot(f.asig) !== (f.asig._snapshot || ''));
       if (!hayCambio) return { ok: true, skipped: true };
 
       const res = await apiGet('/asignacion-automatica-guarniciones');
@@ -2270,15 +2286,14 @@ tailwind.config = {
       filas.forEach(f => {
         const cambiado = this._asigSnapshot(f.asig) !== (f.asig._snapshot || '');
         if (!cambiado) return;
-        if (f.asig.origen === 'grupo' && !cambiado) return;
-        const idx = reglas.findIndex(r => r.guarnicionKey === f.key);
-        if (this._asigTieneCocinero(f.asig) && (f.asig.origen !== 'grupo' || cambiado)) {
-          // Si solo heredaba del grupo y el usuario no cambió, no crear override.
-          // Si cambió respecto al snapshot (que incluye lo heredado), crear/actualizar regla propia.
+        // Solo tocar la regla de ESTE plato; no modificar globales ni de otros platos.
+        const idx = reglas.findIndex(r => this._matchReglaGuarnicion(r, f.key, platoId));
+        if (this._asigTieneCocinero(f.asig)) {
           const existente = idx >= 0 ? reglas[idx] : null;
           const nueva = {
             guarnicionKey: f.key,
-            etiqueta: `${f.grupo} :: ${f.opcion}`,
+            platoId,
+            etiqueta: `${f.grupo} :: ${f.opcion} · ${this.formPlato.nombre || ''}`.trim(),
             activo: f.asig.activo !== false,
             cocineroPrimarioId: f.asig.cocineroPrimarioId || null,
             backups: (f.asig.backups || []).filter(b => b.cocineroId).map((b, i) => ({ cocineroId: b.cocineroId, orden: i + 1 })),
@@ -2297,6 +2312,7 @@ tailwind.config = {
           reglas.splice(idx, 1);
           mutated = true;
         }
+        // Si heredaba global/grupo y el usuario vació: no borrar la regla heredada.
       });
       if (!mutated) return { ok: true, skipped: true };
 
@@ -2308,7 +2324,7 @@ tailwind.config = {
     async guardarAsignacionDelModal(platoId) {
       const [platoRes, guarRes] = await Promise.all([
         this.guardarReglaPlatoEnPerfil(platoId),
-        this.guardarReglasGuarnicionEnPerfil()
+        this.guardarReglasGuarnicionEnPerfil(platoId)
       ]);
       if (!platoRes.ok) return platoRes;
       if (!guarRes.ok) return guarRes;
@@ -2406,17 +2422,39 @@ tailwind.config = {
         return filas;
       };
 
-      const asignacionGuarnicionPorPerfil = (grupo, opcion) => {
+      const asignacionGuarnicionPorPerfil = (grupo, opcion, platosRel = []) => {
         const key = `${String(grupo || '').trim().toLowerCase()}::${String(opcion || '').trim().toLowerCase()}`;
         const grupoNorm = String(grupo || '').trim().toLowerCase();
+        const platosList = Array.isArray(platosRel) && platosRel.length ? platosRel : [{ id: null, nombre: '' }];
         const filas = [];
         perfilesGuar.forEach(perfil => {
-          const rG = (perfil.reglasPorGuarnicion || []).find(r => r.guarnicionKey === key && reglaTieneCocinero(r));
-          const rGr = !rG && grupoNorm
-            ? (perfil.reglasPorGrupo || []).find(r => String(r.grupo || '').trim().toLowerCase() === grupoNorm && reglaTieneCocinero(r))
-            : null;
-          const labels = chipsDeIds(idsDeRegla(rG || rGr));
-          if (labels) filas.push({ nombre: perfil.nombre || 'Perfil', html: labels });
+          const porPlato = [];
+          platosList.forEach(pp => {
+            const pid = Number(pp.id);
+            const hasPid = Number.isFinite(pid) && pid > 0;
+            const rExact = hasPid
+              ? (perfil.reglasPorGuarnicion || []).find(r => r.guarnicionKey === key && Number(r.platoId) === pid && reglaTieneCocinero(r))
+              : null;
+            const rGlobal = !rExact
+              ? (perfil.reglasPorGuarnicion || []).find(r => r.guarnicionKey === key && (r.platoId == null || r.platoId === '' || !Number.isFinite(Number(r.platoId))) && reglaTieneCocinero(r))
+              : null;
+            const rGr = !(rExact || rGlobal) && grupoNorm
+              ? (perfil.reglasPorGrupo || []).find(r => String(r.grupo || '').trim().toLowerCase() === grupoNorm && reglaTieneCocinero(r))
+              : null;
+            const labels = chipsDeIds(idsDeRegla(rExact || rGlobal || rGr));
+            if (labels) {
+              porPlato.push({
+                nombre: pp.nombre || (hasPid ? `#${pid}` : 'Global'),
+                html: labels
+              });
+            }
+          });
+          if (!porPlato.length) return;
+          const todasIguales = porPlato.every(f => f.html === porPlato[0].html);
+          const html = (porPlato.length === 1 || todasIguales)
+            ? porPlato[0].html
+            : porPlato.map(f => `<div><span class="asig-pn">${escapeHtml(f.nombre)}:</span> ${f.html}</div>`).join('');
+          filas.push({ nombre: perfil.nombre || 'Perfil', html });
         });
         return filas;
       };
@@ -2508,7 +2546,11 @@ tailwind.config = {
             const pid = String(p._id || p.id || p.nombre);
             if (!item._pids.has(pid)) {
               item._pids.add(pid);
-              item.platos.push({ nombre: p.nombre || '', codigo: p.codigo || '' });
+              item.platos.push({
+                id: Number.isFinite(Number(p.id)) ? Number(p.id) : null,
+                nombre: p.nombre || '',
+                codigo: p.codigo || ''
+              });
             }
           });
         });
@@ -2540,7 +2582,7 @@ tailwind.config = {
             ${extra}
           </td>
           <td class="comp-cell">${refPlatos || '<span class="none">—</span>'}</td>
-          <td class="asig-cell">${renderAsignacion(asignacionGuarnicionPorPerfil(g.grupo, g.opcion))}</td>
+          <td class="asig-cell">${renderAsignacion(asignacionGuarnicionPorPerfil(g.grupo, g.opcion, g.platos))}</td>
         </tr>`;
       }).join('');
 

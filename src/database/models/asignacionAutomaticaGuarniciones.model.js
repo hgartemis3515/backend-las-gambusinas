@@ -15,7 +15,9 @@
  *   resuelve qué perfil está activo AHORA. Si no hay bloque → no se auto-asigna.
  *
  * Diferencias vs asignacionAutomatica.model.js:
- * - `reglasPorGuarnicion` usa `guarnicionKey` (string normalizado) en vez de platoId.
+ * - `reglasPorGuarnicion` usa `guarnicionKey` (string normalizado) + opcional `platoId`
+ *   (id numérico del catálogo). Misma guarnición en platos distintos puede tener
+ *   cocineros distintos. Sin `platoId` = regla global (legacy / fallback).
  * - Cada regla lleva `estacionRecomendada`, `criticaEmplatado`, `tiempoMedioPreparacion`.
  * - `reglasPorGrupo` (en vez de reglasPorCategoria) agrupa por el `grupo` del complemento.
  * - El motor excluye SIEMPRE al cocinero del plato principal (no configurable en v1).
@@ -50,10 +52,13 @@ const estrategiasEnum = [
 /**
  * Regla por guarnición (clave `grupo::opcion` normalizada).
  * Vive DENTRO de un perfil.
+ * `platoId` (Number del catálogo): si viene, la regla solo aplica a ese plato;
+ * si es null, es global (legacy) y sirve de fallback.
  */
 const reglasGuarnicionSchema = new mongoose.Schema({
     guarnicionKey: { type: String, required: true, trim: true, index: true },
-    // Etiqueta legible para mostrar en admin (ej: "Proteína :: Pollo").
+    platoId: { type: Number, default: null, index: true },
+    // Etiqueta legible para mostrar en admin (ej: "Proteína :: Pollo · Lomo").
     etiqueta: { type: String, default: '', trim: true },
     activo: { type: Boolean, default: true },
     cocineroPrimarioId: { type: mongoose.Schema.Types.ObjectId, ref: 'mozos', default: null },

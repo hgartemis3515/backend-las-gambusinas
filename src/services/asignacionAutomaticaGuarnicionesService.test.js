@@ -130,6 +130,21 @@ describe('encontrarReglaGuarnicion', () => {
   test('sin regla → null', () => {
     expect(svc.encontrarReglaGuarnicion(perfil, 'Bebida', 'Inca Kola')).toBeNull();
   });
+
+  test('regla por plato gana sobre regla global de la misma guarnición', () => {
+    const perfilMix = {
+      reglasPorGuarnicion: [
+        { guarnicionKey: 'acompañamiento::papas fritas', cocineroPrimarioId: 'GLOBAL', activo: true },
+        { guarnicionKey: 'acompañamiento::papas fritas', platoId: 10, cocineroPrimarioId: 'P10', activo: true },
+        { guarnicionKey: 'acompañamiento::papas fritas', platoId: 20, cocineroPrimarioId: 'P20', activo: true }
+      ],
+      reglasPorGrupo: []
+    };
+    expect(svc.encontrarReglaGuarnicion(perfilMix, 'Acompañamiento', 'Papas fritas', null, 10).regla.cocineroPrimarioId).toBe('P10');
+    expect(svc.encontrarReglaGuarnicion(perfilMix, 'Acompañamiento', 'Papas fritas', null, 20).regla.cocineroPrimarioId).toBe('P20');
+    expect(svc.encontrarReglaGuarnicion(perfilMix, 'Acompañamiento', 'Papas fritas', null, 99)).toBeNull();
+    expect(svc.encontrarReglaGuarnicion(perfilMix, 'Acompañamiento', 'Papas fritas').regla.cocineroPrimarioId).toBe('GLOBAL');
+  });
 });
 
 describe('construirCandidatos', () => {

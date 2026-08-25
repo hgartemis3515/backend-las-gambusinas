@@ -165,14 +165,46 @@ function cocineroTieneEstacion(cocinero, estacion) {
     return estaciones.includes(estacion) || estaciones.includes('general');
 }
 
-function encontrarReglaGuarnicion(perfil, grupo, opcion, guarnicionKey) {
+function platoIdNumerico(v) {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function esReglaGuarnicionGlobal(r) {
+    return platoIdNumerico(r && r.platoId) == null;
+}
+
+/**
+ * Lookup independiente por plato:
+ *  1) regla exacta guarnicionKey + platoId
+ *  2) clave prefix `{platoId}::{grupo}::{opcion}` (si se guardó así)
+ * Sin platoId (simulador legacy): regla global sin platoId, luego grupo.
+ * Con platoId NO se usa global/grupo: la misma opción en otro plato no se comparte.
+ */
+function encontrarReglaGuarnicion(perfil, grupo, opcion, guarnicionKey, platoId = null) {
     const key = guarnicionKey || normalizarGuarnicionKey(grupo, opcion);
-    const reglaG = (perfil.reglasPorGuarnicion || []).find(r => r.guarnicionKey === key && r.activo !== false);
-    if (reglaG && reglaG.cocineroPrimarioId) return { tipo: 'guarnicion', regla: reglaG };
+    const pid = platoIdNumerico(platoId);
+    const reglas = perfil.reglasPorGuarnicion || [];
+    const conCocinero = (r) => r && r.activo !== false && (r.cocineroPrimarioId || (Array.isArray(r.backups) && r.backups.some(b => b && b.cocineroId)));
+    const keyMatch = (r, k) => String(r.guarnicionKey || '') === String(k);
+
+    if (pid != null) {
+        const keyPrefijada = `${pid}::${key}`;
+        const reglaG = reglas.find(r =>
+            conCocinero(r) && platoIdNumerico(r.platoId) === pid && (keyMatch(r, key) || keyMatch(r, keyPrefijada))
+        );
+        if (reglaG) return { tipo: 'guarnicion', regla: reglaG, platoEspecifico: true };
+        return null;
+    }
+
+    const reglaG = reglas.find(r => conCocinero(r) && keyMatch(r, key) && esReglaGuarnicionGlobal(r));
+    if (reglaG) return { tipo: 'guarnicion', regla: reglaG, platoEspecifico: false };
     const grupoNorm = String(grupo || '').trim().toLowerCase();
     if (grupoNorm) {
         const reglaGr = (perfil.reglasPorGrupo || []).find(r => String(r.grupo || '').trim().toLowerCase() === grupoNorm && r.activo !== false);
-        if (reglaGr && reglaGr.cocineroPrimarioId) return { tipo: 'grupo', regla: reglaGr };
+        if (reglaGr && (reglaGr.cocineroPrimarioId || (Array.isArray(reglaGr.backups) && reglaGr.backups.some(b => b && b.cocineroId)))) {
+            return { tipo: 'grupo', regla: reglaGr, platoEspecifico: false };
+        }
     }
     return null;
 }
@@ -426,6 +458,7 @@ async function asignarGuarnicionesNuevas(comandaPop) {
             const cocineroPadreId = plato.procesandoPor && plato.procesandoPor.cocineroId
                 ? plato.procesandoPor.cocineroId.toString() : null;
             const platoRef = plato.plato || plato;
+            const platoIdCat = platoIdNumerico(platoRef && platoRef.id);
 
             if (agrupacionOn) {
                 const pendientes = [];
@@ -442,7 +475,7 @@ async function asignarGuarnicionesNuevas(comandaPop) {
                 let guarnicionKeyElegida = '';
                 for (const p of pendientes) {
                     const d = datosComplemento(p.comp);
-                    const reg = encontrarReglaGuarnicion(perfil, d.grupo, d.opcion, d.key);
+                    const reg = encontrarReglaGuarnicion(perfil, d.grupo, d.opcion, d.key, platoIdCat);
                     if (reg) {
                         encontrada = reg;
                         guarnicionKeyElegida = d.key;
@@ -498,7 +531,7 @@ async function asignarGuarnicionesNuevas(comandaPop) {
                 if (comp.estadoCocina === 'recoger') continue;
 
                 const d = datosComplemento(comp);
-                const encontrada = encontrarReglaGuarnicion(perfil, d.grupo, d.opcion, d.key);
+                const encontrada = encontrarReglaGuarnicion(perfil, d.grupo, d.opcion, d.key, platoIdCat);
                 if (!encontrada) {
                     noAsignados++;
                     continue;
@@ -583,7 +616,7 @@ async function simularAsignacionGuarnicion(grupo, opcion, cocineroPadreId = null
     }
 
     const guarnicionKey = normalizarGuarnicionKey(grupo, opcion);
-    const encontrada = encontrarReglaGuarnicion(perfilUsado, grupo, opcion, guarnicionKey);
+    const encontrada = encontrarReglaGuarnicion(perfilUsado, grupo, opcion, guarnicionKey, opciones.platoId);
     if (!encontrada) return { habilitada: true, cocineroId: null, mensaje: 'Sin regla para esta guarnición' };
 
     const candidatos = construirCandidatos(encontrada.regla);
@@ -618,6 +651,8 @@ module.exports = {
     cocineroVePlatoEnZonas,
     cocineroTieneEstacion,
     encontrarReglaGuarnicion,
+    platoIdNumerico,
+    esReglaGuarnicionGlobal,
     construirCandidatos,
     detectarBatchsEnComanda,
     prioridadUnidadTrabajo,

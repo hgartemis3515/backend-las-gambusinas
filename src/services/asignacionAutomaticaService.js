@@ -252,7 +252,9 @@ function encontrarRegla(configOrPerfil, plato) {
     const reglasPlato = configOrPerfil.reglasPorPlato || [];
     const reglasCat = configOrPerfil.reglasPorCategoria || [];
 
-    const reglaPlato = reglasPlato.find(r => r.platoId === platoId && r.activo !== false);
+    const reglaPlato = Number.isFinite(platoId) && platoId > 0
+        ? reglasPlato.find(r => Number(r.platoId) === platoId && r.activo !== false)
+        : null;
     if (reglaPlato && reglaPlato.cocineroPrimarioId) return { tipo: 'plato', regla: reglaPlato };
 
     const categoria = plato.categoria || plato.plato?.categoria;

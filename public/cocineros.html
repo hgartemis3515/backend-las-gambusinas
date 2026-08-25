@@ -935,8 +935,9 @@ tailwind.config = {
                 <!-- Atajo aplicar a categoría -->
                 <div class="bg-bg-sidebar/50 border border-[rgba(212,175,55,0.15)] rounded-lg p-3">
                   <p class="text-[11px] text-txt-secondary mb-2">
-                    Aplicar esta misma regla a todos los platos de la categoría
+                    Aplicar esta misma regla a cada plato de la categoría
                     <b class="text-gold" x-text="platoSeleccionadoAsignacion?.categoria || '—'"></b>
+                    (copia independiente por plato; luego puedes cambiar uno sin afectar al resto)
                   </p>
                   <button @click="aplicarReglaACategoria()"
                     class="text-xs bg-gold/20 text-gold px-3 py-1.5 rounded hover:bg-gold/30 transition"
@@ -1410,7 +1411,7 @@ tailwind.config = {
             <div class="space-y-2 mb-3">
               <input type="text" x-model="busquedaGuarnicionesAsignacion" x-ref="buscadorGuarnicionesAsignacion"
                 @input.debounce.300ms="currentPageGuarniciones = 1"
-                placeholder="Buscar guarnición o plato relacionado..."
+                placeholder="Buscar guarnición o plato..."
                 class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
               <div class="flex gap-2">
                 <select x-model="filtroGrupoGuarniciones" @change="currentPageGuarniciones = 1"
@@ -1438,12 +1439,13 @@ tailwind.config = {
                       <div class="flex-1 min-w-0">
                         <p class="text-sm font-medium text-white truncate" x-text="g.opcion"></p>
                         <p class="text-[10px] text-txt-muted" x-text="g.grupo"></p>
-                        <p class="text-[10px] text-txt-secondary/80 truncate mt-0.5" x-text="textoPlatosRelacionados(g)"></p>
+                        <p class="text-[10px] text-gold/90 truncate mt-0.5" x-text="textoPlatosRelacionados(g)"></p>
                       </div>
                       <div class="flex flex-col items-end gap-1">
-                        <span x-show="!tieneReglaGuarnicion(g.key)" class="text-[9px] px-1.5 py-0.5 rounded bg-bg-card text-txt-muted border border-txt-muted/30">Sin regla</span>
-                        <span x-show="tieneReglaGuarnicion(g.key) && getReglaGuarnicion(g.key).cocineroPrimarioId" class="text-[9px] px-1.5 py-0.5 rounded bg-gold/20 text-gold">Primario</span>
-                        <span x-show="tieneReglaGuarnicion(g.key) && getReglaGuarnicion(g.key).backups?.length > 0" class="text-[9px] px-1.5 py-0.5 rounded bg-st-pedido/20 text-st-pedido">Overflow</span>
+                        <span x-show="!tieneReglaGuarnicion(g)" class="text-[9px] px-1.5 py-0.5 rounded bg-bg-card text-txt-muted border border-txt-muted/30">Sin regla</span>
+                        <span x-show="tieneReglaGuarnicion(g) && !tieneReglaPropiaGuarnicion(g)" class="text-[9px] px-1.5 py-0.5 rounded bg-bg-card text-txt-secondary border border-txt-muted/30">Heredada</span>
+                        <span x-show="tieneReglaPropiaGuarnicion(g) && getReglaGuarnicion(g).cocineroPrimarioId" class="text-[9px] px-1.5 py-0.5 rounded bg-gold/20 text-gold">Primario</span>
+                        <span x-show="tieneReglaPropiaGuarnicion(g) && getReglaGuarnicion(g).backups?.length > 0" class="text-[9px] px-1.5 py-0.5 rounded bg-st-pedido/20 text-st-pedido">Overflow</span>
                       </div>
                     </div>
                   </div>
@@ -1471,6 +1473,11 @@ tailwind.config = {
                 <div>
                   <h3 class="text-sm font-bold text-white" x-text="guarnicionSeleccionada?.opcion"></h3>
                   <p class="text-[11px] text-txt-muted" x-text="guarnicionSeleccionada?.grupo"></p>
+                  <p x-show="guarnicionSeleccionada?.platoNombre" class="text-[11px] text-gold mt-1"
+                    x-text="(guarnicionSeleccionada?.platoCodigo ? guarnicionSeleccionada.platoCodigo + ' · ' : '') + (guarnicionSeleccionada?.platoNombre || '')"></p>
+                  <p x-show="formReglaGuarnicion._origen === 'global' && guarnicionSeleccionada?.platoId" class="text-[10px] text-txt-muted mt-1">
+                    Heredado de una regla global. Al guardar se crea una regla solo para este plato (no afecta a otros).
+                  </p>
                 </div>
                 <label class="flex items-center gap-2 text-xs text-txt-secondary cursor-pointer">
                   <input type="checkbox" x-model="formReglaGuarnicion.activo" class="w-4 h-4 accent-gold">
@@ -1479,11 +1486,11 @@ tailwind.config = {
               </div>
               <div class="mb-4 bg-bg-sidebar/50 border border-[rgba(212,175,55,0.15)] rounded-lg p-3">
                 <p class="text-[10px] font-semibold text-txt-secondary uppercase tracking-wide mb-2">
-                  Platos relacionados
+                  Plato de esta regla
                   <span class="text-gold font-normal normal-case" x-text="'(' + platosDeGuarnicion(guarnicionSeleccionada).length + ')'"></span>
                 </p>
                 <p x-show="!platosDeGuarnicion(guarnicionSeleccionada).length" class="text-[11px] text-txt-muted italic">
-                  Ningún plato del menú usa esta guarnición.
+                  Sin plato vinculado (regla global / solo plantilla).
                 </p>
                 <div x-show="platosDeGuarnicion(guarnicionSeleccionada).length" class="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
                   <template x-for="p in platosDeGuarnicion(guarnicionSeleccionada)" :key="(p.id || p.codigo || p.nombre)">
@@ -1583,7 +1590,7 @@ tailwind.config = {
                   Crítica de emplatado (debe llegar al pase con el principal)
                 </label>
                 <div class="bg-bg-sidebar/50 border border-[rgba(212,175,55,0.15)] rounded-lg p-3">
-                  <p class="text-[11px] text-txt-secondary mb-2">Aplicar esta misma regla a todas las guarniciones del grupo <b class="text-gold" x-text="guarnicionSeleccionada?.grupo || '—'"></b></p>
+                  <p class="text-[11px] text-txt-secondary mb-2">Aplicar esta misma regla a cada plato que tenga una guarnición del grupo <b class="text-gold" x-text="guarnicionSeleccionada?.grupo || '—'"></b> (queda una regla independiente por plato, no una regla compartida)</p>
                   <button @click="aplicarReglaAGrupoGuarnicion()" class="text-xs bg-gold/20 text-gold px-3 py-1.5 rounded hover:bg-gold/30 transition"
                     :disabled="!guarnicionSeleccionada?.grupo || !formReglaGuarnicion.cocineroPrimarioId">📋 Aplicar a todo el grupo</button>
                 </div>
@@ -1594,9 +1601,9 @@ tailwind.config = {
                 </div>
                 <div x-show="errorValidacionGuarniciones" class="bg-st-pagado/10 border border-st-pagado/30 rounded-lg p-2 text-xs text-st-pagado" x-text="errorValidacionGuarniciones"></div>
                 <div class="flex justify-between items-center pt-3 border-t border-[rgba(212,175,55,0.1)]">
-                  <button x-show="tieneReglaGuarnicion(guarnicionSeleccionada?.key)" @click="eliminarReglaGuarnicion(guarnicionSeleccionada?.key)" class="text-xs text-st-pagado hover:underline">🗑️ Eliminar regla</button>
+                  <button x-show="tieneReglaPropiaGuarnicion(guarnicionSeleccionada)" @click="eliminarReglaGuarnicion(guarnicionSeleccionada)" class="text-xs text-st-pagado hover:underline">🗑️ Eliminar regla de este plato</button>
                   <div class="flex gap-2 ml-auto">
-                    <button @click="aplicarReglaGuarnicion()" class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110">✓ Aplicar a esta guarnición</button>
+                    <button @click="aplicarReglaGuarnicion()" class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110">✓ Aplicar a este plato</button>
                   </div>
                 </div>
               </div>
@@ -4209,6 +4216,7 @@ function cocinerosApp() {
     seleccionGuarniciones: {},
     formReglaGuarnicion: {
       guarnicionKey: '',
+      platoId: null,
       etiqueta: '',
       activo: true,
       cocineroPrimarioId: '',
@@ -4218,7 +4226,8 @@ function cocinerosApp() {
       estacionRecomendada: '',
       criticaEmplatado: false,
       categoriaTiempo: '',
-      notas: ''
+      notas: '',
+      _origen: null
     },
     formDefaultsGuarniciones: {
       maxMismoGuarnicionPorCocinero: 6,
@@ -6107,14 +6116,15 @@ function cocinerosApp() {
         ]);
         if (cfgG && cfgG.success !== false) {
           this.asignacionGuarnicionesConfig = cfgG.data || cfgG;
-          this.perfilGuarnicionesActivoAhora = cfgG.perfilActivoAhora || this._recalcularPerfilActivoAhora();
+          this.perfilGuarnicionesActivoAhora = cfgG.perfilActivoAhora || this._recalcularPerfilActivoAhora(this.asignacionGuarnicionesConfig);
           this._syncFormDefaultsGuarniciones();
         }
         const cocina = cfgSistema?.configuracion?.cocina || cfgSistema?.data?.configuracion?.cocina || {};
         this.flagGuarnicionesGlobal = cocina.permitirGuarnicionesSeparadas !== false;
-        if (!this.perfilGuarnicionesSeleccionadoId && this.asignacionGuarnicionesConfig?.perfiles?.length) {
-          const activo = this.asignacionGuarnicionesConfig.perfiles.find(p => p.activo);
-          this.perfilGuarnicionesSeleccionadoId = (activo || this.asignacionGuarnicionesConfig.perfiles[0]).id;
+        const perfilesG = this.asignacionGuarnicionesConfig?.perfiles || [];
+        if (!this.perfilGuarnicionesSeleccionadoId || !perfilesG.some(p => p.id === this.perfilGuarnicionesSeleccionadoId)) {
+          const primer = perfilesG.find(p => p.activo) || perfilesG[0];
+          this.perfilGuarnicionesSeleccionadoId = primer?.id || '';
         }
         this.asignacionGuarnicionesCargada = true;
       } catch (e) {
@@ -6140,17 +6150,10 @@ function cocinerosApp() {
 
     async cargarCatalogoGuarniciones() {
       try {
-        const [data, platosRaw] = await Promise.all([
-          apiGet('/asignacion-automatica-guarniciones/catalogo'),
-          apiGet('/platos')
-        ]);
-        const payload = data?.data || data || {};
-        const items = Array.isArray(payload.items) ? payload.items : [];
+        const platosRaw = await apiGet('/platos');
         const platos = Array.isArray(platosRaw) ? platosRaw : (platosRaw?.data || platosRaw?.platos || []);
-        this.todasLasGuarnicionesAsignacion = this.vincularPlatosAGuarniciones(items, platos);
-        this.gruposGuarnicionesAsignacion = Array.isArray(payload.grupos) && payload.grupos.length
-          ? payload.grupos
-          : [...new Set(this.todasLasGuarnicionesAsignacion.map(g => g.grupo).filter(Boolean))].sort();
+        this.todasLasGuarnicionesAsignacion = this._filasGuarnicionPorPlato(platos);
+        this.gruposGuarnicionesAsignacion = [...new Set(this.todasLasGuarnicionesAsignacion.map(g => g.grupo).filter(Boolean))].sort();
       } catch (e) {
         console.error('Error al cargar catálogo de guarniciones:', e);
         this.todasLasGuarnicionesAsignacion = [];
@@ -6166,65 +6169,66 @@ function cocinerosApp() {
     _keyGuarnicion(grupo, opcion) {
       return `${String(grupo || '').trim().toLowerCase()}::${String(opcion || '').trim().toLowerCase()}`;
     },
-    vincularPlatosAGuarniciones(items, platos) {
-      const list = (items || []).map(g => ({
-        ...g,
-        platos: Array.isArray(g.platosRelacionados) ? [...g.platosRelacionados] : (Array.isArray(g.platos) ? [...g.platos] : [])
-      }));
-      const byKey = {};
-      const byGrupo = {};
-      list.forEach(g => {
-        g._ids = {};
-        (g.platos || []).forEach(p => { g._ids[String(p.id || p.nombre)] = true; });
-        byKey[g.key] = g;
-        const gn = String(g.grupo || '').trim().toLowerCase();
-        if (!byGrupo[gn]) byGrupo[gn] = [];
-        byGrupo[gn].push(g);
-      });
-      const add = (item, info) => {
-        if (!item || !info || !info.nombre) return;
-        const pid = String(info.id || info.nombre);
-        if (item._ids[pid]) return;
-        item._ids[pid] = true;
-        item.platos.push({ id: info.id, nombre: info.nombre, codigo: info.codigo || '' });
-      };
-      const activos = (platos || []).filter(p => p && p.isActive !== false);
-      activos.forEach(p => {
-        const info = { id: p.id != null ? p.id : p._id, nombre: String(p.nombre || '').trim(), codigo: String(p.codigo || '').trim() };
+    _idNumericoPlato(p) {
+      const n = Number(p && (p.id != null ? p.id : p.platoId));
+      return Number.isFinite(n) && n > 0 ? n : null;
+    },
+    // Una fila por (platoId, grupo, opción). Nunca agrupar por nombre de guarnición.
+    _filasGuarnicionPorPlato(platos) {
+      const filas = [];
+      const vistos = {};
+      (platos || []).forEach(p => {
+        if (!p || p.isActive === false) return;
+        const pid = this._idNumericoPlato(p);
+        if (!pid) return;
+        const nombrePlato = String(p.nombre || '').trim();
+        const codigo = String(p.codigo || '').trim();
         (p.complementos || []).forEach(grupo => {
+          const grupoNom = String(grupo.grupo || '').trim();
           (grupo.opciones || []).forEach(op => {
-            add(byKey[this._keyGuarnicion(grupo.grupo, this._nombreOpcionGuarnicion(op))], info);
+            const opcion = this._nombreOpcionGuarnicion(op);
+            if (!grupoNom || !opcion) return;
+            const baseKey = this._keyGuarnicion(grupoNom, opcion);
+            const rowKey = `${pid}::${baseKey}`;
+            if (vistos[rowKey]) return;
+            vistos[rowKey] = true;
+            filas.push({
+              key: rowKey,
+              guarnicionKey: baseKey,
+              platoId: pid,
+              platoNombre: nombrePlato,
+              platoCodigo: codigo,
+              grupo: grupoNom,
+              opcion,
+              etiqueta: `${opcion} · ${nombrePlato}`,
+              platos: [{ id: pid, nombre: nombrePlato, codigo }],
+              platosRelacionados: [{ id: pid, nombre: nombrePlato, codigo }]
+            });
           });
         });
       });
-      list.forEach(g => {
-        if (g.platos.length) return;
-        const gn = String(g.grupo || '').trim().toLowerCase();
-        activos.forEach(p => {
-          const usaGrupo = (p.complementos || []).some(gr => String(gr.grupo || '').trim().toLowerCase() === gn);
-          if (!usaGrupo) return;
-          add(g, { id: p.id != null ? p.id : p._id, nombre: String(p.nombre || '').trim(), codigo: String(p.codigo || '').trim() });
-        });
+      filas.sort((a, b) => {
+        const byOp = (a.opcion || '').localeCompare(b.opcion || '', 'es');
+        if (byOp) return byOp;
+        return (a.platoNombre || '').localeCompare(b.platoNombre || '', 'es');
       });
-      return list.map(g => {
-        const platosOut = [...g.platos].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
-        return { key: g.key, grupo: g.grupo, opcion: g.opcion, etiqueta: g.etiqueta, platos: platosOut, platosRelacionados: platosOut };
-      });
+      return filas;
     },
 
     async toggleAsignacionGuarniciones() {
       const nuevoValor = !this.asignacionGuarnicionesConfig?.habilitada;
-      try {
-        const res = await apiPost('/asignacion-automatica-guarniciones/toggle', { habilitada: nuevoValor });
-        if (res && res.success !== false) {
-          this._aplicarConfigRespuesta(res);
-          if (window.GambusinasNotifications) {
-            window.GambusinasNotifications.toast(nuevoValor ? 'Asignación de guarniciones activada' : 'Asignación de guarniciones pausada', 'success');
-          }
+      const res = await apiPost('/asignacion-automatica-guarniciones/toggle', { habilitada: nuevoValor });
+      if (res && res.success !== false && res.data) {
+        this.asignacionGuarnicionesConfig = res.data;
+        this.perfilGuarnicionesActivoAhora = res.perfilActivoAhora || this.perfilGuarnicionesActivoAhora;
+        if (window.GambusinasNotifications) {
+          window.GambusinasNotifications.success(
+            nuevoValor ? 'Activada' : 'Pausada',
+            nuevoValor ? 'La auto-asignación de guarniciones está activa' : 'La auto-asignación de guarniciones está en pausa'
+          );
         }
-      } catch (e) {
-        console.error('Error al toggle asignación de guarniciones:', e);
-        if (window.GambusinasNotifications) window.GambusinasNotifications.networkError(e);
+      } else if (window.GambusinasNotifications) {
+        window.GambusinasNotifications.error('Error', res?.error || 'No se pudo cambiar');
       }
     },
 
@@ -6242,21 +6246,79 @@ function cocinerosApp() {
       return Object.values(this.seleccionGuarniciones || {}).filter(v => v).length;
     },
     get reglasGuarnicionMap() {
+      // Map legacy por guarnicionKey (última regla global). Preferir helpers con platoId.
       const m = {};
-      (this.perfilSeleccionadoActual?.reglasPorGuarnicion || []).forEach(r => { m[r.guarnicionKey] = r; });
+      (this.perfilSeleccionadoActual?.reglasPorGuarnicion || []).forEach(r => {
+        if (r.platoId == null || r.platoId === '' || !Number.isFinite(Number(r.platoId))) {
+          m[r.guarnicionKey] = r;
+        }
+      });
       return m;
     },
-    tieneReglaGuarnicion(key) {
-      return !!(key && this.reglasGuarnicionMap[key]);
+    _platoIdRegla(v) {
+      const n = Number(v);
+      return Number.isFinite(n) && n > 0 ? n : null;
     },
-    getReglaGuarnicion(key) {
-      return this.reglasGuarnicionMap[key] || {};
+    _baseGuarnicionKey(key, platoId) {
+      const k = String(key || '').trim().toLowerCase();
+      const pid = this._platoIdRegla(platoId);
+      if (pid != null && k.startsWith(pid + '::')) return k.slice(String(pid).length + 2);
+      return k;
+    },
+    _matchReglaGuarnicion(r, guarnicionKey, platoId) {
+      if (!r) return false;
+      const pid = this._platoIdRegla(platoId);
+      const rPid = this._platoIdRegla(r.platoId);
+      if (rPid !== pid) return false;
+      const rk = String(r.guarnicionKey || '');
+      const gk = String(guarnicionKey || '');
+      if (rk === gk) return true;
+      if (pid != null && (rk === `${pid}::${gk}` || gk === `${pid}::${rk}`)) return true;
+      return false;
+    },
+    _findReglaGuarnicionExacta(guarnicionKey, platoId) {
+      const reglas = this.perfilSeleccionadoActual?.reglasPorGuarnicion || [];
+      return reglas.find(r => this._matchReglaGuarnicion(r, guarnicionKey, platoId)) || null;
+    },
+    _findReglaGuarnicionParaItem(g) {
+      if (!g) return null;
+      const gk = g.guarnicionKey || this._keyGuarnicion(g.grupo, g.opcion);
+      const pid = this._platoIdRegla(g.platoId);
+      if (pid == null) return null;
+      const r = this._findReglaGuarnicionExacta(gk, pid);
+      return r ? { regla: r, origen: 'plato' } : null;
+    },
+    tieneReglaPropiaGuarnicion(g) {
+      if (!g) return false;
+      const gk = g.guarnicionKey || g.key;
+      return !!this._findReglaGuarnicionExacta(gk, g.platoId);
+    },
+    tieneReglaGuarnicion(keyOrItem) {
+      if (!keyOrItem) return false;
+      if (typeof keyOrItem === 'object') {
+        return !!this._findReglaGuarnicionParaItem(keyOrItem);
+      }
+      const g = this.todasLasGuarnicionesAsignacion.find(x => x.key === keyOrItem);
+      if (g) return !!this._findReglaGuarnicionParaItem(g);
+      return !!(this.reglasGuarnicionMap[keyOrItem]);
+    },
+    getReglaGuarnicion(keyOrItem) {
+      if (keyOrItem && typeof keyOrItem === 'object') {
+        return this._findReglaGuarnicionParaItem(keyOrItem)?.regla || {};
+      }
+      const g = this.todasLasGuarnicionesAsignacion.find(x => x.key === keyOrItem);
+      if (g) return this._findReglaGuarnicionParaItem(g)?.regla || {};
+      return this.reglasGuarnicionMap[keyOrItem] || {};
     },
     getNombreGuarnicion(key) {
       const g = this.todasLasGuarnicionesAsignacion.find(x => x.key === key);
       return g ? (g.etiqueta || `${g.grupo} :: ${g.opcion}`) : (key || '—');
     },
     textoPlatosRelacionados(g) {
+      if (g && g.platoNombre) {
+        const cod = g.platoCodigo ? `${g.platoCodigo} · ` : '';
+        return `${cod}${g.platoNombre}`;
+      }
       const platos = this.platosDeGuarnicion(g);
       if (!platos.length) return 'Sin platos relacionados';
       const nombres = platos.map(p => p.nombre).filter(Boolean);
@@ -6287,6 +6349,8 @@ function cocinerosApp() {
           (g.grupo || '').toLowerCase().includes(q) ||
           (g.etiqueta || '').toLowerCase().includes(q) ||
           (g.key || '').includes(q) ||
+          (g.platoNombre || '').toLowerCase().includes(q) ||
+          (g.platoCodigo || '').toLowerCase().includes(q) ||
           (this.platosDeGuarnicion(g)).some(p =>
             (p.nombre || '').toLowerCase().includes(q) ||
             (p.codigo || '').toLowerCase().includes(q)
@@ -6297,7 +6361,7 @@ function cocinerosApp() {
         list = list.filter(g => g.grupo === this.filtroGrupoGuarniciones);
       }
       if (this.soloSinConfigurarGuarniciones) {
-        list = list.filter(g => !this.tieneReglaGuarnicion(g.key));
+        list = list.filter(g => !this.tieneReglaGuarnicion(g));
       }
       return list;
     },
@@ -6324,9 +6388,12 @@ function cocinerosApp() {
     seleccionarGuarnicionAsignacion(g) {
       this.guarnicionSeleccionada = g;
       this.errorValidacionGuarniciones = '';
-      const regla = this.getReglaGuarnicion(g.key);
+      const found = this._findReglaGuarnicionParaItem(g);
+      const regla = found?.regla || {};
+      const gk = g.guarnicionKey || this._keyGuarnicion(g.grupo, g.opcion);
       this.formReglaGuarnicion = {
-        guarnicionKey: g.key,
+        guarnicionKey: gk,
+        platoId: this._platoIdRegla(g.platoId),
         etiqueta: regla.etiqueta || g.etiqueta || `${g.grupo} :: ${g.opcion}`,
         activo: regla.activo !== false,
         cocineroPrimarioId: regla.cocineroPrimarioId ? String(regla.cocineroPrimarioId) : '',
@@ -6336,7 +6403,8 @@ function cocinerosApp() {
         estacionRecomendada: regla.estacionRecomendada || '',
         criticaEmplatado: !!regla.criticaEmplatado,
         categoriaTiempo: regla.categoriaTiempo || '',
-        notas: regla.notas || ''
+        notas: regla.notas || '',
+        _origen: found?.origen || null
       };
     },
 
@@ -6370,6 +6438,10 @@ function cocinerosApp() {
         this.errorValidacionGuarniciones = 'Selecciona una guarnición.';
         return false;
       }
+      if (!this._platoIdRegla(f.platoId != null ? f.platoId : this.guarnicionSeleccionada?.platoId)) {
+        this.errorValidacionGuarniciones = 'Esta guarnición debe estar ligada a un plato (id numérico).';
+        return false;
+      }
       if (!f.cocineroPrimarioId && f.backups.filter(b => b.cocineroId).length === 0) {
         this.errorValidacionGuarniciones = 'Define al menos un cocinero primario o un backup.';
         return false;
@@ -6393,9 +6465,16 @@ function cocinerosApp() {
 
     _reglaGuarnicionDesdeForm(g) {
       const f = this.formReglaGuarnicion;
+      const pid = this._platoIdRegla(g.platoId != null ? g.platoId : f.platoId);
+      const gk = this._baseGuarnicionKey(g.guarnicionKey || this._keyGuarnicion(g.grupo, g.opcion), pid);
+      const etiquetaBase = `${g.grupo || ''} :: ${g.opcion || ''}`.trim();
+      const etiqueta = g.platoNombre
+        ? `${etiquetaBase} · ${g.platoNombre}`
+        : (g.etiqueta || etiquetaBase);
       return {
-        guarnicionKey: g.key,
-        etiqueta: g.etiqueta || `${g.grupo} :: ${g.opcion}`,
+        guarnicionKey: gk,
+        platoId: pid,
+        etiqueta,
         activo: f.activo,
         cocineroPrimarioId: f.cocineroPrimarioId || null,
         backups: f.backups.filter(b => b.cocineroId).map((b, i) => ({ cocineroId: b.cocineroId, orden: i + 1 })),
@@ -6408,59 +6487,116 @@ function cocinerosApp() {
       };
     },
 
+    _mapReglaGuarnicionParaApi(r) {
+      return {
+        guarnicionKey: this._baseGuarnicionKey(r.guarnicionKey, r.platoId),
+        platoId: this._platoIdRegla(r.platoId),
+        etiqueta: r.etiqueta || '',
+        activo: r.activo !== false,
+        cocineroPrimarioId: r.cocineroPrimarioId || null,
+        backups: (r.backups || []).filter(b => b && b.cocineroId).map((b, i) => ({
+          cocineroId: b.cocineroId,
+          orden: Number.isFinite(b.orden) ? b.orden : i
+        })),
+        maxMismoGuarnicion: r.maxMismoGuarnicion ?? null,
+        estrategia: r.estrategia || null,
+        estacionRecomendada: r.estacionRecomendada || null,
+        criticaEmplatado: !!r.criticaEmplatado,
+        categoriaTiempo: r.categoriaTiempo || null,
+        notas: r.notas || ''
+      };
+    },
+
+    // GET del documento + merge en el perfil seleccionado + PUT /perfiles/:id.
+    // No toca defaults ni reglasPorGrupo; no pisa reglas de otros platos.
+    async _persistirReglasGuarnicionEnPerfil(mutarReglas) {
+      const perfilId = this.perfilGuarnicionesSeleccionadoId;
+      if (!perfilId) {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Perfil', 'Selecciona o crea un perfil antes de editar reglas.');
+        return false;
+      }
+      try {
+        const getRes = await apiGet('/asignacion-automatica-guarniciones');
+        const config = getRes?.data;
+        const perfil = (config?.perfiles || []).find(p => p.id === perfilId);
+        if (!perfil) {
+          if (window.GambusinasNotifications) window.GambusinasNotifications.error('Perfil', 'El perfil de guarniciones no existe. Recarga la página.');
+          return false;
+        }
+        const reglas = (perfil.reglasPorGuarnicion || []).map(r => this._mapReglaGuarnicionParaApi(r));
+        mutarReglas(reglas);
+        const res = await apiPut(`/asignacion-automatica-guarniciones/perfiles/${perfilId}`, {
+          reglasPorGuarnicion: reglas
+        });
+        if (res && res.success !== false && this._aplicarConfigRespuesta(res, 'guarniciones')) {
+          return true;
+        }
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', res?.error || 'No se pudo guardar el perfil');
+        await this.cargarAsignacionGuarniciones();
+        return false;
+      } catch (e) {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', e.message || 'No se pudo guardar el perfil');
+        try { await this.cargarAsignacionGuarniciones(); } catch (_) {}
+        return false;
+      }
+    },
+
     async aplicarReglaGuarnicion() {
       if (!this.validarReglaGuarnicion()) return;
       const g = this.guarnicionSeleccionada;
       if (!g) return;
-      const perfil = this.perfilSeleccionadoActual;
-      if (!perfil) return;
-      if (!Array.isArray(perfil.reglasPorGuarnicion)) perfil.reglasPorGuarnicion = [];
       const nueva = this._reglaGuarnicionDesdeForm(g);
-      const idx = perfil.reglasPorGuarnicion.findIndex(r => r.guarnicionKey === nueva.guarnicionKey);
-      if (idx >= 0) perfil.reglasPorGuarnicion[idx] = nueva;
-      else perfil.reglasPorGuarnicion.push(nueva);
-      const ok = await this._guardarReglasPerfilSeleccionado();
+      if (!nueva.platoId) {
+        this.errorValidacionGuarniciones = 'No se puede guardar una regla global: falta el plato.';
+        return;
+      }
+      const nombrePerfil = this.perfilSeleccionadoActual?.nombre || '';
+      const ok = await this._persistirReglasGuarnicionEnPerfil((reglas) => {
+        const idx = reglas.findIndex(r => this._matchReglaGuarnicion(r, nueva.guarnicionKey, nueva.platoId));
+        if (idx >= 0) reglas[idx] = nueva;
+        else reglas.push(nueva);
+      });
       if (ok && window.GambusinasNotifications) {
-        window.GambusinasNotifications.success('Regla guardada', `Guarnición "${nueva.etiqueta}" actualizada en el perfil "${perfil.nombre}".`);
+        window.GambusinasNotifications.success('Regla guardada', `Solo este plato: "${nueva.etiqueta}" en "${nombrePerfil}".`);
       }
     },
 
-    async eliminarReglaGuarnicion(key) {
-      const perfil = this.perfilSeleccionadoActual;
-      if (!perfil || !key) return;
-      perfil.reglasPorGuarnicion = (perfil.reglasPorGuarnicion || []).filter(r => r.guarnicionKey !== key);
-      if (this.guarnicionSeleccionada?.key === key) {
+    async eliminarReglaGuarnicion(keyOrItem) {
+      const g = (keyOrItem && typeof keyOrItem === 'object')
+        ? keyOrItem
+        : (this.guarnicionSeleccionada || this.todasLasGuarnicionesAsignacion.find(x => x.key === keyOrItem));
+      if (!g) return;
+      const gk = g.guarnicionKey || g.key;
+      const pid = this._platoIdRegla(g.platoId);
+      const nombrePerfil = this.perfilSeleccionadoActual?.nombre || '';
+      const ok = await this._persistirReglasGuarnicionEnPerfil((reglas) => {
+        const keep = reglas.filter(r => !this._matchReglaGuarnicion(r, gk, pid));
+        reglas.splice(0, reglas.length, ...keep);
+      });
+      if (ok && this.guarnicionSeleccionada?.key === g.key) {
         this.seleccionarGuarnicionAsignacion(this.guarnicionSeleccionada);
       }
-      await this._guardarReglasPerfilSeleccionado();
-      if (window.GambusinasNotifications) {
-        window.GambusinasNotifications.success('Regla eliminada', `Guarnición "${this.getNombreGuarnicion(key)}" sin regla en el perfil "${perfil.nombre}".`);
+      if (ok && window.GambusinasNotifications) {
+        window.GambusinasNotifications.success('Regla eliminada', `Guarnición "${this.getNombreGuarnicion(g.key)}" sin regla propia en el perfil "${nombrePerfil}".`);
       }
     },
 
     async aplicarReglaAGrupoGuarnicion() {
       if (!this.guarnicionSeleccionada?.grupo) return;
       if (!this.validarReglaGuarnicion()) return;
-      const f = this.formReglaGuarnicion;
-      const perfil = this.perfilSeleccionadoActual;
-      if (!perfil) return;
-      if (!Array.isArray(perfil.reglasPorGrupo)) perfil.reglasPorGrupo = [];
-      const nueva = {
-        grupo: this.guarnicionSeleccionada.grupo,
-        activo: f.activo,
-        cocineroPrimarioId: f.cocineroPrimarioId || null,
-        backups: f.backups.filter(b => b.cocineroId).map((b, i) => ({ cocineroId: b.cocineroId, orden: i + 1 })),
-        maxMismoGuarnicion: (f.maxMismoGuarnicion === '' || f.maxMismoGuarnicion === null) ? null : Number(f.maxMismoGuarnicion),
-        estrategia: f.estrategia || null,
-        estacionRecomendada: f.estacionRecomendada || null,
-        notas: f.notas || ''
-      };
-      const idx = perfil.reglasPorGrupo.findIndex(r => r.grupo === nueva.grupo);
-      if (idx >= 0) perfil.reglasPorGrupo[idx] = nueva;
-      else perfil.reglasPorGrupo.push(nueva);
-      const ok = await this._guardarReglasPerfilSeleccionado();
+      const grupo = this.guarnicionSeleccionada.grupo;
+      const filas = this.todasLasGuarnicionesAsignacion.filter(x => x.grupo === grupo && this._platoIdRegla(x.platoId));
+      if (!filas.length) return;
+      const nuevas = filas.map(item => this._reglaGuarnicionDesdeForm(item)).filter(n => n.platoId);
+      const ok = await this._persistirReglasGuarnicionEnPerfil((reglas) => {
+        nuevas.forEach(nueva => {
+          const idx = reglas.findIndex(r => this._matchReglaGuarnicion(r, nueva.guarnicionKey, nueva.platoId));
+          if (idx >= 0) reglas[idx] = nueva;
+          else reglas.push(nueva);
+        });
+      });
       if (ok && window.GambusinasNotifications) {
-        window.GambusinasNotifications.success('Regla de grupo guardada', `Aplicada a "${nueva.grupo}" en el perfil "${perfil.nombre}".`);
+        window.GambusinasNotifications.success('Reglas por plato', `${nuevas.length} fila(s) de "${grupo}" (cada plato queda independiente).`);
       }
     },
 
@@ -6518,7 +6654,7 @@ function cocinerosApp() {
 
     async guardarDefaultsGuarniciones() {
       const res = await apiPut('/asignacion-automatica-guarniciones', { defaults: { ...this.formDefaultsGuarniciones } });
-      if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
+      if (res && res.success !== false && this._aplicarConfigRespuesta(res, this._esScopeGuarniciones ? 'guarniciones' : 'platos')) {
         this._syncFormDefaultsGuarniciones();
         if (window.GambusinasNotifications) window.GambusinasNotifications.success('Guardado', 'Defaults de guarniciones actualizados');
       } else {
@@ -6535,6 +6671,7 @@ function cocinerosApp() {
         const res = await apiPost('/asignacion-automatica-guarniciones/simular', {
           grupo: g?.grupo,
           opcion: g?.opcion,
+          platoId: this._platoIdRegla(g?.platoId),
           cocineroPadreId: this.simuladorCocineroPadreId || null,
           perfilId: this.perfilGuarnicionesSeleccionadoId || undefined
         });
@@ -6577,11 +6714,11 @@ function cocinerosApp() {
         const data = await apiGet('/platos');
         const platos = data?.data || data?.platos || (Array.isArray(data) ? data : []);
         this.todosLosPlatosAsignacion = platos.filter(p => p.isActive !== false).map(p => ({
-          id: p.id || p._id,
+          id: this._idNumericoPlato(p),
           nombre: p.nombre,
           categoria: p.categoria,
           tipo: p.tipo
-        }));
+        })).filter(p => p.id != null);
         // Categorias únicas
         const cats = [...new Set(this.todosLosPlatosAsignacion.map(p => p.categoria).filter(Boolean))].sort();
         this.categoriasPlatosAsignacion = cats;
@@ -6624,7 +6761,10 @@ function cocinerosApp() {
     },
     get reglasPlatoMap() {
       const m = {};
-      (this._fuenteReglasAsignacion.reglasPorPlato || []).forEach(r => { m[r.platoId] = r; });
+      (this._fuenteReglasAsignacion.reglasPorPlato || []).forEach(r => {
+        const pid = Number(r.platoId);
+        if (Number.isFinite(pid) && pid > 0) m[pid] = r;
+      });
       return m;
     },
     get reglasCategoriaMap() {
@@ -6682,9 +6822,10 @@ function cocinerosApp() {
     seleccionarPlatoAsignacion(p) {
       this.platoSeleccionadoAsignacion = p;
       this.errorValidacionAsignacion = '';
-      const regla = this.getReglaPlato(p.id);
+      const pid = Number(p.id);
+      const regla = this.getReglaPlato(pid);
       this.formReglaAsignacion = {
-        platoId: p.id,
+        platoId: pid,
         activo: regla.activo !== false,
         cocineroPrimarioId: regla.cocineroPrimarioId || '',
         backups: (regla.backups || []).map(b => ({ cocineroId: b.cocineroId, orden: b.orden })),
@@ -6750,31 +6891,9 @@ function cocinerosApp() {
     // Se usa para enviar las reglas en el PUT /perfiles/:id.
     _construirPayloadReglas() {
       if (this._esScopeGuarniciones) {
-        const fuente = this.perfilSeleccionadoActual || { reglasPorGuarnicion: [], reglasPorGrupo: [] };
+        const fuente = this.perfilSeleccionadoActual || { reglasPorGuarnicion: [] };
         return {
-          reglasPorGuarnicion: (fuente.reglasPorGuarnicion || []).map(r => ({
-            guarnicionKey: r.guarnicionKey,
-            etiqueta: r.etiqueta || '',
-            activo: r.activo !== false,
-            cocineroPrimarioId: r.cocineroPrimarioId,
-            backups: (r.backups || []).map(b => ({ cocineroId: b.cocineroId, orden: b.orden })),
-            maxMismoGuarnicion: r.maxMismoGuarnicion ?? null,
-            estrategia: r.estrategia || null,
-            estacionRecomendada: r.estacionRecomendada || null,
-            criticaEmplatado: !!r.criticaEmplatado,
-            categoriaTiempo: r.categoriaTiempo || null,
-            notas: r.notas || ''
-          })),
-          reglasPorGrupo: (fuente.reglasPorGrupo || []).map(r => ({
-            grupo: r.grupo,
-            activo: r.activo !== false,
-            cocineroPrimarioId: r.cocineroPrimarioId,
-            backups: (r.backups || []).map(b => ({ cocineroId: b.cocineroId, orden: b.orden })),
-            maxMismoGuarnicion: r.maxMismoGuarnicion ?? null,
-            estrategia: r.estrategia || null,
-            estacionRecomendada: r.estacionRecomendada || null,
-            notas: r.notas || ''
-          }))
+          reglasPorGuarnicion: (fuente.reglasPorGuarnicion || []).map(r => this._mapReglaGuarnicionParaApi(r))
         };
       }
       const fuente = this._fuenteReglasAsignacion;
@@ -6800,22 +6919,25 @@ function cocinerosApp() {
       };
     },
 
-    // Persiste las reglas del perfil seleccionado vía PUT /perfiles/:id.
+    // Persiste las reglas del perfil de PLATOS vía PUT /asignacion-automatica/perfiles/:id.
+    // Guarniciones: _persistirReglasGuarnicionEnPerfil (GET + merge en el perfil).
     async _guardarReglasPerfilSeleccionado() {
+      if (this._esScopeGuarniciones) {
+        return false;
+      }
       const perfil = this.perfilSeleccionadoActual;
       if (!perfil) {
         if (window.GambusinasNotifications) window.GambusinasNotifications.error('Perfil', 'Selecciona o crea un perfil antes de editar reglas.');
         return false;
       }
       const payload = this._construirPayloadReglas();
-      const res = await apiPut(`${this._apiAsignacionBase}/perfiles/${perfil.id}`, payload);
-      if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
+      const res = await apiPut(`/asignacion-automatica/perfiles/${perfil.id}`, payload);
+      if (res && res.success !== false && this._aplicarConfigRespuesta(res, 'platos')) {
         return true;
       }
       if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', res?.error || 'No se pudo guardar el perfil');
       try {
-        if (this._esScopeGuarniciones) await this.cargarAsignacionGuarniciones();
-        else await this.cargarConfigAsignacion();
+        await this.cargarConfigAsignacion();
       } catch (e) {}
       return false;
     },
@@ -6825,7 +6947,7 @@ function cocinerosApp() {
       if (!this.validarReglaAsignacion()) return;
       const f = this.formReglaAsignacion;
       const nueva = {
-        platoId: f.platoId,
+        platoId: Number(f.platoId),
         activo: f.activo,
         cocineroPrimarioId: f.cocineroPrimarioId || null,
         backups: f.backups.filter(b => b.cocineroId).map((b, i) => ({ cocineroId: b.cocineroId, orden: i + 1 })),
@@ -6836,7 +6958,7 @@ function cocinerosApp() {
       const perfil = this.perfilSeleccionadoActual;
       if (!perfil) return;
       if (!Array.isArray(perfil.reglasPorPlato)) perfil.reglasPorPlato = [];
-      const idx = perfil.reglasPorPlato.findIndex(r => r.platoId === nueva.platoId);
+      const idx = perfil.reglasPorPlato.findIndex(r => Number(r.platoId) === nueva.platoId);
       if (idx >= 0) perfil.reglasPorPlato[idx] = nueva;
       else perfil.reglasPorPlato.push(nueva);
       const ok = await this._guardarReglasPerfilSeleccionado();
@@ -6860,24 +6982,32 @@ function cocinerosApp() {
       if (!this.platoSeleccionadoAsignacion?.categoria) return;
       if (!this.validarReglaAsignacion()) return;
       const f = this.formReglaAsignacion;
-      const nueva = {
-        categoria: this.platoSeleccionadoAsignacion.categoria,
-        activo: f.activo,
-        cocineroPrimarioId: f.cocineroPrimarioId || null,
-        backups: f.backups.filter(b => b.cocineroId).map((b, i) => ({ cocineroId: b.cocineroId, orden: i + 1 })),
-        maxMismoPlato: (f.maxMismoPlato === '' || f.maxMismoPlato === null) ? null : Number(f.maxMismoPlato),
-        estrategia: f.estrategia || null,
-        notas: f.notas || ''
-      };
       const perfil = this.perfilSeleccionadoActual;
       if (!perfil) return;
-      if (!Array.isArray(perfil.reglasPorCategoria)) perfil.reglasPorCategoria = [];
-      const idx = perfil.reglasPorCategoria.findIndex(r => r.categoria === nueva.categoria);
-      if (idx >= 0) perfil.reglasPorCategoria[idx] = nueva;
-      else perfil.reglasPorCategoria.push(nueva);
+      if (!Array.isArray(perfil.reglasPorPlato)) perfil.reglasPorPlato = [];
+      const cat = this.platoSeleccionadoAsignacion.categoria;
+      const platosCat = this.todosLosPlatosAsignacion.filter(p => p.categoria === cat && Number(p.id) > 0);
+      const backups = f.backups.filter(b => b.cocineroId).map((b, i) => ({ cocineroId: b.cocineroId, orden: i + 1 }));
+      let actualizadas = 0;
+      platosCat.forEach(p => {
+        const pid = Number(p.id);
+        const nueva = {
+          platoId: pid,
+          activo: f.activo,
+          cocineroPrimarioId: f.cocineroPrimarioId || null,
+          backups,
+          maxMismoPlato: (f.maxMismoPlato === '' || f.maxMismoPlato === null) ? null : Number(f.maxMismoPlato),
+          estrategia: f.estrategia || null,
+          notas: f.notas || ''
+        };
+        const idx = perfil.reglasPorPlato.findIndex(r => Number(r.platoId) === pid);
+        if (idx >= 0) perfil.reglasPorPlato[idx] = nueva;
+        else perfil.reglasPorPlato.push(nueva);
+        actualizadas++;
+      });
       const ok = await this._guardarReglasPerfilSeleccionado();
       if (ok && window.GambusinasNotifications) {
-        window.GambusinasNotifications.success('Regla de categoría guardada', `Aplicada y persistida a "${nueva.categoria}" en el perfil "${perfil.nombre}".`);
+        window.GambusinasNotifications.success('Reglas por plato', `${actualizadas} plato(s) de "${cat}" (cada uno independiente).`);
       }
     },
 
@@ -7111,20 +7241,23 @@ function cocinerosApp() {
       const keys = this.formAsignacionMasivaContexto.guarnicionKeys || [];
       if (this._esScopeGuarniciones || keys.length) {
         if (keys.length === 0) return;
-        const perfil = this.perfilSeleccionadoActual;
-        if (!perfil) {
+        const nombrePerfil = this.perfilSeleccionadoActual?.nombre || '';
+        if (!this.perfilGuarnicionesSeleccionadoId) {
           if (window.GambusinasNotifications) window.GambusinasNotifications.error('Perfil', 'Selecciona o crea un perfil antes de asignar guarniciones.');
           return;
         }
-        if (!Array.isArray(perfil.reglasPorGuarnicion)) perfil.reglasPorGuarnicion = [];
         const backups = f.backups.filter(b => b.cocineroId).map((b, i) => ({ cocineroId: b.cocineroId, orden: i + 1 }));
         const maxMismo = (f.maxMismoPlato === '' || f.maxMismoPlato === null) ? null : Number(f.maxMismoPlato);
-        let actualizadas = 0;
+        const nuevas = [];
         for (const gk of keys) {
           const item = this.todasLasGuarnicionesAsignacion.find(x => x.key === gk);
-          const nueva = {
-            guarnicionKey: gk,
-            etiqueta: item?.etiqueta || gk,
+          const guarnicionKey = this._baseGuarnicionKey(item?.guarnicionKey || this._keyGuarnicion(item?.grupo, item?.opcion), item?.platoId);
+          const platoId = this._platoIdRegla(item?.platoId);
+          if (!platoId || !guarnicionKey) continue;
+          nuevas.push({
+            guarnicionKey,
+            platoId,
+            etiqueta: item?.etiqueta || guarnicionKey,
             activo: f.activo,
             cocineroPrimarioId: f.cocineroPrimarioId || null,
             backups,
@@ -7134,20 +7267,22 @@ function cocinerosApp() {
             criticaEmplatado: false,
             categoriaTiempo: null,
             notas: ''
-          };
-          const idx = perfil.reglasPorGuarnicion.findIndex(r => r.guarnicionKey === gk);
-          if (idx >= 0) perfil.reglasPorGuarnicion[idx] = nueva;
-          else perfil.reglasPorGuarnicion.push(nueva);
-          actualizadas++;
+          });
         }
-        const ok = await this._guardarReglasPerfilSeleccionado();
+        const ok = await this._persistirReglasGuarnicionEnPerfil((reglas) => {
+          nuevas.forEach(nueva => {
+            const idx = reglas.findIndex(r => this._matchReglaGuarnicion(r, nueva.guarnicionKey, nueva.platoId));
+            if (idx >= 0) reglas[idx] = nueva;
+            else reglas.push(nueva);
+          });
+        });
         if (ok) {
           this.modalAsignacionMasiva = false;
           this.seleccionGuarniciones = {};
           if (window.GambusinasNotifications) {
             window.GambusinasNotifications.success(
               'Asignación por conjunto guardada',
-              `${actualizadas} guarnición(es) guardadas en el perfil "${perfil.nombre}" · selección limpiada.`
+              `${nuevas.length} guarnición(es) guardadas en el perfil "${nombrePerfil}" · selección limpiada.`
             );
           }
           this.$nextTick(() => {
@@ -7185,7 +7320,7 @@ function cocinerosApp() {
           estrategia: f.estrategia || null,
           notas: ''
         };
-        const idx = perfil.reglasPorPlato.findIndex(r => r.platoId === pid);
+        const idx = perfil.reglasPorPlato.findIndex(r => Number(r.platoId) === Number(pid));
         if (idx >= 0) perfil.reglasPorPlato[idx] = nueva;
         else perfil.reglasPorPlato.push(nueva);
         actualizadas++;
@@ -7234,15 +7369,16 @@ function cocinerosApp() {
       if (d.perfiles || d.calendario || d.defaults || typeof d.habilitada === 'boolean') return d;
       return null;
     },
-    _aplicarConfigRespuesta(res) {
+    _aplicarConfigRespuesta(res, scopeOverride) {
       const config = this._extraerConfigDeRespuesta(res);
       if (!config) return false;
-      if (this._esScopeGuarniciones) {
+      const esGuar = scopeOverride === 'guarniciones' || (scopeOverride == null && this._esScopeGuarniciones);
+      if (esGuar) {
         this.asignacionGuarnicionesConfig = config;
-        this.perfilGuarnicionesActivoAhora = this._recalcularPerfilActivoAhora();
+        this.perfilGuarnicionesActivoAhora = this._recalcularPerfilActivoAhora(config);
       } else {
         this.asignacionConfig = config;
-        this.perfilActivoAhora = this._recalcularPerfilActivoAhora();
+        this.perfilActivoAhora = this._recalcularPerfilActivoAhora(config);
       }
       return true;
     },
@@ -7261,8 +7397,8 @@ function cocinerosApp() {
     },
 
     // Recalcula el "perfil activo ahora" localmente (fallback si el GET no lo trae).
-    _recalcularPerfilActivoAhora() {
-      const config = this._configAsignacion;
+    _recalcularPerfilActivoAhora(configOverride) {
+      const config = configOverride || this._configAsignacion;
       if (!config) return null;
       const bloques = config.calendario?.bloques || [];
       if (!bloques.length) return null;
@@ -7324,7 +7460,7 @@ function cocinerosApp() {
           const res = await apiPost(`${base}/perfiles`, {
             nombre, descripcion: this.modalPerfilForm.descripcion, color: this.modalPerfilForm.color
           });
-          if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
+          if (res && res.success !== false && this._aplicarConfigRespuesta(res, this._esScopeGuarniciones ? 'guarniciones' : 'platos')) {
             const nuevoId = res.perfilId || res.data?.perfilId || '';
             if (this._esScopeGuarniciones) {
               this.perfilGuarnicionesSeleccionadoId = nuevoId || this.perfilGuarnicionesSeleccionadoId;
@@ -7349,7 +7485,7 @@ function cocinerosApp() {
           const res = await apiPut(`${base}/perfiles/${perfil.id}`, {
             nombre, descripcion: this.modalPerfilForm.descripcion, color: this.modalPerfilForm.color
           });
-          if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
+          if (res && res.success !== false && this._aplicarConfigRespuesta(res, this._esScopeGuarniciones ? 'guarniciones' : 'platos')) {
             this.modalPerfilAsignacion = false;
             if (window.GambusinasNotifications) window.GambusinasNotifications.success('Perfil actualizado', `Renombrado a "${nombre}".`);
           } else {
@@ -7366,7 +7502,7 @@ function cocinerosApp() {
       const p = this.perfilSeleccionadoActual;
       if (!p) return;
       const res = await apiPost(`${this._apiAsignacionBase}/perfiles/${p.id}/duplicar`);
-      if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
+      if (res && res.success !== false && this._aplicarConfigRespuesta(res, this._esScopeGuarniciones ? 'guarniciones' : 'platos')) {
         const nuevoId = res.perfilId || res.data?.perfilId;
         if (this._esScopeGuarniciones) {
           this.perfilGuarnicionesSeleccionadoId = nuevoId || this.perfilGuarnicionesSeleccionadoId;
@@ -7384,7 +7520,7 @@ function cocinerosApp() {
       const p = this.perfilSeleccionadoActual;
       if (!p) return;
       const res = await apiPut(`${this._apiAsignacionBase}/perfiles/${p.id}`, { activo: !p.activo });
-      if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
+      if (res && res.success !== false && this._aplicarConfigRespuesta(res, this._esScopeGuarniciones ? 'guarniciones' : 'platos')) {
         if (window.GambusinasNotifications) window.GambusinasNotifications.success('Perfil actualizado', p.activo ? 'Perfil desactivado' : 'Perfil activado');
       } else {
         if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', res?.error || 'No se pudo cambiar');
@@ -7397,7 +7533,7 @@ function cocinerosApp() {
       if (!p) return;
       if (!confirm(`¿Eliminar el perfil "${p.nombre}"?`)) return;
       const res = await apiDelete(`${this._apiAsignacionBase}/perfiles/${p.id}`);
-      if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
+      if (res && res.success !== false && this._aplicarConfigRespuesta(res, this._esScopeGuarniciones ? 'guarniciones' : 'platos')) {
         if (this._esScopeGuarniciones) {
           if (this.perfilGuarnicionesSeleccionadoId === p.id) {
             this.perfilGuarnicionesSeleccionadoId = (this.asignacionGuarnicionesConfig.perfiles || [])[0]?.id || '';
@@ -7551,7 +7687,7 @@ function cocinerosApp() {
         } else {
           res = await apiPut(`${this._apiAsignacionBase}/calendario/bloques/${this.modalFranjaBloqueId}`, body);
         }
-        if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
+        if (res && res.success !== false && this._aplicarConfigRespuesta(res, this._esScopeGuarniciones ? 'guarniciones' : 'platos')) {
           this.modalFranjaCalendario = false;
           if (window.GambusinasNotifications) {
             window.GambusinasNotifications.success(
@@ -7572,7 +7708,7 @@ function cocinerosApp() {
       if (!this.modalFranjaBloqueId) return;
       if (!confirm('¿Eliminar esta franja?')) return;
       const res = await apiDelete(`${this._apiAsignacionBase}/calendario/bloques/${this.modalFranjaBloqueId}`);
-      if (res && res.success !== false && this._aplicarConfigRespuesta(res)) {
+      if (res && res.success !== false && this._aplicarConfigRespuesta(res, this._esScopeGuarniciones ? 'guarniciones' : 'platos')) {
         this.modalFranjaCalendario = false;
         if (window.GambusinasNotifications) window.GambusinasNotifications.success('Franja eliminada', 'La franja fue eliminada del calendario.');
       } else {

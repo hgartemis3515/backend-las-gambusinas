@@ -17,12 +17,18 @@ const ESTRATEGIAS_VALIDAS = ['fijo_por_guarnicion', 'fijo_por_grupo', 'cadena_ov
 const MODOS_SIN_CANDIDATO_VALIDOS = ['dejar_sin_asignar', 'pool_supervisor', 'round_robin_estacion'];
 const CATEGORIAS_TIEMPO_VALIDAS = ['rapido', 'medio', 'lento', null];
 
+function sanitizarPlatoIdRegla(v) {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 function sanitizarReglasGuarnicion(arr) {
     if (!Array.isArray(arr)) return undefined;
     return arr
         .filter(r => r && r.guarnicionKey && (r.cocineroPrimarioId || (Array.isArray(r.backups) && r.backups.some(b => b && b.cocineroId))))
         .map(r => ({
             guarnicionKey: String(r.guarnicionKey).trim().toLowerCase(),
+            platoId: sanitizarPlatoIdRegla(r.platoId),
             etiqueta: typeof r.etiqueta === 'string' ? r.etiqueta.slice(0, 120) : '',
             activo: r.activo !== false,
             cocineroPrimarioId: r.cocineroPrimarioId || null,
@@ -223,8 +229,8 @@ router.delete('/asignacion-automatica-guarniciones/calendario/bloques/:id', admi
 // Simular
 router.post('/asignacion-automatica-guarniciones/simular', adminAuth, async (req, res) => {
     try {
-        const { grupo, opcion, cocineroPadreId, perfilId, enMomento } = req.body;
-        const resultado = await asignacionService.simularAsignacionGuarnicion(grupo, opcion, cocineroPadreId, { perfilId, enMomento });
+        const { grupo, opcion, cocineroPadreId, perfilId, enMomento, platoId } = req.body;
+        const resultado = await asignacionService.simularAsignacionGuarnicion(grupo, opcion, cocineroPadreId, { perfilId, enMomento, platoId });
         res.json({ success: true, data: resultado });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
