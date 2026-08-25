@@ -292,11 +292,19 @@ describe('asignacionAutomaticaService', () => {
             expect(r.motivo).toBe('deshabilitada');
         });
 
-        it('devuelve null si no hay bloques', () => {
+        it('devuelve null si no hay bloques ni perfiles', () => {
             const config = buildConfig();
             const r = service.resolverPerfilActivo(config, moment.tz('2026-07-13T09:00', TZ));
             expect(r.perfil).toBeNull();
             expect(r.motivo).toBe('sin_franja_activa');
+        });
+
+        it('usa el perfil activo si no hay bloques de calendario', () => {
+            const perfil = buildPerfil('p1', 'Principal');
+            const config = buildConfig({ perfiles: [perfil], calendario: { bloques: [] } });
+            const r = service.resolverPerfilActivo(config, moment.tz('2026-07-13T09:00', TZ));
+            expect(r.perfil.id).toBe('p1');
+            expect(r.motivo).toBe('ok');
         });
 
         it('devuelve null si la hora actual cae fuera de toda franja', () => {

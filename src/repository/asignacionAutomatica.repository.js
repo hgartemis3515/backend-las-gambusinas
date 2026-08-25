@@ -85,10 +85,24 @@ const crearPerfil = async ({ nombre, descripcion = '', color = '#D4AF37', activo
         updatedAt: new Date()
     };
 
+    const push = { perfiles: nuevoPerfil };
+    if (!(config.calendario?.bloques || []).length) {
+        push['calendario.bloques'] = {
+            id: uuidv4(),
+            perfilId: nuevoPerfil.id,
+            diasSemana: [0, 1, 2, 3, 4, 5, 6],
+            horaInicio: '00:00',
+            horaFin: '23:59',
+            etiqueta: 'Default 24h',
+            activo: true,
+            createdAt: new Date()
+        };
+    }
+
     const actualizado = await AsignacionAutomatica.findOneAndUpdate(
         { _id: AsignacionAutomatica.CONFIG_ID },
         {
-            $push: { perfiles: nuevoPerfil },
+            $push: push,
             $set: { actualizadoPor: modificadoPor }
         },
         { new: true }

@@ -34,7 +34,7 @@ describe('detectarBatchsEnComanda', () => {
     };
     const batchs = svc.detectarBatchsEnComanda(comanda);
     expect(Object.keys(batchs)).toHaveLength(1);
-    expect(batchs['acompañamiento::papas fritas']).toHaveLength(3);
+    expect(batchs['acomp::papas fritas']).toHaveLength(3);
   });
 
   test('guarniciones ya asignadas no entran en batch', () => {
@@ -159,9 +159,18 @@ describe('resolverPerfilActivo', () => {
     expect(r.perfil).toBeNull();
     expect(r.motivo).toBe('deshabilitada');
   });
-  test('sin bloques → sin_franja_activa', () => {
+  test('sin bloques ni perfiles → sin_franja_activa', () => {
     const r = svc.resolverPerfilActivo({ habilitada: true, calendario: { bloques: [] } });
     expect(r.motivo).toBe('sin_franja_activa');
+  });
+  test('sin bloques + perfil activo → usa el perfil', () => {
+    const r = svc.resolverPerfilActivo({
+      habilitada: true,
+      perfiles: [{ id: 'p1', activo: true }],
+      calendario: { bloques: [] }
+    });
+    expect(r.motivo).toBe('ok');
+    expect(r.perfil.id).toBe('p1');
   });
   test('bloque activo + perfil existe → ok', () => {
     const m = require('moment-timezone');
@@ -196,7 +205,7 @@ describe('Escenarios de servicio real (lógica pura)', () => {
       ]
     };
     const batchs = svc.detectarBatchsEnComanda(comanda);
-    expect(batchs['acompañamiento::papas fritas']).toHaveLength(3);
+    expect(batchs['acomp::papas fritas']).toHaveLength(3);
   });
 
   test('VIP + refire: refire gana prioridad al frente de la cola', () => {

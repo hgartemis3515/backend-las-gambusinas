@@ -96,7 +96,7 @@ const perfilSchema = new mongoose.Schema({
     reglasPorCategoria: { type: [reglasCategoriaSchema], default: [] },
     createdAt: { type: Date, default: () => new Date() },
     updatedAt: { type: Date, default: () => new Date() }
-}, { _id: false });
+}, { _id: false, id: false });
 
 // ---------------------------- Bloque de calendario ----------------------------
 
@@ -125,7 +125,7 @@ const bloqueCalendarioSchema = new mongoose.Schema({
     etiqueta: { type: String, default: '', trim: true },
     activo: { type: Boolean, default: true },
     createdAt: { type: Date, default: () => new Date() }
-}, { _id: false });
+}, { _id: false, id: false });
 
 // ---------------------------- Documento singleton ----------------------------
 

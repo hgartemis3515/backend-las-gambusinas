@@ -31,6 +31,7 @@
 const mongoose = require('mongoose');
 const moment = require('moment-timezone');
 const logger = require('../utils/logger');
+const redisCache = require('../utils/redisCache');
 
 const AsignacionAutomatica = require('../database/models/asignacionAutomatica.model');
 const ConfigCocinero = require('../database/models/configCocinero.model');
@@ -65,6 +66,9 @@ function compararHHmm(a, b) {
  * ¿hhmm está dentro de [horaInicio, horaFin)?  (horaFin exclusiva; v1 sin cruce de medianoche)
  */
 function horaEnRango(hhmm, horaInicio, horaFin) {
+    if (horaFin === '23:59' || horaFin === '24:00') {
+        return compararHHmm(hhmm, horaInicio) >= 0 && compararHHmm(hhmm, '23:59') <= 0;
+    }
     return compararHHmm(hhmm, horaInicio) >= 0 && compararHHmm(hhmm, horaFin) < 0;
 }
 
@@ -86,12 +90,21 @@ function horaEnRango(hhmm, horaInicio, horaFin) {
  *
  * Día: usamos moment.day() => 0=Dom, 1=Lun, ..., 6=Sáb (consistente con diasSemana).
  */
+function perfilPorId(config, perfilId) {
+    const id = perfilId != null ? String(perfilId) : '';
+    return (config.perfiles || []).find(p => p && String(p.id) === id && p.activo !== false) || null;
+}
+
 function resolverPerfilActivo(config, momento) {
     if (!config || !config.habilitada) {
         return { perfil: null, bloque: null, motivo: 'deshabilitada' };
     }
     const bloques = (config.calendario && Array.isArray(config.calendario.bloques)) ? config.calendario.bloques : [];
+    const activos = (config.perfiles || []).filter(p => p && p.activo !== false);
     if (bloques.length === 0) {
+        if (activos.length >= 1) {
+            return { perfil: activos[0], bloque: null, motivo: 'ok' };
+        }
         return { perfil: null, bloque: null, motivo: 'sin_franja_activa' };
     }
     const m = momento || nowLima();
@@ -101,7 +114,7 @@ function resolverPerfilActivo(config, momento) {
     const candidatos = bloques.filter(b =>
         b.activo !== false &&
         Array.isArray(b.diasSemana) &&
-        b.diasSemana.includes(dia) &&
+        b.diasSemana.map(Number).includes(dia) &&
         horaEnRango(hhmm, b.horaInicio, b.horaFin)
     );
 
@@ -121,7 +134,7 @@ function resolverPerfilActivo(config, momento) {
     });
 
     const bloqueSeleccionado = candidatos[0];
-    const perfil = (config.perfiles || []).find(p => p.id === bloqueSeleccionado.perfilId && p.activo !== false);
+    const perfil = perfilPorId(config, bloqueSeleccionado.perfilId);
     if (!perfil) {
         return { perfil: null, bloque: bloqueSeleccionado, motivo: 'perfil_inactivo_o_inexistente', dia, hhmm };
     }
@@ -452,6 +465,8 @@ async function asignarPlatoInterno(comandaId, plato, cocineroId, metaOrigen, met
 
     if (result.modifiedCount === 0) return false; // alguien tomó o cambió estado entre read y write
 
+    try { await redisCache.invalidate(comandaId); } catch (_) { /* no bloquear */ }
+
     // Emitir sockets reutilizando globales (mismos que procesamientoController)
     try {
         if (global.emitPlatoProcesando) {
@@ -484,7 +499,8 @@ async function asignarPlatosNuevos(comanda) {
     try {
         if (!comanda || !comanda.platos || comanda.platos.length === 0) return { asignados: 0, noAsignados: 0 };
 
-        const config = await AsignacionAutomatica.obtenerConfiguracion();
+        const configRaw = await AsignacionAutomatica.obtenerConfiguracion();
+        const config = configRaw && typeof configRaw.toObject === 'function' ? configRaw.toObject() : configRaw;
         if (!config.habilitada) return { asignados: 0, noAsignados: 0, motivo: 'deshabilitada' };
 
         // Resolver perfil activo AHORA. Se recalcula por intento si hace falta.
@@ -519,7 +535,8 @@ async function asignarPlatosNuevos(comanda) {
             let elegido = null;
             for (let intento = 0; intento < MAX_REINTENTOS && !elegido; intento++) {
                 // Recarga config por si cambió entre platos (ej. overflow actualiza contadores).
-                const configViva = await AsignacionAutomatica.obtenerConfiguracion();
+                const configVivaRaw = await AsignacionAutomatica.obtenerConfiguracion();
+                const configViva = configVivaRaw && typeof configVivaRaw.toObject === 'function' ? configVivaRaw.toObject() : configVivaRaw;
                 if (!configViva.habilitada) break;
 
                 const { perfil, bloque, motivo } = resolverPerfilActivo(configViva, nowLima());
@@ -579,7 +596,8 @@ async function asignarPlatosNuevos(comanda) {
  *     Si no, usa "ahora Lima".
  */
 async function simularAsignacion(platoId, categoria = null, tipo = null, opciones = {}) {
-    const config = await AsignacionAutomatica.obtenerConfiguracion();
+    const configRaw = await AsignacionAutomatica.obtenerConfiguracion();
+    const config = configRaw && typeof configRaw.toObject === 'function' ? configRaw.toObject() : configRaw;
     if (!config.habilitada) {
         return { habilitada: false, cocineroId: null, mensaje: 'Asignación automática deshabilitada' };
     }
@@ -589,7 +607,7 @@ async function simularAsignacion(platoId, categoria = null, tipo = null, opcione
     let bloqueUsado = null;
     let motivoPerfil = null;
     if (opciones.perfilId) {
-        perfilUsado = (config.perfiles || []).find(p => p.id === opciones.perfilId && p.activo !== false) || null;
+        perfilUsado = perfilPorId(config, opciones.perfilId);
         if (!perfilUsado) {
             return { habilitada: true, cocineroId: null, mensaje: 'Perfil no encontrado o inactivo', perfilId: opciones.perfilId };
         }

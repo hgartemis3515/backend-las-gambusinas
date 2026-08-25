@@ -17,6 +17,7 @@ const ConfigCocinero = require('../database/models/configCocinero.model');
 const ConfigSistema = require('../database/models/configuracionSistema.model');
 const { agrupacionGuarnicionesOn } = require('../utils/autocerrarGuarniciones');
 const { construirCatalogoGuarniciones, nombreOpcionComplemento } = require('../utils/catalogoGuarniciones');
+const redisCache = require('../utils/redisCache');
 const Zona = require('../database/models/zona.model');
 
 const Comanda = mongoose.model('Comanda') || require('../database/models/comanda.model');
@@ -28,7 +29,12 @@ const TZ = 'America/Lima';
 
 function nowLima() { return moment().tz(TZ); }
 function compararHHmm(a, b) { return a < b ? -1 : (a > b ? 1 : 0); }
-function horaEnRango(hhmm, ini, fin) { return compararHHmm(hhmm, ini) >= 0 && compararHHmm(hhmm, fin) < 0; }
+function horaEnRango(hhmm, ini, fin) {
+    if (fin === '23:59' || fin === '24:00') {
+        return compararHHmm(hhmm, ini) >= 0 && compararHHmm(hhmm, '23:59') <= 0;
+    }
+    return compararHHmm(hhmm, ini) >= 0 && compararHHmm(hhmm, fin) < 0;
+}
 
 function normalizarGuarnicionKey(grupo, opcion) {
     const g = (grupo || '').toString().trim().toLowerCase();
@@ -39,14 +45,29 @@ function etiquetaGuarnicion(grupo, opcion) {
     return `${(grupo || '').toString().trim()} :: ${(opcion || '').toString().trim()}`;
 }
 
+function datosComplemento(comp) {
+    const grupo = (comp?.grupo || '').toString().trim();
+    const opcion = (comp?.opcion || comp?.nombre || '').toString().trim();
+    return { grupo, opcion, key: normalizarGuarnicionKey(grupo, opcion) };
+}
+
+function perfilPorId(config, perfilId) {
+    const id = perfilId != null ? String(perfilId) : '';
+    return (config.perfiles || []).find(p => p && String(p.id) === id && p.activo !== false) || null;
+}
+
 function resolverPerfilActivo(config, momento) {
     if (!config || !config.habilitada) return { perfil: null, bloque: null, motivo: 'deshabilitada' };
     const bloques = (config.calendario && Array.isArray(config.calendario.bloques)) ? config.calendario.bloques : [];
-    if (bloques.length === 0) return { perfil: null, bloque: null, motivo: 'sin_franja_activa' };
+    const activos = (config.perfiles || []).filter(p => p && p.activo !== false);
+    if (bloques.length === 0) {
+        if (activos.length >= 1) return { perfil: activos[0], bloque: null, motivo: 'ok' };
+        return { perfil: null, bloque: null, motivo: 'sin_franja_activa' };
+    }
     const m = momento || nowLima();
     const dia = m.day();
     const hhmm = m.format('HH:mm');
-    const cands = bloques.filter(b => b.activo !== false && Array.isArray(b.diasSemana) && b.diasSemana.includes(dia) && horaEnRango(hhmm, b.horaInicio, b.horaFin));
+    const cands = bloques.filter(b => b.activo !== false && Array.isArray(b.diasSemana) && b.diasSemana.map(Number).includes(dia) && horaEnRango(hhmm, b.horaInicio, b.horaFin));
     if (cands.length === 0) return { perfil: null, bloque: null, motivo: 'sin_franja_activa', dia, hhmm };
     cands.sort((a, b) => {
         const d = a.diasSemana.length - b.diasSemana.length;
@@ -58,7 +79,7 @@ function resolverPerfilActivo(config, momento) {
         return tb - ta;
     });
     const bloque = cands[0];
-    const perfil = (config.perfiles || []).find(p => p.id === bloque.perfilId && p.activo !== false);
+    const perfil = perfilPorId(config, bloque.perfilId);
     if (!perfil) return { perfil: null, bloque, motivo: 'perfil_inactivo_o_inexistente', dia, hhmm };
     return { perfil, bloque, motivo: 'ok', dia, hhmm };
 }
@@ -148,8 +169,9 @@ function encontrarReglaGuarnicion(perfil, grupo, opcion, guarnicionKey) {
     const key = guarnicionKey || normalizarGuarnicionKey(grupo, opcion);
     const reglaG = (perfil.reglasPorGuarnicion || []).find(r => r.guarnicionKey === key && r.activo !== false);
     if (reglaG && reglaG.cocineroPrimarioId) return { tipo: 'guarnicion', regla: reglaG };
-    if (grupo) {
-        const reglaGr = (perfil.reglasPorGrupo || []).find(r => r.grupo === grupo && r.activo !== false);
+    const grupoNorm = String(grupo || '').trim().toLowerCase();
+    if (grupoNorm) {
+        const reglaGr = (perfil.reglasPorGrupo || []).find(r => String(r.grupo || '').trim().toLowerCase() === grupoNorm && r.activo !== false);
         if (reglaGr && reglaGr.cocineroPrimarioId) return { tipo: 'grupo', regla: reglaGr };
     }
     return null;
@@ -167,7 +189,7 @@ function detectarBatchsEnComanda(comanda) {
     (comanda.platos || []).forEach((plato, pi) => {
         (plato.complementosSeleccionados || []).forEach((c, ci) => {
             if (c.procesandoPor && c.procesandoPor.cocineroId) return;
-            const key = normalizarGuarnicionKey(c.grupo, c.opcion);
+            const { key } = datosComplemento(c);
             if (!map[key]) map[key] = [];
             map[key].push({ platoIndex: pi, compIndex: ci });
         });
@@ -211,12 +233,13 @@ function snapshotReglaGuarnicion(regla) {
  */
 async function filtrarCandidatoGuarnicion(
     cand, config, plato, guarnicionKey, cocineroPadreId, estacionRecomendada,
-    cacheConectado, cacheCargaTot, cacheCocinero, batchCocineroPreferido
+    cacheConectado, cacheCargaTot, cacheCocinero, batchCocineroPreferido,
+    permitirCocineroPadre = false
 ) {
-    const { soloCocinerosConectados, respetarZonas, maxMismoGuarnicionPorCocinero, maxUnidadesTotalesEnCurso, priorizarEstacion } = config.defaults;
+    const { soloCocinerosConectados, respetarZonas, maxMismoGuarnicionPorCocinero, maxUnidadesTotalesEnCurso, priorizarEstacion } = config.defaults || {};
 
-    // §1: excluir SIEMPRE al cocinero del plato principal.
-    if (cocineroPadreId && cand.cocineroId === cocineroPadreId.toString()) return null;
+    // §1: excluir al cocinero del principal salvo que sea el único candidato viable.
+    if (!permitirCocineroPadre && cocineroPadreId && cand.cocineroId === cocineroPadreId.toString()) return null;
 
     const opt = await cocineroAceptaAutoAsignacion(cand.cocineroId);
     if (!opt.acepta) return null;
@@ -273,6 +296,28 @@ async function filtrarCandidatoGuarnicion(
     return { cocineroId: cand.cocineroId, score, esPrimario: cand.esPrimario };
 }
 
+async function evaluarCandidatosGuarnicion(candidatos, args) {
+    const evaluados = [];
+    for (const cand of candidatos) {
+        const ev = await filtrarCandidatoGuarnicion(
+            cand, args.config, args.platoRef, args.guarnicionKey, args.cocineroPadreId,
+            args.estacionRecomendada, args.cacheConectado, args.cacheCargaTot, args.cacheCocinero,
+            args.batchCocineroPreferido, false
+        );
+        if (ev) evaluados.push(ev);
+    }
+    if (evaluados.length > 0) return evaluados;
+    for (const cand of candidatos) {
+        const ev = await filtrarCandidatoGuarnicion(
+            cand, args.config, args.platoRef, args.guarnicionKey, args.cocineroPadreId,
+            args.estacionRecomendada, args.cacheConectado, args.cacheCargaTot, args.cacheCocinero,
+            args.batchCocineroPreferido, true
+        );
+        if (ev) evaluados.push(ev);
+    }
+    return evaluados;
+}
+
 // ---------------------------- Escritura condicional ----------------------------
 
 /**
@@ -301,11 +346,17 @@ async function asignarGuarnicionInterna(comandaId, platoIndex, compIndex, cocine
     const res = await Comanda.updateOne(
         {
             _id: comandaId,
-            [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.procesandoPor.cocineroId`]: { $eq: null }
+            $or: [
+                { [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.procesandoPor.cocineroId`]: null },
+                { [`platos.${platoIndex}.complementosSeleccionados.${compIndex}.procesandoPor.cocineroId`]: { $exists: false } }
+            ]
         },
         { $set: set }
     );
     const ok = (res.modifiedCount || res.nModified || 0) > 0;
+    if (ok) {
+        try { await redisCache.invalidate(comandaId); } catch (_) { /* no bloquear */ }
+    }
     if (ok && global.emitPlatoProcesando && ids.platoId && ids.complementoId) {
         try {
             await global.emitPlatoProcesando(
@@ -346,7 +397,8 @@ async function asignarGuarnicionesNuevas(comandaPop) {
         }
         const agrupacionOn = agrupacionGuarnicionesOn(cfgSistema?.cocina);
 
-        const config = await AsignacionAutomaticaGuarniciones.obtenerConfiguracion();
+        const configRaw = await AsignacionAutomaticaGuarniciones.obtenerConfiguracion();
+        const config = configRaw && typeof configRaw.toObject === 'function' ? configRaw.toObject() : configRaw;
         if (!config.habilitada) {
             return { asignados: 0, noAsignados: 0, motivo: 'deshabilitada' };
         }
@@ -356,7 +408,7 @@ async function asignarGuarnicionesNuevas(comandaPop) {
             return { asignados: 0, noAsignados: 0, motivo };
         }
 
-        const batchs = config.defaults.agruparBatchs ? detectarBatchsEnComanda(comandaPop) : {};
+        const batchs = config.defaults?.agruparBatchs ? detectarBatchsEnComanda(comandaPop) : {};
         const prioridadComanda = prioridadUnidadTrabajo(comandaPop);
         const cacheConectado = {};
         const cacheCargaTot = {};
@@ -389,11 +441,11 @@ async function asignarGuarnicionesNuevas(comandaPop) {
                 let encontrada = null;
                 let guarnicionKeyElegida = '';
                 for (const p of pendientes) {
-                    const key = normalizarGuarnicionKey(p.comp.grupo, p.comp.opcion);
-                    const reg = encontrarReglaGuarnicion(perfil, p.comp.grupo, p.comp.opcion, key);
+                    const d = datosComplemento(p.comp);
+                    const reg = encontrarReglaGuarnicion(perfil, d.grupo, d.opcion, d.key);
                     if (reg) {
                         encontrada = reg;
-                        guarnicionKeyElegida = key;
+                        guarnicionKeyElegida = d.key;
                         break;
                     }
                 }
@@ -403,15 +455,11 @@ async function asignarGuarnicionesNuevas(comandaPop) {
                 }
 
                 const candidatos = construirCandidatos(encontrada.regla);
-                const evaluados = [];
-                for (const cand of candidatos) {
-                    const ev = await filtrarCandidatoGuarnicion(
-                        cand, config, platoRef, guarnicionKeyElegida, cocineroPadreId,
-                        encontrada.regla.estacionRecomendada,
-                        cacheConectado, cacheCargaTot, cacheCocinero, null
-                    );
-                    if (ev) evaluados.push(ev);
-                }
+                const evaluados = await evaluarCandidatosGuarnicion(candidatos, {
+                    config, platoRef, guarnicionKey: guarnicionKeyElegida, cocineroPadreId,
+                    estacionRecomendada: encontrada.regla.estacionRecomendada,
+                    cacheConectado, cacheCargaTot, cacheCocinero, batchCocineroPreferido: null
+                });
                 if (evaluados.length === 0) {
                     noAsignados += pendientes.length;
                     continue;
@@ -449,8 +497,8 @@ async function asignarGuarnicionesNuevas(comandaPop) {
                 if (comp.procesandoPor && comp.procesandoPor.cocineroId) continue; // ya asignada
                 if (comp.estadoCocina === 'recoger') continue;
 
-                const guarnicionKey = normalizarGuarnicionKey(comp.grupo, comp.opcion);
-                const encontrada = encontrarReglaGuarnicion(perfil, comp.grupo, comp.opcion, guarnicionKey);
+                const d = datosComplemento(comp);
+                const encontrada = encontrarReglaGuarnicion(perfil, d.grupo, d.opcion, d.key);
                 if (!encontrada) {
                     noAsignados++;
                     continue;
@@ -458,25 +506,19 @@ async function asignarGuarnicionesNuevas(comandaPop) {
 
                 // §3: ¿hay batch de esta guarnicionKey? Si ya asignamos una a un cocinero,
                 // preferimos ese para el resto del batch.
-                const batchItems = batchs[guarnicionKey];
+                const batchItems = batchs[d.key];
                 let batchCocineroPreferido = null;
                 let batchId = null;
                 if (batchItems && batchItems.length >= 2) {
-                    batchId = `batch-${guarnicionKey.replace(/[^a-z0-9]/g, '-')}-${comandaPop._id?.toString().slice(-6)}`;
-                    // Si ya asignamos alguna del batch, reusamos su cocinero (cacheado en cacheCocinero).
-                    // Lo detectamos vía cacheCargaTot: si un cocinero ya tiene +1 de esta key, lo preferimos.
+                    batchId = `batch-${d.key.replace(/[^a-z0-9]/g, '-')}-${comandaPop._id?.toString().slice(-6)}`;
                 }
 
                 const candidatos = construirCandidatos(encontrada.regla);
-                const evaluados = [];
-                for (const cand of candidatos) {
-                    const ev = await filtrarCandidatoGuarnicion(
-                        cand, config, platoRef, guarnicionKey, cocineroPadreId,
-                        encontrada.regla.estacionRecomendada,
-                        cacheConectado, cacheCargaTot, cacheCocinero, batchCocineroPreferido
-                    );
-                    if (ev) evaluados.push(ev);
-                }
+                const evaluados = await evaluarCandidatosGuarnicion(candidatos, {
+                    config, platoRef, guarnicionKey: d.key, cocineroPadreId,
+                    estacionRecomendada: encontrada.regla.estacionRecomendada,
+                    cacheConectado, cacheCargaTot, cacheCocinero, batchCocineroPreferido
+                });
                 if (evaluados.length === 0) {
                     noAsignados++;
                     continue;
@@ -501,7 +543,7 @@ async function asignarGuarnicionesNuevas(comandaPop) {
                     if (batchId) batchCocineroPreferido = elegido.cocineroId;
                     logger.info('Auto-asignación guarnición OK', {
                         comandaId: comandaPop._id?.toString(),
-                        guarnicionKey, cocineroId: elegido.cocineroId,
+                        guarnicionKey: d.key, cocineroId: elegido.cocineroId,
                         origen: 'auto', regla: encontrada.tipo, batchId
                     });
                 } else {
@@ -526,12 +568,13 @@ async function asignarGuarnicionesNuevas(comandaPop) {
  * Dry-run: simula a qué cocinero iría una guarnición SIN escribir.
  */
 async function simularAsignacionGuarnicion(grupo, opcion, cocineroPadreId = null, opciones = {}) {
-    const config = await AsignacionAutomaticaGuarniciones.obtenerConfiguracion();
+    const configRaw = await AsignacionAutomaticaGuarniciones.obtenerConfiguracion();
+    const config = configRaw && typeof configRaw.toObject === 'function' ? configRaw.toObject() : configRaw;
     if (!config.habilitada) return { habilitada: false, cocineroId: null, mensaje: 'Asignación de guarniciones deshabilitada' };
 
     let perfilUsado = null;
     if (opciones.perfilId) {
-        perfilUsado = (config.perfiles || []).find(p => p.id === opciones.perfilId && p.activo !== false) || null;
+        perfilUsado = perfilPorId(config, opciones.perfilId);
         if (!perfilUsado) return { habilitada: true, cocineroId: null, mensaje: 'Perfil no encontrado' };
     } else {
         const r = resolverPerfilActivo(config, opciones.enMomento ? moment(opciones.enMomento).tz(TZ) : null);
@@ -545,16 +588,12 @@ async function simularAsignacionGuarnicion(grupo, opcion, cocineroPadreId = null
 
     const candidatos = construirCandidatos(encontrada.regla);
     const cacheConectado = {}, cacheCargaTot = {}, cacheCocinero = {};
-    const evaluados = [];
-    for (const cand of candidatos) {
-        const ev = await filtrarCandidatoGuarnicion(
-            cand, config, null, guarnicionKey, cocineroPadreId,
-            encontrada.regla.estacionRecomendada,
-            cacheConectado, cacheCargaTot, cacheCocinero, null
-        );
-        if (ev) evaluados.push(ev);
-    }
-    if (evaluados.length === 0) return { habilitada: true, cocineroId: null, mensaje: 'Sin candidato válido (¿excluido por ser cocinero del principal?)' };
+    const evaluados = await evaluarCandidatosGuarnicion(candidatos, {
+        config, platoRef: null, guarnicionKey, cocineroPadreId,
+        estacionRecomendada: encontrada.regla.estacionRecomendada,
+        cacheConectado, cacheCargaTot, cacheCocinero, batchCocineroPreferido: null
+    });
+    if (evaluados.length === 0) return { habilitada: true, cocineroId: null, mensaje: 'Sin candidato válido' };
     evaluados.sort((a, b) => b.score - a.score);
     return {
         habilitada: true,

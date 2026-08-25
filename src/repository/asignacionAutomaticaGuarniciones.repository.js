@@ -75,9 +75,23 @@ const crearPerfil = async ({ nombre, descripcion = '', color = '#7CB342', activo
         updatedAt: new Date()
     };
 
+    const push = { perfiles: nuevoPerfil };
+    if (!(config.calendario?.bloques || []).length) {
+        push['calendario.bloques'] = {
+            id: uuidv4(),
+            perfilId: nuevoPerfil.id,
+            diasSemana: [0, 1, 2, 3, 4, 5, 6],
+            horaInicio: '00:00',
+            horaFin: '23:59',
+            etiqueta: 'Default 24h',
+            activo: true,
+            createdAt: new Date()
+        };
+    }
+
     const actualizado = await AsignacionAutomaticaGuarniciones.findOneAndUpdate(
         { _id: AsignacionAutomaticaGuarniciones.CONFIG_ID },
-        { $push: { perfiles: nuevoPerfil }, $set: { actualizadoPor: modificadoPor } },
+        { $push: push, $set: { actualizadoPor: modificadoPor } },
         { new: true }
     );
     return { config: actualizado.toObject(), perfilId: nuevoPerfil.id };
@@ -174,10 +188,15 @@ const crearBloque = async (bloque, modificadoPor) => {
     const perfil = (config.perfiles || []).find(p => p.id === bloque.perfilId);
     if (!perfil) throw new Error('El perfilId no existe');
 
+    const diasNorm = Array.isArray(bloque.diasSemana)
+        ? [...new Set(bloque.diasSemana.map(d => Number(d)).filter(d => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b)
+        : [];
+    if (diasNorm.length === 0) throw new Error('diasSemana debe ser un array no vacío de enteros 0..6');
+
     const nuevoBloque = {
         id: uuidv4(),
         perfilId: bloque.perfilId,
-        diasSemana: Array.isArray(bloque.diasSemana) ? bloque.diasSemana : [],
+        diasSemana: diasNorm,
         horaInicio: bloque.horaInicio,
         horaFin: bloque.horaFin,
         etiqueta: bloque.etiqueta || '',

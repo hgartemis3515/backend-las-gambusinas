@@ -95,7 +95,7 @@ const perfilSchema = new mongoose.Schema({
     reglasPorGrupo: { type: [reglasGrupoSchema], default: [] },
     createdAt: { type: Date, default: () => new Date() },
     updatedAt: { type: Date, default: () => new Date() }
-}, { _id: false });
+}, { _id: false, id: false });
 
 // ---------------------------- Bloque de calendario (igual que platos) ----------------------------
 
@@ -116,7 +116,7 @@ const bloqueCalendarioSchema = new mongoose.Schema({
     etiqueta: { type: String, default: '', trim: true },
     activo: { type: Boolean, default: true },
     createdAt: { type: Date, default: () => new Date() }
-}, { _id: false });
+}, { _id: false, id: false });
 
 // ---------------------------- Documento singleton ----------------------------
 
@@ -172,6 +172,19 @@ const CONFIGURACION_DEFAULT = {
 /**
  * Obtiene el singleton, creándolo con defaults si no existe.
  */
+function bloque24h(perfilId) {
+    return {
+        id: uuidv4(),
+        perfilId,
+        diasSemana: [0, 1, 2, 3, 4, 5, 6],
+        horaInicio: '00:00',
+        horaFin: '23:59',
+        etiqueta: 'Default 24h',
+        activo: true,
+        createdAt: new Date()
+    };
+}
+
 asignacionAutomaticaGuarnicionesSchema.statics.obtenerConfiguracion = async function () {
     let config = await this.findById(CONFIG_ID);
     if (!config) {
@@ -179,13 +192,18 @@ asignacionAutomaticaGuarnicionesSchema.statics.obtenerConfiguracion = async func
         console.log('✅ Configuración de Asignación Automática de Guarniciones creada con valores por defecto');
         return config;
     }
-    // Asegurar ids estables en perfiles/bloques (igual que el de platos).
-    (config.perfiles || []).forEach(p => { if (!p.id) p.id = uuidv4(); });
-    if (config.calendario && Array.isArray(config.calendario.bloques)) {
-        config.calendario.bloques.forEach(b => { if (!b.id) b.id = uuidv4(); });
-    }
-    if (config.isModified && config.isModified()) {
-        await config.save();
+    const perfiles = config.perfiles || [];
+    const bloques = config.calendario?.bloques || [];
+    if (perfiles.length > 0 && bloques.length === 0) {
+        const perfilId = (perfiles.find(p => p.activo !== false) || perfiles[0]).id;
+        if (perfilId) {
+            const seeded = await this.findOneAndUpdate(
+                { _id: CONFIG_ID, 'calendario.bloques.0': { $exists: false } },
+                { $push: { 'calendario.bloques': bloque24h(perfilId) } },
+                { new: true }
+            );
+            if (seeded) config = seeded;
+        }
     }
     return config;
 };
