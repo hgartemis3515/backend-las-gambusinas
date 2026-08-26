@@ -53,7 +53,8 @@ async function crearPropina(data) {
         totalBoucher,
         nota,
         registradoPor,
-        registradoPorNombre
+        registradoPorNombre,
+        estadoMesa: estadoMesaSnapshot
     } = data;
 
     const existente = await obtenerPropinaActivaPorBoucher(boucherId);
@@ -91,7 +92,7 @@ async function crearPropina(data) {
         fechaRegistro: now,
         fechaRegistroString: moment(now).tz('America/Lima').format('DD/MM/YYYY HH:mm:ss'),
         fechaDia,
-        estadoMesa: 'pagado',
+        estadoMesa: estadoMesaSnapshot || 'pagado',
         activo: true
     });
 

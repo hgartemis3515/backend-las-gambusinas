@@ -690,7 +690,8 @@ router.get('/pago-adelantado/comandas/:mesaId', async (req, res) => {
 
 /**
  * PUT /pago-adelantado/confirmar-entrega
- * Confirma la entrega de una comanda "para llevar" ya pagada por adelantado (PPA).
+ * Confirma la entrega / cierra el ciclo de una comanda ya cobrada por PPA.
+ * Acepta 100% para llevar o comandas (mesa/mixta) con todos los platos cobrados vía PPA.
  * Cierra la(s) comanda(s) y libera la mesa a "libre".
  * Body: { mesaId, comandaIds?, usuarioId? }
  */
@@ -723,16 +724,20 @@ router.put('/pago-adelantado/confirmar-entrega', async (req, res) => {
       if (platosActivos.length === 0) continue;
 
       const todosParaLlevar = platosActivos.every(p => p.tipoServicio === 'para_llevar');
-      if (!todosParaLlevar) continue;
+      const todosCobradosPPA = platosActivos.every((p) => {
+        const pa = p.pagoAdelantado;
+        if (!pa) return false;
+        if (pa.cobrado === true) return true;
+        const et = pa.estadoTicket;
+        return et === 'pendiente_aprobacion' || et === 'aprobado';
+      });
+      if (!todosParaLlevar && !todosCobradosPPA) continue;
 
-      // Verificar que TODOS los platos activos estén entregados
-      const todosEntregados = platosActivos.every(p => (p.estado || '').toLowerCase() === 'entregado');
-      if (!todosEntregados) {
-        return res.status(400).json({
-          success: false,
-          error: 'La comanda para llevar aún tiene platos sin entregar.',
-        });
-      }
+      const todosEntregados = platosActivos.every((p) => {
+        const e = (p.estado || '').toLowerCase();
+        return e === 'entregado' || e === 'pagado';
+      });
+      if (!todosEntregados) continue;
 
       // Marcar platos como entregados y pagados (el cobro ya se hizo vía PPA)
       for (const plato of comanda.platos) {
@@ -756,7 +761,7 @@ router.put('/pago-adelantado/confirmar-entrega', async (req, res) => {
     if (comandasCerradas.length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'No hay comandas para llevar pendientes de confirmar entrega en esta mesa.',
+        error: 'No hay comandas de pago adelantado pendientes de liberar en esta mesa.',
       });
     }
 

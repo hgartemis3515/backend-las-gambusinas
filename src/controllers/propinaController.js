@@ -14,6 +14,12 @@ const boucherRepository = require('../repository/boucher.repository');
 const mesasRepository = require('../repository/mesas.repository');
 const mozosRepository = require('../repository/mozos.repository');
 
+function mesaPermitePropina(estado) {
+    const e = String(estado || '').toLowerCase();
+    // Tras cobrar, la mesa queda en pendiente_aprobar hasta que cocina aprueba el ticket.
+    return e === 'pagado' || e === 'pendiente_aprobar';
+}
+
 function toOidStr(v) {
     if (v == null) return null;
     return typeof v === 'object' && v.toString ? v.toString() : String(v);
@@ -72,10 +78,10 @@ router.post('/propinas', async (req, res) => {
             return res.status(404).json({ success: false, error: 'Mesa no encontrada' });
         }
 
-        if (mesa.estado !== 'pagado') {
+        if (!mesaPermitePropina(mesa.estado)) {
             return res.status(400).json({
                 success: false,
-                error: `La mesa debe estar en estado "pagado" para registrar propina. Estado actual: ${mesa.estado}`
+                error: `La mesa debe estar pagada o pendiente de aprobación para registrar propina. Estado actual: ${mesa.estado}`
             });
         }
 
@@ -135,7 +141,8 @@ router.post('/propinas', async (req, res) => {
             totalBoucher,
             nota,
             registradoPor,
-            registradoPorNombre
+            registradoPorNombre,
+            estadoMesa: mesa.estado
         };
 
         const propina = await propinaRepository.crearPropina(propinaData);
