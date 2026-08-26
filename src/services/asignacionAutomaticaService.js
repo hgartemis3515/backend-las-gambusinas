@@ -54,6 +54,10 @@ function nowLima() {
     return moment().tz(TZ);
 }
 
+function inicioDiaLima(momento) {
+    return (momento || nowLima()).clone().startOf('day').toDate();
+}
+
 /**
  * Compara "HH:mm" como strings lexicográficos (válido para 24h sin cruzar medianoche).
  * Devuelve -1, 0, 1.
@@ -95,6 +99,17 @@ function perfilPorId(config, perfilId) {
     return (config.perfiles || []).find(p => p && String(p.id) === id && p.activo !== false) || null;
 }
 
+function perfilTieneReglasAsignacion(perfil) {
+    if (!perfil) return false;
+    return (perfil.reglasPorPlato || []).some(isReglaAsignada)
+        || (perfil.reglasPorCategoria || []).some(isReglaAsignada);
+}
+
+function elegirPerfilConReglas(activos) {
+    if (!Array.isArray(activos) || activos.length === 0) return null;
+    return activos.find(perfilTieneReglasAsignacion) || activos[0];
+}
+
 function resolverPerfilActivo(config, momento) {
     if (!config || !config.habilitada) {
         return { perfil: null, bloque: null, motivo: 'deshabilitada' };
@@ -102,9 +117,8 @@ function resolverPerfilActivo(config, momento) {
     const bloques = (config.calendario && Array.isArray(config.calendario.bloques)) ? config.calendario.bloques : [];
     const activos = (config.perfiles || []).filter(p => p && p.activo !== false);
     if (bloques.length === 0) {
-        if (activos.length >= 1) {
-            return { perfil: activos[0], bloque: null, motivo: 'ok' };
-        }
+        const perfil = elegirPerfilConReglas(activos);
+        if (perfil) return { perfil, bloque: null, motivo: 'ok' };
         return { perfil: null, bloque: null, motivo: 'sin_franja_activa' };
     }
     const m = momento || nowLima();
@@ -119,6 +133,10 @@ function resolverPerfilActivo(config, momento) {
     );
 
     if (candidatos.length === 0) {
+        // Toggle ON + reglas guardadas: no silenciar porque la franja no cubre "ahora"
+        // (las guarniciones suelen tener bloque 24h y sí asignan).
+        const perfil = elegirPerfilConReglas(activos);
+        if (perfil) return { perfil, bloque: null, motivo: 'sin_franja_usa_perfil_activo', dia, hhmm };
         return { perfil: null, bloque: null, motivo: 'sin_franja_activa', dia, hhmm };
     }
 
@@ -136,7 +154,15 @@ function resolverPerfilActivo(config, momento) {
     const bloqueSeleccionado = candidatos[0];
     const perfil = perfilPorId(config, bloqueSeleccionado.perfilId);
     if (!perfil) {
+        const fallback = elegirPerfilConReglas(activos);
+        if (fallback) return { perfil: fallback, bloque: bloqueSeleccionado, motivo: 'perfil_inactivo_usa_otro', dia, hhmm };
         return { perfil: null, bloque: bloqueSeleccionado, motivo: 'perfil_inactivo_o_inexistente', dia, hhmm };
+    }
+    if (!perfilTieneReglasAsignacion(perfil)) {
+        const conReglas = elegirPerfilConReglas(activos);
+        if (conReglas && String(conReglas.id) !== String(perfil.id) && perfilTieneReglasAsignacion(conReglas)) {
+            return { perfil: conReglas, bloque: bloqueSeleccionado, motivo: 'perfil_sin_reglas_usa_otro', dia, hhmm };
+        }
     }
     return { perfil, bloque: bloqueSeleccionado, motivo: 'ok', dia, hhmm };
 }
@@ -149,6 +175,7 @@ async function contarPlatosEnCurso(cocineroId, platoId = null) {
     const cocineroObjectId = new mongoose.Types.ObjectId(cocineroId);
     const matchBase = {
         IsActive: true,
+        createdAt: { $gte: inicioDiaLima() },
         'platos.procesandoPor.cocineroId': cocineroObjectId,
         'platos.estado': { $in: ESTADOS_EN_CURSO }
     };
@@ -179,7 +206,7 @@ async function mapaPlatosEnCursoPorCocinero(cocineroIds) {
     if (!cocineroIds.length) return {};
     const objectIds = cocineroIds.map(id => new mongoose.Types.ObjectId(id));
     const res = await Comanda.aggregate([
-        { $match: { IsActive: true, 'platos.procesandoPor.cocineroId': { $in: objectIds }, 'platos.estado': { $in: ESTADOS_EN_CURSO } } },
+        { $match: { IsActive: true, createdAt: { $gte: inicioDiaLima() }, 'platos.procesandoPor.cocineroId': { $in: objectIds }, 'platos.estado': { $in: ESTADOS_EN_CURSO } } },
         { $unwind: '$platos' },
         { $match: { 'platos.procesandoPor.cocineroId': { $in: objectIds }, 'platos.estado': { $in: ESTADOS_EN_CURSO }, 'platos.eliminado': { $ne: true } } },
         { $group: { _id: '$platos.procesandoPor.cocineroId', total: { $sum: 1 } } }
@@ -239,8 +266,30 @@ async function cocineroConectado(cocineroId) {
 }
 
 /**
+ * ID numérico del catálogo (`platos.id`), no el `_id` de línea ni el Mongo del plato.
+ * Misma fuente que guarniciones (`plato.plato.id` tras populate).
+ */
+function idCatalogoPlato(plato) {
+    if (!plato || typeof plato !== 'object') return null;
+    const nested = plato.plato && typeof plato.plato === 'object' && !Array.isArray(plato.plato)
+        ? plato.plato
+        : null;
+    const candidates = [plato.platoId, plato.id, nested && nested.id, nested && nested.platoId];
+    for (const c of candidates) {
+        if (c == null || c === '') continue;
+        if (typeof c === 'object') continue;
+        const s = String(c);
+        if (/^[a-fA-F0-9]{24}$/.test(s)) continue;
+        const n = Number(c);
+        if (Number.isFinite(n) && n > 0) return n;
+    }
+    return null;
+}
+
+/**
  * Encuentra la regla aplicable para un plato.
  * Prioridad: reglaPorPlato > reglaPorCategoria.
+ * Una regla cuenta si tiene primario O al menos un backup (igual que isReglaAsignada / UI).
  *
  * En v2, `configOrPerfil` puede ser:
  *   - un PERFIL (tiene sus propias reglasPorPlato/reglasPorCategoria) → usa esas.
@@ -248,19 +297,19 @@ async function cocineroConectado(cocineroId) {
  *     (compatibilidad para rollback / tests viejos).
  */
 function encontrarRegla(configOrPerfil, plato) {
-    const platoId = Number(plato.platoId || plato.id);
+    const platoId = idCatalogoPlato(plato);
     const reglasPlato = configOrPerfil.reglasPorPlato || [];
     const reglasCat = configOrPerfil.reglasPorCategoria || [];
 
-    const reglaPlato = Number.isFinite(platoId) && platoId > 0
+    const reglaPlato = platoId != null
         ? reglasPlato.find(r => Number(r.platoId) === platoId && r.activo !== false)
         : null;
-    if (reglaPlato && reglaPlato.cocineroPrimarioId) return { tipo: 'plato', regla: reglaPlato };
+    if (isReglaAsignada(reglaPlato)) return { tipo: 'plato', regla: reglaPlato };
 
-    const categoria = plato.categoria || plato.plato?.categoria;
+    const categoria = plato.categoria || (plato.plato && plato.plato.categoria);
     if (categoria) {
         const reglaCat = reglasCat.find(r => r.categoria === categoria && r.activo !== false);
-        if (reglaCat && reglaCat.cocineroPrimarioId) return { tipo: 'categoria', regla: reglaCat };
+        if (isReglaAsignada(reglaCat)) return { tipo: 'categoria', regla: reglaCat };
     }
     return null;
 }
@@ -285,7 +334,8 @@ function construirCandidatos(regla) {
  * Filtra un candidato según config y estado del cocinero.
  */
 async function filtrarCandidato(cand, config, plato, platoId, cacheConectado, cacheCargaTot, maxTotalesPorOverride) {
-    const { soloCocinerosConectados, respetarZonas, maxMismoPlatoPorCocinero, maxPlatosTotalesEnCurso } = config.defaults;
+    const defaults = (config && config.defaults) || {};
+    const { soloCocinerosConectados, respetarZonas, maxMismoPlatoPorCocinero, maxPlatosTotalesEnCurso } = defaults;
 
     // Opt-out
     const opt = await cocineroAceptaAutoAsignacion(cand.cocineroId);
@@ -314,12 +364,17 @@ async function filtrarCandidato(cand, config, plato, platoId, cacheConectado, ca
         total = await contarPlatosEnCurso(cand.cocineroId);
         cacheCargaTot[cand.cocineroId] = total;
     }
-    if (total >= maxTotal) return null;
+    if (Number.isFinite(maxTotal) && total >= maxTotal) {
+        logger.info('Auto-asignación: cocinero en tope de carga (día)', {
+            cocineroId: cand.cocineroId, total, maxTotal
+        });
+        return null;
+    }
 
     // Límite mismo plato
     const maxMismo = maxMismoPlatoPorCocinero;
     const mismoPlatoCount = await contarPlatosEnCurso(cand.cocineroId, platoId);
-    if (mismoPlatoCount >= maxMismo) {
+    if (Number.isFinite(maxMismo) && mismoPlatoCount >= maxMismo) {
         // Overflow: candidato saturado del mismo plato → no es válido como primario
         return null;
     }
@@ -348,16 +403,34 @@ async function seleccionarCocinero(config, plato, perfil = null) {
     const candidatos = construirCandidatos(regla);
     if (candidatos.length === 0) return null;
 
-    const estrategia = regla.estrategia || config.defaults.estrategiaDefault || 'hibrido';
+    const estrategia = regla.estrategia || (config.defaults || {}).estrategiaDefault || 'hibrido';
     const cacheConectado = {};
     const cacheCargaTot = {};
+    const platoIdRegla = regla.platoId || idCatalogoPlato(plato);
 
-    // Modos que consideran carga para elegir entre backups
-    const usaMenorCarga = ['menor_carga', 'hibrido'].includes(estrategia);
-    const candidatosValidos = [];
-    for (const cand of candidatos) {
-        const v = await filtrarCandidato(cand, config, plato, regla.platoId || (plato.platoId || plato.id), cacheConectado, cacheCargaTot);
-        if (v) candidatosValidos.push(v);
+    const evaluar = async (cfg) => {
+        const validos = [];
+        for (const cand of candidatos) {
+            const v = await filtrarCandidato(cand, cfg, plato, platoIdRegla, cacheConectado, cacheCargaTot);
+            if (v) validos.push(v);
+        }
+        return validos;
+    };
+
+    let candidatosValidos = await evaluar(config);
+    // Zona es filtro de pantalla KDS; si el cocinero está en la regla y la zona no
+    // coincide (tipo vs tipos, id), igual se asigna — igual intención que "ya tiene cocinero".
+    if (candidatosValidos.length === 0 && (config.defaults || {}).respetarZonas) {
+        candidatosValidos = await evaluar({
+            ...config,
+            defaults: { ...(config.defaults || {}), respetarZonas: false }
+        });
+        if (candidatosValidos.length > 0) {
+            logger.info('Auto-asignación: zona no coincidió, se asigna por regla', {
+                platoId: idCatalogoPlato(plato),
+                cocineroId: candidatosValidos[0].cocineroId
+            });
+        }
     }
 
     if (candidatosValidos.length === 0) {
@@ -430,42 +503,29 @@ async function asignarPlatoInterno(comandaId, plato, cocineroId, metaOrigen, met
         setObj[`platos.${platoIndex}.tiempos.en_espera`] = ahora;
     }
 
-    // Write condicional con arrayFilters: atómico y seguro contra concurrencia.
-    // Solo actualiza el subdoc plato cuyo _id coincide y cuyo procesandoPor.cocineroId está vacío.
-    const platoSubdocId = platoActual._id;
-    const subeAEspera = platoActual.estado === 'pedido';
-    const setUpdate = {
-        'platos.$[elem].procesandoPor': cocineroInfo,
-        'platos.$[elem].asignacionMeta': {
-            origen: metaOrigen,
-            regla: metaRegla,
-            timestamp: ahora
-        },
-        updatedAt: ahora,
-        updatedBy: cocineroId
-    };
-    if (subeAEspera) {
-        setUpdate['platos.$[elem].estado'] = 'en_espera';
-        setUpdate['platos.$[elem].tiempos.en_espera'] = ahora;
-    }
+    // Mismo patrón que guarniciones: $set por índice. arrayFilters $[elem] no
+    // modificaba el doc (modifiedCount=0) y el KDS quedaba sin cocinero en el padre.
     const result = await Comanda.updateOne(
         {
             _id: comandaId,
+            [`platos.${platoIndex}.estado`]: { $in: ['pedido', 'en_espera'] },
             $or: [
                 { [`platos.${platoIndex}.procesandoPor.cocineroId`]: null },
                 { [`platos.${platoIndex}.procesandoPor.cocineroId`]: { $exists: false } }
             ]
         },
-        { $set: setUpdate },
-        {
-            arrayFilters: [{
-                'elem._id': platoSubdocId,
-                'elem.estado': { $in: ['pedido', 'en_espera'] }
-            }]
-        }
+        { $set: setObj }
     );
 
-    if (result.modifiedCount === 0) return false; // alguien tomó o cambió estado entre read y write
+    if ((result.modifiedCount || result.nModified || 0) === 0) {
+        logger.warn('Auto-asignación write 0 (principal)', {
+            comandaId: String(comandaId),
+            platoIndex,
+            platoId: platoActual.platoId,
+            estado: platoActual.estado
+        });
+        return false;
+    }
 
     try { await redisCache.invalidate(comandaId); } catch (_) { /* no bloquear */ }
 
@@ -513,10 +573,10 @@ async function asignarPlatosNuevos(comanda) {
         );
         if (platosAsignables.length === 0) return { asignados: 0, noAsignados: 0 };
 
-        // Necesitamos info de categoría de cada plato (plato ref poblada o lookup por platoId)
+        // Categoría/tipo: populate `platos.plato` o lookup por id de catálogo.
         const PlatoModel = mongoose.model('platos') || require('../database/models/plato.model');
         const platosCatalogo = {};
-        const platoIds = platosAsignables.map(p => p.platoId).filter(Boolean);
+        const platoIds = [...new Set(platosAsignables.map(p => idCatalogoPlato(p)).filter(Boolean))];
         if (platoIds.length) {
             const found = await PlatoModel.find({ id: { $in: platoIds } }).lean();
             found.forEach(p => { platosCatalogo[p.id] = p; });
@@ -525,13 +585,19 @@ async function asignarPlatosNuevos(comanda) {
         let asignados = 0;
         let noAsignados = 0;
         for (const plato of platosAsignables) {
-            const platoId = plato.platoId;
+            const catalogo = (plato.plato && typeof plato.plato === 'object')
+                ? plato.plato
+                : null;
+            const platoId = idCatalogoPlato(plato) || (catalogo ? idCatalogoPlato(catalogo) : null);
+            const fromCatalogo = catalogo || (platoId != null ? platosCatalogo[platoId] : null);
             const enriched = {
                 platoId,
+                id: platoId,
                 _id: plato._id,
-                categoria: plato.categoria || platosCatalogo[platoId]?.categoria,
-                tipo: plato.tipo || platosCatalogo[platoId]?.tipo,
-                plato: plato.plato || platosCatalogo[platoId]
+                categoria: plato.categoria || (fromCatalogo && fromCatalogo.categoria),
+                tipo: plato.tipo || (fromCatalogo && fromCatalogo.tipo),
+                tipos: plato.tipos || (fromCatalogo && fromCatalogo.tipos),
+                plato: fromCatalogo
             };
 
             let elegido = null;
@@ -552,10 +618,12 @@ async function asignarPlatosNuevos(comanda) {
 
                 elegido = await seleccionarCocinero(configViva, enriched, perfil);
                 if (!elegido && intento === MAX_REINTENTOS - 1) {
+                    const match = encontrarRegla(perfil, enriched);
                     logger.info('Auto-asignación: plato sin candidato', {
                         comandaId: comanda._id.toString(), platoId,
                         perfilId: perfil.id, bloqueId: bloque?.id,
-                        modoSinCandidato: configViva.defaults.modoSinCandidato
+                        sinRegla: !match,
+                        modoSinCandidato: (configViva.defaults || {}).modoSinCandidato
                     });
                 }
             }
@@ -632,10 +700,10 @@ async function simularAsignacion(platoId, categoria = null, tipo = null, opcione
     }
 
     const plato = {
-        platoId: Number(platoId),
+        platoId: idCatalogoPlato({ platoId }) || Number(platoId),
         categoria,
         tipo,
-        plato: { categoria, tipo }
+        plato: { id: idCatalogoPlato({ platoId }) || Number(platoId), categoria, tipo }
     };
     const elegido = await seleccionarCocinero(config, plato, perfilUsado);
     if (!elegido) {
@@ -790,6 +858,8 @@ module.exports = {
     TZ,
     // Vista de platos asignados (Excel + modal)
     isReglaAsignada,
+    idCatalogoPlato,
+    encontrarRegla,
     construirPlatosAsignadosDTO,
     filtrarPerfilesPorAlcance
 };

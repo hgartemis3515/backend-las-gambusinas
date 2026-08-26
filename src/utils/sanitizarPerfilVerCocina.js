@@ -39,7 +39,7 @@ const PERFIL_VER_COCINA_KEYS = new Set([
     'maxTimersVisibles', 'mostrarCabeceraCocinero', 'colorPorCocinero', 'mostrarCocineroTomado',
     'umbralCargaAlta', 'umbralSobrecarga', 'estiloTemporizador', 'intensidadAlerta',
     'mostrarEtiquetaPlato', 'mostrarIconoCocinero', 'fuenteFamilia', 'fuenteFamiliaCustom',
-    'colorFondo', 'colorTextoPrincipal', 'colorTextoSecundario', 'colorAcento', 'colorAlertaAmarilla',
+    'colorFondo', 'colorTextoPrincipal', 'colorTextoPlato', 'colorTextoDetalle', 'colorTextoSecundario', 'colorAcento', 'colorAlertaAmarilla',
     'colorAlertaRoja', 'colorFilaPlato', 'espaciadoFilas', 'pesoFuentePlato', 'layoutColumnas',
     'disposicionTarjeta', 'animacionesTarjetas',
     'icono', 'mostrarNotificacionEntrada', 'textoNotificacionEntrada', 'duracionNotificacionEntrada',

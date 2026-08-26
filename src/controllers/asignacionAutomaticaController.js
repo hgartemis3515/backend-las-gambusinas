@@ -29,7 +29,7 @@ const MODOS_SIN_CANDIDATO_VALIDOS = ['dejar_sin_asignar', 'pool_supervisor', 'ro
 function sanitizarReglasPlato(arr) {
     if (!Array.isArray(arr)) return undefined;
     return arr
-        .filter(r => r && r.platoId != null && (r.cocineroPrimarioId || (Array.isArray(r.backups) && r.backups.some(b => b && b.cocineroId))))
+        .filter(r => r && Number.isFinite(Number(r.platoId)) && Number(r.platoId) > 0 && (r.cocineroPrimarioId || (Array.isArray(r.backups) && r.backups.some(b => b && b.cocineroId))))
         .map(r => ({
             platoId: Number(r.platoId),
             activo: r.activo !== false,

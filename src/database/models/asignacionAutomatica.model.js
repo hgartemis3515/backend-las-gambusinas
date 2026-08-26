@@ -268,6 +268,34 @@ asignacionAutomaticaSchema.statics.obtenerConfiguracion = async function() {
             console.log('✅ Migración v2 persistida');
         }
     }
+    // Paridad con guarniciones: si hay perfiles pero el calendario está vacío,
+    // sembrar bloque 24h para que el toggle ON asigne (sin_franja_activa silenciaba platos).
+    const perfiles = config.perfiles || [];
+    const bloques = config.calendario?.bloques || [];
+    if (perfiles.length > 0 && bloques.length === 0) {
+        const perfilId = (perfiles.find(p => p.activo !== false) || perfiles[0]).id;
+        if (perfilId) {
+            const seeded = await this.findOneAndUpdate(
+                { _id: CONFIG_ID, 'calendario.bloques.0': { $exists: false } },
+                {
+                    $push: {
+                        'calendario.bloques': {
+                            id: uuidv4(),
+                            perfilId,
+                            diasSemana: [0, 1, 2, 3, 4, 5, 6],
+                            horaInicio: '00:00',
+                            horaFin: '23:59',
+                            etiqueta: 'Default 24h',
+                            activo: true,
+                            createdAt: new Date()
+                        }
+                    }
+                },
+                { new: true }
+            );
+            if (seeded) config = seeded;
+        }
+    }
     return config;
 };
 

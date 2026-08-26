@@ -135,6 +135,39 @@ zonaSchema.statics.getZonaPorDefecto = function() {
     };
 };
 
+function idCatalogoParaFiltro(plato) {
+    if (!plato || typeof plato !== 'object') return null;
+    const nested = plato.plato && typeof plato.plato === 'object' ? plato.plato : null;
+    const candidates = [plato.platoId, plato.id, nested && nested.id, nested && nested.platoId];
+    for (const c of candidates) {
+        if (c == null || c === '') continue;
+        if (typeof c === 'object') continue;
+        const s = String(c);
+        if (/^[a-fA-F0-9]{24}$/.test(s)) continue;
+        const n = Number(c);
+        if (Number.isFinite(n) && n > 0) return n;
+    }
+    return null;
+}
+
+function tiposDePlatoParaFiltro(plato) {
+    const nested = plato && plato.plato && typeof plato.plato === 'object' ? plato.plato : null;
+    const out = [];
+    const push = (v) => {
+        if (Array.isArray(v)) v.forEach(push);
+        else if (v != null && String(v).trim()) out.push(String(v).trim());
+    };
+    if (plato) {
+        push(plato.tipos);
+        push(plato.tipo);
+    }
+    if (nested) {
+        push(nested.tipos);
+        push(nested.tipo);
+    }
+    return out;
+}
+
 // Método para verificar si un plato debe mostrarse según los filtros
 zonaSchema.methods.debeMostrarPlato = function(plato) {
     const filtros = this.filtrosPlatos;
@@ -146,25 +179,25 @@ zonaSchema.methods.debeMostrarPlato = function(plato) {
         return true;
     }
     
-    const platoId = plato.platoId || plato.id;
+    const platoId = idCatalogoParaFiltro(plato);
     const categoria = plato.categoria || plato.plato?.categoria;
-    const tipo = plato.tipo || plato.plato?.tipo;
+    const tipos = tiposDePlatoParaFiltro(plato);
     
     let coincide = false;
     
-    // Verificar por ID de plato
-    if (filtros.platosPermitidos?.length && filtros.platosPermitidos.includes(platoId)) {
-        coincide = true;
+    // Verificar por ID de plato (numérico de catálogo; evita mismatch Number vs String)
+    if (filtros.platosPermitidos?.length && platoId != null) {
+        coincide = filtros.platosPermitidos.some(id => Number(id) === platoId);
     }
     
     // Verificar por categoría
-    if (!coincide && filtros.categoriasPermitidas?.length && filtros.categoriasPermitidas.includes(categoria)) {
-        coincide = true;
+    if (!coincide && filtros.categoriasPermitidas?.length && categoria) {
+        coincide = filtros.categoriasPermitidas.includes(categoria);
     }
     
-    // Verificar por tipo
-    if (!coincide && filtros.tiposPermitidos?.length && filtros.tiposPermitidos.includes(tipo)) {
-        coincide = true;
+    // Verificar por tipo (legacy `tipo` y canónico `tipos[]`)
+    if (!coincide && filtros.tiposPermitidos?.length && tipos.length) {
+        coincide = tipos.some(t => filtros.tiposPermitidos.includes(t));
     }
     
     return filtros.modoInclusion ? coincide : !coincide;

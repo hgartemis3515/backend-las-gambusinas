@@ -28,6 +28,9 @@ const ESTADOS_EN_CURSO = ['pedido', 'en_espera'];
 const TZ = 'America/Lima';
 
 function nowLima() { return moment().tz(TZ); }
+function inicioDiaLima(momento) {
+    return (momento || nowLima()).clone().startOf('day').toDate();
+}
 function compararHHmm(a, b) { return a < b ? -1 : (a > b ? 1 : 0); }
 function horaEnRango(hhmm, ini, fin) {
     if (fin === '23:59' || fin === '24:00') {
@@ -87,7 +90,7 @@ function resolverPerfilActivo(config, momento) {
 async function contarGuarnicionesEnCurso(cocineroId, guarnicionKey = null) {
     const oid = new mongoose.Types.ObjectId(cocineroId);
     const pipeline = [
-        { $match: { IsActive: true, 'platos.complementosSeleccionados.procesandoPor.cocineroId': oid, 'platos.complementosSeleccionados.estadoCocina': { $in: ESTADOS_EN_CURSO } } },
+        { $match: { IsActive: true, createdAt: { $gte: inicioDiaLima() }, 'platos.complementosSeleccionados.procesandoPor.cocineroId': oid, 'platos.complementosSeleccionados.estadoCocina': { $in: ESTADOS_EN_CURSO } } },
         { $unwind: '$platos' },
         { $unwind: '$platos.complementosSeleccionados' },
         { $match: { 'platos.complementosSeleccionados.procesandoPor.cocineroId': oid, 'platos.complementosSeleccionados.estadoCocina': { $in: ESTADOS_EN_CURSO } } }
@@ -112,7 +115,7 @@ async function mapaGuarnicionesEnCursoPorCocinero(cocineroIds) {
     if (!cocineroIds.length) return {};
     const oids = cocineroIds.map(id => new mongoose.Types.ObjectId(id));
     const res = await Comanda.aggregate([
-        { $match: { IsActive: true, 'platos.complementosSeleccionados.procesandoPor.cocineroId': { $in: oids }, 'platos.complementosSeleccionados.estadoCocina': { $in: ESTADOS_EN_CURSO } } },
+        { $match: { IsActive: true, createdAt: { $gte: inicioDiaLima() }, 'platos.complementosSeleccionados.procesandoPor.cocineroId': { $in: oids }, 'platos.complementosSeleccionados.estadoCocina': { $in: ESTADOS_EN_CURSO } } },
         { $unwind: '$platos' },
         { $unwind: '$platos.complementosSeleccionados' },
         { $match: { 'platos.complementosSeleccionados.procesandoPor.cocineroId': { $in: oids }, 'platos.complementosSeleccionados.estadoCocina': { $in: ESTADOS_EN_CURSO } } },
@@ -458,7 +461,7 @@ async function asignarGuarnicionesNuevas(comandaPop) {
             const cocineroPadreId = plato.procesandoPor && plato.procesandoPor.cocineroId
                 ? plato.procesandoPor.cocineroId.toString() : null;
             const platoRef = plato.plato || plato;
-            const platoIdCat = platoIdNumerico(platoRef && platoRef.id);
+            const platoIdCat = platoIdNumerico(plato.platoId) || platoIdNumerico(platoRef && platoRef.id);
 
             if (agrupacionOn) {
                 const pendientes = [];

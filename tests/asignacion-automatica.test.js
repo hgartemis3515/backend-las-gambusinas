@@ -161,6 +161,36 @@ describe('asignacionAutomaticaService', () => {
             const r = await service.seleccionarCocinero(config, PLATO);
             expect(r).toBeNull();
         });
+
+        it('resuelve el id de catálogo desde plato.plato.id (populate, sin platoId de línea)', async () => {
+            const config = buildConfig({ reglasPorPlato: [buildReglaPlato(42, C1)] });
+            const r = await service.seleccionarCocinero(config, {
+                _id: 'line-oid',
+                plato: { id: 42, categoria: 'Parrilla', tipo: 'plato-carta normal' }
+            });
+            expect(r).not.toBeNull();
+            expect(r.cocineroId).toBe(C1);
+            expect(r.regla).toBe('plato');
+        });
+
+        it('acepta regla con solo backups (sin cocinero primario)', async () => {
+            const config = buildConfig({
+                reglasPorPlato: [buildReglaPlato(42, null, [{ cocineroId: C2, orden: 1 }])]
+            });
+            const r = await service.seleccionarCocinero(config, PLATO);
+            expect(r).not.toBeNull();
+            expect(r.cocineroId).toBe(C2);
+        });
+
+        it('idCatalogoPlato ignora ObjectId hex y usa el id numérico anidado', () => {
+            expect(service.idCatalogoPlato({ id: '60a1b2c3d4e5f60001aabb01', plato: { id: 42 } })).toBe(42);
+            expect(service.idCatalogoPlato({ platoId: 7 })).toBe(7);
+            expect(service.idCatalogoPlato({ platoId: '15' })).toBe(15);
+            expect(service.encontrarRegla(
+                { reglasPorPlato: [buildReglaPlato(42, C1)], reglasPorCategoria: [] },
+                { plato: { id: '42' } }
+            ).regla.cocineroPrimarioId).toBe(C1);
+        });
     });
 
     describe('overflow 5+1', () => {
@@ -307,28 +337,30 @@ describe('asignacionAutomaticaService', () => {
             expect(r.motivo).toBe('ok');
         });
 
-        it('devuelve null si la hora actual cae fuera de toda franja', () => {
+        it('usa un perfil activo si la hora cae fuera de toda franja', () => {
             const perfil = buildPerfil('p1', 'Almuerzo');
             const config = buildConfig({
                 perfiles: [perfil],
                 calendario: { bloques: [buildBloque('p1', [1], '08:00', '12:00')] }
             });
-            // Lunes 13:00 → fuera
+            // Lunes 13:00 → fuera, pero el toggle está ON: se usa el perfil con reglas
             const r = service.resolverPerfilActivo(config, moment.tz('2026-07-13T13:00', TZ));
-            expect(r.perfil).toBeNull();
-            expect(r.motivo).toBe('sin_franja_activa');
+            expect(r.perfil).not.toBeNull();
+            expect(r.perfil.id).toBe('p1');
+            expect(r.motivo).toBe('sin_franja_usa_perfil_activo');
         });
 
-        it('devuelve null si el día no coincide con diasSemana', () => {
+        it('usa un perfil activo si el día no coincide con diasSemana', () => {
             const perfil = buildPerfil('p1', 'Almuerzo');
             const config = buildConfig({
                 perfiles: [perfil],
                 calendario: { bloques: [buildBloque('p1', [2], '08:00', '12:00')] } // solo martes
             });
-            // Lunes 09:00 → no aplica
+            // Lunes 09:00 → no aplica el bloque
             const r = service.resolverPerfilActivo(config, moment.tz('2026-07-13T09:00', TZ));
-            expect(r.perfil).toBeNull();
-            expect(r.motivo).toBe('sin_franja_activa');
+            expect(r.perfil).not.toBeNull();
+            expect(r.perfil.id).toBe('p1');
+            expect(r.motivo).toBe('sin_franja_usa_perfil_activo');
         });
 
         it('resuelve el perfil cuando día + hora coinciden', () => {
@@ -381,6 +413,18 @@ describe('asignacionAutomaticaService', () => {
             expect(r.perfil.id).toBe('pB');
         });
 
+        it('si el perfil de la franja no tiene reglas, usa otro perfil que sí las tenga', () => {
+            const vacio = buildPerfil('p-vacio', 'Calendario');
+            const conReglas = buildPerfil('p-reglas', 'Operación', [buildReglaPlato(42, C1)]);
+            const config = buildConfig({
+                perfiles: [vacio, conReglas],
+                calendario: { bloques: [buildBloque('p-vacio', [0, 1, 2, 3, 4, 5, 6], '00:00', '23:59')] }
+            });
+            const r = service.resolverPerfilActivo(config, moment.tz('2026-07-13T10:30', TZ));
+            expect(r.perfil.id).toBe('p-reglas');
+            expect(r.motivo).toBe('perfil_sin_reglas_usa_otro');
+        });
+
         it('devuelve null si el perfil referenciado no existe o está inactivo', () => {
             const config = buildConfig({
                 perfiles: [buildPerfil('p1', 'A', [], { activo: false })],
@@ -418,17 +462,17 @@ describe('asignacionAutomaticaService', () => {
             expect(r.perfilId).toBe('p1');
         });
 
-        it('devuelve "sin perfil activo" cuando enMomento cae fuera de franja', async () => {
+        it('fuera de franja igual asigna con el perfil que tiene reglas', async () => {
             const perfil = buildPerfil('p1', 'Almuerzo', [buildReglaPlato(42, C1)]);
             const config = buildConfig({
                 perfiles: [perfil],
                 calendario: { bloques: [buildBloque('p1', [1], '08:00', '12:00')] }
             });
             AsignacionAutomatica.obtenerConfiguracion.mockResolvedValue(config);
-            // Lunes 13:00 Lima → fuera de franja
+            ComandaMock.aggregate.mockResolvedValue([{ _id: null, total: 0 }]);
             const r = await service.simularAsignacion(42, null, null, { enMomento: '2026-07-13T13:00:00-05:00' });
-            expect(r.cocineroId).toBeNull();
-            expect(r.motivo).toBe('sin_franja_activa');
+            expect(r.cocineroId).toBe(C1);
+            expect(r.perfilId).toBe('p1');
         });
     });
 });
