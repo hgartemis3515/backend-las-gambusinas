@@ -7,11 +7,11 @@ describe('platoUneComplementos', () => {
             plato: { complementosUnidosAlPlato: false }
         })).toBe(true);
     });
-    test('snapshot false no usa catálogo', () => {
+    test('catálogo true une aunque el snapshot de la línea sea false', () => {
         expect(platoUneComplementos({
             complementosUnidosAlPlato: false,
             plato: { complementosUnidosAlPlato: true }
-        })).toBe(false);
+        })).toBe(true);
     });
     test('sin snapshot usa catálogo populado', () => {
         expect(platoUneComplementos({

@@ -333,7 +333,7 @@ tailwind.config = {
               class="accent-gold w-3.5 h-3.5 mt-0.5"
               :checked="formPlato.complementosUnidosAlPlato === true"
               @change="formPlato.complementosUnidosAlPlato = $event.target.checked">
-            <span>Juntar complementos con el plato. Se ven solo como detalle/nota del principal (no lista de guarniciones ni asignación a otras cocineras). Útil para sabores de pachamanca.</span>
+            <span>Juntar complementos con el plato. En las tablas KDS queda una sola tarjeta y el complemento se ve como nota (como antes del split de guarniciones). No va a la lista de guarniciones ni se asigna a otras cocineras. Útil para sabores de pachamanca.</span>
           </label>
           <label class="flex items-center gap-2 cursor-pointer text-[11px]" :class="formPlato.complementosAfectanPrecio ? 'text-gold' : 'text-txt-muted'">
             <input type="checkbox" x-model="formPlato.complementosAfectanPrecio" class="accent-gold w-3.5 h-3.5">

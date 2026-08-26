@@ -2323,7 +2323,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
   global.emitComandaProcesando = async (comandaId, cocinero, comandaActualizada = null) => {
     try {
       const comanda = comandaActualizada || await comandaModel.findById(comandaId)
-        .populate({ path: "platos.plato", select: "nombre precio categoria nombreCocina" });
+        .populate({ path: "platos.plato", select: "nombre precio categoria nombreCocina complementosUnidosAlPlato" });
       if (!comanda) return;
 
       const timestamp = moment().tz('America/Lima').toISOString();
@@ -2374,7 +2374,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
   global.emitComandaLiberada = async (comandaId, cocineroId, comandaActualizada = null) => {
     try {
       const comanda = comandaActualizada || await comandaModel.findById(comandaId)
-        .populate({ path: "platos.plato", select: "nombre precio categoria nombreCocina" });
+        .populate({ path: "platos.plato", select: "nombre precio categoria nombreCocina complementosUnidosAlPlato" });
       if (!comanda) return;
 
       const timestamp = moment().tz('America/Lima').toISOString();
@@ -2411,7 +2411,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
   global.emitComandaFinalizada = async (comandaId, cocinero, comandaActualizada = null) => {
     try {
       const comanda = comandaActualizada || await comandaModel.findById(comandaId)
-        .populate({ path: "platos.plato", select: "nombre precio categoria nombreCocina" })
+        .populate({ path: "platos.plato", select: "nombre precio categoria nombreCocina complementosUnidosAlPlato" })
         .populate({ path: "mozos" })
         .populate({ path: "mesas", populate: { path: "area" } })
         .populate({ path: "cliente" });

@@ -126,12 +126,24 @@ function overlayPronombresEnPlatoLinea(platoLinea) {
   }
 }
 
+/** Si el menú une complementos, márcalo en la línea para el KDS (tickets viejos con snapshot false). */
+function overlayComplementosUnidosEnPlatoLinea(platoLinea) {
+  if (!platoLinea) return;
+  const cat = platoLinea.plato;
+  if (cat && typeof cat === 'object' && cat.complementosUnidosAlPlato === true) {
+    platoLinea.complementosUnidosAlPlato = true;
+  }
+}
+
 function overlayPronombresEnComandas(comandas) {
   if (!Array.isArray(comandas)) return;
   for (const comanda of comandas) {
     const platos = comanda && comanda.platos;
     if (!Array.isArray(platos)) continue;
-    for (const plato of platos) overlayPronombresEnPlatoLinea(plato);
+    for (const plato of platos) {
+      overlayPronombresEnPlatoLinea(plato);
+      overlayComplementosUnidosEnPlatoLinea(plato);
+    }
   }
 }
 
@@ -268,6 +280,7 @@ module.exports = {
   getPronombreOpcion,
   resolverPronombreCatalogo,
   overlayPronombresEnPlatoLinea,
+  overlayComplementosUnidosEnPlatoLinea,
   overlayPronombresEnComandas,
   calcularPrecioUnitarioConComplementos,
   calcularResumenComplementos,
