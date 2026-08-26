@@ -89,6 +89,13 @@ const platoSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    // Si true: los complementos van como detalle/nota del plato principal.
+    // No se parten a lista de guarniciones ni se asignan a otras cocineras
+    // (p. ej. sabores de pachamanca). Default false = split actual.
+    complementosUnidosAlPlato: {
+        type: Boolean,
+        default: false
+    },
     // Sub-opciones del resumen (solo relevantes si mostrarTotalComplementosImpresion === true)
     resumenComplementosImpresion: {
         mostrarCantidad: { type: Boolean, default: true },   // "4 uds."

@@ -32,6 +32,7 @@ const {
   buildAutocierreGuarnicionesSet,
   agrupacionGuarnicionesOn
 } = require('../utils/autocerrarGuarniciones');
+const { platoUneComplementos } = require('../utils/platoUneComplementos');
 
 // ============================================================
 // HELPER: Verificar si el usuario tiene privilegios de supervisor en cocina
@@ -1839,6 +1840,13 @@ router.put('/comanda/:id/plato/:platoId/guarnicion/:complementoId/procesando', a
         const loc = await localizarGuarnicion(comandaId, platoId, complementoId);
         if (loc.error) return res.status(loc.status).json({ success: false, error: loc.error });
         const { comanda, platoIndex, compIndex, comp } = loc;
+
+        if (platoUneComplementos(comanda.platos[platoIndex])) {
+            return res.status(400).json({
+                success: false,
+                error: 'Este plato une los complementos al principal; no se toman como guarnición aparte'
+            });
+        }
 
         // §1 plan: la guarnición NO puede ir al cocinero del plato principal (auto).
         // Pero el supervisor puede forzar override (operación manda).

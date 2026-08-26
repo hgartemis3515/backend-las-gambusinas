@@ -252,6 +252,21 @@ describe('Escenarios de servicio real (lógica pura)', () => {
     expect(batchs[keys[0]]).toHaveLength(3);
   });
 
+  test('plato con complementos unidos no entra en batch de guarniciones', () => {
+    const comanda = {
+      platos: [
+        {
+          complementosUnidosAlPlato: true,
+          complementosSeleccionados: [
+            { grupo: 'Sabor', opcion: 'Pollo' },
+            { grupo: 'Sabor', opcion: 'Pollo' }
+          ]
+        }
+      ]
+    };
+    expect(svc.detectarBatchsEnComanda(comanda)).toEqual({});
+  });
+
   test('Regla por guarnicion con estación recomendada se resuelve antes que la de grupo', () => {
     const perfil = {
       reglasPorGuarnicion: [

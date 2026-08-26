@@ -119,6 +119,9 @@ const comandaSchema = new mongoose.Schema({
         totalUnidadesComplementos: { type: Number, default: 0 },  // Σ cantidad de complementos
         // v3.0: snapshot de flags del plato al momento de la comanda (para impresión consistente)
         mostrarResumenComplementos: { type: Boolean, default: false },
+        // Snapshot: complementos como detalle del principal (no unidad KDS aparte).
+        // Sin default: comandas viejas caen al catálogo populado.
+        complementosUnidosAlPlato: { type: Boolean },
         resumenComplementosImpresion: {
             mostrarCantidad: { type: Boolean, default: true },
             mostrarMontoExtra: { type: Boolean, default: true }

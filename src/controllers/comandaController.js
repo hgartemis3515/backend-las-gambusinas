@@ -579,7 +579,7 @@ router.post('/comanda', async (req, res) => {
                 try {
                     const Comanda = mongoose.model('Comanda');
                     const comandaPop = await Comanda.findById(comandaCreadaId)
-                        .populate('platos.plato', 'id categoria tipo tipos nombre codigo')
+                        .populate('platos.plato', 'id categoria tipo tipos nombre codigo complementosUnidosAlPlato')
                         .lean();
                     if (!comandaPop) {
                         logger.warn('Auto-asignación: comanda no encontrada al recargar', { comandaId: comandaCreadaId });
@@ -604,7 +604,7 @@ router.post('/comanda', async (req, res) => {
                         const asignacionGuarnicionesService = require('../services/asignacionAutomaticaGuarnicionesService');
                         // Recargar la comanda para ver los procesandoPor recién escritos por el motor de platos.
                         const comandaPostPlatos = await Comanda.findById(comandaCreadaId)
-                            .populate('platos.plato', 'id categoria tipo tipos nombre codigo')
+                            .populate('platos.plato', 'id categoria tipo tipos nombre codigo complementosUnidosAlPlato')
                             .lean();
                         if (comandaPostPlatos) {
                             const resG = await asignacionGuarnicionesService.asignarGuarnicionesNuevas(comandaPostPlatos);
@@ -883,7 +883,7 @@ router.post('/comanda/desde-dashboard', adminAuth, checkPermission('crear-comand
                 try {
                     const Comanda = mongoose.model('Comanda');
                     const comandaPop = await Comanda.findById(comandaCreadaId)
-                        .populate('platos.plato', 'id categoria tipo tipos nombre codigo')
+                        .populate('platos.plato', 'id categoria tipo tipos nombre codigo complementosUnidosAlPlato')
                         .lean();
                     if (!comandaPop) return;
                     const resultado = await asignacionAutomaticaService.asignarPlatosNuevos(comandaPop);
@@ -901,7 +901,7 @@ router.post('/comanda/desde-dashboard', adminAuth, checkPermission('crear-comand
                     try {
                         const asignacionGuarnicionesService = require('../services/asignacionAutomaticaGuarnicionesService');
                         const comandaPostPlatos = await Comanda.findById(comandaCreadaId)
-                            .populate('platos.plato', 'id categoria tipo tipos nombre codigo')
+                            .populate('platos.plato', 'id categoria tipo tipos nombre codigo complementosUnidosAlPlato')
                             .lean();
                         if (comandaPostPlatos) {
                             const resG = await asignacionGuarnicionesService.asignarGuarnicionesNuevas(comandaPostPlatos);

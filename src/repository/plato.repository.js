@@ -461,8 +461,29 @@ const actualizarPlato = async (id, newData) => {
         throw err;
     }
     
+    const clean = { ...(newData && typeof newData.toObject === 'function' ? newData.toObject() : newData) };
+    delete clean._id;
+    delete clean.__v;
+    delete clean.id;
+    delete clean._fromLibrary;
+    delete clean._libraryId;
+    if (newData && typeof newData.complementosUnidosAlPlato !== 'undefined') {
+        clean.complementosUnidosAlPlato = newData.complementosUnidosAlPlato === true
+            || newData.complementosUnidosAlPlato === 'true';
+    }
+
     try {
-        await plato.findOneAndUpdate(filter, newData, { new: true, runValidators: true });
+        const doc = await plato.findOne(filter);
+        if (!doc) {
+            const err = new Error('Plato no encontrado para actualizar');
+            err.statusCode = 404;
+            throw err;
+        }
+        doc.set(clean);
+        if (typeof clean.complementosUnidosAlPlato !== 'undefined') {
+            doc.set('complementosUnidosAlPlato', !!clean.complementosUnidosAlPlato);
+        }
+        await doc.save();
     } catch (err) {
         if (err && err.code === 11000) {
             const dup = err.keyValue && err.keyValue.codigo

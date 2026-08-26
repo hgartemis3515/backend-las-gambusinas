@@ -21,7 +21,7 @@ const {
   overlayPronombresEnComandas
 } = require('../utils/precioComplementos');
 
-const SELECT_PLATO_COCINA = 'nombre precio categoria codigo nombreCocina complementos';
+const SELECT_PLATO_COCINA = 'nombre precio categoria codigo nombreCocina complementos complementosUnidosAlPlato';
 const configuracionRepository = require('./configuracion.repository');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
 const { obtenerCicloServicioMesa, intersectarComandaIds } = require('../services/mesaCicloServicio.service');
@@ -97,6 +97,7 @@ const PROYECCION_COCINA = {
     'platos.precioUnitario': 1,
     'platos.totalUnidadesComplementos': 1,
     'platos.mostrarResumenComplementos': 1,
+    'platos.complementosUnidosAlPlato': 1,
     'platos.resumenComplementosImpresion': 1,
     'platos.tiempos': 1,
     'platos.eliminadoPor': 1,
@@ -840,6 +841,7 @@ const agregarComanda = async (data) => {
     plato.precioUnitario = calc.precioUnitario;
     plato.totalUnidadesComplementos = resumen.totalUnidades;
     plato.mostrarResumenComplementos = !!platoCompleto.mostrarTotalComplementosImpresion;
+    plato.complementosUnidosAlPlato = platoCompleto.complementosUnidosAlPlato === true;
     plato.resumenComplementosImpresion = {
       mostrarCantidad: platoCompleto.resumenComplementosImpresion?.mostrarCantidad !== false,
       mostrarMontoExtra: platoCompleto.resumenComplementosImpresion?.mostrarMontoExtra !== false
@@ -1565,7 +1567,8 @@ const editarConAuditoria = async (comandaId, platosNuevos, platosEliminados, usu
               plato: platoCompleto._id,
               platoId: platoCompleto.id,
               estado: nuevoPlato.estado || 'en_espera',
-              tipoServicio: normalizarTipoServicio(nuevoPlato.tipoServicio)
+              tipoServicio: normalizarTipoServicio(nuevoPlato.tipoServicio),
+              complementosUnidosAlPlato: platoCompleto.complementosUnidosAlPlato === true
             };
             comanda.platos.push(platoAgregado);
             comanda.cantidades.push(nuevoPlato.cantidad || 1);

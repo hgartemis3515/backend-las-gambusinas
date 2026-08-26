@@ -16,6 +16,7 @@ const AsignacionAutomaticaGuarniciones = require('../database/models/asignacionA
 const ConfigCocinero = require('../database/models/configCocinero.model');
 const ConfigSistema = require('../database/models/configuracionSistema.model');
 const { agrupacionGuarnicionesOn } = require('../utils/autocerrarGuarniciones');
+const { platoUneComplementos } = require('../utils/platoUneComplementos');
 const { construirCatalogoGuarniciones, nombreOpcionComplemento } = require('../utils/catalogoGuarniciones');
 const redisCache = require('../utils/redisCache');
 const Zona = require('../database/models/zona.model');
@@ -92,6 +93,7 @@ async function contarGuarnicionesEnCurso(cocineroId, guarnicionKey = null) {
     const pipeline = [
         { $match: { IsActive: true, createdAt: { $gte: inicioDiaLima() }, 'platos.complementosSeleccionados.procesandoPor.cocineroId': oid, 'platos.complementosSeleccionados.estadoCocina': { $in: ESTADOS_EN_CURSO } } },
         { $unwind: '$platos' },
+        { $match: { 'platos.complementosUnidosAlPlato': { $ne: true } } },
         { $unwind: '$platos.complementosSeleccionados' },
         { $match: { 'platos.complementosSeleccionados.procesandoPor.cocineroId': oid, 'platos.complementosSeleccionados.estadoCocina': { $in: ESTADOS_EN_CURSO } } }
     ];
@@ -117,6 +119,7 @@ async function mapaGuarnicionesEnCursoPorCocinero(cocineroIds) {
     const res = await Comanda.aggregate([
         { $match: { IsActive: true, createdAt: { $gte: inicioDiaLima() }, 'platos.complementosSeleccionados.procesandoPor.cocineroId': { $in: oids }, 'platos.complementosSeleccionados.estadoCocina': { $in: ESTADOS_EN_CURSO } } },
         { $unwind: '$platos' },
+        { $match: { 'platos.complementosUnidosAlPlato': { $ne: true } } },
         { $unwind: '$platos.complementosSeleccionados' },
         { $match: { 'platos.complementosSeleccionados.procesandoPor.cocineroId': { $in: oids }, 'platos.complementosSeleccionados.estadoCocina': { $in: ESTADOS_EN_CURSO } } },
         { $group: {
@@ -222,6 +225,7 @@ function construirCandidatos(regla) {
 function detectarBatchsEnComanda(comanda) {
     const map = {};
     (comanda.platos || []).forEach((plato, pi) => {
+        if (platoUneComplementos(plato)) return;
         (plato.complementosSeleccionados || []).forEach((c, ci) => {
             if (c.procesandoPor && c.procesandoPor.cocineroId) return;
             const { key } = datosComplemento(c);
@@ -455,6 +459,7 @@ async function asignarGuarnicionesNuevas(comandaPop) {
         for (let pi = 0; pi < comandaPop.platos.length; pi++) {
             const plato = comandaPop.platos[pi];
             if (plato.eliminado || plato.anulado) continue;
+            if (platoUneComplementos(plato)) continue;
             const comps = plato.complementosSeleccionados || [];
             if (!comps.length) continue;
 
