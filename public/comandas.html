@@ -2660,6 +2660,7 @@ formatearNombreMesa(mesa, mesaObj = null) {
      comandaId: null,
      datos,
      plantilla: this.plantillaComanda,
+     usarPlantillaLocal: true,
      serverOrigin: window.location.origin,
      fetchJson: (url) => this.fetchJsonComandaPrint(url),
    });
@@ -2730,6 +2731,16 @@ formatearNombreMesa(mesa, mesaObj = null) {
  console.log('⚠️ Socket desconectado');
  this.socketConnected = false;
  });
+
+this.socket.on('comanda-plantilla-actualizada', (data) => {
+  if (!data?.plantilla || this.plantillaComandaModificada) return;
+  this.plantillaComanda = this.deepMergeComanda(this.plantillaComanda, data.plantilla);
+  if (data.plantilla.etiquetas) {
+    this.plantillaComanda.etiquetas = { ...this.ETIQUETAS_DEFAULT_COMANDA, ...data.plantilla.etiquetas };
+  }
+  this.plantillaComandaOriginal = JSON.parse(JSON.stringify(this.plantillaComanda));
+  console.log('📡 Plantilla de comanda actualizada');
+});
 
 this.socket.on('comanda-actualizada', (data) => {
 console.log('📡 Comanda actualizada via Socket:', data.comanda?._id || data.comandaId);

@@ -663,10 +663,9 @@ router.get('/configuracion/comanda-plantilla', async (req, res) => {
             || config.datosFiscales?.logoUrl
             || '';
 
-        // Sincronizar nombre comercial desde datosFiscales (no se persiste en comandaPlantilla)
         plantilla.restaurante = {
-            nombre: config.datosFiscales?.nombreComercial
-                || plantilla.restaurante?.nombre
+            nombre: plantilla.restaurante?.nombre
+                || config.datosFiscales?.nombreComercial
                 || 'LAS GAMBUSINAS',
             eslogan: plantilla.restaurante?.eslogan || '* Comidas Típicas y Parrilla *'
         };
@@ -674,7 +673,14 @@ router.get('/configuracion/comanda-plantilla', async (req, res) => {
         // Marcar origen del logo para que el dashboard muestre "Editar logo en Vouchers"
         plantilla.logoEditableEn = 'bouchers.html';
 
-        res.json({ success: true, plantilla });
+        const plantillaPlana = (plantilla && typeof plantilla === 'object' && !Array.isArray(plantilla))
+            ? (typeof plantilla.toObject === 'function' ? plantilla.toObject() : { ...plantilla })
+            : plantilla;
+
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.set('Pragma', 'no-cache');
+        // Compat: cocina antigua usaba el JSON entero como plantilla (sin desempaquetar .plantilla)
+        res.json({ success: true, plantilla: plantillaPlana, ...plantillaPlana });
     } catch (error) {
         logger.error('Error al obtener plantilla de comanda:', { error: error.message });
         res.status(500).json({
@@ -722,6 +728,15 @@ router.put('/configuracion/comanda-plantilla', async (req, res) => {
             || '';
         plantillaResp.logoEditableEn = 'bouchers.html';
 
+        const io = global.io;
+        if (io?.of) {
+            const payload = { plantilla: plantillaResp };
+            io.of('/cocina').emit('comanda-plantilla-actualizada', payload);
+            io.of('/admin').emit('comanda-plantilla-actualizada', payload);
+            io.of('/mozos').emit('comanda-plantilla-actualizada', payload);
+        }
+
+        res.set('Cache-Control', 'no-store');
         res.json({
             success: true,
             message: 'Plantilla de comanda guardada exitosamente',

@@ -28,13 +28,41 @@ async function defaultFetchJson(url) {
   return res.json();
 }
 
+/** GET /comanda-plantilla devuelve { success, plantilla }. Acepta también el objeto plano. */
+function unwrapPlantillaComanda(res) {
+  if (!res || typeof res !== 'object') return null;
+  const inner = res.plantilla;
+  if (inner && typeof inner === 'object' && (inner.bloques || inner.visibilidad || inner.restaurante || inner.espaciado)) {
+    return inner;
+  }
+  if (res.bloques || res.visibilidad || res.restaurante || res.espaciado) {
+    return res;
+  }
+  return inner || null;
+}
+
+async function obtenerPlantillaComandaViva(fetchJson, plantillaLocal, usarLocal) {
+  if (usarLocal) {
+    return unwrapPlantillaComanda(plantillaLocal) || plantillaLocal || null;
+  }
+  try {
+    const res = await fetchJson(`/api/configuracion/comanda-plantilla?_=${Date.now()}`);
+    const fresh = unwrapPlantillaComanda(res);
+    if (fresh) return fresh;
+  } catch {
+    /* fallback local */
+  }
+  return unwrapPlantillaComanda(plantillaLocal) || plantillaLocal || null;
+}
+
 /**
  * Print a comanda by ID or with pre-fetched data.
  *
  * @param {Object} opts
  * @param {string|null} [opts.comandaId] - ID to fetch ticket data from GET /api/comanda/:id/ticket-imprimible
  * @param {Object|null} [opts.datos] - Pre-fetched ticket data (skips the API call if provided)
- * @param {Object|null} [opts.plantilla] - Plantilla object; if not provided, fetches from GET /api/configuracion/comanda-plantilla
+ * @param {Object|null} [opts.plantilla] - Fallback si falla el GET; por defecto se recarga del servidor
+ * @param {boolean} [opts.usarPlantillaLocal] - Si true, no pide al API (vista previa del editor)
  * @param {string} [opts.serverOrigin] - Origin for resolving logo URLs
  * @param {Function} [opts.fetchJson] - Optional fetch wrapper that handles auth tokens etc.
  * @param {Array<number|string>|null} [opts.comandasNumbersOverride] - Override comandasNumbers on the datos
@@ -60,16 +88,12 @@ export async function imprimirComandaWeb(opts = {}) {
       return null;
     }
 
-    // 2. Get plantilla — either provided or fetched
-    let plantilla = opts.plantilla || null;
-    if (!plantilla) {
-      try {
-        plantilla = await fetchJson('/api/configuracion/comanda-plantilla');
-      } catch {
-        // Plantilla is optional — generate without it
-        plantilla = null;
-      }
-    }
+    // 2. Plantilla viva del servidor (sin caché). Vista previa del editor puede pasar usarPlantillaLocal.
+    const plantilla = await obtenerPlantillaComandaViva(
+      fetchJson,
+      opts.plantilla || null,
+      opts.usarPlantillaLocal === true
+    );
 
     // 3. Forzar "Pago: Pendiente" si se imprime sin aprobar desde la tabla
     if (opts.ticketEstado === 'pendiente_aprobacion') {
