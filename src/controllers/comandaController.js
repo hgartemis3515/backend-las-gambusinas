@@ -270,10 +270,13 @@ router.get('/comanda/mesa/:mesaId/activas', async (req, res) => {
         console.log(`📥 [GET /comanda/mesa/${mesaId}/activas] Buscando comandas activas`);
         const comandas = await getComandasActivasPorMesa(mesaId);
         await enrichComandasMozoNombre(comandas);
+        const ciclo = await obtenerCicloServicioMesa(mesaId);
         console.log(`✅ [GET /comanda/mesa/${mesaId}/activas] Encontradas ${comandas.length} comandas`);
         res.json({
             success: true,
             mesaId,
+            pedidoId: ciclo.pedidoId,
+            cicloTipo: ciclo.tipo,
             comandas,
             cantidad: comandas.length,
         });

@@ -21,6 +21,7 @@ const comandaModel = require('../database/models/comanda.model');
 const mesasModel = require('../database/models/mesas.model');
 const Reserva = require('../database/models/reserva.model');
 const pedidoModel = require('../database/models/pedido.model');
+const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
 const logger = require('../utils/logger');
 
 /**
@@ -717,29 +718,28 @@ router.put('/pago-adelantado/confirmar-entrega', async (req, res) => {
 
     const comandas = await comandaModel.find(query).populate('platos.plato', 'nombre precio');
 
-    // Filtrar solo comandas 100% "para llevar" con PPA aprobado
-    const comandasCerradas = [];
-    for (const comanda of comandas) {
-      const platosActivos = comanda.platos.filter(p => !p.eliminado && !p.anulado);
-      if (platosActivos.length === 0) continue;
+    const ticketsPPA = await ticketPagoAdelantadoModel.find({
+      mesa: mesaId,
+      estado: { $in: ['pendiente_aprobacion', 'aprobado'] },
+    }).select('comandas platos').lean();
+    const lineasPPA = new Set();
+    for (const t of ticketsPPA || []) {
+      (t.platos || []).forEach((p) => {
+        if (p.platoLineaId) lineasPPA.add(String(p.platoLineaId));
+      });
+    }
 
-      const todosParaLlevar = platosActivos.every(p => p.tipoServicio === 'para_llevar');
-      const todosCobradosPPA = platosActivos.every((p) => {
-        const pa = p.pagoAdelantado;
-        if (!pa) return false;
+    const esCobradoPPA = (plato) => {
+      const pa = plato.pagoAdelantado;
+      if (pa) {
         if (pa.cobrado === true) return true;
         const et = pa.estadoTicket;
-        return et === 'pendiente_aprobacion' || et === 'aprobado';
-      });
-      if (!todosParaLlevar && !todosCobradosPPA) continue;
+        if (et === 'pendiente_aprobacion' || et === 'aprobado') return true;
+      }
+      return !!(plato._id && lineasPPA.has(String(plato._id)));
+    };
 
-      const todosEntregados = platosActivos.every((p) => {
-        const e = (p.estado || '').toLowerCase();
-        return e === 'entregado' || e === 'pagado';
-      });
-      if (!todosEntregados) continue;
-
-      // Marcar platos como entregados y pagados (el cobro ya se hizo vía PPA)
+    const cerrarComandaPPA = async (comanda) => {
       for (const plato of comanda.platos) {
         if (plato.eliminado || plato.anulado) continue;
         if (!plato.tiempos) plato.tiempos = {};
@@ -749,13 +749,33 @@ router.put('/pago-adelantado/confirmar-entrega', async (req, res) => {
           plato.estado = 'pagado';
         }
       }
-
       comanda.status = 'pagado';
       comanda.IsActive = false;
       comanda.tiempoPagado = ahora;
       comanda.markModified('platos');
       await comanda.save();
+    };
+
+    const comandasCerradas = [];
+    let minCreatedPPA = null;
+    for (const comanda of comandas) {
+      const platosActivos = comanda.platos.filter(p => !p.eliminado && !p.anulado);
+      if (platosActivos.length === 0) continue;
+
+      const todosParaLlevar = platosActivos.every(p => p.tipoServicio === 'para_llevar');
+      const todosCobradosPPA = platosActivos.every((p) => esCobradoPPA(p));
+      if (!todosParaLlevar && !todosCobradosPPA) continue;
+
+      const todosEntregados = platosActivos.every((p) => {
+        const e = (p.estado || '').toLowerCase();
+        return e === 'entregado' || e === 'pagado';
+      });
+      if (!todosEntregados) continue;
+
+      await cerrarComandaPPA(comanda);
       comandasCerradas.push(comanda._id);
+      const created = comanda.createdAt ? new Date(comanda.createdAt).getTime() : Date.now();
+      if (minCreatedPPA == null || created < minCreatedPPA) minCreatedPPA = created;
     }
 
     if (comandasCerradas.length === 0) {
@@ -763,6 +783,26 @@ router.put('/pago-adelantado/confirmar-entrega', async (req, res) => {
         success: false,
         error: 'No hay comandas de pago adelantado pendientes de liberar en esta mesa.',
       });
+    }
+
+    // Cerrar comandas fantasma de visitas anteriores en la misma mesa
+    const restoActivas = await comandaModel.find({
+      mesas: mesaId,
+      IsActive: true,
+      status: { $nin: ['pagado', 'completado', 'cancelado'] },
+      _id: { $nin: comandasCerradas },
+    });
+    for (const comanda of restoActivas) {
+      const created = comanda.createdAt ? new Date(comanda.createdAt).getTime() : 0;
+      const esAntigua = minCreatedPPA != null && created > 0 && created < minCreatedPPA - 5000;
+      const platosActivos = (comanda.platos || []).filter((p) => !p.eliminado && !p.anulado);
+      const todosCerrados = platosActivos.length > 0 && platosActivos.every((p) => {
+        const e = (p.estado || '').toLowerCase();
+        return e === 'entregado' || e === 'pagado';
+      });
+      if (!esAntigua && !todosCerrados) continue;
+      await cerrarComandaPPA(comanda);
+      comandasCerradas.push(comanda._id);
     }
 
     // Cerrar el pedido abierto de la mesa (si ya no quedan comandas activas)

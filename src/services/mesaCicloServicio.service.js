@@ -6,8 +6,11 @@ const moment = require('moment-timezone');
 const pedidoModel = require('../database/models/pedido.model');
 const comandaModel = require('../database/models/comanda.model');
 const mesasModel = require('../database/models/mesas.model');
+const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
+const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
 
 const ZONA = 'America/Lima';
+const VENTANA_CICLO_MS = 3 * 60 * 60 * 1000;
 
 const buildFromPedido = (pedido, tipo) => ({
   tipo,
@@ -39,13 +42,14 @@ const fallbackPorComandasPagadas = async (mesaId) => {
     .sort({ tiempoPagado: -1 })
     .lean();
 
-  // Intento 2: si no hay, buscar comandas IsActive=false pero del mismo día (ciclo ya cerrado)
+  // Intento 2: ciclo ya cerrado (IsActive=false), solo últimas 24h — nunca todo el historial del día.
   if (!pagadas.length) {
+    const hace24h = moment().tz(ZONA).subtract(24, 'hours').toDate();
     pagadas = await comandaModel
       .find({
         mesas: mesaId,
         status: { $in: ['pagado', 'completado', 'entregado', 'pendiente_aprobar'] },
-        tiempoPagado: { $exists: true, $ne: null },
+        tiempoPagado: { $exists: true, $ne: null, $gte: hace24h },
       })
       .select('_id tiempoPagado pedido')
       .sort({ tiempoPagado: -1 })
@@ -64,19 +68,16 @@ const fallbackPorComandasPagadas = async (mesaId) => {
     }
   }
 
-  const diaUltimo = moment(ultima.tiempoPagado).tz(ZONA).format('YYYY-MM-DD');
+  const tUltima = new Date(ultima.tiempoPagado).getTime();
   const comandaIds = pagadas
-    .filter(
-      (c) =>
-        moment(c.tiempoPagado).tz(ZONA).format('YYYY-MM-DD') === diaUltimo
-    )
+    .filter((c) => tUltima - new Date(c.tiempoPagado).getTime() <= VENTANA_CICLO_MS)
     .map((c) => String(c._id));
 
   return {
-    tipo: 'fallback_dia',
+    tipo: 'fallback_ultimo_pago',
     pedidoId: null,
     comandaIds,
-    desde: moment(ultima.tiempoPagado).tz(ZONA).startOf('day').toDate(),
+    desde: new Date(tUltima - VENTANA_CICLO_MS),
     hasta: ultima.tiempoPagado,
   };
 };
@@ -96,11 +97,10 @@ const fallbackPorComandasActivas = async (mesaId) => {
     return null;
   }
 
-  const pedidoIds = [
-    ...new Set(activas.map((c) => c.pedido && String(c.pedido)).filter(Boolean)),
-  ];
-  if (pedidoIds.length === 1) {
-    const pedido = await pedidoModel.findById(pedidoIds[0]).lean();
+  const newest = activas[0];
+  const pedidoIdNewest = newest?.pedido ? String(newest.pedido) : null;
+  if (pedidoIdNewest) {
+    const pedido = await pedidoModel.findById(pedidoIdNewest).lean();
     if (pedido) {
       return buildFromPedido(pedido, 'fallback_activas_pedido');
     }
@@ -113,6 +113,44 @@ const fallbackPorComandasActivas = async (mesaId) => {
     desde: activas[activas.length - 1]?.createdAt || null,
     hasta: null,
   };
+};
+
+/**
+ * IDs de comandas del cobro más reciente (TPA + ticket de aprobación),
+ * para no mezclar visitas anteriores del mismo pedido/mesa.
+ */
+const obtenerComandaIdsDeTicketsRecientes = async (mesaId, pedidoId) => {
+  const hace12h = moment().tz(ZONA).subtract(12, 'hours').toDate();
+  const filtro = {
+    mesa: mesaId,
+    estado: 'aprobado',
+    fechaAprobacion: { $gte: hace12h },
+  };
+
+  const [tas, tpas] = await Promise.all([
+    ticketAprobacionModel.find(filtro).select('comandas fechaAprobacion pedido').sort({ fechaAprobacion: -1 }).limit(20).lean(),
+    ticketPagoAdelantadoModel.find(filtro).select('comandas fechaAprobacion pedido').sort({ fechaAprobacion: -1 }).limit(20).lean(),
+  ]);
+
+  let tickets = [...(tas || []), ...(tpas || [])].sort(
+    (a, b) => new Date(b.fechaAprobacion || 0) - new Date(a.fechaAprobacion || 0)
+  );
+  if (!tickets.length) return [];
+
+  if (pedidoId) {
+    const pid = String(pedidoId);
+    const delPedido = tickets.filter((t) => !t.pedido || String(t.pedido) === pid);
+    if (delPedido.length) tickets = delPedido;
+  }
+
+  const t0 = new Date(tickets[0].fechaAprobacion || 0).getTime();
+  const ids = new Set();
+  for (const t of tickets) {
+    const tA = new Date(t.fechaAprobacion || 0).getTime();
+    if (t0 - tA > VENTANA_CICLO_MS) continue;
+    (t.comandas || []).forEach((id) => ids.add(String(id)));
+  }
+  return [...ids];
 };
 
 /**
@@ -257,4 +295,5 @@ module.exports = {
   intersectarComandaIds,
   boucherPerteneceAlCiclo,
   filtrarBouchersPorCiclo,
+  obtenerComandaIdsDeTicketsRecientes,
 };

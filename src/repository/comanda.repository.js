@@ -24,7 +24,7 @@ const {
 const SELECT_PLATO_COCINA = 'nombre precio categoria codigo nombreCocina complementos complementosUnidosAlPlato';
 const configuracionRepository = require('./configuracion.repository');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
-const { obtenerCicloServicioMesa, intersectarComandaIds } = require('../services/mesaCicloServicio.service');
+const { obtenerCicloServicioMesa, intersectarComandaIds, obtenerComandaIdsDeTicketsRecientes } = require('../services/mesaCicloServicio.service');
 
 // ========== RESERVAS: Importar repositorio de reservas ==========
 // Importacion diferida para evitar dependencia circular
@@ -2982,8 +2982,11 @@ const getComandasPagadasPorMesa = async (mesaId) => {
       return [];
     }
 
+    const idsTickets = await obtenerComandaIdsDeTicketsRecientes(mesaId, ciclo.pedidoId);
     const query = { mesas: mesaId };
-    if (ciclo.pedidoId) {
+    if (idsTickets.length > 0) {
+      query._id = { $in: idsTickets };
+    } else if (ciclo.pedidoId) {
       query.pedido = ciclo.pedidoId;
     } else {
       query._id = { $in: ciclo.comandaIds };
@@ -3002,15 +3005,30 @@ const getComandasPagadasPorMesa = async (mesaId) => {
       .sort({ tiempoPagado: -1, createdAt: -1 });
 
     const comandasConPlatos = await ensurePlatosPopulated(comandas);
-    const soloPagados = mapComandasSoloPlatosPagados(comandasConPlatos);
+    let soloPagados = mapComandasSoloPlatosPagados(comandasConPlatos);
+    soloPagados = acotarComandasPagadasAlUltimoPago(soloPagados);
     console.log(
-      `✅ [getComandasPagadasPorMesa] Mesa ${mesaId} ciclo=${ciclo.tipo} pedido=${ciclo.pedidoId || '—'}: ${soloPagados.length} comanda(s)`
+      `✅ [getComandasPagadasPorMesa] Mesa ${mesaId} ciclo=${ciclo.tipo} pedido=${ciclo.pedidoId || '—'} tickets=${idsTickets.length}: ${soloPagados.length} comanda(s)`
     );
     return soloPagados;
   } catch (error) {
     console.error('❌ Error al obtener comandas pagadas por mesa:', error);
     throw error;
   }
+};
+
+const acotarComandasPagadasAlUltimoPago = (comandas) => {
+  if (!comandas?.length || comandas.length === 1) return comandas || [];
+  const ts = (c) => {
+    const t = c.tiempoPagado || c.createdAt;
+    return t ? new Date(t).getTime() : 0;
+  };
+  const maxTs = Math.max(...comandas.map(ts));
+  const minTs = Math.min(...comandas.map(ts));
+  const OCHO_H = 8 * 60 * 60 * 1000;
+  const CUATRO_H = 4 * 60 * 60 * 1000;
+  if (maxTs - minTs <= OCHO_H) return comandas;
+  return comandas.filter((c) => maxTs - ts(c) <= CUATRO_H);
 };
 
 /** Solo platos en estado pagado/pedido/pendiente (alinea índices de cantidades). */
@@ -3127,7 +3145,12 @@ const getComandasActivasPorMesa = async (mesaId) => {
     .sort({ createdAt: -1 })
     .lean();
 
-  return comandas;
+  if (!comandas.length || comandas.length === 1) return comandas;
+  const ts = (c) => (c.createdAt ? new Date(c.createdAt).getTime() : 0);
+  const maxT = Math.max(...comandas.map(ts));
+  const minT = Math.min(...comandas.map(ts));
+  if (maxT - minT <= 8 * 60 * 60 * 1000) return comandas;
+  return comandas.filter((c) => maxT - ts(c) <= 4 * 60 * 60 * 1000);
 };
 
 const getComandasParaPagar = async (mesaId, comandaIds = null) => {

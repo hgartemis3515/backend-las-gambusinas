@@ -354,8 +354,20 @@ pedidoSchema.statics.obtenerOcrearPedidoAbierto = async function(mesaId, mozoId,
     });
     
     if (pedido) {
-        console.log(`✅ Pedido abierto encontrado: #${pedido.pedidoId} para mesa ${datosMesa.numMesa || mesaId}`);
-        return pedido;
+        const Comanda = mongoose.model('Comanda');
+        const activasEnPedido = await Comanda.countDocuments({
+            pedido: pedido._id,
+            IsActive: { $ne: false },
+            status: { $nin: ['pagado', 'completado', 'cancelado', 'anulado'] },
+        });
+        if (activasEnPedido > 0) {
+            console.log(`✅ Pedido abierto encontrado: #${pedido.pedidoId} para mesa ${datosMesa.numMesa || mesaId}`);
+            return pedido;
+        }
+        pedido.estado = 'cerrado';
+        pedido.isActive = false;
+        await pedido.save();
+        console.log(`♻️ Pedido #${pedido.pedidoId} cerrado (sin comandas activas); se crea uno nuevo`);
     }
     
     // Crear nuevo pedido
