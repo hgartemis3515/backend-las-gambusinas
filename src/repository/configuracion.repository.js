@@ -12,6 +12,55 @@ const CACHE_KEY_PREFIX = 'configuracion';
 const CACHE_KEY = 'configuracion:sistema';
 const CACHE_TTL = 300; // 5 minutos
 
+const APARIENCIA_DEFAULT = {
+    colorTextoMuted: '#5a5a7a',
+    tamanoTextoMuted: 11,
+    grosorTextoMuted: 400
+};
+
+const extraerAparienciaNormalizada = (ap) => {
+    if (!ap || typeof ap !== 'object') {
+        throw new Error('Los datos de apariencia deben ser un objeto');
+    }
+    const out = {};
+    if (ap.colorTextoMuted !== undefined) {
+        const s = String(ap.colorTextoMuted).trim();
+        if (!/^#([0-9A-Fa-f]{6})$/.test(s)) {
+            throw new Error('El color de texto muted debe ser un hex de 6 dígitos (ej: #5a5a7a)');
+        }
+        out.colorTextoMuted = s.toLowerCase();
+    }
+    if (ap.tamanoTextoMuted !== undefined) {
+        const n = Math.round(Number(ap.tamanoTextoMuted));
+        if (!Number.isFinite(n) || n < 8 || n > 20) {
+            throw new Error('El tamaño de etiquetas debe ser un entero entre 8 y 20 px');
+        }
+        out.tamanoTextoMuted = n;
+    }
+    if (ap.grosorTextoMuted !== undefined) {
+        const w = Number(ap.grosorTextoMuted);
+        if (![400, 500, 600, 700].includes(w)) {
+            throw new Error('El grosor de etiquetas debe ser 400, 500, 600 o 700');
+        }
+        out.grosorTextoMuted = w;
+    }
+    if (Object.keys(out).length === 0) {
+        throw new Error('No se proporcionaron datos de apariencia');
+    }
+    return out;
+};
+
+const aparienciaDesdeDoc = (config) => {
+    const raw = config && config.apariencia;
+    if (!raw) return { ...APARIENCIA_DEFAULT };
+    const obj = typeof raw.toObject === 'function' ? raw.toObject() : raw;
+    return {
+        colorTextoMuted: obj.colorTextoMuted || APARIENCIA_DEFAULT.colorTextoMuted,
+        tamanoTextoMuted: obj.tamanoTextoMuted != null ? obj.tamanoTextoMuted : APARIENCIA_DEFAULT.tamanoTextoMuted,
+        grosorTextoMuted: obj.grosorTextoMuted != null ? obj.grosorTextoMuted : APARIENCIA_DEFAULT.grosorTextoMuted
+    };
+};
+
 /**
  * Obtiene la configuración activa del sistema
  * Si no existe, crea una con valores por defecto
@@ -78,9 +127,11 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
         }
 
         if (datosFiltrados.decimales !== undefined) {
-            if (!Number.isInteger(datosFiltrados.decimales) || datosFiltrados.decimales < 0 || datosFiltrados.decimales > 4) {
+            const d = parseInt(datosFiltrados.decimales, 10);
+            if (!Number.isInteger(d) || d < 0 || d > 4) {
                 throw new Error('Los decimales deben ser un número entero entre 0 y 4');
             }
+            datosFiltrados.decimales = d;
         }
 
         if (datosFiltrados.moneda !== undefined) {
@@ -110,6 +161,14 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
         // 🔥 Si permitirUsd está apagado, forzar tipoCambioUsd a null (coherencia)
         if (datosFiltrados.permitirUsd === false) {
             datosFiltrados.tipoCambioUsd = null;
+        }
+
+        if (datosFiltrados.apariencia && typeof datosFiltrados.apariencia === 'object') {
+            const patch = extraerAparienciaNormalizada(datosFiltrados.apariencia);
+            datosFiltrados.apariencia = {
+                ...APARIENCIA_DEFAULT,
+                ...patch
+            };
         }
 
         // Actualizar la configuración
@@ -148,6 +207,29 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
         return config.toObject();
     } catch (error) {
         logger.error('Error al actualizar configuración:', { error: error.message });
+        throw error;
+    }
+};
+
+/**
+ * Actualiza solo apariencia del dashboard (color/tamaño/grosor de etiquetas).
+ * Usa save() del documento para no perder el subdocumento con strict/update.
+ */
+const actualizarApariencia = async (apariencia) => {
+    try {
+        const patch = extraerAparienciaNormalizada(apariencia);
+        const config = await ConfiguracionSistema.obtenerConfiguracion();
+        const merged = { ...aparienciaDesdeDoc(config), ...patch };
+        const updated = await ConfiguracionSistema.findByIdAndUpdate(
+            'configuracion_unica',
+            { $set: { apariencia: merged } },
+            { new: true, runValidators: true }
+        );
+        await invalidarCache();
+        logger.info('Apariencia del dashboard actualizada', { apariencia: merged });
+        return updated.toObject();
+    } catch (error) {
+        logger.error('Error al actualizar apariencia:', { error: error.message });
         throw error;
     }
 };
@@ -381,6 +463,7 @@ const formatearMonto = async (monto) => {
 module.exports = {
     obtenerConfiguracion,
     actualizarConfiguracion,
+    actualizarApariencia,
     invalidarCache,
     obtenerConfiguracionMoneda,
     obtenerDatosFiscales,

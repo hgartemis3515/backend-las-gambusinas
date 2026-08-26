@@ -221,7 +221,9 @@ function mesaClass(estado) {
   const map = {
     Libre: 'border-st-libre/60 bg-st-libre/10 text-st-libre',
     Ocupada: 'border-st-esperando/60 bg-st-esperando/10 text-st-esperando',
+    Esperando: 'border-st-esperando/60 bg-st-esperando/10 text-st-esperando',
     Pedido: 'border-st-pedido/60 bg-st-pedido/10 text-st-pedido',
+    Entregado: 'border-st-pedido/60 bg-st-pedido/10 text-st-pedido',
     Preparado: 'border-st-preparado/60 bg-st-preparado/10 text-st-preparado',
     Pagado: 'border-st-pagado/60 bg-st-pagado/10 text-st-pagado',
     Reservado: 'border-st-reservado/60 bg-st-reservado/10 text-st-reservado'
@@ -245,12 +247,42 @@ function mesaBadge(estado) {
   const map = {
     Libre: 'bg-st-libre/20 text-st-libre',
     Ocupada: 'bg-st-esperando/20 text-st-esperando',
+    Esperando: 'bg-st-esperando/20 text-st-esperando',
     Pedido: 'bg-st-pedido/20 text-st-pedido',
+    Entregado: 'bg-st-pedido/20 text-st-pedido',
     Preparado: 'bg-st-preparado/20 text-st-preparado',
     Pagado: 'bg-st-pagado/20 text-st-pagado',
     Reservado: 'bg-st-reservado/20 text-st-reservado'
   };
   return map[estado] || '';
+}
+
+/** Número de mesa del API (`nummesa`) o de mocks (`numero` / `numMesa`). */
+function numeroMesaLabel(m) {
+  if (m == null || m === '') return '';
+  if (typeof m === 'number' || typeof m === 'string') return String(m);
+  if (m.nombreCombinado) return String(m.nombreCombinado);
+  const n = m.nummesa ?? m.numMesa ?? m.numero ?? m.mesaNumero ?? m.mesa;
+  if (n != null && typeof n === 'object') return numeroMesaLabel(n);
+  if (n != null && n !== '') return String(n);
+  return '';
+}
+
+function tituloMesa(m) {
+  if (!m) return 'Mesa';
+  if (m.nombreCombinado) return String(m.nombreCombinado);
+  const n = numeroMesaLabel(m);
+  return n ? ('Mesa ' + n) : 'Mesa';
+}
+
+function nombreAreaMesa(m) {
+  if (!m) return '—';
+  const a = m.area;
+  if (!a) return '—';
+  if (typeof a === 'object') return a.nombre || a.name || '—';
+  const s = String(a);
+  if (/^[a-f0-9]{24}$/i.test(s)) return '—';
+  return s;
 }
 
 function filteredMesas(area, filter) {
@@ -331,10 +363,120 @@ async function loadComponents() {
 }
 
 // ============================================
+// APARIENCIA DASHBOARD (texto muted / etiquetas KPI)
+// ============================================
+const TXT_MUTED_DEFAULT = '#5a5a7a';
+const TXT_MUTED_SIZE_DEFAULT = 11;
+const TXT_MUTED_WEIGHT_DEFAULT = 400;
+const TXT_MUTED_STORAGE_KEY = 'gambusinas_txt_muted';
+
+function normalizarHexMuted(value) {
+  const s = String(value || '').trim();
+  if (/^#([0-9A-Fa-f]{6})$/.test(s)) return s.toLowerCase();
+  if (/^#([0-9A-Fa-f]{3})$/.test(s)) {
+    return ('#' + s[1] + s[1] + s[2] + s[2] + s[3] + s[3]).toLowerCase();
+  }
+  return null;
+}
+
+function normalizarTamanoMuted(value) {
+  const n = parseInt(value, 10);
+  if (!Number.isFinite(n) || n < 8 || n > 20) return TXT_MUTED_SIZE_DEFAULT;
+  return n;
+}
+
+function normalizarGrosorMuted(value) {
+  const n = parseInt(value, 10);
+  return [400, 500, 600, 700].includes(n) ? n : TXT_MUTED_WEIGHT_DEFAULT;
+}
+
+function leerAparienciaMutedCache() {
+  try {
+    const raw = localStorage.getItem(TXT_MUTED_STORAGE_KEY);
+    if (!raw) return { color: TXT_MUTED_DEFAULT, tamanoPx: TXT_MUTED_SIZE_DEFAULT, grosor: TXT_MUTED_WEIGHT_DEFAULT };
+    if (raw.charAt(0) === '#') {
+      return {
+        color: normalizarHexMuted(raw) || TXT_MUTED_DEFAULT,
+        tamanoPx: TXT_MUTED_SIZE_DEFAULT,
+        grosor: TXT_MUTED_WEIGHT_DEFAULT
+      };
+    }
+    const parsed = JSON.parse(raw);
+    return {
+      color: normalizarHexMuted(parsed.color) || TXT_MUTED_DEFAULT,
+      tamanoPx: normalizarTamanoMuted(parsed.tamanoPx),
+      grosor: normalizarGrosorMuted(parsed.grosor)
+    };
+  } catch (_) {
+    return { color: TXT_MUTED_DEFAULT, tamanoPx: TXT_MUTED_SIZE_DEFAULT, grosor: TXT_MUTED_WEIGHT_DEFAULT };
+  }
+}
+
+function aplicarAparienciaTextoMuted(opts) {
+  const prev = leerAparienciaMutedCache();
+  const color = normalizarHexMuted(opts && opts.color) || prev.color || TXT_MUTED_DEFAULT;
+  const tamanoPx = opts && opts.tamanoPx != null ? normalizarTamanoMuted(opts.tamanoPx) : prev.tamanoPx;
+  const grosor = opts && opts.grosor != null ? normalizarGrosorMuted(opts.grosor) : prev.grosor;
+  document.documentElement.style.setProperty('--txt-muted', color);
+  document.documentElement.style.setProperty('--txt-muted-size', tamanoPx + 'px');
+  document.documentElement.style.setProperty('--txt-muted-weight', String(grosor));
+  try {
+    localStorage.setItem(TXT_MUTED_STORAGE_KEY, JSON.stringify({ color: color, tamanoPx: tamanoPx, grosor: grosor }));
+  } catch (_) {}
+  let el = document.getElementById('gambusinas-txt-muted-style');
+  if (!el) {
+    el = document.createElement('style');
+    el.id = 'gambusinas-txt-muted-style';
+    document.head.appendChild(el);
+  }
+  el.textContent =
+    ':root{--txt-muted:' + color + ';--txt-muted-size:' + tamanoPx + 'px;--txt-muted-weight:' + grosor + ';}' +
+    '.text-txt-muted{color:' + color + ' !important;}' +
+    '[class*="text-[#5a5a7a]"]{color:' + color + ' !important;}' +
+    '.text-\\[11px\\].text-txt-muted.uppercase,' +
+    '.text-txt-muted.uppercase.tracking-wide{' +
+    'font-size:' + tamanoPx + 'px !important;' +
+    'font-weight:' + grosor + ' !important;}';
+}
+
+function aplicarColorTextoMuted(hex) {
+  aplicarAparienciaTextoMuted({ color: hex });
+}
+
+async function cargarAparienciaDashboard() {
+  aplicarAparienciaTextoMuted(leerAparienciaMutedCache());
+  const token = typeof getToken === 'function' ? getToken() : (localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken'));
+  if (!token) return;
+  try {
+    const res = await fetch('/api/configuracion', {
+      headers: typeof dashboardAuthHeaders === 'function'
+        ? dashboardAuthHeaders(false)
+        : { 'Authorization': 'Bearer ' + token, 'x-source-app': 'dashboard' }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const ap = data && data.configuracion && data.configuracion.apariencia;
+    if (!ap) return;
+    aplicarAparienciaTextoMuted({
+      color: ap.colorTextoMuted,
+      tamanoPx: ap.tamanoTextoMuted,
+      grosor: ap.grosorTextoMuted
+    });
+  } catch (_) {}
+}
+
+try {
+  aplicarAparienciaTextoMuted(leerAparienciaMutedCache());
+} catch (_) {
+  aplicarAparienciaTextoMuted({ color: TXT_MUTED_DEFAULT, tamanoPx: TXT_MUTED_SIZE_DEFAULT, grosor: TXT_MUTED_WEIGHT_DEFAULT });
+}
+
+// ============================================
 // INICIALIZACIÓN
 // ============================================
 document.addEventListener('DOMContentLoaded', () => {
   loadComponents();
+  cargarAparienciaDashboard();
 });
 
 // ============================================

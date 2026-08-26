@@ -166,15 +166,16 @@ tailwind.config = {
                 <div x-show="loading && mesas.length === 0" class="flex items-center justify-center h-full">
                   <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
                 </div>
-                <div x-show="!loading || mesas.length > 0" class="grid grid-cols-5 gap-2">
-                  <template x-for="m in (mesas.length > 0 ? mesas : sharedData.mockMesas)" :key="m._id || m.numero">
+                <div x-show="!loading || mesasMapa.length > 0" class="grid grid-cols-5 gap-2">
+                  <template x-for="m in mesasMapa" :key="m._id || numeroMesaLabel(m)">
                     <div class="aspect-square rounded-lg border-2 flex flex-col items-center justify-center text-xs cursor-pointer hover:scale-105 transition"
                       :class="mesaClass(estadoNormalizado(m.estado))" @click="openMesa(m)">
-                      <span class="font-bold" x-text="m.numMesa || m.numero"></span>
+                      <span class="font-bold" x-text="numeroMesaLabel(m) || '—'"></span>
                       <span class="text-[9px] mt-0.5 opacity-70" x-text="estadoNormalizado(m.estado)"></span>
                     </div>
                   </template>
                 </div>
+                <div x-show="!loading && mesasMapa.length === 0" class="text-center text-txt-muted text-xs py-8">Sin mesas activas</div>
               </div>
             </div>
           </template>
@@ -216,7 +217,7 @@ tailwind.config = {
               <div class="flex-1 overflow-auto min-h-0 space-y-2">
                 <template x-for="c in comandasActivas" :key="c._id || c.id">
                   <div class="flex items-center justify-between text-sm p-2 rounded-lg bg-bg-sidebar">
-                    <span class="text-txt-secondary" x-text="'#' + (c.comandaNumber || c._id?.slice(-4) || '—') + ' · Mesa ' + (c.mesa?.numMesa || c.mesa || '—')"></span>
+                    <span class="text-txt-secondary" x-text="'#' + (c.comandaNumber || c._id?.slice(-4) || '—') + ' · Mesa ' + (numeroMesaLabel(c.mesas || c.mesa) || c.mesaNumero || '—')"></span>
                     <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
                       :class="(c.status||c.estado||'').toLowerCase().includes('preparado') ? 'bg-st-preparado/20 text-st-preparado' : 'bg-st-esperando/20 text-st-esperando'"
                       x-text="c.status || c.estado || '—'"></span>
@@ -321,24 +322,27 @@ tailwind.config = {
   <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[420px] shadow-2xl" @click.stop>
     <div class="p-5 border-b border-[rgba(212,175,55,0.1)]">
       <div class="flex items-center justify-between">
-        <h2 class="text-lg font-bold" x-text="selectedMesa ? 'Mesa ' + (selectedMesa.numMesa || selectedMesa.numero) : ''"></h2>
+        <h2 class="text-lg font-bold" x-text="tituloMesa(selectedMesa)"></h2>
         <button @click="modal=null" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm hover:bg-gold/30">✕</button>
       </div>
-      <p class="text-xs text-txt-muted mt-1" x-text="selectedMesa ? 'Área: ' + (selectedMesa.area?.nombre || selectedMesa.area || '—') : ''"></p>
+      <p class="text-xs text-txt-muted mt-1" x-text="'Área: ' + nombreAreaMesa(selectedMesa)"></p>
     </div>
     <div class="p-5">
       <div class="flex items-center justify-between mb-4">
         <span class="text-xs px-2.5 py-1 rounded-full font-semibold" :class="selectedMesa && mesaBadge(estadoNormalizado(selectedMesa?.estado))" x-text="estadoNormalizado(selectedMesa?.estado)"></span>
-        <span class="text-xs text-txt-muted" x-show="selectedMesa?.idMozo" x-text="'👤 ' + (selectedMesa?.idMozo?.nombre || selectedMesa?.mozo || '—')"></span>
+        <span class="text-xs text-txt-muted" x-show="selectedMesa?.mozoNombre" x-text="'👤 ' + selectedMesa.mozoNombre"></span>
       </div>
       <p class="text-[11px] text-txt-muted uppercase mb-2">Información</p>
+      <div x-show="mesaDetalleCargando" class="text-xs text-txt-muted mb-3">Cargando comanda…</div>
       <div class="space-y-2 mb-4">
-        <div class="flex justify-between text-sm"><span>Capacidad</span><span class="text-txt-secondary" x-text="selectedMesa?.capacidad || '—'"></span></div>
-        <div class="flex justify-between text-sm"><span>Personas</span><span class="text-txt-secondary" x-text="selectedMesa?.personas || '—'"></span></div>
+        <div class="flex justify-between text-sm"><span>Estado</span><span class="text-txt-secondary" x-text="estadoNormalizado(selectedMesa?.estado)"></span></div>
+        <div class="flex justify-between text-sm"><span>Mozo</span><span class="text-txt-secondary" x-text="selectedMesa?.mozoNombre || '—'"></span></div>
+        <div class="flex justify-between text-sm"><span>Comandas</span><span class="text-txt-secondary" x-text="selectedMesa?.comandasResumen || '—'"></span></div>
+        <div class="flex justify-between text-sm"><span>Platos</span><span class="text-txt-secondary" x-text="selectedMesa?.platosResumen ?? '—'"></span></div>
       </div>
       <div class="border-t border-[rgba(212,175,55,0.15)] pt-3 flex justify-between">
-        <span class="font-semibold">Monto Actual</span>
-        <span class="text-gold text-lg font-bold" x-text="selectedMesa?.monto ? 'S/. ' + selectedMesa.monto : 'S/. —'"></span>
+        <span class="font-semibold">Monto actual</span>
+        <span class="text-gold text-lg font-bold" x-text="selectedMesa?.monto != null ? 'S/. ' + Number(selectedMesa.monto).toFixed(2) : 'S/. —'"></span>
       </div>
     </div>
     <div class="flex gap-2 p-5 pt-0">
@@ -612,6 +616,7 @@ function dashApp() {
     sidebarOpen: true,
     modal: null,
     selectedMesa: null,
+    mesaDetalleCargando: false,
     activeNav: 'dashboard',
     pageTitle: 'Dashboard',
     loading: true,
@@ -653,6 +658,10 @@ function dashApp() {
       return this.dashboardLayout
         .filter(id => WIDGET_CATALOG[id]?.tipo === 'full')
         .map(id => ({ id }));
+    },
+
+    get mesasMapa() {
+      return (this.mesas || []).filter((m) => m && m.isActive !== false);
     },
 
     getWidgetColSpan(id) { return WIDGET_CATALOG[id]?.colSpan || 6; },
@@ -735,7 +744,7 @@ function dashApp() {
           // Alertas: mesas pagadas sin liberar
           const alertas = mesas.filter(m => (m.estado || '').toLowerCase() === 'pagado');
           this.kpiAlertas = String(alertas.length);
-          this.kpiAlertasSub = alertas.length > 0 ? 'Mesa ' + (alertas[0].numMesa || alertas[0].nummesa || '?') + ' sin liberar' : 'Sin alertas';
+          this.kpiAlertasSub = alertas.length > 0 ? 'Mesa ' + (numeroMesaLabel(alertas[0]) || '?') + ' sin liberar' : 'Sin alertas';
         }
 
         // --- MOZOS ---
@@ -808,7 +817,7 @@ function dashApp() {
             else if (estado.includes('cocina') || estado.includes('pedido')) dotClass = 'bg-st-pedido';
             else if (estado.includes('entregado')) dotClass = 'bg-st-esperando';
             return {
-              text: 'Mesa ' + (c.mesa?.numMesa || c.mesa || '—') + ' — Comanda #' + (c.comandaNumber || c._id?.slice(-4) || '—'),
+              text: 'Mesa ' + (numeroMesaLabel(c.mesas || c.mesa) || c.mesaNumero || '—') + ' — Comanda #' + (c.comandaNumber || c._id?.slice(-4) || '—'),
               time: c.createdAt ? this.timeAgo(new Date(c.createdAt)) : '—',
               timestamp: c.createdAt ? new Date(c.createdAt).getTime() : Date.now(),
               dotClass
@@ -898,7 +907,7 @@ function dashApp() {
           const idx = this.mesas.findIndex(m => m._id === mesa._id || m._id === mesa.id);
           if (idx >= 0) this.mesas[idx] = { ...this.mesas[idx], ...mesa };
           this.recalculateMesasKPIs();
-          this.addActivity({ text: 'Mesa ' + (mesa.numMesa || mesa.nummesa || mesa.numero || '—') + ' — Estado: ' + this.estadoNormalizado(mesa.estado), dotClass: 'bg-st-libre' });
+          this.addActivity({ text: 'Mesa ' + (numeroMesaLabel(mesa) || '—') + ' — Estado: ' + this.estadoNormalizado(mesa.estado), dotClass: 'bg-st-libre' });
         });
         
         // Listener legacy por si acaso
@@ -961,7 +970,7 @@ function dashApp() {
       this.kpiOcupacionPct = this.mesas.length > 0 ? Math.round((ocupadas / this.mesas.length) * 100) + '%' : '0%';
       const alertas = this.mesas.filter(m => (m.estado || '').toLowerCase() === 'pagado');
       this.kpiAlertas = String(alertas.length);
-      this.kpiAlertasSub = alertas.length > 0 ? 'Mesa ' + (alertas[0].numMesa || alertas[0].nummesa || '?') + ' sin liberar' : 'Sin alertas';
+      this.kpiAlertasSub = alertas.length > 0 ? 'Mesa ' + (numeroMesaLabel(alertas[0]) || '?') + ' sin liberar' : 'Sin alertas';
     },
     
     // Manejar nueva comanda desde Socket
@@ -1061,13 +1070,57 @@ function dashApp() {
     },
 
     estadoNormalizado(estado) {
-      const map = { 'libre':'Libre','ocupada':'Ocupada','pedido':'Pedido','preparado':'Preparado','pagado':'Pagado','reservado':'Reservado' };
+      const map = {
+        'libre':'Libre','ocupada':'Ocupada','esperando':'Esperando','pedido':'Pedido',
+        'preparado':'Preparado','entregado':'Entregado','pagado':'Pagado','reservado':'Reservado',
+        'pendiente_pago':'Pagado','pendiente_aprobar':'Pedido','reportado':'Ocupada'
+      };
       return map[estado?.toLowerCase()] || estado || 'Libre';
     },
 
     getSaludo() { const h = new Date().getHours(); return h < 12 ? 'días' : h < 19 ? 'tardes' : 'noches'; },
     getFecha() { return new Date().toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }); },
-    openMesa(m) { this.selectedMesa = m; this.modal = 'detalleMesa'; },
+    enriquecerMesa(m, comandas = []) {
+      const list = Array.isArray(comandas) ? comandas : [];
+      let monto = 0;
+      let platos = 0;
+      const nums = [];
+      const mozos = [];
+      for (const c of list) {
+        monto += Number(c.precioTotal) || 0;
+        const cants = Array.isArray(c.cantidades) ? c.cantidades : [];
+        const pls = Array.isArray(c.platos) ? c.platos : [];
+        if (cants.length) platos += cants.reduce((s, n) => s + (Number(n) || 0), 0);
+        else platos += pls.filter((p) => p && !p.eliminado && !p.anulado).length;
+        if (c.comandaNumber != null) nums.push('#' + c.comandaNumber);
+        const mozo = c.mozoNombre || c.mozos?.name || c.mozos?.nombre;
+        if (mozo && !mozos.includes(mozo)) mozos.push(mozo);
+      }
+      return {
+        ...m,
+        mozoNombre: mozos.join(', ') || m.mozoNombre || m.mozo || m.idMozo?.nombre || '',
+        comandasResumen: nums.length ? nums.join(', ') : (list.length ? String(list.length) : '—'),
+        platosResumen: list.length ? platos : '—',
+        monto: list.length ? monto : null,
+      };
+    },
+
+    async openMesa(m) {
+      this.selectedMesa = this.enriquecerMesa(m, []);
+      this.modal = 'detalleMesa';
+      const id = m && (m._id || m.id);
+      if (!id) return;
+      this.mesaDetalleCargando = true;
+      try {
+        const res = await apiGet('/comanda/mesa/' + id + '/activas');
+        const comandas = Array.isArray(res) ? res : (res?.comandas || res?.data || []);
+        this.selectedMesa = this.enriquecerMesa(m, comandas);
+      } catch (e) {
+        console.warn('Detalle mesa:', e);
+      } finally {
+        this.mesaDetalleCargando = false;
+      }
+    },
 
     async liberarMesa() {
       if (!this.selectedMesa?._id) return;

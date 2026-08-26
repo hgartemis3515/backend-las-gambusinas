@@ -202,6 +202,13 @@ const CONFIGURACION_DEFAULT = {
         twitterTitle: 'Las Gambusinas - Sistema POS',
         twitterDescription: 'Sistema de punto de venta para gestión de restaurante',
         twitterImage: ''
+    },
+
+    // Apariencia del dashboard (etiquetas KPI, labels muted)
+    apariencia: {
+        colorTextoMuted: '#5a5a7a',
+        tamanoTextoMuted: 11,
+        grosorTextoMuted: 400
     }
 };
 
@@ -694,6 +701,28 @@ const configuracionSistemaSchema = new mongoose.Schema({
         twitterImage: {
             type: String,
             default: CONFIGURACION_DEFAULT.seo.twitterImage
+        }
+    },
+
+    // Apariencia del dashboard admin
+    apariencia: {
+        colorTextoMuted: {
+            type: String,
+            default: CONFIGURACION_DEFAULT.apariencia.colorTextoMuted,
+            trim: true,
+            maxlength: 7,
+            match: /^#([0-9A-Fa-f]{6})$/
+        },
+        tamanoTextoMuted: {
+            type: Number,
+            default: CONFIGURACION_DEFAULT.apariencia.tamanoTextoMuted,
+            min: 8,
+            max: 20
+        },
+        grosorTextoMuted: {
+            type: Number,
+            default: CONFIGURACION_DEFAULT.apariencia.grosorTextoMuted,
+            enum: [400, 500, 600, 700]
         }
     },
     

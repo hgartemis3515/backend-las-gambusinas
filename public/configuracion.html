@@ -1300,6 +1300,34 @@ tailwind.config = {
           <div class="bg-st-pagado/10 border border-st-pagado/30 rounded-lg p-4 mb-4">
             <p class="text-xs text-st-pagado">⚠️ Estas configuraciones son avanzadas. Modificarlas puede afectar el funcionamiento del sistema.</p>
           </div>
+          <div class="p-4 rounded-xl border border-[rgba(212,175,55,0.25)] bg-bg-sidebar space-y-4">
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Etiquetas (texto muted)</label>
+              <p class="text-[11px] text-txt-secondary">Aplica a rótulos como “Mesas Ocupadas” en el inicio (color, tamaño y grosor).</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-4">
+              <input type="color" x-model="config.colorTextoMuted" @input="previewAparienciaMuted()" class="h-10 w-14 rounded cursor-pointer bg-transparent border border-[rgba(212,175,55,0.25)]">
+              <input type="text" x-model="config.colorTextoMuted" @input="previewAparienciaMuted()" maxlength="7" class="w-28 bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm font-mono focus:border-gold focus:outline-none" placeholder="#5a5a7a">
+              <span class="uppercase tracking-wide"
+                :style="{ color: config.colorTextoMuted, fontSize: (config.tamanoTextoMuted || 11) + 'px', fontWeight: config.grosorTextoMuted || 400 }">Mesas Ocupadas</span>
+              <button type="button" @click="config.colorTextoMuted = '#5a5a7a'; config.tamanoTextoMuted = 11; config.grosorTextoMuted = 400; previewAparienciaMuted()" class="text-xs text-txt-secondary hover:text-gold transition">Restablecer</button>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Tamaño <span class="font-mono text-txt-muted" x-text="(config.tamanoTextoMuted || 11) + ' px'"></span></label>
+                <input type="range" min="8" max="20" step="1" x-model.number="config.tamanoTextoMuted" @input="previewAparienciaMuted()" class="w-full accent-gold">
+              </div>
+              <div>
+                <label class="text-xs text-txt-secondary mb-1 block">Grosor</label>
+                <select x-model.number="config.grosorTextoMuted" @change="previewAparienciaMuted()" class="w-full bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                  <option :value="400">Normal</option>
+                  <option :value="500">Medio</option>
+                  <option :value="600">Seminegrita</option>
+                  <option :value="700">Negrita</option>
+                </select>
+              </div>
+            </div>
+          </div>
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="text-xs text-txt-secondary mb-1 block">Versión del sistema</label>
@@ -1527,6 +1555,9 @@ function configApp() {
       syncJsonLegacy: false,
       versionSistema: '2.0.0',
       fechaActualizacion: null,
+      colorTextoMuted: '#5a5a7a',
+      tamanoTextoMuted: 11,
+      grosorTextoMuted: 400,
       // SEO y Metadatos
       seoMetaTitle: 'Las Gambusinas - Sistema POS',
       seoMetaDescription: 'Sistema de punto de venta para gestión de restaurante. Control de mesas, comandas, pedidos y más.',
@@ -1826,6 +1857,17 @@ function configApp() {
           // Version
           this.config.versionSistema = cfg.version || '2.0.0';
           this.config.fechaActualizacion = cfg.updatedAt || null;
+          if (cfg.apariencia && (cfg.apariencia.colorTextoMuted || cfg.apariencia.tamanoTextoMuted || cfg.apariencia.grosorTextoMuted)) {
+            if (cfg.apariencia.colorTextoMuted) this.config.colorTextoMuted = cfg.apariencia.colorTextoMuted;
+            if (cfg.apariencia.tamanoTextoMuted != null) this.config.tamanoTextoMuted = Number(cfg.apariencia.tamanoTextoMuted);
+            if (cfg.apariencia.grosorTextoMuted != null) this.config.grosorTextoMuted = Number(cfg.apariencia.grosorTextoMuted);
+          } else if (typeof leerAparienciaMutedCache === 'function') {
+            const cached = leerAparienciaMutedCache();
+            this.config.colorTextoMuted = cached.color;
+            this.config.tamanoTextoMuted = cached.tamanoPx;
+            this.config.grosorTextoMuted = cached.grosor;
+          }
+          this.previewAparienciaMuted();
           
           // Mapear SEO
           if (cfg.seo) {
@@ -1982,7 +2024,9 @@ function configApp() {
             permitirCrearDesdeMozos: this.config.reservas?.permitirCrearDesdeMozos !== false,
             minutosAntesCocina: Number(this.config.reservas?.minutosAntesCocina) || 20,
             minutosAlertaPreviaCocina: Number(this.config.reservas?.minutosAlertaPreviaCocina) || 10,
-            tiempoEsperaDefaultMin: Number(this.config.reservas?.tiempoEsperaDefaultMin) || 15,
+            tiempoEsperaDefaultMin: [5, 10, 20].includes(Number(this.config.reservas?.tiempoEsperaDefaultMin))
+              ? Number(this.config.reservas.tiempoEsperaDefaultMin)
+              : 10,
             bloquearMesaAlCrear: this.config.reservas?.bloquearMesaAlCrear === true,
             minutosBloqueoMesaAntes: Number(this.config.reservas?.minutosBloqueoMesaAntes) || 45,
             horizonteReservaDias: Number(this.config.reservas?.horizonteReservaDias) || 30,
@@ -2007,12 +2051,31 @@ function configApp() {
             twitterImage: this.config.seoTwitterImage || ''
           }
         };
+
+        const aparienciaPayload = {
+          colorTextoMuted: /^#([0-9A-Fa-f]{6})$/.test(String(this.config.colorTextoMuted || '').trim())
+            ? String(this.config.colorTextoMuted).trim()
+            : '#5a5a7a',
+          tamanoTextoMuted: Number(this.config.tamanoTextoMuted) || 11,
+          grosorTextoMuted: Number(this.config.grosorTextoMuted) || 400
+        };
+        dataToSave.apariencia = aparienciaPayload;
+
+        const apRes = await apiPatch('/configuracion/apariencia', aparienciaPayload);
+        if (apRes && apRes.success && apRes.configuracion && apRes.configuracion.apariencia) {
+          const ap = apRes.configuracion.apariencia;
+          this.config.colorTextoMuted = ap.colorTextoMuted || this.config.colorTextoMuted;
+          this.config.tamanoTextoMuted = ap.tamanoTextoMuted != null ? ap.tamanoTextoMuted : this.config.tamanoTextoMuted;
+          this.config.grosorTextoMuted = ap.grosorTextoMuted != null ? ap.grosorTextoMuted : this.config.grosorTextoMuted;
+          this.previewAparienciaMuted();
+        }
         
         const res = await apiPut('/configuracion', dataToSave);
         if (res && res.success) {
           // Guardar configuración de notificaciones
           this.saveNotificationConfig();
           
+          this.previewAparienciaMuted();
           this.showToast('✅ Configuración guardada exitosamente');
           // Invalidar cache SEO para que se recargue
           if (typeof SEOMeta !== 'undefined') {
@@ -2020,8 +2083,11 @@ function configApp() {
           }
           // Recargar para confirmar
           await this.loadConfig();
+        } else if (apRes && apRes.success) {
+          this.previewAparienciaMuted();
+          this.showToast('✅ Color, tamaño y grosor guardados. El resto no se pudo guardar: ' + (res?.message || 'error'), 'error');
         } else {
-          this.showToast('Error al guardar: ' + (res?.message || 'Fallo desconocido'), 'error');
+          this.showToast('Error al guardar: ' + (res?.message || apRes?.message || 'Fallo desconocido'), 'error');
         }
       } catch (e) {
         console.error('Error guardando configuración:', e);
@@ -2029,6 +2095,15 @@ function configApp() {
       }
       
       this.saving = false;
+    },
+    
+    previewAparienciaMuted() {
+      if (typeof aplicarAparienciaTextoMuted !== 'function') return;
+      aplicarAparienciaTextoMuted({
+        color: this.config.colorTextoMuted,
+        tamanoPx: this.config.tamanoTextoMuted,
+        grosor: this.config.grosorTextoMuted
+      });
     },
     
     showToast(msg, type = 'success') {

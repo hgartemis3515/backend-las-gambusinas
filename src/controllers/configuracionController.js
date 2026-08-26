@@ -146,6 +146,28 @@ router.put('/configuracion', async (req, res) => {
 });
 
 /**
+ * PATCH /api/configuracion/apariencia
+ * Color, tamaño y grosor de etiquetas muted del dashboard
+ */
+router.patch('/configuracion/apariencia', async (req, res) => {
+    try {
+        const configuracionActualizada = await configuracionRepository.actualizarApariencia(req.body);
+        res.json({
+            success: true,
+            message: 'Apariencia actualizada',
+            configuracion: configuracionActualizada
+        });
+    } catch (error) {
+        logger.error('Error al actualizar apariencia:', { error: error.message });
+        const statusCode = error.message.includes('debe') || error.message.includes('No se proporcionaron') ? 400 : 500;
+        res.status(statusCode).json({
+            success: false,
+            message: error.message || 'Error al actualizar la apariencia'
+        });
+    }
+});
+
+/**
  * PATCH /api/configuracion/moneda
  * Actualiza solo la configuración de moneda y precios
  */
