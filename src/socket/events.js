@@ -818,6 +818,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         nuevoEstado: nuevoEstado,
         mesaId: mesaIdPop ? mesaIdPop.toString() : null,
         mesaNumero,
+        comandaNumber: comanda.comandaNumber ?? null,
         platoNombre,
         mozoId: mozoIdPop ? mozoIdPop.toString() : null,
         comanda: comanda,
@@ -826,6 +827,9 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       };
       if (nuevoEstado === 'recoger') {
         emitToMozoAsignado(comanda, 'plato-actualizado', platoEventMozos);
+        if (mesaIdPop && mozosNamespace && mozosNamespace.sockets) {
+          mozosNamespace.to(`mesa-${mesaIdPop}`).emit('plato-actualizado', platoEventMozos);
+        }
       } else if (nuevoEstado === 'salio') {
         // SALIO: Notificar específicamente al mozo asignado que el plato salió de cocina
         emitToMozoAsignado(comanda, 'plato-actualizado', platoEventMozos);
@@ -952,19 +956,21 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         const mozoId = comanda?.mozos?._id || comanda?.mozos;
         if (mozoId) eventData.mozoId = mozoId.toString();
         eventData.mesaNumero = comanda.mesas?.nummesa ?? comanda.mesas?.numero ?? null;
+        eventData.comandaNumber = comanda.comandaNumber ?? null;
       }
 
-      // Emitir a mozos: al mozo asignado cuando hay platos listos para recoger o que salieron de cocina
+      // Recoger/salio: room del mozo y room de la mesa (ComandaDetalle está en mesa-*)
       let mozosClients = 0;
       if (mozosNamespace && mozosNamespace.sockets) {
         if ((platosRecoger.length > 0 || platosSalio.length > 0) && comanda) {
           const mozoId = comanda.mozos?._id || comanda.mozos;
           if (mozoId) {
             const roomMozo = `mozo-${mozoId}`;
-            mozosClients = mozosNamespace.adapter.rooms.get(roomMozo)?.size || 0;
+            mozosClients += mozosNamespace.adapter.rooms.get(roomMozo)?.size || 0;
             mozosNamespace.to(roomMozo).emit('plato-actualizado-batch', eventData);
-          } else if (roomNameMesa) {
-            mozosClients = mozosNamespace.adapter.rooms.get(roomNameMesa)?.size || 0;
+          }
+          if (roomNameMesa) {
+            mozosClients += mozosNamespace.adapter.rooms.get(roomNameMesa)?.size || 0;
             mozosNamespace.to(roomNameMesa).emit('plato-actualizado-batch', eventData);
           }
         } else if (roomNameMesa) {

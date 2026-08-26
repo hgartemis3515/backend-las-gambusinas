@@ -46,9 +46,11 @@ function findNombrePlatoEnComanda(comanda, platoId) {
   return null;
 }
 
-function buildPlatoListoBody(nombrePlato, mesaNumero) {
+function buildPlatoListoBody(nombrePlato, mesaNumero, comandaNumber) {
   const nombre = nombrePlato || 'Un plato';
   const mesa = mesaNumero != null && mesaNumero !== '' ? mesaNumero : '?';
+  const num = comandaNumber != null && comandaNumber !== '' ? `#${comandaNumber}` : null;
+  if (num) return `${nombre} listo para recoger. Comanda ${num}. Mesa ${mesa}`;
   return `${nombre} listo para recoger. Mesa ${mesa}`;
 }
 
@@ -194,6 +196,7 @@ async function notifyPlatoListo(comanda, platoData) {
   }
 
   const mesaNumero = comanda.mesas?.nummesa ?? comanda.mesas?.numero ?? '?';
+  const comandaNumber = comanda.comandaNumber ?? null;
   const nombrePlato =
     platoData.nombre ||
     findNombrePlatoEnComanda(comanda, platoId) ||
@@ -206,15 +209,17 @@ async function notifyPlatoListo(comanda, platoData) {
     return;
   }
 
+  const title = comandaNumber != null ? `🍽️ Plato listo · #${comandaNumber}` : '🍽️ Plato Listo';
   return sendPushToMozos(mozoIds, {
-    title: '🍽️ Plato Listo',
-    body: buildPlatoListoBody(nombrePlato, mesaNumero),
+    title,
+    body: buildPlatoListoBody(nombrePlato, mesaNumero, comandaNumber),
     channelId: 'plato-listo',
     data: {
       type: 'plato-listo',
       mesaId: mesaId,
       mesaNumero: mesaNumero,
       comandaId: comanda._id?.toString(),
+      comandaNumber,
       platoId: platoData.platoId,
       platoNombre: nombrePlato,
     },
