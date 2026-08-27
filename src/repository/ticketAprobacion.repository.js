@@ -627,6 +627,17 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
   const comandaNumeroDisplay = formatComandasNumbersLabel(comandasNumbers)
     || (ticket.comandasNumbers?.[0] != null ? `#${ticket.comandasNumbers[0]}` : '');
 
+  let igvSnap = { igvPorcentaje: 18, nombreImpuesto: 'IGV' };
+  try {
+    const calculosPrecios = require('../utils/calculosPrecios');
+    const cfg = await calculosPrecios.getConfigMonedaCached();
+    const pct = Number(cfg?.igvPorcentaje);
+    igvSnap = {
+      igvPorcentaje: Number.isFinite(pct) ? pct : 18,
+      nombreImpuesto: cfg?.nombreImpuestoPrincipal || 'IGV',
+    };
+  } catch (_) { /* fallback 18% */ }
+
   return {
     ticketId: ticket._id,
     ticketNumber: ticket.ticketNumber,
@@ -647,6 +658,8 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
     productos,
     subtotal: ticket.subtotal,
     igv: ticket.igv,
+    igvPorcentaje: igvSnap.igvPorcentaje,
+    nombreImpuesto: igvSnap.nombreImpuesto,
     total: ticket.total,
     cliente: {
       nombre: ticket.clienteNombre || boucherData?.clienteNombre || NOMBRE_CLIENTE_FALLBACK,

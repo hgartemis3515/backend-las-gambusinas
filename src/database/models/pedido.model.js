@@ -321,8 +321,9 @@ pedidoSchema.methods.aplicarCalculoDescuento = function() {
         // Subtotal con descuento
         const subtotalConDescuento = this.subtotal - montoDescuento;
         
-        // IGV sobre el monto con descuento
-        const igvConDescuento = subtotalConDescuento * 0.18;
+        // IGV sobre el monto con descuento (mismo factor que calcularTotales)
+        const igvFactor = this.subtotal > 0 ? (this.igv / this.subtotal) : 0.18;
+        const igvConDescuento = subtotalConDescuento * igvFactor;
         
         this.montoDescuento = montoDescuento;
         this.totalConDescuento = subtotalConDescuento + igvConDescuento;

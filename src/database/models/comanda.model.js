@@ -720,15 +720,17 @@ comandaSchema.pre('save', async function (next) {
                     }
                 }
                 
-                const igvPorcentaje = 0.18;
+                const calculosPrecios = require('../../utils/calculosPrecios');
+                const configMoneda = await calculosPrecios.getConfigMonedaCached();
                 const subtotalSinDescuento = precioTotalSinEliminar;
                 const montoDescuento = subtotalSinDescuento * (this.descuento / 100);
                 const subtotalConDescuento = subtotalSinDescuento - montoDescuento;
-                const igvConDescuento = subtotalConDescuento * igvPorcentaje;
-                
-                this.totalSinDescuento = subtotalSinDescuento * (1 + igvPorcentaje);
+                const totalesSinDesc = calculosPrecios.calcularTotales(subtotalSinDescuento, configMoneda);
+                const totalesConDesc = calculosPrecios.calcularTotales(subtotalConDescuento, configMoneda);
+
+                this.totalSinDescuento = totalesSinDesc.total;
                 this.montoDescuento = montoDescuento;
-                this.totalCalculado = subtotalConDescuento + igvConDescuento;
+                this.totalCalculado = totalesConDesc.total;
                 
                 console.log(`💰 [pre-save] Recalculando totales con descuento ${this.descuento}%:`, {
                     subtotalSinDescuento,

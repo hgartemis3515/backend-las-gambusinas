@@ -12,6 +12,62 @@ const CACHE_KEY_PREFIX = 'configuracion';
 const CACHE_KEY = 'configuracion:sistema';
 const CACHE_TTL = 300; // 5 minutos
 
+const CAMPOS_MONEDA = new Set([
+    'igvPorcentaje',
+    'preciosIncluyenIGV',
+    'moneda',
+    'simboloMoneda',
+    'nombreImpuestoPrincipal',
+    'decimales',
+    'posicionSimbolo',
+    'politicaRedondeo',
+    'redondearA',
+    'permitirUsd',
+    'tipoCambioUsd'
+]);
+
+const hayCambioMoneda = (datos) => {
+    if (!datos || typeof datos !== 'object') return false;
+    return Object.keys(datos).some((k) => CAMPOS_MONEDA.has(k));
+};
+
+const invalidarCacheCalculosPrecios = () => {
+    try {
+        require('../utils/calculosPrecios').invalidarCacheLocal();
+    } catch (error) {
+        logger.warn('No se pudo invalidar caché local de cálculos de precios', {
+            error: error.message
+        });
+    }
+};
+
+const emitirConfiguracionMonedaActualizada = (config) => {
+    const io = global.io;
+    if (!io?.of || !config) return;
+    const payload = {
+        configuracion: {
+            igvPorcentaje: config.igvPorcentaje,
+            preciosIncluyenIGV: config.preciosIncluyenIGV,
+            moneda: config.moneda,
+            simboloMoneda: config.simboloMoneda,
+            nombreImpuestoPrincipal: config.nombreImpuestoPrincipal,
+            decimales: config.decimales,
+            posicionSimbolo: config.posicionSimbolo,
+            politicaRedondeo: config.politicaRedondeo,
+            redondearA: config.redondearA
+        }
+    };
+    try {
+        io.of('/mozos').emit('configuracion-moneda-actualizada', payload);
+        io.of('/cocina').emit('configuracion-moneda-actualizada', payload);
+        io.of('/admin').emit('configuracion-moneda-actualizada', payload);
+    } catch (error) {
+        logger.warn('No se pudo emitir configuracion-moneda-actualizada', {
+            error: error.message
+        });
+    }
+};
+
 const APARIENCIA_DEFAULT = {
     colorTextoMuted: '#5a5a7a',
     tamanoTextoMuted: 11,
@@ -189,6 +245,10 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
 
         // Invalidar caché
         await invalidarCache();
+        invalidarCacheCalculosPrecios();
+        if (hayCambioMoneda(nuevosDatos)) {
+            emitirConfiguracionMonedaActualizada(config);
+        }
 
         logger.info('Configuración actualizada exitosamente', {
             camposModificados: Object.keys(datosFiltrados),

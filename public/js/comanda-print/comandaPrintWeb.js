@@ -55,6 +55,23 @@ async function obtenerPlantillaComandaViva(fetchJson, plantillaLocal, usarLocal)
   return unwrapPlantillaComanda(plantillaLocal) || plantillaLocal || null;
 }
 
+async function obtenerConfigMonedaViva(fetchJson) {
+  try {
+    const res = await fetchJson(`/api/configuracion/moneda?_=${Date.now()}`);
+    const cfg = (res?.configuracion && typeof res.configuracion === 'object')
+      ? res.configuracion
+      : res;
+    const pct = Number(cfg?.igvPorcentaje);
+    if (!Number.isFinite(pct)) return null;
+    return {
+      igvPorcentaje: pct,
+      nombreImpuesto: cfg?.nombreImpuestoPrincipal || cfg?.nombreImpuesto || 'IGV',
+    };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Print a comanda by ID or with pre-fetched data.
  *
@@ -88,12 +105,15 @@ export async function imprimirComandaWeb(opts = {}) {
       return null;
     }
 
-    // 2. Plantilla viva del servidor (sin caché). Vista previa del editor puede pasar usarPlantillaLocal.
-    const plantilla = await obtenerPlantillaComandaViva(
-      fetchJson,
-      opts.plantilla || null,
-      opts.usarPlantillaLocal === true
-    );
+    // 2. Plantilla + IGV vivos del servidor (sin caché). Vista previa puede pasar usarPlantillaLocal.
+    const [plantilla, monedaViva] = await Promise.all([
+      obtenerPlantillaComandaViva(
+        fetchJson,
+        opts.plantilla || null,
+        opts.usarPlantillaLocal === true
+      ),
+      obtenerConfigMonedaViva(fetchJson),
+    ]);
 
     // 3. Forzar "Pago: Pendiente" si se imprime sin aprobar desde la tabla
     if (opts.ticketEstado === 'pendiente_aprobacion') {
@@ -107,6 +127,14 @@ export async function imprimirComandaWeb(opts = {}) {
     if (opts.comandasNumbersOverride) {
       datos = { ...datos, comandasNumbers: opts.comandasNumbersOverride };
       datos = aplicarComandaNumeroDisplay(datos);
+    }
+
+    if (monedaViva?.igvPorcentaje != null) {
+      datos = {
+        ...datos,
+        igvPorcentaje: monedaViva.igvPorcentaje,
+        nombreImpuesto: monedaViva.nombreImpuesto || datos.nombreImpuesto || 'IGV',
+      };
     }
 
     // 6. Generate full HTML
@@ -204,6 +232,8 @@ function mapearTicketADatos(ticket) {
     }),
     subtotal: ticket.subtotal || 0,
     igv: ticket.igv || 0,
+    igvPorcentaje: ticket.igvPorcentaje,
+    nombreImpuesto: ticket.nombreImpuesto,
     total: ticket.total || 0,
     cliente: {
       nombre: ticket.cliente?.nombre || ticket.nombreCliente || ticket.clienteNombre || 'Cliente',

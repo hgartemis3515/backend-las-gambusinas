@@ -26,6 +26,24 @@ const {
   formatComandasNumbersLabel,
 } = require('../utils/comandasNumbers');
 
+async function snapshotIgvImpresion() {
+  try {
+    const config = await configuracionRepository.obtenerConfiguracionMoneda();
+    const pct = Number(config?.igvPorcentaje);
+    return {
+      igvPorcentaje: Number.isFinite(pct) ? pct : 18,
+      nombreImpuesto: config?.nombreImpuestoPrincipal || 'IGV',
+    };
+  } catch (_) {
+    return { igvPorcentaje: 18, nombreImpuesto: 'IGV' };
+  }
+}
+
+async function conIgvImpresion(datos) {
+  const snap = await snapshotIgvImpresion();
+  return { ...datos, ...snap };
+}
+
 /**
  * GET /api/aprobacion/pendientes
  * Lista tickets pendientes de aprobación, tipo COMANDA y/o ADELANTADO.
@@ -466,7 +484,7 @@ router.get('/aprobacion/:id/ticket-imprimible', async (req, res) => {
         || (ppaComandasNumbers[0] != null ? `#${ppaComandasNumbers[0]}` : '');
       return res.json({
         success: true,
-        datos: {
+        datos: await conIgvImpresion({
           ticketId: ticketPPA._id,
           ticketNumber: ticketPPA.ticketNumber,
           tipo: 'ADELANTADO',
@@ -513,7 +531,7 @@ router.get('/aprobacion/:id/ticket-imprimible', async (req, res) => {
           montoRecibido: ticketPPA.montoRecibido ?? boucherPPA?.montoRecibido ?? null,
           vuelto: ticketPPA.vuelto ?? boucherPPA?.vuelto ?? null,
           voucherId: ticketPPA.voucherId || boucherPPA?.voucherId || null,
-        },
+        }),
       });
     }
 
@@ -580,7 +598,7 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
         || (ppaComandasNumbers[0] != null ? `#${ppaComandasNumbers[0]}` : '');
       return res.json({
         success: true,
-        datos: {
+        datos: await conIgvImpresion({
           ticketId: ticketPPA._id,
           ticketNumber: ticketPPA.ticketNumber,
           tipo: 'ADELANTADO',
@@ -622,7 +640,7 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
           total: ticketPPA.total,
           cliente: { nombre: NOMBRE_CLIENTE_FALLBACK, dni: '' },
           voucherId: ticketPPA.voucherId || null,
-        },
+        }),
       });
     }
 
@@ -706,6 +724,8 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
       productos,
       subtotal: boucher?.subtotal ?? comanda.precioTotal ?? 0,
       igv: boucher?.igv ?? 0,
+      igvPorcentaje: Number.isFinite(Number(config.igvPorcentaje)) ? Number(config.igvPorcentaje) : 18,
+      nombreImpuesto: config.nombreImpuestoPrincipal || 'IGV',
       total: boucher?.total ?? comanda.precioTotal ?? 0,
       cliente: {
         nombre: boucher?.clienteNombre || comanda.clienteNombre || comanda.cliente?.nombre || NOMBRE_CLIENTE_FALLBACK,

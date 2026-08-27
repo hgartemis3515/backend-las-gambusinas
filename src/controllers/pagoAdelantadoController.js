@@ -23,6 +23,7 @@ const Reserva = require('../database/models/reserva.model');
 const pedidoModel = require('../database/models/pedido.model');
 const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
 const logger = require('../utils/logger');
+const calculosPrecios = require('../utils/calculosPrecios');
 
 /**
  * POST /pago-adelantado
@@ -134,11 +135,12 @@ router.post('/pago-adelantado', async (req, res) => {
 
     console.log('🔥 [PPA] Platos matched:', platosParaBoucher.length, '/', platosSeleccionados?.length || 0, 'seleccionados');
 
-    // Calcular totales
+    // Calcular totales (fallback si el boucher no trae IGV; el % sale de configuración)
     const subtotalTotal = platosParaBoucher.reduce((sum, p) => sum + (p.subtotal || 0), 0);
-    const igvPorcentaje = 18;
-    const igv = subtotalTotal * (igvPorcentaje / 100);
-    const total = subtotalTotal + igv;
+    const configMoneda = await calculosPrecios.getConfigMonedaCached();
+    const totalesIgv = calculosPrecios.calcularTotales(subtotalTotal, configMoneda);
+    const igv = totalesIgv.igv;
+    const total = totalesIgv.total;
 
     // Crear boucher usando el servicio existente (modificado para PPA)
     // Primero, procesar el boucher directamente
@@ -203,9 +205,9 @@ router.post('/pago-adelantado', async (req, res) => {
       mozoNombre: mozoInfo?.name || 'N/A',
       pedido: pedidoId,
       platos: platosParaTicket,
-      subtotal: boucher.subtotal || subtotalTotal,
-      igv: boucher.igv || igv,
-      total: boucher.total || total,
+      subtotal: boucher.subtotal ?? subtotalTotal,
+      igv: boucher.igv ?? igv,
+      total: boucher.total ?? total,
       boucher: boucher._id,
       voucherId: boucher.voucherId || null,
       metodoPago: metodoPago || 'efectivo',

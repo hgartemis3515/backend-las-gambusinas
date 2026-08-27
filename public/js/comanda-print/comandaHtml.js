@@ -453,7 +453,10 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
       html += `<div style="padding:1px 0;">Subtotal: <span style="font-weight:500;">${simbolo}${subtotalFinal.toFixed(2)}</span></div>`;
     }
     if (mostrarIGV && igvFinal > 0) {
-      html += `<div style="padding:1px 0;">IGV (18%): <span style="font-weight:500;">${simbolo}${igvFinal.toFixed(2)}</span></div>`;
+      const igvPctNum = Number(datos.igvPorcentaje);
+      const igvPct = Number.isFinite(igvPctNum) ? igvPctNum : 18;
+      const nombreImpuesto = datos.nombreImpuesto || 'IGV';
+      html += `<div style="padding:1px 0;">${escapeHtml(nombreImpuesto)} (${igvPct}%): <span style="font-weight:500;">${simbolo}${igvFinal.toFixed(2)}</span></div>`;
     }
     html += `<div style="font-size:14px;font-weight:700;border-top:2px solid #000;padding-top:4px;margin-top:4px;">${escapeHtml(etiquetas.total)}: ${simbolo}${totalFinal.toFixed(2)}</div>`;
 

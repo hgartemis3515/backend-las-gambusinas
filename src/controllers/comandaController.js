@@ -3615,8 +3615,9 @@ router.delete('/comanda/:id/descuento', async (req, res) => {
             subtotalActual += precio * cantidad;
         }
 
-        const igvPorcentaje = 0.18;
-        const nuevoTotal = subtotalActual * (1 + igvPorcentaje);
+        const calculosPrecios = require('../utils/calculosPrecios');
+        const configMoneda = await calculosPrecios.getConfigMonedaCached();
+        const nuevoTotal = calculosPrecios.calcularTotales(subtotalActual, configMoneda).total;
 
         // Eliminar descuento
         comanda.descuento = 0;

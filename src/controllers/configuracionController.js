@@ -17,7 +17,9 @@ const logger = require('../utils/logger');
 router.get('/configuracion', async (req, res) => {
     try {
         const configuracion = await configuracionRepository.obtenerConfiguracion();
-        
+
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.set('Pragma', 'no-cache');
         res.json({
             success: true,
             configuracion
@@ -39,10 +41,13 @@ router.get('/configuracion', async (req, res) => {
 router.get('/configuracion/moneda', async (req, res) => {
     try {
         const configMoneda = await configuracionRepository.obtenerConfiguracionMoneda();
-        
+
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.set('Pragma', 'no-cache');
         res.json({
             success: true,
-            configuracion: configMoneda
+            configuracion: configMoneda,
+            ...configMoneda
         });
     } catch (error) {
         logger.error('Error al obtener configuración de moneda:', { error: error.message });
