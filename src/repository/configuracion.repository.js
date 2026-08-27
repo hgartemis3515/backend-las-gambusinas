@@ -149,6 +149,12 @@ const obtenerConfiguracion = async () => {
     }
 };
 
+/** Lectura directa de Mongo (plantillas): no usar Redis para no devolver una versión vieja. */
+const obtenerConfiguracionSinCache = async () => {
+    const config = await ConfiguracionSistema.obtenerConfiguracion();
+    return config.toObject();
+};
+
 /**
  * Actualiza la configuración del sistema
  * Invalida el caché automáticamente
@@ -197,25 +203,28 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
             datosFiltrados.moneda = datosFiltrados.moneda.toUpperCase();
         }
 
-        // 🔥 Normalizar permitirUsd (booleano)
-        if (datosFiltrados.permitirUsd !== undefined) {
+        // 🔥 Normalizar permitirUsd / tipoCambioUsd SOLO si vienen en el payload.
+        // Un PUT de plantilla (comanda/voucher) no debe anular el tipo de cambio.
+        const vienePermitirUsd = Object.prototype.hasOwnProperty.call(nuevosDatos, 'permitirUsd');
+        const vieneTipoCambio = Object.prototype.hasOwnProperty.call(nuevosDatos, 'tipoCambioUsd');
+
+        if (vienePermitirUsd) {
             datosFiltrados.permitirUsd = datosFiltrados.permitirUsd === true || datosFiltrados.permitirUsd === 'true';
         }
 
-        // 🔥 Validar tipo de cambio USD (opcional: null deshabilita cobro en USD)
-        if (datosFiltrados.tipoCambioUsd !== undefined && datosFiltrados.tipoCambioUsd !== null && datosFiltrados.tipoCambioUsd !== '') {
-            const tc = Number(datosFiltrados.tipoCambioUsd);
-            if (Number.isNaN(tc) || tc <= 0) {
-                throw new Error('El tipo de cambio USD debe ser un número mayor a 0 (o vacío para deshabilitar)');
+        if (vieneTipoCambio) {
+            if (datosFiltrados.tipoCambioUsd !== undefined && datosFiltrados.tipoCambioUsd !== null && datosFiltrados.tipoCambioUsd !== '') {
+                const tc = Number(datosFiltrados.tipoCambioUsd);
+                if (Number.isNaN(tc) || tc <= 0) {
+                    throw new Error('El tipo de cambio USD debe ser un número mayor a 0 (o vacío para deshabilitar)');
+                }
+                datosFiltrados.tipoCambioUsd = tc;
+            } else {
+                datosFiltrados.tipoCambioUsd = null;
             }
-            datosFiltrados.tipoCambioUsd = tc;
-        } else {
-            // Normalizar vacío/undefined a null (deshabilita cobro en USD en la app)
-            datosFiltrados.tipoCambioUsd = null;
         }
 
-        // 🔥 Si permitirUsd está apagado, forzar tipoCambioUsd a null (coherencia)
-        if (datosFiltrados.permitirUsd === false) {
+        if (vienePermitirUsd && datosFiltrados.permitirUsd === false) {
             datosFiltrados.tipoCambioUsd = null;
         }
 
@@ -522,6 +531,7 @@ const formatearMonto = async (monto) => {
 
 module.exports = {
     obtenerConfiguracion,
+    obtenerConfiguracionSinCache,
     actualizarConfiguracion,
     actualizarApariencia,
     invalidarCache,

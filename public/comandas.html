@@ -117,7 +117,7 @@ tailwind.config = {
  <span class="w-2 h-2 rounded-full bg-st-libre animate-pulse"></span> Conectado
  </span>
  <button x-show="activeTab === 'tabla'" @click="loadComandas()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
- <button x-show="activeTab === 'plantilla' && plantillaModificada" @click="guardarPlantillaComanda()" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">💾 Guardar Plantilla</button>
+ <button x-show="activeTab === 'plantilla' && plantillaComandaModificada" @click="guardarPlantillaComanda()" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">💾 Guardar Plantilla</button>
  </div>
  </div>
 
@@ -126,7 +126,7 @@ tailwind.config = {
  <button @click="cambiarTabComanda('tabla')" class="px-4 py-2 rounded-lg text-sm font-medium transition" :class="activeTab === 'tabla' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">📋 Tabla</button>
  <button @click="cambiarTabComanda('plantilla')" class="px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1" :class="activeTab === 'plantilla' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
  🍽️ Plantilla Comandas
- <span x-show="plantillaModificada" class="w-2 h-2 bg-st-preparado rounded-full animate-pulse"></span>
+ <span x-show="plantillaComandaModificada" class="w-2 h-2 bg-st-preparado rounded-full animate-pulse"></span>
  </button>
  </div>
 
@@ -2481,6 +2481,12 @@ formatearNombreMesa(mesa, mesaObj = null) {
 
  await this.loadComandas();
  await this.cargarPlantillaComandaLocal();
+ window.addEventListener('beforeunload', (e) => {
+   if (this.plantillaComandaModificada) {
+     e.preventDefault();
+     e.returnValue = '';
+   }
+ });
  },
 
  // ==================== PLANTILLA COMANDA ====================
@@ -2569,10 +2575,6 @@ formatearNombreMesa(mesa, mesaObj = null) {
 
  async guardarPlantillaComanda() {
    try {
-     // Guardar en localStorage como backup
-     localStorage.setItem('comandaPlantilla', JSON.stringify(this.plantillaComanda));
-
-     // Guardar en el backend (PUT /api/configuracion/comanda-plantilla)
      const token = getToken();
      const response = await fetch('/api/configuracion/comanda-plantilla', {
        method: 'PUT',
@@ -2583,21 +2585,21 @@ formatearNombreMesa(mesa, mesaObj = null) {
        body: JSON.stringify(this.plantillaComanda)
      });
 
-     if (response.ok) {
-       this.plantillaComandaModificada = false;
-       this.plantillaComandaOriginal = JSON.parse(JSON.stringify(this.plantillaComanda));
-       GambusinasNotifications.success('Plantilla de comanda guardada correctamente');
-     } else {
-       this.plantillaComandaModificada = false;
-       this.plantillaComandaOriginal = JSON.parse(JSON.stringify(this.plantillaComanda));
-       GambusinasNotifications.success('Plantilla de comanda guardada localmente');
+     const data = await response.json().catch(() => ({}));
+     if (!response.ok || !data.success) {
+       GambusinasNotifications.error(data.message || 'No se pudo guardar la plantilla en el servidor');
+       return;
      }
-   } catch (error) {
-     console.error('Error guardando plantilla comanda:', error);
-     localStorage.setItem('comandaPlantilla', JSON.stringify(this.plantillaComanda));
+     if (data.plantilla) {
+       this.plantillaComanda = this.deepMergeComanda(this.plantillaComanda, data.plantilla);
+     }
      this.plantillaComandaModificada = false;
      this.plantillaComandaOriginal = JSON.parse(JSON.stringify(this.plantillaComanda));
-     GambusinasNotifications.success('Plantilla de comanda guardada localmente');
+     try { localStorage.setItem('comandaPlantilla', JSON.stringify(this.plantillaComanda)); } catch (e) { /* backup opcional */ }
+     GambusinasNotifications.success('Plantilla de comanda guardada');
+   } catch (error) {
+     console.error('Error guardando plantilla comanda:', error);
+     GambusinasNotifications.error('No se pudo guardar la plantilla. Revisa la conexión e inténtalo de nuevo.');
    }
  },
 

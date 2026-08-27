@@ -962,12 +962,15 @@ function bouchersApp() {
       await this.loadBouchers();
       await this.cargarPlatos();
       await this.cargarPlantillaLocal();
-      // Asegurar que todas las etiquetas tengan valor
       this.plantilla.etiquetas = { ...this.ETIQUETAS_DEFAULT, ...this.plantilla.etiquetas };
       this.plantillaOriginal = JSON.parse(JSON.stringify(this.plantilla));
-
-      // Inicializar Socket.io para actualización en tiempo real (no bloqueante)
       this.initSocket();
+      window.addEventListener('beforeunload', (e) => {
+        if (this.plantillaModificada) {
+          e.preventDefault();
+          e.returnValue = '';
+        }
+      });
     },
 
     // ========== TIEMPO REAL: Socket.io ==========
@@ -992,6 +995,12 @@ function bouchersApp() {
         this.socket.on('disconnect', () => {
           console.log('⚠️ Socket desconectado (bouchers)');
           this.socketConnected = false;
+        });
+
+        this.socket.on('voucher-plantilla-actualizada', (data) => {
+          if (this.plantillaModificada || !data?.plantilla) return;
+          this.plantilla = this.deepMerge(this.plantilla, data.plantilla);
+          this.plantillaOriginal = JSON.parse(JSON.stringify(this.plantilla));
         });
 
         // Evento principal: nuevo boucher creado
@@ -1310,10 +1319,6 @@ function bouchersApp() {
     
     async guardarPlantilla() {
       try {
-        // Guardar en localStorage como backup
-        localStorage.setItem('voucherPlantilla', JSON.stringify(this.plantilla));
-        
-        // Guardar en el backend
         const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
         const response = await fetch('/api/configuracion/voucher-plantilla', {
           method: 'PUT',
@@ -1323,24 +1328,22 @@ function bouchersApp() {
           },
           body: JSON.stringify(this.plantilla)
         });
-        
-        if (response.ok) {
-          this.plantillaModificada = false;
-          this.plantillaOriginal = JSON.parse(JSON.stringify(this.plantilla));
-          GambusinasNotifications.success('Plantilla guardada correctamente');
-        } else {
-          // Si falla el backend, al menos se guardó localmente
-          this.plantillaModificada = false;
-          this.plantillaOriginal = JSON.parse(JSON.stringify(this.plantilla));
-          GambusinasNotifications.success('Plantilla guardada localmente');
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.success) {
+          GambusinasNotifications.error(data.message || 'No se pudo guardar la plantilla en el servidor');
+          return;
         }
-      } catch (error) {
-        console.error('Error guardando plantilla:', error);
-        // Guardar localmente como fallback
-        localStorage.setItem('voucherPlantilla', JSON.stringify(this.plantilla));
+        if (data.plantilla) {
+          this.plantilla = this.deepMerge(this.plantilla, data.plantilla);
+        }
         this.plantillaModificada = false;
         this.plantillaOriginal = JSON.parse(JSON.stringify(this.plantilla));
-        GambusinasNotifications.success('Plantilla guardada localmente');
+        try { localStorage.setItem('voucherPlantilla', JSON.stringify(this.plantilla)); } catch (e) { /* backup opcional */ }
+        GambusinasNotifications.success('Plantilla de voucher guardada');
+      } catch (error) {
+        console.error('Error guardando plantilla:', error);
+        GambusinasNotifications.error('No se pudo guardar la plantilla. Revisa la conexión e inténtalo de nuevo.');
       }
     },
     

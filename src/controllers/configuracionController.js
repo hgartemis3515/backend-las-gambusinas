@@ -10,6 +10,49 @@ const router = express.Router();
 const configuracionRepository = require('../repository/configuracion.repository');
 const logger = require('../utils/logger');
 
+const clonar = (v) => {
+    if (v == null) return v;
+    if (typeof v.toObject === 'function') return v.toObject();
+    try {
+        return JSON.parse(JSON.stringify(v));
+    } catch {
+        return { ...v };
+    }
+};
+
+const sanitizarPlantillaBody = (body) => {
+    const src = body?.plantilla && typeof body.plantilla === 'object' && !Array.isArray(body.plantilla)
+        ? body.plantilla
+        : body;
+    const clone = clonar(src) || {};
+    delete clone.success;
+    delete clone.plantilla;
+    delete clone.logoEditableEn;
+    delete clone._id;
+    delete clone.__v;
+    if (clone.espaciado && typeof clone.espaciado === 'object') {
+        for (const k of Object.keys(clone.espaciado)) {
+            const n = Number(clone.espaciado[k]);
+            if (!Number.isNaN(n)) clone.espaciado[k] = n;
+        }
+    }
+    return clone;
+};
+
+const emitirPlantillaActualizada = (evento, plantilla) => {
+    const io = global.io;
+    if (!io?.of) return;
+    const payload = { plantilla };
+    io.of('/cocina').emit(evento, payload);
+    io.of('/admin').emit(evento, payload);
+    io.of('/mozos').emit(evento, payload);
+};
+
+const plantillaPlana = (doc) => {
+    if (!doc || typeof doc !== 'object') return doc;
+    return typeof doc.toObject === 'function' ? doc.toObject() : clonar(doc);
+};
+
 /**
  * GET /api/configuracion
  * Obtiene la configuración completa del sistema
@@ -470,11 +513,11 @@ router.patch('/configuracion/seo', async (req, res) => {
  */
 router.get('/configuracion/voucher-plantilla', async (req, res) => {
     try {
-        const config = await configuracionRepository.obtenerConfiguracion();
+        const config = await configuracionRepository.obtenerConfiguracionSinCache();
         
         // Plantilla por defecto con datos fiscales de la configuración
         const PLANTILLA_DEFAULT = {
-            logo: config.datosFiscales?.logoUrl || '',
+            logo: '',
             restaurante: { 
                 nombre: config.datosFiscales?.nombreComercial || 'LAS GAMBUSINAS', 
                 eslogan: '* Comidas Típicas y Parrilla *', 
@@ -532,30 +575,35 @@ router.get('/configuracion/voucher-plantilla', async (req, res) => {
             }
         };
         
-        // Obtener plantilla guardada o usar por defecto
-        let plantilla = config.voucherPlantilla || PLANTILLA_DEFAULT;
-        
-        // 🔥 SINCRONIZAR DATOS FISCALES: Siempre sobrescribir con datos de configuración general
-        // Esto asegura que los cambios en configuración.html se reflejen en el voucher
-        plantilla.restaurante = {
-            nombre: config.datosFiscales?.nombreComercial || plantilla.restaurante?.nombre || 'LAS GAMBUSINAS',
-            eslogan: plantilla.restaurante?.eslogan || '* Comidas Típicas y Parrilla *',
-            ruc: config.datosFiscales?.ruc || '',
-            direccion: config.datosFiscales?.direccionFiscal || '',
-            telefono: config.datosFiscales?.telefono || ''
+        const saved = clonar(config.voucherPlantilla) || {};
+        const plantilla = {
+            ...PLANTILLA_DEFAULT,
+            ...saved,
+            restaurante: { ...PLANTILLA_DEFAULT.restaurante, ...(saved.restaurante || {}) },
+            encabezado: { ...PLANTILLA_DEFAULT.encabezado, ...(saved.encabezado || {}) },
+            bloques: { ...PLANTILLA_DEFAULT.bloques, ...(saved.bloques || {}) },
+            campos: { ...PLANTILLA_DEFAULT.campos, ...(saved.campos || {}) },
+            promo: { ...PLANTILLA_DEFAULT.promo, ...(saved.promo || {}) },
+            visibilidad: { ...PLANTILLA_DEFAULT.visibilidad, ...(saved.visibilidad || {}) },
+            espaciado: { ...PLANTILLA_DEFAULT.espaciado, ...(saved.espaciado || {}) },
+            mensajes: { ...PLANTILLA_DEFAULT.mensajes, ...(saved.mensajes || {}) },
+            etiquetas: { ...PLANTILLA_DEFAULT.etiquetas, ...(saved.etiquetas || {}) },
         };
-        
-        // Sincronizar logo desde datos fiscales
-        if (config.datosFiscales?.logoUrl) {
-            plantilla.logo = config.datosFiscales.logoUrl;
+
+        // Solo rellenar vacíos. Nombre, eslogan, logo y personalización viven en Mongo.
+        if (!plantilla.restaurante.nombre) {
+            plantilla.restaurante.nombre = config.datosFiscales?.nombreComercial || 'LAS GAMBUSINAS';
         }
-        
-        // Sincronizar serie de boleta
-        if (config.numeracion?.serieBoleta) {
-            plantilla.encabezado = plantilla.encabezado || {};
+        if (config.datosFiscales?.ruc) plantilla.restaurante.ruc = config.datosFiscales.ruc;
+        if (config.datosFiscales?.direccionFiscal) plantilla.restaurante.direccion = config.datosFiscales.direccionFiscal;
+        if (config.datosFiscales?.telefono) plantilla.restaurante.telefono = config.datosFiscales.telefono;
+        if (!plantilla.logo) plantilla.logo = config.datosFiscales?.logoUrl || '';
+        if (!plantilla.encabezado.serie && config.numeracion?.serieBoleta) {
             plantilla.encabezado.serie = config.numeracion.serieBoleta;
         }
-        
+
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.set('Pragma', 'no-cache');
         res.json({
             success: true,
             plantilla
@@ -575,7 +623,7 @@ router.get('/configuracion/voucher-plantilla', async (req, res) => {
  */
 router.put('/configuracion/voucher-plantilla', async (req, res) => {
     try {
-        const nuevaPlantilla = req.body;
+        const nuevaPlantilla = sanitizarPlantillaBody(req.body);
         const modificadoPor = req.user?._id || req.headers['x-user-id'] || null;
         
         if (!nuevaPlantilla || Object.keys(nuevaPlantilla).length === 0) {
@@ -585,18 +633,21 @@ router.put('/configuracion/voucher-plantilla', async (req, res) => {
             });
         }
         
-        // Guardar la plantilla en la configuración
         const configuracionActualizada = await configuracionRepository.actualizarConfiguracion(
             { voucherPlantilla: nuevaPlantilla },
             modificadoPor
         );
         
         logger.info('Plantilla de voucher actualizada', { modificadoPor });
-        
+
+        const plantillaResp = plantillaPlana(configuracionActualizada.voucherPlantilla);
+        emitirPlantillaActualizada('voucher-plantilla-actualizada', plantillaResp);
+
+        res.set('Cache-Control', 'no-store');
         res.json({
             success: true,
             message: 'Plantilla de voucher guardada exitosamente',
-            plantilla: configuracionActualizada.voucherPlantilla
+            plantilla: plantillaResp
         });
     } catch (error) {
         logger.error('Error al guardar plantilla de voucher:', { error: error.message });
@@ -611,11 +662,11 @@ router.put('/configuracion/voucher-plantilla', async (req, res) => {
  * GET /api/configuracion/comanda-plantilla
  * Devuelve la plantilla de comanda configurada (ticket térmico 80mm, NO comprobante fiscal).
  * El logo NO se persiste en comandaPlantilla: se inyecta desde voucherPlantilla.logo.
- * El nombre comercial se sincroniza desde datosFiscales (igual que voucher).
+ * El nombre comercial se toma de la plantilla guardada; datosFiscales solo rellena si está vacío.
  */
 router.get('/configuracion/comanda-plantilla', async (req, res) => {
     try {
-        const config = await configuracionRepository.obtenerConfiguracion();
+        const config = await configuracionRepository.obtenerConfiguracionSinCache();
 
         const PLANTILLA_DEFAULT = {
             restaurante: {
@@ -649,43 +700,39 @@ router.get('/configuracion/comanda-plantilla', async (req, res) => {
             }
         };
 
-        let plantilla = config.comandaPlantilla || PLANTILLA_DEFAULT;
+        const saved = clonar(config.comandaPlantilla) || {};
+        const plantilla = {
+            ...PLANTILLA_DEFAULT,
+            ...saved,
+            restaurante: { ...PLANTILLA_DEFAULT.restaurante, ...(saved.restaurante || {}) },
+            encabezado: { ...PLANTILLA_DEFAULT.encabezado, ...(saved.encabezado || {}) },
+            bloques: { ...PLANTILLA_DEFAULT.bloques, ...(saved.bloques || {}) },
+            visibilidad: { ...PLANTILLA_DEFAULT.visibilidad, ...(saved.visibilidad || {}) },
+            espaciado: { ...PLANTILLA_DEFAULT.espaciado, ...(saved.espaciado || {}) },
+            mensajes: { ...PLANTILLA_DEFAULT.mensajes, ...(saved.mensajes || {}) },
+            etiquetas: { ...PLANTILLA_DEFAULT.etiquetas, ...(saved.etiquetas || {}) },
+        };
 
-        plantilla.bloques = {
-            ...PLANTILLA_DEFAULT.bloques,
-            ...(plantilla.bloques || {}),
-        };
-        plantilla.etiquetas = {
-            ...PLANTILLA_DEFAULT.etiquetas,
-            ...(plantilla.etiquetas || {}),
-        };
         if (plantilla.etiquetas.fechaPedido === 'Fecha') {
             plantilla.etiquetas.fechaPedido = 'Fecha pedido';
+        }
+        if (!plantilla.restaurante.nombre) {
+            plantilla.restaurante.nombre = config.datosFiscales?.nombreComercial || 'LAS GAMBUSINAS';
+        }
+        if (!plantilla.restaurante.eslogan) {
+            plantilla.restaurante.eslogan = '* Comidas Típicas y Parrilla *';
         }
 
         // Logo compartido desde voucherPlantilla (o datosFiscales como fallback)
         plantilla.logo = config.voucherPlantilla?.logo
             || config.datosFiscales?.logoUrl
             || '';
-
-        plantilla.restaurante = {
-            nombre: plantilla.restaurante?.nombre
-                || config.datosFiscales?.nombreComercial
-                || 'LAS GAMBUSINAS',
-            eslogan: plantilla.restaurante?.eslogan || '* Comidas Típicas y Parrilla *'
-        };
-
-        // Marcar origen del logo para que el dashboard muestre "Editar logo en Vouchers"
         plantilla.logoEditableEn = 'bouchers.html';
 
-        const plantillaPlana = (plantilla && typeof plantilla === 'object' && !Array.isArray(plantilla))
-            ? (typeof plantilla.toObject === 'function' ? plantilla.toObject() : { ...plantilla })
-            : plantilla;
-
+        const plana = plantillaPlana(plantilla);
         res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
         res.set('Pragma', 'no-cache');
-        // Compat: cocina antigua usaba el JSON entero como plantilla (sin desempaquetar .plantilla)
-        res.json({ success: true, plantilla: plantillaPlana, ...plantillaPlana });
+        res.json({ success: true, plantilla: plana, ...plana });
     } catch (error) {
         logger.error('Error al obtener plantilla de comanda:', { error: error.message });
         res.status(500).json({
@@ -702,10 +749,10 @@ router.get('/configuracion/comanda-plantilla', async (req, res) => {
  */
 router.put('/configuracion/comanda-plantilla', async (req, res) => {
     try {
-        const nuevaPlantilla = req.body || {};
+        const nuevaPlantilla = sanitizarPlantillaBody(req.body);
         const modificadoPor = req.user?._id || req.headers['x-user-id'] || null;
 
-        if (Object.keys(nuevaPlantilla).length === 0) {
+        if (!nuevaPlantilla || Object.keys(nuevaPlantilla).length === 0) {
             return res.status(400).json({
                 success: false,
                 message: 'No se proporcionaron datos de plantilla'
@@ -715,7 +762,6 @@ router.put('/configuracion/comanda-plantilla', async (req, res) => {
         // Ignorar logo — el logo vive en voucherPlantilla
         const payload = { ...nuevaPlantilla };
         delete payload.logo;
-        delete payload.logoEditableEn;
 
         const configuracionActualizada = await configuracionRepository.actualizarConfiguracion(
             { comandaPlantilla: payload },
@@ -724,22 +770,13 @@ router.put('/configuracion/comanda-plantilla', async (req, res) => {
 
         logger.info('Plantilla de comanda actualizada', { modificadoPor });
 
-        // Devolver con logo sincronizado para que el frontend lo muestre
-        const plantillaResp = configuracionActualizada.comandaPlantilla.toObject
-            ? configuracionActualizada.comandaPlantilla.toObject()
-            : { ...configuracionActualizada.comandaPlantilla };
+        const plantillaResp = plantillaPlana(configuracionActualizada.comandaPlantilla) || {};
         plantillaResp.logo = configuracionActualizada.voucherPlantilla?.logo
             || configuracionActualizada.datosFiscales?.logoUrl
             || '';
         plantillaResp.logoEditableEn = 'bouchers.html';
 
-        const io = global.io;
-        if (io?.of) {
-            const payload = { plantilla: plantillaResp };
-            io.of('/cocina').emit('comanda-plantilla-actualizada', payload);
-            io.of('/admin').emit('comanda-plantilla-actualizada', payload);
-            io.of('/mozos').emit('comanda-plantilla-actualizada', payload);
-        }
+        emitirPlantillaActualizada('comanda-plantilla-actualizada', plantillaResp);
 
         res.set('Cache-Control', 'no-store');
         res.json({
