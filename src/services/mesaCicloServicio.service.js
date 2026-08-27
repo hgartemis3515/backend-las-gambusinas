@@ -38,9 +38,22 @@ const fallbackPorComandasPagadas = async (mesaId) => {
       status: { $in: ['pendiente_aprobar', 'pagado', 'entregado'] },
       tiempoPagado: { $exists: true, $ne: null, $gte: haceHoras },
     })
-    .select('_id tiempoPagado pedido')
+    .select('_id tiempoPagado pedido createdAt')
     .sort({ tiempoPagado: -1 })
     .lean();
+
+  // Intento 1b: pago parcial en pendiente_aprobar (aún sin tiempoPagado).
+  if (!pagadas.length) {
+    pagadas = await comandaModel
+      .find({
+        mesas: mesaId,
+        IsActive: true,
+        status: { $in: ['pendiente_aprobar', 'entregado'] },
+      })
+      .select('_id tiempoPagado pedido createdAt')
+      .sort({ createdAt: -1 })
+      .lean();
+  }
 
   // Intento 2: ciclo ya cerrado (IsActive=false), solo últimas 24h — nunca todo el historial del día.
   if (!pagadas.length) {
@@ -51,7 +64,7 @@ const fallbackPorComandasPagadas = async (mesaId) => {
         status: { $in: ['pagado', 'completado', 'entregado', 'pendiente_aprobar'] },
         tiempoPagado: { $exists: true, $ne: null, $gte: hace24h },
       })
-      .select('_id tiempoPagado pedido')
+      .select('_id tiempoPagado pedido createdAt')
       .sort({ tiempoPagado: -1 })
       .lean();
   }
@@ -68,17 +81,17 @@ const fallbackPorComandasPagadas = async (mesaId) => {
     }
   }
 
-  const tUltima = new Date(ultima.tiempoPagado).getTime();
+  const tUltima = new Date(ultima.tiempoPagado || ultima.createdAt || 0).getTime();
   const comandaIds = pagadas
-    .filter((c) => tUltima - new Date(c.tiempoPagado).getTime() <= VENTANA_CICLO_MS)
+    .filter((c) => tUltima - new Date(c.tiempoPagado || c.createdAt || 0).getTime() <= VENTANA_CICLO_MS)
     .map((c) => String(c._id));
 
   return {
     tipo: 'fallback_ultimo_pago',
     pedidoId: null,
     comandaIds,
-    desde: new Date(tUltima - VENTANA_CICLO_MS),
-    hasta: ultima.tiempoPagado,
+    desde: Number.isFinite(tUltima) ? new Date(tUltima - VENTANA_CICLO_MS) : null,
+    hasta: ultima.tiempoPagado || ultima.createdAt || null,
   };
 };
 
@@ -121,33 +134,54 @@ const fallbackPorComandasActivas = async (mesaId) => {
  */
 const obtenerComandaIdsDeTicketsRecientes = async (mesaId, pedidoId) => {
   const hace12h = moment().tz(ZONA).subtract(12, 'hours').toDate();
-  const filtro = {
-    mesa: mesaId,
-    estado: 'aprobado',
-    fechaAprobacion: { $gte: hace12h },
-  };
+  const mesaFiltro = { mesa: mesaId, isActive: { $ne: false } };
+  const selectTicket = 'comandas fechaAprobacion pedido createdAt';
 
-  const [tas, tpas] = await Promise.all([
-    ticketAprobacionModel.find(filtro).select('comandas fechaAprobacion pedido').sort({ fechaAprobacion: -1 }).limit(20).lean(),
-    ticketPagoAdelantadoModel.find(filtro).select('comandas fechaAprobacion pedido').sort({ fechaAprobacion: -1 }).limit(20).lean(),
+  const [tas, tpas, tasPend, tpasPend] = await Promise.all([
+    ticketAprobacionModel
+      .find({ ...mesaFiltro, estado: 'aprobado', fechaAprobacion: { $gte: hace12h } })
+      .select(selectTicket)
+      .sort({ fechaAprobacion: -1 })
+      .limit(20)
+      .lean(),
+    ticketPagoAdelantadoModel
+      .find({ ...mesaFiltro, estado: 'aprobado', fechaAprobacion: { $gte: hace12h } })
+      .select(selectTicket)
+      .sort({ fechaAprobacion: -1 })
+      .limit(20)
+      .lean(),
+    ticketAprobacionModel
+      .find({ ...mesaFiltro, estado: 'pendiente_aprobacion', createdAt: { $gte: hace12h } })
+      .select(selectTicket)
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean(),
+    ticketPagoAdelantadoModel
+      .find({ ...mesaFiltro, estado: 'pendiente_aprobacion', createdAt: { $gte: hace12h } })
+      .select(selectTicket)
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean(),
   ]);
 
-  let tickets = [...(tas || []), ...(tpas || [])].sort(
-    (a, b) => new Date(b.fechaAprobacion || 0) - new Date(a.fechaAprobacion || 0)
+  const stamp = (t) => new Date(t.fechaAprobacion || t.createdAt || 0).getTime();
+  let tickets = [...(tasPend || []), ...(tpasPend || []), ...(tas || []), ...(tpas || [])].sort(
+    (a, b) => stamp(b) - stamp(a)
   );
   if (!tickets.length) return [];
 
   if (pedidoId) {
     const pid = String(pedidoId);
-    const delPedido = tickets.filter((t) => !t.pedido || String(t.pedido) === pid);
-    if (delPedido.length) tickets = delPedido;
+    const delPedido = tickets.filter((t) => t.pedido && String(t.pedido) === pid);
+    // Sin tickets de este pedido: no reutilizar visitas anteriores (vacía Ver pedido).
+    if (!delPedido.length) return [];
+    tickets = delPedido;
   }
 
-  const t0 = new Date(tickets[0].fechaAprobacion || 0).getTime();
+  const t0 = stamp(tickets[0]);
   const ids = new Set();
   for (const t of tickets) {
-    const tA = new Date(t.fechaAprobacion || 0).getTime();
-    if (t0 - tA > VENTANA_CICLO_MS) continue;
+    if (t0 - stamp(t) > VENTANA_CICLO_MS) continue;
     (t.comandas || []).forEach((id) => ids.add(String(id)));
   }
   return [...ids];
@@ -180,9 +214,27 @@ const obtenerCicloServicioMesa = async (mesaId) => {
     return buildFromPedido(pedidoAbierto, 'abierto');
   }
 
-  // pagado / pagando / pendiente_aprobar: ciclo del último pedido pagado o en aprobación.
-  // pendiente_aprobar comparte la semántica de "pago registrado, esperando liberación".
-  if (['pagado', 'pagando', 'pendiente_aprobar'].includes(estadoMesa)) {
+  // Pago parcial (normal o PPA) enviado a cocina: la visita sigue abierta.
+  // Priorizar comandas IsActive; no usar el último pedido 'pagado' de otra visita.
+  if (estadoMesa === 'pendiente_aprobar') {
+    const porActivas = await fallbackPorComandasActivas(mesaId);
+    if (porActivas) return porActivas;
+    const pedidoPagadoParcial = await pedidoModel
+      .findOne({
+        mesa: mesaId,
+        estado: 'pagado',
+        isActive: { $ne: false },
+      })
+      .sort({ fechaPago: -1, updatedAt: -1 })
+      .lean();
+    if (pedidoPagadoParcial) {
+      return buildFromPedido(pedidoPagadoParcial, 'pagado');
+    }
+    return fallbackPorComandasPagadas(mesaId);
+  }
+
+  // pagado / pagando: ciclo del último pedido pagado (listo para Liberar).
+  if (['pagado', 'pagando'].includes(estadoMesa)) {
     const pedidoPagado = await pedidoModel
       .findOne({
         mesa: mesaId,
@@ -196,13 +248,12 @@ const obtenerCicloServicioMesa = async (mesaId) => {
       return buildFromPedido(pedidoPagado, 'pagado');
     }
 
-    // Si no hay pedido pagado activo (caso pendiente_aprobar sin pedido formal),
-    // recuperar el ciclo desde las comandas pagadas/entregadas más recientes.
     return fallbackPorComandasPagadas(mesaId);
   }
 
-  // pendiente_pago: mesa con PPA registrado — sus comandas siguen activas (platos en pedido/en_espera)
-  if (['preparado', 'pedido', 'esperando', 'pendiente_pago', 'reportado', 'reservado'].includes(estadoMesa)) {
+  // pendiente_pago: mesa con PPA registrado — sus comandas siguen activas (platos en pedido/en_espera).
+  // entregado: todos los platos entregados, mesa verde; el ciclo PPA aún no se cierra (falta Liberar).
+  if (['preparado', 'pedido', 'esperando', 'pendiente_pago', 'reportado', 'reservado', 'entregado'].includes(estadoMesa)) {
     const porActivas = await fallbackPorComandasActivas(mesaId);
     if (porActivas) {
       return porActivas;

@@ -671,12 +671,15 @@ async function procesarPagoBoucher(params) {
   // + todos los tickets aprobados). En un flujo normal, esto será false aquí
   // porque acabamos de crear un ticket pendiente; el cierre real ocurre al
   // aprobar el último ticket (ver ticketAprobacion.repository.aprobarTicket).
-  await cerrarPedidoSiMesaCompleta(
-    mesaId,
-    boucherCreado._id,
-    clienteId,
-    resumen.mesaListaParaLiberar
-  );
+  // PPA no cierra el pedido: los platos siguen en cocina/entrega y Liberar confirma después.
+  if (!esPagoAdelantado) {
+    await cerrarPedidoSiMesaCompleta(
+      mesaId,
+      boucherCreado._id,
+      clienteId,
+      resumen.mesaListaParaLiberar
+    );
+  }
 
   return { boucher: boucherCreado, resumen, ticketAprobacion: ticketAprobacionCreado };
 }

@@ -2984,12 +2984,20 @@ const getComandasPagadasPorMesa = async (mesaId) => {
 
     const idsTickets = await obtenerComandaIdsDeTicketsRecientes(mesaId, ciclo.pedidoId);
     const query = { mesas: mesaId };
-    if (idsTickets.length > 0) {
-      query._id = { $in: idsTickets };
-    } else if (ciclo.pedidoId) {
+    // Con pedido del ciclo: no filtrar en exclusivo por tickets aprobados.
+    // Un parcial pendiente_aprobacion no está en tickets 'aprobado' y, si hay
+    // tickets viejos de la misma mesa, Ver pedido devolvía lista vacía.
+    if (ciclo.pedidoId) {
       query.pedido = ciclo.pedidoId;
     } else {
-      query._id = { $in: ciclo.comandaIds };
+      const ids = [...new Set([...(ciclo.comandaIds || []).map(String), ...idsTickets])];
+      if (!ids.length) {
+        console.log(
+          `ℹ️ [getComandasPagadasPorMesa] Mesa ${mesaId}: ciclo ${ciclo.tipo} sin IDs`
+        );
+        return [];
+      }
+      query._id = { $in: ids };
     }
 
     const comandas = await comandaModel
