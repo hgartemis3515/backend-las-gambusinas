@@ -283,8 +283,8 @@ function calcularMetricasComandaCocina(platos) {
 
 /**
  * Listar usuarios KDS.
- * Por defecto solo `rol: cocinero`. Con `paraAsignacionKds` también supervisores,
- * admin y roles con acceso a la tabla KDS de supervisores.
+ * Por defecto solo `rol: cocinero`. Con `paraAsignacionKds` también roles con
+ * permiso `asignacion-automatica-kds` (supervisor/admin por defecto; personalizados en roles.html).
  */
 async function obtenerCocineros(filtros = {}) {
     try {

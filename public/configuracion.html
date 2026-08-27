@@ -692,6 +692,19 @@ tailwind.config = {
               <p class="text-[10px] text-txt-muted pl-7">Si está marcado (recomendado), cuando el supervisor intente cerrar un plato #2 o posterior, en lugar de finalizar aparecerá "Solicitar Orden". La petición llegará al Panel de Gestión del admin en la App Mozos y se notificará igualmente al admin en el Dashboard. Si se desmarca, el supervisor podrá finalizar #2/#3 sin pedir autorización.</p>
             </div>
 
+            <div class="border-t border-[rgba(212,175,55,0.15)] pt-4 mt-4 space-y-3">
+              <p class="text-xs text-gold font-semibold uppercase tracking-wide">Toques en tabla KDS</p>
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" x-model="config.cocinaPrimerToqueFinalizarAsignado" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+                <span class="text-sm text-txt-secondary">Primer toque en plato asignado: finalizar (verde)</span>
+              </label>
+              <p class="text-[10px] text-txt-muted pl-7">
+                Solo aplica si el plato ya está en amarillo (asignado o tomado por el cocinero).
+                Desmarcado (recomendado): 1.º toque deja el plato (rojo), 2.º toque selecciona para finalizar (verde).
+                Marcado: 1.º toque verde (finalizar) y 2.º toque rojo (dejar). Recargue la app de cocina.
+              </p>
+            </div>
+
             <!-- PLAN NOMBRE_PLATO_COCINA: alias corto en tabla KDS -->
             <div class="border-t border-[rgba(212,175,55,0.15)] pt-4 mt-4 space-y-3">
               <p class="text-xs text-gold font-semibold uppercase tracking-wide">Nombres en cocina</p>
@@ -1539,6 +1552,7 @@ function configApp() {
       desgloseComplementos: true,
       cocinaDeshabilitarOrdenSecuencialGuarniciones: true,
       cocinaDeshabilitarAgrupacionGuarniciones: false,
+      cocinaPrimerToqueFinalizarAsignado: false,
       sesionesSimultaneas: 3,
       timeoutInactividadMin: 30,
       requiere2fa: false,
@@ -1797,6 +1811,7 @@ function configApp() {
             this.config.cocinaObligarOrdenAsignacion = cfg.cocina.obligarOrdenAsignacion !== false;
             this.config.cocinaSolicitudOrdenFueraDeCola = cfg.cocina.solicitudOrdenFueraDeCola !== false;
             this.config.cocinaUsarNombreCocinaEnTablaKds = cfg.cocina.usarNombreCocinaEnTablaKds !== false;
+            this.config.cocinaPrimerToqueFinalizarAsignado = cfg.cocina.primerToqueFinalizarAsignado === true;
             // PLAN GUARNICIONES_SEPARADAS v1.1: flag global + umbrales de tiempos.
             this.config.cocinaPermitirGuarnicionesSeparadas = cfg.cocina.permitirGuarnicionesSeparadas !== false;
             this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones = cfg.cocina.deshabilitarOrdenSecuencialGuarniciones !== false;
@@ -1812,6 +1827,7 @@ function configApp() {
             this.config.cocinaObligarOrdenAsignacion = true;
             this.config.cocinaSolicitudOrdenFueraDeCola = true;
             this.config.cocinaUsarNombreCocinaEnTablaKds = true;
+            this.config.cocinaPrimerToqueFinalizarAsignado = false;
             this.config.cocinaPermitirGuarnicionesSeparadas = true;
             this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones = true;
             this.config.cocinaDeshabilitarAgrupacionGuarniciones = false;
@@ -1987,6 +2003,7 @@ function configApp() {
             obligarOrdenAsignacion: this.config.cocinaObligarOrdenAsignacion !== false,
             solicitudOrdenFueraDeCola: this.config.cocinaSolicitudOrdenFueraDeCola !== false,
             usarNombreCocinaEnTablaKds: this.config.cocinaUsarNombreCocinaEnTablaKds !== false,
+            primerToqueFinalizarAsignado: this.config.cocinaPrimerToqueFinalizarAsignado === true,
             // PLAN GUARNICIONES_SEPARADAS v1.1
             permitirGuarnicionesSeparadas: this.config.cocinaPermitirGuarnicionesSeparadas !== false,
             deshabilitarOrdenSecuencialGuarniciones: this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones !== false,

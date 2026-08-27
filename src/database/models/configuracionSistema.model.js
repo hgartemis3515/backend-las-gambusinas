@@ -141,6 +141,9 @@ const CONFIGURACION_DEFAULT = {
         // PLAN AGRUPACION_GUARNICIONES: si true, una tarjeta por extra (modelo v1.1).
         // Default false = agrupación ON (una tarjeta / un cronómetro por plato).
         deshabilitarAgrupacionGuarniciones: false,
+        // Plato asignado (amarillo): false = 1º dejar (rojo), 2º finalizar (verde).
+        // true = 1º finalizar (verde), 2º dejar (rojo).
+        primerToqueFinalizarAsignado: false,
         tiemposGuarnicion: {
             umbralAlertaMultiplo: 1.5,
             umbralCriticaMultiplo: 2,
@@ -530,6 +533,10 @@ const configuracionSistemaSchema = new mongoose.Schema({
         deshabilitarAgrupacionGuarniciones: {
             type: Boolean,
             default: CONFIGURACION_DEFAULT.cocina.deshabilitarAgrupacionGuarniciones
+        },
+        primerToqueFinalizarAsignado: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.cocina.primerToqueFinalizarAsignado
         },
         // Umbrales de tiempos por local (no hard-codeados). Si una guarnición supera
         // umbralAlertaSeg × tiempoMedioPreparacion → alerta visual en KDS.
