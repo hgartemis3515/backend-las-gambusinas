@@ -868,7 +868,7 @@ tailwind.config = {
                     class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
                     <option value="">— Sin primario —</option>
                     <template x-for="c in cocinerosAsignacion" :key="c._id">
-                      <option :value="c._id" x-text="c.nombre + (c.alias ? ' (' + c.alias + ')' : '')"></option>
+                      <option :value="c._id" x-text="labelCocineroAsignacion(c)"></option>
                     </template>
                   </select>
                 </div>
@@ -890,7 +890,7 @@ tailwind.config = {
                           class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded px-2 py-1.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
                           <option value="">— Selecciona —</option>
                           <template x-for="c in cocinerosAsignacion" :key="c._id">
-                            <option :value="c._id" x-text="c.nombre + (c.alias ? ' (' + c.alias + ')' : '')"></option>
+                            <option :value="c._id" x-text="labelCocineroAsignacion(c)"></option>
                           </template>
                         </select>
                         <button @click="subirBackupAsignacion(idx)" :disabled="idx === 0"
@@ -1510,7 +1510,7 @@ tailwind.config = {
                     class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
                     <option value="">— Sin primario —</option>
                     <template x-for="c in cocinerosAsignacion" :key="c._id">
-                      <option :value="c._id" x-text="c.nombre + (c.alias ? ' (' + c.alias + ')' : '')"></option>
+                      <option :value="c._id" x-text="labelCocineroAsignacion(c)"></option>
                     </template>
                   </select>
                 </div>
@@ -1529,7 +1529,7 @@ tailwind.config = {
                         <select x-model="b.cocineroId" class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded px-2 py-1.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
                           <option value="">— Selecciona —</option>
                           <template x-for="c in cocinerosAsignacion" :key="c._id">
-                            <option :value="c._id" x-text="c.nombre + (c.alias ? ' (' + c.alias + ')' : '')"></option>
+                            <option :value="c._id" x-text="labelCocineroAsignacion(c)"></option>
                           </template>
                         </select>
                         <button @click="subirBackupGuarnicion(idx)" :disabled="idx === 0" class="w-6 h-6 rounded text-txt-secondary hover:text-gold disabled:opacity-20">▲</button>
@@ -1679,7 +1679,7 @@ tailwind.config = {
               <select x-model="simuladorCocineroPadreId" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
                 <option value="">Cocinero del principal (opcional)</option>
                 <template x-for="c in cocinerosAsignacion" :key="'pad'+c._id">
-                  <option :value="c._id" x-text="c.nombre + (c.alias ? ' (' + c.alias + ')' : '')"></option>
+                  <option :value="c._id" x-text="labelCocineroAsignacion(c)"></option>
                 </template>
               </select>
               <button @click="ejecutarSimulacionGuarnicion()" :disabled="!simuladorGuarnicionKey || loadingSimulador"
@@ -3844,7 +3844,7 @@ tailwind.config = {
         class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
         <option value="">— Selecciona un cocinero —</option>
         <template x-for="c in cocinerosAsignacion" :key="c._id">
-          <option :value="c._id" x-text="c.nombre + (c.alias ? ' (' + c.alias + ')' : '')"></option>
+          <option :value="c._id" x-text="labelCocineroAsignacion(c)"></option>
         </template>
       </select>
       <div x-show="cocineroVistaId" class="space-y-2">
@@ -3943,7 +3943,7 @@ tailwind.config = {
           class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
           <option value="">— Sin primario —</option>
           <template x-for="c in cocinerosAsignacion" :key="c._id">
-            <option :value="c._id" x-text="c.nombre + (c.alias ? ' (' + c.alias + ')' : '')"></option>
+            <option :value="c._id" x-text="labelCocineroAsignacion(c)"></option>
           </template>
         </select>
       </div>
@@ -3965,7 +3965,7 @@ tailwind.config = {
                 class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded px-2 py-1.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
                 <option value="">— Selecciona —</option>
                 <template x-for="c in cocinerosAsignacion" :key="c._id">
-                  <option :value="c._id" x-text="c.nombre + (c.alias ? ' (' + c.alias + ')' : '')"></option>
+                  <option :value="c._id" x-text="labelCocineroAsignacion(c)"></option>
                 </template>
               </select>
               <button @click="subirBackupMasivo(idx)" :disabled="idx === 0"
@@ -6337,7 +6337,14 @@ function cocinerosApp() {
       if (!id) return '—';
       const c = this.cocinerosAsignacion.find(x => String(x._id) === String(id));
       if (!c) return String(id);
-      return c.alias ? `${c.nombre} (${c.alias})` : c.nombre;
+      return this.labelCocineroAsignacion(c);
+    },
+    labelCocineroAsignacion(c) {
+      if (!c) return '';
+      const nombre = c.nombre || '';
+      const alias = c.alias && c.alias !== nombre ? ` (${c.alias})` : '';
+      const rol = c.rol && c.rol !== 'cocinero' ? ` · ${c.rol}` : '';
+      return `${nombre}${alias}${rol}`;
     },
 
     get guarnicionesAsignacionFiltradas() {
@@ -6730,12 +6737,13 @@ function cocinerosApp() {
 
     async cargarCocinerosAsignacion() {
       try {
-        const data = await apiGet('/cocineros');
+        const data = await apiGet('/cocineros?paraAsignacionKds=true');
         const list = data?.data || data?.cocineros || (Array.isArray(data) ? data : []);
         this.cocinerosAsignacion = list.map(c => ({
           _id: c._id,
           nombre: c.nombre || c.name,
-          alias: c.alias || c.aliasCocinero
+          alias: c.alias || c.aliasCocinero || c.configKDS?.aliasCocinero || '',
+          rol: c.rol || 'cocinero'
         }));
       } catch (e) {
         console.error('Error al cargar cocineros:', e);

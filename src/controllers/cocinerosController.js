@@ -92,16 +92,20 @@ router.get('/cocina/cocineros', adminAuth, checkPermission('ver-cocina-completo'
 
 /**
  * GET /api/cocineros
- * Listar todos los cocineros con su configuración
+ * Listar cocineros con su configuración.
+ * Query: activo=true|false, paraAsignacionKds=true (incluye supervisores y roles con tabla KDS supervisor).
  * Requiere permiso: ver-mozos
  */
 router.get('/cocineros', adminAuth, checkPermission('ver-mozos'), async (req, res) => {
     try {
-        const { activo } = req.query;
+        const { activo, paraAsignacionKds } = req.query;
         
         const filtros = {};
         if (activo !== undefined) {
             filtros.activo = activo === 'true';
+        }
+        if (paraAsignacionKds === 'true' || paraAsignacionKds === '1') {
+            filtros.paraAsignacionKds = true;
         }
         
         const cocineros = await cocinerosRepository.obtenerCocineros(filtros);

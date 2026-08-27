@@ -16,6 +16,7 @@ const {
     listoEnPlato,
     tiempoPrepPlatoSegundos
 } = require('../utils/tiemposPrepPlato');
+const { nombresRolesElegiblesAsignacionAutomatica } = require('../utils/rolesAsignacionKds');
 
 const SLA_COCINA_MINUTOS = 15;
 const ESTADOS_PLATO_COCINA = ['pendiente', 'pedido', 'en_espera', 'recoger', 'salio', 'entregado', 'pagado'];
@@ -281,12 +282,19 @@ function calcularMetricasComandaCocina(platos) {
 }
 
 /**
- * Obtener todos los usuarios con rol de cocinero
+ * Listar usuarios KDS.
+ * Por defecto solo `rol: cocinero`. Con `paraAsignacionKds` también supervisores,
+ * admin y roles con acceso a la tabla KDS de supervisores.
  */
 async function obtenerCocineros(filtros = {}) {
     try {
-        const query = { rol: 'cocinero' };
-        
+        const query = {};
+        if (filtros.paraAsignacionKds) {
+            query.rol = { $in: await nombresRolesElegiblesAsignacionAutomatica() };
+        } else {
+            query.rol = 'cocinero';
+        }
+
         if (filtros.activo !== undefined) {
             query.activo = filtros.activo;
         }
