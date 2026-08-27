@@ -156,9 +156,9 @@ function divider(gap = 6) {
   return `<div style="border-top:1px dashed #333;margin:${gap}px 0;width:100%;"></div>`;
 }
 
-function filaMeta(etiqueta, valor) {
-  return `<tr><td style="width:35%;vertical-align:top;font-weight:600;color:#222;padding:1px 4px 1px 0;font-size:12px;">${etiqueta}</td>` +
-    `<td style="vertical-align:top;padding:1px 0;font-size:12px;word-break:break-word;">${valor}</td></tr>`;
+function filaMeta(etiqueta, valor, fontSize = 11) {
+  return `<tr><td style="width:35%;vertical-align:top;font-weight:600;color:#222;padding:1px 4px 1px 0;font-size:${fontSize}px;">${etiqueta}</td>` +
+    `<td style="vertical-align:top;padding:1px 0;font-size:${fontSize}px;word-break:break-word;">${valor}</td></tr>`;
 }
 
 function formatFecha(date) {
@@ -283,15 +283,20 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
   }
   const mensajes = p.mensajes || {};
 
-  const lineHeight = esp.lineHeight || 16;
-  const fontSize = esp.tamanoFuente || 12;
-  const dividerGap = esp.espacioDivider || 6;
+  const lineHeight = Number(esp.lineHeight) > 0 ? Number(esp.lineHeight) : 16;
+  const fontSize = Number(esp.tamanoFuente) > 0 ? Number(esp.tamanoFuente) : 11;
+  const fontSizeSm = Math.max(8, fontSize - 1);
+  const fontSizeLg = fontSize + 5;
+  const fontSizeTitle = fontSize + 3;
+  const dividerGap = Number(esp.espacioDivider) > 0 ? Number(esp.espacioDivider) : 6;
 
-  const mostrarPrecios = bloques.mostrarPrecios !== false;
-  const mostrarTotal = bloques.mostrarTotal !== false;
+  const mostrarPrecios = bloques.mostrarPrecios !== false && vis.precios !== false;
+  const mostrarTotal = bloques.mostrarTotal !== false && vis.total !== false;
   const mostrarSubtotal = bloques.mostrarTotales === true;
   const mostrarIGV = bloques.mostrarIGV === true;
   const simbolo = getSimboloMoneda(datos.moneda);
+
+  const meta = (etiqueta, valor) => filaMeta(etiqueta, valor, fontSize);
 
   // Logo
   const logoUrl = resolveLogoUrl(p.logo || '', serverOrigin);
@@ -308,48 +313,48 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
       html += `<img src="${escapeHtml(logoUrl)}" style="max-width:100%;max-height:64px;object-fit:contain;margin:0 auto 4px;display:block;" alt="Logo">`;
     }
     if (mostrarNombre) {
-      html += `<div style="font-size:16px;font-weight:800;line-height:1.2;">${escapeHtml(p.restaurante?.nombre || 'LAS GAMBUSINAS')}</div>`;
+      html += `<div style="font-size:${fontSizeLg}px;font-weight:800;line-height:1.2;">${escapeHtml(p.restaurante?.nombre || 'LAS GAMBUSINAS')}</div>`;
     }
     if (mostrarEslogan && p.restaurante?.eslogan) {
-      html += `<div style="font-size:10px;font-weight:500;color:#444;line-height:1.3;">${escapeHtml(p.restaurante.eslogan)}</div>`;
+      html += `<div style="font-size:${fontSizeSm}px;font-weight:500;color:#444;line-height:1.3;">${escapeHtml(p.restaurante.eslogan)}</div>`;
     }
     html += '</div>';
     html += divider(dividerGap);
 
     // Título COMANDA
-    html += `<div style="text-align:center;font-weight:700;font-size:14px;line-height:1.2;width:100%;letter-spacing:2px;">${escapeHtml(p.encabezado?.titulo || 'COMANDA')}</div>`;
+    html += `<div style="text-align:center;font-weight:700;font-size:${fontSizeTitle}px;line-height:1.2;width:100%;letter-spacing:2px;">${escapeHtml(p.encabezado?.titulo || 'COMANDA')}</div>`;
     html += divider(dividerGap);
   }
 
   // === DATOS COMANDA ===
   if (bloques.mostrarDatosComanda !== false) {
-    html += '<table style="width:100%;font-size:12px;border-collapse:collapse;table-layout:fixed;">';
+    html += `<table style="width:100%;font-size:${fontSize}px;border-collapse:collapse;table-layout:fixed;">`;
 
     if (vis.comandaNumero !== false) {
       const numeroEtiqueta = datos.comandaNumeroDisplay
         || formatComandasNumbersLabel(datos.comandasNumbers)
         || (datos.comandaNumero != null ? `#${datos.comandaNumero}` : '');
       if (numeroEtiqueta) {
-        html += filaMeta(`${etiquetas.comandaNumero}:`, `<strong>${escapeHtml(numeroEtiqueta)}</strong>`);
+        html += meta(`${etiquetas.comandaNumero}:`, `<strong>${escapeHtml(numeroEtiqueta)}</strong>`);
       }
     }
     if (vis.fechaPedido !== false && datos.fechaPedido) {
-      html += filaMeta(`${etiquetas.fechaPedido}:`, escapeHtml(formatFecha(datos.fechaPedido)));
+      html += meta(`${etiquetas.fechaPedido}:`, escapeHtml(formatFecha(datos.fechaPedido)));
     }
     if (vis.mesa !== false && datos.mesa) {
-      html += filaMeta(`${etiquetas.mesa}:`, `<strong>${escapeHtml(String(datos.mesa))}</strong>`);
+      html += meta(`${etiquetas.mesa}:`, `<strong>${escapeHtml(String(datos.mesa))}</strong>`);
     }
     if (vis.mozo !== false && datos.mozo) {
-      html += filaMeta(`${etiquetas.mozo}:`, escapeHtml(datos.mozo));
+      html += meta(`${etiquetas.mozo}:`, escapeHtml(datos.mozo));
     }
     if (vis.area !== false && datos.area) {
-      html += filaMeta(`${etiquetas.area}:`, escapeHtml(datos.area));
+      html += meta(`${etiquetas.area}:`, escapeHtml(datos.area));
     }
     if (vis.tipoPago !== false && datos.tipoPago) {
-      html += filaMeta(`${etiquetas.tipoPago}:`, escapeHtml(getLabelMetodoPago(datos.tipoPago)));
+      html += meta(`${etiquetas.tipoPago}:`, escapeHtml(getLabelMetodoPago(datos.tipoPago)));
     }
-    if (isTipoPagoEfectivo(datos.tipoPago) && datos.moneda) {
-      html += filaMeta(`${etiquetas.moneda}:`, escapeHtml(getLabelMoneda(datos.moneda)));
+    if (vis.moneda !== false && isTipoPagoEfectivo(datos.tipoPago) && datos.moneda) {
+      html += meta(`${etiquetas.moneda}:`, escapeHtml(getLabelMoneda(datos.moneda)));
     }
     html += '</table>';
     html += divider(dividerGap);
@@ -357,14 +362,14 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
 
   // === DETALLE PRODUCTOS ===
   if (bloques.mostrarDetalleProductos !== false && datos.productos?.length) {
-    const tblStyle = 'width:100%;font-size:12px;border-collapse:collapse;table-layout:fixed;';
+    const tblStyle = `width:100%;font-size:${fontSize}px;border-collapse:collapse;table-layout:fixed;`;
     html += `<table style="${tblStyle}">`;
     html += '<thead><tr style="font-weight:700;border-bottom:1px solid #000;">';
-    html += '<th style="text-align:left;width:46%;font-size:12px;">Prod</th>';
-    html += '<th style="text-align:center;width:11%;font-size:12px;">Cant.</th>';
+    html += `<th style="text-align:left;width:46%;font-size:${fontSize}px;">Prod</th>`;
+    html += `<th style="text-align:center;width:11%;font-size:${fontSize}px;">Cant.</th>`;
     if (mostrarPrecios) {
-      html += '<th style="text-align:right;width:21%;font-size:12px;">P.Unit</th>';
-      html += '<th style="text-align:right;width:22%;font-size:12px;">Total</th>';
+      html += `<th style="text-align:right;width:21%;font-size:${fontSize}px;">P.Unit</th>`;
+      html += `<th style="text-align:right;width:22%;font-size:${fontSize}px;">Total</th>`;
     }
     html += '</tr></thead>';
 
@@ -379,18 +384,18 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
       html += '<tbody class="prod-item">';
 
       html += '<tr>';
-      html += `<td style="vertical-align:top;font-size:12px;overflow-wrap:break-word;padding:2px 4px 2px 0;">${nombre}${marcadorPL}</td>`;
-      html += `<td style="text-align:center;vertical-align:top;font-size:12px;padding:2px 0;">${cantidad}</td>`;
+      html += `<td style="vertical-align:top;font-size:${fontSize}px;overflow-wrap:break-word;padding:2px 4px 2px 0;">${nombre}${marcadorPL}</td>`;
+      html += `<td style="text-align:center;vertical-align:top;font-size:${fontSize}px;padding:2px 0;">${cantidad}</td>`;
       if (mostrarPrecios) {
-        html += `<td style="text-align:right;vertical-align:top;font-size:12px;padding:2px 1px 2px 0;white-space:nowrap;">${precio.toFixed(2)}</td>`;
-        html += `<td style="text-align:right;vertical-align:top;font-size:12px;padding:2px 0;white-space:nowrap;">${subtotalProd.toFixed(2)}</td>`;
+        html += `<td style="text-align:right;vertical-align:top;font-size:${fontSize}px;padding:2px 1px 2px 0;white-space:nowrap;">${precio.toFixed(2)}</td>`;
+        html += `<td style="text-align:right;vertical-align:top;font-size:${fontSize}px;padding:2px 0;white-space:nowrap;">${subtotalProd.toFixed(2)}</td>`;
       }
       html += '</tr>';
 
       // Complementos
       if (prod.complementos?.length) {
         for (const c of prod.complementos) {
-          html += '<tr style="font-size:11px;color:#555;">';
+          html += `<tr style="font-size:${fontSizeSm}px;color:#555;">`;
           html += `<td colspan="${mostrarPrecios ? 4 : 2}" style="padding:0 0 2px 8px;">`;
           html += `└ ${escapeHtml(c.grupo || '')}: ${escapeHtml(c.opcion || '')}`;
           if (c.precio > 0) {
@@ -421,7 +426,7 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
             }
             const textoResumen = partes.join(' ').trim();
             if (textoResumen) {
-              html += '<tr style="font-size:10px;font-weight:600;color:#333;">';
+              html += `<tr style="font-size:${fontSizeSm}px;font-weight:600;color:#333;">`;
               html += `<td colspan="${mostrarPrecios ? 4 : 2}" style="padding:1px 0 2px 8px;border-top:1px dotted #999;">Σ Complementos: ${escapeHtml(textoResumen)}</td>`;
               html += '</tr>';
             }
@@ -431,7 +436,7 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
 
       // Nota especial
       if (prod.notaEspecial) {
-        html += `<tr style="font-size:10px;font-style:italic;color:#666;">`;
+        html += `<tr style="font-size:${fontSizeSm}px;font-style:italic;color:#666;">`;
         html += `<td colspan="${mostrarPrecios ? 4 : 2}" style="padding:0 0 2px 8px;">📌 ${escapeHtml(prod.notaEspecial)}</td>`;
         html += '</tr>';
       }
@@ -444,26 +449,26 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
 
   // === TOTALES ===
   if (mostrarTotal) {
-    html += '<div style="text-align:right;width:100%;font-size:12px;">';
+    html += `<div style="text-align:right;width:100%;font-size:${fontSize}px;">`;
     const subtotalFinal = datos.subtotal || 0;
     const igvFinal = datos.igv || 0;
     const totalFinal = datos.total || 0;
 
     if (mostrarSubtotal && mostrarPrecios && subtotalFinal > 0) {
-      html += `<div style="padding:1px 0;">Subtotal: <span style="font-weight:500;">${simbolo}${subtotalFinal.toFixed(2)}</span></div>`;
+      html += `<div style="padding:1px 0;">${escapeHtml(etiquetas.subtotal || 'Subtotal')}: <span style="font-weight:500;">${simbolo}${subtotalFinal.toFixed(2)}</span></div>`;
     }
     if (mostrarIGV && igvFinal > 0) {
       const igvPctNum = Number(datos.igvPorcentaje);
       const igvPct = Number.isFinite(igvPctNum) ? igvPctNum : 18;
-      const nombreImpuesto = datos.nombreImpuesto || 'IGV';
+      const nombreImpuesto = etiquetas.igv || datos.nombreImpuesto || 'IGV';
       html += `<div style="padding:1px 0;">${escapeHtml(nombreImpuesto)} (${igvPct}%): <span style="font-weight:500;">${simbolo}${igvFinal.toFixed(2)}</span></div>`;
     }
-    html += `<div style="font-size:14px;font-weight:700;border-top:2px solid #000;padding-top:4px;margin-top:4px;">${escapeHtml(etiquetas.total)}: ${simbolo}${totalFinal.toFixed(2)}</div>`;
+    html += `<div style="font-size:${fontSizeTitle}px;font-weight:700;border-top:2px solid #000;padding-top:4px;margin-top:4px;">${escapeHtml(etiquetas.total)}: ${simbolo}${totalFinal.toFixed(2)}</div>`;
 
     // Bloque efectivo: monto recibido + vuelto (solo si método de pago es efectivo)
     if (isTipoPagoEfectivo(datos.tipoPago) && (datos.montoRecibido != null || datos.vuelto != null)) {
-      html += `<div style="padding:2px 0 1px;font-size:12px;">Recibido: <span style="font-weight:500;">${simbolo}${(datos.montoRecibido || 0).toFixed(2)}</span></div>`;
-      html += `<div style="padding:1px 0;font-size:13px;font-weight:700;">Vuelto: ${simbolo}${(datos.vuelto || 0).toFixed(2)}</div>`;
+      html += `<div style="padding:2px 0 1px;font-size:${fontSize}px;">Recibido: <span style="font-weight:500;">${simbolo}${(datos.montoRecibido || 0).toFixed(2)}</span></div>`;
+      html += `<div style="padding:1px 0;font-size:${fontSize + 1}px;font-weight:700;">Vuelto: ${simbolo}${(datos.vuelto || 0).toFixed(2)}</div>`;
     }
 
     html += '</div>';
@@ -476,12 +481,12 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
     const clienteDni = datos.cliente?.dni || '';
     if (clienteName || clienteDni) {
       html += `<div style="border-top:1px dashed #333;margin:${dividerGap}px 0;width:100%;"></div>`;
-      html += '<table style="width:100%;font-size:12px;border-collapse:collapse;table-layout:fixed;">';
+      html += `<table style="width:100%;font-size:${fontSize}px;border-collapse:collapse;table-layout:fixed;">`;
       if (vis.cliente !== false && clienteName) {
-        html += filaMeta(`${etiquetas.cliente}:`, escapeHtml(clienteName));
+        html += meta(`${etiquetas.cliente}:`, escapeHtml(clienteName));
       }
       if (vis.dniCliente !== false && clienteDni) {
-        html += filaMeta(`${etiquetas.dni}:`, escapeHtml(clienteDni));
+        html += meta(`${etiquetas.dni}:`, escapeHtml(clienteDni));
       }
       html += '</table>';
     }
@@ -489,14 +494,14 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
 
   // === OBSERVACIONES ===
   if (bloques.mostrarObservaciones !== false && datos.observaciones) {
-    html += `<div style="margin-top:4px;font-size:11px;color:#555;width:100%;">`;
+    html += `<div style="margin-top:4px;font-size:${fontSizeSm}px;color:#555;width:100%;">`;
     html += `📌 <strong>${etiquetas.observaciones}:</strong> ${escapeHtml(datos.observaciones)}`;
     html += '</div>';
   }
 
   // === PIE ===
   if (mensajes.pie) {
-    html += `<div style="text-align:center;font-size:10px;color:#999;margin-top:8px;">${escapeHtml(mensajes.pie)}</div>`;
+    html += `<div style="text-align:center;font-size:${fontSizeSm}px;color:#999;margin-top:8px;">${escapeHtml(mensajes.pie)}</div>`;
   }
 
   const heightPx = estimarAltura(datos, bloques);

@@ -31,6 +31,9 @@ async function defaultFetchJson(url) {
 /** GET /comanda-plantilla devuelve { success, plantilla }. Acepta también el objeto plano. */
 function unwrapPlantillaComanda(res) {
   if (!res || typeof res !== 'object') return null;
+  if (res.configuracion?.comandaPlantilla) {
+    return unwrapPlantillaComanda(res.configuracion.comandaPlantilla);
+  }
   const inner = res.plantilla;
   if (inner && typeof inner === 'object' && (inner.bloques || inner.visibilidad || inner.restaurante || inner.espaciado)) {
     return inner;
@@ -45,12 +48,19 @@ async function obtenerPlantillaComandaViva(fetchJson, plantillaLocal, usarLocal)
   if (usarLocal) {
     return unwrapPlantillaComanda(plantillaLocal) || plantillaLocal || null;
   }
-  try {
-    const res = await fetchJson(`/api/configuracion/comanda-plantilla?_=${Date.now()}`);
-    const fresh = unwrapPlantillaComanda(res);
-    if (fresh) return fresh;
-  } catch {
-    /* fallback local */
+  const stamp = Date.now();
+  const urls = [
+    `/api/configuracion/comanda-plantilla?_=${stamp}`,
+    `/configuracion/comanda-plantilla?_=${stamp}`,
+  ];
+  for (const url of urls) {
+    try {
+      const res = await fetchJson(url);
+      const fresh = unwrapPlantillaComanda(res);
+      if (fresh) return fresh;
+    } catch {
+      /* siguiente url */
+    }
   }
   return unwrapPlantillaComanda(plantillaLocal) || plantillaLocal || null;
 }

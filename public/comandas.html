@@ -2684,6 +2684,7 @@ formatearNombreMesa(mesa, mesaObj = null) {
        comandaId: comanda._id || null,
        datos: comanda._id ? null : window.mapComandaATicket(comanda),
        plantilla: this.plantillaComanda,
+       usarPlantillaLocal: false,
        serverOrigin: window.location.origin,
        fetchJson: (url) => this.fetchJsonComandaPrint(url),
        comandasNumbersOverride: comandasNumbersGrupo.length ? comandasNumbersGrupo : null,
@@ -3833,6 +3834,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  try {
  const opts = {
  plantilla: this.plantillaComanda,
+ usarPlantillaLocal: false,
  serverOrigin: window.location.origin,
  fetchJson: (url) => this.fetchJsonComandaPrint(url),
  };
