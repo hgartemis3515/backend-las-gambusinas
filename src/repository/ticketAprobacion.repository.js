@@ -7,6 +7,7 @@
 const mongoose = require('mongoose');
 const moment = require('moment-timezone');
 const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
+const { adjuntarDescuentoTicket, BOUCHER_DESCUENTO_SELECT } = require('../utils/descuentoTicketSnapshot');
 const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
 const comandaModel = require('../database/models/comanda.model');
 const mesasModel = require('../database/models/mesas.model');
@@ -135,6 +136,9 @@ async function crearTicketAprobacion(data) {
     subtotal: data.subtotal || 0,
     igv: data.igv || 0,
     total: data.total || 0,
+    totalSinDescuento: data.totalSinDescuento ?? null,
+    montoDescuento: data.montoDescuento || 0,
+    descuentos: data.descuentos || [],
     boucher: data.boucher || null,
     voucherId: data.voucherId || null,
     moneda: data.moneda || 'PEN',
@@ -192,8 +196,10 @@ async function obtenerTicketsPendientes(fecha) {
     })
     .populate('mesa', 'nummesa estado nombreCombinado')
     .populate('mozo', 'name')
+    .populate('boucher', BOUCHER_DESCUENTO_SELECT)
     .sort({ createdAt: 1 })
-    .lean();
+    .lean()
+    .then((tickets) => tickets.map(adjuntarDescuentoTicket));
 }
 
 /**
@@ -210,8 +216,10 @@ async function obtenerTicketsPorFecha(fecha) {
     })
     .populate('mesa', 'nummesa estado nombreCombinado')
     .populate('mozo', 'name')
+    .populate('boucher', BOUCHER_DESCUENTO_SELECT)
     .sort({ createdAt: -1 })
-    .lean();
+    .lean()
+    .then((tickets) => tickets.map(adjuntarDescuentoTicket));
 }
 
 /**
@@ -661,6 +669,11 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
     igvPorcentaje: igvSnap.igvPorcentaje,
     nombreImpuesto: igvSnap.nombreImpuesto,
     total: ticket.total,
+    montoDescuento: Number(ticket.montoDescuento ?? boucherData?.montoDescuento ?? 0) || 0,
+    totalSinDescuento: ticket.totalSinDescuento ?? boucherData?.totalSinDescuento ?? null,
+    descuentos: (ticket.descuentos && ticket.descuentos.length)
+      ? ticket.descuentos
+      : (boucherData?.descuentos || []),
     cliente: {
       nombre: ticket.clienteNombre || boucherData?.clienteNombre || NOMBRE_CLIENTE_FALLBACK,
       dni: ticket.clienteDni || boucherData?.clienteDni || '',

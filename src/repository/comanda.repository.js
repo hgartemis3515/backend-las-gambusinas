@@ -4509,9 +4509,11 @@ const anularComandaCompleta = async (comandaId, motivo, observaciones, usuarioId
  * @param {string} motivo - Motivo del descuento (requerido si descuento > 0)
  * @param {string} usuarioId - ID del usuario que aplica el descuento
  * @param {string} usuarioRol - Rol del usuario para validación
+ * @param {Object} [opciones]
+ * @param {number} [opciones.monto] - Descuento en S/. (se convierte a % sobre el subtotal)
  * @returns {Object} Comanda actualizada con descuento aplicado
  */
-const aplicarDescuento = async (comandaId, descuento, motivo, usuarioId, usuarioRol) => {
+const aplicarDescuento = async (comandaId, descuento, motivo, usuarioId, usuarioRol, opciones = {}) => {
   const logPrefix = '💰 [aplicarDescuento]';
   
   try {
@@ -4523,20 +4525,8 @@ const aplicarDescuento = async (comandaId, descuento, motivo, usuarioId, usuario
       throw error;
     }
 
-    // 2. Validar que el descuento esté en rango válido
-    const descuentoNum = Number(descuento);
-    if (isNaN(descuentoNum) || descuentoNum < 0 || descuentoNum > 100 || !Number.isInteger(descuentoNum)) {
-      const error = new Error('El descuento debe ser un número entero entre 0 y 100');
-      error.statusCode = 400;
-      throw error;
-    }
-
-    // 3. Validar motivo obligatorio si hay descuento
-    if (descuentoNum > 0 && (!motivo || motivo.trim().length < 3)) {
-      const error = new Error('El motivo del descuento es obligatorio (mínimo 3 caracteres)');
-      error.statusCode = 400;
-      throw error;
-    }
+    // 2. El % se valida después de resolver monto fijo (si aplica)
+    let descuentoNum = Number(descuento);
 
     // 4. Buscar la comanda
     const comanda = await comandaModel.findById(comandaId)
@@ -4571,6 +4561,30 @@ const aplicarDescuento = async (comandaId, descuento, motivo, usuarioId, usuario
         ? Number(platoItem.precioUnitario)
         : (platoItem.plato?.precio || platoItem.precio || 0);
       subtotalActual += precio * cantidad;
+    }
+
+    const montoFijo = Number(opciones?.monto);
+    if (Number.isFinite(montoFijo) && montoFijo > 0) {
+      if (subtotalActual <= 0) {
+        const error = new Error('No hay subtotal para aplicar un descuento por monto');
+        error.statusCode = 400;
+        throw error;
+      }
+      descuentoNum = Math.min(100, (Math.min(montoFijo, subtotalActual) / subtotalActual) * 100);
+    }
+
+    if (!Number.isFinite(descuentoNum)) descuentoNum = 0;
+    if (descuentoNum < 0 || descuentoNum > 100) {
+      const error = new Error('El descuento debe estar entre 0 y 100');
+      error.statusCode = 400;
+      throw error;
+    }
+    descuentoNum = Math.round(descuentoNum * 100) / 100;
+
+    if (descuentoNum > 0 && (!motivo || motivo.trim().length < 3)) {
+      const error = new Error('El motivo del descuento es obligatorio (mínimo 3 caracteres)');
+      error.statusCode = 400;
+      throw error;
     }
 
     // 7. Calcular totales usando calculosPrecios (respeta preciosIncluyenIGV)

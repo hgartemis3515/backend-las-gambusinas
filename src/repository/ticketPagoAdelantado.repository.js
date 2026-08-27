@@ -8,6 +8,7 @@ const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelanta
 const comandaModel = require('../database/models/comanda.model');
 const AuditoriaAcciones = require('../database/models/auditoriaAcciones.model');
 const logger = require('../utils/logger');
+const { adjuntarDescuentoTicket, BOUCHER_DESCUENTO_SELECT } = require('../utils/descuentoTicketSnapshot');
 
 const MAX_COMANDA_SAVE_RETRIES = 3;
 
@@ -153,10 +154,11 @@ async function obtenerTicketsPendientes(fecha) {
   })
     .populate('mesa', 'nummesa estado nombreCombinado')
     .populate('mozo', 'name')
+    .populate('boucher', BOUCHER_DESCUENTO_SELECT)
     .sort({ createdAt: 1 })
     .lean();
 
-  return tickets;
+  return tickets.map(adjuntarDescuentoTicket);
 }
 
 /**
@@ -173,10 +175,11 @@ async function obtenerTicketsPorFecha(fecha) {
   })
     .populate('mesa', 'nummesa estado nombreCombinado')
     .populate('mozo', 'name')
+    .populate('boucher', BOUCHER_DESCUENTO_SELECT)
     .sort({ createdAt: -1 })
     .lean();
 
-  return tickets;
+  return tickets.map(adjuntarDescuentoTicket);
 }
 
 /**

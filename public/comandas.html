@@ -1362,21 +1362,21 @@ tailwind.config = {
  </div>
 
  <!-- SECCION DESCUENTO - Solo visible para admin/supervisor -->
- <div x-show="puedeAplicarDescuento" x-data="{ descuentoInput: 0, motivoDescuento: '', aplicandoDescuento: false }"
+ <div x-show="puedeAplicarDescuento" x-data="{ descuentoInput: 0, descuentoMontoInput: 0, motivoDescuento: '', aplicandoDescuento: false, _syncingDesc: false }"
  class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
  <div class="flex items-center justify-between mb-3">
  <div class="flex items-center gap-2">
  <span class="text-lg">💰</span>
  <p class="text-[10px] text-[#5a5a7a] uppercase font-semibold tracking-wider">Descuento Admin</p>
  </div>
- <span x-show="editComanda?.descuento > 0" class="text-xs px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-semibold" x-text="'Aplicado: ' + editComanda.descuento + '%'"></span>
+ <span x-show="editComanda?.descuento > 0" class="text-xs px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-semibold" x-text="'Aplicado: ' + formatPctDescuento(editComanda.descuento) + '% (-S/. ' + Number(editComanda.montoDescuento || 0).toFixed(2) + ')'"></span>
  </div>
 
  <!-- Descuento actual aplicado -->
  <div x-show="editComanda?.descuento > 0" class="mb-3 p-3 bg-[rgba(46,204,113,0.1)] border border-st-preparado/30 rounded-lg">
  <div class="flex items-center justify-between text-sm">
  <span class="text-txt-secondary">Descuento actual:</span>
- <span class="text-st-preparado font-bold" x-text="editComanda.descuento + '%'"></span>
+ <span class="text-st-preparado font-bold" x-text="formatPctDescuento(editComanda.descuento) + '%'"></span>
  </div>
  <div class="flex items-center justify-between text-sm mt-1">
  <span class="text-txt-secondary">Motivo:</span>
@@ -1396,11 +1396,19 @@ tailwind.config = {
 
  <!-- Formulario para aplicar/modificar descuento -->
  <div class="grid grid-cols-12 gap-3 items-end">
- <div class="col-span-3">
+ <div class="col-span-2">
  <label class="text-[10px] text-txt-muted mb-1 block">Porcentaje (%)</label>
- <input type="number" x-model.number="descuentoInput" min="0" max="100" step="1"
+ <input type="number" x-model.number="descuentoInput" min="0" max="100" step="0.01"
+ @input="if (_syncingDesc) return; _syncingDesc = true; const t = calcularTotalEdit(); descuentoMontoInput = Number(((t * (Number(descuentoInput) || 0)) / 100).toFixed(2)); _syncingDesc = false;"
  class="w-full h-9 bg-bg-sidebar border-2 border-[rgba(212,175,55,0.4)] rounded-lg px-3 py-1 text-white text-sm font-bold focus:border-gold focus:outline-none text-center"
  :placeholder="editComanda?.descuento || 0">
+ </div>
+ <div class="col-span-2">
+ <label class="text-[10px] text-txt-muted mb-1 block">Monto (S/.)</label>
+ <input type="number" x-model.number="descuentoMontoInput" min="0" step="0.01"
+ @input="if (_syncingDesc) return; _syncingDesc = true; const t = calcularTotalEdit(); const m = Math.max(0, Number(descuentoMontoInput) || 0); descuentoInput = t > 0 ? Number((Math.min(m, t) / t * 100).toFixed(2)) : 0; _syncingDesc = false;"
+ class="w-full h-9 bg-bg-sidebar border-2 border-[rgba(212,175,55,0.4)] rounded-lg px-3 py-1 text-white text-sm font-bold focus:border-gold focus:outline-none text-center"
+ placeholder="0.00">
  </div>
  <div class="col-span-5">
  <label class="text-[10px] text-txt-muted mb-1 block">Motivo del descuento</label>
@@ -1408,8 +1416,8 @@ tailwind.config = {
  class="w-full h-9 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1 text-white text-sm focus:border-gold focus:outline-none"
  :value="editComanda?.motivoDescuento || ''">
  </div>
- <div class="col-span-4">
- <button @click="aplicarDescuentoComanda(descuentoInput, motivoDescuento)"
+ <div class="col-span-3">
+ <button @click="aplicarDescuentoComanda(descuentoInput, motivoDescuento, descuentoMontoInput)"
  :disabled="aplicandoDescuento || editComanda?.status === 'pagado'"
  class="w-full h-9 bg-st-preparado text-white rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
  <span x-show="!aplicandoDescuento">✓ Aplicar</span>
@@ -1422,19 +1430,19 @@ tailwind.config = {
  </div>
 
  <!-- Vista previa del descuento -->
- <div x-show="descuentoInput > 0" class="mt-3 p-3 bg-[rgba(212,175,55,0.05)] border border-gold/20 rounded-lg">
+ <div x-show="descuentoInput > 0 || descuentoMontoInput > 0" class="mt-3 p-3 bg-[rgba(212,175,55,0.05)] border border-gold/20 rounded-lg">
  <div class="grid grid-cols-3 gap-2 text-sm">
  <div>
  <p class="text-[10px] text-txt-muted">Subtotal</p>
  <p class="text-white font-semibold" x-text="'S/. ' + calcularTotalEdit().toFixed(2)"></p>
  </div>
  <div>
- <p class="text-[10px] text-txt-muted">Descuento (<span x-text="descuentoInput"></span>%)</p>
- <p class="text-st-pagado font-semibold" x-text="'-S/. ' + (calcularTotalEdit() * descuentoInput / 100).toFixed(2)"></p>
+ <p class="text-[10px] text-txt-muted">Descuento (<span x-text="formatPctDescuento(descuentoInput)"></span>%)</p>
+ <p class="text-st-pagado font-semibold" x-text="'-S/. ' + (Number(descuentoMontoInput) > 0 ? Number(descuentoMontoInput) : (calcularTotalEdit() * descuentoInput / 100)).toFixed(2)"></p>
  </div>
  <div>
  <p class="text-[10px] text-txt-muted">Total Final</p>
- <p class="text-st-preparado font-bold text-lg" x-text="'S/. ' + (calcularTotalEdit() * (1 - descuentoInput / 100)).toFixed(2)"></p>
+ <p class="text-st-preparado font-bold text-lg" x-text="'S/. ' + (calcularTotalEdit() - (Number(descuentoMontoInput) > 0 ? Number(descuentoMontoInput) : (calcularTotalEdit() * descuentoInput / 100))).toFixed(2)"></p>
  </div>
  </div>
  </div>
@@ -1784,21 +1792,21 @@ tailwind.config = {
  </div>
 
  <!-- DESCUENTO PARA EL GRUPO (igual que editar comanda) -->
- <div x-show="puedeAplicarDescuento" x-data="{ descuentoGrupoInput: 0, motivoDescuentoGrupo: '' }"
+ <div x-show="puedeAplicarDescuento" x-data="{ descuentoGrupoInput: 0, descuentoMontoGrupoInput: 0, motivoDescuentoGrupo: '', _syncingDescG: false }"
  class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
  <div class="flex items-center justify-between mb-3">
  <div class="flex items-center gap-2">
  <span class="text-lg">💰</span>
  <p class="text-[10px] text-[#5a5a7a] uppercase font-semibold tracking-wider">Descuento para el Grupo</p>
  </div>
- <span x-show="getDescuentoGrupoAplicado(editGrupo) > 0" class="text-xs px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-semibold" x-text="'Aplicado: ' + getDescuentoGrupoAplicado(editGrupo) + '%'"></span>
+ <span x-show="getDescuentoGrupoAplicado(editGrupo) > 0" class="text-xs px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-semibold" x-text="'Aplicado: ' + formatPctDescuento(getDescuentoGrupoAplicado(editGrupo)) + '%'"></span>
  </div>
 
  <!-- Descuento actual aplicado al grupo -->
  <div x-show="getDescuentoGrupoAplicado(editGrupo) > 0" class="mb-3 p-3 bg-[rgba(46,204,113,0.1)] border border-st-preparado/30 rounded-lg">
  <div class="flex items-center justify-between text-sm">
  <span class="text-txt-secondary">Descuento grupo:</span>
- <span class="text-st-preparado font-bold" x-text="getDescuentoGrupoAplicado(editGrupo) + '%'"></span>
+ <span class="text-st-preparado font-bold" x-text="formatPctDescuento(getDescuentoGrupoAplicado(editGrupo)) + '%'"></span>
  </div>
  <div class="flex items-center justify-between text-sm mt-1">
  <span class="text-txt-secondary">Ahorro total:</span>
@@ -1813,18 +1821,26 @@ tailwind.config = {
 
  <!-- Formulario para aplicar descuento al grupo -->
  <div class="grid grid-cols-12 gap-3 items-end">
- <div class="col-span-3">
+ <div class="col-span-2">
  <label class="text-[10px] text-txt-muted mb-1 block">Porcentaje (%)</label>
- <input type="number" x-model.number="descuentoGrupoInput" min="0" max="100" step="1"
+ <input type="number" x-model.number="descuentoGrupoInput" min="0" max="100" step="0.01"
+ @input="if (_syncingDescG) return; _syncingDescG = true; const t = Number(editGrupo?.totalAgrupado || 0); descuentoMontoGrupoInput = Number(((t * (Number(descuentoGrupoInput) || 0)) / 100).toFixed(2)); _syncingDescG = false;"
  class="w-full h-9 bg-bg-sidebar border-2 border-[rgba(212,175,55,0.4)] rounded-lg px-3 py-1 text-white text-sm font-bold focus:border-gold focus:outline-none text-center">
+ </div>
+ <div class="col-span-2">
+ <label class="text-[10px] text-txt-muted mb-1 block">Monto (S/.)</label>
+ <input type="number" x-model.number="descuentoMontoGrupoInput" min="0" step="0.01"
+ @input="if (_syncingDescG) return; _syncingDescG = true; const t = Number(editGrupo?.totalAgrupado || 0); const m = Math.max(0, Number(descuentoMontoGrupoInput) || 0); descuentoGrupoInput = t > 0 ? Number((Math.min(m, t) / t * 100).toFixed(2)) : 0; _syncingDescG = false;"
+ class="w-full h-9 bg-bg-sidebar border-2 border-[rgba(212,175,55,0.4)] rounded-lg px-3 py-1 text-white text-sm font-bold focus:border-gold focus:outline-none text-center"
+ placeholder="0.00">
  </div>
  <div class="col-span-5">
  <label class="text-[10px] text-txt-muted mb-1 block">Motivo del descuento</label>
  <input type="text" x-model="motivoDescuentoGrupo" placeholder="Ej: Voucher VIP, Cliente frecuente..."
  class="w-full h-9 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1 text-white text-sm focus:border-gold focus:outline-none">
  </div>
- <div class="col-span-4">
- <button @click="aplicarDescuentoGrupo(descuentoGrupoInput, motivoDescuentoGrupo)"
+ <div class="col-span-3">
+ <button @click="aplicarDescuentoGrupo(descuentoGrupoInput, motivoDescuentoGrupo, descuentoMontoGrupoInput)"
  :disabled="aplicandoDescuentoGrupo || grupoTodoPagado(editGrupo)"
  class="w-full h-9 bg-st-preparado text-white rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
  <span x-show="!aplicandoDescuentoGrupo">✓ Aplicar al Grupo</span>
@@ -4076,10 +4092,15 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  getDescuentoGrupoAplicado(grupo) {
  if (!grupo?.comandas?.length) return 0;
- const descuentos = grupo.comandas.map(c => c.descuento || 0).filter(d => d > 0);
+ const descuentos = grupo.comandas.map(c => Number(c.descuento || 0)).filter(d => d > 0);
  if (descuentos.length === 0) return 0;
  const first = descuentos[0];
  return descuentos.every(d => d === first) ? first : 0;
+ },
+
+ formatPctDescuento(n) {
+ const x = Number(n) || 0;
+ return Number.isInteger(x) ? String(x) : x.toFixed(2);
  },
 
  getMontoDescuentoGrupo(grupo) {
@@ -4092,10 +4113,16 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  return grupo.comandas.every(c => c.estado === 'pagado');
  },
 
- async aplicarDescuentoGrupo(porcentaje, motivo) {
+ async aplicarDescuentoGrupo(porcentaje, motivo, monto) {
  if (!this.editGrupo?.comandas?.length) return;
- if (porcentaje < 0 || porcentaje > 100) { this.showToast('El descuento debe estar entre 0 y 100%', 'error'); return; }
- if (porcentaje > 0 && (!motivo || motivo.trim().length < 3)) { this.showToast('El motivo del descuento es obligatorio (mínimo 3 caracteres)', 'error'); return; }
+ let pct = Number(porcentaje) || 0;
+ const montoNum = Number(monto) || 0;
+ const totalGrupo = Number(this.editGrupo?.totalAgrupado || 0);
+ if (montoNum > 0 && totalGrupo > 0) {
+ pct = Number((Math.min(montoNum, totalGrupo) / totalGrupo * 100).toFixed(2));
+ }
+ if (pct < 0 || pct > 100) { this.showToast('El descuento debe estar entre 0 y 100%', 'error'); return; }
+ if (pct > 0 && (!motivo || motivo.trim().length < 3)) { this.showToast('El motivo del descuento es obligatorio (mínimo 3 caracteres)', 'error'); return; }
  if (!this.puedeAplicarDescuento) { this.showToast('No tienes permisos para aplicar descuentos', 'error'); return; }
  const pagadas = this.editGrupo.comandas.filter(c => c.estado === 'pagado');
  if (pagadas.length) { this.showToast('No se puede aplicar descuento a comandas ya pagadas', 'error'); return; }
@@ -4105,15 +4132,15 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  for (const comanda of this.editGrupo.comandas) {
  try {
  const res = await apiPut('/comanda/' + comanda._id + '/descuento', {
- descuento: parseInt(porcentaje),
+ descuento: pct,
  motivo: motivo.trim(),
  usuarioId: 'admin',
  usuarioRol: this.userRole
  });
  if (res?.ok && !res.error) {
- comanda.descuento = porcentaje;
+ comanda.descuento = pct;
  comanda.motivoDescuento = motivo;
- comanda.montoDescuento = res.descuentoAplicado?.montoDescuento != null ? res.descuentoAplicado.montoDescuento : (comanda.total || 0) * porcentaje / 100;
+ comanda.montoDescuento = res.descuentoAplicado?.montoDescuento != null ? res.descuentoAplicado.montoDescuento : (comanda.total || 0) * pct / 100;
  exitosos++;
  }
  } catch (e) { console.error(e); }
@@ -4302,15 +4329,22 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  // ==================== CRUD INDIVIDUAL ====================
 
- async aplicarDescuentoComanda(descuento, motivo) {
+ async aplicarDescuentoComanda(descuento, motivo, monto) {
  if (!this.editComanda._id) return;
 
- if (descuento < 0 || descuento > 100) {
+ let pct = Number(descuento) || 0;
+ const montoNum = Number(monto) || 0;
+ const subtotal = this.calcularTotalEdit();
+ if (montoNum > 0 && subtotal > 0) {
+ pct = Number((Math.min(montoNum, subtotal) / subtotal * 100).toFixed(2));
+ }
+
+ if (pct < 0 || pct > 100) {
  this.showToast('El descuento debe estar entre 0 y 100%', 'error');
  return;
  }
 
- if (descuento > 0 && (!motivo || motivo.trim().length < 3)) {
+ if (pct > 0 && (!motivo || motivo.trim().length < 3)) {
  this.showToast('El motivo del descuento es obligatorio (mínimo 3 caracteres)', 'error');
  return;
  }
@@ -4326,22 +4360,25 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  }
 
  try {
- console.log('💰 Aplicando descuento:', { descuento, motivo, comandaId: this.editComanda._id });
+ console.log('💰 Aplicando descuento:', { descuento: pct, monto: montoNum, motivo, comandaId: this.editComanda._id });
 
- const res = await apiPut('/comanda/' + this.editComanda._id + '/descuento', {
- descuento: parseInt(descuento),
+ const body = {
+ descuento: pct,
  motivo: motivo.trim(),
  usuarioId: 'admin',
  usuarioRol: this.userRole
- });
+ };
+ if (montoNum > 0) body.monto = montoNum;
+
+ const res = await apiPut('/comanda/' + this.editComanda._id + '/descuento', body);
 
  console.log('📥 Respuesta descuento:', res);
 
  if (res?.ok && !res.error) {
- this.editComanda.descuento = descuento;
+ this.editComanda.descuento = pct;
  this.editComanda.motivoDescuento = motivo;
- this.editComanda.totalCalculado = res.descuentoAplicado?.totalCalculado != null ? res.descuentoAplicado.totalCalculado : this.calcularTotalEdit() * (1 - descuento / 100);
- this.editComanda.montoDescuento = res.descuentoAplicado?.montoDescuento != null ? res.descuentoAplicado.montoDescuento : this.calcularTotalEdit() * descuento / 100;
+ this.editComanda.totalCalculado = res.descuentoAplicado?.totalCalculado != null ? res.descuentoAplicado.totalCalculado : this.calcularTotalEdit() * (1 - pct / 100);
+ this.editComanda.montoDescuento = res.descuentoAplicado?.montoDescuento != null ? res.descuentoAplicado.montoDescuento : this.calcularTotalEdit() * pct / 100;
 
  const detalleActualizado = await this.loadComandaDetalle(this.editComanda._id);
  if (detalleActualizado) {
@@ -4356,7 +4393,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  };
  }
 
- this.showToast(`✅ Descuento del ${descuento}% aplicado correctamente`);
+ this.showToast(`✅ Descuento de S/. ${Number(this.editComanda.montoDescuento || 0).toFixed(2)} (${this.formatPctDescuento(this.editComanda.descuento)}%) aplicado`);
 
  if (this.socket && this.socket.connected) {
  this.socket.emit('comandaActualizada', { _id: this.editComanda._id });

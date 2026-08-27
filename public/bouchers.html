@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Vouchers — Las Gambusinas</title>
+<title>Tickets y Vouchers — Las Gambusinas</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
 <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
@@ -23,6 +23,7 @@ tailwind.config = {
 }
 </script>
 <script src="/socket.io/socket.io.js"></script>
+<script type="module" src="/js/comanda-print/comandaPrintWeb.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -99,8 +100,8 @@ tailwind.config = {
     <!-- HEADER -->
     <div class="flex items-center justify-between mb-5">
       <div>
-        <h1 class="text-xl font-bold">Vouchers</h1>
-        <p class="text-txt-muted text-sm mt-0.5">Gestión de comprobantes y plantilla de impresión</p>
+        <h1 class="text-xl font-bold">Tickets y Vouchers</h1>
+        <p class="text-txt-muted text-sm mt-0.5">Vouchers, tickets de cocina y plantilla de impresión</p>
       </div>
       <div class="flex items-center gap-3">
         <span x-show="socketConnected" class="flex items-center gap-1 text-xs text-st-libre" title="Conectado en tiempo real">
@@ -109,7 +110,7 @@ tailwind.config = {
         <span x-show="!socketConnected" class="flex items-center gap-1 text-xs text-txt-muted" title="Sin conexión en tiempo real">
           <span class="w-2 h-2 bg-txt-muted rounded-full"></span> Sin conexión
         </span>
-        <button x-show="activeTab === 'tabla'" @click="loadBouchers()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
+        <button x-show="activeTab === 'tabla'" @click="loadBouchers(); loadTicketsCocina()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
         <button x-show="activeTab === 'voucher' && plantillaModificada" @click="guardarPlantilla()" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">💾 Guardar Plantilla</button>
       </div>
     </div>
@@ -149,6 +150,9 @@ tailwind.config = {
         </button>
         <button @click="limpiarFiltros()" x-show="filterCodigo || filterNumero || filterMozo || filterFechaDesde || filterFechaHasta" class="px-3 py-2 text-xs text-txt-muted hover:text-gold transition border border-transparent hover:border-gold/30 rounded-lg">✕ Limpiar</button>
       </div>
+
+      <div class="flex flex-col xl:flex-row gap-4 items-start">
+      <div class="flex-1 min-w-0 w-full">
 
       <div x-show="loading && bouchers.length === 0" class="flex items-center justify-center h-32">
         <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
@@ -259,6 +263,59 @@ tailwind.config = {
       <div x-show="agruparPorPedido && groupedRows.some(r => r.tipo === 'grupo')" class="mt-4 p-4 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl flex items-center justify-between">
         <span class="text-sm text-txt-secondary">Total agrupado visible</span>
         <span class="text-lg font-bold text-gold" x-text="'S/. ' + totalAgrupadoVisible.toFixed(2)"></span>
+      </div>
+      </div>
+
+      <div class="w-full xl:w-[440px] xl:flex-shrink-0">
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+          <div class="px-4 py-3 bg-bg-sidebar flex items-center justify-between gap-2">
+            <div>
+              <p class="text-sm font-bold">Tabla de tickets</p>
+              <p class="text-[10px] text-txt-muted">Tickets de cocina y pagos adelantados</p>
+            </div>
+            <input type="date" x-model="fechaTickets" @change="loadTicketsCocina()"
+              class="bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs text-txt-secondary w-36">
+          </div>
+          <div x-show="loadingTickets" class="flex items-center justify-center h-24">
+            <div class="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+          </div>
+          <div x-show="!loadingTickets" class="overflow-x-auto max-h-[70vh] overflow-y-auto">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="bg-bg-sidebar text-txt-secondary text-[10px] uppercase sticky top-0">
+                  <th class="text-left px-3 py-2 font-semibold">#</th>
+                  <th class="text-left px-3 py-2 font-semibold">Tipo</th>
+                  <th class="text-left px-3 py-2 font-semibold">Mesa</th>
+                  <th class="text-left px-3 py-2 font-semibold">Mozo</th>
+                  <th class="text-left px-3 py-2 font-semibold">Estado</th>
+                  <th class="text-left px-3 py-2 font-semibold">Total</th>
+                  <th class="text-left px-3 py-2 font-semibold"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr x-show="ticketsCocina.length === 0">
+                  <td colspan="7" class="px-3 py-6 text-center text-txt-muted">No hay tickets en esta fecha</td>
+                </tr>
+                <template x-for="ticket in ticketsCocina" :key="ticket._id">
+                  <tr class="border-t border-[rgba(212,175,55,0.08)] hover:bg-bg-sidebar/40">
+                    <td class="px-3 py-2 font-semibold text-gold" x-text="'#' + (ticket.ticketNumber || '—')"></td>
+                    <td class="px-3 py-2">
+                      <span class="text-[10px] px-1.5 py-0.5 rounded-full" :class="claseTipoTicket(ticket)" x-text="labelTipoTicket(ticket)"></span>
+                    </td>
+                    <td class="px-3 py-2" x-text="mesaTicket(ticket)"></td>
+                    <td class="px-3 py-2 text-txt-secondary truncate max-w-[90px]" x-text="mozoTicket(ticket)"></td>
+                    <td class="px-3 py-2 text-txt-muted" x-text="labelEstadoTicket(ticket)"></td>
+                    <td class="px-3 py-2 text-gold font-semibold whitespace-nowrap" x-text="'S/. ' + Number(ticket.total || 0).toFixed(2)"></td>
+                    <td class="px-3 py-2 text-right">
+                      <button type="button" class="hover:text-gold transition" @click="imprimirTicketCocina(ticket)" title="Imprimir ticket">🖨️</button>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
       </div>
     </div>
 
@@ -871,7 +928,7 @@ function bouchersApp() {
   return {
     sidebarOpen: true, modal: null, loading: true, detailLoading: false,
     bouchers: [], filteredBouchers: [], selectedBoucher: null,
-    activeNav: 'bouchers', pageTitle: 'Vouchers', activeTab: 'tabla',
+    activeNav: 'bouchers', pageTitle: 'Tickets y Vouchers', activeTab: 'tabla',
     plantillaModificada: false, plantillaOriginal: null, previewZoom: 100,
     nuevoProductoId: '',
     platosDisponibles: [],
@@ -948,6 +1005,9 @@ function bouchersApp() {
     
     filterCodigo: '', filterNumero: '', filterMozo: '', filterFechaDesde: '', filterFechaHasta: '',
     mozosList: [],
+    fechaTickets: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' }),
+    ticketsCocina: [],
+    loadingTickets: false,
 
     // Agrupación de vouchers por pedido (paridad con comandas.html)
     agruparPorPedido: true,       // true por defecto (vista Agrupada al abrir)
@@ -960,6 +1020,7 @@ function bouchersApp() {
 
       // Cargar datos primero (prioridad: mostrar la tabla)
       await this.loadBouchers();
+      await this.loadTicketsCocina();
       await this.cargarPlatos();
       await this.cargarPlantillaLocal();
       this.plantilla.etiquetas = { ...this.ETIQUETAS_DEFAULT, ...this.plantilla.etiquetas };
@@ -1002,6 +1063,13 @@ function bouchersApp() {
           this.plantilla = this.deepMerge(this.plantilla, data.plantilla);
           this.plantillaOriginal = JSON.parse(JSON.stringify(this.plantilla));
         });
+
+        const recargarTickets = () => { this.loadTicketsCocina(); };
+        this.socket.on('ticket-aprobacion-nuevo', recargarTickets);
+        this.socket.on('ticket-ppa-nuevo', recargarTickets);
+        this.socket.on('comanda-aprobada', recargarTickets);
+        this.socket.on('ticket-ppa-aprobado', recargarTickets);
+        this.socket.on('ticket-ppa-actualizado', recargarTickets);
 
         // Evento principal: nuevo boucher creado
         this.socket.on('reportes:boucher-nuevo', (data) => {
@@ -1275,10 +1343,8 @@ function bouchersApp() {
     async cargarPlantillaLocal() {
       try {
         // Intentar cargar desde el backend primero
-        const response = await fetch('/api/configuracion/voucher-plantilla');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.plantilla) {
+        const data = await apiGet('/configuracion/voucher-plantilla');
+        if (data?.success && data.plantilla) {
             // Normalizar etiquetas antes del merge
             if (data.plantilla.etiquetas) {
               data.plantilla.etiquetas = {
@@ -1291,7 +1357,6 @@ function bouchersApp() {
             console.log('✅ Plantilla cargada desde el backend');
             return;
           }
-        }
       } catch (error) {
         console.warn('Error cargando plantilla del backend:', error);
       }
@@ -1319,13 +1384,9 @@ function bouchersApp() {
     
     async guardarPlantilla() {
       try {
-        const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
         const response = await fetch('/api/configuracion/voucher-plantilla', {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
+          headers: dashboardAuthHeaders(true),
           body: JSON.stringify(this.plantilla)
         });
 
@@ -1513,6 +1574,75 @@ body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoF
       if (w) { w.document.write(html); w.document.close(); }
     },
     
+    fetchJsonComandaPrint(url) {
+      return apiGet(String(url).replace(/^\/api/, ''));
+    },
+
+    labelTipoTicket(t) {
+      const tipo = String(t?.tipo || '').toUpperCase();
+      if (tipo === 'ADELANTADO' || tipo === 'PAGO_ADELANTADO') return 'Adelantado';
+      if (tipo === 'PAGO_PARCIAL') return 'Parcial';
+      return 'Comanda';
+    },
+
+    claseTipoTicket(t) {
+      const tipo = String(t?.tipo || '').toUpperCase();
+      if (tipo === 'ADELANTADO' || tipo === 'PAGO_ADELANTADO') return 'bg-st-reservado/20 text-st-reservado';
+      if (tipo === 'PAGO_PARCIAL') return 'bg-st-esperando/20 text-st-esperando';
+      return 'bg-st-pedido/20 text-st-pedido';
+    },
+
+    mesaTicket(t) {
+      const n = t?.numMesa ?? t?.mesa?.nummesa ?? t?.mesa?.numMesa;
+      return n != null ? ('Mesa ' + n) : '—';
+    },
+
+    mozoTicket(t) {
+      return t?.nombreMozo || t?.mozoNombre || t?.mozo?.name || t?.mozo?.nombre || '—';
+    },
+
+    labelEstadoTicket(t) {
+      const e = String(t?.estado || '').toLowerCase();
+      if (e === 'aprobado') return 'Aprobado';
+      if (e === 'pendiente_aprobacion') return 'Pendiente';
+      if (e === 'reportado') return 'Reportado';
+      return t?.estado || '—';
+    },
+
+    async loadTicketsCocina() {
+      this.loadingTickets = true;
+      try {
+        const fecha = this.fechaTickets || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+        const data = await apiGet('/aprobacion/fecha/' + fecha);
+        const raw = Array.isArray(data?.tickets) ? data.tickets : [];
+        this.ticketsCocina = raw;
+      } catch (e) {
+        console.error('Error cargando tickets cocina:', e);
+        this.ticketsCocina = [];
+      } finally {
+        this.loadingTickets = false;
+      }
+    },
+
+    async imprimirTicketCocina(ticket) {
+      if (!ticket?._id) return;
+      if (typeof window.imprimirComandaDesdeTicket !== 'function') {
+        this.showToast('Módulo de impresión no disponible', 'error');
+        return;
+      }
+      try {
+        const ok = await window.imprimirComandaDesdeTicket(ticket, {
+          usarPlantillaLocal: false,
+          serverOrigin: window.location.origin,
+          fetchJson: (url) => this.fetchJsonComandaPrint(url),
+        });
+        if (!ok) this.showToast('Error al imprimir ticket', 'error');
+      } catch (e) {
+        console.error('Error imprimiendo ticket:', e);
+        this.showToast('Error al imprimir ticket', 'error');
+      }
+    },
+
     async loadBouchers() {
       this.loading = true;
       let data = await apiGet('/boucher') || await apiGet('/bouchers');

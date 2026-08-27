@@ -245,6 +245,9 @@ function mapearTicketADatos(ticket) {
     igvPorcentaje: ticket.igvPorcentaje,
     nombreImpuesto: ticket.nombreImpuesto,
     total: ticket.total || 0,
+    montoDescuento: Number(ticket.montoDescuento ?? ticket.boucher?.montoDescuento ?? 0) || 0,
+    totalSinDescuento: ticket.totalSinDescuento ?? ticket.boucher?.totalSinDescuento ?? null,
+    descuentos: ticket.descuentos?.length ? ticket.descuentos : (ticket.boucher?.descuentos || []),
     cliente: {
       nombre: ticket.cliente?.nombre || ticket.nombreCliente || ticket.clienteNombre || 'Cliente',
       dni: ticket.cliente?.dni || ticket.dniCliente || ticket.clienteDni || '',

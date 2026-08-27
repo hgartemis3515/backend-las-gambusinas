@@ -100,6 +100,14 @@ const ticketAprobacionSchema = new mongoose.Schema({
   subtotal: { type: Number, required: true, default: 0 },
   igv: { type: Number, required: true, default: 0 },
   total: { type: Number, required: true, default: 0 },
+  totalSinDescuento: { type: Number, default: null },
+  montoDescuento: { type: Number, default: 0 },
+  descuentos: [{
+    comandaNumber: { type: Number },
+    porcentaje: { type: Number, default: 0 },
+    motivo: { type: String },
+    monto: { type: Number, default: 0 },
+  }],
   // Referencia al boucher contable asociado (no se anula al reportar)
   boucher: {
     type: mongoose.Schema.Types.ObjectId,

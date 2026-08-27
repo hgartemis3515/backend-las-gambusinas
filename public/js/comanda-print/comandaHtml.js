@@ -222,6 +222,9 @@ function estimarAltura(datos, bloques) {
   if ((bloques.mostrarTotales === true && datos.subtotal) || (bloques.mostrarIGV === true && datos.igv)) {
     h += 40;
   }
+  if (Number(datos.montoDescuento) > 0) {
+    h += 16;
+  }
   if (isTipoPagoEfectivo(datos.tipoPago) && (datos.montoRecibido != null || datos.vuelto != null)) {
     h += 24;
   }
@@ -463,6 +466,11 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
       const nombreImpuesto = etiquetas.igv || datos.nombreImpuesto || 'IGV';
       html += `<div style="padding:1px 0;">${escapeHtml(nombreImpuesto)} (${igvPct}%): <span style="font-weight:500;">${simbolo}${igvFinal.toFixed(2)}</span></div>`;
     }
+    const montoDesc = Number(datos.montoDescuento || 0);
+    if (montoDesc > 0) {
+      const motivoDesc = datos.descuentos?.[0]?.motivo ? ` (${escapeHtml(datos.descuentos[0].motivo)})` : '';
+      html += `<div style="padding:1px 0;">Descuento${motivoDesc}: <span style="font-weight:500;">-${simbolo}${montoDesc.toFixed(2)}</span></div>`;
+    }
     html += `<div style="font-size:${fontSizeTitle}px;font-weight:700;border-top:2px solid #000;padding-top:4px;margin-top:4px;">${escapeHtml(etiquetas.total)}: ${simbolo}${totalFinal.toFixed(2)}</div>`;
 
     // Bloque efectivo: monto recibido + vuelto (solo si método de pago es efectivo)
@@ -550,7 +558,9 @@ export function mapComandaATicket(comanda, boucherOpcional, config = {}) {
       })),
     subtotal: boucherOpcional?.subtotal ?? comanda.subtotal ?? 0,
     igv: boucherOpcional?.igv ?? comanda.igv ?? 0,
-    total: boucherOpcional?.total ?? comanda.total ?? comanda.precioTotal ?? 0,
+    total: boucherOpcional?.totalConDescuento ?? boucherOpcional?.total ?? comanda.totalCalculado ?? comanda.total ?? comanda.precioTotal ?? 0,
+    montoDescuento: Number(boucherOpcional?.montoDescuento ?? comanda.montoDescuento ?? 0) || 0,
+    descuentos: boucherOpcional?.descuentos || (comanda.descuento > 0 ? [{ porcentaje: comanda.descuento, motivo: comanda.motivoDescuento, monto: comanda.montoDescuento }] : []),
     cliente: {
       nombre: comanda.clienteNombre || comanda.cliente?.nombre || (typeof boucherOpcional?.cliente === 'object' ? boucherOpcional.cliente?.nombre : null) || 'Cliente',
       dni: comanda.cliente?.dni || (typeof boucherOpcional?.cliente === 'object' ? boucherOpcional.cliente?.dni : null) || '',

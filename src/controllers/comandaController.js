@@ -3439,7 +3439,7 @@ router.put('/comanda/:id/anular-todo', async (req, res) => {
  */
 router.put('/comanda/:id/descuento', async (req, res) => {
     const { id } = req.params;
-    const { descuento, motivo, usuarioId, usuarioRol } = req.body;
+    const { descuento, monto, motivo, usuarioId, usuarioRol } = req.body;
     const sourceApp = req.body.sourceApp || req.headers['x-source-app'] || 'api';
     const deviceId = req.body.deviceId || req.headers['x-device-id'] || null;
 
@@ -3471,7 +3471,7 @@ router.put('/comanda/:id/descuento', async (req, res) => {
         }
 
         // Aplicar descuento
-        const resultado = await aplicarDescuento(id, descuento, motivo, usuarioId, usuarioRol);
+        const resultado = await aplicarDescuento(id, descuento, motivo, usuarioId, usuarioRol, { monto });
 
         // Registrar auditoría
         req.auditoria = {
@@ -3487,7 +3487,8 @@ router.put('/comanda/:id/descuento', async (req, res) => {
             ip: req.ip,
             deviceId: deviceId,
             metadata: {
-                descuentoPorcentaje: descuento,
+                descuentoPorcentaje: resultado.descuentoAplicado.porcentaje,
+                descuentoMonto: resultado.descuentoAplicado.montoDescuento,
                 motivoDescuento: motivo,
                 totalAntes: totalAntes,
                 totalDespues: resultado.descuentoAplicado.totalCalculado,
@@ -3507,7 +3508,7 @@ router.put('/comanda/:id/descuento', async (req, res) => {
         const snapshotDespues = {
             comandaNumber: resultado.comanda.comandaNumber,
             total: resultado.descuentoAplicado.totalCalculado,
-            descuento: descuento,
+            descuento: resultado.descuentoAplicado.porcentaje,
             motivoDescuento: motivo,
             montoDescuento: resultado.descuentoAplicado.montoDescuento
         };

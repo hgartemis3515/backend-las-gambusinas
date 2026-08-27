@@ -156,7 +156,7 @@ const sharedData = {
     tiposPlato: { label: 'Tipos de Plato', icon: '🏷️', href: '/tipos-de-platos.html' },
     platos: { label: 'Platos', icon: '🍲', href: '/platos.html' },
     comandas: { label: 'Comandas', icon: '📋', href: '/comandas.html' },
-    bouchers: { label: 'Vouchers', icon: '🧾', href: '/bouchers.html' },
+    bouchers: { label: 'Tickets y Vouchers', icon: '🧾', href: '/bouchers.html' },
     clientes: { label: 'Clientes', icon: '👥', href: '/clientes.html' },
     auditoria: { label: 'Auditoría', icon: '🔍', href: '/auditoria.html' },
     cierre: { label: 'Cierre Caja', icon: '💰', href: '/cierre-caja.html' },

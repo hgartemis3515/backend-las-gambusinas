@@ -491,9 +491,10 @@ const comandaSchema = new mongoose.Schema({
         max: 100,
         validate: {
             validator: function(v) {
-                return Number.isInteger(v) && v >= 0 && v <= 100;
+                const n = Number(v);
+                return Number.isFinite(n) && n >= 0 && n <= 100;
             },
-            message: 'El descuento debe ser un número entero entre 0 y 100'
+            message: 'El descuento debe estar entre 0 y 100'
         }
     },
     motivoDescuento: {
@@ -723,18 +724,18 @@ comandaSchema.pre('save', async function (next) {
                 const calculosPrecios = require('../../utils/calculosPrecios');
                 const configMoneda = await calculosPrecios.getConfigMonedaCached();
                 const subtotalSinDescuento = precioTotalSinEliminar;
-                const montoDescuento = subtotalSinDescuento * (this.descuento / 100);
-                const subtotalConDescuento = subtotalSinDescuento - montoDescuento;
+                const montoDescuentoNeto = subtotalSinDescuento * (this.descuento / 100);
+                const subtotalConDescuento = subtotalSinDescuento - montoDescuentoNeto;
                 const totalesSinDesc = calculosPrecios.calcularTotales(subtotalSinDescuento, configMoneda);
                 const totalesConDesc = calculosPrecios.calcularTotales(subtotalConDescuento, configMoneda);
 
                 this.totalSinDescuento = totalesSinDesc.total;
-                this.montoDescuento = montoDescuento;
                 this.totalCalculado = totalesConDesc.total;
+                this.montoDescuento = Number((totalesSinDesc.total - totalesConDesc.total).toFixed(2));
                 
                 console.log(`💰 [pre-save] Recalculando totales con descuento ${this.descuento}%:`, {
                     subtotalSinDescuento,
-                    montoDescuento,
+                    montoDescuento: this.montoDescuento,
                     totalCalculado: this.totalCalculado
                 });
             }
