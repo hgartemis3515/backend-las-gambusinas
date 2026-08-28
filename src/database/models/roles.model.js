@@ -55,6 +55,7 @@ const PERMISOS_FUNDAMENTALES = {
     'ver-vista-supervisor-cocina': { nombre: 'Vista Supervisor Cocina', grupo: 'App Cocina', descripcion: 'Acceder a la vista de supervisor en App Cocina (asignar cocineros, tomar/dejar platos)' },
     'asignacion-automatica-kds': { nombre: 'Asignación automática KDS', grupo: 'App Cocina', descripcion: 'Puede ser elegido en auto-asignación de platos (cocineros.html), igual que un cocinero' },
     'ver-boton-prioridad-kds': { nombre: 'Ver Botón de Prioridad', grupo: 'App Cocina', descripcion: 'Visualizar el botón de prioridad en los 3 tableros KDS del app de cocina' },
+    'entregar-plato-entero-kds': { nombre: 'Entregar plato entero', grupo: 'App Cocina', descripcion: 'Mostrar el botón "Entregar plato entero" a la derecha de Finalizar plato: finaliza y confirma salida del pass (recoger → salio) en un paso' },
     'utilidad-supervisor': { nombre: 'Utilidad de Supervisor', grupo: 'App Cocina', descripcion: 'Permite actuar como supervisor en App Cocina: finalizar, entregar, tomar o liberar platos/comandas tomadas por otros cocineros' },
     'ver-cocina-completo': { nombre: 'Ver Cocina Completo', grupo: 'App Cocina', descripcion: 'Acceder al monitor de cocina completo (solo lectura, todas las estaciones)' },
     'ver-cocina-personalizado': { nombre: 'Ver Cocina Personalizado', grupo: 'App Cocina', descripcion: 'Acceder a monitores de cocina filtrados por vista personalizada (TVs por estacion)' },
@@ -93,7 +94,7 @@ const PERMISOS_POR_ROL_SISTEMA = {
         'ver-notificaciones', 'crear-comandas', 'editar-comandas',
         'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina', 'aplicar-descuentos',
         'crear-comandas-dashboard',
-        'ver-vista-supervisor-cocina', 'asignacion-automatica-kds', 'ver-boton-prioridad-kds', 'utilidad-supervisor',
+        'ver-vista-supervisor-cocina', 'asignacion-automatica-kds', 'ver-boton-prioridad-kds', 'entregar-plato-entero-kds', 'utilidad-supervisor',
         'ver-cocina-completo', 'ver-cocina-personalizado', 'desplegar-monitores-cocina', 'administrar-vistas-cocina',
         // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: reservas desde App Mozos + KDS
         'crear-reservas-mozos', 'asignar-encargado-reserva', 'ver-reservas-kds',
@@ -103,7 +104,7 @@ const PERMISOS_POR_ROL_SISTEMA = {
     ],
     cocinero: [
         'ver-platos', 'ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas',
-        'ver-cocina-completo', 'ver-cocina-personalizado', 'asignacion-automatica-kds',
+        'ver-cocina-completo', 'ver-cocina-personalizado', 'asignacion-automatica-kds', 'entregar-plato-entero-kds',
         // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: ver tab Reservadas
         'ver-reservas-kds',
         // Mensajería: cocinero puede leer, escribir y enviar voz (prioridad normal)

@@ -101,6 +101,7 @@ const PERMISOS_FUNDAMENTALES = {
     'ver-comandas-cocina': { nombre: 'Ver Comandas Cocina', grupo: 'App Cocina' },
     'cambiar-estados-platos': { nombre: 'Cambiar Estados Platos', grupo: 'App Cocina' },
     'revertir-comandas': { nombre: 'Revertir Comandas', grupo: 'App Cocina' },
+    'entregar-plato-entero-kds': { nombre: 'Entregar plato entero', grupo: 'App Cocina' },
 
     // Mensajería interna + voz (v1 — ver docs/PLAN_MENSAJERIA_VOZ_TRES_APPS.md)
     'ver-mensajes': { nombre: 'Ver Mensajes', grupo: 'Mensajería' },
@@ -144,6 +145,7 @@ const PERMISOS_FUNDAMENTALES = {
 | ver-comandas-cocina | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | cambiar-estados-platos | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
 | revertir-comandas | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| entregar-plato-entero-kds | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | **Mensajería** |
 | ver-mensajes | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | enviar-mensajes | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
