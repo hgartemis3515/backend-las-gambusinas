@@ -98,9 +98,13 @@
    * @param {String} grupoNombre
    * @returns {Number}
    */
+  function sameText(a, b) {
+    return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+  }
+
   function totalSeleccionadoEnGrupo(seleccion, grupoNombre) {
     return (seleccion || [])
-      .filter(s => s && s.grupo === grupoNombre)
+      .filter(s => s && sameText(s.grupo, grupoNombre))
       .reduce((acc, s) => acc + (Number(s.cantidad) || 0), 0);
   }
 
@@ -108,7 +112,7 @@
    * Obtiene la cantidad seleccionada de una opción específica dentro de un grupo.
    */
   function cantidadOpcion(seleccion, grupoNombre, opcionNombre) {
-    const s = (seleccion || []).find(x => x.grupo === grupoNombre && x.opcion === opcionNombre);
+    const s = (seleccion || []).find(x => sameText(x.grupo, grupoNombre) && sameText(x.opcion, opcionNombre));
     return s ? (Number(s.cantidad) || 0) : 0;
   }
 
@@ -164,19 +168,27 @@
    */
   function calcularExtraComplementos(plato, seleccion) {
     if (plato?.complementosAfectanPrecio === false) return 0;
+    if (!Array.isArray(seleccion) || !seleccion.length) return 0;
     const grupos = Array.isArray(plato?.complementos) ? plato.complementos : [];
-    if (!grupos.length || !Array.isArray(seleccion) || !seleccion.length) return 0;
 
     let extra = 0;
     for (const s of seleccion) {
-      if (!s || !s.grupo || !s.opcion) continue;
-      const g = grupos.find(x => String(x.grupo) === s.grupo || String(x.nombre) === s.grupo);
-      if (!g) continue;
-      const op = (g.opciones || []).find(o =>
-        (typeof o === 'string' ? o : o?.nombre) === s.opcion
-      );
-      const precioOp = op ? (typeof op === 'string' ? 0 : (Number(op.precio) || 0)) : (Number(s.precio) || 0);
-      extra += precioOp * (Number(s.cantidad) || 0);
+      if (!s || (!s.grupo && !s.opcion)) continue;
+      const g = grupos.find(x => sameText(x.grupo, s.grupo) || sameText(x.nombre, s.grupo));
+      let precioOp = 0;
+      let encontrada = false;
+      if (g) {
+        const op = (g.opciones || []).find(o =>
+          sameText(typeof o === 'string' ? o : o?.nombre, s.opcion)
+        );
+        if (op) {
+          encontrada = true;
+          precioOp = typeof op === 'string' ? 0 : (Number(op.precio) || 0);
+        }
+      }
+      if (!encontrada) precioOp = Number(s.precio) || 0;
+      const cantidad = Math.max(1, Number(s.cantidad) || 1);
+      extra += precioOp * cantidad;
     }
     return Math.round(extra * 100) / 100;
   }

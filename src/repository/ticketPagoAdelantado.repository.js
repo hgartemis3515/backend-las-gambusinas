@@ -8,7 +8,12 @@ const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelanta
 const comandaModel = require('../database/models/comanda.model');
 const AuditoriaAcciones = require('../database/models/auditoriaAcciones.model');
 const logger = require('../utils/logger');
-const { adjuntarDescuentoTicket, BOUCHER_DESCUENTO_SELECT } = require('../utils/descuentoTicketSnapshot');
+const { adjuntarDescuentoTicket, aplicarDescuentoAVistaTicket, BOUCHER_DESCUENTO_SELECT, COMANDA_DESCUENTO_SELECT } = require('../utils/descuentoTicketSnapshot');
+const { aplicarTotalesPedidoPPA } = require('../utils/totalesTicketPPA');
+
+function mapTicketPPAVista(ticket) {
+  return aplicarDescuentoAVistaTicket(aplicarTotalesPedidoPPA(ticket));
+}
 
 const MAX_COMANDA_SAVE_RETRIES = 3;
 
@@ -129,13 +134,13 @@ async function obtenerTicketPorId(ticketId) {
     throw new Error('ID de ticket inválido');
   }
   const ticket = await ticketPagoAdelantadoModel.findById(ticketId)
-    .populate('comandas', 'comandaNumber status platos mesas mozos')
+    .populate('comandas', 'comandaNumber status platos mesas mozos descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado')
     .populate('mesa', 'nummesa estado nombreCombinado')
     .populate('mozo', 'name')
     .populate('boucher')
     .populate('aprobadoPor', 'name')
     .lean();
-  return ticket;
+  return ticket ? mapTicketPPAVista(ticket) : ticket;
 }
 
 /**
@@ -154,11 +159,12 @@ async function obtenerTicketsPendientes(fecha) {
   })
     .populate('mesa', 'nummesa estado nombreCombinado')
     .populate('mozo', 'name')
+    .populate('comandas', COMANDA_DESCUENTO_SELECT)
     .populate('boucher', BOUCHER_DESCUENTO_SELECT)
     .sort({ createdAt: 1 })
     .lean();
 
-  return tickets.map(adjuntarDescuentoTicket);
+  return tickets.map(mapTicketPPAVista);
 }
 
 /**
@@ -175,11 +181,12 @@ async function obtenerTicketsPorFecha(fecha) {
   })
     .populate('mesa', 'nummesa estado nombreCombinado')
     .populate('mozo', 'name')
+    .populate('comandas', COMANDA_DESCUENTO_SELECT)
     .populate('boucher', BOUCHER_DESCUENTO_SELECT)
     .sort({ createdAt: -1 })
     .lean();
 
-  return tickets.map(adjuntarDescuentoTicket);
+  return tickets.map(mapTicketPPAVista);
 }
 
 /**
@@ -542,9 +549,11 @@ async function obtenerTicketsPorComanda(comandaId) {
   return ticketPagoAdelantadoModel
     .find({ comandas: comandaId, isActive: true })
     .populate('mozo', 'name')
-    .populate('boucher', 'boucherNumber voucherId metodoPago')
+    .populate('comandas', COMANDA_DESCUENTO_SELECT)
+    .populate('boucher', 'boucherNumber voucherId metodoPago montoDescuento descuentos totalSinDescuento')
     .sort({ createdAt: -1 })
-    .lean();
+    .lean()
+    .then((tickets) => tickets.map(mapTicketPPAVista));
 }
 
 /**
@@ -557,8 +566,8 @@ async function actualizarTicketAdmin(ticketId, { observaciones, metodoPago }) {
     err.statusCode = 404;
     throw err;
   }
-  if (ticket.estado !== 'pendiente_aprobacion') {
-    const err = new Error('Solo se pueden editar tickets pendientes de aprobación');
+  if (!['pendiente_aprobacion', 'aprobado'].includes(ticket.estado)) {
+    const err = new Error(`No se puede editar un ticket ${ticket.estado}`);
     err.statusCode = 400;
     throw err;
   }

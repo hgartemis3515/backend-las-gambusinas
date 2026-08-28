@@ -2082,7 +2082,7 @@ tailwind.config = {
       </div>
 
       <!-- ====== SUB-TAB: EN VIVO ====== -->
-      <div x-show="subtabRendimiento === 'enVivo'">
+      <div id="seccion-rendimiento-en-vivo" x-show="subtabRendimiento === 'enVivo'">
 
       <!-- KPIs resumen del turno -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -4613,6 +4613,7 @@ function cocinerosApp() {
       await this.cargarZonas();
       await this.cargarTiposPlatoCatalogo();
       this.cargarVistaRendimiento();
+      this.aplicarQueryRendimiento();
 
       // Watchers para ajustar paginación cuando cambian los filtros
       this.$watch('busqueda', () => { this.currentPageCocineros = 1; });
@@ -8101,6 +8102,34 @@ function cocinerosApp() {
         this.cargarHistorialCocinados();
       } else if (sub === 'enVivo') {
         this.cargarRendimientoEnVivo();
+      }
+    },
+
+    aplicarQueryRendimiento() {
+      try {
+        const params = new URLSearchParams(window.location.search || '');
+        const tab = params.get('tab');
+        if (tab !== 'rendimiento') return;
+        const sub = params.get('sub');
+        if (sub === 'historial' || sub === 'enVivo') this.subtabRendimiento = sub;
+        const cocinero = params.get('cocinero');
+        const nombre = params.get('nombre');
+        if (cocinero) {
+          this.filtroCocineroRendimiento = cocinero;
+        } else if (nombre) {
+          const found = (this.cocineros || []).find(c =>
+            String(c.nombre || c.name || '').trim().toLowerCase() === String(nombre).trim().toLowerCase()
+          );
+          if (found) this.filtroCocineroRendimiento = found._id;
+        }
+        this.cambiarTab('rendimiento');
+        this.$nextTick(() => {
+          if (this.subtabRendimiento !== 'enVivo') return;
+          const el = document.getElementById('seccion-rendimiento-en-vivo');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      } catch (e) {
+        console.warn('No se pudo aplicar query de rendimiento', e);
       }
     },
 

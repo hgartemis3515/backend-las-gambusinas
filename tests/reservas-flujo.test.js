@@ -16,6 +16,7 @@ const {
   calcularFechaCocina,
   esReservaInmediata,
   calcularTotalesPlato,
+  parseFechaAtencionLima,
 } = require('../src/repository/reserva.repository');
 
 describe('PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 — Flujo de reservas', () => {
@@ -150,6 +151,34 @@ describe('PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 — Flujo de reservas', () => {
       expect(r.extraComplementos).toBe(5);
       expect(r.precioUnitario).toBe(25);
       expect(r.complementosSeleccionados[0].opcion).toBe('Doble');
+    });
+
+    test('usa precio del catálogo de guarniciones (no el del cliente) si la opción existe', () => {
+      const platoDoc = {
+        precio: 20,
+        complementos: [{ grupo: 'Guarnición', opciones: [{ nombre: 'Papa extra', precio: 4 }] }]
+      };
+      const r = calcularTotalesPlato(platoDoc, {
+        cantidad: 1,
+        complementosSeleccionados: [{ grupo: 'guarnición', opcion: 'Papa extra', cantidad: 1, precio: 99 }]
+      });
+      expect(r.extraComplementos).toBe(4);
+      expect(r.precioUnitario).toBe(24);
+    });
+  });
+
+  describe('parseFechaAtencionLima', () => {
+    test('ISO con Z se convierte a hora de Lima (no se reinterpreta como local)', () => {
+      // 14:00 Lima = 19:00 UTC
+      const m = parseFechaAtencionLima('2026-08-28T19:00:00.000Z');
+      expect(m.isValid()).toBe(true);
+      expect(m.tz('America/Lima').format('YYYY-MM-DD HH:mm')).toBe('2026-08-28 14:00');
+    });
+
+    test('datetime local sin zona se lee como America/Lima', () => {
+      const m = parseFechaAtencionLima('2026-08-28T14:00');
+      expect(m.format('YYYY-MM-DD HH:mm')).toBe('2026-08-28 14:00');
+      expect(m.utc().format('HH:mm')).toBe('19:00');
     });
   });
 

@@ -4626,6 +4626,13 @@ const aplicarDescuento = async (comandaId, descuento, motivo, usuarioId, usuario
 
     await comanda.save();
 
+    try {
+      const { sincronizarDescuentoTicketsComanda } = require('../utils/descuentoTicketsComanda');
+      await sincronizarDescuentoTicketsComanda(comanda);
+    } catch (syncErr) {
+      logger.warn(`${logPrefix} No se pudo sincronizar descuento a tickets`, { error: syncErr.message });
+    }
+
     // 10. Obtener comanda completa actualizada
     const comandaActualizada = await comandaModel.findById(comandaId)
       .populate('mozos', 'name DNI rol')

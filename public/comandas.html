@@ -237,7 +237,7 @@ tailwind.config = {
  <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Mozo</th>
  <th class="text-center px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-16">Items</th>
  <th class="text-right px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Total</th>
- <th class="text-center px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Estado</th>
+ <th class="text-center px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider min-w-[140px]">Estado platos</th>
  <th class="text-center px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Fecha / Hora</th>
  <th class="text-center px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Acciones</th>
  </tr>
@@ -314,38 +314,24 @@ tailwind.config = {
  <td class="px-3 py-2.5 text-sm text-gold font-semibold text-right">
  <template x-if="row.tipo === 'grupo'">
  <span x-text="'S/. ' + row.totalAgrupado.toFixed(2)"></span>
+ <span x-show="getMontoDescuentoGrupo(row) > 0" class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + getMontoDescuentoGrupo(row).toFixed(2)"></span>
  </template>
  <template x-if="row.tipo === 'individual'">
- <span x-text="'S/. ' + (row.comanda.total || 0).toFixed(2)"></span>
+ <span x-text="'S/. ' + Number(row.comanda.totalCalculado || row.comanda.total || 0).toFixed(2)"></span>
+ <span x-show="row.comanda.descuento > 0" class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(row.comanda.montoDescuento || 0).toFixed(2)"></span>
  </template>
  </td>
  
- <!-- Estado -->
+ <!-- Estado (contador de platos) -->
  <td class="px-3 py-2.5 text-center">
- <template x-if="row.tipo === 'grupo'">
- <span class="text-[10px] px-2 py-1 rounded-full font-semibold inline-block"
- :class="{
- 'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar': row.estadoGrupo === 'pendiente_aprobar',
- 'bg-st-preparado/20 text-st-preparado': row.estadoGrupo === 'recoger',
- 'bg-st-esperando/20 text-st-esperando': row.estadoGrupo === 'en_espera',
- 'bg-st-pedido/20 text-st-pedido': row.estadoGrupo === 'entregado',
- 'bg-st-libre/20 text-st-libre': row.estadoGrupo === 'pagado',
- 'bg-st-completado/20 text-st-completado': row.estadoGrupo === 'completado'
- }"
- x-text="estadoLabel(row.estadoGrupo)"></span>
+ <div class="flex flex-wrap gap-1 justify-center">
+ <template x-for="chip in contarEstadosPlatosFila(row)" :key="chip.estado">
+ <span class="text-[9px] px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap"
+ :class="claseEstadoPlatoChip(chip.estado)"
+ x-text="chip.label + ' ×' + chip.cantidad"></span>
  </template>
- <template x-if="row.tipo === 'individual'">
- <span class="text-[10px] px-2 py-1 rounded-full font-semibold inline-block"
- :class="{
- 'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar': row.comanda.estado === 'pendiente_aprobar',
- 'bg-st-preparado/20 text-st-preparado': row.comanda.estado === 'recoger',
- 'bg-st-esperando/20 text-st-esperando': row.comanda.estado === 'en_espera',
- 'bg-st-pedido/20 text-st-pedido': row.comanda.estado === 'entregado',
- 'bg-st-libre/20 text-st-libre': row.comanda.estado === 'pagado',
- 'bg-st-completado/20 text-st-completado': row.comanda.estado === 'completado'
- }"
- x-text="estadoLabel(row.comanda.estado)"></span>
- </template>
+ <span x-show="contarEstadosPlatosFila(row).length === 0" class="text-[10px] text-txt-muted">—</span>
+ </div>
  </td>
  
  <!-- Fecha / Hora -->
@@ -407,20 +393,19 @@ tailwind.config = {
  </td>
  <!-- Total -->
  <td class="px-3 py-2 text-sm text-gold/80 text-right">
- <span x-text="'S/. ' + (comanda.total || 0).toFixed(2)"></span>
+ <span x-text="'S/. ' + Number(comanda.totalCalculado || comanda.total || 0).toFixed(2)"></span>
+ <span x-show="comanda.descuento > 0" class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(comanda.montoDescuento || 0).toFixed(2)"></span>
  </td>
  <!-- Estado -->
  <td class="px-3 py-2 text-center">
- <span class="text-[9px] px-2 py-0.5 rounded-full font-semibold inline-block"
- :class="{
- 'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar': comanda.estado === 'pendiente_aprobar',
- 'bg-st-preparado/20 text-st-preparado': comanda.estado === 'recoger',
- 'bg-st-esperando/20 text-st-esperando': comanda.estado === 'en_espera',
- 'bg-st-pedido/20 text-st-pedido': comanda.estado === 'entregado',
- 'bg-st-libre/20 text-st-libre': comanda.estado === 'pagado',
- 'bg-st-completado/20 text-st-completado': comanda.estado === 'completado'
- }"
- x-text="estadoLabel(comanda.estado)"></span>
+ <div class="flex flex-wrap gap-1 justify-center">
+ <template x-for="chip in contarEstadosPlatosComanda(comanda)" :key="chip.estado">
+ <span class="text-[9px] px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap"
+ :class="claseEstadoPlatoChip(chip.estado)"
+ x-text="chip.label + ' ×' + chip.cantidad"></span>
+ </template>
+ <span x-show="contarEstadosPlatosComanda(comanda).length === 0" class="text-[10px] text-txt-muted">—</span>
+ </div>
  </td>
  <!-- Fecha / Hora -->
  <td class="px-3 py-2 text-xs text-txt-muted text-center">
@@ -636,6 +621,8 @@ tailwind.config = {
  'bg-[#ff4757]/20 text-[#ff4757]': selectedComanda?.estado === 'cancelado'
  }"
  x-text="estadoLabel(selectedComanda?.estado)"></span>
+ <span x-show="esComandaReserva(selectedComanda)"
+   class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-[#9b59b6]/20 text-[#c39bd3]">📅 Reserva</span>
  <span x-show="selectedComanda?.omitirPago"
    class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-st-pagado/20 text-st-pagado"
    :title="(selectedComanda?.pagoOmitido?.motivo || 'Pago omitido') + (selectedComanda?.pagoOmitido?.aplicado ? ' · Auto-pagada al entregar' : ' · Pendiente de entrega')">
@@ -695,6 +682,65 @@ tailwind.config = {
  <p class="font-medium text-[#a0a0b8]" x-text="'v' + (selectedComanda?.version || 1)"></p>
  </div>
  </div>
+
+ <!-- RESERVA -->
+ <div x-show="esComandaReserva(selectedComanda)" class="mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]">
+   <p class="text-[10px] text-[#c39bd3] uppercase mb-2 font-semibold tracking-wider">📅 Reserva</p>
+   <div class="grid grid-cols-3 gap-3 text-sm mb-3">
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Reserva creada</p>
+       <p class="font-medium" x-text="formatFechaReserva(selectedComanda?.reserva?.creadoEn)"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Entra a cocina</p>
+       <p class="font-medium text-[#ffa502]" x-text="formatFechaReserva(selectedComanda?.reserva?.fechaCocina || selectedComanda?.fechaCocinaProgramada)"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Se atenderá</p>
+       <p class="font-medium text-[#c39bd3]" x-text="formatFechaReserva(selectedComanda?.reserva?.fechaReserva)"></p>
+     </div>
+   </div>
+   <div class="grid grid-cols-3 gap-3 text-sm mb-3">
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Cliente</p>
+       <p class="font-medium" x-text="selectedComanda?.reserva?.clienteNombre || '—'"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Teléfono</p>
+       <p class="font-medium" x-text="selectedComanda?.reserva?.clienteTelefono || '—'"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Personas</p>
+       <p class="font-medium" x-text="selectedComanda?.reserva?.numPersonas != null ? selectedComanda.reserva.numPersonas : '—'"></p>
+     </div>
+   </div>
+   <div class="grid grid-cols-3 gap-3 text-sm">
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Estado reserva</p>
+       <p class="font-medium" x-text="estadoReservaLabel(selectedComanda?.reserva?.estado)"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Espera (no-show)</p>
+       <p class="font-medium" x-text="selectedComanda?.reserva?.tiempoEspera ? (selectedComanda.reserva.tiempoEspera + ' min') : '—'"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Adelanto / seña</p>
+       <p class="font-medium text-xs" x-text="labelAdelantoReserva(selectedComanda?.reserva?.pagoAdelantado)"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Método de pago</p>
+       <p class="font-medium" x-text="labelMetodoPagoReserva(selectedComanda?.reserva?.metodoPago)"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Cocinero encargado</p>
+       <p class="font-medium" x-text="selectedComanda?.reserva?.cocineroEncargado || 'Asignación automática'"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Notas de reserva</p>
+       <p class="font-medium text-xs text-[#a0a0b8]" x-text="selectedComanda?.reserva?.notas || '—'"></p>
+     </div>
+   </div>
+ </div>
  
  <!-- PAGO OMITIDO (dashboard) -->
  <div x-show="selectedComanda?.omitirPago" class="mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]">
@@ -725,8 +771,12 @@ tailwind.config = {
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Cocineros</p>
  <div class="flex flex-wrap gap-1 mt-1">
- <template x-for="cocinero in getResumenCocineros(selectedComanda).cocineros" :key="cocinero.nombre">
- <span class="text-[9px] px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-medium" x-text="cocinero.nombre"></span>
+ <template x-for="cocinero in getResumenCocineros(selectedComanda).cocineros" :key="cocinero.cocineroId || cocinero.nombre">
+ <button type="button"
+   class="text-[9px] px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-medium hover:bg-st-preparado/40 cursor-pointer transition"
+   :title="'Ver rendimiento en vivo de ' + cocinero.nombre"
+   @click="irARendimientoCocinero(cocinero)"
+   x-text="cocinero.nombre"></button>
  </template>
  </div>
  </div>
@@ -779,7 +829,7 @@ tailwind.config = {
  <template x-if="item.complementosSeleccionados && item.complementosSeleccionados.length > 0">
  <div class="flex flex-wrap gap-1">
  <template x-for="comp in item.complementosSeleccionados" :key="comp.grupo + comp.opcion">
-<span class="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" x-text="comp.grupo + ': ' + comp.opcion + ' x' + (comp.cantidad || 1)"></span>
+<span class="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" x-text="textoComplementoChip(comp)"></span>
 								</template>
 							</div>
 						</template>
@@ -829,7 +879,12 @@ tailwind.config = {
  <tr class="border-t-2 border-[rgba(212,175,55,0.25)] bg-[#12121a]">
  <td class="px-4 py-3 font-bold text-xs uppercase" colspan="2">TOTAL</td>
  <td class="px-3 py-3 text-right text-xs text-[#5a5a7a]" x-text="(selectedComanda?.items || []).filter(i => !i.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
- <td class="px-3 py-3 text-right text-[#d4af37] font-bold text-lg" x-text="'S/. ' + Number(selectedComanda?.total || 0).toFixed(2)"></td>
+ <td class="px-3 py-3 text-right text-[#d4af37] font-bold text-lg" x-text="'S/. ' + Number(selectedComanda?.totalCalculado || selectedComanda?.total || 0).toFixed(2)"></td>
+ <td colspan="4"></td>
+ </tr>
+ <tr x-show="Number(selectedComanda?.montoDescuento) > 0">
+ <td class="px-4 py-1 text-right text-[10px] text-st-pagado uppercase font-semibold" colspan="3">Descuento</td>
+ <td class="px-3 py-1 text-right text-st-pagado font-bold text-sm" x-text="'-S/. ' + Number(selectedComanda.montoDescuento || 0).toFixed(2)"></td>
  <td colspan="4"></td>
  </tr>
  <tr x-show="selectedComanda?.metodoPago === 'efectivo' && (selectedComanda?.montoRecibido != null || selectedComanda?.vuelto != null)">
@@ -887,8 +942,9 @@ tailwind.config = {
  <p x-show="ticket.estado === 'reportado' && ticket.motivoReporte" class="text-[10px] text-st-pagado mt-0.5" x-text="'⚠ ' + ticket.motivoReporte"></p>
  <p x-show="ticket.estado === 'rechazado' && ticket.motivoRechazo" class="text-[10px] text-st-pagado mt-0.5" x-text="'✕ ' + ticket.motivoRechazo"></p>
  </div>
- <div class="flex items-center gap-1 shrink-0">
+ <div class="flex flex-col items-end gap-0.5 shrink-0">
  <span class="text-sm font-bold text-gold" x-text="'S/. ' + Number(ticket.total || 0).toFixed(2)"></span>
+ <span x-show="Number(ticket.montoDescuento) > 0" class="text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(ticket.montoDescuento).toFixed(2)"></span>
  <button @click="imprimirTicketComanda(ticket)" class="p-1.5 rounded hover:bg-gold/20 transition text-xs" title="Imprimir ticket">🖨️</button>
  </div>
  </div>
@@ -1150,6 +1206,8 @@ tailwind.config = {
  'bg-[#ff4757]/20 text-[#ff4757]': editComanda?.estado === 'cancelado'
  }"
  x-text="estadoLabel(editComanda?.estado)"></span>
+ <span x-show="esComandaReserva(editComanda)"
+   class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-[#9b59b6]/20 text-[#c39bd3]">📅 Reserva</span>
  </div>
  <p class="text-xs text-txt-muted mt-0.5">
  <span x-text="formatearNombreMesa(editComanda?.mesa)"></span>
@@ -1217,6 +1275,74 @@ tailwind.config = {
  <option value="cancelado">❌ Cancelado</option>
  </select>
  </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Tipo de pago</p>
+ <select x-model="editComanda.metodoPago" class="w-full bg-[#12121a] border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1 text-xs font-semibold text-white focus:border-[#d4af37] focus:outline-none">
+ <option value="">— Sin cambiar —</option>
+ <option value="efectivo">Efectivo</option>
+ <option value="digital">Digital (Yape/Plin)</option>
+ <option value="tarjeta">Tarjeta</option>
+ </select>
+ </div>
+ </div>
+
+ <!-- RESERVA -->
+ <div x-show="esComandaReserva(editComanda)" class="mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]">
+   <p class="text-[10px] text-[#c39bd3] uppercase mb-2 font-semibold tracking-wider">📅 Reserva</p>
+   <div class="grid grid-cols-3 gap-3 text-sm mb-3">
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Reserva creada</p>
+       <p class="font-medium" x-text="formatFechaReserva(editComanda?.reserva?.creadoEn)"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Entra a cocina</p>
+       <p class="font-medium text-[#ffa502]" x-text="formatFechaReserva(editComanda?.reserva?.fechaCocina || editComanda?.fechaCocinaProgramada)"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Se atenderá</p>
+       <p class="font-medium text-[#c39bd3]" x-text="formatFechaReserva(editComanda?.reserva?.fechaReserva)"></p>
+     </div>
+   </div>
+   <div class="grid grid-cols-3 gap-3 text-sm mb-3">
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Cliente</p>
+       <p class="font-medium" x-text="editComanda?.reserva?.clienteNombre || '—'"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Teléfono</p>
+       <p class="font-medium" x-text="editComanda?.reserva?.clienteTelefono || '—'"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Personas</p>
+       <p class="font-medium" x-text="editComanda?.reserva?.numPersonas != null ? editComanda.reserva.numPersonas : '—'"></p>
+     </div>
+   </div>
+   <div class="grid grid-cols-3 gap-3 text-sm">
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Estado reserva</p>
+       <p class="font-medium" x-text="estadoReservaLabel(editComanda?.reserva?.estado)"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Espera (no-show)</p>
+       <p class="font-medium" x-text="editComanda?.reserva?.tiempoEspera ? (editComanda.reserva.tiempoEspera + ' min') : '—'"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Adelanto / seña</p>
+       <p class="font-medium text-xs" x-text="labelAdelantoReserva(editComanda?.reserva?.pagoAdelantado)"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Método de pago</p>
+       <p class="font-medium" x-text="labelMetodoPagoReserva(editComanda?.reserva?.metodoPago)"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Cocinero encargado</p>
+       <p class="font-medium" x-text="editComanda?.reserva?.cocineroEncargado || 'Asignación automática'"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Notas de reserva</p>
+       <p class="font-medium text-xs text-[#a0a0b8]" x-text="editComanda?.reserva?.notas || '—'"></p>
+     </div>
+   </div>
  </div>
  </div>
 
@@ -1260,7 +1386,7 @@ tailwind.config = {
  <template x-if="plato.complementosSeleccionados && plato.complementosSeleccionados.length > 0">
  <div class="flex flex-wrap gap-1">
  <template x-for="comp in plato.complementosSeleccionados" :key="comp.grupo + comp.opcion">
-<span class="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" x-text="comp.grupo + ': ' + comp.opcion + ' x' + (comp.cantidad || 1)"></span>
+<span class="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" x-text="textoComplementoChip(comp)"></span>
 								</template>
 							</div>
 						</template>
@@ -1300,6 +1426,11 @@ tailwind.config = {
  <td class="px-4 py-3 font-bold text-xs uppercase" colspan="2">TOTAL</td>
  <td class="px-3 py-3 text-right text-xs text-[#5a5a7a]" x-text="(editPlatos || []).filter(p => !p.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
  <td class="px-3 py-3 text-right text-[#d4af37] font-bold text-lg" x-text="'S/. ' + calcularTotalEdit().toFixed(2)"></td>
+ <td colspan="3"></td>
+ </tr>
+ <tr x-show="Number(editComanda?.montoDescuento) > 0" class="bg-[#12121a]">
+ <td class="px-4 py-1 text-right text-[10px] text-st-pagado uppercase font-semibold" colspan="3">Descuento</td>
+ <td class="px-3 py-1 text-right text-st-pagado font-bold text-sm" x-text="'-S/. ' + Number(editComanda.montoDescuento || 0).toFixed(2)"></td>
  <td colspan="3"></td>
  </tr>
  </tfoot>
@@ -1349,9 +1480,10 @@ tailwind.config = {
  </div>
  <div class="flex flex-col items-end gap-1 shrink-0">
  <span class="text-sm font-bold text-gold" x-text="'S/. ' + Number(ticket.total || 0).toFixed(2)"></span>
+ <span x-show="Number(ticket.montoDescuento) > 0" class="text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(ticket.montoDescuento).toFixed(2)"></span>
  <div class="flex items-center gap-1">
  <button @click="imprimirTicketComanda(ticket)" class="p-1 rounded hover:bg-gold/20 transition text-xs" title="Imprimir">🖨️</button>
- <button x-show="ticket.estado === 'pendiente_aprobacion'" @click="openEditarTicketModal(ticket)" class="p-1 rounded hover:bg-gold/20 transition text-xs" title="Editar ticket">✏️</button>
+ <button x-show="ticket.estado === 'pendiente_aprobacion' || ticket.estado === 'aprobado'" @click="openEditarTicketModal(ticket)" class="p-1 rounded hover:bg-gold/20 transition text-xs" title="Editar ticket">✏️</button>
  <button x-show="ticket.estado === 'pendiente_aprobacion'" @click="confirmarEliminarTicket(ticket)" class="p-1 rounded hover:bg-st-pagado/20 transition text-xs" title="Eliminar ticket">🗑️</button>
  </div>
  </div>
@@ -3069,7 +3201,12 @@ this.modal = null;
  const platosNorm = (raw.platos || raw.items || []).map((item, index) => {
  const plato = item.plato || item;
  const cantidad = raw.cantidades?.[index] || item.cantidad || 1;
- const precio = plato.precio || item.precio || item.precioUnitario || 0;
+ const precioBase = item.precioBase != null ? Number(item.precioBase) : Number(plato.precio || item.precio || 0);
+ const precioUnitario = item.precioUnitario != null
+   ? Number(item.precioUnitario)
+   : Number(item.precio || plato.precio || 0);
+ const extraComplementos = Number(item.extraComplementos) || 0;
+ const precio = Number.isFinite(precioUnitario) ? precioUnitario : precioBase;
  const subtotal = cantidad * precio;
 
  const platoObjectId = plato._id || null;
@@ -3082,6 +3219,9 @@ this.modal = null;
  subdocumentoId: subdocumentoId,
  nombre: plato.nombre || item.nombre || 'Sin nombre',
  precio: Number(precio),
+ precioBase,
+ precioUnitario: Number(precio),
+ extraComplementos,
  cantidad: Number(cantidad),
  subtotal: Number(subtotal),
  estado: item.estado || 'en_espera',
@@ -3145,7 +3285,38 @@ this.modal = null;
  omitirPago: !!raw.omitirPago,
  omitirOrdenEntrega: !!raw.omitirOrdenEntrega,
  pagoOmitido: raw.pagoOmitido || null,
- origenReserva: raw.origenReserva || null
+ origenReserva: raw.origenReserva?._id || raw.origenReserva || null,
+ programadaPorReserva: !!raw.programadaPorReserva,
+ fechaCocinaProgramada: raw.fechaCocinaProgramada || null,
+ reserva: this.normalizarReservaComanda(raw)
+ };
+ },
+
+ normalizarReservaComanda(raw) {
+ const doc = (raw.origenReserva && typeof raw.origenReserva === 'object' && !Array.isArray(raw.origenReserva)
+   && (raw.origenReserva.fechaReserva || raw.origenReserva.fechaCocina || raw.origenReserva.clienteNombre || raw.origenReserva.creadoEn))
+   ? raw.origenReserva
+   : null;
+ if (!doc && !raw.fechaCocinaProgramada && raw.origenCreacion !== 'reserva' && !raw.programadaPorReserva) {
+   return null;
+ }
+ const cocinero = doc?.cocineroEncargado;
+ return {
+   _id: doc?._id || raw.origenReserva || null,
+   fechaReserva: doc?.fechaReserva || null,
+   fechaCocina: doc?.fechaCocina || raw.fechaCocinaProgramada || null,
+   creadoEn: doc?.creadoEn || raw.createdAt || null,
+   clienteNombre: doc?.clienteNombre || raw.clienteNombre || null,
+   clienteTelefono: doc?.clienteTelefono || null,
+   numPersonas: doc?.numPersonas || null,
+   tiempoEspera: doc?.tiempoEspera || null,
+   estado: doc?.estado || null,
+   metodoPago: doc?.metodoPago || null,
+   notas: doc?.notas || null,
+   pagoAdelantado: doc?.pagoAdelantado || null,
+   cocineroEncargado: (cocinero && typeof cocinero === 'object')
+     ? (cocinero.alias || cocinero.name || null)
+     : null
  };
  },
 
@@ -3158,30 +3329,31 @@ this.modal = null;
   * @returns {Object} { nombre: string, enPreparacion: boolean }
   */
  getCocineroPlato(item) {
- if (!item) return { nombre: '—', enPreparacion: false };
+ if (!item) return { nombre: '—', enPreparacion: false, cocineroId: null };
  
  const estado = item.estado?.toLowerCase() || '';
  const esEstadoFinal = estado === 'recoger' || estado === 'entregado' || estado === 'pagado';
- 
+ const idDe = (obj) => obj?.cocineroId || null;
+
  // Si el plato fue finalizado, mostrar quien lo procesó
  if (item.procesadoPor && (item.procesadoPor.alias || item.procesadoPor.nombre)) {
  return {
  nombre: item.procesadoPor.alias || item.procesadoPor.nombre,
- enPreparacion: false // Ya terminó, no está en curso
+ enPreparacion: false,
+ cocineroId: idDe(item.procesadoPor)
  };
  }
  
  // Si está siendo procesado actualmente
- // PERO: si el estado es final (recoger/entregado/pagado), NO mostrar como en curso
  if (item.procesandoPor && (item.procesandoPor.alias || item.procesandoPor.nombre)) {
  return {
  nombre: item.procesandoPor.alias || item.procesandoPor.nombre,
- enPreparacion: !esEstadoFinal // Solo "En curso" si el estado no es final
+ enPreparacion: !esEstadoFinal,
+ cocineroId: idDe(item.procesandoPor)
  };
  }
  
- // Sin información de cocinero
- return { nombre: '—', enPreparacion: false };
+ return { nombre: '—', enPreparacion: false, cocineroId: null };
  },
 
  /**
@@ -3347,18 +3519,28 @@ this.modal = null;
  let ultimoFin = null;
  
  comanda.items.forEach(item => {
- // Obtener info del cocinero
- const infoCocinero = this.getCocineroPlato(item);
- if (infoCocinero.nombre && infoCocinero.nombre !== '—') {
- if (!cocinerosMap.has(infoCocinero.nombre)) {
- cocinerosMap.set(infoCocinero.nombre, {
- nombre: infoCocinero.nombre,
+ const registrar = (info) => {
+ if (!info || !info.nombre || info.nombre === '—') return;
+ const key = String(info.cocineroId || info.nombre);
+ if (!cocinerosMap.has(key)) {
+ cocinerosMap.set(key, {
+ nombre: info.nombre,
+ cocineroId: info.cocineroId || null,
  platosPreparados: 0,
  tiempoTotal: 0
  });
  }
- cocinerosMap.get(infoCocinero.nombre).platosPreparados++;
- }
+ cocinerosMap.get(key).platosPreparados++;
+ };
+ registrar(this.getCocineroPlato(item));
+ (item.complementosSeleccionados || []).forEach(comp => {
+ const estadoG = (comp.estadoCocina === 'recoger') ? 'recoger' : (item.estado || 'en_espera');
+ registrar(this.getCocineroPlato({
+ estado: estadoG,
+ procesandoPor: comp.procesandoPor,
+ procesadoPor: comp.procesadoPor
+ }));
+ });
  
  // Calcular tiempo de preparación
  const tiempoInfo = this.getTiempoPreparacion(item);
@@ -3404,6 +3586,27 @@ this.modal = null;
  tiempoPromedio,
  tiempoTotal
  };
+ },
+
+ textoComplementoChip(comp) {
+ if (!comp) return '';
+ const grupo = String(comp.grupo || '').trim();
+ const opcion = String(comp.opcion || comp.nombre || '').trim();
+ const cant = Number(comp.cantidad) || 1;
+ const precio = Number(comp.precio) || 0;
+ let t = (grupo ? grupo + ': ' : '') + opcion + ' x' + cant;
+ if (precio > 0) t += ' +S/. ' + precio.toFixed(2);
+ return t;
+ },
+
+ irARendimientoCocinero(cocinero) {
+ if (!cocinero) return;
+ const q = new URLSearchParams();
+ q.set('tab', 'rendimiento');
+ q.set('sub', 'enVivo');
+ if (cocinero.cocineroId) q.set('cocinero', String(cocinero.cocineroId));
+ else if (cocinero.nombre) q.set('nombre', cocinero.nombre);
+ window.location.href = 'cocineros.html?' + q.toString();
  },
 
  // ==================== FIN FUNCIONES DE TRAZABILIDAD ====================
@@ -3697,6 +3900,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const map = {
  'en_espera': 'En espera',
  'recoger': 'Listo para recoger',
+ 'salio': 'Salió',
  'entregado': 'Entregado',
  'pagado': 'Pagado',
  'cancelado': 'Cancelado',
@@ -3708,6 +3912,62 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  'pedido': 'Pedido'
  };
  return map[estado] || estado || 'pendiente';
+ },
+
+ ordenEstadosPlato: ['pendiente', 'pedido', 'en_espera', 'recoger', 'salio', 'entregado', 'pagado', 'pendiente_aprobar', 'cancelado'],
+
+ claseEstadoPlatoChip(estado) {
+ const e = String(estado || '').toLowerCase();
+ const map = {
+ pendiente_aprobar: 'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar',
+ pendiente: 'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar',
+ pedido: 'bg-st-esperando/20 text-st-esperando',
+ en_espera: 'bg-st-esperando/20 text-st-esperando',
+ recoger: 'bg-st-preparado/20 text-st-preparado',
+ salio: 'bg-purple-500/20 text-purple-300',
+ entregado: 'bg-st-pedido/20 text-st-pedido',
+ pagado: 'bg-st-libre/20 text-st-libre',
+ cancelado: 'bg-txt-muted/20 text-txt-muted',
+ completado: 'bg-st-completado/20 text-st-completado'
+ };
+ return map[e] || 'bg-txt-muted/20 text-txt-muted';
+ },
+
+ contarEstadosPlatosDeItems(items) {
+ const counts = {};
+ (items || []).forEach((item) => {
+ if (!item || item.eliminado) return;
+ const est = String(item.estado || 'en_espera').toLowerCase();
+ const n = Math.max(1, Number(item.cantidad) || 1);
+ counts[est] = (counts[est] || 0) + n;
+ });
+ const vistos = new Set();
+ const chips = [];
+ (this.ordenEstadosPlato || []).forEach((e) => {
+ if (counts[e] > 0) {
+ vistos.add(e);
+ chips.push({ estado: e, cantidad: counts[e], label: this.estadoLabel(e) });
+ }
+ });
+ Object.keys(counts).forEach((e) => {
+ if (!vistos.has(e) && counts[e] > 0) {
+ chips.push({ estado: e, cantidad: counts[e], label: this.estadoLabel(e) });
+ }
+ });
+ return chips;
+ },
+
+ contarEstadosPlatosComanda(comanda) {
+ return this.contarEstadosPlatosDeItems(comanda?.items || comanda?.platos || []);
+ },
+
+ contarEstadosPlatosFila(row) {
+ if (!row) return [];
+ if (row.tipo === 'grupo' && Array.isArray(row.comandas)) {
+ const items = row.comandas.flatMap((c) => c.items || c.platos || []);
+ return this.contarEstadosPlatosDeItems(items);
+ }
+ return this.contarEstadosPlatosComanda(row.comanda);
  },
 
  // ==================== TICKETS MOZOS ====================
@@ -3791,6 +4051,10 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const res = await apiGet('/comanda/' + comandaId + '/tickets');
  const tickets = (res?.tickets || res || []).map(t => this.normalizarTicketLista(t)).filter(Boolean);
  this.comandaTickets = tickets;
+ if (this.editComanda && String(this.editComanda._id) === String(comandaId) && tickets.length) {
+ const conPago = tickets.find(t => t.metodoPago);
+ if (conPago && !this.editComanda.metodoPago) this.editComanda.metodoPago = conPago.metodoPago;
+ }
  } catch (error) {
  console.error('Error cargando tickets:', error);
  this.comandaTickets = [];
@@ -3864,7 +4128,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  },
 
  openEditarTicketModal(ticket) {
- if (!ticket || ticket.estado !== 'pendiente_aprobacion') return;
+ if (!ticket || (ticket.estado !== 'pendiente_aprobacion' && ticket.estado !== 'aprobado')) return;
  this.ticketEditando = ticket;
  this.ticketEditForm = {
  observaciones: ticket.observaciones || '',
@@ -3939,7 +4203,18 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const data = await apiGet('/comanda/' + comandaId);
  if (!data) throw new Error('No se recibieron datos');
  if (data.error) throw new Error(data.error);
- return this.normalizarComanda(data);
+ let normalizada = this.normalizarComanda(data);
+ const reservaId = normalizada.origenReserva && String(normalizada.origenReserva);
+ if (reservaId && !normalizada.reserva?.fechaReserva) {
+   try {
+     const reserva = await apiGet('/reservas/' + reservaId);
+     if (reserva && !reserva.error) {
+       data.origenReserva = reserva;
+       normalizada = this.normalizarComanda(data);
+     }
+   } catch (_) { /* el detalle de comanda ya es usable */ }
+ }
+ return normalizada;
  } catch (error) {
  console.error('Error cargando detalle de comanda:', error);
  this.showToast('Error al cargar comanda: ' + error.message, 'error');
@@ -4011,7 +4286,9 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  descuentoAplicadoPor: detalle.descuentoAplicadoPor,
  descuentoAplicadoAt: detalle.descuentoAplicadoAt,
  montoDescuento: detalle.montoDescuento || 0,
- status: detalle.estado
+ metodoPago: '',
+ status: detalle.estado,
+ ...this.camposReservaEnEdit(detalle)
  };
 
  this.editPlatos = detalle.items.map(item => ({
@@ -4044,7 +4321,9 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  descuentoAplicadoPor: this.selectedComanda.descuentoAplicadoPor,
  descuentoAplicadoAt: this.selectedComanda.descuentoAplicadoAt,
  montoDescuento: this.selectedComanda.montoDescuento || 0,
- status: this.selectedComanda.estado
+ metodoPago: '',
+ status: this.selectedComanda.estado,
+ ...this.camposReservaEnEdit(this.selectedComanda)
  };
  this.editPlatos = this.selectedComanda.items.map(item => ({
  ...item,
@@ -4394,6 +4673,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  this.showToast(`✅ Descuento de S/. ${Number(this.editComanda.montoDescuento || 0).toFixed(2)} (${this.formatPctDescuento(this.editComanda.descuento)}%) aplicado`);
 
+ await this.loadComandaTickets(this.editComanda._id);
+
  if (this.socket && this.socket.connected) {
  this.socket.emit('comandaActualizada', { _id: this.editComanda._id });
  }
@@ -4461,6 +4742,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  }
 
  this.showToast('✅ Descuento eliminado correctamente');
+
+ await this.loadComandaTickets(this.editComanda._id);
 
  if (this.socket && this.socket.connected) {
  this.socket.emit('comandaActualizada', { _id: this.editComanda._id });
@@ -4591,6 +4874,18 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  if (res?.ok && !res.error) {
  console.log('✅ Comanda actualizada');
+
+ if (this.editComanda.metodoPago && ['efectivo', 'digital', 'tarjeta'].includes(this.editComanda.metodoPago)) {
+ for (const t of (this.comandaTickets || [])) {
+ if (t.estado === 'pendiente_aprobacion' || t.estado === 'aprobado') {
+ await apiPut('/aprobacion/' + t._id + '/editar', {
+ tipo: t.tipo,
+ metodoPago: this.editComanda.metodoPago,
+ observaciones: t.observaciones,
+ });
+ }
+ }
+ }
 
  if (this.socket && this.socket.connected) {
  this.socket.emit('comandaActualizada', res);
@@ -4742,6 +5037,48 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
      hour: '2-digit',
      minute: '2-digit'
    });
+ },
+
+ esComandaReserva(c) {
+   return !!(c && (c.reserva || c.origenReserva || c.origenCreacion === 'reserva' || c.programadaPorReserva));
+ },
+ camposReservaEnEdit(c) {
+   return {
+     reserva: c?.reserva || null,
+     origenReserva: c?.origenReserva || null,
+     programadaPorReserva: !!c?.programadaPorReserva,
+     fechaCocinaProgramada: c?.fechaCocinaProgramada || null,
+     origenCreacion: c?.origenCreacion || null
+   };
+ },
+ estadoReservaLabel(estado) {
+   const map = {
+     pendiente_aprobar: 'Pend. aprobación',
+     pendiente: 'Confirmada',
+     activa: 'Activa',
+     rechazada: 'Rechazada',
+     completada: 'Completada',
+     cancelada: 'Cancelada'
+   };
+   return map[estado] || estado || '—';
+ },
+ labelAdelantoReserva(pa) {
+   if (!pa || pa.activo === false) return 'Sin adelanto';
+   const pagado = Number(pa.montoPagado) || 0;
+   const total = Number(pa.totalPlatos) || 0;
+   if (pagado <= 0 && total <= 0) return 'Sin adelanto';
+   if (pagado <= 0) return total > 0 ? `Sin adelanto · total S/. ${total.toFixed(2)}` : 'Sin adelanto';
+   const pend = Number(pa.montoPendiente);
+   const extra = Number.isFinite(pend)
+     ? ` · pendiente S/. ${pend.toFixed(2)}`
+     : (total > 0 ? ` de S/. ${total.toFixed(2)}` : '');
+   const ticketMap = { pendiente_aprobacion: 'pend. aprobación', aprobado: 'aprobado', rechazado: 'rechazado' };
+   const ticket = pa.estadoTicket && ticketMap[pa.estadoTicket] ? ` (${ticketMap[pa.estadoTicket]})` : '';
+   return `Seña S/. ${pagado.toFixed(2)}${extra}${ticket}`;
+ },
+ labelMetodoPagoReserva(metodo) {
+   const map = { efectivo: 'Efectivo', digital: 'Digital', tarjeta: 'Tarjeta', yape: 'Yape', plin: 'Plin', transferencia: 'Transferencia' };
+   return map[metodo] || metodo || '—';
  },
 
  // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: hora de cocina = atención − minutosAntesCocina (default 20)

@@ -25,6 +25,8 @@ const {
   resolverComandasNumbers,
   formatComandasNumbersLabel,
 } = require('../utils/comandasNumbers');
+const { resolverTotalesPedidoPPA } = require('../utils/totalesTicketPPA');
+const { totalesConDescuentoImpresion } = require('../utils/descuentoTicketSnapshot');
 
 async function snapshotIgvImpresion() {
   try {
@@ -471,11 +473,14 @@ router.get('/aprobacion/:id/ticket-imprimible', async (req, res) => {
       _id: id,
       isActive: true,
     })
-      .populate('boucher', 'moneda montoRecibido vuelto metodoPago voucherId')
+      .populate('comandas', 'comandaNumber descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado')
+      .populate('boucher', 'moneda montoRecibido vuelto metodoPago voucherId montoDescuento descuentos totalSinDescuento')
       .lean();
 
     if (ticketPPA) {
       const boucherPPA = ticketPPA.boucher || null;
+      const totalesPPA = resolverTotalesPedidoPPA(ticketPPA);
+      const descPPA = totalesConDescuentoImpresion(ticketPPA, totalesPPA);
       const ppaComandasNumbers = resolverComandasNumbers({
         comandasNumbers: ticketPPA.comandasNumbers,
         platos: ticketPPA.platos,
@@ -521,12 +526,12 @@ router.get('/aprobacion/:id/ticket-imprimible', async (req, res) => {
               mostrarMontoExtra: p.resumenComplementosImpresion?.mostrarMontoExtra !== false,
             },
           })),
-          subtotal: ticketPPA.subtotal,
+          subtotal: descPPA.subtotal,
           igv: ticketPPA.igv,
-          total: ticketPPA.total,
-          montoDescuento: Number(ticketPPA.montoDescuento ?? boucherPPA?.montoDescuento ?? 0) || 0,
-          totalSinDescuento: ticketPPA.totalSinDescuento ?? boucherPPA?.totalSinDescuento ?? null,
-          descuentos: ticketPPA.descuentos?.length ? ticketPPA.descuentos : (boucherPPA?.descuentos || []),
+          total: descPPA.total,
+          montoDescuento: descPPA.montoDescuento,
+          totalSinDescuento: descPPA.totalSinDescuento,
+          descuentos: descPPA.descuentos,
           cliente: {
             nombre: ticketPPA.clienteNombre || NOMBRE_CLIENTE_FALLBACK,
             dni: ticketPPA.clienteDni || '',
@@ -590,9 +595,14 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
     const ticketPPA = await mongoose.model('TicketPagoAdelantado').findOne({
       comandas: id,
       isActive: true,
-    }).sort({ createdAt: -1 }).lean();
+    })
+      .populate('comandas', 'comandaNumber descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado')
+      .sort({ createdAt: -1 })
+      .lean();
 
     if (ticketPPA) {
+      const totalesPPA = resolverTotalesPedidoPPA(ticketPPA);
+      const descPPA = totalesConDescuentoImpresion(ticketPPA, totalesPPA);
       const ppaComandasNumbers = resolverComandasNumbers({
         comandasNumbers: ticketPPA.comandasNumbers,
         platos: ticketPPA.platos,
@@ -638,12 +648,12 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
               mostrarMontoExtra: p.resumenComplementosImpresion?.mostrarMontoExtra !== false,
             },
           })),
-          subtotal: ticketPPA.subtotal,
+          subtotal: descPPA.subtotal,
           igv: ticketPPA.igv,
-          total: ticketPPA.total,
-          montoDescuento: Number(ticketPPA.montoDescuento ?? 0) || 0,
-          totalSinDescuento: ticketPPA.totalSinDescuento ?? null,
-          descuentos: ticketPPA.descuentos || [],
+          total: descPPA.total,
+          montoDescuento: descPPA.montoDescuento,
+          totalSinDescuento: descPPA.totalSinDescuento,
+          descuentos: descPPA.descuentos,
           cliente: { nombre: NOMBRE_CLIENTE_FALLBACK, dni: '' },
           voucherId: ticketPPA.voucherId || null,
         }),
@@ -728,11 +738,21 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
       tipoPago: boucher?.metodoPagoLabel || labelMetodoPago(boucher?.metodoPago) || 'Pendiente',
       observaciones: comanda.observaciones || '',
       productos,
-      subtotal: boucher?.subtotal ?? comanda.precioTotal ?? 0,
+      subtotal: Number(boucher?.subtotal) || Number(comanda.precioTotal) || productos.reduce((s, p) => s + (Number(p.subtotal) || 0), 0),
       igv: boucher?.igv ?? 0,
       igvPorcentaje: Number.isFinite(Number(config.igvPorcentaje)) ? Number(config.igvPorcentaje) : 18,
       nombreImpuesto: config.nombreImpuestoPrincipal || 'IGV',
-      total: boucher?.total ?? comanda.precioTotal ?? 0,
+      total: Number(
+        (Number(comanda.descuento) > 0 ? comanda.totalCalculado : null)
+        || boucher?.total
+        || comanda.totalCalculado
+        || comanda.precioTotal
+      ) || productos.reduce((s, p) => s + (Number(p.subtotal) || 0), 0),
+      montoDescuento: Number(boucher?.montoDescuento ?? comanda.montoDescuento ?? 0) || 0,
+      totalSinDescuento: boucher?.totalSinDescuento ?? comanda.totalSinDescuento ?? null,
+      descuentos: boucher?.descuentos?.length
+        ? boucher.descuentos
+        : (comanda.descuento > 0 ? [{ porcentaje: comanda.descuento, motivo: comanda.motivoDescuento, monto: comanda.montoDescuento }] : []),
       cliente: {
         nombre: boucher?.clienteNombre || comanda.clienteNombre || comanda.cliente?.nombre || NOMBRE_CLIENTE_FALLBACK,
         dni: boucher?.clienteDni || comanda.cliente?.dni || '',

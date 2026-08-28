@@ -36,6 +36,9 @@ const getReservaActivacionService = () => {
 // Mapa de timeouts activos: reservaId -> { timeoutExpiracion, timeoutAlerta, timeoutActivacion, timeoutAlertaActivacion }
 const reservaTimeouts = new Map();
 
+const SWEEP_ACTIVACION_MS = 30_000;
+let sweepInterval = null;
+
 // Intervalo para alertas de expiracion proxima (en minutos)
 const MINUTOS_ALERTA_EXPIRACION = 5;
 
@@ -132,7 +135,7 @@ const manejarAlertaProxima = async (reservaId) => {
 
         const reserva = await getReservaRepository().obtenerReservaPorId(reservaId);
 
-        if (reserva && reserva.estado === 'pendiente') {
+        if (reserva && (reserva.estado === 'pendiente' || reserva.estado === 'pendiente_aprobar')) {
             emitirEvento('reserva-alerta-expiracion', {
                 reservaId,
                 mesa: reserva.mesa?.nummesa,
@@ -161,7 +164,7 @@ const manejarBloqueoMesa = async (reservaId) => {
     try {
         const reserva = await getReservaRepository().obtenerReservaPorId(reservaId);
         if (!reserva) return;
-        if (reserva.estado !== 'pendiente') return; // ya activa/cancelada/rechazada: no bloquear
+        if (reserva.estado !== 'pendiente' && reserva.estado !== 'pendiente_aprobar') return;
         const mesasModel = require('../database/models/mesas.model');
         const mesa = await mesasModel.findById(reserva.mesa?._id || reserva.mesa);
         if (mesa && mesa.estado === 'libre') {
@@ -233,7 +236,7 @@ const manejarActivacion = async (reservaId) => {
 const manejarAlertaActivacion = async (reservaId) => {
     try {
         const reserva = await getReservaRepository().obtenerReservaPorId(reservaId);
-        if (reserva && reserva.estado === 'pendiente') {
+        if (reserva && (reserva.estado === 'pendiente' || reserva.estado === 'pendiente_aprobar')) {
             emitirEvento('reserva-alerta-activacion', {
                 reservaId,
                 mesa: reserva.mesa?.nummesa,
@@ -261,9 +264,16 @@ const programarActivacion = (reservaId, fechaCocina, minutosAlertaPrevia = 0) =>
             return { programado: false, motivo: 'sin_fechaCocina' };
         }
 
-        // No cancelar timeouts existentes (expiración sigue corriendo).
-        // Solo agregamos al mapa los nuevos timeouts de activación.
+        // No cancelar expiración. Reemplazar solo el job de activación (evitar doble disparo).
         const entry = reservaTimeouts.get(reservaId.toString()) || {};
+        if (entry.timeoutActivacion) {
+            clearTimeout(entry.timeoutActivacion);
+            entry.timeoutActivacion = null;
+        }
+        if (entry.timeoutAlertaActivacion) {
+            clearTimeout(entry.timeoutAlertaActivacion);
+            entry.timeoutAlertaActivacion = null;
+        }
 
         const delayActivacion = calcularDelay(fechaCocina);
 
@@ -318,64 +328,65 @@ const programarActivacion = (reservaId, fechaCocina, minutosAlertaPrevia = 0) =>
  */
 const programarExpiracion = (reservaId, fechaReserva, tiempoEspera) => {
     try {
-        // Cancelar timeout existente si hay
-        cancelarTimeout(reservaId);
-        
+        const id = reservaId.toString();
+        const entry = reservaTimeouts.get(id) || {};
+        if (entry.timeoutExpiracion) {
+            clearTimeout(entry.timeoutExpiracion);
+            entry.timeoutExpiracion = null;
+        }
+        if (entry.timeoutAlerta) {
+            clearTimeout(entry.timeoutAlerta);
+            entry.timeoutAlerta = null;
+        }
+
         const fechaExpiracion = calcularFechaExpiracion(fechaReserva, tiempoEspera);
         const delayExpiracion = calcularDelay(fechaExpiracion);
-        
-        // Fecha de alerta (5 minutos antes de expirar)
+
         const fechaAlerta = moment(fechaExpiracion).subtract(MINUTOS_ALERTA_EXPIRACION, 'minutes').toDate();
         const delayAlerta = calcularDelay(fechaAlerta);
-        
-        const timeouts = { timeoutExpiracion: null, timeoutAlerta: null };
-        
-        // Programar alerta si aun no ha pasado
+
         if (delayAlerta > 0 && delayAlerta < delayExpiracion) {
-            timeouts.timeoutAlerta = setTimeout(() => {
+            entry.timeoutAlerta = setTimeout(() => {
                 manejarAlertaProxima(reservaId);
             }, delayAlerta);
-            
-            logger.debug('Alerta de expiracion programada', { 
-                reservaId, 
+
+            logger.debug('Alerta de expiracion programada', {
+                reservaId,
                 fechaAlerta: fechaAlerta.toISOString(),
-                delayMs: delayAlerta 
+                delayMs: delayAlerta
             });
         }
-        
-        // Programar expiracion
+
         if (delayExpiracion > 0) {
-            timeouts.timeoutExpiracion = setTimeout(() => {
+            entry.timeoutExpiracion = setTimeout(() => {
                 manejarExpiracion(reservaId);
             }, delayExpiracion);
-            
-            logger.info('Timeout de expiracion programado', { 
-                reservaId, 
+
+            logger.info('Timeout de expiracion programado', {
+                reservaId,
                 fechaExpiracion: fechaExpiracion.toISOString(),
                 delayMs: delayExpiracion,
                 delayMinutos: Math.round(delayExpiracion / 60000)
             });
         } else {
-            // La reserva ya expiro, procesar inmediatamente
             logger.warn('Reserva ya expirada, procesando inmediatamente', { reservaId });
             setImmediate(() => manejarExpiracion(reservaId));
         }
-        
-        // Guardar en mapa
-        reservaTimeouts.set(reservaId.toString(), timeouts);
-        
+
+        reservaTimeouts.set(id, entry);
+
         return {
             programado: delayExpiracion > 0,
             fechaExpiracion,
             delayMs: delayExpiracion
         };
-        
+
     } catch (error) {
-        logger.error('Error al programar expiracion', { 
-            error: error.message, 
-            reservaId, 
-            fechaReserva, 
-            tiempoEspera 
+        logger.error('Error al programar expiracion', {
+            error: error.message,
+            reservaId,
+            fechaReserva,
+            tiempoEspera
         });
         return { programado: false, error: error.message };
     }
@@ -514,6 +525,8 @@ const rehidratarTimeouts = async () => {
 
         logger.info('Rehidratacion de timeouts completada', resultado);
 
+        iniciarBarridoActivaciones();
+
         return resultado;
 
     } catch (error) {
@@ -521,6 +534,31 @@ const rehidratarTimeouts = async () => {
         resultado.error = error.message;
         return resultado;
     }
+};
+
+const barrerActivacionesVencidas = async () => {
+    try {
+        const Reserva = require('../database/models/reserva.model');
+        const vencidas = await Reserva.find({
+            estado: { $in: ['pendiente', 'pendiente_aprobar'] },
+            fechaCocina: { $ne: null, $lte: new Date() },
+            comandaGenerada: { $ne: null }
+        }).select('_id fechaCocina estado').lean();
+        if (!vencidas.length) return;
+        logger.info('Barrido T−20: reservas con fechaCocina vencida', { cantidad: vencidas.length });
+        for (const r of vencidas) {
+            await manejarActivacion(r._id);
+        }
+    } catch (error) {
+        logger.error('Error en barrido de activaciones T−20', { error: error.message });
+    }
+};
+
+const iniciarBarridoActivaciones = () => {
+    if (sweepInterval) return;
+    sweepInterval = setInterval(barrerActivacionesVencidas, SWEEP_ACTIVACION_MS);
+    setImmediate(barrerActivacionesVencidas);
+    logger.info('Barrido T−20 de reservas iniciado', { cadaMs: SWEEP_ACTIVACION_MS });
 };
 
 /**
@@ -559,6 +597,10 @@ const limpiarTodos = () => {
     }
 
     reservaTimeouts.clear();
+    if (sweepInterval) {
+        clearInterval(sweepInterval);
+        sweepInterval = null;
+    }
     logger.info('Todos los timeouts limpiados');
 };
 

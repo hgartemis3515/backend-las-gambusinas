@@ -69,6 +69,22 @@ function getPrecioOpcion(grupo, nombreOpcion) {
   return encontrada ? encontrada.precio : 0;
 }
 
+function normNombreGrupo(nombre) {
+  return String(nombre || '').trim().toLowerCase();
+}
+
+function findGrupoCatalogo(grupos, nombreGrupo) {
+  const key = normNombreGrupo(nombreGrupo);
+  if (!key || !Array.isArray(grupos)) return null;
+  return grupos.find((g) => g && normNombreGrupo(g.grupo) === key) || null;
+}
+
+function opcionExisteEnGrupo(grupo, nombreOpcion) {
+  const target = String(nombreOpcion || '').trim().toLowerCase();
+  if (!target || !grupo) return false;
+  return normalizarOpciones(grupo.opciones).some((o) => o.nombre.toLowerCase() === target);
+}
+
 /**
  * Pronombre (nombre corto de cocina) de una opción. Vacío si no está definido.
  */
@@ -226,19 +242,34 @@ function enriquecerComplementosConPrecio(complementosPlato, complementosSeleccio
   const selecciones = Array.isArray(complementosSeleccionados) ? complementosSeleccionados : [];
 
   return selecciones.map((sel) => {
-    const grupoConfig = gruposPlato.find((g) => g && g.grupo === sel.grupo) || null;
-    let precioSnapshot = 0;
-
-    if (afectanPrecio && grupoConfig) {
-      precioSnapshot = getPrecioOpcion(grupoConfig, getNombreOpcion(sel.opcion));
+    const nombreOp = getNombreOpcion(sel.opcion) || String(sel.nombre || '').trim();
+    let grupoConfig = findGrupoCatalogo(gruposPlato, sel.grupo);
+    let enCatalogo = grupoConfig ? opcionExisteEnGrupo(grupoConfig, nombreOp) : false;
+    if (!enCatalogo) {
+      for (const g of gruposPlato) {
+        if (opcionExisteEnGrupo(g, nombreOp)) {
+          grupoConfig = g;
+          enCatalogo = true;
+          break;
+        }
+      }
     }
 
-    const nombreOp = getNombreOpcion(sel.opcion);
+    let precioSnapshot = 0;
+    if (afectanPrecio) {
+      if (enCatalogo) {
+        precioSnapshot = getPrecioOpcion(grupoConfig, nombreOp);
+      } else {
+        const clientPrecio = Number(sel.precio);
+        precioSnapshot = Number.isFinite(clientPrecio) && clientPrecio > 0 ? clientPrecio : 0;
+      }
+    }
+
     const pronombreSnap = String(sel.pronombre || '').trim()
-      || resolverPronombreCatalogo(gruposPlato, sel);
+      || resolverPronombreCatalogo(gruposPlato, { grupo: sel.grupo, opcion: nombreOp });
 
     return {
-      grupo: sel.grupo || '',
+      grupo: String(sel.grupo || '').trim() || (grupoConfig && grupoConfig.grupo) || '',
       opcion: nombreOp,
       cantidad: Math.max(1, Number(sel.cantidad) || 1),
       precio: precioSnapshot,
@@ -278,6 +309,7 @@ module.exports = {
   normalizarOpciones,
   getPrecioOpcion,
   getPronombreOpcion,
+  findGrupoCatalogo,
   resolverPronombreCatalogo,
   overlayPronombresEnPlatoLinea,
   overlayComplementosUnidosEnPlatoLinea,

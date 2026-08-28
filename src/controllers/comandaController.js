@@ -521,6 +521,11 @@ router.get('/comanda/:id', async (req, res) => {
             .populate('mesas', 'nummesa estado area nombreCombinado')
             .populate('cliente', 'nombre dni telefono tipo')
             .populate('platos.plato', 'nombre precio categoria')
+            .populate({
+                path: 'origenReserva',
+                select: 'fechaReserva fechaCocina creadoEn clienteNombre clienteTelefono numPersonas tiempoEspera estado metodoPago notas pagoAdelantado cocineroEncargado',
+                populate: { path: 'cocineroEncargado', select: 'name alias' },
+            })
             .lean();
         
         if (!comanda) {
@@ -3633,6 +3638,13 @@ router.delete('/comanda/:id/descuento', async (req, res) => {
         comanda.updatedAt = require('moment-timezone')().tz("America/Lima").toDate();
 
         await comanda.save();
+
+        try {
+            const { sincronizarDescuentoTicketsComanda } = require('../utils/descuentoTicketsComanda');
+            await sincronizarDescuentoTicketsComanda(comanda);
+        } catch (syncErr) {
+            logger.warn('No se pudo sincronizar quitar descuento a tickets', { error: syncErr.message });
+        }
 
         // Registrar auditoría
         req.auditoria = {

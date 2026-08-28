@@ -109,7 +109,7 @@ function normalizarTicket(t, tipo) {
     comandas: t.comandas || [],
     comandasNumbers: t.comandasNumbers || [],
     pedido: t.pedido || null,
-    total: t.total || 0,
+    total: (t.montoCobrado != null ? t.montoCobrado : t.total) || 0,
     subtotal: t.subtotal || 0,
     igv: t.igv || 0,
     moneda: t.moneda || 'PEN',

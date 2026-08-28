@@ -108,20 +108,23 @@ function validarComplementos(complementosPlato, complementosSeleccionados) {
     // Normalizar entrada
     const gruposNormalizados = complementosPlato.map(normalizarGrupoLegacy);
     const seleccionNormalizada = normalizarSeleccionLegacy(complementosSeleccionados || []);
+    const keyGrupo = (n) => String(n || '').trim().toLowerCase();
 
-    // Agrupar selección por grupo
+    // Agrupar selección por grupo (case-insensitive)
     const seleccionPorGrupo = {};
     seleccionNormalizada.forEach(comp => {
-        if (!seleccionPorGrupo[comp.grupo]) {
-            seleccionPorGrupo[comp.grupo] = [];
+        const k = keyGrupo(comp.grupo);
+        if (!k) return;
+        if (!seleccionPorGrupo[k]) {
+            seleccionPorGrupo[k] = [];
         }
-        seleccionPorGrupo[comp.grupo].push(comp);
+        seleccionPorGrupo[k].push(comp);
     });
 
     // Validar cada grupo
     for (const grupo of gruposNormalizados) {
         const nombreGrupo = grupo.grupo;
-        const seleccionGrupo = seleccionPorGrupo[nombreGrupo] || [];
+        const seleccionGrupo = seleccionPorGrupo[keyGrupo(nombreGrupo)] || [];
 
         // 1. Validar que las opciones existan en el grupo
         // v3.0: opciones puede ser array de strings (legacy) o de objetos { nombre, precio }
@@ -178,10 +181,13 @@ function validarComplementos(complementosPlato, complementosSeleccionados) {
     }
 
     // Validar que no haya grupos extraños no definidos en el plato
-    const gruposDefinidos = new Set(gruposNormalizados.map(g => g.grupo));
-    for (const grupoNombre of Object.keys(seleccionPorGrupo)) {
-        if (!gruposDefinidos.has(grupoNombre)) {
-            errores.push(`El grupo "${grupoNombre}" no está definido para este plato.`);
+    const gruposDefinidos = new Set(gruposNormalizados.map(g => keyGrupo(g.grupo)));
+    for (const grupoKey of Object.keys(seleccionPorGrupo)) {
+        if (!gruposDefinidos.has(grupoKey)) {
+            // Extra de Mozos (p. ej. adicional de guarnición) no bloquea el pedido:
+            // el backend conserva la línea y snapshot de precio.
+            const muestra = (seleccionPorGrupo[grupoKey][0] && seleccionPorGrupo[grupoKey][0].grupo) || grupoKey;
+            advertencias.push(`El grupo "${muestra}" no está definido para este plato; se guarda como adicional.`);
         }
     }
 

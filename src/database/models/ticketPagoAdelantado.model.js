@@ -119,6 +119,20 @@ const ticketPagoAdelantadoSchema = new mongoose.Schema({
     required: true,
     default: 0,
   },
+  // Monto realmente cobrado (seña). En reservas sin adelanto es 0;
+  // `total`/`subtotal` son el valor de los platos para impresión.
+  montoCobrado: {
+    type: Number,
+    default: null,
+  },
+  totalSinDescuento: { type: Number, default: null },
+  montoDescuento: { type: Number, default: 0 },
+  descuentos: [{
+    comandaNumber: { type: Number },
+    porcentaje: { type: Number, default: 0 },
+    motivo: { type: String },
+    monto: { type: Number, default: 0 },
+  }],
   // Referencia al boucher/voucher generado
   boucher: {
     type: mongoose.Schema.Types.ObjectId,

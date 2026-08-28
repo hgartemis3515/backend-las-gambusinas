@@ -181,6 +181,20 @@ function getSimboloMoneda(moneda) {
   return 'S/.';
 }
 
+/** Suma de platos (antes del descuento). */
+function resolverSubtotalPlatos(datos) {
+  const suma = (datos?.productos || []).reduce((s, p) => {
+    const linea = Number(p?.subtotal);
+    if (Number.isFinite(linea) && linea > 0) return s + linea;
+    return s + (Number(p?.precio) || 0) * (Number(p?.cantidad) || 1);
+  }, 0);
+  if (suma > 0) return Number(suma.toFixed(2));
+  const sinDesc = Number(datos?.totalSinDescuento);
+  if (sinDesc > 0) return sinDesc;
+  const sub = Number(datos?.subtotal);
+  return Number.isFinite(sub) && sub > 0 ? sub : 0;
+}
+
 function getLabelMetodoPago(metodoPago) {
   if (!metodoPago) return 'Pendiente';
   const m = String(metodoPago).toLowerCase();
@@ -221,6 +235,9 @@ function estimarAltura(datos, bloques) {
   }
   if ((bloques.mostrarTotales === true && datos.subtotal) || (bloques.mostrarIGV === true && datos.igv)) {
     h += 40;
+  }
+  if (resolverSubtotalPlatos(datos) > 0) {
+    h += 16;
   }
   if (Number(datos.montoDescuento) > 0) {
     h += 16;
@@ -295,7 +312,8 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
 
   const mostrarPrecios = bloques.mostrarPrecios !== false && vis.precios !== false;
   const mostrarTotal = bloques.mostrarTotal !== false && vis.total !== false;
-  const mostrarSubtotal = bloques.mostrarTotales === true;
+  const subtotalPlatos = resolverSubtotalPlatos(datos);
+  const mostrarSubtotal = mostrarPrecios && subtotalPlatos > 0;
   const mostrarIGV = bloques.mostrarIGV === true;
   const simbolo = getSimboloMoneda(datos.moneda);
 
@@ -453,7 +471,7 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
   // === TOTALES ===
   if (mostrarTotal) {
     html += `<div style="text-align:right;width:100%;font-size:${fontSize}px;">`;
-    const subtotalFinal = datos.subtotal || 0;
+    const subtotalFinal = subtotalPlatos;
     const igvFinal = datos.igv || 0;
     const totalFinal = datos.total || 0;
 
@@ -527,9 +545,39 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
  * Mapa datos reales de comanda + boucher → formato ticket para plantilla comanda.
  * Se usa tanto en App Mozos como en el dashboard.
  */
+function resolverPrecioLineaImpresion(p) {
+  const n = Number(p?.precioUnitario ?? p?.precio ?? p?.plato?.precio ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
 export function mapComandaATicket(comanda, boucherOpcional, config = {}) {
   const comandasNumbers = boucherOpcional?.comandasNumbers
     || (comanda.comandaNumber ? [comanda.comandaNumber] : []);
+  const productos = (comanda.platos || [])
+    .filter(p => !p.eliminado && !p.anulado)
+    .map(p => {
+      const precio = resolverPrecioLineaImpresion(p);
+      const cantidad = p.cantidad || 1;
+      return {
+        nombre: p.plato?.nombre || p.nombre || 'Plato',
+        cantidad,
+        precio,
+        subtotal: precio * cantidad,
+        tipoServicio: p.tipoServicio || 'mesa',
+        complementos: (p.complementosSeleccionados || []).map(c => ({
+          grupo: c.grupo,
+          opcion: c.opcion,
+          precio: c.precio || 0,
+        })),
+        notaEspecial: p.notaEspecial || '',
+        paraLlevar: p.tipoServicio === 'para_llevar',
+      };
+    });
+  const sumaPlatos = productos.reduce((s, p) => s + (Number(p.subtotal) || 0), 0);
+  const totalFuente = Number(
+    boucherOpcional?.totalConDescuento ?? boucherOpcional?.total ?? comanda.totalCalculado ?? comanda.total ?? comanda.precioTotal
+  );
+  const subtotalFuente = Number(comanda.totalSinDescuento ?? boucherOpcional?.subtotal ?? comanda.subtotal);
   return {
     comandaNumero: comanda.comandaNumber || comanda.comandaNumber || null,
     comandasNumbers,
@@ -540,25 +588,11 @@ export function mapComandaATicket(comanda, boucherOpcional, config = {}) {
     moneda: boucherOpcional?.moneda || config.moneda || 'PEN',
     tipoPago: boucherOpcional?.metodoPagoLabel || boucherOpcional?.metodoPago || 'Pendiente',
     observaciones: comanda.observaciones || '',
-    productos: (comanda.platos || [])
-      .filter(p => !p.eliminado && !p.anulado)
-      .map(p => ({
-        nombre: p.plato?.nombre || p.nombre || 'Plato',
-        cantidad: p.cantidad || 1,
-        precio: p.plato?.precio || p.precio || 0,
-        subtotal: (p.plato?.precio || p.precio || 0) * (p.cantidad || 1),
-        tipoServicio: p.tipoServicio || 'mesa',
-        complementos: (p.complementosSeleccionados || []).map(c => ({
-          grupo: c.grupo,
-          opcion: c.opcion,
-          precio: c.precio || 0,
-        })),
-        notaEspecial: p.notaEspecial || '',
-        paraLlevar: p.tipoServicio === 'para_llevar',
-      })),
-    subtotal: boucherOpcional?.subtotal ?? comanda.subtotal ?? 0,
+    productos,
+    subtotal: sumaPlatos > 0 ? sumaPlatos : (subtotalFuente > 0 ? subtotalFuente : 0),
+    totalSinDescuento: sumaPlatos > 0 ? sumaPlatos : (Number(comanda.totalSinDescuento) || subtotalFuente || 0),
     igv: boucherOpcional?.igv ?? comanda.igv ?? 0,
-    total: boucherOpcional?.totalConDescuento ?? boucherOpcional?.total ?? comanda.totalCalculado ?? comanda.total ?? comanda.precioTotal ?? 0,
+    total: totalFuente > 0 ? totalFuente : sumaPlatos,
     montoDescuento: Number(boucherOpcional?.montoDescuento ?? comanda.montoDescuento ?? 0) || 0,
     descuentos: boucherOpcional?.descuentos || (comanda.descuento > 0 ? [{ porcentaje: comanda.descuento, motivo: comanda.motivoDescuento, monto: comanda.montoDescuento }] : []),
     cliente: {

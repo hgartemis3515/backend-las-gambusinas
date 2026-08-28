@@ -608,7 +608,8 @@ async function apiDelete(endpoint, body) {
       clearAuthAndRedirect();
       return null;
     }
-    return await res.json();
+    const data = await res.json().catch(() => ({}));
+    return { ...data, ok: res.ok, status: res.status };
   } catch (e) {
     console.error('API Error:', endpoint, e);
     // Notificar error de red

@@ -3,6 +3,11 @@ const mesasModel = require('../database/models/mesas.model');
 const moment = require('moment-timezone');
 const mongoose = require('mongoose');
 const logger = require('../utils/logger');
+const {
+    enriquecerComplementosConPrecio,
+    calcularPrecioUnitarioConComplementos,
+    calcularResumenComplementos
+} = require('../utils/precioComplementos');
 
 // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: modelos diferidos para crear comanda programada
 let ComandaModel = null;
@@ -486,7 +491,7 @@ const obtenerReservasPendientesExpiracion = async () => {
         const ahora = moment().tz('America/Lima').toDate();
         
         const reservas = await Reserva.find({
-            estado: 'pendiente'
+            estado: { $in: ['pendiente', 'pendiente_aprobar'] }
         })
         .populate('mesa', 'nummesa estado')
         .populate('mozo', 'name _id')
@@ -520,7 +525,7 @@ const obtenerReservasProximasAExpirar = async (minutosAntes = 5) => {
         const ahora = moment().tz('America/Lima');
         
         const reservas = await Reserva.find({
-            estado: 'pendiente'
+            estado: { $in: ['pendiente', 'pendiente_aprobar'] }
         })
         .populate('mesa', 'nummesa')
         .populate('mozo', 'name _id')
@@ -563,32 +568,51 @@ const obtenerMesasDisponibles = async () => {
 
 const calcularTotalesPlato = (platoDoc, item) => {
     const precioBase = Number(platoDoc.precio) || 0;
-    let extraComplementos = 0;
-    let totalUnidadesComplementos = 0;
     const raw = Array.isArray(item.complementosSeleccionados)
         ? item.complementosSeleccionados
         : Array.isArray(item.complementosElegidos)
             ? item.complementosElegidos
             : [];
-    const complementosSeleccionados = raw.map((c) => {
-        const cantidad = parseInt(c.cantidad) || 1;
-        const precio = Number(c.precio) || 0;
-        extraComplementos += precio * cantidad;
-        totalUnidadesComplementos += cantidad;
-        return {
-            grupo: String(c.grupo || ''),
-            opcion: String(c.opcion || c.nombre || ''),
-            cantidad,
-            precio,
-            pronombre: String(c.pronombre || '').trim()
-        };
-    });
-    const precioUnitario = precioBase + extraComplementos;
+    const afectanPrecio = platoDoc.complementosAfectanPrecio !== false;
+    const complementosSeleccionados = enriquecerComplementosConPrecio(
+        platoDoc.complementos || [],
+        raw,
+        { afectanPrecio }
+    );
+    const calc = calcularPrecioUnitarioConComplementos(
+        precioBase,
+        complementosSeleccionados,
+        { afectanPrecio }
+    );
+    const resumen = calcularResumenComplementos(complementosSeleccionados, { afectanPrecio });
     const cantidad = parseInt(item.cantidad) || 1;
     return {
-        precioBase, extraComplementos, precioUnitario, totalUnidadesComplementos,
-        complementosSeleccionados, cantidad, total: precioUnitario * cantidad
+        precioBase,
+        extraComplementos: calc.extraComplementos,
+        precioUnitario: calc.precioUnitario,
+        totalUnidadesComplementos: resumen.totalUnidades,
+        complementosSeleccionados,
+        cantidad,
+        total: calc.precioUnitario * cantidad
     };
+};
+
+/**
+ * Parsea la hora de atención en America/Lima.
+ * ISO con Z/offset → instante UTC convertido a Lima.
+ * Fecha local sin zona → se interpreta como hora de Lima (no la TZ del server).
+ */
+const parseFechaAtencionLima = (valor) => {
+    if (valor == null || valor === '') return moment.invalid();
+    if (moment.isMoment(valor)) return valor.clone().tz('America/Lima');
+    if (valor instanceof Date) return moment(valor).tz('America/Lima');
+    const s = String(valor).trim();
+    if (/[zZ]$|[+-]\d{2}:?\d{2}$/.test(s)) {
+        return moment.utc(s).tz('America/Lima');
+    }
+    const local = moment.tz(s, ['YYYY-MM-DDTHH:mm:ss', 'YYYY-MM-DDTHH:mm', 'YYYY-MM-DD HH:mm:ss', 'YYYY-MM-DD HH:mm'], true, 'America/Lima');
+    if (local.isValid()) return local;
+    return moment.tz(s, 'America/Lima');
 };
 
 /**
@@ -699,7 +723,7 @@ const obtenerMesasDisponiblesParaReserva = async (fechaReserva, ventanaMinutos =
 
 const obtenerReservasProgramadasCocina = async (opts = {}) => {
     try {
-        const query = { estado: 'pendiente', comandaGenerada: { $ne: null } };
+        const query = { estado: { $in: ['pendiente', 'pendiente_aprobar'] }, comandaGenerada: { $ne: null } };
         if (opts.cocineroId && mongoose.Types.ObjectId.isValid(opts.cocineroId)) {
             query.cocineroEncargado = new mongoose.Types.ObjectId(opts.cocineroId);
         }
@@ -737,7 +761,7 @@ const crearReservaDesdeMozos = async (data) => {
         if (clienteNombre.length < 2) throw new Error('El nombre del cliente es obligatorio (mínimo 2 caracteres)');
         if (!data.fechaReserva) throw new Error('La hora de atención es obligatoria');
 
-        const fechaAtencion = moment.tz(data.fechaReserva, 'America/Lima');
+        const fechaAtencion = parseFechaAtencionLima(data.fechaReserva);
         const ahora = moment().tz('America/Lima');
         if (!fechaAtencion.isValid()) throw new Error('Hora de atención inválida');
         if (!fechaAtencion.isAfter(ahora)) throw new Error('La hora de atención debe ser futura');
@@ -846,7 +870,8 @@ const crearReservaDesdeMozos = async (data) => {
         const ticketPPA = await getTicketPagoAdelantadoModel().create({
             estado: 'pendiente_aprobacion', comandas: [comanda._id], comandasNumbers: [comanda.comandaNumber],
             mesa: mesa._id, numMesa: mesa.nummesa, mozo: data.mozo, nombreMozo: mozoDoc?.name || 'N/A',
-            platos: platosSnapshot, subtotal: montoPagado, igv: 0, total: montoPagado,
+            platos: platosSnapshot, subtotal: totalPlatos, igv: 0, total: totalPlatos,
+            montoCobrado: montoPagado,
             metodoPago: ['efectivo', 'digital', 'tarjeta'].includes(metodo) ? metodo : 'efectivo',
             clienteNombre, origen: 'reserva', reserva: reserva._id, createdBy: data.mozo,
             sourceApp: 'mozos',
@@ -867,6 +892,7 @@ const crearReservaDesdeMozos = async (data) => {
             reservaId: reserva._id, comandaId: comanda._id, mesaId: mesa._id,
             fechaReserva: reserva.fechaReserva, montoPagado, ticketId: ticketPPA._id
         });
+        programarJobsReservaConfirmada(reserva, config);
         return { reserva, comanda, ticketPPA, config, activacionInmediata, esperandoAprobacion: true };
     } catch (error) {
         logger.error('Error en crearReservaDesdeMozos', { error: error.message, stack: error.stack });
@@ -1008,5 +1034,6 @@ module.exports = {
     // Helpers puras (testeables sin DB)
     calcularTotalesPlato,
     calcularFechaCocina,
-    esReservaInmediata
+    esReservaInmediata,
+    parseFechaAtencionLima
 };

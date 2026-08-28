@@ -7,7 +7,7 @@
 const mongoose = require('mongoose');
 const moment = require('moment-timezone');
 const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
-const { adjuntarDescuentoTicket, BOUCHER_DESCUENTO_SELECT } = require('../utils/descuentoTicketSnapshot');
+const { adjuntarDescuentoTicket, aplicarDescuentoAVistaTicket, totalesConDescuentoImpresion, BOUCHER_DESCUENTO_SELECT, COMANDA_DESCUENTO_SELECT } = require('../utils/descuentoTicketSnapshot');
 const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
 const comandaModel = require('../database/models/comanda.model');
 const mesasModel = require('../database/models/mesas.model');
@@ -171,7 +171,7 @@ async function obtenerTicketPorId(ticketId) {
   }
   return ticketAprobacionModel
     .findById(ticketId)
-    .populate('comandas', 'comandaNumber status platos mesas mozos')
+    .populate('comandas', 'comandaNumber status platos mesas mozos descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado')
     .populate('mesa', 'nummesa estado nombreCombinado')
     .populate('mozo', 'name')
     .populate('boucher')
@@ -196,10 +196,11 @@ async function obtenerTicketsPendientes(fecha) {
     })
     .populate('mesa', 'nummesa estado nombreCombinado')
     .populate('mozo', 'name')
+    .populate('comandas', COMANDA_DESCUENTO_SELECT)
     .populate('boucher', BOUCHER_DESCUENTO_SELECT)
     .sort({ createdAt: 1 })
     .lean()
-    .then((tickets) => tickets.map(adjuntarDescuentoTicket));
+    .then((tickets) => tickets.map(aplicarDescuentoAVistaTicket));
 }
 
 /**
@@ -216,10 +217,11 @@ async function obtenerTicketsPorFecha(fecha) {
     })
     .populate('mesa', 'nummesa estado nombreCombinado')
     .populate('mozo', 'name')
+    .populate('comandas', COMANDA_DESCUENTO_SELECT)
     .populate('boucher', BOUCHER_DESCUENTO_SELECT)
     .sort({ createdAt: -1 })
     .lean()
-    .then((tickets) => tickets.map(adjuntarDescuentoTicket));
+    .then((tickets) => tickets.map(aplicarDescuentoAVistaTicket));
 }
 
 /**
@@ -646,7 +648,11 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
     };
   } catch (_) { /* fallback 18% */ }
 
-  return {
+    const desc = totalesConDescuentoImpresion(ticket, {
+      subtotal: ticket.subtotal,
+      total: ticket.total,
+    });
+    return {
     ticketId: ticket._id,
     ticketNumber: ticket.ticketNumber,
     tipo: ticket.tipo,
@@ -664,16 +670,14 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
       : (boucherData?.metodoPagoLabel || ticket.metodoPago || 'Pendiente'),
     observaciones: ticket.observaciones || '',
     productos,
-    subtotal: ticket.subtotal,
+    subtotal: desc.subtotal,
     igv: ticket.igv,
     igvPorcentaje: igvSnap.igvPorcentaje,
     nombreImpuesto: igvSnap.nombreImpuesto,
-    total: ticket.total,
-    montoDescuento: Number(ticket.montoDescuento ?? boucherData?.montoDescuento ?? 0) || 0,
-    totalSinDescuento: ticket.totalSinDescuento ?? boucherData?.totalSinDescuento ?? null,
-    descuentos: (ticket.descuentos && ticket.descuentos.length)
-      ? ticket.descuentos
-      : (boucherData?.descuentos || []),
+    total: desc.total,
+    montoDescuento: desc.montoDescuento,
+    totalSinDescuento: desc.totalSinDescuento,
+    descuentos: desc.descuentos,
     cliente: {
       nombre: ticket.clienteNombre || boucherData?.clienteNombre || NOMBRE_CLIENTE_FALLBACK,
       dni: ticket.clienteDni || boucherData?.clienteDni || '',
@@ -692,9 +696,11 @@ async function obtenerTicketsPorComanda(comandaId) {
   return ticketAprobacionModel
     .find({ comandas: comandaId, isActive: true })
     .populate('mozo', 'name')
-    .populate('boucher', 'boucherNumber voucherId metodoPago')
+    .populate('comandas', COMANDA_DESCUENTO_SELECT)
+    .populate('boucher', 'boucherNumber voucherId metodoPago montoDescuento descuentos totalSinDescuento')
     .sort({ createdAt: -1 })
-    .lean();
+    .lean()
+    .then((tickets) => tickets.map(aplicarDescuentoAVistaTicket));
 }
 
 /**
@@ -707,8 +713,8 @@ async function actualizarTicketAdmin(ticketId, { observaciones, metodoPago }) {
     err.statusCode = 404;
     throw err;
   }
-  if (ticket.estado !== 'pendiente_aprobacion') {
-    const err = new Error('Solo se pueden editar tickets pendientes de aprobación');
+  if (!['pendiente_aprobacion', 'aprobado'].includes(ticket.estado)) {
+    const err = new Error(`No se puede editar un ticket ${ticket.estado}`);
     err.statusCode = 400;
     throw err;
   }

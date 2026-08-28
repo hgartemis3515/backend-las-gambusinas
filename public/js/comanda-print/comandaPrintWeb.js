@@ -178,6 +178,20 @@ function resolverTipoPagoImpresion(ticket, tipoPagoFallback = 'Pendiente') {
   return ticket?.metodoPago || ticket?.tipoPago || tipoPagoFallback || 'Pendiente';
 }
 
+function resolverTotalesTicketImpresion(ticket, productos) {
+  const sumaPlatos = (productos || []).reduce((s, p) => s + (Number(p.subtotal) || 0), 0);
+  const esReserva = ticket?.origen === 'reserva';
+  const totalGuardado = Number(ticket?.total);
+  const subtotalGuardado = Number(ticket?.subtotal);
+  if ((esReserva || !Number.isFinite(totalGuardado) || totalGuardado === 0) && sumaPlatos > 0) {
+    return { subtotal: sumaPlatos, total: sumaPlatos };
+  }
+  return {
+    subtotal: Number.isFinite(subtotalGuardado) ? subtotalGuardado : 0,
+    total: Number.isFinite(totalGuardado) ? totalGuardado : 0,
+  };
+}
+
 /**
  * Maps a ticket object (from aprobacion/PPA) to datos format for printing.
  * Handles flat structure from backend and nested objects from populate.
@@ -203,6 +217,26 @@ function mapearTicketADatos(ticket) {
 
   const tipoLower = String(ticket.tipo || '').toLowerCase();
 
+  const productos = (ticket.platos || []).map(p => {
+    const precio = p.precio || p.plato?.precio || 0;
+    const cantidad = p.cantidad || 1;
+    return {
+      nombre: p.nombre || p.plato?.nombre || 'Plato',
+      cantidad,
+      precio,
+      subtotal: p.subtotal || precio * cantidad,
+      tipoServicio: p.tipoServicio || 'mesa',
+      complementos: (p.complementosSeleccionados || []).map(c => ({
+        grupo: c.grupo || '',
+        opcion: c.opcion || '',
+        precio: c.precio || 0,
+      })),
+      notaEspecial: p.notaEspecial || '',
+      paraLlevar: p.tipoServicio === 'para_llevar',
+    };
+  });
+  const totales = resolverTotalesTicketImpresion(ticket, productos);
+
   return {
     ticketId: ticket._id || ticket.ticketId || null,
     ticketNumber: ticket.ticketNumber || null,
@@ -222,29 +256,12 @@ function mapearTicketADatos(ticket) {
     moneda: ticket.moneda === 'USD' ? 'USD' : 'PEN',
     tipoPago: resolverTipoPagoImpresion(ticket),
     observaciones: ticket.observaciones || '',
-    productos: (ticket.platos || []).map(p => {
-      const precio = p.precio || p.plato?.precio || 0;
-      const cantidad = p.cantidad || 1;
-      return {
-        nombre: p.nombre || p.plato?.nombre || 'Plato',
-        cantidad,
-        precio,
-        subtotal: p.subtotal || precio * cantidad,
-        tipoServicio: p.tipoServicio || 'mesa',
-        complementos: (p.complementosSeleccionados || []).map(c => ({
-          grupo: c.grupo || '',
-          opcion: c.opcion || '',
-          precio: c.precio || 0,
-        })),
-        notaEspecial: p.notaEspecial || '',
-        paraLlevar: p.tipoServicio === 'para_llevar',
-      };
-    }),
-    subtotal: ticket.subtotal || 0,
+    productos,
+    subtotal: totales.subtotal,
     igv: ticket.igv || 0,
     igvPorcentaje: ticket.igvPorcentaje,
     nombreImpuesto: ticket.nombreImpuesto,
-    total: ticket.total || 0,
+    total: totales.total,
     montoDescuento: Number(ticket.montoDescuento ?? ticket.boucher?.montoDescuento ?? 0) || 0,
     totalSinDescuento: ticket.totalSinDescuento ?? ticket.boucher?.totalSinDescuento ?? null,
     descuentos: ticket.descuentos?.length ? ticket.descuentos : (ticket.boucher?.descuentos || []),

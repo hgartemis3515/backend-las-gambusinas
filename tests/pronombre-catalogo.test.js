@@ -41,4 +41,25 @@ describe('pronombre desde catálogo', () => {
     ]);
     expect(out[0].pronombre).toBe('P Frita');
   });
+
+  test('enriquecer usa precio de catálogo aunque el grupo difiera en mayúsculas', () => {
+    const catalogoConPrecio = [{
+      grupo: 'Guarnición',
+      opciones: [{ nombre: 'Papa extra', precio: 4, pronombre: 'P.ext' }]
+    }];
+    const out = enriquecerComplementosConPrecio(catalogoConPrecio, [
+      { grupo: 'guarnición', opcion: 'papa extra', cantidad: 2, precio: 99 }
+    ]);
+    expect(out[0].precio).toBe(4);
+    expect(out[0].cantidad).toBe(2);
+    expect(out[0].grupo).toBe('guarnición');
+  });
+
+  test('enriquecer conserva precio del mozo si el adicional no está en catálogo', () => {
+    const out = enriquecerComplementosConPrecio([{ grupo: 'Guarnición', opciones: [{ nombre: 'Arroz', precio: 0 }] }], [
+      { grupo: 'Adicionales', opcion: 'Extra queso', cantidad: 1, precio: 3 }
+    ]);
+    expect(out[0].precio).toBe(3);
+    expect(out[0].opcion).toBe('Extra queso');
+  });
 });

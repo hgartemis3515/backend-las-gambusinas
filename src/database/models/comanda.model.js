@@ -671,25 +671,26 @@ comandaSchema.pre('save', async function (next) {
         try {
             const platoModel = mongoose.model('platos');
             let precioTotal = 0;
+
+            const resolverPrecioLinea = async (platoItem) => {
+                if (platoItem.precioUnitario != null && Number.isFinite(Number(platoItem.precioUnitario))) {
+                    return Number(platoItem.precioUnitario);
+                }
+                if (platoItem.plato && typeof platoItem.plato === 'object' && platoItem.plato.precio) {
+                    return platoItem.plato.precio;
+                }
+                if (platoItem.plato) {
+                    const plato = await platoModel.findById(platoItem.plato);
+                    if (plato && plato.precio) return plato.precio;
+                }
+                return 0;
+            };
             
             // Si los platos están populados, usar directamente
             for (let i = 0; i < this.platos.length; i++) {
                 const platoItem = this.platos[i];
                 const cantidad = this.cantidades[i] || 1;
-                
-                let precio = 0;
-                if (platoItem.plato && typeof platoItem.plato === 'object' && platoItem.plato.precio) {
-                    // Plato ya populado
-                    precio = platoItem.plato.precio;
-                } else if (platoItem.plato) {
-                    // Buscar plato en BD
-                    const plato = await platoModel.findById(platoItem.plato);
-                    if (plato && plato.precio) {
-                        precio = plato.precio;
-                    }
-                }
-                
-                precioTotal += precio * cantidad;
+                precioTotal += (await resolverPrecioLinea(platoItem)) * cantidad;
             }
             
             this.precioTotal = precioTotal;
@@ -708,16 +709,7 @@ comandaSchema.pre('save', async function (next) {
                     const platoItem = this.platos[i];
                     if (!platoItem.eliminado && !platoItem.anulado) {
                         const cantidad = this.cantidades[i] || 1;
-                        let precio = 0;
-                        if (platoItem.plato && typeof platoItem.plato === 'object' && platoItem.plato.precio) {
-                            precio = platoItem.plato.precio;
-                        } else if (platoItem.plato) {
-                            const plato = await platoModel.findById(platoItem.plato);
-                            if (plato && plato.precio) {
-                                precio = plato.precio;
-                            }
-                        }
-                        precioTotalSinEliminar += precio * cantidad;
+                        precioTotalSinEliminar += (await resolverPrecioLinea(platoItem)) * cantidad;
                     }
                 }
                 

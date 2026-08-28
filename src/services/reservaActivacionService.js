@@ -83,18 +83,60 @@ const activarReservaProgramada = async (reservaId, opts = {}) => {
     try {
         const ahora = moment.tz('America/Lima').toDate();
         const reserva = await Reserva.findOneAndUpdate(
-            { _id: reservaId, estado: 'pendiente' },
+            { _id: reservaId, estado: { $in: ['pendiente', 'pendiente_aprobar'] } },
             { estado: 'activa', actualizadoEn: ahora },
             { new: true }
         ).populate('mesa', 'nummesa estado area');
 
         if (!reserva) {
-            const actual = await Reserva.findById(reservaId).select('estado').lean();
+            const actual = await Reserva.findById(reservaId).populate('mesa', 'nummesa estado area');
             if (!actual) {
                 logger.warn('activarReservaProgramada: reserva no encontrada', { reservaId });
                 return { activada: false, motivo: 'no_encontrada' };
             }
-            logger.warn('activarReservaProgramada: estado no pendiente', {
+            if (actual.estado === 'activa') {
+                logger.info('activarReservaProgramada: reserva ya activa, se asegura la comanda en KDS', {
+                    reservaId, origen
+                });
+                let comandaYa = null;
+                if (actual.comandaGenerada) {
+                    comandaYa = await Comanda.findById(actual.comandaGenerada);
+                    if (comandaYa && comandaYa.programadaPorReserva) {
+                        let platosModificados = 0;
+                        comandaYa.platos.forEach((p) => {
+                            if (p.estado === 'pendiente') {
+                                p.estado = 'pedido';
+                                if (!p.tiempos) p.tiempos = {};
+                                if (!p.tiempos.pedido) {
+                                    p.tiempos.pedido = moment.tz('America/Lima').toDate();
+                                }
+                                platosModificados++;
+                            }
+                            (p.complementosSeleccionados || []).forEach((c) => {
+                                if (!c.estadoCocina || c.estadoCocina === 'pendiente') {
+                                    c.estadoCocina = 'pedido';
+                                }
+                            });
+                        });
+                        comandaYa.programadaPorReserva = false;
+                        comandaYa.prioridadOrden = Date.now();
+                        comandaYa.origenCreacion = comandaYa.origenCreacion || 'reserva';
+                        comandaYa.markModified('platos');
+                        await comandaYa.save();
+                        logger.info('Comanda programada activada (reserva ya activa)', {
+                            comandaId: comandaYa._id,
+                            comandaNumber: comandaYa.comandaNumber,
+                            platosModificados
+                        });
+                        await aplicarAsignacionAutomaticaReserva(comandaYa._id);
+                        if (global.emitComandaActualizada) {
+                            await global.emitComandaActualizada(comandaYa._id);
+                        }
+                    }
+                }
+                return { activada: true, yaActiva: true, reserva: actual, comanda: comandaYa };
+            }
+            logger.warn('activarReservaProgramada: estado no activable', {
                 reservaId, estado: actual.estado, origen
             });
             return { activada: false, motivo: 'estado_no_pendiente', reserva: actual };
@@ -118,7 +160,6 @@ const activarReservaProgramada = async (reservaId, opts = {}) => {
         if (reserva.comandaGenerada) {
             const comanda = await Comanda.findById(reserva.comandaGenerada);
             if (comanda && comanda.programadaPorReserva) {
-                // Platos pendiente -> pedido (entran a la cola)
                 let platosModificados = 0;
                 comanda.platos.forEach((p) => {
                     if (p.estado === 'pendiente') {
@@ -129,10 +170,16 @@ const activarReservaProgramada = async (reservaId, opts = {}) => {
                         }
                         platosModificados++;
                     }
+                    (p.complementosSeleccionados || []).forEach((c) => {
+                        if (!c.estadoCocina || c.estadoCocina === 'pendiente') {
+                            c.estadoCocina = 'pedido';
+                        }
+                    });
                 });
                 comanda.programadaPorReserva = false;
-                comanda.prioridadOrden = Date.now(); // 🚀 arriba en la cola
+                comanda.prioridadOrden = Date.now();
                 comanda.origenCreacion = comanda.origenCreacion || 'reserva';
+                comanda.markModified('platos');
                 await comanda.save();
                 comandaActualizada = comanda;
                 logger.info('Comanda programada activada', {
@@ -141,13 +188,15 @@ const activarReservaProgramada = async (reservaId, opts = {}) => {
                     platosModificados,
                     prioridadOrden: comanda.prioridadOrden
                 });
-                await aplicarAsignacionAutomaticaReserva(comanda._id);
             } else if (comanda) {
-                logger.debug('Comanda ya no estaba programada, se omite update', {
+                logger.debug('Comanda ya no estaba programada, se omite update de flag', {
                     comandaId: comanda._id,
                     programadaPorReserva: comanda.programadaPorReserva
                 });
                 comandaActualizada = comanda;
+            }
+            if (comandaActualizada) {
+                await aplicarAsignacionAutomaticaReserva(comandaActualizada._id);
             }
         } else {
             logger.warn('activarReservaProgramada: reserva sin comandaGenerada', { reservaId });

@@ -13,6 +13,47 @@ const PLATO_MENU_CACHE_PREFIX = 'plato:menu';
 
 const queryActivos = () => ({ stock: { $gte: 0 }, $or: [{ isActive: true }, { isActive: { $exists: false } }] });
 
+/** Reemplaza el array de complementos sin _id anidados (mongoose no mergea opciones nuevas). */
+function sanitizarComplementosParaGuardar(complementos) {
+    if (!Array.isArray(complementos)) return [];
+    return complementos.map((g) => {
+        if (!g || typeof g !== 'object') return null;
+        const grupo = String(g.grupo || '').trim();
+        if (!grupo) return null;
+        const vistos = new Set();
+        const ops = [];
+        for (const op of Array.isArray(g.opciones) ? g.opciones : []) {
+            let nombre = '';
+            let precio = 0;
+            let pronombre = '';
+            if (typeof op === 'string') {
+                nombre = op.trim();
+            } else if (op && typeof op === 'object') {
+                nombre = String(op.nombre || '').trim();
+                const pr = Number(op.precio);
+                precio = Number.isFinite(pr) && pr > 0 ? pr : 0;
+                pronombre = String(op.pronombre || '').trim().slice(0, 40);
+            }
+            if (!nombre) continue;
+            const key = nombre.toLowerCase();
+            if (vistos.has(key)) continue;
+            vistos.add(key);
+            ops.push({ nombre, precio, pronombre });
+        }
+        return {
+            grupo,
+            obligatorio: !!g.obligatorio,
+            seleccionMultiple: !!g.seleccionMultiple,
+            modoSeleccion: g.modoSeleccion || (g.seleccionMultiple ? 'cantidades' : 'opciones'),
+            maxUnidadesGrupo: g.maxUnidadesGrupo ?? (g.seleccionMultiple ? null : 1),
+            minUnidadesGrupo: g.minUnidadesGrupo ?? (g.obligatorio ? 1 : 0),
+            maxUnidadesPorOpcion: g.maxUnidadesPorOpcion ?? null,
+            permiteRepetirOpcion: g.permiteRepetirOpcion !== undefined ? !!g.permiteRepetirOpcion : !!g.seleccionMultiple,
+            opciones: ops
+        };
+    }).filter(Boolean);
+}
+
 /**
  * Normaliza query param tipo a valor canónico para BD.
  * Legacy: desayuno/carta.
@@ -423,7 +464,11 @@ const asegurarCodigosPlato = async () => {
 const crearPlato = async (data) => {
     let nuevo;
     try {
-        nuevo = await plato.create(data);
+        const payload = { ...(data && typeof data === 'object' ? data : {}) };
+        if (Object.prototype.hasOwnProperty.call(payload, 'complementos')) {
+            payload.complementos = sanitizarComplementosParaGuardar(payload.complementos);
+        }
+        nuevo = await plato.create(payload);
     } catch (err) {
         if (err && err.code === 11000) {
             const dup = err.keyValue && err.keyValue.codigo
@@ -471,6 +516,9 @@ const actualizarPlato = async (id, newData) => {
         clean.complementosUnidosAlPlato = newData.complementosUnidosAlPlato === true
             || newData.complementosUnidosAlPlato === 'true';
     }
+    if (Object.prototype.hasOwnProperty.call(clean, 'complementos')) {
+        clean.complementos = sanitizarComplementosParaGuardar(clean.complementos);
+    }
 
     try {
         const doc = await plato.findOne(filter);
@@ -482,6 +530,10 @@ const actualizarPlato = async (id, newData) => {
         doc.set(clean);
         if (typeof clean.complementosUnidosAlPlato !== 'undefined') {
             doc.set('complementosUnidosAlPlato', !!clean.complementosUnidosAlPlato);
+        }
+        if (Object.prototype.hasOwnProperty.call(clean, 'complementos')) {
+            doc.set('complementos', clean.complementos);
+            doc.markModified('complementos');
         }
         await doc.save();
     } catch (err) {
