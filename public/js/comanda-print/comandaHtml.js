@@ -195,6 +195,20 @@ function resolverSubtotalPlatos(datos) {
   return Number.isFinite(sub) && sub > 0 ? sub : 0;
 }
 
+/** Subtotal = bruto; TOTAL = bruto − descuento. */
+function resolverBrutoYNetoImpresion(datos, subtotalPlatos) {
+  const montoDesc = Number(datos?.montoDescuento || 0);
+  const sin = Number(datos?.totalSinDescuento);
+  const tot = Number(datos?.total);
+  const bruto = (Number.isFinite(sin) && sin > 0)
+    ? sin
+    : (subtotalPlatos > 0 ? subtotalPlatos : (Number.isFinite(tot) && tot > 0 ? tot : 0));
+  const neto = montoDesc > 0
+    ? Number(Math.max(0, bruto - montoDesc).toFixed(2))
+    : (Number.isFinite(tot) && tot > 0 ? tot : bruto);
+  return { bruto, neto, montoDesc };
+}
+
 function getLabelMetodoPago(metodoPago) {
   if (!metodoPago) return 'Pendiente';
   const m = String(metodoPago).toLowerCase();
@@ -471,9 +485,10 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
   // === TOTALES ===
   if (mostrarTotal) {
     html += `<div style="text-align:right;width:100%;font-size:${fontSize}px;">`;
-    const subtotalFinal = subtotalPlatos;
+    const { bruto, neto, montoDesc } = resolverBrutoYNetoImpresion(datos, subtotalPlatos);
+    const subtotalFinal = montoDesc > 0 ? bruto : subtotalPlatos;
     const igvFinal = datos.igv || 0;
-    const totalFinal = datos.total || 0;
+    const totalFinal = neto;
 
     if (mostrarSubtotal && mostrarPrecios && subtotalFinal > 0) {
       html += `<div style="padding:1px 0;">${escapeHtml(etiquetas.subtotal || 'Subtotal')}: <span style="font-weight:500;">${simbolo}${subtotalFinal.toFixed(2)}</span></div>`;
@@ -484,7 +499,6 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
       const nombreImpuesto = etiquetas.igv || datos.nombreImpuesto || 'IGV';
       html += `<div style="padding:1px 0;">${escapeHtml(nombreImpuesto)} (${igvPct}%): <span style="font-weight:500;">${simbolo}${igvFinal.toFixed(2)}</span></div>`;
     }
-    const montoDesc = Number(datos.montoDescuento || 0);
     if (montoDesc > 0) {
       const motivoDesc = datos.descuentos?.[0]?.motivo ? ` (${escapeHtml(datos.descuentos[0].motivo)})` : '';
       html += `<div style="padding:1px 0;">Descuento${motivoDesc}: <span style="font-weight:500;">-${simbolo}${montoDesc.toFixed(2)}</span></div>`;

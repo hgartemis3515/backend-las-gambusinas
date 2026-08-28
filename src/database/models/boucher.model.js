@@ -85,6 +85,8 @@ const boucherSchema = new mongoose.Schema({
  required: true
  },
  comandaNumber: Number, // Número de comanda a la que pertenece
+ platoLineaId: { type: mongoose.Schema.Types.ObjectId, default: null },
+ eliminado: { type: Boolean, default: false },
  complementosSeleccionados: [{
  grupo: { type: String },
  opcion: { type: String },

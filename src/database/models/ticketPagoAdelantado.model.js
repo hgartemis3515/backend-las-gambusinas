@@ -66,6 +66,10 @@ const ticketPagoAdelantadoSchema = new mongoose.Schema({
     platoLineaId: {
       type: mongoose.Schema.Types.ObjectId,
     },
+    eliminado: {
+      type: Boolean,
+      default: false,
+    },
     plato: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'platos',

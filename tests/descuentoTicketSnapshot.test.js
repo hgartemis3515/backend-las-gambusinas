@@ -4,6 +4,7 @@ const {
   totalesConDescuentoImpresion,
   aplicarDescuentoADocTicket,
   aplicarDescuentoADocDesdeComanda,
+  marcarYRestarPlatosEliminados,
 } = require('../src/utils/descuentoTicketSnapshot');
 
 describe('descuento en tickets / impresión', () => {
@@ -73,6 +74,29 @@ describe('descuento en tickets / impresión', () => {
     expect(r.total).toBe(0);
   });
 
+  test('TOTAL se resta aunque el ticket siga con el bruto', () => {
+    const r = totalesConDescuentoImpresion(
+      {
+        total: 624,
+        subtotal: 624,
+        montoDescuento: 62.4,
+      },
+      { subtotal: 624, total: 624 }
+    );
+    expect(r.subtotal).toBe(624);
+    expect(r.montoDescuento).toBe(62.4);
+    expect(r.total).toBe(561.6);
+  });
+
+  test('no doble-resta si total ya es neto y hay totalSinDescuento', () => {
+    const r = aplicarDescuentoAVistaTicket({
+      total: 561.6,
+      montoDescuento: 62.4,
+      totalSinDescuento: 624,
+    });
+    expect(r.total).toBe(561.6);
+  });
+
   test('post-pago: ticket/boucher en 0 usa descuento vivo de la comanda', () => {
     const t = adjuntarDescuentoTicket({
       total: 624,
@@ -113,5 +137,29 @@ describe('descuento en tickets / impresión', () => {
     expect(boucher.total).toBe(290);
     expect(boucher.descuentos).toHaveLength(1);
     expect(boucher.descuentos[0].comandaNumber).toBe(1);
+  });
+
+  test('plato eliminado se marca en snapshot y baja el bruto', () => {
+    const doc = {
+      total: 150,
+      totalSinDescuento: 150,
+      subtotal: 150,
+      platos: [
+        { platoLineaId: 'a1', nombre: 'Lomo', subtotal: 100, comandaNumber: 1 },
+        { platoLineaId: 'b1', nombre: 'Causa', subtotal: 50, comandaNumber: 1 },
+      ],
+    };
+    marcarYRestarPlatosEliminados(doc, {
+      _id: 'c1',
+      comandaNumber: 1,
+      platos: [
+        { _id: 'a1', eliminado: true, nombre: 'Lomo' },
+        { _id: 'b1', eliminado: false, nombre: 'Causa' },
+      ],
+    });
+    expect(doc.platos[0].eliminado).toBe(true);
+    expect(doc.platos[1].eliminado).toBeFalsy();
+    expect(doc.subtotal).toBe(50);
+    expect(doc.totalSinDescuento).toBe(50);
   });
 });

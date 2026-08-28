@@ -1106,7 +1106,7 @@ function reportesApp() {
         porFecha[fecha].subtotal += Number(b.subtotal) > 0 ? Number(b.subtotal) : totalFila / 1.18;
         porFecha[fecha].igv += Number(b.igv) > 0 ? Number(b.igv) : totalFila - totalFila / 1.18;
         porFecha[fecha].tickets++;
-        porFecha[fecha].cantidadItems += (b.platos?.length || 0);
+        porFecha[fecha].cantidadItems += (b.platos || []).filter(p => p && !p.eliminado && !p.anulado).length;
         totalVentas += totalFila;
         totalDescuentos += Number(b.montoDescuento) || 0;
       });
@@ -1167,6 +1167,7 @@ function reportesApp() {
         if (!b.platos || !Array.isArray(b.platos) || b.platos.length === 0) return;
         const factor = this.factorIgvIncluidoBoucher(b);
         b.platos.forEach(p => {
+          if (p.eliminado || p.anulado) return;
           const nombre = p.nombre || 'Desconocido';
           const cat = this.resolvePlatoCategoria(p);
           if (!platosMap[nombre]) {
@@ -1487,6 +1488,7 @@ function reportesApp() {
       bouchers.forEach(b => {
         if (b.platos && Array.isArray(b.platos)) {
           b.platos.forEach(p => {
+            if (p.eliminado || p.anulado) return;
             // Buscar cocinero en múltiples campos posibles
             const cocineroId = p.cocineroId?._id || p.cocineroId || p.cocinero || 'sin-asignar';
             const nombre = p.cocinero || p.cocineroId?.name || p.cocineroId?.aliasCocinero || 

@@ -14,6 +14,7 @@ const mongoose = require('mongoose');
 // FASE 5: Redis Cache para comandas activas
 const redisCache = require('../utils/redisCache');
 const calculosPrecios = require('../utils/calculosPrecios');
+const { calcularTotalesConDescuento } = require('../utils/descuentoComanda');
 const {
   enriquecerComplementosConPrecio,
   calcularPrecioUnitarioConComplementos,
@@ -4262,6 +4263,13 @@ const anularPlato = async (comandaId, platoIndex, motivo, observaciones, usuario
     comanda.version = (comanda.version || 1) + 1;
     await comanda.save();
 
+    try {
+      const { sincronizarDescuentoTicketsComanda } = require('../utils/descuentoTicketsComanda');
+      await sincronizarDescuentoTicketsComanda(comanda);
+    } catch (syncErr) {
+      logger.warn(`${logPrefix} No se pudo sincronizar tickets tras anular plato`, { error: syncErr.message });
+    }
+
     // Verificar si todos los platos están anulados/eliminados
     const platosActivos = comanda.platos.filter(p => !p.anulado && !p.eliminado);
     if (platosActivos.length === 0) {
@@ -4443,6 +4451,13 @@ const anularComandaCompleta = async (comandaId, motivo, observaciones, usuarioId
 
     await comanda.save();
 
+    try {
+      const { sincronizarDescuentoTicketsComanda } = require('../utils/descuentoTicketsComanda');
+      await sincronizarDescuentoTicketsComanda(comanda);
+    } catch (syncErr) {
+      logger.warn(`${logPrefix} No se pudo sincronizar tickets tras anular comanda`, { error: syncErr.message });
+    }
+
     // 🔥 FIX AGRUPACIÓN: Si el Pedido asociado quedó solo con comandas canceladas,
     // cerrarlo para que la próxima comanda de la misma mesa genere un Pedido NUEVO.
     // Evita que comandas canceladas se agrupen con comandas nuevas en el dashboard.
@@ -4514,7 +4529,7 @@ const anularComandaCompleta = async (comandaId, motivo, observaciones, usuarioId
  * @param {string} usuarioId - ID del usuario que aplica el descuento
  * @param {string} usuarioRol - Rol del usuario para validación
  * @param {Object} [opciones]
- * @param {number} [opciones.monto] - Descuento en S/. (se convierte a % sobre el subtotal)
+ * @param {number} [opciones.monto] - Descuento en S/. restado del total con IGV (sin redondear el %)
  * @returns {Object} Comanda actualizada con descuento aplicado
  */
 const aplicarDescuento = async (comandaId, descuento, motivo, usuarioId, usuarioRol, opciones = {}) => {
@@ -4563,46 +4578,23 @@ const aplicarDescuento = async (comandaId, descuento, motivo, usuarioId, usuario
       subtotalActual += precio * cantidad;
     }
 
-    const montoFijo = Number(opciones?.monto);
-    if (Number.isFinite(montoFijo) && montoFijo > 0) {
-      if (subtotalActual <= 0) {
-        const error = new Error('No hay subtotal para aplicar un descuento por monto');
-        error.statusCode = 400;
-        throw error;
-      }
-      descuentoNum = Math.min(100, (Math.min(montoFijo, subtotalActual) / subtotalActual) * 100);
-    }
-
-    if (!Number.isFinite(descuentoNum)) descuentoNum = 0;
-    if (descuentoNum < 0 || descuentoNum > 100) {
-      const error = new Error('El descuento debe estar entre 0 y 100');
-      error.statusCode = 400;
-      throw error;
-    }
-    descuentoNum = Math.round(descuentoNum * 100) / 100;
+    // 7. Totales: monto fijo se resta del TOTAL con IGV (sin redondear el % a 2 decimales)
+    const configMoneda = await configuracionRepository.obtenerConfiguracionMoneda();
+    const calc = calcularTotalesConDescuento(subtotalActual, {
+      porcentaje: descuentoNum,
+      monto: opciones?.monto
+    }, configMoneda);
+    descuentoNum = calc.descuentoNum;
+    const totalSinDescuento = calc.totalSinDescuento;
+    const totalCalculado = calc.totalCalculado;
+    const montoDescuento = calc.montoDescuento;
+    const igvConDescuento = calc.igv;
 
     if (descuentoNum > 0 && (!motivo || motivo.trim().length < 3)) {
       const error = new Error('El motivo del descuento es obligatorio (mínimo 3 caracteres)');
       error.statusCode = 400;
       throw error;
     }
-
-    // 7. Calcular totales usando calculosPrecios (respeta preciosIncluyenIGV)
-    const configMoneda = await configuracionRepository.obtenerConfiguracionMoneda();
-    const totalesOriginales = calculosPrecios.calcularTotales(subtotalActual, configMoneda);
-    const totalSinDescuento = totalesOriginales.total;
-    const subtotalSinIGV = totalesOriginales.subtotalSinIGV;
-
-    // Aplicar descuento al subtotal sin IGV, luego recalcular IGV
-    const subtotalConDescuento = subtotalSinIGV * (1 - descuentoNum / 100);
-    const totalesConDescuento = calculosPrecios.calcularTotales(
-      configMoneda.preciosIncluyenIGV ? subtotalConDescuento * (1 + configMoneda.igvPorcentaje / 100) : subtotalConDescuento,
-      configMoneda
-    );
-    const totalCalculado = descuentoNum === 100 ? 0 : totalesConDescuento.total;
-    // montoDescuento = ahorro TOTAL (subtotal + IGV), no solo subtotal
-    const montoDescuento = Number((totalSinDescuento - totalCalculado).toFixed(2));
-    const igvConDescuento = descuentoNum === 100 ? 0 : totalesConDescuento.igv;
 
     // 8. Guardar valores anteriores para auditoría
     const valoresAnteriores = {
@@ -4614,13 +4606,14 @@ const aplicarDescuento = async (comandaId, descuento, motivo, usuarioId, usuario
 
     // 9. Actualizar la comanda
     comanda.descuento = descuentoNum;
+    comanda.descuentoMontoFijo = calc.descuentoMontoFijo;
     comanda.motivoDescuento = descuentoNum > 0 ? motivo.trim() : null;
     comanda.descuentoAplicadoPor = validarUsuarioId(usuarioId);
     comanda.descuentoAplicadoAt = descuentoNum > 0 ? moment.tz("America/Lima").toDate() : null;
     comanda.totalSinDescuento = totalSinDescuento;
     comanda.montoDescuento = montoDescuento;
     comanda.totalCalculado = totalCalculado;
-    comanda.precioTotal = subtotalConDescuento; // Actualizar precioTotal para consistencia
+    comanda.precioTotal = calc.precioTotal;
     comanda.version = (comanda.version || 1) + 1;
     comanda.updatedAt = moment.tz("America/Lima").toDate();
 

@@ -1529,14 +1529,14 @@ tailwind.config = {
  <div class="col-span-2">
  <label class="text-[10px] text-txt-muted mb-1 block">Porcentaje (%)</label>
  <input type="number" x-model.number="descuentoInput" min="0" max="100" step="0.01"
- @input="if (_syncingDesc) return; _syncingDesc = true; const t = calcularTotalEdit(); descuentoMontoInput = Number(((t * (Number(descuentoInput) || 0)) / 100).toFixed(2)); _syncingDesc = false;"
+ @input="if (_syncingDesc) return; _syncingDesc = true; const t = brutoParaDescuento(); descuentoMontoInput = Number(((t * (Number(descuentoInput) || 0)) / 100).toFixed(2)); _syncingDesc = false;"
  class="w-full h-9 bg-bg-sidebar border-2 border-[rgba(212,175,55,0.4)] rounded-lg px-3 py-1 text-white text-sm font-bold focus:border-gold focus:outline-none text-center"
  :placeholder="editComanda?.descuento || 0">
  </div>
  <div class="col-span-2">
  <label class="text-[10px] text-txt-muted mb-1 block">Monto (S/.)</label>
  <input type="number" x-model.number="descuentoMontoInput" min="0" step="0.01"
- @input="if (_syncingDesc) return; _syncingDesc = true; const t = calcularTotalEdit(); const m = Math.max(0, Number(descuentoMontoInput) || 0); descuentoInput = t > 0 ? Number((Math.min(m, t) / t * 100).toFixed(2)) : 0; _syncingDesc = false;"
+ @input="if (_syncingDesc) return; _syncingDesc = true; const t = brutoParaDescuento(); const m = Math.max(0, Number(descuentoMontoInput) || 0); descuentoInput = t > 0 ? Number((Math.min(m, t) / t * 100).toFixed(2)) : 0; _syncingDesc = false;"
  class="w-full h-9 bg-bg-sidebar border-2 border-[rgba(212,175,55,0.4)] rounded-lg px-3 py-1 text-white text-sm font-bold focus:border-gold focus:outline-none text-center"
  placeholder="0.00">
  </div>
@@ -1564,15 +1564,15 @@ tailwind.config = {
  <div class="grid grid-cols-3 gap-2 text-sm">
  <div>
  <p class="text-[10px] text-txt-muted">Subtotal</p>
- <p class="text-white font-semibold" x-text="'S/. ' + calcularTotalEdit().toFixed(2)"></p>
+ <p class="text-white font-semibold" x-text="'S/. ' + brutoParaDescuento().toFixed(2)"></p>
  </div>
  <div>
  <p class="text-[10px] text-txt-muted">Descuento (<span x-text="formatPctDescuento(descuentoInput)"></span>%)</p>
- <p class="text-st-pagado font-semibold" x-text="'-S/. ' + (Number(descuentoMontoInput) > 0 ? Number(descuentoMontoInput) : (calcularTotalEdit() * descuentoInput / 100)).toFixed(2)"></p>
+ <p class="text-st-pagado font-semibold" x-text="'-S/. ' + (Number(descuentoMontoInput) > 0 ? Number(descuentoMontoInput) : (brutoParaDescuento() * descuentoInput / 100)).toFixed(2)"></p>
  </div>
  <div>
  <p class="text-[10px] text-txt-muted">Total Final</p>
- <p class="text-st-preparado font-bold text-lg" x-text="'S/. ' + (calcularTotalEdit() - (Number(descuentoMontoInput) > 0 ? Number(descuentoMontoInput) : (calcularTotalEdit() * descuentoInput / 100))).toFixed(2)"></p>
+ <p class="text-st-preparado font-bold text-lg" x-text="'S/. ' + (brutoParaDescuento() - (Number(descuentoMontoInput) > 0 ? Number(descuentoMontoInput) : (brutoParaDescuento() * descuentoInput / 100))).toFixed(2)"></p>
  </div>
  </div>
  </div>
@@ -1953,13 +1953,13 @@ tailwind.config = {
  <div class="col-span-2">
  <label class="text-[10px] text-txt-muted mb-1 block">Porcentaje (%)</label>
  <input type="number" x-model.number="descuentoGrupoInput" min="0" max="100" step="0.01"
- @input="if (_syncingDescG) return; _syncingDescG = true; const t = Number(editGrupo?.totalAgrupado || 0); descuentoMontoGrupoInput = Number(((t * (Number(descuentoGrupoInput) || 0)) / 100).toFixed(2)); _syncingDescG = false;"
+ @input="if (_syncingDescG) return; _syncingDescG = true; const t = brutoGrupo(editGrupo); descuentoMontoGrupoInput = Number(((t * (Number(descuentoGrupoInput) || 0)) / 100).toFixed(2)); _syncingDescG = false;"
  class="w-full h-9 bg-bg-sidebar border-2 border-[rgba(212,175,55,0.4)] rounded-lg px-3 py-1 text-white text-sm font-bold focus:border-gold focus:outline-none text-center">
  </div>
  <div class="col-span-2">
  <label class="text-[10px] text-txt-muted mb-1 block">Monto (S/.)</label>
  <input type="number" x-model.number="descuentoMontoGrupoInput" min="0" step="0.01"
- @input="if (_syncingDescG) return; _syncingDescG = true; const t = Number(editGrupo?.totalAgrupado || 0); const m = Math.max(0, Number(descuentoMontoGrupoInput) || 0); descuentoGrupoInput = t > 0 ? Number((Math.min(m, t) / t * 100).toFixed(2)) : 0; _syncingDescG = false;"
+ @input="if (_syncingDescG) return; _syncingDescG = true; const t = brutoGrupo(editGrupo); const m = Math.max(0, Number(descuentoMontoGrupoInput) || 0); descuentoGrupoInput = t > 0 ? Number((Math.min(m, t) / t * 100).toFixed(2)) : 0; _syncingDescG = false;"
  class="w-full h-9 bg-bg-sidebar border-2 border-[rgba(212,175,55,0.4)] rounded-lg px-3 py-1 text-white text-sm font-bold focus:border-gold focus:outline-none text-center"
  placeholder="0.00">
  </div>
@@ -3238,7 +3238,21 @@ this.modal = null;
  });
 
  const totalPlatos = platosNorm.filter(p => !p.eliminado);
- const total = totalPlatos.reduce((sum, p) => sum + p.subtotal, 0);
+ const totalActivos = totalPlatos.reduce((sum, p) => sum + p.subtotal, 0);
+ const hayEliminados = platosNorm.some(p => p.eliminado);
+ const pt = Number(raw.precioTotal || raw.total || 0);
+ const tcRaw = raw.totalCalculado != null ? Number(raw.totalCalculado) : null;
+ const md = Number(raw.montoDescuento) || 0;
+ const brutoGuardado = Number(raw.totalSinDescuento) || 0;
+ let totalNeto = (tcRaw != null && Number.isFinite(tcRaw)) ? tcRaw : (pt || totalActivos);
+ if (hayEliminados && pt > 0 && totalActivos >= 0 && Math.abs(pt - totalActivos) > 0.05) {
+   totalNeto = Number((totalNeto * (totalActivos / pt)).toFixed(2));
+ } else if (!(tcRaw != null && Number.isFinite(tcRaw))) {
+   totalNeto = totalActivos;
+ }
+ const brutoMostrar = (hayEliminados && brutoGuardado > 0 && pt > 0 && Math.abs(pt - totalActivos) > 0.05)
+   ? Number((brutoGuardado * (totalActivos / pt)).toFixed(2))
+   : (brutoGuardado || totalActivos || totalNeto + md);
 
  const mesa = raw.mesas || raw.mesa;
  const mesaNorm = mesa && typeof mesa === 'object'
@@ -3261,9 +3275,9 @@ this.modal = null;
  clienteNombre: raw.clienteNombre || raw.cliente?.nombre || raw.cliente?.dni || null,
  pedidoId: pedidoId,
  items: platosNorm,
- total: Number(raw.precioTotal || raw.total || total),
- totalCalculado: Number(raw.totalCalculado != null ? raw.totalCalculado : (raw.precioTotal || raw.total || total)),
- totalSinDescuento: Number(raw.totalSinDescuento || raw.precioTotal || raw.total || total),
+ total: totalNeto,
+ totalCalculado: totalNeto,
+ totalSinDescuento: Number(brutoMostrar || totalNeto),
  estado: raw.status || raw.estado || 'en_espera',
  observaciones: raw.observaciones || '',
  createdAt: raw.createdAt,
@@ -3277,7 +3291,9 @@ this.modal = null;
  motivoDescuento: raw.motivoDescuento || null,
  descuentoAplicadoPor: raw.descuentoAplicadoPor || null,
  descuentoAplicadoAt: raw.descuentoAplicadoAt || null,
- montoDescuento: raw.montoDescuento || 0,
+ montoDescuento: (hayEliminados && pt > 0 && Math.abs(pt - totalActivos) > 0.05)
+   ? Number(Math.max(0, Number(brutoMostrar || 0) - Number(totalNeto || 0)).toFixed(2))
+   : (raw.montoDescuento || 0),
  origenCreacion: raw.origenCreacion || (raw.createdByDashboard ? 'dashboard' : 'mozos'),
  createdByDashboard: raw.createdByDashboard || null,
  omitirPago: !!raw.omitirPago,
@@ -3701,8 +3717,8 @@ mesaNum: grupo.mesaNum,
 mesaObj: grupo.mesaObj, // Objeto mesa completo para nombreCombinado
 comandas: grupo.comandas,
 numComandas: grupo.comandas.length,
-totalAgrupado: grupo.comandas.reduce((sum, c) => sum + (c.total || 0), 0),
-totalPlatos: grupo.comandas.reduce((sum, c) => sum + (c.items?.length || 0), 0),
+totalAgrupado: grupo.comandas.reduce((sum, c) => sum + (Number(c.totalCalculado != null ? c.totalCalculado : c.total) || 0), 0),
+totalPlatos: grupo.comandas.reduce((sum, c) => sum + (c.items || []).filter(i => !i.eliminado).length, 0),
 estadoGrupo: this.calcularEstadoGrupo(grupo.comandas),
 mozosUnicos: [...new Set(grupo.comandas.map(c => c.mozo))],
 horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length - 1]?.createdAt
@@ -4379,6 +4395,44 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  return Number.isInteger(x) ? String(x) : x.toFixed(2);
  },
 
+ brutoParaDescuento() {
+ const suma = this.calcularTotalEdit();
+ const sin = Number(this.editComanda?.totalSinDescuento) || 0;
+ const md = Number(this.editComanda?.montoDescuento) || 0;
+ const tc = Number(this.editComanda?.totalCalculado);
+ const pt = Number(this.editComanda?.precioTotal) || 0;
+ const brutoGuardado = sin > 0 ? sin : ((Number.isFinite(tc) ? tc : 0) + md);
+ if (brutoGuardado > 0 && pt > 0 && suma > 0 && Math.abs(suma - pt) > 0.05) {
+   return Number((suma * (brutoGuardado / pt)).toFixed(2));
+ }
+ if (brutoGuardado > 0) return brutoGuardado;
+ return suma;
+ },
+
+ brutoGrupo(grupo) {
+ const g = grupo || this.editGrupo;
+ if (!g?.comandas?.length) return Number(g?.totalAgrupado || 0);
+ return g.comandas.reduce((s, c) => {
+   const sin = Number(c.totalSinDescuento);
+   if (sin > 0) return s + sin;
+   return s + (Number(c.totalCalculado) || Number(c.total) || 0) + (Number(c.montoDescuento) || 0);
+ }, 0);
+ },
+
+ repartirCentesimos(pesos, montoTotal) {
+ const vals = (pesos || []).map(p => Math.max(0, Number(p) || 0));
+ const cents = Math.round((Number(montoTotal) || 0) * 100);
+ if (!vals.length || cents <= 0) return vals.map(() => 0);
+ const totalPesos = vals.reduce((s, p) => s + p, 0);
+ if (totalPesos <= 0) return vals.map(() => 0);
+ const raw = vals.map(p => (p / totalPesos) * cents);
+ const floors = raw.map(x => Math.floor(x + 1e-9));
+ let resto = cents - floors.reduce((s, x) => s + x, 0);
+ const order = raw.map((x, i) => ({ i, frac: x - Math.floor(x + 1e-9) })).sort((a, b) => b.frac - a.frac || a.i - b.i);
+ for (let k = 0; k < resto; k++) floors[order[k % order.length].i] += 1;
+ return floors.map(c => c / 100);
+ },
+
  getMontoDescuentoGrupo(grupo) {
  if (!grupo?.comandas?.length) return 0;
  return grupo.comandas.reduce((sum, c) => sum + (c.montoDescuento || 0), 0);
@@ -4393,28 +4447,45 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  if (!this.editGrupo?.comandas?.length) return;
  let pct = Number(porcentaje) || 0;
  const montoNum = Number(monto) || 0;
- const totalGrupo = Number(this.editGrupo?.totalAgrupado || 0);
- if (montoNum > 0 && totalGrupo > 0) {
- pct = Number((Math.min(montoNum, totalGrupo) / totalGrupo * 100).toFixed(2));
+ const pesos = this.editGrupo.comandas.map(c => {
+   const sin = Number(c.totalSinDescuento);
+   if (sin > 0) return sin;
+   return Number(c.totalCalculado || c.total || 0) + (Number(c.montoDescuento) || 0);
+ });
+ const totalGrupo = pesos.reduce((s, p) => s + p, 0);
+ const montos = montoNum > 0 && totalGrupo > 0
+   ? this.repartirCentesimos(pesos, Math.min(montoNum, totalGrupo))
+   : null;
+ if (montos) {
+   pct = totalGrupo > 0 ? Number((Math.min(montoNum, totalGrupo) / totalGrupo * 100).toFixed(2)) : 0;
  }
  if (pct < 0 || pct > 100) { this.showToast('El descuento debe estar entre 0 y 100%', 'error'); return; }
- if (pct > 0 && (!motivo || motivo.trim().length < 3)) { this.showToast('El motivo del descuento es obligatorio (mínimo 3 caracteres)', 'error'); return; }
+ if ((pct > 0 || (montos && montos.some(m => m > 0))) && (!motivo || motivo.trim().length < 3)) { this.showToast('El motivo del descuento es obligatorio (mínimo 3 caracteres)', 'error'); return; }
  if (!this.puedeAplicarDescuento) { this.showToast('No tienes permisos para aplicar descuentos', 'error'); return; }
  this.aplicandoDescuentoGrupo = true;
  try {
  let exitosos = 0;
- for (const comanda of this.editGrupo.comandas) {
+ for (let i = 0; i < this.editGrupo.comandas.length; i++) {
+ const comanda = this.editGrupo.comandas[i];
  try {
- const res = await apiPut('/comanda/' + comanda._id + '/descuento', {
- descuento: pct,
+ const body = {
  motivo: motivo.trim(),
  usuarioId: 'admin',
  usuarioRol: this.userRole
- });
+ };
+ if (montos) {
+   if (!(montos[i] > 0)) continue;
+   body.monto = montos[i];
+   body.descuento = 0;
+ } else {
+   body.descuento = pct;
+ }
+ const res = await apiPut('/comanda/' + comanda._id + '/descuento', body);
  if (res?.ok && !res.error) {
- comanda.descuento = pct;
+ comanda.descuento = res.descuentoAplicado?.porcentaje != null ? res.descuentoAplicado.porcentaje : pct;
  comanda.motivoDescuento = motivo;
- comanda.montoDescuento = res.descuentoAplicado?.montoDescuento != null ? res.descuentoAplicado.montoDescuento : (comanda.total || 0) * pct / 100;
+ comanda.montoDescuento = res.descuentoAplicado?.montoDescuento != null ? res.descuentoAplicado.montoDescuento : (montos ? montos[i] : (comanda.total || 0) * pct / 100);
+ comanda.totalCalculado = res.descuentoAplicado?.totalCalculado != null ? res.descuentoAplicado.totalCalculado : comanda.totalCalculado;
  exitosos++;
  }
  } catch (e) { console.error(e); }
@@ -4607,7 +4678,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  let pct = Number(descuento) || 0;
  const montoNum = Number(monto) || 0;
- const subtotal = this.calcularTotalEdit();
+ const subtotal = this.brutoParaDescuento();
  if (montoNum > 0 && subtotal > 0) {
  pct = Number((Math.min(montoNum, subtotal) / subtotal * 100).toFixed(2));
  }
@@ -4631,19 +4702,23 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  console.log('💰 Aplicando descuento:', { descuento: pct, monto: montoNum, motivo, comandaId: this.editComanda._id });
 
  const body = {
- descuento: pct,
  motivo: motivo.trim(),
  usuarioId: 'admin',
  usuarioRol: this.userRole
  };
- if (montoNum > 0) body.monto = montoNum;
+ if (montoNum > 0) {
+   body.monto = Number(montoNum.toFixed(2));
+   body.descuento = 0;
+ } else {
+   body.descuento = pct;
+ }
 
  const res = await apiPut('/comanda/' + this.editComanda._id + '/descuento', body);
 
  console.log('📥 Respuesta descuento:', res);
 
  if (res?.ok && !res.error) {
- this.editComanda.descuento = pct;
+ this.editComanda.descuento = res.descuentoAplicado?.porcentaje != null ? res.descuentoAplicado.porcentaje : pct;
  this.editComanda.motivoDescuento = motivo;
  this.editComanda.totalCalculado = res.descuentoAplicado?.totalCalculado != null ? res.descuentoAplicado.totalCalculado : this.calcularTotalEdit() * (1 - pct / 100);
  this.editComanda.montoDescuento = res.descuentoAplicado?.montoDescuento != null ? res.descuentoAplicado.montoDescuento : this.calcularTotalEdit() * pct / 100;

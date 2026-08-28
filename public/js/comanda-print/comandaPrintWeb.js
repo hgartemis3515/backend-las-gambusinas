@@ -243,6 +243,16 @@ function mapearTicketADatos(ticket) {
     };
   });
   const totales = resolverTotalesTicketImpresion(ticket, productos);
+  const montoDescuento = Number(ticket.montoDescuento ?? ticket.boucher?.montoDescuento ?? 0)
+    || (Array.isArray(ticket.comandas)
+      ? ticket.comandas.reduce((s, c) => s + (Number(c?.montoDescuento) || 0), 0)
+      : 0);
+  const bruto = Number(ticket.totalSinDescuento ?? ticket.boucher?.totalSinDescuento) > 0
+    ? Number(ticket.totalSinDescuento ?? ticket.boucher?.totalSinDescuento)
+    : (totales.subtotal || totales.total);
+  const totalNeto = montoDescuento > 0
+    ? Number(Math.max(0, bruto - montoDescuento).toFixed(2))
+    : totales.total;
 
   return {
     ticketId: ticket._id || ticket.ticketId || null,
@@ -264,13 +274,13 @@ function mapearTicketADatos(ticket) {
     tipoPago: resolverTipoPagoImpresion(ticket),
     observaciones: ticket.observaciones || '',
     productos,
-    subtotal: totales.subtotal,
+    subtotal: montoDescuento > 0 ? bruto : totales.subtotal,
     igv: ticket.igv || 0,
     igvPorcentaje: ticket.igvPorcentaje,
     nombreImpuesto: ticket.nombreImpuesto,
-    total: totales.total,
-    montoDescuento: Number(ticket.montoDescuento ?? ticket.boucher?.montoDescuento ?? 0) || 0,
-    totalSinDescuento: ticket.totalSinDescuento ?? ticket.boucher?.totalSinDescuento ?? null,
+    total: totalNeto,
+    montoDescuento: Number(montoDescuento) || 0,
+    totalSinDescuento: montoDescuento > 0 ? bruto : (ticket.totalSinDescuento ?? ticket.boucher?.totalSinDescuento ?? null),
     descuentos: ticket.descuentos?.length ? ticket.descuentos : (ticket.boucher?.descuentos || []),
     cliente: {
       nombre: ticket.cliente?.nombre || ticket.nombreCliente || ticket.clienteNombre || 'Cliente',

@@ -53,28 +53,50 @@ function adjuntarDescuentoTicket(ticket) {
   };
 }
 
+function resolverBrutoYNeto(doc, extraSubtotal = 0) {
+  const montoDesc = Number(doc?.montoDescuento || 0);
+  const sin = Number(doc?.totalSinDescuento);
+  const sub = Number(doc?.subtotal);
+  const tot = Number(doc?.total);
+  const extra = Number(extraSubtotal) || 0;
+  const bruto = (Number.isFinite(sin) && sin > 0)
+    ? sin
+    : (extra > 0
+      ? extra
+      : (Number.isFinite(sub) && sub > 0
+        ? sub
+        : (Number.isFinite(tot) && tot > 0 ? tot : 0)));
+  const neto = montoDesc > 0
+    ? Number(Math.max(0, bruto - montoDesc).toFixed(2))
+    : (Number.isFinite(tot) && tot > 0 ? tot : bruto);
+  return { bruto, neto, montoDesc };
+}
+
 function aplicarDescuentoAVistaTicket(ticket) {
   const t = adjuntarDescuentoTicket(ticket);
-  const monto = Number(t.montoDescuento) || 0;
-  if (monto <= 0) return t;
-  const teniaSnapshot = Number(ticket.montoDescuento) > 0;
-  const bruto = Number(t.totalSinDescuento)
-    || (teniaSnapshot ? Number(ticket.total) + Number(ticket.montoDescuento) : Number(t.total) || 0);
+  const { bruto, neto, montoDesc } = resolverBrutoYNeto(t);
+  if (montoDesc <= 0) return t;
   return {
     ...t,
     totalSinDescuento: bruto,
-    total: Number((bruto - monto).toFixed(2)),
+    total: neto,
   };
 }
 
 function totalesConDescuentoImpresion(ticket, totalesBase = {}) {
-  const vista = aplicarDescuentoAVistaTicket({ ...ticket, total: totalesBase.total ?? ticket.total });
+  const merged = {
+    ...ticket,
+    total: totalesBase.total ?? ticket.total,
+    subtotal: totalesBase.subtotal ?? ticket.subtotal,
+  };
+  const vista = aplicarDescuentoAVistaTicket(merged);
+  const { bruto, neto, montoDesc } = resolverBrutoYNeto(vista, Number(totalesBase.subtotal) || 0);
   return {
-    subtotal: totalesBase.subtotal ?? ticket.subtotal ?? 0,
-    total: vista.total,
-    montoDescuento: Number(vista.montoDescuento) || 0,
+    subtotal: montoDesc > 0 ? bruto : (totalesBase.subtotal ?? ticket.subtotal ?? 0),
+    total: neto,
+    montoDescuento: montoDesc,
     descuentos: vista.descuentos || [],
-    totalSinDescuento: vista.totalSinDescuento ?? null,
+    totalSinDescuento: bruto || vista.totalSinDescuento || null,
   };
 }
 
@@ -98,19 +120,78 @@ function subtotalPlatosDocDeComanda(doc, comanda) {
   const num = Number(comanda.comandaNumber);
   const platos = doc?.platos || [];
   const filtrados = platos.filter((p) => {
+    if (!p || p.eliminado || p.anulado) return false;
     if (p?.comandaId && idRef(p.comandaId) === cid) return true;
     if (p?.comandaNumber != null && Number(p.comandaNumber) === num) return true;
     return false;
   });
-  const fuente = filtrados.length ? filtrados : ((doc.comandas || []).length <= 1 ? platos : []);
+  const fuente = filtrados.length ? filtrados : ((doc.comandas || []).length <= 1 ? platos.filter((p) => p && !p.eliminado && !p.anulado) : []);
   return fuente.reduce((s, p) => s + (Number(p.subtotal) || (Number(p.precio) || 0) * (Number(p.cantidad) || 1)), 0);
 }
 
 function ratioComandaEnDoc(doc, comanda) {
   const subDoc = subtotalPlatosDocDeComanda(doc, comanda);
   const subCom = subtotalPlatosComanda(comanda);
+  if (!Array.isArray(doc?.platos) || doc.platos.length === 0) return 1;
   if (subDoc > 0 && subCom > 0) return Math.min(1, subDoc / subCom);
+  if (subDoc <= 0) return 0;
   return 1;
+}
+
+function round2(n) {
+  return Math.round((Number(n) || 0) * 100) / 100;
+}
+
+/**
+ * Marca en el snapshot las líneas que corresponden a platos eliminados/anulados
+ * de la comanda y resta su importe del bruto del ticket/boucher.
+ */
+function marcarYRestarPlatosEliminados(doc, comanda) {
+  if (!doc || !comanda || !Array.isArray(doc.platos) || !doc.platos.length) return doc;
+  const eliminados = (comanda.platos || []).filter((p) => p && (p.eliminado || p.anulado));
+  if (!eliminados.length) return doc;
+
+  const ids = new Set(eliminados.map((p) => (p._id ? String(p._id) : '')).filter(Boolean));
+  const cid = idRef(comanda._id);
+  const num = Number(comanda.comandaNumber);
+  const nombresPendientes = {};
+  for (const e of eliminados) {
+    const n = String(e.plato?.nombre || e.nombre || '').trim().toLowerCase();
+    if (n) nombresPendientes[n] = (nombresPendientes[n] || 0) + 1;
+  }
+
+  let subElim = 0;
+  for (const p of doc.platos) {
+    if (!p || p.eliminado || p.anulado) continue;
+    const sameComanda = (p.comandaId && idRef(p.comandaId) === cid)
+      || (p.comandaNumber != null && Number(p.comandaNumber) === num)
+      || ((doc.comandas || []).length <= 1);
+    if (!sameComanda) continue;
+
+    const lineaId = p.platoLineaId ? String(p.platoLineaId) : '';
+    const nombre = String(p.nombre || '').trim().toLowerCase();
+    let match = !!(lineaId && ids.has(lineaId));
+    if (!match && !lineaId && nombre && nombresPendientes[nombre] > 0) {
+      match = true;
+      nombresPendientes[nombre] -= 1;
+    }
+    if (!match) continue;
+    p.eliminado = true;
+    subElim += Number(p.subtotal) || ((Number(p.precio) || 0) * (Number(p.cantidad) || 1));
+  }
+
+  if (subElim <= 0) return doc;
+  subElim = round2(subElim);
+  const activosSub = round2((doc.platos || [])
+    .filter((p) => p && !p.eliminado && !p.anulado)
+    .reduce((s, p) => s + (Number(p.subtotal) || 0), 0));
+  if (doc.subtotal != null) doc.subtotal = activosSub;
+  const desc = Number(doc.montoDescuento) || 0;
+  const bruto = Number(doc.totalSinDescuento) > 0
+    ? Number(doc.totalSinDescuento)
+    : round2((Number(doc.total) || 0) + desc);
+  doc.totalSinDescuento = round2(Math.max(0, bruto - subElim));
+  return doc;
 }
 
 /**
@@ -198,8 +279,10 @@ module.exports = {
   adjuntarDescuentoTicket,
   aplicarDescuentoAVistaTicket,
   totalesConDescuentoImpresion,
+  resolverBrutoYNeto,
   aplicarDescuentoADocTicket,
   aplicarDescuentoADocDesdeComanda,
+  marcarYRestarPlatosEliminados,
   ratioComandaEnDoc,
   snapshotDesdeComandas,
   BOUCHER_DESCUENTO_SELECT,

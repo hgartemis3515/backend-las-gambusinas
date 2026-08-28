@@ -6,6 +6,8 @@
  * de platos; el cobrado vive en `montoCobrado` / `reserva.pagoAdelantado.montoPagado`.
  */
 
+const { resolverBrutoYNeto } = require('./descuentoTicketSnapshot');
+
 function sumarSubtotalesPlatosTicket(platos) {
   if (!Array.isArray(platos) || platos.length === 0) return 0;
   const suma = platos.reduce((acc, p) => {
@@ -24,16 +26,28 @@ function resolverTotalesPedidoPPA(ticket) {
   const subtotalGuardado = Number(ticket?.subtotal);
   const esReserva = ticket?.origen === 'reserva';
 
+  let subtotal;
+  let total;
   if (esReserva && sumaPlatos > 0) {
-    return { subtotal: sumaPlatos, total: sumaPlatos };
+    subtotal = sumaPlatos;
+    total = sumaPlatos;
+  } else if ((!Number.isFinite(totalGuardado) || totalGuardado === 0) && sumaPlatos > 0) {
+    subtotal = sumaPlatos;
+    total = sumaPlatos;
+  } else {
+    subtotal = Number.isFinite(subtotalGuardado) ? subtotalGuardado : 0;
+    total = Number.isFinite(totalGuardado) ? totalGuardado : 0;
   }
-  if ((!Number.isFinite(totalGuardado) || totalGuardado === 0) && sumaPlatos > 0) {
-    return { subtotal: sumaPlatos, total: sumaPlatos };
+
+  const { bruto, neto, montoDesc } = resolverBrutoYNeto({
+    ...ticket,
+    subtotal,
+    total,
+  }, sumaPlatos);
+  if (montoDesc > 0) {
+    return { subtotal: bruto, total: neto };
   }
-  return {
-    subtotal: Number.isFinite(subtotalGuardado) ? subtotalGuardado : 0,
-    total: Number.isFinite(totalGuardado) ? totalGuardado : 0,
-  };
+  return { subtotal, total };
 }
 
 function aplicarTotalesPedidoPPA(ticket) {

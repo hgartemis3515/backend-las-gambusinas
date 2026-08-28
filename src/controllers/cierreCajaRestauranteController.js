@@ -1061,6 +1061,70 @@ function generarDatosGraficos(resumenFinanciero, productos, mozos, mesas, cocine
 }
 
 /**
+ * GET /api/cierre-caja/:id/ticket-imprimible
+ * Datos para ticket térmico 80mm: comandas del cierre + subtotal, descuento y total neto.
+ */
+router.get('/cierre-caja/:id/ticket-imprimible', adminAuth, checkPermission('ver-cierre-caja'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const cierre = await CierreCajaRestaurante.findById(id).lean();
+    if (!cierre) {
+      return res.status(404).json({ error: 'Cierre de caja no encontrado' });
+    }
+
+    const comandas = await Comanda.find(matchComandaVigente({
+      incluidoEnCierre: cierre._id,
+      status: { $in: ['pagado', 'entregado'] }
+    }))
+      .select('comandaNumber totalCalculado totalSinDescuento montoDescuento precioTotal status mesas mozos createdAt')
+      .populate('mesas', 'nummesa')
+      .populate('mozos', 'name')
+      .sort({ comandaNumber: 1 })
+      .lean();
+
+    const lineas = comandas.map((c) => {
+      const total = montoComandaNum(c);
+      const desc = montoDescuentoComandaNum(c);
+      const brutoRaw = Number(c.totalSinDescuento);
+      const bruto = Number.isFinite(brutoRaw) && brutoRaw > 0 ? brutoRaw : total + desc;
+      return {
+        comandaNumber: c.comandaNumber,
+        mesa: c.mesas?.nummesa ?? '',
+        mozo: c.mozos?.name || '',
+        bruto: Number(bruto.toFixed(2)),
+        descuento: Number(desc.toFixed(2)),
+        total: Number(total.toFixed(2))
+      };
+    });
+
+    const subtotal = Number(lineas.reduce((s, l) => s + l.bruto, 0).toFixed(2));
+    const descuento = Number(lineas.reduce((s, l) => s + l.descuento, 0).toFixed(2));
+    const total = Number(lineas.reduce((s, l) => s + l.total, 0).toFixed(2));
+
+    res.json({
+      success: true,
+      datos: {
+        cierreId: cierre._id,
+        fechaCierre: cierre.fechaCierre,
+        periodoInicio: cierre.periodoInicio,
+        periodoFin: cierre.periodoFin,
+        usuarioAdmin: cierre.usuarioAdmin,
+        comandas: lineas,
+        subtotal,
+        descuento,
+        total
+      }
+    });
+  } catch (error) {
+    logger.error('Error al armar ticket de cierre', { error: error.message });
+    res.status(500).json({
+      error: 'Error al generar ticket de cierre',
+      message: error.message
+    });
+  }
+});
+
+/**
  * GET /api/cierre-caja/:id/exportar-pdf
  * Exportar cierre de caja a PDF
  */

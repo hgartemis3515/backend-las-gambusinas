@@ -1656,6 +1656,13 @@ router.put('/comanda/:id/eliminar-plato/:platoIndex', async (req, res) => {
         
         comanda.version = (comanda.version || 1) + 1;
         await comanda.save();
+
+        try {
+            const { sincronizarDescuentoTicketsComanda } = require('../utils/descuentoTicketsComanda');
+            await sincronizarDescuentoTicketsComanda(comanda);
+        } catch (syncErr) {
+            logger.warn('[ELIMINAR PLATO] No se pudo sincronizar tickets/bouchers', { error: syncErr.message });
+        }
         
         // 5.1 Si no quedan platos activos y todos los eliminados estaban en pedido/en_espera → eliminar comanda automáticamente
         const activosRestantes = comanda.platos.filter(p => p.eliminado !== true);
@@ -3059,6 +3066,13 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
         
         comandaActualizar.version = (comandaActualizar.version || 1) + 1;
         await comandaActualizar.save();
+
+        try {
+            const { sincronizarDescuentoTicketsComanda } = require('../utils/descuentoTicketsComanda');
+            await sincronizarDescuentoTicketsComanda(comandaActualizar);
+        } catch (syncErr) {
+            logger.warn('[ELIMINAR PLATOS] No se pudo sincronizar tickets/bouchers', { error: syncErr.message });
+        }
         
         if (todosPlatosEliminados && mesaId) {
             try {
@@ -3664,6 +3678,7 @@ router.delete('/comanda/:id/descuento', async (req, res) => {
         comanda.descuentoAplicadoPor = null;
         comanda.descuentoAplicadoAt = null;
         comanda.montoDescuento = 0;
+        comanda.descuentoMontoFijo = null;
         comanda.totalSinDescuento = nuevoTotal;
         comanda.totalCalculado = nuevoTotal;
         comanda.precioTotal = subtotalActual;

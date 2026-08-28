@@ -523,6 +523,10 @@ const comandaSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    descuentoMontoFijo: {
+        type: Number,
+        default: null
+    },
     // ========== FIN DESCUENTOS ==========
     // ========== RESERVAS: Referencia a la reserva de origen ==========
     origenReserva: {
@@ -685,51 +689,43 @@ comandaSchema.pre('save', async function (next) {
                 }
                 return 0;
             };
-            
-            // Si los platos están populados, usar directamente
+
             for (let i = 0; i < this.platos.length; i++) {
                 const platoItem = this.platos[i];
+                if (platoItem.eliminado || platoItem.anulado) continue;
                 const cantidad = this.cantidades[i] || 1;
                 precioTotal += (await resolverPrecioLinea(platoItem)) * cantidad;
             }
-            
+
             this.precioTotal = precioTotal;
-            
-            // Si es nueva comanda, también establecer precioTotalOriginal
+
             if (this.isNew && !this.precioTotalOriginal) {
                 this.precioTotalOriginal = precioTotal;
             }
-            
-            // 🔥 IMPORTANTE: Recalcular totalCalculado si hay descuento aplicado
-            // Esto asegura que al agregar nuevos platos, el descuento persista sobre el nuevo total
-            if (this.descuento > 0) {
-                // Calcular precioTotalSinEliminar (solo platos activos)
-                let precioTotalSinEliminar = 0;
-                for (let i = 0; i < this.platos.length; i++) {
-                    const platoItem = this.platos[i];
-                    if (!platoItem.eliminado && !platoItem.anulado) {
-                        const cantidad = this.cantidades[i] || 1;
-                        precioTotalSinEliminar += (await resolverPrecioLinea(platoItem)) * cantidad;
-                    }
-                }
-                
-                const calculosPrecios = require('../../utils/calculosPrecios');
-                const configMoneda = await calculosPrecios.getConfigMonedaCached();
-                const subtotalSinDescuento = precioTotalSinEliminar;
-                const montoDescuentoNeto = subtotalSinDescuento * (this.descuento / 100);
-                const subtotalConDescuento = subtotalSinDescuento - montoDescuentoNeto;
-                const totalesSinDesc = calculosPrecios.calcularTotales(subtotalSinDescuento, configMoneda);
-                const totalesConDesc = calculosPrecios.calcularTotales(subtotalConDescuento, configMoneda);
 
-                this.totalSinDescuento = totalesSinDesc.total;
-                this.totalCalculado = totalesConDesc.total;
-                this.montoDescuento = Number((totalesSinDesc.total - totalesConDesc.total).toFixed(2));
-                
-                console.log(`💰 [pre-save] Recalculando totales con descuento ${this.descuento}%:`, {
-                    subtotalSinDescuento,
-                    montoDescuento: this.montoDescuento,
-                    totalCalculado: this.totalCalculado
-                });
+            const calculosPrecios = require('../../utils/calculosPrecios');
+            const { calcularTotalesConDescuento } = require('../../utils/descuentoComanda');
+            const configMoneda = await calculosPrecios.getConfigMonedaCached();
+
+            if (precioTotal <= 0) {
+                this.totalSinDescuento = 0;
+                this.totalCalculado = 0;
+                this.montoDescuento = 0;
+            } else if (this.descuento > 0 || Number(this.descuentoMontoFijo) > 0) {
+                const calc = calcularTotalesConDescuento(precioTotal, {
+                    porcentaje: this.descuento,
+                    monto: this.descuentoMontoFijo
+                }, configMoneda);
+                this.descuento = calc.descuentoNum;
+                this.totalSinDescuento = calc.totalSinDescuento;
+                this.totalCalculado = calc.totalCalculado;
+                this.montoDescuento = calc.montoDescuento;
+                this.precioTotal = calc.precioTotal;
+            } else {
+                const tot = calculosPrecios.calcularTotales(precioTotal, configMoneda);
+                this.totalSinDescuento = tot.total;
+                this.totalCalculado = tot.total;
+                this.montoDescuento = 0;
             }
         } catch (error) {
             // Si hay error al calcular, continuar sin precioTotal

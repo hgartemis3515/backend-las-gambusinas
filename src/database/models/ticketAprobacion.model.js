@@ -77,6 +77,7 @@ const ticketAprobacionSchema = new mongoose.Schema({
     comandaId: { type: mongoose.Schema.Types.ObjectId, ref: 'Comanda' },
     comandaNumber: Number,
     platoLineaId: { type: mongoose.Schema.Types.ObjectId },
+    eliminado: { type: Boolean, default: false },
     plato: { type: mongoose.Schema.Types.ObjectId, ref: 'platos' },
     platoId: Number,
     nombre: { type: String, required: true },

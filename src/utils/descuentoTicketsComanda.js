@@ -5,7 +5,7 @@
 const moment = require('moment-timezone');
 const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
 const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
-const { aplicarDescuentoADocDesdeComanda } = require('./descuentoTicketSnapshot');
+const { aplicarDescuentoADocDesdeComanda, marcarYRestarPlatosEliminados } = require('./descuentoTicketSnapshot');
 const logger = require('./logger');
 
 function emitirTicketsActualizados(tickets) {
@@ -40,6 +40,7 @@ async function sincronizarDescuentoTicketsComanda(comanda) {
   ]);
   const updated = [];
   for (const t of [...tas, ...ppas]) {
+    marcarYRestarPlatosEliminados(t, comanda);
     aplicarDescuentoADocDesdeComanda(t, comanda);
     await t.save();
     updated.push(t);
@@ -53,6 +54,7 @@ async function sincronizarDescuentoTicketsComanda(comanda) {
       isActive: { $ne: false }
     });
     for (const b of bouchers) {
+      marcarYRestarPlatosEliminados(b, comanda);
       aplicarDescuentoADocDesdeComanda(b, comanda);
       await b.save();
     }
