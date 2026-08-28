@@ -700,8 +700,8 @@ tailwind.config = {
               </label>
               <p class="text-[10px] text-txt-muted pl-7">
                 Solo aplica si el plato ya está en amarillo (asignado o tomado por el cocinero).
-                Desmarcado (recomendado): 1.º toque deja el plato (rojo), 2.º toque selecciona para finalizar (verde).
-                Marcado: 1.º toque verde (finalizar) y 2.º toque rojo (dejar). Recargue la app de cocina.
+                Marcado (recomendado): 1.º toque verde (finalizar) y 2.º toque rojo (dejar).
+                Desmarcado: 1.º toque deja el plato (rojo), 2.º toque selecciona para finalizar (verde). Recargue la app de cocina.
               </p>
             </div>
 
@@ -1552,7 +1552,7 @@ function configApp() {
       desgloseComplementos: true,
       cocinaDeshabilitarOrdenSecuencialGuarniciones: true,
       cocinaDeshabilitarAgrupacionGuarniciones: false,
-      cocinaPrimerToqueFinalizarAsignado: false,
+      cocinaPrimerToqueFinalizarAsignado: true,
       sesionesSimultaneas: 3,
       timeoutInactividadMin: 30,
       requiere2fa: false,
@@ -1811,7 +1811,7 @@ function configApp() {
             this.config.cocinaObligarOrdenAsignacion = cfg.cocina.obligarOrdenAsignacion !== false;
             this.config.cocinaSolicitudOrdenFueraDeCola = cfg.cocina.solicitudOrdenFueraDeCola !== false;
             this.config.cocinaUsarNombreCocinaEnTablaKds = cfg.cocina.usarNombreCocinaEnTablaKds !== false;
-            this.config.cocinaPrimerToqueFinalizarAsignado = cfg.cocina.primerToqueFinalizarAsignado === true;
+            this.config.cocinaPrimerToqueFinalizarAsignado = cfg.cocina.primerToqueFinalizarAsignado !== false;
             // PLAN GUARNICIONES_SEPARADAS v1.1: flag global + umbrales de tiempos.
             this.config.cocinaPermitirGuarnicionesSeparadas = cfg.cocina.permitirGuarnicionesSeparadas !== false;
             this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones = cfg.cocina.deshabilitarOrdenSecuencialGuarniciones !== false;
@@ -1827,7 +1827,7 @@ function configApp() {
             this.config.cocinaObligarOrdenAsignacion = true;
             this.config.cocinaSolicitudOrdenFueraDeCola = true;
             this.config.cocinaUsarNombreCocinaEnTablaKds = true;
-            this.config.cocinaPrimerToqueFinalizarAsignado = false;
+            this.config.cocinaPrimerToqueFinalizarAsignado = true;
             this.config.cocinaPermitirGuarnicionesSeparadas = true;
             this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones = true;
             this.config.cocinaDeshabilitarAgrupacionGuarniciones = false;
@@ -2003,7 +2003,7 @@ function configApp() {
             obligarOrdenAsignacion: this.config.cocinaObligarOrdenAsignacion !== false,
             solicitudOrdenFueraDeCola: this.config.cocinaSolicitudOrdenFueraDeCola !== false,
             usarNombreCocinaEnTablaKds: this.config.cocinaUsarNombreCocinaEnTablaKds !== false,
-            primerToqueFinalizarAsignado: this.config.cocinaPrimerToqueFinalizarAsignado === true,
+            primerToqueFinalizarAsignado: this.config.cocinaPrimerToqueFinalizarAsignado !== false,
             // PLAN GUARNICIONES_SEPARADAS v1.1
             permitirGuarnicionesSeparadas: this.config.cocinaPermitirGuarnicionesSeparadas !== false,
             deshabilitarOrdenSecuencialGuarniciones: this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones !== false,

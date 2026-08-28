@@ -141,9 +141,9 @@ const CONFIGURACION_DEFAULT = {
         // PLAN AGRUPACION_GUARNICIONES: si true, una tarjeta por extra (modelo v1.1).
         // Default false = agrupación ON (una tarjeta / un cronómetro por plato).
         deshabilitarAgrupacionGuarniciones: false,
-        // Plato asignado (amarillo): false = 1º dejar (rojo), 2º finalizar (verde).
-        // true = 1º finalizar (verde), 2º dejar (rojo).
-        primerToqueFinalizarAsignado: false,
+        // Plato asignado (amarillo): true = 1º finalizar (verde), 2º dejar (rojo).
+        // false = 1º dejar (rojo), 2º finalizar (verde).
+        primerToqueFinalizarAsignado: true,
         tiemposGuarnicion: {
             umbralAlertaMultiplo: 1.5,
             umbralCriticaMultiplo: 2,
@@ -888,6 +888,11 @@ const configuracionSistemaSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'mozos',
         default: null
+    },
+    // true = ya se aplicó el default 1º toque finalizar en plato asignado.
+    cicloToqueKdsV2: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true,
@@ -906,14 +911,32 @@ configuracionSistemaSchema.statics.obtenerConfiguracion = async function() {
         config = await this.create({
             _id: 'configuracion_unica',
             ...CONFIGURACION_DEFAULT,
+            cicloToqueKdsV2: true,
             horarios: {
                 ...CONFIGURACION_DEFAULT.horarios,
                 diasOperacion: CONFIGURACION_DEFAULT.horarios.diasOperacion
             }
         });
         console.log('✅ Configuración del sistema creada con valores por defecto');
+        return config;
     }
-    
+
+    if (config.cicloToqueKdsV2 !== true) {
+        const updated = await this.findOneAndUpdate(
+            { _id: 'configuracion_unica', cicloToqueKdsV2: { $ne: true } },
+            { $set: { cicloToqueKdsV2: true, 'cocina.primerToqueFinalizarAsignado': true } },
+            { new: true }
+        );
+        if (updated) {
+            config = updated;
+            console.log('✅ Ciclo toque KDS asignado: 1º finalizar (verde), 2º dejar (rojo)');
+            try {
+                const redisCache = require('../../utils/redisCache');
+                await redisCache.invalidateCustom('configuracion', 'sistema');
+            } catch (_) { /* no bloquear lectura */ }
+        }
+    }
+
     return config;
 };
 
