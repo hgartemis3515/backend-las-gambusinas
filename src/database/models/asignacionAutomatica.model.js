@@ -30,6 +30,7 @@
 
 const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
+const { migrarCuposFactoryV3 } = require('../../utils/asignacionAutomaticaCupos');
 
 const CONFIG_ID = 'asignacion_automatica_unica';
 
@@ -133,8 +134,8 @@ const asignacionAutomaticaSchema = new mongoose.Schema({
     _id: { type: String, default: CONFIG_ID },
     habilitada: { type: Boolean, default: false },
     defaults: {
-        maxMismoPlatoPorCocinero: { type: Number, default: 5, min: 1, max: 50 },
-        maxPlatosTotalesEnCurso: { type: Number, default: 10, min: 1, max: 100 },
+        maxMismoPlatoPorCocinero: { type: Number, default: 20, min: 1, max: 50 },
+        maxPlatosTotalesEnCurso: { type: Number, default: 40, min: 1, max: 100 },
         modoSinCandidato: {
             type: String,
             default: 'dejar_sin_asignar',
@@ -158,7 +159,8 @@ const asignacionAutomaticaSchema = new mongoose.Schema({
     // La migración mueve estos campos a un perfil "Principal" y los vacía.
     reglasPorPlato: { type: [reglasPlatoSchema], default: [] },
     reglasPorCategoria: { type: [reglasCategoriaSchema], default: [] },
-    actualizadoPor: { type: mongoose.Schema.Types.ObjectId, ref: 'mozos', default: null }
+    actualizadoPor: { type: mongoose.Schema.Types.ObjectId, ref: 'mozos', default: null },
+    cuposDefaultV3: { type: Boolean, default: false }
 }, {
     timestamps: true,
     _id: false,
@@ -170,8 +172,8 @@ const asignacionAutomaticaSchema = new mongoose.Schema({
 const CONFIGURACION_DEFAULT = {
     habilitada: false,
     defaults: {
-        maxMismoPlatoPorCocinero: 5,
-        maxPlatosTotalesEnCurso: 10,
+        maxMismoPlatoPorCocinero: 20,
+        maxPlatosTotalesEnCurso: 40,
         modoSinCandidato: 'dejar_sin_asignar',
         soloCocinerosConectados: true,
         respetarZonas: true,
@@ -180,7 +182,8 @@ const CONFIGURACION_DEFAULT = {
     perfiles: [],
     calendario: { bloques: [] },
     reglasPorPlato: [],
-    reglasPorCategoria: []
+    reglasPorCategoria: [],
+    cuposDefaultV3: true
 };
 
 /**
@@ -296,6 +299,11 @@ asignacionAutomaticaSchema.statics.obtenerConfiguracion = async function() {
             if (seeded) config = seeded;
         }
     }
+    config = await migrarCuposFactoryV3(this, CONFIG_ID, config, {
+        mismoKey: 'maxMismoPlatoPorCocinero', mismoOld: 5, mismoNew: 20,
+        totalKey: 'maxPlatosTotalesEnCurso', totalOld: 10, totalNew: 40,
+        log: '✅ Cupos default de asignación (platos) migrados a 20 / 40'
+    });
     return config;
 };
 

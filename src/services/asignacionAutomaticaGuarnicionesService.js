@@ -19,6 +19,7 @@ const { agrupacionGuarnicionesOn } = require('../utils/autocerrarGuarniciones');
 const { platoUneComplementos } = require('../utils/platoUneComplementos');
 const { construirCatalogoGuarniciones, nombreOpcionComplemento } = require('../utils/catalogoGuarniciones');
 const redisCache = require('../utils/redisCache');
+const { topePositivo, bumpCargaCache, encolarAsignacionKds } = require('../utils/asignacionAutomaticaCupos');
 const Zona = require('../database/models/zona.model');
 
 const Comanda = mongoose.model('Comanda') || require('../database/models/comanda.model');
@@ -273,7 +274,7 @@ function snapshotReglaGuarnicion(regla) {
 async function filtrarCandidatoGuarnicion(
     cand, config, plato, guarnicionKey, cocineroPadreId, estacionRecomendada,
     cacheConectado, cacheCargaTot, cacheCocinero, batchCocineroPreferido,
-    permitirCocineroPadre = false
+    permitirCocineroPadre = false, maxMismoOverride = null
 ) {
     const { soloCocinerosConectados, respetarZonas, maxMismoGuarnicionPorCocinero, maxUnidadesTotalesEnCurso, priorizarEstacion } = config.defaults || {};
 
@@ -303,10 +304,11 @@ async function filtrarCandidatoGuarnicion(
         cacheCargaTot[cand.cocineroId] = total;
     }
     const maxTotal = opt.maxPlatosTotales || maxUnidadesTotalesEnCurso;
-    if (total >= maxTotal) return null;
+    if (Number.isFinite(Number(maxTotal)) && total >= Number(maxTotal)) return null;
 
     const mismoGuarnicion = await contarGuarnicionesEnCurso(cand.cocineroId, guarnicionKey);
-    if (mismoGuarnicion >= maxMismoGuarnicionPorCocinero) return null;
+    const maxMismo = topePositivo(maxMismoOverride, maxMismoGuarnicionPorCocinero);
+    if (maxMismo != null && mismoGuarnicion >= maxMismo) return null;
 
     let score = cand.esPrimario ? 100 : (50 - cand.orden);
 
@@ -341,7 +343,7 @@ async function evaluarCandidatosGuarnicion(candidatos, args) {
         const ev = await filtrarCandidatoGuarnicion(
             cand, args.config, args.platoRef, args.guarnicionKey, args.cocineroPadreId,
             args.estacionRecomendada, args.cacheConectado, args.cacheCargaTot, args.cacheCocinero,
-            args.batchCocineroPreferido, false
+            args.batchCocineroPreferido, false, args.maxMismoGuarnicion
         );
         if (ev) evaluados.push(ev);
     }
@@ -350,7 +352,7 @@ async function evaluarCandidatosGuarnicion(candidatos, args) {
         const ev = await filtrarCandidatoGuarnicion(
             cand, args.config, args.platoRef, args.guarnicionKey, args.cocineroPadreId,
             args.estacionRecomendada, args.cacheConectado, args.cacheCargaTot, args.cacheCocinero,
-            args.batchCocineroPreferido, true
+            args.batchCocineroPreferido, true, args.maxMismoGuarnicion
         );
         if (ev) evaluados.push(ev);
     }
@@ -423,6 +425,10 @@ async function asignarGuarnicionInterna(comandaId, platoIndex, compIndex, cocine
  * @returns {Promise<{asignados, noAsignados, motivo}>}
  */
 async function asignarGuarnicionesNuevas(comandaPop) {
+    return encolarAsignacionKds(() => asignarGuarnicionesNuevasEjecutar(comandaPop));
+}
+
+async function asignarGuarnicionesNuevasEjecutar(comandaPop) {
     try {
         if (!comandaPop || !comandaPop.platos || comandaPop.platos.length === 0) {
             return { asignados: 0, noAsignados: 0, motivo: 'sin_platos' };
@@ -499,7 +505,8 @@ async function asignarGuarnicionesNuevas(comandaPop) {
                 const evaluados = await evaluarCandidatosGuarnicion(candidatos, {
                     config, platoRef, guarnicionKey: guarnicionKeyElegida, cocineroPadreId,
                     estacionRecomendada: encontrada.regla.estacionRecomendada,
-                    cacheConectado, cacheCargaTot, cacheCocinero, batchCocineroPreferido: null
+                    cacheConectado, cacheCargaTot, cacheCocinero, batchCocineroPreferido: null,
+                    maxMismoGuarnicion: encontrada.regla.maxMismoGuarnicion
                 });
                 if (evaluados.length === 0) {
                     noAsignados += pendientes.length;
@@ -523,6 +530,7 @@ async function asignarGuarnicionesNuevas(comandaPop) {
                 }
                 if (okGrupo > 0) {
                     asignados += 1;
+                    bumpCargaCache(cacheCargaTot, elegido.cocineroId, okGrupo);
                     logger.info('Auto-asignación grupo guarniciones OK', {
                         comandaId: comandaPop._id?.toString(),
                         platoId: grupoId, cocineroId: elegido.cocineroId, extras: okGrupo
@@ -533,6 +541,7 @@ async function asignarGuarnicionesNuevas(comandaPop) {
                 continue;
             }
 
+            const batchCocineroPreferidoPorKey = {};
             for (let ci = 0; ci < comps.length; ci++) {
                 const comp = comps[ci];
                 if (comp.procesandoPor && comp.procesandoPor.cocineroId) continue; // ya asignada
@@ -548,7 +557,7 @@ async function asignarGuarnicionesNuevas(comandaPop) {
                 // §3: ¿hay batch de esta guarnicionKey? Si ya asignamos una a un cocinero,
                 // preferimos ese para el resto del batch.
                 const batchItems = batchs[d.key];
-                let batchCocineroPreferido = null;
+                const batchCocineroPreferido = batchCocineroPreferidoPorKey[d.key] || null;
                 let batchId = null;
                 if (batchItems && batchItems.length >= 2) {
                     batchId = `batch-${d.key.replace(/[^a-z0-9]/g, '-')}-${comandaPop._id?.toString().slice(-6)}`;
@@ -558,7 +567,8 @@ async function asignarGuarnicionesNuevas(comandaPop) {
                 const evaluados = await evaluarCandidatosGuarnicion(candidatos, {
                     config, platoRef, guarnicionKey: d.key, cocineroPadreId,
                     estacionRecomendada: encontrada.regla.estacionRecomendada,
-                    cacheConectado, cacheCargaTot, cacheCocinero, batchCocineroPreferido
+                    cacheConectado, cacheCargaTot, cacheCocinero, batchCocineroPreferido,
+                    maxMismoGuarnicion: encontrada.regla.maxMismoGuarnicion
                 });
                 if (evaluados.length === 0) {
                     noAsignados++;
@@ -580,8 +590,8 @@ async function asignarGuarnicionesNuevas(comandaPop) {
                 );
                 if (ok) {
                     asignados++;
-                    // §3: cachear el cocinero elegido como preferido para el resto del batch
-                    if (batchId) batchCocineroPreferido = elegido.cocineroId;
+                    bumpCargaCache(cacheCargaTot, elegido.cocineroId);
+                    if (batchId) batchCocineroPreferidoPorKey[d.key] = elegido.cocineroId;
                     logger.info('Auto-asignación guarnición OK', {
                         comandaId: comandaPop._id?.toString(),
                         guarnicionKey: d.key, cocineroId: elegido.cocineroId,
@@ -632,7 +642,8 @@ async function simularAsignacionGuarnicion(grupo, opcion, cocineroPadreId = null
     const evaluados = await evaluarCandidatosGuarnicion(candidatos, {
         config, platoRef: null, guarnicionKey, cocineroPadreId,
         estacionRecomendada: encontrada.regla.estacionRecomendada,
-        cacheConectado, cacheCargaTot, cacheCocinero, batchCocineroPreferido: null
+        cacheConectado, cacheCargaTot, cacheCocinero, batchCocineroPreferido: null,
+        maxMismoGuarnicion: encontrada.regla.maxMismoGuarnicion
     });
     if (evaluados.length === 0) return { habilitada: true, cocineroId: null, mensaje: 'Sin candidato válido' };
     evaluados.sort((a, b) => b.score - a.score);

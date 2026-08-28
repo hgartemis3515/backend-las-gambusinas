@@ -20,8 +20,8 @@
  *   4. Construye lista de candidatos: primario + backups ordenados.
  *   5. Filtra: activo, conectado (si soloCocinerosConectados), respeta zona (si respetarZonas),
  *      no pausado (autoAsignacion.acepta && pausadoHasta < ahora), bajo límites.
- *   6. Overflow 5+1: si el primario ya tiene >= maxMismoPlato del mismo platoId en curso,
- *      el siguiente pasa al primer backup válido. Igual para totalEnCurso.
+ *   6. Overflow: si el primario ya tiene >= maxMismoPlato (regla o default 20) del mismo
+ *      platoId en curso, el siguiente pasa al primer backup válido. Igual para totalEnCurso.
  *   7. Si no hay candidato → modoSinCandidato (default: dejar_sin_asignar).
  *
  * Contadores en tiempo real: agregación sobre el index idx_platos_en_curso_cocinero.
@@ -40,6 +40,7 @@ const Zona = require('../database/models/zona.model');
 const Comanda = mongoose.model('Comanda') || require('../database/models/comanda.model');
 const Mozos = mongoose.model('mozos') || require('../database/models/mozos.model');
 const { getCocineroInfo } = require('../utils/cocineroInfo');
+const { topePositivo, bumpCargaCache, encolarAsignacionKds } = require('../utils/asignacionAutomaticaCupos');
 
 const ESTADOS_EN_CURSO = ['pedido', 'en_espera'];
 const MAX_REINTENTOS = 3;
@@ -333,7 +334,7 @@ function construirCandidatos(regla) {
 /**
  * Filtra un candidato según config y estado del cocinero.
  */
-async function filtrarCandidato(cand, config, plato, platoId, cacheConectado, cacheCargaTot, maxTotalesPorOverride) {
+async function filtrarCandidato(cand, config, plato, platoId, cacheConectado, cacheCargaTot, maxMismoOverride) {
     const defaults = (config && config.defaults) || {};
     const { soloCocinerosConectados, respetarZonas, maxMismoPlatoPorCocinero, maxPlatosTotalesEnCurso } = defaults;
 
@@ -371,10 +372,10 @@ async function filtrarCandidato(cand, config, plato, platoId, cacheConectado, ca
         return null;
     }
 
-    // Límite mismo plato
-    const maxMismo = maxMismoPlatoPorCocinero;
+    // Límite mismo plato (regla por plato/categoría si existe; si no, default global)
+    const maxMismo = topePositivo(maxMismoOverride, maxMismoPlatoPorCocinero);
     const mismoPlatoCount = await contarPlatosEnCurso(cand.cocineroId, platoId);
-    if (Number.isFinite(maxMismo) && mismoPlatoCount >= maxMismo) {
+    if (maxMismo != null && mismoPlatoCount >= maxMismo) {
         // Overflow: candidato saturado del mismo plato → no es válido como primario
         return null;
     }
@@ -392,7 +393,7 @@ async function filtrarCandidato(cand, config, plato, platoId, cacheConectado, ca
  *     (compatibilidad con el flujo legacy y con tests viejos).
  *   - `config.defaults` sigue siendo la fuente de defaults globales (max, estrategiaDefault, etc.).
  */
-async function seleccionarCocinero(config, plato, perfil = null) {
+async function seleccionarCocinero(config, plato, perfil = null, caches = null) {
     const fuenteReglas = perfil || config;
     const match = encontrarRegla(fuenteReglas, plato);
     if (!match) {
@@ -404,14 +405,14 @@ async function seleccionarCocinero(config, plato, perfil = null) {
     if (candidatos.length === 0) return null;
 
     const estrategia = regla.estrategia || (config.defaults || {}).estrategiaDefault || 'hibrido';
-    const cacheConectado = {};
-    const cacheCargaTot = {};
+    const cacheConectado = caches?.cacheConectado || {};
+    const cacheCargaTot = caches?.cacheCargaTot || {};
     const platoIdRegla = regla.platoId || idCatalogoPlato(plato);
 
     const evaluar = async (cfg) => {
         const validos = [];
         for (const cand of candidatos) {
-            const v = await filtrarCandidato(cand, cfg, plato, platoIdRegla, cacheConectado, cacheCargaTot);
+            const v = await filtrarCandidato(cand, cfg, plato, platoIdRegla, cacheConectado, cacheCargaTot, regla.maxMismoPlato);
             if (v) validos.push(v);
         }
         return validos;
@@ -558,6 +559,10 @@ async function asignarPlatoInterno(comandaId, plato, cocineroId, metaOrigen, met
  * @param {Object} comanda - documento comanda populated (con platos[])
  */
 async function asignarPlatosNuevos(comanda) {
+    return encolarAsignacionKds(() => asignarPlatosNuevosEjecutar(comanda));
+}
+
+async function asignarPlatosNuevosEjecutar(comanda) {
     try {
         if (!comanda || !comanda.platos || comanda.platos.length === 0) return { asignados: 0, noAsignados: 0 };
 
@@ -584,6 +589,7 @@ async function asignarPlatosNuevos(comanda) {
 
         let asignados = 0;
         let noAsignados = 0;
+        const caches = { cacheConectado: {}, cacheCargaTot: {} };
         for (const plato of platosAsignables) {
             const catalogo = (plato.plato && typeof plato.plato === 'object')
                 ? plato.plato
@@ -616,7 +622,7 @@ async function asignarPlatosNuevos(comanda) {
                     break;
                 }
 
-                elegido = await seleccionarCocinero(configViva, enriched, perfil);
+                elegido = await seleccionarCocinero(configViva, enriched, perfil, caches);
                 if (!elegido && intento === MAX_REINTENTOS - 1) {
                     const match = encontrarRegla(perfil, enriched);
                     logger.info('Auto-asignación: plato sin candidato', {
@@ -636,6 +642,7 @@ async function asignarPlatosNuevos(comanda) {
             const ok = await asignarPlatoInterno(comanda._id, plato, elegido.cocineroId, elegido.origen, elegido.regla);
             if (ok) {
                 asignados++;
+                bumpCargaCache(caches.cacheCargaTot, elegido.cocineroId);
                 logger.info('Auto-asignación OK', {
                     comandaId: comanda._id.toString(), platoId,
                     cocineroId: elegido.cocineroId,

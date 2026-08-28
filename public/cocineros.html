@@ -779,6 +779,14 @@ tailwind.config = {
                   Sin regla
                 </label>
               </div>
+              <select x-model="filtroMaxMismoAsignacion" @change="currentPageAsignacion = 1"
+                class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                <option value="">Máx. mismo plato: todos</option>
+                <option value="personalizado">Con máx. personalizado</option>
+                <option value="10">Máx. 10</option>
+                <option value="15">Máx. 15</option>
+                <option value="20">Máx. 20</option>
+              </select>
             </div>
 
             <!-- Loading -->
@@ -814,6 +822,10 @@ tailwind.config = {
                         <span x-show="tieneReglaPlato(p.id) && getReglaPlato(p.id).backups?.length > 0"
                           class="text-[9px] px-1.5 py-0.5 rounded bg-st-pedido/20 text-st-pedido">
                           Overflow
+                        </span>
+                        <span x-show="maxMismoPlatoRegla(p.id) != null"
+                          class="text-[9px] px-1.5 py-0.5 rounded bg-gold/10 text-gold"
+                          x-text="'Máx ' + maxMismoPlatoRegla(p.id)">
                         </span>
                       </div>
                     </div>
@@ -902,7 +914,7 @@ tailwind.config = {
                       </div>
                     </template>
                     <div x-show="formReglaAsignacion.backups.length === 0" class="text-xs text-txt-muted italic px-2">
-                      Sin backups. El 6º plato quedará sin dueño según modoSinCandidato.
+                      Sin backups. Tras el máx. global el plato queda sin dueño según modoSinCandidato.
                     </div>
                   </div>
                 </div>
@@ -911,7 +923,7 @@ tailwind.config = {
                 <div class="grid grid-cols-2 gap-3">
                   <div>
                     <label class="text-xs font-semibold text-txt-secondary uppercase">Máx. mismo plato</label>
-                    <p class="text-[10px] text-txt-muted mb-1">Default global: <span class="text-gold" x-text="asignacionConfig?.defaults?.maxMismoPlatoPorCocinero ?? 5"></span></p>
+                    <p class="text-[10px] text-txt-muted mb-1">Default global: <span class="text-gold" x-text="asignacionConfig?.defaults?.maxMismoPlatoPorCocinero ?? 20"></span></p>
                     <input type="number" min="1" max="50" x-model.number="formReglaAsignacion.maxMismoPlato"
                       placeholder="Usar default"
                       class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
@@ -1089,11 +1101,13 @@ tailwind.config = {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label class="text-xs font-semibold text-txt-secondary uppercase">Máx. mismo plato por cocinero</label>
+              <p class="text-[10px] text-txt-muted mb-1">Default 20. El siguiente va a backup.</p>
               <input type="number" min="1" max="50" x-model.number="formDefaultsAsignacion.maxMismoPlatoPorCocinero"
                 class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
             </div>
             <div>
               <label class="text-xs font-semibold text-txt-secondary uppercase">Máx. platos totales en curso</label>
+              <p class="text-[10px] text-txt-muted mb-1">Default 40. Tope de carga mixta.</p>
               <input type="number" min="1" max="100" x-model.number="formDefaultsAsignacion.maxPlatosTotalesEnCurso"
                 class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
             </div>
@@ -1426,6 +1440,14 @@ tailwind.config = {
                   Sin regla
                 </label>
               </div>
+              <select x-model="filtroMaxMismoGuarniciones" @change="currentPageGuarniciones = 1"
+                class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+                <option value="">Máx. misma guarnición: todos</option>
+                <option value="personalizado">Con máx. personalizado</option>
+                <option value="10">Máx. 10</option>
+                <option value="15">Máx. 15</option>
+                <option value="20">Máx. 20</option>
+              </select>
             </div>
             <div x-show="loadingGuarnicionesCatalogo" class="text-center py-8 text-txt-muted text-sm">Cargando guarniciones...</div>
             <div x-show="!loadingGuarnicionesCatalogo" class="space-y-1 max-h-[500px] overflow-y-auto pr-1">
@@ -1446,6 +1468,7 @@ tailwind.config = {
                         <span x-show="tieneReglaGuarnicion(g) && !tieneReglaPropiaGuarnicion(g)" class="text-[9px] px-1.5 py-0.5 rounded bg-bg-card text-txt-secondary border border-txt-muted/30">Heredada</span>
                         <span x-show="tieneReglaPropiaGuarnicion(g) && getReglaGuarnicion(g).cocineroPrimarioId" class="text-[9px] px-1.5 py-0.5 rounded bg-gold/20 text-gold">Primario</span>
                         <span x-show="tieneReglaPropiaGuarnicion(g) && getReglaGuarnicion(g).backups?.length > 0" class="text-[9px] px-1.5 py-0.5 rounded bg-st-pedido/20 text-st-pedido">Overflow</span>
+                        <span x-show="maxMismoGuarnicionRegla(g) != null" class="text-[9px] px-1.5 py-0.5 rounded bg-gold/10 text-gold" x-text="'Máx ' + maxMismoGuarnicionRegla(g)"></span>
                       </div>
                     </div>
                   </div>
@@ -1543,7 +1566,7 @@ tailwind.config = {
                 <div class="grid grid-cols-2 gap-3">
                   <div>
                     <label class="text-xs font-semibold text-txt-secondary uppercase">Máx. misma guarnición</label>
-                    <p class="text-[10px] text-txt-muted mb-1">Default: <span class="text-gold" x-text="asignacionGuarnicionesConfig?.defaults?.maxMismoGuarnicionPorCocinero ?? 6"></span></p>
+                    <p class="text-[10px] text-txt-muted mb-1">Default: <span class="text-gold" x-text="asignacionGuarnicionesConfig?.defaults?.maxMismoGuarnicionPorCocinero ?? 20"></span></p>
                     <input type="number" min="1" max="50" x-model.number="formReglaGuarnicion.maxMismoGuarnicion" placeholder="Usar default"
                       class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
                   </div>
@@ -1702,11 +1725,13 @@ tailwind.config = {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label class="text-xs font-semibold text-txt-secondary uppercase">Máx. misma guarnición por cocinero</label>
+              <p class="text-[10px] text-txt-muted mb-1">Default 20. El siguiente va a backup.</p>
               <input type="number" min="1" max="50" x-model.number="formDefaultsGuarniciones.maxMismoGuarnicionPorCocinero"
                 class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
             </div>
             <div>
               <label class="text-xs font-semibold text-txt-secondary uppercase">Máx. unidades totales en curso</label>
+              <p class="text-[10px] text-txt-muted mb-1">Default 40. Tope de carga mixta.</p>
               <input type="number" min="1" max="100" x-model.number="formDefaultsGuarniciones.maxUnidadesTotalesEnCurso"
                 class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
             </div>
@@ -3775,13 +3800,13 @@ tailwind.config = {
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="text-xs font-semibold text-txt-secondary uppercase">Máx. mismo plato/cocinero</label>
-          <p class="text-[10px] text-txt-muted mb-1">Default 5. Overflow 5+1.</p>
+          <p class="text-[10px] text-txt-muted mb-1">Default 20. El siguiente va a backup.</p>
           <input type="number" min="1" max="50" x-model.number="formDefaultsAsignacion.maxMismoPlatoPorCocinero"
             class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
         </div>
         <div>
           <label class="text-xs font-semibold text-txt-secondary uppercase">Máx. platos totales en curso</label>
-          <p class="text-[10px] text-txt-muted mb-1">Carga total por cocinero.</p>
+          <p class="text-[10px] text-txt-muted mb-1">Default 40. Carga total por cocinero.</p>
           <input type="number" min="1" max="100" x-model.number="formDefaultsAsignacion.maxPlatosTotalesEnCurso"
             class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
         </div>
@@ -3977,7 +4002,7 @@ tailwind.config = {
             </div>
           </template>
           <div x-show="formAsignacionMasiva.backups.length === 0" class="text-xs text-txt-muted italic px-2">
-            Sin backups. El 6º plato quedará sin dueño según modoSinCandidato.
+            Sin backups. Tras el máx. global el plato queda sin dueño según modoSinCandidato.
           </div>
         </div>
       </div>
@@ -3986,7 +4011,7 @@ tailwind.config = {
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="text-xs font-semibold text-txt-secondary uppercase" x-text="scopeAsignacion === 'guarniciones' ? 'Máx. misma guarnición' : 'Máx. mismo plato'"></label>
-          <p class="text-[10px] text-txt-muted mb-1">Default global: <span class="text-gold" x-text="scopeAsignacion === 'guarniciones' ? (asignacionGuarnicionesConfig?.defaults?.maxMismoGuarnicionPorCocinero ?? 6) : (asignacionConfig?.defaults?.maxMismoPlatoPorCocinero ?? 5)"></span></p>
+          <p class="text-[10px] text-txt-muted mb-1">Default global: <span class="text-gold" x-text="scopeAsignacion === 'guarniciones' ? (asignacionGuarnicionesConfig?.defaults?.maxMismoGuarnicionPorCocinero ?? 20) : (asignacionConfig?.defaults?.maxMismoPlatoPorCocinero ?? 20)"></span></p>
           <input type="number" min="1" max="50" x-model.number="formAsignacionMasiva.maxMismoPlato"
             placeholder="Usar default"
             class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
@@ -4210,6 +4235,7 @@ function cocinerosApp() {
     busquedaGuarnicionesAsignacion: '',
     filtroGrupoGuarniciones: '',
     soloSinConfigurarGuarniciones: false,
+    filtroMaxMismoGuarniciones: '',
     currentPageGuarniciones: 1,
     pageSizeGuarniciones: 15,
     guarnicionSeleccionada: null,
@@ -4230,8 +4256,8 @@ function cocinerosApp() {
       _origen: null
     },
     formDefaultsGuarniciones: {
-      maxMismoGuarnicionPorCocinero: 6,
-      maxUnidadesTotalesEnCurso: 12,
+      maxMismoGuarnicionPorCocinero: 20,
+      maxUnidadesTotalesEnCurso: 40,
       modoSinCandidato: 'dejar_sin_asignar',
       soloCocinerosConectados: true,
       respetarZonas: true,
@@ -4258,6 +4284,7 @@ function cocinerosApp() {
     busquedaPlatosAsignacion: '',
     filtroCategoriaAsignacion: '',
     soloSinConfigurar: false,
+    filtroMaxMismoAsignacion: '',
     currentPageAsignacion: 1,
     pageSizeAsignacion: 15,
     platoSeleccionadoAsignacion: null,
@@ -4271,8 +4298,8 @@ function cocinerosApp() {
       notas: ''
     },
     formDefaultsAsignacion: {
-      maxMismoPlatoPorCocinero: 5,
-      maxPlatosTotalesEnCurso: 10,
+      maxMismoPlatoPorCocinero: 20,
+      maxPlatosTotalesEnCurso: 40,
       modoSinCandidato: 'dejar_sin_asignar',
       soloCocinerosConectados: true,
       respetarZonas: true,
@@ -6137,8 +6164,8 @@ function cocinerosApp() {
     _syncFormDefaultsGuarniciones() {
       const d = this.asignacionGuarnicionesConfig?.defaults || {};
       this.formDefaultsGuarniciones = {
-        maxMismoGuarnicionPorCocinero: d.maxMismoGuarnicionPorCocinero ?? 6,
-        maxUnidadesTotalesEnCurso: d.maxUnidadesTotalesEnCurso ?? 12,
+        maxMismoGuarnicionPorCocinero: d.maxMismoGuarnicionPorCocinero ?? 20,
+        maxUnidadesTotalesEnCurso: d.maxUnidadesTotalesEnCurso ?? 40,
         modoSinCandidato: d.modoSinCandidato ?? 'dejar_sin_asignar',
         soloCocinerosConectados: d.soloCocinerosConectados ?? true,
         respetarZonas: d.respetarZonas ?? true,
@@ -6310,6 +6337,10 @@ function cocinerosApp() {
       if (g) return this._findReglaGuarnicionParaItem(g)?.regla || {};
       return this.reglasGuarnicionMap[keyOrItem] || {};
     },
+    maxMismoGuarnicionRegla(keyOrItem) {
+      const n = Number(this.getReglaGuarnicion(keyOrItem)?.maxMismoGuarnicion);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    },
     getNombreGuarnicion(key) {
       const g = this.todasLasGuarnicionesAsignacion.find(x => x.key === key);
       return g ? (g.etiqueta || `${g.grupo} :: ${g.opcion}`) : (key || '—');
@@ -6369,6 +6400,14 @@ function cocinerosApp() {
       }
       if (this.soloSinConfigurarGuarniciones) {
         list = list.filter(g => !this.tieneReglaGuarnicion(g));
+      }
+      if (this.filtroMaxMismoGuarniciones) {
+        if (this.filtroMaxMismoGuarniciones === 'personalizado') {
+          list = list.filter(g => this.maxMismoGuarnicionRegla(g) != null);
+        } else {
+          const n = Number(this.filtroMaxMismoGuarniciones);
+          list = list.filter(g => this.maxMismoGuarnicionRegla(g) === n);
+        }
       }
       return list;
     },
@@ -6701,8 +6740,8 @@ function cocinerosApp() {
         // Sincroniza defaults al form
         const d = this.asignacionConfig.defaults || {};
         this.formDefaultsAsignacion = {
-          maxMismoPlatoPorCocinero: d.maxMismoPlatoPorCocinero ?? 5,
-          maxPlatosTotalesEnCurso: d.maxPlatosTotalesEnCurso ?? 10,
+          maxMismoPlatoPorCocinero: d.maxMismoPlatoPorCocinero ?? 20,
+          maxPlatosTotalesEnCurso: d.maxPlatosTotalesEnCurso ?? 40,
           modoSinCandidato: d.modoSinCandidato ?? 'dejar_sin_asignar',
           soloCocinerosConectados: d.soloCocinerosConectados ?? true,
           respetarZonas: d.respetarZonas ?? true,
@@ -6786,6 +6825,10 @@ function cocinerosApp() {
     getReglaPlato(platoId) {
       return this.reglasPlatoMap[platoId] || {};
     },
+    maxMismoPlatoRegla(platoId) {
+      const n = Number(this.getReglaPlato(platoId)?.maxMismoPlato);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    },
     getNombrePlato(platoId) {
       const p = this.todosLosPlatosAsignacion.find(x => x.id === platoId);
       return p ? p.nombre : `Plato #${platoId}`;
@@ -6803,6 +6846,14 @@ function cocinerosApp() {
       }
       if (this.soloSinConfigurar) {
         list = list.filter(p => !this.tieneReglaPlato(p.id));
+      }
+      if (this.filtroMaxMismoAsignacion) {
+        if (this.filtroMaxMismoAsignacion === 'personalizado') {
+          list = list.filter(p => this.maxMismoPlatoRegla(p.id) != null);
+        } else {
+          const n = Number(this.filtroMaxMismoAsignacion);
+          list = list.filter(p => this.maxMismoPlatoRegla(p.id) === n);
+        }
       }
       return list;
     },

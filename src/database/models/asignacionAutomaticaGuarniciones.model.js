@@ -24,6 +24,7 @@
  */
 const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
+const { migrarCuposFactoryV3 } = require('../../utils/asignacionAutomaticaCupos');
 
 const CONFIG_ID = 'asignacion_automatica_guarniciones';
 
@@ -129,8 +130,8 @@ const asignacionAutomaticaGuarnicionesSchema = new mongoose.Schema({
     _id: { type: String, default: CONFIG_ID },
     habilitada: { type: Boolean, default: false },
     defaults: {
-        maxMismoGuarnicionPorCocinero: { type: Number, default: 6, min: 1, max: 50 },
-        maxUnidadesTotalesEnCurso: { type: Number, default: 12, min: 1, max: 100 },
+        maxMismoGuarnicionPorCocinero: { type: Number, default: 20, min: 1, max: 50 },
+        maxUnidadesTotalesEnCurso: { type: Number, default: 40, min: 1, max: 100 },
         modoSinCandidato: {
             type: String,
             default: 'dejar_sin_asignar',
@@ -152,7 +153,8 @@ const asignacionAutomaticaGuarnicionesSchema = new mongoose.Schema({
     calendario: {
         bloques: { type: [bloqueCalendarioSchema], default: [] }
     },
-    actualizadoPor: { type: mongoose.Schema.Types.ObjectId, ref: 'mozos', default: null }
+    actualizadoPor: { type: mongoose.Schema.Types.ObjectId, ref: 'mozos', default: null },
+    cuposDefaultV3: { type: Boolean, default: false }
 }, {
     timestamps: true,
     strict: true
@@ -161,8 +163,8 @@ const asignacionAutomaticaGuarnicionesSchema = new mongoose.Schema({
 const CONFIGURACION_DEFAULT = {
     habilitada: false,
     defaults: {
-        maxMismoGuarnicionPorCocinero: 6,
-        maxUnidadesTotalesEnCurso: 12,
+        maxMismoGuarnicionPorCocinero: 20,
+        maxUnidadesTotalesEnCurso: 40,
         modoSinCandidato: 'dejar_sin_asignar',
         soloCocinerosConectados: true,
         respetarZonas: true,
@@ -171,7 +173,8 @@ const CONFIGURACION_DEFAULT = {
         estrategiaDefault: 'respetar_estacion'
     },
     perfiles: [],
-    calendario: { bloques: [] }
+    calendario: { bloques: [] },
+    cuposDefaultV3: true
 };
 
 /**
@@ -210,6 +213,11 @@ asignacionAutomaticaGuarnicionesSchema.statics.obtenerConfiguracion = async func
             if (seeded) config = seeded;
         }
     }
+    config = await migrarCuposFactoryV3(this, CONFIG_ID, config, {
+        mismoKey: 'maxMismoGuarnicionPorCocinero', mismoOld: 6, mismoNew: 20,
+        totalKey: 'maxUnidadesTotalesEnCurso', totalOld: 12, totalNew: 40,
+        log: '✅ Cupos default de asignación (guarniciones) migrados a 20 / 40'
+    });
     return config;
 };
 

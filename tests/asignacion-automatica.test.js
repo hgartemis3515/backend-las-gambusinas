@@ -5,7 +5,7 @@
  *   1. encontrarRegla: prioridad plato > categoría.
  *   2. construirCandidatos: primario + backups ordenados.
  *   3. seleccionarCocinero: caso base → primario.
- *   4. seleccionarCocinero: overflow 5+1 → primario saturado del mismo plato va a backup.
+ *   4. seleccionarCocinero: overflow al backup si el primario llega al máx. mismo plato.
  *   5. seleccionarCocinero: sin candidato (todos saturados) → null + modoSinCandidato.
  *   6. seleccionarCocinero: opt-out por cocinero (acepta=false).
  *   7. seleccionarCocinero: soloCocinerosConectados descarta desconectados.
@@ -193,7 +193,7 @@ describe('asignacionAutomaticaService', () => {
         });
     });
 
-    describe('overflow 5+1', () => {
+    describe('overflow al backup (máx. mismo plato)', () => {
         it('asigna al primario si tiene < 5 del mismo plato', async () => {
             const config = buildConfig({ reglasPorPlato: [buildReglaPlato(42, C1, [{ cocineroId: C2, orden: 1 }])] });
             ComandaMock.aggregate
@@ -214,6 +214,34 @@ describe('asignacionAutomaticaService', () => {
             const r = await service.seleccionarCocinero(config, PLATO);
             expect(r.cocineroId).toBe(C2);
             expect(r.origen).toBe('overflow');
+        });
+
+        it('respeta maxMismoPlato de la regla por encima del default global', async () => {
+            const config = buildConfig({
+                defaults: { ...buildConfig().defaults, maxMismoPlatoPorCocinero: 20 },
+                reglasPorPlato: [buildReglaPlato(42, C1, [{ cocineroId: C2, orden: 1 }], { maxMismoPlato: 2 })]
+            });
+            ComandaMock.aggregate
+                .mockResolvedValueOnce([{ _id: null, total: 1 }])
+                .mockResolvedValueOnce([{ _id: null, total: 2 }])
+                .mockResolvedValueOnce([{ _id: null, total: 0 }])
+                .mockResolvedValueOnce([{ _id: null, total: 0 }]);
+            const r = await service.seleccionarCocinero(config, PLATO);
+            expect(r.cocineroId).toBe(C2);
+            expect(r.origen).toBe('overflow');
+        });
+
+        it('con default 20 sigue asignando al primario aunque ya tenga 5 del mismo plato', async () => {
+            const config = buildConfig({
+                defaults: { ...buildConfig().defaults, maxMismoPlatoPorCocinero: 20 },
+                reglasPorPlato: [buildReglaPlato(42, C1, [{ cocineroId: C2, orden: 1 }])]
+            });
+            ComandaMock.aggregate
+                .mockResolvedValueOnce([{ _id: null, total: 5 }])
+                .mockResolvedValueOnce([{ _id: null, total: 5 }]);
+            const r = await service.seleccionarCocinero(config, PLATO);
+            expect(r.cocineroId).toBe(C1);
+            expect(r.origen).toBe('auto');
         });
 
         it('retorna null si primario y backups están saturados', async () => {

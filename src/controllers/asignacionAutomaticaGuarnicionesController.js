@@ -72,8 +72,8 @@ function sanitizarReglasGrupo(arr) {
 function sanitizarDefaults(d) {
     if (!d || typeof d !== 'object') return undefined;
     const out = {};
-    if (Number.isFinite(d.maxMismoGuarnicionPorCocinero)) out.maxMismoGuarnicionPorCocinero = Number(d.maxMismoGuarnicionPorCocinero);
-    if (Number.isFinite(d.maxUnidadesTotalesEnCurso)) out.maxUnidadesTotalesEnCurso = Number(d.maxUnidadesTotalesEnCurso);
+    if (Number.isFinite(d.maxMismoGuarnicionPorCocinero)) out.maxMismoGuarnicionPorCocinero = Math.max(1, Math.min(50, Number(d.maxMismoGuarnicionPorCocinero)));
+    if (Number.isFinite(d.maxUnidadesTotalesEnCurso)) out.maxUnidadesTotalesEnCurso = Math.max(1, Math.min(100, Number(d.maxUnidadesTotalesEnCurso)));
     if (MODOS_SIN_CANDIDATO_VALIDOS.includes(d.modoSinCandidato)) out.modoSinCandidato = d.modoSinCandidato;
     if (typeof d.soloCocinerosConectados === 'boolean') out.soloCocinerosConectados = d.soloCocinerosConectados;
     if (typeof d.respetarZonas === 'boolean') out.respetarZonas = d.respetarZonas;
