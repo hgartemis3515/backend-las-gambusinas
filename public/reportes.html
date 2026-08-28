@@ -242,7 +242,7 @@ tailwind.config = {
               <th class="text-left px-4 py-2.5 font-semibold">Categoría</th>
               <th class="text-right px-3 py-2.5 font-semibold">Cant.</th>
               <th class="text-right px-3 py-2.5 font-semibold">P. Unit.</th>
-              <th class="text-right px-3 py-2.5 font-semibold">Subtotal</th>
+              <th class="text-right px-3 py-2.5 font-semibold">Total (IGV incl.)</th>
               <th class="text-right px-3 py-2.5 font-semibold">% Total</th>
               <th class="text-left px-3 py-2.5 font-semibold">Complementos</th>
             </tr>
@@ -1043,6 +1043,39 @@ function reportesApp() {
     },
     
     /**
+     * Monto de línea de boucher (sin prorratear IGV).
+     */
+    montoLineaSinIgv(p) {
+      const cant = Number(p?.cantidad) || 0;
+      const precio = Number(p?.precio) || 0;
+      const sub = Number(p?.subtotal);
+      if (Number.isFinite(sub) && sub > 0) return sub;
+      return cant * precio;
+    },
+
+    /**
+     * Factor para llevar líneas al total cobrado (IGV incluido + descuentos).
+     * Si el boucher no tiene total, se agrega el IGV de la config (default 18%).
+     */
+    factorIgvIncluidoBoucher(b) {
+      const lineas = (b?.platos || []).reduce((s, p) => s + this.montoLineaSinIgv(p), 0);
+      const total = Number(b?.total);
+      if (Number.isFinite(total) && total > 0 && lineas > 0) return total / lineas;
+      const cfg = b?.configuracionIGV || {};
+      if (cfg.preciosIncluyenIGV === true) return 1;
+      const pct = Number(cfg.igvPorcentaje);
+      const tasa = Number.isFinite(pct) && pct > 0 ? pct / 100 : 0.18;
+      return 1 + tasa;
+    },
+
+    totalBoucherConIgv(b) {
+      const total = Number(b?.total);
+      if (Number.isFinite(total) && total > 0) return total;
+      const lineas = (b?.platos || []).reduce((s, p) => s + this.montoLineaSinIgv(p), 0);
+      return Number((lineas * this.factorIgvIncluidoBoucher(b)).toFixed(2));
+    },
+
+    /**
      * Procesa datos para la pestaña General
      */
     processGeneral(bouchers) {
@@ -1065,12 +1098,10 @@ function reportesApp() {
             cantidadItems: 0
           };
         }
-        const totalFila = Number(b.total) > 0
-          ? Number(b.total)
-          : (b.platos || []).reduce((s, p) => s + (Number(p.subtotal) || (Number(p.cantidad) * Number(p.precio)) || 0), 0);
+        const totalFila = this.totalBoucherConIgv(b);
         porFecha[fecha].total += totalFila;
-        porFecha[fecha].subtotal += b.subtotal || totalFila / 1.18;
-        porFecha[fecha].igv += b.igv || totalFila - totalFila / 1.18;
+        porFecha[fecha].subtotal += Number(b.subtotal) > 0 ? Number(b.subtotal) : totalFila / 1.18;
+        porFecha[fecha].igv += Number(b.igv) > 0 ? Number(b.igv) : totalFila - totalFila / 1.18;
         porFecha[fecha].tickets++;
         porFecha[fecha].cantidadItems += (b.platos?.length || 0);
         totalVentas += totalFila;
@@ -1126,75 +1157,79 @@ function reportesApp() {
       const platosMap = {};
       let totalVendidos = 0;
       let totalIngreso = 0;
-      // NUEVO: Desglose por tipo de servicio (Mesa vs Para llevar)
       let servMesa = 0, servParaLlevar = 0, montoMesa = 0, montoParaLlevar = 0;
-      
-      bouchers.forEach(b => {
-        if (b.platos && Array.isArray(b.platos)) {
-          b.platos.forEach(p => {
-            const nombre = p.nombre || 'Desconocido';
-            const cat = this.resolvePlatoCategoria(p);
-            if (!platosMap[nombre]) {
-              platosMap[nombre] = { nombre, cantidad: 0, ingreso: 0, precio: p.precio || 0, categoria: cat, compSet: new Set() };
-            } else {
-              const prev = platosMap[nombre].categoria;
-              if ((prev === 'Sin categoría' || prev === 'General' || prev === 'Otros') && cat !== prev && cat !== 'Sin categoría') {
-                platosMap[nombre].categoria = cat;
-              }
-            }
-            const cant = Number(p.cantidad) || 0;
-            const precio = Number(p.precio) || 0;
-            const ingresoLinea = Number(p.subtotal) > 0 ? Number(p.subtotal) : cant * precio;
-            platosMap[nombre].cantidad += cant;
-            platosMap[nombre].ingreso += ingresoLinea;
-            totalVendidos += cant;
-            totalIngreso += ingresoLinea;
-            const comps = Array.isArray(p.complementos) ? p.complementos : [];
-            comps.forEach(c => {
-              const label = typeof c === 'string' ? c : [c.grupo, c.opcion].filter(Boolean).join(': ');
-              if (label) platosMap[nombre].compSet.add(label);
-            });
 
-            // NUEVO: Acumular por tipo de servicio (default 'mesa' para vouchers antiguos)
-            if (p.tipoServicio === 'para_llevar') {
-              servParaLlevar += cant;
-              montoParaLlevar += ingresoLinea;
-            } else {
-              servMesa += cant;
-              montoMesa += ingresoLinea;
+      bouchers.forEach(b => {
+        if (!b.platos || !Array.isArray(b.platos) || b.platos.length === 0) return;
+        const factor = this.factorIgvIncluidoBoucher(b);
+        b.platos.forEach(p => {
+          const nombre = p.nombre || 'Desconocido';
+          const cat = this.resolvePlatoCategoria(p);
+          if (!platosMap[nombre]) {
+            platosMap[nombre] = { nombre, cantidad: 0, ingreso: 0, precio: 0, categoria: cat, compSet: new Set() };
+          } else {
+            const prev = platosMap[nombre].categoria;
+            if ((prev === 'Sin categoría' || prev === 'General' || prev === 'Otros') && cat !== prev && cat !== 'Sin categoría') {
+              platosMap[nombre].categoria = cat;
             }
+          }
+          const cant = Number(p.cantidad) || 0;
+          const ingresoLinea = this.montoLineaSinIgv(p) * factor;
+          platosMap[nombre].cantidad += cant;
+          platosMap[nombre].ingreso += ingresoLinea;
+          totalVendidos += cant;
+          totalIngreso += ingresoLinea;
+          const comps = Array.isArray(p.complementos) ? p.complementos : [];
+          comps.forEach(c => {
+            const label = typeof c === 'string' ? c : [c.grupo, c.opcion].filter(Boolean).join(': ');
+            if (label) platosMap[nombre].compSet.add(label);
           });
-        }
+
+          if (p.tipoServicio === 'para_llevar') {
+            servParaLlevar += cant;
+            montoParaLlevar += ingresoLinea;
+          } else {
+            servMesa += cant;
+            montoMesa += ingresoLinea;
+          }
+        });
       });
-      
+
+      Object.values(platosMap).forEach(p => {
+        p.ingreso = Number(p.ingreso.toFixed(2));
+        p.precio = p.cantidad > 0 ? Number((p.ingreso / p.cantidad).toFixed(2)) : 0;
+      });
+      totalIngreso = Number(totalIngreso.toFixed(2));
+      montoMesa = Number(montoMesa.toFixed(2));
+      montoParaLlevar = Number(montoParaLlevar.toFixed(2));
+
       const platosArray = Object.values(platosMap).sort((a, b) => b.cantidad - a.cantidad);
       const topPlatos = platosArray.slice(0, 8);
-      
+
       const labels = topPlatos.map(p => p.nombre.substring(0, 22));
       const vals = topPlatos.map(p => p.cantidad);
       const colors = [this._c.gold, this._c.blue, this._c.teal, this._c.amber, this._c.purple, this._c.red, '#00bcd4', '#ff9800'];
-      
+
       this.kpis = [
         { label: 'Platos Vendidos', value: totalVendidos, color: 'text-[#d4af37]', badge: '' },
         { label: 'Top Plato', value: topPlatos[0]?.nombre.substring(0, 18) || '—', color: 'text-white', badge: '' },
-        { label: 'Ingresos', value: 'S/. ' + totalIngreso.toLocaleString('es-PE', {minimumFractionDigits: 2}), color: 'text-white', badge: '' },
+        { label: 'Ingresos', value: 'S/. ' + totalIngreso.toLocaleString('es-PE', {minimumFractionDigits: 2}), color: 'text-white', badge: 'IGV incl.' },
         { label: 'Variedad', value: platosArray.length, color: 'text-[#5a5a7a]', badge: '' }
       ];
-      
-      this.tablaData.platos = topPlatos.map((p, i) => ({
+
+      this.tablaData.platos = platosArray.map((p) => ({
         nombre: p.nombre,
         categoria: p.categoria,
         cantidad: p.cantidad,
         precioUnitario: p.precio,
         subtotal: p.ingreso,
-        porcentaje: Math.round((p.cantidad / (totalVendidos || 1)) * 100),
+        porcentaje: Math.round((p.ingreso / (totalIngreso || 1)) * 1000) / 10,
         complementos: p.compSet ? Array.from(p.compSet) : []
       }));
-      
+
       this.chartData1 = { type: 'bar', labels, vals, colors };
       this.chartData2 = { type: 'pie', data: this.calculateCategories(platosArray) };
 
-      // NUEVO: Datos para gráficos de Mesa vs Para llevar
       this.tablaServicio = {
         mesa: servMesa,
         paraLlevar: servParaLlevar,
@@ -1228,9 +1263,7 @@ function reportesApp() {
             minutos: []
           };
         }
-        mozosMap[mozoId].ventas += Number(b.total) > 0
-          ? Number(b.total)
-          : (b.platos || []).reduce((s, p) => s + (Number(p.subtotal) || (Number(p.cantidad) * Number(p.precio)) || 0), 0);
+        mozosMap[mozoId].ventas += this.totalBoucherConIgv(b);
         mozosMap[mozoId].tickets++;
         const mins = Number(b.minutosServicio);
         if (Number.isFinite(mins) && mins > 0) mozosMap[mozoId].minutos.push(mins);
@@ -1280,9 +1313,7 @@ function reportesApp() {
           mesasMap[mesaId] = { nummesa: numMesa, comandas: 0, ventas: 0, area: 'Salón' };
         }
         mesasMap[mesaId].comandas++;
-        mesasMap[mesaId].ventas += Number(b.total) > 0
-          ? Number(b.total)
-          : (b.platos || []).reduce((s, p) => s + (Number(p.subtotal) || (Number(p.cantidad) * Number(p.precio)) || 0), 0);
+        mesasMap[mesaId].ventas += this.totalBoucherConIgv(b);
       });
       
       const mesasArray = Object.values(mesasMap).sort((a, b) => b.comandas - a.comandas);
