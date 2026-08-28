@@ -48,9 +48,42 @@ function montoDesdePlatos(c) {
     }, 0);
 }
 
+function comandaTieneDescuento(c) {
+    return Number(c?.descuento) > 0 || Number(c?.montoDescuento) > 0;
+}
+
+function montoDescuentoComandaNum(c) {
+    const n = Number(c?.montoDescuento);
+    if (Number.isFinite(n) && n > 0) return n;
+    if (!comandaTieneDescuento(c)) return 0;
+    const sin = Number(c?.totalSinDescuento);
+    const neto = montoComandaNum(c);
+    if (Number.isFinite(sin) && sin > neto) return Number((sin - neto).toFixed(2));
+    return 0;
+}
+
+/**
+ * Factor para prorratear líneas de plato al total neto (con descuento).
+ * Sin descuento queda 1: no mezclar IGV con precios de catálogo.
+ */
+function factorNetoComanda(c) {
+    if (!comandaTieneDescuento(c)) return 1;
+    const brutoPlatos = montoDesdePlatos(c);
+    if (!(brutoPlatos > 0)) return 0;
+    return montoComandaNum(c) / brutoPlatos;
+}
+
 /** totalCalculado/precioTotal default 0: no usar $ifNull (0 cuenta como valor). */
 function montoComandaNum(c) {
     if (!c) return 0;
+    if (comandaTieneDescuento(c)) {
+        const calc = Number(c.totalCalculado);
+        if (Number.isFinite(calc) && calc >= 0) return calc;
+        const sin = Number(c.totalSinDescuento);
+        const desc = Number(c.montoDescuento) || 0;
+        if (Number.isFinite(sin) && sin >= 0) return Math.max(0, Number((sin - desc).toFixed(2)));
+        return 0;
+    }
     return firstPositive(c.totalCalculado, c.precioTotal, c.precioTotalOriginal, montoDesdePlatos(c));
 }
 
@@ -143,23 +176,36 @@ function exprSumaMontosPlatos() {
 }
 
 function exprMontoComanda() {
+    const montoSinDescuento = {
+        $switch: {
+            branches: [
+                { case: { $gt: ['$$calc', 0] }, then: '$$calc' },
+                { case: { $gt: ['$$pt', 0] }, then: '$$pt' },
+                { case: { $gt: ['$$orig', 0] }, then: '$$orig' }
+            ],
+            default: '$$dePlatos'
+        }
+    };
     return {
         $let: {
             vars: {
                 calc: { $ifNull: ['$totalCalculado', 0] },
                 pt: { $ifNull: ['$precioTotal', 0] },
                 orig: { $ifNull: ['$precioTotalOriginal', 0] },
-                dePlatos: exprSumaMontosPlatos()
+                dePlatos: exprSumaMontosPlatos(),
+                tieneDesc: {
+                    $or: [
+                        { $gt: [{ $ifNull: ['$descuento', 0] }, 0] },
+                        { $gt: [{ $ifNull: ['$montoDescuento', 0] }, 0] }
+                    ]
+                }
             },
             in: {
-                $switch: {
-                    branches: [
-                        { case: { $gt: ['$$calc', 0] }, then: '$$calc' },
-                        { case: { $gt: ['$$pt', 0] }, then: '$$pt' },
-                        { case: { $gt: ['$$orig', 0] }, then: '$$orig' }
-                    ],
-                    default: '$$dePlatos'
-                }
+                $cond: [
+                    '$$tieneDesc',
+                    { $max: ['$$calc', 0] },
+                    montoSinDescuento
+                ]
             }
         }
     };
@@ -358,6 +404,7 @@ async function adjuntarMetodosPagoDesdeBouchers(filas) {
 
 function mapearFilaReporte(c) {
     const total = Math.round(montoComandaNum(c) * 100) / 100;
+    const factor = factorNetoComanda(c);
     const mozoDoc = c.mozos && typeof c.mozos === 'object' ? c.mozos : null;
     const mesaDoc = c.mesas && typeof c.mesas === 'object' ? c.mesas : null;
     const platos = (c.platos || [])
@@ -369,7 +416,7 @@ function mapearFilaReporte(c) {
                 nombre: p.nombre || p.platoNombre || p.plato?.nombre || 'Plato',
                 cantidad,
                 precio,
-                subtotal: Math.round(cantidad * precio * 100) / 100,
+                subtotal: Math.round(cantidad * precio * factor * 100) / 100,
                 plato: p.plato,
                 categoria: p.plato?.categoria || p.platoCategoria || null,
                 tipoServicio: p.tipoServicio || 'mesa',
@@ -401,14 +448,17 @@ function mapearFilaReporte(c) {
         createdAt: c.createdAt,
         _fuente: 'comanda',
         comandaNumber: c.comandaNumber,
-        status: c.status
+        status: c.status,
+        descuento: Number(c.descuento) || 0,
+        montoDescuento: montoDescuentoComandaNum(c),
+        motivoDescuento: c.motivoDescuento || null
     };
 }
 
 async function listarFilasEstadisticas(inicio, fin) {
     const Comanda = getComandaModel();
     const docs = await Comanda.find(matchComandasEstadisticas(inicio, fin))
-        .select('platos cantidades totalCalculado precioTotal precioTotalOriginal tiempoPagado tiempoEntregado tiempoEnEspera createdAt mozos mesas mozoNombre mesaNumero comandaNumber status pagoOmitido metodoPago metodoPagoLabel')
+        .select('platos cantidades totalCalculado precioTotal precioTotalOriginal descuento montoDescuento totalSinDescuento motivoDescuento tiempoPagado tiempoEntregado tiempoEnEspera createdAt mozos mesas mozoNombre mesaNumero comandaNumber status pagoOmitido metodoPago metodoPagoLabel')
         .populate('mozos', 'name nombres apellidos DNI')
         .populate('mesas', 'nummesa')
         .populate('platos.plato', 'nombre precio categoria')
@@ -515,6 +565,9 @@ module.exports = {
     listarFilasEstadisticas,
     resumirHorariosComandas,
     montoComandaNum,
+    comandaTieneDescuento,
+    montoDescuentoComandaNum,
+    factorNetoComanda,
     precioPlatoNum,
     cantidadPlatoNum,
     exprPrecioPlatoUnwind,

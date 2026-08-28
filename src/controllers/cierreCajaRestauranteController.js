@@ -13,7 +13,7 @@ const reportesRepository = require('../repository/reportes.repository');
 const moment = require('moment-timezone');
 const logger = require('../utils/logger');
 const { adminAuth, checkPermission } = require('../middleware/adminAuth');
-const { montoComandaNum, precioPlatoNum, cantidadPlatoNum, exprMontoComanda, matchComandaVigente } = require('../utils/estadisticasComandas');
+const { montoComandaNum, montoDescuentoComandaNum, factorNetoComanda, precioPlatoNum, cantidadPlatoNum, exprMontoComanda, matchComandaVigente } = require('../utils/estadisticasComandas');
 
 /**
  * POST /api/cierre-caja
@@ -196,6 +196,7 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
         resumen: {
           totalComandas: resumenFinanciero.totalComandas,
           montoTotalVendido: resumenFinanciero.montoTotalVendido,
+          totalDescuentos: resumenFinanciero.totalDescuentos,
           ticketPromedio: resumenFinanciero.ticketPromedio
         },
         datosGraficos: cierre.datosGraficos
@@ -332,7 +333,8 @@ router.get('/cierre-caja/estado/actual', adminAuth, checkPermission('ver-cierre-
       {
         $group: {
           _id: null,
-          total: { $sum: exprMontoComanda() }
+          total: { $sum: exprMontoComanda() },
+          descuentos: { $sum: { $ifNull: ['$montoDescuento', 0] } }
         }
       }
     ]);
@@ -362,6 +364,7 @@ router.get('/cierre-caja/estado/actual', adminAuth, checkPermission('ver-cierre-
       diasTranscurridos,
       comandasPendientes,
       montoPendiente: montoPendiente[0]?.total || 0,
+      descuentosPendientes: montoPendiente[0]?.descuentos || 0,
       verificacion
     });
     
@@ -478,6 +481,7 @@ function calcularResumenFinanciero(comandas, periodoInicio, periodoFin) {
   );
   
   const montoTotalVendido = comandasCompletadas.reduce((sum, c) => sum + montoComandaNum(c), 0);
+  const totalDescuentos = comandasCompletadas.reduce((sum, c) => sum + montoDescuentoComandaNum(c), 0);
   const ticketPromedio = comandasCompletadas.length > 0 
     ? montoTotalVendido / comandasCompletadas.length 
     : 0;
@@ -531,6 +535,7 @@ function calcularResumenFinanciero(comandas, periodoInicio, periodoFin) {
   return {
     totalComandas,
     montoTotalVendido,
+    totalDescuentos,
     ticketPromedio,
     comandasPorEstado,
     ventasPorDia,
@@ -557,7 +562,7 @@ async function analizarProductos(comandas) {
       const plato = itemPlato.plato;
       const cantidad = cantidadPlatoNum(itemPlato, index, comanda.cantidades);
       const precio = precioPlatoNum(itemPlato);
-      const monto = cantidad * precio;
+      const monto = cantidad * precio * factorNetoComanda(comanda);
       const key = (plato && plato._id)
         ? plato._id.toString()
         : (itemPlato.nombre || itemPlato.platoNombre || `plato-${index}`);
@@ -972,8 +977,16 @@ async function recopilarAuditoria(periodoInicio, periodoFin, comandas) {
       descripcion: a.motivo || a.accion
     }));
   
-  // Descuentos aplicados (se pueden obtener de auditoría o de comandas)
-  const descuentosAplicados = [];
+  const descuentosAplicados = comandas
+    .filter(c => Number(c.descuento) > 0 || Number(c.montoDescuento) > 0)
+    .map(c => ({
+      comandaId: c._id,
+      comandaNumber: c.comandaNumber,
+      montoDescuento: montoDescuentoComandaNum(c),
+      porcentaje: Number(c.descuento) || 0,
+      fecha: c.descuentoAplicadoAt || c.updatedAt || c.createdAt,
+      motivo: c.motivoDescuento || 'Sin motivo registrado'
+    }));
   
   // Operaciones especiales (mesas fusionadas/divididas)
   const operacionesEspeciales = accionesAuditoria
@@ -1088,6 +1101,9 @@ router.get('/cierre-caja/:id/exportar-pdf', adminAuth, checkPermission('ver-cier
     doc.fontSize(12);
     doc.text(`Total Comandas: ${resumen.totalComandas || 0}`);
     doc.text(`Monto Total Vendido: S/. ${(resumen.montoTotalVendido || 0).toFixed(2)}`);
+    if ((resumen.totalDescuentos || 0) > 0) {
+      doc.text(`Descuentos aplicados: -S/. ${Number(resumen.totalDescuentos).toFixed(2)}`);
+    }
     doc.text(`Ticket Promedio: S/. ${(resumen.ticketPromedio || 0).toFixed(2)}`);
     doc.moveDown();
     
@@ -1223,6 +1239,7 @@ router.get('/cierre-caja/:id/exportar-excel', adminAuth, checkPermission('ver-ci
       ['RESUMEN FINANCIERO'],
       ['Total Comandas', resumen.totalComandas || 0],
       ['Monto Total Vendido', `S/. ${(resumen.montoTotalVendido || 0).toFixed(2)}`],
+      ['Descuentos aplicados', `S/. ${(resumen.totalDescuentos || 0).toFixed(2)}`],
       ['Ticket Promedio', `S/. ${(resumen.ticketPromedio || 0).toFixed(2)}`],
       [],
       ['Comandas por Estado'],

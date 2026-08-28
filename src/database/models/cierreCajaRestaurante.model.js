@@ -37,6 +37,7 @@ const cierreCajaRestauranteSchema = new mongoose.Schema({
   resumenFinanciero: {
     totalComandas: { type: Number, default: 0 },
     montoTotalVendido: { type: Number, default: 0 },
+    totalDescuentos: { type: Number, default: 0 },
     ticketPromedio: { type: Number, default: 0 },
     comandasPorEstado: {
       pendientes: { type: Number, default: 0 },
@@ -199,7 +200,9 @@ const cierreCajaRestauranteSchema = new mongoose.Schema({
     }],
     descuentosAplicados: [{
       comandaId: { type: mongoose.Schema.Types.ObjectId, ref: 'Comanda' },
+      comandaNumber: Number,
       montoDescuento: Number,
+      porcentaje: Number,
       fecha: Date,
       motivo: String
     }],

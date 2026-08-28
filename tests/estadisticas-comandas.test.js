@@ -37,9 +37,27 @@ describe('estadisticasComandas', () => {
 
   test('monto ignora totalCalculado 0 y usa precioTotal', () => {
     const expr = exprMontoComanda();
-    expect(expr.$let.in.$switch.branches[0].case).toEqual({ $gt: ['$$calc', 0] });
+    expect(expr.$let.in.$cond[0]).toBe('$$tieneDesc');
+    expect(expr.$let.in.$cond[2].$switch.branches[0].case).toEqual({ $gt: ['$$calc', 0] });
     expect(montoComandaNum({ totalCalculado: 0, precioTotal: 45.5 })).toBe(45.5);
     expect(montoComandaNum({ totalCalculado: 118, precioTotal: 100 })).toBe(118);
+  });
+
+  test('descuento 100% no cae al bruto de platos', () => {
+    expect(montoComandaNum({
+      descuento: 100,
+      montoDescuento: 118,
+      totalCalculado: 0,
+      precioTotal: 100,
+      totalSinDescuento: 118,
+      platos: [{ precioUnitario: 100, cantidad: 1 }]
+    })).toBe(0);
+    expect(montoComandaNum({
+      descuento: 10,
+      montoDescuento: 11.8,
+      totalCalculado: 106.2,
+      precioTotal: 90
+    })).toBe(106.2);
   });
 
   test('monto suma platos si los totales de comanda están en 0', () => {
@@ -93,6 +111,21 @@ describe('estadisticasComandas', () => {
     expect(fila.platos[0].cantidad).toBe(2);
     expect(fila.platos[0].subtotal).toBe(50);
     expect(fila._fuente).toBe('comanda');
+  });
+
+  test('mapearFilaReporte resta descuento en total y líneas', () => {
+    const fila = mapearFilaReporte({
+      status: 'pagado',
+      descuento: 10,
+      montoDescuento: 11.8,
+      totalCalculado: 106.2,
+      totalSinDescuento: 118,
+      precioTotal: 90,
+      platos: [{ nombre: 'Lomo', cantidad: 1, precioUnitario: 100, eliminado: false }]
+    });
+    expect(fila.total).toBe(106.2);
+    expect(fila.montoDescuento).toBe(11.8);
+    expect(fila.platos[0].subtotal).toBe(106.2);
   });
 
   test('mapearFila incluye complementos y minutos de servicio', () => {

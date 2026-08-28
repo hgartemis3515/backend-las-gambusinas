@@ -1060,7 +1060,8 @@ function reportesApp() {
     factorIgvIncluidoBoucher(b) {
       const lineas = (b?.platos || []).reduce((s, p) => s + this.montoLineaSinIgv(p), 0);
       const total = Number(b?.total);
-      if (Number.isFinite(total) && total > 0 && lineas > 0) return total / lineas;
+      const desc = Number(b?.montoDescuento) || 0;
+      if (Number.isFinite(total) && lineas > 0 && (total > 0 || desc > 0)) return total / lineas;
       const cfg = b?.configuracionIGV || {};
       if (cfg.preciosIncluyenIGV === true) return 1;
       const pct = Number(cfg.igvPorcentaje);
@@ -1070,7 +1071,8 @@ function reportesApp() {
 
     totalBoucherConIgv(b) {
       const total = Number(b?.total);
-      if (Number.isFinite(total) && total > 0) return total;
+      const desc = Number(b?.montoDescuento) || 0;
+      if (Number.isFinite(total) && (total > 0 || desc > 0)) return Math.max(0, total);
       const lineas = (b?.platos || []).reduce((s, p) => s + this.montoLineaSinIgv(p), 0);
       return Number((lineas * this.factorIgvIncluidoBoucher(b)).toFixed(2));
     },
@@ -1084,6 +1086,7 @@ function reportesApp() {
       // Agrupar por fecha
       const porFecha = {};
       let totalVentas = 0;
+      let totalDescuentos = 0;
       let totalTickets = bouchers.length;
       
       bouchers.forEach(b => {
@@ -1105,6 +1108,7 @@ function reportesApp() {
         porFecha[fecha].tickets++;
         porFecha[fecha].cantidadItems += (b.platos?.length || 0);
         totalVentas += totalFila;
+        totalDescuentos += Number(b.montoDescuento) || 0;
       });
       
       const labels = Object.keys(porFecha).sort();
@@ -1115,7 +1119,7 @@ function reportesApp() {
         { label: 'Ventas Totales', value: 'S/. ' + totalVentas.toLocaleString('es-PE', {minimumFractionDigits: 2}), color: 'text-[#d4af37]', badge: this.dateFilter.tipo },
         { label: 'Tickets', value: totalTickets, color: 'text-white', badge: '' },
         { label: 'Ticket Promedio', value: 'S/. ' + ticketPromedio.toFixed(2), color: 'text-white', badge: '' },
-        { label: 'Días con datos', value: labels.length, color: 'text-[#5a5a7a]', badge: '' }
+        { label: 'Descuentos', value: '-S/. ' + totalDescuentos.toLocaleString('es-PE', {minimumFractionDigits: 2}), color: 'text-[#e74c3c]', badge: '' }
       ];
       
       this.chartData1 = { labels, valores };

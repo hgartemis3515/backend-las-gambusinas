@@ -126,7 +126,8 @@ tailwind.config = {
           </div>
         </div>
         <p class="text-3xl font-bold text-gold" x-text="'S/. ' + (estado.montoPendiente || 0).toFixed(2)"></p>
-        <p class="text-xs text-txt-muted mt-1">acumulado sin cerrar</p>
+        <p class="text-xs text-txt-muted mt-1">neto (descuentos restados)</p>
+        <p class="text-xs text-st-pagado mt-0.5" x-show="(estado.descuentosPendientes || 0) > 0" x-text="'-S/. ' + Number(estado.descuentosPendientes || 0).toFixed(2) + ' en descuentos'"></p>
       </div>
 
       <!-- Estado -->
@@ -201,6 +202,7 @@ tailwind.config = {
                 </td>
                 <td class="px-5 py-3 text-right">
                   <span class="text-gold font-bold text-xs" x-text="'S/. ' + (c.resumenFinanciero?.montoTotalVendido || 0).toFixed(2)"></span>
+                  <span x-show="(c.resumenFinanciero?.totalDescuentos || 0) > 0" class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(c.resumenFinanciero.totalDescuentos || 0).toFixed(2)"></span>
                 </td>
                 <td class="px-5 py-3 text-right">
                   <span class="text-txt-secondary text-xs" x-text="'S/. ' + (c.resumenFinanciero?.ticketPromedio || 0).toFixed(2)"></span>
@@ -440,6 +442,7 @@ function cierreApp() {
       diasTranscurridos: 0,
       comandasPendientes: 0,
       montoPendiente: 0,
+      descuentosPendientes: 0,
       periodoFin: null,
       verificacion: { total: 0, confirmados: 0, pendientes: 0, puedeCerrar: true }
     },
@@ -499,6 +502,7 @@ function cierreApp() {
             diasTranscurridos: data.diasTranscurridos || 0,
             comandasPendientes: data.comandasPendientes || 0,
             montoPendiente: data.montoPendiente || 0,
+            descuentosPendientes: data.descuentosPendientes || 0,
             periodoFin: data.periodoFin,
             verificacion: data.verificacion || { total: 0, confirmados: 0, pendientes: 0, puedeCerrar: true }
           };
@@ -792,6 +796,10 @@ function cierreApp() {
               <span class="text-txt-muted text-xs">Monto estimado</span>
               <span class="text-gold text-sm font-bold">S/. ${(data.montoPendiente || 0).toFixed(2)}</span>
             </div>
+            ${(data.descuentosPendientes || 0) > 0 ? `<div class="flex justify-between items-center">
+              <span class="text-txt-muted text-xs">Descuentos</span>
+              <span class="text-st-pagado text-xs font-bold">-S/. ${Number(data.descuentosPendientes).toFixed(2)}</span>
+            </div>` : ''}
           </div>
 
           <div class="flex gap-3">
@@ -834,6 +842,7 @@ function cierreApp() {
             <div class="bg-bg-sidebar rounded-xl p-5 mb-6 text-left space-y-2.5">
               <div class="flex justify-between"><span class="text-txt-muted text-xs">Período</span><span class="text-white text-xs font-medium">${cierre.periodoInicio ? new Date(cierre.periodoInicio).toLocaleDateString('es-PE') : 'N/A'} - ${cierre.periodoFin ? new Date(cierre.periodoFin).toLocaleDateString('es-PE') : 'N/A'}</span></div>
               <div class="flex justify-between"><span class="text-txt-muted text-xs">Total vendido</span><span class="text-gold text-sm font-bold">S/. ${(resumen.montoTotalVendido || 0).toFixed(2)}</span></div>
+              ${(resumen.totalDescuentos || 0) > 0 ? `<div class="flex justify-between"><span class="text-txt-muted text-xs">Descuentos</span><span class="text-st-pagado text-xs font-bold">-S/. ${Number(resumen.totalDescuentos).toFixed(2)}</span></div>` : ''}
               <div class="flex justify-between"><span class="text-txt-muted text-xs">Comandas procesadas</span><span class="text-white text-xs font-bold">${resumen.totalComandas || 0}</span></div>
               <div class="flex justify-between"><span class="text-txt-muted text-xs">Ticket promedio</span><span class="text-white text-xs font-medium">S/. ${(resumen.ticketPromedio || 0).toFixed(2)}</span></div>
             </div>
@@ -919,17 +928,16 @@ function cierreApp() {
                 <p class="text-xl font-bold text-gold">S/. ${(res.montoTotalVendido || 0).toFixed(2)}</p>
               </div>
               <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Descuentos</p>
+                <p class="text-xl font-bold text-st-pagado">-S/. ${(res.totalDescuentos || 0).toFixed(2)}</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
                 <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Total Comandas</p>
                 <p class="text-xl font-bold text-white">${res.totalComandas || 0}</p>
               </div>
               <div class="metric-card rounded-xl p-4 border border-gold/10">
                 <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Ticket Promedio</p>
                 <p class="text-xl font-bold text-st-preparado">S/. ${(res.ticketPromedio || 0).toFixed(2)}</p>
-              </div>
-              <div class="metric-card rounded-xl p-4 border border-gold/10">
-                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Pico de Ventas</p>
-                <p class="text-xl font-bold text-st-esperando">${res.picoVentas?.hora != null ? res.picoVentas.hora + ':00' : 'N/A'}</p>
-                <p class="text-[10px] text-txt-muted">${res.picoVentas?.monto ? 'S/. ' + res.picoVentas.monto.toFixed(2) : ''}</p>
               </div>
             </div>
 
@@ -1360,14 +1368,18 @@ function cierreApp() {
               <p class="text-xs font-semibold text-st-reservado px-4 pt-4 pb-2">Descuentos Aplicados</p>
               <table class="w-full text-xs">
                 <thead><tr class="text-txt-muted text-[10px] uppercase tracking-wider">
+                  <th class="text-left px-4 py-2 font-semibold">#</th>
                   <th class="text-left px-4 py-2 font-semibold">Fecha</th>
+                  <th class="text-right px-4 py-2 font-semibold">%</th>
                   <th class="text-right px-4 py-2 font-semibold">Monto Descuento</th>
                   <th class="text-left px-4 py-2 font-semibold">Motivo</th>
                 </tr></thead>
                 <tbody>${desc.map(d => `
                   <tr class="border-t border-[rgba(212,175,55,0.06)]">
+                    <td class="px-4 py-2 text-st-reservado font-bold">#${d.comandaNumber || '-'}</td>
                     <td class="px-4 py-2 text-txt-secondary">${d.fecha ? new Date(d.fecha).toLocaleString('es-PE') : '-'}</td>
-                    <td class="px-4 py-2 text-right text-st-reservado font-semibold">S/. ${(d.montoDescuento||0).toFixed(2)}</td>
+                    <td class="px-4 py-2 text-right">${d.porcentaje ? Number(d.porcentaje).toFixed(2) + '%' : '-'}</td>
+                    <td class="px-4 py-2 text-right text-st-reservado font-semibold">-S/. ${(d.montoDescuento||0).toFixed(2)}</td>
                     <td class="px-4 py-2 text-txt-secondary">${d.motivo || '-'}</td>
                   </tr>`).join('')}
                 </tbody>

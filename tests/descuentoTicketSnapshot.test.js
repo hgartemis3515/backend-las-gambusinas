@@ -56,4 +56,19 @@ describe('descuento en tickets / impresión', () => {
     expect(doc.montoDescuento).toBe(0);
     expect(doc.descuentos).toEqual([]);
   });
+
+  test('descuento 100% deja total 0', () => {
+    const r = totalesConDescuentoImpresion(
+      {
+        total: 0,
+        subtotal: 118,
+        montoDescuento: 118,
+        totalSinDescuento: 118,
+        descuentos: [{ porcentaje: 100, monto: 118 }],
+      },
+      { subtotal: 118, total: 0 }
+    );
+    expect(r.montoDescuento).toBe(118);
+    expect(r.total).toBe(0);
+  });
 });

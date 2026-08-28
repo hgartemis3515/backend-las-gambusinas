@@ -76,8 +76,7 @@ class CierreCajaRepository {
           totalEfectivoSistema += total;
         }
 
-        // Si hay propinas o descuentos, agregarlos
-        // TODO: Agregar campos propina y descuento al modelo Boucher si no existen
+        totalDescuentos += Number(boucher.montoDescuento) || 0;
       });
 
       const aggPropinas = await Propina.aggregate([
