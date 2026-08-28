@@ -335,7 +335,7 @@ tailwind.config = {
  x-text="estadoLabel(row.estadoGrupo)"></span>
  </template>
  <template x-if="row.tipo === 'individual'">
- <span class="text-[10px] px-2 py-1 rounded-full font-semibold inline-block cursor-pointer"
+ <span class="text-[10px] px-2 py-1 rounded-full font-semibold inline-block"
  :class="{
  'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar': row.comanda.estado === 'pendiente_aprobar',
  'bg-st-preparado/20 text-st-preparado': row.comanda.estado === 'recoger',
@@ -344,7 +344,6 @@ tailwind.config = {
  'bg-st-libre/20 text-st-libre': row.comanda.estado === 'pagado',
  'bg-st-completado/20 text-st-completado': row.comanda.estado === 'completado'
  }"
- @click.stop="cambiarEstado(row.comanda)"
  x-text="estadoLabel(row.comanda.estado)"></span>
  </template>
  </td>
@@ -4664,29 +4663,6 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  this.showToast('Error: ' + error.message, 'error');
  } finally {
  this.eliminando = false;
- }
- },
-
- async cambiarEstado(c) {
- const estados = ['en_espera', 'recoger', 'entregado', 'pagado'];
- const idx = estados.indexOf(c.estado);
- const nuevoEstado = estados[(idx + 1) % estados.length];
-
- const res = await apiPut('/comanda/' + c._id + '/status', {
- nuevoStatus: nuevoEstado,
- motivo: 'Cambio de estado desde panel admin'
- });
-
- if (res?.ok && !res.error) {
- c.estado = nuevoEstado;
-
- if (this.socket && this.socket.connected) {
- this.socket.emit('comandaActualizada', { _id: c._id, status: nuevoEstado });
- }
-
- this.showToast('Estado: "' + this.estadoLabel(nuevoEstado) + '"');
- } else {
- this.showToast('Error al cambiar estado: ' + (res?.message || 'Error desconocido'), 'error');
  }
  },
 
