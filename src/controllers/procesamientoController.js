@@ -1521,19 +1521,22 @@ async function notificarResolucionAlSolicitante(solicitud, { aprobada, nota }) {
         tipo: aprobada ? 'solicitud_orden_aprobada' : 'solicitud_orden_rechazada',
         comandaId: String(solicitud.comandaId),
         platoId: String(solicitud.platoId),
+        platoNombre: plato,
         notaResolucion: notaTxt
       }
     });
 
     if (typeof global.emitNotificacion === 'function') {
       await global.emitNotificacion(notificacion);
-    } else if (global.io?.of) {
+    }
+    // emitNotificacion solo llega a /admin. El KDS supervisor está en /cocina.
+    if (global.io?.of) {
       const payload = typeof notificacion.toObject === 'function'
         ? notificacion.toObject()
         : notificacion;
-      global.io.of('/admin').emit('nueva-notificacion', payload);
-      global.io.of('/cocina').emit('nueva-notificacion', payload);
-      global.io.of('/mozos').emit('nueva-notificacion', payload);
+      const nsp = global.io.of('/cocina');
+      nsp.emit('nueva-notificacion', payload);
+      nsp.to(`cocinero-${String(destinatarioId)}`).emit('nueva-notificacion', payload);
     }
   } catch (eNotif) {
     logger.warn('[SolicitudesGestion] No se pudo notificar al solicitante', { error: eNotif.message });
