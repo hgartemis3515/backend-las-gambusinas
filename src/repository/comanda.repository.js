@@ -1149,6 +1149,8 @@ const eliminarLogicamente = async (comandaId, usuarioId, motivo, requerirMotivo 
     }
 
     console.log('🗑️ Comanda eliminada lógicamente (soft-delete):', comandaId);
+    // El documento queda en Mongo con eliminada=true. No entra en reportes/listados;
+    // el registro oficial es auditoría (comanda_eliminada).
     
     try {
       await HistorialComandas.create({
@@ -2129,7 +2131,9 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
  */
 const validarTransicionPlato = (estadoActual, nuevoEstado) => {
   // Normalizar estados equivalentes
-  const estadoNormalizado = estadoActual === 'en_espera' ? 'pedido' : estadoActual;
+  const estadoNormalizado = (estadoActual === 'en_espera' || estadoActual === 'pendiente' || estadoActual === 'ingresante')
+    ? 'pedido'
+    : estadoActual;
   const nuevoNormalizado = nuevoEstado === 'en_espera' ? 'pedido' : nuevoEstado;
   
   // Permitir revertir a 'pedido' o 'en_espera' desde cualquier estado (solo admin/cocina)

@@ -13,7 +13,7 @@ const reportesRepository = require('../repository/reportes.repository');
 const moment = require('moment-timezone');
 const logger = require('../utils/logger');
 const { adminAuth, checkPermission } = require('../middleware/adminAuth');
-const { montoComandaNum, precioPlatoNum, cantidadPlatoNum, exprMontoComanda } = require('../utils/estadisticasComandas');
+const { montoComandaNum, precioPlatoNum, cantidadPlatoNum, exprMontoComanda, matchComandaVigente } = require('../utils/estadisticasComandas');
 
 /**
  * POST /api/cierre-caja
@@ -59,7 +59,9 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
     
     // Paso 3 y 4: Consultar comandas del período (solo las no incluidas en cierres anteriores)
     const comandas = await Comanda.find({
-      createdAt: { $gte: periodoInicio, $lte: periodoFin },
+      ...matchComandaVigente({
+        createdAt: { $gte: periodoInicio, $lte: periodoFin }
+      }),
       $or: [
         { incluidoEnCierre: null },
         { incluidoEnCierre: { $exists: false } }
@@ -305,7 +307,9 @@ router.get('/cierre-caja/estado/actual', adminAuth, checkPermission('ver-cierre-
     const periodoFin = moment.tz("America/Lima").toDate();
     
     const comandasPendientes = await Comanda.countDocuments({
-      createdAt: { $gte: periodoInicio, $lte: periodoFin },
+      ...matchComandaVigente({
+        createdAt: { $gte: periodoInicio, $lte: periodoFin }
+      }),
       $or: [
         { incluidoEnCierre: null },
         { incluidoEnCierre: { $exists: false } }
@@ -315,8 +319,10 @@ router.get('/cierre-caja/estado/actual', adminAuth, checkPermission('ver-cierre-
     const montoPendiente = await Comanda.aggregate([
       {
         $match: {
-          createdAt: { $gte: periodoInicio, $lte: periodoFin },
-          status: { $in: ['pagado', 'entregado', 'completado'] },
+          ...matchComandaVigente({
+            createdAt: { $gte: periodoInicio, $lte: periodoFin },
+            status: { $in: ['pagado', 'entregado', 'completado'] }
+          }),
           $or: [
             { incluidoEnCierre: null },
             { incluidoEnCierre: { $exists: false } }
@@ -850,10 +856,9 @@ async function calcularHorasPicoCocina(periodoInicio, periodoFin) {
   try {
     const pipeline = [
       {
-        $match: {
-          status: { $nin: ['cancelado'] },
+        $match: matchComandaVigente({
           createdAt: { $gte: periodoInicio, $lte: periodoFin }
-        }
+        })
       },
       { $unwind: '$platos' },
       {

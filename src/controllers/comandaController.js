@@ -71,6 +71,19 @@ const esSupervisorCocinaDesdeToken = (req) => {
     }
 };
 
+async function esEntregarEnteroAbsolutoActivo(req) {
+    // El KDS solo manda el flag cuando la marca de Configuración → Cocina está activa (default ON).
+    return req.body?.entregarEnteroAbsoluto === true;
+}
+
+function pasosCadenaEntregaAbsoluta(estado) {
+    const e = ['en_espera', 'pendiente', 'ingresante'].includes(estado) ? 'pedido' : estado;
+    if (e === 'entregado' || e === 'pagado') return [];
+    if (e === 'salio') return ['entregado'];
+    if (e === 'recoger') return ['salio', 'entregado'];
+    return ['recoger', 'salio', 'entregado'];
+}
+
 // Verifica si el solicitante (según token JWT del header Authorization) tiene un
 // permiso específico. admin tiene todos los permisos. Devuelve false si no hay
 // token válido o si el permiso no está presente.
@@ -2250,7 +2263,7 @@ router.put('/comanda/:id/prioridad', async (req, res) => {
 
 router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
     const { id, platoId } = req.params;
-    const { nuevoEstado, motivo, cocineroId } = req.body;
+    const { nuevoEstado, motivo, cocineroId, entregarEnteroAbsoluto } = req.body;
     const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
 
     // Validar que nuevoEstado sea válido
@@ -2293,10 +2306,13 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
         }
         
         const estadoAnterior = platoAntes.estado || 'en_espera';
+        const flagAbsoluto = req.body?.entregarEnteroAbsoluto === true;
+        const absoluto = await esEntregarEnteroAbsolutoActivo(req);
 
         // SALIO: Bloquear transición directa recoger → entregado
         // El flujo correcto es recoger → salio (cocina) → entregado (mozo)
-        if (estadoAnterior === 'recoger' && nuevoEstado === 'entregado') {
+        // Excepción: atajo absoluto (config cocina) recorre recoger → salio → entregado.
+        if (!absoluto && estadoAnterior === 'recoger' && nuevoEstado === 'entregado') {
             return res.status(400).json({
                 error: 'Transición bloqueada: no se puede pasar de "recoger" a "entregado" directamente. El plato debe pasar por "salio" primero (cocina confirma salida del pass).',
                 estadoActual: estadoAnterior,
@@ -2307,14 +2323,13 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
 
         // v7.2: VALIDACION MULTI-COCINERO
         // Si el plato esta siendo procesado por un cocinero, validar que sea el mismo quien finaliza
-        // EXCEPCIÓN: Un supervisor/admin (o con permiso utilidad-supervisor/editar-mozos) puede
-        // finalizar platos tomados por otros cocineros.
+        // EXCEPCIÓN: supervisor/admin, o atajo "Entregar plato entero" absoluto (reservas auto-asignadas).
         if (nuevoEstado === 'recoger' && platoAntes.procesandoPor?.cocineroId) {
             const cocineroQueTomo = platoAntes.procesandoPor.cocineroId.toString();
             const cocineroQueFinaliza = (cocineroId || usuarioId)?.toString();
             
             if (cocineroQueFinaliza && cocineroQueTomo !== cocineroQueFinaliza) {
-                if (!esSupervisorCocinaDesdeToken(req)) {
+                if (!flagAbsoluto && !absoluto && !esSupervisorCocinaDesdeToken(req)) {
                     console.warn(`⚠️ [PUT /plato/:platoId/estado] Conflicto: Plato tomado por ${cocineroQueTomo}, intenta finalizar ${cocineroQueFinaliza}`);
                     return res.status(403).json({
                         success: false,
@@ -2326,13 +2341,15 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
                         }
                     });
                 }
-                console.info(`👨‍🍳 [PUT /plato/:platoId/estado] Supervisor finalizando plato de otro cocinero. Tomado por ${cocineroQueTomo}, finaliza ${cocineroQueFinaliza}`);
+                console.info(`👨‍🍳 [PUT /plato/:platoId/estado] ${absoluto || flagAbsoluto ? 'Entregar entero absoluto' : 'Supervisor'} finalizando plato de otro cocinero. Tomado por ${cocineroQueTomo}, finaliza ${cocineroQueFinaliza}`);
             }
         }
 
         // PLAN AGRUPACION_GUARNICIONES_AUTOCIERRE §3.1: al pasar a recoger,
         // auto-cerrar TODAS las guarniciones de ese plato (asignadas o no).
-        if (nuevoEstado === 'recoger') {
+        const pasosAbs = absoluto ? pasosCadenaEntregaAbsoluta(estadoAnterior) : null;
+        const pasaPorRecoger = nuevoEstado === 'recoger' || (pasosAbs && pasosAbs.includes('recoger'));
+        if (pasaPorRecoger) {
             try {
                 const Comanda = mongoose.model('Comanda');
                 const ConfiguracionSistema = mongoose.model('ConfiguracionSistema') || require('../database/models/configuracionSistema.model');
@@ -2356,10 +2373,29 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
             }
         }
 
-        const updatedComanda = await cambiarEstadoPlato(id, platoId, nuevoEstado);
+        const destinos = absoluto
+            ? ((pasosAbs && pasosAbs.length) ? pasosAbs : [])
+            : [nuevoEstado];
+        if (!destinos.length) {
+            return res.json({
+                success: true,
+                message: 'El plato ya está entregado',
+                platoId,
+                estadoAnterior,
+                nuevoEstado: estadoAnterior,
+                comandaStatus: comandaAntes.status,
+                comanda: comandaAntes
+            });
+        }
+        let updatedComanda = comandaAntes;
+        let estadoFinal = estadoAnterior;
+        for (const dest of destinos) {
+            updatedComanda = await cambiarEstadoPlato(id, platoId, dest);
+            estadoFinal = dest;
+        }
 
         // v7.3: Atribución de procesadoPor al cocinero que TOMÓ el plato (no al supervisor que finaliza)
-        if (nuevoEstado === 'recoger' && platoAntes.procesandoPor?.cocineroId) {
+        if (pasaPorRecoger && platoAntes.procesandoPor?.cocineroId) {
             const cocineroQueTomo = platoAntes.procesandoPor.cocineroId;
             const cocineroQueFinaliza = (cocineroId || usuarioId)?.toString();
             const supervisorOverride = cocineroQueFinaliza && cocineroQueTomo.toString() !== cocineroQueFinaliza;
@@ -2412,7 +2448,7 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
         
         // v7.5: Persistir entregadoPor cuando el mozo confirma la entrega del plato al comensal.
         // Fallback para resolver el nombre del mozo desde la BD en caso de que el token solo traiga el id.
-        if (nuevoEstado === 'entregado' && usuarioId) {
+        if (estadoFinal === 'entregado' && usuarioId) {
             try {
                 const momentoEntrega = new Date();
                 const mozosRepository = require('../repository/mozos.repository');
@@ -2442,13 +2478,13 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
             }
         }
 
-        console.log(`✅ [PUT /plato/:platoId/estado] Estado actualizado: ${estadoAnterior} → ${nuevoEstado}`);
+        console.log(`✅ [PUT /plato/:platoId/estado] Estado actualizado: ${estadoAnterior} → ${estadoFinal}${absoluto ? ' (entero absoluto)' : ''}`);
         res.json({ 
             success: true, 
             message: 'Estado del plato actualizado exitosamente',
             platoId: platoId,
             estadoAnterior: estadoAnterior,
-            nuevoEstado: nuevoEstado,
+            nuevoEstado: estadoFinal,
             comandaStatus: updatedComanda.status,
             comanda: updatedComanda
         });

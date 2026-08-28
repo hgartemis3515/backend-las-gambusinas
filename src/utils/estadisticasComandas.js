@@ -200,19 +200,31 @@ function exprFechaComanda() {
 }
 
 /**
+ * Comanda vigente para operación, reportes y cierre de caja.
+ * Soft-delete (`eliminada: true`) permanece en Mongo como rastro interno;
+ * el registro oficial es auditoría. No debe aparecer en reportes ni listados.
+ */
+function matchComandaVigente(extra = {}) {
+    return {
+        eliminada: { $ne: true },
+        status: { $nin: ['cancelado'] },
+        ...extra
+    };
+}
+
+/**
  * Comandas que alimentan reportes / dashboard mozos.
  * Misma fuente que comandas.html: no exige IsActive (las pagadas se desactivan)
- * ni boucher. Excluye canceladas.
+ * ni boucher. Excluye canceladas y eliminadas.
  */
 function matchComandasEstadisticas(inicio, fin) {
-    return {
-        status: { $nin: ['cancelado'] },
+    return matchComandaVigente({
         $or: [
             { createdAt: { $gte: inicio, $lte: fin } },
             { tiempoPagado: { $gte: inicio, $lte: fin } },
             { tiempoEntregado: { $gte: inicio, $lte: fin } }
         ]
-    };
+    });
 }
 
 function getComandaModel() {
@@ -481,6 +493,7 @@ module.exports = {
     rangoLima,
     exprMontoComanda,
     exprFechaComanda,
+    matchComandaVigente,
     matchComandasEstadisticas,
     agregarVentasComandasPorMozo,
     agregarHorariosComandas,

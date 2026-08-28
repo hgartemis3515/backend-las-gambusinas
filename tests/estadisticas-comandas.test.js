@@ -14,11 +14,12 @@ const {
 } = require('../src/utils/estadisticasComandas');
 
 describe('estadisticasComandas', () => {
-  test('match no exige IsActive y excluye canceladas', () => {
+  test('match no exige IsActive y excluye canceladas y eliminadas', () => {
     const inicio = new Date('2026-08-20T05:00:00.000Z');
     const fin = new Date('2026-08-21T04:59:59.999Z');
     const m = matchComandasEstadisticas(inicio, fin);
     expect(m.IsActive).toBeUndefined();
+    expect(m.eliminada).toEqual({ $ne: true });
     expect(m.status).toEqual({ $nin: ['cancelado'] });
     expect(m.$or).toHaveLength(3);
     expect(m.$or[0].createdAt).toEqual({ $gte: inicio, $lte: fin });

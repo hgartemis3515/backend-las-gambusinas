@@ -144,6 +144,9 @@ const CONFIGURACION_DEFAULT = {
         // Plato asignado (amarillo): true = 1º finalizar (verde), 2º dejar (rojo).
         // false = 1º dejar (rojo), 2º finalizar (verde).
         primerToqueFinalizarAsignado: true,
+        // Atajo KDS "Entregar plato entero": finalizar + salida + entrega al comensal.
+        // El mozo ve "Entregado" y no usa "Entregar plato". Default ON.
+        entregarPlatoEnteroAbsoluto: true,
         tiemposGuarnicion: {
             umbralAlertaMultiplo: 1.5,
             umbralCriticaMultiplo: 2,
@@ -537,6 +540,10 @@ const configuracionSistemaSchema = new mongoose.Schema({
         primerToqueFinalizarAsignado: {
             type: Boolean,
             default: CONFIGURACION_DEFAULT.cocina.primerToqueFinalizarAsignado
+        },
+        entregarPlatoEnteroAbsoluto: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.cocina.entregarPlatoEnteroAbsoluto
         },
         // Umbrales de tiempos por local (no hard-codeados). Si una guarnición supera
         // umbralAlertaSeg × tiempoMedioPreparacion → alerta visual en KDS.

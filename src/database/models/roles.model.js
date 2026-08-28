@@ -55,7 +55,7 @@ const PERMISOS_FUNDAMENTALES = {
     'ver-vista-supervisor-cocina': { nombre: 'Vista Supervisor Cocina', grupo: 'App Cocina', descripcion: 'Acceder a la vista de supervisor en App Cocina (asignar cocineros, tomar/dejar platos)' },
     'asignacion-automatica-kds': { nombre: 'Asignación automática KDS', grupo: 'App Cocina', descripcion: 'Puede ser elegido en auto-asignación de platos (cocineros.html), igual que un cocinero' },
     'ver-boton-prioridad-kds': { nombre: 'Ver Botón de Prioridad', grupo: 'App Cocina', descripcion: 'Visualizar el botón de prioridad en los 3 tableros KDS del app de cocina' },
-    'entregar-plato-entero-kds': { nombre: 'Entregar plato entero', grupo: 'App Cocina', descripcion: 'Mostrar el botón "Entregar plato entero" a la derecha de Finalizar plato: finaliza y confirma salida del pass (recoger → salio) en un paso' },
+    'entregar-plato-entero-kds': { nombre: 'Entregar plato entero', grupo: 'App Cocina', descripcion: 'Botón "Entregar plato entero": con la marca absoluta (config cocina, default ON) confirma finalizar, salida y entrega al comensal en un paso; el mozo solo ve Entregado' },
     'utilidad-supervisor': { nombre: 'Utilidad de Supervisor', grupo: 'App Cocina', descripcion: 'Permite actuar como supervisor en App Cocina: finalizar, entregar, tomar o liberar platos/comandas tomadas por otros cocineros' },
     'ver-cocina-completo': { nombre: 'Ver Cocina Completo', grupo: 'App Cocina', descripcion: 'Acceder al monitor de cocina completo (solo lectura, todas las estaciones)' },
     'ver-cocina-personalizado': { nombre: 'Ver Cocina Personalizado', grupo: 'App Cocina', descripcion: 'Acceder a monitores de cocina filtrados por vista personalizada (TVs por estacion)' },

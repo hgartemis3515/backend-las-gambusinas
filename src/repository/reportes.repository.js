@@ -10,6 +10,7 @@ const logger = require('../utils/logger');
 const {
     rangoLima,
     matchComandasEstadisticas,
+    matchComandaVigente,
     exprMontoComanda,
     exprFechaComanda,
     exprPrecioPlatoUnwind,
@@ -45,10 +46,9 @@ async function getMetricasCocineros(fechaInicio, fechaFin) {
         const pipeline = [
             // Filtro de fechas y comandas activas
             {
-                $match: {
-                    status: { $nin: ['cancelado'] },
+                $match: matchComandaVigente({
                     createdAt: { $gte: fechaInicioDate, $lte: fechaFinDate }
-                }
+                })
             },
             // Desenrollar platos
             { $unwind: '$platos' },
@@ -336,10 +336,9 @@ async function getSerieTemporalCocineros(fechaInicio, fechaFin, agruparPor = 'di
 
         const pipeline = [
             {
-                $match: {
-                    status: { $nin: ['cancelado'] },
+                $match: matchComandaVigente({
                     createdAt: { $gte: fechaInicioDate, $lte: fechaFinDate }
-                }
+                })
             },
             { $unwind: '$platos' },
             {
@@ -429,10 +428,9 @@ async function getHeatmapHorario(fechaInicio, fechaFin) {
 
         const pipeline = [
             {
-                $match: {
-                    status: { $nin: ['cancelado'] },
+                $match: matchComandaVigente({
                     createdAt: { $gte: fechaInicioDate, $lte: fechaFinDate }
-                }
+                })
             },
             { $unwind: '$platos' },
             {
@@ -504,10 +502,9 @@ async function getDistribucionCategorias(fechaInicio, fechaFin) {
 
         const pipeline = [
             {
-                $match: {
-                    status: { $nin: ['cancelado'] },
+                $match: matchComandaVigente({
                     createdAt: { $gte: fechaInicioDate, $lte: fechaFinDate }
-                }
+                })
             },
             { $unwind: '$platos' },
             {
@@ -565,10 +562,9 @@ async function getDistribucionCategorias(fechaInicio, fechaFin) {
         // También obtener distribución general
         const pipelineGeneral = [
             {
-                $match: {
-                    status: { $nin: ['cancelado'] },
+                $match: matchComandaVigente({
                     createdAt: { $gte: fechaInicioDate, $lte: fechaFinDate }
-                }
+                })
             },
             { $unwind: '$platos' },
             {
@@ -636,13 +632,12 @@ async function getDetalleCocinero(cocineroId, fechaInicio, fechaFin) {
         // Platos preparados
         const pipelinePlatos = [
             {
-                $match: {
-                    status: { $nin: ['cancelado'] },
+                $match: matchComandaVigente({
                     createdAt: { $gte: fechaInicioDate, $lte: fechaFinDate },
                     'platos.procesadoPor.cocineroId': mongoose.Types.ObjectId.isValid(cocineroId)
                         ? new mongoose.Types.ObjectId(cocineroId)
                         : cocineroId
-                }
+                })
             },
             { $unwind: '$platos' },
             {

@@ -751,6 +751,7 @@ async function calcularMetricasRendimiento(usuarioId, fechaInicio, fechaFin) {
         const metricas = await Comanda.aggregate([
             {
                 $match: {
+                    eliminada: { $ne: true },
                     status: { $nin: ['cancelado'] },
                     'platos.procesadoPor.cocineroId': cocineroObjectId,
                     'platos.tiempos.recoger': {
@@ -829,6 +830,7 @@ async function calcularMetricasRendimiento(usuarioId, fechaInicio, fechaFin) {
         ]);
 
         const garnishMatchFecha = {
+            eliminada: { $ne: true },
             status: { $nin: ['cancelado'] },
             'platos.complementosSeleccionados.procesadoPor.cocineroId': cocineroObjectId,
             'platos.complementosSeleccionados.procesadoPor.timestamp': {
@@ -1015,6 +1017,7 @@ async function obtenerPlatosTopPorCocinero(usuarioId, fechaInicio, fechaFin, lim
         const platosTop = await Comanda.aggregate([
             {
                 $match: {
+                    eliminada: { $ne: true },
                     status: { $nin: ['cancelado'] },
                     'platos.procesadoPor.cocineroId': cocineroObjectId,
                     'platos.tiempos.recoger': {
@@ -1370,6 +1373,7 @@ async function obtenerResumenTurno(fechaInicio, fechaFin) {
         const [resumen] = await Comanda.aggregate([
             {
                 $match: {
+                    eliminada: { $ne: true },
                     status: { $nin: ['cancelado'] },
                     'platos.procesadoPor.cocineroId': { $ne: null, $exists: true },
                     'platos.tiempos.recoger': {
