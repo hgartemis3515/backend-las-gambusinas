@@ -105,7 +105,8 @@ const perfilSchema = new mongoose.Schema({
  * Bloque de calendario (plantilla semanal).
  * - diasSemana: convención moment.js `day()` = 0=Dom, 1=Lun, ..., 6=Sáb.
  *   Ej: [1] = solo lunes; [1,2,3,4,5] = Lun–Vie; [0..6] = toda la semana.
- * - horaInicio/horaFin: "HH:mm" en timezone America/Lima. v1 sin cruce de medianoche.
+ * - horaInicio/horaFin: "HH:mm" America/Lima. Si horaFin < horaInicio, cruza medianoche
+ *   (turno noche). diasSemana = días en que EMPIEZA el turno. Fin exclusivo.
  * - perfilId: referencia a perfiles[].id (validada al guardar bloque).
  * - activo: soft-disable del bloque.
  */

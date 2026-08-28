@@ -381,7 +381,7 @@ tailwind.config = {
             <span class="relative group cursor-help ml-auto">
               <i class="ti ti-info-circle text-txt-muted text-sm"></i>
               <div class="absolute bottom-full right-0 mb-2 px-3 py-2 bg-bg-card border border-gold/20 rounded-lg text-[11px] text-white w-56 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 shadow-xl">
-                El ranking ordena a los cocineros por tiempo promedio de preparación. Menor tiempo = mejor posición.
+                El ranking ordena a los cocineros por quien más se tarda (tiempo promedio más alto primero).
               </div>
             </span>
           </h3>
@@ -396,12 +396,12 @@ tailwind.config = {
           <div x-show="!loadingMetricas && rankingMetricas.length > 0" class="space-y-2">
             <template x-for="(item, index) in rankingMetricas" :key="(item.usuarioId || item._id) + '-' + index">
               <div class="flex items-center gap-3 p-3 bg-bg-sidebar rounded-lg transition hover:bg-bg-sidebar/80 cursor-pointer"
-                :class="{'border border-gold/30': index === 0}"
+                :class="{'border border-st-pagado/40': index === 0}"
                 @click="irACocineroDesdeRanking(item)">
                 <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
                   :class="{
-                    'bg-gold text-bg-primary': index === 0,
-                    'bg-st-libre/20 text-st-libre': index === 1,
+                    'bg-st-pagado/30 text-st-pagado': index === 0,
+                    'bg-st-esperando/20 text-st-esperando': index === 1,
                     'bg-st-pedido/20 text-st-pedido': index === 2,
                     'bg-txt-muted/20 text-txt-muted': index > 2
                   }" x-text="index + 1"></span>
@@ -612,7 +612,7 @@ tailwind.config = {
            semanal): [1] = todos los lunes; [1..5] = Lun–Vie; [0..6] = toda la semana.
          - Sub-tabs: [⚡ Perfiles] [📅 Semana actual] [⚙️ Globales].
            · Perfiles: CRUD de perfiles + editor de platos scoped al perfil activo.
-           · Semana: grilla Lun–Dom con franjas horaInicio/horaFin ligadas a un perfil.
+           · Semana: grilla Lun–Dom; franjas pueden cruzar medianoche (turno noche).
            · Globales: toggle + defaults + simulador.
     -->
     <div x-show="activeTab === 'asignacion'" x-cloak>
@@ -1003,6 +1003,7 @@ tailwind.config = {
             <div>
               <h3 class="text-sm font-bold text-white">Semana actual</h3>
               <p class="text-[11px] text-txt-muted" x-text="rangoSemanaActualTexto"></p>
+              <p class="text-[11px] text-txt-muted mt-1">Los días de cada franja son cuando empieza el turno. Si la hora fin es menor que la de inicio, continúa después de medianoche.</p>
             </div>
             <div class="text-right">
               <p class="text-[11px] text-txt-muted uppercase">Hoy</p>
@@ -1026,7 +1027,7 @@ tailwind.config = {
                     class="text-left rounded-md p-2 border text-[11px] hover:brightness-110 transition"
                     :style="`background:${colorPerfilPorId(b.perfilId)}22; border-color:${colorPerfilPorId(b.perfilId)}66`">
                     <div class="font-bold" :style="`color:${colorPerfilPorId(b.perfilId)}`" x-text="nombrePerfilPorId(b.perfilId)"></div>
-                    <div class="text-txt-secondary" x-text="b.horaInicio + '–' + b.horaFin"></div>
+                    <div class="text-txt-secondary" x-text="textoHorarioFranja(b, dia.num)"></div>
                     <div x-show="b.etiqueta" class="text-txt-muted truncate" x-text="b.etiqueta"></div>
                     <div x-show="!b.activo" class="text-st-pagado text-[9px]">(inactiva)</div>
                   </button>
@@ -1264,6 +1265,10 @@ tailwind.config = {
                 class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
             </div>
           </div>
+          <p class="text-[11px] text-txt-muted">Inicio inclusive, fin exclusivo (a esa hora ya cambia de perfil). Si fin &lt; inicio, cruza medianoche (turno noche).</p>
+          <p class="text-[11px] text-gold" x-show="franjaModalCruzaMedianoche">
+            Turno noche: se activa a las <span x-text="modalFranjaForm.horaInicio"></span> y sigue hasta las <span x-text="modalFranjaForm.horaFin"></span> del día siguiente. Los días elegidos son cuando empieza.
+          </p>
 
           <!-- Etiqueta -->
           <div>
@@ -1641,6 +1646,7 @@ tailwind.config = {
             <div>
               <h3 class="text-sm font-bold text-white">Semana actual</h3>
               <p class="text-[11px] text-txt-muted" x-text="rangoSemanaActualTexto"></p>
+              <p class="text-[11px] text-txt-muted mt-1">Los días de cada franja son cuando empieza el turno. Si la hora fin es menor que la de inicio, continúa después de medianoche.</p>
             </div>
             <div class="text-right">
               <p class="text-[11px] text-txt-muted uppercase">Hoy</p>
@@ -1662,7 +1668,7 @@ tailwind.config = {
                     class="text-left rounded-md p-2 border text-[11px] hover:brightness-110 transition"
                     :style="`background:${colorPerfilPorId(b.perfilId)}22; border-color:${colorPerfilPorId(b.perfilId)}66`">
                     <div class="font-bold" :style="`color:${colorPerfilPorId(b.perfilId)}`" x-text="nombrePerfilPorId(b.perfilId)"></div>
-                    <div class="text-txt-secondary" x-text="b.horaInicio + '–' + b.horaFin"></div>
+                    <div class="text-txt-secondary" x-text="textoHorarioFranja(b, dia.num)"></div>
                     <div x-show="b.etiqueta" class="text-txt-muted truncate" x-text="b.etiqueta"></div>
                     <div x-show="!b.activo" class="text-st-pagado text-[9px]">(inactiva)</div>
                   </button>
@@ -2267,7 +2273,7 @@ tailwind.config = {
                     :class="vistaRendimiento.densidad === 'compacta' ? 'text-sm' : (vistaRendimiento.densidad === 'amplia' ? 'text-lg' : '')"
                     x-text="cocinero.cocineroNombre || 'Cocinero'"></p>
                   <p x-show="vistaRendimiento.mostrarStats" class="text-[11px] text-txt-muted">
-                    <span x-text="cocinero.bloques ? cocinero.bloques.length : 0"></span> en curso
+                    <span x-text="cocinero.platosEnCurso ?? (cocinero.bloques ? cocinero.bloques.length : 0)"></span> en curso
                     · <span x-text="cocinero.finalizadosHoy ?? 0"></span> hoy
                     · <span x-text="(cocinero.tiempoPromedioHoy ?? 0).toFixed(1)"></span> min
                   </p>
@@ -2357,15 +2363,15 @@ tailwind.config = {
         <div x-show="vistaRendimiento.mostrarRanking && rankingMetricas.length > 0" class="mt-6 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-5">
           <h3 class="text-sm font-bold mb-4 flex items-center gap-2">
             🏆 Ranking del turno
-            <span class="text-[10px] text-txt-muted font-normal">Top 5 hoy</span>
+            <span class="text-[10px] text-txt-muted font-normal">Más lento primero · todos</span>
           </h3>
-          <div class="space-y-2">
-            <template x-for="(item, index) in rankingMetricas.slice(0, 5)" :key="'rend-rk-' + (item.usuarioId || item._id) + '-' + index">
+          <div class="space-y-2 max-h-[28rem] overflow-y-auto">
+            <template x-for="(item, index) in rankingMetricas" :key="'rend-rk-' + (item.usuarioId || item._id) + '-' + index">
               <div class="flex items-center gap-3 p-2 bg-bg-sidebar rounded-lg">
                 <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
                   :class="{
-                    'bg-gold text-bg-primary': index === 0,
-                    'bg-st-libre/20 text-st-libre': index === 1,
+                    'bg-st-pagado/30 text-st-pagado': index === 0,
+                    'bg-st-esperando/20 text-st-esperando': index === 1,
                     'bg-st-pedido/20 text-st-pedido': index === 2,
                     'bg-txt-muted/20 text-txt-muted': index > 2
                   }" x-text="index + 1"></span>
@@ -4804,6 +4810,16 @@ function cocinerosApp() {
             }
             vistos.add(id);
             return true;
+          });
+
+          ranking.sort((a, b) => {
+            const aHas = (a.totalPlatos || 0) > 0;
+            const bHas = (b.totalPlatos || 0) > 0;
+            if (aHas !== bHas) return aHas ? -1 : 1;
+            const ta = a.tiempoPromedio || 0;
+            const tb = b.tiempoPromedio || 0;
+            if (tb !== ta) return tb - ta;
+            return (b.totalPlatos || 0) - (a.totalPlatos || 0);
           });
           
           this.rankingMetricas = Array.isArray(ranking) ? ranking : [];
@@ -7456,6 +7472,64 @@ function cocinerosApp() {
       this.errorValidacionAsignacion = '';
     },
 
+    _franjaCruzaMedianoche(hi, hf) {
+      return !!hi && !!hf && hf < hi;
+    },
+    get franjaModalCruzaMedianoche() {
+      const f = this.modalFranjaForm || {};
+      return this._franjaCruzaMedianoche(f.horaInicio, f.horaFin);
+    },
+    _diaAnteriorCalendario(dia) {
+      return (Number(dia) + 6) % 7;
+    },
+    _bloqueCubreMomento(b, dia, hhmm) {
+      if (!b || b.activo === false) return false;
+      const dias = (b.diasSemana || []).map(Number);
+      const hi = b.horaInicio, hf = b.horaFin;
+      if (!hi || !hf) return false;
+      const d = Number(dia);
+      if (!this._franjaCruzaMedianoche(hi, hf)) {
+        const hastaFinDia = hf === '23:59' || hf === '24:00';
+        const enRango = hastaFinDia ? (hi <= hhmm && hhmm <= '23:59') : (hi <= hhmm && hhmm < hf);
+        return dias.includes(d) && enRango;
+      }
+      if (dias.includes(d) && hhmm >= hi) return true;
+      if (dias.includes(this._diaAnteriorCalendario(d)) && hhmm < hf) return true;
+      return false;
+    },
+    _minutosHHmm(hhmm) {
+      const p = String(hhmm || '00:00').split(':');
+      return (Number(p[0]) || 0) * 60 + (Number(p[1]) || 0);
+    },
+    _segmentosFranjaEnDia(diasSemana, hi, hf, dia) {
+      const d = Number(dia);
+      const dias = (diasSemana || []).map(Number);
+      const segs = [];
+      if (!this._franjaCruzaMedianoche(hi, hf)) {
+        if (!dias.includes(d)) return segs;
+        const end = (hf === '23:59' || hf === '24:00') ? 24 * 60 : this._minutosHHmm(hf);
+        const start = this._minutosHHmm(hi);
+        if (start < end) segs.push([start, end]);
+        return segs;
+      }
+      if (dias.includes(d)) segs.push([this._minutosHHmm(hi), 24 * 60]);
+      if (dias.includes(this._diaAnteriorCalendario(d))) {
+        const end = this._minutosHHmm(hf);
+        if (end > 0) segs.push([0, end]);
+      }
+      return segs;
+    },
+    textoHorarioFranja(b, diaNum) {
+      const dia = Number(diaNum);
+      const dias = (b.diasSemana || []).map(Number);
+      if (!this._franjaCruzaMedianoche(b.horaInicio, b.horaFin)) return `${b.horaInicio}–${b.horaFin}`;
+      const esInicio = dias.includes(dia);
+      const esCont = dias.includes(this._diaAnteriorCalendario(dia));
+      if (esInicio && esCont) return `00:00–${b.horaFin} · ${b.horaInicio}–${b.horaFin} (+1)`;
+      if (esCont) return `00:00–${b.horaFin} (cont.)`;
+      return `${b.horaInicio}–${b.horaFin} (+1)`;
+    },
+
     // Recalcula el "perfil activo ahora" localmente (fallback si el GET no lo trae).
     _recalcularPerfilActivoAhora(configOverride) {
       const config = configOverride || this._configAsignacion;
@@ -7467,11 +7541,7 @@ function cocinerosApp() {
       const limaTime = new Date(ahora.getTime() + limaOffsetMs + ahora.getTimezoneOffset() * 60000);
       const dia = limaTime.getUTCDay();
       const hhmm = limaTime.toISOString().slice(11, 16);
-      const candidatos = bloques.filter(b =>
-        b.activo !== false &&
-        (b.diasSemana || []).some(d => Number(d) === dia) &&
-        b.horaInicio <= hhmm && hhmm < b.horaFin
-      );
+      const candidatos = bloques.filter(b => this._bloqueCubreMomento(b, dia, hhmm));
       if (!candidatos.length) return null;
       candidatos.sort((a, b) => (a.diasSemana.length - b.diasSemana.length) ||
         (b.horaInicio < a.horaInicio ? -1 : 1) ||
@@ -7649,8 +7719,12 @@ function cocinerosApp() {
     bloquesPorDia(diaNum) {
       const dia = Number(diaNum);
       return (this._configAsignacion?.calendario?.bloques || [])
-        .filter(b => (b.diasSemana || []).some(d => Number(d) === dia))
-        .sort((a, b) => (a.horaInicio < b.horaInicio ? -1 : 1));
+        .filter(b => {
+          const dias = (b.diasSemana || []).map(Number);
+          if (dias.includes(dia)) return true;
+          return this._franjaCruzaMedianoche(b.horaInicio, b.horaFin) && dias.includes(this._diaAnteriorCalendario(dia));
+        })
+        .sort((a, b) => (this.textoHorarioFranja(a, dia) < this.textoHorarioFranja(b, dia) ? -1 : 1));
     },
 
     nombrePerfilPorId(id) {
@@ -7708,13 +7782,19 @@ function cocinerosApp() {
     // Comprueba solape con otros bloques para avisar (no bloquea).
     _detectarSolape(diasSemana, hi, hf, excluirId = null) {
       const bloques = this._configAsignacion?.calendario?.bloques || [];
-      const diasSet = new Set((diasSemana || []).map(d => Number(d)));
+      const draft = { diasSemana, horaInicio: hi, horaFin: hf };
       for (const b of bloques) {
         if (b.id === excluirId) continue;
         if (b.activo === false) continue;
-        const diasCompartidos = (b.diasSemana || []).some(d => diasSet.has(Number(d)));
-        if (!diasCompartidos) continue;
-        if (hi < b.horaFin && b.horaInicio < hf) return true;
+        for (let dia = 0; dia <= 6; dia++) {
+          const sa = this._segmentosFranjaEnDia(draft.diasSemana, draft.horaInicio, draft.horaFin, dia);
+          const sb = this._segmentosFranjaEnDia(b.diasSemana, b.horaInicio, b.horaFin, dia);
+          for (const a of sa) {
+            for (const seg of sb) {
+              if (a[0] < seg[1] && seg[0] < a[1]) return true;
+            }
+          }
+        }
       }
       return false;
     },
@@ -7725,7 +7805,7 @@ function cocinerosApp() {
       const f = this.modalFranjaForm;
       if (!f.perfilId) { this.modalFranjaError = 'Selecciona un perfil'; return; }
       if (!/^\d{2}:\d{2}$/.test(f.horaInicio) || !/^\d{2}:\d{2}$/.test(f.horaFin)) { this.modalFranjaError = 'Horas inválidas (HH:mm)'; return; }
-      if (f.horaFin <= f.horaInicio) { this.modalFranjaError = 'La hora fin debe ser mayor que la hora inicio (sin cruce de medianoche en v1)'; return; }
+      if (f.horaInicio === f.horaFin) { this.modalFranjaError = 'La hora inicio y la hora fin no pueden ser iguales'; return; }
       const dias = this._diasSemanaSegunRepeticion();
       if (!dias.length) { this.modalFranjaError = 'Selecciona al menos un día'; return; }
 

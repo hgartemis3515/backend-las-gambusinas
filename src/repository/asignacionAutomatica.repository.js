@@ -12,6 +12,7 @@ const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 const AsignacionAutomatica = require('../database/models/asignacionAutomatica.model');
 const logger = require('../utils/logger');
+const { validarHorarioFranja } = require('../utils/asignacionCalendarioFranjas');
 
 const obtenerConfiguracion = async () => {
     try {
@@ -221,11 +222,10 @@ const crearBloque = async ({ perfilId, diasSemana, horaInicio, horaFin, etiqueta
     const perfil = (config.perfiles || []).find(p => p.id === perfilId);
     if (!perfil) throw new Error('El perfil indicado no existe');
 
-    // Validaciones básicas de horario (sin cruce de medianoche en v1).
     if (!/^\d{2}:\d{2}$/.test(horaInicio) || !/^\d{2}:\d{2}$/.test(horaFin)) {
         throw new Error('horaInicio y horaFin deben tener formato HH:mm');
     }
-    if (horaFin <= horaInicio) throw new Error('horaFin debe ser mayor que horaInicio (sin cruce de medianoche en v1)');
+    validarHorarioFranja(horaInicio, horaFin);
 
     // Alpine a veces envía días como strings ("4"); normalizar a enteros 0..6.
     const diasNorm = Array.isArray(diasSemana)
@@ -267,8 +267,10 @@ const actualizarBloque = async (bloqueId, cambios, modificadoPor) => {
         const perfil = (config.perfiles || []).find(p => p.id === cambios.perfilId);
         if (!perfil) throw new Error('El perfil indicado no existe');
     }
-    if (cambios.horaInicio != null && cambios.horaFin != null && cambios.horaFin <= cambios.horaInicio) {
-        throw new Error('horaFin debe ser mayor que horaInicio (sin cruce de medianoche en v1)');
+    if (cambios.horaInicio != null || cambios.horaFin != null) {
+        const hi = cambios.horaInicio != null ? cambios.horaInicio : bloque.horaInicio;
+        const hf = cambios.horaFin != null ? cambios.horaFin : bloque.horaFin;
+        validarHorarioFranja(hi, hf);
     }
 
     const setObj = { actualizadoPor: modificadoPor };

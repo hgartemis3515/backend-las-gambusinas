@@ -50,6 +50,26 @@ async function sincronizarDescuentoTicketsComanda(comanda) {
     updated.push(t);
   }
   emitirTicketsActualizados(updated);
+
+  try {
+    const boucherModel = require('../database/models/boucher.model');
+    const bouchers = await boucherModel.find({
+      comandas: comanda._id,
+      isActive: { $ne: false }
+    });
+    for (const b of bouchers) {
+      const ids = (b.comandas || []).map((id) => String(id));
+      if (ids.length !== 1 || ids[0] !== String(comanda._id)) continue;
+      aplicarDescuentoADocTicket(b, snap);
+      if (b.totalConDescuento != null || snap.porcentaje > 0) {
+        b.totalConDescuento = b.total;
+      }
+      await b.save();
+    }
+  } catch (err) {
+    logger.warn('No se pudo sincronizar descuento a bouchers', { error: err.message });
+  }
+
   return updated;
 }
 

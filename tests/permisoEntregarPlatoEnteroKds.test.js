@@ -13,6 +13,17 @@ describe('permiso entregar-plato-entero-kds', () => {
         expect(PERMISOS_POR_ROL_SISTEMA.supervisor).toContain('entregar-plato-entero-kds');
         expect(PERMISOS_POR_ROL_SISTEMA.cocinero).toContain('entregar-plato-entero-kds');
         expect(PERMISOS_POR_ROL_SISTEMA.mozos).not.toContain('entregar-plato-entero-kds');
-        expect(PERMISOS_POR_ROL_SISTEMA.cajero).not.toContain('entregar-plato-entero-kds');
+        expect(PERMISOS_POR_ROL_SISTEMA.cajero).toContain('entregar-plato-entero-kds');
+    });
+
+    test('cajero = supervisor + ver/ejecutar caja; supervisor no ve caja', () => {
+        const cajaOnly = ['ver-cierre-caja', 'ejecutar-cierre-caja'];
+        for (const p of PERMISOS_POR_ROL_SISTEMA.supervisor) {
+            expect(PERMISOS_POR_ROL_SISTEMA.cajero).toContain(p);
+        }
+        for (const p of cajaOnly) {
+            expect(PERMISOS_POR_ROL_SISTEMA.cajero).toContain(p);
+            expect(PERMISOS_POR_ROL_SISTEMA.supervisor).not.toContain(p);
+        }
     });
 });

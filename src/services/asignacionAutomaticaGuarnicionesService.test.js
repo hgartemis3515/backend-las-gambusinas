@@ -206,6 +206,23 @@ describe('resolverPerfilActivo', () => {
     expect(r.motivo).toBe('ok');
     expect(r.perfil.id).toBe('p1');
   });
+  test('bloque overnight 22:00–06:00 cubre la madrugada del día siguiente', () => {
+    const m = require('moment-timezone');
+    const sabadoMadrugada = m.tz('2026-07-18T03:00', 'America/Lima'); // sáb, continuación de vie
+    const config = {
+      habilitada: true,
+      perfiles: [{ id: 'noche', activo: true }],
+      calendario: {
+        bloques: [{
+          id: 'b1', perfilId: 'noche', activo: true,
+          diasSemana: [1, 2, 3, 4, 5], horaInicio: '22:00', horaFin: '06:00'
+        }]
+      }
+    };
+    const r = svc.resolverPerfilActivo(config, sabadoMadrugada);
+    expect(r.motivo).toBe('ok');
+    expect(r.perfil.id).toBe('noche');
+  });
 });
 
 // ---------------- Escenarios de servicio real ----------------

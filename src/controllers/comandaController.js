@@ -1667,6 +1667,7 @@ router.put('/comanda/:id/eliminar-plato/:platoIndex', async (req, res) => {
             });
             if (todosEranPedido) {
                 comanda.IsActive = false;
+                comanda.eliminada = true;
                 comanda.status = 'cancelado';
                 comanda.fechaEliminacion = new Date();
                 comanda.motivoEliminacion = 'Eliminación automática: todos los platos en pedido eliminados';
@@ -3042,6 +3043,7 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
         
         if (todosPlatosEliminados) {
             comandaActualizar.IsActive = false;
+            comandaActualizar.eliminada = true;
             comandaActualizar.status = 'cancelado';
             comandaActualizar.fechaEliminacion = ahora;
             comandaActualizar.motivoEliminacion = todosEliminadosEranPedido
@@ -3632,11 +3634,6 @@ router.delete('/comanda/:id/descuento', async (req, res) => {
         // Verificar que tenga descuento
         if (!comanda.descuento || comanda.descuento === 0) {
             return res.status(400).json({ message: 'Esta comanda no tiene descuento aplicado' });
-        }
-
-        // Validar que la comanda no esté pagada
-        if (comanda.status === 'pagado') {
-            return res.status(400).json({ message: 'No se puede eliminar descuento de una comanda ya pagada' });
         }
 
         // Guardar valores para auditoría

@@ -84,10 +84,13 @@ const PERMISOS_POR_ROL = {
         'ver-mensajes', 'enviar-mensajes', 'enviar-mensajes-voz'
     ],
     cajero: [
-        'ver-mesas', 'ver-platos', 'ver-clientes', 'procesar-pagos',
-        'ver-cierre-caja', 'ejecutar-cierre-caja',
-        // Mensajería: cajero puede leer y escribir texto (voz según operación)
-        'ver-mensajes', 'enviar-mensajes'
+        'ver-mesas', 'editar-mesas', 'juntar-separar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas',
+        'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria', 'ver-reportes',
+        'ver-notificaciones', 'crear-comandas', 'editar-comandas',
+        'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina',
+        'ver-mensajes', 'enviar-mensajes', 'enviar-mensajes-voz', 'enviar-anuncios',
+        'gestionar-canales-mensajes', 'ver-mensajes-todos',
+        'ver-cierre-caja', 'ejecutar-cierre-caja'
     ]
 };
 

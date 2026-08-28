@@ -85,23 +85,24 @@ const REGLAS_FUNDAMENTALES = {
     'solo-ultima-comanda-buscador': { nombre: 'Solo verá la última comanda del buscador de platos', grupo: 'App Cocina', descripcion: 'En el app de cocina, al buscar un plato, en lugar de mostrar todas las comandas que lo contienen, solo se mostrará la comanda más antigua con ese plato' }
 };
 
-// Permisos por defecto para roles del sistema
+// Cajero = mismos permisos que supervisor, más ver/ejecutar cierre de caja.
+const PERMISOS_SUPERVISOR = [
+    'ver-mesas', 'editar-mesas', 'juntar-separar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas',
+    'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria', 'ver-reportes',
+    'ver-notificaciones', 'crear-comandas', 'editar-comandas',
+    'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina', 'aplicar-descuentos',
+    'crear-comandas-dashboard',
+    'ver-vista-supervisor-cocina', 'asignacion-automatica-kds', 'ver-boton-prioridad-kds', 'entregar-plato-entero-kds', 'utilidad-supervisor',
+    'ver-cocina-completo', 'ver-cocina-personalizado', 'desplegar-monitores-cocina', 'administrar-vistas-cocina',
+    'crear-reservas-mozos', 'asignar-encargado-reserva', 'ver-reservas-kds',
+    'ver-mensajes', 'enviar-mensajes', 'enviar-mensajes-voz', 'enviar-anuncios',
+    'gestionar-canales-mensajes', 'ver-mensajes-todos'
+];
+const PERMISOS_EXCLUSIVOS_CAJA = ['ver-cierre-caja', 'ejecutar-cierre-caja'];
+
 const PERMISOS_POR_ROL_SISTEMA = {
     admin: Object.keys(PERMISOS_FUNDAMENTALES),
-    supervisor: [
-        'ver-mesas', 'editar-mesas', 'juntar-separar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas',
-        'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria', 'ver-reportes',
-        'ver-notificaciones', 'crear-comandas', 'editar-comandas',
-        'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina', 'aplicar-descuentos',
-        'crear-comandas-dashboard',
-        'ver-vista-supervisor-cocina', 'asignacion-automatica-kds', 'ver-boton-prioridad-kds', 'entregar-plato-entero-kds', 'utilidad-supervisor',
-        'ver-cocina-completo', 'ver-cocina-personalizado', 'desplegar-monitores-cocina', 'administrar-vistas-cocina',
-        // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: reservas desde App Mozos + KDS
-        'crear-reservas-mozos', 'asignar-encargado-reserva', 'ver-reservas-kds',
-        // Mensajería: supervisor cubre texto, voz, anuncios, canales y supervisión; sin forzar prioridad critica
-        'ver-mensajes', 'enviar-mensajes', 'enviar-mensajes-voz', 'enviar-anuncios',
-        'gestionar-canales-mensajes', 'ver-mensajes-todos'
-    ],
+    supervisor: PERMISOS_SUPERVISOR,
     cocinero: [
         'ver-platos', 'ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas',
         'ver-cocina-completo', 'ver-cocina-personalizado', 'asignacion-automatica-kds', 'entregar-plato-entero-kds',
@@ -118,12 +119,7 @@ const PERMISOS_POR_ROL_SISTEMA = {
         // Mensajería: mozo puede leer, escribir y enviar voz (prioridad normal)
         'ver-mensajes', 'enviar-mensajes', 'enviar-mensajes-voz'
     ],
-    cajero: [
-        'ver-mesas', 'ver-platos', 'ver-clientes', 'procesar-pagos',
-        'ver-cierre-caja', 'ejecutar-cierre-caja',
-        // Mensajería: cajero puede leer y escribir texto (voz según operación)
-        'ver-mensajes', 'enviar-mensajes'
-    ]
+    cajero: [...PERMISOS_SUPERVISOR, ...PERMISOS_EXCLUSIVOS_CAJA]
 };
 
 // Reglas por defecto para roles del sistema

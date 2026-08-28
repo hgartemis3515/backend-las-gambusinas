@@ -25,6 +25,7 @@ const Zona = require('../database/models/zona.model');
 const Comanda = mongoose.model('Comanda') || require('../database/models/comanda.model');
 const Mozos = mongoose.model('mozos') || require('../database/models/mozos.model');
 const { getCocineroInfo } = require('../utils/cocineroInfo');
+const { elegirBloqueActivo } = require('../utils/asignacionCalendarioFranjas');
 
 const ESTADOS_EN_CURSO = ['pedido', 'en_espera'];
 const TZ = 'America/Lima';
@@ -32,13 +33,6 @@ const TZ = 'America/Lima';
 function nowLima() { return moment().tz(TZ); }
 function inicioDiaLima(momento) {
     return (momento || nowLima()).clone().startOf('day').toDate();
-}
-function compararHHmm(a, b) { return a < b ? -1 : (a > b ? 1 : 0); }
-function horaEnRango(hhmm, ini, fin) {
-    if (fin === '23:59' || fin === '24:00') {
-        return compararHHmm(hhmm, ini) >= 0 && compararHHmm(hhmm, '23:59') <= 0;
-    }
-    return compararHHmm(hhmm, ini) >= 0 && compararHHmm(hhmm, fin) < 0;
 }
 
 function normalizarGuarnicionKey(grupo, opcion) {
@@ -72,18 +66,8 @@ function resolverPerfilActivo(config, momento) {
     const m = momento || nowLima();
     const dia = m.day();
     const hhmm = m.format('HH:mm');
-    const cands = bloques.filter(b => b.activo !== false && Array.isArray(b.diasSemana) && b.diasSemana.map(Number).includes(dia) && horaEnRango(hhmm, b.horaInicio, b.horaFin));
-    if (cands.length === 0) return { perfil: null, bloque: null, motivo: 'sin_franja_activa', dia, hhmm };
-    cands.sort((a, b) => {
-        const d = a.diasSemana.length - b.diasSemana.length;
-        if (d !== 0) return d;
-        const i = compararHHmm(b.horaInicio, a.horaInicio);
-        if (i !== 0) return i;
-        const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return tb - ta;
-    });
-    const bloque = cands[0];
+    const bloque = elegirBloqueActivo(bloques, dia, hhmm);
+    if (!bloque) return { perfil: null, bloque: null, motivo: 'sin_franja_activa', dia, hhmm };
     const perfil = perfilPorId(config, bloque.perfilId);
     if (!perfil) return { perfil: null, bloque, motivo: 'perfil_inactivo_o_inexistente', dia, hhmm };
     return { perfil, bloque, motivo: 'ok', dia, hhmm };

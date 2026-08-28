@@ -2,6 +2,7 @@
 
 const {
   matchComandasEstadisticas,
+  matchComandaAbiertaEnTabla,
   exprMontoComanda,
   exprFechaComanda,
   mapearFilaReporte,
@@ -25,6 +26,13 @@ describe('estadisticasComandas', () => {
     expect(m.$or[0].createdAt).toEqual({ $gte: inicio, $lte: fin });
     expect(m.$or[1].tiempoPagado).toEqual({ $gte: inicio, $lte: fin });
     expect(m.$or[2].tiempoEntregado).toEqual({ $gte: inicio, $lte: fin });
+  });
+
+  test('matchComandaAbiertaEnTabla alinea en-vivo con comandas.html (no eliminadas ni IsActive false)', () => {
+    const m = matchComandaAbiertaEnTabla();
+    expect(m.eliminada).toEqual({ $ne: true });
+    expect(m.IsActive).toEqual({ $ne: false, $exists: true });
+    expect(m.status.$nin).toEqual(expect.arrayContaining(['pagado', 'completado', 'cancelado']));
   });
 
   test('monto ignora totalCalculado 0 y usa precioTotal', () => {

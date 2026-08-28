@@ -103,7 +103,7 @@ const perfilSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: () => new Date() }
 }, { _id: false, id: false });
 
-// ---------------------------- Bloque de calendario (igual que platos) ----------------------------
+// ---------------------------- Bloque de calendario (igual que platos; overnight: horaFin < horaInicio) ----------------------------
 
 const bloqueCalendarioSchema = new mongoose.Schema({
     id: { type: String, required: true, default: () => uuidv4() },

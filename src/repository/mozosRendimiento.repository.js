@@ -363,12 +363,13 @@ async function obtenerHistorialComandasMozos({ mozoId = null, fechaInicio, fecha
 /**
  * Snapshot en vivo: comandas activas del mozo en ciclo abierto
  * (desde crear pedido hasta pago/liberación).
- * Excluye pagado/completado/cancelado e IsActive=false.
+ * Excluye pagado/completado/cancelado, IsActive=false y eliminadas (misma tabla que comandas.html).
  */
 async function obtenerRendimientoEnVivo({ mozoId = null } = {}) {
     try {
         const ESTADOS_CICLO_ABIERTO = ['pendiente', 'pedido', 'en_espera', 'recoger', 'salio', 'entregado'];
         const match = {
+            eliminada: { $ne: true },
             IsActive: true,
             status: { $nin: ['pagado', 'completado', 'cancelado'] },
             'platos.estado': { $in: ESTADOS_CICLO_ABIERTO },

@@ -212,6 +212,18 @@ function matchComandaVigente(extra = {}) {
     };
 }
 
+/** Misma visibilidad que comandas.html para ciclo abierto (GET /comanda?incluirPagadas). */
+const STATUS_COMANDA_CERRADA = ['pagado', 'completado', 'cancelado'];
+
+function matchComandaAbiertaEnTabla(extra = {}) {
+    return {
+        eliminada: { $ne: true },
+        IsActive: { $ne: false, $exists: true },
+        status: { $nin: STATUS_COMANDA_CERRADA },
+        ...extra
+    };
+}
+
 /**
  * Comandas que alimentan reportes / dashboard mozos.
  * Misma fuente que comandas.html: no exige IsActive (las pagadas se desactivan)
@@ -494,6 +506,8 @@ module.exports = {
     exprMontoComanda,
     exprFechaComanda,
     matchComandaVigente,
+    matchComandaAbiertaEnTabla,
+    STATUS_COMANDA_CERRADA,
     matchComandasEstadisticas,
     agregarVentasComandasPorMozo,
     agregarHorariosComandas,

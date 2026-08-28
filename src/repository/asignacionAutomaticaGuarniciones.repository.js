@@ -7,6 +7,7 @@ const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 const AsignacionAutomaticaGuarniciones = require('../database/models/asignacionAutomaticaGuarniciones.model');
 const logger = require('../utils/logger');
+const { validarHorarioFranja } = require('../utils/asignacionCalendarioFranjas');
 
 const obtenerConfiguracion = async () => {
     try {
@@ -188,6 +189,8 @@ const crearBloque = async (bloque, modificadoPor) => {
     const perfil = (config.perfiles || []).find(p => p.id === bloque.perfilId);
     if (!perfil) throw new Error('El perfilId no existe');
 
+    validarHorarioFranja(bloque.horaInicio, bloque.horaFin);
+
     const diasNorm = Array.isArray(bloque.diasSemana)
         ? [...new Set(bloque.diasSemana.map(d => Number(d)).filter(d => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b)
         : [];
@@ -214,6 +217,16 @@ const crearBloque = async (bloque, modificadoPor) => {
 
 const actualizarBloque = async (bloqueId, cambios, modificadoPor) => {
     if (!bloqueId) throw new Error('bloqueId es requerido');
+    const config = await AsignacionAutomaticaGuarniciones.obtenerConfiguracion();
+    const existente = (config.calendario?.bloques || []).find(b => b.id === bloqueId);
+    if (!existente) throw new Error('Bloque no encontrado');
+
+    if (cambios.horaInicio != null || cambios.horaFin != null) {
+        const hi = cambios.horaInicio != null ? cambios.horaInicio : existente.horaInicio;
+        const hf = cambios.horaFin != null ? cambios.horaFin : existente.horaFin;
+        validarHorarioFranja(hi, hf);
+    }
+
     const setObj = { actualizadoPor: modificadoPor };
     if (cambios.perfilId != null) setObj['calendario.bloques.$[b].perfilId'] = cambios.perfilId;
     if (Array.isArray(cambios.diasSemana)) setObj['calendario.bloques.$[b].diasSemana'] = cambios.diasSemana;

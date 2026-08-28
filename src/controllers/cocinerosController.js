@@ -26,6 +26,17 @@ function rangoDiaLima(desde, hasta) {
     return { fechaInicio, fechaFin };
 }
 
+/** Ranking / rendimiento en vivo: visible para rol cocina (y permisos de cocina o reportes). */
+function puedeVerRendimientoCocina(req) {
+    const a = req.admin || {};
+    if (a.rol === 'admin' || a.rol === 'supervisor' || a.rol === 'cocinero') return true;
+    const p = a.permisos || [];
+    return p.includes('ver-reportes')
+        || p.includes('ver-cocina-completo')
+        || p.includes('ver-cocina-personalizado')
+        || p.includes('ver-comandas-cocina');
+}
+
 function tipoDePerfilDoc(p) {
     return p && p.tipo === 'tablas_kds' ? 'tablas_kds' : 'ver_cocina';
 }
@@ -96,8 +107,11 @@ router.get('/cocina/cocineros', adminAuth, checkPermission('ver-cocina-completo'
  * Query: activo=true|false, paraAsignacionKds=true (roles con permiso asignacion-automatica-kds).
  * Requiere permiso: ver-mozos
  */
-router.get('/cocineros', adminAuth, checkPermission('ver-mozos'), async (req, res) => {
+router.get('/cocineros', adminAuth, async (req, res) => {
     try {
+        if (!puedeVerRendimientoCocina(req) && !req.admin?.permisos?.includes('ver-mozos')) {
+            return res.status(403).json({ success: false, error: 'No tiene permisos para ver cocineros' });
+        }
         const { activo, paraAsignacionKds } = req.query;
         
         const filtros = {};
@@ -628,8 +642,8 @@ router.get('/cocineros/:id/metricas', adminAuth, async (req, res) => {
         // Validar permisos
         const esPropio = req.admin.id === id;
         const tienePermisoReportes = req.admin.permisos?.includes('ver-reportes');
-        
-        if (!esPropio && !tienePermisoReportes) {
+
+        if (!esPropio && !tienePermisoReportes && !puedeVerRendimientoCocina(req)) {
             return res.status(403).json({ 
                 success: false, 
                 error: 'No tiene permisos para ver estas métricas' 
@@ -672,10 +686,13 @@ router.get('/cocineros/:id/metricas', adminAuth, async (req, res) => {
 /**
  * GET /api/cocineros/metricas/todos
  * Obtener métricas de todos los cocineros (ranking)
- * Requiere permiso: ver-reportes
+ * Requiere: rol cocina, ver-cocina-completo o ver-reportes
  */
-router.get('/cocineros/metricas/todos', adminAuth, checkPermission('ver-reportes'), async (req, res) => {
+router.get('/cocineros/metricas/todos', adminAuth, async (req, res) => {
     try {
+        if (!puedeVerRendimientoCocina(req)) {
+            return res.status(403).json({ success: false, error: 'No tiene permisos para ver el ranking de rendimiento' });
+        }
         const { desde, hasta } = req.query;
         
         // Fechas por defecto: hoy
@@ -717,22 +734,11 @@ router.get('/cocineros/metricas/todos', adminAuth, checkPermission('ver-reportes
  */
 router.get('/cocineros/rendimiento/en-vivo', adminAuth, async (req, res) => {
     try {
-        const tieneReportes = req.admin?.permisos?.includes('ver-reportes') || req.admin?.rol === 'admin' || req.admin?.rol === 'supervisor';
-        const tieneCocina = req.admin?.permisos?.includes('ver-cocina-completo');
-        if (!tieneReportes && !tieneCocina) {
+        if (!puedeVerRendimientoCocina(req)) {
             return res.status(403).json({ success: false, error: 'No tiene permisos para ver el rendimiento en vivo' });
         }
 
-        // Si es cocinero (no reportes), limitar a su propio id
-        let usuarioId = null;
-        if (!tieneReportes && req.admin?.id) {
-            usuarioId = req.admin.id;
-        }
-        // Query opcional ?cocineroId= para filtrar (solo si tiene reportes)
-        if (req.query.cocineroId && tieneReportes) {
-            usuarioId = req.query.cocineroId;
-        }
-
+        let usuarioId = req.query.cocineroId || null;
         const cocineros = await cocinerosRepository.obtenerRendimientoEnVivo(usuarioId);
 
         res.json({
@@ -755,7 +761,7 @@ router.get('/cocineros/rendimiento/resumen-turno', adminAuth, async (req, res) =
     try {
         const tieneReportes = req.admin?.permisos?.includes('ver-reportes') || req.admin?.rol === 'admin' || req.admin?.rol === 'supervisor';
         const tieneCocina = req.admin?.permisos?.includes('ver-cocina-completo');
-        if (!tieneReportes && !tieneCocina) {
+        if (!tieneReportes && !tieneCocina && !puedeVerRendimientoCocina(req)) {
             return res.status(403).json({ success: false, error: 'No tiene permisos para ver el resumen del turno' });
         }
 
@@ -788,22 +794,14 @@ router.get('/cocineros/rendimiento/historial', adminAuth, async (req, res) => {
     try {
         const tieneReportes = req.admin?.permisos?.includes('ver-reportes') || req.admin?.rol === 'admin' || req.admin?.rol === 'supervisor';
         const tieneCocina = req.admin?.permisos?.includes('ver-cocina-completo');
-        if (!tieneReportes && !tieneCocina) {
+        if (!tieneReportes && !tieneCocina && !puedeVerRendimientoCocina(req)) {
             return res.status(403).json({ success: false, error: 'No tiene permisos para ver el historial de platos cocinados' });
         }
 
         const { desde, hasta } = req.query;
         const { fechaInicio, fechaFin } = rangoDiaLima(desde, hasta);
 
-        let usuarioId = null;
-        // Si no es admin/supervisor con reportes, limitar a sus propios platos
-        if (!tieneReportes && req.admin?.id) {
-            usuarioId = req.admin.id;
-        }
-        // Query opcional ?cocineroId= para filtrar (solo si tiene reportes)
-        if (req.query.cocineroId && tieneReportes) {
-            usuarioId = req.query.cocineroId;
-        }
+        let usuarioId = req.query.cocineroId || null;
 
         const limite = Math.min(Math.max(parseInt(req.query.limite, 10) || 200, 1), 1000);
 

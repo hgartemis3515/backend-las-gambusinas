@@ -365,30 +365,26 @@ describe('asignacionAutomaticaService', () => {
             expect(r.motivo).toBe('ok');
         });
 
-        it('usa un perfil activo si la hora cae fuera de toda franja', () => {
+        it('no asigna si la hora cae fuera de toda franja (no usa otro perfil)', () => {
             const perfil = buildPerfil('p1', 'Almuerzo');
             const config = buildConfig({
                 perfiles: [perfil],
                 calendario: { bloques: [buildBloque('p1', [1], '08:00', '12:00')] }
             });
-            // Lunes 13:00 → fuera, pero el toggle está ON: se usa el perfil con reglas
             const r = service.resolverPerfilActivo(config, moment.tz('2026-07-13T13:00', TZ));
-            expect(r.perfil).not.toBeNull();
-            expect(r.perfil.id).toBe('p1');
-            expect(r.motivo).toBe('sin_franja_usa_perfil_activo');
+            expect(r.perfil).toBeNull();
+            expect(r.motivo).toBe('sin_franja_activa');
         });
 
-        it('usa un perfil activo si el día no coincide con diasSemana', () => {
+        it('no asigna si el día no coincide con diasSemana', () => {
             const perfil = buildPerfil('p1', 'Almuerzo');
             const config = buildConfig({
                 perfiles: [perfil],
                 calendario: { bloques: [buildBloque('p1', [2], '08:00', '12:00')] } // solo martes
             });
-            // Lunes 09:00 → no aplica el bloque
             const r = service.resolverPerfilActivo(config, moment.tz('2026-07-13T09:00', TZ));
-            expect(r.perfil).not.toBeNull();
-            expect(r.perfil.id).toBe('p1');
-            expect(r.motivo).toBe('sin_franja_usa_perfil_activo');
+            expect(r.perfil).toBeNull();
+            expect(r.motivo).toBe('sin_franja_activa');
         });
 
         it('resuelve el perfil cuando día + hora coinciden', () => {
@@ -462,6 +458,42 @@ describe('asignacionAutomaticaService', () => {
             expect(r.perfil).toBeNull();
             expect(r.motivo).toBe('perfil_inactivo_o_inexistente');
         });
+
+        it('turno noche 22:00–06:00 cubre madrugada del día siguiente', () => {
+            const noche = buildPerfil('noche', 'Noche');
+            const config = buildConfig({
+                perfiles: [noche],
+                calendario: { bloques: [buildBloque('noche', [1, 2, 3, 4, 5], '22:00', '06:00')] }
+            });
+            // Viernes 2026-07-17 23:00 Lima
+            const rNoche = service.resolverPerfilActivo(config, moment.tz('2026-07-17T23:00', TZ));
+            expect(rNoche.perfil.id).toBe('noche');
+            expect(rNoche.motivo).toBe('ok');
+            // Sábado 03:00 (continuación de viernes)
+            const rMadrugada = service.resolverPerfilActivo(config, moment.tz('2026-07-18T03:00', TZ));
+            expect(rMadrugada.perfil.id).toBe('noche');
+            // Sábado 06:00 ya no
+            const rFin = service.resolverPerfilActivo(config, moment.tz('2026-07-18T06:00', TZ));
+            expect(rFin.perfil).toBeNull();
+            expect(rFin.motivo).toBe('sin_franja_activa');
+        });
+
+        it('a las 22:00 gana noche; a las 08:00 gana día', () => {
+            const dia = buildPerfil('dia', 'Día');
+            const noche = buildPerfil('noche', 'Noche');
+            const config = buildConfig({
+                perfiles: [dia, noche],
+                calendario: {
+                    bloques: [
+                        buildBloque('dia', [1, 2, 3, 4, 5], '08:00', '22:00'),
+                        buildBloque('noche', [1, 2, 3, 4, 5], '22:00', '08:00')
+                    ]
+                }
+            });
+            expect(service.resolverPerfilActivo(config, moment.tz('2026-07-13T22:00', TZ)).perfil.id).toBe('noche');
+            expect(service.resolverPerfilActivo(config, moment.tz('2026-07-14T07:59', TZ)).perfil.id).toBe('noche');
+            expect(service.resolverPerfilActivo(config, moment.tz('2026-07-14T08:00', TZ)).perfil.id).toBe('dia');
+        });
     });
 
     describe('simularAsignacion (v2: con perfilId / enMomento)', () => {
@@ -490,7 +522,7 @@ describe('asignacionAutomaticaService', () => {
             expect(r.perfilId).toBe('p1');
         });
 
-        it('fuera de franja igual asigna con el perfil que tiene reglas', async () => {
+        it('fuera de franja no asigna', async () => {
             const perfil = buildPerfil('p1', 'Almuerzo', [buildReglaPlato(42, C1)]);
             const config = buildConfig({
                 perfiles: [perfil],
@@ -499,8 +531,8 @@ describe('asignacionAutomaticaService', () => {
             AsignacionAutomatica.obtenerConfiguracion.mockResolvedValue(config);
             ComandaMock.aggregate.mockResolvedValue([{ _id: null, total: 0 }]);
             const r = await service.simularAsignacion(42, null, null, { enMomento: '2026-07-13T13:00:00-05:00' });
-            expect(r.cocineroId).toBe(C1);
-            expect(r.perfilId).toBe('p1');
+            expect(r.cocineroId).toBeNull();
+            expect(r.motivo).toBe('sin_franja_activa');
         });
     });
 });

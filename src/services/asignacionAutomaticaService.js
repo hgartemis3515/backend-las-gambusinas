@@ -8,8 +8,8 @@
  * - La config ahora tiene perfiles con nombre + un calendario semanal (plantilla
  *   Lun–Dom con franjas horaInicio/horaFin en America/Lima).
  * - En runtime, resolverPerfilActivo(config, momento) determina QUÉ perfil
- *   está activo AHORA (según día + hora de Lima). Si no hay franja activa →
- *   no se asigna (v1: motivo "sin_franja_activa").
+ *   está activo AHORA (día + hora Lima, con franjas que cruzan medianoche).
+ *   Si hay calendario y ninguna franja cubre ahora → no asigna (sin_franja_activa).
  * - Una vez resuelto el perfil, se usan sus reglasPorPlato/reglasPorCategoria
  *   (en vez de las legacy raíz) con el mismo algoritmo de selección de antes.
  *
@@ -32,6 +32,11 @@ const mongoose = require('mongoose');
 const moment = require('moment-timezone');
 const logger = require('../utils/logger');
 const redisCache = require('../utils/redisCache');
+const {
+    elegirBloqueActivo,
+    compararHHmm,
+    horaEnRango
+} = require('../utils/asignacionCalendarioFranjas');
 
 const AsignacionAutomatica = require('../database/models/asignacionAutomatica.model');
 const ConfigCocinero = require('../database/models/configCocinero.model');
@@ -60,40 +65,14 @@ function inicioDiaLima(momento) {
 }
 
 /**
- * Compara "HH:mm" como strings lexicográficos (válido para 24h sin cruzar medianoche).
- * Devuelve -1, 0, 1.
- */
-function compararHHmm(a, b) {
-    return a < b ? -1 : (a > b ? 1 : 0);
-}
-
-/**
- * ¿hhmm está dentro de [horaInicio, horaFin)?  (horaFin exclusiva; v1 sin cruce de medianoche)
- */
-function horaEnRango(hhmm, horaInicio, horaFin) {
-    if (horaFin === '23:59' || horaFin === '24:00') {
-        return compararHHmm(hhmm, horaInicio) >= 0 && compararHHmm(hhmm, '23:59') <= 0;
-    }
-    return compararHHmm(hhmm, horaInicio) >= 0 && compararHHmm(hhmm, horaFin) < 0;
-}
-
-/**
  * RESOLVER PERFIL ACTIVO (pura, sin IO).
  *
- * Dada la config (documento de asignación) y un momento (moment tz Lima), determina
- * qué perfil está activo AHORA según el calendario semanal. Devuelve:
- *   { perfil, bloque, motivo } | { perfil: null, bloque: null, motivo }
+ * Dada la config y un momento (moment tz Lima), determina qué perfil está activo.
+ * Franjas con horaFin < horaInicio cruzan medianoche; diasSemana = días de INICIO.
+ * Ver docs/PLAN_FRANJAS_DIA_NOCHE_ASIGNACION.md.
  *
- * Reglas (prioridad entre bloques solapados):
- *   1. Solo bloques activos cuyo diasSemana incluye el día actual y la hora cae en rango.
- *   2. Si 0 bloques → null, motivo 'sin_franja_activa' (o 'deshabilitada' si !habilitada).
- *   3. Si >1 → gana el MÁS ESPECÍFICO (menos días en diasSemana).
- *      Si empatan → el de horaInicio más tarde (más acotado al momento actual).
- *      Si empatan → el de createdAt más reciente (último en crearse).
- *   4. Busca el perfil por bloque.perfilId; si no existe o está inactivo → null,
- *      motivo 'perfil_inactivo_o_inexistente'.
- *
- * Día: usamos moment.day() => 0=Dom, 1=Lun, ..., 6=Sáb (consistente con diasSemana).
+ * Prioridad si solapan: menos días → horaInicio más tarde → createdAt más reciente.
+ * Día: moment.day() => 0=Dom … 6=Sáb.
  */
 function perfilPorId(config, perfilId) {
     const id = perfilId != null ? String(perfilId) : '';
@@ -126,33 +105,10 @@ function resolverPerfilActivo(config, momento) {
     const dia = m.day();
     const hhmm = m.format('HH:mm');
 
-    const candidatos = bloques.filter(b =>
-        b.activo !== false &&
-        Array.isArray(b.diasSemana) &&
-        b.diasSemana.map(Number).includes(dia) &&
-        horaEnRango(hhmm, b.horaInicio, b.horaFin)
-    );
-
-    if (candidatos.length === 0) {
-        // Toggle ON + reglas guardadas: no silenciar porque la franja no cubre "ahora"
-        // (las guarniciones suelen tener bloque 24h y sí asignan).
-        const perfil = elegirPerfilConReglas(activos);
-        if (perfil) return { perfil, bloque: null, motivo: 'sin_franja_usa_perfil_activo', dia, hhmm };
+    const bloqueSeleccionado = elegirBloqueActivo(bloques, dia, hhmm);
+    if (!bloqueSeleccionado) {
         return { perfil: null, bloque: null, motivo: 'sin_franja_activa', dia, hhmm };
     }
-
-    // Orden de prioridad: menos días (más específico) → horaInicio más tarde → createdAt más reciente.
-    candidatos.sort((a, b) => {
-        const porDias = (a.diasSemana.length) - (b.diasSemana.length);
-        if (porDias !== 0) return porDias;
-        const porInicio = compararHHmm(b.horaInicio, a.horaInicio); // invertido: mayor horaInicio primero
-        if (porInicio !== 0) return porInicio;
-        const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return tb - ta; // más reciente primero
-    });
-
-    const bloqueSeleccionado = candidatos[0];
     const perfil = perfilPorId(config, bloqueSeleccionado.perfilId);
     if (!perfil) {
         const fallback = elegirPerfilConReglas(activos);

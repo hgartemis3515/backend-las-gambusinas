@@ -4544,12 +4544,8 @@ const aplicarDescuento = async (comandaId, descuento, motivo, usuarioId, usuario
       throw error;
     }
 
-    // 5. Validar que la comanda no esté pagada
-    if (comanda.status === 'pagado') {
-      const error = new Error('No se puede aplicar descuento a una comanda ya pagada');
-      error.statusCode = 400;
-      throw error;
-    }
+    // 5. Permitido también si ya está pagada (corrección admin en dashboard).
+    //    Tickets/bouchers de una sola comanda se sincronizan más abajo.
 
     // 6. Calcular el subtotal actual de la comanda (platos activos)
     let subtotalActual = 0;
@@ -4652,7 +4648,8 @@ const aplicarDescuento = async (comandaId, descuento, motivo, usuarioId, usuario
       totalAnterior: valoresAnteriores.totalCalculado,
       totalNuevo: totalCalculado,
       montoAhorro: totalSinDescuento - totalCalculado,
-      aplicadoPor: usuarioId
+      aplicadoPor: usuarioId,
+      comandaYaPagada: comanda.status === 'pagado' || comanda.status === 'completado'
     });
 
     return {

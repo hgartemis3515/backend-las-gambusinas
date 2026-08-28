@@ -30,7 +30,7 @@ const inicializarRolesSistema = async () => {
             supervisor: 'Gestión operativa, reportes y supervisión del personal',
             cocinero: 'Gestión de comandas en la cocina',
             mozos: 'Atención al cliente y gestión de pedidos',
-            cajero: 'Procesamiento de pagos y cierre de caja'
+            cajero: 'Mismos permisos que supervisor, más ver y ejecutar cierre de caja'
         };
 
         for (const rolNombre of ROLES_SISTEMA) {

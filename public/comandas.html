@@ -1519,8 +1519,7 @@ tailwind.config = {
  </div>
  <!-- Botón eliminar descuento -->
  <button @click="eliminarDescuentoComanda()"
- :disabled="editComanda?.status === 'pagado'"
- class="mt-3 w-full py-2 bg-st-pagado/20 text-st-pagado border border-st-pagado/40 rounded-lg text-xs font-semibold hover:bg-st-pagado/30 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+ class="mt-3 w-full py-2 bg-st-pagado/20 text-st-pagado border border-st-pagado/40 rounded-lg text-xs font-semibold hover:bg-st-pagado/30 transition flex items-center justify-center gap-2">
  <span>🗑️</span> Quitar Descuento
  </button>
  </div>
@@ -1549,7 +1548,7 @@ tailwind.config = {
  </div>
  <div class="col-span-3">
  <button @click="aplicarDescuentoComanda(descuentoInput, motivoDescuento, descuentoMontoInput)"
- :disabled="aplicandoDescuento || editComanda?.status === 'pagado'"
+ :disabled="aplicandoDescuento"
  class="w-full h-9 bg-st-preparado text-white rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
  <span x-show="!aplicandoDescuento">✓ Aplicar</span>
  <span x-show="aplicandoDescuento" class="flex items-center gap-1">
@@ -1579,8 +1578,8 @@ tailwind.config = {
  </div>
 
  <!-- Advertencia para comandas pagadas -->
- <div x-show="editComanda?.status === 'pagado'" class="mt-2 text-xs text-st-pagado flex items-center gap-1">
- <span>⚠️</span> No se puede modificar descuento en comandas pagadas
+ <div x-show="editComanda?.status === 'pagado'" class="mt-2 text-xs text-txt-muted flex items-center gap-1">
+ <span>ℹ️</span> Comanda pagada: el descuento ajusta el total y los tickets.
  </div>
  </div>
 
@@ -1944,8 +1943,7 @@ tailwind.config = {
  <span class="text-st-pagado font-bold" x-text="'-S/. ' + (getMontoDescuentoGrupo(editGrupo) || 0).toFixed(2)"></span>
  </div>
  <button @click="eliminarDescuentoGrupo()"
- :disabled="grupoTodoPagado(editGrupo)"
- class="mt-3 w-full py-2 bg-st-pagado/20 text-st-pagado border border-st-pagado/40 rounded-lg text-xs font-semibold hover:bg-st-pagado/30 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+ class="mt-3 w-full py-2 bg-st-pagado/20 text-st-pagado border border-st-pagado/40 rounded-lg text-xs font-semibold hover:bg-st-pagado/30 transition flex items-center justify-center gap-2">
  <span>🗑️</span> Quitar Descuento del Grupo
  </button>
  </div>
@@ -1972,7 +1970,7 @@ tailwind.config = {
  </div>
  <div class="col-span-3">
  <button @click="aplicarDescuentoGrupo(descuentoGrupoInput, motivoDescuentoGrupo, descuentoMontoGrupoInput)"
- :disabled="aplicandoDescuentoGrupo || grupoTodoPagado(editGrupo)"
+ :disabled="aplicandoDescuentoGrupo"
  class="w-full h-9 bg-st-preparado text-white rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
  <span x-show="!aplicandoDescuentoGrupo">✓ Aplicar al Grupo</span>
  <span x-show="aplicandoDescuentoGrupo" class="flex items-center gap-1">
@@ -1983,8 +1981,8 @@ tailwind.config = {
  </div>
  </div>
 
- <div x-show="grupoTodoPagado(editGrupo)" class="mt-2 text-xs text-st-pagado flex items-center gap-1">
- <span>⚠️</span> No se puede modificar descuento en grupos con comandas pagadas
+ <div x-show="grupoTodoPagado(editGrupo)" class="mt-2 text-xs text-txt-muted flex items-center gap-1">
+ <span>ℹ️</span> Hay comandas pagadas: el descuento igual se aplica y ajusta totales/tickets.
  </div>
  </div>
 
@@ -4402,8 +4400,6 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  if (pct < 0 || pct > 100) { this.showToast('El descuento debe estar entre 0 y 100%', 'error'); return; }
  if (pct > 0 && (!motivo || motivo.trim().length < 3)) { this.showToast('El motivo del descuento es obligatorio (mínimo 3 caracteres)', 'error'); return; }
  if (!this.puedeAplicarDescuento) { this.showToast('No tienes permisos para aplicar descuentos', 'error'); return; }
- const pagadas = this.editGrupo.comandas.filter(c => c.estado === 'pagado');
- if (pagadas.length) { this.showToast('No se puede aplicar descuento a comandas ya pagadas', 'error'); return; }
  this.aplicandoDescuentoGrupo = true;
  try {
  let exitosos = 0;
@@ -4434,7 +4430,6 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  async eliminarDescuentoGrupo() {
  if (!this.editGrupo?.comandas?.length) return;
  if (!this.puedeAplicarDescuento) { this.showToast('No tienes permisos', 'error'); return; }
- if (this.grupoTodoPagado(this.editGrupo)) { this.showToast('No se puede quitar descuento en comandas pagadas', 'error'); return; }
  if (!confirm('¿Quitar el descuento de todas las comandas del grupo?')) return;
  try {
  for (const comanda of this.editGrupo.comandas) {
@@ -4632,11 +4627,6 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  return;
  }
 
- if (this.editComanda.status === 'pagado') {
- this.showToast('No se puede modificar una comanda ya pagada', 'error');
- return;
- }
-
  try {
  console.log('💰 Aplicando descuento:', { descuento: pct, monto: montoNum, motivo, comandaId: this.editComanda._id });
 
@@ -4694,11 +4684,6 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  if (!this.puedeAplicarDescuento) {
  this.showToast('No tienes permisos para eliminar descuentos', 'error');
- return;
- }
-
- if (this.editComanda.estado === 'pagado') {
- this.showToast('No se puede eliminar descuento de una comanda ya pagada', 'error');
  return;
  }
 
