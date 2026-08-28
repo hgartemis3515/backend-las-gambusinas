@@ -23,6 +23,14 @@ function snapshotDesdeComandas(ticket) {
   return { monto, descuentos, totalSinDescuento };
 }
 
+function primerMontoPositivo(...vals) {
+  for (const v of vals) {
+    const n = Number(v);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return 0;
+}
+
 function adjuntarDescuentoTicket(ticket) {
   if (!ticket) return ticket;
   const boucher = ticket.boucher && typeof ticket.boucher === 'object' ? ticket.boucher : null;
@@ -32,12 +40,15 @@ function adjuntarDescuentoTicket(ticket) {
     : [];
   const descuentos = descuentosTicket.length
     ? descuentosTicket
-    : (boucher?.descuentos?.length ? boucher.descuentos : fromComanda.descuentos);
-  const monto = Number(ticket.montoDescuento ?? boucher?.montoDescuento ?? fromComanda.monto ?? 0) || 0;
+    : (fromComanda.descuentos.length ? fromComanda.descuentos : (boucher?.descuentos || []));
+  const monto = primerMontoPositivo(ticket.montoDescuento, fromComanda.monto, boucher?.montoDescuento);
   return {
     ...ticket,
     montoDescuento: monto,
-    totalSinDescuento: ticket.totalSinDescuento ?? boucher?.totalSinDescuento ?? fromComanda.totalSinDescuento ?? null,
+    totalSinDescuento: ticket.totalSinDescuento
+      ?? fromComanda.totalSinDescuento
+      ?? boucher?.totalSinDescuento
+      ?? null,
     descuentos,
   };
 }
@@ -65,6 +76,95 @@ function totalesConDescuentoImpresion(ticket, totalesBase = {}) {
     descuentos: vista.descuentos || [],
     totalSinDescuento: vista.totalSinDescuento ?? null,
   };
+}
+
+function idRef(id) {
+  if (!id) return '';
+  if (typeof id === 'object') return String(id._id || id);
+  return String(id);
+}
+
+function subtotalPlatosComanda(comanda) {
+  return (comanda?.platos || []).reduce((s, p, i) => {
+    if (!p || p.eliminado || p.anulado) return s;
+    const precio = p.precioUnitario != null ? Number(p.precioUnitario) : (p.plato?.precio || p.precio || 0);
+    const cant = comanda.cantidades?.[i] ?? p.cantidad ?? 1;
+    return s + (Number(precio) || 0) * (Number(cant) || 1);
+  }, 0);
+}
+
+function subtotalPlatosDocDeComanda(doc, comanda) {
+  const cid = idRef(comanda._id);
+  const num = Number(comanda.comandaNumber);
+  const platos = doc?.platos || [];
+  const filtrados = platos.filter((p) => {
+    if (p?.comandaId && idRef(p.comandaId) === cid) return true;
+    if (p?.comandaNumber != null && Number(p.comandaNumber) === num) return true;
+    return false;
+  });
+  const fuente = filtrados.length ? filtrados : ((doc.comandas || []).length <= 1 ? platos : []);
+  return fuente.reduce((s, p) => s + (Number(p.subtotal) || (Number(p.precio) || 0) * (Number(p.cantidad) || 1)), 0);
+}
+
+function ratioComandaEnDoc(doc, comanda) {
+  const subDoc = subtotalPlatosDocDeComanda(doc, comanda);
+  const subCom = subtotalPlatosComanda(comanda);
+  if (subDoc > 0 && subCom > 0) return Math.min(1, subDoc / subCom);
+  return 1;
+}
+
+/**
+ * Aplica (o quita) el descuento de UNA comanda sobre un ticket/boucher ya cobrado.
+ * Funciona después del pago: ajusta por delta, también en bouchers de varias comandas.
+ */
+function aplicarDescuentoADocDesdeComanda(doc, comanda) {
+  if (!doc || !comanda) return doc;
+  const ratio = ratioComandaEnDoc(doc, comanda);
+  const num = Number(comanda.comandaNumber);
+  const pct = Number(comanda.descuento) || 0;
+  const montoNuevo = Number(((Number(comanda.montoDescuento) || 0) * ratio).toFixed(2));
+
+  const descuentos = Array.isArray(doc.descuentos) ? doc.descuentos.slice() : [];
+  const idx = descuentos.findIndex((d) => Number(d.comandaNumber) === num);
+  const prevMonto = idx >= 0 ? Number(descuentos[idx].monto) || 0 : 0;
+
+  const totalActual = Number(doc.total) || 0;
+  const descActual = Number(doc.montoDescuento) || 0;
+  const brutoGuardado = Number(doc.totalSinDescuento);
+  const bruto = Number.isFinite(brutoGuardado) && brutoGuardado > 0
+    ? brutoGuardado
+    : Number((totalActual + descActual).toFixed(2));
+
+  const montoDescNuevo = Number(Math.max(0, descActual - prevMonto + montoNuevo).toFixed(2));
+  const totalNuevo = Number(Math.max(0, bruto - montoDescNuevo).toFixed(2));
+
+  doc.totalSinDescuento = bruto;
+  doc.montoDescuento = montoDescNuevo;
+  doc.total = totalNuevo;
+  if (doc.totalConDescuento != null || montoDescNuevo > 0 || pct > 0) {
+    doc.totalConDescuento = totalNuevo;
+  }
+
+  if (montoNuevo > 0 || pct > 0) {
+    const entry = {
+      comandaNumber: comanda.comandaNumber,
+      porcentaje: pct,
+      motivo: comanda.motivoDescuento || '',
+      monto: montoNuevo,
+      aplicadoPor: comanda.descuentoAplicadoPor || null,
+    };
+    if (idx >= 0) descuentos[idx] = entry;
+    else descuentos.push(entry);
+    doc.descuentos = descuentos;
+  } else {
+    doc.descuentos = descuentos.filter((d) => Number(d.comandaNumber) !== num);
+    if (!doc.descuentos.length) {
+      doc.montoDescuento = 0;
+      doc.total = bruto;
+      if (doc.totalConDescuento != null) doc.totalConDescuento = bruto;
+    }
+  }
+  return doc;
 }
 
 function aplicarDescuentoADocTicket(ticketDoc, snap) {
@@ -99,6 +199,8 @@ module.exports = {
   aplicarDescuentoAVistaTicket,
   totalesConDescuentoImpresion,
   aplicarDescuentoADocTicket,
+  aplicarDescuentoADocDesdeComanda,
+  ratioComandaEnDoc,
   snapshotDesdeComandas,
   BOUCHER_DESCUENTO_SELECT,
   COMANDA_DESCUENTO_SELECT,

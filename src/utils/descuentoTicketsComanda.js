@@ -5,7 +5,7 @@
 const moment = require('moment-timezone');
 const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
 const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
-const { aplicarDescuentoADocTicket } = require('./descuentoTicketSnapshot');
+const { aplicarDescuentoADocDesdeComanda } = require('./descuentoTicketSnapshot');
 const logger = require('./logger');
 
 function emitirTicketsActualizados(tickets) {
@@ -33,19 +33,14 @@ function emitirTicketsActualizados(tickets) {
 
 async function sincronizarDescuentoTicketsComanda(comanda) {
   if (!comanda?._id) return [];
-  const snap = {
-    porcentaje: Number(comanda.descuento) || 0,
-    motivo: comanda.motivoDescuento || '',
-    comandaNumber: comanda.comandaNumber,
-  };
-  const query = { comandas: comanda._id, isActive: true };
+  const query = { comandas: comanda._id, isActive: { $ne: false } };
   const [tas, ppas] = await Promise.all([
     ticketAprobacionModel.find(query),
     ticketPagoAdelantadoModel.find(query),
   ]);
   const updated = [];
   for (const t of [...tas, ...ppas]) {
-    aplicarDescuentoADocTicket(t, snap);
+    aplicarDescuentoADocDesdeComanda(t, comanda);
     await t.save();
     updated.push(t);
   }
@@ -58,12 +53,7 @@ async function sincronizarDescuentoTicketsComanda(comanda) {
       isActive: { $ne: false }
     });
     for (const b of bouchers) {
-      const ids = (b.comandas || []).map((id) => String(id));
-      if (ids.length !== 1 || ids[0] !== String(comanda._id)) continue;
-      aplicarDescuentoADocTicket(b, snap);
-      if (b.totalConDescuento != null || snap.porcentaje > 0) {
-        b.totalConDescuento = b.total;
-      }
+      aplicarDescuentoADocDesdeComanda(b, comanda);
       await b.save();
     }
   } catch (err) {

@@ -3,6 +3,7 @@ const {
   aplicarDescuentoAVistaTicket,
   totalesConDescuentoImpresion,
   aplicarDescuentoADocTicket,
+  aplicarDescuentoADocDesdeComanda,
 } = require('../src/utils/descuentoTicketSnapshot');
 
 describe('descuento en tickets / impresión', () => {
@@ -70,5 +71,47 @@ describe('descuento en tickets / impresión', () => {
     );
     expect(r.montoDescuento).toBe(118);
     expect(r.total).toBe(0);
+  });
+
+  test('post-pago: ticket/boucher en 0 usa descuento vivo de la comanda', () => {
+    const t = adjuntarDescuentoTicket({
+      total: 624,
+      montoDescuento: 0,
+      boucher: { total: 624, montoDescuento: 0 },
+      comandas: [{ comandaNumber: 12, descuento: 10, montoDescuento: 62.4, motivoDescuento: 'VIP', totalSinDescuento: 624 }],
+    });
+    expect(t.montoDescuento).toBe(62.4);
+    const vista = aplicarDescuentoAVistaTicket({
+      total: 624,
+      montoDescuento: 0,
+      comandas: [{ descuento: 10, montoDescuento: 62.4, totalSinDescuento: 624 }],
+    });
+    expect(vista.total).toBe(561.6);
+  });
+
+  test('post-pago: boucher de 2 comandas solo resta la que tiene descuento', () => {
+    const boucher = {
+      total: 300,
+      montoDescuento: 0,
+      descuentos: [],
+      comandas: ['a', 'b'],
+      platos: [
+        { comandaNumber: 1, subtotal: 100 },
+        { comandaNumber: 2, subtotal: 200 },
+      ],
+    };
+    aplicarDescuentoADocDesdeComanda(boucher, {
+      _id: 'a',
+      comandaNumber: 1,
+      descuento: 10,
+      montoDescuento: 10,
+      motivoDescuento: 'cortesía',
+      totalCalculado: 90,
+      platos: [{ precioUnitario: 100, cantidad: 1 }],
+    });
+    expect(boucher.montoDescuento).toBe(10);
+    expect(boucher.total).toBe(290);
+    expect(boucher.descuentos).toHaveLength(1);
+    expect(boucher.descuentos[0].comandaNumber).toBe(1);
   });
 });

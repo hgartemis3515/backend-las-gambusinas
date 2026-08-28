@@ -574,8 +574,11 @@ export function mapComandaATicket(comanda, boucherOpcional, config = {}) {
       };
     });
   const sumaPlatos = productos.reduce((s, p) => s + (Number(p.subtotal) || 0), 0);
+  const tieneDesc = Number(comanda.descuento) > 0 || Number(comanda.montoDescuento) > 0;
   const totalFuente = Number(
-    boucherOpcional?.totalConDescuento ?? boucherOpcional?.total ?? comanda.totalCalculado ?? comanda.total ?? comanda.precioTotal
+    tieneDesc
+      ? comanda.totalCalculado
+      : (boucherOpcional?.totalConDescuento ?? boucherOpcional?.total ?? comanda.totalCalculado ?? comanda.total ?? comanda.precioTotal)
   );
   const subtotalFuente = Number(comanda.totalSinDescuento ?? boucherOpcional?.subtotal ?? comanda.subtotal);
   return {
@@ -592,9 +595,15 @@ export function mapComandaATicket(comanda, boucherOpcional, config = {}) {
     subtotal: sumaPlatos > 0 ? sumaPlatos : (subtotalFuente > 0 ? subtotalFuente : 0),
     totalSinDescuento: sumaPlatos > 0 ? sumaPlatos : (Number(comanda.totalSinDescuento) || subtotalFuente || 0),
     igv: boucherOpcional?.igv ?? comanda.igv ?? 0,
-    total: totalFuente > 0 ? totalFuente : sumaPlatos,
-    montoDescuento: Number(boucherOpcional?.montoDescuento ?? comanda.montoDescuento ?? 0) || 0,
-    descuentos: boucherOpcional?.descuentos || (comanda.descuento > 0 ? [{ porcentaje: comanda.descuento, motivo: comanda.motivoDescuento, monto: comanda.montoDescuento }] : []),
+    total: tieneDesc
+      ? (Number.isFinite(Number(comanda.totalCalculado)) ? Number(comanda.totalCalculado) : 0)
+      : (totalFuente > 0 ? totalFuente : sumaPlatos),
+    montoDescuento: tieneDesc
+      ? (Number(comanda.montoDescuento) || 0)
+      : (Number(boucherOpcional?.montoDescuento) || 0),
+    descuentos: tieneDesc
+      ? [{ porcentaje: comanda.descuento, motivo: comanda.motivoDescuento, monto: comanda.montoDescuento }]
+      : (boucherOpcional?.descuentos || []),
     cliente: {
       nombre: comanda.clienteNombre || comanda.cliente?.nombre || (typeof boucherOpcional?.cliente === 'object' ? boucherOpcional.cliente?.nombre : null) || 'Cliente',
       dni: comanda.cliente?.dni || (typeof boucherOpcional?.cliente === 'object' ? boucherOpcional.cliente?.dni : null) || '',

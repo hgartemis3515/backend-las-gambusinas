@@ -742,17 +742,16 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
       igv: boucher?.igv ?? 0,
       igvPorcentaje: Number.isFinite(Number(config.igvPorcentaje)) ? Number(config.igvPorcentaje) : 18,
       nombreImpuesto: config.nombreImpuestoPrincipal || 'IGV',
-      total: Number(
-        (Number(comanda.descuento) > 0 ? comanda.totalCalculado : null)
-        || boucher?.total
-        || comanda.totalCalculado
-        || comanda.precioTotal
-      ) || productos.reduce((s, p) => s + (Number(p.subtotal) || 0), 0),
-      montoDescuento: Number(boucher?.montoDescuento ?? comanda.montoDescuento ?? 0) || 0,
-      totalSinDescuento: boucher?.totalSinDescuento ?? comanda.totalSinDescuento ?? null,
-      descuentos: boucher?.descuentos?.length
-        ? boucher.descuentos
-        : (comanda.descuento > 0 ? [{ porcentaje: comanda.descuento, motivo: comanda.motivoDescuento, monto: comanda.montoDescuento }] : []),
+      total: (Number(comanda.descuento) > 0 || Number(comanda.montoDescuento) > 0)
+        ? (Number.isFinite(Number(comanda.totalCalculado)) ? Number(comanda.totalCalculado) : 0)
+        : (Number(boucher?.total || comanda.totalCalculado || comanda.precioTotal) || productos.reduce((s, p) => s + (Number(p.subtotal) || 0), 0)),
+      montoDescuento: (Number(comanda.descuento) > 0 || Number(comanda.montoDescuento) > 0)
+        ? (Number(comanda.montoDescuento) || 0)
+        : (Number(boucher?.montoDescuento) || 0),
+      totalSinDescuento: comanda.totalSinDescuento ?? boucher?.totalSinDescuento ?? null,
+      descuentos: (Number(comanda.descuento) > 0 || Number(comanda.montoDescuento) > 0)
+        ? [{ porcentaje: comanda.descuento, motivo: comanda.motivoDescuento, monto: comanda.montoDescuento }]
+        : (boucher?.descuentos || []),
       cliente: {
         nombre: boucher?.clienteNombre || comanda.clienteNombre || comanda.cliente?.nombre || NOMBRE_CLIENTE_FALLBACK,
         dni: boucher?.clienteDni || comanda.cliente?.dni || '',
