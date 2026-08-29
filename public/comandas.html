@@ -1760,7 +1760,7 @@ tailwind.config = {
  <h3 class="text-lg font-bold flex items-center gap-2">
  <span>✏️</span> Editar Ticket #<span x-text="ticketEditando?.ticketNumber || '—'"></span>
  </h3>
- <p class="text-xs text-txt-muted mt-1" x-text="ticketTipoLabel(ticketEditando?.tipo) + ' — ' + ticketEstadoLabel(ticketEditando?.estado)"></p>
+ <p class="text-xs text-txt-muted mt-1" x-text="ticketTipoLabel(ticketEditando?.tipo) + ' — ' + ticketEstadoLabel(ticketEditForm.estado || ticketEditando?.estado)"></p>
  </div>
  <div class="p-5 space-y-4">
  <div>
@@ -1776,6 +1776,24 @@ tailwind.config = {
  <textarea x-model="ticketEditForm.observaciones" rows="3" placeholder="Observaciones del ticket..."
  class="w-full bg-bg-sidebar border border-gold/25 rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none resize-none"></textarea>
  </div>
+ <div>
+ <label class="text-[10px] text-txt-muted mb-1 block">Estado del ticket</label>
+ <select x-model="ticketEditForm.estado"
+  :disabled="ticketEditando?.estado !== 'pendiente_aprobacion'"
+  class="w-full bg-bg-sidebar border border-gold/25 rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none disabled:opacity-60">
+  <template x-for="opt in estadosEditablesTicket(ticketEditando)" :key="opt.value">
+   <option :value="opt.value" x-text="opt.label"></option>
+  </template>
+ </select>
+ <p x-show="ticketEditando?.estado === 'pendiente_aprobacion' && ticketEditForm.estado === 'aprobado'"
+  class="text-[10px] text-gold mt-1.5">Al guardar se fuerza la aprobación: mismos efectos que en cocina (platos, mesa y bandeja).</p>
+ <p x-show="ticketEditando?.estado !== 'pendiente_aprobacion'" class="text-[10px] text-txt-muted mt-1.5">El estado ya no se puede revertir desde aquí.</p>
+ </div>
+ <div x-show="ticketEditando?.estado === 'pendiente_aprobacion' && (ticketEditForm.estado === 'reportado' || ticketEditForm.estado === 'rechazado')">
+ <label class="text-[10px] text-txt-muted mb-1 block">Motivo <span class="text-st-pagado">*</span></label>
+ <textarea x-model="ticketEditForm.motivoEstado" rows="2" placeholder="Motivo (mínimo 3 caracteres)..."
+  class="w-full bg-bg-sidebar border border-gold/25 rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none resize-none"></textarea>
+ </div>
  <div class="bg-bg-sidebar rounded-lg p-3 text-xs text-txt-secondary">
  <p x-text="'Total: S/. ' + Number(ticketEditando?.total || 0).toFixed(2)"></p>
  <p x-text="'Platos: ' + (ticketEditando?.cantidadPlatos || ticketEditando?.platos?.length || 0)"></p>
@@ -1783,8 +1801,8 @@ tailwind.config = {
  </div>
  <div class="bg-bg-sidebar p-4 rounded-b-2xl flex justify-end gap-2">
  <button @click="modal='editarComanda'; ticketEditando=null" class="px-4 py-2 border border-txt-muted/40 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
- <button @click="guardarEdicionTicket()" :disabled="guardandoTicket" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50">
- <span x-text="guardandoTicket ? 'Guardando...' : 'Guardar'"></span>
+ <button @click="guardarEdicionTicket()" :disabled="guardandoTicket || ticketMotivoEstadoRequerido()" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50">
+ <span x-text="textoBotonGuardarTicket()"></span>
  </button>
  </div>
  </div>
@@ -2182,7 +2200,7 @@ function comandasApp() {
  comandaTickets: [],
  loadingTickets: false,
  ticketEditando: null,
- ticketEditForm: { observaciones: '', metodoPago: 'efectivo' },
+ ticketEditForm: { observaciones: '', metodoPago: 'efectivo', estado: 'pendiente_aprobacion', motivoEstado: '' },
  ticketEliminar: null,
  motivoEliminarTicket: '',
  guardandoTicket: false,
@@ -4299,6 +4317,44 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  return map[estado] || estado || '—';
  },
 
+ estadosEditablesTicket(ticket) {
+ const actual = ticket?.estado || 'pendiente_aprobacion';
+ if (actual !== 'pendiente_aprobacion') {
+  return [{ value: actual, label: this.ticketEstadoLabel(actual) }];
+ }
+ const opts = [
+  { value: 'pendiente_aprobacion', label: 'Pendiente' },
+  { value: 'aprobado', label: 'Aprobado (forzar)' },
+ ];
+ if (String(ticket?.tipo || '').toUpperCase() === 'ADELANTADO') {
+  opts.push({ value: 'rechazado', label: 'Rechazado' });
+ } else {
+  opts.push({ value: 'reportado', label: 'Reportado' });
+ }
+ return opts;
+ },
+
+ tipoTicketApiHint(ticket) {
+ return String(ticket?.tipo || '').toUpperCase() === 'ADELANTADO' ? 'ADELANTADO' : 'COMANDA';
+ },
+
+ textoBotonGuardarTicket() {
+ if (this.guardandoTicket) return 'Guardando...';
+ const antes = this.ticketEditando?.estado;
+ const nuevo = this.ticketEditForm?.estado;
+ if (antes === 'pendiente_aprobacion' && nuevo === 'aprobado') return 'Forzar aprobación';
+ if (antes === 'pendiente_aprobacion' && nuevo === 'reportado') return 'Reportar ticket';
+ if (antes === 'pendiente_aprobacion' && nuevo === 'rechazado') return 'Rechazar ticket';
+ return 'Guardar';
+ },
+
+ ticketMotivoEstadoRequerido() {
+ const nuevo = this.ticketEditForm?.estado;
+ if (this.ticketEditando?.estado !== 'pendiente_aprobacion') return false;
+ if (nuevo !== 'reportado' && nuevo !== 'rechazado') return false;
+ return String(this.ticketEditForm?.motivoEstado || '').trim().length < 3;
+ },
+
  ticketEstadoBadgeClass(estado) {
  const classes = {
  pendiente_aprobacion: 'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar',
@@ -4455,23 +4511,83 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  this.ticketEditForm = {
  observaciones: ticket.observaciones || '',
  metodoPago: ticket.metodoPago || 'efectivo',
+ estado: ticket.estado || 'pendiente_aprobacion',
+ motivoEstado: '',
  };
  this.modal = 'editarTicket';
  },
 
+ assertApiOk(res, fallback) {
+ if (!res || res.ok === false || res.success === false) {
+  throw new Error(res?.message || res?.error || fallback);
+ }
+ return res;
+ },
+
+ async refrescarComandaEnEdicion() {
+ const comandaId = this.editComanda?._id;
+ if (!comandaId) return;
+ const detalle = await this.loadComandaDetalle(comandaId);
+ if (detalle) {
+  this.editComanda = { ...this.editComanda, ...detalle, _id: detalle._id };
+  this.editPlatos = (detalle.items || []).map(item => ({
+   ...item,
+   estadoOriginal: item.estado,
+   cantidadOriginal: Number(item.cantidad) || 1
+  }));
+ }
+ await this.loadComandaTickets(comandaId);
+ },
+
  async guardarEdicionTicket() {
  if (!this.ticketEditando?._id) return;
+ const estadoAntes = this.ticketEditando.estado;
+ const estadoNuevo = this.ticketEditForm.estado || estadoAntes;
+ const fuerzaAprobar = estadoAntes === 'pendiente_aprobacion' && estadoNuevo === 'aprobado';
+ const reportar = estadoAntes === 'pendiente_aprobacion' && estadoNuevo === 'reportado';
+ const rechazar = estadoAntes === 'pendiente_aprobacion' && estadoNuevo === 'rechazado';
+ const motivo = String(this.ticketEditForm.motivoEstado || '').trim();
+ if ((reportar || rechazar) && motivo.length < 3) {
+  this.showToast('El motivo es obligatorio (mínimo 3 caracteres)', 'error');
+  return;
+ }
  this.guardandoTicket = true;
  try {
- const res = await apiPut('/aprobacion/' + this.ticketEditando._id + '/editar', {
- tipo: this.ticketEditando.tipo,
- observaciones: this.ticketEditForm.observaciones,
- metodoPago: this.ticketEditForm.metodoPago,
- });
+ const tipoHint = this.tipoTicketApiHint(this.ticketEditando);
+ const res = this.assertApiOk(await apiPut('/aprobacion/' + this.ticketEditando._id + '/editar', {
+  tipo: tipoHint,
+  observaciones: this.ticketEditForm.observaciones,
+  metodoPago: this.ticketEditForm.metodoPago,
+ }), 'No se pudo guardar el ticket');
  if (res?.ticket) {
- this.actualizarTicketEnLista(this.ticketEditando._id, res.ticket);
+  this.actualizarTicketEnLista(this.ticketEditando._id, res.ticket);
  }
- this.showToast('Ticket actualizado', 'success');
+ const actor = { usuarioId: 'admin', usuarioNombre: 'Admin' };
+ if (fuerzaAprobar) {
+  const apr = this.assertApiOk(await apiPut('/aprobacion/' + this.ticketEditando._id + '/aprobar', {
+   tipo: tipoHint,
+   ...actor,
+  }), 'No se pudo forzar la aprobación');
+  const ticketApr = apr.resultado?.ticket || apr.ticket;
+  this.actualizarTicketEnLista(this.ticketEditando._id, { estado: 'aprobado', ...(ticketApr || {}) });
+ } else if (reportar) {
+  this.assertApiOk(await apiPut('/aprobacion/' + this.ticketEditando._id + '/reportar', {
+   motivo,
+   ...actor,
+  }), 'No se pudo reportar el ticket');
+  this.actualizarTicketEnLista(this.ticketEditando._id, { estado: 'reportado', motivoReporte: motivo });
+ } else if (rechazar) {
+  this.assertApiOk(await apiPut('/aprobacion/' + this.ticketEditando._id + '/eliminar', {
+   tipo: tipoHint,
+   motivo,
+   ...actor,
+  }), 'No se pudo rechazar el ticket');
+  this.removerTicketDeLista(this.ticketEditando._id);
+ }
+ if (fuerzaAprobar || reportar || rechazar) {
+  await this.refrescarComandaEnEdicion();
+ }
+ this.showToast(fuerzaAprobar ? 'Ticket aprobado (forzado)' : 'Ticket actualizado', 'success');
  this.modal = 'editarComanda';
  this.ticketEditando = null;
  } catch (error) {
