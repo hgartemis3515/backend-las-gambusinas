@@ -10,6 +10,7 @@ const AuditoriaAcciones = require('../database/models/auditoriaAcciones.model');
 const logger = require('../utils/logger');
 const { adjuntarDescuentoTicket, aplicarDescuentoAVistaTicket, BOUCHER_DESCUENTO_SELECT, COMANDA_DESCUENTO_SELECT } = require('../utils/descuentoTicketSnapshot');
 const { aplicarTotalesPedidoPPA } = require('../utils/totalesTicketPPA');
+const { aplicarPreciosEnLineasTicket, sincronizarPreciosComandaYBoucher } = require('../utils/editarPreciosTicket');
 
 function mapTicketPPAVista(ticket) {
   return aplicarDescuentoAVistaTicket(aplicarTotalesPedidoPPA(ticket));
@@ -564,9 +565,9 @@ async function obtenerTicketsPorComanda(comandaId) {
 }
 
 /**
- * Editar observaciones de un TPA pendiente (admin).
+ * Editar observaciones / método / precios de un TPA pendiente o aprobado (admin).
  */
-async function actualizarTicketAdmin(ticketId, { observaciones, metodoPago }) {
+async function actualizarTicketAdmin(ticketId, { observaciones, metodoPago, platos }) {
   const ticket = await ticketPagoAdelantadoModel.findById(ticketId);
   if (!ticket || !ticket.isActive) {
     const err = new Error('Ticket de pago adelantado no encontrado');
@@ -582,8 +583,16 @@ async function actualizarTicketAdmin(ticketId, { observaciones, metodoPago }) {
   if (metodoPago && ['efectivo', 'digital', 'tarjeta'].includes(metodoPago)) {
     ticket.metodoPago = metodoPago;
   }
+  let comandasAfectadas = [];
+  const precios = aplicarPreciosEnLineasTicket(ticket, platos);
+  if (precios.changed) {
+    comandasAfectadas = await sincronizarPreciosComandaYBoucher(
+      precios.cambiosComanda,
+      ticket.boucher
+    );
+  }
   await ticket.save();
-  return ticket.toObject();
+  return { ticket: ticket.toObject(), comandasAfectadas };
 }
 
 module.exports = {

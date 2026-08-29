@@ -386,17 +386,18 @@ router.get('/comanda/:id/tickets', async (req, res) => {
 
 /**
  * PUT /api/aprobacion/:id/editar
- * Edita observaciones/método de pago de un ticket pendiente (admin).
- * Body: { tipo?: 'COMANDA'|'ADELANTADO', observaciones?, metodoPago? }
+ * Edita observaciones, método de pago y precios de platos (pendiente o aprobado).
+ * Body: { tipo?: 'COMANDA'|'ADELANTADO', observaciones?, metodoPago?, platos?: [{ platoLineaId, precio }] }
  */
 router.put('/aprobacion/:id/editar', async (req, res) => {
   try {
     const { id } = req.params;
-    const { tipo, observaciones, metodoPago } = req.body;
+    const { tipo, observaciones, metodoPago, platos } = req.body;
 
     const result = await aprobacionService.actualizarTicketUnificado(id, tipo, {
       observaciones,
       metodoPago,
+      platos,
     });
 
     const io = global.io;
@@ -406,13 +407,51 @@ router.put('/aprobacion/:id/editar', async (req, res) => {
         ticketId: result.ticket._id,
         ticket: result.ticket,
         tipo: result.tipo,
+        estado: result.ticket.estado,
         comandas: result.ticket.comandas,
       };
       io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-actualizado', payload);
       io.of('/admin').emit('ticket-actualizado', payload);
+      if (result.tipo === 'ADELANTADO') {
+        io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-ppa-actualizado', payload);
+        io.of('/admin').emit('ticket-ppa-actualizado', payload);
+      }
+      for (const comandaId of (result.comandasAfectadas || [])) {
+        try {
+          const comandaActualizada = await comandaModel.findById(comandaId)
+            .populate('platos.plato', 'nombre precio id')
+            .populate('mozos', 'name')
+            .populate('mesas', 'nummesa estado nombreCombinado')
+            .lean();
+          if (comandaActualizada) {
+            io.of('/cocina').to(`fecha-${fechaHoy}`).emit('comanda-actualizada', {
+              comandaId,
+              comanda: comandaActualizada,
+              status: comandaActualizada.status,
+            });
+            io.of('/admin').emit('comanda-actualizada', {
+              comandaId,
+              comanda: comandaActualizada,
+              status: comandaActualizada.status,
+            });
+            io.of('/mozos').emit('comanda-actualizada', {
+              comandaId,
+              comanda: comandaActualizada,
+              status: comandaActualizada.status,
+            });
+          }
+        } catch (emitErr) {
+          logger.warn('Error emitiendo comanda tras editar precios de ticket', { error: emitErr.message });
+        }
+      }
     }
 
-    res.json({ success: true, ticket: result.ticket, tipo: result.tipo });
+    res.json({
+      success: true,
+      ticket: result.ticket,
+      tipo: result.tipo,
+      comandasAfectadas: result.comandasAfectadas || [],
+    });
   } catch (error) {
     logger.error('Error al editar ticket', { error: error.message });
     const statusCode = error.statusCode || 500;

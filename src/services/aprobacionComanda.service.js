@@ -166,12 +166,12 @@ async function actualizarTicketUnificado(ticketId, tipoHint, data) {
   const { tipo: tipoReal } = await detectarTipoReal(ticketId, tipoNormalizado);
 
   if (tipoReal === 'COMANDA') {
-    const ticket = await ticketAprobacionRepository.actualizarTicketAdmin(ticketId, data);
-    return { ticket, tipo: 'COMANDA' };
+    const out = await ticketAprobacionRepository.actualizarTicketAdmin(ticketId, data);
+    return { ticket: out.ticket, comandasAfectadas: out.comandasAfectadas || [], tipo: 'COMANDA' };
   }
 
-  const ticket = await ticketPagoAdelantadoRepository.actualizarTicketAdmin(ticketId, data);
-  return { ticket, tipo: 'ADELANTADO' };
+  const out = await ticketPagoAdelantadoRepository.actualizarTicketAdmin(ticketId, data);
+  return { ticket: out.ticket, comandasAfectadas: out.comandasAfectadas || [], tipo: 'ADELANTADO' };
 }
 
 /**

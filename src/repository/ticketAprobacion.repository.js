@@ -8,6 +8,7 @@ const mongoose = require('mongoose');
 const moment = require('moment-timezone');
 const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
 const { adjuntarDescuentoTicket, aplicarDescuentoAVistaTicket, totalesConDescuentoImpresion, BOUCHER_DESCUENTO_SELECT, COMANDA_DESCUENTO_SELECT } = require('../utils/descuentoTicketSnapshot');
+const { aplicarPreciosEnLineasTicket, sincronizarPreciosComandaYBoucher } = require('../utils/editarPreciosTicket');
 const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
 const comandaModel = require('../database/models/comanda.model');
 const mesasModel = require('../database/models/mesas.model');
@@ -708,9 +709,10 @@ async function obtenerTicketsPorComanda(comandaId) {
 }
 
 /**
- * Editar campos permitidos de un ticket pendiente (admin).
+ * Editar campos permitidos de un ticket pendiente o aprobado (admin).
+ * Puede incluir precios de platos (snapshot del ticket, comanda y boucher).
  */
-async function actualizarTicketAdmin(ticketId, { observaciones, metodoPago }) {
+async function actualizarTicketAdmin(ticketId, { observaciones, metodoPago, platos }) {
   const ticket = await ticketAprobacionModel.findById(ticketId);
   if (!ticket || !ticket.isActive) {
     const err = new Error('Ticket de aprobación no encontrado');
@@ -726,8 +728,16 @@ async function actualizarTicketAdmin(ticketId, { observaciones, metodoPago }) {
   if (metodoPago && ['efectivo', 'digital', 'tarjeta'].includes(metodoPago)) {
     ticket.metodoPago = metodoPago;
   }
+  let comandasAfectadas = [];
+  const precios = aplicarPreciosEnLineasTicket(ticket, platos);
+  if (precios.changed) {
+    comandasAfectadas = await sincronizarPreciosComandaYBoucher(
+      precios.cambiosComanda,
+      ticket.boucher
+    );
+  }
   await ticket.save();
-  return ticket.toObject();
+  return { ticket: ticket.toObject(), comandasAfectadas };
 }
 
 /**

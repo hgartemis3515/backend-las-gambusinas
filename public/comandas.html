@@ -1755,7 +1755,7 @@ tailwind.config = {
 
 <!-- MODAL: EDITAR TICKET -->
 <div x-show="modal==='editarTicket'" x-transition.opacity class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80" @click.self="modal='editarComanda'">
- <div class="bg-bg-card border border-gold/30 rounded-2xl w-[420px] shadow-2xl" @click.stop>
+ <div class="bg-bg-card border border-gold/30 rounded-2xl w-[520px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
  <div class="p-5 border-b border-gold/10">
  <h3 class="text-lg font-bold flex items-center gap-2">
  <span>✏️</span> Editar Ticket #<span x-text="ticketEditando?.ticketNumber || '—'"></span>
@@ -1794,9 +1794,25 @@ tailwind.config = {
  <textarea x-model="ticketEditForm.motivoEstado" rows="2" placeholder="Motivo (mínimo 3 caracteres)..."
   class="w-full bg-bg-sidebar border border-gold/25 rounded-lg px-3 py-2 text-sm text-white focus:border-gold focus:outline-none resize-none"></textarea>
  </div>
+ <div x-show="(ticketEditForm.platos || []).length" class="space-y-2">
+ <p class="text-[10px] text-txt-muted font-semibold">Precios de platos</p>
+ <p class="text-[9px] text-txt-muted">El cambio se ve en cocina y al imprimir la comanda, en tickets pendientes y aprobados.</p>
+ <div class="space-y-1.5 max-h-48 overflow-y-auto">
+  <template x-for="(p, pi) in ticketEditForm.platos" :key="p.platoLineaId || p._id || pi">
+   <div class="flex items-center gap-2 bg-bg-sidebar rounded-lg px-2 py-1.5">
+    <span class="flex-1 min-w-0 text-[11px] text-txt-secondary truncate" x-text="(p.cantidad || 1) + '× ' + (p.nombre || 'Plato')"></span>
+    <span class="text-[10px] text-txt-muted shrink-0">S/.</span>
+    <input type="number" min="0" step="0.01" x-model.number="p.precio"
+     class="w-[4.5rem] bg-bg-card border border-gold/25 rounded px-1.5 py-1 text-[11px] text-white text-right focus:border-gold focus:outline-none">
+    <span class="w-16 text-right text-[10px] text-gold shrink-0" x-text="'S/. ' + ticketLineaSubtotal(p).toFixed(2)"></span>
+   </div>
+  </template>
+ </div>
+ </div>
  <div class="bg-bg-sidebar rounded-lg p-3 text-xs text-txt-secondary">
- <p x-text="'Total: S/. ' + Number(ticketEditando?.total || 0).toFixed(2)"></p>
- <p x-text="'Platos: ' + (ticketEditando?.cantidadPlatos || ticketEditando?.platos?.length || 0)"></p>
+ <p x-text="'Total: S/. ' + ticketEditFormNeto().toFixed(2)"></p>
+ <p x-show="Number(ticketEditando?.montoDescuento) > 0" class="text-st-pagado" x-text="'Desc. -S/. ' + (ticketEditFormBruto() - ticketEditFormNeto()).toFixed(2)"></p>
+ <p x-text="'Platos: ' + (ticketEditForm.platos?.length || ticketEditando?.cantidadPlatos || 0)"></p>
  </div>
  </div>
  <div class="bg-bg-sidebar p-4 rounded-b-2xl flex justify-end gap-2">
@@ -2200,7 +2216,7 @@ function comandasApp() {
  comandaTickets: [],
  loadingTickets: false,
  ticketEditando: null,
- ticketEditForm: { observaciones: '', metodoPago: 'efectivo', estado: 'pendiente_aprobacion', motivoEstado: '' },
+ ticketEditForm: { observaciones: '', metodoPago: 'efectivo', estado: 'pendiente_aprobacion', motivoEstado: '', platos: [] },
  ticketEliminar: null,
  motivoEliminarTicket: '',
  guardandoTicket: false,
@@ -4355,6 +4371,34 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  return String(this.ticketEditForm?.motivoEstado || '').trim().length < 3;
  },
 
+ clonarPlatosTicketParaEdicion(ticket) {
+ return (ticket?.platos || []).filter((p) => p && !p.eliminado).map((p) => ({
+  platoLineaId: p.platoLineaId || p._id,
+  _id: p._id,
+  nombre: p.nombre || 'Plato',
+  cantidad: Math.max(1, Number(p.cantidad) || 1),
+  precio: Number(p.precio) || 0,
+ }));
+ },
+
+ ticketLineaSubtotal(p) {
+ const cant = Math.max(1, Number(p?.cantidad) || 1);
+ const precio = Number(p?.precio);
+ return Number(((Number.isFinite(precio) && precio >= 0 ? precio : 0) * cant).toFixed(2));
+ },
+
+ ticketEditFormBruto() {
+ return Number(((this.ticketEditForm.platos || []).reduce((s, p) => s + this.ticketLineaSubtotal(p), 0)).toFixed(2));
+ },
+
+ ticketEditFormNeto() {
+ const bruto = this.ticketEditFormBruto();
+ const pct = Number(this.ticketEditando?.descuentos?.[0]?.porcentaje) || 0;
+ if (pct > 0) return Number((bruto * (1 - pct / 100)).toFixed(2));
+ const md = Number(this.ticketEditando?.montoDescuento) || 0;
+ return Number(Math.max(0, bruto - md).toFixed(2));
+ },
+
  ticketEstadoBadgeClass(estado) {
  const classes = {
  pendiente_aprobacion: 'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar',
@@ -4513,6 +4557,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  metodoPago: ticket.metodoPago || 'efectivo',
  estado: ticket.estado || 'pendiente_aprobacion',
  motivoEstado: '',
+ platos: this.clonarPlatosTicketParaEdicion(ticket),
  };
  this.modal = 'editarTicket';
  },
@@ -4558,6 +4603,10 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   tipo: tipoHint,
   observaciones: this.ticketEditForm.observaciones,
   metodoPago: this.ticketEditForm.metodoPago,
+  platos: (this.ticketEditForm.platos || []).map((p) => ({
+   platoLineaId: p.platoLineaId || p._id,
+   precio: Number(p.precio) || 0,
+  })),
  }), 'No se pudo guardar el ticket');
  if (res?.ticket) {
   this.actualizarTicketEnLista(this.ticketEditando._id, res.ticket);
@@ -4584,7 +4633,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   }), 'No se pudo rechazar el ticket');
   this.removerTicketDeLista(this.ticketEditando._id);
  }
- if (fuerzaAprobar || reportar || rechazar) {
+ if (fuerzaAprobar || reportar || rechazar || (this.ticketEditForm.platos || []).length) {
   await this.refrescarComandaEnEdicion();
  }
  this.showToast(fuerzaAprobar ? 'Ticket aprobado (forzado)' : 'Ticket actualizado', 'success');
