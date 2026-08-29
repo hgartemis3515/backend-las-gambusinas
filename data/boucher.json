@@ -1,170 +1,86 @@
 [
   {
     "configuracionIGV": {
-      "igvPorcentaje": 18,
+      "igvPorcentaje": 10.5,
       "preciosIncluyenIGV": true,
       "nombreImpuesto": "IGV",
       "moneda": "PEN",
       "simboloMoneda": "S/."
     },
-    "_id": "6a4e83eaa5de764f16fb334a",
-    "voucherId": "TI4WX",
-    "mesa": "6989345f914a31fe82a52cf4",
-    "numMesa": 5,
-    "mozo": "6a340bcd1dca8b06b7bf578f",
-    "nombreMozo": "Ari",
-    "cliente": "6a4e83eaa5de764f16fb32bf",
+    "_id": "6a92262b66d357930455b784",
+    "voucherId": "EFZZA",
+    "mesa": "6a468519bc8b1ec94500c253",
+    "numMesa": 666,
+    "mozo": "6a342d40c852acca62b5f619",
+    "nombreMozo": "Melina",
+    "cliente": "6a92262a66d357930455b671",
     "usadoEnComanda": null,
     "fechaUso": null,
     "comandas": [
-      "6a3ee9d6ba399b271b3002fc"
+      "6a921ec466c7bdab58db7e9f"
     ],
     "comandasNumbers": [
-      159
+      607
     ],
-    "pedido": "6a3da6d0ed15234930cfd8b4",
+    "pedido": "6a921ec466c7bdab58db7ea7",
     "platos": [
       {
-        "plato": "6a32cc501a6d8fec7eb79b5d",
-        "platoId": 5,
-        "nombre": "Pan solo",
-        "precio": 0.5,
+        "plato": "6993485b6268f6c19d755704",
+        "platoId": 30,
+        "nombre": "Gaseosa 1⁄2 litro (Cola o Inca)",
+        "precio": 6,
         "cantidad": 1,
-        "subtotal": 0.5,
-        "comandaNumber": 159,
+        "subtotal": 6,
+        "comandaNumber": 607,
+        "platoLineaId": null,
+        "eliminado": false,
         "complementosSeleccionados": [
           {
-            "grupo": "1121",
-            "opcion": "",
-            "_id": "6a3ee9d6ba399b271b3002fe"
+            "grupo": "Tipo",
+            "opcion": "Coca Cola",
+            "pronombre": "",
+            "_id": "6a921ec466c7bdab58db7ea1"
           }
         ],
         "tipoServicio": "mesa",
-        "cocinero": "Cocinero1",
-        "cocineroId": "6a340e271dca8b06b7bf59ff",
+        "cocinero": "Martha",
+        "cocineroId": "6a3c6a341abb278cd2f384ec",
         "tiempoPreparacion": null,
-        "_id": "6a4e83eaa5de764f16fb334b"
-      },
-      {
-        "plato": "6a3c63957cae610b16e8105c",
-        "platoId": 91,
-        "nombre": "Caramelo",
-        "precio": 1,
-        "cantidad": 1,
-        "subtotal": 1,
-        "comandaNumber": 159,
-        "complementosSeleccionados": [],
-        "tipoServicio": "mesa",
-        "cocinero": "Cocinero1",
-        "cocineroId": "6a340e271dca8b06b7bf59ff",
-        "tiempoPreparacion": null,
-        "_id": "6a4e83eaa5de764f16fb334d"
+        "_id": "6a92262b66d357930455b785"
       }
     ],
-    "subtotal": 1.27,
-    "igv": 0.23,
-    "total": 1.5,
-    "descuentos": [],
-    "totalSinDescuento": 1.5,
-    "montoDescuento": 0,
-    "totalConDescuento": 1.5,
+    "subtotal": 5.43,
+    "igv": 0.57,
+    "total": 4,
+    "descuentos": [
+      {
+        "comandaNumber": 607,
+        "porcentaje": 33.3333,
+        "motivo": "Helen",
+        "monto": 2,
+        "aplicadoPor": null,
+        "_id": "6a92262b66d357930455b787"
+      }
+    ],
+    "totalSinDescuento": 6,
+    "montoDescuento": 2,
+    "totalConDescuento": 4,
     "observaciones": "",
-    "fechaPedido": "2026-06-26T21:06:30.305Z",
-    "fechaPago": "2026-07-08T17:07:54.760Z",
-    "fechaPagoString": "08/07/2026 12:07:54",
+    "fechaPedido": "2026-08-28T23:50:28.541Z",
+    "fechaPago": "2026-08-29T00:22:03.104Z",
+    "fechaPagoString": "28/08/2026 19:22:03",
     "isActive": true,
     "esPagoParcial": true,
     "esPagoAdelantado": false,
     "ticketPagoAdelantado": null,
-    "metodoPago": "digital",
-    "metodoPagoLabel": "YAPE/PLIN",
-    "montoRecibido": null,
-    "vuelto": null,
+    "metodoPago": "efectivo",
+    "metodoPagoLabel": "Efectivo",
+    "montoRecibido": 4,
+    "vuelto": 0,
     "moneda": "PEN",
     "tipoCambioUsd": null,
-    "createdAt": "2026-07-08T17:07:54.788Z",
-    "updatedAt": "2026-07-08T17:07:54.788Z",
-    "boucherNumber": 134
-  },
-  {
-    "configuracionIGV": {
-      "igvPorcentaje": 18,
-      "preciosIncluyenIGV": true,
-      "nombreImpuesto": "IGV",
-      "moneda": "PEN",
-      "simboloMoneda": "S/."
-    },
-    "_id": "6a4fcd7f91ee2bd27afa5e38",
-    "voucherId": "EFZXS",
-    "mesa": "69860a4bbb20969ed3d22bcd",
-    "numMesa": 3,
-    "mozo": "6a340bcd1dca8b06b7bf578f",
-    "nombreMozo": "Ari",
-    "cliente": "6a4fcd7e91ee2bd27afa5d77",
-    "usadoEnComanda": null,
-    "fechaUso": null,
-    "comandas": [
-      "6a4fc4da97a65c01c3a083fb"
-    ],
-    "comandasNumbers": [
-      171
-    ],
-    "pedido": "6a4ea3c80dfe6d3875867694",
-    "platos": [
-      {
-        "plato": "6a32cc501a6d8fec7eb79b7c",
-        "platoId": 37,
-        "nombre": "Ensalada especial (limon o vinagreta)",
-        "precio": 15,
-        "cantidad": 1,
-        "subtotal": 15,
-        "comandaNumber": 171,
-        "complementosSeleccionados": [],
-        "tipoServicio": "mesa",
-        "cocinero": "Cocinero2",
-        "cocineroId": "6a340e341dca8b06b7bf5a2b",
-        "tiempoPreparacion": null,
-        "_id": "6a4fcd7f91ee2bd27afa5e39"
-      },
-      {
-        "plato": "6a32cc501a6d8fec7eb79b7b",
-        "platoId": 36,
-        "nombre": "Papa a la huancaína",
-        "precio": 13,
-        "cantidad": 1,
-        "subtotal": 13,
-        "comandaNumber": 171,
-        "complementosSeleccionados": [],
-        "tipoServicio": "mesa",
-        "cocinero": "Cocinero2",
-        "cocineroId": "6a340e341dca8b06b7bf5a2b",
-        "tiempoPreparacion": null,
-        "_id": "6a4fcd7f91ee2bd27afa5e3a"
-      }
-    ],
-    "subtotal": 23.73,
-    "igv": 4.27,
-    "total": 28,
-    "descuentos": [],
-    "totalSinDescuento": 28,
-    "montoDescuento": 0,
-    "totalConDescuento": 28,
-    "observaciones": "",
-    "fechaPedido": "2026-07-09T15:57:14.188Z",
-    "fechaPago": "2026-07-09T16:34:07.090Z",
-    "fechaPagoString": "09/07/2026 11:34:07",
-    "isActive": true,
-    "esPagoParcial": true,
-    "esPagoAdelantado": false,
-    "ticketPagoAdelantado": null,
-    "metodoPago": "digital",
-    "metodoPagoLabel": "YAPE/PLIN",
-    "montoRecibido": null,
-    "vuelto": null,
-    "moneda": "PEN",
-    "tipoCambioUsd": null,
-    "createdAt": "2026-07-09T16:34:07.106Z",
-    "updatedAt": "2026-07-09T16:34:07.106Z",
-    "boucherNumber": 143
+    "createdAt": "2026-08-29T00:22:03.261Z",
+    "updatedAt": "2026-08-29T00:22:03.261Z",
+    "boucherNumber": 229
   }
 ]
