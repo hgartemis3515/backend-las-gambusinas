@@ -20,7 +20,7 @@ const PERMISOS_FUNDAMENTALES = {
     'editar-mozos': { nombre: 'Editar Mozos', grupo: 'Backend/Dashboard', descripcion: 'Crear, modificar y eliminar mozos' },
     'gestionar-roles': { nombre: 'Gestionar Roles', grupo: 'Backend/Dashboard', descripcion: 'Asignar y modificar roles y permisos' },
     'ver-auditoria': { nombre: 'Ver Auditoría', grupo: 'Backend/Dashboard', descripcion: 'Acceder al registro de acciones del sistema' },
-    'ver-reportes': { nombre: 'Ver Reportes', grupo: 'Backend/Dashboard', descripcion: 'Acceder a reportes y estadísticas' },
+    'ver-reportes': { nombre: 'Ver Reportes', grupo: 'Backend/Dashboard', descripcion: 'Ver el módulo Reportes en el panel de gestión (ventas, platos, mozos, cocineros)' },
     // Cierre de caja: división granular (ver-cierre-caja, ejecutar-cierre-caja).
     // 'cierre-caja' se mantiene como alias legacy por compatibilidad.
     'ver-cierre-caja': { nombre: 'Ver Cierre de Caja', grupo: 'Backend/Dashboard', descripcion: 'Ver cierre de caja, historial, KPIs y verificar tickets antes del cierre' },
@@ -59,7 +59,7 @@ const PERMISOS_POR_ROL = {
     admin: Object.keys(PERMISOS_FUNDAMENTALES),
     supervisor: [
         'ver-mesas', 'editar-mesas', 'juntar-separar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas',
-        'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria', 'ver-reportes',
+        'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria',
         'ver-notificaciones', 'crear-comandas', 'editar-comandas',
         'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina',
         // Mensajería: supervisor cubre texto, voz, anuncios, canales y supervisión; sin forzar prioridad critica
@@ -85,7 +85,7 @@ const PERMISOS_POR_ROL = {
     ],
     cajero: [
         'ver-mesas', 'editar-mesas', 'juntar-separar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas',
-        'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria', 'ver-reportes',
+        'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria',
         'ver-notificaciones', 'crear-comandas', 'editar-comandas',
         'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina',
         'ver-mensajes', 'enviar-mensajes', 'enviar-mensajes-voz', 'enviar-anuncios',

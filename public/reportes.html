@@ -788,6 +788,13 @@ function reportesApp() {
         window.location.href = '/login.html';
         return;
       }
+
+      const puedeVer = typeof sharedTienePermiso === 'function' && sharedTienePermiso('ver-reportes');
+      if (!puedeVer) {
+        this.showToast('No tienes permiso para ver Reportes', 'error');
+        setTimeout(() => { window.location.href = '/index.html'; }, 1500);
+        return;
+      }
       
       // Establecer filtro inicial y cargar datos
       this.setFiltroRapido('7 días');

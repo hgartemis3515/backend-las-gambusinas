@@ -25,7 +25,7 @@ const PERMISOS_FUNDAMENTALES = {
     'editar-mozos': { nombre: 'Editar Usuarios', grupo: 'Backend/Dashboard', descripcion: 'Crear, modificar y eliminar usuarios' },
     'gestionar-roles': { nombre: 'Gestionar Roles', grupo: 'Backend/Dashboard', descripcion: 'Crear y asignar roles y permisos' },
     'ver-auditoria': { nombre: 'Ver Auditoría', grupo: 'Backend/Dashboard', descripcion: 'Acceder al registro de acciones del sistema' },
-    'ver-reportes': { nombre: 'Ver Reportes', grupo: 'Backend/Dashboard', descripcion: 'Acceder a reportes y estadísticas' },
+    'ver-reportes': { nombre: 'Ver Reportes', grupo: 'Backend/Dashboard', descripcion: 'Ver el módulo Reportes en el panel de gestión (ventas, platos, mozos, cocineros)' },
     // Cierre de caja: división granular para control de acceso
     // - ver-cierre-caja: ver el módulo, historial, KPIs y la tabla de verificación de tickets
     // - ejecutar-cierre-caja: confirmar el cierre irreversible del período
@@ -88,7 +88,7 @@ const REGLAS_FUNDAMENTALES = {
 // Cajero = mismos permisos que supervisor, más ver/ejecutar cierre de caja.
 const PERMISOS_SUPERVISOR = [
     'ver-mesas', 'editar-mesas', 'juntar-separar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas',
-    'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria', 'ver-reportes',
+    'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria',
     'ver-notificaciones', 'crear-comandas', 'editar-comandas',
     'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina', 'aplicar-descuentos',
     'crear-comandas-dashboard',

@@ -27,7 +27,7 @@ const inicializarRolesSistema = async () => {
 
         const descripciones = {
             admin: 'Acceso total al sistema y todas las funcionalidades',
-            supervisor: 'Gestión operativa, reportes y supervisión del personal',
+            supervisor: 'Gestión operativa y supervisión del personal',
             cocinero: 'Gestión de comandas en la cocina',
             mozos: 'Atención al cliente y gestión de pedidos',
             cajero: 'Mismos permisos que supervisor, más ver y ejecutar cierre de caja'
