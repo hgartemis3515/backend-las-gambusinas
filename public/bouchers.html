@@ -148,7 +148,7 @@ tailwind.config = {
           <span x-text="agruparPorPedido ? '👥' : '📋'"></span>
           <span x-text="agruparPorPedido ? 'Agrupado' : 'Individual'"></span>
         </button>
-        <button @click="limpiarFiltros()" x-show="filterCodigo || filterNumero || filterMozo || filterFechaDesde || filterFechaHasta" class="px-3 py-2 text-xs text-txt-muted hover:text-gold transition border border-transparent hover:border-gold/30 rounded-lg">✕ Limpiar</button>
+        <button @click="limpiarFiltros()" x-show="filterCodigo || filterNumero || filterMozo || filterFechaDesde || filterFechaHasta" class="dash-btn-limpiar px-3 py-2 text-xs text-txt-muted hover:text-gold transition border border-transparent hover:border-gold/30 rounded-lg">✕ Limpiar</button>
       </div>
 
       <div class="flex flex-col xl:flex-row gap-4 items-start">

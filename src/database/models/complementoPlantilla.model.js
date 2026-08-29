@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const AutoIncrement = require('mongoose-sequence')(mongoose);
+const { normalizarOpcionDocumento } = require('../../utils/opcionComplemento');
 
 /**
  * Modelo para Biblioteca Maestra de Complementos Reutilizables
@@ -48,7 +49,9 @@ const complementoPlantillaSchema = new mongoose.Schema({
             default: '',
             trim: true,
             maxlength: [40, 'El pronombre no puede exceder 40 caracteres']
-        }
+        },
+        preseleccionada: { type: Boolean, default: false },
+        cantidadPreseleccion: { type: Number, default: 1, min: 1, max: 99 }
     }],
     obligatorio: {
         type: Boolean,
@@ -116,20 +119,9 @@ complementoPlantillaSchema.index(
 // la validación del subesquema opciones. Sin esto, Mongoose rechazaría strings.
 complementoPlantillaSchema.pre('validate', function (next) {
     if (Array.isArray(this.opciones)) {
-        this.opciones = this.opciones.map((op) => {
-            if (op == null) return { nombre: '', precio: 0, pronombre: '' };
-            if (typeof op === 'string') return { nombre: op.trim(), precio: 0, pronombre: '' };
-            if (typeof op === 'object') {
-                const nombre = String(op.nombre ?? '').trim();
-                const precio = Number(op.precio);
-                return {
-                    nombre,
-                    precio: Number.isFinite(precio) && precio > 0 ? precio : 0,
-                    pronombre: String(op.pronombre || '').trim().slice(0, 40)
-                };
-            }
-            return { nombre: String(op).trim(), precio: 0, pronombre: '' };
-        });
+        this.opciones = this.opciones.map((op) =>
+            normalizarOpcionDocumento(op) || { nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1 }
+        );
     }
     next();
 });
@@ -157,24 +149,8 @@ complementoPlantillaSchema.pre('save', function(next) {
         const opcionesLimpias = [];
 
         for (const op of this.opciones) {
-            let normalizada;
-            if (op == null) continue;
-            if (typeof op === 'string') {
-                const nombre = op.trim();
-                if (!nombre) continue;
-                normalizada = { nombre, precio: 0, pronombre: '' };
-            } else if (typeof op === 'object') {
-                const nombre = String(op.nombre || '').trim();
-                if (!nombre) continue;
-                const precio = Number(op.precio);
-                normalizada = {
-                    nombre,
-                    precio: Number.isFinite(precio) && precio > 0 ? precio : 0,
-                    pronombre: String(op.pronombre || '').trim().slice(0, 40)
-                };
-            } else {
-                continue;
-            }
+            const normalizada = normalizarOpcionDocumento(op);
+            if (!normalizada) continue;
             const key = normalizada.nombre.toLowerCase();
             if (vistos.has(key)) continue;
             vistos.add(key);

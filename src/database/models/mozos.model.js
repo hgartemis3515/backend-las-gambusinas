@@ -36,6 +36,8 @@ const PERMISOS_FUNDAMENTALES = {
     'eliminar-platos-comandas': { nombre: 'Eliminar Platos/Comandas', grupo: 'App Mozos', descripcion: 'Eliminar platos o comandas completas' },
     'procesar-pagos': { nombre: 'Procesar Pagos/Bouchers', grupo: 'App Mozos', descripcion: 'Generar bouchers y procesar pagos' },
     'asociar-clientes': { nombre: 'Asociar Clientes', grupo: 'App Mozos', descripcion: 'Vincular clientes a comandas' },
+    'crear-reservas-mozos': { nombre: 'Crear Reservas (App Mozos)', grupo: 'App Mozos', descripcion: 'Crear reservas desde el botón Reservar de la barra de Inicio' },
+    'asignar-encargado-reserva': { nombre: 'Asignar Encargado de Reserva', grupo: 'App Mozos', descripcion: 'Asignar cocinero encargado al crear una reserva' },
     // PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR: Panel de Gestión en App Mozos (peticiones/solicitudes)
     'ver-panel-gestion-mozos': { nombre: 'Ver Panel de Gestión', grupo: 'App Mozos', descripcion: 'Acceder al Panel de Gestión en App Mozos (peticiones/solicitudes de otros usuarios, p. ej. Solicitar Orden desde cocina)' },
     
@@ -62,6 +64,7 @@ const PERMISOS_POR_ROL = {
         'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria',
         'ver-notificaciones', 'crear-comandas', 'editar-comandas',
         'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina',
+        'crear-reservas-mozos', 'asignar-encargado-reserva',
         // Mensajería: supervisor cubre texto, voz, anuncios, canales y supervisión; sin forzar prioridad critica
         'ver-mensajes', 'enviar-mensajes', 'enviar-mensajes-voz', 'enviar-anuncios',
         'gestionar-canales-mensajes', 'ver-mensajes-todos'
@@ -74,12 +77,14 @@ const PERMISOS_POR_ROL = {
     mozos: [
         'ver-mesas', 'ver-platos', 'ver-clientes', 'crear-comandas', 'editar-comandas',
         'asociar-clientes',
+        'crear-reservas-mozos', 'asignar-encargado-reserva',
         // Mensajería: mozo puede leer, escribir y enviar voz (prioridad normal)
         'ver-mensajes', 'enviar-mensajes', 'enviar-mensajes-voz'
     ],
     capitanMozos: [
         'ver-mesas', 'ver-platos', 'ver-clientes', 'crear-comandas', 'editar-comandas',
         'eliminar-platos-comandas', 'procesar-pagos', 'asociar-clientes',
+        'crear-reservas-mozos', 'asignar-encargado-reserva',
         // Mensajería: capitan de mozos puede leer, escribir y enviar voz (prioridad normal)
         'ver-mensajes', 'enviar-mensajes', 'enviar-mensajes-voz'
     ],
@@ -88,6 +93,7 @@ const PERMISOS_POR_ROL = {
         'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria',
         'ver-notificaciones', 'crear-comandas', 'editar-comandas',
         'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina',
+        'crear-reservas-mozos', 'asignar-encargado-reserva',
         'ver-mensajes', 'enviar-mensajes', 'enviar-mensajes-voz', 'enviar-anuncios',
         'gestionar-canales-mensajes', 'ver-mensajes-todos',
         'ver-cierre-caja', 'ejecutar-cierre-caja'

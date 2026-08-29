@@ -7,6 +7,7 @@ const AutoIncrement = require('mongoose-sequence')(mongoose);
 const TIPOS_MENU = ['platos-desayuno', 'plato-carta normal'];
 
 const { validarCodigoPlato } = require('../../utils/validarCodigoPlato');
+const { normalizarOpcionDocumento } = require('../../utils/opcionComplemento');
 
 // Longitud máxima del alias corto para cocina. Se exporta para que el admin
 // (platos.html) y cualquier validador cliente usen el mismo límite (DRY).
@@ -133,7 +134,9 @@ const platoSchema = new mongoose.Schema({
         opciones: [{
             nombre: { type: String, required: true, trim: true },
             precio: { type: Number, default: 0, min: 0 },
-            pronombre: { type: String, default: '', trim: true, maxlength: 40 }
+            pronombre: { type: String, default: '', trim: true, maxlength: 40 },
+            preseleccionada: { type: Boolean, default: false },
+            cantidadPreseleccion: { type: Number, default: 1, min: 1, max: 99 }
         }]
     }]
 });
@@ -199,20 +202,9 @@ platoSchema.pre('validate', function (next) {
     if (Array.isArray(this.complementos)) {
         this.complementos.forEach((grupo) => {
             if (!grupo || !Array.isArray(grupo.opciones)) return;
-            grupo.opciones = grupo.opciones.map((op) => {
-                if (op == null) return { nombre: '', precio: 0, pronombre: '' };
-                if (typeof op === 'string') return { nombre: op.trim(), precio: 0, pronombre: '' };
-                if (typeof op === 'object') {
-                    const nombre = String(op.nombre ?? '').trim();
-                    const precio = Number(op.precio);
-                    return {
-                        nombre,
-                        precio: Number.isFinite(precio) && precio > 0 ? precio : 0,
-                        pronombre: String(op.pronombre || '').trim().slice(0, 40)
-                    };
-                }
-                return { nombre: String(op).trim(), precio: 0, pronombre: '' };
-            });
+            grupo.opciones = grupo.opciones.map((op) =>
+                normalizarOpcionDocumento(op) || { nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1 }
+            );
         });
     }
     next();
@@ -253,31 +245,11 @@ platoSchema.pre('save', async function (next) {
                 const vistos = new Set();
                 const limpias = [];
                 for (const op of grupo.opciones) {
-                    let normalizada;
-                    if (op == null) continue;
-                    if (typeof op === 'string') {
-                        const nombre = op.trim();
-                        if (!nombre) continue;
-                        normalizada = { nombre, precio: 0, pronombre: '' };
-                    } else if (typeof op === 'object') {
-                        const nombre = String(op.nombre || '').trim();
-                        if (!nombre) continue;
-                        const precio = Number(op.precio);
-                        normalizada = {
-                            nombre,
-                            precio: Number.isFinite(precio) && precio > 0 ? precio : 0,
-                            pronombre: String(op.pronombre || '').trim().slice(0, 40)
-                        };
-                    } else {
-                        continue;
-                    }
+                    const normalizada = normalizarOpcionDocumento(op);
+                    if (!normalizada) continue;
                     if (vistos.has(normalizada.nombre.toLowerCase())) continue;
                     vistos.add(normalizada.nombre.toLowerCase());
-                    limpias.push({
-                        nombre: normalizada.nombre,
-                        precio: normalizada.precio,
-                        pronombre: normalizada.pronombre || ''
-                    });
+                    limpias.push(normalizada);
                 }
                 grupo.opciones = limpias;
             });

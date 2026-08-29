@@ -649,6 +649,29 @@ tailwind.config = {
             <option value="fuera-turno">Fuera de turno</option>
           </select>
         </div>
+        <div class="relative min-w-[200px]" @click.outside="panelFiltroMozos = false">
+          <label class="text-[10px] uppercase text-txt-muted block mb-1">Mozos visibles</label>
+          <button type="button" @click="panelFiltroMozos = !panelFiltroMozos"
+            class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-xl px-3 py-2.5 text-sm text-left text-txt-secondary focus:border-gold focus:outline-none flex items-center justify-between gap-2">
+            <span class="truncate" x-text="etiquetaFiltroMozosVisibles"></span>
+            <span class="text-gold text-[10px]">▾</span>
+          </button>
+          <div x-show="panelFiltroMozos" x-cloak x-transition
+            class="absolute z-40 mt-1 left-0 right-0 min-w-[240px] max-h-72 overflow-y-auto mozos-scrollbar rounded-xl border border-[rgba(212,175,55,0.3)] bg-bg-card shadow-glass p-2">
+            <div class="flex gap-2 mb-2 sticky top-0 bg-bg-card pb-2 z-10">
+              <button type="button" @click="marcarTodosMozosVisibles()" class="flex-1 text-[10px] font-bold py-1 rounded-lg bg-gold/15 text-gold">Todos</button>
+              <button type="button" @click="marcarNingunMozoVisible()" class="flex-1 text-[10px] font-bold py-1 rounded-lg bg-bg-sidebar text-txt-muted">Ninguno</button>
+            </div>
+            <template x-for="m in mozosCatalogoFiltro" :key="'vis-top-' + idMozoStr(m)">
+              <label class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-bg-sidebar cursor-pointer text-sm">
+                <input type="checkbox" class="accent-[#d4af37]" :checked="mozoMarcadoVisible(m)" @change="toggleMozoVisible(m)">
+                <span class="text-white truncate flex-1" x-text="m.nombre"></span>
+                <span class="text-[10px] text-gold tabular-nums" x-text="'S/. ' + fmt(m.ventasHoy || 0)"></span>
+              </label>
+            </template>
+            <p class="text-[10px] text-txt-muted px-2 pt-1" x-show="!mozosCatalogoFiltro.length">Sin mozos en catálogo</p>
+          </div>
+        </div>
         <div>
           <label class="text-[10px] uppercase text-txt-muted block mb-1">Vista</label>
           <div class="flex rounded-xl overflow-hidden border border-[rgba(212,175,55,0.2)]">
@@ -685,9 +708,9 @@ tailwind.config = {
                   <th class="text-left px-3 py-3 font-bold hidden md:table-cell">DNI</th>
                   <th class="text-left px-3 py-3 font-bold">Estado</th>
                   <th class="text-left px-3 py-3 font-bold">Turno</th>
-                  <th class="text-right px-3 py-3 font-bold cursor-pointer hover:text-gold select-none wall-hide" @click="toggleSort('ventas')">Ventas <span class="text-gold" x-text="sortMark('ventas')"></span></th>
+                  <th class="text-right px-3 py-3 font-bold">Ventas <span class="text-gold">▼</span></th>
                   <th class="text-right px-3 py-3 font-bold hidden sm:table-cell">Mesas atend.</th>
-                  <th class="text-right px-3 py-3 font-bold cursor-pointer hover:text-gold select-none wall-hide" @click="toggleSort('propinas')">Propinas <span class="text-gold" x-text="sortMark('propinas')"></span></th>
+                  <th class="text-right px-3 py-3 font-bold hidden md:table-cell wall-hide">Propinas</th>
                   <th class="text-right px-3 py-3 font-bold hidden md:table-cell">Prom / mesa</th>
                   <th class="text-right px-3 py-3 font-bold hidden lg:table-cell">Prom / boucher</th>
                   <th class="text-right px-3 py-3 font-bold wall-hide">Acciones</th>
@@ -884,7 +907,30 @@ tailwind.config = {
       <div class="mozos-kpi-card rounded-2xl p-4 overflow-x-auto">
         <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
           <h3 class="text-xs font-bold uppercase text-txt-muted">Ranking de mozos</h3>
-          <span class="text-[10px] text-txt-muted" x-text="rangoEtiqueta"></span>
+          <div class="flex items-center gap-3">
+            <div class="relative" @click.outside="panelFiltroMozosRank = false">
+              <button type="button" @click="panelFiltroMozosRank = !panelFiltroMozosRank"
+                class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary flex items-center gap-2">
+                <span x-text="etiquetaFiltroMozosVisibles"></span>
+                <span class="text-gold">▾</span>
+              </button>
+              <div x-show="panelFiltroMozosRank" x-cloak
+                class="absolute z-40 mt-1 right-0 w-64 max-h-72 overflow-y-auto mozos-scrollbar rounded-xl border border-[rgba(212,175,55,0.3)] bg-bg-card shadow-glass p-2">
+                <div class="flex gap-2 mb-2 sticky top-0 bg-bg-card pb-2 z-10">
+                  <button type="button" @click="marcarTodosMozosVisibles()" class="flex-1 text-[10px] font-bold py-1 rounded-lg bg-gold/15 text-gold">Todos</button>
+                  <button type="button" @click="marcarNingunMozoVisible()" class="flex-1 text-[10px] font-bold py-1 rounded-lg bg-bg-sidebar text-txt-muted">Ninguno</button>
+                </div>
+                <template x-for="m in mozosCatalogoFiltro" :key="'vis-rank-' + idMozoStr(m)">
+                  <label class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-bg-sidebar cursor-pointer text-sm">
+                    <input type="checkbox" class="accent-[#d4af37]" :checked="mozoMarcadoVisible(m)" @change="toggleMozoVisible(m)">
+                    <span class="text-white truncate flex-1" x-text="m.nombre"></span>
+                    <span class="text-[10px] text-gold tabular-nums" x-text="'S/. ' + fmt(m.ventasHoy || 0)"></span>
+                  </label>
+                </template>
+              </div>
+            </div>
+            <span class="text-[10px] text-txt-muted" x-text="rangoEtiqueta"></span>
+          </div>
         </div>
         <table class="w-full text-sm min-w-[640px]">
           <thead>
@@ -1068,11 +1114,31 @@ tailwind.config = {
         <div class="mozos-kpi-card rounded-2xl p-3 flex flex-wrap items-center gap-3">
           <select x-model="filtroMozoRendimiento" @change="cargarRendimientoMozosEnVivo()"
             class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
-            <option value="">Todos los mozos</option>
-            <template x-for="m in mozos" :key="m._id">
-              <option :value="m._id" x-text="m.name || m.nombres"></option>
+            <option value="">Todos los mozos (lista marcada)</option>
+            <template x-for="m in mozosCatalogoFiltro" :key="m._id">
+              <option :value="m._id" x-text="m.name || m.nombres || m.nombre"></option>
             </template>
           </select>
+          <div class="relative" @click.outside="panelFiltroMozosEnVivo = false">
+            <button type="button" @click="panelFiltroMozosEnVivo = !panelFiltroMozosEnVivo"
+              class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary flex items-center gap-2">
+              <span x-text="etiquetaFiltroMozosVisibles"></span>
+              <span class="text-gold text-[10px]">▾</span>
+            </button>
+            <div x-show="panelFiltroMozosEnVivo" x-cloak
+              class="absolute z-40 mt-1 left-0 w-64 max-h-72 overflow-y-auto mozos-scrollbar rounded-xl border border-[rgba(212,175,55,0.3)] bg-bg-card shadow-glass p-2">
+              <div class="flex gap-2 mb-2 sticky top-0 bg-bg-card pb-2 z-10">
+                <button type="button" @click="marcarTodosMozosVisibles()" class="flex-1 text-[10px] font-bold py-1 rounded-lg bg-gold/15 text-gold">Todos</button>
+                <button type="button" @click="marcarNingunMozoVisible()" class="flex-1 text-[10px] font-bold py-1 rounded-lg bg-bg-sidebar text-txt-muted">Ninguno</button>
+              </div>
+              <template x-for="m in mozosCatalogoFiltro" :key="'vis-vivo-' + idMozoStr(m)">
+                <label class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-bg-sidebar cursor-pointer text-sm">
+                  <input type="checkbox" class="accent-[#d4af37]" :checked="mozoMarcadoVisible(m)" @change="toggleMozoVisible(m)">
+                  <span class="text-white truncate flex-1" x-text="m.nombre"></span>
+                </label>
+              </template>
+            </div>
+          </div>
           <div class="flex rounded-lg overflow-hidden border border-[rgba(212,175,55,0.25)]">
             <button type="button" @click="enVivoVista = 'cards'"
               class="px-3 py-2 text-xs font-medium transition"
@@ -1192,7 +1258,7 @@ tailwind.config = {
       <!-- ===== FIN Sub-tab EN VIVO ===== -->
 
       <!-- ===== Sub-tab REGISTRO DE PLATOS (tabla por comanda — incluye terminadas) ===== -->
-      <div x-show="subtabRendimientoMozos === 'historial'" class="space-y-4" x-cloak>
+      <div id="seccion-registro-platos-mozos" x-show="subtabRendimientoMozos === 'historial'" class="space-y-4" x-cloak>
         <!-- KPIs -->
         <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div class="mozos-kpi-card rounded-2xl p-4">
@@ -1234,12 +1300,23 @@ tailwind.config = {
             <option value="30dias">Últimos 30 días</option>
             <option value="personalizado">Personalizado</option>
           </select>
+          <template x-if="historialMozoFiltroFecha === 'personalizado'">
+            <div class="flex items-center gap-2">
+              <input type="date" x-model="historialMozoFechaDesde" @change="cargarHistorialMozos()"
+                class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+              <span class="text-txt-muted text-xs">→</span>
+              <input type="date" x-model="historialMozoFechaHasta" @change="cargarHistorialMozos()"
+                class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+            </div>
+          </template>
           <select x-model="historialMozoFiltroEstado"
             class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
             <option value="">Todas (curso + terminadas)</option>
             <option value="en_curso">Solo en curso</option>
             <option value="terminadas">Solo terminadas</option>
           </select>
+          <input type="text" x-model="historialMozoFiltroComanda" placeholder="🔎 Nº comanda..."
+            class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none w-[140px]">
           <input type="text" x-model="historialMozoFiltroPlato" placeholder="🔎 Filtrar por plato..."
             class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none flex-1 min-w-[160px]">
           <button type="button" @click="autoRefreshRendimientoMozo = !autoRefreshRendimientoMozo"
@@ -3070,6 +3147,11 @@ function mozosExecutiveApp() {
     mozosDetalle: null,
     busqueda: '',
     filtroEstado: '',
+    panelFiltroMozos: false,
+    panelFiltroMozosRank: false,
+    panelFiltroMozosEnVivo: false,
+    mozosVisiblesPersonalizado: false,
+    mozosVisiblesIds: [],
     rangoPreset: 'hoy',
     customDesde: '',
     customHasta: '',
@@ -3077,7 +3159,7 @@ function mozosExecutiveApp() {
     vistaPrincipal: 'tabla',
     focoMozoId: null,
     selectedMozoId: null,
-    sortKey: 'propinas',
+    sortKey: 'ventas',
     sortDir: 'desc',
     dashboardData: null,
     dashboardPrev: null,
@@ -3132,6 +3214,7 @@ function mozosExecutiveApp() {
       resumen: { totalComandas: 0, totalPlatosEntregados: 0, totalCerradas: 0, tiempoPromedioMozoSegundos: 0, tiempoPromedioDiferenciaSegundos: 0, porcentajeDentroSLA: 0, porMozo: [] }
     },
     historialMozoFiltroPlato: '',
+    historialMozoFiltroComanda: '',
     historialMozoFiltroFecha: 'hoy',
     historialMozoFechaDesde: '',
     historialMozoFechaHasta: '',
@@ -3223,6 +3306,7 @@ function mozosExecutiveApp() {
     async init() {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
       if (!token) { window.location.href = '/login.html'; return; }
+      this.cargarMozosVisibles();
       const p = new URLSearchParams(window.location.search);
       this.wallMode = p.get('wall') === '1' || p.get('kiosk') === '1';
       if (this.wallMode) {
@@ -3236,6 +3320,7 @@ function mozosExecutiveApp() {
       this.connectSocket();
       // Initialize Lucide icons
       if (window.lucide) window.lucide.createIcons();
+      this.aplicarQueryRendimientoMozos();
     },
 
     get rangoFechas() {
@@ -3402,7 +3487,7 @@ function mozosExecutiveApp() {
       return 'text-st-libre';
     },
     get rankingRendimientoRows() {
-      const arr = [...this.mozos].filter(m => m.activo !== false);
+      const arr = [...this.mozos].filter(m => m.activo !== false && this.mozoMarcadoVisible(m));
       arr.sort((a, b) => (Number(b.ventasHoy) || 0) - (Number(a.ventasHoy) || 0));
       return arr.map(m => {
         const mesas = this.mesasAtendidasMozo(m);
@@ -3447,8 +3532,8 @@ function mozosExecutiveApp() {
         return 'rgb(' + r + ',' + g + ',' + b + ')';
       };
       const mozosSorted = [...this.mozos]
-        .filter(m => m.activo !== false)
-        .sort((a, b) => this.mesasAtendidasMozo(b) - this.mesasAtendidasMozo(a))
+        .filter(m => m.activo !== false && this.mozoMarcadoVisible(m))
+        .sort((a, b) => (Number(b.ventasHoy) || 0) - (Number(a.ventasHoy) || 0))
         .slice(0, 16);
       return mozosSorted.map(m => {
         const id = this.idMozoStr(m);
@@ -3558,6 +3643,7 @@ function mozosExecutiveApp() {
     get mozosFiltrados() {
       const q = (this.busqueda || '').toLowerCase().trim();
       return this.mozos.filter(m => {
+        if (!this.mozoMarcadoVisible(m)) return false;
         if (q && !m.nombre?.toLowerCase().includes(q) && !String(m.dni || '').includes(q)) return false;
         const fe = this.filtroEstado;
         if (fe === 'activo' && m.activo === false) return false;
@@ -3569,23 +3655,70 @@ function mozosExecutiveApp() {
     },
     get mozosVista() {
       const arr = [...this.mozosFiltrados];
-      const k = this.sortKey;
-      const dir = this.sortDir === 'asc' ? 1 : -1;
-      arr.sort((a, b) => {
-        if (k === 'ventas') {
-          const va = Number(a.ventasHoy) || 0;
-          const vb = Number(b.ventasHoy) || 0;
-          return (va - vb) * dir;
-        }
-        if (k === 'propinas') {
-          const va = Number(a.propinasHoy) || 0;
-          const vb = Number(b.propinasHoy) || 0;
-          return (va - vb) * dir;
-        }
-        const cmp = (a.nombre || '').localeCompare(b.nombre || '');
-        return cmp * dir;
-      });
+      arr.sort((a, b) => (Number(b.ventasHoy) || 0) - (Number(a.ventasHoy) || 0));
       return arr;
+    },
+    get mozosCatalogoFiltro() {
+      return [...this.mozos].sort((a, b) => (Number(b.ventasHoy) || 0) - (Number(a.ventasHoy) || 0));
+    },
+    get etiquetaFiltroMozosVisibles() {
+      const total = this.mozos.length;
+      if (!this.mozosVisiblesPersonalizado) return total ? ('Todos (' + total + ')') : 'Todos';
+      const n = this.mozos.filter(m => this.mozoMarcadoVisible(m)).length;
+      return n + ' de ' + total;
+    },
+    mozoMarcadoVisible(m) {
+      if (!this.mozosVisiblesPersonalizado) return true;
+      const id = this.idMozoStr(m);
+      if (!id) return false;
+      return this.mozosVisiblesIds.includes(id);
+    },
+    idsCatalogoMozos() {
+      return this.mozos.map(m => this.idMozoStr(m)).filter(Boolean);
+    },
+    cargarMozosVisibles() {
+      try {
+        const raw = localStorage.getItem('gambusinas.mozosVisibles.v1');
+        if (!raw) return;
+        const o = JSON.parse(raw);
+        this.mozosVisiblesPersonalizado = !!o.personalizado;
+        this.mozosVisiblesIds = Array.isArray(o.ids) ? o.ids.map(String).filter(Boolean) : [];
+      } catch (e) { /* ignore */ }
+    },
+    guardarMozosVisibles() {
+      try {
+        localStorage.setItem('gambusinas.mozosVisibles.v1', JSON.stringify({
+          personalizado: this.mozosVisiblesPersonalizado,
+          ids: this.mozosVisiblesIds
+        }));
+      } catch (e) { /* ignore */ }
+    },
+    toggleMozoVisible(m) {
+      const id = this.idMozoStr(m);
+      if (!id) return;
+      if (!this.mozosVisiblesPersonalizado) {
+        this.mozosVisiblesIds = this.idsCatalogoMozos();
+        this.mozosVisiblesPersonalizado = true;
+      }
+      if (this.mozosVisiblesIds.includes(id)) {
+        this.mozosVisiblesIds = this.mozosVisiblesIds.filter(x => x !== id);
+      } else {
+        this.mozosVisiblesIds = [...this.mozosVisiblesIds, id];
+      }
+      this.guardarMozosVisibles();
+      this.$nextTick(() => this.updateCharts());
+    },
+    marcarTodosMozosVisibles() {
+      this.mozosVisiblesPersonalizado = false;
+      this.mozosVisiblesIds = [];
+      this.guardarMozosVisibles();
+      this.$nextTick(() => this.updateCharts());
+    },
+    marcarNingunMozoVisible() {
+      this.mozosVisiblesPersonalizado = true;
+      this.mozosVisiblesIds = [];
+      this.guardarMozosVisibles();
+      this.$nextTick(() => this.updateCharts());
     },
 
     toggleSort(key) {
@@ -3596,7 +3729,52 @@ function mozosExecutiveApp() {
       if (this.sortKey !== key) return '';
       return this.sortDir === 'asc' ? '▲' : '▼';
     },
+    aplicarQueryRendimientoMozos() {
+      try {
+        const params = new URLSearchParams(window.location.search || '');
+        const tab = params.get('tab');
+        if (tab !== 'rendimiento') return;
+        const sub = params.get('sub');
+        if (sub === 'historial' || sub === 'enVivo' || sub === 'comercial') {
+          this.subtabRendimientoMozos = sub;
+        }
+        const mozo = params.get('mozo');
+        const nombre = params.get('nombre');
+        if (mozo) {
+          this.historialMozoFiltroMozo = mozo;
+          this.filtroMozoRendimiento = mozo;
+        } else if (nombre) {
+          const found = (this.mozos || []).find(m =>
+            String(m.name || m.nombres || '').trim().toLowerCase() === String(nombre).trim().toLowerCase()
+          );
+          if (found) {
+            this.historialMozoFiltroMozo = found._id;
+            this.filtroMozoRendimiento = found._id;
+          }
+        }
+        const comanda = params.get('comanda');
+        if (comanda) this.historialMozoFiltroComanda = String(comanda).replace(/^#/, '');
+        const fecha = params.get('fecha');
+        if (fecha && /^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+          this.historialMozoFiltroFecha = 'personalizado';
+          this.historialMozoFechaDesde = fecha;
+          this.historialMozoFechaHasta = fecha;
+        }
+        this.cambiarSeccion('rendimiento');
+        this.$nextTick(() => {
+          if (this.subtabRendimientoMozos !== 'historial') return;
+          const el = document.getElementById('seccion-registro-platos-mozos');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      } catch (e) {
+        console.warn('No se pudo aplicar query de rendimiento mozos', e);
+      }
+    },
+
     cambiarSeccion(section) {
+      this.panelFiltroMozos = false;
+      this.panelFiltroMozosRank = false;
+      this.panelFiltroMozosEnVivo = false;
       if (section === 'propinas') this.activeSection = 'propinas';
       else if (section === 'rendimiento') this.activeSection = 'rendimiento';
       else this.activeSection = 'principal';
@@ -3688,9 +3866,25 @@ function mozosExecutiveApp() {
     },
 
     getMozosRendimientoFiltrados() {
-      const lista = this.rendimientoMozosEnVivo?.mozos || [];
+      let lista = this.rendimientoMozosEnVivo?.mozos || [];
+      if (this.mozosVisiblesPersonalizado) {
+        lista = lista.filter(mzo => this.mozoEnVivoMarcadoVisible(mzo));
+      }
       if (!this.filtroMozoRendimiento) return lista;
-      return lista.filter(m => String(m.mozoId) === String(this.filtroMozoRendimiento));
+      const fid = String(this.filtroMozoRendimiento);
+      return lista.filter(m => String(m.mozoId) === fid || String(m._id) === fid);
+    },
+    mozoEnVivoMarcadoVisible(mzo) {
+      if (!this.mozosVisiblesPersonalizado) return true;
+      const candidates = [mzo.mozoId, mzo._id, mzo.id]
+        .filter(v => v != null && v !== '')
+        .map(v => String(v));
+      if (candidates.some(id => this.mozosVisiblesIds.includes(id))) return true;
+      const cat = this.mozos.find(m => {
+        const id = this.idMozoStr(m);
+        return candidates.includes(id) || String(m.mozoId || '') === String(mzo.mozoId || '');
+      });
+      return !!(cat && this.mozoMarcadoVisible(cat));
     },
 
     /** Aplana comandas en vivo a filas de tabla (estilo 2 / Registro) */
@@ -3930,6 +4124,20 @@ function mozosExecutiveApp() {
       if (this.historialMozoFiltroPlato) {
         const q = this.historialMozoFiltroPlato.trim().toLowerCase();
         lista = lista.filter(c => (c.platos || []).some(p => (p.platoNombre || '').toLowerCase().includes(q)));
+      }
+      if (this.historialMozoFiltroComanda) {
+        const q = this.historialMozoFiltroComanda.trim().toLowerCase().replace(/^#/, '');
+        lista = lista.filter(c => {
+          const num = String(c.numComanda ?? c.comandaNumber ?? '').toLowerCase();
+          const id = String(c.comandaId ?? c._id ?? '').toLowerCase();
+          return num.includes(q) || id.includes(q);
+        });
+      }
+      if (this.mozosVisiblesPersonalizado) {
+        lista = lista.filter(c => this.mozoEnVivoMarcadoVisible({
+          mozoId: c.mozoId || c.mozo?._id || c.mozo,
+          _id: c.mozoId
+        }));
       }
       // Más nuevo → más antiguo
       lista.sort((a, b) => {
@@ -4394,8 +4602,8 @@ function mozosExecutiveApp() {
         const series = d?.series;
 
         const mozosChart = [...this.mozos]
-          .filter(m => m.activo !== false && ((m.ventasHoy || 0) + (m.propinasHoy || 0) > 0))
-          .sort((a, b) => (b.ventasHoy + b.propinasHoy) - (a.ventasHoy + a.propinasHoy))
+          .filter(m => m.activo !== false && this.mozoMarcadoVisible(m) && ((m.ventasHoy || 0) + (m.propinasHoy || 0) > 0))
+          .sort((a, b) => (Number(b.ventasHoy) || 0) - (Number(a.ventasHoy) || 0))
           .slice(0, 14);
         this.barMozoIds = mozosChart.map(m => this.idMozoStr(m));
 
@@ -4482,8 +4690,8 @@ function mozosExecutiveApp() {
         if (ctxMH && ctxMH.getContext('2d')) {
           this._chartMesasHBar = safeDestroy(this._chartMesasHBar);
           const mozosH = [...this.mozos]
-            .filter(m => m.activo !== false && this.mesasAtendidasMozo(m) > 0)
-            .sort((a, b) => this.mesasAtendidasMozo(b) - this.mesasAtendidasMozo(a))
+            .filter(m => m.activo !== false && this.mozoMarcadoVisible(m) && this.mesasAtendidasMozo(m) > 0)
+            .sort((a, b) => (Number(b.ventasHoy) || 0) - (Number(a.ventasHoy) || 0))
             .slice(0, 14);
           this.barMozoIdsMesas = mozosH.map(m => this.idMozoStr(m));
           const labelsH = mozosH.length

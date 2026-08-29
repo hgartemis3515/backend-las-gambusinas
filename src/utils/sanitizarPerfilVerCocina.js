@@ -151,7 +151,11 @@ function fusionarConfigPerfilVerCocina(actual, incomingSanitizado) {
     return { ...base, ...next };
 }
 
-/** Snapshot de Vista y alertas de las tablas KDS (no mezclar con Ver Cocina). */
+/**
+ * Snapshot de Vista y alertas de las tablas KDS.
+ * Contrato igual que Ver Cocina: toda opción del panel sobrevive a Guardar.
+ * La lista documenta claves conocidas; camelCase nuevas también pasan.
+ */
 const PERFIL_TABLAS_KDS_KEYS = new Set([
     'tamanoFuente',
     'tamanoFuentePlatos',
@@ -161,19 +165,37 @@ const PERFIL_TABLAS_KDS_KEYS = new Set([
     'ordenamientoDefault',
     'modoVista',
     'mostrarBadgeGuarnicion',
+    'juntarGuarnicionesVisualKds',
     'usarNombreCocinaEnTablaKds',
+    'ordenColaFuente',
+    'ordenColaTamano',
+    'ordenColaColor',
+    'ordenColaMostrarHash',
+    'ordenColaCuadroColor',
+    'ordenColaCuadroTamano',
+    'cantidadPlatoColor',
+    'cantidadPlatoFondo',
+    'cantidadPlatoTamano',
+    'mozoNombreFuente',
+    'mozoNombreTamano',
+    'mozoNombreColor',
     'alertYellowMinutes',
     'alertRedMinutes',
     'alertCriticalMinutes',
     'timbreClave',
     'timbreVolumen',
+    'sonidoNuevaComanda',
+    'sonidoFinalizar',
+    'sonidoEntregar',
+    'timbreFinalizarClave',
+    'timbreEntregarClave',
 ]);
 
 function sanitizarConfigPerfilTablasKds(config) {
     const sanitizado = {};
     if (!config || typeof config !== 'object' || Array.isArray(config)) return sanitizado;
     for (const [k, v] of Object.entries(config)) {
-        if (!PERFIL_TABLAS_KDS_KEYS.has(k)) continue;
+        if (!esClavePerfilVerCocina(k)) continue;
         const safe = valorPerfilSeguro(v);
         if (safe === undefined) continue;
         sanitizado[k] = safe;

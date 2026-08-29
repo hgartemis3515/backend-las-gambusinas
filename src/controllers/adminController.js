@@ -8,8 +8,61 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const { autenticarMozo, obtenerMozosPorId } = require('../repository/mozos.repository');
 const rolesRepository = require('../repository/roles.repository');
-const { JWT_SECRET } = require('../middleware/adminAuth');
+const { JWT_SECRET, adminAuth } = require('../middleware/adminAuth');
 const logger = require('../utils/logger');
+
+function urlPublicaAppCocina() {
+    const envUrl = process.env.APP_COCINA_PUBLIC_URL;
+    if (!envUrl) return null;
+    return String(envUrl).replace(/\/$/, '');
+}
+
+function encodeHubAuthHash(token, usuario) {
+    const slim = JSON.stringify({
+        token,
+        usuario: {
+            id: usuario.id,
+            _id: usuario.id,
+            name: usuario.name,
+            rol: usuario.rol,
+            permisos: usuario.permisos || [],
+            reglas: usuario.reglas || []
+        }
+    });
+    const b64 = Buffer.from(slim, 'utf8').toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+    return `#hubAuth=${b64}`;
+}
+
+function emitirSesionCocina(mozoConRol, fallback = {}) {
+    const id = mozoConRol._id || fallback.id;
+    const name = mozoConRol.name || fallback.name;
+    const rolUsuario = mozoConRol.rol || fallback.rol;
+    const permisos = mozoConRol.permisosEfectivos || fallback.permisos || [];
+    const reglas = mozoConRol.reglasEfectivas || fallback.reglas || [];
+    const token = jwt.sign(
+        {
+            id,
+            name,
+            DNI: mozoConRol.DNI || fallback.DNI,
+            rol: rolUsuario,
+            permisos,
+            reglas,
+            app: 'cocina',
+            sesionPersistente: true
+        },
+        JWT_SECRET,
+        { expiresIn: process.env.COCINA_JWT_EXPIRY || '30d' }
+    );
+    const usuario = { id, name, rol: rolUsuario, permisos, reglas };
+    return {
+        token,
+        usuario,
+        hubAuthHash: encodeHubAuthHash(token, usuario)
+    };
+}
 
 /**
  * POST /api/admin/auth
@@ -446,6 +499,53 @@ router.post('/admin/cocina/auth', async (req, res) => {
         logger.error('Error en autenticación App Cocina', { 
             error: error.message 
         });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+/**
+ * POST /api/admin/cocina/auth/sso
+ * Emite JWT de App Cocina para el usuario ya autenticado en el dashboard (sin re-login).
+ */
+router.post('/admin/cocina/auth/sso', adminAuth, async (req, res) => {
+    try {
+        const mozoConRol = await rolesRepository.obtenerMozoConRol(req.admin.id);
+        if (!mozoConRol) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+        if (mozoConRol.activo === false) {
+            return res.status(403).json({ error: 'Usuario inactivo' });
+        }
+
+        const rolUsuario = mozoConRol.rol || req.admin.rol;
+        const permisos = mozoConRol.permisosEfectivos || req.admin.permisos || [];
+        const tienePermisoCocina = rolUsuario === 'admin'
+            || rolUsuario === 'supervisor'
+            || rolUsuario === 'cocinero'
+            || permisos.includes('ver-comandas-cocina');
+
+        if (!tienePermisoCocina) {
+            return res.status(403).json({
+                error: 'No tiene permisos para acceder a la App Cocina',
+                rol: rolUsuario || 'sin rol'
+            });
+        }
+
+        const sesion = emitirSesionCocina(mozoConRol, req.admin);
+        const cocinaUrl = urlPublicaAppCocina();
+
+        logger.info('SSO dashboard → App Cocina', {
+            mozoId: mozoConRol._id,
+            name: mozoConRol.name,
+            rol: rolUsuario
+        });
+
+        res.json({
+            ...sesion,
+            ...(cocinaUrl ? { cocinaUrl } : {})
+        });
+    } catch (error) {
+        logger.error('Error en SSO App Cocina', { error: error.message });
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });

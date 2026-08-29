@@ -7,6 +7,7 @@ const logger = require("../utils/logger");
 const router = express.Router();
 
 const { listarMozos, crearMozo, obtenerMozosPorId, actualizarMozo, borrarMozo, autenticarMozo} = require("../repository/mozos.repository");
+const rolesRepository = require("../repository/roles.repository");
 const mozosRendimiento = require("../repository/mozosRendimiento.repository");
 const { rangoLima, agregarVentasComandasPorMozo } = require("../utils/estadisticasComandas");
 
@@ -95,8 +96,17 @@ router.get("/mozos/:id", async (req, res) => {
       return res.status(404).json({ error: "Usuario no encontrado" });
     }
 
-    console.log('Mozo encontrado:', mozo);
-    res.json(mozo);
+    const json = typeof mozo.toJSON === "function" ? mozo.toJSON() : mozo;
+    try {
+      const mozoConRol = await rolesRepository.obtenerMozoConRol(mozo._id);
+      if (mozoConRol?.permisosEfectivos) {
+        json.permisosEfectivos = mozoConRol.permisosEfectivos;
+      }
+    } catch (e) {
+      logger.warn("No se pudieron adjuntar permisosEfectivos", { error: e.message, mozoId: mozo._id });
+    }
+    console.log('Mozo encontrado:', json._id);
+    res.json(json);
 
   } catch (error) {
     console.error("Error al procesar la solicitud:", error);

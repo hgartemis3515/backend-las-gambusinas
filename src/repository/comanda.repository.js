@@ -130,6 +130,9 @@ const PROYECCION_RESUMEN_MESA = {
     mozos: 1,
     IsActive: 1,
     cantidades: 1,  // 🔥 Necesario para mostrar cantidades correctas
+    origenCreacion: 1,
+    origenReserva: 1,
+    programadaPorReserva: 1,
     'platos._id': 1,  // 🔥 CRÍTICO: ID único del subdocumento
     'platos.platoId': 1,  // 🔥 Necesario para identificación
     'platos.estado': 1,
@@ -681,7 +684,9 @@ const agregarComanda = async (data) => {
     console.log(`🔍 Mesa ID: ${mesa._id}, Mozo solicitante: ${data.mozos}`);
     
     try {
-      const reservaActiva = await getReservaRepository().obtenerReservaActivaPorMesa(mesa._id);
+      const reservaActiva = await getReservaRepository().obtenerReservaActivaPorMesa(mesa._id, {
+        mozoId: data.mozos
+      });
       
       console.log(`🔍 Resultado búsqueda reserva:`, reservaActiva ? {
         id: reservaActiva._id,
@@ -698,10 +703,13 @@ const agregarComanda = async (data) => {
         
         if (mozoAsignadoId) {
           const mozoSolicitante = data.mozos ? data.mozos.toString() : null;
+          const mozoCreador = reservaActiva.creadoPor?._id
+            ? reservaActiva.creadoPor._id.toString()
+            : (reservaActiva.creadoPor ? reservaActiva.creadoPor.toString() : null);
           
           console.log(`🔍 Comparando mozos - Asignado: ${mozoAsignadoId}, Solicitante: ${mozoSolicitante}`);
           
-          if (mozoSolicitante && mozoAsignadoId !== mozoSolicitante) {
+          if (mozoSolicitante && mozoAsignadoId !== mozoSolicitante && mozoCreador !== mozoSolicitante) {
             const mozoNombre = reservaActiva.mozo?.name || 'desconocido';
             const errorMsg = `Mesa reservada. Solo el mozo asignado (${mozoNombre}) puede atender esta mesa.`;
             console.error(`❌ ${errorMsg} - Mozo solicitante: ${mozoSolicitante}`);
@@ -968,8 +976,11 @@ const agregarComanda = async (data) => {
   // Actualizar estado de la mesa a "pedido" automáticamente cuando se crea la comanda
   // Si la mesa estaba en "preparado", cambiar a "pedido" para la nueva comanda
   // Si la mesa estaba en "libre", cambiar a "pedido"
-  // Si la mesa estaba en "reservado", cambiar a "pedido" (el mozo autorizado está atendiendo)
-  if (estadoMesa === 'preparado' || estadoMesa === 'libre' || estadoMesa === 'reservado' || estadoMesa === 'entregado' || estadoMesa === 'pagado') {
+  // Reserva aprobada: la mesa sigue 'reservado' (morado) aunque se agreguen platos
+  const esComandaDeReserva = !!(data.origenReserva || data.origenCreacion === 'reserva');
+  if (estadoMesa === 'reservado' && esComandaDeReserva) {
+    logger.debug('Mesa reservada: se mantiene estado reservado', { mesaId: mesa._id, numMesa: mesa.nummesa });
+  } else if (estadoMesa === 'preparado' || estadoMesa === 'libre' || estadoMesa === 'reservado' || estadoMesa === 'entregado' || estadoMesa === 'pagado') {
     await mesasModel.updateOne(
       { _id: data.mesas },
       { $set: { estado: 'pedido' } }
@@ -1773,6 +1784,11 @@ const actualizarComanda = async (comandaId, newData) => {
       }
     }
     
+    if (newData && typeof newData === 'object') {
+      delete newData.forzarAdmin;
+      delete newData.motivo;
+    }
+
     if (newData.cantidades) {
       if (!Array.isArray(newData.cantidades)) {
         throw new Error('Las cantidades deben ser un array');
@@ -1792,28 +1808,41 @@ const actualizarComanda = async (comandaId, newData) => {
         throw error;
       }
     }
-    
-    let updatedComanda = await comandaModel.findByIdAndUpdate(
-      comandaId,
-      newData,
-      { new: true }
-    )
-    .populate({
-      path: "mozos",
-    })
-    .populate({
-      path: "mesas",
-      populate: {
-        path: "area"
+
+    const populateComandaQuery = (q) => q
+      .populate({ path: 'mozos' })
+      .populate({ path: 'mesas', populate: { path: 'area' } })
+      .populate({ path: 'cliente' })
+      .populate({ path: 'platos.plato', model: 'platos' });
+
+    let updatedComanda;
+    if (Array.isArray(newData.cantidades) && !newData.platos) {
+      const doc = await comandaModel.findById(comandaId);
+      if (!doc) throw new Error('Comanda no encontrada');
+      if (doc.platos.length !== newData.cantidades.length) {
+        const error = new AppError(
+          `Desincronización: ${doc.platos.length} platos pero ${newData.cantidades.length} cantidades. Deben coincidir.`,
+          400
+        );
+        logger.warn('Intento de actualizar comanda con platos/cantidades desincronizados', {
+          comandaId,
+          platosLength: doc.platos.length,
+          cantidadesLength: newData.cantidades.length
+        });
+        throw error;
       }
-    })
-    .populate({
-      path: "cliente"
-    })
-    .populate({
-      path: "platos.plato",
-      model: "platos"
-    });
+      doc.cantidades = newData.cantidades.map((n) => {
+        const v = Number(n);
+        return Number.isFinite(v) && v > 0 ? Math.floor(v) : 1;
+      });
+      doc.version = (doc.version || 1) + 1;
+      await doc.save();
+      updatedComanda = await populateComandaQuery(comandaModel.findById(comandaId));
+    } else {
+      updatedComanda = await populateComandaQuery(
+        comandaModel.findByIdAndUpdate(comandaId, newData, { new: true })
+      );
+    }
     
     // Asegurar que los platos estén populados (fallback manual)
     const comandasConPlatos = await ensurePlatosPopulated([updatedComanda]);
@@ -2707,6 +2736,15 @@ const recalcularEstadoMesa = async (mesaId, session = null, options = {}) => {
       nuevoEstadoMesa = 'libre';
       logger.debug('Mesa sin comandas activas', { mesaId, nuevoEstado: nuevoEstadoMesa });
     }
+
+    const esComandaReserva = comandasActivas.some((c) =>
+      c.programadaPorReserva === true
+      || c.origenCreacion === 'reserva'
+      || !!c.origenReserva
+    );
+    if (esComandaReserva && (nuevoEstadoMesa === 'pedido' || nuevoEstadoMesa === 'libre')) {
+      nuevoEstadoMesa = 'reservado';
+    }
     
     // Actualizar el estado de la mesa
     // PLAN_PLANTILLA_COMANDAS: No sobrescribir estados de aprobación — estos los controla el flujo de aprobación
@@ -2728,6 +2766,10 @@ const recalcularEstadoMesa = async (mesaId, session = null, options = {}) => {
           estadoCalculado: nuevoEstadoMesa,
           razon: 'pendiente_aprobar/reportado/pagado solo se cambian via aprobación o liberación'
         });
+        return estadoAnterior;
+      }
+
+      if (!forzar && estadoAnterior === 'reservado' && (nuevoEstadoMesa === 'libre' || nuevoEstadoMesa === 'pedido')) {
         return estadoAnterior;
       }
 

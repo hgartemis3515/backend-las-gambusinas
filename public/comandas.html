@@ -164,17 +164,30 @@ tailwind.config = {
  <!-- Filtro Cliente (NUEVO) -->
  <input type="text" x-model="filterCliente" @input="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-32 placeholder-txt-muted" placeholder="Cliente/DNI">
 
- <!-- Filtro Fecha Desde -->
- <div class="flex items-center gap-1">
- <span class="text-xs text-txt-muted">Desde:</span>
- <input type="date" x-model="filterFechaDesde" @change="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-sm text-txt-secondary w-36">
+ <!-- Período (mismo patrón que mozos → rendimiento) -->
+ <div class="flex flex-wrap items-center gap-1">
+  <span class="text-[10px] uppercase text-txt-muted mr-1">Período</span>
+  <template x-for="p in presetsPeriodo" :key="p.id">
+   <button type="button" @click="setFiltroPeriodo(p.id)"
+    class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
+    :class="filtroPeriodo === p.id ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">
+    <span x-text="p.label"></span>
+   </button>
+  </template>
  </div>
-
- <!-- Filtro Fecha Hasta -->
- <div class="flex items-center gap-1">
- <span class="text-xs text-txt-muted">Hasta:</span>
- <input type="date" x-model="filterFechaHasta" @change="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-sm text-txt-secondary w-36">
+ <div x-show="filtroPeriodo === 'custom'" x-cloak class="flex flex-wrap items-center gap-2">
+  <label class="text-[10px] uppercase text-txt-muted">Desde
+   <input type="date" x-model="customFechaDesde" @change="filterComandas()"
+    @keydown="if ($event.key.length === 1 || $event.key === 'Backspace' || $event.key === 'Delete') $event.preventDefault()" @click="$el.showPicker && $el.showPicker()"
+    class="block bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-sm text-txt-secondary cursor-pointer">
+  </label>
+  <label class="text-[10px] uppercase text-txt-muted">Hasta
+   <input type="date" x-model="customFechaHasta" @change="filterComandas()"
+    @keydown="if ($event.key.length === 1 || $event.key === 'Backspace' || $event.key === 'Delete') $event.preventDefault()" @click="$el.showPicker && $el.showPicker()"
+    class="block bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-sm text-txt-secondary cursor-pointer">
+  </label>
  </div>
+ <span class="text-[10px] text-txt-muted font-mono" x-show="filtroPeriodo !== 'todos'" x-text="rangoFiltroEtiqueta"></span>
 
  <!-- Toggle Agrupación (NUEVO) -->
  <button @click="toggleAgrupacion()" 
@@ -208,8 +221,8 @@ tailwind.config = {
  </button>
 
  <!-- Botón limpiar filtros -->
- <button @click="limpiarFiltros()" x-show="filterMesa || filterEstado || filterIdComanda || filterMozo || filterCliente || filterFechaDesde || filterFechaHasta"
- class="px-3 py-2 text-xs text-txt-muted hover:text-gold transition border border-transparent hover:border-gold/30 rounded-lg">
+ <button @click="limpiarFiltros()" x-show="filterMesa || filterEstado || filterIdComanda || filterMozo || filterCliente || filtroPeriodo !== 'hoy'"
+ class="dash-btn-limpiar px-3 py-2 text-xs text-txt-muted hover:text-gold transition border border-transparent hover:border-gold/30 rounded-lg">
  ✕ Limpiar
  </button>
  </div>
@@ -235,6 +248,7 @@ tailwind.config = {
  <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Mesa</th>
  <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-28">Cliente</th>
  <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Mozo</th>
+ <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider min-w-[120px]">Cocineros</th>
  <th class="text-center px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-16">Items</th>
  <th class="text-right px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Total</th>
  <th class="text-center px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider min-w-[140px]">Estado platos</th>
@@ -293,11 +307,33 @@ tailwind.config = {
  <!-- Mozo -->
  <td class="px-3 py-2.5 text-sm text-txt-secondary">
  <template x-if="row.tipo === 'grupo'">
- <span x-text="row.mozosUnicos?.slice(0,2).join(', ') || '—'"></span>
+ <div class="flex flex-wrap gap-1">
+ <template x-for="nombre in (row.mozosUnicos || [])" :key="nombre">
+ <button type="button" class="text-[11px] text-gold hover:underline text-left" title="Ver registro de platos del mozo"
+   @click.stop="irARegistroMozo(comandaDeMozoEnGrupo(row, nombre))" x-text="nombre"></button>
+ </template>
+ <span x-show="!(row.mozosUnicos && row.mozosUnicos.length)" class="text-txt-muted">—</span>
+ </div>
  </template>
  <template x-if="row.tipo === 'individual'">
- <span x-text="row.comanda.mozo || '—'"></span>
+ <div>
+ <button type="button" class="text-gold hover:underline text-left" title="Ver registro de platos del mozo"
+   x-show="row.comanda.mozo && row.comanda.mozo !== 'Sin asignar'"
+   @click.stop="irARegistroMozo(row.comanda)" x-text="row.comanda.mozo"></button>
+ <span x-show="!row.comanda.mozo || row.comanda.mozo === 'Sin asignar'" class="text-txt-muted">—</span>
+ </div>
  </template>
+ </td>
+
+ <!-- Cocineros -->
+ <td class="px-3 py-2.5 text-sm">
+ <div class="flex flex-wrap gap-1">
+ <template x-for="chef in cocinerosDeFila(row)" :key="(chef.cocineroId || chef.nombre) + (chef.comanda?._id || '')">
+ <button type="button" class="text-[11px] text-gold hover:underline text-left" title="Ver registro de platos del cocinero"
+   @click.stop="irARegistroCocinero(chef, chef.comanda || row.comanda)" x-text="chef.nombre"></button>
+ </template>
+ <span x-show="cocinerosDeFila(row).length === 0" class="text-txt-muted text-xs">—</span>
+ </div>
  </td>
  
  <!-- Items -->
@@ -384,8 +420,21 @@ tailwind.config = {
  <span x-text="comanda.clienteNombre || '—'"></span>
  </td>
  <!-- Mozo -->
- <td class="px-3 py-2 text-xs text-txt-muted">
- <span x-text="comanda.mozo || '—'"></span>
+ <td class="px-3 py-2 text-xs">
+ <button type="button" class="text-gold hover:underline text-left" title="Ver registro de platos del mozo"
+   x-show="comanda.mozo && comanda.mozo !== 'Sin asignar'"
+   @click.stop="irARegistroMozo(comanda)" x-text="comanda.mozo"></button>
+ <span x-show="!comanda.mozo || comanda.mozo === 'Sin asignar'" class="text-txt-muted">—</span>
+ </td>
+ <!-- Cocineros -->
+ <td class="px-3 py-2 text-xs">
+ <div class="flex flex-wrap gap-1">
+ <template x-for="chef in cocinerosDeComanda(comanda)" :key="chef.cocineroId || chef.nombre">
+ <button type="button" class="text-[11px] text-gold hover:underline text-left" title="Ver registro de platos del cocinero"
+   @click.stop="irARegistroCocinero(chef, comanda)" x-text="chef.nombre"></button>
+ </template>
+ <span x-show="cocinerosDeComanda(comanda).length === 0" class="text-txt-muted">—</span>
+ </div>
  </td>
  <!-- Items -->
  <td class="px-3 py-2 text-xs text-txt-muted text-center">
@@ -688,6 +737,10 @@ tailwind.config = {
    <p class="text-[10px] text-[#c39bd3] uppercase mb-2 font-semibold tracking-wider">📅 Reserva</p>
    <div class="grid grid-cols-3 gap-3 text-sm mb-3">
      <div>
+       <p class="text-[10px] text-[#5a5a7a]">Nº comanda</p>
+       <p class="font-medium font-mono text-[#c39bd3]" x-text="(selectedComanda?.numComanda || selectedComanda?.comandaNumber) ? ('#' + (selectedComanda.numComanda || selectedComanda.comandaNumber)) : '—'"></p>
+     </div>
+     <div>
        <p class="text-[10px] text-[#5a5a7a]">Reserva creada</p>
        <p class="font-medium" x-text="formatFechaReserva(selectedComanda?.reserva?.creadoEn)"></p>
      </div>
@@ -695,12 +748,12 @@ tailwind.config = {
        <p class="text-[10px] text-[#5a5a7a]">Entra a cocina</p>
        <p class="font-medium text-[#ffa502]" x-text="formatFechaReserva(selectedComanda?.reserva?.fechaCocina || selectedComanda?.fechaCocinaProgramada)"></p>
      </div>
+   </div>
+   <div class="grid grid-cols-3 gap-3 text-sm mb-3">
      <div>
        <p class="text-[10px] text-[#5a5a7a]">Se atenderá</p>
        <p class="font-medium text-[#c39bd3]" x-text="formatFechaReserva(selectedComanda?.reserva?.fechaReserva)"></p>
      </div>
-   </div>
-   <div class="grid grid-cols-3 gap-3 text-sm mb-3">
      <div>
        <p class="text-[10px] text-[#5a5a7a]">Cliente</p>
        <p class="font-medium" x-text="selectedComanda?.reserva?.clienteNombre || '—'"></p>
@@ -829,7 +882,7 @@ tailwind.config = {
  <template x-if="item.complementosSeleccionados && item.complementosSeleccionados.length > 0">
  <div class="flex flex-wrap gap-1">
  <template x-for="comp in item.complementosSeleccionados" :key="comp.grupo + comp.opcion">
-<span class="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" x-text="textoComplementoChip(comp)"></span>
+<span class="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" x-text="textoComplementoChip(comp, item.cantidad)"></span>
 								</template>
 							</div>
 						</template>
@@ -1315,6 +1368,10 @@ tailwind.config = {
    <p class="text-[10px] text-[#c39bd3] uppercase mb-2 font-semibold tracking-wider">📅 Reserva</p>
    <div class="grid grid-cols-3 gap-3 text-sm mb-3">
      <div>
+       <p class="text-[10px] text-[#5a5a7a]">Nº comanda</p>
+       <p class="font-medium font-mono text-[#c39bd3]" x-text="(editComanda?.numComanda || editComanda?.comandaNumber) ? ('#' + (editComanda.numComanda || editComanda.comandaNumber)) : '—'"></p>
+     </div>
+     <div>
        <p class="text-[10px] text-[#5a5a7a]">Reserva creada</p>
        <p class="font-medium" x-text="formatFechaReserva(editComanda?.reserva?.creadoEn)"></p>
      </div>
@@ -1322,12 +1379,12 @@ tailwind.config = {
        <p class="text-[10px] text-[#5a5a7a]">Entra a cocina</p>
        <p class="font-medium text-[#ffa502]" x-text="formatFechaReserva(editComanda?.reserva?.fechaCocina || editComanda?.fechaCocinaProgramada)"></p>
      </div>
+   </div>
+   <div class="grid grid-cols-3 gap-3 text-sm mb-3">
      <div>
        <p class="text-[10px] text-[#5a5a7a]">Se atenderá</p>
        <p class="font-medium text-[#c39bd3]" x-text="formatFechaReserva(editComanda?.reserva?.fechaReserva)"></p>
      </div>
-   </div>
-   <div class="grid grid-cols-3 gap-3 text-sm mb-3">
      <div>
        <p class="text-[10px] text-[#5a5a7a]">Cliente</p>
        <p class="font-medium" x-text="editComanda?.reserva?.clienteNombre || '—'"></p>
@@ -1410,7 +1467,7 @@ tailwind.config = {
  <template x-if="plato.complementosSeleccionados && plato.complementosSeleccionados.length > 0">
  <div class="flex flex-wrap gap-1">
  <template x-for="comp in plato.complementosSeleccionados" :key="comp.grupo + comp.opcion">
-<span class="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" x-text="textoComplementoChip(comp)"></span>
+<span class="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" x-text="textoComplementoChip(comp, plato.cantidad)"></span>
 								</template>
 							</div>
 						</template>
@@ -2083,6 +2140,20 @@ function debounce(func, wait) {
  };
 }
 
+function limaYMD(d = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Lima',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
+}
+function addDaysYMD(ymd, delta) {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const utc = Date.UTC(y, m - 1, d, 12, 0, 0);
+  return limaYMD(new Date(utc + delta * 86400000));
+}
+
 function comandasApp() {
  return {
  sidebarOpen: true,
@@ -2127,8 +2198,16 @@ function comandasApp() {
  filterIdComanda: '',
  filterMozo: '',
  filterCliente: '',
- filterFechaDesde: '',
- filterFechaHasta: '',
+ filtroPeriodo: 'hoy',
+ customFechaDesde: '',
+ customFechaHasta: '',
+ presetsPeriodo: [
+  { id: 'hoy', label: 'Hoy' },
+  { id: 'ayer', label: 'Ayer' },
+  { id: '7dias', label: '7 días' },
+  { id: 'todos', label: 'Todos' },
+  { id: 'custom', label: 'Personalizado' },
+ ],
  mozosList: [],
  activeNav: 'comandas',
  pageTitle: 'Comandas',
@@ -2260,6 +2339,7 @@ tiposPlatoReserva: [],
 tipoPlatoFiltroReserva: '',
 categoriaFiltroReserva: '',
 busquedaPlatoReserva: '',
+tipoServicioAltaReserva: 'mesa',
 editingReservaId: null,
 reservaCountdownInterval: null,
 
@@ -2372,6 +2452,8 @@ abrirPanelComplementos(plato, contexto, itemIdx) {
       notaPrev = item.notaEspecial || '';
       tipoServicioPrev = item.tipoServicio || 'mesa';
     }
+  } else if (contexto === 'reserva') {
+    tipoServicioPrev = this.tipoServicioAltaReserva === 'para_llevar' ? 'para_llevar' : 'mesa';
   }
   const grupos = H.normalizarComplementosPlato(plato);
   this.complementosPanel = {
@@ -2980,6 +3062,10 @@ const comanda = data.comanda || data;
 this.handleComandaActualizada(comanda);
 });
 
+this.socket.on('mesa-actualizada', (data) => {
+this.handleMesaActualizada(data);
+});
+
 this.socket.on('plato-actualizado', (data) => {
 if (data?.comanda) {
   console.log('📡 Plato actualizado (admin): comanda', data.comandaId || data.comanda?._id, data.nuevoEstado);
@@ -3124,7 +3210,8 @@ console.log('📊 Reporte: nuevo boucher', data);
       this.editComanda = { ...normalizada };
       this.editPlatos = (normalizada.items || []).map(item => ({
         ...item,
-        estadoOriginal: item.estado
+        estadoOriginal: item.estado,
+        cantidadOriginal: Number(item.cantidad) || 1
       }));
     }
   }
@@ -3144,6 +3231,27 @@ console.log('📊 Reporte: nuevo boucher', data);
     this.processGrouping();
     this.filterComandas();
     console.log('✅ Comanda insertada en lista (socket; no estaba en memoria)');
+  }
+},
+
+async handleMesaActualizada(data) {
+  const mesa = data?.mesa || data;
+  const estado = String(mesa?.estado || data?.estado || '').toLowerCase();
+  if (estado !== 'libre') return;
+  const mesaId = this.normalizeObjectId(mesa?._id || data?.mesaId);
+  if (!mesaId) return;
+  const pendientes = this.comandas.filter((c) => {
+    const est = String(c.estado || '').toLowerCase();
+    return String(c.mesaId) === String(mesaId) && !['pagado', 'cancelado'].includes(est);
+  });
+  if (pendientes.length === 0) return;
+  for (const c of pendientes) {
+    try {
+      const fresh = await apiGet('/comanda/' + c._id);
+      if (fresh && !fresh.error && fresh._id) this.handleComandaActualizada(fresh);
+    } catch (e) {
+      console.warn('No se pudo refrescar comanda tras liberar mesa', c._id, e);
+    }
   }
 },
 
@@ -3369,6 +3477,7 @@ this.modal = null;
  mesaId: mesaId,
  mesaNumero: mesaNorm.nummesa ?? raw.mesaNumero ?? null,
  mozo: raw.mozos?.name || raw.mozoNombre || raw.mozo || 'Sin asignar',
+ mozoId: raw.mozos?._id || raw.mozoId || null,
  cliente: raw.cliente,
  clienteNombre: raw.clienteNombre || raw.cliente?.nombre || raw.cliente?.dni || null,
  pedidoId: pedidoId,
@@ -3700,11 +3809,13 @@ this.modal = null;
  };
  },
 
- textoComplementoChip(comp) {
+ textoComplementoChip(comp, nPlatos) {
  if (!comp) return '';
  const grupo = String(comp.grupo || '').trim();
  const opcion = String(comp.opcion || comp.nombre || '').trim();
- const cant = Number(comp.cantidad) || 1;
+ const porUnidad = Number(comp.cantidad) || 1;
+ const n = Number(nPlatos);
+ const cant = porUnidad * (Number.isFinite(n) && n > 0 ? n : 1);
  const precio = Number(comp.precio) || 0;
  let t = (grupo ? grupo + ': ' : '') + opcion + ' x' + cant;
  if (precio > 0) t += ' +S/. ' + precio.toFixed(2);
@@ -3712,13 +3823,56 @@ this.modal = null;
  },
 
  irARendimientoCocinero(cocinero) {
- if (!cocinero) return;
+ this.irARegistroCocinero(cocinero, this.selectedComanda);
+ },
+
+ irARegistroCocinero(cocinero, comanda) {
+ if (!cocinero && !comanda) return;
  const q = new URLSearchParams();
  q.set('tab', 'rendimiento');
- q.set('sub', 'enVivo');
- if (cocinero.cocineroId) q.set('cocinero', String(cocinero.cocineroId));
- else if (cocinero.nombre) q.set('nombre', cocinero.nombre);
+ q.set('sub', 'historial');
+ if (cocinero?.cocineroId) q.set('cocinero', String(cocinero.cocineroId));
+ else if (cocinero?.nombre && cocinero.nombre !== '—') q.set('nombre', cocinero.nombre);
+ if (comanda) {
+   const num = comanda.numComanda || comanda._id;
+   if (num) q.set('comanda', String(num));
+   if (comanda.createdAt) q.set('fecha', limaYMD(new Date(comanda.createdAt)));
+ }
  window.location.href = 'cocineros.html?' + q.toString();
+ },
+
+ irARegistroMozo(comanda) {
+ if (!comanda) return;
+ const q = new URLSearchParams();
+ q.set('tab', 'rendimiento');
+ q.set('sub', 'historial');
+ if (comanda.mozoId) q.set('mozo', String(comanda.mozoId));
+ else if (comanda.mozo && comanda.mozo !== 'Sin asignar') q.set('nombre', comanda.mozo);
+ const num = comanda.numComanda || comanda._id;
+ if (num) q.set('comanda', String(num));
+ if (comanda.createdAt) q.set('fecha', limaYMD(new Date(comanda.createdAt)));
+ window.location.href = 'mozos.html?' + q.toString();
+ },
+
+ cocinerosDeComanda(comanda) {
+ return this.getResumenCocineros(comanda).cocineros || [];
+ },
+
+ cocinerosDeFila(row) {
+ if (!row) return [];
+ if (row.tipo === 'individual') return this.cocinerosDeComanda(row.comanda);
+ const map = new Map();
+ (row.comandas || []).forEach((c) => {
+   this.cocinerosDeComanda(c).forEach((chef) => {
+     const key = String(chef.cocineroId || chef.nombre);
+     if (!map.has(key)) map.set(key, { ...chef, comanda: c });
+   });
+ });
+ return Array.from(map.values());
+ },
+
+ comandaDeMozoEnGrupo(row, nombreMozo) {
+ return (row?.comandas || []).find((c) => c.mozo === nombreMozo) || row?.comandas?.[0] || null;
  },
 
  // ==================== FIN FUNCIONES DE TRAZABILIDAD ====================
@@ -3922,6 +4076,49 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  }
  },
 
+ get rangoFiltroFechas() {
+  const hoy = limaYMD();
+  if (this.filtroPeriodo === 'todos') return null;
+  if (this.filtroPeriodo === 'hoy') return { desde: hoy, hasta: hoy };
+  if (this.filtroPeriodo === 'ayer') {
+    const ayer = addDaysYMD(hoy, -1);
+    return { desde: ayer, hasta: ayer };
+  }
+  if (this.filtroPeriodo === '7dias') return { desde: addDaysYMD(hoy, -6), hasta: hoy };
+  let a = this.customFechaDesde || hoy;
+  let b = this.customFechaHasta || hoy;
+  if (a > b) { const t = a; a = b; b = t; }
+  return { desde: a, hasta: b };
+ },
+
+ get rangoFiltroEtiqueta() {
+  if (this.filtroPeriodo === 'todos') return 'Todas';
+  const rango = this.rangoFiltroFechas;
+  if (!rango) return 'Todas';
+  const { desde, hasta } = rango;
+  return desde === hasta ? desde : desde + ' → ' + hasta;
+ },
+
+ setFiltroPeriodo(id) {
+  this.filtroPeriodo = id;
+  const hoy = limaYMD();
+  if (id === 'custom') {
+    this.customFechaDesde = this.customFechaDesde || hoy;
+    this.customFechaHasta = this.customFechaHasta || hoy;
+  }
+  this.filterComandas();
+ },
+
+ matchFechaRango(createdAt) {
+  if (this.filtroPeriodo === 'todos') return true;
+  if (!createdAt) return false;
+  const ymd = limaYMD(new Date(createdAt));
+  const rango = this.rangoFiltroFechas;
+  if (!rango) return true;
+  const { desde, hasta } = rango;
+  return ymd >= desde && ymd <= hasta;
+ },
+
  /**
   * Filtrar filas (grupos e individuales)
   */
@@ -3932,23 +4129,14 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const c = row.comanda;
  const mesaNum = c.mesa?.nummesa || c.mesa;
  const matchMesa = !this.filterMesa || String(mesaNum || '').includes(this.filterMesa);
- const matchEstado = !this.filterEstado || c.estado === this.filterEstado;
+ const matchEstado = this.matchFilterEstado(c.estado);
  const comandaNum = c.numComanda || c._id?.slice(-4) || '';
  const matchIdComanda = !this.filterIdComanda || String(comandaNum).toLowerCase().includes(this.filterIdComanda.toLowerCase());
  const matchMozo = !this.filterMozo || c.mozo === this.filterMozo;
  const clienteNombre = c.clienteNombre || c.cliente?.nombre || '';
  const matchCliente = !this.filterCliente || clienteNombre.toLowerCase().includes(this.filterCliente.toLowerCase());
- let matchFechaDesde = true;
- if (this.filterFechaDesde && c.createdAt) {
- const fechaComanda = new Date(c.createdAt).toISOString().split('T')[0];
- matchFechaDesde = fechaComanda >= this.filterFechaDesde;
- }
- let matchFechaHasta = true;
- if (this.filterFechaHasta && c.createdAt) {
- const fechaComanda = new Date(c.createdAt).toISOString().split('T')[0];
- matchFechaHasta = fechaComanda <= this.filterFechaHasta;
- }
- return matchMesa && matchEstado && matchIdComanda && matchMozo && matchCliente && matchFechaDesde && matchFechaHasta;
+ const matchFecha = this.matchFechaRango(c.createdAt);
+ return matchMesa && matchEstado && matchIdComanda && matchMozo && matchCliente && matchFecha;
  });
  } else {
  // Filtrar filas (grupos e individuales)
@@ -3956,48 +4144,31 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  if (row.tipo === 'grupo') {
  // Filtrar grupo
  const matchMesa = !this.filterMesa || String(row.mesaNum || '').includes(this.filterMesa);
- const matchEstado = !this.filterEstado || row.estadoGrupo === this.filterEstado;
+ const matchEstado = this.matchFilterEstado(row.estadoGrupo);
  const matchCliente = !this.filterCliente || (row.clienteNombre || '').toLowerCase().includes(this.filterCliente.toLowerCase());
  const matchMozo = !this.filterMozo || row.mozosUnicos?.includes(this.filterMozo);
  
  // Fecha: usar la comanda más antigua del grupo
- let matchFechaDesde = true;
- let matchFechaHasta = true;
+ let matchFecha = true;
  if (row.comandas && row.comandas.length > 0) {
  const comandaMasAntigua = row.comandas[row.comandas.length - 1];
- if (this.filterFechaDesde && comandaMasAntigua.createdAt) {
- const fechaComanda = new Date(comandaMasAntigua.createdAt).toISOString().split('T')[0];
- matchFechaDesde = fechaComanda >= this.filterFechaDesde;
- }
- if (this.filterFechaHasta && comandaMasAntigua.createdAt) {
- const fechaComanda = new Date(comandaMasAntigua.createdAt).toISOString().split('T')[0];
- matchFechaHasta = fechaComanda <= this.filterFechaHasta;
- }
+ matchFecha = this.matchFechaRango(comandaMasAntigua?.createdAt);
  }
  
- return matchMesa && matchEstado && matchCliente && matchMozo && matchFechaDesde && matchFechaHasta;
+ return matchMesa && matchEstado && matchCliente && matchMozo && matchFecha;
  } else {
  // Filtrar individual
  const c = row.comanda;
  const mesaNum = c.mesa?.nummesa || c.mesa;
  const matchMesa = !this.filterMesa || String(mesaNum || '').includes(this.filterMesa);
- const matchEstado = !this.filterEstado || c.estado === this.filterEstado;
+ const matchEstado = this.matchFilterEstado(c.estado);
  const comandaNum = c.numComanda || c._id?.slice(-4) || '';
  const matchIdComanda = !this.filterIdComanda || String(comandaNum).toLowerCase().includes(this.filterIdComanda.toLowerCase());
  const matchMozo = !this.filterMozo || c.mozo === this.filterMozo;
  const clienteNombre = c.clienteNombre || c.cliente?.nombre || '';
  const matchCliente = !this.filterCliente || clienteNombre.toLowerCase().includes(this.filterCliente.toLowerCase());
- let matchFechaDesde = true;
- if (this.filterFechaDesde && c.createdAt) {
- const fechaComanda = new Date(c.createdAt).toISOString().split('T')[0];
- matchFechaDesde = fechaComanda >= this.filterFechaDesde;
- }
- let matchFechaHasta = true;
- if (this.filterFechaHasta && c.createdAt) {
- const fechaComanda = new Date(c.createdAt).toISOString().split('T')[0];
- matchFechaHasta = fechaComanda <= this.filterFechaHasta;
- }
- return matchMesa && matchEstado && matchIdComanda && matchMozo && matchCliente && matchFechaDesde && matchFechaHasta;
+ const matchFecha = this.matchFechaRango(c.createdAt);
+ return matchMesa && matchEstado && matchIdComanda && matchMozo && matchCliente && matchFecha;
  }
  });
  }
@@ -4009,9 +4180,19 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  this.filterIdComanda = '';
  this.filterMozo = '';
  this.filterCliente = '';
- this.filterFechaDesde = '';
- this.filterFechaHasta = '';
+ this.filtroPeriodo = 'hoy';
+ this.customFechaDesde = '';
+ this.customFechaHasta = '';
  this.filterComandas();
+ },
+
+ matchFilterEstado(estado) {
+ const e = String(estado || '').toLowerCase();
+ if (!this.filterEstado) return true;
+ if (this.filterEstado === 'pagado' || this.filterEstado === 'completado') {
+   return e === 'pagado' || e === 'completado';
+ }
+ return e === this.filterEstado;
  },
 
  estadoLabel(estado) {
@@ -4026,7 +4207,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  'preparado': 'Preparado',
  'pendiente': 'Pendiente',
  'pendiente_aprobar': 'Pendiente de aprobación',
- 'completado': 'Completado',
+ 'completado': 'Pagado',
  'pedido': 'Pedido'
  };
  return map[estado] || estado || 'pendiente';
@@ -4323,7 +4504,11 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const detalle = await this.loadComandaDetalle(comandaId);
  if (detalle) {
  this.editComanda = { ...this.editComanda, ...detalle, _id: detalle._id };
- this.editPlatos = (detalle.items || []).map(item => ({ ...item, estadoOriginal: item.estado }));
+ this.editPlatos = (detalle.items || []).map(item => ({
+ ...item,
+ estadoOriginal: item.estado,
+ cantidadOriginal: Number(item.cantidad) || 1
+ }));
  }
  }
  this.showToast('Ticket eliminado', 'success');
@@ -4434,7 +4619,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  this.editPlatos = detalle.items.map(item => ({
  ...item,
- estadoOriginal: item.estado
+ estadoOriginal: item.estado,
+ cantidadOriginal: Number(item.cantidad) || 1
  }));
  await this.loadComandaTickets(comandaId);
  },
@@ -4468,7 +4654,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  };
  this.editPlatos = this.selectedComanda.items.map(item => ({
  ...item,
- estadoOriginal: item.estado
+ estadoOriginal: item.estado,
+ cantidadOriginal: Number(item.cantidad) || 1
  }));
  this.modal = 'editarComanda';
  this.loadComandaTickets(this.selectedComanda._id);
@@ -5012,16 +5199,9 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  }
  });
 
- const platosNuevosData = platosMantenidos.map(p => ({
- plato: p._id,
- platoId: p.platoId,
- estado: p.estado,
- cantidad: p.cantidad
- }));
-
  console.log('📤 Guardando cambios comanda:', {
  comandaId: this.editComanda._id,
- platosNuevos: platosNuevosData.length,
+ platosMantenidos: platosMantenidos.length,
  indicesEliminados: indicesEliminados
  });
 
@@ -5040,6 +5220,22 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  ? resEliminar.detalles.join('\n')
  : (resEliminar.message || 'Error al eliminar platos');
  throw new Error(errorMsg);
+ }
+ }
+
+ const hayCambioCantidad = platosMantenidos.some(p =>
+ Number(p.cantidad) !== Number(p.cantidadOriginal || 1)
+ );
+ if (hayCambioCantidad) {
+ const cantidades = platosMantenidos.map(p => Math.max(1, Number(p.cantidad) || 1));
+ console.log('📤 Actualizando cantidades:', cantidades);
+ const resCant = await apiPut('/comanda/' + this.editComanda._id, {
+ cantidades,
+ forzarAdmin: true
+ });
+ console.log('📥 Respuesta cantidades:', resCant);
+ if (!resCant || resCant.ok === false || resCant.error) {
+ throw new Error(resCant?.message || 'Error al actualizar cantidades');
  }
  }
 
@@ -5062,7 +5258,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  }
  }
 
- let res = { success: true };
+ let res = { success: true, ok: true };
 
  if (this.editComanda.estado) {
  res = await apiPut('/comanda/' + this.editComanda._id + '/status', {
@@ -5315,6 +5511,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
    this.tipoPlatoFiltroReserva = '';
    this.categoriaFiltroReserva = '';
    this.busquedaPlatoReserva = '';
+   this.tipoServicioAltaReserva = 'mesa';
    this._setOrbLoading('reserva', true);
    
    // Cargar datos necesarios
@@ -5433,6 +5630,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
    window.BlendyWrapper?.restoreSource?.('btn-crear-reserva');
    this.reservaModal = null;
    this.editingReservaId = null;
+   this.tipoServicioAltaReserva = 'mesa';
    this._setOrbState('reserva', null);
  },
 
@@ -5879,7 +6077,7 @@ async loadPlatosParaReserva() {
      this.abrirPanelComplementos(plato, 'reserva', null);
      return;
    }
-   const newItem = H.construirItemCarrito(plato, { tipoServicio: 'mesa' });
+   const newItem = H.construirItemCarrito(plato, { tipoServicio: this.tipoServicioAltaReserva === 'para_llevar' ? 'para_llevar' : 'mesa' });
    this._agregarItemCarritoReserva(newItem);
  },
 
@@ -6313,6 +6511,15 @@ PRÓXIMOS PASOS SUGERIDOS (BACKEND)
        Platos pre-seleccionados (opcional)
        <span x-show="resumenPlatosReserva.n > 0" class="text-gold ml-1" x-text="'(' + resumenPlatosReserva.n + ' · S/.' + resumenPlatosReserva.total + ')'"></span>
      </label>
+     <div class="flex items-center gap-2 mb-2">
+       <span class="text-[10px] text-txt-muted uppercase font-semibold tracking-wider">Agregar como</span>
+       <button type="button" @click="tipoServicioAltaReserva = 'mesa'"
+         :class="tipoServicioAltaReserva !== 'para_llevar' ? 'bg-gold/20 border-gold text-gold' : 'bg-bg-sidebar border-txt-muted/30 text-txt-secondary'"
+         class="px-3 py-1.5 border rounded-lg text-xs font-semibold transition">Mesa</button>
+       <button type="button" @click="tipoServicioAltaReserva = 'para_llevar'"
+         :class="tipoServicioAltaReserva === 'para_llevar' ? 'bg-purple-500/20 border-purple-400 text-purple-300' : 'bg-bg-sidebar border-txt-muted/30 text-txt-secondary'"
+         class="px-3 py-1.5 border rounded-lg text-xs font-semibold transition">🥡 Para llevar</button>
+     </div>
      <!-- Buscador + categoría (select compacto) -->
      <div class="grid grid-cols-[1fr_auto] gap-2 mb-2">
        <input type="text" x-model="busquedaPlatoReserva" placeholder="Buscar plato..."
@@ -6352,6 +6559,7 @@ PRÓXIMOS PASOS SUGERIDOS (BACKEND)
            <div class="flex items-center justify-between">
              <div class="flex-1">
                <span class="text-sm font-medium" x-text="plato.nombre"></span>
+               <span x-show="plato.tipoServicio === 'para_llevar'" class="inline-flex items-center ml-1 text-[9px] px-1.5 py-0.5 rounded-full font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">🥡 Llevar</span>
                <span class="text-xs text-txt-muted ml-1" x-text="'S/.' + precioConIgv(plato.precioUnitario != null && Number(plato.precioUnitario) > 0 ? plato.precioUnitario : (plato.precioBase || plato.precio || 0)).toFixed(2)"></span>
                <span x-show="plato.extraComplementos > 0" class="text-[9px] text-gold/70 ml-1" x-text="'(+S/.' + plato.extraComplementos + ' comps)'"></span>
              </div>

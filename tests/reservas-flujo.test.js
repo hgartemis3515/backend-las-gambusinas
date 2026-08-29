@@ -17,6 +17,10 @@ const {
   esReservaInmediata,
   calcularTotalesPlato,
   parseFechaAtencionLima,
+  elegirReservaActivaDeLista,
+  puedeActivarCocinaReserva,
+  debeActivarCocinaAhora,
+  marcarPagoAdelantadoAprobadoEnPlatos,
 } = require('../src/repository/reserva.repository');
 
 describe('PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 — Flujo de reservas', () => {
@@ -233,6 +237,65 @@ describe('PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 — Flujo de reservas', () => {
       // Una reserva a las 17:00 (a 3 h) cae fuera → no colisión
       const lejana = moment.tz('2026-08-13 17:00', 'America/Lima');
       expect(lejana.isBetween(inicio, fin, null, '[]')).toBe(false);
+    });
+  });
+
+  describe('elegirReservaActivaDeLista (varias reservas en la misma mesa)', () => {
+    const mozoA = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+    const mozoB = 'bbbbbbbbbbbbbbbbbbbbbbbb';
+    const mesa = 'cccccccccccccccccccccccc';
+    const lista = [
+      { _id: '1', mesa, mozo: mozoA, estado: 'pendiente', fechaReserva: '2026-08-29T17:00:00-05:00' },
+      { _id: '2', mesa, mozo: { _id: mozoB }, estado: 'pendiente', fechaReserva: '2026-08-29T21:00:00-05:00' },
+    ];
+
+    test('prioriza la reserva del mozo que consulta', () => {
+      expect(elegirReservaActivaDeLista(lista, mozoB)._id).toBe('2');
+      expect(elegirReservaActivaDeLista(lista, mozoA)._id).toBe('1');
+    });
+
+    test('si no hay mozo, elige activa o la más próxima', () => {
+      const conActiva = [
+        ...lista,
+        { _id: '3', mesa, mozo: mozoA, estado: 'activa', fechaReserva: '2026-08-29T20:00:00-05:00' },
+      ];
+      expect(elegirReservaActivaDeLista(conActiva, null)._id).toBe('3');
+    });
+
+    test('reconoce creadoPor además de mozo', () => {
+      const listaCreado = [
+        { _id: '9', mesa, mozo: mozoA, creadoPor: mozoB, estado: 'pendiente', fechaReserva: '2026-08-29T18:00:00-05:00' },
+      ];
+      expect(elegirReservaActivaDeLista(listaCreado, mozoB)._id).toBe('9');
+    });
+  });
+
+  describe('aprobación PPA → KDS (no activar sin ticket aprobado)', () => {
+    test('solo estado pendiente (ya aprobada) puede ir al KDS', () => {
+      expect(puedeActivarCocinaReserva('pendiente_aprobar')).toBe(false);
+      expect(puedeActivarCocinaReserva('pendiente')).toBe(true);
+      expect(puedeActivarCocinaReserva('activa')).toBe(false);
+    });
+
+    test('debeActivarCocinaAhora si fechaCocina ya pasó o es nula', () => {
+      const ahora = moment.tz('2026-08-13 12:00', 'America/Lima');
+      expect(debeActivarCocinaAhora(null, ahora)).toBe(true);
+      expect(debeActivarCocinaAhora(ahora.clone().subtract(1, 'minute'), ahora)).toBe(true);
+      expect(debeActivarCocinaAhora(ahora.clone(), ahora)).toBe(true);
+      expect(debeActivarCocinaAhora(ahora.clone().add(20, 'minutes'), ahora)).toBe(false);
+    });
+
+    test('marcarPagoAdelantadoAprobadoEnPlatos no deja pendiente_aprobacion', () => {
+      const platos = [
+        { estado: 'pendiente', pagoAdelantado: { requerido: true, estadoTicket: 'pendiente_aprobacion' } },
+        { estado: 'pendiente', pagoAdelantado: { requerido: true, estadoTicket: 'aprobado' } },
+        { estado: 'pedido' },
+      ];
+      const n = marcarPagoAdelantadoAprobadoEnPlatos(platos);
+      expect(n).toBe(1);
+      expect(platos[0].pagoAdelantado.estadoTicket).toBe('aprobado');
+      expect(platos[1].pagoAdelantado.estadoTicket).toBe('aprobado');
+      expect(platos[2].pagoAdelantado).toBeUndefined();
     });
   });
 });

@@ -321,6 +321,26 @@ tailwind.config = {
                 </template>
               </div>
               <button type="button" @click="agregarOpcionComplemento(gi)" class="mt-2 text-[10px] text-gold hover:underline">+ Agregar opción</button>
+
+              <div class="mt-3 p-2 bg-bg-card rounded-lg border border-[rgba(212,175,55,0.15)]" x-show="(grupo.opciones || []).some(o => (o.nombre || '').trim())">
+                <p class="text-[9px] text-txt-muted font-semibold mb-0.5">Marcar en Órdenes (mozos)</p>
+                <p class="text-[9px] text-txt-muted mb-2">Si marcas aquí, el mozo ya las ve seleccionadas al pedir el plato. Con cantidades, indica cuántas.</p>
+                <div class="space-y-1">
+                  <template x-for="(op, oi) in grupo.opciones" :key="'pre-'+gi+'-'+oi">
+                    <label class="flex items-center gap-1.5 cursor-pointer text-[10px]" x-show="(op.nombre || '').trim()" :class="op.preseleccionada ? 'text-gold' : 'text-txt-muted'">
+                      <input type="checkbox" class="accent-gold w-3 h-3"
+                        :checked="op.preseleccionada === true"
+                        @change="togglePreseleccionOpcion(gi, oi, $event.target.checked)">
+                      <span class="flex-1 truncate" x-text="op.nombre"></span>
+                      <input type="number" min="1" max="99" x-show="grupo.modoSeleccion === 'cantidades' && op.preseleccionada"
+                        x-model.number="op.cantidadPreseleccion"
+                        @input="marcarCopiaComplementoPlato(gi)"
+                        class="w-12 bg-bg-sidebar border border-[rgba(212,175,55,0.2)] rounded px-1 py-0.5 text-[10px] text-center focus:border-gold focus:outline-none"
+                        title="Cantidad preseleccionada">
+                    </label>
+                  </template>
+                </div>
+              </div>
             </div>
           </template>
         </div>
@@ -791,6 +811,24 @@ tailwind.config = {
           </template>
         </div>
         <p x-show="formComplemento.opciones.length === 0" class="text-[11px] text-st-pagado mt-1">Debes agregar al menos una opción</p>
+        <div class="mt-3 p-2 bg-bg-card rounded-lg border border-[rgba(212,175,55,0.15)]" x-show="(formComplemento.opciones || []).some(o => (o.nombre || '').trim())">
+          <p class="text-[9px] text-txt-muted font-semibold mb-0.5">Marcar en Órdenes (mozos)</p>
+          <p class="text-[9px] text-txt-muted mb-2">Al aplicar esta plantilla al plato, el mozo ya las ve seleccionadas.</p>
+          <div class="space-y-1">
+            <template x-for="(op, i) in formComplemento.opciones" :key="'pre-plantilla-'+i">
+              <label class="flex items-center gap-1.5 cursor-pointer text-[10px]" x-show="(op.nombre || '').trim()" :class="op.preseleccionada ? 'text-gold' : 'text-txt-muted'">
+                <input type="checkbox" class="accent-gold w-3 h-3"
+                  :checked="op.preseleccionada === true"
+                  @change="togglePreseleccionOpcionPlantilla(i, $event.target.checked)">
+                <span class="flex-1 truncate" x-text="op.nombre"></span>
+                <input type="number" min="1" max="99" x-show="formComplemento.modoSeleccion === 'cantidades' && op.preseleccionada"
+                  x-model.number="op.cantidadPreseleccion"
+                  class="w-12 bg-bg-sidebar border border-[rgba(212,175,55,0.2)] rounded px-1 py-0.5 text-[10px] text-center focus:border-gold focus:outline-none"
+                  title="Cantidad preseleccionada">
+              </label>
+            </template>
+          </div>
+        </div>
       </div>
       
       <!-- Flags -->
@@ -1177,7 +1215,7 @@ tailwind.config = {
         obligatorio: false,
         seleccionMultiple: false,
         // v3.0: opción = { nombre, precio }
-        opciones: [{ nombre: '', precio: 0, pronombre: '', _asig: this._asigVacia() }],
+        opciones: [{ nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1, _asig: this._asigVacia() }],
         // ===== NUEVOS CAMPOS v2.0 =====
         modoSeleccion: 'opciones',
         maxUnidadesGrupo: null,
@@ -1222,28 +1260,49 @@ tailwind.config = {
       g._copiaPlato = true;
     },
 
+    togglePreseleccionOpcion(gi, oi, checked) {
+      const grupo = this.formPlato.complementos[gi];
+      if (!grupo || !grupo.opciones || !grupo.opciones[oi]) return;
+      const modoCant = grupo.modoSeleccion === 'cantidades';
+      const soloUna = !grupo.seleccionMultiple && !modoCant;
+      if (checked && soloUna) {
+        grupo.opciones.forEach((op, i) => {
+          op.preseleccionada = i === oi;
+          if (i === oi && !(Number(op.cantidadPreseleccion) >= 1)) op.cantidadPreseleccion = 1;
+        });
+      } else {
+        const op = grupo.opciones[oi];
+        op.preseleccionada = !!checked;
+        if (checked && !(Number(op.cantidadPreseleccion) >= 1)) op.cantidadPreseleccion = 1;
+      }
+      this.marcarCopiaComplementoPlato(gi);
+    },
+
     agregarOpcionComplemento(grupoIndex) {
       if (!this.formPlato.complementos[grupoIndex].opciones) {
         this.formPlato.complementos[grupoIndex].opciones = [];
       }
       // v3.0: opción es ahora { nombre, precio }
-      this.formPlato.complementos[grupoIndex].opciones.push({ nombre: '', precio: 0, pronombre: '', _asig: this._asigVacia() });
+      this.formPlato.complementos[grupoIndex].opciones.push({ nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1, _asig: this._asigVacia() });
     },
 
     // v3.0: normaliza una opción (string u objeto) a { nombre, precio }
     normalizarOpcionComplemento(op) {
-      if (op == null) return { nombre: '', precio: 0, pronombre: '' };
-      if (typeof op === 'string') return { nombre: op.trim(), precio: 0, pronombre: '' };
+      if (op == null) return { nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1 };
+      if (typeof op === 'string') return { nombre: op.trim(), precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1 };
       if (typeof op === 'object') {
         const nombre = String(op.nombre ?? '').trim();
         const precioRaw = Number(op.precio);
+        const cant = Number(op.cantidadPreseleccion);
         return {
           nombre,
           precio: Number.isFinite(precioRaw) && precioRaw > 0 ? precioRaw : 0,
-          pronombre: String(op.pronombre || '').trim().slice(0, 40)
+          pronombre: String(op.pronombre || '').trim().slice(0, 40),
+          preseleccionada: op.preseleccionada === true,
+          cantidadPreseleccion: Number.isFinite(cant) && cant >= 1 ? Math.min(99, Math.floor(cant)) : 1
         };
       }
-      return { nombre: String(op).trim(), precio: 0, pronombre: '' };
+      return { nombre: String(op).trim(), precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1 };
     },
 
     // v3.0: normaliza un array de opciones (filtra vacíos y duplicados por nombre)
@@ -1682,7 +1741,7 @@ tailwind.config = {
         nombre: '',
         categoria: 'General',
         // v3.0: opción = { nombre, precio }
-        opciones: [{ nombre: '', precio: 0, pronombre: '' }],
+        opciones: [{ nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1 }],
         obligatorio: false,
         seleccionMultiple: false,
         // ===== NUEVOS CAMPOS v2.0 =====
@@ -1720,9 +1779,26 @@ tailwind.config = {
       this.modalFormComplemento = true;
     },
 
+    togglePreseleccionOpcionPlantilla(oi, checked) {
+      const ops = this.formComplemento.opciones;
+      if (!ops || !ops[oi]) return;
+      const modoCant = this.formComplemento.modoSeleccion === 'cantidades';
+      const soloUna = !this.formComplemento.seleccionMultiple && !modoCant;
+      if (checked && soloUna) {
+        ops.forEach((op, i) => {
+          op.preseleccionada = i === oi;
+          if (i === oi && !(Number(op.cantidadPreseleccion) >= 1)) op.cantidadPreseleccion = 1;
+        });
+      } else {
+        const op = ops[oi];
+        op.preseleccionada = !!checked;
+        if (checked && !(Number(op.cantidadPreseleccion) >= 1)) op.cantidadPreseleccion = 1;
+      }
+    },
+
     agregarOpcionFormComplemento() {
       // v3.0: ahora opción es objeto { nombre, precio }
-      this.formComplemento.opciones.push({ nombre: '', precio: 0, pronombre: '' });
+      this.formComplemento.opciones.push({ nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1 });
     },
 
     eliminarOpcionFormComplemento(index) {

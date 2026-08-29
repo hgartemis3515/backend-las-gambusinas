@@ -1296,13 +1296,23 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         });
       }
 
+      if (adminNamespace && adminNamespace.sockets) {
+        adminNamespace.emit('mesa-actualizada', {
+          mesaId: mesaId,
+          mesa: mesa,
+          socketId: 'server',
+          timestamp: timestamp
+        });
+      }
+
       logger.info('Evento mesa-actualizada emitido', {
         mesaId: mesa._id,
         numMesa: mesa.nummesa,
         estado: mesa.estado,
         timestamp,
         mozosConnected: mozosNamespace?.sockets?.size || 0,
-        cocinaConnected: cocinaNamespace?.sockets?.size || 0
+        cocinaConnected: cocinaNamespace?.sockets?.size || 0,
+        adminsConnected: adminNamespace?.sockets?.size || 0
       });
 
       // Al liberar / pasar a pagado: refrescar rendimiento en vivo (comandas salen del ciclo)

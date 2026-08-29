@@ -9,7 +9,8 @@
  *    * Platos: pendiente -> pedido (entran a la cola operativa del KDS)
  *    * prioridadOrden = Date.now() (criterio KDS v5.5: ordena arriba)
  *    * Emite comanda-actualizada / mesa-actualizada vía globals de events.js
- *  - Es idempotente: si la reserva ya está activa, no hace nada.
+ *  - Es idempotente: si la reserva ya está activa, asegura platos en KDS.
+ *  - No activa reservas en pendiente_aprobar (el ticket PPA aún no pasó caja).
  *  - No cambia el enum de status de comanda (sigue 'en_espera').
  *
  * El scheduler (timeoutService) es el único que debería llamar a activarReservaProgramada
@@ -83,7 +84,7 @@ const activarReservaProgramada = async (reservaId, opts = {}) => {
     try {
         const ahora = moment.tz('America/Lima').toDate();
         const reserva = await Reserva.findOneAndUpdate(
-            { _id: reservaId, estado: { $in: ['pendiente', 'pendiente_aprobar'] } },
+            { _id: reservaId, estado: 'pendiente' },
             { estado: 'activa', actualizadoEn: ahora },
             { new: true }
         ).populate('mesa', 'nummesa estado area');
@@ -94,6 +95,12 @@ const activarReservaProgramada = async (reservaId, opts = {}) => {
                 logger.warn('activarReservaProgramada: reserva no encontrada', { reservaId });
                 return { activada: false, motivo: 'no_encontrada' };
             }
+            if (actual.estado === 'pendiente_aprobar') {
+                logger.info('activarReservaProgramada: esperando aprobación PPA, no se empuja a KDS', {
+                    reservaId, origen
+                });
+                return { activada: false, motivo: 'esperando_aprobacion', reserva: actual };
+            }
             if (actual.estado === 'activa') {
                 logger.info('activarReservaProgramada: reserva ya activa, se asegura la comanda en KDS', {
                     reservaId, origen
@@ -101,7 +108,7 @@ const activarReservaProgramada = async (reservaId, opts = {}) => {
                 let comandaYa = null;
                 if (actual.comandaGenerada) {
                     comandaYa = await Comanda.findById(actual.comandaGenerada);
-                    if (comandaYa && comandaYa.programadaPorReserva) {
+                    if (comandaYa) {
                         let platosModificados = 0;
                         comandaYa.platos.forEach((p) => {
                             if (p.estado === 'pendiente') {
@@ -121,9 +128,13 @@ const activarReservaProgramada = async (reservaId, opts = {}) => {
                         comandaYa.programadaPorReserva = false;
                         comandaYa.prioridadOrden = Date.now();
                         comandaYa.origenCreacion = comandaYa.origenCreacion || 'reserva';
-                        comandaYa.markModified('platos');
-                        await comandaYa.save();
-                        logger.info('Comanda programada activada (reserva ya activa)', {
+                        if (platosModificados > 0) {
+                            comandaYa.markModified('platos');
+                            await comandaYa.save();
+                        } else {
+                            await comandaYa.save();
+                        }
+                        logger.info('Comanda programada asegurada en KDS (reserva ya activa)', {
                             comandaId: comandaYa._id,
                             comandaNumber: comandaYa.comandaNumber,
                             platosModificados
@@ -159,7 +170,7 @@ const activarReservaProgramada = async (reservaId, opts = {}) => {
         let comandaActualizada = null;
         if (reserva.comandaGenerada) {
             const comanda = await Comanda.findById(reserva.comandaGenerada);
-            if (comanda && comanda.programadaPorReserva) {
+            if (comanda && (comanda.programadaPorReserva || comanda.platos.some((p) => p.estado === 'pendiente'))) {
                 let platosModificados = 0;
                 comanda.platos.forEach((p) => {
                     if (p.estado === 'pendiente') {

@@ -236,7 +236,7 @@ const manejarActivacion = async (reservaId) => {
 const manejarAlertaActivacion = async (reservaId) => {
     try {
         const reserva = await getReservaRepository().obtenerReservaPorId(reservaId);
-        if (reserva && (reserva.estado === 'pendiente' || reserva.estado === 'pendiente_aprobar')) {
+        if (reserva && reserva.estado === 'pendiente') {
             emitirEvento('reserva-alerta-activacion', {
                 reservaId,
                 mesa: reserva.mesa?.nummesa,
@@ -490,12 +490,11 @@ const rehidratarTimeouts = async () => {
                         reserva.tiempoEspera
                     );
 
-                    // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: reprogramar activación de cocina
-                    if (reserva.fechaCocina) {
+                    // Solo reservas ya aprobadas (pendiente) programan/disparan KDS.
+                    if (reserva.fechaCocina && reserva.estado === 'pendiente') {
                         const fechaCocina = new Date(reserva.fechaCocina);
                         const ahora = Date.now();
                         if (fechaCocina.getTime() <= ahora) {
-                            // fechaCocina ya pasó y la reserva sigue pendiente: activar ya
                             logger.warn('fechaCocina en el pasado al rehidratar; activando inmediatamente', {
                                 reservaId: reserva._id,
                                 fechaCocina: fechaCocina.toISOString()
@@ -540,7 +539,7 @@ const barrerActivacionesVencidas = async () => {
     try {
         const Reserva = require('../database/models/reserva.model');
         const vencidas = await Reserva.find({
-            estado: { $in: ['pendiente', 'pendiente_aprobar'] },
+            estado: 'pendiente',
             fechaCocina: { $ne: null, $lte: new Date() },
             comandaGenerada: { $ne: null }
         }).select('_id fechaCocina estado').lean();

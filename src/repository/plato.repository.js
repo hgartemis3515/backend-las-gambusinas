@@ -4,6 +4,7 @@ const TIPOS_MENU = platoModel.TIPOS_MENU || ['platos-desayuno', 'plato-carta nor
 const { syncJsonFile } = require('../utils/jsonSync');
 const redisCache = require('../utils/redisCache');
 const logger = require('../utils/logger');
+const { normalizarOpcionDocumento } = require('../utils/opcionComplemento');
 const fs = require('fs');
 const path = require('path');
 
@@ -23,22 +24,12 @@ function sanitizarComplementosParaGuardar(complementos) {
         const vistos = new Set();
         const ops = [];
         for (const op of Array.isArray(g.opciones) ? g.opciones : []) {
-            let nombre = '';
-            let precio = 0;
-            let pronombre = '';
-            if (typeof op === 'string') {
-                nombre = op.trim();
-            } else if (op && typeof op === 'object') {
-                nombre = String(op.nombre || '').trim();
-                const pr = Number(op.precio);
-                precio = Number.isFinite(pr) && pr > 0 ? pr : 0;
-                pronombre = String(op.pronombre || '').trim().slice(0, 40);
-            }
-            if (!nombre) continue;
-            const key = nombre.toLowerCase();
+            const n = normalizarOpcionDocumento(op);
+            if (!n) continue;
+            const key = n.nombre.toLowerCase();
             if (vistos.has(key)) continue;
             vistos.add(key);
-            ops.push({ nombre, precio, pronombre });
+            ops.push(n);
         }
         return {
             grupo,

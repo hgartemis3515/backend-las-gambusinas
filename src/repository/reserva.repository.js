@@ -246,7 +246,14 @@ const actualizarReserva = async (id, data) => {
         
         camposActualizables.forEach(campo => {
             if (data[campo] !== undefined) {
-                reserva[campo] = data[campo];
+                if (campo === 'platos' && Array.isArray(data.platos)) {
+                    reserva.platos = data.platos.map((p) => ({
+                        ...p,
+                        tipoServicio: p.tipoServicio === 'para_llevar' ? 'para_llevar' : 'mesa'
+                    }));
+                } else {
+                    reserva[campo] = data[campo];
+                }
             }
         });
         
@@ -350,25 +357,27 @@ const cancelarReservaPorComandaEliminada = async (comanda, motivo = null) => {
  * @param {String} mesaId - ID de la mesa
  * @returns {Object|null} Reserva activa o null
  */
-const obtenerReservaActivaPorMesa = async (mesaId) => {
+const obtenerReservaActivaPorMesa = async (mesaId, opts = {}) => {
     try {
-        let reserva = await Reserva.findOne({
+        const lista = await Reserva.find({
             mesa: mesaId,
-            estado: { $in: ['pendiente_aprobar', 'pendiente', 'activa'] }
+            estado: { $in: ESTADOS_RESERVA_VIGENTE }
         })
         .populate('mozo', 'name _id')
+        .populate('creadoPor', 'name _id')
+        .populate('comandaGenerada', 'comandaNumber status origenCreacion programadaPorReserva')
+        .sort({ fechaReserva: 1 })
         .lean();
 
-        if (reserva) {
-            const vigentes = await cancelarReservasSinComandaViva([reserva]);
-            reserva = vigentes[0] || null;
-        }
+        const vigentes = await cancelarReservasSinComandaViva(lista);
+        const reserva = elegirReservaActivaDeLista(vigentes, opts.mozoId);
 
         if (reserva) {
             logger.info('Reserva activa encontrada', {
                 reservaId: reserva._id,
                 mesaId: mesaId,
                 estado: reserva.estado,
+                mozoSolicitante: opts.mozoId || null,
                 mozo: reserva.mozo ? {
                     _id: reserva.mozo._id,
                     name: reserva.mozo.name
@@ -645,13 +654,67 @@ const esReservaInmediata = (fechaReserva, minutosAntes = 20, ahora = null) => {
     return atencion.diff(ref, 'minutes', true) <= offset;
 };
 
+/**
+ * Solo reservas ya aprobadas (pendiente) entran al KDS.
+ * pendiente_aprobar nunca se activa: el ticket PPA aún no pasó caja.
+ */
+const puedeActivarCocinaReserva = (estado) => String(estado || '').toLowerCase() === 'pendiente';
+
+/** fechaCocina nula o ya vencida → empujar a KDS al aprobar, sin esperar el job. */
+const debeActivarCocinaAhora = (fechaCocina, ahora = null) => {
+    if (!fechaCocina) return true;
+    const ref = ahora ? moment(ahora) : moment().tz('America/Lima');
+    return moment(fechaCocina).isSameOrBefore(ref);
+};
+
+const marcarPagoAdelantadoAprobadoEnPlatos = (platos = []) => {
+    let modificados = 0;
+    for (const p of platos) {
+        if (!p?.pagoAdelantado) continue;
+        if (p.pagoAdelantado.estadoTicket !== 'aprobado') modificados++;
+        p.pagoAdelantado.estadoTicket = 'aprobado';
+    }
+    return modificados;
+};
+
 const ESTADOS_RESERVA_VIGENTE = ['pendiente_aprobar', 'pendiente', 'activa'];
+
+const idEntidadReserva = (v) => {
+    if (v == null || v === '') return '';
+    if (typeof v === 'object') {
+        if (v._id != null) return String(v._id);
+        if (v.$oid) return String(v.$oid);
+    }
+    return String(v);
+};
+
+const reservaPerteneceAMozo = (reserva, mozoId) => {
+    const yo = idEntidadReserva(mozoId);
+    if (!yo || !reserva) return false;
+    return idEntidadReserva(reserva.mozo) === yo || idEntidadReserva(reserva.creadoPor) === yo;
+};
+
+/** Varias vigentes en la misma mesa: primero las del mozo, luego activa > pendiente > espera. */
+const elegirReservaActivaDeLista = (reservas, mozoId) => {
+    const lista = Array.isArray(reservas) ? reservas.filter(Boolean) : [];
+    if (lista.length === 0) return null;
+    const prio = { activa: 3, pendiente: 2, pendiente_aprobar: 1 };
+    const ordenar = (arr) => [...arr].sort((a, b) => {
+        const pe = (prio[String(b.estado || '').toLowerCase()] || 0)
+            - (prio[String(a.estado || '').toLowerCase()] || 0);
+        if (pe !== 0) return pe;
+        return new Date(a.fechaReserva || a.createdAt || 0) - new Date(b.fechaReserva || b.createdAt || 0);
+    });
+    const mias = lista.filter((r) => reservaPerteneceAMozo(r, mozoId));
+    if (mias.length) return ordenar(mias)[0];
+    return ordenar(lista)[0];
+};
 
 const cancelarReservasSinComandaViva = async (reservas) => {
     if (!Array.isArray(reservas) || reservas.length === 0) return [];
     const conComanda = reservas.filter((r) => r.comandaGenerada);
     if (conComanda.length === 0) return reservas;
-    const ids = conComanda.map((r) => r.comandaGenerada);
+    const ids = conComanda.map((r) => r.comandaGenerada?._id || r.comandaGenerada);
     const vivas = await getComandaModel().find({
         _id: { $in: ids },
         IsActive: { $ne: false },
@@ -662,7 +725,7 @@ const cancelarReservasSinComandaViva = async (reservas) => {
     const vigentes = [];
     const huerfanas = [];
     for (const r of reservas) {
-        if (!r.comandaGenerada || vivaSet.has(r.comandaGenerada.toString())) {
+        if (!r.comandaGenerada || vivaSet.has(idEntidadReserva(r.comandaGenerada))) {
             vigentes.push(r);
         } else {
             huerfanas.push(r);
@@ -892,7 +955,9 @@ const crearReservaDesdeMozos = async (data) => {
             reservaId: reserva._id, comandaId: comanda._id, mesaId: mesa._id,
             fechaReserva: reserva.fechaReserva, montoPagado, ticketId: ticketPPA._id
         });
-        programarJobsReservaConfirmada(reserva, config);
+        // No programar activación KDS aquí: el barrido / job no debe empujar
+        // comandas con ticket aún pendiente_aprobacion (rompe KDS y ComandaDetalle).
+        programarJobsExpiracionYBloqueo(reserva, config);
         return { reserva, comanda, ticketPPA, config, activacionInmediata, esperandoAprobacion: true };
     } catch (error) {
         logger.error('Error en crearReservaDesdeMozos', { error: error.message, stack: error.stack });
@@ -908,34 +973,13 @@ const crearReservaDesdeMozos = async (data) => {
     }
 };
 
-const aplicarBloqueoMesaReserva = async (reserva, config) => {
-    const ahora = moment().tz('America/Lima');
-    const fechaAtencion = moment(reserva.fechaReserva);
-    if (config.bloquearMesaAlCrear === true) {
-        await mesasModel.updateOne({ _id: reserva.mesa }, { estado: 'reservado' });
-        return 'reservado';
-    }
-    const minutosBloqueo = Number(config.minutosBloqueoMesaAntes) || 45;
-    const fechaBloqueo = fechaAtencion.clone().subtract(minutosBloqueo, 'minutes');
-    if (fechaBloqueo.isSameOrBefore(ahora)) {
-        await mesasModel.updateOne({ _id: reserva.mesa }, { estado: 'reservado' });
-        return 'reservado';
-    }
-    await mesasModel.updateOne({ _id: reserva.mesa }, { estado: 'libre' });
-    return 'libre';
+const aplicarBloqueoMesaReserva = async (reserva) => {
+    await mesasModel.updateOne({ _id: reserva.mesa }, { estado: 'reservado' });
+    return 'reservado';
 };
 
-const programarJobsReservaConfirmada = (reserva, config) => {
+const programarJobsExpiracionYBloqueo = (reserva, config) => {
     const timeoutService = require('../services/timeoutService');
-    try {
-        timeoutService.programarActivacion(
-            reserva._id,
-            reserva.fechaCocina,
-            config.minutosAlertaPreviaCocina ?? 10
-        );
-    } catch (e) {
-        logger.error('Error al programar activación de cocina', { error: e.message, reservaId: reserva._id });
-    }
     try {
         timeoutService.programarExpiracion(reserva._id, reserva.fechaReserva, reserva.tiempoEspera);
     } catch (e) {
@@ -954,33 +998,89 @@ const programarJobsReservaConfirmada = (reserva, config) => {
     }
 };
 
+const programarJobsReservaConfirmada = (reserva, config) => {
+    const timeoutService = require('../services/timeoutService');
+    programarJobsExpiracionYBloqueo(reserva, config);
+    try {
+        timeoutService.programarActivacion(
+            reserva._id,
+            reserva.fechaCocina,
+            config.minutosAlertaPreviaCocina ?? 10
+        );
+    } catch (e) {
+        logger.error('Error al programar activación de cocina', { error: e.message, reservaId: reserva._id });
+    }
+};
+
 const confirmarReservaTrasAprobacionPPA = async (reservaId) => {
     const reserva = await Reserva.findById(reservaId);
     if (!reserva) throw new Error('Reserva no encontrada');
     const config = await leerConfigReservas();
-    if (reserva.estado !== 'pendiente_aprobar') {
-        return { reserva, config, alreadyConfirmed: true, mesaEstado: null };
+    const alreadyConfirmed = reserva.estado !== 'pendiente_aprobar';
+
+    // Siempre sincronizar ticket en reserva + platos (aunque un job/barrido
+    // haya pasado la reserva a activa antes de la aprobación).
+    if (reserva.estado === 'pendiente_aprobar') {
+        reserva.estado = 'pendiente';
     }
-    reserva.estado = 'pendiente';
     if (reserva.pagoAdelantado) {
         reserva.pagoAdelantado.estadoTicket = 'aprobado';
         reserva.markModified('pagoAdelantado');
     }
     await reserva.save();
-    const mesaEstado = await aplicarBloqueoMesaReserva(reserva, config);
-    programarJobsReservaConfirmada(reserva, config);
+
+    let mesaEstado = null;
+    const mesaDoc = await mesasModel.findById(reserva.mesa).select('estado');
+    const estadoMesa = String(mesaDoc?.estado || '').toLowerCase();
+    if (estadoMesa === 'pendiente_aprobar' || estadoMesa === 'libre' || !estadoMesa) {
+        mesaEstado = await aplicarBloqueoMesaReserva(reserva);
+    } else {
+        mesaEstado = mesaDoc.estado;
+    }
+
     if (reserva.comandaGenerada) {
         const comanda = await getComandaModel().findById(reserva.comandaGenerada);
         if (comanda) {
-            comanda.platos.forEach((p) => {
-                if (p.pagoAdelantado) p.pagoAdelantado.estadoTicket = 'aprobado';
-            });
+            marcarPagoAdelantadoAprobadoEnPlatos(comanda.platos);
             comanda.markModified('platos');
             await comanda.save();
         }
     }
-    logger.info('Reserva confirmada tras aprobación PPA', { reservaId: reserva._id, mesaEstado });
-    return { reserva, config, alreadyConfirmed: false, mesaEstado };
+
+    const activarAhora = debeActivarCocinaAhora(reserva.fechaCocina);
+    let activada = false;
+    if (activarAhora) {
+        try {
+            const { activarReservaProgramada } = require('../services/reservaActivacionService');
+            const act = await activarReservaProgramada(reserva._id, { origen: 'aprobacion_ppa' });
+            activada = !!act?.activada;
+        } catch (e) {
+            logger.error('Error al activar reserva en KDS tras aprobación PPA', {
+                error: e.message, reservaId: reserva._id
+            });
+        }
+    }
+    if (activarAhora && activada) {
+        programarJobsExpiracionYBloqueo(reserva, config);
+    } else {
+        programarJobsReservaConfirmada(reserva, config);
+    }
+
+    const reservaFinal = await Reserva.findById(reservaId);
+    logger.info('Reserva confirmada tras aprobación PPA', {
+        reservaId: reserva._id,
+        mesaEstado,
+        alreadyConfirmed,
+        activada,
+        activarAhora
+    });
+    return {
+        reserva: reservaFinal || reserva,
+        config,
+        alreadyConfirmed,
+        mesaEstado,
+        activada
+    };
 };
 
 const rechazarReservaTrasPPA = async (reservaId, motivo) => {
@@ -1018,6 +1118,7 @@ module.exports = {
 
     // Funciones especificas
     obtenerReservaActivaPorMesa,
+    elegirReservaActivaDeLista,
     marcarReservaComoActiva,
     marcarReservaComoCompletada,
     marcarReservaComoRechazada,
@@ -1035,5 +1136,8 @@ module.exports = {
     calcularTotalesPlato,
     calcularFechaCocina,
     esReservaInmediata,
-    parseFechaAtencionLima
+    parseFechaAtencionLima,
+    puedeActivarCocinaReserva,
+    debeActivarCocinaAhora,
+    marcarPagoAdelantadoAprobadoEnPlatos
 };

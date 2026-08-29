@@ -49,7 +49,8 @@ async function conIgvImpresion(datos) {
 /**
  * GET /api/aprobacion/pendientes
  * Lista tickets pendientes de aprobación, tipo COMANDA y/o ADELANTADO.
- * Query params: tipo=COMANDA|ADELANTADO (opcional), fecha=YYYY-MM-DD (opcional)
+ * Query params: tipo=COMANDA|ADELANTADO (opcional), fecha=YYYY-MM-DD (opcional).
+ * Sin fecha: todos los pendientes activos, incluidos los de días anteriores.
  */
 router.get('/aprobacion/pendientes', async (req, res) => {
   try {
@@ -83,15 +84,44 @@ router.get('/aprobacion/pendientes', async (req, res) => {
   }
 });
 
+const FECHA_ISO = /^\d{4}-\d{2}-\d{2}$/;
+const ZONA_FECHA = 'America/Lima';
+const MAX_DIAS_RANGO = 90;
+
+function resolverRangoFechas(fechaDesde, fechaHasta) {
+  if (!fechaDesde || !FECHA_ISO.test(fechaDesde)) return null;
+  const hastaRaw = fechaHasta && FECHA_ISO.test(fechaHasta) ? fechaHasta : fechaDesde;
+  let start = moment.tz(fechaDesde, ZONA_FECHA);
+  let end = moment.tz(hastaRaw, ZONA_FECHA);
+  if (!start.isValid() || !end.isValid()) return null;
+  if (end.isBefore(start)) {
+    const tmp = start;
+    start = end;
+    end = tmp;
+  }
+  if (end.diff(start, 'days') > MAX_DIAS_RANGO) {
+    end = start.clone().add(MAX_DIAS_RANGO, 'days');
+  }
+  return {
+    desde: start.format('YYYY-MM-DD'),
+    hasta: end.format('YYYY-MM-DD'),
+  };
+}
+
 /**
  * GET /api/aprobacion/fecha/:fecha
- * Lista todos los tickets de aprobación (cualquier estado) de una fecha.
+ * Lista tickets de aprobación (cualquier estado) de una fecha.
+ * Query opcional: hasta=YYYY-MM-DD para rango (máx. 90 días).
  */
 router.get('/aprobacion/fecha/:fecha', async (req, res) => {
   try {
-    const { fecha } = req.params;
-    const ticketsComanda = await ticketAprobacionRepository.obtenerTicketsPorFecha(fecha);
-    const ticketsPPA = await ticketPagoAdelantadoRepository.obtenerTicketsPorFecha(fecha);
+    const rango = resolverRangoFechas(req.params.fecha, req.query.hasta);
+    if (!rango) {
+      return res.status(400).json({ success: false, message: 'Fecha inválida' });
+    }
+
+    const ticketsComanda = await ticketAprobacionRepository.obtenerTicketsPorFecha(rango.desde, rango.hasta);
+    const ticketsPPA = await ticketPagoAdelantadoRepository.obtenerTicketsPorFecha(rango.desde, rango.hasta);
 
     const tickets = [
       ...ticketsComanda.map((t) => ({
@@ -101,7 +131,7 @@ router.get('/aprobacion/fecha/:fecha', async (req, res) => {
       ...ticketsPPA.map((t) => ({ ...t, tipo: 'ADELANTADO' })),
     ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-    res.json({ success: true, tickets });
+    res.json({ success: true, tickets, desde: rango.desde, hasta: rango.hasta });
   } catch (error) {
     logger.error('Error al obtener comandas pendientes de aprobación', { error: error.message });
     res.status(500).json({ success: false, message: 'Error al obtener comandas pendientes' });
@@ -197,31 +227,31 @@ router.put('/aprobacion/:id/aprobar', async (req, res) => {
         io.of('/mozos').emit('ticket-ppa-aprobado', payloadAprobado);
         io.of('/admin').emit('ticket-ppa-aprobado', payloadAprobado);
 
-        // Comanda de reserva sigue programada (bandeja Reserva); no empujarla al KDS vivo
-        if (!esReserva) {
-          for (const comandaId of (ticket.comandas || [])) {
-            try {
-              const comandaActualizada = await mongoose.model('Comanda').findById(comandaId)
-                .populate('platos.plato', 'nombre precio id')
-                .populate('mozos', 'name')
-                .populate('mesas', 'nummesa estado nombreCombinado')
-                .lean();
+        // Reserva inmediata: platos ya en pedido (activarReservaProgramada).
+        // Reserva programada: platos siguen pendiente y el KDS vivo los filtra;
+        // Mozos necesita el evento para salir de "pendiente de aprobación".
+        for (const comandaId of (ticket.comandas || [])) {
+          try {
+            const comandaActualizada = await mongoose.model('Comanda').findById(comandaId)
+              .populate('platos.plato', 'nombre precio id')
+              .populate('mozos', 'name')
+              .populate('mesas', 'nummesa estado nombreCombinado')
+              .lean();
 
-              if (comandaActualizada) {
-                io.of('/cocina').to(`fecha-${fechaHoy}`).emit('comanda-actualizada', {
-                  comandaId,
-                  comanda: comandaActualizada,
-                  status: comandaActualizada.status,
-                });
-                io.of('/mozos').to(`mesa-${ticket.mesa}`).emit('comanda-actualizada', {
-                  comandaId,
-                  comanda: comandaActualizada,
-                  status: comandaActualizada.status,
-                });
-              }
-            } catch (emitErr) {
-              logger.warn('Error emitiendo comanda-actualizada tras aprobación PPA', { error: emitErr.message });
+            if (comandaActualizada) {
+              io.of('/cocina').to(`fecha-${fechaHoy}`).emit('comanda-actualizada', {
+                comandaId,
+                comanda: comandaActualizada,
+                status: comandaActualizada.status,
+              });
+              io.of('/mozos').to(`mesa-${ticket.mesa}`).emit('comanda-actualizada', {
+                comandaId,
+                comanda: comandaActualizada,
+                status: comandaActualizada.status,
+              });
             }
+          } catch (emitErr) {
+            logger.warn('Error emitiendo comanda-actualizada tras aprobación PPA', { error: emitErr.message });
           }
         }
 
@@ -251,6 +281,12 @@ router.put('/aprobacion/:id/aprobar', async (req, res) => {
               .populate('mozo', 'name')
               .populate('cocineroEncargado', 'name alias');
             if (reservaDoc) {
+              if (global.emitReservaActualizada) {
+                await global.emitReservaActualizada(reservaDoc._id, {
+                  estado: reservaDoc.estado,
+                  origen: 'aprobacion_ppa'
+                });
+              }
               if (global.emitReservaCreada) await global.emitReservaCreada(reservaDoc);
               const comandaDoc = reservaDoc.comandaGenerada
                 ? await mongoose.model('Comanda').findById(reservaDoc.comandaGenerada)

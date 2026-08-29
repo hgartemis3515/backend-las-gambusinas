@@ -2388,7 +2388,7 @@ tailwind.config = {
       <!-- FIN SUB-TAB: EN VIVO -->
 
       <!-- ====== SUB-TAB: HISTORIAL (REGISTRO DE PLATOS POR COMANDA) ====== -->
-      <div x-show="subtabRendimiento === 'historial'" x-cloak class="space-y-4">
+      <div id="seccion-registro-platos" x-show="subtabRendimiento === 'historial'" x-cloak class="space-y-4">
 
         <!-- KPIs resumen -->
         <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -2448,6 +2448,8 @@ tailwind.config = {
               <option value="en_curso">Solo en curso</option>
               <option value="terminadas">Solo terminadas</option>
             </select>
+            <input type="text" x-model="historialFiltroComanda" placeholder="🔎 Nº comanda..."
+              class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none w-[140px]">
             <input type="text" x-model="historialFiltroPlato" placeholder="🔎 Filtrar por plato..."
               class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none flex-1 min-w-[160px]">
             <div class="flex gap-1 bg-bg-sidebar rounded-lg p-1">
@@ -8196,15 +8198,32 @@ function cocinerosApp() {
         const nombre = params.get('nombre');
         if (cocinero) {
           this.filtroCocineroRendimiento = cocinero;
+          this.historialFiltroCocinero = cocinero;
         } else if (nombre) {
           const found = (this.cocineros || []).find(c =>
             String(c.nombre || c.name || '').trim().toLowerCase() === String(nombre).trim().toLowerCase()
           );
-          if (found) this.filtroCocineroRendimiento = found._id;
+          if (found) {
+            this.filtroCocineroRendimiento = found._id;
+            this.historialFiltroCocinero = found._id;
+          }
+        }
+        const comanda = params.get('comanda');
+        if (comanda) this.historialFiltroComanda = String(comanda).replace(/^#/, '');
+        const fecha = params.get('fecha');
+        if (fecha && /^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+          this.historialFiltroFecha = 'personalizado';
+          this.historialFechaDesde = fecha;
+          this.historialFechaHasta = fecha;
         }
         this.cambiarTab('rendimiento');
         this.$nextTick(() => {
-          if (this.subtabRendimiento !== 'enVivo') return;
+          if (this.subtabRendimiento === 'historial') {
+            this.cargarHistorialCocinados();
+            const el = document.getElementById('seccion-registro-platos');
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            return;
+          }
           const el = document.getElementById('seccion-rendimiento-en-vivo');
           if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });

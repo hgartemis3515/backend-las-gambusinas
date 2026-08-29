@@ -20,11 +20,11 @@ function cantidadUnidadesPlato(comanda, platoIndex, plato) {
     return fallback > 0 ? fallback : 1;
 }
 
-/** 2 truchas con la misma guarnición: al menos tantas unidades como el plato padre. */
+/** 2 pan por plato × 3 platos = 6 pan. */
 function cantidadUnidadesGuarnicion(comp, plateQty) {
     const g = toQty(comp?.cantidad) || 1;
     const p = toQty(plateQty) || 1;
-    return Math.max(g, p);
+    return g * p;
 }
 
 function exprCantidadLineaMongo(indexField = '$platoIndex', platoCantField = '$platos.cantidad') {
@@ -65,22 +65,32 @@ function exprCantidadLineaMongo(indexField = '$platoIndex', platoCantField = '$p
 
 function exprCantidadGuarnicionMongo(indexField = '$platoIndex') {
     return {
-        $max: [
-            exprCantidadLineaMongo(indexField),
-            {
-                $ifNull: [
-                    {
-                        $convert: {
-                            input: '$platos.complementosSeleccionados.cantidad',
-                            to: 'int',
-                            onError: 1,
-                            onNull: 1
+        $toInt: {
+            $multiply: [
+                {
+                    $let: {
+                        vars: {
+                            g: {
+                                $convert: {
+                                    input: '$platos.complementosSeleccionados.cantidad',
+                                    to: 'double',
+                                    onError: 1,
+                                    onNull: 1
+                                }
+                            }
+                        },
+                        in: {
+                            $cond: [
+                                { $gt: ['$$g', 0] },
+                                { $floor: '$$g' },
+                                1
+                            ]
                         }
-                    },
-                    1
-                ]
-            }
-        ]
+                    }
+                },
+                exprCantidadLineaMongo(indexField)
+            ]
+        }
     };
 }
 

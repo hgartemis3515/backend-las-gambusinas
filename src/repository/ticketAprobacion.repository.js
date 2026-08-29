@@ -181,19 +181,23 @@ async function obtenerTicketPorId(ticketId) {
 }
 
 /**
- * Tickets pendientes de aprobación del día (o de la fecha indicada).
+ * Tickets pendientes de aprobación.
+ * Si se pasa `fecha`, limita a ese día (Lima). Sin fecha: todos los pendientes activos
+ * (incluye tickets de días anteriores que aún no se aprobaron).
  */
 async function obtenerTicketsPendientes(fecha) {
-  const fechaQuery = fecha || moment().tz(ZONA).format('YYYY-MM-DD');
-  const inicioDia = moment.tz(fechaQuery, ZONA).startOf('day').toDate();
-  const finDia = moment.tz(fechaQuery, ZONA).endOf('day').toDate();
+  const filter = {
+    estado: 'pendiente_aprobacion',
+    isActive: true,
+  };
+  if (fecha) {
+    const inicioDia = moment.tz(fecha, ZONA).startOf('day').toDate();
+    const finDia = moment.tz(fecha, ZONA).endOf('day').toDate();
+    filter.createdAt = { $gte: inicioDia, $lte: finDia };
+  }
 
   return ticketAprobacionModel
-    .find({
-      estado: 'pendiente_aprobacion',
-      createdAt: { $gte: inicioDia, $lte: finDia },
-      isActive: true,
-    })
+    .find(filter)
     .populate('mesa', 'nummesa estado nombreCombinado')
     .populate('mozo', 'name')
     .populate('comandas', COMANDA_DESCUENTO_SELECT)
@@ -204,11 +208,11 @@ async function obtenerTicketsPendientes(fecha) {
 }
 
 /**
- * Lista todos los tickets de aprobación de una fecha (cualquier estado).
+ * Lista tickets de aprobación (cualquier estado) de una fecha, o de un rango si se pasa fechaHasta.
  */
-async function obtenerTicketsPorFecha(fecha) {
+async function obtenerTicketsPorFecha(fecha, fechaHasta) {
   const inicioDia = moment.tz(fecha, ZONA).startOf('day').toDate();
-  const finDia = moment.tz(fecha, ZONA).endOf('day').toDate();
+  const finDia = moment.tz(fechaHasta || fecha, ZONA).endOf('day').toDate();
 
   return ticketAprobacionModel
     .find({

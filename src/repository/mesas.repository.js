@@ -9,6 +9,77 @@ const mongoose = require('mongoose');
 
 const DATA_DIR = path.join(__dirname, '../../data');
 
+/** Estados de comanda que se cierran al pasar la mesa a libre. */
+const ESTADOS_CIERRE_AL_LIBERAR = [
+    'en_espera', 'recoger', 'salio', 'pedido', 'pendiente', 'entregado',
+    'pendiente_aprobar', 'pagado', 'completado'
+];
+
+/**
+ * Cierra bouchers, pedidos y comandas del ciclo al liberar una mesa.
+ * Las comandas quedan status 'pagado' + IsActive=false (liberada y finalizada).
+ * @returns {Promise<Array<{id: string, estadoAnterior: string}>>}
+ */
+const cerrarCicloAlLiberarMesa = async (mesa) => {
+    const comandasCerradas = [];
+    await desactivarBouchersHistoricosMesa(mesa._id);
+    await pedidoModel.updateMany(
+        { mesa: mesa._id, estado: 'pagado', isActive: { $ne: false } },
+        { $set: { isActive: false } }
+    );
+    await pedidoModel.updateMany(
+        { mesa: mesa._id, estado: 'abierto', isActive: { $ne: false } },
+        { $set: { estado: 'cancelado', isActive: false } }
+    );
+
+    const comandasMesa = await comandaModel.find({
+        mesas: mesa._id,
+        status: { $in: ESTADOS_CIERRE_AL_LIBERAR },
+        IsActive: { $ne: false },
+        eliminada: { $ne: true }
+    });
+
+    const ahora = new Date();
+    for (const comanda of comandasMesa) {
+        const estadoAnterior = comanda.status;
+        if (comanda.platos && comanda.platos.length > 0) {
+            for (const plato of comanda.platos) {
+                if (plato.eliminado || plato.anulado) continue;
+                const estadoPlato = (plato.estado || '').toLowerCase();
+                if (estadoPlato === 'pagado') continue;
+                plato.estado = 'pagado';
+                if (!plato.tiempos) plato.tiempos = {};
+                if (!plato.tiempos.pagado) plato.tiempos.pagado = ahora;
+                if (!plato.tiempos.entregado && ['pedido', 'en_espera', 'pendiente', 'recoger', 'salio'].includes(estadoPlato)) {
+                    plato.tiempos.entregado = ahora;
+                }
+            }
+            comanda.markModified('platos');
+        }
+        comanda.status = 'pagado';
+        if (!comanda.tiempoPagado) comanda.tiempoPagado = ahora;
+        comanda.IsActive = false;
+        if (!Array.isArray(comanda.historialEstados)) comanda.historialEstados = [];
+        comanda.historialEstados.push({
+            status: 'pagado',
+            statusAnterior: estadoAnterior,
+            timestamp: ahora,
+            accion: 'Cierre al liberar mesa',
+            sourceApp: 'sistema',
+            motivo: 'liberar_mesa'
+        });
+        await comanda.save();
+        comandasCerradas.push({
+            id: comanda._id.toString(),
+            estadoAnterior
+        });
+    }
+    if (comandasCerradas.length > 0) {
+        console.log(`✅ ${comandasCerradas.length} comanda(s) de mesa ${mesa.nummesa} cerradas (pagado) al liberar`);
+    }
+    return comandasCerradas;
+};
+
 const listarMesas = async () => {
     const data = await mesas.find({}).populate('area');
     return data;
@@ -86,13 +157,28 @@ const actualizarMesa = async (id, newData) => {
         }
     }
     
+    const estadoAnterior = (mesaActual.estado || '').toLowerCase();
+    const estadoNuevo = newData.estado != null ? String(newData.estado).toLowerCase() : null;
+
     // Actualizar la mesa
     Object.assign(mesaActual, newData);
     await mesaActual.save();
+
+    let comandasCerradas = [];
+    if (estadoNuevo === 'libre' && estadoAnterior !== 'libre') {
+        try {
+            comandasCerradas = await cerrarCicloAlLiberarMesa(mesaActual);
+        } catch (cleanupErr) {
+            console.error(
+                '⚠️ Error al limpiar bouchers/pedidos/comandas al liberar mesa (no crítico):',
+                cleanupErr.message
+            );
+        }
+    }
     
     const todaslasmesas = await listarMesas();
     await syncJsonFile('mesas.json', todaslasmesas);
-    return todaslasmesas;
+    return { todaslasmesas, comandasCerradas };
 }
 
 // Función para actualizar el estado de una mesa con validación de transiciones
@@ -181,50 +267,10 @@ const actualizarEstadoMesa = async (mesaId, nuevoEstado, esAdmin = false) => {
     mesa.estado = estadoSolicitado;
     await mesa.save();
 
+    let comandasCerradas = [];
     if (estadoSolicitado === 'libre') {
         try {
-            await desactivarBouchersHistoricosMesa(mesa._id);
-            await pedidoModel.updateMany(
-                { mesa: mesa._id, estado: 'pagado', isActive: { $ne: false } },
-                { $set: { isActive: false } }
-            );
-            await pedidoModel.updateMany(
-                { mesa: mesa._id, estado: 'abierto', isActive: { $ne: false } },
-                { $set: { estado: 'cancelado', isActive: false } }
-            );
-
-            // Al liberar mesa desde pagado/pendiente_aprobar/preparado: cerrar el ciclo de servicio.
-            // PLAN_PLANTILLA_COMANDAS: tras liberar, las comandas del ciclo ya no están activas
-            // (IsActive=false, status 'completado') y los platos residuales terminan en 'entregado'
-            // para no aparecer en el mapa de mesas ni en KDS.
-            const mesaIdStr = mesa._id.toString();
-            const ESTADOS_CIERRE = ['en_espera', 'recoger', 'salio', 'pedido', 'pendiente', 'entregado'];
-            const comandasMesa = await comandaModel.find({
-                mesas: mesa._id,
-                status: { $in: ESTADOS_CIERRE },
-                IsActive: { $ne: false }
-            });
-            for (const comanda of comandasMesa) {
-                if (comanda.platos && comanda.platos.length > 0) {
-                    for (const plato of comanda.platos) {
-                        if (!plato.eliminado && !plato.anulado) {
-                            const estadoPlato = (plato.estado || '').toLowerCase();
-                            if (['pedido', 'en_espera', 'pendiente', 'recoger', 'salio'].includes(estadoPlato)) {
-                                plato.estado = 'entregado';
-                                if (!plato.tiempos) plato.tiempos = {};
-                                if (!plato.tiempos.entregado) plato.tiempos.entregado = new Date();
-                            }
-                        }
-                    }
-                    comanda.markModified('platos');
-                }
-                comanda.status = 'completado';
-                comanda.IsActive = false;
-                await comanda.save();
-            }
-            if (comandasMesa.length > 0) {
-                console.log(`✅ ${comandasMesa.length} comanda(s) de mesa ${mesa.nummesa} cerradas (IsActive=false, status=completado) al liberar`);
-            }
+            comandasCerradas = await cerrarCicloAlLiberarMesa(mesa);
         } catch (cleanupErr) {
             console.error(
                 '⚠️ Error al limpiar bouchers/pedidos/comandas al liberar mesa (no crítico):',
@@ -248,7 +294,7 @@ const actualizarEstadoMesa = async (mesaId, nuevoEstado, esAdmin = false) => {
     const todaslasmesas = await listarMesas();
     await syncJsonFile('mesas.json', todaslasmesas);
     
-    return { mesa, todaslasmesas };
+    return { mesa, todaslasmesas, comandasCerradas };
 }
 
 

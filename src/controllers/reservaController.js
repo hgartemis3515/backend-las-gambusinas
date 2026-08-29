@@ -147,7 +147,9 @@ router.get('/reservas/mesa/:mesaId/activa', async (req, res) => {
     try {
         const { mesaId } = req.params;
         
-        const reserva = await reservaRepository.obtenerReservaActivaPorMesa(mesaId);
+        const reserva = await reservaRepository.obtenerReservaActivaPorMesa(mesaId, {
+            mozoId: req.query.mozoId || req.usuario?.id || req.user?.id || req.admin?.id
+        });
         
         if (!reserva) {
             return res.json({ tieneReservaActiva: false });

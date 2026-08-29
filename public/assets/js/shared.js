@@ -362,6 +362,62 @@ async function loadComponents() {
   }
 }
 
+function urlAppCocinaLocal() {
+  const origin = window.location.origin.replace(/:\d+$/, '');
+  return `${origin}:3001`;
+}
+
+function notificarTopbarError(titulo, mensaje) {
+  if (window.GambusinasNotifications) {
+    GambusinasNotifications.error(titulo, mensaje);
+  } else {
+    alert(mensaje);
+  }
+}
+
+let abriendoAppCocina = false;
+
+async function abrirAppCocinaDesdeDashboard() {
+  if (abriendoAppCocina) return;
+  abriendoAppCocina = true;
+  const popup = window.open('about:blank', 'gambusinas-app-cocina');
+  try {
+    try {
+      if (popup && popup.document) {
+        popup.document.write('<!doctype html><title>App Cocina</title><body style="margin:0;background:#0c0c14;color:#d4af37;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh">Abriendo App Cocina…</body>');
+      }
+    } catch (_) { /* ignore */ }
+
+    const data = await apiPost('/admin/cocina/auth/sso', {});
+    if (!data?.token || !data?.hubAuthHash) {
+      if (popup && !popup.closed) popup.close();
+      notificarTopbarError('App Cocina', data?.error || 'No se pudo abrir la App Cocina');
+      return;
+    }
+
+    const base = String(data.cocinaUrl || urlAppCocinaLocal()).replace(/\/$/, '');
+    const dest = `${base}/${data.hubAuthHash}`;
+    if (popup && !popup.closed) {
+      popup.location.replace(dest);
+    } else {
+      window.location.href = dest;
+    }
+  } catch (e) {
+    if (popup && !popup.closed) popup.close();
+    notificarTopbarError('App Cocina', 'No se pudo abrir la App Cocina');
+    console.error('abrirAppCocinaDesdeDashboard', e);
+  } finally {
+    abriendoAppCocina = false;
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-open-app-cocina]');
+  if (!btn) return;
+  e.preventDefault();
+  abrirAppCocinaDesdeDashboard();
+});
+
 // ============================================
 // APARIENCIA DASHBOARD (texto muted / etiquetas KPI)
 // ============================================
@@ -436,7 +492,9 @@ function aplicarAparienciaTextoMuted(opts) {
     '.text-\\[11px\\].text-txt-muted.uppercase,' +
     '.text-txt-muted.uppercase.tracking-wide{' +
     'font-size:' + tamanoPx + 'px !important;' +
-    'font-weight:' + grosor + ' !important;}';
+    'font-weight:' + grosor + ' !important;}' +
+    '.dash-btn-limpiar{color:' + color + ' !important;font-size:' + tamanoPx + 'px !important;font-weight:' + grosor + ' !important;}' +
+    '.dash-btn-limpiar:hover{color:#d4af37 !important;}';
   try {
     window.dispatchEvent(new CustomEvent('gambusinas-apariencia-muted', {
       detail: { color: color, tamanoPx: tamanoPx, grosor: grosor }

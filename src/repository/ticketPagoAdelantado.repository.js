@@ -144,19 +144,22 @@ async function obtenerTicketPorId(ticketId) {
 }
 
 /**
- * Obtener tickets pendientes de aprobación del día actual
+ * Obtener tickets pendientes de aprobación.
+ * Con `fecha`: solo ese día. Sin fecha: todos los pendientes activos (incluye días previos).
  */
 async function obtenerTicketsPendientes(fecha) {
   const zona = 'America/Lima';
-  const fechaQuery = fecha || moment().tz(zona).format('YYYY-MM-DD');
-  const inicioDia = moment.tz(fechaQuery, zona).startOf('day').toDate();
-  const finDia = moment.tz(fechaQuery, zona).endOf('day').toDate();
-
-  const tickets = await ticketPagoAdelantadoModel.find({
+  const filter = {
     estado: 'pendiente_aprobacion',
-    createdAt: { $gte: inicioDia, $lte: finDia },
     isActive: true,
-  })
+  };
+  if (fecha) {
+    const inicioDia = moment.tz(fecha, zona).startOf('day').toDate();
+    const finDia = moment.tz(fecha, zona).endOf('day').toDate();
+    filter.createdAt = { $gte: inicioDia, $lte: finDia };
+  }
+
+  const tickets = await ticketPagoAdelantadoModel.find(filter)
     .populate('mesa', 'nummesa estado nombreCombinado')
     .populate('mozo', 'name')
     .populate('comandas', COMANDA_DESCUENTO_SELECT)
@@ -168,12 +171,12 @@ async function obtenerTicketsPendientes(fecha) {
 }
 
 /**
- * Obtener tickets por fecha (todos los estados)
+ * Obtener tickets por fecha (todos los estados). `fechaHasta` opcional para rango.
  */
-async function obtenerTicketsPorFecha(fecha) {
+async function obtenerTicketsPorFecha(fecha, fechaHasta) {
   const zona = 'America/Lima';
   const inicioDia = moment.tz(fecha, zona).startOf('day').toDate();
-  const finDia = moment.tz(fecha, zona).endOf('day').toDate();
+  const finDia = moment.tz(fechaHasta || fecha, zona).endOf('day').toDate();
 
   const tickets = await ticketPagoAdelantadoModel.find({
     createdAt: { $gte: inicioDia, $lte: finDia },
@@ -204,19 +207,23 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
     ahoraTs
   );
 
-  if (alreadyApproved) {
+  if (alreadyApproved && !(ticket.origen === 'reserva' && ticket.reserva)) {
     return { ticket, platosLiberados: [], alreadyApproved: true };
   }
 
   if (ticket.origen === 'reserva' && ticket.reserva) {
     const reservaRepository = require('./reserva.repository');
     const conf = await reservaRepository.confirmarReservaTrasAprobacionPPA(ticket.reserva);
-    logger.info(`TPA reserva #${ticket.ticketNumber} aprobado. Reserva confirmada.`);
+    logger.info(`TPA reserva #${ticket.ticketNumber} aprobado. Reserva confirmada.`, {
+      alreadyApproved,
+      activada: !!conf.activada
+    });
     return {
       ticket,
       platosLiberados: [],
-      alreadyApproved: false,
+      alreadyApproved,
       reservaConfirmada: true,
+      reservaActivada: !!conf.activada,
       mesaEstado: conf.mesaEstado,
       reserva: conf.reserva,
     };

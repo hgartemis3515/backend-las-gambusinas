@@ -15,9 +15,10 @@ describe('cantidadLineaComanda', () => {
         expect(cantidadUnidadesPlato(null, 0, null)).toBe(1);
     });
 
-    test('guarnición de 2 truchas con la misma opción cuenta 2', () => {
+    test('guarnición por unidad × platos: 1×2=2, 2×3=6', () => {
         expect(cantidadUnidadesGuarnicion({ cantidad: 1 }, 2)).toBe(2);
-        expect(cantidadUnidadesGuarnicion({ cantidad: 2 }, 2)).toBe(2);
+        expect(cantidadUnidadesGuarnicion({ cantidad: 2 }, 3)).toBe(6);
+        expect(cantidadUnidadesGuarnicion({ cantidad: 2 }, 2)).toBe(4);
         expect(cantidadUnidadesGuarnicion({ cantidad: 1 }, 1)).toBe(1);
     });
 });

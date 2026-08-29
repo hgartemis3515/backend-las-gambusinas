@@ -142,22 +142,34 @@ describe('sanitizarConfigPerfilVerCocina', () => {
         expect(merged.colorAcento).toBe('#d4af37');
     });
 
-    test('tablas KDS solo conserva claves de vista/alertas', () => {
+    test('tablas KDS conserva vista/alertas y claves nuevas del panel', () => {
         const out = sanitizarConfigPerfilTablasKds({
             tamanoFuente: 18,
             mostrarBadgeGuarnicion: false,
             usarNombreCocinaEnTablaKds: false,
+            juntarGuarnicionesVisualKds: false,
+            sonidoNuevaComanda: true,
+            sonidoFinalizar: false,
+            sonidoEntregar: true,
+            timbreFinalizarClave: 'campana',
+            timbreEntregarClave: 'ding_dong',
             timbreClave: 'ding_dong',
             timbreVolumen: 40,
-            colorFondo: '#000',
             token: 'x',
+            nested: { a: 1 },
         });
         expect(out.tamanoFuente).toBe(18);
         expect(out.mostrarBadgeGuarnicion).toBe(false);
         expect(out.usarNombreCocinaEnTablaKds).toBe(false);
+        expect(out.juntarGuarnicionesVisualKds).toBe(false);
+        expect(out.sonidoNuevaComanda).toBe(true);
+        expect(out.sonidoFinalizar).toBe(false);
+        expect(out.sonidoEntregar).toBe(true);
+        expect(out.timbreFinalizarClave).toBe('campana');
+        expect(out.timbreEntregarClave).toBe('ding_dong');
         expect(out.timbreClave).toBe('ding_dong');
         expect(out.timbreVolumen).toBe(40);
-        expect(out.colorFondo).toBeUndefined();
         expect(out.token).toBeUndefined();
+        expect(out.nested).toBeUndefined();
     });
 });

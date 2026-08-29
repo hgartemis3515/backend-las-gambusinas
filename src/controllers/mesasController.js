@@ -35,6 +35,25 @@ const verificarPermiso = (req, permiso) => {
     return permisos.includes(permiso);
 };
 
+async function emitirComandasCerradasPorLiberacion(comandasCerradas) {
+    if (!global.emitComandaActualizada || !Array.isArray(comandasCerradas) || comandasCerradas.length === 0) {
+        return;
+    }
+    for (const item of comandasCerradas) {
+        const id = item?.id || item;
+        const estadoAnterior = item?.estadoAnterior || null;
+        if (!id) continue;
+        try {
+            await global.emitComandaActualizada(id, estadoAnterior, 'pagado');
+        } catch (err) {
+            logger.warn('No se pudo emitir comanda-actualizada al liberar mesa', {
+                comandaId: id,
+                error: err.message
+            });
+        }
+    }
+}
+
 // ==================== FASE A1: ENDPOINT OPTIMIZADO PARA MAPA DE MESAS ====================
 /**
  * GET /api/mesas/resumen
@@ -376,10 +395,13 @@ router.put('/mesas/:id', async (req, res) => {
     try {
         const idMesa = req.params.id;
         const newData = req.body;
-        const mesaActualizada = await actualizarMesa(idMesa, newData);
-        res.json(mesaActualizada);
+        const resultado = await actualizarMesa(idMesa, newData);
+        const lista = resultado?.todaslasmesas ?? resultado;
+        res.json(lista);
         console.log("Se actualizó la mesa:", idMesa);
-        
+
+        await emitirComandasCerradasPorLiberacion(resultado?.comandasCerradas);
+
         // Emitir evento Socket.io de mesa actualizada
         if (global.emitMesaActualizada) {
             await global.emitMesaActualizada(idMesa);
@@ -406,7 +428,9 @@ router.put('/mesas/:id/estado', async (req, res) => {
         const resultado = await actualizarEstadoMesa(mesaId, estado, esAdminBool);
         res.json(resultado);
         console.log(`Estado de mesa ${mesaId} actualizado a ${estado}`);
-        
+
+        await emitirComandasCerradasPorLiberacion(resultado?.comandasCerradas);
+
         // Emitir evento Socket.io de mesa actualizada
         if (global.emitMesaActualizada) {
             await global.emitMesaActualizada(mesaId);
