@@ -3,18 +3,26 @@
 const {
   matchComandasEstadisticas,
   matchComandaAbiertaEnTabla,
+  matchComandasCierrePendiente,
+  agruparVentasPorMozo,
   exprMontoComanda,
   exprFechaComanda,
   mapearFilaReporte,
   resumirHorariosComandas,
   rangoLima,
   montoComandaNum,
+  sumaMontosReporte,
   precioPlatoNum,
   etiquetasComplemento,
-  minutosServicioComanda
+  minutosServicioComanda,
+  setConfigMonedaEstadisticas
 } = require('../src/utils/estadisticasComandas');
 
 describe('estadisticasComandas', () => {
+  beforeEach(() => {
+    setConfigMonedaEstadisticas({ igvPorcentaje: 18, preciosIncluyenIGV: false });
+  });
+
   test('match no exige IsActive y excluye canceladas y eliminadas', () => {
     const inicio = new Date('2026-08-20T05:00:00.000Z');
     const fin = new Date('2026-08-21T04:59:59.999Z');
@@ -38,7 +46,7 @@ describe('estadisticasComandas', () => {
   test('monto ignora totalCalculado 0 y usa precioTotal', () => {
     const expr = exprMontoComanda();
     expect(expr.$let.in.$cond[0]).toBe('$$tieneDesc');
-    expect(expr.$let.in.$cond[2].$switch.branches[0].case).toEqual({ $gt: ['$$calc', 0] });
+    expect(expr.$let.in.$cond[2].$cond[0]).toEqual({ $gt: ['$$dePlatos', 0] });
     expect(montoComandaNum({ totalCalculado: 0, precioTotal: 45.5 })).toBe(45.5);
     expect(montoComandaNum({ totalCalculado: 118, precioTotal: 100 })).toBe(118);
   });
@@ -61,12 +69,26 @@ describe('estadisticasComandas', () => {
   });
 
   test('monto suma platos si los totales de comanda están en 0', () => {
+    setConfigMonedaEstadisticas({ igvPorcentaje: 10.5, preciosIncluyenIGV: true });
     expect(montoComandaNum({
       totalCalculado: 0,
       precioTotal: 0,
       cantidades: [2],
       platos: [{ precioUnitario: 0, plato: { precio: 12.5 }, eliminado: false }]
     })).toBe(25);
+  });
+
+  test('monto sin descuento no cuenta platos eliminados', () => {
+    setConfigMonedaEstadisticas({ igvPorcentaje: 10.5, preciosIncluyenIGV: true });
+    expect(montoComandaNum({
+      totalCalculado: 0,
+      precioTotal: 85,
+      platos: [
+        { precioUnitario: 46, cantidad: 1, eliminado: false },
+        { precioUnitario: 33, cantidad: 1, eliminado: false },
+        { precioUnitario: 6, cantidad: 1, eliminado: true }
+      ]
+    })).toBe(79);
   });
 
   test('precio de plato no se queda en precioUnitario 0', () => {
@@ -103,14 +125,33 @@ describe('estadisticasComandas', () => {
         { nombre: 'X', cantidad: 1, precioUnitario: 10, anulado: true }
       ]
     });
-    expect(fila.total).toBe(118);
+    expect(fila.total).toBe(59);
     expect(fila.nombreMozo).toBe('Ana');
     expect(fila.numMesa).toBe(4);
     expect(fila.metodoPago).toBe('omitido');
     expect(fila.platos).toHaveLength(1);
     expect(fila.platos[0].cantidad).toBe(2);
-    expect(fila.platos[0].subtotal).toBe(50);
+    expect(fila.platos[0].precio).toBe(29.5);
+    expect(fila.platos[0].subtotal).toBe(59);
     expect(fila._fuente).toBe('comanda');
+  });
+
+  test('P. Unit. es el precio del plato cuando el catálogo ya incluye IGV', () => {
+    setConfigMonedaEstadisticas({ igvPorcentaje: 10.5, preciosIncluyenIGV: true });
+    const fila = mapearFilaReporte({
+      totalCalculado: 0,
+      totalSinDescuento: 0,
+      precioTotal: 85,
+      platos: [
+        { nombre: 'Chancho a la Leña', cantidad: 1, precioUnitario: 46, eliminado: false },
+        { nombre: '1/4 Pollo a la leña + papa frita + arroz + ensalada', cantidad: 1, precioUnitario: 33, eliminado: false },
+        { nombre: 'Extra', cantidad: 1, precioUnitario: 6, eliminado: true }
+      ]
+    });
+    const pollo = fila.platos.find((p) => p.nombre.startsWith('1/4'));
+    expect(pollo.precio).toBe(33);
+    expect(pollo.subtotal).toBe(33);
+    expect(fila.total).toBe(79);
   });
 
   test('mapearFilaReporte resta descuento en total y líneas', () => {
@@ -167,5 +208,53 @@ describe('estadisticasComandas', () => {
     expect(h.comparacionPorTurno.almuerzo.ventas).toBe(50);
     expect(h.comparacionPorTurno.cena.tickets).toBe(1);
     expect(h.productividadMozoHora.find(p => p.mozoId === 'z1' && p.hora === 12).mesas).toBe(1);
+  });
+
+  test('cierre pendiente no pisa el $or de fechas con el de incluidoEnCierre', () => {
+    const inicio = new Date('2026-08-28T05:00:00.000Z');
+    const fin = new Date('2026-08-29T04:59:59.999Z');
+    const m = matchComandasCierrePendiente(inicio, fin, { soloVendidas: true });
+    expect(m.$and).toHaveLength(3);
+    expect(m.$and[0].status).toEqual({ $in: ['pagado', 'entregado', 'completado'] });
+    expect(m.$and[1].$or).toHaveLength(3);
+    expect(m.$and[2].$or).toEqual([
+      { incluidoEnCierre: null },
+      { incluidoEnCierre: { $exists: false } }
+    ]);
+  });
+
+  test('sumaMontosReporte ignora plato eliminado e incluye entregado (927)', () => {
+    setConfigMonedaEstadisticas({ igvPorcentaje: 10.5, preciosIncluyenIGV: true });
+    const total = sumaMontosReporte([
+      { status: 'pagado', precioTotal: 85, platos: [
+        { nombre: 'Chancho', cantidad: 1, precioUnitario: 46 },
+        { nombre: 'Pollo', cantidad: 1, precioUnitario: 33 },
+        { nombre: 'Extra', cantidad: 1, precioUnitario: 6, eliminado: true }
+      ] },
+      { status: 'entregado', descuento: 33.33, montoDescuento: 2, totalCalculado: 4, platos: [
+        { nombre: 'Gaseosa', cantidad: 1, precioUnitario: 6 }
+      ] }
+    ]);
+    expect(total).toBe(83);
+  });
+
+  test('agruparVentasPorMozo no cuenta plato eliminado (933 vs 927)', () => {
+    setConfigMonedaEstadisticas({ igvPorcentaje: 10.5, preciosIncluyenIGV: true });
+    const filas = [
+      mapearFilaReporte({
+        mozos: { _id: 'm1', name: 'Ana' },
+        status: 'pagado',
+        precioTotal: 85,
+        platos: [
+          { nombre: 'Chancho', cantidad: 1, precioUnitario: 46 },
+          { nombre: 'Pollo', cantidad: 1, precioUnitario: 33 },
+          { nombre: 'Extra', cantidad: 1, precioUnitario: 6, eliminado: true }
+        ]
+      })
+    ];
+    const g = agruparVentasPorMozo(filas);
+    expect(g).toHaveLength(1);
+    expect(g[0].totalVentas).toBe(79);
+    expect(g[0].cantidad).toBe(1);
   });
 });

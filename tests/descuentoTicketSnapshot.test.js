@@ -97,6 +97,63 @@ describe('descuento en tickets / impresión', () => {
     expect(r.total).toBe(561.6);
   });
 
+  test('comanda 601: PPA con totalSinDescuento mal guardado (264.01) usa platos 624 → neto 360', () => {
+    const r = aplicarDescuentoAVistaTicket({
+      origen: 'reserva',
+      total: 0.01,
+      subtotal: 0,
+      montoDescuento: 264,
+      totalSinDescuento: 264.01,
+      platos: [
+        { nombre: 'Plato A', precio: 552, cantidad: 1, subtotal: 552 },
+        { nombre: 'Plato B', precio: 72, cantidad: 1, subtotal: 72 },
+      ],
+      comandas: [{
+        comandaNumber: 601,
+        descuento: 42.3077,
+        montoDescuento: 264,
+        motivoDescuento: 'Descuento',
+        totalSinDescuento: 624,
+        totalCalculado: 360,
+      }],
+    });
+    expect(r.totalSinDescuento).toBe(624);
+    expect(r.montoDescuento).toBe(264);
+    expect(r.total).toBe(360);
+    expect(r.subtotal).toBe(624);
+  });
+
+  test('persistir descuento en PPA de reserva no usa el snapshot 264.01', () => {
+    const doc = {
+      origen: 'reserva',
+      total: 0.01,
+      subtotal: 0,
+      montoDescuento: 264,
+      totalSinDescuento: 264.01,
+      descuentos: [{ comandaNumber: 601, porcentaje: 42.3077, motivo: 'Descuento', monto: 264 }],
+      platos: [
+        { comandaNumber: 601, subtotal: 552 },
+        { comandaNumber: 601, subtotal: 72 },
+      ],
+    };
+    aplicarDescuentoADocDesdeComanda(doc, {
+      _id: 'c601',
+      comandaNumber: 601,
+      descuento: 42.3077,
+      montoDescuento: 264,
+      motivoDescuento: 'Descuento',
+      totalSinDescuento: 624,
+      totalCalculado: 360,
+      platos: [
+        { precioUnitario: 552, cantidad: 1 },
+        { precioUnitario: 72, cantidad: 1 },
+      ],
+    });
+    expect(doc.totalSinDescuento).toBe(624);
+    expect(doc.montoDescuento).toBe(264);
+    expect(doc.total).toBe(360);
+  });
+
   test('post-pago: ticket/boucher en 0 usa descuento vivo de la comanda', () => {
     const t = adjuntarDescuentoTicket({
       total: 624,

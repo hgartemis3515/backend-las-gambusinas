@@ -792,8 +792,12 @@ function reportesApp() {
       // Establecer filtro inicial y cargar datos
       this.setFiltroRapido('7 días');
       
-      // Inicializar Socket.io para actualizaciones en tiempo real
       this.initSocket();
+
+      this._onAparienciaMuted = () => {
+        if (this.chartData1 || this.cachedBouchers?.length) this.renderCurrentTab();
+      };
+      window.addEventListener('gambusinas-apariencia-muted', this._onAparienciaMuted);
     },
     
     // ==================== SOCKET.IO EN TIEMPO REAL ====================
@@ -1058,23 +1062,38 @@ function reportesApp() {
      * Si el boucher no tiene total, se agrega el IGV de la config (default 18%).
      */
     factorIgvIncluidoBoucher(b) {
-      const lineas = (b?.platos || []).reduce((s, p) => s + this.montoLineaSinIgv(p), 0);
+      const lineas = (b?.platos || []).reduce((s, p) => {
+        if (p?.eliminado || p?.anulado) return s;
+        return s + this.montoLineaSinIgv(p);
+      }, 0);
       const total = Number(b?.total);
       const desc = Number(b?.montoDescuento) || 0;
-      if (Number.isFinite(total) && lineas > 0 && (total > 0 || desc > 0)) return total / lineas;
       const cfg = b?.configuracionIGV || {};
-      if (cfg.preciosIncluyenIGV === true) return 1;
       const pct = Number(cfg.igvPorcentaje);
-      const tasa = Number.isFinite(pct) && pct > 0 ? pct / 100 : 0.18;
-      return 1 + tasa;
+      const tasa = 1 + (Number.isFinite(pct) && pct > 0 ? pct / 100 : 0.18);
+      if (desc > 0 && lineas > 0 && Number.isFinite(total)) return total / lineas;
+      if (cfg.preciosIncluyenIGV === true) return 1;
+      if (b?._fuente === 'comanda') return 1;
+      if (Number.isFinite(total) && lineas > 0 && total > 0) {
+        const r = total / lineas;
+        if (Math.abs(r - 1) < 0.03) return 1;
+        if (Math.abs(r - tasa) / tasa < 0.05) return r;
+      }
+      return tasa;
     },
 
     totalBoucherConIgv(b) {
+      const lineas = (b?.platos || []).reduce((s, p) => {
+        if (p?.eliminado || p?.anulado) return s;
+        return s + this.montoLineaSinIgv(p);
+      }, 0);
+      if (lineas > 0) {
+        return Number((lineas * this.factorIgvIncluidoBoucher(b)).toFixed(2));
+      }
       const total = Number(b?.total);
       const desc = Number(b?.montoDescuento) || 0;
       if (Number.isFinite(total) && (total > 0 || desc > 0)) return Math.max(0, total);
-      const lineas = (b?.platos || []).reduce((s, p) => s + this.montoLineaSinIgv(p), 0);
-      return Number((lineas * this.factorIgvIncluidoBoucher(b)).toFixed(2));
+      return 0;
     },
 
     /**
@@ -1280,18 +1299,18 @@ function reportesApp() {
       const labels = topMozos.map(m => m.nombre.split(' ')[0]);
       const ventas = topMozos.map(m => m.ventas);
       const tickets = topMozos.map(m => m.tickets);
-      const propinas = topMozos.map(m => m.propinas || 0);
+      const propinasTop = topMozos.map(m => m.propinas || 0);
       
-      const totalVentas = ventas.reduce((a, b) => a + b, 0);
+      const totalVentas = mozosArray.reduce((a, m) => a + m.ventas, 0);
       
       this.kpis = [
         { label: 'Ventas Mozos', value: 'S/. ' + totalVentas.toLocaleString('es-PE', {minimumFractionDigits: 2}), color: 'text-[#d4af37]', badge: '' },
         { label: 'Top Mozo', value: topMozos[0]?.nombre.split(' ')[0] || '—', color: 'text-white', badge: topMozos[0] ? 'S/.' + topMozos[0].ventas.toLocaleString('es-PE') : '' },
-        { label: 'Total Propinas', value: 'S/. ' + propinas.reduce((a, b) => a + b, 0).toFixed(2), color: 'text-[#2ecc71]', badge: '' },
+        { label: 'Total Propinas', value: 'S/. ' + mozosArray.reduce((a, m) => a + (m.propinas || 0), 0).toFixed(2), color: 'text-[#2ecc71]', badge: '' },
         { label: 'Mozos Activos', value: mozosArray.length, color: 'text-[#5a5a7a]', badge: '' }
       ];
       
-      this.tablaData.mozos = topMozos.map((m, i) => ({
+      this.tablaData.mozos = mozosArray.map((m) => ({
         ...m,
         ticketPromedio: m.tickets > 0 ? (m.ventas / m.tickets).toFixed(2) : 0,
         tiempoPromedio: m.minutos && m.minutos.length
@@ -1300,7 +1319,7 @@ function reportesApp() {
         satisfaccion: 90 + Math.floor(Math.random() * 10)
       }));
       
-      this.chartData1 = { type: 'bar-grouped', labels, ventas, tickets, propinas };
+      this.chartData1 = { type: 'bar-grouped', labels, ventas, tickets, propinas: propinasTop };
       this.chartData2 = { type: 'doughnut', labels, data: ventas };
     },
     
@@ -1369,7 +1388,7 @@ function reportesApp() {
           };
         }
         clientesMap[clienteId].visitas++;
-        clientesMap[clienteId].gastoTotal += b.total || 0;
+        clientesMap[clienteId].gastoTotal += this.totalBoucherConIgv(b);
         const fechaPago = b.fechaPago ? new Date(b.fechaPago) : new Date();
         if (!clientesMap[clienteId].ultimaVisita || fechaPago > new Date(clientesMap[clienteId].ultimaVisita)) {
           clientesMap[clienteId].ultimaVisita = fechaPago;
@@ -1668,6 +1687,7 @@ function reportesApp() {
      */
     renderCurrentTab() {
       const c = this._c;
+      this.syncChartEtiquetas();
       
       try {
         switch(this.repTab) {
@@ -1725,7 +1745,7 @@ function reportesApp() {
           labels: ['Efectivo', 'Tarjeta', 'Yape/Plin'],
           datasets: [{ data: [metodos.efectivo || 0, metodos.tarjeta || 0, metodos.digital || 0], backgroundColor: [c.teal, c.blue, c.gold], borderWidth: 0 }]
         },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: c.legend, padding: 12, font: { size: 11 } } } }, cutout: '60%' }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: this.optsLeyendaChart(12) }, cutout: '60%' }
       });
     },
     
@@ -1752,7 +1772,7 @@ function reportesApp() {
           labels: catLabels.length ? catLabels : ['Sin datos'],
           datasets: [{ data: catVals.length ? catVals : [0], backgroundColor: [c.gold, c.blue, c.teal, c.amber, c.purple, c.red], borderWidth: 0 }]
         },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: c.legend, padding: 10, font: { size: 11 } } } } }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: this.optsLeyendaChart(10) } }
       });
 
       // NUEVO: Charts de Mesa vs Para llevar
@@ -1781,7 +1801,7 @@ function reportesApp() {
           responsive: true, maintainAspectRatio: false,
           cutout: '60%',
           plugins: {
-            legend: { position: 'bottom', labels: { color: c.legend, padding: 12, font: { size: 11 } } },
+            legend: this.optsLeyendaChart(12),
             tooltip: { callbacks: { label: (ctx) => {
               const v = ctx.raw;
               const t = ctx.dataset.data.reduce((a, b) => a + b, 0);
@@ -1837,7 +1857,7 @@ function reportesApp() {
           labels: cd2.labels.length ? cd2.labels : ['Sin datos'],
           datasets: [{ data: cd2.data.length ? cd2.data : [0], backgroundColor: [c.gold, c.blue, c.teal, c.amber, c.purple, c.red], borderWidth: 0 }]
         },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: c.legend, padding: 10, font: { size: 11 } } } }, cutout: '55%' }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: this.optsLeyendaChart(10) }, cutout: '55%' }
       });
     },
     
@@ -1860,7 +1880,7 @@ function reportesApp() {
           labels: ['Libre', 'Ocupada'],
           datasets: [{ data: [cd.data?.length || 0, 0], backgroundColor: [c.teal, c.amber], borderWidth: 0 }]
         },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: c.legend, padding: 10, font: { size: 11 } } } }, cutout: '55%' }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: this.optsLeyendaChart(10) }, cutout: '55%' }
       });
     },
     
@@ -1894,7 +1914,7 @@ function reportesApp() {
           labels: cd2.labels.length ? cd2.labels : ['Sin datos'],
           datasets: [{ data: cd2.data.length ? cd2.data : [0], backgroundColor: ['#5a5a7a', c.blue, c.gold], borderWidth: 0 }]
         },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: c.legend, padding: 10, font: { size: 11 } } } }, cutout: '55%' }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: this.optsLeyendaChart(10) }, cutout: '55%' }
       });
     },
     
@@ -1939,7 +1959,7 @@ function reportesApp() {
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { position: 'bottom', labels: { color: c.legend, padding: 10, font: { size: 11 } } }
+            legend: this.optsLeyendaChart(10)
           },
           cutout: '55%'
         }
@@ -1975,26 +1995,45 @@ function reportesApp() {
     
     // ==================== CONFIGURACIÓN DE GRÁFICOS ====================
     
+    syncChartEtiquetas() {
+      const ap = typeof leerAparienciaMutedCache === 'function'
+        ? leerAparienciaMutedCache()
+        : { color: '#5a5a7a', tamanoPx: 11, grosor: 400 };
+      this._c.label = ap.color;
+      this._c.legend = ap.color;
+    },
+
+    ticksEtiquetaChart() {
+      const et = typeof aparienciaEtiquetasChart === 'function'
+        ? aparienciaEtiquetasChart()
+        : { color: this._c.label, font: { size: 11, weight: '400' } };
+      return { color: et.color, font: et.font };
+    },
+
+    optsLeyendaChart(padding = 10) {
+      const ticks = this.ticksEtiquetaChart();
+      return {
+        position: 'bottom',
+        labels: { color: ticks.color, font: ticks.font, padding: padding, boxWidth: 12 }
+      };
+    },
+
     _baseOpts(extra = {}) {
+      const ticks = this.ticksEtiquetaChart();
+      const leyenda = this.optsLeyendaChart(12);
       return {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: {
-            labels: {
-              color: this._c.legend,
-              font: { size: 11 },
-              padding: 12
-            }
-          }
+          legend: leyenda
         },
         scales: {
           x: {
-            ticks: { color: this._c.label, font: { size: 10 } },
+            ticks: { ...ticks, autoSkip: true, maxRotation: 0 },
             grid: { color: this._c.grid }
           },
           y: {
-            ticks: { color: this._c.label, font: { size: 10 } },
+            ticks: { ...ticks, autoSkip: false },
             grid: { color: this._c.grid }
           }
         },

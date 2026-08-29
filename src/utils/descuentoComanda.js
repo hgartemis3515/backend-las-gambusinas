@@ -35,8 +35,26 @@ function repartirCentesimos(pesos, montoTotal) {
   return floors.map((c) => c / 100);
 }
 
+function comandaTieneDescuento(c) {
+  return Number(c?.descuento) > 0
+    || Number(c?.montoDescuento) > 0
+    || Number(c?.descuentoMontoFijo) > 0;
+}
+
+function montoDescuentoDeComanda(c) {
+  const n = Number(c?.montoDescuento);
+  if (Number.isFinite(n) && n > 0) return n;
+  const fijo = Number(c?.descuentoMontoFijo);
+  if (Number.isFinite(fijo) && fijo > 0) return fijo;
+  const sin = Number(c?.totalSinDescuento);
+  const neto = c?.totalCalculado != null ? Number(c.totalCalculado) : NaN;
+  if (comandaTieneDescuento(c) && Number.isFinite(sin) && Number.isFinite(neto) && sin > neto) {
+    return round2(sin - neto);
+  }
+  return 0;
+}
+
 /**
- * Totales de comanda con descuento.
  * Monto fijo se resta del TOTAL con IGV (sin pasar por % a 2 decimales).
  *
  * @param {number} subtotalActual suma precio*cantidad de platos activos
@@ -107,4 +125,6 @@ module.exports = {
   round2,
   repartirCentesimos,
   calcularTotalesConDescuento,
+  comandaTieneDescuento,
+  montoDescuentoDeComanda,
 };

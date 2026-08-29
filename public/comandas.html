@@ -318,7 +318,7 @@ tailwind.config = {
  </template>
  <template x-if="row.tipo === 'individual'">
  <span x-text="'S/. ' + Number(row.comanda.totalCalculado || row.comanda.total || 0).toFixed(2)"></span>
- <span x-show="row.comanda.descuento > 0" class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(row.comanda.montoDescuento || 0).toFixed(2)"></span>
+ <span x-show="Number(row.comanda.montoDescuento) > 0" class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(row.comanda.montoDescuento || 0).toFixed(2)"></span>
  </template>
  </td>
  
@@ -394,7 +394,7 @@ tailwind.config = {
  <!-- Total -->
  <td class="px-3 py-2 text-sm text-gold/80 text-right">
  <span x-text="'S/. ' + Number(comanda.totalCalculado || comanda.total || 0).toFixed(2)"></span>
- <span x-show="comanda.descuento > 0" class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(comanda.montoDescuento || 0).toFixed(2)"></span>
+ <span x-show="Number(comanda.montoDescuento) > 0" class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(comanda.montoDescuento || 0).toFixed(2)"></span>
  </td>
  <!-- Estado -->
  <td class="px-3 py-2 text-center">
@@ -876,15 +876,21 @@ tailwind.config = {
  </template>
  </tbody>
  <tfoot>
+ <tr x-show="Number(selectedComanda?.montoDescuento) > 0" class="border-t-2 border-[rgba(212,175,55,0.25)] bg-[#12121a]">
+ <td class="px-4 py-2 font-semibold text-[10px] uppercase text-txt-muted" colspan="2">Subtotal</td>
+ <td class="px-3 py-2 text-right text-xs text-[#5a5a7a]" x-text="(selectedComanda?.items || []).filter(i => !i.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
+ <td class="px-3 py-2 text-right text-txt-secondary text-sm" x-text="'S/. ' + Number(selectedComanda?.totalSinDescuento || 0).toFixed(2)"></td>
+ <td colspan="4"></td>
+ </tr>
+ <tr x-show="Number(selectedComanda?.montoDescuento) > 0" class="bg-[#12121a]">
+ <td class="px-4 py-1 text-right text-[10px] text-st-pagado uppercase font-semibold" colspan="3">Descuento</td>
+ <td class="px-3 py-1 text-right text-st-pagado font-bold text-sm" x-text="'-S/. ' + Number(selectedComanda.montoDescuento || 0).toFixed(2)"></td>
+ <td colspan="4"></td>
+ </tr>
  <tr class="border-t-2 border-[rgba(212,175,55,0.25)] bg-[#12121a]">
  <td class="px-4 py-3 font-bold text-xs uppercase" colspan="2">TOTAL</td>
  <td class="px-3 py-3 text-right text-xs text-[#5a5a7a]" x-text="(selectedComanda?.items || []).filter(i => !i.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
  <td class="px-3 py-3 text-right text-[#d4af37] font-bold text-lg" x-text="'S/. ' + Number(selectedComanda?.totalCalculado || selectedComanda?.total || 0).toFixed(2)"></td>
- <td colspan="4"></td>
- </tr>
- <tr x-show="Number(selectedComanda?.montoDescuento) > 0">
- <td class="px-4 py-1 text-right text-[10px] text-st-pagado uppercase font-semibold" colspan="3">Descuento</td>
- <td class="px-3 py-1 text-right text-st-pagado font-bold text-sm" x-text="'-S/. ' + Number(selectedComanda.montoDescuento || 0).toFixed(2)"></td>
  <td colspan="4"></td>
  </tr>
  <tr x-show="selectedComanda?.metodoPago === 'efectivo' && (selectedComanda?.montoRecibido != null || selectedComanda?.vuelto != null)">
@@ -943,8 +949,16 @@ tailwind.config = {
  <p x-show="ticket.estado === 'rechazado' && ticket.motivoRechazo" class="text-[10px] text-st-pagado mt-0.5" x-text="'✕ ' + ticket.motivoRechazo"></p>
  </div>
  <div class="flex flex-col items-end gap-0.5 shrink-0">
+ <template x-if="Number(ticket.montoDescuento) > 0">
+ <div class="text-right space-y-0.5">
+ <span class="block text-[9px] text-txt-muted" x-text="'Subt. S/. ' + Number(totalesTicketVista(ticket).bruto).toFixed(2)"></span>
+ <span class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(totalesTicketVista(ticket).desc).toFixed(2)"></span>
+ <span class="text-sm font-bold text-gold" x-text="'S/. ' + Number(totalesTicketVista(ticket).neto).toFixed(2)"></span>
+ </div>
+ </template>
+ <template x-if="!(Number(ticket.montoDescuento) > 0)">
  <span class="text-sm font-bold text-gold" x-text="'S/. ' + Number(ticket.total || 0).toFixed(2)"></span>
- <span x-show="Number(ticket.montoDescuento) > 0" class="text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(ticket.montoDescuento).toFixed(2)"></span>
+ </template>
  <button @click="imprimirTicketComanda(ticket)" class="p-1.5 rounded hover:bg-gold/20 transition text-xs" title="Imprimir ticket">🖨️</button>
  </div>
  </div>
@@ -1149,7 +1163,17 @@ tailwind.config = {
  <tr class="bg-[#12121a]/50">
  <td class="px-4 py-2 font-bold text-xs uppercase" colspan="2">SUBTOTAL</td>
  <td class="px-3 py-2 text-right text-xs text-[#5a5a7a]" x-text="(comanda.items || []).filter(i => !i.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
- <td class="px-3 py-2 text-right text-[#d4af37] font-bold" x-text="'S/. ' + Number(comanda.total || 0).toFixed(2)"></td>
+ <td class="px-3 py-2 text-right text-[#d4af37] font-bold" x-text="'S/. ' + Number(comanda.totalSinDescuento || ((comanda.total || 0) + (comanda.montoDescuento || 0))).toFixed(2)"></td>
+ <td></td>
+ </tr>
+ <tr x-show="Number(comanda.montoDescuento) > 0" class="bg-[#12121a]/50">
+ <td class="px-4 py-1 text-right text-[10px] text-st-pagado uppercase font-semibold" colspan="3">Descuento</td>
+ <td class="px-3 py-1 text-right text-st-pagado font-bold text-sm" x-text="'-S/. ' + Number(comanda.montoDescuento || 0).toFixed(2)"></td>
+ <td></td>
+ </tr>
+ <tr x-show="Number(comanda.montoDescuento) > 0" class="bg-[#12121a]/50">
+ <td class="px-4 py-2 font-bold text-xs uppercase" colspan="3">TOTAL</td>
+ <td class="px-3 py-2 text-right text-[#d4af37] font-bold" x-text="'S/. ' + Number(comanda.totalCalculado || comanda.total || 0).toFixed(2)"></td>
  <td></td>
  </tr>
  </tfoot>
@@ -1422,15 +1446,21 @@ tailwind.config = {
  </template>
  </tbody>
  <tfoot>
- <tr class="border-t-2 border-[rgba(212,175,55,0.25)] bg-[#12121a]">
- <td class="px-4 py-3 font-bold text-xs uppercase" colspan="2">TOTAL</td>
- <td class="px-3 py-3 text-right text-xs text-[#5a5a7a]" x-text="(editPlatos || []).filter(p => !p.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
- <td class="px-3 py-3 text-right text-[#d4af37] font-bold text-lg" x-text="'S/. ' + calcularTotalEdit().toFixed(2)"></td>
+ <tr x-show="Number(editComanda?.montoDescuento) > 0" class="border-t-2 border-[rgba(212,175,55,0.25)] bg-[#12121a]">
+ <td class="px-4 py-2 font-semibold text-[10px] uppercase text-txt-muted" colspan="2">Subtotal</td>
+ <td class="px-3 py-2 text-right text-xs text-[#5a5a7a]" x-text="(editPlatos || []).filter(p => !p.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
+ <td class="px-3 py-2 text-right text-txt-secondary text-sm" x-text="'S/. ' + Number(editComanda?.totalSinDescuento || calcularTotalEdit()).toFixed(2)"></td>
  <td colspan="3"></td>
  </tr>
  <tr x-show="Number(editComanda?.montoDescuento) > 0" class="bg-[#12121a]">
  <td class="px-4 py-1 text-right text-[10px] text-st-pagado uppercase font-semibold" colspan="3">Descuento</td>
  <td class="px-3 py-1 text-right text-st-pagado font-bold text-sm" x-text="'-S/. ' + Number(editComanda.montoDescuento || 0).toFixed(2)"></td>
+ <td colspan="3"></td>
+ </tr>
+ <tr class="border-t-2 border-[rgba(212,175,55,0.25)] bg-[#12121a]">
+ <td class="px-4 py-3 font-bold text-xs uppercase" colspan="2">TOTAL</td>
+ <td class="px-3 py-3 text-right text-xs text-[#5a5a7a]" x-text="(editPlatos || []).filter(p => !p.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
+ <td class="px-3 py-3 text-right text-[#d4af37] font-bold text-lg" x-text="'S/. ' + Number(totalPieEditar()).toFixed(2)"></td>
  <td colspan="3"></td>
  </tr>
  </tfoot>
@@ -1479,8 +1509,16 @@ tailwind.config = {
  <p x-show="ticket.observaciones" class="text-[10px] text-txt-muted mt-1 truncate" x-text="'📝 ' + ticket.observaciones"></p>
  </div>
  <div class="flex flex-col items-end gap-1 shrink-0">
+ <template x-if="Number(ticket.montoDescuento) > 0">
+ <div class="text-right space-y-0.5">
+ <span class="block text-[9px] text-txt-muted" x-text="'Subt. S/. ' + Number(totalesTicketVista(ticket).bruto).toFixed(2)"></span>
+ <span class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(totalesTicketVista(ticket).desc).toFixed(2)"></span>
+ <span class="text-sm font-bold text-gold" x-text="'S/. ' + Number(totalesTicketVista(ticket).neto).toFixed(2)"></span>
+ </div>
+ </template>
+ <template x-if="!(Number(ticket.montoDescuento) > 0)">
  <span class="text-sm font-bold text-gold" x-text="'S/. ' + Number(ticket.total || 0).toFixed(2)"></span>
- <span x-show="Number(ticket.montoDescuento) > 0" class="text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(ticket.montoDescuento).toFixed(2)"></span>
+ </template>
  <div class="flex items-center gap-1">
  <button @click="imprimirTicketComanda(ticket)" class="p-1 rounded hover:bg-gold/20 transition text-xs" title="Imprimir">🖨️</button>
  <button x-show="ticket.estado === 'pendiente_aprobacion' || ticket.estado === 'aprobado'" @click="openEditarTicketModal(ticket)" class="p-1 rounded hover:bg-gold/20 transition text-xs" title="Editar ticket">✏️</button>
@@ -1912,7 +1950,17 @@ tailwind.config = {
  <tr class="bg-[#12121a]/50">
  <td class="px-4 py-2 font-bold text-xs uppercase" colspan="2">SUBTOTAL</td>
  <td class="px-3 py-2 text-right text-xs text-[#5a5a7a]" x-text="(comanda.items || []).filter(i => !i.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
- <td class="px-3 py-2 text-right text-[#d4af37] font-bold" x-text="'S/. ' + Number(comanda.total || 0).toFixed(2)"></td>
+ <td class="px-3 py-2 text-right text-[#d4af37] font-bold" x-text="'S/. ' + Number(comanda.totalSinDescuento || ((comanda.total || 0) + (comanda.montoDescuento || 0))).toFixed(2)"></td>
+ <td colspan="2"></td>
+ </tr>
+ <tr x-show="Number(comanda.montoDescuento) > 0" class="bg-[#12121a]/50">
+ <td class="px-4 py-1 text-right text-[10px] text-st-pagado uppercase font-semibold" colspan="3">Descuento</td>
+ <td class="px-3 py-1 text-right text-st-pagado font-bold text-sm" x-text="'-S/. ' + Number(comanda.montoDescuento || 0).toFixed(2)"></td>
+ <td colspan="2"></td>
+ </tr>
+ <tr x-show="Number(comanda.montoDescuento) > 0" class="bg-[#12121a]/50">
+ <td class="px-4 py-2 font-bold text-xs uppercase" colspan="3">TOTAL</td>
+ <td class="px-3 py-2 text-right text-[#d4af37] font-bold" x-text="'S/. ' + Number(comanda.totalCalculado || comanda.total || 0).toFixed(2)"></td>
  <td colspan="2"></td>
  </tr>
  </tfoot>
@@ -2088,6 +2136,7 @@ function comandasApp() {
  plantillaComandaModificada: false,
  plantillaComandaOriginal: null,
  previewZoomComanda: 100,
+ configMoneda: { igvPorcentaje: 18, preciosIncluyenIGV: false },
  ETIQUETAS_DEFAULT_COMANDA: {
    comandaNumero: 'Comanda',
    fechaPedido: 'Fecha pedido',
@@ -2624,6 +2673,7 @@ formatearNombreMesa(mesa, mesaObj = null) {
  this.now = Date.now();
  }, 1000);
 
+ await this.loadConfigMoneda();
  await this.loadComandas();
  await this.cargarPlantillaComandaLocal();
  window.addEventListener('beforeunload', (e) => {
@@ -2634,7 +2684,41 @@ formatearNombreMesa(mesa, mesaObj = null) {
  });
  },
 
- // ==================== PLANTILLA COMANDA ====================
+ async loadConfigMoneda() {
+ try {
+ const data = await apiGet('/configuracion/moneda');
+ const cfg = data?.configuracion || data || {};
+ this.configMoneda = {
+   igvPorcentaje: Number(cfg.igvPorcentaje) > 0 ? Number(cfg.igvPorcentaje) : 18,
+   preciosIncluyenIGV: cfg.preciosIncluyenIGV === true
+ };
+ } catch (e) {
+ this.configMoneda = { igvPorcentaje: 18, preciosIncluyenIGV: false };
+ }
+ },
+
+ factorIgvCatalogo() {
+ if (this.configMoneda?.preciosIncluyenIGV === true) return 1;
+ const pct = Number(this.configMoneda?.igvPorcentaje);
+ return 1 + ((Number.isFinite(pct) && pct > 0 ? pct : 18) / 100);
+ },
+
+ factorIgvParaComanda(totalActivos, brutoGuardado) {
+ if (this.configMoneda?.preciosIncluyenIGV === true) return 1;
+ const tasa = this.factorIgvCatalogo();
+ if (!(Number(totalActivos) > 0)) return tasa;
+ const bruto = Number(brutoGuardado) || 0;
+ if (bruto > 0) {
+   const r = bruto / Number(totalActivos);
+   if (Math.abs(r - 1) < 0.03) return 1;
+   if (Math.abs(r - tasa) / tasa < 0.05) return r;
+ }
+ return tasa;
+ },
+
+ precioConIgv(monto) {
+ return Number(((Number(monto) || 0) * this.factorIgvCatalogo()).toFixed(2));
+ },
 
  cambiarTabComanda(tab) { this.activeTab = tab; },
 
@@ -3199,12 +3283,15 @@ this.modal = null;
  const platosNorm = (raw.platos || raw.items || []).map((item, index) => {
  const plato = item.plato || item;
  const cantidad = raw.cantidades?.[index] || item.cantidad || 1;
- const precioBase = item.precioBase != null ? Number(item.precioBase) : Number(plato.precio || item.precio || 0);
- const precioUnitario = item.precioUnitario != null
-   ? Number(item.precioUnitario)
-   : Number(item.precio || plato.precio || 0);
+ const precioCatalogo = Number(plato.precio || item.precio || 0);
+ const precioBase = item.precioBase != null ? Number(item.precioBase) : precioCatalogo;
  const extraComplementos = Number(item.extraComplementos) || 0;
- const precio = Number.isFinite(precioUnitario) ? precioUnitario : precioBase;
+ const unitSnap = Number(item.precioUnitario);
+ const baseExtra = (Number.isFinite(precioBase) && precioBase > 0 ? precioBase : 0) + extraComplementos;
+ const precioRaw = (Number.isFinite(unitSnap) && unitSnap > 0)
+   ? unitSnap
+   : (baseExtra > 0 ? baseExtra : (Number.isFinite(precioCatalogo) && precioCatalogo > 0 ? precioCatalogo : 0));
+ const precio = Number.isFinite(precioRaw) ? precioRaw : 0;
  const subtotal = cantidad * precio;
 
  const platoObjectId = plato._id || null;
@@ -3243,16 +3330,27 @@ this.modal = null;
  const pt = Number(raw.precioTotal || raw.total || 0);
  const tcRaw = raw.totalCalculado != null ? Number(raw.totalCalculado) : null;
  const md = Number(raw.montoDescuento) || 0;
+ const hayDesc = md > 0 || Number(raw.descuento) > 0;
  const brutoGuardado = Number(raw.totalSinDescuento) || 0;
- let totalNeto = (tcRaw != null && Number.isFinite(tcRaw)) ? tcRaw : (pt || totalActivos);
+ const tcOk = Number.isFinite(tcRaw) && (hayDesc ? tcRaw >= 0 : tcRaw > 0);
+ let totalNeto = tcOk ? tcRaw : (pt > 0 ? pt : totalActivos);
  if (hayEliminados && pt > 0 && totalActivos >= 0 && Math.abs(pt - totalActivos) > 0.05) {
    totalNeto = Number((totalNeto * (totalActivos / pt)).toFixed(2));
- } else if (!(tcRaw != null && Number.isFinite(tcRaw))) {
-   totalNeto = totalActivos;
+ } else if (!tcOk) {
+   totalNeto = totalActivos || totalNeto;
  }
  const brutoMostrar = (hayEliminados && brutoGuardado > 0 && pt > 0 && Math.abs(pt - totalActivos) > 0.05)
    ? Number((brutoGuardado * (totalActivos / pt)).toFixed(2))
    : (brutoGuardado || totalActivos || totalNeto + md);
+
+ const factorIgv = this.factorIgvParaComanda(totalActivos, brutoGuardado);
+ if (Math.abs(factorIgv - 1) > 0.001) {
+   platosNorm.forEach((p) => {
+     p.precio = Number((Number(p.precio) * factorIgv).toFixed(2));
+     p.precioUnitario = p.precio;
+     p.subtotal = Number((Number(p.subtotal) * factorIgv).toFixed(2));
+   });
+ }
 
  const mesa = raw.mesas || raw.mesa;
  const mesaNorm = mesa && typeof mesa === 'object'
@@ -3717,7 +3815,13 @@ mesaNum: grupo.mesaNum,
 mesaObj: grupo.mesaObj, // Objeto mesa completo para nombreCombinado
 comandas: grupo.comandas,
 numComandas: grupo.comandas.length,
-totalAgrupado: grupo.comandas.reduce((sum, c) => sum + (Number(c.totalCalculado != null ? c.totalCalculado : c.total) || 0), 0),
+totalAgrupado: grupo.comandas.reduce((sum, c) => {
+  const md = Number(c.montoDescuento) || 0;
+  const tc = Number(c.totalCalculado);
+  if (md > 0 && Number.isFinite(tc) && tc >= 0) return sum + tc;
+  const tot = Number(c.total);
+  return sum + ((tc > 0 ? tc : 0) || (tot > 0 ? tot : 0) || 0);
+}, 0),
 totalPlatos: grupo.comandas.reduce((sum, c) => sum + (c.items || []).filter(i => !i.eliminado).length, 0),
 estadoGrupo: this.calcularEstadoGrupo(grupo.comandas),
 mozosUnicos: [...new Set(grupo.comandas.map(c => c.mozo))],
@@ -4027,6 +4131,29 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  ticketMetodoPagoLabel(metodo) {
  const map = { efectivo: 'Efectivo', digital: 'Digital', tarjeta: 'Tarjeta' };
  return map[metodo] || metodo || '—';
+ },
+
+ totalesTicketVista(ticket) {
+ const desc = Number(ticket?.montoDescuento) || 0;
+ const sin = Number(ticket?.totalSinDescuento) || 0;
+ const tot = Number(ticket?.total) || 0;
+ const extra = (ticket?.platos || []).reduce((s, p) => {
+   if (!p || p.eliminado || p.anulado) return s;
+   return s + (Number(p.subtotal) || (Number(p.precio) || 0) * (Number(p.cantidad) || 1));
+ }, 0);
+ const fromC = (ticket?.comandas || []).reduce((s, c) => {
+   if (!c || typeof c !== 'object') return s;
+   return s + (Number(c.totalSinDescuento) || 0);
+ }, 0);
+ const candidatos = [sin, extra, fromC].filter((n) => Number.isFinite(n) && n > 0);
+ if (tot > 0) {
+   const maxCand = candidatos.length ? Math.max(...candidatos) : 0;
+   if (desc > 0 && maxCand > tot + 0.05) candidatos.push(Number((tot + desc).toFixed(2)));
+   else candidatos.push(tot);
+ }
+ const bruto = candidatos.length ? Math.max(...candidatos) : 0;
+ const neto = desc > 0 ? Number(Math.max(0, bruto - desc).toFixed(2)) : tot;
+ return { bruto, desc, neto };
  },
 
  normalizarTicketLista(t) {
@@ -4835,7 +4962,20 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  calcularTotalEdit() {
  return this.editPlatos
  .filter(p => !p.eliminado)
- .reduce((sum, p) => sum + (p.subtotal || p.cantidad * p.precio || 0), 0);
+ .reduce((sum, p) => sum + (Number(p.subtotal) || (Number(p.cantidad) || 1) * (Number(p.precio) || 0) || 0), 0);
+ },
+
+ totalPieEditar() {
+ const suma = Number(this.calcularTotalEdit()) || 0;
+ const md = Number(this.editComanda?.montoDescuento) || 0;
+ if (!(md > 0)) return suma;
+ const tc = Number(this.editComanda?.totalCalculado);
+ const sin = Number(this.editComanda?.totalSinDescuento) || 0;
+ if (sin > 0 && Math.abs(suma - sin) < 0.05 && Number.isFinite(tc) && (tc > 0 || md >= sin - 0.05)) {
+   return tc;
+ }
+ const bruto = sin > 0 ? sin : suma;
+ return Number(Math.max(0, bruto - md).toFixed(2));
  },
 
  async guardarEdicionComanda() {
@@ -6212,7 +6352,7 @@ PRÓXIMOS PASOS SUGERIDOS (BACKEND)
            <div class="flex items-center justify-between">
              <div class="flex-1">
                <span class="text-sm font-medium" x-text="plato.nombre"></span>
-               <span class="text-xs text-txt-muted ml-1" x-text="'S/.' + (plato.precioUnitario != null ? plato.precioUnitario : (plato.precioBase || plato.precio || 0))"></span>
+               <span class="text-xs text-txt-muted ml-1" x-text="'S/.' + precioConIgv(plato.precioUnitario != null && Number(plato.precioUnitario) > 0 ? plato.precioUnitario : (plato.precioBase || plato.precio || 0)).toFixed(2)"></span>
                <span x-show="plato.extraComplementos > 0" class="text-[9px] text-gold/70 ml-1" x-text="'(+S/.' + plato.extraComplementos + ' comps)'"></span>
              </div>
              <div class="flex items-center gap-2">
@@ -6510,7 +6650,7 @@ PRÓXIMOS PASOS SUGERIDOS (BACKEND)
              <div class="flex items-center gap-2">
                <div class="flex-1">
                  <span class="text-sm font-medium" x-text="plato.nombre"></span>
-                 <span class="text-xs text-txt-muted ml-1" x-text="'S/.' + (plato.precioUnitario != null ? plato.precioUnitario : (plato.precioBase || plato.precio || 0))"></span>
+                 <span class="text-xs text-txt-muted ml-1" x-text="'S/.' + precioConIgv(plato.precioUnitario != null && Number(plato.precioUnitario) > 0 ? plato.precioUnitario : (plato.precioBase || plato.precio || 0)).toFixed(2)"></span>
                  <span x-show="plato.extraComplementos > 0" class="text-[9px] text-gold/70 ml-1" x-text="'(+S/.' + plato.extraComplementos + ' comps)'"></span>
                </div>
                <div class="inline-flex items-center rounded-lg border border-[rgba(212,175,55,0.35)] overflow-hidden bg-bg-primary">

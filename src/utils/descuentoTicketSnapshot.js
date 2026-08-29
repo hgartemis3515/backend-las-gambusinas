@@ -31,6 +31,25 @@ function primerMontoPositivo(...vals) {
   return 0;
 }
 
+function maxPositivo(...vals) {
+  let m = 0;
+  for (const v of vals) {
+    const n = Number(v);
+    if (Number.isFinite(n) && n > m) m = n;
+  }
+  return m;
+}
+
+function sumaPlatosTicket(doc) {
+  const platos = doc?.platos;
+  if (!Array.isArray(platos) || !platos.length) return 0;
+  const suma = platos.reduce((s, p) => {
+    if (!p || p.eliminado || p.anulado) return s;
+    return s + (Number(p.subtotal) || (Number(p.precio) || 0) * (Number(p.cantidad) || 1));
+  }, 0);
+  return Number(suma.toFixed(2));
+}
+
 function adjuntarDescuentoTicket(ticket) {
   if (!ticket) return ticket;
   const boucher = ticket.boucher && typeof ticket.boucher === 'object' ? ticket.boucher : null;
@@ -42,30 +61,42 @@ function adjuntarDescuentoTicket(ticket) {
     ? descuentosTicket
     : (fromComanda.descuentos.length ? fromComanda.descuentos : (boucher?.descuentos || []));
   const monto = primerMontoPositivo(ticket.montoDescuento, fromComanda.monto, boucher?.montoDescuento);
+  const brutoMejor = maxPositivo(
+    ticket.totalSinDescuento,
+    fromComanda.totalSinDescuento,
+    boucher?.totalSinDescuento
+  );
   return {
     ...ticket,
     montoDescuento: monto,
-    totalSinDescuento: ticket.totalSinDescuento
-      ?? fromComanda.totalSinDescuento
-      ?? boucher?.totalSinDescuento
-      ?? null,
+    totalSinDescuento: brutoMejor > 0
+      ? brutoMejor
+      : (ticket.totalSinDescuento
+        ?? fromComanda.totalSinDescuento
+        ?? boucher?.totalSinDescuento
+        ?? null),
     descuentos,
   };
 }
 
+/**
+ * Bruto = el mayor entre snapshot, suma de platos y comanda.
+ * Un PPA de reserva puede tener totalSinDescuento envenenado (p.ej. 264.01)
+ * cuando el subtotal real es 624; no hay que preferir el snapshot chico.
+ */
 function resolverBrutoYNeto(doc, extraSubtotal = 0) {
   const montoDesc = Number(doc?.montoDescuento || 0);
-  const sin = Number(doc?.totalSinDescuento);
-  const sub = Number(doc?.subtotal);
-  const tot = Number(doc?.total);
   const extra = Number(extraSubtotal) || 0;
-  const bruto = (Number.isFinite(sin) && sin > 0)
-    ? sin
-    : (extra > 0
-      ? extra
-      : (Number.isFinite(sub) && sub > 0
-        ? sub
-        : (Number.isFinite(tot) && tot > 0 ? tot : 0)));
+  const plates = extra > 0 ? extra : sumaPlatosTicket(doc);
+  const fromComanda = Number(snapshotDesdeComandas(doc).totalSinDescuento) || 0;
+  const tot = Number(doc?.total);
+  const bruto = maxPositivo(
+    doc?.totalSinDescuento,
+    plates,
+    fromComanda,
+    doc?.subtotal,
+    Number.isFinite(tot) && tot > 0 && !(montoDesc > 0) ? tot : 0
+  ) || (Number.isFinite(tot) && tot > 0 ? tot : 0);
   const neto = montoDesc > 0
     ? Number(Math.max(0, bruto - montoDesc).toFixed(2))
     : (Number.isFinite(tot) && tot > 0 ? tot : bruto);
@@ -74,11 +105,13 @@ function resolverBrutoYNeto(doc, extraSubtotal = 0) {
 
 function aplicarDescuentoAVistaTicket(ticket) {
   const t = adjuntarDescuentoTicket(ticket);
-  const { bruto, neto, montoDesc } = resolverBrutoYNeto(t);
+  const extra = sumaPlatosTicket(t);
+  const { bruto, neto, montoDesc } = resolverBrutoYNeto(t, extra);
   if (montoDesc <= 0) return t;
   return {
     ...t,
     totalSinDescuento: bruto,
+    subtotal: bruto,
     total: neto,
   };
 }
@@ -212,9 +245,20 @@ function aplicarDescuentoADocDesdeComanda(doc, comanda) {
   const totalActual = Number(doc.total) || 0;
   const descActual = Number(doc.montoDescuento) || 0;
   const brutoGuardado = Number(doc.totalSinDescuento);
-  const bruto = Number.isFinite(brutoGuardado) && brutoGuardado > 0
-    ? brutoGuardado
-    : Number((totalActual + descActual).toFixed(2));
+  const brutoPlatosAll = round2((doc.platos || [])
+    .filter((p) => p && !p.eliminado && !p.anulado)
+    .reduce((s, p) => s + (Number(p.subtotal) || (Number(p.precio) || 0) * (Number(p.cantidad) || 1)), 0));
+  const brutoComanda = Number(comanda.totalSinDescuento) > 0
+    ? Number(comanda.totalSinDescuento)
+    : subtotalPlatosComanda(comanda);
+  const brutoRatio = round2((Number(brutoComanda) || 0) * ratio);
+  const brutoFromTotal = round2(totalActual + descActual);
+  const bruto = round2(Math.max(
+    Number.isFinite(brutoGuardado) && brutoGuardado > 0 ? brutoGuardado : 0,
+    brutoFromTotal,
+    brutoPlatosAll,
+    brutoRatio
+  ));
 
   const montoDescNuevo = Number(Math.max(0, descActual - prevMonto + montoNuevo).toFixed(2));
   const totalNuevo = Number(Math.max(0, bruto - montoDescNuevo).toFixed(2));

@@ -8,6 +8,7 @@ const router = express.Router();
 
 const { listarMozos, crearMozo, obtenerMozosPorId, actualizarMozo, borrarMozo, autenticarMozo} = require("../repository/mozos.repository");
 const mozosRendimiento = require("../repository/mozosRendimiento.repository");
+const { rangoLima, agregarVentasComandasPorMozo } = require("../utils/estadisticasComandas");
 
 /** Campos que la app mozos puede editar en su propio perfil (no rol, DNI, PIN, etc.) */
 const MOZO_SELF_PROFILE_KEYS = new Set([
@@ -35,7 +36,22 @@ function filterMozoSelfUpdateBody(body) {
 
 router.get("/mozos", async (req, res) => {
   const data = await listarMozos();
-  res.json(data);
+  const list = Array.isArray(data) ? data : [];
+  let ventasMap = new Map();
+  try {
+    const { inicio, fin } = rangoLima();
+    const rows = await agregarVentasComandasPorMozo(inicio, fin);
+    for (const r of rows) {
+      if (r._id != null) ventasMap.set(String(r._id), Number(r.totalVentas) || 0);
+    }
+  } catch (e) {
+    logger.warn('No se pudieron adjuntar ventasHoy a /mozos', { error: e.message });
+  }
+  res.json(list.map((m) => {
+    const o = m && typeof m.toObject === 'function' ? m.toObject() : { ...m };
+    o.ventasHoy = ventasMap.get(String(o._id)) || 0;
+    return o;
+  }));
 });
 
 // Endpoint de prueba para verificar el usuario admin

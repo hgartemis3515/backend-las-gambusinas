@@ -120,13 +120,13 @@ tailwind.config = {
       <!-- Monto Pendiente -->
       <div class="kpi-card bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
         <div class="flex items-center justify-between mb-3">
-          <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold">Monto Pendiente</p>
+          <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold">Total ventas</p>
           <div class="w-8 h-8 rounded-lg bg-gold/10 flex items-center justify-center">
             <svg class="w-4 h-4 text-gold" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           </div>
         </div>
         <p class="text-3xl font-bold text-gold" x-text="'S/. ' + (estado.montoPendiente || 0).toFixed(2)"></p>
-        <p class="text-xs text-txt-muted mt-1">neto (descuentos restados)</p>
+        <p class="text-xs text-txt-muted mt-1">igual a reportes (platos)</p>
         <p class="text-xs text-st-pagado mt-0.5" x-show="(estado.descuentosPendientes || 0) > 0" x-text="'-S/. ' + Number(estado.descuentosPendientes || 0).toFixed(2) + ' en descuentos'"></p>
       </div>
 
@@ -388,13 +388,16 @@ tailwind.config = {
           <!-- Totales -->
           <div class="bg-bg-sidebar rounded-lg p-3">
             <div class="flex justify-between text-[11px] text-txt-secondary mb-1">
-              <span>Subtotal</span><span x-text="'S/. ' + (ticketDetalle?.subtotal || 0).toFixed(2)"></span>
+              <span>Subtotal</span><span x-text="'S/. ' + Number(ticketDetalle?.totalSinDescuento || ticketDetalle?.subtotal || 0).toFixed(2)"></span>
             </div>
-            <div class="flex justify-between text-[11px] text-txt-secondary mb-1">
-              <span>IGV</span><span x-text="'S/. ' + (ticketDetalle?.igv || 0).toFixed(2)"></span>
+            <div class="flex justify-between text-[11px] text-st-pagado mb-1" x-show="Number(ticketDetalle?.montoDescuento) > 0">
+              <span>Descuento</span><span x-text="'-S/. ' + Number(ticketDetalle?.montoDescuento || 0).toFixed(2)"></span>
+            </div>
+            <div class="flex justify-between text-[11px] text-txt-secondary mb-1" x-show="Number(ticketDetalle?.igv) > 0">
+              <span>IGV</span><span x-text="'S/. ' + Number(ticketDetalle?.igv || 0).toFixed(2)"></span>
             </div>
             <div class="flex justify-between text-sm font-bold text-gold border-t border-[rgba(212,175,55,0.1)] pt-2 mt-1">
-              <span>Total</span><span x-text="'S/. ' + (ticketDetalle?.total || 0).toFixed(2)"></span>
+              <span>Total</span><span x-text="'S/. ' + Number(ticketDetalle?.total || 0).toFixed(2)"></span>
             </div>
             <template x-if="ticketDetalle?.montoRecibido != null">
               <div class="flex justify-between text-[11px] text-txt-secondary mt-1">
@@ -546,7 +549,7 @@ function cierreApp() {
       this.pasoCierre = 1;
       this.modalTitle = 'Verificación de tickets';
       this.modalOpen = true;
-      await this.cargarTicketsVerificacion();
+      await Promise.all([this.loadEstadoActual(), this.cargarTicketsVerificacion()]);
       this.renderPasoVerificacion();
     },
 
@@ -598,7 +601,10 @@ function cierreApp() {
                 <td class="px-3 py-2.5 text-txt-secondary text-xs">Mesa ${t.numMesa ?? '—'}</td>
                 <td class="px-3 py-2.5 text-txt-secondary text-xs">${t.nombreMozo || '—'}</td>
                 <td class="px-3 py-2.5 text-txt-secondary text-xs">${(t.comandasNumbers || []).map(n => '#' + n).join(', ') || '—'}</td>
-                <td class="px-3 py-2.5 text-gold text-xs font-semibold text-right">S/. ${(t.total || 0).toFixed(2)}</td>
+                <td class="px-3 py-2.5 text-gold text-xs font-semibold text-right">
+                  S/. ${(t.total || 0).toFixed(2)}
+                  ${Number(t.montoDescuento) > 0 ? `<div class="text-[9px] text-st-pagado font-semibold">Subt. ${(Number(t.totalSinDescuento || t.subtotal || 0)).toFixed(2)} · Desc. -${Number(t.montoDescuento).toFixed(2)}</div>` : ''}
+                </td>
                 <td class="px-3 py-2.5">${estadoCocina}</td>
                 <td class="px-3 py-2.5 text-center">${btnConfirmar}</td>
                 <td class="px-3 py-2.5 text-center">
@@ -621,6 +627,10 @@ function cierreApp() {
             </div>
             <div class="w-full bg-bg-primary rounded-full h-2 overflow-hidden">
               <div class="h-full rounded-full transition-all duration-300 ${puedeCerrar ? 'bg-st-preparado' : 'bg-st-esperando'}" style="width: ${pct}%"></div>
+            </div>
+            <div class="flex justify-between items-center mt-3">
+              <p class="text-[11px] text-txt-muted">Total ventas (igual a reportes)</p>
+              <p class="text-sm font-bold text-gold">S/. ${Number(this.estado.montoPendiente || 0).toFixed(2)}</p>
             </div>
             <div class="flex justify-between items-center mt-3">
               <button onclick="getApp().cargarTicketsVerificacion()" class="text-[11px] text-txt-muted hover:text-gold transition flex items-center gap-1">
@@ -802,7 +812,7 @@ function cierreApp() {
               <span class="text-white text-xs font-bold">${verif.confirmados || 0} / ${verif.total || 0}</span>
             </div>
             <div class="flex justify-between items-center">
-              <span class="text-txt-muted text-xs">Monto estimado</span>
+              <span class="text-txt-muted text-xs">Total ventas</span>
               <span class="text-gold text-sm font-bold">S/. ${(data.montoPendiente || 0).toFixed(2)}</span>
             </div>
             ${(data.descuentosPendientes || 0) > 0 ? `<div class="flex justify-between items-center">

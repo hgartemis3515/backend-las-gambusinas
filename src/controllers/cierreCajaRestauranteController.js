@@ -13,7 +13,31 @@ const reportesRepository = require('../repository/reportes.repository');
 const moment = require('moment-timezone');
 const logger = require('../utils/logger');
 const { adminAuth, checkPermission } = require('../middleware/adminAuth');
-const { montoComandaNum, montoDescuentoComandaNum, factorNetoComanda, precioPlatoNum, cantidadPlatoNum, exprMontoComanda, matchComandaVigente } = require('../utils/estadisticasComandas');
+const {
+  montoDescuentoComandaNum,
+  montoFilaReporte,
+  sumaMontosReporte,
+  factorNetoComanda,
+  precioPlatoNum,
+  cantidadPlatoNum,
+  matchComandaVigente,
+  matchComandasCierrePendiente,
+  STATUS_COMANDA_VENDIDA,
+  esComandaVendida,
+  cargarConfigMonedaEstadisticas,
+  getConfigMonedaEstadisticas
+} = require('../utils/estadisticasComandas');
+
+const POPULATE_COMANDAS_CIERRE = [
+  { path: 'mozos', select: 'name mozoId' },
+  {
+    path: 'mesas',
+    select: 'nummesa area',
+    populate: { path: 'area', select: 'nombre' }
+  },
+  { path: 'cliente', select: 'nombre DNI' },
+  { path: 'platos.plato', select: 'nombre precio categoria' }
+];
 
 /**
  * POST /api/cierre-caja
@@ -57,28 +81,11 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
       fechaUltimoCierre
     });
     
-    // Paso 3 y 4: Consultar comandas del período (solo las no incluidas en cierres anteriores)
-    const comandas = await Comanda.find({
-      ...matchComandaVigente({
-        createdAt: { $gte: periodoInicio, $lte: periodoFin }
-      }),
-      $or: [
-        { incluidoEnCierre: null },
-        { incluidoEnCierre: { $exists: false } }
-      ]
-    })
-    .populate('mozos', 'name mozoId')
-    .populate({
-      path: 'mesas',
-      select: 'nummesa area',
-      populate: {
-        path: 'area',
-        select: 'nombre'
-      }
-    })
-    .populate('cliente', 'nombre DNI')
-    .populate('platos.plato', 'nombre precio categoria')
+    // Paso 3 y 4: mismas comandas que reportes (platos + fechas de pago), aún no cerradas
+    const comandas = await Comanda.find(matchComandasCierrePendiente(periodoInicio, periodoFin))
+    .populate(POPULATE_COMANDAS_CIERRE)
     .lean();
+    const vendidas = comandas.filter(esComandaVendida);
     
     if (comandas.length === 0) {
       return res.status(400).json({
@@ -86,14 +93,13 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
       });
     }
     
-    // Paso 5: Calcular métricas financieras
-    const resumenFinanciero = calcularResumenFinanciero(comandas, periodoInicio, periodoFin);
+    // Paso 5–6: misma base que reportes (platos activos + config IGV)
+    await cargarConfigMonedaEstadisticas();
+    const resumenFinanciero = calcularResumenFinanciero(comandas, vendidas, periodoInicio, periodoFin);
+    const productos = await analizarProductos(vendidas);
     
-    // Paso 6: Analizar productos vendidos
-    const productos = await analizarProductos(comandas);
-    
-    // Paso 7: Evaluar desempeño de mozos
-    const mozos = await analizarMozos(comandas);
+    // Paso 7: Evaluar desempeño de mozos (mismo total de platos que reportes)
+    const mozos = await analizarMozos(vendidas);
     
     // Paso 8: Analizar uso de mesas
     const mesas = await analizarMesas(comandas);
@@ -102,7 +108,7 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
     const cocineros = await analizarCocineros(comandas, periodoInicio, periodoFin);
     
     // Paso 9: Procesar información de clientes
-    const clientes = analizarClientes(comandas);
+    const clientes = analizarClientes(vendidas);
     
     // Paso 10: Recopilar auditoría de operaciones
     const auditoria = await recopilarAuditoria(periodoInicio, periodoFin, comandas);
@@ -307,37 +313,21 @@ router.get('/cierre-caja/estado/actual', adminAuth, checkPermission('ver-cierre-
     const periodoInicio = ultimoCierre?.periodoFin || new Date('2024-01-01');
     const periodoFin = moment.tz("America/Lima").toDate();
     
-    const comandasPendientes = await Comanda.countDocuments({
-      ...matchComandaVigente({
-        createdAt: { $gte: periodoInicio, $lte: periodoFin }
-      }),
-      $or: [
-        { incluidoEnCierre: null },
-        { incluidoEnCierre: { $exists: false } }
-      ]
-    });
-    
-    const montoPendiente = await Comanda.aggregate([
-      {
-        $match: {
-          ...matchComandaVigente({
-            createdAt: { $gte: periodoInicio, $lte: periodoFin },
-            status: { $in: ['pagado', 'entregado', 'completado'] }
-          }),
-          $or: [
-            { incluidoEnCierre: null },
-            { incluidoEnCierre: { $exists: false } }
-          ]
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: exprMontoComanda() },
-          descuentos: { $sum: { $ifNull: ['$montoDescuento', 0] } }
-        }
-      }
-    ]);
+    const cfg = await cargarConfigMonedaEstadisticas();
+
+    const comandasPendientes = await Comanda.countDocuments(
+      matchComandasCierrePendiente(periodoInicio, periodoFin)
+    );
+
+    const vendidas = await Comanda.find(matchComandasCierrePendiente(periodoInicio, periodoFin, { soloVendidas: true }))
+      .select('platos cantidades totalCalculado precioTotal precioTotalOriginal descuento montoDescuento totalSinDescuento status')
+      .populate('platos.plato', 'nombre precio categoria')
+      .lean();
+
+    const montoPendiente = sumaMontosReporte(vendidas, cfg);
+    const descuentosPendientes = Number(
+      vendidas.reduce((s, c) => s + montoDescuentoComandaNum(c), 0).toFixed(2)
+    );
     
     const diasTranscurridos = ultimoCierre 
       ? Math.floor((periodoFin - ultimoCierre.fechaCierre) / (1000 * 60 * 60 * 24))
@@ -363,8 +353,8 @@ router.get('/cierre-caja/estado/actual', adminAuth, checkPermission('ver-cierre-
       periodoFin,
       diasTranscurridos,
       comandasPendientes,
-      montoPendiente: montoPendiente[0]?.total || 0,
-      descuentosPendientes: montoPendiente[0]?.descuentos || 0,
+      montoPendiente,
+      descuentosPendientes,
       verificacion
     });
     
@@ -474,16 +464,15 @@ router.put('/cierre-caja/verificacion/tickets/confirmar-todos', adminAuth, check
 
 // ========== FUNCIONES AUXILIARES ==========
 
-function calcularResumenFinanciero(comandas, periodoInicio, periodoFin) {
+function calcularResumenFinanciero(comandas, vendidas, periodoInicio, periodoFin) {
+  const cfg = getConfigMonedaEstadisticas();
   const totalComandas = comandas.length;
-  const comandasCompletadas = comandas.filter(c => 
-    c.status === 'pagado' || c.status === 'entregado'
-  );
-  
-  const montoTotalVendido = comandasCompletadas.reduce((sum, c) => sum + montoComandaNum(c), 0);
+  const comandasCompletadas = vendidas || comandas.filter(esComandaVendida);
+
+  const montoTotalVendido = sumaMontosReporte(comandasCompletadas, cfg);
   const totalDescuentos = comandasCompletadas.reduce((sum, c) => sum + montoDescuentoComandaNum(c), 0);
-  const ticketPromedio = comandasCompletadas.length > 0 
-    ? montoTotalVendido / comandasCompletadas.length 
+  const ticketPromedio = comandasCompletadas.length > 0
+    ? montoTotalVendido / comandasCompletadas.length
     : 0;
   
   const comandasPorEstado = {
@@ -501,7 +490,7 @@ function calcularResumenFinanciero(comandas, periodoInicio, periodoFin) {
       ventasPorDiaMap.set(fecha, { fecha: new Date(fecha), monto: 0, cantidadComandas: 0 });
     }
     const dia = ventasPorDiaMap.get(fecha);
-    dia.monto += montoComandaNum(c);
+    dia.monto += montoFilaReporte(c, cfg);
     dia.cantidadComandas += 1;
   });
   const ventasPorDia = Array.from(ventasPorDiaMap.values());
@@ -514,7 +503,7 @@ function calcularResumenFinanciero(comandas, periodoInicio, periodoFin) {
       ventasPorHoraMap.set(hora, { hora, monto: 0, cantidadComandas: 0 });
     }
     const horaData = ventasPorHoraMap.get(hora);
-    horaData.monto += montoComandaNum(c);
+    horaData.monto += montoFilaReporte(c, cfg);
     horaData.cantidadComandas += 1;
   });
   const ventasPorHora = Array.from(ventasPorHoraMap.values()).sort((a, b) => a.hora - b.hora);
@@ -655,10 +644,10 @@ async function analizarMozos(comandas) {
     
     // Sumar monto para todas las comandas (no solo las completadas)
     // Esto es más preciso porque incluye comandas en proceso
-    mozo.montoTotalVendido += montoComandaNum(comanda);
+    mozo.montoTotalVendido += montoFilaReporte(comanda);
     
     // Contar comandas completadas por separado
-    if (comanda.status === 'pagado' || comanda.status === 'entregado') {
+    if (esComandaVendida(comanda)) {
       mozo.comandasCompletadas += 1;
     }
     
@@ -919,8 +908,8 @@ function analizarClientes(comandas) {
       
       const cliente = clientesMap.get(clienteId);
       cliente.cantidadVisitas += 1;
-      cliente.montoTotal += montoComandaNum(comanda);
-      montoTotalClientes += montoComandaNum(comanda);
+      cliente.montoTotal += montoFilaReporte(comanda);
+      montoTotalClientes += montoFilaReporte(comanda);
     }
   });
   
@@ -954,7 +943,7 @@ async function recopilarAuditoria(periodoInicio, periodoFin, comandas) {
       comandaNumber: c.comandaNumber,
       fecha: c.fechaEliminacion || c.createdAt,
       mozo: c.mozos?.name || 'Desconocido',
-      monto: montoComandaNum(c),
+      monto: montoFilaReporte(c),
       motivo: c.motivoEliminacion || 'Sin motivo registrado'
     }));
   
@@ -1072,18 +1061,20 @@ router.get('/cierre-caja/:id/ticket-imprimible', adminAuth, checkPermission('ver
       return res.status(404).json({ error: 'Cierre de caja no encontrado' });
     }
 
+    await cargarConfigMonedaEstadisticas();
     const comandas = await Comanda.find(matchComandaVigente({
       incluidoEnCierre: cierre._id,
-      status: { $in: ['pagado', 'entregado'] }
+      status: { $in: STATUS_COMANDA_VENDIDA }
     }))
-      .select('comandaNumber totalCalculado totalSinDescuento montoDescuento precioTotal status mesas mozos createdAt')
+      .select('comandaNumber totalCalculado totalSinDescuento montoDescuento descuento precioTotal precioTotalOriginal platos cantidades status mesas mozos createdAt')
       .populate('mesas', 'nummesa')
       .populate('mozos', 'name')
+      .populate('platos.plato', 'nombre precio categoria')
       .sort({ comandaNumber: 1 })
       .lean();
 
     const lineas = comandas.map((c) => {
-      const total = montoComandaNum(c);
+      const total = montoFilaReporte(c);
       const desc = montoDescuentoComandaNum(c);
       const brutoRaw = Number(c.totalSinDescuento);
       const bruto = Number.isFinite(brutoRaw) && brutoRaw > 0 ? brutoRaw : total + desc;

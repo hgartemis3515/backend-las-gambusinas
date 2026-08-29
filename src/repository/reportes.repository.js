@@ -14,7 +14,8 @@ const {
     exprMontoComanda,
     exprFechaComanda,
     exprPrecioPlatoUnwind,
-    listarFilasEstadisticas
+    listarFilasEstadisticas,
+    cargarConfigMonedaEstadisticas
 } = require('../utils/estadisticasComandas');
 
 // Modelos
@@ -714,6 +715,7 @@ async function getVentas(fechaInicio, fechaFin, agruparPor = 'dia') {
     try {
         const Boucher = mongoose.model('Boucher') || require('../database/models/boucher.model');
         const { inicio: fechaInicioDate, fin: fechaFinDate } = rangoLima(fechaInicio, fechaFin);
+        await cargarConfigMonedaEstadisticas();
 
         logger.info('[ReportesRepo] Obteniendo ventas', {
             fechaInicio: fechaInicioDate,
@@ -757,32 +759,26 @@ async function getVentas(fechaInicio, fechaFin, agruparPor = 'dia') {
             };
         };
 
-        const resultadosComanda = await Comanda.aggregate([
-            { $match: matchComandasEstadisticas(fechaInicioDate, fechaFinDate) },
-            {
-                $addFields: {
-                    _fechaStat: exprFechaComanda(),
-                    _montoStat: exprMontoComanda()
+        const filas = await listarFilasEstadisticas(fechaInicioDate, fechaFinDate);
+        if (filas.length) {
+            const groups = new Map();
+            for (const f of filas) {
+                const d = moment(f.fechaPago || f.createdAt).tz('America/Lima');
+                let key = 'Sin fecha';
+                if (d.isValid()) {
+                    if (agruparPor === 'hora') key = d.format('YYYY-MM-DD HH:00');
+                    else if (agruparPor === 'semana') key = d.format('YYYY-[W]ww');
+                    else key = d.format('YYYY-MM-DD');
                 }
-            },
-            {
-                $group: {
-                    _id: {
-                        $dateToString: {
-                            format: formatoFecha,
-                            date: '$_fechaStat',
-                            timezone: 'America/Lima'
-                        }
-                    },
-                    total: { $sum: '$_montoStat' },
-                    cantidadBouchers: { $sum: 1 }
-                }
-            },
-            { $sort: { _id: 1 } }
-        ]);
-
-        if (resultadosComanda.length) {
-            return formatDatos(resultadosComanda);
+                if (!groups.has(key)) groups.set(key, { _id: key, total: 0, cantidadBouchers: 0 });
+                const g = groups.get(key);
+                g.total += Number(f.total) || 0;
+                g.cantidadBouchers += 1;
+            }
+            const resultados = Array.from(groups.values())
+                .map((g) => ({ ...g, total: Math.round(g.total * 100) / 100 }))
+                .sort((a, b) => String(a._id).localeCompare(String(b._id)));
+            return formatDatos(resultados);
         }
 
         const pipeline = [

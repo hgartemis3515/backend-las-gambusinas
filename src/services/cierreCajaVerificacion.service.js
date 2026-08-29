@@ -17,6 +17,21 @@ const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelanta
 const CierreCajaRestaurante = require('../database/models/cierreCajaRestaurante.model');
 const AuditoriaAcciones = require('../database/models/auditoriaAcciones.model');
 const logger = require('../utils/logger');
+const { aplicarDescuentoAVistaTicket, COMANDA_DESCUENTO_SELECT, BOUCHER_DESCUENTO_SELECT } = require('../utils/descuentoTicketSnapshot');
+const { aplicarTotalesPedidoPPA } = require('../utils/totalesTicketPPA');
+const {
+  montoComandaNum,
+  montoDescuentoComandaNum,
+  cargarConfigMonedaEstadisticas,
+} = require('../utils/estadisticasComandas');
+
+const COMANDA_CIERRE_SELECT = `${COMANDA_DESCUENTO_SELECT} status precioTotal precioTotalOriginal platos cantidades mesas mozos procesadoPor procesandoPor`;
+
+const POPULATE_COMANDAS_TICKET = {
+  path: 'comandas',
+  select: COMANDA_CIERRE_SELECT,
+  populate: { path: 'platos.plato', select: 'nombre precio categoria' },
+};
 
 const ZONA = 'America/Lima';
 const FECHA_BASE_FALLBACK = new Date('2024-01-01');
@@ -53,6 +68,7 @@ function filtroNoIncluidoEnCierre() {
  */
 async function listarTicketsParaVerificacion() {
   const { periodoInicio, periodoFin } = await obtenerPeriodoPendiente();
+  await cargarConfigMonedaEstadisticas();
 
   const filtroRango = { createdAt: { $gte: periodoInicio, $lte: periodoFin } };
 
@@ -62,14 +78,16 @@ async function listarTicketsParaVerificacion() {
       .find({ ...filtroRango, ...filtroNoIncluidoEnCierre() })
       .populate('mesa', 'nummesa estado nombreCombinado')
       .populate('mozo', 'name')
-      .populate('boucher', 'boucherNumber voucherId metodoPago')
+      .populate(POPULATE_COMANDAS_TICKET)
+      .populate('boucher', `boucherNumber voucherId metodoPago ${BOUCHER_DESCUENTO_SELECT}`)
       .sort({ createdAt: 1 })
       .lean(),
     ticketPagoAdelantadoModel
       .find({ ...filtroRango, ...filtroNoIncluidoEnCierre() })
       .populate('mesa', 'nummesa estado nombreCombinado')
       .populate('mozo', 'name')
-      .populate('boucher', 'boucherNumber voucherId metodoPago')
+      .populate(POPULATE_COMANDAS_TICKET)
+      .populate('boucher', `boucherNumber voucherId metodoPago ${BOUCHER_DESCUENTO_SELECT}`)
       .sort({ createdAt: 1 })
       .lean(),
   ]);
@@ -95,8 +113,50 @@ async function listarTicketsParaVerificacion() {
   };
 }
 
+function totalesDesdeComandasAsociadas(ticket) {
+  const comandas = (ticket?.comandas || []).filter(
+    (c) => c && typeof c === 'object' && Number.isFinite(Number(c.comandaNumber))
+  );
+  if (!comandas.length) return null;
+  const total = Number(comandas.reduce((s, c) => s + montoComandaNum(c), 0).toFixed(2));
+  const montoDescuento = Number(
+    comandas.reduce((s, c) => s + montoDescuentoComandaNum(c), 0).toFixed(2)
+  );
+  const totalSinDescuento = Number(
+    comandas.reduce((s, c) => {
+      const neto = montoComandaNum(c);
+      const desc = montoDescuentoComandaNum(c);
+      const sin = Number(c.totalSinDescuento);
+      const bruto = Number.isFinite(sin) && sin > 0 ? sin : neto + desc;
+      return s + bruto;
+    }, 0).toFixed(2)
+  );
+  return {
+    total,
+    subtotal: totalSinDescuento,
+    montoDescuento,
+    totalSinDescuento,
+    descuentos: [],
+  };
+}
+
+function totalesVistaCierre(t, tipo) {
+  const desdeComandas = totalesDesdeComandasAsociadas(t);
+  if (desdeComandas) return desdeComandas;
+  const base = tipo === 'ADELANTADO' ? aplicarTotalesPedidoPPA(t) : t;
+  const vista = aplicarDescuentoAVistaTicket(base);
+  return {
+    total: Number(vista.total) || 0,
+    subtotal: Number(vista.subtotal) || Number(vista.totalSinDescuento) || 0,
+    montoDescuento: Number(vista.montoDescuento) || 0,
+    totalSinDescuento: vista.totalSinDescuento ?? null,
+    descuentos: vista.descuentos || [],
+  };
+}
+
 /** Normaliza un ticket (de cualquier colección) al formato unificado de la UI. */
 function normalizarTicket(t, tipo) {
+  const totales = totalesVistaCierre(t, tipo);
   return {
     id: t._id,
     ticketNumber: t.ticketNumber,
@@ -109,8 +169,12 @@ function normalizarTicket(t, tipo) {
     comandas: t.comandas || [],
     comandasNumbers: t.comandasNumbers || [],
     pedido: t.pedido || null,
-    total: (t.montoCobrado != null ? t.montoCobrado : t.total) || 0,
-    subtotal: t.subtotal || 0,
+    total: totales.total,
+    subtotal: totales.subtotal,
+    montoDescuento: totales.montoDescuento,
+    totalSinDescuento: totales.totalSinDescuento,
+    descuentos: totales.descuentos,
+    montoCobrado: t.montoCobrado != null ? Number(t.montoCobrado) : null,
     igv: t.igv || 0,
     moneda: t.moneda || 'PEN',
     metodoPago: t.metodoPago || null,
@@ -176,18 +240,20 @@ async function obtenerDetalleTicket(ticketId, tipoHint) {
     throw err;
   }
 
+  await cargarConfigMonedaEstadisticas();
+
   const populateComun = [
     { path: 'mesa', select: 'nummesa estado nombreCombinado' },
     { path: 'mozo', select: 'name' },
     {
       path: 'comandas',
-      select: 'comandaNumber status platos mesas mozos procesadoPor procesandoPor',
+      select: COMANDA_CIERRE_SELECT,
       populate: {
         path: 'platos.plato',
         select: 'nombre precio categoria',
       },
     },
-    { path: 'boucher', select: 'boucherNumber voucherId metodoPago moneda' },
+    { path: 'boucher', select: `boucherNumber voucherId metodoPago moneda ${BOUCHER_DESCUENTO_SELECT}` },
     { path: 'aprobadoPor', select: 'name' },
   ];
 

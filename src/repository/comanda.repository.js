@@ -14,7 +14,7 @@ const mongoose = require('mongoose');
 // FASE 5: Redis Cache para comandas activas
 const redisCache = require('../utils/redisCache');
 const calculosPrecios = require('../utils/calculosPrecios');
-const { calcularTotalesConDescuento } = require('../utils/descuentoComanda');
+const { calcularTotalesConDescuento, comandaTieneDescuento } = require('../utils/descuentoComanda');
 const {
   enriquecerComplementosConPrecio,
   calcularPrecioUnitarioConComplementos,
@@ -2957,7 +2957,7 @@ function calcularSubtotalPlatosPagables(comanda) {
 const calcularTotalPendienteMesa = async (mesaId) => {
   const comandas = await getComandasParaPagar(mesaId);
   return comandas.reduce((sum, c) => {
-    if (c.descuento > 0 && c.totalCalculado != null) {
+    if (comandaTieneDescuento(c) && c.totalCalculado != null) {
       const subPagable = calcularSubtotalPlatosPagables(c);
       const subTotal = (c.platos || []).reduce((s, p, i) => {
         if (!p.eliminado && !p.anulado) {

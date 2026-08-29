@@ -437,10 +437,31 @@ function aplicarAparienciaTextoMuted(opts) {
     '.text-txt-muted.uppercase.tracking-wide{' +
     'font-size:' + tamanoPx + 'px !important;' +
     'font-weight:' + grosor + ' !important;}';
+  try {
+    window.dispatchEvent(new CustomEvent('gambusinas-apariencia-muted', {
+      detail: { color: color, tamanoPx: tamanoPx, grosor: grosor }
+    }));
+  } catch (_) {}
 }
 
 function aplicarColorTextoMuted(hex) {
   aplicarAparienciaTextoMuted({ color: hex });
+}
+
+/** Color, tamaño y grosor para ejes y leyendas de Chart.js (misma config que etiquetas muted). */
+function aparienciaEtiquetasChart() {
+  const ap = leerAparienciaMutedCache();
+  const font = {
+    size: ap.tamanoPx,
+    weight: String(ap.grosor),
+    family: "'Inter', system-ui, sans-serif"
+  };
+  return {
+    color: ap.color,
+    font: font,
+    ticks: { color: ap.color, font: font },
+    legendLabels: { color: ap.color, font: font, padding: 12, boxWidth: 12 }
+  };
 }
 
 async function cargarAparienciaDashboard() {

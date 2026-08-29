@@ -15,6 +15,13 @@ describe('totalesTicketPPA — reserva sin adelanto', () => {
     expect(sumarSubtotalesPlatosTicket(platos)).toBe(624);
   });
 
+  test('no suma platos eliminados', () => {
+    expect(sumarSubtotalesPlatosTicket([
+      ...platos,
+      { nombre: 'Extra', precio: 6, cantidad: 1, subtotal: 6, eliminado: true },
+    ])).toBe(624);
+  });
+
   test('reserva con total guardado 0 usa suma de platos', () => {
     const r = resolverTotalesPedidoPPA({
       origen: 'reserva',
@@ -61,6 +68,20 @@ describe('totalesTicketPPA — reserva sin adelanto', () => {
     const out = aplicarTotalesPedidoPPA(ticket);
     expect(ticket.total).toBe(0);
     expect(out.total).toBe(624);
+  });
+
+  test('reserva con descuento 264 y snapshot 264.01 → subtotal 624 / total 360', () => {
+    const r = resolverTotalesPedidoPPA({
+      origen: 'reserva',
+      total: 0.01,
+      subtotal: 0,
+      montoDescuento: 264,
+      totalSinDescuento: 264.01,
+      platos,
+      comandas: [{ comandaNumber: 601, montoDescuento: 264, totalSinDescuento: 624 }],
+    });
+    expect(r.subtotal).toBe(624);
+    expect(r.total).toBe(360);
   });
 
   test('caja usa montoCobrado cuando existe (sin adelanto = 0)', () => {

@@ -10,6 +10,7 @@ const mesasModel = require('../database/models/mesas.model');
 const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
 const configuracionRepository = require('../repository/configuracion.repository');
 const calculosPrecios = require('../utils/calculosPrecios');
+const { comandaTieneDescuento, montoDescuentoDeComanda } = require('../utils/descuentoComanda');
 const { crearBoucher } = require('../repository/boucher.repository');
 const ticketAprobacionRepository = require('../repository/ticketAprobacion.repository');
 const { resolverComandasNumbers } = require('../utils/comandasNumbers');
@@ -105,22 +106,22 @@ function calcularTotalesConDescuentos(comandasValidas, platosParaBoucher, config
   const descuentos = [];
 
   comandasValidas.forEach((comanda) => {
-    if (comanda.descuento > 0) {
+    if (comandaTieneDescuento(comanda)) {
       descuentos.push({
         comandaNumber: comanda.comandaNumber || null,
         porcentaje: comanda.descuento,
         motivo: comanda.motivoDescuento || 'Sin motivo',
-        monto: comanda.montoDescuento || 0,
+        monto: montoDescuentoDeComanda(comanda),
         aplicadoPor: comanda.descuentoAplicadoPor || null,
       });
     }
   });
 
   if (!esParcial) {
-    const comandasConDescuento = comandasValidas.filter((c) => c.descuento > 0);
+    const comandasConDescuento = comandasValidas.filter((c) => comandaTieneDescuento(c));
     if (comandasConDescuento.length > 0) {
       const totalDesdeComandas = comandasValidas.reduce((sum, c) => {
-        if (c.descuento > 0 && c.totalCalculado != null) {
+        if (comandaTieneDescuento(c) && c.totalCalculado != null) {
           return sum + c.totalCalculado;
         }
         return (
@@ -144,7 +145,9 @@ function calcularTotalesConDescuentos(comandasValidas, platosParaBoucher, config
     // Prorratear descuento por subtotal de platos seleccionados vs comanda completa
     let descuentoAplicado = 0;
     for (const comanda of comandasValidas) {
-      if (!(comanda.descuento > 0 && comanda.montoDescuento > 0)) continue;
+      if (!comandaTieneDescuento(comanda)) continue;
+      const montoDesc = montoDescuentoDeComanda(comanda);
+      if (!(montoDesc > 0)) continue;
       const subComandaTotal = (comanda.platos || []).reduce((s, p, i) => {
         if (!p.eliminado && !p.anulado) {
           // v3.0: usar precioUnitario snapshot si está disponible
@@ -158,7 +161,7 @@ function calcularTotalesConDescuentos(comandasValidas, platosParaBoucher, config
         .filter((p) => p.comandaNumber === comanda.comandaNumber)
         .reduce((s, p) => s + (p.subtotal || 0), 0);
       const ratio = Math.min(1, subSeleccion / subComandaTotal);
-      descuentoAplicado += (comanda.montoDescuento || 0) * ratio;
+      descuentoAplicado += montoDesc * ratio;
     }
     if (descuentoAplicado > 0) {
       montoDescuento = Number(descuentoAplicado.toFixed(2));

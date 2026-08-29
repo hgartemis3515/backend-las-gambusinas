@@ -62,19 +62,82 @@ function montoDescuentoComandaNum(c) {
     return 0;
 }
 
-/**
- * Factor para prorratear líneas de plato al total neto (con descuento).
- * Sin descuento queda 1: no mezclar IGV con precios de catálogo.
- */
-function factorNetoComanda(c) {
-    if (!comandaTieneDescuento(c)) return 1;
-    const brutoPlatos = montoDesdePlatos(c);
-    if (!(brutoPlatos > 0)) return 0;
-    return montoComandaNum(c) / brutoPlatos;
+let configMonedaCache = { igvPorcentaje: 18, preciosIncluyenIGV: false };
+
+function setConfigMonedaEstadisticas(cfg) {
+    configMonedaCache = {
+        igvPorcentaje: Number(cfg?.igvPorcentaje) > 0 ? Number(cfg.igvPorcentaje) : 18,
+        preciosIncluyenIGV: cfg?.preciosIncluyenIGV === true
+    };
+    return configMonedaCache;
 }
 
-/** totalCalculado/precioTotal default 0: no usar $ifNull (0 cuenta como valor). */
-function montoComandaNum(c) {
+function getConfigMonedaEstadisticas() {
+    return configMonedaCache;
+}
+
+async function cargarConfigMonedaEstadisticas() {
+    try {
+        const ConfiguracionSistema = require('../database/models/configuracionSistema.model');
+        const doc = await ConfiguracionSistema.findById('configuracion_unica')
+            .select('igvPorcentaje preciosIncluyenIGV')
+            .lean();
+        if (doc) setConfigMonedaEstadisticas(doc);
+    } catch (e) {
+        /* conservar cache / default */
+    }
+    return configMonedaCache;
+}
+
+function tasaIgvDeConfig(config) {
+    const cfg = config || getConfigMonedaEstadisticas();
+    const pct = Number(cfg.igvPorcentaje);
+    return 1 + ((Number.isFinite(pct) && pct > 0 ? pct : 18) / 100);
+}
+
+function platosYaIncluyenIgv(c, brutoPlatos) {
+    const bruto = Number(brutoPlatos);
+    if (!(bruto > 0)) return false;
+    const sin = Number(c?.totalSinDescuento);
+    if (Number.isFinite(sin) && sin > 0) {
+        return Math.abs(sin - bruto) / Math.max(sin, bruto) < 0.03;
+    }
+    if (comandaTieneDescuento(c)) return false;
+    const tot = firstPositive(c.totalCalculado, c.precioTotal, c.precioTotalOriginal);
+    if (!(tot > 0)) return false;
+    return Math.abs(tot - bruto) / Math.max(tot, bruto) < 0.03;
+}
+
+/** IGV sobre precio de catálogo/snapshot. Si el catálogo ya incluye IGV, no dobla. */
+function factorIgvCatalogo(c, config) {
+    const cfg = config || getConfigMonedaEstadisticas();
+    if (cfg.preciosIncluyenIGV === true) return 1;
+    const brutoPlatos = montoDesdePlatos(c);
+    if (platosYaIncluyenIgv(c, brutoPlatos)) return 1;
+    return tasaIgvDeConfig(cfg);
+}
+
+/**
+ * Factor para llevar el precio de línea al total de la comanda.
+ * Con descuento prorratea al neto. Sin descuento: precio del plato
+ * (más IGV solo si el catálogo está sin IGV). No usa totales inflados
+ * por platos eliminados (p. ej. 85/79 → 35.51).
+ */
+function factorNetoComanda(c, config) {
+    const brutoPlatos = montoDesdePlatos(c);
+    if (!(brutoPlatos > 0)) return 0;
+    if (comandaTieneDescuento(c)) {
+        return montoComandaNum(c, config) / brutoPlatos;
+    }
+    return factorIgvCatalogo(c, config);
+}
+
+/**
+ * Total de la comanda = suma de platos activos (igual que desglose de reportes).
+ * Con descuento usa totalCalculado. Sin descuento no usa precioTotal si aún
+ * incluye líneas eliminadas.
+ */
+function montoComandaNum(c, config) {
     if (!c) return 0;
     if (comandaTieneDescuento(c)) {
         const calc = Number(c.totalCalculado);
@@ -84,7 +147,11 @@ function montoComandaNum(c) {
         if (Number.isFinite(sin) && sin >= 0) return Math.max(0, Number((sin - desc).toFixed(2)));
         return 0;
     }
-    return firstPositive(c.totalCalculado, c.precioTotal, c.precioTotalOriginal, montoDesdePlatos(c));
+    const dePlatos = montoDesdePlatos(c);
+    if (dePlatos > 0) {
+        return Number((dePlatos * factorIgvCatalogo(c, config)).toFixed(2));
+    }
+    return firstPositive(c.totalCalculado, c.precioTotal, c.precioTotalOriginal);
 }
 
 function exprPrecioPlatoItem(pExpr) {
@@ -149,8 +216,8 @@ function exprSumaMontosPlatos() {
                                     {
                                         $or: [
                                             { $eq: ['$$p', null] },
-                                            { $eq: ['$$p.eliminado', true] },
-                                            { $eq: ['$$p.anulado', true] }
+                                            { $in: ['$$p.eliminado', [true, 1, 'true']] },
+                                            { $in: ['$$p.anulado', [true, 1, 'true']] }
                                         ]
                                     },
                                     0,
@@ -176,15 +243,24 @@ function exprSumaMontosPlatos() {
 }
 
 function exprMontoComanda() {
+    const cfg = getConfigMonedaEstadisticas();
+    const tasa = cfg.preciosIncluyenIGV === true ? 1 : tasaIgvDeConfig(cfg);
+    const valorPlatos = tasa === 1 ? '$$dePlatos' : { $multiply: ['$$dePlatos', tasa] };
     const montoSinDescuento = {
-        $switch: {
-            branches: [
-                { case: { $gt: ['$$calc', 0] }, then: '$$calc' },
-                { case: { $gt: ['$$pt', 0] }, then: '$$pt' },
-                { case: { $gt: ['$$orig', 0] }, then: '$$orig' }
-            ],
-            default: '$$dePlatos'
-        }
+        $cond: [
+            { $gt: ['$$dePlatos', 0] },
+            valorPlatos,
+            {
+                $switch: {
+                    branches: [
+                        { case: { $gt: ['$$calc', 0] }, then: '$$calc' },
+                        { case: { $gt: ['$$pt', 0] }, then: '$$pt' },
+                        { case: { $gt: ['$$orig', 0] }, then: '$$orig' }
+                    ],
+                    default: 0
+                }
+            }
+        ]
     };
     return {
         $let: {
@@ -261,6 +337,44 @@ function matchComandaVigente(extra = {}) {
 /** Misma visibilidad que comandas.html para ciclo abierto (GET /comanda?incluirPagadas). */
 const STATUS_COMANDA_CERRADA = ['pagado', 'completado', 'cancelado'];
 
+/** Ventas que entran al total de reportes / cierre (platos cobrados o entregados). */
+const STATUS_COMANDA_VENDIDA = ['pagado', 'entregado', 'completado'];
+
+function esComandaVendida(c) {
+    return STATUS_COMANDA_VENDIDA.includes(c?.status);
+}
+
+function filtroNoIncluidoEnCierreComanda() {
+    return {
+        $or: [
+            { incluidoEnCierre: null },
+            { incluidoEnCierre: { $exists: false } }
+        ]
+    };
+}
+
+/**
+ * Comandas del período de cierre: misma ventana de fechas que reportes
+ * (createdAt / pagado / entregado) y aún no marcadas en un cierre.
+ * Usa $and para no pisar los $or de fecha y de incluidoEnCierre.
+ */
+function matchComandasCierrePendiente(periodoInicio, periodoFin, { soloVendidas = false } = {}) {
+    const extra = soloVendidas ? { status: { $in: STATUS_COMANDA_VENDIDA } } : {};
+    return {
+        $and: [
+            matchComandaVigente(extra),
+            {
+                $or: [
+                    { createdAt: { $gte: periodoInicio, $lte: periodoFin } },
+                    { tiempoPagado: { $gte: periodoInicio, $lte: periodoFin } },
+                    { tiempoEntregado: { $gte: periodoInicio, $lte: periodoFin } }
+                ]
+            },
+            filtroNoIncluidoEnCierreComanda()
+        ]
+    };
+}
+
 function matchComandaAbiertaEnTabla(extra = {}) {
     return {
         eliminada: { $ne: true },
@@ -295,41 +409,13 @@ function getComandaModel() {
 }
 
 async function agregarVentasComandasPorMozo(inicio, fin) {
-    const Comanda = getComandaModel();
-    return Comanda.aggregate([
-        { $match: matchComandasEstadisticas(inicio, fin) },
-        {
-            $group: {
-                _id: '$mozos',
-                totalVentas: { $sum: exprMontoComanda() },
-                cantidad: { $sum: 1 },
-                mesasAtendidas: { $addToSet: '$mesas' }
-            }
-        }
-    ]);
+    const filas = await listarFilasEstadisticas(inicio, fin);
+    return agruparVentasPorMozo(filas);
 }
 
 async function agregarHorariosComandas(inicio, fin) {
-    const Comanda = getComandaModel();
-    const rows = await Comanda.aggregate([
-        { $match: matchComandasEstadisticas(inicio, fin) },
-        {
-            $addFields: {
-                _fechaStat: exprFechaComanda(),
-                _montoStat: exprMontoComanda()
-            }
-        },
-        {
-            $project: {
-                _montoStat: 1,
-                mesas: 1,
-                mozos: 1,
-                hora: { $hour: { date: '$_fechaStat', timezone: TZ } },
-                diaSemana: { $dayOfWeek: { date: '$_fechaStat', timezone: TZ } }
-            }
-        }
-    ]);
-    return rows;
+    const filas = await listarFilasEstadisticas(inicio, fin);
+    return filasARowsHorario(filas);
 }
 
 function etiquetasComplemento(p) {
@@ -402,21 +488,22 @@ async function adjuntarMetodosPagoDesdeBouchers(filas) {
     }
 }
 
-function mapearFilaReporte(c) {
-    const total = Math.round(montoComandaNum(c) * 100) / 100;
-    const factor = factorNetoComanda(c);
+function mapearFilaReporte(c, config) {
+    const cfg = config || getConfigMonedaEstadisticas();
+    const factor = factorNetoComanda(c, cfg);
     const mozoDoc = c.mozos && typeof c.mozos === 'object' ? c.mozos : null;
     const mesaDoc = c.mesas && typeof c.mesas === 'object' ? c.mesas : null;
     const platos = (c.platos || [])
         .map((p, i) => {
             if (!p || p.eliminado || p.anulado) return null;
             const cantidad = cantidadPlatoNum(p, i, c.cantidades);
-            const precio = precioPlatoNum(p);
+            const precioBase = precioPlatoNum(p);
+            const precio = Math.round(precioBase * factor * 100) / 100;
             return {
                 nombre: p.nombre || p.platoNombre || p.plato?.nombre || 'Plato',
                 cantidad,
                 precio,
-                subtotal: Math.round(cantidad * precio * factor * 100) / 100,
+                subtotal: Math.round(cantidad * precioBase * factor * 100) / 100,
                 plato: p.plato,
                 categoria: p.plato?.categoria || p.platoCategoria || null,
                 tipoServicio: p.tipoServicio || 'mesa',
@@ -424,13 +511,18 @@ function mapearFilaReporte(c) {
             };
         })
         .filter(Boolean);
+    const totalLineas = Math.round(platos.reduce((s, p) => s + Number(p.subtotal || 0), 0) * 100) / 100;
+    const total = (platos.length || comandaTieneDescuento(c))
+        ? totalLineas
+        : Math.round(montoComandaNum(c, cfg) * 100) / 100;
+    const tasa = tasaIgvDeConfig(cfg);
     const fechaPago = c.tiempoPagado || c.tiempoEntregado || c.createdAt;
     return {
         _id: c._id,
         fechaPago,
         total,
-        subtotal: Math.round((total / 1.18) * 100) / 100,
-        igv: Math.round((total - total / 1.18) * 100) / 100,
+        subtotal: Math.round((total / tasa) * 100) / 100,
+        igv: Math.round((total - total / tasa) * 100) / 100,
         isActive: true,
         mozo: mozoDoc ? mozoDoc._id : c.mozos,
         nombreMozo: c.mozoNombre || mozoDoc?.name || mozoDoc?.nombres || '—',
@@ -451,11 +543,66 @@ function mapearFilaReporte(c) {
         status: c.status,
         descuento: Number(c.descuento) || 0,
         montoDescuento: montoDescuentoComandaNum(c),
-        motivoDescuento: c.motivoDescuento || null
+        motivoDescuento: c.motivoDescuento || null,
+        configuracionIGV: {
+            igvPorcentaje: cfg.igvPorcentaje,
+            preciosIncluyenIGV: cfg.preciosIncluyenIGV === true
+        }
     };
 }
 
+/** Misma cifra que reportes.html (suma de líneas de platos, descuentos ya aplicados). */
+function montoFilaReporte(c, config) {
+    return Number(mapearFilaReporte(c, config).total) || 0;
+}
+
+function sumaMontosReporte(comandas, config) {
+    return Number((comandas || []).reduce((s, c) => s + montoFilaReporte(c, config), 0).toFixed(2));
+}
+
+/** Agrupa filas de reportes por mozo (misma cifra que Platos). */
+function agruparVentasPorMozo(filas) {
+    const map = new Map();
+    for (const f of filas || []) {
+        const rawId = f.mozo;
+        const key = rawId != null && rawId !== '' ? String(rawId) : '__none__';
+        if (!map.has(key)) {
+            map.set(key, {
+                _id: rawId || null,
+                totalVentas: 0,
+                cantidad: 0,
+                mesasAtendidas: []
+            });
+        }
+        const row = map.get(key);
+        row.totalVentas = Number((row.totalVentas + (Number(f.total) || 0)).toFixed(2));
+        row.cantidad += 1;
+        const mesaId = f.mesa && (f.mesa._id || f.mesa);
+        const mesa = mesaId != null ? mesaId : f.numMesa;
+        if (mesa != null && mesa !== '') {
+            const s = String(mesa);
+            if (!row.mesasAtendidas.some((m) => String(m) === s)) row.mesasAtendidas.push(mesa);
+        }
+    }
+    return Array.from(map.values());
+}
+
+function filasARowsHorario(filas) {
+    return (filas || []).map((f) => {
+        const d = moment(f.fechaPago || f.createdAt).tz(TZ);
+        const mesaId = f.mesa && (f.mesa._id || f.mesa);
+        return {
+            _montoStat: Number(f.total) || 0,
+            mesas: mesaId != null ? mesaId : (f.numMesa != null ? f.numMesa : null),
+            mozos: f.mozo || null,
+            hora: d.isValid() ? d.hour() : 0,
+            diaSemana: d.isValid() ? d.day() + 1 : 1
+        };
+    });
+}
+
 async function listarFilasEstadisticas(inicio, fin) {
+    const cfg = await cargarConfigMonedaEstadisticas();
     const Comanda = getComandaModel();
     const docs = await Comanda.find(matchComandasEstadisticas(inicio, fin))
         .select('platos cantidades totalCalculado precioTotal precioTotalOriginal descuento montoDescuento totalSinDescuento motivoDescuento tiempoPagado tiempoEntregado tiempoEnEspera createdAt mozos mesas mozoNombre mesaNumero comandaNumber status pagoOmitido metodoPago metodoPagoLabel')
@@ -464,7 +611,7 @@ async function listarFilasEstadisticas(inicio, fin) {
         .populate('platos.plato', 'nombre precio categoria')
         .sort({ tiempoPagado: -1, createdAt: -1 })
         .lean();
-    const filas = docs.map(mapearFilaReporte);
+    const filas = docs.map((c) => mapearFilaReporte(c, cfg));
     return adjuntarMetodosPagoDesdeBouchers(filas);
 }
 
@@ -558,11 +705,22 @@ module.exports = {
     matchComandaVigente,
     matchComandaAbiertaEnTabla,
     STATUS_COMANDA_CERRADA,
+    STATUS_COMANDA_VENDIDA,
+    esComandaVendida,
     matchComandasEstadisticas,
+    matchComandasCierrePendiente,
+    filtroNoIncluidoEnCierreComanda,
+    montoFilaReporte,
+    sumaMontosReporte,
+    agruparVentasPorMozo,
+    filasARowsHorario,
     agregarVentasComandasPorMozo,
     agregarHorariosComandas,
     mapearFilaReporte,
     listarFilasEstadisticas,
+    setConfigMonedaEstadisticas,
+    getConfigMonedaEstadisticas,
+    cargarConfigMonedaEstadisticas,
     resumirHorariosComandas,
     montoComandaNum,
     comandaTieneDescuento,

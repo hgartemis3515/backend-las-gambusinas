@@ -11,6 +11,7 @@ const { resolverBrutoYNeto } = require('./descuentoTicketSnapshot');
 function sumarSubtotalesPlatosTicket(platos) {
   if (!Array.isArray(platos) || platos.length === 0) return 0;
   const suma = platos.reduce((acc, p) => {
+    if (!p || p.eliminado || p.anulado) return acc;
     const sub = Number(p?.subtotal);
     if (Number.isFinite(sub)) return acc + sub;
     const precio = Number(p?.precio) || 0;

@@ -200,9 +200,14 @@ function resolverBrutoYNetoImpresion(datos, subtotalPlatos) {
   const montoDesc = Number(datos?.montoDescuento || 0);
   const sin = Number(datos?.totalSinDescuento);
   const tot = Number(datos?.total);
-  const bruto = (Number.isFinite(sin) && sin > 0)
-    ? sin
-    : (subtotalPlatos > 0 ? subtotalPlatos : (Number.isFinite(tot) && tot > 0 ? tot : 0));
+  const sub = Number(datos?.subtotal);
+  const candidatos = [];
+  if (Number.isFinite(sin) && sin > 0) candidatos.push(sin);
+  if (subtotalPlatos > 0) candidatos.push(subtotalPlatos);
+  if (Number.isFinite(sub) && sub > 0) candidatos.push(sub);
+  const bruto = candidatos.length
+    ? Math.max(...candidatos)
+    : (Number.isFinite(tot) && tot > 0 ? tot : 0);
   const neto = montoDesc > 0
     ? Number(Math.max(0, bruto - montoDesc).toFixed(2))
     : (Number.isFinite(tot) && tot > 0 ? tot : bruto);

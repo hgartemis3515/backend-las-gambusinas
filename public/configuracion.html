@@ -1325,13 +1325,15 @@ tailwind.config = {
           <div class="p-4 rounded-xl border border-[rgba(212,175,55,0.25)] bg-bg-sidebar space-y-4">
             <div>
               <label class="text-xs text-txt-secondary mb-1 block">Etiquetas (texto muted)</label>
-              <p class="text-[11px] text-txt-secondary">Aplica a rótulos como “Mesas Ocupadas” en el inicio (color, tamaño y grosor).</p>
+              <p class="text-[11px] text-txt-secondary">Aplica a rótulos del inicio (“Mesas Ocupadas”) y a las letras de los gráficos en reportes (nombres de platos, ejes y leyendas): color, tamaño y grosor.</p>
             </div>
             <div class="flex flex-wrap items-center gap-4">
               <input type="color" x-model="config.colorTextoMuted" @input="previewAparienciaMuted()" class="h-10 w-14 rounded cursor-pointer bg-transparent border border-[rgba(212,175,55,0.25)]">
               <input type="text" x-model="config.colorTextoMuted" @input="previewAparienciaMuted()" maxlength="7" class="w-28 bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm font-mono focus:border-gold focus:outline-none" placeholder="#5a5a7a">
               <span class="uppercase tracking-wide"
                 :style="{ color: config.colorTextoMuted, fontSize: (config.tamanoTextoMuted || 11) + 'px', fontWeight: config.grosorTextoMuted || 400 }">Mesas Ocupadas</span>
+              <span class="truncate max-w-[140px]"
+                :style="{ color: config.colorTextoMuted, fontSize: (config.tamanoTextoMuted || 11) + 'px', fontWeight: config.grosorTextoMuted || 400 }">1/4 Pollo a la leña</span>
               <button type="button" @click="config.colorTextoMuted = '#5a5a7a'; config.tamanoTextoMuted = 11; config.grosorTextoMuted = 400; previewAparienciaMuted()" class="text-xs text-txt-secondary hover:text-gold transition">Restablecer</button>
             </div>
             <div class="grid grid-cols-2 gap-4">

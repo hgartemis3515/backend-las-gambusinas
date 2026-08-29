@@ -178,23 +178,16 @@ function resolverTipoPagoImpresion(ticket, tipoPagoFallback = 'Pendiente') {
   return ticket?.metodoPago || ticket?.tipoPago || tipoPagoFallback || 'Pendiente';
 }
 
-function ticketTieneDescuento(ticket) {
-  return Number(ticket?.montoDescuento) > 0
-    || Number(ticket?.boucher?.montoDescuento) > 0
-    || (Array.isArray(ticket?.descuentos) && ticket.descuentos.some((d) => Number(d?.monto) > 0 || Number(d?.porcentaje) > 0));
-}
-
 function resolverTotalesTicketImpresion(ticket, productos) {
   const sumaPlatos = (productos || []).reduce((s, p) => s + (Number(p.subtotal) || 0), 0);
   const esReserva = ticket?.origen === 'reserva';
   const totalGuardado = Number(ticket?.total);
   const subtotalGuardado = Number(ticket?.subtotal);
-  const tieneDesc = ticketTieneDescuento(ticket);
-  if (!tieneDesc && (esReserva || !Number.isFinite(totalGuardado) || totalGuardado === 0) && sumaPlatos > 0) {
+  if ((esReserva || !Number.isFinite(totalGuardado) || totalGuardado === 0) && sumaPlatos > 0) {
     return { subtotal: sumaPlatos, total: sumaPlatos };
   }
   return {
-    subtotal: Number.isFinite(subtotalGuardado) ? subtotalGuardado : 0,
+    subtotal: Number.isFinite(subtotalGuardado) && subtotalGuardado > 0 ? subtotalGuardado : (sumaPlatos || 0),
     total: Number.isFinite(totalGuardado) ? totalGuardado : 0,
   };
 }
@@ -247,9 +240,13 @@ function mapearTicketADatos(ticket) {
     || (Array.isArray(ticket.comandas)
       ? ticket.comandas.reduce((s, c) => s + (Number(c?.montoDescuento) || 0), 0)
       : 0);
-  const bruto = Number(ticket.totalSinDescuento ?? ticket.boucher?.totalSinDescuento) > 0
-    ? Number(ticket.totalSinDescuento ?? ticket.boucher?.totalSinDescuento)
-    : (totales.subtotal || totales.total);
+  const sinBruto = Number(ticket.totalSinDescuento ?? ticket.boucher?.totalSinDescuento);
+  const sumaProductos = (productos || []).reduce((s, p) => s + (Number(p.subtotal) || 0), 0);
+  const bruto = Math.max(
+    Number.isFinite(sinBruto) && sinBruto > 0 ? sinBruto : 0,
+    Number(totales.subtotal) || 0,
+    sumaProductos || 0
+  ) || (totales.subtotal || totales.total);
   const totalNeto = montoDescuento > 0
     ? Number(Math.max(0, bruto - montoDescuento).toFixed(2))
     : totales.total;

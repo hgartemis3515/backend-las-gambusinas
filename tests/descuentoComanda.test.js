@@ -1,6 +1,8 @@
 const {
   calcularTotalesConDescuento,
   repartirCentesimos,
+  comandaTieneDescuento,
+  montoDescuentoDeComanda,
 } = require('../src/utils/descuentoComanda');
 
 const cfgConIgv = {
@@ -70,5 +72,19 @@ describe('repartirCentesimos', () => {
     expect(Math.round(partes.reduce((s, n) => s + n, 0) * 100)).toBe(100);
     expect(partes.every((n) => n === 0.33 || n === 0.34)).toBe(true);
     expect(partes.filter((n) => n === 0.34)).toHaveLength(1);
+  });
+});
+
+describe('comandaTieneDescuento', () => {
+  test('detecta descuento por monto fijo aunque el % sea 0', () => {
+    expect(comandaTieneDescuento({ descuento: 0, montoDescuento: 2, descuentoMontoFijo: 2 })).toBe(true);
+    expect(montoDescuentoDeComanda({ descuento: 0, montoDescuento: 2 })).toBe(2);
+  });
+
+  test('6 con descuento S/. 2 → neto 4', () => {
+    const r = calcularTotalesConDescuento(6, { monto: 2 }, cfgConIgv);
+    expect(r.montoDescuento).toBe(2);
+    expect(r.totalCalculado).toBe(4);
+    expect(r.totalSinDescuento).toBe(6);
   });
 });
