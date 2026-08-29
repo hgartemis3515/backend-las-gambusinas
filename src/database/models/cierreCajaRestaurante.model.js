@@ -119,7 +119,11 @@ const cierreCajaRestauranteSchema = new mongoose.Schema({
     mesasUsadas: [{
       mesaId: { type: mongoose.Schema.Types.ObjectId, ref: 'mesas' },
       numMesa: Number,
-      area: String
+      area: String,
+      comandas: Number,
+      ventas: Number,
+      ticketPromedio: Number,
+      tiempoPromedio: Number
     }],
     rotacionPorMesa: mongoose.Schema.Types.Mixed, // Objeto con mesaId: cantidad de usos
     ocupacionPorArea: mongoose.Schema.Types.Mixed, // Objeto con área: cantidad de usos

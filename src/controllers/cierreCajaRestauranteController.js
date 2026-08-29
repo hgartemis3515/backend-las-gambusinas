@@ -704,24 +704,29 @@ async function analizarMesas(comandas) {
     const numMesa = comanda.mesas.nummesa || 0;
     const area = comanda.mesas.area?.nombre || 'Sin área';
     
-    // Rotación por mesa
     if (!mesasMap.has(mesaId)) {
       mesasMap.set(mesaId, {
         mesaId: comanda.mesas._id,
         numMesa,
         area,
-        usos: 0
+        usos: 0,
+        ventas: 0,
+        tiempos: []
       });
     }
-    mesasMap.get(mesaId).usos += 1;
+    const mesa = mesasMap.get(mesaId);
+    mesa.usos += 1;
+    mesa.ventas += montoFilaReporte(comanda);
+    if (comanda.tiempoEnEspera && comanda.tiempoPagado) {
+      const t = (new Date(comanda.tiempoPagado) - new Date(comanda.tiempoEnEspera)) / 60000;
+      if (Number.isFinite(t) && t >= 0) mesa.tiempos.push(t);
+    }
     
-    // Ocupación por área
     if (!areasMap.has(area)) {
       areasMap.set(area, 0);
     }
     areasMap.set(area, areasMap.get(area) + 1);
     
-    // Horas pico
     const hora = moment(comanda.createdAt).hour();
     if (!horasPicoMap.has(hora)) {
       horasPicoMap.set(hora, new Set());
@@ -729,7 +734,22 @@ async function analizarMesas(comandas) {
     horasPicoMap.get(hora).add(mesaId);
   });
   
-  const mesasUsadas = Array.from(mesasMap.values());
+  const todosTiempos = [];
+  const mesasUsadas = Array.from(mesasMap.values()).map((mesa) => {
+    const tiempoPromedio = mesa.tiempos.length
+      ? mesa.tiempos.reduce((a, b) => a + b, 0) / mesa.tiempos.length
+      : 0;
+    todosTiempos.push(...mesa.tiempos);
+    return {
+      mesaId: mesa.mesaId,
+      numMesa: mesa.numMesa,
+      area: mesa.area,
+      comandas: mesa.usos,
+      ventas: Number(mesa.ventas.toFixed(2)),
+      ticketPromedio: mesa.usos > 0 ? Number((mesa.ventas / mesa.usos).toFixed(2)) : 0,
+      tiempoPromedio: Number(tiempoPromedio.toFixed(1))
+    };
+  });
   const rotacionPorMesa = {};
   mesasMap.forEach((mesa, id) => {
     rotacionPorMesa[id] = mesa.usos;
@@ -744,12 +764,16 @@ async function analizarMesas(comandas) {
     hora: parseInt(hora),
     cantidadMesas: mesas.size
   })).sort((a, b) => a.hora - b.hora);
+
+  const tiempoPromedioOcupacion = todosTiempos.length
+    ? Number((todosTiempos.reduce((a, b) => a + b, 0) / todosTiempos.length).toFixed(1))
+    : 0;
   
   return {
     mesasUsadas,
     rotacionPorMesa,
     ocupacionPorArea,
-    tiempoPromedioOcupacion: 0, // Se puede calcular si hay timestamps de inicio/fin
+    tiempoPromedioOcupacion,
     horasPicoOcupacion
   };
 }

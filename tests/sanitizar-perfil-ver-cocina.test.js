@@ -155,6 +155,7 @@ describe('sanitizarConfigPerfilVerCocina', () => {
             timbreEntregarClave: 'ding_dong',
             timbreClave: 'ding_dong',
             timbreVolumen: 40,
+            mozoNombreFondo: '#1d4ed8',
             token: 'x',
             nested: { a: 1 },
         });
@@ -169,6 +170,7 @@ describe('sanitizarConfigPerfilVerCocina', () => {
         expect(out.timbreEntregarClave).toBe('ding_dong');
         expect(out.timbreClave).toBe('ding_dong');
         expect(out.timbreVolumen).toBe(40);
+        expect(out.mozoNombreFondo).toBe('#1d4ed8');
         expect(out.token).toBeUndefined();
         expect(out.nested).toBeUndefined();
     });

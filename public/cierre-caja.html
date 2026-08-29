@@ -1254,42 +1254,96 @@ function cierreApp() {
         case 'mesas':
           const occ = mes.ocupacionPorArea || {};
           const mesasU = mes.mesasUsadas || [];
-          const hPico = mes.horasPicoOcupacion || [];
+          const rotMesas = mes.rotacionPorMesa || {};
+          const fmtSoles = (n) => 'S/. ' + Number(n || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          const areaPill = (area) => {
+            const a = area || 'Salón';
+            let cls = 'bg-[#3498db]/20 text-[#3498db]';
+            if (a === 'Terraza') cls = 'bg-[#ffa502]/20 text-[#ffa502]';
+            else if (/vip/i.test(String(a))) cls = 'bg-[#5352ed]/20 text-[#5352ed]';
+            return `<span class="text-[10px] px-2 py-0.5 rounded-full font-semibold ${cls}">${a}</span>`;
+          };
+          const rankingMesas = mesasU.map((m) => {
+            const id = String(m.mesaId || '');
+            const comandasN = Number(m.comandas ?? m.usos ?? rotMesas[id] ?? rotMesas[m.mesaId] ?? 0) || 0;
+            const ventasKnown = m.ventas != null && m.ventas !== '';
+            const ventasN = ventasKnown ? Number(m.ventas) || 0 : null;
+            const ticketN = m.ticketPromedio != null
+              ? Number(m.ticketPromedio) || 0
+              : (ventasN != null && comandasN ? ventasN / comandasN : null);
+            const tiempoN = m.tiempoPromedio != null ? Number(m.tiempoPromedio) : null;
+            return { ...m, comandasN, ventasN, ticketN, tiempoN };
+          }).sort((a, b) => (b.ventasN || 0) - (a.ventasN || 0) || b.comandasN - a.comandasN);
+          const totalCmdsMesas = rankingMesas.reduce((s, m) => s + m.comandasN, 0);
+          const totalVentasMesas = rankingMesas.reduce((s, m) => s + (m.ventasN || 0), 0);
+          const hayVentasMesas = rankingMesas.some((m) => m.ventasN != null);
+          const topMesa = rankingMesas[0];
           content = `
-            <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
               <div class="metric-card rounded-xl p-4 border border-gold/10">
-                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Mesas Usadas</p>
-                <p class="text-xl font-bold text-gold">${mesasU.length}</p>
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Total Comandas</p>
+                <p class="text-xl font-bold text-gold">${totalCmdsMesas}</p>
               </div>
               <div class="metric-card rounded-xl p-4 border border-gold/10">
-                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Tiempo Prom. Ocupación</p>
-                <p class="text-xl font-bold text-st-esperando">${mes.tiempoPromedioOcupacion || 0} min</p>
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Top Mesa</p>
+                <p class="text-sm font-bold text-white">${topMesa ? 'Mesa ' + (topMesa.numMesa || '—') : '—'}</p>
+                <p class="text-[10px] text-txt-muted">${topMesa ? topMesa.comandasN + ' comandas' : ''}</p>
               </div>
               <div class="metric-card rounded-xl p-4 border border-gold/10">
-                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Áreas Activas</p>
-                <p class="text-xl font-bold text-white">${Object.keys(occ).length}</p>
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Facturación</p>
+                <p class="text-xl font-bold text-white">${hayVentasMesas ? fmtSoles(totalVentasMesas) : '—'}</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Mesas Activas</p>
+                <p class="text-xl font-bold text-gold">${rankingMesas.length}</p>
+                <p class="text-[10px] text-txt-muted">${Object.keys(occ).length} área(s) · ${mes.tiempoPromedioOcupacion || 0} min prom.</p>
               </div>
             </div>
             <div class="bg-bg-sidebar rounded-xl p-4 mb-6">
               <p class="text-xs font-semibold text-txt-secondary mb-3">Ocupación por Área</p>
               <canvas id="chartOcupacionAreas" style="max-height: 260px;"></canvas>
             </div>
-            ${mesasU.length > 0 ? `
-            <div class="bg-bg-sidebar rounded-xl overflow-hidden">
-              <table class="w-full text-xs">
-                <thead><tr class="text-txt-muted text-[10px] uppercase tracking-wider">
-                  <th class="text-left px-4 py-2.5 font-semibold">Mesa</th>
-                  <th class="text-left px-4 py-2.5 font-semibold">Área</th>
-                  <th class="text-right px-4 py-2.5 font-semibold">Rotación</th>
-                </tr></thead>
-                <tbody>${mesasU.slice(0, 25).map(m => `
-                  <tr class="border-t border-[rgba(212,175,55,0.06)] hist-row">
-                    <td class="px-4 py-2 font-medium text-white">Mesa ${m.numMesa || '-'}</td>
-                    <td class="px-4 py-2 text-txt-secondary">${m.area || '-'}</td>
-                    <td class="px-4 py-2 text-right font-medium">${(mes.rotacionPorMesa && mes.rotacionPorMesa[m.mesaId]) || 0}</td>
-                  </tr>`).join('')}
-                </tbody>
-              </table>
+            ${rankingMesas.length > 0 ? `
+            <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+              <div class="px-5 py-3 border-b border-[rgba(212,175,55,0.1)] flex justify-between items-center">
+                <h3 class="font-semibold text-sm">🪑 Ranking de Mesas</h3>
+                <span class="text-[10px] text-txt-muted">${rankingMesas.length} mesas</span>
+              </div>
+              <div class="overflow-x-auto max-h-[400px] overflow-y-auto">
+                <table class="w-full text-sm">
+                  <thead class="bg-bg-sidebar sticky top-0">
+                    <tr class="text-[10px] uppercase text-txt-secondary">
+                      <th class="text-center px-3 py-2.5 font-semibold w-12">Pos.</th>
+                      <th class="text-left px-4 py-2.5 font-semibold">Mesa</th>
+                      <th class="text-left px-3 py-2.5 font-semibold">Área</th>
+                      <th class="text-right px-3 py-2.5 font-semibold">Comandas</th>
+                      <th class="text-right px-3 py-2.5 font-semibold">Ventas</th>
+                      <th class="text-right px-3 py-2.5 font-semibold">Ticket P.</th>
+                      <th class="text-right px-3 py-2.5 font-semibold">Tiempo</th>
+                    </tr>
+                  </thead>
+                  <tbody>${rankingMesas.map((m, idx) => `
+                    <tr class="border-b border-[rgba(212,175,55,0.08)] hist-row">
+                      <td class="px-3 py-2.5 text-center font-semibold text-txt-muted">${idx + 1}</td>
+                      <td class="px-4 py-2.5 font-medium text-white">Mesa ${m.numMesa || '—'}</td>
+                      <td class="px-3 py-2.5">${areaPill(m.area)}</td>
+                      <td class="px-3 py-2.5 text-right font-semibold">${m.comandasN}</td>
+                      <td class="px-3 py-2.5 text-right text-[#d4af37] font-semibold">${m.ventasN != null ? fmtSoles(m.ventasN) : '—'}</td>
+                      <td class="px-3 py-2.5 text-right text-txt-secondary">${m.ticketN != null ? fmtSoles(m.ticketN) : '—'}</td>
+                      <td class="px-3 py-2.5 text-right text-txt-muted">${m.tiempoN != null && m.tiempoN > 0 ? m.tiempoN.toFixed(0) + ' min' : '—'}</td>
+                    </tr>`).join('')}
+                  </tbody>
+                  <tfoot class="bg-bg-sidebar border-t-2 border-[rgba(212,175,55,0.25)]">
+                    <tr class="font-bold text-xs">
+                      <td class="px-3 py-3 uppercase" colspan="3">Total</td>
+                      <td class="px-3 py-3 text-right">${totalCmdsMesas}</td>
+                      <td class="px-3 py-3 text-right text-[#d4af37] text-base">${hayVentasMesas ? fmtSoles(totalVentasMesas) : '—'}</td>
+                      <td class="px-3 py-3 text-right text-txt-muted">${hayVentasMesas && totalCmdsMesas ? fmtSoles(totalVentasMesas / totalCmdsMesas) : '—'}</td>
+                      <td class="px-3 py-3 text-right text-txt-muted">${mes.tiempoPromedioOcupacion ? mes.tiempoPromedioOcupacion + ' min' : '—'}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </div>` : '<p class="text-txt-muted text-center py-8 text-sm">Sin datos de mesas</p>'}
           `;
           break;
