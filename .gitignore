@@ -29,6 +29,8 @@ Thumbs.db
 *.swo
 *~
 
-# Optional: Uncomment if you don't want to commit test data
-# data/*.json
+# Dumps locales de Mongo (nunca commitear)
+data/*.json
+data/**/*.json
+
 node_modules
