@@ -4128,6 +4128,8 @@ function mozosExecutiveApp() {
         socket.on('comanda-actualizada', (data) => scheduleRefresh(data?.comandaId || data?.comanda?._id));
         socket.on('plato-actualizado', (data) => scheduleRefresh(data?.comandaId));
         socket.on('comanda-finalizada', (data) => scheduleRefresh(data?.comandaId));
+        socket.on('comanda-eliminada', (data) => scheduleRefresh(data?.comandaId));
+        socket.on('reportes:comanda-eliminada', (data) => scheduleRefresh(data?.comandaId));
       } catch (e) { console.warn('initSocketRendimientoMozo', e); }
     },
 
@@ -4610,6 +4612,8 @@ function mozosExecutiveApp() {
         this._socketAdmin.on('propina-registrada', (p) => this.scheduleSocketRefresh(p?.mozoId));
         this._socketAdmin.on('propina-actualizada', (p) => this.scheduleSocketRefresh(p?.mozoId));
         this._socketAdmin.on('propina-eliminada', (p) => this.scheduleSocketRefresh(p?.mozoId));
+        this._socketAdmin.on('comanda-eliminada', () => this.refreshAll());
+        this._socketAdmin.on('reportes:comanda-eliminada', () => this.refreshAll());
         this._socketAdmin.on('mozos-conectados', (payload) => {
           this.mozosConectados = payload?.conectados ?? payload?.mozos?.length ?? 0;
           this.pulseKpi('presencia');

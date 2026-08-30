@@ -878,6 +878,14 @@ function reportesApp() {
           this.scheduleDataRefresh('comanda-nueva');
           this.showToast(`Nueva comanda #${data.comandaNumber || '—'} (Mesa ${data.numMesa || '—'})`, 'info');
         });
+
+        this.socket.on('reportes:comanda-eliminada', (data) => {
+          console.log('📊 Evento reportes:comanda-eliminada recibido:', data);
+          this.scheduleDataRefresh('comanda-eliminada');
+        });
+        this.socket.on('comanda-eliminada', (data) => {
+          this.scheduleDataRefresh('comanda-eliminada');
+        });
         
         // Evento: Plato listo
         this.socket.on('reportes:plato-listo', (data) => {

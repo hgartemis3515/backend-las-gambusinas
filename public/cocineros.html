@@ -4650,6 +4650,15 @@ function cocinerosApp() {
       }
 
       await this.refreshTurnosCierre({ skipReload: true });
+      try {
+        const tok = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+        if (tok && typeof io !== 'undefined') {
+          this._socketAdminMetricas = io('/admin', { auth: { token: tok }, transports: ['websocket', 'polling'] });
+          const refreshMetricas = () => { this.cargarMetricas(); };
+          this._socketAdminMetricas.on('comanda-eliminada', refreshMetricas);
+          this._socketAdminMetricas.on('reportes:comanda-eliminada', refreshMetricas);
+        }
+      } catch (e) { /* socket de métricas es opcional */ }
       await this.cargarDatos();
       await this.cargarDatosSelectores();
       await this.cargarZonas();
@@ -8030,6 +8039,8 @@ function cocinerosApp() {
         socket.on('comanda-liberada', scheduleRefresh('comanda-liberada'));
         socket.on('comanda-finalizada', scheduleRefresh('comanda-finalizada'));
         socket.on('comanda-actualizada', scheduleRefresh('comanda-actualizada'));
+        socket.on('comanda-eliminada', scheduleRefresh('comanda-eliminada'));
+        socket.on('reportes:comanda-eliminada', scheduleRefresh('comanda-eliminada'));
 
         this.socketRendimiento = socket;
       } catch (error) {

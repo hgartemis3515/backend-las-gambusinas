@@ -1194,13 +1194,27 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         });
       }
 
-      // Emitir a admin (panel de comandas)
+      // Emitir a admin (comandas, reportes, mozos, cocineros, dashboard)
       if (adminNamespace && adminNamespace.sockets) {
-        adminNamespace.emit('comanda-eliminada', {
+        const eventData = {
           comandaId: comandaId,
           comanda: comanda,
+          comandaNumber: comanda.comandaNumber,
+          numMesa: comanda.mesas?.nummesa || comanda.mesaNumero || null,
           socketId: 'server',
           timestamp: timestamp
+        };
+        adminNamespace.emit('comanda-eliminada', eventData);
+        adminNamespace.emit('reportes:comanda-eliminada', eventData);
+        adminNamespace.to('dashboard-mozos').emit('rendimiento-mozo-actualizado', {
+          tipo: 'comanda-eliminada',
+          comandaId,
+          timestamp
+        });
+        adminNamespace.to('dashboard-cocineros').emit('rendimiento-cocinero-actualizado', {
+          tipo: 'comanda-eliminada',
+          comandaId,
+          timestamp
         });
       }
 

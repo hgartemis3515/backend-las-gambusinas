@@ -11,6 +11,7 @@ const {
     rangoLima,
     matchComandasEstadisticas,
     matchComandaVigente,
+    matchBoucherVigente,
     exprMontoComanda,
     exprFechaComanda,
     exprPrecioPlatoUnwind,
@@ -778,10 +779,10 @@ async function getVentas(fechaInicio, fechaFin, agruparPor = 'dia') {
 
         const pipeline = [
             {
-                $match: {
+                $match: matchBoucherVigente({
                     isActive: true,
                     fechaPago: { $gte: fechaInicioDate, $lte: fechaFinDate }
-                }
+                })
             },
             {
                 $group: {
@@ -912,10 +913,10 @@ async function getPlatosTop(fechaInicio, fechaFin) {
 
         const pipeline = [
             {
-                $match: {
+                $match: matchBoucherVigente({
                     isActive: true,
                     fechaPago: { $gte: fechaInicioDate, $lte: fechaFinDate }
-                }
+                })
             },
             { $unwind: '$platos' },
             {
@@ -947,10 +948,10 @@ async function getFilasOperacion(fechaInicio, fechaFin) {
     if (filas.length) return filas;
 
     const Boucher = mongoose.model('Boucher') || require('../database/models/boucher.model');
-    return Boucher.find({
+    return Boucher.find(matchBoucherVigente({
         isActive: true,
         fechaPago: { $gte: inicio, $lte: fin }
-    })
+    }))
         .populate('mozo', 'name nombres DNI')
         .populate('mesa', 'nummesa numero')
         .populate('platos.plato', 'nombre precio categoria')

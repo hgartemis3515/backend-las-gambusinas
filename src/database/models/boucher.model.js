@@ -171,6 +171,12 @@ const boucherSchema = new mongoose.Schema({
         type: Boolean,
         default: true
     },
+    /** true cuando la comanda se eliminó en comandas.html: el ticket no entra en reportes/mozos/cocineros */
+    eliminadaPorComanda: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
     /** true cuando el boucher cubre solo un subconjunto de platos (pagos parciales) */
     esPagoParcial: {
         type: Boolean,

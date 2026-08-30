@@ -351,6 +351,14 @@ function matchComandaVigente(extra = {}) {
     };
 }
 
+/** Tickets que siguen contando ventas. Los de comanda eliminada solo viven en auditoría. */
+function matchBoucherVigente(extra = {}) {
+    return {
+        eliminadaPorComanda: { $ne: true },
+        ...extra
+    };
+}
+
 /** Misma visibilidad que comandas.html para ciclo abierto (GET /comanda?incluirPagadas). */
 const STATUS_COMANDA_CERRADA = ['pagado', 'completado', 'cancelado'];
 
@@ -760,6 +768,7 @@ module.exports = {
     exprMontoComanda,
     exprFechaComanda,
     matchComandaVigente,
+    matchBoucherVigente,
     matchComandaAbiertaEnTabla,
     STATUS_COMANDA_CERRADA,
     STATUS_COMANDA_VENDIDA,

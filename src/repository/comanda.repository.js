@@ -1104,6 +1104,14 @@ const eliminarLogicamente = async (comandaId, usuarioId, motivo, requerirMotivo 
     // Anular tickets de cocina pendientes vinculados (evita tickets huérfanos)
     await anularTicketsPendientesComanda(comandaId, motivo);
 
+    // Archivar bouchers: si quedan activos, reportes/mozos/tickets siguen contando la venta
+    try {
+      const { desactivarBouchersDeComanda } = require('./boucher.repository');
+      await desactivarBouchersDeComanda(comandaId);
+    } catch (boucherErr) {
+      console.error('⚠️ Error al archivar bouchers de comanda eliminada:', boucherErr.message);
+    }
+
     let precioTotalOriginal = comandaSnapshot.precioTotalOriginal;
     if (!precioTotalOriginal && comandaSnapshot.platos?.length > 0) {
       precioTotalOriginal = 0;
@@ -1144,6 +1152,7 @@ const eliminarLogicamente = async (comandaId, usuarioId, motivo, requerirMotivo 
           eliminadaPor: usuarioObjId,
           IsActive: false,
           eliminada: true,
+          status: 'cancelado',
           version: nuevaVersion,
           ...(precioTotalOriginal ? { precioTotalOriginal } : {}),
         },
@@ -1240,6 +1249,63 @@ const eliminarLogicamente = async (comandaId, usuarioId, motivo, requerirMotivo 
   } catch (error) {
     console.error("❌ Error al eliminar comanda lógicamente:", error);
     throw error;
+  }
+};
+
+/**
+ * Comandas borradas en dashboard antes de persistir `eliminada` / `status=cancelado`
+ * seguían apareciendo en reportes y mozos. Alinea esos documentos y sus bouchers.
+ */
+const repararFlagsComandasEliminadas = async () => {
+  try {
+    const filtroHuellaEliminacion = {
+      $or: [
+        { eliminada: true },
+        { fechaEliminacion: { $ne: null } },
+        { motivoEliminacion: { $exists: true, $nin: [null, ''] } }
+      ]
+    };
+    const result = await comandaModel.updateMany(
+      {
+        $and: [
+          filtroHuellaEliminacion,
+          {
+            $or: [
+              { eliminada: { $ne: true } },
+              { status: { $ne: 'cancelado' } },
+              { IsActive: { $ne: false } }
+            ]
+          }
+        ]
+      },
+      {
+        $set: {
+          eliminada: true,
+          status: 'cancelado',
+          IsActive: false
+        }
+      }
+    );
+    let bouchersArchivados = 0;
+    try {
+      const { desactivarBouchersDeComanda } = require('./boucher.repository');
+      const ids = await comandaModel.find(filtroHuellaEliminacion).select('_id').lean();
+      for (const doc of ids) {
+        bouchersArchivados += await desactivarBouchersDeComanda(doc._id) || 0;
+      }
+    } catch (boucherErr) {
+      console.error('⚠️ Error al archivar bouchers de comandas ya eliminadas:', boucherErr.message);
+    }
+    const comandasAlineadas = result.modifiedCount || 0;
+    if (comandasAlineadas || bouchersArchivados) {
+      console.log(
+        `🔧 Comandas eliminadas alineadas: ${comandasAlineadas} documento(s), ${bouchersArchivados} boucher(s) archivado(s)`
+      );
+    }
+    return { comandasAlineadas, bouchersArchivados };
+  } catch (error) {
+    console.error('⚠️ Error al reparar flags de comandas eliminadas:', error.message);
+    return { comandasAlineadas: 0, bouchersArchivados: 0 };
   }
 };
 
@@ -4713,6 +4779,7 @@ module.exports = {
   agregarComanda, 
   eliminarComanda, 
   eliminarLogicamente,
+  repararFlagsComandasEliminadas,
   editarConAuditoria,
   actualizarComanda, 
   cambiarStatusComanda, 

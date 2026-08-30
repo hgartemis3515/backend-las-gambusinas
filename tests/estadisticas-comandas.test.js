@@ -281,4 +281,15 @@ describe('estadisticasComandas', () => {
     expect(g[0].totalVentas).toBe(79);
     expect(g[0].cantidad).toBe(1);
   });
+
+  test('comanda eliminada (cancelado o eliminada=true) no entra en match de reportes/mozos', () => {
+    const vigente = require('../src/utils/estadisticasComandas').matchComandaVigente();
+    expect(vigente.eliminada).toEqual({ $ne: true });
+    expect(vigente.status).toEqual({ $nin: ['cancelado'] });
+  });
+
+  test('boucher de comanda eliminada no entra en fallback de reportes', () => {
+    const { matchBoucherVigente } = require('../src/utils/estadisticasComandas');
+    expect(matchBoucherVigente({ isActive: true }).eliminadaPorComanda).toEqual({ $ne: true });
+  });
 });

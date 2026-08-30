@@ -934,6 +934,18 @@ function dashApp() {
           this.handleComandaActualizada(comanda);
         });
 
+        this.socket.on('comanda-eliminada', (data) => {
+          const comanda = data.comanda || data;
+          const id = data.comandaId || comanda._id;
+          this.comandasActivas = (this.comandasActivas || []).filter(c => String(c._id) !== String(id));
+          this.addActivity({
+            text: 'Comanda #' + (data.comandaNumber || comanda.comandaNumber || '—') + ' eliminada (solo auditoría)',
+            dotClass: 'bg-st-pagado'
+          });
+          this.refreshVentasChart();
+        });
+        this.socket.on('reportes:comanda-eliminada', () => this.refreshVentasChart());
+
         // Reportes: nueva comanda
         this.socket.on('reportes:comanda-nueva', (data) => {
           const comanda = data.comanda || data;

@@ -1110,9 +1110,8 @@ router.delete('/comanda/:id', async (req, res) => {
                 platosEliminados: platosEliminados.length
             });
             
-            // Emitir evento Socket.io de comanda eliminada
-            if (global.emitComandaActualizada) {
-                await global.emitComandaActualizada(id);
+            if (global.emitComandaEliminada) {
+                await global.emitComandaEliminada(id);
             }
         } else {
             res.status(404).json({ message: 'Comanda no encontrada' });
@@ -1740,6 +1739,12 @@ router.put('/comanda/:id/eliminar-plato/:platoIndex', async (req, res) => {
                 comanda.motivoEliminacion = 'Eliminación automática: todos los platos en pedido eliminados';
                 comanda.eliminadaPor = usuarioId;
                 await comanda.save();
+                try {
+                    const { desactivarBouchersDeComanda } = require('../repository/boucher.repository');
+                    await desactivarBouchersDeComanda(id);
+                } catch (boucherErr) {
+                    console.warn('[ELIMINAR PLATO] Error archivando bouchers:', boucherErr.message);
+                }
                 const mesaId = comanda.mesas?._id || comanda.mesas;
                 if (mesaId) {
                     try {
@@ -3126,6 +3131,15 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
         
         comandaActualizar.version = (comandaActualizar.version || 1) + 1;
         await comandaActualizar.save();
+
+        if (todosPlatosEliminados) {
+            try {
+                const { desactivarBouchersDeComanda } = require('../repository/boucher.repository');
+                await desactivarBouchersDeComanda(id);
+            } catch (boucherErr) {
+                logger.warn('[ELIMINAR PLATOS] Error archivando bouchers', { error: boucherErr.message });
+            }
+        }
 
         try {
             const { sincronizarDescuentoTicketsComanda } = require('../utils/descuentoTicketsComanda');
