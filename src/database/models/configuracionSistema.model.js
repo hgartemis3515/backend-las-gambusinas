@@ -40,7 +40,7 @@ const CONFIGURACION_DEFAULT = {
     
     // Datos fiscales del restaurante
     datosFiscales: {
-        nombreComercial: 'Las Gambusinas',
+        nombreComercial: 'San Benito',
         razonSocial: '',
         ruc: '',
         direccionFiscal: '',
@@ -197,17 +197,17 @@ const CONFIGURACION_DEFAULT = {
 
     // SEO y Metadatos
     seo: {
-        metaTitle: 'Las Gambusinas - Sistema POS',
+        metaTitle: 'San Benito - Sistema POS',
         metaDescription: 'Sistema de punto de venta para gestión de restaurante. Control de mesas, comandas, pedidos y más.',
         canonicalUrl: '',
-        ogTitle: 'Las Gambusinas - Restaurante',
+        ogTitle: 'San Benito - Restaurante',
         ogDescription: 'Sistema de gestión integral para restaurantes. Control de mesas, comandas y pedidos en tiempo real.',
         ogImage: '',
         ogUrl: '',
         ogType: 'website',
         twitterCard: 'summary_large_image',
         twitterSite: '',
-        twitterTitle: 'Las Gambusinas - Sistema POS',
+        twitterTitle: 'San Benito - Sistema POS',
         twitterDescription: 'Sistema de punto de venta para gestión de restaurante',
         twitterImage: ''
     },
@@ -750,7 +750,7 @@ const configuracionSistemaSchema = new mongoose.Schema({
     voucherPlantilla: {
         logo: { type: String, default: '' },
         restaurante: {
-            nombre: { type: String, default: 'LAS GAMBUSINAS' },
+            nombre: { type: String, default: 'SAN BENITO' },
             eslogan: { type: String, default: '* Comidas Típicas y Parrilla *' },
             ruc: { type: String, default: '' },
             direccion: { type: String, default: '' },
@@ -828,7 +828,7 @@ const configuracionSistemaSchema = new mongoose.Schema({
     // Logo NO se persiste aquí: se referencia desde voucherPlantilla.logo (GET lo inyecta).
     comandaPlantilla: {
         restaurante: {
-            nombre: { type: String, default: 'LAS GAMBUSINAS' },
+            nombre: { type: String, default: 'SAN BENITO' },
             eslogan: { type: String, default: '* Comidas Típicas y Parrilla *' }
         },
         encabezado: {

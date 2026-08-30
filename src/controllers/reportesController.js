@@ -286,59 +286,6 @@ router.get('/reportes/cocineros', adminAuth, async (req, res) => {
 });
 
 /**
- * GET /api/reportes/cocineros/:cocineroId
- * Obtiene detalle de un cocinero específico
- */
-router.get('/reportes/cocineros/:cocineroId', adminAuth, async (req, res) => {
-    try {
-        const { cocineroId } = req.params;
-        const { fechaInicio, fechaFin } = req.query;
-
-        if (!fechaInicio || !fechaFin) {
-            return res.status(400).json({
-                success: false,
-                error: 'fechaInicio y fechaFin son requeridos'
-            });
-        }
-
-        logger.info('[ReportesController] Obteniendo detalle de cocinero', {
-            cocineroId,
-            fechaInicio,
-            fechaFin,
-            adminId: req.admin?.id
-        });
-
-        const detalle = await reportesRepository.getDetalleCocinero(
-            cocineroId,
-            fechaInicio,
-            fechaFin
-        );
-
-        res.json({
-            success: true,
-            data: detalle
-        });
-
-    } catch (error) {
-        logger.error('[ReportesController] Error en GET /cocineros/:id', {
-            error: error.message
-        });
-
-        if (error.message === 'Cocinero no encontrado') {
-            return res.status(404).json({
-                success: false,
-                error: 'Cocinero no encontrado'
-            });
-        }
-
-        res.status(500).json({
-            success: false,
-            error: error.message || 'Error al obtener detalle del cocinero'
-        });
-    }
-});
-
-/**
  * GET /api/reportes/cocineros/series
  * Obtiene solo la serie temporal (para actualizaciones parciales)
  */
@@ -440,6 +387,59 @@ router.get('/reportes/cocineros/resumen', adminAuth, async (req, res) => {
         res.status(500).json({
             success: false,
             error: error.message || 'Error al obtener resumen'
+        });
+    }
+});
+
+/**
+ * GET /api/reportes/cocineros/:cocineroId
+ * Detalle: platos atendidos (tiempos) y comandas. Después de series/heatmap/resumen.
+ */
+router.get('/reportes/cocineros/:cocineroId', adminAuth, async (req, res) => {
+    try {
+        const { cocineroId } = req.params;
+        const { fechaInicio, fechaFin } = req.query;
+
+        if (!fechaInicio || !fechaFin) {
+            return res.status(400).json({
+                success: false,
+                error: 'fechaInicio y fechaFin son requeridos'
+            });
+        }
+
+        logger.info('[ReportesController] Obteniendo detalle de cocinero', {
+            cocineroId,
+            fechaInicio,
+            fechaFin,
+            adminId: req.admin?.id
+        });
+
+        const detalle = await reportesRepository.getDetalleCocinero(
+            cocineroId,
+            fechaInicio,
+            fechaFin
+        );
+
+        res.json({
+            success: true,
+            data: detalle
+        });
+
+    } catch (error) {
+        logger.error('[ReportesController] Error en GET /cocineros/:id', {
+            error: error.message
+        });
+
+        if (error.message === 'Cocinero no encontrado') {
+            return res.status(404).json({
+                success: false,
+                error: 'Cocinero no encontrado'
+            });
+        }
+
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Error al obtener detalle del cocinero'
         });
     }
 });

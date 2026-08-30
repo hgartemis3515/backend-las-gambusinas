@@ -75,7 +75,7 @@ db.on('error', (err) => {
 db.once('open', async () => {
   console.log('');
   console.log('═══════════════════════════════════════════════════════════════');
-  console.log('📊 LAS GAMBUSINAS - SISTEMA POS');
+  console.log('📊 SAN BENITO - SISTEMA POS');
   console.log('═══════════════════════════════════════════════════════════════');
   console.log('✅ Conectado a MongoDB');
   console.log('');

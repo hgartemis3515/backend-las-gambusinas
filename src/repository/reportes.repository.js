@@ -16,7 +16,8 @@ const {
     exprFechaComanda,
     exprPrecioPlatoUnwind,
     listarFilasEstadisticas,
-    cargarConfigMonedaEstadisticas
+    cargarConfigMonedaEstadisticas,
+    etiquetasComplemento
 } = require('../utils/estadisticasComandas');
 
 // Modelos
@@ -610,14 +611,31 @@ async function getDistribucionCategorias(fechaInicio, fechaFin) {
 // DETALLE DE COCINERO
 // ============================================================
 
+function round1(n) {
+    if (!Number.isFinite(n)) return null;
+    return Math.round(n * 10) / 10;
+}
+
+function minutosEntre(a, b) {
+    if (!a || !b) return null;
+    const m = (new Date(b) - new Date(a)) / 60000;
+    if (!Number.isFinite(m) || m < 0 || m > 24 * 60) return null;
+    return round1(m);
+}
+
+function oidCocinero(cocineroId) {
+    return mongoose.Types.ObjectId.isValid(cocineroId)
+        ? new mongoose.Types.ObjectId(cocineroId)
+        : cocineroId;
+}
+
 /**
- * Obtiene detalle de un cocinero específico
+ * Detalle de un cocinero: cada plato atendido (tiempos) y comandas únicas.
  */
 async function getDetalleCocinero(cocineroId, fechaInicio, fechaFin) {
     try {
         const { inicio: fechaInicioDate, fin: fechaFinDate } = rangoLima(fechaInicio, fechaFin);
 
-        // Obtener datos del cocinero
         const cocinero = await Mozos.findById(cocineroId)
             .select('name aliasCocinero rol')
             .lean();
@@ -626,22 +644,27 @@ async function getDetalleCocinero(cocineroId, fechaInicio, fechaFin) {
             throw new Error('Cocinero no encontrado');
         }
 
-        // Platos preparados
-        const pipelinePlatos = [
+        const oid = oidCocinero(cocineroId);
+        const matchCocinero = {
+            $or: [
+                { 'platos.procesadoPor.cocineroId': oid },
+                { 'platos.procesandoPor.cocineroId': oid }
+            ]
+        };
+
+        const pipeline = [
             {
                 $match: matchComandaVigente({
                     createdAt: { $gte: fechaInicioDate, $lte: fechaFinDate },
-                    'platos.procesadoPor.cocineroId': mongoose.Types.ObjectId.isValid(cocineroId)
-                        ? new mongoose.Types.ObjectId(cocineroId)
-                        : cocineroId
+                    ...matchCocinero
                 })
             },
-            { $unwind: '$platos' },
+            { $unwind: { path: '$platos', includeArrayIndex: 'platoIdx' } },
             {
                 $match: {
                     'platos.eliminado': { $ne: true },
                     'platos.anulado': { $ne: true },
-                    'platos.tiempos.recoger': { $exists: true, $ne: null }
+                    ...matchCocinero
                 }
             },
             {
@@ -654,26 +677,143 @@ async function getDetalleCocinero(cocineroId, fechaInicio, fechaFin) {
             },
             { $unwind: { path: '$platoInfo', preserveNullAndEmptyArrays: true } },
             {
-                $group: {
-                    _id: '$platos.platoId',
-                    nombre: { $first: '$platoInfo.nombre' },
-                    categoria: { $first: { $ifNull: ['$platoInfo.categoria', 'Sin categoría'] } },
-                    cantidad: { $sum: 1 },
-                    tiempoPromedio: {
-                        $avg: {
-                            $divide: [
-                                { $subtract: ['$platos.tiempos.recoger', '$platos.tiempos.en_espera'] },
-                                60000
-                            ]
-                        }
-                    }
+                $lookup: {
+                    from: 'mesas',
+                    localField: 'mesas',
+                    foreignField: '_id',
+                    as: 'mesaInfo'
                 }
             },
-            { $sort: { cantidad: -1 } },
-            { $limit: 20 }
+            { $unwind: { path: '$mesaInfo', preserveNullAndEmptyArrays: true } },
+            {
+                $project: {
+                    _id: 0,
+                    comandaId: '$_id',
+                    comandaNumber: 1,
+                    status: 1,
+                    createdAt: 1,
+                    mozoNombre: 1,
+                    totalCalculado: 1,
+                    tiempoEnEspera: 1,
+                    tiempoPagado: 1,
+                    tiempoEntregado: 1,
+                    mesaNum: { $ifNull: ['$mesaNumero', '$mesaInfo.nummesa'] },
+                    nombre: { $ifNull: ['$platoInfo.nombre', '$platos.nombre'] },
+                    categoria: { $ifNull: ['$platoInfo.categoria', 'Sin categoría'] },
+                    cantidad: {
+                        $ifNull: [
+                            { $arrayElemAt: ['$cantidades', '$platoIdx'] },
+                            { $ifNull: ['$platos.cantidad', 1] }
+                        ]
+                    },
+                    estado: '$platos.estado',
+                    tipoServicio: { $ifNull: ['$platos.tipoServicio', 'mesa'] },
+                    notaEspecial: '$platos.notaEspecial',
+                    tiempos: '$platos.tiempos',
+                    complementos: '$platos.complementosSeleccionados',
+                    procesadoPor: '$platos.procesadoPor',
+                    procesandoPor: '$platos.procesandoPor',
+                    platoId: '$platos.platoId'
+                }
+            },
+            { $sort: { createdAt: -1, 'tiempos.pedido': -1 } },
+            { $limit: 800 }
         ];
 
-        const platosPreparados = await Comanda.aggregate(pipelinePlatos);
+        const lineas = await Comanda.aggregate(pipeline);
+
+        const platos = lineas.map((l) => {
+            const t = l.tiempos || {};
+            const inicioPrep = t.en_espera || l.procesadoPor?.tomadoEn || t.pedido;
+            const cant = Number(l.cantidad);
+            return {
+                comandaId: l.comandaId,
+                comandaNumber: l.comandaNumber,
+                mesa: l.mesaNum != null ? l.mesaNum : null,
+                mozo: l.mozoNombre || '—',
+                statusComanda: l.status,
+                createdAt: l.createdAt,
+                nombre: l.nombre || 'Desconocido',
+                categoria: l.categoria || 'Sin categoría',
+                cantidad: Number.isFinite(cant) && cant > 0 ? cant : 1,
+                estado: l.estado || 'pedido',
+                tipoServicio: l.tipoServicio || 'mesa',
+                notaEspecial: l.notaEspecial || '',
+                complementos: etiquetasComplemento({ complementosSeleccionados: l.complementos }),
+                tiempos: {
+                    pedido: t.pedido || null,
+                    en_espera: t.en_espera || null,
+                    recoger: t.recoger || null,
+                    salio: t.salio || null,
+                    entregado: t.entregado || null,
+                    pagado: t.pagado || null
+                },
+                minutosPrep: minutosEntre(inicioPrep, t.recoger),
+                minutosPedidoAListo: minutosEntre(t.pedido, t.recoger),
+                minutosListoASalio: minutosEntre(t.recoger, t.salio),
+                minutosSalioAEntregado: minutosEntre(t.salio, t.entregado)
+            };
+        });
+
+        const comandasMap = new Map();
+        for (const l of lineas) {
+            const key = String(l.comandaId);
+            if (!comandasMap.has(key)) {
+                comandasMap.set(key, {
+                    _id: l.comandaId,
+                    comandaNumber: l.comandaNumber,
+                    mesa: l.mesaNum != null ? l.mesaNum : null,
+                    mozo: l.mozoNombre || '—',
+                    status: l.status,
+                    createdAt: l.createdAt,
+                    totalCalculado: Number(l.totalCalculado) || 0,
+                    totalPlatos: 0,
+                    _sumPrep: 0,
+                    _nPrep: 0
+                });
+            }
+        }
+        for (const p of platos) {
+            const c = comandasMap.get(String(p.comandaId));
+            if (!c) continue;
+            c.totalPlatos += p.cantidad;
+            if (Number.isFinite(p.minutosPrep)) {
+                c._sumPrep += p.minutosPrep;
+                c._nPrep += 1;
+            }
+        }
+        const comandas = Array.from(comandasMap.values())
+            .map((c) => {
+                const { _sumPrep, _nPrep, ...rest } = c;
+                return {
+                    ...rest,
+                    tiempoPromedioPrep: _nPrep > 0 ? round1(_sumPrep / _nPrep) : null
+                };
+            })
+            .sort((a, b) => (Number(b.comandaNumber) || 0) - (Number(a.comandaNumber) || 0));
+
+        const aggMap = new Map();
+        for (const p of platos) {
+            const k = p.nombre;
+            if (!aggMap.has(k)) {
+                aggMap.set(k, { nombre: k, categoria: p.categoria, cantidad: 0, _sum: 0, _n: 0 });
+            }
+            const a = aggMap.get(k);
+            a.cantidad += p.cantidad;
+            if (Number.isFinite(p.minutosPrep)) {
+                a._sum += p.minutosPrep;
+                a._n += 1;
+            }
+        }
+        const platosPreparados = Array.from(aggMap.values())
+            .map((a) => ({
+                nombre: a.nombre,
+                categoria: a.categoria,
+                cantidad: a.cantidad,
+                tiempoPromedio: a._n > 0 ? round1(a._sum / a._n) : 0
+            }))
+            .sort((a, b) => b.cantidad - a.cantidad)
+            .slice(0, 20);
 
         return {
             cocinero: {
@@ -681,13 +821,9 @@ async function getDetalleCocinero(cocineroId, fechaInicio, fechaFin) {
                 nombre: cocinero.name,
                 alias: cocinero.aliasCocinero || cocinero.name
             },
-            platosPreparados: platosPreparados.map(p => ({
-                platoId: p._id,
-                nombre: p.nombre || 'Desconocido',
-                categoria: p.categoria,
-                cantidad: p.cantidad,
-                tiempoPromedio: Math.round(p.tiempoPromedio * 10) / 10
-            }))
+            platos,
+            comandas,
+            platosPreparados
         };
 
     } catch (error) {

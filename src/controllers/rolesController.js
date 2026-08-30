@@ -383,6 +383,8 @@ router.delete('/roles/:id/usuarios/:usuarioId', adminAuth, async (req, res) => {
         usuario.rol = 'mozos';
         await usuario.save();
 
+        rolesRepository.notificarPermisosCocina(usuario._id).catch(() => {});
+
         // Emitir evento WebSocket
         if (global.io && global.io.of('/admin')) {
             global.io.of('/admin').emit('usuario-rol-removido', {

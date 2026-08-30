@@ -425,7 +425,7 @@ router.get('/configuracion/seo', async (req, res) => {
         const config = await configuracionRepository.obtenerConfiguracion();
         
         const seoConfig = config.seo || {
-            metaTitle: 'Las Gambusinas - Sistema POS',
+            metaTitle: 'San Benito - Sistema POS',
             metaDescription: 'Sistema de punto de venta para gestión de restaurante.',
             canonicalUrl: '',
             ogTitle: '',
@@ -520,7 +520,7 @@ router.get('/configuracion/voucher-plantilla', async (req, res) => {
         const PLANTILLA_DEFAULT = {
             logo: '',
             restaurante: { 
-                nombre: config.datosFiscales?.nombreComercial || 'LAS GAMBUSINAS', 
+                nombre: config.datosFiscales?.nombreComercial || 'SAN BENITO', 
                 eslogan: '* Comidas Típicas y Parrilla *', 
                 ruc: config.datosFiscales?.ruc || '', 
                 direccion: config.datosFiscales?.direccionFiscal || '', 
@@ -593,7 +593,7 @@ router.get('/configuracion/voucher-plantilla', async (req, res) => {
 
         // Solo rellenar vacíos. Nombre, eslogan, logo y personalización viven en Mongo.
         if (!plantilla.restaurante.nombre) {
-            plantilla.restaurante.nombre = config.datosFiscales?.nombreComercial || 'LAS GAMBUSINAS';
+            plantilla.restaurante.nombre = config.datosFiscales?.nombreComercial || 'SAN BENITO';
         }
         if (config.datosFiscales?.ruc) plantilla.restaurante.ruc = config.datosFiscales.ruc;
         if (config.datosFiscales?.direccionFiscal) plantilla.restaurante.direccion = config.datosFiscales.direccionFiscal;
@@ -671,7 +671,7 @@ router.get('/configuracion/comanda-plantilla', async (req, res) => {
 
         const PLANTILLA_DEFAULT = {
             restaurante: {
-                nombre: config.datosFiscales?.nombreComercial || 'LAS GAMBUSINAS',
+                nombre: config.datosFiscales?.nombreComercial || 'SAN BENITO',
                 eslogan: '* Comidas Típicas y Parrilla *'
             },
             encabezado: { titulo: 'COMANDA' },
@@ -718,7 +718,7 @@ router.get('/configuracion/comanda-plantilla', async (req, res) => {
             plantilla.etiquetas.fechaPedido = 'Fecha pedido';
         }
         if (!plantilla.restaurante.nombre) {
-            plantilla.restaurante.nombre = config.datosFiscales?.nombreComercial || 'LAS GAMBUSINAS';
+            plantilla.restaurante.nombre = config.datosFiscales?.nombreComercial || 'SAN BENITO';
         }
         if (!plantilla.restaurante.eslogan) {
             plantilla.restaurante.eslogan = '* Comidas Típicas y Parrilla *';

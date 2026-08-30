@@ -6,18 +6,11 @@
  * de platos; el cobrado vive en `montoCobrado` / `reserva.pagoAdelantado.montoPagado`.
  */
 
-const { resolverBrutoYNeto } = require('./descuentoTicketSnapshot');
+const { resolverBrutoYNeto, subtotalLineaSnapshot } = require('./descuentoTicketSnapshot');
 
 function sumarSubtotalesPlatosTicket(platos) {
   if (!Array.isArray(platos) || platos.length === 0) return 0;
-  const suma = platos.reduce((acc, p) => {
-    if (!p || p.eliminado || p.anulado) return acc;
-    const sub = Number(p?.subtotal);
-    if (Number.isFinite(sub)) return acc + sub;
-    const precio = Number(p?.precio) || 0;
-    const cantidad = Number(p?.cantidad) || 1;
-    return acc + precio * cantidad;
-  }, 0);
+  const suma = platos.reduce((acc, p) => acc + subtotalLineaSnapshot(p), 0);
   return Number(suma.toFixed(2));
 }
 

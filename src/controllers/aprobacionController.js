@@ -59,6 +59,41 @@ async function conIgvImpresion(datos) {
   };
 }
 
+function tipoServicioImpresion(p) {
+  if (!p) return 'mesa';
+  if (p.tipoServicio === 'para_llevar' || p.paraLlevar === true) return 'para_llevar';
+  const raw = String(p.tipoServicio || '').toLowerCase().trim().replace(/\s+/g, '_');
+  return (raw === 'para_llevar' || raw === 'llevar') ? 'para_llevar' : 'mesa';
+}
+
+function mapLineaProductoImprimible(p, comanda, index) {
+  const tipoServicio = tipoServicioImpresion(p);
+  const cantidad = Number(p.cantidad || comanda?.cantidades?.[index] || 1) || 1;
+  const precio = Number(p.precioUnitario ?? p.precio ?? p.plato?.precio) || 0;
+  const sub = Number(p.subtotal);
+  return {
+    nombre: p.plato?.nombre || p.nombre || 'Plato',
+    plato: p.plato,
+    cantidad,
+    precio,
+    subtotal: Number.isFinite(sub) && sub > 0 ? sub : precio * cantidad,
+    tipoServicio,
+    complementos: (p.complementosSeleccionados || p.complementos || []).map((c) => ({
+      grupo: c.grupo,
+      opcion: c.opcion,
+      cantidad: c.cantidad || 1,
+      precio: c.precio || 0,
+    })),
+    notaEspecial: p.notaEspecial || '',
+    paraLlevar: tipoServicio === 'para_llevar',
+    mostrarResumenComplementos: !!p.mostrarResumenComplementos,
+    resumenComplementosImpresion: {
+      mostrarCantidad: p.resumenComplementosImpresion?.mostrarCantidad !== false,
+      mostrarMontoExtra: p.resumenComplementosImpresion?.mostrarMontoExtra !== false,
+    },
+  };
+}
+
 /**
  * GET /api/aprobacion/pendientes
  * Lista tickets pendientes de aprobación, tipo COMANDA y/o ADELANTADO.
@@ -94,6 +129,22 @@ router.get('/aprobacion/pendientes', async (req, res) => {
   } catch (error) {
     logger.error('Error al obtener tickets de aprobación', { error: error.message });
     res.status(500).json({ success: false, message: 'Error al obtener tickets de aprobación' });
+  }
+});
+
+/**
+ * GET /api/aprobacion/turnos-dia
+ * Misma respuesta que /cierre-caja/turnos-dia, con JWT de cocina (sin permiso admin).
+ */
+router.get('/aprobacion/turnos-dia', async (req, res) => {
+  try {
+    const CierreCajaRestaurante = require('../database/models/cierreCajaRestaurante.model');
+    const { obtenerTurnosDia } = require('../utils/cierreCajaTurnosDia');
+    const data = await obtenerTurnosDia(CierreCajaRestaurante);
+    res.json(data);
+  } catch (error) {
+    logger.error('Error al obtener turnos DIA/NOCHE', { error: error.message });
+    res.status(500).json({ success: false, message: 'Error al obtener turnos del día' });
   }
 });
 
@@ -152,11 +203,60 @@ router.get('/aprobacion/fecha/:fecha', async (req, res) => {
 });
 
 /**
+ * PUT /api/aprobacion/:id/forzar-pago
+ * Caja cobra el ticket de la comanda (boucher + aprobado). La mesa no pasa a pendiente_aprobar.
+ */
+router.put('/aprobacion/:id/forzar-pago', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { usuarioId, usuarioNombre, metodoPago } = req.body || {};
+    const result = await aprobacionService.forzarPagoTicketComanda(id, {
+      usuarioId,
+      usuarioNombre,
+      metodoPago,
+    });
+
+    if (result.forzado === false && result.ticket) {
+      const estadoMesaFinal = result.mesaEstado || 'pendiente_aprobar';
+      if (global.emitComandaAprobada) {
+        try {
+          await global.emitComandaAprobada(result.ticket, result.platosLiberados, estadoMesaFinal);
+        } catch (e) {
+          logger.warn('Error emitiendo comanda-aprobada (forzar con boucher)', { error: e.message });
+        }
+      }
+    } else if (result.ticket && global.emitTicketAprobacionNuevo) {
+      try {
+        await global.emitTicketAprobacionNuevo(result.ticket);
+      } catch (e) {
+        logger.warn('Error emitiendo ticket tras forzar pago', { error: e.message });
+      }
+    }
+
+    if (result.ticket?.mesa && global.emitMesaActualizada) {
+      try {
+        await global.emitMesaActualizada(result.ticket.mesa.toString());
+      } catch (e) {
+        logger.warn('Error emitiendo mesa-actualizada tras forzar pago', { error: e.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: result.forzado ? 'Pago forzado y ticket aprobado' : 'Ticket aprobado',
+      resultado: result,
+    });
+  } catch (error) {
+    logger.error('Error al forzar pago de ticket', { error: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
+  }
+});
+
+/**
  * PUT /api/aprobacion/:id/aprobar
  * Aprueba un ticket (comanda completa o PPA).
  * Body: { tipo?: 'COMANDA'|'ADELANTADO', usuarioId, usuarioNombre }
- * El tipo es opcional: si no se indica o no coincide con la colección,
- * se detecta automáticamente buscando en ambas colecciones.
  */
 router.put('/aprobacion/:id/aprobar', async (req, res) => {
   try {
@@ -382,6 +482,31 @@ router.put('/aprobacion/:id/reportar', async (req, res) => {
 });
 
 /**
+ * POST /api/aprobacion/desde-comanda/:id
+ * Dashboard: crea un TicketAprobacion ya aprobado para una comanda sin ticket.
+ * No cambia mesa ni manda el ticket a la bandeja pendiente de cocina.
+ */
+router.post('/aprobacion/desde-comanda/:id', async (req, res) => {
+  try {
+    const source = String(req.body?.sourceApp || req.headers['x-source-app'] || '').toLowerCase();
+    if (source !== 'dashboard' && req.body?.forzarAdmin !== true) {
+      return res.status(403).json({ success: false, message: 'Solo disponible desde el dashboard' });
+    }
+
+    const ticket = await aprobacionService.crearTicketAprobadoDesdeComanda(req.params.id, {
+      usuarioId: req.body?.usuarioId,
+      usuarioNombre: req.body?.usuarioNombre,
+    });
+
+    res.json({ success: true, ticket });
+  } catch (error) {
+    logger.error('Error al crear ticket de aprobación desde comanda', { error: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
+  }
+});
+
+/**
  * GET /api/comanda/:id/tickets
  * Lista todos los tickets (comanda, parcial, adelantado) asociados a una comanda.
  */
@@ -400,7 +525,7 @@ router.get('/comanda/:id/tickets', async (req, res) => {
 /**
  * PUT /api/aprobacion/:id/editar
  * Edita observaciones, método de pago y precios de platos (pendiente o aprobado).
- * Body: { tipo?: 'COMANDA'|'ADELANTADO', observaciones?, metodoPago?, platos?: [{ platoLineaId, precio }], platosEliminar?: string[] }
+ * Body: { tipo?: 'COMANDA'|'ADELANTADO', observaciones?, metodoPago?, platos?: [{ platoLineaId, precio, cantidad }], platosEliminar?: string[] }
  */
 router.put('/aprobacion/:id/editar', async (req, res) => {
   try {
@@ -591,31 +716,9 @@ router.get('/aprobacion/:id/ticket-imprimible', async (req, res) => {
           mozo: ticketPPA.nombreMozo || ticketPPA.mozoNombre,
           area: null,
           moneda: ticketPPA.moneda || boucherPPA?.moneda || 'PEN',
-          tipoPago: ticketPPA.estado === 'pendiente_aprobacion'
-            ? 'Pendiente'
-            : (ticketPPA.metodoPago || boucherPPA?.metodoPago || 'efectivo'),
+          tipoPago: labelMetodoPago(ticketPPA.metodoPago || boucherPPA?.metodoPago) || ticketPPA.metodoPago || 'Pendiente',
           observaciones: ticketPPA.observaciones || '',
-          productos: (ticketPPA.platos || []).filter((p) => p && !p.eliminado && !p.anulado).map((p) => ({
-            nombre: p.nombre,
-            plato: p.plato,
-            cantidad: p.cantidad,
-            precio: p.precio,
-            subtotal: p.subtotal,
-            tipoServicio: p.tipoServicio,
-            complementos: (p.complementosSeleccionados || []).map((c) => ({
-              grupo: c.grupo,
-              opcion: c.opcion,
-              cantidad: c.cantidad || 1,
-              precio: c.precio || 0,
-            })),
-            notaEspecial: p.notaEspecial || '',
-            paraLlevar: p.tipoServicio === 'para_llevar',
-            mostrarResumenComplementos: !!p.mostrarResumenComplementos,
-            resumenComplementosImpresion: {
-              mostrarCantidad: p.resumenComplementosImpresion?.mostrarCantidad !== false,
-              mostrarMontoExtra: p.resumenComplementosImpresion?.mostrarMontoExtra !== false,
-            },
-          })),
+          productos: (ticketPPA.platos || []).filter((p) => p && !p.eliminado && !p.anulado).map((p) => mapLineaProductoImprimible(p)),
           subtotal: descPPA.subtotal,
           igv: ticketPPA.igv,
           total: descPPA.total,
@@ -714,31 +817,9 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
           mozo: ticketPPA.mozo?.name || ticketPPA.nombreMozo || ticketPPA.mozoNombre,
           area: null,
           moneda: 'PEN',
-          tipoPago: ticketPPA.estado === 'pendiente_aprobacion'
-            ? 'Pendiente'
-            : (ticketPPA.metodoPago || 'efectivo'),
+          tipoPago: labelMetodoPago(ticketPPA.metodoPago) || ticketPPA.metodoPago || 'Pendiente',
           observaciones: ticketPPA.observaciones || '',
-          productos: (ticketPPA.platos || []).filter((p) => p && !p.eliminado && !p.anulado).map((p) => ({
-            nombre: p.nombre,
-            plato: p.plato,
-            cantidad: p.cantidad,
-            precio: p.precio,
-            subtotal: p.subtotal,
-            tipoServicio: p.tipoServicio,
-            complementos: (p.complementosSeleccionados || []).map((c) => ({
-              grupo: c.grupo,
-              opcion: c.opcion,
-              cantidad: c.cantidad || 1,
-              precio: c.precio || 0,
-            })),
-            notaEspecial: p.notaEspecial || '',
-            paraLlevar: p.tipoServicio === 'para_llevar',
-            mostrarResumenComplementos: !!p.mostrarResumenComplementos,
-            resumenComplementosImpresion: {
-              mostrarCantidad: p.resumenComplementosImpresion?.mostrarCantidad !== false,
-              mostrarMontoExtra: p.resumenComplementosImpresion?.mostrarMontoExtra !== false,
-            },
-          })),
+          productos: (ticketPPA.platos || []).filter((p) => p && !p.eliminado && !p.anulado).map((p) => mapLineaProductoImprimible(p)),
           subtotal: descPPA.subtotal,
           igv: ticketPPA.igv,
           total: descPPA.total,
@@ -790,29 +871,11 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
 
     const config = await configuracionRepository.obtenerConfiguracion();
 
-    let productos = (comanda.platos || [])
-      .filter((p) => !p.eliminado && !p.anulado)
-      .map((p) => ({
-        nombre: p.plato?.nombre || 'Plato',
-        plato: p.plato,
-        cantidad: comanda.cantidades?.[comanda.platos.indexOf(p)] || 1,
-        precio: (p.precioUnitario != null ? p.precioUnitario : (p.plato?.precio || p.precio || 0)),
-        subtotal: (p.precioUnitario != null ? p.precioUnitario : (p.plato?.precio || p.precio || 0)) * (comanda.cantidades?.[comanda.platos.indexOf(p)] || 1),
-        tipoServicio: p.tipoServicio || 'mesa',
-        complementos: (p.complementosSeleccionados || []).map((c) => ({
-          grupo: c.grupo,
-          opcion: c.opcion,
-          cantidad: c.cantidad || 1,
-          precio: c.precio || 0,
-        })),
-        notaEspecial: p.notaEspecial || '',
-        paraLlevar: p.tipoServicio === 'para_llevar',
-        mostrarResumenComplementos: !!p.mostrarResumenComplementos,
-        resumenComplementosImpresion: {
-          mostrarCantidad: p.resumenComplementosImpresion?.mostrarCantidad !== false,
-          mostrarMontoExtra: p.resumenComplementosImpresion?.mostrarMontoExtra !== false,
-        },
-      }));
+    let productos = [];
+    (comanda.platos || []).forEach((p, i) => {
+      if (!p || p.eliminado || p.anulado) return;
+      productos.push(mapLineaProductoImprimible(p, comanda, i));
+    });
     productos = aplicarOpcionesImpresionProductos(productos, {
       soloNombreComercial: imprimirSoloNombreComercial(config),
     });
@@ -838,8 +901,14 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
       igvPorcentaje: Number.isFinite(Number(config.igvPorcentaje)) ? Number(config.igvPorcentaje) : 18,
       nombreImpuesto: config.nombreImpuestoPrincipal || 'IGV',
       total: (Number(comanda.descuento) > 0 || Number(comanda.montoDescuento) > 0)
-        ? (Number.isFinite(Number(comanda.totalCalculado)) ? Number(comanda.totalCalculado) : 0)
-        : (Number(boucher?.total || comanda.totalCalculado || comanda.precioTotal) || productos.reduce((s, p) => s + (Number(p.subtotal) || 0), 0)),
+        ? (Number.isFinite(Number(comanda.totalCalculado))
+          ? Number(comanda.totalCalculado)
+          : Math.max(0, productos.reduce((s, p) => s + (Number(p.subtotal) || 0), 0) - (Number(comanda.montoDescuento) || 0)))
+        : (Number(boucher?.total) > 0
+          ? Number(boucher.total)
+          : (Number(comanda.totalCalculado) > 0
+            ? Number(comanda.totalCalculado)
+            : (Number(comanda.precioTotal) || productos.reduce((s, p) => s + (Number(p.subtotal) || 0), 0)))),
       montoDescuento: (Number(comanda.descuento) > 0 || Number(comanda.montoDescuento) > 0)
         ? (Number(comanda.montoDescuento) || 0)
         : (Number(boucher?.montoDescuento) || 0),

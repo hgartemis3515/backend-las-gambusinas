@@ -147,6 +147,9 @@ router.put('/mozos/:id', async (req, res) => {
         }
 
         const data = await actualizarMozo(id, newData);
+        if (newData.rol !== undefined || newData.roles !== undefined) {
+            rolesRepository.notificarPermisosCocina(id).catch(() => {});
+        }
         res.json(data);
         console.log("Se actualizó el mozo:", id);
     }catch(error){

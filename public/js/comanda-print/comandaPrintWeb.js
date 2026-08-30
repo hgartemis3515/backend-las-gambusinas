@@ -14,6 +14,7 @@ import {
   aplicarComandaNumeroDisplay,
   formatComandasNumbersLabel,
   mapComandaATicket,
+  mapComandasATicket,
   EPSON_TM_M30II_RECEIPT,
 } from './comandaHtml.js';
 
@@ -82,11 +83,71 @@ async function obtenerConfigMonedaViva(fetchJson) {
   }
 }
 
+function mergeDatosImprimibles(lista) {
+  const items = (lista || []).filter(Boolean);
+  if (!items.length) return null;
+  if (items.length === 1) return items[0];
+  const productos = [];
+  const nums = new Set();
+  let subtotal = 0;
+  let total = 0;
+  let montoDesc = 0;
+  let tipoPago = items[0].tipoPago || 'Pendiente';
+  for (const d of items) {
+    for (const p of d.productos || []) productos.push(p);
+    (d.comandasNumbers || []).forEach((n) => {
+      const num = Number(n);
+      if (!Number.isNaN(num)) nums.add(num);
+    });
+    subtotal += Number(d.subtotal) || 0;
+    total += Number(d.total) || 0;
+    montoDesc += Number(d.montoDescuento) || 0;
+    if (d.tipoPago && d.tipoPago !== 'Pendiente') tipoPago = d.tipoPago;
+  }
+  const comandasNumbers = [...nums].sort((a, b) => a - b);
+  const base = items[0];
+  return {
+    ...base,
+    productos,
+    comandasNumbers,
+    comandaNumero: comandasNumbers[0] ?? base.comandaNumero,
+    cantidadComandas: comandasNumbers.length || items.length,
+    subtotal: Number(subtotal.toFixed(2)),
+    total: Number(total.toFixed(2)),
+    montoDescuento: Number(montoDesc.toFixed(2)),
+    totalSinDescuento: Number(subtotal.toFixed(2)),
+    tipoPago,
+  };
+}
+
+async function fetchYFusionarComandas(ids, fetchJson) {
+  const resultados = await Promise.all((ids || []).map(async (id) => {
+    if (!id) return null;
+    try {
+      const res = await fetchJson(`/api/comanda/${id}/ticket-imprimible`);
+      return res?.datos || (res?.success === false ? null : res);
+    } catch {
+      return null;
+    }
+  }));
+  const seen = new Set();
+  const unique = [];
+  for (const d of resultados) {
+    if (!d) continue;
+    const key = d.ticketId ? String(d.ticketId) : `local-${unique.length}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(d);
+  }
+  return mergeDatosImprimibles(unique);
+}
+
 /**
  * Print a comanda by ID or with pre-fetched data.
  *
  * @param {Object} opts
  * @param {string|null} [opts.comandaId] - ID to fetch ticket data from GET /api/comanda/:id/ticket-imprimible
+ * @param {string[]|null} [opts.comandaIds] - Varias comandas del mismo pedido (mesa + extra para llevar)
  * @param {Object|null} [opts.datos] - Pre-fetched ticket data (skips the API call if provided)
  * @param {Object|null} [opts.plantilla] - Fallback si falla el GET; por defecto se recarga del servidor
  * @param {boolean} [opts.usarPlantillaLocal] - Si true, no pide al API (vista previa del editor)
@@ -102,6 +163,12 @@ export async function imprimirComandaWeb(opts = {}) {
 
     // 1. Get datos — either provided or fetched
     let datos = opts.datos || null;
+    const idsGrupo = Array.isArray(opts.comandaIds)
+      ? [...new Set(opts.comandaIds.filter(Boolean).map(String))]
+      : [];
+    if (!datos && idsGrupo.length > 1) {
+      datos = await fetchYFusionarComandas(idsGrupo, fetchJson);
+    }
     if (!datos && opts.comandaId) {
       const res = await fetchJson(`/api/comanda/${opts.comandaId}/ticket-imprimible`);
       if (res && res.success && res.datos) {
@@ -125,12 +192,6 @@ export async function imprimirComandaWeb(opts = {}) {
       obtenerConfigMonedaViva(fetchJson),
     ]);
 
-    // 3. Forzar "Pago: Pendiente" si se imprime sin aprobar desde la tabla
-    if (opts.ticketEstado === 'pendiente_aprobacion') {
-      datos = { ...datos, tipoPago: 'Pendiente' };
-    }
-
-    // 4. Apply comandaNumeroDisplay
     datos = aplicarComandaNumeroDisplay(datos);
 
     // 5. Merge comandasNumbersOverride if provided
@@ -170,11 +231,8 @@ export async function imprimirComandaWeb(opts = {}) {
   }
 }
 
-/** Si el ticket no fue aprobado en cocina, el ticket impreso debe decir "Pago: Pendiente". */
+/** Método de pago del ticket para impresión (el editado en dashboard tiene prioridad). */
 function resolverTipoPagoImpresion(ticket, tipoPagoFallback = 'Pendiente') {
-  if (ticket?.estado === 'pendiente_aprobacion') {
-    return 'Pendiente';
-  }
   return ticket?.metodoPago || ticket?.tipoPago || tipoPagoFallback || 'Pendiente';
 }
 
@@ -229,8 +287,12 @@ function mapearTicketADatos(ticket) {
   const tipoLower = String(ticket.tipo || '').toLowerCase();
 
   const productos = (ticket.platos || []).filter(p => p && !p.eliminado && !p.anulado).map(p => {
-    const precio = p.precio || p.plato?.precio || 0;
-    const cantidad = p.cantidad || 1;
+    const precio = Number(p.precioUnitario ?? p.precio ?? p.plato?.precio) || 0;
+    const cantidad = Number(p.cantidad) || 1;
+    const subRaw = Number(p.subtotal);
+    const tipoServicio = p.tipoServicio === 'para_llevar' || p.paraLlevar === true
+      ? 'para_llevar'
+      : (p.tipoServicio || 'mesa');
     return {
       nombre: p.plato?.nombre || p.nombre || 'Plato',
       nombreComercial: p.plato?.nombre,
@@ -238,15 +300,17 @@ function mapearTicketADatos(ticket) {
       plato: p.plato,
       cantidad,
       precio,
-      subtotal: p.subtotal || precio * cantidad,
-      tipoServicio: p.tipoServicio || 'mesa',
-      complementos: (p.complementosSeleccionados || []).map(c => ({
+      subtotal: Number.isFinite(subRaw) && subRaw > 0 ? subRaw : precio * cantidad,
+      tipoServicio,
+      complementos: (p.complementosSeleccionados || p.complementos || []).map(c => ({
         grupo: c.grupo || '',
         opcion: c.opcion || '',
+        cantidad: c.cantidad || 1,
         precio: c.precio || 0,
       })),
       notaEspecial: p.notaEspecial || '',
-      paraLlevar: p.tipoServicio === 'para_llevar',
+      paraLlevar: tipoServicio === 'para_llevar',
+      mostrarResumenComplementos: !!p.mostrarResumenComplementos,
     };
   });
   const totales = resolverTotalesTicketImpresion(ticket, productos);
@@ -398,5 +462,6 @@ if (typeof window !== 'undefined') {
   window.imprimirComandaDesdeTicket = imprimirComandaDesdeTicket;
   window.generarHtmlComanda = generarHtmlComanda;
   window.mapComandaATicket = mapComandaATicket;
+  window.mapComandasATicket = mapComandasATicket;
   window.aplicarComandaNumeroDisplay = aplicarComandaNumeroDisplay;
 }

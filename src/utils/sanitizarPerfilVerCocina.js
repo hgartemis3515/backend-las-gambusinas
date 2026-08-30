@@ -159,6 +159,8 @@ function fusionarConfigPerfilVerCocina(actual, incomingSanitizado) {
 const PERFIL_TABLAS_KDS_KEYS = new Set([
     'tamanoFuente',
     'tamanoFuentePlatos',
+    'nombrePlatoFuente',
+    'nombrePlatoColor',
     'tamanoTarjeta',
     'columnasGrid',
     'filasGrid',

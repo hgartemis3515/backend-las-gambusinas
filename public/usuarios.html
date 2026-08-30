@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Usuarios — Las Gambusinas</title>
+  <title>Usuarios — San Benito</title>
   <!-- Animate.css - Animaciones CSS puras -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
   <!-- AOS - Animate On Scroll -->
@@ -460,12 +460,12 @@ function usuariosApp() {
       admin: {
         'Backend/Dashboard': ['ver-mesas', 'editar-mesas', 'juntar-separar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas', 'ver-clientes', 'editar-clientes', 'ver-mozos', 'editar-mozos', 'gestionar-roles', 'ver-auditoria', 'ver-reportes', 'cierre-caja', 'ver-notificaciones', 'crear-comandas-dashboard', 'omitir-pago-comandas-dashboard'],
         'App Mozos': ['crear-comandas', 'editar-comandas', 'eliminar-platos-comandas', 'procesar-pagos', 'asociar-clientes'],
-        'App Cocina': ['ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas']
+        'App Cocina': ['ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas', 'entregar-plato-entero-kds']
       },
       supervisor: {
         'Backend/Dashboard': ['ver-mesas', 'editar-mesas', 'juntar-separar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas', 'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria', 'cierre-caja', 'ver-notificaciones', 'crear-comandas-dashboard'],
         'App Mozos': ['crear-comandas', 'editar-comandas', 'procesar-pagos', 'asociar-clientes'],
-        'App Cocina': ['ver-comandas-cocina']
+        'App Cocina': ['ver-comandas-cocina', 'entregar-plato-entero-kds']
       },
       cocinero: {
         'Backend/Dashboard': ['ver-platos'],
@@ -511,7 +511,8 @@ function usuariosApp() {
       'asociar-clientes': 'Asociar Clientes',
       'ver-comandas-cocina': 'Ver Comandas Cocina',
       'cambiar-estados-platos': 'Cambiar Estados',
-      'revertir-comandas': 'Revertir Comandas'
+      'revertir-comandas': 'Revertir Comandas',
+      'entregar-plato-entero-kds': 'Entregar plato entero'
     },
     activeNav: 'usuarios',
     pageTitle: 'Usuarios',

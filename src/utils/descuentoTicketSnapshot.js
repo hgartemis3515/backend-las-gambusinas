@@ -40,13 +40,19 @@ function maxPositivo(...vals) {
   return m;
 }
 
+function subtotalLineaSnapshot(p) {
+  if (!p || p.eliminado || p.anulado) return 0;
+  const precio = Number(p.precioUnitario ?? p.precio ?? p.plato?.precio) || 0;
+  const cant = Number(p.cantidad) || 1;
+  const sub = Number(p.subtotal);
+  if (Number.isFinite(sub) && sub > 0) return sub;
+  return precio * cant;
+}
+
 function sumaPlatosTicket(doc) {
   const platos = doc?.platos;
   if (!Array.isArray(platos) || !platos.length) return 0;
-  const suma = platos.reduce((s, p) => {
-    if (!p || p.eliminado || p.anulado) return s;
-    return s + (Number(p.subtotal) || (Number(p.precio) || 0) * (Number(p.cantidad) || 1));
-  }, 0);
+  const suma = platos.reduce((s, p) => s + subtotalLineaSnapshot(p), 0);
   return Number(suma.toFixed(2));
 }
 
@@ -139,7 +145,11 @@ function totalesConDescuentoImpresion(ticket, totalesBase = {}) {
   const vista = aplicarDescuentoAVistaTicket(merged);
   const { bruto, neto, montoDesc } = resolverBrutoYNeto(vista, Number(totalesBase.subtotal) || 0);
   return {
-    subtotal: montoDesc > 0 ? bruto : (totalesBase.subtotal ?? ticket.subtotal ?? 0),
+    subtotal: montoDesc > 0 ? bruto : (
+      Number(totalesBase.subtotal) > 0
+        ? Number(totalesBase.subtotal)
+        : (bruto || ticket.subtotal || 0)
+    ),
     total: neto,
     montoDescuento: montoDesc,
     descuentos: vista.descuentos || [],
@@ -173,7 +183,7 @@ function subtotalPlatosDocDeComanda(doc, comanda) {
     return false;
   });
   const fuente = filtrados.length ? filtrados : ((doc.comandas || []).length <= 1 ? platos.filter((p) => p && !p.eliminado && !p.anulado) : []);
-  return fuente.reduce((s, p) => s + (Number(p.subtotal) || (Number(p.precio) || 0) * (Number(p.cantidad) || 1)), 0);
+  return fuente.reduce((s, p) => s + subtotalLineaSnapshot(p), 0);
 }
 
 function ratioComandaEnDoc(doc, comanda) {
@@ -249,6 +259,62 @@ function marcarYRestarPlatosEliminados(doc, comanda) {
   try { doc.markModified('platos'); } catch (_) { /* pojo */ }
   try { if (doc.descuentos) doc.markModified('descuentos'); } catch (_) { /* pojo */ }
   return doc;
+}
+
+function recalcularTotalesTrasCambioPlatos(doc) {
+  const activosSub = round2((doc.platos || [])
+    .filter((p) => p && !p.eliminado && !p.anulado)
+    .reduce((s, p) => s + (Number(p.subtotal) || ((Number(p.precio) || 0) * (Number(p.cantidad) || 1))), 0));
+  doc.subtotal = activosSub;
+  doc.totalSinDescuento = activosSub;
+  const desc = Number(doc.montoDescuento) || 0;
+  const pct = Number(doc.descuentos?.[0]?.porcentaje) || 0;
+  let montoDesc = desc;
+  if (pct > 0) {
+    montoDesc = round2(activosSub * (pct / 100));
+    if (doc.descuentos[0]) doc.descuentos[0].monto = montoDesc;
+  } else if (montoDesc > activosSub) {
+    montoDesc = activosSub;
+  }
+  doc.montoDescuento = montoDesc;
+  doc.total = round2(Math.max(0, activosSub - montoDesc));
+  if (doc.totalConDescuento != null) doc.totalConDescuento = doc.total;
+  try { doc.markModified('platos'); } catch (_) { /* pojo */ }
+  try { if (doc.descuentos) doc.markModified('descuentos'); } catch (_) { /* pojo */ }
+  return doc;
+}
+
+/**
+ * Ajusta cantidad/subtotal de líneas del ticket al valor actual de la comanda
+ * (p.ej. restar unidades en comandas.html con el ticket ya creado).
+ */
+function sincronizarCantidadesSnapshotDesdeComanda(doc, comanda) {
+  if (!doc || !comanda || !Array.isArray(doc.platos) || !doc.platos.length) return doc;
+  const byId = new Map();
+  (comanda.platos || []).forEach((p, i) => {
+    if (!p || p.eliminado || p.anulado) return;
+    const id = p._id ? String(p._id) : '';
+    if (!id) return;
+    const cant = Math.max(1, Math.floor(Number(comanda.cantidades?.[i] ?? p.cantidad) || 1));
+    byId.set(id, cant);
+  });
+  if (!byId.size) return doc;
+
+  let changed = false;
+  for (const line of doc.platos) {
+    if (!line || line.eliminado || line.anulado) continue;
+    const id = line.platoLineaId ? String(line.platoLineaId) : '';
+    if (!id || !byId.has(id)) continue;
+    const nuevaCant = byId.get(id);
+    const precio = Number(line.precio) || 0;
+    const nuevoSub = round2(precio * nuevaCant);
+    if (Number(line.cantidad) === nuevaCant && round2(line.subtotal) === nuevoSub) continue;
+    line.cantidad = nuevaCant;
+    line.subtotal = nuevoSub;
+    changed = true;
+  }
+  if (!changed) return doc;
+  return recalcularTotalesTrasCambioPlatos(doc);
 }
 
 /**
@@ -353,8 +419,11 @@ module.exports = {
   aplicarDescuentoADocTicket,
   aplicarDescuentoADocDesdeComanda,
   marcarYRestarPlatosEliminados,
+  sincronizarCantidadesSnapshotDesdeComanda,
   ratioComandaEnDoc,
   snapshotDesdeComandas,
+  subtotalLineaSnapshot,
+  sumaPlatosTicket,
   BOUCHER_DESCUENTO_SELECT,
   COMANDA_DESCUENTO_SELECT,
 };

@@ -2,7 +2,7 @@
 <aside :class="sidebarOpen ? 'w-[270px]' : 'w-[68px]'" class="bg-bg-sidebar fixed top-[72px] left-0 bottom-0 z-30 transition-all duration-300 flex flex-col border-r border-[rgba(212,175,55,0.1)]">
   <div class="px-4 py-5 flex items-center gap-3 overflow-hidden">
     <span class="text-2xl flex-shrink-0">🍽️</span>
-    <span x-show="sidebarOpen" x-transition class="text-gold font-bold text-lg whitespace-nowrap">Las Gambusinas</span>
+    <span x-show="sidebarOpen" x-transition class="text-gold font-bold text-lg whitespace-nowrap">San Benito</span>
   </div>
   <nav class="flex-1 overflow-y-auto px-2 space-y-0.5">
     <template x-for="(item, key) in (typeof getVisiblePages === 'function' ? getVisiblePages() : sharedData.pages)" :key="key">

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Configuración — Las Gambusinas</title>
+  <title>Configuración — San Benito</title>
   <!-- Animate.css - Animaciones CSS puras -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
   <!-- AOS - Animate On Scroll -->
@@ -1172,7 +1172,7 @@ tailwind.config = {
             <div class="space-y-4">
               <div>
                 <label class="text-xs text-txt-secondary mb-1 block">Título del sitio (max 60 caracteres)</label>
-                <input type="text" x-model="config.seoMetaTitle" maxlength="60" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none" placeholder="Las Gambusinas - Sistema POS">
+                <input type="text" x-model="config.seoMetaTitle" maxlength="60" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none" placeholder="San Benito - Sistema POS">
                 <p class="text-[10px] text-txt-muted mt-1" x-text="(config.seoMetaTitle || '').length + '/60 caracteres'"></p>
               </div>
               <div>
@@ -1196,7 +1196,7 @@ tailwind.config = {
               <div class="grid grid-cols-2 gap-4">
                 <div>
                   <label class="text-xs text-txt-secondary mb-1 block">og:title (max 60)</label>
-                  <input type="text" x-model="config.seoOgTitle" maxlength="60" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none" placeholder="Las Gambusinas - Restaurante">
+                  <input type="text" x-model="config.seoOgTitle" maxlength="60" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none" placeholder="San Benito - Restaurante">
                 </div>
                 <div>
                   <label class="text-xs text-txt-secondary mb-1 block">og:type</label>
@@ -1248,7 +1248,7 @@ tailwind.config = {
               <div class="grid grid-cols-2 gap-4">
                 <div>
                   <label class="text-xs text-txt-secondary mb-1 block">twitter:title (max 70)</label>
-                  <input type="text" x-model="config.seoTwitterTitle" maxlength="70" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none" placeholder="Las Gambusinas - Sistema POS">
+                  <input type="text" x-model="config.seoTwitterTitle" maxlength="70" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none" placeholder="San Benito - Sistema POS">
                 </div>
                 <div>
                   <label class="text-xs text-txt-secondary mb-1 block">twitter:image</label>
@@ -1271,7 +1271,7 @@ tailwind.config = {
               <!-- Google preview -->
               <div class="border-b border-[rgba(255,255,255,0.1)] pb-3">
                 <p class="text-[10px] text-txt-muted mb-1">Google Search:</p>
-                <p class="text-st-pedido text-sm font-medium truncate" x-text="config.seoMetaTitle || 'Las Gambusinas - Sistema POS'"></p>
+                <p class="text-st-pedido text-sm font-medium truncate" x-text="config.seoMetaTitle || 'San Benito - Sistema POS'"></p>
                 <p class="text-st-libere text-xs truncate" x-text="config.seoMetaDescription || 'Descripción del sitio...'"></p>
               </div>
               <!-- Social preview -->
@@ -1435,7 +1435,7 @@ function configApp() {
     
     config: {
       // General
-      nombre: 'Las Gambusinas',
+      nombre: 'San Benito',
       direccion: '',
       telefono: '',
       email: '',
@@ -1589,17 +1589,17 @@ function configApp() {
       tamanoTextoMuted: 11,
       grosorTextoMuted: 400,
       // SEO y Metadatos
-      seoMetaTitle: 'Las Gambusinas - Sistema POS',
+      seoMetaTitle: 'San Benito - Sistema POS',
       seoMetaDescription: 'Sistema de punto de venta para gestión de restaurante. Control de mesas, comandas, pedidos y más.',
       seoCanonicalUrl: '',
-      seoOgTitle: 'Las Gambusinas - Restaurante',
+      seoOgTitle: 'San Benito - Restaurante',
       seoOgDescription: 'Sistema de gestión integral para restaurantes. Control de mesas, comandas y pedidos en tiempo real.',
       seoOgImage: '',
       seoOgUrl: '',
       seoOgType: 'website',
       seoTwitterCard: 'summary_large_image',
       seoTwitterSite: '',
-      seoTwitterTitle: 'Las Gambusinas - Sistema POS',
+      seoTwitterTitle: 'San Benito - Sistema POS',
       seoTwitterDescription: 'Sistema de punto de venta para gestión de restaurante',
       seoTwitterImage: ''
     },
@@ -1740,7 +1740,7 @@ function configApp() {
           
           // Mapear datos fiscales
           if (cfg.datosFiscales) {
-            this.config.nombre = cfg.datosFiscales.nombreComercial || 'Las Gambusinas';
+            this.config.nombre = cfg.datosFiscales.nombreComercial || 'San Benito';
             this.config.direccion = cfg.datosFiscales.direccionFiscal || '';
             this.config.telefono = cfg.datosFiscales.telefono || '';
             this.config.email = cfg.datosFiscales.email || '';
@@ -1906,7 +1906,7 @@ function configApp() {
           
           // Mapear SEO
           if (cfg.seo) {
-            this.config.seoMetaTitle = cfg.seo.metaTitle || 'Las Gambusinas - Sistema POS';
+            this.config.seoMetaTitle = cfg.seo.metaTitle || 'San Benito - Sistema POS';
             this.config.seoMetaDescription = cfg.seo.metaDescription || '';
             this.config.seoCanonicalUrl = cfg.seo.canonicalUrl || '';
             this.config.seoOgTitle = cfg.seo.ogTitle || '';
@@ -1956,7 +1956,7 @@ function configApp() {
           
           // Datos fiscales
           datosFiscales: {
-            nombreComercial: this.config.nombre || 'Las Gambusinas',
+            nombreComercial: this.config.nombre || 'San Benito',
             direccionFiscal: this.config.direccion || '',
             telefono: this.config.telefono || '',
             email: this.config.email || '',
@@ -2074,7 +2074,7 @@ function configApp() {
           
           // SEO y Metadatos
           seo: {
-            metaTitle: this.config.seoMetaTitle || 'Las Gambusinas - Sistema POS',
+            metaTitle: this.config.seoMetaTitle || 'San Benito - Sistema POS',
             metaDescription: this.config.seoMetaDescription || '',
             canonicalUrl: this.config.seoCanonicalUrl || '',
             ogTitle: this.config.seoOgTitle || '',

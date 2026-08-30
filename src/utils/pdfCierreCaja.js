@@ -29,7 +29,7 @@ async function generarPDFCierreCaja(cierre, bouchers = []) {
       doc.moveDown(0.5);
       doc.fontSize(10)
          .font('Helvetica')
-         .text('Las Gambusinas', { align: 'center' });
+         .text('San Benito', { align: 'center' });
       
       doc.moveDown(1);
       

@@ -5,6 +5,7 @@ const {
   aplicarDescuentoADocTicket,
   aplicarDescuentoADocDesdeComanda,
   marcarYRestarPlatosEliminados,
+  sincronizarCantidadesSnapshotDesdeComanda,
 } = require('../src/utils/descuentoTicketSnapshot');
 
 describe('descuento en tickets / impresión', () => {
@@ -234,5 +235,62 @@ describe('descuento en tickets / impresión', () => {
     expect(r.total).toBe(50);
     expect(r.subtotal).toBe(50);
     expect(r.totalSinDescuento).toBe(50);
+  });
+
+  test('impresión: línea para llevar con precioUnitario y subtotal 0 suma al TOTAL', () => {
+    const r = totalesConDescuentoImpresion(
+      {
+        total: 0,
+        subtotal: 0,
+        platos: [
+          { nombre: 'Lomo', precio: 40, subtotal: 40, cantidad: 1, tipoServicio: 'mesa' },
+          { nombre: 'Ceviche', precioUnitario: 28, precio: 0, subtotal: 0, cantidad: 1, tipoServicio: 'para_llevar' },
+        ],
+      },
+      { subtotal: 0, total: 0 }
+    );
+    expect(r.total).toBe(68);
+    expect(r.subtotal).toBe(68);
+  });
+
+  test('cantidad reducida en comanda baja cantidad y total del ticket existente', () => {
+    const doc = {
+      total: 150,
+      totalSinDescuento: 150,
+      subtotal: 150,
+      montoDescuento: 0,
+      platos: [
+        { platoLineaId: 'a1', nombre: 'Lomo', precio: 50, cantidad: 3, subtotal: 150 },
+      ],
+    };
+    sincronizarCantidadesSnapshotDesdeComanda(doc, {
+      platos: [{ _id: 'a1', eliminado: false }],
+      cantidades: [1],
+    });
+    expect(doc.platos[0].cantidad).toBe(1);
+    expect(doc.platos[0].subtotal).toBe(50);
+    expect(doc.subtotal).toBe(50);
+    expect(doc.total).toBe(50);
+  });
+
+  test('cantidad reducida con descuento % recalcula el neto', () => {
+    const doc = {
+      total: 90,
+      totalSinDescuento: 100,
+      subtotal: 100,
+      montoDescuento: 10,
+      descuentos: [{ porcentaje: 10, monto: 10 }],
+      platos: [
+        { platoLineaId: 'a1', precio: 50, cantidad: 2, subtotal: 100 },
+      ],
+    };
+    sincronizarCantidadesSnapshotDesdeComanda(doc, {
+      platos: [{ _id: 'a1' }],
+      cantidades: [1],
+    });
+    expect(doc.platos[0].cantidad).toBe(1);
+    expect(doc.subtotal).toBe(50);
+    expect(doc.montoDescuento).toBe(5);
+    expect(doc.total).toBe(45);
   });
 });

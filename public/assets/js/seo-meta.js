@@ -1,5 +1,5 @@
 /**
- * Las Gambusinas - SEO Meta Tags Manager
+ * San Benito - SEO Meta Tags Manager
  * Gestión dinámica de meta tags, Open Graph y Twitter Cards
  * 
  * Este script obtiene la configuración SEO desde la API y actualiza
@@ -11,17 +11,17 @@
     
     // Configuración SEO por defecto (fallback)
     const DEFAULT_SEO = {
-        metaTitle: 'Las Gambusinas - Sistema POS',
+        metaTitle: 'San Benito - Sistema POS',
         metaDescription: 'Sistema de punto de venta para gestión de restaurante. Control de mesas, comandas, pedidos y más.',
         canonicalUrl: '',
-        ogTitle: 'Las Gambusinas - Restaurante',
+        ogTitle: 'San Benito - Restaurante',
         ogDescription: 'Sistema de gestión integral para restaurantes. Control de mesas, comandas y pedidos en tiempo real.',
         ogImage: '',
         ogUrl: '',
         ogType: 'website',
         twitterCard: 'summary_large_image',
         twitterSite: '',
-        twitterTitle: 'Las Gambusinas - Sistema POS',
+        twitterTitle: 'San Benito - Sistema POS',
         twitterDescription: 'Sistema de punto de venta para gestión de restaurante',
         twitterImage: ''
     };
@@ -148,11 +148,11 @@
         setMetaTag('meta[property="og:description"]', 'content', config.ogDescription || config.metaDescription);
         setMetaTag('meta[property="og:url"]', 'content', config.ogUrl || window.location.href.split('?')[0].split('#')[0]);
         setMetaTag('meta[property="og:type"]', 'content', config.ogType || 'website');
-        setMetaTag('meta[property="og:site_name"]', 'content', 'Las Gambusinas');
+        setMetaTag('meta[property="og:site_name"]', 'content', 'San Benito');
         
         if (config.ogImage) {
             setMetaTag('meta[property="og:image"]', 'content', config.ogImage);
-            setMetaTag('meta[property="og:image:alt"]', 'content', config.ogTitle || 'Las Gambusinas');
+            setMetaTag('meta[property="og:image:alt"]', 'content', config.ogTitle || 'San Benito');
         }
         
         // Twitter Card tags

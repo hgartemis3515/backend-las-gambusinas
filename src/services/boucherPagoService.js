@@ -91,7 +91,9 @@ function buildPlatoBoucherLine(comanda, platoItem, index, cantidad) {
     complementosSeleccionados: platoItem.complementosSeleccionados || [],
     notaEspecial: platoItem.notaEspecial || '',
     // NUEVO: Tipo de servicio (Mesa vs Para llevar)
-    tipoServicio: platoItem.tipoServicio || 'mesa',
+    tipoServicio: (platoItem.tipoServicio === 'para_llevar' || platoItem.paraLlevar === true)
+      ? 'para_llevar'
+      : (platoItem.tipoServicio || 'mesa'),
     // v3.0: Snapshot para resumen de impresión y reportes
     precioBase: platoItem.precioBase != null ? Number(platoItem.precioBase) : null,
     extraComplementos: platoItem.extraComplementos != null ? Number(platoItem.extraComplementos) : 0,
@@ -635,7 +637,19 @@ async function procesarPagoBoucher(params) {
         platos: platosSnapshot,
       });
 
+      await ticketAprobacionModel.updateMany(
+        {
+          comandas: { $in: comandasIdsAfectadas },
+          estado: 'pendiente_aprobacion',
+          origen: 'alta_comanda',
+          isActive: true,
+          boucher: null,
+        },
+        { $set: { isActive: false, observaciones: 'Reemplazado por solicitud de cobro del mozo' } }
+      );
+
       ticketAprobacionCreado = await ticketAprobacionRepository.crearTicketAprobacion({
+        origen: 'pago',
         comandas: comandasIdsAfectadas,
         comandasNumbers: comandasNumbersTicket,
         mesa: mesaId,

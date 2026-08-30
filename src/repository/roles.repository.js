@@ -205,7 +205,9 @@ const actualizarRol = async (rolId, data) => {
 
         logger.info('Rol actualizado', { rolId: rol._id, nombre: rol.nombre });
 
-        return rol.toObject();
+        const rolObj = rol.toObject();
+        notificarPermisosCocinaPorRol(rol.nombre).catch(() => {});
+        return rolObj;
     } catch (error) {
         logger.error('Error al actualizar rol', { error: error.message, rolId });
         throw error;
@@ -381,7 +383,9 @@ const asignarRolAUsuario = async (usuarioId, rolNombre) => {
             rol: rolNombre 
         });
 
-        return usuario.toObject();
+        const usuarioObj = usuario.toObject();
+        notificarPermisosCocina(usuario._id).catch(() => {});
+        return usuarioObj;
     } catch (error) {
         logger.error('Error al asignar rol a usuario', { error: error.message, usuarioId, rolNombre });
         throw error;
@@ -463,6 +467,42 @@ const tieneRol = async (usuarioId, rolesPermitidos) => {
     }
 };
 
+/**
+ * Empuja permisos efectivos al KDS (JWT + botón) sin reiniciar backend ni relogin.
+ */
+const notificarPermisosCocina = async (usuarioId) => {
+    if (!usuarioId || typeof global.emitPermisosActualizados !== 'function') return;
+    try {
+        const mozo = await obtenerMozoConRol(usuarioId);
+        if (!mozo) return;
+        global.emitPermisosActualizados({
+            usuarioId: mozo._id?.toString(),
+            mozoId: mozo.mozoId != null ? String(mozo.mozoId) : undefined,
+            rol: mozo.rol,
+            permisos: mozo.permisosEfectivos || [],
+            reglas: mozo.reglasEfectivas || []
+        });
+    } catch (error) {
+        logger.warn('No se pudo notificar permisos a cocina', {
+            error: error.message,
+            usuarioId: String(usuarioId)
+        });
+    }
+};
+
+const notificarPermisosCocinaPorRol = async (rolNombre) => {
+    if (!rolNombre) return;
+    try {
+        const usuarios = await obtenerUsuariosPorRol(rolNombre);
+        await Promise.all((usuarios || []).map((u) => notificarPermisosCocina(u._id)));
+    } catch (error) {
+        logger.warn('No se pudo notificar permisos de rol a cocina', {
+            error: error.message,
+            rolNombre
+        });
+    }
+};
+
 module.exports = {
     inicializarRolesSistema,
     obtenerTodosLosRoles,
@@ -477,6 +517,8 @@ module.exports = {
     obtenerMozoConRol,
     asignarRolAUsuario,
     obtenerUsuariosPorRol,
+    notificarPermisosCocina,
+    notificarPermisosCocinaPorRol,
     tienePermiso,
     tieneRegla,
     tieneRol,

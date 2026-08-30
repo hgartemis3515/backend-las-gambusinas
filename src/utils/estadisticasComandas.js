@@ -567,6 +567,7 @@ function mapearFilaReporte(c, config) {
                 nombre: p.nombre || p.platoNombre || p.plato?.nombre || 'Plato',
                 cantidad,
                 precio,
+                precioUnitario: precio,
                 subtotal: Math.round(cantidad * precioBase * factor * 100) / 100,
                 plato: p.plato,
                 categoria: p.plato?.categoria || p.platoCategoria || null,

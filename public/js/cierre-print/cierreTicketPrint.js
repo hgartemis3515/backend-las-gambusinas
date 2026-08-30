@@ -56,7 +56,7 @@ export function generarHtmlCierreTicket(datos) {
 
   let html = '';
   html += `<div style="text-align:center;font-weight:700;font-size:${fontTitle}px;letter-spacing:0.4px;">CIERRE DE CAJA</div>`;
-  html += `<div style="text-align:center;font-size:${fontSizeSm}px;margin-top:2px;">Las Gambusinas</div>`;
+  html += `<div style="text-align:center;font-size:${fontSizeSm}px;margin-top:2px;">San Benito</div>`;
   html += divider(8);
   html += `<div style="font-size:${fontSizeSm}px;">`;
   html += `<div>Cierre: ${escapeHtml(fmtFecha(datos.fechaCierre))}</div>`;

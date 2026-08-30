@@ -939,7 +939,7 @@ async function imprimirBoucher(boucherId) {
             </head>
             <body>
                 <div class="header">
-                    <h1>🍽️ Las Gambusinas</h1>
+                    <h1>🍽️ San Benito</h1>
                     <h2>BOUCHER DE PAGO</h2>
                     <p>N° ${boucher.boucherNumber || boucher._id.slice(-6)}</p>
                 </div>

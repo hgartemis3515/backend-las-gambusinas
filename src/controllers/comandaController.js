@@ -47,6 +47,7 @@ const {
     responderBloqueoCocina
 } = require('../utils/reglasComandaTomadaCocina');
 const { buildAutocierreGuarnicionesSet } = require('../utils/autocerrarGuarniciones');
+const { destinosCambioEstadoPlato } = require('../utils/cadenaEntregaPlato');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
 const { getComandasParaPagoAdelantado } = require('../repository/ticketPagoAdelantado.repository');
 const { adminAuth, checkPermission } = require('../middleware/adminAuth');
@@ -74,15 +75,9 @@ const esSupervisorCocinaDesdeToken = (req) => {
 
 async function esEntregarEnteroAbsolutoActivo(req) {
     // El KDS solo manda el flag cuando la marca de Configuración → Cocina está activa (default ON).
-    return req.body?.entregarEnteroAbsoluto === true;
-}
-
-function pasosCadenaEntregaAbsoluta(estado) {
-    const e = ['en_espera', 'pendiente', 'ingresante'].includes(estado) ? 'pedido' : estado;
-    if (e === 'entregado' || e === 'pagado') return [];
-    if (e === 'salio') return ['entregado'];
-    if (e === 'recoger') return ['salio', 'entregado'];
-    return ['recoger', 'salio', 'entregado'];
+    // Requiere permiso de rol entregar-plato-entero-kds (admin siempre; supervisor lo tiene por defecto).
+    if (req.body?.entregarEnteroAbsoluto !== true) return false;
+    return tienePermisoDesdeToken(req, 'entregar-plato-entero-kds');
 }
 
 // Verifica si el solicitante (según token JWT del header Authorization) tiene un
@@ -641,7 +636,9 @@ router.post('/comanda', async (req, res) => {
         // ASIGNACIÓN AUTOMÁTICA DE PLATOS: disparar el motor server-side.
         // Se ejecuta después de emitir nueva comanda para no demorar el response.
         // No bloqueante: si falla, la comanda queda creada (Tomar manual sigue disponible).
-        if (data.comanda && data.comanda.platos && data.comanda.platos.length > 0) {
+        // Extra de reserva aún programada: no asignar hasta el job de fechaCocina.
+        if (data.comanda && data.comanda.platos && data.comanda.platos.length > 0
+            && data.comanda.programadaPorReserva !== true) {
             const asignacionAutomaticaService = require('../services/asignacionAutomaticaService');
             const comandaCreadaId = data.comanda._id;
             const comandaCreadaNum = data.comanda.comandaNumber;
@@ -2199,6 +2196,14 @@ router.put("/comanda/:id", async (req, res) => {
       }
 
       const updatedComanda = await actualizarComanda(id, newData);
+      if (Array.isArray(newData.cantidades)) {
+        try {
+          const { sincronizarDescuentoTicketsComanda } = require('../utils/descuentoTicketsComanda');
+          await sincronizarDescuentoTicketsComanda(updatedComanda);
+        } catch (syncErr) {
+          logger.warn('[PUT comanda] No se pudo sincronizar cantidades a tickets', { error: syncErr.message });
+        }
+      }
       res.json(updatedComanda);
       console.log("Comanda actualizada exitosamente");
       
@@ -2379,7 +2384,6 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
         }
         
         const estadoAnterior = platoAntes.estado || 'en_espera';
-        const flagAbsoluto = req.body?.entregarEnteroAbsoluto === true;
         const absoluto = await esEntregarEnteroAbsolutoActivo(req);
 
         // SALIO: Bloquear transición directa recoger → entregado
@@ -2402,7 +2406,7 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
             const cocineroQueFinaliza = (cocineroId || usuarioId)?.toString();
             
             if (cocineroQueFinaliza && cocineroQueTomo !== cocineroQueFinaliza) {
-                if (!flagAbsoluto && !absoluto && !esSupervisorCocinaDesdeToken(req)) {
+                if (!absoluto && !esSupervisorCocinaDesdeToken(req)) {
                     console.warn(`⚠️ [PUT /plato/:platoId/estado] Conflicto: Plato tomado por ${cocineroQueTomo}, intenta finalizar ${cocineroQueFinaliza}`);
                     return res.status(403).json({
                         success: false,
@@ -2414,14 +2418,14 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
                         }
                     });
                 }
-                console.info(`👨‍🍳 [PUT /plato/:platoId/estado] ${absoluto || flagAbsoluto ? 'Entregar entero absoluto' : 'Supervisor'} finalizando plato de otro cocinero. Tomado por ${cocineroQueTomo}, finaliza ${cocineroQueFinaliza}`);
+                console.info(`👨‍🍳 [PUT /plato/:platoId/estado] ${absoluto ? 'Entregar entero absoluto' : 'Supervisor'} finalizando plato de otro cocinero. Tomado por ${cocineroQueTomo}, finaliza ${cocineroQueFinaliza}`);
             }
         }
 
         // PLAN AGRUPACION_GUARNICIONES_AUTOCIERRE §3.1: al pasar a recoger,
         // auto-cerrar TODAS las guarniciones de ese plato (asignadas o no).
-        const pasosAbs = absoluto ? pasosCadenaEntregaAbsoluta(estadoAnterior) : null;
-        const pasaPorRecoger = nuevoEstado === 'recoger' || (pasosAbs && pasosAbs.includes('recoger'));
+        const destinos = destinosCambioEstadoPlato(estadoAnterior, nuevoEstado, absoluto);
+        const pasaPorRecoger = nuevoEstado === 'recoger' || destinos.includes('recoger');
         if (pasaPorRecoger) {
             try {
                 const Comanda = mongoose.model('Comanda');
@@ -2446,9 +2450,6 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
             }
         }
 
-        const destinos = absoluto
-            ? ((pasosAbs && pasosAbs.length) ? pasosAbs : [])
-            : [nuevoEstado];
         if (!destinos.length) {
             return res.json({
                 success: true,
@@ -2592,7 +2593,7 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
         // Emitir evento Socket.io de plato actualizado
         if (global.emitPlatoActualizado) {
             // Push la envía emitPlatoBatch (granular); evitar duplicado con emitPlatoActualizado
-            await global.emitPlatoActualizado(id, platoId, nuevoEstado, { skipPush: true });
+            await global.emitPlatoActualizado(id, platoId, estadoFinal, { skipPush: true });
         }
         
         // También emitir comanda actualizada para refrescar toda la comanda
@@ -2605,7 +2606,7 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
         // Emitir a dashboard de rendimiento cocineros
         if (global.emitRendimientoCocineroActualizado) {
             global.emitRendimientoCocineroActualizado({
-                tipo: nuevoEstado === 'recoger' ? 'plato_finalizado' : 'plato_actualizado',
+                tipo: destinos.includes('recoger') ? 'plato_finalizado' : 'plato_actualizado',
                 comandaId: id,
                 platoId
             });
@@ -2614,13 +2615,13 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
         // Emitir a dashboard de rendimiento mozos (en vivo + registro)
         if (global.emitRendimientoMozoActualizado) {
             global.emitRendimientoMozoActualizado({
-                tipo: nuevoEstado === 'entregado' ? 'plato_entregado'
-                    : nuevoEstado === 'salio' ? 'plato_salio'
+                tipo: estadoFinal === 'entregado' ? 'plato_entregado'
+                    : estadoFinal === 'salio' ? 'plato_salio'
                     : 'plato_actualizado',
                 mozoId: usuarioId,
                 comandaId: id,
                 platoId,
-                nuevoEstado
+                nuevoEstado: estadoFinal
             });
         }
     } catch (error) {
@@ -2727,6 +2728,115 @@ router.put('/comanda/:id/actualizar-estados-platos', async (req, res) => {
     }
 });
 
+/**
+ * PUT /comanda/:id/actualizar-tipo-servicio-platos
+ * Actualiza mesa | para_llevar en líneas de comanda (edición admin).
+ * Propaga a tickets / TPA / boucher y emite comanda-actualizada (KDS + Ver cocina).
+ */
+router.put('/comanda/:id/actualizar-tipo-servicio-platos', async (req, res) => {
+    const { id } = req.params;
+    const { platos } = req.body;
+
+    if (!platos || !Array.isArray(platos) || platos.length === 0) {
+        return res.status(400).json({ message: 'No hay platos para actualizar' });
+    }
+
+    try {
+        const comanda = await comandaModel.findById(id);
+        if (!comanda) {
+            return res.status(404).json({ message: 'Comanda no encontrada' });
+        }
+
+        const { normTipoServicio, sincronizarTipoServicioSnapshots } = require('../utils/sincronizarTipoServicioSnapshots');
+        const cambiosAplicados = [];
+        const errores = [];
+
+        platos.forEach((item) => {
+            let index = parseInt(item.index, 10);
+            if ((isNaN(index) || index < 0 || index >= comanda.platos.length) && item.lineaId) {
+                index = comanda.platos.findIndex((p) => p && String(p._id) === String(item.lineaId));
+            }
+            if (isNaN(index) || index < 0 || index >= comanda.platos.length) {
+                errores.push(`Índice ${item.index} inválido`);
+                return;
+            }
+            const platoItem = comanda.platos[index];
+            if (!platoItem || platoItem.eliminado) {
+                errores.push(`Plato en índice ${index} está eliminado`);
+                return;
+            }
+            const tipoServicio = normTipoServicio(item.tipoServicio);
+            if (normTipoServicio(platoItem.tipoServicio) === tipoServicio) return;
+            const anterior = normTipoServicio(platoItem.tipoServicio);
+            platoItem.tipoServicio = tipoServicio;
+            const platoRef = platoItem.plato && platoItem.plato._id ? platoItem.plato._id : platoItem.plato;
+            cambiosAplicados.push({
+                index,
+                tipoServicio,
+                tipoAnterior: anterior,
+                lineaId: platoItem._id,
+                platoId: platoItem.platoId,
+                plato: platoRef,
+            });
+        });
+
+        if (errores.length > 0) {
+            return res.status(400).json({
+                message: 'Algunos platos no pudieron ser actualizados',
+                detalles: errores,
+            });
+        }
+
+        if (cambiosAplicados.length === 0) {
+            return res.json({
+                success: true,
+                ok: true,
+                cambios: [],
+                version: comanda.version || 1,
+                message: 'Sin cambios de tipo de servicio',
+            });
+        }
+
+        comanda.markModified('platos');
+        comanda.version = (comanda.version || 1) + 1;
+        await comanda.save();
+
+        let snapshots = { tickets: 0, tpas: 0, bouchers: 0 };
+        try {
+            snapshots = await sincronizarTipoServicioSnapshots(comanda._id, cambiosAplicados);
+        } catch (syncErr) {
+            logger.warn('No se pudieron sincronizar snapshots de tipoServicio', {
+                comandaId: id,
+                error: syncErr.message,
+            });
+        }
+
+        if (global.emitComandaActualizada) {
+            await global.emitComandaActualizada(id);
+        }
+
+        logger.info('Tipo de servicio de platos actualizado', {
+            comandaId: id,
+            cambios: cambiosAplicados.length,
+            snapshots,
+        });
+
+        res.json({
+            success: true,
+            ok: true,
+            cambios: cambiosAplicados,
+            snapshots,
+            version: comanda.version,
+        });
+    } catch (error) {
+        logger.error('Error al actualizar tipo de servicio de platos', {
+            comandaId: id,
+            error: error.message,
+        });
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // Nuevo endpoint: Marcar plato como entregado (solo desde estado "recoger")
 router.put('/comanda/:comandaId/plato/:platoId/entregar', async (req, res) => {
     const { comandaId, platoId } = req.params;
@@ -2789,10 +2899,11 @@ router.put('/comanda/:comandaId/plato/:platoId/salir-cocina', async (req, res) =
             });
         }
 
-        // Cambiar estado del plato: recoger → salio
-        const updatedComanda = await cambiarEstadoPlato(comandaId, platoId, 'salio');
+        // Cambiar estado del plato: recoger → salio → entregado (mozo no confirma)
+        let updatedComanda = await cambiarEstadoPlato(comandaId, platoId, 'salio');
+        updatedComanda = await cambiarEstadoPlato(comandaId, platoId, 'entregado');
 
-        logger.info(`✅ [PUT /salir-cocina] Plato ${platoId}: ${estadoAnterior} → salio`);
+        logger.info(`✅ [PUT /salir-cocina] Plato ${platoId}: ${estadoAnterior} → entregado`);
 
         // Setear tiempos.salio en el plato
         const platoIndex = comandaAntes.platos.findIndex(p => {
@@ -2804,29 +2915,32 @@ router.put('/comanda/:comandaId/plato/:platoId/salir-cocina', async (req, res) =
             const ahora = new Date();
             await comandaModel.updateOne(
                 { _id: comandaId },
-                { $set: { [`platos.${platoIndex}.tiempos.salio`]: ahora } }
+                { $set: {
+                    [`platos.${platoIndex}.tiempos.salio`]: ahora,
+                    [`platos.${platoIndex}.tiempos.entregado`]: ahora
+                } }
             );
         }
 
         // Emitir evento Socket.io
         if (global.emitPlatoActualizado) {
-            await global.emitPlatoActualizado(comandaId, platoId, 'salio', { skipPush: false });
+            await global.emitPlatoActualizado(comandaId, platoId, 'entregado', { skipPush: false });
         }
 
         // También emitir comanda actualizada
         if (global.emitComandaActualizada) {
-            await global.emitComandaActualizada(comandaId, estadoAnterior, 'salio');
+            await global.emitComandaActualizada(comandaId, estadoAnterior, updatedComanda?.status || 'entregado');
         }
 
-        // Emitir a dashboard de rendimiento mozos (plato salió del pass)
+        // Emitir a dashboard de rendimiento mozos (plato salió del pass y quedó entregado)
         if (global.emitRendimientoMozoActualizado) {
             const mozoTitularId = comandaAntes?.mozos?._id || comandaAntes?.mozos;
             global.emitRendimientoMozoActualizado({
-                tipo: 'plato_salio',
+                tipo: 'plato_entregado',
                 mozoId: mozoTitularId,
                 comandaId,
                 platoId,
-                nuevoEstado: 'salio'
+                nuevoEstado: 'entregado'
             });
         }
 
@@ -2853,10 +2967,10 @@ router.put('/comanda/:comandaId/plato/:platoId/salir-cocina', async (req, res) =
 
         res.json({
             success: true,
-            message: 'Plato salió de cocina exitosamente',
+            message: 'Plato salió de cocina y quedó entregado',
             platoId,
             estadoAnterior,
-            nuevoEstado: 'salio',
+            nuevoEstado: 'entregado',
             comandaStatus: updatedComanda.status,
             comanda: updatedComanda
         });

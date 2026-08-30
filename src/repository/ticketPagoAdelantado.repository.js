@@ -582,6 +582,15 @@ async function actualizarTicketAdmin(ticketId, { observaciones, metodoPago, plat
   if (observaciones !== undefined) ticket.observaciones = String(observaciones || '');
   if (metodoPago && ['efectivo', 'digital', 'tarjeta'].includes(metodoPago)) {
     ticket.metodoPago = metodoPago;
+    if (ticket.boucher) {
+      try {
+        const labels = { efectivo: 'Efectivo', digital: 'YAPE/PLIN', tarjeta: 'CRÉDITO/DÉBITO' };
+        await mongoose.model('Boucher').findByIdAndUpdate(ticket.boucher, {
+          metodoPago,
+          metodoPagoLabel: labels[metodoPago],
+        });
+      } catch (_) { /* boucher opcional */ }
+    }
   }
   let comandasAfectadas = [];
   const quit = quitarLineasDeSnapshot(ticket, platosEliminar);
@@ -596,7 +605,19 @@ async function actualizarTicketAdmin(ticketId, { observaciones, metodoPago, plat
     );
   }
   await ticket.save();
-  return { ticket: ticket.toObject(), comandasAfectadas };
+  if (comandasAfectadas.length) {
+    try {
+      const { sincronizarDescuentoTicketsComanda } = require('../utils/descuentoTicketsComanda');
+      for (const cid of comandasAfectadas) {
+        const c = await comandaModel.findById(cid);
+        if (c) await sincronizarDescuentoTicketsComanda(c);
+      }
+    } catch (syncErr) {
+      logger.warn('No se pudo sincronizar otros tickets tras editar cantidad/precio PPA', { error: syncErr.message });
+    }
+  }
+  const fresh = await ticketPagoAdelantadoModel.findById(ticketId);
+  return { ticket: (fresh || ticket).toObject(), comandasAfectadas };
 }
 
 module.exports = {

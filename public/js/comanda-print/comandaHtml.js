@@ -188,7 +188,7 @@ function resolverSubtotalPlatos(datos) {
     if (!p || p.eliminado || p.anulado) return s;
     const linea = Number(p?.subtotal);
     if (Number.isFinite(linea) && linea > 0) return s + linea;
-    return s + (Number(p?.precio) || 0) * (Number(p?.cantidad) || 1);
+    return s + (Number(p?.precioUnitario ?? p?.precio) || 0) * (Number(p?.cantidad) || 1);
   }, 0);
   if (hayLista) return Number(suma.toFixed(2));
   const sinDesc = Number(datos?.totalSinDescuento);
@@ -274,6 +274,9 @@ function estimarAltura(datos, bloques) {
   const productos = datos.productos || [];
   for (const prod of productos) {
     h += ALTURA_POR_FILA_PX;
+    if (prod.paraLlevar || prod.tipoServicio === 'para_llevar') {
+      h += 14;
+    }
     if (prod.complementos?.length) {
       h += prod.complementos.length * ALTURA_POR_COMPLEMENTO_PX;
       // v3.0: fila adicional de resumen si el plato lo activa
@@ -388,7 +391,7 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
       html += `<img src="${escapeHtml(logoUrl)}" style="max-width:100%;max-height:64px;object-fit:contain;margin:0 auto 4px;display:block;" alt="Logo">`;
     }
     if (mostrarNombre) {
-      html += `<div style="font-size:${fontSizeLg}px;font-weight:800;line-height:1.2;">${escapeHtml(p.restaurante?.nombre || 'LAS GAMBUSINAS')}</div>`;
+      html += `<div style="font-size:${fontSizeLg}px;font-weight:800;line-height:1.2;">${escapeHtml(p.restaurante?.nombre || 'SAN BENITO')}</div>`;
     }
     if (mostrarEslogan && p.restaurante?.eslogan) {
       html += `<div style="font-size:${fontSizeSm}px;font-weight:500;color:#444;line-height:1.3;">${escapeHtml(p.restaurante.eslogan)}</div>`;
@@ -452,9 +455,10 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
       if (!prod || prod.eliminado || prod.anulado) continue;
       const nombre = escapeHtml(prod.nombre || 'Plato');
       const marcadorPL = prod.paraLlevar ? ` <span style="font-weight:700;">[${escapeHtml(etiquetas.paraLlevar)}]</span>` : '';
-      const cantidad = prod.cantidad || 1;
-      const precio = prod.precio || 0;
-      const subtotalProd = prod.subtotal || (precio * cantidad);
+      const cantidad = Number(prod.cantidad) || 1;
+      const precio = Number(prod.precioUnitario ?? prod.precio) || 0;
+      const subRaw = Number(prod.subtotal);
+      const subtotalProd = Number.isFinite(subRaw) && subRaw > 0 ? subRaw : precio * cantidad;
 
       // Wrap product item + complementos + nota in a group that avoids page breaks
       html += '<tbody class="prod-item">';
@@ -597,74 +601,149 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
 }
 
 /**
- * Mapa datos reales de comanda + boucher → formato ticket para plantilla comanda.
+ * Mapa datos reales de comanda(s) + boucher → formato ticket para plantilla comanda.
  * Se usa tanto en App Mozos como en el dashboard.
+ * Si hay varias comandas (p.ej. extra para llevar) une platos y suma totales.
  */
 function resolverPrecioLineaImpresion(p) {
   const n = Number(p?.precioUnitario ?? p?.precio ?? p?.plato?.precio ?? 0);
   return Number.isFinite(n) ? n : 0;
 }
 
-export function mapComandaATicket(comanda, boucherOpcional, config = {}) {
-  const comandasNumbers = boucherOpcional?.comandasNumbers
-    || (comanda.comandaNumber ? [comanda.comandaNumber] : []);
-  const productos = (comanda.platos || [])
-    .filter(p => !p.eliminado && !p.anulado)
-    .map(p => {
-      const precio = resolverPrecioLineaImpresion(p);
-      const cantidad = p.cantidad || 1;
-      return {
-        nombre: p.plato?.nombre || p.nombre || 'Plato',
-        cantidad,
-        precio,
-        subtotal: precio * cantidad,
-        tipoServicio: p.tipoServicio || 'mesa',
-        complementos: (p.complementosSeleccionados || []).map(c => ({
-          grupo: c.grupo,
-          opcion: c.opcion,
-          precio: c.precio || 0,
-        })),
-        notaEspecial: p.notaEspecial || '',
-        paraLlevar: p.tipoServicio === 'para_llevar',
-      };
-    });
-  const sumaPlatos = productos.reduce((s, p) => s + (Number(p.subtotal) || 0), 0);
-  const tieneDesc = Number(comanda.descuento) > 0 || Number(comanda.montoDescuento) > 0;
-  const totalFuente = Number(
-    tieneDesc
-      ? comanda.totalCalculado
-      : (boucherOpcional?.totalConDescuento ?? boucherOpcional?.total ?? comanda.totalCalculado ?? comanda.total ?? comanda.precioTotal)
-  );
-  const subtotalFuente = Number(comanda.totalSinDescuento ?? boucherOpcional?.subtotal ?? comanda.subtotal);
+function esParaLlevarLinea(p) {
+  if (!p) return false;
+  if (p.paraLlevar === true || p.tipoServicio === 'para_llevar') return true;
+  const raw = String(p.tipoServicio || '').toLowerCase().trim().replace(/\s+/g, '_');
+  return raw === 'para_llevar' || raw === 'llevar';
+}
+
+function cantidadLineaImpresion(p, comanda, index) {
+  const n = Number(p?.cantidad ?? comanda?.cantidades?.[index] ?? 1);
+  return Number.isFinite(n) && n > 0 ? n : 1;
+}
+
+function mapLineaProductoImpresion(p, comanda, index) {
+  const precio = resolverPrecioLineaImpresion(p);
+  const cantidad = cantidadLineaImpresion(p, comanda, index);
+  const subRaw = Number(p?.subtotal);
+  const paraLlevar = esParaLlevarLinea(p);
   return {
-    comandaNumero: comanda.comandaNumber || comanda.comandaNumber || null,
+    nombre: p.plato?.nombre || p.nombre || 'Plato',
+    cantidad,
+    precio,
+    subtotal: Number.isFinite(subRaw) && subRaw > 0 ? subRaw : precio * cantidad,
+    tipoServicio: paraLlevar ? 'para_llevar' : (p.tipoServicio || 'mesa'),
+    complementos: (p.complementosSeleccionados || p.complementos || []).map((c) => ({
+      grupo: c.grupo,
+      opcion: c.opcion,
+      cantidad: c.cantidad || 1,
+      precio: c.precio || 0,
+    })),
+    notaEspecial: p.notaEspecial || '',
+    paraLlevar,
+    mostrarResumenComplementos: !!p.mostrarResumenComplementos,
+    resumenComplementosImpresion: p.resumenComplementosImpresion || undefined,
+  };
+}
+
+function productosDeComanda(comanda) {
+  const lineas = comanda?.platos || comanda?.items || [];
+  return lineas
+    .filter((p) => p && !p.eliminado && !p.anulado)
+    .map((p, i) => mapLineaProductoImpresion(p, comanda, i));
+}
+
+function resolverTotalMapeado({ tieneDesc, totalCalculado, totalFuente, sumaPlatos, montoDesc }) {
+  if (tieneDesc) {
+    const tc = Number(totalCalculado);
+    if (Number.isFinite(tc) && (tc > 0 || (Number(montoDesc) || 0) > 0)) return Number(tc);
+    return Number(Math.max(0, sumaPlatos - (Number(montoDesc) || 0)).toFixed(2));
+  }
+  const tf = Number(totalFuente);
+  if (Number.isFinite(tf) && tf > 0) return tf;
+  return sumaPlatos;
+}
+
+export function mapComandasATicket(comandas, boucherOpcional, config = {}) {
+  const lista = (Array.isArray(comandas) ? comandas : [comandas]).filter(Boolean);
+  const primera = lista[0] || {};
+  const productos = (boucherOpcional?.platos?.length)
+    ? boucherOpcional.platos
+      .filter((p) => p && !p.eliminado && !p.anulado)
+      .map((p, i) => mapLineaProductoImpresion(p, null, i))
+    : lista.flatMap((c) => productosDeComanda(c));
+  const comandasNumbers = boucherOpcional?.comandasNumbers?.length
+    ? boucherOpcional.comandasNumbers
+    : lista.map((c) => c.comandaNumber ?? c.numComanda).filter((n) => n != null);
+  const sumaPlatos = productos.reduce((s, p) => s + (Number(p.subtotal) || 0), 0);
+  const montoDescLista = lista.reduce((s, c) => s + (Number(c.montoDescuento) || 0), 0);
+  const tieneDesc = montoDescLista > 0 || lista.some((c) => Number(c.descuento) > 0)
+    || Number(boucherOpcional?.montoDescuento) > 0;
+  const totalCalculadoSuma = lista.reduce((s, c) => {
+    const n = Number(c.totalCalculado ?? c.total);
+    return s + (Number.isFinite(n) ? n : 0);
+  }, 0);
+  const totalFuente = Number(
+    boucherOpcional?.totalConDescuento ?? boucherOpcional?.total
+    ?? (totalCalculadoSuma > 0 ? totalCalculadoSuma : primera.precioTotal)
+  );
+  const subtotalFuente = Number(
+    lista.reduce((s, c) => s + (Number(c.totalSinDescuento) || 0), 0)
+    || boucherOpcional?.subtotal
+    || primera.subtotal
+  );
+  const montoDesc = tieneDesc
+    ? (montoDescLista > 0 ? montoDescLista : (Number(boucherOpcional?.montoDescuento) || 0))
+    : (Number(boucherOpcional?.montoDescuento) || 0);
+  return {
+    comandaNumero: primera.comandaNumber ?? primera.numComanda ?? null,
     comandasNumbers,
-    fechaPedido: comanda.createdAt || comanda.fechaPedido || new Date(),
-    mesa: comanda.mesaNumero || comanda.mesas?.nummesa || (typeof comanda.mesa === 'object' ? comanda.mesa?.nummesa : comanda.mesa) || null,
-    mozo: comanda.mozoNombre || comanda.mozos?.name || (typeof comanda.mozo === 'object' ? comanda.mozo?.name : comanda.mozo) || null,
-    area: comanda.areaNombre || comanda.mesas?.area?.nombre || null,
+    fechaPedido: primera.createdAt || primera.fechaPedido || boucherOpcional?.fechaPedido || new Date(),
+    mesa: primera.mesaNumero || primera.mesas?.nummesa || primera.mesa?.nummesa
+      || (typeof primera.mesa === 'object' ? primera.mesa?.nummesa : primera.mesa)
+      || boucherOpcional?.numMesa || null,
+    mozo: primera.mozoNombre || primera.mozos?.name || primera.mozo
+      || (typeof primera.mozo === 'object' ? primera.mozo?.name : primera.mozo)
+      || boucherOpcional?.nombreMozo || null,
+    area: primera.areaNombre || primera.mesas?.area?.nombre || primera.mesa?.area || null,
     moneda: boucherOpcional?.moneda || config.moneda || 'PEN',
     tipoPago: boucherOpcional?.metodoPagoLabel || boucherOpcional?.metodoPago || 'Pendiente',
-    observaciones: comanda.observaciones || '',
+    observaciones: primera.observaciones || boucherOpcional?.observaciones || '',
     productos,
     subtotal: sumaPlatos > 0 ? sumaPlatos : (subtotalFuente > 0 ? subtotalFuente : 0),
-    totalSinDescuento: sumaPlatos > 0 ? sumaPlatos : (Number(comanda.totalSinDescuento) || subtotalFuente || 0),
-    igv: boucherOpcional?.igv ?? comanda.igv ?? 0,
-    total: tieneDesc
-      ? (Number.isFinite(Number(comanda.totalCalculado)) ? Number(comanda.totalCalculado) : 0)
-      : (totalFuente > 0 ? totalFuente : sumaPlatos),
-    montoDescuento: tieneDesc
-      ? (Number(comanda.montoDescuento) || 0)
-      : (Number(boucherOpcional?.montoDescuento) || 0),
+    totalSinDescuento: sumaPlatos > 0 ? sumaPlatos : (subtotalFuente || 0),
+    igv: boucherOpcional?.igv ?? primera.igv ?? 0,
+    total: resolverTotalMapeado({
+      tieneDesc,
+      totalCalculado: totalCalculadoSuma,
+      totalFuente,
+      sumaPlatos,
+      montoDesc,
+    }),
+    montoDescuento: montoDesc,
     descuentos: tieneDesc
-      ? [{ porcentaje: comanda.descuento, motivo: comanda.motivoDescuento, monto: comanda.montoDescuento }]
+      ? (boucherOpcional?.descuentos?.length
+        ? boucherOpcional.descuentos
+        : lista.filter((c) => Number(c.montoDescuento) > 0 || Number(c.descuento) > 0).map((c) => ({
+          porcentaje: c.descuento,
+          motivo: c.motivoDescuento,
+          monto: c.montoDescuento,
+        })))
       : (boucherOpcional?.descuentos || []),
     cliente: {
-      nombre: comanda.clienteNombre || comanda.cliente?.nombre || (typeof boucherOpcional?.cliente === 'object' ? boucherOpcional.cliente?.nombre : null) || 'Cliente',
-      dni: comanda.cliente?.dni || (typeof boucherOpcional?.cliente === 'object' ? boucherOpcional.cliente?.dni : null) || '',
+      nombre: primera.clienteNombre || primera.cliente?.nombre
+        || (typeof boucherOpcional?.cliente === 'object' ? boucherOpcional.cliente?.nombre : null)
+        || 'Cliente',
+      dni: primera.cliente?.dni
+        || (typeof boucherOpcional?.cliente === 'object' ? boucherOpcional.cliente?.dni : null)
+        || '',
     },
     voucherId: boucherOpcional?.voucherId || boucherOpcional?.boucherNumber || null,
     montoRecibido: boucherOpcional?.montoRecibido ?? null,
     vuelto: boucherOpcional?.vuelto ?? null,
   };
+}
+
+export function mapComandaATicket(comanda, boucherOpcional, config = {}) {
+  return mapComandasATicket(comanda ? [comanda] : [], boucherOpcional, config);
 }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reportes — Las Gambusinas</title>
+  <title>Reportes — San Benito</title>
   <!-- Animate.css - Animaciones CSS puras -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
   <!-- AOS - Animate On Scroll -->
@@ -248,7 +248,7 @@ tailwind.config = {
               <th class="text-left px-4 py-2.5 font-semibold">Plato</th>
               <th class="text-left px-4 py-2.5 font-semibold">Categoría</th>
               <th class="text-right px-3 py-2.5 font-semibold">Cant.</th>
-              <th class="text-right px-3 py-2.5 font-semibold">P. Unit.</th>
+              <th class="text-right px-3 py-2.5 font-semibold">P. Unit. (IGV incl.)</th>
               <th class="text-right px-3 py-2.5 font-semibold">Total (IGV incl.)</th>
               <th class="text-right px-3 py-2.5 font-semibold">% Total</th>
               <th class="text-left px-3 py-2.5 font-semibold">Complementos</th>
@@ -535,7 +535,7 @@ tailwind.config = {
     <div x-show="!loading && repTab === 'Cocineros'" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
       <div class="px-5 py-3 border-b border-[rgba(212,175,55,0.1)] flex justify-between items-center">
         <h3 class="font-semibold text-sm">👨‍🍳 Rendimiento de Cocineros</h3>
-        <span class="text-[10px] text-txt-muted" x-text="(tablaData.cocineros?.length || 0) + ' cocineros'"></span>
+        <span class="text-[10px] text-txt-muted" x-text="(tablaData.cocineros?.length || 0) + ' cocineros · clic en el nombre para detalle'"></span>
       </div>
       <div class="overflow-x-auto max-h-[400px] overflow-y-auto">
         <table class="w-full text-sm">
@@ -568,7 +568,7 @@ tailwind.config = {
                   <div class="flex items-center gap-2">
                     <div class="w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center text-gold text-sm font-bold" x-text="(c.alias || c.nombre || 'C').charAt(0).toUpperCase()"></div>
                     <div>
-                      <p class="font-medium" x-text="c.alias || c.nombre || 'Sin nombre'"></p>
+                      <button type="button" class="font-medium text-gold hover:underline text-left" @click="abrirDetalleCocinero(c)" x-text="c.alias || c.nombre || 'Sin nombre'"></button>
                       <p x-show="c.sinActividad" class="text-[10px] text-txt-muted">Sin actividad en el período</p>
                     </div>
                   </div>
@@ -633,12 +633,185 @@ tailwind.config = {
   </main>
 </div>
 
+<!-- MODAL: detalle cocinero -->
+<div x-show="modalCocinero" x-cloak x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="cerrarDetalleCocinero()" @keydown.escape.window="cerrarModalesDetalle()">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[960px] max-w-[96vw] max-h-[92vh] overflow-hidden shadow-2xl flex flex-col" @click.stop>
+    <div class="bg-bg-sidebar p-4 border-b border-[rgba(212,175,55,0.15)] flex items-start justify-between gap-3">
+      <div>
+        <h2 class="text-lg font-bold" x-text="(detalleCocinero?.cocinero?.alias || detalleCocinero?.cocinero?.nombre || 'Cocinero')"></h2>
+        <p class="text-[11px] text-txt-muted mt-0.5" x-text="(detalleCocinero?.platos?.length || 0) + ' platos · ' + (detalleCocinero?.comandas?.length || 0) + ' comandas · ' + dateFilter.fechaInicio + ' → ' + dateFilter.fechaFin"></p>
+      </div>
+      <button type="button" class="text-txt-muted hover:text-white px-2 py-1" @click="cerrarDetalleCocinero()">✕</button>
+    </div>
+    <div class="p-4 overflow-y-auto flex-1 space-y-5">
+      <p x-show="detalleCocineroLoading" class="text-center text-txt-muted text-sm py-8">Cargando detalle…</p>
+      <template x-if="!detalleCocineroLoading && detalleCocinero">
+        <div class="space-y-5">
+          <div>
+            <h3 class="text-xs uppercase text-txt-secondary font-semibold mb-2">Platos atendidos</h3>
+            <div class="overflow-x-auto max-h-[320px] overflow-y-auto border border-[rgba(212,175,55,0.12)] rounded-xl">
+              <table class="w-full text-xs">
+                <thead class="bg-bg-sidebar sticky top-0">
+                  <tr class="text-[10px] uppercase text-txt-secondary">
+                    <th class="text-left px-3 py-2">Comanda</th>
+                    <th class="text-left px-3 py-2">Plato</th>
+                    <th class="text-center px-2 py-2">Tipo</th>
+                    <th class="text-center px-2 py-2">Estado</th>
+                    <th class="text-right px-2 py-2">Pedido</th>
+                    <th class="text-right px-2 py-2">En espera</th>
+                    <th class="text-right px-2 py-2">Recoger</th>
+                    <th class="text-right px-2 py-2">Salió</th>
+                    <th class="text-right px-2 py-2">Entregado</th>
+                    <th class="text-right px-2 py-2">Prep.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-if="!(detalleCocinero.platos || []).length">
+                    <tr><td colspan="10" class="px-4 py-6 text-center text-txt-muted">Sin platos en el período</td></tr>
+                  </template>
+                  <template x-for="(p, i) in (detalleCocinero.platos || [])" :key="(p.comandaId || '') + '-' + i">
+                    <tr class="border-b border-[rgba(212,175,55,0.08)] hover:bg-[rgba(212,175,55,0.04)]">
+                      <td class="px-3 py-2">
+                        <button type="button" class="text-gold hover:underline font-semibold" @click="abrirDetalleComanda(p.comandaId)" x-text="'#' + (p.comandaNumber || '—')"></button>
+                        <p class="text-[10px] text-txt-muted" x-text="'Mesa ' + (p.mesa != null ? p.mesa : '—')"></p>
+                      </td>
+                      <td class="px-3 py-2">
+                        <p class="font-medium" x-text="p.nombre"></p>
+                        <p x-show="p.notaEspecial" class="text-[10px] text-txt-muted" x-text="p.notaEspecial"></p>
+                        <p x-show="p.complementos && p.complementos.length" class="text-[10px] text-gold/80" x-text="(p.complementos || []).join(', ')"></p>
+                      </td>
+                      <td class="px-2 py-2 text-center text-txt-muted" x-text="p.tipoServicio === 'para_llevar' ? 'Llevar' : 'Mesa'"></td>
+                      <td class="px-2 py-2 text-center" x-text="estadoPlatoLabel(p.estado)"></td>
+                      <td class="px-2 py-2 text-right tabular-nums" x-text="fmtHoraReporte(p.tiempos?.pedido)"></td>
+                      <td class="px-2 py-2 text-right tabular-nums" x-text="fmtHoraReporte(p.tiempos?.en_espera)"></td>
+                      <td class="px-2 py-2 text-right tabular-nums" x-text="fmtHoraReporte(p.tiempos?.recoger)"></td>
+                      <td class="px-2 py-2 text-right tabular-nums" x-text="fmtHoraReporte(p.tiempos?.salio)"></td>
+                      <td class="px-2 py-2 text-right tabular-nums" x-text="fmtHoraReporte(p.tiempos?.entregado)"></td>
+                      <td class="px-2 py-2 text-right font-semibold" x-text="p.minutosPrep != null ? p.minutosPrep + ' min' : '—'"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div>
+            <h3 class="text-xs uppercase text-txt-secondary font-semibold mb-2">Comandas</h3>
+            <div class="overflow-x-auto max-h-[220px] overflow-y-auto border border-[rgba(212,175,55,0.12)] rounded-xl">
+              <table class="w-full text-xs">
+                <thead class="bg-bg-sidebar sticky top-0">
+                  <tr class="text-[10px] uppercase text-txt-secondary">
+                    <th class="text-left px-3 py-2">Comanda</th>
+                    <th class="text-left px-3 py-2">Mesa</th>
+                    <th class="text-left px-3 py-2">Mozo</th>
+                    <th class="text-center px-2 py-2">Estado</th>
+                    <th class="text-right px-2 py-2">Platos</th>
+                    <th class="text-right px-2 py-2">T. prep.</th>
+                    <th class="text-right px-2 py-2">Fecha</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-if="!(detalleCocinero.comandas || []).length">
+                    <tr><td colspan="7" class="px-4 py-6 text-center text-txt-muted">Sin comandas</td></tr>
+                  </template>
+                  <template x-for="c in (detalleCocinero.comandas || [])" :key="c._id">
+                    <tr class="border-b border-[rgba(212,175,55,0.08)] hover:bg-[rgba(212,175,55,0.04)] cursor-pointer" @click="abrirDetalleComanda(c._id)">
+                      <td class="px-3 py-2 text-gold font-semibold" x-text="'#' + (c.comandaNumber || '—')"></td>
+                      <td class="px-3 py-2" x-text="c.mesa != null ? c.mesa : '—'"></td>
+                      <td class="px-3 py-2" x-text="c.mozo || '—'"></td>
+                      <td class="px-2 py-2 text-center" x-text="estadoPlatoLabel(c.status)"></td>
+                      <td class="px-2 py-2 text-right" x-text="c.totalPlatos || 0"></td>
+                      <td class="px-2 py-2 text-right" x-text="c.tiempoPromedioPrep != null ? c.tiempoPromedioPrep + ' min' : '—'"></td>
+                      <td class="px-2 py-2 text-right text-txt-muted" x-text="fmtHoraReporte(c.createdAt)"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: detalle comanda -->
+<div x-show="modalComanda" x-cloak x-transition.opacity class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70" @click.self="cerrarDetalleComanda()">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[840px] max-w-[96vw] max-h-[92vh] overflow-hidden shadow-2xl flex flex-col" @click.stop>
+    <div class="bg-bg-sidebar p-4 border-b border-[rgba(212,175,55,0.15)] flex items-start justify-between gap-3">
+      <div>
+        <h2 class="text-lg font-bold" x-text="'Comanda #' + (detalleComanda?.comandaNumber || '—')"></h2>
+        <p class="text-[11px] text-txt-muted mt-0.5">
+          <span x-text="'Mesa ' + mesaDeComanda(detalleComanda)"></span>
+          <span> · </span>
+          <span x-text="mozoDeComanda(detalleComanda)"></span>
+          <span> · </span>
+          <span x-text="estadoPlatoLabel(detalleComanda?.status)"></span>
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <a x-show="detalleComanda?._id" :href="'/comandas.html?id=' + detalleComanda?._id" class="text-[11px] text-gold hover:underline">Abrir en Comandas</a>
+        <button type="button" class="text-txt-muted hover:text-white px-2 py-1" @click="cerrarDetalleComanda()">✕</button>
+      </div>
+    </div>
+    <div class="p-4 overflow-y-auto flex-1">
+      <p x-show="detalleComandaLoading" class="text-center text-txt-muted text-sm py-8">Cargando comanda…</p>
+      <template x-if="!detalleComandaLoading && detalleComanda">
+        <div class="space-y-4">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Pedido</p><p x-text="fmtHoraReporte(detalleComanda.createdAt)"></p></div>
+            <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">En espera</p><p x-text="fmtHoraReporte(detalleComanda.tiempoEnEspera)"></p></div>
+            <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Entregado</p><p x-text="fmtHoraReporte(detalleComanda.tiempoEntregado)"></p></div>
+            <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Total</p><p class="text-gold font-semibold" x-text="'S/. ' + Number(detalleComanda.totalCalculado || detalleComanda.precioTotal || 0).toFixed(2)"></p></div>
+          </div>
+          <div class="overflow-x-auto border border-[rgba(212,175,55,0.12)] rounded-xl">
+            <table class="w-full text-xs">
+              <thead class="bg-bg-sidebar">
+                <tr class="text-[10px] uppercase text-txt-secondary">
+                  <th class="text-left px-3 py-2">Plato</th>
+                  <th class="text-center px-2 py-2">Cant.</th>
+                  <th class="text-center px-2 py-2">Estado</th>
+                  <th class="text-right px-2 py-2">Pedido</th>
+                  <th class="text-right px-2 py-2">En espera</th>
+                  <th class="text-right px-2 py-2">Recoger</th>
+                  <th class="text-right px-2 py-2">Salió</th>
+                  <th class="text-right px-2 py-2">Entregado</th>
+                  <th class="text-left px-2 py-2">Cocinero</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(p, i) in platosDeComanda(detalleComanda)" :key="i">
+                  <tr class="border-b border-[rgba(212,175,55,0.08)]">
+                    <td class="px-3 py-2">
+                      <p class="font-medium" x-text="p.nombre"></p>
+                      <p x-show="p.nota" class="text-[10px] text-txt-muted" x-text="p.nota"></p>
+                    </td>
+                    <td class="px-2 py-2 text-center" x-text="p.cantidad"></td>
+                    <td class="px-2 py-2 text-center" x-text="estadoPlatoLabel(p.estado)"></td>
+                    <td class="px-2 py-2 text-right" x-text="fmtHoraReporte(p.tiempos?.pedido)"></td>
+                    <td class="px-2 py-2 text-right" x-text="fmtHoraReporte(p.tiempos?.en_espera)"></td>
+                    <td class="px-2 py-2 text-right" x-text="fmtHoraReporte(p.tiempos?.recoger)"></td>
+                    <td class="px-2 py-2 text-right" x-text="fmtHoraReporte(p.tiempos?.salio)"></td>
+                    <td class="px-2 py-2 text-right" x-text="fmtHoraReporte(p.tiempos?.entregado)"></td>
+                    <td class="px-2 py-2 text-txt-muted" x-text="p.cocinero || '—'"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container" class="fixed bottom-6 right-6 z-[9999] space-y-2"></div>
+
 <script src="/assets/js/notifications.js"></script>
 <script src="/assets/js/shared.js"></script>
 <script src="/assets/js/turnosDiaNoche.js"></script>
 <script>
 // ============================================
-// REPORTES - LAS GAMBUSINAS
+// REPORTES - SAN BENITO
 // Usa el mismo método que admin.html para cargar bouchers
 // ============================================
 
@@ -783,6 +956,12 @@ function reportesApp() {
     
     // Cache de datos de cocineros desde API
     cocinerosApiData: null,
+    modalCocinero: false,
+    detalleCocinero: null,
+    detalleCocineroLoading: false,
+    modalComanda: false,
+    detalleComanda: null,
+    detalleComandaLoading: false,
     
     // Colores del tema
     _c: {
@@ -1118,7 +1297,7 @@ function reportesApp() {
      */
     montoLineaSinIgv(p) {
       const cant = Number(p?.cantidad) || 0;
-      const precio = Number(p?.precio) || 0;
+      const precio = Number(p?.precioUnitario ?? p?.precio) || 0;
       const sub = Number(p?.subtotal);
       if (Number.isFinite(sub) && sub > 0) return sub;
       return cant * precio;
@@ -1126,7 +1305,7 @@ function reportesApp() {
 
     /**
      * Factor para llevar líneas al total cobrado (IGV incluido + descuentos).
-     * Si el boucher no tiene total, se agrega el IGV de la config (default 18%).
+     * Siempre deja el unitario/desglose con IGV: si las líneas ya lo traen (r≈1), no duplica.
      */
     factorIgvIncluidoBoucher(b) {
       const lineas = (b?.platos || []).reduce((s, p) => {
@@ -1140,11 +1319,13 @@ function reportesApp() {
       const tasa = 1 + (Number.isFinite(pct) && pct > 0 ? pct / 100 : 0.18);
       if (desc > 0 && lineas > 0 && Number.isFinite(total)) return total / lineas;
       if (cfg.preciosIncluyenIGV === true) return 1;
-      if (b?._fuente === 'comanda') return 1;
       if (Number.isFinite(total) && lineas > 0 && total > 0) {
         const r = total / lineas;
-        if (Math.abs(r - 1) < 0.03) return 1;
         if (Math.abs(r - tasa) / tasa < 0.05) return r;
+        if (Math.abs(r - 1) < 0.03) {
+          if (b?._fuente === 'comanda') return 1;
+          return tasa;
+        }
       }
       return tasa;
     },
@@ -1563,6 +1744,140 @@ function reportesApp() {
       
       // Fallback: Calcular desde bouchers (datos locales)
       this.processCocinerosLocal(bouchers);
+    },
+
+    adminHeaders() {
+      const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+      return { 'Authorization': 'Bearer ' + token };
+    },
+
+    fmtHoraReporte(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      if (!Number.isFinite(d.getTime())) return '—';
+      return d.toLocaleString('es-PE', {
+        timeZone: 'America/Lima',
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    },
+
+    estadoPlatoLabel(estado) {
+      const m = {
+        pendiente: 'Pendiente',
+        pedido: 'Pedido',
+        en_espera: 'En espera',
+        recoger: 'Recoger',
+        salio: 'Salió',
+        entregado: 'Entregado',
+        pagado: 'Pagado',
+        cancelado: 'Cancelado',
+        pendiente_aprobar: 'Pend. aprobar',
+        completado: 'Completado'
+      };
+      return m[estado] || estado || '—';
+    },
+
+    mesaDeComanda(c) {
+      if (!c) return '—';
+      return c.mesaNumero ?? c.mesas?.nummesa ?? c.mesas?.numero ?? '—';
+    },
+
+    mozoDeComanda(c) {
+      if (!c) return '—';
+      if (c.mozoNombre) return c.mozoNombre;
+      const m = c.mozos;
+      if (m && typeof m === 'object') return m.name || m.nombres || '—';
+      return '—';
+    },
+
+    platosDeComanda(c) {
+      const platos = c?.platos || [];
+      const cants = c?.cantidades || [];
+      return platos.map((p, i) => {
+        if (!p || p.eliminado || p.anulado) return null;
+        return {
+          nombre: p.nombre || p.plato?.nombre || 'Plato',
+          cantidad: Number(p.cantidad) || Number(cants[i]) || 1,
+          estado: p.estado,
+          nota: p.notaEspecial || '',
+          tiempos: p.tiempos || {},
+          cocinero: p.procesadoPor?.alias || p.procesadoPor?.nombre || p.procesandoPor?.alias || p.procesandoPor?.nombre || ''
+        };
+      }).filter(Boolean);
+    },
+
+    cerrarDetalleCocinero() {
+      this.modalCocinero = false;
+      this.detalleCocinero = null;
+      this.cerrarDetalleComanda();
+    },
+
+    cerrarDetalleComanda() {
+      this.modalComanda = false;
+      this.detalleComanda = null;
+      this.detalleComandaLoading = false;
+    },
+
+    cerrarModalesDetalle() {
+      if (this.modalComanda) {
+        this.cerrarDetalleComanda();
+        return;
+      }
+      if (this.modalCocinero) this.cerrarDetalleCocinero();
+    },
+
+    async abrirDetalleCocinero(c) {
+      const id = c?._id || c?.id;
+      if (!id || id === 'sin-asignar') {
+        this.showToast('Este registro no tiene cocinero asignado', 'error');
+        return;
+      }
+      this.modalCocinero = true;
+      this.detalleCocinero = null;
+      this.detalleCocineroLoading = true;
+      try {
+        const q = this.fechasQuery();
+        const response = await fetch(
+          `${API_BASE}/reportes/cocineros/${encodeURIComponent(id)}?fechaInicio=${encodeURIComponent(q.fechaInicio)}&fechaFin=${encodeURIComponent(q.fechaFin)}`,
+          { headers: this.adminHeaders() }
+        );
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || 'No se pudo cargar el detalle');
+        }
+        this.detalleCocinero = result.data;
+      } catch (err) {
+        console.error('Error detalle cocinero:', err);
+        this.showToast(err.message || 'Error al cargar detalle del cocinero', 'error');
+        this.modalCocinero = false;
+      } finally {
+        this.detalleCocineroLoading = false;
+      }
+    },
+
+    async abrirDetalleComanda(comandaId) {
+      if (!comandaId) return;
+      this.modalComanda = true;
+      this.detalleComanda = null;
+      this.detalleComandaLoading = true;
+      try {
+        const response = await fetch(`${API_BASE}/comanda/${encodeURIComponent(comandaId)}`, {
+          headers: this.adminHeaders()
+        });
+        if (!response.ok) throw new Error('No se pudo cargar la comanda');
+        const data = await response.json();
+        if (!data || data.message || data.error) throw new Error(data?.message || data?.error || 'Comanda no encontrada');
+        this.detalleComanda = data;
+      } catch (err) {
+        console.error('Error detalle comanda:', err);
+        this.showToast(err.message || 'Error al cargar la comanda', 'error');
+        this.modalComanda = false;
+      } finally {
+        this.detalleComandaLoading = false;
+      }
     },
     
     /**
@@ -2056,14 +2371,6 @@ function reportesApp() {
      */
     isFilterActive(filtro) {
       return this.dateFilter.tipo === filtro;
-    },
-    
-    /**
-     * Muestra una notificación toast
-     */
-    showToast(message, type = 'info') {
-      console.log(`[${type.toUpperCase()}] ${message}`);
-      // Aquí se puede integrar con un sistema de toasts si existe
     },
     
     // ==================== CONFIGURACIÓN DE GRÁFICOS ====================

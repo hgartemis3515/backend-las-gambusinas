@@ -8,6 +8,7 @@ const {
     calcularPrecioUnitarioConComplementos,
     calcularResumenComplementos
 } = require('../utils/precioComplementos');
+const { debeCancelarReservaAlEliminarComanda } = require('../utils/reservaComandas');
 
 // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: modelos diferidos para crear comanda programada
 let ComandaModel = null;
@@ -269,6 +270,19 @@ const actualizarReserva = async (id, data) => {
     }
 };
 
+const anularComandasVinculadasAReserva = async (reservaId, exceptComandaId = null) => {
+    if (!reservaId) return;
+    const filtro = {
+        origenReserva: reservaId,
+        IsActive: { $ne: false },
+        status: { $nin: ['pagado', 'completado'] }
+    };
+    if (exceptComandaId) filtro._id = { $ne: exceptComandaId };
+    await getComandaModel().updateMany(filtro, {
+        $set: { status: 'cancelado', IsActive: false, programadaPorReserva: false }
+    });
+};
+
 /**
  * Cancelar reserva
  * @param {String} id - ID de la reserva
@@ -293,6 +307,8 @@ const cancelarReserva = async (id, motivo = null) => {
             reserva.notas = (reserva.notas || '') + ` [CANCELADA: ${motivo}]`;
         }
         await reserva.save();
+        
+        await anularComandasVinculadasAReserva(reserva._id);
         
         // Liberar la mesa
         await mesasModel.findByIdAndUpdate(
@@ -329,12 +345,17 @@ const cancelarReservaPorComandaEliminada = async (comanda, motivo = null) => {
         });
     }
     if (!reserva) return null;
+    if (!debeCancelarReservaAlEliminarComanda(reserva, comanda)) {
+        return null;
+    }
     if (['completada', 'cancelada', 'rechazada'].includes(reserva.estado)) return null;
 
     reserva.estado = 'cancelada';
     const nota = String(motivo || '').trim();
     reserva.notas = `${reserva.notas || ''} [CANCELADA: comanda eliminada${nota ? ` — ${nota}` : ''}]`.trim();
     await reserva.save();
+
+    await anularComandasVinculadasAReserva(reserva._id, comandaId);
 
     try {
         require('../services/timeoutService').cancelarTimeout(reserva._id);
@@ -365,7 +386,7 @@ const obtenerReservaActivaPorMesa = async (mesaId, opts = {}) => {
         })
         .populate('mozo', 'name _id')
         .populate('creadoPor', 'name _id')
-        .populate('comandaGenerada', 'comandaNumber status origenCreacion programadaPorReserva')
+        .populate('comandaGenerada', 'comandaNumber status origenCreacion programadaPorReserva fechaCocinaProgramada')
         .sort({ fechaReserva: 1 })
         .lean();
 
@@ -910,6 +931,26 @@ const crearReservaDesdeMozos = async (data) => {
         reserva.comandaGenerada = comanda._id;
         await reserva.save();
 
+        try {
+            const pedidoModel = require('../database/models/pedido.model');
+            const pedido = await pedidoModel.obtenerOcrearPedidoAbierto(mesa._id, data.mozo, {
+                numMesa: mesa.nummesa,
+                areaNombre: mesa.area?.nombre || null,
+                nombreMozo: mozoDoc?.name || 'Sin asignar'
+            });
+            if (!pedido.comandas.some((c) => c.toString() === comanda._id.toString())) {
+                pedido.comandas.push(comanda._id);
+                pedido.comandasNumbers.push(comanda.comandaNumber);
+                await pedido.save();
+            }
+            comanda.pedido = pedido._id;
+            await comanda.save();
+        } catch (pedidoErr) {
+            logger.warn('Reserva: no se pudo asociar pedido a comandaGenerada', {
+                comandaId: comanda._id, error: pedidoErr.message
+            });
+        }
+
         const ppa = data.pagoAdelantado || {};
         let montoPagado = Number(ppa.montoPagado) || 0;
         if (montoPagado < 0) montoPagado = 0;
@@ -1097,12 +1138,7 @@ const rechazarReservaTrasPPA = async (reservaId, motivo) => {
     }
     await reserva.save();
     await mesasModel.updateOne({ _id: reserva.mesa }, { estado: 'libre' });
-    if (reserva.comandaGenerada) {
-        await getComandaModel().updateOne(
-            { _id: reserva.comandaGenerada },
-            { $set: { status: 'cancelado', IsActive: false, programadaPorReserva: false } }
-        );
-    }
+    await anularComandasVinculadasAReserva(reserva._id);
     logger.info('Reserva rechazada por PPA', { reservaId: reserva._id, motivo });
     return { mesaId: reserva.mesa, comandaId: reserva.comandaGenerada };
 };

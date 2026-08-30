@@ -93,6 +93,7 @@ const ticketAprobacionSchema = new mongoose.Schema({
       grupo: { type: String },
       opcion: { type: String },
       cantidad: { type: Number, default: 1 },
+      precio: { type: Number, default: 0 },
       pronombre: { type: String, default: '', trim: true },
     }],
     notaEspecial: { type: String, default: '' },
@@ -164,6 +165,18 @@ const ticketAprobacionSchema = new mongoose.Schema({
     type: String,
     enum: ['mozos', 'cocina', 'admin', 'api'],
     default: 'mozos',
+  },
+  // alta_comanda: ticket al crear la comanda (caja lo ve PENDIENTE, aún sin cobro).
+  // pago: el mozo envió cobro (boucher). forzado: caja cobró desde la tabla.
+  origen: {
+    type: String,
+    enum: ['pago', 'alta_comanda', 'forzado'],
+    default: 'pago',
+    index: true,
+  },
+  pagoForzado: {
+    type: Boolean,
+    default: false,
   },
   // Verificación de cajero antes del cierre de caja
   // - confirmado: la cajera revisó y dio conformidad (reversible hasta ejecutar el cierre)

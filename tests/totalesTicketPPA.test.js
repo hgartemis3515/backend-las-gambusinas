@@ -89,4 +89,10 @@ describe('totalesTicketPPA — reserva sin adelanto', () => {
     expect(resolverMontoCajaPPA({ total: 624, montoCobrado: 312 })).toBe(312);
     expect(resolverMontoCajaPPA({ total: 40 })).toBe(40);
   });
+
+  test('línea para llevar con precioUnitario y subtotal 0 usa precio × cantidad', () => {
+    expect(sumarSubtotalesPlatosTicket([
+      { nombre: 'Llevar', precioUnitario: 25, precio: 0, subtotal: 0, cantidad: 2, tipoServicio: 'para_llevar' },
+    ])).toBe(50);
+  });
 });

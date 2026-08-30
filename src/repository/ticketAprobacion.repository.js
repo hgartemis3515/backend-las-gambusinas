@@ -7,7 +7,7 @@
 const mongoose = require('mongoose');
 const moment = require('moment-timezone');
 const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
-const { adjuntarDescuentoTicket, aplicarDescuentoAVistaTicket, totalesConDescuentoImpresion, BOUCHER_DESCUENTO_SELECT, COMANDA_DESCUENTO_SELECT } = require('../utils/descuentoTicketSnapshot');
+const { adjuntarDescuentoTicket, aplicarDescuentoAVistaTicket, totalesConDescuentoImpresion, subtotalLineaSnapshot, BOUCHER_DESCUENTO_SELECT, COMANDA_DESCUENTO_SELECT } = require('../utils/descuentoTicketSnapshot');
 const { aplicarPreciosEnLineasTicket, quitarLineasDeSnapshot, sincronizarEliminacionEnBoucher, sincronizarPreciosComandaYBoucher } = require('../utils/editarPreciosTicket');
 const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
 const comandaModel = require('../database/models/comanda.model');
@@ -26,6 +26,29 @@ const {
 } = require('../utils/impresionComandaOpciones');
 
 const ZONA = 'America/Lima';
+
+const METODO_PAGO_LABELS = {
+  efectivo: 'Efectivo',
+  digital: 'YAPE/PLIN',
+  tarjeta: 'CRÉDITO/DÉBITO',
+};
+
+function labelMetodoPagoTicket(metodo) {
+  if (!metodo) return null;
+  return METODO_PAGO_LABELS[metodo] || metodo;
+}
+
+async function sincronizarMetodoPagoBoucher(boucherId, metodoPago) {
+  if (!boucherId || !METODO_PAGO_LABELS[metodoPago]) return;
+  try {
+    await mongoose.model('Boucher').findByIdAndUpdate(boucherId, {
+      metodoPago,
+      metodoPagoLabel: METODO_PAGO_LABELS[metodoPago],
+    });
+  } catch (e) {
+    logger.warn('No se pudo sincronizar método de pago del boucher', { error: e.message });
+  }
+}
 
 function ahora() {
   return moment().tz(ZONA).toDate();
@@ -123,13 +146,29 @@ async function saveComandaConReintento(comandaId, applyChanges) {
  *   - subtotal, igv, total, boucher, voucherId, moneda, metodoPago
  *   - cliente, clienteNombre, clienteDni, observaciones, mozoId (createdBy)
  */
+function totalesSnapshotAlta(data) {
+  const suma = Number(((data.platos || []).reduce((s, p) => s + subtotalLineaSnapshot(p), 0)).toFixed(2));
+  const montoDesc = Number(data.montoDescuento) || 0;
+  const totalIn = Number(data.total);
+  const subIn = Number(data.subtotal);
+  const total = (Number.isFinite(totalIn) && (totalIn > 0 || montoDesc > 0))
+    ? totalIn
+    : suma;
+  const subtotal = (Number.isFinite(subIn) && subIn > 0) ? subIn : suma;
+  return { subtotal, total };
+}
+
 async function crearTicketAprobacion(data) {
+  const { subtotal, total } = totalesSnapshotAlta(data);
   const ticket = new ticketAprobacionModel({
     // BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 2): tipo puede ser
     // 'comanda_completa' (cobro único que cubre toda la mesa) o
     // 'pago_parcial' (cobro de un subconjunto de platos).
     tipo: data.tipo === 'pago_parcial' ? 'pago_parcial' : 'comanda_completa',
-    estado: 'pendiente_aprobacion',
+    estado: data.estado === 'aprobado' ? 'aprobado' : 'pendiente_aprobacion',
+    aprobadoPor: data.aprobadoPor || null,
+    aprobadoPorNombre: data.aprobadoPorNombre || null,
+    fechaAprobacion: data.estado === 'aprobado' ? (data.fechaAprobacion || ahora()) : null,
     comandas: data.comandas || [],
     comandasNumbers: data.comandasNumbers || [],
     mesa: data.mesa,
@@ -139,9 +178,9 @@ async function crearTicketAprobacion(data) {
     mozoNombre: data.mozoNombre || data.nombreMozo,
     pedido: data.pedido || null,
     platos: data.platos || [],
-    subtotal: data.subtotal || 0,
+    subtotal,
     igv: data.igv || 0,
-    total: data.total || 0,
+    total,
     totalSinDescuento: data.totalSinDescuento ?? null,
     montoDescuento: data.montoDescuento || 0,
     descuentos: data.descuentos || [],
@@ -157,6 +196,8 @@ async function crearTicketAprobacion(data) {
     observaciones: data.observaciones || '',
     createdBy: data.mozoId || data.mozo || null,
     sourceApp: data.sourceApp || 'mozos',
+    origen: data.origen || 'pago',
+    pagoForzado: data.pagoForzado === true,
   });
 
   const saved = await ticket.save();
@@ -178,7 +219,7 @@ async function obtenerTicketPorId(ticketId) {
   return ticketAprobacionModel
     .findById(ticketId)
     .populate('comandas', 'comandaNumber status platos mesas mozos descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado')
-    .populate('mesa', 'nummesa estado nombreCombinado')
+    .populate({ path: 'mesa', select: 'nummesa estado nombreCombinado area', populate: { path: 'area', select: 'nombre' } })
     .populate('mozo', 'name')
     .populate('boucher')
     .populate('aprobadoPor', 'name')
@@ -252,7 +293,7 @@ async function obtenerTicketsPorFecha(fecha, fechaHasta) {
  * No toca boucher (registro contable intacto).
  * No aplica a pagos adelantados (esos tienen su propia aprobación en ticketPagoAdelantado.repository).
  */
-async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
+async function aprobarTicket(ticketId, usuarioId, usuarioNombre, opts = {}) {
   const ts = ahora();
   const usuarioObjId = toObjectId(usuarioId);
 
@@ -282,7 +323,11 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
         .filter(Boolean)
     );
 
+    // Pago forzado: la cocina sigue; no pasar platos pendiente→pagado ni comanda a pendiente_aprobar.
+    const skipLiberarPlatos = opts.pagoForzado === true;
+
     for (const comandaId of ticket.comandas) {
+      if (skipLiberarPlatos) continue;
       const { modificado, platosLiberados: liberados } = await saveComandaConReintento(
         comandaId,
         (comanda) => {
@@ -375,7 +420,7 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
           mesaId: ticket.mesa,
         });
       }
-    } else if (mesaDoc.estado !== 'reportado' && mesaDoc.estado !== 'pagado') {
+    } else if (!opts.pagoForzado && mesaDoc.estado !== 'reportado' && mesaDoc.estado !== 'pagado') {
       // Mantener mesa en pendiente_aprobar mientras falten platos o tickets
       await mesasModel.findByIdAndUpdate(ticket.mesa, { estado: 'pendiente_aprobar' });
       mesaEstadoFinal = 'pendiente_aprobar';
@@ -628,23 +673,37 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
 
   let productos = (ticket.platos || [])
     .filter((p) => p && !p.eliminado && !p.anulado)
-    .map((p) => ({
+    .map((p) => {
+    const tipoServicio = p.tipoServicio === 'para_llevar' || p.paraLlevar === true
+      || String(p.tipoServicio || '').toLowerCase().replace(/\s+/g, '_') === 'llevar'
+      ? 'para_llevar'
+      : (p.tipoServicio || 'mesa');
+    const precio = Number(p.precioUnitario ?? p.precio ?? p.plato?.precio) || 0;
+    const cantidad = Number(p.cantidad) || 1;
+    return {
     nombre: p.nombre,
     nombreComercial: p.plato?.nombre,
     nombreCocina: p.plato?.nombreCocina,
     plato: p.plato,
-    cantidad: p.cantidad,
-    precio: p.precio,
-    subtotal: p.subtotal,
-    tipoServicio: p.tipoServicio,
+    cantidad,
+    precio,
+    subtotal: subtotalLineaSnapshot(p),
+    tipoServicio,
     complementos: (p.complementosSeleccionados || []).map((c) => ({
       grupo: c.grupo,
       opcion: c.opcion,
-      cantidad: c.cantidad,
+      cantidad: c.cantidad || 1,
+      precio: c.precio || 0,
     })),
     notaEspecial: p.notaEspecial || '',
-    paraLlevar: p.tipoServicio === 'para_llevar',
-  }));
+    paraLlevar: tipoServicio === 'para_llevar',
+    mostrarResumenComplementos: !!p.mostrarResumenComplementos,
+    resumenComplementosImpresion: {
+      mostrarCantidad: p.resumenComplementosImpresion?.mostrarCantidad !== false,
+      mostrarMontoExtra: p.resumenComplementosImpresion?.mostrarMontoExtra !== false,
+    },
+  };
+  });
   let solo = true;
   try {
     const config = await configuracionRepository.obtenerConfiguracion();
@@ -674,6 +733,13 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
       subtotal: ticket.subtotal,
       total: ticket.total,
     });
+    const sumaProd = Number(productos.reduce((s, p) => s + (Number(p.subtotal) || 0), 0).toFixed(2));
+    const montoDesc = Number(desc.montoDescuento) || 0;
+    const totalImp = Number(desc.total);
+    const totalFinal = (Number.isFinite(totalImp) && (totalImp > 0 || montoDesc > 0))
+      ? totalImp
+      : sumaProd;
+    const subFinal = Number(desc.subtotal) > 0 ? Number(desc.subtotal) : sumaProd;
     return {
     ticketId: ticket._id,
     ticketNumber: ticket.ticketNumber,
@@ -685,18 +751,18 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
     fechaPedido: ticket.createdAt,
     mesa: ticket.mesa?.nummesa ?? ticket.numMesa,
     mozo: ticket.mozo?.name || ticket.nombreMozo || ticket.mozoNombre,
-    area: null, // se completa en controller si se requiere
+    area: ticket.mesa?.area?.nombre || null,
     moneda: boucherData?.moneda || ticket.moneda || 'PEN',
-    tipoPago: ticket.estado === 'pendiente_aprobacion'
-      ? 'Pendiente'
-      : (boucherData?.metodoPagoLabel || ticket.metodoPago || 'Pendiente'),
+    tipoPago: labelMetodoPagoTicket(ticket.metodoPago)
+      || boucherData?.metodoPagoLabel
+      || (ticket.estado === 'pendiente_aprobacion' ? 'Pendiente' : (ticket.metodoPago || 'Pendiente')),
     observaciones: ticket.observaciones || '',
     productos,
-    subtotal: desc.subtotal,
+    subtotal: subFinal,
     igv: ticket.igv,
     igvPorcentaje: igvSnap.igvPorcentaje,
     nombreImpuesto: igvSnap.nombreImpuesto,
-    total: desc.total,
+    total: totalFinal,
     montoDescuento: desc.montoDescuento,
     totalSinDescuento: desc.totalSinDescuento,
     descuentos: desc.descuentos,
@@ -744,6 +810,7 @@ async function actualizarTicketAdmin(ticketId, { observaciones, metodoPago, plat
   if (observaciones !== undefined) ticket.observaciones = String(observaciones || '');
   if (metodoPago && ['efectivo', 'digital', 'tarjeta'].includes(metodoPago)) {
     ticket.metodoPago = metodoPago;
+    await sincronizarMetodoPagoBoucher(ticket.boucher, metodoPago);
   }
   let comandasAfectadas = [];
   const quit = quitarLineasDeSnapshot(ticket, platosEliminar);
@@ -758,7 +825,19 @@ async function actualizarTicketAdmin(ticketId, { observaciones, metodoPago, plat
     );
   }
   await ticket.save();
-  return { ticket: ticket.toObject(), comandasAfectadas };
+  if (comandasAfectadas.length) {
+    try {
+      const { sincronizarDescuentoTicketsComanda } = require('../utils/descuentoTicketsComanda');
+      for (const cid of comandasAfectadas) {
+        const c = await comandaModel.findById(cid);
+        if (c) await sincronizarDescuentoTicketsComanda(c);
+      }
+    } catch (syncErr) {
+      logger.warn('No se pudo sincronizar otros tickets tras editar cantidad/precio', { error: syncErr.message });
+    }
+  }
+  const fresh = await ticketAprobacionModel.findById(ticketId);
+  return { ticket: (fresh || ticket).toObject(), comandasAfectadas };
 }
 
 /**

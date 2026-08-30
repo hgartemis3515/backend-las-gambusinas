@@ -79,6 +79,62 @@ const aplicarAsignacionAutomaticaReserva = async (comandaId) => {
     }
 };
 
+const listarComandasDeReserva = async (reserva) => {
+    const ids = [];
+    if (reserva.comandaGenerada) {
+        ids.push(reserva.comandaGenerada._id || reserva.comandaGenerada);
+    }
+    const extras = await Comanda.find({
+        origenReserva: reserva._id,
+        IsActive: { $ne: false },
+        status: { $nin: ['cancelado', 'anulado'] }
+    }).select('_id');
+    extras.forEach((c) => ids.push(c._id));
+    const unique = [...new Set(ids.map((id) => String(id)))];
+    if (!unique.length) return [];
+    return Comanda.find({ _id: { $in: unique } });
+};
+
+const asegurarComandaReservaEnKds = async (comanda, logLabel) => {
+    if (!comanda) return null;
+    const debeActivar = comanda.programadaPorReserva
+        || (comanda.platos || []).some((p) => p.estado === 'pendiente');
+    if (!debeActivar && !comanda.programadaPorReserva) {
+        return comanda;
+    }
+    let platosModificados = 0;
+    (comanda.platos || []).forEach((p) => {
+        if (p.estado === 'pendiente') {
+            p.estado = 'pedido';
+            if (!p.tiempos) p.tiempos = {};
+            if (!p.tiempos.pedido) {
+                p.tiempos.pedido = moment.tz('America/Lima').toDate();
+            }
+            platosModificados++;
+        }
+        (p.complementosSeleccionados || []).forEach((c) => {
+            if (!c.estadoCocina || c.estadoCocina === 'pendiente') {
+                c.estadoCocina = 'pedido';
+            }
+        });
+    });
+    comanda.programadaPorReserva = false;
+    comanda.prioridadOrden = Date.now();
+    comanda.origenCreacion = comanda.origenCreacion || 'reserva';
+    if (platosModificados > 0) comanda.markModified('platos');
+    await comanda.save();
+    logger.info(logLabel, {
+        comandaId: comanda._id,
+        comandaNumber: comanda.comandaNumber,
+        platosModificados
+    });
+    await aplicarAsignacionAutomaticaReserva(comanda._id);
+    if (global.emitComandaActualizada) {
+        await global.emitComandaActualizada(comanda._id);
+    }
+    return comanda;
+};
+
 const activarReservaProgramada = async (reservaId, opts = {}) => {
     const origen = opts.origen || 'job';
     try {
@@ -105,45 +161,13 @@ const activarReservaProgramada = async (reservaId, opts = {}) => {
                 logger.info('activarReservaProgramada: reserva ya activa, se asegura la comanda en KDS', {
                     reservaId, origen
                 });
+                const comandasYa = await listarComandasDeReserva(actual);
                 let comandaYa = null;
-                if (actual.comandaGenerada) {
-                    comandaYa = await Comanda.findById(actual.comandaGenerada);
-                    if (comandaYa) {
-                        let platosModificados = 0;
-                        comandaYa.platos.forEach((p) => {
-                            if (p.estado === 'pendiente') {
-                                p.estado = 'pedido';
-                                if (!p.tiempos) p.tiempos = {};
-                                if (!p.tiempos.pedido) {
-                                    p.tiempos.pedido = moment.tz('America/Lima').toDate();
-                                }
-                                platosModificados++;
-                            }
-                            (p.complementosSeleccionados || []).forEach((c) => {
-                                if (!c.estadoCocina || c.estadoCocina === 'pendiente') {
-                                    c.estadoCocina = 'pedido';
-                                }
-                            });
-                        });
-                        comandaYa.programadaPorReserva = false;
-                        comandaYa.prioridadOrden = Date.now();
-                        comandaYa.origenCreacion = comandaYa.origenCreacion || 'reserva';
-                        if (platosModificados > 0) {
-                            comandaYa.markModified('platos');
-                            await comandaYa.save();
-                        } else {
-                            await comandaYa.save();
-                        }
-                        logger.info('Comanda programada asegurada en KDS (reserva ya activa)', {
-                            comandaId: comandaYa._id,
-                            comandaNumber: comandaYa.comandaNumber,
-                            platosModificados
-                        });
-                        await aplicarAsignacionAutomaticaReserva(comandaYa._id);
-                        if (global.emitComandaActualizada) {
-                            await global.emitComandaActualizada(comandaYa._id);
-                        }
-                    }
+                for (const c of comandasYa) {
+                    comandaYa = await asegurarComandaReservaEnKds(
+                        c,
+                        'Comanda programada asegurada en KDS (reserva ya activa)'
+                    ) || comandaYa;
                 }
                 return { activada: true, yaActiva: true, reserva: actual, comanda: comandaYa };
             }
@@ -166,61 +190,16 @@ const activarReservaProgramada = async (reservaId, opts = {}) => {
             fechaCocina: reserva.fechaCocina
         });
 
-        // Activar la comanda programada si existe
+        const comandas = await listarComandasDeReserva(reserva);
         let comandaActualizada = null;
-        if (reserva.comandaGenerada) {
-            const comanda = await Comanda.findById(reserva.comandaGenerada);
-            if (comanda && (comanda.programadaPorReserva || comanda.platos.some((p) => p.estado === 'pendiente'))) {
-                let platosModificados = 0;
-                comanda.platos.forEach((p) => {
-                    if (p.estado === 'pendiente') {
-                        p.estado = 'pedido';
-                        if (!p.tiempos) p.tiempos = {};
-                        if (!p.tiempos.pedido) {
-                            p.tiempos.pedido = moment.tz('America/Lima').toDate();
-                        }
-                        platosModificados++;
-                    }
-                    (p.complementosSeleccionados || []).forEach((c) => {
-                        if (!c.estadoCocina || c.estadoCocina === 'pendiente') {
-                            c.estadoCocina = 'pedido';
-                        }
-                    });
-                });
-                comanda.programadaPorReserva = false;
-                comanda.prioridadOrden = Date.now();
-                comanda.origenCreacion = comanda.origenCreacion || 'reserva';
-                comanda.markModified('platos');
-                await comanda.save();
-                comandaActualizada = comanda;
-                logger.info('Comanda programada activada', {
-                    comandaId: comanda._id,
-                    comandaNumber: comanda.comandaNumber,
-                    platosModificados,
-                    prioridadOrden: comanda.prioridadOrden
-                });
-            } else if (comanda) {
-                logger.debug('Comanda ya no estaba programada, se omite update de flag', {
-                    comandaId: comanda._id,
-                    programadaPorReserva: comanda.programadaPorReserva
-                });
-                comandaActualizada = comanda;
-            }
-            if (comandaActualizada) {
-                await aplicarAsignacionAutomaticaReserva(comandaActualizada._id);
-            }
-        } else {
-            logger.warn('activarReservaProgramada: reserva sin comandaGenerada', { reservaId });
+        if (!comandas.length) {
+            logger.warn('activarReservaProgramada: reserva sin comandas', { reservaId });
+        }
+        for (const comanda of comandas) {
+            comandaActualizada = await asegurarComandaReservaEnKds(comanda, 'Comanda programada activada')
+                || comandaActualizada;
         }
 
-        // Emitir eventos Socket.io (definidos en events.js como globals)
-        try {
-            if (comandaActualizada && global.emitComandaActualizada) {
-                await global.emitComandaActualizada(comandaActualizada._id);
-            }
-        } catch (e) {
-            logger.error('Error al emitir comanda-actualizada en activación', { error: e.message, reservaId });
-        }
         try {
             if (reserva.mesa && global.emitMesaActualizada) {
                 await global.emitMesaActualizada(reserva.mesa._id || reserva.mesa);

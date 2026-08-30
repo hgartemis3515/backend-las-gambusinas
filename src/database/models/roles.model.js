@@ -105,7 +105,7 @@ const PERMISOS_POR_ROL_SISTEMA = {
     supervisor: PERMISOS_SUPERVISOR,
     cocinero: [
         'ver-platos', 'ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas',
-        'ver-cocina-completo', 'ver-cocina-personalizado', 'asignacion-automatica-kds', 'entregar-plato-entero-kds',
+        'ver-cocina-completo', 'ver-cocina-personalizado', 'asignacion-automatica-kds',
         // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: ver tab Reservadas
         'ver-reservas-kds',
         // Mensajería: cocinero puede leer, escribir y enviar voz (prioridad normal)

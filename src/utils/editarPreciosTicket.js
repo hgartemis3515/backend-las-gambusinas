@@ -36,20 +36,30 @@ function recalcularTotalesSnapshot(doc) {
   return doc;
 }
 
+function parseCantidadLinea(raw) {
+  if (raw == null || raw === '') return null;
+  const n = Math.floor(Number(raw));
+  if (!Number.isFinite(n) || n < 1) return null;
+  return n;
+}
+
 function aplicarPreciosEnLineasTicket(ticket, platosInput) {
   if (!ticket || !Array.isArray(ticket.platos) || !Array.isArray(platosInput) || !platosInput.length) {
     return { changed: false, cambiosComanda: [] };
   }
 
-  const precioPorClave = new Map();
-  const precioPorIndex = [];
+  const patchPorClave = new Map();
+  const patchPorIndex = [];
   platosInput.forEach((p, i) => {
+    const patch = {};
     const precio = Number(p && p.precio);
-    if (!Number.isFinite(precio) || precio < 0) return;
-    const val = round2(precio);
+    if (Number.isFinite(precio) && precio >= 0) patch.precio = round2(precio);
+    const cant = parseCantidadLinea(p && p.cantidad);
+    if (cant != null) patch.cantidad = cant;
+    if (patch.precio == null && patch.cantidad == null) return;
     const clave = String((p && (p.platoLineaId || p._id)) || '').trim();
-    if (clave) precioPorClave.set(clave, val);
-    precioPorIndex[i] = val;
+    if (clave) patchPorClave.set(clave, { ...(patchPorClave.get(clave) || {}), ...patch });
+    patchPorIndex[i] = patch;
   });
 
   let changed = false;
@@ -58,16 +68,18 @@ function aplicarPreciosEnLineasTicket(ticket, platosInput) {
   ticket.platos.forEach((linea, i) => {
     if (!linea || linea.eliminado) return;
     const clave = claveLineaTicket(linea);
-    let precio;
-    if (clave && precioPorClave.has(clave)) precio = precioPorClave.get(clave);
-    else if (precioPorIndex[i] != null) precio = precioPorIndex[i];
-    if (precio == null) return;
+    const patch = (clave && patchPorClave.has(clave))
+      ? patchPorClave.get(clave)
+      : patchPorIndex[i];
+    if (!patch) return;
 
-    const cant = Math.max(1, Number(linea.cantidad) || 1);
+    const precio = patch.precio != null ? patch.precio : round2(linea.precio);
+    const cant = patch.cantidad != null ? patch.cantidad : Math.max(1, Number(linea.cantidad) || 1);
     const subtotal = round2(precio * cant);
-    if (round2(linea.precio) === precio && round2(linea.subtotal) === subtotal) return;
+    if (round2(linea.precio) === precio && Number(linea.cantidad) === cant && round2(linea.subtotal) === subtotal) return;
 
     linea.precio = precio;
+    linea.cantidad = cant;
     linea.subtotal = subtotal;
     changed = true;
     if (linea.comandaId && linea.platoLineaId) {
@@ -75,6 +87,7 @@ function aplicarPreciosEnLineasTicket(ticket, platosInput) {
         comandaId: String(linea.comandaId),
         platoLineaId: String(linea.platoLineaId),
         precio,
+        cantidad: cant,
       });
     }
   });
@@ -131,9 +144,24 @@ async function sincronizarPreciosComandaYBoucher(cambiosComanda, boucherId, { sk
       for (const it of items) {
         const plato = comanda.platos.id(it.platoLineaId);
         if (!plato) continue;
-        plato.precio = it.precio;
-        plato.precioUnitario = it.precio;
-        mod = true;
+        if (it.precio != null) {
+          plato.precio = it.precio;
+          plato.precioUnitario = it.precio;
+          mod = true;
+        }
+        if (it.cantidad != null) {
+          const idx = comanda.platos.findIndex((p) => String(p._id) === String(it.platoLineaId));
+          if (idx >= 0) {
+            const cantidades = Array.isArray(comanda.cantidades)
+              ? comanda.cantidades.slice()
+              : [];
+            while (cantidades.length < comanda.platos.length) cantidades.push(1);
+            cantidades[idx] = it.cantidad;
+            comanda.cantidades = cantidades;
+            comanda.markModified('cantidades');
+            mod = true;
+          }
+        }
       }
       if (mod) {
         comanda.markModified('platos');
@@ -147,16 +175,18 @@ async function sincronizarPreciosComandaYBoucher(cambiosComanda, boucherId, { sk
     const Boucher = require('../database/models/boucher.model');
     const boucher = await Boucher.findById(boucherId);
     if (boucher && Array.isArray(boucher.platos)) {
-      const precioPorLinea = new Map(
-        (cambiosComanda || []).map((c) => [String(c.platoLineaId), c.precio])
+      const patchPorLinea = new Map(
+        (cambiosComanda || []).map((c) => [String(c.platoLineaId), c])
       );
       let mod = false;
       for (const bp of boucher.platos) {
         const id = String(bp.platoLineaId || '');
-        if (!id || !precioPorLinea.has(id)) continue;
-        const precio = precioPorLinea.get(id);
+        if (!id || !patchPorLinea.has(id)) continue;
+        const patch = patchPorLinea.get(id);
+        if (patch.precio != null) bp.precio = patch.precio;
+        if (patch.cantidad != null) bp.cantidad = patch.cantidad;
+        const precio = Number(bp.precio) || 0;
         const cant = Math.max(1, Number(bp.cantidad) || 1);
-        bp.precio = precio;
         bp.subtotal = round2(precio * cant);
         mod = true;
       }

@@ -26,6 +26,11 @@ const SELECT_PLATO_COCINA = 'nombre precio categoria codigo nombreCocina complem
 const configuracionRepository = require('./configuracion.repository');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
 const { obtenerCicloServicioMesa, intersectarComandaIds, obtenerComandaIdsDeTicketsRecientes } = require('../services/mesaCicloServicio.service');
+const {
+  heredarProgramacionDeComandaPrincipal,
+  mesaGrupoPrincipalId,
+  mesaEstadoEsReserva
+} = require('../utils/reservaComandas');
 
 // ========== RESERVAS: Importar repositorio de reservas ==========
 // Importacion diferida para evitar dependencia circular
@@ -657,9 +662,22 @@ const agregarComanda = async (data) => {
   // Validar que la mesa exista. NO se valida el estado de comandas existentes en la mesa:
   // las comandas son entidades independientes y una mesa puede tener múltiples comandas
   // simultáneas en cualquier estado (en_espera, recoger, entregado).
-  const mesa = await mesasModel.findById(data.mesas);
+  let mesa = await mesasModel.findById(data.mesas);
   if (!mesa) {
     throw new Error('Mesa no encontrada');
+  }
+
+  const principalGrupoId = mesaGrupoPrincipalId(mesa);
+  if (principalGrupoId) {
+    logger.info('Comanda en mesa secundaria: se usa la mesa principal del grupo', {
+      secundaria: mesa._id,
+      principal: principalGrupoId
+    });
+    data.mesas = principalGrupoId;
+    mesa = await mesasModel.findById(data.mesas);
+    if (!mesa) {
+      throw new Error('Mesa principal del grupo no encontrada');
+    }
   }
 
   // Validar que el número de mesa sea único (ya está en el schema, pero verificamos)
@@ -679,7 +697,7 @@ const agregarComanda = async (data) => {
   const estadoMesa = (mesa.estado || 'libre').toLowerCase();
   
   // ========== RESERVAS: Validacion de mozo autorizado ==========
-  if (estadoMesa === 'reservado') {
+  if (mesaEstadoEsReserva(estadoMesa)) {
     console.log(`🔍 Mesa ${mesa.nummesa} está reservada. Verificando autorización del mozo...`);
     console.log(`🔍 Mesa ID: ${mesa._id}, Mozo solicitante: ${data.mozos}`);
     
@@ -737,14 +755,22 @@ const agregarComanda = async (data) => {
         
         // Guardar referencia a la reserva en la comanda
         data.origenReserva = reservaActiva._id;
+        const genId = reservaActiva.comandaGenerada?._id || reservaActiva.comandaGenerada;
+        if (genId) {
+          const principalDoc = await comandaModel.findById(genId)
+            .select('programadaPorReserva fechaCocinaProgramada')
+            .lean();
+          const flagsProg = heredarProgramacionDeComandaPrincipal(principalDoc);
+          if (flagsProg) {
+            data.programadaPorReserva = flagsProg.programadaPorReserva;
+            data.fechaCocinaProgramada = flagsProg.fechaCocinaProgramada;
+            data.origenCreacion = flagsProg.origenCreacion;
+          }
+        }
         
-      } else {
+      } else if (estadoMesa === 'reservado') {
         // No hay reserva activa, pero la mesa está en estado reservado (inconsistencia o expiró)
-        // Permitir que cualquier mozo pueda atender y cambiar el estado de la mesa
         console.log(`⚠️ Mesa ${mesa.nummesa} en estado 'reservado' sin reserva activa. Permitiendo crear comanda.`);
-        console.log(`📝 El estado de la mesa se actualizará a 'pedido' automáticamente.`);
-        
-        // Actualizar el estado de la mesa a 'pedido' para corregir la inconsistencia
         mesa.estado = 'pedido';
         await mesa.save();
         console.log(`✅ Mesa ${mesa.nummesa} actualizada a estado 'pedido'`);
@@ -801,11 +827,15 @@ const agregarComanda = async (data) => {
     plato.platoId = platoCompleto.id;
     
     // FASE 1: Validar y normalizar estado del plato
-    if (!plato.estado) {
+    if (data.programadaPorReserva) {
+      plato.estado = 'pendiente';
+    } else if (!plato.estado) {
       plato.estado = 'pedido';
     }
     
-    const estadosInicialesValidos = ['pedido', 'en_espera'];
+    const estadosInicialesValidos = data.programadaPorReserva
+      ? ['pedido', 'en_espera', 'pendiente']
+      : ['pedido', 'en_espera'];
     if (!estadosInicialesValidos.includes(plato.estado)) {
       const errorMsg = `Estado inicial inválido para plato ${index}: "${plato.estado}". Solo se permiten: pedido, en_espera`;
       throw new Error(errorMsg);
@@ -815,7 +845,9 @@ const agregarComanda = async (data) => {
     if (!plato.tiempos) {
       plato.tiempos = {};
     }
-    plato.tiempos.pedido = ahora;
+    if (plato.estado !== 'pendiente') {
+      plato.tiempos.pedido = ahora;
+    }
     if (plato.estado === 'en_espera') {
       plato.tiempos.en_espera = ahora;
     }
@@ -883,6 +915,9 @@ const agregarComanda = async (data) => {
     data.status = calcularEstadoGlobalInicial(data.platos);
     console.log(`FASE1: Estado global calculado: "${data.status}" basado en estados de platos`);
   }
+  if (data.programadaPorReserva) {
+    data.status = 'en_espera';
+  }
   
   // Validar que las cantidades coincidan con los platos (REQUERIDO - rechazar si no coincide)
   if (data.platos.length !== data.cantidades.length) {
@@ -943,21 +978,48 @@ const agregarComanda = async (data) => {
       });
       console.log(`✅ Comanda dashboard #${nuevaComanda.comandaNumber} → Pedido dedicado #${pedido.pedidoId}`);
     } else {
-      pedido = await pedidoModel.obtenerOcrearPedidoAbierto(
-        nuevaComanda.mesas,
-        nuevaComanda.mozos,
-        {
-          numMesa: datosDesnormalizados.mesaNumero,
-          areaNombre: datosDesnormalizados.areaNombre,
-          nombreMozo: datosDesnormalizados.mozoNombre || 'Sin asignar'
+      const datosPedidoMesa = {
+        numMesa: datosDesnormalizados.mesaNumero,
+        areaNombre: datosDesnormalizados.areaNombre,
+        nombreMozo: datosDesnormalizados.mozoNombre || 'Sin asignar'
+      };
+      let principalReserva = null;
+      if (data.origenReserva) {
+        const Reserva = require('../database/models/reserva.model');
+        const reservaLean = await Reserva.findById(data.origenReserva).select('comandaGenerada').lean();
+        const genId = reservaLean?.comandaGenerada;
+        if (genId && String(genId) !== String(nuevaComanda._id)) {
+          principalReserva = await comandaModel.findById(genId);
+          if (principalReserva?.pedido) {
+            const pedidoExistente = await pedidoModel.findById(principalReserva.pedido);
+            if (pedidoExistente && pedidoExistente.estado === 'abierto' && pedidoExistente.isActive !== false) {
+              pedido = pedidoExistente;
+            }
+          }
         }
-      );
-
-      if (!pedido.comandas.some(c => c.toString() === nuevaComanda._id.toString())) {
+      }
+      if (!pedido) {
+        pedido = await pedidoModel.obtenerOcrearPedidoAbierto(
+          nuevaComanda.mesas,
+          nuevaComanda.mozos,
+          datosPedidoMesa
+        );
+      }
+      if (principalReserva) {
+        if (String(principalReserva.pedido || '') !== String(pedido._id)) {
+          principalReserva.pedido = pedido._id;
+          await principalReserva.save();
+        }
+        if (!pedido.comandas.some((c) => c.toString() === principalReserva._id.toString())) {
+          pedido.comandas.push(principalReserva._id);
+          pedido.comandasNumbers.push(principalReserva.comandaNumber);
+        }
+      }
+      if (!pedido.comandas.some((c) => c.toString() === nuevaComanda._id.toString())) {
         pedido.comandas.push(nuevaComanda._id);
         pedido.comandasNumbers.push(nuevaComanda.comandaNumber);
-        await pedido.save();
       }
+      await pedido.save();
       console.log(`✅ Comanda #${nuevaComanda.comandaNumber} asociada al Pedido #${pedido.pedidoId} (mesa ${datosDesnormalizados.mesaNumero})`);
     }
 
@@ -978,8 +1040,8 @@ const agregarComanda = async (data) => {
   // Si la mesa estaba en "libre", cambiar a "pedido"
   // Reserva aprobada: la mesa sigue 'reservado' (morado) aunque se agreguen platos
   const esComandaDeReserva = !!(data.origenReserva || data.origenCreacion === 'reserva');
-  if (estadoMesa === 'reservado' && esComandaDeReserva) {
-    logger.debug('Mesa reservada: se mantiene estado reservado', { mesaId: mesa._id, numMesa: mesa.nummesa });
+  if (mesaEstadoEsReserva(estadoMesa) && esComandaDeReserva) {
+    logger.debug('Mesa reserva: se mantiene estado', { mesaId: mesa._id, numMesa: mesa.nummesa, estadoMesa });
   } else if (estadoMesa === 'preparado' || estadoMesa === 'libre' || estadoMesa === 'reservado' || estadoMesa === 'entregado' || estadoMesa === 'pagado') {
     await mesasModel.updateOne(
       { _id: data.mesas },
@@ -1033,6 +1095,16 @@ const agregarComanda = async (data) => {
   } catch (populateError) {
     console.warn('⚠️ Tests: Retornando sin populate:', populateError.message);
     // En tests, retornar comanda sin populate
+  }
+
+  try {
+    const aprobacionService = require('../services/aprobacionComanda.service');
+    await aprobacionService.crearTicketPendienteDesdeComanda(comandaCreada?._id || nuevaComanda._id);
+  } catch (ticketAltaErr) {
+    logger.warn('Ticket PENDIENTE al crear comanda no se pudo generar', {
+      comandaId: nuevaComanda._id,
+      error: ticketAltaErr.message
+    });
   }
   
   console.log('📋 Comanda populada:', {
@@ -3241,32 +3313,66 @@ const getComandasCicloParaPagos = async (mesaId, comandaIdsOpcional = null) => {
  */
 const getComandasActivasPorMesa = async (mesaId) => {
   const ciclo = await obtenerCicloServicioMesa(mesaId);
-  if (!ciclo.pedidoId && !ciclo.comandaIds?.length) {
-    return [];
+  let comandas = [];
+  if (ciclo.pedidoId || ciclo.comandaIds?.length) {
+    const query = {
+      mesas: mesaId,
+      IsActive: true,
+      status: { $nin: ['pagado', 'completado'] },
+    };
+    if (ciclo.pedidoId) {
+      query.pedido = ciclo.pedidoId;
+    } else {
+      query._id = { $in: ciclo.comandaIds };
+    }
+    comandas = await comandaModel
+      .find(query)
+      .populate('platos.plato')
+      .populate('mesas')
+      .populate('mozos', 'name _id')
+      .populate('cliente', 'nombre dni')
+      .populate('pedido', 'pedidoId estado')
+      .sort({ createdAt: -1 })
+      .lean();
   }
 
-  const query = {
-    mesas: mesaId,
-    IsActive: true,
-    status: { $nin: ['pagado', 'completado'] },
-  };
-  if (ciclo.pedidoId) {
-    query.pedido = ciclo.pedidoId;
-  } else {
-    query._id = { $in: ciclo.comandaIds };
+  const reservaIds = [...new Set(
+    comandas
+      .map((c) => c.origenReserva && (c.origenReserva._id || c.origenReserva))
+      .filter(Boolean)
+      .map(String)
+  )];
+  let idsReserva = reservaIds;
+  if (!idsReserva.length) {
+    const conReserva = await comandaModel.find({
+      mesas: mesaId,
+      IsActive: true,
+      origenReserva: { $ne: null },
+      status: { $nin: ['pagado', 'completado', 'cancelado'] }
+    }).select('origenReserva').lean();
+    idsReserva = [...new Set(conReserva.map((c) => String(c.origenReserva)))];
+  }
+  if (idsReserva.length) {
+    const ya = new Set(comandas.map((c) => String(c._id)));
+    const hermanas = await comandaModel
+      .find({
+        mesas: mesaId,
+        IsActive: true,
+        origenReserva: { $in: idsReserva },
+        status: { $nin: ['pagado', 'completado'] },
+        ...(ya.size ? { _id: { $nin: [...ya] } } : {})
+      })
+      .populate('platos.plato')
+      .populate('mesas')
+      .populate('mozos', 'name _id')
+      .populate('cliente', 'nombre dni')
+      .populate('pedido', 'pedidoId estado')
+      .lean();
+    if (hermanas.length) comandas = comandas.concat(hermanas);
   }
 
-  const comandas = await comandaModel
-    .find(query)
-    .populate('platos.plato')
-    .populate('mesas')
-    .populate('mozos', 'name _id')
-    .populate('cliente', 'nombre dni')
-    .populate('pedido', 'pedidoId estado')
-    .sort({ createdAt: -1 })
-    .lean();
-
-  if (!comandas.length || comandas.length === 1) return comandas;
+  if (!comandas.length) return [];
+  if (comandas.length === 1) return comandas;
   const ts = (c) => (c.createdAt ? new Date(c.createdAt).getTime() : 0);
   const maxT = Math.max(...comandas.map(ts));
   const minT = Math.min(...comandas.map(ts));

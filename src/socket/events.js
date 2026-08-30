@@ -2201,6 +2201,42 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
     }
   };
 
+  /**
+   * Permisos/rol de un usuario cambiaron (Roles o Usuarios).
+   * App Cocina aplica el payload y renueva el JWT sin relogin ni reinicio.
+   */
+  global.emitPermisosActualizados = (payload = {}) => {
+    try {
+      const usuarioId = payload.usuarioId != null ? String(payload.usuarioId) : '';
+      const mozoId = payload.mozoId != null ? String(payload.mozoId) : '';
+      const eventData = {
+        usuarioId: usuarioId || undefined,
+        mozoId: mozoId || undefined,
+        rol: payload.rol,
+        permisos: Array.isArray(payload.permisos) ? payload.permisos : [],
+        reglas: Array.isArray(payload.reglas) ? payload.reglas : [],
+        timestamp: moment().tz('America/Lima').toISOString()
+      };
+
+      if (cocinaNamespace && cocinaNamespace.sockets) {
+        const rooms = new Set();
+        if (usuarioId) rooms.add(`cocinero-${usuarioId}`);
+        if (mozoId && `cocinero-${mozoId}` !== `cocinero-${usuarioId}`) {
+          rooms.add(`cocinero-${mozoId}`);
+        }
+        for (const roomName of rooms) {
+          cocinaNamespace.to(roomName).emit('permisos-actualizados', eventData);
+        }
+        cocinaNamespace.emit('permisos-actualizados', eventData);
+      }
+    } catch (error) {
+      logger.error('Error al emitir permisos-actualizados', {
+        error: error.message,
+        usuarioId: payload.usuarioId
+      });
+    }
+  };
+
   // ========== TEMA 4: EVENTOS DE PROCESAMIENTO CON IDENTIFICACIÓN DE COCINERO ==========
 
   const emitProcesamientoToMesaMozos = async (eventName, comandaId, eventData) => {
@@ -3204,22 +3240,25 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       const timestamp = moment().tz('America/Lima').toISOString();
       const fecha = moment().tz('America/Lima').format('YYYY-MM-DD');
 
+      const origen = String(ticketData.origen || '').toLowerCase();
       const eventData = {
         ticket: ticketData,
         mesaId: ticketData.mesa?.toString() || ticketData.mesa?.toString(),
         numMesa: ticketData.numMesa,
         mozoId: ticketData.mozo?.toString() || ticketData.mozo?.toString(),
         tipo: ticketData.tipo || 'comanda_completa',
+        origen,
         timestamp,
       };
 
       // Cocina: bandeja unificada
       if (cocinaNamespace && cocinaNamespace.sockets) {
         cocinaNamespace.to(`fecha-${fecha}`).emit('ticket-aprobacion-nuevo', eventData);
+        cocinaNamespace.emit('ticket-aprobacion-nuevo', eventData);
       }
 
-      // Mozos: actualizar estado de mesa
-      if (mozosNamespace && mozosNamespace.sockets && ticketData.mesa) {
+      // Mozos: alta_comanda no cambia la mesa (sigue en pedido/reservado).
+      if (mozosNamespace && mozosNamespace.sockets && ticketData.mesa && origen !== 'alta_comanda') {
         const mesaRoom = `mesa-${ticketData.mesa}`;
         mozosNamespace.to(mesaRoom).emit('ticket-aprobacion-nuevo', eventData);
       }

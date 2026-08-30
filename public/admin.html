@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Administración - Las Gambusinas</title>
+    <title>Panel de Administración - San Benito</title>
     <!-- Scripts CDN con crossorigin para CSP -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
@@ -490,7 +490,7 @@
     <div class="container">
         <div class="header">
             <h1>🍽️ Panel de Administración</h1>
-            <p>Las Gambusinas - Gestión del Restaurante</p>
+            <p>San Benito - Gestión del Restaurante</p>
         </div>
 
         <div class="tabs">
@@ -2788,7 +2788,7 @@
                     </head>
                     <body>
                         <div class="header">
-                            <h1>🍽️ Las Gambusinas</h1>
+                            <h1>🍽️ San Benito</h1>
                             <h2>BOUCHER DE PAGO</h2>
                             <p>N° ${boucher.boucherNumber || boucher._id.slice(-6)}</p>
                         </div>
@@ -6633,7 +6633,7 @@
 
                 // Header
                 doc.setFontSize(20);
-                doc.text('REPORTE DE VENTAS - LAS GAMBUSINAS', 105, 20, { align: 'center' });
+                doc.text('REPORTE DE VENTAS - SAN BENITO', 105, 20, { align: 'center' });
                 doc.setFontSize(12);
                 doc.text(`Período: ${fechaInicio} al ${fechaFin}`, 105, 30, { align: 'center' });
                 doc.text(`Generado: ${new Date().toLocaleString('es-PE')}`, 105, 37, { align: 'center' });

@@ -140,6 +140,7 @@ describe('estadisticasComandas', () => {
     expect(fila.platos).toHaveLength(1);
     expect(fila.platos[0].cantidad).toBe(2);
     expect(fila.platos[0].precio).toBe(29.5);
+    expect(fila.platos[0].precioUnitario).toBe(29.5);
     expect(fila.platos[0].subtotal).toBe(59);
     expect(fila._fuente).toBe('comanda');
   });

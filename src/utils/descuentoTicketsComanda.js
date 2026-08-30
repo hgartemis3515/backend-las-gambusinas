@@ -5,7 +5,7 @@
 const moment = require('moment-timezone');
 const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
 const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
-const { aplicarDescuentoADocDesdeComanda, marcarYRestarPlatosEliminados } = require('./descuentoTicketSnapshot');
+const { aplicarDescuentoADocDesdeComanda, marcarYRestarPlatosEliminados, sincronizarCantidadesSnapshotDesdeComanda } = require('./descuentoTicketSnapshot');
 const logger = require('./logger');
 
 function emitirTicketsActualizados(tickets) {
@@ -25,6 +25,7 @@ function emitirTicketsActualizados(tickets) {
       io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-ppa-actualizado', payload);
       io.of('/admin').emit('ticket-actualizado', payload);
       io.of('/admin').emit('ticket-ppa-actualizado', payload);
+      io.of('/mozos').emit('ticket-actualizado', payload);
     } catch (err) {
       logger.warn('No se pudo emitir ticket actualizado tras descuento', { error: err.message });
     }
@@ -41,6 +42,7 @@ async function sincronizarDescuentoTicketsComanda(comanda) {
   const updated = [];
   for (const t of [...tas, ...ppas]) {
     marcarYRestarPlatosEliminados(t, comanda);
+    sincronizarCantidadesSnapshotDesdeComanda(t, comanda);
     aplicarDescuentoADocDesdeComanda(t, comanda);
     await t.save();
     updated.push(t);
@@ -55,6 +57,7 @@ async function sincronizarDescuentoTicketsComanda(comanda) {
     });
     for (const b of bouchers) {
       marcarYRestarPlatosEliminados(b, comanda);
+      sincronizarCantidadesSnapshotDesdeComanda(b, comanda);
       aplicarDescuentoADocDesdeComanda(b, comanda);
       await b.save();
     }
