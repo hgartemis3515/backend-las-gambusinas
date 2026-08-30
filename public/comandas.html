@@ -1009,15 +1009,15 @@ tailwind.config = {
  <p x-show="ticket.estado === 'rechazado' && ticket.motivoRechazo" class="text-[10px] text-st-pagado mt-0.5" x-text="'✕ ' + ticket.motivoRechazo"></p>
  </div>
  <div class="flex flex-col items-end gap-0.5 shrink-0">
- <template x-if="Number(ticket.montoDescuento) > 0">
+ <template x-if="Number(totalesTicketVista(ticket).desc) > 0">
  <div class="text-right space-y-0.5">
  <span class="block text-[9px] text-txt-muted" x-text="'Subt. S/. ' + Number(totalesTicketVista(ticket).bruto).toFixed(2)"></span>
  <span class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(totalesTicketVista(ticket).desc).toFixed(2)"></span>
  <span class="text-sm font-bold text-gold" x-text="'S/. ' + Number(totalesTicketVista(ticket).neto).toFixed(2)"></span>
  </div>
  </template>
- <template x-if="!(Number(ticket.montoDescuento) > 0)">
- <span class="text-sm font-bold text-gold" x-text="'S/. ' + Number(ticket.total || 0).toFixed(2)"></span>
+ <template x-if="!(Number(totalesTicketVista(ticket).desc) > 0)">
+ <span class="text-sm font-bold text-gold" x-text="'S/. ' + Number(totalesTicketVista(ticket).neto).toFixed(2)"></span>
  </template>
  <button @click="imprimirTicketComanda(ticket)" class="p-1.5 rounded hover:bg-gold/20 transition text-xs" title="Imprimir ticket">🖨️</button>
  </div>
@@ -1573,15 +1573,15 @@ tailwind.config = {
  <p x-show="ticket.observaciones" class="text-[10px] text-txt-muted mt-1 truncate" x-text="'📝 ' + ticket.observaciones"></p>
  </div>
  <div class="flex flex-col items-end gap-1 shrink-0">
- <template x-if="Number(ticket.montoDescuento) > 0">
+ <template x-if="Number(totalesTicketVista(ticket).desc) > 0">
  <div class="text-right space-y-0.5">
  <span class="block text-[9px] text-txt-muted" x-text="'Subt. S/. ' + Number(totalesTicketVista(ticket).bruto).toFixed(2)"></span>
  <span class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(totalesTicketVista(ticket).desc).toFixed(2)"></span>
  <span class="text-sm font-bold text-gold" x-text="'S/. ' + Number(totalesTicketVista(ticket).neto).toFixed(2)"></span>
  </div>
  </template>
- <template x-if="!(Number(ticket.montoDescuento) > 0)">
- <span class="text-sm font-bold text-gold" x-text="'S/. ' + Number(ticket.total || 0).toFixed(2)"></span>
+ <template x-if="!(Number(totalesTicketVista(ticket).desc) > 0)">
+ <span class="text-sm font-bold text-gold" x-text="'S/. ' + Number(totalesTicketVista(ticket).neto).toFixed(2)"></span>
  </template>
  <div class="flex items-center gap-1">
  <button @click="imprimirTicketComanda(ticket)" class="p-1 rounded hover:bg-gold/20 transition text-xs" title="Imprimir">🖨️</button>
@@ -4520,9 +4520,30 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  return (this.ticketEditForm.platos || []).filter((p) => p && !p.eliminadoTicket && !p.quitarDelTicket);
  },
 
+ idsPlatosEliminadosComanda() {
+ return new Set(
+  (this.editPlatos || [])
+   .filter((p) => p && p.eliminado)
+   .map((p) => String(p._id || p.platoLineaId || ''))
+   .filter(Boolean)
+ );
+ },
+
+ platoTicketSumaEnVista(p, eliminadosCmd) {
+ if (!p || p.eliminado || p.anulado) return false;
+ const id = String(p.platoLineaId || p._id || '');
+ if (id && eliminadosCmd.has(id)) return false;
+ return true;
+ },
+
+ platosTicketVisiblesLista(ticket) {
+ const eliminadosCmd = this.idsPlatosEliminadosComanda();
+ return (ticket?.platos || []).filter((p) => this.platoTicketSumaEnVista(p, eliminadosCmd));
+ },
+
  ticketCantidadPlatos(ticket) {
- if (Array.isArray(ticket?.platos)) {
-  return ticket.platos.filter((p) => p && !p.eliminado && !p.anulado).length;
+ if (Array.isArray(ticket?.platos) && ticket.platos.length) {
+  return this.platosTicketVisiblesLista(ticket).length;
  }
  return ticket?.cantidadPlatos || 0;
  },
@@ -4559,25 +4580,18 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  },
 
  totalesTicketVista(ticket) {
- const desc = Number(ticket?.montoDescuento) || 0;
- const sin = Number(ticket?.totalSinDescuento) || 0;
- const tot = Number(ticket?.total) || 0;
- const extra = (ticket?.platos || []).reduce((s, p) => {
-   if (!p || p.eliminado || p.anulado) return s;
-   return s + (Number(p.subtotal) || (Number(p.precio) || 0) * (Number(p.cantidad) || 1));
- }, 0);
- const fromC = (ticket?.comandas || []).reduce((s, c) => {
-   if (!c || typeof c !== 'object') return s;
-   return s + (Number(c.totalSinDescuento) || 0);
- }, 0);
- const candidatos = [sin, extra, fromC].filter((n) => Number.isFinite(n) && n > 0);
- if (tot > 0) {
-   const maxCand = candidatos.length ? Math.max(...candidatos) : 0;
-   if (desc > 0 && maxCand > tot + 0.05) candidatos.push(Number((tot + desc).toFixed(2)));
-   else candidatos.push(tot);
- }
- const bruto = candidatos.length ? Math.max(...candidatos) : 0;
- const neto = desc > 0 ? Number(Math.max(0, bruto - desc).toFixed(2)) : tot;
+ const haySnapshot = Array.isArray(ticket?.platos) && ticket.platos.length > 0;
+ const extra = this.platosTicketVisiblesLista(ticket).reduce((s, p) => (
+  s + (Number(p.subtotal) || (Number(p.precio) || 0) * (Number(p.cantidad) || 1))
+ ), 0);
+ const pct = Number(ticket?.descuentos?.[0]?.porcentaje) || 0;
+ let desc = Number(ticket?.montoDescuento) || 0;
+ const bruto = haySnapshot
+  ? Number(extra.toFixed(2))
+  : Number((Number(ticket?.totalSinDescuento) || Number(ticket?.total) || 0).toFixed(2));
+ if (pct > 0) desc = Number((bruto * pct / 100).toFixed(2));
+ else if (desc > bruto) desc = bruto;
+ const neto = Number(Math.max(0, bruto - desc).toFixed(2));
  return { bruto, desc, neto };
  },
 
