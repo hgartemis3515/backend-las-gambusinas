@@ -446,8 +446,13 @@ async function crearTicketAprobadoDesdeComanda(comandaId, { usuarioId, usuarioNo
     .populate('cliente', 'nombre dni')
     .lean();
 
-  if (!comanda || comanda.eliminada === true || comanda.IsActive === false) {
-    const err = new Error('Comanda no encontrada o eliminada');
+  if (!comanda) {
+    const err = new Error('Comanda no encontrada');
+    err.statusCode = 404;
+    throw err;
+  }
+  if (comanda.eliminada === true) {
+    const err = new Error('La comanda está eliminada');
     err.statusCode = 404;
     throw err;
   }
@@ -570,7 +575,8 @@ async function crearTicketAprobadoDesdeComanda(comandaId, { usuarioId, usuarioNo
     cliente: comanda.cliente?._id || comanda.cliente || null,
     clienteNombre: comanda.cliente?.nombre || comanda.clienteNombre || null,
     clienteDni: comanda.cliente?.dni || null,
-    observaciones: comanda.observaciones || '',
+    origen: 'pago',
+    observaciones: comanda.observaciones || 'Ticket creado desde dashboard (ya aprobado)',
     mozoId,
     sourceApp: 'admin',
   });

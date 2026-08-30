@@ -4757,7 +4757,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const res = this.assertApiOk(await apiPost('/aprobacion/desde-comanda/' + comandaId, {
  usuarioId: 'admin',
  usuarioNombre: 'Admin',
- forzarAdmin: true
+ forzarAdmin: true,
+ sourceApp: 'dashboard'
  }), 'No se pudo crear el ticket de aprobación');
  await this.loadComandaTickets(comandaId);
  const nro = res?.ticket?.ticketNumber;
