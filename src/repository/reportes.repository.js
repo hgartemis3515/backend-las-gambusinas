@@ -35,8 +35,7 @@ const Plato = mongoose.model('platos') || require('../database/models/plato.mode
  */
 async function getMetricasCocineros(fechaInicio, fechaFin) {
     try {
-        const fechaInicioDate = moment.tz(fechaInicio, 'America/Lima').startOf('day').toDate();
-        const fechaFinDate = moment.tz(fechaFin, 'America/Lima').endOf('day').toDate();
+        const { inicio: fechaInicioDate, fin: fechaFinDate } = rangoLima(fechaInicio, fechaFin);
 
         logger.info('[ReportesRepo] Obteniendo métricas de cocineros', {
             fechaInicio: fechaInicioDate,
@@ -320,8 +319,7 @@ function calcularResumenGeneral(cocineros) {
  */
 async function getSerieTemporalCocineros(fechaInicio, fechaFin, agruparPor = 'dia') {
     try {
-        const fechaInicioDate = moment.tz(fechaInicio, 'America/Lima').startOf('day').toDate();
-        const fechaFinDate = moment.tz(fechaFin, 'America/Lima').endOf('day').toDate();
+        const { inicio: fechaInicioDate, fin: fechaFinDate } = rangoLima(fechaInicio, fechaFin);
 
         let formatoFecha;
         switch (agruparPor) {
@@ -424,8 +422,7 @@ async function getSerieTemporalCocineros(fechaInicio, fechaFin, agruparPor = 'di
  */
 async function getHeatmapHorario(fechaInicio, fechaFin) {
     try {
-        const fechaInicioDate = moment.tz(fechaInicio, 'America/Lima').startOf('day').toDate();
-        const fechaFinDate = moment.tz(fechaFin, 'America/Lima').endOf('day').toDate();
+        const { inicio: fechaInicioDate, fin: fechaFinDate } = rangoLima(fechaInicio, fechaFin);
 
         const pipeline = [
             {
@@ -498,8 +495,7 @@ async function getHeatmapHorario(fechaInicio, fechaFin) {
  */
 async function getDistribucionCategorias(fechaInicio, fechaFin) {
     try {
-        const fechaInicioDate = moment.tz(fechaInicio, 'America/Lima').startOf('day').toDate();
-        const fechaFinDate = moment.tz(fechaFin, 'America/Lima').endOf('day').toDate();
+        const { inicio: fechaInicioDate, fin: fechaFinDate } = rangoLima(fechaInicio, fechaFin);
 
         const pipeline = [
             {
@@ -618,8 +614,7 @@ async function getDistribucionCategorias(fechaInicio, fechaFin) {
  */
 async function getDetalleCocinero(cocineroId, fechaInicio, fechaFin) {
     try {
-        const fechaInicioDate = moment.tz(fechaInicio, 'America/Lima').startOf('day').toDate();
-        const fechaFinDate = moment.tz(fechaFin, 'America/Lima').endOf('day').toDate();
+        const { inicio: fechaInicioDate, fin: fechaFinDate } = rangoLima(fechaInicio, fechaFin);
 
         // Obtener datos del cocinero
         const cocinero = await Mozos.findById(cocineroId)

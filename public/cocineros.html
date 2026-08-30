@@ -233,12 +233,22 @@ tailwind.config = {
             <option value="activo">Con configuración activa</option>
             <option value="inactivo">Sin configurar</option>
           </select>
-          <select x-model="filtroFecha" @change="cargarMetricas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroFecha('dia')"
+            class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
+            :class="filtroFecha === 'dia' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">DIA</button>
+          <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroFecha('noche')"
+            class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
+            :class="filtroFecha === 'noche' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">NOCHE</button>
+          <select x-model="filtroFecha" @change="setFiltroFecha(filtroFecha)" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
             <option value="hoy">Hoy</option>
+            <option value="dia" x-bind:hidden="!showTurnoDiaNoche">DIA</option>
+            <option value="noche" x-bind:hidden="!showTurnoDiaNoche">NOCHE</option>
             <option value="7dias">Últimos 7 días</option>
             <option value="30dias">Últimos 30 días</option>
             <option value="personalizado">Personalizado</option>
           </select>
+        </div>
         </div>
         <button @click="cargarDatos()" class="bg-gold/20 text-gold px-4 py-2 rounded-lg text-sm font-medium hover:bg-gold/30 transition">
           🔄 Actualizar
@@ -2428,6 +2438,8 @@ tailwind.config = {
             <select x-model="historialFiltroFecha" @change="cargarHistorialCocinados()"
               class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
               <option value="hoy">Hoy</option>
+              <option value="dia" x-bind:hidden="!showTurnoDiaNoche">DIA</option>
+              <option value="noche" x-bind:hidden="!showTurnoDiaNoche">NOCHE</option>
               <option value="ayer">Ayer</option>
               <option value="7dias">Últimos 7 días</option>
               <option value="30dias">Últimos 30 días</option>
@@ -4120,6 +4132,7 @@ tailwind.config = {
 <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 <script src="/assets/js/notifications.js"></script>
 <script src="/assets/js/shared.js"></script>
+<script src="/assets/js/turnosDiaNoche.js"></script>
 <script>
 // ============================================================
 // Interceptor global de fetch para refrescar el adminToken
@@ -4194,6 +4207,20 @@ tailwind.config = {
   };
 })();
 
+function limaYMD(d = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Lima',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
+}
+function addDaysYMD(ymd, delta) {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const utc = Date.UTC(y, m - 1, d, 12, 0, 0);
+  return limaYMD(new Date(utc + delta * 86400000));
+}
+
 function cocinerosApp() {
   return {
     sidebarOpen: true,
@@ -4217,6 +4244,12 @@ function cocinerosApp() {
     filtroFecha: 'hoy',
     fechaDesde: '',
     fechaHasta: '',
+    showTurnoDiaNoche: false,
+    primerCierreHoyAt: null,
+    cierresHoyCount: 0,
+    turnosLimaYMD: '',
+    _turnosAutoNocheHecho: false,
+    _turnosPoll: null,
     busquedaUsuario: '',
     usuarioSeleccionado: null,
 
@@ -4616,6 +4649,7 @@ function cocinerosApp() {
         window.GambusinasNotifications.init();
       }
 
+      await this.refreshTurnosCierre({ skipReload: true });
       await this.cargarDatos();
       await this.cargarDatosSelectores();
       await this.cargarZonas();
@@ -4629,6 +4663,11 @@ function cocinerosApp() {
       this.$watch('busquedaZonas', () => { this.currentPageZonas = 1; });
       this.$watch('filtroEstadoZonas', () => { this.currentPageZonas = 1; });
       this.$watch('vistaRendimiento', () => { this.guardarVistaRendimiento(); }, { deep: true });
+
+      this._turnosPoll = setInterval(() => this.refreshTurnosCierre(), 45000);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) this.refreshTurnosCierre();
+      });
 
       // Limpieza de socket/intervalo de rendimiento al cerrar la página
       window.addEventListener('beforeunload', () => {
@@ -4773,8 +4812,8 @@ function cocinerosApp() {
       
       let url = '/cocineros/metricas/todos';
       const params = [];
-      if (desde) params.push(`desde=${desde}`);
-      if (hasta) params.push(`hasta=${hasta}`);
+      if (desde) params.push(`desde=${encodeURIComponent(desde)}`);
+      if (hasta) params.push(`hasta=${encodeURIComponent(hasta)}`);
       if (params.length > 0) url += '?' + params.join('&');
       
       try {
@@ -4855,8 +4894,8 @@ function cocinerosApp() {
       
       let url = `/cocineros/${usuarioId}/metricas`;
       const params = [];
-      if (desde) params.push(`desde=${desde}`);
-      if (hasta) params.push(`hasta=${hasta}`);
+      if (desde) params.push(`desde=${encodeURIComponent(desde)}`);
+      if (hasta) params.push(`hasta=${encodeURIComponent(hasta)}`);
       if (params.length > 0) url += '?' + params.join('&');
       
       try {
@@ -4873,24 +4912,56 @@ function cocinerosApp() {
       
       this.loadingMetricasCocinero = false;
     },
+
+    setFiltroFecha(id) {
+      this.filtroFecha = id;
+      if (this.historialFiltroFecha === 'hoy' || this.historialFiltroFecha === 'dia' || this.historialFiltroFecha === 'noche') {
+        this.historialFiltroFecha = id;
+        this.cargarHistorialCocinados();
+      }
+      this.cargarMetricas();
+    },
+
+    async refreshTurnosCierre({ skipReload = false } = {}) {
+      if (typeof TurnosDiaNoche === 'undefined') return;
+      const prevP = this.filtroFecha;
+      const prevH = this.historialFiltroFecha;
+      const prevS = this.showTurnoDiaNoche;
+      await TurnosDiaNoche.refresh(this, {
+        getPeriod: () => this.filtroFecha,
+        setPeriod: (v) => {
+          this.filtroFecha = v;
+          if (this.historialFiltroFecha === 'hoy' || this.historialFiltroFecha === 'dia' || this.historialFiltroFecha === 'noche') {
+            this.historialFiltroFecha = v;
+          }
+        },
+        autoNoche: true
+      });
+      if (skipReload) return;
+      if (this.filtroFecha !== prevP || this.showTurnoDiaNoche !== prevS) this.cargarMetricas();
+      if (this.historialFiltroFecha !== prevH) this.cargarHistorialCocinados();
+    },
     
     getFechasFiltro() {
-      const hoy = new Date();
-      let desde = '', hasta = hoy.toISOString().split('T')[0];
+      const hoy = limaYMD();
+      let desde = '', hasta = hoy;
       
       switch (this.filtroFecha) {
         case 'hoy':
           desde = hasta;
           break;
+        case 'dia':
+        case 'noche': {
+          const r = typeof TurnosDiaNoche !== 'undefined' ? TurnosDiaNoche.rangoIso(this.filtroFecha, this.primerCierreHoyAt) : null;
+          if (r) { desde = r.desde; hasta = r.hasta; }
+          else { desde = hoy; }
+          break;
+        }
         case '7dias':
-          const fecha7 = new Date(hoy);
-          fecha7.setDate(fecha7.getDate() - 7);
-          desde = fecha7.toISOString().split('T')[0];
+          desde = addDaysYMD(hoy, -7);
           break;
         case '30dias':
-          const fecha30 = new Date(hoy);
-          fecha30.setDate(fecha30.getDate() - 30);
-          desde = fecha30.toISOString().split('T')[0];
+          desde = addDaysYMD(hoy, -30);
           break;
         case 'personalizado':
           desde = this.fechaDesde;
@@ -4903,6 +4974,8 @@ function cocinerosApp() {
     
     getPeriodoTexto() {
       switch (this.filtroFecha) {
+        case 'dia': return this.primerCierreHoyAt ? '(' + TurnosDiaNoche.etiqueta('dia', this.primerCierreHoyAt) + ')' : '(DIA)';
+        case 'noche': return this.primerCierreHoyAt ? '(' + TurnosDiaNoche.etiqueta('noche', this.primerCierreHoyAt) + ')' : '(NOCHE)';
         case 'hoy': return '(Hoy)';
         case '7dias': return '(Últimos 7 días)';
         case '30dias': return '(Últimos 30 días)';
@@ -5420,8 +5493,8 @@ function cocinerosApp() {
       const { desde, hasta } = this.getFechasFiltro();
       let url = `/cocineros/${c._id}/metricas`;
       const params = [];
-      if (desde) params.push(`desde=${desde}`);
-      if (hasta) params.push(`hasta=${hasta}`);
+      if (desde) params.push(`desde=${encodeURIComponent(desde)}`);
+      if (hasta) params.push(`hasta=${encodeURIComponent(hasta)}`);
       if (params.length > 0) url += '?' + params.join('&');
       
       const data = await apiGet(url);
@@ -8145,14 +8218,17 @@ function cocinerosApp() {
       try {
         const params = new URLSearchParams();
         if (this.historialFiltroCocinero) params.set('cocineroId', this.historialFiltroCocinero);
-        const hoy = new Date();
-        const fmt = (d) => d.toISOString().slice(0, 10);
+        const hoy = limaYMD();
         let desde = this.historialFechaDesde;
         let hasta = this.historialFechaHasta;
-        if (this.historialFiltroFecha === 'hoy') { desde = fmt(hoy); hasta = fmt(hoy); }
-        else if (this.historialFiltroFecha === 'ayer') { const ayer = new Date(hoy.getTime() - 86400000); desde = fmt(ayer); hasta = fmt(ayer); }
-        else if (this.historialFiltroFecha === '7dias') { const inicio = new Date(hoy.getTime() - 6 * 86400000); desde = fmt(inicio); hasta = fmt(hoy); }
-        else if (this.historialFiltroFecha === '30dias') { const inicio = new Date(hoy.getTime() - 29 * 86400000); desde = fmt(inicio); hasta = fmt(hoy); }
+        if (this.historialFiltroFecha === 'hoy') { desde = hoy; hasta = hoy; }
+        else if (this.historialFiltroFecha === 'dia' || this.historialFiltroFecha === 'noche') {
+          const r = typeof TurnosDiaNoche !== 'undefined' ? TurnosDiaNoche.rangoIso(this.historialFiltroFecha, this.primerCierreHoyAt) : null;
+          if (r) { desde = r.desde; hasta = r.hasta; } else { desde = hoy; hasta = hoy; }
+        }
+        else if (this.historialFiltroFecha === 'ayer') { const ayer = addDaysYMD(hoy, -1); desde = ayer; hasta = ayer; }
+        else if (this.historialFiltroFecha === '7dias') { desde = addDaysYMD(hoy, -6); hasta = hoy; }
+        else if (this.historialFiltroFecha === '30dias') { desde = addDaysYMD(hoy, -29); hasta = hoy; }
         if (desde) params.set('desde', desde);
         if (hasta) params.set('hasta', hasta);
         params.set('limite', '500');

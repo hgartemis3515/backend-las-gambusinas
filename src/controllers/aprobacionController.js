@@ -27,6 +27,10 @@ const {
 } = require('../utils/comandasNumbers');
 const { resolverTotalesPedidoPPA } = require('../utils/totalesTicketPPA');
 const { totalesConDescuentoImpresion } = require('../utils/descuentoTicketSnapshot');
+const {
+  imprimirSoloNombreComercial,
+  aplicarOpcionesImpresionProductos,
+} = require('../utils/impresionComandaOpciones');
 
 async function snapshotIgvImpresion() {
   try {
@@ -43,7 +47,16 @@ async function snapshotIgvImpresion() {
 
 async function conIgvImpresion(datos) {
   const snap = await snapshotIgvImpresion();
-  return { ...datos, ...snap };
+  let solo = true;
+  try {
+    const config = await configuracionRepository.obtenerConfiguracion();
+    solo = imprimirSoloNombreComercial(config);
+  } catch (_) { /* default: ocultar guarniciones */ }
+  return {
+    ...datos,
+    ...snap,
+    productos: aplicarOpcionesImpresionProductos(datos?.productos, { soloNombreComercial: solo }),
+  };
 }
 
 /**
@@ -387,17 +400,18 @@ router.get('/comanda/:id/tickets', async (req, res) => {
 /**
  * PUT /api/aprobacion/:id/editar
  * Edita observaciones, método de pago y precios de platos (pendiente o aprobado).
- * Body: { tipo?: 'COMANDA'|'ADELANTADO', observaciones?, metodoPago?, platos?: [{ platoLineaId, precio }] }
+ * Body: { tipo?: 'COMANDA'|'ADELANTADO', observaciones?, metodoPago?, platos?: [{ platoLineaId, precio }], platosEliminar?: string[] }
  */
 router.put('/aprobacion/:id/editar', async (req, res) => {
   try {
     const { id } = req.params;
-    const { tipo, observaciones, metodoPago, platos } = req.body;
+    const { tipo, observaciones, metodoPago, platos, platosEliminar } = req.body;
 
     const result = await aprobacionService.actualizarTicketUnificado(id, tipo, {
       observaciones,
       metodoPago,
       platos,
+      platosEliminar,
     });
 
     const io = global.io;
@@ -581,8 +595,9 @@ router.get('/aprobacion/:id/ticket-imprimible', async (req, res) => {
             ? 'Pendiente'
             : (ticketPPA.metodoPago || boucherPPA?.metodoPago || 'efectivo'),
           observaciones: ticketPPA.observaciones || '',
-          productos: (ticketPPA.platos || []).map((p) => ({
+          productos: (ticketPPA.platos || []).filter((p) => p && !p.eliminado && !p.anulado).map((p) => ({
             nombre: p.nombre,
+            plato: p.plato,
             cantidad: p.cantidad,
             precio: p.precio,
             subtotal: p.subtotal,
@@ -703,8 +718,9 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
             ? 'Pendiente'
             : (ticketPPA.metodoPago || 'efectivo'),
           observaciones: ticketPPA.observaciones || '',
-          productos: (ticketPPA.platos || []).map((p) => ({
+          productos: (ticketPPA.platos || []).filter((p) => p && !p.eliminado && !p.anulado).map((p) => ({
             nombre: p.nombre,
+            plato: p.plato,
             cantidad: p.cantidad,
             precio: p.precio,
             subtotal: p.subtotal,
@@ -774,10 +790,11 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
 
     const config = await configuracionRepository.obtenerConfiguracion();
 
-    const productos = (comanda.platos || [])
+    let productos = (comanda.platos || [])
       .filter((p) => !p.eliminado && !p.anulado)
       .map((p) => ({
         nombre: p.plato?.nombre || 'Plato',
+        plato: p.plato,
         cantidad: comanda.cantidades?.[comanda.platos.indexOf(p)] || 1,
         precio: (p.precioUnitario != null ? p.precioUnitario : (p.plato?.precio || p.precio || 0)),
         subtotal: (p.precioUnitario != null ? p.precioUnitario : (p.plato?.precio || p.precio || 0)) * (comanda.cantidades?.[comanda.platos.indexOf(p)] || 1),
@@ -796,6 +813,9 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
           mostrarMontoExtra: p.resumenComplementosImpresion?.mostrarMontoExtra !== false,
         },
       }));
+    productos = aplicarOpcionesImpresionProductos(productos, {
+      soloNombreComercial: imprimirSoloNombreComercial(config),
+    });
 
     const imprimible = {
       ticketId: null,

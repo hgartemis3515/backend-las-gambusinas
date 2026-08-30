@@ -1,5 +1,6 @@
 const AuditoriaAcciones = require('../database/models/auditoriaAcciones.model');
 const SesionesUsuarios = require('../database/models/sesionesUsuarios.model');
+const { objectIdUsuarioOrNull } = require('../utils/objectIdUsuario');
 
 /**
  * Middleware de Auditoría Global
@@ -135,14 +136,21 @@ const registrarAuditoria = async (req, datosAntes, datosDespues, motivo = null) 
       ...(req.auditoria.totalEliminado !== undefined ? { totalEliminado: req.auditoria.totalEliminado } : {}),
       ...(req.auditoria.comandasIds ? { comandasIds: req.auditoria.comandasIds } : {}),
       ...(req.auditoria.cantidadComandas !== undefined ? { cantidadComandas: req.auditoria.cantidadComandas } : {}),
-      ...(req.auditoria.tipoEliminacion ? { tipoEliminacion: req.auditoria.tipoEliminacion } : {})
+      ...(req.auditoria.tipoEliminacion ? { tipoEliminacion: req.auditoria.tipoEliminacion } : {}),
+      ...(motivo || req.auditoria.motivo ? { motivo: motivo || req.auditoria.motivo } : {})
     };
     
+    const usuarioOid = objectIdUsuarioOrNull(req.auditoria.usuario);
+    const usuarioNombre = req.auditoria.usuarioNombre
+      || (typeof req.auditoria.usuario === 'string' && !usuarioOid ? req.auditoria.usuario : null)
+      || null;
+
     const auditoriaData = {
       accion: req.auditoria.accion,
       entidadId: req.auditoria.entidadId || datosDespues?._id || datosAntes?._id,
       entidadTipo: req.auditoria.entidadTipo,
-      usuario: req.auditoria.usuario,
+      usuario: usuarioOid,
+      usuarioNombre,
       datosAntes: datosAntesPlain,
       datosDespues: datosDespuesPlain,
       motivo: motivo || req.body?.motivo || req.auditoria.motivo || null,
@@ -154,7 +162,7 @@ const registrarAuditoria = async (req, datosAntes, datosDespues, motivo = null) 
     await AuditoriaAcciones.create(auditoriaData);
     console.log(`✅ Auditoría registrada: ${auditoriaData.accion} - ${auditoriaData.entidadTipo}`);
   } catch (error) {
-    console.error('❌ Error al registrar auditoría:', error.message);
+    console.error('❌ Error al registrar auditoría:', error.message, error.stack);
     // No lanzar error para no interrumpir el flujo principal
   }
 };

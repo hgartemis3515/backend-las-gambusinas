@@ -14,16 +14,12 @@ const {
     sanitizarConfigPerfilTablasKds,
     fusionarConfigPerfilTablasKds,
 } = require('../utils/sanitizarPerfilVerCocina');
+const { rangoLima } = require('../utils/estadisticasComandas');
 const moment = require('moment-timezone');
 
 function rangoDiaLima(desde, hasta) {
-    const fechaInicio = desde
-        ? moment.tz(String(desde).slice(0, 10), 'YYYY-MM-DD', 'America/Lima').startOf('day').toDate()
-        : moment.tz('America/Lima').startOf('day').toDate();
-    const fechaFin = hasta
-        ? moment.tz(String(hasta).slice(0, 10), 'YYYY-MM-DD', 'America/Lima').endOf('day').toDate()
-        : moment.tz('America/Lima').endOf('day').toDate();
-    return { fechaInicio, fechaFin };
+    const { inicio, fin } = rangoLima(desde, hasta);
+    return { fechaInicio: inicio, fechaFin: fin };
 }
 
 /** Ranking / rendimiento en vivo: visible para rol cocina (y permisos de cocina o reportes). */
@@ -650,13 +646,7 @@ router.get('/cocineros/:id/metricas', adminAuth, async (req, res) => {
             });
         }
         
-        // Fechas por defecto: hoy
-        const fechaInicio = desde 
-            ? moment(desde).startOf('day').toDate()
-            : moment().startOf('day').toDate();
-        const fechaFin = hasta 
-            ? moment(hasta).endOf('day').toDate()
-            : moment().endOf('day').toDate();
+        const { fechaInicio, fechaFin } = rangoDiaLima(desde, hasta);
         
         const [metricas, platosTop] = await Promise.all([
             cocinerosRepository.calcularMetricasRendimiento(id, fechaInicio, fechaFin),
@@ -694,14 +684,7 @@ router.get('/cocineros/metricas/todos', adminAuth, async (req, res) => {
             return res.status(403).json({ success: false, error: 'No tiene permisos para ver el ranking de rendimiento' });
         }
         const { desde, hasta } = req.query;
-        
-        // Fechas por defecto: hoy
-        const fechaInicio = desde 
-            ? moment(desde).startOf('day').toDate()
-            : moment().startOf('day').toDate();
-        const fechaFin = hasta 
-            ? moment(hasta).endOf('day').toDate()
-            : moment().endOf('day').toDate();
+        const { fechaInicio, fechaFin } = rangoDiaLima(desde, hasta);
         
         const metricas = await cocinerosRepository.obtenerMetricasTodosCocineros(
             fechaInicio, 

@@ -44,4 +44,25 @@ describe('aplicarPreciosEnLineasTicket', () => {
     expect(ticket.total).toBe(72);
     expect(round2(ticket.descuentos[0].monto)).toBe(8);
   });
+
+  test('quitar línea baja el total y no toca las demás', () => {
+    const { quitarLineasDeSnapshot } = require('../src/utils/editarPreciosTicket');
+    const ticket = {
+      platos: [
+        { platoLineaId: 'a1', nombre: 'Lomo', precio: 100, cantidad: 1, subtotal: 100 },
+        { platoLineaId: 'a2', nombre: 'Causa', precio: 50, cantidad: 1, subtotal: 50 },
+      ],
+      subtotal: 150,
+      total: 150,
+      totalSinDescuento: 150,
+      montoDescuento: 0,
+    };
+    const out = quitarLineasDeSnapshot(ticket, ['a1']);
+    expect(out.changed).toBe(true);
+    expect(ticket.platos[0].eliminado).toBe(true);
+    expect(ticket.platos[1].eliminado).toBeFalsy();
+    expect(ticket.subtotal).toBe(50);
+    expect(ticket.total).toBe(50);
+    expect(ticket.totalSinDescuento).toBe(50);
+  });
 });

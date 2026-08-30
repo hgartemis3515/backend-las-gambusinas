@@ -67,32 +67,35 @@ export function generarHtmlCierreTicket(datos) {
   html += `</div>`;
   html += divider(8);
 
-  html += `<table style="width:100%;border-collapse:collapse;font-size:${fontSizeSm}px;">`;
+  const thNum = 'text-align:right;padding:0 0 3px 2px;font-weight:700;';
+  const tdNum = 'padding:1px 0 1px 2px;text-align:right;vertical-align:top;white-space:nowrap;';
+  html += `<table style="width:100%;border-collapse:collapse;font-size:9px;table-layout:fixed;">`;
   html += `<thead><tr>
-    <th style="text-align:left;padding:0 0 3px 0;">Cmd</th>
-    <th style="text-align:left;padding:0 0 3px 0;">Mesa</th>
-    <th style="text-align:right;padding:0 0 3px 0;">Total</th>
+    <th style="text-align:left;padding:0 0 3px 0;width:16%;">Cmd</th>
+    <th style="text-align:left;padding:0 0 3px 2px;width:16%;">Mesa</th>
+    <th style="${thNum}width:22%;">Subt.</th>
+    <th style="${thNum}width:22%;">Desc.</th>
+    <th style="${thNum}width:24%;">Total</th>
   </tr></thead><tbody>`;
 
   for (const c of lineas) {
+    const subt = Number(c.bruto ?? c.subtotal) || 0;
+    const desc = Number(c.descuento) || 0;
+    const tot = Number(c.total) || 0;
     html += `<tr>
       <td style="padding:1px 0;vertical-align:top;">#${escapeHtml(c.comandaNumber ?? '')}</td>
-      <td style="padding:1px 4px;vertical-align:top;">${escapeHtml(c.mesa || '—')}</td>
-      <td style="padding:1px 0;text-align:right;vertical-align:top;white-space:nowrap;">${simbolo}${money(c.total)}</td>
+      <td style="padding:1px 2px;vertical-align:top;">${escapeHtml(c.mesa || '—')}</td>
+      <td style="${tdNum}">${money(subt)}</td>
+      <td style="${tdNum}">${desc > 0 ? '-' + money(desc) : '—'}</td>
+      <td style="${tdNum}font-weight:600;">${money(tot)}</td>
     </tr>`;
   }
   html += `</tbody></table>`;
   html += divider(8);
 
-  const subtotal = Number(datos.subtotal) || 0;
-  const descuento = Number(datos.descuento) || 0;
   const total = Number(datos.total) || 0;
 
   html += `<div style="text-align:right;font-size:${fontSize}px;">`;
-  html += `<div style="padding:1px 0;">Subtotal: <span style="font-weight:500;">${simbolo}${money(subtotal)}</span></div>`;
-  if (descuento > 0) {
-    html += `<div style="padding:1px 0;">Descuento: <span style="font-weight:500;">-${simbolo}${money(descuento)}</span></div>`;
-  }
   html += `<div style="font-size:13px;font-weight:700;border-top:2px solid #000;padding-top:4px;margin-top:4px;">TOTAL: ${simbolo}${money(total)}</div>`;
   html += `</div>`;
   html += `<div style="text-align:center;font-size:9px;margin-top:8px;">${lineas.length} comanda${lineas.length === 1 ? '' : 's'}</div>`;

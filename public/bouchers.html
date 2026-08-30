@@ -271,7 +271,7 @@ tailwind.config = {
           <div class="px-4 py-3 bg-bg-sidebar flex items-center justify-between gap-2">
             <div>
               <p class="text-sm font-bold">Tabla de tickets</p>
-              <p class="text-[10px] text-txt-muted">Tickets de cocina y pagos adelantados</p>
+              <p class="text-[10px] text-txt-muted">Parciales del mismo pedido se agrupan (como comandas)</p>
             </div>
             <input type="date" x-model="fechaTickets" @change="loadTicketsCocina()"
               class="bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs text-txt-secondary w-36">
@@ -293,23 +293,58 @@ tailwind.config = {
                 </tr>
               </thead>
               <tbody>
-                <tr x-show="ticketsCocina.length === 0">
+                <tr x-show="groupedTicketRows.length === 0">
                   <td colspan="7" class="px-3 py-6 text-center text-txt-muted">No hay tickets en esta fecha</td>
                 </tr>
-                <template x-for="ticket in ticketsCocina" :key="ticket._id">
-                  <tr class="border-t border-[rgba(212,175,55,0.08)] hover:bg-bg-sidebar/40">
-                    <td class="px-3 py-2 font-semibold text-gold" x-text="'#' + (ticket.ticketNumber || '—')"></td>
-                    <td class="px-3 py-2">
-                      <span class="text-[10px] px-1.5 py-0.5 rounded-full" :class="claseTipoTicket(ticket)" x-text="labelTipoTicket(ticket)"></span>
-                    </td>
-                    <td class="px-3 py-2" x-text="mesaTicket(ticket)"></td>
-                    <td class="px-3 py-2 text-txt-secondary truncate max-w-[90px]" x-text="mozoTicket(ticket)"></td>
-                    <td class="px-3 py-2 text-txt-muted" x-text="labelEstadoTicket(ticket)"></td>
-                    <td class="px-3 py-2 text-gold font-semibold whitespace-nowrap" x-text="'S/. ' + Number(ticket.total || 0).toFixed(2)"></td>
-                    <td class="px-3 py-2 text-right">
-                      <button type="button" class="hover:text-gold transition" @click="imprimirTicketCocina(ticket)" title="Imprimir ticket">🖨️</button>
-                    </td>
-                  </tr>
+                <template x-for="row in groupedTicketRows" :key="row.id">
+                  <tbody class="contents">
+                    <template x-if="row.tipo === 'grupo'">
+                      <tr class="border-t border-[rgba(212,175,55,0.15)] bg-gold/5 cursor-pointer hover:bg-gold/10"
+                          @click="toggleExpandTicketGrupo(row.id)">
+                        <td class="px-3 py-2 font-semibold text-gold" x-text="expandedTicketGroups.includes(row.id) ? '▼' : '▶'"></td>
+                        <td class="px-3 py-2">
+                          <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-st-esperando/20 text-st-esperando">Grupo parcial</span>
+                        </td>
+                        <td class="px-3 py-2" x-text="row.mesaNum != null ? ('Mesa ' + row.mesaNum) : '—'"></td>
+                        <td class="px-3 py-2 text-txt-secondary truncate max-w-[90px]" x-text="row.mozoNombre"></td>
+                        <td class="px-3 py-2 text-txt-muted" x-text="row.numTickets + ' tickets'"></td>
+                        <td class="px-3 py-2 text-gold font-semibold whitespace-nowrap" x-text="'S/. ' + Number(row.totalAgrupado || 0).toFixed(2)"></td>
+                        <td class="px-3 py-2 text-[10px] text-txt-muted" x-text="expandedTicketGroups.includes(row.id) ? 'Ocultar' : 'Ver'"></td>
+                      </tr>
+                    </template>
+                    <template x-if="row.tipo === 'grupo' && expandedTicketGroups.includes(row.id)">
+                      <template x-for="ticket in row.tickets" :key="ticket._id">
+                        <tr class="border-t border-[rgba(212,175,55,0.05)] bg-bg-sidebar/30">
+                          <td class="px-3 py-1.5 pl-6 font-semibold text-gold" x-text="'#' + (ticket.ticketNumber || '—')"></td>
+                          <td class="px-3 py-1.5">
+                            <span class="text-[10px] px-1.5 py-0.5 rounded-full" :class="claseTipoTicket(ticket)" x-text="labelTipoTicket(ticket)"></span>
+                          </td>
+                          <td class="px-3 py-1.5" x-text="mesaTicket(ticket)"></td>
+                          <td class="px-3 py-1.5 text-txt-secondary truncate max-w-[90px]" x-text="mozoTicket(ticket)"></td>
+                          <td class="px-3 py-1.5 text-txt-muted" x-text="labelEstadoTicket(ticket)"></td>
+                          <td class="px-3 py-1.5 text-gold font-semibold whitespace-nowrap" x-text="'S/. ' + Number(ticket.total || 0).toFixed(2)"></td>
+                          <td class="px-3 py-1.5 text-right">
+                            <button type="button" class="hover:text-gold transition" @click.stop="imprimirTicketCocina(ticket)" title="Imprimir ticket">🖨️</button>
+                          </td>
+                        </tr>
+                      </template>
+                    </template>
+                    <template x-if="row.tipo === 'individual'">
+                      <tr class="border-t border-[rgba(212,175,55,0.08)] hover:bg-bg-sidebar/40">
+                        <td class="px-3 py-2 font-semibold text-gold" x-text="'#' + (row.ticket.ticketNumber || '—')"></td>
+                        <td class="px-3 py-2">
+                          <span class="text-[10px] px-1.5 py-0.5 rounded-full" :class="claseTipoTicket(row.ticket)" x-text="labelTipoTicket(row.ticket)"></span>
+                        </td>
+                        <td class="px-3 py-2" x-text="mesaTicket(row.ticket)"></td>
+                        <td class="px-3 py-2 text-txt-secondary truncate max-w-[90px]" x-text="mozoTicket(row.ticket)"></td>
+                        <td class="px-3 py-2 text-txt-muted" x-text="labelEstadoTicket(row.ticket)"></td>
+                        <td class="px-3 py-2 text-gold font-semibold whitespace-nowrap" x-text="'S/. ' + Number(row.ticket.total || 0).toFixed(2)"></td>
+                        <td class="px-3 py-2 text-right">
+                          <button type="button" class="hover:text-gold transition" @click="imprimirTicketCocina(row.ticket)" title="Imprimir ticket">🖨️</button>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
                 </template>
               </tbody>
             </table>
@@ -1007,6 +1042,8 @@ function bouchersApp() {
     mozosList: [],
     fechaTickets: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' }),
     ticketsCocina: [],
+    groupedTicketRows: [],
+    expandedTicketGroups: [],
     loadingTickets: false,
 
     // Agrupación de vouchers por pedido (paridad con comandas.html)
@@ -1616,9 +1653,11 @@ body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoF
         const data = await apiGet('/aprobacion/fecha/' + fecha);
         const raw = Array.isArray(data?.tickets) ? data.tickets : [];
         this.ticketsCocina = raw;
+        this.processGroupingTickets();
       } catch (e) {
         console.error('Error cargando tickets cocina:', e);
         this.ticketsCocina = [];
+        this.groupedTicketRows = [];
       } finally {
         this.loadingTickets = false;
       }
@@ -1691,8 +1730,9 @@ body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoF
      * Construye `groupedRows` a partir de `filteredBouchers`.
      * Prioridad de agrupación:
      *   1) b.pedido._id  → grupo por pedido (ciclo de visita)
-     *   2) b.comandas[0] → grupo por comanda (fallback histórico)
-     *   3) Individual    → sin grupo (voucher único sin pedido ni comanda)
+     *   2) comanda única → fallback
+     *   3) cliente + mesa → igual que comandas.html
+     *   4) Individual    → sin pedido, comanda ni cliente
      * Un grupo con >1 voucher se renderiza como fila expandible; con 1 voucher queda como individual.
      */
     processGroupingBouchers() {
@@ -1727,7 +1767,6 @@ body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoF
           }
           gruposPedido.get(key).bouchers.push(b);
         } else {
-          // Fallback: agrupar por comanda si existe una sola
           const comandaId = Array.isArray(b.comandas) && b.comandas.length === 1
             ? (b.comandas[0]?._id || b.comandas[0])
             : null;
@@ -1742,17 +1781,20 @@ body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoF
             }
             gruposComanda.get(key).bouchers.push(b);
           } else {
-            // Fallback final: agrupar por mesa + día (vouchers legacy sin pedido ni comanda)
-            const dia = b.fechaPago ? new Date(b.fechaPago).toISOString().split('T')[0] : 'sindia';
-            const key = `mesadia_${mesaNum || 'sm'}_${dia}`;
-            if (!gruposComanda.has(key)) {
-              gruposComanda.set(key, {
-                key, mesaNum, mozoNombre,
-                esLegacy: true,
-                bouchers: [],
-              });
+            const clienteId = b.cliente?._id || (typeof b.cliente === 'string' ? b.cliente : null);
+            if (clienteId && mesaNum != null) {
+              const key = `cliente_${clienteId}_${mesaNum}`;
+              if (!gruposComanda.has(key)) {
+                gruposComanda.set(key, {
+                  key, clienteId, mesaNum, mozoNombre,
+                  esLegacy: true,
+                  bouchers: [],
+                });
+              }
+              gruposComanda.get(key).bouchers.push(b);
+            } else {
+              individuales.push(b);
             }
-            gruposComanda.get(key).bouchers.push(b);
           }
         }
       });
@@ -1834,10 +1876,102 @@ body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoF
       this.groupedRows = filas;
     },
 
+    idPedidoTicket(t) {
+      const p = t?.pedido;
+      if (!p) return null;
+      if (typeof p === 'string') return p;
+      return p._id || null;
+    },
+
+    esTicketParcial(t) {
+      const tipo = String(t?.tipo || '').toUpperCase();
+      return tipo === 'PAGO_PARCIAL';
+    },
+
+    /**
+     * Agrupa tickets parciales del mismo pedido (1 fila expandible).
+     * Pago completo y adelantados quedan individuales.
+     */
+    processGroupingTickets() {
+      const lista = this.ticketsCocina || [];
+      if (!this.agruparPorPedido) {
+        this.groupedTicketRows = lista.map((t) => ({
+          tipo: 'individual',
+          id: t._id,
+          ticket: t,
+        }));
+        return;
+      }
+
+      const grupos = new Map();
+      const individuales = [];
+      lista.forEach((t) => {
+        if (!this.esTicketParcial(t)) {
+          individuales.push(t);
+          return;
+        }
+        const pedidoId = this.idPedidoTicket(t);
+        const mesaNum = t.numMesa ?? t.mesa?.nummesa ?? t.mesa?.numMesa ?? null;
+        const clienteId = t.cliente?._id || t.cliente || null;
+        let key = null;
+        if (pedidoId) key = `pedido_${pedidoId}`;
+        else if (clienteId && mesaNum != null) key = `cliente_${clienteId}_${mesaNum}`;
+        if (!key) {
+          individuales.push(t);
+          return;
+        }
+        if (!grupos.has(key)) {
+          grupos.set(key, {
+            key,
+            pedidoId,
+            mesaNum,
+            mozoNombre: this.mozoTicket(t),
+            tickets: [],
+          });
+        }
+        grupos.get(key).tickets.push(t);
+      });
+
+      const filas = [];
+      grupos.forEach((grupo) => {
+        if (grupo.tickets.length > 1) {
+          const totalAgrupado = grupo.tickets.reduce((s, t) => s + (Number(t.total) || 0), 0);
+          filas.push({
+            tipo: 'grupo',
+            id: grupo.key,
+            pedidoId: grupo.pedidoId,
+            mesaNum: grupo.mesaNum,
+            mozoNombre: grupo.mozoNombre,
+            numTickets: grupo.tickets.length,
+            totalAgrupado: Number(totalAgrupado.toFixed(2)),
+            tickets: grupo.tickets,
+          });
+        } else {
+          individuales.push(grupo.tickets[0]);
+        }
+      });
+      individuales.forEach((t) => {
+        filas.push({ tipo: 'individual', id: t._id, ticket: t });
+      });
+      const fechaT = (row) => {
+        const src = row.tipo === 'grupo' ? row.tickets?.[0] : row.ticket;
+        return src?.createdAt ? new Date(src.createdAt).getTime() : 0;
+      };
+      filas.sort((a, b) => fechaT(b) - fechaT(a));
+      this.groupedTicketRows = filas;
+    },
+
+    toggleExpandTicketGrupo(grupoId) {
+      const idx = this.expandedTicketGroups.indexOf(grupoId);
+      if (idx === -1) this.expandedTicketGroups.push(grupoId);
+      else this.expandedTicketGroups.splice(idx, 1);
+    },
+
     /** Alterna entre vista Agrupada e Individual. */
     toggleAgrupacion() {
       this.agruparPorPedido = !this.agruparPorPedido;
       this.processGroupingBouchers();
+      this.processGroupingTickets();
     },
 
     /** Expande o colapsa un grupo por id. */

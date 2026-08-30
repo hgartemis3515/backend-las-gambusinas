@@ -1049,10 +1049,13 @@ const CierreCajaAPI = {
     });
   },
   
-  async reabrir(id) {
-    return apiPutWithNotify(`/cierre-caja/${id}/reabrir`, {}, {
-      successMessage: 'Cierre de caja reabierto',
-      auditEvent: 'cierre_caja_reapertura',
+  async reabrir(id, motivo) {
+    return this.revertir(id, motivo);
+  },
+  async revertir(id, motivo) {
+    return apiPutWithNotify(`/cierre-caja/${id}/revertir`, { motivo }, {
+      successMessage: 'Cierre de caja revertido',
+      auditEvent: 'cierre_caja_reversion',
       entityId: id,
       entityType: 'cierre_caja'
     });

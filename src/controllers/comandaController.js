@@ -34,6 +34,7 @@ const {
 const { listarBouchersActivosPorMesa } = require('../repository/boucher.repository');
 const { obtenerCicloServicioMesa } = require('../services/mesaCicloServicio.service');
 
+const { objectIdUsuarioOrNull } = require('../utils/objectIdUsuario');
 const { registrarAuditoria } = require('../middleware/auditoria');
 const HistorialComandas = require('../database/models/historialComandas.model');
 const comandaModel = require('../database/models/comanda.model');
@@ -100,6 +101,54 @@ const tienePermisoDesdeToken = (req, permiso) => {
         return false;
     }
 };
+
+function decodeJwtDashboard(req) {
+    if (req.admin) return req.admin;
+    try {
+        const authHeader = req.headers?.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+        return jwtLib.verify(authHeader.substring(7), JWT_SECRET_LEGACY);
+    } catch (e) {
+        return null;
+    }
+}
+
+/** Actor para auditoría: JWT del dashboard, nunca el string "admin" como ObjectId. */
+function resolverActorAuditoria(req) {
+    const decoded = decodeJwtDashboard(req);
+    const usuario = objectIdUsuarioOrNull(decoded?.id || decoded?._id || decoded?.usuarioId)
+        || objectIdUsuarioOrNull(req.userId)
+        || objectIdUsuarioOrNull(req.body?.usuarioId)
+        || objectIdUsuarioOrNull(req.headers['x-user-id']);
+    const usuarioNombre = decoded?.nombre || decoded?.name || decoded?.usuario
+        || (typeof req.body?.usuarioNombre === 'string' && req.body.usuarioNombre.trim())
+        || (!usuario && typeof req.body?.usuarioId === 'string' ? req.body.usuarioId : null)
+        || 'dashboard';
+    return { usuario, usuarioNombre };
+}
+
+function resumenPlatosEliminados(snapshot) {
+    let totalEliminado = 0;
+    const platosEliminados = [];
+    if (snapshot?.platos && Array.isArray(snapshot.platos)) {
+        snapshot.platos.forEach((platoItem, index) => {
+            if (platoItem.eliminado) return;
+            const plato = platoItem.plato || platoItem;
+            const cantidad = snapshot.cantidades?.[index] || 1;
+            const precio = plato?.precio || 0;
+            const subtotal = precio * cantidad;
+            totalEliminado += subtotal;
+            platosEliminados.push({
+                nombre: plato?.nombre || 'Plato desconocido',
+                cantidad,
+                precio,
+                subtotal,
+                tipoServicio: platoItem.tipoServicio || 'mesa'
+            });
+        });
+    }
+    return { totalEliminado, platosEliminados };
+}
 
 /** Dashboard / admin: pueden editar o eliminar aunque cocina ya tomó la comanda. Mozos no. */
 const resolverForzarAdmin = (req) => {
@@ -1081,8 +1130,9 @@ router.delete('/comanda/:id', async (req, res) => {
 router.put('/comanda/:id/eliminar', async (req, res) => {
     const { id } = req.params;
     const { motivo } = req.body;
-    let usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
-    
+    const actor = resolverActorAuditoria(req);
+    let usuarioId = actor.usuario;
+
     // Validar que el motivo sea obligatorio
     if (!motivo || motivo.trim() === '') {
         return res.status(400).json({ 
@@ -1091,19 +1141,6 @@ router.put('/comanda/:id/eliminar', async (req, res) => {
     }
     
     try {
-        // Obtener comanda para verificar y obtener mozo si no hay usuarioId
-        const comandaCheck = await comandaModel.findById(id).populate('mozos').lean();
-        if (!comandaCheck) {
-            return res.status(404).json({ message: 'Comanda no encontrada' });
-        }
-        
-        // Si no hay usuarioId en el request, obtenerlo de la comanda (mozo que creó la comanda)
-        if (!usuarioId && comandaCheck.mozos) {
-            usuarioId = comandaCheck.mozos._id || comandaCheck.mozos;
-            console.log('✅ [PUT /comanda/:id/eliminar] UsuarioId obtenido de comanda.mozos:', usuarioId);
-        }
-        
-        // Obtener snapshot antes de eliminar (ya tenemos comandaCheck, pero necesitamos snapshot completo para auditoría)
         const snapshotAntes = await comandaModel.findById(id)
             .populate('platos.plato')
             .populate('mesas')
@@ -1113,6 +1150,10 @@ router.put('/comanda/:id/eliminar', async (req, res) => {
             return res.status(404).json({ message: 'Comanda no encontrada' });
         }
 
+        if (!usuarioId && snapshotAntes.mozos) {
+            usuarioId = objectIdUsuarioOrNull(snapshotAntes.mozos._id || snapshotAntes.mozos);
+        }
+
         const validacionTomada = await validarEdicionMozoPermitida(snapshotAntes, {
             forzarAdmin: resolverForzarAdmin(req),
             verificarComandaCompleta: true
@@ -1120,28 +1161,47 @@ router.put('/comanda/:id/eliminar', async (req, res) => {
         if (!validacionTomada.permitido) {
             return responderBloqueoCocina(res, validacionTomada);
         }
-        
-        const comanda = await eliminarLogicamente(id, usuarioId, motivo);
-        
-        // Registrar auditoría
+
+        const { totalEliminado, platosEliminados } = resumenPlatosEliminados(snapshotAntes);
+        const comanda = await eliminarLogicamente(id, usuarioId, motivo.trim());
+
         req.auditoria = {
-            accion: 'comanda_eliminada',
+            accion: 'ELIMINAR_COMANDA_INDIVIDUAL',
             entidadId: id,
             entidadTipo: 'comanda',
             usuario: usuarioId,
-            ip: req.ip,
-            deviceId: req.headers['device-id'] || req.headers['x-device-id']
+            usuarioNombre: actor.usuarioNombre,
+            mesaId: snapshotAntes.mesas?._id || snapshotAntes.mesas,
+            comandaId: id,
+            motivo: motivo.trim(),
+            platosEliminados,
+            totalEliminado,
+            comandaNumber: snapshotAntes.comandaNumber,
+            ip: req.ip || req.headers['x-forwarded-for'] || null,
+            deviceId: req.headers['device-id'] || req.headers['x-device-id'],
+            metadata: {
+                comandaNumber: snapshotAntes.comandaNumber,
+                mesaId: snapshotAntes.mesas?._id || snapshotAntes.mesas,
+                mesaNum: snapshotAntes.mesas?.nummesa || null,
+                platosEliminados,
+                totalEliminado,
+                cantidadPlatos: platosEliminados.length,
+                tipoEliminacion: 'comanda_individual',
+                estadoComanda: snapshotAntes.status,
+                origen: 'comandas.html'
+            }
         };
-        await registrarAuditoria(req, snapshotAntes, comanda, motivo);
-        
-        // Emitir evento Socket.io de comanda eliminada a todos los namespaces
+        await registrarAuditoria(req, snapshotAntes, comanda, motivo.trim());
+
         if (global.emitComandaEliminada) {
             await global.emitComandaEliminada(id);
         }
-        
-        res.json({ 
+
+        res.json({
             message: 'Comanda archivada con auditoría',
-            comanda: comanda
+            comanda,
+            totalEliminado,
+            platosEliminados: platosEliminados.length
         });
     } catch (error) {
         console.error('❌ Error al eliminar comanda:', error.message);

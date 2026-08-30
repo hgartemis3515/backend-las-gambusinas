@@ -87,19 +87,23 @@ function adjuntarDescuentoTicket(ticket) {
 function resolverBrutoYNeto(doc, extraSubtotal = 0) {
   const montoDesc = Number(doc?.montoDescuento || 0);
   const extra = Number(extraSubtotal) || 0;
-  const plates = extra > 0 ? extra : sumaPlatosTicket(doc);
+  const plates = sumaPlatosTicket(doc);
   const fromComanda = Number(snapshotDesdeComandas(doc).totalSinDescuento) || 0;
   const tot = Number(doc?.total);
-  const bruto = maxPositivo(
-    doc?.totalSinDescuento,
-    plates,
-    fromComanda,
-    doc?.subtotal,
-    Number.isFinite(tot) && tot > 0 && !(montoDesc > 0) ? tot : 0
-  ) || (Number.isFinite(tot) && tot > 0 ? tot : 0);
+  const haySnapshot = Array.isArray(doc?.platos) && doc.platos.length > 0;
+  const bruto = haySnapshot
+    ? plates
+    : (maxPositivo(
+      extra,
+      doc?.totalSinDescuento,
+      plates,
+      fromComanda,
+      doc?.subtotal,
+      Number.isFinite(tot) && tot > 0 && !(montoDesc > 0) ? tot : 0
+    ) || (Number.isFinite(tot) && tot > 0 ? tot : 0));
   const neto = montoDesc > 0
     ? Number(Math.max(0, bruto - montoDesc).toFixed(2))
-    : (Number.isFinite(tot) && tot > 0 ? tot : bruto);
+    : (haySnapshot ? bruto : (Number.isFinite(tot) && tot > 0 ? tot : bruto));
   return { bruto, neto, montoDesc };
 }
 
@@ -107,7 +111,17 @@ function aplicarDescuentoAVistaTicket(ticket) {
   const t = adjuntarDescuentoTicket(ticket);
   const extra = sumaPlatosTicket(t);
   const { bruto, neto, montoDesc } = resolverBrutoYNeto(t, extra);
-  if (montoDesc <= 0) return t;
+  const haySnapshot = Array.isArray(t.platos) && t.platos.length > 0;
+  if (montoDesc <= 0 && !haySnapshot) return t;
+  if (montoDesc <= 0) {
+    if (Number(t.total) === bruto && Number(t.subtotal) === bruto) return t;
+    return {
+      ...t,
+      totalSinDescuento: bruto,
+      subtotal: bruto,
+      total: bruto,
+    };
+  }
   return {
     ...t,
     totalSinDescuento: bruto,
@@ -202,8 +216,9 @@ function marcarYRestarPlatosEliminados(doc, comanda) {
     if (!sameComanda) continue;
 
     const lineaId = p.platoLineaId ? String(p.platoLineaId) : '';
+    const selfId = p._id ? String(p._id) : '';
     const nombre = String(p.nombre || '').trim().toLowerCase();
-    let match = !!(lineaId && ids.has(lineaId));
+    let match = !!(lineaId && ids.has(lineaId)) || !!(selfId && ids.has(selfId));
     if (!match && !lineaId && nombre && nombresPendientes[nombre] > 0) {
       match = true;
       nombresPendientes[nombre] -= 1;
@@ -214,16 +229,25 @@ function marcarYRestarPlatosEliminados(doc, comanda) {
   }
 
   if (subElim <= 0) return doc;
-  subElim = round2(subElim);
   const activosSub = round2((doc.platos || [])
     .filter((p) => p && !p.eliminado && !p.anulado)
-    .reduce((s, p) => s + (Number(p.subtotal) || 0), 0));
-  if (doc.subtotal != null) doc.subtotal = activosSub;
+    .reduce((s, p) => s + (Number(p.subtotal) || ((Number(p.precio) || 0) * (Number(p.cantidad) || 1))), 0));
+  doc.subtotal = activosSub;
+  doc.totalSinDescuento = activosSub;
   const desc = Number(doc.montoDescuento) || 0;
-  const bruto = Number(doc.totalSinDescuento) > 0
-    ? Number(doc.totalSinDescuento)
-    : round2((Number(doc.total) || 0) + desc);
-  doc.totalSinDescuento = round2(Math.max(0, bruto - subElim));
+  const pct = Number(doc.descuentos?.[0]?.porcentaje) || 0;
+  let montoDesc = desc;
+  if (pct > 0) {
+    montoDesc = round2(activosSub * (pct / 100));
+    if (doc.descuentos[0]) doc.descuentos[0].monto = montoDesc;
+  } else if (montoDesc > activosSub) {
+    montoDesc = activosSub;
+  }
+  doc.montoDescuento = montoDesc;
+  doc.total = round2(Math.max(0, activosSub - montoDesc));
+  if (doc.totalConDescuento != null) doc.totalConDescuento = doc.total;
+  try { doc.markModified('platos'); } catch (_) { /* pojo */ }
+  try { if (doc.descuentos) doc.markModified('descuentos'); } catch (_) { /* pojo */ }
   return doc;
 }
 
@@ -253,12 +277,14 @@ function aplicarDescuentoADocDesdeComanda(doc, comanda) {
     : subtotalPlatosComanda(comanda);
   const brutoRatio = round2((Number(brutoComanda) || 0) * ratio);
   const brutoFromTotal = round2(totalActual + descActual);
-  const bruto = round2(Math.max(
-    Number.isFinite(brutoGuardado) && brutoGuardado > 0 ? brutoGuardado : 0,
-    brutoFromTotal,
-    brutoPlatosAll,
-    brutoRatio
-  ));
+  const haySnapshot = Array.isArray(doc.platos) && doc.platos.length > 0;
+  const bruto = haySnapshot
+    ? brutoPlatosAll
+    : round2(Math.max(
+      Number.isFinite(brutoGuardado) && brutoGuardado > 0 ? brutoGuardado : 0,
+      brutoFromTotal,
+      brutoRatio
+    ));
 
   const montoDescNuevo = Number(Math.max(0, descActual - prevMonto + montoNuevo).toFixed(2));
   const totalNuevo = Number(Math.max(0, bruto - montoDescNuevo).toFixed(2));

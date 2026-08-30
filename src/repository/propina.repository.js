@@ -18,7 +18,8 @@ const Mesa = mongoose.model('mesas') || require('../database/models/mesas.model'
 const {
     agregarVentasComandasPorMozo,
     agregarHorariosComandas,
-    resumirHorariosComandas
+    resumirHorariosComandas,
+    rangoLima
 } = require('../utils/estadisticasComandas');
 
 // ============================================================
@@ -305,8 +306,7 @@ async function obtenerResumenDia(fecha = null) {
  */
 async function obtenerDatosDashboardMozos(fechaInicio, fechaFin) {
     try {
-        const inicio = moment.tz(fechaInicio, 'America/Lima').startOf('day').toDate();
-        const fin = moment.tz(fechaFin, 'America/Lima').endOf('day').toDate();
+        const { inicio, fin } = rangoLima(fechaInicio, fechaFin);
 
         // Obtener todos los mozos activos
         const mozos = await Mozos.find({ activo: { $ne: false } })

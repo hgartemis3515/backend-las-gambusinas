@@ -4,12 +4,29 @@ const moment = require('moment-timezone');
 
 const TZ = 'America/Lima';
 
+function esSoloFechaYMD(str) {
+    return typeof str === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(str.trim());
+}
+
+function parseLimaBound(str, { end } = {}) {
+    if (!str) return null;
+    const s = String(str).trim();
+    if (esSoloFechaYMD(s)) {
+        const m = moment.tz(s, 'YYYY-MM-DD', TZ);
+        return (end ? m.endOf('day') : m.startOf('day')).toDate();
+    }
+    const m = moment.parseZone(s);
+    if (!m.isValid()) return null;
+    return m.toDate();
+}
+
 function rangoLima(fechaInicio, fechaFin) {
-    const inicioStr = fechaInicio || moment().tz(TZ).format('YYYY-MM-DD');
-    const finStr = fechaFin || inicioStr;
+    const fallback = moment.tz(TZ).format('YYYY-MM-DD');
+    const inicioStr = fechaInicio || fallback;
+    const finStr = fechaFin || (esSoloFechaYMD(String(inicioStr)) ? inicioStr : fechaInicio) || fallback;
     return {
-        inicio: moment.tz(inicioStr, 'YYYY-MM-DD', TZ).startOf('day').toDate(),
-        fin: moment.tz(finStr, 'YYYY-MM-DD', TZ).endOf('day').toDate()
+        inicio: parseLimaBound(inicioStr, { end: false }) || moment.tz(TZ).startOf('day').toDate(),
+        fin: parseLimaBound(finStr, { end: true }) || moment.tz(TZ).endOf('day').toDate()
     };
 }
 
@@ -349,6 +366,45 @@ function filtroNoIncluidoEnCierreComanda() {
         $or: [
             { incluidoEnCierre: null },
             { incluidoEnCierre: { $exists: false } }
+        ]
+    };
+}
+
+/**
+ * Marca ObjectId o string de un cierre (datos viejos).
+ */
+function matchIncluidoEnEsteCierre(cierreId) {
+    return {
+        $or: [
+            { incluidoEnCierre: cierreId },
+            { incluidoEnCierre: String(cierreId) }
+        ]
+    };
+}
+
+/**
+ * Cierres viejos sin marca incluidoEnCierre: mismas fechas del período,
+ * sin incluir comandas ya asignadas a otro cierre.
+ */
+function matchComandasPeriodoDeCierre(periodoInicio, periodoFin, cierreId) {
+    return {
+        $and: [
+            matchComandaVigente(),
+            {
+                $or: [
+                    { createdAt: { $gte: periodoInicio, $lte: periodoFin } },
+                    { tiempoPagado: { $gte: periodoInicio, $lte: periodoFin } },
+                    { tiempoEntregado: { $gte: periodoInicio, $lte: periodoFin } }
+                ]
+            },
+            {
+                $or: [
+                    { incluidoEnCierre: cierreId },
+                    { incluidoEnCierre: String(cierreId) },
+                    { incluidoEnCierre: null },
+                    { incluidoEnCierre: { $exists: false } }
+                ]
+            }
         ]
     };
 }
@@ -700,6 +756,7 @@ function resumirHorariosComandas(rows) {
 module.exports = {
     TZ,
     rangoLima,
+    parseLimaBound,
     exprMontoComanda,
     exprFechaComanda,
     matchComandaVigente,
@@ -709,6 +766,8 @@ module.exports = {
     esComandaVendida,
     matchComandasEstadisticas,
     matchComandasCierrePendiente,
+    matchIncluidoEnEsteCierre,
+    matchComandasPeriodoDeCierre,
     filtroNoIncluidoEnCierreComanda,
     montoFilaReporte,
     sumaMontosReporte,

@@ -113,6 +113,7 @@ const EventCategoryMap = {
   // Cierre de Caja
   'cierre_caja_generado': { category: 'audit', icon: '💰', label: 'Cierre de caja generado' },
   'cierre_caja_reapertura': { category: 'audit', icon: '↩️', label: 'Cierre de caja reabierto' },
+  'cierre_caja_reversion': { category: 'audit', icon: '↩️', label: 'Cierre de caja revertido' },
   
   // Usuarios y Sesiones
   'usuario_autenticado': { category: 'info', icon: '🔐', label: 'Sesión iniciada' },

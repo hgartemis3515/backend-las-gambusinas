@@ -116,7 +116,7 @@ tailwind.config = {
  <span x-show="socketConnected" class="flex items-center gap-1 text-xs text-st-libre">
  <span class="w-2 h-2 rounded-full bg-st-libre animate-pulse"></span> Conectado
  </span>
- <button x-show="activeTab === 'tabla'" @click="loadComandas()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
+ <button x-show="activeTab === 'tabla'" @click="recargarTabla()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
  <button x-show="activeTab === 'plantilla' && plantillaComandaModificada" @click="guardarPlantillaComanda()" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">💾 Guardar Plantilla</button>
  </div>
  </div>
@@ -167,6 +167,13 @@ tailwind.config = {
  <!-- Período (mismo patrón que mozos → rendimiento) -->
  <div class="flex flex-wrap items-center gap-1">
   <span class="text-[10px] uppercase text-txt-muted mr-1">Período</span>
+  <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroPeriodo('dia')"
+    class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
+    :class="filtroPeriodo === 'dia' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">DIA</button>
+  <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroPeriodo('noche')"
+    class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
+    :class="filtroPeriodo === 'noche' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">NOCHE</button>
+  <span x-show="showTurnoDiaNoche" x-cloak class="w-px h-5 bg-[rgba(212,175,55,0.35)] mx-1"></span>
   <template x-for="p in presetsPeriodo" :key="p.id">
    <button type="button" @click="setFiltroPeriodo(p.id)"
     class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
@@ -221,7 +228,7 @@ tailwind.config = {
  </button>
 
  <!-- Botón limpiar filtros -->
- <button @click="limpiarFiltros()" x-show="filterMesa || filterEstado || filterIdComanda || filterMozo || filterCliente || filtroPeriodo !== 'hoy'"
+ <button @click="limpiarFiltros()" x-show="filterMesa || filterEstado || filterIdComanda || filterMozo || filterCliente || filtroPeriodo !== periodoDefault"
  class="dash-btn-limpiar px-3 py-2 text-xs text-txt-muted hover:text-gold transition border border-transparent hover:border-gold/30 rounded-lg">
  ✕ Limpiar
  </button>
@@ -984,7 +991,7 @@ tailwind.config = {
  </div>
  <div class="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-[10px] text-[#a0a0b8]">
  <span x-text="'Mozo: ' + (ticket.mozoNombre || ticket.nombreMozo || '—')"></span>
- <span x-text="'Platos: ' + (ticket.cantidadPlatos || ticket.platos?.length || 0)"></span>
+ <span x-text="'Platos: ' + ticketCantidadPlatos(ticket)"></span>
  <span x-text="'Pago: ' + ticketMetodoPagoLabel(ticket.metodoPago)"></span>
  <span x-text="ticket.createdAt ? new Date(ticket.createdAt).toLocaleString('es-PE', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : ''"></span>
  </div>
@@ -1551,7 +1558,7 @@ tailwind.config = {
  </div>
  <div class="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-[10px] text-[#a0a0b8]">
  <span x-text="'Mozo: ' + (ticket.mozoNombre || ticket.nombreMozo || '—')"></span>
- <span x-text="'Platos: ' + (ticket.cantidadPlatos || ticket.platos?.length || 0)"></span>
+ <span x-text="'Platos: ' + ticketCantidadPlatos(ticket)"></span>
  <span x-text="'Pago: ' + ticketMetodoPagoLabel(ticket.metodoPago)"></span>
  <span x-text="ticket.createdAt ? new Date(ticket.createdAt).toLocaleString('es-PE', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : ''"></span>
  </div>
@@ -1798,8 +1805,8 @@ tailwind.config = {
  <p class="text-[10px] text-txt-muted font-semibold">Precios de platos</p>
  <p class="text-[9px] text-txt-muted">El cambio se ve en cocina y al imprimir la comanda, en tickets pendientes y aprobados.</p>
  <div class="space-y-1.5 max-h-48 overflow-y-auto">
-  <template x-for="(p, pi) in ticketEditForm.platos" :key="p.platoLineaId || p._id || pi">
-   <div class="flex items-center gap-2 bg-bg-sidebar rounded-lg px-2 py-1.5">
+  <template x-for="(p, pi) in ticketEditForm.platos" :key="(p.platoLineaId || p._id || pi) + '-act'">
+   <div x-show="!p.eliminadoTicket && !p.eliminadoComanda && !p.quitarDelTicket" class="flex items-center gap-2 bg-bg-sidebar rounded-lg px-2 py-1.5">
     <span class="flex-1 min-w-0 text-[11px] text-txt-secondary truncate" x-text="(p.cantidad || 1) + '× ' + (p.nombre || 'Plato')"></span>
     <span class="text-[10px] text-txt-muted shrink-0">S/.</span>
     <input type="number" min="0" step="0.01" x-model.number="p.precio"
@@ -1808,11 +1815,26 @@ tailwind.config = {
    </div>
   </template>
  </div>
+ <div x-show="ticketEditForm.platos.some(p => p.eliminadoComanda || p.eliminadoTicket || p.quitarDelTicket)" class="space-y-1.5 pt-2 border-t border-gold/10">
+  <p class="text-[10px] text-st-pagado font-semibold">Platos eliminados en la comanda</p>
+  <p class="text-[9px] text-txt-muted">Al guardar se quitan del ticket y del total (cocina, reportes y cierre). Solo quedan en auditoría.</p>
+  <template x-for="(p, pi) in ticketEditForm.platos" :key="(p.platoLineaId || p._id || pi) + '-del'">
+   <div x-show="p.eliminadoComanda || p.eliminadoTicket || p.quitarDelTicket" class="flex items-center gap-2 bg-st-pagado/10 border border-st-pagado/20 rounded-lg px-2 py-1.5">
+    <span class="flex-1 min-w-0 text-[11px] text-txt-muted line-through truncate" x-text="(p.cantidad || 1) + '× ' + (p.nombre || 'Plato')"></span>
+    <span class="w-16 text-right text-[10px] text-txt-muted shrink-0" x-text="'-S/. ' + ticketLineaSubtotal(p).toFixed(2)"></span>
+    <button type="button" x-show="!p.eliminadoTicket" @click="p.quitarDelTicket = !p.quitarDelTicket"
+     class="text-[10px] px-2 py-1 rounded-lg shrink-0"
+     :class="p.quitarDelTicket ? 'bg-st-pagado text-white' : 'border border-st-pagado/40 text-st-pagado hover:bg-st-pagado/20'"
+     x-text="p.quitarDelTicket ? 'Se quita al guardar' : 'Quitar del ticket'"></button>
+    <span x-show="p.eliminadoTicket" class="text-[9px] text-txt-muted shrink-0">Ya no suma</span>
+   </div>
+  </template>
+ </div>
  </div>
  <div class="bg-bg-sidebar rounded-lg p-3 text-xs text-txt-secondary">
  <p x-text="'Total: S/. ' + ticketEditFormNeto().toFixed(2)"></p>
  <p x-show="Number(ticketEditando?.montoDescuento) > 0" class="text-st-pagado" x-text="'Desc. -S/. ' + (ticketEditFormBruto() - ticketEditFormNeto()).toFixed(2)"></p>
- <p x-text="'Platos: ' + (ticketEditForm.platos?.length || ticketEditando?.cantidadPlatos || 0)"></p>
+ <p x-text="'Platos: ' + ticketEditFormPlatosActivosCount()"></p>
  </div>
  </div>
  <div class="bg-bg-sidebar p-4 rounded-b-2xl flex justify-end gap-2">
@@ -2187,6 +2209,21 @@ function addDaysYMD(ymd, delta) {
   const utc = Date.UTC(y, m - 1, d, 12, 0, 0);
   return limaYMD(new Date(utc + delta * 86400000));
 }
+function limaDayStart(ymd) {
+  return new Date(ymd + 'T00:00:00-05:00');
+}
+function limaDayEnd(ymd) {
+  return new Date(ymd + 'T23:59:59.999-05:00');
+}
+function limaHM(d) {
+  if (!d) return '';
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/Lima',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(d));
+}
 
 function comandasApp() {
  return {
@@ -2235,6 +2272,12 @@ function comandasApp() {
  filtroPeriodo: 'hoy',
  customFechaDesde: '',
  customFechaHasta: '',
+ showTurnoDiaNoche: false,
+ primerCierreHoyAt: null,
+ cierresHoyCount: 0,
+ turnosLimaYMD: '',
+ _turnosAutoNocheHecho: false,
+ _turnosPoll: null,
  presetsPeriodo: [
   { id: 'hoy', label: 'Hoy' },
   { id: 'ayer', label: 'Ayer' },
@@ -2790,8 +2833,13 @@ formatearNombreMesa(mesa, mesaObj = null) {
  }, 1000);
 
  await this.loadConfigMoneda();
+ await this.refreshTurnosCierre({ filtrar: false });
  await this.loadComandas();
  await this.cargarPlantillaComandaLocal();
+ this._turnosPoll = setInterval(() => this.refreshTurnosCierre(), 45000);
+ document.addEventListener('visibilitychange', () => {
+   if (!document.hidden) this.refreshTurnosCierre();
+ });
  window.addEventListener('beforeunload', (e) => {
    if (this.plantillaComandaModificada) {
      e.preventDefault();
@@ -3405,6 +3453,48 @@ this.modal = null;
  this.processGrouping();
  this.filterComandas();
  this.loading = false;
+ },
+
+ async recargarTabla() {
+   await this.refreshTurnosCierre({ filtrar: false });
+   await this.loadComandas();
+ },
+
+ async refreshTurnosCierre({ filtrar = true } = {}) {
+   const ymd = limaYMD();
+   let data = null;
+   try { data = await apiGet('/cierre-caja/turnos-dia'); } catch (e) { data = null; }
+   if (!data || typeof data.limaYMD !== 'string') return;
+
+   const mismoDia = data.limaYMD === ymd;
+   const cantidad = mismoDia ? (Number(data.cantidad) || 0) : 0;
+   const hay = mismoDia && data.hayCierreHoy === true && cantidad >= 1 && !!data.primerCierreAt;
+   const diaCambio = this.turnosLimaYMD && this.turnosLimaYMD !== ymd;
+
+   if (diaCambio) {
+     this._turnosAutoNocheHecho = false;
+     if (this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche') {
+       this.filtroPeriodo = 'hoy';
+     }
+   }
+
+   this.turnosLimaYMD = ymd;
+   this.showTurnoDiaNoche = hay;
+   this.primerCierreHoyAt = hay ? data.primerCierreAt : null;
+   this.cierresHoyCount = cantidad;
+
+   if (hay && !this._turnosAutoNocheHecho) {
+     this.filtroPeriodo = 'noche';
+     this._turnosAutoNocheHecho = true;
+   }
+   if (!hay) {
+     this._turnosAutoNocheHecho = false;
+     if (this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche') {
+       this.filtroPeriodo = 'hoy';
+     }
+   }
+
+   if (filtrar) this.filterComandas();
  },
 
  extraerMozosUnicos() {
@@ -4113,7 +4203,9 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  get rangoFiltroFechas() {
   const hoy = limaYMD();
   if (this.filtroPeriodo === 'todos') return null;
-  if (this.filtroPeriodo === 'hoy') return { desde: hoy, hasta: hoy };
+  if (this.filtroPeriodo === 'hoy' || this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche') {
+    return { desde: hoy, hasta: hoy };
+  }
   if (this.filtroPeriodo === 'ayer') {
     const ayer = addDaysYMD(hoy, -1);
     return { desde: ayer, hasta: ayer };
@@ -4127,10 +4219,20 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  get rangoFiltroEtiqueta() {
   if (this.filtroPeriodo === 'todos') return 'Todas';
+  if (this.filtroPeriodo === 'dia' && this.primerCierreHoyAt) {
+    return 'Día · ' + limaYMD() + ' 00:00–' + limaHM(this.primerCierreHoyAt);
+  }
+  if (this.filtroPeriodo === 'noche' && this.primerCierreHoyAt) {
+    return 'Noche · ' + limaHM(this.primerCierreHoyAt) + '–23:59';
+  }
   const rango = this.rangoFiltroFechas;
   if (!rango) return 'Todas';
   const { desde, hasta } = rango;
   return desde === hasta ? desde : desde + ' → ' + hasta;
+ },
+
+ get periodoDefault() {
+  return this.showTurnoDiaNoche ? 'noche' : 'hoy';
  },
 
  setFiltroPeriodo(id) {
@@ -4146,6 +4248,15 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  matchFechaRango(createdAt) {
   if (this.filtroPeriodo === 'todos') return true;
   if (!createdAt) return false;
+  if (this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche') {
+    if (!this.primerCierreHoyAt) return false;
+    const t = new Date(createdAt).getTime();
+    const corte = new Date(this.primerCierreHoyAt).getTime();
+    const ymd = limaYMD();
+    if (t < limaDayStart(ymd).getTime() || t > limaDayEnd(ymd).getTime()) return false;
+    if (this.filtroPeriodo === 'dia') return t < corte;
+    return t >= corte;
+  }
   const ymd = limaYMD(new Date(createdAt));
   const rango = this.rangoFiltroFechas;
   if (!rango) return true;
@@ -4185,8 +4296,12 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  // Fecha: usar la comanda más antigua del grupo
  let matchFecha = true;
  if (row.comandas && row.comandas.length > 0) {
- const comandaMasAntigua = row.comandas[row.comandas.length - 1];
- matchFecha = this.matchFechaRango(comandaMasAntigua?.createdAt);
+   if (this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche') {
+     matchFecha = row.comandas.some(c => this.matchFechaRango(c?.createdAt));
+   } else {
+     const comandaMasAntigua = row.comandas[row.comandas.length - 1];
+     matchFecha = this.matchFechaRango(comandaMasAntigua?.createdAt);
+   }
  }
  
  return matchMesa && matchEstado && matchCliente && matchMozo && matchFecha;
@@ -4214,7 +4329,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  this.filterIdComanda = '';
  this.filterMozo = '';
  this.filterCliente = '';
- this.filtroPeriodo = 'hoy';
+ this.filtroPeriodo = this.periodoDefault;
  this.customFechaDesde = '';
  this.customFechaHasta = '';
  this.filterComandas();
@@ -4372,13 +4487,27 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  },
 
  clonarPlatosTicketParaEdicion(ticket) {
- return (ticket?.platos || []).filter((p) => p && !p.eliminado).map((p) => ({
-  platoLineaId: p.platoLineaId || p._id,
-  _id: p._id,
-  nombre: p.nombre || 'Plato',
-  cantidad: Math.max(1, Number(p.cantidad) || 1),
-  precio: Number(p.precio) || 0,
- }));
+ const eliminadosCmd = new Set(
+  (this.editPlatos || [])
+   .filter((p) => p && p.eliminado)
+   .map((p) => String(p._id || p.platoLineaId || ''))
+   .filter(Boolean)
+ );
+ return (ticket?.platos || []).map((p) => {
+  const id = String(p.platoLineaId || p._id || '');
+  const eliminadoTicket = !!p.eliminado;
+  const eliminadoComanda = eliminadosCmd.has(id) || eliminadoTicket;
+  return {
+   platoLineaId: p.platoLineaId || p._id,
+   _id: p._id,
+   nombre: p.nombre || 'Plato',
+   cantidad: Math.max(1, Number(p.cantidad) || 1),
+   precio: Number(p.precio) || 0,
+   eliminadoTicket,
+   eliminadoComanda,
+   quitarDelTicket: eliminadoComanda && !eliminadoTicket,
+  };
+ });
  },
 
  ticketLineaSubtotal(p) {
@@ -4387,8 +4516,23 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  return Number(((Number.isFinite(precio) && precio >= 0 ? precio : 0) * cant).toFixed(2));
  },
 
+ ticketEditFormPlatosActivos() {
+ return (this.ticketEditForm.platos || []).filter((p) => p && !p.eliminadoTicket && !p.quitarDelTicket);
+ },
+
+ ticketCantidadPlatos(ticket) {
+ if (Array.isArray(ticket?.platos)) {
+  return ticket.platos.filter((p) => p && !p.eliminado && !p.anulado).length;
+ }
+ return ticket?.cantidadPlatos || 0;
+ },
+
+ ticketEditFormPlatosActivosCount() {
+ return this.ticketEditFormPlatosActivos().length;
+ },
+
  ticketEditFormBruto() {
- return Number(((this.ticketEditForm.platos || []).reduce((s, p) => s + this.ticketLineaSubtotal(p), 0)).toFixed(2));
+ return Number((this.ticketEditFormPlatosActivos().reduce((s, p) => s + this.ticketLineaSubtotal(p), 0)).toFixed(2));
  },
 
  ticketEditFormNeto() {
@@ -4448,7 +4592,9 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  _id: String(t._id),
  tipo,
  mozoNombre: t.mozoNombre || t.nombreMozo || t.mozo?.name || 'N/A',
- cantidadPlatos: t.cantidadPlatos ?? (t.platos || []).length,
+ cantidadPlatos: Array.isArray(t.platos)
+  ? t.platos.filter((p) => p && !p.eliminado && !p.anulado).length
+  : (t.cantidadPlatos ?? 0),
  };
  },
 
@@ -4513,7 +4659,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  }
  return;
  }
- const updated = { ...this.comandaTickets[idx], ...patch };
+ const updated = this.normalizarTicketLista({ ...this.comandaTickets[idx], ...patch });
  this.comandaTickets = [
  ...this.comandaTickets.slice(0, idx),
  updated,
@@ -4603,10 +4749,14 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   tipo: tipoHint,
   observaciones: this.ticketEditForm.observaciones,
   metodoPago: this.ticketEditForm.metodoPago,
-  platos: (this.ticketEditForm.platos || []).map((p) => ({
+  platos: this.ticketEditFormPlatosActivos().map((p) => ({
    platoLineaId: p.platoLineaId || p._id,
    precio: Number(p.precio) || 0,
   })),
+  platosEliminar: (this.ticketEditForm.platos || [])
+   .filter((p) => p.quitarDelTicket && !p.eliminadoTicket)
+   .map((p) => p.platoLineaId || p._id)
+   .filter(Boolean),
  }), 'No se pudo guardar el ticket');
  if (res?.ticket) {
   this.actualizarTicketEnLista(this.ticketEditando._id, res.ticket);
@@ -5485,8 +5635,6 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  const res = await apiPut('/comanda/' + this.comandaEliminar._id + '/eliminar', {
  motivo: this.motivoEliminacion.trim(),
- usuarioId: 'admin',
- mozoId: null,
  forzarAdmin: true,
  sourceApp: 'dashboard'
  });

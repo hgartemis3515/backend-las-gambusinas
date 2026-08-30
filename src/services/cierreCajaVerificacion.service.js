@@ -24,6 +24,7 @@ const {
   montoDescuentoComandaNum,
   cargarConfigMonedaEstadisticas,
 } = require('../utils/estadisticasComandas');
+const { obtenerUltimoCierreVigente } = require('../utils/cierreCajaReversion');
 
 const COMANDA_CIERRE_SELECT = `${COMANDA_DESCUENTO_SELECT} status precioTotal precioTotalOriginal platos cantidades mesas mozos procesadoPor procesandoPor`;
 
@@ -36,12 +37,12 @@ const POPULATE_COMANDAS_TICKET = {
 const ZONA = 'America/Lima';
 const FECHA_BASE_FALLBACK = new Date('2024-01-01');
 
-/** Período pendiente de cerrar: desde el último cierre hasta ahora. */
+/** Período pendiente de cerrar: desde el último cierre vigente hasta ahora. */
 async function obtenerPeriodoPendiente() {
-  const ultimoCierre = await CierreCajaRestaurante.findOne()
-    .sort({ fechaCierre: -1 })
-    .select('fechaCierre periodoFin')
-    .lean();
+  const ultimoCierre = await obtenerUltimoCierreVigente(
+    CierreCajaRestaurante,
+    'fechaCierre periodoFin estado'
+  );
 
   const periodoInicio = ultimoCierre?.periodoFin || FECHA_BASE_FALLBACK;
   const periodoFin = moment.tz(ZONA).toDate();
@@ -431,6 +432,27 @@ async function marcarTicketsComoIncluidosEnCierre(cierreId, periodoInicio, perio
 }
 
 /**
+ * Quita la marca de incluidoEnCierre de tickets de un cierre revertido.
+ * No toca confirmado: el período vuelve al estado previo a ejecutar el cierre.
+ */
+async function desmarcarTicketsDeCierre(cierreId) {
+  if (!mongoose.Types.ObjectId.isValid(cierreId)) {
+    return { ticketsComanda: 0, ticketsAdelantado: 0 };
+  }
+  const oid = toObjectId(cierreId);
+  const query = { 'verificacionCierre.incluidoEnCierre': oid };
+  const update = { $set: { 'verificacionCierre.incluidoEnCierre': null } };
+  const [a, b] = await Promise.all([
+    ticketAprobacionModel.updateMany(query, update),
+    ticketPagoAdelantadoModel.updateMany(query, update),
+  ]);
+  return {
+    ticketsComanda: a.modifiedCount || 0,
+    ticketsAdelantado: b.modifiedCount || 0,
+  };
+}
+
+/**
  * Verifica si el período está listo para ejecutar el cierre.
  * Lanza error si hay tickets sin confirmar.
  */
@@ -475,5 +497,7 @@ module.exports = {
   confirmarTicket,
   confirmarTodos,
   marcarTicketsComoIncluidosEnCierre,
+  desmarcarTicketsDeCierre,
   validarListoParaCerrar,
+  obtenerUltimoCierreVigente: () => obtenerUltimoCierreVigente(CierreCajaRestaurante),
 };

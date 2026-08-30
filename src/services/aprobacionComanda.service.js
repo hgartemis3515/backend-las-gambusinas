@@ -145,13 +145,13 @@ async function obtenerTicketsPorComanda(comandaId) {
       ...t,
       tipo: t.tipo === 'pago_parcial' ? 'PAGO_PARCIAL' : 'COMANDA',
       mozoNombre: t.mozoNombre || t.nombreMozo || t.mozo?.name || 'N/A',
-      cantidadPlatos: (t.platos || []).length,
+      cantidadPlatos: (t.platos || []).filter((p) => p && !p.eliminado && !p.anulado).length,
     })),
     ...ticketsPPA.map((t) => ({
       ...t,
       tipo: 'ADELANTADO',
       mozoNombre: t.mozoNombre || t.nombreMozo || t.mozo?.name || 'N/A',
-      cantidadPlatos: (t.platos || []).length,
+      cantidadPlatos: (t.platos || []).filter((p) => p && !p.eliminado && !p.anulado).length,
     })),
   ].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 

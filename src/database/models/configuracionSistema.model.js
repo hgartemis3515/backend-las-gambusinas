@@ -99,7 +99,9 @@ const CONFIGURACION_DEFAULT = {
     tickets: {
         mostrarIGVDesglosado: true,
         mensajePie: 'Gracias por su visita',
-        mostrarComplementos: true
+        mostrarComplementos: false,
+        // Default ON: imprimir nombre de carta, sin guarniciones ni alias de cocina.
+        imprimirSoloNombreComercial: true
     },
     
     // Horarios de operación
@@ -473,6 +475,10 @@ const configuracionSistemaSchema = new mongoose.Schema({
         mostrarComplementos: {
             type: Boolean,
             default: CONFIGURACION_DEFAULT.tickets.mostrarComplementos
+        },
+        imprimirSoloNombreComercial: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.tickets.imprimirSoloNombreComercial
         }
     },
     

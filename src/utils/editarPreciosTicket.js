@@ -7,6 +7,35 @@ function round2(n) {
   return Number((Number(n) || 0).toFixed(2));
 }
 
+function claveLineaTicket(linea) {
+  return String((linea && (linea.platoLineaId || linea._id)) || '').trim();
+}
+
+function recalcularTotalesSnapshot(doc) {
+  if (!doc || !Array.isArray(doc.platos)) return doc;
+  const bruto = round2(doc.platos.reduce((s, p) => {
+    if (!p || p.eliminado || p.anulado) return s;
+    return s + (Number(p.subtotal) || round2((Number(p.precio) || 0) * (Number(p.cantidad) || 1)));
+  }, 0));
+  const descArr = Array.isArray(doc.descuentos) ? doc.descuentos : [];
+  const pct = Number(descArr[0] && descArr[0].porcentaje) || 0;
+  let montoDesc = Number(doc.montoDescuento) || 0;
+  if (pct > 0) {
+    montoDesc = round2(bruto * (pct / 100));
+    if (descArr[0]) descArr[0].monto = montoDesc;
+  } else if (montoDesc > bruto) {
+    montoDesc = bruto;
+  }
+  doc.subtotal = bruto;
+  doc.totalSinDescuento = bruto;
+  doc.montoDescuento = montoDesc;
+  doc.total = round2(Math.max(0, bruto - montoDesc));
+  if (doc.totalConDescuento != null) doc.totalConDescuento = doc.total;
+  try { doc.markModified('platos'); } catch (_) { /* pojo / test */ }
+  try { if (descArr.length) doc.markModified('descuentos'); } catch (_) { /* pojo / test */ }
+  return doc;
+}
+
 function aplicarPreciosEnLineasTicket(ticket, platosInput) {
   if (!ticket || !Array.isArray(ticket.platos) || !Array.isArray(platosInput) || !platosInput.length) {
     return { changed: false, cambiosComanda: [] };
@@ -28,7 +57,7 @@ function aplicarPreciosEnLineasTicket(ticket, platosInput) {
 
   ticket.platos.forEach((linea, i) => {
     if (!linea || linea.eliminado) return;
-    const clave = String(linea.platoLineaId || linea._id || '').trim();
+    const clave = claveLineaTicket(linea);
     let precio;
     if (clave && precioPorClave.has(clave)) precio = precioPorClave.get(clave);
     else if (precioPorIndex[i] != null) precio = precioPorIndex[i];
@@ -52,29 +81,37 @@ function aplicarPreciosEnLineasTicket(ticket, platosInput) {
 
   if (!changed) return { changed: false, cambiosComanda: [] };
 
-  const bruto = round2(ticket.platos.reduce((s, p) => {
-    if (!p || p.eliminado) return s;
-    return s + (Number(p.subtotal) || round2((Number(p.precio) || 0) * (Number(p.cantidad) || 1)));
-  }, 0));
+  recalcularTotalesSnapshot(ticket);
+  return { changed: true, cambiosComanda, bruto: ticket.subtotal, neto: ticket.total };
+}
 
-  const descArr = Array.isArray(ticket.descuentos) ? ticket.descuentos : [];
-  const pct = Number(descArr[0] && descArr[0].porcentaje) || 0;
-  let montoDesc = Number(ticket.montoDescuento) || 0;
-  if (pct > 0) {
-    montoDesc = round2(bruto * (pct / 100));
-    descArr[0].monto = montoDesc;
-  } else if (montoDesc > bruto) {
-    montoDesc = bruto;
+function quitarLineasDeSnapshot(doc, idsInput) {
+  const ids = new Set((idsInput || []).map((id) => String(id || '').trim()).filter(Boolean));
+  if (!doc || !Array.isArray(doc.platos) || !ids.size) {
+    return { changed: false, ids: [] };
   }
+  const quitados = [];
+  for (const linea of doc.platos) {
+    if (!linea || linea.eliminado) continue;
+    const clave = claveLineaTicket(linea);
+    if (!clave || !ids.has(clave)) continue;
+    linea.eliminado = true;
+    quitados.push(clave);
+  }
+  if (!quitados.length) return { changed: false, ids: [] };
+  recalcularTotalesSnapshot(doc);
+  return { changed: true, ids: quitados, bruto: doc.subtotal, neto: doc.total };
+}
 
-  ticket.subtotal = bruto;
-  ticket.totalSinDescuento = bruto;
-  ticket.montoDescuento = montoDesc;
-  ticket.total = round2(Math.max(0, bruto - montoDesc));
-  try { ticket.markModified('platos'); } catch (_) { /* pojo / test */ }
-  try { if (descArr.length) ticket.markModified('descuentos'); } catch (_) { /* pojo / test */ }
-
-  return { changed: true, cambiosComanda, bruto, neto: ticket.total };
+async function sincronizarEliminacionEnBoucher(boucherId, idsLinea) {
+  if (!boucherId || !idsLinea?.length) return false;
+  const Boucher = require('../database/models/boucher.model');
+  const boucher = await Boucher.findById(boucherId);
+  if (!boucher || !Array.isArray(boucher.platos)) return false;
+  const out = quitarLineasDeSnapshot(boucher, idsLinea);
+  if (!out.changed) return false;
+  await boucher.save();
+  return true;
 }
 
 async function sincronizarPreciosComandaYBoucher(cambiosComanda, boucherId, { skipBoucher } = {}) {
@@ -144,5 +181,7 @@ async function sincronizarPreciosComandaYBoucher(cambiosComanda, boucherId, { sk
 module.exports = {
   round2,
   aplicarPreciosEnLineasTicket,
+  quitarLineasDeSnapshot,
+  sincronizarEliminacionEnBoucher,
   sincronizarPreciosComandaYBoucher,
 };

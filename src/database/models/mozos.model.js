@@ -24,7 +24,7 @@ const PERMISOS_FUNDAMENTALES = {
     // Cierre de caja: división granular (ver-cierre-caja, ejecutar-cierre-caja).
     // 'cierre-caja' se mantiene como alias legacy por compatibilidad.
     'ver-cierre-caja': { nombre: 'Ver Cierre de Caja', grupo: 'Backend/Dashboard', descripcion: 'Ver cierre de caja, historial, KPIs y verificar tickets antes del cierre' },
-    'ejecutar-cierre-caja': { nombre: 'Ejecutar Cierre de Caja', grupo: 'Backend/Dashboard', descripcion: 'Confirmar el cierre de caja definitivo del período' },
+    'ejecutar-cierre-caja': { nombre: 'Ejecutar Cierre de Caja', grupo: 'Backend/Dashboard', descripcion: 'Confirmar el cierre de caja del período y revertirlo (exige motivo de auditoría)' },
     'cierre-caja': { nombre: 'Cierre de Caja (legacy)', grupo: 'Backend/Dashboard', descripcion: 'Alias legacy. Preferir ver-cierre-caja y ejecutar-cierre-caja' },
     'ver-notificaciones': { nombre: 'Ver Notificaciones', grupo: 'Backend/Dashboard', descripcion: 'Acceder al centro de notificaciones' },
     'crear-comandas-dashboard': { nombre: 'Crear Comandas (Dashboard)', grupo: 'Backend/Dashboard', descripcion: 'Crear comandas desde comandas.html; incluye opción Omitir pago (auto-pagado al entregar)' },

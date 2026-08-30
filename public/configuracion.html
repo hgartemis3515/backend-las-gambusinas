@@ -672,10 +672,6 @@ tailwind.config = {
               <input type="checkbox" x-model="config.autoImpresion" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
               <span class="text-sm text-txt-secondary">Auto impresión de comandas</span>
             </label>
-            <label class="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" x-model="config.mostrarComplementos" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
-              <span class="text-sm text-txt-secondary">Mostrar complementos en tickets</span>
-            </label>
 
             <!-- PLAN OBLIGAR ORDEN ASIGNACION KDS SUPERVISOR -->
             <div class="border-t border-[rgba(212,175,55,0.15)] pt-4 mt-4 space-y-3">
@@ -842,6 +838,14 @@ tailwind.config = {
               <input type="checkbox" x-model="config.numeracionAuto" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
               <span class="text-sm text-txt-secondary">Numeración automática de comprobantes</span>
             </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.imprimirSoloNombreComercial" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Imprimir solo el nombre comercial del plato (sin guarniciones)</span>
+            </label>
+            <p class="text-xs text-txt-muted ml-7">
+              Si está <strong class="text-txt-secondary font-medium">marcado</strong> (recomendado), las comandas impresas en Comandas, Tickets y pagos adelantados de cocina muestran el nombre de carta, sin extras ni alias de cocina.
+              Desmárcalo si quieres listar cada guarnición en el ticket.
+            </p>
           </div>
         </div>
 
@@ -1107,10 +1111,6 @@ tailwind.config = {
             <label class="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" x-model="config.exportAutoExcel" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
               <span class="text-sm text-txt-secondary">Exportar Excel automáticamente</span>
-            </label>
-            <label class="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" x-model="config.desgloseComplementos" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
-              <span class="text-sm text-txt-secondary">Desglose de complementos</span>
             </label>
           </div>
         </div>
@@ -1505,7 +1505,8 @@ function configApp() {
       tickets: {
         mostrarIGVDesglosado: true,
         mensajePie: 'Gracias por su visita',
-        mostrarComplementos: true
+        mostrarComplementos: false,
+        imprimirSoloNombreComercial: true
       },
       // Horarios
       horarios: {
@@ -1562,7 +1563,8 @@ function configApp() {
       exportAutoPdf: false,
       exportAutoExcel: false,
       emailReportes: '',
-      desgloseComplementos: true,
+      desgloseComplementos: false,
+      imprimirSoloNombreComercial: true,
       cocinaDeshabilitarOrdenSecuencialGuarniciones: true,
       cocinaDeshabilitarAgrupacionGuarniciones: false,
       cocinaPrimerToqueFinalizarAsignado: true,
@@ -1799,7 +1801,8 @@ function configApp() {
           // Mapear tickets
           if (cfg.tickets) {
             this.config.tickets = cfg.tickets;
-            this.config.desgloseComplementos = cfg.tickets.mostrarComplementos ?? true;
+            this.config.imprimirSoloNombreComercial = cfg.tickets.imprimirSoloNombreComercial !== false;
+            this.config.desgloseComplementos = this.config.imprimirSoloNombreComercial ? false : (cfg.tickets.mostrarComplementos ?? false);
           }
           
           // Mapear horarios
@@ -1998,7 +2001,8 @@ function configApp() {
           tickets: {
             mostrarIGVDesglosado: true,
             mensajePie: 'Gracias por su visita',
-            mostrarComplementos: this.config.desgloseComplementos
+            imprimirSoloNombreComercial: this.config.imprimirSoloNombreComercial !== false,
+            mostrarComplementos: this.config.imprimirSoloNombreComercial === false
           },
           
           // Horarios

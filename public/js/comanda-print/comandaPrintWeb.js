@@ -180,6 +180,17 @@ function resolverTipoPagoImpresion(ticket, tipoPagoFallback = 'Pendiente') {
 
 function resolverTotalesTicketImpresion(ticket, productos) {
   const sumaPlatos = (productos || []).reduce((s, p) => s + (Number(p.subtotal) || 0), 0);
+  const haySnapshot = Array.isArray(ticket?.platos) && ticket.platos.length > 0;
+  if (haySnapshot) {
+    const pct = Number(ticket?.descuentos?.[0]?.porcentaje) || 0;
+    let desc = Number(ticket?.montoDescuento) || 0;
+    if (pct > 0) desc = Number((sumaPlatos * pct / 100).toFixed(2));
+    else if (desc > sumaPlatos) desc = sumaPlatos;
+    return {
+      subtotal: sumaPlatos,
+      total: Number(Math.max(0, sumaPlatos - desc).toFixed(2)),
+    };
+  }
   const esReserva = ticket?.origen === 'reserva';
   const totalGuardado = Number(ticket?.total);
   const subtotalGuardado = Number(ticket?.subtotal);
@@ -217,11 +228,14 @@ function mapearTicketADatos(ticket) {
 
   const tipoLower = String(ticket.tipo || '').toLowerCase();
 
-  const productos = (ticket.platos || []).map(p => {
+  const productos = (ticket.platos || []).filter(p => p && !p.eliminado && !p.anulado).map(p => {
     const precio = p.precio || p.plato?.precio || 0;
     const cantidad = p.cantidad || 1;
     return {
-      nombre: p.nombre || p.plato?.nombre || 'Plato',
+      nombre: p.plato?.nombre || p.nombre || 'Plato',
+      nombreComercial: p.plato?.nombre,
+      nombreCocina: p.plato?.nombreCocina,
+      plato: p.plato,
       cantidad,
       precio,
       subtotal: p.subtotal || precio * cantidad,
@@ -236,20 +250,28 @@ function mapearTicketADatos(ticket) {
     };
   });
   const totales = resolverTotalesTicketImpresion(ticket, productos);
-  const montoDescuento = Number(ticket.montoDescuento ?? ticket.boucher?.montoDescuento ?? 0)
+  const haySnapshot = Array.isArray(ticket.platos) && ticket.platos.length > 0;
+  const montoDescuentoTicket = Number(ticket.montoDescuento ?? ticket.boucher?.montoDescuento ?? 0)
     || (Array.isArray(ticket.comandas)
       ? ticket.comandas.reduce((s, c) => s + (Number(c?.montoDescuento) || 0), 0)
       : 0);
   const sinBruto = Number(ticket.totalSinDescuento ?? ticket.boucher?.totalSinDescuento);
   const sumaProductos = (productos || []).reduce((s, p) => s + (Number(p.subtotal) || 0), 0);
-  const bruto = Math.max(
-    Number.isFinite(sinBruto) && sinBruto > 0 ? sinBruto : 0,
-    Number(totales.subtotal) || 0,
-    sumaProductos || 0
-  ) || (totales.subtotal || totales.total);
-  const totalNeto = montoDescuento > 0
-    ? Number(Math.max(0, bruto - montoDescuento).toFixed(2))
-    : totales.total;
+  const bruto = haySnapshot
+    ? sumaProductos
+    : (Math.max(
+      Number.isFinite(sinBruto) && sinBruto > 0 ? sinBruto : 0,
+      Number(totales.subtotal) || 0,
+      sumaProductos || 0
+    ) || (totales.subtotal || totales.total));
+  const montoDescuento = haySnapshot
+    ? Number(Math.max(0, bruto - Number(totales.total || 0)).toFixed(2))
+    : montoDescuentoTicket;
+  const totalNeto = haySnapshot
+    ? Number(totales.total || 0)
+    : (montoDescuento > 0
+      ? Number(Math.max(0, bruto - montoDescuento).toFixed(2))
+      : totales.total);
 
   return {
     ticketId: ticket._id || ticket.ticketId || null,
@@ -271,13 +293,13 @@ function mapearTicketADatos(ticket) {
     tipoPago: resolverTipoPagoImpresion(ticket),
     observaciones: ticket.observaciones || '',
     productos,
-    subtotal: montoDescuento > 0 ? bruto : totales.subtotal,
+    subtotal: montoDescuento > 0 || haySnapshot ? bruto : totales.subtotal,
     igv: ticket.igv || 0,
     igvPorcentaje: ticket.igvPorcentaje,
     nombreImpuesto: ticket.nombreImpuesto,
     total: totalNeto,
     montoDescuento: Number(montoDescuento) || 0,
-    totalSinDescuento: montoDescuento > 0 ? bruto : (ticket.totalSinDescuento ?? ticket.boucher?.totalSinDescuento ?? null),
+    totalSinDescuento: montoDescuento > 0 || haySnapshot ? bruto : (ticket.totalSinDescuento ?? ticket.boucher?.totalSinDescuento ?? null),
     descuentos: ticket.descuentos?.length ? ticket.descuentos : (ticket.boucher?.descuentos || []),
     cliente: {
       nombre: ticket.cliente?.nombre || ticket.nombreCliente || ticket.clienteNombre || 'Cliente',

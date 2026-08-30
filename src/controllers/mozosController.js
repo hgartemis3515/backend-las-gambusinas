@@ -311,8 +311,7 @@ router.get('/mozos/rendimiento/resumen-turno', adminAuth, async (req, res) => {
     if (!tieneReportes) {
       return res.status(403).json({ success: false, error: 'No tiene permisos para ver el resumen de turno de mozos' });
     }
-    const fechaInicio = req.query.desde ? moment(req.query.desde).startOf('day').toDate() : moment().startOf('day').toDate();
-    const fechaFin = req.query.hasta ? moment(req.query.hasta).endOf('day').toDate() : moment().endOf('day').toDate();
+    const { inicio: fechaInicio, fin: fechaFin } = rangoLima(req.query.desde, req.query.hasta);
     const resumen = await mozosRendimiento.obtenerResumenTurnoMozos({ fechaInicio, fechaFin });
     res.json({ success: true, data: resumen });
   } catch (error) {
@@ -329,9 +328,7 @@ router.get('/mozos/rendimiento/historial', adminAuth, async (req, res) => {
       return res.status(403).json({ success: false, error: 'No tiene permisos para ver el historial de comandas de mozos' });
     }
 
-    const { desde, hasta } = req.query;
-    const fechaInicio = desde ? moment(desde).startOf('day').toDate() : moment().startOf('day').toDate();
-    const fechaFin = hasta ? moment(hasta).endOf('day').toDate() : moment().endOf('day').toDate();
+    const { inicio: fechaInicio, fin: fechaFin } = rangoLima(req.query.desde, req.query.hasta);
 
     let mozoId = null;
     // Si no es admin/supervisor con reportes, limitar a sus propias comandas

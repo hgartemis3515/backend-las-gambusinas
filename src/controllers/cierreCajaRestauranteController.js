@@ -13,6 +13,12 @@ const reportesRepository = require('../repository/reportes.repository');
 const moment = require('moment-timezone');
 const logger = require('../utils/logger');
 const { adminAuth, checkPermission } = require('../middleware/adminAuth');
+const verificacionService = require('../services/cierreCajaVerificacion.service');
+const {
+  normalizarMotivoReversion,
+  obtenerUltimoCierreVigente
+} = require('../utils/cierreCajaReversion');
+const { obtenerTurnosDia } = require('../utils/cierreCajaTurnosDia');
 const {
   montoDescuentoComandaNum,
   montoFilaReporte,
@@ -22,6 +28,8 @@ const {
   cantidadPlatoNum,
   matchComandaVigente,
   matchComandasCierrePendiente,
+  matchIncluidoEnEsteCierre,
+  matchComandasPeriodoDeCierre,
   STATUS_COMANDA_VENDIDA,
   esComandaVendida,
   cargarConfigMonedaEstadisticas,
@@ -65,14 +73,8 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
     }
 
     // Paso 2: Obtener fecha del último cierre
-    const ultimoCierre = await CierreCajaRestaurante.findOne()
-      .sort({ fechaCierre: -1 })
-      .select('fechaCierre periodoFin')
-      .lean();
-    
+    const { periodoInicio, periodoFin, ultimoCierre } = await verificacionService.obtenerPeriodoPendiente();
     const fechaUltimoCierre = ultimoCierre?.fechaCierre || null;
-    const periodoInicio = ultimoCierre?.periodoFin || new Date('2024-01-01'); // Fecha base si es primer cierre
-    const periodoFin = moment.tz("America/Lima").toDate();
     
     logger.info('Iniciando cierre de caja', {
       usuarioAdmin,
@@ -112,7 +114,8 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
     
     // Paso 10: Recopilar auditoría de operaciones
     const auditoria = await recopilarAuditoria(periodoInicio, periodoFin, comandas);
-    
+    const comandaIds = comandas.map(c => c._id);
+
     // Paso 11: Crear documento de cierre
     const cierre = new CierreCajaRestaurante({
       fechaCierre: periodoFin,
@@ -140,6 +143,7 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
         notasAdmin: req.body.notasAdmin || ''
       },
       estado: 'completado',
+      comandasIds: comandaIds,
       datosGraficos: generarDatosGraficos(resumenFinanciero, productos, mozos, mesas, cocineros)
     });
     
@@ -147,7 +151,6 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
     await cierre.save();
     
     // Paso 13: Marcar comandas como procesadas (CRÍTICO)
-    const comandaIds = comandas.map(c => c._id);
     await Comanda.updateMany(
       { _id: { $in: comandaIds } },
       { $set: { incluidoEnCierre: cierre._id } }
@@ -224,6 +227,156 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
 });
 
 /**
+ * PUT /api/cierre-caja/:id/revertir
+ * Deshace el último cierre vigente: comandas y tickets vuelven al período pendiente.
+ * El documento queda en historial con estado revertido y motivo de auditoría.
+ */
+router.put('/cierre-caja/:id/revertir', adminAuth, checkPermission('ejecutar-cierre-caja'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    let motivo;
+    try {
+      motivo = normalizarMotivoReversion(req.body?.motivo);
+    } catch (valErr) {
+      return res.status(valErr.statusCode || 400).json({
+        success: false,
+        error: valErr.message,
+        message: valErr.message
+      });
+    }
+
+    const cierre = await CierreCajaRestaurante.findById(id);
+    if (!cierre) {
+      return res.status(404).json({ success: false, error: 'Cierre de caja no encontrado' });
+    }
+
+    const usuarioNombre = (req.admin && (req.admin.nombre || req.admin.name || req.admin.usuario))
+      || req.body.usuarioAdmin
+      || 'admin';
+    const usuarioId = req.admin && (req.admin.id || req.admin.usuarioId);
+
+    const liberarMarcas = async () => {
+      const idsGuardados = Array.isArray(cierre.comandasIds) ? cierre.comandasIds.filter(Boolean) : [];
+      const pendientes = await Comanda.find({ incluidoEnCierre: cierre._id }).select('_id').lean();
+      const idsUnset = pendientes.map((c) => c._id);
+      const comandasIds = idsGuardados.length ? idsGuardados : idsUnset;
+      const [comandas, tickets] = await Promise.all([
+        idsUnset.length
+          ? Comanda.updateMany(
+            { _id: { $in: idsUnset } },
+            { $set: { incluidoEnCierre: null } }
+          )
+          : Promise.resolve({ modifiedCount: 0 }),
+        verificacionService.desmarcarTicketsDeCierre(cierre._id)
+      ]);
+      return {
+        comandasIds,
+        comandasLiberadas: comandas.modifiedCount || idsUnset.length,
+        ticketsComanda: tickets.ticketsComanda || 0,
+        ticketsAdelantado: tickets.ticketsAdelantado || 0
+      };
+    };
+
+    if (cierre.estado === 'revertido') {
+      const liberado = await liberarMarcas();
+      if (!Array.isArray(cierre.comandasIds) || !cierre.comandasIds.length) {
+        cierre.comandasIds = liberado.comandasIds;
+        await cierre.save();
+      }
+      return res.json({
+        success: true,
+        alreadyReverted: true,
+        message: 'El cierre ya estaba revertido; se reaplicó la liberación de comandas y tickets',
+        cierreId: cierre._id,
+        ...liberado
+      });
+    }
+
+    const ultimo = await obtenerUltimoCierreVigente(CierreCajaRestaurante, '_id fechaCierre estado');
+    if (!ultimo || String(ultimo._id) !== String(cierre._id)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Solo se puede revertir el último cierre vigente. Revierte primero los posteriores.'
+      });
+    }
+
+    if (cierre.estado !== 'completado') {
+      return res.status(400).json({
+        success: false,
+        error: 'Este cierre no se puede revertir'
+      });
+    }
+
+    const reversion = {
+      fecha: moment.tz('America/Lima').toDate(),
+      usuario: usuarioNombre,
+      usuarioId: usuarioId || undefined,
+      motivo
+    };
+
+    cierre.estado = 'revertido';
+    cierre.reversion = reversion;
+    await cierre.save();
+
+    const liberado = await liberarMarcas();
+    if (!Array.isArray(cierre.comandasIds) || !cierre.comandasIds.length) {
+      cierre.comandasIds = liberado.comandasIds;
+      await cierre.save();
+    }
+
+    try {
+      await AuditoriaAcciones.create({
+        accion: 'CIERRE_CAJA_REVERTIDO',
+        entidadId: cierre._id,
+        entidadTipo: 'cierre_caja',
+        usuario: usuarioId,
+        usuarioNombre,
+        motivo,
+        ip: req.headers['x-forwarded-for'] || req.ip || null,
+        datosAntes: { estado: 'completado' },
+        datosDespues: { estado: 'revertido' },
+        metadata: {
+          cierreId: cierre._id,
+          motivo,
+          comandasLiberadas: liberado.comandasLiberadas,
+          ticketsComanda: liberado.ticketsComanda,
+          ticketsAdelantado: liberado.ticketsAdelantado,
+          periodoInicio: cierre.periodoInicio,
+          periodoFin: cierre.periodoFin,
+          montoTotal: cierre.resumenFinanciero?.montoTotalVendido
+        }
+      });
+    } catch (auditErr) {
+      logger.warn('No se registró auditoría CIERRE_CAJA_REVERTIDO', { error: auditErr.message });
+    }
+
+    logger.info('Cierre de caja revertido', {
+      cierreId: cierre._id,
+      motivo,
+      usuarioNombre,
+      comandasLiberadas: liberado.comandasLiberadas
+    });
+
+    res.json({
+      success: true,
+      message: 'Cierre de caja revertido. Las comandas volvieron al período pendiente.',
+      cierreId: cierre._id,
+      reversion,
+      comandasLiberadas: liberado.comandasLiberadas,
+      ticketsComanda: liberado.ticketsComanda,
+      ticketsAdelantado: liberado.ticketsAdelantado
+    });
+  } catch (error) {
+    logger.error('Error al revertir cierre de caja', { error: error.message, stack: error.stack });
+    res.status(500).json({
+      success: false,
+      error: 'Error al revertir cierre de caja',
+      message: error.message
+    });
+  }
+});
+
+/**
  * GET /api/cierre-caja/historial
  * Listar cierres históricos con paginación y filtros
  */
@@ -250,7 +403,7 @@ router.get('/cierre-caja/historial', adminAuth, checkPermission('ver-cierre-caja
       .sort({ fechaCierre: -1 })
       .skip(skip)
       .limit(parseInt(limit))
-      .select('fechaCierre periodoInicio periodoFin resumenFinanciero usuarioAdmin estado')
+      .select('fechaCierre periodoInicio periodoFin resumenFinanciero usuarioAdmin estado reversion')
       .lean();
     
     const total = await CierreCajaRestaurante.countDocuments(filtros);
@@ -275,6 +428,24 @@ router.get('/cierre-caja/historial', adminAuth, checkPermission('ver-cierre-caja
 });
 
 /**
+ * GET /api/cierre-caja/turnos-dia
+ * Cierres vigentes del día Lima: activa filtros DIA/NOCHE en comandas.
+ * Debe ir ANTES de /cierre-caja/:id.
+ */
+router.get('/cierre-caja/turnos-dia', adminAuth, checkPermission('ver-cierre-caja'), async (req, res) => {
+  try {
+    const data = await obtenerTurnosDia(CierreCajaRestaurante);
+    res.json(data);
+  } catch (error) {
+    logger.error('Error al obtener turnos del día', { error: error.message });
+    res.status(500).json({
+      error: 'Error al obtener turnos del día',
+      message: error.message
+    });
+  }
+});
+
+/**
  * GET /api/cierre-caja/:id
  * Obtener un cierre específico con todos sus detalles
  */
@@ -283,11 +454,18 @@ router.get('/cierre-caja/:id', adminAuth, checkPermission('ver-cierre-caja'), as
     const { id } = req.params;
     
     const cierre = await CierreCajaRestaurante.findById(id).lean();
-    
+
     if (!cierre) {
       return res.status(404).json({ error: 'Cierre de caja no encontrado' });
     }
-    
+
+    try {
+      const live = await recopilarAuditoria(cierre.periodoInicio, cierre.periodoFin, []);
+      cierre.auditoria = mergeAuditoriaCierre(cierre.auditoria, live);
+    } catch (audErr) {
+      logger.warn('No se pudo enriquecer auditoría del cierre', { error: audErr.message, cierreId: id });
+    }
+
     res.json(cierre);
     
   } catch (error) {
@@ -305,13 +483,7 @@ router.get('/cierre-caja/:id', adminAuth, checkPermission('ver-cierre-caja'), as
  */
 router.get('/cierre-caja/estado/actual', adminAuth, checkPermission('ver-cierre-caja'), async (req, res) => {
   try {
-    const ultimoCierre = await CierreCajaRestaurante.findOne()
-      .sort({ fechaCierre: -1 })
-      .select('fechaCierre periodoFin')
-      .lean();
-    
-    const periodoInicio = ultimoCierre?.periodoFin || new Date('2024-01-01');
-    const periodoFin = moment.tz("America/Lima").toDate();
+    const { periodoInicio, periodoFin, ultimoCierre } = await verificacionService.obtenerPeriodoPendiente();
     
     const cfg = await cargarConfigMonedaEstadisticas();
 
@@ -349,6 +521,7 @@ router.get('/cierre-caja/estado/actual', adminAuth, checkPermission('ver-cierre-
 
     res.json({
       ultimoCierre: ultimoCierre?.fechaCierre || null,
+      ultimoCierreId: ultimoCierre?._id || null,
       periodoInicio,
       periodoFin,
       diasTranscurridos,
@@ -370,7 +543,6 @@ router.get('/cierre-caja/estado/actual', adminAuth, checkPermission('ver-cierre-
 // ============================================
 // VERIFICACIÓN DE TICKETS ANTES DEL CIERRE
 // ============================================
-const verificacionService = require('../services/cierreCajaVerificacion.service');
 
 /**
  * GET /api/cierre-caja/verificacion/tickets
@@ -958,41 +1130,123 @@ function analizarClientes(comandas) {
   };
 }
 
-async function recopilarAuditoria(periodoInicio, periodoFin, comandas) {
-  // Comandas canceladas
-  const comandasCanceladas = comandas
-    .filter(c => !c.IsActive || c.motivoEliminacion)
-    .map(c => ({
+async function recopilarAuditoria(periodoInicio, periodoFin, comandas = []) {
+  const ACCIONES_ELIMINACION_COMANDA = new Set([
+    'ELIMINAR_COMANDA_INDIVIDUAL',
+    'ELIMINAR_ULTIMA_COMANDA',
+    'ELIMINAR_TODAS_COMANDAS',
+    'comanda_eliminada',
+    'COMANDA_ANULADA_COCINA'
+  ]);
+  const ACCIONES_MODIFICACION = new Set([
+    'comanda_editada',
+    'comanda_status_cambiado',
+    'plato_agregado',
+    'plato_modificado',
+    'plato_eliminado',
+    'ELIMINAR_PLATO_COMANDA',
+    'ELIMINAR_PLATO_RECOGER',
+    'reversion_comanda',
+    'reversion_plato',
+    'PLATO_ANULADO_COCINA'
+  ]);
+
+  const nombreActor = (a) =>
+    (a.usuario && typeof a.usuario === 'object' && a.usuario.name)
+    || a.usuarioNombre
+    || a.metadata?.usuarioNombre
+    || 'Desconocido';
+
+  const numeroComanda = (a) =>
+    a.metadata?.comandaNumber
+    || a.datosAntes?.comandaNumber
+    || a.datosDespues?.comandaNumber
+    || null;
+
+  const accionesAuditoria = await AuditoriaAcciones.find({
+    timestamp: { $gte: periodoInicio, $lte: periodoFin }
+  })
+    .populate('usuario', 'name')
+    .sort({ timestamp: -1 })
+    .limit(500)
+    .lean();
+
+  const comandasEliminadasDocs = await Comanda.find({
+    eliminada: true,
+    $or: [
+      { fechaEliminacion: { $gte: periodoInicio, $lte: periodoFin } },
+      {
+        fechaEliminacion: { $exists: false },
+        updatedAt: { $gte: periodoInicio, $lte: periodoFin }
+      }
+    ]
+  })
+    .populate('mozos', 'name')
+    .select('comandaNumber fechaEliminacion motivoEliminacion mozos totalCalculado precioTotal montoDescuento totalSinDescuento platos cantidades status')
+    .lean();
+
+  const porComanda = new Map();
+  for (const a of accionesAuditoria) {
+    if (!ACCIONES_ELIMINACION_COMANDA.has(a.accion)) continue;
+    const comandaId = a.entidadId ? String(a.entidadId) : `aud-${a._id}`;
+    porComanda.set(comandaId, {
+      comandaId: a.entidadId || null,
+      comandaNumber: numeroComanda(a),
+      fecha: a.timestamp,
+      mozo: nombreActor(a),
+      monto: Number(a.metadata?.totalEliminado) || 0,
+      motivo: a.motivo || a.metadata?.motivo || a.accion
+    });
+  }
+  for (const c of comandasEliminadasDocs) {
+    const key = String(c._id);
+    const existente = porComanda.get(key);
+    const motivoDoc = c.motivoEliminacion || 'Sin motivo registrado';
+    if (!existente) {
+      porComanda.set(key, {
+        comandaId: c._id,
+        comandaNumber: c.comandaNumber,
+        fecha: c.fechaEliminacion || c.updatedAt || c.createdAt,
+        mozo: c.mozos?.name || 'Desconocido',
+        monto: montoFilaReporte(c),
+        motivo: motivoDoc
+      });
+    } else {
+      if (!existente.comandaNumber) existente.comandaNumber = c.comandaNumber;
+      if (!existente.motivo || existente.motivo === existente.mozo) existente.motivo = motivoDoc;
+      if (!existente.monto) existente.monto = montoFilaReporte(c);
+    }
+  }
+  for (const c of comandas) {
+    if (c.IsActive && !c.motivoEliminacion) continue;
+    const key = String(c._id);
+    if (porComanda.has(key)) continue;
+    porComanda.set(key, {
       comandaId: c._id,
       comandaNumber: c.comandaNumber,
       fecha: c.fechaEliminacion || c.createdAt,
       mozo: c.mozos?.name || 'Desconocido',
       monto: montoFilaReporte(c),
       motivo: c.motivoEliminacion || 'Sin motivo registrado'
-    }));
-  
-  // Buscar en auditoría acciones del período
-  const accionesAuditoria = await AuditoriaAcciones.find({
-    timestamp: { $gte: periodoInicio, $lte: periodoFin }
-  })
-  .populate('usuario', 'name')
-  .sort({ timestamp: -1 })
-  .limit(100)
-  .lean();
-  
+    });
+  }
+  const comandasCanceladas = [...porComanda.values()]
+    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
   const modificaciones = accionesAuditoria
-    .filter(a => a.accion !== 'comanda_eliminada' && a.entidadTipo === 'comanda')
-    .map(a => ({
+    .filter((a) => ACCIONES_MODIFICACION.has(a.accion))
+    .map((a) => ({
       tipo: a.accion,
       comandaId: a.entidadId || null,
+      comandaNumber: numeroComanda(a),
       fecha: a.timestamp,
-      usuario: a.usuario?.name || a.metadata?.usuarioNombre || 'Desconocido',
-      descripcion: a.motivo || a.accion
+      usuario: nombreActor(a),
+      descripcion: a.motivo || a.metadata?.motivo || a.accion
     }));
-  
+
   const descuentosAplicados = comandas
-    .filter(c => Number(c.descuento) > 0 || Number(c.montoDescuento) > 0)
-    .map(c => ({
+    .filter((c) => Number(c.descuento) > 0 || Number(c.montoDescuento) > 0)
+    .map((c) => ({
       comandaId: c._id,
       comandaNumber: c.comandaNumber,
       montoDescuento: montoDescuentoComandaNum(c),
@@ -1000,21 +1254,44 @@ async function recopilarAuditoria(periodoInicio, periodoFin, comandas) {
       fecha: c.descuentoAplicadoAt || c.updatedAt || c.createdAt,
       motivo: c.motivoDescuento || 'Sin motivo registrado'
     }));
-  
-  // Operaciones especiales (mesas fusionadas/divididas)
+
   const operacionesEspeciales = accionesAuditoria
-    .filter(a => a.entidadTipo === 'mesa' || a.accion.includes('mesa'))
-    .map(a => ({
+    .filter((a) => a.entidadTipo === 'mesa' || String(a.accion || '').toLowerCase().includes('mesa'))
+    .map((a) => ({
       tipo: a.accion,
       fecha: a.timestamp,
-      descripcion: a.motivo || a.accion
+      descripcion: a.motivo || a.usuarioNombre || a.accion
     }));
-  
+
   return {
     comandasCanceladas,
     modificaciones,
     descuentosAplicados,
     operacionesEspeciales
+  };
+}
+
+function mergeAuditoriaCierre(snap = {}, live = {}) {
+  const keyCanc = (x) => String(x.comandaId || '') + ':' + String(x.comandaNumber || '') + ':' + String(x.fecha || '');
+  const seen = new Set();
+  const comandasCanceladas = [];
+  for (const x of [...(live.comandasCanceladas || []), ...(snap.comandasCanceladas || [])]) {
+    const k = keyCanc(x);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    comandasCanceladas.push(x);
+  }
+  return {
+    comandasCanceladas,
+    modificaciones: (live.modificaciones && live.modificaciones.length)
+      ? live.modificaciones
+      : (snap.modificaciones || []),
+    descuentosAplicados: (snap.descuentosAplicados && snap.descuentosAplicados.length)
+      ? snap.descuentosAplicados
+      : (live.descuentosAplicados || []),
+    operacionesEspeciales: (live.operacionesEspeciales && live.operacionesEspeciales.length)
+      ? live.operacionesEspeciales
+      : (snap.operacionesEspeciales || [])
   };
 }
 
@@ -1073,9 +1350,42 @@ function generarDatosGraficos(resumenFinanciero, productos, mozos, mesas, cocine
   };
 }
 
+const SELECT_COMANDA_TICKET_CIERRE = 'comandaNumber totalCalculado totalSinDescuento montoDescuento descuento precioTotal precioTotalOriginal platos cantidades status mesas mozos createdAt';
+
+function numMesaComanda(c) {
+  const m = c?.mesas;
+  if (!m) return '';
+  if (Array.isArray(m)) return m[0]?.nummesa ?? '';
+  return m.nummesa ?? '';
+}
+
+async function cargarComandasParaTicketCierre(cierre) {
+  const run = (filter) => Comanda.find(filter)
+    .select(SELECT_COMANDA_TICKET_CIERRE)
+    .populate('mesas', 'nummesa')
+    .populate('mozos', 'name')
+    .populate('platos.plato', 'nombre precio categoria')
+    .sort({ comandaNumber: 1 })
+    .lean();
+
+  const ids = Array.isArray(cierre.comandasIds) ? cierre.comandasIds.filter(Boolean) : [];
+  if (ids.length) {
+    const byIds = await run(matchComandaVigente({ _id: { $in: ids } }));
+    if (byIds.length) return byIds;
+  }
+
+  const byFlag = await run(matchComandaVigente(matchIncluidoEnEsteCierre(cierre._id)));
+  if (byFlag.length) return byFlag;
+
+  if (cierre.periodoInicio && cierre.periodoFin) {
+    return run(matchComandasPeriodoDeCierre(cierre.periodoInicio, cierre.periodoFin, cierre._id));
+  }
+  return [];
+}
+
 /**
  * GET /api/cierre-caja/:id/ticket-imprimible
- * Datos para ticket térmico 80mm: comandas del cierre + subtotal, descuento y total neto.
+ * Datos para ticket térmico 80mm: cada comanda con bruto, descuento y total; pie = suma de totales.
  */
 router.get('/cierre-caja/:id/ticket-imprimible', adminAuth, checkPermission('ver-cierre-caja'), async (req, res) => {
   try {
@@ -1086,16 +1396,16 @@ router.get('/cierre-caja/:id/ticket-imprimible', adminAuth, checkPermission('ver
     }
 
     await cargarConfigMonedaEstadisticas();
-    const comandas = await Comanda.find(matchComandaVigente({
-      incluidoEnCierre: cierre._id,
-      status: { $in: STATUS_COMANDA_VENDIDA }
-    }))
-      .select('comandaNumber totalCalculado totalSinDescuento montoDescuento descuento precioTotal precioTotalOriginal platos cantidades status mesas mozos createdAt')
-      .populate('mesas', 'nummesa')
-      .populate('mozos', 'name')
-      .populate('platos.plato', 'nombre precio categoria')
-      .sort({ comandaNumber: 1 })
-      .lean();
+    const encontradas = await cargarComandasParaTicketCierre(cierre);
+    const vendidas = encontradas.filter(esComandaVendida);
+    const comandas = vendidas.length ? vendidas : encontradas;
+
+    if ((!cierre.comandasIds || !cierre.comandasIds.length) && encontradas.length) {
+      CierreCajaRestaurante.updateOne(
+        { _id: cierre._id },
+        { $set: { comandasIds: encontradas.map((c) => c._id) } }
+      ).catch((err) => logger.warn('No se pudieron guardar comandasIds del ticket de cierre', { error: err.message }));
+    }
 
     const lineas = comandas.map((c) => {
       const total = montoFilaReporte(c);
@@ -1104,9 +1414,10 @@ router.get('/cierre-caja/:id/ticket-imprimible', adminAuth, checkPermission('ver
       const bruto = Number.isFinite(brutoRaw) && brutoRaw > 0 ? brutoRaw : total + desc;
       return {
         comandaNumber: c.comandaNumber,
-        mesa: c.mesas?.nummesa ?? '',
+        mesa: numMesaComanda(c),
         mozo: c.mozos?.name || '',
         bruto: Number(bruto.toFixed(2)),
+        subtotal: Number(bruto.toFixed(2)),
         descuento: Number(desc.toFixed(2)),
         total: Number(total.toFixed(2))
       };

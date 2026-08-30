@@ -619,7 +619,7 @@ function auditoriaApp() {
       this.registros = raw.map(a => ({
         ...a,
         hora: a.timestamp || a.createdAt,
-        usuario: a.usuario?.name || a.usuario?.nombre || a.usuario || 'Sistema',
+        usuario: a.usuario?.name || a.usuario?.nombre || a.usuarioNombre || a.usuario || 'Sistema',
         accion: a.accion,
         modulo: a.entidadTipo || a.modulo || '—',
         ip: a.ip || '—',
@@ -739,7 +739,8 @@ function auditoriaApp() {
       if (!accion) return false;
       const accionesReversion = [
         'reversion_comanda',
-        'reversion_plato'
+        'reversion_plato',
+        'CIERRE_CAJA_REVERTIDO'
       ];
       return accionesReversion.includes(accion) || accion.toLowerCase().includes('revertir') || accion.toLowerCase().includes('reversion');
     },
@@ -795,7 +796,11 @@ function auditoriaApp() {
         'mesa_estado_cambiado': '🔄 Mesa Cambiada',
         'usuario_autenticado': '🔐 Login',
         'usuario_desconectado': '🚪 Logout',
-        'pago_procesado': '💳 Pago Procesado'
+        'pago_procesado': '💳 Pago Procesado',
+        'CIERRE_CAJA_EJECUTADO': '💰 Cierre de Caja',
+        'CIERRE_CAJA_REVERTIDO': '↩️ Cierre Revertido',
+        'TICKET_VERIFICADO_CIERRE': '✅ Ticket Verificado',
+        'TICKETS_VERIFICADOS_CIERRE_MASIVO': '✅ Tickets Verificados'
       };
       return labels[accion] || accion;
     },
@@ -848,6 +853,7 @@ function auditoriaApp() {
     getTituloReversion(reg) {
       if (!reg?.accion) return 'Reversión';
       if (reg.accion === 'reversion_plato') return 'Plato Revertido a Preparación';
+      if (reg.accion === 'CIERRE_CAJA_REVERTIDO') return 'Cierre de Caja Revertido';
       return 'Comanda Revertida';
     },
 
@@ -904,6 +910,8 @@ function auditoriaApp() {
       if (usuario && typeof usuario === 'string' && usuario !== 'Sistema') {
         return usuario;
       }
+
+      if (reg.usuarioNombre) return reg.usuarioNombre;
 
       return 'Sistema';
     },

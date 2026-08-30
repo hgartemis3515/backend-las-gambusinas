@@ -28,10 +28,10 @@ const PERMISOS_FUNDAMENTALES = {
     'ver-reportes': { nombre: 'Ver Reportes', grupo: 'Backend/Dashboard', descripcion: 'Ver el módulo Reportes en el panel de gestión (ventas, platos, mozos, cocineros)' },
     // Cierre de caja: división granular para control de acceso
     // - ver-cierre-caja: ver el módulo, historial, KPIs y la tabla de verificación de tickets
-    // - ejecutar-cierre-caja: confirmar el cierre irreversible del período
+    // - ejecutar-cierre-caja: confirmar el cierre del período y revertirlo (con motivo de auditoría)
     // 'cierre-caja' se mantiene como alias legacy por compatibilidad (no usar en código nuevo)
     'ver-cierre-caja': { nombre: 'Ver Cierre de Caja', grupo: 'Backend/Dashboard', descripcion: 'Ver cierre de caja, historial, KPIs y verificar tickets antes del cierre' },
-    'ejecutar-cierre-caja': { nombre: 'Ejecutar Cierre de Caja', grupo: 'Backend/Dashboard', descripcion: 'Confirmar el cierre de caja definitivo del período' },
+    'ejecutar-cierre-caja': { nombre: 'Ejecutar Cierre de Caja', grupo: 'Backend/Dashboard', descripcion: 'Confirmar el cierre de caja del período y revertirlo (exige motivo de auditoría)' },
     'cierre-caja': { nombre: 'Cierre de Caja (legacy)', grupo: 'Backend/Dashboard', descripcion: 'Alias legacy. Preferir ver-cierre-caja y ejecutar-cierre-caja' },
     'ver-notificaciones': { nombre: 'Ver Notificaciones', grupo: 'Backend/Dashboard', descripcion: 'Acceder al centro de notificaciones' },
     'aplicar-descuentos': { nombre: 'Aplicar Descuentos', grupo: 'Backend/Dashboard', descripcion: 'Aplicar descuentos a comandas (admin/supervisor)' },

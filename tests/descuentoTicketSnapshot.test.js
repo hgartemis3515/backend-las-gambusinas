@@ -218,5 +218,21 @@ describe('descuento en tickets / impresión', () => {
     expect(doc.platos[1].eliminado).toBeFalsy();
     expect(doc.subtotal).toBe(50);
     expect(doc.totalSinDescuento).toBe(50);
+    expect(doc.total).toBe(50);
+  });
+
+  test('vista: plato eliminado no usa el bruto viejo del ticket', () => {
+    const r = aplicarDescuentoAVistaTicket({
+      total: 150,
+      subtotal: 150,
+      totalSinDescuento: 150,
+      platos: [
+        { nombre: 'Lomo', subtotal: 100, eliminado: true },
+        { nombre: 'Causa', subtotal: 50 },
+      ],
+    });
+    expect(r.total).toBe(50);
+    expect(r.subtotal).toBe(50);
+    expect(r.totalSinDescuento).toBe(50);
   });
 });

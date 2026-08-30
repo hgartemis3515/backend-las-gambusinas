@@ -4,6 +4,7 @@ const {
   matchComandasEstadisticas,
   matchComandaAbiertaEnTabla,
   matchComandasCierrePendiente,
+  matchComandasPeriodoDeCierre,
   agruparVentasPorMozo,
   exprMontoComanda,
   exprFechaComanda,
@@ -109,6 +110,13 @@ describe('estadisticasComandas', () => {
     expect(fin.toISOString().startsWith('2026-08-21')).toBe(true);
   });
 
+  test('rangoLima respeta instantes ISO (DIA/NOCHE)', () => {
+    const corte = '2026-08-29T22:00:00.000Z'; // 17:00 Lima
+    const { inicio, fin } = rangoLima('2026-08-29T05:00:00.000Z', corte);
+    expect(inicio.toISOString()).toBe('2026-08-29T05:00:00.000Z');
+    expect(fin.toISOString()).toBe(corte);
+  });
+
   test('mapearFilaReporte cuenta comanda pagada inactiva (sin boucher)', () => {
     const fila = mapearFilaReporte({
       _id: 'c1',
@@ -208,6 +216,22 @@ describe('estadisticasComandas', () => {
     expect(h.comparacionPorTurno.almuerzo.ventas).toBe(50);
     expect(h.comparacionPorTurno.cena.tickets).toBe(1);
     expect(h.productividadMozoHora.find(p => p.mozoId === 'z1' && p.hora === 12).mesas).toBe(1);
+  });
+
+  test('ticket de cierre por período no exige status vendida y admite marca nula o de ese cierre', () => {
+    const inicio = new Date('2023-12-31T05:00:00.000Z');
+    const fin = new Date('2026-07-08T17:33:00.000Z');
+    const cierreId = '68abc123def4567890123456';
+    const m = matchComandasPeriodoDeCierre(inicio, fin, cierreId);
+    expect(m.$and).toHaveLength(3);
+    expect(m.$and[0].status).toEqual({ $nin: ['cancelado'] });
+    expect(m.$and[1].$or).toHaveLength(3);
+    expect(m.$and[2].$or).toEqual(expect.arrayContaining([
+      { incluidoEnCierre: cierreId },
+      { incluidoEnCierre: String(cierreId) },
+      { incluidoEnCierre: null },
+      { incluidoEnCierre: { $exists: false } }
+    ]));
   });
 
   test('cierre pendiente no pisa el $or de fechas con el de incluidoEnCierre', () => {

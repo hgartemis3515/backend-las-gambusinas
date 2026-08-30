@@ -238,8 +238,20 @@ const cierreCajaRestauranteSchema = new mongoose.Schema({
   // Estado del cierre
   estado: {
     type: String,
-    enum: ['completado', 'error'],
-    default: 'completado'
+    enum: ['completado', 'error', 'revertido'],
+    default: 'completado',
+    index: true
+  },
+  // Comandas marcadas en este cierre (sirve para reimprimir el ticket si se revierte)
+  comandasIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Comanda'
+  }],
+  reversion: {
+    fecha: Date,
+    usuario: String,
+    usuarioId: { type: mongoose.Schema.Types.ObjectId, ref: 'mozos' },
+    motivo: String
   },
   
   // Datos procesados para gráficos (optimización)

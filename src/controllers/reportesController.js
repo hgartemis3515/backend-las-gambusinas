@@ -12,6 +12,12 @@ const { adminAuth } = require('../middleware/adminAuth');
 
 const reportesRepository = require('../repository/reportes.repository');
 
+function fechaQueryValida(s) {
+    if (!s || typeof s !== 'string') return false;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s.trim())) return true;
+    return Number.isFinite(Date.parse(s));
+}
+
 // ============================================================
 // VENTAS
 // ============================================================
@@ -38,11 +44,10 @@ router.get('/reportes/ventas', adminAuth, async (req, res) => {
         }
 
         // Validar formato de fechas
-        const fechaRegex = /^\d{4}-\d{2}-\d{2}$/;
-        if (!fechaRegex.test(fechaInicio) || !fechaRegex.test(fechaFin)) {
+        if (!fechaQueryValida(fechaInicio) || !fechaQueryValida(fechaFin)) {
             return res.status(400).json({
                 success: false,
-                error: 'Formato de fecha inválido. Use YYYY-MM-DD'
+                error: 'Formato de fecha inválido. Use YYYY-MM-DD o ISO'
             });
         }
 
@@ -99,11 +104,10 @@ router.get('/reportes/filas', adminAuth, async (req, res) => {
             });
         }
 
-        const fechaRegex = /^\d{4}-\d{2}-\d{2}$/;
-        if (!fechaRegex.test(fechaInicio) || !fechaRegex.test(fechaFin)) {
+        if (!fechaQueryValida(fechaInicio) || !fechaQueryValida(fechaFin)) {
             return res.status(400).json({
                 success: false,
-                error: 'Formato de fecha inválido. Use YYYY-MM-DD'
+                error: 'Formato de fecha inválido. Use YYYY-MM-DD o ISO'
             });
         }
 
@@ -156,11 +160,10 @@ router.get('/reportes/platos-top', adminAuth, async (req, res) => {
         }
 
         // Validar formato de fechas
-        const fechaRegex = /^\d{4}-\d{2}-\d{2}$/;
-        if (!fechaRegex.test(fechaInicio) || !fechaRegex.test(fechaFin)) {
+        if (!fechaQueryValida(fechaInicio) || !fechaQueryValida(fechaFin)) {
             return res.status(400).json({
                 success: false,
-                error: 'Formato de fecha inválido. Use YYYY-MM-DD'
+                error: 'Formato de fecha inválido. Use YYYY-MM-DD o ISO'
             });
         }
 
@@ -222,11 +225,10 @@ router.get('/reportes/cocineros', adminAuth, async (req, res) => {
         }
 
         // Validar formato de fechas
-        const fechaRegex = /^\d{4}-\d{2}-\d{2}$/;
-        if (!fechaRegex.test(fechaInicio) || !fechaRegex.test(fechaFin)) {
+        if (!fechaQueryValida(fechaInicio) || !fechaQueryValida(fechaFin)) {
             return res.status(400).json({
                 success: false,
-                error: 'Formato de fecha inválido. Use YYYY-MM-DD'
+                error: 'Formato de fecha inválido. Use YYYY-MM-DD o ISO'
             });
         }
 

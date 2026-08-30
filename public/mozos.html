@@ -621,6 +621,13 @@ tailwind.config = {
         <div>
           <label class="text-[10px] uppercase text-txt-muted block mb-1">Período</label>
           <div class="flex flex-wrap gap-2">
+            <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setPreset('dia')"
+              class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
+              :class="rangoPreset === 'dia' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">DIA</button>
+            <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setPreset('noche')"
+              class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
+              :class="rangoPreset === 'noche' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">NOCHE</button>
+            <span x-show="showTurnoDiaNoche" x-cloak class="w-px h-5 bg-[rgba(212,175,55,0.35)] self-center"></span>
             <template x-for="p in presetsPeriodo" :key="p.id">
               <button type="button" @click="setPreset(p.id)" class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
                 :class="rangoPreset === p.id ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">
@@ -1295,6 +1302,8 @@ tailwind.config = {
           <select x-model="historialMozoFiltroFecha" @change="cargarHistorialMozos()"
             class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
             <option value="hoy">Hoy</option>
+            <option value="dia" x-bind:hidden="!showTurnoDiaNoche">DIA</option>
+            <option value="noche" x-bind:hidden="!showTurnoDiaNoche">NOCHE</option>
             <option value="ayer">Ayer</option>
             <option value="7dias">Últimos 7 días</option>
             <option value="30dias">Últimos 30 días</option>
@@ -3092,6 +3101,7 @@ tailwind.config = {
 
 <script src="/assets/js/notifications.js"></script>
 <script src="/assets/js/shared.js"></script>
+<script src="/assets/js/turnosDiaNoche.js"></script>
 <script>
 function mozosExecutiveApp() {
   const META_PROPINAS_SUGERIDA = 200;
@@ -3155,6 +3165,12 @@ function mozosExecutiveApp() {
     rangoPreset: 'hoy',
     customDesde: '',
     customHasta: '',
+    showTurnoDiaNoche: false,
+    primerCierreHoyAt: null,
+    cierresHoyCount: 0,
+    turnosLimaYMD: '',
+    _turnosAutoNocheHecho: false,
+    _turnosPoll: null,
     activeSection: 'principal',
     vistaPrincipal: 'tabla',
     focoMozoId: null,
@@ -3315,7 +3331,12 @@ function mozosExecutiveApp() {
       const hoy = limaYMD();
       this.customDesde = hoy;
       this.customHasta = hoy;
+      await this.refreshTurnosCierre({ skipReload: true });
       await this.refreshAll();
+      this._turnosPoll = setInterval(() => this.refreshTurnosCierre(), 45000);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) this.refreshTurnosCierre();
+      });
       this.$nextTick(() => this.updateCharts());
       this.connectSocket();
       // Initialize Lucide icons
@@ -3324,6 +3345,10 @@ function mozosExecutiveApp() {
     },
 
     get rangoFechas() {
+      const turno = (typeof TurnosDiaNoche !== 'undefined')
+        ? TurnosDiaNoche.rangoIso(this.rangoPreset, this.primerCierreHoyAt)
+        : null;
+      if (turno) return { inicio: turno.desde, fin: turno.hasta };
       const hoy = limaYMD();
       if (this.rangoPreset === 'hoy') return { inicio: hoy, fin: hoy };
       if (this.rangoPreset === 'semana') return { inicio: addDaysYMD(hoy, -6), fin: hoy };
@@ -3334,10 +3359,15 @@ function mozosExecutiveApp() {
       return { inicio: a, fin: b };
     },
     get rangoEtiqueta() {
+      if ((this.rangoPreset === 'dia' || this.rangoPreset === 'noche') && this.primerCierreHoyAt) {
+        return TurnosDiaNoche.etiqueta(this.rangoPreset, this.primerCierreHoyAt);
+      }
       const { inicio, fin } = this.rangoFechas;
       return inicio === fin ? inicio : inicio + ' → ' + fin;
     },
     get etiquetaPeriodo() {
+      if (this.rangoPreset === 'dia') return 'día';
+      if (this.rangoPreset === 'noche') return 'noche';
       if (this.rangoPreset === 'hoy') return 'hoy';
       if (this.rangoPreset === 'semana') return '7 días';
       if (this.rangoPreset === 'mes') return 'mes';
@@ -3401,15 +3431,19 @@ function mozosExecutiveApp() {
       return Math.round((this.totalVentasPeriodo / tickets) * 100) / 100;
     },
     get mesasPorHora() {
-      // Calcular horas de operación basado en el rango
-      let horasOperacion = 8; // día normal
+      let horasOperacion = 8;
       if (this.rangoPreset === 'semana') {
         horasOperacion = 8 * 7;
       } else if (this.rangoPreset === 'mes') {
         horasOperacion = 8 * 30;
+      } else if (this.rangoPreset === 'dia' || this.rangoPreset === 'noche') {
+        const { inicio, fin } = this.rangoFechas;
+        horasOperacion = Math.max(1, (new Date(fin) - new Date(inicio)) / 3600000);
       } else if (this.rangoPreset === 'custom') {
         const { inicio, fin } = this.rangoFechas;
-        const dias = daysBetween(inicio, fin) + 1;
+        const iniY = String(inicio).slice(0, 10);
+        const finY = String(fin).slice(0, 10);
+        const dias = daysBetween(iniY, finY) + 1;
         horasOperacion = 8 * dias;
       }
       if (!horasOperacion) return 0;
@@ -3801,6 +3835,28 @@ function mozosExecutiveApp() {
       this.focoMozoId = id;
     },
 
+    _setPeriodoTurno(v) {
+      this.rangoPreset = v;
+      if (this.historialMozoFiltroFecha === 'hoy' || this.historialMozoFiltroFecha === 'dia' || this.historialMozoFiltroFecha === 'noche') {
+        this.historialMozoFiltroFecha = v;
+      }
+    },
+
+    async refreshTurnosCierre({ skipReload = false } = {}) {
+      if (typeof TurnosDiaNoche === 'undefined') return;
+      const prevP = this.rangoPreset;
+      const prevH = this.historialMozoFiltroFecha;
+      const prevS = this.showTurnoDiaNoche;
+      await TurnosDiaNoche.refresh(this, {
+        getPeriod: () => this.rangoPreset,
+        setPeriod: (v) => this._setPeriodoTurno(v),
+        autoNoche: true
+      });
+      if (skipReload) return;
+      if (this.rangoPreset !== prevP || this.showTurnoDiaNoche !== prevS) await this.refreshAll();
+      if (this.historialMozoFiltroFecha !== prevH) this.cargarHistorialMozos();
+    },
+
     setPreset(id) {
       this.rangoPreset = id;
       const hoy = limaYMD();
@@ -4080,14 +4136,17 @@ function mozosExecutiveApp() {
       try {
         const params = new URLSearchParams();
         if (this.historialMozoFiltroMozo) params.set('mozoId', this.historialMozoFiltroMozo);
-        const hoy = new Date();
-        const fmt = (d) => limaYMD(d);
+        const hoy = limaYMD();
         let desde = this.historialMozoFechaDesde;
         let hasta = this.historialMozoFechaHasta;
-        if (this.historialMozoFiltroFecha === 'hoy') { desde = fmt(hoy); hasta = fmt(hoy); }
-        else if (this.historialMozoFiltroFecha === 'ayer') { const ayer = new Date(hoy.getTime() - 86400000); desde = fmt(ayer); hasta = fmt(ayer); }
-        else if (this.historialMozoFiltroFecha === '7dias') { const inicio = new Date(hoy.getTime() - 6 * 86400000); desde = fmt(inicio); hasta = fmt(hoy); }
-        else if (this.historialMozoFiltroFecha === '30dias') { const inicio = new Date(hoy.getTime() - 29 * 86400000); desde = fmt(inicio); hasta = fmt(hoy); }
+        if (this.historialMozoFiltroFecha === 'hoy') { desde = hoy; hasta = hoy; }
+        else if (this.historialMozoFiltroFecha === 'dia' || this.historialMozoFiltroFecha === 'noche') {
+          const r = typeof TurnosDiaNoche !== 'undefined' ? TurnosDiaNoche.rangoIso(this.historialMozoFiltroFecha, this.primerCierreHoyAt) : null;
+          if (r) { desde = r.desde; hasta = r.hasta; } else { desde = hoy; hasta = hoy; }
+        }
+        else if (this.historialMozoFiltroFecha === 'ayer') { const ayer = addDaysYMD(hoy, -1); desde = ayer; hasta = ayer; }
+        else if (this.historialMozoFiltroFecha === '7dias') { desde = addDaysYMD(hoy, -6); hasta = hoy; }
+        else if (this.historialMozoFiltroFecha === '30dias') { desde = addDaysYMD(hoy, -29); hasta = hoy; }
         if (desde) params.set('desde', desde);
         if (hasta) params.set('hasta', hasta);
         params.set('limite', '500');
@@ -4344,8 +4403,10 @@ function mozosExecutiveApp() {
     },
 
     computePrevRange(inicio, fin) {
-      const n = Math.min(31, Math.max(1, daysBetween(inicio, fin) + 1));
-      const pFin = addDaysYMD(inicio, -1);
+      const iniY = String(inicio).includes('T') ? limaYMD(new Date(inicio)) : inicio;
+      const finY = String(fin).includes('T') ? limaYMD(new Date(fin)) : fin;
+      const n = Math.min(31, Math.max(1, daysBetween(iniY, finY) + 1));
+      const pFin = addDaysYMD(iniY, -1);
       const pIni = addDaysYMD(pFin, -(n - 1));
       return { inicio: pIni, fin: pFin };
     },
@@ -4358,11 +4419,13 @@ function mozosExecutiveApp() {
     },
 
     async loadSerieDiaria(ini, fin) {
-      const n = daysBetween(ini, fin) + 1;
+      const iniY = String(ini).includes('T') ? limaYMD(new Date(ini)) : ini;
+      const finY = String(fin).includes('T') ? limaYMD(new Date(fin)) : fin;
+      const n = daysBetween(iniY, finY) + 1;
       if (n > 31) { this.serieDiaria = []; return; }
       const days = [];
-      let cur = ini;
-      while (cur <= fin) { days.push(cur); cur = addDaysYMD(cur, 1); }
+      let cur = iniY;
+      while (cur <= finY) { days.push(cur); cur = addDaysYMD(cur, 1); }
       const reqs = days.map(d => apiGet('/propinas/resumen/dia?fecha=' + encodeURIComponent(d)));
       const results = await Promise.all(reqs);
       this.serieDiaria = days.map((d, i) => ({

@@ -28,6 +28,7 @@ const sanitizarPlantillaBody = (body) => {
     delete clone.success;
     delete clone.plantilla;
     delete clone.logoEditableEn;
+    delete clone.imprimirSoloNombreComercial;
     delete clone._id;
     delete clone.__v;
     if (clone.espaciado && typeof clone.espaciado === 'object') {
@@ -730,6 +731,7 @@ router.get('/configuracion/comanda-plantilla', async (req, res) => {
         plantilla.logoEditableEn = 'bouchers.html';
 
         const plana = plantillaPlana(plantilla);
+        plana.imprimirSoloNombreComercial = config.tickets?.imprimirSoloNombreComercial !== false;
         res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
         res.set('Pragma', 'no-cache');
         res.json({ success: true, plantilla: plana, ...plana });

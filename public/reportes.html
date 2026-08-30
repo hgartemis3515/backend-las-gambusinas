@@ -108,6 +108,13 @@ tailwind.config = {
       
       <!-- Filtros rápidos -->
       <div class="flex gap-1 ml-2">
+        <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroRapido('DIA')"
+          :class="isFilterActive('DIA') ? 'bg-gold text-bg-primary font-bold' : 'border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold'"
+          class="px-2.5 py-1 rounded-full text-[10px] font-medium transition-all duration-200">DIA</button>
+        <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroRapido('NOCHE')"
+          :class="isFilterActive('NOCHE') ? 'bg-gold text-bg-primary font-bold' : 'border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold'"
+          class="px-2.5 py-1 rounded-full text-[10px] font-medium transition-all duration-200">NOCHE</button>
+        <span x-show="showTurnoDiaNoche" x-cloak class="w-px h-4 bg-[rgba(212,175,55,0.35)] self-center mx-0.5"></span>
         <template x-for="f in ['Hoy','Ayer','7 días','30 días','Este mes','1 año']" :key="f">
           <button 
             @click="setFiltroRapido(f)" 
@@ -628,6 +635,7 @@ tailwind.config = {
 
 <script src="/assets/js/notifications.js"></script>
 <script src="/assets/js/shared.js"></script>
+<script src="/assets/js/turnosDiaNoche.js"></script>
 <script>
 // ============================================
 // REPORTES - LAS GAMBUSINAS
@@ -750,10 +758,16 @@ function reportesApp() {
     
     // Estado del filtro de fechas (FUENTE DE VERDAD)
     dateFilter: {
-      tipo: '7 días',      // 'Hoy', 'Ayer', '7 días', '30 días', 'Este mes', '1 año', 'manual'
+      tipo: '7 días',      // 'Hoy', 'Ayer', 'DIA', 'NOCHE', '7 días', '30 días', 'Este mes', '1 año', 'manual'
       fechaInicio: '',     // YYYY-MM-DD
       fechaFin: ''         // YYYY-MM-DD
     },
+    showTurnoDiaNoche: false,
+    primerCierreHoyAt: null,
+    cierresHoyCount: 0,
+    turnosLimaYMD: '',
+    _turnosAutoNocheHecho: false,
+    _turnosPoll: null,
     
     agruparPor: 'dia',
     kpis: [],
@@ -798,6 +812,11 @@ function reportesApp() {
       
       // Establecer filtro inicial y cargar datos
       this.setFiltroRapido('7 días');
+      await this.refreshTurnosCierre({ skipReload: true });
+      this._turnosPoll = setInterval(() => this.refreshTurnosCierre(), 45000);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) this.refreshTurnosCierre();
+      });
       
       this.initSocket();
 
@@ -931,6 +950,12 @@ function reportesApp() {
      * Establece un filtro rápido y dispara la actualización de datos
      */
     setFiltroRapido(filtro) {
+      if (filtro === 'DIA' || filtro === 'NOCHE') {
+        const hoyStr = DateUtils.getTodayStr();
+        this.dateFilter = { tipo: filtro, fechaInicio: hoyStr, fechaFin: hoyStr };
+        this.refreshAllData();
+        return;
+      }
       const range = DateUtils.getRangeForFilter(filtro);
       this.dateFilter = {
         tipo: filtro,
@@ -938,6 +963,35 @@ function reportesApp() {
         fechaFin: range.fechaFin
       };
       this.refreshAllData();
+    },
+    
+    fechasQuery() {
+      const t = this.dateFilter.tipo;
+      if ((t === 'DIA' || t === 'NOCHE') && this.primerCierreHoyAt && typeof TurnosDiaNoche !== 'undefined') {
+        const r = TurnosDiaNoche.rangoIso(t === 'DIA' ? 'dia' : 'noche', this.primerCierreHoyAt);
+        if (r) return { fechaInicio: r.desde, fechaFin: r.hasta };
+      }
+      return { fechaInicio: this.dateFilter.fechaInicio, fechaFin: this.dateFilter.fechaFin };
+    },
+
+    async refreshTurnosCierre({ skipReload = false } = {}) {
+      if (typeof TurnosDiaNoche === 'undefined') return;
+      const prevT = this.dateFilter.tipo;
+      const prevS = this.showTurnoDiaNoche;
+      await TurnosDiaNoche.refresh(this, {
+        getPeriod: () => this.dateFilter.tipo,
+        setPeriod: (v) => {
+          const hoyStr = DateUtils.getTodayStr();
+          const tipo = v === 'hoy' ? 'Hoy' : v;
+          this.dateFilter = { tipo, fechaInicio: hoyStr, fechaFin: hoyStr };
+        },
+        hoyValues: ['Hoy'],
+        diaValue: 'DIA',
+        nocheValue: 'NOCHE',
+        autoNoche: true
+      });
+      if (skipReload) return;
+      if (this.dateFilter.tipo !== prevT || this.showTurnoDiaNoche !== prevS) this.refreshAllData();
     },
     
     /**
@@ -982,9 +1036,10 @@ function reportesApp() {
      * FUNCIÓN CENTRAL: Carga bouchers directamente por fecha (método que funciona en admin.html)
      */
     async refreshAllData() {
-      if (!DateUtils.isValidRange(this.dateFilter.fechaInicio, this.dateFilter.fechaFin)) {
+      const q = this.fechasQuery();
+      if (!DateUtils.isValidRange(q.fechaInicio, q.fechaFin)) {
         this.error = 'Rango de fechas inválido';
-        console.error('❌ Rango inválido:', this.dateFilter);
+        console.error('❌ Rango inválido:', this.dateFilter, q);
         return;
       }
       
@@ -993,16 +1048,13 @@ function reportesApp() {
       
       console.log('📊 Cargando reportes:', {
         tab: this.repTab,
-        fechaInicio: this.dateFilter.fechaInicio,
-        fechaFin: this.dateFilter.fechaFin
+        fechaInicio: q.fechaInicio,
+        fechaFin: q.fechaFin,
+        tipo: this.dateFilter.tipo
       });
       
       try {
-        // Cargar bouchers directamente usando el método que funciona en admin.html
-        const bouchers = await cargarBouchersPorRango(
-          this.dateFilter.fechaInicio, 
-          this.dateFilter.fechaFin
-        );
+        const bouchers = await cargarBouchersPorRango(q.fechaInicio, q.fechaFin);
         
         console.log('📦 Bouchers cargados:', bouchers.length);
         
@@ -1453,7 +1505,8 @@ function reportesApp() {
       // Intentar obtener datos del endpoint dedicado
       try {
         const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
-        const response = await fetch(`${API_BASE}/reportes/cocineros?fechaInicio=${this.dateFilter.fechaInicio}&fechaFin=${this.dateFilter.fechaFin}`, {
+        const q = this.fechasQuery();
+        const response = await fetch(`${API_BASE}/reportes/cocineros?fechaInicio=${encodeURIComponent(q.fechaInicio)}&fechaFin=${encodeURIComponent(q.fechaFin)}`, {
           headers: { 'Authorization': 'Bearer ' + token }
         });
         
@@ -1979,6 +2032,11 @@ function reportesApp() {
      * Obtiene el texto descriptivo del rango actual
      */
     getCurrentRangeText() {
+      if (this.dateFilter.tipo === 'DIA' || this.dateFilter.tipo === 'NOCHE') {
+        return (typeof TurnosDiaNoche !== 'undefined' && this.primerCierreHoyAt)
+          ? TurnosDiaNoche.etiqueta(this.dateFilter.tipo, this.primerCierreHoyAt)
+          : this.dateFilter.tipo;
+      }
       if (this.dateFilter.tipo === 'manual') {
         return `${this.dateFilter.fechaInicio} al ${this.dateFilter.fechaFin}`;
       }
@@ -2075,7 +2133,7 @@ async function cargarBouchersPorRango(fechaInicio, fechaFin) {
     if (response.ok) {
       const payload = await response.json();
       const filas = payload.datos || payload.data || (Array.isArray(payload) ? payload : []);
-      if (Array.isArray(filas) && filas.length) {
+      if (Array.isArray(filas)) {
         console.log('✅ Filas de comandas:', filas.length);
         return filas;
       }
@@ -2084,9 +2142,16 @@ async function cargarBouchersPorRango(fechaInicio, fechaFin) {
     console.warn('⚠️ /reportes/filas no disponible, se usa bouchers:', error);
   }
 
+  const ymdIni = /^\d{4}-\d{2}-\d{2}$/.test(String(fechaInicio))
+    ? fechaInicio
+    : DateUtils.limaYMD(new Date(fechaInicio));
+  const ymdFin = /^\d{4}-\d{2}-\d{2}$/.test(String(fechaFin))
+    ? fechaFin
+    : DateUtils.limaYMD(new Date(fechaFin));
+
   const bouchers = [];
-  let ymd = fechaInicio;
-  while (ymd <= fechaFin) {
+  let ymd = ymdIni;
+  while (ymd <= ymdFin) {
     try {
       const response = await fetch(`${API_BASE}/boucher/fecha/${ymd}`, { headers });
       if (response.ok) {
@@ -2102,6 +2167,14 @@ async function cargarBouchersPorRango(fechaInicio, fechaFin) {
   }
 
   console.log('✅ Total bouchers cargados:', bouchers.length);
+  if (String(fechaInicio).includes('T')) {
+    const t0 = new Date(fechaInicio).getTime();
+    const t1 = new Date(fechaFin).getTime();
+    return bouchers.filter(b => {
+      const t = new Date(b.fechaPago || b.createdAt || 0).getTime();
+      return Number.isFinite(t) && t >= t0 && t <= t1;
+    });
+  }
   return bouchers;
 }
 </script>

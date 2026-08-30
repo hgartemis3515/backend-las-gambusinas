@@ -183,12 +183,14 @@ function getSimboloMoneda(moneda) {
 
 /** Suma de platos (antes del descuento). */
 function resolverSubtotalPlatos(datos) {
+  const hayLista = Array.isArray(datos?.productos);
   const suma = (datos?.productos || []).reduce((s, p) => {
+    if (!p || p.eliminado || p.anulado) return s;
     const linea = Number(p?.subtotal);
     if (Number.isFinite(linea) && linea > 0) return s + linea;
     return s + (Number(p?.precio) || 0) * (Number(p?.cantidad) || 1);
   }, 0);
-  if (suma > 0) return Number(suma.toFixed(2));
+  if (hayLista) return Number(suma.toFixed(2));
   const sinDesc = Number(datos?.totalSinDescuento);
   if (sinDesc > 0) return sinDesc;
   const sub = Number(datos?.subtotal);
@@ -198,19 +200,25 @@ function resolverSubtotalPlatos(datos) {
 /** Subtotal = bruto; TOTAL = bruto − descuento. */
 function resolverBrutoYNetoImpresion(datos, subtotalPlatos) {
   const montoDesc = Number(datos?.montoDescuento || 0);
+  const hayLista = Array.isArray(datos?.productos);
   const sin = Number(datos?.totalSinDescuento);
   const tot = Number(datos?.total);
   const sub = Number(datos?.subtotal);
-  const candidatos = [];
-  if (Number.isFinite(sin) && sin > 0) candidatos.push(sin);
-  if (subtotalPlatos > 0) candidatos.push(subtotalPlatos);
-  if (Number.isFinite(sub) && sub > 0) candidatos.push(sub);
-  const bruto = candidatos.length
-    ? Math.max(...candidatos)
-    : (Number.isFinite(tot) && tot > 0 ? tot : 0);
+  let bruto;
+  if (hayLista) {
+    bruto = Number(subtotalPlatos) || 0;
+  } else {
+    const candidatos = [];
+    if (Number.isFinite(sin) && sin > 0) candidatos.push(sin);
+    if (subtotalPlatos > 0) candidatos.push(subtotalPlatos);
+    if (Number.isFinite(sub) && sub > 0) candidatos.push(sub);
+    bruto = candidatos.length
+      ? Math.max(...candidatos)
+      : (Number.isFinite(tot) && tot > 0 ? tot : 0);
+  }
   const neto = montoDesc > 0
     ? Number(Math.max(0, bruto - montoDesc).toFixed(2))
-    : (Number.isFinite(tot) && tot > 0 ? tot : bruto);
+    : (hayLista ? bruto : (Number.isFinite(tot) && tot > 0 ? tot : bruto));
   return { bruto, neto, montoDesc };
 }
 
@@ -233,6 +241,29 @@ function getLabelMoneda(moneda) {
   if (m === 'USD') return 'Dólares';
   if (m === 'PEN' || m === 'SOLES') return 'Soles';
   return moneda || 'Soles';
+}
+
+function imprimirSoloNombreComercial(plantilla) {
+  return plantilla?.imprimirSoloNombreComercial !== false;
+}
+
+function nombreComercialImpresion(prod) {
+  const plato = prod?.plato && typeof prod.plato === 'object' ? prod.plato : null;
+  const comercial = String(plato?.nombre || prod?.nombreComercial || prod?.nombre || '').trim();
+  const cocina = String(plato?.nombreCocina || prod?.nombreCocina || '').trim();
+  if (comercial && cocina && comercial === cocina) return comercial;
+  return comercial || 'Plato';
+}
+
+function aplicarOpcionesImpresionProductos(productos, plantilla) {
+  const solo = imprimirSoloNombreComercial(plantilla);
+  return (productos || [])
+    .filter((prod) => prod && !prod.eliminado && !prod.anulado)
+    .map((prod) => {
+      const nombre = nombreComercialImpresion(prod);
+      if (!solo) return { ...prod, nombre };
+      return { ...prod, nombre, complementos: [], mostrarResumenComplementos: false };
+    });
 }
 
 /**
@@ -313,6 +344,10 @@ export function aplicarComandaNumeroDisplay(datos) {
  */
 export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
   const p = plantilla || {};
+  datos = {
+    ...(datos || {}),
+    productos: aplicarOpcionesImpresionProductos(datos?.productos, p),
+  };
   const vis = p.visibilidad || {};
   const bloques = p.bloques || {};
   const esp = p.espaciado || {};
@@ -414,6 +449,7 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
     html += '</tr></thead>';
 
     for (const prod of datos.productos) {
+      if (!prod || prod.eliminado || prod.anulado) continue;
       const nombre = escapeHtml(prod.nombre || 'Plato');
       const marcadorPL = prod.paraLlevar ? ` <span style="font-weight:700;">[${escapeHtml(etiquetas.paraLlevar)}]</span>` : '';
       const cantidad = prod.cantidad || 1;

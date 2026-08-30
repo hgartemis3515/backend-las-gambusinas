@@ -23,6 +23,11 @@ const {
   recalcularEstadoMesa,
   ensurePlatosPopulated,
 } = require('../repository/comanda.repository');
+const boucherModel = require('../database/models/boucher.model');
+const {
+  cubreTodosLosPlatosPendientes,
+  esCobroParcialDeVisita,
+} = require('../utils/clasificarPagoParcial');
 
 const METODOS_PAGO_VALIDOS = ['efectivo', 'digital', 'tarjeta'];
 const MONEDAS_VALIDAS = ['PEN', 'USD'];
@@ -37,8 +42,14 @@ function labelMetodoPago(metodo) {
   return METODO_PAGO_LABELS[metodo] || metodo || 'Efectivo';
 }
 
-function esPagoParcial(platosSeleccionados) {
+/** true si el cliente envía selección de platos (ruta de cobro por líneas). No implica que el cobro sea parcial. */
+function usaSeleccionDePlatos(platosSeleccionados) {
   return Array.isArray(platosSeleccionados) && platosSeleccionados.length > 0;
+}
+
+/** Alias de routing para POST /boucher (compat). */
+function esPagoParcial(platosSeleccionados) {
+  return usaSeleccionDePlatos(platosSeleccionados);
 }
 
 function buildPlatoBoucherLine(comanda, platoItem, index, cantidad) {
@@ -295,7 +306,7 @@ async function procesarPagoBoucher(params) {
     abonoReserva = 0,
     reservaOrigenId = null,
   } = params;
-  const parcial = esPagoParcial(platosSeleccionados);
+  const usaSeleccion = usaSeleccionDePlatos(platosSeleccionados);
   const configMoneda = await configuracionRepository.obtenerConfiguracionMoneda();
   const zona = configMoneda.zonaHoraria || 'America/Lima';
   const ahoraPago = moment().tz(zona).toDate();
@@ -334,7 +345,7 @@ async function procesarPagoBoucher(params) {
   let comandasIdsAfectadas;
   let seleccionesParaMarcar;
 
-  if (parcial) {
+  if (usaSeleccion) {
     const validacion = await validarPlatosSeleccionadosParaPago(mesaId, platosSeleccionados, esPagoAdelantado);
     comandasValidas = validacion.comandas;
     platosParaBoucher = validacion.platosParaBoucher;
@@ -372,11 +383,17 @@ async function procesarPagoBoucher(params) {
     throw err;
   }
 
+  const estadosPlatoValidos = esPagoAdelantado
+    ? ['pedido', 'en_espera', 'recoger', 'salio', 'entregado']
+    : ['entregado'];
+  const cubreTodosPendientes = !usaSeleccion
+    || cubreTodosLosPlatosPendientes(seleccionesParaMarcar, comandasValidas, estadosPlatoValidos);
+
   const totales = calcularTotalesConDescuentos(
     comandasValidas,
     platosParaBoucher,
     configMoneda,
-    parcial
+    !cubreTodosPendientes
   );
 
   // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: descontar abono de reserva (seña) del total a cobrar.
@@ -453,6 +470,18 @@ async function procesarPagoBoucher(params) {
     pedidoId = pedidoAbierto?._id || null;
   }
 
+  let hayBouchersPreviosEnPedido = false;
+  if (pedidoId) {
+    hayBouchersPreviosEnPedido = (await boucherModel.countDocuments({
+      pedido: pedidoId,
+      isActive: { $ne: false },
+    })) > 0;
+  }
+  const esPagoParcialFlag = esCobroParcialDeVisita({
+    cubreTodosPendientes,
+    hayBouchersPreviosEnPedido,
+  });
+
   const boucherData = {
     mesa: mesaId,
     numMesa: mesa?.nummesa || null,
@@ -474,7 +503,7 @@ async function procesarPagoBoucher(params) {
     fechaPedido: primeraComanda?.createdAt || primeraComanda?.fecha || new Date(),
     fechaPago: ahoraPago,
     fechaPagoString: moment(ahoraPago).tz(zona).format('DD/MM/YYYY HH:mm:ss'),
-    esPagoParcial: parcial,
+    esPagoParcial: esPagoParcialFlag,
     // 🔥 PAGO ADELANTADO (PPA)
     esPagoAdelantado: esPagoAdelantado || false,
     // 🔥 Datos de pago
@@ -515,7 +544,7 @@ async function procesarPagoBoucher(params) {
     // pero eso confundía al dashboard comandas.html que mostraba "Entregado" en vez de
     // "Pendiente de aprobación".
     // Pago total legacy: marcar comandas completas si no es parcial
-    if (!parcial) {
+    if (!usaSeleccion) {
       await Promise.all(
         comandasIdsAfectadas.map(async (comandaId) => {
           await comandaModel.findByIdAndUpdate(comandaId, {
@@ -616,7 +645,7 @@ async function procesarPagoBoucher(params) {
         mozoNombre: boucherData.nombreMozo,
         pedido: pedidoId,
         // tipo: 'pago_parcial' si no cubre toda la mesa, 'comanda_completa' si sí
-        tipo: resumen.cobroCompleto ? 'comanda_completa' : 'pago_parcial',
+        tipo: esPagoParcialFlag ? 'pago_parcial' : 'comanda_completa',
         platos: platosSnapshot,
         subtotal: totales.subtotal,
         igv: totales.igv,
@@ -661,7 +690,7 @@ async function procesarPagoBoucher(params) {
             boucherId: boucherCreado._id,
             total: totales.total,
             tipo: ticketAprobacionCreado.tipo,
-            esPagoParcial: parcial,
+            esPagoParcial: esPagoParcialFlag,
           },
         });
       } catch (auditErr) {

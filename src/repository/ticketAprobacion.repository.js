@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 const moment = require('moment-timezone');
 const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
 const { adjuntarDescuentoTicket, aplicarDescuentoAVistaTicket, totalesConDescuentoImpresion, BOUCHER_DESCUENTO_SELECT, COMANDA_DESCUENTO_SELECT } = require('../utils/descuentoTicketSnapshot');
-const { aplicarPreciosEnLineasTicket, sincronizarPreciosComandaYBoucher } = require('../utils/editarPreciosTicket');
+const { aplicarPreciosEnLineasTicket, quitarLineasDeSnapshot, sincronizarEliminacionEnBoucher, sincronizarPreciosComandaYBoucher } = require('../utils/editarPreciosTicket');
 const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
 const comandaModel = require('../database/models/comanda.model');
 const mesasModel = require('../database/models/mesas.model');
@@ -19,6 +19,11 @@ const {
   resolverComandasNumbers,
   formatComandasNumbersLabel,
 } = require('../utils/comandasNumbers');
+const configuracionRepository = require('./configuracion.repository');
+const {
+  imprimirSoloNombreComercial,
+  aplicarOpcionesImpresionProductos,
+} = require('../utils/impresionComandaOpciones');
 
 const ZONA = 'America/Lima';
 
@@ -178,6 +183,7 @@ async function obtenerTicketPorId(ticketId) {
     .populate('boucher')
     .populate('aprobadoPor', 'name')
     .populate('reportadoPor', 'name')
+    .populate({ path: 'platos.plato', select: 'nombre nombreCocina' })
     .lean();
 }
 
@@ -620,8 +626,13 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
 
   const boucherData = boucher || ticket.boucher || null;
 
-  const productos = (ticket.platos || []).map((p) => ({
+  let productos = (ticket.platos || [])
+    .filter((p) => p && !p.eliminado && !p.anulado)
+    .map((p) => ({
     nombre: p.nombre,
+    nombreComercial: p.plato?.nombre,
+    nombreCocina: p.plato?.nombreCocina,
+    plato: p.plato,
     cantidad: p.cantidad,
     precio: p.precio,
     subtotal: p.subtotal,
@@ -634,6 +645,12 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
     notaEspecial: p.notaEspecial || '',
     paraLlevar: p.tipoServicio === 'para_llevar',
   }));
+  let solo = true;
+  try {
+    const config = await configuracionRepository.obtenerConfiguracion();
+    solo = imprimirSoloNombreComercial(config);
+  } catch (_) { /* default ON */ }
+  productos = aplicarOpcionesImpresionProductos(productos, { soloNombreComercial: solo });
 
   const comandasNumbers = resolverComandasNumbers({
     comandasNumbers: ticket.comandasNumbers,
@@ -712,7 +729,7 @@ async function obtenerTicketsPorComanda(comandaId) {
  * Editar campos permitidos de un ticket pendiente o aprobado (admin).
  * Puede incluir precios de platos (snapshot del ticket, comanda y boucher).
  */
-async function actualizarTicketAdmin(ticketId, { observaciones, metodoPago, platos }) {
+async function actualizarTicketAdmin(ticketId, { observaciones, metodoPago, platos, platosEliminar }) {
   const ticket = await ticketAprobacionModel.findById(ticketId);
   if (!ticket || !ticket.isActive) {
     const err = new Error('Ticket de aprobación no encontrado');
@@ -729,6 +746,10 @@ async function actualizarTicketAdmin(ticketId, { observaciones, metodoPago, plat
     ticket.metodoPago = metodoPago;
   }
   let comandasAfectadas = [];
+  const quit = quitarLineasDeSnapshot(ticket, platosEliminar);
+  if (quit.changed) {
+    await sincronizarEliminacionEnBoucher(ticket.boucher, quit.ids);
+  }
   const precios = aplicarPreciosEnLineasTicket(ticket, platos);
   if (precios.changed) {
     comandasAfectadas = await sincronizarPreciosComandaYBoucher(
