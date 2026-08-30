@@ -145,7 +145,8 @@ async function obtenerHistorialComandasMozos({ mozoId = null, fechaInicio, fecha
         // y debe seguir visible en el registro de platos.
         const matchBase = {
             mozos: { $ne: null },
-            eliminada: { $ne: true }
+            eliminada: { $ne: true },
+            status: { $nin: ['cancelado'] }
         };
         if (mozoId) {
             const oid = toObjectId(mozoId);

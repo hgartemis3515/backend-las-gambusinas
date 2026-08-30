@@ -387,7 +387,14 @@ const comandaSchema = new mongoose.Schema({
         sourceApp: { type: String, enum: ['mozos', 'cocina', 'admin', 'api', 'sistema', 'dashboard'], default: null },
         motivo: { type: String, default: null }
     }],
-    // Campos de auditoría para soft-delete (ESTANDARIZADO: solo IsActive)
+    // Soft-delete: el documento queda en Mongo; el registro oficial es auditoría.
+    // Debe estar en el schema: si no, Mongoose (strict) descarta el $set y
+    // reportes/mozos/cocineros siguen contando la comanda.
+    eliminada: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
     fechaEliminacion: {
         type: Date,
         default: null

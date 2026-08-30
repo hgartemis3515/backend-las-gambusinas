@@ -1125,6 +1125,9 @@ function bouchersApp() {
           // No afecta directamente a bouchers, pero mantiene sincronía
         });
 
+        this.socket.on('comanda-eliminada', () => { this.loadBouchers(); });
+        this.socket.on('reportes:comanda-eliminada', () => { this.loadBouchers(); });
+
       } catch (error) {
         console.error('Error inicializando Socket (bouchers):', error);
       }

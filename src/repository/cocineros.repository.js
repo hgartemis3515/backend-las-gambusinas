@@ -1521,6 +1521,7 @@ async function obtenerHistorialPlatosCocinados({ usuarioId = null, fechaInicio, 
         // 1) Platos listos (recoger) en el período — activas o ya cerradas
         const matchListos = {
             eliminada: { $ne: true },
+            status: { $nin: ['cancelado'] },
             $and: [
                 matchCocinero,
                 { 'platos.tiempos.recoger': { $gte: desde, $lte: hasta } }

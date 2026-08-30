@@ -6,7 +6,7 @@ const { importarPlatosDesdeJSON, asegurarCodigosPlato } = require('../repository
 const { importarAreasDesdeJSON } = require('../repository/area.repository');
 const { importarMesasDesdeJSON } = require('../repository/mesas.repository');
 const { importarClientesDesdeJSON } = require('../repository/clientes.repository');
-const { importarComandasDesdeJSON } = require('../repository/comanda.repository');
+const { importarComandasDesdeJSON, repararFlagsComandasEliminadas } = require('../repository/comanda.repository');
 const { importarBoucherDesdeJSON } = require('../repository/boucher.repository');
 const { importarAuditoriaDesdeJSON } = require('../repository/auditoria.repository');
 const { importarNotificacionesDesdeJSON, inicializarNotificaciones } = require('../repository/notificacion.repository');
@@ -100,6 +100,7 @@ db.once('open', async () => {
   await importarClientesDesdeJSON();
   await importarComandasDesdeJSON();
   await importarBoucherDesdeJSON();
+  await repararFlagsComandasEliminadas();
   await importarAuditoriaDesdeJSON();
   await inicializarNotificaciones();
   await importarNotificacionesDesdeJSON();

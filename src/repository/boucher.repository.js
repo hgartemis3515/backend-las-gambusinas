@@ -47,11 +47,9 @@ const generarVoucherIdUnico = async (maxAttempts = 10) => {
 
 const listarBouchers = async () => {
     try {
-        // El dashboard de vouchers debe mostrar todos los comprobantes (incluidos
-        // los de mesas ya liberadas, que se marcan isActive=false por
-        // desactivarBouchersHistoricosMesa). El soft-delete manual (eliminarBoucher)
-        // se seguirá respetando en otros flujos, pero aquí mostramos el historial completo.
-        const bouchers = await boucherModel.find({})
+        // Historial de tickets, incluidos los de mesas ya liberadas (isActive=false).
+        // Se ocultan los archivados con la comanda (eliminadaPorComanda): ese dato solo vive en auditoría.
+        const bouchers = await boucherModel.find({ eliminadaPorComanda: { $ne: true } })
             .populate('mesa')
             .populate('mozo')
             .populate('cliente')
@@ -74,6 +72,7 @@ const listarBouchersPorFecha = async (fecha) => {
         const fechaFin = moment.tz(fecha, "YYYY-MM-DD", "America/Lima").endOf('day').toDate();
         
         const bouchers = await boucherModel.find({
+            eliminadaPorComanda: { $ne: true },
             fechaPago: {
                 $gte: fechaInicio,
                 $lte: fechaFin
@@ -683,6 +682,50 @@ const importarBoucherDesdeJSON = async () => {
 /**
  * Desactiva bouchers activos de una mesa al liberarla (evita mezclar con el próximo ciclo).
  */
+/**
+ * Oculta bouchers exclusivos de una comanda eliminada.
+ * Si el ticket cubre varias comandas, solo desvincula esta.
+ */
+const desactivarBouchersDeComanda = async (comandaId) => {
+    if (!comandaId) return 0;
+    const idStr = String(comandaId);
+    const oid = mongoose.Types.ObjectId.isValid(idStr)
+        ? new mongoose.Types.ObjectId(idStr)
+        : comandaId;
+
+    const bouchers = await boucherModel.find({
+        eliminadaPorComanda: { $ne: true },
+        $or: [
+            { usadoEnComanda: oid },
+            { comandas: oid }
+        ]
+    }).select('_id comandas usadoEnComanda comandasNumbers').lean();
+
+    let archivados = 0;
+    for (const b of bouchers) {
+        const resto = (b.comandas || []).filter((id) => String(id) !== idStr);
+        const usadoEsEsta = b.usadoEnComanda && String(b.usadoEnComanda) === idStr;
+        if (resto.length === 0 && (usadoEsEsta || !b.usadoEnComanda)) {
+            await boucherModel.updateOne(
+                { _id: b._id },
+                { $set: { isActive: false, eliminadaPorComanda: true } }
+            );
+            archivados += 1;
+        } else {
+            const set = { comandas: resto };
+            if (usadoEsEsta) set.usadoEnComanda = resto[0] || null;
+            if (Array.isArray(b.comandasNumbers) && b.comandasNumbers.length > resto.length) {
+                set.comandasNumbers = b.comandasNumbers.slice(0, resto.length);
+            }
+            await boucherModel.updateOne({ _id: b._id }, { $set: set });
+        }
+    }
+    if (archivados > 0) {
+        console.log(`🗑️ ${archivados} boucher(s) archivado(s) por comanda eliminada ${idStr}`);
+    }
+    return archivados;
+};
+
 const desactivarBouchersHistoricosMesa = async (mesaId) => {
     const result = await boucherModel.updateMany(
         { mesa: mesaId, isActive: true },
@@ -704,6 +747,7 @@ module.exports = {
     eliminarBoucher,
     obtenerBoucherPorMesa,
     listarBouchersActivosPorMesa,
+    desactivarBouchersDeComanda,
     desactivarBouchersHistoricosMesa,
     consolidarBouchersMesa,
     importarBoucherDesdeJSON
