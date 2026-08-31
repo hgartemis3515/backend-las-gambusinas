@@ -1515,8 +1515,6 @@ async function obtenerHistorialPlatosCocinados({ usuarioId = null, fechaInicio, 
 
         const desde = new Date(fechaInicio);
         const hasta = new Date(fechaFin);
-        const diaDesde = new Date(moment(fechaInicio).startOf('day').toDate());
-        const diaHasta = new Date(moment(fechaFin).endOf('day').toDate());
 
         // 1) Platos listos (recoger) en el período — activas o ya cerradas
         const matchListos = {
@@ -1538,25 +1536,29 @@ async function obtenerHistorialPlatosCocinados({ usuarioId = null, fechaInicio, 
                     $or: [
                         { tiempoPagado: { $gte: desde, $lte: hasta } },
                         { updatedAt: { $gte: desde, $lte: hasta } },
-                        { createdAt: { $gte: diaDesde, $lte: diaHasta } }
+                        { createdAt: { $gte: desde, $lte: hasta } }
                     ]
                 }
             ]
         };
 
-        // 3) En curso ahora (asignados, todavía preparando). Si el rango incluye
-        // "ahora" (p.ej. hoy), no exigir createdAt del día: una comanda de ayer
-        // con plato tomado hoy debe verse.
+        // 3) En curso en el rango. Mismo criterio que comandas.html: createdAt en [desde, hasta]
+        // (DIA/NOCHE usa el corte de caja; no mezclar el turno día en noche).
         const ahoraLima = moment.tz('America/Lima').toDate();
         const rangoIncluyeAhora = desde <= ahoraLima && hasta >= ahoraLima;
         const matchEnCurso = {
-            $or: [
-                matchComandaConPlatoEnCurso(usuarioId),
-                matchComandaConGuarnicionEnCurso(usuarioId)
+            $and: [
+                {
+                    $or: [
+                        matchComandaConPlatoEnCurso(usuarioId),
+                        matchComandaConGuarnicionEnCurso(usuarioId)
+                    ]
+                },
+                { createdAt: { $gte: desde, $lte: hasta } }
             ]
         };
 
-        // 4) Activas del día donde ya hay platos procesados (siguen visibles tras finalizar plato)
+        // 4) Activas del período donde ya hay platos procesados
         const matchActivasProcesadas = {
             eliminada: { $ne: true },
             IsActive: true,
@@ -1565,8 +1567,8 @@ async function obtenerHistorialPlatosCocinados({ usuarioId = null, fechaInicio, 
                 matchCocinero,
                 {
                     $or: [
-                        { 'platos.tiempos.recoger': { $gte: diaDesde, $lte: diaHasta } },
-                        { createdAt: { $gte: diaDesde, $lte: diaHasta } }
+                        { 'platos.tiempos.recoger': { $gte: desde, $lte: hasta } },
+                        { createdAt: { $gte: desde, $lte: hasta } }
                     ]
                 }
             ]
@@ -1795,6 +1797,20 @@ async function obtenerHistorialPlatosCocinados({ usuarioId = null, fechaInicio, 
             const fechaB = new Date(b.tiempoPagado || b.updatedAt || b.createdAt).getTime();
             return fechaB - fechaA;
         });
+
+        // Igual que comandas.html: DIA/NOCHE recorta por createdAt al rango Lima (corte de caja).
+        const tDesde = desde.getTime();
+        const tHasta = hasta.getTime();
+        const comandasRango = comandas.filter((c) => {
+            const t = new Date(c.createdAt).getTime();
+            return Number.isFinite(t) && t >= tDesde && t <= tHasta;
+        });
+        const idsRango = new Set(comandasRango.map((c) => String(c.comandaId)));
+        const registrosRango = registros.filter((r) => idsRango.has(String(r.comandaId)));
+        comandas.length = 0;
+        comandas.push(...comandasRango);
+        registros.length = 0;
+        registros.push(...registrosRango);
 
         // Resumen agregados (solo platos finalizados)
         const porPlatoMap = new Map();

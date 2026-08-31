@@ -2435,7 +2435,16 @@ tailwind.config = {
                 <option :value="c._id" x-text="c.nombre || c.name"></option>
               </template>
             </select>
-            <select x-model="historialFiltroFecha" @change="cargarHistorialCocinados()"
+            <div class="flex items-center gap-1">
+              <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setHistorialFiltroFecha('dia')"
+                class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
+                :class="historialFiltroFecha === 'dia' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">DIA</button>
+              <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setHistorialFiltroFecha('noche')"
+                class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
+                :class="historialFiltroFecha === 'noche' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">NOCHE</button>
+              <span x-show="showTurnoDiaNoche" x-cloak class="w-px h-5 bg-[rgba(212,175,55,0.35)] mx-0.5"></span>
+            </div>
+            <select x-model="historialFiltroFecha" @change="setHistorialFiltroFecha(historialFiltroFecha)"
               class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
               <option value="hoy">Hoy</option>
               <option value="dia" x-bind:hidden="!showTurnoDiaNoche">DIA</option>
@@ -4933,6 +4942,11 @@ function cocinerosApp() {
         this.cargarHistorialCocinados();
       }
       this.cargarMetricas();
+    },
+
+    setHistorialFiltroFecha(id) {
+      this.historialFiltroFecha = id;
+      this.cargarHistorialCocinados();
     },
 
     async refreshTurnosCierre({ skipReload = false } = {}) {
@@ -8237,7 +8251,7 @@ function cocinerosApp() {
 
     limpiarFiltrosHistorialCocinados() {
       this.historialFiltroCocinero = '';
-      this.historialFiltroFecha = 'hoy';
+      this.historialFiltroFecha = this.showTurnoDiaNoche ? 'noche' : 'hoy';
       this.historialFechaDesde = '';
       this.historialFechaHasta = '';
       this.historialFiltroEstado = '';
@@ -8274,14 +8288,14 @@ function cocinerosApp() {
         const res = await apiGet('/cocineros/rendimiento/historial?' + params.toString());
         if (res && res.success !== false) {
           const data = res.data || {};
-          this.historialCocinados = {
+          this.historialCocinados = this.aplicarTurnoHistorialCocinados({
             comandas: Array.isArray(data.comandas) ? data.comandas : [],
             registros: Array.isArray(data.registros) ? data.registros : [],
             pendientesCount: data.pendientesCount || 0,
             cerradasCount: data.cerradasCount || data.resumen?.totalCerradas || 0,
             enCursoCount: data.enCursoCount || 0,
             resumen: data.resumen || empty.resumen
-          };
+          });
         } else if (!silent) {
           this.historialCocinados = empty;
         }
@@ -8346,9 +8360,104 @@ function cocinerosApp() {
       }
     },
 
+    matchFechaRangoHistorial(createdAt) {
+      const preset = this.historialFiltroFecha;
+      if (preset !== 'dia' && preset !== 'noche') return true;
+      if (!createdAt || !this.primerCierreHoyAt || typeof TurnosDiaNoche === 'undefined') return false;
+      const t = new Date(createdAt).getTime();
+      if (!Number.isFinite(t)) return false;
+      const corte = new Date(this.primerCierreHoyAt).getTime();
+      const ymd = limaYMD();
+      if (t < TurnosDiaNoche.limaDayStart(ymd).getTime() || t > TurnosDiaNoche.limaDayEnd(ymd).getTime()) return false;
+      if (preset === 'dia') return t < corte;
+      return t >= corte;
+    },
+
+    resumenHistorialDesdeRegistros(comandas, registros) {
+      const SLA = 15 * 60;
+      const porPlatoMap = new Map();
+      const porCocineroMap = new Map();
+      let totalFinalizados = 0;
+      let sumaTiempos = 0;
+      let dentroSLA = 0;
+      let cuentaConTiempo = 0;
+      let totalEnCursoPlatos = 0;
+      for (const r of registros || []) {
+        const qty = Math.max(1, Number(r.cantidad) || 1);
+        if (r.estadoRegistro === 'en_curso') {
+          totalEnCursoPlatos += qty;
+          continue;
+        }
+        totalFinalizados += qty;
+        if (r.tiempoSegundos == null) continue;
+        const seg = Math.max(0, Math.round(r.tiempoSegundos));
+        cuentaConTiempo += qty;
+        sumaTiempos += seg * qty;
+        if (seg <= SLA) dentroSLA += qty;
+        const platoKey = String(r.platoId ?? r.platoNombre ?? 'sin-id');
+        if (!porPlatoMap.has(platoKey)) {
+          porPlatoMap.set(platoKey, { platoId: r.platoId, platoNombre: r.platoNombre || 'Plato', categoria: r.platoCategoria || null, cantidad: 0, tiempoTotalSegundos: 0, tiempos: [] });
+        }
+        const pp = porPlatoMap.get(platoKey);
+        pp.cantidad += qty;
+        pp.tiempoTotalSegundos += seg * qty;
+        pp.tiempos.push(seg);
+        const cocKey = r.cocineroId?.toString() || 'desconocido';
+        if (!porCocineroMap.has(cocKey)) {
+          porCocineroMap.set(cocKey, { cocineroId: cocKey, cocineroNombre: r.cocineroNombre || 'Cocinero', cocineroAlias: r.cocineroAlias || r.cocineroNombre || 'Cocinero', totalPlatos: 0, tiempoTotalSegundos: 0, dentroSLA: 0 });
+        }
+        const cc = porCocineroMap.get(cocKey);
+        cc.totalPlatos += qty;
+        cc.tiempoTotalSegundos += seg * qty;
+        if (seg <= SLA) cc.dentroSLA += qty;
+      }
+      const porPlato = Array.from(porPlatoMap.values()).map((p) => {
+        const arr = p.tiempos;
+        delete p.tiempos;
+        return {
+          ...p,
+          tiempoPromedioSegundos: p.cantidad > 0 ? Math.round(p.tiempoTotalSegundos / p.cantidad) : 0,
+          tiempoMinSegundos: arr.length ? Math.min(...arr) : 0,
+          tiempoMaxSegundos: arr.length ? Math.max(...arr) : 0
+        };
+      }).sort((a, b) => b.cantidad - a.cantidad);
+      const porCocinero = Array.from(porCocineroMap.values()).map((c) => ({
+        ...c,
+        tiempoPromedioSegundos: c.totalPlatos > 0 ? Math.round(c.tiempoTotalSegundos / c.totalPlatos) : 0,
+        porcentajeDentroSLA: c.totalPlatos > 0 ? Math.round((c.dentroSLA / c.totalPlatos) * 100) : 0
+      })).sort((a, b) => b.totalPlatos - a.totalPlatos);
+      const cerradasCount = (comandas || []).filter((c) => c.estadoRegistro === 'pagada' || c.estadoRegistro === 'completada').length;
+      return {
+        totalComandas: (comandas || []).length,
+        totalFinalizados,
+        totalEnCurso: totalEnCursoPlatos,
+        totalCerradas: cerradasCount,
+        tiempoPromedioSegundos: cuentaConTiempo > 0 ? Math.round(sumaTiempos / cuentaConTiempo) : 0,
+        porcentajeDentroSLA: cuentaConTiempo > 0 ? Math.round((dentroSLA / cuentaConTiempo) * 100) : 0,
+        porPlato,
+        porCocinero
+      };
+    },
+
+    aplicarTurnoHistorialCocinados(data) {
+      if (this.historialFiltroFecha !== 'dia' && this.historialFiltroFecha !== 'noche') return data;
+      const comandas = (data.comandas || []).filter((c) => this.matchFechaRangoHistorial(c.createdAt));
+      const ids = new Set(comandas.map((c) => String(c.comandaId)));
+      const registros = (data.registros || []).filter((r) => ids.has(String(r.comandaId)));
+      return {
+        comandas,
+        registros,
+        pendientesCount: comandas.filter((c) => c.estadoRegistro === 'en_curso').length,
+        cerradasCount: comandas.filter((c) => c.estadoRegistro === 'pagada' || c.estadoRegistro === 'completada').length,
+        enCursoCount: registros.filter((r) => r.estadoRegistro === 'en_curso').reduce((s, r) => s + Math.max(1, Number(r.cantidad) || 1), 0),
+        resumen: this.resumenHistorialDesdeRegistros(comandas, registros)
+      };
+    },
+
     getHistorialComandasFiltradas() {
       void this.rendimientoTick;
       let lista = [...(this.historialCocinados.comandas || [])];
+      lista = lista.filter(c => this.matchFechaRangoHistorial(c.createdAt));
       if (this.historialFiltroEstado === 'en_curso') {
         lista = lista.filter(c => c.estadoRegistro === 'en_curso');
       } else if (this.historialFiltroEstado === 'terminadas') {

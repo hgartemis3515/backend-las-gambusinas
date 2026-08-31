@@ -21,6 +21,7 @@ const {
     resumirHorariosComandas,
     rangoLima
 } = require('../utils/estadisticasComandas');
+const { desgloseVentasPorAprobacion } = require('../utils/desgloseVentasTickets');
 
 // ============================================================
 // CREATE - CREAR PROPINA
@@ -325,6 +326,7 @@ async function obtenerDatosDashboardMozos(fechaInicio, fechaFin) {
                 $group: {
                     _id: '$mozo',
                     totalVentas: { $sum: '$total' },
+                    descuentos: { $sum: { $ifNull: ['$montoDescuento', 0] } },
                     cantidadBouchers: { $sum: 1 },
                     mesasAtendidas: { $addToSet: '$mesa' }
                 }
@@ -347,6 +349,13 @@ async function obtenerDatosDashboardMozos(fechaInicio, fechaFin) {
         );
         const totalVentasComandas = ventasComanda.reduce((s, v) => s + (Number(v.totalVentas) || 0), 0);
         const hayVentasComanda = ventasComanda.some(v => (Number(v.cantidad) || 0) > 0);
+
+        let desgloseTickets = { ventasPendientes: 0, ventasAprobadas: 0, porMozo: new Map() };
+        try {
+            desgloseTickets = await desgloseVentasPorAprobacion(inicio, fin);
+        } catch (errT) {
+            logger.warn('[PropinaRepo] Desglose tickets omitido', { error: errT.message });
+        }
 
         // Pipeline de agregación para propinas
         const pipelinePropinas = [
@@ -386,6 +395,10 @@ async function obtenerDatosDashboardMozos(fechaInicio, fechaFin) {
             const propinas = propinasMap.get(mozoIdStr) || { totalPropinas: 0, cantidadPropinas: 0 };
             const mesasAt = mesasSet?.length || 0;
             const totalProp = Math.round(propinas.totalPropinas * 100) / 100;
+            const ticketsMozo = desgloseTickets.porMozo.get(mozoIdStr) || { ventasPendientes: 0, ventasAprobadas: 0 };
+            const descuentosHoy = usarComanda
+                ? Number(ventasC?.descuentos || 0)
+                : (Number(ventasB.descuentos) || 0);
 
             return {
                 _id: mozo._id,
@@ -394,6 +407,9 @@ async function obtenerDatosDashboardMozos(fechaInicio, fechaFin) {
                 DNI: mozo.DNI,
                 rol: mozo.rol,
                 ventasHoy: Math.round(totalVentas * 100) / 100,
+                ventasPendientes: ticketsMozo.ventasPendientes || 0,
+                ventasAprobadas: ticketsMozo.ventasAprobadas || 0,
+                descuentosHoy: Math.round(descuentosHoy * 100) / 100,
                 bouchersHoy: bouchers,
                 mesasAtendidas: mesasAt,
                 propinasHoy: totalProp,
@@ -421,6 +437,9 @@ async function obtenerDatosDashboardMozos(fechaInicio, fechaFin) {
             totalVentas: hayVentasComanda
                 ? Math.round(totalVentasComandas * 100) / 100
                 : mozosConMetricas.reduce((sum, m) => sum + m.ventasHoy, 0),
+            ventasPendientes: desgloseTickets.ventasPendientes || 0,
+            ventasAprobadas: desgloseTickets.ventasAprobadas || 0,
+            descuentos: Math.round(mozosConMetricas.reduce((sum, m) => sum + (Number(m.descuentosHoy) || 0), 0) * 100) / 100,
             totalPropinas: mozosConMetricas.reduce((sum, m) => sum + m.propinasHoy, 0),
             totalMozos: mozos.length
         };

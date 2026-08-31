@@ -66,12 +66,26 @@ tailwind.config = {
   <main :class="sidebarOpen ? 'ml-[270px]' : 'ml-[68px]'" class="flex-1 transition-all duration-300 min-h-[calc(100vh-72px)] p-6">
     
     <!-- HEADER -->
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center justify-between mb-6 gap-4 flex-wrap">
       <div>
         <h1 class="text-2xl font-bold" x-text="'Buenas ' + getSaludo() + ', Admin 👋'"></h1>
         <p class="text-txt-muted text-sm mt-1" x-text="getFecha()"></p>
       </div>
-      <div class="flex gap-2">
+      <div class="flex gap-2 items-center flex-wrap">
+        <div class="flex items-center gap-1">
+          <span class="text-[10px] uppercase text-txt-muted mr-1">Período</span>
+          <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroPeriodo('dia')"
+            class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
+            :class="filtroPeriodo === 'dia' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">DIA</button>
+          <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroPeriodo('noche')"
+            class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
+            :class="filtroPeriodo === 'noche' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">NOCHE</button>
+          <span x-show="showTurnoDiaNoche" x-cloak class="w-px h-5 bg-[rgba(212,175,55,0.35)] mx-1"></span>
+          <button type="button" @click="setFiltroPeriodo('hoy')"
+            class="px-3 py-2 rounded-lg text-xs font-semibold transition border"
+            :class="filtroPeriodo === 'hoy' ? 'bg-gold/20 border-gold text-gold' : 'border-transparent bg-bg-sidebar text-txt-secondary hover:border-gold/40'">Hoy</button>
+        </div>
+        <span class="text-[10px] text-txt-muted font-mono" x-text="etiquetaPeriodo"></span>
         <button @click="loadDashboard()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
         <button @click="exportarDashboard()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">📥 Exportar</button>
         <button @click="modal='personalizar'" class="px-4 py-2 border border-gold/40 rounded-lg text-sm text-gold hover:bg-gold-20 transition">⚙️ Personalizar</button>
@@ -79,6 +93,28 @@ tailwind.config = {
     </div>
 
     <!-- DYNAMIC KPIs ROW -->
+    <div x-show="isWidgetActive('kpi-ventas')" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4 card-hover">
+        <p class="text-[11px] text-txt-muted uppercase tracking-wide">Ventas Pendientes</p>
+        <p class="text-2xl font-bold mt-1 text-st-esperando" x-text="kpiVentasPendientes"></p>
+        <p class="text-xs mt-1 text-txt-muted">Tickets / PPA sin aprobar</p>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4 card-hover">
+        <p class="text-[11px] text-txt-muted uppercase tracking-wide">Ventas Aprobadas</p>
+        <p class="text-2xl font-bold mt-1 text-st-preparado" x-text="kpiVentasAprobadas"></p>
+        <p class="text-xs mt-1 text-txt-muted">Tickets y pagos adelantados</p>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4 card-hover">
+        <p class="text-[11px] text-txt-muted uppercase tracking-wide">Descuentos</p>
+        <p class="text-2xl font-bold mt-1 text-st-pagado" x-text="kpiDescuentos"></p>
+        <p class="text-xs mt-1 text-txt-muted">Aplicados en el período</p>
+      </div>
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4 card-hover">
+        <p class="text-[11px] text-txt-muted uppercase tracking-wide" x-text="filtroPeriodo === 'noche' ? 'Ventas Totales Noche' : filtroPeriodo === 'dia' ? 'Ventas Totales Día' : 'Ventas Totales'"></p>
+        <p class="text-2xl font-bold mt-1 text-gold" x-text="kpiVentasHoy"></p>
+        <p class="text-xs mt-1 text-txt-muted" x-text="kpiVentasPct"></p>
+      </div>
+    </div>
     <div x-show="activeKpis.length > 0" class="grid gap-4 mb-6" :style="'grid-template-columns: repeat(' + Math.min(activeKpis.length, 5) + ', 1fr)'">
       <template x-for="w in activeKpis" :key="w.id">
         <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4 card-hover">
@@ -88,14 +124,6 @@ tailwind.config = {
               <p class="text-[11px] text-txt-muted uppercase tracking-wide">Mesas Ocupadas</p>
               <p class="text-2xl font-bold mt-1 text-gold" x-text="kpiMesasOcupadas"></p>
               <p class="text-xs mt-1 text-txt-muted" x-text="kpiOcupacionPct + ' ocupación'"></p>
-            </div>
-          </template>
-          <!-- kpi-ventas -->
-          <template x-if="w.id === 'kpi-ventas'">
-            <div>
-              <p class="text-[11px] text-txt-muted uppercase tracking-wide">Ventas Hoy</p>
-              <p class="text-2xl font-bold mt-1 text-gold" x-text="kpiVentasHoy"></p>
-              <p class="text-xs mt-1 text-txt-muted" x-text="kpiVentasPct"></p>
             </div>
           </template>
           <!-- kpi-plato -->
@@ -133,7 +161,7 @@ tailwind.config = {
           <!-- kpi-tickets -->
           <template x-if="w.id === 'kpi-tickets'">
             <div>
-              <p class="text-[11px] text-txt-muted uppercase tracking-wide">Tickets Hoy</p>
+              <p class="text-[11px] text-txt-muted uppercase tracking-wide" x-text="filtroPeriodo === 'noche' ? 'Tickets Noche' : filtroPeriodo === 'dia' ? 'Tickets Día' : 'Tickets Hoy'"></p>
               <p class="text-2xl font-bold mt-1 text-st-pedido" x-text="kpiTicketsHoy"></p>
               <p class="text-xs mt-1 text-txt-muted">comandas cerradas</p>
             </div>
@@ -183,7 +211,7 @@ tailwind.config = {
           <!-- grafico-ventas -->
           <template x-if="w.id === 'grafico-ventas'">
             <div class="flex flex-col h-full" style="min-height: 280px;">
-              <h3 class="font-semibold text-sm mb-4 flex-shrink-0">Ventas del Día</h3>
+              <h3 class="font-semibold text-sm mb-4 flex-shrink-0" x-text="'Ventas · ' + etiquetaPeriodo"></h3>
               <div class="relative flex-1 min-h-0">
                 <canvas :id="'chartVentasDia'" x-init="$nextTick(() => initChartVentas())"></canvas>
               </div>
@@ -558,6 +586,7 @@ tailwind.config = {
 <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 <script src="/assets/js/notifications.js"></script>
 <script src="/assets/js/shared.js"></script>
+<script src="/assets/js/turnosDiaNoche.js"></script>
 <script src="/assets/js/charts.js"></script>
 <script>
 // ============================================
@@ -565,7 +594,7 @@ tailwind.config = {
 // ============================================
 const WIDGET_CATALOG = {
   'kpi-mesas':          { icon: '🪑', nombre: 'Mesas Ocupadas',         tamano: '1 col · Métrica',    tipo: 'kpi',   colSpan: 1 },
-  'kpi-ventas':         { icon: '💰', nombre: 'Ventas del Día',         tamano: '1 col · Métrica',    tipo: 'kpi',   colSpan: 1 },
+  'kpi-ventas':         { icon: '💰', nombre: 'Ventas (pend. / aprob. / desc. / total)', tamano: '4 cols · Métricas', tipo: 'kpi',   colSpan: 1 },
   'kpi-plato':          { icon: '🍽️', nombre: 'Top Plato',             tamano: '1 col · Métrica',    tipo: 'kpi',   colSpan: 1 },
   'kpi-mozo':           { icon: '👤', nombre: 'Top Mozo',               tamano: '1 col · Métrica',    tipo: 'kpi',   colSpan: 1 },
   'kpi-alertas':        { icon: '🔴', nombre: 'Alertas',                tamano: '1 col · Métrica',    tipo: 'kpi',   colSpan: 1 },
@@ -628,6 +657,9 @@ function dashApp() {
     kpiMesasOcupadas: '—',
     kpiOcupacionPct: '—',
     kpiVentasHoy: 'S/. —',
+    kpiVentasPendientes: 'S/. 0.00',
+    kpiVentasAprobadas: 'S/. 0.00',
+    kpiDescuentos: 'S/. 0.00',
     kpiVentasPct: '+0% vs ayer',
     kpiTopPlato: '—',
     kpiTopPlatoSub: '—',
@@ -644,10 +676,17 @@ function dashApp() {
     dashboardLayout: [],
     _ventasLabelsCache: [],
     _ventasDataCache: [],
+    filtroPeriodo: 'hoy',
+    showTurnoDiaNoche: false,
+    primerCierreHoyAt: null,
+    turnosLimaYMD: '',
+    cierresHoyCount: 0,
+    _turnosAutoNocheHecho: false,
+    _turnosPoll: null,
 
     // Computed: split layout into rows
     get activeKpis() {
-      return this.dashboardLayout.filter(id => WIDGET_CATALOG[id]?.tipo === 'kpi').map(id => ({ id }));
+      return this.dashboardLayout.filter(id => WIDGET_CATALOG[id]?.tipo === 'kpi' && id !== 'kpi-ventas').map(id => ({ id }));
     },
     get activePanels() {
       return this.dashboardLayout
@@ -676,17 +715,17 @@ function dashApp() {
       // Load saved layout
       this.loadLayoutFromStorage();
 
-      // Listen for layout changes from the personalizar modal
       this.$el.addEventListener('layout-updated', (e) => {
         this.dashboardLayout = [...e.detail.layout];
         this.saveLayoutToStorage();
-        // Re-init charts after DOM settles
         this.$nextTick(() => { this.reinitCharts(); });
       });
 
+      await this.refreshTurnosCierre({ skipReload: true });
       await this.loadDashboard();
       this.initSocket();
       this.startAutoRefresh();
+      this._turnosPoll = setInterval(() => this.refreshTurnosCierre(), 45000);
     },
 
     loadLayoutFromStorage() {
@@ -711,27 +750,82 @@ function dashApp() {
 
     isWidgetActive(id) { return this.dashboardLayout.includes(id); },
 
+    limaHoyYMD() {
+      if (typeof TurnosDiaNoche !== 'undefined') return TurnosDiaNoche.limaYMD();
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    },
+
+    fechasQuery() {
+      if ((this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche') && this.primerCierreHoyAt && typeof TurnosDiaNoche !== 'undefined') {
+        const r = TurnosDiaNoche.rangoIso(this.filtroPeriodo, this.primerCierreHoyAt);
+        if (r) return { fechaInicio: r.desde, fechaFin: r.hasta };
+      }
+      const hoy = this.limaHoyYMD();
+      return { fechaInicio: hoy, fechaFin: hoy };
+    },
+
+    get etiquetaPeriodo() {
+      if ((this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche') && this.primerCierreHoyAt && typeof TurnosDiaNoche !== 'undefined') {
+        return TurnosDiaNoche.etiqueta(this.filtroPeriodo, this.primerCierreHoyAt);
+      }
+      return 'Hoy · ' + this.limaHoyYMD();
+    },
+
+    matchFechaRango(createdAt) {
+      if (!createdAt) return false;
+      const t = new Date(createdAt).getTime();
+      if (!Number.isFinite(t)) return false;
+      if ((this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche') && this.primerCierreHoyAt && typeof TurnosDiaNoche !== 'undefined') {
+        const corte = new Date(this.primerCierreHoyAt).getTime();
+        const ymd = this.limaHoyYMD();
+        if (t < TurnosDiaNoche.limaDayStart(ymd).getTime() || t > TurnosDiaNoche.limaDayEnd(ymd).getTime()) return false;
+        if (this.filtroPeriodo === 'dia') return t < corte;
+        return t >= corte;
+      }
+      return TurnosDiaNoche && typeof TurnosDiaNoche.limaYMD === 'function'
+        ? TurnosDiaNoche.limaYMD(new Date(createdAt)) === this.limaHoyYMD()
+        : true;
+    },
+
+    setFiltroPeriodo(id) {
+      this.filtroPeriodo = id;
+      this.loadDashboard();
+    },
+
+    async refreshTurnosCierre({ skipReload = false } = {}) {
+      if (typeof TurnosDiaNoche === 'undefined') return;
+      const prevP = this.filtroPeriodo;
+      const prevS = this.showTurnoDiaNoche;
+      await TurnosDiaNoche.refresh(this, {
+        getPeriod: () => this.filtroPeriodo,
+        setPeriod: (v) => { this.filtroPeriodo = v; },
+        autoNoche: true
+      });
+      if (skipReload) return;
+      if (this.filtroPeriodo !== prevP || this.showTurnoDiaNoche !== prevS) await this.loadDashboard();
+    },
+
     async loadDashboard() {
       this.loading = true;
-      const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+      const q = this.fechasQuery();
+      const qVentas = 'fechaInicio=' + encodeURIComponent(q.fechaInicio) + '&fechaFin=' + encodeURIComponent(q.fechaFin);
+      const qMozos = 'desde=' + encodeURIComponent(q.fechaInicio) + '&hasta=' + encodeURIComponent(q.fechaFin);
       const needs = (id) => this.dashboardLayout.includes(id);
 
       try {
-        // Always fetch mesas and mozos (used by multiple widgets)
         const fetches = [
           apiGet('/mesas'),
-          apiGet('/mozos')
+          apiGet('/mozos?' + qMozos)
         ];
-        // Conditionally fetch based on active widgets
         const needsComandas = needs('comandas-activas') || needs('actividad') || needs('kpi-tickets');
         const needsVentas = needs('kpi-ventas') || needs('grafico-ventas');
         const needsAuditoria = needs('actividad');
         const needsTopPlatos = needs('kpi-plato') || needs('top-platos');
 
         fetches.push(needsComandas ? apiGet('/comanda') : Promise.resolve(null));
-        fetches.push(needsVentas ? apiGet('/reportes/ventas?fechaInicio=' + hoy + '&fechaFin=' + hoy + '&agruparPor=hora') : Promise.resolve(null));
+        fetches.push(needsVentas ? apiGet('/reportes/ventas?' + qVentas + '&agruparPor=hora') : Promise.resolve(null));
         fetches.push(needsAuditoria ? apiGet('/auditoria/comandas?limit=6').catch(() => null) : Promise.resolve(null));
-        fetches.push(needsTopPlatos ? apiGet('/reportes/platos-top?fechaInicio=' + hoy + '&fechaFin=' + hoy).catch(() => null) : Promise.resolve(null));
+        fetches.push(needsTopPlatos ? apiGet('/reportes/platos-top?' + qVentas).catch(() => null) : Promise.resolve(null));
 
         const [mesas, mozos, comandas, reporteHoy, auditoria, topPlatos] = await Promise.all(fetches);
 
@@ -766,7 +860,7 @@ function dashApp() {
             const st = (c.status || c.estado || '').toLowerCase();
             return !st.includes('entregado') && !st.includes('cancelado');
           }).slice(0, 8);
-          this.kpiTicketsHoy = String(comandas.length);
+          this.kpiTicketsHoy = String(comandas.filter(c => this.matchFechaRango(c.createdAt)).length);
         }
 
         // --- VENTAS ---
@@ -774,16 +868,23 @@ function dashApp() {
           const totalHoy = (reporteHoy.resumen && reporteHoy.resumen.totalVentas != null)
             ? Number(reporteHoy.resumen.totalVentas)
             : reporteHoy.datos.reduce((s, d) => s + (d.total || 0), 0);
-          this.kpiVentasHoy = 'S/. ' + totalHoy.toLocaleString('es-PE');
+          this.applyResumenVentas(reporteHoy.resumen, totalHoy);
           this._ventasDataCache = reporteHoy.datos.map(d => d.total || 0);
           this._ventasLabelsCache = reporteHoy.datos.map(d => d._id || d.hora || d.fecha || '');
           this.initChartVentas();
-        } else {
-          this.kpiVentasHoy = 'S/. 0';
+        } else if (reporteHoy && reporteHoy.resumen) {
+          this.applyResumenVentas(reporteHoy.resumen, Number(reporteHoy.resumen.totalVentas) || 0);
           this._ventasDataCache = [];
           this._ventasLabelsCache = [];
           if (needs('grafico-ventas')) {
-            LasGambusinasCharts.drawEmptyChart('chartVentasDia', 'Sin ventas registradas hoy');
+            LasGambusinasCharts.drawEmptyChart('chartVentasDia', 'Sin ventas en este período');
+          }
+        } else {
+          this.applyResumenVentas(null, 0);
+          this._ventasDataCache = [];
+          this._ventasLabelsCache = [];
+          if (needs('grafico-ventas')) {
+            LasGambusinasCharts.drawEmptyChart('chartVentasDia', 'Sin ventas en este período');
           }
         }
 
@@ -800,7 +901,7 @@ function dashApp() {
 
         // --- AUDITORIA / ACTIVIDAD ---
         if (auditoria && auditoria.auditorias && Array.isArray(auditoria.auditorias) && auditoria.auditorias.length > 0) {
-          this.activity = auditoria.auditorias.slice(0, 6).map(a => {
+          this.activity = auditoria.auditorias.filter(a => this.matchFechaRango(a.timestamp)).slice(0, 6).map(a => {
             const usuarioNombre = a.usuario?.name || a.usuario?.nombre || 'Sistema';
             const comandaNum = a.entidadId?.toString()?.slice(-4) || a.comandaNum || '';
             const hora = a.timestamp ? new Date(a.timestamp) : null;
@@ -812,7 +913,7 @@ function dashApp() {
             };
           });
         } else if (comandas && Array.isArray(comandas) && comandas.length > 0) {
-          this.activity = comandas.slice(0, 6).map(c => {
+          this.activity = comandas.filter(c => this.matchFechaRango(c.createdAt)).slice(0, 6).map(c => {
             let dotClass = 'bg-gold';
             let estado = (c.status || c.estado || '').toLowerCase();
             if (estado.includes('preparado') || estado.includes('listo')) dotClass = 'bg-st-preparado';
@@ -839,7 +940,7 @@ function dashApp() {
       if (this._ventasDataCache.length > 0) {
         LasGambusinasCharts.drawDashChartWithData('chartVentasDia', this._ventasLabelsCache, this._ventasDataCache);
       } else {
-        LasGambusinasCharts.drawEmptyChart('chartVentasDia', 'Sin ventas registradas hoy');
+        LasGambusinasCharts.drawEmptyChart('chartVentasDia', 'Sin ventas en este período');
       }
     },
     initChartCategorias() {
@@ -950,9 +1051,10 @@ function dashApp() {
         this.socket.on('reportes:comanda-nueva', (data) => {
           const comanda = data.comanda || data;
           this.addActivity({ text: 'Mesa ' + (comanda.numMesa || data.numMesa || '—') + ' — Nueva comanda #' + (comanda.comandaNumber || data.comandaNumber || '—'), dotClass: 'bg-gold' });
-          // Incrementar contador de tickets
-          const currentTickets = parseInt(this.kpiTicketsHoy) || 0;
-          this.kpiTicketsHoy = String(currentTickets + 1);
+          if (this.matchFechaRango(comanda.createdAt || Date.now())) {
+            const currentTickets = parseInt(this.kpiTicketsHoy) || 0;
+            this.kpiTicketsHoy = String(currentTickets + 1);
+          }
         });
 
         // Plato listo
@@ -1008,9 +1110,10 @@ function dashApp() {
         dotClass: 'bg-gold' 
       });
       
-      // Incrementar tickets
-      const currentTickets = parseInt(this.kpiTicketsHoy) || 0;
-      this.kpiTicketsHoy = String(currentTickets + 1);
+      if (this.matchFechaRango(comanda.createdAt || Date.now())) {
+        const currentTickets = parseInt(this.kpiTicketsHoy) || 0;
+        this.kpiTicketsHoy = String(currentTickets + 1);
+      }
     },
     
     // Manejar comanda actualizada desde Socket
@@ -1041,24 +1144,35 @@ function dashApp() {
       if (this.activity.length > 6) this.activity.pop();
     },
 
+    fmtSolesKpi(n) {
+      return 'S/. ' + (Number(n) || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    },
+    applyResumenVentas(resumen, totalHoy) {
+      this.kpiVentasHoy = this.fmtSolesKpi(totalHoy);
+      this.kpiVentasPendientes = this.fmtSolesKpi(resumen && resumen.ventasPendientes);
+      this.kpiVentasAprobadas = this.fmtSolesKpi(resumen && resumen.ventasAprobadas);
+      const desc = Number(resumen && resumen.descuentos) || 0;
+      this.kpiDescuentos = (desc > 0 ? '-' : '') + this.fmtSolesKpi(desc);
+    },
+
     async refreshVentasChart() {
-      const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+      const q = this.fechasQuery();
       try {
-        const reporteHoy = await apiGet('/reportes/ventas?fechaInicio=' + hoy + '&fechaFin=' + hoy + '&agruparPor=hora');
+        const reporteHoy = await apiGet('/reportes/ventas?fechaInicio=' + encodeURIComponent(q.fechaInicio) + '&fechaFin=' + encodeURIComponent(q.fechaFin) + '&agruparPor=hora');
         if (reporteHoy && reporteHoy.datos && reporteHoy.datos.length > 0) {
           this._ventasDataCache = reporteHoy.datos.map(d => d.total || 0);
           this._ventasLabelsCache = reporteHoy.datos.map(d => d._id || d.hora || d.fecha || '');
           const totalHoy = (reporteHoy.resumen && reporteHoy.resumen.totalVentas != null)
             ? Number(reporteHoy.resumen.totalVentas)
             : reporteHoy.datos.reduce((s, d) => s + (d.total || 0), 0);
-          this.kpiVentasHoy = 'S/. ' + totalHoy.toLocaleString('es-PE');
+          this.applyResumenVentas(reporteHoy.resumen, totalHoy);
           if (this.dashboardLayout.includes('grafico-ventas')) {
             LasGambusinasCharts.drawDashChartWithData('chartVentasDia', this._ventasLabelsCache, this._ventasDataCache);
           }
         } else {
-          this.kpiVentasHoy = 'S/. 0';
+          this.applyResumenVentas(reporteHoy && reporteHoy.resumen, (reporteHoy && reporteHoy.resumen && reporteHoy.resumen.totalVentas) || 0);
           if (this.dashboardLayout.includes('grafico-ventas')) {
-            LasGambusinasCharts.drawEmptyChart('chartVentasDia', 'Sin ventas registradas hoy');
+            LasGambusinasCharts.drawEmptyChart('chartVentasDia', 'Sin ventas en este período');
           }
         }
       } catch (e) { console.warn('Error actualizando gráfico:', e); }
@@ -1152,7 +1266,7 @@ function dashApp() {
     },
 
     exportarDashboard() {
-      const resumen = `SAN BENITO - RESUMEN DEL DÍA\n================================\nFecha: ${this.getFecha()}\n\nMESAS\n- Ocupadas: ${this.kpiMesasOcupadas}\n- Ocupación: ${this.kpiOcupacionPct}\n\nVENTAS\n- Total hoy: ${this.kpiVentasHoy}\n\nMOZOS\n- Top mozo: ${this.kpiTopMozo}\n\nGenerado: ${new Date().toLocaleString('es-PE')}`;
+      const resumen = `SAN BENITO - RESUMEN DEL DÍA\n================================\nFecha: ${this.getFecha()}\n\nMESAS\n- Ocupadas: ${this.kpiMesasOcupadas}\n- Ocupación: ${this.kpiOcupacionPct}\n\nVENTAS\n- Pendientes: ${this.kpiVentasPendientes}\n- Aprobadas: ${this.kpiVentasAprobadas}\n- Descuentos: ${this.kpiDescuentos}\n- Totales: ${this.kpiVentasHoy}\n\nMOZOS\n- Top mozo: ${this.kpiTopMozo}\n\nGenerado: ${new Date().toLocaleString('es-PE')}`;
       const blob = new Blob([resumen], { type: 'text/plain;charset=utf-8' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);

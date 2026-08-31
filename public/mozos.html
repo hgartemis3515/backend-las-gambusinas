@@ -557,8 +557,31 @@ tailwind.config = {
       </button>
     </div>
 
-    <!-- KPIs: 4 tarjetas premium -->
-    <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6" aria-label="Indicadores clave">
+    <!-- KPIs: ventas desglosadas + equipo -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4" aria-label="Ventas del período">
+      <article class="mozos-kpi-card rounded-2xl p-5">
+        <p class="text-[11px] font-semibold uppercase tracking-wider text-txt-muted">Ventas pendientes</p>
+        <p class="text-2xl font-extrabold text-st-esperando mt-2 tabular-nums" x-text="'S/. ' + fmt(totalVentasPendientes)"></p>
+        <p class="text-xs text-txt-muted mt-1">Tickets / PPA sin aprobar</p>
+      </article>
+      <article class="mozos-kpi-card rounded-2xl p-5">
+        <p class="text-[11px] font-semibold uppercase tracking-wider text-txt-muted">Ventas aprobadas</p>
+        <p class="text-2xl font-extrabold text-st-preparado mt-2 tabular-nums" x-text="'S/. ' + fmt(totalVentasAprobadas)"></p>
+        <p class="text-xs text-txt-muted mt-1">Aprobados en cocina</p>
+      </article>
+      <article class="mozos-kpi-card rounded-2xl p-5">
+        <p class="text-[11px] font-semibold uppercase tracking-wider text-txt-muted">Descuentos</p>
+        <p class="text-2xl font-extrabold text-st-pagado mt-2 tabular-nums" x-text="'-S/. ' + fmt(totalDescuentosPeriodo)"></p>
+        <p class="text-xs text-txt-muted mt-1">Descuentos aplicados</p>
+      </article>
+      <article class="mozos-kpi-card rounded-2xl p-5" :class="{ 'mozos-kpi-card--pulse': kpiPulse === 'ventas' }">
+        <p class="text-[11px] font-semibold uppercase tracking-wider text-txt-muted" x-text="'Ventas totales · ' + etiquetaPeriodo"></p>
+        <p class="text-2xl font-extrabold text-gold mt-2 tabular-nums" x-text="'S/. ' + fmt(totalVentasPeriodo)"></p>
+        <p class="text-xs mt-2" :class="deltaVentasPct > 0 ? 'text-st-preparado' : deltaVentasPct < 0 ? 'text-st-pagado' : 'text-txt-muted'" x-show="mostrarComparacion && deltaVentasPct != null" x-text="formatDelta(deltaVentasPct, 'vs período anterior')"></p>
+      </article>
+    </section>
+
+    <section class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6" aria-label="Indicadores del equipo">
       <article class="mozos-kpi-card rounded-2xl p-5" :class="{ 'mozos-kpi-card--pulse': kpiPulse === 'total' }">
         <div class="flex items-start justify-between gap-2">
           <div>
@@ -582,18 +605,6 @@ tailwind.config = {
             <p class="text-[10px] text-txt-muted mt-2">Activos / turno: catálogo. En app: estimado vía socket <code class="text-txt-secondary">mozos-conectados</code>.</p>
           </div>
           <span class="text-2xl opacity-80" aria-hidden="true">📡</span>
-        </div>
-      </article>
-
-      <article class="mozos-kpi-card rounded-2xl p-5" :class="{ 'mozos-kpi-card--pulse': kpiPulse === 'ventas' }">
-        <div class="flex items-start justify-between gap-2">
-          <div>
-            <p class="text-[11px] font-semibold uppercase tracking-wider text-txt-muted" x-text="'Ventas · ' + etiquetaPeriodo"></p>
-            <p class="text-3xl font-extrabold text-gold mt-2 tabular-nums" x-text="'S/. ' + fmt(totalVentasPeriodo)"></p>
-            <p class="text-xs mt-2" :class="deltaVentasPct > 0 ? 'text-st-preparado' : deltaVentasPct < 0 ? 'text-st-pagado' : 'text-txt-muted'" x-show="mostrarComparacion && deltaVentasPct != null" x-text="formatDelta(deltaVentasPct, 'vs período anterior')"></p>
-            <p class="text-xs text-txt-muted mt-1">Ingresos de salón en el período seleccionado</p>
-          </div>
-          <span class="text-2xl opacity-80" aria-hidden="true">💰</span>
         </div>
       </article>
 
@@ -689,7 +700,10 @@ tailwind.config = {
         </div>
       </div>
       <div class="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t border-[rgba(212,175,55,0.1)]">
-        <p class="text-xs text-txt-muted">Ventas <span class="text-gold font-bold" x-text="'S/. ' + fmt(totalVentasPeriodo)"></span>
+        <p class="text-xs text-txt-muted">Pend. <span class="text-st-esperando font-bold" x-text="'S/. ' + fmt(totalVentasPendientes)"></span>
+          · Apr. <span class="text-st-preparado font-bold" x-text="'S/. ' + fmt(totalVentasAprobadas)"></span>
+          · Desc. <span class="text-st-pagado font-bold" x-text="'S/. ' + fmt(totalDescuentosPeriodo)"></span>
+          · Totales <span class="text-gold font-bold" x-text="'S/. ' + fmt(totalVentasPeriodo)"></span>
           <span class="ml-1" :class="deltaVentasPct > 0 ? 'text-st-preparado' : deltaVentasPct < 0 ? 'text-st-pagado' : 'text-txt-muted'" x-show="mostrarComparacion && deltaVentasPct != null" x-text="'(' + formatDelta(deltaVentasPct, 'ant.') + ')'"></span>
         </p>
         <span class="text-txt-muted hidden sm:inline">·</span>
@@ -749,6 +763,9 @@ tailwind.config = {
                       <span class="text-[10px] px-2 py-0.5 rounded-full font-bold" :class="m.enTurno ? 'bg-st-libre/20 text-st-libre' : 'bg-st-esperando/20 text-st-esperando'" x-text="m.enTurno ? 'Turno' : 'Fuera'"></span>
                     </td>
                     <td class="px-3 py-2 text-right">
+                      <p class="text-[10px] text-st-esperando tabular-nums" x-text="'Pend. S/. ' + fmt(m.ventasPendientes)"></p>
+                      <p class="text-[10px] text-st-preparado tabular-nums" x-text="'Apr. S/. ' + fmt(m.ventasAprobadas)"></p>
+                      <p class="text-[10px] text-st-pagado tabular-nums" x-text="'Desc. S/. ' + fmt(m.descuentosHoy)"></p>
                       <span class="text-gold font-bold tabular-nums" x-text="'S/. ' + fmt(m.ventasHoy)"></span>
                       <span class="text-[10px] ml-1" :class="trendClass(m, 'ventas')" x-text="trendGlyph(m, 'ventas')"></span>
                     </td>
@@ -784,7 +801,10 @@ tailwind.config = {
                 </div>
               </div>
               <div class="grid grid-cols-2 gap-2 text-xs">
-                <div class="bg-bg-sidebar/80 rounded-lg p-2"><span class="text-txt-muted block">Ventas</span><span class="text-gold font-bold" x-text="'S/. ' + fmt(m.ventasHoy)"></span></div>
+                <div class="bg-bg-sidebar/80 rounded-lg p-2"><span class="text-txt-muted block">Pendientes</span><span class="text-st-esperando font-bold" x-text="'S/. ' + fmt(m.ventasPendientes)"></span></div>
+                <div class="bg-bg-sidebar/80 rounded-lg p-2"><span class="text-txt-muted block">Aprobadas</span><span class="text-st-preparado font-bold" x-text="'S/. ' + fmt(m.ventasAprobadas)"></span></div>
+                <div class="bg-bg-sidebar/80 rounded-lg p-2"><span class="text-txt-muted block">Descuentos</span><span class="text-st-pagado font-bold" x-text="'S/. ' + fmt(m.descuentosHoy)"></span></div>
+                <div class="bg-bg-sidebar/80 rounded-lg p-2"><span class="text-txt-muted block">Totales</span><span class="text-gold font-bold" x-text="'S/. ' + fmt(m.ventasHoy)"></span></div>
                 <div class="bg-bg-sidebar/80 rounded-lg p-2"><span class="text-txt-muted block">Propinas</span><span class="text-st-preparado font-bold" x-text="'S/. ' + fmt(m.propinasHoy)"></span></div>
                 <div class="bg-bg-sidebar/80 rounded-lg p-2"><span class="text-txt-muted block">Mesas atend.</span><span class="text-white font-semibold" x-text="mesasAtendidasMozo(m)"></span></div>
                 <div class="bg-bg-sidebar/80 rounded-lg p-2"><span class="text-txt-muted block">Prom/mesa</span><span class="text-white font-semibold" x-text="'S/. ' + fmt(promPropinaMesa(m))"></span></div>
@@ -835,7 +855,10 @@ tailwind.config = {
                 </div>
               </div>
               <div class="grid grid-cols-2 gap-2 text-center">
-                <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Ventas</p><p class="text-gold font-bold" x-text="'S/. ' + fmt(mozoSeleccionado.ventasHoy)"></p></div>
+                <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Pendientes</p><p class="text-st-esperando font-bold" x-text="'S/. ' + fmt(mozoSeleccionado.ventasPendientes)"></p></div>
+                <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Aprobadas</p><p class="text-st-preparado font-bold" x-text="'S/. ' + fmt(mozoSeleccionado.ventasAprobadas)"></p></div>
+                <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Descuentos</p><p class="text-st-pagado font-bold" x-text="'S/. ' + fmt(mozoSeleccionado.descuentosHoy)"></p></div>
+                <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Totales</p><p class="text-gold font-bold" x-text="'S/. ' + fmt(mozoSeleccionado.ventasHoy)"></p></div>
                 <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Propinas</p><p class="text-st-preparado font-bold" x-text="'S/. ' + fmt(mozoSeleccionado.propinasHoy)"></p></div>
                 <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Mesas atend.</p><p class="text-white font-semibold" x-text="mesasAtendidasMozo(mozoSeleccionado)"></p></div>
                 <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Prom/boucher</p><p class="text-white font-semibold" x-text="'S/. ' + fmt(promPropinaBoucher(mozoSeleccionado))"></p></div>
@@ -939,14 +962,17 @@ tailwind.config = {
             <span class="text-[10px] text-txt-muted" x-text="rangoEtiqueta"></span>
           </div>
         </div>
-        <table class="w-full text-sm min-w-[640px]">
+        <table class="w-full text-sm min-w-[860px]">
           <thead>
             <tr class="text-left text-[10px] uppercase text-txt-muted border-b border-[rgba(212,175,55,0.12)]">
               <th class="pb-2 pr-2 w-10">#</th>
               <th class="pb-2 pr-2">Mozo</th>
               <th class="pb-2 pr-2 text-right">Mesas</th>
               <th class="pb-2 pr-2 text-right">Tickets</th>
-              <th class="pb-2 pr-2 text-right">Ventas</th>
+              <th class="pb-2 pr-2 text-right">Pendientes</th>
+              <th class="pb-2 pr-2 text-right">Aprobadas</th>
+              <th class="pb-2 pr-2 text-right">Descuentos</th>
+              <th class="pb-2 pr-2 text-right">Totales</th>
               <th class="pb-2 pr-2 text-right">Propinas</th>
               <th class="pb-2 pr-2 text-right">S/. / mesa</th>
               <th class="pb-2 text-right">S/. / ticket</th>
@@ -965,6 +991,9 @@ tailwind.config = {
                 <td class="py-2.5 pr-2 font-semibold text-white" x-text="row.nombre"></td>
                 <td class="py-2.5 pr-2 text-right tabular-nums text-txt-secondary" x-text="row.mesas"></td>
                 <td class="py-2.5 pr-2 text-right tabular-nums text-txt-secondary" x-text="row.tickets"></td>
+                <td class="py-2.5 pr-2 text-right tabular-nums text-st-esperando" x-text="'S/. ' + fmt(row.pendientes)"></td>
+                <td class="py-2.5 pr-2 text-right tabular-nums text-st-preparado" x-text="'S/. ' + fmt(row.aprobadas)"></td>
+                <td class="py-2.5 pr-2 text-right tabular-nums text-st-pagado" x-text="'S/. ' + fmt(row.descuentos)"></td>
                 <td class="py-2.5 pr-2 text-right tabular-nums text-gold font-semibold" x-text="'S/. ' + fmt(row.ventas)"></td>
                 <td class="py-2.5 pr-2 text-right tabular-nums text-st-preparado" x-text="'S/. ' + fmt(row.propinas)"></td>
                 <td class="py-2.5 pr-2 text-right tabular-nums text-txt-secondary" x-text="'S/. ' + fmt(row.promMesa)"></td>
@@ -2019,11 +2048,25 @@ tailwind.config = {
     <!-- Body - Información unificada -->
     <div class="p-6 overflow-y-auto mozos-scrollbar flex-1 min-h-0 mozos-modal-section">
       <!-- Métricas destacadas -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
         <div class="mozos-info-card text-center">
-          <p class="mozos-info-label">Ventas</p>
+          <p class="mozos-info-label">Pendientes</p>
+          <p class="text-xl font-bold text-st-esperando" x-text="'S/. ' + fmt(mozosDetalle?.ventasPendientes)"></p>
+        </div>
+        <div class="mozos-info-card text-center">
+          <p class="mozos-info-label">Aprobadas</p>
+          <p class="text-xl font-bold text-st-preparado" x-text="'S/. ' + fmt(mozosDetalle?.ventasAprobadas)"></p>
+        </div>
+        <div class="mozos-info-card text-center">
+          <p class="mozos-info-label">Descuentos</p>
+          <p class="text-xl font-bold text-st-pagado" x-text="'S/. ' + fmt(mozosDetalle?.descuentosHoy)"></p>
+        </div>
+        <div class="mozos-info-card text-center">
+          <p class="mozos-info-label">Totales</p>
           <p class="text-xl font-bold text-gold" x-text="'S/. ' + fmt(mozosDetalle?.ventasHoy)"></p>
         </div>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         <div class="mozos-info-card text-center">
           <p class="mozos-info-label">Propinas</p>
           <p class="text-xl font-bold text-st-preparado" x-text="'S/. ' + fmt(mozosDetalle?.propinasHoy)"></p>
@@ -3383,6 +3426,15 @@ function mozosExecutiveApp() {
     get totalVentasPeriodo() {
       return this.dashboardData?.totales?.totalVentas ?? this.mozos.reduce((s, m) => s + (m.ventasHoy || 0), 0);
     },
+    get totalVentasPendientes() {
+      return this.dashboardData?.totales?.ventasPendientes ?? this.mozos.reduce((s, m) => s + (Number(m.ventasPendientes) || 0), 0);
+    },
+    get totalVentasAprobadas() {
+      return this.dashboardData?.totales?.ventasAprobadas ?? this.mozos.reduce((s, m) => s + (Number(m.ventasAprobadas) || 0), 0);
+    },
+    get totalDescuentosPeriodo() {
+      return this.dashboardData?.totales?.descuentos ?? this.mozos.reduce((s, m) => s + (Number(m.descuentosHoy) || 0), 0);
+    },
     get totalPropinasPeriodo() {
       return this.dashboardData?.totales?.totalPropinas ?? this.mozos.reduce((s, m) => s + (m.propinasHoy || 0), 0);
     },
@@ -3537,6 +3589,9 @@ function mozosExecutiveApp() {
           nombre: m.nombre || '—',
           mesas,
           tickets,
+          pendientes: Number(m.ventasPendientes) || 0,
+          aprobadas: Number(m.ventasAprobadas) || 0,
+          descuentos: Number(m.descuentosHoy) || 0,
           ventas,
           propinas,
           promMesa: mesas > 0 ? Math.round((ventas / mesas) * 100) / 100 : 0,
@@ -4502,6 +4557,9 @@ function mozosExecutiveApp() {
           activo: m.activo ?? m.isActive ?? true,
           enTurno: m.enTurno ?? m.isWorking ?? false,
           ventasHoy: m.ventasHoy || m.ventasDelDia || 0,
+          ventasPendientes: m.ventasPendientes || 0,
+          ventasAprobadas: m.ventasAprobadas || 0,
+          descuentosHoy: m.descuentosHoy || 0,
           mesasAsignadas: m.mesasAsignadas || m.mesas?.length || 0,
           comandasHoy: m.comandasHoy || 0,
           propinasHoy: 0,
@@ -4535,6 +4593,9 @@ function mozosExecutiveApp() {
             return {
               ...m,
               ventasHoy: d.ventasHoy != null ? d.ventasHoy : m.ventasHoy,
+              ventasPendientes: d.ventasPendientes != null ? d.ventasPendientes : 0,
+              ventasAprobadas: d.ventasAprobadas != null ? d.ventasAprobadas : 0,
+              descuentosHoy: d.descuentosHoy != null ? d.descuentosHoy : 0,
               propinasHoy: d.propinasHoy != null ? d.propinasHoy : 0,
               cantidadPropinas: d.cantidadPropinas,
               bouchersHoy: d.bouchersHoy,
@@ -4593,6 +4654,9 @@ function mozosExecutiveApp() {
         return {
           ...m,
           ventasHoy: d.ventasHoy != null ? d.ventasHoy : m.ventasHoy,
+          ventasPendientes: d.ventasPendientes != null ? d.ventasPendientes : 0,
+          ventasAprobadas: d.ventasAprobadas != null ? d.ventasAprobadas : 0,
+          descuentosHoy: d.descuentosHoy != null ? d.descuentosHoy : 0,
           propinasHoy: d.propinasHoy != null ? d.propinasHoy : 0,
           cantidadPropinas: d.cantidadPropinas,
           bouchersHoy: d.bouchersHoy,

@@ -40,7 +40,7 @@ router.get("/mozos", async (req, res) => {
   const list = Array.isArray(data) ? data : [];
   let ventasMap = new Map();
   try {
-    const { inicio, fin } = rangoLima();
+    const { inicio, fin } = rangoLima(req.query.desde, req.query.hasta);
     const rows = await agregarVentasComandasPorMozo(inicio, fin);
     for (const r of rows) {
       if (r._id != null) ventasMap.set(String(r._id), Number(r.totalVentas) || 0);

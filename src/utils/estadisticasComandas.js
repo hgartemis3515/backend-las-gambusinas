@@ -635,12 +635,14 @@ function agruparVentasPorMozo(filas) {
             map.set(key, {
                 _id: rawId || null,
                 totalVentas: 0,
+                descuentos: 0,
                 cantidad: 0,
                 mesasAtendidas: []
             });
         }
         const row = map.get(key);
         row.totalVentas = Number((row.totalVentas + (Number(f.total) || 0)).toFixed(2));
+        row.descuentos = Number((row.descuentos + (Number(f.montoDescuento) || 0)).toFixed(2));
         row.cantidad += 1;
         const mesaId = f.mesa && (f.mesa._id || f.mesa);
         const mesa = mesaId != null ? mesaId : f.numMesa;

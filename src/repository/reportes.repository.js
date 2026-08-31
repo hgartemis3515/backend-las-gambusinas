@@ -19,6 +19,7 @@ const {
     cargarConfigMonedaEstadisticas,
     etiquetasComplemento
 } = require('../utils/estadisticasComandas');
+const { desgloseVentasPorAprobacion } = require('../utils/desgloseVentasTickets');
 
 // Modelos
 const Comanda = mongoose.model('Comanda') || require('../database/models/comanda.model');
@@ -867,7 +868,14 @@ async function getVentas(fechaInicio, fechaFin, agruparPor = 'dia') {
                 formatoFecha = '%Y-%m-%d';
         }
 
-        const formatDatos = (resultados) => {
+        let desgloseTickets = { ventasPendientes: 0, ventasAprobadas: 0 };
+        try {
+            desgloseTickets = await desgloseVentasPorAprobacion(fechaInicioDate, fechaFinDate);
+        } catch (e) {
+            logger.warn('[ReportesRepo] Desglose tickets omitido', { error: e.message });
+        }
+
+        const formatDatos = (resultados, descuentos = 0) => {
             const datos = resultados.map(r => ({
                 _id: r._id,
                 hora: agruparPor === 'hora' ? r._id : undefined,
@@ -886,7 +894,10 @@ async function getVentas(fechaInicio, fechaFin, agruparPor = 'dia') {
                     totalBouchers,
                     promedioPorBoucher: totalBouchers > 0
                         ? Math.round((totalVentas / totalBouchers) * 100) / 100
-                        : 0
+                        : 0,
+                    ventasPendientes: desgloseTickets.ventasPendientes || 0,
+                    ventasAprobadas: desgloseTickets.ventasAprobadas || 0,
+                    descuentos: Math.round((Number(descuentos) || 0) * 100) / 100
                 }
             };
         };
@@ -894,6 +905,7 @@ async function getVentas(fechaInicio, fechaFin, agruparPor = 'dia') {
         const filas = await listarFilasEstadisticas(fechaInicioDate, fechaFinDate);
         if (filas.length) {
             const groups = new Map();
+            let descuentosFilas = 0;
             for (const f of filas) {
                 const d = moment(f.fechaPago || f.createdAt).tz('America/Lima');
                 let key = 'Sin fecha';
@@ -906,11 +918,12 @@ async function getVentas(fechaInicio, fechaFin, agruparPor = 'dia') {
                 const g = groups.get(key);
                 g.total += Number(f.total) || 0;
                 g.cantidadBouchers += 1;
+                descuentosFilas += Number(f.montoDescuento) || 0;
             }
             const resultados = Array.from(groups.values())
                 .map((g) => ({ ...g, total: Math.round(g.total * 100) / 100 }))
                 .sort((a, b) => String(a._id).localeCompare(String(b._id)));
-            return formatDatos(resultados);
+            return formatDatos(resultados, descuentosFilas);
         }
 
         const pipeline = [
@@ -932,6 +945,7 @@ async function getVentas(fechaInicio, fechaFin, agruparPor = 'dia') {
                     total: { $sum: '$total' },
                     subtotal: { $sum: '$subtotal' },
                     igv: { $sum: '$igv' },
+                    descuentos: { $sum: { $ifNull: ['$montoDescuento', 0] } },
                     cantidadBouchers: { $sum: 1 }
                 }
             },
@@ -939,7 +953,8 @@ async function getVentas(fechaInicio, fechaFin, agruparPor = 'dia') {
         ];
 
         const resultados = await Boucher.aggregate(pipeline);
-        return formatDatos(resultados);
+        const descuentosBouchers = resultados.reduce((s, r) => s + (Number(r.descuentos) || 0), 0);
+        return formatDatos(resultados, descuentosBouchers);
 
     } catch (error) {
         logger.error('[ReportesRepo] Error en getVentas', { error: error.message });
@@ -1078,6 +1093,11 @@ async function getPlatosTop(fechaInicio, fechaFin) {
     }
 }
 
+async function getDesgloseVentasTickets(fechaInicio, fechaFin) {
+    const { inicio, fin } = rangoLima(fechaInicio, fechaFin);
+    return desgloseVentasPorAprobacion(inicio, fin);
+}
+
 async function getFilasOperacion(fechaInicio, fechaFin) {
     const { inicio, fin } = rangoLima(fechaInicio, fechaFin);
     const filas = await listarFilasEstadisticas(inicio, fin);
@@ -1107,5 +1127,6 @@ module.exports = {
     getDetalleCocinero,
     getVentas,
     getPlatosTop,
-    getFilasOperacion
+    getFilasOperacion,
+    getDesgloseVentasTickets
 };

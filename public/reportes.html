@@ -141,7 +141,7 @@ tailwind.config = {
     </div>
 
     <!-- KPIs -->
-    <div x-show="!loading" class="grid grid-cols-4 gap-4 mb-5">
+    <div x-show="!loading" class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-5" :class="kpis.length > 4 ? 'xl:grid-cols-6' : 'xl:grid-cols-4'">
       <template x-for="k in kpis" :key="k.label">
         <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
           <p class="text-[11px] text-txt-muted uppercase" x-text="k.label"></p>
@@ -943,6 +943,7 @@ function reportesApp() {
     
     agruparPor: 'dia',
     kpis: [],
+    desgloseVentas: { ventasPendientes: 0, ventasAprobadas: 0 },
     tablaData: { ventas: [], platos: [], mozos: [], mesas: [], clientes: [], cocineros: [], resumenCocineros: null },
     
     // Cache de bouchers y datos de gráficos
@@ -1241,12 +1242,16 @@ function reportesApp() {
       });
       
       try {
-        const bouchers = await cargarBouchersPorRango(q.fechaInicio, q.fechaFin);
+        const [bouchers, desglose] = await Promise.all([
+          cargarBouchersPorRango(q.fechaInicio, q.fechaFin),
+          cargarDesgloseVentas(q.fechaInicio, q.fechaFin)
+        ]);
         
         console.log('📦 Bouchers cargados:', bouchers.length);
         
         // Guardar como cache
         this.cachedBouchers = bouchers;
+        this.desgloseVentas = desglose;
         
         // Procesar y renderizar según la pestaña
         await this.processAndRender(bouchers);
@@ -1381,12 +1386,17 @@ function reportesApp() {
       const labels = Object.keys(porFecha).sort();
       const valores = labels.map(f => porFecha[f].total);
       const ticketPromedio = totalTickets > 0 ? totalVentas / totalTickets : 0;
+      const fmtSoles = (n) => 'S/. ' + (Number(n) || 0).toLocaleString('es-PE', {minimumFractionDigits: 2});
+      const pendientes = Number(this.desgloseVentas?.ventasPendientes) || 0;
+      const aprobadas = Number(this.desgloseVentas?.ventasAprobadas) || 0;
       
       this.kpis = [
-        { label: 'Ventas Totales', value: 'S/. ' + totalVentas.toLocaleString('es-PE', {minimumFractionDigits: 2}), color: 'text-[#d4af37]', badge: this.dateFilter.tipo },
+        { label: 'Ventas Pendientes', value: fmtSoles(pendientes), color: 'text-[#ffa502]', badge: '' },
+        { label: 'Ventas Aprobadas', value: fmtSoles(aprobadas), color: 'text-[#2ecc71]', badge: '' },
+        { label: 'Descuentos', value: '-S/. ' + totalDescuentos.toLocaleString('es-PE', {minimumFractionDigits: 2}), color: 'text-[#e74c3c]', badge: '' },
+        { label: 'Ventas Totales', value: fmtSoles(totalVentas), color: 'text-[#d4af37]', badge: this.dateFilter.tipo },
         { label: 'Tickets', value: totalTickets, color: 'text-white', badge: '' },
-        { label: 'Ticket Promedio', value: 'S/. ' + ticketPromedio.toFixed(2), color: 'text-white', badge: '' },
-        { label: 'Descuentos', value: '-S/. ' + totalDescuentos.toLocaleString('es-PE', {minimumFractionDigits: 2}), color: 'text-[#e74c3c]', badge: '' }
+        { label: 'Ticket Promedio', value: 'S/. ' + ticketPromedio.toFixed(2), color: 'text-white', badge: '' }
       ];
       
       this.chartData1 = { labels, valores };
@@ -2491,6 +2501,27 @@ async function cargarBouchersPorRango(fechaInicio, fechaFin) {
     });
   }
   return bouchers;
+}
+
+async function cargarDesgloseVentas(fechaInicio, fechaFin) {
+  const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+  const headers = { 'Authorization': 'Bearer ' + token };
+  try {
+    const response = await fetch(
+      `${API_BASE}/reportes/desglose-ventas?fechaInicio=${encodeURIComponent(fechaInicio)}&fechaFin=${encodeURIComponent(fechaFin)}`,
+      { headers }
+    );
+    if (response.ok) {
+      const payload = await response.json();
+      return {
+        ventasPendientes: Number(payload.ventasPendientes) || 0,
+        ventasAprobadas: Number(payload.ventasAprobadas) || 0
+      };
+    }
+  } catch (error) {
+    console.warn('⚠️ /reportes/desglose-ventas no disponible:', error);
+  }
+  return { ventasPendientes: 0, ventasAprobadas: 0 };
 }
 </script>
 <!-- Page Transitions JS -->
