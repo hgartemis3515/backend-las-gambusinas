@@ -498,6 +498,14 @@ router.post('/aprobacion/desde-comanda/:id', async (req, res) => {
       usuarioNombre: req.body?.usuarioNombre,
     });
 
+    if (global.emitTicketAprobacionNuevo) {
+      try {
+        await global.emitTicketAprobacionNuevo(ticket);
+      } catch (e) {
+        logger.warn('No se pudo emitir ticket creado desde dashboard', { error: e.message });
+      }
+    }
+
     res.json({ success: true, ticket });
   } catch (error) {
     logger.error('Error al crear ticket de aprobación desde comanda', { error: error.message });

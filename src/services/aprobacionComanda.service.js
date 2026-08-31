@@ -191,6 +191,23 @@ function tipoServicioDeLinea(p) {
   return 'mesa';
 }
 
+/**
+ * El ticket ya aprobado se crea desde comandas.html sobre comandas vigentes,
+ * incluidas las ya pagadas (IsActive=false). Solo se bloquea si no existe o está eliminada.
+ */
+function assertComandaParaTicketYaAprobado(comanda) {
+  if (!comanda) {
+    const err = new Error('Comanda no encontrada');
+    err.statusCode = 404;
+    throw err;
+  }
+  if (comanda.eliminada === true) {
+    const err = new Error('La comanda está eliminada');
+    err.statusCode = 404;
+    throw err;
+  }
+}
+
 function armarSnapshotYTotales(comanda) {
   const platosSnapshot = [];
   (comanda.platos || []).forEach((p, i) => {
@@ -446,16 +463,7 @@ async function crearTicketAprobadoDesdeComanda(comandaId, { usuarioId, usuarioNo
     .populate('cliente', 'nombre dni')
     .lean();
 
-  if (!comanda) {
-    const err = new Error('Comanda no encontrada');
-    err.statusCode = 404;
-    throw err;
-  }
-  if (comanda.eliminada === true) {
-    const err = new Error('La comanda está eliminada');
-    err.statusCode = 404;
-    throw err;
-  }
+  assertComandaParaTicketYaAprobado(comanda);
 
   const mesaId = comanda.mesas?._id || comanda.mesas;
   const numMesa = comanda.mesas?.nummesa ?? comanda.mesaNumero;
@@ -611,6 +619,9 @@ async function crearTicketAprobadoDesdeComanda(comandaId, { usuarioId, usuarioNo
     ticketId: ticket._id,
     ticketNumber: ticket.ticketNumber,
     comandaId: comanda._id,
+    comandaNumber: comanda.comandaNumber,
+    isActiveComanda: comanda.IsActive,
+    statusComanda: comanda.status,
   });
 
   return ticket;
@@ -657,6 +668,7 @@ module.exports = {
   obtenerTicketsUnificadosPendientes,
   obtenerTicketsPorComanda,
   crearTicketAprobadoDesdeComanda,
+  assertComandaParaTicketYaAprobado,
   crearTicketPendienteDesdeComanda,
   forzarPagoTicketComanda,
   aprobarTicketUnificado,
