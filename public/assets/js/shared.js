@@ -214,6 +214,51 @@ function getVisiblePages() {
   return result;
 }
 
+function navKeyFromPath() {
+  const path = window.location.pathname.replace(/\.html$/, '').replace(/\/$/, '');
+  if (path === '' || path === '/' || path === '/index') return 'dashboard';
+  for (const [key, page] of Object.entries(sharedData.pages || {})) {
+    const hrefPath = (page.href || '').replace(/\.html$/, '');
+    if (path === hrefPath) return key;
+  }
+  return '';
+}
+
+function syncLayoutStoreFromBody() {
+  if (!window.Alpine || typeof Alpine.store !== 'function') return;
+  const store = Alpine.store('layout');
+  if (!store) return;
+  const data = document.body._x_dataStack && document.body._x_dataStack[0];
+  if (data) {
+    if (data.pageTitle) store.pageTitle = data.pageTitle;
+    if (data.activeNav) store.activeNav = data.activeNav;
+  }
+  if (!store.activeNav) store.activeNav = navKeyFromPath();
+  if (!store.pageTitle) {
+    const page = sharedData.pages[store.activeNav];
+    if (page && page.label) store.pageTitle = page.label;
+  }
+}
+
+document.addEventListener('alpine:init', () => {
+  Alpine.store('layout', {
+    sidebarOpen: true,
+    activeNav: navKeyFromPath(),
+    pageTitle: (sharedData.pages[navKeyFromPath()] || {}).label || ''
+  });
+});
+
+document.addEventListener('alpine:initialized', () => {
+  syncLayoutStoreFromBody();
+  const data = document.body._x_dataStack && document.body._x_dataStack[0];
+  if (!data || typeof data.sidebarOpen !== 'boolean') return;
+  Alpine.effect(() => {
+    const open = Alpine.store('layout').sidebarOpen;
+    const stack = document.body._x_dataStack && document.body._x_dataStack[0];
+    if (stack && stack.sidebarOpen !== open) stack.sidebarOpen = open;
+  });
+});
+
 // ============================================
 // FUNCIONES HELPER
 // ============================================
@@ -326,6 +371,11 @@ function setActiveNav() {
     }
     link.classList.toggle('active', isActive);
   });
+  if (window.Alpine && typeof Alpine.store === 'function') {
+    const store = Alpine.store('layout');
+    const key = navKeyFromPath();
+    if (store && key) store.activeNav = key;
+  }
 }
 
 // ============================================
@@ -348,10 +398,8 @@ async function loadComponents() {
     if (sidebarContainer) sidebarContainer.innerHTML = sidebarHtml;
     
     setActiveNav();
+    syncLayoutStoreFromBody();
     initClock();
-
-    // Alpine 3 observa mutaciones: al inyectar topbar/sidebar el árbol nuevo queda bajo el x-data del body.
-    // Un initTree manual aquí creaba un contexto aislado (pageTitle/activeNav undefined).
 
     // Re-inicializar iconos Lucide si está disponible
     if (typeof lucide !== 'undefined') {

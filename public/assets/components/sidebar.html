@@ -1,21 +1,21 @@
 <!-- SIDEBAR - Componente compartido -->
-<aside :class="sidebarOpen ? 'w-[270px]' : 'w-[68px]'" class="bg-bg-sidebar fixed top-[72px] left-0 bottom-0 z-30 transition-all duration-300 flex flex-col border-r border-[rgba(212,175,55,0.1)]">
+<aside :class="$store.layout.sidebarOpen ? 'w-[270px]' : 'w-[68px]'" class="bg-bg-sidebar fixed top-[72px] left-0 bottom-0 z-30 transition-all duration-300 flex flex-col border-r border-[rgba(212,175,55,0.1)]">
   <div class="px-4 py-5 flex items-center gap-3 overflow-hidden">
     <span class="text-2xl flex-shrink-0">🍽️</span>
-    <span x-show="sidebarOpen" x-transition class="text-gold font-bold text-lg whitespace-nowrap">San Benito</span>
+    <span x-show="$store.layout.sidebarOpen" x-transition class="text-gold font-bold text-lg whitespace-nowrap">San Benito</span>
   </div>
   <nav class="flex-1 overflow-y-auto px-2 space-y-0.5">
     <template x-for="(item, key) in (typeof getVisiblePages === 'function' ? getVisiblePages() : sharedData.pages)" :key="key">
-      <a :href="item.href" :class="activeNav === key && 'active'" :data-nav="key"
+      <a :href="item.href" :class="$store.layout.activeNav === key && 'active'" :data-nav="key"
         class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm relative">
-        <span :class="activeNav === key ? 'text-gold' : 'opacity-60'" class="text-lg flex-shrink-0 w-7 text-center" x-text="item.icon"></span>
-        <span x-show="sidebarOpen" x-transition class="whitespace-nowrap" :class="activeNav === key ? 'text-gold font-medium' : 'text-txt-secondary'" x-text="item.label"></span>
+        <span :class="$store.layout.activeNav === key ? 'text-gold' : 'opacity-60'" class="text-lg flex-shrink-0 w-7 text-center" x-text="item.icon"></span>
+        <span x-show="$store.layout.sidebarOpen" x-transition class="whitespace-nowrap" :class="$store.layout.activeNav === key ? 'text-gold font-medium' : 'text-txt-secondary'" x-text="item.label"></span>
       </a>
     </template>
   </nav>
   <div class="px-4 py-4 border-t border-[rgba(212,175,55,0.1)] flex items-center gap-3 overflow-hidden">
     <div class="w-9 h-9 rounded-full bg-gold flex-shrink-0 flex items-center justify-center text-bg-primary font-bold text-sm">A</div>
-    <div x-show="sidebarOpen" x-transition class="min-w-0">
+    <div x-show="$store.layout.sidebarOpen" x-transition class="min-w-0">
       <p class="text-sm font-medium truncate">Admin</p>
       <p class="text-[11px] text-txt-muted truncate">Gerente</p>
     </div>

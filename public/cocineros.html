@@ -2464,6 +2464,10 @@ tailwind.config = {
               class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none w-[140px]">
             <input type="text" x-model="historialFiltroPlato" placeholder="🔎 Filtrar por plato..."
               class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none flex-1 min-w-[160px]">
+            <button type="button" x-show="hayFiltroHistorialCocineros" @click="limpiarFiltrosHistorialCocinados()"
+              class="dash-btn-limpiar px-3 py-2 text-xs text-txt-muted hover:text-gold transition border border-transparent hover:border-gold/30 rounded-lg">
+              ✕ Limpiar
+            </button>
             <div class="flex gap-1 bg-bg-sidebar rounded-lg p-1">
               <button type="button" @click="historialVista = 'detalle'"
                 class="px-3 py-1 rounded-md text-xs font-medium transition"
@@ -8219,6 +8223,29 @@ function cocinerosApp() {
     },
 
     // ==================== HISTORIAL DE PLATOS COCINADOS ====================
+
+    get hayFiltroHistorialCocineros() {
+      return !!(this.historialFiltroCocinero
+        || this.historialFiltroFecha !== 'hoy'
+        || this.historialFiltroEstado
+        || this.historialFiltroComanda
+        || this.historialFiltroPlato
+        || this.historialFiltroMesa
+        || this.historialFechaDesde
+        || this.historialFechaHasta);
+    },
+
+    limpiarFiltrosHistorialCocinados() {
+      this.historialFiltroCocinero = '';
+      this.historialFiltroFecha = 'hoy';
+      this.historialFechaDesde = '';
+      this.historialFechaHasta = '';
+      this.historialFiltroEstado = '';
+      this.historialFiltroComanda = '';
+      this.historialFiltroPlato = '';
+      this.historialFiltroMesa = '';
+      this.cargarHistorialCocinados();
+    },
 
     async cargarHistorialCocinados({ silent = false } = {}) {
       if (!silent) this.historialLoading = true;

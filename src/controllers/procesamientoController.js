@@ -46,6 +46,29 @@ const esSupervisorCocina = (admin) => {
   return permisos.includes('utilidad-supervisor') || permisos.includes('editar-mozos');
 };
 
+function listaPermisosAdmin(admin) {
+  const raw = admin?.permisos;
+  if (!Array.isArray(raw)) return [];
+  return raw.map((p) => (typeof p === 'string' ? p : p?.permiso)).filter(Boolean);
+}
+
+/** Panel de Gestión: admin/supervisor o permiso. El rol cocinero nunca. */
+function puedeUsarPanelGestion(admin) {
+  if (!admin) return false;
+  const rol = String(admin.rol || '').toLowerCase();
+  if (rol === 'cocinero') return false;
+  if (rol === 'admin' || rol === 'supervisor') return true;
+  return listaPermisosAdmin(admin).includes('ver-panel-gestion-mozos');
+}
+
+function requirePanelGestion(req, res, next) {
+  if (puedeUsarPanelGestion(req.admin)) return next();
+  return res.status(403).json({
+    success: false,
+    error: 'No tiene permiso para acceder al Panel de Gestión'
+  });
+}
+
 // ============================================================
 // PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR
 // Helper: leer flags de cocina (defaults true)
@@ -1658,7 +1681,7 @@ router.post('/solicitudes-gestion', adminAuth, async (req, res) => {
 });
 
 // GET /api/solicitudes-gestion — Listar (para Panel de Gestión / Dashboard)
-router.get('/solicitudes-gestion', adminAuth, async (req, res) => {
+router.get('/solicitudes-gestion', adminAuth, requirePanelGestion, async (req, res) => {
   try {
     const estado = req.query.estado || 'pendiente';
     const filtro = estado === 'todas' ? {} : { estado };
@@ -1670,7 +1693,7 @@ router.get('/solicitudes-gestion', adminAuth, async (req, res) => {
 });
 
 // PUT /api/solicitudes-gestion/:id/aprobar — Aprobar => genera override one-shot en el plato
-router.put('/solicitudes-gestion/:id/aprobar', adminAuth, async (req, res) => {
+router.put('/solicitudes-gestion/:id/aprobar', adminAuth, requirePanelGestion, async (req, res) => {
   try {
     const solicitud = await SolicitudGestion.findById(req.params.id);
     if (!solicitud) return res.status(404).json({ success: false, error: 'Solicitud no encontrada' });
@@ -1757,7 +1780,7 @@ router.put('/solicitudes-gestion/:id/aprobar', adminAuth, async (req, res) => {
 });
 
 // PUT /api/solicitudes-gestion/:id/rechazar — Rechazar (nota opcional + notifica solicitante)
-router.put('/solicitudes-gestion/:id/rechazar', adminAuth, async (req, res) => {
+router.put('/solicitudes-gestion/:id/rechazar', adminAuth, requirePanelGestion, async (req, res) => {
   try {
     const solicitud = await SolicitudGestion.findById(req.params.id);
     if (!solicitud) return res.status(404).json({ success: false, error: 'Solicitud no encontrada' });

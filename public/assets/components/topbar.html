@@ -3,8 +3,8 @@
 <nav class="h-[72px] bg-bg-sidebar border-b border-[rgba(212,175,55,0.25)] flex items-center px-4 fixed top-0 left-0 right-0 z-40">
   <!-- Left Zone -->
   <div class="flex items-center gap-3 w-[280px]">
-    <button @click="sidebarOpen = !sidebarOpen" class="w-11 h-11 flex items-center justify-center rounded-lg hover:bg-gold-20 text-gold text-xl">☰</button>
-    <div class="text-txt-secondary text-sm">🏠 <span class="mx-1">›</span> <span class="text-white" x-text="pageTitle"></span></div>
+    <button @click="$store.layout.sidebarOpen = !$store.layout.sidebarOpen" class="w-11 h-11 flex items-center justify-center rounded-lg hover:bg-gold-20 text-gold text-xl">☰</button>
+    <div class="text-txt-secondary text-sm">🏠 <span class="mx-1">›</span> <span class="text-white" x-text="$store.layout.pageTitle"></span></div>
   </div>
   
   <!-- Center Zone - COSMOS SEARCH TRIGGER -->

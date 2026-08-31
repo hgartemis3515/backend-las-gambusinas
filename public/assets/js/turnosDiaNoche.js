@@ -95,7 +95,9 @@
     ctx.cierresHoyCount = cantidad;
 
     if (hay) {
-      if (autoNoche && !ctx._turnosAutoNocheHecho && hoyValues.includes(getPeriod())) {
+      // Igual que comandas.html: al primer cierre del día, default NOCHE.
+      // El segundo cierre nocturno no resetea: se queda NOCHE hasta las 23:59 Lima.
+      if (autoNoche && !ctx._turnosAutoNocheHecho) {
         setPeriod(nocheValue);
       }
       ctx._turnosAutoNocheHecho = true;
