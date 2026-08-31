@@ -78,36 +78,14 @@ tailwind.config = {
       </template>
     </div>
 
-    <!-- FILTROS -->
+    <!-- FILTROS: DIA/NOCHE (si hubo cierre hoy) + HOY a la derecha. Sin cierre: solo HOY. -->
     <div class="flex gap-2 mb-5 items-center flex-wrap">
-      <!-- Indicador de rango activo -->
       <div class="flex items-center gap-2 mr-2 px-3 py-1.5 bg-bg-sidebar rounded-lg border border-gold/20">
         <span class="text-[10px] text-txt-muted uppercase">Período:</span>
         <span class="text-xs text-gold font-semibold" x-text="getCurrentRangeText()"></span>
       </div>
-      
-      <!-- Inputs de fecha -->
-      <input type="date" 
-        x-model="dateFilter.fechaInicio" 
-        @change="onFechaInicioChange()" 
-        class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary focus:border-gold focus:outline-none transition"
-        :class="{'border-gold': dateFilter.tipo === 'manual'}">
-      <span class="text-txt-muted text-xs">→</span>
-      <input type="date" 
-        x-model="dateFilter.fechaFin" 
-        @change="onFechaFinChange()" 
-        class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary focus:border-gold focus:outline-none transition"
-        :class="{'border-gold': dateFilter.tipo === 'manual'}">
-      
-      <!-- Selector de agrupación -->
-      <select x-model="agruparPor" @change="refreshAllData()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary focus:border-gold focus:outline-none transition">
-        <option value="dia">Agrupar: Día</option>
-        <option value="hora">Agrupar: Hora</option>
-        <option value="semana">Agrupar: Semana</option>
-      </select>
-      
-      <!-- Filtros rápidos -->
-      <div class="flex gap-1 ml-2">
+
+      <div class="flex gap-1 items-center">
         <button type="button" x-show="showTurnoDiaNoche" x-cloak @click="setFiltroRapido('DIA')"
           :class="isFilterActive('DIA') ? 'bg-gold text-bg-primary font-bold' : 'border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold'"
           class="px-2.5 py-1 rounded-full text-[10px] font-medium transition-all duration-200">DIA</button>
@@ -115,15 +93,36 @@ tailwind.config = {
           :class="isFilterActive('NOCHE') ? 'bg-gold text-bg-primary font-bold' : 'border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold'"
           class="px-2.5 py-1 rounded-full text-[10px] font-medium transition-all duration-200">NOCHE</button>
         <span x-show="showTurnoDiaNoche" x-cloak class="w-px h-4 bg-[rgba(212,175,55,0.35)] self-center mx-0.5"></span>
-        <template x-for="f in ['Hoy','Ayer','7 días','30 días','Este mes','1 año']" :key="f">
-          <button 
-            @click="setFiltroRapido(f)" 
-            :class="isFilterActive(f) ? 'bg-gold text-bg-primary font-bold' : 'border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold'" 
+        <button type="button" @click="setFiltroRapido('Hoy')"
+          :class="isFilterActive('Hoy') ? 'bg-gold text-bg-primary font-bold' : 'border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold'"
+          class="px-2.5 py-1 rounded-full text-[10px] font-medium transition-all duration-200">Hoy</button>
+        <template x-for="f in ['Ayer','7 días','30 días','Este mes','1 año']" :key="f">
+          <button
+            @click="setFiltroRapido(f)"
+            :class="isFilterActive(f) ? 'bg-gold text-bg-primary font-bold' : 'border border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold'"
             class="px-2.5 py-1 rounded-full text-[10px] font-medium transition-all duration-200"
             x-text="f">
           </button>
         </template>
       </div>
+
+      <input type="date"
+        x-model="dateFilter.fechaInicio"
+        @change="onFechaInicioChange()"
+        class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary focus:border-gold focus:outline-none transition"
+        :class="{'border-gold': dateFilter.tipo === 'manual'}">
+      <span class="text-txt-muted text-xs">→</span>
+      <input type="date"
+        x-model="dateFilter.fechaFin"
+        @change="onFechaFinChange()"
+        class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary focus:border-gold focus:outline-none transition"
+        :class="{'border-gold': dateFilter.tipo === 'manual'}">
+
+      <select x-model="agruparPor" @change="refreshAllData()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5 text-xs text-txt-secondary focus:border-gold focus:outline-none transition">
+        <option value="dia">Agrupar: Día</option>
+        <option value="hora">Agrupar: Hora</option>
+        <option value="semana">Agrupar: Semana</option>
+      </select>
     </div>
 
     <!-- ERROR STATE -->
@@ -931,7 +930,7 @@ function reportesApp() {
     
     // Estado del filtro de fechas (FUENTE DE VERDAD)
     dateFilter: {
-      tipo: '7 días',      // 'Hoy', 'Ayer', 'DIA', 'NOCHE', '7 días', '30 días', 'Este mes', '1 año', 'manual'
+      tipo: 'Hoy',         // 'Hoy', 'Ayer', 'DIA', 'NOCHE', '7 días', '30 días', 'Este mes', '1 año', 'manual'
       fechaInicio: '',     // YYYY-MM-DD
       fechaFin: ''         // YYYY-MM-DD
     },
@@ -989,9 +988,10 @@ function reportesApp() {
         return;
       }
       
-      // Establecer filtro inicial y cargar datos
-      this.setFiltroRapido('7 días');
+      const hoyStr = DateUtils.getTodayStr();
+      this.dateFilter = { tipo: 'Hoy', fechaInicio: hoyStr, fechaFin: hoyStr };
       await this.refreshTurnosCierre({ skipReload: true });
+      this.refreshAllData();
       this._turnosPoll = setInterval(() => this.refreshTurnosCierre(), 45000);
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden) this.refreshTurnosCierre();
@@ -1172,7 +1172,7 @@ function reportesApp() {
           const tipo = v === 'hoy' ? 'Hoy' : v;
           this.dateFilter = { tipo, fechaInicio: hoyStr, fechaFin: hoyStr };
         },
-        hoyValues: ['Hoy'],
+        hoyValues: ['Hoy', 'hoy'],
         diaValue: 'DIA',
         nocheValue: 'NOCHE',
         autoNoche: true

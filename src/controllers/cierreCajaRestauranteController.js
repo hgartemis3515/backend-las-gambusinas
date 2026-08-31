@@ -432,7 +432,7 @@ router.get('/cierre-caja/historial', adminAuth, checkPermission('ver-cierre-caja
  * Cierres vigentes del día Lima: activa filtros DIA/NOCHE en comandas.
  * Debe ir ANTES de /cierre-caja/:id.
  */
-router.get('/cierre-caja/turnos-dia', adminAuth, checkPermission('ver-cierre-caja'), async (req, res) => {
+router.get('/cierre-caja/turnos-dia', adminAuth, async (req, res) => {
   try {
     const data = await obtenerTurnosDia(CierreCajaRestaurante);
     res.json(data);

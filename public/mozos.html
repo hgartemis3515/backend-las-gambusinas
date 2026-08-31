@@ -1328,6 +1328,10 @@ tailwind.config = {
             class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none w-[140px]">
           <input type="text" x-model="historialMozoFiltroPlato" placeholder="🔎 Filtrar por plato..."
             class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none flex-1 min-w-[160px]">
+          <button type="button" x-show="hayFiltroHistorialMozo" @click="limpiarFiltrosHistorialMozos()"
+            class="dash-btn-limpiar px-3 py-2 text-xs text-txt-muted hover:text-gold transition border border-transparent hover:border-gold/30 rounded-lg">
+            ✕ Limpiar
+          </button>
           <button type="button" @click="autoRefreshRendimientoMozo = !autoRefreshRendimientoMozo"
             class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition"
             :class="autoRefreshRendimientoMozo ? 'bg-st-preparado/20 text-st-preparado' : 'bg-bg-sidebar text-txt-muted'">
@@ -4131,6 +4135,27 @@ function mozosExecutiveApp() {
         socket.on('comanda-eliminada', (data) => scheduleRefresh(data?.comandaId));
         socket.on('reportes:comanda-eliminada', (data) => scheduleRefresh(data?.comandaId));
       } catch (e) { console.warn('initSocketRendimientoMozo', e); }
+    },
+
+    get hayFiltroHistorialMozo() {
+      return !!(this.historialMozoFiltroMozo
+        || this.historialMozoFiltroFecha !== 'hoy'
+        || this.historialMozoFiltroEstado
+        || this.historialMozoFiltroComanda
+        || this.historialMozoFiltroPlato
+        || this.historialMozoFechaDesde
+        || this.historialMozoFechaHasta);
+    },
+
+    limpiarFiltrosHistorialMozos() {
+      this.historialMozoFiltroMozo = '';
+      this.historialMozoFiltroFecha = 'hoy';
+      this.historialMozoFechaDesde = '';
+      this.historialMozoFechaHasta = '';
+      this.historialMozoFiltroEstado = '';
+      this.historialMozoFiltroComanda = '';
+      this.historialMozoFiltroPlato = '';
+      this.cargarHistorialMozos();
     },
 
     async cargarHistorialMozos({ silent = false } = {}) {
