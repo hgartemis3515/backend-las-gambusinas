@@ -1013,12 +1013,18 @@ tailwind.config = {
             <div>
               <h3 class="text-sm font-bold text-white">Semana actual</h3>
               <p class="text-[11px] text-txt-muted" x-text="rangoSemanaActualTexto"></p>
-              <p class="text-[11px] text-txt-muted mt-1">Los días de cada franja son cuando empieza el turno. Si la hora fin es menor que la de inicio, continúa después de medianoche.</p>
+              <p class="text-[11px] text-txt-muted mt-1">Los días de cada franja son cuando empieza el turno. Si la hora fin es menor que la de inicio, continúa después de medianoche. El PDF imprime el mes completo (misma programación cada día de la semana).</p>
             </div>
-            <div class="text-right">
-              <p class="text-[11px] text-txt-muted uppercase">Hoy</p>
-              <p class="text-sm font-bold text-gold" x-text="hoySemanaTexto"></p>
-              <p class="text-[11px] text-txt-secondary" x-text="perfilActivoAhoraDisplay"></p>
+            <div class="flex items-center gap-3">
+              <button type="button" @click="abrirModalPrintAsignacion()"
+                class="bg-gold text-bg-primary px-3 py-2 rounded-lg text-xs font-semibold hover:brightness-110">
+                🖨️ PDF mensual
+              </button>
+              <div class="text-right">
+                <p class="text-[11px] text-txt-muted uppercase">Hoy</p>
+                <p class="text-sm font-bold text-gold" x-text="hoySemanaTexto"></p>
+                <p class="text-[11px] text-txt-secondary" x-text="perfilActivoAhoraDisplay"></p>
+              </div>
             </div>
           </div>
         </div>
@@ -1027,7 +1033,7 @@ tailwind.config = {
         <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4 overflow-x-auto">
           <div class="grid grid-cols-7 gap-2 min-w-[700px]">
             <template x-for="dia in diasSemanaCalendario" :key="dia.num">
-              <div class="bg-bg-sidebar/40 rounded-lg p-2 min-h-[160px] flex flex-col gap-1">
+              <div class="bg-bg-sidebar/40 rounded-lg p-2 min-h-[88px] flex flex-col gap-1">
                 <div class="flex items-center justify-between">
                   <span class="text-xs font-bold text-white" x-text="dia.nombre"></span>
                   <span x-show="dia.esHoy" class="text-[9px] px-1.5 py-0.5 rounded bg-gold text-bg-primary font-bold">HOY</span>
@@ -1044,6 +1050,72 @@ tailwind.config = {
                 </template>
                 <button @click="abrirNuevaFranjaCalendario(dia.num)"
                   class="mt-auto text-[11px] text-gold hover:underline">+ añadir franja</button>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+          <h3 class="text-sm font-bold text-white">Perfil y hora de cambio por día</h3>
+          <p class="text-[11px] text-txt-muted mb-3">Elige un perfil distinto para cada día, a qué hora entra y a qué hora cambia (fin exclusivo: a esa hora ya rige el siguiente). Si una franja cubre varios días, «Solo este día» la separa para poder ponerle otro perfil.</p>
+          <div class="space-y-3">
+            <template x-for="dia in diasSemanaCalendario" :key="'prog'+dia.num">
+              <div class="rounded-lg border border-[rgba(212,175,55,0.12)] bg-bg-sidebar/30 p-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-bold text-white" x-text="dia.nombre"></span>
+                  <span x-show="dia.esHoy" class="text-[9px] px-1.5 py-0.5 rounded bg-gold text-bg-primary font-bold">HOY</span>
+                </div>
+                <template x-for="b in bloquesQueEmpiezanEnDia(dia.num)" :key="b.id">
+                  <div class="flex flex-wrap items-end gap-2 mb-2 pb-2 border-b border-[rgba(212,175,55,0.08)]">
+                    <div class="min-w-[140px] flex-1">
+                      <label class="text-[10px] text-txt-muted uppercase">Perfil</label>
+                      <select :value="b.perfilId" @change="b.perfilId = $event.target.value"
+                        class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs text-txt-secondary">
+                        <template x-for="p in perfilesOpcionesFranja(b)" :key="'pp'+dia.num+b.id+p.id">
+                          <option :value="p.id" x-text="p.nombre"></option>
+                        </template>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="text-[10px] text-txt-muted uppercase">Entra a las</label>
+                      <input type="time" :value="b.horaInicio" @change="b.horaInicio = $event.target.value" step="900"
+                        class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs text-txt-secondary">
+                    </div>
+                    <div>
+                      <label class="text-[10px] text-txt-muted uppercase">Cambia a las</label>
+                      <input type="time" :value="b.horaFin" @change="b.horaFin = $event.target.value" step="900"
+                        class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs text-txt-secondary">
+                    </div>
+                    <button type="button" :disabled="guardandoCalendarioAsignacion" @click="guardarBloqueCalendarioDirecto(b)" class="bg-gold text-bg-primary px-2 py-1.5 rounded-lg text-[11px] font-semibold disabled:opacity-40">Guardar</button>
+                    <button type="button" x-show="(b.diasSemana || []).length > 1" :disabled="guardandoCalendarioAsignacion" @click="separarFranjaEnEsteDia(b, dia.num)"
+                      class="text-[11px] text-gold hover:underline disabled:opacity-40">Solo este día</button>
+                    <button type="button" :disabled="guardandoCalendarioAsignacion" @click="eliminarBloqueCalendario(b)" class="text-[11px] text-st-pagado hover:underline disabled:opacity-40">Quitar</button>
+                    <span class="text-[10px] text-txt-muted" x-show="(b.diasSemana || []).length > 1" x-text="'También: ' + textoDiasFranja(b, dia.num)"></span>
+                  </div>
+                </template>
+                <div class="flex flex-wrap items-end gap-2">
+                  <div class="min-w-[140px] flex-1">
+                    <label class="text-[10px] text-txt-muted uppercase">Nuevo perfil este día</label>
+                    <select x-model="draftHorarioPorDia[dia.num].perfilId"
+                      class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs text-txt-secondary">
+                      <option value="">— Elegir perfil —</option>
+                      <template x-for="p in (_configAsignacion?.perfiles || []).filter(p => p.activo !== false)" :key="'d'+dia.num+p.id">
+                        <option :value="p.id" x-text="p.nombre"></option>
+                      </template>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="text-[10px] text-txt-muted uppercase">Entra a las</label>
+                    <input type="time" x-model="draftHorarioPorDia[dia.num].horaInicio" step="900"
+                      class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs text-txt-secondary">
+                  </div>
+                  <div>
+                    <label class="text-[10px] text-txt-muted uppercase">Cambia a las</label>
+                    <input type="time" x-model="draftHorarioPorDia[dia.num].horaFin" step="900"
+                      class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs text-txt-secondary">
+                  </div>
+                  <button type="button" :disabled="guardandoCalendarioAsignacion" @click="guardarHorarioRapidoDia(dia.num)" class="bg-gold/20 text-gold border border-gold/40 px-2 py-1.5 rounded-lg text-[11px] font-semibold disabled:opacity-40">Programar</button>
+                </div>
               </div>
             </template>
           </div>
@@ -1206,7 +1278,7 @@ tailwind.config = {
       @click.self="modalFranjaCalendario=false" @keydown.escape.window="modalFranjaCalendario=false">
       <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl shadow-2xl w-full max-w-lg p-5">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-bold" x-text="modalFranjaModo === 'nueva' ? 'Nueva franja' : 'Editar franja'"></h2>
+          <h2 class="text-lg font-bold" x-text="modalFranjaModo === 'nueva' ? 'Programar perfil y horario' : 'Editar perfil y horario'"></h2>
           <button @click="modalFranjaCalendario=false" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold/20 text-gold text-sm">✕</button>
         </div>
 
@@ -1221,6 +1293,7 @@ tailwind.config = {
                 <option :value="p.id" x-text="p.nombre"></option>
               </template>
             </select>
+            <p class="text-[11px] text-txt-muted mt-1">Puedes usar un perfil distinto cada día: elige «Solo este día» o «Este día cada semana».</p>
           </div>
 
           <!-- Repetición -->
@@ -1265,17 +1338,17 @@ tailwind.config = {
           <!-- Horas -->
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="text-xs font-semibold text-txt-secondary uppercase">Hora inicio</label>
+              <label class="text-xs font-semibold text-txt-secondary uppercase">Entra a las (inicio)</label>
               <input type="time" x-model="modalFranjaForm.horaInicio" step="900"
                 class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
             </div>
             <div>
-              <label class="text-xs font-semibold text-txt-secondary uppercase">Hora fin</label>
+              <label class="text-xs font-semibold text-txt-secondary uppercase">Cambia de perfil a las</label>
               <input type="time" x-model="modalFranjaForm.horaFin" step="900"
                 class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
             </div>
           </div>
-          <p class="text-[11px] text-txt-muted">Inicio inclusive, fin exclusivo (a esa hora ya cambia de perfil). Si fin &lt; inicio, cruza medianoche (turno noche).</p>
+          <p class="text-[11px] text-txt-muted">Inicio inclusive, fin exclusivo: a la hora de cambio ya rige el siguiente perfil. Si fin &lt; inicio, cruza medianoche (turno noche).</p>
           <p class="text-[11px] text-gold" x-show="franjaModalCruzaMedianoche">
             Turno noche: se activa a las <span x-text="modalFranjaForm.horaInicio"></span> y sigue hasta las <span x-text="modalFranjaForm.horaFin"></span> del día siguiente. Los días elegidos son cuando empieza.
           </p>
@@ -1306,6 +1379,46 @@ tailwind.config = {
               <span x-text="modalFranjaModo === 'nueva' ? 'Crear' : 'Guardar'"></span>
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: cocineras a incluir en el PDF mensual -->
+    <div x-show="modalPrintAsignacion" x-transition.opacity x-cloak
+      class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+      @click.self="modalPrintAsignacion=false" @keydown.escape.window="modalPrintAsignacion=false">
+      <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl shadow-2xl w-full max-w-lg p-5 max-h-[88vh] flex flex-col">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h2 class="text-lg font-bold">Cocineras del PDF</h2>
+            <p class="text-[11px] text-txt-muted">Elige quiénes salen en la matriz. El calendario del mes va completo en la primera hoja.</p>
+          </div>
+          <button type="button" @click="modalPrintAsignacion=false" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold/20 text-gold text-sm">✕</button>
+        </div>
+        <div class="flex flex-wrap gap-2 mb-3">
+          <button type="button" @click="seleccionarTodosCocinerosPrint(true)" class="text-[11px] px-2 py-1 rounded border border-gold/40 text-gold hover:bg-gold/10">Todas</button>
+          <button type="button" @click="seleccionarTodosCocinerosPrint(false)" class="text-[11px] px-2 py-1 rounded border border-txt-muted/30 text-txt-secondary hover:border-gold hover:text-gold">Ninguna</button>
+          <button type="button" @click="seleccionarCocinerosConAsignacionPrint()" class="text-[11px] px-2 py-1 rounded border border-gold/40 text-gold hover:bg-gold/10">Solo con asignación</button>
+          <span class="text-[11px] text-txt-muted ml-auto self-center" x-text="totalCocinerosPrintSeleccionados + ' de ' + (cocinerosAsignacion || []).length + ' seleccionadas'"></span>
+        </div>
+        <input type="search" x-model="busquedaCocineroPrint" placeholder="Buscar cocinera…"
+          class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none mb-3">
+        <div class="overflow-y-auto flex-1 space-y-1 pr-1 min-h-[180px]">
+          <template x-for="c in cocinerosPrintFiltrados" :key="'print'+c._id">
+            <label class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-bg-sidebar/60 cursor-pointer">
+              <input type="checkbox" class="w-4 h-4 accent-gold" :checked="!!seleccionCocinerosPrint[c._id]"
+                @change="seleccionCocinerosPrint = Object.assign({}, seleccionCocinerosPrint, { [c._id]: $event.target.checked })">
+              <span class="text-sm text-white" x-text="labelCocineroAsignacion(c)"></span>
+            </label>
+          </template>
+          <p x-show="!cocinerosPrintFiltrados.length" class="text-xs text-txt-muted italic px-2">Sin coincidencias</p>
+        </div>
+        <div class="flex justify-end gap-2 mt-4 pt-3 border-t border-[rgba(212,175,55,0.12)]">
+          <button type="button" @click="modalPrintAsignacion=false" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+          <button type="button" @click="confirmarPrintAsignacion()" :disabled="totalCocinerosPrintSeleccionados === 0"
+            class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 disabled:opacity-40">
+            Imprimir PDF (<span x-text="totalCocinerosPrintSeleccionados"></span>)
+          </button>
         </div>
       </div>
     </div>
@@ -1656,19 +1769,25 @@ tailwind.config = {
             <div>
               <h3 class="text-sm font-bold text-white">Semana actual</h3>
               <p class="text-[11px] text-txt-muted" x-text="rangoSemanaActualTexto"></p>
-              <p class="text-[11px] text-txt-muted mt-1">Los días de cada franja son cuando empieza el turno. Si la hora fin es menor que la de inicio, continúa después de medianoche.</p>
+              <p class="text-[11px] text-txt-muted mt-1">Los días de cada franja son cuando empieza el turno. Si la hora fin es menor que la de inicio, continúa después de medianoche. El PDF imprime el mes completo (misma programación cada día de la semana).</p>
             </div>
-            <div class="text-right">
-              <p class="text-[11px] text-txt-muted uppercase">Hoy</p>
-              <p class="text-sm font-bold text-gold" x-text="hoySemanaTexto"></p>
-              <p class="text-[11px] text-txt-secondary" x-text="perfilActivoAhoraDisplay"></p>
+            <div class="flex items-center gap-3">
+              <button type="button" @click="abrirModalPrintAsignacion()"
+                class="bg-gold text-bg-primary px-3 py-2 rounded-lg text-xs font-semibold hover:brightness-110">
+                🖨️ PDF mensual
+              </button>
+              <div class="text-right">
+                <p class="text-[11px] text-txt-muted uppercase">Hoy</p>
+                <p class="text-sm font-bold text-gold" x-text="hoySemanaTexto"></p>
+                <p class="text-[11px] text-txt-secondary" x-text="perfilActivoAhoraDisplay"></p>
+              </div>
             </div>
           </div>
         </div>
         <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4 overflow-x-auto">
           <div class="grid grid-cols-7 gap-2 min-w-[700px]">
             <template x-for="dia in diasSemanaCalendario" :key="'g'+dia.num">
-              <div class="bg-bg-sidebar/40 rounded-lg p-2 min-h-[160px] flex flex-col gap-1">
+              <div class="bg-bg-sidebar/40 rounded-lg p-2 min-h-[88px] flex flex-col gap-1">
                 <div class="flex items-center justify-between">
                   <span class="text-xs font-bold text-white" x-text="dia.nombre"></span>
                   <span x-show="dia.esHoy" class="text-[9px] px-1.5 py-0.5 rounded bg-gold text-bg-primary font-bold">HOY</span>
@@ -1684,6 +1803,71 @@ tailwind.config = {
                   </button>
                 </template>
                 <button @click="abrirNuevaFranjaCalendario(dia.num)" class="mt-auto text-[11px] text-gold hover:underline">+ añadir franja</button>
+              </div>
+            </template>
+          </div>
+        </div>
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
+          <h3 class="text-sm font-bold text-white">Perfil y hora de cambio por día</h3>
+          <p class="text-[11px] text-txt-muted mb-3">Elige un perfil distinto para cada día, a qué hora entra y a qué hora cambia (fin exclusivo: a esa hora ya rige el siguiente). Si una franja cubre varios días, «Solo este día» la separa para poder ponerle otro perfil.</p>
+          <div class="space-y-3">
+            <template x-for="dia in diasSemanaCalendario" :key="'gprog'+dia.num">
+              <div class="rounded-lg border border-[rgba(212,175,55,0.12)] bg-bg-sidebar/30 p-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-bold text-white" x-text="dia.nombre"></span>
+                  <span x-show="dia.esHoy" class="text-[9px] px-1.5 py-0.5 rounded bg-gold text-bg-primary font-bold">HOY</span>
+                </div>
+                <template x-for="b in bloquesQueEmpiezanEnDia(dia.num)" :key="'gb'+b.id">
+                  <div class="flex flex-wrap items-end gap-2 mb-2 pb-2 border-b border-[rgba(212,175,55,0.08)]">
+                    <div class="min-w-[140px] flex-1">
+                      <label class="text-[10px] text-txt-muted uppercase">Perfil</label>
+                      <select :value="b.perfilId" @change="b.perfilId = $event.target.value"
+                        class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs text-txt-secondary">
+                        <template x-for="p in perfilesOpcionesFranja(b)" :key="'gpp'+dia.num+b.id+p.id">
+                          <option :value="p.id" x-text="p.nombre"></option>
+                        </template>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="text-[10px] text-txt-muted uppercase">Entra a las</label>
+                      <input type="time" :value="b.horaInicio" @change="b.horaInicio = $event.target.value" step="900"
+                        class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs text-txt-secondary">
+                    </div>
+                    <div>
+                      <label class="text-[10px] text-txt-muted uppercase">Cambia a las</label>
+                      <input type="time" :value="b.horaFin" @change="b.horaFin = $event.target.value" step="900"
+                        class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs text-txt-secondary">
+                    </div>
+                    <button type="button" :disabled="guardandoCalendarioAsignacion" @click="guardarBloqueCalendarioDirecto(b)" class="bg-gold text-bg-primary px-2 py-1.5 rounded-lg text-[11px] font-semibold disabled:opacity-40">Guardar</button>
+                    <button type="button" x-show="(b.diasSemana || []).length > 1" :disabled="guardandoCalendarioAsignacion" @click="separarFranjaEnEsteDia(b, dia.num)"
+                      class="text-[11px] text-gold hover:underline disabled:opacity-40">Solo este día</button>
+                    <button type="button" :disabled="guardandoCalendarioAsignacion" @click="eliminarBloqueCalendario(b)" class="text-[11px] text-st-pagado hover:underline disabled:opacity-40">Quitar</button>
+                    <span class="text-[10px] text-txt-muted" x-show="(b.diasSemana || []).length > 1" x-text="'También: ' + textoDiasFranja(b, dia.num)"></span>
+                  </div>
+                </template>
+                <div class="flex flex-wrap items-end gap-2">
+                  <div class="min-w-[140px] flex-1">
+                    <label class="text-[10px] text-txt-muted uppercase">Nuevo perfil este día</label>
+                    <select x-model="draftHorarioPorDia[dia.num].perfilId"
+                      class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs text-txt-secondary">
+                      <option value="">— Elegir perfil —</option>
+                      <template x-for="p in (_configAsignacion?.perfiles || []).filter(p => p.activo !== false)" :key="'gd'+dia.num+p.id">
+                        <option :value="p.id" x-text="p.nombre"></option>
+                      </template>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="text-[10px] text-txt-muted uppercase">Entra a las</label>
+                    <input type="time" x-model="draftHorarioPorDia[dia.num].horaInicio" step="900"
+                      class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs text-txt-secondary">
+                  </div>
+                  <div>
+                    <label class="text-[10px] text-txt-muted uppercase">Cambia a las</label>
+                    <input type="time" x-model="draftHorarioPorDia[dia.num].horaFin" step="900"
+                      class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-xs text-txt-secondary">
+                  </div>
+                  <button type="button" :disabled="guardandoCalendarioAsignacion" @click="guardarHorarioRapidoDia(dia.num)" class="bg-gold/20 text-gold border border-gold/40 px-2 py-1.5 rounded-lg text-[11px] font-semibold disabled:opacity-40">Programar</button>
+                </div>
               </div>
             </template>
           </div>
@@ -4145,6 +4329,7 @@ tailwind.config = {
 <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 <script src="/assets/js/notifications.js"></script>
 <script src="/assets/js/shared.js"></script>
+<script src="/js/asignacion-semana-print.js"></script>
 <script src="/assets/js/turnosDiaNoche.js"></script>
 <script>
 // ============================================================
@@ -4404,6 +4589,19 @@ function cocinerosApp() {
     modalFranjaForm: { perfilId: '', horaInicio: '08:00', horaFin: '12:00', etiqueta: '', activo: true },
     modalFranjaRepeticion: 'un_dia', // 'un_dia' | 'dia_cada_semana' | 'dias_elegidos' | 'toda_semana'
     modalFranjaDiasSeleccionados: [], // [0..6] cuando el usuario elige días
+    guardandoCalendarioAsignacion: false,
+    draftHorarioPorDia: {
+      0: { perfilId: '', horaInicio: '08:00', horaFin: '16:00' },
+      1: { perfilId: '', horaInicio: '08:00', horaFin: '16:00' },
+      2: { perfilId: '', horaInicio: '08:00', horaFin: '16:00' },
+      3: { perfilId: '', horaInicio: '08:00', horaFin: '16:00' },
+      4: { perfilId: '', horaInicio: '08:00', horaFin: '16:00' },
+      5: { perfilId: '', horaInicio: '08:00', horaFin: '16:00' },
+      6: { perfilId: '', horaInicio: '08:00', horaFin: '16:00' }
+    },
+    modalPrintAsignacion: false,
+    seleccionCocinerosPrint: {},
+    busquedaCocineroPrint: '',
 
     // Rendimiento en vivo
     rendimientoCocineros: [],
@@ -7956,6 +8154,393 @@ function cocinerosApp() {
       } else {
         if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', res?.error || 'No se pudo eliminar');
       }
+    },
+
+    _nombresDiaCorto() {
+      return { 0: 'Dom', 1: 'Lun', 2: 'Mar', 3: 'Mié', 4: 'Jue', 5: 'Vie', 6: 'Sáb' };
+    },
+    textoDiasFranja(b, exceptDia) {
+      const nombres = this._nombresDiaCorto();
+      const except = exceptDia == null || exceptDia === '' ? null : Number(exceptDia);
+      const orden = [1, 2, 3, 4, 5, 6, 0];
+      return (b?.diasSemana || []).map(Number)
+        .filter(d => Number.isInteger(d) && d >= 0 && d <= 6 && (except == null || d !== except))
+        .sort((a, c) => orden.indexOf(a) - orden.indexOf(c))
+        .map(d => nombres[d] || d)
+        .join(', ');
+    },
+    bloquesQueEmpiezanEnDia(diaNum) {
+      const dia = Number(diaNum);
+      return (this._configAsignacion?.calendario?.bloques || [])
+        .filter(b => (b.diasSemana || []).map(Number).includes(dia))
+        .sort((a, b) => String(a.horaInicio || '').localeCompare(String(b.horaInicio || '')));
+    },
+    perfilesOpcionesFranja(bloque) {
+      const list = this._configAsignacion?.perfiles || [];
+      const activos = list.filter(p => p.activo !== false);
+      if (bloque?.perfilId && !activos.some(p => p.id === bloque.perfilId)) {
+        const actual = list.find(p => p.id === bloque.perfilId);
+        return actual ? [actual, ...activos] : activos;
+      }
+      return activos;
+    },
+    _fechaCortaDiaCalendario(diaNum) {
+      const lima = new Date();
+      const limaOffsetMs = -5 * 60 * 60 * 1000;
+      const limaTime = new Date(lima.getTime() + limaOffsetMs + lima.getTimezoneOffset() * 60000);
+      const day = limaTime.getUTCDay();
+      const diffToMon = (day === 0 ? -6 : 1 - day);
+      const lunes = new Date(Date.UTC(limaTime.getUTCFullYear(), limaTime.getUTCMonth(), limaTime.getUTCDate() + diffToMon));
+      const orden = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 0: 6 };
+      const d = new Date(lunes);
+      d.setUTCDate(d.getUTCDate() + (orden[Number(diaNum)] ?? 0));
+      return `${d.getUTCDate()} ${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][d.getUTCMonth()]}`;
+    },
+    _errorHorarioFranja(hi, hf) {
+      if (!/^\d{2}:\d{2}$/.test(hi || '') || !/^\d{2}:\d{2}$/.test(hf || '')) return 'Horas inválidas (HH:mm)';
+      if (hi === hf) return 'La hora de entrada y la de cambio no pueden ser iguales';
+      return '';
+    },
+    _itemsCatalogoPrint() {
+      if (this._esScopeGuarniciones) {
+        return (this.todasLasGuarnicionesAsignacion || []).map(g => ({
+          id: g.key,
+          nombre: g.etiqueta || `${g.opcion || ''} · ${g.platoNombre || ''}`.trim(),
+          grupo: g.grupo || 'Otros',
+          raw: g
+        })).sort((a, b) => (a.grupo || '').localeCompare(b.grupo || '', 'es') || (a.nombre || '').localeCompare(b.nombre || '', 'es'));
+      }
+      return (this.todosLosPlatosAsignacion || []).map(p => ({
+        id: p.id,
+        nombre: p.nombre,
+        grupo: p.categoria || 'Sin categoría',
+        raw: p
+      })).sort((a, b) => (a.grupo || '').localeCompare(b.grupo || '', 'es') || (a.nombre || '').localeCompare(b.nombre || '', 'es'));
+    },
+    _reglaItemEnPerfil(perfil, item) {
+      if (!perfil || !item) return null;
+      let r = null;
+      if (this._esScopeGuarniciones) {
+        const g = item.raw || {};
+        r = (perfil.reglasPorGuarnicion || []).find(x => this._matchReglaGuarnicion(x, g.guarnicionKey || g.key, g.platoId)) || null;
+      } else {
+        r = (perfil.reglasPorPlato || []).find(x => Number(x.platoId) === Number(item.id)) || null;
+      }
+      if (!r || r.activo === false) return null;
+      return r;
+    },
+    _bodyBloqueCalendario(bloque, extra) {
+      const src = Object.assign({}, bloque || {}, extra || {});
+      return {
+        perfilId: src.perfilId,
+        diasSemana: (src.diasSemana || []).map(Number).filter(d => Number.isInteger(d) && d >= 0 && d <= 6),
+        horaInicio: src.horaInicio,
+        horaFin: src.horaFin,
+        etiqueta: src.etiqueta || '',
+        activo: src.activo !== false
+      };
+    },
+
+    async guardarBloqueCalendarioDirecto(bloque) {
+      if (!bloque?.id) return;
+      const err = this._errorHorarioFranja(bloque.horaInicio, bloque.horaFin);
+      if (!bloque.perfilId) {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Perfil', 'Selecciona un perfil');
+        return;
+      }
+      if (err) {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Horario', err);
+        return;
+      }
+      this.guardandoCalendarioAsignacion = true;
+      try {
+        const body = this._bodyBloqueCalendario(bloque);
+        const res = await apiPut(`${this._apiAsignacionBase}/calendario/bloques/${bloque.id}`, body);
+        if (res && res.success !== false && this._aplicarConfigRespuesta(res, this._esScopeGuarniciones ? 'guarniciones' : 'platos')) {
+          if (window.GambusinasNotifications) window.GambusinasNotifications.success('Franja actualizada', 'Perfil y horario de cambio guardados.');
+        } else if (window.GambusinasNotifications) {
+          window.GambusinasNotifications.error('Error', res?.error || 'No se pudo guardar');
+        }
+      } catch (e) {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', e.message || 'No se pudo guardar');
+      }
+      this.guardandoCalendarioAsignacion = false;
+    },
+
+    async guardarHorarioRapidoDia(diaNum) {
+      const d = this.draftHorarioPorDia[diaNum] || this.draftHorarioPorDia[String(diaNum)];
+      if (!d || !d.perfilId) {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Perfil', 'Selecciona el perfil para este día');
+        return;
+      }
+      const err = this._errorHorarioFranja(d.horaInicio, d.horaFin);
+      if (err) {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Horario', err);
+        return;
+      }
+      const body = {
+        perfilId: d.perfilId,
+        diasSemana: [Number(diaNum)],
+        horaInicio: d.horaInicio,
+        horaFin: d.horaFin,
+        etiqueta: '',
+        activo: true
+      };
+      const solape = this._detectarSolape(body.diasSemana, d.horaInicio, d.horaFin, null);
+      this.guardandoCalendarioAsignacion = true;
+      try {
+        const res = await apiPost(`${this._apiAsignacionBase}/calendario/bloques`, body);
+        if (res && res.success !== false && this._aplicarConfigRespuesta(res, this._esScopeGuarniciones ? 'guarniciones' : 'platos')) {
+          d.perfilId = '';
+          if (window.GambusinasNotifications) {
+            window.GambusinasNotifications.success(
+              'Perfil programado',
+              solape ? 'Guardado. Hay solape: se aplicará la regla de prioridad.' : 'Este día usará ese perfil en el horario indicado.'
+            );
+          }
+        } else if (window.GambusinasNotifications) {
+          window.GambusinasNotifications.error('Error', res?.error || 'No se pudo programar');
+        }
+      } catch (e) {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', e.message || 'No se pudo programar');
+      }
+      this.guardandoCalendarioAsignacion = false;
+    },
+
+    async separarFranjaEnEsteDia(bloque, diaNum) {
+      const dia = Number(diaNum);
+      const dias = [...new Set((bloque?.diasSemana || []).map(Number))].filter(d => Number.isInteger(d) && d >= 0 && d <= 6);
+      if (!bloque?.id || dias.length <= 1) return;
+      const resto = dias.filter(d => d !== dia);
+      this.guardandoCalendarioAsignacion = true;
+      try {
+        const putRes = await apiPut(`${this._apiAsignacionBase}/calendario/bloques/${bloque.id}`, this._bodyBloqueCalendario(bloque, { diasSemana: resto }));
+        if (!(putRes && putRes.success !== false && this._aplicarConfigRespuesta(putRes, this._esScopeGuarniciones ? 'guarniciones' : 'platos'))) {
+          if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', putRes?.error || 'No se pudo separar el día');
+          this.guardandoCalendarioAsignacion = false;
+          return;
+        }
+        const postRes = await apiPost(`${this._apiAsignacionBase}/calendario/bloques`, this._bodyBloqueCalendario(bloque, { diasSemana: [dia] }));
+        if (postRes && postRes.success !== false && this._aplicarConfigRespuesta(postRes, this._esScopeGuarniciones ? 'guarniciones' : 'platos')) {
+          if (window.GambusinasNotifications) {
+            window.GambusinasNotifications.success('Día separado', 'Ya puedes ponerle a este día otro perfil u otro horario de cambio.');
+          }
+        } else if (window.GambusinasNotifications) {
+          window.GambusinasNotifications.error('Error', 'Se quitó este día de la franja original pero no se creó la nueva. Prográmala abajo.');
+        }
+      } catch (e) {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', e.message || 'No se pudo separar');
+      }
+      this.guardandoCalendarioAsignacion = false;
+    },
+
+    async eliminarBloqueCalendario(bloque) {
+      if (!bloque?.id) return;
+      if (!confirm('¿Quitar esta franja del calendario?')) return;
+      this.guardandoCalendarioAsignacion = true;
+      try {
+        const res = await apiDelete(`${this._apiAsignacionBase}/calendario/bloques/${bloque.id}`);
+        if (res && res.success !== false && this._aplicarConfigRespuesta(res, this._esScopeGuarniciones ? 'guarniciones' : 'platos')) {
+          if (window.GambusinasNotifications) window.GambusinasNotifications.success('Franja eliminada', 'La franja fue eliminada del calendario.');
+        } else if (window.GambusinasNotifications) {
+          window.GambusinasNotifications.error('Error', res?.error || 'No se pudo eliminar');
+        }
+      } catch (e) {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Error', e.message || 'No se pudo eliminar');
+      }
+      this.guardandoCalendarioAsignacion = false;
+    },
+
+    _keyPrintCocineros() {
+      return this._esScopeGuarniciones
+        ? 'gambusinas.printCocineros.guarniciones'
+        : 'gambusinas.printCocineros.platos';
+    },
+    _leerSeleccionCocinerosPrint() {
+      try {
+        const raw = localStorage.getItem(this._keyPrintCocineros());
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : null;
+      } catch (e) {
+        return null;
+      }
+    },
+    _guardarSeleccionCocinerosPrint() {
+      try {
+        localStorage.setItem(this._keyPrintCocineros(), JSON.stringify(this.seleccionCocinerosPrint || {}));
+      } catch (e) {}
+    },
+    get totalCocinerosPrintSeleccionados() {
+      const sel = this.seleccionCocinerosPrint || {};
+      return (this.cocinerosAsignacion || []).filter(c => !!sel[c._id]).length;
+    },
+    get cocinerosPrintFiltrados() {
+      const q = (this.busquedaCocineroPrint || '').toLowerCase().trim();
+      let list = this.cocinerosAsignacion || [];
+      if (q) list = list.filter(c => this.labelCocineroAsignacion(c).toLowerCase().includes(q));
+      return list;
+    },
+    _idsCocinerosConAsignacionPrint() {
+      const ids = new Set();
+      (this._configAsignacion?.perfiles || []).forEach(p => {
+        const reglas = this._esScopeGuarniciones ? (p.reglasPorGuarnicion || []) : (p.reglasPorPlato || []);
+        reglas.forEach(r => {
+          if (r.activo === false) return;
+          if (r.cocineroPrimarioId) ids.add(String(r.cocineroPrimarioId));
+          (r.backups || []).forEach(b => { if (b.cocineroId) ids.add(String(b.cocineroId)); });
+        });
+      });
+      return ids;
+    },
+    seleccionarTodosCocinerosPrint(on) {
+      const map = {};
+      (this.cocinerosAsignacion || []).forEach(c => { map[String(c._id)] = !!on; });
+      this.seleccionCocinerosPrint = map;
+    },
+    seleccionarCocinerosConAsignacionPrint() {
+      const ids = this._idsCocinerosConAsignacionPrint();
+      const map = {};
+      (this.cocinerosAsignacion || []).forEach(c => { map[String(c._id)] = ids.has(String(c._id)); });
+      this.seleccionCocinerosPrint = map;
+    },
+    abrirModalPrintAsignacion() {
+      if (!window.GambusinasAsignacionPrint || typeof window.GambusinasAsignacionPrint.open !== 'function') {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Impresión', 'No se cargó el módulo de impresión. Recarga la página.');
+        return;
+      }
+      const stored = this._leerSeleccionCocinerosPrint();
+      const map = {};
+      const conAsig = this._idsCocinerosConAsignacionPrint();
+      (this.cocinerosAsignacion || []).forEach(c => {
+        const id = String(c._id);
+        if (stored && Object.prototype.hasOwnProperty.call(stored, id)) map[id] = !!stored[id];
+        else if (stored && Object.prototype.hasOwnProperty.call(stored, c._id)) map[id] = !!stored[c._id];
+        else map[id] = stored ? false : conAsig.has(id);
+      });
+      this.seleccionCocinerosPrint = map;
+      this.busquedaCocineroPrint = '';
+      this.modalPrintAsignacion = true;
+    },
+    confirmarPrintAsignacion() {
+      if (this.totalCocinerosPrintSeleccionados === 0) {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('PDF', 'Selecciona al menos una cocinera');
+        return;
+      }
+      this._guardarSeleccionCocinerosPrint();
+      this.imprimirCalendarioSemanaAsignacion();
+    },
+    _bloquePrintDto(b, diaNum) {
+      return {
+        id: b.id,
+        perfilId: b.perfilId,
+        perfilNombre: this.nombrePerfilPorId(b.perfilId),
+        color: this.colorPerfilPorId(b.perfilId),
+        horario: this.textoHorarioFranja(b, diaNum),
+        horaInicio: b.horaInicio,
+        horaFin: b.horaFin,
+        etiqueta: b.etiqueta || '',
+        activo: b.activo !== false
+      };
+    },
+    _gridMesActualPrint() {
+      const lima = new Date();
+      const limaOffsetMs = -5 * 60 * 60 * 1000;
+      const limaTime = new Date(lima.getTime() + limaOffsetMs + lima.getTimezoneOffset() * 60000);
+      const y = limaTime.getUTCFullYear();
+      const m = limaTime.getUTCMonth();
+      const hoy = limaTime.getUTCDate();
+      const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      const first = new Date(Date.UTC(y, m, 1));
+      const firstDow = first.getUTCDay();
+      const offset = firstDow === 0 ? 6 : firstDow - 1;
+      const cursor = new Date(Date.UTC(y, m, 1 - offset));
+      const semanas = [];
+      for (let w = 0; w < 6; w++) {
+        const semana = [];
+        for (let i = 0; i < 7; i++) {
+          const diaMes = cursor.getUTCDate();
+          const month = cursor.getUTCMonth();
+          const dow = cursor.getUTCDay();
+          semana.push({
+            diaMes,
+            diaSemana: dow,
+            esHoy: month === m && diaMes === hoy,
+            fueraMes: month !== m,
+            bloques: this.bloquesPorDia(dow).map(b => this._bloquePrintDto(b, dow))
+          });
+          cursor.setUTCDate(cursor.getUTCDate() + 1);
+        }
+        semanas.push(semana);
+      }
+      return { anio: y, mes: m, mesNombre: meses[m], semanas };
+    },
+
+    imprimirCalendarioSemanaAsignacion() {
+      if (!window.GambusinasAsignacionPrint || typeof window.GambusinasAsignacionPrint.open !== 'function') {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('Impresión', 'No se cargó el módulo de impresión. Recarga la página.');
+        return;
+      }
+      const esGuar = this._esScopeGuarniciones;
+      const config = this._configAsignacion;
+      const perfiles = config?.perfiles || [];
+      const perfilesPorId = {};
+      perfiles.forEach(p => { perfilesPorId[p.id] = p; });
+      const sel = this.seleccionCocinerosPrint || {};
+      const cocineros = (this.cocinerosAsignacion || []).filter(c => !!sel[c._id] || !!sel[String(c._id)]);
+      if (!cocineros.length) {
+        if (window.GambusinasNotifications) window.GambusinasNotifications.error('PDF', 'Selecciona al menos una cocinera');
+        return;
+      }
+      const items = this._itemsCatalogoPrint();
+      const mes = this._gridMesActualPrint();
+      const usedIds = [];
+      (mes.semanas || []).forEach(semana => (semana || []).forEach(cel => {
+        if (cel.fueraMes) return;
+        (cel.bloques || []).forEach(b => {
+          if (b.perfilId && !usedIds.includes(b.perfilId)) usedIds.push(b.perfilId);
+        });
+      }));
+      let perfilesPrint = usedIds.map(id => perfilesPorId[id]).filter(Boolean);
+      if (!perfilesPrint.length) perfilesPrint = perfiles.filter(p => p.activo !== false);
+      const perfilesDetalle = perfilesPrint.map(perfil => {
+        const filas = items.map(item => {
+          const regla = this._reglaItemEnPerfil(perfil, item);
+          const primarioId = regla?.cocineroPrimarioId ? String(regla.cocineroPrimarioId) : '';
+          const backupIds = (regla?.backups || []).map(b => String(b.cocineroId)).filter(Boolean);
+          const celdas = cocineros.map(c => {
+            const id = String(c._id);
+            if (primarioId && id === primarioId) return 'primario';
+            if (backupIds.includes(id)) return 'backup';
+            return '';
+          });
+          return { id: item.id, nombre: item.nombre, grupo: item.grupo, celdas, sinPrimario: !primarioId };
+        });
+        const usos = (config?.calendario?.bloques || [])
+          .filter(b => b.perfilId === perfil.id && b.activo !== false)
+          .map(b => ({
+            dias: this.textoDiasFranja(b),
+            horario: `${b.horaInicio}–${b.horaFin}`,
+            etiqueta: b.etiqueta || ''
+          }));
+        return {
+          id: perfil.id,
+          nombre: perfil.nombre,
+          color: perfil.color || (esGuar ? '#7CB342' : '#D4AF37'),
+          usos,
+          filas
+        };
+      });
+      this.modalPrintAsignacion = false;
+      window.GambusinasAsignacionPrint.open({
+        titulo: esGuar ? 'Asignación automática de guarniciones' : 'Asignación automática de platos',
+        tipoItem: esGuar ? 'Guarnición' : 'Plato',
+        tipoItemPlural: esGuar ? 'guarniciones' : 'platos',
+        generado: new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Lima' }),
+        mes,
+        cocineros: cocineros.map(c => ({ id: String(c._id), nombre: this.labelCocineroAsignacion(c) })),
+        perfiles: perfilesDetalle
+      });
     },
 
     // ==================== RENDIMIENTO EN VIVO ====================
