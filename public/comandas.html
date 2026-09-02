@@ -2302,6 +2302,9 @@ function comandasApp() {
  eliminandoGrupo: false,
  socketConnected: false,
  socket: null,
+ _pendingComandaSync: {},
+ _socketWasConnected: false,
+ _refreshListaTimer: null,
 
  comandas: [],
  filteredComandas: [],
@@ -2913,7 +2916,10 @@ formatearNombreMesa(mesa, mesaObj = null) {
  if (openComandaId) await this.openDetailModal({ _id: openComandaId });
  this._turnosPoll = setInterval(() => this.refreshTurnosCierre(), 45000);
  document.addEventListener('visibilitychange', () => {
-   if (!document.hidden) this.refreshTurnosCierre();
+   if (!document.hidden) {
+     this.refreshTurnosCierre();
+     if (!this.socketConnected) this.scheduleRefreshListaComandas();
+   }
  });
  window.addEventListener('beforeunload', (e) => {
    if (this.plantillaComandaModificada) {
@@ -3194,17 +3200,26 @@ formatearNombreMesa(mesa, mesaObj = null) {
 
  this.socket = io('/admin', {
  auth: { token: getToken() },
- transports: ['websocket', 'polling']
+ transports: ['websocket', 'polling'],
+ reconnection: true,
+ reconnectionDelay: 800,
+ reconnectionAttempts: Infinity
  });
 
  this.socket.on('connect', () => {
  console.log('✅ Socket conectado');
  this.socketConnected = true;
+ if (this._socketWasConnected) this.scheduleRefreshListaComandas();
+ this._socketWasConnected = true;
  });
 
  this.socket.on('disconnect', () => {
  console.log('⚠️ Socket desconectado');
  this.socketConnected = false;
+ });
+
+ this.socket.on('connect_error', (err) => {
+ console.warn('Socket admin connect_error', err?.message || err);
  });
 
 this.socket.on('comanda-plantilla-actualizada', (data) => {
@@ -3220,7 +3235,11 @@ this.socket.on('comanda-plantilla-actualizada', (data) => {
 this.socket.on('comanda-actualizada', (data) => {
 console.log('📡 Comanda actualizada via Socket:', data.comanda?._id || data.comandaId);
 const comanda = data.comanda || data;
-this.handleComandaActualizada(comanda);
+if (comanda && (comanda._id || comanda.platos || comanda.items || comanda.status)) {
+  this.handleComandaActualizada(comanda);
+}
+const id = data.comandaId || comanda?._id || data._id;
+if (id) this.scheduleComandaSync(id);
 });
 
 this.socket.on('mesa-actualizada', (data) => {
@@ -3232,13 +3251,29 @@ if (data?.comanda) {
   console.log('📡 Plato actualizado (admin): comanda', data.comandaId || data.comanda?._id, data.nuevoEstado);
   this.handleComandaActualizada(data.comanda);
 }
+const id = data?.comandaId || data?.comanda?._id;
+if (id) this.scheduleComandaSync(id);
+});
+
+this.socket.on('plato-procesando', (data) => {
+  this.handlePlatoCocineroSocket(data, { liberar: false });
+});
+this.socket.on('plato-liberado', (data) => {
+  this.handlePlatoCocineroSocket(data, { liberar: true });
+});
+this.socket.on('comanda-procesando', (data) => {
+  this.handleComandaCocineroSocket(data);
+});
+this.socket.on('comanda-liberada', (data) => {
+  this.handleComandaCocineroSocket(data);
 });
 
 this.socket.on('nueva-comanda', (data) => {
 console.log('📡 Nueva comanda via Socket:', data);
-// El evento nueva-comanda del backend tiene la estructura { comanda, socketId, timestamp }
 const comanda = data.comanda || data;
 this.handleNuevaComanda(comanda);
+const id = data.comandaId || comanda?._id;
+if (id) this.scheduleComandaSync(id);
 });
 
 this.socket.on('comanda-eliminada', (data) => {
@@ -3250,12 +3285,7 @@ this.handleComandaEliminada(data);
 this.socket.on('reportes:comanda-nueva', async (data) => {
 console.log('📊 Reporte: nueva comanda', data);
 const comandaId = data.comandaId || data._id;
-if (comandaId) {
-  const yaExiste = this.comandas.find(c => c._id === comandaId);
-  if (!yaExiste) {
-    await this.fetchAndAddComanda(comandaId);
-  }
-}
+if (comandaId) this.scheduleComandaSync(comandaId);
 });
 
 this.socket.on('reportes:boucher-nuevo', (data) => {
@@ -3313,6 +3343,12 @@ console.log('📊 Reporte: nuevo boucher', data);
        aprobadoPorNombre: data.aprobadoPorNombre,
      });
    }
+   const cid = data.comandaId || data.comanda?._id;
+   if (cid) this.scheduleComandaSync(cid);
+   (data.comandasIds || data.comandas || []).forEach((c) => {
+     const id = c && (c._id || c);
+     if (id) this.scheduleComandaSync(id);
+   });
  });
  this.socket.on('ticket-ppa-aprobado', (data) => {
    if (data.ticketId) {
@@ -3360,34 +3396,151 @@ console.log('📊 Reporte: nuevo boucher', data);
     console.warn('⚠️ No se pudo normalizar la comanda en handleComandaActualizada');
     return;
   }
-  
-  if (this.selectedComanda?._id === normalizada._id) {
+  const idN = this.normalizeObjectId(normalizada._id);
+  if (!idN) return;
+  normalizada._id = idN;
+
+  if (this.normalizeObjectId(this.selectedComanda?._id) === idN) {
     this.selectedComanda = normalizada;
   }
 
-  if (this.editComanda._id === normalizada._id && this.modal === 'editarComanda') {
-    if (comanda.version > this.editComanda.version) {
-      alert('Esta comanda fue modificada por otro usuario. Los datos se han actualizado.');
-      this.editComanda = { ...normalizada };
-      this.editPlatos = (normalizada.items || []).map(item => this.mapEditPlatoFromItem(item));
-    }
+  if (this.modal === 'editarComanda' && this.normalizeObjectId(this.editComanda?._id) === idN && !this.guardando) {
+    this.editComanda = { ...this.editComanda, ...normalizada, _id: idN };
+    this.editPlatos = (normalizada.items || []).map(item => this.mapEditPlatoFromItem(item));
   }
 
-  const idN = String(normalizada._id || '');
-  const idx = this.comandas.findIndex(c => String(c._id) === idN);
+  this.patchComandaEnGrupo(this.selectedGrupo, normalizada, idN);
+  this.patchComandaEnGrupo(this.editGrupo, normalizada, idN);
+
+  const idx = this.comandas.findIndex(c => this.normalizeObjectId(c._id) === idN);
   if (idx !== -1) {
     const newComandas = [...this.comandas];
     newComandas[idx] = normalizada;
     this.comandas = newComandas;
-    this.processGrouping();
-    this.filterComandas();
-    console.log('✅ Comanda actualizada en la lista via handleComandaActualizada');
-  } else if (idN && !this.comandas.some(c => String(c._id) === idN)) {
+  } else {
     this.comandas = [normalizada, ...this.comandas];
     this.extraerMozosUnicos();
-    this.processGrouping();
-    this.filterComandas();
-    console.log('✅ Comanda insertada en lista (socket; no estaba en memoria)');
+  }
+  this.processGrouping();
+  this.filterComandas();
+},
+
+patchComandaEnGrupo(grupo, normalizada, idN) {
+  if (!grupo?.comandas?.length) return;
+  const gidx = grupo.comandas.findIndex(c => this.normalizeObjectId(c._id) === idN);
+  if (gidx === -1) return;
+  const next = [...grupo.comandas];
+  next[gidx] = normalizada;
+  grupo.comandas = next;
+},
+
+scheduleComandaSync(comandaId) {
+  const id = this.normalizeObjectId(comandaId);
+  if (!id) return;
+  if (!this._pendingComandaSync) this._pendingComandaSync = {};
+  clearTimeout(this._pendingComandaSync[id]);
+  this._pendingComandaSync[id] = setTimeout(() => {
+    this.syncComandaDesdeServidor(id);
+  }, 250);
+},
+
+itemCoincidePlatoId(item, platoId) {
+  if (!item || platoId == null) return false;
+  const pid = String(platoId);
+  return String(item.subdocumentoId || '') === pid
+    || String(item._id || '') === pid
+    || String(item.platoId || '') === pid;
+},
+
+patchItemsCocinero(items, data, liberar) {
+  if (!Array.isArray(items) || !data) return items;
+  const complementoIds = [
+    ...(data.complementoId ? [data.complementoId] : []),
+    ...(Array.isArray(data.complementoIds) ? data.complementoIds : []),
+  ].map(String).filter(Boolean);
+  const esGuarnicion = data.tipo === 'guarnicion' || complementoIds.length > 0;
+  const procesandoPor = liberar ? null : (data.procesandoPor || data.cocinero || null);
+  let changed = false;
+  const next = items.map((item) => {
+    if (esGuarnicion) {
+      const comps = item.complementosSeleccionados || [];
+      let cChanged = false;
+      const newComps = comps.map((c) => {
+        const cid = String(c._id || c.complementoId || c.id || '');
+        if (!complementoIds.includes(cid)) return c;
+        cChanged = true;
+        return { ...c, procesandoPor };
+      });
+      if (!cChanged) return item;
+      changed = true;
+      return { ...item, complementosSeleccionados: newComps };
+    }
+    if (!this.itemCoincidePlatoId(item, data.platoId)) return item;
+    changed = true;
+    return { ...item, procesandoPor };
+  });
+  return changed ? next : items;
+},
+
+handlePlatoCocineroSocket(data, { liberar = false } = {}) {
+  const idN = this.normalizeObjectId(data?.comandaId || data?.comanda?._id);
+  if (!idN) return;
+  const idx = this.comandas.findIndex((c) => this.normalizeObjectId(c._id) === idN);
+  if (idx === -1) {
+    this.scheduleComandaSync(idN);
+    return;
+  }
+  const actual = this.comandas[idx];
+  const items = this.patchItemsCocinero(actual.items || [], data, liberar);
+  const itemsPatched = items !== actual.items;
+  const patched = { ...actual, items, _id: idN };
+  if (!liberar) {
+    const chef = data.procesandoPor || data.cocinero;
+    if (chef && (!itemsPatched || !actual.procesandoPor)) patched.procesandoPor = chef;
+  } else {
+    const sigueAlguien = (patched.items || []).some((i) => i.procesandoPor)
+      || (patched.items || []).some((i) => (i.complementosSeleccionados || []).some((c) => c.procesandoPor));
+    if (!sigueAlguien) patched.procesandoPor = null;
+  }
+  const newComandas = [...this.comandas];
+  newComandas[idx] = patched;
+  this.comandas = newComandas;
+  if (this.normalizeObjectId(this.selectedComanda?._id) === idN) {
+    this.selectedComanda = { ...this.selectedComanda, ...patched, items };
+  }
+  this.patchComandaEnGrupo(this.selectedGrupo, patched, idN);
+  this.patchComandaEnGrupo(this.editGrupo, patched, idN);
+  this.processGrouping();
+  this.filterComandas();
+  this.scheduleComandaSync(idN);
+},
+
+handleComandaCocineroSocket(data) {
+  const raw = data?.comanda;
+  const plain = raw && typeof raw.toObject === 'function' ? raw.toObject() : raw;
+  if (plain && (plain._id || plain.platos || plain.items)) {
+    if (data?.cocinero && !plain.procesandoPor) plain.procesandoPor = data.cocinero;
+    this.handleComandaActualizada(plain);
+  }
+  const id = data?.comandaId || plain?._id;
+  if (id) this.scheduleComandaSync(id);
+},
+
+scheduleRefreshListaComandas() {
+  clearTimeout(this._refreshListaTimer);
+  this._refreshListaTimer = setTimeout(() => {
+    this.loadComandas();
+  }, 400);
+},
+
+async syncComandaDesdeServidor(id) {
+  const idN = this.normalizeObjectId(id);
+  if (!idN) return;
+  try {
+    const fresh = await apiGet('/comanda/' + idN);
+    if (fresh && !fresh.error && fresh._id) this.handleComandaActualizada(fresh);
+  } catch (e) {
+    console.warn('No se pudo sincronizar comanda', idN, e);
   }
 },
 
@@ -3429,32 +3582,13 @@ handleNuevaComanda(comanda) {
     console.warn('⚠️ No se pudo normalizar la comanda');
     return;
   }
-  
-  console.log('✅ Comanda normalizada:', normalizada);
-  
-  // Verificar que no exista ya
-  const exists = this.comandas.find(c => c._id === normalizada._id);
-  
+  const idN = this.normalizeObjectId(normalizada._id);
+  const exists = this.comandas.find(c => this.normalizeObjectId(c._id) === idN);
   if (!exists) {
-    // Forzar reactividad de Alpine creando un nuevo array
-    this.comandas = [normalizada, ...this.comandas];
-    this.extraerMozosUnicos();
-    this.processGrouping();
-    this.filterComandas();
-    this.showToast(`Nueva comanda #${comanda.comandaNumber} 📋`);
-    console.log('✅ Comanda agregada a la lista');
+    this.handleComandaActualizada(normalizada);
+    this.showToast(`Nueva comanda #${comanda.comandaNumber || normalizada.numComanda} 📋`);
   } else {
-    // Si ya existe, actualizarla
-    const idx = this.comandas.findIndex(c => c._id === normalizada._id);
-    if (idx !== -1) {
-      // Forzar reactividad de Alpine
-      const newComandas = [...this.comandas];
-      newComandas[idx] = normalizada;
-      this.comandas = newComandas;
-      this.processGrouping();
-      this.filterComandas();
-      console.log('✅ Comanda actualizada en la lista');
-    }
+    this.handleComandaActualizada(normalizada);
   }
 },
 
@@ -3467,25 +3601,10 @@ async fetchAndAddComanda(comandaId) {
     console.log('📦 Comanda recibida de API:', comanda);
     
     if (comanda && !comanda.error && comanda._id) {
-      // Verificar si ya existe
-      const exists = this.comandas.find(c => c._id === comanda._id);
-      
-      if (!exists) {
-        // Agregar nueva comanda
-        const normalizada = this.normalizarComanda(comanda);
-        console.log('✅ Normalizando comanda:', normalizada);
-        
-        if (normalizada) {
-          // Forzar reactividad de Alpine creando un nuevo array
-          this.comandas = [normalizada, ...this.comandas];
-          this.extraerMozosUnicos();
-          this.processGrouping();
-          this.filterComandas();
-          this.showToast(`Nueva comanda #${comanda.comandaNumber} 📋`);
-        }
-      } else {
-        console.log('ℹ️ Comanda ya existe en la lista');
-      }
+      const idN = this.normalizeObjectId(comanda._id);
+      const existed = this.comandas.some(c => this.normalizeObjectId(c._id) === idN);
+      this.handleComandaActualizada(comanda);
+      if (!existed) this.showToast(`Nueva comanda #${comanda.comandaNumber} 📋`);
     } else {
       console.warn('⚠️ Comanda no encontrada o con error:', comanda);
     }
@@ -3497,14 +3616,15 @@ async fetchAndAddComanda(comandaId) {
 },
 
 handleComandaEliminada(data) {
-const comandaId = data.comandaId || data._id;
-const idx = this.comandas.findIndex(c => c._id === comandaId);
+const comandaId = this.normalizeObjectId(data.comandaId || data._id);
+const idx = this.comandas.findIndex(c => this.normalizeObjectId(c._id) === comandaId);
 if (idx !== -1) {
 this.comandas.splice(idx, 1);
+this.comandas = [...this.comandas];
 this.processGrouping();
 this.filterComandas();
 }
-if (this.selectedComanda?._id === comandaId || this.editComanda._id === comandaId) {
+if (this.normalizeObjectId(this.selectedComanda?._id) === comandaId || this.normalizeObjectId(this.editComanda?._id) === comandaId) {
 this.modal = null;
 }
  },
@@ -3625,6 +3745,7 @@ this.modal = null;
  // 🔥 TRAZABILIDAD DE COCINERO: Campos de procesamiento
  procesandoPor: item.procesandoPor || null,
  procesadoPor: item.procesadoPor || null,
+ finalizadoPor: item.finalizadoPor || null,
  // 🔥 TIEMPOS: Timestamps de cada estado del plato
  tiempos: item.tiempos || null,
  createdAt: item.createdAt || raw.createdAt || null
@@ -3708,6 +3829,8 @@ this.modal = null;
  origenReserva: raw.origenReserva?._id || raw.origenReserva || null,
  programadaPorReserva: !!raw.programadaPorReserva,
  fechaCocinaProgramada: raw.fechaCocinaProgramada || null,
+ procesandoPor: raw.procesandoPor || null,
+ procesadoPor: raw.procesadoPor || null,
  reserva: this.normalizarReservaComanda(raw)
  };
  },
@@ -3750,30 +3873,27 @@ this.modal = null;
   */
  getCocineroPlato(item) {
  if (!item) return { nombre: '—', enPreparacion: false, cocineroId: null };
- 
- const estado = item.estado?.toLowerCase() || '';
- const esEstadoFinal = estado === 'recoger' || estado === 'entregado' || estado === 'pagado';
- const idDe = (obj) => obj?.cocineroId || null;
 
- // Si el plato fue finalizado, mostrar quien lo procesó
- if (item.procesadoPor && (item.procesadoPor.alias || item.procesadoPor.nombre)) {
- return {
- nombre: item.procesadoPor.alias || item.procesadoPor.nombre,
- enPreparacion: false,
- cocineroId: idDe(item.procesadoPor)
+ const estado = item.estado?.toLowerCase() || '';
+ const esEstadoFinal = estado === 'recoger' || estado === 'salio' || estado === 'entregado' || estado === 'pagado';
+ const deBloque = (obj) => {
+   if (!obj || typeof obj !== 'object') return null;
+   const cocineroId = obj.cocineroId || obj.usuarioId || null;
+   const nombre = String(obj.alias || obj.nombre || obj.name || '').trim();
+   if (!nombre && !cocineroId) return null;
+   return { nombre: nombre || 'Cocinero', cocineroId };
  };
- }
- 
- // Si está siendo procesado actualmente
- if (item.procesandoPor && (item.procesandoPor.alias || item.procesandoPor.nombre)) {
+
+ const procesado = deBloque(item.procesadoPor);
+ const procesando = deBloque(item.procesandoPor);
+ const finalizado = deBloque(item.finalizadoPor);
+ const elegido = procesando || procesado || finalizado;
+ if (!elegido) return { nombre: '—', enPreparacion: false, cocineroId: null };
  return {
- nombre: item.procesandoPor.alias || item.procesandoPor.nombre,
- enPreparacion: !esEstadoFinal,
- cocineroId: idDe(item.procesandoPor)
+   nombre: elegido.nombre,
+   enPreparacion: !!(procesando && !esEstadoFinal),
+   cocineroId: elegido.cocineroId
  };
- }
- 
- return { nombre: '—', enPreparacion: false, cocineroId: null };
  },
 
  /**
@@ -3929,16 +4049,15 @@ this.modal = null;
   * @returns {Object} { cocineros: [], tiempoPromedio: string, tiempoTotal: string }
   */
  getResumenCocineros(comanda) {
- if (!comanda || !comanda.items || comanda.items.length === 0) {
+ if (!comanda) {
  return { cocineros: [], tiempoPromedio: '—', tiempoTotal: '—' };
  }
- 
+
+ const items = comanda.items || [];
  const cocinerosMap = new Map();
  const tiempos = [];
  let primerInicio = null;
  let ultimoFin = null;
- 
- comanda.items.forEach(item => {
  const registrar = (info) => {
  if (!info || !info.nombre || info.nombre === '—') return;
  const key = String(info.cocineroId || info.nombre);
@@ -3952,6 +4071,8 @@ this.modal = null;
  }
  cocinerosMap.get(key).platosPreparados++;
  };
+
+ items.forEach(item => {
  registrar(this.getCocineroPlato(item));
  (item.complementosSeleccionados || []).forEach(comp => {
  const estadoG = (comp.estadoCocina === 'recoger') ? 'recoger' : (item.estado || 'en_espera');
@@ -3961,24 +4082,22 @@ this.modal = null;
  procesadoPor: comp.procesadoPor
  }));
  });
- 
- // Calcular tiempo de preparación
+
  const tiempoInfo = this.getTiempoPreparacion(item);
  if (tiempoInfo.segundos > 0 && !tiempoInfo.enPreparacion) {
  tiempos.push(tiempoInfo.segundos);
  }
- 
- // Rastrear primer inicio y último fin para tiempo total de cocina
+
  const procesandoDesde = item.procesandoPor?.timestamp || item.procesandoPor?.desde;
  const procesadoEn = item.procesadoPor?.timestamp;
- 
+
  if (procesandoDesde) {
  const fechaInicio = new Date(procesandoDesde);
  if (!primerInicio || fechaInicio < primerInicio) {
  primerInicio = fechaInicio;
  }
  }
- 
+
  if (procesadoEn) {
  const fechaFin = new Date(procesadoEn);
  if (!ultimoFin || fechaFin > ultimoFin) {
@@ -3986,7 +4105,15 @@ this.modal = null;
  }
  }
  });
- 
+
+ registrar(this.getCocineroPlato({
+ estado: 'en_espera',
+ procesandoPor: comanda.procesandoPor,
+ procesadoPor: comanda.procesadoPor
+ }));
+ if (comanda.reserva?.cocineroEncargado) {
+ registrar({ nombre: comanda.reserva.cocineroEncargado, cocineroId: null });
+ } 
  // Calcular tiempo promedio
  let tiempoPromedio = '—';
  if (tiempos.length > 0) {

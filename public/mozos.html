@@ -838,7 +838,7 @@ tailwind.config = {
         <div class="mozos-kpi-card rounded-2xl p-4" x-show="mozoSeleccionado">
           <div class="flex items-center justify-between gap-2 mb-3">
             <h3 class="text-sm font-bold">Estadísticas del mozo</h3>
-            <button type="button" class="text-xs text-gold hover:underline" @click="selectedMozoId = null">Limpiar selección</button>
+            <button type="button" class="text-xs text-gold hover:underline" @click="limpiarSeleccionMozo()">Limpiar selección</button>
           </div>
           <template x-if="mozoSeleccionado">
             <div class="space-y-3">
@@ -870,6 +870,44 @@ tailwind.config = {
                   <div class="bg-bg-sidebar rounded-lg p-2"><span class="text-txt-muted block">Nacimiento</span><span class="text-white" x-text="mozoSeleccionado.fechaNacimiento || '—'"></span></div>
                   <div class="bg-bg-sidebar rounded-lg p-2"><span class="text-txt-muted block">Género</span><span class="text-white" x-text="mozoSeleccionado.genero || '—'"></span></div>
                   <div class="bg-bg-sidebar rounded-lg p-2"><span class="text-txt-muted block">Dirección</span><span class="text-white" x-text="mozoSeleccionado.direccion || '—'"></span></div>
+                </div>
+              </div>
+              <div class="border-t border-[rgba(212,175,55,0.12)] pt-3">
+                <div class="flex items-center justify-between gap-2 mb-2">
+                  <p class="text-[10px] uppercase tracking-wide text-txt-muted">Comandas por cobrar</p>
+                  <span class="text-[10px] text-gold font-semibold" x-text="comandasPorCobrarMozo.length + ' · S/. ' + fmt(totalPorCobrarMozo)"></span>
+                </div>
+                <div x-show="loadingComandasPorCobrar" class="flex justify-center py-4">
+                  <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+                </div>
+                <p x-show="!loadingComandasPorCobrar && comandasPorCobrarMozo.length === 0" class="text-xs text-txt-muted text-center py-3">Sin comandas por cobrar</p>
+                <div x-show="!loadingComandasPorCobrar" class="space-y-2 max-h-[420px] overflow-y-auto pr-0.5">
+                  <template x-for="c in comandasPorCobrarMozo" :key="c._id">
+                    <div class="bg-bg-sidebar rounded-lg p-2.5 border border-transparent hover:border-gold/35 cursor-pointer transition"
+                      @click="openComandaMozoModal(c._id)">
+                      <div class="flex items-center justify-between gap-2">
+                        <p class="text-sm font-bold text-white">#<span x-text="c.comandaNumber || '—'"></span></p>
+                        <span class="text-[9px] px-2 py-0.5 rounded-full font-semibold" :class="estadoPlatoBadgeClase(c.status)" x-text="estadoComandaLabelMozo(c.status)"></span>
+                      </div>
+                      <p class="text-[11px] text-txt-muted mt-0.5">
+                        Mesa <span x-text="c.mesaNumero != null ? c.mesaNumero : '—'"></span>
+                        · <span x-text="fmtFechaHoraMozo(c.createdAt)"></span>
+                      </p>
+                      <p class="text-sm font-bold text-gold mt-1" x-text="'S/. ' + fmt(c.pendienteCobro != null ? c.pendienteCobro : c.total)"></p>
+                      <p x-show="c.total != null && c.pendienteCobro != null && Number(c.total) !== Number(c.pendienteCobro)" class="text-[10px] text-txt-muted" x-text="'Total comanda S/. ' + fmt(c.total)"></p>
+                      <p class="text-[11px] text-txt-secondary mt-1 leading-snug" x-text="c.platosResumen || 'Sin platos'"></p>
+                      <p x-show="c.observaciones" class="text-[10px] text-txt-muted truncate mt-0.5" x-text="c.observaciones"></p>
+                      <div class="flex flex-wrap gap-1 mt-1.5">
+                        <template x-for="coc in (c.cocineros || [])" :key="(coc.cocineroId || coc.nombre)">
+                          <button type="button"
+                            class="text-[10px] font-medium text-st-preparado hover:underline"
+                            @click.stop="irARegistroCocineroDesdeMozo(coc)"
+                            x-text="coc.nombre"></button>
+                        </template>
+                        <span x-show="!(c.cocineros && c.cocineros.length)" class="text-[10px] text-txt-muted">Sin cocinero</span>
+                      </div>
+                    </div>
+                  </template>
                 </div>
               </div>
             </div>
@@ -3290,6 +3328,10 @@ function mozosExecutiveApp() {
     selectedComandaMozo: null,
     loadingComandaMozo: false,
     metricasComandaMozo: {},
+    comandasPorCobrarMozo: [],
+    loadingComandasPorCobrar: false,
+    totalPorCobrarMozo: 0,
+    _comandasPorCobrarToken: 0,
     // Modal Historial de Metas por Mozo
     showModalHistorialMeta: false,
     mozoHistorialSeleccionado: null,
@@ -3684,6 +3726,8 @@ function mozosExecutiveApp() {
       if (!this.mozos.some(m => this.idMozoStr(m) === f)) this.focoMozoId = null;
       if (this.selectedMozoId && !this.mozos.some(m => this.idMozoStr(m) === this.selectedMozoId)) {
         this.selectedMozoId = null;
+        this.comandasPorCobrarMozo = [];
+        this.totalPorCobrarMozo = 0;
       }
     },
     mesasAtendidasMozo(m) {
@@ -3892,6 +3936,76 @@ function mozosExecutiveApp() {
       if (!id) return;
       this.selectedMozoId = id;
       this.focoMozoId = id;
+      this.cargarComandasPorCobrarMozo(id);
+    },
+    limpiarSeleccionMozo() {
+      this.selectedMozoId = null;
+      this.comandasPorCobrarMozo = [];
+      this.totalPorCobrarMozo = 0;
+    },
+    async cargarComandasPorCobrarMozo(mozoId) {
+      const id = mozoId || this.selectedMozoId;
+      if (!id) {
+        this.comandasPorCobrarMozo = [];
+        this.totalPorCobrarMozo = 0;
+        return;
+      }
+      const token = ++this._comandasPorCobrarToken;
+      this.loadingComandasPorCobrar = true;
+      try {
+        const res = await apiGet('/mozos/' + encodeURIComponent(id) + '/comandas-por-cobrar');
+        if (token !== this._comandasPorCobrarToken) return;
+        const data = res?.data || {};
+        this.comandasPorCobrarMozo = Array.isArray(data.comandas) ? data.comandas : [];
+        this.totalPorCobrarMozo = Number(data.totalPendiente) || 0;
+      } catch (e) {
+        if (token !== this._comandasPorCobrarToken) return;
+        this.comandasPorCobrarMozo = [];
+        this.totalPorCobrarMozo = 0;
+      } finally {
+        if (token === this._comandasPorCobrarToken) this.loadingComandasPorCobrar = false;
+      }
+    },
+    fmtFechaHoraMozo(d) {
+      if (!d) return '—';
+      const dt = new Date(d);
+      if (Number.isNaN(dt.getTime())) return '—';
+      return dt.toLocaleString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    },
+    estadoComandaLabelMozo(status) {
+      const map = {
+        pendiente: 'Pendiente',
+        pendiente_aprobar: 'Pend. aprobar',
+        en_espera: 'En espera',
+        recoger: 'Recoger',
+        salio: 'Salió',
+        entregado: 'Entregado',
+        pagado: 'Pagado',
+        cancelado: 'Cancelado',
+        completado: 'Completado'
+      };
+      return map[status] || status || '—';
+    },
+    mesaNumComandaMozo(c) {
+      if (!c) return '—';
+      if (c.mesaNumero != null && c.mesaNumero !== '') return c.mesaNumero;
+      const m = c.mesa || c.mesas || c.mesaInfo;
+      return m?.nummesa ?? m?.numero ?? '—';
+    },
+    totalComandaMozo(c) {
+      if (!c) return 0;
+      const n = Number(c.totalCalculado ?? c.precioTotal ?? c.total);
+      return Number.isFinite(n) ? n : 0;
+    },
+    irARegistroCocineroDesdeMozo(cocinero) {
+      if (!cocinero) return;
+      const q = new URLSearchParams();
+      q.set('tab', 'rendimiento');
+      q.set('sub', 'historial');
+      if (cocinero.cocineroId) q.set('cocinero', String(cocinero.cocineroId));
+      else if (cocinero.nombre && cocinero.nombre !== '—') q.set('nombre', cocinero.nombre);
+      else return;
+      window.location.href = 'cocineros.html?' + q.toString();
     },
 
     _setPeriodoTurno(v) {
@@ -4335,6 +4449,7 @@ function mozosExecutiveApp() {
     estadoPlatoBadgeClase(estado) {
       const map = {
         pendiente: 'bg-txt-muted/20 text-txt-muted',
+        pendiente_aprobar: 'bg-st-esperando/20 text-st-esperando',
         pedido: 'bg-st-pedido/20 text-st-pedido',
         en_espera: 'bg-st-esperando/20 text-st-esperando',
         recoger: 'bg-st-esperando/20 text-st-esperando',
@@ -4393,9 +4508,10 @@ function mozosExecutiveApp() {
     normalizarComandaMozo(c) {
       if (!c) return null;
       const tieneCocinero = (obj) => !!(obj && (obj.cocineroId || obj.alias || obj.nombre));
-      const platos = (c.platos || []).map(p => ({
+      const platos = (c.platos || []).map((p, i) => ({
         ...p,
         nombre: p.nombre || p.plato?.nombre || p.platoNombre || 'Plato',
+        cantidad: p.cantidad || c.cantidades?.[i] || 1,
         estado: p.estado || 'pedido',
         tiempos: p.tiempos || {},
         procesadoPor: tieneCocinero(p.procesadoPor) ? p.procesadoPor : null,
@@ -4408,6 +4524,7 @@ function mozosExecutiveApp() {
         numComanda: c.numComanda || c.comandaNumber || c._id?.slice(-4),
         estado: c.status || c.estado || c.statusComanda || '—',
         mesa: c.mesa || c.mesaInfo || c.mesas || null,
+        mesaNumero: c.mesaNumero ?? c.mesas?.nummesa ?? c.mesa?.nummesa,
         mozo: c.mozo || c.mozoNombre || (c.mozos?.name) || '—',
         items: platos,
         createdAt: c.createdAt,
@@ -4464,15 +4581,18 @@ function mozosExecutiveApp() {
       return seg == null ? '—' : this.formatDuracionSegundos(seg);
     },
     getCocineroPlatoMozo(item) {
-      // Igual que comandas.html: no usar procesadoPor vacío (defaults Mongoose son truthy).
-      if (!item) return '—';
-      if (item.procesadoPor && (item.procesadoPor.alias || item.procesadoPor.nombre)) {
-        return item.procesadoPor.alias || item.procesadoPor.nombre;
-      }
-      if (item.procesandoPor && (item.procesandoPor.alias || item.procesandoPor.nombre)) {
-        return item.procesandoPor.alias || item.procesandoPor.nombre;
-      }
-      return '—';
+      return this.cocineroInfoMozo(item).nombre;
+    },
+    cocineroInfoMozo(item) {
+      if (!item) return { nombre: '—', cocineroId: null };
+      const de = (obj) => {
+        if (!obj || typeof obj !== 'object') return null;
+        const nombre = String(obj.alias || obj.nombre || obj.name || '').trim();
+        const cocineroId = obj.cocineroId || obj.usuarioId || null;
+        if (!nombre && !cocineroId) return null;
+        return { nombre: nombre || 'Cocinero', cocineroId: cocineroId ? String(cocineroId) : null };
+      };
+      return de(item.procesandoPor) || de(item.procesadoPor) || de(item.finalizadoPor) || { nombre: '—', cocineroId: null };
     },
     cerrarModalComandaMozo() {
       this.modalComandaMozo = null;
@@ -4618,6 +4738,7 @@ function mozosExecutiveApp() {
         else this.serieDiaria = [];
 
         this.checkLiderYMeta();
+        if (this.selectedMozoId) this.cargarComandasPorCobrarMozo(this.selectedMozoId);
       } finally {
         this.loading = false;
         this.$nextTick(() => this.updateCharts());
@@ -4680,6 +4801,7 @@ function mozosExecutiveApp() {
           this.mergeDashboardIntoMozos(dash);
           if (inicio !== fin) await this.loadSerieDiaria(inicio, fin);
           this.checkLiderYMeta();
+          if (this.selectedMozoId) this.cargarComandasPorCobrarMozo(this.selectedMozoId);
           if (mozoFlash) {
             this.filaAnimada = mozoFlash;
             setTimeout(() => { this.filaAnimada = null; }, 1300);
@@ -6832,6 +6954,8 @@ function mozosExecutiveApp() {
           </div>
           <p class="text-xs text-txt-muted mt-0.5">
             <span x-text="selectedComandaMozo?.mozo ? ('Mozo: ' + selectedComandaMozo.mozo) : ''"></span>
+            <span x-show="mesaNumComandaMozo(selectedComandaMozo) !== '—'" x-text="' · Mesa ' + mesaNumComandaMozo(selectedComandaMozo)"></span>
+            <span x-text="' · S/. ' + fmt(totalComandaMozo(selectedComandaMozo))"></span>
           </p>
         </div>
         <button @click="cerrarModalComandaMozo()" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-gold hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
@@ -6853,7 +6977,21 @@ function mozosExecutiveApp() {
         <div class="grid grid-cols-3 gap-3 text-sm">
           <div>
             <p class="text-[10px] text-txt-muted">Creada</p>
-            <p class="font-medium" x-text="selectedComandaMozo?.createdAt ? new Date(selectedComandaMozo.createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+            <p class="font-medium" x-text="fmtFechaHoraMozo(selectedComandaMozo?.createdAt)"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-txt-muted">Mesa</p>
+            <p class="font-medium" x-text="mesaNumComandaMozo(selectedComandaMozo)"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-txt-muted">Total</p>
+            <p class="font-medium text-gold" x-text="'S/. ' + fmt(totalComandaMozo(selectedComandaMozo))"></p>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-3 text-sm border-t border-[rgba(212,175,55,0.1)] pt-3 mt-2">
+          <div>
+            <p class="text-[10px] text-txt-muted">Estado</p>
+            <p class="font-medium" x-text="estadoComandaLabelMozo(selectedComandaMozo?.estado || selectedComandaMozo?.status)"></p>
           </div>
           <div>
             <p class="text-[10px] text-txt-muted">Enviada a cocina</p>
@@ -6878,6 +7016,7 @@ function mozosExecutiveApp() {
             <p class="font-medium text-gold" x-text="selectedComandaMozo?.tiempoEntregado ? new Date(selectedComandaMozo.tiempoEntregado).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
           </div>
         </div>
+        <p x-show="selectedComandaMozo?.observaciones" class="text-xs text-txt-secondary mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]" x-text="'Obs: ' + selectedComandaMozo.observaciones"></p>
       </div>
 
       <!-- TRAZABILIDAD DE SALÓN (nuevo) -->
@@ -6934,7 +7073,12 @@ function mozosExecutiveApp() {
                 </td>
                 <td class="px-3 py-3 text-center font-semibold" x-text="item.cantidad || 1"></td>
                 <td class="px-3 py-3 text-center">
-                  <span class="text-[10px] font-medium text-st-preparado" x-text="getCocineroPlatoMozo(item)"></span>
+                  <button type="button"
+                    x-show="cocineroInfoMozo(item).nombre !== '—'"
+                    class="text-[10px] font-medium text-st-preparado hover:underline"
+                    @click.stop="irARegistroCocineroDesdeMozo(cocineroInfoMozo(item))"
+                    x-text="cocineroInfoMozo(item).nombre"></button>
+                  <span x-show="cocineroInfoMozo(item).nombre === '—'" class="text-[10px] text-txt-muted">—</span>
                 </td>
                 <td class="px-3 py-3 text-center text-[10px] font-mono text-txt-secondary" x-text="getTiempoCocinaPlato(item)"></td>
                 <td class="px-3 py-3 text-center text-[10px] font-mono" :class="colorTiempoMozo(getTiempoMozoPlatoVivo(item))" x-text="getTiempoMozoPlato(item)"></td>

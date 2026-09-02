@@ -135,7 +135,7 @@ router.get('/aprobacion/pendientes', async (req, res) => {
 
 /**
  * GET /api/aprobacion/pendiente-cobro?mozoId=
- * Suma de tickets PENDIENTES (comandas + PPA) del mozo. Baja a 0 al aprobar o forzar pago.
+ * Saldo de comandas abiertas del mozo (neto − seña/forzar/pagado).
  */
 router.get('/aprobacion/pendiente-cobro', async (req, res) => {
   try {
@@ -237,14 +237,12 @@ router.put('/aprobacion/:id/forzar-pago', async (req, res) => {
       vuelto,
     });
 
-    if (result.forzado === false && result.ticket) {
-      const estadoMesaFinal = result.mesaEstado || 'pendiente_aprobar';
-      if (global.emitComandaAprobada) {
-        try {
-          await global.emitComandaAprobada(result.ticket, result.platosLiberados, estadoMesaFinal);
-        } catch (e) {
-          logger.warn('Error emitiendo comanda-aprobada (forzar con boucher)', { error: e.message });
-        }
+    if (result.ticket && global.emitComandaAprobada) {
+      const estadoMesaFinal = result.mesaEstado || (result.forzado ? 'pedido' : 'pendiente_aprobar');
+      try {
+        await global.emitComandaAprobada(result.ticket, result.platosLiberados, estadoMesaFinal);
+      } catch (e) {
+        logger.warn('Error emitiendo comanda-aprobada (forzar pago)', { error: e.message });
       }
     }
 
@@ -289,13 +287,16 @@ router.put('/aprobacion/:id/forzar-pago', async (req, res) => {
               .populate('mesas', 'nummesa estado nombreCombinado')
               .lean();
             const payloadComanda = {
-              comandaId,
+              comandaId: String(comandaId),
               comanda: comandaActualizada,
+              mesaId: mesaId ? String(mesaId) : null,
               status: comandaActualizada?.status,
+              pagoForzado: true,
             };
             if (mesaId) {
               io.of('/mozos').to(`mesa-${mesaId}`).emit('comanda-actualizada', payloadComanda);
             }
+            io.of('/mozos').emit('comanda-actualizada', payloadComanda);
             io.of('/cocina').to(`fecha-${fechaHoy}`).emit('comanda-actualizada', payloadComanda);
           }
         }

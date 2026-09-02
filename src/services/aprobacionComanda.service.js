@@ -57,19 +57,117 @@ async function totalPendienteCobroMozo(mozoId) {
     return 0;
   }
   const mid = new mongoose.Types.ObjectId(String(mozoId));
-  const base = { mozo: mid, isActive: { $ne: false } };
-  const [a, b] = await Promise.all([
-    ticketAprobacionModel.aggregate([
-      { $match: { ...base, estado: { $in: ['pendiente_aprobacion', 'reportado'] } } },
-      { $group: { _id: null, total: { $sum: { $ifNull: ['$total', 0] } } } },
-    ]),
-    ticketPagoAdelantadoModel.aggregate([
-      { $match: { ...base, estado: 'pendiente_aprobacion' } },
-      { $group: { _id: null, total: { $sum: { $ifNull: ['$total', 0] } } } },
-    ]),
+  const {
+    pendienteDeComanda,
+    cobradoBouchersDeComanda,
+  } = require('../utils/pendienteCobroMozo');
+  const Reserva = require('../database/models/reserva.model');
+
+  const comandas = await comandaModel.find({
+    mozos: mid,
+    eliminada: { $ne: true },
+    IsActive: { $ne: false },
+    status: { $nin: ['pagado', 'completado', 'cancelado', 'anulado'] },
+  })
+    .select('platos cantidades totalCalculado totalSinDescuento montoDescuento descuento status origenReserva IsActive eliminada')
+    .lean();
+
+  if (!comandas.length) return 0;
+
+  const reservaIds = [...new Set(
+    comandas.map((c) => c.origenReserva).filter(Boolean).map((id) => String(id))
+  )];
+  const comandaIds = comandas.map((c) => c._id);
+
+  const [reservas, bouchers] = await Promise.all([
+    reservaIds.length
+      ? Reserva.find({ _id: { $in: reservaIds } }).select('pagoAdelantado comandaGenerada').lean()
+      : [],
+    boucherModel.find({
+      comandas: { $in: comandaIds },
+      isActive: { $ne: false },
+    }).select('comandas total').lean(),
   ]);
-  const suma = (a[0]?.total || 0) + (b[0]?.total || 0);
+
+  const reservaById = new Map(reservas.map((r) => [String(r._id), r]));
+  let suma = 0;
+  for (const c of comandas) {
+    const reserva = c.origenReserva ? reservaById.get(String(c.origenReserva)) : null;
+    const adelanto = Number(reserva?.pagoAdelantado?.montoPagado) || 0;
+    suma += pendienteDeComanda(c, {
+      adelanto,
+      cobradoBouchers: cobradoBouchersDeComanda(c._id, bouchers),
+    });
+  }
   return Math.round(Number(suma) * 100) / 100;
+}
+
+/**
+ * Comandas abiertas del mozo que aún debe cobrar.
+ * Excluye pagado/completado y las ya cubiertas por boucher/forzar/seña.
+ */
+async function listarComandasPorCobrarMozo(mozoId) {
+  if (!mozoId || !mongoose.Types.ObjectId.isValid(String(mozoId))) {
+    return { comandas: [], totalPendiente: 0 };
+  }
+  const mid = new mongoose.Types.ObjectId(String(mozoId));
+  const {
+    pendienteDeComanda,
+    cobradoBouchersDeComanda,
+    mapComandaPorCobrar,
+    ESTADOS_POR_COBRAR,
+  } = require('../utils/pendienteCobroMozo');
+  const Reserva = require('../database/models/reserva.model');
+
+  const comandas = await comandaModel.find({
+    mozos: mid,
+    eliminada: { $ne: true },
+    IsActive: { $ne: false },
+    omitirPago: { $ne: true },
+    status: { $in: ESTADOS_POR_COBRAR },
+  })
+    .select('comandaNumber status createdAt observaciones cantidades mesaNumero origenReserva omitirPago tiempoPagado totalCalculado totalSinDescuento montoDescuento descuento precioTotal platos procesandoPor procesadoPor mesas')
+    .populate({ path: 'mesas', select: 'nummesa numero nombreCombinado', options: { lean: true } })
+    .populate({ path: 'platos.plato', select: 'nombre nombreCocina precio', options: { lean: true } })
+    .sort({ createdAt: -1, comandaNumber: -1 })
+    .lean();
+
+  if (!comandas.length) return { comandas: [], totalPendiente: 0 };
+
+  const reservaIds = [...new Set(
+    comandas.map((c) => c.origenReserva).filter(Boolean).map((id) => String(id))
+  )];
+  const comandaIds = comandas.map((c) => c._id);
+
+  const [reservas, bouchers] = await Promise.all([
+    reservaIds.length
+      ? Reserva.find({ _id: { $in: reservaIds } }).select('pagoAdelantado comandaGenerada').lean()
+      : [],
+    boucherModel.find({
+      comandas: { $in: comandaIds },
+      isActive: { $ne: false },
+    }).select('comandas total').lean(),
+  ]);
+
+  const reservaById = new Map(reservas.map((r) => [String(r._id), r]));
+  const out = [];
+  let totalPendiente = 0;
+  for (const c of comandas) {
+    if (c.tiempoPagado) continue;
+    const reserva = c.origenReserva ? reservaById.get(String(c.origenReserva)) : null;
+    const adelanto = Number(reserva?.pagoAdelantado?.montoPagado) || 0;
+    const pendiente = pendienteDeComanda(c, {
+      adelanto,
+      cobradoBouchers: cobradoBouchersDeComanda(c._id, bouchers),
+    });
+    if (pendiente <= 0) continue;
+    totalPendiente += pendiente;
+    out.push(mapComandaPorCobrar(c, pendiente));
+  }
+  return {
+    comandas: out,
+    totalPendiente: Math.round(Number(totalPendiente) * 100) / 100,
+  };
 }
 
 /**
@@ -807,6 +905,7 @@ async function eliminarTicketUnificado(ticketId, tipoHint, motivo, usuarioId, us
 module.exports = {
   obtenerTicketsUnificadosPendientes,
   totalPendienteCobroMozo,
+  listarComandasPorCobrarMozo,
   obtenerTicketsPorComanda,
   crearTicketAprobadoDesdeComanda,
   assertComandaParaTicketYaAprobado,

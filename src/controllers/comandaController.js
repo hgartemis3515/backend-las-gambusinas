@@ -2289,6 +2289,9 @@ router.put('/comanda/:id/estado', async (req, res) => {
         const updatedComanda = await cambiarEstadoComanda(id, nuevoEstado);
         res.json(updatedComanda);
         console.log("Estado de la comanda actualizado exitosamente");
+        if (global.emitComandaActualizada) {
+            await global.emitComandaActualizada(id);
+        }
     } catch (error) {
         console.error(error.message);
         res.status(400).json({ message: error.message });
@@ -2695,13 +2698,12 @@ router.put('/comanda/:id/actualizar-estados-platos', async (req, res) => {
             });
         }
 
-        // Recalcular estado de la comanda basado en los platos
-        const resultadoRecalculo = await recalcularEstadoComandaPorPlatos(id);
-
+        comanda.markModified('platos');
         comanda.version = (comanda.version || 1) + 1;
         await comanda.save();
 
-        // Emitir eventos socket
+        const resultadoRecalculo = await recalcularEstadoComandaPorPlatos(id);
+
         if (global.emitComandaActualizada) {
             await global.emitComandaActualizada(id);
         }

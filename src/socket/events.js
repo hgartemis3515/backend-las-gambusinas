@@ -487,6 +487,16 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       socket.leave('dashboard-mozos');
     });
 
+    socket.on('comandaActualizada', async (payload) => {
+      const id = payload?._id || payload?.comandaId || payload?.comanda?._id;
+      if (!id || !global.emitComandaActualizada) return;
+      try {
+        await global.emitComandaActualizada(id);
+      } catch (e) {
+        logger.warn('Rebroadcast comandaActualizada falló', { error: e.message, socketId: socket.id });
+      }
+    });
+
     // Room de conversación (opcional; los DMs también llegan por user-{id})
     socket.on('join-conversacion', (conversacionId) => {
       if (!conversacionId) return;
@@ -631,12 +641,14 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         .populate({
           path: "platos.plato",
           model: "platos"
-        });
+        })
+        .lean();
 
       if (!comanda) {
         logger.warn('Comanda no encontrada para emitir evento');
         return;
       }
+      if (comanda._id) comanda._id = String(comanda._id);
 
       const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
       const fecha = moment(comanda.createdAt).tz("America/Lima").format('YYYY-MM-DD');
@@ -671,11 +683,12 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       }
 
       const mesaId = comanda.mesas?._id || comanda.mesas;
-      const comandaPlain = typeof comanda.toObject === 'function' ? comanda.toObject() : comanda;
+      const comandaPlain = comanda;
       overlayPronombresEnComandas([comandaPlain]);
       const eventData = {
         comandaId: comandaId?.toString?.() || String(comandaId),
         comanda: comandaPlain,
+        mesaId: mesaId ? String(mesaId) : null,
         platosEliminados: platosEliminados,
         socketId: 'server',
         timestamp: timestamp
@@ -3297,18 +3310,22 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       const timestamp = moment().tz('America/Lima').toISOString();
       const fecha = moment().tz('America/Lima').format('YYYY-MM-DD');
 
-      // PLAN_BUG_CONEXION_APROBACION_TICKETS_COCINA:
-      // Si los platos pasaron a 'pagado' (flujo post-cobro), el estado nuevo de la
-      // comanda NO es 'pedido' — es el estado real (pagado o pendiente_aprobar).
-      const comandaEstadoNuevo = mesaEstado === 'pagado' ? 'pagado' : 'pendiente_aprobar';
-
+      const pagoForzado = ticketData.pagoForzado === true || ticketData.origen === 'forzado';
+      const comandaEstadoNuevo = mesaEstado === 'pagado'
+        ? 'pagado'
+        : (pagoForzado ? (mesaEstado || 'pedido') : 'pendiente_aprobar');
       const eventData = {
         ticketId: ticketData._id,
+        ticket: ticketData,
         ticketNumber: ticketData.ticketNumber,
-        mesaId: ticketData.mesa?.toString(),
+        mesaId: ticketData.mesa?._id ? String(ticketData.mesa._id) : (ticketData.mesa ? String(ticketData.mesa) : null),
+        mesa: ticketData.mesa,
+        comandas: ticketData.comandas,
         numMesa: ticketData.numMesa,
         tipo: ticketData.tipo || 'comanda_completa',
         mesaEstado,
+        pagoForzado,
+        origen: ticketData.origen || null,
         aprobadoPorNombre: ticketData.aprobadoPorNombre || null,
         fechaAprobacion: ticketData.fechaAprobacion || timestamp,
         platosLiberados: platosLiberados.map((p) => ({
@@ -3325,10 +3342,14 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         cocinaNamespace.to(`fecha-${fecha}`).emit('comanda-aprobada', eventData);
       }
 
-      // Mozos: mesa → pagado
-      if (mozosNamespace && mozosNamespace.sockets && ticketData.mesa) {
-        const mesaRoom = `mesa-${ticketData.mesa}`;
-        mozosNamespace.to(mesaRoom).emit('comanda-aprobada', eventData);
+      // Mozos: room de mesa + namespace (ComandaDetalle puede no estar en el room)
+      if (mozosNamespace && mozosNamespace.sockets) {
+        const mesaIdStr = eventData.mesaId
+          || (ticketData.mesa?._id ? String(ticketData.mesa._id) : (ticketData.mesa ? String(ticketData.mesa) : null));
+        if (mesaIdStr) {
+          mozosNamespace.to(`mesa-${mesaIdStr}`).emit('comanda-aprobada', eventData);
+        }
+        mozosNamespace.emit('comanda-aprobada', eventData);
       }
 
       // Admin

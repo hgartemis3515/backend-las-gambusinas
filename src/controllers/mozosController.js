@@ -9,6 +9,7 @@ const router = express.Router();
 const { listarMozos, crearMozo, obtenerMozosPorId, actualizarMozo, borrarMozo, autenticarMozo} = require("../repository/mozos.repository");
 const rolesRepository = require("../repository/roles.repository");
 const mozosRendimiento = require("../repository/mozosRendimiento.repository");
+const { listarComandasPorCobrarMozo } = require("../services/aprobacionComanda.service");
 const { rangoLima, agregarVentasComandasPorMozo } = require("../utils/estadisticasComandas");
 
 /** Campos que la app mozos puede editar en su propio perfil (no rol, DNI, PIN, etc.) */
@@ -287,6 +288,21 @@ router.post('/mozos/push-token', async (req, res) => {
       success: false, 
       message: 'Error interno del servidor' 
     });
+  }
+});
+
+// GET /api/mozos/:id/comandas-por-cobrar — comandas abiertas que el mozo aún debe cobrar
+router.get('/mozos/:id/comandas-por-cobrar', adminAuth, async (req, res) => {
+  try {
+    const tiene = req.admin?.permisos?.includes('ver-reportes') || req.admin?.rol === 'admin' || req.admin?.rol === 'supervisor' || req.admin?.permisos?.includes('ver-mozos');
+    if (!tiene) {
+      return res.status(403).json({ success: false, error: 'No tiene permisos para ver comandas del mozo' });
+    }
+    const data = await listarComandasPorCobrarMozo(req.params.id);
+    res.json({ success: true, data });
+  } catch (error) {
+    logger.error('Error al listar comandas por cobrar del mozo', { error: error.message, mozoId: req.params.id });
+    res.status(500).json({ success: false, error: 'Error al listar comandas por cobrar' });
   }
 });
 

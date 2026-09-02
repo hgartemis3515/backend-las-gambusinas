@@ -472,7 +472,16 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
         'platos.totalUnidadesComplementos': 1,
         'platos.mostrarResumenComplementos': 1,
         'platos.resumenComplementosImpresion': 1,
-        'platos.plato': 1
+        'platos.plato': 1,
+        'platos._id': 1,
+        'platos.tiempos': 1,
+        'platos.procesandoPor': 1,
+        'platos.procesadoPor': 1,
+        'platos.finalizadoPor': 1,
+        'platos.pagoAdelantado': 1,
+        procesandoPor: 1,
+        procesadoPor: 1,
+        tiempoPagado: 1,
       });
     }
     
