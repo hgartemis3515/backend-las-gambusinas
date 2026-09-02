@@ -565,9 +565,9 @@ tailwind.config = {
         <p class="text-xs text-txt-muted mt-1">Tickets / PPA sin aprobar</p>
       </article>
       <article class="mozos-kpi-card rounded-2xl p-5">
-        <p class="text-[11px] font-semibold uppercase tracking-wider text-txt-muted">Ventas aprobadas</p>
+        <p class="text-[11px] font-semibold uppercase tracking-wider text-txt-muted">Ventas pagadas</p>
         <p class="text-2xl font-extrabold text-st-preparado mt-2 tabular-nums" x-text="'S/. ' + fmt(totalVentasAprobadas)"></p>
-        <p class="text-xs text-txt-muted mt-1">Aprobados en cocina</p>
+        <p class="text-xs text-txt-muted mt-1">Último ticket por comanda</p>
       </article>
       <article class="mozos-kpi-card rounded-2xl p-5">
         <p class="text-[11px] font-semibold uppercase tracking-wider text-txt-muted">Descuentos</p>
@@ -701,7 +701,7 @@ tailwind.config = {
       </div>
       <div class="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t border-[rgba(212,175,55,0.1)]">
         <p class="text-xs text-txt-muted">Pend. <span class="text-st-esperando font-bold" x-text="'S/. ' + fmt(totalVentasPendientes)"></span>
-          · Apr. <span class="text-st-preparado font-bold" x-text="'S/. ' + fmt(totalVentasAprobadas)"></span>
+          · Pag. <span class="text-st-preparado font-bold" x-text="'S/. ' + fmt(totalVentasAprobadas)"></span>
           · Desc. <span class="text-st-pagado font-bold" x-text="'S/. ' + fmt(totalDescuentosPeriodo)"></span>
           · Totales <span class="text-gold font-bold" x-text="'S/. ' + fmt(totalVentasPeriodo)"></span>
           <span class="ml-1" :class="deltaVentasPct > 0 ? 'text-st-preparado' : deltaVentasPct < 0 ? 'text-st-pagado' : 'text-txt-muted'" x-show="mostrarComparacion && deltaVentasPct != null" x-text="'(' + formatDelta(deltaVentasPct, 'ant.') + ')'"></span>
@@ -764,7 +764,7 @@ tailwind.config = {
                     </td>
                     <td class="px-3 py-2 text-right">
                       <p class="text-[10px] text-st-esperando tabular-nums" x-text="'Pend. S/. ' + fmt(m.ventasPendientes)"></p>
-                      <p class="text-[10px] text-st-preparado tabular-nums" x-text="'Apr. S/. ' + fmt(m.ventasAprobadas)"></p>
+                      <p class="text-[10px] text-st-preparado tabular-nums" x-text="'Pag. S/. ' + fmt(m.ventasAprobadas)"></p>
                       <p class="text-[10px] text-st-pagado tabular-nums" x-text="'Desc. S/. ' + fmt(m.descuentosHoy)"></p>
                       <span class="text-gold font-bold tabular-nums" x-text="'S/. ' + fmt(m.ventasHoy)"></span>
                       <span class="text-[10px] ml-1" :class="trendClass(m, 'ventas')" x-text="trendGlyph(m, 'ventas')"></span>
@@ -802,7 +802,7 @@ tailwind.config = {
               </div>
               <div class="grid grid-cols-2 gap-2 text-xs">
                 <div class="bg-bg-sidebar/80 rounded-lg p-2"><span class="text-txt-muted block">Pendientes</span><span class="text-st-esperando font-bold" x-text="'S/. ' + fmt(m.ventasPendientes)"></span></div>
-                <div class="bg-bg-sidebar/80 rounded-lg p-2"><span class="text-txt-muted block">Aprobadas</span><span class="text-st-preparado font-bold" x-text="'S/. ' + fmt(m.ventasAprobadas)"></span></div>
+                <div class="bg-bg-sidebar/80 rounded-lg p-2"><span class="text-txt-muted block">Pagadas</span><span class="text-st-preparado font-bold" x-text="'S/. ' + fmt(m.ventasAprobadas)"></span></div>
                 <div class="bg-bg-sidebar/80 rounded-lg p-2"><span class="text-txt-muted block">Descuentos</span><span class="text-st-pagado font-bold" x-text="'S/. ' + fmt(m.descuentosHoy)"></span></div>
                 <div class="bg-bg-sidebar/80 rounded-lg p-2"><span class="text-txt-muted block">Totales</span><span class="text-gold font-bold" x-text="'S/. ' + fmt(m.ventasHoy)"></span></div>
                 <div class="bg-bg-sidebar/80 rounded-lg p-2"><span class="text-txt-muted block">Propinas</span><span class="text-st-preparado font-bold" x-text="'S/. ' + fmt(m.propinasHoy)"></span></div>
@@ -856,7 +856,7 @@ tailwind.config = {
               </div>
               <div class="grid grid-cols-2 gap-2 text-center">
                 <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Pendientes</p><p class="text-st-esperando font-bold" x-text="'S/. ' + fmt(mozoSeleccionado.ventasPendientes)"></p></div>
-                <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Aprobadas</p><p class="text-st-preparado font-bold" x-text="'S/. ' + fmt(mozoSeleccionado.ventasAprobadas)"></p></div>
+                <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Pagadas</p><p class="text-st-preparado font-bold" x-text="'S/. ' + fmt(mozoSeleccionado.ventasAprobadas)"></p></div>
                 <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Descuentos</p><p class="text-st-pagado font-bold" x-text="'S/. ' + fmt(mozoSeleccionado.descuentosHoy)"></p></div>
                 <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Totales</p><p class="text-gold font-bold" x-text="'S/. ' + fmt(mozoSeleccionado.ventasHoy)"></p></div>
                 <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Propinas</p><p class="text-st-preparado font-bold" x-text="'S/. ' + fmt(mozoSeleccionado.propinasHoy)"></p></div>
@@ -1008,7 +1008,7 @@ tailwind.config = {
               <th class="pb-2 pr-2 text-right">Mesas</th>
               <th class="pb-2 pr-2 text-right">Tickets</th>
               <th class="pb-2 pr-2 text-right">Pendientes</th>
-              <th class="pb-2 pr-2 text-right">Aprobadas</th>
+              <th class="pb-2 pr-2 text-right">Pagadas</th>
               <th class="pb-2 pr-2 text-right">Descuentos</th>
               <th class="pb-2 pr-2 text-right">Totales</th>
               <th class="pb-2 pr-2 text-right">Propinas</th>
@@ -2092,7 +2092,7 @@ tailwind.config = {
           <p class="text-xl font-bold text-st-esperando" x-text="'S/. ' + fmt(mozosDetalle?.ventasPendientes)"></p>
         </div>
         <div class="mozos-info-card text-center">
-          <p class="mozos-info-label">Aprobadas</p>
+          <p class="mozos-info-label">Pagadas</p>
           <p class="text-xl font-bold text-st-preparado" x-text="'S/. ' + fmt(mozosDetalle?.ventasAprobadas)"></p>
         </div>
         <div class="mozos-info-card text-center">

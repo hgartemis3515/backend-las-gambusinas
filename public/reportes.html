@@ -1392,7 +1392,7 @@ function reportesApp() {
       
       this.kpis = [
         { label: 'Ventas Pendientes', value: fmtSoles(pendientes), color: 'text-[#ffa502]', badge: '' },
-        { label: 'Ventas Aprobadas', value: fmtSoles(aprobadas), color: 'text-[#2ecc71]', badge: '' },
+        { label: 'Ventas Pagadas', value: fmtSoles(aprobadas), color: 'text-[#2ecc71]', badge: '' },
         { label: 'Descuentos', value: '-S/. ' + totalDescuentos.toLocaleString('es-PE', {minimumFractionDigits: 2}), color: 'text-[#e74c3c]', badge: '' },
         { label: 'Ventas Totales', value: fmtSoles(totalVentas), color: 'text-[#d4af37]', badge: this.dateFilter.tipo },
         { label: 'Tickets', value: totalTickets, color: 'text-white', badge: '' },

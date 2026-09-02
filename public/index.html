@@ -100,9 +100,9 @@ tailwind.config = {
         <p class="text-xs mt-1 text-txt-muted">Tickets / PPA sin aprobar</p>
       </div>
       <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4 card-hover">
-        <p class="text-[11px] text-txt-muted uppercase tracking-wide">Ventas Aprobadas</p>
+        <p class="text-[11px] text-txt-muted uppercase tracking-wide">Ventas Pagadas</p>
         <p class="text-2xl font-bold mt-1 text-st-preparado" x-text="kpiVentasAprobadas"></p>
-        <p class="text-xs mt-1 text-txt-muted">Tickets y pagos adelantados</p>
+        <p class="text-xs mt-1 text-txt-muted">Último ticket por comanda</p>
       </div>
       <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4 card-hover">
         <p class="text-[11px] text-txt-muted uppercase tracking-wide">Descuentos</p>
@@ -594,7 +594,7 @@ tailwind.config = {
 // ============================================
 const WIDGET_CATALOG = {
   'kpi-mesas':          { icon: '🪑', nombre: 'Mesas Ocupadas',         tamano: '1 col · Métrica',    tipo: 'kpi',   colSpan: 1 },
-  'kpi-ventas':         { icon: '💰', nombre: 'Ventas (pend. / aprob. / desc. / total)', tamano: '4 cols · Métricas', tipo: 'kpi',   colSpan: 1 },
+  'kpi-ventas':         { icon: '💰', nombre: 'Ventas (pend. / pag. / desc. / total)', tamano: '4 cols · Métricas', tipo: 'kpi',   colSpan: 1 },
   'kpi-plato':          { icon: '🍽️', nombre: 'Top Plato',             tamano: '1 col · Métrica',    tipo: 'kpi',   colSpan: 1 },
   'kpi-mozo':           { icon: '👤', nombre: 'Top Mozo',               tamano: '1 col · Métrica',    tipo: 'kpi',   colSpan: 1 },
   'kpi-alertas':        { icon: '🔴', nombre: 'Alertas',                tamano: '1 col · Métrica',    tipo: 'kpi',   colSpan: 1 },
@@ -1266,7 +1266,7 @@ function dashApp() {
     },
 
     exportarDashboard() {
-      const resumen = `SAN BENITO - RESUMEN DEL DÍA\n================================\nFecha: ${this.getFecha()}\n\nMESAS\n- Ocupadas: ${this.kpiMesasOcupadas}\n- Ocupación: ${this.kpiOcupacionPct}\n\nVENTAS\n- Pendientes: ${this.kpiVentasPendientes}\n- Aprobadas: ${this.kpiVentasAprobadas}\n- Descuentos: ${this.kpiDescuentos}\n- Totales: ${this.kpiVentasHoy}\n\nMOZOS\n- Top mozo: ${this.kpiTopMozo}\n\nGenerado: ${new Date().toLocaleString('es-PE')}`;
+      const resumen = `SAN BENITO - RESUMEN DEL DÍA\n================================\nFecha: ${this.getFecha()}\n\nMESAS\n- Ocupadas: ${this.kpiMesasOcupadas}\n- Ocupación: ${this.kpiOcupacionPct}\n\nVENTAS\n- Pendientes: ${this.kpiVentasPendientes}\n- Pagadas: ${this.kpiVentasAprobadas}\n- Descuentos: ${this.kpiDescuentos}\n- Totales: ${this.kpiVentasHoy}\n\nMOZOS\n- Top mozo: ${this.kpiTopMozo}\n\nGenerado: ${new Date().toLocaleString('es-PE')}`;
       const blob = new Blob([resumen], { type: 'text/plain;charset=utf-8' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
