@@ -82,6 +82,10 @@ const actualizarMozo = async (id, newData) => {
         if (newData.activo !== undefined) mozo.activo = newData.activo;
         if (newData.enTurno !== undefined) mozo.enTurno = newData.enTurno;
         if (newData.permisos !== undefined) mozo.permisos = newData.permisos;
+        if (newData.platosFavoritos !== undefined) {
+            const { sanitizePlatosFavoritos } = require('../utils/platosFavoritosMozo');
+            mozo.platosFavoritos = sanitizePlatosFavoritos(newData.platosFavoritos);
+        }
 
         await mozo.save();
         const leaf = mozo.toObject ? mozo.toObject() : mozo;

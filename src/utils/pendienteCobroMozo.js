@@ -52,11 +52,20 @@ function esComandaCerradaParaPendiente(c) {
   return ['pagado', 'completado', 'cancelado', 'anulado', 'cerrado'].includes(st);
 }
 
+function platoCobradoEnCaja(plato) {
+  if (!plato) return false;
+  const e = String(plato.estado || '').toLowerCase();
+  if (e === 'pagado') return true;
+  if (plato.pagoAdelantado?.cobrado === true) return true;
+  const et = String(plato.pagoAdelantado?.estadoTicket || '').toLowerCase();
+  return et === 'aprobado';
+}
+
 function pendienteDeComanda(c, { adelanto = 0, cobradoBouchers = 0 } = {}) {
   if (esComandaCerradaParaPendiente(c)) return 0;
   const platos = (c.platos || []).filter((p) => p && p.eliminado !== true && p.anulado !== true);
   if (!platos.length) return 0;
-  if (platos.every((p) => String(p.estado || '').toLowerCase() === 'pagado')) return 0;
+  if (platos.every(platoCobradoEnCaja)) return 0;
 
   const neto = netoComanda(c);
   const collected = round2(Math.max(0, Number(adelanto) || 0) + Math.max(0, Number(cobradoBouchers) || 0));
@@ -114,12 +123,18 @@ function mapComandaPorCobrar(c, pendienteCobro) {
     const key = String(cocComanda.cocineroId || cocComanda.nombre);
     if (!cocinerosMap.has(key)) cocinerosMap.set(key, cocComanda);
   }
+  const mesaId = c.mesas?._id
+    ? String(c.mesas._id)
+    : (c.mesas && typeof c.mesas !== 'object' ? String(c.mesas) : null);
   return {
     _id: c._id,
     comandaNumber: c.comandaNumber,
     status: c.status,
     createdAt: c.createdAt,
+    mesaId,
     mesaNumero: c.mesaNumero ?? c.mesas?.nummesa ?? c.mesas?.numero ?? null,
+    mesaEstado: c.mesas?.estado || null,
+    mesaNombre: c.mesas?.nombreCombinado || null,
     total: netoComanda(c),
     pendienteCobro: round2(pendienteCobro),
     observaciones: c.observaciones || '',
@@ -135,6 +150,7 @@ module.exports = {
   cobradoBouchersDeComanda,
   pendienteDeComanda,
   esComandaCerradaParaPendiente,
+  platoCobradoEnCaja,
   ESTADOS_POR_COBRAR,
   cocineroDeBloque,
   cocineroDePlato,

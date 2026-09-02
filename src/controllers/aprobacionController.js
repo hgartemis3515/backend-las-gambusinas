@@ -3,7 +3,7 @@
  *
  * Endpoints:
  *   GET  /api/aprobacion/pendientes           — Lista unificada (comandas + PPA)
- *   GET  /api/aprobacion/pendiente-cobro    — Suma tickets pendientes del mozo
+ *   GET  /api/aprobacion/pendiente-cobro    — Suma y lista comandas por cobrar del mozo
  *   PUT  /api/aprobacion/:id/aprobar          — Aprueba comanda o PPA
  *   PUT  /api/aprobacion/:id/reportar          — Reporta comanda con motivo obligatorio
  *   GET  /api/comanda/:id/ticket-imprimible    — Datos mapeados para plantilla comanda
@@ -135,7 +135,7 @@ router.get('/aprobacion/pendientes', async (req, res) => {
 
 /**
  * GET /api/aprobacion/pendiente-cobro?mozoId=
- * Saldo de comandas abiertas del mozo (neto − seña/forzar/pagado).
+ * Saldo y lista de comandas abiertas del mozo (neto − seña/forzar/pagado).
  */
 router.get('/aprobacion/pendiente-cobro', async (req, res) => {
   try {
@@ -143,8 +143,12 @@ router.get('/aprobacion/pendiente-cobro', async (req, res) => {
     if (!mozoId) {
       return res.status(400).json({ success: false, message: 'mozoId es requerido' });
     }
-    const total = await aprobacionService.totalPendienteCobroMozo(mozoId);
-    res.json({ success: true, total });
+    const data = await aprobacionService.listarComandasPorCobrarMozo(mozoId);
+    res.json({
+      success: true,
+      total: data.totalPendiente,
+      comandas: data.comandas || [],
+    });
   } catch (error) {
     logger.error('Error al obtener pendiente de cobro del mozo', { error: error.message });
     res.status(500).json({ success: false, message: 'Error al obtener pendiente de cobro' });

@@ -25,6 +25,7 @@ const MOZO_SELF_PROFILE_KEYS = new Set([
   "contactoEmergenciaNombre",
   "contactoEmergenciaTelefono",
   "fotoUrl",
+  "platosFavoritos",
 ]);
 
 function filterMozoSelfUpdateBody(body) {
@@ -294,7 +295,8 @@ router.post('/mozos/push-token', async (req, res) => {
 // GET /api/mozos/:id/comandas-por-cobrar — comandas abiertas que el mozo aún debe cobrar
 router.get('/mozos/:id/comandas-por-cobrar', adminAuth, async (req, res) => {
   try {
-    const tiene = req.admin?.permisos?.includes('ver-reportes') || req.admin?.rol === 'admin' || req.admin?.rol === 'supervisor' || req.admin?.permisos?.includes('ver-mozos');
+    const soyYo = String(req.admin?.id || '') === String(req.params.id);
+    const tiene = soyYo || req.admin?.permisos?.includes('ver-reportes') || req.admin?.rol === 'admin' || req.admin?.rol === 'supervisor' || req.admin?.permisos?.includes('ver-mozos');
     if (!tiene) {
       return res.status(403).json({ success: false, error: 'No tiene permisos para ver comandas del mozo' });
     }

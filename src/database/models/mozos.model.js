@@ -152,7 +152,12 @@ const mozosSchema = new mongoose.Schema({
     pushToken: { type: String, default: '' },
     pushPlatform: { type: String, default: '' },
     pushDeviceId: { type: String, default: '' },
-    pushTokenUpdatedAt: { type: Date, default: null }
+    pushTokenUpdatedAt: { type: Date, default: null },
+    /** Platos marcados como favoritos por este mozo (persisten en el usuario). */
+    platosFavoritos: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'platos',
+    }],
 }, {
     timestamps: true,
     toJSON: { virtuals: true },

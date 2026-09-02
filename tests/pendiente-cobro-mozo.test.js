@@ -29,10 +29,25 @@ describe('mapComandaPorCobrar', () => {
 
     expect(mapped.comandaNumber).toBe(42);
     expect(mapped.mesaNumero).toBe(7);
+    expect(mapped.mesaId).toBe(null);
     expect(mapped.total).toBe(80);
     expect(mapped.pendienteCobro).toBe(80);
     expect(mapped.platosResumen).toBe('Lomo x2, Ceviche');
     expect(mapped.cocineros).toEqual([{ nombre: 'Pepe', cocineroId: 'ck1' }]);
+  });
+
+  test('incluye mesaId y estado cuando mesas viene poblada', () => {
+    const mapped = mapComandaPorCobrar({
+      _id: 'c2',
+      comandaNumber: 9,
+      mesas: { _id: 'm1', nummesa: 3, estado: 'pedido', nombreCombinado: '3+4' },
+      totalCalculado: 25,
+      platos: [{ nombre: 'Ají', estado: 'entregado' }],
+    }, 25);
+    expect(mapped.mesaId).toBe('m1');
+    expect(mapped.mesaEstado).toBe('pedido');
+    expect(mapped.mesaNombre).toBe('3+4');
+    expect(mapped.mesaNumero).toBe(3);
   });
 
   test('pendienteDeComanda es 0 si todos los platos están pagados', () => {
@@ -43,5 +58,21 @@ describe('mapComandaPorCobrar', () => {
       cantidades: [1],
     };
     expect(pendienteDeComanda(c)).toBe(0);
+  });
+
+  test('pendienteDeComanda es 0 si todos los platos tienen PPA cobrado (forzar pago)', () => {
+    const c = {
+      status: 'entregado',
+      IsActive: true,
+      totalCalculado: 40,
+      platos: [{
+        estado: 'entregado',
+        precioUnitario: 40,
+        pagoAdelantado: { cobrado: true, estadoTicket: 'aprobado' },
+      }],
+      cantidades: [1],
+    };
+    expect(pendienteDeComanda(c)).toBe(0);
+    expect(pendienteDeComanda(c, { cobradoBouchers: 40 })).toBe(0);
   });
 });
