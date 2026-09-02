@@ -363,6 +363,38 @@ async function crearTicketPendienteDesdeComanda(comandaIdOrDoc) {
   return ticket;
 }
 
+async function fijarMesaServicioTrasForzar(ticket) {
+  const mesaAntes = ticket.mesa
+    ? await mesasModel.findById(ticket.mesa).select('estado').lean()
+    : null;
+  const esReserva = await ticketComandasSonReserva(ticket);
+  const mesaEstadoServicio = esReserva || mesaAntes?.estado === 'reservado'
+    ? 'reservado'
+    : (['pedido', 'preparado', 'entregado', 'esperando'].includes(mesaAntes?.estado)
+      ? mesaAntes.estado
+      : 'pedido');
+  if (ticket.mesa && !['pedido', 'preparado', 'entregado', 'esperando', 'reservado'].includes(mesaAntes?.estado)) {
+    await mesasModel.findByIdAndUpdate(ticket.mesa, { estado: mesaEstadoServicio });
+  }
+  return mesaEstadoServicio;
+}
+
+/** Si cocina ya entregó, cierra comanda/mesa pagado para que el mozo pueda Liberar. */
+async function cerrarComandasSiYaEntregadasTrasForzar(ticket) {
+  if (!ticket?.comandas?.length) return;
+  const { actualizarComandaSiTodosEntregados } = require('../repository/comanda.repository');
+  for (const cid of ticket.comandas) {
+    try {
+      await actualizarComandaSiTodosEntregados(cid);
+    } catch (e) {
+      logger.warn('No se pudo cerrar comanda tras forzar (ya entregada)', {
+        comandaId: cid,
+        error: e.message,
+      });
+    }
+  }
+}
+
 /**
  * Caja cobra el ticket de la comanda (boucher + aprobado) sin pasar por Pagos del mozo.
  * Los platos siguen en cocina; el mozo libera la mesa cuando ya entregó.
@@ -372,6 +404,7 @@ async function forzarPagoTicketComanda(ticketId, {
   montoRecibido, vuelto,
 } = {}) {
   const { ticketPuedeAprobarse } = require('../utils/ticketAltaComanda');
+  const { aplicarDescuentoAVistaTicket } = require('../utils/descuentoTicketSnapshot');
   const ticket = await ticketAprobacionModel.findById(ticketId);
   if (!ticket || ticket.isActive === false) {
     const err = new Error('Ticket no encontrado');
@@ -384,20 +417,35 @@ async function forzarPagoTicketComanda(ticketId, {
     throw err;
   }
 
+  const totalNeto = Number(aplicarDescuentoAVistaTicket(
+    typeof ticket.toObject === 'function' ? ticket.toObject() : ticket
+  ).total) || 0;
+  if (Number(ticket.total) !== totalNeto) {
+    ticket.total = totalNeto;
+    await ticket.save();
+  }
+
   if (ticket.boucher || ticketPuedeAprobarse(ticket)) {
-    const esForzado = ticket.pagoForzado === true || String(ticket.origen || '').toLowerCase() === 'forzado';
+    ticket.origen = 'forzado';
+    ticket.pagoForzado = true;
+    await ticket.save();
     const result = await ticketAprobacionRepository.aprobarTicket(ticketId, usuarioId, usuarioNombre, {
-      pagoForzado: esForzado,
+      pagoForzado: true,
     });
-    if (esForzado && ticket.mesa) {
-      const mesaDoc = await mesasModel.findById(ticket.mesa).select('estado').lean();
-      const mesaEstadoServicio = mesaDoc?.estado === 'reservado' ? 'reservado' : 'pedido';
-      if (!['pedido', 'preparado', 'entregado', 'esperando', 'reservado'].includes(mesaDoc?.estado)) {
-        await mesasModel.findByIdAndUpdate(ticket.mesa, { estado: mesaEstadoServicio });
-      }
-      return { ...result, forzado: true, yaTeniaBoucher: true, mesaEstado: mesaEstadoServicio };
+    await marcarPlatosComoPpaDesdeTicket(ticket, ticket.boucher);
+    let mesaEstadoServicio = await fijarMesaServicioTrasForzar(ticket);
+    await cerrarComandasSiYaEntregadasTrasForzar(ticket);
+    if (ticket.mesa) {
+      const mesaDespues = await mesasModel.findById(ticket.mesa).select('estado').lean();
+      if (mesaDespues?.estado) mesaEstadoServicio = mesaDespues.estado;
     }
-    return { ...result, forzado: false, yaTeniaBoucher: true };
+    return {
+      ...result,
+      forzado: true,
+      yaTeniaBoucher: true,
+      comoPpa: true,
+      mesaEstado: mesaEstadoServicio,
+    };
   }
 
   const { crearBoucher } = require('../repository/boucher.repository');
@@ -422,7 +470,7 @@ async function forzarPagoTicketComanda(ticketId, {
   }
 
   const metodo = ['efectivo', 'digital', 'tarjeta'].includes(metodoPago) ? metodoPago : 'efectivo';
-  const total = Number(ticket.total) || 0;
+  const total = totalNeto;
   let recibidoFinal = metodo === 'efectivo' ? total : null;
   let vueltoFinal = metodo === 'efectivo' ? 0 : null;
   if (metodo === 'efectivo' && montoRecibido != null && montoRecibido !== '') {
@@ -472,27 +520,21 @@ async function forzarPagoTicketComanda(ticketId, {
 
   await marcarPlatosComoPpaDesdeTicket(ticket, boucher._id);
 
-  const mesaAntes = ticket.mesa
-    ? await mesasModel.findById(ticket.mesa).select('estado').lean()
-    : null;
-  const esReserva = await ticketComandasSonReserva(ticket);
-  const mesaEstadoServicio = esReserva || mesaAntes?.estado === 'reservado'
-    ? 'reservado'
-    : (['pedido', 'preparado', 'entregado', 'esperando'].includes(mesaAntes?.estado)
-      ? mesaAntes.estado
-      : 'pedido');
-  if (ticket.mesa && !['pedido', 'preparado', 'entregado', 'esperando', 'reservado'].includes(mesaAntes?.estado)) {
-    await mesasModel.findByIdAndUpdate(ticket.mesa, { estado: mesaEstadoServicio });
-  }
+  let mesaEstadoServicio = await fijarMesaServicioTrasForzar(ticket);
 
   const result = await ticketAprobacionRepository.aprobarTicket(ticketId, usuarioId, usuarioNombre, {
     pagoForzado: true,
   });
 
-  // Siempre dejar la mesa en servicio (pedido/reservado). aprobarTicket no puede
-  // dejarla en pagado: el KDS todavía no entregó.
+  // Si cocina aún no entregó, la mesa queda en servicio. Si ya entregó,
+  // actualizarComandaSiTodosEntregados pone mesa pagado para Liberar.
   if (ticket.mesa) {
     await mesasModel.findByIdAndUpdate(ticket.mesa, { estado: mesaEstadoServicio });
+  }
+  await cerrarComandasSiYaEntregadasTrasForzar(ticket);
+  if (ticket.mesa) {
+    const mesaDespues = await mesasModel.findById(ticket.mesa).select('estado').lean();
+    if (mesaDespues?.estado) mesaEstadoServicio = mesaDespues.estado;
   }
   return {
     ...result,
@@ -512,12 +554,6 @@ async function ticketComandasSonReserva(ticket) {
 }
 
 async function marcarPlatosComoPpaDesdeTicket(ticket, boucherId) {
-  const platosIds = new Set(
-    (ticket.platos || [])
-      .filter((p) => !p.eliminado)
-      .map((p) => (p.platoLineaId ? String(p.platoLineaId) : null))
-      .filter(Boolean)
-  );
   if (!ticket.comandas?.length) return;
   const payloadPpa = {
     requerido: true,
@@ -530,24 +566,14 @@ async function marcarPlatosComoPpaDesdeTicket(ticket, boucherId) {
     const comanda = await comandaModel.findById(comandaId);
     if (!comanda) continue;
     let modificado = false;
-    let matched = 0;
     for (const plato of comanda.platos || []) {
       if (plato.eliminado || plato.anulado) continue;
-      if (platosIds.size && !platosIds.has(String(plato._id))) continue;
       plato.pagoAdelantado = { ...payloadPpa };
       modificado = true;
-      matched += 1;
-    }
-    if (!matched && platosIds.size) {
-      for (const plato of comanda.platos || []) {
-        if (plato.eliminado || plato.anulado) continue;
-        plato.pagoAdelantado = { ...payloadPpa };
-        modificado = true;
-      }
     }
     if (modificado) {
       comanda.markModified('platos');
-      await comanda.save();
+      await comanda.save({ validateModifiedOnly: true });
     }
   }
 }

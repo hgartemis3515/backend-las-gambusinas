@@ -12,11 +12,12 @@ function emitirTicketsActualizados(tickets) {
   const io = global.io;
   if (!io || !tickets.length) return;
   const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
+  const { aplicarDescuentoAVistaTicket } = require('./descuentoTicketSnapshot');
   for (const t of tickets) {
     const plain = typeof t.toObject === 'function' ? t.toObject() : t;
     const payload = {
       ticketId: t._id,
-      ticket: plain,
+      ticket: aplicarDescuentoAVistaTicket(plain),
       estado: t.estado,
       comandas: t.comandas,
     };

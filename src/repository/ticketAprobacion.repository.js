@@ -512,7 +512,11 @@ async function evaluarMesaListaParaLiberar(mesaId, pedidoId = null) {
     for (const p of c.platos || []) {
       if (p.eliminado || p.anulado) continue;
       const e = (p.estado || '').toLowerCase();
-      if (e === 'entregado') hayEntregadosSinCobrar = true;
+      if (e === 'entregado') {
+        const cobrado = p.pagoAdelantado?.cobrado === true
+          || String(p.pagoAdelantado?.estadoTicket || '').toLowerCase() === 'aprobado';
+        if (!cobrado) hayEntregadosSinCobrar = true;
+      }
       if (e === 'pendiente') hayPendientesSinAprobar = true;
       if (['pedido', 'en_espera', 'recoger', 'salio'].includes(e)) hayPlatosEnCocina = true;
     }

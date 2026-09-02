@@ -22,6 +22,7 @@ const mesasModel = require('../database/models/mesas.model');
 const Reserva = require('../database/models/reserva.model');
 const pedidoModel = require('../database/models/pedido.model');
 const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
+const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
 const logger = require('../utils/logger');
 const calculosPrecios = require('../utils/calculosPrecios');
 
@@ -751,8 +752,14 @@ router.put('/pago-adelantado/confirmar-entrega', async (req, res) => {
       mesa: mesaId,
       estado: { $in: ['pendiente_aprobacion', 'aprobado'] },
     }).select('comandas platos').lean();
+    const ticketsForzados = await ticketAprobacionModel.find({
+      mesa: mesaId,
+      estado: 'aprobado',
+      isActive: { $ne: false },
+      $or: [{ pagoForzado: true }, { origen: 'forzado' }],
+    }).select('comandas platos').lean();
     const lineasPPA = new Set();
-    for (const t of ticketsPPA || []) {
+    for (const t of [...(ticketsPPA || []), ...(ticketsForzados || [])]) {
       (t.platos || []).forEach((p) => {
         if (p.platoLineaId) lineasPPA.add(String(p.platoLineaId));
       });
@@ -797,7 +804,7 @@ router.put('/pago-adelantado/confirmar-entrega', async (req, res) => {
 
       const todosEntregados = platosActivos.every((p) => {
         const e = (p.estado || '').toLowerCase();
-        return e === 'entregado' || e === 'pagado';
+        return e === 'salio' || e === 'entregado' || e === 'pagado';
       });
       if (!todosEntregados) continue;
 
@@ -827,7 +834,7 @@ router.put('/pago-adelantado/confirmar-entrega', async (req, res) => {
       const platosActivos = (comanda.platos || []).filter((p) => !p.eliminado && !p.anulado);
       const todosCerrados = platosActivos.length > 0 && platosActivos.every((p) => {
         const e = (p.estado || '').toLowerCase();
-        return e === 'entregado' || e === 'pagado';
+        return e === 'salio' || e === 'entregado' || e === 'pagado';
       });
       if (!esAntigua && !todosCerrados) continue;
       await cerrarComandaPPA(comanda);
