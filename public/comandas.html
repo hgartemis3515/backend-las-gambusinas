@@ -335,11 +335,11 @@ tailwind.config = {
  <!-- Cocineros -->
  <td class="px-3 py-2.5 text-sm">
  <div class="flex flex-wrap gap-1">
- <template x-for="chef in cocinerosDeFila(row)" :key="(chef.cocineroId || chef.nombre) + (chef.comanda?._id || '')">
+ <template x-for="chef in (row.cocinerosResumen || [])" :key="String(chef.cocineroId || chef.nombre)">
  <button type="button" class="text-[11px] text-gold hover:underline text-left" title="Ver registro de platos del cocinero"
    @click.stop="irARegistroCocinero(chef, chef.comanda || row.comanda)" x-text="chef.nombre"></button>
  </template>
- <span x-show="cocinerosDeFila(row).length === 0" class="text-txt-muted text-xs">—</span>
+ <span x-show="!(row.cocinerosResumen && row.cocinerosResumen.length)" class="text-txt-muted text-xs">—</span>
  </div>
  </td>
  
@@ -441,11 +441,11 @@ tailwind.config = {
  <!-- Cocineros -->
  <td class="px-3 py-2 text-xs">
  <div class="flex flex-wrap gap-1">
- <template x-for="chef in cocinerosDeComanda(comanda)" :key="chef.cocineroId || chef.nombre">
+ <template x-for="chef in (comanda.cocinerosResumen || [])" :key="String(chef.cocineroId || chef.nombre)">
  <button type="button" class="text-[11px] text-gold hover:underline text-left" title="Ver registro de platos del cocinero"
    @click.stop="irARegistroCocinero(chef, comanda)" x-text="chef.nombre"></button>
  </template>
- <span x-show="cocinerosDeComanda(comanda).length === 0" class="text-txt-muted">—</span>
+ <span x-show="!(comanda.cocinerosResumen && comanda.cocinerosResumen.length)" class="text-txt-muted">—</span>
  </div>
  </td>
  <!-- Items -->
@@ -3400,6 +3400,23 @@ console.log('📊 Reporte: nuevo boucher', data);
   if (!idN) return;
   normalizada._id = idN;
 
+  const idx = this.comandas.findIndex(c => this.normalizeObjectId(c._id) === idN);
+  if (idx !== -1) {
+    const prev = this.comandas[idx];
+    if (!(normalizada.items || []).length && (prev.items || []).length) {
+      normalizada.items = prev.items;
+    } else {
+      normalizada.items = this.fusionarTrazabilidadItems(prev.items, normalizada.items);
+    }
+    if (!this.cocineroAsignado(normalizada.procesandoPor) && this.cocineroAsignado(prev.procesandoPor)) {
+      normalizada.procesandoPor = prev.procesandoPor;
+    }
+    if (!this.cocineroAsignado(normalizada.procesadoPor) && this.cocineroAsignado(prev.procesadoPor)) {
+      normalizada.procesadoPor = prev.procesadoPor;
+    }
+    this.refrescarCocinerosResumen(normalizada);
+  }
+
   if (this.normalizeObjectId(this.selectedComanda?._id) === idN) {
     this.selectedComanda = normalizada;
   }
@@ -3412,7 +3429,6 @@ console.log('📊 Reporte: nuevo boucher', data);
   this.patchComandaEnGrupo(this.selectedGrupo, normalizada, idN);
   this.patchComandaEnGrupo(this.editGrupo, normalizada, idN);
 
-  const idx = this.comandas.findIndex(c => this.normalizeObjectId(c._id) === idN);
   if (idx !== -1) {
     const newComandas = [...this.comandas];
     newComandas[idx] = normalizada;
@@ -3445,11 +3461,84 @@ scheduleComandaSync(comandaId) {
 },
 
 itemCoincidePlatoId(item, platoId) {
-  if (!item || platoId == null) return false;
+  if (!item || platoId == null || platoId === '') return false;
   const pid = String(platoId);
   return String(item.subdocumentoId || '') === pid
     || String(item._id || '') === pid
-    || String(item.platoId || '') === pid;
+    || String(item.platoId || '') === pid
+    || String(item.plato?._id || '') === pid;
+},
+
+idCocineroStr(raw) {
+  if (raw == null || raw === '') return '';
+  if (typeof raw === 'object') {
+    const s = String(raw._id || raw.$oid || raw.id || '');
+    return (!s || s === '[object Object]') ? '' : s;
+  }
+  const s = String(raw);
+  return s === '[object Object]' ? '' : s;
+},
+
+cocineroAsignado(obj) {
+  if (!obj || typeof obj !== 'object') return false;
+  const nombre = String(obj.alias || obj.nombre || obj.name || '').trim();
+  const id = this.idCocineroStr(obj.cocineroId || obj.usuarioId);
+  return !!(nombre || id);
+},
+
+fusionarCampoCocinero(incoming, prev) {
+  if (this.cocineroAsignado(incoming)) return incoming;
+  if (this.cocineroAsignado(prev)) return prev;
+  return incoming || prev || null;
+},
+
+fusionarTrazabilidadItems(prevItems, nextItems) {
+  if (!Array.isArray(nextItems)) return prevItems || [];
+  if (!Array.isArray(prevItems) || !prevItems.length) return nextItems;
+  return nextItems.map((item, idx) => {
+    const prev = prevItems.find((p) => this.itemCoincidePlatoId(p, item.subdocumentoId)
+      || this.itemCoincidePlatoId(p, item._id)
+      || (item.platoId != null && String(p.platoId) === String(item.platoId) && String(p.subdocumentoId || '') === String(item.subdocumentoId || '')))
+      || prevItems[idx];
+    if (!prev) return item;
+    const compsIn = item.complementosSeleccionados || [];
+    const compsPrev = prev.complementosSeleccionados || [];
+    const complementosSeleccionados = compsIn.map((c, ci) => {
+      const prevC = compsPrev.find((x) => String(x._id || '') === String(c._id || '')) || compsPrev[ci];
+      if (!prevC) return c;
+      return {
+        ...c,
+        procesandoPor: this.fusionarCampoCocinero(c.procesandoPor, prevC.procesandoPor),
+        procesadoPor: this.fusionarCampoCocinero(c.procesadoPor, prevC.procesadoPor)
+      };
+    });
+    return {
+      ...item,
+      procesandoPor: this.fusionarCampoCocinero(item.procesandoPor, prev.procesandoPor),
+      procesadoPor: this.fusionarCampoCocinero(item.procesadoPor, prev.procesadoPor),
+      finalizadoPor: (item.finalizadoPor && item.finalizadoPor.usuarioId)
+        ? item.finalizadoPor
+        : (prev.finalizadoPor || item.finalizadoPor),
+      complementosSeleccionados: complementosSeleccionados.length ? complementosSeleccionados : (item.complementosSeleccionados || prev.complementosSeleccionados || [])
+    };
+  });
+},
+
+refrescarCocinerosResumen(comanda) {
+  if (!comanda) return comanda;
+  comanda.cocinerosResumen = this.getResumenCocineros(comanda).cocineros;
+  return comanda;
+},
+
+cocinerosResumenDeGrupo(comandas) {
+  const map = new Map();
+  (comandas || []).forEach((c) => {
+    (c.cocinerosResumen || this.cocinerosDeComanda(c)).forEach((chef) => {
+      const key = String(chef.cocineroId || chef.nombre);
+      if (!map.has(key)) map.set(key, { ...chef, comanda: c });
+    });
+  });
+  return Array.from(map.values());
 },
 
 patchItemsCocinero(items, data, liberar) {
@@ -3496,12 +3585,15 @@ handlePlatoCocineroSocket(data, { liberar = false } = {}) {
   const patched = { ...actual, items, _id: idN };
   if (!liberar) {
     const chef = data.procesandoPor || data.cocinero;
-    if (chef && (!itemsPatched || !actual.procesandoPor)) patched.procesandoPor = chef;
+    if (this.cocineroAsignado(chef) && (!itemsPatched || !this.cocineroAsignado(actual.procesandoPor))) {
+      patched.procesandoPor = chef;
+    }
   } else {
-    const sigueAlguien = (patched.items || []).some((i) => i.procesandoPor)
-      || (patched.items || []).some((i) => (i.complementosSeleccionados || []).some((c) => c.procesandoPor));
+    const sigueAlguien = (patched.items || []).some((i) => this.cocineroAsignado(i.procesandoPor))
+      || (patched.items || []).some((i) => (i.complementosSeleccionados || []).some((c) => this.cocineroAsignado(c.procesandoPor)));
     if (!sigueAlguien) patched.procesandoPor = null;
   }
+  this.refrescarCocinerosResumen(patched);
   const newComandas = [...this.comandas];
   newComandas[idx] = patched;
   this.comandas = newComandas;
@@ -3723,7 +3815,7 @@ this.modal = null;
 
  const platoObjectId = plato._id || null;
  const platoIdNumerico = item.platoId || plato.id || null;
- const subdocumentoId = item._id || null;
+ const subdocumentoId = item.subdocumentoId || item._id || null;
 
  return {
  _id: platoObjectId,
@@ -3790,7 +3882,7 @@ this.modal = null;
  const pedidoId = this.normalizeObjectId(pedidoRef?._id ?? pedidoRef);
  const mesaId = this.normalizeObjectId(mesa?._id ?? raw.mesas ?? raw.mesaId);
 
- return {
+ const out = {
  _id: raw._id,
  numComanda: raw.comandaNumber || raw.numComanda,
  mesa: mesaNorm,
@@ -3833,6 +3925,8 @@ this.modal = null;
  procesadoPor: raw.procesadoPor || null,
  reserva: this.normalizarReservaComanda(raw)
  };
+ this.refrescarCocinerosResumen(out);
+ return out;
  },
 
  normalizarReservaComanda(raw) {
@@ -3878,10 +3972,10 @@ this.modal = null;
  const esEstadoFinal = estado === 'recoger' || estado === 'salio' || estado === 'entregado' || estado === 'pagado';
  const deBloque = (obj) => {
    if (!obj || typeof obj !== 'object') return null;
-   const cocineroId = obj.cocineroId || obj.usuarioId || null;
+   const cocineroId = this.idCocineroStr(obj.cocineroId || obj.usuarioId) || null;
    const nombre = String(obj.alias || obj.nombre || obj.name || '').trim();
    if (!nombre && !cocineroId) return null;
-   return { nombre: nombre || 'Cocinero', cocineroId };
+   return { nombre: nombre || 'Cocinero', cocineroId: cocineroId || null };
  };
 
  const procesado = deBloque(item.procesadoPor);
@@ -4213,7 +4307,8 @@ this.modal = null;
  this.groupedRows = this.comandas.map(c => ({
  tipo: 'individual',
  id: c._id,
- comanda: c
+ comanda: c,
+ cocinerosResumen: c.cocinerosResumen || this.cocinerosDeComanda(c)
  }));
  return;
  }
@@ -4305,6 +4400,7 @@ totalAgrupado: grupo.comandas.reduce((sum, c) => {
 totalPlatos: grupo.comandas.reduce((sum, c) => sum + (c.items || []).filter(i => !i.eliminado).length, 0),
 estadoGrupo: this.calcularEstadoGrupo(grupo.comandas),
 mozosUnicos: [...new Set(grupo.comandas.map(c => c.mozo))],
+cocinerosResumen: this.cocinerosResumenDeGrupo(grupo.comandas),
 horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length - 1]?.createdAt
 ? new Date(grupo.comandas[grupo.comandas.length - 1].createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'})
 : '—'
@@ -4334,7 +4430,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const filasIndividuales = individuales.map(c => ({
  tipo: 'individual',
  id: c._id,
- comanda: c
+ comanda: c,
+ cocinerosResumen: c.cocinerosResumen || this.cocinerosDeComanda(c)
  }));
 
  // Ordenar todas las filas (grupos e individuales) por fecha/hora: de reciente a primero
@@ -5237,6 +5334,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  }
 
  this.selectedComanda = detalle;
+ this.handleComandaActualizada(detalle);
  await this.loadComandaTickets(comandaId);
  },
 

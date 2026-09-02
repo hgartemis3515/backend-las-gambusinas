@@ -46,6 +46,7 @@ const Comanda = mongoose.model('Comanda') || require('../database/models/comanda
 const Mozos = mongoose.model('mozos') || require('../database/models/mozos.model');
 const { getCocineroInfo } = require('../utils/cocineroInfo');
 const { topePositivo, bumpCargaCache, encolarAsignacionKds } = require('../utils/asignacionAutomaticaCupos');
+const { elegirSiguienteBackup } = require('../utils/elegirSiguienteBackup');
 
 const ESTADOS_EN_CURSO = ['pedido', 'en_espera'];
 const MAX_REINTENTOS = 3;
@@ -806,6 +807,37 @@ function filtrarPerfilesPorAlcance(config, alcance) {
     return perfiles.filter(p => idsEnCalendario.has(p.id));
 }
 
+/**
+ * Destino backup configurado para un plato ya en proceso.
+ * No re-evalúa cupos ni conexión: usa la cadena de backups de la regla activa.
+ */
+async function resolverBackupDestinoParaPlato(plato, cocineroActualId) {
+    const configRaw = await AsignacionAutomatica.obtenerConfiguracion();
+    const config = configRaw && typeof configRaw.toObject === 'function' ? configRaw.toObject() : configRaw;
+    if (!config) {
+        const err = new Error('No hay configuración de asignación automática');
+        err.statusCode = 400;
+        throw err;
+    }
+    const resolved = resolverPerfilActivo(config);
+    const fuente = resolved.perfil
+        || (config.perfiles || []).find((p) => p && p.activo !== false)
+        || config;
+    const match = encontrarRegla(fuente, plato);
+    if (!match) {
+        const err = new Error('Este plato no tiene backups configurados');
+        err.statusCode = 400;
+        throw err;
+    }
+    const backup = elegirSiguienteBackup(match.regla, cocineroActualId);
+    if (!backup) {
+        const err = new Error('No hay un backup disponible para este plato');
+        err.statusCode = 409;
+        throw err;
+    }
+    return { cocineroId: String(backup.cocineroId), tipoRegla: match.tipo };
+}
+
 module.exports = {
     asignarPlatosNuevos,
     simularAsignacion,
@@ -824,5 +856,6 @@ module.exports = {
     idCatalogoPlato,
     encontrarRegla,
     construirPlatosAsignadosDTO,
-    filtrarPerfilesPorAlcance
+    filtrarPerfilesPorAlcance,
+    resolverBackupDestinoParaPlato
 };

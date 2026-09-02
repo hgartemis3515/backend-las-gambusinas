@@ -24,6 +24,9 @@ const Comanda = mongoose.model('Comanda') || require('../database/models/comanda
 const { getCocineroInfo } = require('../utils/cocineroInfo');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
 const cocinerosRepository = require('../repository/cocineros.repository');
+const asignacionAutomaticaService = require('../services/asignacionAutomaticaService');
+const asignacionAutomaticaGuarnicionesService = require('../services/asignacionAutomaticaGuarnicionesService');
+const redisCache = require('../utils/redisCache');
 
 // PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR: config de cocina + override one-shot
 const ConfiguracionSistema = mongoose.model('ConfiguracionSistema') || require('../database/models/configuracionSistema.model');
@@ -438,6 +441,83 @@ router.put('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, res)
       success: false,
       error: error.message || 'Error al procesar la solicitud'
     });
+  }
+});
+
+/**
+ * PUT /api/comanda/:id/plato/:platoId/pasar-a-backup
+ * Reasigna un plato en proceso al backup configurado en asignación automática.
+ */
+router.put('/comanda/:id/plato/:platoId/pasar-a-backup', adminAuth, async (req, res) => {
+  try {
+    const { id: comandaId, platoId } = req.params;
+    const comanda = await Comanda.findById(comandaId).populate('platos.plato', 'nombre categoria id');
+    if (!comanda) {
+      return res.status(404).json({ success: false, error: 'Comanda no encontrada' });
+    }
+    const platoIndex = findPlatoIndex(comanda.platos, platoId);
+    if (platoIndex === -1) {
+      return res.status(404).json({ success: false, error: 'Plato no encontrado en la comanda' });
+    }
+    const plato = comanda.platos[platoIndex];
+    const estado = String(plato.estado || '').toLowerCase();
+    if (!['pedido', 'en_espera'].includes(estado)) {
+      return res.status(400).json({ success: false, error: 'Solo se puede pasar a backup un plato en proceso' });
+    }
+    const actualId = plato.procesandoPor?.cocineroId;
+    if (!actualId) {
+      return res.status(400).json({ success: false, error: 'El plato no está en proceso' });
+    }
+    const esSupervisor = esSupervisorCocina(req.admin);
+    const soyTitular = String(req.admin?.id) === String(actualId);
+    if (!soyTitular && !esSupervisor) {
+      return res.status(403).json({ success: false, error: 'No tiene permisos para pasar este plato a backup' });
+    }
+
+    const destino = await asignacionAutomaticaService.resolverBackupDestinoParaPlato(plato, actualId);
+    if (String(destino.cocineroId) === String(actualId)) {
+      return res.status(409).json({ success: false, error: 'El plato ya está en su backup' });
+    }
+    const cocineroInfo = await getCocineroInfo(destino.cocineroId);
+    if (!cocineroInfo.cocineroId) {
+      return res.status(404).json({ success: false, error: 'El cocinero backup no existe' });
+    }
+    const ahora = moment().tz('America/Lima').toDate();
+    const procesandoPor = { ...cocineroInfo, timestamp: ahora, tomadoEn: ahora };
+    await Comanda.updateOne(
+      { _id: comandaId },
+      {
+        $set: {
+          [`platos.${platoIndex}.procesandoPor`]: procesandoPor,
+          [`platos.${platoIndex}.asignacionMeta`]: {
+            origen: 'overflow',
+            regla: destino.tipoRegla === 'categoria' ? 'categoria' : 'plato',
+            timestamp: ahora
+          },
+          updatedAt: ahora,
+          updatedBy: req.admin?.id || destino.cocineroId
+        }
+      }
+    );
+    try { await redisCache.invalidate(comandaId); } catch (_) { /* no bloquear */ }
+    if (global.emitPlatoProcesando) {
+      global.emitPlatoProcesando(comandaId, plato._id || platoId, procesandoPor);
+    }
+    if (global.emitRendimientoCocineroActualizado) {
+      global.emitRendimientoCocineroActualizado({ tipo: 'plato_tomado', cocineroId: String(destino.cocineroId) });
+    }
+    logger.info('Plato pasado a backup', {
+      comandaId, platoId, de: String(actualId), a: destino.cocineroId
+    });
+    res.json({
+      success: true,
+      message: `Plato enviado a backup (${cocineroInfo.alias || cocineroInfo.nombre})`,
+      data: { comandaId, platoId, procesandoPor, backupDe: String(actualId) }
+    });
+  } catch (error) {
+    const status = error.statusCode || 500;
+    logger.error('Error al pasar plato a backup', { error: error.message });
+    res.status(status).json({ success: false, error: error.message || 'Error al pasar a backup' });
   }
 });
 
@@ -1945,6 +2025,77 @@ router.put('/comanda/:id/plato/:platoId/guarnicion/:complementoId/procesando', a
     } catch (error) {
         logger.error('Error al tomar guarnición', { error: error.message });
         res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * PUT /api/comanda/:id/plato/:platoId/guarnicion/:complementoId/pasar-a-backup
+ * Reasigna una guarnición en proceso al backup de su regla.
+ */
+router.put('/comanda/:id/plato/:platoId/guarnicion/:complementoId/pasar-a-backup', adminAuth, async (req, res) => {
+    try {
+        const { id: comandaId, platoId, complementoId } = req.params;
+        const loc = await localizarGuarnicion(comandaId, platoId, complementoId);
+        if (loc.error) return res.status(loc.status).json({ success: false, error: loc.error });
+        const { comanda, platoIndex, compIndex, comp } = loc;
+        const actualId = comp.procesandoPor?.cocineroId;
+        if (!actualId) {
+            return res.status(400).json({ success: false, error: 'La guarnición no está en proceso' });
+        }
+        const estadoG = String(comp.estadoCocina || 'pedido').toLowerCase();
+        if (!['pedido', 'en_espera'].includes(estadoG)) {
+            return res.status(400).json({ success: false, error: 'Solo se puede pasar a backup una guarnición en proceso' });
+        }
+        const esSupervisor = esSupervisorCocina(req.admin);
+        const soyTitular = String(req.admin?.id) === String(actualId);
+        if (!soyTitular && !esSupervisor) {
+            return res.status(403).json({ success: false, error: 'No tiene permisos para pasar esta guarnición a backup' });
+        }
+        const platoPadre = comanda.platos[platoIndex];
+        const destino = await asignacionAutomaticaGuarnicionesService.resolverBackupDestinoGuarnicion(
+            comp, platoPadre, actualId
+        );
+        if (String(destino.cocineroId) === String(actualId)) {
+            return res.status(409).json({ success: false, error: 'La guarnición ya está en su backup' });
+        }
+        const cocineroInfo = await getCocineroInfo(destino.cocineroId);
+        if (!cocineroInfo.cocineroId) {
+            return res.status(404).json({ success: false, error: 'El cocinero backup no existe' });
+        }
+        const ahora = moment().tz('America/Lima').toDate();
+        const procesandoPor = { ...cocineroInfo, timestamp: ahora };
+        const indices = await indicesObjetivoGuarnicion(platoPadre, compIndex);
+        const grupoId = indices.length > 1 ? String(platoPadre._id || platoId) : null;
+        const setFields = { updatedAt: ahora, updatedBy: req.admin?.id || destino.cocineroId };
+        for (const i of indices) {
+            setFields[`platos.${platoIndex}.complementosSeleccionados.${i}.procesandoPor`] = procesandoPor;
+            const reglasOk = new Set(['guarnicion', 'grupo', 'estacion', 'batch']);
+            setFields[`platos.${platoIndex}.complementosSeleccionados.${i}.asignacionMeta`] = {
+                origen: 'overflow',
+                regla: grupoId ? 'grupo' : (reglasOk.has(destino.tipoRegla) ? destino.tipoRegla : 'guarnicion'),
+                batchId: (platoPadre.complementosSeleccionados?.[i]?.asignacionMeta?.batchId) || null,
+                grupoId,
+                timestamp: ahora
+            };
+        }
+        await Comanda.updateOne({ _id: comandaId }, { $set: setFields });
+        try { await redisCache.invalidate(comandaId); } catch (_) { /* no bloquear */ }
+        const complementoIds = complementoIdsDeIndices(platoPadre, indices);
+        if (global.emitPlatoProcesando) {
+            global.emitPlatoProcesando(comandaId, platoId, procesandoPor, {
+                complementoId, complementoIds, tipo: grupoId ? 'grupo_guarniciones' : 'guarnicion'
+            });
+        }
+        logger.info('Guarnición pasada a backup', { comandaId, platoId, complementoId, a: destino.cocineroId });
+        res.json({
+            success: true,
+            message: `Guarnición enviada a backup (${cocineroInfo.alias || cocineroInfo.nombre})`,
+            data: { comandaId, platoId, complementoId, complementoIds, procesandoPor }
+        });
+    } catch (error) {
+        const status = error.statusCode || 500;
+        logger.error('Error al pasar guarnición a backup', { error: error.message });
+        res.status(status).json({ success: false, error: error.message || 'Error al pasar a backup' });
     }
 });
 

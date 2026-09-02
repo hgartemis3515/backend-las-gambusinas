@@ -20,6 +20,7 @@ const { platoUneComplementos } = require('../utils/platoUneComplementos');
 const { construirCatalogoGuarniciones, nombreOpcionComplemento } = require('../utils/catalogoGuarniciones');
 const redisCache = require('../utils/redisCache');
 const { topePositivo, bumpCargaCache, encolarAsignacionKds } = require('../utils/asignacionAutomaticaCupos');
+const { elegirSiguienteBackup } = require('../utils/elegirSiguienteBackup');
 const Zona = require('../database/models/zona.model');
 
 const Comanda = mongoose.model('Comanda') || require('../database/models/comanda.model');
@@ -641,6 +642,37 @@ async function simularAsignacionGuarnicion(grupo, opcion, cocineroPadreId = null
     };
 }
 
+async function resolverBackupDestinoGuarnicion(comp, platoPadre, cocineroActualId) {
+    const configRaw = await AsignacionAutomaticaGuarniciones.obtenerConfiguracion();
+    const config = configRaw && typeof configRaw.toObject === 'function' ? configRaw.toObject() : configRaw;
+    if (!config) {
+        const err = new Error('No hay configuración de asignación de guarniciones');
+        err.statusCode = 400;
+        throw err;
+    }
+    const resolved = resolverPerfilActivo(config);
+    const fuente = resolved.perfil
+        || (config.perfiles || []).find((p) => p && p.activo !== false)
+        || config;
+    const { grupo, opcion, key } = datosComplemento(comp);
+    const platoId = platoIdNumerico(platoPadre?.platoId)
+        || platoIdNumerico(platoPadre?.plato?.id)
+        || platoIdNumerico(platoPadre?.plato?.platoId);
+    const encontrada = encontrarReglaGuarnicion(fuente, grupo, opcion, key, platoId);
+    if (!encontrada) {
+        const err = new Error('Esta guarnición no tiene backups configurados');
+        err.statusCode = 400;
+        throw err;
+    }
+    const backup = elegirSiguienteBackup(encontrada.regla, cocineroActualId);
+    if (!backup) {
+        const err = new Error('No hay un backup disponible para esta guarnición');
+        err.statusCode = 409;
+        throw err;
+    }
+    return { cocineroId: String(backup.cocineroId), tipoRegla: encontrada.tipo };
+}
+
 module.exports = {
     normalizarGuarnicionKey,
     etiquetaGuarnicion,
@@ -662,6 +694,7 @@ module.exports = {
     snapshotReglaGuarnicion,
     asignarGuarnicionesNuevas,
     simularAsignacionGuarnicion,
+    resolverBackupDestinoGuarnicion,
     ESTADOS_EN_CURSO,
     TZ,
     nowLima
