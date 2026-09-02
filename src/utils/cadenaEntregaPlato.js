@@ -23,10 +23,16 @@ function pasosCadenaEntregaAbsoluta(estado) {
  * `salio` (cocina, pass) también cierra en `entregado`.
  */
 function destinosCambioEstadoPlato(estadoAnterior, nuevoEstado, absoluto) {
-    if (absoluto || nuevoEstado === 'salio') {
+    const actual = normalizarEstadoPlato(estadoAnterior);
+    const dest = String(nuevoEstado || '').toLowerCase();
+    if (absoluto || dest === 'salio') {
         return pasosCadenaEntregaAbsoluta(estadoAnterior);
     }
-    return [nuevoEstado];
+    if (dest === 'entregado' && (actual === 'entregado' || actual === 'pagado')) {
+        return [];
+    }
+    if (dest === actual) return [];
+    return [dest];
 }
 
 module.exports = {

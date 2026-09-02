@@ -3,6 +3,7 @@
  *
  * Endpoints:
  *   GET  /api/aprobacion/pendientes           — Lista unificada (comandas + PPA)
+ *   GET  /api/aprobacion/pendiente-cobro    — Suma tickets pendientes del mozo
  *   PUT  /api/aprobacion/:id/aprobar          — Aprueba comanda o PPA
  *   PUT  /api/aprobacion/:id/reportar          — Reporta comanda con motivo obligatorio
  *   GET  /api/comanda/:id/ticket-imprimible    — Datos mapeados para plantilla comanda
@@ -133,6 +134,24 @@ router.get('/aprobacion/pendientes', async (req, res) => {
 });
 
 /**
+ * GET /api/aprobacion/pendiente-cobro?mozoId=
+ * Suma de tickets PENDIENTES (comandas + PPA) del mozo. Baja a 0 al aprobar o forzar pago.
+ */
+router.get('/aprobacion/pendiente-cobro', async (req, res) => {
+  try {
+    const mozoId = req.query.mozoId || req.query.mozo || req.userId || req.admin?.id;
+    if (!mozoId) {
+      return res.status(400).json({ success: false, message: 'mozoId es requerido' });
+    }
+    const total = await aprobacionService.totalPendienteCobroMozo(mozoId);
+    res.json({ success: true, total });
+  } catch (error) {
+    logger.error('Error al obtener pendiente de cobro del mozo', { error: error.message });
+    res.status(500).json({ success: false, message: 'Error al obtener pendiente de cobro' });
+  }
+});
+
+/**
  * GET /api/aprobacion/turnos-dia
  * Misma respuesta que /cierre-caja/turnos-dia, con JWT de cocina (sin permiso admin).
  */
@@ -209,11 +228,13 @@ router.get('/aprobacion/fecha/:fecha', async (req, res) => {
 router.put('/aprobacion/:id/forzar-pago', async (req, res) => {
   try {
     const { id } = req.params;
-    const { usuarioId, usuarioNombre, metodoPago } = req.body || {};
+    const { usuarioId, usuarioNombre, metodoPago, montoRecibido, vuelto } = req.body || {};
     const result = await aprobacionService.forzarPagoTicketComanda(id, {
       usuarioId,
       usuarioNombre,
       metodoPago,
+      montoRecibido,
+      vuelto,
     });
 
     if (result.forzado === false && result.ticket) {
@@ -225,12 +246,6 @@ router.put('/aprobacion/:id/forzar-pago', async (req, res) => {
           logger.warn('Error emitiendo comanda-aprobada (forzar con boucher)', { error: e.message });
         }
       }
-    } else if (result.ticket && global.emitTicketAprobacionNuevo) {
-      try {
-        await global.emitTicketAprobacionNuevo(result.ticket);
-      } catch (e) {
-        logger.warn('Error emitiendo ticket tras forzar pago', { error: e.message });
-      }
     }
 
     if (result.ticket?.mesa && global.emitMesaActualizada) {
@@ -238,6 +253,54 @@ router.put('/aprobacion/:id/forzar-pago', async (req, res) => {
         await global.emitMesaActualizada(result.ticket.mesa.toString());
       } catch (e) {
         logger.warn('Error emitiendo mesa-actualizada tras forzar pago', { error: e.message });
+      }
+    }
+
+    if (result.comoPpa && result.ticket) {
+      try {
+        const io = global.io;
+        if (io) {
+          const mesaId = result.ticket.mesa?.toString?.() || result.ticket.mesa;
+          const comandasIds = (result.ticket.comandas || []).map((c) => c?.toString?.() || c);
+          const payloadPpa = {
+            ticketId: result.ticket._id,
+            ticket: result.ticket,
+            ticketNumber: result.ticket.ticketNumber,
+            comandas: result.ticket.comandas,
+            mesa: mesaId,
+            mesaId,
+            estadoMesa: result.mesaEstado || 'pedido',
+            nummesa: result.ticket.numMesa,
+            pagoForzado: true,
+            origen: 'forzado',
+          };
+          const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
+          io.of('/mozos').emit('ticket-ppa-creado', payloadPpa);
+          io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-ppa-nuevo', {
+            ticket: result.ticket,
+            message: 'Pago adelantado forzado desde caja',
+          });
+          io.of('/admin').emit('ticket-ppa-nuevo', { ticket: result.ticket });
+          for (const comandaId of comandasIds) {
+            if (!comandaId) continue;
+            const comandaActualizada = await comandaModel.findById(comandaId)
+              .populate('platos.plato', 'nombre precio id')
+              .populate('mozos', 'name')
+              .populate('mesas', 'nummesa estado nombreCombinado')
+              .lean();
+            const payloadComanda = {
+              comandaId,
+              comanda: comandaActualizada,
+              status: comandaActualizada?.status,
+            };
+            if (mesaId) {
+              io.of('/mozos').to(`mesa-${mesaId}`).emit('comanda-actualizada', payloadComanda);
+            }
+            io.of('/cocina').to(`fecha-${fechaHoy}`).emit('comanda-actualizada', payloadComanda);
+          }
+        }
+      } catch (e) {
+        logger.warn('Error emitiendo PPA tras forzar pago', { error: e.message });
       }
     }
 

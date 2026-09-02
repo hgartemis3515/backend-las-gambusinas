@@ -2110,7 +2110,9 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
     // Validación: Si el plato ya está en el estado destino, retornar éxito sin error
     if (estadoActual === nuevoEstado) {
       console.log(`ℹ️ [cambiarEstadoPlato] Plato ${platoId} ya está en estado "${nuevoEstado}" - Sin cambios necesarios`);
-      // Retornar la comanda sin modificar
+      return comanda;
+    }
+    if (estadoActual === 'pagado' && (nuevoEstado === 'entregado' || nuevoEstado === 'salio')) {
       return comanda;
     }
     
@@ -4007,6 +4009,123 @@ const calcularEstadoGlobalInicial = (platos) => {
   return estadoMasBajo === 'pedido' ? 'en_espera' : estadoMasBajo;
 };
 
+function platoCobradoPpaOForzado(plato) {
+  if (!plato?.pagoAdelantado) return false;
+  if (plato.pagoAdelantado.cobrado === true) return true;
+  return String(plato.pagoAdelantado.estadoTicket || '').toLowerCase() === 'aprobado';
+}
+
+async function mesaTieneOtrasComandasActivas(mesaId, comandaIdExcluir) {
+  if (!mesaId) return false;
+  const n = await comandaModel.countDocuments({
+    mesas: mesaId,
+    _id: { $ne: comandaIdExcluir },
+    IsActive: true,
+    eliminada: { $ne: true },
+    status: { $nin: ['pagado', 'completado', 'cancelado'] },
+  });
+  return n > 0;
+}
+
+async function cerrarComandaPpaTrasEntrega(comanda, platosActivos, statusActual) {
+  if (statusActual === 'pagado' && comanda.IsActive === false) {
+    return { updated: false, reason: 'status_ya_pagado', nuevoEstado: 'pagado' };
+  }
+  const ahora = moment.tz('America/Lima').toDate();
+  const comandaId = comanda._id;
+  const mozoId = comanda.mozos?._id
+    ? String(comanda.mozos._id)
+    : (comanda.mozos ? String(comanda.mozos) : null);
+
+  const platoOps = [];
+  (comanda.platos || []).forEach((p, idx) => {
+    if (p.eliminado === true || p.anulado === true) return;
+    if ((p.estado || '').toLowerCase() === 'pagado') return;
+    platoOps.push({
+      updateOne: {
+        filter: { _id: comandaId },
+        update: {
+          $set: {
+            [`platos.${idx}.estado`]: 'pagado',
+            [`platos.${idx}.tiempos.pagado`]: ahora,
+          },
+        },
+      },
+    });
+  });
+  if (platoOps.length) await comandaModel.bulkWrite(platoOps);
+
+  await comandaModel.updateOne(
+    { _id: comandaId },
+    {
+      $set: {
+        status: 'pagado',
+        IsActive: false,
+        tiempoPagado: ahora,
+        updatedAt: ahora,
+      },
+      $push: {
+        historialEstados: {
+          status: 'pagado',
+          statusAnterior: statusActual,
+          timestamp: ahora,
+          usuario: mozoId,
+          accion: 'Cierre automático: cobro adelantado/forzado + todos entregados',
+          deviceId: null,
+          sourceApp: 'sistema',
+          motivo: 'ppa_forzado_al_entregar',
+        },
+      },
+    }
+  );
+
+  const mesaId = comanda.mesas?._id || comanda.mesas;
+  if (mesaId) {
+    const hayOtras = await mesaTieneOtrasComandasActivas(mesaId, comandaId);
+    if (!hayOtras) {
+      await mesasModel.findByIdAndUpdate(mesaId, { estado: 'pagado' });
+      try {
+        const pedidoAbierto = await pedidoModel.findOne({ mesa: mesaId, estado: 'abierto', isActive: true });
+        if (pedidoAbierto) {
+          pedidoAbierto.estado = 'pagado';
+          pedidoAbierto.fechaPago = ahora;
+          await pedidoAbierto.save();
+        }
+      } catch (pedErr) {
+        logger.warn('No se pudo cerrar pedido tras PPA/forzar al entregar', { error: pedErr.message });
+      }
+    } else {
+      try {
+        await recalcularEstadoMesa(mesaId);
+      } catch (err) {
+        logger.warn('Error recalculando mesa tras cerrar comanda PPA', { error: err.message });
+      }
+    }
+    if (global.emitMesaActualizada) {
+      try { await global.emitMesaActualizada(mesaId); } catch (e) { /* no crítico */ }
+    }
+  }
+
+  if (global.emitComandaActualizada) {
+    try {
+      await global.emitComandaActualizada(comandaId, statusActual, 'pagado', {
+        ppaForzadoAlEntregar: true,
+      }, { skipPush: true });
+    } catch (err) {
+      logger.warn('Error emitiendo comanda-actualizada tras PPA/forzar al entregar', { error: err.message });
+    }
+  }
+
+  return {
+    updated: true,
+    estadoAnterior: statusActual,
+    nuevoEstado: 'pagado',
+    motivo: 'ppa_forzado_al_entregar',
+    totalPlatos: platosActivos.length,
+    platosEntregados: platosActivos.length,
+  };
+}
+
 /**
  * Actualiza el status de la comanda a 'recoger' cuando TODOS los platos activos están en estado 'entregado'.
  * Función dedicada de una sola regla: evita bloqueos de pago cuando los platos se entregan de forma gradual.
@@ -4023,7 +4142,7 @@ const actualizarComandaSiTodosEntregados = async (comandaId, options = {}) => {
 
     const comanda = await comandaModel
       .findById(comandaId)
-      .select('platos status comandaNumber mesas mozos tiempoRecoger tiempoEntregado tiempoEnEspera tiempoPagado historialEstados omitirPago pagoOmitido')
+      .select('platos status comandaNumber mesas mozos tiempoRecoger tiempoEntregado tiempoEnEspera tiempoPagado historialEstados omitirPago pagoOmitido origenReserva origenCreacion programadaPorReserva')
       .lean();
 
     if (!comanda) {
@@ -4047,6 +4166,19 @@ const actualizarComandaSiTodosEntregados = async (comandaId, options = {}) => {
     logger.info(`${logPrefix} Platos activos: ${numActivos} | Con estado entregado: ${platosEntregados}`);
 
     if (platosEntregados !== numActivos) {
+      const todosSalieronKds = platosActivos.every((p) => {
+        const e = (p.estado || '').toLowerCase();
+        return e === 'salio' || e === 'entregado' || e === 'pagado';
+      });
+      if (
+        todosSalieronKds
+        && statusActual !== 'pagado'
+        && comanda.programadaPorReserva !== true
+        && platosActivos.every(platoCobradoPpaOForzado)
+      ) {
+        logger.info(`${logPrefix} cobro PPA/forzado + KDS entregó todos (salio) → cerrando comanda y mesa pagado`);
+        return cerrarComandaPpaTrasEntrega(comanda, platosActivos, statusActual);
+      }
       logger.info(`${logPrefix} No todos entregados (faltan ${numActivos - platosEntregados}), no se actualiza`);
       return {
         updated: false,
@@ -4189,6 +4321,14 @@ const actualizarComandaSiTodosEntregados = async (comandaId, options = {}) => {
       };
     }
     // ========== FIN RAMA OMITIR PAGO ==========
+
+    if (statusActual !== 'pagado' && comanda.programadaPorReserva !== true) {
+      const todosCobradosPpa = platosActivos.every(platoCobradoPpaOForzado);
+      if (todosCobradosPpa) {
+        logger.info(`${logPrefix} cobro PPA/forzado + todos entregados → cerrando comanda y mesa pagado`);
+        return cerrarComandaPpaTrasEntrega(comanda, platosActivos, statusActual);
+      }
+    }
 
     if (statusActual === 'entregado' || statusActual === 'pagado') {
       logger.info(`${logPrefix} Status ya es "${statusActual}", no se actualiza`);

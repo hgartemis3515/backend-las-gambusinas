@@ -17,6 +17,10 @@ const listarMozos = async () => {
 }
 
 const crearMozo = async (data) => {
+    if (data.pinAcceso !== undefined) {
+        const pin = String(data.pinAcceso || '').replace(/\D/g, '').slice(0, 4);
+        data.pinAcceso = /^\d{4}$/.test(pin) ? pin : '';
+    }
     await mozos.create(data);
     const todoslosmozos = await listarMozos();
     try {
@@ -68,7 +72,10 @@ const actualizarMozo = async (id, newData) => {
         if (newData.direccion !== undefined) mozo.direccion = newData.direccion;
         if (newData.contactoEmergenciaNombre !== undefined) mozo.contactoEmergenciaNombre = newData.contactoEmergenciaNombre;
         if (newData.contactoEmergenciaTelefono !== undefined) mozo.contactoEmergenciaTelefono = newData.contactoEmergenciaTelefono;
-        if (newData.pinAcceso !== undefined) mozo.pinAcceso = String(newData.pinAcceso || '').trim();
+        if (newData.pinAcceso !== undefined) {
+            const pin = String(newData.pinAcceso || '').replace(/\D/g, '').slice(0, 4);
+            mozo.pinAcceso = /^\d{4}$/.test(pin) ? pin : '';
+        }
         if (newData.usuarioWeb !== undefined) mozo.usuarioWeb = newData.usuarioWeb;
         if (newData.passwordWeb !== undefined && newData.passwordWeb !== '') mozo.passwordWeb = newData.passwordWeb;
         if (newData.rol !== undefined) mozo.rol = newData.rol;

@@ -52,6 +52,26 @@ async function obtenerTicketsUnificadosPendientes(fecha) {
   return items;
 }
 
+async function totalPendienteCobroMozo(mozoId) {
+  if (!mozoId || !mongoose.Types.ObjectId.isValid(String(mozoId))) {
+    return 0;
+  }
+  const mid = new mongoose.Types.ObjectId(String(mozoId));
+  const base = { mozo: mid, isActive: { $ne: false } };
+  const [a, b] = await Promise.all([
+    ticketAprobacionModel.aggregate([
+      { $match: { ...base, estado: { $in: ['pendiente_aprobacion', 'reportado'] } } },
+      { $group: { _id: null, total: { $sum: { $ifNull: ['$total', 0] } } } },
+    ]),
+    ticketPagoAdelantadoModel.aggregate([
+      { $match: { ...base, estado: 'pendiente_aprobacion' } },
+      { $group: { _id: null, total: { $sum: { $ifNull: ['$total', 0] } } } },
+    ]),
+  ]);
+  const suma = (a[0]?.total || 0) + (b[0]?.total || 0);
+  return Math.round(Number(suma) * 100) / 100;
+}
+
 /**
  * Detecta el tipo real de un ticket buscando en ambas colecciones.
  * Primero intenta en la colección del tipo indicado; si no lo encuentra,
@@ -349,8 +369,9 @@ async function crearTicketPendienteDesdeComanda(comandaIdOrDoc) {
  */
 async function forzarPagoTicketComanda(ticketId, {
   usuarioId, usuarioNombre, metodoPago = 'efectivo',
+  montoRecibido, vuelto,
 } = {}) {
-  const { ticketEsAltaSinPago, ticketPuedeAprobarse } = require('../utils/ticketAltaComanda');
+  const { ticketPuedeAprobarse } = require('../utils/ticketAltaComanda');
   const ticket = await ticketAprobacionModel.findById(ticketId);
   if (!ticket || ticket.isActive === false) {
     const err = new Error('Ticket no encontrado');
@@ -363,14 +384,20 @@ async function forzarPagoTicketComanda(ticketId, {
     throw err;
   }
 
-  const metodo = ['efectivo', 'digital', 'tarjeta'].includes(metodoPago) ? metodoPago : 'efectivo';
-
   if (ticket.boucher || ticketPuedeAprobarse(ticket)) {
-    const result = await ticketAprobacionRepository.aprobarTicket(ticketId, usuarioId, usuarioNombre);
+    const esForzado = ticket.pagoForzado === true || String(ticket.origen || '').toLowerCase() === 'forzado';
+    const result = await ticketAprobacionRepository.aprobarTicket(ticketId, usuarioId, usuarioNombre, {
+      pagoForzado: esForzado,
+    });
+    if (esForzado && ticket.mesa) {
+      const mesaDoc = await mesasModel.findById(ticket.mesa).select('estado').lean();
+      const mesaEstadoServicio = mesaDoc?.estado === 'reservado' ? 'reservado' : 'pedido';
+      if (!['pedido', 'preparado', 'entregado', 'esperando', 'reservado'].includes(mesaDoc?.estado)) {
+        await mesasModel.findByIdAndUpdate(ticket.mesa, { estado: mesaEstadoServicio });
+      }
+      return { ...result, forzado: true, yaTeniaBoucher: true, mesaEstado: mesaEstadoServicio };
+    }
     return { ...result, forzado: false, yaTeniaBoucher: true };
-  }
-  if (!ticketEsAltaSinPago(ticket) && !ticket.boucher) {
-    // pendiente sin origen (legacy): tratarlo como alta
   }
 
   const { crearBoucher } = require('../repository/boucher.repository');
@@ -394,7 +421,22 @@ async function forzarPagoTicketComanda(ticketId, {
     throw err;
   }
 
+  const metodo = ['efectivo', 'digital', 'tarjeta'].includes(metodoPago) ? metodoPago : 'efectivo';
   const total = Number(ticket.total) || 0;
+  let recibidoFinal = metodo === 'efectivo' ? total : null;
+  let vueltoFinal = metodo === 'efectivo' ? 0 : null;
+  if (metodo === 'efectivo' && montoRecibido != null && montoRecibido !== '') {
+    recibidoFinal = Math.round((Number(montoRecibido) || 0) * 100) / 100;
+    if (recibidoFinal + 0.001 < total) {
+      const err = new Error('El monto recibido no puede ser menor al total');
+      err.statusCode = 400;
+      throw err;
+    }
+    vueltoFinal = Number.isFinite(Number(vuelto))
+      ? Math.round((Number(vuelto) || 0) * 100) / 100
+      : Math.max(0, Math.round((recibidoFinal - total) * 100) / 100);
+  }
+
   const boucher = await crearBoucher({
     mesa: ticket.mesa,
     numMesa: ticket.numMesa,
@@ -412,30 +454,102 @@ async function forzarPagoTicketComanda(ticketId, {
     montoDescuento: ticket.montoDescuento,
     metodoPago: metodo,
     metodoPagoLabel: metodo === 'digital' ? 'YAPE/PLIN' : metodo === 'tarjeta' ? 'CRÉDITO/DÉBITO' : 'Efectivo',
-    montoRecibido: metodo === 'efectivo' ? total : null,
-    vuelto: 0,
-    observaciones: 'Pago forzado desde caja (tabla de tickets)',
+    montoRecibido: recibidoFinal,
+    vuelto: vueltoFinal,
+    esPagoAdelantado: true,
+    observaciones: 'Pago adelantado forzado desde caja (tabla de tickets)',
   });
 
   ticket.boucher = boucher._id;
   ticket.voucherId = boucher.voucherId || (boucher.boucherNumber != null ? String(boucher.boucherNumber) : null);
   ticket.metodoPago = metodo;
-  ticket.montoRecibido = metodo === 'efectivo' ? total : null;
+  ticket.montoRecibido = recibidoFinal;
+  ticket.vuelto = vueltoFinal;
   ticket.origen = 'forzado';
   ticket.pagoForzado = true;
   ticket.observaciones = `${ticket.observaciones || ''} [PAGO FORZADO CAJA]`.trim();
   await ticket.save();
 
-  const ahora = require('moment-timezone')().tz('America/Lima').toDate();
-  await comandaModel.updateMany(
-    { _id: { $in: ticket.comandas } },
-    { $set: { tiempoPagado: ahora } }
-  );
+  await marcarPlatosComoPpaDesdeTicket(ticket, boucher._id);
+
+  const mesaAntes = ticket.mesa
+    ? await mesasModel.findById(ticket.mesa).select('estado').lean()
+    : null;
+  const esReserva = await ticketComandasSonReserva(ticket);
+  const mesaEstadoServicio = esReserva || mesaAntes?.estado === 'reservado'
+    ? 'reservado'
+    : (['pedido', 'preparado', 'entregado', 'esperando'].includes(mesaAntes?.estado)
+      ? mesaAntes.estado
+      : 'pedido');
+  if (ticket.mesa && !['pedido', 'preparado', 'entregado', 'esperando', 'reservado'].includes(mesaAntes?.estado)) {
+    await mesasModel.findByIdAndUpdate(ticket.mesa, { estado: mesaEstadoServicio });
+  }
 
   const result = await ticketAprobacionRepository.aprobarTicket(ticketId, usuarioId, usuarioNombre, {
     pagoForzado: true,
   });
-  return { ...result, forzado: true, boucher };
+
+  // Siempre dejar la mesa en servicio (pedido/reservado). aprobarTicket no puede
+  // dejarla en pagado: el KDS todavía no entregó.
+  if (ticket.mesa) {
+    await mesasModel.findByIdAndUpdate(ticket.mesa, { estado: mesaEstadoServicio });
+  }
+  return {
+    ...result,
+    forzado: true,
+    boucher,
+    comoPpa: true,
+    mesaEstado: mesaEstadoServicio,
+  };
+}
+
+async function ticketComandasSonReserva(ticket) {
+  if (!ticket?.comandas?.length) return false;
+  const comandas = await comandaModel.find({ _id: { $in: ticket.comandas } })
+    .select('origenReserva origenCreacion programadaPorReserva')
+    .lean();
+  return comandas.some((c) => c.origenReserva || c.origenCreacion === 'reserva' || c.programadaPorReserva === true);
+}
+
+async function marcarPlatosComoPpaDesdeTicket(ticket, boucherId) {
+  const platosIds = new Set(
+    (ticket.platos || [])
+      .filter((p) => !p.eliminado)
+      .map((p) => (p.platoLineaId ? String(p.platoLineaId) : null))
+      .filter(Boolean)
+  );
+  if (!ticket.comandas?.length) return;
+  const payloadPpa = {
+    requerido: true,
+    cobrado: true,
+    ticketId: ticket._id,
+    estadoTicket: 'aprobado',
+    boucherId,
+  };
+  for (const comandaId of ticket.comandas) {
+    const comanda = await comandaModel.findById(comandaId);
+    if (!comanda) continue;
+    let modificado = false;
+    let matched = 0;
+    for (const plato of comanda.platos || []) {
+      if (plato.eliminado || plato.anulado) continue;
+      if (platosIds.size && !platosIds.has(String(plato._id))) continue;
+      plato.pagoAdelantado = { ...payloadPpa };
+      modificado = true;
+      matched += 1;
+    }
+    if (!matched && platosIds.size) {
+      for (const plato of comanda.platos || []) {
+        if (plato.eliminado || plato.anulado) continue;
+        plato.pagoAdelantado = { ...payloadPpa };
+        modificado = true;
+      }
+    }
+    if (modificado) {
+      comanda.markModified('platos');
+      await comanda.save();
+    }
+  }
 }
 
 /**
@@ -666,6 +780,7 @@ async function eliminarTicketUnificado(ticketId, tipoHint, motivo, usuarioId, us
 
 module.exports = {
   obtenerTicketsUnificadosPendientes,
+  totalPendienteCobroMozo,
   obtenerTicketsPorComanda,
   crearTicketAprobadoDesdeComanda,
   assertComandaParaTicketYaAprobado,

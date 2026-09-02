@@ -56,7 +56,14 @@ function emitirSesionCocina(mozoConRol, fallback = {}) {
         JWT_SECRET,
         { expiresIn: process.env.COCINA_JWT_EXPIRY || '30d' }
     );
-    const usuario = { id, name, rol: rolUsuario, permisos, reglas };
+    const usuario = {
+        id,
+        name,
+        rol: rolUsuario,
+        permisos,
+        reglas,
+        hasPinCocina: /^\d{4}$/.test(String(mozoConRol.pinAcceso || '').trim()),
+    };
     return {
         token,
         usuario,
@@ -491,7 +498,8 @@ router.post('/admin/cocina/auth', async (req, res) => {
                 name: mozo.name,
                 rol: rolUsuario,
                 permisos: permisos,
-                reglas: reglas
+                reglas: reglas,
+                hasPinCocina: /^\d{4}$/.test(String(mozo.pinAcceso || '').trim()),
             }
         });
         
@@ -780,6 +788,52 @@ router.post('/admin/cocina/auth/refresh', async (req, res) => {
     } catch (error) {
         logger.error('Error al renovar token de App Cocina', { error: error.message });
         res.status(401).json({ error: 'No se pudo renovar la sesion' });
+    }
+});
+
+/**
+ * POST /api/admin/cocina/desbloquear-pantalla
+ * Valida la clave de 4 dígitos del usuario de App Cocina (o de otro usuario cocina activo).
+ */
+router.post('/admin/cocina/desbloquear-pantalla', adminAuth, async (req, res) => {
+    try {
+        if (req.admin?.app && req.admin.app !== 'cocina') {
+            return res.status(403).json({ error: 'Solo aplica a la App Cocina' });
+        }
+        const pin = String(req.body?.pin || '').replace(/\D/g, '');
+        if (!/^\d{4}$/.test(pin)) {
+            return res.status(400).json({ error: 'La clave debe tener 4 dígitos' });
+        }
+
+        const mozosModel = require('../database/models/mozos.model');
+        const yo = await mozosModel.findById(req.admin.id).select('pinAcceso activo rol').lean();
+        if (!yo || yo.activo === false) {
+            return res.status(403).json({ error: 'Usuario inactivo' });
+        }
+
+        const mio = String(yo.pinAcceso || '').trim();
+        if (mio && mio === pin) {
+            return res.json({ success: true });
+        }
+
+        const otro = await mozosModel.findOne({
+            pinAcceso: pin,
+            activo: { $ne: false },
+        }).select('_id rol').lean();
+
+        if (otro) {
+            return res.json({ success: true });
+        }
+
+        if (!mio) {
+            return res.status(400).json({
+                error: 'Este usuario no tiene clave de 4 dígitos. Configúrala en Usuarios.',
+            });
+        }
+        return res.status(401).json({ error: 'Clave incorrecta' });
+    } catch (error) {
+        logger.error('Error al desbloquear pantalla cocina', { error: error.message });
+        return res.status(500).json({ error: 'No se pudo verificar la clave' });
     }
 });
 

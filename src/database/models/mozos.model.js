@@ -123,7 +123,7 @@ const mozosSchema = new mongoose.Schema({
     direccion: { type: String, default: '' },
     contactoEmergenciaNombre: { type: String, default: '' },
     contactoEmergenciaTelefono: { type: String, default: '' },
-    /** PIN numérico para acceso en POS / app mozos (alternativa coexistente con DNI en login) */
+    /** PIN de 4 dígitos para bloquear/desbloquear pantallas táctiles de App Cocina */
     pinAcceso: { type: String, default: '' },
     usuarioWeb: { type: String, default: '' },
     passwordWeb: { type: String, default: '' },

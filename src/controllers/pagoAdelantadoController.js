@@ -221,6 +221,25 @@ router.post('/pago-adelantado', async (req, res) => {
       sourceApp: 'mozos',
     });
 
+    const {
+      desactivarTicketsAltaPendientes,
+      actualizarTicketsForzadosConPpaMozo,
+    } = require('../utils/ticketAltaComanda');
+    const comandaIdsPpa = comandas.map((c) => c._id);
+    await desactivarTicketsAltaPendientes(
+      comandaIdsPpa,
+      'Reemplazado por pago adelantado del mozo'
+    );
+    await actualizarTicketsForzadosConPpaMozo(comandaIdsPpa, {
+      metodoPago: metodoPago || 'efectivo',
+      montoRecibido: boucher.montoRecibido ?? montoRecibido ?? null,
+      vuelto: boucher.vuelto ?? vuelto ?? null,
+      platos: platosParaTicket,
+      subtotal: boucher.subtotal ?? subtotalTotal,
+      igv: boucher.igv ?? igv,
+      total: boucher.total ?? total,
+    });
+
     // Marcar platos en las comandas con pagoAdelantado
     for (const comanda of comandas) {
       const comandaDoc = await comandaModel.findById(comanda._id);
@@ -283,6 +302,14 @@ router.post('/pago-adelantado', async (req, res) => {
       io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-ppa-nuevo', {
         ticket: ticketPopulated,
         message: 'Nuevo ticket de pago adelantado pendiente de aprobación',
+      });
+      io.of('/cocina').emit('ticket-ppa-nuevo', {
+        ticket: ticketPopulated,
+        message: 'Nuevo ticket de pago adelantado pendiente de aprobación',
+      });
+      io.of('/cocina').emit('ticket-aprobacion-nuevo', {
+        mesaId,
+        replacedByPpa: true,
       });
 
       // Notificar al mozo específico

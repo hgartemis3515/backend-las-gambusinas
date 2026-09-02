@@ -18,6 +18,11 @@ describe('cadenaEntregaPlato', () => {
         expect(destinosCambioEstadoPlato('salio', 'entregado', false)).toEqual(['entregado']);
     });
 
+    test('auto-entrega Mozos no falla si el plato ya está entregado o pagado', () => {
+        expect(destinosCambioEstadoPlato('entregado', 'entregado', false)).toEqual([]);
+        expect(destinosCambioEstadoPlato('pagado', 'entregado', false)).toEqual([]);
+    });
+
     test('ya entregado no re-aplica cadena', () => {
         expect(destinosCambioEstadoPlato('entregado', 'salio', false)).toEqual([]);
         expect(destinosCambioEstadoPlato('pagado', 'salio', true)).toEqual([]);

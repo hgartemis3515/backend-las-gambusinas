@@ -396,36 +396,50 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre, opts = {}) {
   let mesaEstadoFinal = null;
   const mesaDoc = await mesasModel.findById(ticket.mesa).select('estado').lean();
   if (mesaDoc) {
-    const evaluacion = await evaluarMesaListaParaLiberar(ticket.mesa, ticket.pedido);
-    if (evaluacion.lista && mesaDoc.estado !== 'reportado') {
-      await mesasModel.findByIdAndUpdate(ticket.mesa, { estado: 'pagado' });
-      mesaEstadoFinal = 'pagado';
-
-      // Cerrar pedido del ciclo al liberar mesa
-      try {
-        const pedidoModel = mongoose.model('Pedido');
-        const pedidoId = ticket.pedido;
-        if (pedidoId) {
-          const pedido = await pedidoModel.findById(pedidoId);
-          if (pedido && pedido.estado === 'abierto') {
-            pedido.estado = 'pagado';
-            pedido.fechaPago = ts;
-            pedido.boucher = ticket.boucher;
-            await pedido.save();
-          }
+    if (opts.pagoForzado) {
+      const estadoActual = (mesaDoc.estado || '').toLowerCase();
+      const mesaServicio = estadoActual === 'reservado' ? 'reservado' : 'pedido';
+      if (['pagado', 'pagando', 'pendiente_pago', 'pendiente_aprobar'].includes(estadoActual)) {
+        await mesasModel.findByIdAndUpdate(ticket.mesa, { estado: mesaServicio });
+        mesaEstadoFinal = mesaServicio;
+      } else {
+        mesaEstadoFinal = ['pedido', 'preparado', 'entregado', 'esperando', 'reservado'].includes(estadoActual)
+          ? mesaDoc.estado
+          : 'pedido';
+        if (mesaEstadoFinal !== mesaDoc.estado) {
+          await mesasModel.findByIdAndUpdate(ticket.mesa, { estado: mesaEstadoFinal });
         }
-      } catch (pedidoErr) {
-        logger.warn('No se pudo cerrar el pedido al liberar mesa', {
-          error: pedidoErr.message,
-          mesaId: ticket.mesa,
-        });
       }
-    } else if (!opts.pagoForzado && mesaDoc.estado !== 'reportado' && mesaDoc.estado !== 'pagado') {
-      // Mantener mesa en pendiente_aprobar mientras falten platos o tickets
-      await mesasModel.findByIdAndUpdate(ticket.mesa, { estado: 'pendiente_aprobar' });
-      mesaEstadoFinal = 'pendiente_aprobar';
     } else {
-      mesaEstadoFinal = mesaDoc.estado;
+      const evaluacion = await evaluarMesaListaParaLiberar(ticket.mesa, ticket.pedido);
+      if (evaluacion.lista && mesaDoc.estado !== 'reportado') {
+        await mesasModel.findByIdAndUpdate(ticket.mesa, { estado: 'pagado' });
+        mesaEstadoFinal = 'pagado';
+
+        try {
+          const pedidoModel = mongoose.model('Pedido');
+          const pedidoId = ticket.pedido;
+          if (pedidoId) {
+            const pedido = await pedidoModel.findById(pedidoId);
+            if (pedido && pedido.estado === 'abierto') {
+              pedido.estado = 'pagado';
+              pedido.fechaPago = ts;
+              pedido.boucher = ticket.boucher;
+              await pedido.save();
+            }
+          }
+        } catch (pedidoErr) {
+          logger.warn('No se pudo cerrar el pedido al liberar mesa', {
+            error: pedidoErr.message,
+            mesaId: ticket.mesa,
+          });
+        }
+      } else if (mesaDoc.estado !== 'reportado' && mesaDoc.estado !== 'pagado') {
+        await mesasModel.findByIdAndUpdate(ticket.mesa, { estado: 'pendiente_aprobar' });
+        mesaEstadoFinal = 'pendiente_aprobar';
+      } else {
+        mesaEstadoFinal = mesaDoc.estado;
+      }
     }
   }
 
@@ -493,14 +507,17 @@ async function evaluarMesaListaParaLiberar(mesaId, pedidoId = null) {
 
   let hayEntregadosSinCobrar = false;
   let hayPendientesSinAprobar = false;
+  let hayPlatosEnCocina = false;
   for (const c of comandasActivas) {
     for (const p of c.platos || []) {
       if (p.eliminado || p.anulado) continue;
       const e = (p.estado || '').toLowerCase();
       if (e === 'entregado') hayEntregadosSinCobrar = true;
       if (e === 'pendiente') hayPendientesSinAprobar = true;
+      if (['pedido', 'en_espera', 'recoger', 'salio'].includes(e)) hayPlatosEnCocina = true;
     }
   }
+  if (hayPlatosEnCocina) razones.push('quedan platos en cocina (pedido/en_espera/recoger/salio)');
   if (hayEntregadosSinCobrar) razones.push('quedan platos en entregado sin cobrar');
   if (hayPendientesSinAprobar) razones.push('quedan platos en pendiente esperando aprobación');
 

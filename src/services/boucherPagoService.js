@@ -637,15 +637,10 @@ async function procesarPagoBoucher(params) {
         platos: platosSnapshot,
       });
 
-      await ticketAprobacionModel.updateMany(
-        {
-          comandas: { $in: comandasIdsAfectadas },
-          estado: 'pendiente_aprobacion',
-          origen: 'alta_comanda',
-          isActive: true,
-          boucher: null,
-        },
-        { $set: { isActive: false, observaciones: 'Reemplazado por solicitud de cobro del mozo' } }
+      const { desactivarTicketsAltaPendientes } = require('../utils/ticketAltaComanda');
+      await desactivarTicketsAltaPendientes(
+        comandasIdsAfectadas,
+        'Reemplazado por solicitud de cobro del mozo'
       );
 
       ticketAprobacionCreado = await ticketAprobacionRepository.crearTicketAprobacion({

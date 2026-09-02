@@ -126,6 +126,7 @@ tailwind.config = {
                     <span x-show="!(m.fotoUrl || m.foto)" x-text="m.nombre?.charAt(0)?.toUpperCase() || '?'"></span>
                   </div>
                   <span class="font-medium" x-text="m.nombre"></span>
+                  <span x-show="m.pinAcceso" class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400" title="Clave App Cocina">🔒</span>
                 </div>
               </td>
               <td class="px-4 py-3 text-txt-secondary" x-text="m.dni || '—'"></td>
@@ -265,6 +266,14 @@ tailwind.config = {
           <label class="text-xs text-txt-secondary mb-1 block">Email</label>
           <input type="email" x-model="formUsuario.email" placeholder="usuario@email.com" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
         </div>
+        <div>
+          <label class="text-xs text-txt-secondary mb-1 block">Clave 4 dígitos <span class="text-txt-muted">(App Cocina)</span></label>
+          <input type="text" inputmode="numeric" maxlength="4" x-model="formUsuario.claveCocina"
+            @input="formUsuario.claveCocina = String($event.target.value || '').replace(/\D/g, '').slice(0, 4)"
+            placeholder="••••"
+            class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none font-mono tracking-[0.4em]">
+          <p class="text-[11px] text-txt-muted mt-1">Bloquea y desbloquea las tablas KDS y tickets en pantallas táctiles. Vacío = sin bloqueo.</p>
+        </div>
         
         <!-- Sugerencias para crear -->
         <div x-show="!isEditing" class="bg-gold-20 border border-gold/30 rounded-lg p-3">
@@ -272,6 +281,7 @@ tailwind.config = {
           <ul class="text-xs text-txt-secondary space-y-1">
             <li>• Usa el nombre real del usuario para facilitar identificación</li>
             <li>• El DNI será su contraseña por defecto para iniciar sesión</li>
+            <li>• La clave de 4 dígitos bloquea las pantallas táctiles de App Cocina</li>
             <li>• Asigna el rol más restrictivo que necesite para su función</li>
           </ul>
         </div>
@@ -443,6 +453,7 @@ function usuariosApp() {
       dni: '',
       telefono: '',
       email: '',
+      claveCocina: '',
       roles: ['mozos'],
       activo: true,
       foto: null,
@@ -690,6 +701,7 @@ function usuariosApp() {
         dni: '', 
         telefono: '', 
         email: '',
+        claveCocina: '',
         roles: rolDefecto, 
         activo: true, 
         foto: null,
@@ -725,6 +737,7 @@ function usuariosApp() {
         dni: m.dni || m.DNI?.toString() || '',
         telefono: m.telefono || m.phoneNumber?.toString() || '',
         email: m.email || '',
+        claveCocina: String(m.pinAcceso || '').replace(/\D/g, '').slice(0, 4),
         roles: rolesUsuario,
         activo: m.activo !== false,
         foto: fotoServidor,
@@ -797,6 +810,12 @@ function usuariosApp() {
         this.showToast('Debe seleccionar al menos un rol', 'error');
         return;
       }
+
+      const claveCocina = String(this.formUsuario.claveCocina || '').replace(/\D/g, '');
+      if (claveCocina && !/^\d{4}$/.test(claveCocina)) {
+        this.showToast('La clave de App Cocina debe tener exactamente 4 dígitos', 'error');
+        return;
+      }
       
       this.saving = true;
       const isEdit = !!this.formUsuario._id;
@@ -814,6 +833,7 @@ function usuariosApp() {
         DNI: parseInt(this.formUsuario.dni, 10) || 0,
         phoneNumber: parseInt(telDigits, 10) || 0,
         email: this.formUsuario.email || '',
+        pinAcceso: claveCocina,
         roles: this.formUsuario.roles,
         rol: this.formUsuario.roles[0], // Rol principal (compatibilidad)
         activo: this.formUsuario.activo,
