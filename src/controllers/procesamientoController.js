@@ -22,6 +22,7 @@ const { registrarAuditoria } = require('../middleware/auditoria');
 
 const Comanda = mongoose.model('Comanda') || require('../database/models/comanda.model');
 const { getCocineroInfo } = require('../utils/cocineroInfo');
+const { evaluarReasignacionProcesamiento } = require('../utils/reasignacionProcesamiento');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
 const cocinerosRepository = require('../repository/cocineros.repository');
 const asignacionAutomaticaService = require('../services/asignacionAutomaticaService');
@@ -292,7 +293,7 @@ const findPlatoIndex = (platos, platoId) => {
 /**
  * PUT /api/comanda/:id/plato/:platoId/procesando
  * Un cocinero toma un plato para prepararlo
- * @param {boolean} forzar - Si es true, permite reasignar aunque esté tomado por otro (solo supervisor/admin)
+ * @param {boolean} forzar - Si es true, permite reasignar aunque esté tomado (supervisor/admin o el titular)
  */
 router.put('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, res) => {
   try {
@@ -315,15 +316,7 @@ router.put('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, res)
       });
     }
     
-    // Solo el propio cocinero o un admin puede tomar platos
-    // EXCEPCIÓN: Supervisores y admins pueden asignar a cualquier cocinero
     const esSupervisor = esSupervisorCocina(req.admin);
-    if (req.admin.id !== cocineroId && !esSupervisor) {
-      return res.status(403).json({
-        success: false,
-        error: 'No tiene permisos para realizar esta acción'
-      });
-    }
     
     const comanda = await Comanda.findById(comandaId);
     
@@ -349,28 +342,19 @@ router.put('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, res)
     }
     
     const plato = comanda.platos[platoIndex];
-    
-    // Verificar si ya está siendo procesado por otro cocinero
-    // EXCEPCIÓN: Si forzar=true y el usuario tiene permisos de supervisor, permitir reasignación
-    if (plato.procesandoPor?.cocineroId &&
-        plato.procesandoPor.cocineroId.toString() !== cocineroId) {
-      
-      // Si no tiene permisos de supervisor o no está forzando, rechazar
-      const esSupervisor = esSupervisorCocina(req.admin);
-      if (!forzar || !esSupervisor) {
-        return res.status(409).json({
-          success: false,
-          error: 'Este plato ya está siendo procesado por otro cocinero',
-          procesandoPor: plato.procesandoPor
-        });
-      }
-      
-      // Si es supervisor y está forzando, permitir la reasignación
-      logger.info('[TomarPlato] Reasignación forzada por supervisor', {
-        platoId,
-        cocineroAnterior: plato.procesandoPor,
-        cocineroNuevo: cocineroId,
-        supervisorId: req.admin.id
+
+    const evalR = evaluarReasignacionProcesamiento({
+      adminId: req.admin.id,
+      esSupervisor,
+      holderId: plato.procesandoPor?.cocineroId,
+      nuevoCocineroId: cocineroId,
+      forzar
+    });
+    if (!evalR.ok) {
+      return res.status(evalR.status).json({
+        success: false,
+        error: evalR.error,
+        ...(evalR.status === 409 ? { procesandoPor: plato.procesandoPor } : {})
       });
     }
     
@@ -1939,13 +1923,25 @@ router.put('/comanda/:id/plato/:platoId/guarnicion/:complementoId/procesando', a
         if (!cocineroId) return res.status(400).json({ success: false, error: 'cocineroId es requerido' });
 
         const esSupervisor = esSupervisorCocina(req.admin);
-        if (req.admin.id !== cocineroId && !esSupervisor) {
-            return res.status(403).json({ success: false, error: 'No tiene permisos para realizar esta acción' });
-        }
 
         const loc = await localizarGuarnicion(comandaId, platoId, complementoId);
         if (loc.error) return res.status(loc.status).json({ success: false, error: loc.error });
         const { comanda, platoIndex, compIndex, comp } = loc;
+
+        const evalG = evaluarReasignacionProcesamiento({
+          adminId: req.admin.id,
+          esSupervisor,
+          holderId: comp.procesandoPor?.cocineroId,
+          nuevoCocineroId: cocineroId,
+          forzar
+        });
+        if (!evalG.ok) {
+          return res.status(evalG.status).json({
+            success: false,
+            error: evalG.error,
+            ...(evalG.status === 409 ? { procesandoPor: comp.procesandoPor } : {})
+          });
+        }
 
         if (platoUneComplementos(comanda.platos[platoIndex])) {
             return res.status(400).json({
@@ -1961,21 +1957,6 @@ router.put('/comanda/:id/plato/:platoId/guarnicion/:complementoId/procesando', a
             return res.status(409).json({
                 success: false,
                 error: 'La guarnición no puede ir al mismo cocinero del plato principal (use forzar con supervisor si es necesario)'
-            });
-        }
-
-        if (comp.procesandoPor?.cocineroId && comp.procesandoPor.cocineroId.toString() !== cocineroId) {
-            if (!forzar || !esSupervisor) {
-                return res.status(409).json({
-                    success: false,
-                    error: 'Esta guarnición ya está siendo procesada por otro cocinero',
-                    procesandoPor: comp.procesandoPor
-                });
-            }
-            logger.info('[TomarGuarnicion] Reasignación forzada por supervisor', {
-                comandaId, platoId, complementoId,
-                cocineroAnterior: comp.procesandoPor,
-                cocineroNuevo: cocineroId
             });
         }
 

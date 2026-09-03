@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const { syncJsonFile } = require('../utils/jsonSync');
 const fs = require('fs');
 const path = require('path');
+const { normalizarPinCocina, esPinCocinaValido } = require('../utils/pinCocina');
 
 function escapeRegex(s) {
     return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -18,8 +19,8 @@ const listarMozos = async () => {
 
 const crearMozo = async (data) => {
     if (data.pinAcceso !== undefined) {
-        const pin = String(data.pinAcceso || '').replace(/\D/g, '').slice(0, 4);
-        data.pinAcceso = /^\d{4}$/.test(pin) ? pin : '';
+        const pin = normalizarPinCocina(data.pinAcceso);
+        data.pinAcceso = esPinCocinaValido(pin) ? pin : '';
     }
     await mozos.create(data);
     const todoslosmozos = await listarMozos();
@@ -73,8 +74,8 @@ const actualizarMozo = async (id, newData) => {
         if (newData.contactoEmergenciaNombre !== undefined) mozo.contactoEmergenciaNombre = newData.contactoEmergenciaNombre;
         if (newData.contactoEmergenciaTelefono !== undefined) mozo.contactoEmergenciaTelefono = newData.contactoEmergenciaTelefono;
         if (newData.pinAcceso !== undefined) {
-            const pin = String(newData.pinAcceso || '').replace(/\D/g, '').slice(0, 4);
-            mozo.pinAcceso = /^\d{4}$/.test(pin) ? pin : '';
+            const pin = normalizarPinCocina(newData.pinAcceso);
+            mozo.pinAcceso = esPinCocinaValido(pin) ? pin : '';
         }
         if (newData.usuarioWeb !== undefined) mozo.usuarioWeb = newData.usuarioWeb;
         if (newData.passwordWeb !== undefined && newData.passwordWeb !== '') mozo.passwordWeb = newData.passwordWeb;

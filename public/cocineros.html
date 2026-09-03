@@ -2788,7 +2788,10 @@ tailwind.config = {
             <tbody>
               <template x-for="c in getHistorialComandasFiltradas()" :key="c.comandaId">
                 <tr class="border-t border-[rgba(212,175,55,0.08)] hover:bg-bg-sidebar/40"
-                  :class="(c.estadoRegistro === 'pagada' || c.estadoRegistro === 'completada') ? 'opacity-90' : ''">
+                  :class="{
+                    'opacity-90': (c.estadoRegistro === 'pagada' || c.estadoRegistro === 'completada'),
+                    'bg-gold/10': esComandaHistorialResaltada(c)
+                  }">
                   <td class="py-2.5 px-3">
                     <span class="text-[10px] px-2 py-0.5 rounded font-bold" :class="estadoComandaCocinaBadge(c).clase" x-text="estadoComandaCocinaBadge(c).texto"></span>
                   </td>
@@ -4457,7 +4460,7 @@ function cocinerosApp() {
     pageSizeOptions: [5, 10, 20],
 
     // Sistema de tabs
-    activeTab: 'cocineros', // 'cocineros', 'asignacion', 'asignacionGuarniciones', 'zonas', 'vistas', 'rendimiento'
+    activeTab: 'rendimiento', // 'cocineros', 'asignacion', 'asignacionGuarniciones', 'zonas', 'vistas', 'rendimiento'
 
     // ==================== ASIGNACIÓN DE GUARNICIONES (estado) ====================
     // PLAN GUARNICIONES_SEPARADAS v1.1 §5 — espejo de asignación de platos
@@ -4615,8 +4618,8 @@ function cocinerosApp() {
     rendimientoDebounceTimer: null,
     rendimientoSocketConnected: false,
     rendimientoPollInterval: null,
-    // Sub-tabs de rendimiento: 'enVivo' | 'historial'
-    subtabRendimiento: 'enVivo',
+    // Sub-tabs de rendimiento: 'enVivo' | 'historial' — al entrar se abre registro de platos
+    subtabRendimiento: 'historial',
     // Personalización de tarjetas (En vivo) — persistido en localStorage
     panelVistaRendimiento: false,
     vistaRendimiento: {
@@ -4652,6 +4655,8 @@ function cocinerosApp() {
     modalComandaCocina: null,
     selectedComandaCocina: null,
     loadingComandaCocina: false,
+    historialHighlightPlato: '',
+    historialOpenComandaId: '',
 
     // Vistas de Cocina (Ver Cocina)
     vistasCocina: [],
@@ -8843,6 +8848,8 @@ function cocinerosApp() {
       this.historialFiltroComanda = '';
       this.historialFiltroPlato = '';
       this.historialFiltroMesa = '';
+      this.historialHighlightPlato = '';
+      this.historialOpenComandaId = '';
       this.cargarHistorialCocinados();
     },
 
@@ -8904,7 +8911,11 @@ function cocinerosApp() {
       try {
         const params = new URLSearchParams(window.location.search || '');
         const tab = params.get('tab');
-        if (tab !== 'rendimiento') return;
+        const otrasTabs = ['cocineros', 'asignacion', 'asignacionGuarniciones', 'zonas', 'vistas'];
+        if (tab && otrasTabs.includes(tab)) {
+          this.cambiarTab(tab);
+          return;
+        }
         const sub = params.get('sub');
         if (sub === 'historial' || sub === 'enVivo') this.subtabRendimiento = sub;
         const cocinero = params.get('cocinero');
@@ -8923,18 +8934,25 @@ function cocinerosApp() {
         }
         const comanda = params.get('comanda');
         if (comanda) this.historialFiltroComanda = String(comanda).replace(/^#/, '');
+        const plato = params.get('plato');
+        if (plato) {
+          this.historialFiltroPlato = String(plato);
+          this.historialHighlightPlato = String(plato);
+        }
         const fecha = params.get('fecha');
         if (fecha && /^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
           this.historialFiltroFecha = 'personalizado';
           this.historialFechaDesde = fecha;
           this.historialFechaHasta = fecha;
         }
+        const openId = params.get('open') || params.get('ver');
+        if (openId) this.historialOpenComandaId = String(openId);
         this.cambiarTab('rendimiento');
         this.$nextTick(() => {
           if (this.subtabRendimiento === 'historial') {
-            this.cargarHistorialCocinados();
             const el = document.getElementById('seccion-registro-platos');
             if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (this.historialOpenComandaId) this.openComandaCocinaModal(this.historialOpenComandaId);
             return;
           }
           const el = document.getElementById('seccion-rendimiento-en-vivo');
@@ -8942,6 +8960,7 @@ function cocinerosApp() {
         });
       } catch (e) {
         console.warn('No se pudo aplicar query de rendimiento', e);
+        this.cambiarTab('rendimiento');
       }
     },
 
@@ -9279,6 +9298,26 @@ function cocinerosApp() {
       this.modalComandaCocina = null;
       this.selectedComandaCocina = null;
       this.loadingComandaCocina = false;
+    },
+
+    irAVerComandaComandas() {
+      const id = this.selectedComandaCocina?._id || this.selectedComandaCocina?.id || this.historialOpenComandaId;
+      if (!id) {
+        this.showToast('No hay comanda para abrir', 'error');
+        return;
+      }
+      window.location.href = 'comandas.html?id=' + encodeURIComponent(String(id));
+    },
+
+    esComandaHistorialResaltada(c) {
+      if (!c || !this.historialOpenComandaId) return false;
+      return String(c.comandaId) === String(this.historialOpenComandaId);
+    },
+
+    filaPlatoCocinaResaltada(item) {
+      const q = String(this.historialHighlightPlato || '').trim().toLowerCase();
+      if (!q || !item) return false;
+      return String(item.nombre || item.platoNombre || '').toLowerCase().includes(q.toLowerCase());
     },
 
     getTiempoCocinaPlatoUI(item) {
@@ -9687,7 +9726,12 @@ function cocinerosApp() {
           </div>
           <p class="text-xs text-txt-muted mt-0.5">Solo platos tomados por cocineros</p>
         </div>
-        <button type="button" @click="cerrarModalComandaCocina()" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-gold hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
+        <div class="flex items-center gap-2">
+          <button type="button" @click="irAVerComandaComandas()"
+            class="px-3 py-1.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition"
+            title="Abrir esta comanda en comandas.html">Ver comanda</button>
+          <button type="button" @click="cerrarModalComandaCocina()" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-gold hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
+        </div>
       </div>
     </div>
 
@@ -9717,7 +9761,8 @@ function cocinerosApp() {
               <tr><td colspan="7" class="px-4 py-6 text-center text-txt-muted text-xs">Sin platos tomados por cocineros</td></tr>
             </template>
             <template x-for="(item, idx) in (selectedComandaCocina?.items || [])" :key="item.platoSubdocId || item._id || ('item-' + idx)">
-              <tr class="border-b border-[rgba(212,175,55,0.08)]">
+              <tr class="border-b border-[rgba(212,175,55,0.08)]"
+                :class="filaPlatoCocinaResaltada(item) ? 'bg-gold/15' : ''">
                 <td class="px-4 py-3">
                   <p class="font-medium" x-text="item.nombre || '—'"></p>
                   <p class="text-[10px] text-txt-muted" x-show="item.notaEspecial" x-text="'📝 ' + item.notaEspecial"></p>
@@ -9742,7 +9787,8 @@ function cocinerosApp() {
       </div>
     </div>
 
-    <div class="bg-bg-sidebar p-4 rounded-b-2xl flex justify-end border-t border-[rgba(212,175,55,0.1)]">
+    <div class="bg-bg-sidebar p-4 rounded-b-2xl flex justify-end gap-2 border-t border-[rgba(212,175,55,0.1)]">
+      <button type="button" @click="irAVerComandaComandas()" class="px-4 py-2 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition">Ver comanda</button>
       <button type="button" @click="cerrarModalComandaCocina()" class="px-4 py-2 border border-txt-muted/40 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cerrar</button>
     </div>
   </div>

@@ -728,7 +728,10 @@ tailwind.config = {
  </div>
  <p class="text-xs text-txt-muted mt-0.5">
  <span x-text="formatearNombreMesa(selectedComanda?.mesa)"></span>
- <template x-if="selectedComanda?.mozo"><span> — <span x-text="selectedComanda.mozo"></span></span></template>
+ <template x-if="selectedComanda?.mozo && selectedComanda.mozo !== 'Sin asignar'">
+   <span> — <button type="button" class="text-gold hover:underline" title="Ver registro de platos del mozo" @click="irARegistroMozo(selectedComanda)" x-text="selectedComanda.mozo"></button></span>
+ </template>
+ <template x-if="!selectedComanda?.mozo || selectedComanda.mozo === 'Sin asignar'"><span> — Sin asignar</span></template>
  </p>
  </div>
  <div class="flex items-center gap-2">
@@ -768,7 +771,12 @@ tailwind.config = {
  <div class="grid grid-cols-3 gap-3 text-sm border-t border-[rgba(212,175,55,0.1)] pt-3">
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Mozo</p>
- <p class="font-medium" x-text="selectedComanda?.mozo || '—'"></p>
+ <button type="button" class="font-medium text-gold hover:underline"
+   x-show="selectedComanda?.mozo && selectedComanda.mozo !== 'Sin asignar'"
+   title="Ver registro de platos del mozo"
+   @click="irARegistroMozo(selectedComanda)"
+   x-text="selectedComanda.mozo"></button>
+ <p class="font-medium" x-show="!selectedComanda?.mozo || selectedComanda.mozo === 'Sin asignar'">—</p>
  </div>
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Observaciones</p>
@@ -875,7 +883,7 @@ tailwind.config = {
  <template x-for="cocinero in getResumenCocineros(selectedComanda).cocineros" :key="cocinero.cocineroId || cocinero.nombre">
  <button type="button"
    class="text-[9px] px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-medium hover:bg-st-preparado/40 cursor-pointer transition"
-   :title="'Ver rendimiento en vivo de ' + cocinero.nombre"
+   :title="'Ver registro de platos de ' + cocinero.nombre"
    @click="irARendimientoCocinero(cocinero)"
    x-text="cocinero.nombre"></button>
  </template>
@@ -942,7 +950,11 @@ tailwind.config = {
  <td class="px-3 py-3 text-center">
  <template x-if="getCocineroPlato(item).nombre !== '—'">
  <div class="flex flex-col items-center">
- <span class="text-[10px] font-medium text-st-preparado" x-text="getCocineroPlato(item).nombre"></span>
+ <button type="button"
+   class="text-[10px] font-medium text-st-preparado hover:underline"
+   title="Ver registro de este plato en cocineros"
+   @click="irARegistroPlatoDesdeVerComanda(item)"
+   x-text="getCocineroPlato(item).nombre"></button>
  <span x-show="getCocineroPlato(item).enPreparacion" class="text-[8px] text-st-esperando animate-pulse">En curso</span>
  </div>
  </template>
@@ -4246,7 +4258,7 @@ this.modal = null;
  this.irARegistroCocinero(cocinero, this.selectedComanda);
  },
 
- irARegistroCocinero(cocinero, comanda) {
+ irARegistroCocinero(cocinero, comanda, extra) {
  if (!cocinero && !comanda) return;
  const q = new URLSearchParams();
  q.set('tab', 'rendimiento');
@@ -4257,8 +4269,18 @@ this.modal = null;
    const num = comanda.numComanda || comanda._id;
    if (num) q.set('comanda', String(num));
    if (comanda.createdAt) q.set('fecha', limaYMD(new Date(comanda.createdAt)));
+   const id = comanda._id || comanda.id;
+   if (extra && extra.abrirModal && id) q.set('open', String(id));
  }
+ const plato = extra && extra.plato;
+ if (plato && plato !== '—') q.set('plato', String(plato));
  window.location.href = 'cocineros.html?' + q.toString();
+ },
+
+ irARegistroPlatoDesdeVerComanda(item) {
+ const chef = this.getCocineroPlato(item);
+ if (!chef || chef.nombre === '—') return;
+ this.irARegistroCocinero(chef, this.selectedComanda, { plato: item.nombre, abrirModal: true });
  },
 
  irARegistroMozo(comanda) {

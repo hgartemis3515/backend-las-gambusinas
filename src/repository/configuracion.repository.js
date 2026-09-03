@@ -138,6 +138,7 @@ const obtenerConfiguracion = async () => {
         
         // Convertir a objeto plano
         const configPlain = config.toObject();
+        delete configPlain.pinUniversalCocina;
         
         // Guardar en caché
         await redisCache.setCustom(CACHE_KEY_PREFIX, 'sistema', configPlain, CACHE_TTL);
@@ -152,7 +153,9 @@ const obtenerConfiguracion = async () => {
 /** Lectura directa de Mongo (plantillas): no usar Redis para no devolver una versión vieja. */
 const obtenerConfiguracionSinCache = async () => {
     const config = await ConfiguracionSistema.obtenerConfiguracion();
-    return config.toObject();
+    const plain = config.toObject();
+    delete plain.pinUniversalCocina;
+    return plain;
 };
 
 /**
@@ -176,7 +179,7 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
         // Filtrar campos protegidos
         const datosFiltrados = {};
         for (const [key, value] of Object.entries(nuevosDatos)) {
-            if (!camposProtegidos.includes(key)) {
+            if (!camposProtegidos.includes(key) && key !== 'pinUniversalCocina') {
                 datosFiltrados[key] = value;
             }
         }

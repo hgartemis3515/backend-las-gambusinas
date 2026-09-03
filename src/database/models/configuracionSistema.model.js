@@ -163,6 +163,9 @@ const CONFIGURACION_DEFAULT = {
         requiere2FA: false,
         auditoriaExtendida: true
     },
+
+    // Clave de 6 dígitos que desbloquea cualquier pantalla de App Cocina (solo admin la configura)
+    pinUniversalCocina: '',
     
     // Cierre de caja
     cierreCaja: {
@@ -906,6 +909,10 @@ const configuracionSistemaSchema = new mongoose.Schema({
     cicloToqueKdsV2: {
         type: Boolean,
         default: false
+    },
+    pinUniversalCocina: {
+        type: String,
+        default: ''
     }
 }, {
     timestamps: true,
