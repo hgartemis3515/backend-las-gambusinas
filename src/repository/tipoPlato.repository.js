@@ -115,6 +115,8 @@ const crearTipoPlato = async (data) => {
         orden: Number(data.orden) || 99,
         activo: data.activo !== false,
         esSistema: false,
+        soloContadorEnCocina: data.soloContadorEnCocina === true,
+        particionHorizontalCocina: data.particionHorizontalCocina === true,
         alias,
         creadoPor: data.creadoPor || 'admin',
         actualizadoPor: data.actualizadoPor || 'admin'
@@ -149,6 +151,12 @@ const actualizarTipoPlato = async (id, newData) => {
     if (newData.activo != null) tipo.activo = Boolean(newData.activo);
     if (newData.alias != null && Array.isArray(newData.alias)) {
         tipo.alias = newData.alias.map(a => String(a).toLowerCase().trim()).filter(Boolean);
+    }
+    if (newData.soloContadorEnCocina != null) {
+        tipo.soloContadorEnCocina = Boolean(newData.soloContadorEnCocina);
+    }
+    if (newData.particionHorizontalCocina != null) {
+        tipo.particionHorizontalCocina = Boolean(newData.particionHorizontalCocina);
     }
     tipo.actualizadoPor = newData.actualizadoPor || 'admin';
 

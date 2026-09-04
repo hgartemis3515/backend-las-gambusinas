@@ -1040,7 +1040,7 @@ router.put('/comanda/:id/procesando', adminAuth, async (req, res) => {
     
     // Obtener comanda actualizada poblada para emitir
     const comandaActualizada = await Comanda.findById(comandaId)
-      .populate({ path: "platos.plato", select: "nombre precio categoria nombreCocina complementosUnidosAlPlato" })
+      .populate({ path: "platos.plato", select: "nombre precio categoria nombreCocina tipo tipos complementosUnidosAlPlato" })
       .lean();
     
     // Emitir evento Socket con la comanda completa actualizada
@@ -1210,7 +1210,7 @@ router.delete('/comanda/:id/procesando', adminAuth, async (req, res) => {
     
     // 4. Emitir evento Socket con la comanda completa actualizada
     const comandaActualizada = await Comanda.findById(comandaId)
-      .populate({ path: "platos.plato", select: "nombre precio categoria nombreCocina complementosUnidosAlPlato" })
+      .populate({ path: "platos.plato", select: "nombre precio categoria nombreCocina tipo tipos complementosUnidosAlPlato" })
       .lean();
     
     if (global.emitComandaLiberada) {
@@ -1426,7 +1426,7 @@ router.put('/comanda/:id/finalizar', adminAuth, async (req, res) => {
     
     // Obtener comanda completa poblada para emitir
     const comandaFinalizada = await Comanda.findById(comandaId)
-      .populate({ path: "platos.plato", select: "nombre precio categoria nombreCocina complementosUnidosAlPlato" })
+      .populate({ path: "platos.plato", select: "nombre precio categoria nombreCocina tipo tipos complementosUnidosAlPlato" })
       .populate({ path: "mozos" })
       .populate({ path: "mesas", populate: { path: "area" } })
       .lean();

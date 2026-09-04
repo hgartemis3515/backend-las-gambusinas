@@ -53,6 +53,16 @@ const tipoPlatoSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    /** Ver cocina completo: oculta cronómetro y # secuencial; solo muestra xN. */
+    soloContadorEnCocina: {
+        type: Boolean,
+        default: false
+    },
+    /** Ver cocina completo: parte la vista en horizontal (normales vs este tipo). */
+    particionHorizontalCocina: {
+        type: Boolean,
+        default: false
+    },
     alias: [{
         type: String,
         trim: true,
@@ -101,7 +111,7 @@ tipoPlatoSchema.statics.getMenuLigero = async function (soloActivos = true) {
     const filter = soloActivos ? { activo: true } : {};
     return this.find(filter)
         .sort({ orden: 1, nombre: 1 })
-        .select('slug nombre nombreCorto icono color orden activo -_id')
+        .select('slug nombre nombreCorto icono color orden activo soloContadorEnCocina particionHorizontalCocina -_id')
         .lean();
 };
 

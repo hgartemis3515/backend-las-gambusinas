@@ -22,7 +22,7 @@ const {
   overlayPronombresEnComandas
 } = require('../utils/precioComplementos');
 
-const SELECT_PLATO_COCINA = 'nombre precio categoria codigo nombreCocina complementos complementosUnidosAlPlato';
+const SELECT_PLATO_COCINA = 'nombre precio categoria codigo nombreCocina tipo tipos complementos complementosUnidosAlPlato';
 const configuracionRepository = require('./configuracion.repository');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
 const { obtenerCicloServicioMesa, intersectarComandaIds, obtenerComandaIdsDeTicketsRecientes } = require('../services/mesaCicloServicio.service');

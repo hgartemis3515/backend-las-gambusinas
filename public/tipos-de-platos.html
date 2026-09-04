@@ -209,6 +209,23 @@ tailwind.config = {
         <input type="text" x-model="form.aliasStr" placeholder="cena, noche" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
         <p class="text-[10px] text-txt-muted mt-1">Palabras aceptadas al filtrar por API o UI como alias del slug.</p>
       </div>
+      <div class="rounded-xl border border-[rgba(212,175,55,0.2)] bg-bg-sidebar/50 p-3 space-y-3">
+        <p class="text-xs font-semibold text-gold">Reglas en Ver cocina completo</p>
+        <label class="flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" x-model="form.soloContadorEnCocina" class="w-4 h-4 mt-0.5 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+          <span>
+            <span class="block text-sm text-txt-primary font-semibold">Solo contador (xN)</span>
+            <span class="block text-[11px] text-txt-muted mt-0.5">Al asignar platos de este tipo a un cocinero, oculta el cronómetro y el número secuencial. Solo se ve el contador (x1, x8…).</span>
+          </span>
+        </label>
+        <label class="flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" x-model="form.particionHorizontalCocina" class="w-4 h-4 mt-0.5 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+          <span>
+            <span class="block text-sm text-txt-primary font-semibold">Partición horizontal</span>
+            <span class="block text-[11px] text-txt-muted mt-0.5">Separa estos platos de los normales: mitad de arriba = platos normales, mitad de abajo = este tipo.</span>
+          </span>
+        </label>
+      </div>
     </div>
     <div class="bg-bg-sidebar p-5 rounded-b-2xl flex items-center justify-between border-t border-[rgba(212,175,55,0.15)]">
       <span class="text-[10px] text-txt-muted">ℹ️ <span x-text="isEditing ? 'PUT /api/tipos-plato/:id' : 'POST /api/tipos-plato'"></span></span>
@@ -272,6 +289,8 @@ function tiposPlatoApp() {
       orden: 99,
       activo: true,
       esSistema: false,
+      soloContadorEnCocina: false,
+      particionHorizontalCocina: false,
       aliasStr: ''
     },
 
@@ -312,7 +331,8 @@ function tiposPlatoApp() {
       this.form = {
         _id: null, nombre: '', nombreCorto: '', slug: '',
         icono: '🍽️', color: '#d4af37', orden: nextOrden,
-        activo: true, esSistema: false, aliasStr: ''
+        activo: true, esSistema: false,
+        soloContadorEnCocina: false, particionHorizontalCocina: false, aliasStr: ''
       };
       this.modal = true;
     },
@@ -329,6 +349,8 @@ function tiposPlatoApp() {
         orden: t.orden || 99,
         activo: t.activo !== false,
         esSistema: !!t.esSistema,
+        soloContadorEnCocina: !!t.soloContadorEnCocina,
+        particionHorizontalCocina: !!t.particionHorizontalCocina,
         aliasStr: (t.alias || []).join(', ')
       };
       this.modal = true;
@@ -347,6 +369,8 @@ function tiposPlatoApp() {
         color: this.form.color.trim(),
         orden: Number(this.form.orden) || 99,
         activo: this.form.activo,
+        soloContadorEnCocina: !!this.form.soloContadorEnCocina,
+        particionHorizontalCocina: !!this.form.particionHorizontalCocina,
         alias
       };
 
