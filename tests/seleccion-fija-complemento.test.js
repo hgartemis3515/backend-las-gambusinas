@@ -50,3 +50,37 @@ describe('seleccionFija en grupos de complemento', () => {
     expect(out[0].seleccionFija).toBe(false);
   });
 });
+
+describe('deshabilitarSumaVariante en grupos MIX', () => {
+  test('plato.complementos.deshabilitarSumaVariante existe y default false', () => {
+    const path = Plato.schema.path('complementos').schema.path('deshabilitarSumaVariante');
+    expect(path).toBeTruthy();
+    expect(path.instance).toBe('Boolean');
+    expect(path.defaultValue).toBe(false);
+  });
+
+  test('plantilla.deshabilitarSumaVariante existe y default false', () => {
+    const path = ComplementoPlantilla.schema.path('deshabilitarSumaVariante');
+    expect(path).toBeTruthy();
+    expect(path.instance).toBe('Boolean');
+    expect(path.defaultValue).toBe(false);
+  });
+
+  test('sanitizar conserva deshabilitarSumaVariante solo en MIX', () => {
+    const mix = sanitizarComplementosParaGuardar([{
+      grupo: 'MIX',
+      esVariantePlato: true,
+      deshabilitarSumaVariante: true,
+      opciones: [{ nombre: 'TÉ' }, { nombre: 'CAFÉ' }],
+    }]);
+    expect(mix[0].deshabilitarSumaVariante).toBe(true);
+    expect(mix[0].esVariantePlato).toBe(true);
+
+    const otro = sanitizarComplementosParaGuardar([{
+      grupo: 'Guarnición',
+      deshabilitarSumaVariante: true,
+      opciones: [{ nombre: 'Arroz' }],
+    }]);
+    expect(otro[0].deshabilitarSumaVariante).toBe(false);
+  });
+});

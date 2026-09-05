@@ -39,6 +39,7 @@ function sanitizarComplementosParaGuardar(complementos) {
         }
         const seleccionMultiple = !!g.seleccionMultiple;
         const esVariantePlato = g.esVariantePlato === true;
+        const deshabilitarSumaVariante = esVariantePlato && (g.deshabilitarSumaVariante === true || g.deshabilitarSumaVariante === 'true');
         const seleccionFija = !esVariantePlato && (g.seleccionFija === true || g.seleccionFija === 'true');
         const modo = g.modoSeleccion === 'cantidades' || seleccionFija || seleccionMultiple
             ? 'cantidades'
@@ -56,6 +57,7 @@ function sanitizarComplementosParaGuardar(complementos) {
             maxUnidadesPorOpcion: maxOp,
             permiteRepetirOpcion: g.permiteRepetirOpcion !== undefined ? !!g.permiteRepetirOpcion : seleccionMultiple,
             esVariantePlato,
+            deshabilitarSumaVariante,
             seleccionFija,
             opciones: ops
         };

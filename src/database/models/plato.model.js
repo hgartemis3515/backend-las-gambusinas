@@ -131,6 +131,9 @@ const platoSchema = new mongoose.Schema({
         // Variante MIX: las opciones (TÉ, CAFÉ…) son el nombre del plato en cocina,
         // no una guarnición. Las cantidades de este grupo se reparte = cantidad del plato.
         esVariantePlato: { type: Boolean, default: false },
+        // Si true, las cantidades MIX son lo pedido (4 TÉ + 2 CAFÉ = 6) y no deben
+        // sumar la cantidad del plato. Las fijas se multiplican por ese total.
+        deshabilitarSumaVariante: { type: Boolean, default: false },
         // Selección fija: el mozo no elige; al pedir el plato se aplican las opciones
         // marcadas en Órdenes (o todas, si ninguna está marcada) con su cantidad.
         seleccionFija: { type: Boolean, default: false },

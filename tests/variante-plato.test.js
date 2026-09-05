@@ -53,6 +53,44 @@ describe('partirLineaPorVariante', () => {
     expect(partes[0].cantidad).toBe(2);
     expect(partes[0].linea.nombreCocinaPedido).toBeFalsy();
   });
+
+  test('SUMA off: 4 TÉ con cantidad de plato 1 queda TÉ x4 y copia fijas', () => {
+    const linea = {
+      plato: 'idmix',
+      complementosSeleccionados: [
+        { grupo: 'Guarnición A', opcion: 'Arroz', cantidad: 1 },
+        { grupo: 'Guarnición B', opcion: 'Papas', cantidad: 2 },
+        { grupo: 'Bebida', opcion: 'TE', cantidad: 4 },
+      ],
+    };
+    const partes = partirLineaPorVariante(linea, catalogoMix, 1);
+    expect(partes).toHaveLength(1);
+    expect(partes[0].cantidad).toBe(4);
+    expect(partes[0].linea.nombreCocinaPedido).toBe('TÉ');
+    expect(partes[0].linea.complementosSeleccionados.find((c) => c.opcion === 'Arroz').cantidad).toBe(1);
+    expect(partes[0].linea.complementosSeleccionados.find((c) => c.opcion === 'Papas').cantidad).toBe(2);
+  });
+
+  test('SUMA off: 4 TÉ + 2 CAFÉ con plato x1 parte 4 y 2; fijas por unidad en cada línea', () => {
+    const linea = {
+      plato: 'idmix',
+      complementosSeleccionados: [
+        { grupo: 'Guarnición A', opcion: 'Arroz', cantidad: 1 },
+        { grupo: 'Guarnición B', opcion: 'Papas', cantidad: 2 },
+        { grupo: 'Bebida', opcion: 'TE', cantidad: 4 },
+        { grupo: 'Bebida', opcion: 'CAFE', cantidad: 2 },
+      ],
+    };
+    const partes = partirLineaPorVariante(linea, catalogoMix, 1);
+    expect(partes).toHaveLength(2);
+    expect(partes.map((p) => p.cantidad)).toEqual([4, 2]);
+    expect(partes[0].linea.nombreCocinaPedido).toBe('TÉ');
+    expect(partes[1].linea.nombreCocinaPedido).toBe('CAFÉ');
+    const arrozTe = partes[0].linea.complementosSeleccionados.find((c) => c.opcion === 'Arroz');
+    const papasCafe = partes[1].linea.complementosSeleccionados.find((c) => c.opcion === 'Papas');
+    expect(arrozTe.cantidad).toBe(1);
+    expect(papasCafe.cantidad).toBe(2);
+  });
 });
 
 describe('expandirPlatosPorVariante', () => {

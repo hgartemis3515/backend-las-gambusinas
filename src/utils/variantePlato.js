@@ -46,9 +46,17 @@ function aplicarVarianteEnLinea(linea, varianteSel, grupo) {
   };
 }
 
+/** Una sola opción MIX: usa max(cantidad línea, cantidad de la opción). */
+function cantidadParteVariante(varianteSel, nLinea) {
+  const q = Math.max(1, Number(varianteSel?.cantidad) || 1);
+  const n = Math.max(1, Number(nLinea) || 1);
+  return Math.max(n, q);
+}
+
 /**
  * Parte una línea de comanda si el catálogo tiene grupo esVariantePlato y hay
- * varias opciones con cantidad. Si hay una sola, solo anota el nombre de cocina.
+ * varias opciones con cantidad. Si hay una sola, anota el nombre de cocina
+ * y toma max(cantidad línea, cantidad MIX) para SUMA deshabilitada (4 TÉ con plato x1).
  */
 function partirLineaPorVariante(platoLinea, catalogo, cantidadLinea) {
   const n = Math.max(1, Number(cantidadLinea) || 1);
@@ -65,7 +73,10 @@ function partirLineaPorVariante(platoLinea, catalogo, cantidadLinea) {
   const resolverGrupo = (v) => gruposVar.find((g) => claveGrupo(g.grupo) === claveGrupo(v.grupo)) || gruposVar[0];
 
   if (vars.length === 1) {
-    return [{ linea: aplicarVarianteEnLinea(linea, vars[0], resolverGrupo(vars[0])), cantidad: n }];
+    return [{
+      linea: aplicarVarianteEnLinea(linea, vars[0], resolverGrupo(vars[0])),
+      cantidad: cantidadParteVariante(vars[0], n),
+    }];
   }
 
   return vars.map((v) => ({
@@ -125,6 +136,7 @@ module.exports = {
   claveGrupo,
   gruposVarianteDeCatalogo,
   nombreCocinaDeOpcion,
+  cantidadParteVariante,
   partirLineaPorVariante,
   expandirPlatosPorVariante,
   esComplementoVariante,
