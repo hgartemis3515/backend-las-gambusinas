@@ -34,6 +34,27 @@ describe('mapComandaPorCobrar', () => {
     expect(mapped.pendienteCobro).toBe(80);
     expect(mapped.platosResumen).toBe('Lomo x2, Ceviche');
     expect(mapped.cocineros).toEqual([{ nombre: 'Pepe', cocineroId: 'ck1' }]);
+    expect(mapped.pedidoId).toBe(null);
+    expect(mapped.clienteId).toBe(null);
+  });
+
+  test('expone pedido y cliente para agrupar como comandas.html', () => {
+    const mapped = mapComandaPorCobrar({
+      _id: 'c3',
+      comandaNumber: 81,
+      pedido: 'aaaaaaaaaaaaaaaaaaaaaaaa',
+      cliente: { _id: 'bbbbbbbbbbbbbbbbbbbbbbbb', nombre: 'Luis' },
+      clienteNombre: 'Luis',
+      origenCreacion: 'mozos',
+      createdByDashboard: null,
+      totalCalculado: 10,
+      platos: [{ nombre: 'Ají', estado: 'entregado' }],
+    }, 10);
+    expect(mapped.pedidoId).toBe('aaaaaaaaaaaaaaaaaaaaaaaa');
+    expect(mapped.clienteId).toBe('bbbbbbbbbbbbbbbbbbbbbbbb');
+    expect(mapped.clienteNombre).toBe('Luis');
+    expect(mapped.origenCreacion).toBe('mozos');
+    expect(mapped.createdByDashboard).toBe(null);
   });
 
   test('incluye mesaId y estado cuando mesas viene poblada', () => {

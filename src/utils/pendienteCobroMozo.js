@@ -141,6 +141,11 @@ function mapComandaPorCobrar(c, pendienteCobro) {
     platos,
     platosResumen: platos.map((p) => (p.cantidad > 1 ? `${p.nombre} x${p.cantidad}` : p.nombre)).join(', '),
     cocineros: [...cocinerosMap.values()],
+    pedidoId: c.pedido?._id ? String(c.pedido._id) : (c.pedido ? String(c.pedido) : (c.pedidoId ? String(c.pedidoId) : null)),
+    clienteId: c.cliente?._id ? String(c.cliente._id) : (c.cliente ? String(c.cliente) : (c.clienteId ? String(c.clienteId) : null)),
+    clienteNombre: c.clienteNombre || c.cliente?.nombre || null,
+    origenCreacion: c.origenCreacion || null,
+    createdByDashboard: c.createdByDashboard ? String(c.createdByDashboard._id || c.createdByDashboard) : null,
   };
 }
 
