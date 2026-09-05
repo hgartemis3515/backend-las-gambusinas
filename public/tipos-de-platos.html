@@ -212,33 +212,33 @@ tailwind.config = {
         <p class="text-[10px] text-txt-muted mt-1">Palabras aceptadas al filtrar por API o UI como alias del slug.</p>
       </div>
       <div class="rounded-xl border border-[rgba(212,175,55,0.2)] bg-bg-sidebar/50 p-3 space-y-3">
-        <p class="text-xs font-semibold text-gold">Reglas en Ver cocina completo</p>
+        <p class="text-xs font-semibold text-gold">Reglas en cocina (Ver cocina completo y tabla KDS)</p>
         <label class="flex items-start gap-3 cursor-pointer">
           <input type="checkbox" x-model="form.soloContadorEnCocina" class="w-4 h-4 mt-0.5 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
           <span>
             <span class="block text-sm text-txt-primary font-semibold">Solo contador (xN)</span>
-            <span class="block text-[11px] text-txt-muted mt-0.5">Al asignar platos de este tipo a un cocinero, oculta el cronómetro y el número secuencial. Solo se ve el contador (x1, x8…).</span>
+            <span class="block text-[11px] text-txt-muted mt-0.5">Al asignar platos de este tipo a un cocinero, oculta el cronómetro y el número secuencial en Ver cocina y en la tabla KDS. Solo se ve el contador (x1, x8…). Se aplica al guardar, sin reiniciar.</span>
           </span>
         </label>
         <label class="flex items-start gap-3 cursor-pointer">
           <input type="checkbox" x-model="form.particionHorizontalCocina" class="w-4 h-4 mt-0.5 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
           <span>
             <span class="block text-sm text-txt-primary font-semibold">Partición horizontal</span>
-            <span class="block text-[11px] text-txt-muted mt-0.5">Separa en Ver cocina completo los platos pedidos desde este tipo en la app de mozos (mitad de abajo). El mismo plato pedido desde otro tipo sin esta marca se queda arriba.</span>
+            <span class="block text-[11px] text-txt-muted mt-0.5">Separa en Ver cocina completo los platos pedidos desde este tipo en la app de mozos (mitad de abajo). El mismo plato pedido desde otro tipo sin esta marca se queda arriba. Se aplica al guardar, sin reiniciar.</span>
           </span>
         </label>
         <label class="flex items-start gap-3 cursor-pointer">
           <input type="checkbox" x-model="form.particionHorizontalGuarnicionesCocina" class="w-4 h-4 mt-0.5 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
           <span>
             <span class="block text-sm text-txt-primary font-semibold">Partición horizontal de guarniciones</span>
-            <span class="block text-[11px] text-txt-muted mt-0.5">Las guarniciones de platos pedidos en este tipo también se separan en la mitad de abajo del panel de guarniciones, igual que los principales.</span>
+            <span class="block text-[11px] text-txt-muted mt-0.5">Las guarniciones de platos pedidos en este tipo también se separan en la mitad de abajo del panel de guarniciones, igual que los principales. Se aplica al guardar, sin reiniciar.</span>
           </span>
         </label>
         <label class="flex items-start gap-3 cursor-pointer">
           <input type="checkbox" x-model="form.contadorGuarnicionesCocina" class="w-4 h-4 mt-0.5 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
           <span>
             <span class="block text-sm text-txt-primary font-semibold">Contador de guarniciones</span>
-            <span class="block text-[11px] text-txt-muted mt-0.5">Igual que “Solo contador (xN)” de los platos principales, pero en el panel de guarniciones: suma las guarniciones enviadas de platos de este tipo y oculta cronómetro y número secuencial.</span>
+            <span class="block text-[11px] text-txt-muted mt-0.5">Igual que “Solo contador (xN)” de los platos principales, pero en el panel de guarniciones y en la tabla KDS: suma las guarniciones enviadas de platos de este tipo y oculta cronómetro y número secuencial. Se aplica al guardar, sin reiniciar.</span>
           </span>
         </label>
         <div class="rounded-lg border border-[rgba(212,175,55,0.18)] bg-bg-primary/70 p-3">

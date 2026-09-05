@@ -25,6 +25,7 @@ const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelanta
 const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
 const logger = require('../utils/logger');
 const calculosPrecios = require('../utils/calculosPrecios');
+const { comandaCalificaLiberarSinCaja } = require('../utils/pendienteCobroMozo');
 
 /**
  * POST /pago-adelantado
@@ -795,18 +796,7 @@ router.put('/pago-adelantado/confirmar-entrega', async (req, res) => {
     const comandasCerradas = [];
     let minCreatedPPA = null;
     for (const comanda of comandas) {
-      const platosActivos = comanda.platos.filter(p => !p.eliminado && !p.anulado);
-      if (platosActivos.length === 0) continue;
-
-      const todosParaLlevar = platosActivos.every(p => p.tipoServicio === 'para_llevar');
-      const todosCobradosPPA = platosActivos.every((p) => esCobradoPPA(p));
-      if (!todosParaLlevar && !todosCobradosPPA) continue;
-
-      const todosEntregados = platosActivos.every((p) => {
-        const e = (p.estado || '').toLowerCase();
-        return e === 'salio' || e === 'entregado' || e === 'pagado';
-      });
-      if (!todosEntregados) continue;
+      if (!comandaCalificaLiberarSinCaja(comanda, esCobradoPPA)) continue;
 
       await cerrarComandaPPA(comanda);
       comandasCerradas.push(comanda._id);
@@ -817,7 +807,7 @@ router.put('/pago-adelantado/confirmar-entrega', async (req, res) => {
     if (comandasCerradas.length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'No hay comandas de pago adelantado pendientes de liberar en esta mesa.',
+        error: 'No hay comandas pendientes de liberar en esta mesa.',
       });
     }
 

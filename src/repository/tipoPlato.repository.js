@@ -124,7 +124,7 @@ const crearTipoPlato = async (data) => {
         actualizadoPor: data.actualizadoPor || 'admin'
     });
 
-    invalidatePlatoMenuCache();
+    await invalidatePlatoMenuCache();
     return nuevo.toObject();
 };
 
@@ -169,7 +169,7 @@ const actualizarTipoPlato = async (id, newData) => {
     tipo.actualizadoPor = newData.actualizadoPor || 'admin';
 
     await tipo.save();
-    invalidatePlatoMenuCache();
+    await invalidatePlatoMenuCache();
     return tipo.toObject();
 };
 
@@ -182,7 +182,7 @@ const desactivarTipoPlato = async (id) => {
     }
     tipo.activo = false;
     await tipo.save();
-    invalidatePlatoMenuCache();
+    await invalidatePlatoMenuCache();
     return tipo.toObject();
 };
 
@@ -195,7 +195,7 @@ const reactivarTipoPlato = async (id) => {
     }
     tipo.activo = true;
     await tipo.save();
-    invalidatePlatoMenuCache();
+    await invalidatePlatoMenuCache();
     return tipo.toObject();
 };
 
@@ -219,7 +219,7 @@ const eliminarTipoPlato = async (id) => {
         throw err;
     }
     await TipoPlato.deleteOne({ _id: tipo._id });
-    invalidatePlatoMenuCache();
+    await invalidatePlatoMenuCache();
     return { deleted: true, slug: tipo.slug };
 };
 
@@ -266,7 +266,7 @@ const reasignarTipoPlato = async (slugOrigen, slugDestino, platoIds = null) => {
         }
     }
     const result = { modifiedCount };
-    invalidatePlatoMenuCache();
+    await invalidatePlatoMenuCache();
     return { modifiedCount: result.modifiedCount || 0, origen, destino };
 };
 
@@ -302,15 +302,34 @@ async function _findDoc(id) {
     return bySlug;
 }
 
+function emitirTiposPlatoReglasActualizadas(tipos) {
+    const io = global.io;
+    if (!io?.of) return;
+    const payload = { tipos: Array.isArray(tipos) ? tipos : [] };
+    try {
+        io.of('/cocina').emit('tipos-plato-reglas-actualizadas', payload);
+        io.of('/admin').emit('tipos-plato-reglas-actualizadas', payload);
+    } catch (error) {
+        logger.warn('No se pudo emitir tipos-plato-reglas-actualizadas', { error: error.message });
+    }
+}
+
 async function invalidatePlatoMenuCache() {
     try {
         const redisCache = require('../utils/redisCache');
-        if (!redisCache || typeof redisCache.invalidateCustom !== 'function') return;
-        const tipos = await TipoPlato.find({}).select('slug -_id').lean();
-        for (const t of tipos) {
-            redisCache.invalidateCustom('plato:menu', t.slug).catch(() => {});
+        if (redisCache && typeof redisCache.invalidateCustom === 'function') {
+            const tipos = await TipoPlato.find({}).select('slug -_id').lean();
+            for (const t of tipos) {
+                redisCache.invalidateCustom('plato:menu', t.slug).catch(() => {});
+            }
         }
     } catch (_) {}
+    try {
+        const tipos = await TipoPlato.getMenuLigero(true);
+        emitirTiposPlatoReglasActualizadas(tipos);
+    } catch (error) {
+        logger.warn('No se pudo emitir reglas de tipos de plato a cocina', { error: error.message });
+    }
 }
 
 module.exports = {

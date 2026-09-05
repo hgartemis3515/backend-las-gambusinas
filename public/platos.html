@@ -340,7 +340,7 @@ tailwind.config = {
                       <input type="number" min="1" max="99" x-show="grupo.modoSeleccion === 'cantidades' && op.preseleccionada"
                         x-model.number="op.cantidadPreseleccion"
                         @input="marcarCopiaComplementoPlato(gi)"
-                        class="w-12 bg-bg-sidebar border border-[rgba(212,175,55,0.2)] rounded px-1 py-0.5 text-[10px] text-center focus:border-gold focus:outline-none"
+                        class="w-20 min-w-[4.75rem] h-9 bg-bg-sidebar border border-[rgba(212,175,55,0.35)] rounded-md px-2 text-sm font-semibold text-white text-center tabular-nums focus:border-gold focus:outline-none"
                         title="Cantidad preseleccionada">
                     </label>
                   </template>
@@ -828,7 +828,7 @@ tailwind.config = {
                 <span class="flex-1 truncate" x-text="op.nombre"></span>
                 <input type="number" min="1" max="99" x-show="formComplemento.modoSeleccion === 'cantidades' && op.preseleccionada"
                   x-model.number="op.cantidadPreseleccion"
-                  class="w-12 bg-bg-sidebar border border-[rgba(212,175,55,0.2)] rounded px-1 py-0.5 text-[10px] text-center focus:border-gold focus:outline-none"
+                  class="w-20 min-w-[4.75rem] h-9 bg-bg-sidebar border border-[rgba(212,175,55,0.35)] rounded-md px-2 text-sm font-semibold text-white text-center tabular-nums focus:border-gold focus:outline-none"
                   title="Cantidad preseleccionada">
               </label>
             </template>

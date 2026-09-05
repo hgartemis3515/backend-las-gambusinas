@@ -97,3 +97,45 @@ describe('mapComandaPorCobrar', () => {
     expect(pendienteDeComanda(c, { cobradoBouchers: 40 })).toBe(0);
   });
 });
+
+describe('comandaCalificaLiberarSinCaja (costo 0)', () => {
+  const { comandaCalificaLiberarSinCaja, esComandaSinCobro } = require('../src/utils/pendienteCobroMozo');
+
+  test('plato 0 entregado se libera sin caja', () => {
+    const c = {
+      platos: [{ estado: 'entregado', precioUnitario: 0, eliminado: false }],
+      cantidades: [1],
+    };
+    expect(esComandaSinCobro(c)).toBe(true);
+    expect(comandaCalificaLiberarSinCaja(c)).toBe(true);
+  });
+
+  test('plato 0 aún en cocina no se libera', () => {
+    const c = {
+      platos: [{ estado: 'pedido', precioUnitario: 0 }],
+      cantidades: [1],
+    };
+    expect(comandaCalificaLiberarSinCaja(c)).toBe(false);
+  });
+
+  test('plato 0 + adicional con precio sigue el flujo de caja', () => {
+    const c = {
+      platos: [
+        { estado: 'entregado', precioUnitario: 0 },
+        { estado: 'entregado', precioUnitario: 8 },
+      ],
+      cantidades: [1, 1],
+    };
+    expect(esComandaSinCobro(c)).toBe(false);
+    expect(comandaCalificaLiberarSinCaja(c)).toBe(false);
+  });
+
+  test('plato 0 con extra en precioUnitario no es costo cero', () => {
+    const c = {
+      platos: [{ estado: 'entregado', precioUnitario: 5 }],
+      cantidades: [1],
+    };
+    expect(esComandaSinCobro(c)).toBe(false);
+    expect(comandaCalificaLiberarSinCaja(c)).toBe(false);
+  });
+});

@@ -99,6 +99,37 @@ function cocineroDePlato(p) {
     || cocineroDeBloque(p?.finalizadoPor);
 }
 
+function esComandaSinCobro(c) {
+  return round2(netoComanda(c)) <= 0.009;
+}
+
+function estadoEntregaCaja(estado) {
+  const e = String(estado || '').toLowerCase();
+  return e === 'entregado' || e === 'pagado';
+}
+
+function estadoEntregaKds(estado) {
+  const e = String(estado || '').toLowerCase();
+  return e === 'salio' || e === 'entregado' || e === 'pagado';
+}
+
+/**
+ * Liberar mesa sin pasar por caja: PPA / para llevar, o comanda total 0 ya entregada.
+ */
+function comandaCalificaLiberarSinCaja(comanda, esCobradoPPA) {
+  const platosActivos = (comanda?.platos || []).filter((p) => !p?.eliminado && !p?.anulado);
+  if (!platosActivos.length) return false;
+  const sinCobro = esComandaSinCobro(comanda);
+  const okEstado = sinCobro
+    ? platosActivos.every((p) => estadoEntregaCaja(p.estado))
+    : platosActivos.every((p) => estadoEntregaKds(p.estado));
+  if (!okEstado) return false;
+  if (sinCobro) return true;
+  if (platosActivos.every((p) => p.tipoServicio === 'para_llevar')) return true;
+  if (typeof esCobradoPPA === 'function' && platosActivos.every(esCobradoPPA)) return true;
+  return false;
+}
+
 function mapComandaPorCobrar(c, pendienteCobro) {
   const platos = [];
   const cocinerosMap = new Map();
@@ -160,4 +191,6 @@ module.exports = {
   cocineroDeBloque,
   cocineroDePlato,
   mapComandaPorCobrar,
+  esComandaSinCobro,
+  comandaCalificaLiberarSinCaja,
 };
