@@ -136,6 +136,26 @@ const comandaSchema = new mongoose.Schema({
             enum: ['mesa', 'para_llevar'],
             default: 'mesa'
         },
+        // Slug del tipo de menú elegido en Mozos al agregar el plato (Carta, Cena, …).
+        // Independiente de `plato.tipos` del catálogo: el mismo plato pedido en otro tipo no hereda esta marca.
+        tipoPedido: {
+            type: String,
+            default: null,
+            trim: true,
+            lowercase: true
+        },
+        // Snapshot MIX: nombre que cocina debe ver (TÉ / CAFÉ), no el catálogo MIX.
+        nombreCocinaPedido: {
+            type: String,
+            default: '',
+            trim: true,
+            maxlength: 40
+        },
+        variantePlato: {
+            grupo: { type: String, default: '', trim: true },
+            opcion: { type: String, default: '', trim: true },
+            pronombre: { type: String, default: '', trim: true }
+        },
         // 🔥 AUDITORÍA: Campos para tracking de eliminación
         eliminado: { 
             type: Boolean, 

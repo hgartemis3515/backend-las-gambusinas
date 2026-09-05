@@ -125,6 +125,7 @@ const crearComplementoPlantilla = async (data) => {
         minUnidadesGrupo: data.minUnidadesGrupo ?? (data.obligatorio ? 1 : 0),
         maxUnidadesPorOpcion: data.maxUnidadesPorOpcion ?? null,
         permiteRepetirOpcion: data.permiteRepetirOpcion ?? data.seleccionMultiple,
+        esVariantePlato: data.esVariantePlato === true,
         // ===== FIN NUEVOS CAMPOS =====
         categoria: data.categoria?.trim() || 'General',
         activo: data.activo !== false,
@@ -176,7 +177,7 @@ const actualizarComplementoPlantilla = async (id, newData) => {
         'categoria', 'activo',
         // ===== NUEVOS CAMPOS v2.0 =====
         'modoSeleccion', 'maxUnidadesGrupo', 'minUnidadesGrupo',
-        'maxUnidadesPorOpcion', 'permiteRepetirOpcion'
+        'maxUnidadesPorOpcion', 'permiteRepetirOpcion', 'esVariantePlato'
         // ===== FIN NUEVOS CAMPOS =====
     ];
     

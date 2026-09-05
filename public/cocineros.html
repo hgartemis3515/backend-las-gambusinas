@@ -673,7 +673,7 @@ tailwind.config = {
         <button @click="subtabAsignacion = 'semana'"
           class="px-4 py-2 rounded-lg text-sm font-medium transition"
           :class="subtabAsignacion === 'semana' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
-          📅 Semana actual
+          📅 Calendario
         </button>
         <button @click="subtabAsignacion = 'globales'"
           class="px-4 py-2 rounded-lg text-sm font-medium transition"
@@ -1011,26 +1011,41 @@ tailwind.config = {
         <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
           <div class="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <h3 class="text-sm font-bold text-white">Semana actual</h3>
-              <p class="text-[11px] text-txt-muted" x-text="rangoSemanaActualTexto"></p>
-              <p class="text-[11px] text-txt-muted mt-1">Los días de cada franja son cuando empieza el turno. Si la hora fin es menor que la de inicio, continúa después de medianoche. El PDF imprime el mes completo (misma programación cada día de la semana).</p>
+              <h3 class="text-sm font-bold text-white">Calendario de perfiles</h3>
+              <p class="text-[11px] text-txt-muted" x-text="vistaCalendarioAsignacion === 'mes' ? rangoMesCalendarioTexto : rangoSemanaActualTexto"></p>
+              <p class="text-[11px] text-txt-muted mt-1">Las franjas se repiten cada semana (p. ej. todos los jueves). El mes muestra cómo caen en el mes real. El PDF imprime el mes completo.</p>
             </div>
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 flex-wrap">
+              <div class="flex rounded-lg overflow-hidden border border-[rgba(212,175,55,0.3)]">
+                <button type="button" @click="vistaCalendarioAsignacion = 'semana'"
+                  class="px-2.5 py-1.5 text-[11px] font-semibold"
+                  :class="vistaCalendarioAsignacion !== 'mes' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white'">Semana</button>
+                <button type="button" @click="vistaCalendarioAsignacion = 'mes'"
+                  class="px-2.5 py-1.5 text-[11px] font-semibold"
+                  :class="vistaCalendarioAsignacion === 'mes' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white'">Mes</button>
+              </div>
               <button type="button" @click="abrirModalPrintAsignacion()"
                 class="bg-gold text-bg-primary px-3 py-2 rounded-lg text-xs font-semibold hover:brightness-110">
                 🖨️ PDF mensual
               </button>
-              <div class="text-right">
-                <p class="text-[11px] text-txt-muted uppercase">Hoy</p>
-                <p class="text-sm font-bold text-gold" x-text="hoySemanaTexto"></p>
-                <p class="text-[11px] text-txt-secondary" x-text="perfilActivoAhoraDisplay"></p>
+            <div class="text-right">
+              <p class="text-[11px] text-txt-muted uppercase">Hoy</p>
+              <p class="text-sm font-bold text-gold" x-text="hoySemanaTexto"></p>
+              <p class="text-[11px] text-txt-secondary" x-text="perfilActivoAhoraDisplay"></p>
               </div>
             </div>
           </div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <button type="button" @click="abrirPlantillaFranja('jueves')" class="text-[11px] px-2 py-1 rounded border border-gold/40 text-gold hover:bg-gold/10">Todos los jueves</button>
+            <button type="button" @click="abrirPlantillaFranja('lun_vie')" class="text-[11px] px-2 py-1 rounded border border-gold/40 text-gold hover:bg-gold/10">Lun–Vie</button>
+            <button type="button" @click="abrirPlantillaFranja('finde')" class="text-[11px] px-2 py-1 rounded border border-gold/40 text-gold hover:bg-gold/10">Sáb–Dom</button>
+            <button type="button" @click="fijarPerfilPermanente24h()" class="text-[11px] px-2 py-1 rounded border border-gold/40 text-gold hover:bg-gold/10">Perfil 24h todos los días</button>
+          </div>
+          <p class="text-[10px] text-txt-muted mt-2">Recomendación: deja un perfil 24h como red de seguridad y encima pon franjas más específicas (jueves, almuerzo, cena). Gana la franja más concreta.</p>
         </div>
 
         <!-- Grilla semanal: una columna por día (Lun..Dom), filas por bloques encontrados -->
-        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4 overflow-x-auto">
+        <div x-show="vistaCalendarioAsignacion !== 'mes'" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4 overflow-x-auto">
           <div class="grid grid-cols-7 gap-2 min-w-[700px]">
             <template x-for="dia in diasSemanaCalendario" :key="dia.num">
               <div class="bg-bg-sidebar/40 rounded-lg p-2 min-h-[88px] flex flex-col gap-1">
@@ -1050,6 +1065,39 @@ tailwind.config = {
                 </template>
                 <button @click="abrirNuevaFranjaCalendario(dia.num)"
                   class="mt-auto text-[11px] text-gold hover:underline">+ añadir franja</button>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <div x-show="vistaCalendarioAsignacion === 'mes'" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4 overflow-x-auto">
+          <div class="flex items-center justify-between mb-3">
+            <button type="button" @click="mesCalendarioOffset--" class="text-gold text-sm px-2">←</button>
+            <p class="text-sm font-bold text-white capitalize" x-text="rangoMesCalendarioTexto"></p>
+            <button type="button" @click="mesCalendarioOffset++" class="text-gold text-sm px-2">→</button>
+          </div>
+          <div class="grid grid-cols-7 gap-1 min-w-[700px] mb-1">
+            <template x-for="dia in diasSemanaCalendario" :key="'mh'+dia.num">
+              <p class="text-[10px] text-txt-muted font-bold text-center" x-text="dia.nombre"></p>
+            </template>
+          </div>
+          <div class="grid grid-cols-7 gap-1 min-w-[700px]">
+            <template x-for="cel in celdasMesCalendario" :key="cel.key">
+              <div class="rounded-lg p-1.5 min-h-[72px] flex flex-col gap-1"
+                :class="cel.vacia ? 'opacity-20' : (cel.esHoy ? 'bg-gold/15 border border-gold/40' : 'bg-bg-sidebar/40')">
+                <div x-show="!cel.vacia">
+                    <div class="flex items-center justify-between">
+                      <span class="text-[11px] font-bold text-white" x-text="cel.day"></span>
+                      <span x-show="cel.esHoy" class="text-[8px] px-1 rounded bg-gold text-bg-primary font-bold">HOY</span>
+                    </div>
+                    <template x-for="b in cel.bloques" :key="b.id + '-' + cel.day">
+                      <button type="button" @click="abrirEditarBloqueCalendario(b)"
+                        class="w-full text-left rounded px-1 py-0.5 text-[9px] truncate"
+                        :style="`background:${colorPerfilPorId(b.perfilId)}22; color:${colorPerfilPorId(b.perfilId)}`"
+                        x-text="nombrePerfilPorId(b.perfilId) + ' ' + textoHorarioFranja(b, cel.diaSemana)"></button>
+                    </template>
+                    <button type="button" @click="abrirNuevaFranjaCalendario(cel.diaSemana)" class="text-[9px] text-gold">+</button>
+                </div>
               </div>
             </template>
           </div>
@@ -1306,7 +1354,7 @@ tailwind.config = {
               </label>
               <label class="flex items-center gap-1 bg-bg-sidebar rounded px-2 py-1.5 cursor-pointer border border-[rgba(212,175,55,0.15)]">
                 <input type="radio" value="dia_cada_semana" x-model="modalFranjaRepeticion" class="accent-gold">
-                Este día cada semana
+                Este día cada semana (p. ej. todos los jueves)
               </label>
               <label class="flex items-center gap-1 bg-bg-sidebar rounded px-2 py-1.5 cursor-pointer border border-[rgba(212,175,55,0.15)]">
                 <input type="radio" value="dias_elegidos" x-model="modalFranjaRepeticion" class="accent-gold">
@@ -1476,7 +1524,7 @@ tailwind.config = {
         <button @click="subtabAsignacionGuarniciones = 'semana'"
           class="px-4 py-2 rounded-lg text-sm font-medium transition"
           :class="subtabAsignacionGuarniciones === 'semana' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white hover:bg-bg-sidebar'">
-          📅 Semana actual
+          📅 Calendario
         </button>
         <button @click="subtabAsignacionGuarniciones = 'globales'"
           class="px-4 py-2 rounded-lg text-sm font-medium transition"
@@ -1767,24 +1815,39 @@ tailwind.config = {
         <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
           <div class="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <h3 class="text-sm font-bold text-white">Semana actual</h3>
-              <p class="text-[11px] text-txt-muted" x-text="rangoSemanaActualTexto"></p>
-              <p class="text-[11px] text-txt-muted mt-1">Los días de cada franja son cuando empieza el turno. Si la hora fin es menor que la de inicio, continúa después de medianoche. El PDF imprime el mes completo (misma programación cada día de la semana).</p>
+              <h3 class="text-sm font-bold text-white">Calendario de perfiles</h3>
+              <p class="text-[11px] text-txt-muted" x-text="vistaCalendarioAsignacion === 'mes' ? rangoMesCalendarioTexto : rangoSemanaActualTexto"></p>
+              <p class="text-[11px] text-txt-muted mt-1">Las franjas se repiten cada semana (p. ej. todos los jueves). El mes muestra cómo caen en el mes real. El PDF imprime el mes completo.</p>
             </div>
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 flex-wrap">
+              <div class="flex rounded-lg overflow-hidden border border-[rgba(212,175,55,0.3)]">
+                <button type="button" @click="vistaCalendarioAsignacion = 'semana'"
+                  class="px-2.5 py-1.5 text-[11px] font-semibold"
+                  :class="vistaCalendarioAsignacion !== 'mes' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white'">Semana</button>
+                <button type="button" @click="vistaCalendarioAsignacion = 'mes'"
+                  class="px-2.5 py-1.5 text-[11px] font-semibold"
+                  :class="vistaCalendarioAsignacion === 'mes' ? 'bg-gold text-bg-primary' : 'text-txt-secondary hover:text-white'">Mes</button>
+              </div>
               <button type="button" @click="abrirModalPrintAsignacion()"
                 class="bg-gold text-bg-primary px-3 py-2 rounded-lg text-xs font-semibold hover:brightness-110">
                 🖨️ PDF mensual
               </button>
-              <div class="text-right">
-                <p class="text-[11px] text-txt-muted uppercase">Hoy</p>
-                <p class="text-sm font-bold text-gold" x-text="hoySemanaTexto"></p>
-                <p class="text-[11px] text-txt-secondary" x-text="perfilActivoAhoraDisplay"></p>
+            <div class="text-right">
+              <p class="text-[11px] text-txt-muted uppercase">Hoy</p>
+              <p class="text-sm font-bold text-gold" x-text="hoySemanaTexto"></p>
+              <p class="text-[11px] text-txt-secondary" x-text="perfilActivoAhoraDisplay"></p>
               </div>
             </div>
           </div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <button type="button" @click="abrirPlantillaFranja('jueves')" class="text-[11px] px-2 py-1 rounded border border-gold/40 text-gold hover:bg-gold/10">Todos los jueves</button>
+            <button type="button" @click="abrirPlantillaFranja('lun_vie')" class="text-[11px] px-2 py-1 rounded border border-gold/40 text-gold hover:bg-gold/10">Lun–Vie</button>
+            <button type="button" @click="abrirPlantillaFranja('finde')" class="text-[11px] px-2 py-1 rounded border border-gold/40 text-gold hover:bg-gold/10">Sáb–Dom</button>
+            <button type="button" @click="fijarPerfilPermanente24h()" class="text-[11px] px-2 py-1 rounded border border-gold/40 text-gold hover:bg-gold/10">Perfil 24h todos los días</button>
+          </div>
+          <p class="text-[10px] text-txt-muted mt-2">Recomendación: deja un perfil 24h como red de seguridad y encima pon franjas más específicas (jueves, almuerzo, cena). Gana la franja más concreta.</p>
         </div>
-        <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4 overflow-x-auto">
+        <div x-show="vistaCalendarioAsignacion !== 'mes'" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4 overflow-x-auto">
           <div class="grid grid-cols-7 gap-2 min-w-[700px]">
             <template x-for="dia in diasSemanaCalendario" :key="'g'+dia.num">
               <div class="bg-bg-sidebar/40 rounded-lg p-2 min-h-[88px] flex flex-col gap-1">
@@ -1803,6 +1866,38 @@ tailwind.config = {
                   </button>
                 </template>
                 <button @click="abrirNuevaFranjaCalendario(dia.num)" class="mt-auto text-[11px] text-gold hover:underline">+ añadir franja</button>
+              </div>
+            </template>
+          </div>
+        </div>
+        <div x-show="vistaCalendarioAsignacion === 'mes'" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4 overflow-x-auto">
+          <div class="flex items-center justify-between mb-3">
+            <button type="button" @click="mesCalendarioOffset--" class="text-gold text-sm px-2">←</button>
+            <p class="text-sm font-bold text-white capitalize" x-text="rangoMesCalendarioTexto"></p>
+            <button type="button" @click="mesCalendarioOffset++" class="text-gold text-sm px-2">→</button>
+          </div>
+          <div class="grid grid-cols-7 gap-1 min-w-[700px] mb-1">
+            <template x-for="dia in diasSemanaCalendario" :key="'ghm'+dia.num">
+              <p class="text-[10px] text-txt-muted font-bold text-center" x-text="dia.nombre"></p>
+            </template>
+          </div>
+          <div class="grid grid-cols-7 gap-1 min-w-[700px]">
+            <template x-for="cel in celdasMesCalendario" :key="'gm'+cel.key">
+              <div class="rounded-lg p-1.5 min-h-[72px] flex flex-col gap-1"
+                :class="cel.vacia ? 'opacity-20' : (cel.esHoy ? 'bg-gold/15 border border-gold/40' : 'bg-bg-sidebar/40')">
+                <div x-show="!cel.vacia">
+                    <div class="flex items-center justify-between">
+                      <span class="text-[11px] font-bold text-white" x-text="cel.day"></span>
+                      <span x-show="cel.esHoy" class="text-[8px] px-1 rounded bg-gold text-bg-primary font-bold">HOY</span>
+                    </div>
+                    <template x-for="b in cel.bloques" :key="'gmb'+b.id+cel.day">
+                      <button type="button" @click="abrirEditarBloqueCalendario(b)"
+                        class="w-full text-left rounded px-1 py-0.5 text-[9px] truncate"
+                        :style="`background:${colorPerfilPorId(b.perfilId)}22; color:${colorPerfilPorId(b.perfilId)}`"
+                        x-text="nombrePerfilPorId(b.perfilId) + ' ' + textoHorarioFranja(b, cel.diaSemana)"></button>
+                    </template>
+                    <button type="button" @click="abrirNuevaFranjaCalendario(cel.diaSemana)" class="text-[9px] text-gold">+</button>
+                </div>
               </div>
             </template>
           </div>
@@ -4590,6 +4685,8 @@ function cocinerosApp() {
     modalFranjaAvisoSolape: false,
     modalFranjaBloqueId: '',         // id del bloque cuando se edita
     modalFranjaForm: { perfilId: '', horaInicio: '08:00', horaFin: '12:00', etiqueta: '', activo: true },
+    vistaCalendarioAsignacion: 'semana', // 'semana' | 'mes'
+    mesCalendarioOffset: 0,
     modalFranjaRepeticion: 'un_dia', // 'un_dia' | 'dia_cada_semana' | 'dias_elegidos' | 'toda_semana'
     modalFranjaDiasSeleccionados: [], // [0..6] cuando el usuario elige días
     guardandoCalendarioAsignacion: false,
@@ -7999,16 +8096,106 @@ function cocinerosApp() {
 
     // Texto del rango de la semana actual (Lun..Dom) en Lima.
     get rangoSemanaActualTexto() {
-      const lima = new Date();
-      const limaOffsetMs = -5 * 60 * 60 * 1000;
-      const limaTime = new Date(lima.getTime() + limaOffsetMs + lima.getTimezoneOffset() * 60000);
-      // Lunes de esta semana (ISO weekday: 1=Lun).
-      const day = limaTime.getUTCDay(); // 0..6
+      const lima = this._limaAhoraUtc();
+      const day = lima.getUTCDay();
       const diffToMon = (day === 0 ? -6 : 1 - day);
-      const lunes = new Date(Date.UTC(limaTime.getUTCFullYear(), limaTime.getUTCMonth(), limaTime.getUTCDate() + diffToMon));
+      const lunes = new Date(Date.UTC(lima.getUTCFullYear(), lima.getUTCMonth(), lima.getUTCDate() + diffToMon));
       const domingo = new Date(Date.UTC(lunes.getUTCFullYear(), lunes.getUTCMonth(), lunes.getUTCDate() + 6));
       const fmt = (d) => `${d.getUTCDate()} ${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][d.getUTCMonth()]}`;
-      return `Semana del ${fmt(lunes)} – ${fmt(domingo)} (semana actual, sin navegación)`;
+      return `Semana del ${fmt(lunes)} – ${fmt(domingo)}`;
+    },
+
+    _limaAhoraUtc() {
+      const lima = new Date();
+      const limaOffsetMs = -5 * 60 * 60 * 1000;
+      return new Date(lima.getTime() + limaOffsetMs + lima.getTimezoneOffset() * 60000);
+    },
+
+    get rangoMesCalendarioTexto() {
+      const d = this._fechaMesCalendario();
+      const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+      return `${meses[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+    },
+
+    _fechaMesCalendario() {
+      const lima = this._limaAhoraUtc();
+      const off = Number(this.mesCalendarioOffset) || 0;
+      return new Date(Date.UTC(lima.getUTCFullYear(), lima.getUTCMonth() + off, 1));
+    },
+
+    get celdasMesCalendario() {
+      const first = this._fechaMesCalendario();
+      const year = first.getUTCFullYear();
+      const month = first.getUTCMonth();
+      const firstDow = first.getUTCDay();
+      const pad = firstDow === 0 ? 6 : firstDow - 1;
+      const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+      const lima = this._limaAhoraUtc();
+      const cells = [];
+      for (let i = 0; i < pad; i++) cells.push({ vacia: true, key: 'p' + i, bloques: [] });
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dt = new Date(Date.UTC(year, month, day));
+        const dow = dt.getUTCDay();
+        cells.push({
+          vacia: false,
+          key: 'd' + day,
+          day,
+          diaSemana: dow,
+          esHoy: year === lima.getUTCFullYear() && month === lima.getUTCMonth() && day === lima.getUTCDate() && (Number(this.mesCalendarioOffset) || 0) === 0,
+          bloques: this.bloquesPorDia(dow)
+        });
+      }
+      return cells;
+    },
+
+    abrirPlantillaFranja(tipo) {
+      const perfilId = (this._configAsignacion?.perfiles || []).find(p => p.activo)?.id || '';
+      this.modalFranjaModo = 'nueva';
+      this.modalFranjaBloqueId = '';
+      this.modalFranjaError = '';
+      this.modalFranjaAvisoSolape = false;
+      this.modalFranjaForm = { perfilId, horaInicio: '08:00', horaFin: '16:00', etiqueta: '', activo: true };
+      if (tipo === 'jueves') {
+        this.modalFranjaRepeticion = 'dia_cada_semana';
+        this.modalFranjaDiasSeleccionados = [4];
+        this.modalFranjaForm.etiqueta = 'Todos los jueves';
+      } else if (tipo === 'lun_vie') {
+        this.modalFranjaRepeticion = 'dias_elegidos';
+        this.modalFranjaDiasSeleccionados = [1, 2, 3, 4, 5];
+        this.modalFranjaForm.etiqueta = 'Lun–Vie';
+      } else if (tipo === 'finde') {
+        this.modalFranjaRepeticion = 'dias_elegidos';
+        this.modalFranjaDiasSeleccionados = [6, 0];
+        this.modalFranjaForm.etiqueta = 'Fin de semana';
+      }
+      this.modalFranjaCalendario = true;
+    },
+
+    async fijarPerfilPermanente24h() {
+      const perfil = (this._configAsignacion?.perfiles || []).find(p => p.activo)
+        || (this._configAsignacion?.perfiles || [])[0];
+      if (!perfil) {
+        this.modalFranjaError = 'Crea un perfil primero';
+        return;
+      }
+      if (!confirm('¿Crear una franja 00:00–23:59 todos los días con el perfil «' + perfil.nombre + '»? Sirve como red de seguridad; las franjas más específicas (jueves, almuerzo) ganan sobre esta.')) return;
+      try {
+        const res = await apiPost(`${this._apiAsignacionBase}/calendario/bloques`, {
+          perfilId: perfil.id,
+          diasSemana: [0, 1, 2, 3, 4, 5, 6],
+          horaInicio: '00:00',
+          horaFin: '23:59',
+          etiqueta: 'Permanente 24h',
+          activo: true
+        });
+        if (res && res.success !== false && this._aplicarConfigRespuesta(res, this._esScopeGuarniciones ? 'guarniciones' : 'platos')) {
+          if (window.GambusinasNotifications) {
+            window.GambusinasNotifications.success('Perfil permanente', 'Quedó 24h todos los días. Añade franjas concretas encima si hace falta.');
+          }
+        }
+      } catch (e) {
+        alert(e.message || 'No se pudo crear la franja');
+      }
     },
 
     get hoySemanaTexto() {
@@ -9730,7 +9917,7 @@ function cocinerosApp() {
           <button type="button" @click="irAVerComandaComandas()"
             class="px-3 py-1.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition"
             title="Abrir esta comanda en comandas.html">Ver comanda</button>
-          <button type="button" @click="cerrarModalComandaCocina()" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-gold hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
+        <button type="button" @click="cerrarModalComandaCocina()" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-gold hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
         </div>
       </div>
     </div>

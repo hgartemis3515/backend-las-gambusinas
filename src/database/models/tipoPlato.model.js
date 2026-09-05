@@ -63,6 +63,16 @@ const tipoPlatoSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    /** Ver cocina completo: las guarniciones de platos de este tipo también van a la partición horizontal. */
+    particionHorizontalGuarnicionesCocina: {
+        type: Boolean,
+        default: false
+    },
+    /** Ver cocina completo: guarniciones de platos de este tipo solo muestran xN (sin cronómetro ni #). */
+    contadorGuarnicionesCocina: {
+        type: Boolean,
+        default: false
+    },
     alias: [{
         type: String,
         trim: true,
@@ -111,7 +121,7 @@ tipoPlatoSchema.statics.getMenuLigero = async function (soloActivos = true) {
     const filter = soloActivos ? { activo: true } : {};
     return this.find(filter)
         .sort({ orden: 1, nombre: 1 })
-        .select('slug nombre nombreCorto icono color orden activo soloContadorEnCocina particionHorizontalCocina -_id')
+        .select('slug nombre nombreCorto icono color orden activo soloContadorEnCocina particionHorizontalCocina particionHorizontalGuarnicionesCocina contadorGuarnicionesCocina -_id')
         .lean();
 };
 

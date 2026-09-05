@@ -27,6 +27,7 @@ const Comanda = mongoose.model('Comanda') || require('../database/models/comanda
 const Mozos = mongoose.model('mozos') || require('../database/models/mozos.model');
 const { getCocineroInfo } = require('../utils/cocineroInfo');
 const { elegirBloqueActivo } = require('../utils/asignacionCalendarioFranjas');
+const { esComplementoVariante } = require('../utils/variantePlato');
 
 const ESTADOS_EN_CURSO = ['pedido', 'en_espera'];
 const TZ = 'America/Lima';
@@ -201,6 +202,11 @@ function encontrarReglaGuarnicion(perfil, grupo, opcion, guarnicionKey, platoId 
     return null;
 }
 
+function esVarianteDePlato(comp, plato) {
+    const catalogo = plato?.plato && typeof plato.plato === 'object' ? plato.plato : plato;
+    return esComplementoVariante(comp, catalogo, plato?.variantePlato);
+}
+
 function construirCandidatos(regla) {
     const cands = [];
     if (regla.cocineroPrimarioId) cands.push({ cocineroId: regla.cocineroPrimarioId.toString(), esPrimario: true, orden: 0 });
@@ -214,6 +220,7 @@ function detectarBatchsEnComanda(comanda) {
         if (platoUneComplementos(plato)) return;
         (plato.complementosSeleccionados || []).forEach((c, ci) => {
             if (c.procesandoPor && c.procesandoPor.cocineroId) return;
+            if (esVarianteDePlato(c, plato)) return;
             const { key } = datosComplemento(c);
             if (!map[key]) map[key] = [];
             map[key].push({ platoIndex: pi, compIndex: ci });
@@ -531,6 +538,7 @@ async function asignarGuarnicionesNuevasEjecutar(comandaPop) {
                 const comp = comps[ci];
                 if (comp.procesandoPor && comp.procesandoPor.cocineroId) continue; // ya asignada
                 if (comp.estadoCocina === 'recoger') continue;
+                if (esVarianteDePlato(comp, plato)) continue;
 
                 const d = datosComplemento(comp);
                 const encontrada = encontrarReglaGuarnicion(perfil, d.grupo, d.opcion, d.key, platoIdCat);

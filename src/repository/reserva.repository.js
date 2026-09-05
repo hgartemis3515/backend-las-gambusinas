@@ -8,6 +8,7 @@ const {
     calcularPrecioUnitarioConComplementos,
     calcularResumenComplementos
 } = require('../utils/precioComplementos');
+const { partirLineaPorVariante, snapshotNombreCocinaPedido } = require('../utils/variantePlato');
 const { debeCancelarReservaAlEliminarComanda } = require('../utils/reservaComandas');
 
 // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: modelos diferidos para crear comanda programada
@@ -878,22 +879,32 @@ const crearReservaDesdeMozos = async (data) => {
         data.platos.forEach((item) => {
             const platoDoc = platoMap.get(item.plato.toString());
             if (!platoDoc) throw new Error(`Plato no encontrado: ${item.plato}`);
-            const calc = calcularTotalesPlato(platoDoc, item);
-            totalPlatos += calc.total;
-            const tipoServicio = item.tipoServicio === 'para_llevar' ? 'para_llevar' : 'mesa';
-            const notaEspecial = typeof item.notaEspecial === 'string' ? item.notaEspecial : '';
-            platosReserva.push({
-                plato: platoDoc._id, cantidad: calc.cantidad, tipoServicio,
-                complementosSeleccionados: calc.complementosSeleccionados, notaEspecial
-            });
-            platosComanda.push({
-                plato: platoDoc._id, platoId: platoDoc.id || null, estado: 'pendiente', tiempos: {},
-                complementosSeleccionados: calc.complementosSeleccionados,
-                precioBase: calc.precioBase, extraComplementos: calc.extraComplementos,
-                precioUnitario: calc.precioUnitario, totalUnidadesComplementos: calc.totalUnidadesComplementos,
-                mostrarResumenComplementos: !!platoDoc.mostrarResumenComplementos,
-                resumenComplementosImpresion: platoDoc.resumenComplementosImpresion || undefined,
-                notaEspecial, tipoServicio, cantidad: calc.cantidad
+            const partes = partirLineaPorVariante(item, platoDoc, item.cantidad || 1);
+            partes.forEach(({ linea, cantidad }) => {
+                const calc = calcularTotalesPlato(platoDoc, { ...linea, cantidad });
+                snapshotNombreCocinaPedido(calc, platoDoc);
+                if (linea.nombreCocinaPedido) calc.nombreCocinaPedido = linea.nombreCocinaPedido;
+                if (linea.variantePlato) calc.variantePlato = linea.variantePlato;
+                totalPlatos += calc.total;
+                const tipoServicio = item.tipoServicio === 'para_llevar' ? 'para_llevar' : 'mesa';
+                const notaEspecial = typeof item.notaEspecial === 'string' ? item.notaEspecial : '';
+                platosReserva.push({
+                    plato: platoDoc._id, cantidad: calc.cantidad, tipoServicio,
+                    complementosSeleccionados: calc.complementosSeleccionados, notaEspecial,
+                    nombreCocinaPedido: linea.nombreCocinaPedido || calc.nombreCocinaPedido || '',
+                    variantePlato: linea.variantePlato || calc.variantePlato || undefined
+                });
+                platosComanda.push({
+                    plato: platoDoc._id, platoId: platoDoc.id || null, estado: 'pendiente', tiempos: {},
+                    complementosSeleccionados: calc.complementosSeleccionados,
+                    precioBase: calc.precioBase, extraComplementos: calc.extraComplementos,
+                    precioUnitario: calc.precioUnitario, totalUnidadesComplementos: calc.totalUnidadesComplementos,
+                    mostrarResumenComplementos: !!platoDoc.mostrarResumenComplementos,
+                    resumenComplementosImpresion: platoDoc.resumenComplementosImpresion || undefined,
+                    notaEspecial, tipoServicio, cantidad: calc.cantidad,
+                    nombreCocinaPedido: linea.nombreCocinaPedido || calc.nombreCocinaPedido || '',
+                    variantePlato: linea.variantePlato || calc.variantePlato || undefined
+                });
             });
         });
 

@@ -848,7 +848,7 @@ tailwind.config = {
        <p class="text-[10px] text-[#5a5a7a]">Notas de reserva</p>
        <p class="font-medium text-xs text-[#a0a0b8]" x-text="selectedComanda?.reserva?.notas || '—'"></p>
      </div>
-   </div>
+ </div>
  </div>
  
  <!-- PAGO OMITIDO (dashboard) -->
@@ -1484,7 +1484,7 @@ tailwind.config = {
        <p class="text-[10px] text-[#5a5a7a]">Notas de reserva</p>
        <p class="font-medium text-xs text-[#a0a0b8]" x-text="editComanda?.reserva?.notas || '—'"></p>
      </div>
-   </div>
+ </div>
  </div>
  </div>
 
@@ -1537,7 +1537,7 @@ tailwind.config = {
 						</template>
 						<template x-if="!plato.complementosSeleccionados || plato.complementosSeleccionados.length === 0">
  <span class="text-[10px] text-[#5a5a7a]">—</span>
-						</template>
+ </template>
  </td>
  <td class="px-3 py-3 text-center">
  <select x-model="plato.tipoServicio" :disabled="plato.eliminado"
@@ -3079,8 +3079,8 @@ formatearNombreMesa(mesa, mesaObj = null) {
      if (data.plantilla) {
        this.plantillaComanda = this.deepMergeComanda(this.plantillaComanda, data.plantilla);
      }
-     this.plantillaComandaModificada = false;
-     this.plantillaComandaOriginal = JSON.parse(JSON.stringify(this.plantillaComanda));
+       this.plantillaComandaModificada = false;
+       this.plantillaComandaOriginal = JSON.parse(JSON.stringify(this.plantillaComanda));
      try { localStorage.setItem('comandaPlantilla', JSON.stringify(this.plantillaComanda)); } catch (e) { /* backup opcional */ }
      GambusinasNotifications.success('Plantilla de comanda guardada');
    } catch (error) {
@@ -3242,13 +3242,13 @@ this.socket.on('comanda-plantilla-actualizada', (data) => {
   }
   this.plantillaComandaOriginal = JSON.parse(JSON.stringify(this.plantillaComanda));
   console.log('📡 Plantilla de comanda actualizada');
-});
+ });
 
 this.socket.on('comanda-actualizada', (data) => {
 console.log('📡 Comanda actualizada via Socket:', data.comanda?._id || data.comandaId);
 const comanda = data.comanda || data;
 if (comanda && (comanda._id || comanda.platos || comanda.items || comanda.status)) {
-  this.handleComandaActualizada(comanda);
+this.handleComandaActualizada(comanda);
 }
 const id = data.comandaId || comanda?._id || data._id;
 if (id) this.scheduleComandaSync(id);
@@ -3449,8 +3449,8 @@ console.log('📊 Reporte: nuevo boucher', data);
     this.comandas = [normalizada, ...this.comandas];
     this.extraerMozosUnicos();
   }
-  this.processGrouping();
-  this.filterComandas();
+    this.processGrouping();
+    this.filterComandas();
 },
 
 patchComandaEnGrupo(grupo, normalizada, idN) {
@@ -3979,7 +3979,7 @@ this.modal = null;
   */
  getCocineroPlato(item) {
  if (!item) return { nombre: '—', enPreparacion: false, cocineroId: null };
-
+ 
  const estado = item.estado?.toLowerCase() || '';
  const esEstadoFinal = estado === 'recoger' || estado === 'salio' || estado === 'entregado' || estado === 'pagado';
  const deBloque = (obj) => {
@@ -4158,7 +4158,7 @@ this.modal = null;
  if (!comanda) {
  return { cocineros: [], tiempoPromedio: '—', tiempoTotal: '—' };
  }
-
+ 
  const items = comanda.items || [];
  const cocinerosMap = new Map();
  const tiempos = [];
@@ -4193,17 +4193,17 @@ this.modal = null;
  if (tiempoInfo.segundos > 0 && !tiempoInfo.enPreparacion) {
  tiempos.push(tiempoInfo.segundos);
  }
-
+ 
  const procesandoDesde = item.procesandoPor?.timestamp || item.procesandoPor?.desde;
  const procesadoEn = item.procesadoPor?.timestamp;
-
+ 
  if (procesandoDesde) {
  const fechaInicio = new Date(procesandoDesde);
  if (!primerInicio || fechaInicio < primerInicio) {
  primerInicio = fechaInicio;
  }
  }
-
+ 
  if (procesadoEn) {
  const fechaFin = new Date(procesadoEn);
  if (!ultimoFin || fechaFin > ultimoFin) {
@@ -4211,7 +4211,7 @@ this.modal = null;
  }
  }
  });
-
+ 
  registrar(this.getCocineroPlato({
  estado: 'en_espera',
  procesandoPor: comanda.procesandoPor,
@@ -4685,9 +4685,9 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
    if (this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche') {
      matchFecha = row.comandas.some(c => this.matchFechaRango(c?.createdAt));
    } else {
-     const comandaMasAntigua = row.comandas[row.comandas.length - 1];
+ const comandaMasAntigua = row.comandas[row.comandas.length - 1];
      matchFecha = this.matchFechaRango(comandaMasAntigua?.createdAt);
-   }
+ }
  }
  const matchAvanzado = !this.hayFiltroAvanzado || (row.comandas || []).some(c => this.matchFiltroAvanzado(c));
  return matchMesa && matchEstado && matchCliente && matchMozo && matchFecha && matchAvanzado;
@@ -5222,8 +5222,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const tipoHint = this.tipoTicketApiHint(this.ticketEditando);
  const res = this.assertApiOk(await apiPut('/aprobacion/' + this.ticketEditando._id + '/editar', {
   tipo: tipoHint,
-  observaciones: this.ticketEditForm.observaciones,
-  metodoPago: this.ticketEditForm.metodoPago,
+ observaciones: this.ticketEditForm.observaciones,
+ metodoPago: this.ticketEditForm.metodoPago,
   platos: this.ticketEditFormPlatosActivos().map((p) => ({
    platoLineaId: p.platoLineaId || p._id,
    precio: Number(p.precio) || 0,
@@ -5235,7 +5235,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
    .filter(Boolean),
  }), 'No se pudo guardar el ticket');
  if (res?.ticket) {
-  this.actualizarTicketEnLista(this.ticketEditando._id, res.ticket);
+ this.actualizarTicketEnLista(this.ticketEditando._id, res.ticket);
  }
  const actor = { usuarioId: 'admin', usuarioNombre: 'Admin' };
  if (fuerzaAprobar) {

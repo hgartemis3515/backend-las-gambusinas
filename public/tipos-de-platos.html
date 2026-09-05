@@ -97,6 +97,8 @@ tailwind.config = {
                     :class="t.activo ? 'bg-st-preparado/15 text-st-preparado' : 'bg-st-pagado/15 text-st-pagado'"
                     x-text="t.activo ? 'Activo' : 'Inactivo'"></span>
                   <span x-show="t.esSistema" class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-st-pedido/15 text-st-pedido">Sistema</span>
+                  <span x-show="t.soloContadorEnCocina" class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-gold/15 text-gold">xN platos</span>
+                  <span x-show="t.contadorGuarnicionesCocina" class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-gold/15 text-gold">xN guarn.</span>
                 </td>
                 <td class="px-3 py-2.5 space-x-1 text-sm">
                   <span class="cursor-pointer hover:text-gold" @click="openEditModal(t)">✏️</span>
@@ -222,9 +224,41 @@ tailwind.config = {
           <input type="checkbox" x-model="form.particionHorizontalCocina" class="w-4 h-4 mt-0.5 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
           <span>
             <span class="block text-sm text-txt-primary font-semibold">Partición horizontal</span>
-            <span class="block text-[11px] text-txt-muted mt-0.5">Separa estos platos de los normales: mitad de arriba = platos normales, mitad de abajo = este tipo.</span>
+            <span class="block text-[11px] text-txt-muted mt-0.5">Separa en Ver cocina completo los platos pedidos desde este tipo en la app de mozos (mitad de abajo). El mismo plato pedido desde otro tipo sin esta marca se queda arriba.</span>
           </span>
         </label>
+        <label class="flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" x-model="form.particionHorizontalGuarnicionesCocina" class="w-4 h-4 mt-0.5 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+          <span>
+            <span class="block text-sm text-txt-primary font-semibold">Partición horizontal de guarniciones</span>
+            <span class="block text-[11px] text-txt-muted mt-0.5">Las guarniciones de platos pedidos en este tipo también se separan en la mitad de abajo del panel de guarniciones, igual que los principales.</span>
+          </span>
+        </label>
+        <label class="flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" x-model="form.contadorGuarnicionesCocina" class="w-4 h-4 mt-0.5 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+          <span>
+            <span class="block text-sm text-txt-primary font-semibold">Contador de guarniciones</span>
+            <span class="block text-[11px] text-txt-muted mt-0.5">Igual que “Solo contador (xN)” de los platos principales, pero en el panel de guarniciones: suma las guarniciones enviadas de platos de este tipo y oculta cronómetro y número secuencial.</span>
+          </span>
+        </label>
+        <div class="rounded-lg border border-[rgba(212,175,55,0.18)] bg-bg-primary/70 p-3">
+          <p class="text-[10px] uppercase tracking-wide text-txt-muted font-semibold mb-2">Vista previa — panel de guarniciones</p>
+          <div class="rounded-md bg-[#1a1520] border border-white/10 p-2.5 flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p class="text-[11px] text-txt-muted font-semibold uppercase">Guarnición</p>
+              <p class="text-sm font-bold text-white leading-tight">Papas fritas</p>
+            </div>
+            <span class="shrink-0 bg-white text-black text-xs font-extrabold px-2 py-0.5 rounded">x3</span>
+          </div>
+          <div class="mt-2 flex items-center justify-between text-[11px]" x-show="!form.contadorGuarnicionesCocina">
+            <span class="text-txt-muted">#12 · cronómetro 03:45</span>
+            <span class="text-st-esperando font-semibold">Modo normal</span>
+          </div>
+          <div class="mt-2 flex items-center justify-between text-[11px]" x-show="form.contadorGuarnicionesCocina">
+            <span class="text-txt-muted">Sin # ni cronómetro — solo el <span class="text-white font-bold">x3</span></span>
+            <span class="text-st-preparado font-semibold">Contador activo</span>
+          </div>
+        </div>
       </div>
     </div>
     <div class="bg-bg-sidebar p-5 rounded-b-2xl flex items-center justify-between border-t border-[rgba(212,175,55,0.15)]">
@@ -291,6 +325,8 @@ function tiposPlatoApp() {
       esSistema: false,
       soloContadorEnCocina: false,
       particionHorizontalCocina: false,
+      particionHorizontalGuarnicionesCocina: false,
+      contadorGuarnicionesCocina: false,
       aliasStr: ''
     },
 
@@ -332,7 +368,7 @@ function tiposPlatoApp() {
         _id: null, nombre: '', nombreCorto: '', slug: '',
         icono: '🍽️', color: '#d4af37', orden: nextOrden,
         activo: true, esSistema: false,
-        soloContadorEnCocina: false, particionHorizontalCocina: false, aliasStr: ''
+        soloContadorEnCocina: false, particionHorizontalCocina: false, particionHorizontalGuarnicionesCocina: false, contadorGuarnicionesCocina: false, aliasStr: ''
       };
       this.modal = true;
     },
@@ -351,6 +387,8 @@ function tiposPlatoApp() {
         esSistema: !!t.esSistema,
         soloContadorEnCocina: !!t.soloContadorEnCocina,
         particionHorizontalCocina: !!t.particionHorizontalCocina,
+        particionHorizontalGuarnicionesCocina: !!t.particionHorizontalGuarnicionesCocina,
+        contadorGuarnicionesCocina: !!t.contadorGuarnicionesCocina,
         aliasStr: (t.alias || []).join(', ')
       };
       this.modal = true;
@@ -371,6 +409,8 @@ function tiposPlatoApp() {
         activo: this.form.activo,
         soloContadorEnCocina: !!this.form.soloContadorEnCocina,
         particionHorizontalCocina: !!this.form.particionHorizontalCocina,
+        particionHorizontalGuarnicionesCocina: !!this.form.particionHorizontalGuarnicionesCocina,
+        contadorGuarnicionesCocina: !!this.form.contadorGuarnicionesCocina,
         alias
       };
 

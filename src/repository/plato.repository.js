@@ -40,6 +40,7 @@ function sanitizarComplementosParaGuardar(complementos) {
             minUnidadesGrupo: g.minUnidadesGrupo ?? (g.obligatorio ? 1 : 0),
             maxUnidadesPorOpcion: g.maxUnidadesPorOpcion ?? null,
             permiteRepetirOpcion: g.permiteRepetirOpcion !== undefined ? !!g.permiteRepetirOpcion : !!g.seleccionMultiple,
+            esVariantePlato: g.esVariantePlato === true,
             opciones: ops
         };
     }).filter(Boolean);

@@ -117,6 +117,8 @@ const crearTipoPlato = async (data) => {
         esSistema: false,
         soloContadorEnCocina: data.soloContadorEnCocina === true,
         particionHorizontalCocina: data.particionHorizontalCocina === true,
+        particionHorizontalGuarnicionesCocina: data.particionHorizontalGuarnicionesCocina === true,
+        contadorGuarnicionesCocina: data.contadorGuarnicionesCocina === true,
         alias,
         creadoPor: data.creadoPor || 'admin',
         actualizadoPor: data.actualizadoPor || 'admin'
@@ -157,6 +159,12 @@ const actualizarTipoPlato = async (id, newData) => {
     }
     if (newData.particionHorizontalCocina != null) {
         tipo.particionHorizontalCocina = Boolean(newData.particionHorizontalCocina);
+    }
+    if (newData.particionHorizontalGuarnicionesCocina != null) {
+        tipo.particionHorizontalGuarnicionesCocina = Boolean(newData.particionHorizontalGuarnicionesCocina);
+    }
+    if (newData.contadorGuarnicionesCocina != null) {
+        tipo.contadorGuarnicionesCocina = Boolean(newData.contadorGuarnicionesCocina);
     }
     tipo.actualizadoPor = newData.actualizadoPor || 'admin';
 

@@ -128,6 +128,9 @@ const platoSchema = new mongoose.Schema({
         maxUnidadesPorOpcion: { type: Number, default: null }, // null = sin límite
         // Si se permite repetir la misma opción múltiples veces
         permiteRepetirOpcion: { type: Boolean, default: true },
+        // Variante MIX: las opciones (TÉ, CAFÉ…) son el nombre del plato en cocina,
+        // no una guarnición. Las cantidades de este grupo se reparte = cantidad del plato.
+        esVariantePlato: { type: Boolean, default: false },
         // ===== FIN NUEVOS CAMPOS =====
         // v3.0: opciones puede ser array de strings (legacy) o de objetos { nombre, precio }
         // La normalización a objetos se hace en pre('save').

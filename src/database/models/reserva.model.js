@@ -99,6 +99,12 @@ const reservaSchema = new mongoose.Schema({
         notaEspecial: {
             type: String,
             default: ''
+        },
+        nombreCocinaPedido: { type: String, default: '', trim: true, maxlength: 40 },
+        variantePlato: {
+            grupo: { type: String, default: '', trim: true },
+            opcion: { type: String, default: '', trim: true },
+            pronombre: { type: String, default: '', trim: true }
         }
     }],
     

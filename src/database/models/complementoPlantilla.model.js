@@ -76,6 +76,7 @@ const complementoPlantillaSchema = new mongoose.Schema({
     maxUnidadesPorOpcion: { type: Number, default: null },
     // Si se permite repetir la misma opción múltiples veces
     permiteRepetirOpcion: { type: Boolean, default: true },
+    esVariantePlato: { type: Boolean, default: false },
     // ===== FIN NUEVOS CAMPOS =====
     categoria: {
         type: String,

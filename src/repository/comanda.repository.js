@@ -21,6 +21,7 @@ const {
   calcularResumenComplementos,
   overlayPronombresEnComandas
 } = require('../utils/precioComplementos');
+const { expandirPlatosPorVariante, snapshotNombreCocinaPedido } = require('../utils/variantePlato');
 
 const SELECT_PLATO_COCINA = 'nombre precio categoria codigo nombreCocina tipo tipos complementos complementosUnidosAlPlato';
 const configuracionRepository = require('./configuracion.repository');
@@ -50,6 +51,13 @@ const DATA_DIR = path.join(__dirname, '../../data');
 const TIPOS_SERVICIO_VALIDOS = ['mesa', 'para_llevar'];
 const normalizarTipoServicio = (valor) =>
   TIPOS_SERVICIO_VALIDOS.includes(valor) ? valor : 'mesa';
+
+const normalizarTipoPedido = (valor) => {
+  if (valor == null || valor === '') return null;
+  const s = String(valor).toLowerCase().trim();
+  if (!s || s.length > 80) return null;
+  return s;
+};
 
 // ==================== FASE A1: PROYECCIONES OPTIMIZADAS ====================
 /**
@@ -96,6 +104,9 @@ const PROYECCION_COCINA = {
     'platos.complementosSeleccionados': 1,
     'platos.notaEspecial': 1,
     'platos.tipoServicio': 1,  // 🔥 NUEVO: Mesa vs Para llevar
+    'platos.tipoPedido': 1,
+    'platos.nombreCocinaPedido': 1,
+    'platos.variantePlato': 1,
     'platos.pagoAdelantado': 1,  // 🔥 PPA: ocultar en KDS platos para_llevar con ticket pendiente_aprobacion
     // v3.0: campos para precio con extras y resumen de complementos en impresión
     'platos.precioBase': 1,
@@ -146,6 +157,9 @@ const PROYECCION_RESUMEN_MESA = {
     'platos.complementosSeleccionados': 1,  // 🔥 NUEVO: Complementos del plato
     'platos.notaEspecial': 1,  // 🔥 NUEVO: Nota especial del plato
     'platos.tipoServicio': 1,  // 🔥 NUEVO: Mesa vs Para llevar
+    'platos.tipoPedido': 1,
+    'platos.nombreCocinaPedido': 1,
+    'platos.variantePlato': 1,
     'platos.pagoAdelantado': 1,  // 🔥 PPA: estado del ticket para mostrar "PENDIENTE" (naranja)
     // v3.0: campos para precio con extras y resumen en impresión
     'platos.precioBase': 1,
@@ -181,6 +195,9 @@ const PROYECCION_PAGOS = {
     'platos.anulado': 1,
     'platos.complementosSeleccionados': 1,
     'platos.tipoServicio': 1,  // 🔥 NUEVO: Mesa vs Para llevar
+    'platos.tipoPedido': 1,
+    'platos.nombreCocinaPedido': 1,
+    'platos.variantePlato': 1,
     'platos.pagoAdelantado': 1,  // 🔥 PPA: estado del ticket para mostrar "PENDIENTE" (naranja)
     // v3.0: campos para precio con extras y resumen en impresión
     'platos.precioBase': 1,
@@ -465,6 +482,9 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
         'platos.complementosSeleccionados': 1,
         'platos.notaEspecial': 1,
         'platos.tipoServicio': 1, // NUEVO: Mesa vs Para llevar
+        'platos.tipoPedido': 1,
+    'platos.nombreCocinaPedido': 1,
+    'platos.variantePlato': 1,
         // v3.0: campos para precio con extras y resumen en impresión
         'platos.precioBase': 1,
         'platos.extraComplementos': 1,
@@ -800,7 +820,10 @@ const agregarComanda = async (data) => {
   // 🚀 OPTIMIZACIÓN: Validar TODOS los platos en una sola consulta
   console.log(`🔍 [FASE A1] Validando ${data.platos.length} platos en batch...`);
   const platosMap = await validarPlatosBatch(data.platos);
-  
+  const expandido = expandirPlatosPorVariante(data.platos, data.cantidades, platosMap);
+  data.platos = expandido.platos;
+  data.cantidades = expandido.cantidades;
+
   // Validar que cada plato tenga un ID válido y exista
   for (let index = 0; index < data.platos.length; index++) {
     const plato = data.platos[index];
@@ -863,6 +886,7 @@ const agregarComanda = async (data) => {
 
     // Normalizar tipoServicio: 'mesa' | 'para_llevar' (default 'mesa')
     plato.tipoServicio = normalizarTipoServicio(plato.tipoServicio);
+    plato.tipoPedido = normalizarTipoPedido(plato.tipoPedido);
 
     // ===== v3.0: ENRIQUECER COMPLEMENTOS CON PRECIO SNAPSHOT =====
     // El backend es la fuente de verdad: toma el precio del menú, no del cliente.
@@ -892,6 +916,7 @@ const agregarComanda = async (data) => {
     plato.totalUnidadesComplementos = resumen.totalUnidades;
     plato.mostrarResumenComplementos = !!platoCompleto.mostrarTotalComplementosImpresion;
     plato.complementosUnidosAlPlato = platoCompleto.complementosUnidosAlPlato === true;
+    snapshotNombreCocinaPedido(plato, platoCompleto);
     plato.resumenComplementosImpresion = {
       mostrarCantidad: platoCompleto.resumenComplementosImpresion?.mostrarCantidad !== false,
       mostrarMontoExtra: platoCompleto.resumenComplementosImpresion?.mostrarMontoExtra !== false
@@ -1705,6 +1730,8 @@ const editarConAuditoria = async (comandaId, platosNuevos, platosEliminados, usu
           console.log(`📝 Actualizando plato existente en índice ${platoExistenteIndex}`);
           comanda.platos[platoExistenteIndex].estado = nuevoPlato.estado || comanda.platos[platoExistenteIndex].estado;
           comanda.platos[platoExistenteIndex].tipoServicio = normalizarTipoServicio(nuevoPlato.tipoServicio ?? comanda.platos[platoExistenteIndex].tipoServicio);
+          const tipoPedidoNuevo = normalizarTipoPedido(nuevoPlato.tipoPedido);
+          if (tipoPedidoNuevo) comanda.platos[platoExistenteIndex].tipoPedido = tipoPedidoNuevo;
           comanda.cantidades[platoExistenteIndex] = nuevoPlato.cantidad || comanda.cantidades[platoExistenteIndex];
           console.log(`✅ Plato actualizado: cantidad=${comanda.cantidades[platoExistenteIndex]}, estado=${comanda.platos[platoExistenteIndex].estado}, tipoServicio=${comanda.platos[platoExistenteIndex].tipoServicio}`);
         } else {
@@ -1729,7 +1756,13 @@ const editarConAuditoria = async (comandaId, platosNuevos, platosEliminados, usu
               platoId: platoCompleto.id,
               estado: nuevoPlato.estado || 'en_espera',
               tipoServicio: normalizarTipoServicio(nuevoPlato.tipoServicio),
-              complementosUnidosAlPlato: platoCompleto.complementosUnidosAlPlato === true
+              tipoPedido: normalizarTipoPedido(nuevoPlato.tipoPedido),
+              complementosUnidosAlPlato: platoCompleto.complementosUnidosAlPlato === true,
+              nombreCocinaPedido: String(nuevoPlato.nombreCocinaPedido || '').trim().slice(0, 40),
+              variantePlato: nuevoPlato.variantePlato || undefined,
+              complementosSeleccionados: Array.isArray(nuevoPlato.complementosSeleccionados)
+                ? nuevoPlato.complementosSeleccionados
+                : []
             };
             comanda.platos.push(platoAgregado);
             comanda.cantidades.push(nuevoPlato.cantidad || 1);
@@ -1890,18 +1923,14 @@ const actualizarComanda = async (comandaId, newData) => {
     console.log('✏️ Actualizando comanda:', comandaId);
     console.log('📋 Datos a actualizar:', JSON.stringify(newData, null, 2));
     
-    // Si se están actualizando platos, incrementar versión
-    if (newData.platos) {
-      const comanda = await comandaModel.findById(comandaId);
-      if (comanda) {
-        newData.version = (comanda.version || 1) + 1;
-      }
-    }
-    
-    // Validar que los platos y cantidades estén correctos si se están actualizando
     if (newData.platos) {
       if (!Array.isArray(newData.platos)) {
         throw new Error('Los platos deben ser un array');
+      }
+
+      const comanda = await comandaModel.findById(comandaId);
+      if (comanda) {
+        newData.version = (comanda.version || 1) + 1;
       }
       
       // Obtener los ids numéricos de los platos
@@ -1928,6 +1957,14 @@ const actualizarComanda = async (comandaId, newData) => {
         // Si el PUT no envía el campo, lo fijamos explícitamente a 'mesa' para que
         // mongoose no lo elimine al reemplazar el subdocumento.
         plato.tipoServicio = normalizarTipoServicio(plato.tipoServicio);
+        const prev = comanda?.platos?.[index];
+        plato.tipoPedido = normalizarTipoPedido(plato.tipoPedido)
+          || normalizarTipoPedido(prev?.tipoPedido);
+        const nombreVar = String(plato.nombreCocinaPedido || prev?.nombreCocinaPedido || '').trim();
+        if (nombreVar) plato.nombreCocinaPedido = nombreVar.slice(0, 40);
+        if (plato.variantePlato || prev?.variantePlato) {
+          plato.variantePlato = plato.variantePlato || prev.variantePlato;
+        }
       }
     }
     

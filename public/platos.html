@@ -276,7 +276,12 @@ tailwind.config = {
                 <label class="flex items-center gap-1 cursor-pointer" :class="grupo.seleccionMultiple ? 'text-gold' : 'text-txt-muted'">
                   <input type="checkbox" x-model="grupo.seleccionMultiple" @change="onSeleccionMultipleChange(grupo); marcarCopiaComplementoPlato(gi)" class="accent-gold w-3 h-3"> Sel. múltiple
                 </label>
+                <label class="flex items-center gap-1 cursor-pointer" :class="grupo.esVariantePlato ? 'text-gold' : 'text-txt-muted'" title="Las opciones (TÉ, CAFÉ…) son el nombre del plato en cocina, no una guarnición. La cantidad se reparte entre opciones (3 TÉ + 2 CAFÉ = 5 MIX).">
+                  <input type="checkbox" :checked="grupo.esVariantePlato === true"
+                    @change="onToggleVariantePlato(gi, $event.target.checked)" class="accent-gold w-3 h-3"> Variante MIX
+                </label>
               </div>
+              <p x-show="grupo.esVariantePlato" class="text-[10px] text-gold/90 mb-2 leading-snug">Este grupo define el <b>nombre en cocina</b> (ej. MIX con TÉ / CAFÉ / LECHE). El mozo reparte la cantidad del plato entre opciones; cada unidad sigue llevando las otras guarniciones. No entra a la lista de guarniciones ni a su asignación.</p>
 
               <!-- NUEVA CONFIGURACIÓN DE CANTIDADES v2.0 -->
               <div class="mb-3 p-2 bg-bg-card rounded-lg border border-[rgba(212,175,55,0.1)]">
@@ -457,7 +462,7 @@ tailwind.config = {
           <div class="space-y-2">
             <template x-for="(grupo, gi) in formPlato.complementos" :key="'asig-g-'+gi">
               <template x-for="(op, oi) in (grupo.opciones || [])" :key="'asig-o-'+gi+'-'+oi">
-                <div x-show="(op.nombre || '').trim() && op._asig" class="border border-[rgba(212,175,55,0.12)] rounded-lg p-2 space-y-1.5">
+                <div x-show="!grupo.esVariantePlato && (op.nombre || '').trim() && op._asig" class="border border-[rgba(212,175,55,0.12)] rounded-lg p-2 space-y-1.5">
                   <div class="flex items-center justify-between gap-2">
                     <p class="text-[11px] font-medium"><span class="text-txt-muted" x-text="grupo.grupo || 'Grupo'"></span> · <span x-text="op.nombre"></span></p>
                     <span class="text-[10px] text-gold" x-text="etiquetaAsignacionActual(op._asig)"></span>
@@ -870,6 +875,11 @@ tailwind.config = {
         <label class="flex items-center gap-1.5 cursor-pointer text-[10px]" :class="formComplemento.permiteRepetirOpcion ? 'text-st-libre' : 'text-txt-muted'">
           <input type="checkbox" x-model="formComplemento.permiteRepetirOpcion" class="accent-gold w-3 h-3"> Permitir repetir opción
         </label>
+        <label class="flex items-start gap-1.5 cursor-pointer text-[10px] mt-2" :class="formComplemento.esVariantePlato ? 'text-gold' : 'text-txt-muted'">
+          <input type="checkbox" x-model="formComplemento.esVariantePlato" class="accent-gold w-3 h-3 mt-0.5"
+            @change="if (formComplemento.esVariantePlato) { formComplemento.obligatorio = true; formComplemento.seleccionMultiple = true; formComplemento.modoSeleccion = 'cantidades'; formComplemento.permiteRepetirOpcion = true; }">
+          <span>Variante MIX — las opciones son el nombre del plato en cocina (TÉ, CAFÉ…), no una guarnición. La cantidad del plato se reparte entre ellas.</span>
+        </label>
       </div>
       <!-- ===== FIN CONFIGURACIÓN DE CANTIDADES ===== -->
       
@@ -969,6 +979,7 @@ tailwind.config = {
       minUnidadesGrupo: null,
       maxUnidadesPorOpcion: null,
       permiteRepetirOpcion: true,
+      esVariantePlato: false,
       // ===== FIN NUEVOS CAMPOS =====
       activo: true
     },
@@ -1222,12 +1233,28 @@ tailwind.config = {
         minUnidadesGrupo: null,
         maxUnidadesPorOpcion: null,
         permiteRepetirOpcion: true,
+        esVariantePlato: false,
         // ===== FIN NUEVOS CAMPOS =====
         _fromLibrary: false
       });
     },
 
-    // Handler para cambio en seleccionMultiple (actualiza automáticamente los límites)
+    onToggleVariantePlato(gi, checked) {
+      const g = this.formPlato.complementos[gi];
+      if (!g) return;
+      g.esVariantePlato = !!checked;
+      if (g.esVariantePlato) {
+        (this.formPlato.complementos || []).forEach((x, i) => { if (i !== gi) x.esVariantePlato = false; });
+        g.obligatorio = true;
+        g.seleccionMultiple = true;
+        g.modoSeleccion = 'cantidades';
+        g.permiteRepetirOpcion = true;
+        g.minUnidadesGrupo = null;
+        g.maxUnidadesGrupo = null;
+      }
+      this.marcarCopiaComplementoPlato(gi);
+    },
+
     onSeleccionMultipleChange(grupo) {
       if (grupo.seleccionMultiple) {
         // Si habilita selección múltiple, cambiar modo a cantidades y permitir más de 1
@@ -1418,6 +1445,7 @@ tailwind.config = {
             minUnidadesGrupo: comp.minUnidadesGrupo ?? (comp.obligatorio ? 1 : 0),
             maxUnidadesPorOpcion: comp.maxUnidadesPorOpcion ?? null,
             permiteRepetirOpcion: comp.permiteRepetirOpcion ?? comp.seleccionMultiple,
+            esVariantePlato: comp.esVariantePlato === true,
             // ===== FIN NUEVOS CAMPOS =====
             _fromLibrary: true,
             _libraryId: comp._id
@@ -1750,6 +1778,7 @@ tailwind.config = {
         minUnidadesGrupo: null,
         maxUnidadesPorOpcion: null,
         permiteRepetirOpcion: true,
+        esVariantePlato: false,
         // ===== FIN NUEVOS CAMPOS =====
         activo: true
       };
@@ -1773,6 +1802,7 @@ tailwind.config = {
         minUnidadesGrupo: comp.minUnidadesGrupo ?? (comp.obligatorio ? 1 : 0),
         maxUnidadesPorOpcion: comp.maxUnidadesPorOpcion ?? null,
         permiteRepetirOpcion: comp.permiteRepetirOpcion ?? comp.seleccionMultiple,
+        esVariantePlato: comp.esVariantePlato === true,
         // ===== FIN NUEVOS CAMPOS =====
         activo: comp.activo !== false
       };
@@ -1851,6 +1881,7 @@ tailwind.config = {
         minUnidadesGrupo: this.formComplemento.minUnidadesGrupo ?? (this.formComplemento.obligatorio ? 1 : 0),
         maxUnidadesPorOpcion: this.formComplemento.maxUnidadesPorOpcion ?? null,
         permiteRepetirOpcion: this.formComplemento.permiteRepetirOpcion ?? this.formComplemento.seleccionMultiple,
+        esVariantePlato: this.formComplemento.esVariantePlato === true,
         // ===== FIN NUEVOS CAMPOS =====
         activo: this.formComplemento.activo
       };
@@ -1974,7 +2005,8 @@ tailwind.config = {
           maxUnidadesGrupo: g.maxUnidadesGrupo ?? (g.seleccionMultiple ? null : 1),
           minUnidadesGrupo: g.minUnidadesGrupo ?? (g.obligatorio ? 1 : 0),
           maxUnidadesPorOpcion: g.maxUnidadesPorOpcion ?? null,
-          permiteRepetirOpcion: g.permiteRepetirOpcion ?? g.seleccionMultiple
+          permiteRepetirOpcion: g.permiteRepetirOpcion ?? g.seleccionMultiple,
+          esVariantePlato: g.esVariantePlato === true
           // ===== FIN NUEVOS CAMPOS =====
         }));
 
@@ -2357,6 +2389,7 @@ tailwind.config = {
 
       const filas = [];
       (this.formPlato.complementos || []).forEach(g => {
+        if (g.esVariantePlato) return;
         const grupo = String(g.grupo || '').trim();
         (g.opciones || []).forEach(op => {
           const opcion = String(op?.nombre || '').trim();
