@@ -22,6 +22,7 @@ const {
   overlayPronombresEnComandas
 } = require('../utils/precioComplementos');
 const { expandirPlatosPorVariante, snapshotNombreCocinaPedido } = require('../utils/variantePlato');
+const { indicePlatoPorIdLinea, aplicarSeparacionCantidadLinea } = require('../utils/separarCantidadLineaPlato');
 
 const SELECT_PLATO_COCINA = 'nombre precio categoria codigo nombreCocina tipo tipos complementos complementosUnidosAlPlato';
 const configuracionRepository = require('./configuracion.repository');
@@ -5066,6 +5067,65 @@ const aplicarDescuento = async (comandaId, descuento, motivo, usuarioId, usuario
   }
 };
 
+/**
+ * Parte la línea si cantidadEntregar < qty. La porción a entregar queda al final.
+ */
+const separarCantidadLineaPlato = async (comandaId, platoId, cantidadEntregar) => {
+  const n = Math.floor(Number(cantidadEntregar));
+  const comanda = await comandaModel.findById(comandaId);
+  if (!comanda) {
+    const err = new Error('Comanda no encontrada');
+    err.status = 404;
+    throw err;
+  }
+  const platoIndex = indicePlatoPorIdLinea(comanda.platos, platoId);
+  if (platoIndex === -1) {
+    const err = new Error('Plato no encontrado en la comanda');
+    err.status = 404;
+    throw err;
+  }
+  const originalId = comanda.platos[platoIndex]._id;
+  const r = aplicarSeparacionCantidadLinea(comanda, platoIndex, n);
+  if (r.error) {
+    const err = new Error(r.error);
+    err.status = 400;
+    throw err;
+  }
+  if (!r.didSplit) {
+    return {
+      didSplit: false,
+      platoEntregarId: String(originalId),
+      platoRestanteId: String(originalId),
+      indexEntregar: platoIndex,
+      indexRestante: platoIndex,
+      cantidadEntregar: r.cantidadEntregar,
+      cantidadRestante: r.cantidadRestante,
+      comanda
+    };
+  }
+  comanda.markModified('platos');
+  comanda.markModified('cantidades');
+  comanda.totalPlatos = comanda.platos.length;
+  comanda.platosActivos = (comanda.platos || []).filter((p) => !p.eliminado && !p.anulado).length;
+  await comanda.save();
+  try {
+    await redisCache.invalidate(comandaId);
+  } catch (e) { /* cache opcional */ }
+  const saved = await comandaModel.findById(comandaId);
+  const indexEntregar = saved.platos.length - 1;
+  const platoEntregarId = saved.platos[indexEntregar]._id;
+  return {
+    didSplit: true,
+    platoEntregarId: String(platoEntregarId),
+    platoRestanteId: String(saved.platos[platoIndex]._id),
+    indexEntregar,
+    indexRestante: platoIndex,
+    cantidadEntregar: r.cantidadEntregar,
+    cantidadRestante: r.cantidadRestante,
+    comanda: saved
+  };
+};
+
 module.exports = { 
   listarComanda, 
   agregarComanda, 
@@ -5078,7 +5138,8 @@ module.exports = {
   cambiarEstadoComanda, 
   listarComandaPorFecha, 
   listarComandaPorFechaEntregado, 
-  cambiarEstadoPlato, 
+  cambiarEstadoPlato,
+  separarCantidadLineaPlato, 
   revertirStatusComanda, 
   recalcularEstadoMesa,
   validarTransicionEstado, // Exportar para tests

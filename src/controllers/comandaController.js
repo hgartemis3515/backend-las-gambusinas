@@ -16,6 +16,7 @@ const {
   listarComandaPorFechaEntregado, 
   listarComandaPorFecha, 
   cambiarEstadoPlato, 
+  separarCantidadLineaPlato,
   revertirStatusComanda,
   getComandasParaPagar,
   getComandasPagadasPorMesa,
@@ -2344,7 +2345,7 @@ router.put('/comanda/:id/prioridad', async (req, res) => {
 
 router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
     const { id, platoId } = req.params;
-    const { nuevoEstado, motivo, cocineroId, entregarEnteroAbsoluto } = req.body;
+    const { nuevoEstado, motivo, cocineroId, entregarEnteroAbsoluto, cantidadEntregar } = req.body;
     const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
 
     // Validar que nuevoEstado sea válido
@@ -2360,13 +2361,13 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
         console.log(`🔄 [PUT /plato/:platoId/estado] Comanda ${id}, Plato ${platoId}, Nuevo estado: ${nuevoEstado}`);
         
         // Obtener estado anterior para auditoría
-        const comandaAntes = await comandaModel.findById(id);
+        let comandaAntes = await comandaModel.findById(id);
         if (!comandaAntes) {
             return res.status(404).json({ error: 'Comanda no encontrada', comandaId: id });
         }
         
         // Buscar plato para obtener estado anterior (usar misma lógica que el repository)
-        const platoAntes = comandaAntes.platos?.find(p => {
+        let platoAntes = comandaAntes.platos?.find(p => {
             return (p._id?.toString() === platoId.toString()) ||
                    (p.platoId?.toString() === platoId.toString()) ||
                    (p.plato?.toString() === platoId.toString());
@@ -2388,6 +2389,25 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
         
         const estadoAnterior = platoAntes.estado || 'en_espera';
         const absoluto = await esEntregarEnteroAbsolutoActivo(req);
+
+        let platoIdEfectivo = platoId;
+        if (cantidadEntregar != null && cantidadEntregar !== '') {
+            try {
+                const sep = await separarCantidadLineaPlato(id, platoId, cantidadEntregar);
+                if (sep.didSplit) {
+                    platoIdEfectivo = sep.platoEntregarId;
+                    comandaAntes = sep.comanda;
+                    platoAntes = sep.comanda.platos[sep.indexEntregar];
+                }
+            } catch (errSep) {
+                const code = errSep.status || 400;
+                return res.status(code).json({
+                    error: errSep.message || 'No se pudo separar la cantidad',
+                    comandaId: id,
+                    platoId
+                });
+            }
+        }
 
         // SALIO: Bloquear transición directa recoger → entregado
         // El flujo correcto es recoger → salio (cocina) → entregado (mozo)
@@ -2438,7 +2458,7 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
                 if (permitirGuarniciones) {
                     const platoIdx = comandaAntes.platos.findIndex(p => {
                         const pId = p._id?.toString() || p.plato?._id?.toString();
-                        return pId === platoId;
+                        return pId === platoIdEfectivo.toString();
                     });
                     if (platoIdx >= 0) {
                         const autoAhora = new Date();
@@ -2467,7 +2487,7 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
         let updatedComanda = comandaAntes;
         let estadoFinal = estadoAnterior;
         for (const dest of destinos) {
-            updatedComanda = await cambiarEstadoPlato(id, platoId, dest);
+            updatedComanda = await cambiarEstadoPlato(id, platoIdEfectivo, dest);
             estadoFinal = dest;
         }
 
@@ -2483,9 +2503,9 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
             const momento = new Date();
             const proy = await comandaModel.findById(id).select('platos').lean();
             const idx = proy.platos.findIndex(p => {
-                return (p._id?.toString() === platoId.toString()) ||
-                       (p.platoId?.toString() === platoId.toString()) ||
-                       (p.plato?.toString() === platoId.toString());
+                return (p._id?.toString() === platoIdEfectivo.toString()) ||
+                       (p.platoId?.toString() === platoIdEfectivo.toString()) ||
+                       (p.plato?.toString() === platoIdEfectivo.toString());
             });
             if (idx !== -1) {
                 const setFields = {
@@ -2534,9 +2554,9 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
 
                 const proy = await comandaModel.findById(id).select('platos').lean();
                 const idxE = proy?.platos?.findIndex(p => {
-                    return (p._id?.toString() === platoId.toString()) ||
-                           (p.platoId?.toString() === platoId.toString()) ||
-                           (p.plato?.toString() === platoId.toString());
+                    return (p._id?.toString() === platoIdEfectivo.toString()) ||
+                           (p.platoId?.toString() === platoIdEfectivo.toString()) ||
+                           (p.plato?.toString() === platoIdEfectivo.toString());
                 }) ?? -1;
                 if (idxE !== -1) {
                     await comandaModel.updateOne({ _id: id }, {
@@ -2559,7 +2579,7 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
         res.json({ 
             success: true, 
             message: 'Estado del plato actualizado exitosamente',
-            platoId: platoId,
+            platoId: platoIdEfectivo,
             estadoAnterior: estadoAnterior,
             nuevoEstado: estadoFinal,
             comandaStatus: updatedComanda.status,
@@ -2596,7 +2616,7 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
         // Emitir evento Socket.io de plato actualizado
         if (global.emitPlatoActualizado) {
             // Push la envía emitPlatoBatch (granular); evitar duplicado con emitPlatoActualizado
-            await global.emitPlatoActualizado(id, platoId, estadoFinal, { skipPush: true });
+            await global.emitPlatoActualizado(id, platoIdEfectivo, estadoFinal, { skipPush: true });
         }
         
         // También emitir comanda actualizada para refrescar toda la comanda

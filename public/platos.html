@@ -254,7 +254,10 @@ tailwind.config = {
         <!-- Lista de grupos -->
         <div x-show="formPlato.complementos.length > 0" class="grid grid-cols-2 gap-3">
           <template x-for="(grupo, gi) in formPlato.complementos" :key="gi">
-            <div class="bg-bg-sidebar border rounded-xl p-4" :class="grupo._fromLibrary && !grupo._copiaPlato ? 'border-st-libre/30' : 'border-[rgba(212,175,55,0.25)]'">
+            <div class="bg-bg-sidebar border rounded-xl p-4 min-w-0" :class="[
+              grupo._fromLibrary && !grupo._copiaPlato ? 'border-st-libre/30' : 'border-[rgba(212,175,55,0.25)]',
+              grupo.seleccionFija ? 'col-span-2' : ''
+            ]">
               <!-- Badge si es de biblioteca / copia del plato -->
               <div x-show="grupo._fromLibrary || grupo._copiaPlato" class="flex items-center gap-1 mb-2">
                 <span x-show="grupo._copiaPlato" class="text-[9px] px-1.5 py-0.5 rounded bg-gold/20 text-gold font-medium">✏️ Copia del plato</span>
@@ -280,8 +283,14 @@ tailwind.config = {
                   <input type="checkbox" :checked="grupo.esVariantePlato === true"
                     @change="onToggleVariantePlato(gi, $event.target.checked)" class="accent-gold w-3 h-3"> Variante MIX
                 </label>
+                <label class="flex items-center gap-1 cursor-pointer" :class="grupo.seleccionFija ? 'text-gold' : 'text-txt-muted'" title="No abre el modal de este grupo: al elegir el plato se marcan solas las opciones con su cantidad.">
+                  <input type="checkbox" class="accent-gold w-3 h-3"
+                    x-model="grupo.seleccionFija"
+                    @change="onToggleSeleccionFija(gi, $event.target.checked)"> Fijo en Órdenes
+                </label>
               </div>
               <p x-show="grupo.esVariantePlato" class="text-[10px] text-gold/90 mb-2 leading-snug">Este grupo define el <b>nombre en cocina</b> (ej. MIX con TÉ / CAFÉ / LECHE). El mozo reparte la cantidad del plato entre opciones; cada unidad sigue llevando las otras guarniciones. No entra a la lista de guarniciones ni a su asignación.</p>
+              <p x-show="grupo.seleccionFija && !grupo.esVariantePlato" class="text-[10px] text-gold/90 mb-2 leading-snug">El mozo <b>no elige</b> este grupo. Al tocar el plato se marcan las opciones de abajo con su cantidad. Si no marcas ninguna, van todas.</p>
 
               <!-- NUEVA CONFIGURACIÓN DE CANTIDADES v2.0 -->
               <div class="mb-3 p-2 bg-bg-card rounded-lg border border-[rgba(212,175,55,0.1)]">
@@ -317,11 +326,21 @@ tailwind.config = {
               <p class="text-[10px] text-txt-muted mb-1">Opciones <span class="text-[9px] opacity-70">(pronombre = nombre corto en cocina)</span>:</p>
               <div class="space-y-1.5">
                 <template x-for="(op, oi) in grupo.opciones" :key="oi">
-                  <div class="flex gap-1.5 items-center">
-                    <input type="text" x-model="op.nombre" @input="marcarCopiaComplementoPlato(gi)" @blur="hidratarOpcionGuarnicion(grupo, op)" placeholder="Ej: Pollo" class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[11px] focus:border-gold focus:outline-none">
-                    <input type="text" x-model="op.pronombre" @input="marcarCopiaComplementoPlato(gi)" placeholder="Pronombre" title="Nombre corto en cocina. Si está vacío se usa el nombre completo." maxlength="40" class="w-20 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[11px] focus:border-gold focus:outline-none">
-                    <input type="number" x-model.number="op.precio" @input="marcarCopiaComplementoPlato(gi)" min="0" step="0.01" placeholder="0.00" title="Precio adicional opcional (S/.)" class="w-16 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[11px] focus:border-gold focus:outline-none">
-                    <button type="button" @click="eliminarOpcionComplemento(gi, oi)" class="text-st-pagado text-[10px] hover:text-white px-1">✕</button>
+                  <div class="space-y-1">
+                    <div class="flex gap-1.5 items-center">
+                      <input type="text" x-model="op.nombre" @input="marcarCopiaComplementoPlato(gi)" @blur="hidratarOpcionGuarnicion(grupo, op)" placeholder="Ej: Pollo" class="flex-1 min-w-0 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[11px] focus:border-gold focus:outline-none">
+                      <input type="text" x-model="op.pronombre" @input="marcarCopiaComplementoPlato(gi)" placeholder="Pronombre" title="Nombre corto en cocina. Si está vacío se usa el nombre completo." maxlength="40" class="w-20 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[11px] focus:border-gold focus:outline-none">
+                      <input type="number" x-model.number="op.precio" @input="marcarCopiaComplementoPlato(gi)" min="0" step="0.01" placeholder="0.00" title="Precio adicional opcional (S/.)" class="w-16 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[11px] focus:border-gold focus:outline-none">
+                      <button type="button" @click="eliminarOpcionComplemento(gi, oi)" class="text-st-pagado text-[10px] hover:text-white px-1">✕</button>
+                    </div>
+                    <div x-show="grupo.seleccionFija && !grupo.esVariantePlato" class="flex items-center gap-2">
+                      <span class="text-[10px] text-gold font-semibold shrink-0">Cant. fija</span>
+                      <input type="number" min="1" max="99"
+                        x-model.number="op.cantidadPreseleccion"
+                        @input="marcarCopiaComplementoPlato(gi); if (op.preseleccionada !== true) op.preseleccionada = true"
+                        class="w-24 h-9 bg-bg-card border border-gold/50 rounded-md px-2 text-sm font-semibold text-white text-center tabular-nums focus:border-gold focus:outline-none"
+                        title="Cuántas van de esta opción al pedir el plato">
+                    </div>
                   </div>
                 </template>
               </div>
@@ -329,20 +348,25 @@ tailwind.config = {
 
               <div class="mt-3 p-2 bg-bg-card rounded-lg border border-[rgba(212,175,55,0.15)]" x-show="(grupo.opciones || []).some(o => (o.nombre || '').trim())">
                 <p class="text-[9px] text-txt-muted font-semibold mb-0.5">Marcar en Órdenes (mozos)</p>
-                <p class="text-[9px] text-txt-muted mb-2">Si marcas aquí, el mozo ya las ve seleccionadas al pedir el plato. Con cantidades, indica cuántas.</p>
-                <div class="space-y-1">
+                <p class="text-[9px] text-txt-muted mb-2" x-show="!grupo.seleccionFija">Si marcas aquí, el mozo ya las ve seleccionadas al pedir el plato. Con cantidades, indica cuántas.</p>
+                <p class="text-[9px] text-txt-muted mb-2" x-show="grupo.seleccionFija">Con Fijo, usa <b>Cant. fija</b> en cada opción (arriba). Si desmarcas una, esa no va.</p>
+                <div class="space-y-2">
                   <template x-for="(op, oi) in grupo.opciones" :key="'pre-'+gi+'-'+oi">
-                    <label class="flex items-center gap-1.5 cursor-pointer text-[10px]" x-show="(op.nombre || '').trim()" :class="op.preseleccionada ? 'text-gold' : 'text-txt-muted'">
-                      <input type="checkbox" class="accent-gold w-3 h-3"
-                        :checked="op.preseleccionada === true"
-                        @change="togglePreseleccionOpcion(gi, oi, $event.target.checked)">
-                      <span class="flex-1 truncate" x-text="op.nombre"></span>
-                      <input type="number" min="1" max="99" x-show="grupo.modoSeleccion === 'cantidades' && op.preseleccionada"
+                    <div class="flex items-center gap-2" x-show="(op.nombre || '').trim()">
+                      <label class="flex items-center gap-1.5 cursor-pointer text-[10px] min-w-0 flex-1" :class="op.preseleccionada ? 'text-gold' : 'text-txt-muted'">
+                        <input type="checkbox" class="accent-gold w-3 h-3 shrink-0"
+                          :checked="op.preseleccionada === true"
+                          @change="togglePreseleccionOpcion(gi, oi, $event.target.checked)">
+                        <span class="truncate" x-text="op.nombre"></span>
+                      </label>
+                      <input type="number" min="1" max="99"
+                        x-show="grupo.seleccionFija || (grupo.modoSeleccion === 'cantidades' && op.preseleccionada)"
                         x-model.number="op.cantidadPreseleccion"
-                        @input="marcarCopiaComplementoPlato(gi)"
-                        class="w-20 min-w-[4.75rem] h-9 bg-bg-sidebar border border-[rgba(212,175,55,0.35)] rounded-md px-2 text-sm font-semibold text-white text-center tabular-nums focus:border-gold focus:outline-none"
+                        @click.stop
+                        @input="marcarCopiaComplementoPlato(gi); if (grupo.seleccionFija) op.preseleccionada = true"
+                        class="w-24 h-9 shrink-0 bg-bg-sidebar border border-[rgba(212,175,55,0.35)] rounded-md px-2 text-sm font-semibold text-white text-center tabular-nums focus:border-gold focus:outline-none"
                         title="Cantidad preseleccionada">
-                    </label>
+                    </div>
                   </template>
                 </div>
               </div>
@@ -801,36 +825,56 @@ tailwind.config = {
       
       <!-- Opciones -->
       <div>
-        <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center justify-between mb-2 gap-2">
           <label class="text-xs text-txt-secondary">Opciones <span class="text-st-pagado">*</span></label>
+          <label class="flex items-center gap-1 cursor-pointer text-[10px] shrink-0" :class="formComplemento.seleccionFija ? 'text-gold' : 'text-txt-muted'">
+            <input type="checkbox" class="accent-gold w-3 h-3" :checked="formComplemento.seleccionFija === true"
+              @change="onToggleSeleccionFijaPlantilla($event.target.checked)"> Fijo en Órdenes
+          </label>
           <button @click="agregarOpcionFormComplemento()" class="text-[11px] text-gold hover:underline">+ Agregar opción</button>
         </div>
         <div class="space-y-2">
           <template x-for="(op, i) in formComplemento.opciones" :key="i">
-            <div class="flex gap-2">
-              <input type="text" x-model="op.nombre" placeholder="Ej: Tres cuartos" class="flex-1 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
-              <input type="text" x-model="op.pronombre" placeholder="Pronombre" title="Nombre corto en cocina" maxlength="40" class="w-24 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
-              <input type="number" x-model.number="op.precio" min="0" step="0.01" placeholder="0.00" title="Precio adicional opcional (S/.)" class="w-24 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
-              <button @click="eliminarOpcionFormComplemento(i)" class="w-8 h-8 flex items-center justify-center rounded bg-st-pagado/20 text-st-pagado text-sm hover:bg-st-pagado/30">✕</button>
+            <div class="space-y-1">
+              <div class="flex gap-2">
+                <input type="text" x-model="op.nombre" placeholder="Ej: Tres cuartos" class="flex-1 min-w-0 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+                <input type="text" x-model="op.pronombre" placeholder="Pronombre" title="Nombre corto en cocina" maxlength="40" class="w-24 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+                <input type="number" x-model.number="op.precio" min="0" step="0.01" placeholder="0.00" title="Precio adicional opcional (S/.)" class="w-24 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+                <button @click="eliminarOpcionFormComplemento(i)" class="w-8 h-8 flex items-center justify-center rounded bg-st-pagado/20 text-st-pagado text-sm hover:bg-st-pagado/30">✕</button>
+              </div>
+              <div x-show="formComplemento.seleccionFija && !formComplemento.esVariantePlato" class="flex items-center gap-2">
+                <span class="text-[10px] text-gold font-semibold shrink-0">Cant. fija</span>
+                <input type="number" min="1" max="99"
+                  x-model.number="op.cantidadPreseleccion"
+                  @input="if (op.preseleccionada !== true) op.preseleccionada = true"
+                  class="w-24 h-9 bg-bg-sidebar border border-gold/50 rounded-md px-2 text-sm font-semibold text-white text-center tabular-nums focus:border-gold focus:outline-none"
+                  title="Cuántas van de esta opción al pedir el plato">
+              </div>
             </div>
           </template>
         </div>
         <p x-show="formComplemento.opciones.length === 0" class="text-[11px] text-st-pagado mt-1">Debes agregar al menos una opción</p>
         <div class="mt-3 p-2 bg-bg-card rounded-lg border border-[rgba(212,175,55,0.15)]" x-show="(formComplemento.opciones || []).some(o => (o.nombre || '').trim())">
           <p class="text-[9px] text-txt-muted font-semibold mb-0.5">Marcar en Órdenes (mozos)</p>
-          <p class="text-[9px] text-txt-muted mb-2">Al aplicar esta plantilla al plato, el mozo ya las ve seleccionadas.</p>
-          <div class="space-y-1">
+          <p class="text-[9px] text-txt-muted mb-2" x-show="!formComplemento.seleccionFija">Al aplicar esta plantilla al plato, el mozo ya las ve seleccionadas.</p>
+          <p class="text-[9px] text-txt-muted mb-2" x-show="formComplemento.seleccionFija">Con Fijo, usa <b>Cant. fija</b> en cada opción (arriba). Si desmarcas una, esa no va.</p>
+          <div class="space-y-2">
             <template x-for="(op, i) in formComplemento.opciones" :key="'pre-plantilla-'+i">
-              <label class="flex items-center gap-1.5 cursor-pointer text-[10px]" x-show="(op.nombre || '').trim()" :class="op.preseleccionada ? 'text-gold' : 'text-txt-muted'">
-                <input type="checkbox" class="accent-gold w-3 h-3"
-                  :checked="op.preseleccionada === true"
-                  @change="togglePreseleccionOpcionPlantilla(i, $event.target.checked)">
-                <span class="flex-1 truncate" x-text="op.nombre"></span>
-                <input type="number" min="1" max="99" x-show="formComplemento.modoSeleccion === 'cantidades' && op.preseleccionada"
+              <div class="flex items-center gap-2" x-show="(op.nombre || '').trim()">
+                <label class="flex items-center gap-1.5 cursor-pointer text-[10px] min-w-0 flex-1" :class="op.preseleccionada ? 'text-gold' : 'text-txt-muted'">
+                  <input type="checkbox" class="accent-gold w-3 h-3 shrink-0"
+                    :checked="op.preseleccionada === true"
+                    @change="togglePreseleccionOpcionPlantilla(i, $event.target.checked)">
+                  <span class="truncate" x-text="op.nombre"></span>
+                </label>
+                <input type="number" min="1" max="99"
+                  x-show="formComplemento.seleccionFija || (formComplemento.modoSeleccion === 'cantidades' && op.preseleccionada)"
                   x-model.number="op.cantidadPreseleccion"
-                  class="w-20 min-w-[4.75rem] h-9 bg-bg-sidebar border border-[rgba(212,175,55,0.35)] rounded-md px-2 text-sm font-semibold text-white text-center tabular-nums focus:border-gold focus:outline-none"
+                  @click.stop
+                  @input="if (formComplemento.seleccionFija) op.preseleccionada = true"
+                  class="w-24 h-9 shrink-0 bg-bg-sidebar border border-[rgba(212,175,55,0.35)] rounded-md px-2 text-sm font-semibold text-white text-center tabular-nums focus:border-gold focus:outline-none"
                   title="Cantidad preseleccionada">
-              </label>
+              </div>
             </template>
           </div>
         </div>
@@ -877,8 +921,13 @@ tailwind.config = {
         </label>
         <label class="flex items-start gap-1.5 cursor-pointer text-[10px] mt-2" :class="formComplemento.esVariantePlato ? 'text-gold' : 'text-txt-muted'">
           <input type="checkbox" x-model="formComplemento.esVariantePlato" class="accent-gold w-3 h-3 mt-0.5"
-            @change="if (formComplemento.esVariantePlato) { formComplemento.obligatorio = true; formComplemento.seleccionMultiple = true; formComplemento.modoSeleccion = 'cantidades'; formComplemento.permiteRepetirOpcion = true; }">
+            @change="if (formComplemento.esVariantePlato) { formComplemento.obligatorio = true; formComplemento.seleccionMultiple = true; formComplemento.modoSeleccion = 'cantidades'; formComplemento.permiteRepetirOpcion = true; formComplemento.seleccionFija = false; }">
           <span>Variante MIX — las opciones son el nombre del plato en cocina (TÉ, CAFÉ…), no una guarnición. La cantidad del plato se reparte entre ellas.</span>
+        </label>
+        <label class="flex items-start gap-1.5 cursor-pointer text-[10px] mt-2" :class="formComplemento.seleccionFija ? 'text-gold' : 'text-txt-muted'">
+          <input type="checkbox" :checked="formComplemento.seleccionFija === true" class="accent-gold w-3 h-3 mt-0.5"
+            @change="onToggleSeleccionFijaPlantilla($event.target.checked)">
+          <span>Fijo en Órdenes — el mozo no elige este grupo; al tocar el plato se marcan las opciones con su cantidad. Aparece <b>Cant. fija</b> en cada opción.</span>
         </label>
       </div>
       <!-- ===== FIN CONFIGURACIÓN DE CANTIDADES ===== -->
@@ -980,6 +1029,7 @@ tailwind.config = {
       maxUnidadesPorOpcion: null,
       permiteRepetirOpcion: true,
       esVariantePlato: false,
+      seleccionFija: false,
       // ===== FIN NUEVOS CAMPOS =====
       activo: true
     },
@@ -1211,6 +1261,8 @@ tailwind.config = {
         // v3.0: normalizar opciones legacy (string) → objeto { nombre, precio }
         complementos: JSON.parse(JSON.stringify(p.complementos || [])).map(g => ({
           ...g,
+          esVariantePlato: g.esVariantePlato === true,
+          seleccionFija: g.esVariantePlato === true ? false : g.seleccionFija === true,
           opciones: this.normalizarOpcionesGrupo(g.opciones).map(o => ({ ...o, _asig: this._asigVacia() }))
         }))
       };
@@ -1234,6 +1286,7 @@ tailwind.config = {
         maxUnidadesPorOpcion: null,
         permiteRepetirOpcion: true,
         esVariantePlato: false,
+        seleccionFija: false,
         // ===== FIN NUEVOS CAMPOS =====
         _fromLibrary: false
       });
@@ -1251,11 +1304,61 @@ tailwind.config = {
         g.permiteRepetirOpcion = true;
         g.minUnidadesGrupo = null;
         g.maxUnidadesGrupo = null;
+        g.seleccionFija = false;
       }
       this.marcarCopiaComplementoPlato(gi);
     },
 
+    prepararGrupoSeleccionFija(g) {
+      if (!g) return;
+      g.modoSeleccion = 'cantidades';
+      g.seleccionMultiple = true;
+      g.permiteRepetirOpcion = true;
+      if (g.maxUnidadesGrupo === 1) g.maxUnidadesGrupo = null;
+      if (g.maxUnidadesPorOpcion === 1) g.maxUnidadesPorOpcion = null;
+      (g.opciones || []).forEach((op) => {
+        if (!op || typeof op !== 'object') return;
+        if (!(Number(op.cantidadPreseleccion) >= 1)) op.cantidadPreseleccion = 1;
+        if (String(op.nombre || '').trim()) op.preseleccionada = true;
+      });
+    },
+
+    onToggleSeleccionFija(gi, checked) {
+      const g = this.formPlato.complementos[gi];
+      if (!g) return;
+      if (checked && g.esVariantePlato) {
+        g.seleccionFija = false;
+        this.showToast('La variante MIX no puede ser selección fija', 'error');
+        return;
+      }
+      g.seleccionFija = !!checked;
+      if (g.seleccionFija) {
+        g.esVariantePlato = false;
+        this.prepararGrupoSeleccionFija(g);
+      }
+      this.marcarCopiaComplementoPlato(gi);
+    },
+
+    onToggleSeleccionFijaPlantilla(checked) {
+      if (checked && this.formComplemento.esVariantePlato) {
+        this.showToast('La variante MIX no puede ser selección fija', 'error');
+        return;
+      }
+      this.formComplemento.seleccionFija = !!checked;
+      if (this.formComplemento.seleccionFija) {
+        this.formComplemento.esVariantePlato = false;
+        this.prepararGrupoSeleccionFija(this.formComplemento);
+      }
+    },
+
     onSeleccionMultipleChange(grupo) {
+      if (grupo.seleccionFija) {
+        grupo.seleccionMultiple = true;
+        grupo.modoSeleccion = 'cantidades';
+        if (grupo.maxUnidadesGrupo === 1) grupo.maxUnidadesGrupo = null;
+        if (grupo.maxUnidadesPorOpcion === 1) grupo.maxUnidadesPorOpcion = null;
+        return;
+      }
       if (grupo.seleccionMultiple) {
         // Si habilita selección múltiple, cambiar modo a cantidades y permitir más de 1
         grupo.modoSeleccion = 'cantidades';
@@ -1291,7 +1394,7 @@ tailwind.config = {
       const grupo = this.formPlato.complementos[gi];
       if (!grupo || !grupo.opciones || !grupo.opciones[oi]) return;
       const modoCant = grupo.modoSeleccion === 'cantidades';
-      const soloUna = !grupo.seleccionMultiple && !modoCant;
+      const soloUna = !grupo.seleccionFija && !grupo.seleccionMultiple && !modoCant;
       if (checked && soloUna) {
         grupo.opciones.forEach((op, i) => {
           op.preseleccionada = i === oi;
@@ -1446,6 +1549,7 @@ tailwind.config = {
             maxUnidadesPorOpcion: comp.maxUnidadesPorOpcion ?? null,
             permiteRepetirOpcion: comp.permiteRepetirOpcion ?? comp.seleccionMultiple,
             esVariantePlato: comp.esVariantePlato === true,
+            seleccionFija: comp.esVariantePlato === true ? false : comp.seleccionFija === true,
             // ===== FIN NUEVOS CAMPOS =====
             _fromLibrary: true,
             _libraryId: comp._id
@@ -1779,6 +1883,7 @@ tailwind.config = {
         maxUnidadesPorOpcion: null,
         permiteRepetirOpcion: true,
         esVariantePlato: false,
+        seleccionFija: false,
         // ===== FIN NUEVOS CAMPOS =====
         activo: true
       };
@@ -1803,6 +1908,7 @@ tailwind.config = {
         maxUnidadesPorOpcion: comp.maxUnidadesPorOpcion ?? null,
         permiteRepetirOpcion: comp.permiteRepetirOpcion ?? comp.seleccionMultiple,
         esVariantePlato: comp.esVariantePlato === true,
+        seleccionFija: comp.esVariantePlato === true ? false : comp.seleccionFija === true,
         // ===== FIN NUEVOS CAMPOS =====
         activo: comp.activo !== false
       };
@@ -1813,7 +1919,7 @@ tailwind.config = {
       const ops = this.formComplemento.opciones;
       if (!ops || !ops[oi]) return;
       const modoCant = this.formComplemento.modoSeleccion === 'cantidades';
-      const soloUna = !this.formComplemento.seleccionMultiple && !modoCant;
+      const soloUna = !this.formComplemento.seleccionFija && !this.formComplemento.seleccionMultiple && !modoCant;
       if (checked && soloUna) {
         ops.forEach((op, i) => {
           op.preseleccionada = i === oi;
@@ -1839,6 +1945,13 @@ tailwind.config = {
 
     // Handler para cambio en seleccionMultiple en el modal de plantilla de complemento
     onSeleccionMultipleChangeComplemento() {
+      if (this.formComplemento.seleccionFija) {
+        this.formComplemento.seleccionMultiple = true;
+        this.formComplemento.modoSeleccion = 'cantidades';
+        if (this.formComplemento.maxUnidadesGrupo === 1) this.formComplemento.maxUnidadesGrupo = null;
+        if (this.formComplemento.maxUnidadesPorOpcion === 1) this.formComplemento.maxUnidadesPorOpcion = null;
+        return;
+      }
       if (this.formComplemento.seleccionMultiple) {
         // Si habilita selección múltiple, cambiar modo a cantidades y permitir más de 1
         this.formComplemento.modoSeleccion = 'cantidades';
@@ -1882,6 +1995,7 @@ tailwind.config = {
         maxUnidadesPorOpcion: this.formComplemento.maxUnidadesPorOpcion ?? null,
         permiteRepetirOpcion: this.formComplemento.permiteRepetirOpcion ?? this.formComplemento.seleccionMultiple,
         esVariantePlato: this.formComplemento.esVariantePlato === true,
+        seleccionFija: this.formComplemento.esVariantePlato === true ? false : this.formComplemento.seleccionFija === true,
         // ===== FIN NUEVOS CAMPOS =====
         activo: this.formComplemento.activo
       };
@@ -1962,6 +2076,12 @@ tailwind.config = {
       }
     },
 
+    numOpcionalGrupo(v) {
+      if (v === '' || v === undefined || v === null) return null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    },
+
     // ============ GUARDAR Y ELIMINAR PLATO ============
 
     async guardarPlato() {
@@ -1991,31 +2111,39 @@ tailwind.config = {
       // Normalizar tipos y sincronizar `tipo` legacy
       const tiposLimpios = [...new Set(this.formPlato.tipos.map(t => String(t).trim().toLowerCase()).filter(Boolean))];
 
-      // Limpiar complementos vacíos antes de enviar
-      // v3.0: opciones ahora son objetos { nombre, precio }, normalizadas vía normalizarOpcionesGrupo
       const complementosLimpios = this.formPlato.complementos
         .filter(g => g.grupo && g.grupo.trim() !== '')
-        .map(g => ({
-          grupo: g.grupo.trim(),
-          obligatorio: g.obligatorio || false,
-          seleccionMultiple: g.seleccionMultiple || false,
-          opciones: this.normalizarOpcionesGrupo(g.opciones),
-          // ===== NUEVOS CAMPOS v2.0 =====
-          modoSeleccion: g.modoSeleccion || (g.seleccionMultiple ? 'cantidades' : 'opciones'),
-          maxUnidadesGrupo: g.maxUnidadesGrupo ?? (g.seleccionMultiple ? null : 1),
-          minUnidadesGrupo: g.minUnidadesGrupo ?? (g.obligatorio ? 1 : 0),
-          maxUnidadesPorOpcion: g.maxUnidadesPorOpcion ?? null,
-          permiteRepetirOpcion: g.permiteRepetirOpcion ?? g.seleccionMultiple,
-          esVariantePlato: g.esVariantePlato === true
-          // ===== FIN NUEVOS CAMPOS =====
-        }));
+        .map(g => {
+          const seleccionFija = g.esVariantePlato === true ? false : (g.seleccionFija === true || g.seleccionFija === 'true');
+          const seleccionMultiple = !!g.seleccionMultiple || seleccionFija;
+          return {
+            grupo: g.grupo.trim(),
+            obligatorio: g.obligatorio || false,
+            seleccionMultiple,
+            opciones: this.normalizarOpcionesGrupo(g.opciones),
+            modoSeleccion: seleccionFija ? 'cantidades' : (g.modoSeleccion || (seleccionMultiple ? 'cantidades' : 'opciones')),
+            maxUnidadesGrupo: this.numOpcionalGrupo(g.maxUnidadesGrupo) ?? (seleccionMultiple || seleccionFija ? null : 1),
+            minUnidadesGrupo: this.numOpcionalGrupo(g.minUnidadesGrupo) ?? (g.obligatorio ? 1 : 0),
+            maxUnidadesPorOpcion: this.numOpcionalGrupo(g.maxUnidadesPorOpcion),
+            permiteRepetirOpcion: g.permiteRepetirOpcion ?? seleccionMultiple,
+            esVariantePlato: g.esVariantePlato === true,
+            seleccionFija
+          };
+        });
 
+      const precioNum = Number(this.formPlato.precio);
+      const stockNum = Number(this.formPlato.stock);
       const payload = {
-        ...this.formPlato,
+        nombre: String(this.formPlato.nombre || '').trim(),
+        nombreCocina: String(this.formPlato.nombreCocina || '').trim(),
+        codigo: codigoTrim,
+        precio: Number.isFinite(precioNum) && precioNum >= 0 ? precioNum : 0,
+        stock: Number.isFinite(stockNum) && stockNum >= 0 ? stockNum : 0,
+        categoria: String(this.formPlato.categoria || '').trim() || 'General',
+        descripcion: this.formPlato.descripcion || '',
         tipos: tiposLimpios,
-        tipo: tiposLimpios[0], // sincronizar legacy
+        tipo: tiposLimpios[0],
         complementos: complementosLimpios,
-        // v3.0: flags de complementos del plato
         complementosAfectanPrecio: this.formPlato.complementosAfectanPrecio !== false,
         mostrarTotalComplementosImpresion: !!this.formPlato.mostrarTotalComplementosImpresion,
         complementosUnidosAlPlato: !!this.formPlato.complementosUnidosAlPlato,
@@ -2024,20 +2152,19 @@ tailwind.config = {
           mostrarMontoExtra: this.formPlato.resumenComplementosImpresion?.mostrarMontoExtra !== false
         }
       };
-      
-      // Remover internas / inmutables (el _id va en la URL, no en el body)
-      delete payload._fromLibrary;
-      delete payload._libraryId;
-      delete payload._id;
-      delete payload.__v;
-      if (payload.id == null || payload.id === '') delete payload.id;
 
       const isEdit = !!this.formPlato._id;
-      const res = isEdit
-        ? await apiPut('/platos/' + this.formPlato._id, payload)
-        : await apiPost('/platos', payload);
+      let res;
+      try {
+        res = isEdit
+          ? await apiPut('/platos/' + this.formPlato._id, payload)
+          : await apiPost('/platos', payload);
+      } catch (e) {
+        this.showToast('Error: ' + (e?.message || 'Fallo al guardar'), 'error');
+        return;
+      }
 
-      if (res && !res.error) {
+      if (res && res.ok !== false && !res.error) {
         const platoId = this._platoIdDeRespuesta(res, this.formPlato.id);
         const asig = await this.guardarAsignacionDelModal(platoId);
         await this.loadPlatos();

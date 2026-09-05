@@ -14,6 +14,12 @@ const PLATO_MENU_CACHE_PREFIX = 'plato:menu';
 
 const queryActivos = () => ({ stock: { $gte: 0 }, $or: [{ isActive: true }, { isActive: { $exists: false } }] });
 
+function numeroOpcional(v) {
+    if (v === '' || v === undefined || v === null) return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+}
+
 /** Reemplaza el array de complementos sin _id anidados (mongoose no mergea opciones nuevas). */
 function sanitizarComplementosParaGuardar(complementos) {
     if (!Array.isArray(complementos)) return [];
@@ -31,16 +37,26 @@ function sanitizarComplementosParaGuardar(complementos) {
             vistos.add(key);
             ops.push(n);
         }
+        const seleccionMultiple = !!g.seleccionMultiple;
+        const esVariantePlato = g.esVariantePlato === true;
+        const seleccionFija = !esVariantePlato && (g.seleccionFija === true || g.seleccionFija === 'true');
+        const modo = g.modoSeleccion === 'cantidades' || seleccionFija || seleccionMultiple
+            ? 'cantidades'
+            : (g.modoSeleccion === 'opciones' ? 'opciones' : (seleccionMultiple ? 'cantidades' : 'opciones'));
+        const maxGrupo = numeroOpcional(g.maxUnidadesGrupo);
+        const minGrupo = numeroOpcional(g.minUnidadesGrupo);
+        const maxOp = numeroOpcional(g.maxUnidadesPorOpcion);
         return {
             grupo,
             obligatorio: !!g.obligatorio,
-            seleccionMultiple: !!g.seleccionMultiple,
-            modoSeleccion: g.modoSeleccion || (g.seleccionMultiple ? 'cantidades' : 'opciones'),
-            maxUnidadesGrupo: g.maxUnidadesGrupo ?? (g.seleccionMultiple ? null : 1),
-            minUnidadesGrupo: g.minUnidadesGrupo ?? (g.obligatorio ? 1 : 0),
-            maxUnidadesPorOpcion: g.maxUnidadesPorOpcion ?? null,
-            permiteRepetirOpcion: g.permiteRepetirOpcion !== undefined ? !!g.permiteRepetirOpcion : !!g.seleccionMultiple,
-            esVariantePlato: g.esVariantePlato === true,
+            seleccionMultiple,
+            modoSeleccion: modo,
+            maxUnidadesGrupo: maxGrupo != null ? maxGrupo : (seleccionMultiple || seleccionFija ? null : 1),
+            minUnidadesGrupo: minGrupo != null ? minGrupo : (g.obligatorio ? 1 : 0),
+            maxUnidadesPorOpcion: maxOp,
+            permiteRepetirOpcion: g.permiteRepetirOpcion !== undefined ? !!g.permiteRepetirOpcion : seleccionMultiple,
+            esVariantePlato,
+            seleccionFija,
             opciones: ops
         };
     }).filter(Boolean);
@@ -504,6 +520,18 @@ const actualizarPlato = async (id, newData) => {
     delete clean.id;
     delete clean._fromLibrary;
     delete clean._libraryId;
+    delete clean._copiaPlato;
+    ['precio', 'stock'].forEach((k) => {
+        if (!Object.prototype.hasOwnProperty.call(clean, k)) return;
+        if (clean[k] === '' || clean[k] === null || clean[k] === undefined) {
+            if (k === 'stock') clean[k] = 0;
+            else delete clean[k];
+            return;
+        }
+        const n = Number(clean[k]);
+        if (!Number.isFinite(n) || n < 0) delete clean[k];
+        else clean[k] = n;
+    });
     if (newData && typeof newData.complementosUnidosAlPlato !== 'undefined') {
         clean.complementosUnidosAlPlato = newData.complementosUnidosAlPlato === true
             || newData.complementosUnidosAlPlato === 'true';
@@ -731,6 +759,7 @@ module.exports = {
     upsertPlatoByName,
     getMenuPorTipo,
     getCategorias,
+    sanitizarComplementosParaGuardar,
     getMenuPorTipoYCategoria,
     actualizarTipoPlato,
     invalidatePlatoMenuCache,

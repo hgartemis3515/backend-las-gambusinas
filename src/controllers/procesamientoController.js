@@ -28,6 +28,7 @@ const cocinerosRepository = require('../repository/cocineros.repository');
 const asignacionAutomaticaService = require('../services/asignacionAutomaticaService');
 const asignacionAutomaticaGuarnicionesService = require('../services/asignacionAutomaticaGuarnicionesService');
 const redisCache = require('../utils/redisCache');
+const { separarCantidadLineaPlato } = require('../repository/comanda.repository');
 
 // PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR: config de cocina + override one-shot
 const ConfiguracionSistema = mongoose.model('ConfiguracionSistema') || require('../database/models/configuracionSistema.model');
@@ -667,8 +668,9 @@ router.delete('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, r
  */
 router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) => {
   try {
-    const { id: comandaId, platoId } = req.params;
-    const { cocineroId, loteCola } = req.body;
+    const { id: comandaId } = req.params;
+    let platoId = req.params.platoId;
+    const { cocineroId, loteCola, cantidadEntregar } = req.body;
     
     if (!cocineroId) {
       return res.status(400).json({
@@ -677,7 +679,7 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
       });
     }
     
-    const comanda = await Comanda.findById(comandaId);
+    let comanda = await Comanda.findById(comandaId);
     
     if (!comanda) {
       return res.status(404).json({
@@ -686,7 +688,7 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
       });
     }
     
-    const platoIndex = findPlatoIndex(comanda.platos, platoId);
+    let platoIndex = findPlatoIndex(comanda.platos, platoId);
     
     if (platoIndex === -1) {
       return res.status(404).json({
@@ -695,7 +697,7 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
       });
     }
     
-    const plato = comanda.platos[platoIndex];
+    let plato = comanda.platos[platoIndex];
     
     // Si el plato estaba siendo procesado, verificar que es el mismo cocinero
     // EXCEPCIÓN: Un supervisor/admin puede finalizar platos de otros
@@ -772,6 +774,28 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
     } catch (errOrden) {
       logger.error('[FinalizarPlato] Error validando orden de cola', { error: errOrden.message });
       // Ante fallo de validación, no bloquear el flujo crítico (fail-open documentado)
+    }
+
+    if (cantidadEntregar != null && cantidadEntregar !== '') {
+      try {
+        const sep = await separarCantidadLineaPlato(comandaId, platoId, cantidadEntregar);
+        if (sep.didSplit) {
+          platoId = sep.platoEntregarId;
+          const recargada = await Comanda.findById(comandaId);
+          if (recargada) comanda = recargada;
+          platoIndex = sep.indexEntregar;
+          plato = comanda.platos[platoIndex];
+          if (global.emitComandaActualizada) {
+            global.emitComandaActualizada(comandaId);
+          }
+        }
+      } catch (errSep) {
+        const code = errSep.status || 400;
+        return res.status(code).json({
+          success: false,
+          error: errSep.message || 'No se pudo separar la cantidad'
+        });
+      }
     }
 
     // PLAN AGRUPACION_GUARNICIONES_AUTOCIERRE §3.1: se aplica más abajo

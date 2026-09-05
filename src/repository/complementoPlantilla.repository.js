@@ -126,6 +126,7 @@ const crearComplementoPlantilla = async (data) => {
         maxUnidadesPorOpcion: data.maxUnidadesPorOpcion ?? null,
         permiteRepetirOpcion: data.permiteRepetirOpcion ?? data.seleccionMultiple,
         esVariantePlato: data.esVariantePlato === true,
+        seleccionFija: data.esVariantePlato === true ? false : data.seleccionFija === true,
         // ===== FIN NUEVOS CAMPOS =====
         categoria: data.categoria?.trim() || 'General',
         activo: data.activo !== false,
@@ -177,7 +178,7 @@ const actualizarComplementoPlantilla = async (id, newData) => {
         'categoria', 'activo',
         // ===== NUEVOS CAMPOS v2.0 =====
         'modoSeleccion', 'maxUnidadesGrupo', 'minUnidadesGrupo',
-        'maxUnidadesPorOpcion', 'permiteRepetirOpcion', 'esVariantePlato'
+        'maxUnidadesPorOpcion', 'permiteRepetirOpcion', 'esVariantePlato', 'seleccionFija'
         // ===== FIN NUEVOS CAMPOS =====
     ];
     
@@ -191,6 +192,8 @@ const actualizarComplementoPlantilla = async (id, newData) => {
         }
     }
     
+    if (complemento.esVariantePlato) complemento.seleccionFija = false;
+
     complemento.actualizadoPor = newData.actualizadoPor || 'admin';
     
     await complemento.save();
