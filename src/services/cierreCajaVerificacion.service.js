@@ -5,8 +5,8 @@
  * que pertenecen al período pendiente de cerrar y que aún no fueron incluidos en un cierre.
  *
  * Reglas (ver PLAN_CIERRE_CAJA_VERIFICACION_TICKETS.md):
- *   - Período = desde ultimoCierre.periodoFin hasta now (misma lógica que el cierre).
- *   - Solo tickets con verificacionCierre.incluidoEnCierre == null.
+ *   - Período = día Lima (como reportes «Hoy»), o desde el último cierre de hoy.
+ *   - Solo tickets/comandas con incluidoEnCierre vacío (no repetir un cierre).
  *   - El cierre de caja se bloquea hasta que todos los tickets del período estén confirmados.
  */
 const mongoose = require('mongoose');
@@ -25,6 +25,7 @@ const {
   cargarConfigMonedaEstadisticas,
 } = require('../utils/estadisticasComandas');
 const { obtenerUltimoCierreVigente } = require('../utils/cierreCajaReversion');
+const { resolverPeriodoPendienteCierre } = require('../utils/cierreCajaTurnosDia');
 
 const COMANDA_CIERRE_SELECT = `${COMANDA_DESCUENTO_SELECT} status precioTotal precioTotalOriginal platos cantidades mesas mozos procesadoPor procesandoPor`;
 
@@ -35,17 +36,15 @@ const POPULATE_COMANDAS_TICKET = {
 };
 
 const ZONA = 'America/Lima';
-const FECHA_BASE_FALLBACK = new Date('2024-01-01');
 
-/** Período pendiente de cerrar: desde el último cierre vigente hasta ahora. */
+/** Período pendiente de cerrar: hoy Lima, sin comandas ya incluidas en un cierre. */
 async function obtenerPeriodoPendiente() {
   const ultimoCierre = await obtenerUltimoCierreVigente(
     CierreCajaRestaurante,
     'fechaCierre periodoFin estado'
   );
 
-  const periodoInicio = ultimoCierre?.periodoFin || FECHA_BASE_FALLBACK;
-  const periodoFin = moment.tz(ZONA).toDate();
+  const { periodoInicio, periodoFin } = resolverPeriodoPendienteCierre(ultimoCierre);
 
   return {
     ultimoCierre: ultimoCierre || null,

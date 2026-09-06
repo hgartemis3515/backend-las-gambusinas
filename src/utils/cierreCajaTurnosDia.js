@@ -15,6 +15,21 @@ function boundsLimaDay(now = new Date()) {
 }
 
 /**
+ * Período a cerrar: día calendario Lima (como reportes «Hoy»),
+ * sin volver a incluir lo ya cerrado.
+ * Si ya hubo un cierre hoy, el período empieza en ese periodoFin.
+ */
+function resolverPeriodoPendienteCierre(ultimoCierre, now = new Date()) {
+  const { inicio: inicioHoy } = boundsLimaDay(now);
+  const periodoFin = moment.tz(now, TZ).toDate();
+  const finUltimo = ultimoCierre?.periodoFin ? new Date(ultimoCierre.periodoFin) : null;
+  const periodoInicio = (finUltimo && finUltimo.getTime() > inicioHoy.getTime())
+    ? finUltimo
+    : inicioHoy;
+  return { periodoInicio, periodoFin };
+}
+
+/**
  * Cierres vigentes del día calendario Lima (no importa la hora del cierre).
  * El corte DIA/NOCHE es el primer cierre vigente de ese día.
  */
@@ -36,4 +51,4 @@ async function obtenerTurnosDia(CierreModel, now = new Date()) {
   };
 }
 
-module.exports = { TZ, boundsLimaDay, obtenerTurnosDia };
+module.exports = { TZ, boundsLimaDay, resolverPeriodoPendienteCierre, obtenerTurnosDia };

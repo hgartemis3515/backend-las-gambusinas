@@ -126,7 +126,7 @@ tailwind.config = {
           </div>
         </div>
         <p class="text-3xl font-bold text-gold" x-text="'S/. ' + (estado.montoPendiente || 0).toFixed(2)"></p>
-        <p class="text-xs text-txt-muted mt-1">igual a reportes (platos)</p>
+        <p class="text-xs text-txt-muted mt-1">hoy · comandas aún no cerradas</p>
         <p class="text-xs text-st-pagado mt-0.5" x-show="(estado.descuentosPendientes || 0) > 0" x-text="'-S/. ' + Number(estado.descuentosPendientes || 0).toFixed(2) + ' en descuentos'"></p>
       </div>
 

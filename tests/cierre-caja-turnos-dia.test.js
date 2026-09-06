@@ -1,6 +1,6 @@
 'use strict';
 
-const { boundsLimaDay, obtenerTurnosDia } = require('../src/utils/cierreCajaTurnosDia');
+const { boundsLimaDay, obtenerTurnosDia, resolverPeriodoPendienteCierre } = require('../src/utils/cierreCajaTurnosDia');
 const { FILTRO_CIERRE_VIGENTE } = require('../src/utils/cierreCajaReversion');
 
 function mockCierreModel(docs) {
@@ -56,5 +56,28 @@ describe('cierreCajaTurnosDia', () => {
     expect(r.limaYMD).toBe('2026-08-29');
     expect(r.primerCierreAt).toEqual(primero);
     expect(Model.captured.sort).toEqual({ fechaCierre: 1 });
+  });
+});
+
+describe('resolverPeriodoPendienteCierre', () => {
+  const now = new Date('2026-09-06T01:00:00.000Z'); // 05 sep 2026 20:00 Lima
+
+  test('sin cierre previo empieza hoy a las 00:00 Lima, no en 2024', () => {
+    const r = resolverPeriodoPendienteCierre(null, now);
+    expect(r.periodoInicio.toISOString()).toBe('2026-09-05T05:00:00.000Z');
+    expect(r.periodoFin.toISOString()).toBe(now.toISOString());
+  });
+
+  test('cierre de ayer no arrastra comandas de días anteriores', () => {
+    const r = resolverPeriodoPendienteCierre({
+      periodoFin: new Date('2026-09-04T22:00:00.000Z')
+    }, now);
+    expect(r.periodoInicio.toISOString()).toBe('2026-09-05T05:00:00.000Z');
+  });
+
+  test('si ya cerraron hoy, el período sigue desde ese cierre', () => {
+    const finTurnoDia = new Date('2026-09-05T20:00:00.000Z'); // 15:00 Lima
+    const r = resolverPeriodoPendienteCierre({ periodoFin: finTurnoDia }, now);
+    expect(r.periodoInicio.toISOString()).toBe(finTurnoDia.toISOString());
   });
 });
