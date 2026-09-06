@@ -338,15 +338,26 @@ function exprFechaComanda() {
     return { $ifNull: ['$tiempoPagado', { $ifNull: ['$tiempoEntregado', '$createdAt'] }] };
 }
 
+/** Soft-delete o cancelación: no cuenta en reportes ni cierre de caja. */
+function esComandaEliminada(c) {
+    if (!c || typeof c !== 'object') return false;
+    if (c.eliminada === true) return true;
+    if (c.fechaEliminacion) return true;
+    const st = String(c.status || '').toLowerCase();
+    return st === 'cancelado' || st === 'cancelada';
+}
+
 /**
  * Comanda vigente para operación, reportes y cierre de caja.
  * Soft-delete (`eliminada: true`) permanece en Mongo como rastro interno;
  * el registro oficial es auditoría. No debe aparecer en reportes ni listados.
+ * `fechaEliminacion` cubre borrados viejos que no persistieron `eliminada`.
  */
 function matchComandaVigente(extra = {}) {
     return {
         eliminada: { $ne: true },
-        status: { $nin: ['cancelado'] },
+        fechaEliminacion: { $eq: null },
+        status: { $nin: ['cancelado', 'cancelada'] },
         ...extra
     };
 }
@@ -366,6 +377,7 @@ const STATUS_COMANDA_CERRADA = ['pagado', 'completado', 'cancelado'];
 const STATUS_COMANDA_VENDIDA = ['pagado', 'entregado', 'completado'];
 
 function esComandaVendida(c) {
+    if (esComandaEliminada(c)) return false;
     return STATUS_COMANDA_VENDIDA.includes(c?.status);
 }
 
@@ -423,20 +435,21 @@ function matchComandasPeriodoDeCierre(periodoInicio, periodoFin, cierreId) {
  * Usa $and para no pisar los $or de fecha y de incluidoEnCierre.
  */
 function matchComandasCierrePendiente(periodoInicio, periodoFin, { soloVendidas = false } = {}) {
-    const extra = soloVendidas ? { status: { $in: STATUS_COMANDA_VENDIDA } } : {};
-    return {
-        $and: [
-            matchComandaVigente(extra),
-            {
-                $or: [
-                    { createdAt: { $gte: periodoInicio, $lte: periodoFin } },
-                    { tiempoPagado: { $gte: periodoInicio, $lte: periodoFin } },
-                    { tiempoEntregado: { $gte: periodoInicio, $lte: periodoFin } }
-                ]
-            },
-            filtroNoIncluidoEnCierreComanda()
-        ]
-    };
+    const clauses = [
+        matchComandaVigente(),
+        {
+            $or: [
+                { createdAt: { $gte: periodoInicio, $lte: periodoFin } },
+                { tiempoPagado: { $gte: periodoInicio, $lte: periodoFin } },
+                { tiempoEntregado: { $gte: periodoInicio, $lte: periodoFin } }
+            ]
+        },
+        filtroNoIncluidoEnCierreComanda()
+    ];
+    if (soloVendidas) {
+        clauses.push({ status: { $in: STATUS_COMANDA_VENDIDA } });
+    }
+    return { $and: clauses };
 }
 
 function matchComandaAbiertaEnTabla(extra = {}) {
@@ -577,9 +590,13 @@ function mapearFilaReporte(c, config) {
         })
         .filter(Boolean);
     const totalLineas = Math.round(platos.reduce((s, p) => s + Number(p.subtotal || 0), 0) * 100) / 100;
-    const total = (platos.length || comandaTieneDescuento(c))
+    const lineasRaw = c.platos || [];
+    const todasLineasInactivas = lineasRaw.length > 0
+        && lineasRaw.every((p) => !p || p.eliminado || p.anulado);
+    let total = (platos.length || comandaTieneDescuento(c))
         ? totalLineas
         : Math.round(montoComandaNum(c, cfg) * 100) / 100;
+    if (esComandaEliminada(c) || todasLineasInactivas) total = 0;
     const tasa = tasaIgvDeConfig(cfg);
     const fechaPago = c.tiempoPagado || c.tiempoEntregado || c.createdAt;
     return {
@@ -622,7 +639,12 @@ function montoFilaReporte(c, config) {
 }
 
 function sumaMontosReporte(comandas, config) {
-    return Number((comandas || []).reduce((s, c) => s + montoFilaReporte(c, config), 0).toFixed(2));
+    return Number(
+        (comandas || [])
+            .filter((c) => !esComandaEliminada(c))
+            .reduce((s, c) => s + montoFilaReporte(c, config), 0)
+            .toFixed(2)
+    );
 }
 
 /** Agrupa filas de reportes por mozo (misma cifra que Platos). */
@@ -771,6 +793,7 @@ module.exports = {
     exprMontoComanda,
     exprFechaComanda,
     matchComandaVigente,
+    esComandaEliminada,
     matchBoucherVigente,
     matchComandaAbiertaEnTabla,
     STATUS_COMANDA_CERRADA,

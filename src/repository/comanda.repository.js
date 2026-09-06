@@ -247,24 +247,41 @@ const sanitizarHistorialPlatos = (historialPlatos) => {
 };
 
 /**
- * Anula tickets de aprobación/PPA pendientes vinculados a una comanda que se elimina.
+ * Anula tickets (alta, pendientes o ya aprobados) vinculados a una comanda eliminada.
+ * Si el ticket cubre varias comandas, solo desvincula esta.
  */
 const anularTicketsPendientesComanda = async (comandaId, motivo) => {
   const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
   const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
   const motivoNota = `[Comanda eliminada: ${motivo}]`;
+  const idStr = String(comandaId);
+  const oid = mongoose.Types.ObjectId.isValid(idStr)
+    ? new mongoose.Types.ObjectId(idStr)
+    : comandaId;
 
-  await ticketAprobacionModel.updateMany(
-    { comandas: comandaId, estado: 'pendiente_aprobacion', isActive: true },
-    { $set: { isActive: false, observaciones: motivoNota } },
-    { runValidators: false }
-  );
+  for (const model of [ticketAprobacionModel, ticketPagoAdelantadoModel]) {
+    const tickets = await model.find({
+      comandas: oid,
+      isActive: { $ne: false }
+    }).select('_id comandas comandasNumbers').lean();
 
-  await ticketPagoAdelantadoModel.updateMany(
-    { comandas: comandaId, estado: 'pendiente_aprobacion', isActive: true },
-    { $set: { isActive: false, observaciones: motivoNota } },
-    { runValidators: false }
-  );
+    for (const t of tickets) {
+      const resto = (t.comandas || []).filter((id) => String(id) !== idStr);
+      if (resto.length === 0) {
+        await model.updateOne(
+          { _id: t._id },
+          { $set: { isActive: false, observaciones: motivoNota } },
+          { runValidators: false }
+        );
+      } else {
+        const set = { comandas: resto };
+        if (Array.isArray(t.comandasNumbers) && t.comandasNumbers.length > resto.length) {
+          set.comandasNumbers = t.comandasNumbers.slice(0, resto.length);
+        }
+        await model.updateOne({ _id: t._id }, { $set: set }, { runValidators: false });
+      }
+    }
+  }
 };
 
 const normalizarStatusHistorial = (status) => {

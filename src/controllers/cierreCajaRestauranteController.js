@@ -492,13 +492,14 @@ router.get('/cierre-caja/estado/actual', adminAuth, checkPermission('ver-cierre-
     );
 
     const vendidas = await Comanda.find(matchComandasCierrePendiente(periodoInicio, periodoFin, { soloVendidas: true }))
-      .select('platos cantidades totalCalculado precioTotal precioTotalOriginal descuento montoDescuento totalSinDescuento status')
+      .select('platos cantidades totalCalculado precioTotal precioTotalOriginal descuento montoDescuento totalSinDescuento status eliminada fechaEliminacion')
       .populate('platos.plato', 'nombre precio categoria')
       .lean();
 
-    const montoPendiente = sumaMontosReporte(vendidas, cfg);
+    const vendidasVigentes = vendidas.filter(esComandaVendida);
+    const montoPendiente = sumaMontosReporte(vendidasVigentes, cfg);
     const descuentosPendientes = Number(
-      vendidas.reduce((s, c) => s + montoDescuentoComandaNum(c), 0).toFixed(2)
+      vendidasVigentes.reduce((s, c) => s + montoDescuentoComandaNum(c), 0).toFixed(2)
     );
     
     const diasTranscurridos = ultimoCierre 

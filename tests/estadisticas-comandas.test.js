@@ -30,7 +30,8 @@ describe('estadisticasComandas', () => {
     const m = matchComandasEstadisticas(inicio, fin);
     expect(m.IsActive).toBeUndefined();
     expect(m.eliminada).toEqual({ $ne: true });
-    expect(m.status).toEqual({ $nin: ['cancelado'] });
+    expect(m.fechaEliminacion).toEqual({ $eq: null });
+    expect(m.status).toEqual({ $nin: ['cancelado', 'cancelada'] });
     expect(m.$or).toHaveLength(3);
     expect(m.$or[0].createdAt).toEqual({ $gte: inicio, $lte: fin });
     expect(m.$or[1].tiempoPagado).toEqual({ $gte: inicio, $lte: fin });
@@ -225,7 +226,8 @@ describe('estadisticasComandas', () => {
     const cierreId = '68abc123def4567890123456';
     const m = matchComandasPeriodoDeCierre(inicio, fin, cierreId);
     expect(m.$and).toHaveLength(3);
-    expect(m.$and[0].status).toEqual({ $nin: ['cancelado'] });
+    expect(m.$and[0].status).toEqual({ $nin: ['cancelado', 'cancelada'] });
+    expect(m.$and[0].fechaEliminacion).toEqual({ $eq: null });
     expect(m.$and[1].$or).toHaveLength(3);
     expect(m.$and[2].$or).toEqual(expect.arrayContaining([
       { incluidoEnCierre: cierreId },
@@ -239,8 +241,11 @@ describe('estadisticasComandas', () => {
     const inicio = new Date('2026-08-28T05:00:00.000Z');
     const fin = new Date('2026-08-29T04:59:59.999Z');
     const m = matchComandasCierrePendiente(inicio, fin, { soloVendidas: true });
-    expect(m.$and).toHaveLength(3);
-    expect(m.$and[0].status).toEqual({ $in: ['pagado', 'entregado', 'completado'] });
+    expect(m.$and).toHaveLength(4);
+    expect(m.$and[0].eliminada).toEqual({ $ne: true });
+    expect(m.$and[0].fechaEliminacion).toEqual({ $eq: null });
+    expect(m.$and[0].status).toEqual({ $nin: ['cancelado', 'cancelada'] });
+    expect(m.$and[3].status).toEqual({ $in: ['pagado', 'entregado', 'completado'] });
     expect(m.$and[1].$or).toHaveLength(3);
     expect(m.$and[2].$or).toEqual([
       { incluidoEnCierre: null },
@@ -261,6 +266,20 @@ describe('estadisticasComandas', () => {
       ] }
     ]);
     expect(total).toBe(83);
+  });
+
+  test('cierre/reportes no suman comanda eliminada ni líneas todas borradas', () => {
+    setConfigMonedaEstadisticas({ igvPorcentaje: 10.5, preciosIncluyenIGV: true });
+    expect(sumaMontosReporte([
+      { status: 'pagado', eliminada: true, precioTotal: 50, platos: [{ nombre: 'Lomo', cantidad: 1, precioUnitario: 50 }] },
+      { status: 'cancelado', precioTotal: 40, platos: [{ nombre: 'Pollo', cantidad: 1, precioUnitario: 40 }] },
+      { status: 'entregado', fechaEliminacion: new Date(), precioTotalOriginal: 30, platos: [{ nombre: 'Gaseosa', cantidad: 1, precioUnitario: 6 }] },
+      { status: 'entregado', precioTotalOriginal: 85, platos: [
+        { nombre: 'Chancho', cantidad: 1, precioUnitario: 46, eliminado: true },
+        { nombre: 'Pollo', cantidad: 1, precioUnitario: 33, eliminado: true }
+      ] },
+      { status: 'pagado', precioTotal: 10, platos: [{ nombre: 'Cafe', cantidad: 1, precioUnitario: 10 }] }
+    ])).toBe(10);
   });
 
   test('agruparVentasPorMozo no cuenta plato eliminado (933 vs 927)', () => {
@@ -286,7 +305,8 @@ describe('estadisticasComandas', () => {
   test('comanda eliminada (cancelado o eliminada=true) no entra en match de reportes/mozos', () => {
     const vigente = require('../src/utils/estadisticasComandas').matchComandaVigente();
     expect(vigente.eliminada).toEqual({ $ne: true });
-    expect(vigente.status).toEqual({ $nin: ['cancelado'] });
+    expect(vigente.fechaEliminacion).toEqual({ $eq: null });
+    expect(vigente.status).toEqual({ $nin: ['cancelado', 'cancelada'] });
   });
 
   test('boucher de comanda eliminada no entra en fallback de reportes', () => {

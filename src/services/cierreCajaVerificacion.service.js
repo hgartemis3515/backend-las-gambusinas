@@ -23,11 +23,12 @@ const {
   montoComandaNum,
   montoDescuentoComandaNum,
   cargarConfigMonedaEstadisticas,
+  esComandaEliminada,
 } = require('../utils/estadisticasComandas');
 const { obtenerUltimoCierreVigente } = require('../utils/cierreCajaReversion');
 const { resolverPeriodoPendienteCierre } = require('../utils/cierreCajaTurnosDia');
 
-const COMANDA_CIERRE_SELECT = `${COMANDA_DESCUENTO_SELECT} status precioTotal precioTotalOriginal platos cantidades mesas mozos procesadoPor procesandoPor`;
+const COMANDA_CIERRE_SELECT = `${COMANDA_DESCUENTO_SELECT} status precioTotal precioTotalOriginal platos cantidades mesas mozos procesadoPor procesandoPor eliminada fechaEliminacion`;
 
 const POPULATE_COMANDAS_TICKET = {
   path: 'comandas',
@@ -93,8 +94,8 @@ async function listarTicketsParaVerificacion() {
   ]);
 
   const tickets = [
-    ...ticketsComanda.map((t) => normalizarTicket(t, t.tipo === 'pago_parcial' ? 'PAGO_PARCIAL' : 'COMANDA')),
-    ...ticketsAdelantado.map((t) => normalizarTicket(t, 'ADELANTADO')),
+    ...ticketsComanda.filter(ticketSigueVigenteParaCierre).map((t) => normalizarTicket(t, t.tipo === 'pago_parcial' ? 'PAGO_PARCIAL' : 'COMANDA')),
+    ...ticketsAdelantado.filter(ticketSigueVigenteParaCierre).map((t) => normalizarTicket(t, 'ADELANTADO')),
   ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
   const total = tickets.length;
@@ -113,9 +114,17 @@ async function listarTicketsParaVerificacion() {
   };
 }
 
+function ticketSigueVigenteParaCierre(t) {
+  const docs = (t?.comandas || []).filter(
+    (c) => c && typeof c === 'object' && Number.isFinite(Number(c.comandaNumber))
+  );
+  if (docs.length === 0) return true;
+  return docs.some((c) => !esComandaEliminada(c));
+}
+
 function totalesDesdeComandasAsociadas(ticket) {
   const comandas = (ticket?.comandas || []).filter(
-    (c) => c && typeof c === 'object' && Number.isFinite(Number(c.comandaNumber))
+    (c) => c && typeof c === 'object' && Number.isFinite(Number(c.comandaNumber)) && !esComandaEliminada(c)
   );
   if (!comandas.length) return null;
   const total = Number(comandas.reduce((s, c) => s + montoComandaNum(c), 0).toFixed(2));
@@ -197,34 +206,14 @@ function normalizarTicket(t, tipo) {
  * Resumen corto (contador) para KPIs y para validar si se puede cerrar caja.
  */
 async function obtenerResumenVerificacion() {
-  const { periodoInicio, periodoFin } = await obtenerPeriodoPendiente();
-  const filtroRango = { createdAt: { $gte: periodoInicio, $lte: periodoFin } };
-
-  const [comandaTotal, comandaConfirmados, adelantadoTotal, adelantadoConfirmados] = await Promise.all([
-    ticketAprobacionModel.countDocuments({ ...filtroRango, ...filtroNoIncluidoEnCierre() }),
-    ticketAprobacionModel.countDocuments({
-      ...filtroRango,
-      ...filtroNoIncluidoEnCierre(),
-      'verificacionCierre.confirmado': true,
-    }),
-    ticketPagoAdelantadoModel.countDocuments({ ...filtroRango, ...filtroNoIncluidoEnCierre() }),
-    ticketPagoAdelantadoModel.countDocuments({
-      ...filtroRango,
-      ...filtroNoIncluidoEnCierre(),
-      'verificacionCierre.confirmado': true,
-    }),
-  ]);
-
-  const total = comandaTotal + adelantadoTotal;
-  const confirmados = comandaConfirmados + adelantadoConfirmados;
-
+  const { periodoInicio, periodoFin, resumen } = await listarTicketsParaVerificacion();
   return {
     periodoInicio,
     periodoFin,
-    total,
-    confirmados,
-    pendientes: total - confirmados,
-    puedeCerrar: total === 0 || confirmados === total,
+    total: resumen.total,
+    confirmados: resumen.confirmados,
+    pendientes: resumen.pendientes,
+    puedeCerrar: resumen.puedeCerrar,
   };
 }
 
