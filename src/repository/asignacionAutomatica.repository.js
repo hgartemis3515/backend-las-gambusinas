@@ -216,7 +216,7 @@ const duplicarPerfil = async (perfilId, modificadoPor) => {
 
 // ============================ Calendario: bloques ============================
 
-const crearBloque = async ({ perfilId, diasSemana, horaInicio, horaFin, etiqueta = '', activo = true, fechaYmd = null }, modificadoPor) => {
+const crearBloque = async ({ perfilId, diasSemana, horaInicio, horaFin, etiqueta = '', activo = true, fechaYmd = null, fechaPuntual = null }, modificadoPor) => {
     if (!perfilId) throw new Error('perfilId es requerido');
     const config = await AsignacionAutomatica.obtenerConfiguracion();
     const perfil = (config.perfiles || []).find(p => p.id === perfilId);
@@ -227,13 +227,17 @@ const crearBloque = async ({ perfilId, diasSemana, horaInicio, horaFin, etiqueta
     }
     validarHorarioFranja(horaInicio, horaFin);
 
-    const camposFecha = prepararCamposBloqueCalendario({ diasSemana, fechaYmd });
+    const camposFecha = prepararCamposBloqueCalendario({
+        diasSemana,
+        fechaYmd: fechaYmd != null && fechaYmd !== '' ? fechaYmd : fechaPuntual
+    });
 
     const nuevoBloque = {
         id: uuidv4(),
         perfilId,
         diasSemana: camposFecha.diasSemana,
         fechaYmd: camposFecha.fechaYmd || null,
+        fechaPuntual: camposFecha.fechaPuntual || null,
         horaInicio,
         horaFin,
         etiqueta: String(etiqueta).slice(0, 100),
@@ -270,10 +274,16 @@ const actualizarBloque = async (bloqueId, cambios, modificadoPor) => {
 
     const setObj = { actualizadoPor: modificadoPor };
     if (cambios.perfilId != null) setObj['calendario.bloques.$[b].perfilId'] = cambios.perfilId;
-    const camposFecha = prepararCamposBloqueCalendario(cambios, { exigirDias: false });
+    const payloadFecha = { ...cambios };
+    if (!Object.prototype.hasOwnProperty.call(payloadFecha, 'fechaYmd')
+        && Object.prototype.hasOwnProperty.call(payloadFecha, 'fechaPuntual')) {
+        payloadFecha.fechaYmd = payloadFecha.fechaPuntual;
+    }
+    const camposFecha = prepararCamposBloqueCalendario(payloadFecha, { exigirDias: false });
     if (camposFecha.diasSemana) setObj['calendario.bloques.$[b].diasSemana'] = camposFecha.diasSemana;
     if (Object.prototype.hasOwnProperty.call(camposFecha, 'fechaYmd')) {
         setObj['calendario.bloques.$[b].fechaYmd'] = camposFecha.fechaYmd;
+        setObj['calendario.bloques.$[b].fechaPuntual'] = camposFecha.fechaPuntual;
     }
     if (cambios.horaInicio != null) setObj['calendario.bloques.$[b].horaInicio'] = cambios.horaInicio;
     if (cambios.horaFin != null) setObj['calendario.bloques.$[b].horaFin'] = cambios.horaFin;

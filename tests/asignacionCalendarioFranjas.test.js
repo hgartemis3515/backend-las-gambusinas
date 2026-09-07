@@ -164,4 +164,51 @@ describe('asignacionCalendarioFranjas', () => {
             expect(franjasSolapan(a, todosMartes)).toBe(true);
         });
     });
+
+    describe('fechaPuntual (excepción de un día)', () => {
+        const semanal = bloq({
+            id: 'sem',
+            perfilId: 'semanal',
+            diasSemana: [4],
+            horaInicio: '08:00',
+            horaFin: '16:00'
+        });
+        const puntual = bloq({
+            id: 'pun',
+            perfilId: 'puntual',
+            diasSemana: [4],
+            horaInicio: '08:00',
+            horaFin: '16:00',
+            fechaPuntual: '2026-09-10'
+        });
+
+        test('cubre solo esa fecha Lima, no el jueves siguiente', () => {
+            expect(bloqueCubreMomento(puntual, 4, '10:00', '2026-09-10')).toBe(true);
+            expect(bloqueCubreMomento(puntual, 4, '10:00', '2026-09-17')).toBe(false);
+            expect(bloqueCubreMomento(semanal, 4, '10:00', '2026-09-17')).toBe(true);
+        });
+
+        test('sin fechaYmd un bloque puntual no cubre (evita asignar a ciegas)', () => {
+            expect(bloqueCubreMomento(puntual, 4, '10:00')).toBe(false);
+        });
+
+        test('la excepción gana a la plantilla semanal el mismo día', () => {
+            expect(elegirBloqueActivo([semanal, puntual], 4, '10:00', '2026-09-10').perfilId).toBe('puntual');
+            expect(elegirBloqueActivo([semanal, puntual], 4, '10:00', '2026-09-17').perfilId).toBe('semanal');
+        });
+
+        test('overnight puntual cubre la madrugada del día siguiente', () => {
+            const noche = bloq({
+                id: 'n1',
+                perfilId: 'noche',
+                diasSemana: [4],
+                horaInicio: '22:00',
+                horaFin: '06:00',
+                fechaPuntual: '2026-09-10'
+            });
+            expect(bloqueCubreMomento(noche, 4, '23:00', '2026-09-10')).toBe(true);
+            expect(bloqueCubreMomento(noche, 5, '03:00', '2026-09-11')).toBe(true);
+            expect(bloqueCubreMomento(noche, 5, '03:00', '2026-09-18')).toBe(false);
+        });
+    });
 });

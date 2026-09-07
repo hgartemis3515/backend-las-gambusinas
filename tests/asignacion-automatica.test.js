@@ -29,6 +29,7 @@ jest.mock('mongoose', () => {
         fn.CONFIG_ID = 'asignacion_automatica_unica';
         fn.CONFIGURACION_DEFAULT = {};
         fn.obtenerConfiguracion = jest.fn();
+        fn.distinct = jest.fn().mockResolvedValue([]);
         return fn;
     };
     const registry = {};
@@ -268,6 +269,48 @@ describe('asignacionAutomaticaService', () => {
         });
     });
 
+    describe('asignación temporal', () => {
+        const { finTemporalLima } = require('../src/utils/asignacionTemporal');
+        const TZ = 'America/Lima';
+
+        it('usa cocinero temporal vigente en vez del permanente', async () => {
+            const hasta = finTemporalLima(1, moment.tz(TZ));
+            const config = buildConfig({
+                reglasPorPlato: [buildReglaPlato(42, C1, [], {
+                    temporal: {
+                        dias: 1,
+                        hasta,
+                        cocineroPrimarioId: C2,
+                        backups: [],
+                        variarPorTurno: false
+                    }
+                })]
+            });
+            const r = await service.seleccionarCocinero(config, PLATO);
+            expect(r.cocineroId).toBe(C2);
+            expect(r.origen).toBe('temporal');
+        });
+
+        it('variar por turno: 2ª comanda del día va al segundo cocinero', async () => {
+            const hasta = finTemporalLima(1, moment.tz(TZ));
+            const config = buildConfig({
+                reglasPorPlato: [buildReglaPlato(42, C1, [], {
+                    temporal: {
+                        dias: 1,
+                        hasta,
+                        variarPorTurno: true,
+                        cocineroPrimarioId: C1,
+                        backups: [{ cocineroId: C2, orden: 1 }]
+                    }
+                })]
+            });
+            ComandaMock.distinct.mockResolvedValue(['60a1b2c3d4e5f60001ccdd01']);
+            const r = await service.seleccionarCocinero(config, PLATO, null, null, '60a1b2c3d4e5f60001ccdd02');
+            expect(r.cocineroId).toBe(C2);
+            expect(r.origen).toBe('temporal_turno');
+        });
+    });
+
     describe('opt-out por cocinero', () => {
         it('descarta primario si autoAsignacion.acepta=false y usa backup', async () => {
             const config = buildConfig({ reglasPorPlato: [buildReglaPlato(42, C1, [{ cocineroId: C2, orden: 1 }])] });
@@ -398,6 +441,24 @@ describe('asignacionAutomaticaService', () => {
             expect(r.perfil.id).toBe('p1');
             expect(r.bloque.horaInicio).toBe('08:00');
             expect(r.motivo).toBe('ok');
+        });
+
+        it('una excepción fechaPuntual gana el día indicado y no se repite la semana siguiente', () => {
+            const perfilSem = buildPerfil('p-sem', 'Semanal');
+            const perfilPun = buildPerfil('p-pun', 'Puntual');
+            const config = buildConfig({
+                perfiles: [perfilSem, perfilPun],
+                calendario: {
+                    bloques: [
+                        buildBloque('p-sem', [1], '08:00', '12:00'),
+                        buildBloque('p-pun', [1], '08:00', '12:00', { fechaPuntual: '2026-07-13' })
+                    ]
+                }
+            });
+            const rDia = service.resolverPerfilActivo(config, moment.tz('2026-07-13T10:00', TZ));
+            const rOtraSemana = service.resolverPerfilActivo(config, moment.tz('2026-07-20T10:00', TZ));
+            expect(rDia.perfil.id).toBe('p-pun');
+            expect(rOtraSemana.perfil.id).toBe('p-sem');
         });
 
         it('elije el bloque más específico (menos días) cuando hay solape', () => {

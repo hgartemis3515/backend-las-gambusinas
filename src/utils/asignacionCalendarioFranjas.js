@@ -3,10 +3,11 @@
  * Zona horaria de runtime: America/Lima. Días: moment.day() 0=Dom … 6=Sáb.
  *
  * Plantilla semanal: diasSemana + horaInicio/horaFin.
- * Un día concreto: fechaYmd (YYYY-MM-DD en Lima) — no se repite cada semana.
+ * Un día concreto: fechaYmd o fechaPuntual (YYYY-MM-DD en Lima) — no se repite cada semana.
+ * Ambos nombres son alias (local vs remoto); se lee cualquiera de los dos.
  *
  * Cruce de medianoche: horaFin < horaInicio (ej. 22:00–06:00).
- * diasSemana / fechaYmd = día en que EMPIEZA el turno.
+ * diasSemana / fecha = día en que EMPIEZA el turno.
  * Intervalo [horaInicio, horaFin) con horaFin exclusiva (23:59/24:00 = fin de día).
  */
 
@@ -27,33 +28,56 @@ function cruzaMedianoche(horaInicio, horaFin) {
 
 function normalizarFechaYmd(v) {
     if (v == null || v === '') return null;
-    const s = String(v).trim();
+    const s = String(v).trim().slice(0, 10);
     if (!RE_YMD.test(s)) {
         throw new Error('fechaYmd debe tener formato YYYY-MM-DD');
     }
     return s;
 }
 
-function fechaYmdDeBloque(bloque) {
-    const s = bloque && bloque.fechaYmd != null ? String(bloque.fechaYmd).trim() : '';
+function normalizarFechaPuntual(v) {
+    if (v == null || v === '') return null;
+    const s = String(v).trim().slice(0, 10);
     return RE_YMD.test(s) ? s : null;
 }
 
-function esBloqueFechaUnica(bloque) {
-    return !!fechaYmdDeBloque(bloque);
+function fechaUnicaDeBloque(bloque) {
+    const ymd = bloque && bloque.fechaYmd != null ? String(bloque.fechaYmd).trim().slice(0, 10) : '';
+    if (RE_YMD.test(ymd)) return ymd;
+    return normalizarFechaPuntual(bloque && bloque.fechaPuntual);
 }
 
-function diaSemanaDeYmd(ymd) {
-    const [y, m, d] = String(ymd).split('-').map(Number);
+function fechaYmdDeBloque(bloque) {
+    return fechaUnicaDeBloque(bloque);
+}
+
+function esBloqueFechaUnica(bloque) {
+    return !!fechaUnicaDeBloque(bloque);
+}
+
+function weekdayFromYmd(ymd) {
+    const fecha = normalizarFechaPuntual(ymd);
+    if (!fecha) return null;
+    const [y, m, d] = fecha.split('-').map(Number);
     return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 }
 
-function ymdMasUnDia(ymd) {
-    const [y, m, d] = String(ymd).split('-').map(Number);
-    const dt = new Date(Date.UTC(y, m - 1, d + 1));
+function diaSemanaDeYmd(ymd) {
+    return weekdayFromYmd(ymd);
+}
+
+function addDaysYmd(ymd, days) {
+    const fecha = normalizarFechaPuntual(ymd);
+    if (!fecha) return null;
+    const [y, m, d] = fecha.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d + Number(days || 0)));
     const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
     const dd = String(dt.getUTCDate()).padStart(2, '0');
     return `${dt.getUTCFullYear()}-${mm}-${dd}`;
+}
+
+function ymdMasUnDia(ymd) {
+    return addDaysYmd(ymd, 1);
 }
 
 function normalizarDiasSemana(diasSemana) {
@@ -62,13 +86,31 @@ function normalizarDiasSemana(diasSemana) {
         : [];
 }
 
+function diasSemanaDesdeFechaOLista(diasSemana, fechaPuntual) {
+    const fecha = fechaUnicaDeBloque({ fechaYmd: fechaPuntual, fechaPuntual });
+    if (fecha) return [weekdayFromYmd(fecha)];
+    return normalizarDiasSemana(diasSemana);
+}
+
 /**
- * Normaliza diasSemana + fechaYmd al crear/actualizar un bloque.
- * Si hay fechaYmd, diasSemana queda en el weekday de esa fecha.
+ * Normaliza diasSemana + fechaYmd/fechaPuntual al crear/actualizar un bloque.
+ * Si hay fecha única, diasSemana queda en el weekday de esa fecha.
+ * Escribe ambos campos (alias).
  */
 function prepararCamposBloqueCalendario(payload = {}, { exigirDias = true } = {}) {
-    const fechaPresente = Object.prototype.hasOwnProperty.call(payload, 'fechaYmd');
-    const fecha = fechaPresente ? normalizarFechaYmd(payload.fechaYmd) : undefined;
+    const fechaPresente = Object.prototype.hasOwnProperty.call(payload, 'fechaYmd')
+        || Object.prototype.hasOwnProperty.call(payload, 'fechaPuntual');
+    let fecha;
+    if (fechaPresente) {
+        const raw = payload.fechaYmd != null && payload.fechaYmd !== ''
+            ? payload.fechaYmd
+            : payload.fechaPuntual;
+        if (raw == null || raw === '') {
+            fecha = null;
+        } else {
+            fecha = normalizarFechaPuntual(raw) || normalizarFechaYmd(raw);
+        }
+    }
     const diasPresente = Array.isArray(payload.diasSemana);
     let diasNorm = diasPresente ? normalizarDiasSemana(payload.diasSemana) : undefined;
     if (payload.diasSemana != null && !diasPresente) {
@@ -85,7 +127,10 @@ function prepararCamposBloqueCalendario(payload = {}, { exigirDias = true } = {}
     }
     const out = {};
     if (diasNorm) out.diasSemana = diasNorm;
-    if (fechaPresente) out.fechaYmd = fecha;
+    if (fechaPresente) {
+        out.fechaYmd = fecha;
+        out.fechaPuntual = fecha;
+    }
     return out;
 }
 
@@ -120,24 +165,24 @@ function cubrePorHorarioSemanal(dias, dia, hhmm, hi, hf) {
 }
 
 function cubrePorFechaUnica(fecha, hhmm, hi, hf, ymd) {
-    const y = String(ymd || '').trim();
+    const y = String(ymd || '').trim().slice(0, 10);
     if (!RE_YMD.test(y)) return false;
     if (!cruzaMedianoche(hi, hf)) {
         return y === fecha && horaEnRango(hhmm, hi, hf);
     }
     if (y === fecha && compararHHmm(hhmm, hi) >= 0) return true;
-    if (y === ymdMasUnDia(fecha) && compararHHmm(hhmm, hf) < 0) return true;
+    if (y === addDaysYmd(fecha, 1) && compararHHmm(hhmm, hf) < 0) return true;
     return false;
 }
 
-function bloqueCubreMomento(bloque, dia, hhmm, ymd) {
+function bloqueCubreMomento(bloque, dia, hhmm, fechaYmd) {
     if (!bloque || bloque.activo === false) return false;
     const hi = bloque.horaInicio;
     const hf = bloque.horaFin;
     if (!hi || !hf) return false;
-    const fecha = fechaYmdDeBloque(bloque);
+    const fecha = fechaUnicaDeBloque(bloque);
     if (fecha) {
-        return cubrePorFechaUnica(fecha, hhmm, hi, hf, ymd);
+        return cubrePorFechaUnica(fecha, hhmm, hi, hf, fechaYmd);
     }
     const dias = Array.isArray(bloque.diasSemana) ? bloque.diasSemana.map(Number) : [];
     if (dias.length === 0) return false;
@@ -157,8 +202,8 @@ function compararPrioridadBloques(a, b) {
     return tb - ta;
 }
 
-function elegirBloqueActivo(bloques, dia, hhmm, ymd) {
-    const candidatos = (bloques || []).filter((b) => bloqueCubreMomento(b, dia, hhmm, ymd));
+function elegirBloqueActivo(bloques, dia, hhmm, fechaYmd) {
+    const candidatos = (bloques || []).filter((b) => bloqueCubreMomento(b, dia, hhmm, fechaYmd));
     candidatos.sort(compararPrioridadBloques);
     return candidatos[0] || null;
 }
@@ -174,12 +219,30 @@ function finExclusiveMinutos(horaFin) {
 }
 
 /** Segmentos [startMin, endMin) que el bloque ocupa en un día de semana 0..6. */
-function segmentosEnDia(bloque, dia) {
+function segmentosEnDia(bloque, dia, fechaYmd) {
     const d = Number(dia);
-    const dias = Array.isArray(bloque.diasSemana) ? bloque.diasSemana.map(Number) : [];
     const hi = bloque.horaInicio;
     const hf = bloque.horaFin;
     const segs = [];
+    const fechaP = fechaUnicaDeBloque(bloque);
+    if (fechaP) {
+        const hoy = normalizarFechaPuntual(fechaYmd);
+        if (!hoy) return segs;
+        if (!cruzaMedianoche(hi, hf)) {
+            if (hoy !== fechaP) return segs;
+            const start = minutosDesdeMedianoche(hi);
+            const end = finExclusiveMinutos(hf);
+            if (start < end) segs.push([start, end]);
+            return segs;
+        }
+        if (hoy === fechaP) segs.push([minutosDesdeMedianoche(hi), 24 * 60]);
+        if (hoy === addDaysYmd(fechaP, 1)) {
+            const end = minutosDesdeMedianoche(hf);
+            if (end > 0) segs.push([0, end]);
+        }
+        return segs;
+    }
+    const dias = Array.isArray(bloque.diasSemana) ? bloque.diasSemana.map(Number) : [];
     if (!cruzaMedianoche(hi, hf)) {
         if (!dias.includes(d)) return segs;
         const start = minutosDesdeMedianoche(hi);
@@ -196,62 +259,54 @@ function segmentosEnDia(bloque, dia) {
 }
 
 function segmentosEnFecha(bloque, ymd) {
-    const y = String(ymd || '').trim();
+    const y = String(ymd || '').trim().slice(0, 10);
     if (!RE_YMD.test(y)) return [];
-    const hi = bloque.horaInicio;
-    const hf = bloque.horaFin;
-    const fecha = fechaYmdDeBloque(bloque);
+    const fecha = fechaUnicaDeBloque(bloque);
     if (fecha) {
-        const segs = [];
-        if (!cruzaMedianoche(hi, hf)) {
-            if (y !== fecha) return segs;
-            const start = minutosDesdeMedianoche(hi);
-            const end = finExclusiveMinutos(hf);
-            if (start < end) segs.push([start, end]);
-            return segs;
-        }
-        if (y === fecha) segs.push([minutosDesdeMedianoche(hi), 24 * 60]);
-        if (y === ymdMasUnDia(fecha)) {
-            const end = minutosDesdeMedianoche(hf);
-            if (end > 0) segs.push([0, end]);
-        }
-        return segs;
+        return segmentosEnDia(bloque, weekdayFromYmd(y), y);
     }
     return segmentosEnDia(bloque, diaSemanaDeYmd(y));
 }
 
+function _fechasRelevantesSolape(bloque) {
+    const f = fechaUnicaDeBloque(bloque);
+    if (!f) return [];
+    const out = [f];
+    if (cruzaMedianoche(bloque.horaInicio, bloque.horaFin)) {
+        const nxt = addDaysYmd(f, 1);
+        if (nxt) out.push(nxt);
+    }
+    return out;
+}
+
+function _segsCruzan(sa, sb) {
+    for (const a of sa) {
+        for (const b of sb) {
+            if (a[0] < b[1] && b[0] < a[1]) return true;
+        }
+    }
+    return false;
+}
+
 function franjasSolapan(bloqueA, bloqueB) {
-    const fa = fechaYmdDeBloque(bloqueA);
-    const fb = fechaYmdDeBloque(bloqueB);
+    const fa = fechaUnicaDeBloque(bloqueA);
+    const fb = fechaUnicaDeBloque(bloqueB);
     if (fa || fb) {
-        const ymds = new Set();
-        if (fa) {
-            ymds.add(fa);
-            ymds.add(ymdMasUnDia(fa));
-        }
-        if (fb) {
-            ymds.add(fb);
-            ymds.add(ymdMasUnDia(fb));
-        }
-        for (const ymd of ymds) {
-            const sa = segmentosEnFecha(bloqueA, ymd);
-            const sb = segmentosEnFecha(bloqueB, ymd);
-            for (const a of sa) {
-                for (const b of sb) {
-                    if (a[0] < b[1] && b[0] < a[1]) return true;
-                }
+        const fechas = new Set([..._fechasRelevantesSolape(bloqueA), ..._fechasRelevantesSolape(bloqueB)]);
+        if (fechas.size === 0) {
+            for (let dia = 0; dia <= 6; dia++) {
+                if (_segsCruzan(segmentosEnDia(bloqueA, dia), segmentosEnDia(bloqueB, dia))) return true;
             }
+            return false;
+        }
+        for (const fecha of fechas) {
+            const dia = weekdayFromYmd(fecha);
+            if (_segsCruzan(segmentosEnDia(bloqueA, dia, fecha), segmentosEnDia(bloqueB, dia, fecha))) return true;
         }
         return false;
     }
     for (let dia = 0; dia <= 6; dia++) {
-        const sa = segmentosEnDia(bloqueA, dia);
-        const sb = segmentosEnDia(bloqueB, dia);
-        for (const a of sa) {
-            for (const b of sb) {
-                if (a[0] < b[1] && b[0] < a[1]) return true;
-            }
-        }
+        if (_segsCruzan(segmentosEnDia(bloqueA, dia), segmentosEnDia(bloqueB, dia))) return true;
     }
     return false;
 }
@@ -262,6 +317,10 @@ module.exports = {
     compararHHmm,
     diaAnterior,
     cruzaMedianoche,
+    normalizarFechaPuntual,
+    weekdayFromYmd,
+    addDaysYmd,
+    diasSemanaDesdeFechaOLista,
     horaEnRango,
     validarHorarioFranja,
     bloqueCubreMomento,
@@ -273,6 +332,7 @@ module.exports = {
     franjasSolapan,
     normalizarFechaYmd,
     fechaYmdDeBloque,
+    fechaUnicaDeBloque,
     esBloqueFechaUnica,
     diaSemanaDeYmd,
     ymdMasUnDia,

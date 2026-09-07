@@ -193,7 +193,9 @@ const crearBloque = async (bloque, modificadoPor) => {
 
     const camposFecha = prepararCamposBloqueCalendario({
         diasSemana: bloque.diasSemana,
-        fechaYmd: Object.prototype.hasOwnProperty.call(bloque, 'fechaYmd') ? bloque.fechaYmd : null
+        fechaYmd: Object.prototype.hasOwnProperty.call(bloque, 'fechaYmd')
+            ? bloque.fechaYmd
+            : (Object.prototype.hasOwnProperty.call(bloque, 'fechaPuntual') ? bloque.fechaPuntual : null)
     });
 
     const nuevoBloque = {
@@ -201,6 +203,7 @@ const crearBloque = async (bloque, modificadoPor) => {
         perfilId: bloque.perfilId,
         diasSemana: camposFecha.diasSemana,
         fechaYmd: camposFecha.fechaYmd || null,
+        fechaPuntual: camposFecha.fechaPuntual || null,
         horaInicio: bloque.horaInicio,
         horaFin: bloque.horaFin,
         etiqueta: bloque.etiqueta || '',
@@ -230,10 +233,16 @@ const actualizarBloque = async (bloqueId, cambios, modificadoPor) => {
 
     const setObj = { actualizadoPor: modificadoPor };
     if (cambios.perfilId != null) setObj['calendario.bloques.$[b].perfilId'] = cambios.perfilId;
-    const camposFecha = prepararCamposBloqueCalendario(cambios, { exigirDias: false });
+    const payloadFecha = { ...cambios };
+    if (!Object.prototype.hasOwnProperty.call(payloadFecha, 'fechaYmd')
+        && Object.prototype.hasOwnProperty.call(payloadFecha, 'fechaPuntual')) {
+        payloadFecha.fechaYmd = payloadFecha.fechaPuntual;
+    }
+    const camposFecha = prepararCamposBloqueCalendario(payloadFecha, { exigirDias: false });
     if (camposFecha.diasSemana) setObj['calendario.bloques.$[b].diasSemana'] = camposFecha.diasSemana;
     if (Object.prototype.hasOwnProperty.call(camposFecha, 'fechaYmd')) {
         setObj['calendario.bloques.$[b].fechaYmd'] = camposFecha.fechaYmd;
+        setObj['calendario.bloques.$[b].fechaPuntual'] = camposFecha.fechaPuntual;
     }
     if (cambios.horaInicio != null) setObj['calendario.bloques.$[b].horaInicio'] = cambios.horaInicio;
     if (cambios.horaFin != null) setObj['calendario.bloques.$[b].horaFin'] = cambios.horaFin;

@@ -13,7 +13,7 @@ const { adminAuth, checkPermission } = require('../middleware/adminAuth');
 const logger = require('../utils/logger');
 
 const asignacionRepository = require('../repository/asignacionAutomatica.repository');
-const asignacionService = require('../services/asignacionAutomaticaService');
+const { sanitizarTemporal, temporalTieneCocinero } = require('../utils/asignacionTemporal');
 
 const Mozos = mongoose.model('mozos') || require('../database/models/mozos.model');
 const Plato = require('../database/models/plato.model');
@@ -29,7 +29,11 @@ const MODOS_SIN_CANDIDATO_VALIDOS = ['dejar_sin_asignar', 'pool_supervisor', 'ro
 function sanitizarReglasPlato(arr) {
     if (!Array.isArray(arr)) return undefined;
     return arr
-        .filter(r => r && Number.isFinite(Number(r.platoId)) && Number(r.platoId) > 0 && (r.cocineroPrimarioId || (Array.isArray(r.backups) && r.backups.some(b => b && b.cocineroId))))
+        .filter(r => r && Number.isFinite(Number(r.platoId)) && Number(r.platoId) > 0 && (
+            r.cocineroPrimarioId
+            || (Array.isArray(r.backups) && r.backups.some(b => b && b.cocineroId))
+            || temporalTieneCocinero(r.temporal)
+        ))
         .map(r => ({
             platoId: Number(r.platoId),
             activo: r.activo !== false,
@@ -45,7 +49,8 @@ function sanitizarReglasPlato(arr) {
                 : [],
             maxMismoPlato: Number.isFinite(r.maxMismoPlato) ? Number(r.maxMismoPlato) : null,
             estrategia: ESTRATEGIAS_VALIDAS.includes(r.estrategia) ? r.estrategia : null,
-            notas: typeof r.notas === 'string' ? r.notas.slice(0, 500) : ''
+            notas: typeof r.notas === 'string' ? r.notas.slice(0, 500) : '',
+            temporal: sanitizarTemporal(r.temporal, r.temporal)
         }));
 }
 
@@ -139,6 +144,8 @@ async function cargarMapasEnriquecimiento(perfiles) {
         (arr || []).forEach(r => {
             if (r.cocineroPrimarioId) cocineroIds.add(String(r.cocineroPrimarioId));
             (r.backups || []).forEach(b => { if (b && b.cocineroId) cocineroIds.add(String(b.cocineroId)); });
+            if (r.temporal?.cocineroPrimarioId) cocineroIds.add(String(r.temporal.cocineroPrimarioId));
+            (r.temporal?.backups || []).forEach(b => { if (b && b.cocineroId) cocineroIds.add(String(b.cocineroId)); });
         });
     };
     perfiles.forEach(p => { recolectar(p.reglasPorPlato); recolectar(p.reglasPorCategoria); });
@@ -355,7 +362,7 @@ router.post('/asignacion-automatica/perfiles/:id/duplicar', adminAuth, checkPerm
 
 /**
  * POST /api/asignacion-automatica/calendario/bloques
- * Crea una franja. Body: { perfilId, diasSemana, horaInicio, horaFin, etiqueta?, activo?, fechaYmd? }
+ * Crea una franja. Body: { perfilId, diasSemana, horaInicio, horaFin, etiqueta?, activo?, fechaYmd?, fechaPuntual? }
  */
 router.post('/asignacion-automatica/calendario/bloques', adminAuth, checkPermission('editar-mozos'), async (req, res) => {
     try {

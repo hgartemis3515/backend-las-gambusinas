@@ -297,14 +297,16 @@ const findPlatoIndex = (platos, platoId) => {
  */
 router.put('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, res) => {
   try {
-    const { id: comandaId, platoId } = req.params;
-    const { cocineroId, forzar = false } = req.body;
+    const { id: comandaId } = req.params;
+    let { platoId } = req.params;
+    const { cocineroId, forzar = false, cantidad } = req.body;
     
     logger.info('[TomarPlato] Request recibido', { 
       comandaId, 
       platoId, 
       cocineroId,
       forzar,
+      cantidad,
       adminId: req.admin?.id 
     });
     
@@ -318,7 +320,7 @@ router.put('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, res)
     
     const esSupervisor = esSupervisorCocina(req.admin);
     
-    const comanda = await Comanda.findById(comandaId);
+    let comanda = await Comanda.findById(comandaId);
     
     if (!comanda) {
       return res.status(404).json({
@@ -328,7 +330,7 @@ router.put('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, res)
     }
     
     // Buscar el plato
-    const platoIndex = findPlatoIndex(comanda.platos, platoId);
+    let platoIndex = findPlatoIndex(comanda.platos, platoId);
     
     if (platoIndex === -1) {
       logger.error('[TomarPlato] Plato no encontrado', { 
@@ -341,7 +343,7 @@ router.put('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, res)
       });
     }
     
-    const plato = comanda.platos[platoIndex];
+    let plato = comanda.platos[platoIndex];
 
     const evalR = evaluarReasignacionProcesamiento({
       adminId: req.admin.id,
@@ -356,6 +358,32 @@ router.put('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, res)
         error: evalR.error,
         ...(evalR.status === 409 ? { procesandoPor: plato.procesandoPor } : {})
       });
+    }
+
+    const qtyTake = cantidad != null && cantidad !== '' ? Math.floor(Number(cantidad)) : null;
+    let didSplit = false;
+    if (qtyTake != null) {
+      if (!Number.isFinite(qtyTake) || qtyTake < 1) {
+        return res.status(400).json({
+          success: false,
+          error: 'cantidad inválida'
+        });
+      }
+      try {
+        const sep = await separarCantidadLineaPlato(comandaId, platoId, qtyTake);
+        if (sep.didSplit) {
+          didSplit = true;
+          platoId = sep.platoEntregarId;
+          comanda = sep.comanda || await Comanda.findById(comandaId);
+          platoIndex = sep.indexEntregar;
+          plato = comanda.platos[platoIndex];
+        }
+      } catch (errSep) {
+        return res.status(errSep.status || 400).json({
+          success: false,
+          error: errSep.message || 'No se pudo separar la cantidad'
+        });
+      }
     }
     
     // Obtener info del cocinero
@@ -390,6 +418,9 @@ router.put('/comanda/:id/plato/:platoId/procesando', adminAuth, async (req, res)
     }
     
     // Emitir evento Socket
+    if (didSplit && global.emitComandaActualizada) {
+      await global.emitComandaActualizada(comandaId);
+    }
     if (global.emitPlatoProcesando) {
       global.emitPlatoProcesando(comandaId, platoId, cocineroInfo);
     }

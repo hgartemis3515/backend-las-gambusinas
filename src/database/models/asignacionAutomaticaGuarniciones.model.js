@@ -129,6 +129,15 @@ const bloqueCalendarioSchema = new mongoose.Schema({
     horaFin: { type: String, required: true, match: /^\d{2}:\d{2}$/ },
     etiqueta: { type: String, default: '', trim: true },
     activo: { type: Boolean, default: true },
+    fechaPuntual: {
+        type: String,
+        default: null,
+        trim: true,
+        validate: {
+            validator: (v) => v == null || v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v),
+            message: 'fechaPuntual debe ser YYYY-MM-DD o vacío'
+        }
+    },
     createdAt: { type: Date, default: () => new Date() }
 }, { _id: false, id: false });
 

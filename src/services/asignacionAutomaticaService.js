@@ -47,6 +47,13 @@ const Mozos = mongoose.model('mozos') || require('../database/models/mozos.model
 const { getCocineroInfo } = require('../utils/cocineroInfo');
 const { topePositivo, bumpCargaCache, encolarAsignacionKds } = require('../utils/asignacionAutomaticaCupos');
 const { elegirSiguienteBackup } = require('../utils/elegirSiguienteBackup');
+const {
+    reglaEfectivaParaAsignar,
+    indiceTurnoComanda,
+    rotarCandidatos,
+    temporalTieneCocinero,
+    temporalVigente
+} = require('../utils/asignacionTemporal');
 
 const ESTADOS_EN_CURSO = ['pedido', 'en_espera'];
 const MAX_REINTENTOS = 3;
@@ -105,9 +112,9 @@ function resolverPerfilActivo(config, momento) {
     const m = momento || nowLima();
     const dia = m.day();
     const hhmm = m.format('HH:mm');
-    const ymd = m.format('YYYY-MM-DD');
+    const fechaYmd = m.format('YYYY-MM-DD');
 
-    const bloqueSeleccionado = elegirBloqueActivo(bloques, dia, hhmm, ymd);
+    const bloqueSeleccionado = elegirBloqueActivo(bloques, dia, hhmm, fechaYmd);
     if (!bloqueSeleccionado) {
         return { perfil: null, bloque: null, motivo: 'sin_franja_activa', dia, hhmm };
     }
@@ -350,17 +357,49 @@ async function filtrarCandidato(cand, config, plato, platoId, cacheConectado, ca
  *     se usan sus reglasPorPlato/reglasPorCategoria. Si NO se pasa, se usa `config`
  *     (compatibilidad con el flujo legacy y con tests viejos).
  *   - `config.defaults` sigue siendo la fuente de defaults globales (max, estrategiaDefault, etc.).
+ *   - `comandaId` (opcional): para variar por turno temporal (1ª comanda → 1er cocinero).
  */
-async function seleccionarCocinero(config, plato, perfil = null, caches = null) {
+async function contarComandasConPlatoAsignadoHoy(platoId, excluirComandaId) {
+    const n = Number(platoId);
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    const match = {
+        IsActive: true,
+        createdAt: { $gte: inicioDiaLima() },
+        platos: {
+            $elemMatch: {
+                eliminado: { $ne: true },
+                'procesandoPor.cocineroId': { $exists: true, $ne: null },
+                $or: [{ platoId: n }, { id: n }]
+            }
+        }
+    };
+    if (excluirComandaId) {
+        try {
+            match._id = { $ne: new mongoose.Types.ObjectId(String(excluirComandaId)) };
+        } catch (_) { /* id inválido: no excluir */ }
+    }
+    const ids = await Comanda.distinct('_id', match);
+    return ids.length;
+}
+
+async function seleccionarCocinero(config, plato, perfil = null, caches = null, comandaId = null) {
     const fuenteReglas = perfil || config;
     const match = encontrarRegla(fuenteReglas, plato);
     if (!match) {
-        // Sin regla: modoSinCandidato decide (en este punto no asignamos)
         return null;
     }
     const { tipo, regla } = match;
-    const candidatos = construirCandidatos(regla);
+    const efectiva = reglaEfectivaParaAsignar(regla, nowLima());
+    let candidatos = construirCandidatos(efectiva.regla);
     if (candidatos.length === 0) return null;
+
+    if (efectiva.variarPorTurno && comandaId) {
+        const previas = await contarComandasConPlatoAsignadoHoy(
+            efectiva.regla.platoId || idCatalogoPlato(plato),
+            comandaId
+        );
+        candidatos = rotarCandidatos(candidatos, indiceTurnoComanda(previas, candidatos.length));
+    }
 
     const estrategia = regla.estrategia || (config.defaults || {}).estrategiaDefault || 'hibrido';
     const cacheConectado = caches?.cacheConectado || {};
@@ -396,18 +435,20 @@ async function seleccionarCocinero(config, plato, perfil = null, caches = null) 
         return null; // modoSinCandidato
     }
 
-    // Primario primero (salvo estrategias puras de balanceo)
-    if (estrategia === 'menor_carga' || estrategia === 'round_robin') {
+    if (efectiva.variarPorTurno) {
+        candidatosValidos.sort((a, b) => (a.orden - b.orden) || (a.cargaTotal - b.cargaTotal));
+    } else if (estrategia === 'menor_carga' || estrategia === 'round_robin') {
         candidatosValidos.sort((a, b) => (a.cargaTotal - b.cargaTotal) || (a.orden - b.orden));
     } else {
-        // fijo_por_plato, fijo_por_categoria, cadena_overflow, hibrido, respetar_zona
         candidatosValidos.sort((a, b) => (a.orden - b.orden) || (a.cargaTotal - b.cargaTotal));
     }
     const elegido = candidatosValidos[0];
     const esOverflow = !elegido.esPrimario;
     return {
         cocineroId: elegido.cocineroId,
-        origen: esOverflow ? 'overflow' : 'auto',
+        origen: esOverflow
+            ? 'overflow'
+            : (efectiva.variarPorTurno ? 'temporal_turno' : (efectiva.origenTemporal ? 'temporal' : 'auto')),
         regla: tipo,
         estrategia,
         perfilId: perfil ? perfil.id : null
@@ -580,7 +621,7 @@ async function asignarPlatosNuevosEjecutar(comanda) {
                     break;
                 }
 
-                elegido = await seleccionarCocinero(configViva, enriched, perfil, caches);
+                elegido = await seleccionarCocinero(configViva, enriched, perfil, caches, comanda._id);
                 if (!elegido && intento === MAX_REINTENTOS - 1) {
                     const match = encontrarRegla(perfil, enriched);
                     logger.info('Auto-asignación: plato sin candidato', {
@@ -717,7 +758,8 @@ function isReglaAsignada(regla) {
     if (regla.activo === false) return false;
     const tienePrimario = !!regla.cocineroPrimarioId;
     const backupsValidos = Array.isArray(regla.backups) && regla.backups.some(b => b && b.cocineroId);
-    return tienePrimario || backupsValidos;
+    if (tienePrimario || backupsValidos) return true;
+    return temporalVigente(regla.temporal) && temporalTieneCocinero(regla.temporal);
 }
 
 /**

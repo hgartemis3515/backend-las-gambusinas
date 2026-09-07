@@ -68,8 +68,8 @@ function resolverPerfilActivo(config, momento) {
     const m = momento || nowLima();
     const dia = m.day();
     const hhmm = m.format('HH:mm');
-    const ymd = m.format('YYYY-MM-DD');
-    const bloque = elegirBloqueActivo(bloques, dia, hhmm, ymd);
+    const fechaYmd = m.format('YYYY-MM-DD');
+    const bloque = elegirBloqueActivo(bloques, dia, hhmm, fechaYmd);
     if (!bloque) return { perfil: null, bloque: null, motivo: 'sin_franja_activa', dia, hhmm };
     const perfil = perfilPorId(config, bloque.perfilId);
     if (!perfil) return { perfil: null, bloque, motivo: 'perfil_inactivo_o_inexistente', dia, hhmm };
