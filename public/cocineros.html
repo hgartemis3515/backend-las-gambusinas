@@ -7191,11 +7191,9 @@ function cocinerosApp() {
 
     async cargarConfigAsignacion() {
       const data = await apiGet('/asignacion-automatica');
-      if (data && data.success !== false && data.data) {
-        this.asignacionConfig = data.data;
-        this._normalizarConfigFechasUnicas(this.asignacionConfig);
-        this.perfilActivoAhora = data.perfilActivoAhora || null;
-        // Sincroniza defaults al form
+      const aplicada = this._aplicarConfigRespuesta(data, 'platos');
+      if (aplicada) {
+        if (data && data.perfilActivoAhora) this.perfilActivoAhora = data.perfilActivoAhora;
         const d = this.asignacionConfig.defaults || {};
         this.formDefaultsAsignacion = {
           maxMismoPlatoPorCocinero: d.maxMismoPlatoPorCocinero ?? 20,
@@ -7205,11 +7203,17 @@ function cocinerosApp() {
           respetarZonas: d.respetarZonas ?? true,
           estrategiaDefault: d.estrategiaDefault ?? 'hibrido'
         };
-        // v2: asegurar perfil seleccionado (por defecto el primero activo).
         if (!this.perfilSeleccionadoId || !(this.asignacionConfig.perfiles || []).some(p => p.id === this.perfilSeleccionadoId)) {
           const primer = (this.asignacionConfig.perfiles || []).find(p => p.activo) || (this.asignacionConfig.perfiles || [])[0];
           this.perfilSeleccionadoId = primer?.id || '';
         }
+        return;
+      }
+      if (window.GambusinasNotifications) {
+        window.GambusinasNotifications.error(
+          'Asignación automática',
+          data?.error || 'No se pudieron cargar los perfiles. Recarga la página.'
+        );
       }
     },
 

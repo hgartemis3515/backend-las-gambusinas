@@ -13,6 +13,7 @@ const { adminAuth, checkPermission } = require('../middleware/adminAuth');
 const logger = require('../utils/logger');
 
 const asignacionRepository = require('../repository/asignacionAutomatica.repository');
+const asignacionService = require('../services/asignacionAutomaticaService');
 const { sanitizarTemporal, temporalTieneCocinero } = require('../utils/asignacionTemporal');
 
 const Mozos = mongoose.model('mozos') || require('../database/models/mozos.model');
@@ -174,7 +175,12 @@ async function cargarMapasEnriquecimiento(perfiles) {
 router.get('/asignacion-automatica', adminAuth, async (req, res) => {
     try {
         const config = await asignacionRepository.obtenerConfiguracion();
-        const perfilActivoAhora = calcularPerfilActivoAhora(config);
+        let perfilActivoAhora = { perfilId: null, nombre: null, bloqueId: null, horaInicio: null, horaFin: null, motivo: null };
+        try {
+            perfilActivoAhora = calcularPerfilActivoAhora(config);
+        } catch (errPerfil) {
+            logger.warn('No se pudo resolver el perfil activo ahora; se devuelve la config igual', { error: errPerfil.message });
+        }
         res.json({ success: true, data: config, perfilActivoAhora });
     } catch (error) {
         logger.error('Error al obtener asignación automática', { error: error.message });
