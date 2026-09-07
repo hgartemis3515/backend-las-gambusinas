@@ -519,6 +519,62 @@ tailwind.config = {
             <input type="checkbox" x-model="formAsignacionPlato.activo" class="accent-gold w-3.5 h-3.5">
             <span x-text="formAsignacionPlato.activo ? 'Regla activa' : 'Regla inactiva'"></span>
           </label>
+
+          <div class="border-t border-[rgba(212,175,55,0.12)] pt-3 space-y-2">
+            <p class="text-[11px] font-semibold text-gold">Asignación temporal</p>
+            <p class="text-[10px] text-txt-muted">No pisa el primario permanente. Cierra siempre a las 23:59 (Lima) del último día. Los platos nuevos salen en KDS y Ver cocina con este cocinero mientras esté vigente.</p>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-[10px] text-txt-secondary mb-1 block">Vigencia</label>
+                <select x-model.number="formAsignacionPlato.temporalDias" @change="onCambioTemporalDias()"
+                  class="w-full bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-[11px] text-txt-secondary focus:border-gold focus:outline-none">
+                  <option :value="0">— Sin temporal —</option>
+                  <option :value="1">Hoy (hasta 23:59)</option>
+                  <option :value="2">2 días (hasta mañana 23:59)</option>
+                  <option :value="3">3 días</option>
+                  <option :value="4">4 días</option>
+                  <option :value="5">5 días</option>
+                  <option :value="6">6 días</option>
+                  <option :value="7">7 días</option>
+                  <option :value="10">10 días</option>
+                  <option :value="14">14 días</option>
+                </select>
+              </div>
+              <div x-show="Number(formAsignacionPlato.temporalDias) > 0">
+                <label class="text-[10px] text-txt-secondary mb-1 block" x-text="formAsignacionPlato.temporalVariarPorTurno ? '1ª comanda →' : 'Cocinero temporal'"></label>
+                <select x-model="formAsignacionPlato.temporalCocineroId"
+                  class="w-full bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-[11px] text-txt-secondary focus:border-gold focus:outline-none">
+                  <option value="">— Elegir —</option>
+                  <template x-for="c in cocinerosAsignacion" :key="'t-'+c._id">
+                    <option :value="c._id" x-text="etiquetaCocineroAsig(c)"></option>
+                  </template>
+                </select>
+              </div>
+            </div>
+            <label class="flex items-center gap-2 text-[11px] cursor-pointer text-txt-secondary" x-show="Number(formAsignacionPlato.temporalDias) > 0">
+              <input type="checkbox" x-model="formAsignacionPlato.temporalVariarPorTurno" class="accent-gold w-3.5 h-3.5">
+              <span>Variar por turno: 1ª comanda de este plato al primero, 2ª al siguiente</span>
+            </label>
+            <div x-show="Number(formAsignacionPlato.temporalDias) > 0 && formAsignacionPlato.temporalVariarPorTurno" class="space-y-1">
+              <div class="flex items-center justify-between">
+                <label class="text-[10px] text-txt-secondary">Siguientes comandas (2º, 3º…)</label>
+                <button type="button" @click="agregarTurnoTemporal()" class="text-[10px] text-gold hover:underline">+ Cocinero</button>
+              </div>
+              <template x-for="(b, idx) in formAsignacionPlato.temporalBackups" :key="'tb-'+idx">
+                <div class="flex items-center gap-1">
+                  <select x-model="b.cocineroId"
+                    class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[11px] text-txt-secondary focus:border-gold focus:outline-none">
+                    <option value="">— Cocinero —</option>
+                    <template x-for="c in cocinerosAsignacion" :key="'tb-'+idx+'-'+c._id">
+                      <option :value="c._id" x-text="etiquetaCocineroAsig(c)"></option>
+                    </template>
+                  </select>
+                  <button type="button" @click="quitarTurnoTemporal(idx)" class="text-st-pagado text-[10px] px-1">✕</button>
+                </div>
+              </template>
+            </div>
+            <p x-show="Number(formAsignacionPlato.temporalDias) > 0" class="text-[10px] text-gold" x-text="textoVigenciaTemporal(formAsignacionPlato)"></p>
+          </div>
         </div>
 
         <div class="bg-bg-sidebar border border-[rgba(212,175,55,0.2)] rounded-xl p-3 space-y-3" x-show="formPlato.complementos.some(g => (g.opciones||[]).some(o => (o.nombre||'').trim()))">
@@ -1124,6 +1180,11 @@ tailwind.config = {
       backups: [],
       origen: null,
       categoriaHeredada: '',
+      temporalDias: 0,
+      temporalVariarPorTurno: false,
+      temporalCocineroId: '',
+      temporalBackups: [],
+      temporalHasta: null,
       _snapshot: ''
     },
 
@@ -2382,7 +2443,17 @@ tailwind.config = {
     // ============ ASIGNACIÓN AUTOMÁTICA (misma API que cocineros.html) ============
 
     _asigVacia() {
-      const a = { activo: true, cocineroPrimarioId: '', backups: [], origen: null };
+      const a = {
+        activo: true,
+        cocineroPrimarioId: '',
+        backups: [],
+        origen: null,
+        temporalDias: 0,
+        temporalVariarPorTurno: false,
+        temporalCocineroId: '',
+        temporalBackups: [],
+        temporalHasta: null
+      };
       a._snapshot = this._asigSnapshot(a);
       return a;
     },
@@ -2390,7 +2461,13 @@ tailwind.config = {
     _reglaTieneCocinero(r) {
       if (!r || r.activo === false) return false;
       if (r.cocineroPrimarioId) return true;
-      return Array.isArray(r.backups) && r.backups.some(b => b && b.cocineroId);
+      if (Array.isArray(r.backups) && r.backups.some(b => b && b.cocineroId)) return true;
+      const t = r.temporal;
+      if (t && Number(t.dias) > 0 && t.hasta && new Date(t.hasta).getTime() >= Date.now()) {
+        if (t.cocineroPrimarioId) return true;
+        return Array.isArray(t.backups) && t.backups.some(b => b && b.cocineroId);
+      }
+      return false;
     },
 
     _asigDesdeRegla(r, origen) {
@@ -2401,11 +2478,20 @@ tailwind.config = {
         .slice()
         .sort((a, b) => (a.orden || 0) - (b.orden || 0))
         .map(b => ({ cocineroId: String(b.cocineroId) }));
+      const temporal = r.temporal && Number(r.temporal.dias) > 0 ? r.temporal : null;
+      const temporalVigente = temporal && temporal.hasta && new Date(temporal.hasta).getTime() >= Date.now();
       const asig = {
         activo: r.activo !== false,
         cocineroPrimarioId: r.cocineroPrimarioId ? String(r.cocineroPrimarioId) : '',
         backups,
-        origen: origen || null
+        origen: origen || null,
+        temporalDias: temporalVigente ? Number(temporal.dias) : 0,
+        temporalVariarPorTurno: !!(temporalVigente && temporal.variarPorTurno),
+        temporalCocineroId: temporalVigente && temporal.cocineroPrimarioId ? String(temporal.cocineroPrimarioId) : '',
+        temporalBackups: temporalVigente
+          ? (temporal.backups || []).filter(b => b && b.cocineroId).map(b => ({ cocineroId: String(b.cocineroId) }))
+          : [],
+        temporalHasta: temporalVigente ? temporal.hasta : null
       };
       asig._snapshot = this._asigSnapshot(asig);
       return asig;
@@ -2414,14 +2500,20 @@ tailwind.config = {
     _asigTieneCocinero(asig) {
       if (!asig) return false;
       if (asig.cocineroPrimarioId) return true;
-      return Array.isArray(asig.backups) && asig.backups.some(b => b && b.cocineroId);
+      if (Array.isArray(asig.backups) && asig.backups.some(b => b && b.cocineroId)) return true;
+      if (Number(asig.temporalDias) > 0 && (asig.temporalCocineroId || (asig.temporalBackups || []).some(b => b && b.cocineroId))) return true;
+      return false;
     },
 
     _asigSnapshot(asig) {
       return JSON.stringify({
         activo: asig?.activo !== false,
         cocineroPrimarioId: String(asig?.cocineroPrimarioId || ''),
-        backups: (asig?.backups || []).map(b => String(b.cocineroId || '')).filter(Boolean)
+        backups: (asig?.backups || []).map(b => String(b.cocineroId || '')).filter(Boolean),
+        temporalDias: Number(asig?.temporalDias) || 0,
+        temporalVariarPorTurno: !!asig?.temporalVariarPorTurno,
+        temporalCocineroId: String(asig?.temporalCocineroId || ''),
+        temporalBackups: (asig?.temporalBackups || []).map(b => String(b.cocineroId || '')).filter(Boolean)
       });
     },
 
@@ -2492,7 +2584,17 @@ tailwind.config = {
         if (b && b.cocineroId && !ids.includes(b.cocineroId)) ids.push(b.cocineroId);
       });
       const names = ids.map(id => this.nombreCocineroAsig(id)).filter(Boolean);
-      return names.length ? names.join(' → ') : 'Sin cocinero asignado';
+      let base = names.length ? names.join(' → ') : 'Sin cocinero asignado';
+      if (Number(asig.temporalDias) > 0 && (asig.temporalCocineroId || (asig.temporalBackups || []).some(b => b && b.cocineroId))) {
+        const tNames = [];
+        if (asig.temporalCocineroId) tNames.push(this.nombreCocineroAsig(asig.temporalCocineroId));
+        (asig.temporalBackups || []).forEach(b => {
+          if (b && b.cocineroId) tNames.push(this.nombreCocineroAsig(b.cocineroId));
+        });
+        const modo = asig.temporalVariarPorTurno ? 'turno' : 'fijo';
+        base += ` · temporal ${modo}: ${tNames.filter(Boolean).join(' → ')}`;
+      }
+      return base;
     },
 
     agregarBackupAsig(asig) {
@@ -2504,6 +2606,57 @@ tailwind.config = {
     quitarBackupAsig(asig, idx) {
       if (!asig || !Array.isArray(asig.backups)) return;
       asig.backups.splice(idx, 1);
+    },
+
+    onCambioTemporalDias() {
+      const d = Number(this.formAsignacionPlato.temporalDias) || 0;
+      if (d < 1) {
+        this.formAsignacionPlato.temporalVariarPorTurno = false;
+        this.formAsignacionPlato.temporalCocineroId = '';
+        this.formAsignacionPlato.temporalBackups = [];
+        this.formAsignacionPlato.temporalHasta = null;
+        return;
+      }
+      this.formAsignacionPlato.temporalHasta = null;
+      if (!this.formAsignacionPlato.temporalCocineroId && this.formAsignacionPlato.cocineroPrimarioId) {
+        this.formAsignacionPlato.temporalCocineroId = this.formAsignacionPlato.cocineroPrimarioId;
+      }
+    },
+    agregarTurnoTemporal() {
+      if (!Array.isArray(this.formAsignacionPlato.temporalBackups)) this.formAsignacionPlato.temporalBackups = [];
+      this.formAsignacionPlato.temporalBackups.push({ cocineroId: '' });
+    },
+    quitarTurnoTemporal(idx) {
+      if (!Array.isArray(this.formAsignacionPlato.temporalBackups)) return;
+      this.formAsignacionPlato.temporalBackups.splice(idx, 1);
+    },
+    textoVigenciaTemporal(asig) {
+      const dias = Number(asig?.temporalDias) || 0;
+      if (dias < 1) return '';
+      if (asig?.temporalHasta) {
+        const d = new Date(asig.temporalHasta);
+        if (!Number.isNaN(d.getTime())) {
+          const lim = new Date(d.getTime() - 5 * 60 * 60 * 1000);
+          const y = lim.getUTCFullYear();
+          const m = String(lim.getUTCMonth() + 1).padStart(2, '0');
+          const day = String(lim.getUTCDate()).padStart(2, '0');
+          return `Vigente hasta ${day}/${m}/${y} 23:59 (Lima)`;
+        }
+      }
+      if (dias === 1) return 'Al guardar: vigente hasta hoy 23:59 (Lima)';
+      return `Al guardar: ${dias} días, cierra a las 23:59 (Lima) del último día`;
+    },
+    _payloadTemporal(asig) {
+      const dias = Number(asig?.temporalDias) || 0;
+      if (dias < 1) return null;
+      if (!asig.temporalCocineroId && !(asig.temporalBackups || []).some(b => b && b.cocineroId)) return null;
+      return {
+        dias,
+        hasta: asig.temporalHasta || null,
+        variarPorTurno: !!asig.temporalVariarPorTurno,
+        cocineroPrimarioId: asig.temporalCocineroId || null,
+        backups: (asig.temporalBackups || []).filter(b => b && b.cocineroId).map((b, i) => ({ cocineroId: b.cocineroId, orden: i + 1 }))
+      };
     },
 
     resetFormAsignacionPlato() {
@@ -2624,7 +2777,8 @@ tailwind.config = {
         })),
         maxMismoPlato: r.maxMismoPlato ?? null,
         estrategia: r.estrategia || null,
-        notas: r.notas || ''
+        notas: r.notas || '',
+        temporal: r.temporal || null
       };
     },
 
@@ -2683,7 +2837,8 @@ tailwind.config = {
           backups: (asig.backups || []).filter(b => b.cocineroId).map((b, i) => ({ cocineroId: b.cocineroId, orden: i + 1 })),
           maxMismoPlato: existente?.maxMismoPlato ?? null,
           estrategia: existente?.estrategia || null,
-          notas: existente?.notas || ''
+          notas: existente?.notas || '',
+          temporal: this._payloadTemporal(asig)
         };
         if (idx >= 0) reglas[idx] = nueva;
         else reglas.push(nueva);

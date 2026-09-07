@@ -12,7 +12,7 @@ const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 const AsignacionAutomatica = require('../database/models/asignacionAutomatica.model');
 const logger = require('../utils/logger');
-const { validarHorarioFranja } = require('../utils/asignacionCalendarioFranjas');
+const { validarHorarioFranja, normalizarFechaPuntual, diasSemanaDesdeFechaOLista } = require('../utils/asignacionCalendarioFranjas');
 
 const obtenerConfiguracion = async () => {
     try {
@@ -216,7 +216,7 @@ const duplicarPerfil = async (perfilId, modificadoPor) => {
 
 // ============================ Calendario: bloques ============================
 
-const crearBloque = async ({ perfilId, diasSemana, horaInicio, horaFin, etiqueta = '', activo = true }, modificadoPor) => {
+const crearBloque = async ({ perfilId, diasSemana, horaInicio, horaFin, etiqueta = '', activo = true, fechaPuntual = null }, modificadoPor) => {
     if (!perfilId) throw new Error('perfilId es requerido');
     const config = await AsignacionAutomatica.obtenerConfiguracion();
     const perfil = (config.perfiles || []).find(p => p.id === perfilId);
@@ -227,10 +227,8 @@ const crearBloque = async ({ perfilId, diasSemana, horaInicio, horaFin, etiqueta
     }
     validarHorarioFranja(horaInicio, horaFin);
 
-    // Alpine a veces envía días como strings ("4"); normalizar a enteros 0..6.
-    const diasNorm = Array.isArray(diasSemana)
-        ? [...new Set(diasSemana.map(d => Number(d)).filter(d => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b)
-        : [];
+    const fechaNorm = normalizarFechaPuntual(fechaPuntual);
+    const diasNorm = diasSemanaDesdeFechaOLista(diasSemana, fechaNorm);
     if (diasNorm.length === 0) {
         throw new Error('diasSemana debe ser un array no vacío de enteros 0..6');
     }
@@ -243,6 +241,7 @@ const crearBloque = async ({ perfilId, diasSemana, horaInicio, horaFin, etiqueta
         horaFin,
         etiqueta: String(etiqueta).slice(0, 100),
         activo: !!activo,
+        fechaPuntual: fechaNorm,
         createdAt: new Date()
     };
 
@@ -275,17 +274,27 @@ const actualizarBloque = async (bloqueId, cambios, modificadoPor) => {
 
     const setObj = { actualizadoPor: modificadoPor };
     if (cambios.perfilId != null) setObj['calendario.bloques.$[b].perfilId'] = cambios.perfilId;
-    if (Array.isArray(cambios.diasSemana)) {
-        const diasNorm = [...new Set(cambios.diasSemana.map(d => Number(d)).filter(d => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b);
-        if (diasNorm.length === 0) throw new Error('diasSemana debe ser un array no vacío de enteros 0..6');
-        setObj['calendario.bloques.$[b].diasSemana'] = diasNorm;
-    } else if (cambios.diasSemana != null) {
-        throw new Error('diasSemana debe ser un array no vacío de enteros 0..6');
-    }
     if (cambios.horaInicio != null) setObj['calendario.bloques.$[b].horaInicio'] = cambios.horaInicio;
     if (cambios.horaFin != null) setObj['calendario.bloques.$[b].horaFin'] = cambios.horaFin;
     if (cambios.etiqueta != null) setObj['calendario.bloques.$[b].etiqueta'] = String(cambios.etiqueta).slice(0, 100);
     if (typeof cambios.activo === 'boolean') setObj['calendario.bloques.$[b].activo'] = cambios.activo;
+
+    const fechaParaDias = Object.prototype.hasOwnProperty.call(cambios, 'fechaPuntual')
+        ? cambios.fechaPuntual
+        : bloque.fechaPuntual;
+    if (Object.prototype.hasOwnProperty.call(cambios, 'fechaPuntual')) {
+        setObj['calendario.bloques.$[b].fechaPuntual'] = normalizarFechaPuntual(cambios.fechaPuntual);
+    }
+    if (Array.isArray(cambios.diasSemana) || Object.prototype.hasOwnProperty.call(cambios, 'fechaPuntual')) {
+        const hiDias = Array.isArray(cambios.diasSemana) ? cambios.diasSemana : bloque.diasSemana;
+        const diasNormUp = diasSemanaDesdeFechaOLista(hiDias, fechaParaDias);
+        if (diasNormUp.length === 0) {
+            throw new Error('diasSemana debe ser un array no vacío de enteros 0..6');
+        }
+        setObj['calendario.bloques.$[b].diasSemana'] = diasNormUp;
+    } else if (cambios.diasSemana != null) {
+        throw new Error('diasSemana debe ser un array no vacío de enteros 0..6');
+    }
 
     const actualizado = await AsignacionAutomatica.findOneAndUpdate(
         { _id: AsignacionAutomatica.CONFIG_ID },

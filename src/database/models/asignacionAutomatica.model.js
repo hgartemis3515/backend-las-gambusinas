@@ -41,6 +41,15 @@ const backupSchema = new mongoose.Schema({
     orden: { type: Number, default: 0 }
 }, { _id: false });
 
+/** Overlay: sustituye primario/backups hasta `hasta` (23:59 Lima del último día). */
+const temporalAsignacionSchema = new mongoose.Schema({
+    dias: { type: Number, default: null, min: 1, max: 14 },
+    hasta: { type: Date, default: null },
+    variarPorTurno: { type: Boolean, default: false },
+    cocineroPrimarioId: { type: mongoose.Schema.Types.ObjectId, ref: 'mozos', default: null },
+    backups: { type: [backupSchema], default: [] }
+}, { _id: false });
+
 const estrategiasEnum = [
     null,
     'fijo_por_plato',
@@ -63,7 +72,8 @@ const reglasPlatoSchema = new mongoose.Schema({
     backups: { type: [backupSchema], default: [] },
     maxMismoPlato: { type: Number, default: null }, // null = usar defaults.maxMismoPlatoPorCocinero
     estrategia: { type: String, default: null, enum: estrategiasEnum },
-    notas: { type: String, default: '', trim: true }
+    notas: { type: String, default: '', trim: true },
+    temporal: { type: temporalAsignacionSchema, default: null }
 }, { _id: false });
 
 /**
@@ -109,6 +119,7 @@ const perfilSchema = new mongoose.Schema({
  *   (turno noche). diasSemana = días en que EMPIEZA el turno. Fin exclusivo.
  * - perfilId: referencia a perfiles[].id (validada al guardar bloque).
  * - activo: soft-disable del bloque.
+ * - fechaPuntual: 'YYYY-MM-DD' Lima. Si está set, la franja NO se repite (excepción de un día).
  */
 const bloqueCalendarioSchema = new mongoose.Schema({
     id: { type: String, required: true, default: () => uuidv4() },
@@ -126,6 +137,15 @@ const bloqueCalendarioSchema = new mongoose.Schema({
     horaFin: { type: String, required: true, match: /^\d{2}:\d{2}$/ },
     etiqueta: { type: String, default: '', trim: true },
     activo: { type: Boolean, default: true },
+    fechaPuntual: {
+        type: String,
+        default: null,
+        trim: true,
+        validate: {
+            validator: (v) => v == null || v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v),
+            message: 'fechaPuntual debe ser YYYY-MM-DD o vacío'
+        }
+    },
     createdAt: { type: Date, default: () => new Date() }
 }, { _id: false, id: false });
 

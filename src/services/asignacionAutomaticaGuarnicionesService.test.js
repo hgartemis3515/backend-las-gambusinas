@@ -223,6 +223,21 @@ describe('resolverPerfilActivo', () => {
     expect(r.motivo).toBe('ok');
     expect(r.perfil.id).toBe('noche');
   });
+  test('fechaPuntual no se repite la semana siguiente', () => {
+    const lunes = moment.tz('2026-07-13T10:00', 'America/Lima');
+    const config = {
+      habilitada: true,
+      perfiles: [{ id: 'sem', activo: true }, { id: 'pun', activo: true }],
+      calendario: {
+        bloques: [
+          { id: 'b1', perfilId: 'sem', activo: true, diasSemana: [1], horaInicio: '08:00', horaFin: '12:00' },
+          { id: 'b2', perfilId: 'pun', activo: true, diasSemana: [1], horaInicio: '08:00', horaFin: '12:00', fechaPuntual: '2026-07-13' }
+        ]
+      }
+    };
+    expect(svc.resolverPerfilActivo(config, lunes).perfil.id).toBe('pun');
+    expect(svc.resolverPerfilActivo(config, lunes.clone().add(7, 'days')).perfil.id).toBe('sem');
+  });
 });
 
 // ---------------- Escenarios de servicio real ----------------

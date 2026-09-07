@@ -7,7 +7,7 @@ const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 const AsignacionAutomaticaGuarniciones = require('../database/models/asignacionAutomaticaGuarniciones.model');
 const logger = require('../utils/logger');
-const { validarHorarioFranja } = require('../utils/asignacionCalendarioFranjas');
+const { validarHorarioFranja, normalizarFechaPuntual, diasSemanaDesdeFechaOLista } = require('../utils/asignacionCalendarioFranjas');
 
 const obtenerConfiguracion = async () => {
     try {
@@ -191,9 +191,8 @@ const crearBloque = async (bloque, modificadoPor) => {
 
     validarHorarioFranja(bloque.horaInicio, bloque.horaFin);
 
-    const diasNorm = Array.isArray(bloque.diasSemana)
-        ? [...new Set(bloque.diasSemana.map(d => Number(d)).filter(d => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b)
-        : [];
+    const fechaNorm = normalizarFechaPuntual(bloque.fechaPuntual);
+    const diasNorm = diasSemanaDesdeFechaOLista(bloque.diasSemana, fechaNorm);
     if (diasNorm.length === 0) throw new Error('diasSemana debe ser un array no vacío de enteros 0..6');
 
     const nuevoBloque = {
@@ -204,6 +203,7 @@ const crearBloque = async (bloque, modificadoPor) => {
         horaFin: bloque.horaFin,
         etiqueta: bloque.etiqueta || '',
         activo: bloque.activo !== false,
+        fechaPuntual: fechaNorm,
         createdAt: new Date()
     };
 
@@ -229,11 +229,22 @@ const actualizarBloque = async (bloqueId, cambios, modificadoPor) => {
 
     const setObj = { actualizadoPor: modificadoPor };
     if (cambios.perfilId != null) setObj['calendario.bloques.$[b].perfilId'] = cambios.perfilId;
-    if (Array.isArray(cambios.diasSemana)) setObj['calendario.bloques.$[b].diasSemana'] = cambios.diasSemana;
     if (cambios.horaInicio != null) setObj['calendario.bloques.$[b].horaInicio'] = cambios.horaInicio;
     if (cambios.horaFin != null) setObj['calendario.bloques.$[b].horaFin'] = cambios.horaFin;
     if (cambios.etiqueta != null) setObj['calendario.bloques.$[b].etiqueta'] = String(cambios.etiqueta).slice(0, 100);
     if (typeof cambios.activo === 'boolean') setObj['calendario.bloques.$[b].activo'] = cambios.activo;
+    if (Object.prototype.hasOwnProperty.call(cambios, 'fechaPuntual')) {
+        setObj['calendario.bloques.$[b].fechaPuntual'] = normalizarFechaPuntual(cambios.fechaPuntual);
+    }
+    if (Array.isArray(cambios.diasSemana) || Object.prototype.hasOwnProperty.call(cambios, 'fechaPuntual')) {
+        const hiDias = Array.isArray(cambios.diasSemana) ? cambios.diasSemana : existente.diasSemana;
+        const fechaParaDias = Object.prototype.hasOwnProperty.call(cambios, 'fechaPuntual')
+            ? cambios.fechaPuntual
+            : existente.fechaPuntual;
+        const diasNormUp = diasSemanaDesdeFechaOLista(hiDias, fechaParaDias);
+        if (diasNormUp.length === 0) throw new Error('diasSemana debe ser un array no vacío de enteros 0..6');
+        setObj['calendario.bloques.$[b].diasSemana'] = diasNormUp;
+    }
 
     const actualizado = await AsignacionAutomaticaGuarniciones.findOneAndUpdate(
         { _id: AsignacionAutomaticaGuarniciones.CONFIG_ID },
