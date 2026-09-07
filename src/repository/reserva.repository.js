@@ -896,7 +896,7 @@ const crearReservaDesdeMozos = async (data) => {
                     variantePlato: linea.variantePlato || calc.variantePlato || undefined
                 });
                 platosComanda.push({
-                    plato: platoDoc._id, platoId: platoDoc.id || null, estado: 'pendiente', tiempos: {},
+                    plato: platoDoc._id, platoId: platoDoc.id || null, estado: 'pendiente', tiempos: { pedido: null },
                     complementosSeleccionados: calc.complementosSeleccionados,
                     precioBase: calc.precioBase, extraComplementos: calc.extraComplementos,
                     precioUnitario: calc.precioUnitario, totalUnidadesComplementos: calc.totalUnidadesComplementos,

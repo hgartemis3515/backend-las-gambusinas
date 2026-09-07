@@ -229,7 +229,8 @@ const crearBloque = async ({ perfilId, diasSemana, horaInicio, horaFin, etiqueta
 
     const camposFecha = prepararCamposBloqueCalendario({
         diasSemana,
-        fechaYmd: fechaYmd != null && fechaYmd !== '' ? fechaYmd : fechaPuntual
+        fechaYmd: fechaYmd != null && fechaYmd !== '' ? fechaYmd : fechaPuntual,
+        fechaPuntual: fechaPuntual != null && fechaPuntual !== '' ? fechaPuntual : fechaYmd
     });
 
     const nuevoBloque = {

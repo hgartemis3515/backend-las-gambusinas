@@ -382,7 +382,7 @@ tailwind.config = {
  <span x-show="getMontoDescuentoGrupo(row) > 0" class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + getMontoDescuentoGrupo(row).toFixed(2)"></span>
  </template>
  <template x-if="row.tipo === 'individual'">
- <span x-text="'S/. ' + Number(row.comanda.totalCalculado || row.comanda.total || 0).toFixed(2)"></span>
+ <span x-text="'S/. ' + Number(totalNetoComanda(row.comanda)).toFixed(2)"></span>
  <span x-show="Number(row.comanda.montoDescuento) > 0" class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(row.comanda.montoDescuento || 0).toFixed(2)"></span>
  </template>
  </td>
@@ -479,7 +479,7 @@ tailwind.config = {
  </td>
  <!-- Total -->
  <td class="px-3 py-2 text-sm text-gold/80 text-right">
- <span x-text="'S/. ' + Number(comanda.totalCalculado || comanda.total || 0).toFixed(2)"></span>
+ <span x-text="'S/. ' + Number(totalNetoComanda(comanda)).toFixed(2)"></span>
  <span x-show="Number(comanda.montoDescuento) > 0" class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(comanda.montoDescuento || 0).toFixed(2)"></span>
  </td>
  <!-- Estado -->
@@ -1032,7 +1032,7 @@ tailwind.config = {
  <tr class="border-t-2 border-[rgba(212,175,55,0.25)] bg-[#12121a]">
  <td class="px-4 py-3 font-bold text-xs uppercase" colspan="2">TOTAL</td>
  <td class="px-3 py-3 text-right text-xs text-[#5a5a7a]" x-text="(selectedComanda?.items || []).filter(i => !i.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
- <td class="px-3 py-3 text-right text-[#d4af37] font-bold text-lg" x-text="'S/. ' + Number(selectedComanda?.totalCalculado || selectedComanda?.total || 0).toFixed(2)"></td>
+ <td class="px-3 py-3 text-right text-[#d4af37] font-bold text-lg" x-text="'S/. ' + Number(totalNetoComanda(selectedComanda)).toFixed(2)"></td>
  <td colspan="4"></td>
  </tr>
  <tr x-show="selectedComanda?.metodoPago === 'efectivo' && (selectedComanda?.montoRecibido != null || selectedComanda?.vuelto != null)">
@@ -1328,7 +1328,7 @@ tailwind.config = {
  </tr>
  <tr x-show="Number(comanda.montoDescuento) > 0" class="bg-[#12121a]/50">
  <td class="px-4 py-2 font-bold text-xs uppercase" colspan="3">TOTAL</td>
- <td class="px-3 py-2 text-right text-[#d4af37] font-bold" x-text="'S/. ' + Number(comanda.totalCalculado || comanda.total || 0).toFixed(2)"></td>
+ <td class="px-3 py-2 text-right text-[#d4af37] font-bold" x-text="'S/. ' + Number(totalNetoComanda(comanda)).toFixed(2)"></td>
  <td></td>
  </tr>
  </tfoot>
@@ -2166,7 +2166,7 @@ tailwind.config = {
  </div>
  </div>
  <div class="flex items-center gap-3">
- <span class="text-gold font-semibold text-sm" x-text="'S/. ' + (comanda.total || 0).toFixed(2)"></span>
+ <span class="text-gold font-semibold text-sm" x-text="'S/. ' + Number(totalNetoComanda(comanda)).toFixed(2)"></span>
  <button @click="openEditModal(comanda)" class="px-3 py-1.5 bg-gold/20 text-gold border border-gold/40 rounded-lg text-xs font-medium hover:bg-gold/30 transition flex items-center gap-1">
  <span>✏️</span> Editar
  </button>
@@ -2244,7 +2244,7 @@ tailwind.config = {
  </tr>
  <tr x-show="Number(comanda.montoDescuento) > 0" class="bg-[#12121a]/50">
  <td class="px-4 py-2 font-bold text-xs uppercase" colspan="3">TOTAL</td>
- <td class="px-3 py-2 text-right text-[#d4af37] font-bold" x-text="'S/. ' + Number(comanda.totalCalculado || comanda.total || 0).toFixed(2)"></td>
+ <td class="px-3 py-2 text-right text-[#d4af37] font-bold" x-text="'S/. ' + Number(totalNetoComanda(comanda)).toFixed(2)"></td>
  <td colspan="3"></td>
  </tr>
  </tfoot>
@@ -3979,6 +3979,15 @@ this.modal = null;
  const brutoMostrar = (hayEliminados && brutoGuardado > 0 && pt > 0 && Math.abs(pt - totalActivos) > 0.05)
    ? Number((brutoGuardado * (totalActivos / pt)).toFixed(2))
    : (brutoGuardado || totalActivos || totalNeto + md);
+ if (hayDesc && md > 0) {
+   const bruto = Number(brutoMostrar || totalActivos || pt || 0);
+   const netoEsperado = Number(Math.max(0, bruto - md).toFixed(2));
+   if (Number.isFinite(tcRaw) && Math.abs(tcRaw - netoEsperado) <= 0.06) {
+     totalNeto = Number(tcRaw.toFixed(2));
+   } else if (bruto > 0) {
+     totalNeto = netoEsperado;
+   }
+ }
 
  const factorIgv = this.factorIgvParaComanda(totalActivos, brutoGuardado);
  if (Math.abs(factorIgv - 1) > 0.001) {
@@ -4520,13 +4529,7 @@ mesaNum: grupo.mesaNum,
 mesaObj: grupo.mesaObj, // Objeto mesa completo para nombreCombinado
 comandas: grupo.comandas,
 numComandas: grupo.comandas.length,
-totalAgrupado: grupo.comandas.reduce((sum, c) => {
-  const md = Number(c.montoDescuento) || 0;
-  const tc = Number(c.totalCalculado);
-  if (md > 0 && Number.isFinite(tc) && tc >= 0) return sum + tc;
-  const tot = Number(c.total);
-  return sum + ((tc > 0 ? tc : 0) || (tot > 0 ? tot : 0) || 0);
-}, 0),
+totalAgrupado: grupo.comandas.reduce((sum, c) => sum + this.totalNetoComanda(c), 0),
 totalPlatos: grupo.comandas.reduce((sum, c) => sum + (c.items || []).filter(i => !i.eliminado).length, 0),
 estadoGrupo: this.calcularEstadoGrupo(grupo.comandas),
 mozosUnicos: [...new Set(grupo.comandas.map(c => c.mozo))],
@@ -4722,7 +4725,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
     const hit = (c.platos || []).some((p) => !p.eliminado && String(p.nombre || '').toLowerCase().includes(q));
     if (!hit) return false;
   }
-  const total = Number(c.totalCalculado || c.total || 0);
+  const total = this.totalNetoComanda(c);
   const tmin = this.numFiltro(this.filterTotalMin);
   const tmax = this.numFiltro(this.filterTotalMax);
   if (tmin != null && total < tmin) return false;
@@ -5897,6 +5900,27 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  if (!grupo?.comandas?.length) return 0;
  return grupo.comandas.reduce((sum, c) => sum + (c.montoDescuento || 0), 0);
  },
+ /** Total a mostrar en tabla: con descuento es neto (bruto − monto), incluido 0. */
+ totalNetoComanda(c) {
+  if (!c) return 0;
+  const md = Number(c.montoDescuento) || 0;
+  const sin = Number(c.totalSinDescuento) || 0;
+  const tc = c.totalCalculado != null ? Number(c.totalCalculado) : NaN;
+  const tot = Number(c.total);
+  const bruto = sin > 0 ? sin : (Number.isFinite(tot) && tot > 0 ? tot : 0);
+  if (md > 0) {
+    const netoEsperado = Number(Math.max(0, (bruto || 0) - md).toFixed(2));
+    if (Number.isFinite(tc) && tc >= 0 && (bruto <= 0 || Math.abs(tc - netoEsperado) <= 0.06 || tc < bruto - 0.009)) {
+      return Number(tc.toFixed(2));
+    }
+    if (bruto > 0) return netoEsperado;
+    if (Number.isFinite(tc) && tc >= 0) return Number(tc.toFixed(2));
+    return 0;
+  }
+  if (Number.isFinite(tc) && tc > 0) return Number(tc.toFixed(2));
+  if (Number.isFinite(tot) && tot > 0) return Number(tot.toFixed(2));
+  return 0;
+ },
 
  grupoTodoPagado(grupo) {
  if (!grupo?.comandas?.length) return false;
@@ -5950,6 +5974,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  comanda.motivoDescuento = motivoFinal;
  comanda.montoDescuento = res.descuentoAplicado?.montoDescuento != null ? res.descuentoAplicado.montoDescuento : (montos ? montos[i] : (comanda.total || 0) * pct / 100);
  comanda.totalCalculado = res.descuentoAplicado?.totalCalculado != null ? res.descuentoAplicado.totalCalculado : comanda.totalCalculado;
+ if (comanda.totalCalculado != null) comanda.total = comanda.totalCalculado;
  exitosos++;
  }
  } catch (e) { console.error(e); }
@@ -6189,6 +6214,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  this.editComanda.motivoDescuento = motivoFinal;
  this.editComanda.totalCalculado = res.descuentoAplicado?.totalCalculado != null ? res.descuentoAplicado.totalCalculado : this.calcularTotalEdit() * (1 - pct / 100);
  this.editComanda.montoDescuento = res.descuentoAplicado?.montoDescuento != null ? res.descuentoAplicado.montoDescuento : this.calcularTotalEdit() * pct / 100;
+ this.editComanda.total = this.editComanda.totalCalculado;
 
  const detalleActualizado = await this.loadComandaDetalle(this.editComanda._id);
  if (detalleActualizado) {
@@ -6197,6 +6223,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  descuento: detalleActualizado.descuento,
  motivoDescuento: detalleActualizado.motivoDescuento,
  totalCalculado: detalleActualizado.totalCalculado,
+ total: detalleActualizado.totalCalculado,
+ totalSinDescuento: detalleActualizado.totalSinDescuento,
  montoDescuento: detalleActualizado.montoDescuento,
  descuentoAplicadoPor: detalleActualizado.descuentoAplicadoPor,
  descuentoAplicadoAt: detalleActualizado.descuentoAplicadoAt

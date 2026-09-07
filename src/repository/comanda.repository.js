@@ -941,6 +941,8 @@ const agregarComanda = async (data) => {
     }
     if (plato.estado !== 'pendiente') {
       plato.tiempos.pedido = ahora;
+    } else {
+      plato.tiempos.pedido = null;
     }
     if (plato.estado === 'en_espera') {
       plato.tiempos.en_espera = ahora;

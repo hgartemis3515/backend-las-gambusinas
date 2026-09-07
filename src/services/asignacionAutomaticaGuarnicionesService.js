@@ -28,6 +28,7 @@ const Mozos = mongoose.model('mozos') || require('../database/models/mozos.model
 const { getCocineroInfo } = require('../utils/cocineroInfo');
 const { elegirBloqueActivo } = require('../utils/asignacionCalendarioFranjas');
 const { esComplementoVariante } = require('../utils/variantePlato');
+const { platoRetenidoFueraDeCocina } = require('../utils/platoListoCocinaKds');
 
 const ESTADOS_EN_CURSO = ['pedido', 'en_espera'];
 const TZ = 'America/Lima';
@@ -489,6 +490,10 @@ async function asignarGuarnicionesNuevasEjecutar(comandaPop) {
             return { asignados: 0, noAsignados: 0, motivo: 'deshabilitada' };
         }
 
+        if (comandaPop.programadaPorReserva === true) {
+            return { asignados: 0, noAsignados: 0, motivo: 'programada_reserva' };
+        }
+
         const { perfil, motivo } = resolverPerfilActivo(config);
         if (!perfil) {
             return { asignados: 0, noAsignados: 0, motivo };
@@ -506,6 +511,7 @@ async function asignarGuarnicionesNuevasEjecutar(comandaPop) {
         for (let pi = 0; pi < comandaPop.platos.length; pi++) {
             const plato = comandaPop.platos[pi];
             if (plato.eliminado || plato.anulado) continue;
+            if (platoRetenidoFueraDeCocina(plato)) continue;
             if (platoUneComplementos(plato)) continue;
             const comps = plato.complementosSeleccionados || [];
             if (!comps.length) continue;

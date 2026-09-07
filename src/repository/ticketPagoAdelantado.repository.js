@@ -250,8 +250,12 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
             plato.pagoAdelantado.estadoTicket = 'aprobado';
             if (plato.estado === 'pedido') {
               plato.estado = 'en_espera';
-              if (!plato.tiempos) plato.tiempos = {};
-              plato.tiempos.en_espera = ahoraTs;
+            }
+            if (!plato.tiempos) plato.tiempos = {};
+            plato.tiempos.pedido = ahoraTs;
+            plato.tiempos.en_espera = ahoraTs;
+            if (plato.procesandoPor?.cocineroId) {
+              plato.procesandoPor.timestamp = ahoraTs;
             }
             modificadoLocal = true;
             liberadosLocal.push({

@@ -191,11 +191,13 @@ const crearBloque = async (bloque, modificadoPor) => {
 
     validarHorarioFranja(bloque.horaInicio, bloque.horaFin);
 
+    const ymd = (bloque.fechaYmd != null && bloque.fechaYmd !== '')
+        ? bloque.fechaYmd
+        : ((bloque.fechaPuntual != null && bloque.fechaPuntual !== '') ? bloque.fechaPuntual : null);
     const camposFecha = prepararCamposBloqueCalendario({
         diasSemana: bloque.diasSemana,
-        fechaYmd: Object.prototype.hasOwnProperty.call(bloque, 'fechaYmd')
-            ? bloque.fechaYmd
-            : (Object.prototype.hasOwnProperty.call(bloque, 'fechaPuntual') ? bloque.fechaPuntual : null)
+        fechaYmd: ymd,
+        fechaPuntual: ymd
     });
 
     const nuevoBloque = {

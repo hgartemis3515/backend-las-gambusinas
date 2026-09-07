@@ -102,31 +102,40 @@ const asegurarComandaReservaEnKds = async (comanda, logLabel) => {
     if (!debeActivar && !comanda.programadaPorReserva) {
         return comanda;
     }
+    const ahora = moment.tz('America/Lima').toDate();
     let platosModificados = 0;
     (comanda.platos || []).forEach((p) => {
+        if (p.eliminado || p.anulado) return;
         if (p.estado === 'pendiente') {
             p.estado = 'pedido';
-            if (!p.tiempos) p.tiempos = {};
-            if (!p.tiempos.pedido) {
-                p.tiempos.pedido = moment.tz('America/Lima').toDate();
-            }
             platosModificados++;
+        }
+        if (!p.tiempos) p.tiempos = {};
+        p.tiempos.pedido = ahora;
+        if (p.procesandoPor && p.procesandoPor.cocineroId) {
+            p.procesandoPor.timestamp = ahora;
+        }
+        if (p.asignacionMeta) {
+            p.asignacionMeta.timestamp = ahora;
         }
         (p.complementosSeleccionados || []).forEach((c) => {
             if (!c.estadoCocina || c.estadoCocina === 'pendiente') {
                 c.estadoCocina = 'pedido';
+            }
+            if (c.procesandoPor && c.procesandoPor.cocineroId) {
+                c.procesandoPor.timestamp = ahora;
             }
         });
     });
     comanda.programadaPorReserva = false;
     comanda.prioridadOrden = Date.now();
     comanda.origenCreacion = comanda.origenCreacion || 'reserva';
-    if (platosModificados > 0) comanda.markModified('platos');
+    comanda.markModified('platos');
     await comanda.save();
     logger.info(logLabel, {
         comandaId: comanda._id,
         comandaNumber: comanda.comandaNumber,
-        platosModificados
+        platosAPedido: platosModificados
     });
     await aplicarAsignacionAutomaticaReserva(comanda._id);
     if (global.emitComandaActualizada) {

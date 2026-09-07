@@ -47,6 +47,7 @@ const Mozos = mongoose.model('mozos') || require('../database/models/mozos.model
 const { getCocineroInfo } = require('../utils/cocineroInfo');
 const { topePositivo, bumpCargaCache, encolarAsignacionKds } = require('../utils/asignacionAutomaticaCupos');
 const { elegirSiguienteBackup } = require('../utils/elegirSiguienteBackup');
+const { platoRetenidoFueraDeCocina } = require('../utils/platoListoCocinaKds');
 const {
     reglaEfectivaParaAsignar,
     indiceTurnoComanda,
@@ -565,6 +566,10 @@ async function asignarPlatosNuevosEjecutar(comanda) {
     try {
         if (!comanda || !comanda.platos || comanda.platos.length === 0) return { asignados: 0, noAsignados: 0 };
 
+        if (comanda.programadaPorReserva === true) {
+            return { asignados: 0, noAsignados: 0, motivo: 'programada_reserva' };
+        }
+
         const configRaw = await AsignacionAutomatica.obtenerConfiguracion();
         const config = configRaw && typeof configRaw.toObject === 'function' ? configRaw.toObject() : configRaw;
         if (!config.habilitada) return { asignados: 0, noAsignados: 0, motivo: 'deshabilitada' };
@@ -573,7 +578,8 @@ async function asignarPlatosNuevosEjecutar(comanda) {
         const platosAsignables = comanda.platos.filter(p =>
             ['pedido', 'en_espera'].includes(p.estado) &&
             !(p.procesandoPor && p.procesandoPor.cocineroId) &&
-            !p.eliminado
+            !p.eliminado &&
+            !platoRetenidoFueraDeCocina(p)
         );
         if (platosAsignables.length === 0) return { asignados: 0, noAsignados: 0 };
 
