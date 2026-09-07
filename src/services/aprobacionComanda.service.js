@@ -940,6 +940,40 @@ async function actualizarTicketUnificado(ticketId, tipoHint, data) {
   return { ticket: out.ticket, comandasAfectadas: out.comandasAfectadas || [], tipo: 'ADELANTADO' };
 }
 
+async function registrarAuditoriaTicketAnulado({ ticket, tipo, motivo, usuarioId, usuarioNombre }) {
+  try {
+    const uid = usuarioId && mongoose.Types.ObjectId.isValid(String(usuarioId)) ? usuarioId : null;
+    await AuditoriaAcciones.create({
+      accion: 'TICKET_ANULADO_COCINA',
+      entidadId: ticket?._id || null,
+      entidadTipo: 'comanda',
+      usuario: uid,
+      usuarioNombre: usuarioNombre || 'Cocina',
+      datosAntes: {
+        isActive: true,
+        estado: ticket?.estado,
+        ticketNumber: ticket?.ticketNumber,
+        tipo,
+      },
+      datosDespues: {
+        isActive: false,
+        estado: ticket?.estado,
+        ticketNumber: ticket?.ticketNumber,
+      },
+      motivo,
+      metadata: {
+        tipo,
+        duplicado: true,
+        ticketNumber: ticket?.ticketNumber,
+        mesaId: ticket?.mesa,
+        comandas: ticket?.comandas,
+      },
+    });
+  } catch (e) {
+    logger.warn('Auditoría ticket anulado falló', { error: e.message, ticketId: ticket?._id });
+  }
+}
+
 /**
  * Eliminar ticket. Si duplicado=true, solo lo saca de la tabla/totales (isActive=false).
  * Pendiente no duplicado: COMANDA revierte platos; ADELANTADO rechaza.
@@ -953,6 +987,13 @@ async function eliminarTicketUnificado(ticketId, tipoHint, motivo, usuarioId, us
     const result = await anularTicketDuplicadoEnModelo(
       model, ticketId, motivo, usuarioNombre
     );
+    await registrarAuditoriaTicketAnulado({
+      ticket: result.ticket,
+      tipo: tipoReal,
+      motivo,
+      usuarioId,
+      usuarioNombre,
+    });
     return { ...result, tipo: tipoReal };
   }
 

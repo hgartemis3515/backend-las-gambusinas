@@ -414,7 +414,7 @@ tailwind.config = {
               class="accent-gold w-3.5 h-3.5 mt-0.5"
               :checked="formPlato.juntarGuarnicionesEntreVariantes === true"
               @change="formPlato.juntarGuarnicionesEntreVariantes = $event.target.checked">
-            <span>Juntar la misma guarnición entre variaciones MIX. Si hay 6 CAFÉ y 4 TÉ con jugo de papaya, en Ver cocina completa sale jugo ×10 (no 6+4). El plato principal sigue separado (CAFÉ / TÉ).</span>
+            <span>Juntar la misma guarnición entre variaciones MIX. Si hay 6 CAFÉ y 4 TÉ con jugo de papaya, en Ver cocina completa sale jugo ×10 (no 6+4). El plato referencial es el nombre del plato (DCH), no CAFÉ/TÉ. El principal sigue separado (CAFÉ / TÉ).</span>
           </label>
           <label class="flex items-start gap-2 cursor-pointer text-[11px]" :class="formPlato.requiereNumeroSerie ? 'text-gold' : 'text-txt-muted'">
             <input type="checkbox"
