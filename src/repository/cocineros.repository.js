@@ -16,7 +16,7 @@ const {
     listoEnPlato,
     tiempoPrepPlatoSegundos
 } = require('../utils/tiemposPrepPlato');
-const { nombresRolesElegiblesAsignacionAutomatica } = require('../utils/rolesAsignacionKds');
+const { ROLES_EXCLUIDOS_ASIGNACION_KDS } = require('../utils/rolesAsignacionKds');
 const { matchComandaAbiertaEnTabla } = require('../utils/estadisticasComandas');
 const {
     cantidadUnidadesPlato,
@@ -288,14 +288,14 @@ function calcularMetricasComandaCocina(platos) {
 
 /**
  * Listar usuarios KDS.
- * Por defecto solo `rol: cocinero`. Con `paraAsignacionKds` también roles con
- * permiso `asignacion-automatica-kds` (supervisor/admin por defecto; personalizados en roles.html).
+ * Por defecto solo `rol: cocinero`. Con `paraAsignacionKds` todos menos
+ * mozos, cajeros y capitán de mozos (admin, supervisor, cocinero y roles custom).
  */
 async function obtenerCocineros(filtros = {}) {
     try {
         const query = {};
         if (filtros.paraAsignacionKds) {
-            query.rol = { $in: await nombresRolesElegiblesAsignacionAutomatica() };
+            query.rol = { $nin: ROLES_EXCLUIDOS_ASIGNACION_KDS };
         } else {
             query.rol = 'cocinero';
         }

@@ -308,7 +308,7 @@ tailwind.config = {
               <p x-show="grupo.esVariantePlato && grupo.deshabilitarSumaVariante" class="text-[10px] text-gold/90 mb-2 leading-snug">Ejemplo pan solo: 4 TÉ + 2 CAFÉ = 6. Si hay 1 arroz y 2 papas fijas → 6 arroz y 12 papas. En cocina salen TÉ x4, CAFÉ x2 y esas guarniciones.</p>
               <p x-show="grupo.anexarVarianteAlNombre && !grupo.esVariantePlato" class="text-[10px] text-gold/90 mb-2 leading-snug">Habilita <b>variación de nombre</b>: el mozo elige una opción (ej. Pierna) y en cocina el plato se llama <b>nombre + opción</b> (Pollo leña Pierna). No entra a la lista de guarniciones ni a su asignación. No uses MIX en el mismo grupo.</p>
               <p x-show="grupo.forzarVisibleTablaKds && !grupo.esVariantePlato && !grupo.anexarVarianteAlNombre" class="text-[10px] text-gold/90 mb-2 leading-snug">Omite <b>Ocultar complementos / guarniciones</b> de la vista KDS: si el mozo elige esta guarnición, <b>sí o sí se ve</b> en la tabla (bajo el plato o en su fila).</p>
-              <p x-show="grupo.seleccionFija && !grupo.esVariantePlato && !grupo.anexarVarianteAlNombre" class="text-[10px] text-gold/90 mb-2 leading-snug">El mozo <b>no elige</b> este grupo. Al tocar el plato se marcan las opciones de abajo con su cantidad. Si no marcas ninguna, van todas.</p>
+              <p x-show="grupo.seleccionFija && !grupo.esVariantePlato && !grupo.anexarVarianteAlNombre" class="text-[10px] text-gold/90 mb-2 leading-snug">El mozo <b>no elige</b> este grupo al agregar. Al tocar el plato se marcan las opciones de abajo. También se activa <b>Plato editable</b>: en la lista de Órdenes puede cambiar esas guarniciones con el lápiz. Si no marcas ninguna opción, van todas.</p>
 
               <!-- NUEVA CONFIGURACIÓN DE CANTIDADES v2.0 -->
               <div class="mb-3 p-2 bg-bg-card rounded-lg border border-[rgba(212,175,55,0.1)]">
@@ -429,6 +429,13 @@ tailwind.config = {
               :checked="formPlato.kdsEstiloCompacto === true"
               @change="formPlato.kdsEstiloCompacto = $event.target.checked">
             <span>Tarjeta KDS compacta si la comanda es solo de este plato (p. ej. solo DCH). Menos padding y sin huecos entre letras y cuadros.</span>
+          </label>
+          <label class="flex items-start gap-2 cursor-pointer text-[11px]" :class="formPlato.platoEditable ? 'text-gold' : 'text-txt-muted'">
+            <input type="checkbox"
+              class="accent-gold w-3.5 h-3.5 mt-0.5"
+              :checked="formPlato.platoEditable === true"
+              @change="formPlato.platoEditable = $event.target.checked">
+            <span>Plato editable. En Órdenes, el plato se agrega rápido (Fijo en Órdenes) y en la lista de seleccionados aparece un lápiz para cambiar esas guarniciones.</span>
           </label>
           <label class="flex items-center gap-2 cursor-pointer text-[11px]" :class="formPlato.complementosAfectanPrecio ? 'text-gold' : 'text-txt-muted'">
             <input type="checkbox" x-model="formPlato.complementosAfectanPrecio" class="accent-gold w-3.5 h-3.5">
@@ -1047,6 +1054,7 @@ tailwind.config = {
       juntarGuarnicionesEntreVariantes: false,
       requiereNumeroSerie: false,
       kdsEstiloCompacto: false,
+      platoEditable: false,
       resumenComplementosImpresion: { mostrarCantidad: true, mostrarMontoExtra: true }
     },
     activeNav: 'platos',
@@ -1288,6 +1296,7 @@ tailwind.config = {
         juntarGuarnicionesEntreVariantes: false,
         requiereNumeroSerie: false,
         kdsEstiloCompacto: false,
+        platoEditable: false,
         resumenComplementosImpresion: { mostrarCantidad: true, mostrarMontoExtra: true },
         complementos: []
       };
@@ -1329,6 +1338,9 @@ tailwind.config = {
         juntarGuarnicionesEntreVariantes: !!p.juntarGuarnicionesEntreVariantes,
         requiereNumeroSerie: !!p.requiereNumeroSerie,
         kdsEstiloCompacto: !!p.kdsEstiloCompacto,
+        platoEditable: p.platoEditable === false
+          ? false
+          : (!!p.platoEditable || (p.complementos || []).some(g => g.seleccionFija === true)),
         resumenComplementosImpresion: {
           mostrarCantidad: p.resumenComplementosImpresion?.mostrarCantidad !== false,
           mostrarMontoExtra: p.resumenComplementosImpresion?.mostrarMontoExtra !== false
@@ -1483,6 +1495,7 @@ tailwind.config = {
         g.anexarVarianteAlNombre = false;
         g.deshabilitarSumaVariante = false;
         this.prepararGrupoSeleccionFija(g);
+        this.formPlato.platoEditable = true;
       }
       this.marcarCopiaComplementoPlato(gi);
     },
@@ -1709,6 +1722,9 @@ tailwind.config = {
           });
         }
       });
+      if (this.formPlato.complementos.some(g => g.seleccionFija === true)) {
+        this.formPlato.platoEditable = true;
+      }
       
       this.modalSelectorComplementos = false;
       this.showToast(this.selectedComplementosLib.length + ' complemento(s) agregado(s)');
@@ -2317,6 +2333,7 @@ tailwind.config = {
         juntarGuarnicionesEntreVariantes: !!this.formPlato.juntarGuarnicionesEntreVariantes,
         requiereNumeroSerie: !!this.formPlato.requiereNumeroSerie,
         kdsEstiloCompacto: !!this.formPlato.kdsEstiloCompacto,
+        platoEditable: !!this.formPlato.platoEditable,
         resumenComplementosImpresion: {
           mostrarCantidad: this.formPlato.resumenComplementosImpresion?.mostrarCantidad !== false,
           mostrarMontoExtra: this.formPlato.resumenComplementosImpresion?.mostrarMontoExtra !== false
@@ -2456,7 +2473,9 @@ tailwind.config = {
       if (!c) return '';
       const corto = String(c.pronombre || c.alias || '').trim();
       const nombre = String(c.nombre || '').trim();
-      return corto ? `${nombre} (${corto})` : nombre;
+      const base = corto ? `${nombre} (${corto})` : nombre;
+      const rol = String(c.rol || '').trim();
+      return rol && rol !== 'cocinero' ? `${base} · ${rol}` : base;
     },
 
     nombreCocineroAsig(id) {
@@ -2496,7 +2515,7 @@ tailwind.config = {
         const [asigRes, guarRes, cocRes] = await Promise.all([
           apiGet('/asignacion-automatica'),
           apiGet('/asignacion-automatica-guarniciones'),
-          apiGet('/cocineros')
+          apiGet('/cocineros?paraAsignacionKds=true')
         ]);
         this.configAsignacionPlato = asigRes?.data || null;
         this.perfilActivoPlatoAhora = asigRes?.perfilActivoAhora || null;
@@ -2507,7 +2526,8 @@ tailwind.config = {
           _id: String(c._id),
           nombre: c.nombre || c.name || '',
           alias: c.alias || c.aliasCocinero || '',
-          pronombre: String(c.configKDS?.pronombre || '').trim()
+          pronombre: String(c.configKDS?.pronombre || '').trim(),
+          rol: c.rol || ''
         }));
         this.perfilAsignacionPlatoId = this._perfilDefaultId(
           this.configAsignacionPlato, this.perfilActivoPlatoAhora, this.perfilAsignacionPlatoId
@@ -2803,7 +2823,7 @@ tailwind.config = {
         const [asigRes, guarRes, cocRes] = await Promise.all([
           apiGet('/asignacion-automatica'),
           apiGet('/asignacion-automatica-guarniciones'),
-          apiGet('/cocineros')
+          apiGet('/cocineros?paraAsignacionKds=true')
         ]);
         const cocineros = cocRes?.data || cocRes?.cocineros || (Array.isArray(cocRes) ? cocRes : []);
         const mapaCocinero = new Map();

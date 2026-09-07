@@ -157,6 +157,11 @@ describe('sanitizarConfigPerfilVerCocina', () => {
             timbreVolumen: 40,
             mozoNombreFondo: '#1d4ed8',
             headerTarjetaEstilo: 'dosFilas',
+            headerTarjetaOcultarPrep: true,
+            headerTarjetaTamano: 20,
+            headerTarjetaColor: '#fde68a',
+            headerTarjetaContorno: '#f59e0b',
+            headerTarjetaFondo: '#0f172a',
             token: 'x',
             nested: { a: 1 },
         });
@@ -173,6 +178,11 @@ describe('sanitizarConfigPerfilVerCocina', () => {
         expect(out.timbreVolumen).toBe(40);
         expect(out.mozoNombreFondo).toBe('#1d4ed8');
         expect(out.headerTarjetaEstilo).toBe('dosFilas');
+        expect(out.headerTarjetaOcultarPrep).toBe(true);
+        expect(out.headerTarjetaTamano).toBe(20);
+        expect(out.headerTarjetaColor).toBe('#fde68a');
+        expect(out.headerTarjetaContorno).toBe('#f59e0b');
+        expect(out.headerTarjetaFondo).toBe('#0f172a');
         expect(out.token).toBeUndefined();
         expect(out.nested).toBeUndefined();
     });

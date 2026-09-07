@@ -10,6 +10,13 @@ describe('seleccionFija en grupos de complemento', () => {
     expect(path.defaultValue).toBe(false);
   });
 
+  test('plato.platoEditable existe y default false', () => {
+    const path = Plato.schema.path('platoEditable');
+    expect(path).toBeTruthy();
+    expect(path.instance).toBe('Boolean');
+    expect(path.defaultValue).toBe(false);
+  });
+
   test('plantilla.seleccionFija existe y default false', () => {
     const path = ComplementoPlantilla.schema.path('seleccionFija');
     expect(path).toBeTruthy();

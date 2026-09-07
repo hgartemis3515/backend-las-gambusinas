@@ -100,7 +100,7 @@ router.get('/cocina/cocineros', adminAuth, checkPermission('ver-cocina-completo'
 /**
  * GET /api/cocineros
  * Listar cocineros con su configuración.
- * Query: activo=true|false, paraAsignacionKds=true (roles con permiso asignacion-automatica-kds).
+ * Query: activo=true|false, paraAsignacionKds=true (todos menos mozos/cajeros/capitanMozos).
  * Requiere permiso: ver-mozos
  */
 router.get('/cocineros', adminAuth, async (req, res) => {

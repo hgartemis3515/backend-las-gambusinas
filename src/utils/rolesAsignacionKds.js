@@ -1,42 +1,45 @@
 /**
- * Quién puede figurar en auto-asignación KDS de platos.
- * Permiso `asignacion-automatica-kds` (roles.html). Cocineros lo tienen por defecto.
+ * Quién puede figurar en auto-asignación KDS de platos (platos.html / cocineros.html).
+ * Todos los usuarios excepto roles de salón: mozos, cajeros y capitán de mozos.
+ * El permiso `asignacion-automatica-kds` queda documentado en roles.html; no filtra el listado.
  */
 
 const PERMISO_ASIGNACION_AUTOMATICA_KDS = 'asignacion-automatica-kds';
 
-/** Roles de sistema con el permiso (sin Mongo). Admin tiene todos. */
+const ROLES_EXCLUIDOS_ASIGNACION_KDS = ['mozos', 'cajero', 'capitanMozos'];
+
+/** Roles de sistema que siempre pueden asignarse (sin Mongo). */
 function rolesElegiblesAsignacionAutomaticaBase() {
     return ['cocinero', 'supervisor', 'admin'];
 }
 
+function esRolExcluidoAsignacionKds(rol) {
+    return ROLES_EXCLUIDOS_ASIGNACION_KDS.includes(String(rol || '').trim());
+}
+
 /**
- * Sistema: mapa estático (igual que el login JWT).
- * Personalizados: roles activos con `asignacion-automatica-kds`.
+ * Sistema + roles personalizados activos, menos salón (mozos / cajero / capitanMozos).
  */
 async function nombresRolesElegiblesAsignacionAutomatica() {
     const rolesModel = require('../database/models/roles.model');
-    const { ROLES_SISTEMA, PERMISOS_POR_ROL_SISTEMA } = rolesModel;
-
-    const porPermisoSistema = (ROLES_SISTEMA || []).filter((r) =>
-        (PERMISOS_POR_ROL_SISTEMA[r] || []).includes(PERMISO_ASIGNACION_AUTOMATICA_KDS)
-    );
+    const { ROLES_SISTEMA } = rolesModel;
 
     const custom = await rolesModel.find({
         activo: true,
-        esSistema: { $ne: true },
-        permisos: PERMISO_ASIGNACION_AUTOMATICA_KDS
+        esSistema: { $ne: true }
     }).select('nombre').lean();
 
     return [...new Set([
-        'cocinero',
-        ...porPermisoSistema,
+        ...rolesElegiblesAsignacionAutomaticaBase(),
+        ...(ROLES_SISTEMA || []),
         ...custom.map((r) => r.nombre).filter(Boolean)
-    ])];
+    ])].filter((r) => !esRolExcluidoAsignacionKds(r));
 }
 
 module.exports = {
     PERMISO_ASIGNACION_AUTOMATICA_KDS,
+    ROLES_EXCLUIDOS_ASIGNACION_KDS,
+    esRolExcluidoAsignacionKds,
     rolesElegiblesAsignacionAutomaticaBase,
     nombresRolesElegiblesAsignacionAutomatica
 };

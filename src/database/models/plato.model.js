@@ -117,6 +117,11 @@ const platoSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    // Órdenes: el mozo puede editar las guarniciones fijas desde la lista de seleccionados.
+    platoEditable: {
+        type: Boolean,
+        default: false
+    },
     // Sub-opciones del resumen (solo relevantes si mostrarTotalComplementosImpresion === true)
     resumenComplementosImpresion: {
         mostrarCantidad: { type: Boolean, default: true },   // "4 uds."

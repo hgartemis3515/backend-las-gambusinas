@@ -503,6 +503,8 @@ const crearPlato = async (data) => {
             || payload.requiereNumeroSerie === 'true';
         payload.kdsEstiloCompacto = payload.kdsEstiloCompacto === true
             || payload.kdsEstiloCompacto === 'true';
+        payload.platoEditable = payload.platoEditable === true
+            || payload.platoEditable === 'true';
         nuevo = await plato.create(payload);
     } catch (err) {
         if (err && err.code === 11000) {
@@ -579,6 +581,10 @@ const actualizarPlato = async (id, newData) => {
         clean.kdsEstiloCompacto = newData.kdsEstiloCompacto === true
             || newData.kdsEstiloCompacto === 'true';
     }
+    if (newData && typeof newData.platoEditable !== 'undefined') {
+        clean.platoEditable = newData.platoEditable === true
+            || newData.platoEditable === 'true';
+    }
     if (Object.prototype.hasOwnProperty.call(clean, 'complementos')) {
         clean.complementos = sanitizarComplementosParaGuardar(clean.complementos);
     }
@@ -605,6 +611,9 @@ const actualizarPlato = async (id, newData) => {
         }
         if (typeof clean.kdsEstiloCompacto !== 'undefined') {
             doc.set('kdsEstiloCompacto', !!clean.kdsEstiloCompacto);
+        }
+        if (typeof clean.platoEditable !== 'undefined') {
+            doc.set('platoEditable', !!clean.platoEditable);
         }
         if (Object.prototype.hasOwnProperty.call(clean, 'complementos')) {
             doc.set('complementos', clean.complementos);
