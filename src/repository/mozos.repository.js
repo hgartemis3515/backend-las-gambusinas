@@ -26,6 +26,9 @@ const crearMozo = async (data) => {
     if (data.colorPerfil !== undefined) {
         data.colorPerfil = sanitizarColorPerfil(data.colorPerfil);
     }
+    if (data.colorLetraPerfil !== undefined) {
+        data.colorLetraPerfil = sanitizarColorPerfil(data.colorLetraPerfil);
+    }
     await mozos.create(data);
     const todoslosmozos = await listarMozos();
     try {
@@ -74,6 +77,10 @@ const actualizarMozo = async (id, newData) => {
         if (newData.colorPerfil !== undefined) {
             mozo.colorPerfil = sanitizarColorPerfil(newData.colorPerfil);
             mozo.markModified('colorPerfil');
+        }
+        if (newData.colorLetraPerfil !== undefined) {
+            mozo.colorLetraPerfil = sanitizarColorPerfil(newData.colorLetraPerfil);
+            mozo.markModified('colorLetraPerfil');
         }
         if (newData.email !== undefined) mozo.email = newData.email;
         if (newData.fechaNacimiento !== undefined) mozo.fechaNacimiento = newData.fechaNacimiento;

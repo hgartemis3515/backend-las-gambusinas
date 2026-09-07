@@ -470,7 +470,7 @@ router.get('/comanda/historial-cocina', async (req, res) => {
                 mesas: 1,
                 platos: 1,
             })
-            .populate({ path: 'mozos', select: 'name DNI colorPerfil', options: { lean: true } })
+            .populate({ path: 'mozos', select: 'name DNI colorPerfil colorLetraPerfil', options: { lean: true } })
             .populate({ path: 'mesas', select: 'nummesa estado area nombreCombinado', options: { lean: true } })
             .populate({ path: 'platos.plato', select: 'nombre precio codigo nombreCocina', options: { lean: true } })
             .sort({ createdAt: -1 })
@@ -557,7 +557,7 @@ router.get('/comanda/:id', async (req, res) => {
         
         const comanda = await comandaModel
             .findById(id)
-            .populate('mozos', 'name DNI colorPerfil')
+            .populate('mozos', 'name DNI colorPerfil colorLetraPerfil')
             .populate('mesas', 'nummesa estado area nombreCombinado')
             .populate('cliente', 'nombre dni telefono tipo')
             .populate('platos.plato', 'nombre precio categoria')
@@ -2303,7 +2303,7 @@ router.put('/comanda/:id/prioridad', async (req, res) => {
             { prioridadOrden: prioridadOrden || 0, updatedAt: new Date() },
             { new: true }
         )
-        .populate('mozos', 'name DNI colorPerfil')
+        .populate('mozos', 'name DNI colorPerfil colorLetraPerfil')
         .populate('mesas', 'nummesa estado area nombreCombinado')
         .populate('platos.plato', 'nombre precio categoria')
         .lean();

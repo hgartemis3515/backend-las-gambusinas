@@ -119,6 +119,8 @@ const mozosSchema = new mongoose.Schema({
     fotoUrl: { type: String, default: '' },
     /** Color de fondo del recuadro detrás del nombre; vacío = sin color personalizado */
     colorPerfil: { type: String, default: '' },
+    /** Color de las letras del nombre en KDS y tablas de cocina; vacío = el de Vista y alertas */
+    colorLetraPerfil: { type: String, default: '' },
     email: { type: String, default: '' },
     fechaNacimiento: { type: Date, default: null },
     genero: { type: String, default: '' },

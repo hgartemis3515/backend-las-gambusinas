@@ -126,8 +126,8 @@ tailwind.config = {
                     <span x-show="!(m.fotoUrl || m.foto)" x-text="m.nombre?.charAt(0)?.toUpperCase() || '?'"></span>
                   </div>
                   <span class="font-medium"
-                    :class="colorHexUi(m.colorPerfil) ? 'px-1.5 py-0.5 rounded text-white' : ''"
-                    :style="colorHexUi(m.colorPerfil) ? `background:${colorHexUi(m.colorPerfil)}` : ''"
+                    :class="(colorHexUi(m.colorPerfil) || colorHexUi(m.colorLetraPerfil)) ? 'px-1.5 py-0.5 rounded' : ''"
+                    :style="estiloNombreUsuarioLista(m)"
                     x-text="m.nombre"></span>
                   <span x-show="m.pinAcceso" class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400" title="Clave App Cocina">🔒</span>
                 </div>
@@ -279,23 +279,45 @@ tailwind.config = {
         </div>
         <div>
           <label class="text-xs text-txt-secondary mb-1 block">Color de perfil</label>
-          <div class="flex items-center gap-3">
-            <input type="color"
-              :value="colorHexUi(formUsuario.colorPerfil) || '#808080'"
-              @input="onColorPerfilPickerInput($event)"
-              :class="colorHexUi(formUsuario.colorPerfil) ? '' : 'opacity-40'"
-              class="h-10 w-14 rounded border border-[rgba(212,175,55,0.25)] bg-bg-sidebar cursor-pointer">
-            <input type="text" x-model="formUsuario.colorPerfil" maxlength="7"
-              class="w-28 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm font-mono focus:border-gold focus:outline-none"
-              placeholder="Sin color">
-            <button type="button" class="text-[11px] text-txt-muted hover:text-gold underline"
-              @click="quitarColorPerfilUsuario()">Quitar</button>
-            <span class="text-xs font-semibold"
-              :class="colorHexUi(formUsuario.colorPerfil) ? 'px-2 py-1 rounded text-white' : 'text-txt-secondary'"
-              :style="colorHexUi(formUsuario.colorPerfil) ? `background:${colorHexUi(formUsuario.colorPerfil)}` : ''"
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <p class="text-[11px] text-txt-muted mb-1">Fondo</p>
+              <div class="flex items-center gap-2">
+                <input type="color"
+                  :value="colorHexUi(formUsuario.colorPerfil) || '#808080'"
+                  @input="onColorPerfilPickerInput($event)"
+                  :class="colorHexUi(formUsuario.colorPerfil) ? '' : 'opacity-40'"
+                  class="h-10 w-12 rounded border border-[rgba(212,175,55,0.25)] bg-bg-sidebar cursor-pointer">
+                <input type="text" x-model="formUsuario.colorPerfil" maxlength="7"
+                  class="w-24 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm font-mono focus:border-gold focus:outline-none"
+                  placeholder="Sin color">
+                <button type="button" class="text-[11px] text-txt-muted hover:text-gold underline"
+                  @click="quitarColorPerfilUsuario()">Quitar</button>
+              </div>
+            </div>
+            <div>
+              <p class="text-[11px] text-txt-muted mb-1">Letras</p>
+              <div class="flex items-center gap-2">
+                <input type="color"
+                  :value="colorHexUi(formUsuario.colorLetraPerfil) || '#ffffff'"
+                  @input="onColorLetraPickerInput($event)"
+                  :class="colorHexUi(formUsuario.colorLetraPerfil) ? '' : 'opacity-40'"
+                  class="h-10 w-12 rounded border border-[rgba(212,175,55,0.25)] bg-bg-sidebar cursor-pointer">
+                <input type="text" x-model="formUsuario.colorLetraPerfil" maxlength="7"
+                  class="w-24 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm font-mono focus:border-gold focus:outline-none"
+                  placeholder="Sin color">
+                <button type="button" class="text-[11px] text-txt-muted hover:text-gold underline"
+                  @click="quitarColorLetraUsuario()">Quitar</button>
+              </div>
+            </div>
+          </div>
+          <div class="mt-2">
+            <span class="text-xs font-semibold inline-flex px-2 py-1 rounded"
+              :class="(colorHexUi(formUsuario.colorPerfil) || colorHexUi(formUsuario.colorLetraPerfil)) ? '' : 'text-txt-secondary'"
+              :style="estiloPreviewNombreUsuario()"
               x-text="(formUsuario.nombre || 'Mozo') + (formUsuario.apellido ? ' ' + formUsuario.apellido : '')"></span>
           </div>
-          <p class="text-[11px] text-txt-muted mt-1">Vacío = el nombre se ve como siempre (sin recuadro extra). Si eliges un color, ese fondo aparece solo detrás del nombre en KDS, tickets y pagos adelantados. Si en Configuración se fuerza un solo color, este valor no se usa.</p>
+          <p class="text-[11px] text-txt-muted mt-1">El fondo y las letras se ven en las tablas KDS, tickets y pagos adelantados. Vacío = se usa el estilo de Vista y alertas. Si en Configuración se fuerza un solo color de fondo, el fondo de aquí no se usa; las letras sí.</p>
         </div>
         <div x-show="puedeEditarClaveUniversal">
           <label class="text-xs text-txt-secondary mb-1 block">Clave universal admin <span class="text-txt-muted">(todos los admin)</span></label>
@@ -482,6 +504,7 @@ function usuariosApp() {
     claveUniversalOriginal: '',
     puedeEditarClaveUniversal: false,
     _colorPerfilClearing: false,
+    _colorLetraClearing: false,
     formUsuario: {
       _id: null,
       nombre: '',
@@ -499,7 +522,8 @@ function usuariosApp() {
       createdAt: null,
       updatedAt: null,
       ultimoAcceso: null,
-      colorPerfil: ''
+      colorPerfil: '',
+      colorLetraPerfil: ''
     },
     mostrarPermisos: false,
     
@@ -673,6 +697,37 @@ function usuariosApp() {
       this.formUsuario.colorPerfil = '';
       setTimeout(() => { this._colorPerfilClearing = false; }, 150);
     },
+
+    onColorLetraPickerInput(ev) {
+      if (this._colorLetraClearing) return;
+      this.formUsuario.colorLetraPerfil = this.colorHexUi(ev?.target?.value);
+    },
+
+    quitarColorLetraUsuario() {
+      this._colorLetraClearing = true;
+      this.formUsuario.colorLetraPerfil = '';
+      setTimeout(() => { this._colorLetraClearing = false; }, 150);
+    },
+
+    estiloNombreUsuarioLista(m) {
+      const fondo = this.colorHexUi(m.colorPerfil);
+      const letra = this.colorHexUi(m.colorLetraPerfil);
+      const parts = [];
+      if (fondo) parts.push(`background:${fondo}`);
+      if (letra) parts.push(`color:${letra}`);
+      else if (fondo) parts.push('color:#ffffff');
+      return parts.join(';');
+    },
+
+    estiloPreviewNombreUsuario() {
+      const fondo = this.colorHexUi(this.formUsuario.colorPerfil);
+      const letra = this.colorHexUi(this.formUsuario.colorLetraPerfil);
+      const parts = [];
+      if (fondo) parts.push(`background:${fondo}`);
+      if (letra) parts.push(`color:${letra}`);
+      else if (fondo) parts.push('color:#ffffff');
+      return parts.join(';');
+    },
     
     getPermisosRol(rol) {
       const permisosRol = this.PERMISOS_POR_ROL[rol] || {};
@@ -785,7 +840,8 @@ function usuariosApp() {
         createdAt: null,
         updatedAt: null,
         ultimoAcceso: null,
-        colorPerfil: ''
+        colorPerfil: '',
+        colorLetraPerfil: ''
       };
       this.modal = true;
     },
@@ -822,7 +878,8 @@ function usuariosApp() {
         createdAt: m.createdAt || null,
         updatedAt: m.updatedAt || null,
         ultimoAcceso: m.ultimoAcceso || m.lastLogin || null,
-        colorPerfil: this.colorHexUi(m.colorPerfil)
+        colorPerfil: this.colorHexUi(m.colorPerfil),
+        colorLetraPerfil: this.colorHexUi(m.colorLetraPerfil)
       };
       this.modal = true;
     },
@@ -919,7 +976,8 @@ function usuariosApp() {
         rol: this.formUsuario.roles[0], // Rol principal (compatibilidad)
         activo: this.formUsuario.activo,
         dosFactores: this.formUsuario.dosFactores || false,
-        colorPerfil: this.colorHexUi(this.formUsuario.colorPerfil)
+        colorPerfil: this.colorHexUi(this.formUsuario.colorPerfil),
+        colorLetraPerfil: this.colorHexUi(this.formUsuario.colorLetraPerfil)
       };
       
       const fotoPreview = this.formUsuario.fotoPreview;

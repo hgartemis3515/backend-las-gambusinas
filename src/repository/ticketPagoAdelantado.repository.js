@@ -139,7 +139,7 @@ async function obtenerTicketPorId(ticketId) {
   const ticket = await ticketPagoAdelantadoModel.findById(ticketId)
     .populate('comandas', 'comandaNumber status platos mesas mozos descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado')
     .populate('mesa', 'nummesa estado nombreCombinado')
-    .populate('mozo', 'name colorPerfil')
+    .populate('mozo', 'name colorPerfil colorLetraPerfil')
     .populate('boucher')
     .populate('aprobadoPor', 'name')
     .lean();
@@ -164,7 +164,7 @@ async function obtenerTicketsPendientes(fecha) {
 
   const tickets = await ticketPagoAdelantadoModel.find(filter)
     .populate('mesa', 'nummesa estado nombreCombinado')
-    .populate('mozo', 'name colorPerfil')
+    .populate('mozo', 'name colorPerfil colorLetraPerfil')
     .populate('comandas', COMANDA_TICKET_LIST_SELECT)
     .populate('boucher', BOUCHER_DESCUENTO_SELECT)
     .sort({ createdAt: 1 })
@@ -186,7 +186,7 @@ async function obtenerTicketsPorFecha(fecha, fechaHasta) {
     isActive: true,
   })
     .populate('mesa', 'nummesa estado nombreCombinado')
-    .populate('mozo', 'name colorPerfil')
+    .populate('mozo', 'name colorPerfil colorLetraPerfil')
     .populate('comandas', `${COMANDA_TICKET_LIST_SELECT} eliminada fechaEliminacion`)
     .populate('boucher', BOUCHER_DESCUENTO_SELECT)
     .sort({ createdAt: -1 })
@@ -580,7 +580,7 @@ function clasificarComandaPorTipoServicio(platosActivos) {
 }
 
 const POPULATE_TICKET_LISTA = [
-  { path: 'mozo', select: 'name colorPerfil' },
+  { path: 'mozo', select: 'name colorPerfil colorLetraPerfil' },
   { path: 'comandas', select: `${COMANDA_TICKET_LIST_SELECT} eliminada fechaEliminacion` },
   { path: 'boucher', select: 'boucherNumber voucherId metodoPago montoDescuento descuentos totalSinDescuento' },
 ];

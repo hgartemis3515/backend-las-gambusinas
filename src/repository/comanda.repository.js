@@ -566,7 +566,7 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
     // Populate MÍNIMO: solo campos necesarios
     dbQuery = dbQuery.populate({
       path: "mozos",
-      select: "name DNI colorPerfil",
+      select: "name DNI colorPerfil colorLetraPerfil",
       options: { lean: true }
     });
     dbQuery = dbQuery.populate({
@@ -2779,7 +2779,7 @@ const listarComandaPorFechaEntregado = async (fecha, usarProyeccion = true) => {
     // Populate MÍNIMO: solo campos necesarios para la UI
     query = query.populate({
       path: "mozos",
-      select: "name DNI colorPerfil",
+      select: "name DNI colorPerfil colorLetraPerfil",
       options: { lean: true }
     });
     query = query.populate({
@@ -2878,7 +2878,7 @@ const listarComandaPorFecha = async (fecha, usarProyeccion = true) => {
     // Populate mínimo
     query = query.populate({
       path: "mozos",
-      select: "name DNI colorPerfil",
+      select: "name DNI colorPerfil colorLetraPerfil",
       options: { lean: true }
     });
     query = query.populate({

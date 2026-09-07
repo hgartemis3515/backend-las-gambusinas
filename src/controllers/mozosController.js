@@ -26,6 +26,7 @@ const MOZO_SELF_PROFILE_KEYS = new Set([
   "contactoEmergenciaTelefono",
   "fotoUrl",
   "colorPerfil",
+  "colorLetraPerfil",
   "platosFavoritos",
 ]);
 
