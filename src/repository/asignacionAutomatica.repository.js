@@ -12,7 +12,7 @@ const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 const AsignacionAutomatica = require('../database/models/asignacionAutomatica.model');
 const logger = require('../utils/logger');
-const { validarHorarioFranja } = require('../utils/asignacionCalendarioFranjas');
+const { validarHorarioFranja, prepararCamposBloqueCalendario } = require('../utils/asignacionCalendarioFranjas');
 
 const obtenerConfiguracion = async () => {
     try {
@@ -216,7 +216,7 @@ const duplicarPerfil = async (perfilId, modificadoPor) => {
 
 // ============================ Calendario: bloques ============================
 
-const crearBloque = async ({ perfilId, diasSemana, horaInicio, horaFin, etiqueta = '', activo = true }, modificadoPor) => {
+const crearBloque = async ({ perfilId, diasSemana, horaInicio, horaFin, etiqueta = '', activo = true, fechaYmd = null }, modificadoPor) => {
     if (!perfilId) throw new Error('perfilId es requerido');
     const config = await AsignacionAutomatica.obtenerConfiguracion();
     const perfil = (config.perfiles || []).find(p => p.id === perfilId);
@@ -227,18 +227,13 @@ const crearBloque = async ({ perfilId, diasSemana, horaInicio, horaFin, etiqueta
     }
     validarHorarioFranja(horaInicio, horaFin);
 
-    // Alpine a veces envía días como strings ("4"); normalizar a enteros 0..6.
-    const diasNorm = Array.isArray(diasSemana)
-        ? [...new Set(diasSemana.map(d => Number(d)).filter(d => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b)
-        : [];
-    if (diasNorm.length === 0) {
-        throw new Error('diasSemana debe ser un array no vacío de enteros 0..6');
-    }
+    const camposFecha = prepararCamposBloqueCalendario({ diasSemana, fechaYmd });
 
     const nuevoBloque = {
         id: uuidv4(),
         perfilId,
-        diasSemana: diasNorm,
+        diasSemana: camposFecha.diasSemana,
+        fechaYmd: camposFecha.fechaYmd || null,
         horaInicio,
         horaFin,
         etiqueta: String(etiqueta).slice(0, 100),
@@ -275,12 +270,10 @@ const actualizarBloque = async (bloqueId, cambios, modificadoPor) => {
 
     const setObj = { actualizadoPor: modificadoPor };
     if (cambios.perfilId != null) setObj['calendario.bloques.$[b].perfilId'] = cambios.perfilId;
-    if (Array.isArray(cambios.diasSemana)) {
-        const diasNorm = [...new Set(cambios.diasSemana.map(d => Number(d)).filter(d => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b);
-        if (diasNorm.length === 0) throw new Error('diasSemana debe ser un array no vacío de enteros 0..6');
-        setObj['calendario.bloques.$[b].diasSemana'] = diasNorm;
-    } else if (cambios.diasSemana != null) {
-        throw new Error('diasSemana debe ser un array no vacío de enteros 0..6');
+    const camposFecha = prepararCamposBloqueCalendario(cambios, { exigirDias: false });
+    if (camposFecha.diasSemana) setObj['calendario.bloques.$[b].diasSemana'] = camposFecha.diasSemana;
+    if (Object.prototype.hasOwnProperty.call(camposFecha, 'fechaYmd')) {
+        setObj['calendario.bloques.$[b].fechaYmd'] = camposFecha.fechaYmd;
     }
     if (cambios.horaInicio != null) setObj['calendario.bloques.$[b].horaInicio'] = cambios.horaInicio;
     if (cambios.horaFin != null) setObj['calendario.bloques.$[b].horaFin'] = cambios.horaFin;

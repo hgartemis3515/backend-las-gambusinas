@@ -167,7 +167,10 @@ router.get('/comanda', async (req, res) => {
             req.query.incluirPagadas === 'true' ||
             req.query.incluirPagadas === '1' ||
             req.query.panelAdmin === 'true';
-        const data = await listarComanda(false, true, incluirPagadas);
+        const incluirEliminadas =
+            req.query.incluirEliminadas === 'true' ||
+            req.query.incluirEliminadas === '1';
+        const data = await listarComanda(incluirEliminadas, true, incluirPagadas);
         // Asegurar que siempre retornamos un array
         if (!Array.isArray(data)) {
             logger.warn('listarComanda no retornó un array', { type: typeof data, data });
@@ -467,7 +470,7 @@ router.get('/comanda/historial-cocina', async (req, res) => {
                 mesas: 1,
                 platos: 1,
             })
-            .populate({ path: 'mozos', select: 'name DNI', options: { lean: true } })
+            .populate({ path: 'mozos', select: 'name DNI colorPerfil', options: { lean: true } })
             .populate({ path: 'mesas', select: 'nummesa estado area nombreCombinado', options: { lean: true } })
             .populate({ path: 'platos.plato', select: 'nombre precio codigo nombreCocina', options: { lean: true } })
             .sort({ createdAt: -1 })
@@ -554,7 +557,7 @@ router.get('/comanda/:id', async (req, res) => {
         
         const comanda = await comandaModel
             .findById(id)
-            .populate('mozos', 'name DNI')
+            .populate('mozos', 'name DNI colorPerfil')
             .populate('mesas', 'nummesa estado area nombreCombinado')
             .populate('cliente', 'nombre dni telefono tipo')
             .populate('platos.plato', 'nombre precio categoria')
@@ -626,7 +629,7 @@ router.post('/comanda', async (req, res) => {
                 try {
                     const Comanda = mongoose.model('Comanda');
                     const comandaPop = await Comanda.findById(comandaCreadaId)
-                        .populate('platos.plato', 'id categoria tipo tipos nombre codigo complementosUnidosAlPlato')
+                        .populate('platos.plato', 'id categoria tipo tipos nombre codigo complementosUnidosAlPlato complementos')
                         .lean();
                     if (!comandaPop) {
                         logger.warn('Auto-asignación: comanda no encontrada al recargar', { comandaId: comandaCreadaId });
@@ -651,7 +654,7 @@ router.post('/comanda', async (req, res) => {
                         const asignacionGuarnicionesService = require('../services/asignacionAutomaticaGuarnicionesService');
                         // Recargar la comanda para ver los procesandoPor recién escritos por el motor de platos.
                         const comandaPostPlatos = await Comanda.findById(comandaCreadaId)
-                            .populate('platos.plato', 'id categoria tipo tipos nombre codigo complementosUnidosAlPlato')
+                            .populate('platos.plato', 'id categoria tipo tipos nombre codigo complementosUnidosAlPlato complementos')
                             .lean();
                         if (comandaPostPlatos) {
                             const resG = await asignacionGuarnicionesService.asignarGuarnicionesNuevas(comandaPostPlatos);
@@ -930,7 +933,7 @@ router.post('/comanda/desde-dashboard', adminAuth, checkPermission('crear-comand
                 try {
                     const Comanda = mongoose.model('Comanda');
                     const comandaPop = await Comanda.findById(comandaCreadaId)
-                        .populate('platos.plato', 'id categoria tipo tipos nombre codigo complementosUnidosAlPlato')
+                        .populate('platos.plato', 'id categoria tipo tipos nombre codigo complementosUnidosAlPlato complementos')
                         .lean();
                     if (!comandaPop) return;
                     const resultado = await asignacionAutomaticaService.asignarPlatosNuevos(comandaPop);
@@ -948,7 +951,7 @@ router.post('/comanda/desde-dashboard', adminAuth, checkPermission('crear-comand
                     try {
                         const asignacionGuarnicionesService = require('../services/asignacionAutomaticaGuarnicionesService');
                         const comandaPostPlatos = await Comanda.findById(comandaCreadaId)
-                            .populate('platos.plato', 'id categoria tipo tipos nombre codigo complementosUnidosAlPlato')
+                            .populate('platos.plato', 'id categoria tipo tipos nombre codigo complementosUnidosAlPlato complementos')
                             .lean();
                         if (comandaPostPlatos) {
                             const resG = await asignacionGuarnicionesService.asignarGuarnicionesNuevas(comandaPostPlatos);
@@ -2300,7 +2303,7 @@ router.put('/comanda/:id/prioridad', async (req, res) => {
             { prioridadOrden: prioridadOrden || 0, updatedAt: new Date() },
             { new: true }
         )
-        .populate('mozos', 'name DNI')
+        .populate('mozos', 'name DNI colorPerfil')
         .populate('mesas', 'nummesa estado area nombreCombinado')
         .populate('platos.plato', 'nombre precio categoria')
         .lean();

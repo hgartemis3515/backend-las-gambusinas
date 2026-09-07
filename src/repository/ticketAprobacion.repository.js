@@ -270,7 +270,7 @@ async function obtenerTicketsPorFecha(fecha, fechaHasta) {
     })
     .populate('mesa', 'nummesa estado nombreCombinado')
     .populate('mozo', 'name colorPerfil')
-    .populate('comandas', COMANDA_TICKET_LIST_SELECT)
+    .populate('comandas', `${COMANDA_TICKET_LIST_SELECT} eliminada fechaEliminacion`)
     .populate('boucher', BOUCHER_DESCUENTO_SELECT)
     .sort({ createdAt: -1 })
     .lean()
@@ -800,7 +800,7 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
 
 const POPULATE_TICKET_LISTA = [
   { path: 'mozo', select: 'name colorPerfil' },
-  { path: 'comandas', select: COMANDA_TICKET_LIST_SELECT },
+  { path: 'comandas', select: `${COMANDA_TICKET_LIST_SELECT} eliminada fechaEliminacion` },
   { path: 'boucher', select: 'boucherNumber voucherId metodoPago montoDescuento descuentos totalSinDescuento' },
 ];
 
@@ -897,10 +897,24 @@ async function eliminarTicketAdmin(ticketId, motivo, usuarioId, usuarioNombre) {
     err.statusCode = 404;
     throw err;
   }
-  if (ticket.estado !== 'pendiente_aprobacion') {
+  const { esComandaEliminada } = require('../utils/estadisticasComandas');
+  const comandasTicket = await comandaModel.find({ _id: { $in: ticket.comandas || [] } })
+    .select('eliminada fechaEliminacion status')
+    .lean();
+  const huerfano = comandasTicket.length > 0
+    && comandasTicket.every((c) => esComandaEliminada(c));
+  if (ticket.estado !== 'pendiente_aprobacion' && !huerfano) {
     const err = new Error(`No se puede eliminar un ticket en estado "${ticket.estado}"`);
     err.statusCode = 400;
     throw err;
+  }
+  if (huerfano && ticket.estado !== 'pendiente_aprobacion') {
+    ticket.isActive = false;
+    ticket.observaciones = ticket.observaciones
+      ? `${ticket.observaciones}\n[Anulado admin (comanda eliminada): ${motivoLimpio}]`
+      : `[Anulado admin (comanda eliminada): ${motivoLimpio}]`;
+    await ticket.save();
+    return { ticket, comandasAfectadas: [] };
   }
 
   const platosSnapshotIds = new Set(

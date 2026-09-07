@@ -740,6 +740,19 @@ tailwind.config = {
                 <span class="text-xs font-semibold px-2 py-1 rounded text-white"
                   :style="`background:${config.cocinaColorMozoForzado || '#1e3a8a'}`">Mozo</span>
               </div>
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" x-model="config.cocinaIgnorarFondoVistaMozo" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+                <span class="text-sm text-txt-secondary">Quitar color de fondo forzado de los mozos en tablas KDS</span>
+              </label>
+              <p class="text-[10px] text-txt-muted pl-7">
+                Marcado: el encabezado de la tarjeta de comanda usa el color de perfil de Usuarios,
+                no el azul de Vista y alertas. Guarde esta página y recargue la app de cocina.
+              </p>
+              <button type="button"
+                @click="quitarFondoForzadoMozoKds()"
+                class="ml-7 text-xs font-semibold px-3 py-1.5 rounded-lg border border-[rgba(212,175,55,0.35)] text-gold hover:bg-[rgba(212,175,55,0.08)]">
+                Quitar fondo forzado y usar colores de Usuarios
+              </button>
             </div>
 
             <!-- PLAN GUARNICIONES_SEPARADAS v1.1: separar principal y guarniciones -->
@@ -1593,6 +1606,7 @@ function configApp() {
       cocinaEntregarPlatoEnteroAbsoluto: true,
       cocinaForzarColorMozoUnico: false,
       cocinaColorMozoForzado: '#1e3a8a',
+      cocinaIgnorarFondoVistaMozo: false,
       sesionesSimultaneas: 3,
       timeoutInactividadMin: 30,
       requiere2fa: false,
@@ -1856,6 +1870,7 @@ function configApp() {
             this.config.cocinaEntregarPlatoEnteroAbsoluto = cfg.cocina.entregarPlatoEnteroAbsoluto !== false;
             this.config.cocinaForzarColorMozoUnico = cfg.cocina.forzarColorMozoUnico === true;
             this.config.cocinaColorMozoForzado = this.colorHexMozo(cfg.cocina.colorMozoForzado);
+            this.config.cocinaIgnorarFondoVistaMozo = cfg.cocina.ignorarFondoVistaMozo === true;
             // PLAN GUARNICIONES_SEPARADAS v1.1: flag global + umbrales de tiempos.
             this.config.cocinaPermitirGuarnicionesSeparadas = cfg.cocina.permitirGuarnicionesSeparadas !== false;
             this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones = cfg.cocina.deshabilitarOrdenSecuencialGuarniciones !== false;
@@ -1875,6 +1890,7 @@ function configApp() {
             this.config.cocinaEntregarPlatoEnteroAbsoluto = true;
             this.config.cocinaForzarColorMozoUnico = false;
             this.config.cocinaColorMozoForzado = '#1e3a8a';
+            this.config.cocinaIgnorarFondoVistaMozo = false;
             this.config.cocinaPermitirGuarnicionesSeparadas = true;
             this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones = true;
             this.config.cocinaDeshabilitarAgrupacionGuarniciones = false;
@@ -2055,6 +2071,7 @@ function configApp() {
             entregarPlatoEnteroAbsoluto: this.config.cocinaEntregarPlatoEnteroAbsoluto !== false,
             forzarColorMozoUnico: this.config.cocinaForzarColorMozoUnico === true,
             colorMozoForzado: this.colorHexMozo(this.config.cocinaColorMozoForzado),
+            ignorarFondoVistaMozo: this.config.cocinaIgnorarFondoVistaMozo === true,
             // PLAN GUARNICIONES_SEPARADAS v1.1
             permitirGuarnicionesSeparadas: this.config.cocinaPermitirGuarnicionesSeparadas !== false,
             deshabilitarOrdenSecuencialGuarniciones: this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones !== false,
@@ -2174,6 +2191,11 @@ function configApp() {
       });
     },
     
+    quitarFondoForzadoMozoKds() {
+      this.config.cocinaForzarColorMozoUnico = false;
+      this.config.cocinaIgnorarFondoVistaMozo = true;
+    },
+
     colorHexMozo(v) {
       const s = String(v || '').trim();
       const h = s.startsWith('#') ? s : `#${s}`;

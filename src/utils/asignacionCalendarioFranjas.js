@@ -1,13 +1,17 @@
 /**
- * Calendario semanal de asignación automática (platos y guarniciones).
+ * Calendario de asignación automática (platos y guarniciones).
  * Zona horaria de runtime: America/Lima. Días: moment.day() 0=Dom … 6=Sáb.
  *
+ * Plantilla semanal: diasSemana + horaInicio/horaFin.
+ * Un día concreto: fechaYmd (YYYY-MM-DD en Lima) — no se repite cada semana.
+ *
  * Cruce de medianoche: horaFin < horaInicio (ej. 22:00–06:00).
- * diasSemana = días en que EMPIEZA el turno.
+ * diasSemana / fechaYmd = día en que EMPIEZA el turno.
  * Intervalo [horaInicio, horaFin) con horaFin exclusiva (23:59/24:00 = fin de día).
  */
 
 const RE_HHMM = /^\d{2}:\d{2}$/;
+const RE_YMD = /^\d{4}-\d{2}-\d{2}$/;
 
 function compararHHmm(a, b) {
     return a < b ? -1 : (a > b ? 1 : 0);
@@ -19,6 +23,70 @@ function diaAnterior(dia) {
 
 function cruzaMedianoche(horaInicio, horaFin) {
     return compararHHmm(horaFin, horaInicio) < 0;
+}
+
+function normalizarFechaYmd(v) {
+    if (v == null || v === '') return null;
+    const s = String(v).trim();
+    if (!RE_YMD.test(s)) {
+        throw new Error('fechaYmd debe tener formato YYYY-MM-DD');
+    }
+    return s;
+}
+
+function fechaYmdDeBloque(bloque) {
+    const s = bloque && bloque.fechaYmd != null ? String(bloque.fechaYmd).trim() : '';
+    return RE_YMD.test(s) ? s : null;
+}
+
+function esBloqueFechaUnica(bloque) {
+    return !!fechaYmdDeBloque(bloque);
+}
+
+function diaSemanaDeYmd(ymd) {
+    const [y, m, d] = String(ymd).split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+function ymdMasUnDia(ymd) {
+    const [y, m, d] = String(ymd).split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d + 1));
+    const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getUTCDate()).padStart(2, '0');
+    return `${dt.getUTCFullYear()}-${mm}-${dd}`;
+}
+
+function normalizarDiasSemana(diasSemana) {
+    return Array.isArray(diasSemana)
+        ? [...new Set(diasSemana.map((d) => Number(d)).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b)
+        : [];
+}
+
+/**
+ * Normaliza diasSemana + fechaYmd al crear/actualizar un bloque.
+ * Si hay fechaYmd, diasSemana queda en el weekday de esa fecha.
+ */
+function prepararCamposBloqueCalendario(payload = {}, { exigirDias = true } = {}) {
+    const fechaPresente = Object.prototype.hasOwnProperty.call(payload, 'fechaYmd');
+    const fecha = fechaPresente ? normalizarFechaYmd(payload.fechaYmd) : undefined;
+    const diasPresente = Array.isArray(payload.diasSemana);
+    let diasNorm = diasPresente ? normalizarDiasSemana(payload.diasSemana) : undefined;
+    if (payload.diasSemana != null && !diasPresente) {
+        throw new Error('diasSemana debe ser un array no vacío de enteros 0..6');
+    }
+    if (fecha) {
+        diasNorm = [diaSemanaDeYmd(fecha)];
+    }
+    if (diasNorm && diasNorm.length === 0) {
+        throw new Error('diasSemana debe ser un array no vacío de enteros 0..6');
+    }
+    if (exigirDias && !diasNorm) {
+        throw new Error('diasSemana debe ser un array no vacío de enteros 0..6');
+    }
+    const out = {};
+    if (diasNorm) out.diasSemana = diasNorm;
+    if (fechaPresente) out.fechaYmd = fecha;
+    return out;
 }
 
 /**
@@ -41,15 +109,8 @@ function validarHorarioFranja(horaInicio, horaFin) {
     }
 }
 
-function bloqueCubreMomento(bloque, dia, hhmm) {
-    if (!bloque || bloque.activo === false) return false;
-    const dias = Array.isArray(bloque.diasSemana) ? bloque.diasSemana.map(Number) : [];
-    if (dias.length === 0) return false;
-    const hi = bloque.horaInicio;
-    const hf = bloque.horaFin;
-    if (!hi || !hf) return false;
+function cubrePorHorarioSemanal(dias, dia, hhmm, hi, hf) {
     const d = Number(dia);
-
     if (!cruzaMedianoche(hi, hf)) {
         return dias.includes(d) && horaEnRango(hhmm, hi, hf);
     }
@@ -58,7 +119,35 @@ function bloqueCubreMomento(bloque, dia, hhmm) {
     return false;
 }
 
+function cubrePorFechaUnica(fecha, hhmm, hi, hf, ymd) {
+    const y = String(ymd || '').trim();
+    if (!RE_YMD.test(y)) return false;
+    if (!cruzaMedianoche(hi, hf)) {
+        return y === fecha && horaEnRango(hhmm, hi, hf);
+    }
+    if (y === fecha && compararHHmm(hhmm, hi) >= 0) return true;
+    if (y === ymdMasUnDia(fecha) && compararHHmm(hhmm, hf) < 0) return true;
+    return false;
+}
+
+function bloqueCubreMomento(bloque, dia, hhmm, ymd) {
+    if (!bloque || bloque.activo === false) return false;
+    const hi = bloque.horaInicio;
+    const hf = bloque.horaFin;
+    if (!hi || !hf) return false;
+    const fecha = fechaYmdDeBloque(bloque);
+    if (fecha) {
+        return cubrePorFechaUnica(fecha, hhmm, hi, hf, ymd);
+    }
+    const dias = Array.isArray(bloque.diasSemana) ? bloque.diasSemana.map(Number) : [];
+    if (dias.length === 0) return false;
+    return cubrePorHorarioSemanal(dias, dia, hhmm, hi, hf);
+}
+
 function compararPrioridadBloques(a, b) {
+    const fa = esBloqueFechaUnica(a) ? 0 : 1;
+    const fb = esBloqueFechaUnica(b) ? 0 : 1;
+    if (fa !== fb) return fa - fb;
     const porDias = (a.diasSemana || []).length - (b.diasSemana || []).length;
     if (porDias !== 0) return porDias;
     const porInicio = compararHHmm(b.horaInicio, a.horaInicio);
@@ -68,8 +157,8 @@ function compararPrioridadBloques(a, b) {
     return tb - ta;
 }
 
-function elegirBloqueActivo(bloques, dia, hhmm) {
-    const candidatos = (bloques || []).filter((b) => bloqueCubreMomento(b, dia, hhmm));
+function elegirBloqueActivo(bloques, dia, hhmm, ymd) {
+    const candidatos = (bloques || []).filter((b) => bloqueCubreMomento(b, dia, hhmm, ymd));
     candidatos.sort(compararPrioridadBloques);
     return candidatos[0] || null;
 }
@@ -106,7 +195,55 @@ function segmentosEnDia(bloque, dia) {
     return segs;
 }
 
+function segmentosEnFecha(bloque, ymd) {
+    const y = String(ymd || '').trim();
+    if (!RE_YMD.test(y)) return [];
+    const hi = bloque.horaInicio;
+    const hf = bloque.horaFin;
+    const fecha = fechaYmdDeBloque(bloque);
+    if (fecha) {
+        const segs = [];
+        if (!cruzaMedianoche(hi, hf)) {
+            if (y !== fecha) return segs;
+            const start = minutosDesdeMedianoche(hi);
+            const end = finExclusiveMinutos(hf);
+            if (start < end) segs.push([start, end]);
+            return segs;
+        }
+        if (y === fecha) segs.push([minutosDesdeMedianoche(hi), 24 * 60]);
+        if (y === ymdMasUnDia(fecha)) {
+            const end = minutosDesdeMedianoche(hf);
+            if (end > 0) segs.push([0, end]);
+        }
+        return segs;
+    }
+    return segmentosEnDia(bloque, diaSemanaDeYmd(y));
+}
+
 function franjasSolapan(bloqueA, bloqueB) {
+    const fa = fechaYmdDeBloque(bloqueA);
+    const fb = fechaYmdDeBloque(bloqueB);
+    if (fa || fb) {
+        const ymds = new Set();
+        if (fa) {
+            ymds.add(fa);
+            ymds.add(ymdMasUnDia(fa));
+        }
+        if (fb) {
+            ymds.add(fb);
+            ymds.add(ymdMasUnDia(fb));
+        }
+        for (const ymd of ymds) {
+            const sa = segmentosEnFecha(bloqueA, ymd);
+            const sb = segmentosEnFecha(bloqueB, ymd);
+            for (const a of sa) {
+                for (const b of sb) {
+                    if (a[0] < b[1] && b[0] < a[1]) return true;
+                }
+            }
+        }
+        return false;
+    }
     for (let dia = 0; dia <= 6; dia++) {
         const sa = segmentosEnDia(bloqueA, dia);
         const sb = segmentosEnDia(bloqueB, dia);
@@ -121,6 +258,7 @@ function franjasSolapan(bloqueA, bloqueB) {
 
 module.exports = {
     RE_HHMM,
+    RE_YMD,
     compararHHmm,
     diaAnterior,
     cruzaMedianoche,
@@ -131,5 +269,13 @@ module.exports = {
     elegirBloqueActivo,
     minutosDesdeMedianoche,
     segmentosEnDia,
-    franjasSolapan
+    segmentosEnFecha,
+    franjasSolapan,
+    normalizarFechaYmd,
+    fechaYmdDeBloque,
+    esBloqueFechaUnica,
+    diaSemanaDeYmd,
+    ymdMasUnDia,
+    normalizarDiasSemana,
+    prepararCamposBloqueCalendario
 };

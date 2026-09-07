@@ -245,7 +245,7 @@ describe('estadisticasComandas', () => {
     expect(m.$and[0].eliminada).toEqual({ $ne: true });
     expect(m.$and[0].fechaEliminacion).toEqual({ $eq: null });
     expect(m.$and[0].status).toEqual({ $nin: ['cancelado', 'cancelada'] });
-    expect(m.$and[3].status).toEqual({ $in: ['pagado', 'entregado', 'completado'] });
+    expect(m.$and[3].status).toEqual({ $in: ['pagado', 'entregado', 'completado', 'pendiente_aprobar'] });
     expect(m.$and[1].$or).toHaveLength(3);
     expect(m.$and[2].$or).toEqual([
       { incluidoEnCierre: null },
@@ -300,6 +300,20 @@ describe('estadisticasComandas', () => {
     expect(g).toHaveLength(1);
     expect(g[0].totalVentas).toBe(79);
     expect(g[0].cantidad).toBe(1);
+  });
+
+  test('pendiente_aprobar y tiempoPagado cuentan como venta de cierre', () => {
+    const { esComandaVendida, ticketSigueVigenteParaCierre } = require('../src/utils/estadisticasComandas');
+    expect(esComandaVendida({ status: 'pendiente_aprobar', totalCalculado: 65 })).toBe(true);
+    expect(esComandaVendida({ status: 'en_espera', tiempoPagado: new Date() })).toBe(true);
+    expect(esComandaVendida({ status: 'en_espera' })).toBe(false);
+    expect(esComandaVendida({ status: 'pendiente_aprobar', eliminada: true })).toBe(false);
+    expect(ticketSigueVigenteParaCierre({
+      comandas: [{ comandaNumber: 911, eliminada: true, status: 'cancelado' }]
+    })).toBe(false);
+    expect(ticketSigueVigenteParaCierre({
+      comandas: [{ comandaNumber: 912, status: 'pagado' }]
+    })).toBe(true);
   });
 
   test('comanda eliminada (cancelado o eliminada=true) no entra en match de reportes/mozos', () => {

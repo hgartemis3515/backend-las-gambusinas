@@ -7,7 +7,7 @@ const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 const AsignacionAutomaticaGuarniciones = require('../database/models/asignacionAutomaticaGuarniciones.model');
 const logger = require('../utils/logger');
-const { validarHorarioFranja } = require('../utils/asignacionCalendarioFranjas');
+const { validarHorarioFranja, prepararCamposBloqueCalendario } = require('../utils/asignacionCalendarioFranjas');
 
 const obtenerConfiguracion = async () => {
     try {
@@ -191,15 +191,16 @@ const crearBloque = async (bloque, modificadoPor) => {
 
     validarHorarioFranja(bloque.horaInicio, bloque.horaFin);
 
-    const diasNorm = Array.isArray(bloque.diasSemana)
-        ? [...new Set(bloque.diasSemana.map(d => Number(d)).filter(d => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b)
-        : [];
-    if (diasNorm.length === 0) throw new Error('diasSemana debe ser un array no vacío de enteros 0..6');
+    const camposFecha = prepararCamposBloqueCalendario({
+        diasSemana: bloque.diasSemana,
+        fechaYmd: Object.prototype.hasOwnProperty.call(bloque, 'fechaYmd') ? bloque.fechaYmd : null
+    });
 
     const nuevoBloque = {
         id: uuidv4(),
         perfilId: bloque.perfilId,
-        diasSemana: diasNorm,
+        diasSemana: camposFecha.diasSemana,
+        fechaYmd: camposFecha.fechaYmd || null,
         horaInicio: bloque.horaInicio,
         horaFin: bloque.horaFin,
         etiqueta: bloque.etiqueta || '',
@@ -229,7 +230,11 @@ const actualizarBloque = async (bloqueId, cambios, modificadoPor) => {
 
     const setObj = { actualizadoPor: modificadoPor };
     if (cambios.perfilId != null) setObj['calendario.bloques.$[b].perfilId'] = cambios.perfilId;
-    if (Array.isArray(cambios.diasSemana)) setObj['calendario.bloques.$[b].diasSemana'] = cambios.diasSemana;
+    const camposFecha = prepararCamposBloqueCalendario(cambios, { exigirDias: false });
+    if (camposFecha.diasSemana) setObj['calendario.bloques.$[b].diasSemana'] = camposFecha.diasSemana;
+    if (Object.prototype.hasOwnProperty.call(camposFecha, 'fechaYmd')) {
+        setObj['calendario.bloques.$[b].fechaYmd'] = camposFecha.fechaYmd;
+    }
     if (cambios.horaInicio != null) setObj['calendario.bloques.$[b].horaInicio'] = cambios.horaInicio;
     if (cambios.horaFin != null) setObj['calendario.bloques.$[b].horaFin'] = cambios.horaFin;
     if (cambios.etiqueta != null) setObj['calendario.bloques.$[b].etiqueta'] = String(cambios.etiqueta).slice(0, 100);

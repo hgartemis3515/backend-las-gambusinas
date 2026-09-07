@@ -117,6 +117,14 @@ const bloqueCalendarioSchema = new mongoose.Schema({
             message: 'diasSemana debe ser un array no vacío de enteros 0..6 (0=Dom, 6=Sáb)'
         }
     },
+    fechaYmd: {
+        type: String,
+        default: null,
+        validate: {
+            validator: (v) => v == null || v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v),
+            message: 'fechaYmd debe ser YYYY-MM-DD'
+        }
+    },
     horaInicio: { type: String, required: true, match: /^\d{2}:\d{2}$/ },
     horaFin: { type: String, required: true, match: /^\d{2}:\d{2}$/ },
     etiqueta: { type: String, default: '', trim: true },

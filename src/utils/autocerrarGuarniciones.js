@@ -6,6 +6,11 @@
  * al cocinero del principal.
  */
 
+function idCocineroGuarnicion(comp) {
+    const id = comp && comp.procesandoPor && comp.procesandoPor.cocineroId;
+    return id ? String(id) : '';
+}
+
 function indicesPendientesGuarnicion(plato, { soloIndex = null } = {}) {
     const comps = plato?.complementosSeleccionados || [];
     const out = [];
@@ -15,6 +20,17 @@ function indicesPendientesGuarnicion(plato, { soloIndex = null } = {}) {
         out.push(i);
     });
     return out;
+}
+
+/** Al tomar/cerrar con agrupación: solo las del mismo cocinero (jugo C4 no se va con panes C3). */
+function indicesPendientesMismoDestino(plato, compIndex) {
+    const comps = plato?.complementosSeleccionados || [];
+    if (!Number.isInteger(compIndex) || compIndex < 0 || compIndex >= comps.length) {
+        return Number.isInteger(compIndex) ? [compIndex] : [];
+    }
+    const dest = idCocineroGuarnicion(comps[compIndex]);
+    const idxs = indicesPendientesGuarnicion(plato).filter((i) => idCocineroGuarnicion(comps[i]) === dest);
+    return idxs.length ? idxs : [compIndex];
 }
 
 function buildAutocierreGuarnicionesSet(plato, platoIndex, ahora) {
@@ -58,7 +74,9 @@ function agrupacionGuarnicionesOn(cocinaCfg) {
 }
 
 module.exports = {
+    idCocineroGuarnicion,
     indicesPendientesGuarnicion,
+    indicesPendientesMismoDestino,
     buildAutocierreGuarnicionesSet,
     agrupacionGuarnicionesOn
 };

@@ -24,6 +24,7 @@ const {
   montoDescuentoComandaNum,
   cargarConfigMonedaEstadisticas,
   esComandaEliminada,
+  ticketSigueVigenteParaCierre,
 } = require('../utils/estadisticasComandas');
 const { obtenerUltimoCierreVigente } = require('../utils/cierreCajaReversion');
 const { resolverPeriodoPendienteCierre } = require('../utils/cierreCajaTurnosDia');
@@ -114,13 +115,6 @@ async function listarTicketsParaVerificacion() {
   };
 }
 
-function ticketSigueVigenteParaCierre(t) {
-  const docs = (t?.comandas || []).filter(
-    (c) => c && typeof c === 'object' && Number.isFinite(Number(c.comandaNumber))
-  );
-  if (docs.length === 0) return true;
-  return docs.some((c) => !esComandaEliminada(c));
-}
 
 function totalesDesdeComandasAsociadas(ticket) {
   const comandas = (ticket?.comandas || []).filter(

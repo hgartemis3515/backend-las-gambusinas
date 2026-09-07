@@ -1,6 +1,7 @@
 const {
   ultimoTicketPorComanda,
   acumularTicketsUnicos,
+  acumularDesgloseDesdeFilas,
 } = require('../src/utils/desgloseVentasTickets');
 
 describe('ultimoTicketPorComanda', () => {
@@ -119,5 +120,34 @@ describe('acumularTicketsUnicos', () => {
     expect(out.ventasPendientes).toBe(30);
     expect(out.porMozo.get('mozo-a')).toEqual({ ventasPendientes: 0, ventasAprobadas: 50 });
     expect(out.porMozo.get('mozo-b')).toEqual({ ventasPendientes: 30, ventasAprobadas: 0 });
+  });
+});
+
+describe('acumularDesgloseDesdeFilas', () => {
+  test('pagadas usan el total de la comanda vigente, no el ticket de la eliminada', () => {
+    const out = acumularDesgloseDesdeFilas(
+      [
+        { _id: '912', total: 151, status: 'pagado', mozo: 'melina' },
+        { _id: '938', total: 65, status: 'pendiente_aprobar', tiempoPagado: '2026-09-06T19:02:00.000Z', mozo: 'carlos' },
+      ],
+      [
+        { _id: 't911', comandas: ['911'], total: 151, estado: 'aprobado', createdAt: '2026-09-06T15:55:00.000Z' },
+        { _id: 't912', comandas: ['912'], total: 151, estado: 'aprobado', createdAt: '2026-09-06T16:00:00.000Z' },
+      ]
+    );
+    expect(out.ventasAprobadas).toBe(216);
+    expect(out.ventasPendientes).toBe(0);
+  });
+
+  test('suma 7776.50 si las filas vigentes suman eso', () => {
+    const out = acumularDesgloseDesdeFilas(
+      [
+        { _id: 'a', total: 7711.5, status: 'pagado', mozo: 'x' },
+        { _id: 'b', total: 65, status: 'pendiente_aprobar', tiempoPagado: new Date(), mozo: 'x' },
+      ],
+      [{ _id: 'orphan', comandas: ['dead'], total: 151, estado: 'aprobado', createdAt: '2026-09-06T10:00:00.000Z' }]
+    );
+    expect(out.ventasAprobadas).toBe(7776.5);
+    expect(out.porMozo.get('x').ventasAprobadas).toBe(7776.5);
   });
 });

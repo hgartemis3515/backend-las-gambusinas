@@ -1060,6 +1060,7 @@ tailwind.config = {
                     <div class="font-bold" :style="`color:${colorPerfilPorId(b.perfilId)}`" x-text="nombrePerfilPorId(b.perfilId)"></div>
                     <div class="text-txt-secondary" x-text="textoHorarioFranja(b, dia.num)"></div>
                     <div x-show="b.etiqueta" class="text-txt-muted truncate" x-text="b.etiqueta"></div>
+                    <div x-show="_esBloqueFechaUnica(b)" class="text-gold text-[9px]">Solo ese día</div>
                     <div x-show="!b.activo" class="text-st-pagado text-[9px]">(inactiva)</div>
                   </button>
                 </template>
@@ -1090,13 +1091,13 @@ tailwind.config = {
                       <span class="text-[11px] font-bold text-white" x-text="cel.day"></span>
                       <span x-show="cel.esHoy" class="text-[8px] px-1 rounded bg-gold text-bg-primary font-bold">HOY</span>
                     </div>
-                    <template x-for="b in cel.bloques" :key="b.id + '-' + cel.day">
+                    <template x-for="b in cel.bloques" :key="b.id + '-' + cel.fechaYmd">
                       <button type="button" @click="abrirEditarBloqueCalendario(b)"
                         class="w-full text-left rounded px-1 py-0.5 text-[9px] truncate"
                         :style="`background:${colorPerfilPorId(b.perfilId)}22; color:${colorPerfilPorId(b.perfilId)}`"
-                        x-text="nombrePerfilPorId(b.perfilId) + ' ' + textoHorarioFranja(b, cel.diaSemana)"></button>
+                        x-text="nombrePerfilPorId(b.perfilId) + ' ' + textoHorarioFranja(b, cel.diaSemana) + (_esBloqueFechaUnica(b) ? ' · 1 día' : '')"></button>
                     </template>
-                    <button type="button" @click="abrirNuevaFranjaCalendario(cel.diaSemana)" class="text-[9px] text-gold">+</button>
+                    <button type="button" @click="abrirNuevaFranjaCalendario(cel.diaSemana, cel.fechaYmd)" class="text-[9px] text-gold">+</button>
                 </div>
               </div>
             </template>
@@ -1349,11 +1350,11 @@ tailwind.config = {
             <label class="text-xs font-semibold text-txt-secondary uppercase block mb-1">Repetir</label>
             <div class="grid grid-cols-2 gap-2 text-xs">
               <label class="flex items-center gap-1 bg-bg-sidebar rounded px-2 py-1.5 cursor-pointer border border-[rgba(212,175,55,0.15)]">
-                <input type="radio" value="un_dia" x-model="modalFranjaRepeticion" class="accent-gold">
+                <input type="radio" value="un_dia" x-model="modalFranjaRepeticion" class="accent-gold" @change="onCambioRepeticionFranja()">
                 Solo este día
               </label>
               <label class="flex items-center gap-1 bg-bg-sidebar rounded px-2 py-1.5 cursor-pointer border border-[rgba(212,175,55,0.15)]">
-                <input type="radio" value="dia_cada_semana" x-model="modalFranjaRepeticion" class="accent-gold">
+                <input type="radio" value="dia_cada_semana" x-model="modalFranjaRepeticion" class="accent-gold" @change="onCambioRepeticionFranja()">
                 Este día cada semana (p. ej. todos los jueves)
               </label>
               <label class="flex items-center gap-1 bg-bg-sidebar rounded px-2 py-1.5 cursor-pointer border border-[rgba(212,175,55,0.15)]">
@@ -1367,8 +1368,15 @@ tailwind.config = {
             </div>
           </div>
 
+          <div x-show="modalFranjaRepeticion === 'un_dia'" class="space-y-1">
+            <label class="text-xs font-semibold text-txt-secondary uppercase">Fecha (solo ese día)</label>
+            <input type="date" x-model="modalFranjaFechaYmd" @change="onCambioFechaModalFranja()"
+              class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary focus:border-gold focus:outline-none">
+            <p class="text-[11px] text-gold" x-text="'Se aplica únicamente el ' + textoModalFranjaFechaUnica + '. No se repite el resto de semanas.'"></p>
+          </div>
+
           <!-- Días (checkboxes) -->
-          <div x-show="modalFranjaRepeticion === 'dias_elegidos' || modalFranjaRepeticion === 'un_dia' || modalFranjaRepeticion === 'dia_cada_semana'">
+          <div x-show="modalFranjaRepeticion === 'dias_elegidos' || modalFranjaRepeticion === 'dia_cada_semana'">
             <label class="text-xs font-semibold text-txt-secondary uppercase block mb-1">Día(s)</label>
             <div class="flex gap-1 flex-wrap">
               <template x-for="dia in diasSemanaCalendario" :key="dia.num">
@@ -1862,6 +1870,7 @@ tailwind.config = {
                     <div class="font-bold" :style="`color:${colorPerfilPorId(b.perfilId)}`" x-text="nombrePerfilPorId(b.perfilId)"></div>
                     <div class="text-txt-secondary" x-text="textoHorarioFranja(b, dia.num)"></div>
                     <div x-show="b.etiqueta" class="text-txt-muted truncate" x-text="b.etiqueta"></div>
+                    <div x-show="_esBloqueFechaUnica(b)" class="text-gold text-[9px]">Solo ese día</div>
                     <div x-show="!b.activo" class="text-st-pagado text-[9px]">(inactiva)</div>
                   </button>
                 </template>
@@ -1890,13 +1899,13 @@ tailwind.config = {
                       <span class="text-[11px] font-bold text-white" x-text="cel.day"></span>
                       <span x-show="cel.esHoy" class="text-[8px] px-1 rounded bg-gold text-bg-primary font-bold">HOY</span>
                     </div>
-                    <template x-for="b in cel.bloques" :key="'gmb'+b.id+cel.day">
+                    <template x-for="b in cel.bloques" :key="'gmb'+b.id+cel.fechaYmd">
                       <button type="button" @click="abrirEditarBloqueCalendario(b)"
                         class="w-full text-left rounded px-1 py-0.5 text-[9px] truncate"
                         :style="`background:${colorPerfilPorId(b.perfilId)}22; color:${colorPerfilPorId(b.perfilId)}`"
-                        x-text="nombrePerfilPorId(b.perfilId) + ' ' + textoHorarioFranja(b, cel.diaSemana)"></button>
+                        x-text="nombrePerfilPorId(b.perfilId) + ' ' + textoHorarioFranja(b, cel.diaSemana) + (_esBloqueFechaUnica(b) ? ' · 1 día' : '')"></button>
                     </template>
-                    <button type="button" @click="abrirNuevaFranjaCalendario(cel.diaSemana)" class="text-[9px] text-gold">+</button>
+                    <button type="button" @click="abrirNuevaFranjaCalendario(cel.diaSemana, cel.fechaYmd)" class="text-[9px] text-gold">+</button>
                 </div>
               </div>
             </template>
@@ -4677,8 +4686,8 @@ function cocinerosApp() {
     modalPerfilForm: { nombre: '', descripcion: '', color: '#D4AF37' },
 
     // ==================== CALENDARIO / FRANJAS (v2) ====================
-    // El calendario SIEMPRE muestra la semana actual (America/Lima); no hay
-    // navegación a otras semanas. La repetición se modela con diasSemana.
+    // El calendario de semana muestra la semana actual (America/Lima).
+    // «Solo este día» guarda fechaYmd (YYYY-MM-DD); el resto es plantilla semanal.
     modalFranjaCalendario: false,    // modal nueva/editar franja
     modalFranjaModo: 'nueva',        // 'nueva' | 'editar'
     modalFranjaError: '',
@@ -4689,6 +4698,7 @@ function cocinerosApp() {
     mesCalendarioOffset: 0,
     modalFranjaRepeticion: 'un_dia', // 'un_dia' | 'dia_cada_semana' | 'dias_elegidos' | 'toda_semana'
     modalFranjaDiasSeleccionados: [], // [0..6] cuando el usuario elige días
+    modalFranjaFechaYmd: '',
     guardandoCalendarioAsignacion: false,
     draftHorarioPorDia: {
       0: { perfilId: '', horaInicio: '08:00', horaFin: '16:00' },
@@ -7884,11 +7894,80 @@ function cocinerosApp() {
     _diaAnteriorCalendario(dia) {
       return (Number(dia) + 6) % 7;
     },
-    _bloqueCubreMomento(b, dia, hhmm) {
+    _pad2Calendario(n) {
+      return String(n).padStart(2, '0');
+    },
+    _ymdFromUtcDate(d) {
+      return `${d.getUTCFullYear()}-${this._pad2Calendario(d.getUTCMonth() + 1)}-${this._pad2Calendario(d.getUTCDate())}`;
+    },
+    _esBloqueFechaUnica(b) {
+      return !!(b && /^\d{4}-\d{2}-\d{2}$/.test(String(b.fechaYmd || '').trim()));
+    },
+    _diaSemanaDeYmd(ymd) {
+      const p = String(ymd || '').split('-').map(Number);
+      if (p.length !== 3 || !p[0]) return null;
+      return new Date(Date.UTC(p[0], p[1] - 1, p[2])).getUTCDay();
+    },
+    _ymdMasUnDia(ymd) {
+      const p = String(ymd || '').split('-').map(Number);
+      if (p.length !== 3 || !p[0]) return '';
+      return this._ymdFromUtcDate(new Date(Date.UTC(p[0], p[1] - 1, p[2] + 1)));
+    },
+    _lunesSemanaActualUtc() {
+      const lima = this._limaAhoraUtc();
+      const day = lima.getUTCDay();
+      const diffToMon = (day === 0 ? -6 : 1 - day);
+      return new Date(Date.UTC(lima.getUTCFullYear(), lima.getUTCMonth(), lima.getUTCDate() + diffToMon));
+    },
+    _ymdDiaSemanaEnSemanaActual(diaNum) {
+      const lunes = this._lunesSemanaActualUtc();
+      const orden = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 0: 6 };
+      const d = new Date(lunes);
+      d.setUTCDate(d.getUTCDate() + (orden[Number(diaNum)] ?? 0));
+      return this._ymdFromUtcDate(d);
+    },
+    _textoFechaYmd(ymd) {
+      const p = String(ymd || '').split('-').map(Number);
+      if (p.length !== 3 || !p[0]) return '';
+      const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+      const nombres = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+      const dow = new Date(Date.UTC(p[0], p[1] - 1, p[2])).getUTCDay();
+      return `${nombres[dow]} ${p[2]} de ${meses[p[1] - 1]} ${p[0]}`;
+    },
+    get textoModalFranjaFechaUnica() {
+      return this._textoFechaYmd(this.modalFranjaFechaYmd) || 'el día elegido en el calendario';
+    },
+    onCambioFechaModalFranja() {
+      const dow = this._diaSemanaDeYmd(this.modalFranjaFechaYmd);
+      if (dow != null) this.modalFranjaDiasSeleccionados = [dow];
+    },
+    onCambioRepeticionFranja() {
+      if (this.modalFranjaRepeticion === 'un_dia' && !this.modalFranjaFechaYmd) {
+        const d = (this.modalFranjaDiasSeleccionados || [])[0];
+        this.modalFranjaFechaYmd = d != null
+          ? this._ymdDiaSemanaEnSemanaActual(d)
+          : this._ymdFromUtcDate(this._limaAhoraUtc());
+        this.onCambioFechaModalFranja();
+      }
+    },
+    _bloqueCubreMomento(b, dia, hhmm, ymd) {
       if (!b || b.activo === false) return false;
-      const dias = (b.diasSemana || []).map(Number);
       const hi = b.horaInicio, hf = b.horaFin;
       if (!hi || !hf) return false;
+      if (this._esBloqueFechaUnica(b)) {
+        const f = String(b.fechaYmd).trim();
+        const y = String(ymd || '').trim();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(y)) return false;
+        if (!this._franjaCruzaMedianoche(hi, hf)) {
+          const hastaFinDia = hf === '23:59' || hf === '24:00';
+          const enRango = hastaFinDia ? (hi <= hhmm && hhmm <= '23:59') : (hi <= hhmm && hhmm < hf);
+          return y === f && enRango;
+        }
+        if (y === f && hhmm >= hi) return true;
+        if (y === this._ymdMasUnDia(f) && hhmm < hf) return true;
+        return false;
+      }
+      const dias = (b.diasSemana || []).map(Number);
       const d = Number(dia);
       if (!this._franjaCruzaMedianoche(hi, hf)) {
         const hastaFinDia = hf === '23:59' || hf === '24:00';
@@ -7943,11 +8022,17 @@ function cocinerosApp() {
       const limaTime = new Date(ahora.getTime() + limaOffsetMs + ahora.getTimezoneOffset() * 60000);
       const dia = limaTime.getUTCDay();
       const hhmm = limaTime.toISOString().slice(11, 16);
-      const candidatos = bloques.filter(b => this._bloqueCubreMomento(b, dia, hhmm));
+      const ymd = this._ymdFromUtcDate(limaTime);
+      const candidatos = bloques.filter(b => this._bloqueCubreMomento(b, dia, hhmm, ymd));
       if (!candidatos.length) return null;
-      candidatos.sort((a, b) => (a.diasSemana.length - b.diasSemana.length) ||
-        (b.horaInicio < a.horaInicio ? -1 : 1) ||
-        (new Date(b.createdAt || 0) - new Date(a.createdAt || 0)));
+      candidatos.sort((a, b) => {
+        const fa = this._esBloqueFechaUnica(a) ? 0 : 1;
+        const fb = this._esBloqueFechaUnica(b) ? 0 : 1;
+        if (fa !== fb) return fa - fb;
+        return (a.diasSemana.length - b.diasSemana.length) ||
+          (b.horaInicio < a.horaInicio ? -1 : 1) ||
+          (new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      });
       const blk = candidatos[0];
       const perfil = (config.perfiles || []).find(p => p.id === blk.perfilId && p.activo !== false);
       if (!perfil) return null;
@@ -8136,13 +8221,15 @@ function cocinerosApp() {
       for (let day = 1; day <= daysInMonth; day++) {
         const dt = new Date(Date.UTC(year, month, day));
         const dow = dt.getUTCDay();
+        const fechaYmd = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         cells.push({
           vacia: false,
-          key: 'd' + day,
+          key: fechaYmd,
           day,
           diaSemana: dow,
+          fechaYmd,
           esHoy: year === lima.getUTCFullYear() && month === lima.getUTCMonth() && day === lima.getUTCDate() && (Number(this.mesCalendarioOffset) || 0) === 0,
-          bloques: this.bloquesPorDia(dow)
+          bloques: this.bloquesParaFechaCalendario(fechaYmd, dow)
         });
       }
       return cells;
@@ -8158,14 +8245,17 @@ function cocinerosApp() {
       if (tipo === 'jueves') {
         this.modalFranjaRepeticion = 'dia_cada_semana';
         this.modalFranjaDiasSeleccionados = [4];
+        this.modalFranjaFechaYmd = '';
         this.modalFranjaForm.etiqueta = 'Todos los jueves';
       } else if (tipo === 'lun_vie') {
         this.modalFranjaRepeticion = 'dias_elegidos';
         this.modalFranjaDiasSeleccionados = [1, 2, 3, 4, 5];
+        this.modalFranjaFechaYmd = '';
         this.modalFranjaForm.etiqueta = 'Lun–Vie';
       } else if (tipo === 'finde') {
         this.modalFranjaRepeticion = 'dias_elegidos';
         this.modalFranjaDiasSeleccionados = [6, 0];
+        this.modalFranjaFechaYmd = '';
         this.modalFranjaForm.etiqueta = 'Fin de semana';
       }
       this.modalFranjaCalendario = true;
@@ -8206,17 +8296,29 @@ function cocinerosApp() {
       return nombres[limaTime.getUTCDay()];
     },
 
-    // Bloques del calendario que aplican a un día concreto (para pintar la grilla).
-    // Compara con Number() porque Alpine/Mongo a veces dejan días como string.
-    bloquesPorDia(diaNum) {
+    // Bloques visibles en una fecha concreta (mes) o en un weekday de la semana actual.
+    bloquesParaFechaCalendario(ymd, diaNum) {
       const dia = Number(diaNum);
       return (this._configAsignacion?.calendario?.bloques || [])
-        .filter(b => {
-          const dias = (b.diasSemana || []).map(Number);
-          if (dias.includes(dia)) return true;
-          return this._franjaCruzaMedianoche(b.horaInicio, b.horaFin) && dias.includes(this._diaAnteriorCalendario(dia));
-        })
+        .filter(b => this._bloqueVisibleEnFecha(b, dia, ymd))
         .sort((a, b) => (this.textoHorarioFranja(a, dia) < this.textoHorarioFranja(b, dia) ? -1 : 1));
+    },
+    _bloqueVisibleEnFecha(b, dia, ymd) {
+      if (!b) return false;
+      if (this._esBloqueFechaUnica(b)) {
+        const f = String(b.fechaYmd).trim();
+        if (f === ymd) return true;
+        if (this._franjaCruzaMedianoche(b.horaInicio, b.horaFin) && this._ymdMasUnDia(f) === ymd) return true;
+        return false;
+      }
+      const dias = (b.diasSemana || []).map(Number);
+      if (dias.includes(dia)) return true;
+      if (this._franjaCruzaMedianoche(b.horaInicio, b.horaFin) && dias.includes(this._diaAnteriorCalendario(dia))) return true;
+      return false;
+    },
+    bloquesPorDia(diaNum) {
+      const dia = Number(diaNum);
+      return this.bloquesParaFechaCalendario(this._ymdDiaSemanaEnSemanaActual(dia), dia);
     },
 
     nombrePerfilPorId(id) {
@@ -8229,14 +8331,15 @@ function cocinerosApp() {
     },
 
     // Abrir "Nueva franja" desde un día concreto.
-    abrirNuevaFranjaCalendario(diaNum) {
+    abrirNuevaFranjaCalendario(diaNum, fechaYmd) {
       this.modalFranjaModo = 'nueva';
       this.modalFranjaBloqueId = '';
       this.modalFranjaError = '';
       this.modalFranjaAvisoSolape = false;
       this.modalFranjaForm = { perfilId: (this._configAsignacion?.perfiles || []).find(p => p.activo)?.id || '', horaInicio: '08:00', horaFin: '12:00', etiqueta: '', activo: true };
       this.modalFranjaRepeticion = 'un_dia';
-      this.modalFranjaDiasSeleccionados = [diaNum];
+      this.modalFranjaDiasSeleccionados = [Number(diaNum)];
+      this.modalFranjaFechaYmd = fechaYmd || this._ymdDiaSemanaEnSemanaActual(diaNum);
       this.modalFranjaCalendario = true;
     },
 
@@ -8247,11 +8350,17 @@ function cocinerosApp() {
       this.modalFranjaError = '';
       this.modalFranjaAvisoSolape = false;
       this.modalFranjaForm = { perfilId: bloque.perfilId, horaInicio: bloque.horaInicio, horaFin: bloque.horaFin, etiqueta: bloque.etiqueta || '', activo: bloque.activo !== false };
-      // Determinar tipo de repetición a partir de diasSemana.
-      const ds = bloque.diasSemana || [];
-      if (ds.length === 7) { this.modalFranjaRepeticion = 'toda_semana'; this.modalFranjaDiasSeleccionados = [0,1,2,3,4,5,6]; }
-      else if (ds.length === 1) { this.modalFranjaRepeticion = 'dia_cada_semana'; this.modalFranjaDiasSeleccionados = [...ds]; }
-      else { this.modalFranjaRepeticion = 'dias_elegidos'; this.modalFranjaDiasSeleccionados = [...ds]; }
+      const ds = (bloque.diasSemana || []).map(Number);
+      if (this._esBloqueFechaUnica(bloque)) {
+        this.modalFranjaRepeticion = 'un_dia';
+        this.modalFranjaFechaYmd = String(bloque.fechaYmd).trim();
+        this.modalFranjaDiasSeleccionados = ds.length ? [...ds] : [this._diaSemanaDeYmd(this.modalFranjaFechaYmd)];
+      } else {
+        this.modalFranjaFechaYmd = '';
+        if (ds.length === 7) { this.modalFranjaRepeticion = 'toda_semana'; this.modalFranjaDiasSeleccionados = [0,1,2,3,4,5,6]; }
+        else if (ds.length === 1) { this.modalFranjaRepeticion = 'dia_cada_semana'; this.modalFranjaDiasSeleccionados = [...ds]; }
+        else { this.modalFranjaRepeticion = 'dias_elegidos'; this.modalFranjaDiasSeleccionados = [...ds]; }
+      }
       this.modalFranjaCalendario = true;
     },
 
@@ -8272,19 +8381,64 @@ function cocinerosApp() {
     },
 
     // Comprueba solape con otros bloques para avisar (no bloquea).
-    _detectarSolape(diasSemana, hi, hf, excluirId = null) {
+    _detectarSolape(diasSemana, hi, hf, excluirId = null, fechaYmd = null) {
       const bloques = this._configAsignacion?.calendario?.bloques || [];
-      const draft = { diasSemana, horaInicio: hi, horaFin: hf };
+      const draft = { diasSemana, horaInicio: hi, horaFin: hf, fechaYmd: fechaYmd || null };
       for (const b of bloques) {
         if (b.id === excluirId) continue;
         if (b.activo === false) continue;
-        for (let dia = 0; dia <= 6; dia++) {
-          const sa = this._segmentosFranjaEnDia(draft.diasSemana, draft.horaInicio, draft.horaFin, dia);
-          const sb = this._segmentosFranjaEnDia(b.diasSemana, b.horaInicio, b.horaFin, dia);
-          for (const a of sa) {
-            for (const seg of sb) {
-              if (a[0] < seg[1] && seg[0] < a[1]) return true;
+        if (this._franjasSolapanUi(draft, b)) return true;
+      }
+      return false;
+    },
+    _segmentosEnFechaUi(bloque, ymd) {
+      if (this._esBloqueFechaUnica(bloque)) {
+        const f = String(bloque.fechaYmd).trim();
+        const hi = bloque.horaInicio, hf = bloque.horaFin;
+        const segs = [];
+        if (!this._franjaCruzaMedianoche(hi, hf)) {
+          if (ymd !== f) return segs;
+          const dow = this._diaSemanaDeYmd(f);
+          return this._segmentosFranjaEnDia([dow], hi, hf, this._diaSemanaDeYmd(ymd));
+        }
+        if (ymd === f) segs.push([this._minutosHHmm(hi), 24 * 60]);
+        if (ymd === this._ymdMasUnDia(f)) {
+          const end = this._minutosHHmm(hf);
+          if (end > 0) segs.push([0, end]);
+        }
+        return segs;
+      }
+      const dow = this._diaSemanaDeYmd(ymd);
+      if (dow == null) return [];
+      return this._segmentosFranjaEnDia(bloque.diasSemana, bloque.horaInicio, bloque.horaFin, dow);
+    },
+    _franjasSolapanUi(a, b) {
+      const fechas = [];
+      if (this._esBloqueFechaUnica(a)) {
+        fechas.push(a.fechaYmd, this._ymdMasUnDia(a.fechaYmd));
+      }
+      if (this._esBloqueFechaUnica(b)) {
+        fechas.push(b.fechaYmd, this._ymdMasUnDia(b.fechaYmd));
+      }
+      if (fechas.length) {
+        const uniq = [...new Set(fechas.filter(Boolean))];
+        for (const ymd of uniq) {
+          const sa = this._segmentosEnFechaUi(a, ymd);
+          const sb = this._segmentosEnFechaUi(b, ymd);
+          for (const x of sa) {
+            for (const y of sb) {
+              if (x[0] < y[1] && y[0] < x[1]) return true;
             }
+          }
+        }
+        return false;
+      }
+      for (let dia = 0; dia <= 6; dia++) {
+        const sa = this._segmentosFranjaEnDia(a.diasSemana, a.horaInicio, a.horaFin, dia);
+        const sb = this._segmentosFranjaEnDia(b.diasSemana, b.horaInicio, b.horaFin, dia);
+        for (const x of sa) {
+          for (const y of sb) {
+            if (x[0] < y[1] && y[0] < x[1]) return true;
           }
         }
       }
@@ -8299,19 +8453,30 @@ function cocinerosApp() {
       if (!/^\d{2}:\d{2}$/.test(f.horaInicio) || !/^\d{2}:\d{2}$/.test(f.horaFin)) { this.modalFranjaError = 'Horas inválidas (HH:mm)'; return; }
       if (f.horaInicio === f.horaFin) { this.modalFranjaError = 'La hora inicio y la hora fin no pueden ser iguales'; return; }
       const dias = this._diasSemanaSegunRepeticion();
-      if (!dias.length) { this.modalFranjaError = 'Selecciona al menos un día'; return; }
+      if (this.modalFranjaRepeticion !== 'un_dia' && !dias.length) { this.modalFranjaError = 'Selecciona al menos un día'; return; }
+      let fechaYmd = null;
+      if (this.modalFranjaRepeticion === 'un_dia') {
+        fechaYmd = String(this.modalFranjaFechaYmd || '').trim();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaYmd)) {
+          this.modalFranjaError = 'Elige la fecha de este día';
+          return;
+        }
+      }
 
-      // Aviso de solape (no bloquea).
-      this.modalFranjaAvisoSolape = this._detectarSolape(dias, f.horaInicio, f.horaFin, this.modalFranjaBloqueId || null);
+      this.modalFranjaAvisoSolape = this._detectarSolape(
+        this.modalFranjaRepeticion === 'un_dia' ? [this._diaSemanaDeYmd(fechaYmd)] : dias,
+        f.horaInicio, f.horaFin, this.modalFranjaBloqueId || null, fechaYmd
+      );
 
       try {
         const body = {
           perfilId: f.perfilId,
-          diasSemana: dias,
+          diasSemana: this.modalFranjaRepeticion === 'un_dia' ? [this._diaSemanaDeYmd(fechaYmd)] : dias,
           horaInicio: f.horaInicio,
           horaFin: f.horaFin,
           etiqueta: f.etiqueta,
-          activo: f.activo
+          activo: f.activo,
+          fechaYmd
         };
         let res;
         if (this.modalFranjaModo === 'nueva') {
@@ -8363,8 +8528,12 @@ function cocinerosApp() {
     },
     bloquesQueEmpiezanEnDia(diaNum) {
       const dia = Number(diaNum);
+      const ymd = this._ymdDiaSemanaEnSemanaActual(dia);
       return (this._configAsignacion?.calendario?.bloques || [])
-        .filter(b => (b.diasSemana || []).map(Number).includes(dia))
+        .filter(b => {
+          if (this._esBloqueFechaUnica(b)) return String(b.fechaYmd).trim() === ymd;
+          return (b.diasSemana || []).map(Number).includes(dia);
+        })
         .sort((a, b) => String(a.horaInicio || '').localeCompare(String(b.horaInicio || '')));
     },
     perfilesOpcionesFranja(bloque) {
@@ -8423,7 +8592,7 @@ function cocinerosApp() {
     },
     _bodyBloqueCalendario(bloque, extra) {
       const src = Object.assign({}, bloque || {}, extra || {});
-      return {
+      const out = {
         perfilId: src.perfilId,
         diasSemana: (src.diasSemana || []).map(Number).filter(d => Number.isInteger(d) && d >= 0 && d <= 6),
         horaInicio: src.horaInicio,
@@ -8431,6 +8600,12 @@ function cocinerosApp() {
         etiqueta: src.etiqueta || '',
         activo: src.activo !== false
       };
+      if (Object.prototype.hasOwnProperty.call(src, 'fechaYmd')) {
+        out.fechaYmd = src.fechaYmd || null;
+      } else if (bloque && bloque.fechaYmd) {
+        out.fechaYmd = bloque.fechaYmd;
+      }
+      return out;
     },
 
     async guardarBloqueCalendarioDirecto(bloque) {
@@ -8654,12 +8829,13 @@ function cocinerosApp() {
           const diaMes = cursor.getUTCDate();
           const month = cursor.getUTCMonth();
           const dow = cursor.getUTCDay();
+          const ymd = `${cursor.getUTCFullYear()}-${String(cursor.getUTCMonth() + 1).padStart(2, '0')}-${String(cursor.getUTCDate()).padStart(2, '0')}`;
           semana.push({
             diaMes,
             diaSemana: dow,
             esHoy: month === m && diaMes === hoy,
             fueraMes: month !== m,
-            bloques: this.bloquesPorDia(dow).map(b => this._bloquePrintDto(b, dow))
+            bloques: this.bloquesParaFechaCalendario(ymd, dow).map(b => this._bloquePrintDto(b, dow))
           });
           cursor.setUTCDate(cursor.getUTCDate() + 1);
         }

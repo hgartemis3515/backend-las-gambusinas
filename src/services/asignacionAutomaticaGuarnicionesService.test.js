@@ -131,6 +131,29 @@ describe('encontrarReglaGuarnicion', () => {
     expect(svc.encontrarReglaGuarnicion(perfil, 'Bebida', 'Inca Kola')).toBeNull();
   });
 
+  test('DCH: panes C3 y jugo C4 no se mezclan en el mismo bucket', () => {
+    const perfilDch = {
+      reglasPorGuarnicion: [
+        { guarnicionKey: 'guarniciones de pan::panes', platoId: 204, cocineroPrimarioId: 'C3', activo: true },
+        { guarnicionKey: 'guarniciones de pan::mantequilla', platoId: 204, cocineroPrimarioId: 'C3', activo: true },
+        { guarnicionKey: 'guarniciones de pan::mermelada', platoId: 204, cocineroPrimarioId: 'C3', activo: true },
+        { guarnicionKey: 'guarniciones de pan::jugo de papaya', platoId: 204, cocineroPrimarioId: 'C4', activo: true }
+      ],
+      reglasPorGrupo: []
+    };
+    const pendientes = [
+      { ci: 0, comp: { grupo: 'Guarniciones de pan', opcion: 'Panes' } },
+      { ci: 1, comp: { grupo: 'Guarniciones de pan', opcion: 'Mantequilla' } },
+      { ci: 2, comp: { grupo: 'Guarniciones de pan', opcion: 'Mermelada' } },
+      { ci: 3, comp: { grupo: 'Guarniciones de pan', opcion: 'Jugo de papaya' } }
+    ];
+    const { buckets, sinRegla } = svc.particionarPendientesPorRegla(pendientes, perfilDch, 204, null);
+    expect(sinRegla).toHaveLength(0);
+    expect(buckets.size).toBe(2);
+    expect(buckets.get('C3').items.map((p) => p.comp.opcion)).toEqual(['Panes', 'Mantequilla', 'Mermelada']);
+    expect(buckets.get('C4').items.map((p) => p.comp.opcion)).toEqual(['Jugo de papaya']);
+  });
+
   test('regla por plato gana sobre regla global de la misma guarnición', () => {
     const perfilMix = {
       reglasPorGuarnicion: [
@@ -222,6 +245,26 @@ describe('resolverPerfilActivo', () => {
     const r = svc.resolverPerfilActivo(config, sabadoMadrugada);
     expect(r.motivo).toBe('ok');
     expect(r.perfil.id).toBe('noche');
+  });
+  test('fechaYmd solo aplica ese día, no el resto de weekdays iguales', () => {
+    const m = require('moment-timezone');
+    const config = {
+      habilitada: true,
+      perfiles: [
+        { id: 'semanal', activo: true },
+        { id: 'unDia', activo: true }
+      ],
+      calendario: {
+        bloques: [
+          { id: 'b-sem', perfilId: 'semanal', activo: true, diasSemana: [2], horaInicio: '08:00', horaFin: '16:00' },
+          { id: 'b-8', perfilId: 'unDia', activo: true, diasSemana: [2], horaInicio: '08:00', horaFin: '16:00', fechaYmd: '2026-09-08' }
+        ]
+      }
+    };
+    const r8 = svc.resolverPerfilActivo(config, m.tz('2026-09-08T10:00', 'America/Lima'));
+    expect(r8.perfil.id).toBe('unDia');
+    const r15 = svc.resolverPerfilActivo(config, m.tz('2026-09-15T10:00', 'America/Lima'));
+    expect(r15.perfil.id).toBe('semanal');
   });
 });
 

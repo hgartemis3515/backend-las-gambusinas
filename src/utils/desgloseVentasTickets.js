@@ -118,19 +118,79 @@ function acumularTicketsUnicos(tickets) {
   return out;
 }
 
+function lastTicketByComandaId(tickets) {
+  const byComanda = new Map();
+  (tickets || []).forEach((t, index) => {
+    if (!t) return;
+    for (const cid of idsComandaDeTicket(t, index)) {
+      const prev = byComanda.get(cid);
+      byComanda.set(cid, prev ? ticketMasNuevo(t, prev) : t);
+    }
+  });
+  return byComanda;
+}
+
+function filaEsVentaPagada(fila, lastTicket) {
+  const st = String(fila && fila.status || '').toLowerCase();
+  const cobrada = ['pagado', 'entregado', 'completado', 'pendiente_aprobar'].includes(st)
+    || !!(fila && fila.tiempoPagado);
+  const est = lastTicket && lastTicket.estado;
+  if (est === 'pendiente_aprobacion' && !cobrada) return false;
+  return cobrada || est === 'aprobado';
+}
+
+/**
+ * Totales = suma de comandas vigentes (misma cifra que reportes / cierre).
+ * No usa ticket.total: un PPA de comanda borrada o un ticket editado inflaba pagadas.
+ */
+function acumularDesgloseDesdeFilas(filas, tickets) {
+  const lastByCmd = lastTicketByComandaId(tickets);
+  const out = { ventasPendientes: 0, ventasAprobadas: 0, porMozo: new Map() };
+  for (const f of filas || []) {
+    if (!f) continue;
+    const amount = Number(f.total) || 0;
+    if (!(amount > 0) && amount !== 0) continue;
+    const last = lastByCmd.get(String(f._id));
+    const pagada = filaEsVentaPagada(f, last);
+    if (pagada) out.ventasAprobadas += amount;
+    else out.ventasPendientes += amount;
+    const mozoId = f.mozo != null ? String(f.mozo) : '';
+    if (!mozoId) continue;
+    if (!out.porMozo.has(mozoId)) {
+      out.porMozo.set(mozoId, { ventasPendientes: 0, ventasAprobadas: 0 });
+    }
+    const m = out.porMozo.get(mozoId);
+    if (pagada) m.ventasAprobadas += amount;
+    else m.ventasPendientes += amount;
+  }
+  out.ventasPendientes = round2(out.ventasPendientes);
+  out.ventasAprobadas = round2(out.ventasAprobadas);
+  for (const [id, m] of out.porMozo) {
+    out.porMozo.set(id, {
+      ventasPendientes: round2(m.ventasPendientes),
+      ventasAprobadas: round2(m.ventasAprobadas)
+    });
+  }
+  return out;
+}
+
 const CAMPOS_DESGLOSE = 'estado total mozo comandas createdAt ticketNumber';
 
 async function desgloseVentasPorAprobacion(inicio, fin) {
+  const { listarFilasEstadisticas } = require('./estadisticasComandas');
   const match = matchRango(inicio, fin);
-  const [ticketsComanda, ticketsPpa] = await Promise.all([
+  const [filas, ticketsComanda, ticketsPpa] = await Promise.all([
+    listarFilasEstadisticas(inicio, fin),
     ticketAprobacionModel.find(match).select(CAMPOS_DESGLOSE).lean(),
     ticketPagoAdelantadoModel.find(match).select(CAMPOS_DESGLOSE).lean()
   ]);
-  return acumularTicketsUnicos([...(ticketsComanda || []), ...(ticketsPpa || [])]);
+  return acumularDesgloseDesdeFilas(filas, [...(ticketsComanda || []), ...(ticketsPpa || [])]);
 }
 
 module.exports = {
   desgloseVentasPorAprobacion,
   ultimoTicketPorComanda,
-  acumularTicketsUnicos
+  acumularTicketsUnicos,
+  acumularDesgloseDesdeFilas,
+  filaEsVentaPagada
 };

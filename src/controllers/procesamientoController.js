@@ -33,9 +33,9 @@ const { separarCantidadLineaPlato } = require('../repository/comanda.repository'
 // PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR: config de cocina + override one-shot
 const ConfiguracionSistema = mongoose.model('ConfiguracionSistema') || require('../database/models/configuracionSistema.model');
 const {
-  indicesPendientesGuarnicion,
   buildAutocierreGuarnicionesSet,
-  agrupacionGuarnicionesOn
+  agrupacionGuarnicionesOn,
+  indicesPendientesMismoDestino
 } = require('../utils/autocerrarGuarniciones');
 const { platoUneComplementos } = require('../utils/platoUneComplementos');
 
@@ -104,8 +104,7 @@ async function leerConfigCocina() {
 async function indicesObjetivoGuarnicion(plato, compIndex) {
   const cfg = await leerConfigCocina();
   if (agrupacionGuarnicionesOn(cfg)) {
-    const idxs = indicesPendientesGuarnicion(plato);
-    return idxs.length ? idxs : [compIndex];
+    return indicesPendientesMismoDestino(plato, compIndex);
   }
   return [compIndex];
 }

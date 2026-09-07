@@ -145,6 +145,7 @@ tailwind.config = {
  <option value="pagado">Pagado</option>
  <option value="completado">Completado</option>
  <option value="cancelado">Cancelado</option>
+ <option value="eliminada">Eliminada</option>
  </select>
 
  <!-- Divisor visual -->
@@ -221,6 +222,13 @@ tailwind.config = {
  <span>Crear Reserva</span>
  </button>
 
+ <button type="button" @click="toggleVerEliminadas()"
+   :class="verEliminadas ? 'bg-st-pagado/20 border-st-pagado text-st-pagado' : 'bg-bg-sidebar border-txt-muted/30 text-txt-secondary'"
+   class="px-3 py-2 border rounded-lg text-xs font-medium transition"
+   title="Mostrar comandas borradas (clones / tickets huérfanos)">
+   <span x-text="verEliminadas ? '🗑️ Eliminadas visibles' : '🗑️ Ver eliminadas'"></span>
+ </button>
+
  <!-- Botón Ver Reservas -->
  <button @click="openReservasListModal()" 
  class="px-3 py-2 border rounded-lg text-xs font-medium transition flex items-center gap-1 bg-bg-sidebar border-txt-muted/30 text-txt-secondary hover:border-st-reservado hover:text-st-reservado">
@@ -270,8 +278,9 @@ tailwind.config = {
  <tr class="border-b border-[rgba(212,175,55,0.1)] hover:bg-white/5 transition-colors cursor-pointer"
  :class="{ 
    'bg-gold/5': row.tipo === 'grupo', 
-   'bg-bg-card': row.tipo === 'individual' && !row.comanda?.origenReserva,
-   'bg-st-reservado/10 border-l-4 border-st-reservado': row.tipo === 'individual' && row.comanda?.origenReserva
+   'bg-bg-card': row.tipo === 'individual' && !row.comanda?.origenReserva && !row.comanda?.eliminada,
+   'bg-st-reservado/10 border-l-4 border-st-reservado': row.tipo === 'individual' && row.comanda?.origenReserva && !row.comanda?.eliminada,
+   'bg-st-pagado/10 border-l-4 border-st-pagado': row.tipo === 'individual' && row.comanda?.eliminada
  }">
  
  <!-- ID / Grupo -->
@@ -290,7 +299,8 @@ tailwind.config = {
  </template>
 <template x-if="row.tipo === 'individual'">
 <div class="flex items-center gap-1.5 whitespace-nowrap">
-  <span class="font-medium text-sm" x-text="'#' + (row.comanda.numComanda || row.comanda._id?.slice(-4) || '—')"></span>
+  <span class="font-medium text-sm" :class="row.comanda?.eliminada ? 'line-through text-txt-muted' : ''" x-text="'#' + (row.comanda.numComanda || row.comanda._id?.slice(-4) || '—')"></span>
+  <span x-show="row.comanda?.eliminada" class="text-[9px] px-1.5 py-0 rounded bg-st-pagado/20 text-st-pagado font-semibold leading-none" title="Soft-delete. No cuenta en cierre ni reportes.">ELIMINADA</span>
   <span x-show="row.comanda?.omitirPago" class="text-[9px] px-1.5 py-0 rounded bg-st-pagado/20 text-st-pagado font-semibold leading-none" :title="row.comanda?.pagoOmitido?.motivo ? ('Pago omitido: ' + row.comanda.pagoOmitido.motivo) : 'Pago omitido'">💸</span>
   <span x-show="esComandaReserva(row.comanda)"
    class="inline-flex flex-col items-center justify-center leading-tight text-[#e879f9] whitespace-nowrap"
@@ -414,7 +424,7 @@ tailwind.config = {
 <button @click.stop="openDetailModal(row.comanda)" class="p-1.5 rounded hover:bg-gold/20 transition" title="Ver comanda">👁</button>
 <button @click.stop="openEditModal(row.comanda)" class="p-1.5 rounded hover:bg-gold/20 transition" title="Editar comanda">✏️</button>
 <button @click.stop="imprimirComanda(row.comanda, row)" class="p-1.5 rounded hover:bg-gold/20 transition" title="Imprimir comanda">🖨️</button>
-<button @click.stop="confirmarEliminarComanda(row.comanda)" class="p-1.5 rounded hover:bg-st-pagado/20 transition" title="Eliminar comanda">🗑️</button>
+<button x-show="!row.comanda?.eliminada" @click.stop="confirmarEliminarComanda(row.comanda)" class="p-1.5 rounded hover:bg-st-pagado/20 transition" title="Eliminar comanda">🗑️</button>
 </div>
 </template>
  </td>
@@ -722,6 +732,7 @@ tailwind.config = {
  <div>
  <div class="flex items-center gap-3">
  <h2 class="text-lg font-bold" x-text="'Comanda #' + (selectedComanda?.numComanda || selectedComanda?.comandaNumber || selectedComanda?._id?.slice(-4) || '—')"></h2>
+ <span x-show="selectedComanda?.eliminada" class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-st-pagado/20 text-st-pagado">ELIMINADA</span>
  <span class="text-[10px] px-2.5 py-1 rounded-full font-bold"
  :class="{
  'bg-[#2ecc71]/20 text-[#2ecc71]': selectedComanda?.estado === 'recoger' || selectedComanda?.estado === 'preparado',
@@ -1103,7 +1114,7 @@ tailwind.config = {
  <span class="text-sm font-bold text-gold" x-text="'S/. ' + Number(totalesTicketVista(ticket).neto).toFixed(2)"></span>
  </template>
  <button @click="imprimirTicketComanda(ticket)" class="p-1.5 rounded hover:bg-gold/20 transition text-xs" title="Imprimir ticket">🖨️</button>
- <button x-show="ticketEsActivo(ticket)" @click="confirmarEliminarTicket(ticket)" class="p-1.5 rounded hover:bg-st-pagado/20 transition text-xs" title="Quitar duplicado / eliminar">🗑️</button>
+ <button x-show="ticketEsActivo(ticket) && (ticketQuitarComoDuplicado(ticket) || puedeEliminarTicket(ticket))" @click="confirmarEliminarTicket(ticket)" class="p-1.5 rounded hover:bg-st-pagado/20 transition text-xs" title="Quitar duplicado / eliminar">🗑️</button>
  </div>
  </div>
  </template>
@@ -1708,7 +1719,7 @@ tailwind.config = {
  <div class="flex items-center gap-1">
  <button @click="imprimirTicketComanda(ticket)" class="p-1 rounded hover:bg-gold/20 transition text-xs" title="Imprimir">🖨️</button>
  <button x-show="ticket.estado === 'pendiente_aprobacion' || ticket.estado === 'aprobado'" @click="openEditarTicketModal(ticket)" class="p-1 rounded hover:bg-gold/20 transition text-xs" title="Editar ticket">✏️</button>
- <button x-show="ticketEsActivo(ticket)" @click="confirmarEliminarTicket(ticket)" class="p-1 rounded hover:bg-st-pagado/20 transition text-xs" title="Quitar duplicado / eliminar">🗑️</button>
+ <button x-show="ticketEsActivo(ticket) && (ticketQuitarComoDuplicado(ticket) || puedeEliminarTicket(ticket))" @click="confirmarEliminarTicket(ticket)" class="p-1 rounded hover:bg-st-pagado/20 transition text-xs" title="Quitar duplicado / eliminar">🗑️</button>
  </div>
  </div>
  </div>
@@ -2006,7 +2017,7 @@ tailwind.config = {
  </div>
  <h3 class="text-lg font-bold mb-2" x-text="ticketQuitarComoDuplicado(ticketEliminar) ? 'Quitar ticket duplicado' : 'Eliminar Ticket'"></h3>
  <p class="text-txt-secondary text-sm mb-2" x-text="'¿Quitar el ticket #' + (ticketEliminar?.ticketNumber || '—') + ' (' + ticketTipoLabel(ticketEliminar?.tipo) + ')?'"></p>
- <p class="text-[10px] text-txt-muted mb-4" x-text="ticketQuitarComoDuplicado(ticketEliminar) ? 'Sale de la tabla de tickets y de los totales. No cambia platos ni el boucher.' : 'Ticket pendiente: los platos volverán a entregado. El boucher no se modifica.'"></p>
+ <p class="text-[10px] text-txt-muted mb-4" x-text="ticketQuitarComoDuplicado(ticketEliminar) ? 'Sale de la tabla de tickets y de los totales. No cambia platos ni el boucher. Si la comanda está eliminada también se puede anular un ticket aprobado huérfano.' : 'Ticket pendiente: los platos volverán a entregado. El boucher no se modifica.'"></p>
  <textarea x-model="motivoEliminarTicket" placeholder="Motivo de eliminación (requerido)..." class="w-full bg-bg-sidebar border border-gold/25 rounded-lg px-4 py-2.5 text-sm h-20 resize-none focus:border-st-pagado focus:outline-none text-white mb-4"></textarea>
  </div>
  <div class="bg-bg-sidebar p-4 rounded-b-2xl flex justify-end gap-2">
@@ -2440,6 +2451,7 @@ function comandasApp() {
  filterIdComanda: '',
  filterMozo: '',
  filterCliente: '',
+ verEliminadas: false,
  filtroPeriodo: 'hoy',
  customFechaDesde: '',
  customFechaHasta: '',
@@ -3826,7 +3838,10 @@ this.modal = null;
  async loadComandas() {
  this.loading = true;
 
- let data = await apiGet('/comanda?incluirPagadas=true');
+ const qs = this.verEliminadas
+  ? '/comanda?incluirPagadas=true&incluirEliminadas=true'
+  : '/comanda?incluirPagadas=true';
+ let data = await apiGet(qs);
  if (!data) data = await apiGet('/comandas');
 
  let raw = [];
@@ -4020,6 +4035,9 @@ this.modal = null;
  omitirPago: !!raw.omitirPago,
  omitirOrdenEntrega: !!raw.omitirOrdenEntrega,
  pagoOmitido: raw.pagoOmitido || null,
+ eliminada: raw.eliminada === true || !!raw.fechaEliminacion,
+ fechaEliminacion: raw.fechaEliminacion || null,
+ motivoEliminacion: raw.motivoEliminacion || null,
  origenReserva: raw.origenReserva?._id || raw.origenReserva || null,
  programadaPorReserva: !!raw.programadaPorReserva,
  fechaCocinaProgramada: raw.fechaCocinaProgramada || null,
@@ -4749,7 +4767,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const c = row.comanda;
  const mesaNum = c.mesa?.nummesa || c.mesa;
  const matchMesa = !this.filterMesa || String(mesaNum || '').includes(this.filterMesa);
- const matchEstado = this.matchFilterEstado(c.estado);
+ const matchEstado = this.matchFilterEstado(c.estado, c);
+ const matchElim = this.verEliminadas || !this.comandaEsEliminada(c);
  const comandaNum = c.numComanda || c._id?.slice(-4) || '';
  const matchIdComanda = !this.filterIdComanda || String(comandaNum).toLowerCase().includes(this.filterIdComanda.toLowerCase());
  const matchMozo = !this.filterMozo || c.mozo === this.filterMozo;
@@ -4757,7 +4776,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const matchCliente = !this.filterCliente || clienteNombre.toLowerCase().includes(this.filterCliente.toLowerCase());
  const matchFecha = this.matchFechaRango(c.createdAt);
  const matchAvanzado = this.matchFiltroAvanzado(c);
- return matchMesa && matchEstado && matchIdComanda && matchMozo && matchCliente && matchFecha && matchAvanzado;
+ return matchMesa && matchEstado && matchElim && matchIdComanda && matchMozo && matchCliente && matchFecha && matchAvanzado;
  });
  } else {
  // Filtrar filas (grupos e individuales)
@@ -4765,7 +4784,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  if (row.tipo === 'grupo') {
  // Filtrar grupo
  const matchMesa = !this.filterMesa || String(row.mesaNum || '').includes(this.filterMesa);
- const matchEstado = this.matchFilterEstado(row.estadoGrupo);
+ const matchEstado = this.matchFilterEstado(row.estadoGrupo, row);
  const matchCliente = !this.filterCliente || (row.clienteNombre || '').toLowerCase().includes(this.filterCliente.toLowerCase());
  const matchMozo = !this.filterMozo || row.mozosUnicos?.includes(this.filterMozo);
  
@@ -4786,7 +4805,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const c = row.comanda;
  const mesaNum = c.mesa?.nummesa || c.mesa;
  const matchMesa = !this.filterMesa || String(mesaNum || '').includes(this.filterMesa);
- const matchEstado = this.matchFilterEstado(c.estado);
+ const matchEstado = this.matchFilterEstado(c.estado, c);
+ const matchElim = this.verEliminadas || !this.comandaEsEliminada(c);
  const comandaNum = c.numComanda || c._id?.slice(-4) || '';
  const matchIdComanda = !this.filterIdComanda || String(comandaNum).toLowerCase().includes(this.filterIdComanda.toLowerCase());
  const matchMozo = !this.filterMozo || c.mozo === this.filterMozo;
@@ -4794,7 +4814,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const matchCliente = !this.filterCliente || clienteNombre.toLowerCase().includes(this.filterCliente.toLowerCase());
  const matchFecha = this.matchFechaRango(c.createdAt);
  const matchAvanzado = this.matchFiltroAvanzado(c);
- return matchMesa && matchEstado && matchIdComanda && matchMozo && matchCliente && matchFecha && matchAvanzado;
+ return matchMesa && matchEstado && matchElim && matchIdComanda && matchMozo && matchCliente && matchFecha && matchAvanzado;
  }
  });
  }
@@ -4821,13 +4841,33 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  this.filterComandas();
  },
 
- matchFilterEstado(estado) {
+ matchFilterEstado(estado, comanda) {
+ if (this.filterEstado === 'eliminada') return this.comandaEsEliminada(comanda);
  const e = String(estado || '').toLowerCase();
  if (!this.filterEstado) return true;
  if (this.filterEstado === 'pagado' || this.filterEstado === 'completado') {
    return e === 'pagado' || e === 'completado';
  }
  return e === this.filterEstado;
+ },
+
+ comandaEsEliminada(c) {
+  if (!c) return false;
+  return c.eliminada === true || !!c.fechaEliminacion;
+ },
+
+ puedeEliminarTicket(ticket) {
+  if (!ticket) return false;
+  if (ticket.isActive === false) return false;
+  if (String(ticket.estado || '').toLowerCase() === 'pendiente_aprobacion') return true;
+  return this.comandaEsEliminada(this.editComanda) || this.comandaEsEliminada(this.selectedComanda);
+ },
+
+ async toggleVerEliminadas() {
+  this.verEliminadas = !this.verEliminadas;
+  if (this.verEliminadas) this.filterEstado = this.filterEstado || 'eliminada';
+  else if (this.filterEstado === 'eliminada') this.filterEstado = '';
+  await this.loadComandas();
  },
 
  estadoLabel(estado) {
@@ -5154,7 +5194,10 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  }
  this.loadingTickets = true;
  try {
- const res = await apiGet('/comanda/' + comandaId + '/tickets');
+ const qTickets = this.comandaEsEliminada(this.editComanda) || this.comandaEsEliminada(this.selectedComanda)
+  ? '/comanda/' + comandaId + '/tickets?incluirInactivos=true'
+  : '/comanda/' + comandaId + '/tickets';
+ const res = await apiGet(qTickets);
  const tickets = (res?.tickets || res || []).map(t => this.normalizarTicketLista(t)).filter(Boolean);
  this.comandaTickets = tickets;
  if ((tickets || []).some((t) => t.duplicadoHuerfano || t.vinculoDebil)) {

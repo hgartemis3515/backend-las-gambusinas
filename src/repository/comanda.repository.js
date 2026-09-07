@@ -256,35 +256,62 @@ const sanitizarHistorialPlatos = (historialPlatos) => {
  * Anula tickets (alta, pendientes o ya aprobados) vinculados a una comanda eliminada.
  * Si el ticket cubre varias comandas, solo desvincula esta.
  */
-const anularTicketsPendientesComanda = async (comandaId, motivo) => {
+const anularTicketsPendientesComanda = async (comandaId, motivo, extras = {}) => {
   const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
   const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
+  const { esComandaEliminada } = require('../utils/estadisticasComandas');
   const motivoNota = `[Comanda eliminada: ${motivo}]`;
   const idStr = String(comandaId);
   const oid = mongoose.Types.ObjectId.isValid(idStr)
     ? new mongoose.Types.ObjectId(idStr)
     : comandaId;
+  const comandaNumber = Number(extras.comandaNumber);
+  const orMatch = [{ comandas: oid }, { comandas: idStr }];
+  if (Number.isFinite(comandaNumber) && comandaNumber > 0) {
+    orMatch.push({ comandasNumbers: comandaNumber });
+  }
 
   for (const model of [ticketAprobacionModel, ticketPagoAdelantadoModel]) {
     const tickets = await model.find({
-      comandas: oid,
-      isActive: { $ne: false }
-    }).select('_id comandas comandasNumbers').lean();
+      isActive: { $ne: false },
+      $or: orMatch
+    }).select('_id comandas comandasNumbers observaciones').lean();
 
     for (const t of tickets) {
-      const resto = (t.comandas || []).filter((id) => String(id) !== idStr);
-      if (resto.length === 0) {
-        await model.updateOne(
-          { _id: t._id },
-          { $set: { isActive: false, observaciones: motivoNota } },
-          { runValidators: false }
-        );
-      } else {
-        const set = { comandas: resto };
-        if (Array.isArray(t.comandasNumbers) && t.comandasNumbers.length > resto.length) {
-          set.comandasNumbers = t.comandasNumbers.slice(0, resto.length);
+      try {
+        const resto = (t.comandas || []).filter((id) => String(id) !== idStr);
+        let vigentesResto = resto;
+        if (resto.length) {
+          const docs = await comandaModel.find({ _id: { $in: resto } })
+            .select('eliminada fechaEliminacion status')
+            .lean();
+          vigentesResto = resto.filter((id) => {
+            const doc = docs.find((d) => String(d._id) === String(id));
+            return doc ? !esComandaEliminada(doc) : true;
+          });
         }
-        await model.updateOne({ _id: t._id }, { $set: set }, { runValidators: false });
+        if (vigentesResto.length === 0) {
+          await model.updateOne(
+            { _id: t._id },
+            {
+              $set: {
+                isActive: false,
+                observaciones: t.observaciones
+                  ? `${t.observaciones}\n${motivoNota}`
+                  : motivoNota
+              }
+            },
+            { runValidators: false }
+          );
+        } else {
+          const set = { comandas: vigentesResto };
+          if (Array.isArray(t.comandasNumbers) && t.comandasNumbers.length) {
+            set.comandasNumbers = t.comandasNumbers.filter((n) => Number(n) !== comandaNumber);
+          }
+          await model.updateOne({ _id: t._id }, { $set: set }, { runValidators: false });
+        }
+      } catch (errT) {
+        console.error('⚠️ No se pudo anular ticket de comanda eliminada', t._id, errT.message);
       }
     }
   }
@@ -480,6 +507,8 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
         cantidades: 1,
         IsActive: 1,
         eliminada: 1,
+        fechaEliminacion: 1,
+        motivoEliminacion: 1,
         // Campos desnormalizados
         mozoNombre: 1,
         mesaNumero: 1,
@@ -537,7 +566,7 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
     // Populate MÍNIMO: solo campos necesarios
     dbQuery = dbQuery.populate({
       path: "mozos",
-      select: "name DNI",
+      select: "name DNI colorPerfil",
       options: { lean: true }
     });
     dbQuery = dbQuery.populate({
@@ -1251,7 +1280,9 @@ const eliminarLogicamente = async (comandaId, usuarioId, motivo, requerirMotivo 
     const ts = moment.tz('America/Lima').toDate();
 
     // Anular tickets de cocina pendientes vinculados (evita tickets huérfanos)
-    await anularTicketsPendientesComanda(comandaId, motivo);
+    await anularTicketsPendientesComanda(comandaId, motivo, {
+      comandaNumber: comandaSnapshot.comandaNumber
+    });
 
     // Archivar bouchers: si quedan activos, reportes/mozos/tickets siguen contando la venta
     try {
@@ -2748,7 +2779,7 @@ const listarComandaPorFechaEntregado = async (fecha, usarProyeccion = true) => {
     // Populate MÍNIMO: solo campos necesarios para la UI
     query = query.populate({
       path: "mozos",
-      select: "name DNI",
+      select: "name DNI colorPerfil",
       options: { lean: true }
     });
     query = query.populate({
@@ -2847,7 +2878,7 @@ const listarComandaPorFecha = async (fecha, usarProyeccion = true) => {
     // Populate mínimo
     query = query.populate({
       path: "mozos",
-      select: "name DNI",
+      select: "name DNI colorPerfil",
       options: { lean: true }
     });
     query = query.populate({

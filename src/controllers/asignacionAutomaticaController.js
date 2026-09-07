@@ -355,7 +355,7 @@ router.post('/asignacion-automatica/perfiles/:id/duplicar', adminAuth, checkPerm
 
 /**
  * POST /api/asignacion-automatica/calendario/bloques
- * Crea una franja. Body: { perfilId, diasSemana, horaInicio, horaFin, etiqueta?, activo? }
+ * Crea una franja. Body: { perfilId, diasSemana, horaInicio, horaFin, etiqueta?, activo?, fechaYmd? }
  */
 router.post('/asignacion-automatica/calendario/bloques', adminAuth, checkPermission('editar-mozos'), async (req, res) => {
     try {

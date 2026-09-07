@@ -241,6 +241,9 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
             if (datosFiltrados.cocina.forzarColorMozoUnico !== undefined) {
                 datosFiltrados.cocina.forzarColorMozoUnico = datosFiltrados.cocina.forzarColorMozoUnico === true;
             }
+            if (datosFiltrados.cocina.ignorarFondoVistaMozo !== undefined) {
+                datosFiltrados.cocina.ignorarFondoVistaMozo = datosFiltrados.cocina.ignorarFondoVistaMozo === true;
+            }
         }
 
         if (datosFiltrados.apariencia && typeof datosFiltrados.apariencia === 'object') {

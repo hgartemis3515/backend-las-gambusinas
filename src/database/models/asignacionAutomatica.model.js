@@ -11,8 +11,8 @@
  *   por una franja del calendario para estar activo en un momento dado.
  * - Un BLOQUE de calendario dice: "en estos días de la semana (diasSemana),
  *   entre horaInicio y horaFin (America/Lima), aplica este perfilId".
- *   La plantilla es semanal: el calendario SIEMPRE se proyecta sobre la semana
- *   actual; no guarda fechas absolutas.
+ *   La plantilla es semanal salvo si fechaYmd (YYYY-MM-DD Lima) está presente:
+ *   entonces el bloque vale solo ese día (y la madrugada siguiente si cruza medianoche).
  * - En runtime, el motor (ver asignacionAutomaticaService.resolverPerfilActivo)
  *   resuelve, para el día+hora actual de Lima, qué bloque (y por ende qué
  *   perfil) está activo. Si no hay bloque activo → no se auto-asigna
@@ -102,11 +102,13 @@ const perfilSchema = new mongoose.Schema({
 // ---------------------------- Bloque de calendario ----------------------------
 
 /**
- * Bloque de calendario (plantilla semanal).
+ * Bloque de calendario (plantilla semanal o un día concreto).
  * - diasSemana: convención moment.js `day()` = 0=Dom, 1=Lun, ..., 6=Sáb.
  *   Ej: [1] = solo lunes; [1,2,3,4,5] = Lun–Vie; [0..6] = toda la semana.
+ * - fechaYmd: si está (YYYY-MM-DD Lima), el bloque NO se repite cada semana:
+ *   vale solo esa fecha. diasSemana se guarda como el weekday de esa fecha.
  * - horaInicio/horaFin: "HH:mm" America/Lima. Si horaFin < horaInicio, cruza medianoche
- *   (turno noche). diasSemana = días en que EMPIEZA el turno. Fin exclusivo.
+ *   (turno noche). diasSemana / fechaYmd = días en que EMPIEZA el turno. Fin exclusivo.
  * - perfilId: referencia a perfiles[].id (validada al guardar bloque).
  * - activo: soft-disable del bloque.
  */
@@ -120,6 +122,14 @@ const bloqueCalendarioSchema = new mongoose.Schema({
             validator: (arr) => Array.isArray(arr) && arr.length > 0 &&
                 arr.every(d => Number.isInteger(d) && d >= 0 && d <= 6),
             message: 'diasSemana debe ser un array no vacío de enteros 0..6 (0=Dom, 6=Sáb)'
+        }
+    },
+    fechaYmd: {
+        type: String,
+        default: null,
+        validate: {
+            validator: (v) => v == null || v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v),
+            message: 'fechaYmd debe ser YYYY-MM-DD'
         }
     },
     horaInicio: { type: String, required: true, match: /^\d{2}:\d{2}$/ },

@@ -38,7 +38,7 @@ const aplicarAsignacionAutomaticaReserva = async (comandaId) => {
     try {
         const asignacionAutomaticaService = require('./asignacionAutomaticaService');
         const comandaPop = await Comanda.findById(comandaId)
-            .populate('platos.plato', 'id categoria tipo tipos nombre codigo complementosUnidosAlPlato')
+            .populate('platos.plato', 'id categoria tipo tipos nombre codigo complementosUnidosAlPlato complementos')
             .lean();
         if (!comandaPop || !comandaPop.platos?.length) return;
         const resultado = await asignacionAutomaticaService.asignarPlatosNuevos(comandaPop);
@@ -52,7 +52,7 @@ const aplicarAsignacionAutomaticaReserva = async (comandaId) => {
         try {
             const asignacionGuarnicionesService = require('./asignacionAutomaticaGuarnicionesService');
             const comandaPostPlatos = await Comanda.findById(comandaId)
-                .populate('platos.plato', 'id categoria tipo tipos nombre codigo complementosUnidosAlPlato')
+                .populate('platos.plato', 'id categoria tipo tipos nombre codigo complementosUnidosAlPlato complementos')
                 .lean();
             if (comandaPostPlatos) {
                 const resG = await asignacionGuarnicionesService.asignarGuarnicionesNuevas(comandaPostPlatos);

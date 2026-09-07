@@ -367,7 +367,7 @@ async function reportarTicketComanda(ticketId, motivo, usuarioId, usuarioNombre)
  * Tickets (comanda + PPA) ligados a una comanda, cualquier estado.
  * Incluye duplicados que no están en comandas[] (platos.comandaId / línea / mesa+#).
  */
-async function obtenerTicketsPorComanda(comandaId) {
+async function obtenerTicketsPorComanda(comandaId, { incluirInactivos = false } = {}) {
   if (!mongoose.Types.ObjectId.isValid(comandaId)) {
     const err = new Error('ID de comanda inválido');
     err.statusCode = 400;
@@ -376,7 +376,7 @@ async function obtenerTicketsPorComanda(comandaId) {
 
   const comanda = await comandaModel.findById(comandaId).select('comandaNumber mesas platos').lean();
   const extras = {
-    incluirInactivos: true,
+    incluirInactivos,
     comandaNumber: comanda?.comandaNumber,
     mesaId: comanda?.mesas?._id || comanda?.mesas,
     platoLineaIds: (comanda?.platos || []).map((p) => p._id).filter(Boolean),

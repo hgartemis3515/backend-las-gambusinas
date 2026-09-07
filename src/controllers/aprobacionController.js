@@ -184,6 +184,45 @@ router.get('/aprobacion/turnos-dia', async (req, res) => {
   }
 });
 
+function fechaDesgloseValida(s) {
+  if (!s || typeof s !== 'string') return false;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s.trim())) return true;
+  return Number.isFinite(Date.parse(s));
+}
+
+/**
+ * GET /api/aprobacion/desglose-ventas
+ * Mismos totales que reportes / cierre (comandas vigentes, no suma de tickets).
+ * Query: fechaInicio, fechaFin (YYYY-MM-DD o ISO). DIA/NOCHE usa ISO del corte.
+ */
+router.get('/aprobacion/desglose-ventas', async (req, res) => {
+  try {
+    const { fechaInicio, fechaFin } = req.query;
+    if (!fechaDesgloseValida(fechaInicio) || !fechaDesgloseValida(fechaFin)) {
+      return res.status(400).json({
+        success: false,
+        message: 'fechaInicio y fechaFin son requeridos (YYYY-MM-DD o ISO)',
+      });
+    }
+    const { rangoLima } = require('../utils/estadisticasComandas');
+    const { desgloseVentasPorAprobacion } = require('../utils/desgloseVentasTickets');
+    const { inicio, fin } = rangoLima(fechaInicio, fechaFin);
+    const d = await desgloseVentasPorAprobacion(inicio, fin);
+    const ventasPendientes = Number(d.ventasPendientes) || 0;
+    const ventasAprobadas = Number(d.ventasAprobadas) || 0;
+    res.json({
+      success: true,
+      ventasPendientes,
+      ventasAprobadas,
+      totalVentas: Math.round((ventasPendientes + ventasAprobadas) * 100) / 100,
+      meta: { fechaInicio, fechaFin, inicio, fin },
+    });
+  } catch (error) {
+    logger.error('Error al obtener desglose de ventas (cocina)', { error: error.message });
+    res.status(500).json({ success: false, message: 'Error al obtener desglose de ventas' });
+  }
+});
+
 /**
  * GET /api/aprobacion/buscar-ticket?n=12
  * Lista tickets COMANDA y PPA con ese número (activos e inactivos).
@@ -239,13 +278,16 @@ router.get('/aprobacion/fecha/:fecha', async (req, res) => {
     const ticketsComanda = await ticketAprobacionRepository.obtenerTicketsPorFecha(rango.desde, rango.hasta);
     const ticketsPPA = await ticketPagoAdelantadoRepository.obtenerTicketsPorFecha(rango.desde, rango.hasta);
 
+    const { ticketSigueVigenteParaCierre } = require('../utils/estadisticasComandas');
     const tickets = [
       ...ticketsComanda.map((t) => ({
         ...t,
         tipo: t.tipo === 'pago_parcial' ? 'PAGO_PARCIAL' : 'COMANDA',
       })),
       ...ticketsPPA.map((t) => ({ ...t, tipo: 'ADELANTADO' })),
-    ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    ]
+      .filter(ticketSigueVigenteParaCierre)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     res.json({ success: true, tickets, desde: rango.desde, hasta: rango.hasta });
   } catch (error) {
@@ -618,7 +660,8 @@ router.post('/aprobacion/desde-comanda/:id', async (req, res) => {
 router.get('/comanda/:id/tickets', async (req, res) => {
   try {
     const { id } = req.params;
-    const tickets = await aprobacionService.obtenerTicketsPorComanda(id);
+    const incluirInactivos = req.query.incluirInactivos === 'true' || req.query.incluirInactivos === '1';
+    const tickets = await aprobacionService.obtenerTicketsPorComanda(id, { incluirInactivos });
     res.json({ success: true, tickets });
   } catch (error) {
     logger.error('Error al obtener tickets de comanda', { error: error.message });

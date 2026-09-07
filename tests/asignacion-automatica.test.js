@@ -417,6 +417,24 @@ describe('asignacionAutomaticaService', () => {
             expect(r.bloque.diasSemana).toEqual([1]);
         });
 
+        it('un bloque con fechaYmd solo aplica ese día, no el resto de weekdays iguales', () => {
+            const semanal = buildPerfil('p-sem', 'Todos los martes');
+            const unDia = buildPerfil('p-8', 'Solo 8 sep');
+            const config = buildConfig({
+                perfiles: [semanal, unDia],
+                calendario: {
+                    bloques: [
+                        buildBloque('p-sem', [2], '08:00', '16:00'),
+                        buildBloque('p-8', [2], '08:00', '16:00', { fechaYmd: '2026-09-08' })
+                    ]
+                }
+            });
+            const r8 = service.resolverPerfilActivo(config, moment.tz('2026-09-08T10:00', TZ));
+            expect(r8.perfil.id).toBe('p-8');
+            const r15 = service.resolverPerfilActivo(config, moment.tz('2026-09-15T10:00', TZ));
+            expect(r15.perfil.id).toBe('p-sem');
+        });
+
         it('elije el de horaInicio más tarde si empatan en días', () => {
             const perfilA = buildPerfil('pA', 'A');
             const perfilB = buildPerfil('pB', 'B');

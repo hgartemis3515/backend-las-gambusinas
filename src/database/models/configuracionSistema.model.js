@@ -153,6 +153,8 @@ const CONFIGURACION_DEFAULT = {
         // false = cada usuario usa colorPerfil; true = todos usan colorMozoForzado.
         forzarColorMozoUnico: false,
         colorMozoForzado: '#1e3a8a',
+        // true = las tablas KDS ignoran el fondo de Vista y alertas y usan colorPerfil.
+        ignorarFondoVistaMozo: false,
         tiemposGuarnicion: {
             umbralAlertaMultiplo: 1.5,
             umbralCriticaMultiplo: 2,
@@ -565,6 +567,10 @@ const configuracionSistemaSchema = new mongoose.Schema({
         colorMozoForzado: {
             type: String,
             default: CONFIGURACION_DEFAULT.cocina.colorMozoForzado
+        },
+        ignorarFondoVistaMozo: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.cocina.ignorarFondoVistaMozo
         },
         // Umbrales de tiempos por local (no hard-codeados). Si una guarnición supera
         // umbralAlertaSeg × tiempoMedioPreparacion → alerta visual en KDS.

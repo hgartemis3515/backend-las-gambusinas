@@ -68,7 +68,8 @@ function resolverPerfilActivo(config, momento) {
     const m = momento || nowLima();
     const dia = m.day();
     const hhmm = m.format('HH:mm');
-    const bloque = elegirBloqueActivo(bloques, dia, hhmm);
+    const ymd = m.format('YYYY-MM-DD');
+    const bloque = elegirBloqueActivo(bloques, dia, hhmm, ymd);
     if (!bloque) return { perfil: null, bloque: null, motivo: 'sin_franja_activa', dia, hhmm };
     const perfil = perfilPorId(config, bloque.perfilId);
     if (!perfil) return { perfil: null, bloque, motivo: 'perfil_inactivo_o_inexistente', dia, hhmm };
@@ -159,12 +160,60 @@ function cocineroTieneEstacion(cocinero, estacion) {
 }
 
 function platoIdNumerico(v) {
-    const n = Number(v);
+    if (v == null || v === '') return null;
+    if (typeof v === 'object') return null;
+    const s = String(v);
+    if (/^[a-fA-F0-9]{24}$/.test(s)) return null;
+    const n = Number(s);
     return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/** Catálogo `platos.id` de la línea (platoId, populate plato.id). No el _id Mongo. */
+function idCatalogoPlatoLinea(plato) {
+    if (!plato || typeof plato !== 'object') return null;
+    const nested = plato.plato && typeof plato.plato === 'object' && !Array.isArray(plato.plato)
+        ? plato.plato
+        : null;
+    const candidates = [plato.platoId, nested && nested.id, nested && nested.platoId, plato.id];
+    for (const c of candidates) {
+        const n = platoIdNumerico(c);
+        if (n != null) return n;
+    }
+    return null;
 }
 
 function esReglaGuarnicionGlobal(r) {
     return platoIdNumerico(r && r.platoId) == null;
+}
+
+function destinoReglaGuarnicion(regla) {
+    if (regla && regla.cocineroPrimarioId) return String(regla.cocineroPrimarioId);
+    return '';
+}
+
+/**
+ * Parte extras por cocinero de su regla. Con agrupación ON no se puede
+ * mandar todo el plato al primero que tenga regla (panes C3 arrastraba jugo C4).
+ */
+function particionarPendientesPorRegla(pendientes, perfil, platoIdCat, plato) {
+    const buckets = new Map();
+    const sinRegla = [];
+    for (const p of pendientes || []) {
+        if (!p || !p.comp) continue;
+        if (plato && esVarianteDePlato(p.comp, plato)) continue;
+        const d = datosComplemento(p.comp);
+        const encontrada = encontrarReglaGuarnicion(perfil, d.grupo, d.opcion, d.key, platoIdCat);
+        if (!encontrada) {
+            sinRegla.push(p);
+            continue;
+        }
+        const dest = destinoReglaGuarnicion(encontrada.regla) || `key:${d.key}`;
+        if (!buckets.has(dest)) {
+            buckets.set(dest, { dest, encontrada, items: [] });
+        }
+        buckets.get(dest).items.push(p);
+    }
+    return { buckets, sinRegla };
 }
 
 /**
@@ -464,7 +513,7 @@ async function asignarGuarnicionesNuevasEjecutar(comandaPop) {
             const cocineroPadreId = plato.procesandoPor && plato.procesandoPor.cocineroId
                 ? plato.procesandoPor.cocineroId.toString() : null;
             const platoRef = plato.plato || plato;
-            const platoIdCat = platoIdNumerico(plato.platoId) || platoIdNumerico(platoRef && platoRef.id);
+            const platoIdCat = idCatalogoPlatoLinea(plato);
 
             if (agrupacionOn) {
                 const pendientes = [];
@@ -473,62 +522,69 @@ async function asignarGuarnicionesNuevasEjecutar(comandaPop) {
                     if (!comp || comp.eliminado) continue;
                     if (comp.procesandoPor && comp.procesandoPor.cocineroId) continue;
                     if (comp.estadoCocina === 'recoger') continue;
+                    if (esVarianteDePlato(comp, plato)) continue;
                     pendientes.push({ ci, comp });
                 }
                 if (!pendientes.length) continue;
 
-                let encontrada = null;
-                let guarnicionKeyElegida = '';
-                for (const p of pendientes) {
-                    const d = datosComplemento(p.comp);
-                    const reg = encontrarReglaGuarnicion(perfil, d.grupo, d.opcion, d.key, platoIdCat);
-                    if (reg) {
-                        encontrada = reg;
-                        guarnicionKeyElegida = d.key;
-                        break;
-                    }
-                }
-                if (!encontrada) {
-                    noAsignados += pendientes.length;
-                    continue;
+                const { buckets, sinRegla } = particionarPendientesPorRegla(
+                    pendientes, perfil, platoIdCat, plato
+                );
+                noAsignados += sinRegla.length;
+                if (buckets.size > 1) {
+                    logger.info('Guarniciones del mismo plato a cocinas distintas', {
+                        comandaId: comandaPop._id?.toString(),
+                        platoIdCat,
+                        destinos: [...buckets.keys()],
+                        detalle: [...buckets.values()].map((b) => ({
+                            dest: b.dest,
+                            ops: b.items.map((p) => datosComplemento(p.comp).opcion)
+                        }))
+                    });
                 }
 
-                const candidatos = construirCandidatos(encontrada.regla);
-                const evaluados = await evaluarCandidatosGuarnicion(candidatos, {
-                    config, platoRef, guarnicionKey: guarnicionKeyElegida, cocineroPadreId,
-                    estacionRecomendada: encontrada.regla.estacionRecomendada,
-                    cacheConectado, cacheCargaTot, cacheCocinero, batchCocineroPreferido: null,
-                    maxMismoGuarnicion: encontrada.regla.maxMismoGuarnicion
-                });
-                if (evaluados.length === 0) {
-                    noAsignados += pendientes.length;
-                    continue;
-                }
-                if (prioridadComanda > 0) {
-                    evaluados.forEach(e => { e.score += prioridadComanda * 10; });
-                }
-                evaluados.sort((a, b) => b.score - a.score);
-                const elegido = evaluados[0];
-                const grupoId = String(plato._id || '');
-                let okGrupo = 0;
-                for (const p of pendientes) {
-                    const ok = await asignarGuarnicionInterna(
-                        comandaPop._id, pi, p.ci, elegido.cocineroId,
-                        'auto', 'grupo', null,
-                        { platoId: plato._id, complementoId: p.comp._id },
-                        grupoId
-                    );
-                    if (ok) okGrupo++;
-                }
-                if (okGrupo > 0) {
-                    asignados += 1;
-                    bumpCargaCache(cacheCargaTot, elegido.cocineroId, okGrupo);
-                    logger.info('Auto-asignación grupo guarniciones OK', {
-                        comandaId: comandaPop._id?.toString(),
-                        platoId: grupoId, cocineroId: elegido.cocineroId, extras: okGrupo
+                for (const bucket of buckets.values()) {
+                    const encontrada = bucket.encontrada;
+                    const items = bucket.items;
+                    const primera = datosComplemento(items[0].comp);
+                    const candidatos = construirCandidatos(encontrada.regla);
+                    const evaluados = await evaluarCandidatosGuarnicion(candidatos, {
+                        config, platoRef, guarnicionKey: primera.key, cocineroPadreId,
+                        estacionRecomendada: encontrada.regla.estacionRecomendada,
+                        cacheConectado, cacheCargaTot, cacheCocinero, batchCocineroPreferido: null,
+                        maxMismoGuarnicion: encontrada.regla.maxMismoGuarnicion
                     });
-                } else {
-                    noAsignados += pendientes.length;
+                    if (evaluados.length === 0) {
+                        noAsignados += items.length;
+                        continue;
+                    }
+                    if (prioridadComanda > 0) {
+                        evaluados.forEach(e => { e.score += prioridadComanda * 10; });
+                    }
+                    evaluados.sort((a, b) => b.score - a.score);
+                    const elegido = evaluados[0];
+                    const grupoId = `${String(plato._id || '')}:${bucket.dest}`;
+                    const metaRegla = items.length > 1 ? 'grupo' : encontrada.tipo;
+                    let okGrupo = 0;
+                    for (const p of items) {
+                        const ok = await asignarGuarnicionInterna(
+                            comandaPop._id, pi, p.ci, elegido.cocineroId,
+                            'auto', metaRegla, null,
+                            { platoId: plato._id, complementoId: p.comp._id },
+                            grupoId
+                        );
+                        if (ok) okGrupo++;
+                    }
+                    if (okGrupo > 0) {
+                        asignados += 1;
+                        bumpCargaCache(cacheCargaTot, elegido.cocineroId, okGrupo);
+                        logger.info('Auto-asignación grupo guarniciones OK', {
+                            comandaId: comandaPop._id?.toString(),
+                            platoId: grupoId, cocineroId: elegido.cocineroId, extras: okGrupo
+                        });
+                    } else {
+                        noAsignados += items.length;
+                    }
                 }
                 continue;
             }
@@ -663,9 +719,7 @@ async function resolverBackupDestinoGuarnicion(comp, platoPadre, cocineroActualI
         || (config.perfiles || []).find((p) => p && p.activo !== false)
         || config;
     const { grupo, opcion, key } = datosComplemento(comp);
-    const platoId = platoIdNumerico(platoPadre?.platoId)
-        || platoIdNumerico(platoPadre?.plato?.id)
-        || platoIdNumerico(platoPadre?.plato?.platoId);
+    const platoId = idCatalogoPlatoLinea(platoPadre);
     const encontrada = encontrarReglaGuarnicion(fuente, grupo, opcion, key, platoId);
     if (!encontrada) {
         const err = new Error('Esta guarnición no tiene backups configurados');
@@ -694,7 +748,10 @@ module.exports = {
     cocineroVePlatoEnZonas,
     cocineroTieneEstacion,
     encontrarReglaGuarnicion,
+    destinoReglaGuarnicion,
+    particionarPendientesPorRegla,
     platoIdNumerico,
+    idCatalogoPlatoLinea,
     esReglaGuarnicionGlobal,
     construirCandidatos,
     detectarBatchsEnComanda,

@@ -373,12 +373,26 @@ function matchBoucherVigente(extra = {}) {
 /** Misma visibilidad que comandas.html para ciclo abierto (GET /comanda?incluirPagadas). */
 const STATUS_COMANDA_CERRADA = ['pagado', 'completado', 'cancelado'];
 
-/** Ventas que entran al total de reportes / cierre (platos cobrados o entregados). */
-const STATUS_COMANDA_VENDIDA = ['pagado', 'entregado', 'completado'];
+/**
+ * Ventas que entran al total de reportes / cierre.
+ * `pendiente_aprobar` ya pasó por caja (el ticket de cobro a veces se anula
+ * al borrar un clon). `tiempoPagado` cubre estados atascados.
+ */
+const STATUS_COMANDA_VENDIDA = ['pagado', 'entregado', 'completado', 'pendiente_aprobar'];
 
 function esComandaVendida(c) {
     if (esComandaEliminada(c)) return false;
-    return STATUS_COMANDA_VENDIDA.includes(c?.status);
+    if (STATUS_COMANDA_VENDIDA.includes(c?.status)) return true;
+    return !!c?.tiempoPagado;
+}
+
+/** Ticket visible/contable solo si alguna comanda vinculada sigue vigente. */
+function ticketSigueVigenteParaCierre(t) {
+    const docs = (t?.comandas || []).filter(
+        (c) => c && typeof c === 'object' && (c.comandaNumber != null || c._id)
+    );
+    if (!docs.length) return true;
+    return docs.some((c) => !esComandaEliminada(c));
 }
 
 function filtroNoIncluidoEnCierreComanda() {
@@ -799,6 +813,7 @@ module.exports = {
     STATUS_COMANDA_CERRADA,
     STATUS_COMANDA_VENDIDA,
     esComandaVendida,
+    ticketSigueVigenteParaCierre,
     matchComandasEstadisticas,
     matchComandasCierrePendiente,
     matchIncluidoEnEsteCierre,

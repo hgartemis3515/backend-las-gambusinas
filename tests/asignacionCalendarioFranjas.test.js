@@ -108,4 +108,60 @@ describe('asignacionCalendarioFranjas', () => {
         expect(elegirBloqueActivo([gen, lun], 1, '10:00').perfilId).toBe('lun');
         expect(elegirBloqueActivo([gen, lun], 1, '13:00').perfilId).toBe('gen');
     });
+
+    describe('fechaYmd — solo un día del mes', () => {
+        const martes8 = bloq({
+            id: 'd8',
+            perfilId: 'especial',
+            diasSemana: [2],
+            horaInicio: '08:00',
+            horaFin: '16:00',
+            fechaYmd: '2026-09-08'
+        });
+        const todosMartes = bloq({
+            id: 'tm',
+            perfilId: 'semanal',
+            diasSemana: [2],
+            horaInicio: '08:00',
+            horaFin: '16:00'
+        });
+
+        test('cubre el 8 sep y no el 15 sep (ambos martes)', () => {
+            expect(bloqueCubreMomento(martes8, 2, '10:00', '2026-09-08')).toBe(true);
+            expect(bloqueCubreMomento(martes8, 2, '10:00', '2026-09-15')).toBe(false);
+            expect(bloqueCubreMomento(todosMartes, 2, '10:00', '2026-09-15')).toBe(true);
+        });
+
+        test('sin ymd, el bloque de un día no aplica (no cae al weekday)', () => {
+            expect(bloqueCubreMomento(martes8, 2, '10:00')).toBe(false);
+        });
+
+        test('gana sobre la plantilla semanal del mismo weekday', () => {
+            const elegido = elegirBloqueActivo([todosMartes, martes8], 2, '10:00', '2026-09-08');
+            expect(elegido.perfilId).toBe('especial');
+            const otroMartes = elegirBloqueActivo([todosMartes, martes8], 2, '10:00', '2026-09-15');
+            expect(otroMartes.perfilId).toBe('semanal');
+        });
+
+        test('overnight de un día cubre solo la madrugada siguiente', () => {
+            const noche = bloq({
+                id: 'n8',
+                perfilId: 'noche8',
+                diasSemana: [2],
+                horaInicio: '22:00',
+                horaFin: '06:00',
+                fechaYmd: '2026-09-08'
+            });
+            expect(bloqueCubreMomento(noche, 2, '23:00', '2026-09-08')).toBe(true);
+            expect(bloqueCubreMomento(noche, 3, '03:00', '2026-09-09')).toBe(true);
+            expect(bloqueCubreMomento(noche, 3, '03:00', '2026-09-16')).toBe(false);
+        });
+
+        test('dos martes distintos no solapan', () => {
+            const a = bloq({ fechaYmd: '2026-09-08', diasSemana: [2], horaInicio: '08:00', horaFin: '16:00' });
+            const b = bloq({ fechaYmd: '2026-09-15', diasSemana: [2], horaInicio: '08:00', horaFin: '16:00' });
+            expect(franjasSolapan(a, b)).toBe(false);
+            expect(franjasSolapan(a, todosMartes)).toBe(true);
+        });
+    });
 });

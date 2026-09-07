@@ -72,8 +72,8 @@ function inicioDiaLima(momento) {
  * Franjas con horaFin < horaInicio cruzan medianoche; diasSemana = días de INICIO.
  * Ver docs/PLAN_FRANJAS_DIA_NOCHE_ASIGNACION.md.
  *
- * Prioridad si solapan: menos días → horaInicio más tarde → createdAt más reciente.
- * Día: moment.day() => 0=Dom … 6=Sáb.
+ * Prioridad si solapan: fechaYmd (un día) → menos días → horaInicio más tarde → createdAt más reciente.
+ * Día: moment.day() => 0=Dom … 6=Sáb. Fecha: YYYY-MM-DD America/Lima.
  */
 function perfilPorId(config, perfilId) {
     const id = perfilId != null ? String(perfilId) : '';
@@ -105,8 +105,9 @@ function resolverPerfilActivo(config, momento) {
     const m = momento || nowLima();
     const dia = m.day();
     const hhmm = m.format('HH:mm');
+    const ymd = m.format('YYYY-MM-DD');
 
-    const bloqueSeleccionado = elegirBloqueActivo(bloques, dia, hhmm);
+    const bloqueSeleccionado = elegirBloqueActivo(bloques, dia, hhmm, ymd);
     if (!bloqueSeleccionado) {
         return { perfil: null, bloque: null, motivo: 'sin_franja_activa', dia, hhmm };
     }
