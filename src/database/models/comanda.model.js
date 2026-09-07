@@ -5,6 +5,7 @@ const AutoIncrement = require('mongoose-sequence')(mongoose);
 const comandaSchema = new mongoose.Schema({
     mozos: { type: mongoose.Schema.Types.ObjectId, ref: 'mozos' },
     mesas: { type: mongoose.Schema.Types.ObjectId, ref: 'mesas' },
+    sinMesa: { type: Boolean, default: false },
     cliente: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'Cliente',

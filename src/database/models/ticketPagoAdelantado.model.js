@@ -29,11 +29,16 @@ const ticketPagoAdelantadoSchema = new mongoose.Schema({
   mesa: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'mesas',
-    required: true,
+    required: function requiredMesa() { return this.sinMesa !== true; },
   },
   numMesa: {
     type: Number,
-    required: true,
+    required: function requiredNumMesa() { return this.sinMesa !== true; },
+    default: null,
+  },
+  sinMesa: {
+    type: Boolean,
+    default: false,
   },
   mozo: {
     type: mongoose.Schema.Types.ObjectId,

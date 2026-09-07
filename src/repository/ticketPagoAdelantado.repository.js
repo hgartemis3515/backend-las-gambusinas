@@ -99,8 +99,9 @@ async function crearTicketPagoAdelantado(data) {
     estado: 'pendiente_aprobacion',
     comandas: data.comandas,
     comandasNumbers: data.comandasNumbers || [],
-    mesa: data.mesa,
-    numMesa: data.numMesa,
+    mesa: data.mesa || undefined,
+    numMesa: data.numMesa ?? null,
+    sinMesa: data.sinMesa === true || !data.mesa,
     mozo: data.mozo,
     nombreMozo: data.nombreMozo,
     mozoNombre: data.mozoNombre || data.nombreMozo,
@@ -498,23 +499,37 @@ async function rechazarTicket(ticketId, motivo, usuarioId, usuarioNombre) {
  * - Plato ya en TPA pendiente_aprobacion o aprobado: no elegible
  * - Plato en pedido/en_espera con tipoServicio para_llevar o mesa: elegible
  */
+function mesaIdEsValido(mesaId) {
+  if (mesaId == null || mesaId === '' || mesaId === 'undefined' || mesaId === 'null') return false;
+  const s = String(mesaId);
+  return /^[a-fA-F0-9]{24}$/.test(s) && mongoose.Types.ObjectId.isValid(s);
+}
+
+/**
+ * Obtener comandas y platos elegibles para Pago Adelantado de una mesa.
+ * Sin mesa: pasar mesaId nulo y comandaIds del pedido para llevar.
+ */
 async function getComandasParaPagoAdelantado(mesaId, comandaIds) {
-  // Validar que mesaId sea un ObjectId válido
-  if (!mongoose.Types.ObjectId.isValid(mesaId)) {
-    throw new Error(`mesaId inválido: ${mesaId}`);
+  const ids = (Array.isArray(comandaIds) ? comandaIds : [])
+    .map((id) => String(id || '').trim())
+    .filter((id) => /^[a-fA-F0-9]{24}$/.test(id) && mongoose.Types.ObjectId.isValid(id));
+  const mesaOk = mesaIdEsValido(mesaId);
+
+  if (!mesaOk && ids.length === 0) {
+    const err = new Error(`mesaId inválido: ${mesaId}`);
+    err.statusCode = 400;
+    throw err;
   }
 
   const query = {
-    mesas: new mongoose.Types.ObjectId(mesaId),
     IsActive: true,
     status: { $in: ['en_espera', 'pedido', 'recoger'] },
   };
-
-  if (comandaIds && comandaIds.length > 0) {
-    const validIds = comandaIds.filter(id => mongoose.Types.ObjectId.isValid(id));
-    if (validIds.length > 0) {
-      query._id = { $in: validIds.map(id => new mongoose.Types.ObjectId(id)) };
-    }
+  if (ids.length > 0) {
+    query._id = { $in: ids.map((id) => new mongoose.Types.ObjectId(id)) };
+  }
+  if (mesaOk) {
+    query.mesas = new mongoose.Types.ObjectId(mesaId);
   }
 
   const comandas = await comandaModel.find(query)
@@ -647,4 +662,5 @@ module.exports = {
   rechazarTicket,
   getComandasParaPagoAdelantado,
   clasificarComandaPorTipoServicio,
+  mesaIdEsValido,
 };

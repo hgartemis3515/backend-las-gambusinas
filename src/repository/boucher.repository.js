@@ -120,7 +120,7 @@ const crearBoucher = async (data) => {
         console.log('📝 Creando boucher:', JSON.stringify(data, null, 2));
         
         // Validar datos requeridos
-        if (!data.mesa || !data.mozo || !data.platos || data.platos.length === 0) {
+        if ((!data.sinMesa && !data.mesa) || !data.mozo || !data.platos || data.platos.length === 0) {
             throw new Error('Datos incompletos para crear el boucher');
         }
         

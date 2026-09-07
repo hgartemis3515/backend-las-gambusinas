@@ -304,6 +304,7 @@ async function procesarPagoBoucher(params) {
     moneda = 'PEN',
     tipoCambioUsd = null,
     esPagoAdelantado = false,
+    sinMesa = false,
     // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: abono de reserva (seña) a descontar
     abonoReserva = 0,
     reservaOrigenId = null,
@@ -464,7 +465,7 @@ async function procesarPagoBoucher(params) {
   const mozo = primeraComanda.mozos;
 
   let pedidoId = primeraComanda?.pedido || null;
-  if (!pedidoId) {
+  if (!pedidoId && mesaId) {
     const pedidoAbierto = await pedidoModel
       .findOne({ mesa: mesaId, estado: 'abierto', isActive: true })
       .select('_id')
@@ -485,8 +486,9 @@ async function procesarPagoBoucher(params) {
   });
 
   const boucherData = {
-    mesa: mesaId,
-    numMesa: mesa?.nummesa || null,
+    mesa: mesaId || undefined,
+    numMesa: mesa?.nummesa ?? null,
+    sinMesa: sinMesa === true || !mesaId,
     mozo: mozoId,
     nombreMozo: mozo?.name || 'N/A',
     cliente: clienteId || null,
@@ -581,16 +583,21 @@ async function procesarPagoBoucher(params) {
     }
   }
 
-  await recalcularEstadoMesa(mesaId);
+  if (mesaId) {
+    await recalcularEstadoMesa(mesaId);
+  }
 
-  const resumen = await construirResumenPago(mesaId);
+  const resumen = mesaId
+    ? await construirResumenPago(mesaId)
+    : {
+        totalPendiente: 0,
+        cobroCompleto: true,
+        mesaPagadaCompletamente: false,
+        mesaListaParaLiberar: false,
+        mesa: { sinMesa: true },
+      };
 
-  // BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 2):
-  // Crear un TicketAprobacion por CADA cobro normal (parcial o total), con snapshot
-  // de SOLO los platos de este boucher. La mesa pasa a 'pendiente_aprobar' tras el
-  // primer cobro del ciclo y solo va a 'pagado' cuando cocina aprueba el último
-  // ticket pendiente del pedido (ver ticketAprobacion.repository.aprobarTicket).
-  if (!esPagoAdelantado && platosParaBoucher.length > 0) {
+  if (!esPagoAdelantado && platosParaBoucher.length > 0 && mesaId) {
     // Mesa siempre a pendiente_aprobar mientras haya tickets sin aprobar
     const mesaDoc = await mesasModel.findById(mesaId);
     if (mesaDoc && mesaDoc.estado !== 'reportado' && mesaDoc.estado !== 'pagado') {

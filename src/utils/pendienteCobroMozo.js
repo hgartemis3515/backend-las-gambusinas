@@ -72,9 +72,74 @@ function pendienteDeComanda(c, { adelanto = 0, cobradoBouchers = 0 } = {}) {
   return round2(Math.max(0, neto - collected));
 }
 
+function platoMarcadoPagoAdelantado(plato) {
+  if (platoCobradoEnCaja(plato)) return true;
+  const et = String(plato?.pagoAdelantado?.estadoTicket || '').toLowerCase();
+  return et === 'pendiente_aprobacion';
+}
+
+/** Pagada en caja, PPA cobrado o ticket adelantado (pendiente/aprobado). */
+function esComandaPagadaCaja(c) {
+  if (!c) return false;
+  const st = String(c.status || '').toLowerCase();
+  if (['pagado', 'completado'].includes(st)) return true;
+  if (c.tiempoPagado) return true;
+  const platos = (c.platos || []).filter((p) => p && p.eliminado !== true && p.anulado !== true);
+  if (platos.length && platos.every(platoMarcadoPagoAdelantado)) return true;
+  return false;
+}
+
+function fechaReferenciaPago(c) {
+  if (!c) return null;
+  if (c.tiempoPagado) return new Date(c.tiempoPagado);
+  for (const p of c.platos || []) {
+    const t = p?.tiempos?.pagado;
+    if (t) return new Date(t);
+  }
+  if (c.updatedAt) return new Date(c.updatedAt);
+  if (c.createdAt) return new Date(c.createdAt);
+  return null;
+}
+
+function fechaEnRango(d, inicio, fin) {
+  if (!d || !inicio || !fin) return false;
+  const t = d instanceof Date ? d.getTime() : new Date(d).getTime();
+  if (!Number.isFinite(t)) return false;
+  const a = inicio instanceof Date ? inicio.getTime() : new Date(inicio).getTime();
+  const b = fin instanceof Date ? fin.getTime() : new Date(fin).getTime();
+  return t >= a && t <= b;
+}
+
+function esComandaSinMesaDoc(c) {
+  if (!c) return false;
+  if (c.sinMesa === true) return true;
+  const mesaId = c.mesas?._id
+    ? String(c.mesas._id)
+    : (c.mesas && typeof c.mesas !== 'object' ? String(c.mesas) : null);
+  const mesaNumero = c.mesaNumero ?? c.mesas?.nummesa ?? c.mesas?.numero ?? null;
+  return !mesaId && (mesaNumero == null || mesaNumero === '');
+}
+
+/** Platos aún en cocina / pass (no entregados). Sin mesa no tiene mesa que tocar en Inicio. */
+function comandaAunEnServicio(c) {
+  const st = String(c?.status || '').toLowerCase();
+  if (['completado', 'cancelado', 'anulado'].includes(st)) return false;
+  const platos = (c.platos || []).filter((p) => p && p.eliminado !== true && p.anulado !== true);
+  if (!platos.length) return false;
+  return platos.some((p) => {
+    const e = String(p.estado || '').toLowerCase();
+    return !['entregado', 'pagado'].includes(e);
+  });
+}
+
+function seguimientoSinMesaEnPendientes(c) {
+  return esComandaSinMesaDoc(c) && comandaAunEnServicio(c);
+}
+
 /** Comandas abiertas que el mozo aún debe cobrar (no pagado/completado). */
 const ESTADOS_POR_COBRAR = [
   'pendiente',
+  'pedido',
   'pendiente_aprobar',
   'en_espera',
   'recoger',
@@ -130,7 +195,7 @@ function comandaCalificaLiberarSinCaja(comanda, esCobradoPPA) {
   return false;
 }
 
-function mapComandaPorCobrar(c, pendienteCobro) {
+function mapComandaPorCobrar(c, pendienteCobro, extras = {}) {
   const platos = [];
   const cocinerosMap = new Map();
   (c.platos || []).forEach((p, i) => {
@@ -158,7 +223,7 @@ function mapComandaPorCobrar(c, pendienteCobro) {
     ? String(c.mesas._id)
     : (c.mesas && typeof c.mesas !== 'object' ? String(c.mesas) : null);
   const mesaNumero = c.mesaNumero ?? c.mesas?.nummesa ?? c.mesas?.numero ?? null;
-  const esSinMesa = !mesaId && (mesaNumero == null || mesaNumero === '');
+  const esSinMesa = c.sinMesa === true || (!mesaId && (mesaNumero == null || mesaNumero === ''));
   return {
     _id: c._id,
     comandaNumber: c.comandaNumber,
@@ -168,7 +233,11 @@ function mapComandaPorCobrar(c, pendienteCobro) {
     mesaNumero,
     mesaEstado: c.mesas?.estado || null,
     mesaNombre: c.mesas?.nombreCombinado || null,
+    sinMesa: c.sinMesa === true,
     esSinMesa,
+    tiempoPagado: c.tiempoPagado || null,
+    pagadaHoy: extras.pagadaHoy === true,
+    seguimientoPpa: extras.seguimientoPpa === true,
     total: netoComanda(c),
     pendienteCobro: round2(pendienteCobro),
     observaciones: c.observaciones || '',
@@ -190,6 +259,13 @@ module.exports = {
   pendienteDeComanda,
   esComandaCerradaParaPendiente,
   platoCobradoEnCaja,
+  platoMarcadoPagoAdelantado,
+  esComandaPagadaCaja,
+  fechaReferenciaPago,
+  fechaEnRango,
+  esComandaSinMesaDoc,
+  comandaAunEnServicio,
+  seguimientoSinMesaEnPendientes,
   ESTADOS_POR_COBRAR,
   cocineroDeBloque,
   cocineroDePlato,

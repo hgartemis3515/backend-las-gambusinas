@@ -14,6 +14,7 @@ const {
   aprobarTicket,
   rechazarTicket,
   getComandasParaPagoAdelantado,
+  mesaIdEsValido,
 } = require('../repository/ticketPagoAdelantado.repository');
 const { procesarPagoBoucher } = require('../services/boucherPagoService');
 const { recalcularEstadoMesa } = require('../repository/comanda.repository');
@@ -46,22 +47,31 @@ router.post('/pago-adelantado', async (req, res) => {
       moneda,
       tipoCambioUsd,
       esPagoAdelantado,
+      sinMesa,
     } = req.body;
 
     console.log('🔥 [PPA] POST /pago-adelantado - Request body:', {
-      mesaId, mozoId, clienteId,
+      mesaId, mozoId, clienteId, sinMesa,
       platosSeleccionadosCount: platosSeleccionados?.length || 0,
       platosSeleccionadosKeys: platosSeleccionados?.map(ps => Object.keys(ps)) || [],
       platosSeleccionadosSample: platosSeleccionados?.slice(0, 2) || [],
       metodoPago, moneda, esPagoAdelantado,
     });
 
-    if (!mesaId || !mozoId) {
+    if (!mozoId) {
+      return res.status(400).json({ error: 'mozoId es requerido' });
+    }
+
+    const idsDePlatos = (platosSeleccionados || []).map((p) => p.comandaId).filter(Boolean);
+    const idsComanda = [...new Set([...(comandasIds || []), ...idsDePlatos].map(String).filter(Boolean))];
+    const mesaOk = mesaIdEsValido(mesaId);
+    const pedidoSinMesa = sinMesa === true || !mesaOk;
+
+    if (!mesaOk && idsComanda.length === 0) {
       return res.status(400).json({ error: 'mesaId y mozoId son requeridos' });
     }
 
-    // Obtener comandas elegibles para PPA
-    const comandas = await getComandasParaPagoAdelantado(mesaId, comandasIds);
+    const comandas = await getComandasParaPagoAdelantado(mesaOk ? mesaId : null, idsComanda);
     if (!comandas || comandas.length === 0) {
       return res.status(400).json({ error: 'No hay comandas elegibles para pago adelantado' });
     }
@@ -147,7 +157,9 @@ router.post('/pago-adelantado', async (req, res) => {
     // Crear boucher usando el servicio existente (modificado para PPA)
     // Primero, procesar el boucher directamente
     const primeraComanda = comandas[0];
-    const mesaInfo = primeraComanda.mesas || await mesasModel.findById(mesaId).select('nummesa estado nombreCombinado').lean();
+    const mesaInfo = pedidoSinMesa
+      ? null
+      : (primeraComanda.mesas || await mesasModel.findById(mesaId).select('nummesa estado nombreCombinado').lean());
     const mozoInfo = primeraComanda.mozos || { name: 'N/A' };
 
     // Usar el servicio de boucher existente con flag esPagoAdelantado
@@ -169,7 +181,7 @@ router.post('/pago-adelantado', async (req, res) => {
     });
 
     const boucherResult = await procesarPagoBoucher({
-      mesaId,
+      mesaId: mesaOk ? mesaId : null,
       mozoId,
       clienteId: clienteId || null,
       comandasIds: comandas.map(c => c._id.toString()),
@@ -181,6 +193,7 @@ router.post('/pago-adelantado', async (req, res) => {
       moneda: moneda || 'PEN',
       tipoCambioUsd,
       esPagoAdelantado: true,
+      sinMesa: pedidoSinMesa,
     });
 
     const boucher = boucherResult.boucher;
@@ -200,8 +213,9 @@ router.post('/pago-adelantado', async (req, res) => {
     const ticket = await crearTicketPagoAdelantado({
       comandas: comandas.map(c => c._id),
       comandasNumbers: comandas.map(c => c.comandaNumber).filter(Boolean),
-      mesa: mesaId,
-      numMesa: mesaInfo?.nummesa || mesaInfo?.nummesa || 0,
+      mesa: mesaOk ? mesaId : undefined,
+      numMesa: mesaInfo?.nummesa ?? null,
+      sinMesa: pedidoSinMesa,
       mozo: mozoId,
       nombreMozo: mozoInfo?.name || 'N/A',
       mozoNombre: mozoInfo?.name || 'N/A',
@@ -292,7 +306,9 @@ router.post('/pago-adelantado', async (req, res) => {
     }
 
     // Actualizar estado de la mesa a "pendiente_pago"
-    await mesasModel.findByIdAndUpdate(mesaId, { estado: 'pendiente_pago' });
+    if (mesaOk) {
+      await mesasModel.findByIdAndUpdate(mesaId, { estado: 'pendiente_pago' });
+    }
 
     // Emitir eventos Socket.io para notificar a cocina y mozos
     const io = global.io;
@@ -326,19 +342,19 @@ router.post('/pago-adelantado', async (req, res) => {
         ticket: ticketPopulated,
       });
 
-      // Notificar cambio de estado de mesa a pendiente_pago
-      io.of('/mozos').emit('mesa-actualizada', {
-        mesaId,
-        estado: 'pendiente_pago',
-        nummesa: mesaInfo?.nummesa || null,
-      });
-      io.of('/admin').emit('mesa-actualizada', {
-        mesaId,
-        estado: 'pendiente_pago',
-        nummesa: mesaInfo?.nummesa || null,
-      });
+      if (mesaOk) {
+        io.of('/mozos').emit('mesa-actualizada', {
+          mesaId,
+          estado: 'pendiente_pago',
+          nummesa: mesaInfo?.nummesa || null,
+        });
+        io.of('/admin').emit('mesa-actualizada', {
+          mesaId,
+          estado: 'pendiente_pago',
+          nummesa: mesaInfo?.nummesa || null,
+        });
+      }
 
-      // Emitir comanda-actualizada para que cocina refresque la lista
       for (const comanda of comandas) {
         const comandaActualizada = await comandaModel.findById(comanda._id)
           .populate('platos.plato', 'nombre precio id')
@@ -352,11 +368,13 @@ router.post('/pago-adelantado', async (req, res) => {
           status: comandaActualizada.status,
         });
 
-        io.of('/mozos').to(`mesa-${mesaId}`).emit('comanda-actualizada', {
-          comandaId: comanda._id,
-          comanda: comandaActualizada,
-          status: comandaActualizada.status,
-        });
+        if (mesaOk) {
+          io.of('/mozos').to(`mesa-${mesaId}`).emit('comanda-actualizada', {
+            comandaId: comanda._id,
+            comanda: comandaActualizada,
+            status: comandaActualizada.status,
+          });
+        }
       }
     }
 

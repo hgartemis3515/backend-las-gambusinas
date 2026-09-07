@@ -137,12 +137,24 @@ router.get('/aprobacion/pendientes', async (req, res) => {
 /**
  * GET /api/aprobacion/pendiente-cobro?mozoId=
  * Saldo y lista de comandas abiertas del mozo (neto − seña/forzar/pagado).
+ * ?pagadasHoy=1 — comandas pagadas del mozo en el día America/Lima.
  */
 router.get('/aprobacion/pendiente-cobro', async (req, res) => {
   try {
     const mozoId = req.query.mozoId || req.query.mozo || req.userId || req.admin?.id;
     if (!mozoId) {
       return res.status(400).json({ success: false, message: 'mozoId es requerido' });
+    }
+    const pagadasHoy = req.query.pagadasHoy === '1'
+      || String(req.query.filtro || '').toLowerCase() === 'pagadas';
+    if (pagadasHoy) {
+      const data = await aprobacionService.listarComandasPagadasHoyMozo(mozoId);
+      return res.json({
+        success: true,
+        total: data.totalPagado,
+        comandas: data.comandas || [],
+        pagadasHoy: true,
+      });
     }
     const data = await aprobacionService.listarComandasPorCobrarMozo(mozoId);
     res.json({

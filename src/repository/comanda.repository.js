@@ -3567,9 +3567,9 @@ const validarPlatosSeleccionadosParaPago = async (mesaId, platosSeleccionados, e
   const comandas = await comandaModel
     .find({
       _id: { $in: comandasIds },
-      mesas: mesaId,
       IsActive: true,
       status: { $in: estadosValidos },
+      ...(mesaId ? { mesas: mesaId } : {}),
     })
     .populate('platos.plato', 'nombre precio codigo')
     .populate('mozos')

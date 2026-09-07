@@ -50,7 +50,7 @@ const {
 const { buildAutocierreGuarnicionesSet } = require('../utils/autocerrarGuarniciones');
 const { destinosCambioEstadoPlato } = require('../utils/cadenaEntregaPlato');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
-const { getComandasParaPagoAdelantado } = require('../repository/ticketPagoAdelantado.repository');
+const { getComandasParaPagoAdelantado, mesaIdEsValido } = require('../repository/ticketPagoAdelantado.repository');
 const { adminAuth, checkPermission } = require('../middleware/adminAuth');
 
 // Autenticación JWT para endpoints legacy que aún no usan adminAuth
@@ -270,44 +270,20 @@ router.get('/comanda/comandas-para-pago-adelantado/:mesaId', async (req, res) =>
       comandaIds = idsRaw.map(id => id.trim()).filter(Boolean);
     }
 
-    // Usar getComandasActivasPorMesa (ya funciona) y filtrar para PPA
-    const comandas = await getComandasActivasPorMesa(mesaId);
+    const mesaOk = mesaIdEsValido(mesaId);
+    if (!mesaOk && !(comandaIds && comandaIds.length)) {
+      return res.status(400).json({ success: false, error: 'mesaId inválido' });
+    }
+
+    const comandas = await getComandasParaPagoAdelantado(mesaOk ? mesaId : null, comandaIds);
     await enrichComandasMozoNombre(comandas);
-
-    // Filtrar solo comandas con platos elegibles para PPA
-    const comandasPPA = (comandas || []).filter(comanda => {
-      const platosElegibles = (comanda.platos || []).filter(plato => {
-        if (plato.eliminado || plato.anulado) return false;
-        const estado = (plato.estado || '').toLowerCase();
-        if (['recoger', 'entregado', 'pagado'].includes(estado)) return false;
-        if (plato.pagoAdelantado && (plato.pagoAdelantado.estadoTicket === 'pendiente_aprobacion' || plato.pagoAdelantado.estadoTicket === 'aprobado')) return false;
-        return true;
-      });
-      // Solo incluir comandas que tengan al menos un plato elegible
-      return platosElegibles.length > 0;
-    });
-
-    // Aguanta filtrado por comandaIds si se proporcionaron
-    const comandasFiltradas = comandaIds && comandaIds.length > 0
-      ? comandasPPA.filter(c => comandaIds.includes(c._id?.toString()))
-      : comandasPPA;
-
-    // Agregar platosElegiblesPPA a cada comanda
-    comandasFiltradas.forEach(comanda => {
-      comanda.platosElegiblesPPA = (comanda.platos || []).filter(plato => {
-        if (plato.eliminado || plato.anulado) return false;
-        const estado = (plato.estado || '').toLowerCase();
-        if (['recoger', 'entregado', 'pagado'].includes(estado)) return false;
-        if (plato.pagoAdelantado && (plato.pagoAdelantado.estadoTicket === 'pendiente_aprobacion' || plato.pagoAdelantado.estadoTicket === 'aprobado')) return false;
-        return true;
-      });
-    });
+    const comandasPPA = (comandas || []).filter((c) => (c.platosElegiblesPPA || []).length > 0);
 
     res.json({
       success: true,
-      mesaId,
-      comandas: comandasFiltradas,
-      cantidad: comandasFiltradas.length,
+      mesaId: mesaOk ? mesaId : null,
+      comandas: comandasPPA,
+      cantidad: comandasPPA.length,
     });
   } catch (error) {
     logger.error('Error en GET /comanda/comandas-para-pago-adelantado/:mesaId', {
@@ -315,7 +291,7 @@ router.get('/comanda/comandas-para-pago-adelantado/:mesaId', async (req, res) =>
       error: error.message,
       stack: error.stack,
     });
-    res.status(500).json({ success: false, error: error.message });
+    res.status(error.statusCode || 500).json({ success: false, error: error.message });
   }
 });
 
@@ -325,6 +301,9 @@ router.get('/comanda/comandas-para-pago-adelantado/:mesaId', async (req, res) =>
 router.get('/comanda/mesa/:mesaId/activas', async (req, res) => {
     try {
         const { mesaId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(mesaId) || String(mesaId).length !== 24) {
+            return res.status(400).json({ success: false, error: 'mesaId inválido' });
+        }
         console.log(`📥 [GET /comanda/mesa/${mesaId}/activas] Buscando comandas activas`);
         const comandas = await getComandasActivasPorMesa(mesaId);
         await enrichComandasMozoNombre(comandas);

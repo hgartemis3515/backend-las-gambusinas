@@ -118,6 +118,7 @@ async function listarComandasPorCobrarMozo(mozoId) {
     cobradoBouchersDeComanda,
     mapComandaPorCobrar,
     ESTADOS_POR_COBRAR,
+    seguimientoSinMesaEnPendientes,
   } = require('../utils/pendienteCobroMozo');
   const Reserva = require('../database/models/reserva.model');
 
@@ -128,7 +129,7 @@ async function listarComandasPorCobrarMozo(mozoId) {
     omitirPago: { $ne: true },
     status: { $in: ESTADOS_POR_COBRAR },
   })
-    .select('comandaNumber status createdAt observaciones cantidades mesaNumero origenReserva omitirPago tiempoPagado totalCalculado totalSinDescuento montoDescuento descuento precioTotal platos procesandoPor procesadoPor mesas pedido cliente clienteNombre origenCreacion createdByDashboard')
+    .select('comandaNumber status createdAt observaciones cantidades mesaNumero sinMesa origenReserva omitirPago tiempoPagado totalCalculado totalSinDescuento montoDescuento descuento precioTotal platos procesandoPor procesadoPor mesas pedido cliente clienteNombre origenCreacion createdByDashboard')
     .populate({ path: 'mesas', select: 'nummesa numero nombreCombinado estado', options: { lean: true } })
     .populate({ path: 'platos.plato', select: 'nombre nombreCocina precio', options: { lean: true } })
     .sort({ createdAt: -1, comandaNumber: -1 })
@@ -155,20 +156,120 @@ async function listarComandasPorCobrarMozo(mozoId) {
   const out = [];
   let totalPendiente = 0;
   for (const c of comandas) {
-    if (c.tiempoPagado) continue;
+    const seguimientoSinMesa = seguimientoSinMesaEnPendientes(c);
+    if (c.tiempoPagado && !seguimientoSinMesa) continue;
     const reserva = c.origenReserva ? reservaById.get(String(c.origenReserva)) : null;
     const adelanto = Number(reserva?.pagoAdelantado?.montoPagado) || 0;
     const pendiente = pendienteDeComanda(c, {
       adelanto,
       cobradoBouchers: cobradoBouchersDeComanda(c._id, bouchers),
     });
-    if (pendiente <= 0) continue;
-    totalPendiente += pendiente;
-    out.push(mapComandaPorCobrar(c, pendiente));
+    if (pendiente <= 0 && !seguimientoSinMesa) continue;
+    if (pendiente > 0) totalPendiente += pendiente;
+    out.push(mapComandaPorCobrar(c, pendiente, {
+      seguimientoPpa: seguimientoSinMesa && pendiente <= 0,
+    }));
   }
   return {
     comandas: out,
     totalPendiente: Math.round(Number(totalPendiente) * 100) / 100,
+  };
+}
+
+const SELECT_COMANDA_COBRO = 'comandaNumber status createdAt updatedAt observaciones cantidades mesaNumero sinMesa origenReserva omitirPago tiempoPagado tiempoEnEspera tiempoRecoger tiempoEntregado totalCalculado totalSinDescuento montoDescuento descuento precioTotal platos procesandoPor procesadoPor mesas pedido cliente clienteNombre origenCreacion createdByDashboard';
+
+function idsDeRelacionComandas(docs) {
+  const out = [];
+  for (const d of docs || []) {
+    for (const id of d.comandas || []) out.push(id);
+  }
+  return out;
+}
+
+/**
+ * Comandas pagadas del mozo en el día calendario de America/Lima (00:00–23:59).
+ * Incluye caja (tiempoPagado / status pagado) y PPA cobrado o con ticket de hoy.
+ */
+async function listarComandasPagadasHoyMozo(mozoId) {
+  if (!mozoId || !mongoose.Types.ObjectId.isValid(String(mozoId))) {
+    return { comandas: [], totalPagado: 0 };
+  }
+  const mid = new mongoose.Types.ObjectId(String(mozoId));
+  const moment = require('moment-timezone');
+  const lima = moment.tz('America/Lima');
+  const inicio = lima.clone().startOf('day').toDate();
+  const fin = lima.clone().endOf('day').toDate();
+  const {
+    mapComandaPorCobrar,
+    esComandaPagadaCaja,
+    fechaReferenciaPago,
+    fechaEnRango,
+    netoComanda,
+  } = require('../utils/pendienteCobroMozo');
+
+  const [ticketsHoy, bouchersHoy] = await Promise.all([
+    ticketPagoAdelantadoModel.find({
+      mozo: mid,
+      createdAt: { $gte: inicio, $lte: fin },
+      estado: { $in: ['pendiente_aprobacion', 'aprobado'] },
+      isActive: { $ne: false },
+    }).select('comandas').lean(),
+    boucherModel.find({
+      mozo: mid,
+      createdAt: { $gte: inicio, $lte: fin },
+      isActive: { $ne: false },
+    }).select('comandas').lean(),
+  ]);
+
+  const idsExtra = [...idsDeRelacionComandas(ticketsHoy), ...idsDeRelacionComandas(bouchersHoy)];
+  const or = [
+    { tiempoPagado: { $gte: inicio, $lte: fin } },
+    {
+      createdAt: { $gte: inicio, $lte: fin },
+      $or: [
+        { status: { $in: ['pagado', 'completado'] } },
+        { 'platos.pagoAdelantado.cobrado': true },
+        { 'platos.pagoAdelantado.estadoTicket': { $in: ['pendiente_aprobacion', 'aprobado'] } },
+      ],
+    },
+  ];
+  if (idsExtra.length) or.push({ _id: { $in: idsExtra } });
+
+  const comandas = await comandaModel.find({
+    mozos: mid,
+    eliminada: { $ne: true },
+    $or: or,
+  })
+    .select(SELECT_COMANDA_COBRO)
+    .populate({ path: 'mesas', select: 'nummesa numero nombreCombinado estado', options: { lean: true } })
+    .populate({ path: 'platos.plato', select: 'nombre nombreCocina precio', options: { lean: true } })
+    .sort({ tiempoPagado: -1, createdAt: -1 })
+    .lean();
+
+  const idsTicketSet = new Set(idsExtra.map((id) => String(id)));
+  const seen = new Set();
+  const out = [];
+  let totalPagado = 0;
+  for (const c of comandas) {
+    const id = String(c._id);
+    if (seen.has(id)) continue;
+    const st = String(c.status || '').toLowerCase();
+    if (['cancelado', 'anulado'].includes(st)) continue;
+    const viaTicketHoy = idsTicketSet.has(id);
+    if (!viaTicketHoy && !esComandaPagadaCaja(c)) continue;
+    const fechaPago = fechaReferenciaPago(c);
+    const enDia = viaTicketHoy
+      || fechaEnRango(fechaPago, inicio, fin)
+      || (fechaEnRango(c.createdAt, inicio, fin) && esComandaPagadaCaja(c));
+    if (!enDia) continue;
+    seen.add(id);
+    const total = netoComanda(c);
+    totalPagado += total;
+    out.push(mapComandaPorCobrar(c, 0, { pagadaHoy: true }));
+  }
+  return {
+    comandas: out,
+    totalPagado: Math.round(Number(totalPagado) * 100) / 100,
   };
 }
 
@@ -1014,6 +1115,7 @@ module.exports = {
   obtenerTicketsUnificadosPendientes,
   totalPendienteCobroMozo,
   listarComandasPorCobrarMozo,
+  listarComandasPagadasHoyMozo,
   obtenerTicketsPorComanda,
   buscarTicketsPorNumero,
   crearTicketAprobadoDesdeComanda,
