@@ -231,6 +231,18 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
             datosFiltrados.tipoCambioUsd = null;
         }
 
+        if (datosFiltrados.cocina && typeof datosFiltrados.cocina === 'object') {
+            const { sanitizarColorMozoForzado } = require('../utils/colorPerfilMozo');
+            if (datosFiltrados.cocina.colorMozoForzado !== undefined) {
+                datosFiltrados.cocina.colorMozoForzado = sanitizarColorMozoForzado(
+                    datosFiltrados.cocina.colorMozoForzado
+                );
+            }
+            if (datosFiltrados.cocina.forzarColorMozoUnico !== undefined) {
+                datosFiltrados.cocina.forzarColorMozoUnico = datosFiltrados.cocina.forzarColorMozoUnico === true;
+            }
+        }
+
         if (datosFiltrados.apariencia && typeof datosFiltrados.apariencia === 'object') {
             const patch = extraerAparienciaNormalizada(datosFiltrados.apariencia);
             datosFiltrados.apariencia = {

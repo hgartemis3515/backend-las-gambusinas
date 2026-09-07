@@ -79,6 +79,13 @@ function findGrupoCatalogo(grupos, nombreGrupo) {
   return grupos.find((g) => g && normNombreGrupo(g.grupo) === key) || null;
 }
 
+function grupoForzarVisibleTablaKds(grupo) {
+  return !!(grupo
+    && grupo.forzarVisibleTablaKds === true
+    && grupo.esVariantePlato !== true
+    && grupo.anexarVarianteAlNombre !== true);
+}
+
 function opcionExisteEnGrupo(grupo, nombreOpcion) {
   const target = String(nombreOpcion || '').trim().toLowerCase();
   if (!target || !grupo) return false;
@@ -139,6 +146,8 @@ function overlayPronombresEnPlatoLinea(platoLinea) {
     if (!sel) continue;
     const fromCat = resolverPronombreCatalogo(catalog, sel);
     if (fromCat) sel.pronombre = fromCat;
+    const grupoCfg = findGrupoCatalogo(catalog, sel.grupo);
+    if (grupoCfg) sel.forzarVisibleTablaKds = grupoForzarVisibleTablaKds(grupoCfg);
   }
 }
 
@@ -148,6 +157,15 @@ function overlayComplementosUnidosEnPlatoLinea(platoLinea) {
   const cat = platoLinea.plato;
   if (cat && typeof cat === 'object' && cat.complementosUnidosAlPlato === true) {
     platoLinea.complementosUnidosAlPlato = true;
+  }
+  if (cat && typeof cat === 'object' && cat.ocultarCronometroCocina === true) {
+    platoLinea.ocultarCronometroCocina = true;
+  }
+  if (cat && typeof cat === 'object' && cat.juntarGuarnicionesEntreVariantes === true) {
+    platoLinea.juntarGuarnicionesEntreVariantes = true;
+  }
+  if (cat && typeof cat === 'object' && cat.kdsEstiloCompacto === true) {
+    platoLinea.kdsEstiloCompacto = true;
   }
 }
 
@@ -273,7 +291,8 @@ function enriquecerComplementosConPrecio(complementosPlato, complementosSeleccio
       opcion: nombreOp,
       cantidad: Math.max(1, Number(sel.cantidad) || 1),
       precio: precioSnapshot,
-      pronombre: pronombreSnap
+      pronombre: pronombreSnap,
+      forzarVisibleTablaKds: grupoForzarVisibleTablaKds(grupoConfig)
     };
   });
 }

@@ -97,6 +97,26 @@ const platoSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    // Ver cocina completa: oculta el cronómetro en tarjetas de este plato (cocineros asignados).
+    ocultarCronometroCocina: {
+        type: Boolean,
+        default: false
+    },
+    // Ver cocina completa: la misma guarnición de TÉ/CAFÉ/etc. se suma (10 jugos, no 6+4).
+    juntarGuarnicionesEntreVariantes: {
+        type: Boolean,
+        default: false
+    },
+    // Al agregar el plato en Órdenes, el mozo debe ingresar un N/S de 2 a 4 dígitos.
+    requiereNumeroSerie: {
+        type: Boolean,
+        default: false
+    },
+    // Si la comanda es solo de este plato, la tarjeta KDS se pinta compacta (sin huecos).
+    kdsEstiloCompacto: {
+        type: Boolean,
+        default: false
+    },
     // Sub-opciones del resumen (solo relevantes si mostrarTotalComplementosImpresion === true)
     resumenComplementosImpresion: {
         mostrarCantidad: { type: Boolean, default: true },   // "4 uds."
@@ -134,6 +154,12 @@ const platoSchema = new mongoose.Schema({
         // Si true, las cantidades MIX son lo pedido (4 TÉ + 2 CAFÉ = 6) y no deben
         // sumar la cantidad del plato. Las fijas se multiplican por ese total.
         deshabilitarSumaVariante: { type: Boolean, default: false },
+        // Anexa la opción al nombre del plato en cocina (Pollo leña + Pierna → Pollo leña Pierna).
+        // Distinto de MIX: no reemplaza el nombre, no es guarnición KDS.
+        anexarVarianteAlNombre: { type: Boolean, default: false },
+        // Si true, esta guarnición se ve en la tabla KDS aunque la vista tenga
+        // «Ocultar complementos / guarniciones».
+        forzarVisibleTablaKds: { type: Boolean, default: false },
         // Selección fija: el mozo no elige; al pedir el plato se aplican las opciones
         // marcadas en Órdenes (o todas, si ninguna está marcada) con su cantidad.
         seleccionFija: { type: Boolean, default: false },

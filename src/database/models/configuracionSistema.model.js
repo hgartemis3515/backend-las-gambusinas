@@ -149,6 +149,10 @@ const CONFIGURACION_DEFAULT = {
         // Atajo KDS "Entregar plato entero": finalizar + salida + entrega al comensal.
         // El mozo ve "Entregado" y no usa "Entregar plato". Default ON.
         entregarPlatoEnteroAbsoluto: true,
+        // Color del recuadro detrás del nombre del mozo en KDS / tickets.
+        // false = cada usuario usa colorPerfil; true = todos usan colorMozoForzado.
+        forzarColorMozoUnico: false,
+        colorMozoForzado: '#1e3a8a',
         tiemposGuarnicion: {
             umbralAlertaMultiplo: 1.5,
             umbralCriticaMultiplo: 2,
@@ -553,6 +557,14 @@ const configuracionSistemaSchema = new mongoose.Schema({
         entregarPlatoEnteroAbsoluto: {
             type: Boolean,
             default: CONFIGURACION_DEFAULT.cocina.entregarPlatoEnteroAbsoluto
+        },
+        forzarColorMozoUnico: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.cocina.forzarColorMozoUnico
+        },
+        colorMozoForzado: {
+            type: String,
+            default: CONFIGURACION_DEFAULT.cocina.colorMozoForzado
         },
         // Umbrales de tiempos por local (no hard-codeados). Si una guarnición supera
         // umbralAlertaSeg × tiempoMedioPreparacion → alerta visual en KDS.

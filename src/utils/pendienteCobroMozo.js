@@ -157,15 +157,18 @@ function mapComandaPorCobrar(c, pendienteCobro) {
   const mesaId = c.mesas?._id
     ? String(c.mesas._id)
     : (c.mesas && typeof c.mesas !== 'object' ? String(c.mesas) : null);
+  const mesaNumero = c.mesaNumero ?? c.mesas?.nummesa ?? c.mesas?.numero ?? null;
+  const esSinMesa = !mesaId && (mesaNumero == null || mesaNumero === '');
   return {
     _id: c._id,
     comandaNumber: c.comandaNumber,
     status: c.status,
     createdAt: c.createdAt,
     mesaId,
-    mesaNumero: c.mesaNumero ?? c.mesas?.nummesa ?? c.mesas?.numero ?? null,
+    mesaNumero,
     mesaEstado: c.mesas?.estado || null,
     mesaNombre: c.mesas?.nombreCombinado || null,
+    esSinMesa,
     total: netoComanda(c),
     pendienteCobro: round2(pendienteCobro),
     observaciones: c.observaciones || '',

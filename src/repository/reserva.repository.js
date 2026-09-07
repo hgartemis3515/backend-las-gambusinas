@@ -9,6 +9,7 @@ const {
     calcularResumenComplementos
 } = require('../utils/precioComplementos');
 const { partirLineaPorVariante, snapshotNombreCocinaPedido } = require('../utils/variantePlato');
+const { aplicarNumeroSerieComanda } = require('../utils/numeroSeriePlato');
 const { debeCancelarReservaAlEliminarComanda } = require('../utils/reservaComandas');
 
 // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: modelos diferidos para crear comanda programada
@@ -900,6 +901,11 @@ const crearReservaDesdeMozos = async (data) => {
                     precioBase: calc.precioBase, extraComplementos: calc.extraComplementos,
                     precioUnitario: calc.precioUnitario, totalUnidadesComplementos: calc.totalUnidadesComplementos,
                     mostrarResumenComplementos: !!platoDoc.mostrarResumenComplementos,
+                    complementosUnidosAlPlato: platoDoc.complementosUnidosAlPlato === true,
+                    ocultarCronometroCocina: platoDoc.ocultarCronometroCocina === true,
+                    juntarGuarnicionesEntreVariantes: platoDoc.juntarGuarnicionesEntreVariantes === true,
+                    kdsEstiloCompacto: platoDoc.kdsEstiloCompacto === true,
+                    numeroSerie: String(linea.numeroSerie || item.numeroSerie || '').replace(/\D/g, '').slice(0, 4),
                     resumenComplementosImpresion: platoDoc.resumenComplementosImpresion || undefined,
                     notaEspecial, tipoServicio, cantidad: calc.cantidad,
                     nombreCocinaPedido: linea.nombreCocinaPedido || calc.nombreCocinaPedido || '',
@@ -926,6 +932,10 @@ const crearReservaDesdeMozos = async (data) => {
         await mesasModel.updateOne({ _id: mesa._id }, { estado: 'pendiente_aprobar' });
         mesaIdBloqueada = mesa.estado === 'libre' ? mesa._id : null;
 
+        aplicarNumeroSerieComanda({
+            platos: platosComanda,
+            numeroSerie: data.numeroSerie
+        }, platoMap);
         const mozoDoc = await require('../database/models/mozos.model').findById(data.mozo).select('name rol').lean();
         const comandaPayload = {
             mozos: data.mozo, mesas: mesa._id,
@@ -933,6 +943,7 @@ const crearReservaDesdeMozos = async (data) => {
             areaNombre: mesa.area?.nombre || null, clienteNombre,
             platos: platosComanda, cantidades: platosComanda.map((p) => p.cantidad),
             observaciones: data.notas || '', status: 'en_espera', IsActive: true,
+            numeroSerie: String(platosComanda[0]?.numeroSerie || data.numeroSerie || '').replace(/\D/g, '').slice(0, 4),
             origenCreacion: 'reserva', origenReserva: reserva._id,
             programadaPorReserva: true, fechaCocinaProgramada: fechaCocina.toDate(), prioridadOrden: 0
         };

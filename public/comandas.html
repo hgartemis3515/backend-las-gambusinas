@@ -153,6 +153,12 @@ tailwind.config = {
  <!-- Filtro ID Comanda -->
  <input type="text" x-model="filterIdComanda" @input="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-28 placeholder-txt-muted" placeholder="# Comanda">
 
+ <!-- Ver ticket duplicado / huérfano por número (tabla cocina) -->
+ <form @submit.prevent="buscarTicketPorNumero()" class="flex items-center gap-1">
+  <input type="text" x-model="buscarTicketNumero" inputmode="numeric" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-24 placeholder-txt-muted" placeholder="# Ticket">
+  <button type="submit" class="px-3 py-2 border border-gold/40 rounded-lg text-xs font-semibold text-gold hover:bg-gold/10 transition whitespace-nowrap" title="Busca el ticket aunque no figure en la comanda">🎫 Ver ticket</button>
+ </form>
+
  <!-- Filtro Mozo -->
  <select x-model="filterMozo" @change="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary min-w-[140px]">
  <option value="">Mozo: Todos</option>
@@ -275,8 +281,11 @@ tailwind.config = {
  <span class="text-gold font-bold text-sm shrink-0" x-text="expandedGroups.includes(row.id) ? '▼' : '▶'"></span>
  <span class="text-gold font-bold text-sm truncate" x-text="'GRUPO ' + (formatGrupoComandasLabel(row.comandas) || row.clienteNombre || formatearNombreMesa(row.mesaNum, row.mesaObj))"></span>
  <span x-show="esGrupoReserva(row)"
-  class="text-[9px] font-extrabold tracking-wide text-[#e879f9] whitespace-nowrap shrink-0 leading-none"
-  :title="'Inicio en cocina: ' + (horaInicioCocinaReserva(comandaReservaDeFila(row)) || '—')">RESERVADO</span>
+  class="inline-flex flex-col items-center justify-center leading-tight text-[#e879f9] whitespace-nowrap shrink-0"
+  :title="'Inicio en cocina: ' + (horaInicioCocinaReserva(comandaReservaDeFila(row)) || '—')">
+  <span class="text-[9px] font-extrabold tracking-wide">Reserva</span>
+  <span class="text-[8px] font-bold tracking-wide" x-show="sufijoPagoReserva(comandaReservaDeFila(row))" x-text="sufijoPagoReserva(comandaReservaDeFila(row))"></span>
+ </span>
  </button>
  </template>
 <template x-if="row.tipo === 'individual'">
@@ -284,8 +293,11 @@ tailwind.config = {
   <span class="font-medium text-sm" x-text="'#' + (row.comanda.numComanda || row.comanda._id?.slice(-4) || '—')"></span>
   <span x-show="row.comanda?.omitirPago" class="text-[9px] px-1.5 py-0 rounded bg-st-pagado/20 text-st-pagado font-semibold leading-none" :title="row.comanda?.pagoOmitido?.motivo ? ('Pago omitido: ' + row.comanda.pagoOmitido.motivo) : 'Pago omitido'">💸</span>
   <span x-show="esComandaReserva(row.comanda)"
-   class="text-[9px] font-extrabold tracking-wide text-[#e879f9] whitespace-nowrap leading-none"
-   :title="'Inicio en cocina: ' + (horaInicioCocinaReserva(row.comanda) || '—')">RESERVADO</span>
+   class="inline-flex flex-col items-center justify-center leading-tight text-[#e879f9] whitespace-nowrap"
+   :title="'Inicio en cocina: ' + (horaInicioCocinaReserva(row.comanda) || '—')">
+   <span class="text-[9px] font-extrabold tracking-wide">Reserva</span>
+   <span class="text-[8px] font-bold tracking-wide" x-show="sufijoPagoReserva(row.comanda)" x-text="sufijoPagoReserva(row.comanda)"></span>
+  </span>
 </div>
 </template>
  </td>
@@ -419,8 +431,11 @@ tailwind.config = {
  <span class="text-txt-muted text-xs">↳</span>
  <span class="text-txt-secondary text-sm" x-text="'#' + (comanda.numComanda || comanda._id?.slice(-4))"></span>
  <span x-show="esComandaReserva(comanda)"
-  class="text-[9px] font-extrabold tracking-wide text-[#e879f9] whitespace-nowrap leading-none"
-  :title="'Inicio en cocina: ' + (horaInicioCocinaReserva(comanda) || '—')">RESERVADO</span>
+  class="inline-flex flex-col items-center justify-center leading-tight text-[#e879f9] whitespace-nowrap"
+  :title="'Inicio en cocina: ' + (horaInicioCocinaReserva(comanda) || '—')">
+  <span class="text-[9px] font-extrabold tracking-wide">Reserva</span>
+  <span class="text-[8px] font-bold tracking-wide" x-show="sufijoPagoReserva(comanda)" x-text="sufijoPagoReserva(comanda)"></span>
+ </span>
  </div>
  </td>
  <!-- Mesa -->
@@ -719,7 +734,10 @@ tailwind.config = {
  }"
  x-text="estadoLabel(selectedComanda?.estado)"></span>
  <span x-show="esComandaReserva(selectedComanda)"
-   class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-[#9b59b6]/20 text-[#c39bd3]">📅 Reserva</span>
+   class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-[#9b59b6]/20 text-[#c39bd3] inline-flex flex-col items-center leading-tight">
+   <span>📅 Reserva</span>
+   <span class="text-[8px] font-bold" x-show="sufijoPagoReserva(selectedComanda)" x-text="sufijoPagoReserva(selectedComanda)"></span>
+ </span>
  <span x-show="selectedComanda?.omitirPago"
    class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-st-pagado/20 text-st-pagado"
    :title="(selectedComanda?.pagoOmitido?.motivo || 'Pago omitido') + (selectedComanda?.pagoOmitido?.aplicado ? ' · Auto-pagada al entregar' : ' · Pendiente de entrega')">
@@ -983,7 +1001,7 @@ tailwind.config = {
  'bg-st-libre/20 text-st-libre': item.estado === 'pagado',
  'bg-txt-muted/20 text-txt-muted': item.eliminado
  }"
- x-text="item.eliminado ? 'Eliminado' : estadoLabel(item.estado)"></span>
+ x-text="item.eliminado ? 'Eliminado' : labelEstadoPlatoChip(item.estado, selectedComanda)"></span>
  </td>
  </tr>
  </template>
@@ -1024,7 +1042,14 @@ tailwind.config = {
  <span>🎫</span> Tickets generados por mozos
  <span x-show="comandaTickets.length > 0" class="text-[9px] px-1.5 py-0.5 rounded-full bg-gold/20 text-gold font-bold" x-text="comandaTickets.length"></span>
  </p>
+ <div class="flex items-center gap-2">
  <span x-show="loadingTickets" class="text-[9px] text-txt-muted animate-pulse">Cargando...</span>
+ <button type="button" x-show="!loadingTickets && comandaTickets.length > 0"
+ @click="buscarDuplicadosDeComandaTickets()"
+ class="text-[10px] px-2 py-1 rounded-lg border border-st-pagado/40 text-st-pagado hover:bg-st-pagado/10 transition">
+ Ver duplicados
+ </button>
+ </div>
  </div>
  <template x-if="!loadingTickets && comandaTickets.length === 0">
  <p class="px-4 py-5 text-center text-[#5a5a7a] text-xs">Sin tickets registrados para esta comanda</p>
@@ -1041,6 +1066,10 @@ tailwind.config = {
  <span class="text-[9px] px-2 py-0.5 rounded-full font-bold"
  :class="ticketEstadoBadgeClass(ticket.estado)"
  x-text="ticketEstadoLabel(ticket.estado)"></span>
+ <span x-show="ticket.duplicadoHuerfano" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-st-pagado/20 text-st-pagado border border-st-pagado/40">Duplicado</span>
+ <span x-show="ticket.vinculoDebil && !ticket.duplicadoHuerfano" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-st-esperando/20 text-st-esperando border border-st-esperando/40">Sin vínculo</span>
+ <span x-show="ticket.inactivo" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-txt-muted/20 text-txt-muted border border-txt-muted/40">Inactivo</span>
+ <span x-show="ticket.duplicadoNumero && !ticket.duplicadoHuerfano" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-st-esperando/20 text-st-esperando border border-st-esperando/40">Mismo #</span>
  <span x-show="ticketTieneParaLlevar(ticket)" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">🥡 Para llevar</span>
  </div>
  <div class="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-[10px] text-[#a0a0b8]">
@@ -1074,6 +1103,7 @@ tailwind.config = {
  <span class="text-sm font-bold text-gold" x-text="'S/. ' + Number(totalesTicketVista(ticket).neto).toFixed(2)"></span>
  </template>
  <button @click="imprimirTicketComanda(ticket)" class="p-1.5 rounded hover:bg-gold/20 transition text-xs" title="Imprimir ticket">🖨️</button>
+ <button x-show="ticketEsActivo(ticket)" @click="confirmarEliminarTicket(ticket)" class="p-1.5 rounded hover:bg-st-pagado/20 transition text-xs" title="Quitar duplicado / eliminar">🗑️</button>
  </div>
  </div>
  </template>
@@ -1268,7 +1298,7 @@ tailwind.config = {
  'bg-st-libre/20 text-st-libre': item.estado === 'pagado',
  'bg-txt-muted/20 text-txt-muted': item.eliminado
  }"
- x-text="item.eliminado ? 'Eliminado' : estadoLabel(item.estado)"></span>
+ x-text="item.eliminado ? 'Eliminado' : labelEstadoPlatoChip(item.estado, comanda)"></span>
  </td>
  </tr>
  </template>
@@ -1345,7 +1375,10 @@ tailwind.config = {
  }"
  x-text="estadoLabel(editComanda?.estado)"></span>
  <span x-show="esComandaReserva(editComanda)"
-   class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-[#9b59b6]/20 text-[#c39bd3]">📅 Reserva</span>
+   class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-[#9b59b6]/20 text-[#c39bd3] inline-flex flex-col items-center leading-tight">
+   <span>📅 Reserva</span>
+   <span class="text-[8px] font-bold" x-show="sufijoPagoReserva(editComanda)" x-text="sufijoPagoReserva(editComanda)"></span>
+ </span>
  </div>
  <p class="text-xs text-txt-muted mt-0.5">
  <span x-text="formatearNombreMesa(editComanda?.mesa)"></span>
@@ -1605,6 +1638,11 @@ tailwind.config = {
  </p>
  <div class="flex items-center gap-2">
  <span x-show="loadingTickets" class="text-[9px] text-txt-muted animate-pulse">Cargando...</span>
+ <button type="button" x-show="!loadingTickets && comandaTickets.length > 0"
+ @click="buscarDuplicadosDeComandaTickets()"
+ class="text-[10px] px-2 py-1 rounded-lg border border-st-pagado/40 text-st-pagado hover:bg-st-pagado/10 transition">
+ Ver duplicados
+ </button>
  <button type="button" x-show="!loadingTickets && puedeCrearTicketAprobacion()"
  @click="crearTicketAprobacionAprobado()" :disabled="creandoTicketAprobacion"
  class="text-[10px] px-2 py-1 rounded-lg border border-gold/40 text-gold hover:bg-gold/10 transition disabled:opacity-50">
@@ -1634,6 +1672,10 @@ tailwind.config = {
  <span class="text-[9px] px-2 py-0.5 rounded-full font-bold"
  :class="ticketEstadoBadgeClass(ticket.estado)"
  x-text="ticketEstadoLabel(ticket.estado)"></span>
+ <span x-show="ticket.duplicadoHuerfano" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-st-pagado/20 text-st-pagado border border-st-pagado/40">Duplicado</span>
+ <span x-show="ticket.vinculoDebil && !ticket.duplicadoHuerfano" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-st-esperando/20 text-st-esperando border border-st-esperando/40">Sin vínculo</span>
+ <span x-show="ticket.inactivo" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-txt-muted/20 text-txt-muted border border-txt-muted/40">Inactivo</span>
+ <span x-show="ticket.duplicadoNumero && !ticket.duplicadoHuerfano" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-st-esperando/20 text-st-esperando border border-st-esperando/40">Mismo #</span>
  <span x-show="ticketTieneParaLlevar(ticket)" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">🥡 Para llevar</span>
  </div>
  <div class="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-[10px] text-[#a0a0b8]">
@@ -1666,7 +1708,7 @@ tailwind.config = {
  <div class="flex items-center gap-1">
  <button @click="imprimirTicketComanda(ticket)" class="p-1 rounded hover:bg-gold/20 transition text-xs" title="Imprimir">🖨️</button>
  <button x-show="ticket.estado === 'pendiente_aprobacion' || ticket.estado === 'aprobado'" @click="openEditarTicketModal(ticket)" class="p-1 rounded hover:bg-gold/20 transition text-xs" title="Editar ticket">✏️</button>
- <button x-show="ticket.estado === 'pendiente_aprobacion'" @click="confirmarEliminarTicket(ticket)" class="p-1 rounded hover:bg-st-pagado/20 transition text-xs" title="Eliminar ticket">🗑️</button>
+ <button x-show="ticketEsActivo(ticket)" @click="confirmarEliminarTicket(ticket)" class="p-1 rounded hover:bg-st-pagado/20 transition text-xs" title="Quitar duplicado / eliminar">🗑️</button>
  </div>
  </div>
  </div>
@@ -1911,6 +1953,50 @@ tailwind.config = {
  </div>
 </div>
 
+<!-- MODAL: BUSCAR TICKET POR NÚMERO (duplicados / huérfanos) -->
+<div x-show="modal==='buscarTicket'" x-transition.opacity class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80" @click.self="modal=null">
+ <div class="bg-bg-card border border-gold/30 rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl" @click.stop>
+ <div class="px-5 py-4 border-b border-[rgba(212,175,55,0.15)] flex items-center justify-between">
+  <div>
+   <h3 class="text-base font-bold">Ticket #<span x-text="buscarTicketNumero || '—'"></span></h3>
+   <p class="text-[10px] text-txt-muted mt-0.5">Incluye duplicados que suman en cocina y no figuran al abrir la comanda.</p>
+  </div>
+  <button type="button" @click="modal=null" class="text-txt-muted hover:text-white text-lg leading-none">✕</button>
+ </div>
+ <div class="px-5 py-3 overflow-y-auto flex-1">
+  <p x-show="loadingBuscarTicket" class="text-xs text-txt-muted animate-pulse">Buscando...</p>
+  <p x-show="!loadingBuscarTicket && ticketsBusqueda.length === 0" class="text-xs text-txt-muted text-center py-6">No se encontró ese número.</p>
+  <div class="divide-y divide-[rgba(212,175,55,0.08)]">
+   <template x-for="ticket in ticketsBusqueda" :key="ticket._id">
+    <div class="py-3" :class="ticket.duplicadoHuerfano || ticket.vinculoDebil ? 'bg-st-pagado/5 -mx-2 px-2 rounded-lg' : ''">
+     <div class="flex items-center gap-2 flex-wrap">
+      <span class="text-sm font-bold text-white" x-text="'#' + (ticket.ticketNumber || '—')"></span>
+      <span class="text-[9px] px-2 py-0.5 rounded-full font-bold" :class="ticketTipoBadgeClass(ticket.tipo)" x-text="ticketTipoLabel(ticket.tipo)"></span>
+      <span class="text-[9px] px-2 py-0.5 rounded-full font-bold" :class="ticketEstadoBadgeClass(ticket.estado)" x-text="ticketEstadoLabel(ticket.estado)"></span>
+      <span x-show="ticket.duplicadoHuerfano || ticket.vinculoDebil" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-st-pagado/20 text-st-pagado border border-st-pagado/40">Sin vínculo en comanda</span>
+      <span x-show="ticket.inactivo" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-txt-muted/20 text-txt-muted border border-txt-muted/40">Inactivo</span>
+      <span x-show="ticket.duplicadoNumero" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-st-esperando/20 text-st-esperando border border-st-esperando/40">Repetido</span>
+     </div>
+     <div class="mt-1 text-[10px] text-[#a0a0b8] flex flex-wrap gap-x-3">
+      <span x-text="'Mozo: ' + (ticket.mozoNombre || '—')"></span>
+      <span x-text="'Mesa: ' + (ticket.numMesa != null ? ticket.numMesa : '—')"></span>
+      <span x-text="'Comanda: #' + (ticket.comandaNumber || '—')"></span>
+      <span x-text="'S/. ' + Number(totalesTicketVista(ticket).neto).toFixed(2)"></span>
+      <span x-show="ticket.createdAt" x-text="new Date(ticket.createdAt).toLocaleString('es-PE', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})"></span>
+     </div>
+     <p x-show="ticket._id" class="text-[9px] text-txt-muted mt-0.5 font-mono" x-text="'id ' + ticket._id"></p>
+     <div class="flex items-center gap-2 mt-2">
+      <button type="button" @click="abrirComandaDesdeTicket(ticket)" class="text-[10px] px-2 py-1 rounded-lg border border-gold/40 text-gold hover:bg-gold/10">Abrir comanda</button>
+      <button type="button" @click="imprimirTicketComanda(ticket)" class="text-[10px] px-2 py-1 rounded-lg border border-txt-muted/30 text-txt-secondary hover:border-gold">🖨️ Imprimir</button>
+      <button type="button" x-show="ticketEsActivo(ticket)" @click="confirmarEliminarTicketDesdeBusqueda(ticket)" class="text-[10px] px-2 py-1 rounded-lg border border-st-pagado/40 text-st-pagado hover:bg-st-pagado/10">Quitar duplicado</button>
+     </div>
+    </div>
+   </template>
+  </div>
+ </div>
+ </div>
+</div>
+
 <!-- MODAL: CONFIRMAR ELIMINAR TICKET -->
 <div x-show="modal==='confirmarEliminarTicket'" x-transition.opacity class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80">
  <div class="bg-bg-card border border-st-pagado/40 rounded-2xl w-[400px] shadow-2xl" @click.stop>
@@ -1918,15 +2004,15 @@ tailwind.config = {
  <div class="w-16 h-16 rounded-full bg-st-pagado/20 flex items-center justify-center mx-auto mb-4">
  <span class="text-3xl">🎫🗑️</span>
  </div>
- <h3 class="text-lg font-bold mb-2">Eliminar Ticket</h3>
- <p class="text-txt-secondary text-sm mb-2" x-text="'¿Eliminar el ticket #' + (ticketEliminar?.ticketNumber || '—') + ' (' + ticketTipoLabel(ticketEliminar?.tipo) + ')?'"></p>
- <p class="text-[10px] text-txt-muted mb-4">Solo tickets pendientes. Los platos volverán a estado entregado. El boucher contable no se modifica.</p>
+ <h3 class="text-lg font-bold mb-2" x-text="ticketQuitarComoDuplicado(ticketEliminar) ? 'Quitar ticket duplicado' : 'Eliminar Ticket'"></h3>
+ <p class="text-txt-secondary text-sm mb-2" x-text="'¿Quitar el ticket #' + (ticketEliminar?.ticketNumber || '—') + ' (' + ticketTipoLabel(ticketEliminar?.tipo) + ')?'"></p>
+ <p class="text-[10px] text-txt-muted mb-4" x-text="ticketQuitarComoDuplicado(ticketEliminar) ? 'Sale de la tabla de tickets y de los totales. No cambia platos ni el boucher.' : 'Ticket pendiente: los platos volverán a entregado. El boucher no se modifica.'"></p>
  <textarea x-model="motivoEliminarTicket" placeholder="Motivo de eliminación (requerido)..." class="w-full bg-bg-sidebar border border-gold/25 rounded-lg px-4 py-2.5 text-sm h-20 resize-none focus:border-st-pagado focus:outline-none text-white mb-4"></textarea>
  </div>
  <div class="bg-bg-sidebar p-4 rounded-b-2xl flex justify-end gap-2">
- <button @click="modal='editarComanda'; ticketEliminar=null; motivoEliminarTicket=''" class="px-4 py-2 border border-txt-muted/40 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
+ <button @click="cerrarModalEliminarTicket()" class="px-4 py-2 border border-txt-muted/40 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">Cancelar</button>
  <button @click="ejecutarEliminarTicket()" :disabled="!motivoEliminarTicket.trim() || eliminandoTicket" class="px-4 py-2 bg-st-pagado text-white rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50">
- <span x-text="eliminandoTicket ? 'Eliminando...' : 'Eliminar Ticket'"></span>
+ <span x-text="eliminandoTicket ? 'Quitando...' : (ticketQuitarComoDuplicado(ticketEliminar) ? 'Quitar duplicado' : 'Eliminar Ticket')"></span>
  </button>
  </div>
  </div>
@@ -2337,6 +2423,10 @@ function comandasApp() {
  ticketEditForm: { observaciones: '', metodoPago: 'efectivo', estado: 'pendiente_aprobacion', motivoEstado: '', platos: [] },
  ticketEliminar: null,
  motivoEliminarTicket: '',
+ modalTicketOrigen: null,
+ buscarTicketNumero: '',
+ ticketsBusqueda: [],
+ loadingBuscarTicket: false,
  guardandoTicket: false,
  eliminandoTicket: false,
 
@@ -4777,39 +4867,48 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  return map[e] || 'bg-black text-[#c0c0c0]';
  },
 
- contarEstadosPlatosDeItems(items) {
+ contarEstadosPlatosDeItems(items, comanda) {
  const counts = {};
+ const labels = {};
  (items || []).forEach((item) => {
  if (!item || item.eliminado) return;
  const est = String(item.estado || 'en_espera').toLowerCase();
  const n = Math.max(1, Number(item.cantidad) || 1);
  counts[est] = (counts[est] || 0) + n;
+ if (!labels[est]) labels[est] = this.labelEstadoPlatoChip(est, comanda);
  });
  const vistos = new Set();
  const chips = [];
  (this.ordenEstadosPlato || []).forEach((e) => {
  if (counts[e] > 0) {
  vistos.add(e);
- chips.push({ estado: e, cantidad: counts[e], label: this.estadoLabel(e) });
+ chips.push({ estado: e, cantidad: counts[e], label: labels[e] || this.estadoLabel(e) });
  }
  });
  Object.keys(counts).forEach((e) => {
  if (!vistos.has(e) && counts[e] > 0) {
- chips.push({ estado: e, cantidad: counts[e], label: this.estadoLabel(e) });
+ chips.push({ estado: e, cantidad: counts[e], label: labels[e] || this.estadoLabel(e) });
  }
  });
  return chips;
  },
 
  contarEstadosPlatosComanda(comanda) {
- return this.contarEstadosPlatosDeItems(comanda?.items || comanda?.platos || []);
+ return this.contarEstadosPlatosDeItems(comanda?.items || comanda?.platos || [], comanda);
  },
 
  contarEstadosPlatosFila(row) {
  if (!row) return [];
  if (row.tipo === 'grupo' && Array.isArray(row.comandas)) {
- const items = row.comandas.flatMap((c) => c.items || c.platos || []);
- return this.contarEstadosPlatosDeItems(items);
+ const merged = {};
+ row.comandas.forEach((c) => {
+ this.contarEstadosPlatosComanda(c).forEach((chip) => {
+ const key = chip.estado + '|' + chip.label;
+ if (!merged[key]) merged[key] = { estado: chip.estado, cantidad: chip.cantidad, label: chip.label };
+ else merged[key].cantidad += chip.cantidad;
+ });
+ });
+ return Object.values(merged);
  }
  return this.contarEstadosPlatosComanda(row.comanda);
  },
@@ -4862,7 +4961,9 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  },
 
  tipoTicketApiHint(ticket) {
- return String(ticket?.tipo || '').toUpperCase() === 'ADELANTADO' ? 'ADELANTADO' : 'COMANDA';
+ const t = String(ticket?.tipo || '').toUpperCase();
+ if (t === 'ADELANTADO' || t === 'PAGO_ADELANTADO') return 'ADELANTADO';
+ return 'COMANDA';
  },
 
  textoBotonGuardarTicket() {
@@ -5056,6 +5157,9 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const res = await apiGet('/comanda/' + comandaId + '/tickets');
  const tickets = (res?.tickets || res || []).map(t => this.normalizarTicketLista(t)).filter(Boolean);
  this.comandaTickets = tickets;
+ if ((tickets || []).some((t) => t.duplicadoHuerfano || t.vinculoDebil)) {
+ this.showToast('Hay un ticket duplicado o sin vínculo en esta comanda', 'warning');
+ }
  if (this.editComanda && String(this.editComanda._id) === String(comandaId) && tickets.length) {
  const conPago = tickets.find(t => t.metodoPago);
  if (conPago && !this.editComanda.metodoPago) this.editComanda.metodoPago = conPago.metodoPago;
@@ -5272,36 +5376,149 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  }
  },
 
+ ticketEsActivo(ticket) {
+ return !!(ticket && ticket.isActive !== false);
+ },
+
+ ticketQuitarComoDuplicado(ticket) {
+ if (!this.ticketEsActivo(ticket)) return false;
+ if (this.modalTicketOrigen === 'buscarTicket') return true;
+ if (ticket.duplicadoHuerfano || ticket.vinculoDebil || ticket.duplicadoNumero || ticket.variosTicketsActivos) return true;
+ return String(ticket.estado || '') !== 'pendiente_aprobacion';
+ },
+
  confirmarEliminarTicket(ticket) {
- if (!ticket || ticket.estado !== 'pendiente_aprobacion') return;
+ if (!this.ticketEsActivo(ticket)) return;
+ if (this.modal !== 'confirmarEliminarTicket') {
+  if (this.modal === 'buscarTicket') this.modalTicketOrigen = 'buscarTicket';
+  else if (this.modal === 'verComanda') this.modalTicketOrigen = 'verComanda';
+  else this.modalTicketOrigen = 'editarComanda';
+ }
  this.ticketEliminar = ticket;
- this.motivoEliminarTicket = '';
+ this.motivoEliminarTicket = this.ticketQuitarComoDuplicado(ticket) ? 'Ticket duplicado' : '';
  this.modal = 'confirmarEliminarTicket';
+ },
+
+ confirmarEliminarTicketDesdeBusqueda(ticket) {
+ this.modalTicketOrigen = 'buscarTicket';
+ this.confirmarEliminarTicket(ticket);
+ },
+
+ cerrarModalEliminarTicket() {
+ this.ticketEliminar = null;
+ this.motivoEliminarTicket = '';
+ this.modal = this.modalTicketOrigen || 'editarComanda';
+ },
+
+ idComandaDeTicket(ticket) {
+ if (!ticket) return null;
+ if (ticket.comandaId) return String(ticket.comandaId);
+ const c0 = (ticket.comandas || [])[0];
+ if (c0) return String(c0._id || c0);
+ const p0 = (ticket.platos || [])[0];
+ if (p0?.comandaId) return String(p0.comandaId);
+ return null;
+ },
+
+ async buscarTicketPorNumero() {
+ const n = String(this.buscarTicketNumero || '').replace(/\D/g, '');
+ if (!n) {
+ this.showToast('Escribe el número de ticket', 'warning');
+ return;
+ }
+ this.buscarTicketNumero = n;
+ this.loadingBuscarTicket = true;
+ this.modalTicketOrigen = 'buscarTicket';
+ this.modal = 'buscarTicket';
+ this.ticketsBusqueda = [];
+ try {
+ const res = await apiGet('/aprobacion/buscar-ticket?n=' + encodeURIComponent(n));
+ this.ticketsBusqueda = (res?.tickets || []).map((t) => this.normalizarTicketLista(t)).filter(Boolean);
+ if (!this.ticketsBusqueda.length) this.showToast('No hay ticket #' + n, 'warning');
+ } catch (error) {
+ this.showToast(error.message || 'No se pudo buscar el ticket', 'error');
+ } finally {
+ this.loadingBuscarTicket = false;
+ }
+ },
+
+ async buscarDuplicadosDeComandaTickets() {
+ const nums = [...new Set((this.comandaTickets || []).map((t) => t.ticketNumber).filter((n) => n != null && n !== ''))];
+ if (!nums.length) {
+ this.showToast('Esta comanda no tiene número de ticket. Usa # Ticket arriba.', 'warning');
+ return;
+ }
+ this.loadingBuscarTicket = true;
+ this.modalTicketOrigen = this.modal || 'editarComanda';
+ this.buscarTicketNumero = String(nums[0]);
+ this.modal = 'buscarTicket';
+ this.ticketsBusqueda = [];
+ try {
+ const all = [];
+ for (const n of nums) {
+ const res = await apiGet('/aprobacion/buscar-ticket?n=' + encodeURIComponent(n));
+ all.push(...(res?.tickets || []));
+ }
+ const seen = new Set();
+ this.ticketsBusqueda = all.map((t) => this.normalizarTicketLista(t)).filter((t) => {
+ if (!t || seen.has(String(t._id))) return false;
+ seen.add(String(t._id));
+ return true;
+ });
+ } catch (error) {
+ this.showToast(error.message || 'No se pudieron buscar duplicados', 'error');
+ } finally {
+ this.loadingBuscarTicket = false;
+ }
+ },
+
+ async abrirComandaDesdeTicket(ticket) {
+ const id = this.idComandaDeTicket(ticket);
+ if (!id) {
+ this.showToast('Este ticket no tiene comanda vinculada. Puedes imprimirlo o eliminarlo si está pendiente.', 'warning');
+ return;
+ }
+ await this.openEditModal({ _id: id });
+ if (!this.editComanda?._id) {
+ this.modal = 'buscarTicket';
+ }
  },
 
  async ejecutarEliminarTicket() {
  if (!this.ticketEliminar?._id || !this.motivoEliminarTicket.trim()) return;
  this.eliminandoTicket = true;
+ const duplicado = this.ticketQuitarComoDuplicado(this.ticketEliminar);
  try {
  await apiPut('/aprobacion/' + this.ticketEliminar._id + '/eliminar', {
- tipo: this.ticketEliminar.tipo,
+ tipo: this.tipoTicketApiHint(this.ticketEliminar),
  motivo: this.motivoEliminarTicket.trim(),
  usuarioId: 'admin',
  usuarioNombre: 'Admin',
+ duplicado,
  });
  this.removerTicketDeLista(this.ticketEliminar._id);
- const comandaId = this.editComanda._id;
+ const comandaId = this.editComanda?._id || this.selectedComanda?._id;
  if (comandaId) {
+ await this.loadComandaTickets(comandaId);
+ if (!duplicado && this.editComanda?._id) {
  const detalle = await this.loadComandaDetalle(comandaId);
  if (detalle) {
  this.editComanda = { ...this.editComanda, ...detalle, _id: detalle._id };
  this.editPlatos = (detalle.items || []).map(item => this.mapEditPlatoFromItem(item));
  }
  }
- this.showToast('Ticket eliminado', 'success');
- this.modal = 'editarComanda';
+ }
+ this.showToast(duplicado ? 'Duplicado quitado de la tabla' : 'Ticket eliminado', 'success');
  this.ticketEliminar = null;
  this.motivoEliminarTicket = '';
+ if (this.modalTicketOrigen === 'buscarTicket') {
+ this.modal = 'buscarTicket';
+ await this.buscarTicketPorNumero();
+ } else if (this.modalTicketOrigen === 'verComanda') {
+ this.modal = 'verComanda';
+ } else {
+ this.modal = 'editarComanda';
+ }
  } catch (error) {
  this.showToast('Error al eliminar ticket: ' + (error.message || ''), 'error');
  } finally {
@@ -6332,6 +6549,44 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  esComandaReserva(c) {
    return !!(c && (c.reserva || c.origenReserva || c.origenCreacion === 'reserva' || c.programadaPorReserva));
+ },
+ clasificarPagoReserva(c) {
+   let pa = c?.reserva?.pagoAdelantado;
+   if (!pa || pa.activo === false) {
+     const rid = c?.reserva?._id || c?.origenReserva?._id || c?.origenReserva;
+     const r = rid && (this.reservas || []).find((x) => String(x._id) === String(rid));
+     pa = r?.pagoAdelantado || pa;
+   }
+   if (!pa || pa.activo === false) return 'sin';
+   const pagado = Number(pa.montoPagado) || 0;
+   const total = Number(pa.totalPlatos) || 0;
+   const pend = Number(pa.montoPendiente);
+   if (pagado <= 0) return 'sin';
+   const cubreTotal = total > 0 && pagado + 0.009 >= total;
+   const sinPendiente = Number.isFinite(pend) && pend <= 0.009;
+   if (cubreTotal || (sinPendiente && pagado > 0)) return 'pagada';
+   return 'parcial';
+ },
+ sufijoPagoReserva(c) {
+   const t = this.clasificarPagoReserva(c);
+   if (t === 'pagada') return 'Pagada';
+   if (t === 'parcial') return 'Parcial';
+   return '';
+ },
+ esComandaReservaParaLlevar(c) {
+   const items = (c?.items || c?.platos || []).filter((i) => i && !i.eliminado);
+   if (!items.length) return false;
+   return items.every((i) => (i.tipoServicio || 'mesa') === 'para_llevar');
+ },
+ esPendienteAEntregarReserva(c) {
+   return this.esComandaReserva(c)
+     && this.esComandaReservaParaLlevar(c)
+     && this.clasificarPagoReserva(c) === 'pagada';
+ },
+ labelEstadoPlatoChip(estado, comanda) {
+   const e = String(estado || '').toLowerCase();
+   if (e === 'pendiente' && this.esPendienteAEntregarReserva(comanda)) return 'Pendiente a entregar';
+   return this.estadoLabel(e);
  },
  esGrupoReserva(row) {
    return !!(row && (row.comandas || []).some((c) => this.esComandaReserva(c)));

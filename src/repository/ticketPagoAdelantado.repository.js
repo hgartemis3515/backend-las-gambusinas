@@ -8,9 +8,10 @@ const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelanta
 const comandaModel = require('../database/models/comanda.model');
 const AuditoriaAcciones = require('../database/models/auditoriaAcciones.model');
 const logger = require('../utils/logger');
-const { adjuntarDescuentoTicket, aplicarDescuentoAVistaTicket, BOUCHER_DESCUENTO_SELECT, COMANDA_DESCUENTO_SELECT } = require('../utils/descuentoTicketSnapshot');
+const { adjuntarDescuentoTicket, aplicarDescuentoAVistaTicket, BOUCHER_DESCUENTO_SELECT, COMANDA_TICKET_LIST_SELECT } = require('../utils/descuentoTicketSnapshot');
 const { aplicarTotalesPedidoPPA } = require('../utils/totalesTicketPPA');
 const { aplicarPreciosEnLineasTicket, quitarLineasDeSnapshot, sincronizarEliminacionEnBoucher, sincronizarPreciosComandaYBoucher } = require('../utils/editarPreciosTicket');
+const { filtroTicketsVinculadosAComanda, parseTicketNumber } = require('../utils/filtroTicketsDeComanda');
 
 function mapTicketPPAVista(ticket) {
   return aplicarDescuentoAVistaTicket(aplicarTotalesPedidoPPA(ticket));
@@ -137,7 +138,7 @@ async function obtenerTicketPorId(ticketId) {
   const ticket = await ticketPagoAdelantadoModel.findById(ticketId)
     .populate('comandas', 'comandaNumber status platos mesas mozos descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado')
     .populate('mesa', 'nummesa estado nombreCombinado')
-    .populate('mozo', 'name')
+    .populate('mozo', 'name colorPerfil')
     .populate('boucher')
     .populate('aprobadoPor', 'name')
     .lean();
@@ -162,8 +163,8 @@ async function obtenerTicketsPendientes(fecha) {
 
   const tickets = await ticketPagoAdelantadoModel.find(filter)
     .populate('mesa', 'nummesa estado nombreCombinado')
-    .populate('mozo', 'name')
-    .populate('comandas', COMANDA_DESCUENTO_SELECT)
+    .populate('mozo', 'name colorPerfil')
+    .populate('comandas', COMANDA_TICKET_LIST_SELECT)
     .populate('boucher', BOUCHER_DESCUENTO_SELECT)
     .sort({ createdAt: 1 })
     .lean();
@@ -184,8 +185,8 @@ async function obtenerTicketsPorFecha(fecha, fechaHasta) {
     isActive: true,
   })
     .populate('mesa', 'nummesa estado nombreCombinado')
-    .populate('mozo', 'name')
-    .populate('comandas', COMANDA_DESCUENTO_SELECT)
+    .populate('mozo', 'name colorPerfil')
+    .populate('comandas', COMANDA_TICKET_LIST_SELECT)
     .populate('boucher', BOUCHER_DESCUENTO_SELECT)
     .sort({ createdAt: -1 })
     .lean();
@@ -549,19 +550,33 @@ function clasificarComandaPorTipoServicio(platosActivos) {
   return 'solo_mesa';
 }
 
-/**
- * Tickets PPA asociados a una comanda (cualquier estado).
- */
-async function obtenerTicketsPorComanda(comandaId) {
-  if (!mongoose.Types.ObjectId.isValid(comandaId)) return [];
+const POPULATE_TICKET_LISTA = [
+  { path: 'mozo', select: 'name colorPerfil' },
+  { path: 'comandas', select: COMANDA_TICKET_LIST_SELECT },
+  { path: 'boucher', select: 'boucherNumber voucherId metodoPago montoDescuento descuentos totalSinDescuento' },
+];
+
+function findTicketsPPA(filtro) {
+  if (!filtro) return Promise.resolve([]);
   return ticketPagoAdelantadoModel
-    .find({ comandas: comandaId, isActive: true })
-    .populate('mozo', 'name')
-    .populate('comandas', COMANDA_DESCUENTO_SELECT)
-    .populate('boucher', 'boucherNumber voucherId metodoPago montoDescuento descuentos totalSinDescuento')
+    .find(filtro)
+    .populate(POPULATE_TICKET_LISTA)
     .sort({ createdAt: -1 })
     .lean()
     .then((tickets) => tickets.map(mapTicketPPAVista));
+}
+
+/**
+ * Tickets PPA ligados a la comanda (comandas[], platos.comandaId, líneas).
+ */
+async function obtenerTicketsPorComanda(comandaId, extras = {}) {
+  return findTicketsPPA(filtroTicketsVinculadosAComanda(comandaId, extras));
+}
+
+async function buscarPorTicketNumber(numero) {
+  const n = parseTicketNumber(numero);
+  if (!n) return [];
+  return findTicketsPPA({ ticketNumber: n });
 }
 
 /**
@@ -626,6 +641,7 @@ module.exports = {
   obtenerTicketsPendientes,
   obtenerTicketsPorFecha,
   obtenerTicketsPorComanda,
+  buscarPorTicketNumber,
   actualizarTicketAdmin,
   aprobarTicket,
   rechazarTicket,

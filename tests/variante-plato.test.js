@@ -118,3 +118,64 @@ describe('esComplementoVariante', () => {
     expect(esComplementoVariante({ grupo: 'Guarnición A' }, catalogoMix, null)).toBe(false);
   });
 });
+
+const catalogoPolloLena = {
+  _id: 'idpollo',
+  nombre: 'Pollo leña',
+  nombreCocina: 'P.LEÑA',
+  complementos: [
+    { grupo: 'Guarnición', opciones: [{ nombre: 'Arroz' }] },
+    {
+      grupo: 'Corte',
+      anexarVarianteAlNombre: true,
+      opciones: [
+        { nombre: 'Pierna' },
+        { nombre: 'Pechuga' },
+      ],
+    },
+  ],
+};
+
+describe('anexarVarianteAlNombre', () => {
+  test('Pierna anexa al alias de cocina', () => {
+    const linea = {
+      plato: 'idpollo',
+      nombre: 'Pollo leña',
+      complementosSeleccionados: [
+        { grupo: 'Guarnición', opcion: 'Arroz', cantidad: 1 },
+        { grupo: 'Corte', opcion: 'Pierna', cantidad: 1 },
+      ],
+    };
+    const partes = partirLineaPorVariante(linea, catalogoPolloLena, 2);
+    expect(partes).toHaveLength(1);
+    expect(partes[0].cantidad).toBe(2);
+    expect(partes[0].linea.nombreCocinaPedido).toBe('P.LEÑA Pierna');
+    expect(partes[0].linea.variantePlato).toMatchObject({
+      opcion: 'Pierna',
+      pronombre: 'Pierna',
+      anexaNombre: true,
+    });
+    expect(esComplementoVariante({ grupo: 'Corte' }, catalogoPolloLena, partes[0].linea.variantePlato)).toBe(true);
+    expect(esComplementoVariante({ grupo: 'Guarnición' }, catalogoPolloLena, partes[0].linea.variantePlato)).toBe(false);
+  });
+
+  test('sin alias usa el nombre comercial', () => {
+    const cat = { ...catalogoPolloLena, nombreCocina: '' };
+    const partes = partirLineaPorVariante({
+      complementosSeleccionados: [{ grupo: 'Corte', opcion: 'Pierna', cantidad: 1 }],
+    }, cat, 1);
+    expect(partes[0].linea.nombreCocinaPedido).toBe('Pollo leña Pierna');
+  });
+
+  test('dos cortes parten en dos líneas con nombre anexado', () => {
+    const partes = partirLineaPorVariante({
+      complementosSeleccionados: [
+        { grupo: 'Corte', opcion: 'Pierna', cantidad: 1 },
+        { grupo: 'Corte', opcion: 'Pechuga', cantidad: 1 },
+      ],
+    }, catalogoPolloLena, 2);
+    expect(partes).toHaveLength(2);
+    expect(partes.map((p) => p.linea.nombreCocinaPedido)).toEqual(['P.LEÑA Pierna', 'P.LEÑA Pechuga']);
+    expect(partes.map((p) => p.cantidad)).toEqual([1, 1]);
+  });
+});

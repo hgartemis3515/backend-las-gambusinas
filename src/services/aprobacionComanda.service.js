@@ -16,6 +16,8 @@ const boucherModel = require('../database/models/boucher.model');
 const AuditoriaAcciones = require('../database/models/auditoriaAcciones.model');
 const logger = require('../utils/logger');
 const { resolverComandasNumbers } = require('../utils/comandasNumbers');
+const { anotarTicketsDeComanda, parseTicketNumber } = require('../utils/filtroTicketsDeComanda');
+const { anularTicketDuplicadoEnModelo } = require('../utils/anularTicketDuplicado');
 
 /**
  * Obtener lista unificada de tickets pendientes de aprobación:
@@ -261,7 +263,8 @@ async function reportarTicketComanda(ticketId, motivo, usuarioId, usuarioNombre)
 }
 
 /**
- * Tickets (comanda + PPA) asociados a una comanda, cualquier estado.
+ * Tickets (comanda + PPA) ligados a una comanda, cualquier estado.
+ * Incluye duplicados que no están en comandas[] (platos.comandaId / línea / mesa+#).
  */
 async function obtenerTicketsPorComanda(comandaId) {
   if (!mongoose.Types.ObjectId.isValid(comandaId)) {
@@ -270,9 +273,17 @@ async function obtenerTicketsPorComanda(comandaId) {
     throw err;
   }
 
+  const comanda = await comandaModel.findById(comandaId).select('comandaNumber mesas platos').lean();
+  const extras = {
+    incluirInactivos: true,
+    comandaNumber: comanda?.comandaNumber,
+    mesaId: comanda?.mesas?._id || comanda?.mesas,
+    platoLineaIds: (comanda?.platos || []).map((p) => p._id).filter(Boolean),
+  };
+
   const [ticketsComanda, ticketsPPA] = await Promise.all([
-    ticketAprobacionRepository.obtenerTicketsPorComanda(comandaId),
-    ticketPagoAdelantadoRepository.obtenerTicketsPorComanda(comandaId),
+    ticketAprobacionRepository.obtenerTicketsPorComanda(comandaId, extras),
+    ticketPagoAdelantadoRepository.obtenerTicketsPorComanda(comandaId, extras),
   ]);
 
   const items = [
@@ -290,7 +301,53 @@ async function obtenerTicketsPorComanda(comandaId) {
     })),
   ].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
-  return items;
+  return anotarTicketsDeComanda(items, comandaId);
+}
+
+function mapTicketBusqueda(t, tipo) {
+  const comandas = t.comandas || [];
+  const primera = comandas[0];
+  const comandaId = primera && (primera._id || primera);
+  const comandaNumber = primera?.comandaNumber
+    || (t.comandasNumbers && t.comandasNumbers[0])
+    || (t.platos && t.platos[0] && t.platos[0].comandaNumber)
+    || null;
+  return {
+    ...t,
+    tipo,
+    mozoNombre: t.mozoNombre || t.nombreMozo || t.mozo?.name || 'N/A',
+    cantidadPlatos: (t.platos || []).filter((p) => p && !p.eliminado && !p.anulado).length,
+    comandaId: comandaId ? String(comandaId) : (t.platos && t.platos[0] && t.platos[0].comandaId
+      ? String(t.platos[0].comandaId)
+      : null),
+    comandaNumber,
+    inactivo: t.isActive === false,
+    vinculoDebil: !comandas.length,
+  };
+}
+
+/**
+ * Busca el ticket por número en ambas colecciones (activos e inactivos).
+ * Sirve para ver el duplicado que suma en cocina y no aparece al abrir la comanda.
+ */
+async function buscarTicketsPorNumero(numero) {
+  const n = parseTicketNumber(numero);
+  if (!n) {
+    const err = new Error('Número de ticket inválido');
+    err.statusCode = 400;
+    throw err;
+  }
+  const [ticketsComanda, ticketsPPA] = await Promise.all([
+    ticketAprobacionRepository.buscarPorTicketNumber(n),
+    ticketPagoAdelantadoRepository.buscarPorTicketNumber(n),
+  ]);
+  const items = [
+    ...ticketsComanda.map((t) => mapTicketBusqueda(t, t.tipo === 'pago_parcial' ? 'PAGO_PARCIAL' : 'COMANDA')),
+    ...ticketsPPA.map((t) => mapTicketBusqueda(t, 'ADELANTADO')),
+  ].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+  const porNumero = items.length > 1;
+  return items.map((t) => ({ ...t, duplicadoNumero: porNumero }));
 }
 
 function toOid(id) {
@@ -389,10 +446,11 @@ async function crearTicketPendienteDesdeComanda(comandaIdOrDoc) {
   const comandaId = comandaIdOrDoc?._id || comandaIdOrDoc;
   if (!mongoose.Types.ObjectId.isValid(comandaId)) return null;
 
-  const existentes = await ticketAprobacionRepository.obtenerTicketsPorComanda(comandaId);
-  if (existentes.some((t) => t.isActive !== false && t.estado !== 'reportado')) {
-    return existentes[0];
-  }
+  const existentes = await obtenerTicketsPorComanda(comandaId);
+  const yaHayPago = existentes.find((t) => t.isActive !== false && t.tipo !== 'ADELANTADO' && t.estado !== 'reportado');
+  if (yaHayPago) return yaHayPago;
+  if (existentes.some((t) => t.tipo === 'ADELANTADO' && t.isActive !== false)) return null;
+
   const tpa = await ticketPagoAdelantadoModel.findOne({
     comandas: comandaId,
     isActive: { $ne: false },
@@ -687,7 +745,8 @@ async function crearTicketAprobadoDesdeComanda(comandaId, { usuarioId, usuarioNo
     throw err;
   }
 
-  const existentes = await ticketAprobacionRepository.obtenerTicketsPorComanda(comandaId);
+  const existentes = (await obtenerTicketsPorComanda(comandaId))
+    .filter((t) => t.isActive !== false && t.tipo !== 'ADELANTADO');
   if (existentes.length > 0) {
     const err = new Error('Esta comanda ya tiene un ticket de aprobación');
     err.statusCode = 400;
@@ -882,12 +941,20 @@ async function actualizarTicketUnificado(ticketId, tipoHint, data) {
 }
 
 /**
- * Eliminar/anular ticket pendiente (admin).
- * COMANDA → anula y revierte platos; ADELANTADO → rechaza con motivo.
+ * Eliminar ticket. Si duplicado=true, solo lo saca de la tabla/totales (isActive=false).
+ * Pendiente no duplicado: COMANDA revierte platos; ADELANTADO rechaza.
  */
-async function eliminarTicketUnificado(ticketId, tipoHint, motivo, usuarioId, usuarioNombre) {
+async function eliminarTicketUnificado(ticketId, tipoHint, motivo, usuarioId, usuarioNombre, opts = {}) {
   const tipoNormalizado = String(tipoHint || '').toUpperCase() === 'ADELANTADO' ? 'ADELANTADO' : 'COMANDA';
   const { tipo: tipoReal } = await detectarTipoReal(ticketId, tipoNormalizado);
+
+  if (opts.duplicado === true) {
+    const model = tipoReal === 'ADELANTADO' ? ticketPagoAdelantadoModel : ticketAprobacionModel;
+    const result = await anularTicketDuplicadoEnModelo(
+      model, ticketId, motivo, usuarioNombre
+    );
+    return { ...result, tipo: tipoReal };
+  }
 
   if (tipoReal === 'COMANDA') {
     const result = await ticketAprobacionRepository.eliminarTicketAdmin(
@@ -907,6 +974,7 @@ module.exports = {
   totalPendienteCobroMozo,
   listarComandasPorCobrarMozo,
   obtenerTicketsPorComanda,
+  buscarTicketsPorNumero,
   crearTicketAprobadoDesdeComanda,
   assertComandaParaTicketYaAprobado,
   crearTicketPendienteDesdeComanda,

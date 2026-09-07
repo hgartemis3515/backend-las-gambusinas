@@ -21,10 +21,11 @@ const {
   calcularResumenComplementos,
   overlayPronombresEnComandas
 } = require('../utils/precioComplementos');
-const { expandirPlatosPorVariante, snapshotNombreCocinaPedido } = require('../utils/variantePlato');
+const { expandirPlatosPorVariante, snapshotNombreCocinaPedido, MAX_NOMBRE_COCINA_PEDIDO } = require('../utils/variantePlato');
+const { aplicarNumeroSerieComanda } = require('../utils/numeroSeriePlato');
 const { indicePlatoPorIdLinea, aplicarSeparacionCantidadLinea } = require('../utils/separarCantidadLineaPlato');
 
-const SELECT_PLATO_COCINA = 'nombre precio categoria codigo nombreCocina tipo tipos complementos complementosUnidosAlPlato';
+const SELECT_PLATO_COCINA = 'nombre precio categoria codigo nombreCocina tipo tipos complementos complementosUnidosAlPlato ocultarCronometroCocina juntarGuarnicionesEntreVariantes kdsEstiloCompacto requiereNumeroSerie';
 const configuracionRepository = require('./configuracion.repository');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
 const { obtenerCicloServicioMesa, intersectarComandaIds, obtenerComandaIdsDeTicketsRecientes } = require('../services/mesaCicloServicio.service');
@@ -75,6 +76,7 @@ const PROYECCION_COCINA = {
     createdAt: 1,
     updatedAt: 1,
     observaciones: 1,
+    numeroSerie: 1,
     cantidades: 1,
     IsActive: 1,
     eliminada: 1,
@@ -116,6 +118,10 @@ const PROYECCION_COCINA = {
     'platos.totalUnidadesComplementos': 1,
     'platos.mostrarResumenComplementos': 1,
     'platos.complementosUnidosAlPlato': 1,
+    'platos.ocultarCronometroCocina': 1,
+    'platos.juntarGuarnicionesEntreVariantes': 1,
+    'platos.numeroSerie': 1,
+    'platos.kdsEstiloCompacto': 1,
     'platos.resumenComplementosImpresion': 1,
     'platos.tiempos': 1,
     'platos.eliminadoPor': 1,
@@ -701,15 +707,23 @@ const agregarComanda = async (data) => {
     throw new Error('Las cantidades deben ser un array');
   }
 
-  // Validar que se proporcione una mesa
-  if (!data.mesas) {
+  const esSinMesa = data.sinMesa === true || data.mesas == null || data.mesas === '';
+  let mesa = null;
+  let estadoMesa = 'libre';
+
+  if (esSinMesa) {
+    delete data.mesas;
+    data.sinMesa = true;
+    logger.info('Comanda sin mesa (para llevar)');
+  } else if (!data.mesas) {
     throw new Error('Debe proporcionarse una mesa');
   }
 
   // Validar que la mesa exista. NO se valida el estado de comandas existentes en la mesa:
   // las comandas son entidades independientes y una mesa puede tener múltiples comandas
   // simultáneas en cualquier estado (en_espera, recoger, entregado).
-  let mesa = await mesasModel.findById(data.mesas);
+  if (!esSinMesa) {
+  mesa = await mesasModel.findById(data.mesas);
   if (!mesa) {
     throw new Error('Mesa no encontrada');
   }
@@ -741,7 +755,7 @@ const agregarComanda = async (data) => {
   // Validación de mesa: solo rechazar si está reservada. NO validar estado de comandas existentes.
   // Las comandas son independientes: una mesa puede tener múltiples comandas en cualquier combinación
   // de estados (en_espera, recoger, entregado). No hay restricción por "mismo mozo" ni por estado previo.
-  const estadoMesa = (mesa.estado || 'libre').toLowerCase();
+  estadoMesa = (mesa.estado || 'libre').toLowerCase();
   
   // ========== RESERVAS: Validacion de mozo autorizado ==========
   if (mesaEstadoEsReserva(estadoMesa)) {
@@ -831,6 +845,7 @@ const agregarComanda = async (data) => {
   // ========== FIN VALIDACION RESERVAS ==========
   // Libre, pedido, preparado, esperando, pagado: permitir crear comanda. La mesa existe y está activa.
   console.log(`✅ Permitiendo nueva comanda en mesa ${mesa.nummesa} (estado: ${estadoMesa}) - Sin restricción por comandas existentes`);
+  }
 
   // ========== FASE A1: VALIDACIÓN BATCH DE PLATOS (OPTIMIZADO) ==========
   const ahora = moment.tz("America/Lima").toDate();
@@ -903,7 +918,7 @@ const agregarComanda = async (data) => {
     }
 
     // Normalizar tipoServicio: 'mesa' | 'para_llevar' (default 'mesa')
-    plato.tipoServicio = normalizarTipoServicio(plato.tipoServicio);
+    plato.tipoServicio = esSinMesa ? 'para_llevar' : normalizarTipoServicio(plato.tipoServicio);
     plato.tipoPedido = normalizarTipoPedido(plato.tipoPedido);
 
     // ===== v3.0: ENRIQUECER COMPLEMENTOS CON PRECIO SNAPSHOT =====
@@ -934,6 +949,9 @@ const agregarComanda = async (data) => {
     plato.totalUnidadesComplementos = resumen.totalUnidades;
     plato.mostrarResumenComplementos = !!platoCompleto.mostrarTotalComplementosImpresion;
     plato.complementosUnidosAlPlato = platoCompleto.complementosUnidosAlPlato === true;
+    plato.ocultarCronometroCocina = platoCompleto.ocultarCronometroCocina === true;
+    plato.juntarGuarnicionesEntreVariantes = platoCompleto.juntarGuarnicionesEntreVariantes === true;
+    plato.kdsEstiloCompacto = platoCompleto.kdsEstiloCompacto === true;
     snapshotNombreCocinaPedido(plato, platoCompleto);
     plato.resumenComplementosImpresion = {
       mostrarCantidad: platoCompleto.resumenComplementosImpresion?.mostrarCantidad !== false,
@@ -982,6 +1000,8 @@ const agregarComanda = async (data) => {
     platosCount: data.platos.length,
     cantidadesCount: data.cantidades.length
   });
+
+  aplicarNumeroSerieComanda(data, platosMap);
   
   // Establecer timestamp inicial para estado 'en_espera' (estado por defecto)
   if (!data.tiempoEnEspera && (!data.status || data.status === 'en_espera')) {
@@ -1013,6 +1033,8 @@ const agregarComanda = async (data) => {
   // ========== ASOCIAR COMANDA AL PEDIDO ==========
   // Mozos: reutiliza pedido abierto de la mesa (agrupa comandas del mismo servicio).
   // Dashboard: pedido dedicado por comanda (no agrupar con mozos ni entre sí).
+  // Sin mesa (para llevar): pedido.mesa es obligatorio; no se agrupa en pedido de mesa.
+  if (!esSinMesa) {
   try {
     let pedido;
     if (data.origenCreacion === 'dashboard') {
@@ -1085,12 +1107,14 @@ const agregarComanda = async (data) => {
       error: pedidoError.message
     });
   }
+  }
   // ========== FIN ASOCIACIÓN PEDIDO ==========
 
   // Actualizar estado de la mesa a "pedido" automáticamente cuando se crea la comanda
   // Si la mesa estaba en "preparado", cambiar a "pedido" para la nueva comanda
   // Si la mesa estaba en "libre", cambiar a "pedido"
   // Reserva aprobada: la mesa sigue 'reservado' (morado) aunque se agreguen platos
+  if (mesa) {
   const esComandaDeReserva = !!(data.origenReserva || data.origenCreacion === 'reserva');
   if (mesaEstadoEsReserva(estadoMesa) && esComandaDeReserva) {
     logger.debug('Mesa reserva: se mantiene estado', { mesaId: mesa._id, numMesa: mesa.nummesa, estadoMesa });
@@ -1105,6 +1129,7 @@ const agregarComanda = async (data) => {
   // Emitir evento Socket.io de mesa actualizada
   if (global.emitMesaActualizada) {
     await global.emitMesaActualizada(mesa._id);
+  }
   }
   
   logger.debug('Comanda guardada en MongoDB', {
@@ -1776,7 +1801,11 @@ const editarConAuditoria = async (comandaId, platosNuevos, platosEliminados, usu
               tipoServicio: normalizarTipoServicio(nuevoPlato.tipoServicio),
               tipoPedido: normalizarTipoPedido(nuevoPlato.tipoPedido),
               complementosUnidosAlPlato: platoCompleto.complementosUnidosAlPlato === true,
-              nombreCocinaPedido: String(nuevoPlato.nombreCocinaPedido || '').trim().slice(0, 40),
+              ocultarCronometroCocina: platoCompleto.ocultarCronometroCocina === true,
+              juntarGuarnicionesEntreVariantes: platoCompleto.juntarGuarnicionesEntreVariantes === true,
+              kdsEstiloCompacto: platoCompleto.kdsEstiloCompacto === true,
+              numeroSerie: String(nuevoPlato.numeroSerie || '').replace(/\D/g, '').slice(0, 4),
+              nombreCocinaPedido: String(nuevoPlato.nombreCocinaPedido || '').trim().slice(0, MAX_NOMBRE_COCINA_PEDIDO),
               variantePlato: nuevoPlato.variantePlato || undefined,
               complementosSeleccionados: Array.isArray(nuevoPlato.complementosSeleccionados)
                 ? nuevoPlato.complementosSeleccionados
@@ -1979,11 +2008,20 @@ const actualizarComanda = async (comandaId, newData) => {
         plato.tipoPedido = normalizarTipoPedido(plato.tipoPedido)
           || normalizarTipoPedido(prev?.tipoPedido);
         const nombreVar = String(plato.nombreCocinaPedido || prev?.nombreCocinaPedido || '').trim();
-        if (nombreVar) plato.nombreCocinaPedido = nombreVar.slice(0, 40);
+        if (nombreVar) plato.nombreCocinaPedido = nombreVar.slice(0, MAX_NOMBRE_COCINA_PEDIDO);
         if (plato.variantePlato || prev?.variantePlato) {
           plato.variantePlato = plato.variantePlato || prev.variantePlato;
         }
       }
+      const mapCats = new Map();
+      for (const plato of newData.platos) {
+        try {
+          const cat = await platoModel.findById(plato.plato).lean();
+          if (cat) mapCats.set(String(cat._id), cat);
+        } catch (_) { /* ignore */ }
+      }
+      if (!newData.numeroSerie && comanda?.numeroSerie) newData.numeroSerie = comanda.numeroSerie;
+      aplicarNumeroSerieComanda(newData, mapCats);
     }
     
     if (newData && typeof newData === 'object') {

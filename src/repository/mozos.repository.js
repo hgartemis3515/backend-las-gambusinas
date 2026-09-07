@@ -4,6 +4,7 @@ const { syncJsonFile } = require('../utils/jsonSync');
 const fs = require('fs');
 const path = require('path');
 const { normalizarPinCocina, esPinCocinaValido } = require('../utils/pinCocina');
+const { sanitizarColorPerfil } = require('../utils/colorPerfilMozo');
 
 function escapeRegex(s) {
     return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -21,6 +22,9 @@ const crearMozo = async (data) => {
     if (data.pinAcceso !== undefined) {
         const pin = normalizarPinCocina(data.pinAcceso);
         data.pinAcceso = esPinCocinaValido(pin) ? pin : '';
+    }
+    if (data.colorPerfil !== undefined) {
+        data.colorPerfil = sanitizarColorPerfil(data.colorPerfil);
     }
     await mozos.create(data);
     const todoslosmozos = await listarMozos();
@@ -67,6 +71,10 @@ const actualizarMozo = async (id, newData) => {
         if (newData.DNI !== undefined) mozo.DNI = newData.DNI;
         if (newData.phoneNumber !== undefined) mozo.phoneNumber = newData.phoneNumber;
         if (newData.fotoUrl !== undefined) mozo.fotoUrl = newData.fotoUrl;
+        if (newData.colorPerfil !== undefined) {
+            mozo.colorPerfil = sanitizarColorPerfil(newData.colorPerfil);
+            mozo.markModified('colorPerfil');
+        }
         if (newData.email !== undefined) mozo.email = newData.email;
         if (newData.fechaNacimiento !== undefined) mozo.fechaNacimiento = newData.fechaNacimiento;
         if (newData.genero !== undefined) mozo.genero = newData.genero;

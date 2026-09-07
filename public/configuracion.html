@@ -720,6 +720,28 @@ tailwind.config = {
               <p class="text-[10px] text-txt-muted pl-7">Si está marcado, la tabla KDS (Vista General / Personalizada / Supervisor) muestra el alias corto cuando el plato lo tiene. Ver Cocina siempre usa el alias, aunque esta opción esté desmarcada. Platos sin alias siguen mostrando el nombre comercial. Recargue la app de cocina para aplicar el cambio.</p>
             </div>
 
+            <div class="border-t border-[rgba(212,175,55,0.15)] pt-4 mt-4 space-y-3">
+              <p class="text-xs text-gold font-semibold uppercase tracking-wide">Color de nombre del mozo</p>
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" x-model="config.cocinaForzarColorMozoUnico" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+                <span class="text-sm text-txt-secondary">Forzar un solo color para todos los mozos</span>
+              </label>
+              <p class="text-[10px] text-txt-muted pl-7">
+                Desmarcado (recomendado): cada mozo usa su color de perfil (Usuarios o App Mozos → Mi Perfil).
+                Marcado: todos usan el color de abajo en KDS, tickets y pagos adelantados. Recargue la app de cocina.
+              </p>
+              <div class="pl-7 flex items-center gap-3" x-show="config.cocinaForzarColorMozoUnico">
+                <label class="text-xs text-txt-secondary">Color único</label>
+                <input type="color" x-model="config.cocinaColorMozoForzado"
+                  class="h-9 w-12 rounded border border-[rgba(212,175,55,0.25)] bg-bg-sidebar cursor-pointer">
+                <input type="text" x-model="config.cocinaColorMozoForzado" maxlength="7"
+                  class="w-28 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm font-mono focus:border-gold focus:outline-none"
+                  placeholder="#1e3a8a">
+                <span class="text-xs font-semibold px-2 py-1 rounded text-white"
+                  :style="`background:${config.cocinaColorMozoForzado || '#1e3a8a'}`">Mozo</span>
+              </div>
+            </div>
+
             <!-- PLAN GUARNICIONES_SEPARADAS v1.1: separar principal y guarniciones -->
             <div class="border-t border-[rgba(212,175,55,0.15)] pt-4 mt-4 space-y-3">
               <p class="text-xs text-gold font-semibold uppercase tracking-wide">Guarniciones</p>
@@ -1569,6 +1591,8 @@ function configApp() {
       cocinaDeshabilitarAgrupacionGuarniciones: false,
       cocinaPrimerToqueFinalizarAsignado: true,
       cocinaEntregarPlatoEnteroAbsoluto: true,
+      cocinaForzarColorMozoUnico: false,
+      cocinaColorMozoForzado: '#1e3a8a',
       sesionesSimultaneas: 3,
       timeoutInactividadMin: 30,
       requiere2fa: false,
@@ -1830,6 +1854,8 @@ function configApp() {
             this.config.cocinaUsarNombreCocinaEnTablaKds = cfg.cocina.usarNombreCocinaEnTablaKds !== false;
             this.config.cocinaPrimerToqueFinalizarAsignado = cfg.cocina.primerToqueFinalizarAsignado !== false;
             this.config.cocinaEntregarPlatoEnteroAbsoluto = cfg.cocina.entregarPlatoEnteroAbsoluto !== false;
+            this.config.cocinaForzarColorMozoUnico = cfg.cocina.forzarColorMozoUnico === true;
+            this.config.cocinaColorMozoForzado = this.colorHexMozo(cfg.cocina.colorMozoForzado);
             // PLAN GUARNICIONES_SEPARADAS v1.1: flag global + umbrales de tiempos.
             this.config.cocinaPermitirGuarnicionesSeparadas = cfg.cocina.permitirGuarnicionesSeparadas !== false;
             this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones = cfg.cocina.deshabilitarOrdenSecuencialGuarniciones !== false;
@@ -1847,6 +1873,8 @@ function configApp() {
             this.config.cocinaUsarNombreCocinaEnTablaKds = true;
             this.config.cocinaPrimerToqueFinalizarAsignado = true;
             this.config.cocinaEntregarPlatoEnteroAbsoluto = true;
+            this.config.cocinaForzarColorMozoUnico = false;
+            this.config.cocinaColorMozoForzado = '#1e3a8a';
             this.config.cocinaPermitirGuarnicionesSeparadas = true;
             this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones = true;
             this.config.cocinaDeshabilitarAgrupacionGuarniciones = false;
@@ -2025,6 +2053,8 @@ function configApp() {
             usarNombreCocinaEnTablaKds: this.config.cocinaUsarNombreCocinaEnTablaKds !== false,
             primerToqueFinalizarAsignado: this.config.cocinaPrimerToqueFinalizarAsignado !== false,
             entregarPlatoEnteroAbsoluto: this.config.cocinaEntregarPlatoEnteroAbsoluto !== false,
+            forzarColorMozoUnico: this.config.cocinaForzarColorMozoUnico === true,
+            colorMozoForzado: this.colorHexMozo(this.config.cocinaColorMozoForzado),
             // PLAN GUARNICIONES_SEPARADAS v1.1
             permitirGuarnicionesSeparadas: this.config.cocinaPermitirGuarnicionesSeparadas !== false,
             deshabilitarOrdenSecuencialGuarniciones: this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones !== false,
@@ -2144,6 +2174,17 @@ function configApp() {
       });
     },
     
+    colorHexMozo(v) {
+      const s = String(v || '').trim();
+      const h = s.startsWith('#') ? s : `#${s}`;
+      if (/^#[0-9a-fA-F]{6}$/.test(h)) return h.toLowerCase();
+      if (/^#[0-9a-fA-F]{3}$/.test(h)) {
+        const x = h.slice(1);
+        return `#${x[0]}${x[0]}${x[1]}${x[1]}${x[2]}${x[2]}`.toLowerCase();
+      }
+      return '#1e3a8a';
+    },
+
     showToast(msg, type = 'success') {
       const container = document.getElementById('toast-container');
       if (!container) return;

@@ -117,6 +117,8 @@ const mozosSchema = new mongoose.Schema({
     DNI: { type: Number, required: true, min: 0 },
     phoneNumber: { type: Number, required: true, min: 0 },
     fotoUrl: { type: String, default: '' },
+    /** Color de fondo del recuadro detrás del nombre; vacío = sin color personalizado */
+    colorPerfil: { type: String, default: '' },
     email: { type: String, default: '' },
     fechaNacimiento: { type: Date, default: null },
     genero: { type: String, default: '' },

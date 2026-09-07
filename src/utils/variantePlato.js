@@ -1,15 +1,30 @@
 /**
- * Variante de plato (MIX): un grupo de complementos define el nombre en cocina.
- * Ej: MIX x5 con 3 TÉ + 2 CAFÉ → dos líneas (TÉ x3, CAFÉ x2), cada una con las
- * guarniciones del plato. Las opciones de ese grupo no son unidades KDS de guarnición.
+ * Variante de plato:
+ *  - MIX (`esVariantePlato`): las opciones (TÉ / CAFÉ) REEMPLAZAN el nombre en cocina.
+ *  - Variación de nombre (`anexarVarianteAlNombre`): la opción se ANEXA
+ *    (Pollo leña + Pierna → Pollo leña Pierna). No es guarnición KDS.
  */
+
+const MAX_NOMBRE_COCINA_PEDIDO = 80;
 
 function claveGrupo(v) {
   return String(v || '').trim().toLowerCase();
 }
 
+function grupoEsVariantePlato(grupo) {
+  return !!(grupo && grupo.esVariantePlato === true);
+}
+
+function grupoAnexaNombre(grupo) {
+  return !!(grupo && grupo.anexarVarianteAlNombre === true && !grupoEsVariantePlato(grupo));
+}
+
+function grupoDefineNombreCocina(grupo) {
+  return grupoEsVariantePlato(grupo) || grupoAnexaNombre(grupo);
+}
+
 function gruposVarianteDeCatalogo(catalogo) {
-  return (catalogo?.complementos || []).filter((g) => g && g.esVariantePlato === true);
+  return (catalogo?.complementos || []).filter(grupoDefineNombreCocina);
 }
 
 function nombreCocinaDeOpcion(grupo, opcionNombre) {
@@ -18,6 +33,35 @@ function nombreCocinaDeOpcion(grupo, opcionNombre) {
   const corto = String(op?.pronombre || '').trim();
   if (corto) return corto.slice(0, 40);
   return String(opcionNombre || '').trim().slice(0, 40);
+}
+
+function anexarSufijoNombre(base, extra) {
+  const b = String(base || '').trim();
+  const e = String(extra || '').trim();
+  if (!e) return b.slice(0, MAX_NOMBRE_COCINA_PEDIDO);
+  if (!b) return e.slice(0, MAX_NOMBRE_COCINA_PEDIDO);
+  const bLow = b.toLowerCase();
+  const eLow = e.toLowerCase();
+  if (bLow === eLow || bLow.endsWith(` ${eLow}`)) return b.slice(0, MAX_NOMBRE_COCINA_PEDIDO);
+  return `${b} ${e}`.trim().slice(0, MAX_NOMBRE_COCINA_PEDIDO);
+}
+
+function nombreBaseCocina(catalogo, linea) {
+  return String(
+    catalogo?.nombreCocina
+    || catalogo?.nombre
+    || linea?.nombreCocina
+    || linea?.nombre
+    || ''
+  ).trim();
+}
+
+function nombrePedidoDeVariante(grupo, opcionNombre, catalogo, linea) {
+  const extra = nombreCocinaDeOpcion(grupo, opcionNombre);
+  if (grupoAnexaNombre(grupo)) {
+    return anexarSufijoNombre(nombreBaseCocina(catalogo, linea), extra);
+  }
+  return extra.slice(0, MAX_NOMBRE_COCINA_PEDIDO);
 }
 
 function catalogoDesdeMapa(platoLinea, platosMap) {
@@ -29,19 +73,21 @@ function catalogoDesdeMapa(platoLinea, platosMap) {
     || null;
 }
 
-function aplicarVarianteEnLinea(linea, varianteSel, grupo) {
-  const nombre = nombreCocinaDeOpcion(grupo, varianteSel.opcion);
-  const keys = new Set(gruposVarianteDeCatalogo({ complementos: [grupo] }).map((g) => claveGrupo(g.grupo)));
+function aplicarVarianteEnLinea(linea, varianteSel, grupo, catalogo) {
+  const extra = nombreCocinaDeOpcion(grupo, varianteSel.opcion);
+  const nombre = nombrePedidoDeVariante(grupo, varianteSel.opcion, catalogo, linea);
+  const keys = new Set([claveGrupo(grupo?.grupo)]);
   const comps = Array.isArray(linea.complementosSeleccionados) ? linea.complementosSeleccionados : [];
   const garnishes = comps.filter((c) => !keys.has(claveGrupo(c.grupo)));
   return {
     ...linea,
     complementosSeleccionados: [...garnishes, { ...varianteSel, cantidad: 1 }],
-    nombreCocinaPedido: String(linea.nombreCocinaPedido || nombre).trim().slice(0, 40),
+    nombreCocinaPedido: nombre,
     variantePlato: {
       grupo: String(varianteSel.grupo || grupo?.grupo || '').trim(),
       opcion: String(varianteSel.opcion || '').trim(),
-      pronombre: nombre,
+      pronombre: extra,
+      anexaNombre: grupoAnexaNombre(grupo),
     },
   };
 }
@@ -54,9 +100,8 @@ function cantidadParteVariante(varianteSel, nLinea) {
 }
 
 /**
- * Parte una línea de comanda si el catálogo tiene grupo esVariantePlato y hay
- * varias opciones con cantidad. Si hay una sola, anota el nombre de cocina
- * y toma max(cantidad línea, cantidad MIX) para SUMA deshabilitada (4 TÉ con plato x1).
+ * Parte una línea de comanda si el catálogo tiene grupo MIX o variación de nombre
+ * y hay varias opciones con cantidad. Si hay una sola, anota el nombre de cocina.
  */
 function partirLineaPorVariante(platoLinea, catalogo, cantidadLinea) {
   const n = Math.max(1, Number(cantidadLinea) || 1);
@@ -73,14 +118,17 @@ function partirLineaPorVariante(platoLinea, catalogo, cantidadLinea) {
   const resolverGrupo = (v) => gruposVar.find((g) => claveGrupo(g.grupo) === claveGrupo(v.grupo)) || gruposVar[0];
 
   if (vars.length === 1) {
+    const grupo = resolverGrupo(vars[0]);
     return [{
-      linea: aplicarVarianteEnLinea(linea, vars[0], resolverGrupo(vars[0])),
-      cantidad: cantidadParteVariante(vars[0], n),
+      linea: aplicarVarianteEnLinea(linea, vars[0], grupo, catalogo),
+      cantidad: grupoAnexaNombre(grupo)
+        ? n
+        : cantidadParteVariante(vars[0], n),
     }];
   }
 
   return vars.map((v) => ({
-    linea: aplicarVarianteEnLinea(linea, v, resolverGrupo(v)),
+    linea: aplicarVarianteEnLinea(linea, v, resolverGrupo(v), catalogo),
     cantidad: Math.max(1, Number(v.cantidad) || 1),
   }));
 }
@@ -113,7 +161,7 @@ function esComplementoVariante(comp, catalogo, variantePlato) {
 function snapshotNombreCocinaPedido(platoLinea, catalogo) {
   const existente = String(platoLinea?.nombreCocinaPedido || '').trim();
   if (existente) {
-    platoLinea.nombreCocinaPedido = existente.slice(0, 40);
+    platoLinea.nombreCocinaPedido = existente.slice(0, MAX_NOMBRE_COCINA_PEDIDO);
     return platoLinea.nombreCocinaPedido;
   }
   const gruposVar = gruposVarianteDeCatalogo(catalogo);
@@ -122,20 +170,27 @@ function snapshotNombreCocinaPedido(platoLinea, catalogo) {
   const vars = (platoLinea.complementosSeleccionados || []).filter((c) => keys.has(claveGrupo(c.grupo)));
   if (vars.length !== 1) return '';
   const grupo = gruposVar.find((g) => claveGrupo(g.grupo) === claveGrupo(vars[0].grupo)) || gruposVar[0];
-  const nombre = nombreCocinaDeOpcion(grupo, vars[0].opcion);
+  const extra = nombreCocinaDeOpcion(grupo, vars[0].opcion);
+  const nombre = nombrePedidoDeVariante(grupo, vars[0].opcion, catalogo, platoLinea);
   platoLinea.nombreCocinaPedido = nombre;
   platoLinea.variantePlato = {
     grupo: String(vars[0].grupo || grupo.grupo || '').trim(),
     opcion: String(vars[0].opcion || '').trim(),
-    pronombre: nombre,
+    pronombre: extra,
+    anexaNombre: grupoAnexaNombre(grupo),
   };
   return nombre;
 }
 
 module.exports = {
+  MAX_NOMBRE_COCINA_PEDIDO,
   claveGrupo,
+  grupoEsVariantePlato,
+  grupoAnexaNombre,
   gruposVarianteDeCatalogo,
   nombreCocinaDeOpcion,
+  anexarSufijoNombre,
+  nombrePedidoDeVariante,
   cantidadParteVariante,
   partirLineaPorVariante,
   expandirPlatosPorVariante,

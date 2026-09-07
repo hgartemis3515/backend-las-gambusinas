@@ -127,7 +127,9 @@ const crearComplementoPlantilla = async (data) => {
         permiteRepetirOpcion: data.permiteRepetirOpcion ?? data.seleccionMultiple,
         esVariantePlato: data.esVariantePlato === true,
         deshabilitarSumaVariante: data.esVariantePlato === true && data.deshabilitarSumaVariante === true,
-        seleccionFija: data.esVariantePlato === true ? false : data.seleccionFija === true,
+        anexarVarianteAlNombre: data.esVariantePlato === true ? false : data.anexarVarianteAlNombre === true,
+        forzarVisibleTablaKds: (data.esVariantePlato === true || data.anexarVarianteAlNombre === true) ? false : data.forzarVisibleTablaKds === true,
+        seleccionFija: (data.esVariantePlato === true || data.anexarVarianteAlNombre === true) ? false : data.seleccionFija === true,
         // ===== FIN NUEVOS CAMPOS =====
         categoria: data.categoria?.trim() || 'General',
         activo: data.activo !== false,
@@ -179,7 +181,7 @@ const actualizarComplementoPlantilla = async (id, newData) => {
         'categoria', 'activo',
         // ===== NUEVOS CAMPOS v2.0 =====
         'modoSeleccion', 'maxUnidadesGrupo', 'minUnidadesGrupo',
-        'maxUnidadesPorOpcion', 'permiteRepetirOpcion', 'esVariantePlato', 'deshabilitarSumaVariante', 'seleccionFija'
+        'maxUnidadesPorOpcion', 'permiteRepetirOpcion', 'esVariantePlato', 'deshabilitarSumaVariante', 'anexarVarianteAlNombre', 'forzarVisibleTablaKds', 'seleccionFija'
         // ===== FIN NUEVOS CAMPOS =====
     ];
     
@@ -195,9 +197,18 @@ const actualizarComplementoPlantilla = async (id, newData) => {
     
     if (complemento.esVariantePlato) {
         complemento.seleccionFija = false;
+        complemento.anexarVarianteAlNombre = false;
+        complemento.forzarVisibleTablaKds = false;
         complemento.deshabilitarSumaVariante = complemento.deshabilitarSumaVariante === true;
+    } else if (complemento.anexarVarianteAlNombre) {
+        complemento.seleccionFija = false;
+        complemento.esVariantePlato = false;
+        complemento.deshabilitarSumaVariante = false;
+        complemento.forzarVisibleTablaKds = false;
     } else {
         complemento.deshabilitarSumaVariante = false;
+        complemento.anexarVarianteAlNombre = false;
+        complemento.forzarVisibleTablaKds = complemento.forzarVisibleTablaKds === true;
     }
 
     complemento.actualizadoPor = newData.actualizadoPor || 'admin';

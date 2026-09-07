@@ -23,7 +23,7 @@ function numeroOpcional(v) {
 /** Reemplaza el array de complementos sin _id anidados (mongoose no mergea opciones nuevas). */
 function sanitizarComplementosParaGuardar(complementos) {
     if (!Array.isArray(complementos)) return [];
-    return complementos.map((g) => {
+    const out = complementos.map((g) => {
         if (!g || typeof g !== 'object') return null;
         const grupo = String(g.grupo || '').trim();
         if (!grupo) return null;
@@ -39,8 +39,10 @@ function sanitizarComplementosParaGuardar(complementos) {
         }
         const seleccionMultiple = !!g.seleccionMultiple;
         const esVariantePlato = g.esVariantePlato === true;
+        const anexarVarianteAlNombre = !esVariantePlato && (g.anexarVarianteAlNombre === true || g.anexarVarianteAlNombre === 'true');
         const deshabilitarSumaVariante = esVariantePlato && (g.deshabilitarSumaVariante === true || g.deshabilitarSumaVariante === 'true');
-        const seleccionFija = !esVariantePlato && (g.seleccionFija === true || g.seleccionFija === 'true');
+        const forzarVisibleTablaKds = !esVariantePlato && !anexarVarianteAlNombre && (g.forzarVisibleTablaKds === true || g.forzarVisibleTablaKds === 'true');
+        const seleccionFija = !esVariantePlato && !anexarVarianteAlNombre && (g.seleccionFija === true || g.seleccionFija === 'true');
         const modo = g.modoSeleccion === 'cantidades' || seleccionFija || seleccionMultiple
             ? 'cantidades'
             : (g.modoSeleccion === 'opciones' ? 'opciones' : (seleccionMultiple ? 'cantidades' : 'opciones'));
@@ -58,10 +60,25 @@ function sanitizarComplementosParaGuardar(complementos) {
             permiteRepetirOpcion: g.permiteRepetirOpcion !== undefined ? !!g.permiteRepetirOpcion : seleccionMultiple,
             esVariantePlato,
             deshabilitarSumaVariante,
+            anexarVarianteAlNombre,
+            forzarVisibleTablaKds,
             seleccionFija,
             opciones: ops
         };
     }).filter(Boolean);
+    let vistoNombre = false;
+    for (const g of out) {
+        if (!g.esVariantePlato && !g.anexarVarianteAlNombre) continue;
+        if (vistoNombre) {
+            g.esVariantePlato = false;
+            g.anexarVarianteAlNombre = false;
+            g.deshabilitarSumaVariante = false;
+            continue;
+        }
+        vistoNombre = true;
+        if (g.esVariantePlato) g.anexarVarianteAlNombre = false;
+    }
+    return out;
 }
 
 /**
@@ -478,6 +495,14 @@ const crearPlato = async (data) => {
         if (Object.prototype.hasOwnProperty.call(payload, 'complementos')) {
             payload.complementos = sanitizarComplementosParaGuardar(payload.complementos);
         }
+        payload.ocultarCronometroCocina = payload.ocultarCronometroCocina === true
+            || payload.ocultarCronometroCocina === 'true';
+        payload.juntarGuarnicionesEntreVariantes = payload.juntarGuarnicionesEntreVariantes === true
+            || payload.juntarGuarnicionesEntreVariantes === 'true';
+        payload.requiereNumeroSerie = payload.requiereNumeroSerie === true
+            || payload.requiereNumeroSerie === 'true';
+        payload.kdsEstiloCompacto = payload.kdsEstiloCompacto === true
+            || payload.kdsEstiloCompacto === 'true';
         nuevo = await plato.create(payload);
     } catch (err) {
         if (err && err.code === 11000) {
@@ -538,6 +563,22 @@ const actualizarPlato = async (id, newData) => {
         clean.complementosUnidosAlPlato = newData.complementosUnidosAlPlato === true
             || newData.complementosUnidosAlPlato === 'true';
     }
+    if (newData && typeof newData.ocultarCronometroCocina !== 'undefined') {
+        clean.ocultarCronometroCocina = newData.ocultarCronometroCocina === true
+            || newData.ocultarCronometroCocina === 'true';
+    }
+    if (newData && typeof newData.juntarGuarnicionesEntreVariantes !== 'undefined') {
+        clean.juntarGuarnicionesEntreVariantes = newData.juntarGuarnicionesEntreVariantes === true
+            || newData.juntarGuarnicionesEntreVariantes === 'true';
+    }
+    if (newData && typeof newData.requiereNumeroSerie !== 'undefined') {
+        clean.requiereNumeroSerie = newData.requiereNumeroSerie === true
+            || newData.requiereNumeroSerie === 'true';
+    }
+    if (newData && typeof newData.kdsEstiloCompacto !== 'undefined') {
+        clean.kdsEstiloCompacto = newData.kdsEstiloCompacto === true
+            || newData.kdsEstiloCompacto === 'true';
+    }
     if (Object.prototype.hasOwnProperty.call(clean, 'complementos')) {
         clean.complementos = sanitizarComplementosParaGuardar(clean.complementos);
     }
@@ -552,6 +593,18 @@ const actualizarPlato = async (id, newData) => {
         doc.set(clean);
         if (typeof clean.complementosUnidosAlPlato !== 'undefined') {
             doc.set('complementosUnidosAlPlato', !!clean.complementosUnidosAlPlato);
+        }
+        if (typeof clean.ocultarCronometroCocina !== 'undefined') {
+            doc.set('ocultarCronometroCocina', !!clean.ocultarCronometroCocina);
+        }
+        if (typeof clean.juntarGuarnicionesEntreVariantes !== 'undefined') {
+            doc.set('juntarGuarnicionesEntreVariantes', !!clean.juntarGuarnicionesEntreVariantes);
+        }
+        if (typeof clean.requiereNumeroSerie !== 'undefined') {
+            doc.set('requiereNumeroSerie', !!clean.requiereNumeroSerie);
+        }
+        if (typeof clean.kdsEstiloCompacto !== 'undefined') {
+            doc.set('kdsEstiloCompacto', !!clean.kdsEstiloCompacto);
         }
         if (Object.prototype.hasOwnProperty.call(clean, 'complementos')) {
             doc.set('complementos', clean.complementos);

@@ -69,6 +69,31 @@ describe('mapComandaPorCobrar', () => {
     expect(mapped.mesaEstado).toBe('pedido');
     expect(mapped.mesaNombre).toBe('3+4');
     expect(mapped.mesaNumero).toBe(3);
+    expect(mapped.esSinMesa).toBe(false);
+  });
+
+  test('esSinMesa cuando no hay mesa ni número', () => {
+    const mapped = mapComandaPorCobrar({
+      _id: 'c-ll',
+      comandaNumber: 55,
+      totalCalculado: 12,
+      platos: [{ nombre: 'DCH', estado: 'pedido', tipoServicio: 'para_llevar' }],
+    }, 12);
+    expect(mapped.esSinMesa).toBe(true);
+    expect(mapped.mesaId).toBe(null);
+    expect(mapped.mesaNumero).toBe(null);
+  });
+
+  test('con mesaNumero y sin populate no es sin mesa', () => {
+    const mapped = mapComandaPorCobrar({
+      _id: 'c1',
+      comandaNumber: 42,
+      mesaNumero: 7,
+      totalCalculado: 80,
+      platos: [{ nombre: 'Lomo', estado: 'entregado' }],
+    }, 80);
+    expect(mapped.esSinMesa).toBe(false);
+    expect(mapped.mesaNumero).toBe(7);
   });
 
   test('pendienteDeComanda es 0 si todos los platos están pagados', () => {

@@ -11,6 +11,7 @@ const rolesRepository = require('../repository/roles.repository');
 const { JWT_SECRET, adminAuth } = require('../middleware/adminAuth');
 const logger = require('../utils/logger');
 const { esPinCocinaValido, normalizarPinCocina, PIN_COCINA_LEN } = require('../utils/pinCocina');
+const { resolverExpiryJwtMozos } = require('../utils/jwtMozosExpiry');
 
 function urlPublicaAppCocina() {
     const envUrl = process.env.APP_COCINA_PUBLIC_URL;
@@ -350,8 +351,10 @@ router.post('/admin/mozos/auth', async (req, res) => {
         
         const rol = mozoConRol?.rol || 'mozos';
         const permisos = mozoConRol?.permisosEfectivos || rolesRepository.PERMISOS_POR_ROL[rol] || [];
-        
-        // Generar token JWT para App Mozos
+        const rememberMe = req.body?.rememberMe === true || req.body?.rememberMe === 'true';
+        const expiresIn = resolverExpiryJwtMozos(rememberMe);
+
+        // 12h por turno; Recordarme = 7 días en este dispositivo
         const token = jwt.sign(
             {
                 id: mozo._id,
@@ -359,22 +362,25 @@ router.post('/admin/mozos/auth', async (req, res) => {
                 DNI: mozo.DNI,
                 rol: rol,
                 permisos: permisos,
-                app: 'mozos'
+                app: 'mozos',
+                rememberMe
             },
             JWT_SECRET,
-            {
-                expiresIn: '12h'
-            }
+            { expiresIn }
         );
         
         logger.info('Usuario autenticado en App Mozos', {
             mozoId: mozo._id,
             name: mozo.name,
-            rol: rol
+            rol: rol,
+            expiresIn,
+            rememberMe
         });
         
         res.json({
             token,
+            expiresIn,
+            rememberMe,
             usuario: {
                 id: mozo._id,
                 name: mozo.name,

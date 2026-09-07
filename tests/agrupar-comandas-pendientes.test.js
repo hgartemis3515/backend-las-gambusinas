@@ -43,4 +43,13 @@ describe('agruparComandasPendientes (comandas.html)', () => {
     expect(filas.every((f) => f.tipo === 'individual')).toBe(true);
     expect(filas).toHaveLength(2);
   });
+
+  test('comanda sin mesa no se agrupa con mesas', () => {
+    const filas = agruparComandasPendientes([
+      { _id: 'll', esSinMesa: true, comandaNumber: 3, pendienteCobro: 9, createdAt: '2026-09-02T12:00:00Z' },
+      { _id: 'm', mesaNumero: 4, comandaNumber: 4, pendienteCobro: 5, createdAt: '2026-09-02T12:01:00Z' },
+    ]);
+    expect(filas).toHaveLength(2);
+    expect(filas.find((f) => f._id === 'll').esSinMesa).toBe(true);
+  });
 });

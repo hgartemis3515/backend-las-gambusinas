@@ -125,7 +125,10 @@ tailwind.config = {
                     <img x-show="m.fotoUrl || m.foto" :src="m.fotoUrl || m.foto" class="w-full h-full object-cover" alt="">
                     <span x-show="!(m.fotoUrl || m.foto)" x-text="m.nombre?.charAt(0)?.toUpperCase() || '?'"></span>
                   </div>
-                  <span class="font-medium" x-text="m.nombre"></span>
+                  <span class="font-medium"
+                    :class="colorHexUi(m.colorPerfil) ? 'px-1.5 py-0.5 rounded text-white' : ''"
+                    :style="colorHexUi(m.colorPerfil) ? `background:${colorHexUi(m.colorPerfil)}` : ''"
+                    x-text="m.nombre"></span>
                   <span x-show="m.pinAcceso" class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400" title="Clave App Cocina">🔒</span>
                 </div>
               </td>
@@ -273,6 +276,26 @@ tailwind.config = {
             placeholder="••••••"
             class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none font-mono tracking-[0.35em]">
           <p class="text-[11px] text-txt-muted mt-1">Bloquea y desbloquea las tablas KDS y tickets en pantallas táctiles. Vacío = sin bloqueo.</p>
+        </div>
+        <div>
+          <label class="text-xs text-txt-secondary mb-1 block">Color de perfil</label>
+          <div class="flex items-center gap-3">
+            <input type="color"
+              :value="colorHexUi(formUsuario.colorPerfil) || '#808080'"
+              @input="onColorPerfilPickerInput($event)"
+              :class="colorHexUi(formUsuario.colorPerfil) ? '' : 'opacity-40'"
+              class="h-10 w-14 rounded border border-[rgba(212,175,55,0.25)] bg-bg-sidebar cursor-pointer">
+            <input type="text" x-model="formUsuario.colorPerfil" maxlength="7"
+              class="w-28 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm font-mono focus:border-gold focus:outline-none"
+              placeholder="Sin color">
+            <button type="button" class="text-[11px] text-txt-muted hover:text-gold underline"
+              @click="quitarColorPerfilUsuario()">Quitar</button>
+            <span class="text-xs font-semibold"
+              :class="colorHexUi(formUsuario.colorPerfil) ? 'px-2 py-1 rounded text-white' : 'text-txt-secondary'"
+              :style="colorHexUi(formUsuario.colorPerfil) ? `background:${colorHexUi(formUsuario.colorPerfil)}` : ''"
+              x-text="(formUsuario.nombre || 'Mozo') + (formUsuario.apellido ? ' ' + formUsuario.apellido : '')"></span>
+          </div>
+          <p class="text-[11px] text-txt-muted mt-1">Vacío = el nombre se ve como siempre (sin recuadro extra). Si eliges un color, ese fondo aparece solo detrás del nombre en KDS, tickets y pagos adelantados. Si en Configuración se fuerza un solo color, este valor no se usa.</p>
         </div>
         <div x-show="puedeEditarClaveUniversal">
           <label class="text-xs text-txt-secondary mb-1 block">Clave universal admin <span class="text-txt-muted">(todos los admin)</span></label>
@@ -458,6 +481,7 @@ function usuariosApp() {
     claveUniversal: '',
     claveUniversalOriginal: '',
     puedeEditarClaveUniversal: false,
+    _colorPerfilClearing: false,
     formUsuario: {
       _id: null,
       nombre: '',
@@ -474,7 +498,8 @@ function usuariosApp() {
       permisosPersonalizados: [],
       createdAt: null,
       updatedAt: null,
-      ultimoAcceso: null
+      ultimoAcceso: null,
+      colorPerfil: ''
     },
     mostrarPermisos: false,
     
@@ -625,6 +650,29 @@ function usuariosApp() {
       const rolEncontrado = this.roles.find(r => r.nombre === rol);
       return rolEncontrado?.color || 'st-libre';
     },
+
+    colorHexUi(v) {
+      const s = String(v || '').trim();
+      if (!s) return '';
+      const h = s.startsWith('#') ? s : `#${s}`;
+      if (/^#[0-9a-fA-F]{6}$/.test(h)) return h.toLowerCase();
+      if (/^#[0-9a-fA-F]{3}$/.test(h)) {
+        const x = h.slice(1);
+        return `#${x[0]}${x[0]}${x[1]}${x[1]}${x[2]}${x[2]}`.toLowerCase();
+      }
+      return '';
+    },
+
+    onColorPerfilPickerInput(ev) {
+      if (this._colorPerfilClearing) return;
+      this.formUsuario.colorPerfil = this.colorHexUi(ev?.target?.value);
+    },
+
+    quitarColorPerfilUsuario() {
+      this._colorPerfilClearing = true;
+      this.formUsuario.colorPerfil = '';
+      setTimeout(() => { this._colorPerfilClearing = false; }, 150);
+    },
     
     getPermisosRol(rol) {
       const permisosRol = this.PERMISOS_POR_ROL[rol] || {};
@@ -736,7 +784,8 @@ function usuariosApp() {
         permisosPersonalizados: [],
         createdAt: null,
         updatedAt: null,
-        ultimoAcceso: null
+        ultimoAcceso: null,
+        colorPerfil: ''
       };
       this.modal = true;
     },
@@ -772,7 +821,8 @@ function usuariosApp() {
         permisosPersonalizados: m.permisos || [],
         createdAt: m.createdAt || null,
         updatedAt: m.updatedAt || null,
-        ultimoAcceso: m.ultimoAcceso || m.lastLogin || null
+        ultimoAcceso: m.ultimoAcceso || m.lastLogin || null,
+        colorPerfil: this.colorHexUi(m.colorPerfil)
       };
       this.modal = true;
     },
@@ -868,7 +918,8 @@ function usuariosApp() {
         roles: this.formUsuario.roles,
         rol: this.formUsuario.roles[0], // Rol principal (compatibilidad)
         activo: this.formUsuario.activo,
-        dosFactores: this.formUsuario.dosFactores || false
+        dosFactores: this.formUsuario.dosFactores || false,
+        colorPerfil: this.colorHexUi(this.formUsuario.colorPerfil)
       };
       
       const fotoPreview = this.formUsuario.fotoPreview;

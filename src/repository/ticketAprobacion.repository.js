@@ -7,7 +7,7 @@
 const mongoose = require('mongoose');
 const moment = require('moment-timezone');
 const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
-const { adjuntarDescuentoTicket, aplicarDescuentoAVistaTicket, totalesConDescuentoImpresion, subtotalLineaSnapshot, BOUCHER_DESCUENTO_SELECT, COMANDA_DESCUENTO_SELECT } = require('../utils/descuentoTicketSnapshot');
+const { adjuntarDescuentoTicket, aplicarDescuentoAVistaTicket, totalesConDescuentoImpresion, subtotalLineaSnapshot, BOUCHER_DESCUENTO_SELECT, COMANDA_TICKET_LIST_SELECT } = require('../utils/descuentoTicketSnapshot');
 const { aplicarPreciosEnLineasTicket, quitarLineasDeSnapshot, sincronizarEliminacionEnBoucher, sincronizarPreciosComandaYBoucher } = require('../utils/editarPreciosTicket');
 const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
 const comandaModel = require('../database/models/comanda.model');
@@ -19,6 +19,7 @@ const {
   resolverComandasNumbers,
   formatComandasNumbersLabel,
 } = require('../utils/comandasNumbers');
+const { filtroTicketsVinculadosAComanda, parseTicketNumber } = require('../utils/filtroTicketsDeComanda');
 const configuracionRepository = require('./configuracion.repository');
 const {
   imprimirSoloNombreComercial,
@@ -220,7 +221,7 @@ async function obtenerTicketPorId(ticketId) {
     .findById(ticketId)
     .populate('comandas', 'comandaNumber status platos mesas mozos descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado')
     .populate({ path: 'mesa', select: 'nummesa estado nombreCombinado area', populate: { path: 'area', select: 'nombre' } })
-    .populate('mozo', 'name')
+    .populate('mozo', 'name colorPerfil')
     .populate('boucher')
     .populate('aprobadoPor', 'name')
     .populate('reportadoPor', 'name')
@@ -247,8 +248,8 @@ async function obtenerTicketsPendientes(fecha) {
   return ticketAprobacionModel
     .find(filter)
     .populate('mesa', 'nummesa estado nombreCombinado')
-    .populate('mozo', 'name')
-    .populate('comandas', COMANDA_DESCUENTO_SELECT)
+    .populate('mozo', 'name colorPerfil')
+    .populate('comandas', COMANDA_TICKET_LIST_SELECT)
     .populate('boucher', BOUCHER_DESCUENTO_SELECT)
     .sort({ createdAt: 1 })
     .lean()
@@ -268,8 +269,8 @@ async function obtenerTicketsPorFecha(fecha, fechaHasta) {
       isActive: true,
     })
     .populate('mesa', 'nummesa estado nombreCombinado')
-    .populate('mozo', 'name')
-    .populate('comandas', COMANDA_DESCUENTO_SELECT)
+    .populate('mozo', 'name colorPerfil')
+    .populate('comandas', COMANDA_TICKET_LIST_SELECT)
     .populate('boucher', BOUCHER_DESCUENTO_SELECT)
     .sort({ createdAt: -1 })
     .lean()
@@ -797,19 +798,33 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
   };
 }
 
-/**
- * Tickets de aprobación asociados a una comanda (cualquier estado).
- */
-async function obtenerTicketsPorComanda(comandaId) {
-  if (!mongoose.Types.ObjectId.isValid(comandaId)) return [];
+const POPULATE_TICKET_LISTA = [
+  { path: 'mozo', select: 'name colorPerfil' },
+  { path: 'comandas', select: COMANDA_TICKET_LIST_SELECT },
+  { path: 'boucher', select: 'boucherNumber voucherId metodoPago montoDescuento descuentos totalSinDescuento' },
+];
+
+function findTicketsAprobacion(filtro) {
+  if (!filtro) return Promise.resolve([]);
   return ticketAprobacionModel
-    .find({ comandas: comandaId, isActive: true })
-    .populate('mozo', 'name')
-    .populate('comandas', COMANDA_DESCUENTO_SELECT)
-    .populate('boucher', 'boucherNumber voucherId metodoPago montoDescuento descuentos totalSinDescuento')
+    .find(filtro)
+    .populate(POPULATE_TICKET_LISTA)
     .sort({ createdAt: -1 })
     .lean()
     .then((tickets) => tickets.map(aplicarDescuentoAVistaTicket));
+}
+
+/**
+ * Tickets de aprobación ligados a la comanda (comandas[], platos.comandaId, líneas).
+ */
+async function obtenerTicketsPorComanda(comandaId, extras = {}) {
+  return findTicketsAprobacion(filtroTicketsVinculadosAComanda(comandaId, extras));
+}
+
+async function buscarPorTicketNumber(numero) {
+  const n = parseTicketNumber(numero);
+  if (!n) return [];
+  return findTicketsAprobacion({ ticketNumber: n });
 }
 
 /**
@@ -976,6 +991,7 @@ module.exports = {
   obtenerTicketsPendientes,
   obtenerTicketsPorFecha,
   obtenerTicketsPorComanda,
+  buscarPorTicketNumber,
   actualizarTicketAdmin,
   eliminarTicketAdmin,
   aprobarTicket,

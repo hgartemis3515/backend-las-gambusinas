@@ -182,6 +182,7 @@ const PERFIL_TABLAS_KDS_KEYS = new Set([
     'mozoNombreTamano',
     'mozoNombreColor',
     'mozoNombreFondo',
+    'headerTarjetaEstilo',
     'alertYellowMinutes',
     'alertRedMinutes',
     'alertCriticalMinutes',

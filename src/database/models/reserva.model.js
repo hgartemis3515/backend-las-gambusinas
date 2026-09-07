@@ -94,17 +94,19 @@ const reservaSchema = new mongoose.Schema({
             opcion: { type: String, default: '' },
             cantidad: { type: Number, default: 1, min: 1 },
             precio: { type: Number, default: 0 },   // snapshot; backend revalida
-            pronombre: { type: String, default: '', trim: true }
+            pronombre: { type: String, default: '', trim: true },
+            forzarVisibleTablaKds: { type: Boolean, default: false }
         }],
         notaEspecial: {
             type: String,
             default: ''
         },
-        nombreCocinaPedido: { type: String, default: '', trim: true, maxlength: 40 },
+        nombreCocinaPedido: { type: String, default: '', trim: true, maxlength: 80 },
         variantePlato: {
             grupo: { type: String, default: '', trim: true },
             opcion: { type: String, default: '', trim: true },
-            pronombre: { type: String, default: '', trim: true }
+            pronombre: { type: String, default: '', trim: true },
+            anexaNombre: { type: Boolean, default: false }
         }
     }],
     

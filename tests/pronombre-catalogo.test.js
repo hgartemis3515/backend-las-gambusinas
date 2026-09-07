@@ -35,6 +35,22 @@ describe('pronombre desde catálogo', () => {
       .toEqual(['Arroz', 'P Frita', 'ensal']);
   });
 
+  test('overlay marca forzarVisibleTablaKds desde el grupo del catálogo', () => {
+    const linea = {
+      plato: {
+        complementos: [{
+          grupo: 'Salsa',
+          forzarVisibleTablaKds: true,
+          opciones: [{ nombre: 'Huancaína', pronombre: 'Huanc' }],
+        }],
+      },
+      complementosSeleccionados: [{ grupo: 'Salsa', opcion: 'Huancaína' }],
+    };
+    overlayPronombresEnPlatoLinea(linea);
+    expect(linea.complementosSeleccionados[0].forzarVisibleTablaKds).toBe(true);
+    expect(linea.complementosSeleccionados[0].pronombre).toBe('Huanc');
+  });
+
   test('enriquecer copia pronombre al crear comanda', () => {
     const out = enriquecerComplementosConPrecio(catalogo, [
       { grupo: 'Guarnición', opcion: 'papa frit', cantidad: 1 }

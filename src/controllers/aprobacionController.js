@@ -2,6 +2,7 @@
  * Controller de Aprobación de Comandas — Las Gambusinas
  *
  * Endpoints:
+ *   GET  /api/aprobacion/buscar-ticket        — Busca por número (comanda + PPA, incl. inactivos)
  *   GET  /api/aprobacion/pendientes           — Lista unificada (comandas + PPA)
  *   GET  /api/aprobacion/pendiente-cobro    — Suma y lista comandas por cobrar del mozo
  *   PUT  /api/aprobacion/:id/aprobar          — Aprueba comanda o PPA
@@ -168,6 +169,22 @@ router.get('/aprobacion/turnos-dia', async (req, res) => {
   } catch (error) {
     logger.error('Error al obtener turnos DIA/NOCHE', { error: error.message });
     res.status(500).json({ success: false, message: 'Error al obtener turnos del día' });
+  }
+});
+
+/**
+ * GET /api/aprobacion/buscar-ticket?n=12
+ * Lista tickets COMANDA y PPA con ese número (activos e inactivos).
+ */
+router.get('/aprobacion/buscar-ticket', async (req, res) => {
+  try {
+    const n = req.query.n || req.query.ticketNumber || req.query.numero;
+    const tickets = await aprobacionService.buscarTicketsPorNumero(n);
+    res.json({ success: true, ticketNumber: Number(String(n).replace(/\D/g, '')) || n, tickets });
+  } catch (error) {
+    logger.error('Error al buscar ticket por número', { error: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 });
 
@@ -676,20 +693,21 @@ router.put('/aprobacion/:id/editar', async (req, res) => {
 
 /**
  * PUT /api/aprobacion/:id/eliminar
- * Anula un ticket pendiente desde admin (motivo obligatorio).
- * Body: { tipo?: 'COMANDA'|'ADELANTADO', motivo, usuarioId?, usuarioNombre? }
+ * Anula un ticket. Si duplicado=true, solo isActive=false (no toca platos ni PPA).
+ * Body: { tipo?, motivo, usuarioId?, usuarioNombre?, duplicado? }
  */
 router.put('/aprobacion/:id/eliminar', async (req, res) => {
   try {
     const { id } = req.params;
-    const { tipo, motivo, usuarioId, usuarioNombre } = req.body;
+    const { tipo, motivo, usuarioId, usuarioNombre, duplicado } = req.body;
 
     const result = await aprobacionService.eliminarTicketUnificado(
       id,
       tipo,
       motivo,
       usuarioId || 'admin',
-      usuarioNombre || 'Admin'
+      usuarioNombre || 'Admin',
+      { duplicado: duplicado === true }
     );
 
     const io = global.io;
@@ -698,8 +716,9 @@ router.put('/aprobacion/:id/eliminar', async (req, res) => {
       const ticket = result.ticket;
       const payload = {
         ticketId: ticket._id,
-        estado: result.tipo === 'ADELANTADO' ? 'rechazado' : 'anulado',
+        estado: result.duplicado ? 'anulado' : (result.tipo === 'ADELANTADO' ? 'rechazado' : 'anulado'),
         tipo: result.tipo,
+        duplicado: result.duplicado === true,
         comandas: ticket.comandas,
         comandasAfectadas: result.comandasAfectadas || [],
       };

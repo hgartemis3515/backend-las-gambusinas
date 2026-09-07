@@ -67,6 +67,8 @@ const comandaSchema = new mongoose.Schema({
             precio: { type: Number, default: 0, min: 0 },
             // Nombre corto para cocina (snapshot del catálogo).
             pronombre: { type: String, default: '', trim: true },
+            // Snapshot: se ve en tabla KDS aunque la vista oculte guarniciones.
+            forzarVisibleTablaKds: { type: Boolean, default: false },
             // PLAN GUARNICIONES_SEPARADAS v1.1: la guarnición (complemento) es una
             // unidad de trabajo de cocina independiente del plato padre. Estos campos
             // viven en el subdoc; el plato padre sigue siendo fuente de verdad para
@@ -122,6 +124,10 @@ const comandaSchema = new mongoose.Schema({
         // Snapshot: complementos como detalle del principal (no unidad KDS aparte).
         // Sin default: comandas viejas caen al catálogo populado.
         complementosUnidosAlPlato: { type: Boolean },
+        ocultarCronometroCocina: { type: Boolean },
+        juntarGuarnicionesEntreVariantes: { type: Boolean },
+        numeroSerie: { type: String, default: '', trim: true },
+        kdsEstiloCompacto: { type: Boolean },
         resumenComplementosImpresion: {
             mostrarCantidad: { type: Boolean, default: true },
             mostrarMontoExtra: { type: Boolean, default: true }
@@ -144,17 +150,18 @@ const comandaSchema = new mongoose.Schema({
             trim: true,
             lowercase: true
         },
-        // Snapshot MIX: nombre que cocina debe ver (TÉ / CAFÉ), no el catálogo MIX.
+        // Snapshot MIX / variación de nombre: lo que cocina debe ver.
         nombreCocinaPedido: {
             type: String,
             default: '',
             trim: true,
-            maxlength: 40
+            maxlength: 80
         },
         variantePlato: {
             grupo: { type: String, default: '', trim: true },
             opcion: { type: String, default: '', trim: true },
-            pronombre: { type: String, default: '', trim: true }
+            pronombre: { type: String, default: '', trim: true },
+            anexaNombre: { type: Boolean, default: false }
         },
         // 🔥 AUDITORÍA: Campos para tracking de eliminación
         eliminado: { 
@@ -311,6 +318,7 @@ const comandaSchema = new mongoose.Schema({
         }
     },
     observaciones: String,
+    numeroSerie: { type: String, default: '', trim: true },
     // PLAN GUARNICIONES_SEPARADAS v1.1 §5: etiquetas operativas de prioridad.
     // Aplican a la comanda entera; el motor de guarniciones y el de platos las leen
     // para poner la unidad de trabajo al frente de la cola. No cambian estados.
