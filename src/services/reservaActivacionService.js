@@ -95,7 +95,7 @@ const listarComandasDeReserva = async (reserva) => {
     return Comanda.find({ _id: { $in: unique } });
 };
 
-const asegurarComandaReservaEnKds = async (comanda, logLabel) => {
+const asegurarComandaReservaEnKds = async (comanda, logLabel, reserva = null) => {
     if (!comanda) return null;
     const debeActivar = comanda.programadaPorReserva
         || (comanda.platos || []).some((p) => p.estado === 'pendiente');
@@ -130,6 +130,13 @@ const asegurarComandaReservaEnKds = async (comanda, logLabel) => {
     comanda.programadaPorReserva = false;
     comanda.prioridadOrden = Date.now();
     comanda.origenCreacion = comanda.origenCreacion || 'reserva';
+    comanda.omitirOrdenEntrega = true;
+    if (reserva?.fechaReserva && !comanda.fechaAtencionReserva) {
+        comanda.fechaAtencionReserva = reserva.fechaReserva;
+    }
+    if (reserva?.fechaCocina && !comanda.fechaCocinaProgramada) {
+        comanda.fechaCocinaProgramada = reserva.fechaCocina;
+    }
     comanda.markModified('platos');
     await comanda.save();
     logger.info(logLabel, {
@@ -175,7 +182,8 @@ const activarReservaProgramada = async (reservaId, opts = {}) => {
                 for (const c of comandasYa) {
                     comandaYa = await asegurarComandaReservaEnKds(
                         c,
-                        'Comanda programada asegurada en KDS (reserva ya activa)'
+                        'Comanda programada asegurada en KDS (reserva ya activa)',
+                        actual
                     ) || comandaYa;
                 }
                 return { activada: true, yaActiva: true, reserva: actual, comanda: comandaYa };
@@ -205,7 +213,7 @@ const activarReservaProgramada = async (reservaId, opts = {}) => {
             logger.warn('activarReservaProgramada: reserva sin comandas', { reservaId });
         }
         for (const comanda of comandas) {
-            comandaActualizada = await asegurarComandaReservaEnKds(comanda, 'Comanda programada activada')
+            comandaActualizada = await asegurarComandaReservaEnKds(comanda, 'Comanda programada activada', reserva)
                 || comandaActualizada;
         }
 

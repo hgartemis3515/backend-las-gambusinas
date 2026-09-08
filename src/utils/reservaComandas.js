@@ -28,7 +28,9 @@ const heredarProgramacionDeComandaPrincipal = (principal) => {
   return {
     programadaPorReserva: true,
     fechaCocinaProgramada: principal.fechaCocinaProgramada || null,
-    origenCreacion: 'reserva'
+    fechaAtencionReserva: principal.fechaAtencionReserva || null,
+    origenCreacion: 'reserva',
+    omitirOrdenEntrega: true
   };
 };
 

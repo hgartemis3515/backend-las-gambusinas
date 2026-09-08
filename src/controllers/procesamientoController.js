@@ -131,10 +131,11 @@ async function obtenerColaDelCocinero(cocineroId) {
     status: { $nin: ['entregado', 'pagado'] },
     createdAt: { $gte: inicioDia, $lte: finDia },
     'platos.procesandoPor.cocineroId': cocineroId
-  }).select('platos.procesandoPor platos.estado platos.eliminado platos.anulado');
+  }).select('platos.procesandoPor platos.estado platos.eliminado platos.anulado origenCreacion origenReserva omitirOrdenEntrega');
 
   const candidatos = [];
   for (const c of comandas) {
+    if (c.omitirOrdenEntrega === true || c.origenCreacion === 'reserva' || c.origenReserva) continue;
     c.platos.forEach((p, idx) => {
       if (!p || p.eliminado || p.anulado) return;
       if (!p.procesandoPor || !p.procesandoPor.cocineroId) return;
@@ -766,8 +767,10 @@ router.put('/comanda/:id/plato/:platoId/finalizar', adminAuth, async (req, res) 
       const cfgCocina = await leerConfigCocina();
       if (cfgCocina.obligarOrdenAsignacion && req.admin?.rol !== 'admin') {
         // Comanda creada desde dashboard con "Omitir orden de entrega"
-        if (comanda.omitirOrdenEntrega === true) {
-          logger.info('[FinalizarPlato] omitirOrdenEntrega=true — se salta validación de cola', {
+        if (comanda.omitirOrdenEntrega === true
+            || comanda.origenCreacion === 'reserva'
+            || comanda.origenReserva) {
+          logger.info('[FinalizarPlato] reserva/omitirOrden — se salta validación de cola', {
             comandaId,
             platoId,
             comandaNumber: comanda.comandaNumber

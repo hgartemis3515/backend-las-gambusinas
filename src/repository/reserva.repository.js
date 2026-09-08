@@ -945,7 +945,9 @@ const crearReservaDesdeMozos = async (data) => {
             observaciones: data.notas || '', status: 'en_espera', IsActive: true,
             numeroSerie: String(platosComanda[0]?.numeroSerie || data.numeroSerie || '').replace(/\D/g, '').slice(0, 4),
             origenCreacion: 'reserva', origenReserva: reserva._id,
-            programadaPorReserva: true, fechaCocinaProgramada: fechaCocina.toDate(), prioridadOrden: 0
+            programadaPorReserva: true, fechaCocinaProgramada: fechaCocina.toDate(),
+            fechaAtencionReserva: fechaAtencion.toDate(),
+            omitirOrdenEntrega: true, prioridadOrden: 0
         };
         const comanda = await getComandaModel().create(comandaPayload);
         comandaCreada = comanda;

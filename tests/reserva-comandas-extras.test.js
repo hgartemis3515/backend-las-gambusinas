@@ -23,11 +23,14 @@ describe('PLAN_NUEVA_COMANDA_RESERVA_Y_MESAS_JUNTAS', () => {
     expect(heredarProgramacionDeComandaPrincipal({ programadaPorReserva: false })).toBeNull();
     const h = heredarProgramacionDeComandaPrincipal({
       programadaPorReserva: true,
-      fechaCocinaProgramada: '2026-08-30T20:40:00.000Z'
+      fechaCocinaProgramada: '2026-08-30T20:40:00.000Z',
+      fechaAtencionReserva: '2026-08-30T21:00:00.000Z'
     });
     expect(h.programadaPorReserva).toBe(true);
     expect(h.origenCreacion).toBe('reserva');
     expect(h.fechaCocinaProgramada).toBe('2026-08-30T20:40:00.000Z');
+    expect(h.fechaAtencionReserva).toBe('2026-08-30T21:00:00.000Z');
+    expect(h.omitirOrdenEntrega).toBe(true);
   });
 
   test('comanda en secundaria usa la mesa principal del grupo', () => {

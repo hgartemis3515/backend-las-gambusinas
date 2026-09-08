@@ -98,6 +98,23 @@ const tienePermisoDesdeToken = (req, permiso) => {
     }
 };
 
+// Igual que el JWT, pero si el permiso se otorgó después del login consulta la BD.
+const asegurarPermisoCocina = async (req, permiso) => {
+    if (tienePermisoDesdeToken(req, permiso)) return true;
+    try {
+        const decoded = decodeJwtDashboard(req);
+        if (!decoded?.id) return false;
+        if (decoded.rol === 'admin') return true;
+        const rolesRepository = require('../repository/roles.repository');
+        const mozo = await rolesRepository.obtenerMozoConRol(decoded.id);
+        if (!mozo) return false;
+        if (mozo.rol === 'admin') return true;
+        return (mozo.permisosEfectivos || []).includes(permiso);
+    } catch (e) {
+        return false;
+    }
+};
+
 function decodeJwtDashboard(req) {
     if (req.admin) return req.admin;
     try {
@@ -2287,8 +2304,7 @@ router.put('/comanda/:id/prioridad', async (req, res) => {
     const { prioridadOrden } = req.body;
 
     try {
-        // Verificar permiso ver-boton-prioridad-kds
-        if (!tienePermisoDesdeToken(req, 'ver-boton-prioridad-kds')) {
+        if (!(await asegurarPermisoCocina(req, 'ver-boton-prioridad-kds'))) {
             logger.warn('Permiso denegado para cambiar prioridad', { id });
             return res.status(403).json({ message: 'No tiene permiso para cambiar la prioridad de la comanda' });
         }

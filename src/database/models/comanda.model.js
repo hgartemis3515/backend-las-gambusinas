@@ -588,6 +588,11 @@ const comandaSchema = new mongoose.Schema({
         default: null,
         index: true
     },
+    // Snapshot de reserva.fechaReserva (hora de atención al cliente) para el KDS.
+    fechaAtencionReserva: {
+        type: Date,
+        default: null
+    },
     // ========== FIN PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 ==========
     // ========== CREAR COMANDA DESDE DASHBOARD ==========
     // Origen de creación de la comanda (auditoría y reportes)

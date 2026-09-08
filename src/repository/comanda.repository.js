@@ -95,6 +95,7 @@ const PROYECCION_COCINA = {
     // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: flag de comanda programada por reserva
     programadaPorReserva: 1,
     fechaCocinaProgramada: 1,
+    fechaAtencionReserva: 1,
     // Referencias mínimas (solo para fallback si no hay desnormalizados)
     mozos: 1,
     mesas: 1,
@@ -848,14 +849,24 @@ const agregarComanda = async (data) => {
         const genId = reservaActiva.comandaGenerada?._id || reservaActiva.comandaGenerada;
         if (genId) {
           const principalDoc = await comandaModel.findById(genId)
-            .select('programadaPorReserva fechaCocinaProgramada')
+            .select('programadaPorReserva fechaCocinaProgramada fechaAtencionReserva')
             .lean();
           const flagsProg = heredarProgramacionDeComandaPrincipal(principalDoc);
           if (flagsProg) {
             data.programadaPorReserva = flagsProg.programadaPorReserva;
             data.fechaCocinaProgramada = flagsProg.fechaCocinaProgramada;
+            data.fechaAtencionReserva = flagsProg.fechaAtencionReserva;
             data.origenCreacion = flagsProg.origenCreacion;
+            data.omitirOrdenEntrega = true;
           }
+        }
+        data.origenCreacion = data.origenCreacion || 'reserva';
+        data.omitirOrdenEntrega = true;
+        if (!data.fechaAtencionReserva && reservaActiva.fechaReserva) {
+          data.fechaAtencionReserva = reservaActiva.fechaReserva;
+        }
+        if (!data.fechaCocinaProgramada && reservaActiva.fechaCocina) {
+          data.fechaCocinaProgramada = reservaActiva.fechaCocina;
         }
         
       } else if (estadoMesa === 'reservado') {
@@ -2736,6 +2747,31 @@ const cambiarEstadoComanda = async (comandaId, nuevoEstado) => {
   }
 };
 
+const adjuntarHorariosReserva = async (comandas) => {
+  if (!Array.isArray(comandas) || comandas.length === 0) return comandas;
+  const ids = [];
+  for (const c of comandas) {
+    if (!c || !(c.origenCreacion === 'reserva' || c.origenReserva)) continue;
+    const rid = c.origenReserva && (c.origenReserva._id || c.origenReserva);
+    if (rid) ids.push(String(rid));
+  }
+  const unique = [...new Set(ids)];
+  if (!unique.length) return comandas;
+  const Reserva = require('../database/models/reserva.model');
+  const reservas = await Reserva.find({ _id: { $in: unique } })
+    .select('fechaReserva fechaCocina')
+    .lean();
+  const map = new Map(reservas.map((r) => [String(r._id), r]));
+  for (const c of comandas) {
+    const rid = c.origenReserva && String(c.origenReserva._id || c.origenReserva);
+    const r = rid ? map.get(rid) : null;
+    if (!r) continue;
+    if (!c.fechaAtencionReserva && r.fechaReserva) c.fechaAtencionReserva = r.fechaReserva;
+    if (!c.fechaCocinaProgramada && r.fechaCocina) c.fechaCocinaProgramada = r.fechaCocina;
+  }
+  return comandas;
+};
+
 const listarComandaPorFechaEntregado = async (fecha, usarProyeccion = true) => {
   try {
     console.log('🔍 [FASE A1] Buscando comandas para fecha:', fecha);
@@ -2821,6 +2857,7 @@ const listarComandaPorFechaEntregado = async (fecha, usarProyeccion = true) => {
 
     await enrichComandasMozoNombre(dataProcesada);
     overlayPronombresEnComandas(dataProcesada);
+    await adjuntarHorariosReserva(dataProcesada);
     
     const elapsedMs = Date.now() - startTime;
     console.log(`✅ [FASE A1] Encontradas ${dataProcesada.length} comandas en ${elapsedMs}ms`);
