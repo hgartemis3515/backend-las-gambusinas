@@ -1121,20 +1121,14 @@ router.delete('/comanda/:id', async (req, res) => {
 });
 
 /**
- * ✅ NUEVO ENDPOINT: Soft-delete con motivo obligatorio
+ * Soft-delete. Motivo opcional (si no hay texto se registra un fallback).
  */
 router.put('/comanda/:id/eliminar', async (req, res) => {
     const { id } = req.params;
     const { motivo } = req.body;
     const actor = resolverActorAuditoria(req);
     let usuarioId = actor.usuario;
-
-    // Validar que el motivo sea obligatorio
-    if (!motivo || motivo.trim() === '') {
-        return res.status(400).json({ 
-            message: 'El motivo de eliminación es obligatorio' 
-        });
-    }
+    const motivoFinal = (motivo && String(motivo).trim()) ? String(motivo).trim() : '';
     
     try {
         const snapshotAntes = await comandaModel.findById(id)
@@ -1159,7 +1153,7 @@ router.put('/comanda/:id/eliminar', async (req, res) => {
         }
 
         const { totalEliminado, platosEliminados } = resumenPlatosEliminados(snapshotAntes);
-        const comanda = await eliminarLogicamente(id, usuarioId, motivo.trim());
+        const comanda = await eliminarLogicamente(id, usuarioId, motivoFinal);
 
         req.auditoria = {
             accion: 'ELIMINAR_COMANDA_INDIVIDUAL',
@@ -1169,7 +1163,7 @@ router.put('/comanda/:id/eliminar', async (req, res) => {
             usuarioNombre: actor.usuarioNombre,
             mesaId: snapshotAntes.mesas?._id || snapshotAntes.mesas,
             comandaId: id,
-            motivo: motivo.trim(),
+            motivo: motivoFinal,
             platosEliminados,
             totalEliminado,
             comandaNumber: snapshotAntes.comandaNumber,
@@ -1187,7 +1181,7 @@ router.put('/comanda/:id/eliminar', async (req, res) => {
                 origen: 'comandas.html'
             }
         };
-        await registrarAuditoria(req, snapshotAntes, comanda, motivo.trim());
+        await registrarAuditoria(req, snapshotAntes, comanda, motivoFinal || 'Eliminación sin motivo');
 
         if (global.emitComandaEliminada) {
             await global.emitComandaEliminada(id);

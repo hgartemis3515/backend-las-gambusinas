@@ -12,6 +12,20 @@ const { partirLineaPorVariante, snapshotNombreCocinaPedido } = require('../utils
 const { aplicarNumeroSerieComanda } = require('../utils/numeroSeriePlato');
 const { debeCancelarReservaAlEliminarComanda } = require('../utils/reservaComandas');
 
+function normalizarTipoPedidoReserva(valor) {
+    if (valor == null || valor === '') return null;
+    const s = String(valor).toLowerCase().trim();
+    if (!s || s.length > 80) return null;
+    return s;
+}
+
+function tipoPedidoLineaReserva(item, linea, platoDoc) {
+    return normalizarTipoPedidoReserva(item?.tipoPedido)
+        || normalizarTipoPedidoReserva(linea?.tipoPedido)
+        || normalizarTipoPedidoReserva(platoDoc?.tipo)
+        || normalizarTipoPedidoReserva(Array.isArray(platoDoc?.tipos) ? platoDoc.tipos[0] : null);
+}
+
 // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: modelos diferidos para crear comanda programada
 let ComandaModel = null;
 let PlatoModel = null;
@@ -889,6 +903,7 @@ const crearReservaDesdeMozos = async (data) => {
                 totalPlatos += calc.total;
                 const tipoServicio = item.tipoServicio === 'para_llevar' ? 'para_llevar' : 'mesa';
                 const notaEspecial = typeof item.notaEspecial === 'string' ? item.notaEspecial : '';
+                const tipoPedido = tipoPedidoLineaReserva(item, linea, platoDoc);
                 platosReserva.push({
                     plato: platoDoc._id, cantidad: calc.cantidad, tipoServicio,
                     complementosSeleccionados: calc.complementosSeleccionados, notaEspecial,
@@ -907,7 +922,7 @@ const crearReservaDesdeMozos = async (data) => {
                     kdsEstiloCompacto: platoDoc.kdsEstiloCompacto === true,
                     numeroSerie: String(linea.numeroSerie || item.numeroSerie || '').replace(/\D/g, '').slice(0, 4),
                     resumenComplementosImpresion: platoDoc.resumenComplementosImpresion || undefined,
-                    notaEspecial, tipoServicio, cantidad: calc.cantidad,
+                    notaEspecial, tipoServicio, tipoPedido, cantidad: calc.cantidad,
                     nombreCocinaPedido: linea.nombreCocinaPedido || calc.nombreCocinaPedido || '',
                     variantePlato: linea.variantePlato || calc.variantePlato || undefined
                 });
@@ -1199,5 +1214,6 @@ module.exports = {
     parseFechaAtencionLima,
     puedeActivarCocinaReserva,
     debeActivarCocinaAhora,
-    marcarPagoAdelantadoAprobadoEnPlatos
+    marcarPagoAdelantadoAprobadoEnPlatos,
+    tipoPedidoLineaReserva
 };

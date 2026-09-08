@@ -21,6 +21,7 @@ const {
   puedeActivarCocinaReserva,
   debeActivarCocinaAhora,
   marcarPagoAdelantadoAprobadoEnPlatos,
+  tipoPedidoLineaReserva,
 } = require('../src/repository/reserva.repository');
 
 describe('PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 — Flujo de reservas', () => {
@@ -304,6 +305,18 @@ describe('PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 — Flujo de reservas', () => {
       expect(platos[0].pagoAdelantado.estadoTicket).toBe('aprobado');
       expect(platos[1].pagoAdelantado.estadoTicket).toBe('aprobado');
       expect(platos[2].pagoAdelantado).toBeUndefined();
+    });
+  });
+
+  describe('tipoPedido en líneas de reserva', () => {
+    test('usa el tipoPedido de Mozos si viene', () => {
+      expect(tipoPedidoLineaReserva({ tipoPedido: 'platos-cena' }, {}, { tipo: 'platos-desayuno' }))
+        .toBe('platos-cena');
+    });
+
+    test('si Mozos no lo manda, usa el tipo del catálogo', () => {
+      expect(tipoPedidoLineaReserva({}, {}, { tipo: 'platos-cena', tipos: ['platos-cena'] }))
+        .toBe('platos-cena');
     });
   });
 });

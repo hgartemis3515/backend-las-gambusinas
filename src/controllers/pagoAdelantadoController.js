@@ -492,6 +492,12 @@ router.put('/pago-adelantado/:id/aprobar', async (req, res) => {
 
       // Comanda de reserva sigue programada (KDS Reservadas); no empujarla al tablero vivo
       if (!esReserva) {
+        try {
+          const { aplicarAsignacionAutomaticaTrasLiberarPlatos } = require('../services/asignacionPostLiberacionService');
+          await aplicarAsignacionAutomaticaTrasLiberarPlatos(ticket.comandas, { origen: 'post_ppa' });
+        } catch (eAsig) {
+          logger.warn('Auto-asignación post-PPA no crítica', { error: eAsig.message });
+        }
         for (const comandaId of ticket.comandas) {
           const comandaActualizada = await comandaModel.findById(comandaId)
             .populate('platos.plato', 'nombre precio id')
@@ -512,26 +518,6 @@ router.put('/pago-adelantado/:id/aprobar', async (req, res) => {
               status: comandaActualizada.status,
             });
           }
-
-          setImmediate(async () => {
-            try {
-              const asignacionAutomaticaService = require('../services/asignacionAutomaticaService');
-              const comandaPop = await comandaModel.findById(comandaId)
-                .populate('platos.plato', 'id categoria tipo tipos nombre codigo complementosUnidosAlPlato complementos')
-                .lean();
-              if (!comandaPop) return;
-              await asignacionAutomaticaService.asignarPlatosNuevos(comandaPop);
-              const asignacionGuarnicionesService = require('../services/asignacionAutomaticaGuarnicionesService');
-              const comandaPost = await comandaModel.findById(comandaId)
-                .populate('platos.plato', 'id categoria tipo tipos nombre codigo complementosUnidosAlPlato complementos')
-                .lean();
-              if (comandaPost) {
-                await asignacionGuarnicionesService.asignarGuarnicionesNuevas(comandaPost);
-              }
-            } catch (eAsig) {
-              logger.warn('Auto-asignación post-PPA no crítica', { comandaId, error: eAsig.message });
-            }
-          });
         }
       }
 

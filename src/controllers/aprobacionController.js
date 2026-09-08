@@ -449,6 +449,17 @@ router.put('/aprobacion/:id/aprobar', async (req, res) => {
       const ticket = result.ticket;
       const esReserva = ticket.origen === 'reserva' || result.reservaConfirmada === true;
 
+      // Para-llevar / PPA se retienen hasta aprobar; al liberarlos hay que
+      // asignarlos igual que una comanda nueva (el path unificado no lo hacía).
+      if (!esReserva && (ticket.comandas || []).length) {
+        try {
+          const { aplicarAsignacionAutomaticaTrasLiberarPlatos } = require('../services/asignacionPostLiberacionService');
+          await aplicarAsignacionAutomaticaTrasLiberarPlatos(ticket.comandas, { origen: 'post_ppa' });
+        } catch (eAsig) {
+          logger.warn('Auto-asignación post-PPA unificado no crítica', { error: eAsig.message });
+        }
+      }
+
       let estadoMesaPPA = result.mesaEstado || null;
       try {
         const mesaDoc = await mongoose.model('Mesa').findById(ticket.mesa).select('estado nummesa').lean();
