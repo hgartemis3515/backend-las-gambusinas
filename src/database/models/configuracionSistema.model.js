@@ -155,6 +155,8 @@ const CONFIGURACION_DEFAULT = {
         colorMozoForzado: '#1e3a8a',
         // true = las tablas KDS ignoran el fondo de Vista y alertas y usan colorPerfil.
         ignorarFondoVistaMozo: false,
+        // true (default): oculta el botón ANULAR en las tablas KDS de la app de cocina.
+        ocultarAnularEnTablasKds: true,
         tiemposGuarnicion: {
             umbralAlertaMultiplo: 1.5,
             umbralCriticaMultiplo: 2,
@@ -184,7 +186,7 @@ const CONFIGURACION_DEFAULT = {
     // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: configuración de reservas desde App Mozos.
     // permitirReservas: llave maestra (si false, no hay flujo de reservas en ningún cliente).
     // permitirCrearDesdeMozos: habilita el botón Reservar de la barra de Inicio.
-    // minutosAntesCocina: offset automático horaCocina = horaAtencion - N (default 20).
+    // minutosAntesCocina: offset automático horaCocina = horaAtencion - N (default 15).
     // minutosAlertaPreviaCocina: alerta T-N a cocina antes de activar.
     // bloquearMesaAlCrear: si false (recomendado), la mesa solo pasa a 'reservado'
     //   minutosBloqueoMesaAntes antes de la atención (no todo el día).
@@ -194,7 +196,7 @@ const CONFIGURACION_DEFAULT = {
     reservas: {
         permitirReservas: true,
         permitirCrearDesdeMozos: true,
-        minutosAntesCocina: 20,
+        minutosAntesCocina: 15,
         minutosAlertaPreviaCocina: 10,
         tiempoEsperaDefaultMin: 10,
         bloquearMesaAlCrear: false,
@@ -572,6 +574,10 @@ const configuracionSistemaSchema = new mongoose.Schema({
             type: Boolean,
             default: CONFIGURACION_DEFAULT.cocina.ignorarFondoVistaMozo
         },
+        ocultarAnularEnTablasKds: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.cocina.ocultarAnularEnTablasKds
+        },
         // Umbrales de tiempos por local (no hard-codeados). Si una guarnición supera
         // umbralAlertaSeg × tiempoMedioPreparacion → alerta visual en KDS.
         tiemposGuarnicion: {
@@ -928,6 +934,11 @@ const configuracionSistemaSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    // true = ya se aplicó el default de 15 min de offset cocina en reservas.
+    reservasOffsetCocina15: {
+        type: Boolean,
+        default: false
+    },
     pinUniversalCocina: {
         type: String,
         default: ''
@@ -968,6 +979,22 @@ configuracionSistemaSchema.statics.obtenerConfiguracion = async function() {
         if (updated) {
             config = updated;
             console.log('✅ Ciclo toque KDS asignado: 1º finalizar (verde), 2º dejar (rojo)');
+            try {
+                const redisCache = require('../../utils/redisCache');
+                await redisCache.invalidateCustom('configuracion', 'sistema');
+            } catch (_) { /* no bloquear lectura */ }
+        }
+    }
+
+    if (config.reservasOffsetCocina15 !== true) {
+        const updatedOff = await this.findOneAndUpdate(
+            { _id: 'configuracion_unica', reservasOffsetCocina15: { $ne: true } },
+            { $set: { reservasOffsetCocina15: true, 'reservas.minutosAntesCocina': 15 } },
+            { new: true }
+        );
+        if (updatedOff) {
+            config = updatedOff;
+            console.log('✅ Reservas: offset cocina actualizado a 15 minutos');
             try {
                 const redisCache = require('../../utils/redisCache');
                 await redisCache.invalidateCustom('configuracion', 'sistema');

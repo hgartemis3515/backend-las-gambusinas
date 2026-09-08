@@ -57,7 +57,7 @@ const reservaSchema = new mongoose.Schema({
 
     // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: fecha en que la cocina debe empezar a
     // preparar la comanda. Se calcula como fechaReserva - minutosAntesCocina
-    // (default 20 min). El mozo NO la edita; la persistimos para que el job
+    // (default 15 min). El mozo NO la edita; la persistimos para que el job
     // (timeoutService) la use sin recalcular (la config puede cambiar).
     fechaCocina: {
         type: Date,

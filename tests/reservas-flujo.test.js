@@ -35,6 +35,14 @@ describe('PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1 — Flujo de reservas', () => {
       expect(fechaCocina.format('HH:mm')).toBe('12:40');
     });
 
+    test('default offset es 15 min (atención − 15)', () => {
+      const ahora = moment.tz('2026-08-13 12:00', 'America/Lima');
+      const atencion = moment.tz('2026-08-13 13:00', 'America/Lima');
+      const { fechaCocina, activacionInmediata } = calcularFechaCocina(atencion, undefined, ahora);
+      expect(activacionInmediata).toBe(false);
+      expect(fechaCocina.format('HH:mm')).toBe('12:45');
+    });
+
     test('usa offset configurable (no hardcodeado a 20)', () => {
       const ahora = moment.tz('2026-08-13 12:00', 'America/Lima');
       const atencion = moment.tz('2026-08-13 13:00', 'America/Lima');

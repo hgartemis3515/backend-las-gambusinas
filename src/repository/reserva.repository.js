@@ -42,7 +42,7 @@ const leerConfigReservas = async () => {
         return cfg?.reservas || {
             permitirReservas: true,
             permitirCrearDesdeMozos: true,
-            minutosAntesCocina: 20,
+            minutosAntesCocina: 15,
             minutosAlertaPreviaCocina: 10,
             tiempoEsperaDefaultMin: 10,
             bloquearMesaAlCrear: false,
@@ -56,7 +56,7 @@ const leerConfigReservas = async () => {
         return {
             permitirReservas: true,
             permitirCrearDesdeMozos: true,
-            minutosAntesCocina: 20,
+            minutosAntesCocina: 15,
             minutosAlertaPreviaCocina: 10,
             tiempoEsperaDefaultMin: 10,
             bloquearMesaAlCrear: false,
@@ -652,12 +652,12 @@ const parseFechaAtencionLima = (valor) => {
  * Calcula la fecha de cocina (atención − minutosAntes). Si esa fecha ya pasó
  * (reserva muy cercana), retorna la fecha actual → activación inmediata.
  * @param {Date|moment|string} fechaReserva
- * @param {Number} minutosAntes  offset en minutos (default 20)
+ * @param {Number} minutosAntes  offset en minutos (default 15)
  * @param {Date|moment} ahora  referencia de "ahora" (inyectable para tests)
  * @returns {{ fechaCocina: moment, activacionInmediata: boolean }}
  */
-const calcularFechaCocina = (fechaReserva, minutosAntes = 20, ahora = null) => {
-    const offset = Number(minutosAntes) || 20;
+const calcularFechaCocina = (fechaReserva, minutosAntes = 15, ahora = null) => {
+    const offset = Number(minutosAntes) || 15;
     const ref = ahora ? moment(ahora) : moment().tz('America/Lima');
     const atencion = moment(fechaReserva);
     const base = atencion.clone().subtract(offset, 'minutes');
@@ -670,8 +670,8 @@ const calcularFechaCocina = (fechaReserva, minutosAntes = 20, ahora = null) => {
  * Determina si una reserva es "inmediata": la atención ocurre antes de que
  * pudiera cumplirse el offset de cocina (atención − ahora <= minutosAntes).
  */
-const esReservaInmediata = (fechaReserva, minutosAntes = 20, ahora = null) => {
-    const offset = Number(minutosAntes) || 20;
+const esReservaInmediata = (fechaReserva, minutosAntes = 15, ahora = null) => {
+    const offset = Number(minutosAntes) || 15;
     const ref = ahora ? moment(ahora) : moment().tz('America/Lima');
     const atencion = moment(fechaReserva);
     return atencion.diff(ref, 'minutes', true) <= offset;
@@ -864,7 +864,7 @@ const crearReservaDesdeMozos = async (data) => {
         }
         await validarColisionReserva(data.mesa, fechaAtencion.toDate(), Number(config.ventanaConflictoMinutos) || 120);
 
-        const offsetMin = Number(config.minutosAntesCocina) || 20;
+        const offsetMin = Number(config.minutosAntesCocina) || 15;
         const { fechaCocina: fechaCocinaCalc, activacionInmediata } = calcularFechaCocina(fechaAtencion, offsetMin, ahora);
         const fechaCocina = fechaCocinaCalc;
 

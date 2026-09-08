@@ -152,7 +152,7 @@ const manejarAlertaProxima = async (reservaId) => {
     }
 };
 
-// ========== PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: activación por fechaCocina (T−20) ==========
+// ========== PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: activación por fechaCocina (T−15) ==========
 
 /**
  * Manejar el bloqueo diferido de la mesa: a T−minutosBloqueoMesaAntes de la atención,
@@ -544,12 +544,12 @@ const barrerActivacionesVencidas = async () => {
             comandaGenerada: { $ne: null }
         }).select('_id fechaCocina estado').lean();
         if (!vencidas.length) return;
-        logger.info('Barrido T−20: reservas con fechaCocina vencida', { cantidad: vencidas.length });
+        logger.info('Barrido T−15: reservas con fechaCocina vencida', { cantidad: vencidas.length });
         for (const r of vencidas) {
             await manejarActivacion(r._id);
         }
     } catch (error) {
-        logger.error('Error en barrido de activaciones T−20', { error: error.message });
+        logger.error('Error en barrido de activaciones T−15', { error: error.message });
     }
 };
 
@@ -557,7 +557,7 @@ const iniciarBarridoActivaciones = () => {
     if (sweepInterval) return;
     sweepInterval = setInterval(barrerActivacionesVencidas, SWEEP_ACTIVACION_MS);
     setImmediate(barrerActivacionesVencidas);
-    logger.info('Barrido T−20 de reservas iniciado', { cadaMs: SWEEP_ACTIVACION_MS });
+    logger.info('Barrido T−15 de reservas iniciado', { cadaMs: SWEEP_ACTIVACION_MS });
 };
 
 /**

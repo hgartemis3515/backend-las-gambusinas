@@ -708,6 +708,14 @@ tailwind.config = {
                 El mozo ve el plato como Entregado y no usa «Entregar plato». Sirve también en reservas auto-asignadas.
                 Recargue la app de cocina y de mozos.
               </p>
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" x-model="config.cocinaOcultarAnularEnTablasKds" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+                <span class="text-sm text-txt-secondary">Ocultar ANULAR en las tablas KDS</span>
+              </label>
+              <p class="text-[10px] text-txt-muted pl-7">
+                Marcado (recomendado): en Vista General, Personalizada y Supervisor no aparece el botón ANULAR.
+                Desmárquelo solo si cocina debe anular platos desde esas tablas. Recargue la app de cocina.
+              </p>
             </div>
 
             <!-- PLAN NOMBRE_PLATO_COCINA: alias corto en tabla KDS -->
@@ -1571,7 +1579,7 @@ function configApp() {
       reservas: {
         permitirReservas: true,
         permitirCrearDesdeMozos: true,
-        minutosAntesCocina: 20,
+        minutosAntesCocina: 15,
         minutosAlertaPreviaCocina: 10,
         tiempoEsperaDefaultMin: 15,
         bloquearMesaAlCrear: false,
@@ -1607,6 +1615,7 @@ function configApp() {
       cocinaForzarColorMozoUnico: false,
       cocinaColorMozoForzado: '#1e3a8a',
       cocinaIgnorarFondoVistaMozo: false,
+      cocinaOcultarAnularEnTablasKds: true,
       sesionesSimultaneas: 3,
       timeoutInactividadMin: 30,
       requiere2fa: false,
@@ -1871,6 +1880,7 @@ function configApp() {
             this.config.cocinaForzarColorMozoUnico = cfg.cocina.forzarColorMozoUnico === true;
             this.config.cocinaColorMozoForzado = this.colorHexMozo(cfg.cocina.colorMozoForzado);
             this.config.cocinaIgnorarFondoVistaMozo = cfg.cocina.ignorarFondoVistaMozo === true;
+            this.config.cocinaOcultarAnularEnTablasKds = cfg.cocina.ocultarAnularEnTablasKds !== false;
             // PLAN GUARNICIONES_SEPARADAS v1.1: flag global + umbrales de tiempos.
             this.config.cocinaPermitirGuarnicionesSeparadas = cfg.cocina.permitirGuarnicionesSeparadas !== false;
             this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones = cfg.cocina.deshabilitarOrdenSecuencialGuarniciones !== false;
@@ -1891,6 +1901,7 @@ function configApp() {
             this.config.cocinaForzarColorMozoUnico = false;
             this.config.cocinaColorMozoForzado = '#1e3a8a';
             this.config.cocinaIgnorarFondoVistaMozo = false;
+            this.config.cocinaOcultarAnularEnTablasKds = true;
             this.config.cocinaPermitirGuarnicionesSeparadas = true;
             this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones = true;
             this.config.cocinaDeshabilitarAgrupacionGuarniciones = false;
@@ -2072,6 +2083,7 @@ function configApp() {
             forzarColorMozoUnico: this.config.cocinaForzarColorMozoUnico === true,
             colorMozoForzado: this.colorHexMozo(this.config.cocinaColorMozoForzado),
             ignorarFondoVistaMozo: this.config.cocinaIgnorarFondoVistaMozo === true,
+            ocultarAnularEnTablasKds: this.config.cocinaOcultarAnularEnTablasKds !== false,
             // PLAN GUARNICIONES_SEPARADAS v1.1
             permitirGuarnicionesSeparadas: this.config.cocinaPermitirGuarnicionesSeparadas !== false,
             deshabilitarOrdenSecuencialGuarniciones: this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones !== false,
@@ -2107,7 +2119,7 @@ function configApp() {
           reservas: {
             permitirReservas: this.config.permitirReservas !== false,
             permitirCrearDesdeMozos: this.config.reservas?.permitirCrearDesdeMozos !== false,
-            minutosAntesCocina: Number(this.config.reservas?.minutosAntesCocina) || 20,
+            minutosAntesCocina: Number(this.config.reservas?.minutosAntesCocina) || 15,
             minutosAlertaPreviaCocina: Number(this.config.reservas?.minutosAlertaPreviaCocina) || 10,
             tiempoEsperaDefaultMin: [5, 10, 20].includes(Number(this.config.reservas?.tiempoEsperaDefaultMin))
               ? Number(this.config.reservas.tiempoEsperaDefaultMin)

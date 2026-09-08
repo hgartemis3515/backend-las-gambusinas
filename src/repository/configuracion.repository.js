@@ -244,6 +244,9 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
             if (datosFiltrados.cocina.ignorarFondoVistaMozo !== undefined) {
                 datosFiltrados.cocina.ignorarFondoVistaMozo = datosFiltrados.cocina.ignorarFondoVistaMozo === true;
             }
+            if (datosFiltrados.cocina.ocultarAnularEnTablasKds !== undefined) {
+                datosFiltrados.cocina.ocultarAnularEnTablasKds = datosFiltrados.cocina.ocultarAnularEnTablasKds === true;
+            }
         }
 
         if (datosFiltrados.apariencia && typeof datosFiltrados.apariencia === 'object') {

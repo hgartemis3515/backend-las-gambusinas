@@ -6720,17 +6720,17 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
    return map[metodo] || metodo || '—';
  },
 
- // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: hora de cocina = atención − minutosAntesCocina (default 20)
+ // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: hora de cocina = atención − minutosAntesCocina (default 15)
  formatFechaCocina(fechaReserva) {
    if (!fechaReserva) return '—';
-   const minutos = Number(this.config?.reservas?.minutosAntesCocina) || 20;
+   const minutos = Number(this.config?.reservas?.minutosAntesCocina) || 15;
    const d = new Date(fechaReserva);
    d.setMinutes(d.getMinutes() - minutos);
    return d.toLocaleString('es-PE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
  },
  esReservaInmediata(fechaReserva) {
    if (!fechaReserva) return false;
-   const minutos = Number(this.config?.reservas?.minutosAntesCocina) || 20;
+   const minutos = Number(this.config?.reservas?.minutosAntesCocina) || 15;
    const diffMs = new Date(fechaReserva).getTime() - Date.now();
    return diffMs <= minutos * 60000;
  },
@@ -7433,7 +7433,7 @@ async guardarReserva() {
        throw new Error(error.error || 'Error al guardar reserva');
      }
      
-     this.showToast(this.editingReservaId ? 'Reserva actualizada' : 'Reserva creada (cocina T−20)');
+     this.showToast(this.editingReservaId ? 'Reserva actualizada' : 'Reserva creada (cocina T−15)');
      this.closeReservaModal();
      await this.loadReservas();
      

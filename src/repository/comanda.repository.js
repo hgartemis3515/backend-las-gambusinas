@@ -28,6 +28,7 @@ const { indicePlatoPorIdLinea, aplicarSeparacionCantidadLinea } = require('../ut
 const SELECT_PLATO_COCINA = 'nombre precio categoria codigo nombreCocina tipo tipos complementos complementosUnidosAlPlato ocultarCronometroCocina juntarGuarnicionesEntreVariantes kdsEstiloCompacto requiereNumeroSerie';
 const configuracionRepository = require('./configuracion.repository');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
+const { camposRestauracionAlRevertir, restaurarCocineroEnPlatoDocumento } = require('../utils/restaurarAsignacionAlRevertir');
 const { obtenerCicloServicioMesa, intersectarComandaIds, obtenerComandaIdsDeTicketsRecientes } = require('../services/mesaCicloServicio.service');
 const {
   heredarProgramacionDeComandaPrincipal,
@@ -2320,6 +2321,8 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
           tomadoEn: tomadoEnTimestamp
         };
       }
+    } else if (nuevoEstado === 'en_espera' || nuevoEstado === 'pedido') {
+      Object.assign(setFields, camposRestauracionAlRevertir(plato, platoIndex, ahora));
     }
     await comandaModel.updateOne(
       { _id: comandaId },
@@ -3194,16 +3197,8 @@ const revertirStatusComanda = async (comandaId, nuevoStatus, usuarioId) => {
         // Solo revertir platos que están en "recoger", "salio" o "entregado"
         if (plato.estado === 'recoger' || plato.estado === 'salio' || plato.estado === 'entregado') {
           plato.estado = 'en_espera';
-          
-          // 🔥 RESET de información del cocinero para métricas correctas
-          // Al revertir, el tiempo de preparación ya no es válido
-          plato.procesadoPor = {
-            cocineroId: null,
-            nombre: null,
-            alias: null,
-            timestamp: null
-          };
-          
+          restaurarCocineroEnPlatoDocumento(plato, new Date());
+
           // Resetear tiempo de recoger (el plato vuelve a cola de preparación)
           plato.tiempos = {
             ...plato.tiempos,
