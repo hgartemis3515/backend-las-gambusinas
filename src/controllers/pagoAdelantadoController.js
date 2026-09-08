@@ -27,6 +27,9 @@ const ticketAprobacionModel = require('../database/models/ticketAprobacion.model
 const logger = require('../utils/logger');
 const calculosPrecios = require('../utils/calculosPrecios');
 const { comandaCalificaLiberarSinCaja } = require('../utils/pendienteCobroMozo');
+const { platoEstaSeleccionadoPpa } = require('../utils/ppaMatchPlato');
+const { cantidadUnidadesPlato } = require('../utils/cantidadLineaComanda');
+const { esPlatoElegibleParaPPA } = require('../utils/platoElegiblePpa');
 
 /**
  * POST /pago-adelantado
@@ -59,7 +62,7 @@ router.post('/pago-adelantado', async (req, res) => {
     });
 
     if (!mozoId) {
-      return res.status(400).json({ error: 'mozoId es requerido' });
+      return res.status(400).json({ success: false, error: 'mozoId es requerido', message: 'mozoId es requerido' });
     }
 
     const idsDePlatos = (platosSeleccionados || []).map((p) => p.comandaId).filter(Boolean);
@@ -68,12 +71,16 @@ router.post('/pago-adelantado', async (req, res) => {
     const pedidoSinMesa = sinMesa === true || !mesaOk;
 
     if (!mesaOk && idsComanda.length === 0) {
-      return res.status(400).json({ error: 'mesaId y mozoId son requeridos' });
+      return res.status(400).json({ success: false, error: 'mesaId y mozoId son requeridos', message: 'mesaId y mozoId son requeridos' });
     }
 
     const comandas = await getComandasParaPagoAdelantado(mesaOk ? mesaId : null, idsComanda);
     if (!comandas || comandas.length === 0) {
-      return res.status(400).json({ error: 'No hay comandas elegibles para pago adelantado' });
+      return res.status(400).json({
+        success: false,
+        error: 'No hay comandas elegibles para pago adelantado',
+        message: 'No hay comandas elegibles para pago adelantado',
+      });
     }
 
     console.log('🔥 [PPA] Comandas encontradas:', comandas.length, '- Platos elegibles por comanda:',
@@ -88,19 +95,23 @@ router.post('/pago-adelantado', async (req, res) => {
       const mozoPop = comanda.mozos;
       const mesaPop = comanda.mesas;
 
-      for (const platoItem of (comanda.platosElegiblesPPA || [])) {
-        // Verificar si este plato fue seleccionado
-        // Soportar tanto platoLineaId como platoSubdocId (el frontend envía platoSubdocId)
-        const platoItemStr = platoItem._id?.toString();
-        const seleccionado = (platosSeleccionados || []).find(
-          ps => ps.comandaId === comanda._id.toString()
-            && (ps.platoLineaId === platoItemStr || ps.platoSubdocId === platoItemStr)
-        );
+      for (const platoItem of (comanda.platos || [])) {
+        if (!esPlatoElegibleParaPPA(platoItem)) continue;
+        const seleccionado = platoEstaSeleccionadoPpa(platosSeleccionados, comanda, platoItem);
         if (!seleccionado) continue;
 
-        const cantidad = seleccionado.cantidad || comanda.cantidades?.[comanda.platos.indexOf(platoItem)] || 1;
+        const idx = (comanda.platos || []).findIndex(
+          (p) => String(p._id || '') === String(platoItem._id || '')
+        );
+        const cantidadMax = cantidadUnidadesPlato(comanda, idx, platoItem);
+        const qtySel = Number(seleccionado.cantidad);
+        const cantidad = Number.isFinite(qtySel) && qtySel > 0
+          ? Math.min(Math.floor(qtySel), cantidadMax)
+          : cantidadMax;
         const platoData = platoItem.plato || {};
-        const precio = platoData.precio || platoItem.precio || 0;
+        const precio = platoItem.precioUnitario != null
+          ? Number(platoItem.precioUnitario)
+          : (platoData.precio || platoItem.precio || 0);
         const subtotal = precio * cantidad;
 
         platosParaBoucher.push({
@@ -141,8 +152,13 @@ router.post('/pago-adelantado', async (req, res) => {
         platosSeleccionados: platosSeleccionados?.length || 0,
         comandasElegibles: comandas.length,
         platosElegiblesPPA: comandas.reduce((sum, c) => sum + (c.platosElegiblesPPA?.length || 0), 0),
+        sampleSeleccion: (platosSeleccionados || []).slice(0, 3),
       });
-      return res.status(400).json({ error: 'No hay platos seleccionados válidos para pago adelantado' });
+      return res.status(400).json({
+        success: false,
+        error: 'No hay platos seleccionados válidos para pago adelantado',
+        message: 'No hay platos seleccionados válidos para pago adelantado. Recarga la pantalla e intenta de nuevo.',
+      });
     }
 
     console.log('🔥 [PPA] Platos matched:', platosParaBoucher.length, '/', platosSeleccionados?.length || 0, 'seleccionados');
@@ -164,8 +180,9 @@ router.post('/pago-adelantado', async (req, res) => {
 
     // Usar el servicio de boucher existente con flag esPagoAdelantado
     const platosSeleccionadosForBoucher = platosParaTicket.map(p => ({
-      comandaId: p.comandaId?.toString(),
+      comandaId: String(p.comandaId || ''),
       platoSubdocId: p.platoLineaId?.toString(),
+      platoLineaId: p.platoLineaId?.toString(),
       platoId: p.platoId,
       cantidad: p.cantidad,
     }));
@@ -403,6 +420,7 @@ router.post('/pago-adelantado', async (req, res) => {
     res.status(error.statusCode || 500).json({
       success: false,
       error: error.message,
+      message: error.message,
     });
   }
 });

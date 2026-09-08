@@ -1,6 +1,7 @@
 /**
  * Un plato no entra a KDS / Ver Cocina / auto-asignación hasta que cocina
- * pueda prepararlo: no pendiente, PPA aprobado, para llevar cobrado en ComandaDetalle.
+ * pueda prepararlo: no pendiente; para llevar espera ticket PPA aprobado.
+ * Los platos de mesa entran de inmediato, aunque la comanda tenga PPA.
  */
 
 function esLineaParaLlevar(plato) {
@@ -13,10 +14,12 @@ function platoRetenidoFueraDeCocina(plato) {
     if (plato.eliminado === true || plato.anulado === true) return true;
     const estado = String(plato.estado || '').toLowerCase();
     if (estado === 'pendiente') return true;
-    const pa = plato.pagoAdelantado || {};
-    const ticket = String(pa.estadoTicket || '').toLowerCase();
-    if (pa.requerido && ticket === 'pendiente_aprobacion') return true;
-    if (esLineaParaLlevar(plato) && ticket !== 'aprobado') return true;
+    // Mesa entra a KDS / Ver Cocina de inmediato, aunque vaya en un PPA.
+    // Para llevar espera ticket aprobado (tras pago adelantado + aprobación).
+    if (esLineaParaLlevar(plato)) {
+        const ticket = String((plato.pagoAdelantado || {}).estadoTicket || '').toLowerCase();
+        return ticket !== 'aprobado';
+    }
     return false;
 }
 
