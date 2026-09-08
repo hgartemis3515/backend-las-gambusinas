@@ -149,6 +149,15 @@ const configCocineroSchema = new mongoose.Schema({
         default: null,
     },
 
+    // Último perfil de Vista y alertas (tablas KDS) cargado por este cocinero.
+    // Independiente del dispositivo: al cambiar de cuenta no se hereda el del anterior.
+    perfilTablasKdsId: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: 80
+    },
+
     // ========== ESTADÍSTICAS DE SESIÓN ==========
     estadisticas: {
         ultimaConexion: {
@@ -243,7 +252,8 @@ configCocineroSchema.statics.getConfiguracionPorDefecto = function() {
             acepta: true,
             maxPlatosTotales: null,
             pausadoHasta: null
-        }
+        },
+        perfilTablasKdsId: null
     };
 };
 

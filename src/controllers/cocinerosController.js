@@ -241,6 +241,14 @@ router.put('/cocineros/:id/config', adminAuth, async (req, res) => {
         if (datosConfig.activo !== undefined) {
             datosSanitizados.activo = datosConfig.activo !== false;
         }
+        if (datosConfig.perfilTablasKdsId !== undefined) {
+            if (datosConfig.perfilTablasKdsId === null || datosConfig.perfilTablasKdsId === '') {
+                datosSanitizados.perfilTablasKdsId = null;
+            } else {
+                const perfilId = String(datosConfig.perfilTablasKdsId).trim().slice(0, 80);
+                datosSanitizados.perfilTablasKdsId = /^[a-zA-Z0-9_-]+$/.test(perfilId) ? perfilId : null;
+            }
+        }
         
         if (datosConfig.filtrosPlatos) {
             datosSanitizados.filtrosPlatos = {
