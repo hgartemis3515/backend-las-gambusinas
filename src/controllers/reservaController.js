@@ -424,7 +424,7 @@ router.delete('/reservas/:id', async (req, res) => {
 
 /**
  * POST /api/reservas/:id/activar-anticipada
- * Cocina atiende ya: entra la comanda al KDS antes de fechaCocina. Motivo opcional.
+ * Cocina atiende ya: entra la comanda al KDS antes de fechaCocina. Motivo obligatorio (auditoría).
  */
 router.post('/reservas/:id/activar-anticipada', async (req, res) => {
     try {
@@ -433,6 +433,9 @@ router.post('/reservas/:id/activar-anticipada', async (req, res) => {
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ error: 'ID de reserva inválido' });
+        }
+        if (motivo.length < 3) {
+            return res.status(400).json({ error: 'El motivo es obligatorio (mínimo 3 caracteres) para auditoría.' });
         }
 
         timeoutService.cancelarActivacion(id);
@@ -468,7 +471,7 @@ router.post('/reservas/:id/activar-anticipada', async (req, res) => {
             estado: 'activa',
             origen: 'manual_anticipada',
             comandaId
-        }, motivo || 'Activación anticipada sin motivo');
+        }, motivo);
 
         logger.info('Reserva activada anticipadamente', { reservaId: id, motivo });
         res.json({

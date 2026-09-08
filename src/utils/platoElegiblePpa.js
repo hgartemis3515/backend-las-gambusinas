@@ -5,6 +5,7 @@
  */
 function esPlatoElegibleParaPPA(plato) {
   if (!plato || plato.eliminado === true || plato.anulado === true) return false;
+  if (plato.tipoServicio === 'extra_llevar') return false;
   const estado = String(plato.estado || '').toLowerCase();
   if (['entregado', 'pagado'].includes(estado)) return false;
   if (plato.pagoAdelantado?.cobrado === true) return false;

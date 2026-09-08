@@ -135,12 +135,12 @@ const comandaSchema = new mongoose.Schema({
         },
         // Nota especial para este plato (ej: "Sin sal, extra limón")
         notaEspecial: { type: String, default: '' },
-        // Tipo de servicio del plato: 'mesa' (default) o 'para_llevar'
-        // Determina si el plato se sirve en la mesa o se entrega para llevar.
+        // Tipo de servicio del plato: 'mesa' | 'para_llevar' | 'extra_llevar'
+        // extra_llevar: para llevar sobre comanda de mesa, sin PPA; KDS "EXTRA CLIENTE".
         // Comandas antiguas sin este campo se interpretan como 'mesa'.
         tipoServicio: {
             type: String,
-            enum: ['mesa', 'para_llevar'],
+            enum: ['mesa', 'para_llevar', 'extra_llevar'],
             default: 'mesa'
         },
         // Slug del tipo de menú elegido en Mozos al agregar el plato (Carta, Cena, …).

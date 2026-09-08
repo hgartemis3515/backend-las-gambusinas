@@ -91,9 +91,11 @@ function buildPlatoBoucherLine(comanda, platoItem, index, cantidad) {
     complementosSeleccionados: platoItem.complementosSeleccionados || [],
     notaEspecial: platoItem.notaEspecial || '',
     // NUEVO: Tipo de servicio (Mesa vs Para llevar)
-    tipoServicio: (platoItem.tipoServicio === 'para_llevar' || platoItem.paraLlevar === true)
-      ? 'para_llevar'
-      : (platoItem.tipoServicio || 'mesa'),
+    tipoServicio: platoItem.tipoServicio === 'extra_llevar'
+      ? 'extra_llevar'
+      : (platoItem.tipoServicio === 'para_llevar' || platoItem.paraLlevar === true)
+        ? 'para_llevar'
+        : (platoItem.tipoServicio || 'mesa'),
     // v3.0: Snapshot para resumen de impresión y reportes
     precioBase: platoItem.precioBase != null ? Number(platoItem.precioBase) : null,
     extraComplementos: platoItem.extraComplementos != null ? Number(platoItem.extraComplementos) : 0,

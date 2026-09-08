@@ -21,13 +21,19 @@ describe('platoListoCocinaKds', () => {
         })).toBe(false);
     });
 
-    test('mesa entra aunque el PPA esté pendiente', () => {
-        expect(platoRetenidoFueraDeCocina({ estado: 'pedido', tipoServicio: 'mesa' })).toBe(false);
-        expect(platoRetenidoFueraDeCocina({ estado: 'pendiente', tipoServicio: 'mesa' })).toBe(true);
+    test('extra llevar entra a KDS sin PPA', () => {
         expect(platoRetenidoFueraDeCocina({
             estado: 'pedido',
-            tipoServicio: 'mesa',
-            pagoAdelantado: { requerido: true, estadoTicket: 'pendiente_aprobacion' },
+            tipoServicio: 'extra_llevar'
         })).toBe(false);
+        expect(platoRetenidoFueraDeCocina({
+            estado: 'en_espera',
+            tipoServicio: 'extra_llevar'
+        })).toBe(false);
+    });
+
+    test('mesa normal no está retenida; pendiente sí', () => {
+        expect(platoRetenidoFueraDeCocina({ estado: 'pedido', tipoServicio: 'mesa' })).toBe(false);
+        expect(platoRetenidoFueraDeCocina({ estado: 'pendiente', tipoServicio: 'mesa' })).toBe(true);
     });
 });

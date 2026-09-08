@@ -99,7 +99,7 @@ const ticketPagoAdelantadoSchema = new mongoose.Schema({
     },
     tipoServicio: {
       type: String,
-      enum: ['mesa', 'para_llevar'],
+      enum: ['mesa', 'para_llevar', 'extra_llevar'],
       default: 'mesa',
     },
     complementosSeleccionados: [{

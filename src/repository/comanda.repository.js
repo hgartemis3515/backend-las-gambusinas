@@ -29,8 +29,6 @@ const SELECT_PLATO_COCINA = 'nombre precio categoria codigo nombreCocina tipo ti
 const configuracionRepository = require('./configuracion.repository');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
 const { camposRestauracionAlRevertir, restaurarCocineroEnPlatoDocumento } = require('../utils/restaurarAsignacionAlRevertir');
-const { cantidadUnidadesPlato } = require('../utils/cantidadLineaComanda');
-const { estadoTrasCambioPlato } = require('../utils/platoEstadoTrasEntregaPpa');
 const { obtenerCicloServicioMesa, intersectarComandaIds, obtenerComandaIdsDeTicketsRecientes } = require('../services/mesaCicloServicio.service');
 const {
   heredarProgramacionDeComandaPrincipal,
@@ -53,7 +51,7 @@ const DATA_DIR = path.join(__dirname, '../../data');
 
 // Valores válidos para el campo tipoServicio de cada plato en la comanda.
 // Cualquier valor fuera de esta lista se normaliza a 'mesa' (default).
-const TIPOS_SERVICIO_VALIDOS = ['mesa', 'para_llevar'];
+const TIPOS_SERVICIO_VALIDOS = ['mesa', 'para_llevar', 'extra_llevar'];
 const normalizarTipoServicio = (valor) =>
   TIPOS_SERVICIO_VALIDOS.includes(valor) ? valor : 'mesa';
 
@@ -962,7 +960,7 @@ const agregarComanda = async (data) => {
       plato.tiempos.en_espera = ahora;
     }
 
-    // Normalizar tipoServicio: 'mesa' | 'para_llevar' (default 'mesa')
+    // Normalizar tipoServicio: 'mesa' | 'para_llevar' | 'extra_llevar' (default 'mesa')
     plato.tipoServicio = esSinMesa ? 'para_llevar' : normalizarTipoServicio(plato.tipoServicio);
     plato.tipoPedido = normalizarTipoPedido(plato.tipoPedido);
 
@@ -2047,7 +2045,7 @@ const actualizarComanda = async (comandaId, newData) => {
           console.error(`Error al buscar el plato ${plato.plato}:`, error);
         }
 
-        // Normalizar tipoServicio: 'mesa' | 'para_llevar' (default 'mesa').
+        // Normalizar tipoServicio: 'mesa' | 'para_llevar' | 'extra_llevar' (default 'mesa').
         // Si el PUT no envía el campo, lo fijamos explícitamente a 'mesa' para que
         // mongoose no lo elimine al reemplazar el subdocumento.
         plato.tipoServicio = normalizarTipoServicio(plato.tipoServicio);
@@ -2275,8 +2273,6 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
     }
     
     console.log(`✅ [cambiarEstadoPlato] Plato ${platoId}: ${estadoActual} → ${nuevoEstado}`);
-
-    const estadoPersistido = estadoTrasCambioPlato(plato, nuevoEstado);
     
     // FASE 7: Actualización GRANULAR con MongoDB updateOne (solo el plato específico) + Auditoría
     const ahora = moment.tz("America/Lima").toDate();
@@ -2288,13 +2284,11 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
     
     // Entrada de historial para el cambio de estado del plato
     const historialEntry = {
-      status: `plato_${estadoPersistido}`,
+      status: `plato_${nuevoEstado}`,
       statusAnterior: `plato_${estadoActual}`,
       timestamp: ahora,
       usuario: validarUsuarioId(usuarioId),
-      accion: estadoPersistido !== nuevoEstado
-        ? `Plato ${platoId} cambió de "${estadoActual}" a "${estadoPersistido}" (cobrado por pago adelantado)`
-        : `Plato ${platoId} cambió de "${estadoActual}" a "${estadoPersistido}"`,
+      accion: `Plato ${platoId} cambió de "${estadoActual}" a "${nuevoEstado}"`,
       deviceId: deviceId || null,
       sourceApp: sourceApp,
       motivo: null
@@ -2302,16 +2296,13 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
     
     // Usar updateOne con índice explícito para mayor precisión
     const setFields = {
-      [`platos.${platoIndex}.estado`]: estadoPersistido,
-      [`platos.${platoIndex}.tiempos.${estadoPersistido}`]: ahora,
+      [`platos.${platoIndex}.estado`]: nuevoEstado,
+      [`platos.${platoIndex}.tiempos.${nuevoEstado}`]: ahora,
       updatedAt: ahora
     };
-    if (estadoPersistido === 'pagado' && nuevoEstado === 'entregado') {
-      setFields[`platos.${platoIndex}.tiempos.entregado`] = ahora;
-    }
     // Mismo write que el estado: si procesandoPor queda con cocineroId, Ver Cocina
     // sigue mostrando el plato aunque Mongo ya tenga recoger (hasta recargar).
-    if (estadoPersistido === 'recoger' || estadoPersistido === 'salio' || estadoPersistido === 'entregado' || estadoPersistido === 'pagado') {
+    if (nuevoEstado === 'recoger' || nuevoEstado === 'salio' || nuevoEstado === 'entregado' || nuevoEstado === 'pagado') {
       const tomadoEnTimestamp = resolverTomadoEnAlFinalizar(plato);
       setFields[`platos.${platoIndex}.procesandoPor`] = {
         cocineroId: null,
@@ -2319,7 +2310,7 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
         alias: null,
         timestamp: null
       };
-      if (estadoPersistido === 'recoger') {
+      if (nuevoEstado === 'recoger') {
         const cocineroToma = plato.procesandoPor?.cocineroId || plato.procesadoPor?.cocineroId || null;
         setFields[`platos.${platoIndex}.procesadoPor`] = {
           cocineroId: cocineroToma,
@@ -2330,7 +2321,7 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
           tomadoEn: tomadoEnTimestamp
         };
       }
-    } else if (estadoPersistido === 'en_espera' || estadoPersistido === 'pedido') {
+    } else if (nuevoEstado === 'en_espera' || nuevoEstado === 'pedido') {
       Object.assign(setFields, camposRestauracionAlRevertir(plato, platoIndex, ahora));
     }
     await comandaModel.updateOne(
@@ -3721,7 +3712,7 @@ const validarPlatosSeleccionadosParaPago = async (mesaId, platosSeleccionados, e
       throw err;
     }
 
-    const cantidadMax = cantidadUnidadesPlato(comanda, platoIndex, platoItem);
+    const cantidadMax = comanda.cantidades?.[platoIndex] || 1;
     const cantidad = sel.cantidad != null ? Number(sel.cantidad) : cantidadMax;
     if (!Number.isFinite(cantidad) || cantidad <= 0 || cantidad > cantidadMax) {
       const err = new Error(`Cantidad inválida para plato índice ${platoIndex} (máx ${cantidadMax})`);

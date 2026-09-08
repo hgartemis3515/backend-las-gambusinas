@@ -6,7 +6,8 @@ const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelanta
 const logger = require('./logger');
 
 function normTipoServicio(v) {
-  return v === 'para_llevar' ? 'para_llevar' : 'mesa';
+  if (v === 'para_llevar' || v === 'extra_llevar') return v;
+  return 'mesa';
 }
 
 function idsIguales(a, b) {

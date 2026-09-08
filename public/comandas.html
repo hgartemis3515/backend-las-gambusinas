@@ -1857,11 +1857,11 @@ tailwind.config = {
  </div>
  <h3 class="text-lg font-bold mb-2">Eliminar Comanda</h3>
  <p class="text-txt-secondary text-sm mb-4" x-text="'¿Eliminar la comanda #' + (comandaEliminar?.numComanda || '—') + '? Esta accion quedara registrada en auditoria.'"></p>
- <textarea x-model="motivoEliminacion" placeholder="Motivo de eliminacion (opcional)..." class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm h-20 resize-none focus:border-st-pagado focus:outline-none text-white mb-4"></textarea>
+ <textarea x-model="motivoEliminacion" placeholder="Motivo de eliminacion (requerido)..." class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm h-20 resize-none focus:border-st-pagado focus:outline-none text-white mb-4"></textarea>
  </div>
  <div class="bg-bg-sidebar p-4 rounded-b-2xl flex justify-end gap-2">
  <button @click="modal='editarComanda'; comandaEliminar=null; motivoEliminacion=''" class="px-4 py-2 border border-[#5a5a7a]/40 rounded-lg text-sm text-[#a0a0b8] hover:border-gold hover:text-gold transition">Cancelar</button>
- <button @click="ejecutarEliminarComanda()" :disabled="eliminando" class="px-4 py-2 bg-st-pagado text-white rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50">
+ <button @click="ejecutarEliminarComanda()" :disabled="!motivoEliminacion.trim() || eliminando" class="px-4 py-2 bg-st-pagado text-white rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50">
  <span x-text="eliminando ? 'Eliminando...' : 'Eliminar'"></span>
  </button>
  </div>
@@ -2047,11 +2047,11 @@ tailwind.config = {
  </div>
  </template>
  </div>
- <textarea x-model="motivoEliminacionGrupo" placeholder="Motivo de eliminación del grupo (opcional)..." class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm h-20 resize-none focus:border-st-pagado focus:outline-none text-white"></textarea>
+ <textarea x-model="motivoEliminacionGrupo" placeholder="Motivo de eliminación del grupo (requerido)..." class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm h-20 resize-none focus:border-st-pagado focus:outline-none text-white"></textarea>
  </div>
  <div class="bg-bg-sidebar p-4 rounded-b-2xl flex justify-end gap-2">
  <button @click="modal=null; grupoEliminar=null; motivoEliminacionGrupo=''" class="px-4 py-2 border border-[#5a5a7a]/40 rounded-lg text-sm text-[#a0a0b8] hover:border-gold hover:text-gold transition">Cancelar</button>
- <button @click="ejecutarEliminarGrupo()" :disabled="eliminandoGrupo" class="px-4 py-2 bg-st-pagado text-white rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50">
+ <button @click="ejecutarEliminarGrupo()" :disabled="!motivoEliminacionGrupo.trim() || eliminandoGrupo" class="px-4 py-2 bg-st-pagado text-white rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50">
  <span x-text="eliminandoGrupo ? 'Eliminando...' : 'Eliminar Grupo'"></span>
  </button>
  </div>
@@ -6108,8 +6108,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  },
 
  async ejecutarEliminarGrupo() {
- if (!this.grupoEliminar) {
- this.showToast('No hay grupo para eliminar', 'error');
+ if (!this.grupoEliminar || !this.motivoEliminacionGrupo.trim()) {
+ this.showToast('El motivo de eliminacion es obligatorio', 'error');
  return;
  }
 
@@ -6123,7 +6123,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  for (const comanda of (this.grupoEliminar.comandas || [])) {
  try {
  const res = await apiPut('/comanda/' + comanda._id + '/eliminar', {
- motivo: (this.motivoEliminacionGrupo.trim() ? this.motivoEliminacionGrupo.trim() + ' (Grupo)' : ''),
+ motivo: this.motivoEliminacionGrupo.trim() + ' (Grupo)',
  usuarioId: 'admin',
  mozoId: null,
  forzarAdmin: true,
@@ -6493,8 +6493,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  },
 
  async ejecutarEliminarComanda() {
- if (!this.comandaEliminar?._id) {
- this.showToast('No hay comanda para eliminar', 'error');
+ if (!this.comandaEliminar?._id || !this.motivoEliminacion.trim()) {
+ this.showToast('El motivo de eliminacion es obligatorio', 'error');
  return;
  }
 
@@ -6504,7 +6504,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  console.log('🗑️ Eliminando comanda:', this.comandaEliminar._id);
 
  const res = await apiPut('/comanda/' + this.comandaEliminar._id + '/eliminar', {
- motivo: this.motivoEliminacion.trim() || '',
+ motivo: this.motivoEliminacion.trim(),
  forzarAdmin: true,
  sourceApp: 'dashboard'
  });

@@ -12,7 +12,6 @@ const { adjuntarDescuentoTicket, aplicarDescuentoAVistaTicket, BOUCHER_DESCUENTO
 const { aplicarTotalesPedidoPPA } = require('../utils/totalesTicketPPA');
 const { aplicarPreciosEnLineasTicket, quitarLineasDeSnapshot, sincronizarEliminacionEnBoucher, sincronizarPreciosComandaYBoucher } = require('../utils/editarPreciosTicket');
 const { filtroTicketsVinculadosAComanda, parseTicketNumber } = require('../utils/filtroTicketsDeComanda');
-const { esPlatoElegibleParaPPA } = require('../utils/platoElegiblePpa');
 
 function mapTicketPPAVista(ticket) {
   return aplicarDescuentoAVistaTicket(aplicarTotalesPedidoPPA(ticket));
@@ -514,9 +513,9 @@ async function rechazarTicket(ticketId, motivo, usuarioId, usuarioNombre) {
  * Obtener comandas y platos elegibles para Pago Adelantado de una mesa.
  * Reglas:
  * - Plato eliminado/anulado: no elegible
- * - Plato en entregado/pagado: no elegible (usar Pagar normal)
+ * - Plato en recoger/entregado/pagado: no elegible (usar Pagar normal)
  * - Plato ya en TPA pendiente_aprobacion o aprobado: no elegible
- * - Plato en pedido/en_espera/recoger/salio (mesa o para llevar): elegible
+ * - Plato en pedido/en_espera con tipoServicio para_llevar o mesa: elegible
  */
 function mesaIdEsValido(mesaId) {
   if (mesaId == null || mesaId === '' || mesaId === 'undefined' || mesaId === 'null') return false;
@@ -542,7 +541,7 @@ async function getComandasParaPagoAdelantado(mesaId, comandaIds) {
 
   const query = {
     IsActive: true,
-    status: { $in: ['en_espera', 'pedido', 'recoger', 'salio'] },
+    status: { $in: ['en_espera', 'pedido', 'recoger'] },
   };
   if (ids.length > 0) {
     query._id = { $in: ids.map((id) => new mongoose.Types.ObjectId(id)) };
@@ -560,7 +559,14 @@ async function getComandasParaPagoAdelantado(mesaId, comandaIds) {
 
   // Filtrar platos elegibles para PPA
   comandas.forEach(comanda => {
-    comanda.platosElegiblesPPA = (comanda.platos || []).filter(esPlatoElegibleParaPPA);
+    comanda.platosElegiblesPPA = (comanda.platos || []).filter(plato => {
+      if (plato.eliminado || plato.anulado) return false;
+      const estado = (plato.estado || '').toLowerCase();
+      if (['recoger', 'entregado', 'pagado'].includes(estado)) return false;
+      if (plato.pagoAdelantado?.estadoTicket === 'pendiente_aprobacion') return false;
+      if (plato.pagoAdelantado?.estadoTicket === 'aprobado') return false;
+      return true;
+    });
   });
 
   return comandas;

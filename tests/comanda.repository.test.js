@@ -41,8 +41,8 @@ describe('Comanda Repository - Validaciones', () => {
   describe('normalizarTipoServicio (Mesa vs Para llevar)', () => {
     const { normalizarTipoServicio, TIPOS_SERVICIO_VALIDOS } = require('../src/repository/comanda.repository');
 
-    test('debe listar los valores válidos mesa y para_llevar', () => {
-      expect(TIPOS_SERVICIO_VALIDOS).toEqual(['mesa', 'para_llevar']);
+    test('debe listar los valores válidos mesa, para_llevar y extra_llevar', () => {
+      expect(TIPOS_SERVICIO_VALIDOS).toEqual(['mesa', 'para_llevar', 'extra_llevar']);
     });
 
     test('debe retornar "mesa" cuando no se envía el campo', () => {
@@ -51,8 +51,9 @@ describe('Comanda Repository - Validaciones', () => {
       expect(normalizarTipoServicio('')).toBe('mesa');
     });
 
-    test('debe persistir "para_llevar" cuando se envía explícitamente', () => {
+    test('debe persistir "para_llevar" y "extra_llevar" cuando se envían explícitamente', () => {
       expect(normalizarTipoServicio('para_llevar')).toBe('para_llevar');
+      expect(normalizarTipoServicio('extra_llevar')).toBe('extra_llevar');
       expect(normalizarTipoServicio('mesa')).toBe('mesa');
     });
 

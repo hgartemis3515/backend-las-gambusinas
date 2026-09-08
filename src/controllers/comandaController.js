@@ -799,7 +799,7 @@ router.post('/comanda/desde-dashboard', adminAuth, checkPermission('crear-comand
                 plato: platoRef,
                 platoId: p.platoId || null,
                 estado: 'en_espera',
-                tipoServicio: ts === 'para_llevar' ? 'para_llevar' : 'mesa',
+                tipoServicio: ts === 'para_llevar' || ts === 'extra_llevar' ? ts : 'mesa',
                 complementosSeleccionados: Array.isArray(p.complementosSeleccionados) ? p.complementosSeleccionados : [],
                 notaEspecial: typeof p.notaEspecial === 'string' ? p.notaEspecial : ''
             };
@@ -1121,14 +1121,20 @@ router.delete('/comanda/:id', async (req, res) => {
 });
 
 /**
- * Soft-delete. Motivo opcional (si no hay texto se registra un fallback).
+ * ✅ NUEVO ENDPOINT: Soft-delete con motivo obligatorio
  */
 router.put('/comanda/:id/eliminar', async (req, res) => {
     const { id } = req.params;
     const { motivo } = req.body;
     const actor = resolverActorAuditoria(req);
     let usuarioId = actor.usuario;
-    const motivoFinal = (motivo && String(motivo).trim()) ? String(motivo).trim() : '';
+
+    // Validar que el motivo sea obligatorio
+    if (!motivo || motivo.trim() === '') {
+        return res.status(400).json({ 
+            message: 'El motivo de eliminación es obligatorio' 
+        });
+    }
     
     try {
         const snapshotAntes = await comandaModel.findById(id)
@@ -1153,7 +1159,7 @@ router.put('/comanda/:id/eliminar', async (req, res) => {
         }
 
         const { totalEliminado, platosEliminados } = resumenPlatosEliminados(snapshotAntes);
-        const comanda = await eliminarLogicamente(id, usuarioId, motivoFinal);
+        const comanda = await eliminarLogicamente(id, usuarioId, motivo.trim());
 
         req.auditoria = {
             accion: 'ELIMINAR_COMANDA_INDIVIDUAL',
@@ -1163,7 +1169,7 @@ router.put('/comanda/:id/eliminar', async (req, res) => {
             usuarioNombre: actor.usuarioNombre,
             mesaId: snapshotAntes.mesas?._id || snapshotAntes.mesas,
             comandaId: id,
-            motivo: motivoFinal,
+            motivo: motivo.trim(),
             platosEliminados,
             totalEliminado,
             comandaNumber: snapshotAntes.comandaNumber,
@@ -1181,7 +1187,7 @@ router.put('/comanda/:id/eliminar', async (req, res) => {
                 origen: 'comandas.html'
             }
         };
-        await registrarAuditoria(req, snapshotAntes, comanda, motivoFinal || 'Eliminación sin motivo');
+        await registrarAuditoria(req, snapshotAntes, comanda, motivo.trim());
 
         if (global.emitComandaEliminada) {
             await global.emitComandaEliminada(id);

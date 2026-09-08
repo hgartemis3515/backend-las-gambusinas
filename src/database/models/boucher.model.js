@@ -100,7 +100,7 @@ const boucherSchema = new mongoose.Schema({
  // NUEVO: Tipo de servicio (Mesa vs Para llevar)
  tipoServicio: {
  type: String,
- enum: ['mesa', 'para_llevar'],
+ enum: ['mesa', 'para_llevar', 'extra_llevar'],
  default: 'mesa'
  },
  // 🔥 TRAZABILIDAD: Información del cocinero que preparó el plato

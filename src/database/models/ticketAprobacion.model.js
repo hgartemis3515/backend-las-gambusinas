@@ -86,7 +86,7 @@ const ticketAprobacionSchema = new mongoose.Schema({
     subtotal: { type: Number, required: true },
     tipoServicio: {
       type: String,
-      enum: ['mesa', 'para_llevar'],
+      enum: ['mesa', 'para_llevar', 'extra_llevar'],
       default: 'mesa',
     },
     complementosSeleccionados: [{
