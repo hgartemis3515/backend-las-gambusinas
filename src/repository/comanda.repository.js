@@ -1116,6 +1116,21 @@ const agregarComanda = async (data) => {
         }
       }
       if (!pedido) {
+        const hermana = await comandaModel.findOne({
+          mesas: nuevaComanda.mesas,
+          _id: { $ne: nuevaComanda._id },
+          IsActive: { $ne: false },
+          status: { $nin: ['pagado', 'completado', 'cancelado', 'anulado'] },
+          pedido: { $ne: null }
+        }).sort({ createdAt: -1 }).select('pedido').lean();
+        if (hermana?.pedido) {
+          const pedidoHermana = await pedidoModel.findById(hermana.pedido);
+          if (pedidoHermana && pedidoHermana.isActive !== false && pedidoHermana.estado === 'abierto') {
+            pedido = pedidoHermana;
+          }
+        }
+      }
+      if (!pedido) {
         pedido = await pedidoModel.obtenerOcrearPedidoAbierto(
           nuevaComanda.mesas,
           nuevaComanda.mozos,

@@ -119,7 +119,9 @@ const CONFIGURACION_DEFAULT = {
     // comandas o platos con procesandoPor asignado por cocina (cualquier tablero KDS).
     mozos: {
         botonImprimirComanda: false,
-        permitirEditarEliminarTomadasPorCocina: false
+        permitirEditarEliminarTomadasPorCocina: false,
+        // 0 = entregar al instante al salir de cocina. Default 15 min.
+        entregaAutomaticaMinutos: 15
     },
 
     // Cocina (App de Cocina + Dashboard)
@@ -521,6 +523,12 @@ const configuracionSistemaSchema = new mongoose.Schema({
         permitirEditarEliminarTomadasPorCocina: {
             type: Boolean,
             default: CONFIGURACION_DEFAULT.mozos.permitirEditarEliminarTomadasPorCocina
+        },
+        entregaAutomaticaMinutos: {
+            type: Number,
+            min: 0,
+            max: 180,
+            default: CONFIGURACION_DEFAULT.mozos.entregaAutomaticaMinutos
         }
     },
 

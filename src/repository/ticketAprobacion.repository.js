@@ -696,10 +696,12 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
   let productos = (ticket.platos || [])
     .filter((p) => p && !p.eliminado && !p.anulado)
     .map((p) => {
-    const tipoServicio = p.tipoServicio === 'para_llevar' || p.paraLlevar === true
+    const tipoServicio = p.tipoServicio === 'extra_llevar'
+      ? 'extra_llevar'
+      : (p.tipoServicio === 'para_llevar' || p.paraLlevar === true
       || String(p.tipoServicio || '').toLowerCase().replace(/\s+/g, '_') === 'llevar'
       ? 'para_llevar'
-      : (p.tipoServicio || 'mesa');
+      : (p.tipoServicio || 'mesa'));
     const precio = Number(p.precioUnitario ?? p.precio ?? p.plato?.precio) || 0;
     const cantidad = Number(p.cantidad) || 1;
     return {

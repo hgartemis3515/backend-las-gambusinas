@@ -818,6 +818,7 @@ tailwind.config = {
                     <span class="text-[#a0a0b8] text-xs" x-text="'x' + (p.cantidad || 1)"></span>
                     <span class="font-medium text-sm" x-text="p.nombre || p.plato?.nombre || 'Plato'"></span>
                     <span x-show="p.tipoServicio === 'para_llevar'" class="text-[10px] px-1.5 py-0.5 rounded bg-[#ffa502]/20 text-[#ffa502]">Para llevar</span>
+                    <span x-show="p.tipoServicio === 'extra_llevar'" class="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-300">EXTRA LLEVAR</span>
                   </div>
                   <template x-if="p.complementosSeleccionados && p.complementosSeleccionados.length > 0">
                     <div class="mt-1 pl-5 space-y-0.5">

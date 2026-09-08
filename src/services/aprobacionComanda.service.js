@@ -461,8 +461,10 @@ function toOid(id) {
 
 function tipoServicioDeLinea(p) {
   if (!p) return 'mesa';
+  if (p.tipoServicio === 'extra_llevar') return 'extra_llevar';
   if (p.tipoServicio === 'para_llevar' || p.paraLlevar === true) return 'para_llevar';
   const raw = String(p.tipoServicio || '').toLowerCase().trim().replace(/\s+/g, '_');
+  if (raw === 'extra_llevar') return 'extra_llevar';
   if (raw === 'para_llevar' || raw === 'llevar') return 'para_llevar';
   return 'mesa';
 }

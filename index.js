@@ -669,6 +669,12 @@ server.listen(port, '0.0.0.0', async ()=> {
   } catch (error) {
     logger.error('Error al rehidratar timeouts de reservas', { error: error.message });
   }
+  try {
+    const entregaAutomaticaSalioService = require('./src/services/entregaAutomaticaSalioService');
+    entregaAutomaticaSalioService.iniciarBarridoEntregaAutomatica();
+  } catch (error) {
+    logger.error('Error al iniciar barrido de entrega automática', { error: error.message });
+  }
   // ========== FIN REHIDRATACION RESERVAS ==========
   
   logger.info('Servidor iniciado', {

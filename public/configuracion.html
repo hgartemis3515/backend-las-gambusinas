@@ -620,6 +620,24 @@ tailwind.config = {
                 : 'Protección activa: mozos bloqueados si cocina tomó la comanda o platos'"></p>
           </div>
 
+          <div class="space-y-3 border-t border-[rgba(212,175,55,0.15)] pt-4">
+            <h4 class="text-sm font-semibold text-txt-secondary">Entrega automática al salir de cocina</h4>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.mozosEntregaAlInstante" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Entregar al instante (como ahora)</span>
+            </label>
+            <p class="text-xs text-txt-muted ml-7">
+              Si está marcado, al salir de cocina el plato pasa a <strong class="text-txt-secondary font-medium">entregado</strong> de inmediato.
+              Si está desmarcado, espera los minutos de abajo y luego se entrega solo. El mozo puede adelantar la entrega con el botón Entregar.
+            </p>
+            <div class="ml-7 max-w-xs" x-show="!config.mozosEntregaAlInstante">
+              <label class="text-xs text-txt-secondary mb-1 block">Minutos de espera antes de entregar</label>
+              <input type="number" min="1" max="180" x-model.number="config.mozosEntregaAutomaticaMinutos"
+                class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+              <p class="text-[10px] text-txt-muted mt-1">Predeterminado: 15 minutos. En Comanda Detalle se muestra el cronómetro.</p>
+            </div>
+          </div>
+
           <!-- PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: toggle del botón Reservar en App Mozos -->
           <div class="space-y-3 border-t border-[rgba(212,175,55,0.15)] pt-4">
             <label class="flex items-center gap-3 cursor-pointer">
@@ -1561,6 +1579,8 @@ function configApp() {
       mozosBotonImprimirComanda: false,
       // Por defecto false: mozos no editan/eliminan comandas o platos tomados por cocina.
       mozosPermitirEditarEliminarTomadasPorCocina: false,
+      mozosEntregaAlInstante: false,
+      mozosEntregaAutomaticaMinutos: 15,
       // Seguridad
       seguridad: {
         timeoutInactividadMin: 30,
@@ -1864,9 +1884,15 @@ function configApp() {
           if (cfg.mozos) {
             this.config.mozosBotonImprimirComanda = cfg.mozos.botonImprimirComanda === true;
             this.config.mozosPermitirEditarEliminarTomadasPorCocina = cfg.mozos.permitirEditarEliminarTomadasPorCocina === true;
+            const minsEntrega = Number(cfg.mozos.entregaAutomaticaMinutos);
+            const minsOk = Number.isFinite(minsEntrega) && minsEntrega >= 0 ? Math.min(180, Math.floor(minsEntrega)) : 15;
+            this.config.mozosEntregaAlInstante = minsOk === 0;
+            this.config.mozosEntregaAutomaticaMinutos = minsOk === 0 ? 15 : minsOk;
           } else {
             this.config.mozosBotonImprimirComanda = false;
             this.config.mozosPermitirEditarEliminarTomadasPorCocina = false;
+            this.config.mozosEntregaAlInstante = false;
+            this.config.mozosEntregaAutomaticaMinutos = 15;
           }
 
           // Mapear Cocina (Obligar orden + Solicitar Orden)
@@ -2069,7 +2095,10 @@ function configApp() {
           // Mozos (App de Mozos)
           mozos: {
             botonImprimirComanda: this.config.mozosBotonImprimirComanda === true,
-            permitirEditarEliminarTomadasPorCocina: this.config.mozosPermitirEditarEliminarTomadasPorCocina === true
+            permitirEditarEliminarTomadasPorCocina: this.config.mozosPermitirEditarEliminarTomadasPorCocina === true,
+            entregaAutomaticaMinutos: this.config.mozosEntregaAlInstante
+              ? 0
+              : Math.min(180, Math.max(1, Number(this.config.mozosEntregaAutomaticaMinutos) || 15))
           },
 
           // Cocina (Obligar orden + Solicitar Orden) — PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR

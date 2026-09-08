@@ -49,6 +49,7 @@ const {
 } = require('../utils/reglasComandaTomadaCocina');
 const { buildAutocierreGuarnicionesSet } = require('../utils/autocerrarGuarniciones');
 const { destinosCambioEstadoPlato } = require('../utils/cadenaEntregaPlato');
+const { obtenerMinutosEntregaAutomaticaMozos } = require('../utils/entregaAutomaticaMozos');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
 const { getComandasParaPagoAdelantado, mesaIdEsValido } = require('../repository/ticketPagoAdelantado.repository');
 const { adminAuth, checkPermission } = require('../middleware/adminAuth');
@@ -2387,6 +2388,7 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
         
         const estadoAnterior = platoAntes.estado || 'en_espera';
         const absoluto = await esEntregarEnteroAbsolutoActivo(req);
+        const minutosDelayEntrega = await obtenerMinutosEntregaAutomaticaMozos();
 
         let platoIdEfectivo = platoId;
         if (cantidadEntregar != null && cantidadEntregar !== '') {
@@ -2445,7 +2447,7 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
 
         // PLAN AGRUPACION_GUARNICIONES_AUTOCIERRE §3.1: al pasar a recoger,
         // auto-cerrar TODAS las guarniciones de ese plato (asignadas o no).
-        const destinos = destinosCambioEstadoPlato(estadoAnterior, nuevoEstado, absoluto);
+        const destinos = destinosCambioEstadoPlato(estadoAnterior, nuevoEstado, absoluto, minutosDelayEntrega);
         const pasaPorRecoger = nuevoEstado === 'recoger' || destinos.includes('recoger');
         if (pasaPorRecoger) {
             try {
@@ -2919,11 +2921,17 @@ router.put('/comanda/:comandaId/plato/:platoId/salir-cocina', async (req, res) =
             });
         }
 
-        // Cambiar estado del plato: recoger → salio → entregado (mozo no confirma)
-        let updatedComanda = await cambiarEstadoPlato(comandaId, platoId, 'salio');
-        updatedComanda = await cambiarEstadoPlato(comandaId, platoId, 'entregado');
+        const minutosDelayEntrega = await obtenerMinutosEntregaAutomaticaMozos();
 
-        logger.info(`✅ [PUT /salir-cocina] Plato ${platoId}: ${estadoAnterior} → entregado`);
+        // recoger → salio; si delay es 0, encadena a entregado (comportamiento anterior)
+        let updatedComanda = await cambiarEstadoPlato(comandaId, platoId, 'salio');
+        let estadoFinal = 'salio';
+        if (minutosDelayEntrega <= 0) {
+            updatedComanda = await cambiarEstadoPlato(comandaId, platoId, 'entregado');
+            estadoFinal = 'entregado';
+        }
+
+        logger.info(`✅ [PUT /salir-cocina] Plato ${platoId}: ${estadoAnterior} → ${estadoFinal}`);
 
         // Setear tiempos.salio en el plato
         const platoIndex = comandaAntes.platos.findIndex(p => {
@@ -2933,34 +2941,32 @@ router.put('/comanda/:comandaId/plato/:platoId/salir-cocina', async (req, res) =
         });
         if (platoIndex !== -1) {
             const ahora = new Date();
-            await comandaModel.updateOne(
-                { _id: comandaId },
-                { $set: {
-                    [`platos.${platoIndex}.tiempos.salio`]: ahora,
-                    [`platos.${platoIndex}.tiempos.entregado`]: ahora
-                } }
-            );
+            const setTiempos = { [`platos.${platoIndex}.tiempos.salio`]: ahora };
+            if (estadoFinal === 'entregado') {
+                setTiempos[`platos.${platoIndex}.tiempos.entregado`] = ahora;
+            }
+            await comandaModel.updateOne({ _id: comandaId }, { $set: setTiempos });
         }
 
         // Emitir evento Socket.io
         if (global.emitPlatoActualizado) {
-            await global.emitPlatoActualizado(comandaId, platoId, 'entregado', { skipPush: false });
+            await global.emitPlatoActualizado(comandaId, platoId, estadoFinal, { skipPush: false });
         }
 
         // También emitir comanda actualizada
         if (global.emitComandaActualizada) {
-            await global.emitComandaActualizada(comandaId, estadoAnterior, updatedComanda?.status || 'entregado');
+            await global.emitComandaActualizada(comandaId, estadoAnterior, updatedComanda?.status || estadoFinal);
         }
 
-        // Emitir a dashboard de rendimiento mozos (plato salió del pass y quedó entregado)
+        // Emitir a dashboard de rendimiento mozos
         if (global.emitRendimientoMozoActualizado) {
             const mozoTitularId = comandaAntes?.mozos?._id || comandaAntes?.mozos;
             global.emitRendimientoMozoActualizado({
-                tipo: 'plato_entregado',
+                tipo: estadoFinal === 'entregado' ? 'plato_entregado' : 'plato_salio',
                 mozoId: mozoTitularId,
                 comandaId,
                 platoId,
-                nuevoEstado: 'entregado'
+                nuevoEstado: estadoFinal
             });
         }
 
@@ -2987,10 +2993,12 @@ router.put('/comanda/:comandaId/plato/:platoId/salir-cocina', async (req, res) =
 
         res.json({
             success: true,
-            message: 'Plato salió de cocina y quedó entregado',
+            message: estadoFinal === 'entregado'
+                ? 'Plato salió de cocina y quedó entregado'
+                : 'Plato salió de cocina',
             platoId,
             estadoAnterior,
-            nuevoEstado: 'entregado',
+            nuevoEstado: estadoFinal,
             comandaStatus: updatedComanda.status,
             comanda: updatedComanda
         });

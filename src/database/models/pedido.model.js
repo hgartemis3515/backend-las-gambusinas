@@ -361,7 +361,12 @@ pedidoSchema.statics.obtenerOcrearPedidoAbierto = async function(mesaId, mozoId,
             IsActive: { $ne: false },
             status: { $nin: ['pagado', 'completado', 'cancelado', 'anulado'] },
         });
-        if (activasEnPedido > 0) {
+        const activasEnMesa = await Comanda.countDocuments({
+            mesas: mesaId,
+            IsActive: { $ne: false },
+            status: { $nin: ['pagado', 'completado', 'cancelado', 'anulado'] },
+        });
+        if (activasEnPedido > 0 || activasEnMesa > 0) {
             console.log(`✅ Pedido abierto encontrado: #${pedido.pedidoId} para mesa ${datosMesa.numMesa || mesaId}`);
             return pedido;
         }

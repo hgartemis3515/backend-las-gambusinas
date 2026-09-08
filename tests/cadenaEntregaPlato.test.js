@@ -23,6 +23,12 @@ describe('cadenaEntregaPlato', () => {
         expect(destinosCambioEstadoPlato('pagado', 'entregado', false)).toEqual([]);
     });
 
+    test('con espera de minutos, salio no encadena a entregado', () => {
+        expect(destinosCambioEstadoPlato('recoger', 'salio', false, 15)).toEqual(['salio']);
+        expect(destinosCambioEstadoPlato('pedido', 'recoger', true, 15)).toEqual(['recoger', 'salio']);
+        expect(destinosCambioEstadoPlato('salio', 'entregado', false, 15)).toEqual(['entregado']);
+    });
+
     test('ya entregado no re-aplica cadena', () => {
         expect(destinosCambioEstadoPlato('entregado', 'salio', false)).toEqual([]);
         expect(destinosCambioEstadoPlato('pagado', 'salio', true)).toEqual([]);
