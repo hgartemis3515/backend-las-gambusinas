@@ -20,7 +20,19 @@ function platoEstaSeleccionadoPpa(seleccionados, comanda, platoItem) {
   }) || null;
 }
 
+function lineaEnSnapshotPpa(ticketPlatos, plato) {
+  const lineaId = String(plato?._id || '').trim();
+  if (!lineaId) return false;
+  return (ticketPlatos || []).some((tp) => {
+    if (!tp) return false;
+    if (tp.platoLineaId && idsIguales(tp.platoLineaId, lineaId)) return true;
+    if (tp.platoSubdocId && idsIguales(tp.platoSubdocId, lineaId)) return true;
+    return false;
+  });
+}
+
 module.exports = {
   idsIguales,
   platoEstaSeleccionadoPpa,
+  lineaEnSnapshotPpa,
 };

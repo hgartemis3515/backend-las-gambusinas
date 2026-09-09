@@ -12,6 +12,7 @@ const { adjuntarDescuentoTicket, aplicarDescuentoAVistaTicket, BOUCHER_DESCUENTO
 const { aplicarTotalesPedidoPPA } = require('../utils/totalesTicketPPA');
 const { aplicarPreciosEnLineasTicket, quitarLineasDeSnapshot, sincronizarEliminacionEnBoucher, sincronizarPreciosComandaYBoucher } = require('../utils/editarPreciosTicket');
 const { filtroTicketsVinculadosAComanda, parseTicketNumber } = require('../utils/filtroTicketsDeComanda');
+const { lineaEnSnapshotPpa } = require('../utils/ppaMatchPlato');
 
 function mapTicketPPAVista(ticket) {
   return aplicarDescuentoAVistaTicket(aplicarTotalesPedidoPPA(ticket));
@@ -251,10 +252,7 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
         let modificadoLocal = false;
 
         for (const plato of comanda.platos) {
-          const platoLineaId = plato._id?.toString();
-          const estaEnTicket = ticket.platos.some(
-            (tp) => tp.platoLineaId?.toString() === platoLineaId
-          );
+          const estaEnTicket = lineaEnSnapshotPpa(ticket.platos, plato);
 
           if (estaEnTicket && plato.pagoAdelantado?.estadoTicket === 'pendiente_aprobacion') {
             plato.pagoAdelantado.estadoTicket = 'aprobado';

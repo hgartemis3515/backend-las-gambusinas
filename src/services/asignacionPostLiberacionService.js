@@ -8,23 +8,29 @@ const POPULATE_PLATO_ASIGNACION = 'id categoria tipo tipos nombre codigo complem
 
 function normalizarIdComanda(id) {
     if (id == null || id === '') return '';
-    if (typeof id === 'object') {
-        if (id._id != null) return normalizarIdComanda(id._id);
-        if (id.id != null && id.id !== id) return normalizarIdComanda(id.id);
-        if (typeof id.toHexString === 'function') return id.toHexString();
-        if (typeof id.toString === 'function') {
-            const s = id.toString();
-            if (s && s !== '[object Object]') return s;
-        }
-        return '';
+    if (typeof id !== 'object') {
+        const s = String(id);
+        return s === '[object Object]' ? '' : s;
     }
-    return String(id);
+    // ObjectId de Mongoose expone `.id` como Buffer binario. Si se usa antes
+    // que toHexString(), findById busca basura y la asignación post-PPA no corre.
+    if (typeof id.toHexString === 'function') return id.toHexString();
+    if (id._id != null && id._id !== id) return normalizarIdComanda(id._id);
+    if (typeof id.toString === 'function') {
+        const s = id.toString();
+        if (s && s !== '[object Object]') return s;
+    }
+    return '';
 }
 
 function idsComandaDeTicket(ticketOrIds) {
     if (ticketOrIds == null) return [];
-    const raw = Array.isArray(ticketOrIds) ? ticketOrIds : (ticketOrIds.comandas || []);
-    return [...new Set(raw.map(normalizarIdComanda).filter(Boolean))];
+    if (Array.isArray(ticketOrIds)) {
+        return [...new Set(ticketOrIds.map(normalizarIdComanda).filter(Boolean))];
+    }
+    const fromComandas = (ticketOrIds.comandas || []).map(normalizarIdComanda);
+    const fromPlatos = (ticketOrIds.platos || []).map((p) => normalizarIdComanda(p && p.comandaId));
+    return [...new Set([...fromComandas, ...fromPlatos].filter((id) => id && id !== '[object Object]'))];
 }
 
 function ticketEsReservaPpa(ticket, opts = {}) {
@@ -48,7 +54,13 @@ async function aplicarAsignacionAutomaticaTrasLiberarPlatos(comandaIds, opts = {
             const comandaPop = await Comanda.findById(comandaId)
                 .populate('platos.plato', POPULATE_PLATO_ASIGNACION)
                 .lean();
-            if (!comandaPop || !comandaPop.platos?.length) continue;
+            if (!comandaPop || !comandaPop.platos?.length) {
+                logger.warn('Auto-asignación post-liberación: comanda no encontrada', {
+                    comandaId,
+                    origen
+                });
+                continue;
+            }
             if (omitirProgramadas && comandaPop.programadaPorReserva === true) continue;
 
             const resultado = await asignacionAutomaticaService.asignarPlatosNuevos(comandaPop);

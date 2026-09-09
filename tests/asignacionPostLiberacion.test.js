@@ -70,6 +70,20 @@ describe('asignacionPostLiberacionService', () => {
         expect(idsComandaDeTicket({ comandas: [{ _id: 'c9' }, 'c9'] })).toEqual(['c9']);
     });
 
+    test('resuelve ObjectId de Mongoose sin usar el Buffer .id', () => {
+        const hex = '64aaaaaaaaaaaaaaaaaaaaaa';
+        const oid = {
+            id: Buffer.from(hex, 'hex'),
+            toHexString() { return hex; },
+            toString() { return hex; },
+        };
+        expect(idsComandaDeTicket([oid])).toEqual([hex]);
+        expect(idsComandaDeTicket({
+            comandas: [],
+            platos: [{ comandaId: oid }],
+        })).toEqual([hex]);
+    });
+
     test('tras aprobar PPA asigna las comandas del ticket', async () => {
         const comanda = { _id: 'c1', platos: [{ platoId: 10, estado: 'en_espera' }] };
         Comanda.findById.mockReturnValue(leanDoc(comanda));

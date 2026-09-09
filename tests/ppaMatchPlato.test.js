@@ -1,4 +1,4 @@
-const { platoEstaSeleccionadoPpa } = require('../src/utils/ppaMatchPlato');
+const { platoEstaSeleccionadoPpa, lineaEnSnapshotPpa } = require('../src/utils/ppaMatchPlato');
 
 describe('ppaMatchPlato', () => {
   const comanda = {
@@ -35,5 +35,20 @@ describe('ppaMatchPlato', () => {
       comanda.platos[0]
     );
     expect(sel).toBeNull();
+  });
+
+  test('lineaEnSnapshotPpa acepta platoLineaId o platoSubdocId', () => {
+    expect(lineaEnSnapshotPpa(
+      [{ platoSubdocId: '222222222222222222222222' }],
+      comanda.platos[1]
+    )).toBe(true);
+    expect(lineaEnSnapshotPpa(
+      [{ platoLineaId: '111111111111111111111111' }],
+      comanda.platos[0]
+    )).toBe(true);
+    expect(lineaEnSnapshotPpa(
+      [{ platoLineaId: '111111111111111111111111' }],
+      comanda.platos[1]
+    )).toBe(false);
   });
 });
