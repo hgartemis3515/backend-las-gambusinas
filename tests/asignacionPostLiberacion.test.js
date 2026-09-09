@@ -13,6 +13,8 @@ const asignacionAutomaticaService = require('../src/services/asignacionAutomatic
 const asignacionGuarnicionesService = require('../src/services/asignacionAutomaticaGuarnicionesService');
 const {
     aplicarAsignacionAutomaticaTrasLiberarPlatos,
+    asignarTrasLiberarPagoAdelantado,
+    idsComandaDeTicket,
 } = require('../src/services/asignacionPostLiberacionService');
 
 function leanDoc(doc) {
@@ -52,6 +54,53 @@ describe('asignacionPostLiberacionService', () => {
 
     test('sin ids no llama al motor', async () => {
         const res = await aplicarAsignacionAutomaticaTrasLiberarPlatos([]);
+        expect(res).toEqual({ comandas: 0, asignados: 0 });
+        expect(Comanda.findById).not.toHaveBeenCalled();
+    });
+
+    test('resuelve ids de comandas populadas (no [object Object])', async () => {
+        const comanda = { _id: 'c1', platos: [{ platoId: 10, estado: 'en_espera' }] };
+        Comanda.findById.mockReturnValue(leanDoc(comanda));
+        asignacionAutomaticaService.asignarPlatosNuevos.mockResolvedValue({ asignados: 1, noAsignados: 0 });
+        asignacionGuarnicionesService.asignarGuarnicionesNuevas.mockResolvedValue({ asignados: 0 });
+
+        await aplicarAsignacionAutomaticaTrasLiberarPlatos([{ _id: 'c1', comandaNumber: 12 }]);
+
+        expect(Comanda.findById).toHaveBeenCalledWith('c1');
+        expect(idsComandaDeTicket({ comandas: [{ _id: 'c9' }, 'c9'] })).toEqual(['c9']);
+    });
+
+    test('tras aprobar PPA asigna las comandas del ticket', async () => {
+        const comanda = { _id: 'c1', platos: [{ platoId: 10, estado: 'en_espera' }] };
+        Comanda.findById.mockReturnValue(leanDoc(comanda));
+        asignacionAutomaticaService.asignarPlatosNuevos.mockResolvedValue({ asignados: 2, noAsignados: 0 });
+        asignacionGuarnicionesService.asignarGuarnicionesNuevas.mockResolvedValue({ asignados: 0 });
+
+        const res = await asignarTrasLiberarPagoAdelantado(
+            { origen: 'comanda', comandas: ['c1'] },
+            { origen: 'post_ppa' }
+        );
+
+        expect(asignacionAutomaticaService.asignarPlatosNuevos).toHaveBeenCalled();
+        expect(res.asignados).toBe(2);
+    });
+
+    test('tras forzar pago también asigna (origen forzado)', async () => {
+        const comanda = { _id: 'c1', platos: [{ platoId: 10, estado: 'pedido' }] };
+        Comanda.findById.mockReturnValue(leanDoc(comanda));
+        asignacionAutomaticaService.asignarPlatosNuevos.mockResolvedValue({ asignados: 1, noAsignados: 0 });
+        asignacionGuarnicionesService.asignarGuarnicionesNuevas.mockResolvedValue({ asignados: 0 });
+
+        await asignarTrasLiberarPagoAdelantado(
+            { origen: 'forzado', comandas: ['c1'] },
+            { origen: 'post_forzar_pago' }
+        );
+
+        expect(asignacionAutomaticaService.asignarPlatosNuevos).toHaveBeenCalled();
+    });
+
+    test('no asigna tickets PPA de reserva', async () => {
+        const res = await asignarTrasLiberarPagoAdelantado({ origen: 'reserva', comandas: ['c1'] });
         expect(res).toEqual({ comandas: 0, asignados: 0 });
         expect(Comanda.findById).not.toHaveBeenCalled();
     });

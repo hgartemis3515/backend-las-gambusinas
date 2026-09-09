@@ -24,6 +24,15 @@ function toObjectId(id) {
   return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : null;
 }
 
+async function asignarCocinaTrasAprobarPpa(ticket, origen) {
+  try {
+    const { asignarTrasLiberarPagoAdelantado } = require('../services/asignacionPostLiberacionService');
+    await asignarTrasLiberarPagoAdelantado(ticket, { origen });
+  } catch (e) {
+    logger.warn('Auto-asignación post-PPA no crítica', { error: e.message });
+  }
+}
+
 async function claimPpaTicketForApproval(ticketId, usuarioObjId, usuarioNombre, ts) {
   const claimed = await ticketPagoAdelantadoModel.findOneAndUpdate(
     { _id: ticketId, estado: 'pendiente_aprobacion' },
@@ -211,6 +220,7 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
   );
 
   if (alreadyApproved && !(ticket.origen === 'reserva' && ticket.reserva)) {
+    await asignarCocinaTrasAprobarPpa(ticket, 'post_ppa_ya_aprobado');
     return { ticket, platosLiberados: [], alreadyApproved: true };
   }
 
@@ -305,6 +315,7 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre) {
     await mesasModel.findByIdAndUpdate(ticket.mesa, { estado: 'pedido' });
   }
 
+  await asignarCocinaTrasAprobarPpa(ticket, 'post_ppa');
   return { ticket, platosLiberados };
 }
 

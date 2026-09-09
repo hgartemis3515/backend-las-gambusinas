@@ -638,6 +638,15 @@ async function fijarMesaServicioTrasForzar(ticket) {
   return mesaEstadoServicio;
 }
 
+async function asignarCocinaTrasForzarPago(ticket) {
+  try {
+    const { asignarTrasLiberarPagoAdelantado } = require('./asignacionPostLiberacionService');
+    await asignarTrasLiberarPagoAdelantado(ticket, { origen: 'post_forzar_pago' });
+  } catch (e) {
+    logger.warn('Auto-asignación post-forzar-pago no crítica', { error: e.message });
+  }
+}
+
 /** Si cocina ya entregó, cierra comanda/mesa pagado para que el mozo pueda Liberar. */
 async function cerrarComandasSiYaEntregadasTrasForzar(ticket) {
   if (!ticket?.comandas?.length) return;
@@ -698,6 +707,7 @@ async function forzarPagoTicketComanda(ticketId, {
       const mesaDespues = await mesasModel.findById(ticket.mesa).select('estado').lean();
       if (mesaDespues?.estado) mesaEstadoServicio = mesaDespues.estado;
     }
+    await asignarCocinaTrasForzarPago(ticket);
     return {
       ...result,
       forzado: true,
@@ -795,6 +805,7 @@ async function forzarPagoTicketComanda(ticketId, {
     const mesaDespues = await mesasModel.findById(ticket.mesa).select('estado').lean();
     if (mesaDespues?.estado) mesaEstadoServicio = mesaDespues.estado;
   }
+  await asignarCocinaTrasForzarPago(ticket);
   return {
     ...result,
     forzado: true,
