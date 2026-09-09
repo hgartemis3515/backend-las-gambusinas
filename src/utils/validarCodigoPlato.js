@@ -5,7 +5,9 @@
  * - 1 a 4 caracteres: letras (A-Z) y/o dígitos (0-9)
  * - Regex: ^[A-Z0-9]{1,4}$
  * - Ejemplos válidos: 1, A, L, L1, M23, D345, 12, AB
- * - Obligatorio y único
+ * - Obligatorio y único (código de cocina / KDS)
+ *
+ * Código de mozo: mismo formato, opcional y puede repetirse.
  *
  * Uso: modelo, repository, controller, platos.html (vía API), tests.
  */
@@ -36,7 +38,18 @@ function validarCodigoPlato(codigo) {
     return { valido: true, codigo: normalizado };
 }
 
+/**
+ * Código de mozo: vacío permitido; si hay valor, mismo formato 1-4 A-Z0-9.
+ * No es único.
+ */
+function validarCodigoMozo(codigo) {
+    const limpio = String(codigo == null ? '' : codigo).trim().toUpperCase();
+    if (!limpio) return { valido: true, codigo: '' };
+    return validarCodigoPlato(limpio);
+}
+
 module.exports = {
     REGEX_CODIGO_PLATO,
-    validarCodigoPlato
+    validarCodigoPlato,
+    validarCodigoMozo
 };

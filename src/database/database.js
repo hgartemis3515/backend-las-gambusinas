@@ -2,7 +2,7 @@ require('dotenv/config');
 
 const mongoose = require('mongoose');
 const { inicializarUsuarioAdmin, importarMozosDesdeJSON } = require('../repository/mozos.repository');
-const { importarPlatosDesdeJSON, asegurarCodigosPlato } = require('../repository/plato.repository');
+const { importarPlatosDesdeJSON, asegurarCodigosPlato, asegurarIndiceNombreLowerNoUnique } = require('../repository/plato.repository');
 const { importarAreasDesdeJSON } = require('../repository/area.repository');
 const { importarMesasDesdeJSON } = require('../repository/mesas.repository');
 const { importarClientesDesdeJSON } = require('../repository/clientes.repository');
@@ -92,6 +92,7 @@ db.once('open', async () => {
   if (codigosRes && codigosRes.asignados > 0) {
     console.log(`   Platos: ${codigosRes.asignados} código(s) auto-generados (${codigosRes.revisados} revisados)`);
   }
+  await asegurarIndiceNombreLowerNoUnique();
   await importarAreasDesdeJSON();
   await importarMesasDesdeJSON();
   await importarMozosDesdeJSON();

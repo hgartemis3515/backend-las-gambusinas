@@ -47,6 +47,7 @@ tailwind.config = {
         <button @click="loadPlatos()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition">🔄 Actualizar</button>
         <button @click="imprimirPlatosPDF()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold transition" title="Imprimir lista de platos en una sola hoja A4">🖨️ Imprimir PDF</button>
         <button @click="openModalComplementosGestion()" class="px-4 py-2 border border-gold/50 rounded-lg text-sm text-gold hover:bg-gold-20 transition">📚 Gestionar Complementos</button>
+        <button @click="openModalCategoriasGestion()" class="px-4 py-2 border border-gold/50 rounded-lg text-sm text-gold hover:bg-gold-20 transition">📂 Gestionar Categorías</button>
         <button class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold" @click="openCreateModal()">+ Nuevo Plato</button>
       </div>
     </div>
@@ -54,7 +55,7 @@ tailwind.config = {
     <!-- FILTROS -->
     <div class="flex gap-2 mb-5 items-center flex-wrap">
       <input type="text" x-model="searchTerm" @input="filterPlatos()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-48 placeholder-txt-muted" placeholder="🔍 Buscar plato...">
-      <input type="text" x-model="searchCodigo" @input="filterPlatos()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-36 placeholder-txt-muted font-mono uppercase" placeholder="🔤 Código..." maxlength="4">
+      <input type="text" x-model="searchCodigo" @input="filterPlatos()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-40 placeholder-txt-muted font-mono uppercase" placeholder="🔤 Cód. cocina/mozo..." maxlength="4">
       <select x-model="filterCategoria" @change="filterPlatos()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary">
         <option value="">Cat: Todas</option>
         <template x-for="cat in categorias" :key="cat"><option :value="cat" x-text="cat"></option></template>
@@ -82,7 +83,7 @@ tailwind.config = {
         <table class="w-full text-sm">
           <thead><tr class="bg-bg-sidebar text-txt-secondary text-[10px] uppercase">
             <th class="text-left px-3 py-2.5 font-semibold">#</th>
-            <th class="text-left px-3 py-2.5 font-semibold">Código</th>
+            <th class="text-left px-3 py-2.5 font-semibold">Códigos</th>
             <th class="text-left px-3 py-2.5 font-semibold">Nombre</th>
             <th class="text-left px-3 py-2.5 font-semibold">Precio</th>
             <th class="text-left px-3 py-2.5 font-semibold">Stock</th>
@@ -98,13 +99,17 @@ tailwind.config = {
             <template x-for="(p, i) in filteredPlatos" :key="p._id || p.nombre">
               <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
                 <td class="px-3 py-2.5 text-txt-muted" x-text="i+1"></td>
-                <td class="px-3 py-2.5"><span class="font-mono text-gold font-semibold text-xs" x-text="p.codigo || '—'"></span></td>
+                <td class="px-3 py-2.5">
+                  <p class="font-mono text-gold font-semibold text-xs" x-text="'Cocina: ' + (p.codigo || '—')"></p>
+                  <p class="font-mono text-[10px] text-txt-muted mt-0.5" x-text="'Mozo: ' + (p.codigoMozo || p.codigo || '—')"></p>
+                </td>
                 <td class="px-3 py-2.5">
                   <p class="font-medium text-sm" x-text="p.nombre"></p>
                   <p class="text-[10px] text-txt-muted" x-text="(p.categoria || p.cat) + ' · ' + tiposLabel(p)"></p>
                   <p x-show="p.nombreCocina" class="text-[10px] text-gold/80 mt-0.5" x-text="'Cocina: ' + p.nombreCocina"></p>
                   <p x-show="(p.nombresSincronizados || []).length" class="text-[10px] text-gold/70 mt-0.5" x-text="'También: ' + (p.nombresSincronizados || []).join(', ')"></p>
-                  <p x-show="p.platoPrincipal" class="text-[10px] text-txt-muted mt-0.5">Sincronizado (precio con principal)</p>
+                  <p x-show="resumenMarcasGuarnicion(p)" class="text-[10px] text-txt-muted mt-0.5" x-text="resumenMarcasGuarnicion(p)"></p>
+                  <p x-show="p.platoPrincipal" class="text-[10px] text-gold/70 mt-0.5">Variante: mismos datos, otras marcas de guarnición</p>
                 </td>
                 <td class="px-3 py-2.5 text-gold font-semibold" x-text="'S/. ' + (p.precio || '0.00')"></td>
                 <td class="px-3 py-2.5">
@@ -196,7 +201,16 @@ tailwind.config = {
         <div class="space-y-3">
           <div><label class="text-xs text-txt-secondary mb-1 block">Nombre del plato <span class="text-st-pagado">*</span></label><input type="text" x-model="formPlato.nombre" placeholder="Ej: Ceviche Clásico" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
           <div><label class="text-xs text-txt-secondary mb-1 block">Nombre del plato en Cocina <span class="text-[10px] text-txt-muted">(opcional)</span></label><input type="text" x-model="formPlato.nombreCocina" maxlength="40" placeholder="Ej: CEV, Lomo S/, Ají G" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none"><p class="text-[10px] text-txt-muted mt-1">Se muestra en Ver Cocina siempre, y en la tabla KDS si está habilitado en Configuración → Cocina.</p></div>
-          <div><label class="text-xs text-txt-secondary mb-1 block">Código <span class="text-st-pagado">*</span> <span class="text-[10px] text-txt-muted">(buscador KDS y mozos — 1 a 4 letras o números: 1, A, L1, M23)</span></label><input type="text" x-model="formPlato.codigo" @input="formPlato.codigo = (formPlato.codigo || '').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4)" placeholder="Ej: 1, A, L1, M23" maxlength="4" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm font-mono focus:border-gold focus:outline-none"></div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Código de Cocina <span class="text-st-pagado">*</span> <span class="text-[10px] text-txt-muted">(KDS — único, 1 a 4 letras o números)</span></label>
+              <input type="text" x-model="formPlato.codigo" @input="formPlato.codigo = (formPlato.codigo || '').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4)" placeholder="Ej: 1, A, L1" maxlength="4" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm font-mono focus:border-gold focus:outline-none">
+            </div>
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Código de Mozo <span class="text-[10px] text-txt-muted">(buscador mozos — puede repetirse)</span></label>
+              <input type="text" x-model="formPlato.codigoMozo" @input="formPlato.codigoMozo = (formPlato.codigoMozo || '').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4)" placeholder="Ej: L1 (opcional)" maxlength="4" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm font-mono focus:border-gold focus:outline-none">
+            </div>
+          </div>
           <div class="grid grid-cols-3 gap-3">
             <div><label class="text-xs text-txt-secondary mb-1 block">Precio (S/.)</label><input type="number" x-model="formPlato.precio" placeholder="0.00" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
             <div><label class="text-xs text-txt-secondary mb-1 block">Stock</label><input type="number" x-model="formPlato.stock" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
@@ -225,7 +239,7 @@ tailwind.config = {
             <p class="text-xs font-semibold text-gold">Sincronización (buscador mozos)</p>
             <div>
               <label class="text-xs text-txt-secondary mb-1 block">Sincronizado por nombre</label>
-              <p class="text-[10px] text-txt-muted mb-2">Otro nombre del mismo plato (ej. Leña Papa). Salen los dos en el buscador de Órdenes, pero es el mismo plato.</p>
+              <p class="text-[10px] text-txt-muted mb-2">Otros nombres del mismo plato (ej. Leña Papa). Podés agregar todos los que quieras: salen en el buscador de Órdenes, pero es el mismo plato y las mismas guarniciones.</p>
               <div class="flex flex-wrap gap-1.5 mb-2" x-show="(formPlato.nombresSincronizados || []).length">
                 <template x-for="(alias, ai) in (formPlato.nombresSincronizados || [])" :key="'ns-'+ai+alias">
                   <span class="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-gold/15 text-gold">
@@ -235,31 +249,32 @@ tailwind.config = {
                 </template>
               </div>
               <div class="flex gap-2">
-                <input type="text" x-model="nuevoNombreSync" placeholder="Ej: Leña Papa" maxlength="80"
+                <input type="text" x-model="nuevoNombreSync" placeholder="Uno o varios, separados por coma" maxlength="200"
                   class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
-                <button type="button" @click="agregarNombreSincronizado()" class="px-3 py-2 bg-gold/20 text-gold rounded-lg text-xs font-semibold hover:bg-gold/30">Agregar nombre</button>
+                <button type="button" @click="agregarNombreSincronizado()" class="px-3 py-2 bg-gold/20 text-gold rounded-lg text-xs font-semibold hover:bg-gold/30">Agregar nombre(s)</button>
               </div>
             </div>
             <div class="border-t border-[rgba(212,175,55,0.12)] pt-3">
               <label class="text-xs text-txt-secondary mb-1 block">Sincronizado por plato principal</label>
-              <p class="text-[10px] text-txt-muted mb-2">Crea otro plato con distintas guarniciones. El precio se copia a todos los del grupo. Cada uno sale en el buscador de mozos.</p>
-              <p x-show="formPlato.platoPrincipal" class="text-[10px] text-gold mb-1">Este plato está vinculado a un principal (precio compartido).</p>
+              <p class="text-[10px] text-txt-muted mb-2">Crea el <strong>mismo plato</strong> (nombre, precio, código de mozo y el resto de datos). Lo único que cambia son las <strong>marcas de guarnición</strong> (ej. 1 pollo con arroz y ensalada, otro 1 pollo con papa y ensalada). El código de cocina se genera solo y no se puede repetir. Podés crear varios de una vez.</p>
+              <p x-show="formPlato.platoPrincipal" class="text-[10px] text-gold mb-1">Vinculado al principal: mismos datos; solo cambian las marcas de guarnición.</p>
               <div class="flex flex-wrap gap-1 mb-2" x-show="platosGrupoSincronizado.length > 1">
                 <template x-for="sp in platosGrupoSincronizado" :key="sp._id">
                   <button type="button" @click="openEditModal(sp)" class="text-[10px] px-2 py-0.5 rounded-full border border-[rgba(212,175,55,0.25)] hover:border-gold"
                     :class="String(sp._id) === String(formPlato._id) ? 'bg-gold text-bg-primary border-gold' : 'text-txt-secondary'">
-                    <span x-text="sp.nombre"></span>
-                    <span class="opacity-70" x-text="' · ' + (sp.codigo || '')"></span>
+                    <span x-text="etiquetaVarianteSync(sp)"></span>
                   </button>
                 </template>
               </div>
               <div class="flex flex-col sm:flex-row gap-2" x-show="isEditing && formPlato._id">
-                <input type="text" x-model="nuevoNombreSyncPrincipal" placeholder="Nombre del nuevo plato" maxlength="80"
+                <input type="text" x-model="nuevoNombreSyncPrincipal" placeholder="Mismo nombre (opcional)" maxlength="80"
                   class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
-                <input type="text" x-model="nuevoCodigoSyncPrincipal" placeholder="Código" maxlength="4"
+                <input type="text" x-model="nuevoCodigoSyncPrincipal" placeholder="Cód. cocina"
                   @input="nuevoCodigoSyncPrincipal = (nuevoCodigoSyncPrincipal || '').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4)"
-                  class="w-24 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm font-mono focus:border-gold focus:outline-none">
-                <button type="button" @click="crearPlatoSincronizadoPrincipal()" class="px-3 py-2 bg-gold text-bg-primary rounded-lg text-xs font-semibold hover:brightness-110 whitespace-nowrap">Crear plato sincronizado</button>
+                  class="w-24 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm font-mono focus:border-gold focus:outline-none" title="Vacío = se genera solo. Obligatorio único si creás 1.">
+                <input type="number" min="1" max="99" x-model.number="nuevoCantidadSyncPrincipal" title="Cuántos platos iguales crear"
+                  class="w-16 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-sm text-center focus:border-gold focus:outline-none">
+                <button type="button" @click="crearPlatoSincronizadoPrincipal()" class="px-3 py-2 bg-gold text-bg-primary rounded-lg text-xs font-semibold hover:brightness-110 whitespace-nowrap">Crear plato(s)</button>
               </div>
               <p x-show="!isEditing || !formPlato._id" class="text-[10px] text-txt-muted">Guardá el plato para poder crear variantes sincronizadas.</p>
             </div>
@@ -329,10 +344,16 @@ tailwind.config = {
                   <input type="checkbox" x-model="grupo.esVariantePlato"
                     @change="onToggleVariantePlato(gi, $event.target.checked)" class="accent-gold w-3 h-3"> Variante MIX
                 </label>
-                <label class="flex items-center gap-1 cursor-pointer" :class="grupo.anexarVarianteAlNombre ? 'text-gold' : 'text-txt-muted'" title="La opción elegida se agrega al nombre del plato en cocina. Ej: Pollo leña + Pierna → Pollo leña Pierna. No aparece como guarnición.">
+                <label class="flex items-center gap-1 cursor-pointer" :class="grupo.anexarVarianteAlNombre ? 'text-gold' : 'text-txt-muted'" title="OP: la opción se agrega al nombre del plato en cocina. Ej: Pollo leña + Pierna → Pollo leña Pierna. No aparece como guarnición G.">
                   <input type="checkbox" x-model="grupo.anexarVarianteAlNombre"
-                    @change="onToggleAnexarNombre(gi, $event.target.checked)" class="accent-gold w-3 h-3"> Variación de nombre
+                    @change="onToggleAnexarNombre(gi, $event.target.checked)" class="accent-gold w-3 h-3"> OP
                 </label>
+                <button type="button" x-show="!grupo.esVariantePlato"
+                  @click="aplicarModoOpSabores(gi)"
+                  class="px-1.5 py-0.5 rounded border border-gold/40 text-gold text-[9px] font-semibold hover:bg-gold/15"
+                  title="Pachamanca 1 a 4 sabores: el mozo usa +/− por sabor (Cerdo ×2 + Pollo ×1 = 3). Máximo 4. Junta los sabores al plato.">
+                  Sabores 1–4
+                </button>
                 <label class="flex items-center gap-1 cursor-pointer" :class="grupo.seleccionFija ? 'text-gold' : 'text-txt-muted'" title="No abre el modal de este grupo: al elegir el plato se marcan solas las opciones con su cantidad.">
                   <input type="checkbox" class="accent-gold w-3 h-3"
                     x-model="grupo.seleccionFija"
@@ -352,7 +373,8 @@ tailwind.config = {
               </label>
               <p x-show="grupo.esVariantePlato && !grupo.deshabilitarSumaVariante" class="text-[10px] text-gold/90 mb-2 leading-snug">Este grupo define el <b>nombre en cocina</b> (ej. MIX con TÉ / CAFÉ / LECHE). El mozo reparte la cantidad del plato entre opciones; cada unidad sigue llevando las otras guarniciones. No entra a la lista de guarniciones ni a su asignación.</p>
               <p x-show="grupo.esVariantePlato && grupo.deshabilitarSumaVariante" class="text-[10px] text-gold/90 mb-2 leading-snug">Ejemplo pan solo: 4 TÉ + 2 CAFÉ = 6. Si hay 1 arroz y 2 papas fijas → 6 arroz y 12 papas. En cocina salen TÉ x4, CAFÉ x2 y esas guarniciones.</p>
-              <p x-show="grupo.anexarVarianteAlNombre && !grupo.esVariantePlato" class="text-[10px] text-gold/90 mb-2 leading-snug">Habilita <b>variación de nombre</b>: el mozo elige una opción (ej. Pierna) y en cocina el plato se llama <b>nombre + opción</b> (Pollo leña Pierna). No entra a la lista de guarniciones ni a su asignación. No uses MIX en el mismo grupo.</p>
+              <p x-show="grupo.anexarVarianteAlNombre && !grupo.esVariantePlato && grupo.modoSeleccion !== 'cantidades'" class="text-[10px] text-gold/90 mb-2 leading-snug">Habilita <b>OP</b> (una opción): el mozo elige un sabor o corte (ej. Pierna) y en cocina el plato se llama <b>nombre + opción</b>. No entra a la lista de guarniciones G ni a su asignación. No uses MIX en el mismo grupo.</p>
+              <p x-show="grupo.anexarVarianteAlNombre && !grupo.esVariantePlato && grupo.modoSeleccion === 'cantidades'" class="text-[10px] text-gold/90 mb-2 leading-snug"><b>OP sabores (pachamanca):</b> poné Cerdo, Pollo, etc. como opciones de este grupo (no como G). El mozo toca +/− por sabor; Cerdo ×2 + Pollo ×1 = 3 platos. Máx. 4 en total. Activa “Juntar complementos con el plato” para que cocina los vea en la misma tarjeta.</p>
               <p x-show="grupo.forzarVisibleTablaKds && !grupo.esVariantePlato && !grupo.anexarVarianteAlNombre" class="text-[10px] text-gold/90 mb-2 leading-snug">Omite <b>Ocultar complementos / guarniciones</b> de la vista KDS: si el mozo elige esta guarnición, <b>sí o sí se ve</b> en la tabla (bajo el plato o en su fila).</p>
               <p x-show="grupo.seleccionFija && !grupo.esVariantePlato && !grupo.anexarVarianteAlNombre" class="text-[10px] text-gold/90 mb-2 leading-snug">El mozo <b>no elige</b> este grupo al agregar. Al tocar el plato se marcan las opciones de abajo. También se activa <b>Plato editable</b>: en la lista de Órdenes puede cambiar esas guarniciones con el lápiz. Si no marcas ninguna opción, van todas.</p>
 
@@ -773,6 +795,12 @@ tailwind.config = {
           <option value="">Todas las categorías</option>
           <template x-for="cat in categoriasComplementos" :key="cat"><option :value="cat" x-text="cat"></option></template>
         </select>
+        <select x-model="filterTipoGestion" @change="filtrarGestionComplementos()" class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary">
+          <option value="">Todas las cartas</option>
+          <template x-for="t in tiposPlato.filter(x => x.activo !== false)" :key="t.slug">
+            <option :value="t.slug" x-text="t.nombreCorto || t.nombre || t.slug"></option>
+          </template>
+        </select>
         <select x-model="filterActivoGestion" @change="filtrarGestionComplementos()" class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary">
           <option value="">Todos</option>
           <option value="true">Activos</option>
@@ -883,7 +911,7 @@ tailwind.config = {
       <div x-show="!loadingGestionComplementos && tabGestion==='opciones'" class="max-h-[450px] overflow-y-auto">
         <p class="text-[11px] text-txt-muted mb-3">
           Recorre las opciones de todos los platos (Arroz, Papa frita, Ensalada…). Las que solo cambian una S se agrupan; las distintas quedan aparte.
-          El número es en cuántos platos aparece. Guardar escribe el mismo nombre y pronombre en esos platos y en la biblioteca.
+          El número es en cuántos platos aparece. Editá nombre y pronombre y usá Guardar todo una sola vez.
         </p>
         <div class="flex gap-2 mb-3 flex-wrap">
           <input type="text" x-model="searchOpcionesCatalogo" placeholder="Buscar opción o pronombre…" class="flex-1 min-w-[160px] bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
@@ -909,7 +937,6 @@ tailwind.config = {
               <th class="py-2 pr-2">Pronombre</th>
               <th class="py-2 pr-2">Platos</th>
               <th class="py-2 pr-2">Variantes</th>
-              <th class="py-2">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -942,14 +969,83 @@ tailwind.config = {
                     </template>
                   </div>
                 </td>
-                <td class="py-2 whitespace-nowrap">
-                  <button type="button" @click="guardarNombreOpcionCatalogo(op)" class="text-[11px] text-gold hover:underline">Aplicar a platos</button>
-                </td>
               </tr>
             </template>
           </tbody>
         </table>
+        <div x-show="!loadingOpcionesCatalogo && opcionesCatalogoFiltradas.length > 0" class="mt-3 flex justify-end">
+          <button
+            type="button"
+            @click="guardarTodasOpcionesCatalogo()"
+            :disabled="guardandoOpcionesCatalogo"
+            class="px-4 py-2 rounded-lg text-sm bg-gold text-bg-primary font-semibold disabled:opacity-40"
+            x-text="guardandoOpcionesCatalogo ? 'Guardando…' : 'Guardar todo'"
+          ></button>
+        </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: GESTIÓN DE CATEGORÍAS -->
+<div x-show="modalGestionCategorias" x-transition.opacity class="fixed inset-0 z-[55] flex items-center justify-center p-4 modal-overlay bg-black/70" @click.self="modalGestionCategorias=false">
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[920px] max-h-[90vh] overflow-hidden shadow-2xl flex flex-col" @click.stop>
+    <div class="bg-bg-sidebar p-5 rounded-t-2xl">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold">📂 Categorías de platos</h2>
+          <p class="text-xs text-txt-muted">Nombre, código de mozo e imagen. El código puede repetirse entre tipos de menú; el nombre identifica la categoría. Un solo Guardar aplica todos los cambios.</p>
+        </div>
+        <button @click="modalGestionCategorias=false" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
+      </div>
+      <div class="mt-4 flex gap-3 items-center flex-wrap">
+        <input type="text" x-model="searchGestionCat" @input="loadCategoriasGestion()" placeholder="🔍 Código de mozo o título..." class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-64 focus:border-gold focus:outline-none">
+        <button @click="loadCategoriasGestion()" class="px-3 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold">↻ Actualizar</button>
+      </div>
+    </div>
+    <div class="p-5 max-h-[58vh] overflow-y-auto flex-1">
+      <div x-show="loadingGestionCategorias" class="flex justify-center py-12">
+        <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+      </div>
+      <div x-show="!loadingGestionCategorias && categoriasGestion.length === 0" class="text-center py-10 text-txt-muted text-sm">No hay categorías.</div>
+      <template x-for="cat in categoriasGestion" :key="cat.nombre">
+        <div class="mb-3 border border-[rgba(212,175,55,0.2)] rounded-xl overflow-hidden">
+          <div class="flex items-center gap-2 p-3 bg-bg-sidebar flex-wrap">
+            <button type="button" @click="catExpandida = catExpandida === cat.nombre ? '' : cat.nombre" class="text-gold text-sm w-6">▸</button>
+            <div class="w-10 h-10 rounded-lg overflow-hidden bg-bg-card border border-[rgba(212,175,55,0.25)] flex-shrink-0">
+              <img x-show="cat.imagenUrl" :src="cat.imagenUrl" class="w-full h-full object-cover" alt="">
+              <span x-show="!cat.imagenUrl" class="w-full h-full flex items-center justify-center text-xs text-txt-muted">📷</span>
+            </div>
+            <input type="text" x-model="cat._editNombre" class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-sm w-40 focus:border-gold focus:outline-none" placeholder="Nombre">
+            <input type="text" x-model="cat._editCodigo" @input="cat._editCodigo = (cat._editCodigo || '').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4)" maxlength="4" class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-sm w-20 font-mono focus:border-gold focus:outline-none" placeholder="Cód. mozo">
+            <span class="text-[11px] text-txt-muted" x-text="(cat.count || 0) + ' plato(s)'"></span>
+            <label class="ml-auto text-[11px] text-gold cursor-pointer hover:underline">
+              Imagen
+              <input type="file" accept="image/jpeg,image/png,image/webp" class="hidden" @change="subirImagenCategoria(cat, $event)">
+            </label>
+            <button type="button" x-show="cat.imagenUrl" @click="quitarImagenCategoria(cat)" class="text-[11px] text-txt-muted hover:text-st-pagado">Quitar</button>
+          </div>
+          <div x-show="catExpandida === cat.nombre" class="p-3 space-y-2">
+            <template x-for="p in (cat.platos || [])" :key="p._id || p.id">
+              <div class="flex items-center gap-2 text-sm py-1 border-b border-[rgba(212,175,55,0.08)]">
+                <span class="font-mono text-[11px] text-gold w-14" x-text="p.codigoMozo || p.codigo || '—'"></span>
+                <span class="flex-1 truncate" x-text="p.nombre"></span>
+                <select x-model="p._moverA" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1 text-xs text-txt-secondary max-w-[160px]">
+                  <option value="">Mover a…</option>
+                  <template x-for="dest in categoriasGestion" :key="'d-'+dest.nombre">
+                    <option :value="dest.nombre" x-text="dest.nombre" x-show="dest.nombre !== cat.nombre"></option>
+                  </template>
+                </select>
+                <button type="button" @click="moverPlatoCategoria(p, cat)" class="text-[11px] text-gold hover:underline" x-show="p._moverA">Mover</button>
+              </div>
+            </template>
+            <p x-show="!(cat.platos && cat.platos.length)" class="text-[11px] text-txt-muted">Sin platos en esta categoría.</p>
+          </div>
+        </div>
+      </template>
+    </div>
+    <div class="px-5 py-3 border-t border-[rgba(212,175,55,0.2)] flex justify-end gap-2">
+      <button type="button" @click="guardarTodasCategorias()" :disabled="guardandoGestionCategorias" class="px-4 py-2 rounded-lg text-sm bg-gold text-bg-primary font-semibold disabled:opacity-40" x-text="guardandoGestionCategorias ? 'Guardando…' : 'Guardar todo'"></button>
     </div>
   </div>
 </div>
@@ -1086,8 +1182,13 @@ tailwind.config = {
         <label class="flex items-start gap-1.5 cursor-pointer text-[10px] mt-2" :class="formComplemento.anexarVarianteAlNombre ? 'text-gold' : 'text-txt-muted'">
           <input type="checkbox" x-model="formComplemento.anexarVarianteAlNombre" class="accent-gold w-3 h-3 mt-0.5"
             @change="onToggleAnexarNombrePlantilla($event.target.checked)">
-          <span>Variación de nombre — la opción se agrega al nombre en cocina (Pollo leña + Pierna → Pollo leña Pierna). No es guarnición. No combinar con MIX.</span>
+          <span>OP — la opción se agrega al nombre en cocina (Pollo leña + Pierna → Pollo leña Pierna). No es guarnición G. No combinar con MIX.</span>
         </label>
+        <button type="button" x-show="!formComplemento.esVariantePlato"
+          @click="aplicarModoOpSaboresPlantilla()"
+          class="mt-1 px-2 py-1 rounded border border-gold/40 text-gold text-[10px] font-semibold hover:bg-gold/15">
+          Sabores 1–4 (cantidades)
+        </button>
         <label x-show="!formComplemento.esVariantePlato && !formComplemento.anexarVarianteAlNombre" class="flex items-start gap-1.5 cursor-pointer text-[10px] mt-2" :class="formComplemento.forzarVisibleTablaKds ? 'text-gold' : 'text-txt-muted'">
           <input type="checkbox" :checked="formComplemento.forzarVisibleTablaKds === true" class="accent-gold w-3 h-3 mt-0.5"
             @change="formComplemento.forzarVisibleTablaKds = $event.target.checked">
@@ -1141,6 +1242,7 @@ tailwind.config = {
       nombre: '',
       nombreCocina: '',
       codigo: '',
+      codigoMozo: '',
       precio: '',
       stock: 0,
       categoria: '',
@@ -1166,9 +1268,16 @@ tailwind.config = {
     nuevoNombreSync: '',
     nuevoNombreSyncPrincipal: '',
     nuevoCodigoSyncPrincipal: '',
+    nuevoCantidadSyncPrincipal: 1,
     
     // ============ ESTADO PARA GESTIÓN DE COMPLEMENTOS ============
     modalGestionComplementos: false,
+    modalGestionCategorias: false,
+    loadingGestionCategorias: false,
+    guardandoGestionCategorias: false,
+    categoriasGestion: [],
+    searchGestionCat: '',
+    catExpandida: '',
     modalFormComplemento: false,
     modalSelectorComplementos: false,
     loadingGestionComplementos: false,
@@ -1180,6 +1289,7 @@ tailwind.config = {
     catalogoOpcionesComplemento: [],
     searchOpcionesCatalogo: '',
     loadingOpcionesCatalogo: false,
+    guardandoOpcionesCatalogo: false,
     
     complementosGestion: [],
     complementosGestionFiltrados: [],
@@ -1190,6 +1300,7 @@ tailwind.config = {
     
     searchGestionComp: '',
     filterCatGestion: '',
+    filterTipoGestion: '',
     filterActivoGestion: '',
     searchComplementoLib: '',
     
@@ -1283,7 +1394,9 @@ tailwind.config = {
         const matchSearch = !this.searchTerm || p.nombre?.toLowerCase().includes(this.searchTerm.toLowerCase())
           || (p.nombresSincronizados || []).some(n => String(n).toLowerCase().includes(this.searchTerm.toLowerCase()));
         const codigoBuscado = (this.searchCodigo || '').trim().toUpperCase();
-        const matchCodigo = !codigoBuscado || (p.codigo || '').toUpperCase().includes(codigoBuscado);
+        const matchCodigo = !codigoBuscado
+          || (p.codigo || '').toUpperCase().includes(codigoBuscado)
+          || (p.codigoMozo || '').toUpperCase().includes(codigoBuscado);
         const matchCat = !this.filterCategoria || p.categoria === this.filterCategoria || p.cat === this.filterCategoria;
         const tipos = this.tiposDe(p);
         const matchTipo = !this.filterTipo || tipos.includes(this.filterTipo) ||
@@ -1362,23 +1475,59 @@ tailwind.config = {
       return (this.platos || []).filter((p) => String(p._id) === pid || String(p.platoPrincipal || '') === pid);
     },
 
+    resumenMarcasGuarnicion(p) {
+      const parts = [];
+      for (const g of (p && p.complementos) || []) {
+        if (!g || g.esVariantePlato || g.anexarVarianteAlNombre) continue;
+        const ops = Array.isArray(g.opciones) ? g.opciones : [];
+        const named = ops.filter((op) => {
+          const n = typeof op === 'object' ? String(op.nombre || '').trim() : String(op || '').trim();
+          return !!n;
+        });
+        const fija = g.seleccionFija === true;
+        const marked = named.filter((op) => typeof op === 'object' && op.preseleccionada === true);
+        const apply = fija ? (marked.length ? marked : named) : marked;
+        for (const op of apply) {
+          const n = typeof op === 'object' ? String(op.nombre || '').trim() : String(op).trim();
+          if (n) parts.push(n);
+        }
+      }
+      return parts.join(' · ');
+    },
+
+    etiquetaVarianteSync(sp) {
+      const marcas = this.resumenMarcasGuarnicion(sp);
+      const cod = String(sp && sp.codigo || '').trim();
+      return [sp && sp.nombre, marcas, cod].filter(Boolean).join(' · ');
+    },
+
+    resetCamposSyncNuevo() {
+      this.nuevoNombreSync = '';
+      this.nuevoNombreSyncPrincipal = '';
+      this.nuevoCodigoSyncPrincipal = '';
+      this.nuevoCantidadSyncPrincipal = 1;
+    },
+
     agregarNombreSincronizado() {
-      const n = String(this.nuevoNombreSync || '').trim().slice(0, 80);
-      if (!n) {
-        this.showToast('Escribe el segundo nombre', 'error');
+      const raw = String(this.nuevoNombreSync || '').trim();
+      if (!raw) {
+        this.showToast('Escribe uno o más nombres', 'error');
         return;
       }
       if (!Array.isArray(this.formPlato.nombresSincronizados)) this.formPlato.nombresSincronizados = [];
       const prin = String(this.formPlato.nombre || '').trim().toLowerCase();
-      if (n.toLowerCase() === prin) {
-        this.showToast('Ese nombre ya es el del plato', 'error');
+      const partes = raw.split(/[,;\n]+/).map((s) => s.trim().slice(0, 80)).filter(Boolean);
+      let added = 0;
+      for (const n of partes) {
+        if (n.toLowerCase() === prin) continue;
+        if (this.formPlato.nombresSincronizados.some((x) => String(x).toLowerCase() === n.toLowerCase())) continue;
+        this.formPlato.nombresSincronizados.push(n);
+        added += 1;
+      }
+      if (!added) {
+        this.showToast('Esos nombres ya están o coinciden con el plato', 'error');
         return;
       }
-      if (this.formPlato.nombresSincronizados.some((x) => String(x).toLowerCase() === n.toLowerCase())) {
-        this.showToast('Ese nombre ya está agregado', 'error');
-        return;
-      }
-      this.formPlato.nombresSincronizados.push(n);
       this.nuevoNombreSync = '';
     },
 
@@ -1392,85 +1541,34 @@ tailwind.config = {
         this.showToast('Guarda el plato primero', 'error');
         return;
       }
-      const nombre = String(this.nuevoNombreSyncPrincipal || '').trim();
+      const cantidad = Math.max(1, Math.min(99, Number(this.nuevoCantidadSyncPrincipal) || 1));
+      const nombre = String(this.nuevoNombreSyncPrincipal || '').trim() || String(this.formPlato.nombre || '').trim();
       const codigo = String(this.nuevoCodigoSyncPrincipal || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
-      if (!nombre) {
-        this.showToast('Escribe el nombre del plato sincronizado', 'error');
+      if (cantidad === 1 && codigo && !/^[A-Z0-9]{1,4}$/.test(codigo)) {
+        this.showToast('Código de cocina inválido: 1 a 4 letras o números', 'error');
         return;
       }
-      if (!codigo || !/^[A-Z0-9]{1,4}$/.test(codigo)) {
-        this.showToast('Código obligatorio: 1 a 4 letras o números', 'error');
-        return;
-      }
-      const tiposLimpios = [...new Set((this.formPlato.tipos || []).map(t => String(t).trim().toLowerCase()).filter(Boolean))];
-      if (!tiposLimpios.length) {
-        this.showToast('El plato debe tener un tipo de menú', 'error');
-        return;
-      }
-      const complementosLimpios = this.formPlato.complementos
-        .filter(g => g.grupo && g.grupo.trim() !== '')
-        .map(g => {
-          const esMix = g.esVariantePlato === true || g.esVariantePlato === 'true' || g.esVariantePlato === 1;
-          const anexarNombre = !esMix && (g.anexarVarianteAlNombre === true || g.anexarVarianteAlNombre === 'true' || g.anexarVarianteAlNombre === 1);
-          const seleccionFija = (esMix || anexarNombre) ? false : (g.seleccionFija === true || g.seleccionFija === 'true');
-          const seleccionMultiple = !!g.seleccionMultiple || seleccionFija;
-          return {
-            grupo: g.grupo.trim(),
-            obligatorio: g.obligatorio || false,
-            seleccionMultiple,
-            opciones: this.normalizarOpcionesGrupo(g.opciones),
-            modoSeleccion: seleccionFija ? 'cantidades' : (g.modoSeleccion || (seleccionMultiple ? 'cantidades' : 'opciones')),
-            maxUnidadesGrupo: this.numOpcionalGrupo(g.maxUnidadesGrupo) ?? (seleccionMultiple || seleccionFija ? null : 1),
-            minUnidadesGrupo: this.numOpcionalGrupo(g.minUnidadesGrupo) ?? (g.obligatorio ? 1 : 0),
-            maxUnidadesPorOpcion: this.numOpcionalGrupo(g.maxUnidadesPorOpcion),
-            permiteRepetirOpcion: g.permiteRepetirOpcion ?? seleccionMultiple,
-            esVariantePlato: esMix,
-            deshabilitarSumaVariante: esMix && (g.deshabilitarSumaVariante === true || g.deshabilitarSumaVariante === 'true'),
-            anexarVarianteAlNombre: anexarNombre,
-            forzarVisibleTablaKds: !anexarNombre && !esMix && (g.forzarVisibleTablaKds === true || g.forzarVisibleTablaKds === 'true'),
-            seleccionFija
-          };
-        });
-      const precioNum = Number(this.formPlato.precio);
-      const stockNum = Number(this.formPlato.stock);
-      const payload = {
-        nombre,
-        nombreCocina: String(this.formPlato.nombreCocina || '').trim(),
-        codigo,
-        precio: Number.isFinite(precioNum) && precioNum >= 0 ? precioNum : 0,
-        stock: Number.isFinite(stockNum) && stockNum >= 0 ? stockNum : 0,
-        categoria: String(this.formPlato.categoria || '').trim() || 'General',
-        descripcion: this.formPlato.descripcion || '',
-        tipos: tiposLimpios,
-        tipo: tiposLimpios[0],
-        complementos: complementosLimpios,
-        complementosAfectanPrecio: this.formPlato.complementosAfectanPrecio !== false,
-        mostrarTotalComplementosImpresion: !!this.formPlato.mostrarTotalComplementosImpresion,
-        complementosUnidosAlPlato: !!this.formPlato.complementosUnidosAlPlato,
-        ocultarCronometroCocina: !!this.formPlato.ocultarCronometroCocina,
-        juntarGuarnicionesEntreVariantes: !!this.formPlato.juntarGuarnicionesEntreVariantes,
-        requiereNumeroSerie: !!this.formPlato.requiereNumeroSerie,
-        kdsEstiloCompacto: !!this.formPlato.kdsEstiloCompacto,
-        platoEditable: !!this.formPlato.platoEditable,
-        nombresSincronizados: [],
-        platoPrincipal: this.formPlato.platoPrincipal || this.formPlato._id,
-        resumenComplementosImpresion: {
-          mostrarCantidad: this.formPlato.resumenComplementosImpresion?.mostrarCantidad !== false,
-          mostrarMontoExtra: this.formPlato.resumenComplementosImpresion?.mostrarMontoExtra !== false
-        }
-      };
       try {
-        const res = await apiPost('/platos', payload);
+        const res = await apiPost('/platos/' + this.formPlato._id + '/clonar-principal', {
+          cantidad,
+          nombre,
+          codigo: cantidad === 1 ? codigo : '',
+          codigoMozo: this.formPlato.codigoMozo || '',
+        });
         if (!res || res.ok === false || res.error) {
           this.showToast('Error: ' + (res?.error || res?.message || 'No se pudo crear'), 'error');
           return;
         }
         this.nuevoNombreSyncPrincipal = '';
         this.nuevoCodigoSyncPrincipal = '';
+        this.nuevoCantidadSyncPrincipal = 1;
         await this.loadPlatos();
-        const creado = (this.platos || []).find((p) => String(p.codigo || '').toUpperCase() === codigo);
-        this.showToast('Plato sincronizado creado. Editá las guarniciones.');
-        if (creado) await this.openEditModal(creado);
+        const nOk = (res.creados && res.creados.length) || res.total || cantidad;
+        this.showToast(nOk + ' plato(s) igual(es) creado(s). Cambiá las marcas de guarnición.');
+        const primero = (res.creados && res.creados[0]) || null;
+        const creado = primero
+          || (this.platos || []).find((p) => String(p.codigo || '').toUpperCase() === String(primero?.codigo || codigo).toUpperCase());
+        if (creado && nOk === 1) await this.openEditModal(creado);
       } catch (e) {
         this.showToast('Error: ' + (e?.message || 'Fallo al crear'), 'error');
       }
@@ -1516,6 +1614,7 @@ tailwind.config = {
         nombre: '',
         nombreCocina: '',
         codigo: '',
+        codigoMozo: '',
         precio: '',
         stock: 0,
         categoria: '',
@@ -1537,6 +1636,7 @@ tailwind.config = {
         resumenComplementosImpresion: { mostrarCantidad: true, mostrarMontoExtra: true },
         complementos: []
       };
+      this.resetCamposSyncNuevo();
       this.resetFormAsignacionPlato();
       this.modal = true;
       await this.cargarAsignacionModal();
@@ -1560,6 +1660,7 @@ tailwind.config = {
         nombre: p.nombre,
         nombreCocina: p.nombreCocina || '',
         codigo: p.codigo || '',
+        codigoMozo: p.codigoMozo || '',
         precio: p.precio,
         stock: p.stock || 0,
         categoria: p.categoria || p.cat || '',
@@ -1596,6 +1697,7 @@ tailwind.config = {
           opciones: this.normalizarOpcionesGrupo(g.opciones).map(o => ({ ...o, _asig: this._asigVacia() }))
         }))
       };
+      this.resetCamposSyncNuevo();
       this.modal = true;
       await this.cargarAsignacionModal();
     },
@@ -1710,6 +1812,35 @@ tailwind.config = {
       }
     },
 
+    aplicarModoOpSabores(gi) {
+      const idx = Number(gi);
+      const g = this.formPlato.complementos[idx];
+      if (!g) return;
+      this.onToggleAnexarNombre(idx, true);
+      g.seleccionMultiple = true;
+      g.modoSeleccion = 'cantidades';
+      g.permiteRepetirOpcion = true;
+      g.minUnidadesGrupo = 1;
+      g.maxUnidadesGrupo = 4;
+      g.maxUnidadesPorOpcion = 4;
+      g.obligatorio = true;
+      if (!String(g.grupo || '').trim()) g.grupo = 'Sabores';
+      this.formPlato.complementosUnidosAlPlato = true;
+      this.marcarCopiaComplementoPlato(idx);
+    },
+
+    aplicarModoOpSaboresPlantilla() {
+      this.onToggleAnexarNombrePlantilla(true);
+      this.formComplemento.seleccionMultiple = true;
+      this.formComplemento.modoSeleccion = 'cantidades';
+      this.formComplemento.permiteRepetirOpcion = true;
+      this.formComplemento.minUnidadesGrupo = 1;
+      this.formComplemento.maxUnidadesGrupo = 4;
+      this.formComplemento.maxUnidadesPorOpcion = 4;
+      this.formComplemento.obligatorio = true;
+      if (!String(this.formComplemento.grupo || '').trim()) this.formComplemento.grupo = 'Sabores';
+    },
+
     prepararGrupoSeleccionFija(g) {
       if (!g) return;
       g.modoSeleccion = 'cantidades';
@@ -1729,7 +1860,7 @@ tailwind.config = {
       if (!g) return;
       if (checked && (g.esVariantePlato || g.anexarVarianteAlNombre)) {
         g.seleccionFija = false;
-        this.showToast(g.esVariantePlato ? 'La variante MIX no puede ser selección fija' : 'La variación de nombre no puede ser selección fija', 'error');
+        this.showToast(g.esVariantePlato ? 'La variante MIX no puede ser selección fija' : 'OP no puede ser selección fija', 'error');
         return;
       }
       g.seleccionFija = !!checked;
@@ -1745,7 +1876,7 @@ tailwind.config = {
 
     onToggleSeleccionFijaPlantilla(checked) {
       if (checked && (this.formComplemento.esVariantePlato || this.formComplemento.anexarVarianteAlNombre)) {
-        this.showToast(this.formComplemento.esVariantePlato ? 'La variante MIX no puede ser selección fija' : 'La variación de nombre no puede ser selección fija', 'error');
+        this.showToast(this.formComplemento.esVariantePlato ? 'La variante MIX no puede ser selección fija' : 'OP no puede ser selección fija', 'error');
         return;
       }
       this.formComplemento.seleccionFija = !!checked;
@@ -1980,7 +2111,127 @@ tailwind.config = {
 
     async openModalComplementosGestion() {
       this.modalGestionComplementos = true;
+      this.filterTipoGestion = '';
+      if (!this.platos.length) await this.loadPlatos();
+      if (!this.tiposPlato.length) await this.loadTiposPlato();
       await this.loadComplementosGestion();
+    },
+
+    async openModalCategoriasGestion() {
+      this.modalGestionCategorias = true;
+      this.searchGestionCat = '';
+      this.catExpandida = '';
+      await this.loadCategoriasGestion();
+    },
+
+    async loadCategoriasGestion() {
+      const primera = this.categoriasGestion.length === 0;
+      if (primera) this.loadingGestionCategorias = true;
+      try {
+        const q = encodeURIComponent((this.searchGestionCat || '').trim());
+        const data = await apiGet('/categorias-plato' + (q ? ('?q=' + q) : ''));
+        this.categoriasGestion = (data || []).map((c) => ({
+          ...c,
+          _editNombre: c.nombre,
+          _editCodigo: c.codigoMozo || '',
+          platos: (c.platos || []).map((p) => ({ ...p, _moverA: '' })),
+        }));
+      } catch (e) {
+        console.error('Error cargando categorías:', e);
+        this.showToast('Error al cargar categorías', 'error');
+        this.categoriasGestion = [];
+      }
+      this.loadingGestionCategorias = false;
+    },
+
+    async guardarTodasCategorias() {
+      const items = (this.categoriasGestion || []).map((c) => ({
+        nombre: c.nombre,
+        nuevoNombre: String(c._editNombre || '').trim(),
+        codigoMozo: String(c._editCodigo || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4),
+      }));
+      if (items.some((it) => !it.nuevoNombre)) {
+        this.showToast('Hay una categoría sin nombre', 'error');
+        return;
+      }
+      this.guardandoGestionCategorias = true;
+      try {
+        const r = await apiPut('/categorias-plato/lote', { items });
+        if (!r) {
+          this.showToast('No se pudo guardar', 'error');
+        } else if (r.errores && r.errores.length) {
+          this.showToast(
+            'Algunas no se guardaron: ' + r.errores.map((e) => e.nombre + ' (' + e.error + ')').join('; '),
+            'error'
+          );
+        } else if (r.ok === false) {
+          this.showToast(r.error || 'No se pudo guardar', 'error');
+        } else {
+          this.showToast('Categorías guardadas ✅');
+        }
+        await this.loadCategoriasGestion();
+        await this.loadPlatos();
+      } catch (e) {
+        this.showToast('Error: ' + (e?.message || 'No se pudo guardar'), 'error');
+      }
+      this.guardandoGestionCategorias = false;
+    },
+
+    async subirImagenCategoria(cat, ev) {
+      const file = ev && ev.target && ev.target.files && ev.target.files[0];
+      if (ev && ev.target) ev.target.value = '';
+      if (!file || !cat || !cat.nombre) return;
+      try {
+        const fd = new FormData();
+        fd.append('nombre', cat.nombre);
+        fd.append('imagen', file);
+        const res = await fetch('/api/categorias-plato/imagen', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + getToken(), 'x-source-app': 'dashboard' },
+          body: fd,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          this.showToast(data.error || 'No se pudo subir la imagen', 'error');
+          return;
+        }
+        cat.imagenUrl = data.imagenUrl || '';
+        this.showToast('Imagen actualizada');
+      } catch (e) {
+        this.showToast('Error: ' + (e?.message || 'No se pudo subir'), 'error');
+      }
+    },
+
+    async quitarImagenCategoria(cat) {
+      if (!cat || !cat.nombre) return;
+      try {
+        const r = await apiDelete('/categorias-plato/imagen', { nombre: cat.nombre });
+        if (!r || r.ok === false) {
+          this.showToast((r && r.error) || 'No se pudo quitar la imagen', 'error');
+          return;
+        }
+        cat.imagenUrl = '';
+      } catch (e) {
+        this.showToast('Error: ' + (e?.message || 'No se pudo quitar'), 'error');
+      }
+    },
+
+    async moverPlatoCategoria(p, catOrigen) {
+      const dest = String(p._moverA || '').trim();
+      if (!dest || dest === catOrigen.nombre) return;
+      try {
+        const r = await apiPut('/categorias-plato/mover', { platoIds: [p._id || p.id], categoria: dest });
+        if (!r || r.ok === false) {
+          this.showToast((r && r.error) || 'No se pudo mover', 'error');
+          return;
+        }
+        this.showToast('Plato movido a ' + dest);
+        this.catExpandida = dest;
+        await this.loadCategoriasGestion();
+        await this.loadPlatos();
+      } catch (e) {
+        this.showToast('Error: ' + (e?.message || 'No se pudo mover'), 'error');
+      }
     },
 
     async loadComplementosGestion() {
@@ -2014,6 +2265,26 @@ tailwind.config = {
       this.loadingGestionComplementos = false;
     },
 
+    platoMatchTipoGestion(p) {
+      const slug = this.filterTipoGestion;
+      if (!slug) return true;
+      return this.tiposDe(p).includes(slug);
+    },
+
+    platoUsaPlantilla(p, comp) {
+      const id = String(comp && comp._id || '');
+      const nom = String(comp && comp.nombre || '').trim().toLowerCase();
+      return (p.complementos || []).some((g) => {
+        if (id && String(g._libraryId || '') === id) return true;
+        return nom && String(g.grupo || '').trim().toLowerCase() === nom;
+      });
+    },
+
+    plantillaEnTipoGestion(comp) {
+      if (!this.filterTipoGestion) return true;
+      return (this.platos || []).some((p) => this.platoMatchTipoGestion(p) && this.platoUsaPlantilla(p, comp));
+    },
+
     filtrarGestionComplementos() {
       const term = this.searchGestionComp.toLowerCase().trim();
       const cat = this.filterCatGestion;
@@ -2024,8 +2295,17 @@ tailwind.config = {
         if (cat && c.categoria !== cat) return false;
         if (activo === 'true' && !c.activo) return false;
         if (activo === 'false' && c.activo) return false;
+        if (!this.plantillaEnTipoGestion(c)) return false;
         return true;
       });
+      if (this.tabGestion === 'opciones') {
+        const catOp = this.construirCatalogoOpcionesLocal();
+        this.catalogoOpcionesComplemento = (catOp.opciones || []).map((o) => ({
+          ...o,
+          _origNombre: o.nombre,
+          _origPronombre: o.pronombre || '',
+        }));
+      }
     },
 
     get opcionesCatalogoFiltradas() {
@@ -2103,8 +2383,14 @@ tailwind.config = {
           }
         }
       };
-      for (const p of this.platos || []) recoger(p.complementos, 'plato', p._id);
-      for (const t of this.complementosGestion || []) recoger([{ opciones: t.opciones }], 'plantilla', t._id);
+      for (const p of this.platos || []) {
+        if (!this.platoMatchTipoGestion(p)) continue;
+        recoger(p.complementos, 'plato', p._id);
+      }
+      for (const t of this.complementosGestion || []) {
+        if (!this.plantillaEnTipoGestion(t)) continue;
+        recoger([{ opciones: t.opciones }], 'plantilla', t._id);
+      }
 
       const serializar = (bag, campo) => [...bag.values()].map((v) => ({
         [campo]: v.key,
@@ -2207,7 +2493,11 @@ tailwind.config = {
         if (!this.platos.length) await this.loadPlatos();
         if (!this.complementosGestion.length) await this.loadComplementosGestion();
         const cat = this.construirCatalogoOpcionesLocal();
-        this.catalogoOpcionesComplemento = cat.opciones;
+        this.catalogoOpcionesComplemento = cat.opciones.map((o) => ({
+          ...o,
+          _origNombre: o.nombre,
+          _origPronombre: o.pronombre || '',
+        }));
         this.correctorNombresPreview = {
           grupos: cat.opciones
             .filter((g) => g.tieneVariantes || g.tienePronombresDistintos)
@@ -2229,20 +2519,36 @@ tailwind.config = {
       this.loadingOpcionesCatalogo = false;
     },
 
-    async guardarNombreOpcionCatalogo(op) {
-      const nombre = (op && op.nombre || '').trim();
-      if (!op || !op.clave || !nombre) {
-        this.showToast('El nombre no puede estar vacío', 'error');
-        return;
-      }
+    async guardarTodasOpcionesCatalogo() {
+      const filas = this.catalogoOpcionesComplemento || [];
+      if (!filas.length) return;
+      this.guardandoOpcionesCatalogo = true;
       try {
-        const res = await this.aplicarOpcionEnTodosLosPlatos(op.clave, nombre, (op.pronombre || '').trim());
-        this.showToast('Aplicado en ' + (res.platosActualizados || 0) + ' plato(s) y ' + (res.plantillasActualizadas || 0) + ' plantilla(s)');
-        await this.cargarCatalogoOpcionesComplemento();
+        if (!this.platos.length) await this.loadPlatos();
+        if (!this.complementosGestion.length) await this.loadComplementosGestion();
+        let platosActualizados = 0;
+        let plantillasActualizadas = 0;
+        let cambios = 0;
+        for (const op of filas) {
+          const nombre = (op.nombre || '').trim();
+          if (!op.clave || !nombre) continue;
+          if (nombre === (op._origNombre || '') && (op.pronombre || '').trim() === (op._origPronombre || '')) continue;
+          cambios += 1;
+          const res = await this.aplicarOpcionEnTodosLosPlatos(op.clave, nombre, (op.pronombre || '').trim());
+          platosActualizados += res.platosActualizados || 0;
+          plantillasActualizadas += res.plantillasActualizadas || 0;
+        }
+        if (!cambios) {
+          this.showToast('No hay cambios para guardar');
+        } else {
+          this.showToast('Guardado: ' + platosActualizados + ' plato(s) y ' + plantillasActualizadas + ' plantilla(s)');
+          await this.cargarCatalogoOpcionesComplemento();
+        }
       } catch (e) {
-        console.error('Error guardando nombre opción', e);
-        this.showToast('Error al guardar el nombre', 'error');
+        console.error('Error guardando opciones', e);
+        this.showToast('Error al guardar las opciones', 'error');
       }
+      this.guardandoOpcionesCatalogo = false;
     },
 
     async cargarCorrectorNombres() {
@@ -2524,6 +2830,13 @@ tailwind.config = {
       }
       this.formPlato.codigo = codigoTrim;
 
+      const codigoMozoTrim = (this.formPlato.codigoMozo || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
+      if (codigoMozoTrim && !/^[A-Z0-9]{1,4}$/.test(codigoMozoTrim)) {
+        this.showToast('Código de mozo inválido: 1 a 4 letras o números', 'error');
+        return;
+      }
+      this.formPlato.codigoMozo = codigoMozoTrim;
+
       // Validar que el plato tenga al menos un tipo de menú
       if (!Array.isArray(this.formPlato.tipos) || this.formPlato.tipos.length === 0) {
         this.showToast('Debes seleccionar al menos un tipo de menú', 'error');
@@ -2564,6 +2877,7 @@ tailwind.config = {
         nombre: String(this.formPlato.nombre || '').trim(),
         nombreCocina: String(this.formPlato.nombreCocina || '').trim(),
         codigo: codigoTrim,
+        codigoMozo: this.formPlato.codigoMozo || '',
         precio: Number.isFinite(precioNum) && precioNum >= 0 ? precioNum : 0,
         stock: Number.isFinite(stockNum) && stockNum >= 0 ? stockNum : 0,
         categoria: String(this.formPlato.categoria || '').trim() || 'General',

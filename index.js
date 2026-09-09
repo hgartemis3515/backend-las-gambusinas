@@ -18,6 +18,7 @@ setImmediate(() => {
 const mesasRoutes = require('./src/controllers/mesasController')
 const mozosRoutes = require('./src/controllers/mozosController')
 const platoRoutes = require('./src/controllers/platoController')
+const categoriaPlatoRoutes = require('./src/controllers/categoriaPlatoController')
 const comandaRoutes = require('./src/controllers/comandaController')
 const areaRoutes = require('./src/controllers/areaController')
 const boucherRoutes = require('./src/controllers/boucherController')
@@ -255,6 +256,7 @@ app.use('/api', mozosRoutes);
 app.use('/api', propinaRoutes);
 app.use('/api', metasMozosRoutes);
 app.use('/api', platoRoutes);
+app.use('/api', categoriaPlatoRoutes);
 app.use('/api', comandaRoutes);
 app.use('/api', pedidoRoutes);
 app.use('/api', areaRoutes);
@@ -314,6 +316,7 @@ app.use('/sounds/alertas', express.static(path.join(__dirname, 'public', 'sounds
 
 // Mensajería: servir audios de notas de voz subidos
 app.use('/uploads/mensajes', express.static(path.join(__dirname, 'uploads', 'mensajes')));
+app.use('/uploads/categorias', express.static(path.join(__dirname, 'uploads', 'categorias')));
 
 // Ruta raíz: mostrar el dashboard multi-página (mismo que index.html)
 app.get('/', (req, res) => {

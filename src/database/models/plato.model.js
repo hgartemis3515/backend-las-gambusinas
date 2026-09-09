@@ -6,7 +6,7 @@ const AutoIncrement = require('mongoose-sequence')(mongoose);
 // Se sigue exportando para no romper imports existentes (plato.repository, etc.).
 const TIPOS_MENU = ['platos-desayuno', 'plato-carta normal'];
 
-const { validarCodigoPlato } = require('../../utils/validarCodigoPlato');
+const { validarCodigoPlato, validarCodigoMozo } = require('../../utils/validarCodigoPlato');
 const { normalizarOpcionDocumento } = require('../../utils/opcionComplemento');
 
 // Longitud máxima del alias corto para cocina. Se exporta para que el admin
@@ -15,8 +15,7 @@ const MAX_LENGTH_NOMBRE_COCINA = 40;
 
 const platoSchema = new mongoose.Schema({
     id: { type: Number, unique: true },
-    // Código de serie corto para el buscador (KDS y mozos).
-    // 1 a 4 letras y/o dígitos (ej. 1, A, L1, M23). Único.
+    // Código de cocina (KDS). 1 a 4 letras y/o dígitos. Único.
     codigo: {
         type: String,
         required: true,
@@ -27,17 +26,32 @@ const platoSchema = new mongoose.Schema({
                 const r = validarCodigoPlato(v);
                 return r.valido;
             },
-            message: 'El código debe tener 1 a 4 letras o números (ej. 1, A, L1, M23)'
+            message: 'El código de cocina debe tener 1 a 4 letras o números (ej. 1, A, L1, M23)'
+        }
+    },
+    // Código de mozo (buscador app mozos). Mismo formato; puede repetirse. Vacío = usar codigo de cocina.
+    codigoMozo: {
+        type: String,
+        required: false,
+        default: '',
+        trim: true,
+        uppercase: true,
+        validate: {
+            validator: function (v) {
+                if (v == null || v === '') return true;
+                return validarCodigoMozo(v).valido;
+            },
+            message: 'El código de mozo debe tener 1 a 4 letras o números (ej. 1, A, L1, M23)'
         }
     },
     nombre: { type: String, required: true },
-    nombreLower: { type: String, required: false, unique: true },
+    nombreLower: { type: String, required: false, index: true },
     // Nombres extra en el buscador de mozos: mismo plato, otra etiqueta (ej. "Leña Papa").
     nombresSincronizados: {
         type: [String],
         default: [],
     },
-    // Variante con otras guarniciones: mismo precio que el plato principal.
+    // Variante del mismo plato: mismos datos; solo cambian las marcas de guarnición.
     platoPrincipal: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'platos',
@@ -193,8 +207,9 @@ const platoSchema = new mongoose.Schema({
     }]
 });
 
-// Índice único para el código de serie del plato (buscador KDS).
+// Índice único para el código de cocina (KDS). El de mozo no es único.
 platoSchema.index({ codigo: 1 }, { unique: true, name: 'idx_plato_codigo_unique' });
+platoSchema.index({ codigoMozo: 1 }, { name: 'idx_plato_codigo_mozo' });
 
 // ========== FASE A1: ÍNDICES OPTIMIZADOS ==========
 // Índices existentes para queries por tipo y categoría
@@ -301,6 +316,10 @@ platoSchema.pre('save', async function (next) {
             if (!this.categoria) {
                 return next(new Error('categoria no puede estar vacía'));
             }
+        }
+        {
+            const rMozo = validarCodigoMozo(this.codigoMozo);
+            this.codigoMozo = rMozo.valido ? rMozo.codigo : '';
         }
 
         // ===== v3.0: Normalizar opciones de complementos a formato objeto =====

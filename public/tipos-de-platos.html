@@ -98,7 +98,7 @@ tailwind.config = {
                     x-text="t.activo ? 'Activo' : 'Inactivo'"></span>
                   <span x-show="t.esSistema" class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-st-pedido/15 text-st-pedido">Sistema</span>
                   <span x-show="t.soloContadorEnCocina" class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-gold/15 text-gold">xN platos</span>
-                  <span x-show="t.contadorGuarnicionesCocina" class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-gold/15 text-gold">xN guarn.</span>
+                  <span x-show="t.horaRedirectActiva && t.horaRedirectInicio && t.horaRedirectFin" class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-gold/15 text-gold" x-text="(t.horaRedirectInicio || '') + '–' + (t.horaRedirectFin || '')"></span>
                 </td>
                 <td class="px-3 py-2.5 space-x-1 text-sm">
                   <span class="cursor-pointer hover:text-gold" @click="openEditModal(t)">✏️</span>
@@ -260,6 +260,24 @@ tailwind.config = {
           </div>
         </div>
       </div>
+      <div class="rounded-xl border border-[rgba(212,175,55,0.2)] bg-bg-sidebar/50 p-3 space-y-3">
+        <p class="text-xs font-semibold text-gold">Redirección automática (app mozos)</p>
+        <p class="text-[11px] text-txt-muted leading-snug">Si el mozo toca <b>Agregar plato</b> dentro de este rango (hora de Lima), salta el selector de tipo de menú y abre el buscador de esta carta. Ej. Desayuno 04:00–12:00. <b>Hasta</b> no incluye esa hora (a las 12:00 ya no entra). Si cruza medianoche (22:00–04:00) también vale.</p>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" x-model="form.horaRedirectActiva" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+          <span class="text-sm text-txt-secondary">Activar redirección por horario</span>
+        </label>
+        <div class="grid grid-cols-2 gap-3" x-show="form.horaRedirectActiva">
+          <div>
+            <label class="text-xs text-txt-secondary mb-1 block">Desde</label>
+            <input type="time" x-model="form.horaRedirectInicio" class="w-full bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+          </div>
+          <div>
+            <label class="text-xs text-txt-secondary mb-1 block">Hasta (no incluye)</label>
+            <input type="time" x-model="form.horaRedirectFin" class="w-full bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+          </div>
+        </div>
+      </div>
     </div>
     <div class="bg-bg-sidebar p-5 rounded-b-2xl flex items-center justify-between border-t border-[rgba(212,175,55,0.15)]">
       <span class="text-[10px] text-txt-muted">ℹ️ <span x-text="isEditing ? 'PUT /api/tipos-plato/:id' : 'POST /api/tipos-plato'"></span></span>
@@ -327,6 +345,9 @@ function tiposPlatoApp() {
       particionHorizontalCocina: false,
       particionHorizontalGuarnicionesCocina: false,
       contadorGuarnicionesCocina: false,
+      horaRedirectActiva: false,
+      horaRedirectInicio: '04:00',
+      horaRedirectFin: '12:00',
       aliasStr: ''
     },
 
@@ -368,7 +389,8 @@ function tiposPlatoApp() {
         _id: null, nombre: '', nombreCorto: '', slug: '',
         icono: '🍽️', color: '#d4af37', orden: nextOrden,
         activo: true, esSistema: false,
-        soloContadorEnCocina: false, particionHorizontalCocina: false, particionHorizontalGuarnicionesCocina: false, contadorGuarnicionesCocina: false, aliasStr: ''
+        soloContadorEnCocina: false, particionHorizontalCocina: false, particionHorizontalGuarnicionesCocina: false, contadorGuarnicionesCocina: false,
+        horaRedirectActiva: false, horaRedirectInicio: '04:00', horaRedirectFin: '12:00', aliasStr: ''
       };
       this.modal = true;
     },
@@ -389,6 +411,9 @@ function tiposPlatoApp() {
         particionHorizontalCocina: !!t.particionHorizontalCocina,
         particionHorizontalGuarnicionesCocina: !!t.particionHorizontalGuarnicionesCocina,
         contadorGuarnicionesCocina: !!t.contadorGuarnicionesCocina,
+        horaRedirectActiva: !!t.horaRedirectActiva,
+        horaRedirectInicio: t.horaRedirectInicio || '04:00',
+        horaRedirectFin: t.horaRedirectFin || '12:00',
         aliasStr: (t.alias || []).join(', ')
       };
       this.modal = true;
@@ -411,6 +436,9 @@ function tiposPlatoApp() {
         particionHorizontalCocina: !!this.form.particionHorizontalCocina,
         particionHorizontalGuarnicionesCocina: !!this.form.particionHorizontalGuarnicionesCocina,
         contadorGuarnicionesCocina: !!this.form.contadorGuarnicionesCocina,
+        horaRedirectActiva: !!this.form.horaRedirectActiva,
+        horaRedirectInicio: this.form.horaRedirectInicio || '',
+        horaRedirectFin: this.form.horaRedirectFin || '',
         alias
       };
 

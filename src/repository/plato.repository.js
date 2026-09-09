@@ -39,16 +39,198 @@ function sanitizarNombresSincronizados(arr, nombrePrincipal) {
     return out;
 }
 
-async function sincronizarPrecioGrupo(doc) {
-    if (!doc || !doc._id || doc.precio == null) return;
+const CAMPOS_GRUPO_PRINCIPAL = [
+    'nombre',
+    'nombreCocina',
+    'precio',
+    'stock',
+    'categoria',
+    'tipos',
+    'tipo',
+    'descripcion',
+    'complementosAfectanPrecio',
+    'mostrarTotalComplementosImpresion',
+    'complementosUnidosAlPlato',
+    'ocultarCronometroCocina',
+    'juntarGuarnicionesEntreVariantes',
+    'requiereNumeroSerie',
+    'kdsEstiloCompacto',
+    'platoEditable',
+    'codigoMozo',
+    'resumenComplementosImpresion',
+];
+
+function filtroGrupoPrincipal(doc) {
     const principalId = doc.platoPrincipal || doc._id;
-    await plato.updateMany(
-        {
-            _id: { $ne: doc._id },
-            $or: [{ _id: principalId }, { platoPrincipal: principalId }],
-        },
-        { $set: { precio: doc.precio } }
+    return {
+        _id: { $ne: doc._id },
+        $or: [{ _id: principalId }, { platoPrincipal: principalId }],
+    };
+}
+
+async function sincronizarPrecioGrupo(doc) {
+    if (!doc || !doc._id) return;
+    const $set = {};
+    CAMPOS_GRUPO_PRINCIPAL.forEach((k) => {
+        if (doc[k] !== undefined) $set[k] = doc[k];
+    });
+    if (!Object.keys($set).length) return;
+    await plato.updateMany(filtroGrupoPrincipal(doc), { $set });
+}
+
+function cloneComplementosSinIds(complementos) {
+    const raw = JSON.parse(JSON.stringify(complementos || []));
+    return raw.map((g) => {
+        if (!g || typeof g !== 'object') return g;
+        const { _id, ...rest } = g;
+        rest.opciones = (Array.isArray(rest.opciones) ? rest.opciones : []).map((o) => {
+            if (!o || typeof o !== 'object') return o;
+            const { _id: oid, ...op } = o;
+            return op;
+        });
+        return rest;
+    });
+}
+
+async function codigosCocinaUsados() {
+    const { REGEX_CODIGO_PLATO } = require('../utils/validarCodigoPlato');
+    const docs = await plato.find({}).select('codigo').lean();
+    const usados = new Set();
+    docs.forEach((d) => {
+        const c = d.codigo != null ? String(d.codigo).trim().toUpperCase() : '';
+        if (c && REGEX_CODIGO_PLATO.test(c)) usados.add(c);
+    });
+    return usados;
+}
+
+function generarCodigoCocinaLibre(usados) {
+    const { validarCodigoPlato } = require('../utils/validarCodigoPlato');
+    const LETRAS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const tryCand = (cand) => {
+        const r = validarCodigoPlato(cand);
+        if (!r.valido || usados.has(r.codigo)) return null;
+        usados.add(r.codigo);
+        return r.codigo;
+    };
+    for (let i = 0; i < 800; i++) {
+        const letra = LETRAS[Math.floor(Math.random() * LETRAS.length)];
+        const num = i < 400
+            ? Math.floor(Math.random() * 900) + 100
+            : Math.floor(Math.random() * 90) + 10;
+        const got = tryCand(letra + num);
+        if (got) return got;
+    }
+    return null;
+}
+
+async function clonarPlatosDesdePrincipal(id, opts = {}) {
+    const mongoose = require('mongoose');
+    const { validarCodigoPlato, validarCodigoMozo } = require('../utils/validarCodigoPlato');
+    const cantidad = Math.max(1, Math.min(99, Number(opts.cantidad) || 1));
+    const filter = mongoose.Types.ObjectId.isValid(id) && String(id).length === 24
+        ? { _id: id }
+        : { id: Number(id) };
+    const origen = await plato.findOne(filter);
+    if (!origen) {
+        const err = new Error('Plato no encontrado');
+        err.statusCode = 404;
+        throw err;
+    }
+    const principalId = origen.platoPrincipal || origen._id;
+    const nombre = String(opts.nombre != null ? opts.nombre : origen.nombre).trim() || origen.nombre;
+    const rMozo = validarCodigoMozo(
+        opts.codigoMozo != null && String(opts.codigoMozo).trim() !== ''
+            ? opts.codigoMozo
+            : origen.codigoMozo
     );
+    const codigoMozo = rMozo.valido ? rMozo.codigo : (origen.codigoMozo || '');
+    const usados = await codigosCocinaUsados();
+    const codigos = [];
+    const codigoPedido = String(opts.codigo || '').trim().toUpperCase();
+    if (cantidad === 1 && codigoPedido) {
+        const r = validarCodigoPlato(codigoPedido);
+        if (!r.valido) {
+            const err = new Error(r.error || 'Código de cocina inválido');
+            err.statusCode = 400;
+            throw err;
+        }
+        if (usados.has(r.codigo)) {
+            const err = new Error(`El código de cocina "${r.codigo}" ya está en uso`);
+            err.statusCode = 409;
+            throw err;
+        }
+        usados.add(r.codigo);
+        codigos.push(r.codigo);
+    } else {
+        for (let i = 0; i < cantidad; i++) {
+            const c = generarCodigoCocinaLibre(usados);
+            if (!c) {
+                const err = new Error('No se pudieron generar códigos de cocina únicos');
+                err.statusCode = 500;
+                throw err;
+            }
+            codigos.push(c);
+        }
+    }
+
+    const lean = origen.toObject();
+    const tipos = Array.isArray(lean.tipos) && lean.tipos.length ? lean.tipos : [lean.tipo].filter(Boolean);
+    const creados = [];
+    for (const codigo of codigos) {
+        const payload = {
+            nombre,
+            nombreCocina: lean.nombreCocina || '',
+            codigo,
+            codigoMozo,
+            precio: lean.precio,
+            stock: lean.stock,
+            categoria: lean.categoria || 'General',
+            descripcion: lean.descripcion || '',
+            tipos,
+            tipo: tipos[0],
+            complementos: cloneComplementosSinIds(lean.complementos),
+            complementosAfectanPrecio: lean.complementosAfectanPrecio !== false,
+            mostrarTotalComplementosImpresion: !!lean.mostrarTotalComplementosImpresion,
+            complementosUnidosAlPlato: !!lean.complementosUnidosAlPlato,
+            ocultarCronometroCocina: !!lean.ocultarCronometroCocina,
+            juntarGuarnicionesEntreVariantes: !!lean.juntarGuarnicionesEntreVariantes,
+            requiereNumeroSerie: !!lean.requiereNumeroSerie,
+            kdsEstiloCompacto: !!lean.kdsEstiloCompacto,
+            platoEditable: !!lean.platoEditable,
+            nombresSincronizados: [],
+            platoPrincipal: principalId,
+            resumenComplementosImpresion: lean.resumenComplementosImpresion || {
+                mostrarCantidad: true,
+                mostrarMontoExtra: true,
+            },
+        };
+        const docs = await crearPlato(payload);
+        const creado = Array.isArray(docs)
+            ? docs.find((p) => String(p.codigo || '').toUpperCase() === codigo)
+            : null;
+        if (creado) creados.push(creado);
+    }
+    logger.info('Platos clonados desde principal', {
+        principalId: String(principalId),
+        cantidad: creados.length,
+        nombre,
+    });
+    return { creados, total: creados.length, todosLosPlatos: await listarPlatos() };
+}
+
+async function asegurarIndiceNombreLowerNoUnique() {
+    try {
+        const idxs = await plato.collection.indexes();
+        for (const idx of idxs) {
+            const keys = Object.keys(idx.key || {});
+            if (keys.length === 1 && idx.key.nombreLower === 1 && idx.unique) {
+                await plato.collection.dropIndex(idx.name);
+                logger.info('Índice único nombreLower eliminado (mismo nombre en variantes de guarnición)');
+            }
+        }
+    } catch (e) {
+        logger.warn('No se pudo ajustar índice nombreLower', { error: e.message });
+    }
 }
 
 /** Reemplaza el array de complementos sin _id anidados (mongoose no mergea opciones nuevas). */
@@ -532,7 +714,26 @@ const asegurarCodigosPlato = async () => {
         logger.info('Códigos de plato auto-asignados al arranque', { asignados, revisados: docs.length });
     }
 
-    return { asignados, revisados: docs.length };
+    let copiadosMozo = 0;
+    const todos = await plato.find({});
+    for (const d of todos) {
+        const cm = d.codigoMozo != null ? String(d.codigoMozo).trim() : '';
+        const ck = d.codigo != null ? String(d.codigo).trim().toUpperCase() : '';
+        if (!cm && ck) {
+            d.codigoMozo = ck;
+            try {
+                await d.save();
+                copiadosMozo += 1;
+            } catch (err) {
+                logger.warn('No se pudo copiar código de cocina a código de mozo', { id: d.id, error: err.message });
+            }
+        }
+    }
+    if (copiadosMozo > 0) {
+        logger.info('Códigos de mozo inicializados desde código de cocina', { copiadosMozo });
+    }
+
+    return { asignados, revisados: docs.length, copiadosMozo };
 };
 
 const crearPlato = async (data) => {
@@ -561,12 +762,17 @@ const crearPlato = async (data) => {
         if (!payload.platoPrincipal || payload.platoPrincipal === '' || payload.platoPrincipal === 'null') {
             payload.platoPrincipal = null;
         }
+        if (Object.prototype.hasOwnProperty.call(payload, 'codigoMozo')) {
+            const { validarCodigoMozo } = require('../utils/validarCodigoPlato');
+            const rMozo = validarCodigoMozo(payload.codigoMozo);
+            payload.codigoMozo = rMozo.valido ? rMozo.codigo : '';
+        }
         nuevo = await plato.create(payload);
     } catch (err) {
         if (err && err.code === 11000) {
             const dup = err.keyValue && err.keyValue.codigo
-                ? `El código "${err.keyValue.codigo}" ya está en uso por otro plato`
-                : 'Ya existe un plato con ese código o nombre';
+                ? `El código de cocina "${err.keyValue.codigo}" ya está en uso por otro plato`
+                : 'Ya existe un plato con ese código de cocina';
             const e = new Error(dup);
             e.statusCode = 409;
             throw e;
@@ -574,6 +780,12 @@ const crearPlato = async (data) => {
         throw err;
     }
     (nuevo.tipos && nuevo.tipos.length ? nuevo.tipos : [nuevo.tipo]).forEach(t => invalidatePlatoMenuCache(t));
+    try {
+        const { asegurarCategoria } = require('./categoriaPlato.repository');
+        await asegurarCategoria(nuevo.categoria);
+    } catch (e) {
+        logger.warn('No se pudo sincronizar categoría al crear plato', { error: e.message });
+    }
     if (global.emitPlatoMenuActualizado) await global.emitPlatoMenuActualizado(nuevo).catch(() => {});
     const todosLosPlatos = await listarPlatos();
     await syncJsonFile('platos.json', todosLosPlatos);
@@ -647,6 +859,11 @@ const actualizarPlato = async (id, newData) => {
             clean.nombre || anterior.nombre
         );
     }
+    if (Object.prototype.hasOwnProperty.call(clean, 'codigoMozo')) {
+        const { validarCodigoMozo } = require('../utils/validarCodigoPlato');
+        const rMozo = validarCodigoMozo(clean.codigoMozo);
+        clean.codigoMozo = rMozo.valido ? rMozo.codigo : '';
+    }
     if (Object.prototype.hasOwnProperty.call(clean, 'platoPrincipal')) {
         const v = clean.platoPrincipal;
         if (!v || v === '' || v === 'null') clean.platoPrincipal = null;
@@ -691,8 +908,8 @@ const actualizarPlato = async (id, newData) => {
     } catch (err) {
         if (err && err.code === 11000) {
             const dup = err.keyValue && err.keyValue.codigo
-                ? `El código "${err.keyValue.codigo}" ya está en uso por otro plato`
-                : 'Ya existe un plato con ese código o nombre';
+                ? `El código de cocina "${err.keyValue.codigo}" ya está en uso por otro plato`
+                : 'Ya existe un plato con ese código de cocina';
             const e = new Error(dup);
             e.statusCode = 409;
             throw e;
@@ -712,6 +929,14 @@ const actualizarPlato = async (id, newData) => {
     }
     
     const actualizado = await plato.findOne(filter);
+    if (actualizado) {
+        try {
+            const { asegurarCategoria } = require('./categoriaPlato.repository');
+            await asegurarCategoria(actualizado.categoria);
+        } catch (e) {
+            logger.warn('No se pudo sincronizar categoría al actualizar plato', { error: e.message });
+        }
+    }
     if (actualizado && global.emitPlatoMenuActualizado) await global.emitPlatoMenuActualizado(actualizado).catch(() => {});
     const todosLosPlatos = await listarPlatos();
     await syncJsonFile('platos.json', todosLosPlatos);
@@ -896,5 +1121,7 @@ module.exports = {
     actualizarTipoPlato,
     invalidatePlatoMenuCache,
     asegurarCodigosPlato,
+    asegurarIndiceNombreLowerNoUnique,
+    clonarPlatosDesdePrincipal,
     TIPOS_MENU
 };

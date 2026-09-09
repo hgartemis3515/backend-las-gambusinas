@@ -73,6 +73,23 @@ const tipoPlatoSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    /** Mozos: si está activo y hay rango, Agregar plato abre directo esa carta en ese horario (America/Lima). */
+    horaRedirectActiva: {
+        type: Boolean,
+        default: false
+    },
+    horaRedirectInicio: {
+        type: String,
+        default: '',
+        trim: true,
+        maxlength: 5
+    },
+    horaRedirectFin: {
+        type: String,
+        default: '',
+        trim: true,
+        maxlength: 5
+    },
     alias: [{
         type: String,
         trim: true,
@@ -121,7 +138,7 @@ tipoPlatoSchema.statics.getMenuLigero = async function (soloActivos = true) {
     const filter = soloActivos ? { activo: true } : {};
     return this.find(filter)
         .sort({ orden: 1, nombre: 1 })
-        .select('slug nombre nombreCorto icono color orden activo soloContadorEnCocina particionHorizontalCocina particionHorizontalGuarnicionesCocina contadorGuarnicionesCocina -_id')
+        .select('slug nombre nombreCorto icono color orden activo soloContadorEnCocina particionHorizontalCocina particionHorizontalGuarnicionesCocina contadorGuarnicionesCocina horaRedirectActiva horaRedirectInicio horaRedirectFin -_id')
         .lean();
 };
 

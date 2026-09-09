@@ -12,10 +12,12 @@ const {
     getMenuPorTipo,
     getCategorias,
     getMenuPorTipoYCategoria,
-    actualizarTipoPlato
+    actualizarTipoPlato,
+    clonarPlatosDesdePrincipal
 } = require("../repository/plato.repository");
 const logger = require("../utils/logger");
 const { handleError } = require("../utils/errorHandler");
+const { listarCategoriasLigero } = require("../repository/categoriaPlato.repository");
 
 router.get("/platos", async (req, res) => {
     try {
@@ -34,6 +36,10 @@ router.get("/platos", async (req, res) => {
 // Rutas específicas antes de /platos/:id para evitar que "menu" o "categorias" se interpreten como id
 router.get("/platos/categorias", async (req, res) => {
     try {
+        if (req.query.ligero === '1' || req.query.ligero === 'true') {
+            const data = await listarCategoriasLigero();
+            return res.json(data);
+        }
         const data = await getCategorias();
         res.json(data);
     } catch (error) {
@@ -75,6 +81,16 @@ router.get("/platos/categoria/:categoria", async (req, res) => {
         res.json({ platos, total: platos.length, categorias: [categoria], filtrosAplicados: { categoria } });
     } catch (error) {
         logger.error('Error al buscar platos por categoría', { categoria: req.params.categoria, error: error.message });
+        handleError(error, res, logger);
+    }
+});
+
+router.post('/platos/:id/clonar-principal', async (req, res) => {
+    try {
+        const data = await clonarPlatosDesdePrincipal(req.params.id, req.body || {});
+        res.json(data);
+    } catch (error) {
+        logger.error('Error al clonar plato desde principal', { id: req.params.id, error: error.message });
         handleError(error, res, logger);
     }
 });

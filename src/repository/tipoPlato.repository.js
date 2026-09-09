@@ -17,6 +17,22 @@ function slugify(text) {
         .replace(/^-|-$/g, '');
 }
 
+function parseHoraRedirect(raw) {
+    const m = String(raw || '').trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    if (!m) return '';
+    const h = Number(m[1]);
+    const min = Number(m[2]);
+    if (!Number.isFinite(h) || !Number.isFinite(min) || h > 23 || min > 59) return '';
+    return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+}
+
+function camposHoraRedirect(data) {
+    const inicio = parseHoraRedirect(data.horaRedirectInicio);
+    const fin = parseHoraRedirect(data.horaRedirectFin);
+    const activa = data.horaRedirectActiva === true && !!inicio && !!fin;
+    return { horaRedirectActiva: activa, horaRedirectInicio: inicio, horaRedirectFin: fin };
+}
+
 /**
  * Filtro Mongo para encontrar platos que pertenezcan a un tipo dado,
  * considerando tanto el campo legacy `tipo` (string) como el array `tipos`.
@@ -121,7 +137,8 @@ const crearTipoPlato = async (data) => {
         contadorGuarnicionesCocina: data.contadorGuarnicionesCocina === true,
         alias,
         creadoPor: data.creadoPor || 'admin',
-        actualizadoPor: data.actualizadoPor || 'admin'
+        actualizadoPor: data.actualizadoPor || 'admin',
+        ...camposHoraRedirect(data),
     });
 
     await invalidatePlatoMenuCache();
@@ -165,6 +182,24 @@ const actualizarTipoPlato = async (id, newData) => {
     }
     if (newData.contadorGuarnicionesCocina != null) {
         tipo.contadorGuarnicionesCocina = Boolean(newData.contadorGuarnicionesCocina);
+    }
+    if (newData.horaRedirectActiva != null
+        || newData.horaRedirectInicio != null
+        || newData.horaRedirectFin != null) {
+        const horas = camposHoraRedirect({
+            horaRedirectActiva: newData.horaRedirectActiva != null
+                ? newData.horaRedirectActiva
+                : tipo.horaRedirectActiva,
+            horaRedirectInicio: newData.horaRedirectInicio != null
+                ? newData.horaRedirectInicio
+                : tipo.horaRedirectInicio,
+            horaRedirectFin: newData.horaRedirectFin != null
+                ? newData.horaRedirectFin
+                : tipo.horaRedirectFin,
+        });
+        tipo.horaRedirectActiva = horas.horaRedirectActiva;
+        tipo.horaRedirectInicio = horas.horaRedirectInicio;
+        tipo.horaRedirectFin = horas.horaRedirectFin;
     }
     tipo.actualizadoPor = newData.actualizadoPor || 'admin';
 
