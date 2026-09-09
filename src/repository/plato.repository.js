@@ -20,6 +20,10 @@ function numeroOpcional(v) {
     return Number.isFinite(n) ? n : null;
 }
 
+function flagTrue(v) {
+    return v === true || v === 'true' || v === 1 || v === '1';
+}
+
 /** Reemplaza el array de complementos sin _id anidados (mongoose no mergea opciones nuevas). */
 function sanitizarComplementosParaGuardar(complementos) {
     if (!Array.isArray(complementos)) return [];
@@ -38,11 +42,11 @@ function sanitizarComplementosParaGuardar(complementos) {
             ops.push(n);
         }
         const seleccionMultiple = !!g.seleccionMultiple;
-        const esVariantePlato = g.esVariantePlato === true;
-        const anexarVarianteAlNombre = !esVariantePlato && (g.anexarVarianteAlNombre === true || g.anexarVarianteAlNombre === 'true');
-        const deshabilitarSumaVariante = esVariantePlato && (g.deshabilitarSumaVariante === true || g.deshabilitarSumaVariante === 'true');
-        const forzarVisibleTablaKds = !esVariantePlato && !anexarVarianteAlNombre && (g.forzarVisibleTablaKds === true || g.forzarVisibleTablaKds === 'true');
-        const seleccionFija = !esVariantePlato && !anexarVarianteAlNombre && (g.seleccionFija === true || g.seleccionFija === 'true');
+        const esVariantePlato = flagTrue(g.esVariantePlato);
+        const anexarVarianteAlNombre = !esVariantePlato && flagTrue(g.anexarVarianteAlNombre);
+        const deshabilitarSumaVariante = esVariantePlato && flagTrue(g.deshabilitarSumaVariante);
+        const forzarVisibleTablaKds = !esVariantePlato && !anexarVarianteAlNombre && flagTrue(g.forzarVisibleTablaKds);
+        const seleccionFija = !esVariantePlato && !anexarVarianteAlNombre && flagTrue(g.seleccionFija);
         const modo = g.modoSeleccion === 'cantidades' || seleccionFija || seleccionMultiple
             ? 'cantidades'
             : (g.modoSeleccion === 'opciones' ? 'opciones' : (seleccionMultiple ? 'cantidades' : 'opciones'));
@@ -66,19 +70,35 @@ function sanitizarComplementosParaGuardar(complementos) {
             opciones: ops
         };
     }).filter(Boolean);
-    let vistoNombre = false;
-    for (const g of out) {
-        if (!g.esVariantePlato && !g.anexarVarianteAlNombre) continue;
-        if (vistoNombre) {
-            g.esVariantePlato = false;
-            g.anexarVarianteAlNombre = false;
-            g.deshabilitarSumaVariante = false;
-            continue;
-        }
-        vistoNombre = true;
-        if (g.esVariantePlato) g.anexarVarianteAlNombre = false;
+    // Un solo grupo define el nombre (MIX o variación). Si el usuario acaba de
+    // crear uno nuevo al final, ese es el que debe quedar (no el MIX viejo).
+    let keepIdx = -1;
+    for (let i = 0; i < out.length; i++) {
+        if (out[i].esVariantePlato || out[i].anexarVarianteAlNombre) keepIdx = i;
     }
+    out.forEach((g, i) => {
+        if (i === keepIdx) {
+            if (g.esVariantePlato) g.anexarVarianteAlNombre = false;
+            return;
+        }
+        if (!g.esVariantePlato && !g.anexarVarianteAlNombre) return;
+        g.esVariantePlato = false;
+        g.anexarVarianteAlNombre = false;
+        g.deshabilitarSumaVariante = false;
+    });
     return out;
+}
+
+function reemplazarComplementosEnDoc(doc, grupos) {
+    if (!doc) return;
+    const arr = Array.isArray(grupos) ? grupos : [];
+    if (Array.isArray(doc.complementos) && typeof doc.complementos.splice === 'function') {
+        doc.complementos.splice(0, doc.complementos.length);
+        arr.forEach((g) => doc.complementos.push(g));
+    } else {
+        doc.set('complementos', arr);
+    }
+    doc.markModified('complementos');
 }
 
 /**
@@ -585,9 +605,10 @@ const actualizarPlato = async (id, newData) => {
         clean.platoEditable = newData.platoEditable === true
             || newData.platoEditable === 'true';
     }
-    if (Object.prototype.hasOwnProperty.call(clean, 'complementos')) {
-        clean.complementos = sanitizarComplementosParaGuardar(clean.complementos);
-    }
+    const gruposSanitizados = Object.prototype.hasOwnProperty.call(clean, 'complementos')
+        ? sanitizarComplementosParaGuardar(clean.complementos)
+        : null;
+    if (gruposSanitizados) delete clean.complementos;
 
     try {
         const doc = await plato.findOne(filter);
@@ -615,9 +636,8 @@ const actualizarPlato = async (id, newData) => {
         if (typeof clean.platoEditable !== 'undefined') {
             doc.set('platoEditable', !!clean.platoEditable);
         }
-        if (Object.prototype.hasOwnProperty.call(clean, 'complementos')) {
-            doc.set('complementos', clean.complementos);
-            doc.markModified('complementos');
+        if (gruposSanitizados) {
+            reemplazarComplementosEnDoc(doc, gruposSanitizados);
         }
         await doc.save();
     } catch (err) {

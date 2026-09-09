@@ -120,14 +120,26 @@ describe('anexarVarianteAlNombre', () => {
     expect(out[0].seleccionFija).toBe(false);
   });
 
-  test('sanitizar deja un solo grupo definidor de nombre', () => {
+  test('sanitizar deja un solo grupo definidor de nombre (el último)', () => {
     const out = sanitizarComplementosParaGuardar([
-      { grupo: 'Corte', anexarVarianteAlNombre: true, opciones: [{ nombre: 'Pierna' }] },
       { grupo: 'MIX', esVariantePlato: true, opciones: [{ nombre: 'TÉ' }] },
+      { grupo: 'Corte', anexarVarianteAlNombre: true, opciones: [{ nombre: 'Pierna' }] },
     ]);
-    expect(out[0].anexarVarianteAlNombre).toBe(true);
+    expect(out[0].esVariantePlato).toBe(false);
+    expect(out[0].anexarVarianteAlNombre).toBe(false);
+    expect(out[1].anexarVarianteAlNombre).toBe(true);
     expect(out[1].esVariantePlato).toBe(false);
-    expect(out[1].anexarVarianteAlNombre).toBe(false);
+  });
+
+  test('grupo nuevo con variación de nombre se conserva', () => {
+    const out = sanitizarComplementosParaGuardar([
+      { grupo: 'Guarnición', opciones: [{ nombre: 'Arroz' }] },
+      { grupo: 'Corte', anexarVarianteAlNombre: true, opciones: [{ nombre: 'Pierna' }, { nombre: 'Pechuga' }] },
+    ]);
+    expect(out).toHaveLength(2);
+    expect(out[1].anexarVarianteAlNombre).toBe(true);
+    expect(out[1].grupo).toBe('Corte');
+    expect(out[1].opciones.map((o) => o.nombre)).toEqual(['Pierna', 'Pechuga']);
   });
 });
 
