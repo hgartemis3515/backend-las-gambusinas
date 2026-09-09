@@ -24,6 +24,33 @@ function flagTrue(v) {
     return v === true || v === 'true' || v === 1 || v === '1';
 }
 
+function sanitizarNombresSincronizados(arr, nombrePrincipal) {
+    const prin = String(nombrePrincipal || '').trim().toLowerCase();
+    const seen = new Set();
+    const out = [];
+    (Array.isArray(arr) ? arr : []).forEach((s) => {
+        const n = String(s || '').trim().slice(0, 80);
+        if (!n) return;
+        const k = n.toLowerCase();
+        if (k === prin || seen.has(k)) return;
+        seen.add(k);
+        out.push(n);
+    });
+    return out;
+}
+
+async function sincronizarPrecioGrupo(doc) {
+    if (!doc || !doc._id || doc.precio == null) return;
+    const principalId = doc.platoPrincipal || doc._id;
+    await plato.updateMany(
+        {
+            _id: { $ne: doc._id },
+            $or: [{ _id: principalId }, { platoPrincipal: principalId }],
+        },
+        { $set: { precio: doc.precio } }
+    );
+}
+
 /** Reemplaza el array de complementos sin _id anidados (mongoose no mergea opciones nuevas). */
 function sanitizarComplementosParaGuardar(complementos) {
     if (!Array.isArray(complementos)) return [];
@@ -525,6 +552,15 @@ const crearPlato = async (data) => {
             || payload.kdsEstiloCompacto === 'true';
         payload.platoEditable = payload.platoEditable === true
             || payload.platoEditable === 'true';
+        if (Object.prototype.hasOwnProperty.call(payload, 'nombresSincronizados')) {
+            payload.nombresSincronizados = sanitizarNombresSincronizados(
+                payload.nombresSincronizados,
+                payload.nombre
+            );
+        }
+        if (!payload.platoPrincipal || payload.platoPrincipal === '' || payload.platoPrincipal === 'null') {
+            payload.platoPrincipal = null;
+        }
         nuevo = await plato.create(payload);
     } catch (err) {
         if (err && err.code === 11000) {
@@ -605,6 +641,17 @@ const actualizarPlato = async (id, newData) => {
         clean.platoEditable = newData.platoEditable === true
             || newData.platoEditable === 'true';
     }
+    if (Object.prototype.hasOwnProperty.call(clean, 'nombresSincronizados')) {
+        clean.nombresSincronizados = sanitizarNombresSincronizados(
+            clean.nombresSincronizados,
+            clean.nombre || anterior.nombre
+        );
+    }
+    if (Object.prototype.hasOwnProperty.call(clean, 'platoPrincipal')) {
+        const v = clean.platoPrincipal;
+        if (!v || v === '' || v === 'null') clean.platoPrincipal = null;
+        else if (String(v) === String(anterior._id)) clean.platoPrincipal = null;
+    }
     const gruposSanitizados = Object.prototype.hasOwnProperty.call(clean, 'complementos')
         ? sanitizarComplementosParaGuardar(clean.complementos)
         : null;
@@ -640,6 +687,7 @@ const actualizarPlato = async (id, newData) => {
             reemplazarComplementosEnDoc(doc, gruposSanitizados);
         }
         await doc.save();
+        await sincronizarPrecioGrupo(doc);
     } catch (err) {
         if (err && err.code === 11000) {
             const dup = err.keyValue && err.keyValue.codigo

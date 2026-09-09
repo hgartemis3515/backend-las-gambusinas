@@ -103,6 +103,8 @@ tailwind.config = {
                   <p class="font-medium text-sm" x-text="p.nombre"></p>
                   <p class="text-[10px] text-txt-muted" x-text="(p.categoria || p.cat) + ' · ' + tiposLabel(p)"></p>
                   <p x-show="p.nombreCocina" class="text-[10px] text-gold/80 mt-0.5" x-text="'Cocina: ' + p.nombreCocina"></p>
+                  <p x-show="(p.nombresSincronizados || []).length" class="text-[10px] text-gold/70 mt-0.5" x-text="'También: ' + (p.nombresSincronizados || []).join(', ')"></p>
+                  <p x-show="p.platoPrincipal" class="text-[10px] text-txt-muted mt-0.5">Sincronizado (precio con principal)</p>
                 </td>
                 <td class="px-3 py-2.5 text-gold font-semibold" x-text="'S/. ' + (p.precio || '0.00')"></td>
                 <td class="px-3 py-2.5">
@@ -217,6 +219,50 @@ tailwind.config = {
               <span x-show="tiposPlato.filter(x => x.activo !== false).length === 0" class="text-[11px] text-txt-muted">No hay tipos configurados</span>
             </div>
             <p x-show="formPlato.tipos.length === 0" class="text-[10px] text-st-pagado mt-1">Selecciona al menos un tipo de menú</p>
+          </div>
+
+          <div class="mt-3 p-3 bg-bg-sidebar border border-[rgba(212,175,55,0.2)] rounded-xl space-y-3">
+            <p class="text-xs font-semibold text-gold">Sincronización (buscador mozos)</p>
+            <div>
+              <label class="text-xs text-txt-secondary mb-1 block">Sincronizado por nombre</label>
+              <p class="text-[10px] text-txt-muted mb-2">Otro nombre del mismo plato (ej. Leña Papa). Salen los dos en el buscador de Órdenes, pero es el mismo plato.</p>
+              <div class="flex flex-wrap gap-1.5 mb-2" x-show="(formPlato.nombresSincronizados || []).length">
+                <template x-for="(alias, ai) in (formPlato.nombresSincronizados || [])" :key="'ns-'+ai+alias">
+                  <span class="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-gold/15 text-gold">
+                    <span x-text="alias"></span>
+                    <button type="button" class="text-txt-muted hover:text-st-pagado" @click="quitarNombreSincronizado(ai)">✕</button>
+                  </span>
+                </template>
+              </div>
+              <div class="flex gap-2">
+                <input type="text" x-model="nuevoNombreSync" placeholder="Ej: Leña Papa" maxlength="80"
+                  class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+                <button type="button" @click="agregarNombreSincronizado()" class="px-3 py-2 bg-gold/20 text-gold rounded-lg text-xs font-semibold hover:bg-gold/30">Agregar nombre</button>
+              </div>
+            </div>
+            <div class="border-t border-[rgba(212,175,55,0.12)] pt-3">
+              <label class="text-xs text-txt-secondary mb-1 block">Sincronizado por plato principal</label>
+              <p class="text-[10px] text-txt-muted mb-2">Crea otro plato con distintas guarniciones. El precio se copia a todos los del grupo. Cada uno sale en el buscador de mozos.</p>
+              <p x-show="formPlato.platoPrincipal" class="text-[10px] text-gold mb-1">Este plato está vinculado a un principal (precio compartido).</p>
+              <div class="flex flex-wrap gap-1 mb-2" x-show="platosGrupoSincronizado.length > 1">
+                <template x-for="sp in platosGrupoSincronizado" :key="sp._id">
+                  <button type="button" @click="openEditModal(sp)" class="text-[10px] px-2 py-0.5 rounded-full border border-[rgba(212,175,55,0.25)] hover:border-gold"
+                    :class="String(sp._id) === String(formPlato._id) ? 'bg-gold text-bg-primary border-gold' : 'text-txt-secondary'">
+                    <span x-text="sp.nombre"></span>
+                    <span class="opacity-70" x-text="' · ' + (sp.codigo || '')"></span>
+                  </button>
+                </template>
+              </div>
+              <div class="flex flex-col sm:flex-row gap-2" x-show="isEditing && formPlato._id">
+                <input type="text" x-model="nuevoNombreSyncPrincipal" placeholder="Nombre del nuevo plato" maxlength="80"
+                  class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+                <input type="text" x-model="nuevoCodigoSyncPrincipal" placeholder="Código" maxlength="4"
+                  @input="nuevoCodigoSyncPrincipal = (nuevoCodigoSyncPrincipal || '').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4)"
+                  class="w-24 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm font-mono focus:border-gold focus:outline-none">
+                <button type="button" @click="crearPlatoSincronizadoPrincipal()" class="px-3 py-2 bg-gold text-bg-primary rounded-lg text-xs font-semibold hover:brightness-110 whitespace-nowrap">Crear plato sincronizado</button>
+              </div>
+              <p x-show="!isEditing || !formPlato._id" class="text-[10px] text-txt-muted">Guardá el plato para poder crear variantes sincronizadas.</p>
+            </div>
           </div>
         </div>
       </div>
@@ -1111,10 +1157,15 @@ tailwind.config = {
       requiereNumeroSerie: false,
       kdsEstiloCompacto: false,
       platoEditable: false,
+      nombresSincronizados: [],
+      platoPrincipal: null,
       resumenComplementosImpresion: { mostrarCantidad: true, mostrarMontoExtra: true }
     },
     activeNav: 'platos',
     pageTitle: 'Platos',
+    nuevoNombreSync: '',
+    nuevoNombreSyncPrincipal: '',
+    nuevoCodigoSyncPrincipal: '',
     
     // ============ ESTADO PARA GESTIÓN DE COMPLEMENTOS ============
     modalGestionComplementos: false,
@@ -1229,7 +1280,8 @@ tailwind.config = {
 
     filterPlatos() {
       this.filteredPlatos = this.platos.filter(p => {
-        const matchSearch = !this.searchTerm || p.nombre?.toLowerCase().includes(this.searchTerm.toLowerCase());
+        const matchSearch = !this.searchTerm || p.nombre?.toLowerCase().includes(this.searchTerm.toLowerCase())
+          || (p.nombresSincronizados || []).some(n => String(n).toLowerCase().includes(this.searchTerm.toLowerCase()));
         const codigoBuscado = (this.searchCodigo || '').trim().toUpperCase();
         const matchCodigo = !codigoBuscado || (p.codigo || '').toUpperCase().includes(codigoBuscado);
         const matchCat = !this.filterCategoria || p.categoria === this.filterCategoria || p.cat === this.filterCategoria;
@@ -1302,6 +1354,128 @@ tailwind.config = {
       this.formPlato.tipo = this.formPlato.tipos[0] || 'plato-carta normal';
     },
 
+    get platosGrupoSincronizado() {
+      const id = this.formPlato && this.formPlato._id;
+      if (!id) return [];
+      const prin = this.formPlato.platoPrincipal || id;
+      const pid = String(prin);
+      return (this.platos || []).filter((p) => String(p._id) === pid || String(p.platoPrincipal || '') === pid);
+    },
+
+    agregarNombreSincronizado() {
+      const n = String(this.nuevoNombreSync || '').trim().slice(0, 80);
+      if (!n) {
+        this.showToast('Escribe el segundo nombre', 'error');
+        return;
+      }
+      if (!Array.isArray(this.formPlato.nombresSincronizados)) this.formPlato.nombresSincronizados = [];
+      const prin = String(this.formPlato.nombre || '').trim().toLowerCase();
+      if (n.toLowerCase() === prin) {
+        this.showToast('Ese nombre ya es el del plato', 'error');
+        return;
+      }
+      if (this.formPlato.nombresSincronizados.some((x) => String(x).toLowerCase() === n.toLowerCase())) {
+        this.showToast('Ese nombre ya está agregado', 'error');
+        return;
+      }
+      this.formPlato.nombresSincronizados.push(n);
+      this.nuevoNombreSync = '';
+    },
+
+    quitarNombreSincronizado(i) {
+      if (!Array.isArray(this.formPlato.nombresSincronizados)) return;
+      this.formPlato.nombresSincronizados.splice(i, 1);
+    },
+
+    async crearPlatoSincronizadoPrincipal() {
+      if (!this.formPlato._id) {
+        this.showToast('Guarda el plato primero', 'error');
+        return;
+      }
+      const nombre = String(this.nuevoNombreSyncPrincipal || '').trim();
+      const codigo = String(this.nuevoCodigoSyncPrincipal || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
+      if (!nombre) {
+        this.showToast('Escribe el nombre del plato sincronizado', 'error');
+        return;
+      }
+      if (!codigo || !/^[A-Z0-9]{1,4}$/.test(codigo)) {
+        this.showToast('Código obligatorio: 1 a 4 letras o números', 'error');
+        return;
+      }
+      const tiposLimpios = [...new Set((this.formPlato.tipos || []).map(t => String(t).trim().toLowerCase()).filter(Boolean))];
+      if (!tiposLimpios.length) {
+        this.showToast('El plato debe tener un tipo de menú', 'error');
+        return;
+      }
+      const complementosLimpios = this.formPlato.complementos
+        .filter(g => g.grupo && g.grupo.trim() !== '')
+        .map(g => {
+          const esMix = g.esVariantePlato === true || g.esVariantePlato === 'true' || g.esVariantePlato === 1;
+          const anexarNombre = !esMix && (g.anexarVarianteAlNombre === true || g.anexarVarianteAlNombre === 'true' || g.anexarVarianteAlNombre === 1);
+          const seleccionFija = (esMix || anexarNombre) ? false : (g.seleccionFija === true || g.seleccionFija === 'true');
+          const seleccionMultiple = !!g.seleccionMultiple || seleccionFija;
+          return {
+            grupo: g.grupo.trim(),
+            obligatorio: g.obligatorio || false,
+            seleccionMultiple,
+            opciones: this.normalizarOpcionesGrupo(g.opciones),
+            modoSeleccion: seleccionFija ? 'cantidades' : (g.modoSeleccion || (seleccionMultiple ? 'cantidades' : 'opciones')),
+            maxUnidadesGrupo: this.numOpcionalGrupo(g.maxUnidadesGrupo) ?? (seleccionMultiple || seleccionFija ? null : 1),
+            minUnidadesGrupo: this.numOpcionalGrupo(g.minUnidadesGrupo) ?? (g.obligatorio ? 1 : 0),
+            maxUnidadesPorOpcion: this.numOpcionalGrupo(g.maxUnidadesPorOpcion),
+            permiteRepetirOpcion: g.permiteRepetirOpcion ?? seleccionMultiple,
+            esVariantePlato: esMix,
+            deshabilitarSumaVariante: esMix && (g.deshabilitarSumaVariante === true || g.deshabilitarSumaVariante === 'true'),
+            anexarVarianteAlNombre: anexarNombre,
+            forzarVisibleTablaKds: !anexarNombre && !esMix && (g.forzarVisibleTablaKds === true || g.forzarVisibleTablaKds === 'true'),
+            seleccionFija
+          };
+        });
+      const precioNum = Number(this.formPlato.precio);
+      const stockNum = Number(this.formPlato.stock);
+      const payload = {
+        nombre,
+        nombreCocina: String(this.formPlato.nombreCocina || '').trim(),
+        codigo,
+        precio: Number.isFinite(precioNum) && precioNum >= 0 ? precioNum : 0,
+        stock: Number.isFinite(stockNum) && stockNum >= 0 ? stockNum : 0,
+        categoria: String(this.formPlato.categoria || '').trim() || 'General',
+        descripcion: this.formPlato.descripcion || '',
+        tipos: tiposLimpios,
+        tipo: tiposLimpios[0],
+        complementos: complementosLimpios,
+        complementosAfectanPrecio: this.formPlato.complementosAfectanPrecio !== false,
+        mostrarTotalComplementosImpresion: !!this.formPlato.mostrarTotalComplementosImpresion,
+        complementosUnidosAlPlato: !!this.formPlato.complementosUnidosAlPlato,
+        ocultarCronometroCocina: !!this.formPlato.ocultarCronometroCocina,
+        juntarGuarnicionesEntreVariantes: !!this.formPlato.juntarGuarnicionesEntreVariantes,
+        requiereNumeroSerie: !!this.formPlato.requiereNumeroSerie,
+        kdsEstiloCompacto: !!this.formPlato.kdsEstiloCompacto,
+        platoEditable: !!this.formPlato.platoEditable,
+        nombresSincronizados: [],
+        platoPrincipal: this.formPlato.platoPrincipal || this.formPlato._id,
+        resumenComplementosImpresion: {
+          mostrarCantidad: this.formPlato.resumenComplementosImpresion?.mostrarCantidad !== false,
+          mostrarMontoExtra: this.formPlato.resumenComplementosImpresion?.mostrarMontoExtra !== false
+        }
+      };
+      try {
+        const res = await apiPost('/platos', payload);
+        if (!res || res.ok === false || res.error) {
+          this.showToast('Error: ' + (res?.error || res?.message || 'No se pudo crear'), 'error');
+          return;
+        }
+        this.nuevoNombreSyncPrincipal = '';
+        this.nuevoCodigoSyncPrincipal = '';
+        await this.loadPlatos();
+        const creado = (this.platos || []).find((p) => String(p.codigo || '').toUpperCase() === codigo);
+        this.showToast('Plato sincronizado creado. Editá las guarniciones.');
+        if (creado) await this.openEditModal(creado);
+      } catch (e) {
+        this.showToast('Error: ' + (e?.message || 'Fallo al crear'), 'error');
+      }
+    },
+
     hexToRgba(hex, alpha = 1) {
       const h = String(hex || '').replace('#', '');
       const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
@@ -1358,6 +1532,8 @@ tailwind.config = {
         requiereNumeroSerie: false,
         kdsEstiloCompacto: false,
         platoEditable: false,
+        nombresSincronizados: [],
+        platoPrincipal: null,
         resumenComplementosImpresion: { mostrarCantidad: true, mostrarMontoExtra: true },
         complementos: []
       };
@@ -1402,6 +1578,8 @@ tailwind.config = {
         platoEditable: p.platoEditable === false
           ? false
           : (!!p.platoEditable || (p.complementos || []).some(g => g.seleccionFija === true)),
+        nombresSincronizados: Array.isArray(p.nombresSincronizados) ? [...p.nombresSincronizados] : [],
+        platoPrincipal: p.platoPrincipal || null,
         resumenComplementosImpresion: {
           mostrarCantidad: p.resumenComplementosImpresion?.mostrarCantidad !== false,
           mostrarMontoExtra: p.resumenComplementosImpresion?.mostrarMontoExtra !== false
@@ -2401,6 +2579,8 @@ tailwind.config = {
         requiereNumeroSerie: !!this.formPlato.requiereNumeroSerie,
         kdsEstiloCompacto: !!this.formPlato.kdsEstiloCompacto,
         platoEditable: !!this.formPlato.platoEditable,
+        nombresSincronizados: Array.isArray(this.formPlato.nombresSincronizados) ? this.formPlato.nombresSincronizados : [],
+        platoPrincipal: this.formPlato.platoPrincipal || null,
         resumenComplementosImpresion: {
           mostrarCantidad: this.formPlato.resumenComplementosImpresion?.mostrarCantidad !== false,
           mostrarMontoExtra: this.formPlato.resumenComplementosImpresion?.mostrarMontoExtra !== false

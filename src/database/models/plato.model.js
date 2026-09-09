@@ -32,6 +32,18 @@ const platoSchema = new mongoose.Schema({
     },
     nombre: { type: String, required: true },
     nombreLower: { type: String, required: false, unique: true },
+    // Nombres extra en el buscador de mozos: mismo plato, otra etiqueta (ej. "Leña Papa").
+    nombresSincronizados: {
+        type: [String],
+        default: [],
+    },
+    // Variante con otras guarniciones: mismo precio que el plato principal.
+    platoPrincipal: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'platos',
+        default: null,
+        index: true,
+    },
     // Alias corto opcional para pantallas de cocina (Ver Cocina siempre;
     // tabla KDS según configuracion.cocina.usarNombreCocinaEnTablaKds).
     // No se desnormaliza en comanda.platos[]: vive en el catálogo y llega por
@@ -258,6 +270,21 @@ platoSchema.pre('save', async function (next) {
             if (!this.nombre) {
                 return next(new Error('nombre no puede estar vacío'));
             }
+        }
+        const prinNombre = String(this.nombre || '').trim().toLowerCase();
+        const vistosAlias = new Set();
+        this.nombresSincronizados = (Array.isArray(this.nombresSincronizados) ? this.nombresSincronizados : [])
+            .map((s) => String(s || '').trim().slice(0, 80))
+            .filter((n) => {
+                if (!n) return false;
+                const k = n.toLowerCase();
+                if (k === prinNombre || vistosAlias.has(k)) return false;
+                vistosAlias.add(k);
+                return true;
+            });
+        if (this.platoPrincipal) {
+            const pid = String(this.platoPrincipal);
+            if (!this.isNew && pid === String(this._id)) this.platoPrincipal = null;
         }
         // Normalizar nombreCocina: trim, eliminar caracteres de control y
         // forzar string vacío si solo tenía espacios (no guardamos null).
