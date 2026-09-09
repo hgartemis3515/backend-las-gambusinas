@@ -400,6 +400,7 @@ async function loadComponents() {
     setActiveNav();
     syncLayoutStoreFromBody();
     initClock();
+    if (typeof sincronizarBotonesFullscreen === 'function') sincronizarBotonesFullscreen();
 
     // Re-inicializar iconos Lucide si está disponible
     if (typeof lucide !== 'undefined') {
@@ -465,6 +466,44 @@ document.addEventListener('click', (e) => {
   e.preventDefault();
   abrirAppCocinaDesdeDashboard();
 });
+
+function elementoFullscreen() {
+  return document.fullscreenElement || document.webkitFullscreenElement || null;
+}
+
+function sincronizarBotonesFullscreen() {
+  const on = !!elementoFullscreen();
+  document.querySelectorAll('[data-toggle-fullscreen]').forEach((btn) => {
+    btn.setAttribute('title', on ? 'Salir de pantalla completa' : 'Pantalla completa');
+    btn.setAttribute('aria-label', on ? 'Salir de pantalla completa' : 'Pantalla completa');
+    const enter = btn.querySelector('[data-fs-enter]');
+    const exit = btn.querySelector('[data-fs-exit]');
+    if (enter) enter.classList.toggle('hidden', on);
+    if (exit) exit.classList.toggle('hidden', !on);
+  });
+}
+
+function alternarPantallaCompleta() {
+  if (elementoFullscreen()) {
+    const salir = document.exitFullscreen || document.webkitExitFullscreen;
+    if (typeof salir === 'function') salir.call(document);
+    return;
+  }
+  const el = document.documentElement;
+  const entrar = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (typeof entrar === 'function') {
+    Promise.resolve(entrar.call(el)).catch(() => {});
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-toggle-fullscreen]');
+  if (!btn) return;
+  e.preventDefault();
+  alternarPantallaCompleta();
+});
+document.addEventListener('fullscreenchange', sincronizarBotonesFullscreen);
+document.addEventListener('webkitfullscreenchange', sincronizarBotonesFullscreen);
 
 // ============================================
 // APARIENCIA DASHBOARD (texto muted / etiquetas KPI)
