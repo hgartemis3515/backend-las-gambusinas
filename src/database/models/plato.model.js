@@ -15,8 +15,8 @@ const MAX_LENGTH_NOMBRE_COCINA = 40;
 
 const platoSchema = new mongoose.Schema({
     id: { type: Number, unique: true },
-    // Código de serie corto para el buscador del KDS de cocina.
-    // Formato: 1 letra mayúscula + 1-3 dígitos (ej. L923). Único.
+    // Código de serie corto para el buscador (KDS y mozos).
+    // 1 a 4 letras y/o dígitos (ej. 1, A, L1, M23). Único.
     codigo: {
         type: String,
         required: true,
@@ -27,7 +27,7 @@ const platoSchema = new mongoose.Schema({
                 const r = validarCodigoPlato(v);
                 return r.valido;
             },
-            message: 'El código debe tener el formato: 1 letra mayúscula + 1-3 números (ej. L1, M23, D345)'
+            message: 'El código debe tener 1 a 4 letras o números (ej. 1, A, L1, M23)'
         }
     },
     nombre: { type: String, required: true },

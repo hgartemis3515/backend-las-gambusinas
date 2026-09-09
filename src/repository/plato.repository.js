@@ -399,7 +399,7 @@ const findByCategoria = async (categoria) => {
 /**
  * Asegura que todos los platos en BD tengan un `codigo` válido y único.
  * Se ejecuta al arrancar el backend. Para cada plato sin código (o con código
- * inválido) genera uno aleatorio con formato ^[A-Z][0-9]{1,3}$ que no colisione
+ * inválido) genera uno aleatorio con formato ^[A-Z0-9]{1,4}$ que no colisione
  * con los existentes.
  *
  * @returns {Promise<{ asignados: number, revisados: number }>}

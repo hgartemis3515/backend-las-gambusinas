@@ -2,15 +2,15 @@
  * Validador del código de serie de platos
  *
  * Reglas:
- * - 1 letra mayúscula + 1 a 3 dígitos
- * - Regex: ^[A-Z][0-9]{1,3}$
- * - Ejemplos válidos: L1, L92, L923, M23, D345, C5, P100
+ * - 1 a 4 caracteres: letras (A-Z) y/o dígitos (0-9)
+ * - Regex: ^[A-Z0-9]{1,4}$
+ * - Ejemplos válidos: 1, A, L, L1, M23, D345, 12, AB
  * - Obligatorio y único
  *
  * Uso: modelo, repository, controller, platos.html (vía API), tests.
  */
 
-const REGEX_CODIGO_PLATO = /^[A-Z][0-9]{1,3}$/;
+const REGEX_CODIGO_PLATO = /^[A-Z0-9]{1,4}$/;
 
 /**
  * Valida y normaliza un código de plato.
@@ -24,13 +24,12 @@ function validarCodigoPlato(codigo) {
         return { valido: false, error: 'El código del plato es obligatorio' };
     }
 
-    // Forzar mayúscula solo en el primer carácter (la entrada ya viene uppercased)
-    const normalizado = limpio.charAt(0).toUpperCase() + limpio.slice(1);
+    const normalizado = limpio.replace(/[^A-Z0-9]/g, '').slice(0, 4);
 
     if (!REGEX_CODIGO_PLATO.test(normalizado)) {
         return {
             valido: false,
-            error: 'Formato de código inválido: debe ser una letra mayúscula seguida de 1 a 3 números (ej. L1, M23, D345)'
+            error: 'Formato de código inválido: 1 a 4 letras o números (ej. 1, A, L1, M23)'
         };
     }
 
