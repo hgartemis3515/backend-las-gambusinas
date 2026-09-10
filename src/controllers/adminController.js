@@ -387,7 +387,8 @@ router.post('/admin/mozos/auth', async (req, res) => {
                 DNI: mozo.DNI,
                 phoneNumber: mozo.phoneNumber,
                 rol: rol,
-                permisos: permisos
+                permisos: permisos,
+                prefsApp: mozo.prefsApp || {}
             }
         });
         

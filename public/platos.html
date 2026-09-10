@@ -442,6 +442,19 @@ tailwind.config = {
                         class="w-24 h-9 bg-bg-card border border-gold/50 rounded-md px-2 text-sm font-semibold text-white text-center tabular-nums focus:border-gold focus:outline-none"
                         title="Cuántas van de esta opción al pedir el plato">
                     </div>
+                    <div x-show="!grupo.esVariantePlato && !grupo.anexarVarianteAlNombre" class="pl-0.5">
+                      <p class="text-[9px] text-txt-muted mb-0.5">Variaciones (mozos: a la derecha de la opción). Ej: Limón, Vinagreta</p>
+                      <div class="flex flex-wrap gap-1 items-center">
+                        <template x-for="(vr, vi) in (op.variaciones || [])" :key="vi">
+                          <span class="inline-flex items-center gap-0.5 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded px-1 py-0.5">
+                            <input type="text" x-model="vr.nombre" @input="marcarCopiaComplementoPlato(gi)" placeholder="Ej: Limón" class="w-24 bg-transparent px-1 py-0.5 text-[10px] focus:outline-none">
+                            <input type="number" x-model.number="vr.precio" @input="marcarCopiaComplementoPlato(gi)" min="0" step="0.01" placeholder="S/" title="Precio extra opcional" class="w-12 bg-transparent px-0.5 py-0.5 text-[10px] focus:outline-none">
+                            <button type="button" @click="eliminarVariacionOpcion(gi, oi, vi)" class="text-st-pagado text-[9px] px-0.5">✕</button>
+                          </span>
+                        </template>
+                        <button type="button" @click="agregarVariacionOpcion(gi, oi)" class="text-[9px] text-gold hover:underline">+ Variación</button>
+                      </div>
+                    </div>
                   </div>
                 </template>
               </div>
@@ -1122,6 +1135,19 @@ tailwind.config = {
                   class="w-24 h-9 bg-bg-sidebar border border-gold/50 rounded-md px-2 text-sm font-semibold text-white text-center tabular-nums focus:border-gold focus:outline-none"
                   title="Cuántas van de esta opción al pedir el plato">
               </div>
+              <div x-show="!formComplemento.esVariantePlato && !formComplemento.anexarVarianteAlNombre" class="pl-0.5">
+                <p class="text-[9px] text-txt-muted mb-0.5">Variaciones (mozos: a la derecha de la opción). Ej: Limón, Vinagreta</p>
+                <div class="flex flex-wrap gap-1 items-center">
+                  <template x-for="(vr, vi) in (op.variaciones || [])" :key="vi">
+                    <span class="inline-flex items-center gap-0.5 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded px-1 py-0.5">
+                      <input type="text" x-model="vr.nombre" placeholder="Ej: Limón" class="w-24 bg-transparent px-1 py-0.5 text-[10px] focus:outline-none">
+                      <input type="number" x-model.number="vr.precio" min="0" step="0.01" placeholder="S/" title="Precio extra opcional" class="w-12 bg-transparent px-0.5 py-0.5 text-[10px] focus:outline-none">
+                      <button type="button" @click="eliminarVariacionOpcionPlantilla(i, vi)" class="text-st-pagado text-[9px] px-0.5">✕</button>
+                    </span>
+                  </template>
+                  <button type="button" @click="agregarVariacionOpcionPlantilla(i)" class="text-[9px] text-gold hover:underline">+ Variación</button>
+                </div>
+              </div>
             </div>
           </template>
         </div>
@@ -1748,7 +1774,7 @@ tailwind.config = {
         obligatorio: false,
         seleccionMultiple: false,
         // v3.0: opción = { nombre, precio }
-        opciones: [{ nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1, _asig: this._asigVacia() }],
+        opciones: [{ nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1, variaciones: [], _asig: this._asigVacia() }],
         // ===== NUEVOS CAMPOS v2.0 =====
         modoSeleccion: 'opciones',
         maxUnidadesGrupo: null,
@@ -1989,13 +2015,44 @@ tailwind.config = {
         this.formPlato.complementos[grupoIndex].opciones = [];
       }
       // v3.0: opción es ahora { nombre, precio }
-      this.formPlato.complementos[grupoIndex].opciones.push({ nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1, _asig: this._asigVacia() });
+      this.formPlato.complementos[grupoIndex].opciones.push({ nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1, variaciones: [], _asig: this._asigVacia() });
     },
 
     // v3.0: normaliza una opción (string u objeto) a { nombre, precio }
+    normalizarVariacionesOpcion(list) {
+      if (!Array.isArray(list)) return [];
+      const vistos = new Set();
+      const out = [];
+      for (const v of list) {
+        const nombre = typeof v === 'string' ? String(v).trim() : String(v?.nombre || '').trim();
+        if (!nombre) continue;
+        const key = nombre.toLowerCase();
+        if (vistos.has(key)) continue;
+        vistos.add(key);
+        const precioRaw = Number(typeof v === 'object' && v != null ? v.precio : 0);
+        out.push({ nombre, precio: Number.isFinite(precioRaw) && precioRaw > 0 ? precioRaw : 0 });
+      }
+      return out;
+    },
+
+    agregarVariacionOpcion(gi, oi) {
+      const op = this.formPlato.complementos[gi]?.opciones?.[oi];
+      if (!op) return;
+      if (!Array.isArray(op.variaciones)) op.variaciones = [];
+      op.variaciones.push({ nombre: '', precio: 0 });
+      this.marcarCopiaComplementoPlato(gi);
+    },
+
+    eliminarVariacionOpcion(gi, oi, vi) {
+      const op = this.formPlato.complementos[gi]?.opciones?.[oi];
+      if (!op || !Array.isArray(op.variaciones)) return;
+      op.variaciones.splice(vi, 1);
+      this.marcarCopiaComplementoPlato(gi);
+    },
+
     normalizarOpcionComplemento(op) {
-      if (op == null) return { nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1 };
-      if (typeof op === 'string') return { nombre: op.trim(), precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1 };
+      if (op == null) return { nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1, variaciones: [] };
+      if (typeof op === 'string') return { nombre: op.trim(), precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1, variaciones: [] };
       if (typeof op === 'object') {
         const nombre = String(op.nombre ?? '').trim();
         const precioRaw = Number(op.precio);
@@ -2005,10 +2062,11 @@ tailwind.config = {
           precio: Number.isFinite(precioRaw) && precioRaw > 0 ? precioRaw : 0,
           pronombre: String(op.pronombre || '').trim().slice(0, 40),
           preseleccionada: op.preseleccionada === true,
-          cantidadPreseleccion: Number.isFinite(cant) && cant >= 1 ? Math.min(99, Math.floor(cant)) : 1
+          cantidadPreseleccion: Number.isFinite(cant) && cant >= 1 ? Math.min(99, Math.floor(cant)) : 1,
+          variaciones: this.normalizarVariacionesOpcion(op.variaciones)
         };
       }
-      return { nombre: String(op).trim(), precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1 };
+      return { nombre: String(op).trim(), precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1, variaciones: [] };
     },
 
     // v3.0: normaliza un array de opciones (filtra vacíos y duplicados por nombre)
@@ -2685,7 +2743,7 @@ tailwind.config = {
         nombre: '',
         categoria: 'General',
         // v3.0: opción = { nombre, precio }
-        opciones: [{ nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1 }],
+        opciones: [{ nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1, variaciones: [] }],
         obligatorio: false,
         seleccionMultiple: false,
         // ===== NUEVOS CAMPOS v2.0 =====
@@ -2754,7 +2812,20 @@ tailwind.config = {
 
     agregarOpcionFormComplemento() {
       // v3.0: ahora opción es objeto { nombre, precio }
-      this.formComplemento.opciones.push({ nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1 });
+      this.formComplemento.opciones.push({ nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1, variaciones: [] });
+    },
+
+    agregarVariacionOpcionPlantilla(i) {
+      const op = this.formComplemento.opciones[i];
+      if (!op) return;
+      if (!Array.isArray(op.variaciones)) op.variaciones = [];
+      op.variaciones.push({ nombre: '', precio: 0 });
+    },
+
+    eliminarVariacionOpcionPlantilla(i, vi) {
+      const op = this.formComplemento.opciones[i];
+      if (!op || !Array.isArray(op.variaciones)) return;
+      op.variaciones.splice(vi, 1);
     },
 
     eliminarOpcionFormComplemento(index) {

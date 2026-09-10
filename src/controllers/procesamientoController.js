@@ -38,6 +38,7 @@ const {
   indicesPendientesMismoDestino
 } = require('../utils/autocerrarGuarniciones');
 const { platoUneComplementos } = require('../utils/platoUneComplementos');
+const { textoOpcionComplemento } = require('../utils/precioComplementos');
 
 // ============================================================
 // HELPER: Verificar si el usuario tiene privilegios de supervisor en cocina
@@ -241,8 +242,7 @@ async function tieneOverrideOrdenVigente(plato, comandaId, platoId) {
 }
 
 function nombreGuarnicionComp(comp) {
-  const opcion = Array.isArray(comp?.opcion) ? comp.opcion.join(', ') : (comp?.opcion || '');
-  return String(opcion || '').trim() || 'Guarnición';
+  return textoOpcionComplemento(comp) || 'Guarnición';
 }
 
 /** Cronómetro acumulado desde que el cocinero tomó la unidad (plato o guarnición). */

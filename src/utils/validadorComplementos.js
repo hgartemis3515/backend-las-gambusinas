@@ -13,7 +13,7 @@
  */
 
 const logger = require('./logger');
-const { getNombreOpcion } = require('./precioComplementos');
+const { getNombreOpcion, variacionesDeOpcion, textoOpcionComplemento } = require('./precioComplementos');
 
 /**
  * Normaliza un grupo de complementos legacy al formato nuevo
@@ -134,6 +134,16 @@ function validarComplementos(complementosPlato, complementosSeleccionados) {
             const opcionSel = String(comp.opcion || '').trim();
             if (!opcionesLower.includes(opcionSel.toLowerCase())) {
                 errores.push(`La opción "${comp.opcion}" no existe en el grupo "${nombreGrupo}". Opciones válidas: ${opcionesValidas.join(', ')}`);
+                continue;
+            }
+            const varSel = String(comp.variacion || '').trim();
+            if (!varSel) continue;
+            const opDoc = (grupo.opciones || []).find((o) =>
+                String(getNombreOpcion(o) || '').trim().toLowerCase() === opcionSel.toLowerCase()
+            );
+            const vars = variacionesDeOpcion(opDoc);
+            if (vars.length && !vars.some((v) => v.nombre.toLowerCase() === varSel.toLowerCase())) {
+                errores.push(`La variación "${varSel}" no existe para "${opcionSel}" en "${nombreGrupo}". Variaciones: ${vars.map((v) => v.nombre).join(', ')}`);
             }
         }
 
@@ -245,10 +255,11 @@ function formatearComplementosSeleccionados(complementosSeleccionados, incluirCa
     const partes = [];
     for (const [grupo, opciones] of Object.entries(porGrupo)) {
         const opcionesStr = opciones.map(comp => {
+            const label = textoOpcionComplemento(comp);
             if (incluirCantidad && comp.cantidad > 1) {
-                return `${comp.opcion} x${comp.cantidad}`;
+                return `${label} x${comp.cantidad}`;
             }
-            return comp.opcion;
+            return label;
         }).join(', ');
         partes.push(`${grupo}: ${opcionesStr}`);
     }

@@ -824,7 +824,7 @@ tailwind.config = {
                     <div class="mt-1 pl-5 space-y-0.5">
                       <template x-for="comp in p.complementosSeleccionados" :key="comp.grupo + (comp.opcion || '')">
                         <div class="text-[10px] text-[#a0a0b8]">
-                          + <span x-text="comp.opcion || comp.nombre"></span>
+                          + <span x-text="(comp.opcion || comp.nombre || '') + (comp.variacion ? (' ' + comp.variacion) : '')"></span>
                           <span x-show="comp.precio > 0" x-text="'(' + simboloMonedaBoucher(selectedBoucher) + ' ' + Number(comp.precio || 0).toFixed(2) + ')'"></span>
                         </div>
                       </template>

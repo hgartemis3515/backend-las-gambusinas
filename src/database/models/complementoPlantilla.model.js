@@ -51,7 +51,11 @@ const complementoPlantillaSchema = new mongoose.Schema({
             maxlength: [40, 'El pronombre no puede exceder 40 caracteres']
         },
         preseleccionada: { type: Boolean, default: false },
-        cantidadPreseleccion: { type: Number, default: 1, min: 1, max: 99 }
+        cantidadPreseleccion: { type: Number, default: 1, min: 1, max: 99 },
+        variaciones: [{
+            nombre: { type: String, trim: true },
+            precio: { type: Number, default: 0, min: 0 }
+        }]
     }],
     obligatorio: {
         type: Boolean,
@@ -126,7 +130,7 @@ complementoPlantillaSchema.index(
 complementoPlantillaSchema.pre('validate', function (next) {
     if (Array.isArray(this.opciones)) {
         this.opciones = this.opciones.map((op) =>
-            normalizarOpcionDocumento(op) || { nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1 }
+            normalizarOpcionDocumento(op) || { nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1, variaciones: [] }
         );
     }
     next();

@@ -61,7 +61,8 @@ const comandaSchema = new mongoose.Schema({
         // NUEVA ESTRUCTURA v3.0: Snapshot de precio unitario del extra al momento del pedido
         complementosSeleccionados: [{
             grupo: { type: String },   // Ej: "Proteína"
-            opcion: { type: String },  // Ej: "Pollo"
+            opcion: { type: String },  // Ej: "Pollo" (catálogo; no concatenar la variación)
+            variacion: { type: String, default: '', trim: true }, // Ej: "Limón" (Ensalada Limón)
             cantidad: { type: Number, default: 1, min: 1 },  // Cantidad de esta opción (nuevo campo v2.0)
             // v3.0: precio unitario del extra al momento del pedido (snapshot).
             // 0 o ausente en comandas legacy → no suma.

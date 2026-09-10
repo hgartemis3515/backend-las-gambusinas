@@ -69,6 +69,52 @@ function getPrecioOpcion(grupo, nombreOpcion) {
   return encontrada ? encontrada.precio : 0;
 }
 
+/** Variaciones de una opción de catálogo (Ensalada → Limón / Vinagreta). */
+function variacionesDeOpcion(op) {
+  if (op == null || typeof op === 'string') return [];
+  const list = Array.isArray(op.variaciones) ? op.variaciones : [];
+  const seen = new Set();
+  const out = [];
+  for (const v of list) {
+    const nombre = typeof v === 'string' ? String(v).trim() : String(v?.nombre || '').trim();
+    if (!nombre) continue;
+    const key = nombre.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const precio = Number(typeof v === 'object' && v != null ? v.precio : 0);
+    out.push({
+      nombre,
+      precio: Number.isFinite(precio) && precio > 0 ? precio : 0,
+    });
+  }
+  return out;
+}
+
+function getPrecioVariacion(grupo, nombreOpcion, nombreVar) {
+  const targetOp = String(nombreOpcion || '').trim().toLowerCase();
+  const targetV = String(nombreVar || '').trim().toLowerCase();
+  if (!grupo || !targetOp || !targetV) return 0;
+  const ops = Array.isArray(grupo.opciones) ? grupo.opciones : [];
+  for (const op of ops) {
+    const n = typeof op === 'string' ? op.trim() : String(op?.nombre || op?.opcion || '').trim();
+    if (n.toLowerCase() !== targetOp) continue;
+    const found = variacionesDeOpcion(op).find((v) => v.nombre.toLowerCase() === targetV);
+    return found ? found.precio : 0;
+  }
+  return 0;
+}
+
+/** Texto para mozos / KDS / tickets: "Ensalada Limón". */
+function textoOpcionComplemento(comp) {
+  const op = Array.isArray(comp?.opcion)
+    ? comp.opcion.filter(Boolean).join(', ')
+    : String(comp?.opcion || comp?.nombre || '').trim();
+  const v = String(comp?.variacion || '').trim();
+  if (!op) return v;
+  if (!v) return op;
+  return `${op} ${v}`;
+}
+
 function normNombreGrupo(nombre) {
   return String(nombre || '').trim().toLowerCase();
 }
@@ -273,10 +319,12 @@ function enriquecerComplementosConPrecio(complementosPlato, complementosSeleccio
       }
     }
 
+    const variacion = String(sel.variacion || '').trim();
     let precioSnapshot = 0;
     if (afectanPrecio) {
       if (enCatalogo) {
-        precioSnapshot = getPrecioOpcion(grupoConfig, nombreOp);
+        precioSnapshot = getPrecioOpcion(grupoConfig, nombreOp)
+          + getPrecioVariacion(grupoConfig, nombreOp, variacion);
       } else {
         const clientPrecio = Number(sel.precio);
         precioSnapshot = Number.isFinite(clientPrecio) && clientPrecio > 0 ? clientPrecio : 0;
@@ -292,7 +340,8 @@ function enriquecerComplementosConPrecio(complementosPlato, complementosSeleccio
       cantidad: Math.max(1, Number(sel.cantidad) || 1),
       precio: precioSnapshot,
       pronombre: pronombreSnap,
-      forzarVisibleTablaKds: grupoForzarVisibleTablaKds(grupoConfig)
+      forzarVisibleTablaKds: grupoForzarVisibleTablaKds(grupoConfig),
+      ...(variacion ? { variacion } : {}),
     };
   });
 }
@@ -327,6 +376,9 @@ module.exports = {
   getNombreOpcion,
   normalizarOpciones,
   getPrecioOpcion,
+  variacionesDeOpcion,
+  getPrecioVariacion,
+  textoOpcionComplemento,
   getPronombreOpcion,
   findGrupoCatalogo,
   resolverPronombreCatalogo,

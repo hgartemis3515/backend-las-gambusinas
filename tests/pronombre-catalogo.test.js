@@ -78,4 +78,21 @@ describe('pronombre desde catálogo', () => {
     expect(out[0].precio).toBe(3);
     expect(out[0].opcion).toBe('Extra queso');
   });
+
+  test('enriquecer suma precio de variación y conserva el nombre aparte', () => {
+    const cat = [{
+      grupo: 'Guarnición',
+      opciones: [{
+        nombre: 'Ensalada',
+        precio: 2,
+        variaciones: [{ nombre: 'Limón' }, { nombre: 'Vinagreta', precio: 1 }],
+      }],
+    }];
+    const out = enriquecerComplementosConPrecio(cat, [
+      { grupo: 'Guarnición', opcion: 'Ensalada', variacion: 'Vinagreta', cantidad: 1 },
+    ]);
+    expect(out[0].opcion).toBe('Ensalada');
+    expect(out[0].variacion).toBe('Vinagreta');
+    expect(out[0].precio).toBe(3);
+  });
 });

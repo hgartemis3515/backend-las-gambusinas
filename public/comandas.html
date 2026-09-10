@@ -4367,7 +4367,9 @@ this.modal = null;
  textoComplementoChip(comp, nPlatos) {
  if (!comp) return '';
  const grupo = String(comp.grupo || '').trim();
- const opcion = String(comp.opcion || comp.nombre || '').trim();
+ const opcionBase = String(comp.opcion || comp.nombre || '').trim();
+ const variacion = String(comp.variacion || '').trim();
+ const opcion = variacion ? (opcionBase ? opcionBase + ' ' + variacion : variacion) : opcionBase;
  const porUnidad = Number(comp.cantidad) || 1;
  const n = Number(nPlatos);
  const cant = porUnidad * (Number.isFinite(n) && n > 0 ? n : 1);

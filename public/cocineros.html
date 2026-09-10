@@ -10003,7 +10003,8 @@ function cocinerosApp() {
             const pd = comp.procesadoPor || {};
             if (!pp.cocineroId && !pd.cocineroId) return;
             const opcionTxt = Array.isArray(comp.opcion) ? comp.opcion.join(', ') : (comp.opcion || '');
-            const nombreG = (comp.grupo ? comp.grupo + ': ' : '') + (opcionTxt || 'Guarnición');
+            const varTxt = String(comp.variacion || '').trim();
+            const nombreG = (comp.grupo ? comp.grupo + ': ' : '') + ((varTxt && opcionTxt ? opcionTxt + ' ' + varTxt : opcionTxt) || 'Guarnición');
             const esLista = comp.estadoCocina === 'recoger' || !!pd.timestamp;
             guarniciones.push({
               esGuarnicion: true,
