@@ -629,17 +629,12 @@ router.post('/comanda', async (req, res) => {
             sourceApp
         });
         
-        // Emitir evento Socket.io de nueva comanda
-        if (global.emitNuevaComanda && data.comanda) {
-            await global.emitNuevaComanda(data.comanda);
-        }
-
-        // ASIGNACIÓN AUTOMÁTICA DE PLATOS: disparar el motor server-side.
-        // Se ejecuta después de emitir nueva comanda para no demorar el response.
-        // No bloqueante: si falla, la comanda queda creada (Tomar manual sigue disponible).
-        // Extra de reserva aún programada: no asignar hasta el job de fechaCocina.
-        if (data.comanda && data.comanda.platos && data.comanda.platos.length > 0
-            && data.comanda.programadaPorReserva !== true) {
+        // Auto-asignar ANTES de nueva-comanda para que el KDS y Ver Cocina
+        // reciban procesandoPor en el primer snapshot (si se emite vacío, la vista
+        // de cocineros filtra el plato y las tablas quedan sin tomar).
+        const debeAutoAsignar = !!(data.comanda && data.comanda.platos && data.comanda.platos.length > 0
+            && data.comanda.programadaPorReserva !== true);
+        if (debeAutoAsignar) {
             const asignacionAutomaticaService = require('../services/asignacionAutomaticaService');
             const comandaCreadaId = data.comanda._id;
             const comandaCreadaNum = data.comanda.comandaNumber;
@@ -651,8 +646,7 @@ router.post('/comanda', async (req, res) => {
                         .lean();
                     if (!comandaPop) {
                         logger.warn('Auto-asignación: comanda no encontrada al recargar', { comandaId: comandaCreadaId });
-                        return;
-                    }
+                    } else {
                     const resultado = await asignacionAutomaticaService.asignarPlatosNuevos(comandaPop);
                     logger.info('Auto-asignación post-create', {
                         comandaId: comandaCreadaId?.toString(),
@@ -692,6 +686,7 @@ router.post('/comanda', async (req, res) => {
                             comandaId: comandaCreadaId, error: eG.message
                         });
                     }
+                    }
                 } catch (e) {
                     logger.warn('Auto-asignación post-create falló (no crítico)', {
                         comandaId: comandaCreadaId,
@@ -699,7 +694,27 @@ router.post('/comanda', async (req, res) => {
                         stack: e.stack
                     });
                 }
+                if (global.emitNuevaComanda && data.comanda) {
+                    try {
+                        await global.emitNuevaComanda(data.comanda);
+                    } catch (eEmit) {
+                        logger.warn('emitNuevaComanda post-asignación falló', {
+                            comandaId: comandaCreadaId, error: eEmit.message
+                        });
+                    }
+                }
+                if (global.emitComandaActualizada) {
+                    try {
+                        await global.emitComandaActualizada(comandaCreadaId);
+                    } catch (eEmit) {
+                        logger.warn('emitComandaActualizada post-asignación falló', {
+                            comandaId: comandaCreadaId, error: eEmit.message
+                        });
+                    }
+                }
             });
+        } else if (global.emitNuevaComanda && data.comanda) {
+            await global.emitNuevaComanda(data.comanda);
         }
     } catch (error) {
         logger.error('Error al crear comanda', {
@@ -935,15 +950,9 @@ router.post('/comanda/desde-dashboard', adminAuth, checkPermission('crear-comand
         }
 
         // ===== Socket.io + auto-asignación (mismo flujo que POST /comanda) =====
-        if (global.emitNuevaComanda && data.comanda) {
-            try {
-                await global.emitNuevaComanda(data.comanda);
-            } catch (e) {
-                logger.warn('emitNuevaComanda falló (no crítico)', { error: e.message });
-            }
-        }
-
-        if (data.comanda && data.comanda.platos && data.comanda.platos.length > 0) {
+        const debeAutoAsignarDash = !!(data.comanda && data.comanda.platos && data.comanda.platos.length > 0
+            && data.comanda.programadaPorReserva !== true);
+        if (debeAutoAsignarDash) {
             const asignacionAutomaticaService = require('../services/asignacionAutomaticaService');
             const comandaCreadaId = data.comanda._id;
             const comandaCreadaNum = data.comanda.comandaNumber;
@@ -953,7 +962,9 @@ router.post('/comanda/desde-dashboard', adminAuth, checkPermission('crear-comand
                     const comandaPop = await Comanda.findById(comandaCreadaId)
                         .populate('platos.plato', 'id categoria tipo tipos nombre codigo complementosUnidosAlPlato complementos')
                         .lean();
-                    if (!comandaPop) return;
+                    if (!comandaPop) {
+                        logger.warn('Auto-asignación: comanda no encontrada al recargar (dashboard)', { comandaId: comandaCreadaId });
+                    } else {
                     const resultado = await asignacionAutomaticaService.asignarPlatosNuevos(comandaPop);
                     logger.info('Auto-asignación post-create (dashboard)', {
                         comandaId: comandaCreadaId?.toString(),
@@ -965,7 +976,6 @@ router.post('/comanda/desde-dashboard', adminAuth, checkPermission('crear-comand
                         global.emitRendimientoCocineroActualizado({ tipo: 'comanda_creada', comandaId: comandaCreadaId?.toString() });
                     }
 
-                    // PLAN GUARNICIONES_SEPARADAS v1.1: motor de guarniciones (dashboard path).
                     try {
                         const asignacionGuarnicionesService = require('../services/asignacionAutomaticaGuarnicionesService');
                         const comandaPostPlatos = await Comanda.findById(comandaCreadaId)
@@ -981,10 +991,33 @@ router.post('/comanda/desde-dashboard', adminAuth, checkPermission('crear-comand
                     } catch (eG) {
                         logger.warn('Auto-asignación guarniciones (dashboard) falló (no crítico)', { error: eG.message });
                     }
+                    }
                 } catch (e) {
                     logger.warn('Auto-asignación post-create (dashboard) falló (no crítico)', { error: e.message });
                 }
+                if (global.emitNuevaComanda && data.comanda) {
+                    try {
+                        await global.emitNuevaComanda(data.comanda);
+                    } catch (eEmit) {
+                        logger.warn('emitNuevaComanda post-asignación (dashboard) falló', { error: eEmit.message });
+                    }
+                }
+                if (global.emitComandaActualizada) {
+                    try {
+                        await global.emitComandaActualizada(comandaCreadaId);
+                    } catch (eEmit) {
+                        logger.warn('emitComandaActualizada post-asignación (dashboard) falló', {
+                            comandaId: comandaCreadaId, error: eEmit.message
+                        });
+                    }
+                }
             });
+        } else if (global.emitNuevaComanda && data.comanda) {
+            try {
+                await global.emitNuevaComanda(data.comanda);
+            } catch (e) {
+                logger.warn('emitNuevaComanda falló (no crítico)', { error: e.message });
+            }
         }
 
         logger.info('Comanda creada desde dashboard', {
@@ -2169,6 +2202,9 @@ router.put('/comanda/:id/editar-platos', async (req, res) => {
             
             console.log(`📤 [AUDITORÍA] Evento comanda-actualizada emitido para comanda ${id} (platos editados)`);
         }
+
+        const { programarAsignacionAutomaticaTrasLiberarPlatos } = require('../services/asignacionPostLiberacionService');
+        programarAsignacionAutomaticaTrasLiberarPlatos(id, { origen: 'editar_platos_app' });
         
         res.json(comandaCompleta);
     } catch (error) {
@@ -2211,6 +2247,10 @@ router.put("/comanda/:id", async (req, res) => {
       // Emitir evento Socket.io de comanda actualizada
       if (global.emitComandaActualizada) {
         await global.emitComandaActualizada(id);
+      }
+      if (Array.isArray(newData.platos) && newData.platos.length > 0) {
+        const { programarAsignacionAutomaticaTrasLiberarPlatos } = require('../services/asignacionPostLiberacionService');
+        programarAsignacionAutomaticaTrasLiberarPlatos(id, { origen: 'put_comanda_app' });
       }
     } catch (error) {
       console.error(error.message);

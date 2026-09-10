@@ -262,7 +262,7 @@ const comandaSchema = new mongoose.Schema({
             origen: {
                 type: String,
                 default: null,
-                enum: ['auto', 'manual', 'supervisor', 'overflow', null]
+                enum: ['auto', 'manual', 'supervisor', 'overflow', 'temporal', 'temporal_turno', null]
             },
             regla: {
                 type: String,

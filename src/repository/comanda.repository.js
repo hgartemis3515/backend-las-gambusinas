@@ -1857,7 +1857,7 @@ const editarConAuditoria = async (comandaId, platosNuevos, platosEliminados, usu
             const platoAgregado = {
               plato: platoCompleto._id,
               platoId: platoCompleto.id,
-              estado: nuevoPlato.estado || 'en_espera',
+              estado: nuevoPlato.estado || 'pedido',
               tipoServicio: normalizarTipoServicio(nuevoPlato.tipoServicio),
               tipoPedido: normalizarTipoPedido(nuevoPlato.tipoPedido),
               complementosUnidosAlPlato: platoCompleto.complementosUnidosAlPlato === true,

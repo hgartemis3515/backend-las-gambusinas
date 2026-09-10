@@ -69,12 +69,26 @@ async function aplicarAsignacionAutomaticaTrasLiberarPlatos(comandaIds, opts = {
             const comandaPost = await Comanda.findById(comandaId)
                 .populate('platos.plato', POPULATE_PLATO_ASIGNACION)
                 .lean();
+            let asignadosG = 0;
             if (comandaPost) {
-                await asignacionGuarnicionesService.asignarGuarnicionesNuevas(comandaPost);
+                const resG = await asignacionGuarnicionesService.asignarGuarnicionesNuevas(comandaPost);
+                asignadosG = resG?.asignados || 0;
             }
 
+            const forzarEmit = origen === 'editar_platos_app' || origen === 'put_comanda_app';
             if ((resultado?.asignados || 0) > 0 && global.emitRendimientoCocineroActualizado) {
                 global.emitRendimientoCocineroActualizado({ tipo: origen, comandaId });
+            }
+            if ((((resultado?.asignados || 0) + asignadosG) > 0 || forzarEmit) && global.emitComandaActualizada) {
+                try {
+                    await global.emitComandaActualizada(comandaId);
+                } catch (eEmit) {
+                    logger.warn('emitComandaActualizada tras auto-asignación falló', {
+                        comandaId,
+                        origen,
+                        error: eEmit.message
+                    });
+                }
             }
         } catch (e) {
             logger.warn('Auto-asignación post-liberación no crítica', {
