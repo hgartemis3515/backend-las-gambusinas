@@ -18,18 +18,25 @@ function slugify(text) {
 }
 
 function parseHoraRedirect(raw) {
-    const m = String(raw || '').trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    const s = String(raw || '').trim();
+    if (s === '24:00' || s === '24:00:00') return '24:00';
+    const m = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
     if (!m) return '';
     const h = Number(m[1]);
     const min = Number(m[2]);
-    if (!Number.isFinite(h) || !Number.isFinite(min) || h > 23 || min > 59) return '';
+    if (!Number.isFinite(h) || !Number.isFinite(min) || min > 59) return '';
+    if (h === 24 && min === 0) return '24:00';
+    if (h > 23) return '';
     return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
 }
 
 function camposHoraRedirect(data) {
     const inicio = parseHoraRedirect(data.horaRedirectInicio);
     const fin = parseHoraRedirect(data.horaRedirectFin);
-    const activa = data.horaRedirectActiva === true && !!inicio && !!fin;
+    const on = data.horaRedirectActiva === true
+        || data.horaRedirectActiva === 'true'
+        || data.horaRedirectActiva === 1;
+    const activa = on && !!inicio && !!fin;
     return { horaRedirectActiva: activa, horaRedirectInicio: inicio, horaRedirectFin: fin };
 }
 
@@ -344,6 +351,7 @@ function emitirTiposPlatoReglasActualizadas(tipos) {
     try {
         io.of('/cocina').emit('tipos-plato-reglas-actualizadas', payload);
         io.of('/admin').emit('tipos-plato-reglas-actualizadas', payload);
+        io.of('/mozos').emit('tipos-plato-reglas-actualizadas', payload);
     } catch (error) {
         logger.warn('No se pudo emitir tipos-plato-reglas-actualizadas', { error: error.message });
     }

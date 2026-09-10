@@ -262,19 +262,19 @@ tailwind.config = {
       </div>
       <div class="rounded-xl border border-[rgba(212,175,55,0.2)] bg-bg-sidebar/50 p-3 space-y-3">
         <p class="text-xs font-semibold text-gold">Redirección automática (app mozos)</p>
-        <p class="text-[11px] text-txt-muted leading-snug">Si el mozo toca <b>Agregar plato</b> dentro de este rango (hora de Lima), salta el selector de tipo de menú y abre el buscador de esta carta. Ej. Desayuno 04:00–12:00. <b>Hasta</b> no incluye esa hora (a las 12:00 ya no entra). Si cruza medianoche (22:00–04:00) también vale.</p>
+        <p class="text-[11px] text-txt-muted leading-snug">Hora de <b>Perú</b> (Lima), de <b>00:00 a 24:00</b>. Si el mozo abre el menú dentro de este rango, entra directo al buscador de esta carta (sin elegir tipo). <b>Hasta 24:00</b> = fin del día. Si Hasta es otra hora, esa hora ya no entra (ej. 04:00–12:00 termina a las 11:59). Cruce de medianoche (22:00–04:00) vale. Al guardar, las apps mozos lo aplican al toque, sin reiniciar.</p>
         <label class="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" x-model="form.horaRedirectActiva" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
           <span class="text-sm text-txt-secondary">Activar redirección por horario</span>
         </label>
         <div class="grid grid-cols-2 gap-3" x-show="form.horaRedirectActiva">
           <div>
-            <label class="text-xs text-txt-secondary mb-1 block">Desde</label>
-            <input type="time" x-model="form.horaRedirectInicio" class="w-full bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+            <label class="text-xs text-txt-secondary mb-1 block">Desde (HH:mm)</label>
+            <input type="text" inputmode="numeric" placeholder="00:00" maxlength="8" x-model="form.horaRedirectInicio" class="w-full bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm font-mono focus:border-gold focus:outline-none">
           </div>
           <div>
-            <label class="text-xs text-txt-secondary mb-1 block">Hasta (no incluye)</label>
-            <input type="time" x-model="form.horaRedirectFin" class="w-full bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+            <label class="text-xs text-txt-secondary mb-1 block">Hasta (HH:mm, 24:00 = fin del día)</label>
+            <input type="text" inputmode="numeric" placeholder="24:00" maxlength="8" x-model="form.horaRedirectFin" class="w-full bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm font-mono focus:border-gold focus:outline-none">
           </div>
         </div>
       </div>
