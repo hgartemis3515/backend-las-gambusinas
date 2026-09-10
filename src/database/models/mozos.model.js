@@ -121,6 +121,11 @@ const mozosSchema = new mongoose.Schema({
     colorPerfil: { type: String, default: '' },
     /** Color de las letras del nombre en KDS y tablas de cocina; vacío = el de Vista y alertas */
     colorLetraPerfil: { type: String, default: '' },
+    /** Preferencias de la App Mozos (tamaño modal categorías, etc.). */
+    prefsApp: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({}),
+    },
     email: { type: String, default: '' },
     fechaNacimiento: { type: Date, default: null },
     genero: { type: String, default: '' },

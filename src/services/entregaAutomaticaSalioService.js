@@ -4,20 +4,32 @@
  */
 const logger = require('../utils/logger');
 const {
-  obtenerMinutosEntregaAutomaticaMozos
+  obtenerMinutosEntregaAutomaticaMozos,
+  msRestantesEntregaAutomatica,
+  tiempoSalioRequiereReparacion
 } = require('../utils/entregaAutomaticaMozos');
 
 const SWEEP_MS = 20000;
 let sweepInterval = null;
+
+async function entregarPlatoSalio(comandaId, platoId) {
+  const { cambiarEstadoPlato } = require('../repository/comanda.repository');
+  await cambiarEstadoPlato(comandaId, platoId, 'entregado');
+  if (global.emitPlatoActualizado) {
+    await global.emitPlatoActualizado(comandaId, platoId, 'entregado', { skipPush: true });
+  }
+  if (global.emitComandaActualizada) {
+    await global.emitComandaActualizada(comandaId, 'salio');
+  }
+}
 
 async function barrerPlatosSalioVencidos() {
   try {
     const minutos = await obtenerMinutosEntregaAutomaticaMozos();
     if (minutos <= 0) return;
 
-    const limite = new Date(Date.now() - minutos * 60 * 1000);
+    const now = Date.now();
     const comandaModel = require('../database/models/comanda.model');
-    const { cambiarEstadoPlato } = require('../repository/comanda.repository');
 
     const comandas = await comandaModel.find({
       IsActive: true,
@@ -26,28 +38,29 @@ async function barrerPlatosSalioVencidos() {
         $elemMatch: {
           estado: 'salio',
           eliminado: { $ne: true },
-          anulado: { $ne: true },
-          'tiempos.salio': { $lte: limite }
+          anulado: { $ne: true }
         }
       }
     }).select('_id platos').lean();
 
     for (const comanda of comandas) {
-      for (const plato of comanda.platos || []) {
+      for (let idx = 0; idx < (comanda.platos || []).length; idx++) {
+        const plato = comanda.platos[idx];
         if (plato.eliminado || plato.anulado) continue;
         if (String(plato.estado || '').toLowerCase() !== 'salio') continue;
-        const tSalio = plato.tiempos?.salio;
-        if (!tSalio || new Date(tSalio).getTime() > limite.getTime()) continue;
         const platoId = plato._id;
         if (!platoId) continue;
+
         try {
-          await cambiarEstadoPlato(comanda._id, platoId, 'entregado');
-          if (global.emitPlatoActualizado) {
-            await global.emitPlatoActualizado(comanda._id, platoId, 'entregado', { skipPush: true });
+          if (tiempoSalioRequiereReparacion(plato, now)) {
+            await comandaModel.updateOne(
+              { _id: comanda._id },
+              { $set: { [`platos.${idx}.tiempos.salio`]: new Date(now) } }
+            );
+            continue;
           }
-          if (global.emitComandaActualizada) {
-            await global.emitComandaActualizada(comanda._id, 'salio');
-          }
+          if (msRestantesEntregaAutomatica(plato, minutos, now) > 0) continue;
+          await entregarPlatoSalio(comanda._id, platoId);
         } catch (err) {
           logger.warn('Auto-entrega salio vencida falló', {
             comandaId: String(comanda._id),

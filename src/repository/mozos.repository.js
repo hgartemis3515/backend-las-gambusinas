@@ -102,6 +102,20 @@ const actualizarMozo = async (id, newData) => {
             const { sanitizePlatosFavoritos } = require('../utils/platosFavoritosMozo');
             mozo.platosFavoritos = sanitizePlatosFavoritos(newData.platosFavoritos);
         }
+        if (newData.prefsApp !== undefined && newData.prefsApp && typeof newData.prefsApp === 'object') {
+            const prev = (mozo.prefsApp && typeof mozo.prefsApp === 'object')
+                ? (typeof mozo.prefsApp.toObject === 'function' ? mozo.prefsApp.toObject() : { ...mozo.prefsApp })
+                : {};
+            const incoming = newData.prefsApp;
+            if (incoming.cuadroCategoriaEscala !== undefined) {
+                const n = Number(incoming.cuadroCategoriaEscala);
+                if (Number.isFinite(n)) {
+                    prev.cuadroCategoriaEscala = Math.min(160, Math.max(70, Math.round(n)));
+                }
+            }
+            mozo.prefsApp = prev;
+            mozo.markModified('prefsApp');
+        }
 
         await mozo.save();
         const leaf = mozo.toObject ? mozo.toObject() : mozo;

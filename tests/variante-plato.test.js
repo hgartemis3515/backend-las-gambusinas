@@ -2,6 +2,7 @@ const {
   partirLineaPorVariante,
   expandirPlatosPorVariante,
   esComplementoVariante,
+  saboresPorUnidadDeCatalogo,
 } = require('../src/utils/variantePlato');
 
 const catalogoMix = {
@@ -177,5 +178,70 @@ describe('anexarVarianteAlNombre', () => {
     expect(partes).toHaveLength(2);
     expect(partes.map((p) => p.linea.nombreCocinaPedido)).toEqual(['P.LEÑA Pierna', 'P.LEÑA Pechuga']);
     expect(partes.map((p) => p.cantidad)).toEqual([1, 1]);
+  });
+});
+
+const catalogoPacha2 = {
+  _id: 'idpacha',
+  nombre: 'Pachamanca 2 sabores',
+  nombreCocina: 'PACH. 2S',
+  complementos: [
+    {
+      grupo: 'Sabores',
+      anexarVarianteAlNombre: true,
+      modoSeleccion: 'cantidades',
+      saboresPorUnidad: 2,
+      opciones: [
+        { nombre: 'Pollo' },
+        { nombre: 'Res' },
+        { nombre: 'Chancho' },
+      ],
+    },
+  ],
+};
+
+describe('OP pachamanca combos', () => {
+  test('2 sabores: Pollo+Res y Res+Chancho son dos platos con nombre combinado', () => {
+    const partes = partirLineaPorVariante({
+      complementosSeleccionados: [
+        { grupo: 'Sabores', opcion: 'Pollo', cantidad: 1 },
+        { grupo: 'Sabores', opcion: 'Res', cantidad: 1 },
+        { grupo: 'Sabores', opcion: 'Res', cantidad: 1 },
+        { grupo: 'Sabores', opcion: 'Chancho', cantidad: 1 },
+      ],
+    }, catalogoPacha2, 2);
+    expect(partes).toHaveLength(2);
+    expect(partes.map((p) => p.linea.nombreCocinaPedido)).toEqual([
+      'PACH. 2S Pollo - Res',
+      'PACH. 2S Res - Chancho',
+    ]);
+    expect(partes.map((p) => p.cantidad)).toEqual([1, 1]);
+    expect(partes[0].linea.complementosSeleccionados.map((c) => c.opcion)).toEqual(['Pollo', 'Res']);
+    expect(partes[1].linea.complementosSeleccionados.map((c) => c.opcion)).toEqual(['Res', 'Chancho']);
+  });
+
+  test('misma combinación ×2 no parte sabores sueltos', () => {
+    const partes = partirLineaPorVariante({
+      complementosSeleccionados: [
+        { grupo: 'Sabores', opcion: 'Pollo', cantidad: 1 },
+        { grupo: 'Sabores', opcion: 'Res', cantidad: 1 },
+      ],
+    }, catalogoPacha2, 2);
+    expect(partes).toHaveLength(1);
+    expect(partes[0].cantidad).toBe(2);
+    expect(partes[0].linea.nombreCocinaPedido).toBe('PACH. 2S Pollo - Res');
+  });
+
+  test('lee 3 sabores del nombre si no hay campo', () => {
+    const cat = {
+      nombre: 'Pachamanca 3 sabores',
+      complementos: [{
+        grupo: 'Sabores',
+        anexarVarianteAlNombre: true,
+        modoSeleccion: 'cantidades',
+        opciones: [{ nombre: 'Pollo' }, { nombre: 'Res' }, { nombre: 'Chancho' }],
+      }],
+    };
+    expect(saboresPorUnidadDeCatalogo(cat)).toBe(3);
   });
 });

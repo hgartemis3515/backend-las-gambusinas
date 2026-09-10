@@ -27,6 +27,7 @@ describe('cadenaEntregaPlato', () => {
         expect(destinosCambioEstadoPlato('recoger', 'salio', false, 15)).toEqual(['salio']);
         expect(destinosCambioEstadoPlato('pedido', 'recoger', true, 15)).toEqual(['recoger', 'salio']);
         expect(destinosCambioEstadoPlato('salio', 'entregado', false, 15)).toEqual(['entregado']);
+        expect(destinosCambioEstadoPlato('salio', 'entregado', true, 15)).toEqual(['entregado']);
     });
 
     test('ya entregado no re-aplica cadena', () => {

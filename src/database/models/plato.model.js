@@ -188,6 +188,8 @@ const platoSchema = new mongoose.Schema({
         // Anexa la opción al nombre del plato en cocina (Pollo leña + Pierna → Pollo leña Pierna).
         // Distinto de MIX: no reemplaza el nombre, no es guarnición KDS.
         anexarVarianteAlNombre: { type: Boolean, default: false },
+        // Pachamanca: cuántos sabores van juntos por unidad (1–8). Null = inferir del nombre.
+        saboresPorUnidad: { type: Number, default: null, min: 1, max: 8 },
         // Si true, esta guarnición se ve en la tabla KDS aunque la vista tenga
         // «Ocultar complementos / guarniciones».
         forzarVisibleTablaKds: { type: Boolean, default: false },

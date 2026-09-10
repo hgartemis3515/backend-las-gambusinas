@@ -79,6 +79,7 @@ const complementoPlantillaSchema = new mongoose.Schema({
     esVariantePlato: { type: Boolean, default: false },
     deshabilitarSumaVariante: { type: Boolean, default: false },
     anexarVarianteAlNombre: { type: Boolean, default: false },
+    saboresPorUnidad: { type: Number, default: null, min: 1, max: 8 },
     forzarVisibleTablaKds: { type: Boolean, default: false },
     seleccionFija: { type: Boolean, default: false },
     // ===== FIN NUEVOS CAMPOS =====

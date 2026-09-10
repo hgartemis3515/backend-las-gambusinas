@@ -28,11 +28,15 @@ function pasosCadenaEntregaAbsoluta(estado, minutosDelay = 0) {
 function destinosCambioEstadoPlato(estadoAnterior, nuevoEstado, absoluto, minutosDelay = 0) {
     const actual = normalizarEstadoPlato(estadoAnterior);
     const dest = String(nuevoEstado || '').toLowerCase();
-    if (absoluto || dest === 'salio') {
-        return pasosCadenaEntregaAbsoluta(estadoAnterior, minutosDelay);
-    }
     if (dest === 'entregado' && (actual === 'entregado' || actual === 'pagado')) {
         return [];
+    }
+    // Mozo / auto-entrega / atajo KDS: salio → entregado siempre aplica, aunque haya espera.
+    if (dest === 'entregado' && actual === 'salio') {
+        return ['entregado'];
+    }
+    if (absoluto || dest === 'salio') {
+        return pasosCadenaEntregaAbsoluta(estadoAnterior, minutosDelay);
     }
     if (dest === actual) return [];
     return [dest];

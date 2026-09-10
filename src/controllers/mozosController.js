@@ -28,6 +28,7 @@ const MOZO_SELF_PROFILE_KEYS = new Set([
   "colorPerfil",
   "colorLetraPerfil",
   "platosFavoritos",
+  "prefsApp",
 ]);
 
 function filterMozoSelfUpdateBody(body) {

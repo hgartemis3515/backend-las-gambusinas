@@ -262,6 +262,7 @@ function sanitizarComplementosParaGuardar(complementos) {
         const maxGrupo = numeroOpcional(g.maxUnidadesGrupo);
         const minGrupo = numeroOpcional(g.minUnidadesGrupo);
         const maxOp = numeroOpcional(g.maxUnidadesPorOpcion);
+        const saboresU = anexarVarianteAlNombre && modo === 'cantidades' ? numeroOpcional(g.saboresPorUnidad) : null;
         return {
             grupo,
             obligatorio: !!g.obligatorio,
@@ -274,6 +275,7 @@ function sanitizarComplementosParaGuardar(complementos) {
             esVariantePlato,
             deshabilitarSumaVariante,
             anexarVarianteAlNombre,
+            saboresPorUnidad: saboresU != null && saboresU >= 1 && saboresU <= 8 ? saboresU : null,
             forzarVisibleTablaKds,
             seleccionFija,
             opciones: ops
@@ -287,13 +289,17 @@ function sanitizarComplementosParaGuardar(complementos) {
     }
     out.forEach((g, i) => {
         if (i === keepIdx) {
-            if (g.esVariantePlato) g.anexarVarianteAlNombre = false;
+            if (g.esVariantePlato) {
+                g.anexarVarianteAlNombre = false;
+                g.saboresPorUnidad = null;
+            }
             return;
         }
         if (!g.esVariantePlato && !g.anexarVarianteAlNombre) return;
         g.esVariantePlato = false;
         g.anexarVarianteAlNombre = false;
         g.deshabilitarSumaVariante = false;
+        g.saboresPorUnidad = null;
     });
     return out;
 }
