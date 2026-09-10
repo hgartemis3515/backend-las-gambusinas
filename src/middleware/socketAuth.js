@@ -53,6 +53,25 @@ const isTokenExpiringSoon = (payload) => {
   return (expiresAt - now) < JWT_EXPIRY_MARGIN_MS;
 };
 
+function listaPermisosPayload(payload) {
+  return Array.isArray(payload?.permisos) ? payload.permisos : [];
+}
+
+/**
+ * Login de App Mozos (`app: 'mozos'`) admite cualquier usuario del staff
+ * (mozo, cocinera, admin). El socket no puede exigir solo rol mozos:
+ * si no, Martha/Melina (cocinero) entran al login y al ir a Inicio el
+ * socket las echa y la app muestra "Sesión expirada".
+ */
+function puedeAccederSocketMozos(payload) {
+  if (!payload || typeof payload !== 'object') return false;
+  if (payload.app === 'mozos') return true;
+  const rol = String(payload.rol || payload.role || '').toLowerCase();
+  if (['mozos', 'admin', 'supervisor', 'cocinero'].includes(rol)) return true;
+  const permisos = listaPermisosPayload(payload);
+  return permisos.includes('crear-comandas') || permisos.includes('ver-mesas');
+}
+
 /**
  * Middleware de autenticación para namespace /cocina
  * Valida que el usuario tenga rol de cocinero o admin
@@ -198,14 +217,17 @@ const authenticateMozos = (socket, next) => {
       return next(new Error('Token inválido o expirado.'));
     }
     
-    // Roles permitidos para app de mozos (o roles personalizados con permiso de crear comandas)
-    const rol = payload.rol || payload.role;
-    const permisos = payload.permisos || [];
-    const rolesPermitidos = ['mozos', 'admin', 'supervisor'];
-
-    if (!rolesPermitidos.includes(rol) && !permisos.includes('crear-comandas')) {
+    if (!puedeAccederSocketMozos(payload)) {
+      logger.warn('Intento de conexión a /mozos sin acceso', {
+        socketId: socket.id,
+        userId: payload.id || payload._id,
+        rol: payload.rol || payload.role,
+        app: payload.app || null
+      });
       return next(new Error('No tiene permisos para acceder.'));
     }
+
+    const rol = payload.rol || payload.role;
     
     socket.user = {
       id: payload.id || payload._id || payload.userId,
@@ -386,6 +408,7 @@ module.exports = {
   authenticateMozos,
   authenticateAdmin,
   decodeAndVerifyToken,
+  puedeAccederSocketMozos,
   emitToUser,
   emitToZona,
   rateLimiter
