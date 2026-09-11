@@ -1,6 +1,7 @@
 const TipoPlato = require('../database/models/tipoPlato.model');
 const platoModel = require('../database/models/plato.model');
 const logger = require('../utils/logger');
+const { wrapMutacionesCatalogo } = require('../utils/catalogoCartaPersistencia');
 
 /**
  * Normaliza un texto a slug: "Cena" -> "platos-cena"
@@ -375,7 +376,7 @@ async function invalidatePlatoMenuCache() {
     }
 }
 
-module.exports = {
+module.exports = wrapMutacionesCatalogo({
     listarTiposPlato,
     getMenuLigero,
     obtenerTipoPlatoPorSlug,
@@ -389,4 +390,12 @@ module.exports = {
     reasignarTipoPlato,
     contarUsoPorSlug,
     slugify
-};
+}, ['tipos_plato.json', 'platos.json'], [
+    'listarTiposPlato',
+    'getMenuLigero',
+    'obtenerTipoPlatoPorSlug',
+    'obtenerTipoPlatoPorId',
+    'obtenerPlatosQueUsanTipo',
+    'contarUsoPorSlug',
+    'slugify'
+]);

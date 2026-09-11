@@ -82,7 +82,7 @@ tailwind.config = {
       <div class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
         <table class="w-full text-sm">
           <thead><tr class="bg-bg-sidebar text-txt-secondary text-[10px] uppercase">
-            <th class="text-left px-3 py-2.5 font-semibold">#</th>
+            <th class="text-left px-3 py-2.5 font-semibold" title="Orden en la app de mozos">Orden</th>
             <th class="text-left px-3 py-2.5 font-semibold">Códigos</th>
             <th class="text-left px-3 py-2.5 font-semibold">Nombre</th>
             <th class="text-left px-3 py-2.5 font-semibold">Precio</th>
@@ -98,18 +98,32 @@ tailwind.config = {
             </tr>
             <template x-for="(p, i) in filteredPlatos" :key="p._id || p.nombre">
               <tr class="border-b border-[rgba(212,175,55,0.08)] table-row">
-                <td class="px-3 py-2.5 text-txt-muted" x-text="i+1"></td>
+                <td class="px-3 py-2.5">
+                  <div class="flex items-center gap-0.5">
+                    <button type="button"
+                      class="w-6 h-6 flex items-center justify-center rounded text-[10px] text-gold hover:bg-gold/20 disabled:opacity-25 disabled:hover:bg-transparent"
+                      :disabled="i === 0 || moviendoOrdenPlato"
+                      @click="moverPlatoEnTabla(i, -1)"
+                      title="Subir en la app de mozos">▲</button>
+                    <span class="text-txt-muted text-[11px] tabular-nums w-6 text-center" x-text="i+1"></span>
+                    <button type="button"
+                      class="w-6 h-6 flex items-center justify-center rounded text-[10px] text-gold hover:bg-gold/20 disabled:opacity-25 disabled:hover:bg-transparent"
+                      :disabled="i === filteredPlatos.length - 1 || moviendoOrdenPlato"
+                      @click="moverPlatoEnTabla(i, 1)"
+                      title="Bajar en la app de mozos">▼</button>
+                  </div>
+                </td>
                 <td class="px-3 py-2.5">
                   <p class="font-mono text-gold font-semibold text-xs" x-text="'Cocina: ' + (p.codigo || '—')"></p>
                   <p class="font-mono text-[10px] text-txt-muted mt-0.5" x-text="'Mozo: ' + (p.codigoMozo || p.codigo || '—')"></p>
                 </td>
                 <td class="px-3 py-2.5">
                   <p class="font-medium text-sm" x-text="p.nombre"></p>
-                  <p class="text-[10px] text-txt-muted" x-text="(p.categoria || p.cat) + ' · ' + tiposLabel(p)"></p>
+                  <p class="text-[10px] text-txt-muted" x-text="categoriasDe(p).join(' · ') + ' · ' + tiposLabel(p)"></p>
                   <p x-show="p.nombreCocina" class="text-[10px] text-gold/80 mt-0.5" x-text="'Cocina: ' + p.nombreCocina"></p>
                   <p x-show="(p.nombresSincronizados || []).length" class="text-[10px] text-gold/70 mt-0.5" x-text="'También: ' + (p.nombresSincronizados || []).join(', ')"></p>
                   <p x-show="resumenMarcasGuarnicion(p)" class="text-[10px] text-txt-muted mt-0.5" x-text="resumenMarcasGuarnicion(p)"></p>
-                  <p x-show="p.platoPrincipal" class="text-[10px] text-gold/70 mt-0.5">Variante: mismos datos, otras marcas de guarnición</p>
+                  <p x-show="p.platoPrincipal" class="text-[10px] text-gold/70 mt-0.5">Variante sincronizada (título propio, otras marcas de guarnición)</p>
                 </td>
                 <td class="px-3 py-2.5 text-gold font-semibold" x-text="'S/. ' + (p.precio || '0.00')"></td>
                 <td class="px-3 py-2.5">
@@ -117,7 +131,13 @@ tailwind.config = {
                     :class="p.stock > 20 ? 'bg-st-preparado/15 text-st-preparado' : p.stock > 0 ? 'bg-st-esperando/15 text-st-esperando' : 'bg-st-pagado/15 text-st-pagado'"
                     x-text="p.stock || 0"></span>
                 </td>
-                <td class="px-3 py-2.5"><span class="text-[10px] px-2 py-0.5 rounded-full bg-gold/10 text-gold" x-text="p.categoria || p.cat || '—'"></span></td>
+                <td class="px-3 py-2.5">
+                  <div class="flex flex-wrap gap-1">
+                    <template x-for="cat in categoriasDe(p)" :key="'tc-'+p._id+cat">
+                      <span class="text-[10px] px-2 py-0.5 rounded-full bg-gold/10 text-gold" x-text="cat"></span>
+                    </template>
+                  </div>
+                </td>
                 <td class="px-3 py-2.5">
                   <div class="flex flex-wrap gap-1">
                     <template x-for="t in tiposDe(p)" :key="t">
@@ -150,6 +170,7 @@ tailwind.config = {
         </table>
         <div class="flex items-center justify-between px-3 py-2.5 text-[11px] text-txt-muted border-t border-[rgba(212,175,55,0.08)]">
           <span x-text="'Mostrando ' + filteredPlatos.length + ' de ' + platos.length + ' platos'"></span>
+          <span>▲▼ mueve el orden en la app de mozos</span>
         </div>
       </div>
 
@@ -199,7 +220,11 @@ tailwind.config = {
       <div>
         <p class="text-[11px] text-txt-secondary uppercase font-semibold mb-3">Datos Básicos</p>
         <div class="space-y-3">
-          <div><label class="text-xs text-txt-secondary mb-1 block">Nombre del plato <span class="text-st-pagado">*</span></label><input type="text" x-model="formPlato.nombre" placeholder="Ej: Ceviche Clásico" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
+          <div>
+            <label class="text-xs text-txt-secondary mb-1 block">Nombre del plato <span class="text-st-pagado">*</span></label>
+            <input type="text" x-model="formPlato.nombre" placeholder="Ej: Ceviche Clásico" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none">
+            <p class="text-[10px] text-txt-muted mt-1">Título en el buscador de mozos. Si está sincronizado con otro plato, este nombre es propio (no se copia).</p>
+          </div>
           <div><label class="text-xs text-txt-secondary mb-1 block">Nombre del plato en Cocina <span class="text-[10px] text-txt-muted">(opcional)</span></label><input type="text" x-model="formPlato.nombreCocina" maxlength="40" placeholder="Ej: CEV, Lomo S/, Ají G" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none"><p class="text-[10px] text-txt-muted mt-1">Se muestra en Ver Cocina siempre, y en la tabla KDS si está habilitado en Configuración → Cocina.</p></div>
           <div class="grid grid-cols-2 gap-3">
             <div>
@@ -211,10 +236,27 @@ tailwind.config = {
               <input type="text" x-model="formPlato.codigoMozo" @input="formPlato.codigoMozo = (formPlato.codigoMozo || '').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4)" placeholder="Ej: L1 (opcional)" maxlength="4" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm font-mono focus:border-gold focus:outline-none">
             </div>
           </div>
-          <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-2 gap-3">
             <div><label class="text-xs text-txt-secondary mb-1 block">Precio (S/.)</label><input type="number" x-model="formPlato.precio" placeholder="0.00" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
             <div><label class="text-xs text-txt-secondary mb-1 block">Stock</label><input type="number" x-model="formPlato.stock" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
-            <div><label class="text-xs text-txt-secondary mb-1 block">Categoría</label><input type="text" x-model="formPlato.categoria" placeholder="Ej: Ceviches" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
+          </div>
+          <div class="mt-3">
+            <label class="text-xs text-txt-secondary mb-1 block">Categorías <span class="text-st-pagado">*</span> <span class="text-[10px] text-txt-muted">(1 o más; las variantes sincronizadas pueden diferir)</span></label>
+            <div class="flex flex-wrap gap-2 p-3 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg">
+              <template x-for="cat in categoriasOpcionesForm" :key="'cf-'+cat">
+                <button type="button" @click="toggleCategoriaEnForm(cat)"
+                  class="px-2.5 py-1.5 rounded-lg text-xs font-medium border transition"
+                  :class="categoriasDe(formPlato).includes(cat) ? 'bg-gold text-bg-primary border-gold' : 'border-[rgba(212,175,55,0.25)] text-txt-secondary hover:border-gold hover:text-gold'"
+                  x-text="cat"></button>
+              </template>
+              <span x-show="categoriasOpcionesForm.length === 0" class="text-[11px] text-txt-muted">Escribe una categoría abajo</span>
+            </div>
+            <div class="flex gap-2 mt-2">
+              <input type="text" x-model="nuevaCategoriaForm" @keydown.enter.prevent="agregarCategoriaForm()" placeholder="Nueva categoría (ej. Ceviches)"
+                class="flex-1 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+              <button type="button" @click="agregarCategoriaForm()" class="px-3 py-2 bg-gold/20 text-gold rounded-lg text-xs font-semibold hover:bg-gold/30">Agregar</button>
+            </div>
+            <p x-show="categoriasDe(formPlato).length === 0" class="text-[10px] text-st-pagado mt-1">Selecciona al menos una categoría</p>
           </div>
 
           <!-- TIPOS DE MENÚ (selección múltiple) -->
@@ -239,7 +281,7 @@ tailwind.config = {
             <p class="text-xs font-semibold text-gold">Sincronización (buscador mozos)</p>
             <div>
               <label class="text-xs text-txt-secondary mb-1 block">Sincronizado por nombre</label>
-              <p class="text-[10px] text-txt-muted mb-2">Otros nombres del mismo plato (ej. Leña Papa). Podés agregar todos los que quieras: salen en el buscador de Órdenes, pero es el mismo plato y las mismas guarniciones.</p>
+              <p class="text-[10px] text-txt-muted mb-2">Otros títulos del mismo plato en el buscador (ej. Leña Papa). El plato y las guarniciones no cambian; solo el nombre con el que el mozo lo busca.</p>
               <div class="flex flex-wrap gap-1.5 mb-2" x-show="(formPlato.nombresSincronizados || []).length">
                 <template x-for="(alias, ai) in (formPlato.nombresSincronizados || [])" :key="'ns-'+ai+alias">
                   <span class="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-gold/15 text-gold">
@@ -256,8 +298,8 @@ tailwind.config = {
             </div>
             <div class="border-t border-[rgba(212,175,55,0.12)] pt-3">
               <label class="text-xs text-txt-secondary mb-1 block">Sincronizado por plato principal</label>
-              <p class="text-[10px] text-txt-muted mb-2">Crea el <strong>mismo plato</strong> (nombre, precio, código de mozo y el resto de datos). Lo único que cambia son las <strong>marcas de guarnición</strong> (ej. 1 pollo con arroz y ensalada, otro 1 pollo con papa y ensalada). El código de cocina se genera solo y no se puede repetir. Podés crear varios de una vez.</p>
-              <p x-show="formPlato.platoPrincipal" class="text-[10px] text-gold mb-1">Vinculado al principal: mismos datos; solo cambian las marcas de guarnición.</p>
+              <p class="text-[10px] text-txt-muted mb-2">Crea otro registro del mismo plato (precio, código de mozo y datos). <strong>El título en mozos es distinto</strong> y las <strong>marcas de guarnición</strong> también pueden serlo. El código de cocina se genera solo y no se puede repetir.</p>
+              <p x-show="formPlato.platoPrincipal" class="text-[10px] text-gold mb-1">Vinculado al principal: datos sincronizados; el título y las marcas de guarnición son de este plato.</p>
               <div class="flex flex-wrap gap-1 mb-2" x-show="platosGrupoSincronizado.length > 1">
                 <template x-for="sp in platosGrupoSincronizado" :key="sp._id">
                   <button type="button" @click="openEditModal(sp)" class="text-[10px] px-2 py-0.5 rounded-full border border-[rgba(212,175,55,0.25)] hover:border-gold"
@@ -267,7 +309,7 @@ tailwind.config = {
                 </template>
               </div>
               <div class="flex flex-col sm:flex-row gap-2" x-show="isEditing && formPlato._id">
-                <input type="text" x-model="nuevoNombreSyncPrincipal" placeholder="Mismo nombre (opcional)" maxlength="80"
+                <input type="text" x-model="nuevoNombreSyncPrincipal" placeholder="Título distinto en mozos *" maxlength="80"
                   class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
                 <input type="text" x-model="nuevoCodigoSyncPrincipal" placeholder="Cód. cocina"
                   @input="nuevoCodigoSyncPrincipal = (nuevoCodigoSyncPrincipal || '').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4)"
@@ -1086,7 +1128,7 @@ tailwind.config = {
 
 <!-- MODAL: CREAR/EDITAR COMPLEMENTO PLANTILLA -->
 <div x-show="modalFormComplemento" x-transition.opacity class="fixed inset-0 z-[65] flex items-center justify-center p-4 modal-overlay bg-black/80" @click.self="modalFormComplemento=false">
-  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[500px] max-h-[85vh] overflow-y-auto shadow-2xl" @click.stop>
+  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[560px] max-h-[85vh] overflow-y-auto shadow-2xl" @click.stop>
     <div class="bg-bg-sidebar p-4 rounded-t-2xl">
       <h3 class="text-base font-bold" x-text="isEditingComplemento ? 'Editar Complemento' : 'Nuevo Complemento'"></h3>
       <p class="text-[11px] text-txt-muted" x-text="isEditingComplemento ? 'Modifica la plantilla de complemento' : 'Crea una nueva plantilla reutilizable'"></p>
@@ -1096,7 +1138,7 @@ tailwind.config = {
       <!-- Nombre -->
       <div>
         <label class="text-xs text-txt-secondary mb-1 block">Nombre del complemento <span class="text-st-pagado">*</span></label>
-        <input type="text" x-model="formComplemento.nombre" placeholder="Ej: Término de cocción" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+        <input type="text" x-model="formComplemento.nombre" @blur="hidratarAsignacionPlantilla()" placeholder="Ej: Término de cocción" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
       </div>
       
       <!-- Categoría -->
@@ -1122,7 +1164,7 @@ tailwind.config = {
           <template x-for="(op, i) in formComplemento.opciones" :key="i">
             <div class="space-y-1">
               <div class="flex gap-2">
-                <input type="text" x-model="op.nombre" placeholder="Ej: Tres cuartos" class="flex-1 min-w-0 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+                <input type="text" x-model="op.nombre" @blur="hidratarAsignacionPlantilla()" placeholder="Ej: Tres cuartos" class="flex-1 min-w-0 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
                 <input type="text" x-model="op.pronombre" placeholder="Pronombre" title="Nombre corto en cocina" maxlength="40" class="w-24 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
                 <input type="number" x-model.number="op.precio" min="0" step="0.01" placeholder="0.00" title="Precio adicional opcional (S/.)" class="w-24 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
                 <button @click="eliminarOpcionFormComplemento(i)" class="w-8 h-8 flex items-center justify-center rounded bg-st-pagado/20 text-st-pagado text-sm hover:bg-st-pagado/30">✕</button>
@@ -1152,6 +1194,90 @@ tailwind.config = {
           </template>
         </div>
         <p x-show="formComplemento.opciones.length === 0" class="text-[11px] text-st-pagado mt-1">Debes agregar al menos una opción</p>
+
+        <div class="mt-3 p-3 bg-bg-sidebar border border-[rgba(212,175,55,0.2)] rounded-xl space-y-3"
+          x-show="!formComplemento.esVariantePlato && !formComplemento.anexarVarianteAlNombre && (formComplemento.opciones || []).some(o => (o.nombre || '').trim())">
+          <div class="flex items-center justify-between gap-3 flex-wrap">
+            <p class="text-xs font-semibold text-gold">Asignación automática (guarniciones)</p>
+            <div class="flex items-center gap-2">
+              <label class="text-[10px] text-txt-muted">Perfil</label>
+              <select x-model="perfilAsignacionGuarId" @change="hidratarAsignacionPlantilla(true)"
+                class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1 text-[11px] text-txt-secondary focus:border-gold focus:outline-none min-w-[140px]">
+                <option value="">— Sin perfil —</option>
+                <template x-for="pf in perfilesAsignacionGuar" :key="'pg-'+pf.id">
+                  <option :value="pf.id" x-text="(pf.nombre || 'Perfil') + (perfilActivoGuarAhora?.perfilId === pf.id ? ' · activo ahora' : '')"></option>
+                </template>
+              </select>
+            </div>
+          </div>
+          <p class="text-[10px] text-txt-muted">Se guarda en el perfil de guarniciones. Al agregar este grupo a un plato, hereda estos cocineros (salvo que el plato tenga regla propia).</p>
+          <div class="border border-[rgba(212,175,55,0.12)] rounded-lg p-2 space-y-1.5">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-[11px] font-medium">Todo el grupo <span class="text-txt-muted" x-text="formComplemento.nombre || '(nombre)'"></span></p>
+              <span class="text-[10px] text-gold" x-text="etiquetaAsignacionActual(formComplemento._asigGrupo)"></span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <select x-model="formComplemento._asigGrupo.cocineroPrimarioId"
+                class="w-full bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[11px] text-txt-secondary focus:border-gold focus:outline-none">
+                <option value="">— Sin primario —</option>
+                <template x-for="c in cocinerosAsignacion" :key="'ggrp-'+c._id">
+                  <option :value="c._id" x-text="etiquetaCocineroAsig(c)"></option>
+                </template>
+              </select>
+              <button type="button" @click="agregarBackupAsig(formComplemento._asigGrupo)" class="text-[10px] text-gold hover:underline text-left">+ backup</button>
+            </div>
+            <div class="space-y-1" x-show="(formComplemento._asigGrupo?.backups || []).length">
+              <template x-for="(b, idx) in (formComplemento._asigGrupo.backups || [])" :key="'ggrpb-'+idx">
+                <div class="flex items-center gap-1">
+                  <select x-model="b.cocineroId"
+                    class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[11px] text-txt-secondary focus:border-gold focus:outline-none">
+                    <option value="">— Backup —</option>
+                    <template x-for="c in cocinerosAsignacion" :key="'ggrpb-'+idx+'-'+c._id">
+                      <option :value="c._id" x-text="etiquetaCocineroAsig(c)"></option>
+                    </template>
+                  </select>
+                  <button type="button" @click="quitarBackupAsig(formComplemento._asigGrupo, idx)" class="text-st-pagado text-[10px] px-1">✕</button>
+                </div>
+              </template>
+            </div>
+          </div>
+          <div class="space-y-2">
+            <template x-for="(op, oi) in (formComplemento.opciones || [])" :key="'asig-plant-'+oi">
+              <div x-show="(op.nombre || '').trim() && op._asig" class="border border-[rgba(212,175,55,0.12)] rounded-lg p-2 space-y-1.5">
+                <div class="flex items-center justify-between gap-2">
+                  <p class="text-[11px] font-medium" x-text="op.nombre"></p>
+                  <span class="text-[10px] text-gold" x-text="etiquetaAsignacionActual(op._asig)"></span>
+                </div>
+                <p x-show="op._asig?.origen === 'grupo'" class="text-[10px] text-txt-muted">Heredado del grupo. Si cambias el cocinero se crea una regla de esta opción.</p>
+                <div class="grid grid-cols-2 gap-2">
+                  <select x-model="op._asig.cocineroPrimarioId"
+                    class="w-full bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[11px] text-txt-secondary focus:border-gold focus:outline-none">
+                    <option value="">— Sin primario —</option>
+                    <template x-for="c in cocinerosAsignacion" :key="'gpopt-'+oi+'-'+c._id">
+                      <option :value="c._id" x-text="etiquetaCocineroAsig(c)"></option>
+                    </template>
+                  </select>
+                  <button type="button" @click="agregarBackupAsig(op._asig)" class="text-[10px] text-gold hover:underline text-left">+ backup</button>
+                </div>
+                <div class="space-y-1" x-show="(op._asig?.backups || []).length">
+                  <template x-for="(b, idx) in (op._asig.backups || [])" :key="'gpoptb-'+oi+'-'+idx">
+                    <div class="flex items-center gap-1">
+                      <select x-model="b.cocineroId"
+                        class="flex-1 bg-bg-card border border-[rgba(212,175,55,0.2)] rounded px-2 py-1 text-[11px] text-txt-secondary focus:border-gold focus:outline-none">
+                        <option value="">— Backup —</option>
+                        <template x-for="c in cocinerosAsignacion" :key="'gpoptb-'+oi+'-'+idx+'-'+c._id">
+                          <option :value="c._id" x-text="etiquetaCocineroAsig(c)"></option>
+                        </template>
+                      </select>
+                      <button type="button" @click="quitarBackupAsig(op._asig, idx)" class="text-st-pagado text-[10px] px-1">✕</button>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+
         <div class="mt-3 p-2 bg-bg-card rounded-lg border border-[rgba(212,175,55,0.15)]" x-show="(formComplemento.opciones || []).some(o => (o.nombre || '').trim())">
           <p class="text-[9px] text-txt-muted font-semibold mb-0.5">Marcar en Órdenes (mozos)</p>
           <p class="text-[9px] text-txt-muted mb-2" x-show="!formComplemento.seleccionFija">Al aplicar esta plantilla al plato, el mozo ya las ve seleccionadas.</p>
@@ -1296,6 +1422,7 @@ tailwind.config = {
     filterCategoria: '',
     filterTipo: '',
     filterSoloConComplementos: false,
+    moviendoOrdenPlato: false,
     tiposPlato: [],
     formPlato: {
       _id: null,
@@ -1307,6 +1434,7 @@ tailwind.config = {
       precio: '',
       stock: 0,
       categoria: '',
+      categorias: [],
       tipo: 'plato-carta normal',
       tipos: [],
       descripcion: '',
@@ -1330,6 +1458,7 @@ tailwind.config = {
     nuevoNombreSyncPrincipal: '',
     nuevoCodigoSyncPrincipal: '',
     nuevoCantidadSyncPrincipal: 1,
+    nuevaCategoriaForm: '',
     
     // ============ ESTADO PARA GESTIÓN DE COMPLEMENTOS ============
     modalGestionComplementos: false,
@@ -1387,7 +1516,9 @@ tailwind.config = {
       forzarVisibleTablaKds: false,
       seleccionFija: false,
       // ===== FIN NUEVOS CAMPOS =====
-      activo: true
+      activo: true,
+      _asigGrupo: { activo: true, cocineroPrimarioId: '', backups: [], origen: null, temporalDias: 0, temporalVariarPorTurno: false, temporalCocineroId: '', temporalBackups: [], temporalHasta: null, _snapshot: '' },
+      _nombreAsigOriginal: ''
     },
     
     selectedComplementosLib: [],
@@ -1460,7 +1591,7 @@ tailwind.config = {
         const matchCodigo = !codigoBuscado
           || (p.codigo || '').toUpperCase().includes(codigoBuscado)
           || (p.codigoMozo || '').toUpperCase().includes(codigoBuscado);
-        const matchCat = !this.filterCategoria || p.categoria === this.filterCategoria || p.cat === this.filterCategoria;
+        const matchCat = !this.filterCategoria || this.platoEsDeCategoria(p, this.filterCategoria);
         const tipos = this.tiposDe(p);
         const matchTipo = !this.filterTipo || tipos.includes(this.filterTipo) ||
           (this.filterTipo === 'Carta' && tipos.some(t => t === 'Carta' || t === 'plato-carta normal')) ||
@@ -1468,6 +1599,52 @@ tailwind.config = {
         const matchComp = !this.filterSoloConComplementos || (Array.isArray(p.complementos) && p.complementos.length > 0);
         return matchSearch && matchCodigo && matchCat && matchTipo && matchComp;
       });
+      this.filteredPlatos.sort((a, b) => this.cmpOrdenPlato(a, b));
+    },
+
+    cmpOrdenPlato(a, b) {
+      const oa = Number(a && a.orden);
+      const ob = Number(b && b.orden);
+      const fa = Number.isFinite(oa) ? oa : Number.MAX_SAFE_INTEGER;
+      const fb = Number.isFinite(ob) ? ob : Number.MAX_SAFE_INTEGER;
+      if (fa !== fb) return fa - fb;
+      const ia = Number(a && a.id) || 0;
+      const ib = Number(b && b.id) || 0;
+      if (ia !== ib) return ia - ib;
+      return String((a && a.nombre) || '').localeCompare(String((b && b.nombre) || ''), 'es');
+    },
+
+    async moverPlatoEnTabla(i, delta) {
+      if (this.moviendoOrdenPlato) return;
+      const list = this.filteredPlatos;
+      const j = i + delta;
+      if (j < 0 || j >= list.length) return;
+      const ids = list.map(p => p._id);
+      const tmp = ids[i];
+      ids[i] = ids[j];
+      ids[j] = tmp;
+      this.moviendoOrdenPlato = true;
+      try {
+        const res = await apiPatch('/platos/orden', { ids });
+        if (res && res.error) {
+          this.showToast(res.error, 'error');
+        } else if (Array.isArray(res)) {
+          this.platos = res;
+          this.filterPlatos();
+        } else if (res && Array.isArray(res.platos)) {
+          this.platos = res.platos;
+          this.filterPlatos();
+        } else {
+          this.showToast('No se pudo guardar el orden', 'error');
+          await this.loadPlatos();
+        }
+      } catch (e) {
+        console.error('Error reordenando platos', e);
+        this.showToast('No se pudo guardar el orden', 'error');
+        await this.loadPlatos();
+      } finally {
+        this.moviendoOrdenPlato = false;
+      }
     },
 
     tipoLabel(tipo) {
@@ -1494,6 +1671,69 @@ tailwind.config = {
         return 'background: rgba(255,165,2,0.10); color: #ffa502;';
       }
       return 'background: rgba(52,152,219,0.10); color: #3498db;';
+    },
+
+    categoriasDe(p) {
+      if (!p) return [];
+      const arr = Array.isArray(p.categorias) ? p.categorias.map((c) => String(c || '').trim()).filter(Boolean) : [];
+      const seen = new Set();
+      const out = [];
+      arr.forEach((c) => {
+        const k = c.toLowerCase();
+        if (seen.has(k)) return;
+        seen.add(k);
+        out.push(c);
+      });
+      const legacy = String(p.categoria || p.cat || '').trim();
+      if (legacy && !seen.has(legacy.toLowerCase())) out.unshift(legacy);
+      return out;
+    },
+
+    platoEsDeCategoria(p, cat) {
+      const target = String(cat || '').trim().toLowerCase();
+      if (!target) return true;
+      return this.categoriasDe(p).some((c) => c.toLowerCase() === target);
+    },
+
+    get categoriasOpcionesForm() {
+      const seen = new Set();
+      const out = [];
+      const push = (c) => {
+        const n = String(c || '').trim();
+        if (!n) return;
+        const k = n.toLowerCase();
+        if (seen.has(k)) return;
+        seen.add(k);
+        out.push(n);
+      };
+      this.categoriasDe(this.formPlato).forEach(push);
+      (this.categorias || []).forEach(push);
+      (this.categoriasGestion || []).forEach((c) => push(c && c.nombre));
+      return out.sort((a, b) => a.localeCompare(b, 'es'));
+    },
+
+    toggleCategoriaEnForm(cat) {
+      const n = String(cat || '').trim();
+      if (!n) return;
+      if (!Array.isArray(this.formPlato.categorias)) this.formPlato.categorias = this.categoriasDe(this.formPlato);
+      const idx = this.formPlato.categorias.findIndex((c) => String(c).toLowerCase() === n.toLowerCase());
+      if (idx >= 0) this.formPlato.categorias.splice(idx, 1);
+      else this.formPlato.categorias.push(n);
+      this.formPlato.categoria = this.formPlato.categorias[0] || '';
+    },
+
+    agregarCategoriaForm() {
+      const n = String(this.nuevaCategoriaForm || '').trim();
+      if (!n) {
+        this.showToast('Escribe el nombre de la categoría', 'error');
+        return;
+      }
+      if (!Array.isArray(this.formPlato.categorias)) this.formPlato.categorias = this.categoriasDe(this.formPlato);
+      if (!this.formPlato.categorias.some((c) => String(c).toLowerCase() === n.toLowerCase())) {
+        this.formPlato.categorias.push(n);
+      }
+      this.formPlato.categoria = this.formPlato.categorias[0] || n;
+      this.nuevaCategoriaForm = '';
     },
 
     // Devuelve el array de tipos (slugs) a los que pertenece un plato,
@@ -1605,7 +1845,16 @@ tailwind.config = {
         return;
       }
       const cantidad = Math.max(1, Math.min(99, Number(this.nuevoCantidadSyncPrincipal) || 1));
-      const nombre = String(this.nuevoNombreSyncPrincipal || '').trim() || String(this.formPlato.nombre || '').trim();
+      const nombre = String(this.nuevoNombreSyncPrincipal || '').trim();
+      const nombreActual = String(this.formPlato.nombre || '').trim();
+      if (!nombre) {
+        this.showToast('Poné un título distinto para el buscador de mozos', 'error');
+        return;
+      }
+      if (nombre.toLowerCase() === nombreActual.toLowerCase()) {
+        this.showToast('El título debe ser distinto al de este plato', 'error');
+        return;
+      }
       const codigo = String(this.nuevoCodigoSyncPrincipal || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
       if (cantidad === 1 && codigo && !/^[A-Z0-9]{1,4}$/.test(codigo)) {
         this.showToast('Código de cocina inválido: 1 a 4 letras o números', 'error');
@@ -1627,7 +1876,7 @@ tailwind.config = {
         this.nuevoCantidadSyncPrincipal = 1;
         await this.loadPlatos();
         const nOk = (res.creados && res.creados.length) || res.total || cantidad;
-        this.showToast(nOk + ' plato(s) igual(es) creado(s). Cambiá las marcas de guarnición.');
+        this.showToast(nOk + ' plato(s) creado(s) con título propio. Cambiá las marcas de guarnición si hace falta.');
         const primero = (res.creados && res.creados[0]) || null;
         const creado = primero
           || (this.platos || []).find((p) => String(p.codigo || '').toUpperCase() === String(primero?.codigo || codigo).toUpperCase());
@@ -1647,16 +1896,25 @@ tailwind.config = {
     },
 
     get categorias() {
-      const cats = new Set();
-      this.platos.forEach(p => cats.add(p.categoria || p.cat || 'Sin categoría'));
-      return Array.from(cats);
+      const seen = new Set();
+      const out = [];
+      (this.platos || []).forEach((p) => {
+        this.categoriasDe(p).forEach((c) => {
+          const k = c.toLowerCase();
+          if (seen.has(k)) return;
+          seen.add(k);
+          out.push(c);
+        });
+      });
+      return out.sort((a, b) => a.localeCompare(b, 'es'));
     },
 
     get categoriasCount() {
       const counts = {};
-      this.platos.forEach(p => {
-        const cat = p.categoria || p.cat || 'Sin categoría';
-        counts[cat] = (counts[cat] || 0) + 1;
+      (this.platos || []).forEach((p) => {
+        this.categoriasDe(p).forEach((cat) => {
+          counts[cat] = (counts[cat] || 0) + 1;
+        });
       });
       return counts;
     },
@@ -1681,6 +1939,7 @@ tailwind.config = {
         precio: '',
         stock: 0,
         categoria: '',
+        categorias: [],
         tipo: defaultTipo,
         tipos: [defaultTipo],
         descripcion: '',
@@ -1726,11 +1985,12 @@ tailwind.config = {
         codigoMozo: p.codigoMozo || '',
         precio: p.precio,
         stock: p.stock || 0,
-        categoria: p.categoria || p.cat || '',
+        categoria: this.categoriasDe(p)[0] || '',
+        categorias: this.categoriasDe(p),
         tipo: tipoNormalizado,
         tipos: [...tipos],
         descripcion: p.descripcion || '',
-        disponible: p.disponible !== false,
+        disponible: p.isActive !== false && p.disponible !== false,
         // v3.0: flags de complementos con defaults seguros
         complementosAfectanPrecio: p.complementosAfectanPrecio !== false,
         mostrarTotalComplementosImpresion: !!p.mostrarTotalComplementosImpresion,
@@ -2398,10 +2658,11 @@ tailwind.config = {
       const out = [];
       (this.platos || []).forEach((p) => {
         if (!this.platoMatchTipoGestion(p)) return;
-        const c = String(p.categoria || p.cat || '').trim();
-        if (!c || seen.has(c)) return;
-        seen.add(c);
-        out.push(c);
+        this.categoriasDe(p).forEach((c) => {
+          if (!c || seen.has(c)) return;
+          seen.add(c);
+          out.push(c);
+        });
       });
       return out.sort((a, b) => a.localeCompare(b, 'es'));
     },
@@ -2432,7 +2693,7 @@ tailwind.config = {
       if (!cat) return true;
       return (this.platos || []).some((p) => {
         if (!this.platoMatchTipoGestion(p)) return false;
-        if (String(p.categoria || p.cat || '') !== cat) return false;
+        if (!this.platoEsDeCategoria(p, cat)) return false;
         return this.platoUsaPlantilla(p, comp);
       });
     },
@@ -2736,14 +2997,14 @@ tailwind.config = {
 
     // ============ CRUD COMPLEMENTOS PLANTILLA ============
 
-    openCrearComplementoModal() {
+    async openCrearComplementoModal() {
       this.isEditingComplemento = false;
       this.formComplemento = {
         _id: null,
         nombre: '',
         categoria: 'General',
         // v3.0: opción = { nombre, precio }
-        opciones: [{ nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1, variaciones: [] }],
+        opciones: [{ nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1, variaciones: [], _asig: this._asigVacia() }],
         obligatorio: false,
         seleccionMultiple: false,
         // ===== NUEVOS CAMPOS v2.0 =====
@@ -2759,12 +3020,16 @@ tailwind.config = {
         forzarVisibleTablaKds: false,
         seleccionFija: false,
         // ===== FIN NUEVOS CAMPOS =====
-        activo: true
+        activo: true,
+        _asigGrupo: this._asigVacia(),
+        _nombreAsigOriginal: ''
       };
       this.modalFormComplemento = true;
+      await this.cargarAsignacionModal();
+      this.hidratarAsignacionPlantilla(true);
     },
 
-    openEditarComplementoModal(comp) {
+    async openEditarComplementoModal(comp) {
       this.isEditingComplemento = true;
       this.formComplemento = {
         _id: comp._id,
@@ -2772,7 +3037,7 @@ tailwind.config = {
         nombre: comp.nombre,
         categoria: comp.categoria || 'General',
         // v3.0: normalizar opciones a { nombre, precio }
-        opciones: this.normalizarOpcionesGrupo(comp.opciones || [{ nombre: '', precio: 0 }]),
+        opciones: this.normalizarOpcionesGrupo(comp.opciones || [{ nombre: '', precio: 0 }]).map(o => ({ ...o, _asig: this._asigVacia() })),
         obligatorio: comp.obligatorio || false,
         seleccionMultiple: comp.seleccionMultiple || false,
         // ===== NUEVOS CAMPOS v2.0 =====
@@ -2788,9 +3053,13 @@ tailwind.config = {
         forzarVisibleTablaKds: comp.esVariantePlato !== true && comp.anexarVarianteAlNombre !== true && comp.forzarVisibleTablaKds === true,
         seleccionFija: (comp.esVariantePlato === true || comp.anexarVarianteAlNombre === true) ? false : comp.seleccionFija === true,
         // ===== FIN NUEVOS CAMPOS =====
-        activo: comp.activo !== false
+        activo: comp.activo !== false,
+        _asigGrupo: this._asigVacia(),
+        _nombreAsigOriginal: String(comp.nombre || '').trim()
       };
       this.modalFormComplemento = true;
+      await this.cargarAsignacionModal();
+      this.hidratarAsignacionPlantilla(true);
     },
 
     togglePreseleccionOpcionPlantilla(oi, checked) {
@@ -2812,7 +3081,7 @@ tailwind.config = {
 
     agregarOpcionFormComplemento() {
       // v3.0: ahora opción es objeto { nombre, precio }
-      this.formComplemento.opciones.push({ nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1, variaciones: [] });
+      this.formComplemento.opciones.push({ nombre: '', precio: 0, pronombre: '', preseleccionada: false, cantidadPreseleccion: 1, variaciones: [], _asig: this._asigVacia() });
     },
 
     agregarVariacionOpcionPlantilla(i) {
@@ -2906,9 +3175,16 @@ tailwind.config = {
         }
         
         if (res && !res.error) {
-          this.showToast(this.isEditingComplemento ? 'Complemento actualizado ✅' : 'Complemento creado ✅');
+          const asig = await this.guardarAsignacionPlantilla();
           this.modalFormComplemento = false;
           await this.loadComplementosGestion();
+          if (!asig.ok) {
+            this.showToast('Complemento guardado, pero la asignación no: ' + (asig.error || 'error'), 'error');
+          } else if (asig.changed) {
+            this.showToast(this.isEditingComplemento ? 'Complemento y asignación actualizados ✅' : 'Complemento creado y asignación guardada ✅');
+          } else {
+            this.showToast(this.isEditingComplemento ? 'Complemento actualizado ✅' : 'Complemento creado ✅');
+          }
         } else {
           this.showToast('Error: ' + (res?.error || 'No se pudo guardar'), 'error');
         }
@@ -3012,6 +3288,12 @@ tailwind.config = {
         return;
       }
 
+      const catsLimpios = this.categoriasDe(this.formPlato);
+      if (!catsLimpios.length) {
+        this.showToast('Debes seleccionar al menos una categoría', 'error');
+        return;
+      }
+
       // Normalizar tipos y sincronizar `tipo` legacy
       const tiposLimpios = [...new Set(this.formPlato.tipos.map(t => String(t).trim().toLowerCase()).filter(Boolean))];
 
@@ -3050,8 +3332,11 @@ tailwind.config = {
         codigoMozo: this.formPlato.codigoMozo || '',
         precio: Number.isFinite(precioNum) && precioNum >= 0 ? precioNum : 0,
         stock: Number.isFinite(stockNum) && stockNum >= 0 ? stockNum : 0,
-        categoria: String(this.formPlato.categoria || '').trim() || 'General',
+        categoria: catsLimpios[0],
+        categorias: catsLimpios,
         descripcion: this.formPlato.descripcion || '',
+        disponible: this.formPlato.disponible !== false,
+        isActive: this.formPlato.disponible !== false,
         tipos: tiposLimpios,
         tipo: tiposLimpios[0],
         complementos: complementosLimpios,
@@ -3369,13 +3654,24 @@ tailwind.config = {
     _buscarReglaGuarnicionPerfil(perfil, key, platoId) {
       if (!perfil) return { regla: null, origen: null };
       const pid = this._platoIdNumerico(platoId);
-      if (pid == null) return { regla: null, origen: null };
       const reglas = perfil.reglasPorGuarnicion || [];
       const conCocinero = (r) => this._reglaTieneCocinero(r);
-      const rPlato = reglas.find(r =>
-        conCocinero(r) && this._matchReglaGuarnicion(r, key, pid)
+      const keyNorm = this._baseGuarnicionKey(key, platoId);
+      if (pid != null) {
+        const rPlato = reglas.find(r => conCocinero(r) && this._matchReglaGuarnicion(r, key, pid));
+        if (rPlato) return { regla: rPlato, origen: 'guarnicion' };
+      }
+      const rGlobal = reglas.find(r =>
+        conCocinero(r)
+        && this._platoIdNumerico(r.platoId) == null
+        && this._baseGuarnicionKey(r.guarnicionKey, r.platoId) === keyNorm
       );
-      if (rPlato) return { regla: rPlato, origen: 'guarnicion' };
+      if (rGlobal) return { regla: rGlobal, origen: 'guarnicion-global' };
+      const grupoNorm = String(keyNorm || '').split('::')[0];
+      const rGr = (perfil.reglasPorGrupo || []).find(r =>
+        conCocinero(r) && String(r.grupo || '').trim().toLowerCase() === grupoNorm
+      );
+      if (rGr) return { regla: rGr, origen: 'grupo' };
       return { regla: null, origen: null };
     },
 
@@ -3421,6 +3717,154 @@ tailwind.config = {
       });
     },
 
+    hidratarAsignacionPlantilla(forzar = false) {
+      if (!this.formComplemento._asigGrupo) this.formComplemento._asigGrupo = this._asigVacia();
+      const perfil = this.perfilesAsignacionGuar.find(p => p.id === this.perfilAsignacionGuarId);
+      const grupo = String(this.formComplemento.nombre || '').trim();
+      const skipVar = this.formComplemento.esVariantePlato || this.formComplemento.anexarVarianteAlNombre;
+      if (!perfil || !grupo || skipVar) {
+        if (forzar || this._asigSnapshot(this.formComplemento._asigGrupo) === (this.formComplemento._asigGrupo._snapshot || '')) {
+          this.formComplemento._asigGrupo = this._asigVacia();
+        }
+        (this.formComplemento.opciones || []).forEach(op => {
+          if (!op || typeof op !== 'object') return;
+          if (!op._asig) op._asig = this._asigVacia();
+        });
+        return;
+      }
+      const rGr = (perfil.reglasPorGrupo || []).find(r =>
+        this._reglaTieneCocinero(r) && String(r.grupo || '').trim().toLowerCase() === grupo.toLowerCase()
+      );
+      if (forzar || this._asigSnapshot(this.formComplemento._asigGrupo) === (this.formComplemento._asigGrupo._snapshot || '')) {
+        this.formComplemento._asigGrupo = rGr ? this._asigDesdeRegla(rGr, 'grupo') : this._asigVacia();
+      }
+      (this.formComplemento.opciones || []).forEach(op => {
+        if (!op || typeof op !== 'object') return;
+        if (!op._asig) op._asig = this._asigVacia();
+        if (!forzar && this._asigSnapshot(op._asig) !== (op._asig._snapshot || '')) return;
+        const opcion = String(op.nombre || '').trim();
+        if (!opcion) {
+          op._asig = this._asigVacia();
+          return;
+        }
+        const key = this._claveGuarnicion(grupo, opcion);
+        const found = this._buscarReglaGuarnicionPerfil(perfil, key, null);
+        op._asig = found.regla ? this._asigDesdeRegla(found.regla, found.origen) : this._asigVacia();
+      });
+    },
+
+    _mapReglaGrupoApi(r) {
+      return {
+        grupo: String(r.grupo || '').trim(),
+        activo: r.activo !== false,
+        cocineroPrimarioId: r.cocineroPrimarioId || null,
+        backups: (r.backups || []).filter(b => b && b.cocineroId).map((b, i) => ({
+          cocineroId: b.cocineroId,
+          orden: Number.isFinite(b.orden) ? b.orden : i + 1
+        })),
+        maxMismoGuarnicion: r.maxMismoGuarnicion ?? null,
+        estrategia: r.estrategia || null,
+        estacionRecomendada: r.estacionRecomendada || null,
+        notas: r.notas || ''
+      };
+    },
+
+    async guardarAsignacionPlantilla() {
+      const perfilId = this.perfilAsignacionGuarId;
+      if (!perfilId) return { ok: true, skipped: true };
+      if (this.formComplemento.esVariantePlato || this.formComplemento.anexarVarianteAlNombre) {
+        return { ok: true, skipped: true };
+      }
+      const grupo = String(this.formComplemento.nombre || '').trim();
+      if (!grupo) return { ok: true, skipped: true };
+
+      const res = await apiGet('/asignacion-automatica-guarniciones');
+      const config = res?.data;
+      const perfil = (config?.perfiles || []).find(p => p.id === perfilId);
+      if (!perfil) return { ok: false, error: 'Perfil de guarniciones no encontrado' };
+
+      let reglasG = (perfil.reglasPorGuarnicion || []).map(r => this._mapReglaGuarnicionApi(r));
+      let reglasGrupo = (perfil.reglasPorGrupo || []).map(r => this._mapReglaGrupoApi(r));
+      const oldNorm = String(this.formComplemento._nombreAsigOriginal || grupo).trim().toLowerCase();
+      const newNorm = grupo.toLowerCase();
+      const esGlobal = (r) => this._platoIdNumerico(r.platoId) == null;
+
+      if (oldNorm && oldNorm !== newNorm) {
+        reglasG = reglasG.filter(r => {
+          if (!esGlobal(r)) return true;
+          return !this._baseGuarnicionKey(r.guarnicionKey, r.platoId).startsWith(oldNorm + '::');
+        });
+        reglasGrupo = reglasGrupo.filter(r => String(r.grupo || '').trim().toLowerCase() !== oldNorm);
+      }
+
+      const asigG = this.formComplemento._asigGrupo;
+      const snapGr = this._asigSnapshot(asigG);
+      const currentKeys = new Set();
+      (this.formComplemento.opciones || []).forEach(op => {
+        const opcion = String(op?.nombre || '').trim();
+        if (!opcion || !op._asig) return;
+        const key = this._claveGuarnicion(grupo, opcion);
+        currentKeys.add(key);
+        const idx = reglasG.findIndex(r => esGlobal(r) && this._baseGuarnicionKey(r.guarnicionKey, r.platoId) === key);
+        const heredaGrupo = op._asig.origen === 'grupo' && this._asigSnapshot(op._asig) === (op._asig._snapshot || '');
+        const igualGrupo = this._asigTieneCocinero(asigG) && this._asigSnapshot(op._asig) === snapGr;
+        if (this._asigTieneCocinero(op._asig) && !heredaGrupo && !igualGrupo) {
+          const existente = idx >= 0 ? reglasG[idx] : null;
+          const nueva = {
+            guarnicionKey: key,
+            platoId: null,
+            etiqueta: `${grupo} :: ${opcion}`,
+            activo: op._asig.activo !== false,
+            cocineroPrimarioId: op._asig.cocineroPrimarioId || null,
+            backups: (op._asig.backups || []).filter(b => b.cocineroId).map((b, i) => ({ cocineroId: b.cocineroId, orden: i + 1 })),
+            maxMismoGuarnicion: existente?.maxMismoGuarnicion ?? null,
+            estrategia: existente?.estrategia || null,
+            estacionRecomendada: existente?.estacionRecomendada || null,
+            criticaEmplatado: !!existente?.criticaEmplatado,
+            tiempoMedioPreparacion: existente?.tiempoMedioPreparacion ?? null,
+            categoriaTiempo: existente?.categoriaTiempo || null,
+            notas: existente?.notas || ''
+          };
+          if (idx >= 0) reglasG[idx] = nueva;
+          else reglasG.push(nueva);
+        } else if (idx >= 0) {
+          reglasG.splice(idx, 1);
+        }
+      });
+      reglasG = reglasG.filter(r => {
+        if (!esGlobal(r)) return true;
+        const base = this._baseGuarnicionKey(r.guarnicionKey, r.platoId);
+        if (!base.startsWith(newNorm + '::')) return true;
+        return currentKeys.has(base);
+      });
+
+      const idxGr = reglasGrupo.findIndex(r => String(r.grupo || '').trim().toLowerCase() === newNorm);
+      if (this._asigTieneCocinero(asigG)) {
+        const existente = idxGr >= 0 ? reglasGrupo[idxGr] : null;
+        const nueva = {
+          grupo,
+          activo: asigG.activo !== false,
+          cocineroPrimarioId: asigG.cocineroPrimarioId || null,
+          backups: (asigG.backups || []).filter(b => b.cocineroId).map((b, i) => ({ cocineroId: b.cocineroId, orden: i + 1 })),
+          maxMismoGuarnicion: existente?.maxMismoGuarnicion ?? null,
+          estrategia: existente?.estrategia || null,
+          estacionRecomendada: existente?.estacionRecomendada || null,
+          notas: existente?.notas || ''
+        };
+        if (idxGr >= 0) reglasGrupo[idxGr] = nueva;
+        else reglasGrupo.push(nueva);
+      } else if (idxGr >= 0) {
+        reglasGrupo.splice(idxGr, 1);
+      }
+
+      const put = await this._putPerfilAsignacion('/asignacion-automatica-guarniciones', perfilId, {
+        reglasPorGuarnicion: reglasG,
+        reglasPorGrupo: reglasGrupo
+      });
+      if (put.ok && put.data) this.configAsignacionGuar = put.data;
+      return put.ok ? { ok: true, changed: true } : put;
+    },
+
     hidratarAsignacionPlato() {
       const perfil = this.perfilesAsignacionPlato.find(p => p.id === this.perfilAsignacionPlatoId);
       const platoId = this._platoIdNumerico(this.formPlato.id);
@@ -3431,8 +3875,21 @@ tailwind.config = {
       if (rPlato) {
         this.formAsignacionPlato = { ...this._asigDesdeRegla(rPlato, 'plato'), categoriaHeredada: '' };
       } else {
-        this.resetFormAsignacionPlato();
-        this.formAsignacionPlato._snapshot = this._asigSnapshot(this.formAsignacionPlato);
+        const cats = this.categoriasDe(this.formPlato);
+        let rCat = null;
+        let catHit = '';
+        if (perfil) {
+          for (const cat of cats) {
+            rCat = (perfil.reglasPorCategoria || []).find(r => String(r.categoria || '').trim() === cat && this._reglaTieneCocinero(r));
+            if (rCat) { catHit = cat; break; }
+          }
+        }
+        if (rCat) {
+          this.formAsignacionPlato = { ...this._asigDesdeRegla(rCat, 'categoria'), categoriaHeredada: catHit };
+        } else {
+          this.resetFormAsignacionPlato();
+          this.formAsignacionPlato._snapshot = this._asigSnapshot(this.formAsignacionPlato);
+        }
       }
     },
 
@@ -3673,15 +4130,19 @@ tailwind.config = {
 
       const asignacionPlatoPorPerfil = (p) => {
         const platoId = Number(p.id);
-        const cat = String(p.categoria || p.cat || '').trim();
+        const cats = this.categoriasDe(p);
         const filas = [];
         perfilesPlato.forEach(perfil => {
           const rPlato = Number.isFinite(platoId)
             ? (perfil.reglasPorPlato || []).find(r => Number(r.platoId) === platoId && reglaTieneCocinero(r))
             : null;
-          const rCat = !rPlato && cat
-            ? (perfil.reglasPorCategoria || []).find(r => String(r.categoria || '').trim() === cat && reglaTieneCocinero(r))
-            : null;
+          let rCat = null;
+          if (!rPlato) {
+            for (const cat of cats) {
+              rCat = (perfil.reglasPorCategoria || []).find(r => String(r.categoria || '').trim() === cat && reglaTieneCocinero(r));
+              if (rCat) break;
+            }
+          }
           const labels = chipsDeIds(idsDeRegla(rPlato || rCat));
           if (labels) filas.push({ nombre: perfil.nombre || 'Perfil', html: labels });
         });

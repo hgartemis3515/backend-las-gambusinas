@@ -4,6 +4,7 @@
  */
 
 const mongoose = require('mongoose');
+const { categoriasDePlato } = require('../../utils/categoriasPlato');
 
 const zonaSchema = new mongoose.Schema({
     // Nombre de la zona (ej: "Plancha", "Parrilla", "Postres fríos")
@@ -180,7 +181,7 @@ zonaSchema.methods.debeMostrarPlato = function(plato) {
     }
     
     const platoId = idCatalogoParaFiltro(plato);
-    const categoria = plato.categoria || plato.plato?.categoria;
+    const cats = categoriasDePlato(plato);
     const tipos = tiposDePlatoParaFiltro(plato);
     
     let coincide = false;
@@ -191,8 +192,8 @@ zonaSchema.methods.debeMostrarPlato = function(plato) {
     }
     
     // Verificar por categoría
-    if (!coincide && filtros.categoriasPermitidas?.length && categoria) {
-        coincide = filtros.categoriasPermitidas.includes(categoria);
+    if (!coincide && filtros.categoriasPermitidas?.length && cats.length) {
+        coincide = cats.some((c) => filtros.categoriasPermitidas.includes(c));
     }
     
     // Verificar por tipo (legacy `tipo` y canónico `tipos[]`)

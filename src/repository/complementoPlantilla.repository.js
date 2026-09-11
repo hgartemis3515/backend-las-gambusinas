@@ -1,6 +1,7 @@
 const ComplementoPlantilla = require('../database/models/complementoPlantilla.model');
 const platoModel = require('../database/models/plato.model');
 const logger = require('../utils/logger');
+const { wrapMutacionesCatalogo } = require('../utils/catalogoCartaPersistencia');
 
 /**
  * Listar todos los complementos plantilla (activos e inactivos)
@@ -484,7 +485,7 @@ async function aplicarCorrectorNombres(overrides = [], opts = {}) {
     };
 }
 
-module.exports = {
+module.exports = wrapMutacionesCatalogo({
     listarComplementosPlantilla,
     buscarComplementosPlantilla,
     obtenerComplementoPlantillaPorId,
@@ -500,4 +501,14 @@ module.exports = {
     previsualizarCorrectorNombres,
     listarCatalogoOpcionesComplemento,
     aplicarCorrectorNombres,
-};
+}, ['complementos_plantilla.json', 'platos.json'], [
+    'listarComplementosPlantilla',
+    'buscarComplementosPlantilla',
+    'obtenerComplementoPlantillaPorId',
+    'getCategoriasComplementos',
+    'contarUsoEnPlatos',
+    'obtenerPlatosQueUsanComplemento',
+    'obtenerEstadisticasUso',
+    'previsualizarCorrectorNombres',
+    'listarCatalogoOpcionesComplemento',
+]);

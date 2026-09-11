@@ -5,14 +5,19 @@ const { syncJsonFile } = require('../utils/jsonSync');
 const redisCache = require('../utils/redisCache');
 const logger = require('../utils/logger');
 const { normalizarOpcionDocumento } = require('../utils/opcionComplemento');
+const { fusionarOrdenIds, idStr } = require('../utils/ordenPlatoMozo');
+const { hydrateCatalogoDoc } = require('../utils/catalogoCartaPersistencia');
+const { sanitizarCategoriasPlato, categoriasDePlato, filtroMongoCategoria } = require('../utils/categoriasPlato');
 const fs = require('fs');
 const path = require('path');
+const mongoose = require('mongoose');
 
 const DATA_DIR = path.join(__dirname, '../../data');
 const PLATO_MENU_CACHE_TTL = 300; // 5 min
 const PLATO_MENU_CACHE_PREFIX = 'plato:menu';
 
 const queryActivos = () => ({ stock: { $gte: 0 }, $or: [{ isActive: true }, { isActive: { $exists: false } }] });
+const PLATO_SORT_MOZO = { orden: 1, id: 1, nombre: 1 };
 
 function numeroOpcional(v) {
     if (v === '' || v === undefined || v === null) return null;
@@ -22,6 +27,24 @@ function numeroOpcional(v) {
 
 function flagTrue(v) {
     return v === true || v === 'true' || v === 1 || v === '1';
+}
+
+function flagBool(v, def) {
+    if (v === undefined || v === null || v === '') return def;
+    if (v === false || v === 'false' || v === 0 || v === '0') return false;
+    return flagTrue(v) || !!v;
+}
+
+/** Formulario usa `disponible`; Mongo usa `isActive`. */
+function aplicarEstadoActivo(obj) {
+    if (!obj || typeof obj !== 'object') return obj;
+    if (Object.prototype.hasOwnProperty.call(obj, 'disponible')) {
+        obj.isActive = flagBool(obj.disponible, true);
+        delete obj.disponible;
+    } else if (Object.prototype.hasOwnProperty.call(obj, 'isActive')) {
+        obj.isActive = flagBool(obj.isActive, true);
+    }
+    return obj;
 }
 
 function sanitizarNombresSincronizados(arr, nombrePrincipal) {
@@ -39,12 +62,11 @@ function sanitizarNombresSincronizados(arr, nombrePrincipal) {
     return out;
 }
 
+/** Datos compartidos del grupo. El título (`nombre`) es propio de cada plato (buscador mozos). */
 const CAMPOS_GRUPO_PRINCIPAL = [
-    'nombre',
     'nombreCocina',
     'precio',
     'stock',
-    'categoria',
     'tipos',
     'tipo',
     'descripcion',
@@ -59,6 +81,18 @@ const CAMPOS_GRUPO_PRINCIPAL = [
     'codigoMozo',
     'resumenComplementosImpresion',
 ];
+
+function tituloUnicoVariante(base, usadosLower, i) {
+    const root = String(base || '').trim() || 'Plato';
+    let candidate = i === 0 ? root : `${root} ${i + 1}`;
+    let n = i + 1;
+    while (usadosLower.has(candidate.toLowerCase())) {
+        n += 1;
+        candidate = `${root} ${n}`;
+    }
+    usadosLower.add(candidate.toLowerCase());
+    return candidate.slice(0, 80);
+}
 
 function filtroGrupoPrincipal(doc) {
     const principalId = doc.platoPrincipal || doc._id;
@@ -137,7 +171,15 @@ async function clonarPlatosDesdePrincipal(id, opts = {}) {
         throw err;
     }
     const principalId = origen.platoPrincipal || origen._id;
-    const nombre = String(opts.nombre != null ? opts.nombre : origen.nombre).trim() || origen.nombre;
+    const nombreBase = String(opts.nombre != null ? opts.nombre : '').trim()
+        || String(origen.nombre || '').trim()
+        || 'Plato';
+    const hermanos = await plato.find({
+        $or: [{ _id: principalId }, { platoPrincipal: principalId }],
+    }).select('nombre').lean();
+    const usadosNombre = new Set(
+        (hermanos || []).map((p) => String(p.nombre || '').trim().toLowerCase()).filter(Boolean)
+    );
     const rMozo = validarCodigoMozo(
         opts.codigoMozo != null && String(opts.codigoMozo).trim() !== ''
             ? opts.codigoMozo
@@ -175,8 +217,11 @@ async function clonarPlatosDesdePrincipal(id, opts = {}) {
 
     const lean = origen.toObject();
     const tipos = Array.isArray(lean.tipos) && lean.tipos.length ? lean.tipos : [lean.tipo].filter(Boolean);
+    const cats = sanitizarCategoriasPlato(lean.categorias, lean.categoria);
     const creados = [];
-    for (const codigo of codigos) {
+    for (let i = 0; i < codigos.length; i++) {
+        const codigo = codigos[i];
+        const nombre = tituloUnicoVariante(nombreBase, usadosNombre, i);
         const payload = {
             nombre,
             nombreCocina: lean.nombreCocina || '',
@@ -184,7 +229,8 @@ async function clonarPlatosDesdePrincipal(id, opts = {}) {
             codigoMozo,
             precio: lean.precio,
             stock: lean.stock,
-            categoria: lean.categoria || 'General',
+            categoria: cats.categoria,
+            categorias: cats.categorias,
             descripcion: lean.descripcion || '',
             tipos,
             tipo: tipos[0],
@@ -360,7 +406,7 @@ function buildTipoFilter(canonicalTipo) {
 }
 
 const listarPlatos = async () => {
-    const data = await plato.find({});
+    const data = await plato.find({}).sort(PLATO_SORT_MOZO);
     return data;
 };
 
@@ -378,7 +424,7 @@ const listarPlatosPorTipo = async (tipo, opts = {}) => {
     if (canonical) {
         Object.assign(filter, buildTipoFilter(canonical));
     }
-    const data = await plato.find(filter).sort({ id: 1, nombre: 1 }).lean();
+    const data = await plato.find(filter).sort(PLATO_SORT_MOZO).lean();
     if (canonical && data.length === 0) {
         logger.warn('No platos para tipo', { tipoParam: tipo, canonical, query: filter });
     }
@@ -486,51 +532,97 @@ const upsertPlatoByName = async (data) => {
 };
 
 /**
- * Construye un documento plato para insert (preserva id del JSON; no incluye _id).
+ * Documento de catálogo para insertar desde JSON (orden, guarniciones, flags, _id).
  */
 function buildPlatoDocFromJson(p) {
+    if (!p || typeof p !== 'object') return null;
+    const id = typeof p.id === 'number' && Number.isInteger(p.id) && p.id > 0 ? p.id : Number(p.id);
+    if (!Number.isInteger(id) || id <= 0) return null;
+
     const nombreTrim = (p.nombre != null ? String(p.nombre).trim() : '') || 'Sin nombre';
-    const nombreLower = nombreTrim.toLowerCase();
-    const precio = Number(p.precio);
-    const stock = Number(p.stock);
-    const categoria = (p.categoria && String(p.categoria).trim()) || 'General';
-    const tipo = (p.tipo && TIPOS_MENU.includes(p.tipo)) ? p.tipo : inferirTipoDesdeNombre(p.nombre);
-    const id = typeof p.id === 'number' && Number.isInteger(p.id) && p.id > 0 ? p.id : null;
-    if (id == null) return null;
-    // Código: usar el del JSON si viene y es válido; si no, generar uno temporal
-    // con la primera letra de la categoría + id (ej. "P5"). La migración manual
-    // posterior en platos.html deja los códigos finales.
-    const { validarCodigoPlato } = require('../utils/validarCodigoPlato');
+    const cats = sanitizarCategoriasPlato(p.categorias, p.categoria);
+    const categoria = cats.categoria;
+    const tipoRaw = (p.tipo && String(p.tipo).trim()) || inferirTipoDesdeNombre(p.nombre);
+    const tipos = Array.isArray(p.tipos) && p.tipos.length
+        ? [...new Set(p.tipos.map((t) => String(t).trim()).filter(Boolean))]
+        : [tipoRaw];
+    const tipo = tipos[0] || tipoRaw;
+
+    const { validarCodigoPlato, validarCodigoMozo } = require('../utils/validarCodigoPlato');
     let codigoRaw = p.codigo != null ? String(p.codigo).trim() : '';
     if (codigoRaw) {
         const r = validarCodigoPlato(codigoRaw);
-        if (r.valido) codigoRaw = r.codigo;
-        else codigoRaw = '';
+        codigoRaw = r.valido ? r.codigo : '';
     }
     if (!codigoRaw) {
         const letra = (() => {
             const base = (categoria || nombreTrim || 'P').trim().charAt(0).toUpperCase();
             return /[A-Z]/.test(base) ? base : 'P';
         })();
-        const digitos = String(id).slice(0, 3);
-        codigoRaw = letra + digitos;
-        // Validar que el generado cumpla el formato (id de 1-3 dígitos)
-        const r = validarCodigoPlato(codigoRaw);
+        const r = validarCodigoPlato(letra + String(id).slice(0, 3));
         if (!r.valido) return null;
         codigoRaw = r.codigo;
     }
-    return {
+    const rMozo = validarCodigoMozo(p.codigoMozo);
+    const ordenNum = Number(p.orden);
+    const resumen = p.resumenComplementosImpresion && typeof p.resumenComplementosImpresion === 'object'
+        ? p.resumenComplementosImpresion
+        : {};
+    const oid = (v) => {
+        const s = String(v || '');
+        return /^[a-fA-F0-9]{24}$/.test(s) ? new mongoose.Types.ObjectId(s) : undefined;
+    };
+    const _id = oid(p._id);
+    const platoPrincipal = oid(p.platoPrincipal) || null;
+    const doc = {
         id,
         codigo: codigoRaw,
+        codigoMozo: rMozo.valido ? rMozo.codigo : '',
         nombre: nombreTrim,
-        nombreLower,
-        precio: Number.isNaN(precio) ? 0 : Math.max(0, precio),
-        stock: Number.isNaN(stock) ? 0 : Math.max(0, stock),
+        nombreLower: nombreTrim.toLowerCase(),
+        nombreCocina: String(p.nombreCocina || '').trim().slice(0, 40),
+        descripcion: String(p.descripcion || '').trim().slice(0, 2000),
+        precio: Number.isFinite(Number(p.precio)) ? Math.max(0, Number(p.precio)) : 0,
+        stock: Number.isFinite(Number(p.stock)) ? Math.max(0, Number(p.stock)) : 0,
         categoria,
+        categorias: cats.categorias,
         tipo,
-        tipos: [tipo],
-        isActive: p.isActive !== false
+        tipos,
+        isActive: flagBool(p.isActive != null ? p.isActive : p.disponible, true),
+        orden: Number.isFinite(ordenNum) && ordenNum >= 0 ? Math.floor(ordenNum) : 0,
+        complementos: sanitizarComplementosParaGuardar(p.complementos),
+        complementosAfectanPrecio: flagBool(p.complementosAfectanPrecio, true),
+        mostrarTotalComplementosImpresion: flagTrue(p.mostrarTotalComplementosImpresion),
+        complementosUnidosAlPlato: flagTrue(p.complementosUnidosAlPlato),
+        ocultarCronometroCocina: flagTrue(p.ocultarCronometroCocina),
+        juntarGuarnicionesEntreVariantes: flagTrue(p.juntarGuarnicionesEntreVariantes),
+        requiereNumeroSerie: flagTrue(p.requiereNumeroSerie),
+        kdsEstiloCompacto: flagTrue(p.kdsEstiloCompacto),
+        platoEditable: flagTrue(p.platoEditable),
+        nombresSincronizados: sanitizarNombresSincronizados(p.nombresSincronizados, nombreTrim),
+        platoPrincipal,
+        resumenComplementosImpresion: {
+            mostrarCantidad: resumen.mostrarCantidad !== false,
+            mostrarMontoExtra: resumen.mostrarMontoExtra !== false
+        }
     };
+    if (_id) doc._id = _id;
+    return doc;
+}
+
+function docPlatoParaImport(p) {
+    const hydrated = hydrateCatalogoDoc(p);
+    if (hydrated && typeof hydrated === 'object') {
+        const id = typeof hydrated.id === 'number' && Number.isInteger(hydrated.id) && hydrated.id > 0
+            ? hydrated.id
+            : Number(hydrated.id);
+        if (!Number.isInteger(id) || id <= 0) return null;
+        hydrated.id = id;
+        if (!Array.isArray(hydrated.complementos)) hydrated.complementos = [];
+        if (hydrated.orden == null) hydrated.orden = 0;
+        return hydrated;
+    }
+    return buildPlatoDocFromJson(p);
 }
 
 /**
@@ -569,10 +661,10 @@ const importarPlatosDesdeJSON = async () => {
         const existingIds = await plato.distinct('id').then(arr => arr.filter(Number.isFinite));
         const toInsert = [];
         for (const p of jsonData) {
-            const id = typeof p.id === 'number' && Number.isInteger(p.id) && p.id > 0 ? p.id : null;
-            if (id == null) continue;
+            const id = typeof p.id === 'number' && Number.isInteger(p.id) && p.id > 0 ? p.id : Number(p.id);
+            if (!Number.isInteger(id) || id <= 0) continue;
             if (existingIds.includes(id)) continue;
-            const doc = buildPlatoDocFromJson(p);
+            const doc = docPlatoParaImport(p);
             if (doc) toInsert.push(doc);
         }
 
@@ -580,12 +672,9 @@ const importarPlatosDesdeJSON = async () => {
         const errors = [];
         if (toInsert.length > 0) {
             try {
-                const result = await plato.insertMany(toInsert, { ordered: false, rawResult: true });
-                const inserted = result.insertedCount != null ? result.insertedCount : (result.length || 0);
-                imported = Number(inserted);
-                if (result.writeErrors && result.writeErrors.length) {
-                    result.writeErrors.forEach(e => errors.push({ plato: e.id ?? e.index, error: e.err?.message || String(e.err) }));
-                }
+                const col = mongoose.connection.db.collection('platos');
+                const result = await col.insertMany(toInsert, { ordered: false });
+                imported = Number(result.insertedCount != null ? result.insertedCount : toInsert.length);
             } catch (err) {
                 if (err.insertedDocs && err.insertedDocs.length) {
                     imported = err.insertedDocs.length;
@@ -627,7 +716,7 @@ const obtenerPlatoPorId = async (id) => {
 }
 
 const findByCategoria = async (categoria) => {
-    const data = await plato.find({ categoria: categoria });
+    const data = await plato.find(filtroMongoCategoria(categoria)).sort(PLATO_SORT_MOZO);
     return data;
 }
 
@@ -745,7 +834,10 @@ const asegurarCodigosPlato = async () => {
 const crearPlato = async (data) => {
     let nuevo;
     try {
-        const payload = { ...(data && typeof data === 'object' ? data : {}) };
+        const payload = aplicarEstadoActivo({ ...(data && typeof data === 'object' ? data : {}) });
+        const cats = sanitizarCategoriasPlato(payload.categorias, payload.categoria);
+        payload.categorias = cats.categorias;
+        payload.categoria = cats.categoria;
         if (Object.prototype.hasOwnProperty.call(payload, 'complementos')) {
             payload.complementos = sanitizarComplementosParaGuardar(payload.complementos);
         }
@@ -773,6 +865,12 @@ const crearPlato = async (data) => {
             const rMozo = validarCodigoMozo(payload.codigoMozo);
             payload.codigoMozo = rMozo.valido ? rMozo.codigo : '';
         }
+        const ordenNum = Number(payload.orden);
+        if (!Number.isFinite(ordenNum) || ordenNum < 0) {
+            payload.orden = await siguienteOrdenPlato();
+        } else {
+            payload.orden = Math.floor(ordenNum);
+        }
         nuevo = await plato.create(payload);
     } catch (err) {
         if (err && err.code === 11000) {
@@ -788,7 +886,7 @@ const crearPlato = async (data) => {
     (nuevo.tipos && nuevo.tipos.length ? nuevo.tipos : [nuevo.tipo]).forEach(t => invalidatePlatoMenuCache(t));
     try {
         const { asegurarCategoria } = require('./categoriaPlato.repository');
-        await asegurarCategoria(nuevo.categoria);
+        for (const c of categoriasDePlato(nuevo)) await asegurarCategoria(c);
     } catch (e) {
         logger.warn('No se pudo sincronizar categoría al crear plato', { error: e.message });
     }
@@ -817,13 +915,27 @@ const actualizarPlato = async (id, newData) => {
         throw err;
     }
     
-    const clean = { ...(newData && typeof newData.toObject === 'function' ? newData.toObject() : newData) };
+    const clean = aplicarEstadoActivo({
+        ...(newData && typeof newData.toObject === 'function' ? newData.toObject() : newData)
+    });
     delete clean._id;
     delete clean.__v;
     delete clean.id;
     delete clean._fromLibrary;
     delete clean._libraryId;
     delete clean._copiaPlato;
+    if (!Object.prototype.hasOwnProperty.call(newData || {}, 'orden')) {
+        delete clean.orden;
+    } else {
+        const ordenNum = Number(clean.orden);
+        if (!Number.isFinite(ordenNum) || ordenNum < 0) delete clean.orden;
+        else clean.orden = Math.floor(ordenNum);
+    }
+    if (Object.prototype.hasOwnProperty.call(clean, 'categorias') || Object.prototype.hasOwnProperty.call(clean, 'categoria')) {
+        const cats = sanitizarCategoriasPlato(clean.categorias, clean.categoria);
+        clean.categorias = cats.categorias;
+        clean.categoria = cats.categoria;
+    }
     ['precio', 'stock'].forEach((k) => {
         if (!Object.prototype.hasOwnProperty.call(clean, k)) return;
         if (clean[k] === '' || clean[k] === null || clean[k] === undefined) {
@@ -938,12 +1050,59 @@ const actualizarPlato = async (id, newData) => {
     if (actualizado) {
         try {
             const { asegurarCategoria } = require('./categoriaPlato.repository');
-            await asegurarCategoria(actualizado.categoria);
+            for (const c of categoriasDePlato(actualizado)) await asegurarCategoria(c);
         } catch (e) {
             logger.warn('No se pudo sincronizar categoría al actualizar plato', { error: e.message });
         }
     }
     if (actualizado && global.emitPlatoMenuActualizado) await global.emitPlatoMenuActualizado(actualizado).catch(() => {});
+    const todosLosPlatos = await listarPlatos();
+    await syncJsonFile('platos.json', todosLosPlatos);
+    return todosLosPlatos;
+};
+
+const siguienteOrdenPlato = async () => {
+    const [top] = await plato.find({}).sort({ orden: -1 }).limit(1).select('orden').lean();
+    const n = Number(top && top.orden);
+    return (Number.isFinite(n) ? n : 0) + 10;
+};
+
+/**
+ * Reordena un subconjunto (ids en el nuevo orden visual) fusionándolo en el listado global.
+ * @param {string[]} idsRaw
+ */
+const reordenarPlatosPorIds = async (idsRaw) => {
+    const ids = (Array.isArray(idsRaw) ? idsRaw : []).map(idStr).filter(Boolean);
+    if (ids.length < 2) {
+        const err = new Error('Se necesitan al menos 2 platos para reordenar');
+        err.statusCode = 400;
+        throw err;
+    }
+    if (new Set(ids).size !== ids.length) {
+        const err = new Error('Hay platos repetidos en el orden');
+        err.statusCode = 400;
+        throw err;
+    }
+    const all = await plato.find({}).sort(PLATO_SORT_MOZO).select('_id tipos tipo').lean();
+    const conocidos = new Set(all.map((d) => String(d._id)));
+    const faltan = ids.filter((id) => !conocidos.has(id));
+    if (faltan.length) {
+        const err = new Error('Algunos platos no existen');
+        err.statusCode = 400;
+        throw err;
+    }
+    const merged = fusionarOrdenIds(all.map((d) => d._id), ids);
+    const ops = merged.map((id, i) => ({
+        updateOne: { filter: { _id: id }, update: { $set: { orden: (i + 1) * 10 } } }
+    }));
+    if (ops.length) await plato.bulkWrite(ops);
+    const tipos = new Set();
+    all.forEach((d) => {
+        (Array.isArray(d.tipos) && d.tipos.length ? d.tipos : [d.tipo]).forEach((t) => {
+            if (t) tipos.add(t);
+        });
+    });
+    tipos.forEach((t) => invalidatePlatoMenuCache(t));
     const todosLosPlatos = await listarPlatos();
     await syncJsonFile('platos.json', todosLosPlatos);
     return todosLosPlatos;
@@ -993,16 +1152,17 @@ const getMenuPorTipo = async (tipo, page = 1, limit = 500) => {
     const filter = { ...buildTipoFilter(canonical), ...queryActivos() };
     const docs = await plato
         .find(filter)
-        .sort({ categoria: 1, nombre: 1 })
+        .sort({ orden: 1, categoria: 1, id: 1, nombre: 1 })
         .skip(skip)
         .limit(limitNum)
         .lean();
 
     const categoriasMap = new Map();
     for (const d of docs) {
-        const cat = d.categoria || 'General';
-        if (!categoriasMap.has(cat)) categoriasMap.set(cat, []);
-        categoriasMap.get(cat).push(d);
+        for (const cat of categoriasDePlato(d)) {
+            if (!categoriasMap.has(cat)) categoriasMap.set(cat, []);
+            categoriasMap.get(cat).push(d);
+        }
     }
     const categorias = Array.from(categoriasMap.entries())
         .sort((a, b) => a[0].localeCompare(b[0]))
@@ -1032,7 +1192,10 @@ const getCategorias = async () => {
         { $addFields: { tiposExp: { $ifNull: ['$tipos', []] } } },
         { $addFields: { tiposExp: { $cond: [{ $gt: [{ $size: '$tiposExp' }, 0] }, '$tiposExp', ['$tipo']] } } },
         { $unwind: '$tiposExp' },
-        { $group: { _id: { categoria: '$categoria', tipo: '$tiposExp' }, count: { $sum: 1 } } },
+        { $addFields: { catsExp: { $ifNull: ['$categorias', []] } } },
+        { $addFields: { catsExp: { $cond: [{ $gt: [{ $size: '$catsExp' }, 0] }, '$catsExp', ['$categoria']] } } },
+        { $unwind: '$catsExp' },
+        { $group: { _id: { categoria: '$catsExp', tipo: '$tiposExp' }, count: { $sum: 1 } } },
         { $sort: { '_id.categoria': 1 } }
     ]);
     const desayuno = [];
@@ -1058,10 +1221,10 @@ const getMenuPorTipoYCategoria = async (tipo, categoria, page = 1, limit = 100) 
     }
     const skip = (Math.max(1, page) - 1) * Math.min(limit, 100);
     const limitNum = Math.min(Math.max(1, limit), 100);
-    const filter = { ...buildTipoFilter(canonical), categoria: String(categoria).trim(), ...queryActivos() };
+    const filter = { ...buildTipoFilter(canonical), ...filtroMongoCategoria(categoria), ...queryActivos() };
     const platos = await plato
         .find(filter)
-        .sort({ nombre: 1 })
+        .sort(PLATO_SORT_MOZO)
         .skip(skip)
         .limit(limitNum)
         .lean();
@@ -1129,5 +1292,9 @@ module.exports = {
     asegurarCodigosPlato,
     asegurarIndiceNombreLowerNoUnique,
     clonarPlatosDesdePrincipal,
+    reordenarPlatosPorIds,
+    buildPlatoDocFromJson,
+    CAMPOS_GRUPO_PRINCIPAL,
+    tituloUnicoVariante,
     TIPOS_MENU
 };

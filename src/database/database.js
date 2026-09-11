@@ -11,6 +11,7 @@ const { importarBoucherDesdeJSON } = require('../repository/boucher.repository')
 const { importarAuditoriaDesdeJSON } = require('../repository/auditoria.repository');
 const { importarNotificacionesDesdeJSON, inicializarNotificaciones } = require('../repository/notificacion.repository');
 const { inicializarRolesSistema } = require('../repository/roles.repository');
+const { importarCatalogoCartaDesdeJson } = require('../utils/catalogoCartaPersistencia');
 
 /** URI: prioridad DBLOCAL (proyecto) o MONGODB_URI (estándar / Atlas) */
 const mongoUri = process.env.DBLOCAL || process.env.MONGODB_URI;
@@ -105,6 +106,14 @@ db.once('open', async () => {
   await importarAuditoriaDesdeJSON();
   await inicializarNotificaciones();
   await importarNotificacionesDesdeJSON();
+  const catalogoCarta = await importarCatalogoCartaDesdeJson();
+  if (Array.isArray(catalogoCarta)) {
+    catalogoCarta.forEach((r) => {
+      if (r.imported > 0) {
+        console.log(`   ${r.collection}: ${r.imported} documentos restaurados desde JSON`);
+      }
+    });
+  }
   console.log('✅ Importación de datos finalizada.');
 });
 

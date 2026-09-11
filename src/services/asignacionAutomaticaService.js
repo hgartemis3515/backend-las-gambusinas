@@ -48,6 +48,7 @@ const { getCocineroInfo } = require('../utils/cocineroInfo');
 const { topePositivo, bumpCargaCache, encolarAsignacionKds } = require('../utils/asignacionAutomaticaCupos');
 const { elegirSiguienteBackup } = require('../utils/elegirSiguienteBackup');
 const { platoRetenidoFueraDeCocina } = require('../utils/platoListoCocinaKds');
+const { reglaCategoriaParaPlato } = require('../utils/categoriasPlato');
 const {
     reglaEfectivaParaAsignar,
     indiceTurnoComanda,
@@ -273,11 +274,10 @@ function encontrarRegla(configOrPerfil, plato) {
         : null;
     if (isReglaAsignada(reglaPlato)) return { tipo: 'plato', regla: reglaPlato };
 
-    const categoria = plato.categoria || (plato.plato && plato.plato.categoria);
-    if (categoria) {
-        const reglaCat = reglasCat.find(r => r.categoria === categoria && r.activo !== false);
-        if (isReglaAsignada(reglaCat)) return { tipo: 'categoria', regla: reglaCat };
-    }
+    const reglaCat = reglaCategoriaParaPlato(reglasCat, plato.plato && typeof plato.plato === 'object'
+        ? { ...plato, ...plato.plato, categoria: plato.categoria || plato.plato.categoria, categorias: plato.categorias || plato.plato.categorias }
+        : plato);
+    if (isReglaAsignada(reglaCat)) return { tipo: 'categoria', regla: reglaCat };
     return null;
 }
 

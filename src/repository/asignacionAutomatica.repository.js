@@ -13,6 +13,7 @@ const { v4: uuidv4 } = require('uuid');
 const AsignacionAutomatica = require('../database/models/asignacionAutomatica.model');
 const logger = require('../utils/logger');
 const { validarHorarioFranja, prepararCamposBloqueCalendario } = require('../utils/asignacionCalendarioFranjas');
+const { wrapMutacionesCatalogo } = require('../utils/catalogoCartaPersistencia');
 
 const obtenerConfiguracion = async () => {
     try {
@@ -316,17 +317,15 @@ const eliminarBloque = async (bloqueId, modificadoPor) => {
     return actualizado.toObject();
 };
 
-module.exports = {
+module.exports = wrapMutacionesCatalogo({
     obtenerConfiguracion,
     actualizarConfiguracion,
     toggleHabilitada,
-    // Perfiles
     crearPerfil,
     actualizarPerfil,
     eliminarPerfil,
     duplicarPerfil,
-    // Calendario
     crearBloque,
     actualizarBloque,
     eliminarBloque
-};
+}, 'asignacion_automatica.json', ['obtenerConfiguracion']);

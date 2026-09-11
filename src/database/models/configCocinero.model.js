@@ -5,6 +5,7 @@
 
 const mongoose = require('mongoose');
 const moment = require('moment-timezone');
+const { categoriasDePlato } = require('../../utils/categoriasPlato');
 
 const configCocineroSchema = new mongoose.Schema({
     // Referencia al usuario/mozo
@@ -269,7 +270,7 @@ configCocineroSchema.methods.debeMostrarPlato = function(plato) {
     }
     
     const platoId = plato.platoId || plato.id;
-    const categoria = plato.categoria || plato.plato?.categoria;
+    const cats = categoriasDePlato(plato);
     const tipo = plato.tipo || plato.plato?.tipo;
     
     let coincide = false;
@@ -280,8 +281,8 @@ configCocineroSchema.methods.debeMostrarPlato = function(plato) {
     }
     
     // Verificar por categoría
-    if (!coincide && filtros.categoriasPermitidas?.length && filtros.categoriasPermitidas.includes(categoria)) {
-        coincide = true;
+    if (!coincide && filtros.categoriasPermitidas?.length && cats.length) {
+        coincide = cats.some((c) => filtros.categoriasPermitidas.includes(c));
     }
     
     // Verificar por tipo

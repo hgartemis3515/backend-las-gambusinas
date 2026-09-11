@@ -13,7 +13,8 @@ const {
     getCategorias,
     getMenuPorTipoYCategoria,
     actualizarTipoPlato,
-    clonarPlatosDesdePrincipal
+    clonarPlatosDesdePrincipal,
+    reordenarPlatosPorIds
 } = require("../repository/plato.repository");
 const logger = require("../utils/logger");
 const { handleError } = require("../utils/errorHandler");
@@ -81,6 +82,16 @@ router.get("/platos/categoria/:categoria", async (req, res) => {
         res.json({ platos, total: platos.length, categorias: [categoria], filtrosAplicados: { categoria } });
     } catch (error) {
         logger.error('Error al buscar platos por categoría', { categoria: req.params.categoria, error: error.message });
+        handleError(error, res, logger);
+    }
+});
+
+router.patch("/platos/orden", async (req, res) => {
+    try {
+        const data = await reordenarPlatosPorIds(req.body && req.body.ids);
+        res.json(data);
+    } catch (error) {
+        logger.error("Error al reordenar platos", { error: error.message });
         handleError(error, res, logger);
     }
 });

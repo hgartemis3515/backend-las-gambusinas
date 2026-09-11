@@ -2,6 +2,8 @@ const CategoriaPlato = require('../database/models/categoriaPlato.model');
 const plato = require('../database/models/plato.model');
 const logger = require('../utils/logger');
 const { validarCodigoMozo } = require('../utils/validarCodigoPlato');
+const { wrapMutacionesCatalogo } = require('../utils/catalogoCartaPersistencia');
+const { categoriasDePlato, sanitizarCategoriasPlato } = require('../utils/categoriasPlato');
 
 function normalizeNombreCat(nombre) {
     const n = String(nombre || '').trim();
@@ -32,11 +34,10 @@ async function asegurarCategoria(nombre, codigoMozo) {
 }
 
 async function sincronizarDesdePlatos() {
-    const names = await plato.distinct('categoria');
-    for (const raw of names) {
-        const n = normalizeNombreCat(raw);
-        await asegurarCategoria(n);
-    }
+    const docs = await plato.find({}).select('categoria categorias').lean();
+    const names = new Set();
+    docs.forEach((p) => categoriasDePlato(p).forEach((c) => names.add(c)));
+    for (const n of names) await asegurarCategoria(n);
 }
 
 function platoResumen(p) {
@@ -69,12 +70,13 @@ async function listarCategoriasGestion(qRaw) {
     await sincronizarDesdePlatos();
     const q = String(qRaw || '').trim().toLowerCase();
     const cats = await CategoriaPlato.find({}).sort({ nombre: 1 }).lean();
-    const platos = await plato.find({}).select('id nombre codigo codigoMozo categoria precio stock').lean();
+    const platos = await plato.find({}).select('id nombre codigo codigoMozo categoria categorias precio stock').lean();
     const byCat = new Map();
     platos.forEach((p) => {
-        const key = normalizeNombreCat(p.categoria);
-        if (!byCat.has(key)) byCat.set(key, []);
-        byCat.get(key).push(platoResumen(p));
+        categoriasDePlato(p).forEach((key) => {
+            if (!byCat.has(key)) byCat.set(key, []);
+            byCat.get(key).push(platoResumen({ ...p, categoria: key }));
+        });
     });
     const nombresVistos = new Set(cats.map((c) => c.nombre));
     const extra = [];
@@ -149,8 +151,18 @@ async function renombrarCategoria(fromRaw, toRaw) {
         throw err;
     }
     const doc = await CategoriaPlato.findOne({ nombreLower: from.toLowerCase() });
-    const afectados = await plato.find({ categoria: from }).select('tipos tipo').lean();
-    await plato.updateMany({ categoria: from }, { $set: { categoria: to } });
+    const afectados = await plato.find({
+        $or: [{ categoria: from }, { categorias: from }],
+    });
+    for (const d of afectados) {
+        const cats = sanitizarCategoriasPlato(
+            categoriasDePlato(d).map((c) => (c === from ? to : c)),
+            null
+        );
+        d.categorias = cats.categorias;
+        d.categoria = cats.categoria;
+        await d.save();
+    }
     if (doc) {
         doc.nombre = to;
         doc.nombreLower = to.toLowerCase();
@@ -231,13 +243,13 @@ async function moverPlatos(platoIds, categoriaDestino) {
         ? { $or: [{ _id: { $in: ids } }, { id: { $in: nums } }] }
         : (ids.length ? { _id: { $in: ids } } : { id: { $in: nums } });
     const docs = await plato.find(filter).select('tipos tipo').lean();
-    const res = await plato.updateMany(filter, { $set: { categoria: dest } });
+    const res = await plato.updateMany(filter, { $set: { categoria: dest, categorias: [dest] } });
     invalidateTiposDePlatos(docs);
     logger.info('Platos movidos de categoría', { destino: dest, matched: res.matchedCount });
     return { categoria: dest, movidos: res.modifiedCount || res.matchedCount || 0 };
 }
 
-module.exports = {
+module.exports = wrapMutacionesCatalogo({
     asegurarCategoria,
     sincronizarDesdePlatos,
     listarCategoriasGestion,
@@ -247,4 +259,7 @@ module.exports = {
     guardarCategoriasLote,
     setImagenCategoria,
     moverPlatos,
-};
+}, ['categorias_platos.json', 'platos.json'], [
+    'listarCategoriasGestion',
+    'listarCategoriasLigero',
+]);

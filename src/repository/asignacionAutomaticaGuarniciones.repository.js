@@ -8,6 +8,7 @@ const { v4: uuidv4 } = require('uuid');
 const AsignacionAutomaticaGuarniciones = require('../database/models/asignacionAutomaticaGuarniciones.model');
 const logger = require('../utils/logger');
 const { validarHorarioFranja, prepararCamposBloqueCalendario } = require('../utils/asignacionCalendarioFranjas');
+const { wrapMutacionesCatalogo } = require('../utils/catalogoCartaPersistencia');
 
 const obtenerConfiguracion = async () => {
     try {
@@ -269,7 +270,7 @@ const eliminarBloque = async (bloqueId, modificadoPor) => {
     return actualizado.toObject();
 };
 
-module.exports = {
+module.exports = wrapMutacionesCatalogo({
     obtenerConfiguracion,
     actualizarConfiguracion,
     toggleHabilitada,
@@ -280,4 +281,4 @@ module.exports = {
     crearBloque,
     actualizarBloque,
     eliminarBloque
-};
+}, 'asignacion_automatica_guarniciones.json', ['obtenerConfiguracion']);

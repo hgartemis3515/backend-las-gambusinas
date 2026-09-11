@@ -75,6 +75,11 @@ const platoSchema = new mongoose.Schema({
         type: String,
         required: true,
         trim: true
+        // LEGACY: valor único. Canónico: `categorias` (1 o más).
+    },
+    categorias: {
+        type: [String],
+        default: undefined
     },
     tipo: {
         type: String,
@@ -102,6 +107,12 @@ const platoSchema = new mongoose.Schema({
     isActive: {
         type: Boolean,
         default: true
+    },
+    descripcion: {
+        type: String,
+        default: '',
+        trim: true,
+        maxlength: 2000
     },
     // ===== COMPLEMENTOS v3.0: PRECIOS OPCIONALES Y RESUMEN EN IMPRESIÓN =====
     // Si false: complementos con precio > 0 NO se cobran (solo informativos en cocina).
@@ -147,6 +158,13 @@ const platoSchema = new mongoose.Schema({
     platoEditable: {
         type: Boolean,
         default: false
+    },
+    // Orden en la app de mozos (menor = más arriba). Lo mueve el admin en platos.html.
+    orden: {
+        type: Number,
+        default: 0,
+        min: 0,
+        index: true
     },
     // Sub-opciones del resumen (solo relevantes si mostrarTotalComplementosImpresion === true)
     resumenComplementosImpresion: {
@@ -224,6 +242,7 @@ platoSchema.index({ categoria: 1 });
 platoSchema.index({ tipo: 1, categoria: 1 });
 // Índice para el nuevo campo `tipos` (búsquedas $in por menú)
 platoSchema.index({ tipos: 1, categoria: 1 });
+platoSchema.index({ categorias: 1 });
 
 // ÍNDICE 1: Platos activos por tipo y categoría (menú - endpoint frecuente)
 // Query: platos para menú filtrados por isActive y tipo
@@ -318,11 +337,11 @@ platoSchema.pre('save', async function (next) {
         } else {
             this.nombreCocina = '';
         }
-        if (this.categoria != null) {
-            this.categoria = String(this.categoria).trim();
-            if (!this.categoria) {
-                return next(new Error('categoria no puede estar vacía'));
-            }
+        {
+            const { sanitizarCategoriasPlato } = require('../../utils/categoriasPlato');
+            const cats = sanitizarCategoriasPlato(this.categorias, this.categoria);
+            this.categorias = cats.categorias;
+            this.categoria = cats.categoria;
         }
         {
             const rMozo = validarCodigoMozo(this.codigoMozo);
