@@ -40,6 +40,16 @@ const categoriaPlatoSchema = new mongoose.Schema({
         maxlength: 240,
     },
     orden: { type: Number, default: 99 },
+    /** Prioridad en una carta (slug de tipo). Menor = más arriba. Si falta, se usa codigoMozo 1–10. */
+    ordenPorTipo: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({}),
+    },
+    /** Slugs de carta donde la categoría no se muestra al mozo. */
+    ocultoEnTipos: {
+        type: [String],
+        default: () => [],
+    },
 }, { timestamps: true });
 
 categoriaPlatoSchema.pre('validate', function (next) {

@@ -4,6 +4,11 @@ const logger = require('../utils/logger');
 const { validarCodigoMozo } = require('../utils/validarCodigoPlato');
 const { wrapMutacionesCatalogo } = require('../utils/catalogoCartaPersistencia');
 const { categoriasDePlato, sanitizarCategoriasPlato } = require('../utils/categoriasPlato');
+const {
+    sanitizarOrdenPorTipo,
+    sanitizarOcultoEnTipos,
+    cmpCategoriasMozo,
+} = require('../utils/ordenCategoriaMozo');
 
 function normalizeNombreCat(nombre) {
     const n = String(nombre || '').trim();
@@ -81,7 +86,17 @@ async function listarCategoriasGestion(qRaw) {
     const nombresVistos = new Set(cats.map((c) => c.nombre));
     const extra = [];
     byCat.forEach((_arr, nombre) => {
-        if (!nombresVistos.has(nombre)) extra.push({ nombre, codigoMozo: '', imagenUrl: '', _id: null });
+        if (!nombresVistos.has(nombre)) {
+            extra.push({
+                nombre,
+                codigoMozo: '',
+                imagenUrl: '',
+                orden: 99,
+                ordenPorTipo: {},
+                ocultoEnTipos: [],
+                _id: null,
+            });
+        }
     });
     const todas = [...cats, ...extra];
     const out = [];
@@ -103,21 +118,32 @@ async function listarCategoriasGestion(qRaw) {
             nombre: c.nombre,
             codigoMozo: c.codigoMozo || '',
             imagenUrl: c.imagenUrl || '',
+            orden: Number.isFinite(Number(c.orden)) ? Number(c.orden) : 99,
+            ordenPorTipo: sanitizarOrdenPorTipo(c.ordenPorTipo),
+            ocultoEnTipos: sanitizarOcultoEnTipos(c.ocultoEnTipos),
             count: platosCat.length,
             platos: filtrados,
         });
     }
+    out.sort((a, b) => cmpCategoriasMozo(a, b, ''));
     return out;
 }
 
 async function listarCategoriasLigero() {
     await sincronizarDesdePlatos();
-    const cats = await CategoriaPlato.find({}).sort({ nombre: 1 }).select('nombre codigoMozo imagenUrl').lean();
-    return cats.map((c) => ({
-        nombre: c.nombre,
-        codigoMozo: c.codigoMozo || '',
-        imagenUrl: c.imagenUrl || '',
-    }));
+    const cats = await CategoriaPlato.find({})
+        .select('nombre codigoMozo imagenUrl orden ordenPorTipo ocultoEnTipos')
+        .lean();
+    return cats
+        .map((c) => ({
+            nombre: c.nombre,
+            codigoMozo: c.codigoMozo || '',
+            imagenUrl: c.imagenUrl || '',
+            orden: Number.isFinite(Number(c.orden)) ? Number(c.orden) : 99,
+            ordenPorTipo: sanitizarOrdenPorTipo(c.ordenPorTipo),
+            ocultoEnTipos: sanitizarOcultoEnTipos(c.ocultoEnTipos),
+        }))
+        .sort((a, b) => cmpCategoriasMozo(a, b, ''));
 }
 
 function invalidateTiposDePlatos(docs) {
@@ -189,6 +215,24 @@ async function setCodigoMozoCategoria(nombreRaw, codigoMozo) {
     return { nombre: doc.nombre, codigoMozo: doc.codigoMozo };
 }
 
+async function setVistaCategoria(nombreRaw, { ordenPorTipo, ocultoEnTipos } = {}) {
+    const n = normalizeNombreCat(nombreRaw);
+    const doc = await asegurarCategoria(n);
+    if (ordenPorTipo !== undefined) {
+        doc.ordenPorTipo = sanitizarOrdenPorTipo(ordenPorTipo);
+        doc.markModified('ordenPorTipo');
+    }
+    if (ocultoEnTipos !== undefined) {
+        doc.ocultoEnTipos = sanitizarOcultoEnTipos(ocultoEnTipos);
+    }
+    await doc.save();
+    return {
+        nombre: doc.nombre,
+        ordenPorTipo: sanitizarOrdenPorTipo(doc.ordenPorTipo),
+        ocultoEnTipos: sanitizarOcultoEnTipos(doc.ocultoEnTipos),
+    };
+}
+
 async function guardarCategoriasLote(items) {
     if (!Array.isArray(items) || items.length === 0) {
         const err = new Error('No hay categorías para guardar');
@@ -203,6 +247,14 @@ async function guardarCategoriasLote(items) {
         try {
             if (to !== from) await renombrarCategoria(from, to);
             if (it.codigoMozo != null) await setCodigoMozoCategoria(to, it.codigoMozo);
+            const hasVista = Object.prototype.hasOwnProperty.call(it, 'ordenPorTipo')
+                || Object.prototype.hasOwnProperty.call(it, 'ocultoEnTipos');
+            if (hasVista) {
+                await setVistaCategoria(to, {
+                    ordenPorTipo: Object.prototype.hasOwnProperty.call(it, 'ordenPorTipo') ? it.ordenPorTipo : undefined,
+                    ocultoEnTipos: Object.prototype.hasOwnProperty.call(it, 'ocultoEnTipos') ? it.ocultoEnTipos : undefined,
+                });
+            }
             guardadas += 1;
         } catch (e) {
             errores.push({ nombre: from, error: e.message || 'No se pudo guardar' });
@@ -256,6 +308,7 @@ module.exports = wrapMutacionesCatalogo({
     listarCategoriasLigero,
     renombrarCategoria,
     setCodigoMozoCategoria,
+    setVistaCategoria,
     guardarCategoriasLote,
     setImagenCategoria,
     moverPlatos,

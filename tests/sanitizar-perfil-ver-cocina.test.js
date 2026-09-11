@@ -6,6 +6,15 @@ const {
 } = require('../src/utils/sanitizarPerfilVerCocina');
 
 describe('sanitizarConfigPerfilVerCocina', () => {
+    test('conserva formato de cantidad en nombre de guarnición', () => {
+        const out = sanitizarConfigPerfilVerCocina({
+            guarnicionCantidadPrefijo: '+',
+            guarnicionCantidadPosicion: 'izquierda',
+        });
+        expect(out.guarnicionCantidadPrefijo).toBe('+');
+        expect(out.guarnicionCantidadPosicion).toBe('izquierda');
+    });
+
     test('conserva opciones de Personalizar incluidas las de guarniciones', () => {
         const out = sanitizarConfigPerfilVerCocina({
             ocultarCronometroGuarniciones: true,

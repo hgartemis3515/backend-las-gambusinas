@@ -68,6 +68,8 @@ const PERFIL_VER_COCINA_KEYS = new Set([
     'numeroSecGlow', 'numeroSecTamanio', 'numeroSecPrefijo',
     'cantidadColor', 'cantidadContorno', 'cantidadFondo', 'cantidadTamanio',
     'cantidadGrosorContorno', 'cantidadRadio', 'cantidadPeso', 'cantidadSeguirAlerta',
+    'cantidadPrefijo',
+    'guarnicionCantidadPrefijo', 'guarnicionCantidadPosicion',
     'cronometroColor', 'cronometroContorno', 'cronometroFondo',
     'cronometroContornoLetra', 'cronometroFondoTexto',
     'cronometroForma', 'cronometroAncho', 'cronometroAlto', 'cronometroRadio',

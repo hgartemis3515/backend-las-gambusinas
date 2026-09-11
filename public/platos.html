@@ -170,7 +170,7 @@ tailwind.config = {
         </table>
         <div class="flex items-center justify-between px-3 py-2.5 text-[11px] text-txt-muted border-t border-[rgba(212,175,55,0.08)]">
           <span x-text="'Mostrando ' + filteredPlatos.length + ' de ' + platos.length + ' platos'"></span>
-          <span>▲▼ mueve el orden en la app de mozos</span>
+          <span>El buscador de mozos ordena por categoría (código 1–10) y código de plato. Prioridad u ocultar: Gestión de categorías, por carta.</span>
         </div>
       </div>
 
@@ -1064,7 +1064,7 @@ tailwind.config = {
       <div class="flex items-center justify-between">
         <div>
           <h2 class="text-lg font-bold">📂 Categorías de platos</h2>
-          <p class="text-xs text-txt-muted">Nombre, código de mozo e imagen. El código puede repetirse entre tipos de menú; el nombre identifica la categoría. Un solo Guardar aplica todos los cambios.</p>
+          <p class="text-xs text-txt-muted">Código 1–10 ordena al mozo (Favoritos primero). Elige una carta para priorizar, mandar al último u ocultar categorías solo en esa carta.</p>
         </div>
         <button @click="modalGestionCategorias=false" class="w-7 h-7 flex items-center justify-center rounded-full bg-gold-20 text-gold text-sm">✕</button>
       </div>
@@ -1077,6 +1077,8 @@ tailwind.config = {
           </template>
         </select>
         <button @click="loadCategoriasGestion()" class="px-3 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold">↻ Actualizar</button>
+        <p class="text-[11px] text-txt-muted w-full" x-show="!filterTipoGestionCat">Elige una carta para ▲▼, «Al último» u ocultar. Sin carta, el orden es el código 1–10.</p>
+        <p class="text-[11px] text-txt-muted w-full" x-show="filterTipoGestionCat">Los cambios de esta carta se aplican al pulsar Guardar todo.</p>
       </div>
     </div>
     <div class="p-5 max-h-[58vh] overflow-y-auto flex-1">
@@ -1085,7 +1087,7 @@ tailwind.config = {
       </div>
       <div x-show="!loadingGestionCategorias && categoriasGestionFiltradas.length === 0" class="text-center py-10 text-txt-muted text-sm">No hay categorías.</div>
       <template x-for="cat in categoriasGestionFiltradas" :key="cat.nombre">
-        <div class="mb-3 border border-[rgba(212,175,55,0.2)] rounded-xl overflow-hidden">
+        <div class="mb-3 border border-[rgba(212,175,55,0.2)] rounded-xl overflow-hidden" :class="filterTipoGestionCat && ocultoEnCarta(cat) ? 'opacity-55' : ''">
           <div class="flex items-center gap-2 p-3 bg-bg-sidebar flex-wrap">
             <button type="button" @click="catExpandida = catExpandida === cat.nombre ? '' : cat.nombre" class="text-gold text-sm w-6">▸</button>
             <div class="w-10 h-10 rounded-lg overflow-hidden bg-bg-card border border-[rgba(212,175,55,0.25)] flex-shrink-0">
@@ -1095,6 +1097,26 @@ tailwind.config = {
             <input type="text" x-model="cat._editNombre" class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-sm w-40 focus:border-gold focus:outline-none" placeholder="Nombre">
             <input type="text" x-model="cat._editCodigo" @input="cat._editCodigo = (cat._editCodigo || '').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4)" maxlength="4" class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-1.5 text-sm w-20 font-mono focus:border-gold focus:outline-none" placeholder="Cód. mozo">
             <span class="text-[11px] text-txt-muted" x-text="countPlatosCatEnTipo(cat) + ' plato(s)'"></span>
+            <span class="text-[11px] text-gold font-mono" x-show="filterTipoGestionCat && !ocultoEnCarta(cat)" x-text="'#' + prioridadCatEnCarta(cat)"></span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-st-pagado/20 text-st-pagado" x-show="filterTipoGestionCat && ocultoEnCarta(cat)">Oculta en esta carta</span>
+            <span class="text-[10px] text-txt-muted" x-show="!filterTipoGestionCat && etiquetasOculto(cat)" x-text="'Oculta en: ' + etiquetasOculto(cat)"></span>
+            <div class="flex items-center gap-1" x-show="filterTipoGestionCat">
+              <button type="button"
+                class="w-6 h-6 flex items-center justify-center rounded text-[10px] text-gold hover:bg-gold/20 disabled:opacity-25"
+                :disabled="ocultoEnCarta(cat) || indiceVisibleCarta(cat) <= 0"
+                @click="moverCategoriaCarta(cat, -1)"
+                title="Subir en esta carta">▲</button>
+              <button type="button"
+                class="w-6 h-6 flex items-center justify-center rounded text-[10px] text-gold hover:bg-gold/20 disabled:opacity-25"
+                :disabled="ocultoEnCarta(cat) || indiceVisibleCarta(cat) < 0 || indiceVisibleCarta(cat) >= visiblesCarta().length - 1"
+                @click="moverCategoriaCarta(cat, 1)"
+                title="Bajar en esta carta">▼</button>
+              <button type="button" @click="alUltimoCarta(cat)" class="text-[11px] text-txt-secondary hover:text-gold px-1" title="Dejar esta categoría al final de la carta">Al último</button>
+              <label class="text-[11px] text-txt-secondary flex items-center gap-1 cursor-pointer whitespace-nowrap">
+                <input type="checkbox" :checked="ocultoEnCarta(cat)" @change="toggleOcultoCarta(cat)">
+                Ocultar
+              </label>
+            </div>
             <label class="ml-auto text-[11px] text-gold cursor-pointer hover:underline">
               Imagen
               <input type="file" accept="image/jpeg,image/png,image/webp" class="hidden" @change="subirImagenCategoria(cat, $event)">
@@ -2493,6 +2515,8 @@ tailwind.config = {
         const data = await apiGet('/categorias-plato' + (q ? ('?q=' + q) : ''));
         this.categoriasGestion = (data || []).map((c) => ({
           ...c,
+          ordenPorTipo: { ...(c.ordenPorTipo || {}) },
+          ocultoEnTipos: Array.isArray(c.ocultoEnTipos) ? [...c.ocultoEnTipos] : [],
           _editNombre: c.nombre,
           _editCodigo: c.codigoMozo || '',
           platos: (c.platos || []).map((p) => ({ ...p, _moverA: '' })),
@@ -2521,9 +2545,108 @@ tailwind.config = {
       return this.platosCatEnTipo(cat).length;
     },
 
+    codigoCategoriaRank(codigo) {
+      const s = String(codigo || '').trim().toUpperCase();
+      if (!s) return 10000;
+      if (/^\d+$/.test(s)) return Number(s);
+      return 1000 + s.charCodeAt(0);
+    },
+
+    prioridadCatEnCarta(cat) {
+      const slug = this.filterTipoGestionCat;
+      const n = Number(cat && cat.ordenPorTipo && slug ? cat.ordenPorTipo[slug] : NaN);
+      if (slug && Number.isFinite(n)) return n;
+      return this.codigoCategoriaRank(cat && (cat._editCodigo || cat.codigoMozo));
+    },
+
+    ocultoEnCarta(cat) {
+      const slug = String(this.filterTipoGestionCat || '').trim().toLowerCase();
+      if (!slug) return false;
+      return (cat.ocultoEnTipos || []).some((s) => String(s || '').trim().toLowerCase() === slug);
+    },
+
+    etiquetasOculto(cat) {
+      return (cat.ocultoEnTipos || []).map((s) => this.tipoLabel(s) || s).filter(Boolean).join(', ');
+    },
+
+    cmpCatGestion(a, b) {
+      const ha = this.ocultoEnCarta(a) ? 1 : 0;
+      const hb = this.ocultoEnCarta(b) ? 1 : 0;
+      if (ha !== hb) return ha - hb;
+      const pa = this.prioridadCatEnCarta(a);
+      const pb = this.prioridadCatEnCarta(b);
+      if (pa !== pb) return pa - pb;
+      const ca = String((a && (a._editCodigo || a.codigoMozo)) || '').toUpperCase();
+      const cb = String((b && (b._editCodigo || b.codigoMozo)) || '').toUpperCase();
+      if (ca !== cb) return ca.localeCompare(cb, 'es', { numeric: true });
+      return String((a && (a._editNombre || a.nombre)) || '').localeCompare(String((b && (b._editNombre || b.nombre)) || ''), 'es');
+    },
+
     get categoriasGestionFiltradas() {
-      if (!this.filterTipoGestionCat) return this.categoriasGestion;
-      return (this.categoriasGestion || []).filter((c) => this.countPlatosCatEnTipo(c) > 0);
+      let list = this.categoriasGestion || [];
+      if (this.filterTipoGestionCat) {
+        list = list.filter((c) => this.countPlatosCatEnTipo(c) > 0 || this.ocultoEnCarta(c));
+      }
+      return [...list].sort((a, b) => this.cmpCatGestion(a, b));
+    },
+
+    visiblesCarta() {
+      return this.categoriasGestionFiltradas.filter((c) => !this.ocultoEnCarta(c));
+    },
+
+    indiceVisibleCarta(cat) {
+      return this.visiblesCarta().findIndex((c) => c.nombre === cat.nombre);
+    },
+
+    setPrioridadCarta(cat, val) {
+      const slug = this.filterTipoGestionCat;
+      if (!slug || !cat) return;
+      const n = Number(val);
+      const next = { ...(cat.ordenPorTipo || {}) };
+      if (!Number.isFinite(n) || n <= 0) delete next[slug];
+      else next[slug] = n;
+      cat.ordenPorTipo = next;
+    },
+
+    alUltimoCarta(cat) {
+      if (!this.filterTipoGestionCat) {
+        this.showToast('Elige una carta', 'error');
+        return;
+      }
+      this.setPrioridadCarta(cat, 9999);
+    },
+
+    toggleOcultoCarta(cat) {
+      const slug = this.filterTipoGestionCat;
+      if (!slug) {
+        this.showToast('Elige una carta para ocultar', 'error');
+        return;
+      }
+      if (!Array.isArray(cat.ocultoEnTipos)) cat.ocultoEnTipos = [];
+      const i = cat.ocultoEnTipos.findIndex((s) => String(s || '').trim().toLowerCase() === slug.toLowerCase());
+      if (i >= 0) cat.ocultoEnTipos.splice(i, 1);
+      else cat.ocultoEnTipos.push(slug);
+    },
+
+    moverCategoriaCarta(cat, delta) {
+      const slug = this.filterTipoGestionCat;
+      if (!slug) {
+        this.showToast('Elige una carta', 'error');
+        return;
+      }
+      const visibles = this.visiblesCarta();
+      const i = visibles.findIndex((c) => c.nombre === cat.nombre);
+      const j = i + delta;
+      if (i < 0 || j < 0 || j >= visibles.length) return;
+      const orden = visibles.map((c) => c.nombre);
+      const tmp = orden[i];
+      orden[i] = orden[j];
+      orden[j] = tmp;
+      const byName = new Map((this.categoriasGestion || []).map((c) => [c.nombre, c]));
+      orden.forEach((nombre, idx) => {
+        const c = byName.get(nombre);
+        if (c) this.setPrioridadCarta(c, (idx + 1) * 10);
+      });
     },
 
     async guardarTodasCategorias() {
@@ -2531,6 +2654,8 @@ tailwind.config = {
         nombre: c.nombre,
         nuevoNombre: String(c._editNombre || '').trim(),
         codigoMozo: String(c._editCodigo || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4),
+        ordenPorTipo: c.ordenPorTipo || {},
+        ocultoEnTipos: Array.isArray(c.ocultoEnTipos) ? c.ocultoEnTipos : [],
       }));
       if (items.some((it) => !it.nuevoNombre)) {
         this.showToast('Hay una categoría sin nombre', 'error');
