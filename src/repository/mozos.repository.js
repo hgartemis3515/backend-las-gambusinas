@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { normalizarPinCocina, esPinCocinaValido } = require('../utils/pinCocina');
 const { sanitizarColorPerfil } = require('../utils/colorPerfilMozo');
+const { rolPrincipalDeSeleccion } = require('../utils/rolPrincipalUsuario');
 
 function escapeRegex(s) {
     return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -28,6 +29,9 @@ const crearMozo = async (data) => {
     }
     if (data.colorLetraPerfil !== undefined) {
         data.colorLetraPerfil = sanitizarColorPerfil(data.colorLetraPerfil);
+    }
+    if (Array.isArray(data.roles) && data.roles.length) {
+        data.rol = rolPrincipalDeSeleccion(data.roles, data.rol || 'mozos');
     }
     await mozos.create(data);
     const todoslosmozos = await listarMozos();
@@ -94,7 +98,11 @@ const actualizarMozo = async (id, newData) => {
         }
         if (newData.usuarioWeb !== undefined) mozo.usuarioWeb = newData.usuarioWeb;
         if (newData.passwordWeb !== undefined && newData.passwordWeb !== '') mozo.passwordWeb = newData.passwordWeb;
-        if (newData.rol !== undefined) mozo.rol = newData.rol;
+        if (Array.isArray(newData.roles) && newData.roles.length) {
+            mozo.rol = rolPrincipalDeSeleccion(newData.roles, newData.rol || mozo.rol || 'mozos');
+        } else if (newData.rol !== undefined) {
+            mozo.rol = newData.rol;
+        }
         if (newData.activo !== undefined) mozo.activo = newData.activo;
         if (newData.enTurno !== undefined) mozo.enTurno = newData.enTurno;
         if (newData.permisos !== undefined) mozo.permisos = newData.permisos;

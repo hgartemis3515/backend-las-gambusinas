@@ -355,6 +355,9 @@ tailwind.config = {
               </button>
             </template>
           </div>
+          <p class="text-[10px] text-txt-muted mt-2" x-show="formUsuario.roles?.length > 1">
+            Se guarda el rol de mayor rango: <span class="text-gold font-semibold" x-text="getRolNombre(rolPrincipalDeSeleccion(formUsuario.roles))"></span>
+          </p>
         </div>
         
         <!-- Permisos combinados -->
@@ -537,7 +540,7 @@ function usuariosApp() {
       supervisor: {
         'Backend/Dashboard': ['ver-mesas', 'editar-mesas', 'juntar-separar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas', 'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria', 'cierre-caja', 'ver-notificaciones', 'crear-comandas-dashboard'],
         'App Mozos': ['crear-comandas', 'editar-comandas', 'procesar-pagos', 'asociar-clientes'],
-        'App Cocina': ['ver-comandas-cocina', 'entregar-plato-entero-kds']
+        'App Cocina': ['ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas', 'ver-vista-supervisor-cocina', 'utilidad-supervisor', 'entregar-plato-entero-kds']
       },
       cocinero: {
         'Backend/Dashboard': ['ver-platos'],
@@ -815,6 +818,17 @@ function usuariosApp() {
         this.formUsuario.roles.push(rolNombre);
       }
     },
+
+    rolPrincipalDeSeleccion(roles) {
+      const prio = { admin: 100, supervisor: 90, cajero: 85, capitanmozos: 50, cocinero: 40, mozos: 10 };
+      const list = (roles || []).map((r) => String(r || '').trim()).filter(Boolean);
+      if (!list.length) return 'mozos';
+      return [...list].sort((a, b) => {
+        const pa = prio[String(a).toLowerCase()] ?? 70;
+        const pb = prio[String(b).toLowerCase()] ?? 70;
+        return pb - pa;
+      })[0];
+    },
     
     openCreateModal() {
       this.isEditing = false;
@@ -973,7 +987,7 @@ function usuariosApp() {
         email: this.formUsuario.email || '',
         pinAcceso: claveCocina,
         roles: this.formUsuario.roles,
-        rol: this.formUsuario.roles[0], // Rol principal (compatibilidad)
+        rol: this.rolPrincipalDeSeleccion(this.formUsuario.roles),
         activo: this.formUsuario.activo,
         dosFactores: this.formUsuario.dosFactores || false,
         colorPerfil: this.colorHexUi(this.formUsuario.colorPerfil),

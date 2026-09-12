@@ -586,9 +586,11 @@ router.post('/cocineros/:id/asignar-rol', adminAuth, checkPermission('gestionar-
         
         res.json({
             success: true,
-            message: resultado.yaEraCocinero 
-                ? 'El usuario ya tiene rol de cocinero' 
-                : 'Rol de cocinero asignado correctamente',
+            message: resultado.yaEraCocinero
+                ? 'El usuario ya tiene rol de cocinero'
+                : (resultado.usuario?.rol && resultado.usuario.rol !== 'cocinero'
+                    ? `Listo para cocina sin cambiar el rol (${resultado.rolAnterior})`
+                    : 'Rol de cocinero asignado correctamente'),
             data: resultado.usuario
         });
     } catch (error) {

@@ -92,6 +92,7 @@ const PERMISOS_SUPERVISOR = [
     'ver-notificaciones', 'crear-comandas', 'editar-comandas',
     'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina', 'aplicar-descuentos',
     'crear-comandas-dashboard',
+    'cambiar-estados-platos', 'revertir-comandas',
     'ver-vista-supervisor-cocina', 'asignacion-automatica-kds', 'ver-boton-prioridad-kds', 'entregar-plato-entero-kds', 'utilidad-supervisor',
     'ver-cocina-completo', 'ver-cocina-personalizado', 'desplegar-monitores-cocina', 'administrar-vistas-cocina',
     'crear-reservas-mozos', 'asignar-encargado-reserva', 'ver-reservas-kds',

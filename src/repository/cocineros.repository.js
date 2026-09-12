@@ -17,6 +17,7 @@ const {
     tiempoPrepPlatoSegundos
 } = require('../utils/tiemposPrepPlato');
 const { ROLES_EXCLUIDOS_ASIGNACION_KDS } = require('../utils/rolesAsignacionKds');
+const { debePromoverACocinero } = require('../utils/rolPrincipalUsuario');
 const { matchComandaAbiertaEnTabla } = require('../utils/estadisticasComandas');
 const {
     cantidadUnidadesPlato,
@@ -412,12 +413,7 @@ async function actualizarConfigKDS(usuarioId, datosConfig, actualizadoPor = null
             throw new Error('Usuario no encontrado');
         }
         
-        // Si el usuario no es cocinero, actualizar su rol
-        if (usuario.rol !== 'cocinero' && usuario.rol !== 'admin' && usuario.rol !== 'supervisor') {
-            usuario.rol = 'cocinero';
-            await usuario.save();
-            logger.info('Rol actualizado a cocinero', { usuarioId });
-        }
+        // Guardar config KDS no debe pisar el rol (supervisor / custom "martha" → cocinero).
         
         const setPayload = {
             ...datosConfig,
@@ -635,8 +631,12 @@ async function asignarRolCocinero(usuarioId, asignadoPor = null) {
         }
         
         const rolAnterior = usuario.rol;
-        usuario.rol = 'cocinero';
-        await usuario.save();
+        if (debePromoverACocinero(usuario.rol)) {
+            usuario.rol = 'cocinero';
+            await usuario.save();
+        } else {
+            logger.info('Asignar KDS sin degradar rol', { usuarioId, rol: rolAnterior });
+        }
         
         // Crear configuración por defecto si no existe
         const configExistente = await ConfigCocinero.findOne({ usuarioId });
