@@ -6,7 +6,7 @@
 const BOUCHER_DESCUENTO_SELECT = 'montoDescuento descuentos totalSinDescuento totalConDescuento';
 const COMANDA_DESCUENTO_SELECT = 'comandaNumber status descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado';
 /** Listados de tickets: status de comanda + estados vivos de plato (entrega mozos). */
-const COMANDA_TICKET_LIST_SELECT = `${COMANDA_DESCUENTO_SELECT} platos.estado platos.eliminado platos.anulado`;
+const COMANDA_TICKET_LIST_SELECT = `${COMANDA_DESCUENTO_SELECT} sinMesa platos.estado platos.eliminado platos.anulado`;
 
 function snapshotDesdeComandas(ticket) {
   const comandas = Array.isArray(ticket?.comandas) ? ticket.comandas : [];
