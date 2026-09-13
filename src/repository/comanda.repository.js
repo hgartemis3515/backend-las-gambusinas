@@ -1891,6 +1891,7 @@ const editarConAuditoria = async (comandaId, platosNuevos, platosEliminados, usu
                 ? nuevoPlato.complementosSeleccionados
                 : []
             };
+            snapshotNombreCocinaPedido(platoAgregado, platoCompleto);
             comanda.platos.push(platoAgregado);
             comanda.cantidades.push(nuevoPlato.cantidad || 1);
             console.log(`✅ Plato nuevo agregado: ${platoCompleto.nombre} (id numérico: ${platoCompleto.id}, cantidad: ${nuevoPlato.cantidad || 1}, tipoServicio: ${platoAgregado.tipoServicio})`);
@@ -2068,8 +2069,9 @@ const actualizarComanda = async (comandaId, newData) => {
         }
         
         // Buscar el plato para obtener su id numérico
+        let platoCompleto = null;
         try {
-          const platoCompleto = await platoModel.findById(plato.plato);
+          platoCompleto = await platoModel.findById(plato.plato);
           if (platoCompleto && platoCompleto.id) {
             plato.platoId = platoCompleto.id;
             console.log(`  - Plato ${index}: _id=${plato.plato}, id=${platoCompleto.id}, nombre=${platoCompleto.nombre}, Estado=${plato.estado || 'en_espera'}, tipoServicio=${plato.tipoServicio || 'mesa'}`);
@@ -2092,6 +2094,7 @@ const actualizarComanda = async (comandaId, newData) => {
         if (plato.variantePlato || prev?.variantePlato) {
           plato.variantePlato = plato.variantePlato || prev.variantePlato;
         }
+        if (platoCompleto) snapshotNombreCocinaPedido(plato, platoCompleto);
       }
       const mapCats = new Map();
       for (const plato of newData.platos) {
@@ -5092,12 +5095,14 @@ const aplicarDescuento = async (comandaId, descuento, motivo, usuarioId, usuario
   const logPrefix = '💰 [aplicarDescuento]';
   
   try {
-    // 1. Validar rol del usuario
-    const rolesPermitidos = ['admin', 'supervisor'];
-    if (!rolesPermitidos.includes(usuarioRol)) {
-      const error = new Error(`No autorizado. Solo usuarios con rol 'admin' o 'supervisor' pueden aplicar descuentos. Tu rol: ${usuarioRol}`);
-      error.statusCode = 403;
-      throw error;
+    // 1. Validar autorización (controller ya chequea JWT / permiso)
+    if (!opciones.autorizado) {
+      const rolesPermitidos = ['admin', 'supervisor'];
+      if (!rolesPermitidos.includes(usuarioRol)) {
+        const error = new Error(`No autorizado. Solo usuarios con permiso de descuentos pueden aplicarlos. Tu rol: ${usuarioRol}`);
+        error.statusCode = 403;
+        throw error;
+      }
     }
 
     // 2. El % se valida después de resolver monto fijo (si aplica)
@@ -5146,8 +5151,10 @@ const aplicarDescuento = async (comandaId, descuento, motivo, usuarioId, usuario
     const montoDescuento = calc.montoDescuento;
     const igvConDescuento = calc.igv;
 
-    if (descuentoNum > 0 && (!motivo || motivo.trim().length < 3)) {
-      const error = new Error('El motivo del descuento es obligatorio (mínimo 3 caracteres)');
+    const motivoFinal = (motivo && String(motivo).trim()) ? motivo.trim() : 'Descuento';
+
+    if (descuentoNum > 0 && motivoFinal.length === 0) {
+      const error = new Error('El motivo del descuento es obligatorio');
       error.statusCode = 400;
       throw error;
     }
@@ -5163,7 +5170,7 @@ const aplicarDescuento = async (comandaId, descuento, motivo, usuarioId, usuario
     // 9. Actualizar la comanda
     comanda.descuento = descuentoNum;
     comanda.descuentoMontoFijo = calc.descuentoMontoFijo;
-    comanda.motivoDescuento = descuentoNum > 0 ? motivo.trim() : null;
+    comanda.motivoDescuento = descuentoNum > 0 ? motivoFinal : null;
     comanda.descuentoAplicadoPor = validarUsuarioId(usuarioId);
     comanda.descuentoAplicadoAt = descuentoNum > 0 ? moment.tz("America/Lima").toDate() : null;
     comanda.totalSinDescuento = totalSinDescuento;

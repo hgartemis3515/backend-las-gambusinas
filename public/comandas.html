@@ -3031,7 +3031,8 @@ formatearNombreMesa(mesa, mesaObj = null) {
 
  // Obtener rol del usuario del token JWT
  this.userRole = this.parseJwtRol(token);
- this.puedeAplicarDescuento = ['admin', 'supervisor'].includes(this.userRole);
+ this.puedeAplicarDescuento = this.tienePermisoComanda('aplicar-descuentos')
+  || ['admin', 'supervisor'].includes(this.userRole);
  console.log('👤 Rol usuario:', this.userRole, '| Puede aplicar descuento:', this.puedeAplicarDescuento);
 
  // Inicializar Socket.io

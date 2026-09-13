@@ -275,10 +275,24 @@ function esComplementoVariante(comp, catalogo, variantePlato) {
   return gruposVarianteDeCatalogo(catalogo).some((g) => claveGrupo(g.grupo) === claveGrupo(comp.grupo));
 }
 
+function reescribirPedidoSiEsNombreComercial(existente, catalogo, linea) {
+  const alias = String(catalogo?.nombreCocina || linea?.nombreCocina || '').trim();
+  const comercial = String(catalogo?.nombre || linea?.nombre || '').trim();
+  const p = String(existente || '').trim();
+  if (!p) return '';
+  if (alias && comercial && p.toLowerCase() === comercial.toLowerCase()) {
+    return alias.slice(0, MAX_NOMBRE_COCINA_PEDIDO);
+  }
+  if (alias && comercial && p.toLowerCase().startsWith(`${comercial.toLowerCase()} `)) {
+    return `${alias}${p.slice(comercial.length)}`.trim().slice(0, MAX_NOMBRE_COCINA_PEDIDO);
+  }
+  return p.slice(0, MAX_NOMBRE_COCINA_PEDIDO);
+}
+
 function snapshotNombreCocinaPedido(platoLinea, catalogo) {
   const existente = String(platoLinea?.nombreCocinaPedido || '').trim();
   if (existente) {
-    platoLinea.nombreCocinaPedido = existente.slice(0, MAX_NOMBRE_COCINA_PEDIDO);
+    platoLinea.nombreCocinaPedido = reescribirPedidoSiEsNombreComercial(existente, catalogo, platoLinea);
     return platoLinea.nombreCocinaPedido;
   }
   const gruposVar = gruposVarianteDeCatalogo(catalogo);

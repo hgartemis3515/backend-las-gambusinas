@@ -99,6 +99,7 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
     await cargarConfigMonedaEstadisticas();
     const resumenFinanciero = calcularResumenFinanciero(comandas, vendidas, periodoInicio, periodoFin);
     const productos = await analizarProductos(vendidas);
+    const guarniciones = analizarGuarniciones(vendidas);
     
     // Paso 7: Evaluar desempeño de mozos (mismo total de platos que reportes)
     const mozos = await analizarMozos(vendidas);
@@ -125,6 +126,7 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
       usuarioAdmin,
       resumenFinanciero,
       productos,
+      guarniciones,
       mozos,
       mesas,
       cocineros,
@@ -466,6 +468,12 @@ router.get('/cierre-caja/:id', adminAuth, checkPermission('ver-cierre-caja'), as
       logger.warn('No se pudo enriquecer auditoría del cierre', { error: audErr.message, cierreId: id });
     }
 
+    try {
+      await asegurarGuarnicionesCierre(cierre);
+    } catch (gErr) {
+      logger.warn('No se pudo enriquecer guarniciones del cierre', { error: gErr.message, cierreId: id });
+    }
+
     res.json(cierre);
     
   } catch (error) {
@@ -790,6 +798,79 @@ async function analizarProductos(comandas) {
       montoParaLlevar
     }
   };
+}
+
+function lineasComplementoPlato(p) {
+  const a = p?.complementosSeleccionados || p?.complementos || [];
+  return Array.isArray(a) ? a : [];
+}
+
+function nombreGuarnicionCierre(c) {
+  if (c == null) return '';
+  if (typeof c === 'string') return c.trim();
+  return String(c.opcion || c.nombre || '').trim();
+}
+
+function grupoGuarnicionCierre(c) {
+  if (c && typeof c === 'object') return String(c.grupo || '').trim() || 'Sin grupo';
+  return 'Sin grupo';
+}
+
+function analizarGuarniciones(comandas) {
+  const map = new Map();
+  let total = 0;
+
+  (comandas || []).forEach((comanda) => {
+    if (!comanda.platos || !Array.isArray(comanda.platos)) return;
+    comanda.platos.forEach((itemPlato, index) => {
+      if (!itemPlato || itemPlato.eliminado || itemPlato.anulado) return;
+      const cantPlato = cantidadPlatoNum(itemPlato, index, comanda.cantidades);
+      const plato = itemPlato.plato;
+      const platoNom = (plato && plato.nombre) || itemPlato.nombre || itemPlato.platoNombre || 'Plato';
+      lineasComplementoPlato(itemPlato).forEach((c) => {
+        if (c && typeof c === 'object' && c.eliminado) return;
+        const nombre = nombreGuarnicionCierre(c);
+        if (!nombre) return;
+        const grupo = grupoGuarnicionCierre(c);
+        const cantComp = Math.max(1, Number(c.cantidad) || 1) * cantPlato;
+        const clave = grupo + '|' + nombre;
+        if (!map.has(clave)) {
+          map.set(clave, { clave, nombre, grupo, cantidad: 0, platosSet: new Set() });
+        }
+        const row = map.get(clave);
+        row.cantidad += cantComp;
+        row.platosSet.add(platoNom);
+        total += cantComp;
+      });
+    });
+  });
+
+  const lista = Array.from(map.values())
+    .map((g) => ({
+      clave: g.clave,
+      nombre: g.nombre,
+      grupo: g.grupo,
+      cantidad: g.cantidad,
+      porcentaje: total > 0 ? Math.round((g.cantidad / total) * 1000) / 10 : 0,
+      platos: Array.from(g.platosSet)
+    }))
+    .sort((a, b) => b.cantidad - a.cantidad);
+
+  const porGrupo = {};
+  lista.forEach((g) => {
+    porGrupo[g.grupo] = (porGrupo[g.grupo] || 0) + g.cantidad;
+  });
+
+  return {
+    totalGuarniciones: total,
+    tipos: lista.length,
+    lista,
+    porGrupo
+  };
+}
+
+function faltaAnalisisGuarniciones(cierre) {
+  return !Array.isArray(cierre?.guarniciones?.lista);
 }
 
 async function analizarMozos(comandas) {
@@ -1384,6 +1465,45 @@ async function cargarComandasParaTicketCierre(cierre) {
   return [];
 }
 
+async function cargarComandasParaAnalisisCierre(cierre) {
+  const run = (filter) => Comanda.find(filter)
+    .select('platos cantidades status tiempoPagado eliminada fechaEliminacion')
+    .populate('platos.plato', 'nombre')
+    .lean();
+
+  const ids = Array.isArray(cierre.comandasIds) ? cierre.comandasIds.filter(Boolean) : [];
+  if (ids.length) {
+    const byIds = await run(matchComandaVigente({ _id: { $in: ids } }));
+    if (byIds.length) return byIds;
+  }
+
+  const byFlag = await run(matchComandaVigente(matchIncluidoEnEsteCierre(cierre._id)));
+  if (byFlag.length) return byFlag;
+
+  if (cierre.periodoInicio && cierre.periodoFin) {
+    return run(matchComandasPeriodoDeCierre(cierre.periodoInicio, cierre.periodoFin, cierre._id));
+  }
+  return [];
+}
+
+async function asegurarGuarnicionesCierre(cierre) {
+  if (!cierre || !faltaAnalisisGuarniciones(cierre)) return cierre?.guarniciones;
+  const encontradas = await cargarComandasParaAnalisisCierre(cierre);
+  const vendidas = encontradas.filter(esComandaVendida);
+  const guarniciones = analizarGuarniciones(vendidas.length ? vendidas : encontradas);
+  cierre.guarniciones = guarniciones;
+  if (cierre._id) {
+    CierreCajaRestaurante.updateOne(
+      { _id: cierre._id },
+      { $set: { guarniciones } }
+    ).catch((err) => logger.warn('No se pudieron guardar guarniciones del cierre', {
+      error: err.message,
+      cierreId: String(cierre._id)
+    }));
+  }
+  return guarniciones;
+}
+
 /**
  * GET /api/cierre-caja/:id/ticket-imprimible
  * Datos para ticket térmico 80mm: cada comanda con bruto, descuento y total; pie = suma de totales.
@@ -1463,6 +1583,8 @@ router.get('/cierre-caja/:id/exportar-pdf', adminAuth, checkPermission('ver-cier
     if (!cierre) {
       return res.status(404).json({ error: 'Cierre de caja no encontrado' });
     }
+
+    await asegurarGuarnicionesCierre(cierre);
     
     // Generar PDF usando pdfkit
     const PDFDocument = require('pdfkit');
@@ -1517,6 +1639,20 @@ router.get('/cierre-caja/:id/exportar-pdf', adminAuth, checkPermission('ver-cier
       productos.topProductos.slice(0, 10).forEach((p, index) => {
         doc.fontSize(11);
         doc.text(`${index + 1}. ${p.nombre} - Cantidad: ${p.cantidad} - Monto: S/. ${p.monto.toFixed(2)}`);
+      });
+      doc.moveDown();
+    }
+
+    const listaGuarnicionesPdf = cierre.guarniciones?.lista || [];
+    if (listaGuarnicionesPdf.length > 0) {
+      doc.fontSize(16).text('TOP GUARNICIONES', { underline: true });
+      doc.moveDown(0.5);
+      doc.fontSize(12);
+      doc.text(`Total: ${cierre.guarniciones.totalGuarniciones || 0} · ${cierre.guarniciones.tipos || listaGuarnicionesPdf.length} tipos`);
+      doc.moveDown(0.3);
+      listaGuarnicionesPdf.slice(0, 15).forEach((g, index) => {
+        doc.fontSize(11);
+        doc.text(`${index + 1}. ${g.nombre} (${g.grupo || 'Sin grupo'}) - Cantidad: ${g.cantidad} (${g.porcentaje || 0}%)`);
       });
       doc.moveDown();
     }
@@ -1605,6 +1741,8 @@ router.get('/cierre-caja/:id/exportar-excel', adminAuth, checkPermission('ver-ci
     if (!cierre) {
       return res.status(404).json({ error: 'Cierre de caja no encontrado' });
     }
+
+    await asegurarGuarnicionesCierre(cierre);
     
     // Intentar usar xlsx, si no está disponible, retornar error
     let XLSX;
@@ -1653,6 +1791,24 @@ router.get('/cierre-caja/:id/exportar-excel', adminAuth, checkPermission('ver-ci
       });
       const productosSheet = XLSX.utils.aoa_to_sheet(productosData);
       XLSX.utils.book_append_sheet(workbook, productosSheet, 'Productos');
+    }
+
+    const listaGuarnicionesXls = cierre.guarniciones?.lista || [];
+    if (listaGuarnicionesXls.length > 0) {
+      const guarnicionesData = [
+        ['Guarnición', 'Grupo', 'Cantidad', '% Cant.', 'En platos']
+      ];
+      listaGuarnicionesXls.forEach((g) => {
+        guarnicionesData.push([
+          g.nombre,
+          g.grupo || '',
+          g.cantidad || 0,
+          g.porcentaje || 0,
+          Array.isArray(g.platos) ? g.platos.join(', ') : ''
+        ]);
+      });
+      const guarnicionesSheet = XLSX.utils.aoa_to_sheet(guarnicionesData);
+      XLSX.utils.book_append_sheet(workbook, guarnicionesSheet, 'Guarniciones');
     }
     
     // Hoja 3: Mozos

@@ -94,6 +94,14 @@ const cierreCajaRestauranteSchema = new mongoose.Schema({
       montoParaLlevar: { type: Number, default: 0 } // Ingresos por platos para llevar
     }
   },
+
+  // Complementos / guarniciones vendidos (misma lógica que Reportes)
+  guarniciones: {
+    totalGuarniciones: { type: Number, default: 0 },
+    tipos: { type: Number, default: 0 },
+    lista: mongoose.Schema.Types.Mixed,
+    porGrupo: mongoose.Schema.Types.Mixed
+  },
   
   // Bloque 4: Desempeño de mozos
   mozos: {

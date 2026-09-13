@@ -1,5 +1,5 @@
 /**
- * Las Gambusinas — Chat Dashboard (Messenger-like, FAB inferior derecha)
+ * Las Gambusinas — Chat Dashboard (Messenger-like, botón en topbar)
  *
  * Rediseño v2: panel split tipo Messenger:
  *  - Columna izquierda: lista de contactos/usuarios (todos los mozos), canales y anuncios.
@@ -41,6 +41,7 @@ class ChatDashboard {
 
   async init() {
     if (!this.tienePermiso()) return;
+    await this.esperarHostTopbar();
     this.injectarDOM();
     await this.cargarConversaciones();
     await this.cargarUsuarios();
@@ -68,38 +69,52 @@ class ChatDashboard {
 
   // ==================== DOM ====================
 
+  esperarHostTopbar() {
+    return new Promise((resolve) => {
+      if (document.getElementById('chat-fab-wrapper')) return resolve();
+      const t0 = Date.now();
+      const iv = setInterval(() => {
+        if (document.getElementById('chat-fab-wrapper') || Date.now() - t0 > 4000) {
+          clearInterval(iv);
+          resolve();
+        }
+      }, 50);
+    });
+  }
+
   injectarDOM() {
     if (document.getElementById('chat-fab-gambusinas')) return;
 
-    // FAB
+    // Botón en topbar (izquierda del fullscreen)
     const fab = document.createElement('div');
     fab.id = 'chat-fab-gambusinas';
     fab.style.cssText = [
-      'position: fixed', 'bottom: max(16px, env(safe-area-inset-bottom, 0px))',
-      'right: max(16px, env(safe-area-inset-right, 0px))', 'z-index: 9999',
-      'width: 56px', 'height: 56px', 'border-radius: 50%',
+      'position: relative', 'width: 48px', 'height: 48px', 'border-radius: 8px',
       'background: linear-gradient(135deg, #d4af37 0%, #b8860b 100%)',
       'color: #0a0a0f', 'display: flex', 'align-items: center', 'justify-content: center',
-      'font-size: 24px', 'cursor: pointer', 'box-shadow: 0 6px 20px rgba(0,0,0,0.45)',
-      'transition: transform 0.15s ease, box-shadow 0.15s ease',
-      'touch-action: manipulation'
+      'font-size: 22px', 'cursor: pointer',
+      'border: 1px solid rgba(212,175,55,0.35)',
+      'transition: transform 0.15s ease',
+      'touch-action: manipulation', 'flex-shrink: 0'
     ].join(';');
     fab.innerHTML = '💬';
     fab.title = 'Chat interno';
-    fab.addEventListener('mouseenter', () => { fab.style.transform = 'scale(1.08)'; });
+    fab.setAttribute('aria-label', 'Chat interno');
+    fab.addEventListener('mouseenter', () => { fab.style.transform = 'scale(1.05)'; });
     fab.addEventListener('mouseleave', () => { fab.style.transform = 'scale(1)'; });
     fab.addEventListener('click', () => this.abrirPanel());
 
     const badge = document.createElement('span');
     badge.id = 'chat-fab-badge';
     badge.style.cssText = [
-      'position: absolute', 'top: -4px', 'right: -4px', 'min-width: 20px', 'height: 20px',
+      'position: absolute', 'top: -4px', 'right: -4px', 'min-width: 18px', 'height: 18px',
       'padding: 0 4px', 'border-radius: 10px', 'background: #ff4757', 'color: white',
-      'font-size: 11px', 'font-weight: bold', 'display: none',
+      'font-size: 10px', 'font-weight: bold', 'display: none',
       'align-items: center', 'justify-content: center'
     ].join(';');
     fab.appendChild(badge);
-    document.body.appendChild(fab);
+    const host = document.getElementById('chat-fab-wrapper');
+    (host || document.body).appendChild(fab);
 
     // Panel Messenger-like: split 2 columnas (responsive vía CSS)
     const panel = document.createElement('div');
@@ -343,9 +358,7 @@ class ChatDashboard {
         /* Móvil / teléfono: pantalla completa, una columna a la vez */
         @media (max-width: 700px) {
           #chat-fab-gambusinas {
-            width: 52px !important; height: 52px !important; font-size: 22px !important;
-            bottom: max(12px, env(safe-area-inset-bottom, 0px)) !important;
-            right: max(12px, env(safe-area-inset-right, 0px)) !important;
+            width: 44px !important; height: 44px !important; font-size: 20px !important;
           }
           #chat-panel-gambusinas {
             width: 100vw; left: 0; right: 0; border-left: none;

@@ -68,7 +68,7 @@ tailwind.config = {
 
     <!-- TABS -->
     <div class="flex gap-1 mb-4 border-b border-[rgba(212,175,55,0.1)] pb-2">
-      <template x-for="t in ['General','Platos','Mozos','Cocineros','Mesas','Clientes']" :key="t">
+      <template x-for="t in ['General','Platos','Guarniciones','Mozos','Cocineros','Mesas','Clientes']" :key="t">
         <button 
           @click="setTab(t)" 
           :class="repTab===t ? 'text-gold border-b-2 border-gold' : 'text-txt-secondary hover:text-white'" 
@@ -157,6 +157,7 @@ tailwind.config = {
         <h3 class="font-semibold text-sm mb-3 flex-shrink-0" x-text="{
           'General':'📈 Ventas por Período',
           'Platos':'🏆 Top Platos Vendidos',
+          'Guarniciones':'🥗 Top Guarniciones',
           'Mozos':'👤 Rendimiento por Mozo',
           'Cocineros':'👨‍🍳 Platos por Cocinero',
           'Mesas':'🪑 Rotación por Mesa',
@@ -170,6 +171,7 @@ tailwind.config = {
         <h3 class="font-semibold text-sm mb-3 flex-shrink-0" x-text="{
           'General':'💳 Distribución de Pagos',
           'Platos':'🍽️ Platos por Categoría',
+          'Guarniciones':'🥗 Guarniciones por grupo',
           'Mozos':'📊 Participación por Mozo',
           'Cocineros':'⏱️ Cumplimiento SLA',
           'Mesas':'🏷️ Estado Actual de Mesas',
@@ -281,6 +283,54 @@ tailwind.config = {
               <td class="px-3 py-3 text-right text-[#d4af37] text-base" x-text="'S/. ' + (tablaData.platos || []).reduce((s, p) => s + (p.subtotal || 0), 0).toLocaleString('es-PE', {minimumFractionDigits: 2})"></td>
               <td class="px-3 py-3 text-right">100%</td>
               <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tabla Guarniciones -->
+    <div x-show="!loading && repTab === 'Guarniciones'" class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+      <div class="px-5 py-3 border-b border-[rgba(212,175,55,0.1)] flex justify-between items-center">
+        <h3 class="font-semibold text-sm">📋 Desglose de Guarniciones</h3>
+        <span class="text-[10px] text-txt-muted" x-text="(tablaData.guarniciones?.length || 0) + ' guarniciones'"></span>
+      </div>
+      <div class="overflow-x-auto max-h-[400px] overflow-y-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-bg-sidebar sticky top-0">
+            <tr class="text-[10px] uppercase text-txt-secondary">
+              <th class="text-left px-4 py-2.5 font-semibold">#</th>
+              <th class="text-left px-4 py-2.5 font-semibold">Guarnición</th>
+              <th class="text-left px-4 py-2.5 font-semibold">Grupo</th>
+              <th class="text-right px-3 py-2.5 font-semibold">Cant.</th>
+              <th class="text-right px-3 py-2.5 font-semibold">% Cant.</th>
+              <th class="text-left px-3 py-2.5 font-semibold">En platos</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-if="!tablaData.guarniciones || tablaData.guarniciones.length === 0">
+              <tr><td colspan="6" class="px-4 py-8 text-center text-txt-muted text-xs">No hay datos de guarniciones para el período seleccionado</td></tr>
+            </template>
+            <template x-for="(g, idx) in (tablaData.guarniciones || [])" :key="g.clave || idx">
+              <tr class="border-b border-[rgba(212,175,55,0.08)] hover:bg-[rgba(212,175,55,0.03)]">
+                <td class="px-4 py-2.5 text-txt-muted" x-text="idx + 1"></td>
+                <td class="px-4 py-2.5 font-medium" x-text="g.nombre || '—'"></td>
+                <td class="px-4 py-2.5"><span class="text-[10px] px-2 py-0.5 rounded-full bg-[#2ecc71]/20 text-[#2ecc71]" x-text="g.grupo || '—'"></span></td>
+                <td class="px-3 py-2.5 text-right font-semibold" x-text="g.cantidad || 0"></td>
+                <td class="px-3 py-2.5 text-right text-txt-muted" x-text="(g.porcentaje || 0) + '%'"></td>
+                <td class="px-3 py-2.5">
+                  <span x-show="g.platos && g.platos.length > 0" class="text-[10px] px-2 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" :title="(g.platos || []).join(', ')" x-text="(g.platos || []).slice(0, 3).join(', ') + (g.platos.length > 3 ? ' +' + (g.platos.length - 3) : '')"></span>
+                  <span x-show="!g.platos || g.platos.length === 0" class="text-[10px] text-txt-muted">—</span>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+          <tfoot class="bg-bg-sidebar border-t-2 border-[rgba(212,175,55,0.25)]">
+            <tr class="font-bold text-xs">
+              <td class="px-4 py-3 uppercase" colspan="3">Total</td>
+              <td class="px-3 py-3 text-right" x-text="(tablaData.guarniciones || []).reduce((s, g) => s + (g.cantidad || 0), 0)"></td>
+              <td class="px-3 py-3 text-right">100%</td>
+              <td class="px-3 py-3 text-right text-txt-muted" x-text="(tablaData.guarniciones || []).length + ' tipos'"></td>
             </tr>
           </tfoot>
         </table>
@@ -944,7 +994,7 @@ function reportesApp() {
     agruparPor: 'dia',
     kpis: [],
     desgloseVentas: { ventasPendientes: 0, ventasAprobadas: 0 },
-    tablaData: { ventas: [], platos: [], mozos: [], mesas: [], clientes: [], cocineros: [], resumenCocineros: null },
+    tablaData: { ventas: [], platos: [], guarniciones: [], mozos: [], mesas: [], clientes: [], cocineros: [], resumenCocineros: null },
     
     // Cache de bouchers y datos de gráficos
     cachedBouchers: [],
@@ -1274,6 +1324,9 @@ function reportesApp() {
         case 'Platos':
           this.processPlatos(bouchers);
           break;
+        case 'Guarniciones':
+          this.processGuarniciones(bouchers);
+          break;
         case 'Mozos':
           this.processMozos(bouchers);
           break;
@@ -1461,9 +1514,9 @@ function reportesApp() {
           platosMap[nombre].ingreso += ingresoLinea;
           totalVendidos += cant;
           totalIngreso += ingresoLinea;
-          const comps = Array.isArray(p.complementos) ? p.complementos : [];
+          const comps = this.lineasComplemento(p);
           comps.forEach(c => {
-            const label = typeof c === 'string' ? c : [c.grupo, c.opcion].filter(Boolean).join(': ');
+            const label = this.nombreGuarnicion(c) || (typeof c === 'string' ? c : [c.grupo, c.opcion].filter(Boolean).join(': '));
             if (label) platosMap[nombre].compSet.add(label);
           });
 
@@ -1522,6 +1575,79 @@ function reportesApp() {
         distribucion: { mesa: servMesa, paraLlevar: servParaLlevar },
         ingresos: { montoMesa, montoParaLlevar }
       };
+    },
+    
+    lineasComplemento(p) {
+      const a = p?.complementosSeleccionados || p?.complementos || [];
+      return Array.isArray(a) ? a : [];
+    },
+    nombreGuarnicion(c) {
+      if (c == null) return '';
+      if (typeof c === 'string') return c.trim();
+      return String(c.opcion || c.nombre || '').trim();
+    },
+    grupoGuarnicion(c) {
+      if (c && typeof c === 'object') return String(c.grupo || '').trim() || 'Sin grupo';
+      return 'Sin grupo';
+    },
+
+    /**
+     * Procesa datos para la pestaña Guarniciones (complementos vendidos)
+     */
+    processGuarniciones(bouchers) {
+      const map = {};
+      let total = 0;
+      (bouchers || []).forEach(b => {
+        if (!b.platos || !Array.isArray(b.platos)) return;
+        b.platos.forEach(p => {
+          if (p.eliminado || p.anulado) return;
+          const platoNom = p.nombre || 'Plato';
+          const cantPlato = Number(p.cantidad) || 1;
+          this.lineasComplemento(p).forEach(c => {
+            const nombre = this.nombreGuarnicion(c);
+            if (!nombre) return;
+            const grupo = this.grupoGuarnicion(c);
+            const cantComp = Math.max(1, Number(c.cantidad) || 1) * cantPlato;
+            const clave = grupo + '|' + nombre;
+            if (!map[clave]) {
+              map[clave] = { clave, nombre, grupo, cantidad: 0, platosSet: new Set() };
+            }
+            map[clave].cantidad += cantComp;
+            map[clave].platosSet.add(platoNom);
+            total += cantComp;
+          });
+        });
+      });
+
+      const arr = Object.values(map)
+        .map(g => ({
+          clave: g.clave,
+          nombre: g.nombre,
+          grupo: g.grupo,
+          cantidad: g.cantidad,
+          porcentaje: total > 0 ? Math.round((g.cantidad / total) * 1000) / 10 : 0,
+          platos: Array.from(g.platosSet)
+        }))
+        .sort((a, b) => b.cantidad - a.cantidad);
+
+      const top = arr.slice(0, 10);
+      const labels = top.map(g => g.nombre.substring(0, 22));
+      const vals = top.map(g => g.cantidad);
+      const colors = [this._c.gold, this._c.teal, this._c.blue, this._c.amber, this._c.purple, this._c.green, this._c.red, '#00bcd4', '#ff9800', '#9b59b6'];
+
+      const grupos = {};
+      arr.forEach(g => { grupos[g.grupo] = (grupos[g.grupo] || 0) + g.cantidad; });
+
+      this.kpis = [
+        { label: 'Guarniciones', value: total, color: 'text-[#d4af37]', badge: '' },
+        { label: 'Top', value: top[0]?.nombre.substring(0, 18) || '—', color: 'text-white', badge: top[0] ? String(top[0].cantidad) : '' },
+        { label: 'Tipos', value: arr.length, color: 'text-white', badge: '' },
+        { label: 'Grupos', value: Object.keys(grupos).length, color: 'text-[#5a5a7a]', badge: '' }
+      ];
+
+      this.tablaData.guarniciones = arr;
+      this.chartData1 = { type: 'bar', labels, vals, colors };
+      this.chartData2 = { type: 'pie', data: grupos };
     },
     
     /**
@@ -2087,6 +2213,9 @@ function reportesApp() {
           case 'Platos':
             this.renderPlatosChart();
             break;
+          case 'Guarniciones':
+            this.renderGuarnicionesChart();
+            break;
           case 'Mozos':
             this.renderMozosChart();
             break;
@@ -2170,6 +2299,33 @@ function reportesApp() {
 
       // NUEVO: Charts de Mesa vs Para llevar
       this.renderServicioCharts();
+    },
+
+    renderGuarnicionesChart() {
+      const c = this._c;
+      const cd = this.chartData1 || { labels: ['Sin datos'], vals: [0], colors: [c.gold] };
+
+      createChart('chartReportes1', {
+        type: 'bar',
+        data: {
+          labels: cd.labels.length ? cd.labels : ['Sin datos'],
+          datasets: [{ label: 'Cantidad', data: cd.vals.length ? cd.vals : [0], backgroundColor: cd.colors || [c.gold], borderWidth: 0, borderRadius: 4 }]
+        },
+        options: { ...this._baseOpts(), indexAxis: 'y', plugins: { legend: { display: false } } }
+      });
+
+      const cats = this.chartData2?.data || {};
+      const catLabels = Object.keys(cats);
+      const catVals = Object.values(cats);
+
+      createChart('chartReportes2', {
+        type: 'pie',
+        data: {
+          labels: catLabels.length ? catLabels : ['Sin datos'],
+          datasets: [{ data: catVals.length ? catVals : [0], backgroundColor: [c.gold, c.teal, c.blue, c.amber, c.purple, c.green, c.red], borderWidth: 0 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: this.optsLeyendaChart(10) } }
+      });
     },
 
     // NUEVO: Renderiza los gráficos de Mesa vs Para llevar (tab Platos)

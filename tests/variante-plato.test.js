@@ -3,6 +3,7 @@ const {
   expandirPlatosPorVariante,
   esComplementoVariante,
   saboresPorUnidadDeCatalogo,
+  snapshotNombreCocinaPedido,
 } = require('../src/utils/variantePlato');
 
 const catalogoMix = {
@@ -243,5 +244,20 @@ describe('OP pachamanca combos', () => {
       }],
     };
     expect(saboresPorUnidadDeCatalogo(cat)).toBe(3);
+  });
+});
+
+describe('snapshotNombreCocinaPedido', () => {
+  test('si el snapshot es el nombre de carta, lo reemplaza por nombreCocina', () => {
+    const linea = { nombreCocinaPedido: 'Ceviche Clásico' };
+    const cat = { nombre: 'Ceviche Clásico', nombreCocina: 'CEV' };
+    expect(snapshotNombreCocinaPedido(linea, cat)).toBe('CEV');
+    expect(linea.nombreCocinaPedido).toBe('CEV');
+  });
+
+  test('conserva MIX (TÉ) aunque el catálogo tenga alias', () => {
+    const linea = { nombreCocinaPedido: 'TÉ' };
+    const cat = { nombre: 'MIX', nombreCocina: 'MIX' };
+    expect(snapshotNombreCocinaPedido(linea, cat)).toBe('TÉ');
   });
 });

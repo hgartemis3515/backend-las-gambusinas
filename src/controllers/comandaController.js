@@ -3143,18 +3143,26 @@ router.get('/comanda/comandas-para-pagar/:mesaId', async (req, res) => {
 router.put('/comanda/:id/eliminar-platos', async (req, res) => {
     const { id } = req.params;
     const { platosAEliminar, motivo, mozoId, forzarAdmin } = req.body;
-    const usuarioId = req.userId || mozoId || req.body?.usuarioId || req.headers['x-user-id'] || null;
+    const sourceApp = String(req.body.sourceApp || req.headers['x-source-app'] || '').toLowerCase();
+    const actor = resolverActorAuditoria(req);
+    const usuarioId = actor.usuario || req.userId || mozoId || req.body?.usuarioId || req.headers['x-user-id'] || null;
 
     // Validaciones
     if (!platosAEliminar || !Array.isArray(platosAEliminar) || platosAEliminar.length === 0) {
         return res.status(400).json({ message: 'Debe seleccionar al menos un plato para eliminar' });
     }
 
-    if (!motivo || motivo.trim().length < 5) {
-        return res.status(400).json({ message: 'El motivo de eliminación es obligatorio (mínimo 5 caracteres)' });
+    if (!motivo || motivo.trim().length < 2) {
+        return res.status(400).json({ message: 'El motivo de eliminación es obligatorio (mínimo 2 caracteres)' });
     }
     
     try {
+        if (sourceApp === 'cocina') {
+            if (!(await asegurarPermisoCocina(req, 'eliminar-platos-cocina'))) {
+                return res.status(403).json({ message: 'No tiene permiso para eliminar platos desde cocina' });
+            }
+        }
+
         // 1. Obtener comanda para validación (con lean para lectura rápida)
         const comandaCheck = await comandaModel.findById(id)
             .populate('platos.plato')
@@ -3170,13 +3178,16 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             .map((idx) => parseInt(idx, 10))
             .filter((index) => !Number.isNaN(index) && index >= 0 && index < comandaCheck.platos.length);
 
-        const validacionTomada = await validarEdicionMozoPermitida(comandaCheck, {
-            forzarAdmin: forzarAdmin === true || resolverForzarAdmin(req),
-            indicesPlatos: indicesValidosPre,
-            verificarComandaCompleta: true
-        });
-        if (!validacionTomada.permitido) {
-            return responderBloqueoCocina(res, validacionTomada);
+        // Cocina con permiso puede anular platos ya tomados; mozos siguen bloqueados.
+        if (sourceApp !== 'cocina') {
+            const validacionTomada = await validarEdicionMozoPermitida(comandaCheck, {
+                forzarAdmin: forzarAdmin === true || resolverForzarAdmin(req),
+                indicesPlatos: indicesValidosPre,
+                verificarComandaCompleta: true
+            });
+            if (!validacionTomada.permitido) {
+                return responderBloqueoCocina(res, validacionTomada);
+            }
         }
         
         // 2. Validar que los índices sean válidos
@@ -3390,6 +3401,7 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             entidadId: id,
             entidadTipo: 'comanda',
             usuario: usuarioId,
+            usuarioNombre: actor.usuarioNombre,
             mesaId: comandaCheck.mesas?._id || comandaCheck.mesas,
             comandaId: id,
             motivo: motivo.trim(),
@@ -3406,7 +3418,8 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             mesaNum: comandaCheck.mesas?.nummesa || null,
             platosEliminados: platosEliminadosData,
             totalEliminado: totalEliminado,
-            cantidadPlatos: platosEliminadosData.length
+            cantidadPlatos: platosEliminadosData.length,
+            sourceApp: sourceApp || 'api'
         };
         
         req.auditoria.metadata = { ...req.auditoria.metadata, ...metadataAdicional };
@@ -3783,8 +3796,16 @@ router.put('/comanda/:id/descuento', async (req, res) => {
             totalAntes += precio * cantidad;
         }
 
+        const rolBody = String(usuarioRol || '').toLowerCase();
+        const autorizadoDescuento = (await asegurarPermisoCocina(req, 'aplicar-descuentos'))
+            || rolBody === 'admin'
+            || rolBody === 'supervisor';
+        if (!autorizadoDescuento) {
+            return res.status(403).json({ message: 'No autorizado para aplicar descuentos' });
+        }
+
         // Aplicar descuento
-        const resultado = await aplicarDescuento(id, descuento, motivo, usuarioId, usuarioRol, { monto });
+        const resultado = await aplicarDescuento(id, descuento, motivo, usuarioId, usuarioRol, { monto, autorizado: true });
 
         // Registrar auditoría
         req.auditoria = {
@@ -3883,11 +3904,13 @@ router.delete('/comanda/:id/descuento', async (req, res) => {
             return res.status(400).json({ message: 'ID de comanda inválido' });
         }
 
-        // Validar rol
-        const rolesPermitidos = ['admin', 'supervisor'];
-        if (!rolesPermitidos.includes(usuarioRol)) {
-            return res.status(403).json({ 
-                message: `No autorizado. Solo usuarios con rol 'admin' o 'supervisor' pueden eliminar descuentos.` 
+        const rolBody = String(usuarioRol || '').toLowerCase();
+        const autorizadoDescuento = (await asegurarPermisoCocina(req, 'aplicar-descuentos'))
+            || rolBody === 'admin'
+            || rolBody === 'supervisor';
+        if (!autorizadoDescuento) {
+            return res.status(403).json({
+                message: 'No autorizado. Se requiere permiso para quitar descuentos.'
             });
         }
 

@@ -1046,6 +1046,7 @@ function cierreApp() {
       const tabs = [
         { id: 'resumen', label: 'Resumen', icon: 'M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
         { id: 'productos', label: 'Productos', icon: 'M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z' },
+        { id: 'guarniciones', label: 'Guarniciones', icon: 'M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25' },
         { id: 'servicio', label: 'Servicio', icon: 'M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z' },
         { id: 'mozos', label: 'Mozos', icon: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z' },
         { id: 'cocineros', label: 'Cocineros', icon: 'M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z' },
@@ -1171,6 +1172,82 @@ function cierreApp() {
                 </tbody>
               </table>
             </div>` : '<p class="text-txt-muted text-center py-8 text-sm">Sin datos de productos</p>'}
+          `;
+          break;
+
+        case 'guarniciones':
+          const guar = c.guarniciones || {};
+          const listaG = Array.isArray(guar.lista) ? guar.lista : [];
+          const totalG = guar.totalGuarniciones || listaG.reduce((s, g) => s + (g.cantidad || 0), 0);
+          const gruposG = guar.porGrupo && typeof guar.porGrupo === 'object' ? guar.porGrupo : {};
+          const nGruposG = Object.keys(gruposG).length || new Set(listaG.map(g => g.grupo || 'Sin grupo')).size;
+          const topG0 = listaG[0];
+          content = `
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Guarniciones</p>
+                <p class="text-xl font-bold text-gold">${totalG}</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Top</p>
+                <p class="text-sm font-bold text-st-preparado truncate">${this.escapeHtml(topG0?.nombre || 'N/A')}</p>
+                <p class="text-[10px] text-txt-muted">${topG0 ? topG0.cantidad + ' uds' : ''}</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Tipos</p>
+                <p class="text-xl font-bold text-white">${guar.tipos || listaG.length}</p>
+              </div>
+              <div class="metric-card rounded-xl p-4 border border-gold/10">
+                <p class="text-[10px] text-txt-muted uppercase tracking-wider font-semibold mb-1">Grupos</p>
+                <p class="text-xl font-bold text-white">${nGruposG}</p>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+              <div class="bg-bg-sidebar rounded-xl p-4">
+                <p class="text-xs font-semibold text-txt-secondary mb-3">Top 10 Guarniciones</p>
+                <canvas id="chartGuarnicionesTop" style="max-height: 260px;"></canvas>
+              </div>
+              <div class="bg-bg-sidebar rounded-xl p-4">
+                <p class="text-xs font-semibold text-txt-secondary mb-3">Guarniciones por grupo</p>
+                <canvas id="chartGuarnicionesGrupo" style="max-height: 260px;"></canvas>
+              </div>
+            </div>
+            ${listaG.length > 0 ? `
+            <div class="bg-bg-sidebar rounded-xl overflow-hidden">
+              <div class="overflow-x-auto max-h-[400px] overflow-y-auto">
+              <table class="w-full text-xs">
+                <thead class="sticky top-0 bg-bg-sidebar"><tr class="text-txt-muted text-[10px] uppercase tracking-wider">
+                  <th class="text-left px-4 py-2.5 font-semibold">#</th>
+                  <th class="text-left px-4 py-2.5 font-semibold">Guarnición</th>
+                  <th class="text-left px-4 py-2.5 font-semibold">Grupo</th>
+                  <th class="text-right px-4 py-2.5 font-semibold">Cantidad</th>
+                  <th class="text-right px-4 py-2.5 font-semibold">% Cant.</th>
+                  <th class="text-left px-4 py-2.5 font-semibold">En platos</th>
+                </tr></thead>
+                <tbody>${listaG.map((g, i) => {
+                  const platos = Array.isArray(g.platos) ? g.platos : [];
+                  const platosTxt = platos.slice(0, 3).join(', ') + (platos.length > 3 ? ' +' + (platos.length - 3) : '');
+                  return `
+                  <tr class="border-t border-[rgba(212,175,55,0.06)] hist-row">
+                    <td class="px-4 py-2 text-txt-muted">${i + 1}</td>
+                    <td class="px-4 py-2 font-medium text-white">${this.escapeHtml(g.nombre || '—')}</td>
+                    <td class="px-4 py-2"><span class="text-[10px] px-2 py-0.5 rounded-full bg-[#2ecc71]/20 text-[#2ecc71]">${this.escapeHtml(g.grupo || '—')}</span></td>
+                    <td class="px-4 py-2 text-right font-medium">${g.cantidad || 0}</td>
+                    <td class="px-4 py-2 text-right text-txt-muted">${g.porcentaje || 0}%</td>
+                    <td class="px-4 py-2"><span class="text-[10px] px-2 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-gold" title="${this.escapeHtml(platos.join(', '))}">${this.escapeHtml(platosTxt || '—')}</span></td>
+                  </tr>`;
+                }).join('')}</tbody>
+                <tfoot class="bg-bg-card border-t-2 border-[rgba(212,175,55,0.25)]">
+                  <tr class="font-bold">
+                    <td class="px-4 py-3 uppercase" colspan="3">Total</td>
+                    <td class="px-4 py-3 text-right">${totalG}</td>
+                    <td class="px-4 py-3 text-right">100%</td>
+                    <td class="px-4 py-3 text-right text-txt-muted">${listaG.length} tipos</td>
+                  </tr>
+                </tfoot>
+              </table>
+              </div>
+            </div>` : '<p class="text-txt-muted text-center py-8 text-sm">Sin datos de guarniciones</p>'}
           `;
           break;
 
@@ -1726,6 +1803,17 @@ function cierreApp() {
         const el2 = document.getElementById('chartProductosCategoria');
         const ck = Object.keys(cats);
         if (el2 && ck.length) this.chartInstances.push(new Chart(el2, { type: 'doughnut', data: { labels: ck, datasets: [{ data: ck.map(k => cats[k].monto || 0), backgroundColor: ['rgba(212,175,55,0.5)','rgba(0,212,170,0.5)','rgba(52,152,219,0.5)','rgba(255,165,2,0.5)','rgba(83,82,237,0.5)','rgba(255,71,87,0.5)'], borderWidth: 0 }] }, options: chartOpts('doughnut') }));
+      }
+      if (tab === 'guarniciones') {
+        const guar = c.guarniciones || {};
+        const listaG = Array.isArray(guar.lista) ? guar.lista : [];
+        const topG = listaG.slice(0, 10);
+        const gruposG = guar.porGrupo && typeof guar.porGrupo === 'object' ? guar.porGrupo : {};
+        const el1 = document.getElementById('chartGuarnicionesTop');
+        if (el1 && topG.length) this.chartInstances.push(new Chart(el1, { type: 'bar', data: { labels: topG.map(g => (g.nombre || '').substring(0, 22)), datasets: [{ label: 'Cantidad', data: topG.map(g => g.cantidad || 0), backgroundColor: 'rgba(46,204,113,0.35)', borderColor: 'rgba(46,204,113,0.85)', borderWidth: 1, borderRadius: 4 }] }, options: { ...chartOpts('bar'), indexAxis: 'y' } }));
+        const el2 = document.getElementById('chartGuarnicionesGrupo');
+        const gk = Object.keys(gruposG);
+        if (el2 && gk.length) this.chartInstances.push(new Chart(el2, { type: 'doughnut', data: { labels: gk, datasets: [{ data: gk.map(k => gruposG[k] || 0), backgroundColor: ['rgba(212,175,55,0.5)','rgba(0,212,170,0.5)','rgba(52,152,219,0.5)','rgba(255,165,2,0.5)','rgba(83,82,237,0.5)','rgba(255,71,87,0.5)','rgba(0,188,212,0.5)'], borderWidth: 0 }] }, options: chartOpts('doughnut') }));
       }
       if (tab === 'mozos') {
         const d = (c.mozos || {}).desempeñoPorMozo || [];

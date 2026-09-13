@@ -535,12 +535,12 @@ function usuariosApp() {
       admin: {
         'Backend/Dashboard': ['ver-mesas', 'editar-mesas', 'juntar-separar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas', 'ver-clientes', 'editar-clientes', 'ver-mozos', 'editar-mozos', 'gestionar-roles', 'ver-auditoria', 'ver-reportes', 'cierre-caja', 'ver-notificaciones', 'crear-comandas-dashboard', 'omitir-pago-comandas-dashboard'],
         'App Mozos': ['crear-comandas', 'editar-comandas', 'eliminar-platos-comandas', 'procesar-pagos', 'asociar-clientes'],
-        'App Cocina': ['ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas', 'entregar-plato-entero-kds']
+        'App Cocina': ['ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas', 'eliminar-platos-cocina', 'entregar-plato-entero-kds']
       },
       supervisor: {
         'Backend/Dashboard': ['ver-mesas', 'editar-mesas', 'juntar-separar-mesas', 'ver-platos', 'editar-platos', 'ver-areas', 'editar-areas', 'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria', 'cierre-caja', 'ver-notificaciones', 'crear-comandas-dashboard'],
         'App Mozos': ['crear-comandas', 'editar-comandas', 'procesar-pagos', 'asociar-clientes'],
-        'App Cocina': ['ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas', 'ver-vista-supervisor-cocina', 'utilidad-supervisor', 'entregar-plato-entero-kds']
+        'App Cocina': ['ver-comandas-cocina', 'cambiar-estados-platos', 'revertir-comandas', 'eliminar-platos-cocina', 'ver-vista-supervisor-cocina', 'utilidad-supervisor', 'entregar-plato-entero-kds']
       },
       cocinero: {
         'Backend/Dashboard': ['ver-platos'],
@@ -587,6 +587,7 @@ function usuariosApp() {
       'ver-comandas-cocina': 'Ver Comandas Cocina',
       'cambiar-estados-platos': 'Cambiar Estados',
       'revertir-comandas': 'Revertir Comandas',
+      'eliminar-platos-cocina': 'Eliminar plato',
       'entregar-plato-entero-kds': 'Entregar plato entero'
     },
     activeNav: 'usuarios',

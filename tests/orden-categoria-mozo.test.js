@@ -50,17 +50,22 @@ describe('orden categorías mozo', () => {
         expect(platoVisibleEnCarta({ categorias: ['Postres', 'Bebidas'] }, info, 'platos-desayuno')).toBe(true);
     });
 
-    test('platos: categoría luego código de mozo', () => {
+    test('platos: categoría, luego orden de carta (flechas), luego código', () => {
         const info = [
             { nombre: 'Entradas', codigoMozo: '1' },
             { nombre: 'Bebidas', codigoMozo: '2' },
         ];
         const list = ordenarPlatosPorCategoriaYCodigo([
-            { nombre: 'Jugo', categorias: ['Bebidas'], codigoMozo: '1' },
-            { nombre: 'Ceviche', categorias: ['Entradas'], codigoMozo: '10' },
-            { nombre: 'Tequeños', categorias: ['Entradas'], codigoMozo: '2' },
+            { nombre: 'Jugo', categorias: ['Bebidas'], codigoMozo: '1', orden: 30 },
+            { nombre: 'Ceviche', categorias: ['Entradas'], codigoMozo: '10', orden: 20 },
+            { nombre: 'Tequeños', categorias: ['Entradas'], codigoMozo: '2', orden: 10 },
         ], info, 'carta');
         expect(list.map((p) => p.nombre)).toEqual(['Tequeños', 'Ceviche', 'Jugo']);
+        const invertido = ordenarPlatosPorCategoriaYCodigo([
+            { nombre: 'Ceviche', categorias: ['Entradas'], codigoMozo: '10', orden: 5 },
+            { nombre: 'Tequeños', categorias: ['Entradas'], codigoMozo: '2', orden: 50 },
+        ], info, 'carta');
+        expect(invertido.map((p) => p.nombre)).toEqual(['Ceviche', 'Tequeños']);
     });
 
     test('sanitiza lote de vista por carta', () => {

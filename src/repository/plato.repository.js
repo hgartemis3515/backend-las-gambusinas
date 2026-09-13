@@ -1083,7 +1083,7 @@ const reordenarPlatosPorIds = async (idsRaw) => {
         err.statusCode = 400;
         throw err;
     }
-    const all = await plato.find({}).sort(PLATO_SORT_MOZO).select('_id tipos tipo').lean();
+    const all = await plato.find({}).sort(PLATO_SORT_MOZO).select('_id tipos tipo orden').lean();
     const conocidos = new Set(all.map((d) => String(d._id)));
     const faltan = ids.filter((id) => !conocidos.has(id));
     if (faltan.length) {
@@ -1092,9 +1092,15 @@ const reordenarPlatosPorIds = async (idsRaw) => {
         throw err;
     }
     const merged = fusionarOrdenIds(all.map((d) => d._id), ids);
-    const ops = merged.map((id, i) => ({
-        updateOne: { filter: { _id: id }, update: { $set: { orden: (i + 1) * 10 } } }
-    }));
+    const prev = new Map(all.map((d) => [String(d._id), Number(d.orden)]));
+    const ops = [];
+    merged.forEach((id, i) => {
+        const orden = (i + 1) * 10;
+        if (prev.get(String(id)) === orden) return;
+        ops.push({
+            updateOne: { filter: { _id: id }, update: { $set: { orden } } }
+        });
+    });
     if (ops.length) await plato.bulkWrite(ops);
     const tipos = new Set();
     all.forEach((d) => {
@@ -1103,9 +1109,10 @@ const reordenarPlatosPorIds = async (idsRaw) => {
         });
     });
     tipos.forEach((t) => invalidatePlatoMenuCache(t));
-    const todosLosPlatos = await listarPlatos();
-    await syncJsonFile('platos.json', todosLosPlatos);
-    return todosLosPlatos;
+    listarPlatos()
+        .then((todos) => syncJsonFile('platos.json', todos))
+        .catch((err) => logger.warn('No se pudo sync platos.json tras reordenar', { error: err.message }));
+    return { ok: true };
 };
 
 const borrarPlato = async (id) => {

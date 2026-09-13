@@ -102,13 +102,13 @@ tailwind.config = {
                   <div class="flex items-center gap-0.5">
                     <button type="button"
                       class="w-6 h-6 flex items-center justify-center rounded text-[10px] text-gold hover:bg-gold/20 disabled:opacity-25 disabled:hover:bg-transparent"
-                      :disabled="i === 0 || moviendoOrdenPlato"
+                      :disabled="i === 0"
                       @click="moverPlatoEnTabla(i, -1)"
                       title="Subir en la app de mozos">▲</button>
                     <span class="text-txt-muted text-[11px] tabular-nums w-6 text-center" x-text="i+1"></span>
                     <button type="button"
                       class="w-6 h-6 flex items-center justify-center rounded text-[10px] text-gold hover:bg-gold/20 disabled:opacity-25 disabled:hover:bg-transparent"
-                      :disabled="i === filteredPlatos.length - 1 || moviendoOrdenPlato"
+                      :disabled="i === filteredPlatos.length - 1"
                       @click="moverPlatoEnTabla(i, 1)"
                       title="Bajar en la app de mozos">▼</button>
                   </div>
@@ -170,7 +170,7 @@ tailwind.config = {
         </table>
         <div class="flex items-center justify-between px-3 py-2.5 text-[11px] text-txt-muted border-t border-[rgba(212,175,55,0.08)]">
           <span x-text="'Mostrando ' + filteredPlatos.length + ' de ' + platos.length + ' platos'"></span>
-          <span>El buscador de mozos ordena por categoría (código 1–10) y código de plato. Prioridad u ocultar: Gestión de categorías, por carta.</span>
+          <span>▲▼ mueven el plato en la app de mozos (dentro de su categoría). Las categorías siguen el código 1–10. Prioridad u ocultar: Gestión de categorías, por carta.</span>
         </div>
       </div>
 
@@ -1445,6 +1445,7 @@ tailwind.config = {
     filterTipo: '',
     filterSoloConComplementos: false,
     moviendoOrdenPlato: false,
+    _ordenIdsPendientes: null,
     tiposPlato: [],
     formPlato: {
       _id: null,
@@ -1636,8 +1637,21 @@ tailwind.config = {
       return String((a && a.nombre) || '').localeCompare(String((b && b.nombre) || ''), 'es');
     },
 
-    async moverPlatoEnTabla(i, delta) {
-      if (this.moviendoOrdenPlato) return;
+    aplicarOrdenIdsFiltrados(idsFiltrados) {
+      const actualIds = [...this.platos].sort((a, b) => this.cmpOrdenPlato(a, b)).map(p => String(p._id));
+      const ids = (idsFiltrados || []).map(id => String(id));
+      const set = new Set(ids);
+      const queue = [...ids];
+      const merged = actualIds.map(id => (set.has(id) ? (queue.shift() || id) : id));
+      const byId = {};
+      this.platos.forEach(p => { byId[String(p._id)] = p; });
+      merged.forEach((id, idx) => {
+        if (byId[id]) byId[id].orden = (idx + 1) * 10;
+      });
+      this.filterPlatos();
+    },
+
+    moverPlatoEnTabla(i, delta) {
       const list = this.filteredPlatos;
       const j = i + delta;
       if (j < 0 || j >= list.length) return;
@@ -1645,20 +1659,29 @@ tailwind.config = {
       const tmp = ids[i];
       ids[i] = ids[j];
       ids[j] = tmp;
+      this.aplicarOrdenIdsFiltrados(ids);
+      this._ordenIdsPendientes = ids;
+      this.flushOrdenPlatos();
+    },
+
+    async flushOrdenPlatos() {
+      if (this.moviendoOrdenPlato) return;
       this.moviendoOrdenPlato = true;
       try {
-        const res = await apiPatch('/platos/orden', { ids });
-        if (res && res.error) {
-          this.showToast(res.error, 'error');
-        } else if (Array.isArray(res)) {
-          this.platos = res;
-          this.filterPlatos();
-        } else if (res && Array.isArray(res.platos)) {
-          this.platos = res.platos;
-          this.filterPlatos();
-        } else {
-          this.showToast('No se pudo guardar el orden', 'error');
-          await this.loadPlatos();
+        while (this._ordenIdsPendientes) {
+          const ids = this._ordenIdsPendientes;
+          this._ordenIdsPendientes = null;
+          const res = await apiPatch('/platos/orden', { ids });
+          if (res && res.error) {
+            this.showToast(res.error, 'error');
+            await this.loadPlatos();
+            break;
+          }
+          if (!res || (res.ok !== true && !Array.isArray(res) && !(res.platos && Array.isArray(res.platos)))) {
+            this.showToast('No se pudo guardar el orden', 'error');
+            await this.loadPlatos();
+            break;
+          }
         }
       } catch (e) {
         console.error('Error reordenando platos', e);
@@ -1666,6 +1689,7 @@ tailwind.config = {
         await this.loadPlatos();
       } finally {
         this.moviendoOrdenPlato = false;
+        if (this._ordenIdsPendientes) this.flushOrdenPlatos();
       }
     },
 
