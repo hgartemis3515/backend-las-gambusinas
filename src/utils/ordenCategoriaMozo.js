@@ -46,10 +46,25 @@ function mapaOrdenPorTipo(cat) {
     return map && typeof map === 'object' ? map : {};
 }
 
-function prioridadCategoriaEnTipo(cat, slugTipo) {
+function valorOrdenPorTipo(cat, slugTipo) {
     const slug = String(slugTipo || '').trim();
-    const n = Number(mapaOrdenPorTipo(cat)[slug]);
-    if (slug && Number.isFinite(n)) return n;
+    if (!slug) return NaN;
+    const map = mapaOrdenPorTipo(cat);
+    const directo = Number(map[slug]);
+    if (Number.isFinite(directo)) return directo;
+    const slugL = slug.toLowerCase();
+    for (const [k, v] of Object.entries(map)) {
+        if (String(k || '').trim().toLowerCase() === slugL) {
+            const n = Number(v);
+            if (Number.isFinite(n)) return n;
+        }
+    }
+    return NaN;
+}
+
+function prioridadCategoriaEnTipo(cat, slugTipo) {
+    const n = valorOrdenPorTipo(cat, slugTipo);
+    if (Number.isFinite(n)) return n;
     return codigoCategoriaRank(cat && cat.codigoMozo);
 }
 
@@ -93,18 +108,15 @@ function codigoMozoVisible(plato) {
     return String((plato && plato.codigo) || '').trim().toUpperCase();
 }
 
-function rankPlatoCategoria(plato, categoriasInfo, slugTipo) {
+function mejorCategoriaPlato(plato, categoriasInfo, slugTipo) {
     const cats = categoriasDePlato(plato);
-    let best = RANK_SIN_CODIGO + 1;
-    let any = false;
+    let best = null;
     for (const n of cats) {
         const info = infoCategoriaPorNombre(categoriasInfo, n);
         if (!categoriaVisibleEnTipo(info, slugTipo)) continue;
-        any = true;
-        const r = prioridadCategoriaEnTipo(info, slugTipo);
-        if (r < best) best = r;
+        if (!best || cmpCategoriasMozo(info, best, slugTipo) < 0) best = info;
     }
-    return any ? best : RANK_SIN_CODIGO + 1;
+    return best;
 }
 
 function platoVisibleEnCarta(plato, categoriasInfo, slugTipo) {
@@ -124,9 +136,13 @@ function cmpOrdenCampoPlato(a, b) {
 }
 
 function cmpPlatosCategoriaYCodigo(a, b, categoriasInfo, slugTipo) {
-    const ra = rankPlatoCategoria(a, categoriasInfo, slugTipo);
-    const rb = rankPlatoCategoria(b, categoriasInfo, slugTipo);
-    if (ra !== rb) return ra - rb;
+    const ca = mejorCategoriaPlato(a, categoriasInfo, slugTipo);
+    const cb = mejorCategoriaPlato(b, categoriasInfo, slugTipo);
+    if (ca && cb) {
+        const byCat = cmpCategoriasMozo(ca, cb, slugTipo);
+        if (byCat) return byCat;
+    } else if (ca && !cb) return -1;
+    else if (!ca && cb) return 1;
     const byOrden = cmpOrdenCampoPlato(a, b);
     if (byOrden) return byOrden;
     const cmp = codigoMozoVisible(a).localeCompare(codigoMozoVisible(b), 'es', { numeric: true, sensitivity: 'base' });

@@ -68,6 +68,30 @@ describe('orden categorías mozo', () => {
         expect(invertido.map((p) => p.nombre)).toEqual(['Ceviche', 'Tequeños']);
     });
 
+    test('TODOS en una carta: categoría de esa carta gana al orden global del plato', () => {
+        const info = [
+            { nombre: 'Entradas', codigoMozo: '1', ordenPorTipo: { 'plato-carta normal': 10 } },
+            { nombre: 'Infusion', codigoMozo: '10', ordenPorTipo: { 'plato-carta normal': 100 } },
+        ];
+        const list = ordenarPlatosPorCategoriaYCodigo([
+            { nombre: 'Té', categorias: ['Infusion'], codigoMozo: '1', orden: 1 },
+            { nombre: 'Ceviche', categorias: ['Entradas'], codigoMozo: '5', orden: 50 },
+        ], info, 'plato-carta normal');
+        expect(list.map((p) => p.nombre)).toEqual(['Ceviche', 'Té']);
+    });
+
+    test('sin ordenPorTipo de esa carta, usa código 1–10 de la categoría', () => {
+        const info = [
+            { nombre: 'Infusion', codigoMozo: '10' },
+            { nombre: 'Entradas', codigoMozo: '1' },
+        ];
+        const list = ordenarPlatosPorCategoriaYCodigo([
+            { nombre: 'Té', categorias: ['Infusion'], orden: 1 },
+            { nombre: 'Ceviche', categorias: ['Entradas'], orden: 80 },
+        ], info, 'plato-carta normal');
+        expect(list.map((p) => p.nombre)).toEqual(['Ceviche', 'Té']);
+    });
+
     test('sanitiza lote de vista por carta', () => {
         expect(sanitizarOrdenPorTipo({ 'platos-desayuno': 3.7, '': 1, x: 'no' })).toEqual({ 'platos-desayuno': 4 });
         expect(sanitizarOcultoEnTipos(['carta', 'carta', '  Cena  ', ''])).toEqual(['carta', 'Cena']);
