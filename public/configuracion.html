@@ -1377,6 +1377,91 @@ tailwind.config = {
           </div>
         </div>
 
+        <!-- PERSONALIZAR GESTIÓN -->
+        <div x-show="cfgTab==='personalizar-gestion'" class="p-6 space-y-5">
+          <div>
+            <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-1">Personalizar Gestión</h3>
+            <p class="text-xs text-txt-muted">Ordena los cuadros del menú. Arrástralos de una lista a la otra o pulsa <span class="text-gold">A Avanzada</span> / <span class="text-gold">A Principal</span>. El color se aplica al título y a la raya del menú lateral.</p>
+          </div>
+          <div class="flex justify-end">
+            <button type="button" @click="restaurarMenuGestion()" class="text-xs text-txt-secondary hover:text-gold transition">Restablecer predeterminados</button>
+          </div>
+          <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <div class="bg-bg-sidebar border rounded-xl p-4 space-y-3" :style="{ borderColor: (config.menuGestion.colorPrincipal || '#d4af37') + '66' }"
+              @dragover.prevent="menuDragOverLista('principal')" @drop.prevent="menuDropOnLista('principal')">
+              <div class="flex items-end gap-3">
+                <div class="flex-1">
+                  <label class="text-[10px] uppercase text-txt-muted">Título de la lista</label>
+                  <input type="text" maxlength="40" x-model="config.menuGestion.tituloPrincipal" @input="previewMenuGestion()"
+                    class="w-full mt-1 bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none" placeholder="Principal">
+                </div>
+                <div>
+                  <label class="text-[10px] uppercase text-txt-muted">Color</label>
+                  <div class="flex items-center gap-2 mt-1">
+                    <input type="color" x-model="config.menuGestion.colorPrincipal" @input="previewMenuGestion()" class="h-10 w-12 rounded cursor-pointer bg-transparent border border-[rgba(212,175,55,0.25)]">
+                    <input type="text" maxlength="7" x-model="config.menuGestion.colorPrincipal" @input="previewMenuGestion()" class="w-24 bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-xs font-mono focus:border-gold focus:outline-none" placeholder="#d4af37">
+                  </div>
+                </div>
+              </div>
+              <div class="space-y-2 min-h-[160px] rounded-lg p-1" :class="menuDragLista==='avanzada' ? 'outline outline-1 outline-dashed outline-gold/40' : ''">
+                <template x-for="(key, idx) in config.menuGestion.principal" :key="'p-'+key">
+                  <div class="bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-lg p-2.5 flex items-center gap-2"
+                    draggable="true"
+                    @dragstart="menuDragStart('principal', idx)"
+                    @dragover.prevent="menuDragOver('principal', idx)"
+                    @dragend="menuDragEnd()"
+                    :style="{ boxShadow: 'inset 3px 0 0 ' + (config.menuGestion.colorPrincipal || '#d4af37') }"
+                    :class="menuDragLista==='principal' && menuDragIdx===idx ? 'opacity-40 border-gold' : ''">
+                    <span class="text-txt-muted cursor-grab text-xs select-none">⠿</span>
+                    <span class="text-lg" x-text="menuItemMeta(key).icon"></span>
+                    <p class="flex-1 text-sm truncate" x-text="menuItemMeta(key).label"></p>
+                    <button type="button" @click="moverMenuItem('principal', idx, -1)" :disabled="idx===0" class="w-6 h-6 rounded text-xs" :class="idx===0 ? 'text-txt-muted/30' : 'text-txt-muted hover:text-gold hover:bg-gold-20'">▲</button>
+                    <button type="button" @click="moverMenuItem('principal', idx, 1)" :disabled="idx===config.menuGestion.principal.length-1" class="w-6 h-6 rounded text-xs" :class="idx===config.menuGestion.principal.length-1 ? 'text-txt-muted/30' : 'text-txt-muted hover:text-gold hover:bg-gold-20'">▼</button>
+                    <button type="button" @click="pasarMenuItem('principal', 'avanzada', idx)" class="px-2 h-7 rounded-lg text-[10px] font-semibold bg-gold/15 text-gold hover:bg-gold/25 whitespace-nowrap">A Avanzada →</button>
+                  </div>
+                </template>
+                <p x-show="!(config.menuGestion.principal || []).length" class="text-xs text-txt-muted text-center py-6">Lista vacía. Arrastra o mueve ítems desde Avanzada.</p>
+              </div>
+            </div>
+            <div class="bg-bg-sidebar border rounded-xl p-4 space-y-3" :style="{ borderColor: (config.menuGestion.colorAvanzada || '#a0a0b8') + '66' }"
+              @dragover.prevent="menuDragOverLista('avanzada')" @drop.prevent="menuDropOnLista('avanzada')">
+              <div class="flex items-end gap-3">
+                <div class="flex-1">
+                  <label class="text-[10px] uppercase text-txt-muted">Título de la lista</label>
+                  <input type="text" maxlength="40" x-model="config.menuGestion.tituloAvanzada" @input="previewMenuGestion()"
+                    class="w-full mt-1 bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none" placeholder="Avanzada">
+                </div>
+                <div>
+                  <label class="text-[10px] uppercase text-txt-muted">Color</label>
+                  <div class="flex items-center gap-2 mt-1">
+                    <input type="color" x-model="config.menuGestion.colorAvanzada" @input="previewMenuGestion()" class="h-10 w-12 rounded cursor-pointer bg-transparent border border-[rgba(212,175,55,0.25)]">
+                    <input type="text" maxlength="7" x-model="config.menuGestion.colorAvanzada" @input="previewMenuGestion()" class="w-24 bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-xs font-mono focus:border-gold focus:outline-none" placeholder="#a0a0b8">
+                  </div>
+                </div>
+              </div>
+              <div class="space-y-2 min-h-[160px] rounded-lg p-1" :class="menuDragLista==='principal' ? 'outline outline-1 outline-dashed outline-gold/40' : ''">
+                <template x-for="(key, idx) in config.menuGestion.avanzada" :key="'a-'+key">
+                  <div class="bg-bg-card border border-[rgba(212,175,55,0.2)] rounded-lg p-2.5 flex items-center gap-2"
+                    draggable="true"
+                    @dragstart="menuDragStart('avanzada', idx)"
+                    @dragover.prevent="menuDragOver('avanzada', idx)"
+                    @dragend="menuDragEnd()"
+                    :style="{ boxShadow: 'inset 3px 0 0 ' + (config.menuGestion.colorAvanzada || '#a0a0b8') }"
+                    :class="menuDragLista==='avanzada' && menuDragIdx===idx ? 'opacity-40 border-gold' : ''">
+                    <span class="text-txt-muted cursor-grab text-xs select-none">⠿</span>
+                    <span class="text-lg" x-text="menuItemMeta(key).icon"></span>
+                    <p class="flex-1 text-sm truncate" x-text="menuItemMeta(key).label"></p>
+                    <button type="button" @click="pasarMenuItem('avanzada', 'principal', idx)" class="px-2 h-7 rounded-lg text-[10px] font-semibold bg-gold/15 text-gold hover:bg-gold/25 whitespace-nowrap">← A Principal</button>
+                    <button type="button" @click="moverMenuItem('avanzada', idx, -1)" :disabled="idx===0" class="w-6 h-6 rounded text-xs" :class="idx===0 ? 'text-txt-muted/30' : 'text-txt-muted hover:text-gold hover:bg-gold-20'">▲</button>
+                    <button type="button" @click="moverMenuItem('avanzada', idx, 1)" :disabled="idx===config.menuGestion.avanzada.length-1" class="w-6 h-6 rounded text-xs" :class="idx===config.menuGestion.avanzada.length-1 ? 'text-txt-muted/30' : 'text-txt-muted hover:text-gold hover:bg-gold-20'">▼</button>
+                  </div>
+                </template>
+                <p x-show="!(config.menuGestion.avanzada || []).length" class="text-xs text-txt-muted text-center py-6">Lista vacía. Arrastra o mueve ítems desde Principal.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- AVANZADO -->
         <div x-show="cfgTab==='avanzado'" class="p-6 space-y-6">
           <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Configuración Avanzada</h3>
@@ -1464,6 +1549,8 @@ function configApp() {
     pageTitle: 'Configuración',
     dragoverFoto: false,
     showCambiarPassword: false,
+    menuDragLista: null,
+    menuDragIdx: -1,
     
     perfil: {
       nombre: '',
@@ -1491,6 +1578,7 @@ function configApp() {
       { id: 'seguridad', label: 'Seguridad', icon: '🔒' },
       { id: 'seo', label: 'SEO', icon: '🌐' },
       { id: 'integraciones', label: 'Integraciones', icon: '🔗' },
+      { id: 'personalizar-gestion', label: 'Personalizar Gestión', icon: '📌' },
       { id: 'avanzado', label: 'Avanzado', icon: '🛠️' }
     ],
     
@@ -1655,6 +1743,14 @@ function configApp() {
       colorTextoMuted: '#5a5a7a',
       tamanoTextoMuted: 11,
       grosorTextoMuted: 400,
+      menuGestion: {
+        tituloPrincipal: 'Principal',
+        tituloAvanzada: 'Avanzada',
+        colorPrincipal: '#d4af37',
+        colorAvanzada: '#a0a0b8',
+        principal: ['dashboard', 'comandas', 'tiposPlato', 'platos', 'mesas', 'bouchers', 'cierre'],
+        avanzada: ['areas', 'usuarios', 'mozos', 'cocineros', 'roles', 'clientes', 'auditoria', 'reportes', 'config']
+      },
       // SEO y Metadatos
       seoMetaTitle: 'San Benito - Sistema POS',
       seoMetaDescription: 'Sistema de punto de venta para gestión de restaurante. Control de mesas, comandas, pedidos y más.',
@@ -1984,6 +2080,11 @@ function configApp() {
             this.config.grosorTextoMuted = cached.grosor;
           }
           this.previewAparienciaMuted();
+
+          this.config.menuGestion = typeof normalizarMenuGestionFront === 'function'
+            ? normalizarMenuGestionFront(cfg.menuGestion)
+            : (cfg.menuGestion || this.config.menuGestion);
+          this.previewMenuGestion();
           
           // Mapear SEO
           if (cfg.seo) {
@@ -2186,6 +2287,9 @@ function configApp() {
           grosorTextoMuted: Number(this.config.grosorTextoMuted) || 400
         };
         dataToSave.apariencia = aparienciaPayload;
+        dataToSave.menuGestion = typeof normalizarMenuGestionFront === 'function'
+          ? normalizarMenuGestionFront(this.config.menuGestion)
+          : this.config.menuGestion;
 
         const apRes = await apiPatch('/configuracion/apariencia', aparienciaPayload);
         if (apRes && apRes.success && apRes.configuracion && apRes.configuracion.apariencia) {
@@ -2202,6 +2306,7 @@ function configApp() {
           this.saveNotificationConfig();
           
           this.previewAparienciaMuted();
+          this.previewMenuGestion();
           this.showToast('✅ Configuración guardada exitosamente');
           // Invalidar cache SEO para que se recargue
           if (typeof SEOMeta !== 'undefined') {
@@ -2230,6 +2335,93 @@ function configApp() {
         tamanoPx: this.config.tamanoTextoMuted,
         grosor: this.config.grosorTextoMuted
       });
+    },
+
+    menuItemMeta(key) {
+      const pages = (typeof sharedData !== 'undefined' && sharedData.pages) || {};
+      return pages[key] || { label: key, icon: '•', href: '#' };
+    },
+
+    previewMenuGestion() {
+      if (typeof aplicarMenuGestion === 'function') aplicarMenuGestion(this.config.menuGestion);
+    },
+
+    restaurarMenuGestion() {
+      const def = typeof MENU_GESTION_DEFAULT !== 'undefined'
+        ? MENU_GESTION_DEFAULT
+        : { tituloPrincipal: 'Principal', tituloAvanzada: 'Avanzada', colorPrincipal: '#d4af37', colorAvanzada: '#a0a0b8', principal: ['dashboard', 'comandas', 'tiposPlato', 'platos', 'mesas', 'bouchers', 'cierre'], avanzada: ['areas', 'usuarios', 'mozos', 'cocineros', 'roles', 'clientes', 'auditoria', 'reportes', 'config'] };
+      this.config.menuGestion = typeof normalizarMenuGestionFront === 'function'
+        ? normalizarMenuGestionFront(def)
+        : { tituloPrincipal: def.tituloPrincipal, tituloAvanzada: def.tituloAvanzada, colorPrincipal: def.colorPrincipal || '#d4af37', colorAvanzada: def.colorAvanzada || '#a0a0b8', principal: def.principal.slice(), avanzada: def.avanzada.slice() };
+      this.previewMenuGestion();
+    },
+
+    moverMenuItem(lista, idx, dir) {
+      const arr = this.config.menuGestion && this.config.menuGestion[lista];
+      const j = idx + dir;
+      if (!arr || j < 0 || j >= arr.length) return;
+      const tmp = arr[idx];
+      arr[idx] = arr[j];
+      arr[j] = tmp;
+      this.previewMenuGestion();
+    },
+
+    pasarMenuItem(from, to, idx) {
+      const src = this.config.menuGestion && this.config.menuGestion[from];
+      const dst = this.config.menuGestion && this.config.menuGestion[to];
+      if (!src || !dst || idx < 0 || idx >= src.length) return;
+      const moved = src.splice(idx, 1)[0];
+      dst.push(moved);
+      this.previewMenuGestion();
+    },
+
+    menuDragStart(lista, idx) {
+      this.menuDragLista = lista;
+      this.menuDragIdx = idx;
+    },
+
+    menuDragOver(lista, idx) {
+      if (this.menuDragIdx < 0 || !this.menuDragLista) return;
+      if (this.menuDragLista === lista) {
+        if (this.menuDragIdx === idx) return;
+        const arr = this.config.menuGestion[lista];
+        const moved = arr.splice(this.menuDragIdx, 1)[0];
+        arr.splice(idx, 0, moved);
+        this.menuDragIdx = idx;
+        return;
+      }
+      const src = this.config.menuGestion[this.menuDragLista];
+      const dst = this.config.menuGestion[lista];
+      if (!src || !dst) return;
+      const moved = src.splice(this.menuDragIdx, 1)[0];
+      const insertAt = Math.min(Math.max(idx, 0), dst.length);
+      dst.splice(insertAt, 0, moved);
+      this.menuDragLista = lista;
+      this.menuDragIdx = insertAt;
+    },
+
+    menuDragOverLista(lista) {
+      if (this.menuDragIdx < 0 || !this.menuDragLista || this.menuDragLista === lista) return;
+      const dst = this.config.menuGestion[lista];
+      if (dst && dst.length) return;
+      this.menuDropOnLista(lista);
+    },
+
+    menuDropOnLista(lista) {
+      if (this.menuDragIdx < 0 || !this.menuDragLista || this.menuDragLista === lista) return;
+      const src = this.config.menuGestion[this.menuDragLista];
+      const dst = this.config.menuGestion[lista];
+      if (!src || !dst) return;
+      const moved = src.splice(this.menuDragIdx, 1)[0];
+      dst.push(moved);
+      this.menuDragLista = lista;
+      this.menuDragIdx = dst.length - 1;
+    },
+
+    menuDragEnd() {
+      this.menuDragLista = null;
+      this.menuDragIdx = -1;
+      this.previewMenuGestion();
     },
     
     quitarFondoForzadoMozoKds() {

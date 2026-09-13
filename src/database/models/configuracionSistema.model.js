@@ -230,6 +230,16 @@ const CONFIGURACION_DEFAULT = {
         colorTextoMuted: '#5a5a7a',
         tamanoTextoMuted: 11,
         grosorTextoMuted: 400
+    },
+
+    // Orden del sidebar admin (Principal / Avanzada)
+    menuGestion: {
+        tituloPrincipal: 'Principal',
+        tituloAvanzada: 'Avanzada',
+        colorPrincipal: '#d4af37',
+        colorAvanzada: '#a0a0b8',
+        principal: ['dashboard', 'comandas', 'tiposPlato', 'platos', 'mesas', 'bouchers', 'cierre'],
+        avanzada: ['areas', 'usuarios', 'mozos', 'cocineros', 'roles', 'clientes', 'auditoria', 'reportes', 'config']
     }
 };
 
@@ -778,6 +788,43 @@ const configuracionSistemaSchema = new mongoose.Schema({
             type: Number,
             default: CONFIGURACION_DEFAULT.apariencia.grosorTextoMuted,
             enum: [400, 500, 600, 700]
+        }
+    },
+
+    menuGestion: {
+        tituloPrincipal: {
+            type: String,
+            default: CONFIGURACION_DEFAULT.menuGestion.tituloPrincipal,
+            trim: true,
+            maxlength: 40
+        },
+        tituloAvanzada: {
+            type: String,
+            default: CONFIGURACION_DEFAULT.menuGestion.tituloAvanzada,
+            trim: true,
+            maxlength: 40
+        },
+        colorPrincipal: {
+            type: String,
+            default: CONFIGURACION_DEFAULT.menuGestion.colorPrincipal,
+            trim: true,
+            maxlength: 7,
+            match: /^#([0-9A-Fa-f]{6})$/
+        },
+        colorAvanzada: {
+            type: String,
+            default: CONFIGURACION_DEFAULT.menuGestion.colorAvanzada,
+            trim: true,
+            maxlength: 7,
+            match: /^#([0-9A-Fa-f]{6})$/
+        },
+        principal: {
+            type: [String],
+            default: () => [...CONFIGURACION_DEFAULT.menuGestion.principal]
+        },
+        avanzada: {
+            type: [String],
+            default: () => [...CONFIGURACION_DEFAULT.menuGestion.avanzada]
         }
     },
     

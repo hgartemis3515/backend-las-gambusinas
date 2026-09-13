@@ -7,6 +7,7 @@
 const ConfiguracionSistema = require('../database/models/configuracionSistema.model');
 const redisCache = require('../utils/redisCache');
 const logger = require('../utils/logger');
+const { normalizarMenuGestion } = require('../utils/menuGestion');
 
 const CACHE_KEY_PREFIX = 'configuracion';
 const CACHE_KEY = 'configuracion:sistema';
@@ -130,7 +131,10 @@ const obtenerConfiguracion = async () => {
         const cachedConfig = await redisCache.getCustom(CACHE_KEY_PREFIX, 'sistema');
         if (cachedConfig) {
             logger.debug('Configuración obtenida del caché');
-            return cachedConfig;
+            return {
+                ...cachedConfig,
+                menuGestion: normalizarMenuGestion(cachedConfig.menuGestion)
+            };
         }
 
         // Obtener de la base de datos
@@ -139,6 +143,7 @@ const obtenerConfiguracion = async () => {
         // Convertir a objeto plano
         const configPlain = config.toObject();
         delete configPlain.pinUniversalCocina;
+        configPlain.menuGestion = normalizarMenuGestion(configPlain.menuGestion);
         
         // Guardar en caché
         await redisCache.setCustom(CACHE_KEY_PREFIX, 'sistema', configPlain, CACHE_TTL);
@@ -155,6 +160,7 @@ const obtenerConfiguracionSinCache = async () => {
     const config = await ConfiguracionSistema.obtenerConfiguracion();
     const plain = config.toObject();
     delete plain.pinUniversalCocina;
+    plain.menuGestion = normalizarMenuGestion(plain.menuGestion);
     return plain;
 };
 
@@ -255,6 +261,10 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
                 ...APARIENCIA_DEFAULT,
                 ...patch
             };
+        }
+
+        if (datosFiltrados.menuGestion !== undefined) {
+            datosFiltrados.menuGestion = normalizarMenuGestion(datosFiltrados.menuGestion);
         }
 
         // Actualizar la configuración

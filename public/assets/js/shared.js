@@ -200,11 +200,106 @@ function sharedTienePermiso(permiso) {
   return permisos.includes(permiso);
 }
 
+const MENU_GESTION_STORAGE_KEY = 'dashboardMenuGestion';
+const MENU_GESTION_DEFAULT = {
+  tituloPrincipal: 'Principal',
+  tituloAvanzada: 'Avanzada',
+  colorPrincipal: '#d4af37',
+  colorAvanzada: '#a0a0b8',
+  principal: ['dashboard', 'comandas', 'tiposPlato', 'platos', 'mesas', 'bouchers', 'cierre'],
+  avanzada: ['areas', 'usuarios', 'mozos', 'cocineros', 'roles', 'clientes', 'auditoria', 'reportes', 'config']
+};
+
+function normalizarMenuGestionFront(raw) {
+  const known = Object.keys(sharedData.pages || {});
+  const seen = new Set();
+  const take = (arr) => {
+    const out = [];
+    if (!Array.isArray(arr)) return out;
+    for (const item of arr) {
+      const key = typeof item === 'string' ? item.trim() : '';
+      if (!known.includes(key) || seen.has(key)) continue;
+      seen.add(key);
+      out.push(key);
+    }
+    return out;
+  };
+  const titulo = (v, fb) => {
+    const s = String(v == null ? '' : v).trim().replace(/\s+/g, ' ');
+    return (s || fb).slice(0, 40);
+  };
+  const color = (v, fb) => {
+    const s = String(v == null ? '' : v).trim();
+    return /^#([0-9A-Fa-f]{6})$/.test(s) ? s.toLowerCase() : fb;
+  };
+  const src = raw && typeof raw === 'object' ? raw : {};
+  const sinListas = !Array.isArray(src.principal) && !Array.isArray(src.avanzada);
+  const principal = take(sinListas ? MENU_GESTION_DEFAULT.principal : src.principal);
+  const avanzada = take(sinListas ? MENU_GESTION_DEFAULT.avanzada : src.avanzada);
+  for (const key of known) {
+    if (!seen.has(key)) principal.push(key);
+  }
+  return {
+    tituloPrincipal: titulo(src.tituloPrincipal, MENU_GESTION_DEFAULT.tituloPrincipal),
+    tituloAvanzada: titulo(src.tituloAvanzada, MENU_GESTION_DEFAULT.tituloAvanzada),
+    colorPrincipal: color(src.colorPrincipal, MENU_GESTION_DEFAULT.colorPrincipal),
+    colorAvanzada: color(src.colorAvanzada, MENU_GESTION_DEFAULT.colorAvanzada),
+    principal,
+    avanzada
+  };
+}
+
+function leerMenuGestionCache() {
+  try {
+    const raw = localStorage.getItem(MENU_GESTION_STORAGE_KEY);
+    if (raw) return normalizarMenuGestionFront(JSON.parse(raw));
+  } catch (_) {}
+  return normalizarMenuGestionFront(MENU_GESTION_DEFAULT);
+}
+
+function aplicarMenuGestion(mg) {
+  const norm = normalizarMenuGestionFront(mg);
+  try { localStorage.setItem(MENU_GESTION_STORAGE_KEY, JSON.stringify(norm)); } catch (_) {}
+  if (window.Alpine && typeof Alpine.store === 'function') {
+    const store = Alpine.store('layout');
+    if (store) store.menuGestion = norm;
+  }
+  return norm;
+}
+
+function getOrderedNavRows(menuGestion) {
+  const mg = normalizarMenuGestionFront(menuGestion || (window.Alpine && Alpine.store && Alpine.store('layout') && Alpine.store('layout').menuGestion) || leerMenuGestionCache());
+  const rows = [];
+  const pushSection = (titulo, keys, sid, colorSeccion) => {
+    const items = [];
+    for (const key of keys || []) {
+      const page = sharedData.pages[key];
+      if (!page) continue;
+      const requerido = PAGES_PERMISOS[key];
+      if (requerido && !sharedTienePermiso(requerido)) continue;
+      items.push({ type: 'item', id: 'item-' + key, key: key, label: page.label, icon: page.icon, href: page.href, color: colorSeccion });
+    }
+    if (!items.length) return;
+    if (titulo) rows.push({ type: 'header', id: 'hdr-' + sid, label: titulo, color: colorSeccion });
+    rows.push.apply(rows, items);
+  };
+  pushSection(mg.tituloPrincipal, mg.principal, 'p', mg.colorPrincipal);
+  pushSection(mg.tituloAvanzada, mg.avanzada, 'a', mg.colorAvanzada);
+  return rows;
+}
+
 /**
  * Devuelve el objeto pages filtrado según los permisos del usuario actual.
  */
 function getVisiblePages() {
   const result = {};
+  const rows = getOrderedNavRows();
+  if (rows.length) {
+    for (const row of rows) {
+      if (row.type === 'item') result[row.key] = { label: row.label, icon: row.icon, href: row.href };
+    }
+    return result;
+  }
   for (const [key, value] of Object.entries(sharedData.pages)) {
     const requerido = PAGES_PERMISOS[key];
     if (!requerido || sharedTienePermiso(requerido)) {
@@ -244,7 +339,8 @@ document.addEventListener('alpine:init', () => {
   Alpine.store('layout', {
     sidebarOpen: true,
     activeNav: navKeyFromPath(),
-    pageTitle: (sharedData.pages[navKeyFromPath()] || {}).label || ''
+    pageTitle: (sharedData.pages[navKeyFromPath()] || {}).label || '',
+    menuGestion: leerMenuGestionCache()
   });
 });
 
@@ -621,7 +717,9 @@ async function cargarAparienciaDashboard() {
     });
     if (!res.ok) return;
     const data = await res.json();
-    const ap = data && data.configuracion && data.configuracion.apariencia;
+    const cfg = data && data.configuracion;
+    if (cfg && cfg.menuGestion) aplicarMenuGestion(cfg.menuGestion);
+    const ap = cfg && cfg.apariencia;
     if (!ap) return;
     aplicarAparienciaTextoMuted({
       color: ap.colorTextoMuted,
