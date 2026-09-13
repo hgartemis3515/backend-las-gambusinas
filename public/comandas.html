@@ -98,6 +98,21 @@ tailwind.config = {
     transition: all 0.2s;
   }
   .logo-upload-area-comanda:hover { border-color: #d4af37; background: rgba(212,175,55,0.05); }
+  /* dashboard.css pone padding ancho en todo input[type=number]; las flechas nativas tapan el dígito */
+  input.input-qty,
+  input.input-qty[type="number"] {
+    width: 2.75rem;
+    height: 2rem;
+    padding: 0.15rem 0.2rem !important;
+    text-align: center;
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+  input.input-qty::-webkit-outer-spin-button,
+  input.input-qty::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 </style>
 </head>
 <body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="comandasApp()" x-cloak>
@@ -383,7 +398,7 @@ tailwind.config = {
  </template>
  <template x-if="row.tipo === 'individual'">
  <span x-text="'S/. ' + Number(totalNetoComanda(row.comanda)).toFixed(2)"></span>
- <span x-show="Number(row.comanda.montoDescuento) > 0" class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(row.comanda.montoDescuento || 0).toFixed(2)"></span>
+ <span x-show="Number(row.comanda?.montoDescuento) > 0" class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(row.comanda?.montoDescuento || 0).toFixed(2)"></span>
  </template>
  </td>
  
@@ -480,7 +495,7 @@ tailwind.config = {
  <!-- Total -->
  <td class="px-3 py-2 text-sm text-gold/80 text-right">
  <span x-text="'S/. ' + Number(totalNetoComanda(comanda)).toFixed(2)"></span>
- <span x-show="Number(comanda.montoDescuento) > 0" class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(comanda.montoDescuento || 0).toFixed(2)"></span>
+ <span x-show="Number(comanda?.montoDescuento) > 0" class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(comanda?.montoDescuento || 0).toFixed(2)"></span>
  </td>
  <!-- Estado -->
  <td class="px-3 py-2 text-center">
@@ -723,7 +738,7 @@ tailwind.config = {
 </div>
 
 <!-- MODAL: VER COMANDA — Diseño segun pencil-new.pen frame wmbyw -->
-<div x-show="modal==='verComanda'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="modal=null">
+<div x-show="modal==='verComanda' && selectedComanda" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="modal=null">
  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[840px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
 
  <!-- HEADER -->
@@ -757,10 +772,10 @@ tailwind.config = {
  </div>
  <p class="text-xs text-txt-muted mt-0.5">
  <span x-text="formatearNombreMesa(selectedComanda?.mesa)"></span>
- <template x-if="selectedComanda?.mozo && selectedComanda.mozo !== 'Sin asignar'">
-   <span> — <button type="button" class="text-gold hover:underline" title="Ver registro de platos del mozo" @click="irARegistroMozo(selectedComanda)" x-text="selectedComanda.mozo"></button></span>
+ <template x-if="tieneMozoAsignado(selectedComanda)">
+   <span> — <button type="button" class="text-gold hover:underline" title="Ver registro de platos del mozo" @click="irARegistroMozo(selectedComanda)" x-text="nombreMozo(selectedComanda)"></button></span>
  </template>
- <template x-if="!selectedComanda?.mozo || selectedComanda.mozo === 'Sin asignar'"><span> — Sin asignar</span></template>
+ <template x-if="!tieneMozoAsignado(selectedComanda)"><span> — Sin asignar</span></template>
  </p>
  </div>
  <div class="flex items-center gap-2">
@@ -786,26 +801,26 @@ tailwind.config = {
  <div class="grid grid-cols-3 gap-3 text-sm mb-3">
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Creada</p>
- <p class="font-medium" x-text="selectedComanda?.createdAt ? new Date(selectedComanda.createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : (selectedComanda?.hora || '—')"></p>
+ <p class="font-medium" x-text="horaCorta(selectedComanda?.createdAt, selectedComanda?.hora || '—')"></p>
  </div>
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Enviada a cocina</p>
- <p class="font-medium" x-text="selectedComanda?.tiempoEnEspera ? new Date(selectedComanda.tiempoEnEspera).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+ <p class="font-medium" x-text="horaCorta(selectedComanda?.tiempoEnEspera)"></p>
  </div>
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Preparada</p>
- <p class="font-medium text-[#2ecc71]" x-text="selectedComanda?.tiempoRecoger ? new Date(selectedComanda.tiempoRecoger).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+ <p class="font-medium text-[#2ecc71]" x-text="horaCorta(selectedComanda?.tiempoRecoger)"></p>
  </div>
  </div>
  <div class="grid grid-cols-3 gap-3 text-sm border-t border-[rgba(212,175,55,0.1)] pt-3">
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Mozo</p>
  <button type="button" class="font-medium text-gold hover:underline"
-   x-show="selectedComanda?.mozo && selectedComanda.mozo !== 'Sin asignar'"
+   x-show="tieneMozoAsignado(selectedComanda)"
    title="Ver registro de platos del mozo"
    @click="irARegistroMozo(selectedComanda)"
-   x-text="selectedComanda.mozo"></button>
- <p class="font-medium" x-show="!selectedComanda?.mozo || selectedComanda.mozo === 'Sin asignar'">—</p>
+   x-text="nombreMozo(selectedComanda)"></button>
+ <p class="font-medium" x-show="!tieneMozoAsignado(selectedComanda)">—</p>
  </div>
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Observaciones</p>
@@ -823,7 +838,7 @@ tailwind.config = {
    <div class="grid grid-cols-3 gap-3 text-sm mb-3">
      <div>
        <p class="text-[10px] text-[#5a5a7a]">Nº comanda</p>
-       <p class="font-medium font-mono text-[#c39bd3]" x-text="(selectedComanda?.numComanda || selectedComanda?.comandaNumber) ? ('#' + (selectedComanda.numComanda || selectedComanda.comandaNumber)) : '—'"></p>
+       <p class="font-medium font-mono text-[#c39bd3]" x-text="(selectedComanda?.numComanda || selectedComanda?.comandaNumber) ? ('#' + (selectedComanda?.numComanda || selectedComanda?.comandaNumber)) : '—'"></p>
      </div>
      <div>
        <p class="text-[10px] text-[#5a5a7a]">Reserva creada</p>
@@ -849,7 +864,7 @@ tailwind.config = {
      </div>
      <div>
        <p class="text-[10px] text-[#5a5a7a]">Personas</p>
-       <p class="font-medium" x-text="selectedComanda?.reserva?.numPersonas != null ? selectedComanda.reserva.numPersonas : '—'"></p>
+       <p class="font-medium" x-text="selectedComanda?.reserva?.numPersonas != null ? selectedComanda?.reserva?.numPersonas : '—'"></p>
      </div>
    </div>
    <div class="grid grid-cols-3 gap-3 text-sm">
@@ -859,7 +874,7 @@ tailwind.config = {
      </div>
      <div>
        <p class="text-[10px] text-[#5a5a7a]">Espera (no-show)</p>
-       <p class="font-medium" x-text="selectedComanda?.reserva?.tiempoEspera ? (selectedComanda.reserva.tiempoEspera + ' min') : '—'"></p>
+       <p class="font-medium" x-text="selectedComanda?.reserva?.tiempoEspera ? (selectedComanda?.reserva?.tiempoEspera + ' min') : '—'"></p>
      </div>
      <div>
        <p class="text-[10px] text-[#5a5a7a]">Adelanto / seña</p>
@@ -947,7 +962,7 @@ tailwind.config = {
  </tr>
  </thead>
  <tbody>
- <template x-if="!selectedComanda?.items || selectedComanda.items.length === 0">
+ <template x-if="!selectedComanda?.items || selectedComanda?.items?.length === 0">
  <tr><td colspan="8" class="px-4 py-6 text-center text-[#5a5a7a] text-xs">Sin platos registrados</td></tr>
  </template>
  <template x-for="(item, idx) in (selectedComanda?.items || [])" :key="idx">
@@ -1029,7 +1044,7 @@ tailwind.config = {
  </tr>
  <tr x-show="Number(selectedComanda?.montoDescuento) > 0" class="bg-[#12121a]">
  <td class="px-4 py-1 text-right text-[10px] text-st-pagado uppercase font-semibold" colspan="3">Descuento</td>
- <td class="px-3 py-1 text-right text-st-pagado font-bold text-sm" x-text="'-S/. ' + Number(selectedComanda.montoDescuento || 0).toFixed(2)"></td>
+ <td class="px-3 py-1 text-right text-st-pagado font-bold text-sm" x-text="'-S/. ' + Number(selectedComanda?.montoDescuento || 0).toFixed(2)"></td>
  <td colspan="4"></td>
  </tr>
  <tr class="border-t-2 border-[rgba(212,175,55,0.25)] bg-[#12121a]">
@@ -1134,31 +1149,31 @@ tailwind.config = {
  <div class="flex flex-col items-center flex-1 relative z-10">
  <div class="w-3 h-3 rounded-full bg-[#3498db] mb-2"></div>
  <p class="text-[10px] font-semibold text-[#3498db]">Creada</p>
- <p class="text-[9px] text-[#5a5a7a]" x-text="selectedComanda?.createdAt ? new Date(selectedComanda.createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+ <p class="text-[9px] text-[#5a5a7a]" x-text="horaCorta(selectedComanda?.createdAt)"></p>
  </div>
  <!-- En cocina -->
  <div class="flex flex-col items-center flex-1 relative z-10">
  <div class="w-3 h-3 rounded-full mb-2" :class="selectedComanda?.tiempoEnEspera ? 'bg-[#ffa502]' : 'bg-[#5a5a7a]/30'"></div>
  <p class="text-[10px] font-semibold" :class="selectedComanda?.tiempoEnEspera ? 'text-[#ffa502]' : 'text-[#5a5a7a]'">En cocina</p>
- <p class="text-[9px] text-[#5a5a7a]" x-text="selectedComanda?.tiempoEnEspera ? new Date(selectedComanda.tiempoEnEspera).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+ <p class="text-[9px] text-[#5a5a7a]" x-text="horaCorta(selectedComanda?.tiempoEnEspera)"></p>
  </div>
  <!-- Preparado -->
  <div class="flex flex-col items-center flex-1 relative z-10">
  <div class="w-3 h-3 rounded-full mb-2" :class="selectedComanda?.tiempoRecoger ? 'bg-[#2ecc71]' : 'bg-[#5a5a7a]/30'"></div>
  <p class="text-[10px] font-semibold" :class="selectedComanda?.tiempoRecoger ? 'text-[#2ecc71]' : 'text-[#5a5a7a]'">Preparado</p>
- <p class="text-[9px] text-[#5a5a7a]" x-text="selectedComanda?.tiempoRecoger ? new Date(selectedComanda.tiempoRecoger).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+ <p class="text-[9px] text-[#5a5a7a]" x-text="horaCorta(selectedComanda?.tiempoRecoger)"></p>
  </div>
  <!-- Entregado -->
  <div class="flex flex-col items-center flex-1 relative z-10">
  <div class="w-3 h-3 rounded-full mb-2" :class="selectedComanda?.tiempoEntregado ? 'bg-[#d4af37]' : 'bg-[#5a5a7a]/30'"></div>
  <p class="text-[10px] font-semibold" :class="selectedComanda?.tiempoEntregado ? 'text-[#d4af37]' : 'text-[#5a5a7a]'">Entregado</p>
- <p class="text-[9px] text-[#5a5a7a]" x-text="selectedComanda?.tiempoEntregado ? new Date(selectedComanda.tiempoEntregado).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+ <p class="text-[9px] text-[#5a5a7a]" x-text="horaCorta(selectedComanda?.tiempoEntregado)"></p>
  </div>
  <!-- Pagado -->
  <div class="flex flex-col items-center flex-1 relative z-10">
  <div class="w-3 h-3 rounded-full mb-2" :class="selectedComanda?.tiempoPagado ? 'bg-[#00d4aa]' : 'bg-[#5a5a7a]/30'"></div>
  <p class="text-[10px] font-semibold" :class="selectedComanda?.tiempoPagado ? 'text-[#00d4aa]' : 'text-[#5a5a7a]'">Pagado</p>
- <p class="text-[9px] text-[#5a5a7a]" x-text="selectedComanda?.tiempoPagado ? new Date(selectedComanda.tiempoPagado).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+ <p class="text-[9px] text-[#5a5a7a]" x-text="horaCorta(selectedComanda?.tiempoPagado)"></p>
  </div>
  </div>
  </div>
@@ -1397,7 +1412,7 @@ tailwind.config = {
  </div>
  <p class="text-xs text-txt-muted mt-0.5">
  <span x-text="formatearNombreMesa(editComanda?.mesa)"></span>
- <template x-if="editComanda?.mozo"><span> — <span x-text="editComanda.mozo"></span></span></template>
+ <template x-if="tieneMozoAsignado(editComanda)"><span> — <span x-text="nombreMozo(editComanda)"></span></span></template>
  </p>
  </div>
  <button @click="modal=null" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
@@ -1420,15 +1435,15 @@ tailwind.config = {
  <div class="grid grid-cols-3 gap-3 text-sm mb-3">
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Creada</p>
- <p class="font-medium" x-text="editComanda?.createdAt ? new Date(editComanda.createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+ <p class="font-medium" x-text="horaCorta(editComanda?.createdAt)"></p>
  </div>
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Enviada a cocina</p>
- <p class="font-medium" x-text="editComanda?.tiempoEnEspera ? new Date(editComanda.tiempoEnEspera).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+ <p class="font-medium" x-text="horaCorta(editComanda?.tiempoEnEspera)"></p>
  </div>
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Preparada</p>
- <p class="font-medium text-[#2ecc71]" x-text="editComanda?.tiempoRecoger ? new Date(editComanda.tiempoRecoger).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+ <p class="font-medium text-[#2ecc71]" x-text="horaCorta(editComanda?.tiempoRecoger)"></p>
  </div>
  </div>
  <div class="grid grid-cols-3 gap-3 text-sm border-t border-[rgba(212,175,55,0.1)] pt-3">
@@ -1566,7 +1581,7 @@ tailwind.config = {
  <button type="button" @click="ajustarCantidadPlato(plato, -1)" :disabled="plato.eliminado || (plato.cantidad || 1) <= 1"
   class="w-6 h-8 rounded-lg border border-[rgba(212,175,55,0.35)] text-gold text-sm font-bold disabled:opacity-30 hover:bg-[rgba(212,175,55,0.12)]">−</button>
  <input type="number" min="1" max="99" x-model.number="plato.cantidad" @input="recalcularTotales()"
- class="w-12 h-8 bg-bg-sidebar border-2 border-[rgba(212,175,55,0.4)] rounded-lg px-1 py-1 text-white text-center text-sm font-bold focus:border-[#d4af37] focus:outline-none focus:bg-[rgba(212,175,55,0.1)]"
+ class="input-qty w-12 h-8 bg-bg-sidebar border-2 border-[rgba(212,175,55,0.4)] rounded-lg px-1 py-1 text-white text-center text-sm font-bold focus:border-[#d4af37] focus:outline-none focus:bg-[rgba(212,175,55,0.1)]"
  :disabled="plato.eliminado"
  :class="plato.eliminado ? 'opacity-50' : ''">
  <button type="button" @click="ajustarCantidadPlato(plato, 1)" :disabled="plato.eliminado || (plato.cantidad || 1) >= 99"
@@ -1631,7 +1646,7 @@ tailwind.config = {
  </tr>
  <tr x-show="Number(editComanda?.montoDescuento) > 0" class="bg-[#12121a]">
  <td class="px-4 py-1 text-right text-[10px] text-st-pagado uppercase font-semibold" colspan="3">Descuento</td>
- <td class="px-3 py-1 text-right text-st-pagado font-bold text-sm" x-text="'-S/. ' + Number(editComanda.montoDescuento || 0).toFixed(2)"></td>
+ <td class="px-3 py-1 text-right text-st-pagado font-bold text-sm" x-text="'-S/. ' + Number(editComanda?.montoDescuento || 0).toFixed(2)"></td>
  <td colspan="4"></td>
  </tr>
  <tr class="border-t-2 border-[rgba(212,175,55,0.25)] bg-[#12121a]">
@@ -1740,14 +1755,14 @@ tailwind.config = {
  <span class="text-lg">💰</span>
  <p class="text-[10px] text-[#5a5a7a] uppercase font-semibold tracking-wider">Descuento Admin</p>
  </div>
- <span x-show="editComanda?.descuento > 0" class="text-xs px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-semibold" x-text="'Aplicado: -S/. ' + Number(editComanda.montoDescuento || 0).toFixed(2)"></span>
+ <span x-show="Number(editComanda?.descuento) > 0" class="text-xs px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-semibold" x-text="'Aplicado: -S/. ' + Number(editComanda?.montoDescuento || 0).toFixed(2)"></span>
  </div>
 
  <!-- Descuento actual aplicado -->
  <div x-show="editComanda?.descuento > 0" class="mb-3 p-3 bg-[rgba(46,204,113,0.1)] border border-st-preparado/30 rounded-lg">
  <div class="flex items-center justify-between text-sm">
  <span class="text-txt-secondary">Ahorro:</span>
- <span class="text-st-pagado font-bold" x-text="'-S/. ' + Number(editComanda.montoDescuento || 0).toFixed(2)"></span>
+ <span class="text-st-pagado font-bold" x-text="'-S/. ' + Number(editComanda?.montoDescuento || 0).toFixed(2)"></span>
  </div>
  <button @click="eliminarDescuentoComanda()"
  class="mt-3 w-full py-2 bg-st-pagado/20 text-st-pagado border border-st-pagado/40 rounded-lg text-xs font-semibold hover:bg-st-pagado/30 transition flex items-center justify-center gap-2">
@@ -1807,31 +1822,31 @@ tailwind.config = {
  <div class="flex flex-col items-center flex-1 relative z-10">
  <div class="w-3 h-3 rounded-full bg-[#3498db] mb-2"></div>
  <p class="text-[10px] font-semibold text-[#3498db]">Creada</p>
- <p class="text-[9px] text-[#5a5a7a]" x-text="editComanda?.createdAt ? new Date(editComanda.createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+ <p class="text-[9px] text-[#5a5a7a]" x-text="horaCorta(editComanda?.createdAt)"></p>
  </div>
  <!-- En cocina -->
  <div class="flex flex-col items-center flex-1 relative z-10">
  <div class="w-3 h-3 rounded-full mb-2" :class="editComanda?.tiempoEnEspera ? 'bg-[#ffa502]' : 'bg-[#5a5a7a]/30'"></div>
  <p class="text-[10px] font-semibold" :class="editComanda?.tiempoEnEspera ? 'text-[#ffa502]' : 'text-[#5a5a7a]'">En cocina</p>
- <p class="text-[9px] text-[#5a5a7a]" x-text="editComanda?.tiempoEnEspera ? new Date(editComanda.tiempoEnEspera).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+ <p class="text-[9px] text-[#5a5a7a]" x-text="horaCorta(editComanda?.tiempoEnEspera)"></p>
  </div>
  <!-- Preparado -->
  <div class="flex flex-col items-center flex-1 relative z-10">
  <div class="w-3 h-3 rounded-full mb-2" :class="editComanda?.tiempoRecoger ? 'bg-[#2ecc71]' : 'bg-[#5a5a7a]/30'"></div>
  <p class="text-[10px] font-semibold" :class="editComanda?.tiempoRecoger ? 'text-[#2ecc71]' : 'text-[#5a5a7a]'">Preparado</p>
- <p class="text-[9px] text-[#5a5a7a]" x-text="editComanda?.tiempoRecoger ? new Date(editComanda.tiempoRecoger).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+ <p class="text-[9px] text-[#5a5a7a]" x-text="horaCorta(editComanda?.tiempoRecoger)"></p>
  </div>
  <!-- Entregado -->
  <div class="flex flex-col items-center flex-1 relative z-10">
  <div class="w-3 h-3 rounded-full mb-2" :class="editComanda?.tiempoEntregado ? 'bg-[#d4af37]' : 'bg-[#5a5a7a]/30'"></div>
  <p class="text-[10px] font-semibold" :class="editComanda?.tiempoEntregado ? 'text-[#d4af37]' : 'text-[#5a5a7a]'">Entregado</p>
- <p class="text-[9px] text-[#5a5a7a]" x-text="editComanda?.tiempoEntregado ? new Date(editComanda.tiempoEntregado).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+ <p class="text-[9px] text-[#5a5a7a]" x-text="horaCorta(editComanda?.tiempoEntregado)"></p>
  </div>
  <!-- Pagado -->
  <div class="flex flex-col items-center flex-1 relative z-10">
  <div class="w-3 h-3 rounded-full mb-2" :class="editComanda?.tiempoPagado ? 'bg-[#00d4aa]' : 'bg-[#5a5a7a]/30'"></div>
  <p class="text-[10px] font-semibold" :class="editComanda?.tiempoPagado ? 'text-[#00d4aa]' : 'text-[#5a5a7a]'">Pagado</p>
- <p class="text-[9px] text-[#5a5a7a]" x-text="editComanda?.tiempoPagado ? new Date(editComanda.tiempoPagado).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></p>
+ <p class="text-[9px] text-[#5a5a7a]" x-text="horaCorta(editComanda?.tiempoPagado)"></p>
  </div>
  </div>
  </div>
@@ -1925,7 +1940,7 @@ tailwind.config = {
      <button type="button" @click="ajustarCantidadTicket(p, -1)" :disabled="(p.cantidad || 1) <= 1"
       class="w-6 h-7 rounded border border-gold/25 text-gold text-xs font-bold disabled:opacity-30">−</button>
      <input type="number" min="1" max="99" x-model.number="p.cantidad"
-      class="w-10 h-7 bg-bg-card border border-gold/25 rounded px-1 text-[11px] text-white text-center focus:border-gold focus:outline-none">
+      class="input-qty w-10 h-7 bg-bg-card border border-gold/25 rounded px-1 text-[11px] text-white text-center focus:border-gold focus:outline-none">
      <button type="button" @click="ajustarCantidadTicket(p, 1)" :disabled="(p.cantidad || 1) >= 99"
       class="w-6 h-7 rounded border border-gold/25 text-gold text-xs font-bold disabled:opacity-30">+</button>
     </div>
@@ -3090,14 +3105,18 @@ formatearNombreMesa(mesa, mesaObj = null) {
  async cargarPlantillaComandaLocal() {
    try {
      // Cargar desde el backend (GET /api/configuracion/comanda-plantilla)
-     const response = await fetch('/api/configuracion/comanda-plantilla');
+     const response = await fetch('/api/configuracion/comanda-plantilla', {
+       headers: { 'Authorization': `Bearer ${getToken()}`, 'x-source-app': 'dashboard' }
+     });
      if (response.ok) {
        const data = await response.json();
        if (data.success && data.plantilla) {
          // Sincronizar logo desde voucherPlantilla
          if (!data.plantilla.logo) {
            try {
-             const voucherRes = await fetch('/api/configuracion/voucher-plantilla');
+             const voucherRes = await fetch('/api/configuracion/voucher-plantilla', {
+               headers: { 'Authorization': `Bearer ${getToken()}`, 'x-source-app': 'dashboard' }
+             });
              if (voucherRes.ok) {
                const voucherData = await voucherRes.json();
                if (voucherData.success && voucherData.plantilla?.logo) {
@@ -3970,28 +3989,32 @@ this.modal = null;
  const totalPlatos = platosNorm.filter(p => !p.eliminado);
  const totalActivos = totalPlatos.reduce((sum, p) => sum + p.subtotal, 0);
  const hayEliminados = platosNorm.some(p => p.eliminado);
- const pt = Number(raw.precioTotal || raw.total || 0);
- const tcRaw = raw.totalCalculado != null ? Number(raw.totalCalculado) : null;
+ const ptRaw = raw.precioTotal != null ? raw.precioTotal : raw.total;
+ const pt = Number(ptRaw);
+ const ptValido = ptRaw != null && ptRaw !== '' && Number.isFinite(pt);
+ const tcRaw = raw.totalCalculado != null && raw.totalCalculado !== '' ? Number(raw.totalCalculado) : NaN;
  const md = Number(raw.montoDescuento) || 0;
- const hayDesc = md > 0 || Number(raw.descuento) > 0;
+ const hayDesc = this.comandaTieneDescuentoFront(raw);
  const brutoGuardado = Number(raw.totalSinDescuento) || 0;
  const tcOk = Number.isFinite(tcRaw) && (hayDesc ? tcRaw >= 0 : tcRaw > 0);
- let totalNeto = tcOk ? tcRaw : (pt > 0 ? pt : totalActivos);
- if (hayEliminados && pt > 0 && totalActivos >= 0 && Math.abs(pt - totalActivos) > 0.05) {
+ let totalNeto = tcOk ? tcRaw : (ptValido && (hayDesc ? pt >= 0 : pt > 0) ? pt : totalActivos);
+ if (hayEliminados && ptValido && pt > 0 && totalActivos >= 0 && Math.abs(pt - totalActivos) > 0.05) {
    totalNeto = Number((totalNeto * (totalActivos / pt)).toFixed(2));
- } else if (!tcOk) {
+ } else if (!tcOk && !hayDesc) {
    totalNeto = totalActivos || totalNeto;
  }
- const brutoMostrar = (hayEliminados && brutoGuardado > 0 && pt > 0 && Math.abs(pt - totalActivos) > 0.05)
+ const brutoMostrar = (hayEliminados && brutoGuardado > 0 && ptValido && pt > 0 && Math.abs(pt - totalActivos) > 0.05)
    ? Number((brutoGuardado * (totalActivos / pt)).toFixed(2))
-   : (brutoGuardado || totalActivos || totalNeto + md);
- if (hayDesc && md > 0) {
-   const bruto = Number(brutoMostrar || totalActivos || pt || 0);
-   const netoEsperado = Number(Math.max(0, bruto - md).toFixed(2));
-   if (Number.isFinite(tcRaw) && Math.abs(tcRaw - netoEsperado) <= 0.06) {
+   : (brutoGuardado || totalActivos || (Number(totalNeto) || 0) + md);
+ if (hayDesc) {
+   const bruto = Number(brutoMostrar || totalActivos || (ptValido && pt > 0 ? pt : 0) || 0);
+   const netoEsperado = md > 0 ? Number(Math.max(0, bruto - md).toFixed(2)) : (Number.isFinite(tcRaw) ? Number(tcRaw.toFixed(2)) : 0);
+   if (Number.isFinite(tcRaw) && tcRaw >= 0 && (bruto <= 0 || Math.abs(tcRaw - netoEsperado) <= 0.06 || tcRaw === 0)) {
      totalNeto = Number(tcRaw.toFixed(2));
-   } else if (bruto > 0) {
+   } else if (bruto > 0 && md > 0) {
      totalNeto = netoEsperado;
+   } else if (Number.isFinite(tcRaw) && tcRaw >= 0) {
+     totalNeto = Number(tcRaw.toFixed(2));
    }
  }
 
@@ -4042,9 +4065,10 @@ this.modal = null;
  motivoDescuento: raw.motivoDescuento || null,
  descuentoAplicadoPor: raw.descuentoAplicadoPor || null,
  descuentoAplicadoAt: raw.descuentoAplicadoAt || null,
- montoDescuento: (hayEliminados && pt > 0 && Math.abs(pt - totalActivos) > 0.05)
+ montoDescuento: (hayEliminados && ptValido && pt > 0 && Math.abs(pt - totalActivos) > 0.05)
    ? Number(Math.max(0, Number(brutoMostrar || 0) - Number(totalNeto || 0)).toFixed(2))
-   : (raw.montoDescuento || 0),
+   : (Number(raw.montoDescuento) || 0),
+ descuentoMontoFijo: Number(raw.descuentoMontoFijo) || 0,
  origenCreacion: raw.origenCreacion || (raw.createdByDashboard ? 'dashboard' : 'mozos'),
  createdByDashboard: raw.createdByDashboard || null,
  omitirPago: !!raw.omitirPago,
@@ -5619,7 +5643,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  this.modal = 'verComanda';
  this.loadingDetalle = true;
- this.selectedComanda = null;
+ this.selectedComanda = c || null;
 
  const detalle = await this.loadComandaDetalle(comandaId);
 
@@ -5912,21 +5936,41 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  if (!grupo?.comandas?.length) return 0;
  return grupo.comandas.reduce((sum, c) => sum + (c.montoDescuento || 0), 0);
  },
+ comandaTieneDescuentoFront(c) {
+  if (!c) return false;
+  return Number(c.descuento) > 0
+    || Number(c.montoDescuento) > 0
+    || Number(c.descuentoMontoFijo) > 0
+    || (Number(c.totalSinDescuento) > 0 && c.totalCalculado != null && Number(c.totalCalculado) === 0);
+ },
+ tieneMozoAsignado(c) {
+  return !!(c && c.mozo && c.mozo !== 'Sin asignar');
+ },
+ nombreMozo(c) {
+  return (c && c.mozo) ? c.mozo : 'Sin asignar';
+ },
+ horaCorta(valor, fallback) {
+  if (!valor) return fallback != null ? fallback : '—';
+  const d = new Date(valor);
+  if (Number.isNaN(d.getTime())) return fallback != null ? fallback : '—';
+  return d.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+ },
  /** Total a mostrar en tabla: con descuento es neto (bruto − monto), incluido 0. */
  totalNetoComanda(c) {
   if (!c) return 0;
   const md = Number(c.montoDescuento) || 0;
   const sin = Number(c.totalSinDescuento) || 0;
-  const tc = c.totalCalculado != null ? Number(c.totalCalculado) : NaN;
+  const tc = c.totalCalculado != null && c.totalCalculado !== '' ? Number(c.totalCalculado) : NaN;
   const tot = Number(c.total);
+  const hayDesc = this.comandaTieneDescuentoFront(c);
   const bruto = sin > 0 ? sin : (Number.isFinite(tot) && tot > 0 ? tot : 0);
-  if (md > 0) {
-    const netoEsperado = Number(Math.max(0, (bruto || 0) - md).toFixed(2));
-    if (Number.isFinite(tc) && tc >= 0 && (bruto <= 0 || Math.abs(tc - netoEsperado) <= 0.06 || tc < bruto - 0.009)) {
-      return Number(tc.toFixed(2));
-    }
-    if (bruto > 0) return netoEsperado;
+  if (hayDesc) {
     if (Number.isFinite(tc) && tc >= 0) return Number(tc.toFixed(2));
+    if (md > 0 && bruto > 0) return Number(Math.max(0, bruto - md).toFixed(2));
+    const fijo = Number(c.descuentoMontoFijo) || 0;
+    if (fijo > 0 && bruto > 0) return Number(Math.max(0, bruto - fijo).toFixed(2));
+    const pct = Number(c.descuento) || 0;
+    if (pct > 0 && bruto > 0) return Number(Math.max(0, bruto * (1 - pct / 100)).toFixed(2));
     return 0;
   }
   if (Number.isFinite(tc) && tc > 0) return Number(tc.toFixed(2));
@@ -6354,11 +6398,11 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  totalPieEditar() {
  const suma = Number(this.calcularTotalEdit()) || 0;
  const md = Number(this.editComanda?.montoDescuento) || 0;
- if (!(md > 0)) return suma;
- const tc = Number(this.editComanda?.totalCalculado);
+ if (!this.comandaTieneDescuentoFront(this.editComanda)) return suma;
+ const tc = this.editComanda?.totalCalculado != null ? Number(this.editComanda.totalCalculado) : NaN;
  const sin = Number(this.editComanda?.totalSinDescuento) || 0;
- if (sin > 0 && Math.abs(suma - sin) < 0.05 && Number.isFinite(tc) && (tc > 0 || md >= sin - 0.05)) {
-   return tc;
+ if (Number.isFinite(tc) && tc >= 0 && (sin <= 0 || Math.abs(suma - sin) < 0.05 || md >= sin - 0.05)) {
+   return Number(tc.toFixed(2));
  }
  const bruto = sin > 0 ? sin : suma;
  return Number(Math.max(0, bruto - md).toFixed(2));

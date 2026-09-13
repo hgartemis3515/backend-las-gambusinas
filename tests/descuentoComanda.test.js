@@ -81,6 +81,14 @@ describe('comandaTieneDescuento', () => {
     expect(montoDescuentoDeComanda({ descuento: 0, montoDescuento: 2 })).toBe(2);
   });
 
+  test('100% sobre 86 → neto 0 y precioTotal 0', () => {
+    const r = calcularTotalesConDescuento(86, { porcentaje: 100 }, cfgConIgv);
+    expect(r.montoDescuento).toBe(86);
+    expect(r.totalCalculado).toBe(0);
+    expect(r.totalSinDescuento).toBe(86);
+    expect(r.precioTotal).toBe(0);
+  });
+
   test('6 con descuento S/. 2 → neto 4', () => {
     const r = calcularTotalesConDescuento(6, { monto: 2 }, cfgConIgv);
     expect(r.montoDescuento).toBe(2);

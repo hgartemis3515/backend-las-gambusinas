@@ -128,6 +128,20 @@ select, textarea {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
+input.input-qty,
+input.input-qty[type="number"] {
+  width: 2.75rem;
+  padding: 0.15rem 0.2rem;
+  text-align: center;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+input.input-qty::-webkit-outer-spin-button,
+input.input-qty::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 input::placeholder, textarea::placeholder {
   color: var(--txt-muted);
 }
