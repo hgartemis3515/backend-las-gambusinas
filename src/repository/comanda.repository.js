@@ -22,6 +22,7 @@ const {
   overlayPronombresEnComandas
 } = require('../utils/precioComplementos');
 const { expandirPlatosPorVariante, snapshotNombreCocinaPedido, MAX_NOMBRE_COCINA_PEDIDO } = require('../utils/variantePlato');
+const { fusionarGuarnicionesPreseleccionadas } = require('../utils/preseleccionGuarniciones');
 const { aplicarNumeroSerieComanda } = require('../utils/numeroSeriePlato');
 const { indicePlatoPorIdLinea, aplicarSeparacionCantidadLinea } = require('../utils/separarCantidadLineaPlato');
 
@@ -986,6 +987,10 @@ const agregarComanda = async (data) => {
 
     // ===== v3.0: ENRIQUECER COMPLEMENTOS CON PRECIO SNAPSHOT =====
     // El backend es la fuente de verdad: toma el precio del menú, no del cliente.
+    plato.complementosSeleccionados = fusionarGuarnicionesPreseleccionadas(
+      platoCompleto,
+      plato.complementosSeleccionados
+    );
     if (Array.isArray(plato.complementosSeleccionados) && plato.complementosSeleccionados.length > 0) {
       const afectanPrecio = platoCompleto.complementosAfectanPrecio !== false;
       plato.complementosSeleccionados = enriquecerComplementosConPrecio(
@@ -1887,9 +1892,12 @@ const editarConAuditoria = async (comandaId, platosNuevos, platosEliminados, usu
               numeroSerie: String(nuevoPlato.numeroSerie || '').replace(/\D/g, '').slice(0, 4),
               nombreCocinaPedido: String(nuevoPlato.nombreCocinaPedido || '').trim().slice(0, MAX_NOMBRE_COCINA_PEDIDO),
               variantePlato: nuevoPlato.variantePlato || undefined,
-              complementosSeleccionados: Array.isArray(nuevoPlato.complementosSeleccionados)
-                ? nuevoPlato.complementosSeleccionados
-                : []
+              complementosSeleccionados: fusionarGuarnicionesPreseleccionadas(
+                platoCompleto,
+                Array.isArray(nuevoPlato.complementosSeleccionados)
+                  ? nuevoPlato.complementosSeleccionados
+                  : []
+              )
             };
             snapshotNombreCocinaPedido(platoAgregado, platoCompleto);
             comanda.platos.push(platoAgregado);

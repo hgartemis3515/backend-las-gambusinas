@@ -9,6 +9,7 @@ const {
     calcularResumenComplementos
 } = require('../utils/precioComplementos');
 const { partirLineaPorVariante, snapshotNombreCocinaPedido } = require('../utils/variantePlato');
+const { fusionarGuarnicionesPreseleccionadas } = require('../utils/preseleccionGuarniciones');
 const { aplicarNumeroSerieComanda } = require('../utils/numeroSeriePlato');
 const { debeCancelarReservaAlEliminarComanda } = require('../utils/reservaComandas');
 
@@ -608,7 +609,7 @@ const calcularTotalesPlato = (platoDoc, item) => {
     const afectanPrecio = platoDoc.complementosAfectanPrecio !== false;
     const complementosSeleccionados = enriquecerComplementosConPrecio(
         platoDoc.complementos || [],
-        raw,
+        fusionarGuarnicionesPreseleccionadas(platoDoc, raw),
         { afectanPrecio }
     );
     const calc = calcularPrecioUnitarioConComplementos(
