@@ -608,7 +608,7 @@ tailwind.config = {
     </div>
     <div class="p-6 space-y-4">
       <div class="grid grid-cols-2 gap-4">
-        <div><label class="text-xs text-txt-secondary mb-1 block">Número de mesa <span class="text-st-pagado">*</span></label><input type="number" x-model="formMesa.numMesa" placeholder="Ej: 21" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
+        <div><label class="text-xs text-txt-secondary mb-1 block">Número de mesa <span class="text-st-pagado">*</span></label><input type="number" x-model="formMesa.numMesa" @input="aplicarAreaPorNumero()" placeholder="Ej: 21" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none"></div>
         <div><label class="text-xs text-txt-secondary mb-1 block">Área</label>
           <select x-model="formMesa.idArea" class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm text-txt-secondary focus:border-gold focus:outline-none">
             <option value="">Sin área</option>
@@ -616,6 +616,7 @@ tailwind.config = {
               <option :value="a._id" x-text="a.nombre"></option>
             </template>
           </select>
+          <p class="text-[10px] text-txt-muted mt-1">1–25 Salón · 26–100 Patio · resto VIP</p>
         </div>
       </div>
       <div class="grid grid-cols-2 gap-4">
@@ -805,7 +806,7 @@ tailwind.config = {
       } else if (data && data.areas) {
         this.areasList = data.areas;
       } else {
-        this.areasList = ['Salón Principal', 'Terraza', 'VIP'];
+        this.areasList = ['Salon', 'Patio', 'VIP'];
       }
     },
     
@@ -995,6 +996,39 @@ tailwind.config = {
       this.modal = 'detalleMesa';
     },
     
+    normNombreArea(nombre) {
+      return String(nombre || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+    },
+
+    claveAreaPorNumero(num) {
+      const n = parseInt(num, 10);
+      if (!Number.isFinite(n)) return null;
+      if (n >= 1 && n <= 25) return 'salon';
+      if (n >= 26 && n <= 100) return 'patio';
+      return 'vip';
+    },
+
+    idAreaPorNumero(num) {
+      const clave = this.claveAreaPorNumero(num);
+      if (!clave) return '';
+      const hit = (this.areasList || []).find((a) => {
+        const n = this.normNombreArea(a && a.nombre != null ? a.nombre : a);
+        if (clave === 'salon') return n === 'salon' || n.includes('salon');
+        if (clave === 'patio') return n === 'patio' || n.includes('patio') || n.includes('terraza');
+        return n === 'vip' || n.includes('vip');
+      });
+      return (hit && (hit._id || hit)) || '';
+    },
+
+    aplicarAreaPorNumero() {
+      const id = this.idAreaPorNumero(this.formMesa.numMesa);
+      if (id) this.formMesa.idArea = id;
+    },
+
     openCreateModal() {
       this.isEditing = false;
       this.formMesa = { _id: null, numMesa: '', idArea: '', capacidad: 4, estado: 'libre', notas: '', activa: true };
@@ -1012,6 +1046,7 @@ tailwind.config = {
         notas: m.notas || '',
         activa: m.activa !== false
       };
+      this.aplicarAreaPorNumero();
       this.modal = 'editarMesa';
     },
 
@@ -1041,6 +1076,8 @@ tailwind.config = {
         return;
       }
       
+      this.aplicarAreaPorNumero();
+
       const isEdit = !!this.formMesa._id;
       
       // Número de mesa único en TODO el local (todas las áreas)
