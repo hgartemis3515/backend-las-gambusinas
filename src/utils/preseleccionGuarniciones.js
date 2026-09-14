@@ -17,14 +17,19 @@ function grupoSeleccionFija(grupo) {
   return grupo?.seleccionFija === true && !grupoNombreCocina(grupo);
 }
 
+function opcionEstaPreseleccionada(op) {
+  if (!op || typeof op !== 'object') return false;
+  return op.preseleccionada === true || op.preseleccionada === 1 || op.preseleccionada === 'true';
+}
+
 function opcionesAAplicarDeGrupo(grupo) {
   const ops = Array.isArray(grupo?.opciones) ? grupo.opciones : [];
   const named = ops.filter((op) => getNombreOpcion(op));
   if (grupoSeleccionFija(grupo)) {
-    const marked = named.filter((op) => op && typeof op === 'object' && op.preseleccionada === true);
+    const marked = named.filter(opcionEstaPreseleccionada);
     return marked.length ? marked : named;
   }
-  return named.filter((op) => op && typeof op === 'object' && op.preseleccionada === true);
+  return named.filter(opcionEstaPreseleccionada);
 }
 
 function snapshotOpcionesGrupo(grupo, opciones) {
