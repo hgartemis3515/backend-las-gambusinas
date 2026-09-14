@@ -186,6 +186,14 @@ tailwind.config = {
  <!-- Filtro Cliente (NUEVO) -->
  <input type="text" x-model="filterCliente" @input="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-32 placeholder-txt-muted" placeholder="Cliente/DNI">
 
+ <button type="button" @click="filterSoloDescuentos = !filterSoloDescuentos; filterComandas()"
+  :class="filterSoloDescuentos ? 'bg-[#e74c3c]/20 border-[#e74c3c] text-[#e74c3c]' : 'bg-bg-sidebar border-txt-muted/30 text-txt-secondary'"
+  class="px-3 py-2 border rounded-lg text-xs font-medium transition flex items-center gap-1"
+  title="Mostrar solo comandas con descuento">
+  <span>%</span>
+  <span>Solo descuentos</span>
+ </button>
+
  <!-- Período (mismo patrón que mozos → rendimiento) -->
  <div class="flex flex-wrap items-center gap-1">
   <span class="text-[10px] uppercase text-txt-muted mr-1">Período</span>
@@ -252,7 +260,7 @@ tailwind.config = {
  </button>
 
  <!-- Botón limpiar filtros -->
- <button @click="limpiarFiltros()" x-show="filterMesa || filterEstado || filterIdComanda || filterMozo || filterCliente || filtroPeriodo !== periodoDefault || hayFiltroAvanzado"
+ <button @click="limpiarFiltros()" x-show="filterMesa || filterEstado || filterIdComanda || filterMozo || filterCliente || filterSoloDescuentos || filtroPeriodo !== periodoDefault || hayFiltroAvanzado"
  class="dash-btn-limpiar px-3 py-2 text-xs text-txt-muted hover:text-gold transition border border-transparent hover:border-gold/30 rounded-lg">
  ✕ Limpiar
  </button>
@@ -394,11 +402,11 @@ tailwind.config = {
  <td class="px-3 py-2.5 text-sm text-gold font-semibold text-right">
  <template x-if="row.tipo === 'grupo'">
  <span x-text="'S/. ' + row.totalAgrupado.toFixed(2)"></span>
- <span x-show="getMontoDescuentoGrupo(row) > 0" class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + getMontoDescuentoGrupo(row).toFixed(2)"></span>
+ <span x-show="getMontoDescuentoGrupo(row) > 0" class="block text-[9px] text-[#e74c3c] font-semibold" x-text="'-' + getMontoDescuentoGrupo(row).toFixed(2)"></span>
  </template>
  <template x-if="row.tipo === 'individual'">
  <span x-text="'S/. ' + Number(totalNetoComanda(row.comanda)).toFixed(2)"></span>
- <span x-show="Number(row.comanda?.montoDescuento) > 0" class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(row.comanda?.montoDescuento || 0).toFixed(2)"></span>
+ <span x-show="comandaTieneDescuentoFront(row.comanda)" class="block text-[9px] text-[#e74c3c] font-semibold" x-text="'-' + montoDescuentoMostrar(row.comanda).toFixed(2)"></span>
  </template>
  </td>
  
@@ -495,7 +503,7 @@ tailwind.config = {
  <!-- Total -->
  <td class="px-3 py-2 text-sm text-gold/80 text-right">
  <span x-text="'S/. ' + Number(totalNetoComanda(comanda)).toFixed(2)"></span>
- <span x-show="Number(comanda?.montoDescuento) > 0" class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(comanda?.montoDescuento || 0).toFixed(2)"></span>
+ <span x-show="comandaTieneDescuentoFront(comanda)" class="block text-[9px] text-[#e74c3c] font-semibold" x-text="'-' + montoDescuentoMostrar(comanda).toFixed(2)"></span>
  </td>
  <!-- Estado -->
  <td class="px-3 py-2 text-center">
@@ -914,6 +922,20 @@ tailwind.config = {
    </div>
  </div>
 
+ <div x-show="comandaTieneDescuentoFront(selectedComanda)" class="mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]">
+   <p class="text-[10px] text-[#e74c3c] uppercase mb-2 font-semibold tracking-wider">💰 Descuento</p>
+   <div class="grid grid-cols-3 gap-3 text-sm">
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Monto</p>
+       <p class="font-medium text-[#e74c3c]" x-text="'-S/. ' + montoDescuentoMostrar(selectedComanda).toFixed(2)"></p>
+     </div>
+     <div class="col-span-2">
+       <p class="text-[10px] text-[#5a5a7a]">Motivo</p>
+       <p class="font-medium text-xs text-[#a0a0b8]" x-text="selectedComanda?.motivoDescuento || 'Sin motivo registrado'"></p>
+     </div>
+   </div>
+ </div>
+
  <!-- 🔥 RESUMEN DE COCINEROS Y TIEMPOS -->
  <template x-if="selectedComanda && getResumenCocineros(selectedComanda).cocineros.length > 0">
  <div class="mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]">
@@ -944,6 +966,28 @@ tailwind.config = {
  </div>
  </div>
  </template>
+
+ <template x-if="selectedComanda">
+ <div class="mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]">
+ <p class="text-[10px] text-gold uppercase mb-2 font-semibold tracking-wider flex items-center gap-1">
+ <span>🍽️</span> Trazabilidad de Salón
+ </p>
+ <div class="grid grid-cols-3 gap-3 text-sm">
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">T. cocina</p>
+ <p class="font-mono font-medium text-st-preparado" x-text="getResumenSalon(selectedComanda).tiempoCocina"></p>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">T. mozo (incluye entrega)</p>
+ <p class="font-mono font-medium text-gold" x-text="getResumenSalon(selectedComanda).tiempoMozo"></p>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Platos entregados</p>
+ <p class="font-bold text-st-libre" x-text="getResumenSalon(selectedComanda).entregados + ' / ' + getResumenSalon(selectedComanda).total"></p>
+ </div>
+ </div>
+ </div>
+ </template>
  </div>
 
  <!-- TABLA DE PLATOS -->
@@ -957,13 +1001,14 @@ tailwind.config = {
  <th class="text-right px-3 py-2.5 font-semibold">Subtotal</th>
  <th class="text-left px-3 py-2.5 font-semibold">Complementos</th>
  <th class="text-center px-3 py-2.5 font-semibold">Cocinero</th>
- <th class="text-center px-3 py-2.5 font-semibold">Tiempo</th>
+ <th class="text-center px-3 py-2.5 font-semibold">T. cocina</th>
+ <th class="text-center px-3 py-2.5 font-semibold">T. mozo</th>
  <th class="text-center px-3 py-2.5 font-semibold">Estado</th>
  </tr>
  </thead>
  <tbody>
  <template x-if="!selectedComanda?.items || selectedComanda?.items?.length === 0">
- <tr><td colspan="8" class="px-4 py-6 text-center text-[#5a5a7a] text-xs">Sin platos registrados</td></tr>
+ <tr><td colspan="9" class="px-4 py-6 text-center text-[#5a5a7a] text-xs">Sin platos registrados</td></tr>
  </template>
  <template x-for="(item, idx) in (selectedComanda?.items || [])" :key="idx">
  <tr class="border-b border-[rgba(212,175,55,0.08)]" :class="item.eliminado ? 'opacity-50' : ''">
@@ -1009,7 +1054,7 @@ tailwind.config = {
  <span class="text-[10px] text-[#5a5a7a]">—</span>
  </template>
  </td>
- <!-- 🔥 COLUMNA TIEMPO -->
+ <!-- 🔥 COLUMNA TIEMPO COCINA -->
  <td class="px-3 py-3 text-center">
  <template x-if="getTiempoPreparacion(item).tiempo !== '—'">
  <span class="text-[10px] font-mono"
@@ -1017,6 +1062,17 @@ tailwind.config = {
  x-text="getTiempoPreparacion(item).tiempo"></span>
  </template>
  <template x-if="getTiempoPreparacion(item).tiempo === '—'">
+ <span class="text-[10px] text-[#5a5a7a]">—</span>
+ </template>
+ </td>
+ <!-- T. mozo: recoger/salio + entrega -->
+ <td class="px-3 py-3 text-center">
+ <template x-if="getTiempoMozoPlato(item).tiempo !== '—'">
+ <span class="text-[10px] font-mono"
+ :class="getTiempoMozoPlato(item).enCurso ? 'text-gold' : 'text-txt-secondary'"
+ x-text="getTiempoMozoPlato(item).tiempo"></span>
+ </template>
+ <template x-if="getTiempoMozoPlato(item).tiempo === '—'">
  <span class="text-[10px] text-[#5a5a7a]">—</span>
  </template>
  </td>
@@ -1036,29 +1092,35 @@ tailwind.config = {
  </template>
  </tbody>
  <tfoot>
- <tr x-show="Number(selectedComanda?.montoDescuento) > 0" class="border-t-2 border-[rgba(212,175,55,0.25)] bg-[#12121a]">
+ <tr x-show="comandaTieneDescuentoFront(selectedComanda)" class="border-t-2 border-[rgba(212,175,55,0.25)] bg-[#12121a]">
  <td class="px-4 py-2 font-semibold text-[10px] uppercase text-txt-muted" colspan="2">Subtotal</td>
  <td class="px-3 py-2 text-right text-xs text-[#5a5a7a]" x-text="(selectedComanda?.items || []).filter(i => !i.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
  <td class="px-3 py-2 text-right text-txt-secondary text-sm" x-text="'S/. ' + Number(selectedComanda?.totalSinDescuento || 0).toFixed(2)"></td>
- <td colspan="4"></td>
+ <td colspan="5"></td>
  </tr>
- <tr x-show="Number(selectedComanda?.montoDescuento) > 0" class="bg-[#12121a]">
- <td class="px-4 py-1 text-right text-[10px] text-st-pagado uppercase font-semibold" colspan="3">Descuento</td>
- <td class="px-3 py-1 text-right text-st-pagado font-bold text-sm" x-text="'-S/. ' + Number(selectedComanda?.montoDescuento || 0).toFixed(2)"></td>
- <td colspan="4"></td>
+ <tr x-show="comandaTieneDescuentoFront(selectedComanda)" class="bg-[#12121a]">
+ <td class="px-4 py-1 text-right text-[10px] text-[#e74c3c] uppercase font-semibold" colspan="3">Descuento</td>
+ <td class="px-3 py-1 text-right text-[#e74c3c] font-bold text-sm" x-text="'-S/. ' + montoDescuentoMostrar(selectedComanda).toFixed(2)"></td>
+ <td colspan="5"></td>
+ </tr>
+ <tr x-show="comandaTieneDescuentoFront(selectedComanda)" class="bg-[#12121a]">
+ <td class="px-4 py-1 text-[10px] text-txt-secondary" colspan="9">
+ <span class="uppercase text-[#5a5a7a] font-semibold mr-1">Motivo:</span>
+ <span x-text="selectedComanda?.motivoDescuento || 'Sin motivo registrado'"></span>
+ </td>
  </tr>
  <tr class="border-t-2 border-[rgba(212,175,55,0.25)] bg-[#12121a]">
  <td class="px-4 py-3 font-bold text-xs uppercase" colspan="2">TOTAL</td>
  <td class="px-3 py-3 text-right text-xs text-[#5a5a7a]" x-text="(selectedComanda?.items || []).filter(i => !i.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
  <td class="px-3 py-3 text-right text-[#d4af37] font-bold text-lg" x-text="'S/. ' + Number(totalNetoComanda(selectedComanda)).toFixed(2)"></td>
- <td colspan="4"></td>
+ <td colspan="5"></td>
  </tr>
  <tr x-show="selectedComanda?.metodoPago === 'efectivo' && (selectedComanda?.montoRecibido != null || selectedComanda?.vuelto != null)">
  <td class="px-4 py-2 text-right text-[10px] text-txt-secondary uppercase" colspan="3">
  <span x-show="selectedComanda?.montoRecibido != null" x-text="'Recibido: S/. ' + Number(selectedComanda?.montoRecibido || 0).toFixed(2)"></span>
  <span x-show="selectedComanda?.vuelto != null" class="ml-3 text-st-libre font-bold" x-text="'Vuelto: S/. ' + Number(selectedComanda?.vuelto || 0).toFixed(2)"></span>
  </td>
- <td colspan="4"></td>
+ <td colspan="6"></td>
  </tr>
  </tfoot>
  </table>
@@ -1261,6 +1323,20 @@ tailwind.config = {
  x-text="estadoLabel(selectedGrupo?.estadoGrupo)"></span>
  </div>
  </div>
+ <div class="grid grid-cols-3 gap-3 text-sm mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]">
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">T. cocina</p>
+ <p class="font-mono font-medium text-st-preparado" x-text="getResumenSalonGrupo(selectedGrupo).tiempoCocina"></p>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">T. mozo (incluye entrega)</p>
+ <p class="font-mono font-medium text-gold" x-text="getResumenSalonGrupo(selectedGrupo).tiempoMozo"></p>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Platos entregados</p>
+ <p class="font-bold text-st-libre" x-text="getResumenSalonGrupo(selectedGrupo).entregados + ' / ' + getResumenSalonGrupo(selectedGrupo).total"></p>
+ </div>
+ </div>
  </div>
 
  <!-- LISTA DE COMANDAS CON SUS PLATOS -->
@@ -1288,6 +1364,8 @@ tailwind.config = {
  </div>
  <div class="flex items-center gap-4 text-xs text-txt-muted">
  <span x-text="(comanda.items?.length || 0) + ' platos'"></span>
+ <span class="font-mono text-st-preparado" x-text="'T. cocina ' + getResumenSalon(comanda).tiempoCocina"></span>
+ <span class="font-mono text-gold" x-text="'T. mozo ' + getResumenSalon(comanda).tiempoMozo"></span>
  <span x-text="comanda.mozo || '—'"></span>
  <span x-text="comanda.createdAt ? new Date(comanda.createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></span>
  <button @click="openEditModal(comanda)" class="text-gold hover:text-white transition">✏️ Editar</button>
@@ -1302,12 +1380,14 @@ tailwind.config = {
  <th class="text-center px-3 py-2 font-semibold w-16">Cant.</th>
  <th class="text-right px-3 py-2 font-semibold w-24">P. Unit.</th>
  <th class="text-right px-3 py-2 font-semibold w-24">Subtotal</th>
+ <th class="text-center px-3 py-2 font-semibold w-20">T. cocina</th>
+ <th class="text-center px-3 py-2 font-semibold w-20">T. mozo</th>
  <th class="text-center px-3 py-2 font-semibold w-24">Estado</th>
  </tr>
  </thead>
  <tbody>
  <template x-if="!comanda.items || comanda.items.length === 0">
- <tr><td colspan="5" class="px-4 py-4 text-center text-[#5a5a7a] text-xs">Sin platos</td></tr>
+ <tr><td colspan="7" class="px-4 py-4 text-center text-[#5a5a7a] text-xs">Sin platos</td></tr>
  </template>
  <template x-for="(item, idx) in (comanda.items || [])" :key="idx">
  <tr class="border-b border-[rgba(212,175,55,0.05)]" :class="item.eliminado ? 'opacity-40' : ''">
@@ -1318,6 +1398,12 @@ tailwind.config = {
  <td class="px-3 py-2 text-center font-semibold text-sm" x-text="item.cantidad || 1"></td>
  <td class="px-3 py-2 text-right text-[#a0a0b8] text-sm" x-text="'S/. ' + (item.precio || 0).toFixed(2)"></td>
  <td class="px-3 py-2 text-right text-[#d4af37] font-semibold text-sm" x-text="'S/. ' + (item.subtotal || (item.cantidad || 1) * (item.precio || 0)).toFixed(2)"></td>
+ <td class="px-3 py-2 text-center text-[10px] font-mono"
+ :class="getTiempoPreparacion(item).enPreparacion ? 'text-st-esperando' : 'text-txt-secondary'"
+ x-text="getTiempoPreparacion(item).tiempo"></td>
+ <td class="px-3 py-2 text-center text-[10px] font-mono"
+ :class="getTiempoMozoPlato(item).enCurso ? 'text-gold' : 'text-txt-secondary'"
+ x-text="getTiempoMozoPlato(item).tiempo"></td>
  <td class="px-3 py-2 text-center">
  <span class="text-[9px] px-2 py-0.5 rounded-full font-semibold"
  :class="{
@@ -1338,17 +1424,23 @@ tailwind.config = {
  <td class="px-4 py-2 font-bold text-xs uppercase" colspan="2">SUBTOTAL</td>
  <td class="px-3 py-2 text-right text-xs text-[#5a5a7a]" x-text="(comanda.items || []).filter(i => !i.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
  <td class="px-3 py-2 text-right text-[#d4af37] font-bold" x-text="'S/. ' + Number(comanda.totalSinDescuento || ((comanda.total || 0) + (comanda.montoDescuento || 0))).toFixed(2)"></td>
- <td></td>
+ <td colspan="3"></td>
  </tr>
- <tr x-show="Number(comanda.montoDescuento) > 0" class="bg-[#12121a]/50">
- <td class="px-4 py-1 text-right text-[10px] text-st-pagado uppercase font-semibold" colspan="3">Descuento</td>
- <td class="px-3 py-1 text-right text-st-pagado font-bold text-sm" x-text="'-S/. ' + Number(comanda.montoDescuento || 0).toFixed(2)"></td>
- <td></td>
+ <tr x-show="comandaTieneDescuentoFront(comanda)" class="bg-[#12121a]/50">
+ <td class="px-4 py-1 text-right text-[10px] text-[#e74c3c] uppercase font-semibold" colspan="3">Descuento</td>
+ <td class="px-3 py-1 text-right text-[#e74c3c] font-bold text-sm" x-text="'-S/. ' + montoDescuentoMostrar(comanda).toFixed(2)"></td>
+ <td colspan="3"></td>
  </tr>
- <tr x-show="Number(comanda.montoDescuento) > 0" class="bg-[#12121a]/50">
+ <tr x-show="comandaTieneDescuentoFront(comanda)" class="bg-[#12121a]/50">
+ <td class="px-4 py-1 text-[10px] text-txt-secondary" colspan="7">
+ <span class="uppercase text-[#5a5a7a] font-semibold mr-1">Motivo:</span>
+ <span x-text="comanda.motivoDescuento || 'Sin motivo registrado'"></span>
+ </td>
+ </tr>
+ <tr x-show="comandaTieneDescuentoFront(comanda)" class="bg-[#12121a]/50">
  <td class="px-4 py-2 font-bold text-xs uppercase" colspan="3">TOTAL</td>
  <td class="px-3 py-2 text-right text-[#d4af37] font-bold" x-text="'S/. ' + Number(totalNetoComanda(comanda)).toFixed(2)"></td>
- <td></td>
+ <td colspan="3"></td>
  </tr>
  </tfoot>
  </table>
@@ -1638,16 +1730,22 @@ tailwind.config = {
  </template>
  </tbody>
  <tfoot>
- <tr x-show="Number(editComanda?.montoDescuento) > 0" class="border-t-2 border-[rgba(212,175,55,0.25)] bg-[#12121a]">
+ <tr x-show="comandaTieneDescuentoFront(editComanda)" class="border-t-2 border-[rgba(212,175,55,0.25)] bg-[#12121a]">
  <td class="px-4 py-2 font-semibold text-[10px] uppercase text-txt-muted" colspan="2">Subtotal</td>
  <td class="px-3 py-2 text-right text-xs text-[#5a5a7a]" x-text="(editPlatos || []).filter(p => !p.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
  <td class="px-3 py-2 text-right text-txt-secondary text-sm" x-text="'S/. ' + Number(editComanda?.totalSinDescuento || calcularTotalEdit()).toFixed(2)"></td>
  <td colspan="4"></td>
  </tr>
- <tr x-show="Number(editComanda?.montoDescuento) > 0" class="bg-[#12121a]">
- <td class="px-4 py-1 text-right text-[10px] text-st-pagado uppercase font-semibold" colspan="3">Descuento</td>
- <td class="px-3 py-1 text-right text-st-pagado font-bold text-sm" x-text="'-S/. ' + Number(editComanda?.montoDescuento || 0).toFixed(2)"></td>
+ <tr x-show="comandaTieneDescuentoFront(editComanda)" class="bg-[#12121a]">
+ <td class="px-4 py-1 text-right text-[10px] text-[#e74c3c] uppercase font-semibold" colspan="3">Descuento</td>
+ <td class="px-3 py-1 text-right text-[#e74c3c] font-bold text-sm" x-text="'-S/. ' + montoDescuentoMostrar(editComanda).toFixed(2)"></td>
  <td colspan="4"></td>
+ </tr>
+ <tr x-show="comandaTieneDescuentoFront(editComanda)" class="bg-[#12121a]">
+ <td class="px-4 py-1 text-[10px] text-txt-secondary" colspan="8">
+ <span class="uppercase text-[#5a5a7a] font-semibold mr-1">Motivo:</span>
+ <span x-text="editComanda?.motivoDescuento || 'Sin motivo registrado'"></span>
+ </td>
  </tr>
  <tr class="border-t-2 border-[rgba(212,175,55,0.25)] bg-[#12121a]">
  <td class="px-4 py-3 font-bold text-xs uppercase" colspan="2">TOTAL</td>
@@ -1748,22 +1846,23 @@ tailwind.config = {
  </div>
 
  <!-- SECCION DESCUENTO - Solo visible para admin/supervisor -->
- <div x-show="puedeAplicarDescuento" x-data="{ descuentoMontoInput: 0 }"
+ <div x-show="puedeAplicarDescuento" x-data="{ descuentoMontoInput: 0, motivoDescuentoInput: '' }"
  class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
  <div class="flex items-center justify-between mb-3">
  <div class="flex items-center gap-2">
  <span class="text-lg">💰</span>
  <p class="text-[10px] text-[#5a5a7a] uppercase font-semibold tracking-wider">Descuento Admin</p>
  </div>
- <span x-show="Number(editComanda?.descuento) > 0" class="text-xs px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-semibold" x-text="'Aplicado: -S/. ' + Number(editComanda?.montoDescuento || 0).toFixed(2)"></span>
+ <span x-show="comandaTieneDescuentoFront(editComanda)" class="text-xs px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-semibold" x-text="'Aplicado: -S/. ' + montoDescuentoMostrar(editComanda).toFixed(2)"></span>
  </div>
 
  <!-- Descuento actual aplicado -->
- <div x-show="editComanda?.descuento > 0" class="mb-3 p-3 bg-[rgba(46,204,113,0.1)] border border-st-preparado/30 rounded-lg">
+ <div x-show="comandaTieneDescuentoFront(editComanda)" class="mb-3 p-3 bg-[rgba(46,204,113,0.1)] border border-st-preparado/30 rounded-lg">
  <div class="flex items-center justify-between text-sm">
  <span class="text-txt-secondary">Ahorro:</span>
- <span class="text-st-pagado font-bold" x-text="'-S/. ' + Number(editComanda?.montoDescuento || 0).toFixed(2)"></span>
+ <span class="text-[#e74c3c] font-bold" x-text="'-S/. ' + montoDescuentoMostrar(editComanda).toFixed(2)"></span>
  </div>
+ <p class="mt-2 text-xs text-txt-secondary"><span class="uppercase text-[10px] text-[#5a5a7a] font-semibold">Motivo:</span> <span x-text="editComanda?.motivoDescuento || 'Sin motivo registrado'"></span></p>
  <button @click="eliminarDescuentoComanda()"
  class="mt-3 w-full py-2 bg-st-pagado/20 text-st-pagado border border-st-pagado/40 rounded-lg text-xs font-semibold hover:bg-st-pagado/30 transition flex items-center justify-center gap-2">
  <span>🗑️</span> Quitar Descuento
@@ -1778,17 +1877,25 @@ tailwind.config = {
  class="w-full h-9 bg-bg-sidebar border-2 border-[rgba(212,175,55,0.4)] rounded-lg px-3 py-1 text-white text-sm font-bold focus:border-gold focus:outline-none"
  placeholder="0.00">
  </div>
- <button type="button" @click="aplicarDescuento100Comanda()"
- :disabled="!(brutoParaDescuento() > 0)"
+ <div class="flex-[2] min-w-[180px]">
+ <label class="text-[10px] text-txt-muted mb-1 block">Motivo (obligatorio)</label>
+ <input type="text" x-model="motivoDescuentoInput" maxlength="200"
+ class="w-full h-9 bg-bg-sidebar border-2 rounded-lg px-3 py-1 text-white text-sm focus:outline-none"
+ :class="String(motivoDescuentoInput || '').trim().length >= 2 ? 'border-[rgba(212,175,55,0.4)] focus:border-gold' : 'border-[#e74c3c]/60 focus:border-[#e74c3c]'"
+ placeholder="Mínimo 2 caracteres">
+ </div>
+ <button type="button" @click="aplicarDescuento100Comanda(motivoDescuentoInput)"
+ :disabled="!(brutoParaDescuento() > 0) || String(motivoDescuentoInput || '').trim().length < 2"
  class="h-9 px-4 bg-st-preparado text-white rounded-lg text-sm font-bold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed">
  100%
  </button>
- <button type="button" @click="aplicarDescuentoMontoComanda(descuentoMontoInput)"
- :disabled="!(Number(descuentoMontoInput) > 0)"
+ <button type="button" @click="aplicarDescuentoMontoComanda(descuentoMontoInput, motivoDescuentoInput)"
+ :disabled="!(Number(descuentoMontoInput) > 0) || String(motivoDescuentoInput || '').trim().length < 2"
  class="h-9 px-4 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed">
  Aplicar
  </button>
  </div>
+ <p x-show="String(motivoDescuentoInput || '').trim().length < 2" class="mt-1 text-[10px] text-[#e74c3c]">El motivo es obligatorio (mínimo 2 caracteres).</p>
 
  <div class="mt-3 p-3 bg-[rgba(212,175,55,0.05)] border border-gold/20 rounded-lg">
  <div class="grid grid-cols-3 gap-2 text-sm">
@@ -2258,12 +2365,18 @@ tailwind.config = {
  <td class="px-3 py-2 text-right text-[#d4af37] font-bold" x-text="'S/. ' + Number(comanda.totalSinDescuento || ((comanda.total || 0) + (comanda.montoDescuento || 0))).toFixed(2)"></td>
  <td colspan="3"></td>
  </tr>
- <tr x-show="Number(comanda.montoDescuento) > 0" class="bg-[#12121a]/50">
- <td class="px-4 py-1 text-right text-[10px] text-st-pagado uppercase font-semibold" colspan="3">Descuento</td>
- <td class="px-3 py-1 text-right text-st-pagado font-bold text-sm" x-text="'-S/. ' + Number(comanda.montoDescuento || 0).toFixed(2)"></td>
+ <tr x-show="comandaTieneDescuentoFront(comanda)" class="bg-[#12121a]/50">
+ <td class="px-4 py-1 text-right text-[10px] text-[#e74c3c] uppercase font-semibold" colspan="3">Descuento</td>
+ <td class="px-3 py-1 text-right text-[#e74c3c] font-bold text-sm" x-text="'-S/. ' + montoDescuentoMostrar(comanda).toFixed(2)"></td>
  <td colspan="3"></td>
  </tr>
- <tr x-show="Number(comanda.montoDescuento) > 0" class="bg-[#12121a]/50">
+ <tr x-show="comandaTieneDescuentoFront(comanda)" class="bg-[#12121a]/50">
+ <td class="px-4 py-1 text-[10px] text-txt-secondary" colspan="7">
+ <span class="uppercase text-[#5a5a7a] font-semibold mr-1">Motivo:</span>
+ <span x-text="comanda.motivoDescuento || 'Sin motivo registrado'"></span>
+ </td>
+ </tr>
+ <tr x-show="comandaTieneDescuentoFront(comanda)" class="bg-[#12121a]/50">
  <td class="px-4 py-2 font-bold text-xs uppercase" colspan="3">TOTAL</td>
  <td class="px-3 py-2 text-right text-[#d4af37] font-bold" x-text="'S/. ' + Number(totalNetoComanda(comanda)).toFixed(2)"></td>
  <td colspan="3"></td>
@@ -2275,7 +2388,7 @@ tailwind.config = {
  </div>
 
  <!-- DESCUENTO PARA EL GRUPO -->
- <div x-show="puedeAplicarDescuento" x-data="{ descuentoMontoGrupoInput: 0 }"
+ <div x-show="puedeAplicarDescuento" x-data="{ descuentoMontoGrupoInput: 0, motivoDescuentoGrupoInput: '' }"
  class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
  <div class="flex items-center justify-between mb-3">
  <div class="flex items-center gap-2">
@@ -2288,8 +2401,9 @@ tailwind.config = {
  <div x-show="getMontoDescuentoGrupo(editGrupo) > 0" class="mb-3 p-3 bg-[rgba(46,204,113,0.1)] border border-st-preparado/30 rounded-lg">
  <div class="flex items-center justify-between text-sm">
  <span class="text-txt-secondary">Ahorro total:</span>
- <span class="text-st-pagado font-bold" x-text="'-S/. ' + Number(getMontoDescuentoGrupo(editGrupo) || 0).toFixed(2)"></span>
+ <span class="text-[#e74c3c] font-bold" x-text="'-S/. ' + Number(getMontoDescuentoGrupo(editGrupo) || 0).toFixed(2)"></span>
  </div>
+ <p class="mt-2 text-xs text-txt-secondary"><span class="uppercase text-[10px] text-[#5a5a7a] font-semibold">Motivo:</span> <span x-text="motivosDescuentoGrupo(editGrupo)"></span></p>
  <button @click="eliminarDescuentoGrupo()"
  class="mt-3 w-full py-2 bg-st-pagado/20 text-st-pagado border border-st-pagado/40 rounded-lg text-xs font-semibold hover:bg-st-pagado/30 transition flex items-center justify-center gap-2">
  <span>🗑️</span> Quitar Descuento del Grupo
@@ -2304,13 +2418,20 @@ tailwind.config = {
  class="w-full h-9 bg-bg-sidebar border-2 border-[rgba(212,175,55,0.4)] rounded-lg px-3 py-1 text-white text-sm font-bold focus:border-gold focus:outline-none"
  placeholder="0.00">
  </div>
- <button type="button" @click="aplicarDescuento100Grupo()"
- :disabled="aplicandoDescuentoGrupo || !(brutoGrupo() > 0)"
+ <div class="flex-[2] min-w-[180px]">
+ <label class="text-[10px] text-txt-muted mb-1 block">Motivo (obligatorio)</label>
+ <input type="text" x-model="motivoDescuentoGrupoInput" maxlength="200"
+ class="w-full h-9 bg-bg-sidebar border-2 rounded-lg px-3 py-1 text-white text-sm focus:outline-none"
+ :class="String(motivoDescuentoGrupoInput || '').trim().length >= 2 ? 'border-[rgba(212,175,55,0.4)] focus:border-gold' : 'border-[#e74c3c]/60 focus:border-[#e74c3c]'"
+ placeholder="Mínimo 2 caracteres">
+ </div>
+ <button type="button" @click="aplicarDescuento100Grupo(motivoDescuentoGrupoInput)"
+ :disabled="aplicandoDescuentoGrupo || !(brutoGrupo() > 0) || String(motivoDescuentoGrupoInput || '').trim().length < 2"
  class="h-9 px-4 bg-st-preparado text-white rounded-lg text-sm font-bold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed">
  100%
  </button>
- <button type="button" @click="aplicarDescuentoMontoGrupo(descuentoMontoGrupoInput)"
- :disabled="aplicandoDescuentoGrupo || !(Number(descuentoMontoGrupoInput) > 0)"
+ <button type="button" @click="aplicarDescuentoMontoGrupo(descuentoMontoGrupoInput, motivoDescuentoGrupoInput)"
+ :disabled="aplicandoDescuentoGrupo || !(Number(descuentoMontoGrupoInput) > 0) || String(motivoDescuentoGrupoInput || '').trim().length < 2"
  class="h-9 px-4 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
  <span x-show="!aplicandoDescuentoGrupo">Aplicar</span>
  <span x-show="aplicandoDescuentoGrupo" class="flex items-center gap-1">
@@ -2319,6 +2440,7 @@ tailwind.config = {
  </span>
  </button>
  </div>
+ <p x-show="String(motivoDescuentoGrupoInput || '').trim().length < 2" class="mt-1 text-[10px] text-[#e74c3c]">El motivo es obligatorio (mínimo 2 caracteres).</p>
 
  <div class="mt-3 p-3 bg-[rgba(212,175,55,0.05)] border border-gold/20 rounded-lg">
  <div class="grid grid-cols-3 gap-2 text-sm">
@@ -2472,6 +2594,7 @@ function comandasApp() {
  filterIdComanda: '',
  filterMozo: '',
  filterCliente: '',
+ filterSoloDescuentos: false,
  verEliminadas: false,
  filtroPeriodo: 'hoy',
  customFechaDesde: '',
@@ -3045,6 +3168,7 @@ formatearNombreMesa(mesa, mesaObj = null) {
 
  await this.loadConfigMoneda();
  await this.refreshTurnosCierre({ filtrar: false });
+ this.aplicarFiltrosDesdeUrl();
  await this.loadComandas();
  await this.cargarPlantillaComandaLocal();
  const openComandaId = new URLSearchParams(window.location.search).get('id')
@@ -4170,7 +4294,7 @@ this.modal = null;
  const tiempoPedido = tiempos.pedido ? new Date(tiempos.pedido).getTime() : null;
  
  // Si el plato está en estado final (recoger, entregado, pagado), el tiempo debe estar FIJO
- if (estado === 'recoger' || estado === 'entregado' || estado === 'pagado') {
+ if (estado === 'recoger' || estado === 'salio' || estado === 'entregado' || estado === 'pagado') {
    // Buscar el timestamp de finalización más apropiado
    // 1. Si tiene tiempo de recoger, usar ese
    // 2. Si tiene procesadoPor.timestamp, usar ese
@@ -4295,6 +4419,79 @@ this.modal = null;
  }
  
  return `${min.toString().padStart(2, '0')}:${seg.toString().padStart(2, '0')}`;
+ },
+
+ platoPendienteMozo(item) {
+ const t = item?.tiempos || {};
+ const est = String(item?.estado || '').toLowerCase();
+ if (t.entregado || t.pagado || est === 'entregado' || est === 'pagado') return false;
+ return !!(t.recoger || t.salio || est === 'recoger' || est === 'salio');
+ },
+
+ /**
+  * Cronómetro del mozo: recoger/salio → entregado (incluye el tiempo de entregar el plato).
+  * Si aún no entregó, sigue corriendo (this.now).
+  */
+ getTiempoMozoPlato(item) {
+ void this.now;
+ if (!item || item.eliminado || item.anulado) return { tiempo: '—', enCurso: false, segundos: 0 };
+ const t = item.tiempos || {};
+ const recoger = t.recoger ? new Date(t.recoger).getTime() : null;
+ const salio = t.salio ? new Date(t.salio).getTime() : null;
+ const entregado = t.entregado ? new Date(t.entregado).getTime() : (t.pagado ? new Date(t.pagado).getTime() : null);
+ const ini = recoger || salio;
+ if (!ini) return { tiempo: '—', enCurso: false, segundos: 0 };
+ const ahora = this.now || Date.now();
+ const pendiente = this.platoPendienteMozo(item);
+ const fin = entregado || (pendiente ? ahora : null);
+ if (!fin || fin < ini) return { tiempo: '—', enCurso: false, segundos: 0 };
+ const segundos = Math.floor((fin - ini) / 1000);
+ return {
+ tiempo: this.formatearTiempo(segundos * 1000) + (pendiente && !entregado ? ' (en curso)' : ''),
+ enCurso: !!(pendiente && !entregado),
+ segundos
+ };
+ },
+
+ getResumenSalon(comanda) {
+ void this.now;
+ const items = (comanda?.items || comanda?.platos || []).filter((i) => i && !i.eliminado && !i.anulado);
+ let segCocina = 0, segMozo = 0, nC = 0, nM = 0, entregados = 0;
+ for (const item of items) {
+ const c = this.getTiempoPreparacion(item);
+ if (c.segundos > 0) { segCocina += c.segundos; nC++; }
+ const m = this.getTiempoMozoPlato(item);
+ if (m.segundos > 0) { segMozo += m.segundos; nM++; }
+ const est = String(item.estado || '').toLowerCase();
+ if (est === 'entregado' || est === 'pagado' || item.tiempos?.entregado) entregados++;
+ }
+ return {
+ tiempoCocina: nC ? this.formatearTiempo(segCocina * 1000) : '—',
+ tiempoMozo: nM ? this.formatearTiempo(segMozo * 1000) : '—',
+ segundosCocina: segCocina,
+ segundosMozo: segMozo,
+ entregados,
+ total: items.length
+ };
+ },
+
+ getResumenSalonGrupo(grupo) {
+ void this.now;
+ const comandas = grupo?.comandas || [];
+ let segCocina = 0, segMozo = 0, nC = 0, nM = 0, entregados = 0, total = 0;
+ for (const c of comandas) {
+ const r = this.getResumenSalon(c);
+ if (r.segundosCocina > 0) { segCocina += r.segundosCocina; nC++; }
+ if (r.segundosMozo > 0) { segMozo += r.segundosMozo; nM++; }
+ entregados += r.entregados;
+ total += r.total;
+ }
+ return {
+ tiempoCocina: nC ? this.formatearTiempo(segCocina * 1000) : '—',
+ tiempoMozo: nM ? this.formatearTiempo(segMozo * 1000) : '—',
+ entregados,
+ total
+ };
  },
 
  /**
@@ -4812,7 +5009,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const matchCliente = !this.filterCliente || clienteNombre.toLowerCase().includes(this.filterCliente.toLowerCase());
  const matchFecha = this.matchFechaRango(c.createdAt);
  const matchAvanzado = this.matchFiltroAvanzado(c);
- return matchMesa && matchEstado && matchElim && matchIdComanda && matchMozo && matchCliente && matchFecha && matchAvanzado;
+ const matchDesc = !this.filterSoloDescuentos || this.comandaTieneDescuentoFront(c);
+ return matchMesa && matchEstado && matchElim && matchIdComanda && matchMozo && matchCliente && matchFecha && matchAvanzado && matchDesc;
  });
  } else {
  // Filtrar filas (grupos e individuales)
@@ -4835,7 +5033,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  }
  }
  const matchAvanzado = !this.hayFiltroAvanzado || (row.comandas || []).some(c => this.matchFiltroAvanzado(c));
- return matchMesa && matchEstado && matchCliente && matchMozo && matchFecha && matchAvanzado;
+ const matchDesc = !this.filterSoloDescuentos || (row.comandas || []).some(c => this.comandaTieneDescuentoFront(c));
+ return matchMesa && matchEstado && matchCliente && matchMozo && matchFecha && matchAvanzado && matchDesc;
  } else {
  // Filtrar individual
  const c = row.comanda;
@@ -4850,7 +5049,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const matchCliente = !this.filterCliente || clienteNombre.toLowerCase().includes(this.filterCliente.toLowerCase());
  const matchFecha = this.matchFechaRango(c.createdAt);
  const matchAvanzado = this.matchFiltroAvanzado(c);
- return matchMesa && matchEstado && matchElim && matchIdComanda && matchMozo && matchCliente && matchFecha && matchAvanzado;
+ const matchDesc = !this.filterSoloDescuentos || this.comandaTieneDescuentoFront(c);
+ return matchMesa && matchEstado && matchElim && matchIdComanda && matchMozo && matchCliente && matchFecha && matchAvanzado && matchDesc;
  }
  });
  }
@@ -4870,11 +5070,27 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  this.filterIdComanda = '';
  this.filterMozo = '';
  this.filterCliente = '';
+ this.filterSoloDescuentos = false;
  this.filtroPeriodo = this.periodoDefault;
  this.customFechaDesde = '';
  this.customFechaHasta = '';
  this.limpiarFiltroAvanzado();
  this.filterComandas();
+ },
+
+ aplicarFiltrosDesdeUrl() {
+  const qs = new URLSearchParams(window.location.search);
+  const desc = String(qs.get('descuento') || qs.get('descuentos') || '').toLowerCase();
+  if (desc === '1' || desc === 'true' || desc === 'si') this.filterSoloDescuentos = true;
+  const periodo = String(qs.get('periodo') || '').toLowerCase();
+  const allowed = ['hoy', 'dia', 'noche', 'ayer', '7dias', 'todos', 'custom'];
+  if (!allowed.includes(periodo)) return;
+  this.filtroPeriodo = periodo;
+  if (periodo === 'custom') {
+    const hoy = limaYMD();
+    this.customFechaDesde = qs.get('desde') || qs.get('fechaInicio') || hoy;
+    this.customFechaHasta = qs.get('hasta') || qs.get('fechaFin') || hoy;
+  }
  },
 
  matchFilterEstado(estado, comanda) {
@@ -5895,28 +6111,41 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   return Number(Math.min(m, b).toFixed(2));
  },
 
- async aplicarDescuentoMontoComanda(monto) {
+ normalizarMotivoDescuento(motivo) {
+  const t = String(motivo || '').trim();
+  return t.length >= 2 ? t : '';
+ },
+
+ async aplicarDescuentoMontoComanda(monto, motivo) {
+  const motivoFinal = this.normalizarMotivoDescuento(motivo);
+  if (!motivoFinal) { this.showToast('El motivo del descuento es obligatorio (mínimo 2 caracteres)', 'error'); return; }
   const m = this.clampMontoDescuento(monto, this.brutoParaDescuento());
   if (!(m > 0)) { this.showToast('Ingresa un monto de descuento', 'error'); return; }
-  return this.aplicarDescuentoComanda(0, this.MOTIVO_DESCUENTO_ADMIN, m);
+  return this.aplicarDescuentoComanda(0, motivoFinal, m);
  },
 
- async aplicarDescuento100Comanda() {
+ async aplicarDescuento100Comanda(motivo) {
+  const motivoFinal = this.normalizarMotivoDescuento(motivo);
+  if (!motivoFinal) { this.showToast('El motivo del descuento es obligatorio (mínimo 2 caracteres)', 'error'); return; }
   const bruto = this.brutoParaDescuento();
   if (!(bruto > 0)) { this.showToast('No hay total para descontar', 'error'); return; }
-  return this.aplicarDescuentoComanda(100, this.MOTIVO_DESCUENTO_ADMIN, bruto);
+  return this.aplicarDescuentoComanda(100, motivoFinal, bruto);
  },
 
- async aplicarDescuentoMontoGrupo(monto) {
+ async aplicarDescuentoMontoGrupo(monto, motivo) {
+  const motivoFinal = this.normalizarMotivoDescuento(motivo);
+  if (!motivoFinal) { this.showToast('El motivo del descuento es obligatorio (mínimo 2 caracteres)', 'error'); return; }
   const m = this.clampMontoDescuento(monto, this.brutoGrupo());
   if (!(m > 0)) { this.showToast('Ingresa un monto de descuento', 'error'); return; }
-  return this.aplicarDescuentoGrupo(0, this.MOTIVO_DESCUENTO_ADMIN, m);
+  return this.aplicarDescuentoGrupo(0, motivoFinal, m);
  },
 
- async aplicarDescuento100Grupo() {
+ async aplicarDescuento100Grupo(motivo) {
+  const motivoFinal = this.normalizarMotivoDescuento(motivo);
+  if (!motivoFinal) { this.showToast('El motivo del descuento es obligatorio (mínimo 2 caracteres)', 'error'); return; }
   const bruto = this.brutoGrupo();
   if (!(bruto > 0)) { this.showToast('No hay total para descontar', 'error'); return; }
-  return this.aplicarDescuentoGrupo(100, this.MOTIVO_DESCUENTO_ADMIN, bruto);
+  return this.aplicarDescuentoGrupo(100, motivoFinal, bruto);
  },
 
  repartirCentesimos(pesos, montoTotal) {
@@ -5935,7 +6164,29 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  getMontoDescuentoGrupo(grupo) {
  if (!grupo?.comandas?.length) return 0;
- return grupo.comandas.reduce((sum, c) => sum + (c.montoDescuento || 0), 0);
+ return grupo.comandas.reduce((sum, c) => sum + this.montoDescuentoMostrar(c), 0);
+ },
+
+ montoDescuentoMostrar(c) {
+  if (!c) return 0;
+  const md = Number(c.montoDescuento) || 0;
+  if (md > 0) return Number(md.toFixed(2));
+  if (!this.comandaTieneDescuentoFront(c)) return 0;
+  const sin = Number(c.totalSinDescuento) || 0;
+  const neto = this.totalNetoComanda(c);
+  if (sin > 0) return Number(Math.max(0, sin - neto).toFixed(2));
+  const fijo = Number(c.descuentoMontoFijo) || 0;
+  if (fijo > 0) return Number(fijo.toFixed(2));
+  return 0;
+ },
+
+ motivosDescuentoGrupo(grupo) {
+  const list = (grupo?.comandas || [])
+    .filter(c => this.comandaTieneDescuentoFront(c))
+    .map(c => String(c.motivoDescuento || '').trim())
+    .filter(Boolean);
+  const uniq = [...new Set(list)];
+  return uniq.length ? uniq.join(' · ') : 'Sin motivo registrado';
  },
  comandaTieneDescuentoFront(c) {
   if (!c) return false;
@@ -5988,7 +6239,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  if (!this.editGrupo?.comandas?.length) return;
  let pct = Number(porcentaje) || 0;
  const montoNum = Number(monto) || 0;
- const motivoFinal = (motivo && String(motivo).trim().length >= 3) ? motivo.trim() : this.MOTIVO_DESCUENTO_ADMIN;
+ const motivoFinal = this.normalizarMotivoDescuento(motivo);
+ if (!motivoFinal) { this.showToast('El motivo del descuento es obligatorio (mínimo 2 caracteres)', 'error'); return; }
  const targets = comandaId
    ? this.editGrupo.comandas.filter(c => String(c._id) === String(comandaId))
    : this.editGrupo.comandas;
@@ -6050,7 +6302,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  if (!confirm('¿Quitar el descuento de todas las comandas del grupo?')) return;
  try {
  for (const comanda of this.editGrupo.comandas) {
- if (comanda.descuento && comanda.descuento > 0) {
+ if (this.comandaTieneDescuentoFront(comanda)) {
  const res = await apiDelete('/comanda/' + comanda._id + '/descuento', { usuarioId: 'admin', usuarioRol: this.userRole, motivoEliminacion: 'Descuento quitado desde grupo' });
  if (res?.ok && !res.error) { comanda.descuento = 0; comanda.montoDescuento = 0; comanda.motivoDescuento = null; }
  }
@@ -6232,7 +6484,11 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  let pct = Number(descuento) || 0;
  const montoNum = Number(monto) || 0;
  const subtotal = this.brutoParaDescuento();
- const motivoFinal = (motivo && String(motivo).trim().length >= 3) ? motivo.trim() : this.MOTIVO_DESCUENTO_ADMIN;
+ const motivoFinal = this.normalizarMotivoDescuento(motivo);
+ if (!motivoFinal) {
+ this.showToast('El motivo del descuento es obligatorio (mínimo 2 caracteres)', 'error');
+ return;
+ }
  if (montoNum > 0 && subtotal > 0) {
  pct = Number((Math.min(montoNum, subtotal) / subtotal * 100).toFixed(2));
  }

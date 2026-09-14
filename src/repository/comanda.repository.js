@@ -5159,10 +5159,10 @@ const aplicarDescuento = async (comandaId, descuento, motivo, usuarioId, usuario
     const montoDescuento = calc.montoDescuento;
     const igvConDescuento = calc.igv;
 
-    const motivoFinal = (motivo && String(motivo).trim()) ? motivo.trim() : 'Descuento';
+    const motivoFinal = (motivo && String(motivo).trim()) ? motivo.trim() : '';
 
-    if (descuentoNum > 0 && motivoFinal.length === 0) {
-      const error = new Error('El motivo del descuento es obligatorio');
+    if (descuentoNum > 0 && motivoFinal.length < 2) {
+      const error = new Error('El motivo del descuento es obligatorio (mínimo 2 caracteres)');
       error.statusCode = 400;
       throw error;
     }

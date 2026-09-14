@@ -24,7 +24,7 @@ function formatDuracion(seg) {
 }
 
 // Cocina: primer en_espera/pedido → último recoger (congela al finalizar cocina).
-// Mozo: primer recoger (o salio) → último entregado (incluye espera en pass).
+// Mozo: suma por plato de recoger/salio → entregado (incluye espera en pass y entrega).
 // Diferencia = mozo − cocina a nivel comanda.
 function platoListoCocina(p) {
     if (!p) return false;
@@ -58,11 +58,14 @@ function calcularMetricasComanda(platos) {
     }
 
     let inicioCocina = null, finCocina = null;
-    let inicioMozo = null, finMozo = null;
     let inicioGlobal = null, finGlobal = null;
     let platosEntregados = 0;
     let algunEnCocina = false;
     let algunPendienteMozo = false;
+    let sumaMozo = 0;
+    let nMozo = 0;
+
+    const diff = (a, b) => a && b ? Math.max(0, Math.round((new Date(b) - new Date(a)) / 1000)) : null;
 
     for (const p of tiemposValidos) {
         const t = p.tiempos || {};
@@ -81,22 +84,22 @@ function calcularMetricasComanda(platos) {
         }
 
         const iniMozo = t.recoger || t.salio;
-        if (iniMozo) {
-            if (!inicioMozo || new Date(iniMozo) < new Date(inicioMozo)) inicioMozo = iniMozo;
-        }
-
+        let finPlatoMozo = null;
         if (t.entregado) {
-            if (!finMozo || new Date(t.entregado) > new Date(finMozo)) finMozo = t.entregado;
+            finPlatoMozo = t.entregado;
             if (!finGlobal || new Date(t.entregado) > new Date(finGlobal)) finGlobal = t.entregado;
             platosEntregados++;
         } else if (t.pagado || est === 'pagado') {
-            const finPago = t.pagado || ahora;
-            if (!finMozo || new Date(finPago) > new Date(finMozo)) finMozo = finPago;
-            if (!finGlobal || new Date(finPago) > new Date(finGlobal)) finGlobal = finPago;
+            finPlatoMozo = t.pagado || ahora;
+            if (!finGlobal || new Date(finPlatoMozo) > new Date(finGlobal)) finGlobal = finPlatoMozo;
             platosEntregados++;
         } else if (platoPendienteMozo(p)) {
             algunPendienteMozo = true;
-            if (!finMozo || ahora > new Date(finMozo)) finMozo = ahora;
+            finPlatoMozo = ahora;
+        }
+        if (iniMozo && finPlatoMozo) {
+            sumaMozo += diff(iniMozo, finPlatoMozo);
+            nMozo++;
         }
 
         if (t.pagado) {
@@ -109,9 +112,8 @@ function calcularMetricasComanda(platos) {
         if (!finCocina || ahora > new Date(finCocina)) finCocina = ahora;
     }
 
-    const diff = (a, b) => a && b ? Math.max(0, Math.round((new Date(b) - new Date(a)) / 1000)) : null;
     const tiempoCocina = diff(inicioCocina, finCocina);
-    const tiempoMozo = diff(inicioMozo, finMozo);
+    const tiempoMozo = nMozo ? sumaMozo : null;
     const diferencia = (tiempoCocina != null && tiempoMozo != null) ? (tiempoMozo - tiempoCocina) : null;
     const tiempoExperiencia = diff(inicioGlobal, finGlobal || (algunPendienteMozo ? ahora : null));
 

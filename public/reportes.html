@@ -143,7 +143,10 @@ tailwind.config = {
     <!-- KPIs -->
     <div x-show="!loading" class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-5" :class="kpis.length > 4 ? 'xl:grid-cols-6' : 'xl:grid-cols-4'">
       <template x-for="k in kpis" :key="k.label">
-        <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4">
+        <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-xl p-4"
+          :class="k.label === 'Descuentos' ? 'cursor-pointer hover:border-[#e74c3c]/60 transition' : ''"
+          :title="k.label === 'Descuentos' ? 'Ver comandas con descuento' : ''"
+          @click="k.label === 'Descuentos' && irAComandasDescuentos()">
           <p class="text-[11px] text-txt-muted uppercase" x-text="k.label"></p>
           <p class="text-xl font-bold mt-1" :class="k.color || 'text-white'" x-text="k.value"></p>
           <span x-show="k.badge" class="text-[10px] font-semibold" :class="k.badge?.includes('+') ? 'text-st-preparado' : 'text-st-pagado'" x-text="k.badge"></span>
@@ -1210,6 +1213,24 @@ function reportesApp() {
         if (r) return { fechaInicio: r.desde, fechaFin: r.hasta };
       }
       return { fechaInicio: this.dateFilter.fechaInicio, fechaFin: this.dateFilter.fechaFin };
+    },
+
+    irAComandasDescuentos() {
+      const params = new URLSearchParams();
+      params.set('descuento', '1');
+      const t = this.dateFilter.tipo;
+      const map = { Hoy: 'hoy', DIA: 'dia', NOCHE: 'noche', Ayer: 'ayer', '7 días': '7dias' };
+      if (map[t]) {
+        params.set('periodo', map[t]);
+      } else {
+        params.set('periodo', 'custom');
+        const q = this.fechasQuery();
+        const desde = String(q.fechaInicio || this.dateFilter.fechaInicio || '').slice(0, 10);
+        const hasta = String(q.fechaFin || this.dateFilter.fechaFin || '').slice(0, 10);
+        if (desde) params.set('desde', desde);
+        if (hasta) params.set('hasta', hasta);
+      }
+      window.location.href = '/comandas.html?' + params.toString();
     },
 
     async refreshTurnosCierre({ skipReload = false } = {}) {

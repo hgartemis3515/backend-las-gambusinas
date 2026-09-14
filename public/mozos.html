@@ -4197,28 +4197,17 @@ function mozosExecutiveApp() {
       return Math.max(0, Math.round((new Date(finC) - new Date(inicioC)) / 1000));
     },
     getTiempoMozoComandaVivo(c) {
-      void this.rendimientoMozoTick; // dependencia reactiva — tick cada 1s
+      void this.rendimientoMozoTick;
       if (!c) return null;
       const platos = (c.platos || c.items || []).filter(p => !p.eliminado && !p.anulado);
       if (!platos.length) return c.tiempoMozoSegundos ?? null;
-      let inicioM = null, finM = null;
+      let suma = 0, n = 0;
       for (const p of platos) {
-        const t = p.tiempos || {};
-        // Arranca cuando cocina deja el plato listo (recoger); fallback salio
-        const ini = t.recoger || t.salio;
-        if (ini) { if (!inicioM || new Date(ini) < new Date(inicioM)) inicioM = ini; }
-        const finPlato = t.entregado || t.pagado;
-        if (finPlato) { if (!finM || new Date(finPlato) > new Date(finM)) finM = finPlato; }
+        const t = this.getTiempoMozoPlatoVivo(p);
+        if (t != null) { suma += t; n++; }
       }
-      const cerrada = this.esComandaCerradaRegistro(c);
-      // En curso: platos listos/en pass/salón sin entregar → timer mozo vivo
-      const algunPendienteMozo = !cerrada && platos.some(p => this.platoPendienteMozo(p));
-      if (algunPendienteMozo) {
-        const ahora = new Date();
-        if (!finM || ahora > new Date(finM)) finM = ahora;
-      }
-      if (!inicioM || !finM) return c.tiempoMozoSegundos ?? null;
-      return Math.max(0, Math.round((new Date(finM) - new Date(inicioM)) / 1000));
+      if (n) return suma;
+      return c.tiempoMozoSegundos ?? null;
     },
     getDiferenciaComandaVivo(c) {
       const tCocina = this.getTiempoCocinaComandaVivo(c);
