@@ -250,7 +250,8 @@ router.get('/comanda/cocina/:fecha', async (req, res) => {
     
     try {
         // Usar la función optimizada con proyección
-        const data = await listarComandaPorFechaEntregado(fecha, true);
+        const incluirEntregadas = ['1', 'true', 'si'].includes(String(req.query.incluirEntregadas || '').toLowerCase());
+        const data = await listarComandaPorFechaEntregado(fecha, true, { incluirEntregadas });
         
         const elapsedMs = Date.now() - startTime;
         
@@ -2626,15 +2627,17 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
             comanda: updatedComanda
         });
         
-        // Registrar auditoría si es una reversión (vuelve a en_espera desde recoger)
-        if (nuevoEstado === 'en_espera' && (estadoAnterior === 'recoger' || estadoAnterior === 'entregado')) {
+        // Reversión cocina: recoger / salio / entregado → pedido (o en_espera)
+        const esReversionCocina = (nuevoEstado === 'en_espera' || nuevoEstado === 'pedido')
+            && ['recoger', 'salio', 'entregado'].includes(estadoAnterior);
+        if (esReversionCocina) {
             req.auditoria = {
                 accion: 'reversion_plato',
                 entidadId: id,
                 entidadTipo: 'comanda',
                 usuario: usuarioId,
                 ip: req.ip,
-                motivo: motivo || 'Reversión de plato a preparación'
+                motivo: motivo || 'Reversión de plato a pedido'
             };
             
             const snapshotAntes = {
@@ -2649,7 +2652,7 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
                 estado: nuevoEstado
             };
             
-            await registrarAuditoria(req, snapshotAntes, snapshotDespues, motivo || 'Reversión de plato a preparación');
+            await registrarAuditoria(req, snapshotAntes, snapshotDespues, motivo || 'Reversión de plato a pedido');
             console.log('✅ Auditoría de reversión registrada');
         }
         
@@ -3157,12 +3160,6 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
     }
     
     try {
-        if (sourceApp === 'cocina') {
-            if (!(await asegurarPermisoCocina(req, 'eliminar-platos-cocina'))) {
-                return res.status(403).json({ message: 'No tiene permiso para eliminar platos desde cocina' });
-            }
-        }
-
         // 1. Obtener comanda para validación (con lean para lectura rápida)
         const comandaCheck = await comandaModel.findById(id)
             .populate('platos.plato')
@@ -3198,6 +3195,25 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
         
         if (indicesValidos.length === 0) {
             return res.status(400).json({ message: 'Índices de platos inválidos' });
+        }
+
+        if (sourceApp === 'cocina') {
+            const indicesNum = indicesValidos.map((idx) => parseInt(idx, 10)).filter((n) => !Number.isNaN(n));
+            const activos = (comandaCheck.platos || [])
+                .map((p, i) => ({ p, i }))
+                .filter(({ p }) => p && p.eliminado !== true && p.anulado !== true)
+                .map(({ i }) => i);
+            const sel = new Set(indicesNum);
+            const eliminaComanda = activos.length > 0 && activos.every((i) => sel.has(i));
+            if (eliminaComanda) {
+                if (!(await asegurarPermisoCocina(req, 'eliminar-comandas-cocina'))) {
+                    return res.status(403).json({
+                        message: 'No tiene permiso para eliminar la comanda. Seleccione menos platos o pida el permiso Eliminar comanda.'
+                    });
+                }
+            } else if (!(await asegurarPermisoCocina(req, 'eliminar-platos-cocina'))) {
+                return res.status(403).json({ message: 'No tiene permiso para eliminar platos desde cocina' });
+            }
         }
         
         // Validación: RECHAZAR solo platos en "entregado". Permitir pedido, en_espera, recoger.

@@ -961,7 +961,10 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       const platosRecoger = platos.filter(p => p.nuevoEstado === 'recoger');
       const platosSalio = platos.filter(p => p.nuevoEstado === 'salio');
       let comanda = null;
-      if (platosRecoger.length > 0 || platosSalio.length > 0) {
+      const tocaCobroOEntrega = platos.some((p) =>
+        ['entregado', 'pagado'].includes(String(p.nuevoEstado || '').toLowerCase())
+      );
+      if (platosRecoger.length > 0 || platosSalio.length > 0 || tocaCobroOEntrega) {
         comanda = await comandaModel.findById(comandaId)
           .populate('mozos')
           .populate({ path: 'mesas', populate: { path: 'area' } })
@@ -970,12 +973,13 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         if (mozoId) eventData.mozoId = mozoId.toString();
         eventData.mesaNumero = comanda.mesas?.nummesa ?? comanda.mesas?.numero ?? null;
         eventData.comandaNumber = comanda.comandaNumber ?? null;
+        eventData.comanda = typeof comanda.toObject === 'function' ? comanda.toObject() : comanda;
       }
 
       // Recoger/salio: room del mozo y room de la mesa (ComandaDetalle está en mesa-*)
       let mozosClients = 0;
       if (mozosNamespace && mozosNamespace.sockets) {
-        if ((platosRecoger.length > 0 || platosSalio.length > 0) && comanda) {
+        if ((platosRecoger.length > 0 || platosSalio.length > 0 || tocaCobroOEntrega) && comanda) {
           const mozoId = comanda.mozos?._id || comanda.mozos;
           if (mozoId) {
             const roomMozo = `mozo-${mozoId}`;
@@ -993,7 +997,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       }
 
       if (global.emitComandaActualizada) {
-        await global.emitComandaActualizada(comandaId, null, null, null, { adminOnly: true });
+        await global.emitComandaActualizada(comandaId, null, null, null, { adminOnly: !tocaCobroOEntrega });
       }
 
       const totalClients = cocinaClients + mozosClients;
@@ -1575,7 +1579,9 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         mozoNombre: comanda.mozos?.name || 'Desconocido',
         mesaId: comanda.mesas?._id || comanda.mesas,
         mesaNumero: comanda.mesas?.nummesa || 'N/A',
-        timestamp: moment().tz('America/Lima').toISOString()
+        timestamp: moment().tz('America/Lima').toISOString(),
+        comanda,
+        mesa: comanda.mesas || null
       };
       
       // Emitir a namespace mozos (room de mesa si existe)

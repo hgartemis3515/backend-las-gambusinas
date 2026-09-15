@@ -44,8 +44,9 @@ const PERMISOS_FUNDAMENTALES = {
     // App Cocina
     'ver-comandas-cocina': { nombre: 'Ver Comandas Cocina', grupo: 'App Cocina', descripcion: 'Ver comandas en App Cocina' },
     'cambiar-estados-platos': { nombre: 'Cambiar Estados Platos', grupo: 'App Cocina', descripcion: 'Marcar platos como preparando/listo/entregado' },
-    'revertir-comandas': { nombre: 'Revertir Comandas', grupo: 'App Cocina', descripcion: 'Deshacer comandas desde cocina' },
-    'eliminar-platos-cocina': { nombre: 'Eliminar plato', grupo: 'App Cocina', descripcion: 'Anular o eliminar platos seleccionados en App Cocina con motivo; queda registrado en auditoría' },
+    'revertir-comandas': { nombre: 'Revertir Comandas', grupo: 'App Cocina', descripcion: 'Revertir platos de recoger, salió o entregado a pedido desde App Cocina' },
+    'eliminar-platos-cocina': { nombre: 'Eliminar plato', grupo: 'App Cocina', descripcion: 'Anular o eliminar algunos platos de una comanda en App Cocina (no el único plato ni todos). Queda en auditoría' },
+    'eliminar-comandas-cocina': { nombre: 'Eliminar comanda', grupo: 'App Cocina', descripcion: 'Eliminar la comanda completa desde KDS (único plato o todos los platos seleccionados)' },
     'entregar-plato-entero-kds': { nombre: 'Entregar plato entero', grupo: 'App Cocina', descripcion: 'Botón KDS: finalizar, salida y entrega al comensal en un paso' },
 
     // Mensajería interna + voz
@@ -66,7 +67,7 @@ const PERMISOS_POR_ROL = {
         'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria',
         'ver-notificaciones', 'crear-comandas', 'editar-comandas',
         'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina',
-        'entregar-plato-entero-kds', 'eliminar-platos-cocina',
+        'entregar-plato-entero-kds', 'eliminar-platos-cocina', 'eliminar-comandas-cocina',
         'crear-reservas-mozos', 'asignar-encargado-reserva',
         // Mensajería: supervisor cubre texto, voz, anuncios, canales y supervisión; sin forzar prioridad critica
         'ver-mensajes', 'enviar-mensajes', 'enviar-mensajes-voz', 'enviar-anuncios',
@@ -96,7 +97,7 @@ const PERMISOS_POR_ROL = {
         'ver-clientes', 'editar-clientes', 'ver-mozos', 'ver-auditoria',
         'ver-notificaciones', 'crear-comandas', 'editar-comandas',
         'procesar-pagos', 'asociar-clientes', 'ver-comandas-cocina',
-        'entregar-plato-entero-kds', 'eliminar-platos-cocina',
+        'entregar-plato-entero-kds', 'eliminar-platos-cocina', 'eliminar-comandas-cocina',
         'crear-reservas-mozos', 'asignar-encargado-reserva',
         'ver-mensajes', 'enviar-mensajes', 'enviar-mensajes-voz', 'enviar-anuncios',
         'gestionar-canales-mensajes', 'ver-mensajes-todos',

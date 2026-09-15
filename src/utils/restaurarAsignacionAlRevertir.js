@@ -30,7 +30,8 @@ function payloadProcesandoPor(snap, ahora) {
 
 function garnishDebioRestaurarse(comp) {
     if (!comp) return false;
-    if (comp.estadoCocina === 'recoger') return true;
+    const estadoGarnish = String(comp.estadoCocina || '').toLowerCase();
+    if (['recoger', 'salio', 'entregado'].includes(estadoGarnish)) return true;
     const teniaCocinero = !!(comp.procesadoPor && comp.procesadoPor.cocineroId);
     const yaNoLoTiene = !(comp.procesandoPor && comp.procesandoPor.cocineroId);
     return teniaCocinero && yaNoLoTiene;

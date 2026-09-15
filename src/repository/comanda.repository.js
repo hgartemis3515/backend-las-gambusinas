@@ -2821,10 +2821,11 @@ const adjuntarHorariosReserva = async (comandas) => {
   return comandas;
 };
 
-const listarComandaPorFechaEntregado = async (fecha, usarProyeccion = true) => {
+const listarComandaPorFechaEntregado = async (fecha, usarProyeccion = true, opciones = {}) => {
   try {
     console.log('🔍 [FASE A1] Buscando comandas para fecha:', fecha);
     const startTime = Date.now();
+    const incluirEntregadas = opciones && opciones.incluirEntregadas === true;
     
     // Convertir fecha string a rango de fechas (inicio y fin del día)
     const fechaInicio = moment.tz(fecha, "YYYY-MM-DD", "America/Lima").startOf('day').toDate();
@@ -2844,7 +2845,7 @@ const listarComandaPorFechaEntregado = async (fecha, usarProyeccion = true) => {
     // pone programadaPorReserva=false y prioridadOrden=Date.now()).
     let query = comandaModel.find({
       IsActive: true,
-      status: { $nin: ["entregado", "pagado"] },
+      status: { $nin: incluirEntregadas ? ["pagado"] : ["entregado", "pagado"] },
       programadaPorReserva: { $ne: true },
       $or: [
         { createdAt: { $gte: fechaInicio, $lte: fechaFin } },
@@ -4668,13 +4669,12 @@ const recalcularEstadoComandaPorPlatos = async (comandaId) => {
       // Hay al menos un plato en salio (y otros en estados previos) → todavía en pass
       nuevoEstado = 'salio';
     } else if (cuentas.recoger > 0) {
-      // Hay al menos un plato listo para recoger (sin ninguno salio/entregado)
+      // Hay al menos un plato listo para recoger (sin ninguno salio, o mix con estados previos)
       nuevoEstado = 'recoger';
-    } else if (cuentas.pedido === total || cuentas.en_espera === total ||
-               (cuentas.pedido + cuentas.en_espera) === total) {
+    } else if (cuentas.pedido > 0 || cuentas.en_espera > 0) {
+      // Mix p. ej. entregado + pedido (revertir post-entrega) debe volver al KDS
       nuevoEstado = 'en_espera';
     } else {
-      // Fallback seguro: mantener estado actual si no encaja en ningún patrón claro
       nuevoEstado = comanda.status || 'en_espera';
     }
 

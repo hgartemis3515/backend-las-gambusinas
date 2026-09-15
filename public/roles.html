@@ -521,12 +521,20 @@ function rolesApp() {
     roles: [],
     permisosFundamentales: [],
     permisosAgrupados: {},
-    permisoEliminarPlatoCocina: {
-      id: 'eliminar-platos-cocina',
-      nombre: 'Eliminar plato',
-      grupo: 'App Cocina',
-      descripcion: 'Anular o eliminar platos seleccionados en App Cocina con motivo; queda registrado en auditoría'
-    },
+    permisosCocinaExtra: [
+      {
+        id: 'eliminar-platos-cocina',
+        nombre: 'Eliminar plato',
+        grupo: 'App Cocina',
+        descripcion: 'Anular o eliminar algunos platos de una comanda en App Cocina (no el único plato ni todos). Queda en auditoría'
+      },
+      {
+        id: 'eliminar-comandas-cocina',
+        nombre: 'Eliminar comanda',
+        grupo: 'App Cocina',
+        descripcion: 'Eliminar la comanda completa desde KDS (único plato o todos los platos seleccionados)'
+      }
+    ],
     reglasFundamentales: [],
     reglasAgrupadas: {},
     busqueda: '',
@@ -627,7 +635,7 @@ function rolesApp() {
         this.showToast('Error al cargar datos. Verifica tu conexión.', 'error');
       }
 
-      this.asegurarPermisoEliminarPlatoCocina();
+      this.asegurarPermisosCocinaExtra();
       this.loading = false;
       
       // Animar tabla después de cargar
@@ -664,19 +672,21 @@ function rolesApp() {
       return permiso ? permiso.nombre : permisoId;
     },
 
-    asegurarPermisoEliminarPlatoCocina() {
-      const extra = this.permisoEliminarPlatoCocina;
+    asegurarPermisosCocinaExtra() {
+      const extras = Array.isArray(this.permisosCocinaExtra) ? this.permisosCocinaExtra : [];
       const list = Array.isArray(this.permisosFundamentales) ? [...this.permisosFundamentales] : [];
-      const idxFund = list.findIndex(p => p.id === extra.id);
-      if (idxFund === -1) list.push(extra);
-      else list[idxFund] = { ...list[idxFund], ...extra };
-      this.permisosFundamentales = list;
-
       const grupos = { ...(this.permisosAgrupados || {}) };
-      const cocina = [...(grupos['App Cocina'] || [])];
-      const idxGrupo = cocina.findIndex(p => p.id === extra.id);
-      if (idxGrupo === -1) cocina.push(extra);
-      else cocina[idxGrupo] = { ...cocina[idxGrupo], ...extra };
+      let cocina = [...(grupos['App Cocina'] || [])];
+      extras.forEach((extra) => {
+        if (!extra || !extra.id) return;
+        const idxFund = list.findIndex(p => p.id === extra.id);
+        if (idxFund === -1) list.push(extra);
+        else list[idxFund] = { ...list[idxFund], ...extra };
+        const idxGrupo = cocina.findIndex(p => p.id === extra.id);
+        if (idxGrupo === -1) cocina.push(extra);
+        else cocina[idxGrupo] = { ...cocina[idxGrupo], ...extra };
+      });
+      this.permisosFundamentales = list;
       grupos['App Cocina'] = cocina;
       this.permisosAgrupados = grupos;
     },
