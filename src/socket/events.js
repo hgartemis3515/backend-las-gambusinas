@@ -16,19 +16,21 @@ const {
 const { overlayPronombresEnComandas } = require('../utils/precioComplementos');
 
 /** Emite solo al mozo asignado a la comanda (room mozo-{id}) */
-function emitToMozoAsignado(comanda, eventName, eventData) {
-  if (!mozosNamespace?.sockets) return;
-  const mozoId = comanda.mozos?._id || comanda.mozos;
-  if (mozoId) {
-    mozosNamespace.to(`mozo-${mozoId}`).emit(eventName, eventData);
+function emitToMozoAsignado(ns, comanda, eventName, eventData) {
+  if (!ns?.sockets) return;
+  const mozoRaw = comanda?.mozos?._id || comanda?.mozos;
+  const mozoId = mozoRaw != null ? String(mozoRaw) : '';
+  if (mozoId && mozoId !== '[object Object]') {
+    ns.to(`mozo-${mozoId}`).emit(eventName, eventData);
     return;
   }
-  const mesaId = comanda.mesas?._id || comanda.mesas;
-  if (mesaId) {
-    mozosNamespace.to(`mesa-${mesaId}`).emit(eventName, eventData);
+  const mesaRaw = comanda?.mesas?._id || comanda?.mesas;
+  const mesaId = mesaRaw != null ? String(mesaRaw) : '';
+  if (mesaId && mesaId !== '[object Object]') {
+    ns.to(`mesa-${mesaId}`).emit(eventName, eventData);
     return;
   }
-  mozosNamespace.emit(eventName, eventData);
+  ns.emit(eventName, eventData);
 }
 
 /**
@@ -520,8 +522,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
   /**
    * Emitir evento de nueva comanda a cocina
    */
-  global.emitNuevaComanda = async (comanda, options = {}) => {
-    const skipCocina = options.skipCocina === true;
+  global.emitNuevaComanda = async (comanda) => {
     try {
       // Obtener comanda con populate completo (lean: objeto plano, evita
       // documentos Mongoose que al serializar confunden el merge en cocina)
@@ -563,15 +564,12 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       const roomName = `fecha-${fecha}`;
       const timestamp = moment().tz('America/Lima').toISOString();
 
-      // KDS espera procesandoPor (auto-asignación). Mozos no: skipCocina
-      // deja Inicio/Pendientes al día en cuanto se crea el pedido.
-      if (!skipCocina) {
-        cocinaNamespace.to(roomName).emit('nueva-comanda', {
-          comanda: comandaCompleta,
-          socketId: 'server',
-          timestamp: timestamp
-        });
-      }
+      // Emitir a cocina (room por fecha)
+      cocinaNamespace.to(roomName).emit('nueva-comanda', {
+        comanda: comandaCompleta,
+        socketId: 'server',
+        timestamp: timestamp
+      });
 
       // Emitir a mozos (todos los mozos conectados) - Datos completos populados
       // Validar que el namespace existe antes de emitir
@@ -720,7 +718,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
           const roomNameMesa = `mesa-${mesaId}`;
           mozosNamespace.to(roomNameMesa).emit('comanda-actualizada', eventData);
         }
-        emitToMozoAsignado(comanda, 'comanda-actualizada', eventData);
+        emitToMozoAsignado(mozosNamespace, comanda, 'comanda-actualizada', eventData);
       }
 
       if (adminNamespace && adminNamespace.sockets) {
@@ -843,13 +841,13 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         timestamp: timestamp
       };
       if (nuevoEstado === 'recoger') {
-        emitToMozoAsignado(comanda, 'plato-actualizado', platoEventMozos);
+        emitToMozoAsignado(mozosNamespace, comanda, 'plato-actualizado', platoEventMozos);
         if (mesaIdPop && mozosNamespace && mozosNamespace.sockets) {
           mozosNamespace.to(`mesa-${mesaIdPop}`).emit('plato-actualizado', platoEventMozos);
         }
       } else if (nuevoEstado === 'salio') {
         // SALIO: Notificar específicamente al mozo asignado que el plato salió de cocina
-        emitToMozoAsignado(comanda, 'plato-actualizado', platoEventMozos);
+        emitToMozoAsignado(mozosNamespace, comanda, 'plato-actualizado', platoEventMozos);
         // También emitir a la room de la mesa para que otros mozos vean la actualización
         if (mesaIdPop && mozosNamespace && mozosNamespace.sockets) {
           mozosNamespace.to(`mesa-${mesaIdPop}`).emit('plato-actualizado', platoEventMozos);
@@ -858,8 +856,19 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         if (mesaIdPop) {
           mozosNamespace.to(`mesa-${mesaIdPop}`).emit('plato-actualizado', platoEventMozos);
         } else {
-          emitToMozoAsignado(comanda, 'plato-actualizado', platoEventMozos);
+          emitToMozoAsignado(mozosNamespace, comanda, 'plato-actualizado', platoEventMozos);
         }
+      }
+
+      if (mozosNamespace?.sockets && ['salio', 'recoger', 'entregado'].includes(String(nuevoEstado || '').toLowerCase())) {
+        mozosNamespace.emit('plato-actualizado', {
+          comandaId: comandaId?.toString?.() || String(comandaId),
+          platoId: platoId?.toString?.() || (platoId != null ? String(platoId) : undefined),
+          nuevoEstado,
+          mesaId: mesaIdPop ? String(mesaIdPop) : null,
+          mozoId: mozoIdPop ? String(mozoIdPop) : null,
+          timestamp,
+        });
       }
 
       const platoPayload = {
@@ -998,6 +1007,15 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
           mozosClients = mozosNamespace.adapter.rooms.get(roomNameMesa)?.size || 0;
           mozosNamespace.to(roomNameMesa).emit('plato-actualizado-batch', eventData);
         }
+        if (platosRecoger.length > 0 || platosSalio.length > 0 || tocaCobroOEntrega) {
+          mozosNamespace.emit('plato-actualizado-batch', {
+            comandaId: eventData.comandaId,
+            platos: eventData.platos,
+            mesaId: eventData.mesaId,
+            mozoId: eventData.mozoId || null,
+            timestamp: eventData.timestamp,
+          });
+        }
       }
 
       if (global.emitComandaActualizada) {
@@ -1123,14 +1141,18 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       const cocinaClients = cocinaNamespace.adapter.rooms.get(roomNameCocina)?.size || 0;
       cocinaNamespace.to(roomNameCocina).emit('plato-actualizado', eventData);
 
-      // Emitir a mozos (room por mesa si existe, sino a todos)
+      // Emitir a mozos. salio/recoger/entregado: namespace (Inicio/Pendientes sin join-all).
+      // Resto: room de mesa (ComandaDetalle) o fallback a todos.
       let mozosClients = 0;
       if (mozosNamespace && mozosNamespace.sockets) {
-        if (roomNameMesa) {
+        const tocaMozoEnPantalla = ['salio', 'recoger', 'entregado'].includes(String(nuevoEstado || '').toLowerCase());
+        if (tocaMozoEnPantalla) {
+          mozosClients = mozosNamespace.sockets.size || 0;
+          mozosNamespace.emit('plato-actualizado', eventData);
+        } else if (roomNameMesa) {
           mozosClients = mozosNamespace.adapter.rooms.get(roomNameMesa)?.size || 0;
           mozosNamespace.to(roomNameMesa).emit('plato-actualizado', eventData);
         } else {
-          // Fallback: emitir a todos los mozos si no hay mesaId
           mozosClients = mozosNamespace.sockets.size;
           mozosNamespace.emit('plato-actualizado', eventData);
         }

@@ -630,19 +630,11 @@ router.post('/comanda', async (req, res) => {
             sourceApp
         });
         
-        // Mozos/admin: nueva-comanda al crear (mesa+platos al instante).
-        // Cocina: después de auto-asignar para llevar procesandoPor en el snapshot.
+        // Auto-asignar ANTES de nueva-comanda para que el KDS y Ver Cocina
+        // reciban procesandoPor en el primer snapshot (si se emite vacío, la vista
+        // de cocineros filtra el plato y las tablas quedan sin tomar).
         const debeAutoAsignar = !!(data.comanda && data.comanda.platos && data.comanda.platos.length > 0
             && data.comanda.programadaPorReserva !== true);
-        if (debeAutoAsignar && global.emitNuevaComanda && data.comanda) {
-            try {
-                await global.emitNuevaComanda(data.comanda, { skipCocina: true });
-            } catch (eEmit) {
-                logger.warn('emitNuevaComanda inmediato (mozos) falló', {
-                    comandaId: data.comanda?._id, error: eEmit.message
-                });
-            }
-        }
         if (debeAutoAsignar) {
             const asignacionAutomaticaService = require('../services/asignacionAutomaticaService');
             const comandaCreadaId = data.comanda._id;
@@ -961,15 +953,6 @@ router.post('/comanda/desde-dashboard', adminAuth, checkPermission('crear-comand
         // ===== Socket.io + auto-asignación (mismo flujo que POST /comanda) =====
         const debeAutoAsignarDash = !!(data.comanda && data.comanda.platos && data.comanda.platos.length > 0
             && data.comanda.programadaPorReserva !== true);
-        if (debeAutoAsignarDash && global.emitNuevaComanda && data.comanda) {
-            try {
-                await global.emitNuevaComanda(data.comanda, { skipCocina: true });
-            } catch (eEmit) {
-                logger.warn('emitNuevaComanda inmediato dashboard (mozos) falló', {
-                    comandaId: data.comanda?._id, error: eEmit.message
-                });
-            }
-        }
         if (debeAutoAsignarDash) {
             const asignacionAutomaticaService = require('../services/asignacionAutomaticaService');
             const comandaCreadaId = data.comanda._id;

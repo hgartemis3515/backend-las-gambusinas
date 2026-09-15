@@ -208,6 +208,7 @@ function mapComandaPorCobrar(c, pendienteCobro, extras = {}) {
       if (!cocinerosMap.has(key)) cocinerosMap.set(key, coc);
     }
     platos.push({
+      _id: p._id || p.platoId || undefined,
       nombre,
       cantidad,
       estado: p.estado || 'pedido',
