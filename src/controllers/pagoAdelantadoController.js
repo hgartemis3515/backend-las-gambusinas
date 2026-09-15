@@ -27,6 +27,7 @@ const ticketAprobacionModel = require('../database/models/ticketAprobacion.model
 const logger = require('../utils/logger');
 const calculosPrecios = require('../utils/calculosPrecios');
 const { comandaCalificaLiberarSinCaja } = require('../utils/pendienteCobroMozo');
+const { SELECT_PLATO_COCINA } = require('../constants/platoPopulateCocina');
 
 /**
  * POST /pago-adelantado
@@ -357,7 +358,7 @@ router.post('/pago-adelantado', async (req, res) => {
 
       for (const comanda of comandas) {
         const comandaActualizada = await comandaModel.findById(comanda._id)
-          .populate('platos.plato', 'nombre precio id')
+          .populate('platos.plato', SELECT_PLATO_COCINA)
           .populate('mozos', 'name')
           .populate('mesas', 'nummesa estado nombreCombinado')
           .lean();
@@ -494,7 +495,7 @@ router.put('/pago-adelantado/:id/aprobar', async (req, res) => {
       if (!esReserva) {
         for (const comandaId of ticket.comandas) {
           const comandaActualizada = await comandaModel.findById(comandaId)
-            .populate('platos.plato', 'nombre precio id')
+            .populate('platos.plato', SELECT_PLATO_COCINA)
             .populate('mozos', 'name')
             .populate('mesas', 'nummesa estado nombreCombinado')
             .lean();
@@ -607,7 +608,7 @@ router.put('/pago-adelantado/:id/rechazar', async (req, res) => {
       if (ticket.origen !== 'reserva') {
         for (const comandaId of (comandasAfectadas || [])) {
         const comandaActualizada = await comandaModel.findById(comandaId)
-          .populate('platos.plato', 'nombre precio id')
+          .populate('platos.plato', SELECT_PLATO_COCINA)
           .populate('mozos', 'name')
           .populate('mesas', 'nummesa estado nombreCombinado')
           .lean();

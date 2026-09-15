@@ -579,7 +579,7 @@ router.get('/comanda/:id', async (req, res) => {
             .populate('mozos', 'name DNI colorPerfil colorLetraPerfil')
             .populate('mesas', 'nummesa estado area nombreCombinado')
             .populate('cliente', 'nombre dni telefono tipo')
-            .populate('platos.plato', 'nombre precio categoria')
+            .populate('platos.plato', 'nombre precio categoria codigo nombreCocina')
             .populate({
                 path: 'origenReserva',
                 select: 'fechaReserva fechaCocina creadoEn clienteNombre clienteTelefono numPersonas tiempoEspera estado metodoPago notas pagoAdelantado cocineroEncargado',
@@ -2363,7 +2363,7 @@ router.put('/comanda/:id/prioridad', async (req, res) => {
         )
         .populate('mozos', 'name DNI colorPerfil colorLetraPerfil')
         .populate('mesas', 'nummesa estado area nombreCombinado')
-        .populate('platos.plato', 'nombre precio categoria')
+        .populate('platos.plato', 'nombre precio categoria codigo nombreCocina')
         .lean();
 
         if (!comanda) {

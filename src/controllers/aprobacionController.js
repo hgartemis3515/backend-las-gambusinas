@@ -29,6 +29,7 @@ const {
 } = require('../utils/comandasNumbers');
 const { resolverTotalesPedidoPPA } = require('../utils/totalesTicketPPA');
 const { totalesConDescuentoImpresion } = require('../utils/descuentoTicketSnapshot');
+const { SELECT_PLATO_COCINA } = require('../constants/platoPopulateCocina');
 const {
   imprimirSoloNombreComercial,
   aplicarOpcionesImpresionProductos,
@@ -357,7 +358,7 @@ router.put('/aprobacion/:id/forzar-pago', async (req, res) => {
           for (const comandaId of comandasIds) {
             if (!comandaId) continue;
             const comandaActualizada = await comandaModel.findById(comandaId)
-              .populate('platos.plato', 'nombre precio id')
+              .populate('platos.plato', SELECT_PLATO_COCINA)
               .populate('mozos', 'name')
               .populate('mesas', 'nummesa estado nombreCombinado')
               .lean();
@@ -485,7 +486,7 @@ router.put('/aprobacion/:id/aprobar', async (req, res) => {
         for (const comandaId of (ticket.comandas || [])) {
           try {
             const comandaActualizada = await mongoose.model('Comanda').findById(comandaId)
-              .populate('platos.plato', 'nombre precio id')
+              .populate('platos.plato', SELECT_PLATO_COCINA)
               .populate('mozos', 'name')
               .populate('mesas', 'nummesa estado nombreCombinado')
               .lean();
@@ -706,7 +707,7 @@ router.put('/aprobacion/:id/editar', async (req, res) => {
       for (const comandaId of (result.comandasAfectadas || [])) {
         try {
           const comandaActualizada = await comandaModel.findById(comandaId)
-            .populate('platos.plato', 'nombre precio id')
+            .populate('platos.plato', SELECT_PLATO_COCINA)
             .populate('mozos', 'name')
             .populate('mesas', 'nummesa estado nombreCombinado')
             .lean();
@@ -783,7 +784,7 @@ router.put('/aprobacion/:id/eliminar', async (req, res) => {
       for (const comandaId of (result.comandasAfectadas || ticket.comandas || [])) {
         try {
           const comandaActualizada = await comandaModel.findById(comandaId)
-            .populate('platos.plato', 'nombre precio id')
+            .populate('platos.plato', SELECT_PLATO_COCINA)
             .populate('mozos', 'name')
             .populate('mesas', 'nummesa estado nombreCombinado')
             .lean();

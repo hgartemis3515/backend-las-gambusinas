@@ -25,8 +25,7 @@ const { expandirPlatosPorVariante, snapshotNombreCocinaPedido, MAX_NOMBRE_COCINA
 const { fusionarGuarnicionesPreseleccionadas } = require('../utils/preseleccionGuarniciones');
 const { aplicarNumeroSerieComanda } = require('../utils/numeroSeriePlato');
 const { indicePlatoPorIdLinea, aplicarSeparacionCantidadLinea } = require('../utils/separarCantidadLineaPlato');
-
-const SELECT_PLATO_COCINA = 'nombre precio categoria codigo nombreCocina tipo tipos complementos complementosUnidosAlPlato ocultarCronometroCocina juntarGuarnicionesEntreVariantes kdsEstiloCompacto requiereNumeroSerie';
+const { SELECT_PLATO_COCINA } = require('../constants/platoPopulateCocina');
 const configuracionRepository = require('./configuracion.repository');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
 const { camposRestauracionAlRevertir, restaurarCocineroEnPlatoDocumento } = require('../utils/restaurarAsignacionAlRevertir');
@@ -433,19 +432,47 @@ const ensurePlatosPopulated = async (comandas) => {
             const platoId = platoItem.plato;
             const platoNumId = platoItem.platoId; // ID numérico guardado
             
-            // Si el plato ya está populado (es un objeto con nombre), usarlo
+            const lookupCatalogo = () => {
+              if (platoId && typeof platoId === 'object' && platoId._id) {
+                const byNested = platosMapById.get(String(platoId._id));
+                if (byNested) return byNested;
+              }
+              if (platoId) {
+                const platoIdStr = platoId.toString ? platoId.toString() : String(platoId);
+                if (platoIdStr && platoIdStr !== '[object Object]') {
+                  const byId = platosMapById.get(platoIdStr);
+                  if (byId) return byId;
+                }
+              }
+              if (platoNumId != null && platoNumId !== '') {
+                return platosMapByNumId.get(platoNumId) || null;
+              }
+              return null;
+            };
+
+            // Si el plato ya está populado (es un objeto con nombre), usarlo.
+            // Un populate fino (PPA: nombre+precio) no trae nombreCocina: rellenar del catálogo.
             if (platoItem.plato && typeof platoItem.plato === 'object' && platoItem.plato.nombre) {
-              return platoItem;
+              if (String(platoItem.plato.nombreCocina || '').trim()) return platoItem;
+              const cat = lookupCatalogo();
+              const alias = String(cat?.nombreCocina || '').trim();
+              if (!alias) return platoItem;
+              const catPlain = typeof cat.toObject === 'function' ? cat.toObject() : cat;
+              const popPlain = typeof platoItem.plato.toObject === 'function'
+                ? platoItem.plato.toObject()
+                : platoItem.plato;
+              return {
+                ...platoItem,
+                plato: {
+                  ...popPlain,
+                  nombreCocina: alias,
+                  codigo: popPlain.codigo || catPlain.codigo,
+                  categoria: popPlain.categoria || catPlain.categoria,
+                },
+              };
             }
             
-            // Buscar el plato por ObjectId primero
-            let platoEncontrado = null;
-            if (platoId) {
-              const platoIdStr = platoId.toString ? platoId.toString() : platoId;
-              platoEncontrado = platosMapById.get(platoIdStr);
-            }
-            
-            // Si no se encontró por ObjectId, buscar por id numérico
+            let platoEncontrado = lookupCatalogo();
             if (!platoEncontrado && platoNumId) {
               platoEncontrado = platosMapByNumId.get(platoNumId);
               console.log(`🔍 Plato encontrado por id numérico ${platoNumId}:`, platoEncontrado?.nombre || 'No encontrado');
