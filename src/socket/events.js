@@ -520,7 +520,8 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
   /**
    * Emitir evento de nueva comanda a cocina
    */
-  global.emitNuevaComanda = async (comanda) => {
+  global.emitNuevaComanda = async (comanda, options = {}) => {
+    const skipCocina = options.skipCocina === true;
     try {
       // Obtener comanda con populate completo (lean: objeto plano, evita
       // documentos Mongoose que al serializar confunden el merge en cocina)
@@ -562,12 +563,15 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       const roomName = `fecha-${fecha}`;
       const timestamp = moment().tz('America/Lima').toISOString();
 
-      // Emitir a cocina (room por fecha)
-      cocinaNamespace.to(roomName).emit('nueva-comanda', {
-        comanda: comandaCompleta,
-        socketId: 'server',
-        timestamp: timestamp
-      });
+      // KDS espera procesandoPor (auto-asignación). Mozos no: skipCocina
+      // deja Inicio/Pendientes al día en cuanto se crea el pedido.
+      if (!skipCocina) {
+        cocinaNamespace.to(roomName).emit('nueva-comanda', {
+          comanda: comandaCompleta,
+          socketId: 'server',
+          timestamp: timestamp
+        });
+      }
 
       // Emitir a mozos (todos los mozos conectados) - Datos completos populados
       // Validar que el namespace existe antes de emitir
