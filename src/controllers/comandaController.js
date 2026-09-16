@@ -2385,7 +2385,7 @@ router.put('/comanda/:id/prioridad', async (req, res) => {
 
 router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
     const { id, platoId } = req.params;
-    const { nuevoEstado, motivo, cocineroId, entregarEnteroAbsoluto, cantidadEntregar } = req.body;
+    const { nuevoEstado, motivo, cocineroId, entregarEnteroAbsoluto, cantidadEntregar, entregaAutomatica } = req.body;
     const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'] || null;
 
     // Validar que nuevoEstado sea válido
@@ -2586,13 +2586,9 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
         
         // v7.5: Persistir entregadoPor cuando el mozo confirma la entrega del plato al comensal.
         // Fallback para resolver el nombre del mozo desde la BD en caso de que el token solo traiga el id.
-        if (estadoFinal === 'entregado' && usuarioId) {
+        if (estadoFinal === 'entregado' && (usuarioId || entregaAutomatica === true)) {
             try {
                 const momentoEntrega = new Date();
-                const mozosRepository = require('../repository/mozos.repository');
-                const mozoInfo = await mozosRepository.obtenerMozosPorId(usuarioId);
-                const nombreMozo = mozoInfo?.name || mozoInfo?.nombres || comandaAntes?.mozoNombre || 'Mozo';
-
                 const proy = await comandaModel.findById(id).select('platos').lean();
                 const idxE = proy?.platos?.findIndex(p => {
                     return (p._id?.toString() === platoIdEfectivo.toString()) ||
@@ -2600,16 +2596,24 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
                            (p.plato?.toString() === platoIdEfectivo.toString());
                 }) ?? -1;
                 if (idxE !== -1) {
-                    await comandaModel.updateOne({ _id: id }, {
-                        $set: {
-                            [`platos.${idxE}.entregadoPor`]: {
-                                mozoId: usuarioId,
-                                nombre: nombreMozo,
-                                rol: (mozoInfo?.rol) || 'mozos',
-                                timestamp: momentoEntrega
-                            }
-                        }
-                    });
+                    const setEntrega = {};
+                    if (usuarioId) {
+                        const mozosRepository = require('../repository/mozos.repository');
+                        const mozoInfo = await mozosRepository.obtenerMozosPorId(usuarioId);
+                        const nombreMozo = mozoInfo?.name || mozoInfo?.nombres || comandaAntes?.mozoNombre || 'Mozo';
+                        setEntrega[`platos.${idxE}.entregadoPor`] = {
+                            mozoId: usuarioId,
+                            nombre: nombreMozo,
+                            rol: (mozoInfo?.rol) || 'mozos',
+                            timestamp: momentoEntrega
+                        };
+                    }
+                    if (entregaAutomatica === true) {
+                        setEntrega[`platos.${idxE}.entregaAutomatica`] = true;
+                    }
+                    if (Object.keys(setEntrega).length) {
+                        await comandaModel.updateOne({ _id: id }, { $set: setEntrega });
+                    }
                 }
             } catch (e) {
                 console.warn(`⚠️ [PUT /plato/:platoId/estado] No se pudo persistir entregadoPor: ${e.message}`);

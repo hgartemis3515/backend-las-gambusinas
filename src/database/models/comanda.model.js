@@ -281,6 +281,7 @@ const comandaSchema = new mongoose.Schema({
         // ========== TEMA 5: ATRIBUCIÓN DE ENTREGA POR MOZO ==========
         // Quién confirmó la entrega del plato al comensal (estado 'entregado').
         // Fallback para datos legacy: usar comanda.mozos + comanda.mozoNombre.
+        entregaAutomatica: { type: Boolean, default: false },
         entregadoPor: {
             mozoId: {
                 type: mongoose.Schema.Types.ObjectId,

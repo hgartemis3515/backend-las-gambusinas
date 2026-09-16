@@ -14,7 +14,12 @@ let sweepInterval = null;
 
 async function entregarPlatoSalio(comandaId, platoId) {
   const { cambiarEstadoPlato } = require('../repository/comanda.repository');
+  const comandaModel = require('../database/models/comanda.model');
   await cambiarEstadoPlato(comandaId, platoId, 'entregado');
+  await comandaModel.updateOne(
+    { _id: comandaId, 'platos._id': platoId },
+    { $set: { 'platos.$.entregaAutomatica': true } }
+  );
   if (global.emitPlatoActualizado) {
     await global.emitPlatoActualizado(comandaId, platoId, 'entregado', { skipPush: true });
   }
