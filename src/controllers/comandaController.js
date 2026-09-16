@@ -9,6 +9,7 @@ const {
   agregarComanda, 
   eliminarComanda, 
   eliminarLogicamente,
+  anularTicketsPendientesComanda,
   editarConAuditoria,
   actualizarComanda, 
   cambiarStatusComanda, 
@@ -3201,14 +3202,15 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             return res.status(400).json({ message: 'Índices de platos inválidos' });
         }
 
+        const indicesNumEliminar = indicesValidos.map((idx) => parseInt(idx, 10)).filter((n) => !Number.isNaN(n));
+        const activosParaEliminar = (comandaCheck.platos || [])
+            .map((p, i) => ({ p, i }))
+            .filter(({ p }) => p && p.eliminado !== true && p.anulado !== true)
+            .map(({ i }) => i);
+        const selEliminar = new Set(indicesNumEliminar);
+        const eliminaComanda = activosParaEliminar.length > 0 && activosParaEliminar.every((i) => selEliminar.has(i));
+
         if (sourceApp === 'cocina') {
-            const indicesNum = indicesValidos.map((idx) => parseInt(idx, 10)).filter((n) => !Number.isNaN(n));
-            const activos = (comandaCheck.platos || [])
-                .map((p, i) => ({ p, i }))
-                .filter(({ p }) => p && p.eliminado !== true && p.anulado !== true)
-                .map(({ i }) => i);
-            const sel = new Set(indicesNum);
-            const eliminaComanda = activos.length > 0 && activos.every((i) => sel.has(i));
             if (eliminaComanda) {
                 if (!(await asegurarPermisoCocina(req, 'eliminar-comandas-cocina'))) {
                     return res.status(403).json({
@@ -3323,19 +3325,18 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
         
         const platosActivosRestantes = comandaActualizar.platos.filter(p => p.eliminado !== true);
         const todosPlatosEliminados = platosActivosRestantes.length === 0;
+        const eliminaComandaCompleta = todosPlatosEliminados || eliminaComanda;
         // Solo considerar "eliminación automática de comanda" si todos los platos eliminados estaban en pedido/en_espera
         const todosEliminadosEranPedido = !platosEliminadosData.some(p => p.generoDesperdicio);
         
-        if (todosPlatosEliminados) {
+        if (eliminaComandaCompleta) {
             comandaActualizar.IsActive = false;
             comandaActualizar.eliminada = true;
             comandaActualizar.status = 'cancelado';
             comandaActualizar.fechaEliminacion = ahora;
-            comandaActualizar.motivoEliminacion = todosEliminadosEranPedido
-                ? 'Eliminación automática: todos los platos en pedido eliminados'
-                : motivo.trim();
+            comandaActualizar.motivoEliminacion = motivo.trim();
             comandaActualizar.eliminadaPor = usuarioId;
-            if (todosEliminadosEranPedido) {
+            if (todosPlatosEliminados && todosEliminadosEranPedido) {
                 console.log(`Comanda #${comandaActualizar.comandaNumber} eliminada automáticamente porque todos sus platos en estado pedido fueron eliminados. No quedan platos activos.`);
             }
         }
@@ -3345,23 +3346,30 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
         comandaActualizar.version = (comandaActualizar.version || 1) + 1;
         await comandaActualizar.save();
 
-        if (todosPlatosEliminados) {
+        if (eliminaComandaCompleta) {
             try {
                 const { desactivarBouchersDeComanda } = require('../repository/boucher.repository');
                 await desactivarBouchersDeComanda(id);
             } catch (boucherErr) {
                 logger.warn('[ELIMINAR PLATOS] Error archivando bouchers', { error: boucherErr.message });
             }
-        }
-
-        try {
-            const { sincronizarDescuentoTicketsComanda } = require('../utils/descuentoTicketsComanda');
-            await sincronizarDescuentoTicketsComanda(comandaActualizar);
-        } catch (syncErr) {
-            logger.warn('[ELIMINAR PLATOS] No se pudo sincronizar tickets/bouchers', { error: syncErr.message });
+            try {
+                await anularTicketsPendientesComanda(id, motivo.trim(), {
+                    comandaNumber: comandaActualizar.comandaNumber
+                });
+            } catch (ticketErr) {
+                logger.warn('[ELIMINAR PLATOS] No se pudieron anular tickets de la comanda', { error: ticketErr.message });
+            }
+        } else {
+            try {
+                const { sincronizarDescuentoTicketsComanda } = require('../utils/descuentoTicketsComanda');
+                await sincronizarDescuentoTicketsComanda(comandaActualizar);
+            } catch (syncErr) {
+                logger.warn('[ELIMINAR PLATOS] No se pudo sincronizar tickets/bouchers', { error: syncErr.message });
+            }
         }
         
-        if (todosPlatosEliminados && mesaId) {
+        if (eliminaComandaCompleta && mesaId) {
             try {
                 await recalcularEstadoMesa(mesaId);
                 console.log(`[ELIMINAR PLATOS] Estado de mesa ${mesaId} recalculado tras eliminación automática de comanda.`);
@@ -3370,7 +3378,7 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             }
         }
         
-        if (!todosPlatosEliminados) {
+        if (!eliminaComandaCompleta) {
             await recalcularEstadoComandaPorPlatos(id);
         }
         
@@ -3525,7 +3533,7 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             }
         }
         
-        if (todosPlatosEliminados && todosEliminadosEranPedido && global.emitComandaEliminada) {
+        if (eliminaComandaCompleta && global.emitComandaEliminada) {
             await global.emitComandaEliminada(id);
         }
         
@@ -3533,7 +3541,7 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
         console.log(`[ELIMINAR PLATOS] Response preparado:`, {
             comandaId: comandaCompleta._id.toString(),
             mismoID: idAntes === comandaCompleta._id.toString(),
-            comandaEliminadaCompleta: todosPlatosEliminados,
+            comandaEliminadaCompleta: eliminaComandaCompleta,
             platosEliminados: indicesValidos.length,
             platosRestantes: comandaCompleta.platos.length
         });
@@ -3544,7 +3552,7 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             comanda: comandaCompleta,
             platosEliminados: platosEliminadosData,
             totalEliminado: totalEliminado,
-            comandaEliminadaCompleta: todosPlatosEliminados || false,
+            comandaEliminadaCompleta: eliminaComandaCompleta || false,
             platosRestantes: platosRestantesCount,
             idVerificado: idAntes === comandaCompleta._id.toString()
         });

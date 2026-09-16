@@ -271,11 +271,31 @@ const sanitizarHistorialPlatos = (historialPlatos) => {
  * Anula tickets (alta, pendientes o ya aprobados) vinculados a una comanda eliminada.
  * Si el ticket cubre varias comandas, solo desvincula esta.
  */
+const emitirTicketsAnuladosPorComanda = (tickets) => {
+  const io = global.io;
+  if (!io || !tickets.length) return;
+  const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
+  for (const t of tickets) {
+    const payload = {
+      ticketId: t._id,
+      estado: 'anulado',
+      comandas: t.comandas,
+    };
+    try {
+      io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-eliminado', payload);
+      io.of('/admin').emit('ticket-eliminado', payload);
+    } catch (err) {
+      console.error('⚠️ No se pudo emitir ticket-eliminado', err.message);
+    }
+  }
+};
+
 const anularTicketsPendientesComanda = async (comandaId, motivo, extras = {}) => {
   const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
   const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
   const { esComandaEliminada } = require('../utils/estadisticasComandas');
   const motivoNota = `[Comanda eliminada: ${motivo}]`;
+  const anulados = [];
   const idStr = String(comandaId);
   const oid = mongoose.Types.ObjectId.isValid(idStr)
     ? new mongoose.Types.ObjectId(idStr)
@@ -318,6 +338,7 @@ const anularTicketsPendientesComanda = async (comandaId, motivo, extras = {}) =>
             },
             { runValidators: false }
           );
+          anulados.push({ _id: t._id, comandas: t.comandas });
         } else {
           const set = { comandas: vigentesResto };
           if (Array.isArray(t.comandasNumbers) && t.comandasNumbers.length) {
@@ -330,6 +351,8 @@ const anularTicketsPendientesComanda = async (comandaId, motivo, extras = {}) =>
       }
     }
   }
+  emitirTicketsAnuladosPorComanda(anulados);
+  return anulados;
 };
 
 const normalizarStatusHistorial = (status) => {
@@ -5328,6 +5351,7 @@ module.exports = {
   agregarComanda, 
   eliminarComanda, 
   eliminarLogicamente,
+  anularTicketsPendientesComanda,
   repararFlagsComandasEliminadas,
   editarConAuditoria,
   actualizarComanda, 
