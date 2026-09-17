@@ -18,6 +18,7 @@ const logger = require('../utils/logger');
 const { resolverComandasNumbers } = require('../utils/comandasNumbers');
 const { anotarTicketsDeComanda, parseTicketNumber } = require('../utils/filtroTicketsDeComanda');
 const { anularTicketDuplicadoEnModelo } = require('../utils/anularTicketDuplicado');
+const { comandaOmiteTicketAlta } = require('../utils/omiteTicketAltaComanda');
 
 /**
  * Obtener lista unificada de tickets pendientes de aprobación:
@@ -536,7 +537,7 @@ function armarSnapshotYTotales(comanda) {
 
 async function cargarComandaParaTicket(comandaId) {
   return comandaModel.findById(comandaId)
-    .populate('platos.plato', 'nombre nombreCocina precio id')
+    .populate('platos.plato', 'nombre nombreCocina precio id codigo')
     .populate('mozos', 'name')
     .populate({ path: 'mesas', select: 'nummesa estado area', populate: { path: 'area', select: 'nombre' } })
     .populate('cliente', 'nombre dni');
@@ -564,6 +565,7 @@ async function crearTicketPendienteDesdeComanda(comandaIdOrDoc) {
     ? comandaIdOrDoc
     : await cargarComandaParaTicket(comandaId);
   if (!comanda || comanda.eliminada === true || comanda.IsActive === false) return null;
+  if (comandaOmiteTicketAlta(comanda)) return null;
 
   const mesaId = comanda.mesas?._id || comanda.mesas;
   const numMesa = comanda.mesas?.nummesa ?? comanda.mesaNumero;
@@ -868,7 +870,7 @@ async function crearTicketAprobadoDesdeComanda(comandaId, { usuarioId, usuarioNo
   }
 
   const comanda = await comandaModel.findById(comandaId)
-    .populate('platos.plato', 'nombre nombreCocina precio id')
+    .populate('platos.plato', 'nombre nombreCocina precio id codigo')
     .populate('mozos', 'name')
     .populate({ path: 'mesas', select: 'nummesa estado area', populate: { path: 'area', select: 'nombre' } })
     .populate('cliente', 'nombre dni')

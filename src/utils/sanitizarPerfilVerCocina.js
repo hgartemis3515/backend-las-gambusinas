@@ -171,6 +171,7 @@ const PERFIL_TABLAS_KDS_KEYS = new Set([
     'mostrarBadgeGuarnicion',
     'juntarGuarnicionesVisualKds',
     'usarNombreCocinaEnTablaKds',
+    'camuflarEliminarPlatoEpa',
     'ordenColaFuente',
     'ordenColaTamano',
     'ordenColaColor',

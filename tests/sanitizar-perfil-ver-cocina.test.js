@@ -157,6 +157,7 @@ describe('sanitizarConfigPerfilVerCocina', () => {
             mostrarBadgeGuarnicion: false,
             usarNombreCocinaEnTablaKds: false,
             juntarGuarnicionesVisualKds: false,
+            camuflarEliminarPlatoEpa: true,
             sonidoNuevaComanda: true,
             sonidoFinalizar: false,
             sonidoEntregar: true,
@@ -178,6 +179,7 @@ describe('sanitizarConfigPerfilVerCocina', () => {
         expect(out.mostrarBadgeGuarnicion).toBe(false);
         expect(out.usarNombreCocinaEnTablaKds).toBe(false);
         expect(out.juntarGuarnicionesVisualKds).toBe(false);
+        expect(out.camuflarEliminarPlatoEpa).toBe(true);
         expect(out.sonidoNuevaComanda).toBe(true);
         expect(out.sonidoFinalizar).toBe(false);
         expect(out.sonidoEntregar).toBe(true);
