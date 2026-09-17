@@ -233,6 +233,7 @@ async function obtenerHistorialComandasMozos({ mozoId = null, fechaInicio, fecha
                             procesandoPor: '$$p.procesandoPor',
                             asignacionMeta: '$$p.asignacionMeta',
                             entregadoPor: '$$p.entregadoPor',
+                            entregaAutomatica: '$$p.entregaAutomatica',
                             platoNombre: {
                                 $ifNull: [
                                     { $arrayElemAt: [
@@ -414,6 +415,7 @@ async function obtenerRendimientoEnVivo({ mozoId = null } = {}) {
                             anulado: '$$p.anulado',
                             tiempos: '$$p.tiempos',
                             entregadoPor: '$$p.entregadoPor',
+                            entregaAutomatica: '$$p.entregaAutomatica',
                             platoNombre: { $ifNull: [{ $arrayElemAt: [{ $map: { input: { $filter: { input: '$platosInfo', as: 'pi', cond: { $eq: ['$$pi._id', '$$p.plato'] } } }, as: 'pi', in: '$$pi.nombre' } }, 0] }, '$$p.nombre'] }
                         }
                     }

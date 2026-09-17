@@ -7,6 +7,7 @@ const logger = require('../utils/logger');
 const { normalizarOpcionDocumento } = require('../utils/opcionComplemento');
 const { fusionarOrdenIds, idStr } = require('../utils/ordenPlatoMozo');
 const { hydrateCatalogoDoc } = require('../utils/catalogoCartaPersistencia');
+const { parseHexColor } = require('../utils/hexColor');
 const { sanitizarCategoriasPlato, categoriasDePlato, filtroMongoCategoria } = require('../utils/categoriasPlato');
 const fs = require('fs');
 const path = require('path');
@@ -77,6 +78,8 @@ const CAMPOS_GRUPO_PRINCIPAL = [
     'juntarGuarnicionesEntreVariantes',
     'requiereNumeroSerie',
     'kdsEstiloCompacto',
+    'kdsEtiquetaColorFondo',
+    'kdsEtiquetaColorLetra',
     'platoEditable',
     'codigoMozo',
     'resumenComplementosImpresion',
@@ -242,6 +245,8 @@ async function clonarPlatosDesdePrincipal(id, opts = {}) {
             juntarGuarnicionesEntreVariantes: !!lean.juntarGuarnicionesEntreVariantes,
             requiereNumeroSerie: !!lean.requiereNumeroSerie,
             kdsEstiloCompacto: !!lean.kdsEstiloCompacto,
+            kdsEtiquetaColorFondo: String(lean.kdsEtiquetaColorFondo || '').trim(),
+            kdsEtiquetaColorLetra: String(lean.kdsEtiquetaColorLetra || '').trim(),
             platoEditable: !!lean.platoEditable,
             nombresSincronizados: [],
             platoPrincipal: principalId,
@@ -598,6 +603,8 @@ function buildPlatoDocFromJson(p) {
         juntarGuarnicionesEntreVariantes: flagTrue(p.juntarGuarnicionesEntreVariantes),
         requiereNumeroSerie: flagTrue(p.requiereNumeroSerie),
         kdsEstiloCompacto: flagTrue(p.kdsEstiloCompacto),
+        kdsEtiquetaColorFondo: parseHexColor(p.kdsEtiquetaColorFondo, ''),
+        kdsEtiquetaColorLetra: parseHexColor(p.kdsEtiquetaColorLetra, ''),
         platoEditable: flagTrue(p.platoEditable),
         nombresSincronizados: sanitizarNombresSincronizados(p.nombresSincronizados, nombreTrim),
         platoPrincipal,
@@ -849,6 +856,8 @@ const crearPlato = async (data) => {
             || payload.requiereNumeroSerie === 'true';
         payload.kdsEstiloCompacto = payload.kdsEstiloCompacto === true
             || payload.kdsEstiloCompacto === 'true';
+        payload.kdsEtiquetaColorFondo = parseHexColor(payload.kdsEtiquetaColorFondo, '');
+        payload.kdsEtiquetaColorLetra = parseHexColor(payload.kdsEtiquetaColorLetra, '');
         payload.platoEditable = payload.platoEditable === true
             || payload.platoEditable === 'true';
         if (Object.prototype.hasOwnProperty.call(payload, 'nombresSincronizados')) {
@@ -967,6 +976,12 @@ const actualizarPlato = async (id, newData) => {
         clean.kdsEstiloCompacto = newData.kdsEstiloCompacto === true
             || newData.kdsEstiloCompacto === 'true';
     }
+    if (newData && Object.prototype.hasOwnProperty.call(newData, 'kdsEtiquetaColorFondo')) {
+        clean.kdsEtiquetaColorFondo = parseHexColor(newData.kdsEtiquetaColorFondo, '');
+    }
+    if (newData && Object.prototype.hasOwnProperty.call(newData, 'kdsEtiquetaColorLetra')) {
+        clean.kdsEtiquetaColorLetra = parseHexColor(newData.kdsEtiquetaColorLetra, '');
+    }
     if (newData && typeof newData.platoEditable !== 'undefined') {
         clean.platoEditable = newData.platoEditable === true
             || newData.platoEditable === 'true';
@@ -1014,6 +1029,12 @@ const actualizarPlato = async (id, newData) => {
         }
         if (typeof clean.kdsEstiloCompacto !== 'undefined') {
             doc.set('kdsEstiloCompacto', !!clean.kdsEstiloCompacto);
+        }
+        if (typeof clean.kdsEtiquetaColorFondo !== 'undefined') {
+            doc.set('kdsEtiquetaColorFondo', clean.kdsEtiquetaColorFondo || '');
+        }
+        if (typeof clean.kdsEtiquetaColorLetra !== 'undefined') {
+            doc.set('kdsEtiquetaColorLetra', clean.kdsEtiquetaColorLetra || '');
         }
         if (typeof clean.platoEditable !== 'undefined') {
             doc.set('platoEditable', !!clean.platoEditable);

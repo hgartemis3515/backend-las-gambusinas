@@ -906,6 +906,8 @@ const crearReservaDesdeMozos = async (data) => {
                     ocultarCronometroCocina: platoDoc.ocultarCronometroCocina === true,
                     juntarGuarnicionesEntreVariantes: platoDoc.juntarGuarnicionesEntreVariantes === true,
                     kdsEstiloCompacto: platoDoc.kdsEstiloCompacto === true,
+                    kdsEtiquetaColorFondo: String(platoDoc.kdsEtiquetaColorFondo || '').trim(),
+                    kdsEtiquetaColorLetra: String(platoDoc.kdsEtiquetaColorLetra || '').trim(),
                     numeroSerie: String(linea.numeroSerie || item.numeroSerie || '').replace(/\D/g, '').slice(0, 4),
                     resumenComplementosImpresion: platoDoc.resumenComplementosImpresion || undefined,
                     notaEspecial, tipoServicio, cantidad: calc.cantidad,

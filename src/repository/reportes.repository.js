@@ -1115,6 +1115,96 @@ async function getFilasOperacion(fechaInicio, fechaFin) {
         .lean();
 }
 
+/**
+ * Ranking Uso G: líneas de plato (no eliminadas) cuya receta de guarnición
+ * ≠ marcas preseleccionadas. 1 línea = 1 aunque el mozo elija 3 G distintas.
+ */
+async function getUsoGMozos(fechaInicio, fechaFin) {
+    const { inicio, fin } = rangoLima(fechaInicio, fechaFin);
+    const pipeline = [
+        {
+            $match: matchComandaVigente({
+                createdAt: { $gte: inicio, $lte: fin },
+                'platos.cambioGuarnicionPreseleccion': true,
+            }),
+        },
+        { $unwind: '$platos' },
+        {
+            $match: {
+                'platos.cambioGuarnicionPreseleccion': true,
+                'platos.eliminado': { $ne: true },
+                'platos.anulado': { $ne: true },
+            },
+        },
+        {
+            $group: {
+                _id: '$mozos',
+                cambiosG: { $sum: 1 },
+                comandasSet: { $addToSet: '$_id' },
+                nombre: { $first: '$mozoNombre' },
+            },
+        },
+        {
+            $lookup: {
+                from: 'mozos',
+                localField: '_id',
+                foreignField: '_id',
+                as: 'mozoDoc',
+            },
+        },
+        {
+            $project: {
+                _id: 0,
+                mozoId: '$_id',
+                nombre: {
+                    $ifNull: [
+                        { $arrayElemAt: ['$mozoDoc.name', 0] },
+                        '$nombre',
+                    ],
+                },
+                cambiosG: 1,
+                comandas: { $size: '$comandasSet' },
+            },
+        },
+        { $sort: { cambiosG: -1 } },
+    ];
+    const pipelineAuto = [
+        {
+            $match: matchComandaVigente({
+                createdAt: { $gte: inicio, $lte: fin },
+                'platos.entregaAutomatica': true,
+            }),
+        },
+        { $unwind: '$platos' },
+        {
+            $match: {
+                'platos.entregaAutomatica': true,
+                'platos.eliminado': { $ne: true },
+                'platos.anulado': { $ne: true },
+            },
+        },
+        {
+            $group: {
+                _id: '$mozos',
+                entregasAuto: { $sum: 1 },
+            },
+        },
+        {
+            $project: {
+                _id: 0,
+                mozoId: '$_id',
+                entregasAuto: 1,
+            },
+        },
+    ];
+    const [mozos, entregasAuto] = await Promise.all([
+        Comanda.aggregate(pipeline),
+        Comanda.aggregate(pipelineAuto),
+    ]);
+    const totalCambiosG = mozos.reduce((s, m) => s + (Number(m.cambiosG) || 0), 0);
+    return { mozos, totalCambiosG, entregasAuto };
+}
+
 // ============================================================
 // EXPORTS
 // ============================================================
@@ -1128,5 +1218,6 @@ module.exports = {
     getVentas,
     getPlatosTop,
     getFilasOperacion,
-    getDesgloseVentasTickets
+    getDesgloseVentasTickets,
+    getUsoGMozos
 };

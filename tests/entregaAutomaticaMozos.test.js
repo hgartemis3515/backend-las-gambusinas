@@ -2,7 +2,8 @@ const {
     minutosEntregaAutomaticaMozos,
     parseTiempoMs,
     msRestantesEntregaAutomatica,
-    tiempoSalioRequiereReparacion
+    tiempoSalioRequiereReparacion,
+    marcarEntregaAutomaticaPorTimer
 } = require('../src/utils/entregaAutomaticaMozos');
 
 describe('entregaAutomaticaMozos', () => {
@@ -49,5 +50,12 @@ describe('entregaAutomaticaMozos', () => {
     test('parse ISO y $date', () => {
         expect(parseTiempoMs('2026-09-09T20:00:00.000Z')).toBe(now);
         expect(parseTiempoMs({ $date: '2026-09-09T20:00:00.000Z' })).toBe(now);
+    });
+
+    test('flag rojo solo con cronómetro vencido, no al instante ni manual', () => {
+        expect(marcarEntregaAutomaticaPorTimer(15, true)).toBe(true);
+        expect(marcarEntregaAutomaticaPorTimer(0, true)).toBe(false);
+        expect(marcarEntregaAutomaticaPorTimer(15, false)).toBe(false);
+        expect(marcarEntregaAutomaticaPorTimer(15, undefined)).toBe(false);
     });
 });

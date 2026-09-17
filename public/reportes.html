@@ -148,7 +148,7 @@ tailwind.config = {
           :title="k.label === 'Descuentos' ? 'Ver comandas con descuento' : ''"
           @click="k.label === 'Descuentos' && irAComandasDescuentos()">
           <p class="text-[11px] text-txt-muted uppercase" x-text="k.label"></p>
-          <p class="text-xl font-bold mt-1" :class="k.color || 'text-white'" x-text="k.value"></p>
+          <p class="text-xl font-bold mt-1" :class="k.highlightG ? 'inline-flex min-w-[2.5rem] px-2.5 py-0.5 rounded-md bg-[#ffd60a] text-black' : (k.color || 'text-white')" x-text="k.value"></p>
           <span x-show="k.badge" class="text-[10px] font-semibold" :class="k.badge?.includes('+') ? 'text-st-preparado' : 'text-st-pagado'" x-text="k.badge"></span>
         </div>
       </template>
@@ -398,7 +398,7 @@ tailwind.config = {
               <th class="text-right px-3 py-2.5 font-semibold">Ventas</th>
               <th class="text-right px-3 py-2.5 font-semibold">Tickets</th>
               <th class="text-right px-3 py-2.5 font-semibold">Ticket P.</th>
-              <th class="text-right px-3 py-2.5 font-semibold">Propinas</th>
+              <th class="text-right px-3 py-2.5 font-semibold">Uso G</th>
               <th class="text-right px-3 py-2.5 font-semibold">Tiempo</th>
               <th class="text-center px-3 py-2.5 font-semibold">Satisf.</th>
             </tr>
@@ -420,8 +420,16 @@ tailwind.config = {
                 <td class="px-3 py-2.5 text-right text-[#d4af37] font-semibold" x-text="'S/. ' + Number(m.ventas || m.total || 0).toLocaleString('es-PE')"></td>
                 <td class="px-3 py-2.5 text-right font-semibold" x-text="m.tickets || 0"></td>
                 <td class="px-3 py-2.5 text-right text-txt-secondary" x-text="'S/. ' + Number(m.ticketPromedio || ((m.ventas || 0) / (m.tickets || 1))).toFixed(2)"></td>
-                <td class="px-3 py-2.5 text-right text-[#2ecc71] font-semibold" x-text="'S/. ' + Number(m.propinas || 0).toFixed(2)"></td>
-                <td class="px-3 py-2.5 text-right text-txt-muted" x-text="m.tiempoPromedio != null ? (m.tiempoPromedio + ' min') : '—'"></td>
+                <td class="px-3 py-2.5 text-right">
+                  <button type="button" class="inline-flex items-center justify-center min-w-[1.75rem] px-2 py-0.5 rounded-md bg-[#ffd60a] text-black font-extrabold tabular-nums hover:brightness-95"
+                    title="Ver comandas con cambio de guarnición"
+                    @click="abrirComandasUsoG(m)"
+                    x-text="Number(m.cambiosG || 0)"></button>
+                </td>
+                <td class="px-3 py-2.5 text-right"
+                  :class="Number(m.entregasAuto || 0) > 0 ? 'text-[#ff4757] font-semibold' : 'text-txt-muted'"
+                  :title="Number(m.entregasAuto || 0) > 0 ? ('Entregas automáticas por cronómetro: ' + Number(m.entregasAuto)) : ''"
+                  x-text="m.tiempoPromedio != null ? (m.tiempoPromedio + ' min') : '—'"></td>
                 <td class="px-3 py-2.5 text-center">
                   <span class="text-xs px-2 py-0.5 rounded-full font-semibold"
                     :class="{
@@ -440,7 +448,10 @@ tailwind.config = {
               <td class="px-3 py-3 text-right text-[#d4af37] text-base" x-text="'S/. ' + (tablaData.mozos || []).reduce((s, m) => s + (m.ventas || m.total || 0), 0).toLocaleString('es-PE')"></td>
               <td class="px-3 py-3 text-right" x-text="(tablaData.mozos || []).reduce((s, m) => s + (m.tickets || 0), 0)"></td>
               <td class="px-3 py-3 text-right text-txt-muted" x-text="'S/. ' + ((tablaData.mozos || []).reduce((s, m) => s + (m.ventas || 0), 0) / Math.max((tablaData.mozos || []).reduce((s, m) => s + (m.tickets || 0), 0), 1)).toFixed(2)"></td>
-              <td class="px-3 py-3 text-right text-[#2ecc71]" x-text="'S/. ' + (tablaData.mozos || []).reduce((s, m) => s + (m.propinas || 0), 0).toFixed(2)"></td>
+              <td class="px-3 py-3 text-right">
+                <span class="inline-flex items-center justify-center min-w-[1.75rem] px-2 py-0.5 rounded-md bg-[#ffd60a] text-black font-extrabold tabular-nums"
+                  x-text="(tablaData.mozos || []).reduce((s, m) => s + (Number(m.cambiosG) || 0), 0)"></span>
+              </td>
               <td class="px-3 py-3 text-right text-txt-muted">—</td>
               <td class="px-3 py-3 text-center text-[#2ecc71]" x-text="Math.round((tablaData.mozos || []).reduce((s, m) => s + (m.satisfaccion || 90), 0) / Math.max((tablaData.mozos || []).length, 1)) + '%'"></td>
             </tr>
@@ -1349,7 +1360,7 @@ function reportesApp() {
           this.processGuarniciones(bouchers);
           break;
         case 'Mozos':
-          this.processMozos(bouchers);
+          await this.processMozos(bouchers);
           break;
         case 'Cocineros':
           await this.processCocineros(bouchers);
@@ -1674,7 +1685,7 @@ function reportesApp() {
     /**
      * Procesa datos para la pestaña Mozos
      */
-    processMozos(bouchers) {
+    async processMozos(bouchers) {
       const mozosMap = {};
       
       bouchers.forEach(b => {
@@ -1688,6 +1699,7 @@ function reportesApp() {
             ventas: 0, 
             tickets: 0, 
             propinas: 0,
+            cambiosG: 0,
             dni: b.mozo?.dni || b.mozo?.DNI || '—',
             minutos: []
           };
@@ -1697,26 +1709,64 @@ function reportesApp() {
         const mins = Number(b.minutosServicio);
         if (Number.isFinite(mins) && mins > 0) mozosMap[mozoId].minutos.push(mins);
       });
+
+      const usoGMap = {};
+      const autoMap = {};
+      try {
+        const q = this.fechasQuery();
+        const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+        const response = await fetch(`${API_BASE}/reportes/mozos/uso-g?fechaInicio=${encodeURIComponent(q.fechaInicio)}&fechaFin=${encodeURIComponent(q.fechaFin)}`, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (response.ok) {
+          const result = await response.json();
+          (result.mozos || []).forEach((m) => {
+            usoGMap[String(m.mozoId)] = m;
+          });
+          (result.entregasAuto || []).forEach((m) => {
+            autoMap[String(m.mozoId)] = Number(m.entregasAuto) || 0;
+          });
+        }
+      } catch (e) {
+        console.warn('Uso G no disponible', e);
+      }
       
       const mozosArray = Object.values(mozosMap).sort((a, b) => b.ventas - a.ventas);
+      Object.keys(usoGMap).forEach((id) => {
+        if (!mozosArray.some((m) => String(m._id) === id)) {
+          mozosArray.push({
+            _id: id,
+            nombre: usoGMap[id].nombre || '—',
+            ventas: 0,
+            tickets: 0,
+            propinas: 0,
+            cambiosG: 0,
+            dni: '—',
+            minutos: []
+          });
+        }
+      });
       const topMozos = mozosArray.slice(0, 6);
       
       const labels = topMozos.map(m => m.nombre.split(' ')[0]);
       const ventas = topMozos.map(m => m.ventas);
       const tickets = topMozos.map(m => m.tickets);
-      const propinasTop = topMozos.map(m => m.propinas || 0);
+      const usoGTop = topMozos.map(m => Number(usoGMap[String(m._id)]?.cambiosG) || Number(m.cambiosG) || 0);
       
       const totalVentas = mozosArray.reduce((a, m) => a + m.ventas, 0);
+      const totalUsoG = Object.values(usoGMap).reduce((a, m) => a + (Number(m.cambiosG) || 0), 0);
       
       this.kpis = [
         { label: 'Ventas Mozos', value: 'S/. ' + totalVentas.toLocaleString('es-PE', {minimumFractionDigits: 2}), color: 'text-[#d4af37]', badge: '' },
         { label: 'Top Mozo', value: topMozos[0]?.nombre.split(' ')[0] || '—', color: 'text-white', badge: topMozos[0] ? 'S/.' + topMozos[0].ventas.toLocaleString('es-PE') : '' },
-        { label: 'Total Propinas', value: 'S/. ' + mozosArray.reduce((a, m) => a + (m.propinas || 0), 0).toFixed(2), color: 'text-[#2ecc71]', badge: '' },
+        { label: 'Total Uso G', value: String(totalUsoG), color: 'text-black', highlightG: true, badge: '' },
         { label: 'Mozos Activos', value: mozosArray.length, color: 'text-[#5a5a7a]', badge: '' }
       ];
       
       this.tablaData.mozos = mozosArray.map((m) => ({
         ...m,
+        cambiosG: Number(usoGMap[String(m._id)]?.cambiosG) || 0,
+        entregasAuto: Number(autoMap[String(m._id)]) || 0,
         ticketPromedio: m.tickets > 0 ? (m.ventas / m.tickets).toFixed(2) : 0,
         tiempoPromedio: m.minutos && m.minutos.length
           ? Math.round(m.minutos.reduce((a, t) => a + t, 0) / m.minutos.length)
@@ -1724,8 +1774,29 @@ function reportesApp() {
         satisfaccion: 90 + Math.floor(Math.random() * 10)
       }));
       
-      this.chartData1 = { type: 'bar-grouped', labels, ventas, tickets, propinas: propinasTop };
+      this.chartData1 = { type: 'bar-grouped', labels, ventas, tickets, usoG: usoGTop };
       this.chartData2 = { type: 'doughnut', labels, data: ventas };
+    },
+
+    abrirComandasUsoG(m) {
+      const id = m && (m._id || m.mozoId);
+      if (!id) return;
+      const params = new URLSearchParams();
+      params.set('cambioG', '1');
+      params.set('mozo', String(id));
+      const t = this.dateFilter.tipo;
+      const map = { Hoy: 'hoy', DIA: 'dia', NOCHE: 'noche', Ayer: 'ayer', '7 días': '7dias' };
+      if (map[t]) {
+        params.set('periodo', map[t]);
+      } else {
+        params.set('periodo', 'custom');
+        const q = this.fechasQuery();
+        const desde = String(q.fechaInicio || this.dateFilter.fechaInicio || '').slice(0, 10);
+        const hasta = String(q.fechaFin || this.dateFilter.fechaFin || '').slice(0, 10);
+        if (desde) params.set('desde', desde);
+        if (hasta) params.set('hasta', hasta);
+      }
+      window.location.href = 'comandas.html?' + params.toString();
     },
     
     /**
@@ -2405,7 +2476,7 @@ function reportesApp() {
     
     renderMozosChart() {
       const c = this._c;
-      const cd = this.chartData1 || { labels: ['Sin datos'], ventas: [0], tickets: [0], propinas: [0] };
+      const cd = this.chartData1 || { labels: ['Sin datos'], ventas: [0], tickets: [0], usoG: [0] };
       
       createChart('chartReportes1', {
         type: 'bar',
@@ -2414,7 +2485,7 @@ function reportesApp() {
           datasets: [
             { label: 'Ventas (S/.)', data: cd.ventas.length ? cd.ventas : [0], backgroundColor: c.goldA, borderColor: c.gold, borderWidth: 1, borderRadius: 4 },
             { label: 'Tickets', data: cd.tickets.length ? cd.tickets : [0], backgroundColor: c.blueA, borderColor: c.blue, borderWidth: 1, borderRadius: 4 },
-            { label: 'Propinas', data: cd.propinas.length ? cd.propinas : [0], backgroundColor: c.greenA, borderColor: c.green, borderWidth: 1, borderRadius: 4 }
+            { label: 'Uso G', data: (cd.usoG && cd.usoG.length) ? cd.usoG : [0], backgroundColor: c.greenA, borderColor: c.green, borderWidth: 1, borderRadius: 4 }
           ]
         },
         options: this._baseOpts()

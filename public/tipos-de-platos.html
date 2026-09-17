@@ -98,6 +98,9 @@ tailwind.config = {
                     x-text="t.activo ? 'Activo' : 'Inactivo'"></span>
                   <span x-show="t.esSistema" class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-st-pedido/15 text-st-pedido">Sistema</span>
                   <span x-show="t.soloContadorEnCocina" class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-gold/15 text-gold">xN platos</span>
+                  <span x-show="t.mostrarNombreTipoEnKds" class="ml-1 text-[9px] px-1.5 py-0.5 rounded font-extrabold"
+                    :style="'background:' + (t.colorFondoKds || '#ffd60a') + ';color:' + (t.colorLetraKds || '#000')"
+                    x-text="t.nombreCorto || t.nombre"></span>
                   <span x-show="t.horaRedirectActiva && t.horaRedirectInicio && t.horaRedirectFin" class="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-gold/15 text-gold" x-text="(t.horaRedirectInicio || '') + '–' + (t.horaRedirectFin || '')"></span>
                 </td>
                 <td class="px-3 py-2.5 space-x-1 text-sm">
@@ -241,6 +244,33 @@ tailwind.config = {
             <span class="block text-[11px] text-txt-muted mt-0.5">Igual que “Solo contador (xN)” de los platos principales, pero en el panel de guarniciones y en la tabla KDS: suma las guarniciones enviadas de platos de este tipo y oculta cronómetro y número secuencial. Se aplica al guardar, sin reiniciar.</span>
           </span>
         </label>
+        <label class="flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" x-model="form.mostrarNombreTipoEnKds" class="w-4 h-4 mt-0.5 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+          <span>
+            <span class="block text-sm text-txt-primary font-semibold">Mostrar nombre del tipo en KDS</span>
+            <span class="block text-[11px] text-txt-muted mt-0.5">Si hay platos de este tipo en la tarjeta de comanda, a la derecha de EN PREPARACIÓN sale el nombre del tipo (nombre corto). Los colores de fondo y letra se personalizan aquí o, por plato, en platos.html. Se aplica al guardar, sin reiniciar.</span>
+          </span>
+        </label>
+        <div class="ml-7 grid grid-cols-2 gap-3" x-show="form.mostrarNombreTipoEnKds">
+          <div>
+            <label class="text-[10px] text-txt-muted uppercase mb-1 block">Color de fondo (KDS)</label>
+            <input type="color" x-model="form.colorFondoKds" class="h-9 w-full rounded border border-[rgba(212,175,55,0.25)] bg-bg-card cursor-pointer">
+          </div>
+          <div>
+            <label class="text-[10px] text-txt-muted uppercase mb-1 block">Color de letras (KDS)</label>
+            <input type="color" x-model="form.colorLetraKds" class="h-9 w-full rounded border border-[rgba(212,175,55,0.25)] bg-bg-card cursor-pointer">
+          </div>
+          <div class="col-span-2">
+            <p class="text-[10px] text-txt-muted mb-1">Vista previa en EN PREPARACIÓN</p>
+            <div class="h-8 px-3 flex items-center gap-2 rounded bg-[#1a1520] border border-white/10">
+              <span class="text-[10px] uppercase text-txt-muted">📋 EN PREPARACIÓN</span>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-600 text-gray-200">2/2</span>
+              <span class="ml-auto px-2 py-0.5 rounded text-[10px] font-extrabold uppercase"
+                :style="'background:' + (form.colorFondoKds || '#ffd60a') + ';color:' + (form.colorLetraKds || '#000')"
+                x-text="form.nombreCorto || form.nombre || 'NOMBRE'"></span>
+            </div>
+          </div>
+        </div>
         <div class="rounded-lg border border-[rgba(212,175,55,0.18)] bg-bg-primary/70 p-3">
           <p class="text-[10px] uppercase tracking-wide text-txt-muted font-semibold mb-2">Vista previa — panel de guarniciones</p>
           <div class="rounded-md bg-[#1a1520] border border-white/10 p-2.5 flex items-start justify-between gap-3">
@@ -345,6 +375,9 @@ function tiposPlatoApp() {
       particionHorizontalCocina: false,
       particionHorizontalGuarnicionesCocina: false,
       contadorGuarnicionesCocina: false,
+      mostrarNombreTipoEnKds: false,
+      colorFondoKds: '#ffd60a',
+      colorLetraKds: '#000000',
       horaRedirectActiva: false,
       horaRedirectInicio: '04:00',
       horaRedirectFin: '12:00',
@@ -390,6 +423,7 @@ function tiposPlatoApp() {
         icono: '🍽️', color: '#d4af37', orden: nextOrden,
         activo: true, esSistema: false,
         soloContadorEnCocina: false, particionHorizontalCocina: false, particionHorizontalGuarnicionesCocina: false, contadorGuarnicionesCocina: false,
+        mostrarNombreTipoEnKds: false, colorFondoKds: '#ffd60a', colorLetraKds: '#000000',
         horaRedirectActiva: false, horaRedirectInicio: '04:00', horaRedirectFin: '12:00', aliasStr: ''
       };
       this.modal = true;
@@ -411,6 +445,9 @@ function tiposPlatoApp() {
         particionHorizontalCocina: !!t.particionHorizontalCocina,
         particionHorizontalGuarnicionesCocina: !!t.particionHorizontalGuarnicionesCocina,
         contadorGuarnicionesCocina: !!t.contadorGuarnicionesCocina,
+        mostrarNombreTipoEnKds: !!t.mostrarNombreTipoEnKds,
+        colorFondoKds: t.colorFondoKds || '#ffd60a',
+        colorLetraKds: t.colorLetraKds || '#000000',
         horaRedirectActiva: !!t.horaRedirectActiva,
         horaRedirectInicio: t.horaRedirectInicio || '04:00',
         horaRedirectFin: t.horaRedirectFin || '12:00',
@@ -436,6 +473,9 @@ function tiposPlatoApp() {
         particionHorizontalCocina: !!this.form.particionHorizontalCocina,
         particionHorizontalGuarnicionesCocina: !!this.form.particionHorizontalGuarnicionesCocina,
         contadorGuarnicionesCocina: !!this.form.contadorGuarnicionesCocina,
+        mostrarNombreTipoEnKds: !!this.form.mostrarNombreTipoEnKds,
+        colorFondoKds: this.form.colorFondoKds || '#ffd60a',
+        colorLetraKds: this.form.colorLetraKds || '#000000',
         horaRedirectActiva: !!this.form.horaRedirectActiva,
         horaRedirectInicio: this.form.horaRedirectInicio || '',
         horaRedirectFin: this.form.horaRedirectFin || '',

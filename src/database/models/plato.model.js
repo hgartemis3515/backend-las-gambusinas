@@ -154,6 +154,16 @@ const platoSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    kdsEtiquetaColorFondo: {
+        type: String,
+        default: '',
+        trim: true
+    },
+    kdsEtiquetaColorLetra: {
+        type: String,
+        default: '',
+        trim: true
+    },
     // Órdenes: el mozo puede editar las guarniciones fijas desde la lista de seleccionados.
     platoEditable: {
         type: Boolean,

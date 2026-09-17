@@ -2,6 +2,7 @@ const TipoPlato = require('../database/models/tipoPlato.model');
 const platoModel = require('../database/models/plato.model');
 const logger = require('../utils/logger');
 const { wrapMutacionesCatalogo } = require('../utils/catalogoCartaPersistencia');
+const { parseHexColor } = require('../utils/hexColor');
 
 /**
  * Normaliza un texto a slug: "Cena" -> "platos-cena"
@@ -143,6 +144,9 @@ const crearTipoPlato = async (data) => {
         particionHorizontalCocina: data.particionHorizontalCocina === true,
         particionHorizontalGuarnicionesCocina: data.particionHorizontalGuarnicionesCocina === true,
         contadorGuarnicionesCocina: data.contadorGuarnicionesCocina === true,
+        mostrarNombreTipoEnKds: data.mostrarNombreTipoEnKds === true,
+        colorFondoKds: parseHexColor(data.colorFondoKds, '#ffd60a'),
+        colorLetraKds: parseHexColor(data.colorLetraKds, '#000000'),
         alias,
         creadoPor: data.creadoPor || 'admin',
         actualizadoPor: data.actualizadoPor || 'admin',
@@ -190,6 +194,15 @@ const actualizarTipoPlato = async (id, newData) => {
     }
     if (newData.contadorGuarnicionesCocina != null) {
         tipo.contadorGuarnicionesCocina = Boolean(newData.contadorGuarnicionesCocina);
+    }
+    if (newData.mostrarNombreTipoEnKds != null) {
+        tipo.mostrarNombreTipoEnKds = Boolean(newData.mostrarNombreTipoEnKds);
+    }
+    if (newData.colorFondoKds != null) {
+        tipo.colorFondoKds = parseHexColor(newData.colorFondoKds, tipo.colorFondoKds || '#ffd60a');
+    }
+    if (newData.colorLetraKds != null) {
+        tipo.colorLetraKds = parseHexColor(newData.colorLetraKds, tipo.colorLetraKds || '#000000');
     }
     if (newData.horaRedirectActiva != null
         || newData.horaRedirectInicio != null

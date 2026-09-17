@@ -6,6 +6,7 @@ const pedidoModel = require("../database/models/pedido.model");
 const { syncJsonFile } = require('../utils/jsonSync');
 const logger = require('../utils/logger');
 const { AppError } = require('../utils/errorHandler');
+const { parseHexColor } = require('../utils/hexColor');
 const moment = require('moment-timezone');
 const fs = require('fs');
 const path = require('path');
@@ -23,6 +24,7 @@ const {
 } = require('../utils/precioComplementos');
 const { expandirPlatosPorVariante, snapshotNombreCocinaPedido, MAX_NOMBRE_COCINA_PEDIDO } = require('../utils/variantePlato');
 const { fusionarGuarnicionesPreseleccionadas } = require('../utils/preseleccionGuarniciones');
+const { aplicarCambioGuarnicionAPlato } = require('../utils/cambioGuarnicionPreseleccion');
 const { aplicarNumeroSerieComanda } = require('../utils/numeroSeriePlato');
 const { indicePlatoPorIdLinea, aplicarSeparacionCantidadLinea } = require('../utils/separarCantidadLineaPlato');
 const { SELECT_PLATO_COCINA } = require('../constants/platoPopulateCocina');
@@ -124,8 +126,11 @@ const PROYECCION_COCINA = {
     'platos.juntarGuarnicionesEntreVariantes': 1,
     'platos.numeroSerie': 1,
     'platos.kdsEstiloCompacto': 1,
+    'platos.kdsEtiquetaColorFondo': 1,
+    'platos.kdsEtiquetaColorLetra': 1,
     'platos.resumenComplementosImpresion': 1,
     'platos.tiempos': 1,
+    'platos.entregaAutomatica': 1,
     'platos.eliminadoPor': 1,
     'platos.eliminadoAt': 1,
     'platos.eliminadoRazon': 1,
@@ -177,6 +182,8 @@ const PROYECCION_RESUMEN_MESA = {
     'platos.nombreCocinaPedido': 1,
     'platos.variantePlato': 1,
     'platos.pagoAdelantado': 1,  // 🔥 PPA: estado del ticket para mostrar "PENDIENTE" (naranja)
+    'platos.tiempos': 1,
+    'platos.entregaAutomatica': 1,
     // v3.0: campos para precio con extras y resumen en impresión
     'platos.precioBase': 1,
     'platos.extraComplementos': 1,
@@ -532,7 +539,7 @@ const ensurePlatosPopulated = async (comandas) => {
   }
 };
 
-const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, incluirPagadas = false) => {
+const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, incluirPagadas = false, opciones = {}) => {
   try {
     console.log('🔍 [FASE A1] Listando comandas...', { incluirPagadas });
     const startTime = Date.now();
@@ -554,6 +561,17 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
             IsActive: { $ne: false, $exists: true },
             eliminada: { $ne: true }
           };
+    if (opciones && opciones.cambioG) {
+      query['platos.cambioGuarnicionPreseleccion'] = true;
+    }
+    if (opciones && opciones.mozoId && mongoose.Types.ObjectId.isValid(String(opciones.mozoId)) && String(opciones.mozoId).length === 24) {
+      query.mozos = new mongoose.Types.ObjectId(String(opciones.mozoId));
+    }
+    if (opciones && opciones.desde && opciones.hasta) {
+      const { rangoLima } = require('../utils/estadisticasComandas');
+      const r = rangoLima(opciones.desde, opciones.hasta);
+      query.createdAt = { $gte: r.inicio, $lte: r.fin };
+    }
     
     // ==================== FASE A1: QUERY OPTIMIZADA ====================
     // Construir query con lean() y proyecciones
@@ -600,32 +618,8 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
         mesas: 1,
         cliente: 1,
         pedido: 1,
-        // Platos con campos necesarios
-        'platos.platoId': 1,
-        'platos.estado': 1,
-        'platos.eliminado': 1,
-        'platos.eliminadoRazon': 1,
-        'platos.anulado': 1,
-        'platos.complementosSeleccionados': 1,
-        'platos.notaEspecial': 1,
-        'platos.tipoServicio': 1, // NUEVO: Mesa vs Para llevar
-        'platos.tipoPedido': 1,
-    'platos.nombreCocinaPedido': 1,
-    'platos.variantePlato': 1,
-        // v3.0: campos para precio con extras y resumen en impresión
-        'platos.precioBase': 1,
-        'platos.extraComplementos': 1,
-        'platos.precioUnitario': 1,
-        'platos.totalUnidadesComplementos': 1,
-        'platos.mostrarResumenComplementos': 1,
-        'platos.resumenComplementosImpresion': 1,
-        'platos.plato': 1,
-        'platos._id': 1,
-        'platos.tiempos': 1,
-        'platos.procesandoPor': 1,
-        'platos.procesadoPor': 1,
-        'platos.finalizadoPor': 1,
-        'platos.pagoAdelantado': 1,
+        // Completo: la proyección dotted omitía entregaAutomatica en la fila de comandas.html
+        platos: 1,
         procesandoPor: 1,
         procesadoPor: 1,
         tiempoPagado: 1,
@@ -1042,6 +1036,7 @@ const agregarComanda = async (data) => {
       platoCompleto,
       plato.complementosSeleccionados
     );
+    aplicarCambioGuarnicionAPlato(plato, platoCompleto);
     if (Array.isArray(plato.complementosSeleccionados) && plato.complementosSeleccionados.length > 0) {
       const afectanPrecio = platoCompleto.complementosAfectanPrecio !== false;
       plato.complementosSeleccionados = enriquecerComplementosConPrecio(
@@ -1071,6 +1066,8 @@ const agregarComanda = async (data) => {
     plato.ocultarCronometroCocina = platoCompleto.ocultarCronometroCocina === true;
     plato.juntarGuarnicionesEntreVariantes = platoCompleto.juntarGuarnicionesEntreVariantes === true;
     plato.kdsEstiloCompacto = platoCompleto.kdsEstiloCompacto === true;
+    plato.kdsEtiquetaColorFondo = parseHexColor(platoCompleto.kdsEtiquetaColorFondo, '');
+    plato.kdsEtiquetaColorLetra = parseHexColor(platoCompleto.kdsEtiquetaColorLetra, '');
     snapshotNombreCocinaPedido(plato, platoCompleto);
     plato.resumenComplementosImpresion = {
       mostrarCantidad: platoCompleto.resumenComplementosImpresion?.mostrarCantidad !== false,
@@ -1907,12 +1904,26 @@ const editarConAuditoria = async (comandaId, platosNuevos, platosEliminados, usu
         if (platoExistenteIndex !== -1) {
           // El plato ya existe, ACTUALIZAR sus propiedades
           console.log(`📝 Actualizando plato existente en índice ${platoExistenteIndex}`);
-          comanda.platos[platoExistenteIndex].estado = nuevoPlato.estado || comanda.platos[platoExistenteIndex].estado;
-          comanda.platos[platoExistenteIndex].tipoServicio = normalizarTipoServicio(nuevoPlato.tipoServicio ?? comanda.platos[platoExistenteIndex].tipoServicio);
+          const linea = comanda.platos[platoExistenteIndex];
+          linea.estado = nuevoPlato.estado || linea.estado;
+          linea.tipoServicio = normalizarTipoServicio(nuevoPlato.tipoServicio ?? linea.tipoServicio);
           const tipoPedidoNuevo = normalizarTipoPedido(nuevoPlato.tipoPedido);
-          if (tipoPedidoNuevo) comanda.platos[platoExistenteIndex].tipoPedido = tipoPedidoNuevo;
+          if (tipoPedidoNuevo) linea.tipoPedido = tipoPedidoNuevo;
           comanda.cantidades[platoExistenteIndex] = nuevoPlato.cantidad || comanda.cantidades[platoExistenteIndex];
-          console.log(`✅ Plato actualizado: cantidad=${comanda.cantidades[platoExistenteIndex]}, estado=${comanda.platos[platoExistenteIndex].estado}, tipoServicio=${comanda.platos[platoExistenteIndex].tipoServicio}`);
+          if (Array.isArray(nuevoPlato.complementosSeleccionados)) {
+            let cat = await platoModel.findById(nuevoPlato.plato || linea.plato);
+            if (!cat && nuevoPlato.platoId) cat = await platoModel.findOne({ id: nuevoPlato.platoId });
+            if (cat) {
+              linea.complementosSeleccionados = fusionarGuarnicionesPreseleccionadas(
+                cat,
+                nuevoPlato.complementosSeleccionados
+              );
+              aplicarCambioGuarnicionAPlato(linea, cat, {
+                snapshotExistente: linea.guarnicionesMarcaSnapshot,
+              });
+            }
+          }
+          console.log(`✅ Plato actualizado: cantidad=${comanda.cantidades[platoExistenteIndex]}, estado=${linea.estado}, tipoServicio=${linea.tipoServicio}`);
         } else {
           // El plato NO existe, AGREGAR como nuevo
           console.log(`➕ Agregando nuevo plato...`);
@@ -1940,6 +1951,8 @@ const editarConAuditoria = async (comandaId, platosNuevos, platosEliminados, usu
               ocultarCronometroCocina: platoCompleto.ocultarCronometroCocina === true,
               juntarGuarnicionesEntreVariantes: platoCompleto.juntarGuarnicionesEntreVariantes === true,
               kdsEstiloCompacto: platoCompleto.kdsEstiloCompacto === true,
+              kdsEtiquetaColorFondo: parseHexColor(platoCompleto.kdsEtiquetaColorFondo, ''),
+              kdsEtiquetaColorLetra: parseHexColor(platoCompleto.kdsEtiquetaColorLetra, ''),
               numeroSerie: String(nuevoPlato.numeroSerie || '').replace(/\D/g, '').slice(0, 4),
               nombreCocinaPedido: String(nuevoPlato.nombreCocinaPedido || '').trim().slice(0, MAX_NOMBRE_COCINA_PEDIDO),
               variantePlato: nuevoPlato.variantePlato || undefined,
@@ -1950,6 +1963,7 @@ const editarConAuditoria = async (comandaId, platosNuevos, platosEliminados, usu
                   : []
               )
             };
+            aplicarCambioGuarnicionAPlato(platoAgregado, platoCompleto);
             snapshotNombreCocinaPedido(platoAgregado, platoCompleto);
             comanda.platos.push(platoAgregado);
             comanda.cantidades.push(nuevoPlato.cantidad || 1);
@@ -2154,6 +2168,15 @@ const actualizarComanda = async (comandaId, newData) => {
           plato.variantePlato = plato.variantePlato || prev.variantePlato;
         }
         if (platoCompleto) snapshotNombreCocinaPedido(plato, platoCompleto);
+        if (platoCompleto) {
+          plato.complementosSeleccionados = fusionarGuarnicionesPreseleccionadas(
+            platoCompleto,
+            plato.complementosSeleccionados
+          );
+          aplicarCambioGuarnicionAPlato(plato, platoCompleto, {
+            snapshotExistente: prev?.guarnicionesMarcaSnapshot,
+          });
+        }
       }
       const mapCats = new Map();
       for (const plato of newData.platos) {

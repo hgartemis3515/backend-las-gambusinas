@@ -213,6 +213,12 @@ function overlayComplementosUnidosEnPlatoLinea(platoLinea) {
   if (cat && typeof cat === 'object' && cat.kdsEstiloCompacto === true) {
     platoLinea.kdsEstiloCompacto = true;
   }
+  if (cat && typeof cat === 'object') {
+    const fondo = String(cat.kdsEtiquetaColorFondo || '').trim();
+    const letra = String(cat.kdsEtiquetaColorLetra || '').trim();
+    if (fondo) platoLinea.kdsEtiquetaColorFondo = fondo;
+    if (letra) platoLinea.kdsEtiquetaColorLetra = letra;
+  }
 }
 
 function overlayPronombresEnComandas(comandas) {

@@ -478,9 +478,53 @@ router.get('/reportes/cocineros/:cocineroId', adminAuth, async (req, res) => {
             });
         }
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             error: error.message || 'Error al obtener detalle del cocinero'
+        });
+    }
+});
+
+/**
+ * GET /api/reportes/mozos/uso-g?desde=&hasta=  (también fechaInicio/fechaFin)
+ * Líneas de plato con cambio de guarnición preseleccionada, agrupadas por mozo.
+ */
+router.get('/reportes/mozos/uso-g', adminAuth, async (req, res) => {
+    try {
+        const fechaInicio = req.query.desde || req.query.fechaInicio;
+        const fechaFin = req.query.hasta || req.query.fechaFin;
+        if (!fechaInicio || !fechaFin) {
+            return res.status(400).json({
+                success: false,
+                error: 'desde/hasta (o fechaInicio/fechaFin) son requeridos'
+            });
+        }
+        if (!fechaQueryValida(fechaInicio) || !fechaQueryValida(fechaFin)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Formato de fecha inválido. Use YYYY-MM-DD o ISO'
+            });
+        }
+        const resultado = await reportesRepository.getUsoGMozos(fechaInicio, fechaFin);
+        res.json({
+            success: true,
+            mozos: resultado.mozos,
+            totalCambiosG: resultado.totalCambiosG,
+            entregasAuto: resultado.entregasAuto || [],
+            meta: {
+                fechaInicio,
+                fechaFin,
+                generadoEn: moment().tz('America/Lima').toISOString()
+            }
+        });
+    } catch (error) {
+        logger.error('[ReportesController] Error en GET /mozos/uso-g', {
+            error: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Error al obtener uso G de mozos'
         });
     }
 });

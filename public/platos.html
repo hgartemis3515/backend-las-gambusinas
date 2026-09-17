@@ -596,6 +596,32 @@ tailwind.config = {
         </div>
       </div>
 
+      <div class="rounded-lg border border-[rgba(212,175,55,0.18)] bg-bg-sidebar/40 p-3 space-y-2">
+        <p class="text-[11px] font-semibold text-txt-primary">Colores de la etiqueta de tipo en KDS</p>
+        <p class="text-[10px] text-txt-muted leading-snug">Si el tipo tiene la regla “Mostrar nombre del tipo en KDS”, a la derecha de EN PREPARACIÓN sale el nombre del tipo. Aquí personalizas fondo y letras de este plato. Vacío = colores del tipo.</p>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="text-[10px] text-txt-muted uppercase">
+            Fondo
+            <input type="color" class="mt-1 h-8 w-full rounded border border-[rgba(212,175,55,0.25)] cursor-pointer"
+              :value="formPlato.kdsEtiquetaColorFondo || '#ffd60a'"
+              @input="formPlato.kdsEtiquetaColorFondo = $event.target.value">
+          </label>
+          <label class="text-[10px] text-txt-muted uppercase">
+            Letras
+            <input type="color" class="mt-1 h-8 w-full rounded border border-[rgba(212,175,55,0.25)] cursor-pointer"
+              :value="formPlato.kdsEtiquetaColorLetra || '#000000'"
+              @input="formPlato.kdsEtiquetaColorLetra = $event.target.value">
+          </label>
+        </div>
+        <div class="flex items-center justify-between gap-2">
+          <span class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase"
+            :style="'background:' + (formPlato.kdsEtiquetaColorFondo || '#ffd60a') + ';color:' + (formPlato.kdsEtiquetaColorLetra || '#000')"
+            x-text="(tiposPlato.find(t => formPlato.tipos.includes(t.slug))?.nombreCorto) || (tiposPlato.find(t => formPlato.tipos.includes(t.slug))?.nombre) || 'NOMBRE'"></span>
+          <button type="button" class="text-[10px] text-gold hover:underline"
+            @click="formPlato.kdsEtiquetaColorFondo = ''; formPlato.kdsEtiquetaColorLetra = ''">Usar colores del tipo</button>
+        </div>
+      </div>
+
       <!-- ASIGNACIÓN AUTOMÁTICA (misma fuente que cocineros.html) -->
       <div class="border-t border-[rgba(212,175,55,0.15)] pt-5 space-y-4">
         <div>
@@ -1470,6 +1496,8 @@ tailwind.config = {
       juntarGuarnicionesEntreVariantes: false,
       requiereNumeroSerie: false,
       kdsEstiloCompacto: false,
+      kdsEtiquetaColorFondo: '',
+      kdsEtiquetaColorLetra: '',
       platoEditable: false,
       nombresSincronizados: [],
       platoPrincipal: null,
@@ -1998,6 +2026,8 @@ tailwind.config = {
         juntarGuarnicionesEntreVariantes: false,
         requiereNumeroSerie: false,
         kdsEstiloCompacto: false,
+        kdsEtiquetaColorFondo: '',
+        kdsEtiquetaColorLetra: '',
         platoEditable: false,
         nombresSincronizados: [],
         platoPrincipal: null,
@@ -2045,6 +2075,8 @@ tailwind.config = {
         juntarGuarnicionesEntreVariantes: !!p.juntarGuarnicionesEntreVariantes,
         requiereNumeroSerie: !!p.requiereNumeroSerie,
         kdsEstiloCompacto: !!p.kdsEstiloCompacto,
+        kdsEtiquetaColorFondo: p.kdsEtiquetaColorFondo || '',
+        kdsEtiquetaColorLetra: p.kdsEtiquetaColorLetra || '',
         platoEditable: p.platoEditable === false
           ? false
           : (!!p.platoEditable || (p.complementos || []).some(g => g.seleccionFija === true)),
@@ -3496,6 +3528,8 @@ tailwind.config = {
         juntarGuarnicionesEntreVariantes: !!this.formPlato.juntarGuarnicionesEntreVariantes,
         requiereNumeroSerie: !!this.formPlato.requiereNumeroSerie,
         kdsEstiloCompacto: !!this.formPlato.kdsEstiloCompacto,
+        kdsEtiquetaColorFondo: this.formPlato.kdsEtiquetaColorFondo || '',
+        kdsEtiquetaColorLetra: this.formPlato.kdsEtiquetaColorLetra || '',
         platoEditable: !!this.formPlato.platoEditable,
         nombresSincronizados: Array.isArray(this.formPlato.nombresSincronizados) ? this.formPlato.nombresSincronizados : [],
         platoPrincipal: this.formPlato.platoPrincipal || null,

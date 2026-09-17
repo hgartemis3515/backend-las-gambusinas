@@ -73,6 +73,21 @@ const tipoPlatoSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    /** Tabla KDS: muestra el nombre del tipo a la derecha de EN PREPARACIÓN. */
+    mostrarNombreTipoEnKds: {
+        type: Boolean,
+        default: false
+    },
+    colorFondoKds: {
+        type: String,
+        trim: true,
+        default: '#ffd60a'
+    },
+    colorLetraKds: {
+        type: String,
+        trim: true,
+        default: '#000000'
+    },
     /** Mozos: si está activo y hay rango, Agregar plato abre directo esa carta en ese horario (America/Lima). */
     horaRedirectActiva: {
         type: Boolean,
@@ -138,7 +153,7 @@ tipoPlatoSchema.statics.getMenuLigero = async function (soloActivos = true) {
     const filter = soloActivos ? { activo: true } : {};
     return this.find(filter)
         .sort({ orden: 1, nombre: 1 })
-        .select('slug nombre nombreCorto icono color orden activo soloContadorEnCocina particionHorizontalCocina particionHorizontalGuarnicionesCocina contadorGuarnicionesCocina horaRedirectActiva horaRedirectInicio horaRedirectFin -_id')
+        .select('slug nombre nombreCorto icono color orden activo soloContadorEnCocina particionHorizontalCocina particionHorizontalGuarnicionesCocina contadorGuarnicionesCocina mostrarNombreTipoEnKds colorFondoKds colorLetraKds horaRedirectActiva horaRedirectInicio horaRedirectFin -_id')
         .lean();
 };
 

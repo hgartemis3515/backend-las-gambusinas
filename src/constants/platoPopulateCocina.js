@@ -5,6 +5,6 @@
  * se pinten con el nombre de carta.
  */
 const SELECT_PLATO_COCINA =
-  'nombre precio categoria codigo nombreCocina tipo tipos complementos complementosUnidosAlPlato ocultarCronometroCocina juntarGuarnicionesEntreVariantes kdsEstiloCompacto requiereNumeroSerie';
+  'nombre precio categoria codigo nombreCocina tipo tipos complementos complementosUnidosAlPlato ocultarCronometroCocina juntarGuarnicionesEntreVariantes kdsEstiloCompacto kdsEtiquetaColorFondo kdsEtiquetaColorLetra requiereNumeroSerie';
 
 module.exports = { SELECT_PLATO_COCINA };

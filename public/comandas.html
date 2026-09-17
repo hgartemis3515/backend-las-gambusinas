@@ -176,7 +176,7 @@ tailwind.config = {
  </form>
 
  <!-- Filtro Mozo -->
- <select x-model="filterMozo" @change="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary min-w-[140px]">
+ <select x-model="filterMozo" @change="filterMozoId = ''; filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm text-txt-secondary min-w-[140px]">
  <option value="">Mozo: Todos</option>
  <template x-for="mozo in mozosList" :key="mozo">
  <option :value="mozo" x-text="mozo"></option>
@@ -192,6 +192,14 @@ tailwind.config = {
   title="Mostrar solo comandas con descuento">
   <span>%</span>
   <span>Solo descuentos</span>
+ </button>
+
+ <button type="button" @click="filterSoloCambioG = !filterSoloCambioG; filterComandas()"
+  :class="filterSoloCambioG ? 'bg-[#2ecc71]/20 border-[#2ecc71] text-[#2ecc71]' : 'bg-bg-sidebar border-txt-muted/30 text-txt-secondary'"
+  class="px-3 py-2 border rounded-lg text-xs font-medium transition flex items-center gap-1"
+  title="Mostrar solo comandas donde el mozo cambió la guarnición preseleccionada">
+  <span>G</span>
+  <span>Solo uso G</span>
  </button>
 
  <!-- Período (mismo patrón que mozos → rendimiento) -->
@@ -260,7 +268,7 @@ tailwind.config = {
  </button>
 
  <!-- Botón limpiar filtros -->
- <button @click="limpiarFiltros()" x-show="filterMesa || filterEstado || filterIdComanda || filterMozo || filterCliente || filterSoloDescuentos || filtroPeriodo !== periodoDefault || hayFiltroAvanzado"
+ <button @click="limpiarFiltros()" x-show="filterMesa || filterEstado || filterIdComanda || filterMozo || filterMozoId || filterCliente || filterSoloDescuentos || filterSoloCambioG || filtroPeriodo !== periodoDefault || hayFiltroAvanzado"
  class="dash-btn-limpiar px-3 py-2 text-xs text-txt-muted hover:text-gold transition border border-transparent hover:border-gold/30 rounded-lg">
  ✕ Limpiar
  </button>
@@ -979,7 +987,7 @@ tailwind.config = {
  </div>
  <div>
  <p class="text-[10px] text-[#5a5a7a]">T. mozo (incluye entrega)</p>
- <p class="font-mono font-medium text-gold" x-text="getResumenSalon(selectedComanda).tiempoMozo"></p>
+ <p class="font-mono font-medium" :class="getResumenSalon(selectedComanda).tieneEntregaAuto ? 'text-[#ff4757]' : 'text-gold'" x-text="getResumenSalon(selectedComanda).tiempoMozo"></p>
  </div>
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Platos entregados</p>
@@ -1031,8 +1039,12 @@ tailwind.config = {
  <template x-if="item.complementosSeleccionados && item.complementosSeleccionados.length > 0">
  <div class="flex flex-wrap gap-1">
  <template x-for="comp in item.complementosSeleccionados" :key="comp.grupo + comp.opcion">
-<span class="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" x-text="textoComplementoChip(comp, item.cantidad)"></span>
+<span class="text-[9px] px-1.5 py-0.5 rounded"
+ :class="esComplementoEntrada(item, comp) ? 'bg-[#2ecc71]/20 text-[#2ecc71] border border-[#2ecc71]/40' : 'bg-[rgba(212,175,55,0.1)] text-[#d4af37]'"
+ :title="esComplementoEntrada(item, comp) ? 'No era preselección' : ''"
+ x-text="textoComplementoChip(comp, item.cantidad)"></span>
 								</template>
+ <p class="w-full text-[9px] text-txt-muted mt-0.5" x-show="textoGuarnicionesSalieron(item)" x-text="textoGuarnicionesSalieron(item)"></p>
 							</div>
 						</template>
 						<template x-if="!item.complementosSeleccionados || item.complementosSeleccionados.length === 0">
@@ -1070,7 +1082,7 @@ tailwind.config = {
  <td class="px-3 py-3 text-center">
  <template x-if="getTiempoMozoPlato(item).tiempo !== '—'">
  <span class="text-[10px] font-mono"
- :class="getTiempoMozoPlato(item).enCurso ? 'text-gold' : 'text-txt-secondary'"
+ :class="claseTiempoMozoCelda(item)"
  x-text="getTiempoMozoPlato(item).tiempo"></span>
  </template>
  <template x-if="getTiempoMozoPlato(item).tiempo === '—'">
@@ -1079,15 +1091,8 @@ tailwind.config = {
  </td>
  <td class="px-3 py-3 text-center">
  <span class="text-[9px] px-2 py-0.5 rounded-full font-semibold"
- :class="{
- 'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar': item.estado === 'pendiente_aprobar',
- 'bg-st-esperando/20 text-st-esperando': item.estado === 'en_espera' || item.estado === 'pedido',
- 'bg-st-preparado/20 text-st-preparado': item.estado === 'recoger',
- 'bg-st-pedido/20 text-st-pedido': item.estado === 'entregado',
- 'bg-st-libre/20 text-st-libre': item.estado === 'pagado',
- 'bg-txt-muted/20 text-txt-muted': item.eliminado
- }"
- x-text="item.eliminado ? (item.eliminadoRazon ? ('Eliminado · ' + item.eliminadoRazon) : 'Eliminado') : labelEstadoPlatoChip(item.estado, selectedComanda)"></span>
+ :class="claseChipEstadoPlato(item)"
+ x-text="item.eliminado ? (item.eliminadoRazon ? ('Eliminado · ' + item.eliminadoRazon) : 'Eliminado') : labelEstadoPlatoChip(item.estado, selectedComanda, item)"></span>
  </td>
  </tr>
  </template>
@@ -1331,7 +1336,7 @@ tailwind.config = {
  </div>
  <div>
  <p class="text-[10px] text-[#5a5a7a]">T. mozo (incluye entrega)</p>
- <p class="font-mono font-medium text-gold" x-text="getResumenSalonGrupo(selectedGrupo).tiempoMozo"></p>
+ <p class="font-mono font-medium" :class="getResumenSalonGrupo(selectedGrupo).tieneEntregaAuto ? 'text-[#ff4757]' : 'text-gold'" x-text="getResumenSalonGrupo(selectedGrupo).tiempoMozo"></p>
  </div>
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Platos entregados</p>
@@ -1366,7 +1371,7 @@ tailwind.config = {
  <div class="flex items-center gap-4 text-xs text-txt-muted">
  <span x-text="(comanda.items?.length || 0) + ' platos'"></span>
  <span class="font-mono text-st-preparado" x-text="'T. cocina ' + getResumenSalon(comanda).tiempoCocina"></span>
- <span class="font-mono text-gold" x-text="'T. mozo ' + getResumenSalon(comanda).tiempoMozo"></span>
+ <span class="font-mono" :class="getResumenSalon(comanda).tieneEntregaAuto ? 'text-[#ff4757]' : 'text-gold'" x-text="'T. mozo ' + getResumenSalon(comanda).tiempoMozo"></span>
  <span x-text="comanda.mozo || '—'"></span>
  <span x-text="comanda.createdAt ? new Date(comanda.createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></span>
  <button @click="openEditModal(comanda)" class="text-gold hover:text-white transition">✏️ Editar</button>
@@ -1404,19 +1409,12 @@ tailwind.config = {
  :class="getTiempoPreparacion(item).enPreparacion ? 'text-st-esperando' : 'text-txt-secondary'"
  x-text="getTiempoPreparacion(item).tiempo"></td>
  <td class="px-3 py-2 text-center text-[10px] font-mono"
- :class="getTiempoMozoPlato(item).enCurso ? 'text-gold' : 'text-txt-secondary'"
+ :class="claseTiempoMozoCelda(item)"
  x-text="getTiempoMozoPlato(item).tiempo"></td>
  <td class="px-3 py-2 text-center">
  <span class="text-[9px] px-2 py-0.5 rounded-full font-semibold"
- :class="{
- 'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar': item.estado === 'pendiente_aprobar',
- 'bg-st-esperando/20 text-st-esperando': item.estado === 'en_espera',
- 'bg-st-preparado/20 text-st-preparado': item.estado === 'recoger',
- 'bg-st-pedido/20 text-st-pedido': item.estado === 'entregado',
- 'bg-st-libre/20 text-st-libre': item.estado === 'pagado',
- 'bg-txt-muted/20 text-txt-muted': item.eliminado
- }"
- x-text="item.eliminado ? (item.eliminadoRazon ? ('Eliminado · ' + item.eliminadoRazon) : 'Eliminado') : labelEstadoPlatoChip(item.estado, comanda)"></span>
+ :class="claseChipEstadoPlato(item)"
+ x-text="item.eliminado ? (item.eliminadoRazon ? ('Eliminado · ' + item.eliminadoRazon) : 'Eliminado') : labelEstadoPlatoChip(item.estado, comanda, item)"></span>
  </td>
  </tr>
  </template>
@@ -2623,8 +2621,10 @@ function comandasApp() {
  filterEstado: '',
  filterIdComanda: '',
  filterMozo: '',
+ filterMozoId: '',
  filterCliente: '',
  filterSoloDescuentos: false,
+ filterSoloCambioG: false,
  verEliminadas: false,
  filtroPeriodo: 'hoy',
  customFechaDesde: '',
@@ -3806,6 +3806,7 @@ fusionarTrazabilidadItems(prevItems, nextItems) {
         procesadoPor: this.fusionarCampoCocinero(c.procesadoPor, prevC.procesadoPor)
       };
     });
+    const estadoItem = String(item.estado || prev.estado || '').toLowerCase();
     return {
       ...item,
       procesandoPor: this.fusionarCampoCocinero(item.procesandoPor, prev.procesandoPor),
@@ -3813,6 +3814,9 @@ fusionarTrazabilidadItems(prevItems, nextItems) {
       finalizadoPor: (item.finalizadoPor && item.finalizadoPor.usuarioId)
         ? item.finalizadoPor
         : (prev.finalizadoPor || item.finalizadoPor),
+      entregaAutomatica: estadoItem === 'entregado'
+        ? (this.esFlagEntregaAuto(item.entregaAutomatica) || this.esFlagEntregaAuto(prev.entregaAutomatica))
+        : false,
       complementosSeleccionados: complementosSeleccionados.length ? complementosSeleccionados : (item.complementosSeleccionados || prev.complementosSeleccionados || [])
     };
   });
@@ -4034,6 +4038,7 @@ this.modal = null;
  .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
  this.extraerMozosUnicos();
+ this.resolverFiltroMozoDesdeId();
  this.processGrouping();
  this.filterComandas();
  this.loading = false;
@@ -4130,6 +4135,9 @@ this.modal = null;
  eliminadoRazon: item.eliminadoRazon || null,
  notaEspecial: item.notaEspecial || '',
  complementosSeleccionados: item.complementosSeleccionados || [],
+ cambioGuarnicionPreseleccion: !!item.cambioGuarnicionPreseleccion,
+ guarnicionesMarcaSnapshot: item.guarnicionesMarcaSnapshot || [],
+ guarnicionesCambio: item.guarnicionesCambio || { salieron: [], entraron: [] },
  // NUEVO: Tipo de servicio (Mesa vs Para llevar)
  tipoServicio: item.tipoServicio || 'mesa',
  // 🔥 TRAZABILIDAD DE COCINERO: Campos de procesamiento
@@ -4138,6 +4146,7 @@ this.modal = null;
  finalizadoPor: item.finalizadoPor || null,
  // 🔥 TIEMPOS: Timestamps de cada estado del plato
  tiempos: item.tiempos || null,
+ entregaAutomatica: this.esFlagEntregaAuto(item.entregaAutomatica),
  createdAt: item.createdAt || raw.createdAt || null
  };
  });
@@ -4484,15 +4493,42 @@ this.modal = null;
  };
  },
 
+ esFlagEntregaAuto(valor) {
+  return valor === true || valor === 1 || valor === '1' || String(valor).toLowerCase() === 'true';
+ },
+
+ esEntregaAutoPlato(item) {
+  return !!(item && this.esFlagEntregaAuto(item.entregaAutomatica) && String(item.estado || '').toLowerCase() === 'entregado');
+ },
+
+ claseTiempoMozoCelda(item) {
+  if (this.esEntregaAutoPlato(item)) return 'text-[#ff4757] font-semibold';
+  return this.getTiempoMozoPlato(item).enCurso ? 'text-gold' : 'text-txt-secondary';
+ },
+
+ claseChipEstadoPlato(item) {
+  if (!item || item.eliminado) return 'bg-txt-muted/20 text-txt-muted';
+  if (this.esEntregaAutoPlato(item)) return 'bg-[#ff4757]/20 text-[#ff4757]';
+  const e = String(item.estado || '').toLowerCase();
+  if (e === 'pendiente_aprobar') return 'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar';
+  if (e === 'en_espera' || e === 'pedido') return 'bg-st-esperando/20 text-st-esperando';
+  if (e === 'recoger') return 'bg-st-preparado/20 text-st-preparado';
+  if (e === 'salio') return 'bg-st-preparado/20 text-st-preparado';
+  if (e === 'entregado') return 'bg-st-pedido/20 text-st-pedido';
+  if (e === 'pagado') return 'bg-st-libre/20 text-st-libre';
+  return 'bg-txt-muted/20 text-txt-muted';
+ },
+
  getResumenSalon(comanda) {
  void this.now;
  const items = (comanda?.items || comanda?.platos || []).filter((i) => i && !i.eliminado && !i.anulado);
- let segCocina = 0, segMozo = 0, nC = 0, nM = 0, entregados = 0;
+ let segCocina = 0, segMozo = 0, nC = 0, nM = 0, entregados = 0, tieneEntregaAuto = false;
  for (const item of items) {
  const c = this.getTiempoPreparacion(item);
  if (c.segundos > 0) { segCocina += c.segundos; nC++; }
  const m = this.getTiempoMozoPlato(item);
  if (m.segundos > 0) { segMozo += m.segundos; nM++; }
+ if (this.esEntregaAutoPlato(item)) tieneEntregaAuto = true;
  const est = String(item.estado || '').toLowerCase();
  if (est === 'entregado' || est === 'pagado' || item.tiempos?.entregado) entregados++;
  }
@@ -4502,18 +4538,20 @@ this.modal = null;
  segundosCocina: segCocina,
  segundosMozo: segMozo,
  entregados,
- total: items.length
+ total: items.length,
+ tieneEntregaAuto
  };
  },
 
  getResumenSalonGrupo(grupo) {
  void this.now;
  const comandas = grupo?.comandas || [];
- let segCocina = 0, segMozo = 0, nC = 0, nM = 0, entregados = 0, total = 0;
+ let segCocina = 0, segMozo = 0, nC = 0, nM = 0, entregados = 0, total = 0, tieneEntregaAuto = false;
  for (const c of comandas) {
  const r = this.getResumenSalon(c);
  if (r.segundosCocina > 0) { segCocina += r.segundosCocina; nC++; }
  if (r.segundosMozo > 0) { segMozo += r.segundosMozo; nM++; }
+ if (r.tieneEntregaAuto) tieneEntregaAuto = true;
  entregados += r.entregados;
  total += r.total;
  }
@@ -4521,7 +4559,8 @@ this.modal = null;
  tiempoCocina: nC ? this.formatearTiempo(segCocina * 1000) : '—',
  tiempoMozo: nM ? this.formatearTiempo(segMozo * 1000) : '—',
  entregados,
- total
+ total,
+ tieneEntregaAuto
  };
  },
 
@@ -4630,6 +4669,50 @@ this.modal = null;
  let t = (grupo ? grupo + ': ' : '') + opcion + ' x' + cant;
  if (precio > 0) t += ' +S/. ' + precio.toFixed(2);
  return t;
+ },
+
+ claveGuarnicionChip(comp) {
+  const g = String(comp?.grupo || '').trim().toLowerCase();
+  const o = String(comp?.opcion || comp?.nombre || '').trim().toLowerCase();
+  const n = Number(comp?.cantidad);
+  const c = Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
+  return g + '|' + o + '|' + c;
+ },
+
+ esComplementoEntrada(item, comp) {
+  const list = item?.guarnicionesCambio?.entraron || [];
+  if (!list.length) return false;
+  const k = this.claveGuarnicionChip(comp);
+  return list.some((x) => this.claveGuarnicionChip(x) === k);
+ },
+
+ textoGuarnicionesSalieron(item) {
+  const list = item?.guarnicionesCambio?.salieron || [];
+  if (!list.length) return '';
+  return list.map((s) => 'Sin ' + (s.opcion || s.nombre || '')).filter((t) => t !== 'Sin ').join(' · ');
+ },
+
+ comandaTieneUsoG(c) {
+  const items = c?.items || c?.platos || [];
+  return items.some((p) => p && !p.eliminado && p.cambioGuarnicionPreseleccion);
+ },
+
+ pasaFiltroUsoG(c) {
+  if (!this.filterSoloCambioG) return true;
+  return this.comandaTieneUsoG(c);
+ },
+
+ pasaFiltroMozoId(c) {
+  if (!this.filterMozoId) return true;
+  const id = String(this.filterMozoId);
+  return String(c?.mozoId || '') === id || String(c?.mozo || '') === id;
+ },
+
+ resolverFiltroMozoDesdeId() {
+  if (!this.filterMozoId || this.filterMozo) return;
+  const id = String(this.filterMozoId);
+  const found = (this.comandas || []).find((c) => String(c.mozoId || '') === id);
+  if (found?.mozo && found.mozo !== 'Sin asignar') this.filterMozo = found.mozo;
  },
 
  irARendimientoCocinero(cocinero) {
@@ -5041,7 +5124,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const matchFecha = this.matchFechaRango(c.createdAt);
  const matchAvanzado = this.matchFiltroAvanzado(c);
  const matchDesc = !this.filterSoloDescuentos || this.comandaTieneDescuentoFront(c);
- return matchMesa && matchEstado && matchElim && matchIdComanda && matchMozo && matchCliente && matchFecha && matchAvanzado && matchDesc;
+ const matchG = this.pasaFiltroUsoG(c) && this.pasaFiltroMozoId(c);
+ return matchMesa && matchEstado && matchElim && matchIdComanda && matchMozo && matchCliente && matchFecha && matchAvanzado && matchDesc && matchG;
  });
  } else {
  // Filtrar filas (grupos e individuales)
@@ -5065,7 +5149,9 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  }
  const matchAvanzado = !this.hayFiltroAvanzado || (row.comandas || []).some(c => this.matchFiltroAvanzado(c));
  const matchDesc = !this.filterSoloDescuentos || (row.comandas || []).some(c => this.comandaTieneDescuentoFront(c));
- return matchMesa && matchEstado && matchCliente && matchMozo && matchFecha && matchAvanzado && matchDesc;
+ const matchG = (!this.filterSoloCambioG && !this.filterMozoId)
+   || (row.comandas || []).some(c => this.pasaFiltroUsoG(c) && this.pasaFiltroMozoId(c));
+ return matchMesa && matchEstado && matchCliente && matchMozo && matchFecha && matchAvanzado && matchDesc && matchG;
  } else {
  // Filtrar individual
  const c = row.comanda;
@@ -5081,7 +5167,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const matchFecha = this.matchFechaRango(c.createdAt);
  const matchAvanzado = this.matchFiltroAvanzado(c);
  const matchDesc = !this.filterSoloDescuentos || this.comandaTieneDescuentoFront(c);
- return matchMesa && matchEstado && matchElim && matchIdComanda && matchMozo && matchCliente && matchFecha && matchAvanzado && matchDesc;
+ const matchG = this.pasaFiltroUsoG(c) && this.pasaFiltroMozoId(c);
+ return matchMesa && matchEstado && matchElim && matchIdComanda && matchMozo && matchCliente && matchFecha && matchAvanzado && matchDesc && matchG;
  }
  });
  }
@@ -5100,8 +5187,10 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  this.filterEstado = '';
  this.filterIdComanda = '';
  this.filterMozo = '';
+ this.filterMozoId = '';
  this.filterCliente = '';
  this.filterSoloDescuentos = false;
+ this.filterSoloCambioG = false;
  this.filtroPeriodo = this.periodoDefault;
  this.customFechaDesde = '';
  this.customFechaHasta = '';
@@ -5113,14 +5202,18 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   const qs = new URLSearchParams(window.location.search);
   const desc = String(qs.get('descuento') || qs.get('descuentos') || '').toLowerCase();
   if (desc === '1' || desc === 'true' || desc === 'si') this.filterSoloDescuentos = true;
+  const g = String(qs.get('cambioG') || qs.get('usoG') || '').toLowerCase();
+  if (g === '1' || g === 'true' || g === 'si') this.filterSoloCambioG = true;
+  const mozoId = String(qs.get('mozo') || qs.get('mozoId') || '').trim();
+  if (mozoId) this.filterMozoId = mozoId;
   const periodo = String(qs.get('periodo') || '').toLowerCase();
   const allowed = ['hoy', 'dia', 'noche', 'ayer', '7dias', 'todos', 'custom'];
   if (!allowed.includes(periodo)) return;
   this.filtroPeriodo = periodo;
   if (periodo === 'custom') {
     const hoy = limaYMD();
-    this.customFechaDesde = qs.get('desde') || qs.get('fechaInicio') || hoy;
-    this.customFechaHasta = qs.get('hasta') || qs.get('fechaFin') || hoy;
+    this.customFechaDesde = String(qs.get('desde') || qs.get('fechaInicio') || hoy).slice(0, 10);
+    this.customFechaHasta = String(qs.get('hasta') || qs.get('fechaFin') || hoy).slice(0, 10);
   }
  },
 
@@ -5171,7 +5264,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  return map[estado] || estado || 'pendiente';
  },
 
- ordenEstadosPlato: ['pendiente', 'pedido', 'en_espera', 'recoger', 'salio', 'entregado', 'pagado', 'pendiente_aprobar', 'cancelado'],
+ ordenEstadosPlato: ['pendiente', 'pedido', 'en_espera', 'recoger', 'salio', 'entregado', 'entregado_auto', 'pagado', 'pendiente_aprobar', 'cancelado'],
 
  claseEstadoPlatoChip(estado) {
  const e = String(estado || '').toLowerCase();
@@ -5183,6 +5276,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  recoger: 'bg-black text-[#2ecc71]',
  salio: 'bg-black text-[#c084fc]',
  entregado: 'bg-black text-[#3498db]',
+ entregado_auto: 'bg-black text-[#ff4757]',
  pagado: 'bg-black text-[#00d4aa]',
  cancelado: 'bg-black text-[#ff6b6b]',
  completado: 'bg-black text-[#c0c0c0]'
@@ -5195,10 +5289,15 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const labels = {};
  (items || []).forEach((item) => {
  if (!item || item.eliminado) return;
- const est = String(item.estado || 'en_espera').toLowerCase();
+ const estRaw = String(item.estado || 'en_espera').toLowerCase();
+ const est = this.esEntregaAutoPlato(item) ? 'entregado_auto' : estRaw;
  const n = Math.max(1, Number(item.cantidad) || 1);
  counts[est] = (counts[est] || 0) + n;
- if (!labels[est]) labels[est] = this.labelEstadoPlatoChip(est, comanda);
+ if (!labels[est]) {
+   labels[est] = est === 'entregado_auto'
+     ? 'Entrega Auto'
+     : this.labelEstadoPlatoChip(estRaw, comanda, item);
+ }
  });
  const vistos = new Set();
  const chips = [];
@@ -7009,7 +7108,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
      && this.esComandaReservaParaLlevar(c)
      && this.clasificarPagoReserva(c) === 'pagada';
  },
- labelEstadoPlatoChip(estado, comanda) {
+ labelEstadoPlatoChip(estado, comanda, item) {
+   if (item && this.esEntregaAutoPlato(item)) return 'Entrega Auto';
    const e = String(estado || '').toLowerCase();
    if (e === 'pendiente' && this.esPendienteAEntregarReserva(comanda)) return 'Pendiente a entregar';
    return this.estadoLabel(e);

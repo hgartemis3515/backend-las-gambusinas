@@ -103,6 +103,8 @@ function fusionarGuarnicionesPreseleccionadas(platoCompleto, seleccionados) {
 }
 
 module.exports = {
+  claveGrupo,
+  grupoNombreCocina,
   preseleccionGuarnicionesDeCatalogo,
   fusionarGuarnicionesPreseleccionadas,
 };

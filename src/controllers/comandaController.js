@@ -50,7 +50,7 @@ const {
 } = require('../utils/reglasComandaTomadaCocina');
 const { buildAutocierreGuarnicionesSet } = require('../utils/autocerrarGuarniciones');
 const { destinosCambioEstadoPlato } = require('../utils/cadenaEntregaPlato');
-const { obtenerMinutosEntregaAutomaticaMozos } = require('../utils/entregaAutomaticaMozos');
+const { obtenerMinutosEntregaAutomaticaMozos, marcarEntregaAutomaticaPorTimer } = require('../utils/entregaAutomaticaMozos');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
 const { getComandasParaPagoAdelantado, mesaIdEsValido } = require('../repository/ticketPagoAdelantado.repository');
 const { adminAuth, checkPermission } = require('../middleware/adminAuth');
@@ -189,7 +189,15 @@ router.get('/comanda', async (req, res) => {
         const incluirEliminadas =
             req.query.incluirEliminadas === 'true' ||
             req.query.incluirEliminadas === '1';
-        const data = await listarComanda(incluirEliminadas, true, incluirPagadas);
+        const opts = {};
+        if (req.query.cambioG === '1' || req.query.cambioG === 'true') opts.cambioG = true;
+        const mozoQ = req.query.mozoId || req.query.mozo;
+        if (mozoQ) opts.mozoId = mozoQ;
+        if (req.query.desde && req.query.hasta) {
+            opts.desde = req.query.desde;
+            opts.hasta = req.query.hasta;
+        }
+        const data = await listarComanda(incluirEliminadas, true, incluirPagadas, opts);
         // Asegurar que siempre retornamos un array
         if (!Array.isArray(data)) {
             logger.warn('listarComanda no retornó un array', { type: typeof data, data });
@@ -2609,7 +2617,7 @@ router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {
                             timestamp: momentoEntrega
                         };
                     }
-                    if (entregaAutomatica === true) {
+                    if (marcarEntregaAutomaticaPorTimer(minutosDelayEntrega, entregaAutomatica === true)) {
                         setEntrega[`platos.${idxE}.entregaAutomatica`] = true;
                     }
                     if (Object.keys(setEntrega).length) {

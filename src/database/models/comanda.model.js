@@ -130,6 +130,8 @@ const comandaSchema = new mongoose.Schema({
         juntarGuarnicionesEntreVariantes: { type: Boolean },
         numeroSerie: { type: String, default: '', trim: true },
         kdsEstiloCompacto: { type: Boolean },
+        kdsEtiquetaColorFondo: { type: String, default: '', trim: true },
+        kdsEtiquetaColorLetra: { type: String, default: '', trim: true },
         resumenComplementosImpresion: {
             mostrarCantidad: { type: Boolean, default: true },
             mostrarMontoExtra: { type: Boolean, default: true }
@@ -312,6 +314,28 @@ const comandaSchema = new mongoose.Schema({
                 ref: 'Boucher',
                 default: null,
             },
+        },
+        // PLAN_USO_G: 1 línea = 1 si la receta G ≠ marcas del catálogo al pedir
+        cambioGuarnicionPreseleccion: { type: Boolean, default: false },
+        guarnicionesMarcaSnapshot: [{
+            grupo: { type: String, trim: true },
+            opcion: { type: String, trim: true },
+            cantidad: { type: Number, default: 1, min: 1 },
+            _id: false,
+        }],
+        guarnicionesCambio: {
+            salieron: [{
+                grupo: { type: String, trim: true },
+                opcion: { type: String, trim: true },
+                cantidad: { type: Number, default: 1, min: 1 },
+                _id: false,
+            }],
+            entraron: [{
+                grupo: { type: String, trim: true },
+                opcion: { type: String, trim: true },
+                cantidad: { type: Number, default: 1, min: 1 },
+                _id: false,
+            }],
         },
     }],
     cantidades: {
@@ -691,6 +715,11 @@ comandaSchema.index(
 comandaSchema.index(
     { 'platos.procesandoPor.cocineroId': 1, 'platos.estado': 1 },
     { name: 'idx_platos_en_curso_cocinero' }
+);
+
+comandaSchema.index(
+    { mozos: 1, 'platos.cambioGuarnicionPreseleccion': 1, createdAt: -1 },
+    { name: 'idx_comanda_uso_g_mozo', partialFilterExpression: { eliminada: { $ne: true } } }
 );
 
 // ========== FIN ÍNDICES FASE A1 ==========

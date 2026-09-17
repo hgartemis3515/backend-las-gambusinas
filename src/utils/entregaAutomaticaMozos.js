@@ -55,10 +55,16 @@ async function obtenerMinutosEntregaAutomaticaMozos() {
   return minutosEntregaAutomaticaMozos(cfg);
 }
 
+/** Solo el vencimiento del cronómetro (minutos > 0). Al instante o entrega manual = Entregado normal. */
+function marcarEntregaAutomaticaPorTimer(minutosDelay, solicitado) {
+  return Number(minutosDelay) > 0 && solicitado === true;
+}
+
 module.exports = {
   minutosEntregaAutomaticaMozos,
   obtenerMinutosEntregaAutomaticaMozos,
   parseTiempoMs,
   msRestantesEntregaAutomatica,
-  tiempoSalioRequiereReparacion
+  tiempoSalioRequiereReparacion,
+  marcarEntregaAutomaticaPorTimer
 };

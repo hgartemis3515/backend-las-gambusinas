@@ -827,10 +827,18 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       const { findNombrePlatoEnComanda } = require('../services/pushNotifications');
       const platoNombre =
         nuevoEstado === 'recoger' ? findNombrePlatoEnComanda(comanda, platoId) : null;
+      const pidEv = platoId?.toString?.() || (platoId != null ? String(platoId) : '');
+      const platoEvDoc = (comanda.platos || []).find((p) =>
+        String(p._id || '') === pidEv
+        || String(p.platoId || '') === pidEv
+        || String(p.plato?._id || p.plato || '') === pidEv
+      );
+      const entregaAutomaticaEv = platoEvDoc?.entregaAutomatica === true;
       const platoEventMozos = {
         comandaId: comandaId,
         platoId: platoId,
         nuevoEstado: nuevoEstado,
+        entregaAutomatica: entregaAutomaticaEv,
         mesaId: mesaIdPop ? mesaIdPop.toString() : null,
         mesaNumero,
         comandaNumber: comanda.comandaNumber ?? null,
@@ -865,6 +873,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
           comandaId: comandaId?.toString?.() || String(comandaId),
           platoId: platoId?.toString?.() || (platoId != null ? String(platoId) : undefined),
           nuevoEstado,
+          entregaAutomatica: entregaAutomaticaEv,
           mesaId: mesaIdPop ? String(mesaIdPop) : null,
           mozoId: mozoIdPop ? String(mozoIdPop) : null,
           timestamp,
@@ -875,6 +884,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         comandaId: comandaId,
         platoId: platoId,
         nuevoEstado: nuevoEstado,
+        entregaAutomatica: entregaAutomaticaEv,
         comanda: comanda,
         socketId: 'server',
         timestamp: timestamp

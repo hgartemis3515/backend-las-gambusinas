@@ -861,6 +861,13 @@ tailwind.config = {
                 <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Totales</p><p class="text-gold font-bold" x-text="'S/. ' + fmt(mozoSeleccionado.ventasHoy)"></p></div>
                 <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Propinas</p><p class="text-st-preparado font-bold" x-text="'S/. ' + fmt(mozoSeleccionado.propinasHoy)"></p></div>
                 <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Mesas atend.</p><p class="text-white font-semibold" x-text="mesasAtendidasMozo(mozoSeleccionado)"></p></div>
+                <div class="bg-bg-sidebar rounded-lg p-2">
+                  <p class="text-[10px] text-txt-muted uppercase">Uso G</p>
+                  <button type="button" class="inline-flex items-center justify-center min-w-[1.75rem] px-2 py-0.5 rounded-md bg-[#ffd60a] text-black font-extrabold tabular-nums hover:brightness-95"
+                    title="Ver comandas con cambio de guarnición"
+                    @click="abrirComandasUsoG(mozoSeleccionado)"
+                    x-text="Number(mozoSeleccionado.cambiosG || 0)"></button>
+                </div>
                 <div class="bg-bg-sidebar rounded-lg p-2"><p class="text-[10px] text-txt-muted uppercase">Prom/boucher</p><p class="text-white font-semibold" x-text="'S/. ' + fmt(promPropinaBoucher(mozoSeleccionado))"></p></div>
               </div>
               <div class="border-t border-[rgba(212,175,55,0.12)] pt-3">
@@ -1011,7 +1018,7 @@ tailwind.config = {
               <th class="pb-2 pr-2 text-right">Pagadas</th>
               <th class="pb-2 pr-2 text-right">Descuentos</th>
               <th class="pb-2 pr-2 text-right">Totales</th>
-              <th class="pb-2 pr-2 text-right">Propinas</th>
+              <th class="pb-2 pr-2 text-right">Uso G</th>
               <th class="pb-2 pr-2 text-right">S/. / mesa</th>
               <th class="pb-2 text-right">S/. / ticket</th>
             </tr>
@@ -1033,7 +1040,11 @@ tailwind.config = {
                 <td class="py-2.5 pr-2 text-right tabular-nums text-st-preparado" x-text="'S/. ' + fmt(row.aprobadas)"></td>
                 <td class="py-2.5 pr-2 text-right tabular-nums text-st-pagado" x-text="'S/. ' + fmt(row.descuentos)"></td>
                 <td class="py-2.5 pr-2 text-right tabular-nums text-gold font-semibold" x-text="'S/. ' + fmt(row.ventas)"></td>
-                <td class="py-2.5 pr-2 text-right tabular-nums text-st-preparado" x-text="'S/. ' + fmt(row.propinas)"></td>
+                <td class="py-2.5 pr-2 text-right tabular-nums" @click.stop="abrirComandasUsoG(row)">
+                  <button type="button" class="inline-flex items-center justify-center min-w-[1.75rem] px-2 py-0.5 rounded-md bg-[#ffd60a] text-black font-extrabold tabular-nums hover:brightness-95"
+                    title="Ver comandas con cambio de guarnición"
+                    x-text="Number(row.cambiosG || 0)"></button>
+                </td>
                 <td class="py-2.5 pr-2 text-right tabular-nums text-txt-secondary" x-text="'S/. ' + fmt(row.promMesa)"></td>
                 <td class="py-2.5 text-right tabular-nums text-txt-secondary" x-text="'S/. ' + fmt(row.promTicket)"></td>
               </tr>
@@ -1045,7 +1056,7 @@ tailwind.config = {
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div class="mozos-kpi-card rounded-2xl p-4 min-h-[300px]">
-          <h3 class="text-xs font-bold uppercase text-txt-muted mb-2">Ventas vs propinas por mozo</h3>
+          <h3 class="text-xs font-bold uppercase text-txt-muted mb-2">Ventas vs Uso G por mozo</h3>
           <div class="h-[260px]"><canvas id="chartMozosBar"></canvas></div>
         </div>
         <div class="mozos-kpi-card rounded-2xl p-4 min-h-[300px]">
@@ -1263,14 +1274,14 @@ tailwind.config = {
                   <div class="flex flex-wrap gap-1">
                     <template x-for="(p, i) in platosPreviewMozo(c, 6)" :key="keyPlatoMozo(p, c, i)">
                       <span class="text-[10px] px-1.5 py-0.5 rounded font-medium"
-                        :class="estadoPlatoBadgeClase(p.estado)"
-                        x-text="(p.platoNombre || 'Plato').slice(0, 18) + ' [' + estadoPlatoLabel(p.estado) + ']'"></span>
+                        :class="estadoPlatoBadgeClase(p.estado, p)"
+                        x-text="(p.platoNombre || 'Plato').slice(0, 18) + ' [' + estadoPlatoLabel(p.estado, p) + ']'"></span>
                     </template>
                     <span x-show="(c.platos || []).length > 6" class="text-[10px] text-txt-muted self-center" x-text="'+' + ((c.platos || []).length - 6) + ' más'"></span>
                   </div>
                   <div class="flex items-center gap-3 mt-2 text-[10px] text-txt-muted">
                     <span>T. cocina: <span class="font-mono text-white" x-text="formatDuracionSegundos(getTiempoCocinaComandaVivo(c))"></span></span>
-                    <span>T. mozo: <span class="font-mono text-white" x-text="formatDuracionSegundos(getTiempoMozoComandaVivo(c))"></span></span>
+                    <span>T. mozo: <span class="font-mono" :class="colorTiempoMozo(getTiempoMozoComandaVivo(c), { entregaAutomatica: comandaTieneEntregaAuto(c) })" x-text="formatDuracionSegundos(getTiempoMozoComandaVivo(c))"></span></span>
                     <span>Δ: <span class="font-mono" :class="colorDiferencia(getDiferenciaComandaVivo(c))" x-text="formatDuracionConSigno(getDiferenciaComandaVivo(c))"></span></span>
                   </div>
                 </div>
@@ -1311,14 +1322,14 @@ tailwind.config = {
                   <td class="py-2.5 px-3">
                     <div class="flex flex-wrap gap-1 max-w-[320px]">
                       <template x-for="(p, i) in platosPreviewMozo(c, 4)" :key="keyPlatoMozo(p, c, i)">
-                        <span class="text-[10px] px-1.5 py-0.5 rounded font-medium" :class="estadoPlatoBadgeClase(p.estado)" x-text="(p.platoNombre || 'Plato').slice(0, 16) + ' [' + estadoPlatoLabel(p.estado) + ']'"></span>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded font-medium" :class="estadoPlatoBadgeClase(p.estado, p)" x-text="(p.platoNombre || 'Plato').slice(0, 16) + ' [' + estadoPlatoLabel(p.estado, p) + ']'"></span>
                       </template>
                       <span x-show="(c.platos || []).length > 4" class="text-[10px] text-txt-muted self-center" x-text="'+' + ((c.platos || []).length - 4)"></span>
                     </div>
                     <p class="text-[9px] text-txt-muted mt-0.5" x-text="(c.platosEntregados || 0) + '/' + (c.platosTotal || 0) + ' entregados'"></p>
                   </td>
                   <td class="py-2.5 px-3 text-right font-mono text-xs" x-text="formatDuracionSegundos(getTiempoCocinaComandaVivo(c))"></td>
-                  <td class="py-2.5 px-3 text-right font-mono text-xs" :class="colorTiempoMozo(getTiempoMozoComandaVivo(c))" x-text="formatDuracionSegundos(getTiempoMozoComandaVivo(c))"></td>
+                  <td class="py-2.5 px-3 text-right font-mono text-xs" :class="colorTiempoMozo(getTiempoMozoComandaVivo(c), { entregaAutomatica: comandaTieneEntregaAuto(c) })" x-text="formatDuracionSegundos(getTiempoMozoComandaVivo(c))"></td>
                   <td class="py-2.5 px-3 text-right font-mono text-xs font-bold" :class="colorDiferencia(getDiferenciaComandaVivo(c))" x-text="formatDuracionConSigno(getDiferenciaComandaVivo(c))"></td>
                   <td class="py-2.5 px-3 text-center">
                     <button type="button" @click="openComandaMozoModal(c.comandaId)" class="text-xs px-2 py-1 bg-gold/20 text-gold rounded hover:bg-gold/30 transition">Ver completo</button>
@@ -1447,14 +1458,14 @@ tailwind.config = {
                   <td class="py-2.5 px-3">
                     <div class="flex flex-wrap gap-1 max-w-[320px]">
                       <template x-for="(p, i) in platosPreviewMozo(c, 4)" :key="keyPlatoMozo(p, c, i)">
-                        <span class="text-[10px] px-1.5 py-0.5 rounded font-medium" :class="estadoPlatoBadgeClase(p.estado)" x-text="(p.platoNombre || 'Plato').slice(0, 16) + ' [' + estadoPlatoLabel(p.estado) + ']'"></span>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded font-medium" :class="estadoPlatoBadgeClase(p.estado, p)" x-text="(p.platoNombre || 'Plato').slice(0, 16) + ' [' + estadoPlatoLabel(p.estado, p) + ']'"></span>
                       </template>
                       <span x-show="(c.platos || []).length > 4" class="text-[10px] text-txt-muted self-center" x-text="'+' + ((c.platos || []).length - 4)"></span>
                     </div>
                     <p class="text-[9px] text-txt-muted mt-0.5" x-text="(c.platosEntregados || 0) + '/' + (c.platosTotal || 0) + ' entregados'"></p>
                   </td>
                   <td class="py-2.5 px-3 text-right font-mono text-xs" x-text="formatDuracionSegundos(getTiempoCocinaComandaVivo(c))"></td>
-                  <td class="py-2.5 px-3 text-right font-mono text-xs" :class="colorTiempoMozo(getTiempoMozoComandaVivo(c))" x-text="formatDuracionSegundos(getTiempoMozoComandaVivo(c))"></td>
+                  <td class="py-2.5 px-3 text-right font-mono text-xs" :class="colorTiempoMozo(getTiempoMozoComandaVivo(c), { entregaAutomatica: comandaTieneEntregaAuto(c) })" x-text="formatDuracionSegundos(getTiempoMozoComandaVivo(c))"></td>
                   <td class="py-2.5 px-3 text-right font-mono text-xs font-bold" :class="colorDiferencia(getDiferenciaComandaVivo(c))" x-text="formatDuracionConSigno(getDiferenciaComandaVivo(c))"></td>
                   <td class="py-2.5 px-3 text-center">
                     <button type="button" @click="openComandaMozoModal(c.comandaId)" class="text-xs px-2 py-1 bg-gold/20 text-gold rounded hover:bg-gold/30 transition">Ver completo</button>
@@ -3626,6 +3637,7 @@ function mozosExecutiveApp() {
         const tickets = Number(m.bouchersHoy) || 0;
         const ventas = Number(m.ventasHoy) || 0;
         const propinas = Number(m.propinasHoy) || 0;
+        const cambiosG = Number(m.cambiosG) || 0;
         return {
           id: this.idMozoStr(m),
           nombre: m.nombre || '—',
@@ -3636,11 +3648,29 @@ function mozosExecutiveApp() {
           descuentos: Number(m.descuentosHoy) || 0,
           ventas,
           propinas,
+          cambiosG,
           promMesa: mesas > 0 ? Math.round((ventas / mesas) * 100) / 100 : 0,
           promTicket: tickets > 0 ? Math.round((ventas / tickets) * 100) / 100 : 0,
           raw: m
         };
       });
+    },
+    abrirComandasUsoG(row) {
+      const id = row?.id || this.idMozoStr(row?.raw) || this.idMozoStr(row);
+      if (!id) return;
+      const params = new URLSearchParams();
+      params.set('cambioG', '1');
+      params.set('mozo', String(id));
+      const presetMap = { hoy: 'hoy', dia: 'dia', noche: 'noche', semana: '7dias' };
+      if (presetMap[this.rangoPreset]) {
+        params.set('periodo', presetMap[this.rangoPreset]);
+      } else {
+        const { inicio, fin } = this.rangoFechas;
+        params.set('periodo', 'custom');
+        params.set('desde', String(inicio || '').slice(0, 10));
+        params.set('hasta', String(fin || '').slice(0, 10));
+      }
+      window.location.href = 'comandas.html?' + params.toString();
     },
     get rendimientoHeatmapHoras() {
       return Array.from({ length: 16 }, (_, i) => i + 8);
@@ -4406,7 +4436,8 @@ function mozosExecutiveApp() {
       const signo = seg > 0 ? '+' : '';
       return signo + this.formatDuracionSegundos(Math.abs(seg));
     },
-    colorTiempoMozo(seg) {
+    colorTiempoMozo(seg, extra) {
+      if (extra && extra.entregaAutomatica) return 'text-st-pagado font-semibold';
       if (seg == null) return 'text-txt-muted';
       if (seg <= 5 * 60) return 'text-st-preparado';
       if (seg <= 8 * 60) return 'text-st-esperando';
@@ -4435,7 +4466,10 @@ function mozosExecutiveApp() {
       if (r.pedido > 0 || r.en_espera > 0 || r.pendiente > 0) return { texto: 'EN COCINA', clase: 'bg-gold/20 text-gold' };
       return { texto: 'EN CURSO', clase: 'bg-gold/20 text-gold' };
     },
-    estadoPlatoBadgeClase(estado) {
+    estadoPlatoBadgeClase(estado, plato) {
+      if (estado === 'entregado_auto' || (plato && plato.entregaAutomatica && String(estado || plato.estado || '').toLowerCase() === 'entregado')) {
+        return 'bg-[#ff4757]/20 text-[#ff4757]';
+      }
       const map = {
         pendiente: 'bg-txt-muted/20 text-txt-muted',
         pendiente_aprobar: 'bg-st-esperando/20 text-st-esperando',
@@ -4448,9 +4482,15 @@ function mozosExecutiveApp() {
       };
       return map[estado] || 'bg-txt-muted/20 text-txt-muted';
     },
-    estadoPlatoLabel(estado) {
+    estadoPlatoLabel(estado, plato) {
+      if (estado === 'entregado_auto' || (plato && plato.entregaAutomatica && String(estado || plato.estado || '').toLowerCase() === 'entregado')) {
+        return 'Entrega Auto';
+      }
       const map = { pendiente: 'Pendiente', pedido: 'Pedido', en_espera: 'En espera', recoger: 'Recoger', salio: 'Salió', entregado: 'Entregado', pagado: 'Pagado' };
       return map[estado] || estado || '—';
+    },
+    comandaTieneEntregaAuto(c) {
+      return (c?.platos || c?.items || []).some((p) => p && p.entregaAutomatica);
     },
     platosPreviewMozo(c, n) {
       if (!c || !Array.isArray(c.platos)) return [];
@@ -4505,7 +4545,8 @@ function mozosExecutiveApp() {
         tiempos: p.tiempos || {},
         procesadoPor: tieneCocinero(p.procesadoPor) ? p.procesadoPor : null,
         procesandoPor: tieneCocinero(p.procesandoPor) ? p.procesandoPor : null,
-        entregadoPor: p.entregadoPor || null
+        entregadoPor: p.entregadoPor || null,
+        entregaAutomatica: p.entregaAutomatica === true
       }));
       return {
         ...c,
@@ -4540,11 +4581,12 @@ function mozosExecutiveApp() {
         estadoRegistro: c.estadoRegistro
       };
       const platos = (proxy.platos || []).filter(p => !p.eliminado && !p.anulado);
-      const resumen = { pendiente: 0, pedido: 0, en_espera: 0, recoger: 0, salio: 0, entregado: 0, pagado: 0 };
+      const resumen = { pendiente: 0, pedido: 0, en_espera: 0, recoger: 0, salio: 0, entregado: 0, entregado_auto: 0, pagado: 0 };
       let entregados = 0;
       for (const p of platos) {
         const e = p.estado || 'pedido';
-        if (resumen[e] != null) resumen[e]++; else resumen[e] = 1;
+        if (p.entregaAutomatica && e === 'entregado') resumen.entregado_auto++;
+        else if (resumen[e] != null) resumen[e]++; else resumen[e] = 1;
         if (p.tiempos?.entregado || e === 'entregado' || e === 'pagado') entregados++;
       }
       const tiempoCocina = this.getTiempoCocinaComandaVivo(proxy);
@@ -4630,10 +4672,11 @@ function mozosExecutiveApp() {
       const { inicio, fin } = this.rangoFechas;
       const prev = this.computePrevRange(inicio, fin);
       try {
-        const [rawMozos, dash, dashPrev] = await Promise.all([
+        const [rawMozos, dash, dashPrev, usoG] = await Promise.all([
           apiGet('/mozos'),
           this.fetchDashboard(inicio, fin),
-          this.fetchDashboard(prev.inicio, prev.fin)
+          this.fetchDashboard(prev.inicio, prev.fin),
+          apiGet('/reportes/mozos/uso-g?fechaInicio=' + encodeURIComponent(inicio) + '&fechaFin=' + encodeURIComponent(fin))
         ]);
         let list = [];
         if (rawMozos && Array.isArray(rawMozos)) list = rawMozos;
@@ -4672,6 +4715,7 @@ function mozosExecutiveApp() {
           mesasAsignadas: m.mesasAsignadas || m.mesas?.length || 0,
           comandasHoy: m.comandasHoy || 0,
           propinasHoy: 0,
+          cambiosG: 0,
           bouchersHoy: 0,
           mesasAtendidasDash: 0
         }));
@@ -4717,6 +4761,12 @@ function mozosExecutiveApp() {
             };
           });
         } else this.dashboardData = null;
+
+        const usoMap = new Map((usoG?.mozos || []).map(x => [String(x.mozoId), x]));
+        this.mozos = this.mozos.map(m => ({
+          ...m,
+          cambiosG: Number(usoMap.get(this.idMozoStr(m))?.cambiosG) || 0
+        }));
 
         this.sanearFocoMozo();
 
@@ -4869,7 +4919,7 @@ function mozosExecutiveApp() {
         const series = d?.series;
 
         const mozosChart = [...this.mozos]
-          .filter(m => m.activo !== false && this.mozoMarcadoVisible(m) && ((m.ventasHoy || 0) + (m.propinasHoy || 0) > 0))
+          .filter(m => m.activo !== false && this.mozoMarcadoVisible(m) && ((m.ventasHoy || 0) + (m.cambiosG || 0) > 0))
           .sort((a, b) => (Number(b.ventasHoy) || 0) - (Number(a.ventasHoy) || 0))
           .slice(0, 14);
         this.barMozoIds = mozosChart.map(m => this.idMozoStr(m));
@@ -4881,14 +4931,14 @@ function mozosExecutiveApp() {
             ? mozosChart.map(m => (m.nombre || '').split(' ')[0])
             : ['Sin datos'];
           const ventasData = mozosChart.length ? mozosChart.map(m => m.ventasHoy || 0) : [0];
-          const propData = mozosChart.length ? mozosChart.map(m => m.propinasHoy || 0) : [0];
+          const usoGData = mozosChart.length ? mozosChart.map(m => m.cambiosG || 0) : [0];
           this._chartBar = new Chart(ctxB, {
             type: 'bar',
             data: {
               labels: labelsBar,
               datasets: [
                 { label: 'Ventas', data: ventasData, backgroundColor: 'rgba(212,175,55,0.75)' },
-                { label: 'Propinas', data: propData, backgroundColor: 'rgba(0,212,170,0.75)' }
+                { label: 'Uso G', data: usoGData, backgroundColor: 'rgba(0,212,170,0.75)' }
               ]
             },
             options: {
@@ -7022,7 +7072,7 @@ function mozosExecutiveApp() {
           </div>
           <div>
             <p class="text-[10px] text-txt-muted">T. mozo</p>
-            <p class="font-mono font-medium text-gold" x-text="formatDuracionSegundos(metricasComandaMozo?.tiempoMozoSegundos)"></p>
+            <p class="font-mono font-medium" :class="colorTiempoMozo(metricasComandaMozo?.tiempoMozoSegundos, { entregaAutomatica: comandaTieneEntregaAuto(selectedComandaMozo) })" x-text="formatDuracionSegundos(metricasComandaMozo?.tiempoMozoSegundos)"></p>
           </div>
           <div>
             <p class="text-[10px] text-txt-muted">Diferencia (mozo − cocina)</p>
@@ -7070,9 +7120,9 @@ function mozosExecutiveApp() {
                   <span x-show="cocineroInfoMozo(item).nombre === '—'" class="text-[10px] text-txt-muted">—</span>
                 </td>
                 <td class="px-3 py-3 text-center text-[10px] font-mono text-txt-secondary" x-text="getTiempoCocinaPlato(item)"></td>
-                <td class="px-3 py-3 text-center text-[10px] font-mono" :class="colorTiempoMozo(getTiempoMozoPlatoVivo(item))" x-text="getTiempoMozoPlato(item)"></td>
+                <td class="px-3 py-3 text-center text-[10px] font-mono" :class="colorTiempoMozo(getTiempoMozoPlatoVivo(item), item)" x-text="getTiempoMozoPlato(item)"></td>
                 <td class="px-3 py-3 text-center">
-                  <span class="text-[9px] px-2 py-0.5 rounded-full font-semibold" :class="estadoPlatoBadgeClase(item.estado)" x-text="estadoPlatoLabel(item.estado)"></span>
+                  <span class="text-[9px] px-2 py-0.5 rounded-full font-semibold" :class="estadoPlatoBadgeClase(item.estado, item)" x-text="estadoPlatoLabel(item.estado, item)"></span>
                 </td>
               </tr>
             </template>
