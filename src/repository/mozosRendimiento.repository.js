@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const moment = require('moment-timezone');
 const Comanda = require('../database/models/comanda.model');
 const logger = require('../utils/logger');
+const { segArmadoComanda, tiempoMozoComandaSegundos } = require('../utils/tiempoArmadoComanda');
 
 const SLA_SALON_MINUTOS = 5;
 const ESTADOS_PLATO = ['pendiente', 'pedido', 'en_espera', 'recoger', 'salio', 'entregado', 'pagado'];
@@ -41,14 +42,18 @@ function platoPendienteMozo(p) {
     return !!(t.recoger || t.salio || est === 'recoger' || est === 'salio');
 }
 
-function calcularMetricasComanda(platos) {
+function calcularMetricasComanda(platos, comanda = null) {
     const ahora = new Date();
     const tiemposValidos = (platos || []).filter(p => !p.eliminado && !p.anulado);
+    const tiempoArmado = segArmadoComanda(comanda);
 
     if (!tiemposValidos.length) {
+        const tiempoMozo = tiempoMozoComandaSegundos(null, tiempoArmado);
         return {
             tiempoCocinaSegundos: null,
-            tiempoMozoSegundos: null,
+            tiempoMozoSalonSegundos: null,
+            tiempoArmadoSegundos: tiempoArmado || null,
+            tiempoMozoSegundos: tiempoMozo,
             diferenciaSegundos: null,
             tiempoExperienciaSegundos: null,
             resumenEstados: {},
@@ -113,7 +118,8 @@ function calcularMetricasComanda(platos) {
     }
 
     const tiempoCocina = diff(inicioCocina, finCocina);
-    const tiempoMozo = nMozo ? sumaMozo : null;
+    const tiempoMozoSalon = nMozo ? sumaMozo : null;
+    const tiempoMozo = tiempoMozoComandaSegundos(tiempoMozoSalon, tiempoArmado);
     const diferencia = (tiempoCocina != null && tiempoMozo != null) ? (tiempoMozo - tiempoCocina) : null;
     const tiempoExperiencia = diff(inicioGlobal, finGlobal || (algunPendienteMozo ? ahora : null));
 
@@ -127,6 +133,8 @@ function calcularMetricasComanda(platos) {
 
     return {
         tiempoCocinaSegundos: tiempoCocina,
+        tiempoMozoSalonSegundos: tiempoMozoSalon,
+        tiempoArmadoSegundos: tiempoArmado || null,
         tiempoMozoSegundos: tiempoMozo,
         diferenciaSegundos: diferencia,
         tiempoExperienciaSegundos: tiempoExperiencia,
@@ -215,6 +223,8 @@ async function obtenerHistorialComandasMozos({ mozoId = null, fechaInicio, fecha
                 tiempoPagado: 1,
                 createdAt: 1,
                 updatedAt: 1,
+                tiempoArmadoSegundos: 1,
+                tiempoArmadoAcumuladoSegundos: 1,
                 platos: {
                     $map: {
                         input: '$platos',
@@ -277,7 +287,7 @@ async function obtenerHistorialComandasMozos({ mozoId = null, fechaInicio, fecha
 
         const ahora = new Date();
         const comandas = Array.from(mapa.values()).map(c => {
-            const metricas = calcularMetricasComanda(c.platos);
+            const metricas = calcularMetricasComanda(c.platos, c);
             const platosActivos = (c.platos || []).filter(p => !p.eliminado && !p.anulado);
             const statusLower = String(c.statusComanda || '').toLowerCase();
             const cerrada = statusLower === 'pagado' || statusLower === 'completado' || c.IsActive === false;
@@ -303,6 +313,8 @@ async function obtenerHistorialComandasMozos({ mozoId = null, fechaInicio, fecha
                 platosEntregados: metricas.platosEntregados,
                 platosTotal: metricas.platosTotal,
                 tiempoCocinaSegundos: metricas.tiempoCocinaSegundos,
+                tiempoMozoSalonSegundos: metricas.tiempoMozoSalonSegundos,
+                tiempoArmadoSegundos: metricas.tiempoArmadoSegundos,
                 tiempoMozoSegundos: metricas.tiempoMozoSegundos,
                 diferenciaSegundos: metricas.diferenciaSegundos,
                 tiempoExperienciaSegundos: metricas.tiempoExperienciaSegundos,
@@ -329,7 +341,11 @@ async function obtenerHistorialComandasMozos({ mozoId = null, fechaInicio, fecha
             totalComandas++;
             totalPlatosEntregados += c.platosEntregados;
             if (c.estadoRegistro === 'pagada' || c.estadoRegistro === 'completada') totalCerradas++;
-            if (c.tiempoMozoSegundos != null) { sumaTiemposMozo += c.tiempoMozoSegundos; cuentaMozo++; if (c.tiempoMozoSegundos <= SLA_SALON_MINUTOS * 60) dentroSLA++; }
+            if (c.tiempoMozoSegundos != null) {
+                sumaTiemposMozo += c.tiempoMozoSegundos;
+                cuentaMozo++;
+                if (c.tiempoMozoSalonSegundos != null && c.tiempoMozoSalonSegundos <= SLA_SALON_MINUTOS * 60) dentroSLA++;
+            }
             if (c.diferenciaSegundos != null) { sumaDiferencia += c.diferenciaSegundos; cuentaDiff++; }
             const key = String(c.mozoId || 'desconocido');
             if (!porMozo[key]) porMozo[key] = { mozoId: key, mozoNombre: c.mozoNombre, totalComandas: 0, totalPlatos: 0, totalEntregados: 0, tiempoTotalMozo: 0, cuentaMozo: 0 };
@@ -402,6 +418,8 @@ async function obtenerRendimientoEnVivo({ mozoId = null } = {}) {
                 mesaNum: { $ifNull: [{ $arrayElemAt: ['$mesaInfo.nummesa', 0] }, '$mesaNumero'] },
                 statusComanda: '$status',
                 createdAt: 1,
+                tiempoArmadoSegundos: 1,
+                tiempoArmadoAcumuladoSegundos: 1,
                 platos: {
                     $map: {
                         input: '$platos',
@@ -438,7 +456,7 @@ async function obtenerRendimientoEnVivo({ mozoId = null } = {}) {
             const nombre = c.mozoNombre || 'Mozo';
             if (!porMozo[idMozo]) porMozo[idMozo] = { mozoId: c.mozoId, mozoNombre: nombre, comandas: [] };
 
-            const metricas = calcularMetricasComanda(platosActivos);
+            const metricas = calcularMetricasComanda(platosActivos, c);
             for (const p of platosActivos) {
                 if (p.estado === 'salio') pendientesSalio++;
                 else if (p.estado === 'recoger') pendientesRecoger++;
@@ -455,6 +473,8 @@ async function obtenerRendimientoEnVivo({ mozoId = null } = {}) {
                 platosEntregados: metricas.platosEntregados,
                 platosTotal: metricas.platosTotal,
                 tiempoCocinaSegundos: metricas.tiempoCocinaSegundos,
+                tiempoMozoSalonSegundos: metricas.tiempoMozoSalonSegundos,
+                tiempoArmadoSegundos: metricas.tiempoArmadoSegundos,
                 tiempoMozoSegundos: metricas.tiempoMozoSegundos,
                 diferenciaSegundos: metricas.diferenciaSegundos
             });

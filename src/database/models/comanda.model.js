@@ -391,6 +391,25 @@ const comandaSchema = new mongoose.Schema({
         type: Date,
         default: null
     },
+    // Armado en app Mozos: t0 local → POST. Nivel comanda, no plato.
+    armadoIniciadoEn: {
+        type: Date,
+        default: null
+    },
+    armadoEnviadoEn: {
+        type: Date,
+        default: null
+    },
+    tiempoArmadoSegundos: {
+        type: Number,
+        default: null,
+        min: 0
+    },
+    tiempoArmadoAcumuladoSegundos: {
+        type: Number,
+        default: null,
+        min: 0
+    },
     tiempoRecoger: {
         type: Date,
         default: null

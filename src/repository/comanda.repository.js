@@ -25,6 +25,7 @@ const {
 const { expandirPlatosPorVariante, snapshotNombreCocinaPedido, MAX_NOMBRE_COCINA_PEDIDO } = require('../utils/variantePlato');
 const { fusionarGuarnicionesPreseleccionadas } = require('../utils/preseleccionGuarniciones');
 const { aplicarCambioGuarnicionAPlato } = require('../utils/cambioGuarnicionPreseleccion');
+const { segundosArmado, parseArmadoInicio } = require('../utils/tiempoArmadoComanda');
 const { aplicarNumeroSerieComanda } = require('../utils/numeroSeriePlato');
 const { indicePlatoPorIdLinea, aplicarSeparacionCantidadLinea } = require('../utils/separarCantidadLineaPlato');
 const { SELECT_PLATO_COCINA } = require('../constants/platoPopulateCocina');
@@ -623,6 +624,10 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
         procesandoPor: 1,
         procesadoPor: 1,
         tiempoPagado: 1,
+        armadoIniciadoEn: 1,
+        armadoEnviadoEn: 1,
+        tiempoArmadoSegundos: 1,
+        tiempoArmadoAcumuladoSegundos: 1,
       });
     }
     
@@ -1123,6 +1128,37 @@ const agregarComanda = async (data) => {
   if (!data.tiempoEnEspera && (!data.status || data.status === 'en_espera')) {
     data.tiempoEnEspera = moment.tz("America/Lima").toDate();
   }
+
+  const inicioArmado = parseArmadoInicio(data.armadoIniciadoEn);
+  const fallbackArmado = data.tiempoArmadoSegundos;
+  if (inicioArmado || (fallbackArmado != null && fallbackArmado !== '')) {
+    const enviadoArmado = moment.tz('America/Lima').toDate();
+    const calcArmado = segundosArmado({
+      iniciadoEn: inicioArmado,
+      enviadoEn: enviadoArmado,
+      fallbackSegundos: fallbackArmado
+    });
+    if (calcArmado.segundos != null) {
+      data.armadoIniciadoEn = inicioArmado;
+      data.armadoEnviadoEn = enviadoArmado;
+      data.tiempoArmadoSegundos = calcArmado.segundos;
+      if (calcArmado.clamped) {
+        logger.warn('tiempoArmadoSegundos clamped', {
+          segundos: calcArmado.segundos,
+          mozo: data.mozos || null
+        });
+      }
+    } else {
+      delete data.armadoIniciadoEn;
+      delete data.armadoEnviadoEn;
+      delete data.tiempoArmadoSegundos;
+    }
+  } else {
+    delete data.armadoIniciadoEn;
+    delete data.armadoEnviadoEn;
+    delete data.tiempoArmadoSegundos;
+  }
+  delete data.tiempoArmadoAcumuladoSegundos;
   
   // Inicializar historial de estados con el estado inicial
   if (!data.historialEstados || data.historialEstados.length === 0) {

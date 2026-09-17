@@ -1279,8 +1279,10 @@ tailwind.config = {
                     </template>
                     <span x-show="(c.platos || []).length > 6" class="text-[10px] text-txt-muted self-center" x-text="'+' + ((c.platos || []).length - 6) + ' más'"></span>
                   </div>
-                  <div class="flex items-center gap-3 mt-2 text-[10px] text-txt-muted">
+                  <div class="flex items-center gap-3 mt-2 text-[10px] text-txt-muted flex-wrap">
                     <span>T. cocina: <span class="font-mono text-white" x-text="formatDuracionSegundos(getTiempoCocinaComandaVivo(c))"></span></span>
+                    <span>T. armado: <span class="font-mono text-white" x-text="formatDuracionSegundos(getTiempoArmadoComanda(c))"></span></span>
+                    <span>T. entrega: <span class="font-mono" :class="colorTiempoMozo(getTiempoMozoSalonComandaVivo(c), { entregaAutomatica: comandaTieneEntregaAuto(c) })" x-text="formatDuracionSegundos(getTiempoMozoSalonComandaVivo(c))"></span></span>
                     <span>T. mozo: <span class="font-mono" :class="colorTiempoMozo(getTiempoMozoComandaVivo(c), { entregaAutomatica: comandaTieneEntregaAuto(c) })" x-text="formatDuracionSegundos(getTiempoMozoComandaVivo(c))"></span></span>
                     <span>Δ: <span class="font-mono" :class="colorDiferencia(getDiferenciaComandaVivo(c))" x-text="formatDuracionConSigno(getDiferenciaComandaVivo(c))"></span></span>
                   </div>
@@ -1302,6 +1304,8 @@ tailwind.config = {
                 <th class="text-left py-3 px-3 font-medium">Mesa</th>
                 <th class="text-left py-3 px-3 font-medium">Platos (todos)</th>
                 <th class="text-right py-3 px-3 font-medium">T. cocina</th>
+                <th class="text-right py-3 px-3 font-medium">T. armado</th>
+                <th class="text-right py-3 px-3 font-medium">T. entrega</th>
                 <th class="text-right py-3 px-3 font-medium">T. mozo</th>
                 <th class="text-right py-3 px-3 font-medium">Δ vs cocina</th>
                 <th class="text-center py-3 px-3 font-medium">Acciones</th>
@@ -1329,6 +1333,8 @@ tailwind.config = {
                     <p class="text-[9px] text-txt-muted mt-0.5" x-text="(c.platosEntregados || 0) + '/' + (c.platosTotal || 0) + ' entregados'"></p>
                   </td>
                   <td class="py-2.5 px-3 text-right font-mono text-xs" x-text="formatDuracionSegundos(getTiempoCocinaComandaVivo(c))"></td>
+                  <td class="py-2.5 px-3 text-right font-mono text-xs text-white" x-text="formatDuracionSegundos(getTiempoArmadoComanda(c))"></td>
+                  <td class="py-2.5 px-3 text-right font-mono text-xs" :class="colorTiempoMozo(getTiempoMozoSalonComandaVivo(c), { entregaAutomatica: comandaTieneEntregaAuto(c) })" x-text="formatDuracionSegundos(getTiempoMozoSalonComandaVivo(c))"></td>
                   <td class="py-2.5 px-3 text-right font-mono text-xs" :class="colorTiempoMozo(getTiempoMozoComandaVivo(c), { entregaAutomatica: comandaTieneEntregaAuto(c) })" x-text="formatDuracionSegundos(getTiempoMozoComandaVivo(c))"></td>
                   <td class="py-2.5 px-3 text-right font-mono text-xs font-bold" :class="colorDiferencia(getDiferenciaComandaVivo(c))" x-text="formatDuracionConSigno(getDiferenciaComandaVivo(c))"></td>
                   <td class="py-2.5 px-3 text-center">
@@ -1437,6 +1443,8 @@ tailwind.config = {
                 <th class="text-left py-3 px-3 font-medium">Mesa</th>
                 <th class="text-left py-3 px-3 font-medium">Platos (todos)</th>
                 <th class="text-right py-3 px-3 font-medium">T. cocina</th>
+                <th class="text-right py-3 px-3 font-medium">T. armado</th>
+                <th class="text-right py-3 px-3 font-medium">T. entrega</th>
                 <th class="text-right py-3 px-3 font-medium">T. mozo</th>
                 <th class="text-right py-3 px-3 font-medium">Δ vs cocina</th>
                 <th class="text-center py-3 px-3 font-medium">Acciones</th>
@@ -1465,6 +1473,8 @@ tailwind.config = {
                     <p class="text-[9px] text-txt-muted mt-0.5" x-text="(c.platosEntregados || 0) + '/' + (c.platosTotal || 0) + ' entregados'"></p>
                   </td>
                   <td class="py-2.5 px-3 text-right font-mono text-xs" x-text="formatDuracionSegundos(getTiempoCocinaComandaVivo(c))"></td>
+                  <td class="py-2.5 px-3 text-right font-mono text-xs text-white" x-text="formatDuracionSegundos(getTiempoArmadoComanda(c))"></td>
+                  <td class="py-2.5 px-3 text-right font-mono text-xs" :class="colorTiempoMozo(getTiempoMozoSalonComandaVivo(c), { entregaAutomatica: comandaTieneEntregaAuto(c) })" x-text="formatDuracionSegundos(getTiempoMozoSalonComandaVivo(c))"></td>
                   <td class="py-2.5 px-3 text-right font-mono text-xs" :class="colorTiempoMozo(getTiempoMozoComandaVivo(c), { entregaAutomatica: comandaTieneEntregaAuto(c) })" x-text="formatDuracionSegundos(getTiempoMozoComandaVivo(c))"></td>
                   <td class="py-2.5 px-3 text-right font-mono text-xs font-bold" :class="colorDiferencia(getDiferenciaComandaVivo(c))" x-text="formatDuracionConSigno(getDiferenciaComandaVivo(c))"></td>
                   <td class="py-2.5 px-3 text-center">
@@ -3334,6 +3344,7 @@ function mozosExecutiveApp() {
     historialMozoFiltroEstado: '', // '' | 'en_curso' | 'terminadas'
     historialMozoVista: 'detalle',
     historialMozoLoading: false,
+    pendingOpenComandaId: null,
     // Modal Ver completo
     modalComandaMozo: null,
     selectedComandaMozo: null,
@@ -3927,11 +3938,15 @@ function mozosExecutiveApp() {
           this.historialMozoFechaDesde = fecha;
           this.historialMozoFechaHasta = fecha;
         }
+        const openId = params.get('open');
+        if (openId) this.pendingOpenComandaId = String(openId);
+        this.subtabRendimientoMozos = this.subtabRendimientoMozos || 'historial';
+        if (openId || sub === 'historial') this.subtabRendimientoMozos = 'historial';
         this.cambiarSeccion('rendimiento');
         this.$nextTick(() => {
-          if (this.subtabRendimientoMozos !== 'historial') return;
           const el = document.getElementById('seccion-registro-platos-mozos');
-          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          if (el && this.subtabRendimientoMozos === 'historial') el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          if (openId) this.openComandaMozoModal(openId);
         });
       } catch (e) {
         console.warn('No se pudo aplicar query de rendimiento mozos', e);
@@ -4226,17 +4241,40 @@ function mozosExecutiveApp() {
       if (!inicioC || !finC) return c.tiempoCocinaSegundos ?? null;
       return Math.max(0, Math.round((new Date(finC) - new Date(inicioC)) / 1000));
     },
-    getTiempoMozoComandaVivo(c) {
+    segArmadoComanda(c) {
+      if (!c) return 0;
+      if (c.tiempoArmadoAcumuladoSegundos != null && Number.isFinite(Number(c.tiempoArmadoAcumuladoSegundos))) {
+        return Math.max(0, Math.round(Number(c.tiempoArmadoAcumuladoSegundos)));
+      }
+      if (c.tiempoArmadoSegundos != null && Number.isFinite(Number(c.tiempoArmadoSegundos))) {
+        return Math.max(0, Math.round(Number(c.tiempoArmadoSegundos)));
+      }
+      return 0;
+    },
+    getTiempoArmadoComanda(c) {
+      const n = this.segArmadoComanda(c);
+      return n > 0 ? n : null;
+    },
+    getTiempoMozoSalonComandaVivo(c) {
       void this.rendimientoMozoTick;
       if (!c) return null;
       const platos = (c.platos || c.items || []).filter(p => !p.eliminado && !p.anulado);
-      if (!platos.length) return c.tiempoMozoSegundos ?? null;
+      if (!platos.length) return c.tiempoMozoSalonSegundos ?? null;
       let suma = 0, n = 0;
       for (const p of platos) {
         const t = this.getTiempoMozoPlatoVivo(p);
         if (t != null) { suma += t; n++; }
       }
       if (n) return suma;
+      return c.tiempoMozoSalonSegundos ?? null;
+    },
+    getTiempoMozoComandaVivo(c) {
+      void this.rendimientoMozoTick;
+      if (!c) return null;
+      const salon = this.getTiempoMozoSalonComandaVivo(c);
+      const armado = this.segArmadoComanda(c);
+      if (salon != null) return salon + armado;
+      if (armado > 0) return armado;
       return c.tiempoMozoSegundos ?? null;
     },
     getDiferenciaComandaVivo(c) {
@@ -4385,6 +4423,10 @@ function mozosExecutiveApp() {
         }
       }
       if (!silent) this.historialMozoLoading = false;
+      const pending = this.pendingOpenComandaId;
+      if (pending && this.modalComandaMozo !== 'verComanda') {
+        this.openComandaMozoModal(pending);
+      }
     },
 
     getHistorialComandasFiltradas() {
@@ -4513,6 +4555,7 @@ function mozosExecutiveApp() {
     // ===== Modal Ver completo =====
     async openComandaMozoModal(comandaId) {
       if (!comandaId) { this.showToast('ID de comanda no válido', 'error'); return; }
+      this.pendingOpenComandaId = null;
       this.modalComandaMozo = 'verComanda';
       this.loadingComandaMozo = true;
       this.selectedComandaMozo = null;
@@ -4575,6 +4618,9 @@ function mozosExecutiveApp() {
         items: c.items || c.platos || [],
         tiempoCocinaSegundos: null,
         tiempoMozoSegundos: null,
+        tiempoMozoSalonSegundos: c.tiempoMozoSalonSegundos,
+        tiempoArmadoSegundos: c.tiempoArmadoSegundos,
+        tiempoArmadoAcumuladoSegundos: c.tiempoArmadoAcumuladoSegundos,
         statusComanda: c.status || c.estado || c.statusComanda,
         status: c.status || c.estado,
         IsActive: c.IsActive,
@@ -4590,10 +4636,14 @@ function mozosExecutiveApp() {
         if (p.tiempos?.entregado || e === 'entregado' || e === 'pagado') entregados++;
       }
       const tiempoCocina = this.getTiempoCocinaComandaVivo(proxy);
+      const tiempoArmado = this.getTiempoArmadoComanda(proxy);
+      const tiempoEntrega = this.getTiempoMozoSalonComandaVivo(proxy);
       const tiempoMozo = this.getTiempoMozoComandaVivo(proxy);
       const diferencia = (tiempoCocina != null && tiempoMozo != null) ? (tiempoMozo - tiempoCocina) : null;
       this.metricasComandaMozo = {
         tiempoCocinaSegundos: tiempoCocina,
+        tiempoArmadoSegundos: tiempoArmado,
+        tiempoMozoSalonSegundos: tiempoEntrega,
         tiempoMozoSegundos: tiempoMozo,
         diferenciaSegundos: diferencia,
         resumenEstados: resumen,
@@ -7061,7 +7111,7 @@ function mozosExecutiveApp() {
       <!-- TRAZABILIDAD DE SALÓN (nuevo) -->
       <div class="bg-bg-primary border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
         <p class="text-[10px] text-gold uppercase mb-3 font-semibold tracking-wider">🍽️ Trazabilidad de Salón</p>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-sm">
           <div>
             <p class="text-[10px] text-txt-muted">Platos entregados</p>
             <p class="font-bold text-st-libre" x-text="(metricasComandaMozo?.platosEntregados || 0) + ' / ' + (metricasComandaMozo?.platosTotal || 0)"></p>
@@ -7071,11 +7121,20 @@ function mozosExecutiveApp() {
             <p class="font-mono font-medium text-st-preparado" x-text="formatDuracionSegundos(metricasComandaMozo?.tiempoCocinaSegundos)"></p>
           </div>
           <div>
-            <p class="text-[10px] text-txt-muted">T. mozo</p>
-            <p class="font-mono font-medium" :class="colorTiempoMozo(metricasComandaMozo?.tiempoMozoSegundos, { entregaAutomatica: comandaTieneEntregaAuto(selectedComandaMozo) })" x-text="formatDuracionSegundos(metricasComandaMozo?.tiempoMozoSegundos)"></p>
+            <p class="text-[10px] text-txt-muted">T. armado (planificación)</p>
+            <p class="font-mono font-medium text-white" x-text="formatDuracionSegundos(metricasComandaMozo?.tiempoArmadoSegundos)"></p>
           </div>
           <div>
-            <p class="text-[10px] text-txt-muted">Diferencia (mozo − cocina)</p>
+            <p class="text-[10px] text-txt-muted">T. entrega (salón)</p>
+            <p class="font-mono font-medium" :class="colorTiempoMozo(metricasComandaMozo?.tiempoMozoSalonSegundos, { entregaAutomatica: comandaTieneEntregaAuto(selectedComandaMozo) })" x-text="formatDuracionSegundos(metricasComandaMozo?.tiempoMozoSalonSegundos)"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-txt-muted">T. mozo (armado + entrega)</p>
+            <p class="font-mono font-bold text-lg" :class="colorTiempoMozo(metricasComandaMozo?.tiempoMozoSegundos, { entregaAutomatica: comandaTieneEntregaAuto(selectedComandaMozo) })" x-text="formatDuracionSegundos(metricasComandaMozo?.tiempoMozoSegundos)"></p>
+            <p class="text-[9px] text-txt-muted font-mono mt-0.5" x-text="'Armado ' + formatDuracionSegundos(metricasComandaMozo?.tiempoArmadoSegundos) + ' + Entrega ' + formatDuracionSegundos(metricasComandaMozo?.tiempoMozoSalonSegundos)"></p>
+          </div>
+          <div>
+            <p class="text-[10px] text-txt-muted">Δ (mozo − cocina)</p>
             <p class="font-mono font-bold" :class="colorDiferencia(metricasComandaMozo?.diferenciaSegundos)" x-text="formatDuracionConSigno(metricasComandaMozo?.diferenciaSegundos)"></p>
           </div>
         </div>

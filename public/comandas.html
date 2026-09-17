@@ -980,14 +980,20 @@ tailwind.config = {
  <p class="text-[10px] text-gold uppercase mb-2 font-semibold tracking-wider flex items-center gap-1">
  <span>🍽️</span> Trazabilidad de Salón
  </p>
- <div class="grid grid-cols-3 gap-3 text-sm">
+ <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
  <div>
  <p class="text-[10px] text-[#5a5a7a]">T. cocina</p>
  <p class="font-mono font-medium text-st-preparado" x-text="getResumenSalon(selectedComanda).tiempoCocina"></p>
  </div>
  <div>
- <p class="text-[10px] text-[#5a5a7a]">T. mozo (incluye entrega)</p>
- <p class="font-mono font-medium" :class="getResumenSalon(selectedComanda).tieneEntregaAuto ? 'text-[#ff4757]' : 'text-gold'" x-text="getResumenSalon(selectedComanda).tiempoMozo"></p>
+ <p class="text-[10px] text-[#5a5a7a]">T. mozo (armado + entrega)</p>
+ <button type="button"
+   class="font-mono font-bold text-lg hover:underline text-left"
+   :class="getResumenSalon(selectedComanda).tieneEntregaAuto ? 'text-[#ff4757]' : 'text-gold'"
+   title="Ver todos los tiempos de esta comanda en registro de platos"
+   @click="irARegistroMozo(selectedComanda)"
+   x-text="getResumenSalon(selectedComanda).tiempoMozo"></button>
+ <p class="text-[9px] text-[#5a5a7a] mt-0.5 font-mono" x-text="'Armado ' + getResumenSalon(selectedComanda).tiempoArmado + ' + Entrega ' + getResumenSalon(selectedComanda).tiempoEntrega"></p>
  </div>
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Platos entregados</p>
@@ -1119,7 +1125,17 @@ tailwind.config = {
  <td class="px-4 py-3 font-bold text-xs uppercase" colspan="2">TOTAL</td>
  <td class="px-3 py-3 text-right text-xs text-[#5a5a7a]" x-text="(selectedComanda?.items || []).filter(i => !i.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
  <td class="px-3 py-3 text-right text-[#d4af37] font-bold text-lg" x-text="'S/. ' + Number(totalNetoComanda(selectedComanda)).toFixed(2)"></td>
- <td colspan="5"></td>
+ <td colspan="3"></td>
+ <td class="px-3 py-3 text-center">
+   <button type="button"
+     class="font-mono font-bold hover:underline"
+     :class="getResumenSalon(selectedComanda).tieneEntregaAuto ? 'text-[#ff4757]' : 'text-gold'"
+     title="T. mozo = armado + entrega. Ver registro de esta comanda"
+     @click="irARegistroMozo(selectedComanda)"
+     x-text="getResumenSalon(selectedComanda).tiempoMozo"></button>
+   <p class="text-[8px] text-[#5a5a7a] font-mono" x-text="getResumenSalon(selectedComanda).tiempoArmado + ' + ' + getResumenSalon(selectedComanda).tiempoEntrega"></p>
+ </td>
+ <td></td>
  </tr>
  <tr x-show="selectedComanda?.metodoPago === 'efectivo' && (selectedComanda?.montoRecibido != null || selectedComanda?.vuelto != null)">
  <td class="px-4 py-2 text-right text-[10px] text-txt-secondary uppercase" colspan="3">
@@ -1329,14 +1345,20 @@ tailwind.config = {
  x-text="estadoLabel(selectedGrupo?.estadoGrupo)"></span>
  </div>
  </div>
- <div class="grid grid-cols-3 gap-3 text-sm mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]">
+ <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]">
  <div>
  <p class="text-[10px] text-[#5a5a7a]">T. cocina</p>
  <p class="font-mono font-medium text-st-preparado" x-text="getResumenSalonGrupo(selectedGrupo).tiempoCocina"></p>
  </div>
  <div>
- <p class="text-[10px] text-[#5a5a7a]">T. mozo (incluye entrega)</p>
- <p class="font-mono font-medium" :class="getResumenSalonGrupo(selectedGrupo).tieneEntregaAuto ? 'text-[#ff4757]' : 'text-gold'" x-text="getResumenSalonGrupo(selectedGrupo).tiempoMozo"></p>
+ <p class="text-[10px] text-[#5a5a7a]">T. mozo (armado + entrega)</p>
+ <button type="button"
+   class="font-mono font-bold text-lg hover:underline text-left"
+   :class="getResumenSalonGrupo(selectedGrupo).tieneEntregaAuto ? 'text-[#ff4757]' : 'text-gold'"
+   title="Ver todos los tiempos en registro de platos"
+   @click="irARegistroMozo((selectedGrupo?.comandas || [])[0])"
+   x-text="getResumenSalonGrupo(selectedGrupo).tiempoMozo"></button>
+ <p class="text-[9px] text-[#5a5a7a] mt-0.5 font-mono" x-text="'Armado ' + getResumenSalonGrupo(selectedGrupo).tiempoArmado + ' + Entrega ' + getResumenSalonGrupo(selectedGrupo).tiempoEntrega"></p>
  </div>
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Platos entregados</p>
@@ -1371,7 +1393,7 @@ tailwind.config = {
  <div class="flex items-center gap-4 text-xs text-txt-muted">
  <span x-text="(comanda.items?.length || 0) + ' platos'"></span>
  <span class="font-mono text-st-preparado" x-text="'T. cocina ' + getResumenSalon(comanda).tiempoCocina"></span>
- <span class="font-mono" :class="getResumenSalon(comanda).tieneEntregaAuto ? 'text-[#ff4757]' : 'text-gold'" x-text="'T. mozo ' + getResumenSalon(comanda).tiempoMozo"></span>
+ <button type="button" class="font-mono hover:underline" :class="getResumenSalon(comanda).tieneEntregaAuto ? 'text-[#ff4757]' : 'text-gold'" title="Ver registro de tiempos del mozo" @click="irARegistroMozo(comanda)" x-text="'T. mozo ' + getResumenSalon(comanda).tiempoMozo"></button>
  <span x-text="comanda.mozo || '—'"></span>
  <span x-text="comanda.createdAt ? new Date(comanda.createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></span>
  <button @click="openEditModal(comanda)" class="text-gold hover:text-white transition">✏️ Editar</button>
@@ -3709,9 +3731,22 @@ console.log('📊 Reporte: nuevo boucher', data);
       normalizada.procesadoPor = prev.procesadoPor;
     }
     this.refrescarCocinerosResumen(normalizada);
+    if (this.segArmadoComanda(normalizada) === 0 && this.segArmadoComanda(prev) > 0) {
+      normalizada.tiempoArmadoSegundos = prev.tiempoArmadoSegundos;
+      normalizada.tiempoArmadoAcumuladoSegundos = prev.tiempoArmadoAcumuladoSegundos;
+      normalizada.armadoIniciadoEn = prev.armadoIniciadoEn;
+      normalizada.armadoEnviadoEn = prev.armadoEnviadoEn;
+    }
   }
 
   if (this.normalizeObjectId(this.selectedComanda?._id) === idN) {
+    const prevSel = this.selectedComanda;
+    if (this.segArmadoComanda(normalizada) === 0 && this.segArmadoComanda(prevSel) > 0) {
+      normalizada.tiempoArmadoSegundos = prevSel.tiempoArmadoSegundos;
+      normalizada.tiempoArmadoAcumuladoSegundos = prevSel.tiempoArmadoAcumuladoSegundos;
+      normalizada.armadoIniciadoEn = prevSel.armadoIniciadoEn;
+      normalizada.armadoEnviadoEn = prevSel.armadoEnviadoEn;
+    }
     this.selectedComanda = normalizada;
   }
 
@@ -4235,6 +4270,13 @@ this.modal = null;
    : (Number(raw.montoDescuento) || 0),
  descuentoMontoFijo: Number(raw.descuentoMontoFijo) || 0,
  origenCreacion: raw.origenCreacion || (raw.createdByDashboard ? 'dashboard' : 'mozos'),
+ armadoIniciadoEn: raw.armadoIniciadoEn || null,
+ armadoEnviadoEn: raw.armadoEnviadoEn || null,
+ tiempoArmadoSegundos: (raw.tiempoArmadoSegundos == null || raw.tiempoArmadoSegundos === '')
+   ? null
+   : (Number.isFinite(Number(raw.tiempoArmadoSegundos)) ? Number(raw.tiempoArmadoSegundos) : null),
+ tiempoArmadoAcumuladoSegundos: raw.tiempoArmadoAcumuladoSegundos != null && Number.isFinite(Number(raw.tiempoArmadoAcumuladoSegundos))
+   ? Number(raw.tiempoArmadoAcumuladoSegundos) : null,
  createdByDashboard: raw.createdByDashboard || null,
  omitirPago: !!raw.omitirPago,
  omitirOrdenEntrega: !!raw.omitirOrdenEntrega,
@@ -4461,6 +4503,12 @@ this.modal = null;
  return `${min.toString().padStart(2, '0')}:${seg.toString().padStart(2, '0')}`;
  },
 
+ formatearSegundosMozo(seg) {
+ const s = Math.max(0, Math.floor(Number(seg) || 0));
+ if (s === 0) return '00:00';
+ return this.formatearTiempo(s * 1000);
+ },
+
  platoPendienteMozo(item) {
  const t = item?.tiempos || {};
  const est = String(item?.estado || '').toLowerCase();
@@ -4491,6 +4539,17 @@ this.modal = null;
  enCurso: !!(pendiente && !entregado),
  segundos
  };
+ },
+
+ segArmadoComanda(c) {
+  if (!c) return 0;
+  if (c.tiempoArmadoAcumuladoSegundos != null && Number.isFinite(Number(c.tiempoArmadoAcumuladoSegundos))) {
+    return Math.max(0, Math.round(Number(c.tiempoArmadoAcumuladoSegundos)));
+  }
+  if (c.tiempoArmadoSegundos != null && Number.isFinite(Number(c.tiempoArmadoSegundos))) {
+    return Math.max(0, Math.round(Number(c.tiempoArmadoSegundos)));
+  }
+  return 0;
  },
 
  esFlagEntregaAuto(valor) {
@@ -4532,11 +4591,17 @@ this.modal = null;
  const est = String(item.estado || '').toLowerCase();
  if (est === 'entregado' || est === 'pagado' || item.tiempos?.entregado) entregados++;
  }
+ const segArmado = this.segArmadoComanda(comanda);
+ const segMozoTotal = segMozo + segArmado;
  return {
  tiempoCocina: nC ? this.formatearTiempo(segCocina * 1000) : '—',
- tiempoMozo: nM ? this.formatearTiempo(segMozo * 1000) : '—',
+ tiempoArmado: this.formatearSegundosMozo(segArmado),
+ tiempoEntrega: this.formatearSegundosMozo(segMozo),
+ tiempoMozo: this.formatearSegundosMozo(segMozoTotal),
  segundosCocina: segCocina,
- segundosMozo: segMozo,
+ segundosArmado: segArmado,
+ segundosEntrega: segMozo,
+ segundosMozo: segMozoTotal,
  entregados,
  total: items.length,
  tieneEntregaAuto
@@ -4546,18 +4611,26 @@ this.modal = null;
  getResumenSalonGrupo(grupo) {
  void this.now;
  const comandas = grupo?.comandas || [];
- let segCocina = 0, segMozo = 0, nC = 0, nM = 0, entregados = 0, total = 0, tieneEntregaAuto = false;
+ let segCocina = 0, segMozo = 0, nC = 0, nM = 0, entregados = 0, total = 0, tieneEntregaAuto = false, segArmado = 0;
  for (const c of comandas) {
  const r = this.getResumenSalon(c);
  if (r.segundosCocina > 0) { segCocina += r.segundosCocina; nC++; }
  if (r.segundosMozo > 0) { segMozo += r.segundosMozo; nM++; }
+ if (r.segundosArmado > 0) segArmado += r.segundosArmado;
  if (r.tieneEntregaAuto) tieneEntregaAuto = true;
  entregados += r.entregados;
  total += r.total;
  }
+ const segEntrega = Math.max(0, segMozo - segArmado);
  return {
  tiempoCocina: nC ? this.formatearTiempo(segCocina * 1000) : '—',
- tiempoMozo: nM ? this.formatearTiempo(segMozo * 1000) : '—',
+ tiempoArmado: this.formatearSegundosMozo(segArmado),
+ tiempoEntrega: this.formatearSegundosMozo(segEntrega),
+ tiempoMozo: this.formatearSegundosMozo(segMozo),
+ segundosCocina: segCocina,
+ segundosArmado: segArmado,
+ segundosEntrega: segEntrega,
+ segundosMozo: segMozo,
  entregados,
  total,
  tieneEntregaAuto
@@ -4751,9 +4824,11 @@ this.modal = null;
  q.set('sub', 'historial');
  if (comanda.mozoId) q.set('mozo', String(comanda.mozoId));
  else if (comanda.mozo && comanda.mozo !== 'Sin asignar') q.set('nombre', comanda.mozo);
- const num = comanda.numComanda || comanda._id;
+ const num = comanda.numComanda || comanda.comandaNumber;
  if (num) q.set('comanda', String(num));
  if (comanda.createdAt) q.set('fecha', limaYMD(new Date(comanda.createdAt)));
+ const id = this.normalizeObjectId(comanda._id || comanda.id);
+ if (id) q.set('open', id);
  window.location.href = 'mozos.html?' + q.toString();
  },
 
