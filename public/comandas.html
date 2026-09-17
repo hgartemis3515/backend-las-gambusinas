@@ -1014,6 +1014,7 @@ tailwind.config = {
  <tr class="border-b border-[rgba(212,175,55,0.08)]" :class="item.eliminado ? 'opacity-50' : ''">
  <td class="px-4 py-3">
  <p class="font-medium" :class="item.eliminado ? 'line-through text-txt-muted' : ''" x-text="item.nombre || '—'"></p>
+ <p class="text-[10px] text-[#ff6b6b] mt-0.5" x-show="item.eliminado && item.eliminadoRazon" x-text="'Motivo: ' + item.eliminadoRazon"></p>
  <!-- NUEVO: Badge Para llevar -->
  <template x-if="item.tipoServicio === 'para_llevar'">
  <span class="inline-flex items-center gap-1 mt-0.5 text-[9px] px-2 py-0.5 rounded-full font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">🥡 Para llevar</span>
@@ -1086,7 +1087,7 @@ tailwind.config = {
  'bg-st-libre/20 text-st-libre': item.estado === 'pagado',
  'bg-txt-muted/20 text-txt-muted': item.eliminado
  }"
- x-text="item.eliminado ? 'Eliminado' : labelEstadoPlatoChip(item.estado, selectedComanda)"></span>
+ x-text="item.eliminado ? (item.eliminadoRazon ? ('Eliminado · ' + item.eliminadoRazon) : 'Eliminado') : labelEstadoPlatoChip(item.estado, selectedComanda)"></span>
  </td>
  </tr>
  </template>
@@ -1393,6 +1394,7 @@ tailwind.config = {
  <tr class="border-b border-[rgba(212,175,55,0.05)]" :class="item.eliminado ? 'opacity-40' : ''">
  <td class="px-4 py-2">
  <p class="font-medium text-sm" :class="item.eliminado ? 'line-through text-txt-muted' : ''" x-text="item.nombre || '—'"></p>
+ <p class="text-[10px] text-[#ff6b6b] mt-0.5" x-show="item.eliminado && item.eliminadoRazon" x-text="'Motivo: ' + item.eliminadoRazon"></p>
  <p class="text-[10px] text-[#5a5a7a]" x-show="item.notaEspecial" x-text="'📝 ' + item.notaEspecial"></p>
  </td>
  <td class="px-3 py-2 text-center font-semibold text-sm" x-text="item.cantidad || 1"></td>
@@ -1414,7 +1416,7 @@ tailwind.config = {
  'bg-st-libre/20 text-st-libre': item.estado === 'pagado',
  'bg-txt-muted/20 text-txt-muted': item.eliminado
  }"
- x-text="item.eliminado ? 'Eliminado' : labelEstadoPlatoChip(item.estado, comanda)"></span>
+ x-text="item.eliminado ? (item.eliminadoRazon ? ('Eliminado · ' + item.eliminadoRazon) : 'Eliminado') : labelEstadoPlatoChip(item.estado, comanda)"></span>
  </td>
  </tr>
  </template>
@@ -1666,6 +1668,7 @@ tailwind.config = {
  <tr class="border-b border-[rgba(212,175,55,0.08)]" :class="plato.eliminado ? 'opacity-40 bg-[#ff4757]/5' : ''">
  <td class="px-4 py-3">
  <p class="font-medium" :class="plato.eliminado ? 'line-through text-txt-muted' : ''" x-text="plato.nombre || '—'"></p>
+ <p class="text-[10px] text-[#ff6b6b] mt-0.5" x-show="plato.eliminado && plato.eliminadoRazon" x-text="'Motivo: ' + plato.eliminadoRazon"></p>
  <p class="text-[10px] text-[#5a5a7a]" x-show="plato.notaEspecial" x-text="'📝 ' + plato.notaEspecial"></p>
  </td>
  <td class="px-3 py-3 text-center">
@@ -1984,19 +1987,23 @@ tailwind.config = {
  </div>
  <h3 class="text-lg font-bold mb-2">Eliminar Comanda</h3>
  <p class="text-txt-secondary text-sm mb-4" x-text="'¿Eliminar la comanda #' + (comandaEliminar?.numComanda || '—') + '? Esta accion quedara registrada en auditoria.'"></p>
- <p class="text-xs text-txt-muted mb-3">Elige un motivo. Al pulsar se elimina y queda en auditoría.</p>
+ <p class="text-xs text-txt-muted mb-3">Elige un motivo. El texto extra es opcional; al pulsar se elimina y queda en auditoría.</p>
  <div class="grid grid-cols-2 gap-2 mb-2">
   <template x-for="m in motivosRapidosCocina" :key="m.id">
-   <button type="button" @click="ejecutarEliminarComanda(m.label)" :disabled="eliminando"
+   <button type="button" @click="ejecutarEliminarComanda(combinarMotivoRapido(m.label, motivoEliminacion))" :disabled="eliminando"
     class="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-white text-xs font-semibold min-h-[84px] hover:border-st-pagado hover:bg-st-pagado/10 transition disabled:opacity-50">
     <span class="text-lg" x-text="m.icon"></span>
     <span x-text="m.label"></span>
    </button>
   </template>
  </div>
+ <textarea x-model="motivoEliminacion" rows="2" placeholder="Motivo extra (opcional)"
+  class="w-full bg-bg-sidebar border border-gold/25 rounded-lg px-3 py-2 text-sm resize-none focus:border-st-pagado focus:outline-none text-white mt-2"></textarea>
  </div>
  <div class="bg-bg-sidebar p-4 rounded-b-2xl flex justify-end gap-2">
  <button @click="modal='editarComanda'; comandaEliminar=null; motivoEliminacion=''" class="px-4 py-2 border border-[#5a5a7a]/40 rounded-lg text-sm text-[#a0a0b8] hover:border-gold hover:text-gold transition">Cancelar</button>
+ <button type="button" @click="ejecutarEliminarComanda(motivoEliminacion)" :disabled="eliminando || !String(motivoEliminacion || '').trim()"
+  class="px-4 py-2 rounded-lg text-sm font-semibold bg-st-pagado text-white disabled:opacity-40">Eliminar</button>
  </div>
  </div>
 </div>
@@ -2181,19 +2188,23 @@ tailwind.config = {
  </div>
  </template>
  </div>
- <p class="text-xs text-txt-muted mb-3">Elige un motivo. Al pulsar se elimina y queda en auditoría.</p>
+ <p class="text-xs text-txt-muted mb-3">Elige un motivo. El texto extra es opcional; al pulsar se elimina y queda en auditoría.</p>
  <div class="grid grid-cols-2 gap-2">
   <template x-for="m in motivosRapidosCocina" :key="'g-'+m.id">
-   <button type="button" @click="ejecutarEliminarGrupo(m.label)" :disabled="eliminandoGrupo"
+   <button type="button" @click="ejecutarEliminarGrupo(combinarMotivoRapido(m.label, motivoEliminacionGrupo))" :disabled="eliminandoGrupo"
     class="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-white text-xs font-semibold min-h-[84px] hover:border-st-pagado hover:bg-st-pagado/10 transition disabled:opacity-50">
     <span class="text-lg" x-text="m.icon"></span>
     <span x-text="m.label"></span>
    </button>
   </template>
  </div>
+ <textarea x-model="motivoEliminacionGrupo" rows="2" placeholder="Motivo extra (opcional)"
+  class="w-full bg-bg-sidebar border border-gold/25 rounded-lg px-3 py-2 text-sm resize-none focus:border-st-pagado focus:outline-none text-white mt-3"></textarea>
  </div>
  <div class="bg-bg-sidebar p-4 rounded-b-2xl flex justify-end gap-2">
  <button @click="modal=null; grupoEliminar=null; motivoEliminacionGrupo=''" class="px-4 py-2 border border-[#5a5a7a]/40 rounded-lg text-sm text-[#a0a0b8] hover:border-gold hover:text-gold transition">Cancelar</button>
+ <button type="button" @click="ejecutarEliminarGrupo(motivoEliminacionGrupo)" :disabled="eliminandoGrupo || !String(motivoEliminacionGrupo || '').trim()"
+  class="px-4 py-2 rounded-lg text-sm font-semibold bg-st-pagado text-white disabled:opacity-40">Eliminar</button>
  </div>
  </div>
 </div>
@@ -2334,6 +2345,7 @@ tailwind.config = {
  <tr class="border-b border-[rgba(212,175,55,0.05)]" :class="item.eliminado ? 'opacity-40 bg-[#ff4757]/5' : ''">
  <td class="px-4 py-2">
  <p class="font-medium text-sm" :class="item.eliminado ? 'line-through text-txt-muted' : ''" x-text="item.nombre || '—'"></p>
+ <p class="text-[10px] text-[#ff6b6b] mt-0.5" x-show="item.eliminado && item.eliminadoRazon" x-text="'Motivo: ' + item.eliminadoRazon"></p>
  <p class="text-[10px] text-[#5a5a7a]" x-show="item.notaEspecial" x-text="'📝 ' + item.notaEspecial"></p>
  </td>
  <td class="px-3 py-2 text-center font-semibold text-sm" x-text="item.cantidad || 1"></td>
@@ -4115,6 +4127,7 @@ this.modal = null;
  subtotal: Number(subtotal),
  estado: item.estado || 'en_espera',
  eliminado: item.eliminado || false,
+ eliminadoRazon: item.eliminadoRazon || null,
  notaEspecial: item.notaEspecial || '',
  complementosSeleccionados: item.complementosSeleccionados || [],
  // NUEVO: Tipo de servicio (Mesa vs Para llevar)
@@ -6823,6 +6836,13 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  this.comandaEliminar = c;
  this.motivoEliminacion = '';
  this.modal = 'confirmarEliminar';
+ },
+
+ combinarMotivoRapido(label, extra) {
+ const l = String(label || '').trim();
+ const e = String(extra || '').trim();
+ if (l && e) return l + ': ' + e;
+ return l || e;
  },
 
  async ejecutarEliminarComanda(motivoOverride) {

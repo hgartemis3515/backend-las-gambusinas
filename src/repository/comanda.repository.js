@@ -604,6 +604,7 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
         'platos.platoId': 1,
         'platos.estado': 1,
         'platos.eliminado': 1,
+        'platos.eliminadoRazon': 1,
         'platos.anulado': 1,
         'platos.complementosSeleccionados': 1,
         'platos.notaEspecial': 1,
