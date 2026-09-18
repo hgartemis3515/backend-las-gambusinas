@@ -9,6 +9,7 @@ const { fusionarOrdenIds, idStr } = require('../utils/ordenPlatoMozo');
 const { hydrateCatalogoDoc } = require('../utils/catalogoCartaPersistencia');
 const { parseHexColor } = require('../utils/hexColor');
 const { sanitizarCategoriasPlato, categoriasDePlato, filtroMongoCategoria } = require('../utils/categoriasPlato');
+const { CARTA_MOZO_SELECT, toCartaMozo } = require('../utils/cartaMozoPlato');
 const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
@@ -415,6 +416,20 @@ const listarPlatos = async () => {
     return data;
 };
 
+const listarPlatosCartaMozo = async () => {
+    const data = await plato
+        .find(queryActivos())
+        .select(CARTA_MOZO_SELECT)
+        .sort(PLATO_SORT_MOZO)
+        .lean();
+    return (data || []).map((d) => toCartaMozo(d)).filter(Boolean);
+};
+
+function emitPlatoMenu(plato, op, extra) {
+    if (!global.emitPlatoMenuActualizado) return Promise.resolve();
+    return global.emitPlatoMenuActualizado(plato, op, extra).catch(() => {});
+}
+
 /**
  * Lista platos opcionalmente filtrados por tipo (robusto: alias + regex).
  * @param {string|null} tipo - 'todos'|'desayuno'|'carta'|'platos-desayuno'|'plato-carta normal'
@@ -701,6 +716,7 @@ const importarPlatosDesdeJSON = async () => {
 
         console.log(`✅ Import platos: ${imported} insertados con id JSON, ${skipped} ya existían. Sequence next=${sequenceNext}. Preservados IDs 1-${maxIdJson}.`);
         logger.info('Import platos completado', { imported, skipped, preservedIds: idsInJson.length, sequenceNext });
+        if (imported > 0) await emitPlatoMenu(null, 'invalidate');
         return { imported, skipped, errors, preservedIds: idsInJson.length, sequenceNext };
     } catch (error) {
         logger.error('Error al importar platos desde JSON', { error: error.message });
@@ -899,7 +915,7 @@ const crearPlato = async (data) => {
     } catch (e) {
         logger.warn('No se pudo sincronizar categoría al crear plato', { error: e.message });
     }
-    if (global.emitPlatoMenuActualizado) await global.emitPlatoMenuActualizado(nuevo).catch(() => {});
+    await emitPlatoMenu(nuevo, 'upsert');
     const todosLosPlatos = await listarPlatos();
     await syncJsonFile('platos.json', todosLosPlatos);
     return todosLosPlatos;
@@ -1076,7 +1092,7 @@ const actualizarPlato = async (id, newData) => {
             logger.warn('No se pudo sincronizar categoría al actualizar plato', { error: e.message });
         }
     }
-    if (actualizado && global.emitPlatoMenuActualizado) await global.emitPlatoMenuActualizado(actualizado).catch(() => {});
+    if (actualizado) await emitPlatoMenu(actualizado, 'upsert');
     const todosLosPlatos = await listarPlatos();
     await syncJsonFile('platos.json', todosLosPlatos);
     return todosLosPlatos;
@@ -1130,6 +1146,13 @@ const reordenarPlatosPorIds = async (idsRaw) => {
         });
     });
     tipos.forEach((t) => invalidatePlatoMenuCache(t));
+    const items = ops.map((op) => {
+        const id = op.updateOne && op.updateOne.filter && op.updateOne.filter._id;
+        const orden = op.updateOne && op.updateOne.update && op.updateOne.update.$set && op.updateOne.update.$set.orden;
+        return id != null ? { _id: id, orden } : null;
+    }).filter(Boolean);
+    if (items.length > 250) await emitPlatoMenu(null, 'invalidate');
+    else if (items.length) await emitPlatoMenu(null, 'orden', { items });
     listarPlatos()
         .then((todos) => syncJsonFile('platos.json', todos))
         .catch((err) => logger.warn('No se pudo sync platos.json tras reordenar', { error: err.message }));
@@ -1144,8 +1167,10 @@ const borrarPlato = async (id) => {
     if (doc) {
         (doc.tipos && doc.tipos.length ? doc.tipos : [doc.tipo]).forEach(t => invalidatePlatoMenuCache(t));
         await plato.findByIdAndDelete(doc._id);
+        await emitPlatoMenu(doc, 'delete');
     } else {
         await plato.findByIdAndDelete(id);
+        await emitPlatoMenu({ _id: id }, 'delete');
     }
     const todosLosPlatos = await listarPlatos();
     await syncJsonFile('platos.json', todosLosPlatos);
@@ -1293,15 +1318,14 @@ const actualizarTipoPlato = async (id, nuevoTipo) => {
     invalidatePlatoMenuCache(nuevoTipo);
     const todosLosPlatos = await listarPlatos();
     await syncJsonFile('platos.json', todosLosPlatos);
-    if (global.emitPlatoMenuActualizado) {
-        await global.emitPlatoMenuActualizado(doc).catch(() => {});
-    }
+    await emitPlatoMenu(doc, 'upsert');
     logger.info('Tipo de plato actualizado', { platoId: id, tipoAnterior, nuevoTipo });
     return { plato: doc, todosLosPlatos };
 };
 
 module.exports = {
     listarPlatos,
+    listarPlatosCartaMozo,
     listarPlatosPorTipo,
     crearPlato,
     obtenerPlatoPorId,

@@ -14,6 +14,7 @@ const {
   shouldNotifyComandaLista,
 } = require('../services/pushNotifications');
 const { overlayPronombresEnComandas } = require('../utils/precioComplementos');
+const { toCartaMozo } = require('../utils/cartaMozoPlato');
 
 /** Emite solo al mozo asignado a la comanda (room mozo-{id}) */
 function emitToMozoAsignado(ns, comanda, eventName, eventData) {
@@ -1293,19 +1294,52 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
    * Emitir evento cuando se actualiza un plato del menú (tipo/categoría) para que mozos y cocina refresquen listas
    * @param {Object} plato - Documento plato (puede ser lean o mongoose doc)
    */
-  global.emitPlatoMenuActualizado = async (plato) => {
+  global.emitPlatoMenuActualizado = async (plato, op, extra) => {
     try {
-      const payload = plato && plato.toObject ? plato.toObject() : plato;
-      if (!payload || !payload._id) {
-        logger.warn('emitPlatoMenuActualizado: plato inválido');
-        return;
-      }
+      const opNorm = String(op || 'upsert').toLowerCase();
       const timestamp = moment().tz('America/Lima').toISOString();
-      const eventData = {
-        plato: payload,
-        socketId: 'server',
-        timestamp
-      };
+      const extraSafe = extra && typeof extra === 'object' ? extra : {};
+      let eventData;
+      if (opNorm === 'invalidate') {
+        eventData = {
+          plato: null,
+          op: 'invalidate',
+          socketId: 'server',
+          timestamp
+        };
+      } else if (opNorm === 'orden') {
+        eventData = {
+          plato: null,
+          op: 'orden',
+          items: Array.isArray(extraSafe.items) ? extraSafe.items : [],
+          socketId: 'server',
+          timestamp
+        };
+      } else if (opNorm === 'delete') {
+        const raw = plato && plato.toObject ? plato.toObject() : plato;
+        if (!raw || (raw._id == null && raw.id == null)) {
+          logger.warn('emitPlatoMenuActualizado: delete sin id');
+          return;
+        }
+        eventData = {
+          plato: { _id: raw._id, id: raw.id },
+          op: 'delete',
+          socketId: 'server',
+          timestamp
+        };
+      } else {
+        const carta = toCartaMozo(plato);
+        if (!carta || carta._id == null) {
+          logger.warn('emitPlatoMenuActualizado: plato inválido');
+          return;
+        }
+        eventData = {
+          plato: carta,
+          op: 'upsert',
+          socketId: 'server',
+          timestamp
+        };
+      }
       if (cocinaNamespace && cocinaNamespace.sockets) {
         cocinaNamespace.emit('plato-menu-actualizado', eventData);
       }
@@ -1316,8 +1350,9 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         adminNamespace.emit('plato-menu-actualizado', eventData);
       }
       logger.info('Evento plato-menu-actualizado emitido', {
-        platoId: payload.id || payload._id,
-        tipo: payload.tipo,
+        op: eventData.op,
+        platoId: eventData.plato?.id || eventData.plato?._id,
+        tipo: eventData.plato?.tipo,
         cocinaConnected: cocinaNamespace?.sockets?.size || 0,
         mozosConnected: mozosNamespace?.sockets?.size || 0
       });

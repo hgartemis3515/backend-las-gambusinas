@@ -45,6 +45,11 @@ async function sincronizarDesdePlatos() {
     for (const n of names) await asegurarCategoria(n);
 }
 
+function emitInvalidateMenu() {
+    if (!global.emitPlatoMenuActualizado) return Promise.resolve();
+    return global.emitPlatoMenuActualizado(null, 'invalidate').catch(() => {});
+}
+
 function platoResumen(p) {
     return {
         _id: p._id,
@@ -197,6 +202,7 @@ async function renombrarCategoria(fromRaw, toRaw) {
         await asegurarCategoria(to);
     }
     invalidateTiposDePlatos(afectados);
+    await emitInvalidateMenu();
     logger.info('Categoría de plato renombrada', { from, to, platos: afectados.length });
     return { nombre: to, renamed: true, platos: afectados.length };
 }
@@ -260,6 +266,7 @@ async function guardarCategoriasLote(items) {
             errores.push({ nombre: from, error: e.message || 'No se pudo guardar' });
         }
     }
+    await emitInvalidateMenu();
     return { guardadas, errores };
 }
 
@@ -274,6 +281,7 @@ async function setImagenCategoria(nombreRaw, imagenUrl) {
     const prev = String(doc.imagenUrl || '').trim();
     doc.imagenUrl = String(imagenUrl || '').trim();
     await doc.save();
+    await emitInvalidateMenu();
     return { nombre: doc.nombre, imagenUrl: doc.imagenUrl, anterior: prev };
 }
 
@@ -297,6 +305,7 @@ async function moverPlatos(platoIds, categoriaDestino) {
     const docs = await plato.find(filter).select('tipos tipo').lean();
     const res = await plato.updateMany(filter, { $set: { categoria: dest, categorias: [dest] } });
     invalidateTiposDePlatos(docs);
+    await emitInvalidateMenu();
     logger.info('Platos movidos de categoría', { destino: dest, matched: res.matchedCount });
     return { categoria: dest, movidos: res.modifiedCount || res.matchedCount || 0 };
 }

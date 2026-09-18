@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const {
     listarPlatos,
+    listarPlatosCartaMozo,
     listarPlatosPorTipo,
     obtenerPlatoPorId,
     crearPlato,
@@ -22,6 +23,10 @@ const { listarCategoriasLigero } = require("../repository/categoriaPlato.reposit
 
 router.get("/platos", async (req, res) => {
     try {
+        if (req.query.carta === '1' || req.query.carta === 'true') {
+            const data = await listarPlatosCartaMozo();
+            return res.json(data);
+        }
         const tipo = req.query.tipo != null ? String(req.query.tipo).trim() : null;
         const isActive = req.query.isActive !== 'false';
         const data = tipo
@@ -82,6 +87,16 @@ router.get("/platos/categoria/:categoria", async (req, res) => {
         res.json({ platos, total: platos.length, categorias: [categoria], filtrosAplicados: { categoria } });
     } catch (error) {
         logger.error('Error al buscar platos por categoría', { categoria: req.params.categoria, error: error.message });
+        handleError(error, res, logger);
+    }
+});
+
+router.get("/platos/carta-mozo", async (req, res) => {
+    try {
+        const data = await listarPlatosCartaMozo();
+        res.json(data);
+    } catch (error) {
+        logger.error('Error al listar carta mozo', { error: error.message });
         handleError(error, res, logger);
     }
 });
