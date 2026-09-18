@@ -1281,10 +1281,9 @@ tailwind.config = {
                   </div>
                   <div class="flex items-center gap-3 mt-2 text-[10px] text-txt-muted flex-wrap">
                     <span>T. cocina: <span class="font-mono text-white" x-text="formatDuracionSegundos(getTiempoCocinaComandaVivo(c))"></span></span>
-                    <span>T. armado: <span class="font-mono text-white" x-text="formatDuracionSegundos(getTiempoArmadoComanda(c))"></span></span>
-                    <span>T. entrega: <span class="font-mono" :class="colorTiempoMozo(getTiempoMozoSalonComandaVivo(c), { entregaAutomatica: comandaTieneEntregaAuto(c) })" x-text="formatDuracionSegundos(getTiempoMozoSalonComandaVivo(c))"></span></span>
-                    <span>T. mozo: <span class="font-mono" :class="colorTiempoMozo(getTiempoMozoComandaVivo(c), { entregaAutomatica: comandaTieneEntregaAuto(c) })" x-text="formatDuracionSegundos(getTiempoMozoComandaVivo(c))"></span></span>
-                    <span>Δ: <span class="font-mono" :class="colorDiferencia(getDiferenciaComandaVivo(c))" x-text="formatDuracionConSigno(getDiferenciaComandaVivo(c))"></span></span>
+                    <span>T. mozo: <span class="font-mono text-gold" x-text="formatDuracionSegundos(getTiempoMozoComandaVivo(c))"></span></span>
+                    <span x-show="!ocultarTiempoEntrega">T. entrega: <span class="font-mono" :class="colorTiempoMozo(getTiempoMozoSalonComandaVivo(c), { entregaAutomatica: comandaTieneEntregaAuto(c) })" x-text="formatDuracionSegundos(getTiempoMozoSalonComandaVivo(c))"></span></span>
+                    <span x-show="!ocultarTiempoEntrega">Δ: <span class="font-mono" :class="colorDiferencia(getDiferenciaComandaVivo(c))" x-text="formatDuracionConSigno(getDiferenciaComandaVivo(c))"></span></span>
                   </div>
                 </div>
               </template>
@@ -1304,10 +1303,9 @@ tailwind.config = {
                 <th class="text-left py-3 px-3 font-medium">Mesa</th>
                 <th class="text-left py-3 px-3 font-medium">Platos (todos)</th>
                 <th class="text-right py-3 px-3 font-medium">T. cocina</th>
-                <th class="text-right py-3 px-3 font-medium">T. armado</th>
-                <th class="text-right py-3 px-3 font-medium">T. entrega</th>
                 <th class="text-right py-3 px-3 font-medium">T. mozo</th>
-                <th class="text-right py-3 px-3 font-medium">Δ vs cocina</th>
+                <th class="text-right py-3 px-3 font-medium" x-show="!ocultarTiempoEntrega">T. entrega</th>
+                <th class="text-right py-3 px-3 font-medium" x-show="!ocultarTiempoEntrega">Δ vs cocina</th>
                 <th class="text-center py-3 px-3 font-medium">Acciones</th>
               </tr>
             </thead>
@@ -1333,10 +1331,9 @@ tailwind.config = {
                     <p class="text-[9px] text-txt-muted mt-0.5" x-text="(c.platosEntregados || 0) + '/' + (c.platosTotal || 0) + ' entregados'"></p>
                   </td>
                   <td class="py-2.5 px-3 text-right font-mono text-xs" x-text="formatDuracionSegundos(getTiempoCocinaComandaVivo(c))"></td>
-                  <td class="py-2.5 px-3 text-right font-mono text-xs text-white" x-text="formatDuracionSegundos(getTiempoArmadoComanda(c))"></td>
-                  <td class="py-2.5 px-3 text-right font-mono text-xs" :class="colorTiempoMozo(getTiempoMozoSalonComandaVivo(c), { entregaAutomatica: comandaTieneEntregaAuto(c) })" x-text="formatDuracionSegundos(getTiempoMozoSalonComandaVivo(c))"></td>
-                  <td class="py-2.5 px-3 text-right font-mono text-xs" :class="colorTiempoMozo(getTiempoMozoComandaVivo(c), { entregaAutomatica: comandaTieneEntregaAuto(c) })" x-text="formatDuracionSegundos(getTiempoMozoComandaVivo(c))"></td>
-                  <td class="py-2.5 px-3 text-right font-mono text-xs font-bold" :class="colorDiferencia(getDiferenciaComandaVivo(c))" x-text="formatDuracionConSigno(getDiferenciaComandaVivo(c))"></td>
+                  <td class="py-2.5 px-3 text-right font-mono text-xs text-gold" x-text="formatDuracionSegundos(getTiempoMozoComandaVivo(c))"></td>
+                  <td class="py-2.5 px-3 text-right font-mono text-xs" x-show="!ocultarTiempoEntrega" :class="colorTiempoMozo(getTiempoMozoSalonComandaVivo(c), { entregaAutomatica: comandaTieneEntregaAuto(c) })" x-text="formatDuracionSegundos(getTiempoMozoSalonComandaVivo(c))"></td>
+                  <td class="py-2.5 px-3 text-right font-mono text-xs font-bold" x-show="!ocultarTiempoEntrega" :class="colorDiferencia(getDiferenciaComandaVivo(c))" x-text="formatDuracionConSigno(getDiferenciaComandaVivo(c))"></td>
                   <td class="py-2.5 px-3 text-center">
                     <button type="button" @click="openComandaMozoModal(c.comandaId)" class="text-xs px-2 py-1 bg-gold/20 text-gold rounded hover:bg-gold/30 transition">Ver completo</button>
                   </td>
@@ -1443,10 +1440,9 @@ tailwind.config = {
                 <th class="text-left py-3 px-3 font-medium">Mesa</th>
                 <th class="text-left py-3 px-3 font-medium">Platos (todos)</th>
                 <th class="text-right py-3 px-3 font-medium">T. cocina</th>
-                <th class="text-right py-3 px-3 font-medium">T. armado</th>
-                <th class="text-right py-3 px-3 font-medium">T. entrega</th>
                 <th class="text-right py-3 px-3 font-medium">T. mozo</th>
-                <th class="text-right py-3 px-3 font-medium">Δ vs cocina</th>
+                <th class="text-right py-3 px-3 font-medium" x-show="!ocultarTiempoEntrega">T. entrega</th>
+                <th class="text-right py-3 px-3 font-medium" x-show="!ocultarTiempoEntrega">Δ vs cocina</th>
                 <th class="text-center py-3 px-3 font-medium">Acciones</th>
               </tr>
             </thead>
@@ -1473,10 +1469,9 @@ tailwind.config = {
                     <p class="text-[9px] text-txt-muted mt-0.5" x-text="(c.platosEntregados || 0) + '/' + (c.platosTotal || 0) + ' entregados'"></p>
                   </td>
                   <td class="py-2.5 px-3 text-right font-mono text-xs" x-text="formatDuracionSegundos(getTiempoCocinaComandaVivo(c))"></td>
-                  <td class="py-2.5 px-3 text-right font-mono text-xs text-white" x-text="formatDuracionSegundos(getTiempoArmadoComanda(c))"></td>
-                  <td class="py-2.5 px-3 text-right font-mono text-xs" :class="colorTiempoMozo(getTiempoMozoSalonComandaVivo(c), { entregaAutomatica: comandaTieneEntregaAuto(c) })" x-text="formatDuracionSegundos(getTiempoMozoSalonComandaVivo(c))"></td>
-                  <td class="py-2.5 px-3 text-right font-mono text-xs" :class="colorTiempoMozo(getTiempoMozoComandaVivo(c), { entregaAutomatica: comandaTieneEntregaAuto(c) })" x-text="formatDuracionSegundos(getTiempoMozoComandaVivo(c))"></td>
-                  <td class="py-2.5 px-3 text-right font-mono text-xs font-bold" :class="colorDiferencia(getDiferenciaComandaVivo(c))" x-text="formatDuracionConSigno(getDiferenciaComandaVivo(c))"></td>
+                  <td class="py-2.5 px-3 text-right font-mono text-xs text-gold" x-text="formatDuracionSegundos(getTiempoMozoComandaVivo(c))"></td>
+                  <td class="py-2.5 px-3 text-right font-mono text-xs" x-show="!ocultarTiempoEntrega" :class="colorTiempoMozo(getTiempoMozoSalonComandaVivo(c), { entregaAutomatica: comandaTieneEntregaAuto(c) })" x-text="formatDuracionSegundos(getTiempoMozoSalonComandaVivo(c))"></td>
+                  <td class="py-2.5 px-3 text-right font-mono text-xs font-bold" x-show="!ocultarTiempoEntrega" :class="colorDiferencia(getDiferenciaComandaVivo(c))" x-text="formatDuracionConSigno(getDiferenciaComandaVivo(c))"></td>
                   <td class="py-2.5 px-3 text-center">
                     <button type="button" @click="openComandaMozoModal(c.comandaId)" class="text-xs px-2 py-1 bg-gold/20 text-gold rounded hover:bg-gold/30 transition">Ver completo</button>
                   </td>
@@ -3328,6 +3323,7 @@ function mozosExecutiveApp() {
     rendimientoMozoTick: 0,
     rendimientoMozoTimerInterval: null,
     rendimientoMozoSocketConnected: false,
+    ocultarTiempoEntrega: true,
     // Historial / registro (por comanda) — incluye terminadas tras pago/liberación
     historialMozos: {
       comandas: [],
@@ -3434,6 +3430,7 @@ function mozosExecutiveApp() {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
       if (!token) { window.location.href = '/login.html'; return; }
       this.cargarMozosVisibles();
+      await this.loadConfigTiemposMozos();
       const p = new URLSearchParams(window.location.search);
       this.wallMode = p.get('wall') === '1' || p.get('kiosk') === '1';
       if (this.wallMode) {
@@ -3453,6 +3450,28 @@ function mozosExecutiveApp() {
       // Initialize Lucide icons
       if (window.lucide) window.lucide.createIcons();
       this.aplicarQueryRendimientoMozos();
+    },
+
+    async loadConfigTiemposMozos() {
+      try {
+        const data = await apiGet('/configuracion');
+        const cfg = data?.configuracion || data || {};
+        this.ocultarTiempoEntrega = cfg.mozos?.ocultarTiempoEntrega !== false;
+      } catch (e) {
+        this.ocultarTiempoEntrega = true;
+      }
+    },
+    horaTrazabilidad(valor) {
+      if (!valor) return '—';
+      const d = new Date(valor);
+      if (Number.isNaN(d.getTime())) return '—';
+      return d.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    },
+    tiempoTotalMozoCocina(m) {
+      const c = Number(m?.tiempoCocinaSegundos) || 0;
+      const a = Number(m?.tiempoMozoSegundos || m?.tiempoArmadoSegundos) || 0;
+      const t = c + a;
+      return t > 0 ? t : null;
     },
 
     get rangoFechas() {
@@ -4271,17 +4290,15 @@ function mozosExecutiveApp() {
     getTiempoMozoComandaVivo(c) {
       void this.rendimientoMozoTick;
       if (!c) return null;
-      const salon = this.getTiempoMozoSalonComandaVivo(c);
       const armado = this.segArmadoComanda(c);
-      if (salon != null) return salon + armado;
       if (armado > 0) return armado;
       return c.tiempoMozoSegundos ?? null;
     },
     getDiferenciaComandaVivo(c) {
       const tCocina = this.getTiempoCocinaComandaVivo(c);
-      const tMozo = this.getTiempoMozoComandaVivo(c);
-      if (tCocina == null || tMozo == null) return null;
-      return tMozo - tCocina;
+      const tEntrega = this.getTiempoMozoSalonComandaVivo(c);
+      if (tCocina == null || tEntrega == null) return null;
+      return tEntrega - tCocina;
     },
     getTiempoCocinaPlatoVivo(item) {
       void this.rendimientoMozoTick; // dependencia reactiva
@@ -7108,10 +7125,10 @@ function mozosExecutiveApp() {
         <p x-show="selectedComandaMozo?.observaciones" class="text-xs text-txt-secondary mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]" x-text="'Obs: ' + selectedComandaMozo.observaciones"></p>
       </div>
 
-      <!-- TRAZABILIDAD DE SALÓN (nuevo) -->
+      <!-- TRAZABILIDAD DE TIEMPOS -->
       <div class="bg-bg-primary border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
-        <p class="text-[10px] text-gold uppercase mb-3 font-semibold tracking-wider">🍽️ Trazabilidad de Salón</p>
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-sm">
+        <p class="text-[10px] text-gold uppercase mb-3 font-semibold tracking-wider">⏱️ Trazabilidad de tiempos</p>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 text-sm">
           <div>
             <p class="text-[10px] text-txt-muted">Platos entregados</p>
             <p class="font-bold text-st-libre" x-text="(metricasComandaMozo?.platosEntregados || 0) + ' / ' + (metricasComandaMozo?.platosTotal || 0)"></p>
@@ -7121,21 +7138,34 @@ function mozosExecutiveApp() {
             <p class="font-mono font-medium text-st-preparado" x-text="formatDuracionSegundos(metricasComandaMozo?.tiempoCocinaSegundos)"></p>
           </div>
           <div>
-            <p class="text-[10px] text-txt-muted">T. armado (planificación)</p>
-            <p class="font-mono font-medium text-white" x-text="formatDuracionSegundos(metricasComandaMozo?.tiempoArmadoSegundos)"></p>
+            <p class="text-[10px] text-txt-muted">T. mozo (planificación)</p>
+            <p class="font-mono font-bold text-lg text-gold" x-text="formatDuracionSegundos(metricasComandaMozo?.tiempoMozoSegundos)"></p>
           </div>
           <div>
-            <p class="text-[10px] text-txt-muted">T. entrega (salón)</p>
-            <p class="font-mono font-medium" :class="colorTiempoMozo(metricasComandaMozo?.tiempoMozoSalonSegundos, { entregaAutomatica: comandaTieneEntregaAuto(selectedComandaMozo) })" x-text="formatDuracionSegundos(metricasComandaMozo?.tiempoMozoSalonSegundos)"></p>
+            <p class="text-[10px] text-txt-muted">T. total (planif. + cocina)</p>
+            <p class="font-mono font-bold text-white" x-text="formatDuracionSegundos(tiempoTotalMozoCocina(metricasComandaMozo))"></p>
           </div>
-          <div>
-            <p class="text-[10px] text-txt-muted">T. mozo (armado + entrega)</p>
-            <p class="font-mono font-bold text-lg" :class="colorTiempoMozo(metricasComandaMozo?.tiempoMozoSegundos, { entregaAutomatica: comandaTieneEntregaAuto(selectedComandaMozo) })" x-text="formatDuracionSegundos(metricasComandaMozo?.tiempoMozoSegundos)"></p>
-            <p class="text-[9px] text-txt-muted font-mono mt-0.5" x-text="'Armado ' + formatDuracionSegundos(metricasComandaMozo?.tiempoArmadoSegundos) + ' + Entrega ' + formatDuracionSegundos(metricasComandaMozo?.tiempoMozoSalonSegundos)"></p>
+          <div x-show="!ocultarTiempoEntrega">
+            <p class="text-[10px] text-txt-muted">T. entrega (no cuenta)</p>
+            <p class="font-mono font-medium text-txt-muted" :class="colorTiempoMozo(metricasComandaMozo?.tiempoMozoSalonSegundos, { entregaAutomatica: comandaTieneEntregaAuto(selectedComandaMozo) })" x-text="formatDuracionSegundos(metricasComandaMozo?.tiempoMozoSalonSegundos)"></p>
           </div>
-          <div>
-            <p class="text-[10px] text-txt-muted">Δ (mozo − cocina)</p>
+          <div x-show="!ocultarTiempoEntrega">
+            <p class="text-[10px] text-txt-muted">Δ (entrega − cocina)</p>
             <p class="font-mono font-bold" :class="colorDiferencia(metricasComandaMozo?.diferenciaSegundos)" x-text="formatDuracionConSigno(metricasComandaMozo?.diferenciaSegundos)"></p>
+          </div>
+        </div>
+        <div class="mt-3 pt-2 border-t border-[rgba(212,175,55,0.08)] grid grid-cols-2 md:grid-cols-3 gap-3 text-[10px]">
+          <div>
+            <p class="text-txt-muted">Inicio armado</p>
+            <p class="font-mono text-txt-secondary" x-text="horaTrazabilidad(selectedComandaMozo?.armadoIniciadoEn)"></p>
+          </div>
+          <div>
+            <p class="text-txt-muted">Envío a cocina</p>
+            <p class="font-mono text-txt-secondary" x-text="horaTrazabilidad(selectedComandaMozo?.armadoEnviadoEn || selectedComandaMozo?.createdAt)"></p>
+          </div>
+          <div>
+            <p class="text-txt-muted">Duración armado</p>
+            <p class="font-mono text-gold" x-text="formatDuracionSegundos(metricasComandaMozo?.tiempoArmadoSegundos)"></p>
           </div>
         </div>
         <!-- Resumen estados -->
@@ -7155,13 +7185,13 @@ function mozosExecutiveApp() {
               <th class="text-center px-3 py-2.5 font-semibold">Cant.</th>
               <th class="text-left px-3 py-2.5 font-semibold">Cocinero</th>
               <th class="text-center px-3 py-2.5 font-semibold">T. cocina</th>
-              <th class="text-center px-3 py-2.5 font-semibold">T. mozo</th>
+              <th class="text-center px-3 py-2.5 font-semibold" x-show="!ocultarTiempoEntrega">T. entrega</th>
               <th class="text-center px-3 py-2.5 font-semibold">Estado</th>
             </tr>
           </thead>
           <tbody>
             <template x-if="!selectedComandaMozo?.items || selectedComandaMozo.items.length === 0">
-              <tr><td colspan="6" class="px-4 py-6 text-center text-txt-muted text-xs">Sin platos registrados</td></tr>
+              <tr><td :colspan="ocultarTiempoEntrega ? 5 : 6" class="px-4 py-6 text-center text-txt-muted text-xs">Sin platos registrados</td></tr>
             </template>
             <template x-for="(item, idx) in (selectedComandaMozo?.items || [])" :key="idx">
               <tr class="border-b border-[rgba(212,175,55,0.08)]" :class="item.eliminado ? 'opacity-50' : ''">
@@ -7179,7 +7209,7 @@ function mozosExecutiveApp() {
                   <span x-show="cocineroInfoMozo(item).nombre === '—'" class="text-[10px] text-txt-muted">—</span>
                 </td>
                 <td class="px-3 py-3 text-center text-[10px] font-mono text-txt-secondary" x-text="getTiempoCocinaPlato(item)"></td>
-                <td class="px-3 py-3 text-center text-[10px] font-mono" :class="colorTiempoMozo(getTiempoMozoPlatoVivo(item), item)" x-text="getTiempoMozoPlato(item)"></td>
+                <td class="px-3 py-3 text-center text-[10px] font-mono" x-show="!ocultarTiempoEntrega" :class="colorTiempoMozo(getTiempoMozoPlatoVivo(item), item)" x-text="getTiempoMozoPlato(item)"></td>
                 <td class="px-3 py-3 text-center">
                   <span class="text-[9px] px-2 py-0.5 rounded-full font-semibold" :class="estadoPlatoBadgeClase(item.estado, item)" x-text="estadoPlatoLabel(item.estado, item)"></span>
                 </td>

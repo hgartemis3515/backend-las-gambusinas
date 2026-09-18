@@ -638,6 +638,24 @@ tailwind.config = {
             </div>
           </div>
 
+          <div class="space-y-3 border-t border-[rgba(212,175,55,0.15)] pt-4">
+            <h4 class="text-sm font-semibold text-txt-secondary">Tiempos en Comandas</h4>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.mozosOcultarTiempoEntrega" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Ocultar T. entrega de mozos</span>
+            </label>
+            <p class="text-xs text-txt-muted ml-7">
+              Si está <strong class="text-txt-secondary font-medium">marcado</strong> (predeterminado), en Comandas no se muestra T. entrega.
+              El tiempo de entrega no se cuenta en T. mozo ni en el tiempo total del plato.
+              T. mozo es solo planificación (armado) y T. cocina se mantiene.
+            </p>
+            <p class="text-xs ml-7"
+              :class="config.mozosOcultarTiempoEntrega ? 'text-st-libre' : 'text-st-esperando'"
+              x-text="config.mozosOcultarTiempoEntrega
+                ? 'T. entrega oculto: no cuenta en el total'
+                : 'T. entrega visible como referencia (sigue sin contar en T. mozo)'"></p>
+          </div>
+
           <!-- PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: toggle del botón Reservar en App Mozos -->
           <div class="space-y-3 border-t border-[rgba(212,175,55,0.15)] pt-4">
             <label class="flex items-center gap-3 cursor-pointer">
@@ -1669,6 +1687,7 @@ function configApp() {
       mozosPermitirEditarEliminarTomadasPorCocina: false,
       mozosEntregaAlInstante: false,
       mozosEntregaAutomaticaMinutos: 15,
+      mozosOcultarTiempoEntrega: true,
       // Seguridad
       seguridad: {
         timeoutInactividadMin: 30,
@@ -1984,11 +2003,13 @@ function configApp() {
             const minsOk = Number.isFinite(minsEntrega) && minsEntrega >= 0 ? Math.min(180, Math.floor(minsEntrega)) : 15;
             this.config.mozosEntregaAlInstante = minsOk === 0;
             this.config.mozosEntregaAutomaticaMinutos = minsOk === 0 ? 15 : minsOk;
+            this.config.mozosOcultarTiempoEntrega = cfg.mozos.ocultarTiempoEntrega !== false;
           } else {
             this.config.mozosBotonImprimirComanda = false;
             this.config.mozosPermitirEditarEliminarTomadasPorCocina = false;
             this.config.mozosEntregaAlInstante = false;
             this.config.mozosEntregaAutomaticaMinutos = 15;
+            this.config.mozosOcultarTiempoEntrega = true;
           }
 
           // Mapear Cocina (Obligar orden + Solicitar Orden)
@@ -2199,7 +2220,8 @@ function configApp() {
             permitirEditarEliminarTomadasPorCocina: this.config.mozosPermitirEditarEliminarTomadasPorCocina === true,
             entregaAutomaticaMinutos: this.config.mozosEntregaAlInstante
               ? 0
-              : Math.min(180, Math.max(1, Number(this.config.mozosEntregaAutomaticaMinutos) || 15))
+              : Math.min(180, Math.max(1, Number(this.config.mozosEntregaAutomaticaMinutos) || 15)),
+            ocultarTiempoEntrega: this.config.mozosOcultarTiempoEntrega !== false
           },
 
           // Cocina (Obligar orden + Solicitar Orden) — PLAN OBLIGAR_ORDEN_ASIGNACION_KDS_SUPERVISOR

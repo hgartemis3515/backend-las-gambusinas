@@ -121,7 +121,10 @@ const CONFIGURACION_DEFAULT = {
         botonImprimirComanda: false,
         permitirEditarEliminarTomadasPorCocina: false,
         // 0 = entregar al instante al salir de cocina. Default 15 min.
-        entregaAutomaticaMinutos: 15
+        entregaAutomaticaMinutos: 15,
+        // true (default): no mostrar ni contar T. entrega de mozos en comandas.html.
+        // T. mozo = solo planificación (armado). La entrega no entra al total del plato.
+        ocultarTiempoEntrega: true
     },
 
     // Cocina (App de Cocina + Dashboard)
@@ -539,6 +542,10 @@ const configuracionSistemaSchema = new mongoose.Schema({
             min: 0,
             max: 180,
             default: CONFIGURACION_DEFAULT.mozos.entregaAutomaticaMinutos
+        },
+        ocultarTiempoEntrega: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.mozos.ocultarTiempoEntrega
         }
     },
 

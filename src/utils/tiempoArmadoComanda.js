@@ -43,13 +43,10 @@ function segArmadoComanda(c) {
     return 0;
 }
 
-/** T. mozo de comanda = salón (suma platos) + armado una sola vez. */
-function tiempoMozoComandaSegundos(salonSegundos, armadoSegundos) {
+/** T. mozo de comanda = solo planificación (armado). La entrega de salón no cuenta. */
+function tiempoMozoComandaSegundos(_salonSegundos, armadoSegundos) {
     const armado = Math.max(0, Number(armadoSegundos) || 0);
-    if (salonSegundos == null || !Number.isFinite(Number(salonSegundos))) {
-        return armado > 0 ? armado : null;
-    }
-    return Math.max(0, Math.round(Number(salonSegundos))) + armado;
+    return armado > 0 ? armado : null;
 }
 
 module.exports = {

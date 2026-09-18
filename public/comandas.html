@@ -293,7 +293,7 @@ tailwind.config = {
  <tr class="bg-bg-sidebar border-b-2 border-gold/30">
  <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider whitespace-nowrap">ID/Grupo</th>
  <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Mesa</th>
- <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-28">Cliente</th>
+ <th class="text-center px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Contador G</th>
  <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Mozo</th>
  <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider min-w-[120px]">Cocineros</th>
  <th class="text-center px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-16">Items</th>
@@ -353,15 +353,11 @@ tailwind.config = {
  </template>
  </td>
  
- <!-- Cliente -->
- <td class="px-3 py-2.5 text-sm">
- <template x-if="row.tipo === 'grupo'">
- <span class="text-gold" x-text="row.clienteNombre || 'Sin cliente'"></span>
- <span class="text-[10px] text-txt-muted block" x-text="row.numComandas + ' comandas'"></span>
- </template>
- <template x-if="row.tipo === 'individual'">
- <span class="text-txt-secondary" x-text="row.comanda.clienteNombre || '—'"></span>
- </template>
+ <!-- Contador G -->
+ <td class="px-3 py-2.5 text-sm text-center">
+ <span class="inline-flex items-center justify-center min-w-[1.75rem] px-2 py-0.5 rounded-md bg-[#ffd60a] text-black font-extrabold tabular-nums"
+   :title="row.tipo === 'grupo' ? ((row.numComandas || 0) + ' comandas') : 'Platos con guarnición distinta a la preselección'"
+   x-text="contadorGFila(row)"></span>
  </td>
  
  <!-- Mozo -->
@@ -483,9 +479,10 @@ tailwind.config = {
  <td class="px-3 py-2 text-xs text-txt-muted">
  <span x-text="formatearNombreMesa(comanda.mesa)"></span>
  </td>
- <!-- Cliente -->
- <td class="px-3 py-2 text-xs text-txt-muted">
- <span x-text="comanda.clienteNombre || '—'"></span>
+ <!-- Contador G -->
+ <td class="px-3 py-2 text-xs text-center">
+ <span class="inline-flex items-center justify-center min-w-[1.75rem] px-2 py-0.5 rounded-md bg-[#ffd60a] text-black font-extrabold tabular-nums"
+   x-text="contadorGComanda(comanda)"></span>
  </td>
  <!-- Mozo -->
  <td class="px-3 py-2 text-xs">
@@ -978,26 +975,51 @@ tailwind.config = {
  <template x-if="selectedComanda">
  <div class="mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]">
  <p class="text-[10px] text-gold uppercase mb-2 font-semibold tracking-wider flex items-center gap-1">
- <span>🍽️</span> Trazabilidad de Salón
+ <span>⏱️</span> Trazabilidad de tiempos
  </p>
- <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+ <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
  <div>
  <p class="text-[10px] text-[#5a5a7a]">T. cocina</p>
  <p class="font-mono font-medium text-st-preparado" x-text="getResumenSalon(selectedComanda).tiempoCocina"></p>
  </div>
  <div>
- <p class="text-[10px] text-[#5a5a7a]">T. mozo (armado + entrega)</p>
+ <p class="text-[10px] text-[#5a5a7a]">T. mozo (planificación)</p>
  <button type="button"
-   class="font-mono font-bold text-lg hover:underline text-left"
-   :class="getResumenSalon(selectedComanda).tieneEntregaAuto ? 'text-[#ff4757]' : 'text-gold'"
-   title="Ver todos los tiempos de esta comanda en registro de platos"
+   class="font-mono font-bold text-lg hover:underline text-left text-gold"
+   title="T. mozo = solo armado. Ver registro de esta comanda"
    @click="irARegistroMozo(selectedComanda)"
    x-text="getResumenSalon(selectedComanda).tiempoMozo"></button>
- <p class="text-[9px] text-[#5a5a7a] mt-0.5 font-mono" x-text="'Armado ' + getResumenSalon(selectedComanda).tiempoArmado + ' + Entrega ' + getResumenSalon(selectedComanda).tiempoEntrega"></p>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">T. total (planif. + cocina)</p>
+ <p class="font-mono font-bold text-white" x-text="getResumenSalon(selectedComanda).tiempoTotal"></p>
  </div>
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Platos entregados</p>
  <p class="font-bold text-st-libre" x-text="getResumenSalon(selectedComanda).entregados + ' / ' + getResumenSalon(selectedComanda).total"></p>
+ </div>
+ <div x-show="!ocultarTiempoEntrega">
+ <p class="text-[10px] text-[#5a5a7a]">T. entrega (no cuenta)</p>
+ <p class="font-mono font-medium text-txt-muted" x-text="getResumenSalon(selectedComanda).tiempoEntrega"></p>
+ </div>
+ </div>
+ <div class="mt-3 pt-2 border-t border-[rgba(212,175,55,0.08)] grid grid-cols-2 md:grid-cols-4 gap-3 text-[10px]">
+ <div>
+ <p class="text-[#5a5a7a]">Inicio armado</p>
+ <p class="font-mono text-txt-secondary" x-text="horaTrazabilidad(selectedComanda?.armadoIniciadoEn)"></p>
+ </div>
+ <div>
+ <p class="text-[#5a5a7a]">Envío a cocina</p>
+ <p class="font-mono text-txt-secondary" x-text="horaTrazabilidad(selectedComanda?.armadoEnviadoEn || selectedComanda?.createdAt)"></p>
+ </div>
+ <div>
+ <p class="text-[#5a5a7a]">Duración armado</p>
+ <p class="font-mono text-gold" x-text="getResumenSalon(selectedComanda).tiempoArmado"></p>
+ </div>
+ <div>
+ <p class="text-[#5a5a7a]">Contador G</p>
+ <span class="inline-flex items-center justify-center min-w-[1.75rem] px-2 py-0.5 rounded-md bg-[#ffd60a] text-black font-extrabold tabular-nums"
+   x-text="contadorGComanda(selectedComanda)"></span>
  </div>
  </div>
  </div>
@@ -1016,13 +1038,13 @@ tailwind.config = {
  <th class="text-left px-3 py-2.5 font-semibold">Complementos</th>
  <th class="text-center px-3 py-2.5 font-semibold">Cocinero</th>
  <th class="text-center px-3 py-2.5 font-semibold">T. cocina</th>
- <th class="text-center px-3 py-2.5 font-semibold">T. mozo</th>
+ <th class="text-center px-3 py-2.5 font-semibold" x-show="!ocultarTiempoEntrega">T. entrega</th>
  <th class="text-center px-3 py-2.5 font-semibold">Estado</th>
  </tr>
  </thead>
  <tbody>
  <template x-if="!selectedComanda?.items || selectedComanda?.items?.length === 0">
- <tr><td colspan="9" class="px-4 py-6 text-center text-[#5a5a7a] text-xs">Sin platos registrados</td></tr>
+ <tr><td :colspan="ocultarTiempoEntrega ? 8 : 9" class="px-4 py-6 text-center text-[#5a5a7a] text-xs">Sin platos registrados</td></tr>
  </template>
  <template x-for="(item, idx) in (selectedComanda?.items || [])" :key="idx">
  <tr class="border-b border-[rgba(212,175,55,0.08)]" :class="item.eliminado ? 'opacity-50' : ''">
@@ -1046,7 +1068,7 @@ tailwind.config = {
  <div class="flex flex-wrap gap-1">
  <template x-for="comp in item.complementosSeleccionados" :key="comp.grupo + comp.opcion">
 <span class="text-[9px] px-1.5 py-0.5 rounded"
- :class="esComplementoEntrada(item, comp) ? 'bg-[#2ecc71]/20 text-[#2ecc71] border border-[#2ecc71]/40' : 'bg-[rgba(212,175,55,0.1)] text-[#d4af37]'"
+ :class="esComplementoEntrada(item, comp) ? 'bg-white text-[#2ecc71] border border-[#2ecc71]/40 font-semibold' : 'bg-[rgba(212,175,55,0.1)] text-[#d4af37]'"
  :title="esComplementoEntrada(item, comp) ? 'No era preselección' : ''"
  x-text="textoComplementoChip(comp, item.cantidad)"></span>
 								</template>
@@ -1084,8 +1106,8 @@ tailwind.config = {
  <span class="text-[10px] text-[#5a5a7a]">—</span>
  </template>
  </td>
- <!-- T. mozo: recoger/salio + entrega -->
- <td class="px-3 py-3 text-center">
+ <!-- T. entrega (salón): no cuenta en T. mozo / total -->
+ <td class="px-3 py-3 text-center" x-show="!ocultarTiempoEntrega">
  <template x-if="getTiempoMozoPlato(item).tiempo !== '—'">
  <span class="text-[10px] font-mono"
  :class="claseTiempoMozoCelda(item)"
@@ -1126,14 +1148,8 @@ tailwind.config = {
  <td class="px-3 py-3 text-right text-xs text-[#5a5a7a]" x-text="(selectedComanda?.items || []).filter(i => !i.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
  <td class="px-3 py-3 text-right text-[#d4af37] font-bold text-lg" x-text="'S/. ' + Number(totalNetoComanda(selectedComanda)).toFixed(2)"></td>
  <td colspan="3"></td>
- <td class="px-3 py-3 text-center">
-   <button type="button"
-     class="font-mono font-bold hover:underline"
-     :class="getResumenSalon(selectedComanda).tieneEntregaAuto ? 'text-[#ff4757]' : 'text-gold'"
-     title="T. mozo = armado + entrega. Ver registro de esta comanda"
-     @click="irARegistroMozo(selectedComanda)"
-     x-text="getResumenSalon(selectedComanda).tiempoMozo"></button>
-   <p class="text-[8px] text-[#5a5a7a] font-mono" x-text="getResumenSalon(selectedComanda).tiempoArmado + ' + ' + getResumenSalon(selectedComanda).tiempoEntrega"></p>
+ <td class="px-3 py-3 text-center" x-show="!ocultarTiempoEntrega">
+   <span class="font-mono text-[10px] text-txt-muted" x-text="getResumenSalon(selectedComanda).tiempoEntrega"></span>
  </td>
  <td></td>
  </tr>
@@ -1345,24 +1361,30 @@ tailwind.config = {
  x-text="estadoLabel(selectedGrupo?.estadoGrupo)"></span>
  </div>
  </div>
- <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]">
+ <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]">
  <div>
  <p class="text-[10px] text-[#5a5a7a]">T. cocina</p>
  <p class="font-mono font-medium text-st-preparado" x-text="getResumenSalonGrupo(selectedGrupo).tiempoCocina"></p>
  </div>
  <div>
- <p class="text-[10px] text-[#5a5a7a]">T. mozo (armado + entrega)</p>
+ <p class="text-[10px] text-[#5a5a7a]">T. mozo (planificación)</p>
  <button type="button"
-   class="font-mono font-bold text-lg hover:underline text-left"
-   :class="getResumenSalonGrupo(selectedGrupo).tieneEntregaAuto ? 'text-[#ff4757]' : 'text-gold'"
-   title="Ver todos los tiempos en registro de platos"
+   class="font-mono font-bold text-lg hover:underline text-left text-gold"
+   title="T. mozo = solo armado. Ver registro de platos"
    @click="irARegistroMozo((selectedGrupo?.comandas || [])[0])"
    x-text="getResumenSalonGrupo(selectedGrupo).tiempoMozo"></button>
- <p class="text-[9px] text-[#5a5a7a] mt-0.5 font-mono" x-text="'Armado ' + getResumenSalonGrupo(selectedGrupo).tiempoArmado + ' + Entrega ' + getResumenSalonGrupo(selectedGrupo).tiempoEntrega"></p>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">T. total (planif. + cocina)</p>
+ <p class="font-mono font-bold text-white" x-text="getResumenSalonGrupo(selectedGrupo).tiempoTotal"></p>
  </div>
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Platos entregados</p>
  <p class="font-bold text-st-libre" x-text="getResumenSalonGrupo(selectedGrupo).entregados + ' / ' + getResumenSalonGrupo(selectedGrupo).total"></p>
+ </div>
+ <div x-show="!ocultarTiempoEntrega">
+ <p class="text-[10px] text-[#5a5a7a]">T. entrega (no cuenta)</p>
+ <p class="font-mono font-medium text-txt-muted" x-text="getResumenSalonGrupo(selectedGrupo).tiempoEntrega"></p>
  </div>
  </div>
  </div>
@@ -2677,6 +2699,7 @@ function comandasApp() {
  plantillaComandaOriginal: null,
  previewZoomComanda: 100,
  configMoneda: { igvPorcentaje: 18, preciosIncluyenIGV: false },
+ ocultarTiempoEntrega: true,
  ETIQUETAS_DEFAULT_COMANDA: {
    comandaNumero: 'Comanda',
    fechaPedido: 'Fecha pedido',
@@ -3219,6 +3242,7 @@ formatearNombreMesa(mesa, mesaObj = null) {
  }, 1000);
 
  await this.loadConfigMoneda();
+ await this.loadConfigTiemposMozos();
  await this.refreshTurnosCierre({ filtrar: false });
  this.aplicarFiltrosDesdeUrl();
  await this.loadComandas();
@@ -3239,6 +3263,16 @@ formatearNombreMesa(mesa, mesaObj = null) {
      e.returnValue = '';
    }
  });
+ },
+
+ async loadConfigTiemposMozos() {
+ try {
+ const data = await apiGet('/configuracion');
+ const cfg = data?.configuracion || data || {};
+ this.ocultarTiempoEntrega = cfg.mozos?.ocultarTiempoEntrega !== false;
+ } catch (e) {
+ this.ocultarTiempoEntrega = true;
+ }
  },
 
  async loadConfigMoneda() {
@@ -4592,16 +4626,18 @@ this.modal = null;
  if (est === 'entregado' || est === 'pagado' || item.tiempos?.entregado) entregados++;
  }
  const segArmado = this.segArmadoComanda(comanda);
- const segMozoTotal = segMozo + segArmado;
+ const segTotal = segCocina + segArmado;
  return {
  tiempoCocina: nC ? this.formatearTiempo(segCocina * 1000) : '—',
  tiempoArmado: this.formatearSegundosMozo(segArmado),
  tiempoEntrega: this.formatearSegundosMozo(segMozo),
- tiempoMozo: this.formatearSegundosMozo(segMozoTotal),
+ tiempoMozo: this.formatearSegundosMozo(segArmado),
+ tiempoTotal: this.formatearSegundosMozo(segTotal),
  segundosCocina: segCocina,
  segundosArmado: segArmado,
  segundosEntrega: segMozo,
- segundosMozo: segMozoTotal,
+ segundosMozo: segArmado,
+ segundosTotal: segTotal,
  entregados,
  total: items.length,
  tieneEntregaAuto
@@ -4611,26 +4647,28 @@ this.modal = null;
  getResumenSalonGrupo(grupo) {
  void this.now;
  const comandas = grupo?.comandas || [];
- let segCocina = 0, segMozo = 0, nC = 0, nM = 0, entregados = 0, total = 0, tieneEntregaAuto = false, segArmado = 0;
+ let segCocina = 0, segEntrega = 0, nC = 0, entregados = 0, total = 0, tieneEntregaAuto = false, segArmado = 0;
  for (const c of comandas) {
  const r = this.getResumenSalon(c);
  if (r.segundosCocina > 0) { segCocina += r.segundosCocina; nC++; }
- if (r.segundosMozo > 0) { segMozo += r.segundosMozo; nM++; }
  if (r.segundosArmado > 0) segArmado += r.segundosArmado;
+ if (r.segundosEntrega > 0) segEntrega += r.segundosEntrega;
  if (r.tieneEntregaAuto) tieneEntregaAuto = true;
  entregados += r.entregados;
  total += r.total;
  }
- const segEntrega = Math.max(0, segMozo - segArmado);
+ const segTotal = segCocina + segArmado;
  return {
  tiempoCocina: nC ? this.formatearTiempo(segCocina * 1000) : '—',
  tiempoArmado: this.formatearSegundosMozo(segArmado),
  tiempoEntrega: this.formatearSegundosMozo(segEntrega),
- tiempoMozo: this.formatearSegundosMozo(segMozo),
+ tiempoMozo: this.formatearSegundosMozo(segArmado),
+ tiempoTotal: this.formatearSegundosMozo(segTotal),
  segundosCocina: segCocina,
  segundosArmado: segArmado,
  segundosEntrega: segEntrega,
- segundosMozo: segMozo,
+ segundosMozo: segArmado,
+ segundosTotal: segTotal,
  entregados,
  total,
  tieneEntregaAuto
@@ -4766,8 +4804,20 @@ this.modal = null;
  },
 
  comandaTieneUsoG(c) {
+  return this.contadorGComanda(c) > 0;
+ },
+
+ contadorGComanda(c) {
   const items = c?.items || c?.platos || [];
-  return items.some((p) => p && !p.eliminado && p.cambioGuarnicionPreseleccion);
+  return items.filter((p) => p && !p.eliminado && p.cambioGuarnicionPreseleccion).length;
+ },
+
+ contadorGFila(row) {
+  if (!row) return 0;
+  if (row.tipo === 'grupo') {
+    return (row.comandas || []).reduce((s, c) => s + this.contadorGComanda(c), 0);
+  }
+  return this.contadorGComanda(row.comanda);
  },
 
  pasaFiltroUsoG(c) {
@@ -6411,6 +6461,12 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   const d = new Date(valor);
   if (Number.isNaN(d.getTime())) return fallback != null ? fallback : '—';
   return d.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+ },
+ horaTrazabilidad(valor) {
+  if (!valor) return '—';
+  const d = new Date(valor);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
  },
  /** Total a mostrar en tabla: con descuento es neto (bruto − monto), incluido 0. */
  totalNetoComanda(c) {

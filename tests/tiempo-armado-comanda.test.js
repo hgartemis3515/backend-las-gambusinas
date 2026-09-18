@@ -47,11 +47,11 @@ describe('tiempoArmadoComanda', () => {
         expect(segArmadoComanda({})).toBe(0);
     });
 
-    test('armado se suma una vez, no por plato', () => {
+    test('T. mozo es solo planificación; no suma entrega de salón', () => {
         const salon = 20 + 30;
         const armado = 10;
-        expect(tiempoMozoComandaSegundos(salon, armado)).toBe(60);
-        expect(tiempoMozoComandaSegundos(salon, armado)).not.toBe(80);
+        expect(tiempoMozoComandaSegundos(salon, armado)).toBe(10);
+        expect(tiempoMozoComandaSegundos(salon, armado)).not.toBe(60);
     });
 
     test('solo armado, cocina aún en espera', () => {

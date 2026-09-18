@@ -120,7 +120,7 @@ function calcularMetricasComanda(platos, comanda = null) {
     const tiempoCocina = diff(inicioCocina, finCocina);
     const tiempoMozoSalon = nMozo ? sumaMozo : null;
     const tiempoMozo = tiempoMozoComandaSegundos(tiempoMozoSalon, tiempoArmado);
-    const diferencia = (tiempoCocina != null && tiempoMozo != null) ? (tiempoMozo - tiempoCocina) : null;
+    const diferencia = (tiempoCocina != null && tiempoMozoSalon != null) ? (tiempoMozoSalon - tiempoCocina) : null;
     const tiempoExperiencia = diff(inicioGlobal, finGlobal || (algunPendienteMozo ? ahora : null));
 
     const resumenEstados = {};
