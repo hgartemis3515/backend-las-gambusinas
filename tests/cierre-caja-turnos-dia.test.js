@@ -31,7 +31,7 @@ describe('cierreCajaTurnosDia', () => {
     const now = new Date('2026-08-30T01:08:00.000Z');
     const b = boundsLimaDay(now);
     expect(b.limaYMD).toBe('2026-08-29');
-    expect(b.inicio.toISOString()).toBe('2026-08-29T05:00:00.000Z');
+    expect(b.inicio.toISOString()).toBe('2026-08-29T09:00:00.000Z');
   });
 
   test('sin cierres vigentes no activa DIA/NOCHE', async () => {
@@ -41,6 +41,14 @@ describe('cierreCajaTurnosDia', () => {
     expect(r.cantidad).toBe(0);
     expect(r.primerCierreAt).toBe(null);
     expect(Model.captured.query.estado).toEqual(FILTRO_CIERRE_VIGENTE.estado);
+  });
+
+  test('antes de las 04:00 Lima el ciclo sigue el día anterior', () => {
+    const now = new Date('2026-09-20T06:30:00.000Z'); // 01:30 Lima 20-sep
+    const b = boundsLimaDay(now);
+    expect(b.limaYMD).toBe('2026-09-19');
+    expect(b.inicio.toISOString()).toBe('2026-09-19T09:00:00.000Z');
+    expect(b.fin.toISOString()).toBe('2026-09-20T08:59:59.999Z');
   });
 
   test('el corte es el primer cierre del día Lima', async () => {
@@ -62,9 +70,9 @@ describe('cierreCajaTurnosDia', () => {
 describe('resolverPeriodoPendienteCierre', () => {
   const now = new Date('2026-09-06T01:00:00.000Z'); // 05 sep 2026 20:00 Lima
 
-  test('sin cierre previo empieza hoy a las 00:00 Lima, no en 2024', () => {
+  test('sin cierre previo empieza hoy a las 04:00 Lima, no en 2024', () => {
     const r = resolverPeriodoPendienteCierre(null, now);
-    expect(r.periodoInicio.toISOString()).toBe('2026-09-05T05:00:00.000Z');
+    expect(r.periodoInicio.toISOString()).toBe('2026-09-05T09:00:00.000Z');
     expect(r.periodoFin.toISOString()).toBe(now.toISOString());
   });
 
@@ -72,7 +80,7 @@ describe('resolverPeriodoPendienteCierre', () => {
     const r = resolverPeriodoPendienteCierre({
       periodoFin: new Date('2026-09-04T22:00:00.000Z')
     }, now);
-    expect(r.periodoInicio.toISOString()).toBe('2026-09-05T05:00:00.000Z');
+    expect(r.periodoInicio.toISOString()).toBe('2026-09-05T09:00:00.000Z');
   });
 
   test('si ya cerraron hoy, el período sigue desde ese cierre', () => {

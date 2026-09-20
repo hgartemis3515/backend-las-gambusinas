@@ -1700,7 +1700,7 @@ function configApp() {
         bloquearSinCierreAnterior: false,
         requerirEfectivoInicial: true,
         cierreAutomatico: false,
-        horaCierreAutomatico: '23:59'
+        horaCierreAutomatico: '04:00'
       },
       // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: reservas desde App Mozos
       reservas: {
@@ -1728,7 +1728,7 @@ function configApp() {
       serieComprobantes: 'B001',
       numeracionAuto: true,
       cierreAutomatico: false,
-      horaCierreAuto: '23:59',
+      horaCierreAuto: '04:00',
       validacionAdmin: true,
       exportAutoPdf: false,
       exportAutoExcel: false,
@@ -2073,7 +2073,7 @@ function configApp() {
           if (cfg.cierreCaja) {
             this.config.cierreCaja = cfg.cierreCaja;
             this.config.cierreAutomatico = cfg.cierreCaja.cierreAutomatico ?? false;
-            this.config.horaCierreAuto = cfg.cierreCaja.horaCierreAutomatico || '23:59';
+            this.config.horaCierreAuto = cfg.cierreCaja.horaCierreAutomatico || '04:00';
             this.config.validacionAdmin = cfg.cierreCaja.requerirEfectivoInicial ?? true;
           }
 
@@ -2264,7 +2264,7 @@ function configApp() {
             bloquearSinCierreAnterior: false,
             requerirEfectivoInicial: this.config.validacionAdmin ?? true,
             cierreAutomatico: this.config.cierreAutomatico || false,
-            horaCierreAutomatico: this.config.horaCierreAuto || '23:59'
+            horaCierreAutomatico: this.config.horaCierreAuto || '04:00'
           },
 
           // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: bloque reservas

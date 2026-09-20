@@ -2565,6 +2565,7 @@ tailwind.config = {
 
 <script src="/assets/js/notifications.js"></script>
 <script src="/assets/js/shared.js"></script>
+<script src="/assets/js/turnosDiaNoche.js"></script>
   <script>
   // Debounce helper
 function debounce(func, wait) {
@@ -2580,23 +2581,16 @@ function debounce(func, wait) {
 }
 
 function limaYMD(d = new Date()) {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Lima',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(d);
+  return TurnosDiaNoche.limaYMD(d);
 }
 function addDaysYMD(ymd, delta) {
-  const [y, m, d] = ymd.split('-').map(Number);
-  const utc = Date.UTC(y, m - 1, d, 12, 0, 0);
-  return limaYMD(new Date(utc + delta * 86400000));
+  return TurnosDiaNoche.addDaysYMD(ymd, delta);
 }
 function limaDayStart(ymd) {
-  return new Date(ymd + 'T00:00:00-05:00');
+  return TurnosDiaNoche.limaDayStart(ymd);
 }
 function limaDayEnd(ymd) {
-  return new Date(ymd + 'T23:59:59.999-05:00');
+  return TurnosDiaNoche.limaDayEnd(ymd);
 }
 function limaHM(d) {
   if (!d) return '';
@@ -5121,10 +5115,10 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  get rangoFiltroEtiqueta() {
   if (this.filtroPeriodo === 'todos') return 'Todas';
   if (this.filtroPeriodo === 'dia' && this.primerCierreHoyAt) {
-    return 'Día · ' + limaYMD() + ' 00:00–' + limaHM(this.primerCierreHoyAt);
+    return 'Día · ' + limaYMD() + ' 04:00–' + limaHM(this.primerCierreHoyAt);
   }
   if (this.filtroPeriodo === 'noche' && this.primerCierreHoyAt) {
-    return 'Noche · ' + limaHM(this.primerCierreHoyAt) + '–23:59';
+    return 'Noche · ' + limaHM(this.primerCierreHoyAt) + '–04:00';
   }
   const rango = this.rangoFiltroFechas;
   if (!rango) return 'Todas';

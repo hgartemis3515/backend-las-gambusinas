@@ -185,7 +185,7 @@ const CONFIGURACION_DEFAULT = {
         bloquearSinCierreAnterior: false,
         requerirEfectivoInicial: true,
         cierreAutomatico: false,
-        horaCierreAutomatico: '23:59'
+        horaCierreAutomatico: '04:00'
     },
 
     // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: configuración de reservas desde App Mozos.

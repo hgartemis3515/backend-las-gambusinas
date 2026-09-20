@@ -2,19 +2,18 @@
  * Helpers de ticket al crear comanda y filtro DIA/NOCHE (misma lógica que comandas.html).
  */
 const moment = require('moment-timezone');
-
-const ZONA = 'America/Lima';
+const { TZ: ZONA, ymdOperativo, boundsDiaOperativo } = require('./diaOperativoRestaurante');
 
 function limaYMD(d) {
-  return moment.tz(d || new Date(), ZONA).format('YYYY-MM-DD');
+  return ymdOperativo(d || new Date());
 }
 
 function limaDayStart(ymd) {
-  return moment.tz(ymd, 'YYYY-MM-DD', ZONA).startOf('day').toDate();
+  return boundsDiaOperativo(ymd).inicio;
 }
 
 function limaDayEnd(ymd) {
-  return moment.tz(ymd, 'YYYY-MM-DD', ZONA).endOf('day').toDate();
+  return boundsDiaOperativo(ymd).fin;
 }
 
 function ticketEsAltaSinPago(ticket) {
@@ -125,7 +124,7 @@ function matchFechaRangoTicket(createdAt, opts = {}) {
   const ymd = limaYMD(createdAt);
   if (periodo === 'hoy') return ymd === limaYMD();
   if (periodo === 'ayer') {
-    const ayer = moment.tz(ZONA).subtract(1, 'day').format('YYYY-MM-DD');
+    const ayer = moment.tz(limaYMD(), 'YYYY-MM-DD', ZONA).subtract(1, 'day').format('YYYY-MM-DD');
     return ymd === ayer;
   }
   const desde = opts.desde;

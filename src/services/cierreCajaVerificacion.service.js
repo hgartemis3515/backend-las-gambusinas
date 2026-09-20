@@ -5,7 +5,7 @@
  * que pertenecen al período pendiente de cerrar y que aún no fueron incluidos en un cierre.
  *
  * Reglas (ver PLAN_CIERRE_CAJA_VERIFICACION_TICKETS.md):
- *   - Período = día Lima (como reportes «Hoy»), o desde el último cierre de hoy.
+ *   - Período = ciclo 04:00–04:00 Lima (como reportes «Hoy»), o desde el último cierre de este ciclo.
  *   - Solo tickets/comandas con incluidoEnCierre vacío (no repetir un cierre).
  *   - El cierre de caja se bloquea hasta que todos los tickets del período estén confirmados.
  */

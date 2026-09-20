@@ -1,34 +1,14 @@
 'use strict';
 
 const moment = require('moment-timezone');
-
-const TZ = 'America/Lima';
-
-function esSoloFechaYMD(str) {
-    return typeof str === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(str.trim());
-}
-
-function parseLimaBound(str, { end } = {}) {
-    if (!str) return null;
-    const s = String(str).trim();
-    if (esSoloFechaYMD(s)) {
-        const m = moment.tz(s, 'YYYY-MM-DD', TZ);
-        return (end ? m.endOf('day') : m.startOf('day')).toDate();
-    }
-    const m = moment.parseZone(s);
-    if (!m.isValid()) return null;
-    return m.toDate();
-}
-
-function rangoLima(fechaInicio, fechaFin) {
-    const fallback = moment.tz(TZ).format('YYYY-MM-DD');
-    const inicioStr = fechaInicio || fallback;
-    const finStr = fechaFin || (esSoloFechaYMD(String(inicioStr)) ? inicioStr : fechaInicio) || fallback;
-    return {
-        inicio: parseLimaBound(inicioStr, { end: false }) || moment.tz(TZ).startOf('day').toDate(),
-        fin: parseLimaBound(finStr, { end: true }) || moment.tz(TZ).endOf('day').toDate()
-    };
-}
+const {
+    TZ,
+    HORA_INICIO_CICLO,
+    parseLimaBound,
+    rangoLima,
+    ymdOperativo,
+    boundsDiaOperativo
+} = require('./diaOperativoRestaurante');
 
 function numPositivo(v) {
     const n = Number(v);
@@ -334,8 +314,33 @@ function exprPrecioPlatoUnwind() {
     };
 }
 
+/**
+ * Día operativo de ventas (reportes, mozos `ventasHoy`, comandas.html, tickets):
+ * solo `createdAt`. Una mesa abierta el 18 y cobrada a las 00:17 del 19
+ * cuenta el 18, no los dos días.
+ */
+function matchFechaDiaOperativo(inicio, fin) {
+    return { createdAt: { $gte: inicio, $lte: fin } };
+}
+
+/**
+ * Período de caja: entra si se abrió, cobró o entregó en la ventana.
+ * Distinto del día operativo: el cierre no puede perder un cobro de madrugada
+ * que aún no tenía `incluidoEnCierre`.
+ */
+function matchFechaPeriodoCaja(inicio, fin) {
+    return {
+        $or: [
+            { createdAt: { $gte: inicio, $lte: fin } },
+            { tiempoPagado: { $gte: inicio, $lte: fin } },
+            { tiempoEntregado: { $gte: inicio, $lte: fin } }
+        ]
+    };
+}
+
+/** Eje de agrupación horaria / diaria de reportes: mismo día operativo. */
 function exprFechaComanda() {
-    return { $ifNull: ['$tiempoPagado', { $ifNull: ['$tiempoEntregado', '$createdAt'] }] };
+    return '$createdAt';
 }
 
 /** Soft-delete o cancelación: no cuenta en reportes ni cierre de caja. */
@@ -417,20 +422,14 @@ function matchIncluidoEnEsteCierre(cierreId) {
 }
 
 /**
- * Cierres viejos sin marca incluidoEnCierre: mismas fechas del período,
- * sin incluir comandas ya asignadas a otro cierre.
+ * Cierres viejos sin marca incluidoEnCierre: ventana de caja
+ * (apertura o cobro/entrega), sin comandas ya asignadas a otro cierre.
  */
 function matchComandasPeriodoDeCierre(periodoInicio, periodoFin, cierreId) {
     return {
         $and: [
             matchComandaVigente(),
-            {
-                $or: [
-                    { createdAt: { $gte: periodoInicio, $lte: periodoFin } },
-                    { tiempoPagado: { $gte: periodoInicio, $lte: periodoFin } },
-                    { tiempoEntregado: { $gte: periodoInicio, $lte: periodoFin } }
-                ]
-            },
+            matchFechaPeriodoCaja(periodoInicio, periodoFin),
             {
                 $or: [
                     { incluidoEnCierre: cierreId },
@@ -444,20 +443,14 @@ function matchComandasPeriodoDeCierre(periodoInicio, periodoFin, cierreId) {
 }
 
 /**
- * Comandas del período de cierre: misma ventana de fechas que reportes
- * (createdAt / pagado / entregado) y aún no marcadas en un cierre.
- * Usa $and para no pisar los $or de fecha y de incluidoEnCierre.
+ * Comandas del período de caja (no del día operativo de reportes):
+ * apertura o cobro/entrega en la ventana, aún sin `incluidoEnCierre`.
+ * Usa $and para no pisar el $or de fechas con el de incluidoEnCierre.
  */
 function matchComandasCierrePendiente(periodoInicio, periodoFin, { soloVendidas = false } = {}) {
     const clauses = [
         matchComandaVigente(),
-        {
-            $or: [
-                { createdAt: { $gte: periodoInicio, $lte: periodoFin } },
-                { tiempoPagado: { $gte: periodoInicio, $lte: periodoFin } },
-                { tiempoEntregado: { $gte: periodoInicio, $lte: periodoFin } }
-            ]
-        },
+        matchFechaPeriodoCaja(periodoInicio, periodoFin),
         filtroNoIncluidoEnCierreComanda()
     ];
     if (soloVendidas) {
@@ -476,18 +469,13 @@ function matchComandaAbiertaEnTabla(extra = {}) {
 }
 
 /**
- * Comandas que alimentan reportes / dashboard mozos.
- * Misma fuente que comandas.html: no exige IsActive (las pagadas se desactivan)
- * ni boucher. Excluye canceladas y eliminadas.
+ * Comandas que alimentan reportes / dashboard mozos (`ventasHoy`).
+ * Día operativo = `createdAt` (igual que comandas.html Hoy/Ayer y la tabla
+ * de tickets). No exige IsActive: las pagadas se desactivan. Excluye
+ * canceladas y eliminadas.
  */
 function matchComandasEstadisticas(inicio, fin) {
-    return matchComandaVigente({
-        $or: [
-            { createdAt: { $gte: inicio, $lte: fin } },
-            { tiempoPagado: { $gte: inicio, $lte: fin } },
-            { tiempoEntregado: { $gte: inicio, $lte: fin } }
-        ]
-    });
+    return matchComandaVigente(matchFechaDiaOperativo(inicio, fin));
 }
 
 function getComandaModel() {
@@ -616,6 +604,7 @@ function mapearFilaReporte(c, config) {
     return {
         _id: c._id,
         fechaPago,
+        fechaOperativa: c.createdAt,
         total,
         subtotal: Math.round((total / tasa) * 100) / 100,
         igv: Math.round((total - total / tasa) * 100) / 100,
@@ -692,7 +681,7 @@ function agruparVentasPorMozo(filas) {
 
 function filasARowsHorario(filas) {
     return (filas || []).map((f) => {
-        const d = moment(f.fechaPago || f.createdAt).tz(TZ);
+        const d = moment(f.fechaOperativa || f.createdAt || f.fechaPago).tz(TZ);
         const mesaId = f.mesa && (f.mesa._id || f.mesa);
         return {
             _montoStat: Number(f.total) || 0,
@@ -712,7 +701,7 @@ async function listarFilasEstadisticas(inicio, fin) {
         .populate('mozos', 'name nombres apellidos DNI')
         .populate('mesas', 'nummesa')
         .populate('platos.plato', 'nombre precio categoria')
-        .sort({ tiempoPagado: -1, createdAt: -1 })
+        .sort({ createdAt: -1, tiempoPagado: -1 })
         .lean();
     const filas = docs.map((c) => mapearFilaReporte(c, cfg));
     return adjuntarMetodosPagoDesdeBouchers(filas);
@@ -802,9 +791,14 @@ function resumirHorariosComandas(rows) {
 
 module.exports = {
     TZ,
+    HORA_INICIO_CICLO,
+    ymdOperativo,
+    boundsDiaOperativo,
     rangoLima,
     parseLimaBound,
     exprMontoComanda,
+    matchFechaDiaOperativo,
+    matchFechaPeriodoCaja,
     exprFechaComanda,
     matchComandaVigente,
     esComandaEliminada,

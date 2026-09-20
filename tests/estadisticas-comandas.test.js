@@ -2,12 +2,15 @@
 
 const {
   matchComandasEstadisticas,
+  matchFechaDiaOperativo,
+  matchFechaPeriodoCaja,
   matchComandaAbiertaEnTabla,
   matchComandasCierrePendiente,
   matchComandasPeriodoDeCierre,
   agruparVentasPorMozo,
   exprMontoComanda,
   exprFechaComanda,
+  filasARowsHorario,
   mapearFilaReporte,
   resumirHorariosComandas,
   rangoLima,
@@ -32,10 +35,25 @@ describe('estadisticasComandas', () => {
     expect(m.eliminada).toEqual({ $ne: true });
     expect(m.fechaEliminacion).toEqual({ $eq: null });
     expect(m.status).toEqual({ $nin: ['cancelado', 'cancelada'] });
-    expect(m.$or).toHaveLength(3);
-    expect(m.$or[0].createdAt).toEqual({ $gte: inicio, $lte: fin });
-    expect(m.$or[1].tiempoPagado).toEqual({ $gte: inicio, $lte: fin });
-    expect(m.$or[2].tiempoEntregado).toEqual({ $gte: inicio, $lte: fin });
+    expect(m.createdAt).toEqual({ $gte: inicio, $lte: fin });
+    expect(m.$or).toBeUndefined();
+    expect(m.tiempoPagado).toBeUndefined();
+  });
+
+  test('día operativo es createdAt; caja sigue abriendo por cobro/entrega', () => {
+    const inicio = new Date('2026-09-19T05:00:00.000Z');
+    const fin = new Date('2026-09-20T04:59:59.999Z');
+    expect(matchFechaDiaOperativo(inicio, fin)).toEqual({
+      createdAt: { $gte: inicio, $lte: fin }
+    });
+    expect(matchFechaPeriodoCaja(inicio, fin).$or).toEqual([
+      { createdAt: { $gte: inicio, $lte: fin } },
+      { tiempoPagado: { $gte: inicio, $lte: fin } },
+      { tiempoEntregado: { $gte: inicio, $lte: fin } }
+    ]);
+    const stats = matchComandasEstadisticas(inicio, fin);
+    expect(stats.createdAt).toEqual({ $gte: inicio, $lte: fin });
+    expect(stats.$or).toBeUndefined();
   });
 
   test('matchComandaAbiertaEnTabla alinea en-vivo con comandas.html (no eliminadas ni IsActive false)', () => {
@@ -98,17 +116,30 @@ describe('estadisticasComandas', () => {
     expect(precioPlatoNum({ precioUnitario: 19.9, plato: { precio: 22.5 } })).toBe(19.9);
   });
 
-  test('fecha canónica: pagado → entregado → createdAt', () => {
-    expect(exprFechaComanda()).toEqual({
-      $ifNull: ['$tiempoPagado', { $ifNull: ['$tiempoEntregado', '$createdAt'] }]
-    });
+  test('fecha canónica de reportes es createdAt (día operativo)', () => {
+    expect(exprFechaComanda()).toBe('$createdAt');
   });
 
-  test('rangoLima cubre el día civil en America/Lima', () => {
+  test('hora de reporte usa createdAt aunque el cobro sea al día siguiente', () => {
+    const createdAt = new Date('2026-09-18T19:01:54.000Z'); // 14:01 Lima
+    const tiempoPagado = new Date('2026-09-19T05:17:09.000Z'); // 00:17 Lima
+    const fila = mapearFilaReporte({
+      status: 'pagado',
+      createdAt,
+      tiempoPagado,
+      precioTotal: 269,
+      platos: [{ nombre: 'Mesa 83', cantidad: 1, precioUnitario: 269, eliminado: false }]
+    });
+    expect(fila.fechaOperativa).toEqual(createdAt);
+    expect(fila.fechaPago).toEqual(tiempoPagado);
+    const [row] = filasARowsHorario([fila]);
+    expect(row.hora).toBe(14);
+  });
+
+  test('rangoLima cubre el ciclo 04:00–04:00 en America/Lima', () => {
     const { inicio, fin } = rangoLima('2026-08-20', '2026-08-20');
-    expect(inicio.toISOString()).toBe('2026-08-20T05:00:00.000Z');
-    expect(fin.getTime()).toBeGreaterThan(inicio.getTime());
-    expect(fin.toISOString().startsWith('2026-08-21')).toBe(true);
+    expect(inicio.toISOString()).toBe('2026-08-20T09:00:00.000Z');
+    expect(fin.toISOString()).toBe('2026-08-21T08:59:59.999Z');
   });
 
   test('rangoLima respeta instantes ISO (DIA/NOCHE)', () => {

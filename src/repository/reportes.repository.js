@@ -907,7 +907,7 @@ async function getVentas(fechaInicio, fechaFin, agruparPor = 'dia') {
             const groups = new Map();
             let descuentosFilas = 0;
             for (const f of filas) {
-                const d = moment(f.fechaPago || f.createdAt).tz('America/Lima');
+                const d = moment(f.fechaOperativa || f.createdAt || f.fechaPago).tz('America/Lima');
                 let key = 'Sin fecha';
                 if (d.isValid()) {
                     if (agruparPor === 'hora') key = d.format('YYYY-MM-DD HH:00');

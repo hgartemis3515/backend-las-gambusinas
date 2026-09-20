@@ -908,6 +908,9 @@ function createChart(canvasId, config) {
  */
 const DateUtils = {
   limaYMD(d = new Date()) {
+    if (typeof TurnosDiaNoche !== 'undefined' && TurnosDiaNoche.limaYMD) {
+      return TurnosDiaNoche.limaYMD(d);
+    }
     return new Intl.DateTimeFormat('en-CA', {
       timeZone: 'America/Lima',
       year: 'numeric',

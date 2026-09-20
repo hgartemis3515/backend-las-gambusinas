@@ -188,7 +188,7 @@ function idsDeRelacionComandas(docs) {
 }
 
 /**
- * Comandas pagadas del mozo en el día calendario de America/Lima (00:00–23:59).
+ * Comandas pagadas del mozo en el ciclo 04:00–04:00 America/Lima.
  * Incluye caja (tiempoPagado / status pagado) y PPA cobrado o con ticket de hoy.
  */
 async function listarComandasPagadasHoyMozo(mozoId) {
@@ -196,10 +196,8 @@ async function listarComandasPagadasHoyMozo(mozoId) {
     return { comandas: [], totalPagado: 0 };
   }
   const mid = new mongoose.Types.ObjectId(String(mozoId));
-  const moment = require('moment-timezone');
-  const lima = moment.tz('America/Lima');
-  const inicio = lima.clone().startOf('day').toDate();
-  const fin = lima.clone().endOf('day').toDate();
+  const { boundsDiaOperativo } = require('../utils/diaOperativoRestaurante');
+  const { inicio, fin } = boundsDiaOperativo();
   const {
     mapComandaPorCobrar,
     esComandaPagadaCaja,

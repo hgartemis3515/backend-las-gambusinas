@@ -2,22 +2,16 @@
 
 const moment = require('moment-timezone');
 const { FILTRO_CIERRE_VIGENTE } = require('./cierreCajaReversion');
-
-const TZ = 'America/Lima';
+const { TZ, boundsDiaOperativo, ymdOperativo } = require('./diaOperativoRestaurante');
 
 function boundsLimaDay(now = new Date()) {
-  const m = moment.tz(now, TZ);
-  return {
-    limaYMD: m.format('YYYY-MM-DD'),
-    inicio: m.clone().startOf('day').toDate(),
-    fin: m.clone().endOf('day').toDate()
-  };
+  return boundsDiaOperativo(now);
 }
 
 /**
- * Período a cerrar: día calendario Lima (como reportes «Hoy»),
+ * Período a cerrar: día operativo 04:00–04:00 Lima (como reportes «Hoy»),
  * sin volver a incluir lo ya cerrado.
- * Si ya hubo un cierre hoy, el período empieza en ese periodoFin.
+ * Si ya hubo un cierre en este ciclo, el período empieza en ese periodoFin.
  */
 function resolverPeriodoPendienteCierre(ultimoCierre, now = new Date()) {
   const { inicio: inicioHoy } = boundsLimaDay(now);
@@ -30,8 +24,8 @@ function resolverPeriodoPendienteCierre(ultimoCierre, now = new Date()) {
 }
 
 /**
- * Cierres vigentes del día calendario Lima (no importa la hora del cierre).
- * El corte DIA/NOCHE es el primer cierre vigente de ese día.
+ * Cierres vigentes del día operativo 04:00–04:00 Lima.
+ * El corte DIA/NOCHE es el primer cierre vigente de ese ciclo.
  */
 async function obtenerTurnosDia(CierreModel, now = new Date()) {
   const { limaYMD, inicio, fin } = boundsLimaDay(now);
@@ -51,4 +45,4 @@ async function obtenerTurnosDia(CierreModel, now = new Date()) {
   };
 }
 
-module.exports = { TZ, boundsLimaDay, resolverPeriodoPendienteCierre, obtenerTurnosDia };
+module.exports = { TZ, boundsLimaDay, resolverPeriodoPendienteCierre, obtenerTurnosDia, ymdOperativo };
