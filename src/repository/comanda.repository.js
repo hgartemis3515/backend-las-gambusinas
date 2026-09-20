@@ -3715,7 +3715,7 @@ const getComandasParaPagar = async (mesaId, comandaIds = null) => {
     const query = {
       mesas: mesaId,
       IsActive: true,
-      status: { $in: ['recoger', 'salio', 'entregado', 'pendiente_aprobar'] }
+      status: { $in: ['pedido', 'en_espera', 'recoger', 'salio', 'entregado', 'pendiente_aprobar'] }
     };
     if (comandaIds && Array.isArray(comandaIds) && comandaIds.length > 0) {
       const ids = comandaIds.map(id => (typeof id === 'string' ? id.trim() : id)).filter(Boolean);
@@ -3783,9 +3783,10 @@ const validarPlatosSeleccionadosParaPago = async (mesaId, platosSeleccionados, e
   // BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 4): incluir 'pendiente_aprobar' en el flujo
   // normal para permitir cobros parciales sucesivos sobre la misma comanda. Los platos
   // cobrables siguen siendo solo 'entregado' (validación por plato más abajo).
-  const estadosValidos = esPagoAdelantado
-    ? ['pedido', 'en_espera', 'recoger', 'salio', 'entregado', 'pendiente_aprobar']
-    : ['recoger', 'salio', 'entregado', 'pendiente_aprobar'];
+  // Incluye pedido/en_espera: el header puede quedar desfasado si se eliminó
+  // un plato de cocina y el resto ya está entregado (#1857). El filtro real
+  // de cobro es el estado del plato, más abajo.
+  const estadosValidos = ['pedido', 'en_espera', 'recoger', 'salio', 'entregado', 'pendiente_aprobar'];
   const comandas = await comandaModel
     .find({
       _id: { $in: comandasIds },
@@ -4032,7 +4033,7 @@ const validarComandasParaPagar = async (mesaId, comandasIds) => {
       _id: { $in: comandasIds },
       mesas: mesaId,
       IsActive: true,
-      status: { $in: ['recoger', 'salio', 'entregado'] }
+      status: { $in: ['pedido', 'en_espera', 'recoger', 'salio', 'entregado', 'pendiente_aprobar'] }
     })
       .populate('platos.plato', 'nombre precio codigo')
       .populate('mozos')
@@ -4953,6 +4954,8 @@ const anularPlato = async (comandaId, platoIndex, motivo, observaciones, usuario
       comanda.status = 'cancelado';
       await comanda.save();
       logger.info(`${logPrefix} Comanda #${comanda.comandaNumber} cancelada automáticamente (todos los platos anulados/eliminados)`);
+    } else {
+      await actualizarComandaSiTodosEntregados(comandaId);
     }
 
     // Recalcular estado de la mesa si es necesario

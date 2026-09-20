@@ -1068,7 +1068,7 @@ tailwind.config = {
  <div class="flex flex-wrap gap-1">
  <template x-for="comp in item.complementosSeleccionados" :key="comp.grupo + comp.opcion">
 <span class="text-[9px] px-1.5 py-0.5 rounded"
- :class="esComplementoEntrada(item, comp) ? 'bg-white text-[#2ecc71] border border-[#2ecc71]/40 font-semibold' : 'bg-[rgba(212,175,55,0.1)] text-[#d4af37]'"
+ :class="esComplementoEntrada(item, comp) ? 'bg-white text-black font-extrabold border border-black/20' : 'bg-[rgba(212,175,55,0.1)] text-[#d4af37]'"
  :title="esComplementoEntrada(item, comp) ? 'No era preselección' : ''"
  x-text="textoComplementoChip(comp, item.cantidad)"></span>
 								</template>
@@ -1719,7 +1719,7 @@ tailwind.config = {
  <div class="flex flex-wrap gap-1">
  <template x-for="comp in item.complementosSeleccionados" :key="(comp.grupo || '') + (comp.opcion || '') + (comp._id || '')">
 <span class="text-[9px] px-1.5 py-0.5 rounded"
- :class="esComplementoEntrada(item, comp) ? 'bg-white text-[#2ecc71] border border-[#2ecc71]/40 font-semibold' : 'bg-[rgba(212,175,55,0.1)] text-[#d4af37]'"
+ :class="esComplementoEntrada(item, comp) ? 'bg-white text-black font-extrabold border border-black/20' : 'bg-[rgba(212,175,55,0.1)] text-[#d4af37]'"
  :title="esComplementoEntrada(item, comp) ? 'No era preselección' : ''"
  x-text="textoComplementoChip(comp, item.cantidad)"></span>
  </template>
@@ -2163,7 +2163,10 @@ tailwind.config = {
  <template x-if="plato.complementosSeleccionados && plato.complementosSeleccionados.length > 0">
  <div class="flex flex-wrap gap-1">
  <template x-for="comp in plato.complementosSeleccionados" :key="comp.grupo + comp.opcion">
-<span class="text-[9px] px-1.5 py-0.5 rounded bg-[rgba(212,175,55,0.1)] text-[#d4af37]" x-text="textoComplementoChip(comp, plato.cantidad)"></span>
+<span class="text-[9px] px-1.5 py-0.5 rounded"
+ :class="esComplementoEntrada(plato, comp) ? 'bg-white text-black font-extrabold border border-black/20' : 'bg-[rgba(212,175,55,0.1)] text-[#d4af37]'"
+ :title="esComplementoEntrada(plato, comp) ? 'No era preselección' : ''"
+ x-text="textoComplementoChip(comp, plato.cantidad)"></span>
 								</template>
 							</div>
 						</template>
@@ -5668,74 +5671,75 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   return ymd >= desde && ymd <= hasta;
  },
 
+ comandaPasaFiltros(c) {
+ if (!c) return false;
+ const mesaNum = c.mesa?.nummesa || c.mesaNumero || c.mesa;
+ const matchMesa = !this.filterMesa || String(mesaNum || '').includes(this.filterMesa);
+ const matchEstado = this.matchFilterEstado(c.estado, c);
+ const matchElim = this.verEliminadas || !this.comandaEsEliminada(c);
+ const comandaNum = c.numComanda || c._id?.slice(-4) || '';
+ const matchIdComanda = !this.filterIdComanda || String(comandaNum).toLowerCase().includes(this.filterIdComanda.toLowerCase());
+ const matchMozo = !this.filterMozo || c.mozo === this.filterMozo;
+ const clienteNombre = c.clienteNombre || c.cliente?.nombre || '';
+ const matchCliente = !this.filterCliente || clienteNombre.toLowerCase().includes(this.filterCliente.toLowerCase());
+ const matchFecha = this.matchFechaRango(c.createdAt);
+ const matchAvanzado = this.matchFiltroAvanzado(c);
+ const matchDesc = !this.filterSoloDescuentos || this.comandaTieneDescuentoFront(c);
+ const matchG = this.pasaFiltroUsoG(c) && this.pasaFiltroMozoId(c);
+ return matchMesa && matchEstado && matchElim && matchIdComanda && matchMozo && matchCliente && matchFecha && matchAvanzado && matchDesc && matchG;
+ },
+
+ filaIndividualDeComanda(c) {
+ return {
+ tipo: 'individual',
+ id: c._id,
+ comanda: c,
+ cocinerosResumen: c.cocinerosResumen || this.cocinerosDeComanda(c)
+ };
+ },
+
+ filaGrupoConComandas(row, comandas) {
+ const list = comandas || [];
+ const primera = list[0];
+ return {
+ tipo: 'grupo',
+ id: row.id,
+ pedidoId: row.pedidoId || null,
+ clienteId: row.clienteId || primera?.cliente?._id || primera?.cliente || null,
+ clienteNombre: row.clienteNombre || primera?.clienteNombre || primera?.cliente?.nombre || ('Mesa ' + (row.mesaNum || '')),
+ mesaNum: row.mesaNum,
+ mesaObj: row.mesaObj || primera?.mesa || null,
+ comandas: list,
+ numComandas: list.length,
+ totalAgrupado: list.reduce((sum, c) => sum + this.totalNetoComanda(c), 0),
+ totalPlatos: list.reduce((sum, c) => sum + (c.items || []).filter(i => !i.eliminado).length, 0),
+ estadoGrupo: this.calcularEstadoGrupo(list),
+ mozosUnicos: [...new Set(list.map(c => c.mozo))],
+ cocinerosResumen: this.cocinerosResumenDeGrupo(list),
+ horaPrimera: list.length
+   ? new Date(Math.min(...list.map(c => new Date(c.createdAt || 0).getTime()))).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })
+   : '—'
+ };
+ },
+
  /**
-  * Filtrar filas (grupos e individuales)
+  * Filtrar filas. En agrupado cada comanda se evalúa por su propia fecha
+  * (Hoy/Ayer/etc.). Si un pedido mezcla días, solo se muestran las del periodo;
+  * si queda una, se ve como individual (evita ocultar p.ej. #1802 por una #1599 vieja).
   */
  filterComandas() {
- if (!this.agruparPorCliente) {
- // Filtrar comandas individuales
- this.filteredRows = this.groupedRows.filter(row => {
- const c = row.comanda;
- const mesaNum = c.mesa?.nummesa || c.mesa;
- const matchMesa = !this.filterMesa || String(mesaNum || '').includes(this.filterMesa);
- const matchEstado = this.matchFilterEstado(c.estado, c);
- const matchElim = this.verEliminadas || !this.comandaEsEliminada(c);
- const comandaNum = c.numComanda || c._id?.slice(-4) || '';
- const matchIdComanda = !this.filterIdComanda || String(comandaNum).toLowerCase().includes(this.filterIdComanda.toLowerCase());
- const matchMozo = !this.filterMozo || c.mozo === this.filterMozo;
- const clienteNombre = c.clienteNombre || c.cliente?.nombre || '';
- const matchCliente = !this.filterCliente || clienteNombre.toLowerCase().includes(this.filterCliente.toLowerCase());
- const matchFecha = this.matchFechaRango(c.createdAt);
- const matchAvanzado = this.matchFiltroAvanzado(c);
- const matchDesc = !this.filterSoloDescuentos || this.comandaTieneDescuentoFront(c);
- const matchG = this.pasaFiltroUsoG(c) && this.pasaFiltroMozoId(c);
- return matchMesa && matchEstado && matchElim && matchIdComanda && matchMozo && matchCliente && matchFecha && matchAvanzado && matchDesc && matchG;
- });
- } else {
- // Filtrar filas (grupos e individuales)
- this.filteredRows = this.groupedRows.filter(row => {
- if (row.tipo === 'grupo') {
- // Filtrar grupo
- const matchMesa = !this.filterMesa || String(row.mesaNum || '').includes(this.filterMesa);
- const matchEstado = this.matchFilterEstado(row.estadoGrupo, row);
- const matchCliente = !this.filterCliente || (row.clienteNombre || '').toLowerCase().includes(this.filterCliente.toLowerCase());
- const matchMozo = !this.filterMozo || row.mozosUnicos?.includes(this.filterMozo);
- 
- // Fecha: usar la comanda más antigua del grupo
- let matchFecha = true;
- if (row.comandas && row.comandas.length > 0) {
-   if (this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche') {
-     matchFecha = row.comandas.some(c => this.matchFechaRango(c?.createdAt));
-   } else {
- const comandaMasAntigua = row.comandas[row.comandas.length - 1];
-     matchFecha = this.matchFechaRango(comandaMasAntigua?.createdAt);
+ const out = [];
+ for (const row of (this.groupedRows || [])) {
+   if (row.tipo === 'grupo' && this.agruparPorCliente) {
+     const visibles = (row.comandas || []).filter(c => this.comandaPasaFiltros(c));
+     if (visibles.length === 0) continue;
+     if (visibles.length === 1) out.push(this.filaIndividualDeComanda(visibles[0]));
+     else out.push(this.filaGrupoConComandas(row, visibles));
+   } else if (this.comandaPasaFiltros(row.comanda)) {
+     out.push(row);
+   }
  }
- }
- const matchAvanzado = !this.hayFiltroAvanzado || (row.comandas || []).some(c => this.matchFiltroAvanzado(c));
- const matchDesc = !this.filterSoloDescuentos || (row.comandas || []).some(c => this.comandaTieneDescuentoFront(c));
- const matchG = (!this.filterSoloCambioG && !this.filterMozoId)
-   || (row.comandas || []).some(c => this.pasaFiltroUsoG(c) && this.pasaFiltroMozoId(c));
- return matchMesa && matchEstado && matchCliente && matchMozo && matchFecha && matchAvanzado && matchDesc && matchG;
- } else {
- // Filtrar individual
- const c = row.comanda;
- const mesaNum = c.mesa?.nummesa || c.mesa;
- const matchMesa = !this.filterMesa || String(mesaNum || '').includes(this.filterMesa);
- const matchEstado = this.matchFilterEstado(c.estado, c);
- const matchElim = this.verEliminadas || !this.comandaEsEliminada(c);
- const comandaNum = c.numComanda || c._id?.slice(-4) || '';
- const matchIdComanda = !this.filterIdComanda || String(comandaNum).toLowerCase().includes(this.filterIdComanda.toLowerCase());
- const matchMozo = !this.filterMozo || c.mozo === this.filterMozo;
- const clienteNombre = c.clienteNombre || c.cliente?.nombre || '';
- const matchCliente = !this.filterCliente || clienteNombre.toLowerCase().includes(this.filterCliente.toLowerCase());
- const matchFecha = this.matchFechaRango(c.createdAt);
- const matchAvanzado = this.matchFiltroAvanzado(c);
- const matchDesc = !this.filterSoloDescuentos || this.comandaTieneDescuentoFront(c);
- const matchG = this.pasaFiltroUsoG(c) && this.pasaFiltroMozoId(c);
- return matchMesa && matchEstado && matchElim && matchIdComanda && matchMozo && matchCliente && matchFecha && matchAvanzado && matchDesc && matchG;
- }
- });
- }
+ this.filteredRows = out;
  },
 
  limpiarFiltroAvanzado() {

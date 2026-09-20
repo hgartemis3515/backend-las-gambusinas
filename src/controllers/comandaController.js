@@ -26,6 +26,7 @@ const {
   calcularTotalPendienteMesa,
   recalcularEstadoMesa,
   recalcularEstadoComandaPorPlatos,
+  actualizarComandaSiTodosEntregados,
   ensurePlatosPopulated,
   marcarPlatoComoEntregado,
   anularPlato,
@@ -1762,6 +1763,11 @@ router.put('/comanda/:id/eliminar-plato/:platoIndex', async (req, res) => {
             await sincronizarDescuentoTicketsComanda(comanda);
         } catch (syncErr) {
             logger.warn('[ELIMINAR PLATO] No se pudo sincronizar tickets/bouchers', { error: syncErr.message });
+        }
+
+        const activosTrasBorrar = comanda.platos.filter(p => p.eliminado !== true && p.anulado !== true);
+        if (activosTrasBorrar.length > 0) {
+            await actualizarComandaSiTodosEntregados(id);
         }
         
         // 5.1 Si no quedan platos activos y todos los eliminados estaban en pedido/en_espera → eliminar comanda automáticamente
