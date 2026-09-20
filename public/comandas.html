@@ -1293,22 +1293,35 @@ tailwind.config = {
 
 <!-- MODAL: VER GRUPO DE COMANDAS - COMPLETO CON PLATOS -->
 <div x-show="modal==='verGrupo'" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="modal=null">
- <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[1100px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
+ <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[1200px] max-w-[96vw] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
 
  <!-- HEADER -->
  <div class="bg-bg-sidebar p-5 rounded-t-2xl sticky top-0 z-10">
  <div class="flex items-center justify-between">
  <div>
- <div class="flex items-center gap-3">
+ <div class="flex items-center gap-3 flex-wrap">
  <span class="text-2xl">👥</span>
  <h2 class="text-lg font-bold" x-text="'Grupo: ' + (selectedGrupo?.clienteNombre || 'Sin cliente')"></h2>
  <span class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-gold/20 text-gold" x-text="selectedGrupo?.comandas?.length + ' comandas'"></span>
+ <span x-show="contadorGFila(selectedGrupo) > 0"
+   class="inline-flex items-center justify-center min-w-[1.75rem] px-2 py-0.5 rounded-md bg-[#ffd60a] text-black font-extrabold tabular-nums text-[10px]"
+   :title="'Cambios de guarnición (G): ' + contadorGFila(selectedGrupo)"
+   x-text="'G ' + contadorGFila(selectedGrupo)"></span>
+ <span x-show="grupoTieneReserva(selectedGrupo)"
+   class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-[#9b59b6]/20 text-[#c39bd3]">📅 Reserva</span>
+ <span x-show="grupoTieneOmitirPago(selectedGrupo)"
+   class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-st-pagado/20 text-st-pagado">💸 Omitir pago</span>
  </div>
- <p class="text-xs text-txt-muted mt-0.5">
+ <div class="text-xs text-txt-muted mt-0.5">
  <span x-text="formatearNombreMesa(selectedGrupo?.mesaNum, selectedGrupo?.mesaObj)"></span>
  <span x-text="' | Total: S/. ' + (selectedGrupo?.totalAgrupado || 0).toFixed(2)"></span>
  <span x-text="' | ' + (selectedGrupo?.totalPlatos || 0) + ' platos'"></span>
- </p>
+ <template x-for="mozo in (selectedGrupo?.mozosUnicos || [])" :key="mozo">
+   <span> — <button type="button" class="text-gold hover:underline"
+     @click="irARegistroMozo((selectedGrupo?.comandas || []).find(c => c.mozo === mozo) || (selectedGrupo?.comandas || [])[0])"
+     x-text="mozo || 'Sin asignar'"></button></span>
+ </template>
+ </div>
  </div>
  <div class="flex items-center gap-2">
  <button @click="imprimirComanda(selectedGrupo?.comandas?.[0], selectedGrupo)" class="px-3 py-1.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition flex items-center gap-1.5" title="Imprimir primera comanda del grupo">🖨️ Imprimir</button>
@@ -1386,6 +1399,55 @@ tailwind.config = {
  <p class="text-[10px] text-[#5a5a7a]">T. entrega (no cuenta)</p>
  <p class="font-mono font-medium text-txt-muted" x-text="getResumenSalonGrupo(selectedGrupo).tiempoEntrega"></p>
  </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Contador G</p>
+ <span class="inline-flex items-center justify-center min-w-[1.75rem] px-2 py-0.5 rounded-md bg-[#ffd60a] text-black font-extrabold tabular-nums"
+   x-text="contadorGFila(selectedGrupo)"></span>
+ </div>
+ </div>
+
+ <template x-if="selectedGrupo && getResumenCocinerosGrupo(selectedGrupo).cocineros.length > 0">
+ <div class="mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]">
+ <p class="text-[10px] text-gold uppercase mb-2 font-semibold tracking-wider flex items-center gap-1">
+ <span>👨‍🍳</span> Trazabilidad de Cocina
+ </p>
+ <div class="grid grid-cols-3 gap-3 text-sm">
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Cocineros</p>
+ <div class="flex flex-wrap gap-1 mt-1">
+ <template x-for="cocinero in getResumenCocinerosGrupo(selectedGrupo).cocineros" :key="cocinero.cocineroId || cocinero.nombre">
+ <button type="button"
+   class="text-[9px] px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-medium hover:bg-st-preparado/40 cursor-pointer transition"
+   :title="'Ver registro de platos de ' + cocinero.nombre"
+   @click="irARendimientoCocinero(cocinero, (selectedGrupo?.comandas || [])[0])"
+   x-text="cocinero.nombre"></button>
+ </template>
+ </div>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Tiempo promedio</p>
+ <p class="font-mono font-medium text-st-preparado" x-text="getResumenCocinerosGrupo(selectedGrupo).tiempoPromedio"></p>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Tiempo total cocina</p>
+ <p class="font-mono font-medium text-gold" x-text="getResumenCocinerosGrupo(selectedGrupo).tiempoTotal"></p>
+ </div>
+ </div>
+ </div>
+ </template>
+
+ <div x-show="getMontoDescuentoGrupo(selectedGrupo) > 0" class="mt-3 pt-3 border-t border-[rgba(212,175,55,0.1)]">
+   <p class="text-[10px] text-[#e74c3c] uppercase mb-2 font-semibold tracking-wider">💰 Descuento</p>
+   <div class="grid grid-cols-3 gap-3 text-sm">
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Monto</p>
+       <p class="font-medium text-[#e74c3c]" x-text="'-S/. ' + getMontoDescuentoGrupo(selectedGrupo).toFixed(2)"></p>
+     </div>
+     <div class="col-span-2">
+       <p class="text-[10px] text-[#5a5a7a]">Motivo</p>
+       <p class="font-medium text-xs text-[#a0a0b8]" x-text="motivosDescuentoGrupo(selectedGrupo)"></p>
+     </div>
+   </div>
  </div>
  </div>
 
@@ -1395,12 +1457,13 @@ tailwind.config = {
  <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
  
  <!-- HEADER DE LA COMANDA -->
- <div class="bg-[#12121a] px-4 py-3 flex items-center justify-between">
- <div class="flex items-center gap-3">
+ <div class="bg-[#12121a] px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+ <div class="flex items-center gap-3 flex-wrap">
  <span class="text-lg">📋</span>
- <div>
+ <div class="flex items-center gap-2 flex-wrap">
  <span class="font-bold text-white" x-text="'#' + (comanda.numComanda || comanda._id?.slice(-4))"></span>
- <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold ml-2"
+ <span x-show="comanda.eliminada" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-st-pagado/20 text-st-pagado">ELIMINADA</span>
+ <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
  :class="{
  'bg-st-pendiente_aprobar/20 text-st-pendiente_aprobar': comanda.estado === 'pendiente_aprobar',
  'bg-st-preparado/20 text-st-preparado': comanda.estado === 'recoger',
@@ -1410,52 +1473,299 @@ tailwind.config = {
  'bg-st-completado/20 text-st-completado': comanda.estado === 'completado'
  }"
  x-text="estadoLabel(comanda.estado)"></span>
+ <span x-show="esComandaReserva(comanda)"
+   class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[#9b59b6]/20 text-[#c39bd3] inline-flex flex-col items-center leading-tight">
+   <span>📅 Reserva</span>
+   <span class="text-[8px] font-bold" x-show="sufijoPagoReserva(comanda)" x-text="sufijoPagoReserva(comanda)"></span>
+ </span>
+ <span x-show="comanda.omitirPago"
+   class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-st-pagado/20 text-st-pagado"
+   :title="(comanda.pagoOmitido?.motivo || 'Pago omitido') + (comanda.pagoOmitido?.aplicado ? ' · Auto-pagada al entregar' : ' · Pendiente de entrega')">
+   💸 <span x-text="comanda.pagoOmitido?.aplicado ? 'Pago omitido (auto-pagada)' : 'Omitir pago'"></span>
+ </span>
+ <span x-show="contadorGComanda(comanda) > 0"
+   class="inline-flex items-center justify-center min-w-[1.5rem] px-1.5 py-0.5 rounded-md bg-[#ffd60a] text-black font-extrabold tabular-nums text-[10px]"
+   x-text="'G ' + contadorGComanda(comanda)"></span>
  </div>
  </div>
- <div class="flex items-center gap-4 text-xs text-txt-muted">
- <span x-text="(comanda.items?.length || 0) + ' platos'"></span>
+ <div class="flex items-center gap-3 text-xs text-txt-muted flex-wrap">
+ <span x-text="(comanda.items || []).filter(i => !i.eliminado).length + ' platos'"></span>
  <span class="font-mono text-st-preparado" x-text="'T. cocina ' + getResumenSalon(comanda).tiempoCocina"></span>
  <button type="button" class="font-mono hover:underline" :class="getResumenSalon(comanda).tieneEntregaAuto ? 'text-[#ff4757]' : 'text-gold'" title="Ver registro de tiempos del mozo" @click="irARegistroMozo(comanda)" x-text="'T. mozo ' + getResumenSalon(comanda).tiempoMozo"></button>
- <span x-text="comanda.mozo || '—'"></span>
- <span x-text="comanda.createdAt ? new Date(comanda.createdAt).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) : '—'"></span>
+ <template x-if="tieneMozoAsignado(comanda)">
+   <button type="button" class="text-gold hover:underline" @click="irARegistroMozo(comanda)" x-text="nombreMozo(comanda)"></button>
+ </template>
+ <template x-if="!tieneMozoAsignado(comanda)"><span>Sin asignar</span></template>
+ <span x-text="horaCorta(comanda.createdAt)"></span>
+ <button @click="imprimirComanda(comanda, selectedGrupo)" class="text-gold hover:text-white transition" title="Imprimir comanda">🖨️</button>
+ <button @click="openDetailModal(comanda)" class="text-gold hover:text-white transition" title="Ver comanda">👁</button>
  <button @click="openEditModal(comanda)" class="text-gold hover:text-white transition">✏️ Editar</button>
  </div>
  </div>
 
+ <!-- INFO GENERAL DE LA COMANDA -->
+ <div class="px-4 py-3 border-b border-[rgba(212,175,55,0.1)] space-y-3">
+ <div class="grid grid-cols-3 gap-3 text-sm">
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Creada</p>
+ <p class="font-medium" x-text="horaCorta(comanda.createdAt, comanda.hora || '—')"></p>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Enviada a cocina</p>
+ <p class="font-medium" x-text="horaCorta(comanda.tiempoEnEspera)"></p>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Preparada</p>
+ <p class="font-medium text-[#2ecc71]" x-text="horaCorta(comanda.tiempoRecoger)"></p>
+ </div>
+ </div>
+ <div class="grid grid-cols-3 gap-3 text-sm">
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Observaciones</p>
+ <p class="font-medium text-[#a0a0b8]" x-text="comanda.observaciones || 'Sin observaciones'"></p>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Version</p>
+ <p class="font-medium text-[#a0a0b8]" x-text="'v' + (comanda.version || 1)"></p>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Total</p>
+ <p class="font-medium text-gold" x-text="'S/. ' + Number(totalNetoComanda(comanda)).toFixed(2)"></p>
+ </div>
+ </div>
+
+ <div x-show="esComandaReserva(comanda)" class="pt-3 border-t border-[rgba(212,175,55,0.1)]">
+   <p class="text-[10px] text-[#c39bd3] uppercase mb-2 font-semibold tracking-wider">📅 Reserva</p>
+   <div class="grid grid-cols-3 gap-3 text-sm mb-3">
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Reserva creada</p>
+       <p class="font-medium" x-text="formatFechaReserva(comanda.reserva?.creadoEn)"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Entra a cocina</p>
+       <p class="font-medium text-[#ffa502]" x-text="formatFechaReserva(comanda.reserva?.fechaCocina || comanda.fechaCocinaProgramada)"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Se atenderá</p>
+       <p class="font-medium text-[#c39bd3]" x-text="formatFechaReserva(comanda.reserva?.fechaReserva)"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Cliente</p>
+       <p class="font-medium" x-text="comanda.reserva?.clienteNombre || '—'"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Teléfono</p>
+       <p class="font-medium" x-text="comanda.reserva?.clienteTelefono || '—'"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Adelanto / seña</p>
+       <p class="font-medium text-xs" x-text="labelAdelantoReserva(comanda.reserva?.pagoAdelantado)"></p>
+     </div>
+   </div>
+ </div>
+
+ <div x-show="comanda.omitirPago" class="pt-3 border-t border-[rgba(212,175,55,0.1)]">
+   <p class="text-[10px] text-st-pagado uppercase mb-2 font-semibold tracking-wider">💸 Pago omitido</p>
+   <div class="grid grid-cols-3 gap-3 text-sm">
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Estado</p>
+       <p class="font-medium text-st-pagado" x-text="comanda.pagoOmitido?.aplicado ? 'Auto-pagada al entregar' : 'Activo (pendiente entrega)'"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Motivo</p>
+       <p class="font-medium text-xs text-[#a0a0b8]" x-text="comanda.pagoOmitido?.motivo || '—'"></p>
+     </div>
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Referencia</p>
+       <p class="font-medium text-xs text-[#a0a0b8]" x-text="comanda.pagoOmitido?.referenciaExterna || '—'"></p>
+     </div>
+   </div>
+ </div>
+
+ <div x-show="comandaTieneDescuentoFront(comanda)" class="pt-3 border-t border-[rgba(212,175,55,0.1)]">
+   <p class="text-[10px] text-[#e74c3c] uppercase mb-2 font-semibold tracking-wider">💰 Descuento</p>
+   <div class="grid grid-cols-3 gap-3 text-sm">
+     <div>
+       <p class="text-[10px] text-[#5a5a7a]">Monto</p>
+       <p class="font-medium text-[#e74c3c]" x-text="'-S/. ' + montoDescuentoMostrar(comanda).toFixed(2)"></p>
+     </div>
+     <div class="col-span-2">
+       <p class="text-[10px] text-[#5a5a7a]">Motivo</p>
+       <p class="font-medium text-xs text-[#a0a0b8]" x-text="comanda.motivoDescuento || 'Sin motivo registrado'"></p>
+     </div>
+   </div>
+ </div>
+
+ <template x-if="getResumenCocineros(comanda).cocineros.length > 0">
+ <div class="pt-3 border-t border-[rgba(212,175,55,0.1)]">
+ <p class="text-[10px] text-gold uppercase mb-2 font-semibold tracking-wider flex items-center gap-1">
+ <span>👨‍🍳</span> Trazabilidad de Cocina
+ </p>
+ <div class="grid grid-cols-3 gap-3 text-sm">
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Cocineros</p>
+ <div class="flex flex-wrap gap-1 mt-1">
+ <template x-for="cocinero in getResumenCocineros(comanda).cocineros" :key="cocinero.cocineroId || cocinero.nombre">
+ <button type="button"
+   class="text-[9px] px-2 py-0.5 rounded-full bg-st-preparado/20 text-st-preparado font-medium hover:bg-st-preparado/40 cursor-pointer transition"
+   :title="'Ver registro de platos de ' + cocinero.nombre"
+   @click="irARendimientoCocinero(cocinero, comanda)"
+   x-text="cocinero.nombre"></button>
+ </template>
+ </div>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Tiempo promedio</p>
+ <p class="font-mono font-medium text-st-preparado" x-text="getResumenCocineros(comanda).tiempoPromedio"></p>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Tiempo total cocina</p>
+ <p class="font-mono font-medium text-gold" x-text="getResumenCocineros(comanda).tiempoTotal"></p>
+ </div>
+ </div>
+ </div>
+ </template>
+
+ <div class="pt-3 border-t border-[rgba(212,175,55,0.1)]">
+ <p class="text-[10px] text-gold uppercase mb-2 font-semibold tracking-wider flex items-center gap-1">
+ <span>⏱️</span> Trazabilidad de tiempos
+ </p>
+ <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">T. cocina</p>
+ <p class="font-mono font-medium text-st-preparado" x-text="getResumenSalon(comanda).tiempoCocina"></p>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">T. mozo (planificación)</p>
+ <button type="button"
+   class="font-mono font-bold text-lg hover:underline text-left text-gold"
+   title="T. mozo = solo armado. Ver registro de esta comanda"
+   @click="irARegistroMozo(comanda)"
+   x-text="getResumenSalon(comanda).tiempoMozo"></button>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">T. total (planif. + cocina)</p>
+ <p class="font-mono font-bold text-white" x-text="getResumenSalon(comanda).tiempoTotal"></p>
+ </div>
+ <div>
+ <p class="text-[10px] text-[#5a5a7a]">Platos entregados</p>
+ <p class="font-bold text-st-libre" x-text="getResumenSalon(comanda).entregados + ' / ' + getResumenSalon(comanda).total"></p>
+ </div>
+ <div x-show="!ocultarTiempoEntrega">
+ <p class="text-[10px] text-[#5a5a7a]">T. entrega (no cuenta)</p>
+ <p class="font-mono font-medium text-txt-muted" x-text="getResumenSalon(comanda).tiempoEntrega"></p>
+ </div>
+ </div>
+ <div class="mt-3 pt-2 border-t border-[rgba(212,175,55,0.08)] grid grid-cols-2 md:grid-cols-4 gap-3 text-[10px]">
+ <div>
+ <p class="text-[#5a5a7a]">Inicio armado</p>
+ <p class="font-mono text-txt-secondary" x-text="horaTrazabilidad(comanda.armadoIniciadoEn)"></p>
+ </div>
+ <div>
+ <p class="text-[#5a5a7a]">Envío a cocina</p>
+ <p class="font-mono text-txt-secondary" x-text="horaTrazabilidad(comanda.armadoEnviadoEn || comanda.createdAt)"></p>
+ </div>
+ <div>
+ <p class="text-[#5a5a7a]">Duración armado</p>
+ <p class="font-mono text-gold" x-text="getResumenSalon(comanda).tiempoArmado"></p>
+ </div>
+ <div>
+ <p class="text-[#5a5a7a]">Contador G</p>
+ <span class="inline-flex items-center justify-center min-w-[1.75rem] px-2 py-0.5 rounded-md bg-[#ffd60a] text-black font-extrabold tabular-nums"
+   x-text="contadorGComanda(comanda)"></span>
+ </div>
+ </div>
+ </div>
+ </div>
+
  <!-- TABLA DE PLATOS DE ESTA COMANDA -->
+ <div class="overflow-x-auto">
  <table class="w-full text-sm">
  <thead>
- <tr class="text-[#a0a0b8] text-[10px] uppercase border-b border-[rgba(212,175,55,0.08)]">
- <th class="text-left px-4 py-2 font-semibold">Plato</th>
- <th class="text-center px-3 py-2 font-semibold w-16">Cant.</th>
- <th class="text-right px-3 py-2 font-semibold w-24">P. Unit.</th>
- <th class="text-right px-3 py-2 font-semibold w-24">Subtotal</th>
- <th class="text-center px-3 py-2 font-semibold w-20">T. cocina</th>
- <th class="text-center px-3 py-2 font-semibold w-20">T. mozo</th>
- <th class="text-center px-3 py-2 font-semibold w-24">Estado</th>
+ <tr class="bg-[#12121a] text-[#a0a0b8] text-[10px] uppercase border-b border-[rgba(212,175,55,0.08)]">
+ <th class="text-left px-4 py-2.5 font-semibold">Plato</th>
+ <th class="text-center px-3 py-2.5 font-semibold">Cant.</th>
+ <th class="text-right px-3 py-2.5 font-semibold">P. Unit.</th>
+ <th class="text-right px-3 py-2.5 font-semibold">Subtotal</th>
+ <th class="text-left px-3 py-2.5 font-semibold">Complementos</th>
+ <th class="text-center px-3 py-2.5 font-semibold">Cocinero</th>
+ <th class="text-center px-3 py-2.5 font-semibold">T. cocina</th>
+ <th class="text-center px-3 py-2.5 font-semibold" x-show="!ocultarTiempoEntrega">T. entrega</th>
+ <th class="text-center px-3 py-2.5 font-semibold">Estado</th>
  </tr>
  </thead>
  <tbody>
  <template x-if="!comanda.items || comanda.items.length === 0">
- <tr><td colspan="7" class="px-4 py-4 text-center text-[#5a5a7a] text-xs">Sin platos</td></tr>
+ <tr><td :colspan="ocultarTiempoEntrega ? 8 : 9" class="px-4 py-4 text-center text-[#5a5a7a] text-xs">Sin platos registrados</td></tr>
  </template>
- <template x-for="(item, idx) in (comanda.items || [])" :key="idx">
- <tr class="border-b border-[rgba(212,175,55,0.05)]" :class="item.eliminado ? 'opacity-40' : ''">
- <td class="px-4 py-2">
- <p class="font-medium text-sm" :class="item.eliminado ? 'line-through text-txt-muted' : ''" x-text="item.nombre || '—'"></p>
+ <template x-for="(item, idx) in (comanda.items || [])" :key="item.subdocumentoId || item._id || idx">
+ <tr class="border-b border-[rgba(212,175,55,0.08)]" :class="item.eliminado ? 'opacity-50' : ''">
+ <td class="px-4 py-3">
+ <p class="font-medium" :class="item.eliminado ? 'line-through text-txt-muted' : ''" x-text="item.nombre || '—'"></p>
  <p class="text-[10px] text-[#ff6b6b] mt-0.5" x-show="item.eliminado && item.eliminadoRazon" x-text="'Motivo: ' + item.eliminadoRazon"></p>
+ <template x-if="item.tipoServicio === 'para_llevar'">
+ <span class="inline-flex items-center gap-1 mt-0.5 text-[9px] px-2 py-0.5 rounded-full font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">🥡 Para llevar</span>
+ </template>
+ <template x-if="item.tipoServicio === 'extra_llevar'">
+ <span class="inline-flex items-center gap-1 mt-0.5 text-[9px] px-2 py-0.5 rounded-full font-bold bg-violet-500/20 text-violet-300 border border-violet-500/40">EXTRA LLEVAR</span>
+ </template>
  <p class="text-[10px] text-[#5a5a7a]" x-show="item.notaEspecial" x-text="'📝 ' + item.notaEspecial"></p>
  </td>
- <td class="px-3 py-2 text-center font-semibold text-sm" x-text="item.cantidad || 1"></td>
- <td class="px-3 py-2 text-right text-[#a0a0b8] text-sm" x-text="'S/. ' + (item.precio || 0).toFixed(2)"></td>
- <td class="px-3 py-2 text-right text-[#d4af37] font-semibold text-sm" x-text="'S/. ' + (item.subtotal || (item.cantidad || 1) * (item.precio || 0)).toFixed(2)"></td>
- <td class="px-3 py-2 text-center text-[10px] font-mono"
+ <td class="px-3 py-3 text-center font-semibold" x-text="item.cantidad || 1"></td>
+ <td class="px-3 py-3 text-right text-[#a0a0b8]" x-text="'S/. ' + (item.precio || 0).toFixed(2)"></td>
+ <td class="px-3 py-3 text-right text-[#d4af37] font-semibold" x-text="'S/. ' + (item.subtotal || (item.cantidad || 1) * (item.precio || 0)).toFixed(2)"></td>
+ <td class="px-3 py-3">
+ <template x-if="item.complementosSeleccionados && item.complementosSeleccionados.length > 0">
+ <div class="flex flex-wrap gap-1">
+ <template x-for="comp in item.complementosSeleccionados" :key="(comp.grupo || '') + (comp.opcion || '') + (comp._id || '')">
+<span class="text-[9px] px-1.5 py-0.5 rounded"
+ :class="esComplementoEntrada(item, comp) ? 'bg-white text-[#2ecc71] border border-[#2ecc71]/40 font-semibold' : 'bg-[rgba(212,175,55,0.1)] text-[#d4af37]'"
+ :title="esComplementoEntrada(item, comp) ? 'No era preselección' : ''"
+ x-text="textoComplementoChip(comp, item.cantidad)"></span>
+ </template>
+ <p class="w-full text-[9px] text-txt-muted mt-0.5" x-show="textoGuarnicionesSalieron(item)" x-text="textoGuarnicionesSalieron(item)"></p>
+ </div>
+ </template>
+ <template x-if="!item.complementosSeleccionados || item.complementosSeleccionados.length === 0">
+ <span class="text-[10px] text-[#5a5a7a]">—</span>
+ </template>
+ </td>
+ <td class="px-3 py-3 text-center">
+ <template x-if="getCocineroPlato(item).nombre !== '—'">
+ <div class="flex flex-col items-center">
+ <button type="button"
+   class="text-[10px] font-medium text-st-preparado hover:underline"
+   title="Ver registro de este plato en cocineros"
+   @click="irARegistroPlatoDesdeVerComanda(item, comanda)"
+   x-text="getCocineroPlato(item).nombre"></button>
+ <span x-show="getCocineroPlato(item).enPreparacion" class="text-[8px] text-st-esperando animate-pulse">En curso</span>
+ </div>
+ </template>
+ <template x-if="getCocineroPlato(item).nombre === '—'">
+ <span class="text-[10px] text-[#5a5a7a]">—</span>
+ </template>
+ </td>
+ <td class="px-3 py-3 text-center">
+ <template x-if="getTiempoPreparacion(item).tiempo !== '—'">
+ <span class="text-[10px] font-mono"
  :class="getTiempoPreparacion(item).enPreparacion ? 'text-st-esperando' : 'text-txt-secondary'"
- x-text="getTiempoPreparacion(item).tiempo"></td>
- <td class="px-3 py-2 text-center text-[10px] font-mono"
+ x-text="getTiempoPreparacion(item).tiempo"></span>
+ </template>
+ <template x-if="getTiempoPreparacion(item).tiempo === '—'">
+ <span class="text-[10px] text-[#5a5a7a]">—</span>
+ </template>
+ </td>
+ <td class="px-3 py-3 text-center" x-show="!ocultarTiempoEntrega">
+ <template x-if="getTiempoMozoPlato(item).tiempo !== '—'">
+ <span class="text-[10px] font-mono"
  :class="claseTiempoMozoCelda(item)"
- x-text="getTiempoMozoPlato(item).tiempo"></td>
- <td class="px-3 py-2 text-center">
+ x-text="getTiempoMozoPlato(item).tiempo"></span>
+ </template>
+ <template x-if="getTiempoMozoPlato(item).tiempo === '—'">
+ <span class="text-[10px] text-[#5a5a7a]">—</span>
+ </template>
+ </td>
+ <td class="px-3 py-3 text-center">
  <span class="text-[9px] px-2 py-0.5 rounded-full font-semibold"
  :class="claseChipEstadoPlato(item)"
  x-text="item.eliminado ? (item.eliminadoRazon ? ('Eliminado · ' + item.eliminadoRazon) : 'Eliminado') : labelEstadoPlatoChip(item.estado, comanda, item)"></span>
@@ -1464,32 +1774,154 @@ tailwind.config = {
  </template>
  </tbody>
  <tfoot>
- <tr class="bg-[#12121a]/50">
- <td class="px-4 py-2 font-bold text-xs uppercase" colspan="2">SUBTOTAL</td>
+ <tr x-show="comandaTieneDescuentoFront(comanda)" class="border-t-2 border-[rgba(212,175,55,0.25)] bg-[#12121a]">
+ <td class="px-4 py-2 font-semibold text-[10px] uppercase text-txt-muted" colspan="2">Subtotal</td>
  <td class="px-3 py-2 text-right text-xs text-[#5a5a7a]" x-text="(comanda.items || []).filter(i => !i.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
- <td class="px-3 py-2 text-right text-[#d4af37] font-bold" x-text="'S/. ' + Number(comanda.totalSinDescuento || ((comanda.total || 0) + (comanda.montoDescuento || 0))).toFixed(2)"></td>
- <td colspan="3"></td>
+ <td class="px-3 py-2 text-right text-txt-secondary text-sm" x-text="'S/. ' + Number(comanda.totalSinDescuento || ((comanda.total || 0) + (comanda.montoDescuento || 0))).toFixed(2)"></td>
+ <td colspan="5"></td>
  </tr>
- <tr x-show="comandaTieneDescuentoFront(comanda)" class="bg-[#12121a]/50">
+ <tr x-show="comandaTieneDescuentoFront(comanda)" class="bg-[#12121a]">
  <td class="px-4 py-1 text-right text-[10px] text-[#e74c3c] uppercase font-semibold" colspan="3">Descuento</td>
  <td class="px-3 py-1 text-right text-[#e74c3c] font-bold text-sm" x-text="'-S/. ' + montoDescuentoMostrar(comanda).toFixed(2)"></td>
- <td colspan="3"></td>
+ <td colspan="5"></td>
  </tr>
- <tr x-show="comandaTieneDescuentoFront(comanda)" class="bg-[#12121a]/50">
- <td class="px-4 py-1 text-[10px] text-txt-secondary" colspan="7">
+ <tr x-show="comandaTieneDescuentoFront(comanda)" class="bg-[#12121a]">
+ <td class="px-4 py-1 text-[10px] text-txt-secondary" :colspan="ocultarTiempoEntrega ? 8 : 9">
  <span class="uppercase text-[#5a5a7a] font-semibold mr-1">Motivo:</span>
  <span x-text="comanda.motivoDescuento || 'Sin motivo registrado'"></span>
  </td>
  </tr>
- <tr x-show="comandaTieneDescuentoFront(comanda)" class="bg-[#12121a]/50">
- <td class="px-4 py-2 font-bold text-xs uppercase" colspan="3">TOTAL</td>
- <td class="px-3 py-2 text-right text-[#d4af37] font-bold" x-text="'S/. ' + Number(totalNetoComanda(comanda)).toFixed(2)"></td>
+ <tr class="border-t-2 border-[rgba(212,175,55,0.25)] bg-[#12121a]">
+ <td class="px-4 py-3 font-bold text-xs uppercase" colspan="2">TOTAL</td>
+ <td class="px-3 py-3 text-right text-xs text-[#5a5a7a]" x-text="(comanda.items || []).filter(i => !i.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
+ <td class="px-3 py-3 text-right text-[#d4af37] font-bold text-lg" x-text="'S/. ' + Number(totalNetoComanda(comanda)).toFixed(2)"></td>
  <td colspan="3"></td>
+ <td class="px-3 py-3 text-center" x-show="!ocultarTiempoEntrega">
+   <span class="font-mono text-[10px] text-txt-muted" x-text="getResumenSalon(comanda).tiempoEntrega"></span>
+ </td>
+ <td></td>
+ </tr>
+ <tr x-show="comanda.metodoPago === 'efectivo' && (comanda.montoRecibido != null || comanda.vuelto != null)">
+ <td class="px-4 py-2 text-right text-[10px] text-txt-secondary uppercase" colspan="3">
+ <span x-show="comanda.montoRecibido != null" x-text="'Recibido: S/. ' + Number(comanda.montoRecibido || 0).toFixed(2)"></span>
+ <span x-show="comanda.vuelto != null" class="ml-3 text-st-libre font-bold" x-text="'Vuelto: S/. ' + Number(comanda.vuelto || 0).toFixed(2)"></span>
+ </td>
+ <td colspan="6"></td>
  </tr>
  </tfoot>
  </table>
  </div>
+
+ <!-- TIMELINE DE ESTADOS -->
+ <div class="px-4 py-4 border-t border-[rgba(212,175,55,0.1)]">
+ <p class="text-[10px] text-[#5a5a7a] uppercase mb-4 font-semibold tracking-wider">Historial de Estados</p>
+ <div class="relative flex items-start justify-between">
+ <div class="absolute top-1.5 left-0 right-0 h-0.5 bg-[rgba(212,175,55,0.15)]" style="margin: 0 6%"></div>
+ <div class="flex flex-col items-center flex-1 relative z-10">
+ <div class="w-3 h-3 rounded-full bg-[#3498db] mb-2"></div>
+ <p class="text-[10px] font-semibold text-[#3498db]">Creada</p>
+ <p class="text-[9px] text-[#5a5a7a]" x-text="horaCorta(comanda.createdAt)"></p>
+ </div>
+ <div class="flex flex-col items-center flex-1 relative z-10">
+ <div class="w-3 h-3 rounded-full mb-2" :class="comanda.tiempoEnEspera ? 'bg-[#ffa502]' : 'bg-[#5a5a7a]/30'"></div>
+ <p class="text-[10px] font-semibold" :class="comanda.tiempoEnEspera ? 'text-[#ffa502]' : 'text-[#5a5a7a]'">En cocina</p>
+ <p class="text-[9px] text-[#5a5a7a]" x-text="horaCorta(comanda.tiempoEnEspera)"></p>
+ </div>
+ <div class="flex flex-col items-center flex-1 relative z-10">
+ <div class="w-3 h-3 rounded-full mb-2" :class="comanda.tiempoRecoger ? 'bg-[#2ecc71]' : 'bg-[#5a5a7a]/30'"></div>
+ <p class="text-[10px] font-semibold" :class="comanda.tiempoRecoger ? 'text-[#2ecc71]' : 'text-[#5a5a7a]'">Preparado</p>
+ <p class="text-[9px] text-[#5a5a7a]" x-text="horaCorta(comanda.tiempoRecoger)"></p>
+ </div>
+ <div class="flex flex-col items-center flex-1 relative z-10">
+ <div class="w-3 h-3 rounded-full mb-2" :class="comanda.tiempoEntregado ? 'bg-[#d4af37]' : 'bg-[#5a5a7a]/30'"></div>
+ <p class="text-[10px] font-semibold" :class="comanda.tiempoEntregado ? 'text-[#d4af37]' : 'text-[#5a5a7a]'">Entregado</p>
+ <p class="text-[9px] text-[#5a5a7a]" x-text="horaCorta(comanda.tiempoEntregado)"></p>
+ </div>
+ <div class="flex flex-col items-center flex-1 relative z-10">
+ <div class="w-3 h-3 rounded-full mb-2" :class="comanda.tiempoPagado ? 'bg-[#00d4aa]' : 'bg-[#5a5a7a]/30'"></div>
+ <p class="text-[10px] font-semibold" :class="comanda.tiempoPagado ? 'text-[#00d4aa]' : 'text-[#5a5a7a]'">Pagado</p>
+ <p class="text-[9px] text-[#5a5a7a]" x-text="horaCorta(comanda.tiempoPagado)"></p>
+ </div>
+ </div>
+ </div>
+ </div>
  </template>
+ </div>
+
+ <!-- TICKETS GENERADOS POR MOZOS -->
+ <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl overflow-hidden">
+ <div class="flex items-center justify-between px-4 py-3 bg-[#12121a] border-b border-[rgba(212,175,55,0.1)]">
+ <p class="text-[10px] text-[#5a5a7a] uppercase font-semibold tracking-wider flex items-center gap-2">
+ <span>🎫</span> Tickets generados por mozos
+ <span x-show="comandaTickets.length > 0" class="text-[9px] px-1.5 py-0.5 rounded-full bg-gold/20 text-gold font-bold" x-text="comandaTickets.length"></span>
+ </p>
+ <div class="flex items-center gap-2">
+ <span x-show="loadingTickets" class="text-[9px] text-txt-muted animate-pulse">Cargando...</span>
+ <button type="button" x-show="!loadingTickets && comandaTickets.length > 0"
+ @click="buscarDuplicadosDeComandaTickets()"
+ class="text-[10px] px-2 py-1 rounded-lg border border-st-pagado/40 text-st-pagado hover:bg-st-pagado/10 transition">
+ Ver duplicados
+ </button>
+ </div>
+ </div>
+ <template x-if="!loadingTickets && comandaTickets.length === 0">
+ <p class="px-4 py-5 text-center text-[#5a5a7a] text-xs">Sin tickets registrados para este grupo</p>
+ </template>
+ <div x-show="comandaTickets.length > 0" class="divide-y divide-[rgba(212,175,55,0.08)]">
+ <template x-for="ticket in comandaTickets" :key="ticket._id">
+ <div class="px-4 py-3 flex items-start justify-between gap-3 hover:bg-[rgba(212,175,55,0.03)] transition">
+ <div class="flex-1 min-w-0">
+ <div class="flex items-center gap-2 flex-wrap">
+ <span class="text-sm font-bold text-white" x-text="'#' + (ticket.ticketNumber || '—')"></span>
+ <span class="text-[9px] px-2 py-0.5 rounded-full font-bold"
+ :class="ticketTipoBadgeClass(ticket.tipo)"
+ x-text="ticketTipoLabel(ticket.tipo)"></span>
+ <span class="text-[9px] px-2 py-0.5 rounded-full font-bold"
+ :class="ticketEstadoBadgeClass(ticket.estado)"
+ x-text="ticketEstadoLabel(ticket.estado)"></span>
+ <span x-show="ticket.duplicadoHuerfano" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-st-pagado/20 text-st-pagado border border-st-pagado/40">Duplicado</span>
+ <span x-show="ticket.vinculoDebil && !ticket.duplicadoHuerfano" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-st-esperando/20 text-st-esperando border border-st-esperando/40">Sin vínculo</span>
+ <span x-show="ticket.inactivo" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-txt-muted/20 text-txt-muted border border-txt-muted/40">Inactivo</span>
+ <span x-show="ticket.duplicadoNumero && !ticket.duplicadoHuerfano" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-st-esperando/20 text-st-esperando border border-st-esperando/40">Mismo #</span>
+ <span x-show="ticketTieneParaLlevar(ticket)" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">🥡 Para llevar</span>
+ <span x-show="ticketTieneExtraLlevar(ticket)" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-violet-500/20 text-violet-300 border border-violet-500/40">EXTRA LLEVAR</span>
+ </div>
+ <div class="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-[10px] text-[#a0a0b8]">
+ <span x-text="'Mozo: ' + (ticket.mozoNombre || ticket.nombreMozo || '—')"></span>
+ <span x-text="'Platos: ' + ticketCantidadPlatos(ticket)"></span>
+ <span x-text="'Pago: ' + ticketMetodoPagoLabel(ticket.metodoPago)"></span>
+ <span x-text="ticket.createdAt ? new Date(ticket.createdAt).toLocaleString('es-PE', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : ''"></span>
+ </div>
+ <div x-show="ticket.metodoPago === 'efectivo' && (ticket.montoRecibido != null || ticket.vuelto != null)" class="flex flex-wrap gap-x-4 gap-y-0.5 mt-0.5 text-[10px]">
+ <span class="text-txt-secondary" x-show="ticket.montoRecibido != null" x-text="'Recibido: S/. ' + Number(ticket.montoRecibido || 0).toFixed(2)"></span>
+ <span class="text-st-libre font-bold" x-show="ticket.vuelto != null" x-text="'Vuelto: S/. ' + Number(ticket.vuelto || 0).toFixed(2)"></span>
+ </div>
+ <div x-show="ticket.clienteNombre || ticket.cliente?.nombre || ticket.nombreCliente || ticket.clienteDni || ticket.cliente?.dni || ticket.dniCliente" class="flex flex-wrap gap-x-4 gap-y-0.5 mt-0.5 text-[10px] text-txt-muted">
+ <span x-show="ticket.clienteNombre || ticket.cliente?.nombre || ticket.nombreCliente" x-text="'Cliente: ' + (ticket.clienteNombre || ticket.cliente?.nombre || ticket.nombreCliente || '—')"></span>
+ <span x-show="ticket.clienteDni || ticket.cliente?.dni || ticket.dniCliente" x-text="'DNI: ' + (ticket.clienteDni || ticket.cliente?.dni || ticket.dniCliente)"></span>
+ </div>
+ <p x-show="ticket.observaciones" class="text-[10px] text-txt-muted mt-1 truncate" x-text="'📝 ' + ticket.observaciones"></p>
+ <p x-show="ticket.estado === 'aprobado' && ticket.aprobadoPorNombre" class="text-[10px] text-st-preparado mt-0.5" x-text="'✓ Aprobado por ' + ticket.aprobadoPorNombre"></p>
+ <p x-show="ticket.estado === 'reportado' && ticket.motivoReporte" class="text-[10px] text-st-pagado mt-0.5" x-text="'⚠ ' + ticket.motivoReporte"></p>
+ <p x-show="ticket.estado === 'rechazado' && ticket.motivoRechazo" class="text-[10px] text-st-pagado mt-0.5" x-text="'✕ ' + ticket.motivoRechazo"></p>
+ </div>
+ <div class="flex flex-col items-end gap-0.5 shrink-0">
+ <template x-if="Number(totalesTicketVista(ticket).desc) > 0">
+ <div class="text-right space-y-0.5">
+ <span class="block text-[9px] text-txt-muted" x-text="'Subt. S/. ' + Number(totalesTicketVista(ticket).bruto).toFixed(2)"></span>
+ <span class="block text-[9px] text-st-pagado font-semibold" x-text="'Desc. -S/. ' + Number(totalesTicketVista(ticket).desc).toFixed(2)"></span>
+ <span class="text-sm font-bold text-gold" x-text="'S/. ' + Number(totalesTicketVista(ticket).neto).toFixed(2)"></span>
+ </div>
+ </template>
+ <template x-if="!(Number(totalesTicketVista(ticket).desc) > 0)">
+ <span class="text-sm font-bold text-gold" x-text="'S/. ' + Number(totalesTicketVista(ticket).neto).toFixed(2)"></span>
+ </template>
+ <button @click="imprimirTicketComanda(ticket)" class="p-1.5 rounded hover:bg-gold/20 transition text-xs" title="Imprimir ticket">🖨️</button>
+ <button x-show="ticketEsActivo(ticket) && (ticketQuitarComoDuplicado(ticket) || puedeEliminarTicket(ticket))" @click="confirmarEliminarTicket(ticket)" class="p-1.5 rounded hover:bg-st-pagado/20 transition text-xs" title="Quitar duplicado / eliminar">🗑️</button>
+ </div>
+ </div>
+ </template>
+ </div>
  </div>
 
  <!-- TOTAL AGRUPADO -->
@@ -4761,6 +5193,19 @@ this.modal = null;
  };
  },
 
+ getResumenCocinerosGrupo(grupo) {
+ const items = (grupo?.comandas || []).flatMap(c => c.items || []);
+ return this.getResumenCocineros({ items });
+ },
+
+ grupoTieneReserva(grupo) {
+ return (grupo?.comandas || []).some(c => this.esComandaReserva(c));
+ },
+
+ grupoTieneOmitirPago(grupo) {
+ return (grupo?.comandas || []).some(c => !!c?.omitirPago);
+ },
+
  textoComplementoChip(comp, nPlatos) {
  if (!comp) return '';
  const grupo = String(comp.grupo || '').trim();
@@ -4808,7 +5253,7 @@ this.modal = null;
 
  contadorGFila(row) {
   if (!row) return 0;
-  if (row.tipo === 'grupo') {
+  if (row.tipo === 'grupo' || Array.isArray(row.comandas)) {
     return (row.comandas || []).reduce((s, c) => s + this.contadorGComanda(c), 0);
   }
   return this.contadorGComanda(row.comanda);
@@ -4832,8 +5277,8 @@ this.modal = null;
   if (found?.mozo && found.mozo !== 'Sin asignar') this.filterMozo = found.mozo;
  },
 
- irARendimientoCocinero(cocinero) {
- this.irARegistroCocinero(cocinero, this.selectedComanda);
+ irARendimientoCocinero(cocinero, comanda) {
+ this.irARegistroCocinero(cocinero, comanda || this.selectedComanda);
  },
 
  irARegistroCocinero(cocinero, comanda, extra) {
@@ -4855,10 +5300,10 @@ this.modal = null;
  window.location.href = 'cocineros.html?' + q.toString();
  },
 
- irARegistroPlatoDesdeVerComanda(item) {
+ irARegistroPlatoDesdeVerComanda(item, comanda) {
  const chef = this.getCocineroPlato(item);
  if (!chef || chef.nombre === '—') return;
- this.irARegistroCocinero(chef, this.selectedComanda, { plato: item.nombre, abrirModal: true });
+ this.irARegistroCocinero(chef, comanda || this.selectedComanda, { plato: item.nombre, abrirModal: true });
  },
 
  irARegistroMozo(comanda) {
@@ -5681,15 +6126,32 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  };
  },
 
+ idsGrupoVisible() {
+ return (this.selectedGrupo?.comandas || [])
+   .map(c => this.normalizeObjectId(c?._id || c?.id))
+   .filter(Boolean);
+ },
+
  comandaIdVisible() {
- return this.selectedComanda?._id || this.editComanda?._id || null;
+ if (this.modal === 'editarComanda') return this.editComanda?._id || null;
+ if (this.modal === 'verComanda') return this.selectedComanda?._id || null;
+ if (this.modal === 'verGrupo' || this.modalTicketOrigen === 'verGrupo') {
+   return this.idsGrupoVisible()[0] || null;
+ }
+ return this.selectedComanda?._id || this.editComanda?._id || this.idsGrupoVisible()[0] || null;
  },
 
  ticketPerteneceAComandaActual(ticket, comandaId) {
- if (!ticket || !comandaId) return false;
- const cid = String(comandaId);
- if ((ticket.comandas || []).some(c => String(typeof c === 'object' ? c._id : c) === cid)) return true;
- return (ticket.platos || []).some(p => String(p.comandaId) === cid);
+ if (!ticket) return false;
+ const ids = new Set();
+ if (comandaId) ids.add(String(comandaId));
+ if (this.modal === 'verGrupo' || this.modalTicketOrigen === 'verGrupo') {
+   this.idsGrupoVisible().forEach(id => ids.add(String(id)));
+ }
+ if (!ids.size) return false;
+ if (ticket.comandaId && ids.has(String(ticket.comandaId))) return true;
+ if ((ticket.comandas || []).some(c => ids.has(String(typeof c === 'object' ? (c._id || c.id) : c)))) return true;
+ return (ticket.platos || []).some(p => ids.has(String(p.comandaId)));
  },
 
  async loadComandaTickets(comandaId) {
@@ -5940,6 +6402,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  if (this.modal !== 'confirmarEliminarTicket') {
   if (this.modal === 'buscarTicket') this.modalTicketOrigen = 'buscarTicket';
   else if (this.modal === 'verComanda') this.modalTicketOrigen = 'verComanda';
+  else if (this.modal === 'verGrupo') this.modalTicketOrigen = 'verGrupo';
   else this.modalTicketOrigen = 'editarComanda';
  }
  this.ticketEliminar = ticket;
@@ -6046,7 +6509,9 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  });
  this.removerTicketDeLista(this.ticketEliminar._id);
  const comandaId = this.editComanda?._id || this.selectedComanda?._id;
- if (comandaId) {
+ if (this.modalTicketOrigen === 'verGrupo') {
+ await this.loadGrupoTickets();
+ } else if (comandaId) {
  await this.loadComandaTickets(comandaId);
  if (!duplicado && this.editComanda?._id) {
  const detalle = await this.loadComandaDetalle(comandaId);
@@ -6064,6 +6529,8 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  await this.buscarTicketPorNumero();
  } else if (this.modalTicketOrigen === 'verComanda') {
  this.modal = 'verComanda';
+ } else if (this.modalTicketOrigen === 'verGrupo') {
+ this.modal = 'verGrupo';
  } else {
  this.modal = 'editarComanda';
  }
@@ -6237,9 +6704,75 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   return out;
  },
 
- openGrupoModal(grupo) {
+ async openGrupoModal(grupo) {
+ if (!grupo) return;
  this.selectedGrupo = grupo;
  this.modal = 'verGrupo';
+ this.loadingGrupo = true;
+ this.comandaTickets = [];
+ try {
+ const comandas = await Promise.all((grupo.comandas || []).map(async (c) => {
+   const id = c._id || c.id;
+   if (!id) return c;
+   const detalle = await this.loadComandaDetalle(id);
+   return detalle || c;
+ }));
+ comandas.forEach(c => this.refrescarCocinerosResumen(c));
+ this.selectedGrupo = {
+   ...grupo,
+   comandas,
+   numComandas: comandas.length,
+   totalAgrupado: comandas.reduce((sum, c) => sum + this.totalNetoComanda(c), 0),
+   totalPlatos: comandas.reduce((sum, c) => sum + (c.items || []).filter(i => !i.eliminado).length, 0),
+   estadoGrupo: this.calcularEstadoGrupo(comandas),
+   mozosUnicos: [...new Set(comandas.map(c => c.mozo).filter(Boolean))],
+   cocinerosResumen: this.cocinerosResumenDeGrupo(comandas),
+ };
+ await this.loadGrupoTickets();
+ } finally {
+ this.loadingGrupo = false;
+ }
+ },
+
+ async loadGrupoTickets() {
+ const ids = this.idsGrupoVisible();
+ if (!ids.length) {
+   this.comandaTickets = [];
+   return;
+ }
+ this.loadingTickets = true;
+ try {
+   const incluirInactivos = (this.selectedGrupo?.comandas || []).some(c => this.comandaEsEliminada(c));
+   const lists = await Promise.all(ids.map(async (id) => {
+     try {
+       const q = '/comanda/' + id + '/tickets' + (incluirInactivos ? '?incluirInactivos=true' : '');
+       const res = await apiGet(q);
+       return (res?.tickets || res || []).map(t => this.normalizarTicketLista(t)).filter(Boolean);
+     } catch (e) {
+       console.error('Error cargando tickets del grupo:', e);
+       return [];
+     }
+   }));
+   const seen = new Set();
+   const all = [];
+   for (const list of lists) {
+     for (const t of list) {
+       const tid = String(t._id);
+       if (seen.has(tid)) continue;
+       seen.add(tid);
+       all.push(t);
+     }
+   }
+   this.comandaTickets = all;
+   if (all.some(t => t.duplicadoHuerfano || t.vinculoDebil)) {
+     this.showToast('Hay un ticket duplicado o sin vínculo en este grupo', 'warning');
+   }
+ } catch (error) {
+   console.error('Error cargando tickets del grupo:', error);
+   this.comandaTickets = [];
+ } finally {
+   this.loadingTickets = false;
+ }
  },
 
  openEditGrupoModal(grupo) {
