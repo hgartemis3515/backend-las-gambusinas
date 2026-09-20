@@ -3089,6 +3089,8 @@ function comandasApp() {
  _pendingComandaSync: {},
  _socketWasConnected: false,
  _refreshListaTimer: null,
+ _refreshVentasTimer: null,
+ _ventasLoadSeq: 0,
 
  comandas: [],
  filteredComandas: [],
@@ -4108,7 +4110,9 @@ if (comandaId) this.scheduleComandaSync(comandaId);
 
 this.socket.on('reportes:boucher-nuevo', (data) => {
 console.log('📊 Reporte: nuevo boucher', data);
+this.scheduleRefreshVentasTotales();
 });
+this.socket.on('reportes:comanda-eliminada', () => this.scheduleRefreshVentasTotales());
 
  // ========== RESERVAS: Eventos Socket.io ==========
  this.socket.on('reserva-creada', (data) => {
@@ -4149,10 +4153,12 @@ console.log('📊 Reporte: nuevo boucher', data);
  // ========== TICKETS: eventos en tiempo real ==========
  this.socket.on('ticket-aprobacion-nuevo', (data) => {
    this.handleTicketSocketEvent(data, 'nuevo');
+   this.scheduleRefreshVentasTotales();
  });
  this.socket.on('ticket-ppa-nuevo', (data) => {
    const ticket = data.ticket || data;
    this.handleTicketSocketEvent({ ticket, comandas: ticket?.comandas }, 'nuevo');
+   this.scheduleRefreshVentasTotales();
  });
  this.socket.on('comanda-aprobada', (data) => {
    if (data.ticketId) {
@@ -4167,11 +4173,13 @@ console.log('📊 Reporte: nuevo boucher', data);
      const id = c && (c._id || c);
      if (id) this.scheduleComandaSync(id);
    });
+   this.scheduleRefreshVentasTotales();
  });
  this.socket.on('ticket-ppa-aprobado', (data) => {
    if (data.ticketId) {
      this.actualizarTicketEnLista(data.ticketId, { estado: 'aprobado' });
    }
+   this.scheduleRefreshVentasTotales();
  });
  this.socket.on('ticket-ppa-actualizado', (data) => {
    if (data.ticketId && data.estado) {
@@ -4179,6 +4187,7 @@ console.log('📊 Reporte: nuevo boucher', data);
      if (data.ticket) Object.assign(patch, data.ticket);
      this.actualizarTicketEnLista(data.ticketId, patch);
    }
+   this.scheduleRefreshVentasTotales();
  });
  this.socket.on('ticket-reportado', (data) => {
    if (data.ticketId) {
@@ -4192,11 +4201,13 @@ console.log('📊 Reporte: nuevo boucher', data);
    if (data.ticketId && data.ticket) {
      this.actualizarTicketEnLista(data.ticketId, data.ticket);
    }
+   this.scheduleRefreshVentasTotales();
  });
  this.socket.on('ticket-eliminado', (data) => {
    if (data.ticketId) {
      this.removerTicketDeLista(data.ticketId);
    }
+   this.scheduleRefreshVentasTotales();
  });
 
  // ========== FIN RESERVAS SOCKET ==========
@@ -4270,6 +4281,7 @@ console.log('📊 Reporte: nuevo boucher', data);
   }
     this.processGrouping();
     this.filterComandas();
+    this.scheduleRefreshVentasTotales();
 },
 
 patchComandaEnGrupo(grupo, normalizada, idN) {
@@ -4460,6 +4472,13 @@ scheduleRefreshListaComandas() {
   }, 400);
 },
 
+scheduleRefreshVentasTotales() {
+  clearTimeout(this._refreshVentasTimer);
+  this._refreshVentasTimer = setTimeout(() => {
+    this.loadVentasTotales();
+  }, 400);
+},
+
 async syncComandaDesdeServidor(id) {
   const idN = this.normalizeObjectId(id);
   if (!idN) return;
@@ -4554,6 +4573,7 @@ this.filterComandas();
 if (this.normalizeObjectId(this.selectedComanda?._id) === comandaId || this.normalizeObjectId(this.editComanda?._id) === comandaId) {
 this.modal = null;
 }
+this.scheduleRefreshVentasTotales();
  },
 
  async loadComandas() {
@@ -4579,6 +4599,7 @@ this.modal = null;
  this.processGrouping();
  this.filterComandas();
  this.loading = false;
+ this.scheduleRefreshVentasTotales();
  },
 
  async recargarTabla() {
@@ -5799,16 +5820,19 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  async loadVentasTotales() {
   const q = this.fechasQueryVentas();
+  const seq = (this._ventasLoadSeq = (this._ventasLoadSeq || 0) + 1);
   try {
-    const res = await apiGet('/reportes/ventas?fechaInicio=' + encodeURIComponent(q.fechaInicio)
+    const reporteHoy = await apiGet('/reportes/ventas?fechaInicio=' + encodeURIComponent(q.fechaInicio)
       + '&fechaFin=' + encodeURIComponent(q.fechaFin) + '&agruparPor=hora');
-    const total = res?.resumen?.totalVentas;
-    if (total != null) {
-      this.kpiVentasTotales = Number(total) || 0;
-      return;
+    if (seq !== this._ventasLoadSeq) return;
+    if (reporteHoy && reporteHoy.datos && reporteHoy.datos.length > 0) {
+      const totalHoy = (reporteHoy.resumen && reporteHoy.resumen.totalVentas != null)
+        ? Number(reporteHoy.resumen.totalVentas)
+        : reporteHoy.datos.reduce((s, d) => s + (Number(d.total) || 0), 0);
+      this.kpiVentasTotales = Number(totalHoy) || 0;
+    } else {
+      this.kpiVentasTotales = Number(reporteHoy && reporteHoy.resumen && reporteHoy.resumen.totalVentas) || 0;
     }
-    const datos = Array.isArray(res?.datos) ? res.datos : [];
-    this.kpiVentasTotales = datos.reduce((s, d) => s + (Number(d.total) || 0), 0);
   } catch (e) {
     console.warn('Ventas totales:', e);
   }
