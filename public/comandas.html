@@ -124,8 +124,19 @@ tailwind.config = {
 
  <!-- HEADER -->
  <div class="flex items-center justify-between mb-5">
- <div class="flex items-center gap-3">
+ <div class="flex items-center gap-3 flex-wrap">
  <h1 class="text-xl font-bold">Comandas</h1>
+ <div class="flex items-center gap-4 bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-1.5">
+  <div>
+   <p class="text-[10px] uppercase tracking-wide text-txt-muted font-semibold">Ventas totales</p>
+   <p class="text-sm font-extrabold text-gold tabular-nums leading-tight" x-text="fmtSolesKpi(kpiVentasTotales)"></p>
+  </div>
+  <div class="w-px h-8 bg-[rgba(212,175,55,0.25)]"></div>
+  <div>
+   <p class="text-[10px] uppercase tracking-wide text-txt-muted font-semibold">Total visto</p>
+   <p class="text-sm font-extrabold text-white tabular-nums leading-tight" x-text="fmtSolesKpi(totalVistoTabla)"></p>
+  </div>
+ </div>
  </div>
  <div class="flex items-center gap-3">
  <span x-show="socketConnected" class="flex items-center gap-1 text-xs text-st-libre">
@@ -307,12 +318,7 @@ tailwind.config = {
  <tbody>
  <!-- FILA PRINCIPAL (GRUPO O INDIVIDUAL) -->
  <tr class="border-b border-[rgba(212,175,55,0.1)] hover:bg-white/5 transition-colors cursor-pointer"
- :class="{ 
-   'bg-gold/5': row.tipo === 'grupo', 
-   'bg-bg-card': row.tipo === 'individual' && !row.comanda?.origenReserva && !row.comanda?.eliminada,
-   'bg-st-reservado/10 border-l-4 border-st-reservado': row.tipo === 'individual' && row.comanda?.origenReserva && !row.comanda?.eliminada,
-   'bg-st-pagado/10 border-l-4 border-st-pagado': row.tipo === 'individual' && row.comanda?.eliminada
- }">
+ :class="claseColorFilaComanda(row)">
  
  <!-- ID / Grupo -->
  <td class="px-3 py-2.5">
@@ -326,6 +332,16 @@ tailwind.config = {
   <span class="text-[9px] font-extrabold tracking-wide">Reserva</span>
   <span class="text-[8px] font-bold tracking-wide" x-show="sufijoPagoReserva(comandaReservaDeFila(row))" x-text="sufijoPagoReserva(comandaReservaDeFila(row))"></span>
  </span>
+ <span x-show="filaMuestraParaLlevar(row)"
+  class="inline-flex flex-col items-center justify-center leading-tight text-[#f87171] whitespace-nowrap shrink-0"
+  title="PARA LLEVAR">
+  <span class="text-[9px] font-extrabold tracking-wide">🥡 PARA LLEVAR</span>
+ </span>
+ <span x-show="filaMuestraExtraLlevar(row)"
+  class="inline-flex flex-col items-center justify-center leading-tight text-[#c4b5fd] whitespace-nowrap shrink-0"
+  title="EXTRA LLEVAR">
+  <span class="text-[9px] font-extrabold tracking-wide">EXTRA LLEVAR</span>
+ </span>
  </button>
  </template>
 <template x-if="row.tipo === 'individual'">
@@ -338,6 +354,16 @@ tailwind.config = {
    :title="'Inicio en cocina: ' + (horaInicioCocinaReserva(row.comanda) || '—')">
    <span class="text-[9px] font-extrabold tracking-wide">Reserva</span>
    <span class="text-[8px] font-bold tracking-wide" x-show="sufijoPagoReserva(row.comanda)" x-text="sufijoPagoReserva(row.comanda)"></span>
+  </span>
+  <span x-show="comandaTieneParaLlevar(row.comanda)"
+   class="inline-flex flex-col items-center justify-center leading-tight text-[#f87171] whitespace-nowrap"
+   title="PARA LLEVAR">
+   <span class="text-[9px] font-extrabold tracking-wide">🥡 PARA LLEVAR</span>
+  </span>
+  <span x-show="comandaTieneExtraLlevar(row.comanda)"
+   class="inline-flex flex-col items-center justify-center leading-tight text-[#c4b5fd] whitespace-nowrap"
+   title="EXTRA LLEVAR">
+   <span class="text-[9px] font-extrabold tracking-wide">EXTRA LLEVAR</span>
   </span>
 </div>
 </template>
@@ -460,7 +486,8 @@ tailwind.config = {
  <!-- FILAS HIJAS EXPANDIDAS (SOLO PARA GRUPOS) -->
  <template x-if="row.tipo === 'grupo' && expandedGroups.includes(row.id)">
  <template x-for="(comanda, cIdx) in row.comandas" :key="comanda._id">
- <tr class="border-b border-[rgba(212,175,55,0.05)] bg-bg-sidebar/50 hover:bg-white/5 transition-colors cursor-pointer"
+ <tr class="border-b border-[rgba(212,175,55,0.05)] hover:bg-white/5 transition-colors cursor-pointer"
+ :class="claseColorFilaHija(comanda)"
  @click="openDetailModal(comanda)">
  <!-- ID con indentación -->
  <td class="px-3 py-2 pl-8">
@@ -472,6 +499,16 @@ tailwind.config = {
   :title="'Inicio en cocina: ' + (horaInicioCocinaReserva(comanda) || '—')">
   <span class="text-[9px] font-extrabold tracking-wide">Reserva</span>
   <span class="text-[8px] font-bold tracking-wide" x-show="sufijoPagoReserva(comanda)" x-text="sufijoPagoReserva(comanda)"></span>
+ </span>
+ <span x-show="comandaTieneParaLlevar(comanda)"
+  class="inline-flex flex-col items-center justify-center leading-tight text-[#f87171] whitespace-nowrap"
+  title="PARA LLEVAR">
+  <span class="text-[9px] font-extrabold tracking-wide">🥡 PARA LLEVAR</span>
+ </span>
+ <span x-show="comandaTieneExtraLlevar(comanda)"
+  class="inline-flex flex-col items-center justify-center leading-tight text-[#c4b5fd] whitespace-nowrap"
+  title="EXTRA LLEVAR">
+  <span class="text-[9px] font-extrabold tracking-wide">EXTRA LLEVAR</span>
  </span>
  </div>
  </td>
@@ -3113,6 +3150,7 @@ function comandasApp() {
  turnosLimaYMD: '',
  _turnosAutoNocheHecho: false,
  _turnosPoll: null,
+ kpiVentasTotales: 0,
  presetsPeriodo: [
   { id: 'hoy', label: 'Hoy' },
   { id: 'ayer', label: 'Ayer' },
@@ -3675,6 +3713,7 @@ formatearNombreMesa(mesa, mesaObj = null) {
  await this.refreshTurnosCierre({ filtrar: false });
  this.aplicarFiltrosDesdeUrl();
  await this.loadComandas();
+ await this.loadVentasTotales();
  await this.cargarPlantillaComandaLocal();
  const openComandaId = new URLSearchParams(window.location.search).get('id')
    || new URLSearchParams(window.location.search).get('comanda');
@@ -4545,6 +4584,7 @@ this.modal = null;
  async recargarTabla() {
    await this.refreshTurnosCierre({ filtrar: false });
    await this.loadComandas();
+   await this.loadVentasTotales();
  },
 
  async refreshTurnosCierre({ filtrar = true } = {}) {
@@ -5587,6 +5627,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
     this.abrirFiltroPersonalizado();
   }
   this.filterComandas();
+  this.loadVentasTotales();
  },
 
  abrirFiltroPersonalizado() {
@@ -5601,6 +5642,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   this.filtroPeriodo = 'custom';
   this.modal = null;
   this.filterComandas();
+  this.loadVentasTotales();
  },
 
  get hayFiltroAvanzado() {
@@ -5742,6 +5784,49 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  this.filteredRows = out;
  },
 
+ fechasQueryVentas() {
+  if ((this.filtroPeriodo === 'dia' || this.filtroPeriodo === 'noche') && this.primerCierreHoyAt) {
+    const r = TurnosDiaNoche.rangoIso(this.filtroPeriodo, this.primerCierreHoyAt);
+    if (r) return { fechaInicio: r.desde, fechaFin: r.hasta };
+  }
+  const rango = this.rangoFiltroFechas;
+  const hoy = limaYMD();
+  if (!rango) {
+    return { fechaInicio: addDaysYMD(hoy, -90), fechaFin: hoy };
+  }
+  return { fechaInicio: rango.desde, fechaFin: rango.hasta };
+ },
+
+ async loadVentasTotales() {
+  const q = this.fechasQueryVentas();
+  try {
+    const res = await apiGet('/reportes/ventas?fechaInicio=' + encodeURIComponent(q.fechaInicio)
+      + '&fechaFin=' + encodeURIComponent(q.fechaFin) + '&agruparPor=hora');
+    const total = res?.resumen?.totalVentas;
+    if (total != null) {
+      this.kpiVentasTotales = Number(total) || 0;
+      return;
+    }
+    const datos = Array.isArray(res?.datos) ? res.datos : [];
+    this.kpiVentasTotales = datos.reduce((s, d) => s + (Number(d.total) || 0), 0);
+  } catch (e) {
+    console.warn('Ventas totales:', e);
+  }
+ },
+
+ get totalVistoTabla() {
+  let s = 0;
+  for (const row of (this.filteredRows || [])) {
+    if (row.tipo === 'grupo') s += Number(row.totalAgrupado) || 0;
+    else s += this.totalNetoComanda(row.comanda);
+  }
+  return Number(s.toFixed(2));
+ },
+
+ fmtSolesKpi(n) {
+  return 'S/. ' + (Number(n) || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+ },
+
  limpiarFiltroAvanzado() {
  this.filterPlato = '';
  this.filterTotalMin = '';
@@ -5764,6 +5849,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  this.customFechaHasta = '';
  this.limpiarFiltroAvanzado();
  this.filterComandas();
+ this.loadVentasTotales();
  },
 
  aplicarFiltrosDesdeUrl() {
@@ -7761,9 +7847,65 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
    return '';
  },
  esComandaReservaParaLlevar(c) {
-   const items = (c?.items || c?.platos || []).filter((i) => i && !i.eliminado);
+   return this.esComandaSoloParaLlevar(c);
+ },
+ platosActivosFilaComanda(c) {
+   return (c?.items || c?.platos || []).filter((i) => i && i.eliminado !== true && i.anulado !== true);
+ },
+ tipoServicioPlatoFila(p) {
+   if (!p) return 'mesa';
+   const t = String(p.tipoServicio || '').toLowerCase().replace(/\s+/g, '_');
+   if (t === 'extra_llevar') return 'extra_llevar';
+   if (t === 'para_llevar' || t === 'llevar' || p.paraLlevar === true) return 'para_llevar';
+   return t || 'mesa';
+ },
+ esComandaSoloParaLlevar(c) {
+   const items = this.platosActivosFilaComanda(c);
    if (!items.length) return false;
-   return items.every((i) => (i.tipoServicio || 'mesa') === 'para_llevar');
+   return items.every((i) => this.tipoServicioPlatoFila(i) === 'para_llevar');
+ },
+ comandaTieneParaLlevar(c) {
+   return this.platosActivosFilaComanda(c).some((i) => this.tipoServicioPlatoFila(i) === 'para_llevar');
+ },
+ comandaTieneExtraLlevar(c) {
+   return this.platosActivosFilaComanda(c).some((i) => this.tipoServicioPlatoFila(i) === 'extra_llevar');
+ },
+ esFilaSoloParaLlevar(row) {
+   if (!row) return false;
+   if (row.tipo === 'grupo') {
+     const list = row.comandas || [];
+     return list.length > 0 && list.every((c) => this.esComandaSoloParaLlevar(c));
+   }
+   return this.esComandaSoloParaLlevar(row.comanda);
+ },
+ filaMuestraParaLlevar(row) {
+   if (!row) return false;
+   if (row.tipo === 'grupo') return (row.comandas || []).some((c) => this.comandaTieneParaLlevar(c));
+   return this.comandaTieneParaLlevar(row.comanda);
+ },
+ filaMuestraExtraLlevar(row) {
+   if (!row) return false;
+   if (row.tipo === 'grupo') return (row.comandas || []).some((c) => this.comandaTieneExtraLlevar(c));
+   return this.comandaTieneExtraLlevar(row.comanda);
+ },
+ claseColorFilaComanda(row) {
+   if (row?.tipo === 'individual' && row.comanda?.eliminada) {
+     return 'bg-st-pagado/10 border-l-4 border-st-pagado';
+   }
+   if (this.esFilaSoloParaLlevar(row)) {
+     return 'bg-red-600/25 border-l-4 border-red-500';
+   }
+   if (row?.tipo === 'grupo') return 'bg-gold/5';
+   if (row?.tipo === 'individual' && this.esComandaReserva(row.comanda)) {
+     return 'bg-st-reservado/10 border-l-4 border-st-reservado';
+   }
+   return 'bg-bg-card';
+ },
+ claseColorFilaHija(comanda) {
+   if (this.esComandaSoloParaLlevar(comanda)) {
+     return 'bg-red-600/25 border-l-4 border-red-500';
+   }
+   return 'bg-bg-sidebar/50';
  },
  esPendienteAEntregarReserva(c) {
    return this.esComandaReserva(c)
