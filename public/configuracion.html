@@ -752,6 +752,15 @@ tailwind.config = {
                 Marcado (recomendado): en Vista General, Personalizada y Supervisor no aparece el botón ANULAR.
                 Desmárquelo solo si cocina debe anular platos desde esas tablas. Recargue la app de cocina.
               </p>
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" x-model="config.cocinaOcultarTablasKdsMenosSupervisor" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+                <span class="text-sm text-txt-secondary">Ocultar las tablas KDS menos Supervisor</span>
+              </label>
+              <p class="text-[10px] text-txt-muted pl-7">
+                Marcado (recomendado): en App Cocina, Ver Comandas abre solo la Vista Supervisor.
+                Las tablas General y Personalizada no aparecen. Desmarque para volver a mostrarlas.
+                Recargue la app de cocina.
+              </p>
             </div>
 
             <!-- PLAN NOMBRE_PLATO_COCINA: alias corto en tabla KDS -->
@@ -1743,6 +1752,7 @@ function configApp() {
       cocinaColorMozoForzado: '#1e3a8a',
       cocinaIgnorarFondoVistaMozo: false,
       cocinaOcultarAnularEnTablasKds: true,
+      cocinaOcultarTablasKdsMenosSupervisor: true,
       sesionesSimultaneas: 3,
       timeoutInactividadMin: 30,
       requiere2fa: false,
@@ -2024,6 +2034,7 @@ function configApp() {
             this.config.cocinaColorMozoForzado = this.colorHexMozo(cfg.cocina.colorMozoForzado);
             this.config.cocinaIgnorarFondoVistaMozo = cfg.cocina.ignorarFondoVistaMozo === true;
             this.config.cocinaOcultarAnularEnTablasKds = cfg.cocina.ocultarAnularEnTablasKds !== false;
+            this.config.cocinaOcultarTablasKdsMenosSupervisor = cfg.cocina.ocultarTablasKdsMenosSupervisor !== false;
             // PLAN GUARNICIONES_SEPARADAS v1.1: flag global + umbrales de tiempos.
             this.config.cocinaPermitirGuarnicionesSeparadas = cfg.cocina.permitirGuarnicionesSeparadas !== false;
             this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones = cfg.cocina.deshabilitarOrdenSecuencialGuarniciones !== false;
@@ -2045,6 +2056,7 @@ function configApp() {
             this.config.cocinaColorMozoForzado = '#1e3a8a';
             this.config.cocinaIgnorarFondoVistaMozo = false;
             this.config.cocinaOcultarAnularEnTablasKds = true;
+            this.config.cocinaOcultarTablasKdsMenosSupervisor = true;
             this.config.cocinaPermitirGuarnicionesSeparadas = true;
             this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones = true;
             this.config.cocinaDeshabilitarAgrupacionGuarniciones = false;
@@ -2236,6 +2248,7 @@ function configApp() {
             colorMozoForzado: this.colorHexMozo(this.config.cocinaColorMozoForzado),
             ignorarFondoVistaMozo: this.config.cocinaIgnorarFondoVistaMozo === true,
             ocultarAnularEnTablasKds: this.config.cocinaOcultarAnularEnTablasKds !== false,
+            ocultarTablasKdsMenosSupervisor: this.config.cocinaOcultarTablasKdsMenosSupervisor !== false,
             // PLAN GUARNICIONES_SEPARADAS v1.1
             permitirGuarnicionesSeparadas: this.config.cocinaPermitirGuarnicionesSeparadas !== false,
             deshabilitarOrdenSecuencialGuarniciones: this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones !== false,

@@ -15,6 +15,7 @@ const {
 } = require('../services/pushNotifications');
 const { overlayPronombresEnComandas } = require('../utils/precioComplementos');
 const { toCartaMozo } = require('../utils/cartaMozoPlato');
+const { getSosCocineras } = require('../services/sosCocineras.service');
 
 /** Emite solo al mozo asignado a la comanda (room mozo-{id}) */
 function emitToMozoAsignado(ns, comanda, eventName, eventData) {
@@ -68,6 +69,21 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
       userName: socket.user?.name,
       rol: socket.user?.rol
     });
+
+    // SOS Cocineras: snapshot al conectar (TVs / kiosk sin esperar GET)
+    getSosCocineras()
+      .then((activo) => {
+        if (socket.connected) {
+          socket.emit('sos-cocineras', {
+            activo: !!activo,
+            by: null,
+            at: new Date().toISOString(),
+          });
+        }
+      })
+      .catch((err) => {
+        logger.warn('SOS cocineras snapshot falló', { error: err.message });
+      });
 
     // Validar namespace (seguridad adicional)
     if (socket.nsp.name !== '/cocina') {
@@ -1988,6 +2004,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         mesaId: mesaId,
         numMesa: comanda.mesas?.nummesa,
         comandaNumber: comanda.comandaNumber,
+        numeroComandaDia: comanda.numeroComandaDia ?? null,
         socketId: 'server',
         timestamp: timestamp
       };

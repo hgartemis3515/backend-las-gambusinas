@@ -297,6 +297,104 @@ router.get('/aprobacion/fecha/:fecha', async (req, res) => {
   }
 });
 
+async function emitirTrasForzarPago(result) {
+  if (result?.ticket && global.emitComandaAprobada) {
+    const estadoMesaFinal = result.mesaEstado || (result.forzado ? 'pedido' : 'pendiente_aprobar');
+    try {
+      await global.emitComandaAprobada(result.ticket, result.platosLiberados, estadoMesaFinal);
+    } catch (e) {
+      logger.warn('Error emitiendo comanda-aprobada (forzar pago)', { error: e.message });
+    }
+  }
+
+  if (result?.ticket?.mesa && global.emitMesaActualizada) {
+    try {
+      await global.emitMesaActualizada(result.ticket.mesa.toString());
+    } catch (e) {
+      logger.warn('Error emitiendo mesa-actualizada tras forzar pago', { error: e.message });
+    }
+  }
+
+  if (!(result?.comoPpa && result.ticket)) return;
+  try {
+    const io = global.io;
+    if (!io) return;
+    const mesaId = result.ticket.mesa?.toString?.() || result.ticket.mesa;
+    const comandasIds = (result.ticket.comandas || []).map((c) => c?.toString?.() || c);
+    const payloadPpa = {
+      ticketId: result.ticket._id,
+      ticket: result.ticket,
+      ticketNumber: result.ticket.ticketNumber,
+      comandas: result.ticket.comandas,
+      mesa: mesaId,
+      mesaId,
+      estadoMesa: result.mesaEstado || 'pedido',
+      nummesa: result.ticket.numMesa,
+      pagoForzado: true,
+      origen: 'forzado',
+    };
+    const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
+    io.of('/mozos').emit('ticket-ppa-creado', payloadPpa);
+    io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-ppa-nuevo', {
+      ticket: result.ticket,
+      message: 'Pago adelantado forzado desde caja',
+    });
+    io.of('/admin').emit('ticket-ppa-nuevo', { ticket: result.ticket });
+    for (const comandaId of comandasIds) {
+      if (!comandaId) continue;
+      const comandaActualizada = await comandaModel.findById(comandaId)
+        .populate('platos.plato', SELECT_PLATO_COCINA)
+        .populate('mozos', 'name')
+        .populate('mesas', 'nummesa estado nombreCombinado')
+        .lean();
+      const payloadComanda = {
+        comandaId: String(comandaId),
+        comanda: comandaActualizada,
+        mesaId: mesaId ? String(mesaId) : null,
+        status: comandaActualizada?.status,
+        pagoForzado: true,
+      };
+      if (mesaId) {
+        io.of('/mozos').to(`mesa-${mesaId}`).emit('comanda-actualizada', payloadComanda);
+      }
+      io.of('/mozos').emit('comanda-actualizada', payloadComanda);
+      io.of('/cocina').to(`fecha-${fechaHoy}`).emit('comanda-actualizada', payloadComanda);
+    }
+  } catch (e) {
+    logger.warn('Error emitiendo PPA tras forzar pago', { error: e.message });
+  }
+}
+
+/**
+ * PUT /api/aprobacion/grupo/forzar-pago
+ * Cobra todas las comandas pendientes de un grupo. Debe ir antes de /:id.
+ */
+router.put('/aprobacion/grupo/forzar-pago', async (req, res) => {
+  try {
+    const { ticketIds, usuarioId, usuarioNombre, metodoPago, montoRecibido, vuelto, motivo } = req.body || {};
+    const result = await aprobacionService.forzarPagoGrupoTickets(ticketIds, {
+      usuarioId,
+      usuarioNombre,
+      metodoPago,
+      montoRecibido,
+      vuelto,
+      motivo,
+    });
+    for (const item of result.resultados || []) {
+      await emitirTrasForzarPago(item);
+    }
+    res.json({
+      success: true,
+      message: 'Pago forzado del grupo y tickets aprobados',
+      resultado: result,
+    });
+  } catch (error) {
+    logger.error('Error al forzar pago de grupo', { error: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
+  }
+});
+
 /**
  * PUT /api/aprobacion/:id/forzar-pago
  * Caja cobra el ticket de la comanda (boucher + aprobado). La mesa no pasa a pendiente_aprobar.
@@ -304,83 +402,16 @@ router.get('/aprobacion/fecha/:fecha', async (req, res) => {
 router.put('/aprobacion/:id/forzar-pago', async (req, res) => {
   try {
     const { id } = req.params;
-    const { usuarioId, usuarioNombre, metodoPago, montoRecibido, vuelto } = req.body || {};
+    const { usuarioId, usuarioNombre, metodoPago, montoRecibido, vuelto, motivo } = req.body || {};
     const result = await aprobacionService.forzarPagoTicketComanda(id, {
       usuarioId,
       usuarioNombre,
       metodoPago,
       montoRecibido,
       vuelto,
+      motivo,
     });
-
-    if (result.ticket && global.emitComandaAprobada) {
-      const estadoMesaFinal = result.mesaEstado || (result.forzado ? 'pedido' : 'pendiente_aprobar');
-      try {
-        await global.emitComandaAprobada(result.ticket, result.platosLiberados, estadoMesaFinal);
-      } catch (e) {
-        logger.warn('Error emitiendo comanda-aprobada (forzar pago)', { error: e.message });
-      }
-    }
-
-    if (result.ticket?.mesa && global.emitMesaActualizada) {
-      try {
-        await global.emitMesaActualizada(result.ticket.mesa.toString());
-      } catch (e) {
-        logger.warn('Error emitiendo mesa-actualizada tras forzar pago', { error: e.message });
-      }
-    }
-
-    if (result.comoPpa && result.ticket) {
-      try {
-        const io = global.io;
-        if (io) {
-          const mesaId = result.ticket.mesa?.toString?.() || result.ticket.mesa;
-          const comandasIds = (result.ticket.comandas || []).map((c) => c?.toString?.() || c);
-          const payloadPpa = {
-            ticketId: result.ticket._id,
-            ticket: result.ticket,
-            ticketNumber: result.ticket.ticketNumber,
-            comandas: result.ticket.comandas,
-            mesa: mesaId,
-            mesaId,
-            estadoMesa: result.mesaEstado || 'pedido',
-            nummesa: result.ticket.numMesa,
-            pagoForzado: true,
-            origen: 'forzado',
-          };
-          const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
-          io.of('/mozos').emit('ticket-ppa-creado', payloadPpa);
-          io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-ppa-nuevo', {
-            ticket: result.ticket,
-            message: 'Pago adelantado forzado desde caja',
-          });
-          io.of('/admin').emit('ticket-ppa-nuevo', { ticket: result.ticket });
-          for (const comandaId of comandasIds) {
-            if (!comandaId) continue;
-            const comandaActualizada = await comandaModel.findById(comandaId)
-              .populate('platos.plato', SELECT_PLATO_COCINA)
-              .populate('mozos', 'name')
-              .populate('mesas', 'nummesa estado nombreCombinado')
-              .lean();
-            const payloadComanda = {
-              comandaId: String(comandaId),
-              comanda: comandaActualizada,
-              mesaId: mesaId ? String(mesaId) : null,
-              status: comandaActualizada?.status,
-              pagoForzado: true,
-            };
-            if (mesaId) {
-              io.of('/mozos').to(`mesa-${mesaId}`).emit('comanda-actualizada', payloadComanda);
-            }
-            io.of('/mozos').emit('comanda-actualizada', payloadComanda);
-            io.of('/cocina').to(`fecha-${fechaHoy}`).emit('comanda-actualizada', payloadComanda);
-          }
-        }
-      } catch (e) {
-        logger.warn('Error emitiendo PPA tras forzar pago', { error: e.message });
-      }
-    }
-
+    await emitirTrasForzarPago(result);
     res.json({
       success: true,
       message: result.forzado ? 'Pago forzado y ticket aprobado' : 'Ticket aprobado',

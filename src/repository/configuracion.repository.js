@@ -253,6 +253,9 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
             if (datosFiltrados.cocina.ocultarAnularEnTablasKds !== undefined) {
                 datosFiltrados.cocina.ocultarAnularEnTablasKds = datosFiltrados.cocina.ocultarAnularEnTablasKds === true;
             }
+            if (datosFiltrados.cocina.ocultarTablasKdsMenosSupervisor !== undefined) {
+                datosFiltrados.cocina.ocultarTablasKdsMenosSupervisor = datosFiltrados.cocina.ocultarTablasKdsMenosSupervisor === true;
+            }
         }
 
         if (datosFiltrados.apariencia && typeof datosFiltrados.apariencia === 'object') {

@@ -50,7 +50,10 @@ const auditoriaSchema = new mongoose.Schema({
       // Crear comanda desde dashboard — omitir pago (auto-pagado al entregar)
       'COMANDA_OMITIR_PAGO_AUTO_PAGADO',
       'COMANDA_OMITIR_PAGO_ACTIVADO',
-      'RESERVA_ACTIVADA_ANTICIPADA'
+      'RESERVA_ACTIVADA_ANTICIPADA',
+      'DESCUENTO_COMANDA',
+      'ELIMINAR_DESCUENTO_COMANDA',
+      'PAGO_FORZADO_CAJA'
     ],
     index: true
   },

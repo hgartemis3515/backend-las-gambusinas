@@ -303,6 +303,7 @@ tailwind.config = {
  <thead>
  <tr class="bg-bg-sidebar border-b-2 border-gold/30">
  <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider whitespace-nowrap">ID/Grupo</th>
+ <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider whitespace-nowrap">Nº histórico</th>
  <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Mesa</th>
  <th class="text-center px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Contador G</th>
  <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Mozo</th>
@@ -369,6 +370,16 @@ tailwind.config = {
 </template>
  </td>
  
+ <!-- Nº histórico (comandaNumber, no se reinicia) -->
+ <td class="px-3 py-2.5 text-sm font-mono text-txt-muted whitespace-nowrap">
+ <template x-if="row.tipo === 'grupo'">
+ <span x-text="formatGrupoHistoricoLabel(row.comandas) || '—'"></span>
+ </template>
+ <template x-if="row.tipo === 'individual'">
+ <span x-text="row.comanda?.numComandaHistorico != null ? ('#' + row.comanda.numComandaHistorico) : '—'"></span>
+ </template>
+ </td>
+
  <!-- Mesa -->
  <td class="px-3 py-2.5 text-sm">
  <template x-if="row.tipo === 'grupo'">
@@ -511,6 +522,9 @@ tailwind.config = {
   <span class="text-[9px] font-extrabold tracking-wide">EXTRA LLEVAR</span>
  </span>
  </div>
+ </td>
+ <td class="px-3 py-2 text-xs font-mono text-txt-muted whitespace-nowrap">
+ <span x-text="comanda.numComandaHistorico != null ? ('#' + comanda.numComandaHistorico) : '—'"></span>
  </td>
  <!-- Mesa -->
  <td class="px-3 py-2 text-xs text-txt-muted">
@@ -847,7 +861,8 @@ tailwind.config = {
 
  <!-- INFO GENERAL -->
  <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
- <p class="text-[10px] text-[#5a5a7a] uppercase mb-3 font-semibold tracking-wider">Informacion General</p>
+ <p class="text-[10px] text-[#5a5a7a] uppercase mb-1 font-semibold tracking-wider text-center">Número de comanda</p>
+ <p class="text-center text-5xl font-black text-gold tabular-nums leading-none mb-4" x-text="'#' + (selectedComanda?.numComanda || '—')"></p>
  <div class="grid grid-cols-3 gap-3 text-sm mb-3">
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Creada</p>
@@ -2036,7 +2051,8 @@ tailwind.config = {
 
  <!-- INFO GENERAL -->
  <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
- <p class="text-[10px] text-[#5a5a7a] uppercase mb-3 font-semibold tracking-wider">Informacion General</p>
+ <p class="text-[10px] text-[#5a5a7a] uppercase mb-1 font-semibold tracking-wider text-center">Número de comanda</p>
+ <p class="text-center text-5xl font-black text-gold tabular-nums leading-none mb-4" x-text="'#' + (editComanda?.numComanda || '—')"></p>
  <div class="grid grid-cols-3 gap-3 text-sm mb-3">
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Creada</p>
@@ -2386,33 +2402,42 @@ tailwind.config = {
  </button>
  </div>
 
- <div class="flex flex-wrap items-end gap-2">
- <div class="flex-1 min-w-[140px]">
+ <div class="mb-3">
  <label class="text-[10px] text-txt-muted mb-1 block">Monto a descontar (S/.)</label>
  <input type="number" x-model.number="descuentoMontoInput" min="0" step="0.01"
  :max="brutoParaDescuento()"
  class="w-full h-9 bg-bg-sidebar border-2 border-[rgba(212,175,55,0.4)] rounded-lg px-3 py-1 text-white text-sm font-bold focus:border-gold focus:outline-none"
  placeholder="0.00">
  </div>
+ <p class="text-[10px] text-txt-muted mb-2">Motivo (opcional). Al pulsar se escribe solo.</p>
+ <div class="grid grid-cols-2 gap-2 mb-3">
+  <template x-for="m in motivosRapidosDescuento" :key="'d-'+m.id">
+   <button type="button" @click="motivoDescuentoInput = m.label"
+    class="flex flex-col items-center justify-center gap-1 p-2 rounded-xl border text-white text-xs font-semibold min-h-[64px] transition"
+    :class="motivoDescuentoInput === m.label ? 'border-gold bg-gold/15' : 'border-[rgba(212,175,55,0.25)] bg-bg-sidebar hover:border-gold'">
+    <span class="text-base" x-text="m.icon"></span>
+    <span x-text="m.label"></span>
+   </button>
+  </template>
+ </div>
+ <div class="flex flex-wrap items-end gap-2">
  <div class="flex-[2] min-w-[180px]">
- <label class="text-[10px] text-txt-muted mb-1 block">Motivo (obligatorio)</label>
+ <label class="text-[10px] text-txt-muted mb-1 block">Motivo</label>
  <input type="text" x-model="motivoDescuentoInput" maxlength="200"
- class="w-full h-9 bg-bg-sidebar border-2 rounded-lg px-3 py-1 text-white text-sm focus:outline-none"
- :class="String(motivoDescuentoInput || '').trim().length >= 2 ? 'border-[rgba(212,175,55,0.4)] focus:border-gold' : 'border-[#e74c3c]/60 focus:border-[#e74c3c]'"
- placeholder="Mínimo 2 caracteres">
+ class="w-full h-9 bg-bg-sidebar border-2 border-[rgba(212,175,55,0.4)] rounded-lg px-3 py-1 text-white text-sm focus:border-gold focus:outline-none"
+ placeholder="Opcional">
  </div>
  <button type="button" @click="aplicarDescuento100Comanda(motivoDescuentoInput)"
- :disabled="!(brutoParaDescuento() > 0) || String(motivoDescuentoInput || '').trim().length < 2"
+ :disabled="!(brutoParaDescuento() > 0)"
  class="h-9 px-4 bg-st-preparado text-white rounded-lg text-sm font-bold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed">
  100%
  </button>
  <button type="button" @click="aplicarDescuentoMontoComanda(descuentoMontoInput, motivoDescuentoInput)"
- :disabled="!(Number(descuentoMontoInput) > 0) || String(motivoDescuentoInput || '').trim().length < 2"
+ :disabled="!(Number(descuentoMontoInput) > 0)"
  class="h-9 px-4 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed">
  Aplicar
  </button>
  </div>
- <p x-show="String(motivoDescuentoInput || '').trim().length < 2" class="mt-1 text-[10px] text-[#e74c3c]">El motivo es obligatorio (mínimo 2 caracteres).</p>
 
  <div class="mt-3 p-3 bg-[rgba(212,175,55,0.05)] border border-gold/20 rounded-lg">
  <div class="grid grid-cols-3 gap-2 text-sm">
@@ -2948,28 +2973,38 @@ tailwind.config = {
  </button>
  </div>
 
- <div class="flex flex-wrap items-end gap-2">
- <div class="flex-1 min-w-[140px]">
+ <div class="mb-3">
  <label class="text-[10px] text-txt-muted mb-1 block">Monto a descontar (S/.)</label>
  <input type="number" x-model.number="descuentoMontoGrupoInput" min="0" step="0.01"
  :max="brutoGrupo()"
  class="w-full h-9 bg-bg-sidebar border-2 border-[rgba(212,175,55,0.4)] rounded-lg px-3 py-1 text-white text-sm font-bold focus:border-gold focus:outline-none"
  placeholder="0.00">
  </div>
+ <p class="text-[10px] text-txt-muted mb-2">Motivo (opcional). Al pulsar se escribe solo.</p>
+ <div class="grid grid-cols-2 gap-2 mb-3">
+  <template x-for="m in motivosRapidosDescuento" :key="'dg-'+m.id">
+   <button type="button" @click="motivoDescuentoGrupoInput = m.label"
+    class="flex flex-col items-center justify-center gap-1 p-2 rounded-xl border text-white text-xs font-semibold min-h-[64px] transition"
+    :class="motivoDescuentoGrupoInput === m.label ? 'border-gold bg-gold/15' : 'border-[rgba(212,175,55,0.25)] bg-bg-sidebar hover:border-gold'">
+    <span class="text-base" x-text="m.icon"></span>
+    <span x-text="m.label"></span>
+   </button>
+  </template>
+ </div>
+ <div class="flex flex-wrap items-end gap-2">
  <div class="flex-[2] min-w-[180px]">
- <label class="text-[10px] text-txt-muted mb-1 block">Motivo (obligatorio)</label>
+ <label class="text-[10px] text-txt-muted mb-1 block">Motivo</label>
  <input type="text" x-model="motivoDescuentoGrupoInput" maxlength="200"
- class="w-full h-9 bg-bg-sidebar border-2 rounded-lg px-3 py-1 text-white text-sm focus:outline-none"
- :class="String(motivoDescuentoGrupoInput || '').trim().length >= 2 ? 'border-[rgba(212,175,55,0.4)] focus:border-gold' : 'border-[#e74c3c]/60 focus:border-[#e74c3c]'"
- placeholder="Mínimo 2 caracteres">
+ class="w-full h-9 bg-bg-sidebar border-2 border-[rgba(212,175,55,0.4)] rounded-lg px-3 py-1 text-white text-sm focus:border-gold focus:outline-none"
+ placeholder="Opcional">
  </div>
  <button type="button" @click="aplicarDescuento100Grupo(motivoDescuentoGrupoInput)"
- :disabled="aplicandoDescuentoGrupo || !(brutoGrupo() > 0) || String(motivoDescuentoGrupoInput || '').trim().length < 2"
+ :disabled="aplicandoDescuentoGrupo || !(brutoGrupo() > 0)"
  class="h-9 px-4 bg-st-preparado text-white rounded-lg text-sm font-bold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed">
  100%
  </button>
  <button type="button" @click="aplicarDescuentoMontoGrupo(descuentoMontoGrupoInput, motivoDescuentoGrupoInput)"
- :disabled="aplicandoDescuentoGrupo || !(Number(descuentoMontoGrupoInput) > 0) || String(motivoDescuentoGrupoInput || '').trim().length < 2"
+ :disabled="aplicandoDescuentoGrupo || !(Number(descuentoMontoGrupoInput) > 0)"
  class="h-9 px-4 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
  <span x-show="!aplicandoDescuentoGrupo">Aplicar</span>
  <span x-show="aplicandoDescuentoGrupo" class="flex items-center gap-1">
@@ -2978,7 +3013,6 @@ tailwind.config = {
  </span>
  </button>
  </div>
- <p x-show="String(motivoDescuentoGrupoInput || '').trim().length < 2" class="mt-1 text-[10px] text-[#e74c3c]">El motivo es obligatorio (mínimo 2 caracteres).</p>
 
  <div class="mt-3 p-3 bg-[rgba(212,175,55,0.05)] border border-gold/20 rounded-lg">
  <div class="grid grid-cols-3 gap-2 text-sm">
@@ -3125,6 +3159,12 @@ function comandasApp() {
   { id: 'equivocacion_mozo', label: 'Equivocación de mozo', icon: '🧑‍🍳' },
   { id: 'error_sistema', label: 'Error sistema', icon: '💻' },
   { id: 'error_entrega', label: 'Error de entrega', icon: '🚚' }
+ ],
+ motivosRapidosDescuento: [
+  { id: 'rp', label: 'RP', icon: '🏷️' },
+  { id: 'sr_juan', label: 'Sr.Juan', icon: '👤' },
+  { id: 'sra_paty', label: 'Sra.Paty', icon: '👤' },
+  { id: 'invitacion', label: 'Invitacion', icon: '🎁' }
  ],
  grupoEliminar: null,
  motivoEliminacionGrupo: '',
@@ -3656,6 +3696,19 @@ formatGrupoComandasLabel(comandas) {
   const nums = [...new Set(
     (comandas || [])
       .map((c) => c.numComanda ?? c.comandaNumber)
+      .filter((n) => n != null && n !== '')
+      .map((n) => Number(n))
+      .filter((n) => !Number.isNaN(n))
+  )].sort((a, b) => a - b);
+  if (nums.length === 0) return '';
+  return nums.map((n) => `#${n}`).join('+');
+},
+
+/** Nº histórico (comandaNumber) de un grupo: #81+#82 */
+formatGrupoHistoricoLabel(comandas) {
+  const nums = [...new Set(
+    (comandas || [])
+      .map((c) => c.numComandaHistorico ?? c.comandaNumber)
       .filter((n) => n != null && n !== '')
       .map((n) => Number(n))
       .filter((n) => !Number.isNaN(n))
@@ -4763,7 +4816,8 @@ this.scheduleRefreshVentasTotales();
 
  const out = {
  _id: raw._id,
- numComanda: raw.comandaNumber || raw.numComanda,
+ numComanda: raw.numeroComandaDia != null ? raw.numeroComandaDia : (raw.comandaNumber || raw.numComanda),
+ numComandaHistorico: raw.comandaNumber != null ? raw.comandaNumber : (raw.numComandaHistorico ?? null),
  mesa: mesaNorm,
  mesaId: mesaId,
  mesaNumero: mesaNorm.nummesa ?? raw.mesaNumero ?? null,
@@ -5740,7 +5794,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const matchMesa = !this.filterMesa || String(mesaNum || '').includes(this.filterMesa);
  const matchEstado = this.matchFilterEstado(c.estado, c);
  const matchElim = this.verEliminadas || !this.comandaEsEliminada(c);
- const comandaNum = c.numComanda || c._id?.slice(-4) || '';
+ const comandaNum = [c.numComanda, c.numComandaHistorico].filter((n) => n != null && n !== '').join(' ');
  const matchIdComanda = !this.filterIdComanda || String(comandaNum).toLowerCase().includes(this.filterIdComanda.toLowerCase());
  const matchMozo = !this.filterMozo || c.mozo === this.filterMozo;
  const clienteNombre = c.clienteNombre || c.cliente?.nombre || '';
@@ -7008,13 +7062,11 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  },
 
  normalizarMotivoDescuento(motivo) {
-  const t = String(motivo || '').trim();
-  return t.length >= 2 ? t : '';
+  return String(motivo || '').trim().slice(0, 200);
  },
 
  async aplicarDescuentoMontoComanda(monto, motivo) {
   const motivoFinal = this.normalizarMotivoDescuento(motivo);
-  if (!motivoFinal) { this.showToast('El motivo del descuento es obligatorio (mínimo 2 caracteres)', 'error'); return; }
   const m = this.clampMontoDescuento(monto, this.brutoParaDescuento());
   if (!(m > 0)) { this.showToast('Ingresa un monto de descuento', 'error'); return; }
   return this.aplicarDescuentoComanda(0, motivoFinal, m);
@@ -7022,7 +7074,6 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  async aplicarDescuento100Comanda(motivo) {
   const motivoFinal = this.normalizarMotivoDescuento(motivo);
-  if (!motivoFinal) { this.showToast('El motivo del descuento es obligatorio (mínimo 2 caracteres)', 'error'); return; }
   const bruto = this.brutoParaDescuento();
   if (!(bruto > 0)) { this.showToast('No hay total para descontar', 'error'); return; }
   return this.aplicarDescuentoComanda(100, motivoFinal, bruto);
@@ -7030,7 +7081,6 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  async aplicarDescuentoMontoGrupo(monto, motivo) {
   const motivoFinal = this.normalizarMotivoDescuento(motivo);
-  if (!motivoFinal) { this.showToast('El motivo del descuento es obligatorio (mínimo 2 caracteres)', 'error'); return; }
   const m = this.clampMontoDescuento(monto, this.brutoGrupo());
   if (!(m > 0)) { this.showToast('Ingresa un monto de descuento', 'error'); return; }
   return this.aplicarDescuentoGrupo(0, motivoFinal, m);
@@ -7038,7 +7088,6 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
 
  async aplicarDescuento100Grupo(motivo) {
   const motivoFinal = this.normalizarMotivoDescuento(motivo);
-  if (!motivoFinal) { this.showToast('El motivo del descuento es obligatorio (mínimo 2 caracteres)', 'error'); return; }
   const bruto = this.brutoGrupo();
   if (!(bruto > 0)) { this.showToast('No hay total para descontar', 'error'); return; }
   return this.aplicarDescuentoGrupo(100, motivoFinal, bruto);
@@ -7142,7 +7191,6 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  let pct = Number(porcentaje) || 0;
  const montoNum = Number(monto) || 0;
  const motivoFinal = this.normalizarMotivoDescuento(motivo);
- if (!motivoFinal) { this.showToast('El motivo del descuento es obligatorio (mínimo 2 caracteres)', 'error'); return; }
  const targets = comandaId
    ? this.editGrupo.comandas.filter(c => String(c._id) === String(comandaId))
    : this.editGrupo.comandas;
@@ -7389,10 +7437,6 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  const montoNum = Number(monto) || 0;
  const subtotal = this.brutoParaDescuento();
  const motivoFinal = this.normalizarMotivoDescuento(motivo);
- if (!motivoFinal) {
- this.showToast('El motivo del descuento es obligatorio (mínimo 2 caracteres)', 'error');
- return;
- }
  if (montoNum > 0 && subtotal > 0) {
  pct = Number((Math.min(montoNum, subtotal) / subtotal * 100).toFixed(2));
  }

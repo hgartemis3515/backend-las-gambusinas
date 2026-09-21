@@ -130,7 +130,7 @@ async function listarComandasPorCobrarMozo(mozoId) {
     omitirPago: { $ne: true },
     status: { $in: ESTADOS_POR_COBRAR },
   })
-    .select('comandaNumber status createdAt observaciones cantidades mesaNumero sinMesa origenReserva omitirPago tiempoPagado totalCalculado totalSinDescuento montoDescuento descuento precioTotal platos procesandoPor procesadoPor mesas pedido cliente clienteNombre origenCreacion createdByDashboard')
+    .select('numeroComandaDia comandaNumber status createdAt observaciones cantidades mesaNumero sinMesa origenReserva omitirPago tiempoPagado totalCalculado totalSinDescuento montoDescuento descuento precioTotal platos procesandoPor procesadoPor mesas pedido cliente clienteNombre origenCreacion createdByDashboard')
     .populate({ path: 'mesas', select: 'nummesa numero nombreCombinado estado', options: { lean: true } })
     .populate({ path: 'platos.plato', select: 'nombre nombreCocina precio', options: { lean: true } })
     .sort({ createdAt: -1, comandaNumber: -1 })
@@ -663,16 +663,52 @@ async function cerrarComandasSiYaEntregadasTrasForzar(ticket) {
   }
 }
 
+function motivoForzarLimpio(motivo) {
+  const t = String(motivo || '').trim().slice(0, 200);
+  return t || null;
+}
+
+async function auditarPagoForzado(ticket, { usuarioId, usuarioNombre, motivo, metodoPago, grupo }) {
+  try {
+    const usuarioObjId = usuarioId && mongoose.Types.ObjectId.isValid(String(usuarioId))
+      ? usuarioId
+      : null;
+    await AuditoriaAcciones.create({
+      accion: 'PAGO_FORZADO_CAJA',
+      entidadId: ticket._id,
+      entidadTipo: 'pago',
+      usuario: usuarioObjId,
+      usuarioNombre: usuarioNombre || null,
+      motivo: motivo || null,
+      metadata: {
+        ticketId: ticket._id,
+        ticketNumber: ticket.ticketNumber,
+        comandas: ticket.comandas,
+        comandasNumbers: ticket.comandasNumbers,
+        numMesa: ticket.numMesa,
+        metodoPago: metodoPago || null,
+        total: ticket.total,
+        grupo: grupo === true,
+        pagoForzado: true,
+      },
+    });
+  } catch (e) {
+    logger.warn('No se pudo auditar pago forzado', { error: e.message });
+  }
+}
+
 /**
  * Caja cobra el ticket de la comanda (boucher + aprobado) sin pasar por Pagos del mozo.
  * Los platos siguen en cocina; el mozo libera la mesa cuando ya entregó.
  */
 async function forzarPagoTicketComanda(ticketId, {
   usuarioId, usuarioNombre, metodoPago = 'efectivo',
-  montoRecibido, vuelto,
+  montoRecibido, vuelto, observacionesBoucher, motivo,
+  grupo = false,
 } = {}) {
   const { ticketPuedeAprobarse } = require('../utils/ticketAltaComanda');
   const { aplicarDescuentoAVistaTicket } = require('../utils/descuentoTicketSnapshot');
+  const motivoFinal = motivoForzarLimpio(motivo);
   const ticket = await ticketAprobacionModel.findById(ticketId);
   if (!ticket || ticket.isActive === false) {
     const err = new Error('Ticket no encontrado');
@@ -696,6 +732,7 @@ async function forzarPagoTicketComanda(ticketId, {
   if (ticket.boucher || ticketPuedeAprobarse(ticket)) {
     ticket.origen = 'forzado';
     ticket.pagoForzado = true;
+    ticket.observaciones = `${ticket.observaciones || ''} [PAGO FORZADO CAJA${motivoFinal ? `: ${motivoFinal}` : ''}]`.trim();
     await ticket.save();
     const result = await ticketAprobacionRepository.aprobarTicket(ticketId, usuarioId, usuarioNombre, {
       pagoForzado: true,
@@ -708,12 +745,16 @@ async function forzarPagoTicketComanda(ticketId, {
       if (mesaDespues?.estado) mesaEstadoServicio = mesaDespues.estado;
     }
     await asignarCocinaTrasForzarPago(ticket);
+    await auditarPagoForzado(ticket, {
+      usuarioId, usuarioNombre, motivo: motivoFinal, metodoPago, grupo,
+    });
     return {
       ...result,
       forzado: true,
       yaTeniaBoucher: true,
       comoPpa: true,
       mesaEstado: mesaEstadoServicio,
+      motivo: motivoFinal,
     };
   }
 
@@ -774,7 +815,8 @@ async function forzarPagoTicketComanda(ticketId, {
     montoRecibido: recibidoFinal,
     vuelto: vueltoFinal,
     esPagoAdelantado: true,
-    observaciones: 'Pago adelantado forzado desde caja (tabla de tickets)',
+    observaciones: observacionesBoucher
+      || `Pago adelantado forzado desde caja (tabla de tickets)${motivoFinal ? `. Motivo: ${motivoFinal}` : ''}`,
   });
 
   ticket.boucher = boucher._id;
@@ -784,7 +826,7 @@ async function forzarPagoTicketComanda(ticketId, {
   ticket.vuelto = vueltoFinal;
   ticket.origen = 'forzado';
   ticket.pagoForzado = true;
-  ticket.observaciones = `${ticket.observaciones || ''} [PAGO FORZADO CAJA]`.trim();
+  ticket.observaciones = `${ticket.observaciones || ''} [PAGO FORZADO CAJA${motivoFinal ? `: ${motivoFinal}` : ''}]`.trim();
   await ticket.save();
 
   await marcarPlatosComoPpaDesdeTicket(ticket, boucher._id);
@@ -806,12 +848,16 @@ async function forzarPagoTicketComanda(ticketId, {
     if (mesaDespues?.estado) mesaEstadoServicio = mesaDespues.estado;
   }
   await asignarCocinaTrasForzarPago(ticket);
+  await auditarPagoForzado(ticket, {
+    usuarioId, usuarioNombre, motivo: motivoFinal, metodoPago: metodo, grupo,
+  });
   return {
     ...result,
     forzado: true,
     boucher,
     comoPpa: true,
     mesaEstado: mesaEstadoServicio,
+    motivo: motivoFinal,
   };
 }
 
@@ -1124,6 +1170,96 @@ async function eliminarTicketUnificado(ticketId, tipoHint, motivo, usuarioId, us
   return { ...result, tipo: 'ADELANTADO' };
 }
 
+/**
+ * Cobra de una vez todas las comandas pendientes de un grupo (mismo pedido).
+ * Un boucher por comanda, mismo método. El vuelto en efectivo queda en la última.
+ */
+async function forzarPagoGrupoTickets(ticketIds, {
+  usuarioId, usuarioNombre, metodoPago = 'efectivo',
+  montoRecibido, motivo,
+} = {}) {
+  const { aplicarDescuentoAVistaTicket } = require('../utils/descuentoTicketSnapshot');
+  const {
+    round2, ticketElegibleForzarPago, repartirEfectivoGrupo,
+  } = require('../utils/forzarPagoGrupo');
+
+  const ids = [...new Set((ticketIds || []).map((id) => String(id || '').trim()))]
+    .filter((id) => mongoose.Types.ObjectId.isValid(id));
+  if (!ids.length) {
+    const err = new Error('El grupo no tiene comandas para cobrar');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const encontrados = await ticketAprobacionModel.find({
+    _id: { $in: ids },
+    isActive: { $ne: false },
+  });
+  const porId = new Map(encontrados.map((t) => [String(t._id), t]));
+  const ordenados = ids.map((id) => porId.get(id)).filter((t) => ticketElegibleForzarPago(t));
+  if (!ordenados.length) {
+    const err = new Error('Ninguna comanda del grupo se puede forzar');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  for (const t of ordenados) {
+    const platos = (t.platos || []).filter((p) => p && !p.eliminado);
+    if (!platos.length) {
+      const err = new Error('Una comanda del grupo no tiene platos para cobrar');
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+
+  const vistas = ordenados.map((t) => {
+    const doc = typeof t.toObject === 'function' ? t.toObject() : t;
+    const neto = round2(Number(aplicarDescuentoAVistaTicket(doc).total) || 0);
+    return { ticket: t, neto };
+  });
+  const totalGrupo = round2(vistas.reduce((s, v) => s + v.neto, 0));
+  const metodo = ['efectivo', 'digital', 'tarjeta'].includes(metodoPago) ? metodoPago : 'efectivo';
+
+  let partes = vistas.map(() => ({ montoRecibido: null, vuelto: null }));
+  if (metodo === 'efectivo') {
+    const recibido = montoRecibido != null && montoRecibido !== ''
+      ? round2(montoRecibido)
+      : totalGrupo;
+    if (recibido + 0.001 < totalGrupo) {
+      const err = new Error('El monto recibido no puede ser menor al total del grupo');
+      err.statusCode = 400;
+      throw err;
+    }
+    partes = repartirEfectivoGrupo(vistas.map((v) => v.neto), recibido);
+  }
+
+  const nota = 'Pago adelantado forzado desde caja (grupo de comandas)';
+  const resultados = [];
+  for (let i = 0; i < vistas.length; i += 1) {
+    const parte = partes[i] || {};
+    const result = await forzarPagoTicketComanda(vistas[i].ticket._id, {
+      usuarioId,
+      usuarioNombre,
+      metodoPago: metodo,
+      montoRecibido: parte.montoRecibido,
+      vuelto: parte.vuelto,
+      observacionesBoucher: motivoForzarLimpio(motivo) ? `${nota}. Motivo: ${motivoForzarLimpio(motivo)}` : nota,
+      motivo,
+      grupo: true,
+    });
+    resultados.push(result);
+  }
+
+  const ultimo = resultados[resultados.length - 1] || {};
+  return {
+    forzado: true,
+    comoPpa: true,
+    totalGrupo,
+    mesaEstado: ultimo.mesaEstado,
+    resultados,
+  };
+}
+
 module.exports = {
   obtenerTicketsUnificadosPendientes,
   totalPendienteCobroMozo,
@@ -1135,6 +1271,7 @@ module.exports = {
   assertComandaParaTicketYaAprobado,
   crearTicketPendienteDesdeComanda,
   forzarPagoTicketComanda,
+  forzarPagoGrupoTickets,
   aprobarTicketUnificado,
   actualizarTicketUnificado,
   eliminarTicketUnificado,

@@ -386,6 +386,16 @@ const comandaSchema = new mongoose.Schema({
     comandaNumber: {
         type: Number
     },
+    /** Número visible: 1…n dentro del día operativo 04:00–04:00 Lima. */
+    numeroComandaDia: {
+        type: Number,
+        default: null
+    },
+    /** YYYY-MM-DD del día operativo al que pertenece numeroComandaDia. */
+    diaOperativo: {
+        type: String,
+        default: null
+    },
     // Timestamps de cambios de estado
     tiempoEnEspera: {
         type: Date,
@@ -741,9 +751,25 @@ comandaSchema.index(
     { name: 'idx_comanda_uso_g_mozo', partialFilterExpression: { eliminada: { $ne: true } } }
 );
 
+comandaSchema.index(
+    { diaOperativo: 1, numeroComandaDia: 1 },
+    { name: 'idx_comanda_numero_dia' }
+);
+
 // ========== FIN ÍNDICES FASE A1 ==========
 
 comandaSchema.plugin(AutoIncrement, { inc_field: 'comandaNumber' });
+
+comandaSchema.pre('save', async function (next) {
+    if (!this.isNew || this.numeroComandaDia != null) return next();
+    try {
+        const { asignarNumeroDiaEnDoc } = require('../utils/numeroComandaDia');
+        await asignarNumeroDiaEnDoc(this);
+        return next();
+    } catch (err) {
+        return next(err);
+    }
+});
 
 comandaSchema.pre('save', async function (next) {
     // Validar que platos y cantidades tengan la misma longitud

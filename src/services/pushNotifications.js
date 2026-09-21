@@ -196,7 +196,7 @@ async function notifyPlatoListo(comanda, platoData) {
   }
 
   const mesaNumero = comanda.mesas?.nummesa ?? comanda.mesas?.numero ?? '?';
-  const comandaNumber = comanda.comandaNumber ?? null;
+  const comandaNumber = comanda.numeroComandaDia ?? comanda.comandaNumber ?? null;
   const nombrePlato =
     platoData.nombre ||
     findNombrePlatoEnComanda(comanda, platoId) ||
@@ -235,7 +235,7 @@ async function notifyComandaLista(comanda) {
 
   const mesaNumero = comanda.mesas?.nummesa || comanda.mesas?.numero || '?';
   const mesaId = comanda.mesas?._id || (comanda.mesas?.toString ? comanda.mesas.toString() : null);
-  const comandaNumber = comanda.comandaNumber || '?';
+  const comandaNumber = comanda.numeroComandaDia ?? comanda.comandaNumber ?? '?';
 
   const mozoIds = getMozoIdsFromComanda(comanda);
   if (mozoIds.length === 0) {

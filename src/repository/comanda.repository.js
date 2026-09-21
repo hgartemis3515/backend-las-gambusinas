@@ -5272,13 +5272,7 @@ const aplicarDescuento = async (comandaId, descuento, motivo, usuarioId, usuario
     const montoDescuento = calc.montoDescuento;
     const igvConDescuento = calc.igv;
 
-    const motivoFinal = (motivo && String(motivo).trim()) ? motivo.trim() : '';
-
-    if (descuentoNum > 0 && motivoFinal.length < 2) {
-      const error = new Error('El motivo del descuento es obligatorio (mínimo 2 caracteres)');
-      error.statusCode = 400;
-      throw error;
-    }
+    const motivoFinal = (motivo && String(motivo).trim()) ? String(motivo).trim().slice(0, 200) : '';
 
     // 8. Guardar valores anteriores para auditoría
     const valoresAnteriores = {

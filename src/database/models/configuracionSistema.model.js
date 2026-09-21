@@ -162,6 +162,8 @@ const CONFIGURACION_DEFAULT = {
         ignorarFondoVistaMozo: false,
         // true (default): oculta el botón ANULAR en las tablas KDS de la app de cocina.
         ocultarAnularEnTablasKds: true,
+        // true (default): Ver Comandas solo abre Vista Supervisor; General y Personalizada quedan ocultas.
+        ocultarTablasKdsMenosSupervisor: true,
         tiemposGuarnicion: {
             umbralAlertaMultiplo: 1.5,
             umbralCriticaMultiplo: 2,
@@ -602,6 +604,10 @@ const configuracionSistemaSchema = new mongoose.Schema({
         ocultarAnularEnTablasKds: {
             type: Boolean,
             default: CONFIGURACION_DEFAULT.cocina.ocultarAnularEnTablasKds
+        },
+        ocultarTablasKdsMenosSupervisor: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.cocina.ocultarTablasKdsMenosSupervisor
         },
         // Umbrales de tiempos por local (no hard-codeados). Si una guarnición supera
         // umbralAlertaSeg × tiempoMedioPreparacion → alerta visual en KDS.

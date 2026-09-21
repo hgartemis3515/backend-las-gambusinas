@@ -3857,7 +3857,7 @@ router.put('/comanda/:id/descuento', async (req, res) => {
             usuario: usuarioId,
             mesaId: resultado.comanda.mesas?._id || resultado.comanda.mesas,
             comandaId: id,
-            motivo: motivo || 'Sin motivo especificado',
+            motivo: (motivo && String(motivo).trim()) ? String(motivo).trim().slice(0, 200) : null,
             descuento: descuento,
             comandaNumber: resultado.comanda.comandaNumber,
             ip: req.ip,
@@ -3889,7 +3889,8 @@ router.put('/comanda/:id/descuento', async (req, res) => {
             montoDescuento: resultado.descuentoAplicado.montoDescuento
         };
 
-        await registrarAuditoria(req, snapshotAntes, snapshotDespues, motivo || 'Descuento aplicado');
+        const motivoAud = (motivo && String(motivo).trim()) ? String(motivo).trim().slice(0, 200) : null;
+        await registrarAuditoria(req, snapshotAntes, snapshotDespues, motivoAud);
 
         // Emitir evento Socket.io
         if (global.emitComandaActualizada) {

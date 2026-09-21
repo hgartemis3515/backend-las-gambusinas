@@ -56,6 +56,7 @@ const pagoAdelantadoRoutes = require('./src/controllers/pagoAdelantadoController
 const aprobacionRoutes = require('./src/controllers/aprobacionController')
 // VISTA COCINA: Controller para Vistas de Cocina y Pantallas de cocina (monitores pasivos TV)
 const vistaCocinaRoutes = require('./src/controllers/vistaCocinaController')
+const sosCocinerasRoutes = require('./src/controllers/sosCocinerasController')
 // ASIGNACIÓN AUTOMÁTICA DE PLATOS: Controller para config global + reglas
 const asignacionAutomaticaRoutes = require('./src/controllers/asignacionAutomaticaController')
 const asignacionAutomaticaGuarnicionesRoutes = require('./src/controllers/asignacionAutomaticaGuarnicionesController')
@@ -281,6 +282,7 @@ app.use('/api', tiposPlatoRoutes);
 app.use('/api', pagoAdelantadoRoutes);
 app.use('/api', aprobacionRoutes);
 app.use('/api', vistaCocinaRoutes);
+app.use('/api', sosCocinerasRoutes);
 app.use('/api', asignacionAutomaticaRoutes);
 app.use('/api', asignacionAutomaticaGuarnicionesRoutes);
 
@@ -653,7 +655,16 @@ app.get('/metrics', async (req, res) => {
 });
 
 // No abrir HTTP hasta que MongoDB responda (evita API “media viva” sin BD)
-whenConnected.then(() => {
+whenConnected.then(async () => {
+try {
+  const { backfillNumeroComandaDia } = require('./src/utils/numeroComandaDia');
+  const numeracion = await backfillNumeroComandaDia();
+  if (numeracion?.asignadas) {
+    logger.info('Numeración diaria de comandas asignada', numeracion);
+  }
+} catch (error) {
+  logger.error('Error al numerar comandas del día', { error: error.message });
+}
 // Escuchar en todas las interfaces de red (0.0.0.0) para permitir conexiones desde otros dispositivos
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
