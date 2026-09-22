@@ -391,6 +391,12 @@ const comandaSchema = new mongoose.Schema({
         type: Number,
         default: null
     },
+    /** Revisiones de ticket (baja de plato / descuento). 0 = sin letra. */
+    revisionTicket: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
     /** YYYY-MM-DD del día operativo al que pertenece numeroComandaDia. */
     diaOperativo: {
         type: String,

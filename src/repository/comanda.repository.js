@@ -14,6 +14,7 @@ const mongoose = require('mongoose');
 
 // FASE 5: Redis Cache para comandas activas
 const redisCache = require('../utils/redisCache');
+const { bumpRevisionTicketOnDoc } = require('../utils/revisionTicket');
 const calculosPrecios = require('../utils/calculosPrecios');
 const { calcularTotalesConDescuento, comandaTieneDescuento } = require('../utils/descuentoComanda');
 const {
@@ -1904,6 +1905,9 @@ const editarConAuditoria = async (comandaId, platosNuevos, platosEliminados, usu
       }
       
       console.log(`✅ ${platosInfoEliminados.length} plato(s) eliminado(s) completamente de comanda ${comanda.comandaNumber}`);
+      if (indicesAEliminar.length > 0) {
+        bumpRevisionTicketOnDoc(comanda);
+      }
       console.log(`📊 Platos antes: ${platosAntes}, después: ${comanda.platos.length}`);
       console.log(`📊 Cantidades antes: ${cantidadesAntes}, después: ${comanda.cantidades.length}`);
       
@@ -4939,6 +4943,7 @@ const anularPlato = async (comandaId, platoIndex, motivo, observaciones, usuario
 
     // Incrementar versión
     comanda.version = (comanda.version || 1) + 1;
+    bumpRevisionTicketOnDoc(comanda);
     await comanda.save();
 
     try {
@@ -5277,6 +5282,7 @@ const aplicarDescuento = async (comandaId, descuento, motivo, usuarioId, usuario
     // 8. Guardar valores anteriores para auditoría
     const valoresAnteriores = {
       descuento: comanda.descuento || 0,
+      descuentoMontoFijo: comanda.descuentoMontoFijo || 0,
       motivoDescuento: comanda.motivoDescuento,
       totalCalculado: comanda.totalCalculado != null ? comanda.totalCalculado : totalSinDescuento,
       precioTotal: comanda.precioTotal || subtotalActual
@@ -5294,6 +5300,11 @@ const aplicarDescuento = async (comandaId, descuento, motivo, usuarioId, usuario
     comanda.precioTotal = calc.precioTotal;
     comanda.version = (comanda.version || 1) + 1;
     comanda.updatedAt = moment.tz("America/Lima").toDate();
+
+    if (Number(valoresAnteriores.descuento) !== descuentoNum
+      || Number(valoresAnteriores.descuentoMontoFijo) !== Number(calc.descuentoMontoFijo || 0)) {
+      bumpRevisionTicketOnDoc(comanda);
+    }
 
     await comanda.save();
 

@@ -18,6 +18,7 @@ const { NOMBRE_CLIENTE_FALLBACK } = require('../constants/clienteDefaults');
 const {
   resolverComandasNumbers,
   formatComandasNumbersLabel,
+  formatLetreroDesdeNumeros,
 } = require('../utils/comandasNumbers');
 const { filtroTicketsVinculadosAComanda, parseTicketNumber } = require('../utils/filtroTicketsDeComanda');
 const configuracionRepository = require('./configuracion.repository');
@@ -219,7 +220,7 @@ async function obtenerTicketPorId(ticketId) {
   }
   return ticketAprobacionModel
     .findById(ticketId)
-    .populate('comandas', 'comandaNumber status platos mesas mozos descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado')
+    .populate('comandas', 'comandaNumber numeroComandaDia revisionTicket status platos mesas mozos descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado')
     .populate({ path: 'mesa', select: 'nummesa estado nombreCombinado area', populate: { path: 'area', select: 'nombre' } })
     .populate('mozo', 'name colorPerfil colorLetraPerfil')
     .populate('boucher')
@@ -739,7 +740,9 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
     comandasNumbers: ticket.comandasNumbers,
     platos: ticket.platos,
   });
-  const comandaNumeroDisplay = formatComandasNumbersLabel(comandasNumbers)
+  const letreroGrupo = formatLetreroDesdeNumeros(comandasNumbers, ticket.comandas);
+  const comandaNumeroDisplay = letreroGrupo
+    || formatComandasNumbersLabel(comandasNumbers)
     || (ticket.comandasNumbers?.[0] != null ? `#${ticket.comandasNumbers[0]}` : '');
 
   let igvSnap = { igvPorcentaje: 18, nombreImpuesto: 'IGV' };

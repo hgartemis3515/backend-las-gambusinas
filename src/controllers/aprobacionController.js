@@ -26,6 +26,7 @@ const logger = require('../utils/logger');
 const {
   resolverComandasNumbers,
   formatComandasNumbersLabel,
+  formatLetreroDesdeNumeros,
 } = require('../utils/comandasNumbers');
 const { resolverTotalesPedidoPPA } = require('../utils/totalesTicketPPA');
 const { totalesConDescuentoImpresion } = require('../utils/descuentoTicketSnapshot');
@@ -1048,7 +1049,8 @@ router.get('/comanda/:id/ticket-imprimible', async (req, res) => {
       }
     }
 
-    const comandaNumeroDisplay = formatComandasNumbersLabel(comandasNumbers)
+    const comandaNumeroDisplay = formatLetreroDesdeNumeros(comandasNumbers, [comanda])
+      || formatComandasNumbersLabel(comandasNumbers)
       || (comanda.comandaNumber != null ? `#${comanda.comandaNumber}` : '');
 
     const config = await configuracionRepository.obtenerConfiguracion();
