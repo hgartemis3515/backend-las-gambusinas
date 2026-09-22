@@ -309,7 +309,7 @@ tailwind.config = {
  <table class="comandas-table w-full">
  <thead>
  <tr class="bg-bg-sidebar border-b-2 border-gold/30">
- <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider whitespace-nowrap">ID/Grupo</th>
+ <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider whitespace-nowrap w-36">ID/Grupo</th>
  <th x-show="verIdHistorico" class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider whitespace-nowrap">Nº histórico</th>
  <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Mesa</th>
  <th class="text-center px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Contador G</th>
@@ -329,26 +329,26 @@ tailwind.config = {
  :class="claseColorFilaComanda(row)">
  
  <!-- ID / Grupo -->
- <td class="px-3 py-2.5">
+ <td class="px-3 py-2.5 align-top w-36 max-w-[9rem]">
  <template x-if="row.tipo === 'grupo'">
- <button @click.stop="toggleExpandGrupo(row.id)" class="flex items-center gap-1.5 w-full min-w-0">
- <span class="text-gold font-bold text-sm shrink-0" x-text="expandedGroups.includes(row.id) ? '▼' : '▶'"></span>
- <span class="text-gold font-bold text-sm truncate" x-text="'GRUPO ' + (formatGrupoComandasLabel(row.comandas) || row.clienteNombre || formatearNombreMesa(row.mesaNum, row.mesaObj))"></span>
- <span x-show="esGrupoReserva(row)"
-  class="inline-flex flex-col items-center justify-center leading-tight text-[#e879f9] whitespace-nowrap shrink-0"
-  :title="'Inicio en cocina: ' + (horaInicioCocinaReserva(comandaReservaDeFila(row)) || '—')">
-  <span class="text-[9px] font-extrabold tracking-wide">Reserva</span>
-  <span class="text-[8px] font-bold tracking-wide" x-show="sufijoPagoReserva(comandaReservaDeFila(row))" x-text="sufijoPagoReserva(comandaReservaDeFila(row))"></span>
- </span>
- <span x-show="filaMuestraParaLlevar(row)"
-  class="inline-flex flex-col items-center justify-center leading-tight text-[#f87171] whitespace-nowrap shrink-0"
-  title="PARA LLEVAR">
-  <span class="text-[9px] font-extrabold tracking-wide">🥡 PARA LLEVAR</span>
- </span>
- <span x-show="filaMuestraExtraLlevar(row)"
-  class="inline-flex flex-col items-center justify-center leading-tight text-[#c4b5fd] whitespace-nowrap shrink-0"
-  title="EXTRA LLEVAR">
-  <span class="text-[9px] font-extrabold tracking-wide">EXTRA LLEVAR</span>
+ <button @click.stop="toggleExpandGrupo(row.id)" class="flex items-start gap-1.5 w-36 max-w-[9rem] text-left">
+ <span class="text-gold font-bold text-sm shrink-0 leading-tight" x-text="expandedGroups.includes(row.id) ? '▼' : '▶'"></span>
+ <span class="min-w-0 flex flex-col gap-0.5">
+  <span class="text-gold font-bold text-sm leading-snug break-words">
+   <span>GRUPO</span>
+   <template x-for="n in numerosDiaGrupo(row.comandas)" :key="'g' + row.id + '-' + n">
+    <span class="inline-block mr-1" x-text="'#' + n"></span>
+   </template>
+   <span x-show="numerosDiaGrupo(row.comandas).length === 0" class="inline-block ml-1" x-text="row.clienteNombre || formatearNombreMesa(row.mesaNum, row.mesaObj)"></span>
+  </span>
+  <span x-show="esGrupoReserva(row)"
+   class="inline-flex flex-col items-start leading-tight text-[#e879f9]"
+   :title="'Inicio en cocina: ' + (horaInicioCocinaReserva(comandaReservaDeFila(row)) || '—')">
+   <span class="text-[9px] font-extrabold tracking-wide">Reserva</span>
+   <span class="text-[8px] font-bold tracking-wide" x-show="sufijoPagoReserva(comandaReservaDeFila(row))" x-text="sufijoPagoReserva(comandaReservaDeFila(row))"></span>
+  </span>
+  <span x-show="filaMuestraParaLlevar(row)" class="text-[9px] font-extrabold tracking-wide text-[#f87171] leading-tight" title="PARA LLEVAR">🥡 PARA LLEVAR</span>
+  <span x-show="filaMuestraExtraLlevar(row)" class="text-[9px] font-extrabold tracking-wide text-[#c4b5fd] leading-tight" title="EXTRA LLEVAR">EXTRA LLEVAR</span>
  </span>
  </button>
  </template>
@@ -3699,15 +3699,20 @@ normalizeObjectId(val) {
   return /^[a-f0-9]{24}$/i.test(s) ? s : (s || null);
 },
 
-/** Etiqueta agrupada de comandas: #81+#82 */
-formatGrupoComandasLabel(comandas) {
-  const nums = [...new Set(
+/** Números del día (1…n, se reinicia cada día operativo). */
+numerosDiaGrupo(comandas) {
+  return [...new Set(
     (comandas || [])
-      .map((c) => c.numComanda ?? c.comandaNumber)
+      .map((c) => (c.numeroComandaDia != null ? c.numeroComandaDia : c.numComanda))
       .filter((n) => n != null && n !== '')
       .map((n) => Number(n))
       .filter((n) => !Number.isNaN(n))
   )].sort((a, b) => a - b);
+},
+
+/** Etiqueta agrupada de comandas: #81+#82 */
+formatGrupoComandasLabel(comandas) {
+  const nums = this.numerosDiaGrupo(comandas);
   if (nums.length === 0) return '';
   return nums.map((n) => `#${n}`).join('+');
 },
@@ -4824,6 +4829,7 @@ this.scheduleRefreshVentasTotales();
 
  const out = {
  _id: raw._id,
+ numeroComandaDia: raw.numeroComandaDia != null ? raw.numeroComandaDia : null,
  numComanda: raw.numeroComandaDia != null ? raw.numeroComandaDia : (raw.comandaNumber || raw.numComanda),
  numComandaHistorico: raw.comandaNumber != null ? raw.comandaNumber : (raw.numComandaHistorico ?? null),
  mesa: mesaNorm,

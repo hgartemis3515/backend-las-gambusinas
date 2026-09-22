@@ -584,6 +584,8 @@ const listarComanda = async (incluirEliminadas = false, usarProyeccion = true, i
       dbQuery = dbQuery.select({
         _id: 1,
         comandaNumber: 1,
+        numeroComandaDia: 1,
+        diaOperativo: 1,
         status: 1,
         precioTotal: 1,
         precioTotalOriginal: 1,
