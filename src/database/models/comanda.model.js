@@ -769,7 +769,7 @@ comandaSchema.plugin(AutoIncrement, { inc_field: 'comandaNumber' });
 comandaSchema.pre('save', async function (next) {
     if (!this.isNew || this.numeroComandaDia != null) return next();
     try {
-        const { asignarNumeroDiaEnDoc } = require('../utils/numeroComandaDia');
+        const { asignarNumeroDiaEnDoc } = require('../../utils/numeroComandaDia');
         await asignarNumeroDiaEnDoc(this);
         return next();
     } catch (err) {
