@@ -76,6 +76,7 @@ const normalizarTipoPedido = (valor) => {
 const PROYECCION_COCINA = {
     _id: 1,
     comandaNumber: 1,
+    numeroComandaDia: 1,
     status: 1,
     prioridadOrden: 1,
     createdAt: 1,
