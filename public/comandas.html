@@ -180,6 +180,13 @@ tailwind.config = {
  <!-- Filtro ID Comanda -->
  <input type="text" x-model="filterIdComanda" @input="filterComandas()" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-28 placeholder-txt-muted" placeholder="# Comanda">
 
+ <label class="flex items-center gap-2 px-3 py-2 border rounded-lg text-xs font-medium cursor-pointer select-none"
+  :class="verIdHistorico ? 'bg-gold/20 border-gold text-gold' : 'bg-bg-sidebar border-txt-muted/30 text-txt-secondary'"
+  title="Muestra la columna Nº histórico en la tabla">
+  <input type="checkbox" class="accent-[#D4AF37]" x-model="verIdHistorico">
+  <span>Ver ID histórico</span>
+ </label>
+
  <!-- Ver ticket duplicado / huérfano por número (tabla cocina) -->
  <form @submit.prevent="buscarTicketPorNumero()" class="flex items-center gap-1">
   <input type="text" x-model="buscarTicketNumero" inputmode="numeric" class="bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm w-24 placeholder-txt-muted" placeholder="# Ticket">
@@ -303,7 +310,7 @@ tailwind.config = {
  <thead>
  <tr class="bg-bg-sidebar border-b-2 border-gold/30">
  <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider whitespace-nowrap">ID/Grupo</th>
- <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider whitespace-nowrap">Nº histórico</th>
+ <th x-show="verIdHistorico" class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider whitespace-nowrap">Nº histórico</th>
  <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Mesa</th>
  <th class="text-center px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Contador G</th>
  <th class="text-left px-3 py-3 text-[10px] uppercase font-semibold text-txt-muted tracking-wider w-24">Mozo</th>
@@ -371,7 +378,7 @@ tailwind.config = {
  </td>
  
  <!-- Nº histórico (comandaNumber, no se reinicia) -->
- <td class="px-3 py-2.5 text-sm font-mono text-txt-muted whitespace-nowrap">
+ <td x-show="verIdHistorico" class="px-3 py-2.5 text-sm font-mono text-txt-muted whitespace-nowrap">
  <template x-if="row.tipo === 'grupo'">
  <span x-text="formatGrupoHistoricoLabel(row.comandas) || '—'"></span>
  </template>
@@ -523,7 +530,7 @@ tailwind.config = {
  </span>
  </div>
  </td>
- <td class="px-3 py-2 text-xs font-mono text-txt-muted whitespace-nowrap">
+ <td x-show="verIdHistorico" class="px-3 py-2 text-xs font-mono text-txt-muted whitespace-nowrap">
  <span x-text="comanda.numComandaHistorico != null ? ('#' + comanda.numComandaHistorico) : '—'"></span>
  </td>
  <!-- Mesa -->
@@ -3177,6 +3184,7 @@ function comandasApp() {
  filterCliente: '',
  filterSoloDescuentos: false,
  filterSoloCambioG: false,
+ verIdHistorico: false,
  verEliminadas: false,
  filtroPeriodo: 'hoy',
  customFechaDesde: '',
