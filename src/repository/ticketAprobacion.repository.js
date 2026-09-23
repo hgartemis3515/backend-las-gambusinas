@@ -783,6 +783,7 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
     tipoPago: labelMetodoPagoTicket(ticket.metodoPago)
       || boucherData?.metodoPagoLabel
       || (ticket.estado === 'pendiente_aprobacion' ? 'Pendiente' : (ticket.metodoPago || 'Pendiente')),
+    pagoForzado: ticket.pagoForzado === true || ticket.origen === 'forzado',
     observaciones: ticket.observaciones || '',
     productos,
     subtotal: subFinal,
