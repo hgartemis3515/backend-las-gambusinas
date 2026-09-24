@@ -52,3 +52,38 @@ describe('separarCantidadLineaPlato', () => {
     expect(comanda.platos).toHaveLength(1);
   });
 });
+
+describe('aplicarCobroParcialCantidad', () => {
+  const { aplicarCobroParcialCantidad } = require('../src/utils/separarCantidadLineaPlato');
+
+  test('cobrar 1 de 2 deja las dos unidades en la venta', () => {
+    const comanda = {
+      platos: [{ _id: 'lena', estado: 'entregado', precioUnitario: 33, nombre: 'Leña' }],
+      cantidades: [2],
+    };
+    const r = aplicarCobroParcialCantidad(comanda, 0, 1, 'pendiente', new Date('2026-09-23T20:00:00Z'));
+    expect(r.didSplit).toBe(true);
+    expect(r.lineaViejaId).toBe('lena');
+    expect(r.lineaNuevaId).toBeTruthy();
+    expect(comanda.cantidades).toEqual([1, 1]);
+    expect(comanda.platos[0].estado).toBe('entregado');
+    expect(comanda.platos[0].cantidad).toBe(1);
+    expect(comanda.platos[1].estado).toBe('pendiente');
+    expect(comanda.platos[1].cantidad).toBe(1);
+    expect(comanda.platos[1].precioUnitario).toBe(33);
+    const total = comanda.cantidades.reduce((s, c, i) => s + c * comanda.platos[i].precioUnitario, 0);
+    expect(total).toBe(66);
+  });
+
+  test('cobrar la línea completa no parte y no baja la cantidad', () => {
+    const comanda = {
+      platos: [{ _id: 'lena', estado: 'entregado', precioUnitario: 33 }],
+      cantidades: [2],
+    };
+    const r = aplicarCobroParcialCantidad(comanda, 0, 2, 'pendiente');
+    expect(r.didSplit).toBe(false);
+    expect(comanda.platos).toHaveLength(1);
+    expect(comanda.cantidades).toEqual([2]);
+    expect(comanda.platos[0].estado).toBe('pendiente');
+  });
+});
