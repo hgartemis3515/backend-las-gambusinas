@@ -39,13 +39,17 @@ function cantidadDeLinea(comanda, p, index) {
   return 1;
 }
 
-/** Saldo pendiente (0..n) de una comanda populada; null si no se puede calcular. */
-function pendienteCobroDeComandaPopulada(comanda) {
+/** Saldo pendiente (0..n) de una comanda populada; null si no se puede calcular.
+ * PPA PARCIAL v2: modo 'ppa' suma como pendientes los platos cobrables sin
+ * cobrar vía PPA (pedido/en_espera/recoger/salio/entregado SIN pagoAdelantado
+ * cobrado ni ticket PPA pendiente/aprobado). Modo default: solo 'entregado'. */
+function pendienteCobroDeComandaPopulada(comanda, { modo = 'entregado' } = {}) {
   if (!comanda || typeof comanda !== 'object') return null;
   const platos = Array.isArray(comanda.platos) ? comanda.platos : [];
   if (!platos.length) return 0;
 
-  let subPagable = 0; // platos entregados sin cobrar
+  const esPpa = modo === 'ppa';
+  let subPagable = 0; // platos cobrables sin cobrar
   let subTotal = 0; // bruto de todos los platos activos
   for (let i = 0; i < platos.length; i++) {
     const p = platos[i];
@@ -54,7 +58,17 @@ function pendienteCobroDeComandaPopulada(comanda) {
     if (precio == null) return null; // sin precio no hay número confiable
     const cant = cantidadDeLinea(comanda, p, i);
     subTotal += precio * cant;
-    if (String(p.estado || '').toLowerCase() === 'entregado') {
+    if (esPpa) {
+      const estado = String(p.estado || '').toLowerCase();
+      const cobradoPpa = p.pagoAdelantado?.cobrado === true;
+      const ticketPpaActivo = ['pendiente_aprobacion', 'aprobado']
+        .includes(String(p.pagoAdelantado?.estadoTicket || '').toLowerCase());
+      const cobrableSinCobrar = ['pedido', 'en_espera', 'recoger', 'salio', 'entregado']
+        .includes(estado) && !cobradoPpa && !ticketPpaActivo;
+      if (cobrableSinCobrar) {
+        subPagable += precio * cant;
+      }
+    } else if (String(p.estado || '').toLowerCase() === 'entregado') {
       subPagable += precio * cant;
     }
   }
@@ -73,13 +87,14 @@ function pendienteCobroDeComandaPopulada(comanda) {
   return subPagable;
 }
 
-/** Adjunta `pendienteCobro` a cada comanda populada de cada ticket (muta copia). */
-function adjuntarPendienteCobroTickets(tickets) {
+/** Adjunta `pendienteCobro` a cada comanda populada de cada ticket (muta copia).
+ * modo='ppa': pendiente incluye platos aún sin cobrar vía PPA (pedido/en_espera...). */
+function adjuntarPendienteCobroTickets(tickets, { modo = 'entregado' } = {}) {
   for (const t of tickets || []) {
     if (!t || !Array.isArray(t.comandas)) continue;
     t.comandas = t.comandas.map((c) => {
       if (!c || typeof c !== 'object') return c;
-      const pendiente = pendienteCobroDeComandaPopulada(c);
+      const pendiente = pendienteCobroDeComandaPopulada(c, { modo });
       if (pendiente == null) return c;
       return { ...c, pendienteCobro: pendiente };
     });
@@ -88,7 +103,7 @@ function adjuntarPendienteCobroTickets(tickets) {
 }
 
 /** Suma de pendientes de las comandas populadas de un ticket (0 si ninguna). */
-function saldoPendienteDeTicket(ticket) {
+function saldoPendienteDeTicket(ticket, { modo = 'entregado' } = {}) {
   const cmds = Array.isArray(ticket?.comandas) ? ticket.comandas : [];
   let sum = 0;
   let ok = false;

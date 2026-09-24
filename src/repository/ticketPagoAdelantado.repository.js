@@ -172,6 +172,10 @@ async function obtenerTicketsPendientes(fecha) {
     filter.createdAt = { $gte: inicioDia, $lte: finDia };
   }
 
+  const ticketsCrudos = await ticketPagoAdelantadoModel.find(filter).select('comandas').lean();
+  const { reconciliarComandasPpaParcial } = require('../utils/reconciliarPpaParcial');
+  await reconciliarComandasPpaParcial(ticketsCrudos.flatMap((t) => t.comandas || []));
+
   const tickets = await ticketPagoAdelantadoModel.find(filter)
     .populate('mesa', 'nummesa estado nombreCombinado')
     .populate('mozo', 'name colorPerfil colorLetraPerfil')
@@ -180,7 +184,10 @@ async function obtenerTicketsPendientes(fecha) {
     .sort({ createdAt: 1 })
     .lean();
 
-  return tickets.map(mapTicketPPAVista);
+  // PPA PARCIAL: adjuntar saldo pendiente por cobrar de cada comanda vinculada
+  // (modo 'ppa': cuenta platos sin cobrar aunque estén en pedido/en_espera)
+  const { adjuntarPendienteCobroTickets } = require('../utils/saldoPendienteComanda');
+  return adjuntarPendienteCobroTickets(tickets.map(mapTicketPPAVista), { modo: 'ppa' });
 }
 
 /**
@@ -191,10 +198,15 @@ async function obtenerTicketsPorFecha(fecha, fechaHasta) {
   const inicioDia = moment.tz(fecha, zona).startOf('day').toDate();
   const finDia = moment.tz(fechaHasta || fecha, zona).endOf('day').toDate();
 
-  const tickets = await ticketPagoAdelantadoModel.find({
+  const filtroFecha = {
     createdAt: { $gte: inicioDia, $lte: finDia },
     isActive: true,
-  })
+  };
+  const ticketsCrudos = await ticketPagoAdelantadoModel.find(filtroFecha).select('comandas').lean();
+  const { reconciliarComandasPpaParcial } = require('../utils/reconciliarPpaParcial');
+  await reconciliarComandasPpaParcial(ticketsCrudos.flatMap((t) => t.comandas || []));
+
+  const tickets = await ticketPagoAdelantadoModel.find(filtroFecha)
     .populate('mesa', 'nummesa estado nombreCombinado')
     .populate('mozo', 'name colorPerfil colorLetraPerfil')
     .populate('comandas', `${COMANDA_TICKET_LIST_SELECT} eliminada fechaEliminacion`)
@@ -202,7 +214,10 @@ async function obtenerTicketsPorFecha(fecha, fechaHasta) {
     .sort({ createdAt: -1 })
     .lean();
 
-  return tickets.map(mapTicketPPAVista);
+  // PPA PARCIAL: adjuntar saldo pendiente por cobrar de cada comanda vinculada
+  // (modo 'ppa': cuenta platos sin cobrar aunque estén en pedido/en_espera)
+  const { adjuntarPendienteCobroTickets } = require('../utils/saldoPendienteComanda');
+  return adjuntarPendienteCobroTickets(tickets.map(mapTicketPPAVista), { modo: 'ppa' });
 }
 
 /**

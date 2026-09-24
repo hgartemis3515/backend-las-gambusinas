@@ -3655,6 +3655,17 @@ const getComandasCicloParaPagos = async (mesaId, comandaIdsOpcional = null) => {
  * Comandas activas de una mesa acotadas al ciclo de servicio actual.
  */
 const getComandasActivasPorMesa = async (mesaId) => {
+  try {
+    const { reconciliarComandasPpaParcial } = require('../utils/reconciliarPpaParcial');
+    const abiertas = await comandaModel.find({
+      mesas: mesaId,
+      IsActive: true,
+      status: { $nin: ['pagado', 'completado', 'cancelado', 'anulado'] },
+    }).select('_id').lean();
+    await reconciliarComandasPpaParcial(abiertas.map((c) => c._id));
+  } catch (err) {
+    logger.warn('[PPA parcial] reconcile al abrir mesa', { mesaId: String(mesaId), error: err.message });
+  }
   const ciclo = await obtenerCicloServicioMesa(mesaId);
   let comandas = [];
   if (ciclo.pedidoId || ciclo.comandaIds?.length) {
