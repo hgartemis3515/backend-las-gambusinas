@@ -3769,6 +3769,61 @@ const getComandasParaPagar = async (mesaId, comandaIds = null) => {
 };
 
 /**
+ * BUG_PAGO_PARCIAL_DOBLE_ENVIO (Jose Gambu #2087): detecta líneas de plato que
+ * ya fueron enviadas a cobro en un ticket pago_parcial PENDIENTE de aprobación
+ * (estado 'pendiente_aprobacion') de las mismas comandas. Mientras cocina no
+ * apruebe/rechace ese envío, las mismas líneas no se pueden volver a cobrar —
+ * así un doble tap o reenvío del app no crea 2 bouchers del mismo cobro.
+ *
+ * Los tickets ya APROBADOS no bloquean: cantidades[] ya fue decrementada al
+ * cobrar, así que un cobro sucesivo legítimo (ej. pollo 2 de 5) sigue válido.
+ *
+ * Nota PPA: los platos con pagoAdelantado ya se bloquean aparte; este guard cubre
+ * el pago normal parcial (POST /boucher).
+ */
+const bloquearSeleccionesYaCobradas = async (platosSeleccionados, comandasIds) => {
+  try {
+    const ticketModel = require('../database/models/ticketAprobacion.model');
+    const tickets = await ticketModel.find({
+      comandas: { $in: comandasIds },
+      tipo: 'pago_parcial',
+      estado: 'pendiente_aprobacion',
+      isActive: { $ne: false },
+    })
+      .select('platos createdAt')
+      .lean();
+    if (!tickets.length) return;
+
+    // platoLineaId → cantidad pendiente de aprobación (ticket más nuevo gana)
+    const pendientePorLinea = new Map();
+    for (const t of tickets) {
+      for (const p of t.platos || []) {
+        if (!p || p.eliminado || p.anulado) continue;
+        const id = String(p.platoLineaId || p.platoSubdocId || '');
+        if (!id) continue;
+        pendientePorLinea.set(id, Math.max(pendientePorLinea.get(id) || 0, Number(p.cantidad) || 1));
+      }
+    }
+
+    for (const sel of platosSeleccionados || []) {
+      const id = String(sel.platoSubdocId || sel.platoLineaId || '');
+      if (!id) continue;
+      const enPendiente = pendientePorLinea.get(id);
+      if (!enPendiente) continue;
+      const err = new Error(
+        'Estas líneas ya fueron enviadas a cobro en un pago parcial pendiente. Espera la aprobación de cocina o consulta al supervisor antes de volver a cobrarlas.'
+      );
+      err.statusCode = 409;
+      throw err;
+    }
+  } catch (err) {
+    if (err.statusCode === 409) throw err;
+    // Fallar suave: no bloquear el pago por un error del guard
+    console.warn('⚠️ [pago parcial] guard anti-duplicado no pudo validar:', err.message);
+  }
+};
+
+/**
  * Valida que las comandas pertenecen a la mesa, no están pagadas, y que TODOS sus platos no eliminados están en estado 'entregado'.
  * @param {string} mesaId - ID de la mesa
  * @param {Array<string>} comandasIds - Array de IDs de comandas a validar
@@ -3814,6 +3869,13 @@ const validarPlatosSeleccionadosParaPago = async (mesaId, platosSeleccionados, e
   const comandaMap = new Map(comandas.map((c) => [c._id.toString(), c]));
   const platosParaBoucher = [];
   const selecciones = [];
+
+  // BUG_PAGO_PARCIAL_DOBLE_ENVIO (Jose Gambu #2087):
+  // El pago parcial decrementa cantidades[] pero el plato sigue 'entregado',
+  // así que un segundo envío idéntico (doble tap / retry del app) era válido y
+  // creaba 2 bouchers + 2 tickets del mismo cobro. Bloquear líneas que ya están
+  // en un ticket pago_parcial activo (pendiente o aprobado) del mismo pedido.
+  await bloquearSeleccionesYaCobradas(platosSeleccionados, comandasIds);
 
   // Para pago adelantado, permitir platos en estado pedido/en_espera además de entregado
   const estadosPlatoValidos = esPagoAdelantado

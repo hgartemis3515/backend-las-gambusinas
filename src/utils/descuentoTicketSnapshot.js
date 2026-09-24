@@ -5,8 +5,10 @@
 
 const BOUCHER_DESCUENTO_SELECT = 'montoDescuento descuentos totalSinDescuento totalConDescuento';
 const COMANDA_DESCUENTO_SELECT = 'comandaNumber numeroComandaDia revisionTicket status descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado';
-/** Listados de tickets: status de comanda + estados vivos de plato (entrega mozos). */
-const COMANDA_TICKET_LIST_SELECT = `${COMANDA_DESCUENTO_SELECT} sinMesa mesaNumero mesas platos.estado platos.eliminado platos.anulado platos.tipoServicio platos.paraLlevar`;
+/** Listados de tickets: status de comanda + estados vivos de plato (entrega mozos).
+ * Incluye precio/cantidad de plato y cantidades[] para calcular el saldo pendiente
+ * por cobrar de cada comanda (pago parcial) ver saldoPendienteComanda.js. */
+const COMANDA_TICKET_LIST_SELECT = `${COMANDA_DESCUENTO_SELECT} sinMesa mesaNumero mesas cantidades platos.estado platos.eliminado platos.anulado platos.tipoServicio platos.paraLlevar platos.precioUnitario platos.precio platos.cantidad`;
 
 function snapshotDesdeComandas(ticket) {
   const comandas = Array.isArray(ticket?.comandas) ? ticket.comandas : [];
