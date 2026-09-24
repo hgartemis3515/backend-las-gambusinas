@@ -311,6 +311,8 @@ async function procesarPagoBoucher(params) {
     abonoReserva = 0,
     reservaOrigenId = null,
     montoCobro = null,
+    usuario = null,
+    cobroDirectoCaja = false,
   } = params;
   const configMoneda = await configuracionRepository.obtenerConfiguracionMoneda();
   const cobroPorCantidadOn = configMoneda.cobroPorCantidad !== false;
@@ -549,6 +551,8 @@ async function procesarPagoBoucher(params) {
   // Los platos quedan en su estado actual y se crea un TPA por separado.
   // El TPA se encarga de la transición de estados (pedido → en_espera) al ser aprobado.
   let ticketAprobacionCreado = null;
+  let cobroDirectoAprobado = false;
+  let aprobacionDirecta = null;
   if (!esPagoAdelantado && !esAbonoPorCantidad) {
     // PLAN_PLANTILLA_COMANDAS: en pago normal, los platos pasan a 'pendiente'
     // (NO a 'pagado') porque ahora requieren aprobación de cocina antes de
@@ -713,6 +717,17 @@ async function procesarPagoBoucher(params) {
         sourceApp: 'mozos',
       });
 
+      const { intentarCobroDirectoComanda } = require('./cobroDirectoCaja.service');
+      const cobro = await intentarCobroDirectoComanda(ticketAprobacionCreado, {
+        usuario,
+        cobroDirectoCaja: cobroDirectoCaja === true,
+      });
+      if (cobro.aplicado) {
+        ticketAprobacionCreado = cobro.ticket;
+        cobroDirectoAprobado = true;
+        aprobacionDirecta = cobro.aprobacion || null;
+      }
+
       // Auditoría: comanda enviada a aprobación
       try {
         const AuditoriaAcciones = require('../database/models/auditoriaAcciones.model');
@@ -767,6 +782,8 @@ async function procesarPagoBoucher(params) {
     boucher: boucherCreado,
     resumen,
     ticketAprobacion: ticketAprobacionCreado,
+    cobroDirectoAprobado,
+    aprobacionDirecta,
     esAbonoPorCantidad,
     totalCuenta,
   };

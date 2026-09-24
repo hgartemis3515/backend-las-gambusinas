@@ -16,7 +16,6 @@ import {
   mapComandaATicket,
   mapComandasATicket,
   etiquetaMozosLista,
-  EPSON_TM_M30II_RECEIPT,
 } from './comandaHtml.js';
 
 /**
@@ -212,8 +211,8 @@ export async function imprimirComandaWeb(opts = {}) {
     // 6. Generate full HTML
     const { html, heightPx } = generarHtmlComanda({ datos, plantilla, serverOrigin });
 
-    // 7. Open print window (Epson TM-m30II Receipt — 80mm / 226px)
-    const popupW = EPSON_TM_M30II_RECEIPT.contentWidthPx + 48;
+    // 7. Open print window (Epson TM-m30II Receipt — 80mm)
+    const popupW = 368;
     const printWin = window.open('', '_blank', `width=${popupW},height=700,scrollbars=yes`);
     if (!printWin) {
       console.error('[comandaPrintWeb] Could not open print window (popup blocked?)');

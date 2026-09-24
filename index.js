@@ -667,6 +667,11 @@ try {
   if (numeracionMozo?.asignadas) {
     logger.info('Numeración de comandas por mozo asignada', numeracionMozo);
   }
+  const { backfillNumeroTicketClienteHoy } = require('./src/utils/numeroTicketCliente');
+  const numeracionTicket = await backfillNumeroTicketClienteHoy();
+  if (numeracionTicket?.asignadas) {
+    logger.info('Ticket de cliente (para llevar) asignado', numeracionTicket);
+  }
 } catch (error) {
   logger.error('Error al numerar comandas del día', { error: error.message });
 }

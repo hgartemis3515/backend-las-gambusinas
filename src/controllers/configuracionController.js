@@ -64,7 +64,10 @@ router.get('/configuracion', async (req, res) => {
         const plain = configuracion && typeof configuracion.toObject === 'function'
             ? configuracion.toObject()
             : configuracion;
-        if (plain && typeof plain === 'object') delete plain.pinsAutorizacionOrden;
+        if (plain && typeof plain === 'object') {
+            delete plain.pinsAutorizacionOrden;
+            delete plain.pinsAutorizacionOrdenUnicoUso;
+        }
 
         res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
         res.set('Pragma', 'no-cache');
@@ -696,7 +699,7 @@ router.get('/configuracion/comanda-plantilla', async (req, res) => {
                 moneda: true, tipoPago: true, cliente: true, dniCliente: true,
                 observaciones: true, total: true, precios: true
             },
-            espaciado: { lineHeight: 16, tamanoFuente: 11, espacioDivider: 8 },
+            espaciado: { lineHeight: 18, tamanoFuente: 13, espacioDivider: 8 },
             mensajes: { pie: '' },
             etiquetas: {
                 comandaNumero: 'Comanda', fechaPedido: 'Fecha pedido', mesa: 'Mesa', mozo: 'Mozo',
@@ -720,6 +723,12 @@ router.get('/configuracion/comanda-plantilla', async (req, res) => {
 
         if (plantilla.etiquetas.fechaPedido === 'Fecha') {
             plantilla.etiquetas.fechaPedido = 'Fecha pedido';
+        }
+        if (Number(plantilla.espaciado.tamanoFuente) === 11) {
+            plantilla.espaciado.tamanoFuente = 13;
+        }
+        if (Number(plantilla.espaciado.lineHeight) === 16) {
+            plantilla.espaciado.lineHeight = 18;
         }
         if (!plantilla.restaurante.nombre) {
             plantilla.restaurante.nombre = config.datosFiscales?.nombreComercial || 'SAN BENITO';

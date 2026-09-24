@@ -185,7 +185,7 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
         // Filtrar campos protegidos
         const datosFiltrados = {};
         for (const [key, value] of Object.entries(nuevosDatos)) {
-            if (!camposProtegidos.includes(key) && key !== 'pinUniversalCocina' && key !== 'pinsAutorizacionOrden') {
+            if (!camposProtegidos.includes(key) && key !== 'pinUniversalCocina' && key !== 'pinsAutorizacionOrden' && key !== 'pinsAutorizacionOrdenUnicoUso') {
                 datosFiltrados[key] = value;
             }
         }
@@ -268,6 +268,17 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
 
         if (datosFiltrados.menuGestion !== undefined) {
             datosFiltrados.menuGestion = normalizarMenuGestion(datosFiltrados.menuGestion);
+        }
+
+        if (datosFiltrados.caja && typeof datosFiltrados.caja === 'object') {
+            const caja = { ...datosFiltrados.caja };
+            if (Object.prototype.hasOwnProperty.call(caja, 'cobroDirectoMozos')) {
+                caja.cobroDirectoMozos = caja.cobroDirectoMozos === true;
+            }
+            if (Object.prototype.hasOwnProperty.call(caja, 'autoAprobarCobroCaja')) {
+                caja.autoAprobarCobroCaja = caja.autoAprobarCobroCaja === true;
+            }
+            datosFiltrados.caja = caja;
         }
 
         // Actualizar la configuración

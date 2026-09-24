@@ -1234,6 +1234,22 @@ tailwind.config = {
           </div>
         </div>
 
+        <!-- CAJA -->
+        <div x-show="cfgTab==='caja'" class="p-6 space-y-6">
+          <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Caja</h3>
+          <p class="text-sm text-txt-muted">La tabla de tickets y pagos adelantados la manejan caja, administradores y supervisores. El rol se valida en el servidor.</p>
+          <div class="space-y-3">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.cajaCobroDirectoMozos" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Cobro directo desde app de mozos (rol caja)</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.cajaAutoAprobarCobroCaja" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Aprobar automáticamente el ticket al cobrar caja</span>
+            </label>
+          </div>
+        </div>
+
         <!-- SEGURIDAD -->
         <div x-show="cfgTab==='seguridad'" class="p-6 space-y-6">
           <h3 class="text-sm font-semibold text-txt-secondary uppercase mb-4">Seguridad</h3>
@@ -1633,6 +1649,7 @@ function configApp() {
       { id: 'pagos', label: 'Pagos', icon: '💳' },
       { id: 'notificaciones', label: 'Notificaciones', icon: '🔔' },
       { id: 'cierre', label: 'Cierre de Caja', icon: '📊' },
+      { id: 'caja', label: 'Caja', icon: '🧾' },
       { id: 'seguridad', label: 'Seguridad', icon: '🔒' },
       { id: 'seo', label: 'SEO', icon: '🌐' },
       { id: 'integraciones', label: 'Integraciones', icon: '🔗' },
@@ -1742,6 +1759,8 @@ function configApp() {
         cierreAutomatico: false,
         horaCierreAutomatico: '04:00'
       },
+      cajaCobroDirectoMozos: true,
+      cajaAutoAprobarCobroCaja: true,
       // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: reservas desde App Mozos
       reservas: {
         permitirReservas: true,
@@ -2133,6 +2152,8 @@ function configApp() {
             this.config.horaCierreAuto = cfg.cierreCaja.horaCierreAutomatico || '04:00';
             this.config.validacionAdmin = cfg.cierreCaja.requerirEfectivoInicial ?? true;
           }
+          this.config.cajaCobroDirectoMozos = cfg.caja?.cobroDirectoMozos !== false;
+          this.config.cajaAutoAprobarCobroCaja = cfg.caja?.autoAprobarCobroCaja !== false;
 
           // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: bloque reservas (merge sobre defaults)
           if (cfg.reservas) {
@@ -2328,6 +2349,10 @@ function configApp() {
             requerirEfectivoInicial: this.config.validacionAdmin ?? true,
             cierreAutomatico: this.config.cierreAutomatico || false,
             horaCierreAutomatico: this.config.horaCierreAuto || '04:00'
+          },
+          caja: {
+            cobroDirectoMozos: this.config.cajaCobroDirectoMozos !== false,
+            autoAprobarCobroCaja: this.config.cajaAutoAprobarCobroCaja !== false
           },
 
           // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: bloque reservas

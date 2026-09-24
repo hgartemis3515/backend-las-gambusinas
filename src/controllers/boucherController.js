@@ -10,6 +10,7 @@ const {
     listarBouchersActivosPorMesa,
 } = require('../repository/boucher.repository');
 const { procesarPagoBoucher, esPagoParcial } = require('../services/boucherPagoService');
+const { authMozoOpcional } = require('../middleware/authMozoOpcional');
 const { obtenerCicloServicioMesa } = require('../services/mesaCicloServicio.service');
 
 // Obtener todos los bouchers
@@ -157,7 +158,7 @@ router.get('/boucher/:id', async (req, res) => {
  * Respuesta: { boucher, resumen: { totalPendiente, mesaPagadaCompletamente, comandas, mesa } }
  * Compatibilidad: si el cliente espera el boucher en la raíz, también se incluye spread del boucher.
  */
-router.post('/boucher', async (req, res) => {
+router.post('/boucher', authMozoOpcional, async (req, res) => {
     try {
         const {
             mesaId,
@@ -172,6 +173,7 @@ router.post('/boucher', async (req, res) => {
             moneda,
             tipoCambioUsd,
             montoCobro,
+            cobroDirectoCaja,
         } = req.body;
         const parcial = esPagoParcial(platosSeleccionados);
 
@@ -200,11 +202,13 @@ router.post('/boucher', async (req, res) => {
             moneda,
             tipoCambioUsd,
             montoCobro,
+            usuario: req.usuario || null,
+            cobroDirectoCaja: cobroDirectoCaja === true,
         });
 
-        const { boucher, resumen, ticketAprobacion } = resultado;
+        const { boucher, resumen, ticketAprobacion, cobroDirectoAprobado, aprobacionDirecta } = resultado;
 
-        if (global.emitComandaActualizada && resumen.comandas) {
+        if (!cobroDirectoAprobado && global.emitComandaActualizada && resumen.comandas) {
             const idsPagados = new Set(
                 (boucher.comandas || []).map((id) => id.toString())
             );
@@ -230,7 +234,17 @@ router.post('/boucher', async (req, res) => {
 
         // PLAN_PLANTILLA_COMANDAS: si se creó un ticket de aprobación (pago normal completo),
         // notificar a cocina (bandeja unificada) y a mozos (refresco de mesa en pendiente_aprobar).
-        if (ticketAprobacion && global.emitTicketAprobacionNuevo) {
+        if (cobroDirectoAprobado && ticketAprobacion && global.emitComandaAprobada) {
+            try {
+                await global.emitComandaAprobada(
+                    ticketAprobacion,
+                    aprobacionDirecta?.platosLiberados || [],
+                    aprobacionDirecta?.mesaEstado || null
+                );
+            } catch (emitErr) {
+                console.error('⚠️ emitComandaAprobada (cobro directo):', emitErr.message);
+            }
+        } else if (ticketAprobacion && global.emitTicketAprobacionNuevo) {
             try {
                 await global.emitTicketAprobacionNuevo(ticketAprobacion);
             } catch (emitErr) {

@@ -407,6 +407,17 @@ const comandaSchema = new mongoose.Schema({
         type: String,
         default: null
     },
+    /** Secuencial diario del ticket de cliente (para llevar / sin mesa). Null si no aplica. */
+    numeroTicketCliente: {
+        type: Number,
+        default: null
+    },
+    /** Nombre opcional que reemplaza al código en KDS e impresión. El número se conserva. */
+    clienteNombreParaLlevar: {
+        type: String,
+        default: null,
+        trim: true
+    },
     // Timestamps de cambios de estado
     tiempoEnEspera: {
         type: Date,
@@ -785,6 +796,14 @@ comandaSchema.pre('save', async function (next) {
         if (this.numeroComandaMozo == null && (this.isNew || this.isModified('mozos'))) {
             const { asignarNumeroMozoEnDoc } = require('../../utils/numeroComandaMozo');
             await asignarNumeroMozoEnDoc(this);
+        }
+        if (typeof this.clienteNombreParaLlevar === 'string') {
+            const nombre = this.clienteNombreParaLlevar.trim();
+            this.clienteNombreParaLlevar = nombre || null;
+        }
+        if (this.isNew && this.numeroTicketCliente == null) {
+            const { asignarTicketClienteEnDoc } = require('../../utils/numeroTicketCliente');
+            await asignarTicketClienteEnDoc(this);
         }
         return next();
     } catch (err) {

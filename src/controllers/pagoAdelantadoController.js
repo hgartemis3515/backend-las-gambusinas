@@ -30,12 +30,16 @@ const { comandaCalificaLiberarSinCaja } = require('../utils/pendienteCobroMozo')
 const { SELECT_PLATO_COCINA } = require('../constants/platoPopulateCocina');
 const { aplicarSeparacionCantidadLinea } = require('../utils/separarCantidadLineaPlato');
 const { cantidadUnidadesPlato } = require('../utils/cantidadLineaComanda');
+const { authMozoOpcional } = require('../middleware/authMozoOpcional');
+const { adminAuth, checkRole } = require('../middleware/adminAuth');
+const { debeAplicarCobroDirecto } = require('../services/cobroDirectoCaja.service');
+const rolesTablaTickets = [adminAuth, checkRole(['admin', 'supervisor', 'cajero'])];
 
 /**
  * POST /pago-adelantado
  * Crear un pago adelantado: genera boucher + ticket TPA
  */
-router.post('/pago-adelantado', async (req, res) => {
+router.post('/pago-adelantado', authMozoOpcional, async (req, res) => {
   try {
     const {
       mesaId,
@@ -217,7 +221,7 @@ router.post('/pago-adelantado', async (req, res) => {
 
     // Ahora crear el TPA
     const pedidoId = primeraComanda.pedido || null;
-    const ticket = await crearTicketPagoAdelantado({
+    let ticket = await crearTicketPagoAdelantado({
       comandas: comandas.map(c => c._id),
       comandasNumbers: comandas.map(c => c.comandaNumber).filter(Boolean),
       mesa: mesaOk ? mesaId : undefined,
@@ -435,12 +439,48 @@ router.post('/pago-adelantado', async (req, res) => {
       await mesasModel.findByIdAndUpdate(mesaId, { estado: 'pendiente_pago' });
     }
 
+    let cobroDirectoAplicado = false;
+    let platosLiberadosDirecto = [];
+    if (await debeAplicarCobroDirecto({
+      usuario: req.usuario,
+      cobroDirectoCaja: req.body?.cobroDirectoCaja === true,
+    })) {
+      try {
+        const apr = await aprobarTicket(
+          ticket._id,
+          req.usuario?._id || null,
+          req.usuario?.name || 'Caja'
+        );
+        ticket = apr.ticket || ticket;
+        platosLiberadosDirecto = apr.platosLiberados || [];
+        cobroDirectoAplicado = true;
+      } catch (e) {
+        logger.error('Cobro directo PPA no pudo aprobar el ticket', { error: e.message });
+      }
+    }
+
     // Emitir eventos Socket.io para notificar a cocina y mozos
     const io = global.io;
     if (io) {
       const fechaHoy = moment().tz('America/Lima').format('YYYY-MM-DD');
       const ticketPopulated = await obtenerTicketPorId(ticket._id);
 
+      if (cobroDirectoAplicado) {
+        const payloadAprobado = {
+          ticketId: ticket._id,
+          ticketNumber: ticket.ticketNumber,
+          comandas: ticket.comandas,
+          platosLiberados: platosLiberadosDirecto,
+          mesa: ticket.mesa,
+          nummesa: ticket.numMesa,
+          origen: ticket.origen || 'comanda',
+          estadoMesa: 'pedido',
+          message: `Ticket PPA #${ticket.ticketNumber} aprobado (cobro directo caja)`,
+        };
+        io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-ppa-aprobado', payloadAprobado);
+        io.of('/mozos').emit('ticket-ppa-aprobado', payloadAprobado);
+        io.of('/admin').emit('ticket-ppa-aprobado', payloadAprobado);
+      } else {
       // Notificar a cocina
       io.of('/cocina').to(`fecha-${fechaHoy}`).emit('ticket-ppa-nuevo', {
         ticket: ticketPopulated,
@@ -466,16 +506,17 @@ router.post('/pago-adelantado', async (req, res) => {
       io.of('/admin').emit('ticket-ppa-nuevo', {
         ticket: ticketPopulated,
       });
+      }
 
       if (mesaOk) {
         io.of('/mozos').emit('mesa-actualizada', {
           mesaId,
-          estado: 'pendiente_pago',
+          estado: cobroDirectoAplicado ? 'pedido' : 'pendiente_pago',
           nummesa: mesaInfo?.nummesa || null,
         });
         io.of('/admin').emit('mesa-actualizada', {
           mesaId,
-          estado: 'pendiente_pago',
+          estado: cobroDirectoAplicado ? 'pedido' : 'pendiente_pago',
           nummesa: mesaInfo?.nummesa || null,
         });
       }
@@ -510,8 +551,10 @@ router.post('/pago-adelantado', async (req, res) => {
       resumen: {
         mesaPagadaCompletamente: false,
         ticketId: ticket._id,
-        estadoTicket: 'pendiente_aprobacion',
-        message: 'Pago adelantado registrado. Esperando aprobación de cocina.',
+        estadoTicket: cobroDirectoAplicado ? 'aprobado' : 'pendiente_aprobacion',
+        message: cobroDirectoAplicado
+          ? 'Pago adelantado aprobado (cobro directo caja).'
+          : 'Pago adelantado registrado. Esperando aprobación de cocina.',
       },
     });
   } catch (error) {
@@ -583,7 +626,7 @@ router.get('/pago-adelantado/:id', async (req, res) => {
  * PUT /pago-adelantado/:id/aprobar
  * Aprobar un TPA y liberar platos al KDS
  */
-router.put('/pago-adelantado/:id/aprobar', async (req, res) => {
+router.put('/pago-adelantado/:id/aprobar', ...rolesTablaTickets, async (req, res) => {
   try {
     const { id } = req.params;
     const usuarioId = req.userId || req.body?.usuarioId || req.headers['x-user-id'];
@@ -706,7 +749,7 @@ router.put('/pago-adelantado/:id/aprobar', async (req, res) => {
  * PUT /pago-adelantado/:id/rechazar
  * Rechazar un TPA
  */
-router.put('/pago-adelantado/:id/rechazar', async (req, res) => {
+router.put('/pago-adelantado/:id/rechazar', ...rolesTablaTickets, async (req, res) => {
   try {
     const { id } = req.params;
     const { motivo } = req.body;

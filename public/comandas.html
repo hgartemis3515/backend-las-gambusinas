@@ -52,12 +52,12 @@ tailwind.config = {
 <style>
   .comanda-ticket {
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 12px;
-    line-height: 1.33;
+    font-size: 13px;
+    line-height: 1.5;
     background: #fff;
     color: #000;
-    width: 226px;
-    padding: 4px;
+    width: 320px;
+    padding: 14px 12px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.3);
   }
   .comanda-ticket .divider { border-top: 1px dashed #333; margin: 8px 0; }
@@ -66,14 +66,39 @@ tailwind.config = {
   .comanda-ticket .font-bold { font-weight: 700; }
   .comanda-ticket .label { font-weight: 600; color: #222; }
   .comanda-ticket .value { font-weight: 400; color: #000; }
-  .comanda-ticket .restaurant-name { font-size: 16px; font-weight: 800; letter-spacing: 0.5px; }
-  .comanda-ticket .restaurant-subtitle { font-size: 10px; font-weight: 500; color: #444; }
-  .comanda-ticket .total-row { font-size: 13px; font-weight: 700; border-top: 2px solid #000; padding-top: 4px; margin-top: 4px; }
+  .comanda-ticket .restaurant-name { font-size: 18px; font-weight: 800; letter-spacing: 0.5px; }
+  .comanda-ticket .restaurant-subtitle { font-size: 11px; font-weight: 500; color: #444; }
+  .comanda-ticket .total-row { font-size: 15px; font-weight: 700; border-top: 2px solid #000; padding-top: 6px; margin-top: 6px; }
   .comanda-ticket .logo-img {
-    max-width: 200px;
-    max-height: 60px;
-    margin: 0 auto 4px;
+    max-width: 280px;
+    max-height: 72px;
+    margin: 0 auto 6px;
     display: block;
+  }
+  .vista-basica-comanda { color: #fff; }
+  .vista-basica-comanda table { width: 100%; border-collapse: collapse; }
+  .vista-basica-comanda th,
+  .vista-basica-comanda td {
+    border: 0;
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.0625rem;
+    line-height: 1.45;
+    padding: 0.7rem 0.45rem;
+    vertical-align: top;
+  }
+  .vista-basica-comanda thead th {
+    font-size: 0.95rem;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid rgba(255,255,255,0.28);
+    padding-bottom: 0.8rem;
+  }
+  .vista-basica-comanda .vb-total {
+    border-top: 1px solid rgba(255,255,255,0.35);
+    margin-top: 0.5rem;
+    padding-top: 1rem;
+    color: #fff;
+    font-weight: 700;
   }
   .preview-scale { transform-origin: top left; transition: transform 0.2s ease; }
   @media print { .comanda-ticket { box-shadow: none; } }
@@ -456,11 +481,17 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <!-- Total -->
  <td class="px-3 py-2.5 text-sm text-gold font-semibold text-right">
  <template x-if="row.tipo === 'grupo'">
+ <span class="inline-flex items-center justify-end gap-1.5 flex-wrap">
  <span x-text="'S/. ' + row.totalAgrupado.toFixed(2)"></span>
+ <span x-show="textoPagoParcialGrupo(row.comandas)" class="text-[10px] font-semibold text-white tabular-nums whitespace-nowrap" x-text="textoPagoParcialGrupo(row.comandas)"></span>
+ </span>
  <span x-show="getMontoDescuentoGrupo(row) > 0" class="block text-[9px] text-[#e74c3c] font-semibold" x-text="'-' + getMontoDescuentoGrupo(row).toFixed(2)"></span>
  </template>
  <template x-if="row.tipo === 'individual'">
+ <span class="inline-flex items-center justify-end gap-1.5 flex-wrap">
  <span x-text="'S/. ' + Number(totalNetoComanda(row.comanda)).toFixed(2)"></span>
+ <span x-show="textoPagoParcialComanda(row.comanda)" class="text-[10px] font-semibold text-white tabular-nums whitespace-nowrap" x-text="textoPagoParcialComanda(row.comanda)"></span>
+ </span>
  <span x-show="comandaTieneDescuentoFront(row.comanda)" class="block text-[9px] text-[#e74c3c] font-semibold" x-text="'-' + montoDescuentoMostrar(row.comanda).toFixed(2)"></span>
  </template>
  </td>
@@ -572,7 +603,10 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </td>
  <!-- Total -->
  <td class="px-3 py-2 text-sm text-gold/80 text-right">
+ <span class="inline-flex items-center justify-end gap-1.5 flex-wrap">
  <span x-text="'S/. ' + Number(totalNetoComanda(comanda)).toFixed(2)"></span>
+ <span x-show="textoPagoParcialComanda(comanda)" class="text-[10px] font-semibold text-white tabular-nums whitespace-nowrap" x-text="textoPagoParcialComanda(comanda)"></span>
+ </span>
  <span x-show="comandaTieneDescuentoFront(comanda)" class="block text-[9px] text-[#e74c3c] font-semibold" x-text="'-' + montoDescuentoMostrar(comanda).toFixed(2)"></span>
  </td>
  <!-- Estado -->
@@ -707,7 +741,7 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
       <div class="bg-bg-card border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
         <span class="text-sm font-semibold text-txt-secondary block mb-2">Espaciado</span>
         <label class="text-xs text-txt-muted block mb-1">Tamaño fuente: <span x-text="plantillaComanda.espaciado.tamanoFuente + 'px'"></span></label>
-        <input type="range" x-model.number="plantillaComanda.espaciado.tamanoFuente" min="8" max="16" step="1" @input="plantillaComandaModificada = true" class="w-full">
+        <input type="range" x-model.number="plantillaComanda.espaciado.tamanoFuente" min="8" max="18" step="1" @input="plantillaComandaModificada = true" class="w-full">
         <label class="text-xs text-txt-muted block mb-1 mt-2">Altura línea: <span x-text="plantillaComanda.espaciado.lineHeight + 'px'"></span></label>
         <input type="range" x-model.number="plantillaComanda.espaciado.lineHeight" min="12" max="24" step="1" @input="plantillaComandaModificada = true" class="w-full">
         <label class="text-xs text-txt-muted block mb-1 mt-2">Espacio divisores: <span x-text="plantillaComanda.espaciado.espacioDivider + 'px'"></span></label>
@@ -857,6 +891,10 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </p>
  </div>
  <div class="flex items-center gap-2">
+ <div class="flex rounded-lg overflow-hidden border border-[rgba(212,175,55,0.35)] text-[11px] font-semibold" title="Tipo de vista">
+  <button type="button" @click="setVistaComanda('basica')" :class="vistaComanda==='basica' ? 'bg-gold text-bg-primary' : 'text-txt-secondary'" class="px-2.5 py-1.5">Básica</button>
+  <button type="button" @click="setVistaComanda('avanzada')" :class="vistaComanda==='avanzada' ? 'bg-gold text-bg-primary' : 'text-txt-secondary'" class="px-2.5 py-1.5">Avanzada</button>
+ </div>
  <button @click="imprimirComanda(selectedComanda, null)" class="px-3 py-1.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition flex items-center gap-1.5" title="Imprimir comanda">🖨️ Imprimir</button>
  <button @click="cerrarModalVerComanda()" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
  </div>
@@ -871,7 +909,48 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </div>
  </div>
 
- <div x-show="!loadingDetalle" class="p-5 space-y-4">
+ <div x-show="!loadingDetalle && vistaComanda==='basica'" class="p-6">
+  <div class="vista-basica-comanda">
+   <div class="flex flex-wrap items-end justify-between gap-4 pb-4">
+    <p class="text-2xl font-bold text-white" x-text="'Comanda #' + numeroComandaBasica(selectedComanda)"></p>
+    <p class="text-base font-bold text-white">Mozo: <span x-text="nombreMozo(selectedComanda)"></span> · Enviada: <span x-text="fechaEnvioBasica(selectedComanda)"></span></p>
+   </div>
+   <table>
+    <thead>
+     <tr>
+      <th class="text-left">Plato</th>
+      <th class="text-right">Precio</th>
+      <th class="text-center">Cant.</th>
+      <th class="text-right">Total</th>
+      <th class="text-left">Estado</th>
+     </tr>
+    </thead>
+    <tbody>
+     <template x-for="(item, idx) in platosVisiblesBasicos(selectedComanda)" :key="'b'+idx">
+      <tr>
+       <td>
+        <span x-text="item.nombre || '—'"></span>
+        <span class="block text-[0.95rem] font-bold text-white/80" x-show="textoComplementosBasico(item)" x-text="textoComplementosBasico(item)"></span>
+       </td>
+       <td class="text-right tabular-nums" x-text="Number(item.precio || item.precioUnitario || 0).toFixed(2)"></td>
+       <td class="text-center tabular-nums" x-text="item.cantidad || 1"></td>
+       <td class="text-right tabular-nums" x-text="totalLineaBasica(item).toFixed(2)"></td>
+       <td x-text="labelEstadoPlatoChip(item.estado, selectedComanda, item)"></td>
+      </tr>
+     </template>
+    </tbody>
+   </table>
+   <div class="vb-total flex justify-between items-center">
+    <span class="text-lg uppercase">Total</span>
+    <span class="inline-flex items-center gap-2">
+    <span class="text-2xl tabular-nums" x-text="'S/ ' + Number(totalNetoComanda(selectedComanda)).toFixed(2)"></span>
+    <span x-show="textoPagoParcialComanda(selectedComanda)" class="text-base font-semibold text-white tabular-nums" x-text="textoPagoParcialComanda(selectedComanda)"></span>
+    </span>
+   </div>
+  </div>
+ </div>
+
+ <div x-show="!loadingDetalle && vistaComanda==='avanzada'" class="p-5 space-y-4">
 
  <!-- INFO GENERAL -->
  <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
@@ -1212,7 +1291,12 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <tr class="border-t-2 border-[rgba(212,175,55,0.25)] bg-[#12121a]">
  <td class="px-4 py-3 font-bold text-xs uppercase" colspan="2">TOTAL</td>
  <td class="px-3 py-3 text-right text-xs text-[#5a5a7a]" x-text="(selectedComanda?.items || []).filter(i => !i.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
- <td class="px-3 py-3 text-right text-[#d4af37] font-bold text-lg" x-text="'S/. ' + Number(totalNetoComanda(selectedComanda)).toFixed(2)"></td>
+ <td class="px-3 py-3 text-right text-[#d4af37] font-bold text-lg">
+ <span class="inline-flex items-center justify-end gap-2 flex-wrap">
+ <span x-text="'S/. ' + Number(totalNetoComanda(selectedComanda)).toFixed(2)"></span>
+ <span x-show="textoPagoParcialComanda(selectedComanda)" class="text-xs font-semibold text-white tabular-nums" x-text="textoPagoParcialComanda(selectedComanda)"></span>
+ </span>
+ </td>
  <td colspan="3"></td>
  <td class="px-3 py-3 text-center" x-show="!ocultarTiempoEntrega">
    <span class="font-mono text-[10px] text-txt-muted" x-text="getResumenSalon(selectedComanda).tiempoEntrega"></span>
@@ -1390,6 +1474,10 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </div>
  </div>
  <div class="flex items-center gap-2">
+ <div class="flex rounded-lg overflow-hidden border border-[rgba(212,175,55,0.35)] text-[11px] font-semibold">
+  <button type="button" @click="setVistaComanda('basica')" :class="vistaComanda==='basica' ? 'bg-gold text-bg-primary' : 'text-txt-secondary'" class="px-2.5 py-1.5">Básica</button>
+  <button type="button" @click="setVistaComanda('avanzada')" :class="vistaComanda==='avanzada' ? 'bg-gold text-bg-primary' : 'text-txt-secondary'" class="px-2.5 py-1.5">Avanzada</button>
+ </div>
  <button @click="imprimirComanda(selectedGrupo?.comandas?.[0], selectedGrupo)" class="px-3 py-1.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition flex items-center gap-1.5" title="Imprimir primera comanda del grupo">🖨️ Imprimir</button>
  <button @click="modal=null" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
  </div>
@@ -1404,7 +1492,59 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </div>
  </div>
 
- <div x-show="!loadingGrupo" class="p-5 space-y-6">
+ <div x-show="!loadingGrupo && vistaComanda==='basica'" class="p-6">
+  <div class="vista-basica-comanda space-y-8">
+  <template x-for="(comanda, ci) in (selectedGrupo?.comandas || [])" :key="comanda._id || ci">
+   <div>
+    <div class="flex flex-wrap items-end justify-between gap-4 pb-3">
+     <p class="text-2xl font-bold text-white" x-text="'Comanda #' + numeroComandaBasica(comanda)"></p>
+     <p class="text-base font-bold text-white">Mozo: <span x-text="nombreMozo(comanda)"></span> · Enviada: <span x-text="fechaEnvioBasica(comanda)"></span></p>
+    </div>
+    <table>
+     <thead>
+      <tr>
+       <th class="text-left">Plato</th>
+       <th class="text-right">Precio</th>
+       <th class="text-center">Cant.</th>
+       <th class="text-right">Total</th>
+       <th class="text-left">Estado</th>
+      </tr>
+     </thead>
+     <tbody>
+      <template x-for="(item, idx) in platosVisiblesBasicos(comanda)" :key="idx">
+       <tr>
+        <td>
+         <span x-text="item.nombre || '—'"></span>
+         <span class="block text-[0.95rem] font-bold text-white/80" x-show="textoComplementosBasico(item)" x-text="textoComplementosBasico(item)"></span>
+        </td>
+        <td class="text-right tabular-nums" x-text="Number(item.precio || item.precioUnitario || 0).toFixed(2)"></td>
+        <td class="text-center tabular-nums" x-text="item.cantidad || 1"></td>
+        <td class="text-right tabular-nums" x-text="totalLineaBasica(item).toFixed(2)"></td>
+        <td x-text="labelEstadoPlatoChip(item.estado, comanda, item)"></td>
+       </tr>
+      </template>
+     </tbody>
+    </table>
+    <div class="vb-total flex justify-between items-center">
+     <span class="text-base uppercase">Subtotal</span>
+     <span class="inline-flex items-center gap-2">
+     <span class="text-xl tabular-nums" x-text="'S/ ' + Number(totalNetoComanda(comanda)).toFixed(2)"></span>
+     <span x-show="textoPagoParcialComanda(comanda)" class="text-sm font-semibold text-white tabular-nums" x-text="textoPagoParcialComanda(comanda)"></span>
+     </span>
+    </div>
+   </div>
+  </template>
+  <div class="vb-total flex justify-between items-center">
+   <span class="text-lg uppercase">Total general</span>
+   <span class="inline-flex items-center gap-2">
+   <span class="text-2xl tabular-nums" x-text="'S/ ' + totalGeneralBasico(selectedGrupo?.comandas).toFixed(2)"></span>
+   <span x-show="textoPagoParcialGrupo(selectedGrupo?.comandas)" class="text-base font-semibold text-white tabular-nums" x-text="textoPagoParcialGrupo(selectedGrupo?.comandas)"></span>
+   </span>
+  </div>
+  </div>
+ </div>
+
+ <div x-show="!loadingGrupo && vistaComanda==='avanzada'" class="p-5 space-y-6">
 
  <!-- RESUMEN DEL GRUPO -->
  <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
@@ -1596,7 +1736,10 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </div>
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Total</p>
- <p class="font-medium text-gold" x-text="'S/. ' + Number(totalNetoComanda(comanda)).toFixed(2)"></p>
+ <p class="font-medium text-gold">
+  <span x-text="'S/. ' + Number(totalNetoComanda(comanda)).toFixed(2)"></span>
+  <span x-show="textoPagoParcialComanda(comanda)" class="ml-2 text-xs font-semibold text-white tabular-nums" x-text="textoPagoParcialComanda(comanda)"></span>
+ </p>
  </div>
  </div>
 
@@ -1860,7 +2003,12 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <tr class="border-t-2 border-[rgba(212,175,55,0.25)] bg-[#12121a]">
  <td class="px-4 py-3 font-bold text-xs uppercase" colspan="2">TOTAL</td>
  <td class="px-3 py-3 text-right text-xs text-[#5a5a7a]" x-text="(comanda.items || []).filter(i => !i.eliminado).reduce((s, i) => s + (i.cantidad || 1), 0) + ' platos'"></td>
- <td class="px-3 py-3 text-right text-[#d4af37] font-bold text-lg" x-text="'S/. ' + Number(totalNetoComanda(comanda)).toFixed(2)"></td>
+ <td class="px-3 py-3 text-right text-[#d4af37] font-bold text-lg">
+ <span class="inline-flex items-center justify-end gap-2 flex-wrap">
+ <span x-text="'S/. ' + Number(totalNetoComanda(comanda)).toFixed(2)"></span>
+ <span x-show="textoPagoParcialComanda(comanda)" class="text-xs font-semibold text-white tabular-nums" x-text="textoPagoParcialComanda(comanda)"></span>
+ </span>
+ </td>
  <td colspan="3"></td>
  <td class="px-3 py-3 text-center" x-show="!ocultarTiempoEntrega">
    <span class="font-mono text-[10px] text-txt-muted" x-text="getResumenSalon(comanda).tiempoEntrega"></span>
@@ -1997,7 +2145,10 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <span class="text-sm font-semibold uppercase text-txt-secondary">Total del Grupo</span>
  <p class="text-[10px] text-txt-muted" x-text="(selectedGrupo?.comandas?.length || 0) + ' comandas | ' + (selectedGrupo?.totalPlatos || 0) + ' platos'"></p>
  </div>
- <span class="text-3xl font-bold text-gold" x-text="'S/. ' + (selectedGrupo?.totalAgrupado || 0).toFixed(2)"></span>
+ <span class="text-3xl font-bold text-gold inline-flex items-center gap-2">
+ <span x-text="'S/. ' + (selectedGrupo?.totalAgrupado || 0).toFixed(2)"></span>
+ <span x-show="textoPagoParcialGrupo(selectedGrupo?.comandas)" class="text-base font-semibold text-white tabular-nums" x-text="textoPagoParcialGrupo(selectedGrupo?.comandas)"></span>
+ </span>
  </div>
  </div>
 
@@ -2870,7 +3021,10 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </div>
  </div>
  <div class="flex items-center gap-3">
- <span class="text-gold font-semibold text-sm" x-text="'S/. ' + Number(totalNetoComanda(comanda)).toFixed(2)"></span>
+ <span class="text-gold font-semibold text-sm inline-flex items-center gap-1.5">
+ <span x-text="'S/. ' + Number(totalNetoComanda(comanda)).toFixed(2)"></span>
+ <span x-show="textoPagoParcialComanda(comanda)" class="text-[10px] font-semibold text-white tabular-nums" x-text="textoPagoParcialComanda(comanda)"></span>
+ </span>
  <button @click="openEditModal(comanda)" class="px-3 py-1.5 bg-gold/20 text-gold border border-gold/40 rounded-lg text-xs font-medium hover:bg-gold/30 transition flex items-center gap-1">
  <span>✏️</span> Editar
  </button>
@@ -2955,7 +3109,12 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  </tr>
  <tr x-show="comandaTieneDescuentoFront(comanda)" class="bg-[#12121a]/50">
  <td class="px-4 py-2 font-bold text-xs uppercase" colspan="3">TOTAL</td>
- <td class="px-3 py-2 text-right text-[#d4af37] font-bold" x-text="'S/. ' + Number(totalNetoComanda(comanda)).toFixed(2)"></td>
+ <td class="px-3 py-2 text-right text-[#d4af37] font-bold">
+ <span class="inline-flex items-center justify-end gap-1.5 flex-wrap">
+ <span x-text="'S/. ' + Number(totalNetoComanda(comanda)).toFixed(2)"></span>
+ <span x-show="textoPagoParcialComanda(comanda)" class="text-[10px] font-semibold text-white tabular-nums" x-text="textoPagoParcialComanda(comanda)"></span>
+ </span>
+ </td>
  <td colspan="3"></td>
  </tr>
  </tfoot>
@@ -3057,7 +3216,10 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <span class="text-sm font-semibold uppercase text-txt-secondary">Total del Grupo</span>
  <p class="text-[10px] text-txt-muted" x-text="(editGrupo?.comandas?.length || 0) + ' comandas | ' + (editGrupo?.totalPlatos || 0) + ' platos'"></p>
  </div>
- <span class="text-3xl font-bold text-gold" x-text="'S/. ' + (editGrupo?.totalAgrupado || 0).toFixed(2)"></span>
+ <span class="text-3xl font-bold text-gold inline-flex items-center gap-2">
+ <span x-text="'S/. ' + (editGrupo?.totalAgrupado || 0).toFixed(2)"></span>
+ <span x-show="textoPagoParcialGrupo(editGrupo?.comandas)" class="text-base font-semibold text-white tabular-nums" x-text="textoPagoParcialGrupo(editGrupo?.comandas)"></span>
+ </span>
  </div>
  </div>
  </div>
@@ -3148,6 +3310,10 @@ function comandasApp() {
  expandedGroups: [],
 
  selectedComanda: null,
+ vistaComanda: (function () {
+  try { return localStorage.getItem('comandas_vistaComanda') === 'avanzada' ? 'avanzada' : 'basica'; }
+  catch (e) { return 'basica'; }
+ })(),
  selectedGrupo: null,
  editGrupo: null,
  editComanda: { _id: null, estado: '', observaciones: '', numComanda: null, mesa: null, mozo: null, version: 1 },
@@ -3276,7 +3442,7 @@ function comandasApp() {
      cliente: true, dniCliente: true,
      observaciones: true, total: true
    },
-   espaciado: { lineHeight: 16, tamanoFuente: 11, espacioDivider: 8 },
+   espaciado: { lineHeight: 18, tamanoFuente: 13, espacioDivider: 8 },
    mensajes: { pie: 'Entregar en cocina' },
    etiquetas: {
      comandaNumero: 'Comanda',
@@ -3983,7 +4149,7 @@ formatearNombreMesa(mesa, mesaObj = null) {
      encabezado: { titulo: 'COMANDA' },
      bloques: { mostrarEncabezado: true, mostrarDatosComanda: true, mostrarDetalleProductos: true, mostrarPrecios: true, mostrarTotales: false, mostrarIGV: false, mostrarTotal: true, mostrarDatosCliente: true, mostrarObservaciones: true },
      visibilidad: { nombre: true, eslogan: true, comandaNumero: true, fechaPedido: true, mesa: true, mozo: true, area: true, moneda: true, tipoPago: true, cliente: true, dniCliente: true, observaciones: true, total: true },
-     espaciado: { lineHeight: 16, tamanoFuente: 11, espacioDivider: 8 },
+     espaciado: { lineHeight: 18, tamanoFuente: 13, espacioDivider: 8 },
      mensajes: { pie: 'Entregar en cocina' },
      etiquetas: { ...this.ETIQUETAS_DEFAULT_COMANDA }
    };
@@ -7176,6 +7342,44 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
     || Number(c.descuentoMontoFijo) > 0
     || (Number(c.totalSinDescuento) > 0 && c.totalCalculado != null && Number(c.totalCalculado) === 0);
  },
+ setVistaComanda(v) {
+  this.vistaComanda = v === 'avanzada' ? 'avanzada' : 'basica';
+  try { localStorage.setItem('comandas_vistaComanda', this.vistaComanda); } catch (e) {}
+ },
+ platosVisiblesBasicos(comanda) {
+  return (comanda?.items || comanda?.platos || []).filter((p) => p && !p.eliminado && !p.anulado);
+ },
+ textoComplementosBasico(item) {
+  const list = item?.complementosSeleccionados || item?.complementos || [];
+  if (!Array.isArray(list) || !list.length) return '';
+  return list.map((c) => {
+    const op = String(c?.opcion || c?.nombre || '').trim();
+    const gr = String(c?.grupo || '').trim();
+    if (op && gr && op !== gr) return gr + ': ' + op;
+    return op || gr;
+  }).filter(Boolean).join(', ');
+ },
+ totalLineaBasica(item) {
+  const cant = Number(item?.cantidad) || 1;
+  const precio = Number(item?.precio ?? item?.precioUnitario) || 0;
+  const sub = Number(item?.subtotal);
+  if (Number.isFinite(sub) && sub > 0) return sub;
+  return Number((precio * cant).toFixed(2));
+ },
+ fechaEnvioBasica(comanda) {
+  const raw = comanda?.tiempoEnEspera || comanda?.createdAt;
+  if (!raw) return '—';
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return '—';
+  const p = (n) => String(n).padStart(2, '0');
+  return p(d.getDate()) + '/' + p(d.getMonth() + 1) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+ },
+ numeroComandaBasica(comanda) {
+  return comanda?.numComanda || comanda?.numeroComandaDia || comanda?.comandaNumber || '—';
+ },
+ totalGeneralBasico(comandas) {
+  return (comandas || []).reduce((s, c) => s + Number(totalNetoComanda(c) || 0), 0);
+ },
  tieneMozoAsignado(c) {
   return !!(c && c.mozo && c.mozo !== 'Sin asignar');
  },
@@ -7281,6 +7485,60 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   if (Number.isFinite(tc) && tc > 0) return Number(tc.toFixed(2));
   if (Number.isFinite(tot) && tot > 0) return Number(tot.toFixed(2));
   return 0;
+ },
+
+ fmtMontoPagoParcial(n) {
+  const v = Math.round((Number(n) || 0) * 100) / 100;
+  if (Math.abs(v - Math.round(v)) < 0.005) return String(Math.round(v));
+  return v.toFixed(2);
+ },
+ subtotalItemComanda(i) {
+  if (!i) return 0;
+  const sub = Number(i.subtotal);
+  if (Number.isFinite(sub) && sub > 0) return sub;
+  const precio = Number(i.precio != null ? i.precio : i.precioUnitario) || 0;
+  const cant = Number(i.cantidad) || 1;
+  return precio * cant;
+ },
+ resumenPagoParcialComanda(c) {
+  if (!c) return null;
+  const items = (c.items || c.platos || []).filter((i) => i && i.eliminado !== true && i.anulado !== true);
+  const total = Number(this.totalNetoComanda(c)) || 0;
+  const pagadoPlatos = items
+    .filter((i) => String(i.estado || '').toLowerCase() === 'pagado')
+    .reduce((s, i) => s + this.subtotalItemComanda(i), 0);
+  let adelanto = 0;
+  const pa = c.reserva?.pagoAdelantado;
+  if (pa && pa.activo !== false) adelanto = Number(pa.montoPagado) || 0;
+  const pagado = Math.round((pagadoPlatos + adelanto) * 100) / 100;
+  if (pagado <= 0.009) return null;
+  const pendiente = Math.max(0, Math.round((total - pagado) * 100) / 100);
+  if (pendiente <= 0.009) return null;
+  return { pagado, pendiente };
+ },
+ textoPagoParcialComanda(c) {
+  const r = this.resumenPagoParcialComanda(c);
+  if (!r) return '';
+  return '-' + this.fmtMontoPagoParcial(r.pagado) + ' → ' + this.fmtMontoPagoParcial(r.pendiente);
+ },
+ resumenPagoParcialGrupo(comandas) {
+  let pagado = 0;
+  let pendiente = 0;
+  let hay = false;
+  for (const c of comandas || []) {
+    const r = this.resumenPagoParcialComanda(c);
+    if (!r) continue;
+    hay = true;
+    pagado += r.pagado;
+    pendiente += r.pendiente;
+  }
+  if (!hay) return null;
+  return { pagado: Math.round(pagado * 100) / 100, pendiente: Math.round(pendiente * 100) / 100 };
+ },
+ textoPagoParcialGrupo(comandas) {
+  const r = this.resumenPagoParcialGrupo(comandas);
+  if (!r) return '';
+  return '-' + this.fmtMontoPagoParcial(r.pagado) + ' → ' + this.fmtMontoPagoParcial(r.pendiente);
  },
 
  grupoTodoPagado(grupo) {

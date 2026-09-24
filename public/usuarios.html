@@ -327,18 +327,36 @@ tailwind.config = {
             class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none font-mono tracking-[0.35em]">
           <p class="text-[11px] text-txt-muted mt-1">Una sola clave para todos los admin. Abre cualquier pantalla bloqueada de App Cocina.</p>
         </div>
-        <div x-show="puedeEditarClaveUniversal" class="space-y-2">
-          <label class="text-xs text-txt-secondary block">Autorización de orden <span class="text-txt-muted">(4 combinaciones de 3 dígitos, solo admin)</span></label>
+        <div x-show="puedeEditarClaveUniversal" class="space-y-3">
+          <label class="text-xs text-txt-secondary block">Autorización de orden <span class="text-txt-muted">(4 combinaciones fijas de 3 dígitos)</span></label>
           <div class="grid grid-cols-4 gap-2">
-            <template x-for="(c, i) in pinsAutorizacion" :key="'pin-aut-' + i">
-              <div class="text-center font-mono tracking-[0.25em] text-sm py-2 rounded-lg border border-[rgba(212,175,55,0.25)] bg-bg-sidebar" x-text="c"></div>
+            <template x-for="i in [0,1,2,3]" :key="'pin-aut-' + i">
+              <input type="text" inputmode="numeric" maxlength="3"
+                :value="pinsAutorizacion[i] || ''"
+                @input="setPinAutorizacion(i, $event.target.value)"
+                class="text-center font-mono tracking-[0.25em] text-sm py-2 rounded-lg border border-[rgba(212,175,55,0.25)] bg-bg-sidebar focus:border-gold focus:outline-none"
+                placeholder="000">
             </template>
           </div>
-          <p class="text-[11px] text-txt-muted" x-show="!pinsAutorizacion.length">Todavía no hay combinaciones. Genérelas para que cocina pueda autorizar una entrega fuera de orden.</p>
-          <button type="button" @click="regenerarPinsAutorizacion()"
-            class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10">
-            Cambiar combinaciones
+          <p class="text-[11px] text-txt-muted">El admin las elige. Sirven siempre en el modal de autorización de cocina.</p>
+          <button type="button" @click="guardarPinsAutorizacion()"
+            class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gold/40 text-gold hover:bg-gold/10">
+            Guardar combinaciones
           </button>
+          <div class="pt-2 border-t border-[rgba(212,175,55,0.15)] space-y-2">
+            <label class="text-xs text-txt-secondary block">Códigos de un solo uso <span class="text-txt-muted">(15 aleatorios)</span></label>
+            <div class="grid grid-cols-5 gap-2">
+              <template x-for="(c, i) in pinsUnicoUso" :key="'pin-u-' + i + '-' + c">
+                <div class="text-center font-mono tracking-[0.2em] text-xs py-1.5 rounded-lg border border-[rgba(212,175,55,0.2)] bg-bg-sidebar" x-text="c"></div>
+              </template>
+            </div>
+            <p class="text-[11px] text-txt-muted" x-show="!pinsUnicoUso.length">No hay códigos de un solo uso. Genérelos para el modal de autorización.</p>
+            <p class="text-[11px] text-txt-muted" x-show="pinsUnicoUso.length" x-text="pinsUnicoUso.length + ' restantes (se borran al usarse)'"></p>
+            <button type="button" @click="regenerarPinsUnicoUso()"
+              class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10">
+              Generar 15 códigos de un solo uso
+            </button>
+          </div>
         </div>
         
         <!-- Sugerencias para crear -->
@@ -518,7 +536,8 @@ function usuariosApp() {
     filtroEstado: '',
     claveUniversal: '',
     claveUniversalOriginal: '',
-    pinsAutorizacion: [],
+    pinsAutorizacion: ['', '', '', ''],
+    pinsUnicoUso: [],
     puedeEditarClaveUniversal: false,
     _colorPerfilClearing: false,
     _colorLetraClearing: false,
@@ -626,23 +645,58 @@ function usuariosApp() {
       if (!this.puedeEditarClaveUniversal) return;
       try {
         const r = await apiGet('/admin/cocina/pins-autorizacion-orden');
-        if (r && r.success) this.pinsAutorizacion = Array.isArray(r.pins) ? r.pins : [];
+        if (r && r.success) {
+          const pins = Array.isArray(r.pins) ? r.pins.slice(0, 4) : [];
+          while (pins.length < 4) pins.push('');
+          this.pinsAutorizacion = pins;
+          this.pinsUnicoUso = Array.isArray(r.pinsUnicoUso) ? r.pinsUnicoUso : [];
+        }
       } catch (e) {
-        this.pinsAutorizacion = [];
+        this.pinsAutorizacion = ['', '', '', ''];
+        this.pinsUnicoUso = [];
       }
     },
 
-    async regenerarPinsAutorizacion() {
+    setPinAutorizacion(i, val) {
+      const pins = (this.pinsAutorizacion || []).slice();
+      while (pins.length < 4) pins.push('');
+      pins[i] = String(val || '').replace(/\D/g, '').slice(0, 3);
+      this.pinsAutorizacion = pins;
+    },
+
+    aplicarPinsRespuesta(r) {
+      const pins = Array.isArray(r?.pins) ? r.pins.slice(0, 4) : [];
+      while (pins.length < 4) pins.push('');
+      this.pinsAutorizacion = pins;
+      this.pinsUnicoUso = Array.isArray(r?.pinsUnicoUso) ? r.pinsUnicoUso : [];
+    },
+
+    async guardarPinsAutorizacion() {
       try {
-        const r = await apiPut('/admin/cocina/pins-autorizacion-orden', { regenerar: true });
+        const pins = (this.pinsAutorizacion || []).map((p) => String(p || '').replace(/\D/g, '').slice(0, 3));
+        const r = await apiPut('/admin/cocina/pins-autorizacion-orden', { pins });
         if (r && r.success) {
-          this.pinsAutorizacion = Array.isArray(r.pins) ? r.pins : [];
-          this.showToast('Combinaciones de autorización actualizadas', 'success');
+          this.aplicarPinsRespuesta(r);
+          this.showToast('Combinaciones fijas guardadas', 'success');
         } else {
-          this.showToast(r?.error || 'No se pudieron cambiar las combinaciones', 'error');
+          this.showToast(r?.error || 'No se pudieron guardar las combinaciones', 'error');
         }
       } catch (e) {
-        this.showToast('No se pudieron cambiar las combinaciones', 'error');
+        this.showToast('No se pudieron guardar las combinaciones', 'error');
+      }
+    },
+
+    async regenerarPinsUnicoUso() {
+      try {
+        const r = await apiPut('/admin/cocina/pins-autorizacion-orden', { regenerarUnicoUso: true });
+        if (r && r.success) {
+          this.aplicarPinsRespuesta(r);
+          this.showToast('15 códigos de un solo uso generados', 'success');
+        } else {
+          this.showToast(r?.error || 'No se pudieron generar los códigos', 'error');
+        }
+      } catch (e) {
+        this.showToast('No se pudieron generar los códigos', 'error');
       }
     },
 

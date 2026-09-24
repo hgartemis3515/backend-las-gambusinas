@@ -192,8 +192,9 @@ const CONFIGURACION_DEFAULT = {
 
     // Clave de 6 dígitos que desbloquea cualquier pantalla de App Cocina (solo admin la configura)
     pinUniversalCocina: '',
-    // Cuatro combinaciones de 3 dígitos para autorizar entrega fuera de orden. Solo admin las ve.
+    // 4 combinaciones fijas de 3 dígitos (el admin las elige) + 15 de un solo uso.
     pinsAutorizacionOrden: [],
+    pinsAutorizacionOrdenUnicoUso: [],
     
     // Cierre de caja
     cierreCaja: {
@@ -201,6 +202,12 @@ const CONFIGURACION_DEFAULT = {
         requerirEfectivoInicial: true,
         cierreAutomatico: false,
         horaCierreAutomatico: '04:00'
+    },
+
+    // Cobro directo del rol caja desde la app de mozos.
+    caja: {
+        cobroDirectoMozos: true,
+        autoAprobarCobroCaja: true
     },
 
     // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: configuración de reservas desde App Mozos.
@@ -688,6 +695,17 @@ const configuracionSistemaSchema = new mongoose.Schema({
         }
     },
 
+    caja: {
+        cobroDirectoMozos: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.caja.cobroDirectoMozos
+        },
+        autoAprobarCobroCaja: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.caja.autoAprobarCobroCaja
+        }
+    },
+
     // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: configuración de reservas desde App Mozos
     reservas: {
         permitirReservas: {
@@ -983,8 +1001,8 @@ const configuracionSistemaSchema = new mongoose.Schema({
             precios: { type: Boolean, default: true }
         },
         espaciado: {
-            lineHeight: { type: Number, default: 16 },
-            tamanoFuente: { type: Number, default: 11 },
+            lineHeight: { type: Number, default: 18 },
+            tamanoFuente: { type: Number, default: 13 },
             espacioDivider: { type: Number, default: 8 }
         },
         mensajes: {
@@ -1037,6 +1055,10 @@ const configuracionSistemaSchema = new mongoose.Schema({
         default: ''
     },
     pinsAutorizacionOrden: {
+        type: [String],
+        default: []
+    },
+    pinsAutorizacionOrdenUnicoUso: {
         type: [String],
         default: []
     }

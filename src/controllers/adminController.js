@@ -897,17 +897,57 @@ router.put('/admin/cocina/clave-universal', adminAuth, async (req, res) => {
     }
 });
 
-function generarPinsAutorizacionOrden() {
+function normalizarPin3(raw) {
+    return String(raw || '').replace(/\D/g, '').slice(0, 3);
+}
+
+function esPin3(pin) {
+    return /^\d{3}$/.test(pin);
+}
+
+function normalizarPinsFijos(lista) {
+    const out = [];
+    const seen = new Set();
+    for (const raw of Array.isArray(lista) ? lista : []) {
+        const pin = normalizarPin3(raw);
+        if (!esPin3(pin) || seen.has(pin)) continue;
+        seen.add(pin);
+        out.push(pin);
+    }
+    return out;
+}
+
+function generarPinsUnicoUso(excluir, cantidad = 15) {
+    const banned = new Set(excluir || []);
     const set = new Set();
-    while (set.size < 4) {
-        set.add(String(Math.floor(Math.random() * 1000)).padStart(3, '0'));
+    let guard = 0;
+    while (set.size < cantidad && guard < 8000) {
+        guard += 1;
+        const pin = String(Math.floor(Math.random() * 1000)).padStart(3, '0');
+        if (banned.has(pin) || set.has(pin)) continue;
+        set.add(pin);
     }
     return [...set];
 }
 
+async function invalidarCacheConfiguracion() {
+    try {
+        const redisCache = require('../utils/redisCache');
+        await redisCache.invalidateCustom('configuracion', 'sistema');
+    } catch (_) { /* cache opcional */ }
+}
+
+function pinsAutorizacionRespuesta(cfg) {
+    return {
+        success: true,
+        pins: Array.isArray(cfg.pinsAutorizacionOrden) ? cfg.pinsAutorizacionOrden : [],
+        pinsUnicoUso: Array.isArray(cfg.pinsAutorizacionOrdenUnicoUso) ? cfg.pinsAutorizacionOrdenUnicoUso : []
+    };
+}
+
 /**
  * GET /api/admin/cocina/pins-autorizacion-orden
- * Cuatro combinaciones de 3 dígitos. Solo admin.
+ * 4 combinaciones fijas + códigos de un solo uso. Solo admin.
  */
 router.get('/admin/cocina/pins-autorizacion-orden', adminAuth, async (req, res) => {
     try {
@@ -916,8 +956,7 @@ router.get('/admin/cocina/pins-autorizacion-orden', adminAuth, async (req, res) 
         }
         const ConfiguracionSistema = require('../database/models/configuracionSistema.model');
         const cfg = await ConfiguracionSistema.obtenerConfiguracion();
-        const pins = Array.isArray(cfg.pinsAutorizacionOrden) ? cfg.pinsAutorizacionOrden : [];
-        return res.json({ success: true, pins });
+        return res.json(pinsAutorizacionRespuesta(cfg));
     } catch (error) {
         logger.error('Error al leer combinaciones de autorización', { error: error.message });
         return res.status(500).json({ error: 'No se pudieron leer las combinaciones' });
@@ -926,24 +965,40 @@ router.get('/admin/cocina/pins-autorizacion-orden', adminAuth, async (req, res) 
 
 /**
  * PUT /api/admin/cocina/pins-autorizacion-orden
- * Body { regenerar: true } crea 4 combinaciones nuevas.
+ * Body { pins: ['123','456','789','012'] } guarda 4 fijos.
+ * Body { regenerarUnicoUso: true } crea 15 códigos aleatorios de un solo uso.
  */
 router.put('/admin/cocina/pins-autorizacion-orden', adminAuth, async (req, res) => {
     try {
         if (!esAdminToken(req.admin)) {
             return res.status(403).json({ error: 'Solo el admin puede cambiar las combinaciones' });
         }
-        const pins = generarPinsAutorizacionOrden();
         const ConfiguracionSistema = require('../database/models/configuracionSistema.model');
         const cfg = await ConfiguracionSistema.obtenerConfiguracion();
-        cfg.pinsAutorizacionOrden = pins;
+        const quiereFijos = Array.isArray(req.body?.pins);
+        const quiereUnico = req.body?.regenerarUnicoUso === true || req.body?.regenerar === true;
+        if (!quiereFijos && !quiereUnico) {
+            return res.status(400).json({ error: 'Envíe pins (4 fijos) o regenerarUnicoUso' });
+        }
+        if (quiereFijos) {
+            const pins = normalizarPinsFijos(req.body.pins);
+            if (pins.length !== 4) {
+                return res.status(400).json({ error: 'Debe elegir 4 combinaciones distintas de 3 dígitos' });
+            }
+            cfg.pinsAutorizacionOrden = pins;
+        }
+        if (quiereUnico) {
+            const fijos = Array.isArray(cfg.pinsAutorizacionOrden) ? cfg.pinsAutorizacionOrden : [];
+            cfg.pinsAutorizacionOrdenUnicoUso = generarPinsUnicoUso(fijos, 15);
+        }
         await cfg.save();
-        try {
-            const redisCache = require('../utils/redisCache');
-            await redisCache.invalidateCustom('configuracion', 'sistema');
-        } catch (_) { /* cache opcional */ }
-        logger.info('Combinaciones de autorización regeneradas', { adminId: req.admin.id });
-        return res.json({ success: true, pins });
+        await invalidarCacheConfiguracion();
+        logger.info('Combinaciones de autorización actualizadas', {
+            adminId: req.admin.id,
+            fijos: quiereFijos,
+            unicoUso: quiereUnico
+        });
+        return res.json(pinsAutorizacionRespuesta(cfg));
     } catch (error) {
         logger.error('Error al guardar combinaciones de autorización', { error: error.message });
         return res.status(500).json({ error: 'No se pudieron guardar las combinaciones' });
@@ -953,24 +1008,33 @@ router.put('/admin/cocina/pins-autorizacion-orden', adminAuth, async (req, res) 
 /**
  * POST /api/admin/cocina/autorizar-orden
  * La app de cocina envía 3 dígitos. No devuelve las combinaciones.
+ * Los 4 fijos se reutilizan; los de un solo uso se consumen.
  */
 router.post('/admin/cocina/autorizar-orden', adminAuth, async (req, res) => {
     try {
         if (req.admin?.app && req.admin.app !== 'cocina' && !esAdminToken(req.admin)) {
             return res.status(403).json({ error: 'Solo aplica a la App Cocina' });
         }
-        const pin = String(req.body?.pin || '').replace(/\D/g, '').slice(0, 3);
-        if (!/^\d{3}$/.test(pin)) {
+        const pin = normalizarPin3(req.body?.pin);
+        if (!esPin3(pin)) {
             return res.status(400).json({ success: false, error: 'La combinación debe tener 3 dígitos' });
         }
         const ConfiguracionSistema = require('../database/models/configuracionSistema.model');
         const cfg = await ConfiguracionSistema.obtenerConfiguracion();
-        const pins = Array.isArray(cfg.pinsAutorizacionOrden) ? cfg.pinsAutorizacionOrden : [];
-        const ok = pins.includes(pin);
-        if (!ok) {
+        const fijos = Array.isArray(cfg.pinsAutorizacionOrden) ? cfg.pinsAutorizacionOrden : [];
+        if (fijos.includes(pin)) {
+            return res.json({ success: true });
+        }
+        const unicos = Array.isArray(cfg.pinsAutorizacionOrdenUnicoUso) ? cfg.pinsAutorizacionOrdenUnicoUso.slice() : [];
+        const idx = unicos.indexOf(pin);
+        if (idx < 0) {
             return res.status(403).json({ success: false, error: 'Combinación incorrecta' });
         }
-        return res.json({ success: true });
+        unicos.splice(idx, 1);
+        cfg.pinsAutorizacionOrdenUnicoUso = unicos;
+        await cfg.save();
+        await invalidarCacheConfiguracion();
+        return res.json({ success: true, unicoUso: true });
     } catch (error) {
         logger.error('Error al autorizar orden', { error: error.message });
         return res.status(500).json({ success: false, error: 'No se pudo verificar la combinación' });

@@ -23,6 +23,8 @@ const configuracionRepository = require('../repository/configuracion.repository'
 const { NOMBRE_CLIENTE_FALLBACK } = require('../constants/clienteDefaults');
 const labelMetodoPago = require('../services/boucherPagoService').labelMetodoPago;
 const logger = require('../utils/logger');
+const { adminAuth, checkRole } = require('../middleware/adminAuth');
+const rolesTablaTickets = [adminAuth, checkRole(['admin', 'supervisor', 'cajero'])];
 const {
   resolverComandasNumbers,
   formatComandasNumbersLabel,
@@ -370,7 +372,7 @@ async function emitirTrasForzarPago(result) {
  * PUT /api/aprobacion/grupo/forzar-pago
  * Cobra todas las comandas pendientes de un grupo. Debe ir antes de /:id.
  */
-router.put('/aprobacion/grupo/forzar-pago', async (req, res) => {
+router.put('/aprobacion/grupo/forzar-pago', ...rolesTablaTickets, async (req, res) => {
   try {
     const { ticketIds, usuarioId, usuarioNombre, metodoPago, montoRecibido, vuelto, motivo } = req.body || {};
     const result = await aprobacionService.forzarPagoGrupoTickets(ticketIds, {
@@ -400,7 +402,7 @@ router.put('/aprobacion/grupo/forzar-pago', async (req, res) => {
  * PUT /api/aprobacion/:id/forzar-pago
  * Caja cobra el ticket de la comanda (boucher + aprobado). La mesa no pasa a pendiente_aprobar.
  */
-router.put('/aprobacion/:id/forzar-pago', async (req, res) => {
+router.put('/aprobacion/:id/forzar-pago', ...rolesTablaTickets, async (req, res) => {
   try {
     const { id } = req.params;
     const { usuarioId, usuarioNombre, metodoPago, montoRecibido, vuelto, motivo } = req.body || {};
@@ -430,7 +432,7 @@ router.put('/aprobacion/:id/forzar-pago', async (req, res) => {
  * Aprueba un ticket (comanda completa o PPA).
  * Body: { tipo?: 'COMANDA'|'ADELANTADO', usuarioId, usuarioNombre }
  */
-router.put('/aprobacion/:id/aprobar', async (req, res) => {
+router.put('/aprobacion/:id/aprobar', ...rolesTablaTickets, async (req, res) => {
   try {
     const { id } = req.params;
     const { tipo, usuarioId, usuarioNombre } = req.body;
@@ -603,7 +605,7 @@ router.put('/aprobacion/:id/aprobar', async (req, res) => {
  * NO aplica a PPA (usar rechazar en PPA existente).
  * Body: { motivo, usuarioId, usuarioNombre }
  */
-router.put('/aprobacion/:id/reportar', async (req, res) => {
+router.put('/aprobacion/:id/reportar', ...rolesTablaTickets, async (req, res) => {
   try {
     const { id } = req.params;
     const { motivo, usuarioId, usuarioNombre } = req.body;

@@ -23,7 +23,6 @@ export const EPSON_TM_M30II_RECEIPT = {
   minPageHeightMm: 45,
 };
 
-const PUNTOS_ANCHO = EPSON_TM_M30II_RECEIPT.contentWidthPx;
 const BOUCHER_PAPER_MM = EPSON_TM_M30II_RECEIPT.paperWidthMm;
 const pxToMm = (px) => (px * 25.4) / 72;
 
@@ -76,10 +75,9 @@ export function resolveLogoUrl(logo, serverOrigin) {
  * Wraps inner HTML into a full 80mm thermal-ticket page with print styles.
  *
  * Optimizado para Epson TM-m30II Receipt (Windows): @page con alto explícito en mm
- * (nunca "auto"), ancho 226px y script de impresión tras el layout.
+ * (nunca "auto"), ancho 80mm para ocupar el papel térmico (antes 226px se veía más pequeño).
  */
 export function envolverHtmlBoucherTicket(html, { fontSizeBase, lineHeightBase, pageHeightPx }) {
-  const w = PUNTOS_ANCHO;
   const h = Math.ceil(pageHeightPx || ALTURA_BASE_PX);
   const heightMm = Math.max(
     EPSON_TM_M30II_RECEIPT.minPageHeightMm,
@@ -88,12 +86,12 @@ export function envolverHtmlBoucherTicket(html, { fontSizeBase, lineHeightBase, 
   const pageSize = `${BOUCHER_PAPER_MM}mm ${heightMm}mm`;
   const bodyHeight = `${h}px`;
 
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=${w}, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><title>COMANDA</title>
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>COMANDA</title>
 <style>
 @page{size:${pageSize};margin:0;}
 *{box-sizing:border-box;}
-html{width:${w}px;max-width:${w}px;margin:0 auto;padding:0;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-body{margin:0;padding:4px;width:100%;box-sizing:border-box;height:${bodyHeight};max-width:100%;overflow:hidden;font-family:Arial,Helvetica,sans-serif;font-size:${fontSizeBase}px;line-height:${lineHeightBase}px;background:#fff;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+html{width:80mm;max-width:80mm;margin:0 auto;padding:0;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+body{margin:0;padding:10px 12px;width:100%;box-sizing:border-box;min-height:${bodyHeight};max-width:100%;overflow:hidden;font-family:Arial,Helvetica,sans-serif;font-size:${fontSizeBase}px;line-height:${lineHeightBase}px;background:#fff;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 .ticket{width:100%;margin:0 auto;}
 table{width:100%;}
 #ticket-root{width:100%;}
@@ -104,16 +102,15 @@ table{width:100%;}
 @media print{
   @page{size:${pageSize};margin:0;}
   html,body{
-    width:${w}px !important;
-    max-width:${w}px !important;
-    min-width:${w}px !important;
+    width:80mm !important;
+    max-width:80mm !important;
+    min-width:80mm !important;
     margin:0 auto !important;
-    padding:0 !important;
     overflow:hidden !important;
   }
   body{
-    height:${bodyHeight} !important;
-    padding:4px !important;
+    min-height:${bodyHeight} !important;
+    padding:10px 12px !important;
   }
   .ticket{width:100% !important;max-width:100% !important;}
   .no-print{display:none !important;}
@@ -361,8 +358,8 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
   }
   const mensajes = p.mensajes || {};
 
-  const lineHeight = Number(esp.lineHeight) > 0 ? Number(esp.lineHeight) : 16;
-  const fontSize = Number(esp.tamanoFuente) > 0 ? Number(esp.tamanoFuente) : 11;
+  const lineHeight = Number(esp.lineHeight) > 0 ? Number(esp.lineHeight) : 18;
+  const fontSize = Number(esp.tamanoFuente) > 0 ? Number(esp.tamanoFuente) : 13;
   const fontSizeSm = Math.max(8, fontSize - 1);
   const fontSizeLg = fontSize + 5;
   const fontSizeTitle = fontSize + 3;
@@ -585,6 +582,12 @@ export function generarHtmlComanda({ datos, plantilla, serverOrigin }) {
     html += '</div>';
   }
 
+  for (const linea of datos.clientesParaLlevar || []) {
+    const valor = linea.nombre || (linea.numero != null ? `#${linea.numero}` : '');
+    if (!valor) continue;
+    html += `<div style="margin-top:2px;font-size:${fontSize}px;width:100%;"><strong>Cliente:</strong> ${escapeHtml(valor)}</div>`;
+  }
+
   // === PIE ===
   if (mensajes.pie) {
     html += `<div style="text-align:center;font-size:${fontSizeSm}px;color:#999;margin-top:8px;">${escapeHtml(mensajes.pie)}</div>`;
@@ -645,6 +648,25 @@ function mapLineaProductoImpresion(p, comanda, index) {
     mostrarResumenComplementos: !!p.mostrarResumenComplementos,
     resumenComplementosImpresion: p.resumenComplementosImpresion || undefined,
   };
+}
+
+function esComandaParaLlevarTicket(c) {
+  if (!c) return false;
+  if (c.sinMesa === true) return true;
+  if (c.numeroTicketCliente != null || String(c.clienteNombreParaLlevar || '').trim()) return true;
+  const platos = c.platos || c.items || [];
+  return platos.some((p) => p && !p.eliminado && !p.anulado && (p.tipoServicio === 'para_llevar' || p.tipoServicio === 'extra_llevar'));
+}
+
+function lineasClienteParaLlevar(lista) {
+  return (lista || []).filter(esComandaParaLlevarTicket).map((c) => {
+    const nombre = String(c.clienteNombreParaLlevar || '').trim();
+    const numero = Number(c.numeroTicketCliente);
+    return {
+      nombre: nombre || null,
+      numero: Number.isFinite(numero) && numero > 0 ? numero : null,
+    };
+  }).filter((l) => l.nombre || l.numero != null);
 }
 
 function productosDeComanda(comanda) {
@@ -728,6 +750,7 @@ export function mapComandasATicket(comandas, boucherOpcional, config = {}) {
     moneda: boucherOpcional?.moneda || config.moneda || 'PEN',
     tipoPago: boucherOpcional?.metodoPagoLabel || boucherOpcional?.metodoPago || 'Pendiente',
     observaciones: primera.observaciones || boucherOpcional?.observaciones || '',
+    clientesParaLlevar: lineasClienteParaLlevar(lista),
     productos,
     subtotal: sumaPlatos > 0 ? sumaPlatos : (subtotalFuente > 0 ? subtotalFuente : 0),
     totalSinDescuento: sumaPlatos > 0 ? sumaPlatos : (subtotalFuente || 0),
