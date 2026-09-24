@@ -28,6 +28,8 @@ const logger = require('../utils/logger');
 const calculosPrecios = require('../utils/calculosPrecios');
 const { comandaCalificaLiberarSinCaja } = require('../utils/pendienteCobroMozo');
 const { SELECT_PLATO_COCINA } = require('../constants/platoPopulateCocina');
+const { aplicarSeparacionCantidadLinea } = require('../utils/separarCantidadLineaPlato');
+const { cantidadUnidadesPlato } = require('../utils/cantidadLineaComanda');
 
 /**
  * POST /pago-adelantado
@@ -258,16 +260,36 @@ router.post('/pago-adelantado', async (req, res) => {
     });
 
     // Marcar platos en las comandas con pagoAdelantado
+    // PPA PARCIAL v2: si se paga una cantidad < total de la línea, se separa la
+    // línea (separarCantidadLineaPlato): la línea original queda con el resto sin
+    // pagar (elegible de nuevo para PPA/pago normal) y una línea nueva con la
+    // cantidad cobrada recibe pagoAdelantado.cobrado=true.
+    // mapaLineaRemapeada: platoLineaId viejo (original) → nuevo id (línea cobrada
+    // tras separación). Se usa para re-apuntar ticket/boucher a la línea cobrada.
+    const mapaLineaRemapeada = new Map(); // (comandaId|lineaVieja) → lineaNuevaId
     for (const comanda of comandas) {
       const comandaDoc = await comandaModel.findById(comanda._id);
       if (!comandaDoc) continue;
 
       let modificado = false;
+      // Mapa línea→cantidad pagada en este PPA (por platoLineaId del ticket)
+      const pagadasPorLinea = new Map();
+      for (const tp of platosParaTicket) {
+        const cid = tp.comandaId?.toString?.() || String(tp.comandaId || '');
+        if (cid === comanda._id.toString()) {
+          pagadasPorLinea.set(String(tp.platoLineaId), Number(tp.cantidad) || 1);
+        }
+      }
+
       for (const plato of comandaDoc.platos) {
         const platoLineaId = plato._id?.toString();
-        const enTicket = platosParaTicket.some(tp => tp.platoLineaId?.toString() === platoLineaId);
+        if (!pagadasPorLinea.has(platoLineaId)) continue;
+        const cantidadPagar = pagadasPorLinea.get(platoLineaId);
 
-        if (enTicket) {
+        const platoIndex = comandaDoc.platos.indexOf(plato);
+        const totalLinea = cantidadUnidadesPlato(comandaDoc, platoIndex, plato);
+        // Si se paga la línea completa, solo marcar pagoAdelantado
+        if (cantidadPagar >= totalLinea) {
           plato.pagoAdelantado = {
             requerido: true,
             cobrado: true,
@@ -281,7 +303,49 @@ router.post('/pago-adelantado', async (req, res) => {
             // Se queda en 'pedido', no pasa a en_espera hasta aprobación
           }
           modificado = true;
+          continue;
         }
+
+        // Pago PARCIAL de la línea: separar (original queda con el resto, nueva
+        // línea al final con la cantidad cobrada). Luego marcar SOLO la nueva línea.
+        const idxNueva = comandaDoc.platos.length; // aplicarSeparacionCantidadLinea agrega al final
+        const sep = aplicarSeparacionCantidadLinea(comandaDoc, platoIndex, cantidadPagar);
+        if (!sep.didSplit) {
+          logger.warn('[PPA] No se pudo separar línea para pago parcial', {
+            comandaId: comanda._id?.toString(),
+            comandaNumber: comanda.comandaNumber,
+            platoLineaId,
+            cantidadPagar,
+            error: sep.error,
+          });
+          // Fallback: marcar línea completa (comportamiento anterior)
+          plato.pagoAdelantado = {
+            requerido: true,
+            cobrado: true,
+            ticketId: ticket._id,
+            estadoTicket: 'pendiente_aprobacion',
+            boucherId: boucher._id,
+          };
+          modificado = true;
+          continue;
+        }
+
+        const lineaNueva = comandaDoc.platos[idxNueva];
+        if (lineaNueva) {
+          lineaNueva.pagoAdelantado = {
+            requerido: true,
+            cobrado: true,
+            ticketId: ticket._id,
+            estadoTicket: 'pendiente_aprobacion',
+            boucherId: boucher._id,
+          };
+          mapaLineaRemapeada.set(
+            `${comanda._id.toString()}|${platoLineaId}`,
+            lineaNueva._id?.toString()
+          );
+        }
+        // La línea original conserva su estado y queda pendiente de cobrar.
+        modificado = true;
       }
 
       if (modificado) {
@@ -303,6 +367,57 @@ router.post('/pago-adelantado', async (req, res) => {
 
         comandaDoc.markModified('platos');
         await comandaDoc.save();
+      }
+    }
+
+    // PPA PARCIAL v2: re-apuntar snapshot del ticket y boucher a las líneas
+    // NUEVAS creadas por separación de cantidad. Así aprobar/rechazar/editar
+    // precios operan sobre la línea cobrada y no sobre la original (que queda
+    // pendiente con el resto de unidades).
+    if (mapaLineaRemapeada.size > 0) {
+      const ticketDoc = await ticketPagoAdelantadoModel.findById(ticket._id);
+      if (ticketDoc) {
+        let cambios = false;
+        for (const tp of ticketDoc.platos || []) {
+          const key = `${tp.comandaId?.toString?.() || String(tp.comandaId || '')}|${tp.platoLineaId?.toString()}`;
+          const nuevoId = mapaLineaRemapeada.get(key);
+          if (nuevoId) {
+            tp.platoLineaId = new mongoose.Types.ObjectId(nuevoId);
+            cambios = true;
+          }
+        }
+        if (cambios) {
+          ticketDoc.markModified('platos');
+          await ticketDoc.save();
+        }
+      }
+
+      try {
+        const Boucher = mongoose.model('Boucher');
+        const boucherDoc = await Boucher.findById(boucher._id);
+        if (boucherDoc) {
+          let cambiosB = false;
+          for (const bp of boucherDoc.platos || []) {
+            // Las líneas del boucher llevan platoLineaId solo si llegó
+            // platoSubdocId desde el servicio; mapear por (comandaNumber+nombre+linea)
+            const tpRef = platosParaTicket.find((t) => t.comandaNumber === bp.comandaNumber
+              && t.nombre === bp.nombre
+              && String(t.platoLineaId) === String(bp.platoLineaId || ''));
+            if (!tpRef) continue;
+            const key = `${tpRef.comandaId?.toString?.() || String(tpRef.comandaId || '')}|${tpRef.platoLineaId?.toString()}`;
+            const nuevoId = mapaLineaRemapeada.get(key);
+            if (nuevoId) {
+              bp.platoLineaId = new mongoose.Types.ObjectId(nuevoId);
+              cambiosB = true;
+            }
+          }
+          if (cambiosB) {
+            boucherDoc.markModified('platos');
+            await boucherDoc.save();
+          }
+        }
+      } catch (e) {
+        logger.warn('[PPA] No se pudo re-apuntar platoLineaId en boucher (no crítico):', { error: e.message });
       }
     }
 

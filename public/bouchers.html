@@ -289,12 +289,13 @@ tailwind.config = {
                   <th class="text-left px-3 py-2 font-semibold">Mozo</th>
                   <th class="text-left px-3 py-2 font-semibold">Estado</th>
                   <th class="text-left px-3 py-2 font-semibold">Total</th>
+                  <th class="text-left px-3 py-2 font-semibold">Pendiente</th>
                   <th class="text-left px-3 py-2 font-semibold"></th>
                 </tr>
               </thead>
               <tbody>
                 <tr x-show="groupedTicketRows.length === 0">
-                  <td colspan="7" class="px-3 py-6 text-center text-txt-muted">No hay tickets en esta fecha</td>
+                  <td colspan="8" class="px-3 py-6 text-center text-txt-muted">No hay tickets en esta fecha</td>
                 </tr>
                 <template x-for="row in groupedTicketRows" :key="row.id">
                   <tbody class="contents">
@@ -309,6 +310,7 @@ tailwind.config = {
                         <td class="px-3 py-2 text-txt-secondary truncate max-w-[90px]" x-text="row.mozoNombre"></td>
                         <td class="px-3 py-2 text-txt-muted" x-text="row.numTickets + ' tickets'"></td>
                         <td class="px-3 py-2 text-gold font-semibold whitespace-nowrap" x-text="'S/. ' + Number(row.totalAgrupado || 0).toFixed(2)"></td>
+                        <td class="px-3 py-2 whitespace-nowrap" x-text="saldoPendienteGrupo(row) > 0 ? ('S/. ' + saldoPendienteGrupo(row).toFixed(2)) : '—'"></td>
                         <td class="px-3 py-2 text-[10px] text-txt-muted" x-text="expandedTicketGroups.includes(row.id) ? 'Ocultar' : 'Ver'"></td>
                       </tr>
                     </template>
@@ -323,6 +325,7 @@ tailwind.config = {
                           <td class="px-3 py-1.5 text-txt-secondary truncate max-w-[90px]" x-text="mozoTicket(ticket)"></td>
                           <td class="px-3 py-1.5 text-txt-muted" x-text="labelEstadoTicket(ticket)"></td>
                           <td class="px-3 py-1.5 text-gold font-semibold whitespace-nowrap" x-text="'S/. ' + Number(ticket.total || 0).toFixed(2)"></td>
+                          <td class="px-3 py-1.5 whitespace-nowrap" x-text="saldoPendienteTicket(ticket) > 0 ? ('S/. ' + saldoPendienteTicket(ticket).toFixed(2)) : '—'"></td>
                           <td class="px-3 py-1.5 text-right">
                             <button type="button" class="hover:text-gold transition" @click.stop="imprimirTicketCocina(ticket)" title="Imprimir ticket">🖨️</button>
                           </td>
@@ -339,6 +342,7 @@ tailwind.config = {
                         <td class="px-3 py-2 text-txt-secondary truncate max-w-[90px]" x-text="mozoTicket(row.ticket)"></td>
                         <td class="px-3 py-2 text-txt-muted" x-text="labelEstadoTicket(row.ticket)"></td>
                         <td class="px-3 py-2 text-gold font-semibold whitespace-nowrap" x-text="'S/. ' + Number(row.ticket.total || 0).toFixed(2)"></td>
+                        <td class="px-3 py-2 whitespace-nowrap" x-text="saldoPendienteTicket(row.ticket) > 0 ? ('S/. ' + saldoPendienteTicket(row.ticket).toFixed(2)) : '—'"></td>
                         <td class="px-3 py-2 text-right">
                           <button type="button" class="hover:text-gold transition" @click="imprimirTicketCocina(row.ticket)" title="Imprimir ticket">🖨️</button>
                         </td>
@@ -1648,6 +1652,25 @@ body{font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:${e.tamanoF
       if (e === 'pendiente_aprobacion') return 'Pendiente';
       if (e === 'reportado') return 'Reportado';
       return t?.estado || '—';
+    },
+
+    /** Saldo pendiente de cobrar de un ticket (comandas[].pendienteCobro del backend).
+     * PPA PARCIAL v2: los tickets ADELANTADO traen el saldo de lo aún sin cobrar. */
+    saldoPendienteTicket(t) {
+      const cmds = Array.isArray(t?.comandas) ? t.comandas : [];
+      let sum = 0;
+      for (const c of cmds) {
+        const n = Number(c?.pendienteCobro);
+        if (Number.isFinite(n)) sum += Math.max(0, n);
+      }
+      return Math.round(sum * 100) / 100;
+    },
+
+    saldoPendienteGrupo(row) {
+      const lista = Array.isArray(row?.tickets) ? row.tickets : [];
+      let sum = 0;
+      for (const t of lista) sum += this.saldoPendienteTicket(t);
+      return Math.round(sum * 100) / 100;
     },
 
     async loadTicketsCocina() {

@@ -46,6 +46,17 @@ describe('saldoPendienteComanda', () => {
     expect(pendienteCobroDeComandaPopulada(comanda)).toBe(150);
   });
 
+  test('PPA parcial: 1 cobrado y 3 en espera → pendiente 99', () => {
+    const comanda = {
+      platos: [
+        { estado: 'en_espera', precioUnitario: 33, pagoAdelantado: { cobrado: false, estadoTicket: null } },
+        { estado: 'en_espera', precioUnitario: 33, pagoAdelantado: { cobrado: true, estadoTicket: 'aprobado' } },
+      ],
+      cantidades: [3, 1],
+    };
+    expect(pendienteCobroDeComandaPopulada(comanda, { modo: 'ppa' })).toBe(99);
+  });
+
   test('todo cobrado → 0', () => {
     const comanda = {
       platos: [plato('pendiente', 33), plato('pendiente', 12)],
