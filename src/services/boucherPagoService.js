@@ -660,7 +660,8 @@ async function procesarPagoBoucher(params) {
       const { desactivarTicketsAltaPendientes } = require('../utils/ticketAltaComanda');
       await desactivarTicketsAltaPendientes(
         comandasIdsAfectadas,
-        'Reemplazado por solicitud de cobro del mozo'
+        'Reemplazado por solicitud de cobro del mozo',
+        platosSnapshot
       );
 
       ticketAprobacionCreado = await ticketAprobacionRepository.crearTicketAprobacion({

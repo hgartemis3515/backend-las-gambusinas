@@ -247,7 +247,8 @@ router.post('/pago-adelantado', async (req, res) => {
     const comandaIdsPpa = comandas.map((c) => c._id);
     await desactivarTicketsAltaPendientes(
       comandaIdsPpa,
-      'Reemplazado por pago adelantado del mozo'
+      'Reemplazado por pago adelantado del mozo',
+      platosParaTicket
     );
     await actualizarTicketsForzadosConPpaMozo(comandaIdsPpa, {
       metodoPago: metodoPago || 'efectivo',
