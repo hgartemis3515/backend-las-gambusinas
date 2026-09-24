@@ -38,28 +38,127 @@ function esTicketComandaTipo(ticket) {
   return t === 'comanda_completa' || t === 'comanda' || t === 'pago_parcial' || t === '';
 }
 
+function round2(n) {
+  return Math.round((Number(n) || 0) * 100) / 100;
+}
+
+function idLinea(v) {
+  if (v == null || v === '') return '';
+  if (typeof v === 'object') return String(v._id || v.id || '');
+  return String(v);
+}
+
+function claveLineaTicket(p) {
+  const id = idLinea(p && p.platoLineaId);
+  if (id) return `id:${id}`;
+  const nombre = String((p && p.nombre) || '').trim().toLowerCase();
+  const precio = round2(p && (p.precio != null ? p.precio : p.precioUnitario));
+  const comanda = p && p.comandaNumber != null ? String(p.comandaNumber) : '';
+  const comandaId = idLinea(p && p.comandaId);
+  return `fb:${comandaId}|${comanda}|${nombre}|${precio}`;
+}
+
 /**
- * Al cobrar el mozo (pago normal o PPA), el ticket de alta deja de mostrarse
- * en la tabla de cocina y se reemplaza por la solicitud real.
+ * Quita del ticket de alta las unidades que entraron en un cobro parcial o PPA.
+ * Si no queda nada, el alta se apaga. Si queda saldo, el ticket sigue visible.
  */
-async function desactivarTicketsAltaPendientes(comandaIds, motivo) {
-  if (!Array.isArray(comandaIds) || comandaIds.length === 0) return { modifiedCount: 0 };
+function recortarPlatosAlta(platosAlta, platosCobrados) {
+  const bolsa = (platosCobrados || []).map((p) => ({
+    clave: claveLineaTicket(p),
+    cantidad: Math.max(0, Number(p && p.cantidad) || 1),
+  })).filter((p) => p.cantidad > 0);
+
+  let cubrioAlgo = false;
+  const platos = [];
+  for (const linea of platosAlta || []) {
+    const clave = claveLineaTicket(linea);
+    let queda = Math.max(0, Number(linea && linea.cantidad) || 1);
+    const inicio = queda;
+    for (const b of bolsa) {
+      if (queda <= 0) break;
+      if (b.clave !== clave || b.cantidad <= 0) continue;
+      const n = Math.min(queda, b.cantidad);
+      b.cantidad -= n;
+      queda -= n;
+    }
+    if (queda < inicio) cubrioAlgo = true;
+    if (queda <= 0) continue;
+    const precio = Number(linea.precio) || 0;
+    platos.push({ ...linea, cantidad: queda, subtotal: round2(precio * queda) });
+  }
+  return { platos, cubrioAlgo, vacio: platos.length === 0 };
+}
+
+function totalesRestanteAlta(platos, ticket) {
+  const suma = round2((platos || []).reduce((s, p) => {
+    const sub = Number(p.subtotal);
+    if (Number.isFinite(sub) && sub > 0) return s + sub;
+    return s + (Number(p.precio) || 0) * (Number(p.cantidad) || 1);
+  }, 0));
+  const subPrev = Number(ticket && ticket.subtotal) || 0;
+  const igvPrev = Number(ticket && ticket.igv) || 0;
+  const tasa = subPrev > 0 && igvPrev > 0 ? igvPrev / subPrev : 0;
+  const igv = round2(suma * tasa);
+  const descPrev = Number(ticket && ticket.montoDescuento) || 0;
+  const sinPrev = Number(ticket && ticket.totalSinDescuento) || subPrev || suma;
+  const desc = sinPrev > 0 && descPrev > 0 ? round2(descPrev * (suma / sinPrev)) : 0;
+  const total = round2(Math.max(0, suma + igv - desc));
+  return { subtotal: suma, igv, total, montoDescuento: desc, totalSinDescuento: round2(suma + igv) };
+}
+
+/**
+ * Al cobrar el mozo (pago normal o PPA), el ticket de alta deja de mostrar
+ * los platos de esa solicitud. Si la comanda aún tiene platos por cobrar,
+ * el alta sigue en la tabla (imprimir y forzar cobro).
+ * Sin platosCobrados, apaga el alta completo (cobro de toda la comanda).
+ */
+async function desactivarTicketsAltaPendientes(comandaIds, motivo, platosCobrados) {
+  if (!Array.isArray(comandaIds) || comandaIds.length === 0) return { modifiedCount: 0, recortados: 0 };
   const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
-  return ticketAprobacionModel.updateMany(
-    {
-      comandas: { $in: comandaIds },
-      estado: 'pendiente_aprobacion',
-      origen: { $in: ['alta_comanda', 'alta'] },
-      isActive: true,
-      boucher: null,
-    },
-    {
+  const filtro = {
+    comandas: { $in: comandaIds },
+    estado: 'pendiente_aprobacion',
+    origen: { $in: ['alta_comanda', 'alta'] },
+    isActive: true,
+    boucher: null,
+  };
+  const hayDetalle = Array.isArray(platosCobrados) && platosCobrados.length > 0;
+  if (!hayDetalle) {
+    const res = await ticketAprobacionModel.updateMany(filtro, {
       $set: {
         isActive: false,
         observaciones: motivo || 'Reemplazado por solicitud de cobro del mozo',
       },
+    });
+    return { modifiedCount: res.modifiedCount || 0, recortados: 0 };
+  }
+
+  const tickets = await ticketAprobacionModel.find(filtro);
+  let modifiedCount = 0;
+  let recortados = 0;
+  for (const t of tickets) {
+    const plain = (t.platos || []).map((p) => (typeof p.toObject === 'function' ? p.toObject() : { ...p }));
+    const recorte = recortarPlatosAlta(plain, platosCobrados);
+    if (!recorte.cubrioAlgo) continue;
+    if (recorte.vacio) {
+      t.isActive = false;
+      t.observaciones = motivo || 'Reemplazado por solicitud de cobro del mozo';
+    } else {
+      const tot = totalesRestanteAlta(recorte.platos, t);
+      t.platos = recorte.platos;
+      t.subtotal = tot.subtotal;
+      t.igv = tot.igv;
+      t.total = tot.total;
+      t.totalSinDescuento = tot.totalSinDescuento;
+      t.montoDescuento = tot.montoDescuento;
+      t.isActive = true;
+      t.markModified('platos');
+      recortados += 1;
     }
-  );
+    await t.save();
+    modifiedCount += 1;
+  }
+  return { modifiedCount, recortados };
 }
 
 /**
@@ -80,12 +179,29 @@ async function actualizarTicketsForzadosConPpaMozo(comandaIds, pago = {}) {
     if (pago.metodoPago) t.metodoPago = pago.metodoPago;
     if (pago.montoRecibido != null) t.montoRecibido = pago.montoRecibido;
     if (pago.vuelto != null) t.vuelto = pago.vuelto;
-    if (pago.platos) t.platos = pago.platos;
-    if (pago.subtotal != null) t.subtotal = pago.subtotal;
-    if (pago.igv != null) t.igv = pago.igv;
-    if (pago.total != null) t.total = pago.total;
+    const plain = (t.platos || []).map((p) => (typeof p.toObject === 'function' ? p.toObject() : { ...p }));
+    const recorte = Array.isArray(pago.platos) && pago.platos.length
+      ? recortarPlatosAlta(plain, pago.platos)
+      : { platos: plain, cubrioAlgo: false, vacio: false };
+    if (recorte.cubrioAlgo && !recorte.vacio && t.estado === 'pendiente_aprobacion') {
+      const tot = totalesRestanteAlta(recorte.platos, t);
+      t.platos = recorte.platos;
+      t.subtotal = tot.subtotal;
+      t.igv = tot.igv;
+      t.total = tot.total;
+      t.totalSinDescuento = tot.totalSinDescuento;
+      t.montoDescuento = tot.montoDescuento;
+      t.markModified('platos');
+    } else if (!recorte.cubrioAlgo) {
+      continue;
+    } else {
+      if (pago.platos) t.platos = pago.platos;
+      if (pago.subtotal != null) t.subtotal = pago.subtotal;
+      if (pago.igv != null) t.igv = pago.igv;
+      if (pago.total != null) t.total = pago.total;
+      t.isActive = false;
+    }
     t.observaciones = `${t.observaciones || ''} [Actualizado con PPA del mozo]`.trim();
-    t.isActive = false;
     await t.save();
     if (t.boucher) {
       const set = {};
@@ -144,6 +260,8 @@ module.exports = {
   ticketPuedeAprobarse,
   ticketPuedeForzarPago,
   esTicketComandaTipo,
+  recortarPlatosAlta,
+  totalesRestanteAlta,
   desactivarTicketsAltaPendientes,
   actualizarTicketsForzadosConPpaMozo,
   matchFechaRangoTicket,

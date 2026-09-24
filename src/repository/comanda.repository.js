@@ -28,7 +28,7 @@ const { fusionarGuarnicionesPreseleccionadas } = require('../utils/preseleccionG
 const { aplicarCambioGuarnicionAPlato } = require('../utils/cambioGuarnicionPreseleccion');
 const { segundosArmado, parseArmadoInicio } = require('../utils/tiempoArmadoComanda');
 const { aplicarNumeroSerieComanda } = require('../utils/numeroSeriePlato');
-const { indicePlatoPorIdLinea, aplicarSeparacionCantidadLinea } = require('../utils/separarCantidadLineaPlato');
+const { indicePlatoPorIdLinea, aplicarSeparacionCantidadLinea, aplicarCobroParcialCantidad } = require('../utils/separarCantidadLineaPlato');
 const { SELECT_PLATO_COCINA } = require('../constants/platoPopulateCocina');
 const configuracionRepository = require('./configuracion.repository');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
@@ -4022,6 +4022,7 @@ const validarPlatosSeleccionadosParaPago = async (mesaId, platosSeleccionados, e
 const marcarPlatosComoPagados = async (selecciones, { clienteId, ahoraPago } = {}, opciones = {}) => {
   const estadoPlato = opciones.estadoPlato || 'pagado';
   const comandasCompletamentePagadas = new Set();
+  const remapeosLinea = [];
   const porComanda = new Map();
 
   for (const sel of selecciones) {
@@ -4039,21 +4040,21 @@ const marcarPlatosComoPagados = async (selecciones, { clienteId, ahoraPago } = {
       if (!plato) continue;
       const cantidadMax = comanda.cantidades?.[sel.platoIndex] || 1;
       const cantidadPagar = sel.cantidad || cantidadMax;
-
-      if (cantidadPagar >= cantidadMax) {
-        plato.estado = estadoPlato;
-        if (!plato.tiempos) plato.tiempos = {};
-        // Siempre registrar tiempos.pagado para trazabilidad contable
-        plato.tiempos.pagado = ahoraPago || new Date();
-        // Si el estado no es 'pagado' (ej. 'pendiente'), registrar también su propio timestamp
-        if (estadoPlato !== 'pagado') {
-          plato.tiempos[estadoPlato] = ahoraPago || new Date();
-        }
-        if (!comanda.cantidades) comanda.cantidades = [];
-        comanda.cantidades[sel.platoIndex] = cantidadMax;
-      } else {
-        comanda.cantidades[sel.platoIndex] = cantidadMax - cantidadPagar;
-        // Plato sigue entregado con unidades restantes
+      // Cobro de una parte de la línea: no restar unidades del total de venta.
+      // La línea nueva (unidades cobradas) conserva el monto; el resto sigue pendiente.
+      const cobro = aplicarCobroParcialCantidad(
+        comanda,
+        sel.platoIndex,
+        cantidadPagar,
+        estadoPlato,
+        ahoraPago || new Date()
+      );
+      if (cobro.didSplit && cobro.lineaViejaId && cobro.lineaNuevaId) {
+        remapeosLinea.push({
+          comandaId,
+          lineaViejaId: cobro.lineaViejaId,
+          lineaNuevaId: cobro.lineaNuevaId,
+        });
       }
       comanda.markModified('platos');
       comanda.markModified('cantidades');
@@ -4110,7 +4111,10 @@ const marcarPlatosComoPagados = async (selecciones, { clienteId, ahoraPago } = {
     await comandaModel.updateOne({ _id: comandaId }, { $set: updateData });
   }
 
-  return [...comandasCompletamentePagadas];
+  return {
+    comandasCompletamentePagadas: [...comandasCompletamentePagadas],
+    remapeosLinea,
+  };
 };
 
 const validarComandasParaPagar = async (mesaId, comandasIds) => {

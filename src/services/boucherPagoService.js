@@ -554,11 +554,22 @@ async function procesarPagoBoucher(params) {
     // (NO a 'pagado') porque ahora requieren aprobación de cocina antes de
     // entrar al KDS. La mesa terminará en 'pendiente_aprobar', no 'pagado'.
     // El boucher se sigue creando idéntico (registro contable intacto).
-    const comandasCompletamentePagadas = await marcarPlatosComoPagados(
+    const marcado = await marcarPlatosComoPagados(
       seleccionesParaMarcar,
       { clienteId, ahoraPago },
       { estadoPlato: 'pendiente' }
     );
+    const comandasCompletamentePagadas = Array.isArray(marcado)
+      ? marcado
+      : (marcado?.comandasCompletamentePagadas || []);
+    const remapeosLinea = Array.isArray(marcado) ? [] : (marcado?.remapeosLinea || []);
+    if (remapeosLinea.length) {
+      const porLineaVieja = new Map(remapeosLinea.map((r) => [String(r.lineaViejaId), String(r.lineaNuevaId)]));
+      for (const p of platosParaBoucher) {
+        const nuevo = p.platoSubdocId ? porLineaVieja.get(String(p.platoSubdocId)) : null;
+        if (nuevo) p.platoSubdocId = nuevo;
+      }
+    }
 
     // PLAN_PLANTILLA_COMANDAS: tras pago normal, la comanda queda en status 'pendiente_aprobar'
     // hasta que cocina apruebe (entonces → 'pagado'). Antes se usaba 'entregado' (legacy),
@@ -664,7 +675,8 @@ async function procesarPagoBoucher(params) {
       const { desactivarTicketsAltaPendientes } = require('../utils/ticketAltaComanda');
       await desactivarTicketsAltaPendientes(
         comandasIdsAfectadas,
-        'Reemplazado por solicitud de cobro del mozo'
+        'Reemplazado por solicitud de cobro del mozo',
+        platosSnapshot
       );
 
       ticketAprobacionCreado = await ticketAprobacionRepository.crearTicketAprobacion({
