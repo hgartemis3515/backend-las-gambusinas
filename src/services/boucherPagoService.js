@@ -310,9 +310,12 @@ async function procesarPagoBoucher(params) {
     // PLAN_RESERVAS_MOZOS_CAJA_KDS v1.1: abono de reserva (seña) a descontar
     abonoReserva = 0,
     reservaOrigenId = null,
+    montoCobro = null,
   } = params;
-  const usaSeleccion = usaSeleccionDePlatos(platosSeleccionados);
   const configMoneda = await configuracionRepository.obtenerConfiguracionMoneda();
+  const cobroPorCantidadOn = configMoneda.cobroPorCantidad !== false;
+  const platosSel = (cobroPorCantidadOn && !esPagoAdelantado) ? [] : platosSeleccionados;
+  const usaSeleccion = usaSeleccionDePlatos(platosSel);
   const zona = configMoneda.zonaHoraria || 'America/Lima';
   const ahoraPago = moment().tz(zona).toDate();
 
@@ -351,7 +354,7 @@ async function procesarPagoBoucher(params) {
   let seleccionesParaMarcar;
 
   if (usaSeleccion) {
-    const validacion = await validarPlatosSeleccionadosParaPago(mesaId, platosSeleccionados, esPagoAdelantado);
+    const validacion = await validarPlatosSeleccionadosParaPago(mesaId, platosSel, esPagoAdelantado);
     comandasValidas = validacion.comandas;
     platosParaBoucher = validacion.platosParaBoucher;
     comandasIdsAfectadas = validacion.comandasIds;
@@ -422,6 +425,18 @@ async function procesarPagoBoucher(params) {
     }
   }
   totales.abonoReserva = abonoAplicado;
+
+  let esAbonoPorCantidad = false;
+  let totalCuenta = null;
+  if (cobroPorCantidadOn) {
+    const { decidirMontoCobro, sumaAbonosCobroPorCantidad } = require('../utils/cobroPorCantidad');
+    const ya = await sumaAbonosCobroPorCantidad(comandasIdsAfectadas);
+    const decision = decidirMontoCobro(montoCobro, Math.max(0, totales.total - ya));
+    esAbonoPorCantidad = decision.esAbono;
+    totalCuenta = decision.esAbono || ya > 0 ? Math.round((decision.saldo + ya) * 100) / 100 : null;
+    totales.total = decision.monto;
+    totales.totalConDescuento = decision.monto;
+  }
 
   // 🔥 Calcular total en la moneda seleccionada para validar efectivo y vuelto
   // totales.total está en PEN (moneda base del sistema)
@@ -534,7 +549,7 @@ async function procesarPagoBoucher(params) {
   // Los platos quedan en su estado actual y se crea un TPA por separado.
   // El TPA se encarga de la transición de estados (pedido → en_espera) al ser aprobado.
   let ticketAprobacionCreado = null;
-  if (!esPagoAdelantado) {
+  if (!esPagoAdelantado && !esAbonoPorCantidad) {
     // PLAN_PLANTILLA_COMANDAS: en pago normal, los platos pasan a 'pendiente'
     // (NO a 'pagado') porque ahora requieren aprobación de cocina antes de
     // entrar al KDS. La mesa terminará en 'pendiente_aprobar', no 'pagado'.
@@ -599,7 +614,7 @@ async function procesarPagoBoucher(params) {
         mesa: { sinMesa: true },
       };
 
-  if (!esPagoAdelantado && platosParaBoucher.length > 0 && mesaId) {
+  if (!esPagoAdelantado && !esAbonoPorCantidad && platosParaBoucher.length > 0 && mesaId) {
     // Mesa siempre a pendiente_aprobar mientras haya tickets sin aprobar
     const mesaDoc = await mesasModel.findById(mesaId);
     if (mesaDoc && mesaDoc.estado !== 'reportado' && mesaDoc.estado !== 'pagado') {
@@ -663,7 +678,9 @@ async function procesarPagoBoucher(params) {
         mozoNombre: boucherData.nombreMozo,
         pedido: pedidoId,
         // tipo: 'pago_parcial' si no cubre toda la mesa, 'comanda_completa' si sí
-        tipo: esPagoParcialFlag ? 'pago_parcial' : 'comanda_completa',
+        tipo: esAbonoPorCantidad ? 'pago_parcial' : (esPagoParcialFlag ? 'pago_parcial' : 'comanda_completa'),
+        cobroPorCantidad: esAbonoPorCantidad,
+        totalCuenta,
         platos: platosSnapshot,
         subtotal: totales.subtotal,
         igv: totales.igv,
@@ -734,7 +751,13 @@ async function procesarPagoBoucher(params) {
     );
   }
 
-  return { boucher: boucherCreado, resumen, ticketAprobacion: ticketAprobacionCreado };
+  return {
+    boucher: boucherCreado,
+    resumen,
+    ticketAprobacion: ticketAprobacionCreado,
+    esAbonoPorCantidad,
+    totalCuenta,
+  };
 }
 
 module.exports = {

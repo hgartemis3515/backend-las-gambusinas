@@ -374,7 +374,8 @@ const obtenerConfiguracionMoneda = async () => {
             nombreImpuestoPrincipal: config.nombreImpuestoPrincipal,
             politicaRedondeo: config.politicaRedondeo,
             redondearA: config.redondearA,
-            formatoSeparadores: config.formatoSeparadores
+            formatoSeparadores: config.formatoSeparadores,
+            cobroPorCantidad: config.cobroPorCantidad !== false,
         };
     } catch (error) {
         logger.error('Error al obtener configuración de moneda:', { error: error.message });

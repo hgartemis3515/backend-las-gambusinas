@@ -28,6 +28,16 @@ const ticketAprobacionSchema = new mongoose.Schema({
     enum: ['comanda_completa', 'pago_parcial'],
     default: 'comanda_completa',
   },
+  /** Abono por dinero: no marca platos. El total del ticket es lo cobrado. */
+  cobroPorCantidad: {
+    type: Boolean,
+    default: false,
+  },
+  /** Cuenta neta de la visita cuando el cobro se parte en abonos. */
+  totalCuenta: {
+    type: Number,
+    default: null,
+  },
   estado: {
     type: String,
     enum: ['pendiente_aprobacion', 'aprobado', 'reportado'],

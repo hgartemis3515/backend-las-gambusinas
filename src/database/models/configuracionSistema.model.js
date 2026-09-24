@@ -73,6 +73,9 @@ const CONFIGURACION_DEFAULT = {
         plin: { activo: true, requiereReferencia: true },
         transferencia: { activo: false, requiereReferencia: true }
     },
+
+    // Cobro por dinero (no por plato). Default activo.
+    cobroPorCantidad: true,
     
     // Propinas
     propinas: {
@@ -446,6 +449,11 @@ const configuracionSistemaSchema = new mongoose.Schema({
             activo: { type: Boolean, default: CONFIGURACION_DEFAULT.metodosPago.transferencia.activo },
             requiereReferencia: { type: Boolean, default: CONFIGURACION_DEFAULT.metodosPago.transferencia.requiereReferencia }
         }
+    },
+
+    cobroPorCantidad: {
+        type: Boolean,
+        default: CONFIGURACION_DEFAULT.cobroPorCantidad
     },
     
     // Propinas

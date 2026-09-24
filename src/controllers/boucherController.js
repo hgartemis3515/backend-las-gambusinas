@@ -171,6 +171,7 @@ router.post('/boucher', async (req, res) => {
             vuelto,
             moneda,
             tipoCambioUsd,
+            montoCobro,
         } = req.body;
         const parcial = esPagoParcial(platosSeleccionados);
 
@@ -198,6 +199,7 @@ router.post('/boucher', async (req, res) => {
             vuelto,
             moneda,
             tipoCambioUsd,
+            montoCobro,
         });
 
         const { boucher, resumen, ticketAprobacion } = resultado;

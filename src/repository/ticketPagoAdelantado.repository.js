@@ -132,6 +132,8 @@ async function crearTicketPagoAdelantado(data) {
     observaciones: data.observaciones || '',
     createdBy: data.mozo,
     sourceApp: data.sourceApp || 'mozos',
+    cobroPorCantidad: data.cobroPorCantidad === true,
+    totalCuenta: data.totalCuenta ?? null,
   });
 
   const saved = await ticket.save();

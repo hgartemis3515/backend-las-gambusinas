@@ -51,6 +51,7 @@ router.post('/pago-adelantado', async (req, res) => {
       tipoCambioUsd,
       esPagoAdelantado,
       sinMesa,
+      montoCobro,
     } = req.body;
 
     console.log('🔥 [PPA] POST /pago-adelantado - Request body:', {
@@ -99,9 +100,11 @@ router.post('/pago-adelantado', async (req, res) => {
           ps => ps.comandaId === comanda._id.toString()
             && (ps.platoLineaId === platoItemStr || ps.platoSubdocId === platoItemStr)
         );
-        if (!seleccionado) continue;
+        const configCobro = await calculosPrecios.getConfigMonedaCached();
+        const cobraPorCantidad = configCobro.cobroPorCantidad !== false;
+        if (!seleccionado && !cobraPorCantidad) continue;
 
-        const cantidad = seleccionado.cantidad || comanda.cantidades?.[comanda.platos.indexOf(platoItem)] || 1;
+        const cantidad = seleccionado?.cantidad || comanda.cantidades?.[comanda.platos.indexOf(platoItem)] || 1;
         const platoData = platoItem.plato || {};
         const precio = platoData.precio || platoItem.precio || 0;
         const subtotal = precio * cantidad;
@@ -197,6 +200,7 @@ router.post('/pago-adelantado', async (req, res) => {
       tipoCambioUsd,
       esPagoAdelantado: true,
       sinMesa: pedidoSinMesa,
+      montoCobro,
     });
 
     const boucher = boucherResult.boucher;
@@ -238,6 +242,8 @@ router.post('/pago-adelantado', async (req, res) => {
       clienteDni: clienteDoc?.dni || null,
       observaciones: observaciones || '',
       sourceApp: 'mozos',
+      cobroPorCantidad: boucherResult.esAbonoPorCantidad === true,
+      totalCuenta: boucherResult.totalCuenta ?? null,
     });
 
     const {
@@ -267,7 +273,9 @@ router.post('/pago-adelantado', async (req, res) => {
     // mapaLineaRemapeada: platoLineaId viejo (original) → nuevo id (línea cobrada
     // tras separación). Se usa para re-apuntar ticket/boucher a la línea cobrada.
     const mapaLineaRemapeada = new Map(); // (comandaId|lineaVieja) → lineaNuevaId
-    for (const comanda of comandas) {
+    if (boucherResult.esAbonoPorCantidad) {
+      // Abono por dinero: los platos se ven, no se marcan cobrados.
+    } else for (const comanda of comandas) {
       const comandaDoc = await comandaModel.findById(comanda._id);
       if (!comandaDoc) continue;
 

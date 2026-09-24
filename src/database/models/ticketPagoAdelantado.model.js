@@ -17,6 +17,14 @@ const ticketPagoAdelantadoSchema = new mongoose.Schema({
     default: 'pendiente_aprobacion',
     index: true,
   },
+  cobroPorCantidad: {
+    type: Boolean,
+    default: false,
+  },
+  totalCuenta: {
+    type: Number,
+    default: null,
+  },
   // Referencia a comandas incluidas en el ticket
   comandas: [{
     type: mongoose.Schema.Types.ObjectId,

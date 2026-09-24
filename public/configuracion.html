@@ -939,6 +939,13 @@ tailwind.config = {
           </div>
           <div class="space-y-3">
             <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" x-model="config.cobroPorCantidad" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+              <span class="text-sm text-txt-secondary">Cobro por cantidad</span>
+            </label>
+            <p class="text-xs text-txt-muted ml-7">
+              Marcado (recomendado): en el app de mozos se cobra un monto de dinero. Los platos se ven y no se seleccionan. El total de la cuenta queda por defecto para un solo pago; un monto menor queda como adelanto.
+            </p>
+            <label class="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" x-model="config.propinasHabilitadas" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
               <span class="text-sm text-txt-secondary">Propinas habilitadas</span>
             </label>
@@ -1749,6 +1756,7 @@ function configApp() {
         reservasDesdeMozosV2: true
       },
       // Legacy (para compatibilidad con UI)
+      cobroPorCantidad: true,
       metodoEfectivo: true,
       metodoTarjeta: true,
       metodoYape: true,
@@ -1990,6 +1998,7 @@ function configApp() {
           if (cfg.metodosPago) {
             this.config.metodosPago = cfg.metodosPago;
             // Para UI legacy
+            this.config.cobroPorCantidad = cfg.cobroPorCantidad !== false;
             this.config.metodoEfectivo = cfg.metodosPago.efectivo?.activo ?? true;
             this.config.metodoTarjeta = cfg.metodosPago.tarjeta?.activo ?? true;
             this.config.metodoYape = cfg.metodosPago.yape?.activo ?? true;
@@ -2219,6 +2228,7 @@ function configApp() {
           idiomaPrincipal: this.config.idiomaPrincipal || 'es-PE',
           
           // Metodos de pago
+          cobroPorCantidad: this.config.cobroPorCantidad !== false,
           metodosPago: {
             efectivo: { activo: this.config.metodoEfectivo, requiereReferencia: false },
             tarjeta: { activo: this.config.metodoTarjeta, requiereReferencia: true },

@@ -201,6 +201,8 @@ async function crearTicketAprobacion(data) {
     sourceApp: data.sourceApp || 'mozos',
     origen: data.origen || 'pago',
     pagoForzado: data.pagoForzado === true,
+    cobroPorCantidad: data.cobroPorCantidad === true,
+    totalCuenta: data.totalCuenta ?? null,
   });
 
   const saved = await ticket.save();
@@ -320,6 +322,7 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre, opts = {}) {
   // Si el ticket ya estaba aprobado pero un save previo falló (p.ej. ValidationError
   // por rol custom), seguimos liberando platos/mesa para sanar el estado inconsistente.
   let platosLiberados = [];
+  const esAbonoCantidad = ticket.cobroPorCantidad === true;
     // BUG_PAGOS_PARCIALES_APROBACION_COCINA (Fase 3):
     // Liberar SOLO los platos que están en el snapshot de este ticket (por platoLineaId).
     const platosSnapshotIds = new Set(
@@ -332,7 +335,7 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre, opts = {}) {
     const skipLiberarPlatos = opts.pagoForzado === true;
 
     for (const comandaId of ticket.comandas) {
-      if (skipLiberarPlatos) continue;
+      if (skipLiberarPlatos || esAbonoCantidad) continue;
       const { modificado, platosLiberados: liberados } = await saveComandaConReintento(
         comandaId,
         (comanda) => {
@@ -399,7 +402,7 @@ async function aprobarTicket(ticketId, usuarioId, usuarioNombre, opts = {}) {
   //   2. No quedan comandas activas con platos 'pendiente' (cobrados, sin aprobar).
   //   3. No hay otros tickets 'pendiente_aprobacion' del mismo pedido/mesa hoy.
   let mesaEstadoFinal = null;
-  const mesaDoc = await mesasModel.findById(ticket.mesa).select('estado').lean();
+  const mesaDoc = esAbonoCantidad ? null : await mesasModel.findById(ticket.mesa).select('estado').lean();
   if (mesaDoc) {
     if (opts.pagoForzado) {
       const estadoActual = (mesaDoc.estado || '').toLowerCase();
