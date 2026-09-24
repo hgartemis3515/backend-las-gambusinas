@@ -662,6 +662,11 @@ try {
   if (numeracion?.asignadas) {
     logger.info('Numeración diaria de comandas asignada', numeracion);
   }
+  const { backfillNumeroComandaMozoHoy } = require('./src/utils/numeroComandaMozo');
+  const numeracionMozo = await backfillNumeroComandaMozoHoy();
+  if (numeracionMozo?.asignadas) {
+    logger.info('Numeración de comandas por mozo asignada', numeracionMozo);
+  }
 } catch (error) {
   logger.error('Error al numerar comandas del día', { error: error.message });
 }

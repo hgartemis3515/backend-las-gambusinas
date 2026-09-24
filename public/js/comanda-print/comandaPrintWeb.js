@@ -15,6 +15,7 @@ import {
   formatComandasNumbersLabel,
   mapComandaATicket,
   mapComandasATicket,
+  etiquetaMozosLista,
   EPSON_TM_M30II_RECEIPT,
 } from './comandaHtml.js';
 
@@ -349,7 +350,7 @@ function mapearTicketADatos(ticket) {
     mesa: ticket.numMesa || ticket.mesaNumero
       || (typeof ticket.mesa === 'object' ? ticket.mesa?.nummesa : ticket.mesa)
       || '?',
-    mozo: ticket.nombreMozo || ticket.mozoNombre
+    mozo: etiquetaMozosLista(ticket.comandas) || ticket.nombreMozo || ticket.mozoNombre
       || (typeof ticket.mozo === 'object' ? ticket.mozo?.name : ticket.mozo)
       || '—',
     area: ticket.area || ticket.mesa?.area?.nombre || '',

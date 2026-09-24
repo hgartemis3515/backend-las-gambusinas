@@ -327,6 +327,19 @@ tailwind.config = {
             class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-4 py-2.5 text-sm focus:border-gold focus:outline-none font-mono tracking-[0.35em]">
           <p class="text-[11px] text-txt-muted mt-1">Una sola clave para todos los admin. Abre cualquier pantalla bloqueada de App Cocina.</p>
         </div>
+        <div x-show="puedeEditarClaveUniversal" class="space-y-2">
+          <label class="text-xs text-txt-secondary block">Autorización de orden <span class="text-txt-muted">(4 combinaciones de 3 dígitos, solo admin)</span></label>
+          <div class="grid grid-cols-4 gap-2">
+            <template x-for="(c, i) in pinsAutorizacion" :key="'pin-aut-' + i">
+              <div class="text-center font-mono tracking-[0.25em] text-sm py-2 rounded-lg border border-[rgba(212,175,55,0.25)] bg-bg-sidebar" x-text="c"></div>
+            </template>
+          </div>
+          <p class="text-[11px] text-txt-muted" x-show="!pinsAutorizacion.length">Todavía no hay combinaciones. Genérelas para que cocina pueda autorizar una entrega fuera de orden.</p>
+          <button type="button" @click="regenerarPinsAutorizacion()"
+            class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10">
+            Cambiar combinaciones
+          </button>
+        </div>
         
         <!-- Sugerencias para crear -->
         <div x-show="!isEditing" class="bg-gold-20 border border-gold/30 rounded-lg p-3">
@@ -505,6 +518,7 @@ function usuariosApp() {
     filtroEstado: '',
     claveUniversal: '',
     claveUniversalOriginal: '',
+    pinsAutorizacion: [],
     puedeEditarClaveUniversal: false,
     _colorPerfilClearing: false,
     _colorLetraClearing: false,
@@ -605,6 +619,31 @@ function usuariosApp() {
       await this.loadRoles();
       await this.loadUsuarios();
       await this.cargarClaveUniversal();
+      await this.cargarPinsAutorizacion();
+    },
+
+    async cargarPinsAutorizacion() {
+      if (!this.puedeEditarClaveUniversal) return;
+      try {
+        const r = await apiGet('/admin/cocina/pins-autorizacion-orden');
+        if (r && r.success) this.pinsAutorizacion = Array.isArray(r.pins) ? r.pins : [];
+      } catch (e) {
+        this.pinsAutorizacion = [];
+      }
+    },
+
+    async regenerarPinsAutorizacion() {
+      try {
+        const r = await apiPut('/admin/cocina/pins-autorizacion-orden', { regenerar: true });
+        if (r && r.success) {
+          this.pinsAutorizacion = Array.isArray(r.pins) ? r.pins : [];
+          this.showToast('Combinaciones de autorización actualizadas', 'success');
+        } else {
+          this.showToast(r?.error || 'No se pudieron cambiar las combinaciones', 'error');
+        }
+      } catch (e) {
+        this.showToast('No se pudieron cambiar las combinaciones', 'error');
+      }
     },
 
     async cargarClaveUniversal() {

@@ -897,5 +897,85 @@ router.put('/admin/cocina/clave-universal', adminAuth, async (req, res) => {
     }
 });
 
+function generarPinsAutorizacionOrden() {
+    const set = new Set();
+    while (set.size < 4) {
+        set.add(String(Math.floor(Math.random() * 1000)).padStart(3, '0'));
+    }
+    return [...set];
+}
+
+/**
+ * GET /api/admin/cocina/pins-autorizacion-orden
+ * Cuatro combinaciones de 3 dígitos. Solo admin.
+ */
+router.get('/admin/cocina/pins-autorizacion-orden', adminAuth, async (req, res) => {
+    try {
+        if (!esAdminToken(req.admin)) {
+            return res.status(403).json({ error: 'Solo el admin puede ver las combinaciones' });
+        }
+        const ConfiguracionSistema = require('../database/models/configuracionSistema.model');
+        const cfg = await ConfiguracionSistema.obtenerConfiguracion();
+        const pins = Array.isArray(cfg.pinsAutorizacionOrden) ? cfg.pinsAutorizacionOrden : [];
+        return res.json({ success: true, pins });
+    } catch (error) {
+        logger.error('Error al leer combinaciones de autorización', { error: error.message });
+        return res.status(500).json({ error: 'No se pudieron leer las combinaciones' });
+    }
+});
+
+/**
+ * PUT /api/admin/cocina/pins-autorizacion-orden
+ * Body { regenerar: true } crea 4 combinaciones nuevas.
+ */
+router.put('/admin/cocina/pins-autorizacion-orden', adminAuth, async (req, res) => {
+    try {
+        if (!esAdminToken(req.admin)) {
+            return res.status(403).json({ error: 'Solo el admin puede cambiar las combinaciones' });
+        }
+        const pins = generarPinsAutorizacionOrden();
+        const ConfiguracionSistema = require('../database/models/configuracionSistema.model');
+        const cfg = await ConfiguracionSistema.obtenerConfiguracion();
+        cfg.pinsAutorizacionOrden = pins;
+        await cfg.save();
+        try {
+            const redisCache = require('../utils/redisCache');
+            await redisCache.invalidateCustom('configuracion', 'sistema');
+        } catch (_) { /* cache opcional */ }
+        logger.info('Combinaciones de autorización regeneradas', { adminId: req.admin.id });
+        return res.json({ success: true, pins });
+    } catch (error) {
+        logger.error('Error al guardar combinaciones de autorización', { error: error.message });
+        return res.status(500).json({ error: 'No se pudieron guardar las combinaciones' });
+    }
+});
+
+/**
+ * POST /api/admin/cocina/autorizar-orden
+ * La app de cocina envía 3 dígitos. No devuelve las combinaciones.
+ */
+router.post('/admin/cocina/autorizar-orden', adminAuth, async (req, res) => {
+    try {
+        if (req.admin?.app && req.admin.app !== 'cocina' && !esAdminToken(req.admin)) {
+            return res.status(403).json({ error: 'Solo aplica a la App Cocina' });
+        }
+        const pin = String(req.body?.pin || '').replace(/\D/g, '').slice(0, 3);
+        if (!/^\d{3}$/.test(pin)) {
+            return res.status(400).json({ success: false, error: 'La combinación debe tener 3 dígitos' });
+        }
+        const ConfiguracionSistema = require('../database/models/configuracionSistema.model');
+        const cfg = await ConfiguracionSistema.obtenerConfiguracion();
+        const pins = Array.isArray(cfg.pinsAutorizacionOrden) ? cfg.pinsAutorizacionOrden : [];
+        const ok = pins.includes(pin);
+        if (!ok) {
+            return res.status(403).json({ success: false, error: 'Combinación incorrecta' });
+        }
+        return res.json({ success: true });
+    } catch (error) {
+        logger.error('Error al autorizar orden', { error: error.message });
+        return res.status(500).json({ success: false, error: 'No se pudo verificar la combinación' });
+    }
+});
+
 module.exports = router;
 

@@ -166,7 +166,7 @@ describe('encontrarReglaGuarnicion', () => {
     };
     expect(svc.encontrarReglaGuarnicion(perfilMix, 'Acompañamiento', 'Papas fritas', null, 10).regla.cocineroPrimarioId).toBe('P10');
     expect(svc.encontrarReglaGuarnicion(perfilMix, 'Acompañamiento', 'Papas fritas', null, 20).regla.cocineroPrimarioId).toBe('P20');
-    expect(svc.encontrarReglaGuarnicion(perfilMix, 'Acompañamiento', 'Papas fritas', null, 99)).toBeNull();
+    expect(svc.encontrarReglaGuarnicion(perfilMix, 'Acompañamiento', 'Papas fritas', null, 99).regla.cocineroPrimarioId).toBe('GLOBAL');
     expect(svc.encontrarReglaGuarnicion(perfilMix, 'Acompañamiento', 'Papas fritas').regla.cocineroPrimarioId).toBe('GLOBAL');
   });
 });

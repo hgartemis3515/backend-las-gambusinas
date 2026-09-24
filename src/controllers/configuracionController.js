@@ -61,12 +61,16 @@ const plantillaPlana = (doc) => {
 router.get('/configuracion', async (req, res) => {
     try {
         const configuracion = await configuracionRepository.obtenerConfiguracion();
+        const plain = configuracion && typeof configuracion.toObject === 'function'
+            ? configuracion.toObject()
+            : configuracion;
+        if (plain && typeof plain === 'object') delete plain.pinsAutorizacionOrden;
 
         res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
         res.set('Pragma', 'no-cache');
         res.json({
             success: true,
-            configuracion
+            configuracion: plain
         });
     } catch (error) {
         logger.error('Error al obtener configuración:', { error: error.message });

@@ -220,7 +220,7 @@ async function obtenerTicketPorId(ticketId) {
   }
   return ticketAprobacionModel
     .findById(ticketId)
-    .populate('comandas', 'comandaNumber numeroComandaDia revisionTicket status platos mesas mozos descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado')
+    .populate('comandas', 'comandaNumber numeroComandaDia numeroComandaMozo revisionTicket status platos mesas mozos descuento montoDescuento motivoDescuento totalSinDescuento totalCalculado')
     .populate({ path: 'mesa', select: 'nummesa estado nombreCombinado area', populate: { path: 'area', select: 'nombre' } })
     .populate('mozo', 'name colorPerfil colorLetraPerfil')
     .populate('boucher')

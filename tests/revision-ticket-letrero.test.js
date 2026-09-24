@@ -15,18 +15,24 @@ describe('letrero ticket impresión', () => {
     expect(formatLetreroTicket([
       { numeroComandaDia: 10, revisionTicket: 1 },
       { numeroComandaDia: 11, revisionTicket: 0 },
-    ])).toBe('#10a+#11');
+    ])).toBe('#11+#10a');
     expect(formatLetreroTicket([
       { numeroComandaDia: 10 },
       { numeroComandaDia: 11, revisionTicket: 2 },
-    ])).toBe('#10+#11B');
+    ])).toBe('#11B+#10');
+    expect(formatLetreroTicket([
+      { numeroComandaDia: 12 },
+      { numeroComandaDia: 15 },
+      { numeroComandaDia: 13 },
+      { numeroComandaDia: 14 },
+    ])).toBe('#15+#14+#13+#12');
   });
 
   test('grupo + números sueltos conserva + y letra', () => {
     const { formatLetreroDesdeNumeros } = require('../src/utils/comandasNumbers');
     expect(formatLetreroDesdeNumeros([10, 11], [
       { numeroComandaDia: 10, revisionTicket: 1 },
-    ])).toBe('#10a+#11');
+    ])).toBe('#11+#10a');
   });
 
   test('bump incrementa', () => {

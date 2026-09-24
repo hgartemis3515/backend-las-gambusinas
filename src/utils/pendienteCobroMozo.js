@@ -229,6 +229,7 @@ function mapComandaPorCobrar(c, pendienteCobro, extras = {}) {
     _id: c._id,
     comandaNumber: c.comandaNumber,
     numeroComandaDia: c.numeroComandaDia ?? null,
+    numeroComandaMozo: c.numeroComandaMozo ?? null,
     status: c.status,
     createdAt: c.createdAt,
     mesaId,

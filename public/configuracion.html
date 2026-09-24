@@ -835,6 +835,30 @@ tailwind.config = {
               <p class="text-[10px] text-txt-muted pl-7" x-show="config.cocinaPermitirGuarnicionesSeparadas">
                 Si está desmarcado (recomendado), las guarniciones de un mismo plato se muestran y se asignan juntas: una tarjeta, un cronómetro, un cocinero. El título usa el pronombre de cada extra (ej. P FRITA + ENSAL + arroz). Márquela para volver a una tarjeta por guarnición. Recargue la app de cocina.
               </p>
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" x-model="config.cocinaVistaCocinaGuarnicionComoPlato" class="w-4 h-4 rounded border-[rgba(212,175,55,0.25)] bg-bg-sidebar text-gold focus:ring-gold">
+                <span class="text-sm text-txt-secondary">Cambiar a G guarnicion de la vista cocina</span>
+              </label>
+              <p class="text-[10px] text-txt-muted pl-7">
+                Marcado (recomendado): en Ver Cocina, la lista de complementos muestra
+                “G Pollo a la leña x (1) --- 4” en lugar del nombre de la guarnición.
+                Si el mozo cambió lo marcado en Platos, abajo sale la anterior tachada y una flecha a la nueva.
+                Desmarcado: vuelve el título con el nombre de la guarnición. Recargue Ver Cocina.
+              </p>
+              <div class="border-t border-[rgba(212,175,55,0.15)] pt-4 mt-2 space-y-3">
+                <p class="text-xs text-gold font-semibold uppercase tracking-wide">SOS y orden de entrega</p>
+                <label class="text-xs text-txt-secondary block">Categorías al final de la tabla <span class="text-txt-muted">(una por línea, ej. Bebidas)</span></label>
+                <textarea x-model="config.cocinaSosCategoriasAlFinal" rows="3" placeholder="Bebidas"
+                  class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none"></textarea>
+                <p class="text-[10px] text-txt-muted">Esas categorías se mantienen en la tabla, siempre debajo del resto. Recargue la app de cocina.</p>
+                <label class="text-xs text-txt-secondary block">Categorías sin autorización de orden</label>
+                <textarea x-model="config.cocinaOrdenSinAutorizacionCategorias" rows="2" placeholder="Bebidas"
+                  class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none"></textarea>
+                <label class="text-xs text-txt-secondary block">Platos sin autorización de orden <span class="text-txt-muted">(nombre o id, uno por línea)</span></label>
+                <textarea x-model="config.cocinaOrdenSinAutorizacionPlatos" rows="2" placeholder="Inca Kola"
+                  class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none"></textarea>
+                <p class="text-[10px] text-txt-muted">Esos platos se entregan sin la clave de 3 dígitos. Una comanda con prioridad (VIP, re-fire, promo o prioridad de cocina) tampoco la pide.</p>
+              </div>
 
               <!-- Umbrales de tiempos por local (no hard-codeados) -->
               <div x-show="config.cocinaPermitirGuarnicionesSeparadas" class="mt-3 p-3 rounded-lg border border-[rgba(212,175,55,0.15)] bg-bg-sidebar/40 space-y-3">
@@ -1746,6 +1770,10 @@ function configApp() {
       imprimirSoloNombreComercial: true,
       cocinaDeshabilitarOrdenSecuencialGuarniciones: true,
       cocinaDeshabilitarAgrupacionGuarniciones: false,
+      cocinaVistaCocinaGuarnicionComoPlato: true,
+      cocinaSosCategoriasAlFinal: '',
+      cocinaOrdenSinAutorizacionCategorias: '',
+      cocinaOrdenSinAutorizacionPlatos: '',
       cocinaPrimerToqueFinalizarAsignado: true,
       cocinaEntregarPlatoEnteroAbsoluto: true,
       cocinaForzarColorMozoUnico: false,
@@ -2039,6 +2067,10 @@ function configApp() {
             this.config.cocinaPermitirGuarnicionesSeparadas = cfg.cocina.permitirGuarnicionesSeparadas !== false;
             this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones = cfg.cocina.deshabilitarOrdenSecuencialGuarniciones !== false;
             this.config.cocinaDeshabilitarAgrupacionGuarniciones = cfg.cocina.deshabilitarAgrupacionGuarniciones === true;
+            this.config.cocinaVistaCocinaGuarnicionComoPlato = cfg.cocina.vistaCocinaGuarnicionComoPlato !== false;
+            this.config.cocinaSosCategoriasAlFinal = Array.isArray(cfg.cocina.sosCategoriasAlFinal) ? cfg.cocina.sosCategoriasAlFinal.join('\n') : '';
+            this.config.cocinaOrdenSinAutorizacionCategorias = Array.isArray(cfg.cocina.ordenSinAutorizacionCategorias) ? cfg.cocina.ordenSinAutorizacionCategorias.join('\n') : '';
+            this.config.cocinaOrdenSinAutorizacionPlatos = Array.isArray(cfg.cocina.ordenSinAutorizacionPlatos) ? cfg.cocina.ordenSinAutorizacionPlatos.join('\n') : '';
             const tg = cfg.cocina.tiemposGuarnicion || {};
             this.config.cocinaTiemposGuarnicionUmbralAlerta = Number(tg.umbralAlertaMultiplo) || 1.5;
             this.config.cocinaTiemposGuarnicionUmbralCritica = Number(tg.umbralCriticaMultiplo) || 2;
@@ -2060,6 +2092,10 @@ function configApp() {
             this.config.cocinaPermitirGuarnicionesSeparadas = true;
             this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones = true;
             this.config.cocinaDeshabilitarAgrupacionGuarniciones = false;
+            this.config.cocinaVistaCocinaGuarnicionComoPlato = true;
+            this.config.cocinaSosCategoriasAlFinal = '';
+            this.config.cocinaOrdenSinAutorizacionCategorias = '';
+            this.config.cocinaOrdenSinAutorizacionPlatos = '';
             this.config.cocinaTiemposGuarnicionUmbralAlerta = 1.5;
             this.config.cocinaTiemposGuarnicionUmbralCritica = 2;
             this.config.cocinaTiemposGuarnicionRapido = 180;
@@ -2253,6 +2289,10 @@ function configApp() {
             permitirGuarnicionesSeparadas: this.config.cocinaPermitirGuarnicionesSeparadas !== false,
             deshabilitarOrdenSecuencialGuarniciones: this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones !== false,
             deshabilitarAgrupacionGuarniciones: this.config.cocinaDeshabilitarAgrupacionGuarniciones === true,
+            vistaCocinaGuarnicionComoPlato: this.config.cocinaVistaCocinaGuarnicionComoPlato !== false,
+            sosCategoriasAlFinal: String(this.config.cocinaSosCategoriasAlFinal || '').split(/\n|,/).map(s => s.trim()).filter(Boolean).slice(0, 40),
+            ordenSinAutorizacionCategorias: String(this.config.cocinaOrdenSinAutorizacionCategorias || '').split(/\n|,/).map(s => s.trim()).filter(Boolean).slice(0, 40),
+            ordenSinAutorizacionPlatos: String(this.config.cocinaOrdenSinAutorizacionPlatos || '').split(/\n|,/).map(s => s.trim()).filter(Boolean).slice(0, 40),
             tiemposGuarnicion: {
               umbralAlertaMultiplo: Number(this.config.cocinaTiemposGuarnicionUmbralAlerta) || 1.5,
               umbralCriticaMultiplo: Number(this.config.cocinaTiemposGuarnicionUmbralCritica) || 2,

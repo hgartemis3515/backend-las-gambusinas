@@ -12,7 +12,7 @@ describe('agruparComandasPendientes (comandas.html)', () => {
     ]);
     const grupo = filas.find((f) => f.tipo === 'grupo');
     const solo = filas.find((f) => f.tipo === 'individual');
-    expect(grupo.comandaLabel).toBe('#81+#82');
+    expect(grupo.comandaLabel).toBe('#82+#81');
     expect(grupo.pendienteCobro).toBe(30);
     expect(grupo.id).toBe('pedido_aaaaaaaaaaaaaaaaaaaaaaaa');
     expect(solo._id).toBe('b');
@@ -28,8 +28,8 @@ describe('agruparComandasPendientes (comandas.html)', () => {
     ]);
     const grupo = filas.find((f) => f.tipo === 'grupo');
     const solos = filas.filter((f) => f.tipo === 'individual');
-    expect(formatGrupoComandasLabel(grupo ? [{ comandaNumber: 10 }, { comandaNumber: 11 }] : [])).toBe('#10+#11');
-    expect(grupo.comandaLabel).toBe('#10+#11');
+    expect(formatGrupoComandasLabel(grupo ? [{ comandaNumber: 10 }, { comandaNumber: 11 }] : [])).toBe('#11+#10');
+    expect(grupo.comandaLabel).toBe('#11+#10');
     expect(solos).toHaveLength(1);
     expect(solos[0]._id).toBe('3');
   });

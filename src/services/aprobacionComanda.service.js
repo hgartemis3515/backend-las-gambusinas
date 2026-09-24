@@ -130,7 +130,7 @@ async function listarComandasPorCobrarMozo(mozoId) {
     omitirPago: { $ne: true },
     status: { $in: ESTADOS_POR_COBRAR },
   })
-    .select('numeroComandaDia comandaNumber status createdAt observaciones cantidades mesaNumero sinMesa origenReserva omitirPago tiempoPagado totalCalculado totalSinDescuento montoDescuento descuento precioTotal platos procesandoPor procesadoPor mesas pedido cliente clienteNombre origenCreacion createdByDashboard')
+    .select('numeroComandaDia numeroComandaMozo comandaNumber status createdAt observaciones cantidades mesaNumero sinMesa origenReserva omitirPago tiempoPagado totalCalculado totalSinDescuento montoDescuento descuento precioTotal platos procesandoPor procesadoPor mesas pedido cliente clienteNombre origenCreacion createdByDashboard')
     .populate({ path: 'mesas', select: 'nummesa numero nombreCombinado estado', options: { lean: true } })
     .populate({ path: 'platos.plato', select: 'nombre nombreCocina precio', options: { lean: true } })
     .sort({ createdAt: -1, comandaNumber: -1 })

@@ -148,6 +148,14 @@ const CONFIGURACION_DEFAULT = {
         // PLAN AGRUPACION_GUARNICIONES: si true, una tarjeta por extra (modelo v1.1).
         // Default false = agrupación ON (una tarjeta / un cronómetro por plato).
         deshabilitarAgrupacionGuarniciones: false,
+        // Ver Cocina, lista de complementos: fila "G Plato x (1) --- N".
+        // Default ON. Si el mozo cambió la preselección, el cambio va debajo.
+        vistaCocinaGuarnicionComoPlato: true,
+        // Categorías que en la tabla KDS quedan al final (ej. Bebidas).
+        sosCategoriasAlFinal: [],
+        // No piden autorización para entregar fuera del #1.
+        ordenSinAutorizacionCategorias: [],
+        ordenSinAutorizacionPlatos: [],
         // Plato asignado (amarillo): true = 1º finalizar (verde), 2º dejar (rojo).
         // false = 1º dejar (rojo), 2º finalizar (verde).
         primerToqueFinalizarAsignado: true,
@@ -181,6 +189,8 @@ const CONFIGURACION_DEFAULT = {
 
     // Clave de 6 dígitos que desbloquea cualquier pantalla de App Cocina (solo admin la configura)
     pinUniversalCocina: '',
+    // Cuatro combinaciones de 3 dígitos para autorizar entrega fuera de orden. Solo admin las ve.
+    pinsAutorizacionOrden: [],
     
     // Cierre de caja
     cierreCaja: {
@@ -581,6 +591,13 @@ const configuracionSistemaSchema = new mongoose.Schema({
             type: Boolean,
             default: CONFIGURACION_DEFAULT.cocina.deshabilitarAgrupacionGuarniciones
         },
+        vistaCocinaGuarnicionComoPlato: {
+            type: Boolean,
+            default: CONFIGURACION_DEFAULT.cocina.vistaCocinaGuarnicionComoPlato
+        },
+        sosCategoriasAlFinal: { type: [String], default: [] },
+        ordenSinAutorizacionCategorias: { type: [String], default: [] },
+        ordenSinAutorizacionPlatos: { type: [String], default: [] },
         primerToqueFinalizarAsignado: {
             type: Boolean,
             default: CONFIGURACION_DEFAULT.cocina.primerToqueFinalizarAsignado
@@ -1010,6 +1027,10 @@ const configuracionSistemaSchema = new mongoose.Schema({
     pinUniversalCocina: {
         type: String,
         default: ''
+    },
+    pinsAutorizacionOrden: {
+        type: [String],
+        default: []
     }
 }, {
     timestamps: true,

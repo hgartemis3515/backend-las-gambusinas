@@ -83,7 +83,7 @@ export function generarHtmlCierreTicket(datos) {
     const desc = Number(c.descuento) || 0;
     const tot = Number(c.total) || 0;
     html += `<tr>
-      <td style="padding:1px 0;vertical-align:top;">#${escapeHtml(c.comandaNumber ?? '')}</td>
+      <td style="padding:1px 0;vertical-align:top;">#${escapeHtml(c.comandaNumber ?? '')}${c.numeroComandaMozo ? ' · ' + escapeHtml(c.numeroComandaMozo) : ''}</td>
       <td style="padding:1px 2px;vertical-align:top;">${escapeHtml(c.mesa || '—')}</td>
       <td style="${tdNum}">${money(subt)}</td>
       <td style="${tdNum}">${desc > 0 ? '-' + money(desc) : '—'}</td>

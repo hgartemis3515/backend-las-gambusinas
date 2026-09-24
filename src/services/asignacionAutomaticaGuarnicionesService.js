@@ -222,7 +222,7 @@ function particionarPendientesPorRegla(pendientes, perfil, platoIdCat, plato) {
  *  1) regla exacta guarnicionKey + platoId
  *  2) clave prefix `{platoId}::{grupo}::{opcion}` (si se guardó así)
  * Sin platoId (simulador legacy): regla global sin platoId, luego grupo.
- * Con platoId NO se usa global/grupo: la misma opción en otro plato no se comparte.
+ * La regla del plato gana. Si ese plato no tiene regla, cae a la global (platoId null).
  */
 function encontrarReglaGuarnicion(perfil, grupo, opcion, guarnicionKey, platoId = null) {
     const key = guarnicionKey || normalizarGuarnicionKey(grupo, opcion);
@@ -237,6 +237,10 @@ function encontrarReglaGuarnicion(perfil, grupo, opcion, guarnicionKey, platoId 
             conCocinero(r) && platoIdNumerico(r.platoId) === pid && (keyMatch(r, key) || keyMatch(r, keyPrefijada))
         );
         if (reglaG) return { tipo: 'guarnicion', regla: reglaG, platoEspecifico: true };
+        const global = reglas.find(r =>
+            conCocinero(r) && esReglaGuarnicionGlobal(r) && keyMatch(r, key)
+        );
+        if (global) return { tipo: 'guarnicion', regla: global, platoEspecifico: false };
         return null;
     }
 

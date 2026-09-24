@@ -113,7 +113,14 @@ tailwind.config = {
     -webkit-appearance: none;
     margin: 0;
   }
+  html.embed-ver body { background: transparent !important; }
+  html.embed-ver body > *:not(#modal-ver-comanda) { display: none !important; }
 </style>
+<script>
+if (new URLSearchParams(location.search).get('embed') === '1') {
+  document.documentElement.classList.add('embed-ver');
+}
+</script>
 </head>
 <body class="bg-bg-primary text-white font-sans antialiased min-h-screen" x-data="comandasApp()" x-cloak>
 
@@ -410,7 +417,7 @@ tailwind.config = {
  <div class="flex flex-wrap gap-1">
  <template x-for="nombre in (row.mozosUnicos || [])" :key="nombre">
  <button type="button" class="text-[11px] text-gold hover:underline text-left" title="Ver registro de platos del mozo"
-   @click.stop="irARegistroMozo(comandaDeMozoEnGrupo(row, nombre))" x-text="nombre"></button>
+   @click.stop="irARegistroMozo(comandaDeMozoEnGrupo(row, nombre))" x-text="etiquetaMozoEnGrupo(row, nombre)"></button>
  </template>
  <span x-show="!(row.mozosUnicos && row.mozosUnicos.length)" class="text-txt-muted">—</span>
  </div>
@@ -419,7 +426,7 @@ tailwind.config = {
  <div>
  <button type="button" class="text-gold hover:underline text-left" title="Ver registro de platos del mozo"
    x-show="row.comanda.mozo && row.comanda.mozo !== 'Sin asignar'"
-   @click.stop="irARegistroMozo(row.comanda)" x-text="row.comanda.mozo"></button>
+   @click.stop="irARegistroMozo(row.comanda)" x-text="nombreMozo(row.comanda)"></button>
  <span x-show="!row.comanda.mozo || row.comanda.mozo === 'Sin asignar'" class="text-txt-muted">—</span>
  </div>
  </template>
@@ -546,7 +553,7 @@ tailwind.config = {
  <td class="px-3 py-2 text-xs">
  <button type="button" class="text-gold hover:underline text-left" title="Ver registro de platos del mozo"
    x-show="comanda.mozo && comanda.mozo !== 'Sin asignar'"
-   @click.stop="irARegistroMozo(comanda)" x-text="comanda.mozo"></button>
+   @click.stop="irARegistroMozo(comanda)" x-text="nombreMozo(comanda)"></button>
  <span x-show="!comanda.mozo || comanda.mozo === 'Sin asignar'" class="text-txt-muted">—</span>
  </td>
  <!-- Cocineros -->
@@ -809,7 +816,7 @@ tailwind.config = {
 </div>
 
 <!-- MODAL: VER COMANDA — Diseño segun pencil-new.pen frame wmbyw -->
-<div x-show="modal==='verComanda' && selectedComanda" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="modal=null">
+<div id="modal-ver-comanda" x-show="modal==='verComanda' && selectedComanda" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" @click.self="cerrarModalVerComanda()">
  <div class="bg-bg-card border border-[rgba(212,175,55,0.25)] rounded-2xl w-[840px] max-h-[90vh] overflow-y-auto shadow-2xl" @click.stop>
 
  <!-- HEADER -->
@@ -851,7 +858,7 @@ tailwind.config = {
  </div>
  <div class="flex items-center gap-2">
  <button @click="imprimirComanda(selectedComanda, null)" class="px-3 py-1.5 bg-gold text-bg-primary rounded-lg text-sm font-semibold hover:brightness-110 transition flex items-center gap-1.5" title="Imprimir comanda">🖨️ Imprimir</button>
- <button @click="modal=null" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
+ <button @click="cerrarModalVerComanda()" class="w-8 h-8 flex items-center justify-center rounded-full bg-[rgba(212,175,55,0.1)] text-[#d4af37] hover:bg-[rgba(212,175,55,0.2)] transition text-sm font-bold">✕</button>
  </div>
  </div>
  </div>
@@ -869,7 +876,7 @@ tailwind.config = {
  <!-- INFO GENERAL -->
  <div class="bg-[#0a0a0f] border border-[rgba(212,175,55,0.15)] rounded-xl p-4">
  <p class="text-[10px] text-[#5a5a7a] uppercase mb-1 font-semibold tracking-wider text-center">Número de comanda</p>
- <p class="text-center text-5xl font-black text-gold tabular-nums leading-none mb-4" x-text="'#' + (selectedComanda?.numComanda || '—')"></p>
+ <p class="text-center text-5xl font-black text-gold tabular-nums leading-none mb-4" x-text="letreroCentrado(selectedComanda)"></p>
  <div class="grid grid-cols-3 gap-3 text-sm mb-3">
  <div>
  <p class="text-[10px] text-[#5a5a7a]">Creada</p>
@@ -1262,7 +1269,7 @@ tailwind.config = {
  <span x-show="ticketTieneExtraLlevar(ticket)" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-violet-500/20 text-violet-300 border border-violet-500/40">EXTRA LLEVAR</span>
  </div>
  <div class="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-[10px] text-[#a0a0b8]">
- <span x-text="'Mozo: ' + (ticket.mozoNombre || ticket.nombreMozo || '—')"></span>
+ <span x-text="'Mozo: ' + etiquetaMozoTicket(ticket)"></span>
  <span x-text="'Platos: ' + ticketCantidadPlatos(ticket)"></span>
  <span x-text="'Pago: ' + ticketMetodoPagoLabel(ticket.metodoPago)"></span>
  <span x-text="ticket.createdAt ? new Date(ticket.createdAt).toLocaleString('es-PE', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : ''"></span>
@@ -1946,7 +1953,7 @@ tailwind.config = {
  <span x-show="ticketTieneExtraLlevar(ticket)" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-violet-500/20 text-violet-300 border border-violet-500/40">EXTRA LLEVAR</span>
  </div>
  <div class="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-[10px] text-[#a0a0b8]">
- <span x-text="'Mozo: ' + (ticket.mozoNombre || ticket.nombreMozo || '—')"></span>
+ <span x-text="'Mozo: ' + etiquetaMozoTicket(ticket)"></span>
  <span x-text="'Platos: ' + ticketCantidadPlatos(ticket)"></span>
  <span x-text="'Pago: ' + ticketMetodoPagoLabel(ticket.metodoPago)"></span>
  <span x-text="ticket.createdAt ? new Date(ticket.createdAt).toLocaleString('es-PE', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : ''"></span>
@@ -2348,7 +2355,7 @@ tailwind.config = {
  <span x-show="ticketTieneExtraLlevar(ticket)" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-violet-500/20 text-violet-300 border border-violet-500/40">EXTRA LLEVAR</span>
  </div>
  <div class="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-[10px] text-[#a0a0b8]">
- <span x-text="'Mozo: ' + (ticket.mozoNombre || ticket.nombreMozo || '—')"></span>
+ <span x-text="'Mozo: ' + etiquetaMozoTicket(ticket)"></span>
  <span x-text="'Platos: ' + ticketCantidadPlatos(ticket)"></span>
  <span x-text="'Pago: ' + ticketMetodoPagoLabel(ticket.metodoPago)"></span>
  <span x-text="ticket.createdAt ? new Date(ticket.createdAt).toLocaleString('es-PE', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : ''"></span>
@@ -2676,7 +2683,7 @@ tailwind.config = {
       <span x-show="ticket.duplicadoNumero" class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-st-esperando/20 text-st-esperando border border-st-esperando/40">Repetido</span>
      </div>
      <div class="mt-1 text-[10px] text-[#a0a0b8] flex flex-wrap gap-x-3">
-      <span x-text="'Mozo: ' + (ticket.mozoNombre || '—')"></span>
+      <span x-text="'Mozo: ' + etiquetaMozoTicket(ticket)"></span>
       <span x-text="'Mesa: ' + (ticket.numMesa != null ? ticket.numMesa : '—')"></span>
       <span x-text="'Comanda: #' + (ticket.comandaNumber || '—')"></span>
       <span x-text="'S/. ' + Number(totalesTicketVista(ticket).neto).toFixed(2)"></span>
@@ -3119,6 +3126,7 @@ function comandasApp() {
  return {
  sidebarOpen: true,
  modal: null,
+ embedVer: new URLSearchParams(window.location.search).get('embed') === '1',
  loading: true,
  loadingDetalle: false,
  loadingGrupo: false,
@@ -3701,16 +3709,19 @@ normalizeObjectId(val) {
 
 /** Números del día (1…n, se reinicia cada día operativo). */
 numerosDiaGrupo(comandas) {
-  return [...new Set(
+  const nums = [...new Set(
     (comandas || [])
       .map((c) => (c.numeroComandaDia != null ? c.numeroComandaDia : c.numComanda))
       .filter((n) => n != null && n !== '')
       .map((n) => Number(n))
       .filter((n) => !Number.isNaN(n))
-  )].sort((a, b) => a - b);
+  )];
+  if (nums.length <= 1) return nums;
+  const max = Math.max(...nums);
+  return [max, ...nums.filter((n) => n !== max).sort((a, b) => b - a)];
 },
 
-/** Etiqueta agrupada de comandas: #81+#82 */
+/** Etiqueta agrupada de comandas: #82+#81 */
 formatGrupoComandasLabel(comandas) {
   const nums = this.numerosDiaGrupo(comandas);
   if (nums.length === 0) return '';
@@ -3725,9 +3736,11 @@ formatGrupoHistoricoLabel(comandas) {
       .filter((n) => n != null && n !== '')
       .map((n) => Number(n))
       .filter((n) => !Number.isNaN(n))
-  )].sort((a, b) => a - b);
+  )];
   if (nums.length === 0) return '';
-  return nums.map((n) => `#${n}`).join('+');
+  const max = Math.max(...nums);
+  const orden = nums.length === 1 ? nums : [max, ...nums.filter((n) => n !== max).sort((a, b) => b - a)];
+  return orden.map((n) => `#${n}`).join('+');
 },
 
 // ========== FUNCIÓN HELPER: Obtener nombre de mesa con soporte para mesas juntadas ==========
@@ -4830,6 +4843,8 @@ this.scheduleRefreshVentasTotales();
  const out = {
  _id: raw._id,
  numeroComandaDia: raw.numeroComandaDia != null ? raw.numeroComandaDia : null,
+ numeroComandaMozo: raw.numeroComandaMozo != null ? raw.numeroComandaMozo : null,
+ revisionTicket: raw.revisionTicket != null ? raw.revisionTicket : 0,
  numComanda: raw.numeroComandaDia != null ? raw.numeroComandaDia : (raw.comandaNumber || raw.numComanda),
  numComandaHistorico: raw.comandaNumber != null ? raw.comandaNumber : (raw.numComandaHistorico ?? null),
  mesa: mesaNorm,
@@ -6749,6 +6764,13 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  }
  },
 
+ cerrarModalVerComanda() {
+  this.modal = null;
+  if (this.embedVer && window.parent && window.parent !== window) {
+    window.parent.postMessage({ type: 'cerrar-ver-comanda' }, window.location.origin);
+  }
+ },
+
  async openDetailModal(c) {
  const comandaId = c._id || c.id;
  if (!comandaId) {
@@ -6765,7 +6787,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  this.loadingDetalle = false;
 
  if (!detalle) {
- this.modal = null;
+ this.cerrarModalVerComanda();
  return;
  }
 
@@ -7158,7 +7180,73 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
   return !!(c && c.mozo && c.mozo !== 'Sin asignar');
  },
  nombreMozo(c) {
-  return (c && c.mozo) ? c.mozo : 'Sin asignar';
+  const base = (c && c.mozo) ? c.mozo : 'Sin asignar';
+  const n = Number(c && c.numeroComandaMozo);
+  if (!c || base === 'Sin asignar' || !Number.isFinite(n) || n <= 0) return base;
+  return n + ' ' + base;
+ },
+ etiquetaMozoTicket(ticket) {
+  if (!ticket) return '—';
+  const embebidas = (ticket.comandas || []).filter((c) => c && typeof c === 'object');
+  if (embebidas.length) {
+    const orden = embebidas.slice().sort((a, b) => (Number(b.numeroComandaDia ?? b.numComanda ?? b.comandaNumber) || 0) - (Number(a.numeroComandaDia ?? a.numComanda ?? a.comandaNumber) || 0));
+    const grupos = new Map();
+    orden.forEach((c) => {
+      const nombre = (c.mozos && c.mozos.name) || c.mozoNombre || (typeof c.mozo === 'string' ? c.mozo : '') || '';
+      const limpio = String(nombre).trim();
+      if (!limpio || limpio === 'Sin asignar' || limpio === 'Sin mozo') return;
+      if (!grupos.has(limpio)) grupos.set(limpio, []);
+      const n = Number(c.numeroComandaMozo);
+      if (Number.isFinite(n) && n > 0) grupos.get(limpio).push(n);
+    });
+    const et = [...grupos.entries()].map(([nombre, nums]) => (nums.length ? nums.join('+') + ' ' + nombre : nombre)).join(' · ');
+    if (et) return et;
+  }
+  const base = ticket.mozoNombre || ticket.nombreMozo || '—';
+  const n = Number(ticket.numeroComandaMozo);
+  if (Number.isFinite(n) && n > 0 && base !== '—' && base !== 'N/A' && base !== 'Sin asignar') return n + ' ' + base;
+  return base;
+ },
+ etiquetaMozoEnGrupo(row, nombre) {
+  const lista = ((row && row.comandas) || []).filter((c) => c && c.mozo === nombre);
+  const orden = lista.slice().sort((a, b) => (Number(b.numComanda) || 0) - (Number(a.numComanda) || 0));
+  const nums = orden.map((c) => Number(c.numeroComandaMozo)).filter((n) => Number.isFinite(n) && n > 0);
+  return nums.length ? nums.join('+') + ' ' + nombre : nombre;
+ },
+ letraRevComanda(n) {
+  const k = Math.floor(Number(n) || 0);
+  if (k < 1) return '';
+  if (k === 1) return 'a';
+  let x = k;
+  let s = '';
+  while (x > 0) {
+    const r = (x - 1) % 26;
+    s = String.fromCharCode(65 + r) + s;
+    x = Math.floor((x - 1) / 26);
+  }
+  return s;
+ },
+ letreroCentrado(c) {
+  if (!c) return '#—';
+  let lista = [c];
+  const pid = c.pedidoId;
+  if (pid) {
+    const hermanas = (this.comandas || []).filter((x) => x && String(x.pedidoId || '') === String(pid) && x.estado !== 'cancelado');
+    if (hermanas.length > 1) lista = hermanas;
+  }
+  const byN = new Map();
+  lista.forEach((x) => {
+    const n = Number(x.numComanda);
+    if (!Number.isFinite(n)) return;
+    const rev = Math.max(0, Math.floor(Number(x.revisionTicket) || 0));
+    const prev = byN.get(n);
+    if (prev == null || rev > prev) byN.set(n, rev);
+  });
+  const nums = [...byN.keys()];
+  if (!nums.length) return '#—';
+  const max = Math.max(...nums);
+  const orden = nums.length === 1 ? nums : [max, ...nums.filter((n) => n !== max).sort((a, b) => b - a)];
+  return orden.map((n) => '#' + n + this.letraRevComanda(byN.get(n))).join('+');
  },
  horaCorta(valor, fallback) {
   if (!valor) return fallback != null ? fallback : '—';

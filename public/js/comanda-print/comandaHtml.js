@@ -317,10 +317,11 @@ export function formatComandasNumbersLabel(comandasNumbers) {
     (comandasNumbers || [])
       .map((n) => (n != null && n !== '' ? Number(n) : NaN))
       .filter((n) => !Number.isNaN(n))
-  )].sort((a, b) => a - b);
+  )];
+  const orden = nums.length <= 1 ? nums : [Math.max(...nums), ...nums.filter((n) => n !== Math.max(...nums)).sort((a, b) => b - a)];
 
-  if (nums.length === 0) return '';
-  return nums.map((n) => `#${n}`).join('+');
+  if (orden.length === 0) return '';
+  return orden.map((n) => `#${n}`).join('+');
 }
 
 /**
@@ -664,6 +665,23 @@ function resolverTotalMapeado({ tieneDesc, totalCalculado, totalFuente, sumaPlat
   return sumaPlatos;
 }
 
+export function etiquetaMozosLista(comandas) {
+  const ordenadas = [...(comandas || [])].sort((a, b) => {
+    const na = Number(a?.numeroComandaDia ?? a?.comandaNumber) || 0;
+    const nb = Number(b?.numeroComandaDia ?? b?.comandaNumber) || 0;
+    return nb - na;
+  });
+  const grupos = new Map();
+  for (const c of ordenadas) {
+    const nombre = String(c?.mozoNombre || c?.mozos?.name || (typeof c?.mozo === 'string' ? c.mozo : c?.mozo?.name) || '').trim();
+    if (!nombre || nombre === 'Sin asignar') continue;
+    if (!grupos.has(nombre)) grupos.set(nombre, []);
+    const n = Number(c?.numeroComandaMozo);
+    if (Number.isFinite(n) && n > 0) grupos.get(nombre).push(n);
+  }
+  return [...grupos.entries()].map(([nombre, nums]) => (nums.length ? `${nums.join('+')} ${nombre}` : nombre)).join(' · ');
+}
+
 export function mapComandasATicket(comandas, boucherOpcional, config = {}) {
   const lista = (Array.isArray(comandas) ? comandas : [comandas]).filter(Boolean);
   const primera = lista[0] || {};
@@ -702,7 +720,8 @@ export function mapComandasATicket(comandas, boucherOpcional, config = {}) {
     mesa: primera.mesaNumero || primera.mesas?.nummesa || primera.mesa?.nummesa
       || (typeof primera.mesa === 'object' ? primera.mesa?.nummesa : primera.mesa)
       || boucherOpcional?.numMesa || null,
-    mozo: primera.mozoNombre || primera.mozos?.name || primera.mozo
+    mozo: etiquetaMozosLista(lista)
+      || primera.mozoNombre || primera.mozos?.name || primera.mozo
       || (typeof primera.mozo === 'object' ? primera.mozo?.name : primera.mozo)
       || boucherOpcional?.nombreMozo || null,
     area: primera.areaNombre || primera.mesas?.area?.nombre || primera.mesa?.area || null,

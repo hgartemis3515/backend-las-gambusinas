@@ -185,7 +185,7 @@ const actualizarConfiguracion = async (nuevosDatos, modificadoPor = null) => {
         // Filtrar campos protegidos
         const datosFiltrados = {};
         for (const [key, value] of Object.entries(nuevosDatos)) {
-            if (!camposProtegidos.includes(key) && key !== 'pinUniversalCocina') {
+            if (!camposProtegidos.includes(key) && key !== 'pinUniversalCocina' && key !== 'pinsAutorizacionOrden') {
                 datosFiltrados[key] = value;
             }
         }

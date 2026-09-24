@@ -48,8 +48,16 @@ function resolverComandasNumbers({ comandasNumbers = [], platos = [] } = {}) {
  * @param {Array<number|string>} comandasNumbers
  * @returns {string}
  */
+/** Última comanda (mayor número) primero; el resto de mayor a menor. */
+function ordenarNumerosLetrero(nums) {
+  const list = [...nums].filter((n) => Number.isFinite(n));
+  if (list.length <= 1) return list;
+  const max = Math.max(...list);
+  return [max, ...list.filter((n) => n !== max).sort((a, b) => b - a)];
+}
+
 function formatComandasNumbersLabel(comandasNumbers) {
-  const nums = resolverComandasNumbers({ comandasNumbers });
+  const nums = ordenarNumerosLetrero(resolverComandasNumbers({ comandasNumbers }));
   if (nums.length === 0) return '';
   return nums.map((n) => `#${n}`).join('+');
 }
@@ -97,7 +105,7 @@ function formatLetreroTicket(comandas) {
     const prev = byN.get(p.n);
     if (!prev || p.rev > prev) byN.set(p.n, p.rev);
   }
-  const nums = [...byN.keys()].sort((a, b) => a - b);
+  const nums = ordenarNumerosLetrero([...byN.keys()]);
   if (!nums.length) return '';
   return nums.map((n) => `#${n}${letraRevisionTicket(byN.get(n))}`).join('+');
 }
@@ -112,9 +120,8 @@ function formatLetreroDesdeNumeros(comandasNumbers, comandas = []) {
     if (n == null || !Number.isFinite(n)) continue;
     revByN.set(n, Math.max(revByN.get(n) || 0, Math.floor(Number(c.revisionTicket) || 0)));
   }
-  const all = [...new Set([...nums, ...revByN.keys()])]
-    .filter((n) => Number.isFinite(n))
-    .sort((a, b) => a - b);
+  const all = ordenarNumerosLetrero([...new Set([...nums, ...revByN.keys()])]
+    .filter((n) => Number.isFinite(n)));
   if (!all.length) return formatLetreroTicket(docs);
   return all.map((n) => `#${n}${letraRevisionTicket(revByN.get(n) || 0)}`).join('+');
 }

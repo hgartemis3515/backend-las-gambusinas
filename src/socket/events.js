@@ -2005,6 +2005,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
         numMesa: comanda.mesas?.nummesa,
         comandaNumber: comanda.comandaNumber,
         numeroComandaDia: comanda.numeroComandaDia ?? null,
+        numeroComandaMozo: comanda.numeroComandaMozo ?? null,
         socketId: 'server',
         timestamp: timestamp
       };

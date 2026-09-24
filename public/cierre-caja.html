@@ -361,9 +361,12 @@ tailwind.config = {
             <div class="space-y-2">
               <template x-for="c in (ticketDetalle?.comandasDetalle || [])" :key="c._id">
                 <div class="bg-bg-sidebar rounded-lg p-3 border border-[rgba(212,175,55,0.08)]">
-                  <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-bold text-gold" x-text="'#' + (c.comandaNumber ?? '—')"></span>
-                    <span class="text-[10px] px-2 py-0.5 rounded bg-bg-primary text-txt-secondary capitalize" x-text="c.status || '—'"></span>
+                  <div class="flex items-center justify-between mb-2 gap-2">
+                    <span class="text-xs font-bold text-gold" x-text="'#' + (c.numeroComandaDia ?? c.comandaNumber ?? '—') + (c.numeroComandaMozo ? ' · ' + c.numeroComandaMozo : '')"></span>
+                    <div class="flex items-center gap-2">
+                      <button type="button" x-show="c._id" @click="abrirVerComanda(c._id)" class="bg-gold/15 text-gold hover:bg-gold/25 px-2 py-0.5 rounded text-[10px] font-bold">VER</button>
+                      <span class="text-[10px] px-2 py-0.5 rounded bg-bg-primary text-txt-secondary capitalize" x-text="c.status || '—'"></span>
+                    </div>
                   </div>
                   <div class="space-y-1">
                     <template x-for="(p, i) in (c.platos || [])" :key="i">
@@ -423,17 +426,21 @@ tailwind.config = {
         <div class="px-5 py-4 border-t border-[rgba(212,175,55,0.1)] flex justify-end gap-2 shrink-0">
           <button @click="cerrarDetalleTicket()" class="px-4 py-2 bg-bg-sidebar border border-[rgba(212,175,55,0.15)] text-txt-secondary rounded-lg text-xs font-semibold hover:text-white transition">Cerrar</button>
           <button
-            @click="confirmarDesdeDetalle()"
-            :disabled="ticketDetalle?.verificado"
-            :class="ticketDetalle?.verificado ? 'opacity-50 cursor-not-allowed' : 'hover:brightness-110'"
-            class="px-4 py-2 bg-st-preparado text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
-            <span x-text="ticketDetalle?.verificado ? 'Ya verificado' : 'Confirmar este ticket'"></span>
+            @click="toggleDesdeDetalle()"
+            class="px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5"
+            :class="ticketDetalle?.verificado ? 'bg-bg-sidebar border border-st-preparado/40 text-st-preparado hover:bg-st-pagado/10 hover:text-st-pagado hover:border-st-pagado/40' : 'bg-st-preparado text-white hover:brightness-110'">
+            <span x-text="ticketDetalle?.verificado ? 'Quitar verificado' : 'Marcar verificado'"></span>
           </button>
         </div>
       </div>
     </template>
   </div>
+</div>
+
+<!-- Comanda completa (mismo modal que comandas.html) -->
+<div x-show="modalComandaVer" x-cloak class="fixed inset-0 z-[10040] bg-black/75" @click="cerrarVerComanda()" @keydown.escape.window="if (modalComandaVer) cerrarVerComanda()"></div>
+<div x-show="modalComandaVer" x-cloak class="fixed inset-0 z-[10041] flex items-center justify-center p-3 pointer-events-none">
+  <iframe x-show="comandaVerUrl" :src="comandaVerUrl" class="pointer-events-auto w-full max-w-[920px] h-[92vh] bg-transparent border-0" title="Ver comanda"></iframe>
 </div>
 
 <!-- ============================================ -->
@@ -513,8 +520,13 @@ function cierreApp() {
     verificacion: { total: 0, confirmados: 0, pendientes: 0, puedeCerrar: false },
     ticketDetalle: null,
     pasoCierre: 1,             // 1 = verificación de tickets, 2 = confirmación final
+    filtroMozoCierre: '',
+    ordenTicketsCierre: 'antiguo',
+    datosConfirmacion: null,
     loadingVerificacion: false,
     modalDetalleAbierto: false,
+    modalComandaVer: false,
+    comandaVerUrl: '',
     modalRevertirOpen: false,
     cierreARevertir: null,
     motivoReversion: '',
@@ -532,6 +544,11 @@ function cierreApp() {
         return;
       }
 
+      this._onCerrarVerComanda = (ev) => {
+        if (ev.origin !== window.location.origin) return;
+        if (ev.data && ev.data.type === 'cerrar-ver-comanda') this.cerrarVerComanda();
+      };
+      window.addEventListener('message', this._onCerrarVerComanda);
       await Promise.all([this.loadEstadoActual(), this.loadCierresCaja()]);
     },
 
@@ -704,51 +721,218 @@ function cierreApp() {
       this.renderPasoVerificacion();
     },
 
+    escHtml(valor) {
+      return String(valor ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    },
+
+    nombreMozoTicket(t) {
+      const n = String(t?.nombreMozo || '').trim();
+      return n || 'Sin mozo';
+    },
+
+    mozosOpcionesCierre() {
+      const primero = new Map();
+      for (const t of this.ticketsVerificacion || []) {
+        const nombre = this.nombreMozoTicket(t);
+        const ts = new Date(t.createdAt).getTime() || 0;
+        const prev = primero.get(nombre);
+        if (prev == null || ts < prev) primero.set(nombre, ts);
+      }
+      return [...primero.entries()].sort((a, b) => a[1] - b[1]).map(([nombre]) => nombre);
+    },
+
+    ticketsVistaCierre() {
+      let lista = this.ticketsVerificacion || [];
+      if (this.filtroMozoCierre) {
+        lista = lista.filter((t) => this.nombreMozoTicket(t) === this.filtroMozoCierre);
+      }
+      const dir = this.ordenTicketsCierre === 'nuevo' ? -1 : 1;
+      return lista.slice().sort((a, b) => {
+        const da = new Date(a.createdAt).getTime() || 0;
+        const db = new Date(b.createdAt).getTime() || 0;
+        return dir * (da - db);
+      });
+    },
+
+    totalesVistaCierre() {
+      const vista = this.ticketsVistaCierre();
+      const total = vista.reduce((s, t) => s + (Number(t.total) || 0), 0);
+      return {
+        cantidad: vista.length,
+        total,
+        de: (this.ticketsVerificacion || []).length,
+      };
+    },
+
+    refsComandasTicket(t) {
+      const refs = [];
+      (t.comandas || []).forEach((c, i) => {
+        if (c && typeof c === 'object') {
+          const id = c._id || c.id;
+          if (!id) return;
+          refs.push({
+            id: String(id),
+            n: c.numeroComandaDia ?? c.comandaNumber ?? (t.comandasNumbers || [])[i],
+          });
+        } else if (typeof c === 'string' && /^[a-f0-9]{24}$/i.test(c)) {
+          refs.push({ id: c, n: (t.comandasNumbers || [])[i] });
+        }
+      });
+      return refs;
+    },
+
+    setFiltroMozoCierre(valor) {
+      this.filtroMozoCierre = valor || '';
+      this.refrescarPasoCierre();
+    },
+
+    setOrdenTicketsCierre(orden) {
+      this.ordenTicketsCierre = orden === 'nuevo' ? 'nuevo' : 'antiguo';
+      this.refrescarPasoCierre();
+    },
+
+    refrescarPasoCierre() {
+      if (this.pasoCierre === 2) this.renderPasoConfirmacion();
+      else this.renderPasoVerificacion();
+    },
+
+    abrirVerComanda(id) {
+      if (!id) return;
+      this.comandaVerUrl = '/comandas.html?id=' + encodeURIComponent(id) + '&embed=1';
+      this.modalComandaVer = true;
+    },
+
+    cerrarVerComanda() {
+      this.modalComandaVer = false;
+      this.comandaVerUrl = '';
+    },
+
+    htmlFiltrosYTotalesVerificacion() {
+      const vista = this.totalesVistaCierre();
+      const mozos = this.mozosOpcionesCierre();
+      const opciones = ['<option value="">Todos los mozos</option>']
+        .concat(mozos.map((n) => {
+          const sel = n === this.filtroMozoCierre ? ' selected' : '';
+          return `<option value="${this.escHtml(n)}"${sel}>${this.escHtml(n)}</option>`;
+        }))
+        .join('');
+      const activo = (orden) => this.ordenTicketsCierre === orden
+        ? 'bg-gold text-bg-primary'
+        : 'bg-bg-primary text-txt-secondary hover:text-white';
+      return `
+        <div class="flex flex-wrap items-center gap-2 mb-3">
+          <label class="text-[11px] text-txt-muted">Mozo</label>
+          <select onchange="getApp().setFiltroMozoCierre(this.value)" class="bg-bg-primary border border-[rgba(212,175,55,0.2)] rounded-lg px-2 py-1.5 text-xs text-white min-w-[160px]">
+            ${opciones}
+          </select>
+          <span class="text-[11px] text-txt-muted ml-1">Orden</span>
+          <button type="button" onclick="getApp().setOrdenTicketsCierre('antiguo')" class="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition ${activo('antiguo')}">Más antiguo</button>
+          <button type="button" onclick="getApp().setOrdenTicketsCierre('nuevo')" class="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition ${activo('nuevo')}">Más nuevo</button>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <div class="bg-bg-sidebar border border-[rgba(212,175,55,0.12)] rounded-xl p-4">
+            <p class="text-[10px] uppercase tracking-wider text-txt-muted">Vista</p>
+            <p class="text-2xl font-black text-white leading-tight mt-1">${vista.cantidad}<span class="text-xs font-medium text-txt-muted ml-1">de ${vista.de}</span></p>
+            <p class="text-[10px] text-txt-muted mt-1">Tickets en esta vista</p>
+          </div>
+          <div class="bg-bg-sidebar border border-[rgba(212,175,55,0.12)] rounded-xl p-4">
+            <p class="text-[10px] uppercase tracking-wider text-txt-muted">Total de ventas</p>
+            <p class="text-2xl font-black text-gold leading-tight mt-1">S/. ${vista.total.toFixed(2)}</p>
+            <p class="text-[10px] text-txt-muted mt-1">Suma de la vista filtrada</p>
+          </div>
+        </div>
+      `;
+    },
+
+    htmlFilasVerificacion(tickets) {
+      if (!tickets.length) {
+        const vacio = this.filtroMozoCierre
+          ? 'Ningún ticket de ese mozo en este período.'
+          : 'No hay tickets pendientes en este período. Ya puedes ejecutar el cierre.';
+        return `<tr><td colspan="9" class="px-4 py-10 text-center text-txt-muted text-sm">${vacio}</td></tr>`;
+      }
+      return tickets.map((t) => {
+        const tipoBadge = t.tipo === 'ADELANTADO'
+          ? '<span class="text-[10px] bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded font-semibold">Adelantado</span>'
+          : t.tipo === 'PAGO_PARCIAL'
+            ? '<span class="text-[10px] bg-st-reservado/20 text-st-reservado px-2 py-0.5 rounded font-semibold">Pago parcial</span>'
+            : '<span class="text-[10px] bg-st-pedido/20 text-st-pedido px-2 py-0.5 rounded font-semibold">Comanda</span>';
+        const estadoCocina = this.labelEstadoCocina(t.estadoCocina);
+        const verificado = !!t.verificado;
+        const rowClass = verificado ? 'bg-st-preparado/5' : 'bg-st-esperando/5';
+        const quien = verificado && t.verificadoPorNombre
+          ? `<div class="text-[9px] text-txt-muted mt-0.5">${this.escHtml(t.verificadoPorNombre)}</div>`
+          : '';
+        const check = `
+          <label class="inline-flex flex-col items-center gap-0.5 cursor-pointer">
+            <input type="checkbox" ${verificado ? 'checked' : ''} onchange="getApp().toggleVerificadoTicket('${t.id}', '${t.tipo}', this.checked)" class="w-4 h-4 accent-[#2ecc71]">
+            <span class="text-[10px] font-semibold ${verificado ? 'text-st-preparado' : 'text-txt-muted'}">${verificado ? 'Verificado' : 'Pendiente'}</span>
+            ${quien}
+          </label>`;
+        const vers = this.refsComandasTicket(t).map((r) => {
+          const etq = r.n != null && r.n !== '' ? `VER #${this.escHtml(r.n)}` : 'VER';
+          return `<button type="button" onclick="getApp().abrirVerComanda('${r.id}')" class="bg-gold/15 text-gold hover:bg-gold/25 px-2 py-1 rounded-lg text-[10px] font-bold transition">${etq}</button>`;
+        }).join('');
+        return `
+          <tr class="border-b border-[rgba(212,175,55,0.06)] ${rowClass}">
+            <td class="px-3 py-2.5 text-white text-xs font-bold">#${t.ticketNumber ?? '—'}</td>
+            <td class="px-3 py-2.5">${tipoBadge}</td>
+            <td class="px-3 py-2.5 text-txt-secondary text-xs">Mesa ${t.numMesa ?? '—'}</td>
+            <td class="px-3 py-2.5 text-txt-secondary text-xs">${this.escHtml(t.nombreMozo || '—')}</td>
+            <td class="px-3 py-2.5 text-txt-secondary text-xs">${(t.comandasNumbers || []).map((n) => '#' + n).join(', ') || '—'}</td>
+            <td class="px-3 py-2.5 text-gold text-xs font-semibold text-right">
+              S/. ${(t.total || 0).toFixed(2)}
+              ${Number(t.montoDescuento) > 0 ? `<div class="text-[9px] text-st-pagado font-semibold">Subt. ${(Number(t.totalSinDescuento || t.subtotal || 0)).toFixed(2)} · Desc. -${Number(t.montoDescuento).toFixed(2)}</div>` : ''}
+            </td>
+            <td class="px-3 py-2.5">${estadoCocina}</td>
+            <td class="px-3 py-2.5 text-center">${check}</td>
+            <td class="px-3 py-2.5 text-center">
+              <div class="flex flex-wrap items-center justify-center gap-1">
+                ${vers}
+                <button onclick="getApp().abrirDetalleTicket('${t.id}', '${t.tipo}')" class="bg-bg-primary text-txt-secondary hover:text-white px-2 py-1 rounded-lg text-[10px] font-semibold transition">Detalle</button>
+              </div>
+            </td>
+          </tr>`;
+      }).join('');
+    },
+
+    htmlTablaVerificacion() {
+      const tickets = this.ticketsVistaCierre();
+      return `
+        ${this.htmlFiltrosYTotalesVerificacion()}
+        <div class="bg-bg-sidebar rounded-xl overflow-x-auto mb-4">
+          <table class="w-full text-xs">
+            <thead><tr class="text-txt-muted text-[10px] uppercase tracking-wider">
+              <th class="text-left px-3 py-2.5 font-semibold"># Ticket</th>
+              <th class="text-left px-3 py-2.5 font-semibold">Tipo</th>
+              <th class="text-left px-3 py-2.5 font-semibold">Mesa</th>
+              <th class="text-left px-3 py-2.5 font-semibold">Mozo</th>
+              <th class="text-left px-3 py-2.5 font-semibold">Comandas</th>
+              <th class="text-right px-3 py-2.5 font-semibold">Total</th>
+              <th class="text-center px-3 py-2.5 font-semibold">Cocina</th>
+              <th class="text-center px-3 py-2.5 font-semibold">Verificado</th>
+              <th class="text-center px-3 py-2.5 font-semibold">Acción</th>
+            </tr></thead>
+            <tbody>${this.htmlFilasVerificacion(tickets)}</tbody>
+          </table>
+        </div>
+      `;
+    },
+
     // ---- Render del Paso 1: tabla de comprobación ----
     renderPasoVerificacion() {
       const v = this.verificacion;
       const tickets = this.ticketsVerificacion || [];
-
-      const filasHtml = tickets.length === 0
-        ? `<tr><td colspan="9" class="px-4 py-10 text-center text-txt-muted text-sm">No hay tickets pendientes en este período. Ya puedes ejecutar el cierre.</td></tr>`
-        : tickets.map((t) => {
-            const tipoBadge = t.tipo === 'ADELANTADO'
-              ? '<span class="text-[10px] bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded font-semibold">Adelantado</span>'
-              : t.tipo === 'PAGO_PARCIAL'
-                ? '<span class="text-[10px] bg-st-reservado/20 text-st-reservado px-2 py-0.5 rounded font-semibold">Pago parcial</span>'
-                : '<span class="text-[10px] bg-st-pedido/20 text-st-pedido px-2 py-0.5 rounded font-semibold">Comanda</span>';
-            const estadoCocina = this.labelEstadoCocina(t.estadoCocina);
-            const verificado = t.verificado;
-            const rowClass = verificado ? 'bg-st-preparado/5' : 'bg-st-esperando/5';
-            const btnConfirmar = verificado
-              ? `<span class="text-st-preparado text-[11px] font-semibold flex items-center gap-1 justify-center">✓ Verificado${t.verificadoPorNombre ? ' por ' + t.verificadoPorNombre : ''}</span>`
-              : `<button onclick="getApp().confirmarTicket('${t.id}', '${t.tipo}')" class="bg-st-preparado/10 text-st-preparado hover:bg-st-preparado/20 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition">Confirmar</button>`;
-            return `
-              <tr class="border-b border-[rgba(212,175,55,0.06)] ${rowClass}">
-                <td class="px-3 py-2.5 text-white text-xs font-bold">#${t.ticketNumber ?? '—'}</td>
-                <td class="px-3 py-2.5">${tipoBadge}</td>
-                <td class="px-3 py-2.5 text-txt-secondary text-xs">Mesa ${t.numMesa ?? '—'}</td>
-                <td class="px-3 py-2.5 text-txt-secondary text-xs">${t.nombreMozo || '—'}</td>
-                <td class="px-3 py-2.5 text-txt-secondary text-xs">${(t.comandasNumbers || []).map(n => '#' + n).join(', ') || '—'}</td>
-                <td class="px-3 py-2.5 text-gold text-xs font-semibold text-right">
-                  S/. ${(t.total || 0).toFixed(2)}
-                  ${Number(t.montoDescuento) > 0 ? `<div class="text-[9px] text-st-pagado font-semibold">Subt. ${(Number(t.totalSinDescuento || t.subtotal || 0)).toFixed(2)} · Desc. -${Number(t.montoDescuento).toFixed(2)}</div>` : ''}
-                </td>
-                <td class="px-3 py-2.5">${estadoCocina}</td>
-                <td class="px-3 py-2.5 text-center">${btnConfirmar}</td>
-                <td class="px-3 py-2.5 text-center">
-                  <button onclick="getApp().abrirDetalleTicket('${t.id}', '${t.tipo}')" class="bg-gold/10 text-gold hover:bg-gold/20 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition">Detalle</button>
-                </td>
-              </tr>`;
-          }).join('');
-
       const puedeCerrar = v.puedeCerrar;
       const pct = v.total > 0 ? Math.round((v.confirmados / v.total) * 100) : 100;
 
       this.modalTitle = `Verificación de tickets · ${v.confirmados}/${v.total}`;
       this.modalBody = `
         <div>
-          <!-- Barra de progreso -->
           <div class="bg-bg-sidebar rounded-xl p-4 mb-4">
             <div class="flex items-center justify-between mb-2">
               <p class="text-xs text-txt-secondary">Progreso de verificación</p>
@@ -758,7 +942,7 @@ function cierreApp() {
               <div class="h-full rounded-full transition-all duration-300 ${puedeCerrar ? 'bg-st-preparado' : 'bg-st-esperando'}" style="width: ${pct}%"></div>
             </div>
             <div class="flex justify-between items-center mt-3">
-              <p class="text-[11px] text-txt-muted">Total ventas (igual a reportes)</p>
+              <p class="text-[11px] text-txt-muted">Total del período (igual a reportes)</p>
               <p class="text-sm font-bold text-gold">S/. ${Number(this.estado.montoPendiente || 0).toFixed(2)}</p>
             </div>
             <div class="flex justify-between items-center mt-3">
@@ -772,25 +956,8 @@ function cierreApp() {
             </div>
           </div>
 
-          <!-- Tabla -->
-          <div class="bg-bg-sidebar rounded-xl overflow-hidden mb-4">
-            <table class="w-full text-xs">
-              <thead><tr class="text-txt-muted text-[10px] uppercase tracking-wider">
-                <th class="text-left px-3 py-2.5 font-semibold"># Ticket</th>
-                <th class="text-left px-3 py-2.5 font-semibold">Tipo</th>
-                <th class="text-left px-3 py-2.5 font-semibold">Mesa</th>
-                <th class="text-left px-3 py-2.5 font-semibold">Mozo</th>
-                <th class="text-left px-3 py-2.5 font-semibold">Comandas</th>
-                <th class="text-right px-3 py-2.5 font-semibold">Total</th>
-                <th class="text-center px-3 py-2.5 font-semibold">Cocina</th>
-                <th class="text-center px-3 py-2.5 font-semibold">Verificado</th>
-                <th class="text-center px-3 py-2.5 font-semibold">Acción</th>
-              </tr></thead>
-              <tbody>${filasHtml}</tbody>
-            </table>
-          </div>
+          ${this.htmlTablaVerificacion()}
 
-          <!-- Acciones -->
           <div class="flex gap-3">
             <button onclick="getApp().cerrarModal()" class="flex-1 bg-bg-sidebar border border-[rgba(212,175,55,0.15)] text-txt-secondary px-4 py-2.5 rounded-xl text-sm font-semibold hover:text-white transition">Cancelar</button>
             <button
@@ -816,25 +983,44 @@ function cierreApp() {
       return map[estado] || '<span class="text-[10px] text-txt-muted px-2 py-0.5">—</span>';
     },
 
-    // ---- Confirmar un ticket individual ----
-    async confirmarTicket(id, tipo) {
+    aplicarMarcaVerificado(id, ticket) {
+      const idx = this.ticketsVerificacion.findIndex((t) => String(t.id) === String(id));
+      if (idx >= 0 && ticket) {
+        const prev = this.ticketsVerificacion[idx];
+        this.ticketsVerificacion[idx] = {
+          ...prev,
+          verificado: !!ticket.verificado,
+          verificadoPorNombre: ticket.verificadoPorNombre || null,
+          verificadoAt: ticket.verificadoAt || null,
+        };
+      }
+      this.verificacion.confirmados = this.ticketsVerificacion.filter((t) => t.verificado).length;
+      this.verificacion.pendientes = this.verificacion.total - this.verificacion.confirmados;
+      this.verificacion.puedeCerrar = this.verificacion.total === 0 || this.verificacion.confirmados === this.verificacion.total;
+      if (this.ticketDetalle && String(this.ticketDetalle.id) === String(id) && ticket) {
+        this.ticketDetalle.verificado = !!ticket.verificado;
+        this.ticketDetalle.verificadoPorNombre = ticket.verificadoPorNombre || null;
+      }
+    },
+
+    async toggleVerificadoTicket(id, tipo, marcado) {
+      const path = marcado ? '/confirmar' : '/desconfirmar';
       try {
-        const res = await apiPut('/cierre-caja/verificacion/tickets/' + id + '/confirmar', { tipo });
-        if (!res || !res.success) throw new Error(res?.error || 'No se pudo confirmar');
-        // Actualizar el ticket en el array local
-        const idx = this.ticketsVerificacion.findIndex(t => t.id === id);
-        if (idx >= 0) {
-          this.ticketsVerificacion[idx] = res.ticket;
-        }
-        // Actualizar resumen
-        this.verificacion.confirmados = this.ticketsVerificacion.filter(t => t.verificado).length;
-        this.verificacion.pendientes = this.verificacion.total - this.verificacion.confirmados;
-        this.verificacion.puedeCerrar = this.verificacion.total === 0 || this.verificacion.confirmados === this.verificacion.total;
-        this.renderPasoVerificacion();
-        this.showToast('Ticket #' + (res.ticket.ticketNumber || '') + ' verificado');
+        const res = await apiPut('/cierre-caja/verificacion/tickets/' + id + path, { tipo });
+        if (!res || !res.success) throw new Error(res?.error || (marcado ? 'No se pudo marcar' : 'No se pudo quitar'));
+        this.aplicarMarcaVerificado(id, res.ticket);
+        this.refrescarPasoCierre();
+        const n = res.ticket?.ticketNumber || '';
+        this.showToast(marcado ? ('Ticket #' + n + ' verificado') : ('Ticket #' + n + ' sin verificar'));
       } catch (e) {
+        this.refrescarPasoCierre();
         this.showToast('Error: ' + e.message, 'error');
       }
+    },
+
+    // ---- Confirmar un ticket individual ----
+    async confirmarTicket(id, tipo) {
+      await this.toggleVerificadoTicket(id, tipo, true);
     },
 
     // ---- Confirmar todos los tickets del período ----
@@ -868,16 +1054,14 @@ function cierreApp() {
     },
 
     cerrarDetalleTicket() {
+      if (this.modalComandaVer) return;
       this.modalDetalleAbierto = false;
       this.ticketDetalle = null;
     },
 
-    async confirmarDesdeDetalle() {
+    async toggleDesdeDetalle() {
       if (!this.ticketDetalle) return;
-      const id = this.ticketDetalle.id;
-      const tipo = this.ticketDetalle.tipo;
-      this.cerrarDetalleTicket();
-      await this.confirmarTicket(id, tipo);
+      await this.toggleVerificadoTicket(this.ticketDetalle.id, this.ticketDetalle.tipo, !this.ticketDetalle.verificado);
     },
 
     // ---- Pasar al Paso 2: confirmación final ----
@@ -886,39 +1070,31 @@ function cierreApp() {
         this.showToast('Confirma todos los tickets primero', 'error');
         return;
       }
-      this.pasoCierre = 2;
-
       const data = await apiGet('/cierre-caja/estado/actual');
       if (!data) { this.showToast('Error al cargar estado', 'error'); return; }
+      this.datosConfirmacion = data;
+      this.pasoCierre = 2;
+      this.renderPasoConfirmacion();
+    },
 
+    renderPasoConfirmacion() {
+      const data = this.datosConfirmacion || {};
       const desde = data.ultimoCierre ? new Date(data.ultimoCierre).toLocaleString('es-PE') : 'Inicio de operaciones';
       const hasta = data.periodoFin ? new Date(data.periodoFin).toLocaleString('es-PE') : new Date().toLocaleString('es-PE');
-      const verif = data.verificacion || {};
+      const verif = this.verificacion || {};
+      const puedeCerrar = !!verif.puedeCerrar;
 
       this.modalTitle = 'Confirmar Cierre de Caja';
       this.modalBody = `
-        <div class="max-w-lg mx-auto">
-          <div class="bg-st-preparado/5 border border-st-preparado/20 rounded-xl p-4 mb-4">
-            <div class="flex items-start gap-3">
-              <svg class="w-5 h-5 text-st-preparado shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              <div>
-                <p class="text-st-preparado font-semibold text-sm">Tickets verificados</p>
-                <p class="text-txt-secondary text-xs mt-1">${verif.confirmados || 0} de ${verif.total || 0} tickets del período confirmados.</p>
-              </div>
-            </div>
+        <div>
+          <div class="bg-st-pagado/5 border border-st-pagado/20 rounded-xl p-4 mb-4">
+            <p class="text-st-pagado font-semibold text-sm">Este proceso es irreversible</p>
+            <p class="text-txt-secondary text-xs mt-1">Las comandas serán marcadas como procesadas. Puedes quitar un verificado antes de confirmar. Los tickets verificados no vuelven en el siguiente cierre.</p>
           </div>
 
-          <div class="bg-st-pagado/5 border border-st-pagado/20 rounded-xl p-4 mb-6">
-            <div class="flex items-start gap-3">
-              <svg class="w-5 h-5 text-st-pagado shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
-              <div>
-                <p class="text-st-pagado font-semibold text-sm">Este proceso es irreversible</p>
-                <p class="text-txt-secondary text-xs mt-1">Las comandas serán marcadas como procesadas y no se podrán modificar. Los tickets verificados no volverán a aparecer en el siguiente cierre.</p>
-              </div>
-            </div>
-          </div>
+          ${this.htmlTablaVerificacion()}
 
-          <div class="bg-bg-sidebar rounded-xl p-5 mb-6 space-y-3">
+          <div class="bg-bg-sidebar rounded-xl p-5 mb-4 space-y-3">
             <div class="flex justify-between items-center">
               <span class="text-txt-muted text-xs">Período desde</span>
               <span class="text-white text-xs font-medium">${desde}</span>
@@ -927,32 +1103,20 @@ function cierreApp() {
               <span class="text-txt-muted text-xs">Período hasta</span>
               <span class="text-white text-xs font-medium">${hasta}</span>
             </div>
-            <div class="border-t border-[rgba(212,175,55,0.08)] pt-3"></div>
-            <div class="flex justify-between items-center">
-              <span class="text-txt-muted text-xs">Días transcurridos</span>
-              <span class="text-st-esperando text-xs font-bold">${data.diasTranscurridos || 0} días</span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-txt-muted text-xs">Comandas pendientes</span>
-              <span class="text-white text-xs font-bold">${data.comandasPendientes || 0}</span>
-            </div>
             <div class="flex justify-between items-center">
               <span class="text-txt-muted text-xs">Tickets verificados</span>
               <span class="text-white text-xs font-bold">${verif.confirmados || 0} / ${verif.total || 0}</span>
             </div>
             <div class="flex justify-between items-center">
-              <span class="text-txt-muted text-xs">Total ventas</span>
-              <span class="text-gold text-sm font-bold">S/. ${(data.montoPendiente || 0).toFixed(2)}</span>
+              <span class="text-txt-muted text-xs">Total del período</span>
+              <span class="text-gold text-sm font-bold">S/. ${Number(data.montoPendiente || 0).toFixed(2)}</span>
             </div>
-            ${(data.descuentosPendientes || 0) > 0 ? `<div class="flex justify-between items-center">
-              <span class="text-txt-muted text-xs">Descuentos</span>
-              <span class="text-st-pagado text-xs font-bold">-S/. ${Number(data.descuentosPendientes).toFixed(2)}</span>
-            </div>` : ''}
           </div>
 
+          ${!puedeCerrar ? '<p class="text-center text-[11px] text-st-esperando mb-3">Hay tickets sin verificar. Márcalos para poder cerrar.</p>' : ''}
           <div class="flex gap-3">
             <button onclick="getApp().volverAPasoVerificacion()" class="flex-1 bg-bg-sidebar border border-[rgba(212,175,55,0.15)] text-txt-secondary px-4 py-2.5 rounded-xl text-sm font-semibold hover:text-white transition">Volver</button>
-            <button onclick="getApp().ejecutarCierreCaja()" class="flex-1 bg-gold text-bg-primary px-4 py-2.5 rounded-xl text-sm font-bold hover:brightness-110 transition">Confirmar Cierre</button>
+            <button onclick="getApp().ejecutarCierreCaja()" ${!puedeCerrar ? 'disabled' : ''} class="flex-1 bg-gold text-bg-primary px-4 py-2.5 rounded-xl text-sm font-bold hover:brightness-110 transition ${!puedeCerrar ? 'opacity-40 cursor-not-allowed' : ''}">Confirmar Cierre</button>
           </div>
         </div>
       `;
@@ -964,6 +1128,10 @@ function cierreApp() {
     },
 
     async ejecutarCierreCaja() {
+      if (!this.verificacion.puedeCerrar) {
+        this.showToast('Confirma todos los tickets primero', 'error');
+        return;
+      }
       const notas = prompt('Notas adicionales (opcional):', '');
       this.modalTitle = 'Procesando Cierre';
       this.modalBody = `
@@ -1639,7 +1807,7 @@ function cierreApp() {
                 </tr></thead>
                 <tbody>${canc.map(x => `
                   <tr class="border-t border-[rgba(212,175,55,0.06)]">
-                    <td class="px-4 py-2 text-st-pagado font-bold">#${x.comandaNumber || '-'}</td>
+                    <td class="px-4 py-2 text-st-pagado font-bold">#${x.comandaNumber || '-'}${x.numeroComandaMozo ? ' · ' + x.numeroComandaMozo : ''}</td>
                     <td class="px-4 py-2 text-txt-secondary">${x.fecha ? new Date(x.fecha).toLocaleString('es-PE') : '-'}</td>
                     <td class="px-4 py-2">${this.escapeHtml(x.mozo || '-')}</td>
                     <td class="px-4 py-2 text-right text-st-pagado font-semibold">S/. ${(x.monto||0).toFixed(2)}</td>
@@ -1661,7 +1829,7 @@ function cierreApp() {
                 </tr></thead>
                 <tbody>${mods.map(m => `
                   <tr class="border-t border-[rgba(212,175,55,0.06)]">
-                    <td class="px-4 py-2 text-gold font-bold">${m.comandaNumber ? '#' + m.comandaNumber : '-'}</td>
+                    <td class="px-4 py-2 text-gold font-bold">${m.comandaNumber ? '#' + m.comandaNumber : '-'}${m.numeroComandaMozo ? ' · ' + m.numeroComandaMozo : ''}</td>
                     <td class="px-4 py-2 text-txt-secondary">${m.fecha ? new Date(m.fecha).toLocaleString('es-PE') : '-'}</td>
                     <td class="px-4 py-2 text-txt-secondary">${this.escapeHtml(this.labelAccionCierre(m.tipo))}</td>
                     <td class="px-4 py-2">${this.escapeHtml(m.usuario || '-')}</td>
@@ -1683,7 +1851,7 @@ function cierreApp() {
                 </tr></thead>
                 <tbody>${desc.map(d => `
                   <tr class="border-t border-[rgba(212,175,55,0.06)]">
-                    <td class="px-4 py-2 text-st-reservado font-bold">#${d.comandaNumber || '-'}</td>
+                    <td class="px-4 py-2 text-st-reservado font-bold">#${d.comandaNumber || '-'}${d.numeroComandaMozo ? ' · ' + d.numeroComandaMozo : ''}</td>
                     <td class="px-4 py-2 text-txt-secondary">${d.fecha ? new Date(d.fecha).toLocaleString('es-PE') : '-'}</td>
                     <td class="px-4 py-2 text-right">${d.porcentaje ? Number(d.porcentaje).toFixed(2) + '%' : '-'}</td>
                     <td class="px-4 py-2 text-right text-st-reservado font-semibold">-S/. ${(d.montoDescuento||0).toFixed(2)}</td>
@@ -1948,7 +2116,11 @@ function cierreApp() {
       }
     },
 
-    cerrarModal() { this.modalOpen = false; this._destroyCharts(); },
+    cerrarModal() {
+      if (this.modalComandaVer) return;
+      this.modalOpen = false;
+      this._destroyCharts();
+    },
 
     formatFecha(f) { return f ? new Date(f).toLocaleString('es-PE') : 'N/A'; },
     formatPeriodo(i, f) { return (i ? new Date(i).toLocaleDateString('es-PE') : 'N/A') + ' - ' + (f ? new Date(f).toLocaleDateString('es-PE') : 'N/A'); },

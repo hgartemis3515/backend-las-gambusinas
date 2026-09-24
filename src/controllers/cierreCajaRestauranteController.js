@@ -626,6 +626,30 @@ router.put('/cierre-caja/verificacion/tickets/:id/confirmar', adminAuth, checkPe
 });
 
 /**
+ * PUT /api/cierre-caja/verificacion/tickets/:id/desconfirmar
+ * Quita la verificación mientras el ticket no esté incluido en un cierre.
+ */
+router.put('/cierre-caja/verificacion/tickets/:id/desconfirmar', adminAuth, checkPermission('ver-cierre-caja'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tipo, usuarioId, usuarioNombre } = req.body;
+    const uId = usuarioId || (req.admin && (req.admin.id || req.admin.usuarioId));
+    const uNombre = usuarioNombre || (req.admin && (req.admin.nombre || req.admin.name)) || 'cajero';
+    const resultado = await verificacionService.desconfirmarTicket(
+      id,
+      tipo ? String(tipo).toUpperCase() : null,
+      uId,
+      uNombre
+    );
+    res.json({ success: true, ticket: resultado.ticket });
+  } catch (error) {
+    logger.error('Error al quitar verificación de ticket', { error: error.message });
+    const status = error.statusCode || 500;
+    res.status(status).json({ success: false, error: 'Error al quitar verificación', message: error.message });
+  }
+});
+
+/**
  * PUT /api/cierre-caja/verificacion/tickets/confirmar-todos
  * Confirma todos los tickets pendientes del período.
  * Body: { usuarioId, usuarioNombre }
@@ -1264,7 +1288,7 @@ async function recopilarAuditoria(periodoInicio, periodoFin, comandas = []) {
     ]
   })
     .populate('mozos', 'name')
-    .select('comandaNumber fechaEliminacion motivoEliminacion mozos totalCalculado precioTotal montoDescuento totalSinDescuento platos cantidades status')
+    .select('comandaNumber numeroComandaDia numeroComandaMozo fechaEliminacion motivoEliminacion mozos totalCalculado precioTotal montoDescuento totalSinDescuento platos cantidades status')
     .lean();
 
   const porComanda = new Map();
@@ -1287,14 +1311,18 @@ async function recopilarAuditoria(periodoInicio, periodoFin, comandas = []) {
     if (!existente) {
       porComanda.set(key, {
         comandaId: c._id,
-        comandaNumber: c.comandaNumber,
+        comandaNumber: c.numeroComandaDia ?? c.comandaNumber,
+        numeroComandaMozo: c.numeroComandaMozo ?? null,
         fecha: c.fechaEliminacion || c.updatedAt || c.createdAt,
         mozo: c.mozos?.name || 'Desconocido',
         monto: montoFilaReporte(c),
         motivo: motivoDoc
       });
     } else {
-      if (!existente.comandaNumber) existente.comandaNumber = c.comandaNumber;
+      if (!existente.comandaNumber) existente.comandaNumber = c.numeroComandaDia ?? c.comandaNumber;
+      if (existente.numeroComandaMozo == null && c.numeroComandaMozo != null) {
+        existente.numeroComandaMozo = c.numeroComandaMozo;
+      }
       if (!existente.motivo || existente.motivo === existente.mozo) existente.motivo = motivoDoc;
       if (!existente.monto) existente.monto = montoFilaReporte(c);
     }
@@ -1305,7 +1333,8 @@ async function recopilarAuditoria(periodoInicio, periodoFin, comandas = []) {
     if (porComanda.has(key)) continue;
     porComanda.set(key, {
       comandaId: c._id,
-      comandaNumber: c.comandaNumber,
+      comandaNumber: c.numeroComandaDia ?? c.comandaNumber,
+      numeroComandaMozo: c.numeroComandaMozo ?? null,
       fecha: c.fechaEliminacion || c.createdAt,
       mozo: c.mozos?.name || 'Desconocido',
       monto: montoFilaReporte(c),
@@ -1330,7 +1359,8 @@ async function recopilarAuditoria(periodoInicio, periodoFin, comandas = []) {
     .filter((c) => Number(c.descuento) > 0 || Number(c.montoDescuento) > 0)
     .map((c) => ({
       comandaId: c._id,
-      comandaNumber: c.comandaNumber,
+      comandaNumber: c.numeroComandaDia ?? c.comandaNumber,
+      numeroComandaMozo: c.numeroComandaMozo ?? null,
       montoDescuento: montoDescuentoComandaNum(c),
       porcentaje: Number(c.descuento) || 0,
       fecha: c.descuentoAplicadoAt || c.updatedAt || c.createdAt,
@@ -1432,7 +1462,7 @@ function generarDatosGraficos(resumenFinanciero, productos, mozos, mesas, cocine
   };
 }
 
-const SELECT_COMANDA_TICKET_CIERRE = 'comandaNumber totalCalculado totalSinDescuento montoDescuento descuento precioTotal precioTotalOriginal platos cantidades status mesas mozos createdAt';
+const SELECT_COMANDA_TICKET_CIERRE = 'comandaNumber numeroComandaDia numeroComandaMozo totalCalculado totalSinDescuento montoDescuento descuento precioTotal precioTotalOriginal platos cantidades status mesas mozos createdAt';
 
 function numMesaComanda(c) {
   const m = c?.mesas;
@@ -1534,7 +1564,8 @@ router.get('/cierre-caja/:id/ticket-imprimible', adminAuth, checkPermission('ver
       const brutoRaw = Number(c.totalSinDescuento);
       const bruto = Number.isFinite(brutoRaw) && brutoRaw > 0 ? brutoRaw : total + desc;
       return {
-        comandaNumber: c.comandaNumber,
+        comandaNumber: c.numeroComandaDia ?? c.comandaNumber,
+        numeroComandaMozo: c.numeroComandaMozo ?? null,
         mesa: numMesaComanda(c),
         mozo: c.mozos?.name || '',
         bruto: Number(bruto.toFixed(2)),

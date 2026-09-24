@@ -348,6 +348,65 @@ async function confirmarTicket(ticketId, tipoHint, usuarioId, usuarioNombre) {
 }
 
 /**
+ * Quita la verificación de un ticket que aún no entró en un cierre.
+ */
+async function desconfirmarTicket(ticketId, tipoHint, usuarioId, usuarioNombre) {
+  if (!mongoose.Types.ObjectId.isValid(ticketId)) {
+    const err = new Error('ID de ticket inválido');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const { periodoInicio, periodoFin } = await obtenerPeriodoPendiente();
+  const usuarioObjId = toObjectId(usuarioId);
+
+  const update = {
+    'verificacionCierre.confirmado': false,
+    'verificacionCierre.confirmadoPor': null,
+    'verificacionCierre.confirmadoPorNombre': null,
+    'verificacionCierre.confirmadoAt': null,
+  };
+
+  let actualizado = null;
+  let tipoReal = null;
+
+  const query = {
+    _id: ticketId,
+    createdAt: { $gte: periodoInicio, $lte: periodoFin },
+    ...filtroNoIncluidoEnCierre(),
+  };
+
+  if (tipoHint !== 'ADELANTADO') {
+    actualizado = await ticketAprobacionModel.findOneAndUpdate(query, { $set: update }, { new: true });
+    if (actualizado) tipoReal = actualizado.tipo === 'pago_parcial' ? 'PAGO_PARCIAL' : 'COMANDA';
+  }
+  if (!actualizado && tipoHint !== 'COMANDA') {
+    actualizado = await ticketPagoAdelantadoModel.findOneAndUpdate(query, { $set: update }, { new: true });
+    if (actualizado) tipoReal = 'ADELANTADO';
+  }
+
+  if (!actualizado) {
+    const err = new Error('Ticket no encontrado o ya fue incluido en un cierre');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  await registrarAuditoria(
+    'TICKET_VERIFICACION_QUITADA',
+    actualizado._id,
+    usuarioObjId,
+    usuarioNombre,
+    {
+      ticketNumber: actualizado.ticketNumber,
+      tipo: tipoReal,
+      numMesa: actualizado.numMesa,
+    }
+  );
+
+  return { ticket: normalizarTicket(actualizado, tipoReal), tipo: tipoReal };
+}
+
+/**
  * Confirma (verifica) todos los tickets pendientes de verificación del período.
  */
 async function confirmarTodos(usuarioId, usuarioNombre) {
@@ -477,6 +536,7 @@ module.exports = {
   obtenerResumenVerificacion,
   obtenerDetalleTicket,
   confirmarTicket,
+  desconfirmarTicket,
   confirmarTodos,
   marcarTicketsComoIncluidosEnCierre,
   desmarcarTicketsDeCierre,

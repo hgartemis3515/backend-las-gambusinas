@@ -391,6 +391,11 @@ const comandaSchema = new mongoose.Schema({
         type: Number,
         default: null
     },
+    /** 1…n del mozo en el mismo día operativo. No se reasigna. */
+    numeroComandaMozo: {
+        type: Number,
+        default: null
+    },
     /** Revisiones de ticket (baja de plato / descuento). 0 = sin letra. */
     revisionTicket: {
         type: Number,
@@ -762,15 +767,25 @@ comandaSchema.index(
     { name: 'idx_comanda_numero_dia' }
 );
 
+comandaSchema.index(
+    { diaOperativo: 1, mozos: 1, numeroComandaMozo: 1 },
+    { name: 'idx_comanda_numero_mozo' }
+);
+
 // ========== FIN ÍNDICES FASE A1 ==========
 
 comandaSchema.plugin(AutoIncrement, { inc_field: 'comandaNumber' });
 
 comandaSchema.pre('save', async function (next) {
-    if (!this.isNew || this.numeroComandaDia != null) return next();
     try {
-        const { asignarNumeroDiaEnDoc } = require('../../utils/numeroComandaDia');
-        await asignarNumeroDiaEnDoc(this);
+        if (this.isNew && this.numeroComandaDia == null) {
+            const { asignarNumeroDiaEnDoc } = require('../../utils/numeroComandaDia');
+            await asignarNumeroDiaEnDoc(this);
+        }
+        if (this.numeroComandaMozo == null && (this.isNew || this.isModified('mozos'))) {
+            const { asignarNumeroMozoEnDoc } = require('../../utils/numeroComandaMozo');
+            await asignarNumeroMozoEnDoc(this);
+        }
         return next();
     } catch (err) {
         return next(err);
