@@ -8,6 +8,7 @@ const mongoose = require('mongoose');
 const moment = require('moment-timezone');
 const ticketAprobacionModel = require('../database/models/ticketAprobacion.model');
 const { adjuntarDescuentoTicket, aplicarDescuentoAVistaTicket, totalesConDescuentoImpresion, subtotalLineaSnapshot, BOUCHER_DESCUENTO_SELECT, COMANDA_TICKET_LIST_SELECT } = require('../utils/descuentoTicketSnapshot');
+const { adjuntarPendienteCobroTickets } = require('../utils/saldoPendienteComanda');
 const { aplicarPreciosEnLineasTicket, quitarLineasDeSnapshot, sincronizarEliminacionEnBoucher, sincronizarPreciosComandaYBoucher } = require('../utils/editarPreciosTicket');
 const ticketPagoAdelantadoModel = require('../database/models/ticketPagoAdelantado.model');
 const comandaModel = require('../database/models/comanda.model');
@@ -254,7 +255,8 @@ async function obtenerTicketsPendientes(fecha) {
     .populate('boucher', BOUCHER_DESCUENTO_SELECT)
     .sort({ createdAt: 1 })
     .lean()
-    .then((tickets) => tickets.map(aplicarDescuentoAVistaTicket));
+    .then((tickets) => tickets.map(aplicarDescuentoAVistaTicket))
+    .then((tickets) => adjuntarPendienteCobroTickets(tickets));
 }
 
 /**
@@ -275,7 +277,8 @@ async function obtenerTicketsPorFecha(fecha, fechaHasta) {
     .populate('boucher', BOUCHER_DESCUENTO_SELECT)
     .sort({ createdAt: -1 })
     .lean()
-    .then((tickets) => tickets.map(aplicarDescuentoAVistaTicket));
+    .then((tickets) => tickets.map(aplicarDescuentoAVistaTicket))
+    .then((tickets) => adjuntarPendienteCobroTickets(tickets));
 }
 
 /**
@@ -783,6 +786,7 @@ async function obtenerTicketImprimible(ticketId, { boucher } = {}) {
     tipoPago: labelMetodoPagoTicket(ticket.metodoPago)
       || boucherData?.metodoPagoLabel
       || (ticket.estado === 'pendiente_aprobacion' ? 'Pendiente' : (ticket.metodoPago || 'Pendiente')),
+    pagoForzado: ticket.pagoForzado === true || ticket.origen === 'forzado',
     observaciones: ticket.observaciones || '',
     productos,
     subtotal: subFinal,
@@ -816,7 +820,8 @@ function findTicketsAprobacion(filtro) {
     .populate(POPULATE_TICKET_LISTA)
     .sort({ createdAt: -1 })
     .lean()
-    .then((tickets) => tickets.map(aplicarDescuentoAVistaTicket));
+    .then((tickets) => tickets.map(aplicarDescuentoAVistaTicket))
+    .then((tickets) => adjuntarPendienteCobroTickets(tickets));
 }
 
 /**
