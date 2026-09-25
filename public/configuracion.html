@@ -848,7 +848,7 @@ tailwind.config = {
               <div class="border-t border-[rgba(212,175,55,0.15)] pt-4 mt-2 space-y-4">
                 <p class="text-xs text-gold font-semibold uppercase tracking-wide">SOS y orden de entrega</p>
 
-                <div class="relative">
+                <div class="relative" @click.outside="cocinaSel.sosOpen = false">
                   <label class="text-xs text-txt-secondary block mb-1.5">
                     Categorías al final de la tabla KDS
                     <span class="text-gold text-[10px] ml-1" x-show="listaCocina('cocinaSosCategoriasAlFinal').length">
@@ -864,12 +864,12 @@ tailwind.config = {
                     </template>
                     <span x-show="!listaCocina('cocinaSosCategoriasAlFinal').length" class="text-[11px] text-txt-muted">Ninguna — quedan al final de cada tarjeta</span>
                   </div>
-                  <input type="text" x-model="cocinaSel.sosQ" @focus="cocinaSel.sosOpen = true"
+                  <input type="text" x-model="cocinaSel.sosQ" @focus="cocinaSel.sosOpen = true" @click="cocinaSel.sosOpen = true"
                     @keydown.enter.prevent="agregarListaCocina('cocinaSosCategoriasAlFinal', cocinaSel.sosQ); cocinaSel.sosQ = ''"
                     placeholder="Buscar o escribir categoría..."
                     class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
-                  <div x-show="cocinaSel.sosOpen" @click.outside="cocinaSel.sosOpen = false" x-cloak
-                    class="absolute z-30 left-0 right-0 mt-1 bg-bg-card border border-gold/20 rounded-xl shadow-2xl overflow-hidden">
+                  <div x-show="cocinaSel.sosOpen" x-cloak
+                    class="absolute z-40 left-0 right-0 top-full mt-1 bg-bg-card border border-gold/20 rounded-xl shadow-2xl overflow-hidden">
                     <div class="max-h-44 overflow-y-auto p-1">
                       <template x-for="cat in filtrarCatalogoCategorias(cocinaSel.sosQ)" :key="'sos-opt-'+cat">
                         <label class="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-gold/10"
@@ -886,7 +886,7 @@ tailwind.config = {
                   <p class="text-[10px] text-txt-muted mt-1">Esas categorías se mantienen en la tabla, siempre debajo del resto. Recargue la app de cocina.</p>
                 </div>
 
-                <div class="relative">
+                <div class="relative" @click.outside="cocinaSel.catOpen = false">
                   <label class="text-xs text-txt-secondary block mb-1.5">
                     Categorías sin autorización de orden
                     <span class="text-gold text-[10px] ml-1" x-show="listaCocina('cocinaOrdenSinAutorizacionCategorias').length">
@@ -902,12 +902,12 @@ tailwind.config = {
                     </template>
                     <span x-show="!listaCocina('cocinaOrdenSinAutorizacionCategorias').length" class="text-[11px] text-txt-muted">Ninguna</span>
                   </div>
-                  <input type="text" x-model="cocinaSel.catQ" @focus="cocinaSel.catOpen = true"
+                  <input type="text" x-model="cocinaSel.catQ" @focus="cocinaSel.catOpen = true" @click="cocinaSel.catOpen = true"
                     @keydown.enter.prevent="agregarListaCocina('cocinaOrdenSinAutorizacionCategorias', cocinaSel.catQ); cocinaSel.catQ = ''"
                     placeholder="Buscar o escribir categoría..."
                     class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
-                  <div x-show="cocinaSel.catOpen" @click.outside="cocinaSel.catOpen = false" x-cloak
-                    class="absolute z-30 left-0 right-0 mt-1 bg-bg-card border border-gold/20 rounded-xl shadow-2xl overflow-hidden">
+                  <div x-show="cocinaSel.catOpen" x-cloak
+                    class="absolute z-40 left-0 right-0 top-full mt-1 bg-bg-card border border-gold/20 rounded-xl shadow-2xl overflow-hidden">
                     <div class="max-h-44 overflow-y-auto p-1">
                       <template x-for="cat in filtrarCatalogoCategorias(cocinaSel.catQ)" :key="'excat-opt-'+cat">
                         <label class="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-gold/10"
@@ -923,7 +923,7 @@ tailwind.config = {
                   </div>
                 </div>
 
-                <div class="relative">
+                <div class="relative" @click.outside="cocinaSel.platoOpen = false">
                   <label class="text-xs text-txt-secondary block mb-1.5">
                     Platos sin autorización de orden
                     <span class="text-gold text-[10px] ml-1" x-show="listaCocina('cocinaOrdenSinAutorizacionPlatos').length">
@@ -947,13 +947,13 @@ tailwind.config = {
                         <option :value="cat" x-text="cat"></option>
                       </template>
                     </select>
-                    <input type="text" x-model="cocinaSel.platoQ" @focus="cocinaSel.platoOpen = true"
+                    <input type="text" x-model="cocinaSel.platoQ" @focus="cocinaSel.platoOpen = true" @click="cocinaSel.platoOpen = true"
                       @keydown.enter.prevent="agregarListaCocina('cocinaOrdenSinAutorizacionPlatos', cocinaSel.platoQ); cocinaSel.platoQ = ''"
                       placeholder="Buscar plato por nombre o id..."
                       class="flex-1 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
                   </div>
-                  <div x-show="cocinaSel.platoOpen" @click.outside="cocinaSel.platoOpen = false" x-cloak
-                    class="absolute z-30 left-0 right-0 mt-1 bg-bg-card border border-gold/20 rounded-xl shadow-2xl overflow-hidden">
+                  <div x-show="cocinaSel.platoOpen" x-cloak
+                    class="absolute z-40 left-0 right-0 top-full mt-1 bg-bg-card border border-gold/20 rounded-xl shadow-2xl overflow-hidden">
                     <div class="max-h-56 overflow-y-auto p-1">
                       <template x-for="p in filtrarCatalogoPlatos()" :key="p.id || p.nombre">
                         <label class="flex items-start gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-gold/10"
