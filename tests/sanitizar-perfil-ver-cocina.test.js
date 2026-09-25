@@ -197,4 +197,36 @@ describe('sanitizarConfigPerfilVerCocina', () => {
         expect(out.token).toBeUndefined();
         expect(out.nested).toBeUndefined();
     });
+
+    test('conserva partición y split de Ver Cocina', () => {
+        const out = sanitizarConfigPerfilVerCocina({
+            orientacionSplit: 'horizontal',
+            mostrarTituloParticionTipo: true,
+            tituloParticionTipo: 'ESCOLAR',
+            tamanioTituloParticionTipo: 18,
+            colorFondoParticionTipo: '#111827',
+        });
+        expect(out.orientacionSplit).toBe('horizontal');
+        expect(out.mostrarTituloParticionTipo).toBe(true);
+        expect(out.tituloParticionTipo).toBe('ESCOLAR');
+        expect(out.tamanioTituloParticionTipo).toBe(18);
+        expect(out.colorFondoParticionTipo).toBe('#111827');
+    });
+
+    test('tablas KDS conserva letras de plato/guarnición y autoagrandamiento', () => {
+        const out = sanitizarConfigPerfilTablasKds({
+            tamanoFuentePlatos: 22,
+            nombreComplementoTamano: 14,
+            nombreComplementoColor: '#fde68a',
+            nombreComplementoFondo: '#1f2937',
+            autoAgrandamientoTarjetasKds: true,
+            fondoConjuntoTarjetas: '#0a0a0f',
+        });
+        expect(out.tamanoFuentePlatos).toBe(22);
+        expect(out.nombreComplementoTamano).toBe(14);
+        expect(out.nombreComplementoColor).toBe('#fde68a');
+        expect(out.nombreComplementoFondo).toBe('#1f2937');
+        expect(out.autoAgrandamientoTarjetasKds).toBe(true);
+        expect(out.fondoConjuntoTarjetas).toBe('#0a0a0f');
+    });
 });

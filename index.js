@@ -33,6 +33,7 @@ const alertasRoutes = require('./src/controllers/alertasController')
 const reportesRoutes = require('./src/controllers/reportesController')
 const rolesRoutes = require('./src/controllers/rolesController')
 const configuracionRoutes = require('./src/controllers/configuracionController')
+const archivoCajaRoutes = require('./src/controllers/archivoCajaController')
 const pedidoRoutes = require('./src/controllers/pedidoController')
 const cocinerosRoutes = require('./src/controllers/cocinerosController')
 const zonaRoutes = require('./src/controllers/zonaController')
@@ -273,6 +274,7 @@ app.use('/api', alertasRoutes);
 app.use('/api', reportesRoutes);
 app.use('/api', rolesRoutes);
 app.use('/api', configuracionRoutes);
+app.use('/api', archivoCajaRoutes);
 app.use('/api', cocinerosRoutes);
 app.use('/api', zonaRoutes);
 app.use('/api', procesamientoRoutes);
@@ -696,6 +698,8 @@ server.listen(port, '0.0.0.0', async ()=> {
   try {
     const entregaAutomaticaSalioService = require('./src/services/entregaAutomaticaSalioService');
     entregaAutomaticaSalioService.iniciarBarridoEntregaAutomatica();
+    const archivoCajaService = require('./src/services/archivoCaja.service');
+    archivoCajaService.iniciarArchivoCajaSemanal();
   } catch (error) {
     logger.error('Error al iniciar barrido de entrega automática', { error: error.message });
   }

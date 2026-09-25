@@ -845,19 +845,133 @@ tailwind.config = {
                 Si el mozo cambió lo marcado en Platos, abajo sale la anterior tachada y una flecha a la nueva.
                 Desmarcado: vuelve el título con el nombre de la guarnición. Recargue Ver Cocina.
               </p>
-              <div class="border-t border-[rgba(212,175,55,0.15)] pt-4 mt-2 space-y-3">
+              <div class="border-t border-[rgba(212,175,55,0.15)] pt-4 mt-2 space-y-4">
                 <p class="text-xs text-gold font-semibold uppercase tracking-wide">SOS y orden de entrega</p>
-                <label class="text-xs text-txt-secondary block">Categorías al final de la tabla <span class="text-txt-muted">(una por línea, ej. Bebidas)</span></label>
-                <textarea x-model="config.cocinaSosCategoriasAlFinal" rows="3" placeholder="Bebidas"
-                  class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none"></textarea>
-                <p class="text-[10px] text-txt-muted">Esas categorías se mantienen en la tabla, siempre debajo del resto. Recargue la app de cocina.</p>
-                <label class="text-xs text-txt-secondary block">Categorías sin autorización de orden</label>
-                <textarea x-model="config.cocinaOrdenSinAutorizacionCategorias" rows="2" placeholder="Bebidas"
-                  class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none"></textarea>
-                <label class="text-xs text-txt-secondary block">Platos sin autorización de orden <span class="text-txt-muted">(nombre o id, uno por línea)</span></label>
-                <textarea x-model="config.cocinaOrdenSinAutorizacionPlatos" rows="2" placeholder="Inca Kola"
-                  class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none"></textarea>
-                <p class="text-[10px] text-txt-muted">Esos platos se entregan sin la clave de 3 dígitos. Una comanda con prioridad (VIP, re-fire, promo o prioridad de cocina) tampoco la pide.</p>
+
+                <div class="relative">
+                  <label class="text-xs text-txt-secondary block mb-1.5">
+                    Categorías al final de la tabla KDS
+                    <span class="text-gold text-[10px] ml-1" x-show="listaCocina('cocinaSosCategoriasAlFinal').length">
+                      (<span x-text="listaCocina('cocinaSosCategoriasAlFinal').length"></span>)
+                    </span>
+                  </label>
+                  <div class="flex flex-wrap gap-1 min-h-[34px] mb-2 p-2 rounded-lg bg-bg-sidebar border border-[rgba(212,175,55,0.2)]">
+                    <template x-for="n in listaCocina('cocinaSosCategoriasAlFinal')" :key="'sos-'+n">
+                      <button type="button" @click="toggleListaCocina('cocinaSosCategoriasAlFinal', n)"
+                        class="text-[11px] px-2 py-0.5 rounded-full bg-gold/15 text-gold border border-gold/30 hover:bg-gold/25">
+                        <span x-text="n"></span> ×
+                      </button>
+                    </template>
+                    <span x-show="!listaCocina('cocinaSosCategoriasAlFinal').length" class="text-[11px] text-txt-muted">Ninguna — quedan al final de cada tarjeta</span>
+                  </div>
+                  <input type="text" x-model="cocinaSel.sosQ" @focus="cocinaSel.sosOpen = true"
+                    @keydown.enter.prevent="agregarListaCocina('cocinaSosCategoriasAlFinal', cocinaSel.sosQ); cocinaSel.sosQ = ''"
+                    placeholder="Buscar o escribir categoría..."
+                    class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+                  <div x-show="cocinaSel.sosOpen" @click.outside="cocinaSel.sosOpen = false" x-cloak
+                    class="absolute z-30 left-0 right-0 mt-1 bg-bg-card border border-gold/20 rounded-xl shadow-2xl overflow-hidden">
+                    <div class="max-h-44 overflow-y-auto p-1">
+                      <template x-for="cat in filtrarCatalogoCategorias(cocinaSel.sosQ)" :key="'sos-opt-'+cat">
+                        <label class="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-gold/10"
+                          :class="listaTiene('cocinaSosCategoriasAlFinal', cat) ? 'bg-gold/10' : ''">
+                          <input type="checkbox" class="w-3.5 h-3.5 accent-gold"
+                            :checked="listaTiene('cocinaSosCategoriasAlFinal', cat)"
+                            @change="toggleListaCocina('cocinaSosCategoriasAlFinal', cat)">
+                          <span class="text-sm" x-text="cat"></span>
+                        </label>
+                      </template>
+                      <p x-show="!filtrarCatalogoCategorias(cocinaSel.sosQ).length" class="text-[11px] text-txt-muted px-3 py-2">Sin coincidencias. Enter para agregar el texto.</p>
+                    </div>
+                  </div>
+                  <p class="text-[10px] text-txt-muted mt-1">Esas categorías se mantienen en la tabla, siempre debajo del resto. Recargue la app de cocina.</p>
+                </div>
+
+                <div class="relative">
+                  <label class="text-xs text-txt-secondary block mb-1.5">
+                    Categorías sin autorización de orden
+                    <span class="text-gold text-[10px] ml-1" x-show="listaCocina('cocinaOrdenSinAutorizacionCategorias').length">
+                      (<span x-text="listaCocina('cocinaOrdenSinAutorizacionCategorias').length"></span>)
+                    </span>
+                  </label>
+                  <div class="flex flex-wrap gap-1 min-h-[34px] mb-2 p-2 rounded-lg bg-bg-sidebar border border-[rgba(212,175,55,0.2)]">
+                    <template x-for="n in listaCocina('cocinaOrdenSinAutorizacionCategorias')" :key="'excat-'+n">
+                      <button type="button" @click="toggleListaCocina('cocinaOrdenSinAutorizacionCategorias', n)"
+                        class="text-[11px] px-2 py-0.5 rounded-full bg-gold/15 text-gold border border-gold/30 hover:bg-gold/25">
+                        <span x-text="n"></span> ×
+                      </button>
+                    </template>
+                    <span x-show="!listaCocina('cocinaOrdenSinAutorizacionCategorias').length" class="text-[11px] text-txt-muted">Ninguna</span>
+                  </div>
+                  <input type="text" x-model="cocinaSel.catQ" @focus="cocinaSel.catOpen = true"
+                    @keydown.enter.prevent="agregarListaCocina('cocinaOrdenSinAutorizacionCategorias', cocinaSel.catQ); cocinaSel.catQ = ''"
+                    placeholder="Buscar o escribir categoría..."
+                    class="w-full bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+                  <div x-show="cocinaSel.catOpen" @click.outside="cocinaSel.catOpen = false" x-cloak
+                    class="absolute z-30 left-0 right-0 mt-1 bg-bg-card border border-gold/20 rounded-xl shadow-2xl overflow-hidden">
+                    <div class="max-h-44 overflow-y-auto p-1">
+                      <template x-for="cat in filtrarCatalogoCategorias(cocinaSel.catQ)" :key="'excat-opt-'+cat">
+                        <label class="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-gold/10"
+                          :class="listaTiene('cocinaOrdenSinAutorizacionCategorias', cat) ? 'bg-gold/10' : ''">
+                          <input type="checkbox" class="w-3.5 h-3.5 accent-gold"
+                            :checked="listaTiene('cocinaOrdenSinAutorizacionCategorias', cat)"
+                            @change="toggleListaCocina('cocinaOrdenSinAutorizacionCategorias', cat)">
+                          <span class="text-sm" x-text="cat"></span>
+                        </label>
+                      </template>
+                      <p x-show="!filtrarCatalogoCategorias(cocinaSel.catQ).length" class="text-[11px] text-txt-muted px-3 py-2">Sin coincidencias. Enter para agregar el texto.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="relative">
+                  <label class="text-xs text-txt-secondary block mb-1.5">
+                    Platos sin autorización de orden
+                    <span class="text-gold text-[10px] ml-1" x-show="listaCocina('cocinaOrdenSinAutorizacionPlatos').length">
+                      (<span x-text="listaCocina('cocinaOrdenSinAutorizacionPlatos').length"></span>)
+                    </span>
+                  </label>
+                  <div class="flex flex-wrap gap-1 min-h-[34px] mb-2 p-2 rounded-lg bg-bg-sidebar border border-[rgba(212,175,55,0.2)]">
+                    <template x-for="n in listaCocina('cocinaOrdenSinAutorizacionPlatos')" :key="'explato-'+n">
+                      <button type="button" @click="toggleListaCocina('cocinaOrdenSinAutorizacionPlatos', n)"
+                        class="text-[11px] px-2 py-0.5 rounded-full bg-gold/15 text-gold border border-gold/30 hover:bg-gold/25">
+                        <span x-text="n"></span> ×
+                      </button>
+                    </template>
+                    <span x-show="!listaCocina('cocinaOrdenSinAutorizacionPlatos').length" class="text-[11px] text-txt-muted">Ninguno</span>
+                  </div>
+                  <div class="flex gap-2">
+                    <select x-model="cocinaSel.platoCat"
+                      class="w-[38%] bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-2 py-2 text-xs text-txt-secondary focus:border-gold focus:outline-none">
+                      <option value="">Todas las categorías</option>
+                      <template x-for="cat in catalogoCategoriasCocina" :key="'pcat-'+cat">
+                        <option :value="cat" x-text="cat"></option>
+                      </template>
+                    </select>
+                    <input type="text" x-model="cocinaSel.platoQ" @focus="cocinaSel.platoOpen = true"
+                      @keydown.enter.prevent="agregarListaCocina('cocinaOrdenSinAutorizacionPlatos', cocinaSel.platoQ); cocinaSel.platoQ = ''"
+                      placeholder="Buscar plato por nombre o id..."
+                      class="flex-1 bg-bg-sidebar border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm focus:border-gold focus:outline-none">
+                  </div>
+                  <div x-show="cocinaSel.platoOpen" @click.outside="cocinaSel.platoOpen = false" x-cloak
+                    class="absolute z-30 left-0 right-0 mt-1 bg-bg-card border border-gold/20 rounded-xl shadow-2xl overflow-hidden">
+                    <div class="max-h-56 overflow-y-auto p-1">
+                      <template x-for="p in filtrarCatalogoPlatos()" :key="p.id || p.nombre">
+                        <label class="flex items-start gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-gold/10"
+                          :class="listaTiene('cocinaOrdenSinAutorizacionPlatos', p.nombre) ? 'bg-gold/10' : ''">
+                          <input type="checkbox" class="mt-0.5 w-3.5 h-3.5 accent-gold"
+                            :checked="listaTiene('cocinaOrdenSinAutorizacionPlatos', p.nombre)"
+                            @change="toggleListaCocina('cocinaOrdenSinAutorizacionPlatos', p.nombre)">
+                          <span class="min-w-0">
+                            <span class="text-sm block truncate" x-text="p.nombre"></span>
+                            <span class="text-[10px] text-txt-muted" x-text="(p.categoria || 'Sin categoría') + (p.id ? (' · #' + p.id) : '')"></span>
+                          </span>
+                        </label>
+                      </template>
+                      <p x-show="!filtrarCatalogoPlatos().length" class="text-[11px] text-txt-muted px-3 py-2">Sin coincidencias. Enter para agregar el texto.</p>
+                    </div>
+                  </div>
+                  <p class="text-[10px] text-txt-muted mt-1">Esos platos se entregan sin la clave de 3 dígitos. Una comanda con prioridad (VIP, re-fire, promo o prioridad de cocina) tampoco la pide.</p>
+                </div>
               </div>
 
               <!-- Umbrales de tiempos por local (no hard-codeados) -->
@@ -1598,6 +1712,75 @@ tailwind.config = {
               <span class="text-sm text-txt-secondary">Sincronizar con JSON legacy</span>
             </label>
           </div>
+
+          <div class="p-4 rounded-xl border border-[rgba(212,175,55,0.35)] bg-bg-sidebar space-y-4">
+            <div>
+              <p class="text-xs text-gold font-semibold uppercase tracking-wide">Archivo de caja</p>
+              <p class="text-[11px] text-txt-secondary mt-2 leading-relaxed">
+                Cada lunes a las 04:00 (Lima), o al encender el servidor si ese lunes ya pasó, se exporta a la carpeta
+                <span class="font-mono text-gold">EXPORTADOS</span> del backend un <span class="font-mono">caja-fecha.json</span>
+                con comandas, historial, pedidos, tickets, vouchers, propinas, cierres de caja, reservas ya cerradas, auditoría y clientes sin movimiento.
+                Después se borra de MongoDB solo lo que tiene más de 7 días. Así la base queda liviana.
+                Platos, cocina, usuarios, roles, mesas y configuración no se exportan ni se borran.
+                Al importar se revisan las fechas del archivo: puede recargar todo o solo un rango para ver esos días en reportes y caja.
+              </p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" @click="exportarArchivoCaja()" :disabled="archivoCaja.ocupado"
+                class="bg-gold text-bg-primary px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-110 disabled:opacity-50">
+                Exportar ahora y purgar +7 días
+              </button>
+              <button type="button" @click="cargarArchivoCaja()" class="px-4 py-2 border border-txt-muted/30 rounded-lg text-sm text-txt-secondary hover:border-gold hover:text-gold">
+                Actualizar lista
+              </button>
+            </div>
+            <p class="text-[11px] text-txt-muted" x-show="archivoCaja.estado && archivoCaja.estado.ultimaExportacion">
+              Última exportación: <span x-text="new Date(archivoCaja.estado.ultimaExportacion).toLocaleString('es-PE')"></span>
+              <span x-show="archivoCaja.estado.ultimoArchivo"> · <span class="font-mono" x-text="archivoCaja.estado.ultimoArchivo"></span></span>
+            </p>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-[10px] text-txt-muted block mb-1">Importar desde</label>
+                <input type="date" x-model="archivoCaja.desde" class="w-full bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm">
+              </div>
+              <div>
+                <label class="text-[10px] text-txt-muted block mb-1">Importar hasta</label>
+                <input type="date" x-model="archivoCaja.hasta" class="w-full bg-bg-primary border border-[rgba(212,175,55,0.25)] rounded-lg px-3 py-2 text-sm">
+              </div>
+            </div>
+            <p class="text-[10px] text-txt-muted">Vacío = todo el archivo. Con fechas, solo los registros de ese rango vuelven a MongoDB.</p>
+            <div class="space-y-2 max-h-52 overflow-y-auto">
+              <template x-for="f in archivoCaja.archivos" :key="f.nombre">
+                <div class="flex flex-wrap items-center justify-between gap-2 p-2 rounded-lg bg-bg-primary border border-white/5">
+                  <div class="min-w-0">
+                    <p class="text-sm font-mono truncate" x-text="f.nombre"></p>
+                    <p class="text-[10px] text-txt-muted" x-text="new Date(f.modificado).toLocaleString('es-PE') + ' · ' + Math.max(1, Math.round(f.bytes / 1024)) + ' KB'"></p>
+                  </div>
+                  <div class="flex gap-1">
+                    <button type="button" @click="verificarArchivoCaja(f.nombre)" class="text-xs px-2 py-1 rounded border border-gold/40 text-gold">Ver fechas</button>
+                    <button type="button" @click="importarArchivoCaja(f.nombre)" class="text-xs px-2 py-1 rounded bg-gold text-bg-primary font-semibold">Importar</button>
+                    <button type="button" @click="descargarArchivoCaja(f.nombre)" class="text-xs px-2 py-1 rounded border border-txt-muted/40 text-txt-secondary">Bajar</button>
+                  </div>
+                </div>
+              </template>
+              <p x-show="!archivoCaja.archivos.length" class="text-[11px] text-txt-muted">Todavía no hay archivos en EXPORTADOS.</p>
+            </div>
+            <div x-show="archivoCaja.verificacion" class="rounded-lg border border-[rgba(212,175,55,0.2)] p-3 space-y-1">
+              <p class="text-xs text-gold">Verificación <span class="font-mono" x-text="archivoCaja.verificacionNombre"></span></p>
+              <template x-for="fila in (archivoCaja.verificacion.resumen || [])" :key="fila.clave">
+                <p class="text-[11px] text-txt-secondary" x-show="fila.total">
+                  <span x-text="fila.etiqueta"></span>:
+                  <span x-text="fila.enRango"></span> en el rango /
+                  <span x-text="fila.total"></span> en el archivo
+                  <span class="text-txt-muted" x-show="fila.desde" x-text="' · ' + new Date(fila.desde).toLocaleDateString('es-PE') + ' → ' + new Date(fila.hasta).toLocaleDateString('es-PE')"></span>
+                </p>
+              </template>
+            </div>
+            <label class="text-[11px] text-txt-secondary block">
+              Subir un JSON ya exportado
+              <input type="file" accept="application/json,.json" @change="subirArchivoCaja($event)" class="mt-1 block w-full text-xs text-txt-muted">
+            </label>
+          </div>
         </div>
 
       </div>
@@ -1625,6 +1808,10 @@ function configApp() {
     showCambiarPassword: false,
     menuDragLista: null,
     menuDragIdx: -1,
+    catalogoCategoriasCocina: [],
+    catalogoPlatosCocina: [],
+    cocinaSel: { sosOpen: false, sosQ: '', catOpen: false, catQ: '', platoOpen: false, platoQ: '', platoCat: '' },
+    archivoCaja: { ocupado: false, archivos: [], estado: {}, verificacion: null, verificacionNombre: '', desde: '', hasta: '' },
     
     perfil: {
       nombre: '',
@@ -1798,9 +1985,9 @@ function configApp() {
       cocinaDeshabilitarOrdenSecuencialGuarniciones: true,
       cocinaDeshabilitarAgrupacionGuarniciones: false,
       cocinaVistaCocinaGuarnicionComoPlato: true,
-      cocinaSosCategoriasAlFinal: '',
-      cocinaOrdenSinAutorizacionCategorias: '',
-      cocinaOrdenSinAutorizacionPlatos: '',
+      cocinaSosCategoriasAlFinal: [],
+      cocinaOrdenSinAutorizacionCategorias: [],
+      cocinaOrdenSinAutorizacionPlatos: [],
       cocinaPrimerToqueFinalizarAsignado: true,
       cocinaEntregarPlatoEnteroAbsoluto: true,
       cocinaForzarColorMozoUnico: false,
@@ -1865,6 +2052,181 @@ function configApp() {
       
       await this.loadConfig();
       await this.loadPerfil();
+      this.loadCatalogoCocina();
+      this.$watch('cfgTab', (t) => { if (t === 'avanzado') this.cargarArchivoCaja(); });
+    },
+
+    async cargarArchivoCaja() {
+      const data = await apiGet('/archivo-caja');
+      if (!data || !data.success) return;
+      this.archivoCaja.archivos = data.archivos || [];
+      this.archivoCaja.estado = data.estado || {};
+    },
+    async exportarArchivoCaja() {
+      if (!confirm('Se guarda en EXPORTADOS la data de caja con más de 7 días y se borra de MongoDB. Platos, usuarios, cocina y configuración no se tocan. ¿Continuar?')) return;
+      this.archivoCaja.ocupado = true;
+      try {
+        const data = await apiPost('/archivo-caja/exportar', { confirmar: true });
+        if (!data || !data.success) {
+          this.showToast((data && data.error) || 'No se pudo exportar', 'error');
+          return;
+        }
+        const total = data.data && data.data.resumen ? data.data.resumen.total : 0;
+        this.showToast('Exportado ' + (data.data.archivo || '') + ' · ' + total + ' registros');
+        await this.cargarArchivoCaja();
+      } finally {
+        this.archivoCaja.ocupado = false;
+      }
+    },
+    async verificarArchivoCaja(nombre) {
+      const data = await apiPost('/archivo-caja/verificar', {
+        archivo: nombre,
+        desde: this.archivoCaja.desde || null,
+        hasta: this.archivoCaja.hasta || null
+      });
+      if (!data || !data.success) {
+        this.showToast((data && data.error) || 'Archivo no válido', 'error');
+        return;
+      }
+      this.archivoCaja.verificacion = data.data;
+      this.archivoCaja.verificacionNombre = nombre;
+    },
+    async importarArchivoCaja(nombre) {
+      await this.verificarArchivoCaja(nombre);
+      const rango = (this.archivoCaja.desde || this.archivoCaja.hasta)
+        ? (this.archivoCaja.desde || '…') + ' → ' + (this.archivoCaja.hasta || '…')
+        : 'todas las fechas del archivo';
+      if (!confirm('Se recarga en MongoDB el archivo ' + nombre + ' (' + rango + '). ¿Continuar?')) return;
+      this.archivoCaja.ocupado = true;
+      try {
+        const data = await apiPost('/archivo-caja/importar', {
+          archivo: nombre,
+          desde: this.archivoCaja.desde || null,
+          hasta: this.archivoCaja.hasta || null,
+          confirmar: true
+        });
+        if (!data || !data.success) {
+          this.showToast((data && data.error) || 'No se pudo importar', 'error');
+          return;
+        }
+        this.showToast('Importación lista. Revise reportes del rango elegido.');
+      } finally {
+        this.archivoCaja.ocupado = false;
+      }
+    },
+    async descargarArchivoCaja(nombre) {
+      const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+      const res = await fetch('/api/archivo-caja/archivo/' + encodeURIComponent(nombre), {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      if (!res.ok) {
+        this.showToast('No se pudo descargar', 'error');
+        return;
+      }
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = nombre;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    },
+    async subirArchivoCaja(event) {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = '';
+      if (!file) return;
+      const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+      const body = new FormData();
+      body.append('archivo', file);
+      if (this.archivoCaja.desde) body.append('desde', this.archivoCaja.desde);
+      if (this.archivoCaja.hasta) body.append('hasta', this.archivoCaja.hasta);
+      const res = await fetch('/api/archivo-caja/subir', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token },
+        body
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data || !data.success) {
+        this.showToast((data && data.error) || 'JSON no válido', 'error');
+        return;
+      }
+      this.archivoCaja.verificacion = data.data;
+      this.archivoCaja.verificacionNombre = data.archivo;
+      this.showToast('Archivo guardado en EXPORTADOS: ' + data.archivo);
+      await this.cargarArchivoCaja();
+    },
+
+    listaCocina(key) {
+      const v = this.config && this.config[key];
+      if (Array.isArray(v)) {
+        return v.map((s) => String(s || '').trim()).filter(Boolean);
+      }
+      return String(v || '').split(/\n|,/).map((s) => s.trim()).filter(Boolean);
+    },
+    listaTiene(key, nombre) {
+      const n = String(nombre || '').trim().toLowerCase();
+      return this.listaCocina(key).some((x) => String(x).toLowerCase() === n);
+    },
+    toggleListaCocina(key, nombre) {
+      const n = String(nombre || '').trim();
+      if (!n) return;
+      const cur = this.listaCocina(key);
+      const i = cur.findIndex((x) => String(x).toLowerCase() === n.toLowerCase());
+      if (i >= 0) cur.splice(i, 1);
+      else if (cur.length < 40) cur.push(n);
+      this.config[key] = cur;
+    },
+    agregarListaCocina(key, texto) {
+      const n = String(texto || '').trim();
+      if (!n) return;
+      if (this.listaTiene(key, n)) return;
+      this.toggleListaCocina(key, n);
+    },
+    filtrarCatalogoCategorias(q) {
+      const qq = String(q || '').trim().toLowerCase();
+      const cats = Array.isArray(this.catalogoCategoriasCocina) ? this.catalogoCategoriasCocina : [];
+      if (!qq) return cats;
+      return cats.filter((c) => String(c).toLowerCase().includes(qq));
+    },
+    filtrarCatalogoPlatos() {
+      const qq = String(this.cocinaSel.platoQ || '').trim().toLowerCase();
+      const cat = String(this.cocinaSel.platoCat || '').trim().toLowerCase();
+      const list = Array.isArray(this.catalogoPlatosCocina) ? this.catalogoPlatosCocina : [];
+      return list.filter((p) => {
+        if (cat && String(p.categoria || '').toLowerCase() !== cat) return false;
+        if (!qq) return true;
+        return String(p.nombre || '').toLowerCase().includes(qq)
+          || String(p.id || '').toLowerCase().includes(qq);
+      }).slice(0, 80);
+    },
+    async loadCatalogoCocina() {
+      try {
+        const cats = await apiGet('/categorias-plato?ligero=1');
+        const nombres = (Array.isArray(cats) ? cats : [])
+          .map((c) => (c && (c.nombre || c)) ? String(c.nombre || c).trim() : '')
+          .filter(Boolean);
+        const seen = new Set();
+        this.catalogoCategoriasCocina = nombres.filter((n) => {
+          const k = n.toLowerCase();
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+      } catch (e) {
+        this.catalogoCategoriasCocina = [];
+      }
+      try {
+        const platos = await apiGet('/platos?carta=1');
+        this.catalogoPlatosCocina = (Array.isArray(platos) ? platos : [])
+          .filter((p) => p && p.isActive !== false && p.nombre)
+          .map((p) => ({
+            id: p.id || p._id || '',
+            nombre: String(p.nombre || '').trim(),
+            categoria: String(p.categoria || (Array.isArray(p.categorias) ? p.categorias[0] : '') || '').trim()
+          }))
+          .filter((p) => p.nombre);
+      } catch (e) {
+        this.catalogoPlatosCocina = [];
+      }
     },
     
     async loadPerfil() {
@@ -2096,9 +2458,9 @@ function configApp() {
             this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones = cfg.cocina.deshabilitarOrdenSecuencialGuarniciones !== false;
             this.config.cocinaDeshabilitarAgrupacionGuarniciones = cfg.cocina.deshabilitarAgrupacionGuarniciones === true;
             this.config.cocinaVistaCocinaGuarnicionComoPlato = cfg.cocina.vistaCocinaGuarnicionComoPlato !== false;
-            this.config.cocinaSosCategoriasAlFinal = Array.isArray(cfg.cocina.sosCategoriasAlFinal) ? cfg.cocina.sosCategoriasAlFinal.join('\n') : '';
-            this.config.cocinaOrdenSinAutorizacionCategorias = Array.isArray(cfg.cocina.ordenSinAutorizacionCategorias) ? cfg.cocina.ordenSinAutorizacionCategorias.join('\n') : '';
-            this.config.cocinaOrdenSinAutorizacionPlatos = Array.isArray(cfg.cocina.ordenSinAutorizacionPlatos) ? cfg.cocina.ordenSinAutorizacionPlatos.join('\n') : '';
+            this.config.cocinaSosCategoriasAlFinal = Array.isArray(cfg.cocina.sosCategoriasAlFinal) ? cfg.cocina.sosCategoriasAlFinal : [];
+            this.config.cocinaOrdenSinAutorizacionCategorias = Array.isArray(cfg.cocina.ordenSinAutorizacionCategorias) ? cfg.cocina.ordenSinAutorizacionCategorias : [];
+            this.config.cocinaOrdenSinAutorizacionPlatos = Array.isArray(cfg.cocina.ordenSinAutorizacionPlatos) ? cfg.cocina.ordenSinAutorizacionPlatos : [];
             const tg = cfg.cocina.tiemposGuarnicion || {};
             this.config.cocinaTiemposGuarnicionUmbralAlerta = Number(tg.umbralAlertaMultiplo) || 1.5;
             this.config.cocinaTiemposGuarnicionUmbralCritica = Number(tg.umbralCriticaMultiplo) || 2;
@@ -2121,9 +2483,9 @@ function configApp() {
             this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones = true;
             this.config.cocinaDeshabilitarAgrupacionGuarniciones = false;
             this.config.cocinaVistaCocinaGuarnicionComoPlato = true;
-            this.config.cocinaSosCategoriasAlFinal = '';
-            this.config.cocinaOrdenSinAutorizacionCategorias = '';
-            this.config.cocinaOrdenSinAutorizacionPlatos = '';
+            this.config.cocinaSosCategoriasAlFinal = [];
+            this.config.cocinaOrdenSinAutorizacionCategorias = [];
+            this.config.cocinaOrdenSinAutorizacionPlatos = [];
             this.config.cocinaTiemposGuarnicionUmbralAlerta = 1.5;
             this.config.cocinaTiemposGuarnicionUmbralCritica = 2;
             this.config.cocinaTiemposGuarnicionRapido = 180;
@@ -2321,9 +2683,9 @@ function configApp() {
             deshabilitarOrdenSecuencialGuarniciones: this.config.cocinaDeshabilitarOrdenSecuencialGuarniciones !== false,
             deshabilitarAgrupacionGuarniciones: this.config.cocinaDeshabilitarAgrupacionGuarniciones === true,
             vistaCocinaGuarnicionComoPlato: this.config.cocinaVistaCocinaGuarnicionComoPlato !== false,
-            sosCategoriasAlFinal: String(this.config.cocinaSosCategoriasAlFinal || '').split(/\n|,/).map(s => s.trim()).filter(Boolean).slice(0, 40),
-            ordenSinAutorizacionCategorias: String(this.config.cocinaOrdenSinAutorizacionCategorias || '').split(/\n|,/).map(s => s.trim()).filter(Boolean).slice(0, 40),
-            ordenSinAutorizacionPlatos: String(this.config.cocinaOrdenSinAutorizacionPlatos || '').split(/\n|,/).map(s => s.trim()).filter(Boolean).slice(0, 40),
+            sosCategoriasAlFinal: this.listaCocina('cocinaSosCategoriasAlFinal').slice(0, 40),
+            ordenSinAutorizacionCategorias: this.listaCocina('cocinaOrdenSinAutorizacionCategorias').slice(0, 40),
+            ordenSinAutorizacionPlatos: this.listaCocina('cocinaOrdenSinAutorizacionPlatos').slice(0, 40),
             tiemposGuarnicion: {
               umbralAlertaMultiplo: Number(this.config.cocinaTiemposGuarnicionUmbralAlerta) || 1.5,
               umbralCriticaMultiplo: Number(this.config.cocinaTiemposGuarnicionUmbralCritica) || 2,
