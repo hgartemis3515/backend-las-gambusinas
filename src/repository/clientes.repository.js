@@ -25,8 +25,17 @@ const importarClientesDesdeJSON = async () => {
         let imported = 0, errors = 0;
         for (const item of jsonData) {
             try {
-                const existente = await clienteModel.findOne({ clienteId: item.clienteId });
-                if (existente) continue;
+                const filtros = [];
+                if (item._id && mongoose.Types.ObjectId.isValid(String(item._id))) {
+                    filtros.push({ _id: item._id });
+                }
+                if (item.clienteId != null && item.clienteId !== '') {
+                    filtros.push({ clienteId: item.clienteId });
+                }
+                if (filtros.length) {
+                    const existente = await clienteModel.findOne({ $or: filtros }).select('_id').lean();
+                    if (existente) continue;
+                }
                 const doc = {
                     _id: item._id ? new mongoose.Types.ObjectId(item._id) : undefined,
                     clienteId: item.clienteId,
@@ -46,6 +55,7 @@ const importarClientesDesdeJSON = async () => {
                 await clienteModel.create(doc);
                 imported++;
             } catch (err) {
+                if (err && err.code === 11000) continue;
                 errors++;
                 console.error(`❌ Error al importar cliente ${item.nombre || item.clienteId}:`, err.message);
             }

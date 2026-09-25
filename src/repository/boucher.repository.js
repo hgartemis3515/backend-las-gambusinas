@@ -629,8 +629,13 @@ const importarBoucherDesdeJSON = async () => {
         let imported = 0, errors = 0;
         for (const item of jsonData) {
             try {
-                const existente = await boucherModel.findOne({ voucherId: item.voucherId });
+                if (item._id && mongoose.Types.ObjectId.isValid(String(item._id))) {
+                    const porId = await boucherModel.findById(item._id).select('_id').lean();
+                    if (porId) continue;
+                }
+                const existente = await boucherModel.findOne({ voucherId: item.voucherId }).select('_id').lean();
                 if (existente) continue;
+                if (!item.mesa || item.numMesa == null || item.numMesa === '') continue;
                 const platosArr = (item.platos || []).map(p => ({
                     plato: platoIdMap.get(Number(p.platoId)) || toObjId(p.plato),
                     platoId: p.platoId,
@@ -665,6 +670,7 @@ const importarBoucherDesdeJSON = async () => {
                 });
                 imported++;
             } catch (err) {
+                if (err && err.code === 11000) continue;
                 errors++;
                 console.error(`❌ Error al importar boucher ${item.voucherId}:`, err.message);
             }

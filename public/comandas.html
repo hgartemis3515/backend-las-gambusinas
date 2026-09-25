@@ -4824,9 +4824,13 @@ this.scheduleRefreshVentasTotales();
  async loadComandas() {
  this.loading = true;
 
- const qs = this.verEliminadas
+ const rango = this.rangoFiltroFechas;
+ let qs = this.verEliminadas
   ? '/comanda?incluirPagadas=true&incluirEliminadas=true'
   : '/comanda?incluirPagadas=true';
+ if (rango && rango.desde && rango.hasta) {
+  qs += '&desde=' + encodeURIComponent(rango.desde) + '&hasta=' + encodeURIComponent(rango.hasta);
+ }
  let data = await apiGet(qs);
  if (!data) data = await apiGet('/comandas');
 
@@ -5895,8 +5899,9 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
     this.customFechaDesde = this.customFechaDesde || hoy;
     this.customFechaHasta = this.customFechaHasta || hoy;
     this.abrirFiltroPersonalizado();
+    return;
   }
-  this.filterComandas();
+  this.loadComandas();
   this.loadVentasTotales();
  },
 
@@ -5911,7 +5916,7 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  aplicarFiltroPersonalizado() {
   this.filtroPeriodo = 'custom';
   this.modal = null;
-  this.filterComandas();
+  this.loadComandas();
   this.loadVentasTotales();
  },
 
