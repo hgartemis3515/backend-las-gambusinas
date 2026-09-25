@@ -39,7 +39,6 @@ const CATALOGO = [
 ];
 
 const FILE_SET = new Set(CATALOGO.map((c) => c.file));
-const timers = Object.create(null);
 
 function normalizeFiles(files) {
     if (files == null) return CATALOGO.map((c) => c.file);
@@ -77,23 +76,18 @@ function loadJsonArray(fileName) {
     return raw.map((doc) => hydrateCatalogoDoc(doc));
 }
 
-async function writeCatalogoFile(fileName) {
+async function writeCatalogoFile(fileName, { forzar = false } = {}) {
     const meta = CATALOGO.find((c) => c.file === fileName);
     if (!meta || !mongoose.connection?.db) return 0;
     const cursor = mongoose.connection.db.collection(meta.collection).find({});
     if (meta.sort) cursor.sort(meta.sort);
     const docs = await cursor.toArray();
-    await syncJsonFile(fileName, docs);
+    await syncJsonFile(fileName, docs, { forzar });
     return docs.length;
 }
 
-function scheduleExport(fileName) {
-    clearTimeout(timers[fileName]);
-    timers[fileName] = setTimeout(() => {
-        writeCatalogoFile(fileName).catch((err) => {
-            logger.warn('No se pudo sincronizar JSON del catálogo', { fileName, error: err.message });
-        });
-    }, 300);
+function scheduleExport() {
+    // El espejo JSON se escribe al cerrar caja, no en cada cambio de carta.
 }
 
 async function exportarCatalogoCartaAJson(files, opts = {}) {
@@ -105,8 +99,7 @@ async function exportarCatalogoCartaAJson(files, opts = {}) {
     }
     const counts = {};
     for (const fileName of list) {
-        clearTimeout(timers[fileName]);
-        counts[fileName] = await writeCatalogoFile(fileName);
+        counts[fileName] = await writeCatalogoFile(fileName, { forzar: true });
     }
     return counts;
 }

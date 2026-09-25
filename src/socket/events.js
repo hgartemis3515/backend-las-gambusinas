@@ -539,11 +539,16 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
   /**
    * Emitir evento de nueva comanda a cocina
    */
-  global.emitNuevaComanda = async (comanda) => {
+  global.emitNuevaComanda = async (comanda, opciones = {}) => {
     try {
+      let comandaCompleta = null;
+      const yaLista = opciones.yaPopulada === true && comanda && typeof comanda === 'object' && comanda._id;
+      if (yaLista) {
+        comandaCompleta = comanda.toObject ? comanda.toObject() : comanda;
+      } else {
       // Obtener comanda con populate completo (lean: objeto plano, evita
       // documentos Mongoose que al serializar confunden el merge en cocina)
-      const comandaCompleta = await comandaModel
+      comandaCompleta = await comandaModel
         .findById(comanda._id || comanda)
         .populate({
           path: "mozos",
@@ -562,6 +567,7 @@ module.exports = (io, cocinaNamespace, mozosNamespace, adminNamespace) => {
           model: "platos"
         })
         .lean();
+      }
 
       if (!comandaCompleta) {
         logger.warn('Comanda no encontrada para emitir evento');

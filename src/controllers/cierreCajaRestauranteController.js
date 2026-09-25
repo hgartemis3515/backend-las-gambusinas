@@ -195,6 +195,15 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
       totalComandas: resumenFinanciero.totalComandas,
       montoTotal: resumenFinanciero.montoTotalVendido
     });
+
+    let jsonData = null;
+    try {
+      const { sincronizarJsonAlCerrarCaja } = require('../utils/sincronizarDataAlCierre');
+      jsonData = await sincronizarJsonAlCerrarCaja();
+      logger.info('JSON de data reescrito al cerrar caja', jsonData);
+    } catch (jsonErr) {
+      logger.warn('El cierre quedó guardado, pero no se reescribieron los JSON', { error: jsonErr.message });
+    }
     
     // Paso 15: Responder al frontend
     res.status(201).json({
@@ -212,6 +221,7 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
         },
         datosGraficos: cierre.datosGraficos
       },
+      jsonData,
       message: 'Cierre de caja completado exitosamente'
     });
     

@@ -10,6 +10,9 @@ const {
     VERSION,
     NUNCA_BORRA,
     COLECCIONES,
+    ARCHIVOS_JSON_PURGA,
+    conservarRegistroJson,
+    recortarListaJson,
 } = require('../src/utils/archivoCaja');
 
 describe('archivoCaja', () => {
@@ -67,5 +70,28 @@ describe('archivoCaja', () => {
         expect(NUNCA_BORRA.some((s) => /platos|usuarios|configuraci/i.test(s))).toBe(true);
         expect(COLECCIONES.some((c) => c.clave === 'platos')).toBe(false);
         expect(COLECCIONES.some((c) => c.clave === 'comandas')).toBe(true);
+    });
+
+    test('el JSON de data suelta lo de más de 7 días y no toca catálogo', () => {
+        const corte = new Date('2026-09-17T05:00:00.000Z');
+        const lista = [
+            { _id: 'vieja', createdAt: '2026-09-01T12:00:00.000Z' },
+            { _id: 'nueva', createdAt: '2026-09-20T12:00:00.000Z' },
+            { _id: 'sindato' },
+        ];
+        const recorte = recortarListaJson(lista, { corte, fecha: 'createdAt', idsBorrar: new Set() });
+        expect(recorte.antes).toBe(3);
+        expect(recorte.lista.map((d) => d._id)).toEqual(['nueva', 'sindato']);
+        expect(conservarRegistroJson(
+            { _id: 'c1', updatedAt: '2026-01-01T00:00:00.000Z' },
+            { corte, fecha: 'updatedAt', idsBorrar: new Set(['c1']), soloIds: true }
+        )).toBe(false);
+        expect(conservarRegistroJson(
+            { _id: 'c2', updatedAt: '2026-01-01T00:00:00.000Z' },
+            { corte, fecha: 'updatedAt', idsBorrar: new Set(), soloIds: true }
+        )).toBe(true);
+        const archivos = ARCHIVOS_JSON_PURGA.map((a) => a.archivo);
+        expect(archivos).toEqual(['comandas.json', 'boucher.json', 'auditoria.json', 'clientes.json']);
+        expect(archivos.some((n) => /platos|mesas|mozos|areas/.test(n))).toBe(false);
     });
 });

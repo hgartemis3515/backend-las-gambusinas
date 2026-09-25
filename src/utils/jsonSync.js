@@ -9,7 +9,8 @@ const DATA_DIR = path.join(__dirname, '../../data');
  * @param {string} fileName - Nombre del archivo JSON (ej: 'mozos.json', 'mesas.json', 'platos.json')
  * @param {Array} data - Array de datos a escribir en el archivo JSON
  */
-const syncJsonFile = async (fileName, data) => {
+const syncJsonFile = async (fileName, data, opciones = {}) => {
+    if (!opciones.forzar) return;
     try {
         const filePath = path.join(DATA_DIR, fileName);
         // Asegurar que el directorio data/ exista antes de escribir.

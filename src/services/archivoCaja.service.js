@@ -9,6 +9,7 @@ const {
     TZ,
     COLECCIONES,
     NUNCA_BORRA,
+    ARCHIVOS_JSON_PURGA,
     RESERVAS_CERRADAS,
     corteAntiguedad,
     lunesDeSemana,
@@ -18,9 +19,11 @@ const {
     validarPaquete,
     resumenPaquete,
     docsEnRango,
+    recortarListaJson,
 } = require('../utils/archivoCaja');
 
 const DIR = path.join(__dirname, '..', '..', 'EXPORTADOS');
+const DATA_DIR = path.join(__dirname, '..', '..', 'data');
 const ESTADO = path.join(DIR, 'estado.json');
 
 const MODELOS = {
@@ -209,6 +212,7 @@ async function exportarYPurgar({ motivo = 'manual' } = {}) {
                 borrados[def.clave] = await borrarIds(Model, porBorrar[def.clave] || []);
             }
         }
+        const jsonData = recortarArchivosData(corte, porBorrar);
         const estado = guardarEstado({
             ultimoLunes: motivo === 'lunes' ? lunesDeSemana(ahora) : leerEstado().ultimoLunes || null,
             ultimaExportacion: ahora.toISOString(),
@@ -216,8 +220,8 @@ async function exportarYPurgar({ motivo = 'manual' } = {}) {
             ultimoMotivo: motivo,
             ultimoResumen: conteos,
         });
-        logger.info('Archivo de caja exportado', { archivo, motivo, total: conteos.total });
-        return { archivo, corte: corte.toISOString(), resumen: conteos, borrados, estado };
+        logger.info('Archivo de caja exportado', { archivo, motivo, total: conteos.total, jsonData });
+        return { archivo, corte: corte.toISOString(), resumen: conteos, borrados, jsonData, estado };
     });
 }
 
@@ -291,6 +295,47 @@ function iniciarArchivoCajaSemanal() {
     setTimeout(tick, 8000);
 }
 
+function recortarArchivosData(corte, porBorrar) {
+    const resultado = [];
+    for (const def of ARCHIVOS_JSON_PURGA) {
+        const full = path.resolve(DATA_DIR, def.archivo);
+        if (path.dirname(full) !== path.resolve(DATA_DIR)) continue;
+        if (!fs.existsSync(full)) {
+            resultado.push({ archivo: def.archivo, omitido: true });
+            continue;
+        }
+        let lista;
+        try {
+            lista = JSON.parse(fs.readFileSync(full, 'utf8'));
+        } catch (e) {
+            logger.warn('No se pudo leer JSON de data para purgar', { archivo: def.archivo, error: e.message });
+            resultado.push({ archivo: def.archivo, omitido: true });
+            continue;
+        }
+        const ids = new Set((porBorrar[def.clave] || []).map((id) => String(id)));
+        const recorte = recortarListaJson(lista, {
+            corte,
+            fecha: def.fecha,
+            idsBorrar: ids,
+            soloIds: !!def.soloIds,
+        });
+        if (recorte.invalido || recorte.despues === recorte.antes) {
+            resultado.push({
+                archivo: def.archivo,
+                antes: recorte.antes,
+                despues: recorte.despues,
+                omitido: !!recorte.invalido,
+            });
+            continue;
+        }
+        const tmp = `${full}.tmp`;
+        fs.writeFileSync(tmp, JSON.stringify(recorte.lista));
+        fs.renameSync(tmp, full);
+        resultado.push({ archivo: def.archivo, antes: recorte.antes, despues: recorte.despues });
+    }
+    return resultado;
+}
+
 function planPublico() {
     return {
         retencionDias: RETENCION_DIAS,
@@ -302,6 +347,7 @@ function planPublico() {
         nuncaBorra: NUNCA_BORRA,
         reservas: 'Solo reservas rechazadas, completadas o canceladas. Las pendientes o activas se quedan.',
         clientes: 'Solo clientes sin comanda, pedido o voucher de los últimos 7 días.',
+        jsonData: ARCHIVOS_JSON_PURGA.map((a) => a.archivo),
     };
 }
 

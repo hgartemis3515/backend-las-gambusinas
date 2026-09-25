@@ -34,6 +34,14 @@ const NUNCA_BORRA = [
     'configuración y personalización',
 ];
 
+/** Copias en data/ que crecen con la operación. El resto de esa carpeta no se toca. */
+const ARCHIVOS_JSON_PURGA = [
+    { clave: 'comandas', archivo: 'comandas.json', fecha: 'createdAt' },
+    { clave: 'bouchers', archivo: 'boucher.json', fecha: 'createdAt' },
+    { clave: 'auditoria', archivo: 'auditoria.json', fecha: 'timestamp' },
+    { clave: 'clientes', archivo: 'clientes.json', soloIds: true },
+];
+
 const RESERVAS_CERRADAS = ['rechazada', 'completada', 'cancelada'];
 
 function corteAntiguedad(ahora = new Date(), dias = RETENCION_DIAS) {
@@ -146,6 +154,23 @@ function docsEnRango(paquete, clave, campo, desde, hasta) {
     return docs.filter((d) => enRango(d, campo, desde, hasta));
 }
 
+/** true = el registro se queda en el JSON de data/. */
+function conservarRegistroJson(doc, { corte, fecha, idsBorrar, soloIds } = {}) {
+    if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return false;
+    const id = doc._id == null ? '' : String(doc._id);
+    if (id && idsBorrar && idsBorrar.has(id)) return false;
+    if (soloIds) return true;
+    const f = fechaDe(doc, fecha);
+    if (!f || !corte) return true;
+    return f >= corte;
+}
+
+function recortarListaJson(lista, opts) {
+    if (!Array.isArray(lista)) return { lista: [], antes: 0, despues: 0, invalido: true };
+    const next = lista.filter((d) => conservarRegistroJson(d, opts));
+    return { lista: next, antes: lista.length, despues: next.length, invalido: false };
+}
+
 module.exports = {
     TZ,
     RETENCION_DIAS,
@@ -154,6 +179,7 @@ module.exports = {
     HORA_LUNES,
     COLECCIONES,
     NUNCA_BORRA,
+    ARCHIVOS_JSON_PURGA,
     RESERVAS_CERRADAS,
     corteAntiguedad,
     lunesDeSemana,
@@ -168,4 +194,6 @@ module.exports = {
     validarPaquete,
     resumenPaquete,
     docsEnRango,
+    conservarRegistroJson,
+    recortarListaJson,
 };

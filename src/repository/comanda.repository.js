@@ -3,7 +3,6 @@ const mesasModel = require("../database/models/mesas.model");
 const platoModel = require("../database/models/plato.model");
 const HistorialComandas = require("../database/models/historialComandas.model");
 const pedidoModel = require("../database/models/pedido.model");
-const { syncJsonFile } = require('../utils/jsonSync');
 const logger = require('../utils/logger');
 const { AppError } = require('../utils/errorHandler');
 const { parseHexColor } = require('../utils/hexColor');
@@ -1355,44 +1354,27 @@ const agregarComanda = async (data) => {
     // En tests, retornar comanda sin populate
   }
 
-  try {
-    const aprobacionService = require('../services/aprobacionComanda.service');
-    await aprobacionService.crearTicketPendienteDesdeComanda(comandaCreada?._id || nuevaComanda._id);
-  } catch (ticketAltaErr) {
-    logger.warn('Ticket PENDIENTE al crear comanda no se pudo generar', {
-      comandaId: nuevaComanda._id,
-      error: ticketAltaErr.message
-    });
-  }
-  
-  console.log('📋 Comanda populada:', {
-    id: comandaCreada._id,
-    platos: comandaCreada.platos?.length,
-    primerPlato: comandaCreada.platos?.[0]?.plato?.nombre || 'N/A'
-  });
-  
-  // Sincronizar JSON en background (find({}) completo bloqueaba el event loop
-  // y provocaba races en cocina: refetch timeout + socket → lista inconsistente)
+  const idTicketAlta = comandaCreada?._id || nuevaComanda._id;
   setImmediate(async () => {
     try {
-      const todasLasComandasSinPopulate = await comandaModel.find({}).lean();
-      await syncJsonFile('comandas.json', todasLasComandasSinPopulate);
-    } catch (error) {
-      console.error('⚠️ Error al sincronizar comandas.json:', error);
+      const aprobacionService = require('../services/aprobacionComanda.service');
+      await aprobacionService.crearTicketPendienteDesdeComanda(idTicketAlta);
+    } catch (ticketAltaErr) {
+      logger.warn('Ticket PENDIENTE al crear comanda no se pudo generar', {
+        comandaId: nuevaComanda._id,
+        error: ticketAltaErr.message
+      });
+    }
+    if (global.emitReporteComandaNueva) {
+      try {
+        await global.emitReporteComandaNueva(comandaCreada);
+      } catch (error) {
+        console.error('⚠️ Error al emitir evento reportes:comanda-nueva (no crítico):', error);
+      }
     }
   });
-  
-  // FASE 9: Emitir evento para actualización de reportes en tiempo real
-  if (global.emitReporteComandaNueva) {
-    try {
-      await global.emitReporteComandaNueva(comandaCreada);
-      console.log('✅ Evento reportes:comanda-nueva emitido');
-    } catch (error) {
-      console.error('⚠️ Error al emitir evento reportes:comanda-nueva (no crítico):', error);
-    }
-  }
-  
-  return { comanda: comandaCreada, todaslascomandas: await listarComanda() };
+
+  return { comanda: comandaCreada };
 };
 
 /**
@@ -1727,14 +1709,6 @@ const eliminarComanda = async (comandaId, usuarioId = null, motivo = 'Eliminaci�
       }
     } else {
       console.warn(`⚠️ No se encontró la mesa ${mesaId} para actualizar su estado`);
-    }
-    
-    // Sincronizar con archivo JSON (obtener sin populate para guardar IDs)
-    try {
-      const todasLasComandasSinPopulate = await comandaModel.find({});
-      await syncJsonFile('comandas.json', todasLasComandasSinPopulate);
-    } catch (error) {
-      console.error('⚠️ Error al sincronizar comandas.json:', error);
     }
     
     return deletedComanda;
@@ -2318,13 +2292,6 @@ const actualizarComanda = async (comandaId, newData) => {
       cantidades: updatedComanda.cantidades
     });
     
-    // Sincronizar con archivo JSON (obtener sin populate para guardar IDs)
-    try {
-      const todasLasComandasSinPopulate = await comandaModel.find({});
-      await syncJsonFile('comandas.json', todasLasComandasSinPopulate);
-    } catch (error) {
-      console.error('⚠️ Error al sincronizar comandas.json:', error);
-    }
     
     return updatedComanda;
   } catch (error) {
@@ -2333,7 +2300,7 @@ const actualizarComanda = async (comandaId, newData) => {
   }
 };
 
-const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
+const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado, opciones = {}) => {
   try {
     console.log(`🔄 [cambiarEstadoPlato] Iniciando cambio de estado para comanda ${comandaId}, plato ${platoId} → ${nuevoEstado}`);
     
@@ -2528,7 +2495,7 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado) => {
     const mesaId = comandaActualizada.mesas?._id || comandaActualizada.mesas;
     
     // FASE 2: Emitir evento WebSocket GRANULAR (solo plato, no toda la comanda)
-    if (global.emitPlatoActualizadoGranular) {
+    if (opciones.emitir !== false && global.emitPlatoActualizadoGranular) {
       try {
         // Obtener fecha de la comanda para el room de cocina
         const fecha = comandaActualizada.createdAt 

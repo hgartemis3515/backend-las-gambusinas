@@ -50,7 +50,7 @@ const {
     responderBloqueoCocina
 } = require('../utils/reglasComandaTomadaCocina');
 const { buildAutocierreGuarnicionesSet } = require('../utils/autocerrarGuarniciones');
-const { destinosCambioEstadoPlato } = require('../utils/cadenaEntregaPlato');
+const { destinosCambioEstadoPlato, pasosCadenaEntregaAbsoluta } = require('../utils/cadenaEntregaPlato');
 const { obtenerMinutosEntregaAutomaticaMozos, marcarEntregaAutomaticaPorTimer } = require('../utils/entregaAutomaticaMozos');
 const { resolverTomadoEnAlFinalizar } = require('../utils/tiemposPrepPlato');
 const { getComandasParaPagoAdelantado, mesaIdEsValido } = require('../repository/ticketPagoAdelantado.repository');
@@ -707,18 +707,16 @@ router.post('/comanda', async (req, res) => {
                 }
                 if (global.emitNuevaComanda && data.comanda) {
                     try {
-                        await global.emitNuevaComanda(data.comanda);
+                        const ComandaEmit = mongoose.model('Comanda');
+                        const paraCocina = await ComandaEmit.findById(comandaCreadaId)
+                            .populate('mozos')
+                            .populate({ path: 'mesas', populate: { path: 'area' } })
+                            .populate('cliente')
+                            .populate({ path: 'platos.plato', model: 'platos' })
+                            .lean();
+                        await global.emitNuevaComanda(paraCocina || data.comanda, { yaPopulada: !!paraCocina });
                     } catch (eEmit) {
                         logger.warn('emitNuevaComanda post-asignación falló', {
-                            comandaId: comandaCreadaId, error: eEmit.message
-                        });
-                    }
-                }
-                if (global.emitComandaActualizada) {
-                    try {
-                        await global.emitComandaActualizada(comandaCreadaId);
-                    } catch (eEmit) {
-                        logger.warn('emitComandaActualizada post-asignación falló', {
                             comandaId: comandaCreadaId, error: eEmit.message
                         });
                     }
@@ -2396,6 +2394,96 @@ router.put('/comanda/:id/prioridad', async (req, res) => {
         logger.error('Error al actualizar prioridad', { error: error.message, id });
         handleError(error, res, logger);
     }
+});
+
+router.put('/comanda/platos/estado-lote', async (req, res) => {
+    const lineas = Array.isArray(req.body?.lineas) ? req.body.lineas : [];
+    if (!lineas.length) {
+        return res.status(400).json({ error: 'Sin líneas para actualizar' });
+    }
+    const absolutoBody = req.body?.entregarEnteroAbsoluto === true;
+    const minutosDelayEntrega = await obtenerMinutosEntregaAutomaticaMozos();
+    const resultados = [];
+    const comandasTocadas = new Set();
+    for (const linea of lineas) {
+        const id = linea?.comandaId;
+        const platoId = linea?.platoId;
+        const nuevoEstado = linea?.nuevoEstado || 'recoger';
+        if (!id || !platoId) {
+            resultados.push({ comandaId: id, platoId, exito: false, error: 'Falta comanda o plato' });
+            continue;
+        }
+        try {
+            const comandaAntes = await comandaModel.findById(id);
+            if (!comandaAntes) {
+                resultados.push({ comandaId: id, platoId, exito: false, error: 'Comanda no encontrada' });
+                continue;
+            }
+            const platoAntes = comandaAntes.platos?.find((p) => (
+                p._id?.toString() === String(platoId)
+                || p.platoId?.toString() === String(platoId)
+                || p.plato?.toString() === String(platoId)
+            ));
+            if (!platoAntes) {
+                resultados.push({ comandaId: id, platoId, exito: false, error: 'Plato no encontrado' });
+                continue;
+            }
+            let platoIdEfectivo = String(platoId);
+            if (linea.cantidadEntregar != null && linea.cantidadEntregar !== '') {
+                const sep = await separarCantidadLineaPlato(id, platoId, linea.cantidadEntregar);
+                if (sep.didSplit) platoIdEfectivo = String(sep.platoEntregarId);
+            }
+            const pideEntero = absolutoBody || linea.entregarEnteroAbsoluto === true;
+            const absoluto = pideEntero && await asegurarPermisoCocina(req, 'entregar-plato-entero-kds');
+            const estadoActual = platoAntes.estado || 'en_espera';
+            const destinos = absoluto
+                ? pasosCadenaEntregaAbsoluta(estadoActual, 1)
+                : destinosCambioEstadoPlato(estadoActual, nuevoEstado, false, minutosDelayEntrega);
+            if (destinos.includes('recoger') || nuevoEstado === 'recoger') {
+                try {
+                    const ConfiguracionSistema = mongoose.model('ConfiguracionSistema');
+                    const cfg = await ConfiguracionSistema.findById('configuracion_unica').lean();
+                    if (cfg?.cocina?.permitirGuarnicionesSeparadas !== false) {
+                        const platoIdx = comandaAntes.platos.findIndex((p) => p._id?.toString() === platoAntes._id?.toString());
+                        if (platoIdx >= 0) {
+                            const autoSet = buildAutocierreGuarnicionesSet(platoAntes, platoIdx, new Date());
+                            if (Object.keys(autoSet).length > 0) {
+                                await comandaModel.updateOne({ _id: id }, { $set: autoSet });
+                            }
+                        }
+                    }
+                } catch (errG) {
+                    console.warn('[estado-lote] Auto-cierre de guarniciones falló', errG.message);
+                }
+            }
+            let estadoFinal = platoAntes.estado || 'en_espera';
+            for (const dest of destinos) {
+                await cambiarEstadoPlato(id, platoIdEfectivo, dest, { emitir: false });
+                estadoFinal = dest;
+            }
+            comandasTocadas.add(String(id));
+            resultados.push({
+                comandaId: id,
+                platoId: platoIdEfectivo,
+                platoIndex: linea.platoIndex,
+                exito: true,
+                nuevoEstado: estadoFinal,
+                nombre: platoAntes?.nombre || platoAntes?.plato?.nombre || 'Plato'
+            });
+        } catch (error) {
+            resultados.push({ comandaId: id, platoId, platoIndex: linea.platoIndex, exito: false, error: error.message });
+        }
+    }
+    for (const id of comandasTocadas) {
+        if (global.emitComandaActualizada) {
+            try {
+                await global.emitComandaActualizada(id);
+            } catch (e) {
+                logger.warn('estado-lote: no se pudo avisar la comanda', { comandaId: id, error: e.message });
+            }
+        }
+    }
+    return res.json({ success: true, resultados });
 });
 
 router.put('/comanda/:id/plato/:platoId/estado', async (req, res) => {

@@ -1720,8 +1720,11 @@ tailwind.config = {
                 Cada lunes a las 04:00 (Lima), o al encender el servidor si ese lunes ya pasó, se exporta a la carpeta
                 <span class="font-mono text-gold">EXPORTADOS</span> del backend un <span class="font-mono">caja-fecha.json</span>
                 con comandas, historial, pedidos, tickets, vouchers, propinas, cierres de caja, reservas ya cerradas, auditoría y clientes sin movimiento.
-                Después se borra de MongoDB solo lo que tiene más de 7 días. Así la base queda liviana.
-                Platos, cocina, usuarios, roles, mesas y configuración no se exportan ni se borran.
+                Después se borra de MongoDB solo lo que tiene más de 7 días, y lo mismo se recorta en
+                <span class="font-mono">data/comandas.json</span>, <span class="font-mono">boucher.json</span>,
+                <span class="font-mono">auditoria.json</span> y los clientes ya exportados de <span class="font-mono">clientes.json</span>.
+                Así la base y esas copias quedan livianas.
+                Platos, cocina, usuarios, roles, mesas, áreas y configuración no se exportan ni se borran.
                 Al importar se revisan las fechas del archivo: puede recargar todo o solo un rango para ver esos días en reportes y caja.
               </p>
             </div>
@@ -2063,7 +2066,7 @@ function configApp() {
       this.archivoCaja.estado = data.estado || {};
     },
     async exportarArchivoCaja() {
-      if (!confirm('Se guarda en EXPORTADOS la data de caja con más de 7 días y se borra de MongoDB. Platos, usuarios, cocina y configuración no se tocan. ¿Continuar?')) return;
+      if (!confirm('Se guarda en EXPORTADOS la data de caja con más de 7 días y se borra de MongoDB. También se recorta esa antigüedad en comandas.json, boucher.json, auditoria.json y los clientes exportados de clientes.json. Platos, usuarios, cocina y configuración no se tocan. ¿Continuar?')) return;
       this.archivoCaja.ocupado = true;
       try {
         const data = await apiPost('/archivo-caja/exportar', { confirmar: true });
