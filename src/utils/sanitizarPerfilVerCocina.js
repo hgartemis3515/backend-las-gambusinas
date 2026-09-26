@@ -229,6 +229,7 @@ const PERFIL_TABLAS_KDS_KEYS = new Set([
     'headerTarjetaColor',
     'headerTarjetaContorno',
     'headerTarjetaFondo',
+    'headerBarraFondoColorMozo',
     'alertYellowMinutes',
     'alertRedMinutes',
     'alertCriticalMinutes',

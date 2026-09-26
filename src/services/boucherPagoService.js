@@ -629,13 +629,15 @@ async function procesarPagoBoucher(params) {
         mesa: { sinMesa: true },
       };
 
-  if (!esPagoAdelantado && !esAbonoPorCantidad && platosParaBoucher.length > 0 && mesaId) {
-    // Mesa siempre a pendiente_aprobar mientras haya tickets sin aprobar
-    const mesaDoc = await mesasModel.findById(mesaId);
-    if (mesaDoc && mesaDoc.estado !== 'reportado' && mesaDoc.estado !== 'pagado') {
-      mesaDoc.estado = 'pendiente_aprobar';
-      await mesaDoc.save();
-      resumen.mesa.estado = 'pendiente_aprobar';
+  if (!esPagoAdelantado && !esAbonoPorCantidad && platosParaBoucher.length > 0) {
+    const sinMesaTicket = !mesaId;
+    if (mesaId) {
+      const mesaDoc = await mesasModel.findById(mesaId);
+      if (mesaDoc && mesaDoc.estado !== 'reportado' && mesaDoc.estado !== 'pagado') {
+        mesaDoc.estado = 'pendiente_aprobar';
+        await mesaDoc.save();
+        resumen.mesa.estado = 'pendiente_aprobar';
+      }
     }
 
     // Snapshot de platos para el ticket (solo los platos de este cobro)
@@ -676,19 +678,13 @@ async function procesarPagoBoucher(params) {
         platos: platosSnapshot,
       });
 
-      const { desactivarTicketsAltaPendientes } = require('../utils/ticketAltaComanda');
-      await desactivarTicketsAltaPendientes(
-        comandasIdsAfectadas,
-        'Reemplazado por solicitud de cobro del mozo',
-        platosSnapshot
-      );
-
       ticketAprobacionCreado = await ticketAprobacionRepository.crearTicketAprobacion({
         origen: 'pago',
         comandas: comandasIdsAfectadas,
         comandasNumbers: comandasNumbersTicket,
-        mesa: mesaId,
-        numMesa: boucherData.numMesa,
+        mesa: sinMesaTicket ? undefined : mesaId,
+        numMesa: sinMesaTicket ? undefined : boucherData.numMesa,
+        sinMesa: sinMesaTicket,
         mozo: mozoId,
         nombreMozo: boucherData.nombreMozo,
         mozoNombre: boucherData.nombreMozo,
@@ -716,6 +712,13 @@ async function procesarPagoBoucher(params) {
         observaciones: observaciones || '',
         sourceApp: 'mozos',
       });
+
+      const { desactivarTicketsAltaPendientes } = require('../utils/ticketAltaComanda');
+      await desactivarTicketsAltaPendientes(
+        comandasIdsAfectadas,
+        'Reemplazado por solicitud de cobro del mozo',
+        platosSnapshot
+      );
 
       const { intentarCobroDirectoComanda } = require('./cobroDirectoCaja.service');
       const cobro = await intentarCobroDirectoComanda(ticketAprobacionCreado, {

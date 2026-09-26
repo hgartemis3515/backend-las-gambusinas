@@ -179,6 +179,7 @@ async function crearTicketAprobacion(data) {
     mozo: data.mozo,
     nombreMozo: data.nombreMozo,
     mozoNombre: data.mozoNombre || data.nombreMozo,
+    sinMesa: data.sinMesa === true,
     pedido: data.pedido || null,
     platos: data.platos || [],
     subtotal,

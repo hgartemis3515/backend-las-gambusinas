@@ -569,7 +569,8 @@ async function crearTicketPendienteDesdeComanda(comandaIdOrDoc) {
   const numMesa = comanda.mesas?.nummesa ?? comanda.mesaNumero;
   const mozoId = comanda.mozos?._id || comanda.mozos;
   const nombreMozo = comanda.mozos?.name || comanda.mozoNombre || 'N/A';
-  if (!mesaId || numMesa == null || !mozoId) return null;
+  const sinMesa = !mesaId || numMesa == null || numMesa === '';
+  if (!mozoId) return null;
 
   const { platosSnapshot, subtotal, montoDescuento, totalSinDescuento, totalNeto } = armarSnapshotYTotales(comanda);
   if (platosSnapshot.length === 0) return null;
@@ -583,8 +584,9 @@ async function crearTicketPendienteDesdeComanda(comandaIdOrDoc) {
       comandasNumbers: [comanda.comandaNumber],
       platos: platosSnapshot,
     }),
-    mesa: mesaId,
-    numMesa,
+    mesa: sinMesa ? undefined : mesaId,
+    numMesa: sinMesa ? undefined : numMesa,
+    sinMesa,
     mozo: mozoId,
     nombreMozo,
     mozoNombre: nombreMozo,
