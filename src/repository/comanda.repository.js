@@ -1323,9 +1323,11 @@ const agregarComanda = async (data) => {
     cantidades: nuevaComanda.cantidades
   });
   
-  // Obtener la comanda recién creada con populate (opcional para tests)
+  // Obtener la comanda recién creada con populate (opcional para tests).
+  // Para llevar no espera el populate: la respuesta sale con el documento creado
+  // y cocina recibe el snapshot ya poblado en el emit posterior.
   let comandaCreada = nuevaComanda;
-  try {
+  if (!esSinMesa) try {
     comandaCreada = await comandaModel
       .findById(nuevaComanda._id)
       .populate({

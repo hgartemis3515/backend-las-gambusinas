@@ -3,7 +3,9 @@
 /**
  * Crea mesas faltantes según la regla:
  *   1–25  → Salon
- *   26–100 → Patio
+ *   26–51 → PATIO 26-51
+ *   52–76 → PATIO 52-76
+ *   77–100 → PATIO 77-100
  *   resto (ya existentes 666/777/999) → VIP
  */
 const fs = require('fs');
@@ -26,7 +28,9 @@ const AREA_FALLBACK = {
 function claveAreaPorNumero(num) {
   const n = Number(num);
   if (n >= 1 && n <= 25) return 'salon';
-  if (n >= 26 && n <= 100) return 'patio';
+  if (n >= 26 && n <= 51) return 'patio2651';
+  if (n >= 52 && n <= 76) return 'patio5276';
+  if (n >= 77 && n <= 100) return 'patio77100';
   return 'vip';
 }
 
@@ -97,7 +101,9 @@ async function main() {
   for (const a of areas) {
     const n = normNombre(a.nombre);
     if (n === 'salon' || n.includes('salon')) ids.salon = String(a._id);
-    else if (n === 'patio' || n.includes('patio') || n.includes('terraza')) ids.patio = String(a._id);
+    else if (n === 'patio 26-51') ids.patio2651 = String(a._id);
+    else if (n === 'patio 52-76') ids.patio5276 = String(a._id);
+    else if (n === 'patio 77-100') ids.patio77100 = String(a._id);
     else if (n === 'vip' || n.includes('vip')) ids.vip = String(a._id);
   }
 
@@ -142,20 +148,16 @@ async function main() {
   );
   actualizarCounterDataCompleta(maxId);
 
-  const porArea = { Salon: [], Patio: [], VIP: [] };
+  const porArea = {};
   for (const m of lean) {
     const clave = claveAreaPorNumero(m.nummesa);
-    const label = clave === 'salon' ? 'Salon' : clave === 'patio' ? 'Patio' : 'VIP';
-    porArea[label].push(m.nummesa);
+    if (!porArea[clave]) porArea[clave] = [];
+    porArea[clave].push(m.nummesa);
   }
 
   console.log('faltantes creadas', creadas.length, creadas.map((c) => c.nummesa));
   console.log('total mesas', lean.length, 'max mesasId', maxId);
-  console.log('por area', {
-    Salon: porArea.Salon.length,
-    Patio: porArea.Patio.length,
-    VIP: porArea.VIP.length,
-  });
+  console.log('por area', Object.fromEntries(Object.entries(porArea).map(([k, v]) => [k, v.length])));
 
   await mongoose.disconnect();
 }

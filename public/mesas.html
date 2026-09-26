@@ -616,7 +616,7 @@ tailwind.config = {
               <option :value="a._id" x-text="a.nombre"></option>
             </template>
           </select>
-          <p class="text-[10px] text-txt-muted mt-1">1–25 Salón · 26–100 Patio · resto VIP</p>
+          <p class="text-[10px] text-txt-muted mt-1">1–25 Salón · 26–51 Patio · 52–76 Patio · 77–100 Patio · resto VIP</p>
         </div>
       </div>
       <div class="grid grid-cols-2 gap-4">
@@ -801,12 +801,11 @@ tailwind.config = {
     
     async loadAreas() {
       const data = await apiGet('/areas');
-      if (data && Array.isArray(data)) {
-        this.areasList = data;
-      } else if (data && data.areas) {
-        this.areasList = data.areas;
+      const lista = (data && Array.isArray(data)) ? data : (data && data.areas) ? data.areas : null;
+      if (lista) {
+        this.areasList = lista.filter((a) => !a || a.isActive !== false);
       } else {
-        this.areasList = ['Salon', 'Patio', 'VIP'];
+        this.areasList = ['Salon', 'PATIO 26-51', 'PATIO 52-76', 'PATIO 77-100', 'VIP'];
       }
     },
     
@@ -1008,18 +1007,25 @@ tailwind.config = {
       const n = parseInt(num, 10);
       if (!Number.isFinite(n)) return null;
       if (n >= 1 && n <= 25) return 'salon';
-      if (n >= 26 && n <= 100) return 'patio';
+      if (n >= 26 && n <= 51) return 'patio-26-51';
+      if (n >= 52 && n <= 76) return 'patio-52-76';
+      if (n >= 77 && n <= 100) return 'patio-77-100';
       return 'vip';
     },
 
     idAreaPorNumero(num) {
       const clave = this.claveAreaPorNumero(num);
       if (!clave) return '';
+      const nombreClave = {
+        salon: 'salon',
+        'patio-26-51': 'patio 26-51',
+        'patio-52-76': 'patio 52-76',
+        'patio-77-100': 'patio 77-100',
+        vip: 'vip',
+      }[clave];
       const hit = (this.areasList || []).find((a) => {
         const n = this.normNombreArea(a && a.nombre != null ? a.nombre : a);
-        if (clave === 'salon') return n === 'salon' || n.includes('salon');
-        if (clave === 'patio') return n === 'patio' || n.includes('patio') || n.includes('terraza');
-        return n === 'vip' || n.includes('vip');
+        return n === nombreClave;
       });
       return (hit && (hit._id || hit)) || '';
     },

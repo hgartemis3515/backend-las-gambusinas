@@ -3,7 +3,9 @@
 /**
  * Reasigna áreas de mesas:
  *   1–25  → Salon
- *   26–100 → Patio
+ *   26–51 → PATIO 26-51
+ *   52–76 → PATIO 52-76
+ *   77–100 → PATIO 77-100
  *   resto → VIP
  *
  * Actualiza data/mesas.json, DATA COMPLETA/mesas.json y MongoDB.
@@ -63,7 +65,9 @@ function claveAreaPorNumero(num) {
   const n = Number(num);
   if (!Number.isFinite(n)) return 'vip';
   if (n >= 1 && n <= 25) return 'salon';
-  if (n >= 26 && n <= 100) return 'patio';
+  if (n >= 26 && n <= 51) return 'patio2651';
+  if (n >= 52 && n <= 76) return 'patio5276';
+  if (n >= 77 && n <= 100) return 'patio77100';
   return 'vip';
 }
 
@@ -89,8 +93,9 @@ function reescribirDataMesas() {
   const counts = { salon: 0, patio: 0, vip: 0 };
   for (const m of list) {
     const clave = claveAreaPorNumero(numDeMesa(m));
-    counts[clave] += 1;
+    counts[clave] = (counts[clave] || 0) + 1;
     const dest = AREA_DOCS[clave];
+    if (!dest) continue;
     if (oidDeArea(m.area) !== dest._id) changed += 1;
     m.area = { ...dest };
   }
@@ -106,8 +111,9 @@ function reescribirDataCompleta() {
   const counts = { salon: 0, patio: 0, vip: 0 };
   for (const m of list) {
     const clave = claveAreaPorNumero(numDeMesa(m));
-    counts[clave] += 1;
+    counts[clave] = (counts[clave] || 0) + 1;
     const destOid = AREA_IDS[clave];
+    if (!destOid) continue;
     const actual = oidDeArea(m.area);
     if (actual !== destOid) changed += 1;
     if (m.area && typeof m.area === 'object' && m.area.$oid) {
@@ -138,7 +144,9 @@ async function actualizarMongo() {
   for (const a of areas) {
     const n = normNombre(a.nombre);
     if (n === 'salon' || n.includes('salon')) ids.salon = String(a._id);
-    else if (n === 'patio' || n.includes('patio') || n.includes('terraza')) ids.patio = String(a._id);
+    else if (n === 'patio 26-51') ids.patio2651 = String(a._id);
+    else if (n === 'patio 52-76') ids.patio5276 = String(a._id);
+    else if (n === 'patio 77-100') ids.patio77100 = String(a._id);
     else if (n === 'vip' || n.includes('vip')) ids.vip = String(a._id);
   }
 
@@ -147,8 +155,9 @@ async function actualizarMongo() {
   const counts = { salon: 0, patio: 0, vip: 0 };
   for (const m of todas) {
     const clave = claveAreaPorNumero(m.nummesa);
-    counts[clave] += 1;
+    counts[clave] = (counts[clave] || 0) + 1;
     const dest = ids[clave];
+    if (!dest) continue;
     if (String(m.area) !== String(dest)) {
       m.area = dest;
       await m.save();

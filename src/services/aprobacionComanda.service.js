@@ -120,6 +120,7 @@ async function listarComandasPorCobrarMozo(mozoId) {
     mapComandaPorCobrar,
     ESTADOS_POR_COBRAR,
     seguimientoSinMesaEnPendientes,
+    esperaAprobacionCocina,
   } = require('../utils/pendienteCobroMozo');
   const Reserva = require('../database/models/reserva.model');
 
@@ -158,17 +159,19 @@ async function listarComandasPorCobrarMozo(mozoId) {
   let totalPendiente = 0;
   for (const c of comandas) {
     const seguimientoSinMesa = seguimientoSinMesaEnPendientes(c);
-    if (c.tiempoPagado && !seguimientoSinMesa) continue;
+    const esperaAprobacion = esperaAprobacionCocina(c);
+    if (c.tiempoPagado && !seguimientoSinMesa && !esperaAprobacion) continue;
     const reserva = c.origenReserva ? reservaById.get(String(c.origenReserva)) : null;
     const adelanto = Number(reserva?.pagoAdelantado?.montoPagado) || 0;
     const pendiente = pendienteDeComanda(c, {
       adelanto,
       cobradoBouchers: cobradoBouchersDeComanda(c._id, bouchers),
     });
-    if (pendiente <= 0 && !seguimientoSinMesa) continue;
+    if (pendiente <= 0 && !seguimientoSinMesa && !esperaAprobacion) continue;
     if (pendiente > 0) totalPendiente += pendiente;
     out.push(mapComandaPorCobrar(c, pendiente, {
       seguimientoPpa: seguimientoSinMesa && pendiente <= 0,
+      esperaAprobacion,
     }));
   }
   return {

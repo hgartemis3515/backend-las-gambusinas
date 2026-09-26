@@ -1,6 +1,7 @@
 const {
   mapComandaPorCobrar,
   pendienteDeComanda,
+  esperaAprobacionCocina,
 } = require('../src/utils/pendienteCobroMozo');
 
 describe('mapComandaPorCobrar', () => {
@@ -250,5 +251,22 @@ describe('comandaCalificaLiberarSinCaja (costo 0)', () => {
     };
     expect(esComandaSinCobro(c)).toBe(false);
     expect(comandaCalificaLiberarSinCaja(c)).toBe(false);
+  });
+});
+
+describe('esperaAprobacionCocina', () => {
+  test('pago solicitado queda pendiente de aprobación', () => {
+    expect(esperaAprobacionCocina({ status: 'pendiente_aprobar', tiempoPagado: new Date() })).toBe(true);
+  });
+
+  test('pago adelantado con ticket pendiente también', () => {
+    expect(esperaAprobacionCocina({
+      status: 'en_espera',
+      platos: [{ pagoAdelantado: { cobrado: true, estadoTicket: 'pendiente_aprobacion' } }],
+    })).toBe(true);
+    expect(esperaAprobacionCocina({
+      status: 'en_espera',
+      platos: [{ pagoAdelantado: { estadoTicket: 'aprobado' } }],
+    })).toBe(false);
   });
 });

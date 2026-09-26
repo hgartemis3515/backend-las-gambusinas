@@ -136,6 +136,15 @@ function seguimientoSinMesaEnPendientes(c) {
   return esComandaSinMesaDoc(c) && comandaAunEnServicio(c);
 }
 
+/** Cobro ya pedido y aún sin aprobar en cocina (pago normal o adelantado). */
+function esperaAprobacionCocina(c) {
+  if (!c) return false;
+  const st = String(c.status || '').toLowerCase();
+  if (st === 'pendiente_aprobar') return true;
+  const platos = (c.platos || []).filter((p) => p && p.eliminado !== true && p.anulado !== true);
+  return platos.some((p) => String(p.pagoAdelantado?.estadoTicket || '').toLowerCase() === 'pendiente_aprobacion');
+}
+
 /** Comandas abiertas que el mozo aún debe cobrar (no pagado/completado). */
 const ESTADOS_POR_COBRAR = [
   'pendiente',
@@ -241,6 +250,7 @@ function mapComandaPorCobrar(c, pendienteCobro, extras = {}) {
     tiempoPagado: c.tiempoPagado || null,
     pagadaHoy: extras.pagadaHoy === true,
     seguimientoPpa: extras.seguimientoPpa === true,
+    esperaAprobacion: extras.esperaAprobacion === true,
     total: netoComanda(c),
     pendienteCobro: round2(pendienteCobro),
     observaciones: c.observaciones || '',
@@ -269,6 +279,7 @@ module.exports = {
   esComandaSinMesaDoc,
   comandaAunEnServicio,
   seguimientoSinMesaEnPendientes,
+  esperaAprobacionCocina,
   ESTADOS_POR_COBRAR,
   cocineroDeBloque,
   cocineroDePlato,
