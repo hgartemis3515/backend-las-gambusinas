@@ -912,7 +912,13 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
  <div x-show="!loadingDetalle && vistaComanda==='basica'" class="p-6">
   <div class="vista-basica-comanda">
    <div class="flex flex-wrap items-end justify-between gap-4 pb-4">
-    <p class="text-2xl font-bold text-white" x-text="'Comanda #' + numeroComandaBasica(selectedComanda)"></p>
+    <p class="text-2xl font-bold text-white flex items-center gap-3">
+     <span x-text="'Comanda #' + numeroComandaBasica(selectedComanda)"></span>
+     <span x-show="contadorGComanda(selectedComanda) > 0"
+       class="inline-flex items-center justify-center min-w-[2.25rem] px-2 py-0.5 rounded-md bg-[#ffd60a] text-black font-extrabold tabular-nums text-xl"
+       title="Platos con guarnición distinta a la preselección"
+       x-text="'G ' + contadorGComanda(selectedComanda)"></span>
+    </p>
     <p class="text-base font-bold text-white">Mozo: <span x-text="nombreMozo(selectedComanda)"></span> · Enviada: <span x-text="fechaEnvioBasica(selectedComanda)"></span></p>
    </div>
    <table>
@@ -929,8 +935,22 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
      <template x-for="(item, idx) in platosVisiblesBasicos(selectedComanda)" :key="'b'+idx">
       <tr>
        <td>
-        <span x-text="item.nombre || '—'"></span>
-        <span class="block text-[0.95rem] font-bold text-white/80" x-show="textoComplementosBasico(item)" x-text="textoComplementosBasico(item)"></span>
+        <div class="flex flex-wrap items-center gap-2">
+         <span x-text="item.nombre || '—'"></span>
+         <span x-show="item.cambioGuarnicionPreseleccion"
+           class="inline-flex items-center justify-center min-w-[1.75rem] px-1.5 py-0.5 rounded-md bg-[#ffd60a] text-black font-extrabold tabular-nums text-base"
+           title="Guarnición distinta a la preselección">G</span>
+        </div>
+        <div class="mt-1 flex flex-wrap gap-1.5" x-show="(item.complementosSeleccionados && item.complementosSeleccionados.length) || (item.complementos && item.complementos.length) || textoGuarnicionesSalieron(item)">
+         <template x-for="(comp, ci) in (item.complementosSeleccionados || item.complementos || [])" :key="'bg'+idx+'-'+ci">
+          <span class="text-[0.95rem] font-bold px-1.5 py-0.5 rounded"
+            x-show="nombreGuarnicionBasico(comp)"
+            :class="esComplementoEntrada(item, comp) ? 'bg-white text-black' : 'text-white'"
+            :title="esComplementoEntrada(item, comp) ? 'No era preselección' : ''"
+            x-text="nombreGuarnicionBasico(comp, item.cantidad)"></span>
+         </template>
+         <span class="text-[0.9rem] font-bold text-white/70" x-show="textoGuarnicionesSalieron(item)" x-text="textoGuarnicionesSalieron(item)"></span>
+        </div>
        </td>
        <td class="text-right tabular-nums" x-text="Number(item.precio || item.precioUnitario || 0).toFixed(2)"></td>
        <td class="text-center tabular-nums" x-text="item.cantidad || 1"></td>
@@ -1497,7 +1517,13 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
   <template x-for="(comanda, ci) in (selectedGrupo?.comandas || [])" :key="comanda._id || ci">
    <div>
     <div class="flex flex-wrap items-end justify-between gap-4 pb-3">
-     <p class="text-2xl font-bold text-white" x-text="'Comanda #' + numeroComandaBasica(comanda)"></p>
+     <p class="text-2xl font-bold text-white flex items-center gap-3">
+      <span x-text="'Comanda #' + numeroComandaBasica(comanda)"></span>
+      <span x-show="contadorGComanda(comanda) > 0"
+        class="inline-flex items-center justify-center min-w-[2.25rem] px-2 py-0.5 rounded-md bg-[#ffd60a] text-black font-extrabold tabular-nums text-xl"
+        title="Platos con guarnición distinta a la preselección"
+        x-text="'G ' + contadorGComanda(comanda)"></span>
+     </p>
      <p class="text-base font-bold text-white">Mozo: <span x-text="nombreMozo(comanda)"></span> · Enviada: <span x-text="fechaEnvioBasica(comanda)"></span></p>
     </div>
     <table>
@@ -1514,8 +1540,22 @@ if (new URLSearchParams(location.search).get('embed') === '1') {
       <template x-for="(item, idx) in platosVisiblesBasicos(comanda)" :key="idx">
        <tr>
         <td>
-         <span x-text="item.nombre || '—'"></span>
-         <span class="block text-[0.95rem] font-bold text-white/80" x-show="textoComplementosBasico(item)" x-text="textoComplementosBasico(item)"></span>
+         <div class="flex flex-wrap items-center gap-2">
+          <span x-text="item.nombre || '—'"></span>
+          <span x-show="item.cambioGuarnicionPreseleccion"
+            class="inline-flex items-center justify-center min-w-[1.75rem] px-1.5 py-0.5 rounded-md bg-[#ffd60a] text-black font-extrabold tabular-nums text-base"
+            title="Guarnición distinta a la preselección">G</span>
+         </div>
+         <div class="mt-1 flex flex-wrap gap-1.5" x-show="(item.complementosSeleccionados && item.complementosSeleccionados.length) || (item.complementos && item.complementos.length) || textoGuarnicionesSalieron(item)">
+          <template x-for="(comp, ci) in (item.complementosSeleccionados || item.complementos || [])" :key="'bgg'+ci">
+           <span class="text-[0.95rem] font-bold px-1.5 py-0.5 rounded"
+             x-show="nombreGuarnicionBasico(comp)"
+             :class="esComplementoEntrada(item, comp) ? 'bg-white text-black' : 'text-white'"
+             :title="esComplementoEntrada(item, comp) ? 'No era preselección' : ''"
+             x-text="nombreGuarnicionBasico(comp, item.cantidad)"></span>
+          </template>
+          <span class="text-[0.9rem] font-bold text-white/70" x-show="textoGuarnicionesSalieron(item)" x-text="textoGuarnicionesSalieron(item)"></span>
+         </div>
         </td>
         <td class="text-right tabular-nums" x-text="Number(item.precio || item.precioUnitario || 0).toFixed(2)"></td>
         <td class="text-center tabular-nums" x-text="item.cantidad || 1"></td>
@@ -7354,15 +7394,22 @@ horaPrimera: grupo.comandas.length > 0 && grupo.comandas[grupo.comandas.length -
  platosVisiblesBasicos(comanda) {
   return (comanda?.items || comanda?.platos || []).filter((p) => p && !p.eliminado && !p.anulado);
  },
+ nombreGuarnicionBasico(comp, nPlatos) {
+  if (!comp) return '';
+  const opcionBase = String(comp.opcion || comp.nombre || '').trim();
+  const variacion = String(comp.variacion || '').trim();
+  let opcion = variacion ? (opcionBase ? opcionBase + ' ' + variacion : variacion) : opcionBase;
+  if (!opcion) opcion = String(comp.grupo || '').trim();
+  if (!opcion) return '';
+  const porUnidad = Number(comp.cantidad) || 1;
+  const n = Number(nPlatos);
+  const cant = porUnidad * (Number.isFinite(n) && n > 0 ? n : 1);
+  return cant > 1 ? (opcion + ' x' + cant) : opcion;
+ },
  textoComplementosBasico(item) {
   const list = item?.complementosSeleccionados || item?.complementos || [];
   if (!Array.isArray(list) || !list.length) return '';
-  return list.map((c) => {
-    const op = String(c?.opcion || c?.nombre || '').trim();
-    const gr = String(c?.grupo || '').trim();
-    if (op && gr && op !== gr) return gr + ': ' + op;
-    return op || gr;
-  }).filter(Boolean).join(', ');
+  return list.map((c) => this.nombreGuarnicionBasico(c, item?.cantidad)).filter(Boolean).join(', ');
  },
  totalLineaBasica(item) {
   const cant = Number(item?.cantidad) || 1;
