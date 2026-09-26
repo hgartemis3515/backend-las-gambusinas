@@ -2349,9 +2349,14 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado, opciones = {}
     // 3. p.plato (ObjectId del plato referenciado)
     
     let platoIndex = -1;
+    const idxOpt = Number(opciones.platoIndex);
+    if (Number.isInteger(idxOpt) && idxOpt >= 0 && comanda.platos?.[idxOpt]?._id
+      && String(comanda.platos[idxOpt]._id) === String(platoId)) {
+      platoIndex = idxOpt;
+    }
     
     // PRIORIDAD 1: Buscar por _id del subdocumento (ÚNICO - es la clave para platos duplicados)
-    platoIndex = comanda.platos.findIndex(p => 
+    if (platoIndex === -1) platoIndex = comanda.platos.findIndex(p => 
       p._id && p._id.toString() === platoId.toString()
     );
     
@@ -2477,8 +2482,10 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado, opciones = {}
     // Crítico: verificación dedicada "todos los platos entregados → status recoger" (desbloquea pago)
     const resultadoTodosEntregados = await actualizarComandaSiTodosEntregados(comandaId);
     if (!resultadoTodosEntregados.updated) {
-      // Si no se actualizó por "todos entregados", aplicar recálculo general
-      await recalcularEstadoComandaPorPlatos(comandaId);
+      // Si no se actualizó por "todos entregados", aplicar recálculo general.
+      // En un lote (emitir: false) no se avisa aquí: el aviso va al cerrar el lote,
+      // si no la tabla KDS se queda con el primer plato y los demás no se ven.
+      await recalcularEstadoComandaPorPlatos(comandaId, { emitir: opciones.emitir !== false });
     }
 
     // FASE 5: Invalidar cache de la comanda después de actualizar (opcional)
@@ -2494,7 +2501,7 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado, opciones = {}
     
     // Obtener la mesa para actualizar su estado
     // Manejar tanto ObjectId como objeto populado
-    const mesaId = comandaActualizada.mesas?._id || comandaActualizada.mesas;
+    const mesaId = comandaActualizada?.mesas?._id || comandaActualizada?.mesas || null;
     
     // FASE 2: Emitir evento WebSocket GRANULAR (solo plato, no toda la comanda)
     if (opciones.emitir !== false && global.emitPlatoActualizadoGranular) {
@@ -2518,9 +2525,15 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado, opciones = {}
         // No fallar la operación si el WebSocket falla
       }
     }
-    const mesa = await mesasModel.findById(mesaId);
-    if (!mesa) {
-      throw new Error('Mesa no encontrada');
+    // Para llevar / sin mesa: no hay mesa que recalcular. Antes esto lanzaba
+    // "Mesa no encontrada" a mitad de la cadena y el lote solo dejaba el primer plato.
+    if (mesaId) {
+      const mesa = await mesasModel.findById(mesaId);
+      if (mesa) {
+        await recalcularEstadoMesa(mesaId);
+      } else {
+        logger.warn('Mesa no encontrada al cambiar estado de plato', { comandaId, mesaId });
+      }
     }
 
     // FIX BUG (Mesa Libre tras entregar todos los platos):
@@ -2530,7 +2543,6 @@ const cambiarEstadoPlato = async (comandaId, platoId, nuevoEstado, opciones = {}
     // Ahora delegamos en `recalcularEstadoMesa`, fuente única que ya cubre:
     //   en_espera → pedido · recoger/salio → preparado · entregado → entregado · (sin comandas) → libre
     // y emite el evento `mesa-actualizada` por Socket.io.
-    await recalcularEstadoMesa(mesaId);
 
     // Obtener la comanda actualizada con populate completo (opcional para tests)
     let comandaCompleta = await comandaModel.findById(comandaId);
@@ -4794,7 +4806,7 @@ const actualizarComandaSiTodosEntregados = async (comandaId, options = {}) => {
  * @param {String} comandaId - ID de la comanda
  * @returns {Promise<{changed: boolean, estadoAnterior?: string, nuevoEstado?: string, cuentas?: object}>}
  */
-const recalcularEstadoComandaPorPlatos = async (comandaId) => {
+const recalcularEstadoComandaPorPlatos = async (comandaId, opciones = {}) => {
   try {
     const comanda = await comandaModel.findById(comandaId).select('platos status mesas tiempoRecoger tiempoEntregado tiempoEnEspera tiempoPagado historialEstados');
     if (!comanda) {
@@ -4892,7 +4904,7 @@ const recalcularEstadoComandaPorPlatos = async (comandaId) => {
         await recalcularEstadoMesa(comanda.mesas);
       }
 
-      if (global.emitComandaActualizada) {
+      if (opciones.emitir !== false && global.emitComandaActualizada) {
         await global.emitComandaActualizada(comandaId, estadoAnterior, nuevoEstado, cuentas);
       }
     }

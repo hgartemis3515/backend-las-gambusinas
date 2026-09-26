@@ -2419,19 +2419,32 @@ router.put('/comanda/platos/estado-lote', async (req, res) => {
                 resultados.push({ comandaId: id, platoId, exito: false, error: 'Comanda no encontrada' });
                 continue;
             }
-            const platoAntes = comandaAntes.platos?.find((p) => (
-                p._id?.toString() === String(platoId)
-                || p.platoId?.toString() === String(platoId)
-                || p.plato?.toString() === String(platoId)
-            ));
+            const idxLinea = Number(linea.platoIndex);
+            const porIndice = Number.isInteger(idxLinea) && idxLinea >= 0
+                ? comandaAntes.platos?.[idxLinea]
+                : null;
+            const platoAntes = (porIndice && (
+                porIndice._id?.toString() === String(platoId)
+                || porIndice.platoId?.toString() === String(platoId)
+            ))
+                ? porIndice
+                : comandaAntes.platos?.find((p) => (
+                    p._id?.toString() === String(platoId)
+                    || p.platoId?.toString() === String(platoId)
+                    || p.plato?.toString() === String(platoId)
+                ));
             if (!platoAntes) {
                 resultados.push({ comandaId: id, platoId, exito: false, error: 'Plato no encontrado' });
                 continue;
             }
-            let platoIdEfectivo = String(platoId);
+            let platoIdEfectivo = String(platoAntes._id || platoId);
+            let platoIndexEfectivo = Number.isInteger(idxLinea) ? idxLinea : comandaAntes.platos.indexOf(platoAntes);
             if (linea.cantidadEntregar != null && linea.cantidadEntregar !== '') {
-                const sep = await separarCantidadLineaPlato(id, platoId, linea.cantidadEntregar);
-                if (sep.didSplit) platoIdEfectivo = String(sep.platoEntregarId);
+                const sep = await separarCantidadLineaPlato(id, platoIdEfectivo, linea.cantidadEntregar);
+                if (sep.didSplit) {
+                    platoIdEfectivo = String(sep.platoEntregarId);
+                    platoIndexEfectivo = sep.indexEntregar;
+                }
             }
             const pideEntero = absolutoBody || linea.entregarEnteroAbsoluto === true;
             const absoluto = pideEntero && await asegurarPermisoCocina(req, 'entregar-plato-entero-kds');
@@ -2458,7 +2471,10 @@ router.put('/comanda/platos/estado-lote', async (req, res) => {
             }
             let estadoFinal = platoAntes.estado || 'en_espera';
             for (const dest of destinos) {
-                await cambiarEstadoPlato(id, platoIdEfectivo, dest, { emitir: false });
+                await cambiarEstadoPlato(id, platoIdEfectivo, dest, {
+                    emitir: false,
+                    platoIndex: platoIndexEfectivo,
+                });
                 estadoFinal = dest;
             }
             comandasTocadas.add(String(id));
