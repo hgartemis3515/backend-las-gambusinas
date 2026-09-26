@@ -30,7 +30,6 @@ const {
   matchComandasCierrePendiente,
   matchIncluidoEnEsteCierre,
   matchComandasPeriodoDeCierre,
-  STATUS_COMANDA_VENDIDA,
   esComandaVendida,
   cargarConfigMonedaEstadisticas,
   getConfigMonedaEstadisticas
@@ -97,7 +96,7 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
     
     // Paso 5–6: misma base que reportes (platos activos + config IGV)
     await cargarConfigMonedaEstadisticas();
-    const resumenFinanciero = calcularResumenFinanciero(comandas, vendidas, periodoInicio, periodoFin);
+    const resumenFinanciero = calcularResumenFinanciero(comandas, periodoInicio, periodoFin);
     const productos = await analizarProductos(vendidas);
     const guarniciones = analizarGuarniciones(vendidas);
     
@@ -509,15 +508,14 @@ router.get('/cierre-caja/estado/actual', adminAuth, checkPermission('ver-cierre-
       matchComandasCierrePendiente(periodoInicio, periodoFin)
     );
 
-    const vendidas = await Comanda.find(matchComandasCierrePendiente(periodoInicio, periodoFin, { soloVendidas: true }))
+    const delPeriodo = await Comanda.find(matchComandasCierrePendiente(periodoInicio, periodoFin))
       .select('platos cantidades totalCalculado precioTotal precioTotalOriginal descuento montoDescuento totalSinDescuento status eliminada fechaEliminacion')
       .populate('platos.plato', 'nombre precio categoria')
       .lean();
 
-    const vendidasVigentes = vendidas.filter(esComandaVendida);
-    const montoPendiente = sumaMontosReporte(vendidasVigentes, cfg);
+    const montoPendiente = sumaMontosReporte(delPeriodo, cfg);
     const descuentosPendientes = Number(
-      vendidasVigentes.reduce((s, c) => s + montoDescuentoComandaNum(c), 0).toFixed(2)
+      delPeriodo.reduce((s, c) => s + montoDescuentoComandaNum(c), 0).toFixed(2)
     );
     
     const diasTranscurridos = ultimoCierre 
@@ -679,13 +677,13 @@ router.put('/cierre-caja/verificacion/tickets/confirmar-todos', adminAuth, check
 
 // ========== FUNCIONES AUXILIARES ==========
 
-function calcularResumenFinanciero(comandas, vendidas, periodoInicio, periodoFin) {
+function calcularResumenFinanciero(comandas, periodoInicio, periodoFin) {
   const cfg = getConfigMonedaEstadisticas();
   const totalComandas = comandas.length;
-  const comandasCompletadas = vendidas || comandas.filter(esComandaVendida);
+  const comandasCompletadas = (comandas || []).filter((c) => montoFilaReporte(c, cfg) > 0);
 
-  const montoTotalVendido = sumaMontosReporte(comandasCompletadas, cfg);
-  const totalDescuentos = comandasCompletadas.reduce((sum, c) => sum + montoDescuentoComandaNum(c), 0);
+  const montoTotalVendido = sumaMontosReporte(comandas, cfg);
+  const totalDescuentos = (comandas || []).reduce((sum, c) => sum + montoDescuentoComandaNum(c), 0);
   const ticketPromedio = comandasCompletadas.length > 0
     ? montoTotalVendido / comandasCompletadas.length
     : 0;
