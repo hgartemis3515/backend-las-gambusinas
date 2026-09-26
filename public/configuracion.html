@@ -840,17 +840,15 @@ tailwind.config = {
                 <span class="text-sm text-txt-secondary">Cambiar a G guarnicion de la vista cocina</span>
               </label>
               <p class="text-[10px] text-txt-muted pl-7">
-                Marcado (recomendado): en Ver Cocina, la lista de complementos muestra
-                “G Pollo a la leña x (1) --- 4” en lugar del nombre de la guarnición.
-                Si el mozo cambió lo marcado en Platos, abajo sale la anterior tachada y una flecha a la nueva.
-                Desmarcado: vuelve el título con el nombre de la guarnición. Recargue Ver Cocina.
+                Marcado (recomendado): en Ver Cocina la guarnición se ve como “G Pollo a la leña (1) → #1(2)”, con el parpadeo del #1.
+                Desmarcado: vuelve el nombre del complemento, sin #orden(cantidad) ni esa animación. Recargue Ver Cocina.
               </p>
               <div class="border-t border-[rgba(212,175,55,0.15)] pt-4 mt-2 space-y-4">
                 <p class="text-xs text-gold font-semibold uppercase tracking-wide">SOS y orden de entrega</p>
 
                 <div class="relative" @click.outside="cocinaSel.sosOpen = false">
                   <label class="text-xs text-txt-secondary block mb-1.5">
-                    Categorías al final de la tabla KDS
+                    Categorías al final de la tabla SOS
                     <span class="text-gold text-[10px] ml-1" x-show="listaCocina('cocinaSosCategoriasAlFinal').length">
                       (<span x-text="listaCocina('cocinaSosCategoriasAlFinal').length"></span>)
                     </span>
@@ -883,7 +881,7 @@ tailwind.config = {
                       <p x-show="!filtrarCatalogoCategorias(cocinaSel.sosQ).length" class="text-[11px] text-txt-muted px-3 py-2">Sin coincidencias. Enter para agregar el texto.</p>
                     </div>
                   </div>
-                  <p class="text-[10px] text-txt-muted mt-1">Esas categorías se mantienen en la tabla, siempre debajo del resto. Recargue la app de cocina.</p>
+                  <p class="text-[10px] text-txt-muted mt-1">Esas categorías quedan al final solo de la tabla SOS. La tabla de comandas del KDS no las baja. Recargue la app de cocina.</p>
                 </div>
 
                 <div class="relative" @click.outside="cocinaSel.catOpen = false">
