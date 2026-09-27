@@ -3341,25 +3341,32 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
         }
         
         // Validación: RECHAZAR solo platos en "entregado". Permitir pedido, en_espera, recoger.
-        // Si forzarAdmin es true, permitir eliminar platos entregados (para panel admin)
+        // Si forzarAdmin es true, permitir eliminar platos entregados (para panel admin).
+        // Índices ya eliminados/anulados se omiten (el panel manda todas las filas tachadas,
+        // incluidas las que ya estaban eliminadas al abrir el modal).
         const platosInvalidos = [];
         const platosEntregadosAEliminar = [];
+        const indicesYaEliminados = [];
+        const indicesAProcesar = [];
         indicesValidos.forEach(idx => {
             const index = parseInt(idx);
             const platoItem = comandaCheck.platos[index];
             if (!platoItem) {
                 platosInvalidos.push(`Índice ${index} no existe`);
-            } else if (platoItem.eliminado) {
-                platosInvalidos.push(`Plato en índice ${index} ya fue eliminado`);
+            } else if (platoItem.eliminado || platoItem.anulado) {
+                indicesYaEliminados.push(index);
             } else {
                 const estado = (platoItem.estado || '').toLowerCase();
                 if (estado === 'entregado') {
                     if (forzarAdmin) {
                         // Admin puede eliminar platos entregados, lo registramos para auditoría
                         platosEntregadosAEliminar.push(index);
+                        indicesAProcesar.push(index);
                     } else {
                         platosInvalidos.push('No se puede eliminar este plato porque ya fue entregado al cliente. Para devoluciones use el flujo de reembolsos.');
                     }
+                } else {
+                    indicesAProcesar.push(index);
                 }
             }
         });
@@ -3369,14 +3376,25 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
                 detalles: platosInvalidos
             });
         }
+        if (indicesAProcesar.length === 0) {
+            return res.json({
+                message: indicesYaEliminados.length
+                    ? 'Los platos ya estaban eliminados'
+                    : 'No hay platos nuevos para eliminar',
+                platosEliminados: [],
+                yaEliminados: indicesYaEliminados,
+                comandaEliminadaCompleta: false,
+                platosRestantes: (comandaCheck.platos || []).filter((p) => p && p.eliminado !== true && p.anulado !== true).length
+            });
+        }
         
         // 4. Obtener snapshot antes de eliminar para auditoría y calcular total
         const platoModel = require('../database/models/plato.model');
         const platosEliminadosData = [];
         let totalEliminado = 0;
         
-        indicesValidos.forEach(idx => {
-            const index = parseInt(idx);
+        indicesAProcesar.forEach(idx => {
+            const index = parseInt(idx, 10);
             const platoItem = comandaCheck.platos[index];
             const plato = platoItem.plato || platoItem;
             const cantidad = comandaCheck.cantidades?.[index] || 1;
@@ -3412,10 +3430,10 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
         const ahora = new Date();
         
         // SOFT DELETE: marcar platos como eliminados (no splice)
-        indicesValidos.forEach(idx => {
-            const index = parseInt(idx);
+        indicesAProcesar.forEach(idx => {
+            const index = parseInt(idx, 10);
             const platoItem = comandaActualizar.platos[index];
-            if (!platoItem || platoItem.eliminado) return;
+            if (!platoItem || platoItem.eliminado || platoItem.anulado) return;
             const estado = (platoItem.estado || '').toLowerCase();
             platoItem.eliminado = true;
             platoItem.eliminadoPor = usuarioId;
@@ -3533,8 +3551,8 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             });
         
         // 10. Determinar acción de auditoría según el estado de los platos eliminados
-        const estadosPlatosEliminados = indicesValidos.map(idx => {
-            const index = parseInt(idx);
+        const estadosPlatosEliminados = indicesAProcesar.map(idx => {
+            const index = parseInt(idx, 10);
             const platoItem = comandaCheck.platos[index];
             return platoItem?.estado?.toLowerCase() || "";
         });
@@ -3571,8 +3589,8 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
         req.auditoria.metadata = { ...req.auditoria.metadata, ...metadataAdicional };
         
         const snapshotAntes = {
-            platos: indicesValidos.map(idx => {
-                const index = parseInt(idx);
+            platos: indicesAProcesar.map(idx => {
+                const index = parseInt(idx, 10);
                 const platoItem = comandaCheck.platos[index];
                 const plato = platoItem.plato || platoItem;
                 return {
@@ -3586,8 +3604,8 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
         };
         
         const snapshotDespues = {
-            platos: indicesValidos.map(idx => {
-                const index = parseInt(idx);
+            platos: indicesAProcesar.map(idx => {
+                const index = parseInt(idx, 10);
                 const platoItem = comandaCheck.platos[index];
                 const plato = platoItem.plato || platoItem;
                 return {
@@ -3655,12 +3673,13 @@ router.put('/comanda/:id/eliminar-platos', async (req, res) => {
             await global.emitComandaEliminada(id);
         }
         
-        console.log(`✅ Platos eliminados (soft) de comanda #${comandaCompleta.comandaNumber}: ${indicesValidos.length} plato(s)`);
+        console.log(`✅ Platos eliminados (soft) de comanda #${comandaCompleta.comandaNumber}: ${indicesAProcesar.length} plato(s)`);
         console.log(`[ELIMINAR PLATOS] Response preparado:`, {
             comandaId: comandaCompleta._id.toString(),
             mismoID: idAntes === comandaCompleta._id.toString(),
             comandaEliminadaCompleta: eliminaComandaCompleta,
-            platosEliminados: indicesValidos.length,
+            platosEliminados: indicesAProcesar.length,
+            yaEliminados: indicesYaEliminados.length,
             platosRestantes: comandaCompleta.platos.length
         });
         
