@@ -29,7 +29,7 @@ const {
 const { obtenerUltimoCierreVigente } = require('../utils/cierreCajaReversion');
 const { resolverPeriodoPendienteCierre } = require('../utils/cierreCajaTurnosDia');
 
-const COMANDA_CIERRE_SELECT = `${COMANDA_DESCUENTO_SELECT} status precioTotal precioTotalOriginal platos cantidades mesas mozos procesadoPor procesandoPor eliminada fechaEliminacion`;
+const COMANDA_CIERRE_SELECT = `${COMANDA_DESCUENTO_SELECT} status precioTotal precioTotalOriginal platos cantidades mesas mozos mozoNombre procesadoPor procesandoPor eliminada fechaEliminacion`;
 
 const POPULATE_COMANDAS_TICKET = {
   path: 'comandas',
@@ -97,7 +97,8 @@ async function listarTicketsParaVerificacion() {
   const tickets = [
     ...ticketsComanda.filter(ticketSigueVigenteParaCierre).map((t) => normalizarTicket(t, t.tipo === 'pago_parcial' ? 'PAGO_PARCIAL' : 'COMANDA')),
     ...ticketsAdelantado.filter(ticketSigueVigenteParaCierre).map((t) => normalizarTicket(t, 'ADELANTADO')),
-  ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+    .flatMap(partirTicketPorMozos);
 
   const total = tickets.length;
   const confirmados = tickets.filter((t) => t.verificado).length;
@@ -155,6 +156,57 @@ function totalesVistaCierre(t, tipo) {
     totalSinDescuento: vista.totalSinDescuento ?? null,
     descuentos: vista.descuentos || [],
   };
+}
+
+function idMozoComanda(c) {
+  const m = c && c.mozos;
+  if (!m) return '';
+  return String(m._id || m);
+}
+
+function nombreMozoComanda(c) {
+  if (!c) return null;
+  if (c.mozoNombre) return c.mozoNombre;
+  if (c.mozos && typeof c.mozos === 'object') return c.mozos.name || c.mozos.nombre || null;
+  return null;
+}
+
+/**
+ * Un ticket de mesa puede juntar comandas de dos mozos. En caja cada parte
+ * cuenta solo el monto de sus comandas; la suma sigue siendo el total del ticket.
+ */
+function partirTicketPorMozos(ticket) {
+  const comandas = (ticket.comandas || []).filter((c) => c && typeof c === 'object' && c._id);
+  const grupos = new Map();
+  for (const c of comandas) {
+    const id = idMozoComanda(c) || '__sin__';
+    if (!grupos.has(id)) grupos.set(id, []);
+    grupos.get(id).push(c);
+  }
+  if (grupos.size <= 1) {
+    const unica = grupos.size === 1 ? [...grupos.values()][0] : null;
+    const nombre = unica && nombreMozoComanda(unica[0]);
+    if (nombre) ticket.nombreMozo = nombre;
+    return [ticket];
+  }
+  return [...grupos.values()].map((rows) => {
+    const total = Number(rows.reduce((s, c) => s + montoComandaNum(c), 0).toFixed(2));
+    const montoDescuento = Number(rows.reduce((s, c) => s + montoDescuentoComandaNum(c), 0).toFixed(2));
+    const numeros = rows
+      .map((c) => c.numeroComandaDia ?? c.comandaNumber)
+      .filter((n) => n != null);
+    return {
+      ...ticket,
+      nombreMozo: nombreMozoComanda(rows[0]) || ticket.nombreMozo,
+      mozo: rows[0].mozos || ticket.mozo,
+      comandas: rows,
+      comandasNumbers: numeros,
+      total,
+      montoDescuento,
+      subtotal: Number((total + montoDescuento).toFixed(2)),
+      totalSinDescuento: Number((total + montoDescuento).toFixed(2)),
+    };
+  });
 }
 
 /** Normaliza un ticket (de cualquier colección) al formato unificado de la UI. */

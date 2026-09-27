@@ -348,8 +348,11 @@ pedidoSchema.statics.obtenerOcrearPedidoAbierto = async function(mesaId, mozoId,
     const Pedido = this;
     
     // Buscar pedido abierto para esta mesa
+    // Cada mozo tiene su propio pedido. Si otro mozo ya atiende la misma mesa,
+    // no se reutiliza ese pedido: sus comandas y su monto quedan aparte.
     let pedido = await Pedido.findOne({
         mesa: mesaId,
+        mozo: mozoId,
         estado: 'abierto',
         isActive: true
     });

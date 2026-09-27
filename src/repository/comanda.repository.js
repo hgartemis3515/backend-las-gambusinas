@@ -1260,6 +1260,7 @@ const agregarComanda = async (data) => {
       if (!pedido) {
         const hermana = await comandaModel.findOne({
           mesas: nuevaComanda.mesas,
+          mozos: nuevaComanda.mozos,
           _id: { $ne: nuevaComanda._id },
           IsActive: { $ne: false },
           status: { $nin: ['pagado', 'completado', 'cancelado', 'anulado'] },

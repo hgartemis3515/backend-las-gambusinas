@@ -100,8 +100,8 @@ router.post('/cierre-caja', adminAuth, checkPermission('ejecutar-cierre-caja'), 
     const productos = await analizarProductos(vendidas);
     const guarniciones = analizarGuarniciones(vendidas);
     
-    // Paso 7: Evaluar desempeño de mozos (mismo total de platos que reportes)
-    const mozos = await analizarMozos(vendidas);
+    // Paso 7: Mozos con la misma base que el total de caja (cada comanda con su mozo).
+    const mozos = await analizarMozos(comandas);
     
     // Paso 8: Analizar uso de mesas
     const mesas = await analizarMesas(comandas);
